@@ -1,0 +1,3909 @@
+{
+  "modelId": "NHL-GOALIE-PROB-HISTORICAL-EXPANSION-v1",
+  "version": "historical-confirmation-v1.0-locked-shrink-25",
+  "generatedAt": "2026-10-06T16:17:08.713Z",
+  "purpose": "Locked historical confirmation of already-selected NHL goalie probability shrink. Not training and not prospective evidence.",
+  "lockedSpecification": {
+    "challengerModelId": "NHL-GOALIE-PROB-SHADOW-v1",
+    "incumbentModelId": "NHL-PRO-v2",
+    "goalieProbabilityScale": 0.25,
+    "scoreProjectionChanged": false,
+    "optimizationAllowed": false,
+    "prospectiveGateChanged": false
+  },
+  "source": {
+    "modelId": "NHL-PRO-v2",
+    "version": "research-v2.0-event-chain-gbdt",
+    "seasons": [
+      "20182019",
+      "20192020",
+      "20202021",
+      "20212022",
+      "20222023"
+    ],
+    "targetSeasons": [
+      "20192020",
+      "20202021",
+      "20212022",
+      "20222023"
+    ],
+    "trainingSeedSeason": "20182019",
+    "pointInTime": true,
+    "marketInformed": false
+  },
+  "population": {
+    "requested": 4574,
+    "usable": 4574,
+    "excluded": 0,
+    "fetchErrors": 0,
+    "bySeason": {
+      "20192020": {
+        "requested": 1082,
+        "usable": 1082
+      },
+      "20202021": {
+        "requested": 868,
+        "usable": 868
+      },
+      "20212022": {
+        "requested": 1312,
+        "usable": 1312
+      },
+      "20222023": {
+        "requested": 1312,
+        "usable": 1312
+      }
+    }
+  },
+  "coverage": {
+    "goalieExpectedState": 0.995846,
+    "timestampVerifiedCurrentGoalieConfirmation": 0,
+    "deploymentCoverage": "NOT_RECONSTRUCTED_CONTEXT_ONLY_NOT_REQUIRED_FOR_LOCKED_GOALIE_CONFIRMATION",
+    "marketCoverage": 0,
+    "marketReason": "Production NHL odds_snapshots begin 2026-09-29; no timestamp-verifiable 2019-23 market archive is available in FBIS.",
+    "temporalIntegrityFailures": 0,
+    "failClosedCurrentGameConfirmation": true
+  },
+  "aggregate": {
+    "incumbent": {
+      "n": 4574,
+      "brier": 0.233971,
+      "logLoss": 0.660366,
+      "accuracy": 0.608658,
+      "ece": 0.028226,
+      "homeGoalsMae": 1.387091,
+      "awayGoalsMae": 1.34529,
+      "totalMae": 1.830114,
+      "marginMae": 2.09432
+    },
+    "shadow": {
+      "n": 4574,
+      "brier": 0.23422,
+      "logLoss": 0.660886,
+      "accuracy": 0.610844,
+      "ece": 0.035699,
+      "homeGoalsMae": 1.387091,
+      "awayGoalsMae": 1.34529,
+      "totalMae": 1.830114,
+      "marginMae": 2.09432
+    },
+    "delta": {
+      "brier": 0.000249,
+      "logLoss": 0.00052,
+      "accuracy": 0.002186,
+      "ece": 0.007473,
+      "homeGoalsMae": 0,
+      "awayGoalsMae": 0,
+      "totalMae": 0,
+      "marginMae": 0
+    },
+    "paired": {
+      "brier": {
+        "mean": 0.00024931,
+        "median": 0.00162761,
+        "se": 0.00025316,
+        "ci95": [
+          -0.00023725,
+          0.00075949
+        ],
+        "improvedShare": 0.458461,
+        "worsenedShare": 0.541539
+      },
+      "logLoss": {
+        "mean": 0.00051931,
+        "median": 0.00340134,
+        "se": 0.00052452,
+        "ci95": [
+          -0.00048216,
+          0.00157932
+        ]
+      },
+      "accuracy": {
+        "mean": 0.00218627,
+        "median": 0,
+        "se": 0.00351191,
+        "ci95": [
+          -0.00502842,
+          0.00896371
+        ]
+      }
+    },
+    "calibration": {
+      "incumbent": {
+        "fit": {
+          "n": 4574,
+          "intercept": -0.018189,
+          "slope": 1.355077
+        },
+        "reliability": [
+          {
+            "bin": "0.2-0.3",
+            "n": 38,
+            "predicted": 0.282331,
+            "actual": 0.263158,
+            "gap": 0.019173
+          },
+          {
+            "bin": "0.3-0.4",
+            "n": 416,
+            "predicted": 0.361612,
+            "actual": 0.348558,
+            "gap": 0.013054
+          },
+          {
+            "bin": "0.4-0.5",
+            "n": 1279,
+            "predicted": 0.456133,
+            "actual": 0.418296,
+            "gap": 0.037838
+          },
+          {
+            "bin": "0.5-0.6",
+            "n": 1793,
+            "predicted": 0.547529,
+            "actual": 0.559955,
+            "gap": -0.012426
+          },
+          {
+            "bin": "0.6-0.7",
+            "n": 892,
+            "predicted": 0.641033,
+            "actual": 0.688341,
+            "gap": -0.047308
+          },
+          {
+            "bin": "0.7-0.8",
+            "n": 156,
+            "predicted": 0.723889,
+            "actual": 0.788462,
+            "gap": -0.064572
+          }
+        ]
+      },
+      "shadow": {
+        "fit": {
+          "n": 4574,
+          "intercept": -0.032812,
+          "slope": 1.47821
+        },
+        "reliability": [
+          {
+            "bin": "0.2-0.3",
+            "n": 21,
+            "predicted": 0.287542,
+            "actual": 0.190476,
+            "gap": 0.097066
+          },
+          {
+            "bin": "0.3-0.4",
+            "n": 355,
+            "predicted": 0.363209,
+            "actual": 0.338028,
+            "gap": 0.02518
+          },
+          {
+            "bin": "0.4-0.5",
+            "n": 1345,
+            "predicted": 0.458229,
+            "actual": 0.412639,
+            "gap": 0.045589
+          },
+          {
+            "bin": "0.5-0.6",
+            "n": 1916,
+            "predicted": 0.548687,
+            "actual": 0.563674,
+            "gap": -0.014987
+          },
+          {
+            "bin": "0.6-0.7",
+            "n": 828,
+            "predicted": 0.641556,
+            "actual": 0.707729,
+            "gap": -0.066174
+          },
+          {
+            "bin": "0.7-0.8",
+            "n": 109,
+            "predicted": 0.720317,
+            "actual": 0.788991,
+            "gap": -0.068674
+          }
+        ]
+      }
+    }
+  },
+  "bySeason": {
+    "20192020": {
+      "n": 1082,
+      "incumbent": {
+        "n": 1082,
+        "brier": 0.242775,
+        "logLoss": 0.678414,
+        "accuracy": 0.567468,
+        "ece": 0.015688,
+        "homeGoalsMae": 1.324095,
+        "awayGoalsMae": 1.345578,
+        "totalMae": 1.806733,
+        "marginMae": 2.062748
+      },
+      "shadow": {
+        "n": 1082,
+        "brier": 0.243279,
+        "logLoss": 0.679434,
+        "accuracy": 0.560074,
+        "ece": 0.014923,
+        "homeGoalsMae": 1.324095,
+        "awayGoalsMae": 1.345578,
+        "totalMae": 1.806733,
+        "marginMae": 2.062748
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00050433,
+          "median": 0.00203451,
+          "se": 0.00059953,
+          "ci95": [
+            -0.00072541,
+            0.00164181
+          ],
+          "improvedShare": 0.457486,
+          "worsenedShare": 0.542514
+        },
+        "logLoss": {
+          "mean": 0.00101943,
+          "median": 0.00408426,
+          "se": 0.00122615,
+          "ci95": [
+            -0.00151399,
+            0.00336452
+          ]
+        },
+        "accuracy": {
+          "mean": -0.00739372,
+          "median": 0,
+          "se": 0.0080577,
+          "ci95": [
+            -0.02310536,
+            0.00831793
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "20202021": {
+      "n": 868,
+      "incumbent": {
+        "n": 868,
+        "brier": 0.233199,
+        "logLoss": 0.658693,
+        "accuracy": 0.612903,
+        "ece": 0.038352,
+        "homeGoalsMae": 1.40512,
+        "awayGoalsMae": 1.288685,
+        "totalMae": 1.809386,
+        "marginMae": 2.055591
+      },
+      "shadow": {
+        "n": 868,
+        "brier": 0.232915,
+        "logLoss": 0.658189,
+        "accuracy": 0.625576,
+        "ece": 0.057425,
+        "homeGoalsMae": 1.40512,
+        "awayGoalsMae": 1.288685,
+        "totalMae": 1.809386,
+        "marginMae": 2.055591
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00028477,
+          "median": 0.00161702,
+          "se": 0.00059357,
+          "ci95": [
+            -0.00149424,
+            0.00085527
+          ],
+          "improvedShare": 0.467742,
+          "worsenedShare": 0.532258
+        },
+        "logLoss": {
+          "mean": -0.00050365,
+          "median": 0.00360084,
+          "se": 0.00122319,
+          "ci95": [
+            -0.00300955,
+            0.00185663
+          ]
+        },
+        "accuracy": {
+          "mean": 0.01267281,
+          "median": 0,
+          "se": 0.00838102,
+          "ci95": [
+            -0.00345622,
+            0.02880184
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "20212022": {
+      "n": 1312,
+      "incumbent": {
+        "n": 1312,
+        "brier": 0.228998,
+        "logLoss": 0.650414,
+        "accuracy": 0.64253,
+        "ece": 0.059534,
+        "homeGoalsMae": 1.417,
+        "awayGoalsMae": 1.352225,
+        "totalMae": 1.868046,
+        "marginMae": 2.129115
+      },
+      "shadow": {
+        "n": 1312,
+        "brier": 0.229599,
+        "logLoss": 0.651602,
+        "accuracy": 0.644817,
+        "ece": 0.064195,
+        "homeGoalsMae": 1.417,
+        "awayGoalsMae": 1.352225,
+        "totalMae": 1.868046,
+        "marginMae": 2.129115
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00060042,
+          "median": 0.00197915,
+          "se": 0.00043223,
+          "ci95": [
+            -0.00028533,
+            0.0014436
+          ],
+          "improvedShare": 0.453506,
+          "worsenedShare": 0.546494
+        },
+        "logLoss": {
+          "mean": 0.00118738,
+          "median": 0.00421004,
+          "se": 0.00090757,
+          "ci95": [
+            -0.0006581,
+            0.00292968
+          ]
+        },
+        "accuracy": {
+          "mean": 0.00228659,
+          "median": 0,
+          "se": 0.00605171,
+          "ci95": [
+            -0.00990854,
+            0.0152439
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "20222023": {
+      "n": 1312,
+      "incumbent": {
+        "n": 1312,
+        "brier": 0.232193,
+        "logLoss": 0.656542,
+        "accuracy": 0.605945,
+        "ece": 0.029709,
+        "homeGoalsMae": 1.397206,
+        "awayGoalsMae": 1.375565,
+        "totalMae": 1.825178,
+        "marginMae": 2.111184
+      },
+      "shadow": {
+        "n": 1312,
+        "brier": 0.232234,
+        "logLoss": 0.656657,
+        "accuracy": 0.608994,
+        "ece": 0.032127,
+        "homeGoalsMae": 1.397206,
+        "awayGoalsMae": 1.375565,
+        "totalMae": 1.825178,
+        "marginMae": 2.111184
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00004123,
+          "median": 0.0011968,
+          "se": 0.00044006,
+          "ci95": [
+            -0.00079281,
+            0.00082879
+          ],
+          "improvedShare": 0.458079,
+          "worsenedShare": 0.541921
+        },
+        "logLoss": {
+          "mean": 0.00011558,
+          "median": 0.00252875,
+          "se": 0.0009186,
+          "ci95": [
+            -0.00164856,
+            0.00177436
+          ]
+        },
+        "accuracy": {
+          "mean": 0.00304878,
+          "median": 0,
+          "se": 0.00619389,
+          "ci95": [
+            -0.00914634,
+            0.0152439
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    }
+  },
+  "byMonth": {
+    "2019-10": {
+      "n": 193,
+      "incumbent": {
+        "n": 193,
+        "brier": 0.24022,
+        "logLoss": 0.673333,
+        "accuracy": 0.569948,
+        "ece": 0.043152,
+        "homeGoalsMae": 1.382492,
+        "awayGoalsMae": 1.326925,
+        "totalMae": 1.806402,
+        "marginMae": 2.135626
+      },
+      "shadow": {
+        "n": 193,
+        "brier": 0.24139,
+        "logLoss": 0.675716,
+        "accuracy": 0.559585,
+        "ece": 0.042926,
+        "homeGoalsMae": 1.382492,
+        "awayGoalsMae": 1.326925,
+        "totalMae": 1.806402,
+        "marginMae": 2.135626
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00117058,
+          "median": 0.00320246,
+          "se": 0.00151946,
+          "ci95": [
+            -0.00175241,
+            0.00407962
+          ],
+          "improvedShare": 0.445596,
+          "worsenedShare": 0.554404
+        },
+        "logLoss": {
+          "mean": 0.00238282,
+          "median": 0.00658248,
+          "se": 0.00309011,
+          "ci95": [
+            -0.00368934,
+            0.0082303
+          ]
+        },
+        "accuracy": {
+          "mean": -0.01036269,
+          "median": 0,
+          "se": 0.02647794,
+          "ci95": [
+            -0.06217617,
+            0.04145078
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2019-11": {
+      "n": 211,
+      "incumbent": {
+        "n": 211,
+        "brier": 0.252068,
+        "logLoss": 0.697272,
+        "accuracy": 0.535545,
+        "ece": 0.034532,
+        "homeGoalsMae": 1.294149,
+        "awayGoalsMae": 1.339961,
+        "totalMae": 1.745819,
+        "marginMae": 2.027517
+      },
+      "shadow": {
+        "n": 211,
+        "brier": 0.252806,
+        "logLoss": 0.69877,
+        "accuracy": 0.507109,
+        "ece": 0.050253,
+        "homeGoalsMae": 1.294149,
+        "awayGoalsMae": 1.339961,
+        "totalMae": 1.745819,
+        "marginMae": 2.027517
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00073766,
+          "median": 0.00022766,
+          "se": 0.00136135,
+          "ci95": [
+            -0.00180395,
+            0.00343405
+          ],
+          "improvedShare": 0.483412,
+          "worsenedShare": 0.516588
+        },
+        "logLoss": {
+          "mean": 0.00149748,
+          "median": 0.00045606,
+          "se": 0.00276641,
+          "ci95": [
+            -0.00366998,
+            0.00695317
+          ]
+        },
+        "accuracy": {
+          "mean": -0.02843602,
+          "median": 0,
+          "se": 0.01489403,
+          "ci95": [
+            -0.05687204,
+            0
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2019-12": {
+      "n": 212,
+      "incumbent": {
+        "n": 212,
+        "brier": 0.238756,
+        "logLoss": 0.670289,
+        "accuracy": 0.603774,
+        "ece": 0.055276,
+        "homeGoalsMae": 1.352491,
+        "awayGoalsMae": 1.368508,
+        "totalMae": 1.756207,
+        "marginMae": 2.127293
+      },
+      "shadow": {
+        "n": 212,
+        "brier": 0.239344,
+        "logLoss": 0.671488,
+        "accuracy": 0.599057,
+        "ece": 0.043633,
+        "homeGoalsMae": 1.352491,
+        "awayGoalsMae": 1.368508,
+        "totalMae": 1.756207,
+        "marginMae": 2.127293
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00058809,
+          "median": 0.00371081,
+          "se": 0.00135489,
+          "ci95": [
+            -0.00216436,
+            0.00319158
+          ],
+          "improvedShare": 0.424528,
+          "worsenedShare": 0.575472
+        },
+        "logLoss": {
+          "mean": 0.00119871,
+          "median": 0.00746937,
+          "se": 0.00278255,
+          "ci95": [
+            -0.00443089,
+            0.0064977
+          ]
+        },
+        "accuracy": {
+          "mean": -0.00471698,
+          "median": 0,
+          "se": 0.01704448,
+          "ci95": [
+            -0.03773585,
+            0.02830189
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2020-01": {
+      "n": 168,
+      "incumbent": {
+        "n": 168,
+        "brier": 0.242104,
+        "logLoss": 0.677031,
+        "accuracy": 0.571429,
+        "ece": 0.023433,
+        "homeGoalsMae": 1.378751,
+        "awayGoalsMae": 1.382972,
+        "totalMae": 1.936548,
+        "marginMae": 2.075027
+      },
+      "shadow": {
+        "n": 168,
+        "brier": 0.24127,
+        "logLoss": 0.675389,
+        "accuracy": 0.595238,
+        "ece": 0.042812,
+        "homeGoalsMae": 1.378751,
+        "awayGoalsMae": 1.382972,
+        "totalMae": 1.936548,
+        "marginMae": 2.075027
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00083379,
+          "median": 0.00144346,
+          "se": 0.00152595,
+          "ci95": [
+            -0.00387738,
+            0.00213183
+          ],
+          "improvedShare": 0.464286,
+          "worsenedShare": 0.535714
+        },
+        "logLoss": {
+          "mean": -0.00164296,
+          "median": 0.00320037,
+          "se": 0.00314358,
+          "ci95": [
+            -0.00781521,
+            0.00437764
+          ]
+        },
+        "accuracy": {
+          "mean": 0.02380952,
+          "median": 0,
+          "se": 0.01878924,
+          "ci95": [
+            -0.01785714,
+            0.06547619
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2020-02": {
+      "n": 217,
+      "incumbent": {
+        "n": 217,
+        "brier": 0.237298,
+        "logLoss": 0.667075,
+        "accuracy": 0.576037,
+        "ece": 0.022837,
+        "homeGoalsMae": 1.235935,
+        "awayGoalsMae": 1.319641,
+        "totalMae": 1.762613,
+        "marginMae": 1.981041
+      },
+      "shadow": {
+        "n": 217,
+        "brier": 0.239318,
+        "logLoss": 0.671136,
+        "accuracy": 0.557604,
+        "ece": 0.034828,
+        "homeGoalsMae": 1.235935,
+        "awayGoalsMae": 1.319641,
+        "totalMae": 1.762613,
+        "marginMae": 1.981041
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00202036,
+          "median": 0.00241032,
+          "se": 0.00126297,
+          "ci95": [
+            -0.00047597,
+            0.00438056
+          ],
+          "improvedShare": 0.442396,
+          "worsenedShare": 0.557604
+        },
+        "logLoss": {
+          "mean": 0.00406078,
+          "median": 0.00490919,
+          "se": 0.00258588,
+          "ci95": [
+            -0.00104533,
+            0.00893357
+          ]
+        },
+        "accuracy": {
+          "mean": -0.01843318,
+          "median": 0,
+          "se": 0.01595128,
+          "ci95": [
+            -0.05069124,
+            0.00921659
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2020-03": {
+      "n": 81,
+      "incumbent": {
+        "n": 81,
+        "brier": 0.251235,
+        "logLoss": 0.695913,
+        "accuracy": 0.518519,
+        "ece": 0.075535,
+        "homeGoalsMae": 1.311454,
+        "awayGoalsMae": 1.336564,
+        "totalMae": 1.947394,
+        "marginMae": 2.005374
+      },
+      "shadow": {
+        "n": 81,
+        "brier": 0.248039,
+        "logLoss": 0.689343,
+        "accuracy": 0.530864,
+        "ece": 0.038403,
+        "homeGoalsMae": 1.311454,
+        "awayGoalsMae": 1.336564,
+        "totalMae": 1.947394,
+        "marginMae": 2.005374
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00319633,
+          "median": -0.00102172,
+          "se": 0.00209779,
+          "ci95": [
+            -0.00732057,
+            0.00055839
+          ],
+          "improvedShare": 0.530864,
+          "worsenedShare": 0.469136
+        },
+        "logLoss": {
+          "mean": -0.00656941,
+          "median": -0.00235497,
+          "se": 0.00430789,
+          "ci95": [
+            -0.01500744,
+            0.00124775
+          ]
+        },
+        "accuracy": {
+          "mean": 0.01234568,
+          "median": 0,
+          "se": 0.02774346,
+          "ci95": [
+            -0.03703704,
+            0.0617284
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2021-01": {
+      "n": 129,
+      "incumbent": {
+        "n": 129,
+        "brier": 0.226506,
+        "logLoss": 0.645411,
+        "accuracy": 0.682171,
+        "ece": 0.126177,
+        "homeGoalsMae": 1.305014,
+        "awayGoalsMae": 1.221264,
+        "totalMae": 1.719289,
+        "marginMae": 1.922737
+      },
+      "shadow": {
+        "n": 129,
+        "brier": 0.227918,
+        "logLoss": 0.648387,
+        "accuracy": 0.689922,
+        "ece": 0.140363,
+        "homeGoalsMae": 1.305014,
+        "awayGoalsMae": 1.221264,
+        "totalMae": 1.719289,
+        "marginMae": 1.922737
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00141255,
+          "median": 0.00336205,
+          "se": 0.00151608,
+          "ci95": [
+            -0.00158899,
+            0.00420187
+          ],
+          "improvedShare": 0.418605,
+          "worsenedShare": 0.581395
+        },
+        "logLoss": {
+          "mean": 0.00297612,
+          "median": 0.00682423,
+          "se": 0.003098,
+          "ci95": [
+            -0.0031892,
+            0.00865836
+          ]
+        },
+        "accuracy": {
+          "mean": 0.00775194,
+          "median": 0,
+          "se": 0.01738794,
+          "ci95": [
+            -0.02325581,
+            0.04651163
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2021-02": {
+      "n": 184,
+      "incumbent": {
+        "n": 184,
+        "brier": 0.245423,
+        "logLoss": 0.683923,
+        "accuracy": 0.548913,
+        "ece": 0.083412,
+        "homeGoalsMae": 1.424326,
+        "awayGoalsMae": 1.264317,
+        "totalMae": 2.055615,
+        "marginMae": 1.962815
+      },
+      "shadow": {
+        "n": 184,
+        "brier": 0.244288,
+        "logLoss": 0.681596,
+        "accuracy": 0.565217,
+        "ece": 0.085423,
+        "homeGoalsMae": 1.424326,
+        "awayGoalsMae": 1.264317,
+        "totalMae": 2.055615,
+        "marginMae": 1.962815
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00113417,
+          "median": 0.00153662,
+          "se": 0.00125986,
+          "ci95": [
+            -0.00341332,
+            0.00121968
+          ],
+          "improvedShare": 0.472826,
+          "worsenedShare": 0.527174
+        },
+        "logLoss": {
+          "mean": -0.00232657,
+          "median": 0.00309273,
+          "se": 0.00258378,
+          "ci95": [
+            -0.00707389,
+            0.00255455
+          ]
+        },
+        "accuracy": {
+          "mean": 0.01630435,
+          "median": 0,
+          "se": 0.01803409,
+          "ci95": [
+            -0.02173913,
+            0.05434783
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2021-03": {
+      "n": 232,
+      "incumbent": {
+        "n": 232,
+        "brier": 0.232582,
+        "logLoss": 0.657615,
+        "accuracy": 0.625,
+        "ece": 0.049858,
+        "homeGoalsMae": 1.397418,
+        "awayGoalsMae": 1.28385,
+        "totalMae": 1.688459,
+        "marginMae": 2.087031
+      },
+      "shadow": {
+        "n": 232,
+        "brier": 0.231438,
+        "logLoss": 0.655365,
+        "accuracy": 0.650862,
+        "ece": 0.072981,
+        "homeGoalsMae": 1.397418,
+        "awayGoalsMae": 1.28385,
+        "totalMae": 1.688459,
+        "marginMae": 2.087031
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00114329,
+          "median": 0.00148455,
+          "se": 0.00117755,
+          "ci95": [
+            -0.00361893,
+            0.0011838
+          ],
+          "improvedShare": 0.474138,
+          "worsenedShare": 0.525862
+        },
+        "logLoss": {
+          "mean": -0.00225013,
+          "median": 0.00311563,
+          "se": 0.00243404,
+          "ci95": [
+            -0.00738476,
+            0.00260035
+          ]
+        },
+        "accuracy": {
+          "mean": 0.02586207,
+          "median": 0,
+          "se": 0.01355358,
+          "ci95": [
+            0,
+            0.05172414
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2021-04": {
+      "n": 223,
+      "incumbent": {
+        "n": 223,
+        "brier": 0.228177,
+        "logLoss": 0.648054,
+        "accuracy": 0.61435,
+        "ece": 0.045895,
+        "homeGoalsMae": 1.44391,
+        "awayGoalsMae": 1.312439,
+        "totalMae": 1.786533,
+        "marginMae": 2.156191
+      },
+      "shadow": {
+        "n": 223,
+        "brier": 0.228872,
+        "logLoss": 0.649665,
+        "accuracy": 0.627803,
+        "ece": 0.055532,
+        "homeGoalsMae": 1.44391,
+        "awayGoalsMae": 1.312439,
+        "totalMae": 1.786533,
+        "marginMae": 2.156191
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00069467,
+          "median": 0.00190222,
+          "se": 0.00119637,
+          "ci95": [
+            -0.00166439,
+            0.00318826
+          ],
+          "improvedShare": 0.457399,
+          "worsenedShare": 0.542601
+        },
+        "logLoss": {
+          "mean": 0.0016105,
+          "median": 0.00393537,
+          "se": 0.00247538,
+          "ci95": [
+            -0.00332382,
+            0.00682676
+          ]
+        },
+        "accuracy": {
+          "mean": 0.01345291,
+          "median": 0,
+          "se": 0.0205761,
+          "ci95": [
+            -0.02690583,
+            0.05381166
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2021-05": {
+      "n": 100,
+      "incumbent": {
+        "n": 100,
+        "brier": 0.231977,
+        "logLoss": 0.65563,
+        "accuracy": 0.61,
+        "ece": 0.074703,
+        "homeGoalsMae": 1.430289,
+        "awayGoalsMae": 1.378742,
+        "totalMae": 1.804067,
+        "marginMae": 2.100397
+      },
+      "shadow": {
+        "n": 100,
+        "brier": 0.230873,
+        "logLoss": 0.653328,
+        "accuracy": 0.59,
+        "ece": 0.077637,
+        "homeGoalsMae": 1.430289,
+        "awayGoalsMae": 1.378742,
+        "totalMae": 1.804067,
+        "marginMae": 2.100397
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00110379,
+          "median": -0.00173573,
+          "se": 0.00167042,
+          "ci95": [
+            -0.00431879,
+            0.00231635
+          ],
+          "improvedShare": 0.53,
+          "worsenedShare": 0.47
+        },
+        "logLoss": {
+          "mean": -0.00230114,
+          "median": -0.00376241,
+          "se": 0.00344718,
+          "ci95": [
+            -0.00892504,
+            0.0047972
+          ]
+        },
+        "accuracy": {
+          "mean": -0.02,
+          "median": 0,
+          "se": 0.0245361,
+          "ci95": [
+            -0.07,
+            0.03
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2021-10": {
+      "n": 130,
+      "incumbent": {
+        "n": 130,
+        "brier": 0.236272,
+        "logLoss": 0.66482,
+        "accuracy": 0.607692,
+        "ece": 0.071907,
+        "homeGoalsMae": 1.471439,
+        "awayGoalsMae": 1.315742,
+        "totalMae": 1.789644,
+        "marginMae": 2.124104
+      },
+      "shadow": {
+        "n": 130,
+        "brier": 0.23543,
+        "logLoss": 0.663317,
+        "accuracy": 0.607692,
+        "ece": 0.067269,
+        "homeGoalsMae": 1.471439,
+        "awayGoalsMae": 1.315742,
+        "totalMae": 1.789644,
+        "marginMae": 2.124104
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00084171,
+          "median": 0.00026731,
+          "se": 0.00173159,
+          "ci95": [
+            -0.00417174,
+            0.00247357
+          ],
+          "improvedShare": 0.5,
+          "worsenedShare": 0.5
+        },
+        "logLoss": {
+          "mean": -0.00150315,
+          "median": 0.00054107,
+          "se": 0.00351745,
+          "ci95": [
+            -0.00834703,
+            0.00515969
+          ]
+        },
+        "accuracy": {
+          "mean": 0,
+          "median": 0,
+          "se": 0.02675002,
+          "ci95": [
+            -0.05384615,
+            0.05384615
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2021-11": {
+      "n": 202,
+      "incumbent": {
+        "n": 202,
+        "brier": 0.234648,
+        "logLoss": 0.662393,
+        "accuracy": 0.633663,
+        "ece": 0.092675,
+        "homeGoalsMae": 1.398044,
+        "awayGoalsMae": 1.368821,
+        "totalMae": 1.823745,
+        "marginMae": 2.144183
+      },
+      "shadow": {
+        "n": 202,
+        "brier": 0.235981,
+        "logLoss": 0.66501,
+        "accuracy": 0.628713,
+        "ece": 0.07465,
+        "homeGoalsMae": 1.398044,
+        "awayGoalsMae": 1.368821,
+        "totalMae": 1.823745,
+        "marginMae": 2.144183
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00133303,
+          "median": 0.00124766,
+          "se": 0.00114563,
+          "ci95": [
+            -0.00097674,
+            0.00354528
+          ],
+          "improvedShare": 0.480198,
+          "worsenedShare": 0.519802
+        },
+        "logLoss": {
+          "mean": 0.00261725,
+          "median": 0.00262184,
+          "se": 0.00236358,
+          "ci95": [
+            -0.00216916,
+            0.00721832
+          ]
+        },
+        "accuracy": {
+          "mean": -0.0049505,
+          "median": 0,
+          "se": 0.01645602,
+          "ci95": [
+            -0.03960396,
+            0.02970297
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2021-12": {
+      "n": 159,
+      "incumbent": {
+        "n": 159,
+        "brier": 0.230118,
+        "logLoss": 0.652458,
+        "accuracy": 0.628931,
+        "ece": 0.054784,
+        "homeGoalsMae": 1.40804,
+        "awayGoalsMae": 1.278335,
+        "totalMae": 1.94218,
+        "marginMae": 1.912786
+      },
+      "shadow": {
+        "n": 159,
+        "brier": 0.232964,
+        "logLoss": 0.658452,
+        "accuracy": 0.628931,
+        "ece": 0.058966,
+        "homeGoalsMae": 1.40804,
+        "awayGoalsMae": 1.278335,
+        "totalMae": 1.94218,
+        "marginMae": 1.912786
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.0028462,
+          "median": 0.00490524,
+          "se": 0.00113143,
+          "ci95": [
+            0.0005659,
+            0.00526104
+          ],
+          "improvedShare": 0.36478,
+          "worsenedShare": 0.63522
+        },
+        "logLoss": {
+          "mean": 0.00599424,
+          "median": 0.00987364,
+          "se": 0.00234351,
+          "ci95": [
+            0.00127987,
+            0.01104897
+          ]
+        },
+        "accuracy": {
+          "mean": 0,
+          "median": 0,
+          "se": 0.01995138,
+          "ci95": [
+            -0.03773585,
+            0.03773585
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2022-01": {
+      "n": 199,
+      "incumbent": {
+        "n": 199,
+        "brier": 0.216828,
+        "logLoss": 0.625004,
+        "accuracy": 0.703518,
+        "ece": 0.116022,
+        "homeGoalsMae": 1.483852,
+        "awayGoalsMae": 1.309493,
+        "totalMae": 1.797053,
+        "marginMae": 2.175549
+      },
+      "shadow": {
+        "n": 199,
+        "brier": 0.218152,
+        "logLoss": 0.627937,
+        "accuracy": 0.693467,
+        "ece": 0.108362,
+        "homeGoalsMae": 1.483852,
+        "awayGoalsMae": 1.309493,
+        "totalMae": 1.797053,
+        "marginMae": 2.175549
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00132465,
+          "median": 0.00225142,
+          "se": 0.00107076,
+          "ci95": [
+            -0.00073784,
+            0.00336218
+          ],
+          "improvedShare": 0.437186,
+          "worsenedShare": 0.562814
+        },
+        "logLoss": {
+          "mean": 0.00293309,
+          "median": 0.005173,
+          "se": 0.00225251,
+          "ci95": [
+            -0.00146914,
+            0.00726559
+          ]
+        },
+        "accuracy": {
+          "mean": -0.01005025,
+          "median": 0,
+          "se": 0.0159149,
+          "ci95": [
+            -0.04020101,
+            0.0201005
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2022-02": {
+      "n": 153,
+      "incumbent": {
+        "n": 153,
+        "brier": 0.234283,
+        "logLoss": 0.661973,
+        "accuracy": 0.607843,
+        "ece": 0.068144,
+        "homeGoalsMae": 1.373278,
+        "awayGoalsMae": 1.436595,
+        "totalMae": 1.898736,
+        "marginMae": 2.224318
+      },
+      "shadow": {
+        "n": 153,
+        "brier": 0.233712,
+        "logLoss": 0.660453,
+        "accuracy": 0.620915,
+        "ece": 0.066969,
+        "homeGoalsMae": 1.373278,
+        "awayGoalsMae": 1.436595,
+        "totalMae": 1.898736,
+        "marginMae": 2.224318
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00057079,
+          "median": 0.00233143,
+          "se": 0.00119959,
+          "ci95": [
+            -0.0030718,
+            0.00170076
+          ],
+          "improvedShare": 0.470588,
+          "worsenedShare": 0.529412
+        },
+        "logLoss": {
+          "mean": -0.00152024,
+          "median": 0.00527862,
+          "se": 0.00260469,
+          "ci95": [
+            -0.00695611,
+            0.00329352
+          ]
+        },
+        "accuracy": {
+          "mean": 0.0130719,
+          "median": 0,
+          "se": 0.00921277,
+          "ci95": [
+            0,
+            0.03267974
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2022-03": {
+      "n": 233,
+      "incumbent": {
+        "n": 233,
+        "brier": 0.231693,
+        "logLoss": 0.656186,
+        "accuracy": 0.618026,
+        "ece": 0.064967,
+        "homeGoalsMae": 1.402016,
+        "awayGoalsMae": 1.384424,
+        "totalMae": 1.932652,
+        "marginMae": 2.142036
+      },
+      "shadow": {
+        "n": 233,
+        "brier": 0.23139,
+        "logLoss": 0.655313,
+        "accuracy": 0.630901,
+        "ece": 0.058074,
+        "homeGoalsMae": 1.402016,
+        "awayGoalsMae": 1.384424,
+        "totalMae": 1.932652,
+        "marginMae": 2.142036
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00030229,
+          "median": 0.00151016,
+          "se": 0.00102127,
+          "ci95": [
+            -0.00236867,
+            0.00166794
+          ],
+          "improvedShare": 0.446352,
+          "worsenedShare": 0.553648
+        },
+        "logLoss": {
+          "mean": -0.00087287,
+          "median": 0.00316861,
+          "se": 0.00218011,
+          "ci95": [
+            -0.00526934,
+            0.00336665
+          ]
+        },
+        "accuracy": {
+          "mean": 0.01287554,
+          "median": 0,
+          "se": 0.01287554,
+          "ci95": [
+            -0.01287554,
+            0.03862661
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2022-04": {
+      "n": 235,
+      "incumbent": {
+        "n": 235,
+        "brier": 0.223728,
+        "logLoss": 0.639384,
+        "accuracy": 0.67234,
+        "ece": 0.082715,
+        "homeGoalsMae": 1.39869,
+        "awayGoalsMae": 1.363148,
+        "totalMae": 1.88015,
+        "marginMae": 2.156883
+      },
+      "shadow": {
+        "n": 235,
+        "brier": 0.224103,
+        "logLoss": 0.640072,
+        "accuracy": 0.676596,
+        "ece": 0.080365,
+        "homeGoalsMae": 1.39869,
+        "awayGoalsMae": 1.363148,
+        "totalMae": 1.88015,
+        "marginMae": 2.156883
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00037462,
+          "median": 0.00115185,
+          "se": 0.00093938,
+          "ci95": [
+            -0.0015117,
+            0.00211281
+          ],
+          "improvedShare": 0.47234,
+          "worsenedShare": 0.52766
+        },
+        "logLoss": {
+          "mean": 0.0006882,
+          "median": 0.00235934,
+          "se": 0.00200251,
+          "ci95": [
+            -0.00341007,
+            0.00435775
+          ]
+        },
+        "accuracy": {
+          "mean": 0.00425532,
+          "median": 0,
+          "se": 0.01279018,
+          "ci95": [
+            -0.0212766,
+            0.02978723
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2022-05": {
+      "n": 1,
+      "incumbent": {
+        "n": 1,
+        "brier": 0.188165,
+        "logLoss": 0.568773,
+        "accuracy": 1,
+        "ece": 0.43378,
+        "homeGoalsMae": 0.7733,
+        "awayGoalsMae": 0.0168,
+        "totalMae": 0.7565,
+        "marginMae": 0.7901
+      },
+      "shadow": {
+        "n": 1,
+        "brier": 0.169644,
+        "logLoss": 0.530823,
+        "accuracy": 1,
+        "ece": 0.411879,
+        "homeGoalsMae": 0.7733,
+        "awayGoalsMae": 0.0168,
+        "totalMae": 0.7565,
+        "marginMae": 0.7901
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.01852068,
+          "median": -0.01852068,
+          "se": 0,
+          "ci95": [
+            -0.01852068,
+            -0.01852068
+          ],
+          "improvedShare": 1,
+          "worsenedShare": 0
+        },
+        "logLoss": {
+          "mean": -0.03794981,
+          "median": -0.03794981,
+          "se": 0,
+          "ci95": [
+            -0.03794981,
+            -0.03794981
+          ]
+        },
+        "accuracy": {
+          "mean": 0,
+          "median": 0,
+          "se": 0,
+          "ci95": [
+            0,
+            0
+          ]
+        }
+      },
+      "status": "SMALL_SAMPLE"
+    },
+    "2022-10": {
+      "n": 145,
+      "incumbent": {
+        "n": 145,
+        "brier": 0.237568,
+        "logLoss": 0.667763,
+        "accuracy": 0.586207,
+        "ece": 0.038829,
+        "homeGoalsMae": 1.322112,
+        "awayGoalsMae": 1.29847,
+        "totalMae": 1.750272,
+        "marginMae": 2.108928
+      },
+      "shadow": {
+        "n": 145,
+        "brier": 0.237883,
+        "logLoss": 0.6684,
+        "accuracy": 0.593103,
+        "ece": 0.056417,
+        "homeGoalsMae": 1.322112,
+        "awayGoalsMae": 1.29847,
+        "totalMae": 1.750272,
+        "marginMae": 2.108928
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00031488,
+          "median": 0.00146963,
+          "se": 0.00147154,
+          "ci95": [
+            -0.00255924,
+            0.00314313
+          ],
+          "improvedShare": 0.462069,
+          "worsenedShare": 0.537931
+        },
+        "logLoss": {
+          "mean": 0.0006365,
+          "median": 0.00311671,
+          "se": 0.00301299,
+          "ci95": [
+            -0.00523818,
+            0.00645561
+          ]
+        },
+        "accuracy": {
+          "mean": 0.00689655,
+          "median": 0,
+          "se": 0.02075341,
+          "ci95": [
+            -0.03448276,
+            0.04827586
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2022-11": {
+      "n": 213,
+      "incumbent": {
+        "n": 213,
+        "brier": 0.237876,
+        "logLoss": 0.668614,
+        "accuracy": 0.58216,
+        "ece": 0.043816,
+        "homeGoalsMae": 1.369134,
+        "awayGoalsMae": 1.37521,
+        "totalMae": 1.884412,
+        "marginMae": 2.042654
+      },
+      "shadow": {
+        "n": 213,
+        "brier": 0.236926,
+        "logLoss": 0.666626,
+        "accuracy": 0.596244,
+        "ece": 0.048909,
+        "homeGoalsMae": 1.369134,
+        "awayGoalsMae": 1.37521,
+        "totalMae": 1.884412,
+        "marginMae": 2.042654
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00094965,
+          "median": 0.00033459,
+          "se": 0.0011451,
+          "ci95": [
+            -0.00320982,
+            0.00135168
+          ],
+          "improvedShare": 0.492958,
+          "worsenedShare": 0.507042
+        },
+        "logLoss": {
+          "mean": -0.0019883,
+          "median": 0.00069285,
+          "se": 0.00238476,
+          "ci95": [
+            -0.00669651,
+            0.00284167
+          ]
+        },
+        "accuracy": {
+          "mean": 0.01408451,
+          "median": 0,
+          "se": 0.01693975,
+          "ci95": [
+            -0.01877934,
+            0.04694836
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2022-12": {
+      "n": 221,
+      "incumbent": {
+        "n": 221,
+        "brier": 0.226242,
+        "logLoss": 0.644367,
+        "accuracy": 0.651584,
+        "ece": 0.089827,
+        "homeGoalsMae": 1.383058,
+        "awayGoalsMae": 1.373895,
+        "totalMae": 1.807441,
+        "marginMae": 2.060141
+      },
+      "shadow": {
+        "n": 221,
+        "brier": 0.228553,
+        "logLoss": 0.64919,
+        "accuracy": 0.633484,
+        "ece": 0.080001,
+        "homeGoalsMae": 1.383058,
+        "awayGoalsMae": 1.373895,
+        "totalMae": 1.807441,
+        "marginMae": 2.060141
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00231139,
+          "median": 0.00206994,
+          "se": 0.00104612,
+          "ci95": [
+            0.00030323,
+            0.00426203
+          ],
+          "improvedShare": 0.41629,
+          "worsenedShare": 0.58371
+        },
+        "logLoss": {
+          "mean": 0.00482249,
+          "median": 0.00417407,
+          "se": 0.00219492,
+          "ci95": [
+            0.00055937,
+            0.00896545
+          ]
+        },
+        "accuracy": {
+          "mean": -0.01809955,
+          "median": 0,
+          "se": 0.01566279,
+          "ci95": [
+            -0.04977376,
+            0.00904977
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2023-01": {
+      "n": 219,
+      "incumbent": {
+        "n": 219,
+        "brier": 0.238573,
+        "logLoss": 0.669821,
+        "accuracy": 0.579909,
+        "ece": 0.039943,
+        "homeGoalsMae": 1.39366,
+        "awayGoalsMae": 1.307386,
+        "totalMae": 1.719531,
+        "marginMae": 2.128484
+      },
+      "shadow": {
+        "n": 219,
+        "brier": 0.236949,
+        "logLoss": 0.666453,
+        "accuracy": 0.611872,
+        "ece": 0.050154,
+        "homeGoalsMae": 1.39366,
+        "awayGoalsMae": 1.307386,
+        "totalMae": 1.719531,
+        "marginMae": 2.128484
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00162439,
+          "median": 0.00071532,
+          "se": 0.00105618,
+          "ci95": [
+            -0.00365705,
+            0.00043523
+          ],
+          "improvedShare": 0.484018,
+          "worsenedShare": 0.515982
+        },
+        "logLoss": {
+          "mean": -0.00336815,
+          "median": 0.00151225,
+          "se": 0.00223064,
+          "ci95": [
+            -0.00770807,
+            0.00096454
+          ]
+        },
+        "accuracy": {
+          "mean": 0.03196347,
+          "median": 0,
+          "se": 0.01502393,
+          "ci95": [
+            0.00456621,
+            0.06392694
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2023-02": {
+      "n": 157,
+      "incumbent": {
+        "n": 157,
+        "brier": 0.245849,
+        "logLoss": 0.685467,
+        "accuracy": 0.56051,
+        "ece": 0.0431,
+        "homeGoalsMae": 1.446059,
+        "awayGoalsMae": 1.45469,
+        "totalMae": 1.827966,
+        "marginMae": 2.241336
+      },
+      "shadow": {
+        "n": 157,
+        "brier": 0.245268,
+        "logLoss": 0.683967,
+        "accuracy": 0.55414,
+        "ece": 0.038005,
+        "homeGoalsMae": 1.446059,
+        "awayGoalsMae": 1.45469,
+        "totalMae": 1.827966,
+        "marginMae": 2.241336
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00058098,
+          "median": 0.00042258,
+          "se": 0.00118533,
+          "ci95": [
+            -0.00279507,
+            0.00165848
+          ],
+          "improvedShare": 0.484076,
+          "worsenedShare": 0.515924
+        },
+        "logLoss": {
+          "mean": -0.00150061,
+          "median": 0.00084544,
+          "se": 0.00248604,
+          "ci95": [
+            -0.00609602,
+            0.00325397
+          ]
+        },
+        "accuracy": {
+          "mean": -0.00636943,
+          "median": 0,
+          "se": 0.01105572,
+          "ci95": [
+            -0.02547771,
+            0.01273885
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2023-03": {
+      "n": 243,
+      "incumbent": {
+        "n": 243,
+        "brier": 0.230197,
+        "logLoss": 0.651618,
+        "accuracy": 0.584362,
+        "ece": 0.059567,
+        "homeGoalsMae": 1.445433,
+        "awayGoalsMae": 1.417612,
+        "totalMae": 1.985252,
+        "marginMae": 2.069235
+      },
+      "shadow": {
+        "n": 243,
+        "brier": 0.230815,
+        "logLoss": 0.653147,
+        "accuracy": 0.584362,
+        "ece": 0.079056,
+        "homeGoalsMae": 1.445433,
+        "awayGoalsMae": 1.417612,
+        "totalMae": 1.985252,
+        "marginMae": 2.069235
+      },
+      "paired": {
+        "brier": {
+          "mean": 0.00061801,
+          "median": 0.00222313,
+          "se": 0.00101109,
+          "ci95": [
+            -0.00136311,
+            0.00258398
+          ],
+          "improvedShare": 0.427984,
+          "worsenedShare": 0.572016
+        },
+        "logLoss": {
+          "mean": 0.00152834,
+          "median": 0.00516076,
+          "se": 0.00210377,
+          "ci95": [
+            -0.00257055,
+            0.0056469
+          ]
+        },
+        "accuracy": {
+          "mean": 0,
+          "median": 0,
+          "se": 0.01542955,
+          "ci95": [
+            -0.02880658,
+            0.03292181
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    },
+    "2023-04": {
+      "n": 114,
+      "incumbent": {
+        "n": 114,
+        "brier": 0.199466,
+        "logLoss": 0.588461,
+        "accuracy": 0.745614,
+        "ece": 0.139757,
+        "homeGoalsMae": 1.409335,
+        "awayGoalsMae": 1.409905,
+        "totalMae": 1.70207,
+        "marginMae": 2.217993
+      },
+      "shadow": {
+        "n": 114,
+        "brier": 0.199437,
+        "logLoss": 0.588627,
+        "accuracy": 0.72807,
+        "ece": 0.1291,
+        "homeGoalsMae": 1.409335,
+        "awayGoalsMae": 1.409905,
+        "totalMae": 1.70207,
+        "marginMae": 2.217993
+      },
+      "paired": {
+        "brier": {
+          "mean": -0.00002923,
+          "median": 0.00114437,
+          "se": 0.00140873,
+          "ci95": [
+            -0.00293758,
+            0.00266181
+          ],
+          "improvedShare": 0.447368,
+          "worsenedShare": 0.552632
+        },
+        "logLoss": {
+          "mean": 0.0001659,
+          "median": 0.00261298,
+          "se": 0.00295138,
+          "ci95": [
+            -0.00584623,
+            0.00586016
+          ]
+        },
+        "accuracy": {
+          "mean": -0.01754386,
+          "median": 0,
+          "se": 0.01754386,
+          "ci95": [
+            -0.05263158,
+            0.01754386
+          ]
+        }
+      },
+      "status": "REPORTABLE"
+    }
+  },
+  "regimes": {
+    "goalieUsage": {
+      "EXPECTED_STARTER_ONLY": {
+        "n": 1494,
+        "incumbent": {
+          "n": 1494,
+          "brier": 0.233136,
+          "logLoss": 0.658691,
+          "accuracy": 0.609772,
+          "ece": 0.034693,
+          "homeGoalsMae": 1.382743,
+          "awayGoalsMae": 1.324003,
+          "totalMae": 1.813029,
+          "marginMae": 2.076564
+        },
+        "shadow": {
+          "n": 1494,
+          "brier": 0.233118,
+          "logLoss": 0.658627,
+          "accuracy": 0.61245,
+          "ece": 0.042184,
+          "homeGoalsMae": 1.382743,
+          "awayGoalsMae": 1.324003,
+          "totalMae": 1.813029,
+          "marginMae": 2.076564
+        },
+        "paired": {
+          "brier": {
+            "mean": -0.00001879,
+            "median": 0.00132895,
+            "se": 0.00044302,
+            "ci95": [
+              -0.00088231,
+              0.00082596
+            ],
+            "improvedShare": 0.466533,
+            "worsenedShare": 0.533467
+          },
+          "logLoss": {
+            "mean": -0.00006452,
+            "median": 0.00282967,
+            "se": 0.00091758,
+            "ci95": [
+              -0.00181584,
+              0.00165856
+            ]
+          },
+          "accuracy": {
+            "mean": 0.00267738,
+            "median": 0,
+            "se": 0.00628072,
+            "ci95": [
+              -0.00870147,
+              0.01606426
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      },
+      "EXPECTED_STATE_INCOMPLETE": {
+        "n": 19,
+        "incumbent": {
+          "n": 19,
+          "brier": 0.244161,
+          "logLoss": 0.681014,
+          "accuracy": 0.526316,
+          "ece": 0.077894,
+          "homeGoalsMae": 1.375568,
+          "awayGoalsMae": 0.885095,
+          "totalMae": 1.848895,
+          "marginMae": 1.604158
+        },
+        "shadow": {
+          "n": 19,
+          "brier": 0.243943,
+          "logLoss": 0.680545,
+          "accuracy": 0.578947,
+          "ece": 0.082509,
+          "homeGoalsMae": 1.375568,
+          "awayGoalsMae": 0.885095,
+          "totalMae": 1.848895,
+          "marginMae": 1.604158
+        },
+        "paired": {
+          "brier": {
+            "mean": -0.00021861,
+            "median": 0.00530003,
+            "se": 0.00402255,
+            "ci95": [
+              -0.00778859,
+              0.00757726
+            ],
+            "improvedShare": 0.421053,
+            "worsenedShare": 0.578947
+          },
+          "logLoss": {
+            "mean": -0.00046877,
+            "median": 0.01065273,
+            "se": 0.00831394,
+            "ci95": [
+              -0.01621655,
+              0.01591781
+            ]
+          },
+          "accuracy": {
+            "mean": 0.05263158,
+            "median": 0,
+            "se": 0.05263158,
+            "ci95": [
+              0,
+              0.15789474
+            ]
+          }
+        },
+        "status": "SMALL_SAMPLE"
+      },
+      "LATE_OR_UNEXPECTED_STARTER_CHANGE": {
+        "n": 3061,
+        "incumbent": {
+          "n": 3061,
+          "brier": 0.234315,
+          "logLoss": 0.661056,
+          "accuracy": 0.608625,
+          "ece": 0.02581,
+          "homeGoalsMae": 1.389284,
+          "awayGoalsMae": 1.358535,
+          "totalMae": 1.838337,
+          "marginMae": 2.106028
+        },
+        "shadow": {
+          "n": 3061,
+          "brier": 0.234698,
+          "logLoss": 0.661866,
+          "accuracy": 0.610258,
+          "ece": 0.032725,
+          "homeGoalsMae": 1.389284,
+          "awayGoalsMae": 1.358535,
+          "totalMae": 1.838337,
+          "marginMae": 2.106028
+        },
+        "paired": {
+          "brier": {
+            "mean": 0.00038307,
+            "median": 0.00181278,
+            "se": 0.00030947,
+            "ci95": [
+              -0.00025023,
+              0.00097126
+            ],
+            "improvedShare": 0.454753,
+            "worsenedShare": 0.545247
+          },
+          "logLoss": {
+            "mean": 0.0008104,
+            "median": 0.00383251,
+            "se": 0.0006413,
+            "ci95": [
+              -0.00048641,
+              0.00202371
+            ]
+          },
+          "accuracy": {
+            "mean": 0.00163345,
+            "median": 0,
+            "se": 0.00424757,
+            "ci95": [
+              -0.00653381,
+              0.00980072
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      }
+    },
+    "gateAnalog": {
+      "SIGNAL_GE_003": {
+        "n": 4442,
+        "incumbent": {
+          "n": 4442,
+          "brier": 0.233938,
+          "logLoss": 0.660295,
+          "accuracy": 0.608285,
+          "ece": 0.027514,
+          "homeGoalsMae": 1.385503,
+          "awayGoalsMae": 1.340964,
+          "totalMae": 1.829888,
+          "marginMae": 2.087984
+        },
+        "shadow": {
+          "n": 4442,
+          "brier": 0.234195,
+          "logLoss": 0.66083,
+          "accuracy": 0.610761,
+          "ece": 0.035427,
+          "homeGoalsMae": 1.385503,
+          "awayGoalsMae": 1.340964,
+          "totalMae": 1.829888,
+          "marginMae": 2.087984
+        },
+        "paired": {
+          "brier": {
+            "mean": 0.00025676,
+            "median": 0.00200359,
+            "se": 0.00026061,
+            "ci95": [
+              -0.00029147,
+              0.00073928
+            ],
+            "improvedShare": 0.456776,
+            "worsenedShare": 0.543224
+          },
+          "logLoss": {
+            "mean": 0.00053478,
+            "median": 0.00418307,
+            "se": 0.00053996,
+            "ci95": [
+              -0.00059179,
+              0.00154159
+            ]
+          },
+          "accuracy": {
+            "mean": 0.00247636,
+            "median": 0,
+            "se": 0.00359515,
+            "ci95": [
+              -0.00427735,
+              0.00968032
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      },
+      "SIGNAL_LT_003": {
+        "n": 132,
+        "incumbent": {
+          "n": 132,
+          "brier": 0.235068,
+          "logLoss": 0.662759,
+          "accuracy": 0.621212,
+          "ece": 0.106204,
+          "homeGoalsMae": 1.440507,
+          "awayGoalsMae": 1.490845,
+          "totalMae": 1.837745,
+          "marginMae": 2.307514
+        },
+        "shadow": {
+          "n": 132,
+          "brier": 0.235066,
+          "logLoss": 0.662758,
+          "accuracy": 0.613636,
+          "ece": 0.106167,
+          "homeGoalsMae": 1.440507,
+          "awayGoalsMae": 1.490845,
+          "totalMae": 1.837745,
+          "marginMae": 2.307514
+        },
+        "paired": {
+          "brier": {
+            "mean": -0.00000137,
+            "median": -0.00003412,
+            "se": 0.00020663,
+            "ci95": [
+              -0.00041026,
+              0.00038132
+            ],
+            "improvedShare": 0.515152,
+            "worsenedShare": 0.484848
+          },
+          "logLoss": {
+            "mean": -0.0000011,
+            "median": -0.00006903,
+            "se": 0.00042225,
+            "ci95": [
+              -0.00083582,
+              0.00078559
+            ]
+          },
+          "accuracy": {
+            "mean": -0.00757576,
+            "median": 0,
+            "se": 0.01315494,
+            "ci95": [
+              -0.03787879,
+              0.01515152
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      }
+    },
+    "goalieBackToBack": {
+      "ANY_GOALIE_B2B": {
+        "n": 3237,
+        "incumbent": {
+          "n": 3237,
+          "brier": 0.234891,
+          "logLoss": 0.662325,
+          "accuracy": 0.606117,
+          "ece": 0.024399,
+          "homeGoalsMae": 1.397831,
+          "awayGoalsMae": 1.328045,
+          "totalMae": 1.836472,
+          "marginMae": 2.083233
+        },
+        "shadow": {
+          "n": 3237,
+          "brier": 0.23506,
+          "logLoss": 0.662651,
+          "accuracy": 0.610133,
+          "ece": 0.033653,
+          "homeGoalsMae": 1.397831,
+          "awayGoalsMae": 1.328045,
+          "totalMae": 1.836472,
+          "marginMae": 2.083233
+        },
+        "paired": {
+          "brier": {
+            "mean": 0.00016887,
+            "median": 0.00160767,
+            "se": 0.00030037,
+            "ci95": [
+              -0.00040758,
+              0.00080841
+            ],
+            "improvedShare": 0.456905,
+            "worsenedShare": 0.543095
+          },
+          "logLoss": {
+            "mean": 0.00032681,
+            "median": 0.00330323,
+            "se": 0.00062372,
+            "ci95": [
+              -0.00088182,
+              0.00159617
+            ]
+          },
+          "accuracy": {
+            "mean": 0.00401606,
+            "median": 0,
+            "se": 0.00396824,
+            "ci95": [
+              -0.00401606,
+              0.01173926
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      },
+      "NO_EXPECTED_GOALIE_B2B": {
+        "n": 1337,
+        "incumbent": {
+          "n": 1337,
+          "brier": 0.231742,
+          "logLoss": 0.655626,
+          "accuracy": 0.614809,
+          "ece": 0.037491,
+          "homeGoalsMae": 1.361087,
+          "awayGoalsMae": 1.38704,
+          "totalMae": 1.814723,
+          "marginMae": 2.121162
+        },
+        "shadow": {
+          "n": 1337,
+          "brier": 0.232186,
+          "logLoss": 0.656611,
+          "accuracy": 0.612565,
+          "ece": 0.040653,
+          "homeGoalsMae": 1.361087,
+          "awayGoalsMae": 1.38704,
+          "totalMae": 1.814723,
+          "marginMae": 2.121162
+        },
+        "paired": {
+          "brier": {
+            "mean": 0.00044406,
+            "median": 0.001777,
+            "se": 0.00047048,
+            "ci95": [
+              -0.0004506,
+              0.00138129
+            ],
+            "improvedShare": 0.462229,
+            "worsenedShare": 0.537771
+          },
+          "logLoss": {
+            "mean": 0.00098537,
+            "median": 0.00364004,
+            "se": 0.00096958,
+            "ci95": [
+              -0.00085742,
+              0.00291963
+            ]
+          },
+          "accuracy": {
+            "mean": -0.00224383,
+            "median": 0,
+            "se": 0.00721534,
+            "ci95": [
+              -0.01720269,
+              0.01196709
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      }
+    },
+    "favorite": {
+      "HOME_FAVORITE": {
+        "n": 2841,
+        "incumbent": {
+          "n": 2841,
+          "brier": 0.231419,
+          "logLoss": 0.654985,
+          "accuracy": 0.612812,
+          "ece": 0.026241,
+          "homeGoalsMae": 1.400808,
+          "awayGoalsMae": 1.320684,
+          "totalMae": 1.804978,
+          "marginMae": 2.097203
+        },
+        "shadow": {
+          "n": 2841,
+          "brier": 0.231575,
+          "logLoss": 0.655361,
+          "accuracy": 0.61598,
+          "ece": 0.033481,
+          "homeGoalsMae": 1.400808,
+          "awayGoalsMae": 1.320684,
+          "totalMae": 1.804978,
+          "marginMae": 2.097203
+        },
+        "paired": {
+          "brier": {
+            "mean": 0.00015601,
+            "median": 0.00129675,
+            "se": 0.00030964,
+            "ci95": [
+              -0.00042021,
+              0.00078517
+            ],
+            "improvedShare": 0.463569,
+            "worsenedShare": 0.536431
+          },
+          "logLoss": {
+            "mean": 0.00037649,
+            "median": 0.00279331,
+            "se": 0.00064434,
+            "ci95": [
+              -0.00080027,
+              0.00166239
+            ]
+          },
+          "accuracy": {
+            "mean": 0.0031679,
+            "median": 0,
+            "se": 0.00390398,
+            "ci95": [
+              -0.00492784,
+              0.01020767
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      },
+      "HOME_UNDERDOG": {
+        "n": 1733,
+        "incumbent": {
+          "n": 1733,
+          "brier": 0.238154,
+          "logLoss": 0.669189,
+          "accuracy": 0.601847,
+          "ece": 0.031479,
+          "homeGoalsMae": 1.364604,
+          "awayGoalsMae": 1.385626,
+          "totalMae": 1.871321,
+          "marginMae": 2.089593
+        },
+        "shadow": {
+          "n": 1733,
+          "brier": 0.238557,
+          "logLoss": 0.669942,
+          "accuracy": 0.602424,
+          "ece": 0.04053,
+          "homeGoalsMae": 1.364604,
+          "awayGoalsMae": 1.385626,
+          "totalMae": 1.871321,
+          "marginMae": 2.089593
+        },
+        "paired": {
+          "brier": {
+            "mean": 0.00040226,
+            "median": 0.00236953,
+            "se": 0.00043459,
+            "ci95": [
+              -0.00044607,
+              0.0012703
+            ],
+            "improvedShare": 0.450087,
+            "worsenedShare": 0.549913
+          },
+          "logLoss": {
+            "mean": 0.00075345,
+            "median": 0.00488177,
+            "se": 0.00089506,
+            "ci95": [
+              -0.00103014,
+              0.0025334
+            ]
+          },
+          "accuracy": {
+            "mean": 0.00057703,
+            "median": 0,
+            "se": 0.00670645,
+            "ci95": [
+              -0.01269475,
+              0.01327178
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      }
+    },
+    "probabilityBand": {
+      "HOME_<_45": {
+        "n": 960,
+        "incumbent": {
+          "n": 960,
+          "brier": 0.230978,
+          "logLoss": 0.654628,
+          "accuracy": 0.642708,
+          "ece": 0.035575,
+          "homeGoalsMae": 1.35805,
+          "awayGoalsMae": 1.386344,
+          "totalMae": 1.879799,
+          "marginMae": 2.037539
+        },
+        "shadow": {
+          "n": 960,
+          "brier": 0.230694,
+          "logLoss": 0.653961,
+          "accuracy": 0.641667,
+          "ece": 0.04729,
+          "homeGoalsMae": 1.35805,
+          "awayGoalsMae": 1.386344,
+          "totalMae": 1.879799,
+          "marginMae": 2.037539
+        },
+        "paired": {
+          "brier": {
+            "mean": -0.00028428,
+            "median": 0.00221072,
+            "se": 0.00059742,
+            "ci95": [
+              -0.00148048,
+              0.00090327
+            ],
+            "improvedShare": 0.448958,
+            "worsenedShare": 0.551042
+          },
+          "logLoss": {
+            "mean": -0.00066714,
+            "median": 0.00464601,
+            "se": 0.00125329,
+            "ci95": [
+              -0.0031988,
+              0.00181359
+            ]
+          },
+          "accuracy": {
+            "mean": -0.00104167,
+            "median": 0,
+            "se": 0.00104167,
+            "ci95": [
+              -0.003125,
+              0
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      },
+      "HOME_45_49": {
+        "n": 773,
+        "incumbent": {
+          "n": 773,
+          "brier": 0.247067,
+          "logLoss": 0.687272,
+          "accuracy": 0.5511,
+          "ece": 0.026393,
+          "homeGoalsMae": 1.372742,
+          "awayGoalsMae": 1.384735,
+          "totalMae": 1.860792,
+          "marginMae": 2.154239
+        },
+        "shadow": {
+          "n": 773,
+          "brier": 0.248322,
+          "logLoss": 0.68979,
+          "accuracy": 0.553687,
+          "ece": 0.032134,
+          "homeGoalsMae": 1.372742,
+          "awayGoalsMae": 1.384735,
+          "totalMae": 1.860792,
+          "marginMae": 2.154239
+        },
+        "paired": {
+          "brier": {
+            "mean": 0.00125489,
+            "median": 0.00253076,
+            "se": 0.0006306,
+            "ci95": [
+              -0.00002039,
+              0.00244586
+            ],
+            "improvedShare": 0.451488,
+            "worsenedShare": 0.548512
+          },
+          "logLoss": {
+            "mean": 0.0025177,
+            "median": 0.0050969,
+            "se": 0.00126452,
+            "ci95": [
+              -0.00003853,
+              0.00491062
+            ]
+          },
+          "accuracy": {
+            "mean": 0.00258732,
+            "median": 0,
+            "se": 0.01498462,
+            "ci95": [
+              -0.02846054,
+              0.03104787
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      },
+      "HOME_50_54": {
+        "n": 982,
+        "incumbent": {
+          "n": 982,
+          "brier": 0.248367,
+          "logLoss": 0.689873,
+          "accuracy": 0.526477,
+          "ece": 0.001377,
+          "homeGoalsMae": 1.363482,
+          "awayGoalsMae": 1.363055,
+          "totalMae": 1.782872,
+          "marginMae": 2.169753
+        },
+        "shadow": {
+          "n": 982,
+          "brier": 0.248314,
+          "logLoss": 0.689774,
+          "accuracy": 0.535642,
+          "ece": 0.007503,
+          "homeGoalsMae": 1.363482,
+          "awayGoalsMae": 1.363055,
+          "totalMae": 1.782872,
+          "marginMae": 2.169753
+        },
+        "paired": {
+          "brier": {
+            "mean": -0.00005344,
+            "median": -0.00035713,
+            "se": 0.00055397,
+            "ci95": [
+              -0.00115506,
+              0.00096514
+            ],
+            "improvedShare": 0.50611,
+            "worsenedShare": 0.49389
+          },
+          "logLoss": {
+            "mean": -0.00009954,
+            "median": -0.00071607,
+            "se": 0.0011129,
+            "ci95": [
+              -0.00230489,
+              0.00194999
+            ]
+          },
+          "accuracy": {
+            "mean": 0.00916497,
+            "median": 0,
+            "se": 0.01129579,
+            "ci95": [
+              -0.01323829,
+              0.0305499
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      },
+      "HOME_55_59": {
+        "n": 811,
+        "incumbent": {
+          "n": 811,
+          "brier": 0.240339,
+          "logLoss": 0.673709,
+          "accuracy": 0.600493,
+          "ece": 0.025805,
+          "homeGoalsMae": 1.389098,
+          "awayGoalsMae": 1.290134,
+          "totalMae": 1.744438,
+          "marginMae": 2.143998
+        },
+        "shadow": {
+          "n": 811,
+          "brier": 0.239888,
+          "logLoss": 0.672781,
+          "accuracy": 0.600493,
+          "ece": 0.030192,
+          "homeGoalsMae": 1.389098,
+          "awayGoalsMae": 1.290134,
+          "totalMae": 1.744438,
+          "marginMae": 2.143998
+        },
+        "paired": {
+          "brier": {
+            "mean": -0.0004516,
+            "median": -0.00026003,
+            "se": 0.00055964,
+            "ci95": [
+              -0.00157409,
+              0.00060872
+            ],
+            "improvedShare": 0.511714,
+            "worsenedShare": 0.488286
+          },
+          "logLoss": {
+            "mean": -0.00092828,
+            "median": -0.00053728,
+            "se": 0.00114213,
+            "ci95": [
+              -0.00322251,
+              0.00124456
+            ]
+          },
+          "accuracy": {
+            "mean": 0,
+            "median": 0,
+            "se": 0,
+            "ci95": [
+              0,
+              0
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      },
+      "HOME_60_64": {
+        "n": 566,
+        "incumbent": {
+          "n": 566,
+          "brier": 0.226402,
+          "logLoss": 0.645254,
+          "accuracy": 0.657244,
+          "ece": 0.0349,
+          "homeGoalsMae": 1.418506,
+          "awayGoalsMae": 1.337283,
+          "totalMae": 1.893049,
+          "marginMae": 2.047268
+        },
+        "shadow": {
+          "n": 566,
+          "brier": 0.226665,
+          "logLoss": 0.645791,
+          "accuracy": 0.657244,
+          "ece": 0.044424,
+          "homeGoalsMae": 1.418506,
+          "awayGoalsMae": 1.337283,
+          "totalMae": 1.893049,
+          "marginMae": 2.047268
+        },
+        "paired": {
+          "brier": {
+            "mean": 0.00026285,
+            "median": 0.00162761,
+            "se": 0.0007178,
+            "ci95": [
+              -0.00122269,
+              0.00163359
+            ],
+            "improvedShare": 0.443463,
+            "worsenedShare": 0.556537
+          },
+          "logLoss": {
+            "mean": 0.00053659,
+            "median": 0.00349877,
+            "se": 0.00150885,
+            "ci95": [
+              -0.00259519,
+              0.003421
+            ]
+          },
+          "accuracy": {
+            "mean": 0,
+            "median": 0,
+            "se": 0,
+            "ci95": [
+              0,
+              0
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      },
+      "HOME_65_PLUS": {
+        "n": 482,
+        "incumbent": {
+          "n": 482,
+          "brier": 0.187771,
+          "logLoss": 0.563827,
+          "accuracy": 0.757261,
+          "ece": 0.067466,
+          "homeGoalsMae": 1.475773,
+          "awayGoalsMae": 1.266271,
+          "totalMae": 1.848462,
+          "marginMae": 1.929297
+        },
+        "shadow": {
+          "n": 482,
+          "brier": 0.18925,
+          "logLoss": 0.56718,
+          "accuracy": 0.757261,
+          "ece": 0.079094,
+          "homeGoalsMae": 1.475773,
+          "awayGoalsMae": 1.266271,
+          "totalMae": 1.848462,
+          "marginMae": 1.929297
+        },
+        "paired": {
+          "brier": {
+            "mean": 0.00147961,
+            "median": 0.00560853,
+            "se": 0.00067685,
+            "ci95": [
+              0.00008382,
+              0.0027927
+            ],
+            "improvedShare": 0.319502,
+            "worsenedShare": 0.680498
+          },
+          "logLoss": {
+            "mean": 0.00335369,
+            "median": 0.01336658,
+            "se": 0.00156221,
+            "ci95": [
+              0.00018758,
+              0.00636522
+            ]
+          },
+          "accuracy": {
+            "mean": 0,
+            "median": 0,
+            "se": 0,
+            "ci95": [
+              0,
+              0
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      }
+    },
+    "seasonPhase": {
+      "EARLY_SEASON": {
+        "n": 3982,
+        "incumbent": {
+          "n": 3982,
+          "brier": 0.234299,
+          "logLoss": 0.661042,
+          "accuracy": 0.605726,
+          "ece": 0.025091,
+          "homeGoalsMae": 1.38832,
+          "awayGoalsMae": 1.345139,
+          "totalMae": 1.830833,
+          "marginMae": 2.10171
+        },
+        "shadow": {
+          "n": 3982,
+          "brier": 0.234312,
+          "logLoss": 0.661068,
+          "accuracy": 0.609493,
+          "ece": 0.034114,
+          "homeGoalsMae": 1.38832,
+          "awayGoalsMae": 1.345139,
+          "totalMae": 1.830833,
+          "marginMae": 2.10171
+        },
+        "paired": {
+          "brier": {
+            "mean": 0.00001313,
+            "median": 0.00132895,
+            "se": 0.00027176,
+            "ci95": [
+              -0.00046941,
+              0.00056193
+            ],
+            "improvedShare": 0.466349,
+            "worsenedShare": 0.533651
+          },
+          "logLoss": {
+            "mean": 0.00002571,
+            "median": 0.0028086,
+            "se": 0.00056308,
+            "ci95": [
+              -0.0009773,
+              0.0011738
+            ]
+          },
+          "accuracy": {
+            "mean": 0.00376695,
+            "median": 0,
+            "se": 0.00375017,
+            "ci95": [
+              -0.00401808,
+              0.01079859
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      },
+      "LATE_SEASON": {
+        "n": 592,
+        "incumbent": {
+          "n": 592,
+          "brier": 0.231764,
+          "logLoss": 0.655823,
+          "accuracy": 0.628378,
+          "ece": 0.051896,
+          "homeGoalsMae": 1.378821,
+          "awayGoalsMae": 1.3463,
+          "totalMae": 1.825282,
+          "marginMae": 2.044612
+        },
+        "shadow": {
+          "n": 592,
+          "brier": 0.233602,
+          "logLoss": 0.659662,
+          "accuracy": 0.619932,
+          "ece": 0.047845,
+          "homeGoalsMae": 1.378821,
+          "awayGoalsMae": 1.3463,
+          "totalMae": 1.825282,
+          "marginMae": 2.044612
+        },
+        "paired": {
+          "brier": {
+            "mean": 0.0018379,
+            "median": 0.00325162,
+            "se": 0.000693,
+            "ci95": [
+              0.00050232,
+              0.00323339
+            ],
+            "improvedShare": 0.405405,
+            "worsenedShare": 0.594595
+          },
+          "logLoss": {
+            "mean": 0.00383949,
+            "median": 0.00669018,
+            "se": 0.00143551,
+            "ci95": [
+              0.00112762,
+              0.00670476
+            ]
+          },
+          "accuracy": {
+            "mean": -0.00844595,
+            "median": 0,
+            "se": 0.00999579,
+            "ci95": [
+              -0.02702703,
+              0.01013514
+            ]
+          }
+        },
+        "status": "REPORTABLE"
+      }
+    }
+  },
+  "unsupportedRegimes": {
+    "bothConfirmed": {
+      "n": 0,
+      "reason": "No timestamp-verifiable historical same-game goalie confirmation archive."
+    },
+    "starterQualityDelta": {
+      "n": 0,
+      "reason": "Expected-starter-specific historical quality was not timestamp-verifiable from the locked replay inputs."
+    },
+    "marketRelative": {
+      "n": 0,
+      "reason": "No timestamp-verifiable 2019-23 market archive in production FBIS."
+    }
+  },
+  "power": {
+    "observedBrierDeltaMean": 0.00024931,
+    "observedLogLossDeltaMean": 0.00051931,
+    "requiredNForBrierApprox80PctPower": 36976,
+    "requiredNForLogLossApprox80PctPower": 36583,
+    "frozenProspectiveMinimum": 100,
+    "note": "Planning diagnostic only. Does not alter NHL-GOALIE-PROB-PROSPECTIVE-GATE-v1."
+  },
+  "evidenceHierarchy": {
+    "originalGoalieSelection": {
+      "source": "NHL-PERSISTENT-STATE-CHALLENGER-v1",
+      "sampleGames": 2624,
+      "brierDelta": -0.00016,
+      "logLossDelta": -0.00032,
+      "accuracyDelta": 0.0019
+    },
+    "historicalExpansion": {
+      "sampleGames": 4574,
+      "seasons": [
+        "20192020",
+        "20202021",
+        "20212022",
+        "20222023"
+      ],
+      "brierDelta": 0.000249,
+      "logLossDelta": 0.00052,
+      "accuracyDelta": 0.002186
+    },
+    "prospective": {
+      "keptSeparate": true,
+      "countsNotCombined": true
+    }
+  },
+  "conclusion": "FAILS historical confirmation",
+  "governance": {
+    "productionChampion": "NHL-PRO-v2",
+    "productionChampionChanged": false,
+    "challenger": "NHL-GOALIE-PROB-SHADOW-v1",
+    "prospectiveGate": "NHL-GOALIE-PROB-PROSPECTIVE-GATE-v1",
+    "prospectiveGateChanged": false,
+    "canQualify": false,
+    "canAuthorizeWager": false,
+    "stakingAuthorized": false,
+    "automaticPromotion": false,
+    "operatorApprovalRequired": true,
+    "contextOnlyFamilies": [
+      "deployment",
+      "linemate",
+      "replacement",
+      "combined"
+    ]
+  },
+  "integrity": {
+    "pointInTime": true,
+    "noMarketInputs": true,
+    "priorCompletedGamesOnly": true,
+    "actualStarterUsedOnlyAfterPregameState": true,
+    "scoreProjectionInvariant": true,
+    "fetchErrors": []
+  },
+  "sampleRows": [
+    {
+      "id": "2019020001",
+      "season": "20192020",
+      "date": "2019-10-02",
+      "home": "TOR",
+      "away": "OTT",
+      "actualHomeGoals": 5,
+      "actualAwayGoals": 3,
+      "projHome": 3.9531,
+      "projAway": 2.9605,
+      "incumbentP": 0.66953,
+      "shadowP": 0.66132071,
+      "probabilityDelta": -0.00820929,
+      "goalieSignal": 0.146999,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8475883",
+      "awayActualStarterId": "8467950",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020002",
+      "season": "20192020",
+      "date": "2019-10-03",
+      "home": "STL",
+      "away": "WSH",
+      "actualHomeGoals": 2,
+      "actualAwayGoals": 3,
+      "projHome": 3.2012,
+      "projAway": 3.0285,
+      "incumbentP": 0.53696,
+      "shadowP": 0.54077602,
+      "probabilityDelta": 0.00381602,
+      "goalieSignal": 0.026073,
+      "gateAnalog": false,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8476412",
+      "awayActualStarterId": "8474651",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020003",
+      "season": "20192020",
+      "date": "2019-10-03",
+      "home": "EDM",
+      "away": "VAN",
+      "actualHomeGoals": 3,
+      "actualAwayGoals": 2,
+      "projHome": 3.0624,
+      "projAway": 3.1573,
+      "incumbentP": 0.48909,
+      "shadowP": 0.51495653,
+      "probabilityDelta": 0.02586653,
+      "goalieSignal": 0.20629,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8469608",
+      "awayActualStarterId": "8474593",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020004",
+      "season": "20192020",
+      "date": "2019-10-03",
+      "home": "VGK",
+      "away": "SJS",
+      "actualHomeGoals": 4,
+      "actualAwayGoals": 1,
+      "projHome": 3.4239,
+      "projAway": 3.1835,
+      "incumbentP": 0.54007,
+      "shadowP": 0.520243,
+      "probabilityDelta": -0.019827,
+      "goalieSignal": 0.224475,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8470594",
+      "awayActualStarterId": "8474889",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020005",
+      "season": "20192020",
+      "date": "2019-10-03",
+      "home": "TBL",
+      "away": "FLA",
+      "actualHomeGoals": 5,
+      "actualAwayGoals": 2,
+      "projHome": 3.8314,
+      "projAway": 2.9356,
+      "incumbentP": 0.67737,
+      "shadowP": 0.65679466,
+      "probabilityDelta": -0.02057534,
+      "goalieSignal": 0.229735,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8476883",
+      "awayActualStarterId": "8475683",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020006",
+      "season": "20192020",
+      "date": "2019-10-03",
+      "home": "NYR",
+      "away": "WPG",
+      "actualHomeGoals": 6,
+      "actualAwayGoals": 4,
+      "projHome": 2.9511,
+      "projAway": 3.3704,
+      "incumbentP": 0.41642,
+      "shadowP": 0.42206312,
+      "probabilityDelta": 0.00564312,
+      "goalieSignal": 0.066318,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8468685",
+      "awayActualStarterId": "8476945",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020007",
+      "season": "20192020",
+      "date": "2019-10-03",
+      "home": "PIT",
+      "away": "BUF",
+      "actualHomeGoals": 1,
+      "actualAwayGoals": 3,
+      "projHome": 3.6483,
+      "projAway": 2.8478,
+      "incumbentP": 0.66152,
+      "shadowP": 0.64218222,
+      "probabilityDelta": -0.01933778,
+      "goalieSignal": 0.152375,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8476899",
+      "awayActualStarterId": "8475622",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020008",
+      "season": "20192020",
+      "date": "2019-10-03",
+      "home": "CAR",
+      "away": "MTL",
+      "actualHomeGoals": 4,
+      "actualAwayGoals": 3,
+      "projHome": 3.3524,
+      "projAway": 2.9373,
+      "incumbentP": 0.58321,
+      "shadowP": 0.57008741,
+      "probabilityDelta": -0.01312259,
+      "goalieSignal": 0.087924,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8475852",
+      "awayActualStarterId": "8471679",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020009",
+      "season": "20192020",
+      "date": "2019-10-04",
+      "home": "NSH",
+      "away": "MIN",
+      "actualHomeGoals": 5,
+      "actualAwayGoals": 2,
+      "projHome": 3.1605,
+      "projAway": 2.5732,
+      "incumbentP": 0.62587,
+      "shadowP": 0.60388867,
+      "probabilityDelta": -0.02198133,
+      "goalieSignal": 0.118321,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8471469",
+      "awayActualStarterId": "8471227",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020010",
+      "season": "20192020",
+      "date": "2019-10-04",
+      "home": "DAL",
+      "away": "BOS",
+      "actualHomeGoals": 1,
+      "actualAwayGoals": 2,
+      "projHome": 2.6849,
+      "projAway": 2.8079,
+      "incumbentP": 0.47266,
+      "shadowP": 0.45095346,
+      "probabilityDelta": -0.02170654,
+      "goalieSignal": 0.292227,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8471750",
+      "awayActualStarterId": "8471695",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020011",
+      "season": "20192020",
+      "date": "2019-10-04",
+      "home": "COL",
+      "away": "CGY",
+      "actualHomeGoals": 5,
+      "actualAwayGoals": 3,
+      "projHome": 3.0778,
+      "projAway": 3.2838,
+      "incumbentP": 0.45939,
+      "shadowP": 0.4516191,
+      "probabilityDelta": -0.0077709,
+      "goalieSignal": 0.059358,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8475831",
+      "awayActualStarterId": "8479496",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020012",
+      "season": "20192020",
+      "date": "2019-10-04",
+      "home": "ANA",
+      "away": "ARI",
+      "actualHomeGoals": 2,
+      "actualAwayGoals": 1,
+      "projHome": 2.699,
+      "projAway": 2.8961,
+      "incumbentP": 0.46735,
+      "shadowP": 0.46239787,
+      "probabilityDelta": -0.00495213,
+      "goalieSignal": 0.1463,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8476434",
+      "awayActualStarterId": "8475311",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020013",
+      "season": "20192020",
+      "date": "2019-10-04",
+      "home": "NJD",
+      "away": "WPG",
+      "actualHomeGoals": 4,
+      "actualAwayGoals": 5,
+      "projHome": 3.0799,
+      "projAway": 3.2508,
+      "incumbentP": 0.46009,
+      "shadowP": 0.47649472,
+      "probabilityDelta": 0.01640472,
+      "goalieSignal": 0.14433,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": true,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": "8476945",
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": "C. Hellebuyck",
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": 1,
+      "homeActualStarterId": "8471239",
+      "awayActualStarterId": "8476316",
+      "unexpectedStarter": true,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": true,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": true
+    },
+    {
+      "id": "2019020014",
+      "season": "20192020",
+      "date": "2019-10-04",
+      "home": "NYI",
+      "away": "WSH",
+      "actualHomeGoals": 1,
+      "actualAwayGoals": 2,
+      "projHome": 3.0424,
+      "projAway": 2.6857,
+      "incumbentP": 0.5797,
+      "shadowP": 0.55736093,
+      "probabilityDelta": -0.02233907,
+      "goalieSignal": 0.288561,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": true,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": "8474651",
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": "B. Holtby",
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": 1,
+      "homeActualStarterId": "8473575",
+      "awayActualStarterId": "8478492",
+      "unexpectedStarter": true,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": true,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020015",
+      "season": "20192020",
+      "date": "2019-10-04",
+      "home": "CBJ",
+      "away": "TOR",
+      "actualHomeGoals": 1,
+      "actualAwayGoals": 4,
+      "projHome": 3.2078,
+      "projAway": 3.2822,
+      "incumbentP": 0.51255,
+      "shadowP": 0.54154934,
+      "probabilityDelta": 0.02899934,
+      "goalieSignal": 0.16395,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": true,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": "8475883",
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": "F. Andersen",
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": 1,
+      "homeActualStarterId": "8476914",
+      "awayActualStarterId": "8475883",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": true,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020016",
+      "season": "20192020",
+      "date": "2019-10-04",
+      "home": "PHI",
+      "away": "CHI",
+      "actualHomeGoals": 4,
+      "actualAwayGoals": 3,
+      "projHome": 3.4367,
+      "projAway": 3.2704,
+      "incumbentP": 0.52569,
+      "shadowP": 0.52626489,
+      "probabilityDelta": 0.00057489,
+      "goalieSignal": 0.082695,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": false,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": null,
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": null,
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": null,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8479394",
+      "awayActualStarterId": "8470645",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020017",
+      "season": "20192020",
+      "date": "2019-10-05",
+      "home": "SJS",
+      "away": "VGK",
+      "actualHomeGoals": 1,
+      "actualAwayGoals": 5,
+      "projHome": 3.0989,
+      "projAway": 3.342,
+      "incumbentP": 0.46729,
+      "shadowP": 0.49458088,
+      "probabilityDelta": 0.02729088,
+      "goalieSignal": 0.17475,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": true,
+      "expectedAwayKnown": true,
+      "homeExpectedStarterId": "8474889",
+      "awayExpectedStarterId": "8470594",
+      "homeExpectedStarterName": "M. Jones",
+      "awayExpectedStarterName": "M. Fleury",
+      "homeExpectedStartProbability": 1,
+      "awayExpectedStartProbability": 1,
+      "homeActualStarterId": "8474889",
+      "awayActualStarterId": "8470594",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": true,
+      "awayGoalieBackToBack": true,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STARTER_ONLY",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020018",
+      "season": "20192020",
+      "date": "2019-10-05",
+      "home": "BUF",
+      "away": "NJD",
+      "actualHomeGoals": 7,
+      "actualAwayGoals": 2,
+      "projHome": 3.2776,
+      "projAway": 3.004,
+      "incumbentP": 0.55553,
+      "shadowP": 0.56481987,
+      "probabilityDelta": 0.00928987,
+      "goalieSignal": 0.1542,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": true,
+      "expectedAwayKnown": true,
+      "homeExpectedStarterId": "8475622",
+      "awayExpectedStarterId": "8471239",
+      "homeExpectedStarterName": "C. Hutton",
+      "awayExpectedStarterName": "C. Schneider",
+      "homeExpectedStartProbability": 1,
+      "awayExpectedStartProbability": 1,
+      "homeActualStarterId": "8475622",
+      "awayActualStarterId": "8478406",
+      "unexpectedStarter": true,
+      "homeGoalieBackToBack": true,
+      "awayGoalieBackToBack": true,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "LATE_OR_UNEXPECTED_STARTER_CHANGE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": true
+    },
+    {
+      "id": "2019020019",
+      "season": "20192020",
+      "date": "2019-10-05",
+      "home": "TOR",
+      "away": "MTL",
+      "actualHomeGoals": 5,
+      "actualAwayGoals": 6,
+      "projHome": 3.2911,
+      "projAway": 3.0484,
+      "incumbentP": 0.5531,
+      "shadowP": 0.54785262,
+      "probabilityDelta": -0.00524738,
+      "goalieSignal": 0.16395,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": true,
+      "expectedAwayKnown": true,
+      "homeExpectedStarterId": "8475883",
+      "awayExpectedStarterId": "8471679",
+      "homeExpectedStarterName": "F. Andersen",
+      "awayExpectedStarterName": "C. Price",
+      "homeExpectedStartProbability": 1,
+      "awayExpectedStartProbability": 1,
+      "homeActualStarterId": "8474636",
+      "awayActualStarterId": "8471679",
+      "unexpectedStarter": true,
+      "homeGoalieBackToBack": true,
+      "awayGoalieBackToBack": true,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "LATE_OR_UNEXPECTED_STARTER_CHANGE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": true,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020020",
+      "season": "20192020",
+      "date": "2019-10-05",
+      "home": "OTT",
+      "away": "NYR",
+      "actualHomeGoals": 1,
+      "actualAwayGoals": 4,
+      "projHome": 3.3128,
+      "projAway": 3.4011,
+      "incumbentP": 0.49202,
+      "shadowP": 0.50675355,
+      "probabilityDelta": 0.01473355,
+      "goalieSignal": 0.19692,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": true,
+      "expectedAwayKnown": true,
+      "homeExpectedStarterId": "8467950",
+      "awayExpectedStarterId": "8468685",
+      "homeExpectedStarterName": "C. Anderson",
+      "awayExpectedStarterName": "H. Lundqvist",
+      "homeExpectedStartProbability": 1,
+      "awayExpectedStartProbability": 1,
+      "homeActualStarterId": "8467950",
+      "awayActualStarterId": "8480382",
+      "unexpectedStarter": true,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": true,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "LATE_OR_UNEXPECTED_STARTER_CHANGE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020021",
+      "season": "20192020",
+      "date": "2019-10-05",
+      "home": "FLA",
+      "away": "TBL",
+      "actualHomeGoals": 4,
+      "actualAwayGoals": 3,
+      "projHome": 2.947,
+      "projAway": 3.2921,
+      "incumbentP": 0.4514,
+      "shadowP": 0.46614948,
+      "probabilityDelta": 0.01474948,
+      "goalieSignal": 0.18375,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": true,
+      "expectedAwayKnown": true,
+      "homeExpectedStarterId": "8475683",
+      "awayExpectedStarterId": "8476883",
+      "homeExpectedStarterName": "S. Bobrovsky",
+      "awayExpectedStarterName": "A. Vasilevskiy",
+      "homeExpectedStartProbability": 1,
+      "awayExpectedStartProbability": 1,
+      "homeActualStarterId": "8475683",
+      "awayActualStarterId": "8476883",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": true,
+      "awayGoalieBackToBack": true,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STARTER_ONLY",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020022",
+      "season": "20192020",
+      "date": "2019-10-05",
+      "home": "PIT",
+      "away": "CBJ",
+      "actualHomeGoals": 7,
+      "actualAwayGoals": 2,
+      "projHome": 3.387,
+      "projAway": 2.8173,
+      "incumbentP": 0.59545,
+      "shadowP": 0.55309996,
+      "probabilityDelta": -0.04235004,
+      "goalieSignal": 0.2682,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": true,
+      "expectedAwayKnown": true,
+      "homeExpectedStarterId": "8476899",
+      "awayExpectedStarterId": "8476914",
+      "homeExpectedStarterName": "M. Murray",
+      "awayExpectedStarterName": "J. Korpisalo",
+      "homeExpectedStartProbability": 1,
+      "awayExpectedStartProbability": 1,
+      "homeActualStarterId": "8476899",
+      "awayActualStarterId": "8478007",
+      "unexpectedStarter": true,
+      "homeGoalieBackToBack": true,
+      "awayGoalieBackToBack": true,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "LATE_OR_UNEXPECTED_STARTER_CHANGE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": true
+    },
+    {
+      "id": "2019020023",
+      "season": "20192020",
+      "date": "2019-10-05",
+      "home": "WSH",
+      "away": "CAR",
+      "actualHomeGoals": 2,
+      "actualAwayGoals": 3,
+      "projHome": 2.8926,
+      "projAway": 3.174,
+      "incumbentP": 0.46768,
+      "shadowP": 0.4732369,
+      "probabilityDelta": 0.0055569,
+      "goalieSignal": 0.14874,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": true,
+      "expectedAwayKnown": true,
+      "homeExpectedStarterId": "8474651",
+      "awayExpectedStarterId": "8475852",
+      "homeExpectedStarterName": "B. Holtby",
+      "awayExpectedStarterName": "P. Mrazek",
+      "homeExpectedStartProbability": 0.5,
+      "awayExpectedStartProbability": 1,
+      "homeActualStarterId": "8474651",
+      "awayActualStarterId": "8473503",
+      "unexpectedStarter": true,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": true,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "LATE_OR_UNEXPECTED_STARTER_CHANGE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": true,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020024",
+      "season": "20192020",
+      "date": "2019-10-06",
+      "home": "STL",
+      "away": "DAL",
+      "actualHomeGoals": 3,
+      "actualAwayGoals": 2,
+      "projHome": 2.627,
+      "projAway": 2.3711,
+      "incumbentP": 0.55324,
+      "shadowP": 0.56704195,
+      "probabilityDelta": 0.01380195,
+      "goalieSignal": 0.43062,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": true,
+      "expectedAwayKnown": true,
+      "homeExpectedStarterId": "8476412",
+      "awayExpectedStarterId": "8471750",
+      "homeExpectedStarterName": "J. Binnington",
+      "awayExpectedStarterName": "B. Bishop",
+      "homeExpectedStartProbability": 1,
+      "awayExpectedStartProbability": 1,
+      "homeActualStarterId": "8476412",
+      "awayActualStarterId": "8471750",
+      "unexpectedStarter": false,
+      "homeGoalieBackToBack": false,
+      "awayGoalieBackToBack": true,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STARTER_ONLY",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    },
+    {
+      "id": "2019020025",
+      "season": "20192020",
+      "date": "2019-10-06",
+      "home": "NSH",
+      "away": "DET",
+      "actualHomeGoals": 3,
+      "actualAwayGoals": 5,
+      "projHome": 3.4027,
+      "projAway": 2.6576,
+      "incumbentP": 0.64198,
+      "shadowP": 0.62537847,
+      "probabilityDelta": -0.01660153,
+      "goalieSignal": 0.12873,
+      "gateAnalog": true,
+      "scoreProjectionChanged": false,
+      "expectedHomeKnown": true,
+      "expectedAwayKnown": false,
+      "homeExpectedStarterId": "8471469",
+      "awayExpectedStarterId": null,
+      "homeExpectedStarterName": "P. Rinne",
+      "awayExpectedStarterName": null,
+      "homeExpectedStartProbability": 1,
+      "awayExpectedStartProbability": null,
+      "homeActualStarterId": "8477424",
+      "awayActualStarterId": "8470657",
+      "unexpectedStarter": true,
+      "homeGoalieBackToBack": true,
+      "awayGoalieBackToBack": false,
+      "confirmationState": "UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
+      "goalieUsageState": "EXPECTED_STATE_INCOMPLETE",
+      "sourceTimestampContract": "PRIOR_COMPLETED_GAMES_ONLY",
+      "marketState": "UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
+      "homeB2B": false,
+      "awayB2B": false
+    }
+  ]
+}
