@@ -42,3 +42,12 @@ test("historical audit backfill is idempotent and does not mutate wagers", async
   assert.doesNotMatch(migration, /UPDATE\s+executed_bets/i);
   assert.doesNotMatch(migration, /DELETE\s+FROM\s+executed_bets/i);
 });
+
+
+test("tracker sync compares structured metadata by value, not object identity", async () => {
+  const bets = await readFile(new URL("../functions/api/bets.js", import.meta.url), "utf8");
+  assert.match(bets, /function trackerFieldEqual/);
+  assert.match(bets, /JSON\.stringify\(left\) === JSON\.stringify\(right\)/);
+  assert.match(bets, /!trackerFieldEqual\(existing\?\.\[k\]/);
+  assert.doesNotMatch(bets, /Object\.entries\(patch\)\.some\(\(\[k,v\]\) => \(existing\?\.\[k\] \?\? null\) !== \(v \?\? null\)\)/);
+});
