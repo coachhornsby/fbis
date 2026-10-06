@@ -252,11 +252,12 @@ function offerRow({market,selection,line,price,oppositePrice,modelProbability,ga
     confidenceStatus:calibrationState.ok?"VALIDATED":"UNVALIDATED_FAIL_CLOSED",
     confidenceBin:bin,
     researchCandidate,
+    qualificationEligible,
     decision:bet?"BET":"PASS",
-    decisionStatus:bet?"VALIDATED":"RESEARCH_ONLY_FAIL_CLOSED",
+    decisionStatus:bet?"QUALIFIED_STAKING_DISABLED":"PASS",
     stakeUnits:null,suggestedUnits:0,stakingValidated:false,
-    canQualify:false,canAuthorizeWager:false,reasons,
-    reason:bet?"Validated confidence and exact-price EV gates cleared.":"Fail-closed until all EV/reliability/confidence gates clear."
+    canQualify:qualificationEligible,canAuthorizeWager:false,reasons,
+    reason:bet?"Independent model edge and executable-price qualification gates cleared; staking remains disabled.":"Qualification gates not cleared."
   };
 }
 export function evaluateNhlGameWagers(game={},calibration=NHL_WAGER_CONFIDENCE_V1.game){
@@ -328,10 +329,10 @@ export function evaluateNhlPropWagerV1(row={},calibration=NHL_WAGER_CONFIDENCE_V
     confidenceVersion:NHL_WAGER_CONFIDENCE_VERSION,
     confidenceValidated:calibrationState.ok,
     confidenceStatus:calibrationState.ok?"VALIDATED":"UNVALIDATED_FAIL_CLOSED",
-    confidenceBin:bin,researchCandidate,
-    decision:bet?"BET":"PASS",decisionStatus:bet?"VALIDATED":"RESEARCH_ONLY_FAIL_CLOSED",
+    confidenceBin:bin,researchCandidate,qualificationEligible,
+    decision:bet?"BET":"PASS",decisionStatus:bet?"QUALIFIED_STAKING_DISABLED":"PASS",
     stakeUnits:null,suggestedUnits:0,stakingValidated:false,
-    canQualify:false,canAuthorizeWager:false,
+    canQualify:qualificationEligible,canAuthorizeWager:false,
     reasons:[...(!calibrationState.ok?[calibrationState.reason]:[]),...(!validated?["model-market-not-validated"]:[]),...(!gate?["availability-or-line-gate"]:[])],
     reason:bet?"Validated confidence and exact-price prop EV gates cleared.":"Fail-closed until price/model/availability/confidence gates clear."
   };

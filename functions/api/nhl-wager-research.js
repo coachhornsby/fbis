@@ -35,7 +35,8 @@ function gameRows(board,snapshotAt){
         confidenceVersion:o.confidenceVersion,confidenceStatus:o.confidenceStatus,decision:o.decision,
         suggestedUnits:o.suggestedUnits||0,modelId:game.nhlWagerV1.modelId,modelVersion:game.nhlWagerV1.version,
         projection:game.nhlWagerV1.independentProjection,disagreement:game.nhlWagerV1.disagreement,
-        trajectory:o.trajectory,sourceSnapshotType:checkpoint(game.start,snapshotAt),researchCandidate:Boolean(o.researchCandidate)
+        trajectory:o.trajectory,sourceSnapshotType:checkpoint(game.start,snapshotAt),researchCandidate:Boolean(o.researchCandidate),
+        canQualify:Boolean(o.canQualify),canAuthorizeWager:false
       });
     }
   }
