@@ -5,7 +5,7 @@ import { NHL_GOALIE_PROB_PROSPECTIVE_GATE as PROSPECTIVE_GATE } from "../../data
 import { canonicalEvidenceId, persistCanonicalProspectiveEvidence, persistCanonicalEconomicGrade, markCanonicalEvidenceGraded } from "../lib/canonical/sportEvidenceAdapter.js";
 
 const TZ="America/Chicago";
-function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
+function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}\nfunction schedulerAuth(request,env){\n  const expected=env?.NHL_SHADOW_SCHEDULER_TOKEN||null;\n  const got=request?.headers?.get?.("x-fbis-internal-scheduler")||null;\n  return Boolean(expected&&got&&got===expected);\n}
 function finite(v){if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function dateCt(d=new Date()){return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(d);}
