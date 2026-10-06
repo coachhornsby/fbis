@@ -106,8 +106,9 @@ export async function onRequestPost(context){
    const claim=await db.exec(`INSERT OR IGNORE INTO shadow_collection_runs(id,provider,mode,plan,profile,sport,lifecycle,status,enabled,apify_run_id,dataset_id,requested_max_items,estimated_cost_usd,cost_basis,started_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,[runId,"ACTION_APIFY","shadow",plan,PROFILE,"all",LIFECYCLE,"starting_daily",1,null,null,input.maxGames,estimate,"ESTIMATED",started,started]);
    if(Number(claim?.meta?.changes||0)===0){
      let claimed=await db.queryOne("SELECT * FROM shadow_collection_runs WHERE id=?",[runId]);
+     let reclaimed=null;
      if(claimed?.status==="failed_start_daily"){
-       const reclaimed=await db.exec("UPDATE shadow_collection_runs SET status='starting_daily',plan=?,requested_max_items=?,estimated_cost_usd=?,cost_basis='ESTIMATED',started_at=?,finished_at=NULL,error_class=NULL,error_message=NULL WHERE id=? AND status='failed_start_daily'",[plan,input.maxGames,estimate,started,runId]);
+       reclaimed=await db.exec("UPDATE shadow_collection_runs SET status='starting_daily',plan=?,requested_max_items=?,estimated_cost_usd=?,cost_basis='ESTIMATED',started_at=?,finished_at=NULL,error_class=NULL,error_message=NULL WHERE id=? AND status='failed_start_daily'",[plan,input.maxGames,estimate,started,runId]);
        if(Number(reclaimed?.meta?.changes||0)===1) claimed={...claimed,status:"starting_daily",apify_run_id:null,dataset_id:null};
        else claimed=await db.queryOne("SELECT * FROM shadow_collection_runs WHERE id=?",[runId]);
      }
