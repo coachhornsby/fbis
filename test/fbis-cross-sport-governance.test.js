@@ -45,6 +45,18 @@ test("promotion cohorts exclude legacy and wrong gate versions", () => {
     modelId: "QB-shadow",
     gateVersion: "NFL-QB-PROSPECTIVE-GATE-v1",
     lifecycle: PROSPECTIVE_LIFECYCLE.SHADOW,
+    stateSnapshotId: "state-g2",
+    marketSnapshotId: "market-g2",
+    marketObservedAt: "2026-10-12T11:55:00Z",
+    sourceObservedAts: ["2026-10-12T11:50:00Z"],
+    codeSha: "abc123",
+    stateSnapshot: { asOf: "2026-10-12T11:50:00Z" },
+    marketSnapshot: { asOf: "2026-10-12T11:55:00Z" },
+    uncertainty: { state: "UNKNOWN", reason: "research-shadow" },
+    incumbentProjection: { value: 0.5 },
+    challengerProjection: { value: 0.52 },
+    qualificationAuthority: { canQualify: false, source: "model-registry" },
+    wagerAuthority: { canAuthorize: false, source: "model-registry" },
   });
   assert.equal(promotionCohortEligibility(row, {gateVersion:"NFL-QB-PROSPECTIVE-GATE-v1"}).eligible, true);
   assert.equal(promotionCohortEligibility({...row, legacy:true}, {gateVersion:"NFL-QB-PROSPECTIVE-GATE-v1"}).eligible, false);
@@ -97,4 +109,24 @@ test("persistent state carries stronger fresh evidence and expires stale evidenc
     asOf:"2026-10-07T13:00:00Z",
     maxAgeMs:24*60*60*1000,
   }).fresh, false);
+});
+
+
+test("promotion cohort preserves incomplete evidence but excludes it fail-closed", () => {
+  const row = buildProspectiveEvidence({
+    evidenceId: "e-incomplete",
+    sport: "nfl",
+    eventId: "g-incomplete",
+    eventStartAt: "2026-10-12T18:00:00Z",
+    snapshotAt: "2026-10-12T12:00:00Z",
+    championModelId: "NFL-PINNACLE-IMPLIED",
+    modelId: "NFL-FBIS-PURE",
+    gateVersion: "NFL-GATE-v1",
+  });
+  const out = promotionCohortEligibility(row, { gateVersion: "NFL-GATE-v1" });
+  assert.equal(out.eligible, false);
+  assert.ok(out.reasons.includes("MISSING_STATE_SNAPSHOT_ID"));
+  assert.ok(out.reasons.includes("MISSING_MARKET_SNAPSHOT"));
+  assert.ok(out.reasons.includes("MISSING_UNCERTAINTY"));
+  assert.ok(out.reasons.includes("MISSING_SOURCE_OBSERVATION_TIMES"));
 });
