@@ -1,0 +1,65 @@
+name: WNBA possession challenger feature refresh
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/wnba-possession-challenger-live.mjs"
+      - ".github/workflows/wnba-possession-challenger-feature-refresh.yml"
+      - "migrations/0079_wnba_possession_challenger_shadow.sql"
+  schedule:
+    - cron: "5 14,19,23 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wnba-possession-challenger-feature-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+
+      - name: Restore frozen and incremental canonical state
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/frozen artifacts/current artifacts/combined
+          for f in wnba-canonical.jsonl wnba-possession-state.jsonl wnba-lineup-stints.jsonl; do
+            npx wrangler r2 object get "fbis-archive/models/wnba/possession-shot/research-current/${f}" --file "artifacts/frozen/${f}" --remote
+            npx wrangler r2 object get "fbis-archive/canonical/espn/wnba/current/${f}" --file "artifacts/current/${f}" --remote || : > "artifacts/current/${f}"
+            cat "artifacts/frozen/${f}" "artifacts/current/${f}" > "artifacts/combined/${f}"
+          done
+          npx wrangler r2 object get "fbis-archive/models/wnba/possession-shot/research-current/wnba-possession-qa.json" --file artifacts/frozen/wnba-possession-qa.json --remote
+
+      - name: Build point-in-time team feature snapshots
+        run: |
+          node scripts/wnba-possession-challenger-live.mjs             games=artifacts/combined/wnba-canonical.jsonl             states=artifacts/combined/wnba-possession-state.jsonl             stints=artifacts/combined/wnba-lineup-stints.jsonl             qa=artifacts/frozen/wnba-possession-qa.json             out=artifacts/wnba-team-possession-features.json             sql=artifacts/wnba-team-possession-features.sql
+
+      - name: Persist research-only team state
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis --remote --file=migrations/0079_wnba_possession_challenger_shadow.sql
+          if [ -s artifacts/wnba-team-possession-features.sql ]; then
+            npx wrangler d1 execute fbis --remote --file=artifacts/wnba-team-possession-features.sql
+          fi
+          npx wrangler r2 object put "fbis-archive/models/wnba/possession-challenger/v1/team-features-current.json" --file artifacts/wnba-team-possession-features.json --remote
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wnba-possession-challenger-features-${{ github.run_id }}
+          path: artifacts/wnba-team-possession-features.json
+          retention-days: 30
