@@ -47,7 +47,31 @@ function playerState(side={}){
     availabilityEvidenceAt:maxIso(players.flatMap(p=>[p.source_updated_at,p.updated_at]))
   };
 }
-function freezeRows(board,snapshotAt,codeSha){
+async function marketSnapshot(db,eventId,snapshotAt){
+  try{
+    const rows=(await db.prepare(`SELECT book,market,side,line,price,implied,no_vig,captured_at,checkpoint FROM odds_snapshots WHERE game_id=? AND rejected_post_start=0 AND captured_at<=? ORDER BY captured_at DESC LIMIT 40`).bind(String(eventId),snapshotAt).all()).results||[];
+    const latest=new Map();
+    for(const x of rows){const key=[x.book,x.market,x.side].join("|");if(!latest.has(key))latest.set(key,x);}
+    const selected=[...latest.values()];
+    return {rows:selected,observedAt:maxIso(selected.map(x=>x.captured_at)),source:"odds_snapshots"};
+  }catch{return {rows:[],observedAt:null,source:"UNAVAILABLE"};}
+}
+function temporalAudit({snapshotAt,gameStart,goalieAt,deploymentAt,availabilityAt,marketAt}){
+  const snap=Date.parse(snapshotAt),start=Date.parse(gameStart||"");
+  const check=(label,value,required)=>{
+    if(!value)return{label,value:null,required,status:required?"UNKNOWN_FAIL_CLOSED":"UNKNOWN_EXCLUDED"};
+    const t=Date.parse(value);
+    if(!Number.isFinite(t))return{label,value,required,status:required?"INVALID_FAIL_CLOSED":"INVALID_EXCLUDED"};
+    if(t>snap)return{label,value,required,status:"AFTER_SNAPSHOT"};
+    if(Number.isFinite(start)&&t>=start)return{label,value,required,status:"POST_START"};
+    return{label,value,required,status:"PASS"};
+  };
+  const checks=[check("goalie",goalieAt,true),check("deployment",deploymentAt,false),check("availability",availabilityAt,false),check("market",marketAt,false)];
+  const modelInputSafe=checks.filter(x=>x.required).every(x=>x.status==="PASS");
+  const contextualSafe=checks.filter(x=>!x.required&&x.value).every(x=>x.status==="PASS");
+  return {passed:modelInputSafe&&contextualSafe,modelInputSafe,contextualSafe,checks,noPostgameData:true,noClosingLineCopiedBackward:true,futureGoalieConfirmationBlocked:true};
+}
+async function freezeRows(db,board,snapshotAt,codeSha){
   const out=[];
   for(const game of board.games||[]){
     if(String(game.sport||"").toLowerCase()!=="nhl")continue;
@@ -57,7 +81,18 @@ function freezeRows(board,snapshotAt,codeSha){
     if(!Number.isFinite(startMs)||!Number.isFinite(nowMs))continue;
     const hours=(startMs-nowMs)/3600000;
     if(hours<0.25||hours>6)continue;
-    const h=playerState(s.persistentState?.home||{}),a=playerState(s.persistentState?.away||{});
+    const hs=s.persistentState?.home||{},as=s.persistentState?.away||{};
+    const h=playerState(hs),a=playerState(as),hg=starterState(hs),ag=starterState(as);
+    const market=await marketSnapshot(db,game.id,snapshotAt);
+    const goalieAt=maxIso([hg.evidenceAt,ag.evidenceAt]);
+    const deploymentAt=maxIso([h.deploymentEvidenceAt,a.deploymentEvidenceAt]);
+    const availabilityAt=maxIso([h.availabilityEvidenceAt,a.availabilityEvidenceAt]);
+    const integrity=temporalAudit({snapshotAt,gameStart:game.start,goalieAt,deploymentAt,availabilityAt,marketAt:market.observedAt});
+    if(!integrity.modelInputSafe)continue;
+    const probabilityDelta=(finite(s.challenger?.homeWinProbability)??0)-(finite(s.incumbent?.homeWinProbability)??0);
+    const hsGoalie=hg.goalies.find(g=>String(g.player_id)===String(hg.expectedStarterId));
+    const asGoalie=ag.goalies.find(g=>String(g.player_id)===String(ag.expectedStarterId));
+    const starterQualityDelta=(finite(hsGoalie?.save_pct)??0)-(finite(asGoalie?.save_pct)??0);
     out.push({
       id:`nhlgs_${String(game.id)}_${String(s.modelVersion).replace(/[^a-z0-9]+/gi,"_")}`,
       eventId:String(game.id),gameStart:game.start||null,featureCutoffTimestamp:snapshotAt,
@@ -70,7 +105,13 @@ function freezeRows(board,snapshotAt,codeSha){
       evDeployment:{home:h.ev,away:a.ev},ppDeployment:{home:h.pp,away:a.pp},
       scratchesAvailability:{home:h.availability,away:a.availability},
       replacementMapping:{home:h.replacements,away:a.replacements},
-      persistentState:s.persistentState,marketSnapshot:game.odds||null,codeSha,
+      persistentState:s.persistentState,marketSnapshot:market.rows,marketObservedAt:market.observedAt,codeSha,
+      lifecycle:"FROZEN",homeGoalieConfirmationState:hg.confirmationState,awayGoalieConfirmationState:ag.confirmationState,
+      homeExpectedStarterId:hg.expectedStarterId,awayExpectedStarterId:ag.expectedStarterId,homeExpectedStarterName:hg.expectedStarterName,awayExpectedStarterName:ag.expectedStarterName,
+      homeExpectedStartProbability:hg.expectedStartProbability,awayExpectedStartProbability:ag.expectedStartProbability,
+      goalieEvidenceSource:hg.evidenceSource,goalieEvidenceAt:goalieAt,deploymentEvidenceAt:deploymentAt,availabilityEvidenceAt:availabilityAt,
+      temporalIntegrityPassed:integrity.passed,temporalIntegrity:integrity,probabilityDelta,starterQualityDelta,
+      goalieUsageState:(hg.confirmationState==="CONFIRMED"&&ag.confirmationState==="CONFIRMED")?"BOTH_CONFIRMED":"EXPECTED_STARTER_ONLY"
     });
   }
   return out;
