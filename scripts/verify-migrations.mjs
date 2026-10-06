@@ -27,6 +27,23 @@ for (const path of schemaPaths) {
 const files = (await readdir(migrationsDir)).filter((f) => f.endsWith(".sql")).sort();
 const missing = [];
 const registrationFailures = [];
+const legacyRegistrationExceptions = new Set(["0010_mlb_market_projections.sql"]);
+const legacyDuplicatePrefixes = new Map([
+  ["0039", ["0039_nba_research_models.sql", "0039_soccer_canonical.sql"]],
+  ["0040", ["0040_cbb_player_prop_signals.sql", "0040_nba_prospective_shadow_grading.sql", "0040_wnba_prop_validation.sql"]],
+  ["0041", ["0041_nba_market_qualification.sql", "0041_nfl_wager_decisions.sql"]],
+  ["0042", ["0042_nba_game_level_decision.sql", "0042_nhl_wager_research.sql"]],
+  ["0043", ["0043_nhl_wager_confidence_runs.sql", "0043_wnba_wager_decision_architecture.sql"]],
+  ["0052", ["0052_nba_deep_game_model.sql", "0052_soccer_v2_features.sql", "0052_tennis_full_markets.sql"]],
+  ["0053", ["0053_nba_official_availability.sql", "0053_tennis_player_bank.sql"]],
+  ["0055", ["0055_mlb_persistent_profiles.sql", "0055_nfl_persistent_team_profiles.sql"]],
+  ["0067", ["0067_cfb_persistent_directory_phase_a.sql", "0067_soccer_phase3b_validation_provenance.sql"]],
+  ["0069", ["0069_nba_prospective_profile_ablation.sql", "0069_nhl_goalie_shadow_integrity_v2.sql"]],
+  ["0070", ["0070_fbis_cross_sport_evidence.sql", "0070_nba_prospective_market_linkage.sql"]],
+  ["0078", ["0078_asian_baseball_history_foundation.sql", "0078_cfb_subdivision_normalization.sql"]],
+  ["0079", ["0079_cbb_persistent_directory_phase_a.sql", "0079_soccer_phase3f_research_routing.sql"]],
+  ["0081", ["0081_soccer_phase3g_shadow_grading_fields.sql", "0081_tennis_wta_official_zero_cleanup.sql"]],
+]);
 const prefixOwners = new Map();
 for (const file of files) {
   const prefix = file.match(/^(\d+)_/)?.[1];
@@ -55,17 +72,20 @@ if (missing.length) {
 }
 
 if (registrationFailures.length) {
-  console.error("Latest migration does not register itself in schema_migrations:");
+  console.error("Migration does not register itself in schema_migrations:");
   for (const m of registrationFailures) console.error(`- ${m.file}: expected ${m.id}`);
   process.exit(1);
 }
 
-if (duplicatePrefixes.length) {
-  console.error("Duplicate numeric migration prefixes detected; migration order is ambiguous:");
-  for (const [prefix, owners] of duplicatePrefixes) console.error(`- ${prefix}: ${owners.join(", ")}`);
-  console.error("Historical duplicates require an explicit lineage repair before this check can become blocking.");
-} else {
-  console.log("Migration numeric prefixes are unique.");
+const unexpectedDuplicatePrefixes = duplicatePrefixes.filter(([prefix, owners]) => {
+  const expected = legacyDuplicatePrefixes.get(prefix);
+  return !expected || JSON.stringify([...owners].sort()) !== JSON.stringify([...expected].sort());
+});
+if (unexpectedDuplicatePrefixes.length) {
+  console.error("Unexpected duplicate numeric migration prefixes detected:");
+  for (const [prefix, owners] of unexpectedDuplicatePrefixes) console.error(`- ${prefix}: ${owners.join(", ")}`);
+  process.exit(1);
 }
+console.log(`Verified duplicate-prefix lineage: ${duplicatePrefixes.length} grandfathered historical collisions, 0 unexpected.`);
 
 console.log(`Verified ${files.length} migrations against canonical schema bundle (${schemaTables.size} tables).`);
