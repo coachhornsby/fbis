@@ -11,6 +11,8 @@ test("soccer accelerated backfill is six-worker, bounded, and contention-safe", 
   assert.match(workflow,/workflow_run:/);
   assert.match(workflow,/workflows:\s*\["CI"\]/);
   assert.match(workflow,/github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(workflow,/github\.event\.workflow_run\.event == 'push'/);
+  assert.match(workflow,/github\.event\.workflow_run\.head_branch == 'main'/);
   assert.match(workflow,/payload="\$\(jq -nc/);
   assert.match(workflow,/-d "\$payload"/);
   assert.doesNotMatch(workflow,/-d "\{"leagueKey"/);
