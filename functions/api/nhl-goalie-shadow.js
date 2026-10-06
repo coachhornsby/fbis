@@ -2,6 +2,7 @@ import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { buildTodayBoard, resolveTodayDate } from "../lib/todayBoard.js";
 import { americanProfit } from "../lib/pricing.js";
 import { NHL_GOALIE_PROB_PROSPECTIVE_GATE as PROSPECTIVE_GATE } from "../../data/models/nhl-goalie-prob-prospective-gate-v1.js";
+import { canonicalEvidenceId, persistCanonicalProspectiveEvidence, persistCanonicalEconomicGrade, markCanonicalEvidenceGraded } from "../lib/canonical/sportEvidenceAdapter.js";
 
 const TZ="America/Chicago";
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
@@ -159,6 +160,11 @@ function boxScore(box){
 function americanImplied(price){
   const p=finite(price);if(p==null||p===0)return null;
   return p<0?(-p)/((-p)+100):100/(p+100);
+}
+function noVigForSide(snapshot,side){
+  if(!Array.isArray(snapshot))return null;
+  const row=snapshot.find(x=>String(x.market||"").toUpperCase()==="ML"&&String(x.side||"").toUpperCase()===side);
+  return finite(row?.no_vig);
 }
 function priceForSide(snapshot,side){
   if(Array.isArray(snapshot)){
