@@ -36,12 +36,15 @@ function stablePayloadIdentity(row = {}) {
 }
 
 export function actionShadowObservationKey(row = {}, ctx = {}) {
-  const runId = String(ctx.runId || "");
   const actionGameId = String(row.actionGameId || row.gameId || "");
   const period = String(row.period || "event");
   const sourceObservedAt = String(row.observedAt || row.sourceObservedAt || "");
   const payloadHash = stablePayloadIdentity(row);
-  return sha256Hex(["action_shadow_v2", runId, actionGameId, period, sourceObservedAt, payloadHash].join("|"));
+  // Canonical state identity is independent of acquisition attempt/run. Raw
+  // acquisitions retain run provenance elsewhere; identical provider state
+  // must not become a second economic/model observation merely because it was
+  // fetched again seconds later.
+  return sha256Hex(["action_shadow_v3", actionGameId, period, sourceObservedAt, payloadHash].join("|"));
 }
 
 
@@ -114,12 +117,15 @@ export async function persistFullMarketObservation(db, row, ctx = {}) {
   if (typeof db.queryOne === "function") {
     const existing = await db.queryOne(
       `SELECT id FROM shadow_market_observations
-       WHERE run_id = ? AND action_game_id = ?
-         AND COALESCE(period, 'event') = ?
-         AND COALESCE(source_observed_at, '') = ?
-         AND COALESCE(raw_payload_hash, '') = ?
+       WHERE id = ?
+          OR (
+            action_game_id = ?
+            AND COALESCE(period, 'event') = ?
+            AND COALESCE(source_observed_at, '') = ?
+            AND COALESCE(raw_payload_hash, '') = ?
+          )
        LIMIT 1`,
-      [runId, actionGameId, row.period || "event", sourceObservedAt || "", payloadIdentity]
+      [observationId, actionGameId, row.period || "event", sourceObservedAt || "", payloadIdentity]
     );
     if (existing?.id) {
       // A parent shadow row can survive a timeout that occurred before the
