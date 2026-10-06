@@ -37,3 +37,12 @@ test("MLB evidence workflow is bounded and restartable",()=>{
   assert.match(src,/operation:"capture"/);
   assert.match(src,/operation:"settle"/);
 });
+
+
+test("MLB accepted evidence also writes the canonical prospective ledger",()=>{
+  const src=fs.readFileSync(new URL("../functions/api/mlb-prop-evidence.js",import.meta.url),"utf8");
+  assert.match(src,/INSERT OR IGNORE INTO fbis_prospective_evidence/);
+  assert.match(src,/FBIS-PROSPECTIVE-EVIDENCE-v1/);
+  assert.match(src,/stateBeforeWeight:true/);
+  assert.match(src,/rawProjectionDistanceCanPromote:false/);
+});
