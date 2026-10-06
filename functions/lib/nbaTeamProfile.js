@@ -68,15 +68,21 @@ function newer(a,b){
   return Number(a?.rank||0)>Number(b?.rank||0);
 }
 export function resolvePersistentPlayerState({
-  player,priorState=null,availabilityRows=[],lineupRows=[],gameAppearances=[],asOf=new Date().toISOString(),gameAppearanceMaxAgeDays=21
+  player,priorState=null,availabilityRows=[],lineupRows=[],gameAppearances=[],asOf=new Date().toISOString(),gameAppearanceMaxAgeDays=21,
+  carriedMaxAgeDays={AVAILABLE:21,PROBABLE:3,QUESTIONABLE:3,DOUBTFUL:7,OUT:90,UNKNOWN:7}
 }={}){
   const pid=String(player?.id||player?.playerId||""),name=player?.name||player?.displayName||priorState?.player_name||"";
   const norm=normalizePlayerName(name),events=[];
   if(priorState){
-    events.push({
-      status:String(priorState.status||"UNKNOWN").toUpperCase(),
+    const priorStatus=String(priorState.status||"UNKNOWN").toUpperCase();
+    const priorTimestamp=priorState.state_source_timestamp||priorState.as_of||priorState.updated_at;
+    const ageMs=Date.parse(asOf)-Date.parse(priorTimestamp||0);
+    const maxDays=Number(carriedMaxAgeDays?.[priorStatus]??7);
+    const stale=!Number.isFinite(ageMs)||ageMs<0||ageMs>maxDays*DAY;
+    if(!stale)events.push({
+      status:priorStatus,
       source:"CARRIED_PROFILE",
-      timestamp:priorState.state_source_timestamp||priorState.as_of||priorState.updated_at,
+      timestamp:priorTimestamp,
       detail:priorState.injury_detail||null,
       rank:evidenceRank("CARRIED_PROFILE"),
       carried:true

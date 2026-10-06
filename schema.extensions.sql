@@ -2940,3 +2940,22 @@ CREATE INDEX IF NOT EXISTS idx_cfb_team_provider_team ON cfb_team_provider_ids(t
 CREATE INDEX IF NOT EXISTS idx_cfb_conference_membership_pit ON cfb_conference_membership(team_id,effective_from,effective_to);
 CREATE INDEX IF NOT EXISTS idx_cfb_conference_membership_conf ON cfb_conference_membership(conference_name,effective_from,effective_to);
 CREATE INDEX IF NOT EXISTS idx_cfb_team_identity_obs_team_time ON cfb_team_identity_observations(team_id,observed_at DESC);
+
+
+-- NBA official observation ingestion health (migration 0068).
+CREATE TABLE IF NOT EXISTS nba_observation_health (
+  path_key TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  last_attempted_fetch TEXT NOT NULL,
+  last_successful_fetch TEXT,
+  source_row_count INTEGER NOT NULL DEFAULT 0,
+  normalized_row_count INTEGER NOT NULL DEFAULT 0,
+  persisted_row_count INTEGER NOT NULL DEFAULT 0,
+  rejected_row_count INTEGER NOT NULL DEFAULT 0,
+  zero_row_reason TEXT,
+  source_freshness TEXT,
+  error_state TEXT,
+  detail_json TEXT,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_observation_health_updated ON nba_observation_health(updated_at DESC);

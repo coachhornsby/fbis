@@ -82,3 +82,46 @@ test("stale game appearance does not certify current availability",()=>{
   assert.equal(s.status,"UNKNOWN");
   assert.equal(s.source,"ROSTER_UNVERIFIED");
 });
+
+
+test("fresh carried questionable and probable states transition only on newer evidence",()=>{
+  const base={player:{id:"23",name:"LeBron James"},asOf:"2026-10-06T12:00:00Z"};
+  const q=resolvePersistentPlayerState({...base,priorState:{status:"QUESTIONABLE",state_source_timestamp:"2026-10-05T12:00:00Z"}});
+  assert.equal(q.status,"QUESTIONABLE");
+  const p=resolvePersistentPlayerState({...base,priorState:{status:"QUESTIONABLE",state_source_timestamp:"2026-10-05T12:00:00Z"},availabilityRows:[{player_id:"23",player_name:"LeBron James",status:"PROBABLE",source:"NBA_OFFICIAL_INJURY_REPORT",observed_at:"2026-10-06T10:00:00Z"}]});
+  assert.equal(p.status,"PROBABLE");
+  const active=resolvePersistentPlayerState({...base,priorState:{status:"PROBABLE",state_source_timestamp:"2026-10-06T10:00:00Z"},lineupRows:[{player_id:"23",player_name:"LeBron James",lineup_status:"ACTIVE",observed_at:"2026-10-06T11:00:00Z"}]});
+  assert.equal(active.status,"AVAILABLE");
+});
+
+test("newer official OUT and QUESTIONABLE states supersede older carried states",()=>{
+  const out=resolvePersistentPlayerState({
+    player:{id:"23",name:"LeBron James"},priorState:{status:"QUESTIONABLE",state_source_timestamp:"2026-10-05T12:00:00Z"},
+    availabilityRows:[{player_id:"23",player_name:"LeBron James",status:"OUT",source:"NBA_OFFICIAL_INJURY_REPORT",observed_at:"2026-10-06T10:00:00Z"}],
+    asOf:"2026-10-06T12:00:00Z"
+  });
+  assert.equal(out.status,"OUT");
+  const q=resolvePersistentPlayerState({
+    player:{id:"23",name:"LeBron James"},priorState:{status:"OUT",state_source_timestamp:"2026-10-05T12:00:00Z",injury_detail:"Right ankle sprain"},
+    availabilityRows:[{player_id:"23",player_name:"LeBron James",status:"QUESTIONABLE",source:"NBA_OFFICIAL_INJURY_REPORT",observed_at:"2026-10-06T10:00:00Z"}],
+    asOf:"2026-10-06T12:00:00Z"
+  });
+  assert.equal(q.status,"QUESTIONABLE");
+});
+
+test("expired carried evidence degrades to UNKNOWN instead of certifying availability forever",()=>{
+  const available=resolvePersistentPlayerState({
+    player:{id:"23",name:"LeBron James"},
+    priorState:{status:"AVAILABLE",state_source_timestamp:"2026-06-01T12:00:00Z"},
+    asOf:"2026-10-06T12:00:00Z"
+  });
+  assert.equal(available.status,"UNKNOWN");
+  assert.equal(available.source,"ROSTER_UNVERIFIED");
+  const oldOut=resolvePersistentPlayerState({
+    player:{id:"23",name:"LeBron James"},
+    priorState:{status:"OUT",state_source_timestamp:"2026-01-01T12:00:00Z",injury_detail:"Right ankle sprain"},
+    asOf:"2026-10-06T12:00:00Z"
+  });
+  assert.equal(oldOut.status,"UNKNOWN");
+  assert.equal(oldOut.source,"ROSTER_UNVERIFIED");
+});
