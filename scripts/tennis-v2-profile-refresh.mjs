@@ -161,7 +161,7 @@ for(const t of tournaments.values()){
 }
 
 const now=new Date().toISOString();
-let sql=`DELETE FROM tennis_player_profiles_current;\nDELETE FROM tennis_tournament_speed_current;\nDELETE FROM tennis_player_bank;\nDELETE FROM tennis_match_history;\n`;
+let sql=`DELETE FROM tennis_player_profiles_current;\nDELETE FROM tennis_tournament_speed_current;\n`;
 for(const r of profileRows){
   sql+=`INSERT OR REPLACE INTO tennis_player_profiles_current(tour,player_key,player_id,player_name,surface,profile_json,last_match_date,last_surface,last_tournament,games_last_3_days,games_last_7_days,sets_last_3_days,sets_last_7_days,days_since_retirement_or_mto,source,source_license,source_as_of,production_dependency,updated_at) VALUES(${q(r.tour)},${q(r.playerKey)},${q(r.playerId)},${q(r.playerName)},${q(r.surface)},${q(JSON.stringify(r.profile))},${q(r.lastDate)},${q(r.lastSurface)},${q(r.lastTournament)},${n(r.gamesLast3Days)},${n(r.gamesLast7Days)},${n(r.setsLast3Days)},${n(r.setsLast7Days)},${n(r.daysSinceRetirementOrMto)},'SACKMANN_TENNIS_ABSTRACT_RESEARCH','CC BY-NC-SA 4.0',${q(sourceAsOf)},0,${q(now)});
 `;
@@ -174,7 +174,7 @@ for(const r of bankByPlayer.values()){
 }
 for(const r of historyRows){
   const mk=[r.tour,r.matchDate,r.tournament,r.p1Key,r.p2Key,r.score].join("|");
-  sql+=`INSERT OR REPLACE INTO tennis_match_history(match_key,tour,match_date,tournament,surface,round,player1_key,player1_name,player2_key,player2_name,winner_key,score,player1_rank,player2_rank,player1_stats_json,player2_stats_json,source,source_as_of,created_at) VALUES(${q(mk)},${q(r.tour)},${q(r.matchDate)},${q(r.tournament)},${q(r.surface)},${q(r.round)},${q(r.p1Key)},${q(r.p1Name)},${q(r.p2Key)},${q(r.p2Name)},${q(r.winnerKey)},${q(r.score)},${n(r.p1Rank)},${n(r.p2Rank)},${q(JSON.stringify(r.p1Stats))},${q(JSON.stringify(r.p2Stats))},'SACKMANN_TENNIS_ABSTRACT_RESEARCH',${q(sourceAsOf)},${q(now)});
+  sql+=`INSERT OR IGNORE INTO tennis_match_history(match_key,tour,match_date,tournament,surface,round,player1_key,player1_name,player2_key,player2_name,winner_key,score,player1_rank,player2_rank,player1_stats_json,player2_stats_json,source,source_as_of,created_at) VALUES(${q(mk)},${q(r.tour)},${q(r.matchDate)},${q(r.tournament)},${q(r.surface)},${q(r.round)},${q(r.p1Key)},${q(r.p1Name)},${q(r.p2Key)},${q(r.p2Name)},${q(r.winnerKey)},${q(r.score)},${n(r.p1Rank)},${n(r.p2Rank)},${q(JSON.stringify(r.p1Stats))},${q(JSON.stringify(r.p2Stats))},'SACKMANN_TENNIS_ABSTRACT_RESEARCH',${q(sourceAsOf)},${q(now)});
 `;
 }
 for(const r of speedRows){
