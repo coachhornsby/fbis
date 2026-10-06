@@ -40,7 +40,15 @@ jobs:
         run: |
           set -euo pipefail
           call () {
-            curl -fsS --connect-timeout 5 --max-time 120 --retry 2 --retry-delay 2 --retry-all-errors               -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               -d "$1" "$BASE/api/asian-baseball-history-backfill"
+            local tmp code
+            tmp="$(mktemp)"
+            code="$(curl -sS --connect-timeout 5 --max-time 120 --retry 2 --retry-delay 2 --retry-all-errors               -o "$tmp" -w "%{http_code}"               -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               -d "$1" "$BASE/api/asian-baseball-history-backfill")"
+            cat "$tmp"
+            if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+              echo >&2
+              echo "Asian baseball backfill HTTP $code" >&2
+              return 22
+            fi
           }
           # NPB month is one official monthly page.
           call '{"league":"NPB","season":2025,"month":9,"maxRequests":1}' | tee /tmp/npb.json | jq .
