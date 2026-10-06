@@ -2,6 +2,20 @@
 -- Prospective, point-in-time WNBA possession-aware challenger state.
 -- Research-only. Incumbent WNBA-FBIS-v2 / WNBA-PLAYER-PROJ-v2 remain authoritative.
 
+CREATE TABLE IF NOT EXISTS wnba_possession_challenger_coefficients (
+  model_id TEXT PRIMARY KEY,
+  model_version TEXT NOT NULL,
+  target TEXT NOT NULL,
+  intercept REAL NOT NULL,
+  slope REAL NOT NULL,
+  train_n INTEGER NOT NULL,
+  source_checkpoint TEXT NOT NULL,
+  source_generated_at TEXT,
+  frozen_at TEXT NOT NULL,
+  details_json TEXT,
+  production_eligible INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS wnba_team_possession_feature_snapshots (
   id TEXT PRIMARY KEY,
   team_id TEXT NOT NULL,
