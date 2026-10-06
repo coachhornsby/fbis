@@ -114,6 +114,13 @@ export async function runCbbDirectoryPhaseB(env,{asOf=new Date()}={}){
   observationCounts:{roster:rosterStmts.length,rotation:rotationStmts.length,teamContext:teamStmts.length,availability:0,gameState:gameStmts.length},
   sourceProvenance:["CBBD /teams/roster","CBBD /teams","CBBD /games",`CBBD /stats/player/season season=${priorSeason}`,"Phase A CBB-PIT-RESEARCH-v1-37411381038"],
   governance:{overlay:"FBIS-STATE-OVERLAY-v1",mode:"SHADOW",totalsShadowDefinitions:0,canInfluenceProjection:false,canQualify:false,canAuthorizeWager:false,availabilityRule:"UNKNOWN absent explicit verified source"}};
- await env.DB.prepare(`INSERT OR REPLACE INTO fbis_meta(key,value,updated_at) VALUES('cbb_directory_phase_b_qa',?,?)`).bind(JSON.stringify(qa),observedAt).run().catch(()=>{});
+ const scheduleTeams=new Set();
+ for(const g of games){
+  const ht=teamId(season,g?.homeTeam||g?.homeTeamName,g?.homeTeamId),at=teamId(season,g?.awayTeam||g?.awayTeamName,g?.awayTeamId);
+  if(ht)scheduleTeams.add(ht);if(at)scheduleTeams.add(at);
+ }
+ await env.DB.prepare(`INSERT OR REPLACE INTO cbb_directory_phase_b_runs(id,season,observed_at,status,canonical_teams,stable_id_players,unresolved_provisional_players,ambiguous_identities,transfer_links,roster_teams,roster_players,rotation_players,starter_evidence_players,lineup_continuity_teams,replacement_players,schedule_teams,game_state_snapshots,verified_availability,unknown_availability,qa_json,source_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
+  "cbb-dir-b:"+season+":"+observedAt.slice(0,10),season,observedAt,qa.status,362,qa.stableIdPlayers,qa.unresolvedProvisionalPlayers,qa.ambiguousIdentities,0,teamsRoster,current.length,rotationStmts.length,starterEvidence,0,0,scheduleTeams.size,gameStmts.length,0,current.length,JSON.stringify(qa),JSON.stringify({sources:qa.sourceProvenance}),observedAt
+ ).run();
  return qa;
 }
