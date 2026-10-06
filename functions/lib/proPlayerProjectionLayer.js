@@ -160,6 +160,7 @@ export function attachNpbPlayerProjectionResearch(games = []) {
 export function attachMlbPlayerProjectionResearch(games = [], persistent = {}) {
   return (games || []).map((game) => {
     const rows = [];
+    const state=persistent?.byGameId?.[String(game.id||game.bpp?.gamePk||"")]||null;
     const ks = game.mlbDeepShadow?.pitcherKs || null;
     for (const side of ["home", "away"]) {
       const p = ks?.[side];
@@ -186,7 +187,6 @@ export function attachMlbPlayerProjectionResearch(games = [], persistent = {}) {
         });
       }
     }
-    const state=persistent?.byGameId?.[String(game.id||game.bpp?.gamePk||"")]||null;
     const extra=buildMlbPersistentPlayerPropRows(game,state).map((p)=>{
       const row=statRow({
         sport:"mlb",game,team:p.team,
