@@ -38,6 +38,7 @@ import { attachCbbPlayerGameResearch } from "./cbbPlayerGameModel.js";
 import { applyCbbPlayerMarginV1 } from "./cbbPlayerValidated.js";
 import { attachCbbPlayerProps } from "./cbbPlayerPropModel.js";
 import { pinMarkets } from "./pricing.js";
+import { canonicalProjectionConfidence } from "./projectionConfidence.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
 import { attachMatchupFactors } from "./matchupFactors.js";
 import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachKboPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
@@ -570,6 +571,20 @@ export async function buildSlate(sport, date, env = {}) {
       }
     }
   }
+
+  next = {
+    ...next,
+    games: (next?.games || []).map((game) => {
+      const confidence = canonicalProjectionConfidence({ ...game, sport: id });
+      return {
+        ...game,
+        confidenceStars: confidence.stars,
+        confidenceScore: confidence.score,
+        confidenceVersion: confidence.version,
+        confidenceSource: confidence.source,
+      };
+    }),
+  };
 
   return next;
 }
