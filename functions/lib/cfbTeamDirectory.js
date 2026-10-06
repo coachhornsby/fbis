@@ -32,3 +32,33 @@ export function buildCanonicalTeamId({provider, providerTeamId, schoolName}) {
 export function stateOverlayPermission() {
   return {overlayVersion:CFB_STATE_OVERLAY_VERSION,researchOnly:true,canInfluenceProjection:false,canQualify:false,canAuthorizeWager:false};
 }
+
+
+/**
+ * Fail-closed selector for the current production FBS model universe.
+ * Canonical row existence alone never establishes production eligibility.
+ */
+export function isCurrentFbsTeam(team) {
+  return Boolean(team)
+    && (team.active === 1 || team.active === true)
+    && String(team.subdivision || "").toUpperCase() === "FBS";
+}
+
+export function currentFbsUniverse(teams = []) {
+  return teams.filter(isCurrentFbsTeam);
+}
+
+/**
+ * Point-in-time subdivision/classification comes from temporal membership,
+ * not the canonical team's current classification.
+ */
+export function subdivisionAt(memberships = [], teamId, at) {
+  const row=conferenceAt(memberships,teamId,at);
+  if (!row) return null;
+  const subdivision=String(row.subdivision || "").trim().toUpperCase();
+  return subdivision || null;
+}
+
+export function isFbsAt(memberships = [], teamId, at) {
+  return subdivisionAt(memberships,teamId,at) === "FBS";
+}
