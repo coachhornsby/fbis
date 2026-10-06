@@ -452,10 +452,13 @@ export async function buildSlate(sport, date, env = {}) {
     };
   }
 
-  // Availability adjustment is applied only after the sport's final board model
-  // has been selected/promoted, so it cannot be overwritten by research-board
-  // promotion. This remains bounded and fully captured in the frozen snapshot.
-  if (Array.isArray(next.games) && ["nfl","cfb"].includes(id)) {
+  // State-before-weight governance:
+  // - CFB retains its approved availability adjustment.
+  // - NFL persistent state is attached broadly but MUST NOT alter the production
+  //   champion. The only historically validated NFL state-derived model effect
+  //   is the QB-personnel overlay, and that remains SHADOW-only until
+  //   prospective validation + operator approval.
+  if (Array.isArray(next.games) && id === "cfb") {
     next = {
       ...next,
       games: next.games.map((game) => applyAvailabilityAdjustment(game, id)),
