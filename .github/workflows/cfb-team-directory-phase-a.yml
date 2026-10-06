@@ -26,26 +26,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CFB_DIRECTORY_START: ${{ inputs.start_year }}
       CFB_DIRECTORY_END: ${{ inputs.end_year }}
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4.1.0
+      - uses: actions/setup-python@v5
         with:
-          node-version: "22"
-          cache: "npm"
-      - run: npm ci
+          python-version: "3.12"
+      - name: Install directory dependencies
+        run: python -m pip install --disable-pip-version-check pandas pyarrow
       - name: Require credentials
         run: |
           set -euo pipefail
-          test -n "${CFBD_API_KEY}" || { echo "Missing CFBD_API_KEY"; exit 1; }
           test -n "${CLOUDFLARE_API_TOKEN}" || { echo "Missing CLOUDFLARE_API_TOKEN"; exit 1; }
           test -n "${CLOUDFLARE_ACCOUNT_ID}" || { echo "Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
       - name: Build bounded directory SQL
-        run: node scripts/cfb-team-directory-build.mjs
+        run: python scripts/cfb-team-directory-build.py
       - name: Apply to production D1
         run: npx wrangler d1 execute fbis --remote --file=artifacts/cfb-directory/cfb-team-directory.sql
       - name: Verify production counts and governance
