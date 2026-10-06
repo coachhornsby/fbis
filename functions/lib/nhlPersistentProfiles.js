@@ -73,7 +73,7 @@ function zonesCrossed(a,b,iso){
  const x=a?.tz?tzOffsetMinutes(a.tz,iso):null,y=b?.tz?tzOffsetMinutes(b.tz,iso):null;
  return x==null||y==null?0:Math.round(Math.abs(y-x)/60);
 }
-function durationSeconds(v){
+export function durationSeconds(v){
  if(v==null||v==="")return null;
  const n=Number(v);if(Number.isFinite(n))return n;
  const m=String(v).match(/^(?:(\d+):)?(\d+):(\d+)$/);
@@ -158,12 +158,12 @@ function statRows(payload){return Array.isArray(payload?.data)?payload.data:[];}
 function statByPlayer(payload){
  const m=new Map();for(const r of statRows(payload)){const id=String(r.playerId||"");if(id)m.set(id,r);}return m;
 }
-function scratchIds(box={}){
+export function scratchIds(box={}){
  const out=new Set(),root=box?.boxscore?.scratches??box?.scratches??{};
  const scan=v=>{if(!v)return;if(Array.isArray(v)){for(const x of v)scan(x);return;}if(typeof v!=="object")return;const id=v.playerId??v.id;if(id!=null)out.add(String(id));for(const x of Object.values(v))if(x&&typeof x==="object")scan(x);};
  scan(root);return out;
 }
-function goalieStarterIds(box={}){
+export function goalieStarterIds(box={}){
  const out=new Set();
  for(const side of ["homeTeam","awayTeam"]){
   const rows=box?.playerByGameStats?.[side]?.goalies||[];
@@ -172,7 +172,7 @@ function goalieStarterIds(box={}){
  }
  return out;
 }
-function parseShiftRows(payload={},team,rosterIds=null){
+export function parseShiftRows(payload={},team,rosterIds=null){
  const want=officialAbbr(team),out=[];
  for(const r of payload?.data||[]){
   const abbr=String(r.teamAbbrev||r.teamAbbreviation||r.teamAbbrevCode||"").toUpperCase();
@@ -191,7 +191,7 @@ function parseShiftRows(payload={},team,rosterIds=null){
  return out;
 }
 function overlap(a,b){return Math.max(0,Math.min(a.end,b.end)-Math.max(a.start,b.start));}
-function deploymentFromShifts(roster,shiftSets=[]){
+export function deploymentFromShifts(roster,shiftSets=[]){
  const intervals=new Map(),gamesByPlayer=new Map();
  for(const set of shiftSets){
   const seen=new Set();
