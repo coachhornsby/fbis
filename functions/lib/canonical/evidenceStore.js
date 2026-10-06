@@ -65,8 +65,23 @@ export async function persistEconomicGrade(env, input) {
   if (!m.entryMarketSnapshotId || !m.entryObservedAt || !m.economicBasis || !m.metricMethodVersion) {
     return { ok:false, reason:"economic-grade-provenance-incomplete" };
   }
-  const evidence = await env.DB.prepare("SELECT evidence_id,promotion_eligible FROM fbis_prospective_evidence WHERE evidence_id=?").bind(grade.evidenceId).first();
+  const evidence = await env.DB.prepare(
+    "SELECT evidence_id,sport,event_id,market_snapshot_id,market_observed_at,promotion_eligible FROM fbis_prospective_evidence WHERE evidence_id=?"
+  ).bind(grade.evidenceId).first();
   if (!evidence) return { ok:false, reason:"prospective-evidence-not-found" };
+  const linkageConflicts = [];
+  if (!same(evidence.sport, grade.sport)) linkageConflicts.push("sport");
+  if (!same(evidence.event_id, grade.eventId)) linkageConflicts.push("event_id");
+  if (!same(evidence.market_snapshot_id, m.entryMarketSnapshotId)) linkageConflicts.push("entry_market_snapshot_id");
+  if (!same(evidence.market_observed_at, m.entryObservedAt)) linkageConflicts.push("entry_observed_at");
+  if (linkageConflicts.length) {
+    return {
+      ok:false,
+      conflict:true,
+      reason:"economic-grade-evidence-linkage-conflict",
+      fields:linkageConflicts,
+    };
+  }
   const existing = await env.DB.prepare("SELECT * FROM fbis_economic_grades WHERE grade_id=?").bind(grade.gradeId).first();
   if (existing) {
     const conflict = [
