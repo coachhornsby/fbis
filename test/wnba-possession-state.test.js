@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeEspnPlay } from "../functions/lib/wnbaLineupModel.js";
+import { normalizeEspnPlay, auditWnbaLineupEvidence } from "../functions/lib/wnbaLineupModel.js";
 import {
   classifyWnbaShot,
   reconstructWnbaPossessionState,
@@ -65,4 +65,25 @@ test("transition is a labeled proxy only after turnover or defensive rebound",()
   const away=r.possessions.find(x=>x.offenseTeamId==="A");
   assert.equal(Boolean(away?.transitionProxy),true);
   assert.equal(r.governance.researchOnly,true);
+});
+
+
+test("WNBA lineup audit separates substitution resolution from stint coverage",()=>{
+  const q=auditWnbaLineupEvidence({
+    homeTeamId:"H",awayTeamId:"A",
+    homePlayers:[
+      {id:"h1",name:"H1",starter:1},{id:"h2",name:"H2",starter:1},{id:"h3",name:"H3",starter:1},{id:"h4",name:"H4",starter:1},{id:"h5",name:"H5",starter:1},{id:"h6",name:"H6",starter:0}
+    ],
+    awayPlayers:[
+      {id:"a1",name:"A1",starter:1},{id:"a2",name:"A2",starter:1},{id:"a3",name:"A3",starter:1},{id:"a4",name:"A4",starter:1},{id:"a5",name:"A5",starter:1}
+    ],
+    plays:[
+      {id:"s1",period:1,clock:"8:00",teamId:"H",type:"Substitution",text:"H6 enters the game for H1",participants:[{id:"h6",name:"H6"},{id:"h1",name:"H1"}]},
+      {id:"s2",period:1,clock:"7:00",teamId:"H",type:"Substitution",text:"Unknown enters the game for H9",participants:[{id:"hx",name:"Unknown"},{id:"h9",name:"H9"}]},
+    ],
+  });
+  assert.equal(q.substitutionEvents,2);
+  assert.equal(q.resolved,1);
+  assert.equal(q.unresolved,1);
+  assert.equal(q.resolutionRate,0.5);
 });
