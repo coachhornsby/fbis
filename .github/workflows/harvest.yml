@@ -195,10 +195,30 @@ jobs:
           expected="$(echo "$PRODUCTION_SHA" | tr 'A-F' 'a-f')"
           echo "mid-run SHA check http=${code} expected=${expected} live=${live}"
           if [ "$code" != "200" ] || [ "${#live}" -ne 40 ]; then
+            echo "FBIS_SIGNAL_CLASS=INFRA_FAILURE"
+            echo "FBIS_SIGNAL_REASON=PRODUCTION_SHA_UNAVAILABLE"
+            echo "::error title=FBIS_SIGNAL_CLASS::INFRA_FAILURE/PRODUCTION_SHA_UNAVAILABLE"
+            {
+              echo "### FBIS signal classification"
+              echo "- class: `INFRA_FAILURE`"
+              echo "- reason: `PRODUCTION_SHA_UNAVAILABLE`"
+              echo "- action: fail closed; investigate health/deployment visibility"
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "Production SHA unavailable mid-run — fail closed for writes."
             exit 1
           fi
           if [ "$live" != "$expected" ]; then
+            echo "FBIS_SIGNAL_CLASS=EXPECTED_FAIL_CLOSED"
+            echo "FBIS_SIGNAL_REASON=SUPERSEDED_SHA"
+            echo "::notice title=FBIS_SIGNAL_CLASS::EXPECTED_FAIL_CLOSED/SUPERSEDED_SHA"
+            {
+              echo "### FBIS signal classification"
+              echo "- class: `EXPECTED_FAIL_CLOSED`"
+              echo "- reason: `SUPERSEDED_SHA`"
+              echo "- expected SHA: `${expected}`"
+              echo "- live SHA: `${live}`"
+              echo "- action: no mixed-SHA writes; a later run on the live deployment is authoritative"
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "Production SHA changed mid-run (${expected} -> ${live}) — fail closed (no mixed SHAs)."
             exit 1
           fi
