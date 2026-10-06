@@ -66,12 +66,15 @@ const round = (v, d = 4) => {
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Number(v)));
 const isoDate = (v) => String(v || "").slice(0, 10);
 
+function identityName(value = "") {
+  return String(value || "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
+}
 function teamKey(team = {}) {
   if (team.teamKey) return String(team.teamKey);
   if (team.espnId != null) return `id:${team.espnId}`;
   if (team.id != null) return `id:${team.id}`;
   if (team.abbr) return `abbr:${String(team.abbr).toUpperCase()}`;
-  return `name:${String(team.name || team.displayName || "").toLowerCase()}`;
+  return `name:${identityName(team.name || team.displayName || "")}`;
 }
 function teamKeys(team = {}) {
   return [...new Set([
@@ -79,7 +82,7 @@ function teamKeys(team = {}) {
     team.espnId != null ? `id:${team.espnId}` : null,
     team.id != null ? `id:${team.id}` : null,
     team.abbr ? `abbr:${String(team.abbr).toUpperCase()}` : null,
-    (team.name || team.displayName) ? `name:${String(team.name || team.displayName).toLowerCase()}` : null,
+    (team.name || team.displayName) ? `name:${identityName(team.name || team.displayName)}` : null,
   ].filter(Boolean))];
 }
 
@@ -305,6 +308,13 @@ export function projectSoccerFromHistory(game = {}, history = [], options = {}) 
       modelId: SOCCER_FBIS_ID,
       modelVersion: SOCCER_FBIS_VERSION,
       reason: "canonical-team-history-missing",
+      diagnostics: {
+        historyMatches: state.rawMatches,
+        homeMatched: Boolean(homeState),
+        awayMatched: Boolean(awayState),
+        homeIdentity: { id: game?.home?.id ?? null, espnId: game?.home?.espnId ?? null, name: game?.home?.name || game?.home?.displayName || null },
+        awayIdentity: { id: game?.away?.id ?? null, espnId: game?.away?.espnId ?? null, name: game?.away?.name || game?.away?.displayName || null },
+      },
       marketInformed: false,
       canQualify: false,
       canAuthorize: false,
