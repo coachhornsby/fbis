@@ -123,12 +123,18 @@ async function persist(db,rows){
       id,event_id,game_start,feature_cutoff_timestamp,model_id,model_version,incumbent_model_id,gate_id,gate_fired,historical_gate_validated,
       goalie_probability_scale,incumbent_home_win_probability,shadow_home_win_probability,projected_home,projected_away,
       goalie_state_json,ev_deployment_json,pp_deployment_json,scratches_availability_json,replacement_mapping_json,persistent_state_json,market_snapshot_json,
-      code_sha,can_qualify,can_authorize_wager,staking_authorized,created_at
-    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      code_sha,can_qualify,can_authorize_wager,staking_authorized,created_at,
+      lifecycle,home_goalie_confirmation_state,away_goalie_confirmation_state,home_expected_starter_id,away_expected_starter_id,
+      home_expected_starter_name,away_expected_starter_name,home_expected_start_probability,away_expected_start_probability,
+      goalie_evidence_source,goalie_evidence_at,deployment_evidence_at,availability_evidence_at,market_observed_at,
+      temporal_integrity_passed,temporal_integrity_json,probability_delta,starter_quality_delta,goalie_usage_state
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .bind(r.id,r.eventId,r.gameStart,r.featureCutoffTimestamp,r.modelId,r.modelVersion,r.incumbentModelId,r.gateId,r.gateFired?1:0,r.historicalGateValidated?1:0,
         r.goalieProbabilityScale,r.incumbentHomeWinProbability,r.shadowHomeWinProbability,r.projectedHome,r.projectedAway,
         JSON.stringify(r.goalieState),JSON.stringify(r.evDeployment),JSON.stringify(r.ppDeployment),JSON.stringify(r.scratchesAvailability),JSON.stringify(r.replacementMapping),JSON.stringify(r.persistentState),JSON.stringify(r.marketSnapshot),
-        r.codeSha,0,0,0,r.featureCutoffTimestamp).run();
+        r.codeSha,0,0,0,r.featureCutoffTimestamp,r.lifecycle,r.homeGoalieConfirmationState,r.awayGoalieConfirmationState,r.homeExpectedStarterId,r.awayExpectedStarterId,
+        r.homeExpectedStarterName,r.awayExpectedStarterName,r.homeExpectedStartProbability,r.awayExpectedStartProbability,r.goalieEvidenceSource,r.goalieEvidenceAt,
+        r.deploymentEvidenceAt,r.availabilityEvidenceAt,r.marketObservedAt,r.temporalIntegrityPassed?1:0,JSON.stringify(r.temporalIntegrity),r.probabilityDelta,r.starterQualityDelta,r.goalieUsageState).run();
     if(result?.meta?.changes)written++;else existing++;
   }
   return{written,existing};
