@@ -50,11 +50,34 @@ test("goalie shadow fails closed to context-only without persisted state",()=>{
 
 test("goalie shadow API is research-only and freezes required state fields",async()=>{
   const src=await readFile(new URL("../functions/api/nhl-goalie-shadow.js",import.meta.url),"utf8");
-  for(const token of ["ev_deployment_json","pp_deployment_json","scratches_availability_json","replacement_mapping_json","market_snapshot_json","code_sha"]){
+  for(const token of ["ev_deployment_json","pp_deployment_json","scratches_availability_json","replacement_mapping_json","market_snapshot_json","code_sha","goalie_evidence_at","deployment_evidence_at","availability_evidence_at","market_observed_at","temporal_integrity_passed","probability_delta","goalie_usage_state"]){
     assert.match(src,new RegExp(token));
   }
   assert.match(src,/productionChampion:"NHL-PRO-v2"/);
   assert.match(src,/productionChanged:false/);
+  assert.match(src,/qualificationChanged:false/);
+  assert.match(src,/if\(!integrity\.modelInputSafe\)continue/);
+  assert.match(src,/captured_at<=\?/);
   assert.match(src,/authority:false/);
   assert.match(src,/staking:false/);
+});
+
+test("prospective gate is predeclared and cannot auto-promote",async()=>{
+  const { NHL_GOALIE_PROB_PROSPECTIVE_GATE:g }=await import("../data/models/nhl-goalie-prob-prospective-gate-v1.js");
+  assert.equal(g.gateVersion,"NHL-GOALIE-PROB-PROSPECTIVE-GATE-v1");
+  assert.equal(g.minimums.gradedGames,100);
+  assert.equal(g.minimums.confirmedStarterGames,60);
+  assert.equal(g.automaticPromotion,false);
+  assert.equal(g.operatorApprovalRequired,true);
+  assert.equal(g.canQualify,false);
+  assert.equal(g.canAuthorizeWager,false);
+  assert.equal(g.stakingAuthorized,false);
+});
+
+test("scheduled shadow workflow uses JSON-safe payload construction",async()=>{
+  const src=await readFile(new URL("../.github/workflows/nhl-goalie-prob-shadow.yml",import.meta.url),"utf8");
+  assert.match(src,/cron: "17 \* \* \* \*"/);
+  assert.match(src,/jq -nc --arg mode freeze/);
+  assert.match(src,/jq -nc --arg mode settle/);
+  assert.doesNotMatch(src,/-d "\{"mode"/);
 });
