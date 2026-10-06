@@ -10,6 +10,7 @@ import {
   resolveOddsProviders,
   shouldSyncPagesSecret,
 } from "../functions/lib/oddsProviderRouter.js";
+import { providerSportKey, summarizeParlayEvent } from "../functions/lib/parlay.js";
 import {
   shouldPutPagesSecret,
   syncPagesSecretsSkipEmpty,
@@ -321,5 +322,35 @@ describe("Pages odds-secret sync never overwrites with empty values", () => {
     assert.deepEqual(puts, []);
     assert.equal(report.written.length, 0);
     assert.equal(report.skipped.length, 3);
+  });
+});
+
+
+describe("NHL production odds enrollment", () => {
+  it("uses separate provider keys for preseason and regular season", () => {
+    assert.equal(providerSportKey("nhl", { gameTypes: [1,1] }), "icehockey_nhl_preseason");
+    assert.equal(providerSportKey("nhl", { gameTypes: [2] }), "icehockey_nhl");
+    assert.equal(providerSportKey("nhl", { gameTypes: [3] }), "icehockey_nhl");
+    assert.equal(providerSportKey("nhl", {}), "icehockey_nhl");
+  });
+
+  it("packs NHL moneyline puck line and total from a two-way priced market", () => {
+    const ev={
+      id:"nhl1",home_team:"Boston Bruins",away_team:"New York Rangers",commence_time:"2026-10-10T00:00:00Z",
+      bookmakers:[{key:"pinnacle",title:"Pinnacle",markets:[
+        {key:"h2h",outcomes:[{name:"Boston Bruins",price:-125},{name:"New York Rangers",price:110}]},
+        {key:"spreads",outcomes:[{name:"Boston Bruins",price:170,point:-1.5},{name:"New York Rangers",price:-195,point:1.5}]},
+        {key:"totals",outcomes:[{name:"Over",price:-108,point:6},{name:"Under",price:-102,point:6}]},
+      ]}]
+    };
+    const out=summarizeParlayEvent(ev,"nhl");
+    assert.equal(out.pinHomeMl,-125);
+    assert.equal(out.pinAwayMl,110);
+    assert.equal(out.pinSpread,-1.5);
+    assert.equal(out.pinSpreadHomePrice,170);
+    assert.equal(out.pinSpreadAwayPrice,-195);
+    assert.equal(out.pinTotal,6);
+    assert.equal(out.pinOverPrice,-108);
+    assert.equal(out.pinUnderPrice,-102);
   });
 });

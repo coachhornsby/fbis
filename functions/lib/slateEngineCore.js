@@ -996,6 +996,7 @@ async function fetchNhlOfficialSchedule(day) {
       id: String(g?.id || ""),
       sport: "nhl",
       start: g?.startTimeUTC || null,
+      gameType: num(g?.gameType),
       status: {
         state: completed ? "post" : live ? "in" : "pre",
         detail: completed ? "Final" : live ? "Live" : "Scheduled",
@@ -1755,6 +1756,7 @@ export async function buildSlate(sport, date, env = {}) {
     backupApiKey: env.THEODDS_API_KEY,
     sharpApiKey: env.SHARPAPI_API_KEY,
     theRundownApiKey: env.THERUNDOWN_API_KEY,
+    gameTypes: id === "nhl" ? games.map((g) => g.gameType).filter((x) => x != null) : [],
   });
   // Persist board-vs-live odds health (no secrets) for /api/health.
   if (env?.DB && parlay?.meta) {

@@ -58,7 +58,17 @@ export const PARLAY_SPORT = {
   nfl: "americanfootball_nfl",
   cfb: "americanfootball_ncaaf",
   cbb: "basketball_ncaab",
+  nhl: "icehockey_nhl",
 };
+
+export function providerSportKey(sportId, opts = {}) {
+  if (sportId !== "nhl") return PARLAY_SPORT[sportId] || null;
+  const gameTypes = [...new Set((opts.gameTypes || []).map(Number).filter(Number.isFinite))];
+  // NHL API: gameType 1 preseason, 2 regular season, 3 playoffs.
+  // The Odds API publishes preseason under a separate sport key.
+  if (gameTypes.length && gameTypes.every((x) => x === 1)) return "icehockey_nhl_preseason";
+  return "icehockey_nhl";
+}
 
 const TTL_MS = 15 * 60 * 1000;
 const EMPTY_F5_TTL_MS = 6 * 60 * 60 * 1000;
@@ -706,7 +716,7 @@ function propsRowsToStubEvents(rows = []) {
 }
 
 export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
-  const sportKey = PARLAY_SPORT[sportId];
+  const sportKey = providerSportKey(sportId, opts);
   if (!sportKey || (!apiKey && !opts.backupApiKey && !opts.sharpApiKey && !opts.theRundownApiKey)) {
     return { events: [], meta: { enabled: false, remaining: null, cached: false } };
   }
