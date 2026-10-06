@@ -11,6 +11,8 @@ on:
       - "scripts/nba-team-profile-source-merge.mjs"
       - "scripts/nba-team-profile-build.mjs"
       - "scripts/nba-official-lineup-collect.mjs"
+      - "scripts/nba-observation-health-sql.mjs"
+      - "migrations/0060_nba_observation_health.sql"
       - "scripts/nba-player-impact-live.mjs"
       - "migrations/0054_nba_persistent_team_profiles.sql"
       - "test/nba-team-profile.test.js"
