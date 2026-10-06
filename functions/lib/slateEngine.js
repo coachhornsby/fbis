@@ -579,12 +579,19 @@ export function qualificationIntegrity(sport, game) {
   const projectionKind = game?.projectionKind || game?.model?.projectionKind || null;
   const flags = new Set(game?.quality?.flags || []);
 
-  // Research / maturity-gated models may display and publish but never qualify.
+  // Explicit qualification approval is allowed to override a RESEARCH maturity label.
+  // This separates "may surface a qualified edge" from "may size/authorize a wager".
+  const explicitlyQualificationEnabled =
+    game?.canQualify === true ||
+    game?.model?.canQualify === true ||
+    game?.nflProShadow?.canQualify === true ||
+    game?.nhlProV2?.canQualify === true ||
+    game?.mlbDeepShadow?.canQualify === true;
   if (
     game?.canQualify === false ||
     game?.qualificationBlocked === true ||
     game?.model?.canQualify === false ||
-    String(game?.projectionMaturity || game?.model?.maturity || "").toUpperCase() === "RESEARCH" ||
+    (!explicitlyQualificationEnabled && String(game?.projectionMaturity || game?.model?.maturity || "").toUpperCase() === "RESEARCH") ||
     game?.bettingAuthority === "NOT_ELIGIBLE"
   ) {
     return {
