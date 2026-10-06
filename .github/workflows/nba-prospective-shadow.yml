@@ -13,6 +13,10 @@ on:
       - "functions/lib/nbaShotProfile.js"
       - "functions/lib/nbaDeepFeatures.js"
       - "functions/lib/nbaDeepModel.js"
+      - "functions/lib/nbaProfileModel.js"
+      - "scripts/nba-profile-shadow-project.mjs"
+      - "scripts/nba-deep-prospective-ledger.mjs"
+      - "migrations/0069_nba_prospective_profile_ablation.sql"
       - "scripts/nba-player-impact-live.mjs"
       - "migrations/0054_nba_persistent_team_profiles.sql"
       - "scripts/nba-official-lineup-collect.mjs"
@@ -123,6 +127,13 @@ jobs:
           npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM nba_official_availability_reports WHERE report_timestamp <= datetime('now') AND report_timestamp >= datetime('now','-24 hours') ORDER BY report_timestamp ASC"             > artifacts/nba-availability-coverage.json || echo '[]' > artifacts/nba-availability-coverage.json
           npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM nba_player_state_profiles"             > artifacts/nba-player-states-prior.json || echo '[]' > artifacts/nba-player-states-prior.json
 
+      - name: Load latest persisted team snapshot IDs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler d1 execute fbis --remote --json --command "SELECT s.id,s.team_key,s.as_of FROM nba_team_profile_snapshots s JOIN (SELECT team_key,MAX(as_of) mx FROM nba_team_profile_snapshots GROUP BY team_key) x ON x.team_key=s.team_key AND x.mx=s.as_of" > artifacts/nba-latest-team-snapshots.json
+
       - name: Build live player impact and role context
         run: |
           node scripts/nba-player-impact-live.mjs             frozen=artifacts/frozen/nba-canonical.jsonl             current=artifacts/current/nba-canonical.jsonl             historicalImpact=artifacts/frozen/nba-player-impact-v1.json             availability=artifacts/nba-availability.json             coverage=artifacts/nba-availability-coverage.json             priorStates=artifacts/nba-player-states-prior.json             lineupEvidence=artifacts/nba-official-lineups.json             lineupEffects=artifacts/frozen/nba-lineup-effects.json             out=artifacts/nba-player-impact-live.json             sql=artifacts/nba-player-impact-live.sql
@@ -131,6 +142,10 @@ jobs:
         run: |
           node scripts/nba-shadow-project.mjs date="$NBA_TODAY" checkpoint="$NBA_CHECKPOINT" prior=artifacts/frozen/nba-canonical.jsonl current=artifacts/current/nba-canonical.jsonl impact=artifacts/nba-player-impact-live.json
 
+      - name: Generate isolated NBA v1-PROFILE challenger and control freeze
+        run: |
+          node scripts/nba-profile-shadow-project.mjs date="$NBA_TODAY" checkpoint="$NBA_CHECKPOINT" codeSha="$GITHUB_SHA" prior=artifacts/frozen/nba-canonical.jsonl current=artifacts/current/nba-canonical.jsonl impact=artifacts/nba-player-impact-live.json stateSnapshots=artifacts/nba-latest-team-snapshots.json out=artifacts/nba-three-model-freeze.json sql=artifacts/nba-profile-prospective.sql
+
       - name: Generate NBA deep-v2 game challenger
         run: |
           if [ -s artifacts/deep/nba-fbis-v2-deep-fit.json ]; then
@@ -138,6 +153,14 @@ jobs:
           else
             echo '{"skipped":true,"reason":"deep_fit_not_available"}' > artifacts/nba-deep-shadow.json
             : > artifacts/nba-deep-shadow.sql
+          fi
+
+      - name: Bridge deep-v2 into common prospective ledger
+        run: |
+          if [ -s artifacts/nba-deep-shadow.json ]; then
+            node scripts/nba-deep-prospective-ledger.mjs input=artifacts/nba-deep-shadow.json stateSnapshots=artifacts/nba-latest-team-snapshots.json codeSha="$GITHUB_SHA" sql=artifacts/nba-deep-prospective-ledger.sql
+          else
+            : > artifacts/nba-deep-prospective-ledger.sql
           fi
 
       - name: Persist impact context and shadow projections to D1
@@ -152,10 +175,13 @@ jobs:
           npx wrangler d1 execute fbis --remote --file=migrations/0048_nba_player_impact.sql
           npx wrangler d1 execute fbis --remote --file=artifacts/nba-player-impact-live.sql
           npx wrangler d1 execute fbis --remote --file=artifacts/nba-shadow.sql
+          npx wrangler d1 execute fbis --remote --file=migrations/0069_nba_prospective_profile_ablation.sql
+          if [ -s artifacts/nba-profile-prospective.sql ]; then npx wrangler d1 execute fbis --remote --file=artifacts/nba-profile-prospective.sql; fi
           npx wrangler d1 execute fbis --remote --file=migrations/0052_nba_deep_game_model.sql
           if [ -s artifacts/nba-deep-shadow.sql ]; then
             npx wrangler d1 execute fbis --remote --file=artifacts/nba-deep-shadow.sql
           fi
+          if [ -s artifacts/nba-deep-prospective-ledger.sql ]; then npx wrangler d1 execute fbis --remote --file=artifacts/nba-deep-prospective-ledger.sql; fi
 
       - uses: actions/upload-artifact@v4
         with:
@@ -164,4 +190,5 @@ jobs:
             artifacts/nba-shadow.json
             artifacts/nba-player-impact-live.json
             artifacts/nba-deep-shadow.json
+            artifacts/nba-three-model-freeze.json
           retention-days: 90
