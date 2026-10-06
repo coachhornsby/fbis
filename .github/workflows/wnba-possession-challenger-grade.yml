@@ -6,7 +6,7 @@ on:
     branches: [main]
     paths:
       - "functions/api/wnba-possession-challenger-grade.js"
-      - "migrations/0079_wnba_possession_challenger_shadow.sql"
+      - "migrations/0080_wnba_possession_challenger_shadow.sql"
       - ".github/workflows/wnba-possession-challenger-grade.yml"
   schedule:
     - cron: "35 15 * * *"
