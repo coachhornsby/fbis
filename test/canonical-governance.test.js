@@ -133,7 +133,7 @@ test("migration 0023 registers canonical governance tables", async () => {
   assert.match(migration25, /canonical_publication_ledger/);
   assert.match(schemaExt, /canonical_publication_ledger/);
   // Latest expected migration advances with manual-completion contracts.
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["\']0062_soccer_provider_mapping_registry["\']/);
+  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["\']0063_soccer_persistent_state_research["\']/);
 });
 
 test("gap report exists and freezes incumbents in prose", async () => {

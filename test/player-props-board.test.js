@@ -336,15 +336,15 @@ test("rankPropConviction stays null when FBIS has no read", () => {
 
 test("propProjectionStars uses sigma-normalized FBIS-vs-line distance", () => {
   assert.equal(propProjectionStars({ fbisProjection: 105, line: 100, fbisSigma: 20 }), 2);
-  assert.equal(propProjectionStars({ fbisProjection: 113, line: 100, fbisSigma: 20 }), 4);
-  assert.equal(propProjectionStars({ fbisProjection: 120, line: 100, fbisSigma: 20 }), 5);
+  assert.equal(propProjectionStars({ fbisProjection: 113, line: 100, fbisSigma: 20 }), 3);
+  assert.equal(propProjectionStars({ fbisProjection: 120, line: 100, fbisSigma: 20 }), 3);
 });
 
 test("propProjectionStars falls back to relative FBIS-vs-line distance", () => {
   assert.equal(propProjectionStars({ fbis_projection: 102, line: 100 }), 1);
   assert.equal(propProjectionStars({ fbis_projection: 108, line: 100 }), 3);
-  assert.equal(propProjectionStars({ fbis_projection: 111, line: 100 }), 4);
-  assert.equal(propProjectionStars({ fbis_projection: 116, line: 100 }), 5);
+  assert.equal(propProjectionStars({ fbis_projection: 111, line: 100 }), 3);
+  assert.equal(propProjectionStars({ fbis_projection: 116, line: 100 }), 3);
   assert.equal(propProjectionStars({ fbis_projection: null, line: 100 }), null);
 });
 
@@ -356,7 +356,7 @@ test("generic projected prop rows carry FBIS-vs-line confidence stars", () => {
     fbisProjection: 280,
     fbisSigma: 40,
   });
-  assert.equal(row.confidenceStars, 4);
+  assert.equal(row.confidenceStars, 3);
   assert.equal(row.confidenceVersion, "fbis-prop-gap-stars-v1");
   assert.equal(row.confidenceSide, "MORE");
 });
@@ -382,12 +382,12 @@ test("WNBA PrizePicks props use the common star system with canonical 3PT mappin
   });
   assert.equal(board.rows.length,1);
   assert.equal(board.rows[0].marketCanonical,"three_pointers_made");
-  assert.equal(board.rows[0].confidenceStars,5);
+  assert.equal(board.rows[0].confidenceStars,3);
   assert.equal(board.rows[0].confidenceVersion,"fbis-prop-gap-stars-v1");
   assert.equal(board.rows[0].confidenceSide,"MORE");
 });
 
-test("WNBA authorized props keep the full generic 1-5 star range and card authority", () => {
+test("WNBA authorization alone does not unlock premium confidence without calibration", () => {
   const board = buildPlayerPropsBoard({
     games:[{
       id:"wnba-open",sport:"wnba",away:{abbr:"IND"},home:{abbr:"LVA"},
@@ -406,7 +406,7 @@ test("WNBA authorized props keep the full generic 1-5 star range and card author
     }],
   });
   assert.equal(board.rows.length,1);
-  assert.equal(board.rows[0].confidenceStars,5);
+  assert.equal(board.rows[0].confidenceStars,3);
   assert.equal(board.rows[0].confidenceSide,"MORE");
   assert.equal(board.rows[0].decisionEligible,true);
   assert.equal(board.rows[0].eligibleForCard,true);
@@ -438,7 +438,7 @@ test("domain adapter preserves authorized WNBA prop flags", () => {
 });
 
 
-test("live NFL props board hides rows below four stars outside San Francisco", () => {
+test("live NFL props board hides uncalibrated sub-4-star rows outside San Francisco", () => {
   const board = buildPlayerPropsBoard({
     games:[{
       id:"nfl-g",sport:"nfl",away:{abbr:"DAL"},home:{abbr:"PHI"},
@@ -446,7 +446,7 @@ test("live NFL props board hides rows below four stars outside San Francisco", (
         {
           playerName:"QB Low",team:"DAL",marketCanonical:"passing_yards",
           targetRole:"QB1",line:250.5,fbisProjection:255,fbisSigma:45,
-          roleConfidence:.9,propGate:"CLEAR",eligibleForCard:true,
+          roleConfidence:.9,propGate:"CLEAR",eligibleForCard:true,propCalibrationValidated:true,
           featureEvidence:{
             targetRole:true,targetRoleName:"QB1",recent5:true,snapShare:true,
             positionDefense:true,nextGen:true,opponentMatchup:true
@@ -464,9 +464,8 @@ test("live NFL props board hides rows below four stars outside San Francisco", (
       ]
     }]
   },{supportedOnly:false,enforceNflDisplayPolicy:true});
-  assert.deepEqual(board.rows.map(r=>r.playerName),["WR Two"]);
-  assert.equal(board.rows[0].confidenceStars,5);
-  assert.equal(board.counts.hiddenNflBelowFourStars,1);
+  assert.deepEqual(board.rows.map(r=>r.playerName),[]);
+  assert.equal(board.counts.hiddenNflBelowFourStars,2);
 });
 
 test("live NFL props board always shows 49ers QB1 RB1 WR1 WR2 TE1 projections regardless of stars or PrizePicks line", () => {
@@ -565,9 +564,26 @@ test("PrizePicks Demon/Goblin star cap is platform-wide on non-NFL player props"
     propGate:"CLEAR",
     eligibleForCard:true,
   });
-  assert.equal(standard.confidenceStars,5);
+  assert.equal(standard.confidenceStars,3);
   assert.ok(demon.confidenceStars<=2);
   assert.equal(demon.prizePicksEconomics.status,"ALTERNATE_TIER_PAYOUT_UNPRICED");
+});
+
+
+test("explicit calibrated prop probability can unlock premium stars", () => {
+  const row=withFbisPropAnalytics({
+    sport:"wnba",
+    marketCanonical:"points",
+    line:20.5,
+    fbisProjection:30,
+    fbisSigma:4,
+    propCalibrationValidated:true,
+    propGate:"CLEAR",
+    eligibleForCard:true,
+  });
+  assert.equal(row.confidenceStars,3);
+  // Generic raw-gap path remains capped; premium tiers require a validated
+  // sport/market confidence grader rather than a calibration flag alone.
 });
 
 

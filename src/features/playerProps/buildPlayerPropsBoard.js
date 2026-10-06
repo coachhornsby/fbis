@@ -14,7 +14,7 @@ import {
   nhlPropConfidenceLineValidated,
 } from "../../../functions/lib/nhlPropConfidence.js";
 import { evaluateNhlPropWagerV1 } from "../../../functions/lib/nhlWagerV1.js";
-import { estimatedPropHitProbability, prizePicksTierEconomics, selectivePropStars } from "../../../functions/lib/selectivePropEdge.js";
+import { applyPropCalibrationCeiling, estimatedPropHitProbability, prizePicksTierEconomics, selectivePropStars } from "../../../functions/lib/selectivePropEdge.js";
 
 /**
  * All player-prop markets currently supported on FBIS product surfaces.
@@ -28,8 +28,10 @@ export const FBIS_PLAYER_MARKETS = Object.freeze([
 export const MARKET_LABELS = Object.freeze({ ...PRO_PLAYER_PROP_LABELS });
 
 /**
- * Generic 1–5 star projection confidence from FBIS projection vs market line.
- * Sport-specific validated graders (for example NHL goalie saves) remain authoritative.
+ * Generic raw projection-gap confidence from FBIS projection vs market line.
+ * This path is intentionally capped at 3★ because z-distance / relative gap is
+ * not a calibrated hit-probability mapping. Validated sport/market graders may
+ * unlock 4★/5★ through the shared calibration contract.
  */
 export function propProjectionStars(row = {}) {
   const projectionRaw = row.fbisProjection ?? row.fbis_projection ?? row.projection ?? null;
@@ -49,16 +51,12 @@ export function propProjectionStars(row = {}) {
 
   if (Number.isFinite(sigma) && sigma > 0) {
     const z = delta / sigma;
-    if (z >= 0.90) return 5;
-    if (z >= 0.65) return 4;
     if (z >= 0.40) return 3;
     if (z >= 0.20) return 2;
     return 1;
   }
 
   const relativeGap = delta / Math.max(Math.abs(line), 1);
-  if (relativeGap >= 0.15) return 5;
-  if (relativeGap >= 0.10) return 4;
   if (relativeGap >= 0.06) return 3;
   if (relativeGap >= 0.03) return 2;
   return 1;
@@ -69,11 +67,17 @@ export function propProjectionStars(row = {}) {
  * May derive over/under probability from projection + sigma + line only —
  * never invents a projection or price.
  */
-function applyPrizePicksPlatformConfidence(row = {}, stars = 1) {
+function applyPrizePicksPlatformConfidence(row = {}, stars = 1, opts = {}) {
   const hitProbability = estimatedPropHitProbability(row);
   const economics = prizePicksTierEconomics(row, hitProbability);
+  const calibrationRow = opts.calibrationValidated === true
+    ? { ...row, propCalibrationValidated: true }
+    : row;
   return {
-    stars: Math.min(Number(stars) || 1, economics.maxStars),
+    stars: applyPropCalibrationCeiling(
+      calibrationRow,
+      Math.min(Number(stars) || 1, economics.maxStars),
+    ),
     economics,
   };
 }
@@ -159,7 +163,9 @@ export function withFbisPropAnalytics(row = {}) {
         lineValidated: nhlPropConfidenceLineValidated("saves",ranked.line),
         modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
       });
-      const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars);
+      const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars, {
+        calibrationValidated: ranked.validationStatus === "PROMOTE_RESEARCH" && nhlPropConfidenceLineValidated("saves", ranked.line),
+      });
       return {
         ...ranked,
         prizePicksEconomics: platform.economics,
@@ -188,7 +194,9 @@ export function withFbisPropAnalytics(row = {}) {
         lineValidated: nhlPropConfidenceLineValidated("shots_on_goal",ranked.line),
         modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
       });
-      const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars);
+      const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars, {
+        calibrationValidated: ranked.validationStatus === "PROMOTE_RESEARCH" && nhlPropConfidenceLineValidated("shots_on_goal", ranked.line),
+      });
       return {
         ...ranked,
         prizePicksEconomics: platform.economics,
@@ -214,7 +222,9 @@ export function withFbisPropAnalytics(row = {}) {
       eligibleForCard: ranked.eligibleForCard,
     });
     if (genericStars) {
-      const platform = applyPrizePicksPlatformConfidence(ranked, genericStars.stars);
+      const platform = applyPrizePicksPlatformConfidence(ranked, genericStars.stars, {
+        calibrationValidated: ranked.validationStatus === "PROMOTE_RESEARCH" && ranked.lineValidationStatus === "VALIDATED",
+      });
       return {
         ...ranked,
         prizePicksEconomics: platform.economics,
