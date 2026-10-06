@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-06T16:07:59Z",
-  "triggerSha": "080133b09b6f19a091ce29800d00eef4996f1cf7",
+  "generatedAt": "2026-10-06T16:18:38Z",
+  "triggerSha": "bef1b2abb98d884bdd1db82d781d9348bb90e599",
   "snapshotDate": "2026-10-07",
   "first": {
     "ok": true,
     "date": "2026-10-07",
-    "snapshotAt": "2026-10-06T16:07:53.765Z",
+    "snapshotAt": "2026-10-06T16:18:32.713Z",
     "slateGames": 1,
     "eligibleGames": 0,
     "attempted": 0,
@@ -15,9 +15,10 @@
       "v2-projection-unavailable": 1
     },
     "skippedDetails": {
-      "v2-projection-unavailable:canonical-team-history-missing": 1
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Chicago Fire FC|away-Vancouver Whitecaps": 1
     },
     "lifecycle": "SHADOW",
+    "collectorCodeSha": "bef1b2abb98d884bdd1db82d781d9348bb90e599",
     "publicProjectionRoutingChanged": false,
     "persistentStateUsed": false,
     "marketUsedInModel": false,
