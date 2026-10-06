@@ -2,18 +2,6 @@ name: WNBA possession-shot historical ablation
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/wnba-possession-shot-ablation.yml"
-      - "scripts/wnba-possession-qa.mjs"
-      - "scripts/wnba-possession-ablation.mjs"
-      - "scripts/wnba-possession-state-build.mjs"
-      - "scripts/wnba-pbp-canonical-build.mjs"
-      - "scripts/wnba-canonical-build.mjs"
-      - "scripts/wnba-lineup-stints-build.mjs"
-      - "functions/lib/wnbaPossessionState.js"
-      - "functions/lib/wnbaLineupModel.js"
 
 permissions:
   contents: read
