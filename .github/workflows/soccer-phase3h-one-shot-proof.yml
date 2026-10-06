@@ -52,7 +52,7 @@ jobs:
             status="$(printf '%s\n' "$raw" | head -n1)"
             body="$(printf '%s\n' "$raw" | tail -n +2)"
             echo "first attempt=${attempt} http=${status}"
-            printf '%s\n' "$body" | jq -c '{ok,error,detail,date,snapshotAt,slateGames,eligibleGames,attempted,written,existing,skipped,researchOnly,canQualify,canAuthorize}' 2>/dev/null || printf '%s\n' "$body"
+            printf '%s\n' "$body" | jq -c '{ok,error,detail,date,snapshotAt,slateGames,eligibleGames,attempted,written,existing,skipped,skippedDetails,researchOnly,canQualify,canAuthorize}' 2>/dev/null || printf '%s\n' "$body"
             if [ "$status" = "200" ] && printf '%s\n' "$body" | jq -e '.ok == true and .eligibleGames > 0 and .attempted > 0 and .written > 0 and .researchOnly == true and .canQualify == false and .canAuthorize == false' >/dev/null 2>&1; then
               first="$body"
               break
@@ -67,7 +67,7 @@ jobs:
             status="$(printf '%s\n' "$raw" | head -n1)"
             body="$(printf '%s\n' "$raw" | tail -n +2)"
             echo "second attempt=${attempt} http=${status}"
-            printf '%s\n' "$body" | jq -c '{ok,error,detail,date,snapshotAt,slateGames,eligibleGames,attempted,written,existing,skipped,researchOnly,canQualify,canAuthorize}' 2>/dev/null || printf '%s\n' "$body"
+            printf '%s\n' "$body" | jq -c '{ok,error,detail,date,snapshotAt,slateGames,eligibleGames,attempted,written,existing,skipped,skippedDetails,researchOnly,canQualify,canAuthorize}' 2>/dev/null || printf '%s\n' "$body"
             if [ "$status" = "200" ] && printf '%s\n' "$body" | jq -e '.ok == true and .attempted > 0 and .written == 0 and .existing == .attempted and .researchOnly == true and .canQualify == false and .canAuthorize == false' >/dev/null 2>&1; then
               second="$body"
               break
