@@ -49,15 +49,17 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          today="$(TZ=America/Chicago date +%F)"
           for i in $(seq 1 18); do
-            npx wrangler d1 execute fbis --remote --json --command               "SELECT COUNT(*) AS n FROM nba_game_projections WHERE substr(feature_cutoff_timestamp,1,10)='${today}'"               > /tmp/nba-ready.json
-            count="$(jq -r '[..|objects|select(has("n"))|.n][0] // 0' /tmp/nba-ready.json)"
-            echo "NBA shadow readiness attempt=$i count=$count"
-            if [ "$count" -gt 0 ]; then exit 0; fi
+            if npx wrangler d1 execute fbis --remote --json --command "SELECT COUNT(*) AS n FROM nba_prospective_game_shadow WHERE code_sha <> '00e02556d645d2d13352eaf9b644fc94603f23c1' AND prediction_timestamp >= datetime('now','-21 days')" > /tmp/nba-ready.json; then
+              count="$(jq -r '[..|objects|select(has("n"))|.n][0] // 0' /tmp/nba-ready.json)"
+              echo "NBA prospective readiness attempt=$i count=$count"
+              if [ "$count" -gt 0 ]; then exit 0; fi
+            else
+              echo "NBA prospective readiness attempt=$i D1 query failed; retrying"
+            fi
             sleep 10
           done
-          echo "NBA shadow projections were not persisted before evaluator deadline."
+          echo "NBA eligible prospective projections were not readable before evaluator deadline."
           exit 1
 
       - name: Apply prospective market-link schema
