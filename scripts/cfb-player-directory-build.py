@@ -75,6 +75,14 @@ def iso_utc(v):
     if pd.isna(ts): return None
     return ts.isoformat().replace("+00:00","Z")
 
+def is_source_team_placeholder(row):
+    names=[pick(row,c) for c in ["full_name","display_name","athlete_display_name","short_name"]]
+    normalized={norm(x) for x in names if x}
+    first=str(pick(row,"first_name") or "").strip()
+    last=str(pick(row,"last_name") or "").strip().lower()
+    jersey_right=str(pick(row,"jersey_right") or "").strip().upper()
+    return "team" in normalized and first == "-" and last == "team" and jersey_right == "TM"
+
 def player_identity(row,season):
     aid=integer(row.get("athlete_id"))
     if aid is not None:
@@ -123,6 +131,9 @@ for season in range(START,END+1):
     roster=roster.copy()
     if "team_id" in roster.columns:
         roster=roster[roster["team_id"].notna()].copy()
+    # ESPN game-roster feeds can emit synthetic "- Team" rows (jersey_right=TM)
+    # with athlete IDs. They are team placeholders, not player identities.
+    roster=roster[~roster.apply(is_source_team_placeholder,axis=1)].copy()
 
     timing={}
     game_rows=len(game)
