@@ -284,8 +284,10 @@ def build_features():
         "injuryRows":int(len(injuries)),"snapRows":int(len(snaps)),"featureRows":int(len(features)),
         "seasons":[int(features.season.min()),int(features.season.max())] if len(features) else [],
         "injuryDownloadErrors":inj_err,"snapDownloadErrors":snap_err,
-        "priorSnapCoverage":float(pd.to_numeric(merged.get("prior_off"),errors="coerce").notna().mean() |
-                                  pd.to_numeric(merged.get("prior_def"),errors="coerce").notna().mean()) if len(merged) else 0,
+        "priorSnapCoverage":float((
+            pd.to_numeric(merged.get("prior_off"),errors="coerce").notna() |
+            pd.to_numeric(merged.get("prior_def"),errors="coerce").notna()
+        ).mean()) if len(merged) else 0,
         "temporalIntegrity":"Injury rows for week W are joined only to snap observations from ord < W; current-game snap participation never enters its own feature.",
         "featureFamilies":["official injury/practice status","lagged 5-game snap role","same-position prior replacement capacity"],
         "marketInformed":False,
