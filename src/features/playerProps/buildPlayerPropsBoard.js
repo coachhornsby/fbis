@@ -130,7 +130,7 @@ export function withFbisPropAnalytics(row = {}) {
 
   if (
     String(ranked.sport || "").toLowerCase() === "mlb" &&
-    String(ranked.modelMaturity || "").toUpperCase() === "RESEARCH_UNVALIDATED"
+    String(ranked.modelMaturity || ranked.maturity || "").toUpperCase() === "RESEARCH_UNVALIDATED"
   ) {
     return {
       ...ranked,
