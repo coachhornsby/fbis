@@ -50,7 +50,7 @@ for(const file of files){
         ts.players.set(pid,(ts.players.get(pid)||0)+1);
       }
       teamSeason.set(key,ts);
-      stateEvents.push({id:"state:"+hid(teamId,g.gameId,"LINEUP_ROTATION"),entityType:"team",entityId:teamId,teamId,gameId:String(g.gameId),season,family:"LINEUP_ROTATION_OBSERVATION",value:{lineupReliable:g.lineupReliable===true,validatedLineupCoverage:Number(g.qa?.validatedLineupCoverage||0),topFiveLineups:lineups.slice(0,10)},effective,confidence:g.lineupReliable?0.95:0.65});
+      stateEvents.push({id:"state:"+hid(teamId,g.gameId,"LINEUP_ROTATION"),entityType:"team",entityId:teamId,teamId,gameId:String(g.gameId),season,family:"LINEUP_ROTATION_OBSERVATION",value:{lineupReliable:g.lineupReliable===true,validatedLineupCoverage:Number(g.qa?.validatedLineupCoverage||0),topFiveLineups:lineups.slice(0,10).map(z=>({players:(z.players||[]).map(String),possessions:Number(z.possessions||0),defensivePossessions:Number(z.defensivePossessions||0),netRating:Number(z.netRating||0)}))},effective,confidence:g.lineupReliable?0.95:0.65});
     }
     if(resolved.home&&resolved.away){
       schedules.push({id:"sched:"+hid(g.gameId,resolved.home),gameId:String(g.gameId),teamId:resolved.home,opp:resolved.away,season,date:effective,ha:"HOME"});
