@@ -2868,7 +2868,7 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
     const existing = await env.DB.prepare("SELECT * FROM executed_bets WHERE id = ?").bind(id).first();
     if (!existing) return { ok: false, reason: "not-found" };
     const mapped = { ...mapExecutedBet(existing), ...patch };
-    await env.DB.prepare(
+    const update = env.DB.prepare(
       `UPDATE executed_bets SET
         game_id = ?, matchup_text = ?, away_team = ?, home_team = ?,
         selected_side = ?, selected_team = ?, match_status = ?, match_confidence = ?,
@@ -2881,47 +2881,58 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
         final_away_score = ?, final_home_score = ?, f5_away_score = ?, f5_home_score = ?,
         settlement_source = ?, settlement_evidence_json = ?, tracker_metadata_json = ?
        WHERE id = ?`
-    )
-      .bind(
-        n(mapped.gameId),
-        n(mapped.matchupText),
-        n(mapped.awayTeam),
-        n(mapped.homeTeam),
-        n(mapped.selectedSide),
-        n(mapped.selectedTeam),
-        n(mapped.matchStatus),
-        n(mapped.matchConfidence),
-        n(mapped.result),
-        n(mapped.profit),
-        n(mapped.settledReturn),
-        n(mapped.gradedAt),
-        n(mapped.voidReason),
-        n(mapped.matchedPredictionId),
-        n(mapped.matchedStrategyTicketId),
-        n(mapped.recommendationStatus),
-        n(mapped.attributionLabel),
-        n(mapped.clv),
-        n(mapped.clvStatus),
-        n(mapped.pinEntryLine),
-        n(mapped.pinEntryPrice),
-        n(mapped.pinEntryNoVig),
-        n(mapped.pinCloseLine),
-        n(mapped.pinClosePrice),
-        n(mapped.pinCloseNoVig),
-        n(mapped.propActual),
-        n(mapped.propStatSource),
-        n(mapped.finalAwayScore),
-        n(mapped.finalHomeScore),
-        n(mapped.f5AwayScore),
-        n(mapped.f5HomeScore),
-        n(mapped.settlementSource),
-        mapped.settlementEvidence ? JSON.stringify(mapped.settlementEvidence) : null,
-        mapped.trackerMetadata ? JSON.stringify(mapped.trackerMetadata) : null,
-        id
-      )
-      .run();
+    ).bind(
+      n(mapped.gameId),
+      n(mapped.matchupText),
+      n(mapped.awayTeam),
+      n(mapped.homeTeam),
+      n(mapped.selectedSide),
+      n(mapped.selectedTeam),
+      n(mapped.matchStatus),
+      n(mapped.matchConfidence),
+      n(mapped.result),
+      n(mapped.profit),
+      n(mapped.settledReturn),
+      n(mapped.gradedAt),
+      n(mapped.voidReason),
+      n(mapped.matchedPredictionId),
+      n(mapped.matchedStrategyTicketId),
+      n(mapped.recommendationStatus),
+      n(mapped.attributionLabel),
+      n(mapped.clv),
+      n(mapped.clvStatus),
+      n(mapped.pinEntryLine),
+      n(mapped.pinEntryPrice),
+      n(mapped.pinEntryNoVig),
+      n(mapped.pinCloseLine),
+      n(mapped.pinClosePrice),
+      n(mapped.pinCloseNoVig),
+      n(mapped.propActual),
+      n(mapped.propStatSource),
+      n(mapped.finalAwayScore),
+      n(mapped.finalHomeScore),
+      n(mapped.f5AwayScore),
+      n(mapped.f5HomeScore),
+      n(mapped.settlementSource),
+      mapped.settlementEvidence ? JSON.stringify(mapped.settlementEvidence) : null,
+      mapped.trackerMetadata ? JSON.stringify(mapped.trackerMetadata) : null,
+      id
+    );
+    const audit = env.DB.prepare(
+      "INSERT INTO executed_bet_audit (bet_id, action, detail, created_at) VALUES (?, ?, ?, ?)"
+    ).bind(id, n(action), n(JSON.stringify(patch).slice(0, 500)), new Date().toISOString());
+
+    if (typeof env.DB.batch === "function") {
+      await env.DB.batch([update, audit]);
+    } else {
+      await update.run();
+      const auditRes = await appendExecutedBetAudit(env, { betId: id, action, detail: JSON.stringify(patch).slice(0, 500) });
+      if (!auditRes.ok) {
+        markWrite();
+        return { ok: false, wrote: true, partial: true, reason: "audit-write-failed", auditReason: auditRes.reason || null };
+      }
+    }
     markWrite();
-    await appendExecutedBetAudit(env, { betId: id, action, detail: JSON.stringify(patch).slice(0, 500) });
     return { ok: true };
   } catch (err) {
     markErr(err);
