@@ -20,15 +20,24 @@ async function runBatches(db,stmts){for(const c of chunk(stmts,80))await db.batc
 export async function runCbbDirectoryPhaseB(env,{asOf=new Date()}={}){
  const observedAt=asOf.toISOString();
  const season=cbbSeasonYear(asOf), priorSeason=season-1;
- const [rosterRes,teamRes,gameRes,statRes]=await Promise.all([
-  cbbdGet("/teams/roster",env,{query:{season},skipCache:true}),
-  cbbdGet("/teams",env,{query:{season},skipCache:true}),
-  cbbdGet("/games",env,{query:{season},skipCache:true}),
-  cbbdGet("/stats/player/season",env,{query:{season:priorSeason,seasonType:"regular"},skipCache:true}),
- ]);
+ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+ async function boundedGet(path,query){
+  let res=await cbbdGet(path,env,{query,skipCache:true});
+  if(res.status===429){await sleep(5000);res=await cbbdGet(path,env,{query,skipCache:true});}
+  return res;
+ }
+ const rosterRes=await boundedGet("/teams/roster",{season});
+ if(!rosterRes.ok)return {ok:false,status:"SOURCE_FAILED",season,priorSeason,sourceStatus:{roster:false,teams:null,games:null,priorStats:null},reasons:[rosterRes.reason].filter(Boolean)};
+ await sleep(2500);
+ const teamRes=await boundedGet("/teams",{season});
+ if(!teamRes.ok)return {ok:false,status:"SOURCE_FAILED",season,priorSeason,sourceStatus:{roster:true,teams:false,games:null,priorStats:null},reasons:[teamRes.reason].filter(Boolean)};
+ await sleep(2500);
+ const gameRes=await boundedGet("/games",{season});
+ if(!gameRes.ok)return {ok:false,status:"SOURCE_FAILED",season,priorSeason,sourceStatus:{roster:true,teams:true,games:false,priorStats:null},reasons:[gameRes.reason].filter(Boolean)};
+ await sleep(2500);
+ const statRes=await boundedGet("/stats/player/season",{season:priorSeason,seasonType:"regular"});
  const sourceStatus={roster:rosterRes.ok,teams:teamRes.ok,games:gameRes.ok,priorStats:statRes.ok};
- if(!Object.values(sourceStatus).every(Boolean))return {ok:false,status:"SOURCE_FAILED",season,priorSeason,sourceStatus,
-  reasons:[rosterRes.reason,teamRes.reason,gameRes.reason,statRes.reason].filter(Boolean)};
+ if(!statRes.ok)return {ok:false,status:"SOURCE_FAILED",season,priorSeason,sourceStatus,reasons:[statRes.reason].filter(Boolean)};
  const rosters=Array.isArray(rosterRes.data)?rosterRes.data:[],teams=Array.isArray(teamRes.data)?teamRes.data:[],
   games=Array.isArray(gameRes.data)?gameRes.data:[],stats=Array.isArray(statRes.data)?statRes.data:[];
  if(!rosters.length||!teams.length)return {ok:false,status:"EMPTY_SOURCE",season,counts:{rosters:rosters.length,teams:teams.length,games:games.length,stats:stats.length}};
