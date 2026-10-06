@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS tennis_official_matches (
   player2_id TEXT,
   source_player1_id TEXT,
   source_player2_id TEXT,
+  source_player1_partner_id TEXT,
+  source_player2_partner_id TEXT,
   winner_id TEXT,
   source_winner_id TEXT,
   score_text TEXT,
