@@ -202,16 +202,41 @@ async function settle(db,date){
   return{eligible:rows.length,graded};
 }
 async function summary(db){
-  const [counts,metrics]=await Promise.all([
+  const [counts,metrics,splits,integrity]=await Promise.all([
     db.prepare(`SELECT COUNT(*) n,SUM(CASE WHEN gate_fired=1 THEN 1 ELSE 0 END) gate_n,SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
+      SUM(CASE WHEN graded_at IS NULL THEN 1 ELSE 0 END) ungraded_n,
+      SUM(CASE WHEN ABS(COALESCE(probability_delta,0))>0.000001 THEN 1 ELSE 0 END) shadow_diff_n,
+      SUM(CASE WHEN ABS(COALESCE(probability_delta,0))<=0.000001 THEN 1 ELSE 0 END) shadow_equal_n,
+      AVG(probability_delta) mean_probability_delta,
       MIN(feature_cutoff_timestamp) first_at,MAX(feature_cutoff_timestamp) last_at FROM nhl_goalie_probability_shadow`).first(),
     db.prepare(`SELECT COUNT(*) n,AVG(incumbent_brier) incumbent_brier,AVG(shadow_brier) shadow_brier,
       AVG(incumbent_log_loss) incumbent_log_loss,AVG(shadow_log_loss) shadow_log_loss,
       AVG(incumbent_correct) incumbent_accuracy,AVG(shadow_correct) shadow_accuracy,
       AVG(research_clv_probability_pp) avg_clv_probability_pp,AVG(research_profit_units) avg_profit_units
-      FROM nhl_goalie_probability_shadow WHERE graded_at IS NOT NULL`).first()
+      FROM nhl_goalie_probability_shadow WHERE graded_at IS NOT NULL`).first(),
+    db.prepare(`SELECT goalie_usage_state,COUNT(*) n,SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
+      AVG(CASE WHEN graded_at IS NOT NULL THEN incumbent_brier END) incumbent_brier,
+      AVG(CASE WHEN graded_at IS NOT NULL THEN shadow_brier END) shadow_brier,
+      AVG(starter_quality_delta) avg_starter_quality_delta
+      FROM nhl_goalie_probability_shadow GROUP BY goalie_usage_state ORDER BY goalie_usage_state`).all(),
+    db.prepare(`SELECT COUNT(*) total,SUM(CASE WHEN temporal_integrity_passed=1 THEN 1 ELSE 0 END) passed,
+      SUM(CASE WHEN temporal_integrity_passed<>1 THEN 1 ELSE 0 END) violations FROM nhl_goalie_probability_shadow`).first()
   ]);
-  return{counts:counts||{},metrics:metrics||{},productionChampion:"NHL-PRO-v2",productionChanged:false,authority:false,staking:false};
+  const confirmed=(splits.results||[]).find(x=>x.goalie_usage_state==="BOTH_CONFIRMED");
+  return{
+    counts:counts||{},metrics:metrics||{},splits:splits.results||[],integrity:integrity||{},
+    prospectiveGate:{
+      version:PROSPECTIVE_GATE.gateVersion,
+      minimums:PROSPECTIVE_GATE.minimums,
+      nonInferiority:PROSPECTIVE_GATE.nonInferiority,
+      stability:PROSPECTIVE_GATE.stability,
+      sampleReady:Number(metrics?.n||0)>=PROSPECTIVE_GATE.minimums.gradedGames,
+      confirmedSampleReady:Number(confirmed?.graded_n||0)>=PROSPECTIVE_GATE.minimums.confirmedStarterGames,
+      zeroIntegrityViolations:Number(integrity?.violations||0)===0,
+      eligible:false,automaticPromotion:false,operatorApprovalRequired:true
+    },
+    productionChampion:"NHL-PRO-v2",productionChanged:false,qualificationChanged:false,authority:false,staking:false
+  };
 }
 export async function onRequestGet(context){
   const db=context.env.DB;if(!db?.prepare)return json({ok:false,error:"d1_unavailable"},503);
@@ -227,7 +252,8 @@ export async function onRequestPost(context){
   if(mode!=="freeze")return json({ok:false,error:"invalid_mode"},400);
   const board=await buildTodayBoard(resolved.date,envOf(context),{focusSport:"nhl"});
   const snapshotAt=new Date().toISOString(),codeSha=context.env.CF_PAGES_COMMIT_SHA||body.codeSha||null;
-  const rows=freezeRows(board,snapshotAt,codeSha),p=await persist(db,rows);
+  const rows=await freezeRows(db,board,snapshotAt,codeSha),p=await persist(db,rows);
   return json({ok:true,mode,date:resolved.date,snapshotAt,candidates:rows.length,...p,
-    gateFired:rows.filter(r=>r.gateFired).length,productionChampion:"NHL-PRO-v2",productionChanged:false,authority:false,staking:false});
+    gateFired:rows.filter(r=>r.gateFired).length,temporalIntegrityPassed:rows.filter(r=>r.temporalIntegrityPassed).length,
+    prospectiveGateVersion:PROSPECTIVE_GATE.gateVersion,productionChampion:"NHL-PRO-v2",productionChanged:false,qualificationChanged:false,authority:false,staking:false});
 }
