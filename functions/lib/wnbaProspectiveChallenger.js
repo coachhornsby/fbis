@@ -188,7 +188,9 @@ function oppMarketProjection(row,impactCtx,roleCtx){
     reboundOppMean:rebOppMean,reboundOppSd:rebOppMean==null?null:Math.max(1,Math.sqrt(rebOppMean)*.8),
     assistOppMean:astOppMean,assistOppSd:astOppMean==null?null:Math.max(.8,Math.sqrt(astOppMean)*.8),
     availabilityVerified,
-    expectedTeammates:roleCtx?.unavailable?.length?[]:null,
+    expectedTeammates:null,
+    availabilityContext:roleCtx?.unavailable||[],
+    featureCutoffTimestamp:roleCtx?.featureCutoffTimestamp||null,
     modelId:WNBA_PLAYER_OPPORTUNITY_ID,modelVersion:WNBA_POSSESSION_CHALLENGER_VERSION,
     independent:true,marketInformed:false,canQualify:false,canAuthorize:false,
     note:"Opportunity distribution shadow. Mean remains anchored to incumbent until prospective evidence supports a mean correction."
