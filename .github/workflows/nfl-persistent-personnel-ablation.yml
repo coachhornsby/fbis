@@ -1,0 +1,117 @@
+name: NFL persistent personnel ablation
+
+on:
+  push:
+    branches:
+      - research/nfl-persistent-personnel-ablation
+    paths:
+      - "scripts/nfl-persistent-personnel-ablation.py"
+      - ".github/workflows/nfl-persistent-personnel-ablation.yml"
+      - "scripts/build-nfl-training-dataset.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nfl-persistent-personnel-ablation-\${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  game-dataset:
+    name: BUILD GAME DATASET
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dataset dependencies
+        run: python -m pip install --upgrade pip pandas numpy pyarrow
+      - name: Build leakage-safe NFL game dataset
+        run: python scripts/build-nfl-training-dataset.py
+      - name: Verify game dataset
+        run: |
+          test -s artifacts/nfl/nfl_game_training_2015_2026.csv
+          jq -e '.duplicate_game_ids == 0 and .final_training_games > 2000' artifacts/nfl/nfl_game_training_2015_2026_qa.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfl-personnel-ablation-game-data
+          path: |
+            artifacts/nfl/nfl_game_training_2015_2026.csv
+            artifacts/nfl/nfl_game_training_2015_2026_qa.json
+          retention-days: 30
+          if-no-files-found: error
+
+  personnel-features:
+    name: BUILD PERSONNEL FEATURES
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install personnel dependencies
+        run: python -m pip install --upgrade pip pandas numpy scikit-learn
+      - name: Build leakage-safe injury/snap features
+        run: python scripts/nfl-persistent-personnel-ablation.py --mode=features
+      - name: Verify temporal feature build
+        run: |
+          test -s artifacts/nfl-persistent-personnel-ablation/personnel_features.csv
+          jq -e '.marketInformed == false and .featureRows > 1000 and .priorSnapCoverage > 0.40' artifacts/nfl-persistent-personnel-ablation/features_qa.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfl-personnel-ablation-features
+          path: |
+            artifacts/nfl-persistent-personnel-ablation/personnel_features.csv
+            artifacts/nfl-persistent-personnel-ablation/features_qa.json
+            artifacts/nfl-persistent-personnel-ablation/personnel_detail_sample.csv
+          retention-days: 30
+          if-no-files-found: error
+
+  evaluate:
+    name: WALK-FORWARD ABLATION
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [game-dataset, personnel-features]
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install evaluation dependencies
+        run: python -m pip install --upgrade pip pandas numpy scikit-learn
+      - uses: actions/download-artifact@v4
+        with:
+          name: nfl-personnel-ablation-game-data
+          path: artifacts/nfl
+      - uses: actions/download-artifact@v4
+        with:
+          name: nfl-personnel-ablation-features
+          path: artifacts/nfl-persistent-personnel-ablation
+      - name: Run strict prior-season walk-forward comparison
+        run: python scripts/nfl-persistent-personnel-ablation.py --mode=evaluate
+      - name: Print decision summary
+        run: |
+          jq '{
+            experiment,
+            sample,
+            baseline: {marginMae:.baseline.marginMae,totalMae:.baseline.totalMae,winnerAccuracy:.baseline.winnerAccuracy,brier:.baseline.winProbability.brier,side:.baseline.bettingAt55Pct[0],total:.baseline.bettingAt55Pct[1]},
+            challenger: {marginMae:.challenger.marginMae,totalMae:.challenger.totalMae,winnerAccuracy:.challenger.winnerAccuracy,brier:.challenger.winProbability.brier,side:.challenger.bettingAt55Pct[0],total:.challenger.bettingAt55Pct[1]},
+            deltas,
+            promotionEvidencePass,
+            segments,
+            economicNotes
+          }' artifacts/nfl-persistent-personnel-ablation/report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfl-persistent-personnel-ablation-results
+          path: |
+            artifacts/nfl-persistent-personnel-ablation/report.json
+            artifacts/nfl-persistent-personnel-ablation/folds.json
+            artifacts/nfl-persistent-personnel-ablation/oos_predictions.csv
+            artifacts/nfl-persistent-personnel-ablation/features_qa.json
+          retention-days: 90
+          if-no-files-found: error
