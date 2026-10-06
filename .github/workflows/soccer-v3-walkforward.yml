@@ -1,6 +1,15 @@
 name: Soccer-FBIS-v3 walk-forward
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/soccer-v3-walkforward.mjs"
+      - "scripts/soccer-phase3b-league-validation.mjs"
+      - "functions/lib/soccerFbisV3.js"
+      - "functions/api/soccer-validation-evidence.js"
+      - ".github/workflows/soccer-v3-walkforward.yml"
+      - "migrations/0067_soccer_phase3b_validation_provenance.sql"
   schedule:
     - cron: "23 */2 * * *"
   workflow_dispatch:
@@ -35,9 +44,14 @@ jobs:
           done
       - name: Run causal v3 vs v2 walk-forward
         run: node scripts/soccer-v3-walkforward.mjs
+      - name: Build Phase 3B league evidence
+        env:
+          SOCCER_VALIDATION_SNAPSHOT: phase3b-${{ github.run_id }}-${{ github.run_attempt }}
+        run: node scripts/soccer-phase3b-league-validation.mjs
       - name: Summarize
         run: |
           jq . artifacts/soccer-v3-walkforward-report.json
+          jq . artifacts/soccer-phase3b-league-validation.json
           jq -r '. as $r | "## Soccer-FBIS-v3.1 Phase 3\n- n: \($r.v3.n)\n- v2 Brier: \($r.v2.brier)\n- v3 Brier: \($r.v3.brier)\n- v2 log loss: \($r.v2.logLoss)\n- v3 log loss: \($r.v3.logLoss)\n- v2 ECE: \($r.v2.ece)\n- v3 ECE: \($r.v3.ece)\n- derivative n: \($r.derivatives.v3.n)\n- v2 total-goal MAE: \($r.derivatives.v2.totalGoalMae)\n- v3 total-goal MAE: \($r.derivatives.v3.totalGoalMae)\n- v2 BTTS Brier: \($r.derivatives.v2.bttsBrier)\n- v3 BTTS Brier: \($r.derivatives.v3.bttsBrier)\n- v2 O2.5 Brier: \($r.derivatives.v2.total25Brier)\n- v3 O2.5 Brier: \($r.derivatives.v3.total25Brier)\n- decision: \($r.promotion.decision)"' artifacts/soccer-v3-walkforward-report.json >> "$GITHUB_STEP_SUMMARY"
       - name: Persist research evidence
         run: |
@@ -65,8 +79,21 @@ jobs:
             "$BASE/api/soccer-validation-evidence" | tee artifacts/soccer-v3-evidence-result.json
           jq -e '.ok == true and .researchOnly == true and .canQualify == false and .canAuthorize == false' artifacts/soccer-v3-evidence-result.json >/dev/null
 
+      - name: Persist Phase 3B league evidence
+        run: |
+          set -euo pipefail
+          run_id="phase3b-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          jq --arg run_id "$run_id" '. + {runId:$run_id}' artifacts/soccer-phase3b-evidence.json > artifacts/soccer-phase3b-evidence-request.json
+          curl -fsS --connect-timeout 5 --max-time 30 --retry 2 --retry-delay 2 --retry-all-errors \
+            -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
+            --data-binary @artifacts/soccer-phase3b-evidence-request.json \
+            "$BASE/api/soccer-validation-evidence" | tee artifacts/soccer-phase3b-evidence-result.json
+          jq -e '.ok == true and .researchOnly == true and .canQualify == false and .canAuthorize == false and .snapshotId != null and .codeSha != null and .written > 0' artifacts/soccer-phase3b-evidence-result.json >/dev/null
+
       - uses: actions/upload-artifact@v4
         with:
           name: soccer-v3-walkforward-${{ github.run_id }}
-          path: artifacts/soccer-v3-walkforward-*
+          path: |
+            artifacts/soccer-v3-walkforward-*
+            artifacts/soccer-phase3b-*
           retention-days: 90
