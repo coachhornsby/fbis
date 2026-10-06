@@ -54,12 +54,12 @@ def pick(row,*cols):
             if pd.notna(v) and str(v).strip(): return v
     return None
 
-sql=[]
+sql=["DELETE FROM cfb_conference_membership WHERE source='SPORTSDATAVERSE_ESPN_CFB_TEAMS';"]
 for _,r in latest.iterrows():
     eid=int(r["team_id"]); team=tid(eid)
     school=pick(r,"school","display_name","location","name") or f"ESPN Team {eid}"
     mascot=pick(r,"mascot","nickname")
-    conf=pick(r,"conference_name","cfbd_conference")
+    conf=pick(r,"cfbd_conference","conference_name")
     subdivision=pick(r,"division","classification") or "UNKNOWN"
     active=1 if eid in current_ids else 0
     source={k:(None if pd.isna(v) else v) for k,v in r.to_dict().items()}
@@ -92,7 +92,7 @@ for eid,g in all_df.groupby("team_id"):
     runs=[]; run=None
     for _,r in g.sort_values("season").iterrows():
         year=int(r["season"])
-        conf=pick(r,"conference_name","cfbd_conference")
+        conf=pick(r,"cfbd_conference","conference_name")
         sub=pick(r,"division","classification")
         independent=0 if conf else 1
         state=(str(conf) if conf is not None else None,str(sub) if sub is not None else None,independent)
