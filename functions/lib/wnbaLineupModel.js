@@ -15,11 +15,19 @@ export function normalizeEspnPlay(play={}){
     sequenceNumber:finite(play?.sequenceNumber),
     period,
     clock:play?.clock?.displayValue||play?.clock||null,
-    type,text,teamId:String(play?.team?.id||play?.teamId||""),
+    type,
+    typeId:finite(play?.type?.id??play?.typeId),
+    text,
+    teamId:String(play?.team?.id||play?.teamId||""),
+    shootingPlay:Boolean(play?.shootingPlay),
     scoringPlay:Boolean(play?.scoringPlay),
     scoreValue:finite(play?.scoreValue)||0,
     homeScore:finite(play?.homeScore),
     awayScore:finite(play?.awayScore),
+    coordinate:{
+      x:finite(play?.coordinate?.x??play?.coordinates?.x??play?.x),
+      y:finite(play?.coordinate?.y??play?.coordinates?.y??play?.y),
+    },
     participants,
   };
 }

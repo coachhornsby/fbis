@@ -32,6 +32,7 @@ jobs:
       - run: node scripts/wnba-pbp-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl
       - run: |
           node scripts/wnba-lineup-stints-build.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-lineup-stints-${{ matrix.chunk.id }}.jsonl             effects=artifacts/wnba-lineup-effects-${{ matrix.chunk.id }}.json
+          node scripts/wnba-possession-state-build.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-possession-state-${{ matrix.chunk.id }}.jsonl             shots=artifacts/wnba-shot-events-${{ matrix.chunk.id }}.jsonl             profiles=artifacts/wnba-shot-profiles-${{ matrix.chunk.id }}.jsonl
       - uses: actions/upload-artifact@v4
         with:
           name: wnba-current-${{ matrix.chunk.id }}-${{ github.run_id }}
@@ -53,6 +54,10 @@ jobs:
           path: artifacts/chunks
       - run: |
           node scripts/wnba-merge-canonical.mjs artifacts/chunks artifacts/wnba-canonical.jsonl
+          mkdir -p artifacts/pbp
+          find artifacts/chunks -name 'wnba-pbp-*.jsonl' -type f -exec cp {} artifacts/pbp/ \;
+          node scripts/wnba-merge-pbp.mjs artifacts/pbp artifacts/wnba-pbp.jsonl
+          node scripts/wnba-possession-state-build.mjs games=artifacts/wnba-canonical.jsonl pbp=artifacts/wnba-pbp.jsonl out=artifacts/wnba-possession-state.jsonl shots=artifacts/wnba-shot-events.jsonl profiles=artifacts/wnba-shot-profiles.jsonl
           mkdir -p artifacts/stints
           find artifacts/chunks -name 'wnba-lineup-stints-*.jsonl' -type f -exec cp {} artifacts/stints/ \;
           node scripts/wnba-merge-lineup-stints.mjs artifacts/stints artifacts/wnba-lineup-stints.jsonl
@@ -65,6 +70,10 @@ jobs:
           npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-canonical.jsonl" --file artifacts/wnba-canonical.jsonl --remote
           npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-lineup-stints.jsonl" --file artifacts/wnba-lineup-stints.jsonl --remote
           npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-lineup-effects.json" --file artifacts/wnba-lineup-effects.json --remote
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-pbp.jsonl" --file artifacts/wnba-pbp.jsonl --remote
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-possession-state.jsonl" --file artifacts/wnba-possession-state.jsonl --remote
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-shot-events.jsonl" --file artifacts/wnba-shot-events.jsonl --remote
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-shot-profiles.jsonl" --file artifacts/wnba-shot-profiles.jsonl --remote
       - uses: actions/upload-artifact@v4
         with:
           name: wnba-current-state-${{ github.run_id }}
@@ -72,5 +81,9 @@ jobs:
             artifacts/wnba-canonical.jsonl
             artifacts/wnba-lineup-stints.jsonl
             artifacts/wnba-lineup-effects.json
+            artifacts/wnba-pbp.jsonl
+            artifacts/wnba-possession-state.jsonl
+            artifacts/wnba-shot-events.jsonl
+            artifacts/wnba-shot-profiles.jsonl
           retention-days: 60
 # exact-rerun-after-ot-fix: 2026-10-04

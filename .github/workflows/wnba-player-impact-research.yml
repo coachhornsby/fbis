@@ -38,9 +38,10 @@ jobs:
         run: node scripts/wnba-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl
       - name: Build PBP
         run: node scripts/wnba-pbp-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl
-      - name: Reconstruct lineups
+      - name: Reconstruct lineups and possession/shot state
         run: |
           node scripts/wnba-lineup-stints-build.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-lineup-stints-${{ matrix.chunk.id }}.jsonl             effects=artifacts/wnba-lineup-effects-${{ matrix.chunk.id }}.json
+          node scripts/wnba-possession-state-build.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-possession-state-${{ matrix.chunk.id }}.jsonl             shots=artifacts/wnba-shot-events-${{ matrix.chunk.id }}.jsonl             profiles=artifacts/wnba-shot-profiles-${{ matrix.chunk.id }}.jsonl
       - uses: actions/upload-artifact@v4
         with:
           name: wnba-impact-${{ matrix.chunk.id }}-${{ github.run_id }}
@@ -66,6 +67,10 @@ jobs:
           mkdir -p artifacts/merged
           find artifacts/chunks -name 'wnba-canonical-*.jsonl' -type f -print0 | sort -z | xargs -0 cat > artifacts/merged/wnba-canonical.jsonl
           find artifacts/chunks -name 'wnba-lineup-stints-*.jsonl' -type f -print0 | sort -z | xargs -0 cat > artifacts/merged/wnba-lineup-stints.jsonl
+          mkdir -p artifacts/merged-pbp
+          find artifacts/chunks -name 'wnba-pbp-*.jsonl' -type f -exec cp {} artifacts/merged-pbp/ \;
+          node scripts/wnba-merge-pbp.mjs artifacts/merged-pbp artifacts/merged/wnba-pbp.jsonl
+          node scripts/wnba-possession-state-build.mjs games=artifacts/merged/wnba-canonical.jsonl pbp=artifacts/merged/wnba-pbp.jsonl out=artifacts/merged/wnba-possession-state.jsonl shots=artifacts/merged/wnba-shot-events.jsonl profiles=artifacts/merged/wnba-shot-profiles.jsonl
           node - <<'NODE'
           const fs=require('fs'),path=require('path'),files=[];
           const walk=p=>{for(const n of fs.readdirSync(p)){const f=path.join(p,n),s=fs.statSync(f);if(s.isDirectory())walk(f);else if(/^wnba-lineup-effects-.*\.json$/.test(n))files.push(f)}};
@@ -88,7 +93,7 @@ jobs:
           set -euo pipefail
           IMM="research/wnba/player-impact/v1/run-${GITHUB_RUN_ID}"
           CUR="models/wnba/player-impact/research-current"
-          for f in wnba-canonical.jsonl wnba-lineup-stints.jsonl wnba-lineup-effects.json wnba-player-impact-v1.json wnba-player-impact-walkforward.json wnba-player-impact-walkforward-rows.jsonl; do
+          for f in wnba-canonical.jsonl wnba-pbp.jsonl wnba-possession-state.jsonl wnba-shot-events.jsonl wnba-shot-profiles.jsonl wnba-lineup-stints.jsonl wnba-lineup-effects.json wnba-player-impact-v1.json wnba-player-impact-walkforward.json wnba-player-impact-walkforward-rows.jsonl; do
             npx wrangler r2 object put "fbis-archive/${IMM}/${f}" --file "artifacts/merged/${f}" --remote
             npx wrangler r2 object put "fbis-archive/${CUR}/${f}" --file "artifacts/merged/${f}" --remote
           done
