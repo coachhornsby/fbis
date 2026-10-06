@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   kboProviderGameIdParts,providerGameIdIsDoubleheaderSafe,matchKboProviderGame,normalizeKboPlayerObservation,
-  priorPitcherState,priorBullpenState,KBO_GAMECENTER_CONTRACT,KBO_PLAYER_HISTORY_CONTRACT
+  priorPitcherState,priorBullpenState,enrichmentShardId,KBO_GAMECENTER_CONTRACT,KBO_PLAYER_HISTORY_CONTRACT
 } from "../functions/lib/asianBaseballEnrichment.js";
 
 test("KBO provider game IDs retain game number and stable team identity",()=>{
   const p=kboProviderGameIdParts("20250920SSLG0");
   assert.deepEqual(p,{gameDate:"2025-09-20",awayCode:"SS",homeCode:"LG",gameNo:0,awayTeamId:"kbo-sam",homeTeamId:"kbo-lg"});
-  assert.equal(providerGameIdIsDoubleheaderSafe(["20250517OBLG0","20250517OBLG1"]).safe,true);
+  assert.equal(providerGameIdIsDoubleheaderSafe(["20250517OBLG1","20250517OBLG2"]).safe,true);
 });
 test("provider game reconciliation requires unique canonical candidate and score agreement",()=>{
   const canonical=[{league:"KBO",game_date:"2025-09-20",away_team_id:"kbo-sam",home_team_id:"kbo-lg",away_final_runs:14,home_final_runs:4,venue:"JAMSIL"}];
@@ -47,4 +47,9 @@ test("Phase 4B migration is additive and fail closed",async()=>{
   assert.match(sql,/can_authorize INTEGER NOT NULL DEFAULT 0 CHECK\(can_authorize=0\)/);
   assert.equal(KBO_GAMECENTER_CONTRACT,"KBO_OFFICIAL_GAMECENTER_ENRICHMENT_V1");
   assert.equal(KBO_PLAYER_HISTORY_CONTRACT,"KBO_OFFICIAL_PLAYER_HISTORY_V1");
+});
+
+test("bounded enrichment shard IDs are deterministic and player scoped",()=>{
+  assert.equal(enrichmentShardId({league:"KBO",provider:"KBO_OFFICIAL",season:2025,providerPlayerId:"65357",dataFamily:"DAILY_HITTER"}),
+    "kbo:kbo_official:2025:65357:daily_hitter");
 });
