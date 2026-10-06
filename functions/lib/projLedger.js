@@ -1477,6 +1477,7 @@ async function persistMatchingRec(env, slate, game, frozen) {
     benchmarkPrice: rec.pinPrice,
     entryNoVig: rec.implied ?? rec.entryNoVig,
     qualifiedAt: frozen?.frozenAt || new Date().toISOString(),
+    marketObservedAt: rec.marketObservedAt || frozen?.marketAt || frozen?.snapshots?.at?.(-1)?.at || null,
     qualified: true,
     tag: rec.tag,
     start: game.start || frozen?.start,
