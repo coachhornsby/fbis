@@ -1,7 +1,6 @@
 import {cbbdGet,cbbSeasonYear} from "./collegeApi.js";
 import {mapSourceTeam} from "./collegeIdentity.js";
 import {normalizeCbbIdentity} from "./cbbPersistentDirectory.js";
-import hcaCatalog from "../../research/cbb/kenpom-hca-2025-26.json" assert { type: "json" };
 
 const nowIso=()=>new Date().toISOString();
 const num=v=>{const x=Number(v);return Number.isFinite(x)?x:null};
