@@ -40,14 +40,25 @@ jobs:
         run: |
           node scripts/wnba-possession-challenger-freeze.mjs             rows=artifacts/wnba-possession-ablation-rows.jsonl             report=artifacts/wnba-possession-ablation.json             out=artifacts/wnba-possession-challenger-coefficients.json             sql=artifacts/wnba-possession-challenger-coefficients.sql             source=research/wnba/possession-shot/v1/run-37464927545/merged-linear
 
-      - name: Persist schema and frozen coefficients
+      - name: Persist frozen coefficients
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --file=migrations/0080_wnba_possession_challenger_shadow.sql
-          npx wrangler d1 execute fbis --remote --file=artifacts/wnba-possession-challenger-coefficients.sql
+          # Production deploy owns migrations. Recurring research jobs never run
+          # migration imports because D1 permits only one long-running import.
+          sql="$(cat artifacts/wnba-possession-challenger-coefficients.sql)"
+          ok=0
+          for attempt in 1 2 3 4 5 6; do
+            echo "coefficient D1 write attempt=$attempt/6"
+            if npx wrangler d1 execute fbis --remote --command "$sql"; then
+              ok=1
+              break
+            fi
+            sleep $((attempt * 8))
+          done
+          test "$ok" = "1"
           npx wrangler r2 object put "fbis-archive/models/wnba/possession-challenger/v1/coefficients.json" --file artifacts/wnba-possession-challenger-coefficients.json --remote
 
       - uses: actions/upload-artifact@v4
