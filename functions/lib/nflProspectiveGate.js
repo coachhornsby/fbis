@@ -11,6 +11,22 @@ function meanAbs(rows,key){
 }
 function parseJson(v,fallback=null){try{return typeof v==="string"?JSON.parse(v):v??fallback}catch{return fallback}}
 function ts(v){const n=Date.parse(v||"");return Number.isFinite(n)?n:null}
+function checkpointKind(v){
+  const s=String(v||"").toUpperCase();
+  if(s.startsWith("LATE"))return"LATE";
+  if(s.startsWith("EARLY"))return"EARLY";
+  return s;
+}
+function rowGateId(r){
+  return parseJson(r?.provenance_json,{})?.prospectiveGateId||null;
+}
+function eligibleCohort(rows=[]){
+  const start=ts(criteria.frozenAt);
+  return rows.filter(r=>{
+    const frozen=ts(r?.frozen_at);
+    return frozen!=null && start!=null && frozen>=start && rowGateId(r)===criteria.gateId;
+  });
+}
 
 export function nflQbProspectiveCriteria(){return structuredClone(criteria)}
 
@@ -53,7 +69,9 @@ function primaryRows(rows=[]){
   const byEvent=new Map();
   for(const r of rows){
     const prior=byEvent.get(String(r.event_id));
-    if(!prior || (prior.checkpoint!=="LATE"&&r.checkpoint==="LATE"))byEvent.set(String(r.event_id),r);
+    const currentKind=checkpointKind(r.checkpoint);
+    const priorKind=checkpointKind(prior?.checkpoint);
+    if(!prior || (priorKind!=="LATE"&&currentKind==="LATE"))byEvent.set(String(r.event_id),r);
   }
   return [...byEvent.values()];
 }
@@ -99,15 +117,17 @@ function weekStats(rows=[]){
 }
 
 export function evaluateNflQbProspectiveGate(rows=[]){
-  const graded=primaryRows(rows.filter(r=>r.graded_at));
+  const cohort=eligibleCohort(rows);
+  const excludedRows=rows.length-cohort.length;
+  const graded=primaryRows(cohort.filter(r=>r.graded_at));
   const gated=graded.filter(r=>Number(r.gate_fired)===1);
   const nonGated=graded.filter(r=>Number(r.gate_fired)!==1);
   const all=groupMetrics(graded),g=groupMetrics(gated),ng=groupMetrics(nonGated);
   const weeks=weekStats(graded),stableShare=weeks.length?weeks.filter(w=>w.stable).length/weeks.length:0;
   const seasons=new Set(gated.map(r=>Number(r.season)).filter(Number.isFinite));
-  const temporal=nflQbTemporalViolations(rows);
-  const totalMismatch=rows.filter(r=>finite(r.challenger_total)!==finite(r.incumbent_total));
-  const gateOffMismatch=rows.filter(r=>Number(r.gate_fired)!==1 && (
+  const temporal=nflQbTemporalViolations(cohort);
+  const totalMismatch=cohort.filter(r=>finite(r.challenger_total)!==finite(r.incumbent_total));
+  const gateOffMismatch=cohort.filter(r=>Number(r.gate_fired)!==1 && (
     finite(r.challenger_margin)!==finite(r.incumbent_margin) ||
     finite(r.challenger_win_probability)!==finite(r.incumbent_win_probability)
   ));
@@ -139,7 +159,7 @@ export function evaluateNflQbProspectiveGate(rows=[]){
     automaticPromotion:false,
     operatorApprovalRequired:true,
     promotionEligible:false,
-    sample:{graded:graded.length,gated:gated.length,nonGated:nonGated.length,gateFiredWeeks:weeks.length,distinctSeasons:seasons.size},
+    sample:{eligibleFrozenRows:cohort.length,excludedPreGateOrWrongVersionRows:excludedRows,graded:graded.length,gated:gated.length,nonGated:nonGated.length,gateFiredWeeks:weeks.length,distinctSeasons:seasons.size},
     metrics:{all,gated:g,nonGated:ng,stableWeekShare:stableShare,weeks},
     integrity:{temporalViolations:temporal,totalMismatches:totalMismatch.length,gateOffMismatches:gateOffMismatch.length},
     decision:researchGatePassed
