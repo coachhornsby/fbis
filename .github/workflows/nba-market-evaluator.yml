@@ -69,7 +69,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --file=migrations/0070_nba_prospective_market_linkage.sql
+          node scripts/d1-batched-sql.mjs migrations/0070_nba_prospective_market_linkage.sql
 
       - name: Export bounded prospective projections and markets
         env:
@@ -91,7 +91,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          if [ -s artifacts/nba-prospective-market-links.sql ]; then npx wrangler d1 execute fbis --remote --file=artifacts/nba-prospective-market-links.sql; fi
+          if [ -s artifacts/nba-prospective-market-links.sql ]; then node scripts/d1-batched-sql.mjs artifacts/nba-prospective-market-links.sql; fi
 
       - name: Export point-in-time NBA projections and markets
         env:
