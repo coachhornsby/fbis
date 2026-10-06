@@ -68,3 +68,23 @@ test("settlement callers use OPEN compare-and-set and tracker cannot reopen sett
   assert.match(ledger, /alreadySettled && changed\) continue/);
   assert.match(ledger, /expectedResult: alreadySettled \? t\.result : "OPEN"/);
 });
+
+
+test("tracker replay preserves ledgered executedAt while still checking financial execution fields", async () => {
+  const bets = await readFile(new URL("../functions/api/bets.js", import.meta.url), "utf8");
+  assert.match(bets, /function trackerImmutableConflictFields/);
+  assert.match(bets, /executionLine/);
+  assert.match(bets, /executionPrice/);
+  assert.match(bets, /riskAmount/);
+  assert.match(bets, /trackerReplayPreservedExecutedAt:true/);
+  const helperStart = bets.indexOf("function trackerImmutableConflictFields");
+  const helperEnd = bets.indexOf("export async function syncTrackerBets", helperStart);
+  const helper = bets.slice(helperStart, helperEnd);
+  assert.doesNotMatch(helper, /executedAt/);
+});
+
+test("tracker workflow fails once on deterministic D1 conflict instead of retrying to token expiry", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/bet-tracker-reconcile.yml", import.meta.url), "utf8");
+  assert.match(workflow, /Deterministic tracker conflict; failing once without retry/);
+  assert.match(workflow, /contains\("http=409"\)/);
+});
