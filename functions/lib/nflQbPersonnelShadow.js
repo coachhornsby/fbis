@@ -128,7 +128,9 @@ export function buildNflQbPersonnelShadow(game={}){
   const home=gateFired?Number(((total+margin)/2).toFixed(3)):Number(incumbent.home);
   const away=gateFired?Number(((total-margin)/2).toFixed(3)):Number(incumbent.away);
   const sigma=finite(incumbent.sigmaMargin)??13.8;
-  const pHomeWin=normalCdf(margin/sigma);
+  const pHomeWin=gateFired
+    ? normalCdf(margin/sigma)
+    : Number(incumbent.pHomeWin);
   return {
     ok:true,
     modelId:NFL_QB_PERSONNEL_SHADOW_ID,
@@ -144,7 +146,7 @@ export function buildNflQbPersonnelShadow(game={}){
     incumbent:{home:incumbent.home,away:incumbent.away,margin:incumbent.margin,total:incumbent.total,pHomeWin:incumbent.pHomeWin,sigmaMargin:incumbent.sigmaMargin},
     invariants:{
       totalUnchanged:total===Number(incumbent.total),
-      challengerEqualsIncumbentWhenGateClosed:gateFired?null:(margin===Number(incumbent.margin)&&total===Number(incumbent.total)&&home===Number(incumbent.home)&&away===Number(incumbent.away)),
+      challengerEqualsIncumbentWhenGateClosed:gateFired?null:(margin===Number(incumbent.margin)&&total===Number(incumbent.total)&&home===Number(incumbent.home)&&away===Number(incumbent.away)&&pHomeWin===Number(incumbent.pHomeWin)),
       genericInjuryAdjustmentApplied:false,
       productionChampionModified:false,
       wagerAuthorityModified:false,
