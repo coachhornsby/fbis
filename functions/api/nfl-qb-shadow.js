@@ -187,13 +187,16 @@ async function summary(db){
   const group=(arr)=>{
     if(!arr.length)return{n:0};
     const avg=k=>arr.reduce((s,r)=>s+Number(r[k]||0),0)/arr.length;
-    const count=k=>arr.reduce((s,r)=>s+Number(r[k]||0),0);
     const roi=k=>arr.filter(r=>finite(r[k])!=null).reduce((s,r)=>s+Number(r[k]),0);
     const clv=k=>{const a=arr.map(r=>finite(r[k])).filter(v=>v!=null);return a.length?a.reduce((s,v)=>s+v,0)/a.length:null};
+    const ats=(k)=>{
+      const a=arr.map(r=>r[k]).filter(Boolean),wins=a.filter(x=>x==="WIN").length,losses=a.filter(x=>x==="LOSS").length,pushes=a.filter(x=>x==="PUSH").length;
+      return{n:a.length,wins,losses,pushes,winRate:wins+losses?wins/(wins+losses):null};
+    };
     return{
       n:arr.length,
-      incumbent:{marginMae:avg("incumbent_margin_abs_error"),winnerAccuracy:avg("incumbent_winner_correct"),brier:avg("incumbent_brier"),logLoss:avg("incumbent_log_loss"),roiUnits:roi("incumbent_roi_units"),avgClv:clv("incumbent_clv")},
-      challenger:{marginMae:avg("challenger_margin_abs_error"),winnerAccuracy:avg("challenger_winner_correct"),brier:avg("challenger_brier"),logLoss:avg("challenger_log_loss"),roiUnits:roi("challenger_roi_units"),avgClv:clv("challenger_clv")},
+      incumbent:{marginMae:avg("incumbent_margin_abs_error"),winnerAccuracy:avg("incumbent_winner_correct"),brier:avg("incumbent_brier"),logLoss:avg("incumbent_log_loss"),ats:ats("incumbent_ats_result"),roiUnits:roi("incumbent_roi_units"),avgClv:clv("incumbent_clv")},
+      challenger:{marginMae:avg("challenger_margin_abs_error"),winnerAccuracy:avg("challenger_winner_correct"),brier:avg("challenger_brier"),logLoss:avg("challenger_log_loss"),ats:ats("challenger_ats_result"),roiUnits:roi("challenger_roi_units"),avgClv:clv("challenger_clv")},
     };
   };
   const burdenBuckets=[
@@ -201,10 +204,32 @@ async function summary(db){
   ].map(b=>({bucket:b.label,...group(rows.filter(r=>Number(r.combined_qb_burden)>=b.min&&Number(r.combined_qb_burden)<b.max))}));
   const weeks={};
   for(const r of rows){const k=`${r.season||""}-W${r.week||""}`;if(!weeks[k])weeks[k]=[];weeks[k].push(r)}
+  const byEvent=new Map();
+  for(const r of rows){
+    const prior=byEvent.get(String(r.event_id));
+    if(!prior || (prior.checkpoint!=="LATE" && r.checkpoint==="LATE"))byEvent.set(String(r.event_id),r);
+  }
+  const primary=[...byEvent.values()];
+  const checkpointGroups={EARLY:group(rows.filter(r=>r.checkpoint==="EARLY")),LATE:group(rows.filter(r=>r.checkpoint==="LATE"))};
   return{
     ok:true,lifecycle:"SHADOW",productionChampionModified:false,wagerAuthorityModified:false,
-    all:group(rows),gated:group(rows.filter(r=>Number(r.gate_fired)===1)),nonGated:group(rows.filter(r=>Number(r.gate_fired)!==1)),
-    burdenBuckets,seasonWeek:Object.fromEntries(Object.entries(weeks).map(([k,v])=>[k,group(v)])),
+    frozenRows:rows.length,uniqueGames:primary.length,
+    primary:group(primary),
+    gated:group(primary.filter(r=>Number(r.gate_fired)===1)),
+    nonGated:group(primary.filter(r=>Number(r.gate_fired)!==1)),
+    checkpoints:checkpointGroups,
+    burdenBuckets:burdenBuckets.map(b=>({bucket:b.bucket,...group(primary.filter(r=>{
+      const x=Number(r.combined_qb_burden);
+      if(b.bucket==="<0.15")return x<.15;
+      if(b.bucket==="0.15-0.30")return x>=.15&&x<.30;
+      if(b.bucket==="0.30-0.50")return x>=.30&&x<.50;
+      return x>=.50;
+    }))})),
+    seasonWeek:Object.fromEntries(Object.entries(weeks).map(([k,v])=>{
+      const ev=new Map();for(const r of v){const p=ev.get(String(r.event_id));if(!p||(p.checkpoint!=="LATE"&&r.checkpoint==="LATE"))ev.set(String(r.event_id),r)}
+      return[k,group([...ev.values()])];
+    })),
+    promotionState:"PROSPECTIVE_SHADOW_ACCUMULATING",
     primaryPromotionQuestion:"Does improvement remain concentrated in gate-fired games (QB burden >= 0.30) prospectively?",
   };
 }
