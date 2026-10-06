@@ -80,8 +80,7 @@ def is_source_team_placeholder(row):
     normalized={norm(x) for x in names if x}
     first=str(pick(row,"first_name") or "").strip()
     last=str(pick(row,"last_name") or "").strip().lower()
-    jersey_right=str(pick(row,"jersey_right") or "").strip().upper()
-    return "team" in normalized and first == "-" and last == "team" and jersey_right == "TM"
+    return "team" in normalized and first == "-" and last == "team"
 
 def player_identity(row,season):
     aid=integer(row.get("athlete_id"))
