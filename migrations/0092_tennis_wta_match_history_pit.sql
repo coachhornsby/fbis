@@ -79,4 +79,4 @@ CREATE TABLE IF NOT EXISTS tennis_wta_shards (
 CREATE INDEX IF NOT EXISTS idx_tennis_wta_shards_stream_status ON tennis_wta_shards(stream,status,year);
 
 INSERT OR IGNORE INTO schema_migrations(id,applied_at)
-VALUES('0083_tennis_wta_match_history_pit',datetime('now'));
+VALUES('0092_tennis_wta_match_history_pit',datetime('now'));
