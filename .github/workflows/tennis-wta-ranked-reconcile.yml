@@ -60,7 +60,12 @@ jobs:
             echo "max_pages=1" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          npx wrangler d1 execute fbis --remote --command "SELECT cursor_value,status FROM tennis_ingestion_state WHERE source='WTA_OFFICIAL' AND tour='wta' AND stream='rankings' LIMIT 1" --json >/tmp/wta-rank-cursor.json
+          cursor_ok=0
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if npx wrangler d1 execute fbis --remote --command "SELECT cursor_value,status FROM tennis_ingestion_state WHERE source='WTA_OFFICIAL' AND tour='wta' AND stream='rankings' LIMIT 1" --json >/tmp/wta-rank-cursor.json; then cursor_ok=1; break; fi
+            sleep $((attempt*10))
+          done
+          test "$cursor_ok" = "1"
           cursor="$(jq -r '.[0].results[0].cursor_value // ""' /tmp/wta-rank-cursor.json)"
           status="$(jq -r '.[0].results[0].status // "PENDING"' /tmp/wta-rank-cursor.json)"
           prior_date="${cursor%%|*}"
