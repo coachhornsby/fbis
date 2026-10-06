@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import hashlib, json, os
+import hashlib, io, json, os
 from pathlib import Path
 from urllib.request import Request, urlopen
 import pandas as pd
@@ -33,7 +33,7 @@ for year in range(START,END+1):
     url=f"{BASE}/cfb_teams_{year}.parquet"
     req=Request(url,headers=UA)
     with urlopen(req,timeout=90) as r:
-        df=pd.read_parquet(r)
+        df=pd.read_parquet(io.BytesIO(r.read()))
     if "season" not in df.columns: df["season"]=year
     df=df[df["team_id"].notna()].copy()
     frames.append(df)
