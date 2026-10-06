@@ -1,0 +1,106 @@
+name: CBB directory Phase A
+
+on:
+  pull_request:
+    paths:
+      - "migrations/0079_cbb_persistent_directory_phase_a.sql"
+      - "functions/lib/cbbPersistentDirectory.js"
+      - "scripts/cbb-directory-phase-a.mjs"
+      - "test/cbb-persistent-directory.test.js"
+      - ".github/workflows/cbb-directory-phase-a.yml"
+  push:
+    branches: [main]
+    paths:
+      - "migrations/0079_cbb_persistent_directory_phase_a.sql"
+      - "functions/lib/cbbPersistentDirectory.js"
+      - "scripts/cbb-directory-phase-a.mjs"
+      - "test/cbb-persistent-directory.test.js"
+      - ".github/workflows/cbb-directory-phase-a.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: cbb-directory-phase-a-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Contract tests
+        run: node --test test/cbb-persistent-directory.test.js test/state-overlay-governance.test.js
+      - name: Download immutable 2018-2025 possession/lineup history
+        uses: actions/download-artifact@v4
+        with:
+          name: cbb-possession-v1-37411381038
+          github-token: "${{ github.token }}"
+          repository: coachhornsby/fbis
+          run-id: 37411381038
+          path: artifacts/source
+      - name: Build bounded directory population
+        run: node --max-old-space-size=6144 scripts/cbb-directory-phase-a.mjs artifacts/source/parts artifacts/cbb-directory | tee artifacts/cbb-directory-phase-a.log
+      - name: Fail-closed QA
+        run: |
+          set -euo pipefail
+          jq -e '
+            .snapshotId == "CBB-PIT-RESEARCH-v1-37411381038" and
+            .canonicalTeams >= 350 and
+            .players > 0 and
+            .rosterMemberships > 0 and
+            .stateEvents > 0 and
+            .teamSnapshots > 0 and
+            .playerSnapshots > 0 and
+            .scheduleItems > 0 and
+            .storageFootprintBytes < 250000000 and
+            .governance.researchOnly == true and
+            .governance.canInfluenceProjection == false and
+            .governance.canQualify == false and
+            .governance.canAuthorizeWager == false and
+            (.governance.availabilityRule | contains("UNKNOWN remains UNKNOWN"))
+          ' artifacts/cbb-directory/qa.json >/dev/null
+      - name: Apply Phase A schema and population to D1
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npx wrangler d1 execute fbis --remote --file=migrations/0079_cbb_persistent_directory_phase_a.sql
+          for f in artifacts/cbb-directory/chunk-*.sql; do
+            echo "Applying $f"
+            npx wrangler d1 execute fbis --remote --file="$f"
+          done
+      - name: Verify D1 checkpoint
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis --remote --command="SELECT id,snapshot_id,status,canonical_teams,players,roster_memberships,state_events,team_snapshots,player_snapshots,schedule_items FROM cbb_directory_population_runs ORDER BY completed_at DESC LIMIT 1; SELECT state_family,mode,target_scope,can_influence_projection,can_qualify,can_authorize_wager FROM cbb_state_overlay_governance ORDER BY state_family;"
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f artifacts/cbb-directory/qa.json ]; then
+            {
+              echo "## CBB Persistent Directory Phase A"
+              jq -r '"- snapshot="+.snapshotId+"\n- canonical teams="+(.canonicalTeams|tostring)+", players="+(.players|tostring)+", roster memberships="+(.rosterMemberships|tostring)+"\n- state events="+(.stateEvents|tostring)+", team snapshots="+(.teamSnapshots|tostring)+", player snapshots="+(.playerSnapshots|tostring)+", schedule items="+(.scheduleItems|tostring)+"\n- roster team coverage="+((100*.coverage.rosterTeamCoverage)|tostring)+"%, historical schedule coverage="+((100*.coverage.historicalScheduleTeamCoverage)|tostring)+"%, lineup/rotation linkage="+((100*.coverage.historicalLineupRotationLinkage)|tostring)+"%\n- conference="+((100*.coverage.conferenceCoverage)|tostring)+"%, coach="+((100*.coverage.coachCoverage)|tostring)+"%, venue="+((100*.coverage.venueCoverage)|tostring)+"%"' artifacts/cbb-directory/qa.json
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cbb-directory-phase-a-${{ github.run_id }}
+          path: |
+            artifacts/cbb-directory/qa.json
+            artifacts/cbb-directory-phase-a.log
+          if-no-files-found: warn
+          retention-days: 90
