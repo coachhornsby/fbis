@@ -43,10 +43,10 @@ const escJson=v=>q(JSON.stringify(v??null));
 await fs.mkdir(path.dirname(OUT),{recursive:true});await fs.mkdir(RAW,{recursive:true});
 let all=[],pagesScanned=0;
 for(let page=0;page<MAX_PAGES;page++){
- const res=await get(`/tournaments/?page=${page}&pageSize=${PAGE_SIZE}&from=${enc(`${YEAR}-01-01`)}&to=${enc(`${YEAR}-12-31`)}`);
+ const res=await get(`/tournaments/?page=${page}&pageSize=${PAGE_SIZE}&excludeLevels=ITF&from=${enc(`${YEAR}-01-01`)}&to=${enc(`${YEAR}-12-31`)}`);
  if(!res.ok)throw new Error(`tournaments page ${page} HTTP ${res.status}`);
  const rows=arr(res.body);pagesScanned++;
- all.push(...rows.filter(t=>yearOf(t)===YEAR&&group(t)));
+ all.push(...rows.filter(t=>yearOf(t)===YEAR&&group(t)&&String(level(t)||"").toUpperCase()!=="ITF"));
  if(rows.length<PAGE_SIZE)break;
 }
 const uniq=new Map();for(const t of all)uniq.set(`${group(t)}|${yearOf(t)}`,t);
@@ -57,7 +57,7 @@ for(const t of chosen){
  const gid=group(t),yr=yearOf(t),sourcePath=`/tournaments/${gid}/${yr}/matches`,shardKey=`wta:matches:${yr}:${gid}`;
  try{
   const res=await get(sourcePath);if(!res.ok)throw new Error(`HTTP ${res.status}`);
-  const rows=arr(res.body),checksum=h(res.text),rawKey=`wta/matches/${yr}/${gid}/matches-${checksum.slice(0,16)}.json`;
+  const rows=arr(res.body);if(!rows.length)throw new Error("EMPTY_MATCH_SHARD");const checksum=h(res.text),rawKey=`wta/matches/${yr}/${gid}/matches-${checksum.slice(0,16)}.json`;
   await fs.mkdir(path.join(RAW,String(yr),gid),{recursive:true});await fs.writeFile(path.join(RAW,String(yr),gid,"matches.json"),res.text);
   seen+=rows.length;
   for(const m of rows){
