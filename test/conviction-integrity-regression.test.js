@@ -18,6 +18,9 @@ function baseCandidate(overrides = {}) {
     side: "HOME",
     checkpoint: "MORNING",
     qualifiedAt: "2026-09-03T12:00:00.000Z",
+    marketObservedAt: "2026-09-03T11:59:00.000Z",
+    gameId: "g-mlb",
+    sourceProjectionId: "g-mlb",
     start: "2026-09-03T23:00:00.000Z",
     modelVersion: "FBIS-v1.3",
     qualificationRuleVersion: "FBIS-HC-v1",
@@ -32,10 +35,12 @@ function gate(candidate) {
     frozen: {
       checkpoint: "MORNING",
       frozenAt: "2026-09-03T12:00:00.000Z",
+      id: "g-mlb",
       start: "2026-09-03T23:00:00.000Z",
+      marketAt: "2026-09-03T11:59:00.000Z",
       pHomeFinal: candidate.modelProbability,
     },
-    game: { start: "2026-09-03T23:00:00.000Z" },
+    game: { id: "g-mlb", start: "2026-09-03T23:00:00.000Z" },
     paused: false,
     canaryPassed: true,
   });
@@ -100,3 +105,24 @@ describe("CONVICTION pricing integrity regressions", () => {
     assert.equal(wrongSport.ok, false);
     assert.equal(wrongSport.reason, "model-sport-authority-mismatch");
   });
+
+
+describe("CONVICTION temporal and identity integrity", () => {
+  it("fails closed when canonical event identity mismatches", () => {
+    const out = gate(baseCandidate({ gameId: "other-game" }));
+    assert.equal(out.ok, false);
+    assert.equal(out.reason, "event-identity-mismatch");
+  });
+
+  it("fails closed when market observation is after projection freeze", () => {
+    const out = gate(baseCandidate({ marketObservedAt: "2026-09-03T12:00:01.000Z" }));
+    assert.equal(out.ok, false);
+    assert.equal(out.reason, "market-after-projection-freeze");
+  });
+
+  it("fails closed without immutable source projection identity", () => {
+    const out = gate(baseCandidate({ sourceProjectionId: null }));
+    assert.equal(out.ok, false);
+    assert.equal(out.reason, "missing-projection-identity");
+  });
+});
