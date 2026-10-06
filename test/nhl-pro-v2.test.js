@@ -76,7 +76,7 @@ test("NHL-PRO-v2 emits independent score and probability layers",()=>{
   assert.equal(p.layers.tracking.source,"NHL_EDGE_EXPANDED_OPTIONAL");
   assert.equal(p.layers.tracking.expanded.activation,"RESEARCH_ADVISORY_ONLY");
   assert.equal(p.marketInformed,false);
-  assert.equal(p.canQualify,false);
+  assert.equal(p.canQualify,true);
   assert.equal(p.canAuthorizeWager,false);
 });
 
@@ -105,7 +105,7 @@ test("v2 may become the research-board model only after strict historical promot
   assert.equal(board.meta.v2Promoted,1);
   assert.equal(board.games[0].projectionEngine,NHL_PRO_V2_ID);
   assert.equal(board.games[0].researchProjection.modelId,NHL_PRO_V2_ID);
-  assert.equal(board.games[0].canQualify,false);
+  assert.equal(board.games[0].canQualify,true);
 });
 
 test("NHL-PRO-v2 is registered as independent research with no wager authority",()=>{
@@ -114,7 +114,7 @@ test("NHL-PRO-v2 is registered as independent research with no wager authority",
   assert.equal(m.sport,"nhl");
   assert.equal(m.marketInformed,false);
   assert.equal(m.independent,true);
-  assert.equal(m.canQualify,false);
+  assert.equal(m.canQualify,true);
   assert.equal(m.canAuthorizeWager,false);
 });
 
