@@ -79,3 +79,5 @@ jobs:
           first_bucket="$(printf '%s\n' "$first" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
           second_bucket="$(printf '%s\n' "$second" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
           test "$first_bucket" = "$second_bucket"
+
+# Phase 3H-R controlled rerun trigger after cross-provider identity repair.
