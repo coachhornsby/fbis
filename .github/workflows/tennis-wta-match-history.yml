@@ -34,6 +34,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Syntax check WTA history ingestor
+        run: node --check scripts/tennis-wta-match-history-ingest.mjs
       - name: Acquire bounded WTA shard
         env:
           WTA_YEAR: ${{ inputs.year || '2026' }}
