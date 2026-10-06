@@ -110,21 +110,23 @@ async function snapshot(context,date){
     const start=game.start||game.startTime||game.commence_time;
     const cp=checkpoint(start,frozenAt);
     if(!cp){skipped++;continue}
+    const criteria=nflQbProspectiveCriteria();
+    const storageCheckpoint=`${cp}@${criteria.gateId}`;
     const shadow=buildNflQbPersonnelShadow(game);
     if(!shadow.ok){skipped++;continue}
     eligible++;if(shadow.gate.fired)gated++;
     const market=executableNflMarketSnapshot(game);
     const eventId=String(game.id||"");
     if(!eventId){skipped++;continue}
-    const id=sha256Hex(["nfl-qb-shadow-v1",eventId,cp].join("|"));
+    const id=sha256Hex(["nfl-qb-shadow-v1",criteria.gateId,eventId,cp].join("|"));
     const profile=game.nflPersistentProfile||{};
     const provenance={
       frozenAt,source:"FBIS_PROSPECTIVE_SHADOW",stateBeforeWeight:true,
       historicalGateValidated:true,prospectiveValidated:false,operatorApprovedProduction:false,
       championUntouched:true,wagerAuthorityUntouched:true,marketUsedInProjection:false,
       profileVersion:profile.version||null,
-      prospectiveGateId:nflQbProspectiveCriteria().gateId,
-      governanceId:nflQbProspectiveCriteria().governanceId,
+      prospectiveGateId:criteria.gateId,
+      governanceId:criteria.governanceId,
     };
     const result=await context.env.DB.prepare(`
       INSERT OR IGNORE INTO nfl_qb_personnel_shadow_predictions(
@@ -135,7 +137,7 @@ async function snapshot(context,date){
         executable_market_json,home_profile_json,away_profile_json,personnel_json,provenance_json,lifecycle,can_qualify,can_authorize_wager
       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).bind(
-      id,eventId,finite(game.season?.year??game.seasonYear??new Date(start).getUTCFullYear()),finite(game.week?.number??game.week),start,cp,frozenAt,
+      id,eventId,finite(game.season?.year??game.seasonYear??new Date(start).getUTCFullYear()),finite(game.week?.number??game.week),start,storageCheckpoint,frozenAt,
       shadow.championGovernanceId,shadow.incumbentModelId,shadow.incumbentModelVersion,
       shadow.incumbent.home,shadow.incumbent.away,shadow.incumbent.margin,shadow.incumbent.pHomeWin,shadow.incumbent.total,
       shadow.modelId,shadow.home,shadow.away,shadow.margin,shadow.pHomeWin,shadow.total,shadow.marginCorrection,
@@ -188,7 +190,7 @@ async function grade(context,date){
 }
 async function summary(db){
   const allRows=(await db.prepare("SELECT * FROM nfl_qb_personnel_shadow_predictions ORDER BY start_time").all())?.results||[];
-  const rows=allRows.filter(r=>r.graded_at);
+  const rows=allRows.filter(r=>r.graded_at && String(r.provenance_json||"").includes(nflQbProspectiveCriteria().gateId));
   const group=(arr)=>{
     if(!arr.length)return{n:0};
     const avg=k=>arr.reduce((s,r)=>s+Number(r[k]||0),0)/arr.length;
@@ -212,10 +214,12 @@ async function summary(db){
   const byEvent=new Map();
   for(const r of rows){
     const prior=byEvent.get(String(r.event_id));
-    if(!prior || (prior.checkpoint!=="LATE" && r.checkpoint==="LATE"))byEvent.set(String(r.event_id),r);
+    const currentLate=String(r.checkpoint||"").startsWith("LATE");
+    const priorLate=String(prior?.checkpoint||"").startsWith("LATE");
+    if(!prior || (!priorLate&&currentLate))byEvent.set(String(r.event_id),r);
   }
   const primary=[...byEvent.values()];
-  const checkpointGroups={EARLY:group(rows.filter(r=>r.checkpoint==="EARLY")),LATE:group(rows.filter(r=>r.checkpoint==="LATE"))};
+  const checkpointGroups={EARLY:group(rows.filter(r=>String(r.checkpoint||"").startsWith("EARLY"))),LATE:group(rows.filter(r=>String(r.checkpoint||"").startsWith("LATE")))};
   const homeDisrupted=primary.filter(r=>Number(r.home_qb_burden)>=0.30);
   const awayDisrupted=primary.filter(r=>Number(r.away_qb_burden)>=0.30);
   const prospectiveGate=evaluateNflQbProspectiveGate(allRows);
@@ -234,7 +238,7 @@ async function summary(db){
       return x>=.50;
     }))})),
     seasonWeek:Object.fromEntries(Object.entries(weeks).map(([k,v])=>{
-      const ev=new Map();for(const r of v){const p=ev.get(String(r.event_id));if(!p||(p.checkpoint!=="LATE"&&r.checkpoint==="LATE"))ev.set(String(r.event_id),r)}
+      const ev=new Map();for(const r of v){const p=ev.get(String(r.event_id));const pLate=String(p?.checkpoint||"").startsWith("LATE");const rLate=String(r.checkpoint||"").startsWith("LATE");if(!p||(!pLate&&rLate))ev.set(String(r.event_id),r)}
       return[k,group([...ev.values()])];
     })),
     disruptionSide:{
