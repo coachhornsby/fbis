@@ -83,3 +83,4 @@ const summary={generatedAt:now,year:YEAR,offset:START,limit:LIMIT,tournamentPage
 await fs.writeFile(SUMMARY,JSON.stringify(summary,null,2)+String.fromCharCode(10));
 console.log(JSON.stringify(summary,null,2));
 if(!chosen.length||!seen||failures)process.exitCode=2;
+
