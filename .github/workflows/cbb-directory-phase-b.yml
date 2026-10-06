@@ -30,6 +30,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Runtime population executes through the existing authenticated CBB collect path.
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
