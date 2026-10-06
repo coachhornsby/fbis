@@ -14,7 +14,7 @@ on:
       limit:
         description: Tournament shard count
         required: false
-        default: "2"
+        default: "12"
   pull_request:
     paths:
       - "scripts/tennis-wta-match-history-ingest.mjs"
