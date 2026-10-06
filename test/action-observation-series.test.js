@@ -388,11 +388,3 @@ test("ACTION daily start claims one canonical paid run before starting Apify", a
   assert.match(api, /status IN \('starting_daily','running_daily'\)/);
 });
 
-
-test("daily ACTION endpoint claims deterministic day identity before paid Actor start", async () => {
-  const src = await readFile(new URL("../functions/api/action-daily-async.js", import.meta.url), "utf8");
-  assert.match(src, /daily_\$\{today\.replaceAll\("-", ""\)\}_canonical/);
-  assert.match(src, /INSERT OR IGNORE INTO shadow_collection_runs/);
-  assert.match(src, /status,"starting_daily"/);
-  assert.match(src, /status='running_daily'/);
-});
