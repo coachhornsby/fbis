@@ -23,7 +23,7 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           GITHUB_TOKEN: ${{ github.token }}
           BASE: https://fbis-myz.pages.dev
-          SNAPSHOT_DATE: "2026-10-07"
+          SNAPSHOT_DATE: "2026-10-09"
           REQUIRED_REPAIR_SHA: "e2b97fcf432c2b47d4d51a72cefb67625824f9bc"
         shell: bash
         run: |
@@ -144,3 +144,5 @@ jobs:
 # Phase 3H-R3 loader-error diagnostic trigger.
 
 # Phase 3H-R3 diagnostic deployment-gate trigger.
+
+# Phase 3H-R3 future-slate proof trigger: 2026-10-09.
