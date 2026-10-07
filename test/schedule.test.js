@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { recoverCurrentPipeline, RECOVERY_SPORTS } from "../workers/prospective-pipeline-recovery.mjs";
+import { collectCurrentPipeline } from "../functions/api/collect-current.js";
 import {
   selectPipelineJob,
   triggerFromEvent,
@@ -118,7 +119,7 @@ describe("prospective Cloudflare recovery", () => {
     deploymentCommit: sha, state: "HEALTHY", staleChecks: [],
     pipeline: { schedule: { collect: { state: collect }, harvest: { state: harvest } } },
   });
-  const mock = (initial, mutate = () => {}) => {
+  const mock = (initial, mutate = () => {}, coverage = { ok: true, missingSports: RECOVERY_SPORTS, initializing: false, inProgress: false }) => {
     const writes = [];
     let reads = 0;
     return { writes, request: async (raw, options) => {
@@ -127,6 +128,9 @@ describe("prospective Cloudflare recovery", () => {
         const row = structuredClone(initial);
         mutate(row, reads++);
         return Response.json(row);
+      }
+      if (url.pathname === "/api/collect-current" && url.searchParams.get("status") === "1") {
+        return Response.json(coverage);
       }
       writes.push({ url, options });
       return Response.json({ ok: true, status: "success" });
@@ -138,12 +142,27 @@ describe("prospective Cloudflare recovery", () => {
     assert.equal(r.status, "not_due");
     assert.equal(m.writes.length, 0);
   });
+  it("initializes fresh per-sport proof even when global health is healthy", async () => {
+    const m = mock(health(), () => {}, { ok: true, missingSports: RECOVERY_SPORTS, initializing: true, inProgress: false });
+    await recoverCurrentPipeline(env, controller, m.request, now);
+    assert.equal(m.writes.length, RECOVERY_SPORTS.length);
+  });
+  it("resumes only missing sports after a partial cycle made global health healthy", async () => {
+    const m = mock(health(), () => {}, { ok: true, missingSports: ["soccer"], initializing: false, inProgress: true });
+    await recoverCurrentPipeline(env, controller, m.request, now);
+    assert.deepEqual(m.writes.map(({ url }) => url.searchParams.get("sport")), ["soccer"]);
+  });
+  it("fails closed on unknown collection coverage", async () => {
+    const m = mock(health("missed"), () => {}, { ok: true, missingSports: ["unknown"] });
+    await assert.rejects(recoverCurrentPipeline(env, controller, m.request, now), /coverage unavailable/);
+    assert.equal(m.writes.length, 0);
+  });
   it("collects all configured sports using current-day cached odds with actual cron provenance", async () => {
     const m = mock(health("missed", "healthy"));
     await recoverCurrentPipeline(env, controller, m.request, now);
     assert.equal(m.writes.length, RECOVERY_SPORTS.length);
     for (const { url, options } of m.writes) {
-      assert.equal(url.pathname, "/api/collect");
+      assert.equal(url.pathname, "/api/collect-current");
       assert.equal(url.searchParams.get("odds"), "cache");
       assert.equal(url.searchParams.get("dayOffset"), "0");
       assert.equal(url.searchParams.get("trigger"), "schedule");
@@ -184,7 +203,7 @@ describe("prospective Cloudflare recovery", () => {
   });
   it("rejects partial writes and does not proceed to harvest", async () => {
     const m = mock(health("missed", "missed"));
-    const request = (url, options) => new URL(url).pathname === "/api/collect"
+    const request = (url, options) => new URL(url).pathname === "/api/collect-current" && !new URL(url).searchParams.has("status")
       ? Response.json({ ok: false, status: "partial" }, { status: 207 }) : m.request(url, options);
     await assert.rejects(recoverCurrentPipeline(env, controller, request, now), /failed HTTP 207/);
     assert.equal(m.writes.length, 0);
@@ -195,5 +214,45 @@ describe("prospective Cloudflare recovery", () => {
     const clock = () => ticks++ === 0 ? 0 : 480001;
     await assert.rejects(recoverCurrentPipeline(env, controller, m.request, now, clock), /time budget exhausted/);
     assert.equal(m.writes.length, 0);
+  });
+  it("covers a missing hourly harvest delivery while preserving wider release-health thresholds", async () => {
+    const h = health();
+    h.pipeline.schedule.harvest.lastObservedAt = "2026-10-07T16:00:00Z";
+    const m = mock(h);
+    const r = await recoverCurrentPipeline(env, controller, m.request, now);
+    assert.equal(r.harvestReason, "hourly_delivery_gap");
+    assert.equal(m.writes.length, RECOVERY_SPORTS.length);
+    assert.ok(m.writes.every(({ url }) => url.pathname === "/api/harvest" && url.searchParams.get("date") === "2026-10-07"));
+  });
+});
+
+describe("bounded current collection boundary", () => {
+  const sha = "a".repeat(40);
+  const context = (query = "", token = "secret") => ({
+    env: { HARVEST_SECRET: "secret", CF_PAGES_COMMIT_SHA: sha },
+    request: new Request(`https://example.com/api/collect-current?sport=cbb&trigger=schedule&expectedSha=${sha}${query}`, {
+      headers: { "x-harvest-secret": token },
+    }),
+  });
+  it("uses canonical collection with current cache settings even if historical/full arguments are supplied", async () => {
+    let called;
+    const response = await collectCurrentPipeline(context("&date=2020-01-01&odds=full&dayOffset=-1000"), async (_env, options) => {
+      called = options;
+      return { ok: true, status: "success" };
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(called, { odds: "cache", trigger: "schedule", sport: "cbb", dayOffset: 0 });
+    assert.equal((await response.json()).status, "success");
+  });
+  it("blocks unauthorized and moved-SHA calls before invoking collection", async () => {
+    const collect = () => { throw new Error("must not collect"); };
+    assert.equal((await collectCurrentPipeline(context("", "wrong"), collect)).status, 401);
+    const changed = context(); changed.env.CF_PAGES_COMMIT_SHA = "b".repeat(40);
+    assert.equal((await collectCurrentPipeline(changed, collect)).status, 409);
+  });
+  it("keeps partial canonical collection results partial", async () => {
+    const response = await collectCurrentPipeline(context(), async () => ({ ok: false, status: "partial" }));
+    assert.equal(response.status, 207);
+    assert.equal((await response.json()).ok, false);
   });
 });
