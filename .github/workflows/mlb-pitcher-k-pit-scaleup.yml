@@ -1,0 +1,50 @@
+name: MLB pitcher-K historical PIT scale-up
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/mlb-pitcher-k-pit-source.js"
+      - "scripts/mlb-pitcher-k-pit-scaleup.mjs"
+      - ".github/workflows/mlb-pitcher-k-pit-scaleup.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scale-up:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      START_DATE: "2026-08-27"
+      END_DATE: "2026-10-05"
+      OUT: artifacts/mlb-pitcher-k-pit-scaleup.json
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Wait for exact production SHA
+        if: ${{ github.event_name == 'push' }}
+        env:
+          VERIFY_MAX_ATTEMPTS: "30"
+        run: node scripts/verify-deployment-sha.mjs "${GITHUB_SHA}"
+      - name: Require historical source credential
+        run: test -n "${HARVEST_SECRET:-}"
+      - name: Run full historical pitcher-K PIT replay and market join
+        run: |
+          mkdir -p artifacts
+          node scripts/mlb-pitcher-k-pit-scaleup.mjs | tee artifacts/summary.json
+      - name: Verify fail-closed governance
+        run: |
+          jq -e '.governance.canQualify==false and .governance.canAuthorizeWager==false and .governance.autoPromotion==false' artifacts/summary.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlb-pitcher-k-pit-scaleup-${{ github.run_id }}
+          path: artifacts/
+          retention-days: 30
