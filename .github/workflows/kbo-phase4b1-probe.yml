@@ -18,3 +18,5 @@ jobs:
       - run: npm ci
       - name: Probe official KBO 2025 history
         run: node scripts/kbo-phase4b1-populate.mjs
+      - name: Probe raw GameCenter player identity fields
+        run: node scripts/kbo-player-id-probe.mjs
