@@ -47,6 +47,37 @@ async function archiveRawPull(env,{source,date,runId,rows,meta={}}){
 function norm(v){return String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()}
 function normTeam(v){return String(v||"").trim().toLowerCase().replace(/[^a-z0-9]/g,"")}
 function parseJson(v,fallback=null){try{return typeof v==="string"?JSON.parse(v):v??fallback}catch{return fallback}}
+function isoMs(v){const ms=Date.parse(String(v||""));return Number.isFinite(ms)?ms:null}
+export function nflCanonicalGameKey({start,home,away}={}){
+  const ms=isoMs(start),h=normTeam(home),a=normTeam(away);
+  return ms!=null&&h&&a ? [ms,h,a].join("|") : null;
+}
+async function loadCanonicalNflGameIndex(db){
+  if(!db?.prepare)return new Map();
+  try{
+    const rows=(await db.prepare("SELECT id,start,home_abbr,away_abbr FROM games WHERE lower(sport)='nfl'").all())?.results||[];
+    const grouped=new Map();
+    for(const row of rows){
+      const key=nflCanonicalGameKey({start:row.start,home:row.home_abbr,away:row.away_abbr});
+      if(!key)continue;
+      const ids=grouped.get(key)||new Set();ids.add(String(row.id));grouped.set(key,ids);
+    }
+    const out=new Map();
+    for(const [key,ids] of grouped)if(ids.size===1)out.set(key,[...ids][0]);
+    return out;
+  }catch{return new Map()}
+}
+export function nflPropTemporalEligibility({eventId,frozenAt,lineObservedAt,stateSourceUpdatedAt,playerProfileUpdatedAt}={}){
+  const freeze=isoMs(frozenAt),reasons=[];
+  if(!eventId)reasons.push("canonical_event_missing");
+  if(freeze==null)reasons.push("freeze_timestamp_invalid");
+  for(const [label,value] of [["line_observed_after_freeze",lineObservedAt],["state_source_after_freeze",stateSourceUpdatedAt],["player_profile_after_freeze",playerProfileUpdatedAt]]){
+    const ms=isoMs(value);
+    if(value&&ms==null)reasons.push(label.replace("_after_freeze","_timestamp_invalid"));
+    else if(ms!=null&&freeze!=null&&ms>freeze)reasons.push(label);
+  }
+  return {eligible:reasons.length===0,reasons};
+}
 async function loadNflPropStateIndex(db){
   if(!db?.prepare)return{byId:new Map(),byTeamName:new Map(),byUniqueName:new Map()};
   try{
@@ -271,6 +302,10 @@ export async function onRequestPost(context){
   }
   const cmap=new Map(candidates.map(c=>[candidateKey(c),c]));
   const nflStateIndex=await loadNflPropStateIndex(context.env.DB);
+  const canonicalNflGames=await loadCanonicalNflGameIndex(context.env.DB);
+  // Snapshot time is assigned only after all persisted state used by this freeze has been read.
+  // The acquisition timestamp remains provenance for the market pull; it is not the state freeze.
+  const nflStateFrozenAt=new Date().toISOString();
   let written=0,matched=0,malformed=0,signalsCreated=0,cfbSignalsPrepared=0,nflStateSnapshotsPrepared=0;
   const statements=[];
   const signalStatements=[];
@@ -300,19 +335,40 @@ export async function onRequestPost(context){
       s(cand?.modelSource),s(cand?.modelVersion)
     ));
     if(sport==="nfl"){
+      const exactGameKey=nflCanonicalGameKey({
+        start:startOf(raw)||cand?.start,
+        home:first(raw,["home_team","homeTeam","game.home_team","game.homeTeam"]),
+        away:first(raw,["away_team","awayTeam","game.away_team","game.awayTeam"]),
+      });
+      const canonicalEventId=s(cand?.eventId)||(exactGameKey?canonicalNflGames.get(exactGameKey)||null:null);
       const state=matchNflPropState(nflStateIndex,{
         playerId:playerIdOf(raw),playerName,team:s(teamOf(raw)||cand?.team)
       });
       const stateRaw=parseJson(state?.raw_json,{})||{};
       const injuryEvidence=stateRaw?.officialAvailability||stateRaw?.availability||null;
       const lineObservedAt=s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt;
+      const temporal=nflPropTemporalEligibility({
+        eventId:canonicalEventId,
+        frozenAt:nflStateFrozenAt,
+        lineObservedAt,
+        stateSourceUpdatedAt:state?.state_source_updated_at||null,
+        playerProfileUpdatedAt:state?.updated_at||null,
+      });
       const provenance={
-        frozenAt:collectedAt,
+        frozenAt:nflStateFrozenAt,
+        acquisitionCollectedAt:collectedAt,
         lineObservedAt,
         playerProfileUpdatedAt:state?.updated_at||null,
         stateSource:state?.state_source||null,
         stateSourceUpdatedAt:state?.state_source_updated_at||null,
-        temporalRule:"Only state already persisted at collection time is frozen; future reports never rewrite this row.",
+        eventLinkMethod:s(cand?.eventId)?"FBIS_PROJECTION_CANDIDATE":canonicalEventId?"EXACT_START_HOME_AWAY":"UNRESOLVED",
+        temporalRule:"Freeze is assigned after persisted player state is read; any referenced timestamp after freeze fails closed.",
+        temporalIntegrity:temporal.eligible,
+        evidenceEligible:temporal.eligible,
+        exclusionReasons:temporal.reasons,
+        researchOnly:true,
+        canQualify:false,
+        canAuthorizeWager:false,
         stateBeforeWeight:true,
         snapshotPurpose:"prospective_nfl_prop_injury_validation",
       };
@@ -325,8 +381,8 @@ export async function onRequestPost(context){
           player_state_json,injury_evidence_json,provenance_json
         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
       ).bind(
-        sid,id,runId,projectionId,s(cand?.eventId),playerIdOf(raw),playerName,state?.team_key||s(teamOf(raw)||cand?.team),market,line,tierOf(raw),
-        lineObservedAt,collectedAt,state?.health_state||null,state?.practice_state||null,state?.injury_detail||null,
+        sid,id,runId,projectionId,canonicalEventId,playerIdOf(raw),playerName,state?.team_key||s(teamOf(raw)||cand?.team),market,line,tierOf(raw),
+        lineObservedAt,nflStateFrozenAt,state?.health_state||null,state?.practice_state||null,state?.injury_detail||null,
         state?.injury_type||null,state?.injury_severity_class||null,state?.expected_return_state||null,state?.last_known_snap_share??null,
         state?.expected_snap_share??null,state?.depth_rank??null,state?.role_label||null,state?.state_confidence??null,Number(state?.carried_state||0),
         state?.state_source||null,state?.state_source_updated_at||null,state?.updated_at||null,

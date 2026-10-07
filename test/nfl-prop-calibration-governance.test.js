@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
+import { nflCanonicalGameKey, nflPropTemporalEligibility } from "../functions/api/prizepicks-props.js";
 import {
   selectivePropStars,
   propCalibrationValidated,
@@ -36,4 +37,34 @@ test("NFL champion no longer receives generic availability weighting in slate en
   assert.match(src,/id === "cfb"/);
   assert.doesNotMatch(src,/\["nfl","cfb"\]\.includes\(id\)/);
   assert.match(src,/QB-personnel overlay.*SHADOW-only/s);
+});
+
+test("NFL prop state exact event key normalizes equivalent timestamps without heuristic matching",()=>{
+  assert.equal(
+    nflCanonicalGameKey({start:"2026-10-08T20:15:00.000-04:00",home:"DAL",away:"TB"}),
+    nflCanonicalGameKey({start:"2026-10-09T00:15:00Z",home:"dal",away:"tb"})
+  );
+  assert.notEqual(
+    nflCanonicalGameKey({start:"2026-10-09T00:15:00Z",home:"DAL",away:"TB"}),
+    nflCanonicalGameKey({start:"2026-10-09T00:15:00Z",home:"TB",away:"DAL"})
+  );
+});
+
+test("NFL prop state evidence fails closed for missing event or post-freeze state",()=>{
+  const good=nflPropTemporalEligibility({
+    eventId:"401872980",frozenAt:"2026-10-07T15:00:10Z",
+    lineObservedAt:"2026-10-07T14:00:00Z",stateSourceUpdatedAt:"2026-10-07T15:00:08Z",
+    playerProfileUpdatedAt:"2026-10-07T15:00:09Z",
+  });
+  assert.deepEqual(good,{eligible:true,reasons:[]});
+
+  const bad=nflPropTemporalEligibility({
+    eventId:null,frozenAt:"2026-10-07T15:00:10Z",
+    lineObservedAt:"2026-10-07T14:00:00Z",stateSourceUpdatedAt:"2026-10-07T15:00:11Z",
+    playerProfileUpdatedAt:"2026-10-07T15:00:12Z",
+  });
+  assert.equal(bad.eligible,false);
+  assert.deepEqual(bad.reasons,[
+    "canonical_event_missing","state_source_after_freeze","player_profile_after_freeze"
+  ]);
 });
