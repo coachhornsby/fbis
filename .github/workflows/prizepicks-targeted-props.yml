@@ -14,7 +14,7 @@ on:
 
 concurrency:
   group: prizepicks-curated-props
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -76,33 +76,8 @@ jobs:
             exit 0
           }
 
-      - name: Recover an existing reserved acquisition without another paid Actor call
-        id: recover
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts
-          state_json="$(mktemp)"
-          curl -fsS --max-time 30 -H "x-harvest-secret: ${HARVEST_SECRET}" "$BASE/api/prizepicks-props?mode=acquisition&_t=$(date +%s)" > "$state_json"
-          state="$(jq -r '.acquisition.state // ""' "$state_json")"
-          existing_run="$(jq -r '.acquisition.run_id // ""' "$state_json")"
-          if [ "$state" != "RESERVED" ] || [ -z "$existing_run" ]; then
-            echo "RECOVER_ARTIFACT=0" >> "$GITHUB_ENV"
-            exit 0
-          fi
-          source_run="${existing_run##*_}"
-          artifacts_json="$(mktemp)"
-          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}/artifacts" > "$artifacts_json"
-          artifact_id="$(jq -r --arg n "prizepicks-curated-${source_run}" '.artifacts[] | select(.name==$n) | .id' "$artifacts_json" | head -1)"
-          test -n "$artifact_id"
-          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o /tmp/pp-recovery.zip
-          unzip -o /tmp/pp-recovery.zip -d artifacts >/dev/null
-          test -s artifacts/prizepicks-rows.json
-          test -s artifacts/candidates.json
-          echo "PP_RUN_ID=$existing_run" >> "$GITHUB_ENV"
-          echo "RECOVER_ARTIFACT=1" >> "$GITHUB_ENV"
-          echo "Recovered reserved acquisition artifact from run $source_run; no Actor call will be made."
+      - name: Reuse existing daily reservation without a replacement paid call
+        run: echo "RECOVER_ARTIFACT=0" >> "$GITHUB_ENV"
 
       - name: Reserve today's single paid PrizePicks acquisition
         if: env.SKIP_COLLECTION != '1' && env.RECOVER_ARTIFACT != '1'
@@ -115,14 +90,16 @@ jobs:
           code="$(curl -sS --max-time 30 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" --data-binary "$payload" -o "$body" -w "%{http_code}" "$BASE/api/prizepicks-props")"
           cat "$body"
           if [ "$code" = "409" ] && jq -e '.error=="ALREADY_COLLECTED_TODAY"' "$body" >/dev/null 2>&1; then
-            state_json="$(mktemp)"
-            curl -fsS --max-time 30 -H "x-harvest-secret: ${HARVEST_SECRET}" "$BASE/api/prizepicks-props?mode=acquisition&_t=$(date +%s)" > "$state_json"
-            covered="$(jq -r '[.coverage[].sport] | join(",")' "$state_json")"
-            run_id="pprepair_$(TZ=America/Chicago date +%Y%m%d)_${GITHUB_RUN_ID}"
-            echo "PrizePicks primary acquisition exists; running coverage repair only. covered=${covered:-none}"
-            echo "PP_RUN_ID=$run_id" >> "$GITHUB_ENV"
-            echo "COVERAGE_REPAIR=1" >> "$GITHUB_ENV"
-            echo "PP_COVERED_SPORTS=$covered" >> "$GITHUB_ENV"
+            state="$(jq -r '.acquisition.state' "$body")"
+            if [ "$state" = "RESERVED" ]; then
+              run_id="$(jq -er '.acquisition.run_id' "$body")"
+              echo "PP_RUN_ID=$run_id" >> "$GITHUB_ENV"
+              curl -fsS --max-time 45 -H "x-harvest-secret: ${HARVEST_SECRET}" "$BASE/api/apify-acquire" > artifacts/acquisition.json
+              echo "REUSE_OWNED_CAPTURE=1" >> "$GITHUB_ENV"
+            else
+              echo "SKIP_COLLECTION=1" >> "$GITHUB_ENV"
+            fi
+            echo "Existing daily acquisition is reused; no supplemental paid coverage pull."
             exit 0
           fi
           test "$code" = "200"
@@ -208,71 +185,37 @@ jobs:
         if: env.SKIP_COLLECTION != '1' && env.RECOVER_ARTIFACT != '1'
         run: |
           set -euo pipefail
-          actor_url="https://api.apify.com/v2/acts/zen-studio~prizepicks-player-props/run-sync-get-dataset-items?format=json&clean=true"
-          wanted=("MLB" "NFL" "NHL" "NBA" "College Basketball" "CFB" "Soccer" "Tennis")
-          discover="$(mktemp)"
-          dcode="$(curl -sS --max-time 120 -X POST -H "Authorization: Bearer ${APIFY_TOKEN}" -H "content-type: application/json" --data-binary '{"listLeagues":true}' -o "$discover" -w "%{http_code}" "$actor_url")"
-          case "$dcode" in 200|201) ;; *) echo "PrizePicks league discovery failed HTTP $dcode"; cat "$discover"; exit 1 ;; esac
-          jq -e 'type=="array"' "$discover" >/dev/null
-          cp "$discover" artifacts/prizepicks-live-leagues.json
-          : > artifacts/prizepicks-rows.ndjson
-          : > artifacts/prizepicks-coverage.ndjson
-          for league in "${wanted[@]}"; do
-            # Discovery rows vary by actor version; accept common league/name fields.
-            sport_key="$(case "$league" in "College Basketball") echo cbb;; CFB) echo cfb;; *) echo "$league" | tr '[:upper:]' '[:lower:]';; esac)"
-            if [ "${COVERAGE_REPAIR:-0}" = "1" ] && echo ",${PP_COVERED_SPORTS:-}," | grep -q ",$sport_key,"; then
-              echo "coverage league=$league already persisted; repair skip"
-              continue
-            fi
-            live_present="$(jq -r --arg l "$league" '[.[] | select((if type=="string" then . else (.league // .name // .league_name // "") end) == $l)] | length' "$discover")"
-            if [ "$live_present" = "0" ]; then
-              echo "coverage league=$league not advertised by discovery; probing directly"
-            else
-              echo "coverage league=$league advertised by discovery"
-            fi
-            input="$(jq -nc --arg league "$league" '{leagues:[$league]}')"
-            body="$(mktemp)"
-            code="$(curl -sS --max-time 240 -X POST -H "Authorization: Bearer ${APIFY_TOKEN}" -H "content-type: application/json" --data-binary "$input" -o "$body" -w "%{http_code}" "$actor_url")"
-            case "$code" in 200|201) ;; *) echo "PrizePicks league pull failed league=$league HTTP $code"; cat "$body"; exit 1 ;; esac
-            jq -e 'type=="array"' "$body" >/dev/null
-            n="$(jq 'length' "$body")"
-            echo "coverage league=$league advertised=$live_present rows=$n"
-            if [ "$n" -eq 0 ]; then
-              jq -nc --arg league "$league" --argjson advertised "$live_present" '{league:$league,expected:($advertised>0),advertised:$advertised,rows:0}' >> artifacts/prizepicks-coverage.ndjson
-              continue
-            fi
-            jq -c '.[]' "$body" >> artifacts/prizepicks-rows.ndjson
-            jq -nc --arg league "$league" --argjson live "$live_present" --argjson rows "$n" '{league:$league,expected:true,liveCount:$live,rows:$rows}' >> artifacts/prizepicks-coverage.ndjson
+          payload='{"source":"prizepicks","component":"prizepicks-daily","sport":"shared"}'
+          if [ "${REUSE_OWNED_CAPTURE:-0}" != "1" ]; then
+            curl -fsS --max-time 60 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H 'content-type: application/json' --data-binary "$payload" "$BASE/api/apify-acquire" > artifacts/acquisition.json
+          fi
+          apify_run="$(jq -er '.data.id' artifacts/acquisition.json)"
+          for attempt in $(seq 1 30); do
+            curl -fsS --max-time 60 -H "Authorization: Bearer ${APIFY_TOKEN}" "https://api.apify.com/v2/actor-runs/$apify_run" > artifacts/apify-run.json
+            status="$(jq -r '.data.status' artifacts/apify-run.json)"
+            case "$status" in SUCCEEDED|SUCCEEDED_WITH_WARNINGS) break;; READY|RUNNING) sleep 15;; *) echo "Existing Actor failed: $status; no replacement launch"; exit 1;; esac
           done
-          jq -s 'unique_by(.projection_id // .id // [(.league // .player_league),(.player_name // .playerName),(.stat_type // .stat),(.line // .value),(.odds_type // .oddsTier)])' artifacts/prizepicks-rows.ndjson > artifacts/prizepicks-rows.json
-          jq -s '.' artifacts/prizepicks-coverage.ndjson > artifacts/prizepicks-coverage.json
-          rows="$(jq 'length' artifacts/prizepicks-rows.json)"
-          echo "complete-board rows=$rows"
-          jq -e '[.[] | select(.expected==true and .rows==0)] | length == 0' artifacts/prizepicks-coverage.json >/dev/null
-          test "$rows" -gt 0
-      - name: Persist curated PrizePicks lines
-        if: env.SKIP_COLLECTION != '1'
+          jq -e '.data.status=="SUCCEEDED" or .data.status=="SUCCEEDED_WITH_WARNINGS"' artifacts/apify-run.json >/dev/null
+          dataset="$(jq -er '.data.defaultDatasetId' artifacts/apify-run.json)"
+          curl -fsS --max-time 90 -H "Authorization: Bearer ${APIFY_TOKEN}" "https://api.apify.com/v2/datasets/$dataset/items?format=json&clean=true" > artifacts/prizepicks-rows.json
+          jq -n --slurpfile run artifacts/apify-run.json --slurpfile rows artifacts/prizepicks-rows.json '{operation:"capture",run:$run[0].data}' > artifacts/capture.json
+          curl -fsS --max-time 120 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H 'content-type: application/json' --data-binary @artifacts/capture.json "$BASE/api/apify-acquire" > artifacts/raw-capture.json
+      - name: Persist current immutable capture in bounded resumable batches
+        if: env.SKIP_COLLECTION != '1' && env.RECOVER_ARTIFACT != '1'
         run: |
           set -euo pipefail
-          run_id="${PP_RUN_ID:?daily acquisition reservation missing}"
-          payload="$(mktemp)"
-          jq -n \
-            --arg runId "$run_id" \
-            --slurpfile rows artifacts/prizepicks-rows.json \
-            --slurpfile candidates artifacts/candidates.json \
-            --arg operation "${COVERAGE_REPAIR:+supplemental_coverage}" \
-            '{runId:$runId,operation:(if $operation=="" then null else $operation end),rows:$rows[0],candidates:$candidates[0]}' > "$payload"
-          body="$(mktemp)"
-          code="$(curl -sS --max-time 120 -X POST \
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \
-            -H "content-type: application/json" \
-            --data-binary "@$payload" \
-            -o "$body" -w "%{http_code}" \
-            "$BASE/api/prizepicks-props")"
-          cat "$body"
-          test "$code" = "200"
-          jq -e '.ok==true and .written>0' "$body" >/dev/null
-          cp "$body" artifacts/persist-result.json
+          acquisition_id="$(jq -er '.acquisitionId' artifacts/acquisition.json)"
+          rows="$(jq 'length' artifacts/prizepicks-rows.json)"
+          test "$rows" -gt 0
+          batches=$(( (rows + 199) / 200 ))
+          for index in $(seq 0 $((batches - 1))); do
+            jq -n --arg runId "$PP_RUN_ID" --arg acquisitionId "$acquisition_id" --argjson index "$index" --slurpfile rows artifacts/prizepicks-rows.json --slurpfile candidates artifacts/candidates.json '{runId:$runId,acquisitionId:$acquisitionId,batchIndex:$index,rows:$rows[0][($index*200):(($index+1)*200)],candidates:$candidates[0]}' > artifacts/consume.json
+            curl -fsS --max-time 120 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H 'content-type: application/json' --data-binary @artifacts/consume.json "$BASE/api/prizepicks-props" > artifacts/consume-result.json
+            jq -e '.ok==true' artifacts/consume-result.json >/dev/null
+          done
+          jq -nc --arg runId "$PP_RUN_ID" --arg acquisitionId "$acquisition_id" '{operation:"complete_capture",runId:$runId,acquisitionId:$acquisitionId}' > artifacts/complete.json
+          curl -fsS --max-time 60 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H 'content-type: application/json' --data-binary @artifacts/complete.json "$BASE/api/prizepicks-props" > artifacts/complete-result.json
+          jq -e '.ok==true and .consumptionComplete==true' artifacts/complete-result.json >/dev/null
 
       - name: Verify live PrizePicks readback
         if: env.SKIP_COLLECTION != '1'

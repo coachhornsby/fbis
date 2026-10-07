@@ -1,3 +1,4 @@
+import {querySharedApifyMonthToDateUsd} from '../lib/sharedApifyBudget.js';
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { canonicalizeProPlayerPropMarket, normalizeProPropSport } from "../lib/proPlayerProps.js";
 import { sha256Hex } from "../lib/sha256Hex.js";
@@ -188,12 +189,8 @@ export function candidateOpponent(cand, rawTeam){
   return s(cand.opponent);
 }
 async function mtd(db){
-  const now=new Date();
-  const monthStart=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),1)).toISOString();
-  const r=await db.prepare(
-    "SELECT COALESCE(SUM(CASE WHEN actual_total_usd IS NOT NULL THEN actual_total_usd ELSE estimated_total_usd END),0) usd FROM shadow_cost_ledger WHERE created_at >= ?"
-  ).bind(monthStart).first();
-  return {usd:Number(r?.usd||0),monthStart};
+ const spent=await querySharedApifyMonthToDateUsd({queryOne:async(q,p=[])=>db.prepare(q).bind(...p).first()});
+ return {usd:spent.mtdUsd,monthStart:spent.monthStart};
 }
 export async function onRequestGet(context){
   if(!context.env?.DB) return json({ok:false,error:"database unavailable",rows:[]},503);
@@ -234,9 +231,11 @@ export async function onRequestGet(context){
   const rows=(await context.env.DB.prepare(
     `SELECT * FROM prizepicks_prop_lines ${clause} ORDER BY collected_at DESC LIMIT ${limit}`
   ).bind(...bind).all())?.results||[];
-  const acquisition=await context.env.DB.prepare("SELECT state,started_at,completed_at,rows_returned FROM prizepicks_daily_acquisitions WHERE ct_date=?").bind(date).first();
+  const acquisition=await context.env.DB.prepare("SELECT run_id,state,started_at,completed_at,rows_returned FROM prizepicks_daily_acquisitions WHERE ct_date=?").bind(date).first();
   const latestCollectedAt=rows.reduce((max,row)=>String(row.collected_at||"")>max?String(row.collected_at):max,"")||null;
   const current=Boolean(acquisition?.state==="COMPLETE");
+  const nowMs=Date.now();
+  for(const row of rows){const ageMs=nowMs-Date.parse(row.collected_at||"");row.sourceFreshness={current:current&&row.run_id===acquisition.run_id&&Number.isFinite(ageMs)&&ageMs>=0&&ageMs<=86400000,ageMs:Number.isFinite(ageMs)?ageMs:null};}
   return json({
     ok:true,rows,count:rows.length,date,source:"PRIZEPICKS_APIFY",
     decisionEligible:false,canQualify:false,
@@ -268,14 +267,44 @@ export async function onRequestPost(context){
       VALUES(?,?,?,?,?,?,?,?,?)`).bind("ppstart_"+day,"PRIZEPICKS_APIFY",runId,"all","ESTIMATED_START",RUN_START_USD,null,0,now).run();
     return json({ok:true,reserved:true,ctDate:day,runId,recordedStartCostUsd:RUN_START_USD});
   }
+  if(operation==='complete_capture'){
+    const source=await context.env.DB.prepare("SELECT * FROM external_acquisitions WHERE id=? AND source='prizepicks' AND state='CAPTURED'").bind(body.acquisitionId||'').first();
+    if(!source?.raw_key)return json({ok:false,error:'immutable_capture_required'},409);
+    const reserved=await context.env.DB.prepare('SELECT * FROM prizepicks_daily_acquisitions WHERE run_id=?').bind(body.runId||'').first();
+    if(!reserved)return json({ok:false,error:'missing_daily_acquisition_reservation'},409);
+    if(reserved.ct_date!==todayCt()||ctDate(source.captured_at)!==todayCt())return json({ok:false,error:'current_capture_required'},409);
+    const batches=await context.env.DB.prepare("SELECT COUNT(*) n,SUM(rows_returned) rows,SUM(accepted) accepted,SUM(duplicates) duplicates,SUM(rejected) rejected FROM external_acquisition_batches WHERE acquisition_id=? AND component='prizepicks-daily'").bind(source.id).first();
+    const expected=Math.ceil(source.observations_returned/200);
+    if(Number(batches?.n||0)!==expected||Number(batches?.rows||0)!==source.observations_returned)return json({ok:false,error:'capture_consumption_incomplete'},409);
+    const completeAt=new Date().toISOString();
+    await context.env.DB.prepare("UPDATE prizepicks_daily_acquisitions SET state='COMPLETE',rows_returned=?,completed_at=? WHERE run_id=? AND state='RESERVED'").bind(source.observations_returned,completeAt,body.runId).run();
+    await context.env.DB.prepare("UPDATE external_acquisition_consumers SET accepted=?,duplicates=?,rejected=?,consumed_at=? WHERE acquisition_id=? AND component='prizepicks-daily'").bind(batches?.accepted||0,batches?.duplicates||0,batches?.rejected||0,completeAt,source.id).run();
+    return json({ok:true,rowsReturned:source.observations_returned,consumptionComplete:true});
+  }
   const rows=Array.isArray(body.rows)?body.rows:[];
+  if(rows.length>500)return json({ok:false,error:'bounded_consumption_required',maxRows:200},413);
+  let capturedSource=null,batchKey=null;
+  if(body.acquisitionId){
+    capturedSource=await context.env.DB.prepare("SELECT * FROM external_acquisitions WHERE id=? AND source='prizepicks' AND state='CAPTURED'").bind(body.acquisitionId).first();
+    if(!capturedSource?.raw_key)return json({ok:false,error:'immutable_capture_required'},409);
+    if(ctDate(capturedSource.captured_at)!==todayCt())return json({ok:false,error:'current_capture_required'},409);
+    const index=Number(body.batchIndex);
+    if(!Number.isInteger(index)||index<0)return json({ok:false,error:'invalid_batch'},400);
+    const captured=await context.env.ARCHIVE.get(capturedSource.raw_key);
+    const raw=await captured?.json();
+    const expected=(raw?.rows||[]).slice(index*200,(index+1)*200);
+    if(!expected.length||JSON.stringify(rows)!==JSON.stringify(expected))return json({ok:false,error:'capture_batch_mismatch'},409);
+    batchKey=index;
+    const done=await context.env.DB.prepare("SELECT * FROM external_acquisition_batches WHERE acquisition_id=? AND component='prizepicks-daily' AND batch_index=?").bind(capturedSource.id,index).first();
+    if(done)return json({ok:true,reused:true,written:0,batchIndex:index});
+  }
   const candidates=Array.isArray(body.candidates)?body.candidates:[];
   const runId=s(body.runId)||`pp_${Date.now()}`;
-  const collectedAt=s(body.collectedAt)||new Date().toISOString();
+  const collectedAt=capturedSource?.captured_at||s(body.collectedAt)||new Date().toISOString();
   const today=todayCt();
   let archiveKey=null;
   try{
-    archiveKey=await archiveRawPull(context.env,{
+    archiveKey=capturedSource?.raw_key||await archiveRawPull(context.env,{
       source:"prizepicks",
       date:today,
       runId,
@@ -297,7 +326,7 @@ export async function onRequestPost(context){
   }
   const estimate=RUN_START_USD+rows.length*PER_PROJECTION_USD;
   const spent=await mtd(context.env.DB);
-  if(spent.usd+estimate>HARD_MONTHLY_CAP_USD+1e-9){
+  if(!capturedSource && spent.usd+estimate>HARD_MONTHLY_CAP_USD+1e-9){
     return json({ok:false,blocked:true,error:"monthly_budget_cap",monthToDateUsd:spent.usd,estimatedRunUsd:estimate,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD},409);
   }
   const cmap=new Map(candidates.map(c=>[candidateKey(c),c]));
@@ -447,6 +476,10 @@ export async function onRequestPost(context){
   for(let i=0;i<nflStateStatements.length;i+=BATCH_SIZE){
     const result=await context.env.DB.batch(nflStateStatements.slice(i,i+BATCH_SIZE));
     nflStateSnapshotsWritten+=result.reduce((sum,row)=>sum+Number(row?.meta?.changes||0),0);
+  }
+  if(capturedSource){
+    await context.env.DB.prepare("INSERT OR IGNORE INTO external_acquisition_batches VALUES(?,'prizepicks-daily',?,?,?,?,?,?)").bind(capturedSource.id,batchKey,rows.length,written,Math.max(0,rows.length-malformed-written),malformed,new Date().toISOString()).run();
+    return json({ok:true,runId,written,matched,malformed,batchIndex:batchKey,acquisitionId:capturedSource.id});
   }
   const costId="cost_"+runId;
   const acquisition=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE run_id=?").bind(runId).first();

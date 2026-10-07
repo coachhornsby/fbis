@@ -462,7 +462,7 @@ async function attachPrizePicksMarkets(games=[], sport, date, db){
   let rows=[];
   try{
     rows=(await db.prepare(`SELECT fbis_event_id,sport,player_id,player_name,player_headshot_url,team,opponent,game_id,start_time,stat_type,canonical_market,line,odds_tier,duration,observed_at,collected_at
-      FROM prizepicks_prop_lines WHERE sport=? AND substr(start_time,1,10) BETWEEN date(?,'-1 day') AND date(?,'+1 day')
+      FROM prizepicks_prop_lines WHERE run_id IN (SELECT run_id FROM prizepicks_daily_acquisitions WHERE state='COMPLETE') AND julianday(collected_at) BETWEEN julianday('now','-24 hours') AND julianday('now') AND sport=? AND substr(start_time,1,10) BETWEEN date(?,'-1 day') AND date(?,'+1 day')
       ORDER BY collected_at DESC LIMIT 3000`).bind(sport,date,date).all())?.results||[];
   }catch{return games;}
   return games.map(game=>{
@@ -1037,3 +1037,4 @@ export async function buildTodayBoard(
     },
   };
 }
+

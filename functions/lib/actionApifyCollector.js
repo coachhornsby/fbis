@@ -717,7 +717,8 @@ export async function runCandidateCollection(env, opts) {
       };
       shadowResult.gamesReturned = shadowResult.rows.length;
     } else {
-      const maxRetries = plan.cfg.maxRetries;
+      // Paid launches never retry. Resume/harvest the durable provider run instead.
+      const maxRetries = 0;
       while (retries <= maxRetries) {
         try {
           shadowResult = await runActionApifyShadow(env, {

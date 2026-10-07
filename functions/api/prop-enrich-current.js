@@ -19,7 +19,7 @@ async function currentRows(db,sport,date,limit){
         ORDER BY collected_at DESC
       ) rn
       FROM prizepicks_prop_lines
-      WHERE lower(sport)=? AND substr(start_time,1,10)=?
+      WHERE run_id IN (SELECT run_id FROM prizepicks_daily_acquisitions WHERE state='COMPLETE') AND julianday(collected_at) BETWEEN julianday('now','-24 hours') AND julianday('now') AND lower(sport)=? AND substr(start_time,1,10)=?
         AND fbis_projection IS NULL AND line IS NOT NULL\n        AND (model_source IS NULL OR model_source NOT LIKE 'ENRICH_UNAVAILABLE:%')
         AND lower(coalesce(odds_tier,'standard'))='standard'
         AND lower(coalesce(duration,'full'))='full'

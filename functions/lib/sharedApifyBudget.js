@@ -1,3 +1,4 @@
+import {billingWindow} from './externalAcquisition.js';
 /**
  * Shared Apify budget authority for FBIS sports actors.
  * ACTION + PrizePicks combined: target <= $22/month, absolute stop at $25/month.
@@ -31,12 +32,12 @@ export function evaluateSharedApifySpend({ monthToDateUsd = 0, estimatedRunUsd =
  */
 export async function querySharedApifyMonthToDateUsd(db, { now = new Date() } = {}) {
   if (!db?.queryOne) return { mtdUsd:0, runs:0 };
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+  const monthStart = billingWindow(now).start;
   let actionUsd=0, actionRuns=0, otherUsd=0, otherRuns=0;
   try {
     const a=await db.queryOne(
       `SELECT COALESCE(SUM(CASE WHEN actual_total_usd IS NOT NULL THEN actual_total_usd ELSE estimated_total_usd END),0) AS mtd_usd, COUNT(*) AS runs
-       FROM shadow_cost_ledger WHERE created_at >= ?`, [monthStart]);
+       FROM shadow_cost_ledger WHERE created_at >= ? AND NOT EXISTS (SELECT 1 FROM apify_sports_cost_ledger p WHERE p.run_id=shadow_cost_ledger.run_id)`, [monthStart]);
     actionUsd=Number(a?.mtd_usd||0); actionRuns=Number(a?.runs||0);
   } catch {}
   try {

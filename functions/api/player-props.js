@@ -100,7 +100,7 @@ async function loadPrizePicksRows(db, eventIds = [], sportParam = null) {
   const sportClause = sportParam ? " AND LOWER(sport) = ?" : "";
   const result = await db.prepare(
     `SELECT * FROM prizepicks_prop_lines
-      WHERE fbis_event_id IN (${placeholders})
+      WHERE run_id IN (SELECT run_id FROM prizepicks_daily_acquisitions WHERE state='COMPLETE') AND julianday(collected_at) BETWEEN julianday('now','-24 hours') AND julianday('now') AND fbis_event_id IN (${placeholders})
       ${sportClause}
       ORDER BY collected_at DESC
       LIMIT 4000`
@@ -266,7 +266,7 @@ export async function onRequestGet(context) {
       if (dateParam) { where.push("substr(start_time,1,10)=?"); binds.push(dateParam); }
       const result = await context.env.DB.prepare(
         `SELECT * FROM prizepicks_prop_lines
-          WHERE ${where.join(" AND ")}
+          WHERE run_id IN (SELECT run_id FROM prizepicks_daily_acquisitions WHERE state='COMPLETE') AND julianday(collected_at) BETWEEN julianday('now','-24 hours') AND julianday('now') AND ${where.join(" AND ")}
           ORDER BY collected_at DESC
           LIMIT 4000`
       ).bind(...binds).all();

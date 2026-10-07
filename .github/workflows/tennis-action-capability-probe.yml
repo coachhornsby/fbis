@@ -1,12 +1,6 @@
 name: Tennis ACTION capability probe
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/tennis-action-capability-probe.yml"
-      - "functions/lib/actionApifyShadow.js"
-      - "functions/lib/actionApifyCollector.js"
-      - "functions/lib/tennisMarketV2.js"
   workflow_dispatch:
 
 permissions:

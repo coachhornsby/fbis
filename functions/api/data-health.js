@@ -1,3 +1,4 @@
+import { onRequestGet as getAcquisitionHealth } from './acquisition-health.js';
 /**
  * Data Health API — provider commercial status, freshness, governance meta.
  * Read-only. Never mutates champions or wager gates.
@@ -225,7 +226,14 @@ export async function onRequestGet(context) {
     },
   };
 
+  const acquisitionHealth=await (await getAcquisitionHealth({env})).json();
+  if(acquisitionHealth.status!=="HEALTHY")qualityStatus="DEGRADED";
+  runtimeConfig.action_apify.enabled=acquisitionHealth.account?.state==="ACTIVE";
+  runtimeConfig.action_apify.paused=!runtimeConfig.action_apify.enabled;
+  runtimeConfig.action_apify.reason=acquisitionHealth.account?.reason||"ACQUISITION_POLICY_UNKNOWN";
+  apifyBudget={...apifyBudget,costBasis:"LEGACY_ESTIMATES_INCOMPLETE",accountUsageUsd:acquisitionHealth.account?.provider_usage_usd??null,accountState:acquisitionHealth.account?.state||"UNKNOWN"};
   const payload = {
+    acquisitionHealth,
     ok: true,
     generatedAt: new Date().toISOString(),
     qualityStatus,
