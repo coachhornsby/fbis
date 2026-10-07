@@ -3,9 +3,15 @@
 export const RECOVERY_CRON = "*/10 * * * *";
 export const RECOVERY_SPORTS = ["mlb", "nba", "wnba", "nhl", "nfl", "cfb", "cbb", "soccer"];
 
-export async function recoverCurrentPipeline(env, controller, request = fetch, now = new Date()) {
+export async function recoverCurrentPipeline(env, controller, request = fetch, now = new Date(), clock = Date.now) {
   if (!env.HARVEST_SECRET) throw new Error("HARVEST_SECRET missing");
   const base = env.FBIS_BASE_URL || "https://fbis-myz.pages.dev";
+  const deadline = clock() + 8 * 60 * 1000;
+  const boundedTimeout = (maximum) => {
+    const remaining = deadline - clock();
+    if (remaining <= 0) throw new Error("Recovery cycle time budget exhausted");
+    return AbortSignal.timeout(Math.min(maximum, remaining));
+  };
   const scheduledAt = new Date(controller.scheduledTime).toISOString();
   if (Math.abs(now.getTime() - controller.scheduledTime) > 5 * 60 * 1000) {
     throw new Error("Stale scheduled event; historical replay blocked");
@@ -14,9 +20,14 @@ export async function recoverCurrentPipeline(env, controller, request = fetch, n
     timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit",
   }).format(now);
   const readHealth = async () => {
-    const response = await request(`${base}/api/health?_t=${Date.now()}`, {
-      signal: AbortSignal.timeout(10000),
-    });
+    let response;
+    try {
+      response = await request(`${base}/api/health?_t=${clock()}`, {
+        signal: boundedTimeout(40000),
+      });
+    } catch (error) {
+      throw new Error(`Production health read failed: ${error.message}`);
+    }
     if (!response.ok) throw new Error(`health HTTP ${response.status}`);
     const health = await response.json();
     if (!/^[0-9a-f]{40}$/i.test(health.deploymentCommit || "")) throw new Error("Live production SHA unavailable");
@@ -41,7 +52,7 @@ export async function recoverCurrentPipeline(env, controller, request = fetch, n
     url.search = new URLSearchParams(params).toString();
     const response = await request(url.toString(), {
       headers: { "x-harvest-secret": env.HARVEST_SECRET, accept: "application/json" },
-      signal: AbortSignal.timeout(20000),
+      signal: boundedTimeout(60000),
     });
     const body = await response.json();
     const ok = response.status === 200 && body.ok === true && body.status === "success";
