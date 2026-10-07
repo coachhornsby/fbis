@@ -1871,7 +1871,7 @@ CREATE TABLE IF NOT EXISTS cbb_game_state_snapshots (
   home_state_json TEXT NOT NULL, away_state_json TEXT NOT NULL, unresolved_json TEXT NOT NULL,
   temporal_integrity_ok INTEGER NOT NULL, post_tip_observations INTEGER NOT NULL DEFAULT 0,
   future_membership_leaks INTEGER NOT NULL DEFAULT 0, future_availability_leaks INTEGER NOT NULL DEFAULT 0,
-  future_lineup_leaks INTEGER NOT NULL DEFAULT 0, future_transfer_leaks INTEGER NOT NULL DEFAULT 0, mode TEXT NOT NULL DEFAULT 'SHADOW',
+  future_lineup_leaks INTEGER NOT NULL DEFAULT 0, mode TEXT NOT NULL DEFAULT 'SHADOW',
   overlay_version TEXT NOT NULL DEFAULT 'FBIS-STATE-OVERLAY-v1',
   research_only INTEGER NOT NULL DEFAULT 1, can_influence_projection INTEGER NOT NULL DEFAULT 0,
   can_qualify INTEGER NOT NULL DEFAULT 0, can_authorize_wager INTEGER NOT NULL DEFAULT 0,
@@ -1914,3 +1914,16 @@ CREATE TABLE IF NOT EXISTS cbb_directory_phase_b_runs (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_cbb_phase_b_runs_time ON cbb_directory_phase_b_runs(observed_at DESC);
+
+CREATE TABLE IF NOT EXISTS cbb_directory_phase_b_temporal_qa (
+  run_id TEXT PRIMARY KEY,
+  observed_at TEXT NOT NULL,
+  post_tip_observations INTEGER NOT NULL DEFAULT 0,
+  future_membership_leaks INTEGER NOT NULL DEFAULT 0,
+  future_availability_leaks INTEGER NOT NULL DEFAULT 0,
+  future_lineup_leaks INTEGER NOT NULL DEFAULT 0,
+  future_transfer_leaks INTEGER NOT NULL DEFAULT 0,
+  temporal_integrity_ok INTEGER NOT NULL,
+  provenance_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);

@@ -11,7 +11,9 @@ test("CBB Phase B schema is research/SHADOW only",()=>{
  assert.match(s,/future_membership_leaks/);
  assert.match(s,/post_tip_observations/);
  const t=readFileSync("migrations/0096_cbb_phase_b_future_transfer_leakage.sql","utf8");
+ assert.match(t,/CREATE TABLE IF NOT EXISTS cbb_directory_phase_b_temporal_qa/);
  assert.match(t,/future_transfer_leaks/);
+ assert.doesNotMatch(t,/ALTER TABLE cbb_game_state_snapshots/);
 });
 test("CBB Phase B builder never infers availability from DNP or minutes",()=>{
  const s=readFileSync("scripts/cbb-directory-phase-b.mjs","utf8");
