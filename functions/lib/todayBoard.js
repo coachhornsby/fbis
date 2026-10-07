@@ -505,6 +505,22 @@ function tennisRankProfile(name, rankings) {
   return rankings?.byName?.get(tennisNameKey(name)) || null;
 }
 
+async function tennisVenueOffers(db,eventId){
+ if(!db?.prepare||!eventId)return [];
+ const q=await db.prepare(`WITH ranked AS (
+  SELECT *,ROW_NUMBER() OVER(PARTITION BY source,market_family,coalesce(stat_family,''),coalesce(player_name,''),coalesce(side,''),coalesce(line,-999999) ORDER BY collected_at DESC,created_at DESC) rn
+  FROM normalized_market_observations WHERE sport='tennis' AND canonical_event_id=?
+ ) SELECT source,source_type,market_family,stat_family,side,line,american_odds,decimal_odds,raw_implied_probability,no_vig_market_probability,
+ model_probability,fair_american_price,probability_edge,expected_return_per_unit_risk,standard_or_alt,promo,source_observed_at,collected_at
+ FROM ranked WHERE rn=1 ORDER BY market_family,source,side`).bind(eventId).all().catch(()=>({results:[]}));
+ return (q?.results||[]).map(r=>({source:r.source,sourceType:r.source_type,marketFamily:r.market_family,statFamily:r.stat_family,side:r.side,
+  line:r.line==null?null:Number(r.line),americanOdds:r.american_odds==null?null:Number(r.american_odds),decimalOdds:r.decimal_odds==null?null:Number(r.decimal_odds),
+  rawImpliedProbability:r.raw_implied_probability==null?null:Number(r.raw_implied_probability),noVigMarketProbability:r.no_vig_market_probability==null?null:Number(r.no_vig_market_probability),
+  modelProbability:r.model_probability==null?null:Number(r.model_probability),fairAmericanPrice:r.fair_american_price==null?null:Number(r.fair_american_price),
+  probabilityEdge:r.probability_edge==null?null:Number(r.probability_edge),expectedReturnPerUnitRisk:r.expected_return_per_unit_risk==null?null:Number(r.expected_return_per_unit_risk),
+  standardOrAlt:r.standard_or_alt,promo:r.promo==null?null:Boolean(Number(r.promo)),observedAt:r.source_observed_at||r.collected_at||null}));
+}
+
 export async function buildTennisResearchSlate(date, env = {}) {
   if (!env.DB?.prepare) {
     return { sport: "tennis", date, games: [], research: { configured: false, error: "database unavailable" } };
@@ -566,7 +582,10 @@ export async function buildTennisResearchSlate(date, env = {}) {
   ]);
   const rows = (query?.results || []).filter((row) => boardDateCtForStart(row.event_start_time) === date);
   const games = await Promise.all(rows.map(async (row) => {
-    const bankContext = await tennisCardContext(env.DB,{tour:row.tour,player1:row.player1,player2:row.player2,surface:row.surface}).catch(()=>null);
+    const [bankContext,venueOffers] = await Promise.all([
+      tennisCardContext(env.DB,{tour:row.tour,player1:row.player1,player2:row.player2,surface:row.surface}).catch(()=>null),
+      tennisVenueOffers(env.DB,row.canonical_event_id).catch(()=>[])
+    ]);
     const p1 = Number(row.pure_p1);
     const p1Prob = Number.isFinite(p1) ? p1 : null;
     const p2Prob = p1Prob == null ? null : 1 - p1Prob;
@@ -661,6 +680,7 @@ export async function buildTennisResearchSlate(date, env = {}) {
         player1RankingPoints: p1Rank?.points ?? null,
         player2RankingPoints: p2Rank?.points ?? null,
         playerBank: bankContext,
+        venueOffers,
       },
       market: {
         marketAvailable: false,
@@ -690,6 +710,7 @@ export async function buildTennisResearchSlate(date, env = {}) {
             away: marketP2,
           },
           observedAt: row.market_observed_at || row.market_collected_at || null,
+          venueOffers,
         },
       },
       actionIntel: (row.public_ticket_pct != null || row.public_money_pct != null || row.money_minus_ticket_pct != null || Object.keys(actionJson).length)
