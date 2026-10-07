@@ -60,6 +60,16 @@ test('raw capture records source time, cost provenance and zero results without 
 test('source health distinguishes blocked from missing measurement',async()=>{
  const {env}=fixture({active:false});assert.equal((await (await health({env})).json()).status,'BLOCKED');assert.equal((await (await health({env:{}})).json()).status,'UNKNOWN');
 });
+test('old canonical consumption cannot bless a fresh capture with zero usable observations',async()=>{
+ const {env,sql}=fixture();const at=new Date().toISOString(),old=new Date(Date.now()-120000).toISOString();
+ sql.prepare('UPDATE external_acquisition_account SET usage_observed_at=?').run(at);
+ const insert=sql.prepare("INSERT INTO external_acquisitions(id,source,actor,scope_hash,scope_json,origin,state,reserved_charge_usd,captured_at,created_at,updated_at) VALUES(?,'action','actor',?,'{}','test','CAPTURED',1,?,?,?)");
+ insert.run('old','old',old,old,old);insert.run('new','new',at,at,at);
+ sql.prepare("INSERT INTO external_acquisition_consumers VALUES('old','test','nfl',?,10,0,0,?)").run(old,old);
+ assert.equal((await (await health({env})).json()).sourceStates.find(s=>s.source==='action').state,'DEGRADED');
+ sql.prepare("INSERT INTO external_acquisition_consumers VALUES('new','test','nfl',?,1,0,0,?)").run(at,at);
+ assert.equal((await (await health({env})).json()).sourceStates.find(s=>s.source==='action').state,'HEALTHY');
+});
 test('large canonical payload is rejected before archival, SQL writes or model enrichment',async()=>{
  const {env,sql,objects}=fixture();env.HARVEST_SECRET='secret';
  const response=await consumePrizePicks({env,request:new Request('https://example.test/api/prizepicks-props',{method:'POST',headers:{'x-harvest-secret':'secret','content-type':'application/json'},body:JSON.stringify({runId:'current-run',rows:Array.from({length:501},()=>({player_name:'Player'}))})})});
