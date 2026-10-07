@@ -3,6 +3,12 @@ name: NHL goalie probability shadow
 on:
   schedule:
     - cron: "17 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/nhl-goalie-prob-shadow.yml"
+      - "functions/api/nhl-goalie-shadow.js"
+      - "workers/sports-projection-orchestrator-worker.mjs"
   workflow_dispatch:
 
 permissions:
@@ -32,13 +38,11 @@ jobs:
           test "$code" = "200"
           jq -e '.ok == true and .productionChampion == "NHL-PRO-v2" and .productionChanged == false and .qualificationChanged == false and .authority == false and .staking == false' "$body" >/dev/null
 
-      - name: Settle prior-day shadow rows
+      - name: Settle official-final shadow rows
         if: ${{ always() }}
         run: |
           set -euo pipefail
-          h="$(date +%H)"
-          if [ "$h" != "04" ]; then echo "not settlement hour"; exit 0; fi
-          d="$(date -d 'yesterday' +%F)"
+          d="$(date +%F)"
           body="$(mktemp)"
           payload="$(jq -nc --arg mode settle --arg date "$d" '{mode:$mode,date:$date}')"
           code="$(curl -sS --max-time 150 --retry 1 -X POST             -H "x-harvest-secret: $HARVEST_SECRET"             -H "content-type: application/json"             -d "$payload"             -o "$body" -w "%{http_code}" "$BASE/api/nhl-goalie-shadow")"
