@@ -645,7 +645,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
 
                 <VariantMetrics group={group}/>
 
-                {sport==="tennis"?<div className="pp-card-foot pp-premium-foot"><span>Underdog {group.underdog?.line??"—"}{group.underdog&&Number.isFinite(Number(r.line))?` · Δ ${(Number(group.underdog.line)-Number(r.line)).toFixed(1)}`:""}</span><span>{group.underdog?.timestamp?new Date(group.underdog.timestamp).toLocaleTimeString("en-US",{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit"}):"source unavailable"}</span></div>:null}
+                {sport==="tennis"?<div className="pp-card-foot pp-premium-foot"><span>Underdog{group.underdog?.lineType==="unknown"?" [UNKNOWN TYPE]":""} {group.underdog?.line??"—"}{group.underdog&&Number.isFinite(Number(r.line))?` · Δ ${(Number(group.underdog.line)-Number(r.line)).toFixed(1)}`:""}</span><span>{group.underdog?.timestamp?new Date(group.underdog.timestamp).toLocaleTimeString("en-US",{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit"}):"source unavailable"}</span></div>:null}
 
                 <div className="pp-card-foot pp-premium-foot">
                   <span>{matchupLabel(r)}</span>
