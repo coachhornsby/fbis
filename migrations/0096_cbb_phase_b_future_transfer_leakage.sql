@@ -1,4 +1,5 @@
 -- CBB Phase B explicit temporal-integrity QA without rewriting the large snapshot table.
+-- Bounded table creation keeps the migration idempotent and avoids D1 large-table copy/reset behavior.
 CREATE TABLE IF NOT EXISTS cbb_directory_phase_b_temporal_qa (
   run_id TEXT PRIMARY KEY,
   observed_at TEXT NOT NULL,
