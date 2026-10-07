@@ -165,6 +165,11 @@ describe("prospective Cloudflare recovery", () => {
       ["/api/harvest", "mlb", "2026-10-07"], ["/api/harvest", "soccer", "2026-10-07"],
     ]);
   });
+  it("fills only overdue collection gaps left by the primary scheduler despite healthy global health", async () => {
+    const m = mock(health(), () => {}, { ok: true, missingSports: ["soccer"], missingHarvestSports: [], initializing: false, inProgress: false, overdue: true });
+    await recoverCurrentPipeline(env, controller, m.request, now);
+    assert.deepEqual(m.writes.map(({ url }) => [url.pathname, url.searchParams.get("sport")]), [["/api/collect-current", "soccer"]]);
+  });
   it("collects all configured sports using current-day cached odds with actual cron provenance", async () => {
     const m = mock(health("missed", "healthy"));
     await recoverCurrentPipeline(env, controller, m.request, now);
@@ -248,6 +253,7 @@ describe("bounded current collection boundary", () => {
     c.env.DB = { prepare(sql) {
       const stmt = { bind(...args) { queries.push({ sql, args }); return stmt; }, async all() {
         if (sql.includes("store_meta")) return { results: RECOVERY_SPORTS.map(sport => ({ k: `native_current_collect_success:${sport}`, v: new Date().toISOString() })) };
+        if (sql.includes("collect-cache")) return { results: RECOVERY_SPORTS.map(sport => ({ sport })) };
         return { results: RECOVERY_SPORTS.filter(sport => sport !== "soccer").map(sport => ({ sport })) };
       } }; return stmt;
     } };
@@ -257,11 +263,12 @@ describe("bounded current collection boundary", () => {
     assert.deepEqual(result.missingSports, []);
     assert.deepEqual(result.missingHarvestSports, ["soccer"]);
     assert.equal(result.initializing, false);
-    assert.match(queries[0].sql, /trigger_type = 'schedule'/);
-    assert.match(queries[0].sql, /status = 'success'/);
+    assert.match(queries[1].sql, /trigger_type = 'schedule'/);
+    assert.match(queries[1].sql, /status = 'success'/);
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-    assert.equal(queries[0].args[1], JSON.stringify([today]));
-    assert.ok(Math.abs(Date.parse(queries[0].args[0]) - (Date.now() - 3600000)) < 1000);
+    assert.equal(queries[1].args[1], JSON.stringify([today]));
+    assert.equal(queries[0].args[1], `%"${today}"%`);
+    assert.ok(Math.abs(Date.parse(queries[1].args[0]) - (Date.now() - 3600000)) < 1000);
   });
   it("uses canonical collection with current cache settings even if historical/full arguments are supplied", async () => {
     let called;

@@ -50,7 +50,7 @@ export async function recoverCurrentPipeline(env, controller, request = fetch, n
   const needsRecovery = (name, state) => ["missed", "never observed"].includes(state)
     || (health.staleChecks || []).some(check => check.name === name);
   const collect = needsRecovery("scheduled-collect", health.pipeline?.schedule?.collect?.state)
-    || coverage.initializing === true || coverage.inProgress === true;
+    || coverage.initializing === true || coverage.inProgress === true || coverage.overdue === true;
   const collectSports = collect ? (coverage.missingSports.length ? coverage.missingSports : RECOVERY_SPORTS) : [];
   const harvestSchedule = health.pipeline?.schedule?.harvest;
   // GitHub also owns an hourly settlement cron. Cover a missing hourly delivery
