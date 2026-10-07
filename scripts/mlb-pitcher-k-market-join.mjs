@@ -117,7 +117,7 @@ for(const u of unitBase.values()){
    projection_unit_key:[u.game_id,u.player_id,"pitcher_strikeouts",MODEL_VERSION,ENTRY_CHECKPOINT].join("|")});
 }
 
-const errors=units.map(u=>u.projection-u.actual),baseErrors=units.map(u=>u.baseline_projection-u.actual);
+const errors=units.map(u=>u.projection-u.actual_value),baseErrors=units.map(u=>u.baseline_projection-u.actual_value);
 const directional=units.filter(u=>u.side!=="NO_EDGE"&&u.result!=="PUSH"),wins=directional.filter(u=>u.result==="WIN").length;
 const wf=units.filter(u=>!u.calibration_overlap),wfDir=wf.filter(u=>u.side!=="NO_EDGE"&&u.result!=="PUSH");
 const buckets=[["0.0-0.49",0,.5],["0.5-0.99",.5,1],["1.0-1.49",1,1.5],["1.5+",1.5,Infinity]].map(([name,lo,hi],i)=>{const xs=directional.filter(u=>u.edge>=lo&&u.edge<hi);return{bucket:name,n:xs.length,hit_rate:xs.length?xs.filter(u=>u.result==="WIN").length/xs.length:null,rank:i+1}});
