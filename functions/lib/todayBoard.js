@@ -1,4 +1,5 @@
 import { proveTennisEvent } from "./tennisEventIntegrity.js";
+import { currentActionDisplay } from "./actionDisplayFreshness.js";
 /**
  * TODAY board: every scheduled game on the operator CT date, all supported sports.
  * Ordinary loads are cache-only for Parlay (and Pal). ESPN/MLB Stats remain free.
@@ -918,7 +919,7 @@ export async function buildTodayBoard(
 
       if (sport === "nhl") slateGames = slateGames.map((g)=>({...g,nhlWagerV1:evaluateNhlGameWagers(g)}));
       if (env.DB) slateGames = await attachPrizePicksMarkets(slateGames, sport, date, env.DB);
-      const rows = slateGames.map((g) => toBoardGame(g, sport, now));
+      const rows = slateGames.map((g) => currentActionDisplay(toBoardGame(g, sport, now), now));
       const tennisIntegrityBlocked = sport === "tennis" && (slate.research?.withheld > 0 || slate.research?.configured === false);
       feeds[sport] = {
         ok: !tennisIntegrityBlocked,
