@@ -98,8 +98,14 @@ export function reconstructLineupStints({
     const lineup=isHome?home:away,nameMap=isHome?homeName:awayName;
     const resolve=x=>String(x?.id||nameMap.get(norm(x?.name))||"");
     const inn=resolve(sub.playerIn),outId=resolve(sub.playerOut);
-    if(outId){const i=lineup.indexOf(outId);if(i>=0)lineup.splice(i,1)}
-    if(inn&&!lineup.includes(inn)&&lineup.length<5)lineup.push(inn);
+    // Apply substitutions atomically. A partially resolved ESPN substitution must
+    // never remove a known on-court player and leave a four-player lineup that
+    // suppresses every subsequent stint. Unresolved events remain explicit QA
+    // failures in auditWnbaLineupEvidence and do not mutate reconstructed state.
+    if(!inn||!outId)continue;
+    const idx=lineup.indexOf(outId);
+    if(idx<0||lineup.includes(inn))continue;
+    lineup.splice(idx,1,inn);
   }
   const maxPeriod=Math.max(4,...normalized.map(p=>Number(p.period||0)).filter(Number.isFinite));
   const gameEnd=2400+Math.max(0,maxPeriod-4)*300;
