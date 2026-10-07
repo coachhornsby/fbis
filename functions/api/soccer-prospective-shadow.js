@@ -1,5 +1,6 @@
 import { authorizeSoccerWorker, unauthorizedBody } from "../lib/soccerWorkerAuth.js";
 import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
+import { researchHealth } from "../lib/store.js";
 import {
   buildSoccerProspectiveShadowRecords,
   persistSoccerProspectiveShadow,
@@ -50,7 +51,9 @@ async function snapshot(context,date){
     if(!built.ok){
       skipped[built.reason]=(skipped[built.reason]||0)+1;
       if(built.detail){
-        const key=`${built.reason}:${built.detail}`;
+        const storeError=built.reason==="v2-projection-unavailable"?researchHealth()?.lastError:null;
+        const detail=storeError?`${built.detail}|store-${String(storeError).slice(0,240)}`:built.detail;
+        const key=`${built.reason}:${detail}`;
         skippedDetails[key]=(skippedDetails[key]||0)+1;
       }
       continue;
