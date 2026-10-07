@@ -12,7 +12,7 @@
     "verify:migrations": "node scripts/verify-migrations.mjs",
     "sync:d1-migrations": "node scripts/sync-d1-migrations.mjs",
     "test:asian-baseball-v2": "node --test test/npb-fbis-v1.test.js test/kbo-fbis-v1.test.js test/kbo-advanced-v1-1.test.js test/asian-baseball-v2.test.js",
-    "test:tennis": "node --test test/tennis-fbis-v1.test.js test/prizepicks-apify.test.js test/player-props-board.test.js",
+    "test:tennis": "node --test test/tennis-fbis-v1.test.js test/tennis-player-index-integrity.test.js test/prizepicks-apify.test.js test/player-props-board.test.js",
     "test:asian-baseball-history": "node --test test/asian-baseball-history.test.js test/asian-baseball-v2.test.js test/npb-fbis-v1.test.js test/kbo-fbis-v1.test.js test/kbo-advanced-v1-1.test.js",
     "test:asian-baseball-pregame": "node --test test/asian-baseball-pregame.test.js test/asian-baseball-history.test.js test/asian-baseball-v2.test.js test/npb-fbis-v1.test.js test/kbo-fbis-v1.test.js",
     "test:asian-baseball-enrichment": "node --test test/asian-baseball-enrichment.test.js test/asian-baseball-pregame.test.js test/asian-baseball-history.test.js"
