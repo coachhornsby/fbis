@@ -140,3 +140,5 @@ jobs:
           test "$first_bucket" = "$second_bucket"
 
 # Phase 3H-R controlled rerun trigger after cross-provider identity repair.
+
+# Phase 3H-R3 loader-error diagnostic trigger.
