@@ -3214,7 +3214,7 @@ export async function loadSoccerMatchHistory(env, { league, season = null, start
   try {
     let sql = `SELECT * FROM soccer_matches WHERE league = ? AND status = 'FINAL'`;
     const binds = [String(league)];
-    if (Number.isFinite(Number(season))) {
+    if (season != null && season !== "" && Number.isFinite(Number(season))) {
       sql += " AND season = ?";
       binds.push(Number(season));
     }
