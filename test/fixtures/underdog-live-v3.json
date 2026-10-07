@@ -1,0 +1,24 @@
+{
+  "players":[
+    {"id":"p1","full_name":"Taylor Fritz","team":"USA"},
+    {"id":"p2","full_name":"Josh Allen","team":"BUF"},
+    {"id":"p3","full_name":"donk","team":"Spirit"}
+  ],
+  "appearances":[
+    {"id":"a1","player_id":"p1","game_id":"g1"},
+    {"id":"a2","player_id":"p2","game_id":"g2"},
+    {"id":"a3","player_id":"p3","game_id":"g3"}
+  ],
+  "games":[
+    {"id":"g1","league":"ATP","scheduled_at":"2026-10-07T18:00:00Z"},
+    {"id":"g2","league":"NFL","scheduled_at":"2026-10-08T00:15:00Z"},
+    {"id":"g3","league":"CS2","scheduled_at":"2026-10-07T20:00:00Z"}
+  ],
+  "leagues":[],
+  "over_under_lines":[
+    {"id":"l1","appearance_id":"a1","stat":"Aces","stat_value":"8.5","line_type":"standard","options":[{"choice":"higher"},{"choice":"lower"}]},
+    {"id":"l2","appearance_id":"a1","stat":"Double Faults","stat_value":2.5,"promo":true},
+    {"id":"l3","appearance_id":"a2","stat":"Passing Yards","stat_value":275.5},
+    {"id":"l4","appearance_id":"a3","stat":"Maps 1+2 Kills","stat_value":34.5}
+  ]
+}
