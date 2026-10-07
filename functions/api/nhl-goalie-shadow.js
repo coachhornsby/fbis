@@ -173,8 +173,18 @@ export async function persist(db,rows){
   }
   return{written,existing,canonical:{written:canonicalWritten,existing:canonicalExisting,temporalFailures:canonicalTemporalFailures,contextOnlyExcluded:canonicalContextExcluded}};
 }
-async function fetchBox(eventId){
-  const r=await fetch(`https://api-web.nhle.com/v1/gamecenter/${encodeURIComponent(eventId)}/boxscore`,{headers:{accept:"application/json","user-agent":"FBIS-NHL-GOALIE-SHADOW-v1/1.0"},signal:AbortSignal.timeout(6000)});
+function frozenOfficialGameId(row={}){
+  try{
+    const state=JSON.parse(row.persistent_state_json||"{}");
+    const home=state?.home?.team?.next_game_id??null;
+    const away=state?.away?.team?.next_game_id??null;
+    if(home!=null&&away!=null&&String(home)===String(away))return String(home);
+  }catch{}
+  return null;
+}
+async function fetchBox(eventId,officialEventId=null){
+  const id=officialEventId||eventId;
+  const r=await fetch(`https://api-web.nhle.com/v1/gamecenter/${encodeURIComponent(id)}/boxscore`,{headers:{accept:"application/json","user-agent":"FBIS-NHL-GOALIE-SHADOW-v1/1.0"},signal:AbortSignal.timeout(6000)});
   if(!r.ok)return null;return r.json();
 }
 function actualStarterId(box,side){
@@ -228,7 +238,8 @@ export async function settle(db,date){
     .bind(shiftDay(date,-1),shiftDay(date,1)).all())).results)||[];
   let graded=0;
   for(const r of rows){
-    const box=await fetchBox(r.event_id).catch(()=>null),score=boxScore(box);if(!score)continue;
+    const officialEventId=frozenOfficialGameId(r);
+    const box=await fetchBox(r.event_id,officialEventId).catch(()=>null),score=boxScore(box);if(!score)continue;
     const y=score.home>score.away?1:0,pi=clamp(finite(r.incumbent_home_win_probability)??0.5,1e-6,1-1e-6),ps=clamp(finite(r.shadow_home_win_probability)??0.5,1e-6,1-1e-6);
     const ib=(pi-y)**2,sb=(ps-y)**2,ill=-(y*Math.log(pi)+(1-y)*Math.log(1-pi)),sll=-(y*Math.log(ps)+(1-y)*Math.log(1-ps));
     const ic=(pi>=0.5)===Boolean(y)?1:0,sc=(ps>=0.5)===Boolean(y)?1:0;
@@ -240,7 +251,7 @@ export async function settle(db,date){
     const entryImp=americanImplied(price),clv=close!=null&&entryImp!=null?(close-entryImp)*100:null;
     const unexpectedStarter=Boolean((score.homeStarterId&&r.home_expected_starter_id&&score.homeStarterId!==String(r.home_expected_starter_id))||(score.awayStarterId&&r.away_expected_starter_id&&score.awayStarterId!==String(r.away_expected_starter_id)));
     const usage=unexpectedStarter?"LATE_OR_UNEXPECTED_STARTER_CHANGE":(r.home_goalie_confirmation_state==="CONFIRMED"&&r.away_goalie_confirmation_state==="CONFIRMED"?"BOTH_CONFIRMED":"EXPECTED_STARTER_ONLY");
-    const grade={side,price,won,scoreMarketsChanged:false,atsDelta:"SAME_AS_INCUMBENT",totalDelta:"SAME_AS_INCUMBENT",actualHomeStarterId:score.homeStarterId,actualAwayStarterId:score.awayStarterId,unexpectedStarter};
+    const grade={side,price,won,officialEventId:officialEventId||null,scoreMarketsChanged:false,atsDelta:"SAME_AS_INCUMBENT",totalDelta:"SAME_AS_INCUMBENT",actualHomeStarterId:score.homeStarterId,actualAwayStarterId:score.awayStarterId,unexpectedStarter};
     const gradedAt=new Date().toISOString();
     await retryDb(()=>db.prepare(`UPDATE nhl_goalie_probability_shadow SET
       actual_home=?,actual_away=?,incumbent_brier=?,shadow_brier=?,incumbent_log_loss=?,shadow_log_loss=?,
