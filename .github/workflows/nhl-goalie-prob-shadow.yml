@@ -21,12 +21,29 @@ concurrency:
 jobs:
   freeze-grade:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       BASE: https://fbis-myz.pages.dev
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
       TZ: America/Chicago
     steps:
+      - name: Wait for exact Pages production SHA
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/nhl-goalie-shadow?_sha=$GITHUB_SHA" || true)"
+            live="$(jq -r '.codeSha // empty' "$body" 2>/dev/null || true)"
+            if [ "$code" = "200" ] && [ "$live" = "$GITHUB_SHA" ]; then
+              echo "Exact Pages production SHA verified: $live"
+              exit 0
+            fi
+            echo "Waiting for Pages production SHA. expected=$GITHUB_SHA live=${live:-unknown} http=$code"
+            sleep 10
+          done
+          echo "Timed out waiting for exact Pages production SHA $GITHUB_SHA"
+          exit 1
+
       - name: Freeze one pregame shadow snapshot per eligible game
         run: |
           set -euo pipefail
