@@ -8,6 +8,8 @@ const odds=v=>{const x=n(v);if(x==null)return"—";const q=Math.round(x);return 
 const line=v=>{const x=n(v);if(x==null)return"—";return x>0?`+${x}`:String(x)};
 const fair=p=>{const x=n(p);if(x==null||x<=0||x>=1)return"—";const a=x>=.5?-100*x/(1-x):100*(1-x)/x;return odds(a)};
 const playerMeta=(p,tour)=>{const r=n(p?.rank),pts=n(p?.rankingPoints);return [r!=null?`${tour} #${Math.round(r)}`:`${tour} UNRANKED`,pts!=null?`${Math.round(pts).toLocaleString()} points`:null].filter(Boolean).join("  |  ")};
+const venueRows=(offers=[])=>{const by=new Map();for(const o of offers||[]){const source=String(o.source||"").toUpperCase();if(!source)continue;if(!by.has(source))by.set(source,{source,ml:{},spread:{},total:{}});const r=by.get(source),m=String(o.marketFamily||"");if(m==="moneyline")r.ml[o.side]=o;if(m==="spread")r.spread[o.side]=o;if(m==="total")r.total[o.side]=o;}return [...by.values()]};
+const offerText=o=>!o?"—":[o.line==null?null:line(o.line),o.americanOdds==null?null:odds(o.americanOdds)].filter(Boolean).join(" ")||"—";
 const splitRow=(market,side,row)=>row?<tr><td>{market}</td><td>{side||"—"}</td><td>{row.ticketPct==null?"—":`${Math.round(row.ticketPct)}%`}</td><td>{row.moneyPct==null?"—":`${Math.round(row.moneyPct)}%`}</td><td className={Number(row.moneyTicketGap)>=0?"tmc-good":"tmc-bad"}>{row.moneyTicketGap==null?"—":`${Number(row.moneyTicketGap)>0?"+":""}${Math.round(row.moneyTicketGap)}%`}</td></tr>:null;
 
 export default function TennisMatchCard({game,open=false,onToggle,renderDetail=null}){
@@ -18,6 +20,8 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const candidates=[{p:home,e:edgeHome},{p:away,e:edgeAway}].filter(x=>Number.isFinite(x.e)&&x.e>0);
   const best=candidates.sort((a,b)=>b.e-a.e)[0]||null;
   const spread=ref?.spread||{},total=ref?.total||{},ml=ref?.moneyline||{};
+  const venueOffers=Array.isArray(t.venueOffers)?t.venueOffers:Array.isArray(ref.venueOffers)?ref.venueOffers:[];
+  const venues=venueRows(venueOffers);
   const markets=Array.isArray(intel?.publicSplits?.markets)?intel.publicSplits.markets:[];
   const spIntel=markets.find(x=>String(x.market).toUpperCase()==="SPREAD");
   const totIntel=markets.find(x=>String(x.market).toUpperCase()==="TOTAL");
@@ -51,6 +55,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
         <tr className="tmc-fbis"><td>FBIS WIN PROB</td><td>{pct(pAway)} / {pct(pHome)}</td><td colSpan="2">Independent model</td></tr>
         <tr><td>EDGE (VS NO-VIG)</td><td className={edgeHome>=0?"tmc-good":"tmc-bad"}>{edgeAway==null?"—":`${edgeAway>0?"+":""}${edgeAway.toFixed(1)}%`} / {edgeHome==null?"—":`${edgeHome>0?"+":""}${edgeHome.toFixed(1)}%`}</td><td colSpan="2">Research only</td></tr>
       </tbody></table></section>
+      {venues.length?<section className="tmc-panel tmc-venues"><h3>MULTI-VENUE MARKET</h3><table><thead><tr><th>VENUE</th><th>ML</th><th>SPREAD</th><th>TOTAL</th></tr></thead><tbody>{venues.map(v=><tr key={v.source}><td>{v.source}</td><td>{offerText(v.ml.away)} / {offerText(v.ml.home)}</td><td>{offerText(v.spread.away)} / {offerText(v.spread.home)}</td><td>{offerText(v.total.over)} / {offerText(v.total.under)}</td></tr>)}</tbody></table><small>Observed venue offers · informational only · FBIS projection remains independent</small></section>:null}
       <aside className="tmc-panel tmc-info"><h3>MATCH INFO</h3><dl><dt>Tournament</dt><dd>{t.tournament||"—"}</dd><dt>Tour</dt><dd>{tour}</dd><dt>Surface</dt><dd>{surface||"—"}</dd><dt>Court Speed</dt><dd>{t.courtSpeedIndex??"—"}</dd><dt>Market Source</dt><dd>{t.marketProvider||ref.provider||"—"}</dd><dt>Sportsbook</dt><dd>{t.sportsbook||"Consensus"}</dd></dl></aside>
     </div>
     <div className="tmc-lower">

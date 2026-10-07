@@ -26,3 +26,5 @@
 .tmc-form-unknown{background:#42556a;color:#d8e5ef!important}
 @media(max-width:900px){.tmc-player-visual{width:100px;height:128px;flex-basis:100px}}
 @media(max-width:600px){.tmc-player-visual{width:120px;height:145px;flex-basis:120px}}
+
+.tmc-venues{grid-column:1/-1}.tmc-venues table{width:100%;border-collapse:collapse}.tmc-venues th,.tmc-venues td{padding:8px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.08);font-size:12px}.tmc-venues th{font-size:10px;letter-spacing:.08em;opacity:.7}.tmc-venues small{display:block;margin-top:8px;opacity:.65}

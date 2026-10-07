@@ -50,6 +50,8 @@ function starterLine(game, side) {
   return [sp.name || "TBD", record, eraTxt].filter(Boolean).join(" · ");
 }
 
+function MultiBookMarketTable({game}){const offers=Array.isArray(game?.market?.venueOffers)?game.market.venueOffers:[];if(!offers.length)return null;const by=new Map();for(const o of offers){const source=String(o.source||"").toUpperCase();if(!source)continue;if(!by.has(source))by.set(source,{source,ml:{},spread:{},total:{}});const r=by.get(source),m=String(o.marketFamily||"");if(m==="moneyline")r.ml[o.side]=o;if(m==="spread")r.spread[o.side]=o;if(m==="total")r.total[o.side]=o}const txt=o=>!o?"—":[o.line==null?null:formatSpreadLabel(o.line),o.americanOdds==null?null:fmtAmerican(o.americanOdds)].filter(Boolean).join(" ")||"—";return <section className="gc-reference" aria-label="Multi-book market"><div className="gc-section-label">MULTI-BOOK MARKET · OBSERVED</div><div className="gc-multibook-table">{[...by.values()].map(v=><div className="gc-multibook-row" key={v.source}><strong>{v.source}</strong><span>ML {txt(v.ml.away)} / {txt(v.ml.home)}</span><span>SPR {txt(v.spread.away)} / {txt(v.spread.home)}</span><span>TOT {txt(v.total.over)} / {txt(v.total.under)}</span></div>)}</div><div className="gc-action-footnote muted">Informational only · does not alter FBIS projection or wager authority</div></section>}
+
 export default function GameCard({
   game,
   expanded = false,
@@ -239,6 +241,8 @@ export default function GameCard({
           </div>
         </div>
       </section>
+
+      <MultiBookMarketTable game={game} />
 
       {game.market?.reference?.available && (mkt.referenceOnly || mkt.book === "Reference" || !game.market?.marketAvailable) ? (
         <section className="gc-reference muted" aria-label="Reference market">

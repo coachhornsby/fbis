@@ -2020,3 +2020,5 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 
 .gc-team-logo-stack{display:flex;flex-direction:column;align-items:center;gap:5px}
 .gc-starter-headshot{width:30px;height:30px;border-radius:50%;object-fit:cover;object-position:center top;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)}
+
+.gc-multibook-table{display:grid;gap:6px;margin-top:8px}.gc-multibook-row{display:grid;grid-template-columns:minmax(88px,.8fr) repeat(3,minmax(110px,1fr));gap:8px;align-items:center;font-size:12px}.gc-multibook-row span{white-space:nowrap}@media(max-width:760px){.gc-multibook-row{grid-template-columns:1fr 1fr}.gc-multibook-row strong{grid-column:1/-1}}
