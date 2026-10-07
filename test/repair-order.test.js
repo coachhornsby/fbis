@@ -183,9 +183,10 @@ test("CI release gate verifies live health SHA and API smoke", () => {
   assert.match(src, /VERIFY PRODUCTION SHA/);
   assert.match(src, /group: deploy-pages-production/);
   assert.match(src, /cancel-in-progress: false/);
-  assert.match(deployPages, /group: deploy-pages-production/);
+  assert.match(deployPages, /gh workflow run ci\.yml --ref main/);
+  assert.doesNotMatch(deployPages, /wrangler pages deploy/);
   assert.match(src, /pull_request:/);
-  assert.match(src, /push:\s*\n\s*branches:\s*\n\s*- main/);
+  assert.match(src, /push:\s*\n\s*branches: \[main\]/);
   assert.doesNotMatch(src, /branches:\s*\n\s*- "\*\*"/);
   // Software deploy must not be gated on research harvest/catch-up.
   assert.doesNotMatch(src, /Catch-up settle-only harvest/);
