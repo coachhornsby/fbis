@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-07T14:51:49Z",
-  "triggerSha": "e208897d7e4c34e96b3a668cbf9dea89d5a2bf3e",
+  "generatedAt": "2026-10-07T14:57:33Z",
+  "triggerSha": "ad4aa6ed0d236520460cf72aa16acac957800987",
   "snapshotDate": "2026-10-09",
   "first": {
     "ok": true,
     "date": "2026-10-09",
-    "snapshotAt": "2026-10-07T14:51:19.371Z",
+    "snapshotAt": "2026-10-07T14:57:04.398Z",
     "slateGames": 10,
     "eligibleGames": 1,
     "attempted": 10,
@@ -26,7 +26,7 @@
       "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Braga|away-Sporting CP": 1
     },
     "lifecycle": "SHADOW",
-    "collectorCodeSha": "8f14c70b6b18bdc9bdd355315f2ae96d97d89e5b",
+    "collectorCodeSha": "ad4aa6ed0d236520460cf72aa16acac957800987",
     "publicProjectionRoutingChanged": false,
     "persistentStateUsed": false,
     "marketUsedInModel": false,
@@ -37,7 +37,7 @@
   "second": {
     "ok": true,
     "date": "2026-10-09",
-    "snapshotAt": "2026-10-07T14:51:32.105Z",
+    "snapshotAt": "2026-10-07T14:57:19.741Z",
     "slateGames": 10,
     "eligibleGames": 1,
     "attempted": 10,
@@ -58,7 +58,7 @@
       "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Braga|away-Sporting CP": 1
     },
     "lifecycle": "SHADOW",
-    "collectorCodeSha": "8f14c70b6b18bdc9bdd355315f2ae96d97d89e5b",
+    "collectorCodeSha": "ad4aa6ed0d236520460cf72aa16acac957800987",
     "publicProjectionRoutingChanged": false,
     "persistentStateUsed": false,
     "marketUsedInModel": false,
