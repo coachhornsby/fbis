@@ -513,6 +513,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
       .catch(e=>{
         if(cancelled) return;
         setRows([]);
+        setUnderdogRows([]);
         setError(String(e?.message||e));
       })
       .finally(()=>{if(!cancelled)setLoading(false)});
@@ -535,7 +536,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
       const az=Math.abs(Number(a.primary?.standardized_edge ?? a.primary?.selection_score ?? 0));
       return bz-az;
     }),
-    [rows]
+    [rows,underdogRows,localSport]
   );
 
   const title=localSport==="top25"?"Top 25":localSport.toUpperCase();
