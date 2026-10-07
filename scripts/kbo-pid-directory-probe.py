@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT=Path(tempfile.mkdtemp(prefix="fbis-kbo-pid-dir-"))
 SRC=ROOT/"collector"
 subprocess.run(["git","clone","--depth","1","https://github.com/kbo-data-portal/collector.git",str(SRC)],check=True)
-subprocess.run([sys.executable,"-m","pip","install","-q","-r","requirements.txt"],cwd=SRC,check=True)
+subprocess.run([sys.executable,"-m","pip","install","-q","pandas==2.2.3","beautifulsoup4==4.13.1","requests==2.32.3","lxml==5.3.0"],cwd=SRC,check=True)
 sys.path.insert(0,str(SRC))
 from scrapers.player import PlayerSeasonStatsScraper
 out={}
