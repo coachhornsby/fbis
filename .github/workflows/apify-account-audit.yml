@@ -1,0 +1,29 @@
+name: Apify account read-only incident audit
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/apify-account-audit.yml','scripts/apify-account-audit.mjs']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: apify-account-read-only-audit
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: '22'}
+      - name: Read account, schedules and run metadata; never launch an Actor
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+        run: node scripts/apify-account-audit.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: apify-account-read-only-audit-${{ github.run_id }}
+          path: artifacts/apify-account-audit.json
+          retention-days: 30
