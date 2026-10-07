@@ -81,7 +81,9 @@ test("scheduled shadow workflow uses JSON-safe payload construction",async()=>{
   assert.match(src,/jq -nc --arg mode settle/);
   assert.match(src,/name: Wait for exact Pages production SHA/);
   assert.match(src,/live" = "\$GITHUB_SHA"/);
-  assert.match(src,/Timed out waiting for exact Pages production SHA/);
+  assert.match(src,/compare\/\$GITHUB_SHA\.\.\.\$live/);
+  assert.match(src,/relation" = "ahead"/);
+  assert.match(src,/equal to or descended from/);
   assert.ok(src.indexOf("Wait for exact Pages production SHA") < src.indexOf("Freeze one pregame shadow snapshot per eligible game"));
   assert.match(src,/name: Settle official-final shadow rows/);
   assert.doesNotMatch(src,/not settlement hour/);
