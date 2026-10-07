@@ -1,3 +1,4 @@
+import { proveTennisEvent } from "../lib/tennisEventIntegrity.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { simulateTennisV2 } from "../lib/tennisFbisV2.js";
 import { buildSharpMarketPrior } from "../lib/tennisMarketV2.js";
@@ -21,14 +22,14 @@ async function loadProfileRows(db,tour,name){
   return res?.results||[];
 }
 function surfaceProfile(rows,surface){
-  const row=(rows||[]).find(r=>String(r.surface)===surface)||(rows||[]).find(r=>String(r.surface)==="hard")||(rows||[])[0];
+  const row=(rows||[]).find(r=>String(r.surface)===surface);
   if(!row)return null;
   return {...row,profile:safe(row.profile_json)};
 }
-function contextFromProfileRow(row,courtSpeedIndex=null){
+function contextFromProfileRow(row,courtSpeedIndex=null,event){
   const p=row?.profile||{};
   return {
-    surface:row?.surface||null,tournament:row?.last_tournament||null,courtSpeedIndex,
+    surface:event.surface,tournament:event.tournament_name,courtSpeedIndex,
     gamesLast3Days:finite(row?.games_last_3_days),gamesLast7Days:finite(row?.games_last_7_days),
     setsLast3Days:finite(row?.sets_last_3_days),setsLast7Days:finite(row?.sets_last_7_days),
     daysSinceRetirementOrMto:finite(row?.days_since_retirement_or_mto),
@@ -45,18 +46,19 @@ async function courtSpeedForRows(db,tour,a,b){
   ).bind(String(tour||"").toLowerCase(),ta).first().catch(()=>null);
   return finite(row?.court_speed_index);
 }
-async function autoDecisionForMarket(db,m){
+export async function autoDecisionForMarket(db,m){
   if(!m?.canonical_event_id||!m?.player1||!m?.player2)return {inserted:false,reason:"market-identity-missing"};
   if(!m.event_start_time)return {inserted:false,reason:"event-start-missing"};
   if(Date.parse(m.event_start_time)<=Date.now())return {inserted:false,reason:"event-started"};
+  const integrity=await proveTennisEvent(db,m);
+  if(!integrity.valid)return {inserted:false,reason:integrity.reason};
   const [r1,r2]=await Promise.all([loadProfileRows(db,m.tour,m.player1),loadProfileRows(db,m.tour,m.player2)]);
   if(!r1.length||!r2.length)return {inserted:false,reason:"deep-profile-missing"};
-  const last1=r1[0]?.last_surface,last2=r2[0]?.last_surface;
-  const surface=last1&&last1===last2?String(last1):"hard";
+  const surface=String(integrity.event.surface).toLowerCase();
   const p1=surfaceProfile(r1,surface),p2=surfaceProfile(r2,surface);
   if(!p1?.profile||!p2?.profile)return {inserted:false,reason:"surface-profile-missing"};
-  const courtSpeed=await courtSpeedForRows(db,m.tour,p1,p2);
-  const contexts=[contextFromProfileRow(p1,courtSpeed),contextFromProfileRow(p2,courtSpeed)];
+  const courtSpeed=await courtSpeedForRows(db,m.tour,{last_tournament:integrity.event.tournament_name},{last_tournament:integrity.event.tournament_name});
+  const contexts=[contextFromProfileRow(p1,courtSpeed,integrity.event),contextFromProfileRow(p2,courtSpeed,integrity.event)];
   const pure=simulateTennisV2({
     id:m.canonical_event_id,tour:m.tour,surface,bestOf:3,
     player1:p1.profile,player2:p2.profile,playerContexts:contexts
@@ -77,10 +79,10 @@ async function autoDecisionForMarket(db,m){
   const decision=await persistTennisV2Decision(db,{
     eventId:m.canonical_event_id,tour:m.tour,player1:m.player1,player2:m.player2,
     pureModelId:pure.modelId,pureP1:pure.match?.pPlayer1Win,market,actionIntel,
-    context:{differential:((pure.contextDiagnostics?.[0]?.total||0)-(pure.contextDiagnostics?.[1]?.total||0))*2.5,
+    context:{eventProof:integrity.proof,differential:((pure.contextDiagnostics?.[0]?.total||0)-(pure.contextDiagnostics?.[1]?.total||0))*2.5,
       diagnostics:pure.contextDiagnostics,surface,profileSource:"SACKMANN_TENNIS_ABSTRACT_RESEARCH",
       marketAnchor:m.provider||"ACTION_APIFY_CONSENSUS"},
-    eventStartTime:m.event_start_time||null,decisionTimestamp:m.observed_at||null,snapshotType:"DECISION"
+    eventStartTime:m.event_start_time||null,decisionTimestamp:new Date().toISOString(),snapshotType:"DECISION"
   });
   return {...decision,contextInserted,surface,courtSpeed};
 }
@@ -129,7 +131,7 @@ export async function onRequestPost(context){
 
   try{
     let marketInserted=0,contextInserted=0,decisionInserted=0;
-    const captured=[];
+    const captured=[],blockedDecisions=[];
 
     if(mode==="capture"||mode==="all"){
       const rows=await latestActionRows(context.env.DB,{hours:body.hours,limit:body.limit});
@@ -161,6 +163,7 @@ export async function onRequestPost(context){
           ).all().catch(()=>({results:[]})))?.results||[]);
       for(const m of sourceMarkets){
         const d=await autoDecisionForMarket(context.env.DB,m);
+        if(!d.inserted && d.reason)blockedDecisions.push({eventId:m.canonical_event_id,reason:d.reason});
         contextInserted+=Number(d.contextInserted||0);
         if(d.inserted)decisionInserted++;
       }
@@ -170,7 +173,10 @@ export async function onRequestPost(context){
     if(mode==="decision"||mode==="all"){
       for(const packet of packets){
         if(!packet?.eventId||!packet?.player1||!packet?.player2)continue;
-        const contexts=Array.isArray(packet.playerContexts)?packet.playerContexts:[{},{}];
+        const integrity=await proveTennisEvent(context.env.DB,{canonical_event_id:packet.eventId,tour:packet.tour,player1:packet.player1.name,player2:packet.player2.name,event_start_time:packet.eventStartTime,surface:packet.surface,tournament:packet.tournament});
+        if(!integrity.valid || !packet.surface || !packet.tournament)continue;
+        const contexts=Array.isArray(packet.playerContexts)?packet.playerContexts:[];
+        if(contexts.length!==2 || contexts.some(c=>clean(c.surface)!==clean(packet.surface)||clean(c.tournament)!==clean(packet.tournament)))continue;
         const pure=simulateTennisV2({
           id:packet.eventId,tour:packet.tour||"atp",surface:packet.surface||"hard",bestOf:Number(packet.bestOf)||3,
           player1:packet.player1,player2:packet.player2,playerContexts:contexts
@@ -196,7 +202,7 @@ export async function onRequestPost(context){
           eventId:packet.eventId,tour:packet.tour||"atp",player1:packet.player1.name,player2:packet.player2.name,
           pureModelId:pure.modelId,pureP1:pure.match?.pPlayer1Win,market,
           actionIntel:packet.actionIntel||null,
-          context:{differential:((pure.contextDiagnostics?.[0]?.total||0)-(pure.contextDiagnostics?.[1]?.total||0))*2.5,diagnostics:pure.contextDiagnostics},
+          context:{eventProof:integrity.proof,differential:((pure.contextDiagnostics?.[0]?.total||0)-(pure.contextDiagnostics?.[1]?.total||0))*2.5,diagnostics:pure.contextDiagnostics},
           eventStartTime:packet.eventStartTime||null,snapshotType:packet.snapshotType||"DECISION"
         });
         if(d.inserted)decisionInserted++;
@@ -204,7 +210,7 @@ export async function onRequestPost(context){
     }
 
     return json({
-      ok:true,mode,marketInserted,contextInserted,decisionInserted,captured:captured.length,
+      ok:true,mode,marketInserted,contextInserted,decisionInserted,captured:captured.length,blockedDecisions,
       governance:{researchOnly:true,pureModelMarketFree:true,marketLayerSeparate:true,canQualify:false,canAuthorizeWager:false}
     });
   }catch(err){

@@ -222,7 +222,7 @@ export default function TodayView({
             </div>
           ) : null}
           {shown.reduce((n, group) => n + group.games.length, 0) === 0 ? (
-            <div className="empty">No games in this filter.</div>
+            <div className="empty">{sportFilter === "tennis" ? "No verified Tennis cards available. Unverified event identities or projection provenance are withheld." : "No games in this filter."}</div>
           ) : (
             <div className="board-well decision-board-well">
               <DecisionBoard
