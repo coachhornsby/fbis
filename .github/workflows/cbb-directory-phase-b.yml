@@ -139,10 +139,7 @@ jobs:
         run: |
           set -euo pipefail
           npx wrangler d1 execute fbis --remote --file=migrations/0084_cbb_directory_phase_b.sql
-          col="$(npx wrangler d1 execute fbis --remote --json --command="PRAGMA table_info(cbb_game_state_snapshots);")"
-          if ! printf '%s' "$col" | jq -e '.[0].results | any(.name=="future_transfer_leaks")' >/dev/null; then
-            npx wrangler d1 execute fbis --remote --file=migrations/0096_cbb_phase_b_future_transfer_leakage.sql
-          fi
+          npx wrangler d1 execute fbis --remote --file=migrations/0096_cbb_phase_b_future_transfer_leakage.sql
           for f in artifacts/cbb-phase-b/chunk-*.sql; do
             ok=0
             for attempt in 1 2 3; do
@@ -162,7 +159,8 @@ jobs:
             SELECT COUNT(*) AS team_context_observations FROM cbb_team_context_observations;
             SELECT COUNT(*) AS availability_observations FROM cbb_availability_observations;
             SELECT COUNT(*) AS game_state_snapshots FROM cbb_game_state_snapshots;
-            SELECT COALESCE(SUM(post_tip_observations),0) AS post_tip,COALESCE(SUM(future_membership_leaks),0) AS future_membership,COALESCE(SUM(future_availability_leaks),0) AS future_availability,COALESCE(SUM(future_lineup_leaks),0) AS future_lineup,COALESCE(SUM(future_transfer_leaks),0) AS future_transfer FROM cbb_game_state_snapshots;
+            SELECT COALESCE(SUM(post_tip_observations),0) AS post_tip,COALESCE(SUM(future_membership_leaks),0) AS future_membership,COALESCE(SUM(future_availability_leaks),0) AS future_availability,COALESCE(SUM(future_lineup_leaks),0) AS future_lineup FROM cbb_game_state_snapshots;
+            SELECT run_id,post_tip_observations,future_membership_leaks,future_availability_leaks,future_lineup_leaks,future_transfer_leaks,temporal_integrity_ok FROM cbb_directory_phase_b_temporal_qa ORDER BY observed_at DESC LIMIT 1;
             SELECT COUNT(*) AS totals_shadow FROM cbb_shadow_challenger_definitions WHERE target='TOTALS';
             SELECT COUNT(*) AS unauthorized FROM cbb_shadow_challenger_definitions WHERE can_influence_projection<>0 OR can_qualify<>0 OR can_authorize_wager<>0;
           "
