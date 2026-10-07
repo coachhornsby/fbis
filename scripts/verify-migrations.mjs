@@ -27,6 +27,7 @@ for (const path of schemaPaths) {
 const files = (await readdir(migrationsDir)).filter((f) => f.endsWith(".sql")).sort();
 const missing = [];
 const registrationFailures = [];
+const registrationColumnFailures = [];
 const legacyRegistrationExceptions = new Set(["0010_mlb_market_projections.sql"]);
 const legacyDuplicatePrefixes = new Map([
   ["0039", ["0039_nba_research_models.sql", "0039_soccer_canonical.sql"]],
@@ -59,10 +60,22 @@ for (const file of files) {
   for (const t of tables) {
     if (!schemaTables.has(t)) missing.push({ file, table: t });
   }
+  for (const match of body.matchAll(/INSERT\s+(?:OR\s+\w+\s+)?INTO\s+schema_migrations\s*\(([^)]+)\)/gi)) {
+    const columns = match[1].split(",").map((v) => v.trim().toLowerCase());
+    if (!columns.includes("id") || columns.some((v) => !["id", "applied_at"].includes(v))) {
+      registrationColumnFailures.push({ file, columns });
+    }
+  }
   const id = file.replace(/\.sql$/, "");
   if (file === files.at(-1) && !new RegExp(`schema_migrations[\\s\\S]*['\"]${id}['\"]`, "i").test(body)) {
     registrationFailures.push({ file, id });
   }
+}
+
+if (registrationColumnFailures.length) {
+  console.error("Migration ledger columns must match schema_migrations(id, applied_at):");
+  for (const m of registrationColumnFailures) console.error(`- ${m.file}: ${m.columns.join(", ")}`);
+  process.exit(1);
 }
 
 if (missing.length) {
