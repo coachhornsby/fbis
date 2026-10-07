@@ -1,14 +1,6 @@
 name: Deploy NHL goalie shadow scheduler
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "workers/nhl-goalie-shadow-scheduler.mjs"
-      - "wrangler.nhl-goalie-shadow-scheduler.toml"
-      - "functions/api/nhl-goalie-shadow.js"
-      - "functions/lib/todayBoard.js"
-      - ".github/workflows/deploy-nhl-goalie-shadow-scheduler.yml"
   workflow_dispatch:
 
 permissions:
@@ -18,6 +10,8 @@ concurrency:
   group: deploy-nhl-goalie-shadow-scheduler
   cancel-in-progress: true
 
+# Superseded by fbis-orchestrator, which owns the live 17 * * * * cron.
+# Kept manual-only for rollback/forensics; do not auto-deploy a duplicate scheduler.
 jobs:
   deploy:
     runs-on: ubuntu-latest
