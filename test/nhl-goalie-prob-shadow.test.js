@@ -79,5 +79,8 @@ test("scheduled shadow workflow uses JSON-safe payload construction",async()=>{
   assert.match(src,/cron: "17 \* \* \* \*"/);
   assert.match(src,/jq -nc --arg mode freeze/);
   assert.match(src,/jq -nc --arg mode settle/);
+  assert.match(src,/name: Settle official-final shadow rows/);
+  assert.doesNotMatch(src,/not settlement hour/);
+  assert.doesNotMatch(src,/date -d 'yesterday'/);
   assert.doesNotMatch(src,/-d "\{"mode"/);
 });
