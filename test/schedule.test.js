@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { recoverCurrentPipeline, RECOVERY_SPORTS } from "../workers/prospective-pipeline-recovery.mjs";
 import {
   selectPipelineJob,
   triggerFromEvent,
@@ -105,5 +106,87 @@ describe("GitHub scheduling", () => {
     assert.equal(sched.state, "healthy");
     const warn = staleScheduleWarning(health, now);
     assert.equal(warn.filter((w) => /collect/i.test(w)).length, 0);
+  });
+});
+
+describe("prospective Cloudflare recovery", () => {
+  const now = new Date("2026-10-07T17:10:00Z");
+  const controller = { scheduledTime: now.getTime() };
+  const env = { HARVEST_SECRET: "test-secret" };
+  const sha = "a".repeat(40);
+  const health = (collect = "healthy", harvest = "healthy") => ({
+    deploymentCommit: sha, state: "HEALTHY", staleChecks: [],
+    pipeline: { schedule: { collect: { state: collect }, harvest: { state: harvest } } },
+  });
+  const mock = (initial, mutate = () => {}) => {
+    const writes = [];
+    let reads = 0;
+    return { writes, request: async (raw, options) => {
+      const url = new URL(raw);
+      if (url.pathname === "/api/health") {
+        const row = structuredClone(initial);
+        mutate(row, reads++);
+        return Response.json(row);
+      }
+      writes.push({ url, options });
+      return Response.json({ ok: true, status: "success" });
+    }};
+  };
+  it("does nothing within healthy or delayed schedule windows", async () => {
+    const m = mock(health("delayed", "healthy"));
+    const r = await recoverCurrentPipeline(env, controller, m.request, now);
+    assert.equal(r.status, "not_due");
+    assert.equal(m.writes.length, 0);
+  });
+  it("collects all configured sports using current-day cached odds with actual cron provenance", async () => {
+    const m = mock(health("missed", "healthy"));
+    await recoverCurrentPipeline(env, controller, m.request, now);
+    assert.equal(m.writes.length, RECOVERY_SPORTS.length);
+    for (const { url, options } of m.writes) {
+      assert.equal(url.pathname, "/api/collect");
+      assert.equal(url.searchParams.get("odds"), "cache");
+      assert.equal(url.searchParams.get("dayOffset"), "0");
+      assert.equal(url.searchParams.get("trigger"), "schedule");
+      assert.match(url.searchParams.get("scheduledSlot"), /cloudflare-current-recovery:2026-10-07T17:10/);
+      assert.equal(options.headers["x-harvest-secret"], "test-secret");
+    }
+  });
+  it("harvests only the actual current Chicago date, including events straddling midnight", async () => {
+    const at = new Date("2026-10-08T05:00:01Z");
+    const m = mock(health("healthy", "missed"));
+    await recoverCurrentPipeline(env, { scheduledTime: at.getTime() - 2000 }, m.request, at);
+    assert.equal(m.writes.length, RECOVERY_SPORTS.length);
+    for (const { url } of m.writes) {
+      assert.equal(url.pathname, "/api/harvest");
+      assert.equal(url.searchParams.get("date"), "2026-10-08");
+      assert.equal(url.searchParams.get("settleOnly"), "1");
+    }
+  });
+  it("blocks historical events and missing credentials before any calls", async () => {
+    const m = mock(health("missed", "missed"));
+    await assert.rejects(recoverCurrentPipeline(env, { scheduledTime: now.getTime() - 600000 }, m.request, now), /historical replay blocked/);
+    await assert.rejects(recoverCurrentPipeline({}, controller, m.request, now), /HARVEST_SECRET missing/);
+    assert.equal(m.writes.length, 0);
+  });
+  it("blocks writes if the deployment changes or its SHA is unavailable", async () => {
+    const changed = mock(health("missed"), (h, n) => { if (n > 0) h.deploymentCommit = "b".repeat(40); });
+    await assert.rejects(recoverCurrentPipeline(env, controller, changed.request, now), /SHA changed/);
+    assert.equal(changed.writes.length, 0);
+    const missing = mock({ ...health("missed"), deploymentCommit: null });
+    await assert.rejects(recoverCurrentPipeline(env, controller, missing.request, now), /SHA unavailable/);
+    assert.equal(missing.writes.length, 0);
+  });
+  it("recovers a stale required check even if schedule text says healthy", async () => {
+    const h = health(); h.staleChecks = [{ name: "scheduled-collect" }];
+    const m = mock(h);
+    await recoverCurrentPipeline(env, controller, m.request, now);
+    assert.equal(m.writes.length, RECOVERY_SPORTS.length);
+  });
+  it("rejects partial writes and does not proceed to harvest", async () => {
+    const m = mock(health("missed", "missed"));
+    const request = (url, options) => new URL(url).pathname === "/api/collect"
+      ? Response.json({ ok: false, status: "partial" }, { status: 207 }) : m.request(url, options);
+    await assert.rejects(recoverCurrentPipeline(env, controller, request, now), /failed HTTP 207/);
+    assert.equal(m.writes.length, 0);
   });
 });

@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { RECOVERY_CRON, recoverCurrentPipeline } from "./prospective-pipeline-recovery.mjs";
 import {
   CFG,
   configureRuntime,
@@ -327,17 +328,22 @@ async function handleFetch(request, env) {
 export default {
   fetch: handleFetch,
   async scheduled(controller, env, ctx) {
-    const task = String(controller?.cron || "") === "17 * * * *"
+    const task = String(controller?.cron || "") === RECOVERY_CRON
+      ? recoverCurrentPipeline(env, controller)
+      : String(controller?.cron || "") === "17 * * * *"
       ? runScheduledNhlGoalieShadow(env)
       : scheduledCycle(env);
     ctx.waitUntil(
       task
         .then((result) => console.log(JSON.stringify({ event: "orchestrator_cron_complete", result })))
-        .catch((error) => console.error(JSON.stringify({
-          event: "orchestrator_cron_failed",
-          error: String(error?.message || error),
-          providerResults: error?.providerResults || null,
-        })))
+        .catch((error) => {
+          console.error(JSON.stringify({
+            event: "orchestrator_cron_failed",
+            error: String(error?.message || error),
+            providerResults: error?.providerResults || null,
+          }));
+          if (String(controller?.cron || "") === RECOVERY_CRON) throw error;
+        })
     );
   },
 };
