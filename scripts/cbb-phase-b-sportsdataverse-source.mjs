@@ -28,6 +28,7 @@ const teamX=load("mbb_team_crosswalk_2026.csv");
 const games=load("mbb_schedule_2027.csv");
 const stats=load("player_season_stats_2026.csv");
 const gameRosters=load("game_rosters_2026.csv");
+const playerBox=load("player_box_2026.csv");
 
 const rosterByTeam=new Map();
 for(const r of roster){
@@ -70,6 +71,15 @@ for(const r of stats){
   else if(name==="minutes")o.minutes=Math.max(o.minutes,v);
   else if(["usage","usagerate","usage_rate"].includes(name))o.usage=v;
 }
+const pb=new Map();
+for(const r of playerBox){
+  if(!r.athlete_id||!r.team_id)continue;
+  const k=String(r.athlete_id)+"|"+String(r.team_id);
+  if(!pb.has(k))pb.set(k,{games:new Set(),starts:0,minutes:0,team:r.team_display_name||r.team_name||null});
+  const o=pb.get(k); if(r.game_id)o.games.add(String(r.game_id));
+  if(String(r.starter).toLowerCase()==="true")o.starts++;
+  const m=Number(r.minutes); if(Number.isFinite(m))o.minutes+=m;
+}
 const gr=new Map();
 for(const r of gameRosters){
   if(!r.athlete_id||!r.team_id)continue;
@@ -77,6 +87,10 @@ for(const r of gameRosters){
   if(!gr.has(k))gr.set(k,{games:new Set(),starts:0,team:r.team_display_name||null});
   const o=gr.get(k); if(r.game_id)o.games.add(String(r.game_id));
   if(String(r.starter).toLowerCase()==="true")o.starts++;
+}
+for(const [k,p] of pb){
+  if(!byPlayerTeam.has(k)){const [athleteId,teamId]=k.split("|");byPlayerTeam.set(k,{athleteId,teamId,team:p.team,games:0,starts:0,minutes:0,usage:null});}
+  const o=byPlayerTeam.get(k);o.games=Math.max(o.games,p.games.size);o.starts=Math.max(o.starts,p.starts);o.minutes=Math.max(o.minutes,p.minutes);
 }
 for(const [k,g] of gr){
   if(!byPlayerTeam.has(k)){const [athleteId,teamId]=k.split("|");byPlayerTeam.set(k,{athleteId,teamId,team:g.team,games:0,starts:0,minutes:0,usage:null});}
@@ -86,4 +100,4 @@ writeFileSync(out+"/rosters.json",JSON.stringify([...rosterByTeam.values()]));
 writeFileSync(out+"/teams.json",JSON.stringify(teams));
 writeFileSync(out+"/games.json",JSON.stringify(gameRows));
 writeFileSync(out+"/player-stats.json",JSON.stringify([...byPlayerTeam.values()]));
-console.log(JSON.stringify({rosterRows:roster.length,rosterTeams:rosterByTeam.size,teamCrosswalkRows:teams.length,games:gameRows.length,playerStatRows:stats.length,gameRosterRows:gameRosters.length,aggregatedPlayerStats:byPlayerTeam.size},null,2));
+console.log(JSON.stringify({rosterRows:roster.length,rosterTeams:rosterByTeam.size,teamCrosswalkRows:teams.length,games:gameRows.length,playerStatRows:stats.length,gameRosterRows:gameRosters.length,playerBoxRows:playerBox.length,aggregatedPlayerStats:byPlayerTeam.size},null,2));
