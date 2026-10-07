@@ -11,7 +11,6 @@ const fair=p=>{const x=n(p);if(x==null||x<=0||x>=1)return"—";const a=x>=.5?-10
 const playerMeta=(p,tour)=>{const r=n(p?.rank),pts=n(p?.rankingPoints);return [r!=null?`${tour} #${Math.round(r)}`:`${tour} RANK —`,pts!=null?`${Math.round(pts).toLocaleString()} points`:"POINTS —"].join("  |  ")};
 const COUNTRY_COLORS=Object.freeze({US:"#234f9b",GB:"#17365d",ES:"#aa151b",FR:"#244aa5",IT:"#167a45",DE:"#343434",AU:"#145a32",CA:"#b31b34",CN:"#b7192f",JP:"#8b2331",KR:"#1f4e79",RS:"#8a1538",HR:"#174a8b",PL:"#b31b34",CZ:"#174a8b",AR:"#3f7cac",BR:"#1e6b3a",CH:"#b31b34",NL:"#d05a1f",BE:"#222f5b",AT:"#9a1e2e",GR:"#28528a"});
 const countryColor=(code)=>COUNTRY_COLORS[String(code||"").trim().toUpperCase()]||"#12304a";
-const formRecord=(p)=>{const xs=recent(p).slice(0,5).map(x=>String(x?.result||"").toUpperCase()).filter(x=>x==="W"||x==="L");return xs.length?`${xs.filter(x=>x==="W").length}–${xs.filter(x=>x==="L").length}`:null};
 const venueRows=(offers=[])=>{const by=new Map();for(const o of offers||[]){const source=String(o.source||"").toUpperCase();if(!source)continue;if(!by.has(source))by.set(source,{source,ml:{},spread:{},total:{}});const r=by.get(source),m=String(o.marketFamily||"");if(m==="moneyline")r.ml[o.side]=o;if(m==="spread")r.spread[o.side]=o;if(m==="total")r.total[o.side]=o;}return [...by.values()]};
 const offerText=o=>!o?"—":[o.line==null?null:line(o.line),o.americanOdds==null?null:odds(o.americanOdds)].filter(Boolean).join(" ")||"—";
 const splitRow=(market,side,row)=>row?<tr><td>{market}</td><td>{side||"—"}</td><td>{row.ticketPct==null?"—":`${Math.round(row.ticketPct)}%`}</td><td>{row.moneyPct==null?"—":`${Math.round(row.moneyPct)}%`}</td><td className={Number(row.moneyTicketGap)>=0?"tmc-good":"tmc-bad"}>{row.moneyTicketGap==null?"—":`${Number(row.moneyTicketGap)>0?"+":""}${Math.round(row.moneyTicketGap)}%`}</td></tr>:null;
@@ -37,6 +36,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const status=game?.publicationStatus||"RESEARCH";
   const bank=t?.playerBank||{}, bp1=bank.players?.[0]||{}, bp2=bank.players?.[1]||{}, h2h=bank.headToHead||{};
   const recent=(p)=>(p?.recentForm||[]);
+  const formRecord=(p)=>{const xs=recent(p).slice(0,5).map(x=>String(x?.result||"").toUpperCase()).filter(x=>x==="W"||x==="L");return xs.length?`${xs.filter(x=>x==="W").length}–${xs.filter(x=>x==="L").length}`:null};
   const formTokens=(p)=>recent(p).length?recent(p).slice(0,5).map((x,i)=>{const r=String(x?.result||"").toUpperCase();return <span key={i} className={r==="W"?"tmc-form-win":r==="L"?"tmc-form-loss":"tmc-form-unknown"}>{r||"—"}</span>}):<span className="tmc-form-unknown">—</span>;
   const portraitUrl=(team,bp)=>team?.headshotUrl||team?.headshot_url||team?.photoUrl||team?.photo_url||bp?.headshotUrl||bp?.headshot_url||null;
   const country=(team,bp)=>String(team?.countryCode||team?.country_code||team?.country||bp?.countryCode||bp?.country_code||bp?.country||"").trim();
