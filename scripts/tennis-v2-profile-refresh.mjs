@@ -4,10 +4,15 @@ import path from "node:path";
 import { TennisDeepState } from "../functions/lib/tennisTwoSidedV11.js";
 import { auditTennisCsv, assertTennisCoverage, parseTennisCsv } from "../functions/lib/tennisPlayerDataIntegrity.js";
 
-const years=v=>String(v).split(",").map(Number).filter(Number.isFinite);\nconst ATP_TOUR_YEARS=years(process.env.TENNIS_ATP_TOUR_YEARS||"2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025,2026");\nconst ATP_CHALLENGER_YEARS=years(process.env.TENNIS_ATP_CHALLENGER_YEARS||"2020,2021,2022,2023,2024,2025,2026");\nconst WTA_YEARS=years(process.env.TENNIS_WTA_YEARS||"2024,2025,2026");\nconst YEARS=[...new Set([...ATP_TOUR_YEARS,...WTA_YEARS])];
+const years=v=>String(v).split(",").map(Number).filter(Number.isFinite);
+const ATP_TOUR_YEARS=years(process.env.TENNIS_ATP_TOUR_YEARS||"2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025,2026");
+const ATP_CHALLENGER_YEARS=years(process.env.TENNIS_ATP_CHALLENGER_YEARS||"2020,2021,2022,2023,2024,2025,2026");
+const WTA_YEARS=years(process.env.TENNIS_WTA_YEARS||"2024,2025,2026");
+const YEARS=[...new Set([...ATP_TOUR_YEARS,...WTA_YEARS])];
 const OUT=process.env.TENNIS_PROFILE_SQL||"artifacts/tennis-v2-current-profiles.sql";
 const SUMMARY=process.env.TENNIS_PROFILE_SUMMARY||"artifacts/tennis-v2-current-profiles-summary.json";
-const MIRROR=process.env.TENNIS_SACKMANN_MIRROR||"https://raw.githubusercontent.com/Aneeshers/tennis-sackmann-archive/main";\nconst TML_BASE=process.env.TENNIS_TML_BASE||"https://stats.tennismylife.org/data";
+const MIRROR=process.env.TENNIS_SACKMANN_MIRROR||"https://raw.githubusercontent.com/Aneeshers/tennis-sackmann-archive/main";
+const TML_BASE=process.env.TENNIS_TML_BASE||"https://stats.tennismylife.org/data";
 const cutoff=process.env.TENNIS_PROFILE_CUTOFF||new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()).replaceAll("-","");
 const sourceAsOf=`${cutoff.slice(0,4)}-${cutoff.slice(4,6)}-${cutoff.slice(6,8)}T00:00:00-05:00`;
 
@@ -181,7 +186,8 @@ await fs.mkdir(path.dirname(OUT),{recursive:true});
 await fs.writeFile(OUT,sql);
 const summary={
   generatedAt:now,cutoffCT:cutoff,
-  sources:{tour:{name:"Sackmann archive research mirror",productionDependency:false},challenger:{name:"TennisMyLife",productionDependency:false,rights:"RESEARCH_ONLY / commercial permission not established"}},\n  sourceAudits,
+  sources:{tour:{name:"Sackmann archive research mirror",productionDependency:false},challenger:{name:"TennisMyLife",productionDependency:false,rights:"RESEARCH_ONLY / commercial permission not established"}},
+  sourceAudits,
   profiles:profileRows.length,playerBank:bankByPlayer.size,matchHistory:historyRows.length,players:{atp:meta.atp.size,wta:meta.wta.size},speedRows:speedRows.length,
   integrity:{sameDayExcluded:true,futureRowsExcluded:true,cutoff:sourceAsOf},
   missingByDesign:["travelKm7Days","timeZonesCrossed7Days","minutesLast3Days","minutesLast7Days","injuryStatus","recentServeSpeedDeltaKph","indoor","altitudeM"],
