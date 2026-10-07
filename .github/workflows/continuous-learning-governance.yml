@@ -91,7 +91,7 @@ jobs:
 
       - name: Upload governance evidence
         if: steps.gate.outputs.run == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: fbis-continuous-learning-${{ github.run_id }}
           path: artifacts/continuous-learning-*.json

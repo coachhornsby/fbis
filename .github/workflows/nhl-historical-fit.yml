@@ -46,7 +46,7 @@ jobs:
           node --check data/models/nhl-fbis-v1.js
           node --test test/nhl-fbis-v1.test.js
 
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v6
         with:
           name: nhl-fbis-v1-historical-fit
           path: data/models/nhl-fbis-v1.js

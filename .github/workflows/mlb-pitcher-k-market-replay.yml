@@ -51,7 +51,7 @@ jobs:
           jq -e '.pitcherStrikeouts.temporalCalibration.selected.baselineWeight==0.04' "artifacts/pitcher-k-market-replay-${{ matrix.shard }}.json" >/dev/null
           jq -e '.pitcherStrikeouts.temporalCalibration.selected.pitchZoneWeight==0.96' "artifacts/pitcher-k-market-replay-${{ matrix.shard }}.json" >/dev/null
           jq -e '.pitcherStrikeouts.temporalCalibration.selected.kOffset==-0.7936' "artifacts/pitcher-k-market-replay-${{ matrix.shard }}.json" >/dev/null
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: mlb-pitcher-k-market-replay-${{ matrix.shard }}
           path: artifacts/

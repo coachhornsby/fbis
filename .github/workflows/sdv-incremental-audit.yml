@@ -27,7 +27,7 @@ jobs:
         run: |
           node scripts/data-stack-audit.mjs > artifacts/data-stack-audit.log
           node -e 'const r=require("./artifacts/data-stack-audit.json"); if(!r.ok) process.exit(1)'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: sdv-incremental-audit-${{ github.run_id }}
           path: artifacts/

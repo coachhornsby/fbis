@@ -92,7 +92,7 @@ jobs:
             echo "- Calibration eligible: $(jq -r '.bets.learning.eligible' artifacts/source-audit.json)"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v6
         with:
           name: fbis-source-audit-${{ github.run_id }}
           path: artifacts/*.json

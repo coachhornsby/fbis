@@ -67,7 +67,7 @@ jobs:
           cat /tmp/out.json
           test "$code" = "201"
           jq -e '.ok==true and .bytes>1000' /tmp/out.json >/dev/null
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nfl-feature-snapshot-${{ github.run_id }}
           path: artifacts/nfl-features/latest.json

@@ -33,7 +33,7 @@ jobs:
       - run: |
           node scripts/wnba-lineup-stints-build.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-lineup-stints-${{ matrix.chunk.id }}.jsonl             effects=artifacts/wnba-lineup-effects-${{ matrix.chunk.id }}.json
           node scripts/wnba-possession-state-build.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-possession-state-${{ matrix.chunk.id }}.jsonl             shots=artifacts/wnba-shot-events-${{ matrix.chunk.id }}.jsonl             profiles=artifacts/wnba-shot-profiles-${{ matrix.chunk.id }}.jsonl
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wnba-current-${{ matrix.chunk.id }}-${{ github.run_id }}
           path: artifacts/wnba-*
@@ -74,7 +74,7 @@ jobs:
           npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-possession-state.jsonl" --file artifacts/wnba-possession-state.jsonl --remote
           npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-shot-events.jsonl" --file artifacts/wnba-shot-events.jsonl --remote
           npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-shot-profiles.jsonl" --file artifacts/wnba-shot-profiles.jsonl --remote
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wnba-current-state-${{ github.run_id }}
           path: |

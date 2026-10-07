@@ -94,7 +94,7 @@ jobs:
           printf '{"runId":%s,"immutablePrefix":"%s","decision":"%s","updatedAt":"%s"}\n'             "$GITHUB_RUN_ID" "$IMM" "$(jq -r '.decision' artifacts/deep/nba-fbis-v2-deep-validation.json)" "$(date -u +%FT%TZ)"             > artifacts/deep/pointer.json
           npx wrangler r2 object put "fbis-archive/${CUR}/pointer.json" --file artifacts/deep/pointer.json --remote
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-deep-v2-${{ github.run_id }}
           path: artifacts/deep/

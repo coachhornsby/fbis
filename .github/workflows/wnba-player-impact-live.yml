@@ -139,7 +139,7 @@ jobs:
             test "$ok" = "1"
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wnba-player-impact-live-${{ github.run_id }}
           path: |

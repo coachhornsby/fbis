@@ -57,7 +57,7 @@ jobs:
           jq -e '.configured == true' artifacts/kenpom-capability-audit.json >/dev/null
 
       - name: Upload audit
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: kenpom-capability-audit
           path: artifacts/kenpom-capability-audit.json

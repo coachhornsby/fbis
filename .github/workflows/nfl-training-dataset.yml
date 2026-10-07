@@ -35,7 +35,7 @@ jobs:
         run: cat artifacts/nfl/nfl_game_training_2015_2026_qa.json
 
       - name: Upload NFL research dataset
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nfl-game-training-2015-2026
           path: |

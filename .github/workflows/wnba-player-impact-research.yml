@@ -42,7 +42,7 @@ jobs:
         run: |
           node scripts/wnba-lineup-stints-build.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-lineup-stints-${{ matrix.chunk.id }}.jsonl             effects=artifacts/wnba-lineup-effects-${{ matrix.chunk.id }}.json
           node scripts/wnba-possession-state-build.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-possession-state-${{ matrix.chunk.id }}.jsonl             shots=artifacts/wnba-shot-events-${{ matrix.chunk.id }}.jsonl             profiles=artifacts/wnba-shot-profiles-${{ matrix.chunk.id }}.jsonl
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wnba-impact-${{ matrix.chunk.id }}-${{ github.run_id }}
           path: artifacts/wnba-*
@@ -99,7 +99,7 @@ jobs:
           done
           printf '{"runId":%s,"immutablePrefix":"%s","updatedAt":"%s"}\n' "$GITHUB_RUN_ID" "$IMM" "$(date -u +%FT%TZ)" > artifacts/merged/pointer.json
           npx wrangler r2 object put "fbis-archive/${CUR}/pointer.json" --file artifacts/merged/pointer.json --remote
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wnba-player-impact-v1-${{ github.run_id }}
           path: artifacts/merged/

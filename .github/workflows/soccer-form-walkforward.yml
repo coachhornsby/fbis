@@ -27,7 +27,7 @@ jobs:
       - run: |
           jq . artifacts/soccer-form-walkforward-report.json
           jq -r '. as $r | "## Soccer-FBIS-v1 walk-forward\n- n: \($r.n)\n- margin MAE: \($r.marginMae)\n- total MAE: \($r.totalMae)\n- 3-way accuracy: \($r.threeWayAccuracy)\n- Brier: \($r.brier)\n- log loss: \($r.logLoss)\n- calibration ECE: \($r.calibration.ece)\n\n### Confidence stars\n" + ([1,2,3,4,5] | map((. | tostring) as $s | "- " + $s + "★: n=" + (($r.starBuckets[$s].n // 0)|tostring) + ", hit=" + ((($r.starBuckets[$s].hitRate // 0)*100)|tostring) + "%") | join("\n"))' artifacts/soccer-form-walkforward-report.json >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: soccer-form-walkforward-${{ github.run_id }}
           path: artifacts/soccer-form-walkforward-*

@@ -86,7 +86,7 @@ jobs:
           printf '{"sourceShardRunId":"%s","resumeRunId":%s,"immutablePrefix":"%s","updatedAt":"%s","ablationMode":"linear-time"}\n'             "${SOURCE_RUN_ID}" "${GITHUB_RUN_ID}" "${IMM}" "$(date -u +%FT%TZ)" > artifacts/merged/pointer.json
           npx wrangler r2 object put "fbis-archive/${CUR}/pointer.json" --file artifacts/merged/pointer.json --remote
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wnba-possession-ablation-resume-${{ github.run_id }}
           path: artifacts/merged/

@@ -25,7 +25,7 @@ jobs:
             echo "## WNBA-FBIS-v1 walk-forward"
             jq -r '"- n: \(.n)","- margin MAE: \(.marginMae)","- total MAE: \(.totalMae)","- winner accuracy: \(.winnerAccuracy)","- maturity: \(.governance.maturity)"' artifacts/wnba-form-walkforward-report.json
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wnba-form-walkforward-${{ github.run_id }}
           path: artifacts/wnba-form-walkforward-*

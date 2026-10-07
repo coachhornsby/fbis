@@ -89,7 +89,7 @@ jobs:
             totalGamesMae:r.overall.totalGames?.mae
           }));
           NODE
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v6
         with:
           name: tennis-historical-walkforward
           path: |

@@ -38,7 +38,7 @@ jobs:
           echo "=== PROMOTION GATE ==="
           jq '.promotionGate' research/mlb/pitch-zone-validation.json
       - name: Upload validation artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: mlb-pitch-zone-historical-validation
           path: research/mlb/pitch-zone-validation.json

@@ -350,7 +350,7 @@ jobs:
 
       - name: Upload NFL live-ops proof artifacts
         if: always() && matrix.sport == 'nfl'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nfl-live-ops-${{ github.run_id }}-${{ matrix.sport }}
           path: artifacts/nfl-*.json
@@ -571,7 +571,7 @@ jobs:
           set -e
       - name: Upload NFL health publish artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nfl-health-publish-${{ github.run_id }}
           path: artifacts/nfl-*.json
