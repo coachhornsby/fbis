@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeEspnPlay, auditWnbaLineupEvidence } from "../functions/lib/wnbaLineupModel.js";
+import { normalizeEspnPlay, auditWnbaLineupEvidence, reconstructLineupStints } from "../functions/lib/wnbaLineupModel.js";
 import {
   classifyWnbaShot,
   reconstructWnbaPossessionState,
@@ -86,4 +86,21 @@ test("WNBA lineup audit separates substitution resolution from stint coverage",(
   assert.equal(q.resolved,1);
   assert.equal(q.unresolved,1);
   assert.equal(q.resolutionRate,0.5);
+});
+
+
+test("WNBA lineup reconstruction does not corrupt state on a partially unresolved substitution",()=>{
+  const homePlayers=[
+    {id:"h1",name:"H1",starter:1},{id:"h2",name:"H2",starter:1},{id:"h3",name:"H3",starter:1},{id:"h4",name:"H4",starter:1},{id:"h5",name:"H5",starter:1},{id:"h6",name:"H6",starter:0}
+  ];
+  const awayPlayers=[
+    {id:"a1",name:"A1",starter:1},{id:"a2",name:"A2",starter:1},{id:"a3",name:"A3",starter:1},{id:"a4",name:"A4",starter:1},{id:"a5",name:"A5",starter:1}
+  ];
+  const stints=reconstructLineupStints({homeTeamId:"H",awayTeamId:"A",homePlayers,awayPlayers,plays:[
+    {id:"bad",sequenceNumber:1,period:1,clock:"9:00",teamId:"H",type:"Substitution",text:"Unknown enters the game for H1",participants:[{id:"",name:"Unknown"},{id:"h1",name:"H1"}]},
+    {id:"good",sequenceNumber:2,period:1,clock:"8:00",teamId:"H",type:"Substitution",text:"H6 enters the game for H1",participants:[{id:"h6",name:"H6"},{id:"h1",name:"H1"}]}
+  ]});
+  assert.ok(stints.length>=2);
+  assert.ok(stints.every(s=>s.homePlayers.length===5&&s.awayPlayers.length===5));
+  assert.deepEqual(stints.at(-1).homePlayers.sort(),["h2","h3","h4","h5","h6"]);
 });
