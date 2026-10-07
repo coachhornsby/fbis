@@ -15,6 +15,8 @@ import {
 } from "./probability.js";
 import { expectedRoi, validAmericanOdds } from "./pricing.js";
 
+let soccerHistoryLastError = null;
+
 const health = {
   bound: false,
   lastError: null,
@@ -33,6 +35,10 @@ export function hasDb(env) {
 
 export function researchHealth() {
   return { ...health };
+}
+
+export function soccerHistoryHealth() {
+  return { lastError: soccerHistoryLastError };
 }
 
 export async function persistMlbMarketProjections(env, rows = []) {
@@ -3222,6 +3228,7 @@ export async function loadSoccerMatchHistory(env, { league, season = null, start
     }
     sql += " ORDER BY match_date ASC, event_id ASC";
     const res = await env.DB.prepare(sql).bind(...binds).all();
+    soccerHistoryLastError = null;
     markRead();
     return (res.results || []).map((r) => ({
       id: r.event_id,
@@ -3256,6 +3263,7 @@ export async function loadSoccerMatchHistory(env, { league, season = null, start
       sourceObservedAt: r.source_observed_at,
     }));
   } catch (err) {
+    soccerHistoryLastError = String(err?.message || err);
     markErr(err);
     return [];
   }
