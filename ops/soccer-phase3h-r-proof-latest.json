@@ -1,20 +1,30 @@
 {
-  "generatedAt": "2026-10-07T14:50:59Z",
-  "triggerSha": "219b758477ce381db5a0cd1bf51a8e6c2a7f0671",
-  "snapshotDate": "2026-10-07",
+  "generatedAt": "2026-10-07T14:51:49Z",
+  "triggerSha": "e208897d7e4c34e96b3a668cbf9dea89d5a2bf3e",
+  "snapshotDate": "2026-10-09",
   "first": {
     "ok": true,
-    "date": "2026-10-07",
-    "snapshotAt": "2026-10-07T14:50:53.685Z",
-    "slateGames": 1,
-    "eligibleGames": 0,
-    "attempted": 0,
-    "written": 0,
+    "date": "2026-10-09",
+    "snapshotAt": "2026-10-07T14:51:19.371Z",
+    "slateGames": 10,
+    "eligibleGames": 1,
+    "attempted": 10,
+    "written": 10,
     "existing": 0,
     "skipped": {
-      "post-kickoff-or-invalid-time": 1
+      "v2-projection-unavailable": 9
     },
-    "skippedDetails": {},
+    "skippedDetails": {
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Qatar SC|away-Al Rayyan": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Galatasaray|away-Kasımpaşa": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Al Sadd|away-Al Arabi": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Moreirense|away-Gil Vicente": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-PSV Eindhoven|away-SC Heerenveen": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Borussia Dortmund|away-Werder Bremen": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Lens|away-Lyon": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Málaga|away-Espanyol": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Braga|away-Sporting CP": 1
+    },
     "lifecycle": "SHADOW",
     "collectorCodeSha": "8f14c70b6b18bdc9bdd355315f2ae96d97d89e5b",
     "publicProjectionRoutingChanged": false,
@@ -24,5 +34,36 @@
     "canQualify": false,
     "canAuthorize": false
   },
-  "second": null
+  "second": {
+    "ok": true,
+    "date": "2026-10-09",
+    "snapshotAt": "2026-10-07T14:51:32.105Z",
+    "slateGames": 10,
+    "eligibleGames": 1,
+    "attempted": 10,
+    "written": 0,
+    "existing": 10,
+    "skipped": {
+      "v2-projection-unavailable": 9
+    },
+    "skippedDetails": {
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Qatar SC|away-Al Rayyan": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Galatasaray|away-Kasımpaşa": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Al Sadd|away-Al Arabi": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Moreirense|away-Gil Vicente": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-PSV Eindhoven|away-SC Heerenveen": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Borussia Dortmund|away-Werder Bremen": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Lens|away-Lyon": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Málaga|away-Espanyol": 1,
+      "v2-projection-unavailable:canonical-team-history-missing|home-unmatched|away-unmatched|history-0|home-Braga|away-Sporting CP": 1
+    },
+    "lifecycle": "SHADOW",
+    "collectorCodeSha": "8f14c70b6b18bdc9bdd355315f2ae96d97d89e5b",
+    "publicProjectionRoutingChanged": false,
+    "persistentStateUsed": false,
+    "marketUsedInModel": false,
+    "researchOnly": true,
+    "canQualify": false,
+    "canAuthorize": false
+  }
 }
