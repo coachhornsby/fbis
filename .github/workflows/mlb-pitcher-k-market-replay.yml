@@ -1,0 +1,58 @@
+name: MLB pitcher K market replay
+on:
+  push:
+    branches: [research/mlb-pitcher-k-market-replay-v2]
+    paths:
+      - "scripts/mlb-pitcher-k-market-replay.mjs"
+      - ".github/workflows/mlb-pitcher-k-market-replay.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: aug-sep-a
+            start: "2026-08-27"
+            end: "2026-09-03"
+          - shard: sep-b
+            start: "2026-09-04"
+            end: "2026-09-10"
+          - shard: oct-c
+            start: "2026-10-01"
+            end: "2026-10-05"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Replay frozen pitcher K model
+        env:
+          SEASON: "2026"
+          START_DATE: ${{ matrix.start }}
+          END_DATE: ${{ matrix.end }}
+          MAX_GAMES: "400"
+          DATE_STEP: "1"
+          GAMES_PER_DATE: "20"
+          OUT: "artifacts/pitcher-k-market-replay-${{ matrix.shard }}.json"
+        run: |
+          mkdir -p artifacts
+          node scripts/mlb-pitcher-k-market-replay.mjs | tee "artifacts/summary-${{ matrix.shard }}.json"
+      - name: Verify frozen calibration and temporal integrity
+        run: |
+          jq -e '.temporalIntegrity.leakageOk==true' "artifacts/pitcher-k-market-replay-${{ matrix.shard }}.json" >/dev/null
+          jq -e '.pitcherStrikeouts.temporalCalibration.selected.baselineWeight==0.04' "artifacts/pitcher-k-market-replay-${{ matrix.shard }}.json" >/dev/null
+          jq -e '.pitcherStrikeouts.temporalCalibration.selected.pitchZoneWeight==0.96' "artifacts/pitcher-k-market-replay-${{ matrix.shard }}.json" >/dev/null
+          jq -e '.pitcherStrikeouts.temporalCalibration.selected.kOffset==-0.7936' "artifacts/pitcher-k-market-replay-${{ matrix.shard }}.json" >/dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlb-pitcher-k-market-replay-${{ matrix.shard }}
+          path: artifacts/
+          retention-days: 30

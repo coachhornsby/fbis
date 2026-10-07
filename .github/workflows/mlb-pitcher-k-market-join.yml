@@ -1,0 +1,71 @@
+name: MLB pitcher K market join
+on:
+  push:
+    branches: [research/mlb-pitcher-k-market-replay-v2]
+    paths:
+      - "scripts/mlb-pitcher-k-market-join.mjs"
+      - ".github/workflows/mlb-pitcher-k-market-join.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  join:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SOURCE_RUN_ID: "37642223313"
+      ORIGINAL_CALIBRATION_ARTIFACT_ID: "11317967913"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Download completed replay shards
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/replay
+          gh run download "$SOURCE_RUN_ID" -p 'mlb-pitcher-k-market-replay-*' -D artifacts/replay
+          find artifacts/replay -type f -maxdepth 3 -print
+      - name: Download original calibration lineage artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/original
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ORIGINAL_CALIBRATION_ARTIFACT_ID}/zip" > artifacts/original.zip
+          unzip -q artifacts/original.zip -d artifacts/original
+          test -f artifacts/original/pitch-zone-validation.json
+      - name: Export bounded historical pitcher K market archive
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          mkdir -p artifacts
+          sql="SELECT m.id,m.game_id,m.date,m.checkpoint,m.market_type,m.subject_name,m.book,m.book_line,m.book_over_price,m.book_under_price,m.source_as_of,m.frozen_at,s.start_time FROM mlb_market_projections m LEFT JOIN (SELECT game_id,MIN(start_time) start_time FROM mlb_team_schedule_items GROUP BY game_id) s ON s.game_id=m.game_id WHERE m.date<='2026-10-05' AND m.market_type IN ('SPORTSBOOK_PROP:player_strikeouts','SPORTSBOOK_PROP:player_pitcher_strikeouts','SPORTSBOOK_PROP:player_strikeouts_thrown')"
+          npx wrangler d1 execute fbis --remote --command "$sql" --json > artifacts/market.json
+          jq -e '.[0].success==true' artifacts/market.json >/dev/null
+      - name: Join replay to lineup-confirmed entry and closing markets
+        env:
+          REPLAY_DIR: artifacts/replay
+          MARKET_FILE: artifacts/market.json
+          CALIBRATION_ARTIFACT: artifacts/original/pitch-zone-validation.json
+          OUT: artifacts/pitcher-k-market-join.json
+        run: node scripts/mlb-pitcher-k-market-join.mjs | tee artifacts/pitcher-k-market-join-summary.json
+      - name: Enforce temporal and governance invariants
+        run: |
+          jq -e '.contract.entry_checkpoint=="LINEUP_CONFIRMED"' artifacts/pitcher-k-market-join.json >/dev/null
+          jq -e '.contract.no_refit==true' artifacts/pitcher-k-market-join.json >/dev/null
+          jq -e '.source.replay_leakage_failures==0' artifacts/pitcher-k-market-join.json >/dev/null
+          jq -e '.validation.temporal_failures==0' artifacts/pitcher-k-market-join.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mlb-pitcher-k-market-join
+          path: |
+            artifacts/pitcher-k-market-join.json
+            artifacts/pitcher-k-market-join-summary.json
+          retention-days: 30
