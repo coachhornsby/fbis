@@ -30,18 +30,27 @@ export async function collectCurrentPipeline(context, collect = collectBoards) {
       const meta = await readMeta(context.env);
       const expectedAt = Date.parse(lastExpectedCollectUtc());
       const stamps = [...SPORTS].map(s => [s, meta[`native_current_collect_success:${s}`]]);
-      const missingSports = stamps.filter(([, at]) => !(Date.parse(at) >= expectedAt)).map(([s]) => s);
+
       const today = new Intl.DateTimeFormat("en-CA", {
         timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit",
       }).format(new Date());
+      // Count normal GitHub deliveries too, so recovery fills actual gaps rather
+      // than repeating sports already completed by the primary scheduler.
+      const collected = await context.env.DB.prepare(
+        "SELECT DISTINCT sport FROM job_runs WHERE job_type IN ('collect-cache','collect-full') AND trigger_type = 'schedule' AND status = 'success' AND completed_at >= ? AND dates_json LIKE ?"
+      ).bind(new Date(expectedAt).toISOString(), `%"${today}"%`).all();
+      const coveredCollect = new Set((collected.results || []).map(row => row.sport));
+      for (const [sport, at] of stamps) if (Date.parse(at) >= expectedAt) coveredCollect.add(sport);
+      const missingSports = [...SPORTS].filter(s => !coveredCollect.has(s));
+      const overdue = Date.now() - expectedAt >= 45 * 60 * 1000 && missingSports.length > 0;
       const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const recent = await context.env.DB.prepare(
         "SELECT DISTINCT sport FROM job_runs WHERE job_type = 'harvest' AND trigger_type = 'schedule' AND status = 'success' AND completed_at >= ? AND dates_json = ?"
       ).bind(cutoff, JSON.stringify([today])).all();
       const coveredHarvest = new Set((recent.results || []).map(row => row.sport));
       const missingHarvestSports = [...SPORTS].filter(s => !coveredHarvest.has(s));
-      return json({ ok: true, status: "success", missingSports, missingHarvestSports,
-        initializing: stamps.some(([, at]) => !at),
+      return json({ ok: true, status: "success", missingSports, missingHarvestSports, overdue,
+        initializing: stamps.some(([, at]) => !at) && missingSports.length > 0,
         inProgress: stamps.some(([, at]) => Date.parse(at) >= expectedAt) && missingSports.length > 0 }, 200);
     }
     if (!SPORTS.has(sport)) return json({ ok: false, error: "Current scheduled sport required" }, 400);
