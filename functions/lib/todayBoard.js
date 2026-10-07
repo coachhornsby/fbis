@@ -1,3 +1,4 @@
+import { proveTennisEvent } from "./tennisEventIntegrity.js";
 /**
  * TODAY board: every scheduled game on the operator CT date, all supported sports.
  * Ordinary loads are cache-only for Parlay (and Pal). ESPN/MLB Stats remain free.
@@ -124,6 +125,10 @@ export function toBoardGame(game, sport, now = Date.now()) {
       abbr: game.away?.abbr,
       logo: game.away?.logo,
       canonicalId: game.away?.canonicalId,
+      countryCode: game.away?.countryCode || null,
+      headshotUrl: game.away?.headshotUrl || null,
+      rankingAsOf: game.away?.rankingAsOf || null,
+      rankingSource: game.away?.rankingSource || null,
       rank: game.away?.rank ?? null,
       rankingPoints: game.away?.rankingPoints ?? game.away?.points ?? null,
       imageSource: game.away?.imageSource || null,
@@ -138,6 +143,10 @@ export function toBoardGame(game, sport, now = Date.now()) {
       abbr: game.home?.abbr,
       logo: game.home?.logo,
       canonicalId: game.home?.canonicalId,
+      countryCode: game.home?.countryCode || null,
+      headshotUrl: game.home?.headshotUrl || null,
+      rankingAsOf: game.home?.rankingAsOf || null,
+      rankingSource: game.home?.rankingSource || null,
       rank: game.home?.rank ?? null,
       rankingPoints: game.home?.rankingPoints ?? game.home?.points ?? null,
       imageSource: game.home?.imageSource || null,
@@ -463,7 +472,8 @@ async function attachPrizePicksMarkets(games=[], sport, date, db){
     const seen=new Set(), playerMarkets=[];
     for(const row of rows){
       const exact=row.fbis_event_id && String(row.fbis_event_id)===gid;
-      const tennisMatch=sport==="tennis" && names.has(ppKey(row.player_name));
+      const tennisMatch=sport==="tennis" && names.has(ppKey(row.player_name)) && names.has(ppKey(row.opponent)) && ppKey(row.player_name)!==ppKey(row.opponent) && Date.parse(row.start_time)===Date.parse(game.start);
+      if(sport==="tennis" && !tennisMatch) continue;
       const teamMatch=sport!=="tennis" && ((row.team&&abbrs.has(ppKey(row.team))) || (row.opponent&&abbrs.has(ppKey(row.opponent))));
       if(!exact&&!tennisMatch&&!teamMatch) continue;
       const key=[row.player_id||row.player_name,row.canonical_market||row.stat_type,row.line,row.odds_tier,row.duration].join("|");
@@ -525,7 +535,7 @@ export async function buildTennisResearchSlate(date, env = {}) {
   if (!env.DB?.prepare) {
     return { sport: "tennis", date, games: [], research: { configured: false, error: "database unavailable" } };
   }
-  const [query, rankings] = await Promise.all([
+  const [query] = await Promise.all([
     env.DB.prepare(`
       WITH ranked AS (
         SELECT *,
@@ -556,7 +566,10 @@ export async function buildTennisResearchSlate(date, env = {}) {
       )
       SELECT d.canonical_event_id,d.tour,d.player1,d.player2,d.pure_model_id,d.pure_p1,
              d.market_prior_p1,d.market_v2_p1,d.model_edge,d.market_json,d.action_json,
-             d.decision_timestamp,d.event_start_time,d.snapshot_type,
+             d.decision_timestamp,d.event_start_time,d.snapshot_type,d.context_json,
+             ml.id AS ml_id,ml.player1 AS ml_player1,ml.player2 AS ml_player2,ml.tour AS ml_tour,ml.event_start_time AS ml_start,
+             sp.id AS sp_id,sp.player1 AS sp_player1,sp.player2 AS sp_player2,sp.tour AS sp_tour,sp.event_start_time AS sp_start,
+             tot.id AS tot_id,tot.player1 AS tot_player1,tot.player2 AS tot_player2,tot.tour AS tot_tour,tot.event_start_time AS tot_start,
              ml.provider AS market_provider,ml.sportsbook,ml.player1_price,ml.player2_price,
              ml.player1_no_vig_prob,ml.player2_no_vig_prob,ml.public_ticket_pct,ml.public_money_pct,
              ml.money_minus_ticket_pct,ml.observed_at AS market_observed_at,ml.collected_at AS market_collected_at,
@@ -578,10 +591,21 @@ export async function buildTennisResearchSlate(date, env = {}) {
       WHERE d.rn=1
       ORDER BY d.event_start_time, d.decision_timestamp DESC
     `).bind(date, date).all(),
-    fetchEspnTennisRankings(env.fetchImpl || fetch),
   ]);
   const rows = (query?.results || []).filter((row) => boardDateCtForStart(row.event_start_time) === date);
-  const games = await Promise.all(rows.map(async (row) => {
+  const blocked = [];
+  const games = (await Promise.all(rows.map(async (row) => {
+    const integrity = await proveTennisEvent(env.DB,row,{projection:true});
+    if (!integrity.valid) { blocked.push({eventId:row.canonical_event_id,reason:integrity.reason}); return null; }
+    for (const prefix of ["ml","sp","tot"]) {
+      if ((row[`${prefix}_id`] || row[`${prefix}_player1`]) && (tennisNameKey(row[`${prefix}_player1`]) !== tennisNameKey(row.player1) || tennisNameKey(row[`${prefix}_player2`]) !== tennisNameKey(row.player2) || row[`${prefix}_tour`] !== row.tour || Date.parse(row[`${prefix}_start`]) !== Date.parse(row.event_start_time))) {
+        blocked.push({eventId:row.canonical_event_id,reason:"MARKET_IDENTITY_MISMATCH"}); return null;
+      }
+    }
+    row.surface=integrity.event.surface;
+    row.tournament=integrity.event.tournament_name;
+    row.indoor=integrity.event.indoor_outdoor==="INDOOR"?1:integrity.event.indoor_outdoor==="OUTDOOR"?0:null;
+    row.court_speed_index=null;
     const [bankContext,venueOffers] = await Promise.all([
       tennisCardContext(env.DB,{tour:row.tour,player1:row.player1,player2:row.player2,surface:row.surface}).catch(()=>null),
       tennisVenueOffers(env.DB,row.canonical_event_id).catch(()=>[])
@@ -592,8 +616,8 @@ export async function buildTennisResearchSlate(date, env = {}) {
     const marketJson = safeJson(row.market_json) || {};
     const actionJson = safeJson(row.action_json) || {};
     const quote = Array.isArray(marketJson.quotes) ? marketJson.quotes[0] || {} : {};
-    const p1Rank = tennisRankProfile(row.player1, rankings);
-    const p2Rank = tennisRankProfile(row.player2, rankings);
+    const p1Rank = integrity.p1;
+    const p2Rank = integrity.p2;
     const p1Price = row.player1_price == null ? (quote?.p1Price == null ? null : Number(quote.p1Price)) : Number(row.player1_price);
     const p2Price = row.player2_price == null ? (quote?.p2Price == null ? null : Number(quote.p2Price)) : Number(row.player2_price);
     const marketP1 = row.player1_no_vig_prob == null
@@ -621,20 +645,28 @@ export async function buildTennisResearchSlate(date, env = {}) {
         fullName: row.player2,
         abbr: tennisPlayerAbbr(row.player2),
         logo: p2Rank?.headshot || null,
-        canonicalId: p2Rank?.espnId || tennisNameKey(row.player2),
+        canonicalId: p2Rank.fbis_player_id,
+        countryCode: p2Rank.country,
+        headshotUrl: p2Rank.headshot || null,
+        rankingAsOf: p2Rank.rankDate || null,
+        rankingSource: p2Rank.rankSource || null,
         rank: p2Rank?.rank ?? null,
         rankingPoints: p2Rank?.points ?? null,
-        imageSource: p2Rank?.headshot ? "ESPN_TENNIS_RANKINGS" : null,
+        imageSource: p2Rank?.headshot ? "OFFICIAL_TENNIS_PLAYER" : null,
       },
       home: {
         name: row.player1,
         fullName: row.player1,
         abbr: tennisPlayerAbbr(row.player1),
         logo: p1Rank?.headshot || null,
-        canonicalId: p1Rank?.espnId || tennisNameKey(row.player1),
+        canonicalId: p1Rank.fbis_player_id,
+        countryCode: p1Rank.country,
+        headshotUrl: p1Rank.headshot || null,
+        rankingAsOf: p1Rank.rankDate || null,
+        rankingSource: p1Rank.rankSource || null,
         rank: p1Rank?.rank ?? null,
         rankingPoints: p1Rank?.points ?? null,
-        imageSource: p1Rank?.headshot ? "ESPN_TENNIS_RANKINGS" : null,
+        imageSource: p1Rank?.headshot ? "OFFICIAL_TENNIS_PLAYER" : null,
       },
       model: {
         id: row.pure_model_id || "TENNIS-FBIS-v2-CONTEXT",
@@ -657,6 +689,7 @@ export async function buildTennisResearchSlate(date, env = {}) {
       projectionUnavailable: p1Prob == null,
       publicationStatus: "RESEARCH_PUBLISHABLE",
       tennisProjection: {
+        eventIntegrity: { valid: true, ...integrity.proof },
         player1: row.player1,
         player2: row.player2,
         player1WinProb: p1Prob,
@@ -743,7 +776,7 @@ export async function buildTennisResearchSlate(date, env = {}) {
       matchupFactors: [
         ...(p1Rank?.rank != null && p2Rank?.rank != null ? [{
           id: "ranking", label: "Current ranking", edge: p1Rank.rank < p2Rank.rank ? tennisPlayerAbbr(row.player1) : p2Rank.rank < p1Rank.rank ? tennisPlayerAbbr(row.player2) : "EVEN",
-          value: Math.abs(Number(p1Rank.rank) - Number(p2Rank.rank)), detail: `${row.player1} #${p1Rank.rank} · ${row.player2} #${p2Rank.rank}`, source: "ESPN tennis rankings"
+          value: Math.abs(Number(p1Rank.rank) - Number(p2Rank.rank)), detail: `${row.player1} #${p1Rank.rank} · ${row.player2} #${p2Rank.rank}`, source: p1Rank.rankSource || "Official tennis rankings"
         }] : []),
         ...(p1Prob != null ? [{
           id: "pure-model", label: "Pure win probability", edge: p1Prob >= .5 ? tennisPlayerAbbr(row.player1) : tennisPlayerAbbr(row.player2),
@@ -764,7 +797,7 @@ export async function buildTennisResearchSlate(date, env = {}) {
       lean: null,
       authorized: false,
     };
-  }));
+  }))).filter(Boolean);
   return {
     sport: "tennis",
     date,
@@ -774,6 +807,8 @@ export async function buildTennisResearchSlate(date, env = {}) {
       configured: true,
       source: "D1 tennis_v2_research_decisions",
       records: games.length,
+      withheld: blocked.length,
+      blockedEvents: blocked,
       modelId: "TENNIS-FBIS-v2-CONTEXT",
       maturity: "RESEARCH",
       canQualify: false,
@@ -865,7 +900,7 @@ export async function buildTodayBoard(
         sport,
         palUnavailableReason: g.bpp ? g.palUnavailableReason : palReason,
       }));
-      if (env.DB) {
+      if (env.DB && sport !== "tennis") {
         try {
           const { attachActionIntelToGames } = await import("./boardActionIntel.js");
           const attached = await attachActionIntelToGames(slateGames, env.DB);

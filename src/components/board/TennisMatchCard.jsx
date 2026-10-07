@@ -2,21 +2,30 @@ import { useState } from "react";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
 import "./tennisMatchCard.css";
 
-const n=v=>{const x=Number(v);return Number.isFinite(x)?x:null};
+const n=v=>{if(v==null||v==="")return null;const x=Number(v);return Number.isFinite(x)?x:null};
 const pct=v=>n(v)==null?"—":`${(n(v)*100).toFixed(1)}%`;
 const probPct=v=>n(v)==null?"—":`${n(v).toFixed(1)}%`;
 const odds=v=>{const x=n(v);if(x==null)return"—";const q=Math.round(x);return q>0?`+${q}`:String(q)};
 const line=v=>{const x=n(v);if(x==null)return"—";return x>0?`+${x}`:String(x)};
 const fair=p=>{const x=n(p);if(x==null||x<=0||x>=1)return"—";const a=x>=.5?-100*x/(1-x):100*(1-x)/x;return odds(a)};
-const playerMeta=(p,tour)=>{const r=n(p?.rank),pts=n(p?.rankingPoints);return [r!=null?`${tour} #${Math.round(r)}`:`${tour} RANK —`,pts!=null?`${Math.round(pts).toLocaleString()} points`:"POINTS —"].join("  |  ")};
+const playerMeta=(p,tour)=>{const r=n(p?.rank),pts=n(p?.rankingPoints);return [r!=null&&r>0?`${tour} #${Math.round(r)}`:`${tour} RANK —`,pts!=null?`${Math.round(pts).toLocaleString()} points`:"POINTS —"].join("  |  ")};
 const COUNTRY_COLORS=Object.freeze({US:"#234f9b",GB:"#17365d",ES:"#aa151b",FR:"#244aa5",IT:"#167a45",DE:"#343434",AU:"#145a32",CA:"#b31b34",CN:"#b7192f",JP:"#8b2331",KR:"#1f4e79",RS:"#8a1538",HR:"#174a8b",PL:"#b31b34",CZ:"#174a8b",AR:"#3f7cac",BR:"#1e6b3a",CH:"#b31b34",NL:"#d05a1f",BE:"#222f5b",AT:"#9a1e2e",GR:"#28528a"});
 const countryColor=(code)=>COUNTRY_COLORS[String(code||"").trim().toUpperCase()]||"#12304a";
 const venueRows=(offers=[])=>{const by=new Map();for(const o of offers||[]){const source=String(o.source||"").toUpperCase();if(!source)continue;if(!by.has(source))by.set(source,{source,ml:{},spread:{},total:{}});const r=by.get(source),m=String(o.marketFamily||"");if(m==="moneyline")r.ml[o.side]=o;if(m==="spread")r.spread[o.side]=o;if(m==="total")r.total[o.side]=o;}return [...by.values()]};
 const offerText=o=>!o?"—":[o.line==null?null:line(o.line),o.americanOdds==null?null:odds(o.americanOdds)].filter(Boolean).join(" ")||"—";
 const splitRow=(market,side,row)=>row?<tr><td>{market}</td><td>{side||"—"}</td><td>{row.ticketPct==null?"—":`${Math.round(row.ticketPct)}%`}</td><td>{row.moneyPct==null?"—":`${Math.round(row.moneyPct)}%`}</td><td className={Number(row.moneyTicketGap)>=0?"tmc-good":"tmc-bad"}>{row.moneyTicketGap==null?"—":`${Number(row.moneyTicketGap)>0?"+":""}${Math.round(row.moneyTicketGap)}%`}</td></tr>:null;
 
+const COUNTRY_CODES={POL:"PL",USA:"US",GBR:"GB",ESP:"ES",FRA:"FR",ITA:"IT",GER:"DE",DEU:"DE",AUS:"AU",CAN:"CA",CHN:"CN",JPN:"JP",KOR:"KR",SRB:"RS",CRO:"HR",HRV:"HR",CZE:"CZ",ARG:"AR",BRA:"BR",SUI:"CH",CHE:"CH",NED:"NL",NLD:"NL",BEL:"BE",AUT:"AT",GRE:"GR",GRC:"GR",UKR:"UA",ROU:"RO",RUS:"RU",BLR:"BY",KAZ:"KZ",DEN:"DK",DNK:"DK",NOR:"NO",SWE:"SE",FIN:"FI",LAT:"LV",LVA:"LV",EST:"EE",LTU:"LT",SVK:"SK",SLO:"SI",SVN:"SI",HUN:"HU",POR:"PT",PRT:"PT",TUR:"TR",RSA:"ZA",ZAF:"ZA",IND:"IN",TPE:"TW",TWN:"TW",HKG:"HK",MEX:"MX",COL:"CO",CHI:"CL",CHL:"CL",ECU:"EC",PER:"PE",URU:"UY",URY:"UY",ISR:"IL",EGY:"EG",NZL:"NZ",THA:"TH",IDN:"ID",PHI:"PH",PHL:"PH",VIE:"VN",VNM:"VN",UZB:"UZ",GEO:"GE",ARM:"AM",AZE:"AZ",BUL:"BG",BGR:"BG",BIH:"BA",MNE:"ME",LUX:"LU",IRL:"IE",CYP:"CY",MLT:"MT"};
+const countryCode=v=>COUNTRY_CODES[String(v).toUpperCase()]||String(v).toUpperCase();
+  const portraitUrl=(team,bp)=>team?.headshotUrl||team?.headshot_url||team?.photoUrl||team?.photo_url||team?.logo||bp?.headshotUrl||bp?.headshot_url||null;
+  const country=(team,bp)=>countryCode(String(team?.countryCode||team?.country_code||team?.country||bp?.countryCode||bp?.country_code||bp?.country||"").trim());
+  const flagUrl=(code)=>{const cc=String(code||"").trim().toLowerCase();return /^[a-z]{2}$/.test(cc)?`https://flagcdn.com/w80/${cc}.png`:null};
+  const flagFallback=(code)=>{const cc=String(code||"").trim().toUpperCase();if(!/^[A-Z]{2}$/.test(cc))return "";return String.fromCodePoint(...[...cc].map(ch=>127397+ch.charCodeAt(0)))};
+  const PlayerVisual=({team,bp})=>{const [failed,setFailed]=useState(false),src=portraitUrl(team,bp),cc=country(team,bp),flag=flagUrl(cc);return <div className="tmc-player-visual" style={{"--tmc-country":countryColor(cc),"--tmc-flag":flag?`url("${flag}")`:"none"}}>{src&&!failed?<img className="tmc-headshot" src={src} alt={`${team?.fullName||team?.name||"Tennis player"} headshot`} loading="lazy" decoding="async" onError={()=>setFailed(true)}/>:<div className="tmc-headshot-fallback" aria-label="Player headshot unavailable"><svg viewBox="0 0 100 120" role="img" aria-label="Neutral player silhouette"><circle cx="50" cy="34" r="22" fill="currentColor"/><path d="M8 116v-18c0-25 19-40 42-40s42 15 42 40v18z" fill="currentColor"/></svg></div>}<span className="tmc-country" title={cc||"Country unavailable"}>{flag?<img src={flag} alt={`${cc} flag`}/>:flagFallback(cc)||"—"}</span></div>};
+
 export default function TennisMatchCard({game,open=false,onToggle,renderDetail=null}){
   const away=game?.away||{},home=game?.home||{},t=game?.tennisProjection||{},ref=game?.market?.reference||{},intel=game?.actionIntel||{};
+  if(t.eventIntegrity?.valid!==true)return <article className="tmc" role="status">Tennis card withheld: event identity or projection provenance is unverified.</article>;
   const tour=String(game?.tour||t?.tour||"TENNIS").toUpperCase();
   const pAway=n(t.player2WinProb),pHome=n(t.player1WinProb),mHome=n(t.marketPriorP1??ref?.noVig?.home),mAway=n(t.marketPriorP2??ref?.noVig?.away);
   const edgeHome=pHome!=null&&mHome!=null?(pHome-mHome)*100:null,edgeAway=pAway!=null&&mAway!=null?(pAway-mAway)*100:null;
@@ -38,11 +47,6 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const recent=(p)=>(p?.recentForm||[]);
   const formRecord=(p)=>{const xs=recent(p).slice(0,5).map(x=>String(x?.result||"").toUpperCase()).filter(x=>x==="W"||x==="L");return xs.length?`${xs.filter(x=>x==="W").length}–${xs.filter(x=>x==="L").length}`:null};
   const formTokens=(p)=>recent(p).length?recent(p).slice(0,5).map((x,i)=>{const r=String(x?.result||"").toUpperCase();return <span key={i} className={r==="W"?"tmc-form-win":r==="L"?"tmc-form-loss":"tmc-form-unknown"}>{r||"—"}</span>}):<span className="tmc-form-unknown">—</span>;
-  const portraitUrl=(team,bp)=>team?.headshotUrl||team?.headshot_url||team?.photoUrl||team?.photo_url||bp?.headshotUrl||bp?.headshot_url||null;
-  const country=(team,bp)=>String(team?.countryCode||team?.country_code||team?.country||bp?.countryCode||bp?.country_code||bp?.country||"").trim();
-  const flagUrl=(code)=>{const cc=String(code||"").trim().toLowerCase();return /^[a-z]{2}$/.test(cc)?`https://flagcdn.com/w80/${cc}.png`:null};
-  const flagFallback=(code)=>{const cc=String(code||"").trim().toUpperCase();if(!/^[A-Z]{2}$/.test(cc))return "";return String.fromCodePoint(...[...cc].map(ch=>127397+ch.charCodeAt(0)))};
-  const PlayerVisual=({team,bp})=>{const [failed,setFailed]=useState(false),src=portraitUrl(team,bp),cc=country(team,bp),flag=flagUrl(cc);return <div className="tmc-player-visual" style={{"--tmc-country":countryColor(cc),"--tmc-flag":flag?`url("${flag}")`:"none"}}>{src&&!failed?<img className="tmc-headshot" src={src} alt={`${team?.fullName||team?.name||"Tennis player"} headshot`} loading="lazy" decoding="async" onError={()=>setFailed(true)}/>:<div className="tmc-headshot-fallback" aria-label="Player headshot unavailable"><span aria-hidden="true">♙</span></div>}<span className="tmc-country" title={cc||"Country unavailable"}>{flag?<img src={flag} alt={`${cc} flag`}/>:flagFallback(cc)||"—"}</span></div>};
   return <article className="tmc">
     <header className="tmc-top"><div><b>TENNIS</b><strong>{t.tournament||tour}</strong><span>{tour}</span><span>{surface||"SURFACE —"}</span></div><div><span>{time} CT</span><em>{status.includes("RESEARCH")?"RESEARCH":status}</em></div></header>
     <section className="tmc-hero">

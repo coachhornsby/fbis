@@ -13,7 +13,7 @@ test("Tennis card actually renders populated recent form and missing-form fallba
   const server=await createServer({configFile:false,plugins:[react()],optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true},appType:"custom"});
   try {
     const {default:TennisMatchCard}=await server.ssrLoadModule("/src/components/board/TennisMatchCard.jsx");
-    const game={id:"render-regression",sport:"tennis",tour:"ATP",home:{name:"Home Player",countryCode:"US"},away:{name:"Away Player",countryCode:"ES"},tennisProjection:{playerBank:{players:[{recentForm:[{result:"W"},{result:"L"},{result:"W"}]},{recentForm:[{result:"L"}]}]}}};
+    const game={id:"render-regression",sport:"tennis",tour:"ATP",home:{name:"Home Player",countryCode:"USA"},away:{name:"Away Player",countryCode:"POL"},tennisProjection:{eventIntegrity:{valid:true},playerBank:{players:[{recentForm:[{result:"W"},{result:"L"},{result:"W"}]},{recentForm:[{result:"L"}]}]}}};
     const populated=renderToStaticMarkup(createElement(TennisMatchCard,{game}));
     assert.match(populated,/Home Player/);
     assert.match(populated,/Away Player/);
@@ -21,7 +21,14 @@ test("Tennis card actually renders populated recent form and missing-form fallba
     assert.match(populated,/0–1/);
     assert.match(populated,/RECENT FORM \(LAST 5\)/);
     assert.match(populated,/Player headshot unavailable/);
-    const missing=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,tennisProjection:{}}}));
+    assert.match(populated,/Neutral player silhouette/);
+    assert.match(populated,/flagcdn.com\/w80\/pl.png/);
+    assert.match(populated,/flagcdn.com\/w80\/us.png/);
+    assert.doesNotMatch(populated,/ATP #0|0 points|♙/);
+    const withheld=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,tennisProjection:{player1WinProb:.764,player2WinProb:.236}}}));
+    assert.match(withheld,/withheld/);
+    assert.doesNotMatch(withheld,/76.4|FAIR ML|WIN PROBABILITY/);
+    const missing=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,tennisProjection:{eventIntegrity:{valid:true}}}}));
     assert.equal((missing.match(/Recent form unavailable/g)||[]).length,2);
   } finally { await server.close(); }
 });

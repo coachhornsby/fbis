@@ -35,7 +35,7 @@ export default function BoardGrid({
   };
 
   if (!games.length) {
-    return <div className="empty">No games on the board for this date.</div>;
+    return <div className="empty">{sport === "tennis" ? "No verified Tennis cards available. Unverified event identities or projection provenance are withheld." : "No games on the board for this date."}</div>;
   }
 
   return (

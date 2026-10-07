@@ -118,7 +118,7 @@ test("ACTION ATP/WTA competitor schema normalizes player identity and no-vig mon
   assert.equal(row.consensus.moneylineHome,327);
   assert.equal(row.consensus.moneylineAway,-479);
   assert.ok(Math.abs(row.marketQuality.noVig.moneylineHome-.220628)<1e-6);
-  assert.equal(row.publicBetting.moneylineHome.ticketPct,undefined);
+  assert.equal(row.publicBetting.moneylineHome,null);
 });
 
 
@@ -192,7 +192,7 @@ test("prospective validation cannot authorize wagers",()=>{
 test("game/set workload fatigue is explicit and penalizes heavy recent load",()=>{
   const light=tennisContextServeAdjustment({gamesLast3Days:30,setsLast3Days:3},{});
   const heavy=tennisContextServeAdjustment({gamesLast3Days:95,gamesLast7Days:170,setsLast3Days:11,setsLast7Days:20},{});
-  assert.equal(light.parts.gamesFatigue3d,undefined);
+  assert.equal(Math.abs(light.parts.gamesFatigue3d),0);
   assert.ok(heavy.total<0);
   assert.ok(heavy.parts.gamesFatigue3d<0);
   assert.ok(heavy.parts.setsFatigue7d<0);
