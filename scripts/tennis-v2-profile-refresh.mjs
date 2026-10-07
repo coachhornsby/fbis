@@ -3,7 +3,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { TennisDeepState } from "../functions/lib/tennisTwoSidedV11.js";
 
-const YEARS=String(process.env.TENNIS_PROFILE_YEARS||"2024,2025,2026").split(",").map(Number).filter(Number.isFinite);
+const CURRENT_YEAR=new Date().getUTCFullYear();
+const years=(raw,start)=>raw?String(raw).split(",").map(Number).filter(Number.isFinite):Array.from({length:CURRENT_YEAR-start+1},(_,i)=>start+i);
+const ATP_YEARS=years(process.env.TENNIS_ATP_PROFILE_YEARS,2015);
+const ATP_CHALL_YEARS=years(process.env.TENNIS_ATP_CHALL_YEARS,2020);
+const WTA_YEARS=years(process.env.TENNIS_WTA_PROFILE_YEARS,2024);
 const OUT=process.env.TENNIS_PROFILE_SQL||"artifacts/tennis-v2-current-profiles.sql";
 const SUMMARY=process.env.TENNIS_PROFILE_SUMMARY||"artifacts/tennis-v2-current-profiles-summary.json";
 const MIRROR="https://raw.githubusercontent.com/Aneeshers/tennis-sackmann-archive/main";
@@ -60,15 +64,31 @@ function styleScores(profile,tour){
 }
 
 const all=[];
-for(const tour of ["atp","wta"])for(const year of YEARS){
+const sourceLoads=[];
+async function loadClass({tour,year,file,sourceClass}){
+  const url=`${MIRROR}/${tour}/${file}`;
   try{
-    const txt=await fetchText(`${MIRROR}/${tour}/${tour}_matches_${year}.csv`);
-    for(const r of parseCsv(txt))all.push({...r,_tour:tour,_year:year});
-    process.stderr.write(`loaded ${tour} ${year}
-`);
-  }catch(e){process.stderr.write(`skip ${tour} ${year}: ${e.message}
-`)}
+    const txt=await fetchText(url);
+    const rows=parseCsv(txt);
+    if(!rows.length)throw new Error("zero rows");
+    const required=["tourney_date","tourney_level","winner_id","winner_name","loser_id","loser_name","w_svpt","l_svpt","w_SvGms","l_SvGms"];
+    const missing=required.filter(k=>!(k in rows[0]));
+    if(missing.length)throw new Error("missing columns "+missing.join(","));
+    const usable=rows.filter(r=>r.w_svpt!==""&&r.l_svpt!==""&&r.w_SvGms!==""&&r.l_SvGms!=="").length;
+    const min=sourceClass==="challenger"?.95:.80;
+    if(usable/rows.length<min)throw new Error(`serve stat coverage ${(usable/rows.length).toFixed(3)} below ${min}`);
+    if(sourceClass==="challenger"&&!rows.some(r=>String(r.tourney_level)==="C"))throw new Error("challenger C level absent");
+    for(const r of rows)all.push({...r,_tour:tour,_year:year,_sourceClass:sourceClass});
+    sourceLoads.push({tour,year,sourceClass,url,rows:rows.length,usableServeRows:usable,usableServePct:usable/rows.length});
+    process.stderr.write(`loaded ${tour} ${sourceClass} ${year}: ${rows.length}\n`);
+  }catch(e){
+    sourceLoads.push({tour,year,sourceClass,url,rows:0,error:e.message});
+    throw new Error(`required ${tour} ${sourceClass} ${year} failed: ${e.message}`);
+  }
 }
+for(const year of ATP_YEARS)await loadClass({tour:"atp",year,file:`atp_matches_${year}.csv`,sourceClass:"tour"});
+for(const year of ATP_CHALL_YEARS)await loadClass({tour:"atp",year,file:`atp_matches_qual_chall_${year}.csv`,sourceClass:"challenger"});
+for(const year of WTA_YEARS)await loadClass({tour:"wta",year,file:`wta_matches_${year}.csv`,sourceClass:"tour"});
 all.sort((a,b)=>String(a.tourney_date).localeCompare(String(b.tourney_date))||String(a.match_num||"").localeCompare(String(b.match_num||"")));
 
 const states={atp:new TennisDeepState("atp"),wta:new TennisDeepState("wta")};
@@ -132,7 +152,7 @@ for(const tour of ["atp","wta"]){
     }
   }
 }
-const currentYear=Math.max(...YEARS);
+const currentYear=CURRENT_YEAR;
 const tourEnv={};
 for(const tour of ["atp","wta"]){
   const rows=[...tournaments.values()].filter(t=>t.tour===tour&&t.year===currentYear).flatMap(t=>t.rows);
@@ -188,6 +208,7 @@ const summary={
   generatedAt:now,cutoffCT:cutoff,
   source:{name:"Jeff Sackmann / Tennis Abstract archive mirror",license:"CC BY-NC-SA 4.0",productionDependency:false,permittedUse:"research/backtest/private research only"},
   profiles:profileRows.length,playerBank:bankByPlayer.size,matchHistory:historyRows.length,players:{atp:meta.atp.size,wta:meta.wta.size},speedRows:speedRows.length,
+  coverage:{atpTourYears:ATP_YEARS,atpChallengerYears:ATP_CHALL_YEARS,wtaTourYears:WTA_YEARS,sourceLoads},
   integrity:{sameDayExcluded:true,futureRowsExcluded:true,cutoff:sourceAsOf},
   missingByDesign:["travelKm7Days","timeZonesCrossed7Days","minutesLast3Days","minutesLast7Days","injuryStatus","recentServeSpeedDeltaKph","indoor","altitudeM"],
 };
