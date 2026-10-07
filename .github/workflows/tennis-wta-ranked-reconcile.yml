@@ -39,7 +39,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       WTA_API_BASE: https://api.wtatennis.com/tennis
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4.1.0
         with: { node-version: "22", cache: "npm" }
       - run: npm ci
