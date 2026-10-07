@@ -216,8 +216,12 @@ const gameContexts=(await mapLimit(gameIds,6,async gameId=>{
 })).filter(Boolean);
 
 const rejects={};const inc=k=>rejects[k]=(rejects[k]||0)+1;
-for(const g of gameContexts)if(g.reject)inc(g.reject);
-const usableGames=gameContexts.filter(g=>!g.reject);
+for(const g of gameContexts){
+  if(g?.error&&!g.reject)g.reject="GAME_CONTEXT_ERROR";
+  if(!g?.reject&&(!g?.homeSp||!g?.awaySp||!Array.isArray(g?.homeLine)||!Array.isArray(g?.awayLine)))g.reject="INCOMPLETE_GAME_CONTEXT";
+  if(g?.reject)inc(g.reject);
+}
+const usableGames=gameContexts.filter(g=>!g.reject&&g.homeSp&&g.awaySp&&Array.isArray(g.homeLine)&&Array.isArray(g.awayLine));
 const byOfficialDate=new Map();for(const g of usableGames){if(!byOfficialDate.has(g.officialDate))byOfficialDate.set(g.officialDate,[]);byOfficialDate.get(g.officialDate).push(g)}
 
 const projectionRows=[];
