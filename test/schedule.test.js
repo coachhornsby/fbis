@@ -189,4 +189,11 @@ describe("prospective Cloudflare recovery", () => {
     await assert.rejects(recoverCurrentPipeline(env, controller, request, now), /failed HTTP 207/);
     assert.equal(m.writes.length, 0);
   });
+  it("enforces a hard cycle deadline so recovery cannot overlap the next cron", async () => {
+    const m = mock(health("missed"));
+    let ticks = 0;
+    const clock = () => ticks++ === 0 ? 0 : 480001;
+    await assert.rejects(recoverCurrentPipeline(env, controller, m.request, now, clock), /time budget exhausted/);
+    assert.equal(m.writes.length, 0);
+  });
 });
