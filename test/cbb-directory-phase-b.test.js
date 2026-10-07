@@ -10,6 +10,8 @@ test("CBB Phase B schema is research/SHADOW only",()=>{
  assert.match(s,/CHECK\(status IN \('AVAILABLE','QUESTIONABLE','DOUBTFUL','OUT','SUSPENDED','UNKNOWN'\)\)/);
  assert.match(s,/future_membership_leaks/);
  assert.match(s,/post_tip_observations/);
+ const t=readFileSync("migrations/0096_cbb_phase_b_future_transfer_leakage.sql","utf8");
+ assert.match(t,/future_transfer_leaks/);
 });
 test("CBB Phase B builder never infers availability from DNP or minutes",()=>{
  const s=readFileSync("scripts/cbb-directory-phase-b.mjs","utf8");
@@ -44,4 +46,15 @@ test("migration 0084 records Phase B checkpoints",()=>{
  const s=readFileSync("migrations/0084_cbb_directory_phase_b.sql","utf8");
  assert.match(s,/CREATE TABLE IF NOT EXISTS cbb_directory_phase_b_runs/);
  assert.match(s,/0084_cbb_directory_phase_b/);
+});
+
+
+test("bulk Phase B builder preserves availability and five-way PIT leakage gates",()=>{
+ const s=readFileSync("scripts/cbb-directory-phase-b-bulk.mjs","utf8");
+ assert.match(s,/availability:\{verified:0,unknown:/);
+ assert.match(s,/futureTransferLeaks:0/);
+ assert.match(s,/TRANSFER_IDENTITY_LINK/);
+ assert.match(s,/prior-season baseline only when ESPN athlete_id and current team both match/);
+ assert.match(s,/totalsDefinitions:0/);
+ assert.doesNotMatch(s,/didNotPlay.*availability|active.*availability|DNP.*OUT/i);
 });
