@@ -9,7 +9,7 @@
 export const TENNIS_MATCH_MODEL_ID = "TENNIS-FBIS-v1";
 export const TENNIS_PLAYER_MODEL_ID = "TENNIS-PLAYER-v1";
 export const TENNIS_MODEL_VERSION = "v1-point-game-set-match-mc";
-export const TENNIS_MATURITY = "RESEARCH";
+export const TENNIS_MATURITY = "RESEARCH";\nimport { validateTennisProjectionProfile, noValidTennisProjection } from "./tennisPlayerDataIntegrity.js";
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
