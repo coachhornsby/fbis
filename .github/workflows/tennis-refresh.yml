@@ -1,0 +1,90 @@
+name: Tennis canonical refresh
+
+on:
+  schedule:
+    # Poll current/ongoing Tennis sources hourly. No human dispatch is required.
+    - cron: "17 * * * *"
+    # Rebuild the full historical+current canonical corpus every six hours.
+    - cron: "47 2,8,14,20 * * *"
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Refresh scope
+        type: choice
+        options: [current, full]
+        default: current
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tennis-canonical-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: REFRESH TENNIS CANONICAL DATA
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TENNIS_REFRESH_OUT: artifacts/tennis-refresh
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Resolve refresh scope
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULED_EXPRESSION: ${{ github.event.schedule }}
+          INPUT_SCOPE: ${{ github.event.inputs.scope }}
+        run: |
+          set -euo pipefail
+          scope="${INPUT_SCOPE:-current}"
+          if [ "${EVENT_NAME}" = "schedule" ] && [ "${SCHEDULED_EXPRESSION}" = "47 2,8,14,20 * * *" ]; then
+            scope=full
+          fi
+          echo "scope=${scope}" >> "$GITHUB_OUTPUT"
+          echo "Tennis refresh scope=${scope}"
+      - name: Acquire, canonicalize, reconcile, and rebuild
+        run: node scripts/tennis-auto-refresh.mjs --scope=${{ steps.scope.outputs.scope }}
+      - name: Require refresh health
+        run: |
+          set -euo pipefail
+          jq -e '.ok == true and .canonicalMatches > 0 and .players > 0 and .latestObservation != "" and .bet == false' artifacts/tennis-refresh/refresh-health.json >/dev/null
+          jq -c '{scope,refreshedAt,files,rawObservations,canonicalMatches,players,latestObservation,byKind,bet}' artifacts/tennis-refresh/refresh-health.json
+      - name: Persist immutable refresh snapshot to R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN}" && test -n "${CLOUDFLARE_ACCOUNT_ID}"
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          scope="${{ steps.scope.outputs.scope }}"
+          base="tennis/canonical/${scope}/${stamp}"
+          for f in source-manifest.json refresh-health.json canonical-matches.ndjson tennis_serve_index.json; do
+            npx wrangler r2 object put "fbis-archive/${base}/${f}" --file="artifacts/tennis-refresh/${f}" --remote
+          done
+      - name: Update latest R2 aliases
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          scope="${{ steps.scope.outputs.scope }}"
+          for f in source-manifest.json refresh-health.json canonical-matches.ndjson tennis_serve_index.json; do
+            npx wrangler r2 object put "fbis-archive/tennis/canonical/${scope}/latest/${f}" --file="artifacts/tennis-refresh/${f}" --remote
+          done
+      - name: Upload workflow proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tennis-refresh-${{ github.run_id }}
+          path: artifacts/tennis-refresh/
+          if-no-files-found: warn
+          retention-days: 14
