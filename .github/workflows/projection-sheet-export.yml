@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Warm Ballpark Pal cache for MLB projection window
         # Ballpark Pal is MLB-only enrichment. Its outage must never suppress
