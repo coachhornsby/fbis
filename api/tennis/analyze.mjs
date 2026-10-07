@@ -80,22 +80,27 @@ export default async function handler(req, res) {
     let playerA = resolve(index, q.a);
     let playerB = resolve(index, q.b);
 
-    // Index miss → build the player from the live source's recent matches (ITF, Challenger, new
-    // pros). Only possible with a live key; without one we still have to 404.
-    let coldA = false, coldB = false;
-    if ((!playerA || !playerB) && LIVE && q.live !== '0') {
-      const [ra, rb] = await Promise.all([
-        resolveWithColdStart(LIVE, playerA, q.a).catch(() => ({ player: playerA, coldStart: false })),
-        resolveWithColdStart(LIVE, playerB, q.b).catch(() => ({ player: playerB, coldStart: false })),
-      ]);
-      playerA = ra.player; coldA = ra.coldStart;
-      playerB = rb.player; coldB = rb.coldStart;
-    }
+    // Index miss → attempt an observation-backed live profile. Generic neutral profiles are forbidden.
+    let coldA = false, coldB = false, diagA = null, diagB = null;
     if (!playerA || !playerB) {
-      res.status(404).json({ error: 'player not found', a: !!playerA, b: !!playerB,
-        hint: LIVE ? 'not in the index and the live source has no recent matches for them'
-                   : 'not in the index; set APITENNIS_KEY or MATCHSTAT_KEY to read off-index players' });
-      return;
+      if (!LIVE || q.live === '0') {
+        res.status(422).json({ ok:false, code:'NO_VALID_PROJECTION', error:'INSUFFICIENT_PLAYER_DATA',
+          a:!!playerA,b:!!playerB,hint:'historical profile missing and live player data is unavailable' });
+        return;
+      }
+      const ctxBase={surface:q.surface||'Hard',liveSource:LIVE_NAME};
+      const [ra,rb]=await Promise.all([
+        resolveWithColdStart(LIVE,playerA,q.a,{...ctxBase,rank:num(q.rankA)}).catch(()=>({player:null,coldStart:false,insufficient:true,reason:'INSUFFICIENT_PLAYER_DATA'})),
+        resolveWithColdStart(LIVE,playerB,q.b,{...ctxBase,rank:num(q.rankB)}).catch(()=>({player:null,coldStart:false,insufficient:true,reason:'INSUFFICIENT_PLAYER_DATA'})),
+      ]);
+      playerA=ra.player; coldA=ra.coldStart; diagA=ra.diagnostics||null;
+      playerB=rb.player; coldB=rb.coldStart; diagB=rb.diagnostics||null;
+      if(ra.insufficient||rb.insufficient||!playerA||!playerB){
+        res.status(422).json({ok:false,code:'NO_VALID_PROJECTION',error:'INSUFFICIENT_PLAYER_DATA',
+          a:{resolved:!!playerA,diagnostics:diagA},b:{resolved:!!playerB,diagnostics:diagB},
+          hint:'off-index players require an observation-backed live profile; neutral defaults are not projection-eligible'});
+        return;
+      }
     }
     // Refresh recent form/fatigue from the live source (index stays the deep baseline). Never fatal.
     // Cold-start players are already built from live data — no need to re-fetch them.
