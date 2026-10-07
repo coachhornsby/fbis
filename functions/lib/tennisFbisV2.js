@@ -7,6 +7,7 @@ import { deepMatchupProfiles } from "./tennisTwoSidedV11.js";
 import { simulateTennisMatch } from "./tennisFbisV1.js";
 import { contextualizeMatchupProfiles, tennisContextServeAdjustment } from "./tennisContextV2.js";
 import { buildSharpMarketPrior, tennisMarketResidualProjection } from "./tennisMarketV2.js";
+import { validateTennisProjectionProfile, noValidTennisProjection } from "./tennisPlayerDataIntegrity.js";
 
 export const TENNIS_V2_MATCH_MODEL_ID="TENNIS-FBIS-v2-CONTEXT";
 export const TENNIS_V2_PLAYER_MODEL_ID="TENNIS-PLAYER-v2-CONTEXT";
