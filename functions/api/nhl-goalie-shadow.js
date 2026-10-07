@@ -281,7 +281,13 @@ export async function settle(db,date){
 }
 export async function summary(db){
   const [counts,metrics,splits,integrity]=await Promise.all([
-    retryDb(()=>db.prepare(`SELECT COUNT(*) n,SUM(CASE WHEN gate_fired=1 THEN 1 ELSE 0 END) gate_n,SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
+    retryDb(()=>db.prepare(`SELECT COUNT(*) n,
+      SUM(CASE WHEN gate_fired=1 THEN 1 ELSE 0 END) gate_n,
+      SUM(CASE WHEN gate_fired=1 AND temporal_integrity_passed=1 THEN 1 ELSE 0 END) valid_gate_n,
+      SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
+      SUM(CASE WHEN gate_fired=1 AND temporal_integrity_passed=1 AND graded_at IS NOT NULL THEN 1 ELSE 0 END) qualifying_graded_n,
+      SUM(CASE WHEN gate_fired=1 AND temporal_integrity_passed=1 AND graded_at IS NOT NULL AND goalie_usage_state='BOTH_CONFIRMED' THEN 1 ELSE 0 END) qualifying_confirmed_graded_n,
+      SUM(CASE WHEN gate_fired=1 AND temporal_integrity_passed=1 AND graded_at IS NOT NULL AND research_clv_probability_pp IS NOT NULL THEN 1 ELSE 0 END) qualifying_market_graded_n,
       SUM(CASE WHEN graded_at IS NULL THEN 1 ELSE 0 END) ungraded_n,
       SUM(CASE WHEN ABS(COALESCE(probability_delta,0))>0.000001 THEN 1 ELSE 0 END) shadow_diff_n,
       SUM(CASE WHEN ABS(COALESCE(probability_delta,0))<=0.000001 THEN 1 ELSE 0 END) shadow_equal_n,
@@ -301,15 +307,21 @@ export async function summary(db){
       SUM(CASE WHEN temporal_integrity_passed<>1 THEN 1 ELSE 0 END) violations FROM nhl_goalie_probability_shadow`).first())
   ]);
   const confirmed=(splits.results||[]).find(x=>x.goalie_usage_state==="BOTH_CONFIRMED");
+  const qualifyingCounts={
+    graded:Number(counts?.qualifying_graded_n||0),
+    confirmedStarter:Number(counts?.qualifying_confirmed_graded_n||0),
+    marketGraded:Number(counts?.qualifying_market_graded_n||0),
+  };
   return{
-    counts:counts||{},metrics:metrics||{},splits:splits.results||[],integrity:integrity||{},
+    counts:counts||{},qualifyingCounts,metrics:metrics||{},splits:splits.results||[],integrity:integrity||{},
     prospectiveGate:{
       version:PROSPECTIVE_GATE.gateVersion,
       minimums:PROSPECTIVE_GATE.minimums,
       nonInferiority:PROSPECTIVE_GATE.nonInferiority,
       stability:PROSPECTIVE_GATE.stability,
-      sampleReady:Number(metrics?.n||0)>=PROSPECTIVE_GATE.minimums.gradedGames,
-      confirmedSampleReady:Number(confirmed?.graded_n||0)>=PROSPECTIVE_GATE.minimums.confirmedStarterGames,
+      sampleReady:qualifyingCounts.graded>=PROSPECTIVE_GATE.minimums.gradedGames,
+      confirmedSampleReady:qualifyingCounts.confirmedStarter>=PROSPECTIVE_GATE.minimums.confirmedStarterGames,
+      marketSampleReady:qualifyingCounts.marketGraded>=PROSPECTIVE_GATE.minimums.marketGradedGamesForMarketDiagnostics,
       zeroIntegrityViolations:Number(integrity?.violations||0)===0,
       eligible:false,automaticPromotion:false,operatorApprovalRequired:true
     },
