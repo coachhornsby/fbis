@@ -20,3 +20,5 @@ jobs:
         run: node scripts/kbo-phase4b1-populate.mjs
       - name: Probe raw GameCenter player identity fields
         run: node scripts/kbo-player-id-probe.mjs
+      - name: Probe official KBO P_ID directory
+        run: python scripts/kbo-pid-directory-probe.py
