@@ -207,7 +207,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     quality: game.quality
       ? { ...game.quality, score: canonicalQualityScore, flags: qualityFlags, components: qualityComponents }
       : { flags: qualityFlags, components: qualityComponents, score: canonicalQualityScore },
-    market,
+    market: { ...market, venueOffers: Array.isArray(game.tennisProjection?.venueOffers) ? game.tennisProjection.venueOffers : (market?.venueOffers || []) },
     marketAvailable: marketAvail.marketAvailable,
     executionMarketAvailable: marketAvail.executionMarketAvailable,
     referenceMarketAvailable: marketAvail.referenceMarketAvailable,
