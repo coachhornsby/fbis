@@ -1,0 +1,38 @@
+name: Apify account health reconciliation
+on:
+  schedule:
+    - cron: '15 * * * *'
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: apify-account-health
+  cancel-in-progress: false
+jobs:
+  account-health:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Refresh account telemetry without enabling spend
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          # Retry only this account read after the successful release.
+          for attempt in $(seq 1 12); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 30 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -o "$body" -w '%{http_code}' https://fbis-myz.pages.dev/api/apify-account-refresh || true)"
+            if [ "$code" = '200' ] && jq -e '.ok==true and .readOnlyProviderOperation==true' "$body" >/dev/null; then
+              jq '{ok,account,providerLimitUsd,readOnlyProviderOperation,acquisitionsEnabled}' "$body"
+              exit 0
+            fi
+            echo "Account reconciliation unavailable attempt=$attempt http=$code; paid launches remain fail closed"
+            sleep 10
+          done
+          exit 1

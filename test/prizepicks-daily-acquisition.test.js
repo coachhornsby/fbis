@@ -7,11 +7,14 @@ test("PrizePicks workflow has redundant guarded morning schedules and a workflow
   assert.match(y,/cron: "5,35 13,14,15,16 \* \* \*"/);
   assert.doesNotMatch(y,/timezone:/);
   assert.match(y,/push:\s*\n\s+branches: \[main\]\s*\n\s+paths: \["\.github\/workflows\/prizepicks-targeted-props\.yml"\]/);
-  assert.match(y,/Recover an existing reserved acquisition without another paid Actor call/);
+  assert.match(y,/Reuse existing daily reservation without a replacement paid call/);
   assert.match(y,/RECOVER_ARTIFACT/);
   assert.match(y,/Reserve today's single paid PrizePicks acquisition/);
   assert.match(y,/Pull full PrizePicks board once/);
   assert.doesNotMatch(y,/playerNames:\$players/);
+  assert.doesNotMatch(y,/run-sync-get-dataset-items|listLeagues/);
+  assert.match(y,/api\/apify-acquire/);
+  assert.match(y,/bounded resumable batches/);
 });
 test("PrizePicks API enforces durable daily acquisition reservation",()=>{
   const s=fs.readFileSync("functions/api/prizepicks-props.js","utf8");

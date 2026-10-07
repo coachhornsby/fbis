@@ -1,3 +1,4 @@
+import { startPaidAcquisition, recordAcquisitionRun, captureAcquisitionRaw } from './externalAcquisition.js';
 /**
  * Action Network via Apify — SHADOW MARKET INTELLIGENCE only.
  *
@@ -1340,14 +1341,8 @@ export async function runActionApifyShadow(env, opts = {}) {
   const fetchImpl = opts.fetchImpl || globalThis.fetch;
   const authHeaders = { Authorization: `Bearer ${token}` };
 
-  const res = await fetchImpl(url, {
-    method: "POST",
-    headers: {
-      ...authHeaders,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
+  const res = await startPaidAcquisition(env, {source:'action',input,
+    component:opts.component || 'action-candidate',origin:opts.testId||'action-candidate',sport:(input.leagues||[]).join(','),fetchImpl,waitSecs:initialWaitSecs});
 
   if (!res.ok) {
     const bodyText = await res.text().catch(() => "");
@@ -1404,6 +1399,7 @@ export async function runActionApifyShadow(env, opts = {}) {
     }
   }
 
+  await recordAcquisitionRun(env,run);
   const status = run?.status || null;
   const datasetId = run?.defaultDatasetId || null;
   if (!datasetId || !successStatuses.has(String(status))) {
@@ -1419,6 +1415,14 @@ export async function runActionApifyShadow(env, opts = {}) {
     };
   }
 
+  let items;
+  if(runJson.rawKey){
+    const cached=await env.ARCHIVE.get(runJson.rawKey);
+    if(!cached)throw Error('immutable-raw-capture-missing');
+    const captured=await cached.json();
+    if(captured.runId!==runId||captured.datasetId!==datasetId)throw Error('immutable-raw-identity-mismatch');
+    items=captured.rows;
+  }else{
   const dsUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?format=json&clean=true`;
   const dsRes = await fetchImpl(dsUrl, { headers: { Authorization: `Bearer ${token}` } });
   if (!dsRes.ok) {
@@ -1432,12 +1436,14 @@ export async function runActionApifyShadow(env, opts = {}) {
       sourceClass: ACTION_APIFY_SOURCE_CLASS,
     };
   }
-  const items = await dsRes.json();
+  items = await dsRes.json();
+  }
   const list = Array.isArray(items) ? items : [];
+  await captureAcquisitionRaw(env,{run,rows:list});
   const { rows, malformed } = normalizeActionDataset(list, {
     runId,
-    receivedAt,
-    scrapedAt: run?.finishedAt || receivedAt,
+    receivedAt: run?.finishedAt || run?.startedAt,
+    scrapedAt: run?.finishedAt || run?.startedAt,
   });
   const actualEstimate = estimateActorCostUsd(input, { gamesReturned: rows.length });
   const budgetResult = budget.record({

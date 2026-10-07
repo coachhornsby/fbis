@@ -332,8 +332,8 @@ test("live runner refuses missing token and never logs secrets", async () => {
   assert.equal(denied.ok, false);
   assert.equal(denied.configured, true);
   assert.ok(!String(denied.detail || "").includes("TEST_TOKEN"));
-  assert.equal(calls.length, 1);
-  assert.match(calls[0].url, /api\.apify\.com/);
+  assert.equal(calls.length, 0);
+  assert.match(denied.detail, /ACQUISITION_DURABILITY_REQUIRED/);
 });
 
 test("CFB-FBIS-v2 qualification and wager auth remain disabled", () => {

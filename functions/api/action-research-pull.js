@@ -52,7 +52,7 @@ export async function onRequestGet(context){
   const opts=optsFrom(Object.fromEntries(u.searchParams.entries()));
   if(!opts.sport) return json({ok:false,error:"sport-required"},400);
   const d=db(context.env);
-  const researchEnv={...context.env,ACTION_APIFY_ENABLED:"true"};
+  const researchEnv=context.env;
   const plan=planCandidateCollection(researchEnv,opts);
   const mtd=await queryMonthToDateSpendUsd(d);
   const safety=evaluateSchedulerSafety(plan,{monthToDateCostUsd:mtd.mtdUsd});
@@ -66,7 +66,7 @@ export async function onRequestPost(context){
   const opts=optsFrom(body);
   if(!opts.sport) return json({ok:false,error:"sport-required"},400);
   const d=db(context.env);
-  const researchEnv={...context.env,ACTION_APIFY_ENABLED:"true"};
+  const researchEnv=context.env;
   const plan=planCandidateCollection(researchEnv,opts);
   const mtd=await queryMonthToDateSpendUsd(d);
   const safety=evaluateSchedulerSafety(plan,{monthToDateCostUsd:mtd.mtdUsd});

@@ -1,3 +1,4 @@
+import { startPaidAcquisition, recordAcquisitionRun, captureAcquisitionRaw, recordAcquisitionConsumer } from '../lib/externalAcquisition.js';
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { queryGames } from "../lib/store.js";
 import { loadFbisSlateForMatching } from "../lib/actionApifyEvidence.js";
@@ -120,7 +121,7 @@ export async function onRequestPost(context){
      const ownsReclaim=Number(reclaimed?.meta?.changes||0)===1;
      if(!ownsReclaim)return json({ok:true,executed:false,status:"actor_start_claimed",startClaimed:true,harvestRequired:false,runId,today},202);
    }
-   const actorPath=encodeURIComponent(ACTION_APIFY_ACTOR_ID),res=await fetch(`https://api.apify.com/v2/acts/${actorPath}/runs?waitForFinish=0`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify(input)});
+   const res=await startPaidAcquisition(context.env,{source:'action',input,component:'action-daily',sport:'shared',origin:runId});
    const startRaw=await res.text();let startBody={};try{startBody=JSON.parse(startRaw)}catch{}
    if(!res.ok){
      await db.exec("UPDATE shadow_collection_runs SET status='failed_start_daily',error_class='apify_start_http',error_message=?,finished_at=? WHERE id=?",[String(startBody?.error?.message||`http-${res.status}`).slice(0,400),new Date().toISOString(),runId]);
@@ -160,7 +161,7 @@ export async function onRequestPost(context){
  }
  if(!run.apify_run_id)return json({ok:false,status:"missing_apify_run_id",runId:run.id},500);
  const token=String(context.env.APIFY_TOKEN||context.env.APIFY_API_TOKEN||"").trim();if(!token)return json({ok:false,status:"apify_not_configured"},503);
- const rr=await fetch(`https://api.apify.com/v2/actor-runs/${encodeURIComponent(run.apify_run_id)}`,{headers:{Authorization:`Bearer ${token}`}});if(!rr.ok)return json({ok:false,status:"apify_poll_http",http:rr.status},502);const rj=await rr.json(),ar=rj.data||rj,status=String(ar.status||"");
+ const rr=await fetch(`https://api.apify.com/v2/actor-runs/${encodeURIComponent(run.apify_run_id)}`,{headers:{Authorization:`Bearer ${token}`}});if(!rr.ok)return json({ok:false,status:"apify_poll_http",http:rr.status},502);const rj=await rr.json(),ar=rj.data||rj,status=String(ar.status||"");await recordAcquisitionRun(context.env,ar);
  if(status==="READY"||status==="RUNNING")return json({ok:true,executed:false,status:"actor_running",runId:run.id,apifyRunId:run.apify_run_id},202);
  if(status!=="SUCCEEDED"&&status!=="SUCCEEDED_WITH_WARNINGS"){await finalizeRun(db,run,{status:"failed_daily",errorClass:"daily_actor_failure",errorMessage:`apify-run-${status||"unknown"}`});return json({ok:false,executed:true,status:"failed_daily",runId:run.id,apifyRunId:run.apify_run_id,actorStatus:status},502)}
  const datasetId=ar.defaultDatasetId||run.dataset_id;if(!datasetId){await finalizeRun(db,run,{status:"failed_daily",errorClass:"missing_dataset_id",errorMessage:"Apify succeeded without a dataset id"});return json({ok:false,status:"missing_dataset_id",runId:run.id},502)}
@@ -169,6 +170,7 @@ export async function onRequestPost(context){
  const items=await dr.json();
  let archiveKey=null;
  try{
+   await captureAcquisitionRaw(context.env,{run:ar,rows:Array.isArray(items)?items:[]});
    archiveKey=await archiveRawPull(context.env,{source:"action",date:today,runId:run.id,rows:Array.isArray(items)?items:[],meta:{apifyRunId:run.apify_run_id,datasetId,stableCollectedAt}});
  }catch(e){
    return json({ok:false,status:"raw_archive_failed",runId:run.id,apifyRunId:run.apify_run_id,datasetId,message:String(e?.message||e).slice(0,300)},503);
@@ -251,5 +253,6 @@ export async function onRequestPost(context){
  await finalizeRun(db,run,{status:"success_daily",datasetId,gamesReturned:norm.rows.length,matched,unmatched,written:eligible.length,malformed:norm.malformed,estimatedCostUsd:estimated});
  try{await upsertCostLedger(db,cost)}catch{}
  const canonical=await db.queryOne("SELECT COUNT(*) n FROM action_market_book_observations WHERE run_id=?",[run.id]);
+ await recordAcquisitionConsumer(context.env,{providerRunId:run.apify_run_id,component:'action-daily',accepted:Number(canonical?.n||0),duplicates:null,rejected:unmatched+norm.malformed});
  return json({ok:true,executed:true,status:"success_daily",runId:run.id,apifyRunId:run.apify_run_id,datasetId,gamesReturned:norm.rows.length,eligibleRows:eligible.length,matched,unmatched,observationsWritten:eligible.length,canonicalSeriesRows:Number(canonical?.n||0),recoveryReplay,todayRows,closeRows,propsWrittenThisBatch:propsBatch,estimatedCostUsd:estimated,collapsedDatasetDuplicates:Math.max(0,norm.rows.length-eligible.length),archiveKey},200);
 }

@@ -175,6 +175,7 @@ export async function onRequestGet(context) {
   const mode = String(url.searchParams.get("mode") || (sport ? "sport" : "top25")).toLowerCase();
 
   const where = [
+    "run_id IN (SELECT run_id FROM prizepicks_daily_acquisitions WHERE state='COMPLETE') AND julianday(collected_at) BETWEEN julianday('now','-24 hours') AND julianday('now')",
     "substr(start_time,1,10)=?",
     "fbis_projection IS NOT NULL",
     "line IS NOT NULL",

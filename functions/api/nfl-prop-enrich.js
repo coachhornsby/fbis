@@ -56,7 +56,7 @@ export async function onRequest(context){
   }
 
   const rows=(await context.env.DB.prepare(
-    "SELECT id,player_name,canonical_market,stat_type,line FROM prizepicks_prop_lines WHERE lower(sport)='nfl' AND substr(start_time,1,10)=?"
+    "SELECT id,player_name,canonical_market,stat_type,line FROM prizepicks_prop_lines WHERE run_id IN (SELECT run_id FROM prizepicks_daily_acquisitions WHERE state='COMPLETE') AND julianday(collected_at) BETWEEN julianday('now','-24 hours') AND julianday('now') AND lower(sport)='nfl' AND substr(start_time,1,10)=?"
   ).bind(resolved.date).all())?.results||[];
 
   // Fail closed: erase prior model enrichment for this slate before attaching the
