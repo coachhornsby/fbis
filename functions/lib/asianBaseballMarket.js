@@ -1,4 +1,4 @@
-import { persistNormalizedMarketBatch } from "./marketObservationLedger.js";
+import kboTeams from "../../data/teams/kbo.js";\nimport npbTeams from "../../data/teams/npb.js";\nimport { persistNormalizedMarketBatch } from "./marketObservationLedger.js";
 
 export const ASIAN_BASEBALL_ODDS_SPORT = Object.freeze({ npb:"baseball_npb", kbo:"baseball_kbo" });
 export const ASIAN_BASEBALL_MARKETS = Object.freeze(["h2h","spreads","totals"]);
@@ -62,20 +62,20 @@ export async function fetchAsianBaseballTheOdds({apiKey,league,fetchImpl=fetch,b
 }
 async function canonicalGames(db,league,events){
  if(!db?.prepare||!events.length)return[];const dates=[...new Set(events.map(e=>String(e.commence_time||"").slice(0,10)).filter(Boolean))];if(!dates.length)return[];
- const from=dates.sort()[0],to=dates.sort().at(-1);const q=await db.prepare("SELECT canonical_game_id,league,game_date,scheduled_start,home_team_id,away_team_id,home_team_name,away_team_name FROM asian_baseball_games WHERE league=? AND game_date BETWEEN ? AND ?").bind(String(league).toUpperCase(),from,to).all().catch(()=>({results:[]}));return q?.results||[];
+ const from=dates.sort()[0],to=dates.sort().at(-1);const q=await db.prepare("SELECT canonical_game_id,league,game_date,scheduled_start,home_team_id,away_team_id FROM asian_baseball_games WHERE league=? AND game_date BETWEEN ? AND ?").bind(String(league).toUpperCase(),from,to).all().catch(()=>({results:[]}));return q?.results||[];
 }
 export async function collectAsianBaseballMarket({env,league,now=new Date(),snapshotType="CURRENT"}={}){
  const db=env?.DB;if(!db?.prepare)return{ok:false,reason:"d1-unbound"};
  const L=String(league||"").toUpperCase();if(!["NPB","KBO"].includes(L))return{ok:false,reason:"invalid-league"};
- const meta=async k=>(await db.prepare("SELECT value FROM meta WHERE key=?").bind(k).first().catch(()=>null))?.value||null;
+ const meta=async k=>(await db.prepare("SELECT v FROM store_meta WHERE k=?").bind(k).first().catch(()=>null))?.v||null;
  const remaining=await meta("theodds_requests_remaining"),lastEmptyAt=await meta("asian_baseball_"+L.toLowerCase()+"_market_empty_at"),lastSuccessAt=await meta("asian_baseball_"+L.toLowerCase()+"_market_success_at");
  const gate=asianBaseballCollectionGate({remaining,lastEmptyAt,lastSuccessAt,now});if(!gate.ok)return{ok:true,skipped:true,...gate,league:L,remaining:n(remaining)};
  const live=await fetchAsianBaseballTheOdds({apiKey:env?.THEODDS_API_KEY,league:L});const at=new Date(now).toISOString();
- if(live.quota?.remaining!=null)await db.prepare("INSERT INTO meta(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind("theodds_requests_remaining",String(live.quota.remaining),at).run();
+ if(live.quota?.remaining!=null)await db.prepare("INSERT OR REPLACE INTO store_meta(k,v) VALUES(?,?)").bind("theodds_requests_remaining",String(live.quota.remaining)).run();
  if(!live.ok)return{...live,league:L,governance:ASIAN_BASEBALL_MARKET_GOVERNANCE};
- if(live.empty){await db.prepare("INSERT INTO meta(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind("asian_baseball_"+L.toLowerCase()+"_market_empty_at",at,at).run();return{ok:true,league:L,empty:true,quota:live.quota,offers:0,pinnacleObserved:false};}
+ if(live.empty){await db.prepare("INSERT OR REPLACE INTO store_meta(k,v) VALUES(?,?)").bind("asian_baseball_"+L.toLowerCase()+"_market_empty_at",at).run();return{ok:true,league:L,empty:true,quota:live.quota,offers:0,pinnacleObserved:false};}
  const games=await canonicalGames(db,L,live.events);const normalized=normalizeAsianBaseballTheOdds(live.events,{league:L,canonicalGames:games,collectedAt:at});
  const safe=normalized.offers.filter(o=>o.eventId);const persisted=await persistNormalizedMarketBatch(db,safe,{snapshotType,collectedAt:at});
- await db.prepare("INSERT INTO meta(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind("asian_baseball_"+L.toLowerCase()+"_market_success_at",at,at).run();
+ await db.prepare("INSERT OR REPLACE INTO store_meta(k,v) VALUES(?,?)").bind("asian_baseball_"+L.toLowerCase()+"_market_success_at",at).run();
  return{ok:true,league:L,events:live.events.length,offers:normalized.offers.length,persisted:persisted.inserted,unmatched:normalized.offers.length-safe.length,pinnacleObserved:normalized.pinnacleObserved,quota:live.quota,warnings:normalized.warnings,governance:ASIAN_BASEBALL_MARKET_GOVERNANCE};
 }
