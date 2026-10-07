@@ -1,0 +1,20 @@
+name: KBO Phase 4B.1 population probe
+on:
+  push:
+    branches:
+      - codex/kbo-phase4b1-population
+concurrency:
+  group: deploy-pages-production
+  cancel-in-progress: false
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - name: Probe official KBO 2025 history
+        run: node scripts/kbo-phase4b1-populate.mjs
