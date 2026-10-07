@@ -1,0 +1,32 @@
+name: FBIS economic cohort aggregation
+
+on:
+  schedule:
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: fbis-economic-cohort-aggregation
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Require credential
+        run: test -n "${HARVEST_SECRET:-}"
+      - name: Aggregate immutable canonical grades
+        run: |
+          set -euo pipefail
+          out="$(mktemp)"
+          code="$(curl -sS --max-time 90 -o "$out" -w "%{http_code}" -X POST             -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"             --data-binary '{"sport":"mlb"}' "$BASE/api/economic-cohorts")"
+          cat "$out"
+          test "$code" = "200"
+          jq -e '.ok==true' "$out" >/dev/null
