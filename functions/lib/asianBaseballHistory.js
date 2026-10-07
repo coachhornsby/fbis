@@ -100,10 +100,10 @@ export async function persistHistoricalGames(env,games=[],{observedAt=new Date()
       home_final_runs=COALESCE(excluded.home_final_runs,asian_baseball_games.home_final_runs),
       away_final_runs=COALESCE(excluded.away_final_runs,asian_baseball_games.away_final_runs),
       result_observed_at=COALESCE(asian_baseball_games.result_observed_at,excluded.result_observed_at),
-      last_fetched_at=excluded.last_fetched_at,parser_version=excluded.parser_version,is_final=excluded.is_final,updated_at=excluded.updated_at`)
+      last_fetched_at=excluded.last_fetched_at,parser_version=excluded.parser_version,is_final=excluded.is_final,updated_at=excluded.updated_at,\n      game_number=excluded.game_number,canonical_identity_version=excluded.canonical_identity_version`)
       .bind(g.canonicalGameId,g.league,g.season,g.sourceGameId||null,g.gameDate,g.scheduledStart||null,g.homeTeamId,g.awayTeamId,g.venue||null,g.status||"FINAL",
         g.homeFinalRuns,g.awayFinalRuns,g.inningsStatusJson?JSON.stringify(g.inningsStatusJson):null,g.sourceContract,g.sourceRef,observedAt,fetchedAt,fetchedAt,
-        ASIAN_BASEBALL_HISTORY_PARSER_VERSION,1,now,now).run();
+        ASIAN_BASEBALL_HISTORY_PARSER_VERSION,1,now,now,Number(g.gameNo??g.game_number??0),Number(g.gameNo??g.game_number??0)>0?"v2":"v1").run();
     const o=temporalObservation(g,{observedAt,fetchedAt,payload:{status:g.status,homeFinalRuns:g.homeFinalRuns,awayFinalRuns:g.awayFinalRuns,venue:g.venue}});
     await db.prepare(`INSERT INTO asian_baseball_game_observations(
       id,canonical_game_id,league,observation_type,relation_to_start,observed_at,fetched_at,source_contract,source_ref,parser_version,payload_json,
