@@ -1,4 +1,6 @@
-import kboTeams from "../../data/teams/kbo.js";\nimport npbTeams from "../../data/teams/npb.js";\nimport { persistNormalizedMarketBatch } from "./marketObservationLedger.js";
+import kboTeams from "../../data/teams/kbo.js";
+import npbTeams from "../../data/teams/npb.js";
+import { persistNormalizedMarketBatch } from "./marketObservationLedger.js";
 
 export const ASIAN_BASEBALL_ODDS_SPORT = Object.freeze({ npb:"baseball_npb", kbo:"baseball_kbo" });
 export const ASIAN_BASEBALL_MARKETS = Object.freeze(["h2h","spreads","totals"]);
