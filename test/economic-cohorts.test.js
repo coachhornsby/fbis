@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { aggregateEconomicCohort, CALIBRATION_VERSION, DRAWDOWN_VERSION } from "../functions/lib/canonical/economicCohorts.js";
+import { aggregateEconomicCohort, economicGradeSetId, CALIBRATION_VERSION, DRAWDOWN_VERSION } from "../functions/lib/canonical/economicCohorts.js";
 
 test("cohort economics preserves absent probability metrics as null",()=>{
   const out=aggregateEconomicCohort([
@@ -23,4 +23,23 @@ test("cohort calibration is explicit ten-bin ECE and drawdown follows graded ord
   assert.ok(Math.abs(out.brierMean-.12)<1e-12); assert.ok(Math.abs(out.clvProbabilityMean-.02)<1e-12);
   assert.ok(Math.abs(out.calibrationValue-(.4+.4+.2)/3)<1e-12); assert.equal(out.calibrationMethodVersion,CALIBRATION_VERSION);
   assert.equal(out.maxDrawdownUnits,1);
+});
+
+test("cohort identity advances only when the immutable grade set changes",async()=>{
+  const a=await economicGradeSetId([{grade_id:"b"},{grade_id:"a"}]);
+  const replay=await economicGradeSetId([{grade_id:"a"},{grade_id:"b"}]);
+  const grown=await economicGradeSetId([{grade_id:"a"},{grade_id:"b"},{grade_id:"c"}]);
+  assert.equal(a,replay);
+  assert.notEqual(a,grown);
+});
+
+test("drawdown stays null when any cohort profit is absent",()=>{
+  const out=aggregateEconomicCohort([
+    {grade_id:"a",graded_at:"2026-10-07T01:00:00Z",stake_units:1,profit_units:1,result:"WIN"},
+    {grade_id:"b",graded_at:"2026-10-07T02:00:00Z",stake_units:1,profit_units:null,result:"LOSS"},
+  ]);
+  assert.equal(out.profitUnits,null);
+  assert.equal(out.roi,null);
+  assert.equal(out.maxDrawdownUnits,null);
+  assert.equal(out.drawdownMethodVersion,null);
 });
