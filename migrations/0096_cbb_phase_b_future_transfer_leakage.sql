@@ -1,5 +1,16 @@
--- CBB Phase B explicit future-transfer leakage QA
-ALTER TABLE cbb_game_state_snapshots ADD COLUMN future_transfer_leaks INTEGER NOT NULL DEFAULT 0;
+-- CBB Phase B explicit temporal-integrity QA without rewriting the large snapshot table.
+CREATE TABLE IF NOT EXISTS cbb_directory_phase_b_temporal_qa (
+  run_id TEXT PRIMARY KEY,
+  observed_at TEXT NOT NULL,
+  post_tip_observations INTEGER NOT NULL DEFAULT 0,
+  future_membership_leaks INTEGER NOT NULL DEFAULT 0,
+  future_availability_leaks INTEGER NOT NULL DEFAULT 0,
+  future_lineup_leaks INTEGER NOT NULL DEFAULT 0,
+  future_transfer_leaks INTEGER NOT NULL DEFAULT 0,
+  temporal_integrity_ok INTEGER NOT NULL,
+  provenance_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
 
-INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+INSERT OR IGNORE INTO schema_migrations(id, applied_at)
 VALUES ('0096_cbb_phase_b_future_transfer_leakage', datetime('now'));
