@@ -1,0 +1,29 @@
+name: Asian baseball market provider probe
+on:
+  push:
+    branches: [research/asian-baseball-market-provider-probe-20261007]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      THEODDS_API_KEY: ${{ secrets.THEODDS_API_KEY }}
+      THERUNDOWN_API_KEY: ${{ secrets.THERUNDOWN_API_KEY }}
+      SHARPAPI_API_KEY: ${{ secrets.SHARPAPI_API_KEY }}
+      PARLAY_API_KEY: ${{ secrets.PARLAY_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run bounded sanitized provider probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/asian-baseball-market-provider-probe.mjs > probe.json
+          jq . probe.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: asian-baseball-market-provider-probe-${{ github.run_id }}
+          path: probe.json
+          retention-days: 30
