@@ -4,7 +4,7 @@ on:
     branches:
       - codex/kbo-phase4b1-population
 concurrency:
-  group: deploy-pages-production
+  group: kbo-phase4b1-probe
   cancel-in-progress: false
 jobs:
   probe:
