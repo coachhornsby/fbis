@@ -36,14 +36,18 @@ jobs:
         run: node scripts/verify-deployment-sha.mjs "${GITHUB_SHA}"
       - name: Require historical source credential
         run: test -n "${HARVEST_SECRET:-}"
+      - name: Syntax-check historical replay
+        run: node --check scripts/mlb-pitcher-k-pit-scaleup.mjs
       - name: Run full historical pitcher-K PIT replay and market join
         run: |
+          set -euo pipefail
           mkdir -p artifacts
           node scripts/mlb-pitcher-k-pit-scaleup.mjs | tee artifacts/summary.json
       - name: Verify fail-closed governance
         run: |
           jq -e '.governance.canQualify==false and .governance.canAuthorizeWager==false and .governance.autoPromotion==false' artifacts/summary.json >/dev/null
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: mlb-pitcher-k-pit-scaleup-${{ github.run_id }}
           path: artifacts/

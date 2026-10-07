@@ -213,7 +213,7 @@ const gameContexts=(await mapLimit(gameIds,6,async gameId=>{
   if(!homeSp||!awaySp||homeLine.length<8||awayLine.length<8)return {gameId,reject:"MISSING_STARTER_OR_LINEUP"};
   const homeTeam=Number(feed?.gameData?.teams?.home?.id),awayTeam=Number(feed?.gameData?.teams?.away?.id);
   return {gameId,officialDate,start,homeTeam,awayTeam,homeSp,awaySp,homeLine,awayLine,rows:byGame.get(String(gameId))||[]};
-}))).filter(Boolean);
+})).filter(Boolean);
 
 const rejects={};const inc=k=>rejects[k]=(rejects[k]||0)+1;
 for(const g of gameContexts)if(g.reject)inc(g.reject);
