@@ -8,12 +8,14 @@ export async function onRequestGet({env}){
  const spendByDay=(await env.DB.prepare('SELECT source,substr(created_at,1,10) day,COUNT(*) acquisitions,COUNT(provider_cost_usd) knownCostRuns,SUM(provider_cost_usd) providerReportedCostUsd FROM external_acquisitions GROUP BY source,day ORDER BY day DESC LIMIT 62').all()).results;
  const requests=(await env.DB.prepare('SELECT source,outcome,reason,COUNT(*) requests FROM external_acquisition_requests WHERE created_at>=? GROUP BY source,outcome,reason').bind(account?.period_start||billingWindow().start).all()).results;
  const consumers=(await env.DB.prepare('SELECT a.source,c.sport,c.component,SUM(c.accepted) accepted,SUM(c.duplicates) duplicates,SUM(c.rejected) rejected,MAX(c.consumed_at) lastConsumedAt FROM external_acquisition_consumers c JOIN external_acquisitions a ON a.id=c.acquisition_id GROUP BY a.source,c.sport,c.component').all()).results;
- const sourceStates=policies.map(p=>{
+ const sourceStates=await Promise.all(policies.map(async p=>{
    const m=metrics.find(m=>m.source===p.source),ageMs=m?.latestCaptureAt?Date.now()-Date.parse(m.latestCaptureAt):null;
-   const canonicalKnown=consumers.some(c=>c.source===p.source&&c.lastConsumedAt&&Number(c.accepted)>0);
+   // Older successful consumption must not bless a newer unusable capture.
+   const latest=await env.DB.prepare(`SELECT COALESCE(SUM(c.accepted),0) accepted FROM external_acquisition_consumers c WHERE c.acquisition_id=(SELECT id FROM external_acquisitions WHERE source=? AND state='CAPTURED' ORDER BY captured_at DESC,created_at DESC LIMIT 1)`).bind(p.source).first();
+   const canonicalKnown=Number(latest?.accepted)>0;
    const state=p.state!=='ACTIVE'||account?.state!=='ACTIVE'?'BLOCKED':ageMs==null?'UNKNOWN':ageMs>p.freshness_seconds*1000?'STALE':!canonicalKnown?'DEGRADED':'HEALTHY';
    return {source:p.source,state,freshnessAgeMs:ageMs,reason:state==='BLOCKED'?account?.reason||p.reason:state==='DEGRADED'?'CANONICAL_CONSUMPTION_NOT_VERIFIED':null};
- });
+ }));
  const accountAgeMs=Date.now()-Date.parse(account?.usage_observed_at||'');
  const reconciled=Number.isFinite(accountAgeMs)&&accountAgeMs>=0&&accountAgeMs<=3600000;
  const status=account?.state!=='ACTIVE'?'BLOCKED':!reconciled?'DEGRADED':sourceStates.every(s=>s.state==='HEALTHY')?'HEALTHY':'DEGRADED';
