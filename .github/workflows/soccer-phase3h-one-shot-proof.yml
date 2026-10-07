@@ -24,7 +24,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           BASE: https://fbis-myz.pages.dev
           SNAPSHOT_DATE: "2026-10-09"
-          REQUIRED_REPAIR_SHA: "fc402ef585ec3dba4a2175571b2d9041eef0cf81"
+          REQUIRED_REPAIR_SHA: "9b1202f6a5a99931ac24e87f1b6e7369aab0d789"
         shell: bash
         run: |
           set -euo pipefail
@@ -148,3 +148,5 @@ jobs:
 # Phase 3H-R3 future-slate proof trigger: 2026-10-09.
 
 # Phase 3H-R3 durable loader-error proof trigger.
+
+# Phase 3H-R3 null-season repair production proof trigger.
