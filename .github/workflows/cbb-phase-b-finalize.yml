@@ -12,6 +12,7 @@ concurrency:
   group: cbb-phase-b-bounded-finalize
   cancel-in-progress: false
 jobs:
+  # bounded re-trigger after verified production SHA alignment
   finalize:
     runs-on: ubuntu-latest
     timeout-minutes: 10
