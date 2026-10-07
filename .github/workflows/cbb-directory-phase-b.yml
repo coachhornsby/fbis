@@ -19,10 +19,15 @@ on:
     branches: [main]
     paths:
       - "migrations/0084_cbb_directory_phase_b.sql"
+      - "migrations/0096_cbb_phase_b_future_transfer_leakage.sql"
       - "functions/lib/cbbDirectoryPhaseB.js"
       - "functions/api/collect.js"
       - "scripts/cbb-directory-phase-b.mjs"
+      - "scripts/cbb-directory-phase-b-sportsdataverse.mjs"
+      - "scripts/cbb-phase-b-sportsdataverse-source.mjs"
+      - "scripts/cbb-directory-phase-b-bulk.mjs"
       - "test/cbb-directory-phase-b.test.js"
+      - "test/cbb-directory-phase-b-sportsdataverse.test.js"
       - ".github/workflows/cbb-directory-phase-b.yml"
       - "schema.sql"
   workflow_dispatch:
