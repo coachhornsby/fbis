@@ -117,7 +117,7 @@ jobs:
           test "${{ steps.settle.outcome }}" = "success"
           test "${{ steps.verify.outcome }}" = "success"
 
-      - name: Fail job after settlement/readback if capture failed
+      - name: Enforce capture settlement and readback success
         if: always()
         run: |
           test "${{ steps.capture.outcome }}" = "success"
