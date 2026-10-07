@@ -1,0 +1,54 @@
+name: WNBA lineup reconstruction revalidation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: wnba-lineup-reconstruction-revalidation
+  cancel-in-progress: false
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      SOURCE_RUN_ID: "37420822041"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - name: Restore frozen source shards
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/chunks artifacts/pbp artifacts/old-stints artifacts/merged
+          chunks="2024-05 2024-06 2024-07 2024-08 2024-09 2024-10 2025-05 2025-06 2025-07 2025-08 2025-09 2025-10 2026-05 2026-06 2026-07 2026-08 2026-09 2026-10"
+          for id in $chunks; do
+            base="research/wnba/possession-shot/v1/run-${SOURCE_RUN_ID}/shards/${id}"
+            npx wrangler r2 object get "fbis-archive/${base}/wnba-canonical-${id}.jsonl" --file "artifacts/chunks/wnba-canonical-${id}.jsonl" --remote
+            npx wrangler r2 object get "fbis-archive/${base}/wnba-pbp-${id}.jsonl" --file "artifacts/pbp/wnba-pbp-${id}.jsonl" --remote
+            npx wrangler r2 object get "fbis-archive/${base}/wnba-lineup-stints-${id}.jsonl" --file "artifacts/old-stints/wnba-lineup-stints-${id}.jsonl" --remote
+          done
+      - name: Merge immutable inputs
+        run: |
+          node scripts/wnba-merge-canonical.mjs artifacts/chunks artifacts/merged/wnba-canonical.jsonl
+          node scripts/wnba-merge-pbp.mjs artifacts/pbp artifacts/merged/wnba-pbp.jsonl
+          node scripts/wnba-merge-lineup-stints.mjs artifacts/old-stints artifacts/merged/wnba-lineup-stints-old.jsonl
+      - name: Compare old and atomic reconstruction
+        run: |
+          node scripts/wnba-lineup-reconstruction-compare.mjs games=artifacts/merged/wnba-canonical.jsonl pbp=artifacts/merged/wnba-pbp.jsonl old=artifacts/merged/wnba-lineup-stints-old.jsonl out=artifacts/merged/wnba-lineup-reconstruction-revalidation.json
+      - name: Persist immutable research output
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          P="research/wnba/lineup-reconstruction/v1/run-${GITHUB_RUN_ID}"
+          npx wrangler r2 object put "fbis-archive/${P}/wnba-lineup-reconstruction-revalidation.json" --file artifacts/merged/wnba-lineup-reconstruction-revalidation.json --remote
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wnba-lineup-reconstruction-revalidation-${{ github.run_id }}
+          path: artifacts/merged/wnba-lineup-reconstruction-revalidation.json
+          retention-days: 90
