@@ -1,4 +1,5 @@
 name: MLB prospective prop evidence
+# Controlled Oct. 6 final settlement smoke; no behavior change.
 
 on:
   schedule:
