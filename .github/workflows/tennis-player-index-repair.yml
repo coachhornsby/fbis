@@ -1,0 +1,63 @@
+name: Tennis player index repair
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/tennis-lyrid-authoritative-migration
+    paths:
+      - 'tennis/**'
+      - 'api/tennis/**'
+      - 'build_tennis_index.sh'
+      - 'test/tennis-player-index-integrity.test.js'
+      - 'package.json'
+      - '.github/workflows/tennis-player-index-repair.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Syntax check migrated Tennis runtime
+        run: |
+          node --check tennis/tennisColdStart.mjs
+          node --check tennis/tennisSourceAudit.mjs
+          node --check tennis/tennisFeatureBuilder.js
+          node --check tennis/tennisProjector.js
+          node --check api/tennis/analyze.mjs
+      - name: Tennis integrity tests
+        run: npm run test:tennis
+      - name: Research-only ATP/Challenger rebuild
+        env:
+          TENNIS_BUILD_MODE: research
+          TENNIS_RESEARCH_ALLOW_NONCOMMERCIAL: '1'
+          TENNIS_END_YEAR: '2026'
+        run: bash build_tennis_index.sh
+      - name: Summarize rebuilt index
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('tennis/tennis_serve_index.json','utf8'));
+          const p=Object.values(x.players||{});
+          const n=s=>p.filter(v=>v.surfaces?.[s]).length;
+          const thin=p.filter(v=>(v.surfaces?.ALL?.n||0)<20).length;
+          const newest=p.map(v=>v.lastDate||'').sort().at(-1)||null;
+          const out={players:p.length,hard:n('Hard'),clay:n('Clay'),grass:n('Grass'),thin,newest,built:x.meta?.built||null};
+          fs.writeFileSync('artifacts/tennis-index-summary.json',JSON.stringify(out,null,2));
+          console.log(out);
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tennis-player-index-repair
+          path: |
+            tennis/tennis_serve_index.json
+            artifacts/tennis-source-audit.json
+            artifacts/tennis-index-summary.json
