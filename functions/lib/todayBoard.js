@@ -919,10 +919,11 @@ export async function buildTodayBoard(
       if (sport === "nhl") slateGames = slateGames.map((g)=>({...g,nhlWagerV1:evaluateNhlGameWagers(g)}));
       if (env.DB) slateGames = await attachPrizePicksMarkets(slateGames, sport, date, env.DB);
       const rows = slateGames.map((g) => toBoardGame(g, sport, now));
+      const tennisIntegrityBlocked = sport === "tennis" && (slate.research?.withheld > 0 || slate.research?.configured === false);
       feeds[sport] = {
-        ok: true,
+        ok: !tennisIntegrityBlocked,
         n: rows.length,
-        error: null,
+        error: tennisIntegrityBlocked ? `TENNIS_EVENT_INTEGRITY_BLOCKED: ${slate.research?.withheld || 0} snapshots withheld; official event/projection evidence unavailable` : null,
         liveFocus: false,
         focused,
         pal: slate.pal || null,

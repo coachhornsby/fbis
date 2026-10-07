@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { validateTennisEvent, proveTennisEvent } from "../functions/lib/tennisEventIntegrity.js";
 import { autoDecisionForMarket } from "../functions/api/tennis-v2-snapshot.js";
-import { buildTennisResearchSlate } from "../functions/lib/todayBoard.js";
+import { buildTennisResearchSlate, buildTodayBoard } from "../functions/lib/todayBoard.js";
 const p1={fbis_player_id:"tennis:wta:332285",display_name:"Iva Jovic",tour:"wta"};
 const p2={fbis_player_id:"tennis:wta:326408",display_name:"Iga Swiatek",tour:"wta"};
 const event={match_id:"wta:beijing:LS011",player1_id:p1.fbis_player_id,player2_id:p2.fbis_player_id,p1,p2,tour:"wta",source:"WTA_OFFICIAL",observed_at:"2099-10-06T12:00:00Z",match_time:"2099-10-07T04:44:00Z",tournament_name:"China Open",surface:"hard",completion_state:"SCHEDULED"};
@@ -27,6 +27,10 @@ test("missing canonical event withholds the actual production snapshot and all p
   assert.equal(slate.research.withheld,1);
   assert.equal(slate.research.blockedEvents[0].reason,"OFFICIAL_EVENT_MISSING");
   assert.equal(slate.research.canAuthorizeWager,false);
+  const board=await buildTodayBoard("2026-10-07",{DB:db},{focusSport:"tennis"});
+  assert.equal(board.feeds.tennis.ok,false);
+  assert.match(board.feeds.tennis.error,/TENNIS_EVENT_INTEGRITY_BLOCKED/);
+  assert.equal(board.feeds.tennis.sources.tennisV2.withheld,1);
 });
 
 test("prospective generation stops before reading profiles or writing when official identity is absent",async()=>{
