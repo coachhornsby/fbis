@@ -123,6 +123,8 @@ export class TennisDeepState{
     const returnSecondWon=rate("returnSecondWon","returnSecondPts",P.returnSecondWon);
     return {
       id,name,historyMatches:o.matches,surfaceMatches:s.matches,
+      overallServiceGames:o.serviceGames,surfaceServiceGames:s.serviceGames,
+      _profileType:"historical",_sampleMatches:s.matches,
       elo:p.elo,surfaceElo:{[surface]:p.surfaceElo[surface]},
       firstServeIn:firstIn,firstServeWin:firstWon,secondServeWin:secondWonRate,
       servePointWin:firstIn*firstWon+(1-firstIn)*secondWonRate,
