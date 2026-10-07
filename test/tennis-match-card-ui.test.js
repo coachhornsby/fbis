@@ -1,9 +1,30 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createServer } from "vite";
+import react from "@vitejs/plugin-react";
 
 const jsx=readFileSync(new URL("../src/components/board/TennisMatchCard.jsx",import.meta.url),"utf8");
 const css=readFileSync(new URL("../src/components/board/tennisMatchCard.css",import.meta.url),"utf8");
+
+test("Tennis card actually renders populated recent form and missing-form fallback",async()=>{
+  const server=await createServer({configFile:false,plugins:[react()],optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true},appType:"custom"});
+  try {
+    const {default:TennisMatchCard}=await server.ssrLoadModule("/src/components/board/TennisMatchCard.jsx");
+    const game={id:"render-regression",sport:"tennis",tour:"ATP",home:{name:"Home Player",countryCode:"US"},away:{name:"Away Player",countryCode:"ES"},tennisProjection:{playerBank:{players:[{recentForm:[{result:"W"},{result:"L"},{result:"W"}]},{recentForm:[{result:"L"}]}]}}};
+    const populated=renderToStaticMarkup(createElement(TennisMatchCard,{game}));
+    assert.match(populated,/Home Player/);
+    assert.match(populated,/Away Player/);
+    assert.match(populated,/2–1/);
+    assert.match(populated,/0–1/);
+    assert.match(populated,/RECENT FORM \(LAST 5\)/);
+    assert.match(populated,/Player headshot unavailable/);
+    const missing=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,tennisProjection:{}}}));
+    assert.equal((missing.match(/Recent form unavailable/g)||[]).length,2);
+  } finally { await server.close(); }
+});
 
 test("Tennis hero uses full identity, country treatment, centered VS, and neutral portrait fallback",()=>{
   assert.match(jsx,/tmc-player-side/);
