@@ -22,6 +22,9 @@ test("NHL shadow grader requires official final state",async()=>{
   assert.match(src,/function isOfficialFinal/);
   assert.match(src,/state==="OFF"\|\|state==="FINAL"/);
   assert.match(src,/if\(!isOfficialFinal\(box\)\)return null/);
+  assert.match(src,/function frozenOfficialGameId/);
+  assert.match(src,/next_game_id/);
+  assert.match(src,/fetchBox\(r\.event_id,officialEventId\)/);
 });
 
 test("Cloudflare NHL shadow scheduler is bounded and uses shared ops",async()=>{
