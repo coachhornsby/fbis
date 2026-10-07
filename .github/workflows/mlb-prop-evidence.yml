@@ -82,8 +82,8 @@ jobs:
         run: |
           set -euo pipefail
           : > artifacts/settle.ndjson
-          for shard in 0 1 2; do
-            body="$(jq -nc --arg date "$SETTLE_DATE" --argjson shard "$shard" '{operation:"settle",date:$date,shard:$shard,shards:3,limitGames:6}')"
+          for shard in $(seq 0 11); do
+            body="$(jq -nc --arg date "$SETTLE_DATE" --argjson shard "$shard" '{operation:"settle",date:$date,shard:$shard,shards:12,limitGames:6}')"
             out="artifacts/settle-$shard.json"
             code="$(curl -sS --max-time 180 -o "$out" -w "%{http_code}" -X POST               -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               --data-binary "$body" "$BASE/api/mlb-prop-evidence")"
             cat "$out"; echo

@@ -292,7 +292,7 @@ async function settle(context,{date,shard=0,shards=1,limitGames=6}={}){
   try{
   const q=await db.prepare(`SELECT DISTINCT event_id FROM mlb_prop_prospective_evidence
     WHERE event_date=? AND temporal_integrity=1 AND settled_at IS NULL ORDER BY event_id`).bind(date).all();
-  const ids=(q.results||[]).map(x=>String(x.event_id)).filter(x=>shardAccept(x,shard,shards)).slice(0,Math.max(1,Math.min(10,Number(limitGames)||6)));
+  const ids=(q.results||[]).map(x=>String(x.event_id)).slice(0,Math.max(1,Math.min(10,Number(limitGames)||6)));
   let attempted=0,settled=0,missing=0,rejected=0;
   for(const eventId of ids){
     attempted++;
@@ -303,7 +303,8 @@ async function settle(context,{date,shard=0,shards=1,limitGames=6}={}){
     }catch(e){missing++;await reject(db,{operation:"settle",eventId,row:null,reason:"SETTLEMENT_FETCH_FAILED",details:{error:String(e?.message||e)},at:new Date().toISOString()});continue}
     if(String(feed?.gameData?.status?.abstractGameState||"").toLowerCase()!=="final"){missing++;continue}
     const players={...(feed?.liveData?.boxscore?.teams?.home?.players||{}),...(feed?.liveData?.boxscore?.teams?.away?.players||{})};
-    const rows=(await db.prepare(`SELECT * FROM mlb_prop_prospective_evidence WHERE event_id=? AND settled_at IS NULL AND temporal_integrity=1`).bind(eventId).all()).results||[];
+    const rows=((await db.prepare(`SELECT * FROM mlb_prop_prospective_evidence WHERE event_id=? AND settled_at IS NULL AND temporal_integrity=1`).bind(eventId).all()).results||[])
+      .filter(row=>evidenceShardAccept(row.id,shard,shards));
     for(const row of rows){
       const player=players["ID"+row.player_id] || Object.values(players).find(x=>norm(x?.person?.fullName)===norm(row.player_name));
       const actual=playerActual(player,row.market);
