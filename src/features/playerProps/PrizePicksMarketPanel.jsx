@@ -474,7 +474,8 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
   const [rows,setRows]=useState([]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
-  const [freshness,setFreshness]=useState(null);\n  const [underdogRows,setUnderdogRows]=useState([]);
+  const [freshness,setFreshness]=useState(null);
+  const [underdogRows,setUnderdogRows]=useState([]);
   const [expandedKey,setExpandedKey]=useState("");
   const [localSport,setLocalSport]=useState(
     String(sportFilter||"top25").toLowerCase()==="all"?"top25":String(sportFilter||"top25").toLowerCase()
@@ -642,7 +643,9 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
 
                 <div className="pp-market-name pp-premium-market-name">{marketLabel(r)}</div>
 
-                <VariantMetrics group={group}/>\n\n                {sport==="tennis"?<div className="pp-card-foot pp-premium-foot"><span>Underdog {group.underdog?.line??"—"}{group.underdog&&Number.isFinite(Number(r.line))?` · Δ ${(Number(group.underdog.line)-Number(r.line)).toFixed(1)}`:""}</span><span>{group.underdog?.timestamp?new Date(group.underdog.timestamp).toLocaleTimeString("en-US",{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit"}):"source unavailable"}</span></div>:null}
+                <VariantMetrics group={group}/>
+
+                {sport==="tennis"?<div className="pp-card-foot pp-premium-foot"><span>Underdog {group.underdog?.line??"—"}{group.underdog&&Number.isFinite(Number(r.line))?` · Δ ${(Number(group.underdog.line)-Number(r.line)).toFixed(1)}`:""}</span><span>{group.underdog?.timestamp?new Date(group.underdog.timestamp).toLocaleTimeString("en-US",{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit"}):"source unavailable"}</span></div>:null}
 
                 <div className="pp-card-foot pp-premium-foot">
                   <span>{matchupLabel(r)}</span>
