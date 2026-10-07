@@ -4,10 +4,13 @@ on:
   pull_request:
     paths:
       - "migrations/0084_cbb_directory_phase_b.sql"
+      - "migrations/0096_cbb_phase_b_future_transfer_leakage.sql"
       - "functions/lib/cbbDirectoryPhaseB.js"
       - "functions/api/collect.js"
       - "scripts/cbb-directory-phase-b.mjs"
       - "scripts/cbb-directory-phase-b-sportsdataverse.mjs"
+      - "scripts/cbb-phase-b-sportsdataverse-source.mjs"
+      - "scripts/cbb-directory-phase-b-bulk.mjs"
       - "test/cbb-directory-phase-b.test.js"
       - "test/cbb-directory-phase-b-sportsdataverse.test.js"
       - ".github/workflows/cbb-directory-phase-b.yml"
@@ -51,4 +54,123 @@ jobs:
           node --check functions/api/collect.js
           node --check scripts/cbb-directory-phase-b.mjs
           node --check scripts/cbb-directory-phase-b-sportsdataverse.mjs
+          node --check scripts/cbb-phase-b-sportsdataverse-source.mjs
+          node --check scripts/cbb-directory-phase-b-bulk.mjs
           node --test test/cbb-directory-phase-b.test.js test/cbb-directory-phase-b-sportsdataverse.test.js test/cbb-persistent-directory.test.js test/state-overlay-governance.test.js
+
+
+  populate:
+    if: github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      FBIS_CBB_SEASON: "2027"
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Require durable Phase A checkpoint
+        run: |
+          set -euo pipefail
+          row="$(npx wrangler d1 execute fbis --remote --json --command="SELECT canonical_teams,players,roster_memberships,state_events,team_snapshots,player_snapshots,schedule_items,status FROM cbb_directory_population_runs ORDER BY completed_at DESC LIMIT 1;")"
+          printf '%s' "$row" | jq -e '.[0].results[0] | .status=="COMPLETE" and .canonical_teams==362 and .players==23273 and .roster_memberships==39347 and .state_events==89334 and .team_snapshots==2837 and .player_snapshots==39347 and .schedule_items==84664' >/dev/null
+      - name: Download and verify immutable SportsDataverse assets
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/cbb-phase-b-source/raw
+          get() {
+            local tag="$1" asset="$2" sha="$3"
+            local out="artifacts/cbb-phase-b-source/raw/$asset"
+            curl -L --fail --silent --show-error --retry 3 --retry-delay 5               "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/$tag/$asset" -o "$out"
+            echo "$sha  $out" | sha256sum -c -
+          }
+          get espn_mens_college_basketball_rosters rosters_2027.csv 4d11c6c4f33b31b676ae571df4939b9265f15a08db0345715e6ee63756577c4b
+          get mbb_crosswalk mbb_team_crosswalk_2026.csv f492b4e2cbed5da6faaf48c087638a32213334a934938c57f5e7498accfde0d7
+          get espn_mens_college_basketball_schedules mbb_schedule_2027.csv 63a6ec8f565a11dfbaab54ea656cc6fc47e19e3d1b29eb40f0824649f56eb9fa
+          get espn_mens_college_basketball_player_season_stats player_season_stats_2026.csv 2e1868fcc82b12aa4a6ffcb131ad5c4364a8f8e02cf2a3be3cb6200a44a9eba4
+          get espn_mens_college_basketball_game_rosters game_rosters_2026.csv 95ecddd648e68aaaa4e9921f201667640a458f58768a8be39e7a61767af3bc06
+          get espn_mens_college_basketball_player_boxscores player_box_2026.csv b2f4ebb9a4567744a4112c580d79d05aac4b79066c440881d02f7d4a6828fbb9
+      - name: Compact verified bulk sources
+        run: |
+          node --max-old-space-size=6144 scripts/cbb-phase-b-sportsdataverse-source.mjs             artifacts/cbb-phase-b-source/raw artifacts/cbb-phase-b-source             | tee artifacts/cbb-phase-b-source-summary.log
+      - name: Export Phase A identity evidence
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis --remote --json --command="SELECT DISTINCT p.player_id,p.canonical_name,m.team_id,m.season FROM cbb_players p JOIN cbb_roster_membership m ON m.player_id=p.player_id;" | jq '.[0].results' > artifacts/cbb-phase-b-source/phase-a-players.json
+          npx wrangler d1 execute fbis --remote --json --command="SELECT player_id,provider,provider_player_id FROM cbb_player_provider_ids WHERE provider='ESPN';" | jq '.[0].results' > artifacts/cbb-phase-b-source/existing-provider-ids.json
+      - name: Build PIT-safe Phase B population
+        run: |
+          node --max-old-space-size=6144 scripts/cbb-directory-phase-b-bulk.mjs             artifacts/cbb-phase-b-source artifacts/cbb-phase-b             | tee artifacts/cbb-phase-b.log
+      - name: Fail-closed Phase B QA
+        run: |
+          set -euo pipefail
+          jq -e '
+            .id=="CBB-DIRECTORY-PHASE-B-v1" and
+            .canonicalTeams==362 and
+            .stableIdPlayers>0 and
+            .roster.players>0 and
+            .roster.teams>0 and
+            .availability.verified==0 and
+            .availability.unknownRate==1 and
+            .pit.gameStateSnapshots>0 and
+            .pit.temporalIntegrityOk==true and
+            .pit.postTipObservations==0 and
+            .pit.futureMembershipLeaks==0 and
+            .pit.futureAvailabilityLeaks==0 and
+            .pit.futureLineupLeaks==0 and
+            .pit.futureTransferLeaks==0 and
+            .governance.totalsDefinitions==0 and
+            .governance.canInfluenceProjection==false and
+            .governance.canQualify==false and
+            .governance.canAuthorizeWager==false
+          ' artifacts/cbb-phase-b/qa.json >/dev/null
+      - name: Apply Phase B schema and population to production D1
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis --remote --file=migrations/0084_cbb_directory_phase_b.sql
+          col="$(npx wrangler d1 execute fbis --remote --json --command="PRAGMA table_info(cbb_game_state_snapshots);")"
+          if ! printf '%s' "$col" | jq -e '.[0].results | any(.name=="future_transfer_leaks")' >/dev/null; then
+            npx wrangler d1 execute fbis --remote --file=migrations/0096_cbb_phase_b_future_transfer_leakage.sql
+          fi
+          for f in artifacts/cbb-phase-b/chunk-*.sql; do
+            ok=0
+            for attempt in 1 2 3; do
+              if npx wrangler d1 execute fbis --remote --file="$f"; then ok=1; break; fi
+              sleep $((attempt * 5))
+            done
+            test "$ok" -eq 1 || { echo "D1 import failed: $f"; exit 1; }
+          done
+      - name: Independently verify persisted Phase B
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis --remote --command="
+            SELECT id,season,observed_at,status,canonical_teams,stable_id_players,unresolved_provisional_players,ambiguous_identities,transfer_links,roster_teams,roster_players,rotation_players,starter_evidence_players,lineup_continuity_teams,replacement_players,schedule_teams,game_state_snapshots,verified_availability,unknown_availability FROM cbb_directory_phase_b_runs ORDER BY observed_at DESC LIMIT 1;
+            SELECT COUNT(*) AS provider_ids FROM cbb_player_provider_ids WHERE provider='ESPN';
+            SELECT COUNT(*) AS roster_observations FROM cbb_roster_observations;
+            SELECT COUNT(*) AS rotation_observations FROM cbb_rotation_observations;
+            SELECT COUNT(*) AS team_context_observations FROM cbb_team_context_observations;
+            SELECT COUNT(*) AS availability_observations FROM cbb_availability_observations;
+            SELECT COUNT(*) AS game_state_snapshots FROM cbb_game_state_snapshots;
+            SELECT COALESCE(SUM(post_tip_observations),0) AS post_tip,COALESCE(SUM(future_membership_leaks),0) AS future_membership,COALESCE(SUM(future_availability_leaks),0) AS future_availability,COALESCE(SUM(future_lineup_leaks),0) AS future_lineup,COALESCE(SUM(future_transfer_leaks),0) AS future_transfer FROM cbb_game_state_snapshots;
+            SELECT COUNT(*) AS totals_shadow FROM cbb_shadow_challenger_definitions WHERE target='TOTALS';
+            SELECT COUNT(*) AS unauthorized FROM cbb_shadow_challenger_definitions WHERE can_influence_projection<>0 OR can_qualify<>0 OR can_authorize_wager<>0;
+          "
+      - name: Upload Phase B evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbb-directory-phase-b-bulk-${{ github.run_id }}
+          path: |
+            artifacts/cbb-phase-b/qa.json
+            artifacts/cbb-phase-b/ambiguous-identities.json
+            artifacts/cbb-phase-b/transfer-links.json
+            artifacts/cbb-phase-b.log
+            artifacts/cbb-phase-b-source-summary.log
+          if-no-files-found: warn
+          retention-days: 90
