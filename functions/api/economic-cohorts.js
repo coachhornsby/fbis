@@ -1,4 +1,4 @@
-import { authorizeHarvest, unauthorizedBody } from "../lib/harvestAuth.js";
+import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { persistEconomicCohorts } from "../lib/canonical/economicCohorts.js";
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});
 export async function onRequestPost(context){
