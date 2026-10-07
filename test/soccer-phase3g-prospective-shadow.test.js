@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { loadSoccerMatchHistory } from "../functions/lib/store.js";
 import {
   buildSoccerProspectiveShadowRecords,
   persistSoccerProspectiveShadow,
@@ -172,4 +173,25 @@ test("Phase 3G has no recurring Soccer prospective-shadow scheduler",async()=>{
   assert.match(api,/researchOnly:true/);
   assert.match(api,/canQualify:false/);
   assert.match(api,/canAuthorize:false/);
+});
+
+
+test("Phase 3H-R3 canonical history loader does not coerce null season to zero", async()=>{
+  let sqlSeen="";
+  let bindsSeen=[];
+  const env={DB:{prepare(sql){
+    sqlSeen=sql;
+    return {bind(...binds){
+      bindsSeen=binds;
+      return {all:async()=>({results:[]})};
+    }};
+  }}};
+  await loadSoccerMatchHistory(env,{
+    league:"ger.1",
+    season:null,
+    startDate:"2024-04-23",
+    beforeDate:"2026-10-09",
+  });
+  assert.equal(sqlSeen.includes("season = ?"),false);
+  assert.deepEqual(bindsSeen,["ger.1","2024-04-23","2026-10-09"]);
 });
