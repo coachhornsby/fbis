@@ -1,0 +1,49 @@
+name: Tennis player index integrity
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "functions/lib/tennisPlayerDataIntegrity.js"
+      - "functions/lib/tennisFbisV1.js"
+      - "functions/lib/tennisTwoSidedV11.js"
+      - "scripts/tennis-v2-profile-refresh.mjs"
+      - "scripts/tennis-player-index-audit.mjs"
+      - "test/tennis-player-data-integrity.test.js"
+      - ".github/workflows/tennis-player-index-integrity.yml"
+      - "package.json"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax
+        run: |
+          node --check functions/lib/tennisPlayerDataIntegrity.js
+          node --check functions/lib/tennisFbisV1.js
+          node --check functions/lib/tennisTwoSidedV11.js
+          node --check scripts/tennis-v2-profile-refresh.mjs
+          node --check scripts/tennis-player-index-audit.mjs
+      - name: Tennis integrity tests
+        run: node --test test/tennis-player-data-integrity.test.js test/tennis-fbis-v1.test.js
+      - name: Historical source and current-player acceptance audit
+        env:
+          TENNIS_PLAYER_AUDIT_CUTOFF: "20261007"
+          TENNIS_PLAYER_RANK_DATE: "2026-10-05"
+        run: node scripts/tennis-player-index-audit.mjs
+      - name: Rebuild research profile SQL with Challenger coverage
+        env:
+          TENNIS_PROFILE_CUTOFF: "20261007"
+        run: node scripts/tennis-v2-profile-refresh.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tennis-player-index-integrity-${{ github.run_id }}
+          path: |
+            artifacts/tennis-player-index-audit.json
+            artifacts/tennis-v2-current-profiles-summary.json
+            artifacts/tennis-v2-current-profiles.sql

@@ -2,11 +2,17 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { TennisDeepState } from "../functions/lib/tennisTwoSidedV11.js";
+import { auditTennisCsv, assertTennisCoverage, parseTennisCsv } from "../functions/lib/tennisPlayerDataIntegrity.js";
 
-const YEARS=String(process.env.TENNIS_PROFILE_YEARS||"2024,2025,2026").split(",").map(Number).filter(Number.isFinite);
+const years=v=>String(v).split(",").map(Number).filter(Number.isFinite);
+const ATP_TOUR_YEARS=years(process.env.TENNIS_ATP_TOUR_YEARS||"2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025,2026");
+const ATP_CHALLENGER_YEARS=years(process.env.TENNIS_ATP_CHALLENGER_YEARS||"2020,2021,2022,2023,2024,2025,2026");
+const WTA_YEARS=years(process.env.TENNIS_WTA_YEARS||"2024,2025,2026");
+const YEARS=[...new Set([...ATP_TOUR_YEARS,...WTA_YEARS])];
 const OUT=process.env.TENNIS_PROFILE_SQL||"artifacts/tennis-v2-current-profiles.sql";
 const SUMMARY=process.env.TENNIS_PROFILE_SUMMARY||"artifacts/tennis-v2-current-profiles-summary.json";
-const MIRROR="https://raw.githubusercontent.com/Aneeshers/tennis-sackmann-archive/main";
+const MIRROR=process.env.TENNIS_SACKMANN_MIRROR||"https://raw.githubusercontent.com/Aneeshers/tennis-sackmann-archive/main";
+const TML_BASE=process.env.TENNIS_TML_BASE||"https://stats.tennismylife.org/data";
 const cutoff=process.env.TENNIS_PROFILE_CUTOFF||new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()).replaceAll("-","");
 const sourceAsOf=`${cutoff.slice(0,4)}-${cutoff.slice(4,6)}-${cutoff.slice(6,8)}T00:00:00-05:00`;
 
@@ -17,16 +23,6 @@ const surfaceKey=s=>{s=String(s||"hard").toLowerCase();return s.includes("clay")
 const q=v=>v==null?"NULL":`'${String(v).replaceAll("'","''")}'`;
 const n=v=>Number.isFinite(Number(v))?String(Number(v)):"NULL";
 
-function parseCsv(text){
-  const rows=[];let row=[],field="",quoted=false;
-  for(let i=0;i<text.length;i++){const ch=text[i];
-    if(quoted){if(ch==='"'&&text[i+1]==='"'){field+='"';i++;}else if(ch==='"')quoted=false;else field+=ch;}
-    else{if(ch==='"')quoted=true;else if(ch===","){row.push(field);field="";}else if(ch==="\n"){row.push(field);rows.push(row);row=[];field="";}else if(ch!=="\r")field+=ch;}
-  }
-  if(field||row.length){row.push(field);rows.push(row)}
-  const h=rows.shift()||[];
-  return rows.filter(r=>r.length>1).map(r=>Object.fromEntries(h.map((k,i)=>[k,r[i]??""])));
-}
 async function fetchText(url){
   const r=await fetch(url,{headers:{"user-agent":"FBIS tennis v2 current-profile research"}});
   if(!r.ok)throw new Error(`${r.status} ${url}`);
@@ -59,16 +55,20 @@ function styleScores(profile,tour){
   };
 }
 
-const all=[];
-for(const tour of ["atp","wta"])for(const year of YEARS){
-  try{
-    const txt=await fetchText(`${MIRROR}/${tour}/${tour}_matches_${year}.csv`);
-    for(const r of parseCsv(txt))all.push({...r,_tour:tour,_year:year});
-    process.stderr.write(`loaded ${tour} ${year}
-`);
-  }catch(e){process.stderr.write(`skip ${tour} ${year}: ${e.message}
-`)}
+const all=[],sourceAudits=[];
+async function loadHistorical({tour,year,sourceClass,url,sourceName,required=true}){
+  let txt="";
+  try{txt=await fetchText(url)}
+  catch(err){sourceAudits.push({source:sourceName,sourceClass,year,url,bytes:0,rows:0,serveCoverage:0,distinctPlayers:0,levels:[],safe:false,reasons:["fetch_failed"],error:err.message});return;}
+  const audit={...auditTennisCsv(txt,{source:sourceName,sourceClass,year}),url};sourceAudits.push(audit);
+  if(!audit.safe){process.stderr.write(`unsafe ${sourceClass} ${year}: ${audit.reasons.join(",")}\n`);return;}
+  for(const r of parseTennisCsv(txt).rows)all.push({...r,_tour:tour,_year:year,_sourceClass:sourceClass,_sourceName:sourceName});
+  process.stderr.write(`loaded ${sourceClass} ${year}: ${audit.rows} rows; serve ${(audit.serveCoverage*100).toFixed(1)}%\n`);
 }
+for(const year of ATP_TOUR_YEARS)await loadHistorical({tour:"atp",year,sourceClass:"ATP_TOUR",sourceName:"SACKMANN_ARCHIVE_RESEARCH",url:`${MIRROR}/atp/atp_matches_${year}.csv`});
+for(const year of ATP_CHALLENGER_YEARS)await loadHistorical({tour:"atp",year,sourceClass:"ATP_CHALLENGER",sourceName:"TML_RESEARCH_ONLY",url:`${TML_BASE}/${year}_challenger.csv`});
+for(const year of WTA_YEARS)await loadHistorical({tour:"wta",year,sourceClass:"WTA_TOUR",sourceName:"SACKMANN_ARCHIVE_RESEARCH",url:`${MIRROR}/wta/wta_matches_${year}.csv`,required:false});
+assertTennisCoverage(sourceAudits,{requiredTourYears:ATP_TOUR_YEARS,requiredChallengerYears:ATP_CHALLENGER_YEARS});
 all.sort((a,b)=>String(a.tourney_date).localeCompare(String(b.tourney_date))||String(a.match_num||"").localeCompare(String(b.match_num||"")));
 
 const states={atp:new TennisDeepState("atp"),wta:new TennisDeepState("wta")};
@@ -96,7 +96,7 @@ for(const row of all){
   const tour=row._tour,surface=surfaceKey(row.surface),state=states[tour];
   const wid=String(row.winner_id||row.winner_name||"").trim(),lid=String(row.loser_id||row.loser_name||"").trim();
   const outcome=parseScore(row.score);
-  historyRows.push({tour,matchDate:dateIso(row.tourney_date),tournament:row.tourney_name||null,surface,round:row.round||null,p1Key:clean(row.winner_name),p1Name:row.winner_name,p2Key:clean(row.loser_name),p2Name:row.loser_name,winnerKey:clean(row.winner_name),score:row.score||null,p1Rank:finite(row.winner_rank),p2Rank:finite(row.loser_rank),p1Stats:{ace:finite(row.w_ace),df:finite(row.w_df),svpt:finite(row.w_svpt),firstIn:finite(row.w_1stIn),firstWon:finite(row.w_1stWon),secondWon:finite(row.w_2ndWon),bpSaved:finite(row.w_bpSaved),bpFaced:finite(row.w_bpFaced)},p2Stats:{ace:finite(row.l_ace),df:finite(row.l_df),svpt:finite(row.l_svpt),firstIn:finite(row.l_1stIn),firstWon:finite(row.l_1stWon),secondWon:finite(row.l_2ndWon),bpSaved:finite(row.l_bpSaved),bpFaced:finite(row.l_bpFaced)}});
+  historyRows.push({tour,source:row._sourceName||"UNKNOWN_RESEARCH",sourceClass:row._sourceClass||null,matchDate:dateIso(row.tourney_date),tournament:row.tourney_name||null,surface,round:row.round||null,p1Key:clean(row.winner_name),p1Name:row.winner_name,p2Key:clean(row.loser_name),p2Name:row.loser_name,winnerKey:clean(row.winner_name),score:row.score||null,p1Rank:finite(row.winner_rank),p2Rank:finite(row.loser_rank),p1Stats:{ace:finite(row.w_ace),df:finite(row.w_df),svpt:finite(row.w_svpt),firstIn:finite(row.w_1stIn),firstWon:finite(row.w_1stWon),secondWon:finite(row.w_2ndWon),bpSaved:finite(row.w_bpSaved),bpFaced:finite(row.w_bpFaced)},p2Stats:{ace:finite(row.l_ace),df:finite(row.l_df),svpt:finite(row.l_svpt),firstIn:finite(row.l_1stIn),firstWon:finite(row.l_1stWon),secondWon:finite(row.l_2ndWon),bpSaved:finite(row.l_bpSaved),bpFaced:finite(row.l_bpFaced)}});
   const retired=/RET|DEF|ABD/i.test(String(row.score||""));
   touch(tour,wid,row.winner_name,row,surface,outcome,false);
   touch(tour,lid,row.loser_name,row,surface,outcome,retired);
@@ -132,7 +132,7 @@ for(const tour of ["atp","wta"]){
     }
   }
 }
-const currentYear=Math.max(...YEARS);
+const currentYear=Math.max(...ATP_TOUR_YEARS,...WTA_YEARS);
 const tourEnv={};
 for(const tour of ["atp","wta"]){
   const rows=[...tournaments.values()].filter(t=>t.tour===tour&&t.year===currentYear).flatMap(t=>t.rows);
@@ -163,22 +163,22 @@ for(const t of tournaments.values()){
 const now=new Date().toISOString();
 let sql=`DELETE FROM tennis_player_profiles_current;\nDELETE FROM tennis_tournament_speed_current;\n`;
 for(const r of profileRows){
-  sql+=`INSERT OR REPLACE INTO tennis_player_profiles_current(tour,player_key,player_id,player_name,surface,profile_json,last_match_date,last_surface,last_tournament,games_last_3_days,games_last_7_days,sets_last_3_days,sets_last_7_days,days_since_retirement_or_mto,source,source_license,source_as_of,production_dependency,updated_at) VALUES(${q(r.tour)},${q(r.playerKey)},${q(r.playerId)},${q(r.playerName)},${q(r.surface)},${q(JSON.stringify(r.profile))},${q(r.lastDate)},${q(r.lastSurface)},${q(r.lastTournament)},${n(r.gamesLast3Days)},${n(r.gamesLast7Days)},${n(r.setsLast3Days)},${n(r.setsLast7Days)},${n(r.daysSinceRetirementOrMto)},'SACKMANN_TENNIS_ABSTRACT_RESEARCH','CC BY-NC-SA 4.0',${q(sourceAsOf)},0,${q(now)});
+  sql+=`INSERT OR REPLACE INTO tennis_player_profiles_current(tour,player_key,player_id,player_name,surface,profile_json,last_match_date,last_surface,last_tournament,games_last_3_days,games_last_7_days,sets_last_3_days,sets_last_7_days,days_since_retirement_or_mto,source,source_license,source_as_of,production_dependency,updated_at) VALUES(${q(r.tour)},${q(r.playerKey)},${q(r.playerId)},${q(r.playerName)},${q(r.surface)},${q(JSON.stringify(r.profile))},${q(r.lastDate)},${q(r.lastSurface)},${q(r.lastTournament)},${n(r.gamesLast3Days)},${n(r.gamesLast7Days)},${n(r.setsLast3Days)},${n(r.setsLast7Days)},${n(r.daysSinceRetirementOrMto)},'FBIS_TENNIS_RESEARCH_COMPOSITE','RESEARCH_ONLY_MIXED_RIGHTS',${q(sourceAsOf)},0,${q(now)});
 `;
 }
 const bankByPlayer=new Map();
 for(const r of profileRows){const k=r.tour+"|"+r.playerKey;if(!bankByPlayer.has(k))bankByPlayer.set(k,r);}
 for(const r of bankByPlayer.values()){
-  sql+=`INSERT OR REPLACE INTO tennis_player_bank(tour,player_key,player_id,player_name,profile_json,recent_form_json,source,source_as_of,updated_at) VALUES(${q(r.tour)},${q(r.playerKey)},${q(r.playerId)},${q(r.playerName)},${q(JSON.stringify(r.profile))},NULL,'SACKMANN_TENNIS_ABSTRACT_RESEARCH',${q(sourceAsOf)},${q(now)});
+  sql+=`INSERT OR REPLACE INTO tennis_player_bank(tour,player_key,player_id,player_name,profile_json,recent_form_json,source,source_as_of,updated_at) VALUES(${q(r.tour)},${q(r.playerKey)},${q(r.playerId)},${q(r.playerName)},${q(JSON.stringify(r.profile))},NULL,'FBIS_TENNIS_RESEARCH_COMPOSITE',${q(sourceAsOf)},${q(now)});
 `;
 }
 for(const r of historyRows){
   const mk=[r.tour,r.matchDate,r.tournament,r.p1Key,r.p2Key,r.score].join("|");
-  sql+=`INSERT OR IGNORE INTO tennis_match_history(match_key,tour,match_date,tournament,surface,round,player1_key,player1_name,player2_key,player2_name,winner_key,score,player1_rank,player2_rank,player1_stats_json,player2_stats_json,source,source_as_of,created_at) VALUES(${q(mk)},${q(r.tour)},${q(r.matchDate)},${q(r.tournament)},${q(r.surface)},${q(r.round)},${q(r.p1Key)},${q(r.p1Name)},${q(r.p2Key)},${q(r.p2Name)},${q(r.winnerKey)},${q(r.score)},${n(r.p1Rank)},${n(r.p2Rank)},${q(JSON.stringify(r.p1Stats))},${q(JSON.stringify(r.p2Stats))},'SACKMANN_TENNIS_ABSTRACT_RESEARCH',${q(sourceAsOf)},${q(now)});
+  sql+=`INSERT OR IGNORE INTO tennis_match_history(match_key,tour,match_date,tournament,surface,round,player1_key,player1_name,player2_key,player2_name,winner_key,score,player1_rank,player2_rank,player1_stats_json,player2_stats_json,source,source_as_of,created_at) VALUES(${q(mk)},${q(r.tour)},${q(r.matchDate)},${q(r.tournament)},${q(r.surface)},${q(r.round)},${q(r.p1Key)},${q(r.p1Name)},${q(r.p2Key)},${q(r.p2Name)},${q(r.winnerKey)},${q(r.score)},${n(r.p1Rank)},${n(r.p2Rank)},${q(JSON.stringify(r.p1Stats))},${q(JSON.stringify(r.p2Stats))},'FBIS_TENNIS_RESEARCH_COMPOSITE',${q(sourceAsOf)},${q(now)});
 `;
 }
 for(const r of speedRows){
-  sql+=`INSERT OR REPLACE INTO tennis_tournament_speed_current(tour,tournament_key,tournament_name,season,surface,court_speed_index,sample_sides,source,source_as_of,production_dependency,updated_at) VALUES(${q(r.tour)},${q(r.tournamentKey)},${q(r.name)},${n(r.year)},${q(r.surface)},${n(r.courtSpeedIndex)},${n(r.sampleSides)},'SACKMANN_TENNIS_ABSTRACT_RESEARCH',${q(sourceAsOf)},0,${q(now)});
+  sql+=`INSERT OR REPLACE INTO tennis_tournament_speed_current(tour,tournament_key,tournament_name,season,surface,court_speed_index,sample_sides,source,source_as_of,production_dependency,updated_at) VALUES(${q(r.tour)},${q(r.tournamentKey)},${q(r.name)},${n(r.year)},${q(r.surface)},${n(r.courtSpeedIndex)},${n(r.sampleSides)},'FBIS_TENNIS_RESEARCH_COMPOSITE',${q(sourceAsOf)},0,${q(now)});
 `;
 }
 
@@ -186,7 +186,8 @@ await fs.mkdir(path.dirname(OUT),{recursive:true});
 await fs.writeFile(OUT,sql);
 const summary={
   generatedAt:now,cutoffCT:cutoff,
-  source:{name:"Jeff Sackmann / Tennis Abstract archive mirror",license:"CC BY-NC-SA 4.0",productionDependency:false,permittedUse:"research/backtest/private research only"},
+  sources:{tour:{name:"Sackmann archive research mirror",productionDependency:false},challenger:{name:"TennisMyLife",productionDependency:false,rights:"RESEARCH_ONLY / commercial permission not established"}},
+  sourceAudits,
   profiles:profileRows.length,playerBank:bankByPlayer.size,matchHistory:historyRows.length,players:{atp:meta.atp.size,wta:meta.wta.size},speedRows:speedRows.length,
   integrity:{sameDayExcluded:true,futureRowsExcluded:true,cutoff:sourceAsOf},
   missingByDesign:["travelKm7Days","timeZonesCrossed7Days","minutesLast3Days","minutesLast7Days","injuryStatus","recentServeSpeedDeltaKph","indoor","altitudeM"],
