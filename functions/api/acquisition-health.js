@@ -17,6 +17,7 @@ export async function onRequestGet({env}){
  const accountAgeMs=Date.now()-Date.parse(account?.usage_observed_at||'');
  const reconciled=Number.isFinite(accountAgeMs)&&accountAgeMs>=0&&accountAgeMs<=3600000;
  const status=account?.state!=='ACTIVE'?'BLOCKED':!reconciled?'DEGRADED':sourceStates.every(s=>s.state==='HEALTHY')?'HEALTHY':'DEGRADED';
- return new Response(JSON.stringify({ok:true,status,account,policies,sourceStates,metrics,spendByDay,requests,consumers,prospectiveMeasurement:true,historicalCostReconciled:account?.provider_usage_usd!=null,requiresFreshProviderUsage:true,canQualify:false,canAuthorizeWager:false}),{headers});
+ const budgetState=account?.provider_usage_usd==null?"UNKNOWN":account.provider_usage_usd>=account.hard_cap_usd?"STOP":account.provider_usage_usd>=account.target_usd?"THROTTLE":account.provider_usage_usd>=account.target_usd*0.8?"WARNING":"NORMAL";
+ return new Response(JSON.stringify({ok:true,status,budgetState,account,policies,sourceStates,metrics,spendByDay,requests,consumers,prospectiveMeasurement:true,historicalCostReconciled:account?.provider_usage_usd!=null,requiresFreshProviderUsage:true,canQualify:false,canAuthorizeWager:false}),{headers});
  }catch{return new Response(JSON.stringify({ok:false,status:'UNKNOWN',reason:'ACQUISITION_HEALTH_UNAVAILABLE',canQualify:false,canAuthorizeWager:false}),{status:503,headers});}
 }
