@@ -92,13 +92,23 @@ export function makeApiTennisSource({ apiKey, ttlMs = 6 * 3600e3, windowDays = 7
     } catch { return []; }
     const rows = (Array.isArray(fx) ? fx : []).filter((m) => /finish/i.test(m.event_status || '')).map((m) => {
       const side = String(m.first_player_key) === String(hit.key) ? 'first' : 'second';
-      const aces = num(statValue(m.statistics, /ace/i, side, hit.key));
+      const oppSide = side === 'first' ? 'second' : 'first';
+      const oppKey = side === 'first' ? m.second_player_key : m.first_player_key;
+      const aces = num(statValue(m.statistics, /(^|\\b)aces?($|\\b)/i, side, hit.key));
+      const doubleFaults = num(statValue(m.statistics, /double.*fault/i, side, hit.key));
+      const acesFaced = num(statValue(m.statistics, /(^|\\b)aces?($|\\b)/i, oppSide, oppKey));
       const f1 = frac(statValue(m.statistics, /1st.*serve.*won|first.*serve.*won/i, side, hit.key));
       const f2 = frac(statValue(m.statistics, /2nd.*serve.*won|second.*serve.*won/i, side, hit.key));
+      const of1 = frac(statValue(m.statistics, /1st.*serve.*won|first.*serve.*won/i, oppSide, oppKey));
+      const of2 = frac(statValue(m.statistics, /2nd.*serve.*won|second.*serve.*won/i, oppSide, oppKey));
       const spw = (f1.of || f2.of) ? ((f1.won || 0) + (f2.won || 0)) / ((f1.of || 0) + (f2.of || 0)) : null;
+      const oppSpw = (of1.of || of2.of) ? ((of1.won || 0) + (of2.won || 0)) / ((of1.of || 0) + (of2.of || 0)) : null;
       const svGmsStat = num(statValue(m.statistics, /service games (played|won)/i, side, hit.key));
+      const oppSvGmsStat = num(statValue(m.statistics, /service games (played|won)/i, oppSide, oppKey));
+      const approx = svGmsFromScores(m);
       return { date: (m.event_date || '').slice(0, 10), surface: inferSurface(m.tournament_name),
-        aces, svGms: svGmsStat || svGmsFromScores(m), servePtsWonPct: spw, minutes: null };
+        aces, doubleFaults, acesFaced, svGms: svGmsStat || approx, retGms: oppSvGmsStat || approx,
+        servePtsWonPct: spw, returnPtsWonPct: oppSpw == null ? null : 1 - oppSpw, minutes: null };
     }).filter((x) => x.svGms);
     recentCache.set(hit.key, { at: Date.now(), rows });
     return rows;
