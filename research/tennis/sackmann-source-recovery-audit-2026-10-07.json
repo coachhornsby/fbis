@@ -1,0 +1,101 @@
+{
+  "as_of": "2026-10-07",
+  "authority": {
+    "repository": "coachhornsby/fbis",
+    "branch": "feat/tennis-lyrid-authoritative-migration-v2",
+    "pr": 865,
+    "sackmann_rights": "CLEARED"
+  },
+  "challenger_recovery": {
+    "required_years": [
+      2021,
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+    ],
+    "expected_rows": {
+      "2021": 7497,
+      "2022": 10016,
+      "2023": 10663,
+      "2024": 11190,
+      "2025": 11629,
+      "2026": 4519
+    },
+    "huggingface_capture": {
+      "dataset": "clarkkitchen22/Tennis-ATP-Dataset",
+      "source_claim": "JeffSackmann/tennis_atp",
+      "all_source_rows_consumed": true,
+      "missing_or_mismatched_files": {},
+      "classification": "PROVENANCE_EVIDENCE_ONLY",
+      "usable_for_index": false,
+      "reason": "Public transformed records omit required serve fields such as svpt/1stIn/1stWon/2ndWon/SvGms/bpSaved/bpFaced; therefore reconstruction would be lossy."
+    },
+    "mirrors": [
+      {
+        "repository": "Aneeshers/tennis-sackmann-archive",
+        "years": "2021-2026",
+        "status": "ZERO_BYTE"
+      },
+      {
+        "repository": "Kadantte/tennis_atp",
+        "years": "2021-2026",
+        "status": "ZERO_BYTE_OBSERVED"
+      },
+      {
+        "repository": "sportData/tennis_atp",
+        "years": "2021-2023",
+        "status": "ZERO_BYTE"
+      },
+      {
+        "repository": "denpareja/tennis-match-performance-analysis",
+        "years": "2022-2024",
+        "status": "ZERO_BYTE_FROM_INITIAL_COMMIT"
+      }
+    ],
+    "status": "BLOCKED_ROW_FAITHFUL_SOURCE_NOT_RECOVERED"
+  },
+  "atp_2026": {
+    "candidates": [
+      {
+        "repository": "AlexandraMoldovan03/ATP-Tennis-Match-Outcome-Prediction-Using-PySpark-and-Machine-Learning",
+        "rows": 1169,
+        "usable_serve_pct": 0.8879384089,
+        "min_date": "20260104",
+        "max_date": "20260422",
+        "players": 347,
+        "duplicates": 0,
+        "blob_sha": "293028bc5ea62af46cbc9c10fbed00fb291614b7"
+      },
+      {
+        "repository": "Aneeshers/tennis-sackmann-archive",
+        "rows": 1449,
+        "usable_serve_pct": 0.8219461698,
+        "min_date": "20260104",
+        "max_date": "20260525",
+        "players": 355,
+        "duplicates": 0,
+        "blob_sha": "e47ba9f9f2521ca96450001ac978da5161f18d6d"
+      },
+      {
+        "repository": "michaelbruen/ATP_Tennis_Project",
+        "rows": 1449,
+        "usable_serve_pct": 0.8219461698,
+        "min_date": "20260104",
+        "max_date": "20260525",
+        "players": 355,
+        "duplicates": 0,
+        "blob_sha": "e47ba9f9f2521ca96450001ac978da5161f18d6d"
+      }
+    ],
+    "non_authoritative_research_candidate": {
+      "repository": "Retain7/Wimbledon_2026",
+      "rows": 1520,
+      "max_date": "20260621",
+      "reason": "Schema/level vocabulary differs and Sackmann provenance not established."
+    },
+    "status": "INCOMPLETE_FOR_CURRENT_2026_HISTORY"
+  },
+  "stop_condition": "Do not rebuild authoritative index until row-faithful Challenger 2021-2026 and sufficiently current 2026 ATP Tour inputs are established."
+}
