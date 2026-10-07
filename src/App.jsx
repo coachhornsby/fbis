@@ -107,7 +107,7 @@ export default function App() {
   const [todayLastSuccessAt, setTodayLastSuccessAt] = useState("");
   const [todayLastAttemptAt, setTodayLastAttemptAt] = useState("");
   const [todayStale, setTodayStale] = useState(false);
-  const [todaySport, setTodaySport] = useState("all");
+  const [todaySport, setTodaySport] = useState(() => SPORTS[String(initial.sportFilter || "").toLowerCase()] ? String(initial.sportFilter).toLowerCase() : "all");
   const [todayBucket, setTodayBucket] = useState("all");
   const [importOpen, setImportOpen] = useState(false);
   const [betsPack, setBetsPack] = useState({ bets: [], summary: null, ok: true, d1: "unknown" });
