@@ -77,5 +77,5 @@ export async function collectAsianBaseballMarket({env,league,now=new Date(),snap
  const games=await canonicalGames(db,L,live.events);const normalized=normalizeAsianBaseballTheOdds(live.events,{league:L,canonicalGames:games,collectedAt:at});
  const safe=normalized.offers.filter(o=>o.eventId);const persisted=await persistNormalizedMarketBatch(db,safe,{snapshotType,collectedAt:at});
  await db.prepare("INSERT OR REPLACE INTO store_meta(k,v) VALUES(?,?)").bind("asian_baseball_"+L.toLowerCase()+"_market_success_at",at).run();
- return{ok:true,league:L,events:live.events.length,offers:normalized.offers.length,persisted:persisted.inserted,unmatched:normalized.offers.length-safe.length,pinnacleObserved:normalized.pinnacleObserved,quota:live.quota,warnings:normalized.warnings,governance:ASIAN_BASEBALL_MARKET_GOVERNANCE};
+ return{ok:true,league:L,events:live.events.length,offers:normalized.offers.length,persisted:persisted.inserted,unmatched:normalized.offers.filter(o=>!o.eventId).length,postStartRejected,pinnacleObserved:normalized.pinnacleObserved,quota:live.quota,warnings:normalized.warnings,governance:ASIAN_BASEBALL_MARKET_GOVERNANCE};
 }
