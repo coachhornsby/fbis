@@ -1,3 +1,5 @@
+import { persistNormalizedMarketObservation } from "./marketObservationLedger.js";
+import { normalizeMarketOffer, MARKET_SOURCE_TYPE } from "./normalizedMarket.js";
 import { buildSharpMarketPrior, tennisMarketResidualProjection, americanToProb } from "./tennisMarketV2.js";
 
 const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -66,6 +68,26 @@ export function actionObservationToTennisMarket(row={}){
   return actionObservationToTennisMarkets(row).find(x=>x.marketType==="moneyline")||null;
 }
 
+export async function persistTennisVenueOffer(db,m={}){
+ const marketType=String(m.marketType||"moneyline").toLowerCase(),collectedAt=m.collectedAt||new Date().toISOString();
+ const base={source:String(m.sportsbook||m.provider||"unknown").toLowerCase(),sourceType:MARKET_SOURCE_TYPE.SPORTSBOOK,
+  sport:"tennis",league:m.tour||"tennis",eventId:m.canonicalEventId,eventStart:m.eventStartTime,homeTeam:m.player1,awayTeam:m.player2,
+  marketFamily:marketType,period:"full_game",fetchedAt:m.observedAt||collectedAt,executionEligible:false,
+  raw:{provider:m.provider||null,providerEventId:m.providerEventId||null,marketPayload:m.marketPayload||null}};
+ const rows=[];
+ if(marketType==="moneyline"){
+   rows.push({...base,side:"home",team:m.player1,americanOdds:m.player1Price},{...base,side:"away",team:m.player2,americanOdds:m.player2Price});
+ }else if(marketType==="spread"){
+   rows.push({...base,side:"home",team:m.player1,line:m.player1Line,americanOdds:m.player1Price},{...base,side:"away",team:m.player2,line:m.player2Line,americanOdds:m.player2Price});
+ }else if(marketType==="total"){
+   rows.push({...base,side:"over",line:m.player1Line,americanOdds:m.overPrice},{...base,side:"under",line:m.player1Line,americanOdds:m.underPrice});
+ }
+ const valid=rows.filter(x=>x.americanOdds!=null||x.line!=null);
+ const ids=[];for(const row of valid){const paired=row.side==="home"?m.player2Price:row.side==="away"?m.player1Price:row.side==="over"?m.underPrice:m.overPrice;
+   const r=await persistNormalizedMarketObservation(db,normalizeMarketOffer(row),{pairedAmericanOdds:paired,snapshotType:m.snapshotType||"CURRENT",collectedAt});ids.push(r.id)}
+ return {inserted:ids.length,ids};
+}
+
 export async function persistTennisMarketSnapshot(db,m={}){
   if(!db?.prepare||!m?.canonicalEventId)return {inserted:false};
   const marketType=String(m.marketType||"moneyline").toLowerCase();
@@ -88,7 +110,9 @@ export async function persistTennisMarketSnapshot(db,m={}){
     finite(m.lineVelocity),m.rawPayloadHash||null,new Date().toISOString(),finite(m.player1Line),finite(m.player2Line),
     finite(m.overPrice),finite(m.underPrice),finite(m.overNoVig),finite(m.underNoVig),JSON.stringify(m.marketPayload||null)
   ).run();
-  return {inserted:Number(res?.meta?.changes||res?.changes||0)>0,id};
+  const inserted=Number(res?.meta?.changes||res?.changes||0)>0;
+  await persistTennisVenueOffer(db,m).catch(()=>null);
+  return {inserted,id};
 }
 
 export async function persistTennisContexts(db,{eventId,tour,players=[],contexts=[],source="FBIS_CONTEXT"}={}){
