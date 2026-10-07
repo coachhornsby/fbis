@@ -1,3 +1,4 @@
+import {syncPlayerPropCardSettlements} from '../lib/playerPropCardSettlement.js';
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -193,6 +194,7 @@ async function refreshCards(db) {
       "UPDATE player_prop_cards SET status='SETTLED', result=?, profit=?, settled_at=datetime('now'), updated_at=datetime('now') WHERE card_id=?"
     ).bind(result, profit, card.card_id).run();
   }
+  return syncPlayerPropCardSettlements(db);
 }
 
 async function autoSettleNfl(db) {

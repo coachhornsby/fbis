@@ -126,10 +126,9 @@ jobs:
           set -euo pipefail
           # Schema is migration-owned. Scheduled refresh writes only current state.
           if [ -s artifacts/wnba-player-impact-live.sql ]; then
-            sql="$(cat artifacts/wnba-player-impact-live.sql)"
             ok=0
             for attempt in 1 2 3 4 5 6; do
-              if npx wrangler d1 execute fbis --remote --command "$sql"; then
+              if npx wrangler d1 execute fbis --remote --file artifacts/wnba-player-impact-live.sql; then
                 ok=1
                 break
               fi
