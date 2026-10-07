@@ -31,7 +31,16 @@ export async function collectCurrentPipeline(context, collect = collectBoards) {
       const expectedAt = Date.parse(lastExpectedCollectUtc());
       const stamps = [...SPORTS].map(s => [s, meta[`native_current_collect_success:${s}`]]);
       const missingSports = stamps.filter(([, at]) => !(Date.parse(at) >= expectedAt)).map(([s]) => s);
-      return json({ ok: true, status: "success", missingSports,
+      const today = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit",
+      }).format(new Date());
+      const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const recent = await context.env.DB.prepare(
+        "SELECT DISTINCT sport FROM job_runs WHERE job_type = 'harvest' AND trigger_type = 'schedule' AND status = 'success' AND completed_at >= ? AND dates_json = ?"
+      ).bind(cutoff, JSON.stringify([today])).all();
+      const coveredHarvest = new Set((recent.results || []).map(row => row.sport));
+      const missingHarvestSports = [...SPORTS].filter(s => !coveredHarvest.has(s));
+      return json({ ok: true, status: "success", missingSports, missingHarvestSports,
         initializing: stamps.some(([, at]) => !at),
         inProgress: stamps.some(([, at]) => Date.parse(at) >= expectedAt) && missingSports.length > 0 }, 200);
     }

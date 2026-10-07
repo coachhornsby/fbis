@@ -44,7 +44,9 @@ export async function recoverCurrentPipeline(env, controller, request = fetch, n
   if (!coverageResponse.ok) throw new Error(`Current collection coverage HTTP ${coverageResponse.status}`);
   const coverage = await coverageResponse.json();
   if (!coverage.ok || !Array.isArray(coverage.missingSports)
-    || coverage.missingSports.some(s => !RECOVERY_SPORTS.includes(s))) throw new Error("Current collection coverage unavailable");
+    || coverage.missingSports.some(s => !RECOVERY_SPORTS.includes(s))
+    || !Array.isArray(coverage.missingHarvestSports)
+    || coverage.missingHarvestSports.some(s => !RECOVERY_SPORTS.includes(s))) throw new Error("Current collection coverage unavailable");
   const needsRecovery = (name, state) => ["missed", "never observed"].includes(state)
     || (health.staleChecks || []).some(check => check.name === name);
   const collect = needsRecovery("scheduled-collect", health.pipeline?.schedule?.collect?.state)
@@ -54,10 +56,12 @@ export async function recoverCurrentPipeline(env, controller, request = fetch, n
   // GitHub also owns an hourly settlement cron. Cover a missing hourly delivery
   // prospectively, without waiting for the much wider release-health window.
   const hourlyHarvestGap = now.getTime() - Date.parse(harvestSchedule?.lastObservedAt) >= 60 * 60 * 1000;
-  const harvest = needsRecovery("scheduled-harvest", harvestSchedule?.state) || hourlyHarvestGap;
+  const harvest = needsRecovery("scheduled-harvest", harvestSchedule?.state) || hourlyHarvestGap
+    || coverage.missingHarvestSports.length > 0;
+  const harvestSports = harvest ? (coverage.missingHarvestSports.length ? coverage.missingHarvestSports : RECOVERY_SPORTS) : [];
   if (!health.pipeline?.schedule) throw new Error("Pipeline schedule unavailable");
   const result = { scheduledAt, currentDate, productionSha: sha, collect, harvest,
-    harvestReason: harvest ? (hourlyHarvestGap ? "hourly_delivery_gap" : "missed_or_stale") : null, calls: [] };
+    harvestReason: harvest ? (hourlyHarvestGap ? "hourly_delivery_gap" : coverage.missingHarvestSports.length ? "per_sport_hourly_delivery_gap" : "missed_or_stale") : null, calls: [] };
   if (!collect && !harvest) return { ...result, status: "not_due", healthState: health.state, failures: health.failures };
   const invoke = async (job, sport) => {
     if ((await readHealth()).deploymentCommit !== sha) throw new Error("Production SHA changed; writes blocked");
@@ -79,7 +83,7 @@ export async function recoverCurrentPipeline(env, controller, request = fetch, n
   // Full cycle is bounded to 8 current-date calls per mode, with no retries.
   // Abort on failure rather than report a partial cycle as successful.
   if (collect) for (const sport of collectSports) await invoke("collect", sport);
-  if (harvest) for (const sport of RECOVERY_SPORTS) await invoke("harvest", sport);
+  if (harvest) for (const sport of harvestSports) await invoke("harvest", sport);
   const after = await readHealth();
   return { ...result, status: "completed", healthState: after.state, failures: after.failures };
 }

@@ -119,7 +119,7 @@ describe("prospective Cloudflare recovery", () => {
     deploymentCommit: sha, state: "HEALTHY", staleChecks: [],
     pipeline: { schedule: { collect: { state: collect }, harvest: { state: harvest } } },
   });
-  const mock = (initial, mutate = () => {}, coverage = { ok: true, missingSports: RECOVERY_SPORTS, initializing: false, inProgress: false }) => {
+  const mock = (initial, mutate = () => {}, coverage = { ok: true, missingSports: RECOVERY_SPORTS, missingHarvestSports: [], initializing: false, inProgress: false }) => {
     const writes = [];
     let reads = 0;
     return { writes, request: async (raw, options) => {
@@ -143,12 +143,12 @@ describe("prospective Cloudflare recovery", () => {
     assert.equal(m.writes.length, 0);
   });
   it("initializes fresh per-sport proof even when global health is healthy", async () => {
-    const m = mock(health(), () => {}, { ok: true, missingSports: RECOVERY_SPORTS, initializing: true, inProgress: false });
+    const m = mock(health(), () => {}, { ok: true, missingSports: RECOVERY_SPORTS, missingHarvestSports: [], initializing: true, inProgress: false });
     await recoverCurrentPipeline(env, controller, m.request, now);
     assert.equal(m.writes.length, RECOVERY_SPORTS.length);
   });
   it("resumes only missing sports after a partial cycle made global health healthy", async () => {
-    const m = mock(health(), () => {}, { ok: true, missingSports: ["soccer"], initializing: false, inProgress: true });
+    const m = mock(health(), () => {}, { ok: true, missingSports: ["soccer"], missingHarvestSports: [], initializing: false, inProgress: true });
     await recoverCurrentPipeline(env, controller, m.request, now);
     assert.deepEqual(m.writes.map(({ url }) => url.searchParams.get("sport")), ["soccer"]);
   });
@@ -156,6 +156,14 @@ describe("prospective Cloudflare recovery", () => {
     const m = mock(health("missed"), () => {}, { ok: true, missingSports: ["unknown"] });
     await assert.rejects(recoverCurrentPipeline(env, controller, m.request, now), /coverage unavailable/);
     assert.equal(m.writes.length, 0);
+  });
+  it("resumes missing current-hour harvest sports even when global health is healthy", async () => {
+    const m = mock(health(), () => {}, { ok: true, missingSports: [], missingHarvestSports: ["mlb", "soccer"], initializing: false, inProgress: false });
+    const r = await recoverCurrentPipeline(env, controller, m.request, now);
+    assert.equal(r.harvestReason, "per_sport_hourly_delivery_gap");
+    assert.deepEqual(m.writes.map(({ url }) => [url.pathname, url.searchParams.get("sport"), url.searchParams.get("date")]), [
+      ["/api/harvest", "mlb", "2026-10-07"], ["/api/harvest", "soccer", "2026-10-07"],
+    ]);
   });
   it("collects all configured sports using current-day cached odds with actual cron provenance", async () => {
     const m = mock(health("missed", "healthy"));
@@ -233,6 +241,27 @@ describe("bounded current collection boundary", () => {
     request: new Request(`https://example.com/api/collect-current?sport=cbb&trigger=schedule&expectedSha=${sha}${query}`, {
       headers: { "x-harvest-secret": token },
     }),
+  });
+  it("reads real per-sport current-hour harvest coverage without collecting or writing", async () => {
+    const c = context("&status=1");
+    const queries = [];
+    c.env.DB = { prepare(sql) {
+      const stmt = { bind(...args) { queries.push({ sql, args }); return stmt; }, async all() {
+        if (sql.includes("store_meta")) return { results: RECOVERY_SPORTS.map(sport => ({ k: `native_current_collect_success:${sport}`, v: new Date().toISOString() })) };
+        return { results: RECOVERY_SPORTS.filter(sport => sport !== "soccer").map(sport => ({ sport })) };
+      } }; return stmt;
+    } };
+    const response = await collectCurrentPipeline(c, () => { throw new Error("status must not collect"); });
+    const result = await response.json();
+    assert.equal(response.status, 200);
+    assert.deepEqual(result.missingSports, []);
+    assert.deepEqual(result.missingHarvestSports, ["soccer"]);
+    assert.equal(result.initializing, false);
+    assert.match(queries[0].sql, /trigger_type = 'schedule'/);
+    assert.match(queries[0].sql, /status = 'success'/);
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    assert.equal(queries[0].args[1], JSON.stringify([today]));
+    assert.ok(Math.abs(Date.parse(queries[0].args[0]) - (Date.now() - 3600000)) < 1000);
   });
   it("uses canonical collection with current cache settings even if historical/full arguments are supplied", async () => {
     let called;
