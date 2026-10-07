@@ -1,3 +1,4 @@
+import { normalizeMarketOffer, MARKET_SOURCE_TYPE } from "./normalizedMarket.js";
 import { mapUnderdogStat, normalizeUnderdogSport } from "./underdogStatMaps.js";
 
 export const UNDERDOG_ENDPOINT="https://api.underdogfantasy.com/beta/v3/over_under_lines";
@@ -147,4 +148,16 @@ export async function archiveUnderdogSnapshot(env,result,{sport="all"}={}){
   const rows=result.lines.map(r=>({timestamp:r.timestamp,platform:r.platform,sport:r.sport,event:r.eventId,player:r.playerName,stat:r.statLabel,statFamily:r.statFamily,line:r.line,lineType:r.lineType,sourceIds:r.rawIds,startTime:r.eventStartTime}));
   await env.ARCHIVE.put(key,JSON.stringify({schemaVersion:1,source:UNDERDOG_SOURCE,fetchedAt:result.fetchedAt,rows}),{httpMetadata:{contentType:"application/json"},customMetadata:{source:"underdog",appendOnly:"true"}});
   return {archived:true,key,rows:rows.length};
+}
+
+
+export function underdogLinesToMarketOffers(result={}){
+  return (result.lines||[]).map(r=>normalizeMarketOffer({
+    source:"underdog",sourceType:MARKET_SOURCE_TYPE.PICKEM,sport:r.sport,league:r.league,eventId:r.eventId,eventStart:r.eventStartTime,
+    playerId:r.playerId,playerName:r.playerName,team:r.team,opponent:r.opponent,marketFamily:"player_prop",statFamily:r.statFamily,
+    side:null,line:r.line,americanOdds:null,contractPrice:null,payoutMultiplier:r.payoutMultiplier,
+    standardOrAlt:r.lineType==="standard"?"standard":r.lineType==="alternate"?"alternate":"unknown",
+    promo:r.lineType==="promo"||r.lineType==="discounted",period:null,sourceMarketId:r.rawIds?.lineId,sourceOutcomeId:null,
+    fetchedAt:r.timestamp,executionEligible:false,raw:r.raw
+  }));
 }
