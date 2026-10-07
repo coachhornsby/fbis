@@ -171,6 +171,9 @@ export function simulateTennisMatch(game={},ctx={},opts={}){
     surface:game.surface||ctx.surface||"hard",
     bestOf:game.bestOf||ctx.bestOf||3,
   };
+  const integrity1=validateTennisProjectionProfile(player1,{surface:context.surface});
+  const integrity2=validateTennisProjectionProfile(player2,{surface:context.surface});
+  if(!integrity1.ok||!integrity2.ok)return noValidTennisProjection({player1:integrity1,player2:integrity2});
   const requested=Number(opts.simulations||ctx.simulations||8000);
   const simulationFloor=opts.researchBacktest===true?100:1000;
   const simulations=Math.max(simulationFloor,Math.min(50000,requested));
@@ -179,6 +182,10 @@ export function simulateTennisMatch(game={},ctx={},opts={}){
   for(let i=0;i<simulations;i++)outcomes.push(oneMatch(player1,player2,context,R));
   const p1Win=outcomes.filter(x=>x.winner===0).length/simulations;
   const p2Win=1-p1Win;
+  const p1Straight=outcomes.filter(x=>x.winner===0&&x.players[1].setsWon===0).length/simulations;
+  const p2Straight=outcomes.filter(x=>x.winner===1&&x.players[0].setsWon===0).length/simulations;
+  const decidingSets=Number(context.bestOf)===5?5:3;
+  const pDeciding=outcomes.filter(x=>x.totalSets===decidingSets).length/simulations;
   const p1=outcomes.map(x=>x.players[0]),p2=outcomes.map(x=>x.players[1]);
   const metric=(arr,key)=>summarize(arr.map(x=>x[key]));
   return {
@@ -200,6 +207,9 @@ export function simulateTennisMatch(game={},ctx={},opts={}){
     match:{
       pPlayer1Win:round(p1Win,4),
       pPlayer2Win:round(p2Win,4),
+      pPlayer1StraightSets:round(p1Straight,4),
+      pPlayer2StraightSets:round(p2Straight,4),
+      pDecidingSet:round(pDeciding,4),
       totalGames:summarize(outcomes.map(x=>x.totalGames)),
       totalSets:summarize(outcomes.map(x=>x.totalSets)),
       tieBreaks:summarize(outcomes.map(x=>x.tieBreaks)),
