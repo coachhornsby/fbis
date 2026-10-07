@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -59,4 +60,12 @@ describe("FBIS Board-first product navigation", () => {
     assert.match(label, /SEP/);
     assert.match(label, /12/);
   });
+});
+
+describe("cold sport-filter board request",()=>{
+ it("initializes the request sport from the URL filter instead of silently fetching all sports",()=>{
+  const app=readFileSync(new URL("../src/App.jsx",import.meta.url),"utf8");
+  assert.match(app,/\[todaySport, setTodaySport\] = useState\(\(\) => SPORTS\[String\(initial\.sportFilter/);
+  assert.match(app,/fetch\(`\/api\/today\?date=\$\{todayDate\}&sport=\$\{todaySport\}/);
+ });
 });
