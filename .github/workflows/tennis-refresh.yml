@@ -56,7 +56,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -e '.ok == true and .canonicalMatches > 0 and .players > 0 and .latestObservation != "" and .bet == false' artifacts/tennis-refresh/refresh-health.json >/dev/null
-          jq -c '{scope,refreshedAt,files,rawObservations,canonicalMatches,players,latestObservation,byKind,bet}' artifacts/tennis-refresh/refresh-health.json
+          jq -c '{scope,refreshStartedAt,refreshCompletedAt,manifestRetrievedAt,workflowSha,workflowRunId,files,rawObservations,canonicalMatches,duplicatesRemoved,identityCollisions,disagreementRate,players,latestObservation,latestByKind,bet}' artifacts/tennis-refresh/refresh-health.json
       - name: Persist immutable refresh snapshot to R2
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
