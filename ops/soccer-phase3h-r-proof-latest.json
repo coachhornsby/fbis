@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-07T14:48:34Z",
-  "triggerSha": "8f14c70b6b18bdc9bdd355315f2ae96d97d89e5b",
+  "generatedAt": "2026-10-07T14:50:59Z",
+  "triggerSha": "219b758477ce381db5a0cd1bf51a8e6c2a7f0671",
   "snapshotDate": "2026-10-07",
   "first": {
     "ok": true,
     "date": "2026-10-07",
-    "snapshotAt": "2026-10-07T14:48:29.113Z",
+    "snapshotAt": "2026-10-07T14:50:53.685Z",
     "slateGames": 1,
     "eligibleGames": 0,
     "attempted": 0,
@@ -16,7 +16,7 @@
     },
     "skippedDetails": {},
     "lifecycle": "SHADOW",
-    "collectorCodeSha": "549e8bcfe790229c4e01ef2a2ada452b8345fb5c",
+    "collectorCodeSha": "8f14c70b6b18bdc9bdd355315f2ae96d97d89e5b",
     "publicProjectionRoutingChanged": false,
     "persistentStateUsed": false,
     "marketUsedInModel": false,
