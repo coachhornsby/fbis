@@ -255,3 +255,27 @@ test("NBA watchdog recovers missed full-odds slots instead of cache-only recover
   assert.match(workflow, /watchdog-nba-full-recovery/);
   assert.match(workflow, /nba_full_failed/);
 });
+
+
+test("research workflow schedule contract maps cron identity deterministically", () => {
+  const src = readFileSync(new URL("../.github/workflows/harvest.yml", import.meta.url), "utf8");
+  assert.match(src, /- cron: "0 13,16 \* \* \*"/);
+  assert.match(src, /- cron: "0 0,2,18,20,22 \* \* \*"/);
+  assert.match(src, /- cron: "20 11,16 \* \* \*"/);
+  assert.match(src, /- cron: "35 \* \* \* \*"/);
+  assert.match(src, /SCHEDULED_EXPRESSION: \$\{\{ github\.event\.schedule \}\}/);
+  assert.match(src, /\[ "\$\{EVENT_NAME\}" = "schedule" \] && \[ "\$\{SCHEDULED_EXPRESSION\}" = "0 13,16 \* \* \*" \]/);
+  assert.match(src, /MODE="collect-full"/);
+  assert.match(src, /\[ "\$\{EVENT_NAME\}" = "schedule" \] && \[ "\$\{SCHEDULED_EXPRESSION\}" = "20 11,16 \* \* \*" \]/);
+  assert.match(src, /MODE="harvest"/);
+  assert.match(src, /elif \[ "\$\{EVENT_NAME\}" = "schedule" \]; then\n\s+MODE="health"/);
+});
+
+test("scheduled collect persists slot, mode, sport, and deployment provenance", () => {
+  const src = readFileSync(new URL("../functions/api/collect.js", import.meta.url), "utf8");
+  assert.match(src, /last_scheduled_collect_mode/);
+  assert.match(src, /last_scheduled_collect_sport/);
+  assert.match(src, /last_scheduled_collect_deployment_commit/);
+  assert.match(src, /last_scheduled_run_url/);
+  assert.match(src, /last_scheduled_slot/);
+});

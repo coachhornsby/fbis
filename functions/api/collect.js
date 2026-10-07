@@ -63,6 +63,9 @@ export async function onRequestGet(context) {
       if (runUrl) await setMeta(context.env, "last_scheduled_run_url", runUrl);
       if (scheduledSlot) await setMeta(context.env, "last_scheduled_slot", scheduledSlot);
       await setMeta(context.env, "last_scheduled_actual_start_at", new Date().toISOString());
+      await setMeta(context.env, "last_scheduled_collect_mode", odds === "full" ? "collect-full" : "collect-cache");
+      await setMeta(context.env, "last_scheduled_collect_sport", sport);
+      await setMeta(context.env, "last_scheduled_collect_deployment_commit", context.env.CF_PAGES_COMMIT_SHA || "");
     }
     const payload = await collectBoards(
       {
