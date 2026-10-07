@@ -1,0 +1,17 @@
+import test from "node:test";import assert from "node:assert/strict";
+import {ASIAN_BASEBALL_ODDS_SPORT,asianBaseballCollectionGate,normalizeAsianBaseballTheOdds,theOddsQuota} from "../functions/lib/asianBaseballMarket.js";
+const ev={id:"evt1",sport_key:"baseball_npb",commence_time:"2026-10-07T09:00:00Z",home_team:"Hanshin Tigers",away_team:"Yomiuri Giants",bookmakers:[
+ {key:"pinnacle",title:"Pinnacle",last_update:"2026-10-07T07:00:00Z",markets:[
+  {key:"h2h",outcomes:[{name:"Hanshin Tigers",price:-120},{name:"Yomiuri Giants",price:105}]},
+  {key:"spreads",outcomes:[{name:"Hanshin Tigers",price:130,point:-1.5},{name:"Yomiuri Giants",price:-150,point:1.5}]},
+  {key:"totals",outcomes:[{name:"Over",price:-105,point:6.5},{name:"Under",price:-115,point:6.5}]}]},
+ {key:"draftkings",title:"DraftKings",last_update:"2026-10-07T07:01:00Z",markets:[{key:"h2h",outcomes:[{name:"Hanshin Tigers",price:-118},{name:"Yomiuri Giants",price:102}]}]}
+]};
+const games=[{canonical_game_id:"NPB:2026-10-07:yg:ht",league:"NPB",scheduled_start:"2026-10-07T09:00:00Z",home_team_id:"npb-ht",away_team_id:"npb-yg"}];
+test("sport keys are exact",()=>assert.deepEqual(ASIAN_BASEBALL_ODDS_SPORT,{npb:"baseball_npb",kbo:"baseball_kbo"}));
+test("normalizes venue-specific ML spread total without projection authority",()=>{const r=normalizeAsianBaseballTheOdds([ev],{league:"NPB",canonicalGames:games,collectedAt:"2026-10-07T07:02:00Z"});assert.equal(r.offers.length,8);assert.equal(r.pinnacleObserved,true);assert.ok(r.offers.every(x=>x.eventId==="NPB:2026-10-07:yg:ht"));assert.deepEqual(new Set(r.offers.map(x=>x.marketFamily)),new Set(["moneyline","spread","total"]));assert.ok(r.offers.some(x=>x.source==="draftkings"));assert.ok(r.offers.every(x=>x.executionEligible===false));assert.equal(r.governance.canQualify,false);assert.equal(r.governance.canAuthorizeWager,false);});
+test("ambiguous or unresolved canonical identity fails closed",()=>{const r=normalizeAsianBaseballTheOdds([ev],{league:"NPB",canonicalGames:[...games,{...games[0],canonical_game_id:"duplicate"}]});assert.ok(r.offers.every(x=>x.eventId==null));assert.ok(r.warnings.some(x=>x.reason==="ambiguous-canonical-match"));});
+test("post-start is never manufactured as close by normalizer",()=>{const r=normalizeAsianBaseballTheOdds([ev],{league:"NPB",canonicalGames:games,collectedAt:"2026-10-07T10:00:00Z"});assert.ok(r.offers.every(x=>x.raw.providerCollectedAt==="2026-10-07T10:00:00Z"));assert.ok(r.offers.every(x=>x.raw.snapshotType==null));});
+test("quota headers are preserved",()=>{const h=new Headers({"x-requests-remaining":"497","x-requests-used":"3","x-requests-last":"3"});assert.deepEqual(theOddsQuota(h),{remaining:497,used:3,last:3});});
+test("collector gate preserves low quota and backs off empty slates",()=>{assert.equal(asianBaseballCollectionGate({remaining:12}).reason,"quota-reserve");const now=new Date("2026-10-07T08:00:00Z");const g=asianBaseballCollectionGate({remaining:400,lastEmptyAt:"2026-10-07T07:00:00Z",now});assert.equal(g.ok,false);assert.equal(g.reason,"cadence");});
+test("KBO identity maps canonical team IDs",()=>{const k={...ev,sport_key:"baseball_kbo",home_team:"LG Twins",away_team:"KIA Tigers",bookmakers:ev.bookmakers.slice(0,1)};const r=normalizeAsianBaseballTheOdds([k],{league:"KBO",canonicalGames:[{canonical_game_id:"k1",league:"KBO",scheduled_start:k.commence_time,home_team_id:"kbo-lg",away_team_id:"kbo-kia"}]});assert.ok(r.offers.length>0);assert.ok(r.offers.every(x=>x.eventId==="k1"));});
