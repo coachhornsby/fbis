@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - "workers/sports-projection-orchestrator-worker.mjs"
+      - "workers/prospective-pipeline-recovery.mjs"
       - "services/sports-projection-orchestrator/orchestrator.mjs"
       - "wrangler.orchestrator.toml"
       - ".github/workflows/deploy-cloudflare-orchestrator.yml"
