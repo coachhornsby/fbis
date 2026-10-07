@@ -1,5 +1,5 @@
 name: MLB prospective prop evidence
-# Controlled Oct. 6 final settlement smoke; no behavior change.
+# Controlled Oct. 6 final settlement smoke retry after partial shard completion; no behavior change.
 
 on:
   schedule:
