@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 15
     env:
       BASE: https://fbis-myz.pages.dev
+      GITHUB_TOKEN: ${{ github.token }}
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
       TZ: America/Chicago
     steps:
@@ -34,14 +35,25 @@ jobs:
             body="$(mktemp)"
             code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/nhl-goalie-shadow?_sha=$GITHUB_SHA" || true)"
             live="$(jq -r '.codeSha // empty' "$body" 2>/dev/null || true)"
-            if [ "$code" = "200" ] && [ "$live" = "$GITHUB_SHA" ]; then
-              echo "Exact Pages production SHA verified: $live"
-              exit 0
+            if [ "$code" = "200" ] && [ -n "$live" ]; then
+              if [ "$live" = "$GITHUB_SHA" ]; then
+                echo "Pages production SHA exactly matches workflow SHA: $live"
+                exit 0
+              fi
+              compare="$(curl -sS --max-time 20 \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                "https://api.github.com/repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...$live" || true)"
+              relation="$(printf '%s' "$compare" | jq -r '.status // empty' 2>/dev/null || true)"
+              if [ "$relation" = "ahead" ]; then
+                echo "Pages production SHA is a verified descendant of workflow SHA: $live"
+                exit 0
+              fi
             fi
-            echo "Waiting for Pages production SHA. expected=$GITHUB_SHA live=${live:-unknown} http=$code"
+            echo "Waiting for non-stale Pages production SHA. base=$GITHUB_SHA live=${live:-unknown} http=$code relation=${relation:-unknown}"
             sleep 10
           done
-          echo "Timed out waiting for exact Pages production SHA $GITHUB_SHA"
+          echo "Timed out waiting for Pages production SHA equal to or descended from $GITHUB_SHA"
           exit 1
 
       - name: Freeze one pregame shadow snapshot per eligible game
