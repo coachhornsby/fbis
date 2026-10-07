@@ -475,6 +475,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
   const [freshness,setFreshness]=useState(null);
+  const [underdogRows,setUnderdogRows]=useState([]);
   const [expandedKey,setExpandedKey]=useState("");
   const [localSport,setLocalSport]=useState(
     String(sportFilter||"top25").toLowerCase()==="all"?"top25":String(sportFilter||"top25").toLowerCase()
@@ -495,20 +496,25 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
     const isTop=localSport==="top25";
     const q=new URLSearchParams({date,mode:isTop?"top25":"sport"});
     if(!isTop) q.set("sport",localSport);
-    fetch("/api/selective-props?"+q.toString(),{credentials:"same-origin"})
-      .then(async res=>{
+    const primary=fetch("/api/selective-props?"+q.toString(),{credentials:"same-origin"});
+    const ud=localSport==="tennis"
+      ? fetch("/api/lines/underdog?sport=tennis&date="+encodeURIComponent(date),{credentials:"same-origin"}).then(r=>r.ok?r.json():null).catch(()=>null)
+      : Promise.resolve(null);
+    Promise.all([primary,ud]).then(async ([res,udBody])=>{
         const j=await res.json().catch(()=>({}));
         if(!res.ok||j?.ok===false) throw new Error(j?.error||("HTTP "+res.status));
-        return j;
+        return {j,udBody};
       })
-      .then(j=>{
+      .then(({j,udBody})=>{
         if(cancelled) return;
         setRows(Array.isArray(j.rows)?j.rows:[]);
         setFreshness(j.freshness||null);
+        setUnderdogRows(Array.isArray(udBody?.lines)?udBody.lines:[]);
       })
       .catch(e=>{
         if(cancelled) return;
         setRows([]);
+        setUnderdogRows([]);
         setError(String(e?.message||e));
       })
       .finally(()=>{if(!cancelled)setLoading(false)});
@@ -516,14 +522,22 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
   },[localSport]);
 
   const groups=useMemo(
-    ()=>groupLatest(rows).sort((a,b)=>{
+    ()=>groupLatest(rows).map(group=>{
+      if(localSport!=="tennis") return group;
+      const p=group.primary||{};
+      const name=String(p.player_name||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+      const market=String(p.canonical_market||p.stat_type||"").toLowerCase();
+      const matches=underdogRows.filter(u=>u.usableForAutomatedComparison&&u.lineType!=="promo"&&u.lineType!=="discounted"&&u.lineType!=="alternate"&&String(u.playerName||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()===name&&String(u.statFamily||"").toLowerCase()===market);
+      const standard=matches.find(u=>u.lineType==="standard")||matches.find(u=>u.lineType==="unknown")||null;
+      return {...group,underdog:standard};
+    }).sort((a,b)=>{
       const byStars=(rowStars(b.primary)||0)-(rowStars(a.primary)||0);
       if(byStars) return byStars;
       const bz=Math.abs(Number(b.primary?.standardized_edge ?? b.primary?.selection_score ?? 0));
       const az=Math.abs(Number(a.primary?.standardized_edge ?? a.primary?.selection_score ?? 0));
       return bz-az;
     }),
-    [rows]
+    [rows,underdogRows,localSport]
   );
 
   const title=localSport==="top25"?"Top 25":localSport.toUpperCase();
@@ -630,6 +644,8 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
                 <div className="pp-market-name pp-premium-market-name">{marketLabel(r)}</div>
 
                 <VariantMetrics group={group}/>
+
+                {sport==="tennis"?<div className="pp-card-foot pp-premium-foot"><span>Underdog{group.underdog?.lineType==="unknown"?" [UNKNOWN TYPE]":""} {group.underdog?.line??"—"}{group.underdog&&Number.isFinite(Number(r.line))?` · Δ ${(Number(group.underdog.line)-Number(r.line)).toFixed(1)}`:""}</span><span>{group.underdog?.timestamp?new Date(group.underdog.timestamp).toLocaleTimeString("en-US",{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit"}):"source unavailable"}</span></div>:null}
 
                 <div className="pp-card-foot pp-premium-foot">
                   <span>{matchupLabel(r)}</span>
