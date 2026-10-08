@@ -33,6 +33,7 @@ test('publication or provider time cannot replace missing acquisition time',()=>
  const at='2026-10-08T02:59:00Z';
  const intel=buildBoardActionIntel({created_at:at,source_observed_at:at,observed_at:at,consensus_json:'{"total":45}'});
  assert.equal(intel.collectedAt,null);
+ assert.equal(currentActionDisplay({actionIntel:{collectedAt:at,observedAt:'2026-10-08T03:01:00Z',consensus:{total:45}}},now).actionIntel,null);
  assert.equal(currentActionDisplay({actionIntel:intel,sentiment:{source:'ACTION',collectedAt:at}},now).actionIntel,null);
  for(const sourceObservedAt of ['bad','2026-09-24T12:00:00Z','2026-10-08T03:01:00Z'])
   assert.equal(actionTemporalValidity({collectedAt:at,sourceObservedAt},{now}).valid,false);

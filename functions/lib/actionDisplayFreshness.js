@@ -5,7 +5,7 @@ export function currentActionDisplay(game, now = Date.now(), freshnessSeconds = 
   const actionSentiment = /ACTION/i.test(String(game?.sentiment?.source || ''));
   if (!intel && !actionSentiment) return game;
   const capturedAt = intel ? intel.collectedAt : game?.sentiment?.collectedAt;
-  if (actionTemporalValidity({collectedAt:capturedAt,sourceObservedAt:intel?.sourceObservedAt}, {now,freshnessSeconds}).valid) {
+  if (actionTemporalValidity({collectedAt:capturedAt,sourceObservedAt:intel?.sourceObservedAt ?? intel?.observedAt}, {now,freshnessSeconds}).valid) {
     if (!Array.isArray(intel?.lineHistory)) return game;
     const history=historicalActionRows(intel.lineHistory,{now});
     // Keep older opening context only alongside a valid current terminal row.
