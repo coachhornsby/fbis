@@ -57,10 +57,12 @@ export default function MispricesView({ sportFilter = "all" }) {
               Auto-promote: {data.policy?.autoPromoteAllowed ? "ON" : "OFF"}
             </span>
           </div>
+          {data.historicalSnapshots?.length ? <p className="muted">{data.historicalSnapshots.length} historical records retained. Their source and acquisition provenance is unavailable; they are excluded from current comparisons.</p> : null}
           <div className="canonical-card-grid">
             {rows.map((r) => (
               <article key={r.id || `${r.modelId}-${r.marketLine}-${r.projection}`} className="canonical-card">
                 <h3>{r.label || r.state}</h3>
+                {r.temporalUse ? <p className="muted small">{r.temporalUse} · {r.marketTimestamp || r.collectedAt || "Source observation time unavailable"}</p> : null}
                 <p className="canonical-meta">
                   {(r.sport || "").toUpperCase()} · {r.marketType || "market"} · {r.modelId}
                 </p>

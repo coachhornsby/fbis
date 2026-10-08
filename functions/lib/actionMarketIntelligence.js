@@ -9,6 +9,7 @@
  * - NEVER PURE-model feature input
  */
 
+import {actionTemporalValidity} from "./actionTemporalValidity.js";
 import { evaluateMisprice, rankMisprices, listChampions } from "./canonical/index.js";
 
 export const ACTION_MARKET_ROLE = "market_intelligence";
@@ -23,7 +24,7 @@ const CHAMPION_BY_SPORT = Object.freeze({
   nba: "NBA-FBIS-v1",
 });
 
-const FRESH_MS = 6 * 60 * 60 * 1000;
+export const ACTION_RESEARCH_FRESHNESS_SECONDS = 6 * 60 * 60;
 
 function safeJson(v) {
   if (v == null) return null;
@@ -102,6 +103,7 @@ export function buildActionMispriceRows({
   consensus = null,
   matchConfidence = null,
   marketTimestamp = null,
+  collectedAt = null,
   informationCutoff = null,
   observationId = null,
   homeTeam = null,
@@ -115,8 +117,9 @@ export function buildActionMispriceRows({
     !["unmatched", "ambiguous", "low", "none", ""].includes(
       String(matchConfidence || "exact").toLowerCase()
     );
-  const ts = marketTimestamp ? Date.parse(marketTimestamp) : NaN;
-  const marketFresh = Number.isFinite(ts) ? now - ts <= FRESH_MS : true;
+  const evidence={collectedAt,sourceObservedAt:marketTimestamp};
+  if(!actionTemporalValidity(evidence,{now,freshnessSeconds:ACTION_RESEARCH_FRESHNESS_SECONDS}).valid)return [];
+  const marketFresh=actionTemporalValidity(evidence,{now}).valid;
 
   const rows = [];
   const base = {
@@ -131,6 +134,10 @@ export function buildActionMispriceRows({
     matchConfidence: matchConfidence || null,
     informationCutoff: informationCutoff || null,
     marketTimestamp: marketTimestamp || null,
+    collectedAt,
+    temporalUse: marketFresh ? "CURRENT_RESEARCH" : "HISTORICAL_RESEARCH",
+    currentMarketComparisonAvailable: marketFresh,
+    researchWindowSeconds: ACTION_RESEARCH_FRESHNESS_SECONDS,
     ...actionPolicyFlags(),
   };
 
@@ -191,7 +198,7 @@ export function buildActionMispriceRows({
  * Load latest matched ACTION observations and join to prediction projections.
  * Fail-open: returns [] when tables are missing or empty.
  */
-export async function loadLiveActionMisprices(db, { sport = "all", limit = 200 } = {}) {
+export async function loadLiveActionMisprices(db, { sport = "all", limit = 200, now = Date.now() } = {}) {
   if (!db?.prepare) return [];
 
   const sportKey = normalizeActionSport(sport);
@@ -235,6 +242,10 @@ export async function loadLiveActionMisprices(db, { sport = "all", limit = 200 }
   for (const o of observations) {
     const eid = String(o.fbis_event_id || "");
     if (!eid || newestByEvent.has(eid)) continue;
+    // An ineligible row must not reserve the event's comparison slot.
+    if(!actionTemporalValidity({collectedAt:o.collected_at,
+      sourceObservedAt:o.source_observed_at??o.observed_at??null},
+      {now,freshnessSeconds:ACTION_RESEARCH_FRESHNESS_SECONDS}).valid)continue;
     newestByEvent.set(eid, o);
   }
 
@@ -272,12 +283,11 @@ export async function loadLiveActionMisprices(db, { sport = "all", limit = 200 }
   }
 
   const rows = [];
-  const now = Date.now();
   for (const [eventId, obs] of newestByEvent) {
     const pred = projections.get(eventId);
     if (!pred) continue;
     const marketTimestamp =
-      obs.source_observed_at || obs.observed_at || obs.scraped_at || obs.collected_at || obs.created_at;
+      obs.source_observed_at ?? obs.observed_at ?? null;
     rows.push(
       ...buildActionMispriceRows({
         sport: obs.sport || pred.sport || sportKey,
@@ -288,6 +298,7 @@ export async function loadLiveActionMisprices(db, { sport = "all", limit = 200 }
         consensus: safeJson(obs.consensus_json),
         matchConfidence: obs.match_confidence || "exact",
         marketTimestamp,
+        collectedAt:obs.collected_at,
         informationCutoff: pred.as_of || null,
         observationId: obs.id,
         homeTeam: obs.home_team,

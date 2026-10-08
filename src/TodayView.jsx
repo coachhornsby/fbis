@@ -1,3 +1,4 @@
+import {researchPacketTemporalView} from "../functions/lib/researchPacketTemporalView.js";
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { fmtAmerican, fmtNum, fmtPct } from "./lib/format.js";
 import { propWatchEmptyCopy, todayFeedNote } from "../functions/lib/propConviction.js";
@@ -72,7 +73,7 @@ export default function TodayView({
       boardHealth: board?.health || null,
       games,
     };
-    const prompt = `Review this FBIS slate packet as a second-pass research analyst. Compare the independent model outputs with the market, data quality, injuries/starters/weather where present, ACTION context where present, and the existing qualification state. Flag disagreements and weak-data plays. Do not invent missing inputs. Preserve the pregame snapshot for later evaluation.\n\nFBIS_SLATE_PACKET\n${JSON.stringify(packet, null, 2)}`;
+    const prompt = `Review this FBIS slate packet as a second-pass research analyst. Compare the independent model outputs with the market, data quality, injuries/starters/weather where present, ACTION context where present, and the existing qualification state. Flag disagreements and weak-data plays. Do not invent missing inputs. Preserve the pregame snapshot for later evaluation.\n\nFBIS_SLATE_PACKET\n${JSON.stringify(researchPacketTemporalView(packet), null, 2)}`;
     try {
       await navigator.clipboard.writeText(prompt);
       setChatCopyStatus(`Copied ${games.length} games for ChatGPT review.`);

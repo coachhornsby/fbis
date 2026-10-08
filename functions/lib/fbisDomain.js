@@ -1,3 +1,4 @@
+import {currentActionDisplay} from "./actionDisplayFreshness.js";
 /**
  * FBIS domain contracts — provider-agnostic shapes for product UI / APIs.
  *
@@ -52,24 +53,6 @@ function strOrNull(v) {
 function boolOrNull(v) {
   if (v == null) return null;
   return Boolean(v);
-}
-
-const ACTION_CURRENT_MS = 24 * 60 * 60 * 1000;
-
-function currentActionIntel(action, nowValue = null) {
-  if (!action || typeof action !== "object") return null;
-  const observedAt =
-    action.collectedAt || action.observedAt || action.sourceObservedAt || action.scrapedAt || null;
-  const observedMs = observedAt ? Date.parse(String(observedAt)) : NaN;
-  const nowMs = Number.isFinite(Date.parse(String(nowValue || "")))
-    ? Date.parse(String(nowValue))
-    : Date.now();
-  // ACTION is current-state market intelligence. Missing/invalid timestamps and
-  // snapshots older than 24h fail closed instead of leaking into today's board.
-  if (!Number.isFinite(observedMs)) return null;
-  if (nowMs - observedMs > ACTION_CURRENT_MS) return null;
-  if (observedMs - nowMs > 5 * 60 * 1000) return null;
-  return action;
 }
 
 function canonicalOperationalMarkets(boardGame = {}) {
@@ -439,22 +422,13 @@ export function toDomainEvent(boardGame = {}, opts = {}) {
   const consensusMarkets = [...canonicalMarkets];
   const hasMarketType = (type) => consensusMarkets.some((m) => m.marketType === type);
 
-  const currentAction = currentActionIntel(
-    boardGame.actionIntel,
-    opts.generatedAt || opts.collectedAt || null,
-  );
-  const staleAction = Boolean(boardGame.actionIntel && !currentAction);
-  const sentiment =
-    staleAction && boardGame.sentiment?.source === "ACTION_APIFY"
-      ? null
-      : boardGame.sentiment || null;
-  const publicSplitsRaw = staleAction ? null : boardGame.publicSplits || null;
-  const domainGame = {
-    ...boardGame,
-    actionIntel: currentAction,
-    sentiment,
-    publicSplits: publicSplitsRaw,
-  };
+  const domainGame=currentActionDisplay(boardGame,
+    opts.generatedAt??opts.collectedAt??Date.now());
+  const currentAction=domainGame.actionIntel||null;
+  const staleAction=Boolean(boardGame.actionIntel&&!currentAction)||
+    Boolean(/ACTION/i.test(String(boardGame.sentiment?.source||""))&&!domainGame.sentiment);
+  const sentiment=domainGame.sentiment||null;
+  const publicSplitsRaw=domainGame.publicSplits||null;
 
   const pinSpread = boardGame.pinSpread ?? boardGame.pin_spread;
   const pinSpreadHomePrice =
