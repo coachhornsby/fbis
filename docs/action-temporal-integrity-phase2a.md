@@ -102,3 +102,11 @@ Compare API packet values and lineage against these original timestamps. HTTP 20
 ## Rollback
 
 No data rollback is needed: this is code-only. On separately authorized production failure, redeploy the previously verified immutable Pages artifact/deployment `50f3fcca-7f86-42f2-81b0-5752507df8ec` at baseline SHA, or revert this bounded commit and use the repaired release path. Confirm matching Pages SHA, mobile rendering, API content and unchanged policy/reservation state. Leave canonical history intact; never replay acquisition, restamp captures, clear reservations, or roll back database contents. Reverting restores the known stale-input defect, so record that limitation and keep paid policies blocked.
+
+## Final hardening review — 2026-10-08
+
+The original `Date.UTC(year, month, 0)` calendar check maps years 0–99 to 1900–1999. Year 0000 leap day was rejected incorrectly. Gregorian arithmetic now validates the actual year. Date.parse also truncated nonzero fractional precision beyond milliseconds, allowing `.0001Z` to compare equal to the clock. Such unrepresentable timestamps now fail closed; trailing zero precision remains accepted. Numeric clocks must be integer milliseconds inside the JavaScript Date range.
+
+Offset validation follows the existing ECMAScript grammar (00–23 hours, 00–59 minutes), rather than inventing a narrower geographic-zone policy. +24:00 and minute 60 fail closed. Source observation time remains optional where the capture does not supply it; missing acquisition time remains invalid. No archive/created time substitutes for acquisition time. Fixed-clock hardening tests cover calendar, offsets, precision, boundaries and clock overflow.
+
+Review gate: bounded code may proceed to independent review. Production deployment remains unauthorized; Phase 2B alternate consumers require their own review.
