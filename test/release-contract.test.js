@@ -54,13 +54,24 @@ test('PR, main and manual triggers use one isolated production authority', async
 test('migration gate rejects invalid ledger columns before deployment', async () => {
   const root = await mkdtemp(join(tmpdir(), 'fbis-ledger-'));
   try {
-    await mkdir(join(root, 'scripts')); await mkdir(join(root, 'migrations'));
+    await mkdir(join(root, 'scripts'));
+    await mkdir(join(root, 'migrations'));
+    await mkdir(join(root, 'functions/lib'), { recursive: true });
     await copyFile(new URL('../scripts/verify-migrations.mjs', import.meta.url), join(root, 'scripts/verify-migrations.mjs'));
+    // Tip declaration must accompany the verifier (CI drift guard import).
+    await writeFile(
+      join(root, 'functions/lib/migrationTip.js'),
+      [
+        'export const EXPECTED_MIGRATION_FILE = "0001_fixture.sql";',
+        'export const EXPECTED_MIGRATION_ID = "0001_fixture";',
+        '',
+      ].join('\n')
+    );
     await writeFile(join(root, 'schema.sql'), 'CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT, applied_at TEXT);');
     for (const column of ['version', 'id']) {
       await writeFile(join(root, 'migrations/0001_fixture.sql'), `INSERT OR IGNORE INTO schema_migrations(${column}, applied_at) VALUES ('0001_fixture', datetime('now'));`);
       const r = spawnSync(process.execPath, [join(root, 'scripts/verify-migrations.mjs')], { encoding: 'utf8' });
-      assert.equal(r.status, column === 'id' ? 0 : 1);
+      assert.equal(r.status, column === 'id' ? 0 : 1, r.stderr || r.stdout);
       if (column === 'version') assert.match(r.stderr, /ledger columns/);
     }
   } finally { await rm(root, { recursive: true, force: true }); }

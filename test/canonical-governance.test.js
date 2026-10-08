@@ -132,8 +132,9 @@ test("migration 0023 registers canonical governance tables", async () => {
   assert.match(migration25, /schema_migrations[\s\S]*0025_manual_completion_contracts/i);
   assert.match(migration25, /canonical_publication_ledger/);
   assert.match(schemaExt, /canonical_publication_ledger/);
-  // Latest expected migration advances with manual-completion contracts.
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["\']0067_soccer_phase3b_validation_provenance["\']/);
+  // Health schema tip is declared in migrationTip.js and imported here.
+  assert.match(health, /from ["']\.\.\/lib\/migrationTip\.js["']/);
+  assert.match(health, /EXPECTED_MIGRATION_ID/);
 });
 
 test("gap report exists and freezes incumbents in prose", async () => {
