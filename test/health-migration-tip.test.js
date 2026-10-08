@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, copyFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -160,86 +160,59 @@ test("5: expectedMigration metadata matches canonical declaration", async () => 
   }
 });
 
-test("6: migration verifier fails on tip drift", () => {
+test("6: real migration verifier passes aligned tip, rejects drift, and passes repaired declaration", () => {
   const dir = mkdtempSync(join(tmpdir(), "fbis-tip-drift-"));
   try {
     mkdirSync(join(dir, "migrations"));
+    mkdirSync(join(dir, "scripts"));
     mkdirSync(join(dir, "functions", "lib"), { recursive: true });
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ type: "module" }));
+    // Copy the actual verifier and its dependency unchanged. Relative imports and
+    // import.meta.url resolve inside the fixture, never the live working tree.
+    copyFileSync(join(root, "scripts/verify-migrations.mjs"), join(dir, "scripts/verify-migrations.mjs"));
+    copyFileSync(join(root, "functions/lib/migrationTip.js"), join(dir, "functions/lib/migrationTip.js"));
     writeFileSync(join(dir, "schema.sql"), "CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TEXT);\n");
     writeFileSync(join(dir, "schema.extensions.sql"), "");
-    // Tip declaration lags a newer migration file.
-    writeFileSync(
-      join(dir, "functions/lib/migrationTip.js"),
-      `export const EXPECTED_MIGRATION_FILE = "0097_apify_acquisition_authority.sql";\n` +
-        `export const EXPECTED_MIGRATION_ID = "0097_apify_acquisition_authority";\n`
-    );
-    writeFileSync(
-      join(dir, "migrations/0097_apify_acquisition_authority.sql"),
-      "INSERT OR IGNORE INTO schema_migrations(id,applied_at) VALUES('0097_apify_acquisition_authority', datetime('now'));\n"
-    );
-    writeFileSync(
-      join(dir, "migrations/0098_future_drift_probe.sql"),
-      "INSERT OR IGNORE INTO schema_migrations(id,applied_at) VALUES('0098_future_drift_probe', datetime('now'));\n"
-    );
-    // Minimal verifier copy of tip-drift logic using the real script via cwd override:
-    // Run the repo verifier after temporarily swapping tip would be invasive;
-    // instead execute the real script's drift check pattern against this fixture.
-    const tip = readFileSync(join(dir, "functions/lib/migrationTip.js"), "utf8");
-    const latest = "0098_future_drift_probe.sql";
-    const declared = tip.match(/EXPECTED_MIGRATION_FILE\s*=\s*["']([^"']+)["']/)?.[1];
-    assert.equal(declared, "0097_apify_acquisition_authority.sql");
-    assert.notEqual(latest, declared);
+    const addMigration = (file) => {
+      const id = file.replace(/\.sql$/, "");
+      writeFileSync(join(dir, "migrations", file),
+        `INSERT OR IGNORE INTO schema_migrations(id,applied_at) VALUES('${id}', datetime('now'));\n`);
+    };
+    const runVerifier = () => {
+      const result = spawnSync(process.execPath, [join(dir, "scripts/verify-migrations.mjs")], {
+        cwd: dir, encoding: "utf8", timeout: 10000,
+      });
+      assert.equal(result.error, undefined);
+      assert.equal(result.signal, null);
+      return result;
+    };
+    addMigration(EXPECTED_MIGRATION_FILE);
+    const aligned = runVerifier();
+    assert.equal(aligned.status, 0, aligned.stderr || aligned.stdout);
+    assert.match(aligned.stdout, /Verified canonical migration tip/);
+    assert.match(aligned.stdout, /Verified 1 migrations against canonical schema bundle \(1 tables\)/);
 
-    // Also prove the real verifier currently passes against the repo tip.
-    const ok = spawnSync("node", ["scripts/verify-migrations.mjs"], {
-      cwd: root,
-      encoding: "utf8",
-    });
-    assert.equal(ok.status, 0, ok.stderr || ok.stdout);
-    assert.match(ok.stdout, /Verified canonical migration tip/);
+    // Valid SQL, registered id, known schema, and a unique prefix: the only
+    // failing contract is the stale canonical tip declaration.
+    const advancedFile = "0098_future_drift_probe.sql";
+    addMigration(advancedFile);
+    const drifted = runVerifier();
+    assert.equal(drifted.status, 1, drifted.stderr || drifted.stdout);
+    assert.equal(drifted.stderr.trim(),
+      `Canonical migration tip drift: latest=${advancedFile} expected=${EXPECTED_MIGRATION_FILE}`);
+
+    const declarationPath = join(dir, "functions/lib/migrationTip.js");
+    const declaration = readFileSync(declarationPath, "utf8");
+    writeFileSync(declarationPath, declaration
+      .replace(JSON.stringify(EXPECTED_MIGRATION_FILE), JSON.stringify(advancedFile))
+      .replace(JSON.stringify(EXPECTED_MIGRATION_ID), JSON.stringify(advancedFile.replace(/\.sql$/, ""))));
+    const repaired = runVerifier();
+    assert.equal(repaired.status, 0, repaired.stderr || repaired.stdout);
+    assert.match(repaired.stdout, /Verified canonical migration tip: 0098_future_drift_probe\.sql/);
+    assert.match(repaired.stdout, /Verified 2 migrations against canonical schema bundle \(1 tables\)/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test("6b: real verify-migrations fails when tip module lags (subprocess patch)", () => {
-  // Create a temporary copy of verify script invocation by monkey-running node -e
-  // that imports tip + lists migrations — mirrors scripts/verify-migrations.mjs tip block.
-  const code = `
-    import { readdir } from "node:fs/promises";
-    import { EXPECTED_MIGRATION_FILE } from "./functions/lib/migrationTip.js";
-    const files = (await readdir("./migrations")).filter((f) => f.endsWith(".sql")).sort();
-    const latest = files.at(-1);
-    if (latest !== EXPECTED_MIGRATION_FILE) {
-      console.error("drift", latest, EXPECTED_MIGRATION_FILE);
-      process.exit(1);
-    }
-    console.log("aligned", latest);
-  `;
-  const aligned = spawnSync("node", ["--input-type=module", "-e", code], {
-    cwd: root,
-    encoding: "utf8",
-  });
-  assert.equal(aligned.status, 0, aligned.stderr);
-  assert.match(aligned.stdout, /aligned/);
-
-  const driftCode = `
-    import { readdir } from "node:fs/promises";
-    const EXPECTED_MIGRATION_FILE = "0096_cbb_phase_b_future_transfer_leakage.sql";
-    const files = (await readdir("./migrations")).filter((f) => f.endsWith(".sql")).sort();
-    const latest = files.at(-1);
-    if (latest !== EXPECTED_MIGRATION_FILE) {
-      console.error("Canonical migration tip drift: latest=" + latest + " expected=" + EXPECTED_MIGRATION_FILE);
-      process.exit(1);
-    }
-  `;
-  const drifted = spawnSync("node", ["--input-type=module", "-e", driftCode], {
-    cwd: root,
-    encoding: "utf8",
-  });
-  assert.equal(drifted.status, 1);
-  assert.match(drifted.stderr + drifted.stdout, /Canonical migration tip drift/);
-  assert.match(drifted.stderr + drifted.stdout, /0097_apify_acquisition_authority\.sql/);
 });
 
 test("7: grandfathered duplicate prefixes remain supported by verifier", () => {
