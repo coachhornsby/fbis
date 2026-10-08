@@ -9,17 +9,13 @@ import { loadDurableCandidateHealth } from "../lib/actionApifyEvidence.js";
 import { decorateActionMarketHealth } from "../lib/actionMarketIntelligence.js";
 import { buildOpsTelemetry } from "../lib/opsTelemetry.js";
 import { loadOpsControlPlane } from "../lib/opsHealthLedger.js";
+import {
+  EXPECTED_MIGRATION_FILE,
+  EXPECTED_MIGRATION_ID,
+  MIGRATION_STATUS,
+  evaluateSchemaMigrationHealth,
+} from "../lib/migrationTip.js";
 // Action/Apify is live market intelligence, shadow-governed — never drives global DOWN.
-
-const MIGRATION_STATUS = {
-  VERIFIED: "VERIFIED",
-  FAILED: "FAILED",
-  BLOCKED: "BLOCKED",
-  UNVERIFIED: "UNVERIFIED",
-};
-
-/** Production tip expects harden migration after public/Actions billing recovery. */
-const EXPECTED_MIGRATION = "0067_soccer_phase3b_validation_provenance";
 
 /**
  * Read-only health endpoint.
@@ -79,7 +75,7 @@ export async function onRequestGet(context) {
         {
           name: "schema-migration",
           ok: migrationOk,
-          detail: `${schema.status}:${schema.version || "none"} expected=${EXPECTED_MIGRATION}`,
+          detail: `${schema.status}:${schema.version || "none"} expected=${EXPECTED_MIGRATION_ID}`,
         },
         {
           name: "scheduled-collect",
@@ -87,6 +83,7 @@ export async function onRequestGet(context) {
           detail: schedule?.collect?.state || "unknown",
           lastSuccessAt: health.lastScheduledCollectSuccessAt || null,
           // Max production gap is 02:00 → 13:00 UTC (~11h).
+          // Independent of schema-migration tip verification.
           freshnessMs: 12 * 60 * 60 * 1000,
         },
         {
@@ -310,33 +307,56 @@ function buildMeta(request, env, schema) {
     pagesUrl: env.CF_PAGES_URL || null,
     schemaVersion: schema.version,
     migrationStatus: schema.status,
-    expectedMigration: EXPECTED_MIGRATION,
+    expectedMigration: schema.expectedMigration || EXPECTED_MIGRATION_ID,
   };
 }
 
-async function schemaVersion(env, { readOk }) {
-  if (!readOk || !env?.DB?.prepare) return { version: null, status: MIGRATION_STATUS.UNVERIFIED };
+/**
+ * Schema tip verification against schema_migrations (application ledger).
+ * Optional d1_migrations probe is informational only — see migrationTip.js.
+ */
+export async function schemaVersion(env, { readOk }) {
+  if (!readOk || !env?.DB?.prepare) {
+    return evaluateSchemaMigrationHealth({ readOk: false });
+  }
   try {
-    const row = await env.DB.prepare("SELECT id FROM schema_migrations ORDER BY id DESC LIMIT 1").first();
-    const check = await env.DB.prepare("SELECT id FROM schema_migrations WHERE id = ? LIMIT 1")
-      .bind(EXPECTED_MIGRATION)
+    const tipRow = await env.DB.prepare("SELECT id FROM schema_migrations WHERE id = ? LIMIT 1")
+      .bind(EXPECTED_MIGRATION_ID)
       .first();
-    return {
-      version: row?.id || null,
-      status: check?.id ? MIGRATION_STATUS.VERIFIED : MIGRATION_STATUS.UNVERIFIED,
-    };
+    let observedMaxId = null;
+    if (!tipRow?.id) {
+      const maxRow = await env.DB.prepare("SELECT id FROM schema_migrations ORDER BY id DESC LIMIT 1").first();
+      observedMaxId = maxRow?.id || null;
+    }
+    let wranglerTipName = null;
+    let wranglerLedgerAvailable = null;
+    try {
+      const wranglerTip = await env.DB.prepare("SELECT name FROM d1_migrations WHERE name = ? LIMIT 1")
+        .bind(EXPECTED_MIGRATION_FILE)
+        .first();
+      wranglerLedgerAvailable = true;
+      wranglerTipName = wranglerTip?.name || null;
+    } catch (wranglerErr) {
+      const wmsg = String(wranglerErr?.message || wranglerErr);
+      // Missing Wrangler bookkeeping table is not a schema tip failure.
+      if (/no such table/i.test(wmsg)) {
+        wranglerLedgerAvailable = false;
+      } else {
+        wranglerLedgerAvailable = null;
+      }
+    }
+    return evaluateSchemaMigrationHealth({
+      tipRow,
+      observedMaxId,
+      wranglerTipName,
+      wranglerLedgerAvailable,
+      readOk: true,
+    });
   } catch (err) {
-    const msg = String(err?.message || err);
-    if (/not authorized|authentication|permission/i.test(msg)) {
-      return { version: null, status: MIGRATION_STATUS.BLOCKED };
-    }
-    if (/no such table|no such column|syntax/i.test(msg)) {
-      return { version: null, status: MIGRATION_STATUS.FAILED };
-    }
-    return {
-      version: null,
-      status: MIGRATION_STATUS.UNVERIFIED,
-    };
+    return evaluateSchemaMigrationHealth({
+      readOk: true,
+      errorMessage: String(err?.message || err),
+    });
   }
 }
 

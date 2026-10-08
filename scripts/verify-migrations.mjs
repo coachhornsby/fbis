@@ -1,6 +1,10 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  EXPECTED_MIGRATION_FILE,
+  EXPECTED_MIGRATION_ID,
+} from "../functions/lib/migrationTip.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const migrationsDir = join(root, "migrations");
@@ -100,5 +104,24 @@ if (unexpectedDuplicatePrefixes.length) {
   process.exit(1);
 }
 console.log(`Verified duplicate-prefix lineage: ${duplicatePrefixes.length} grandfathered historical collisions, 0 unexpected.`);
+
+const latestFile = files.at(-1) || null;
+if (!latestFile) {
+  console.error("No migration files found under migrations/.");
+  process.exit(1);
+}
+if (latestFile !== EXPECTED_MIGRATION_FILE) {
+  console.error(
+    `Canonical migration tip drift: latest=${latestFile} expected=${EXPECTED_MIGRATION_FILE}`
+  );
+  process.exit(1);
+}
+if (EXPECTED_MIGRATION_ID !== EXPECTED_MIGRATION_FILE.replace(/\.sql$/, "")) {
+  console.error(
+    `Canonical migration tip ID/file mismatch: id=${EXPECTED_MIGRATION_ID} file=${EXPECTED_MIGRATION_FILE}`
+  );
+  process.exit(1);
+}
+console.log(`Verified canonical migration tip: ${EXPECTED_MIGRATION_FILE}`);
 
 console.log(`Verified ${files.length} migrations against canonical schema bundle (${schemaTables.size} tables).`);
