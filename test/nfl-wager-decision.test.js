@@ -3,10 +3,14 @@ import assert from "node:assert/strict";
 import {
   americanBreakEven,
   expectedValuePerUnitRisk,
-  buildNflWagerIntelligence,
-  evaluateNflGameWagers,
+  buildNflWagerIntelligence as intelligenceAtClock,
+  evaluateNflGameWagers as evaluateAtClock,
   validateConfidenceCalibration,
 } from "../functions/lib/nflWagerDecision.js";
+
+const decisionAt=Date.parse('2026-10-04T12:00:00Z');
+const evaluateNflGameWagers=(g,c)=>evaluateAtClock(g,c,{decisionAt});
+const buildNflWagerIntelligence=(g,p)=>intelligenceAtClock(g,p,{decisionAt});
 
 const validatedCalibration = {
   validated:true,
@@ -43,12 +47,12 @@ function game(overrides={}){
       },
     },
     actionIntel:{
-      provider:"ACTION_APIFY",historyAvailable:true,
+      provider:"ACTION_APIFY",historyAvailable:true,collectedAt:"2026-10-04T12:00:00Z",
       lineHistory:[
-        {market:"spread",selection:"home",line:-1,americanPrice:-110,providerTimestamp:"2026-10-01T12:00:00Z"},
-        {market:"spread",selection:"home",line:-2.5,americanPrice:-105,providerTimestamp:"2026-10-04T12:00:00Z"},
-        {market:"total",selection:"over",line:43,americanPrice:-110,providerTimestamp:"2026-10-01T12:00:00Z"},
-        {market:"total",selection:"over",line:44.5,americanPrice:-108,providerTimestamp:"2026-10-04T12:00:00Z"},
+        {market:"spread",selection:"home",line:-1,americanPrice:-110,providerTimestamp:"2026-10-01T12:00:00Z",collectedAt:"2026-10-01T12:00:00Z"},
+        {market:"spread",selection:"home",line:-2.5,americanPrice:-105,providerTimestamp:"2026-10-04T12:00:00Z",collectedAt:"2026-10-04T12:00:00Z"},
+        {market:"total",selection:"over",line:43,americanPrice:-110,providerTimestamp:"2026-10-01T12:00:00Z",collectedAt:"2026-10-01T12:00:00Z"},
+        {market:"total",selection:"over",line:44.5,americanPrice:-108,providerTimestamp:"2026-10-04T12:00:00Z",collectedAt:"2026-10-04T12:00:00Z"},
       ],
       publicSplits:{ticketPct:44,moneyPct:58},
       consensus:{spreadHome:-2.5,total:44.5},
@@ -111,6 +115,9 @@ test("positive EV can qualify without calibrated confidence while staking stays 
 test("ACTION confirmation cannot create a bet when independent EV is non-positive",()=>{
   const g=game({
     nflProShadow:{...game().nflProShadow,home:22,away:22,margin:0,total:44},
+    // Every side must actually have non-positive EV for this assertion.
+    market:{executionActionable:true,execution:{available:true,actionable:true,book:'Heritage',
+      spread:0,total:44,spreadHomePrice:-110,spreadAwayPrice:-110,overPrice:-110,underPrice:-110}},
   });
   const out=evaluateNflGameWagers(g,validatedCalibration);
   assert.equal(out.bestWager.decision,"PASS");

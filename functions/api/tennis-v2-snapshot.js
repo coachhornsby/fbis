@@ -1,3 +1,5 @@
+import {currentActionDisplay} from '../lib/actionDisplayFreshness.js';
+import {actionTemporalValidity} from '../lib/actionTemporalValidity.js';
 import { proveTennisEvent } from "../lib/tennisEventIntegrity.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { simulateTennisV2 } from "../lib/tennisFbisV2.js";
@@ -46,10 +48,19 @@ async function courtSpeedForRows(db,tour,a,b){
   ).bind(String(tour||"").toLowerCase(),ta).first().catch(()=>null);
   return finite(row?.court_speed_index);
 }
-export async function autoDecisionForMarket(db,m){
+export function currentTennisQuotes(quotes=[],now=Date.now()) {
+  return quotes.filter(q=>q && typeof q==='object' && (!/ACTION/i.test(String(q.source||q.provider||'')) ||
+    (q.observedAt != null && actionTemporalValidity({collectedAt:q.collectedAt,
+      sourceObservedAt:q.observedAt},{now}).valid)));
+}
+
+export async function autoDecisionForMarket(db,m,{now=Date.now()}={}){
+  if (/ACTION/i.test(String(m?.provider||'ACTION_APIFY_CONSENSUS')) && !actionTemporalValidity({
+    collectedAt:m?.collected_at,sourceObservedAt:m?.observed_at
+  },{now}).valid) return {inserted:false,reason:'ACTION_CAPTURE_NOT_CURRENT'};
   if(!m?.canonical_event_id||!m?.player1||!m?.player2)return {inserted:false,reason:"market-identity-missing"};
   if(!m.event_start_time)return {inserted:false,reason:"event-start-missing"};
-  if(Date.parse(m.event_start_time)<=Date.now())return {inserted:false,reason:"event-started"};
+  if(Date.parse(m.event_start_time)<=now)return {inserted:false,reason:"event-started"};
   const integrity=await proveTennisEvent(db,m);
   if(!integrity.valid)return {inserted:false,reason:integrity.reason};
   const [r1,r2]=await Promise.all([loadProfileRows(db,m.tour,m.player1),loadProfileRows(db,m.tour,m.player2)]);
@@ -87,24 +98,29 @@ export async function autoDecisionForMarket(db,m){
   return {...decision,contextInserted,surface,courtSpeed};
 }
 
-async function latestActionRows(db,{hours=8,limit=100}={}){
+export async function latestActionRows(db,{hours=8,limit=100,now=Date.now()}={}){
+  const freshnessSeconds=Math.max(1,Math.min(48,Number(hours)||8))*3600;
+  if (!Number.isFinite(now)) return [];
+  const cutoff=new Date(now-freshnessSeconds*1000).toISOString();
+  const decisionAt=new Date(now).toISOString();
   const res=await db.prepare(
     `WITH ranked AS (
       SELECT *,
-             ROW_NUMBER() OVER(PARTITION BY lower(sport),action_game_id ORDER BY collected_at DESC,created_at DESC) rn
+             ROW_NUMBER() OVER(PARTITION BY lower(sport),action_game_id ORDER BY julianday(collected_at) DESC,created_at DESC) rn
       FROM shadow_market_observations
       WHERE lower(sport) IN ('atp','wta')
-        AND collected_at >= datetime('now', ?)
+        AND julianday(collected_at) BETWEEN julianday(?) AND julianday(?)
         AND is_live=0
     )
     SELECT id,action_game_id,fbis_event_id,sport,league,home_team,away_team,start_time,
            consensus_json,public_betting_json,market_quality_json,line_movement_json,
            raw_payload_hash,source_observed_at,observed_at,collected_at,created_at
     FROM ranked WHERE rn=1
-    ORDER BY start_time,collected_at DESC
+    ORDER BY start_time,julianday(collected_at) DESC
     LIMIT ?`
-  ).bind(`-${Math.max(1,Math.min(48,Number(hours)||8))} hours`,Math.max(1,Math.min(500,Number(limit)||100))).all();
-  return res?.results||[];
+  ).bind(cutoff,decisionAt,Math.max(1,Math.min(500,Number(limit)||100))).all();
+  // This is an acquisition research lookback, not the current-market ceiling.
+  return (res?.results||[]).filter(row=>actionTemporalValidity({collectedAt:row.collected_at,sourceObservedAt:row.source_observed_at},{now,freshnessSeconds}).valid);
 }
 
 async function readLatest(db,limit=100){
@@ -151,7 +167,7 @@ export async function onRequestPost(context){
             canonical_event_id:x.canonicalEventId,tour:x.tour,player1:x.player1,player2:x.player2,
             player1_price:x.player1Price,player2_price:x.player2Price,player1_no_vig_prob:x.player1NoVig,
             player2_no_vig_prob:x.player2NoVig,provider:x.provider,sportsbook:x.sportsbook,
-            observed_at:x.observedAt,event_start_time:x.eventStartTime,
+            observed_at:x.observedAt,collected_at:x.collectedAt,event_start_time:x.eventStartTime,
             public_ticket_pct:x.publicTicketPct,public_money_pct:x.publicMoneyPct,money_minus_ticket_pct:x.moneyMinusTicketPct
           }))
         : ((await context.env.DB.prepare(
@@ -181,7 +197,10 @@ export async function onRequestPost(context){
           id:packet.eventId,tour:packet.tour||"atp",surface:packet.surface||"hard",bestOf:Number(packet.bestOf)||3,
           player1:packet.player1,player2:packet.player2,playerContexts:contexts
         },{simulations:Math.max(500,Number(packet.simulations)||1500)},{seed:packet.eventId});
-        const market=buildSharpMarketPrior({quotes:packet.marketQuotes||[],pinnacle:packet.pinnacle||null,betfair:packet.betfair||null});
+        const decisionAt=Date.now();
+        const market=buildSharpMarketPrior({quotes:currentTennisQuotes(packet.marketQuotes||[],decisionAt),
+          pinnacle:currentTennisQuotes(packet.pinnacle?[packet.pinnacle]:[],decisionAt)[0]||null,
+          betfair:currentTennisQuotes(packet.betfair?[packet.betfair]:[],decisionAt)[0]||null});
         if(market.p1==null)continue;
         contextInserted+=await persistTennisContexts(context.env.DB,{
           eventId:packet.eventId,tour:packet.tour||"atp",
@@ -201,7 +220,7 @@ export async function onRequestPost(context){
         const d=await persistTennisV2Decision(context.env.DB,{
           eventId:packet.eventId,tour:packet.tour||"atp",player1:packet.player1.name,player2:packet.player2.name,
           pureModelId:pure.modelId,pureP1:pure.match?.pPlayer1Win,market,
-          actionIntel:packet.actionIntel||null,
+          actionIntel:currentActionDisplay({actionIntel:packet.actionIntel||null},decisionAt).actionIntel||null,
           context:{eventProof:integrity.proof,differential:((pure.contextDiagnostics?.[0]?.total||0)-(pure.contextDiagnostics?.[1]?.total||0))*2.5,diagnostics:pure.contextDiagnostics},
           eventStartTime:packet.eventStartTime||null,snapshotType:packet.snapshotType||"DECISION"
         });

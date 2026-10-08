@@ -1,3 +1,4 @@
+import {currentActionRows, actionTimestampMs} from './actionTemporalValidity.js';
 import { pGreater } from "./metrics.js";
 import { expectedValue } from "./nbaQualification.js";
 
@@ -114,15 +115,15 @@ export function deriveNbaMarketTrajectory(rows=[],{marketType,side,projectionVal
   };
 }
 
-export function summarizeActionForDecision(rows=[],{decisionAt=null,marketType=null,side=null,fbisDirection=null}={}){
+export function summarizeActionForDecision(rows=[],{decisionAt=new Date().toISOString(),marketType=null,side=null,fbisDirection=null}={}){
   const cutoff=decisionAt?Date.parse(decisionAt):Infinity;
   const alias=v=>{const s=String(v||"").toLowerCase();return s==="ml"?"moneyline":s;};
   const wanted=alias(marketType);
-  const xs=(rows||[])
+  const xs=currentActionRows(rows||[],{now:decisionAt})
     .filter(r=>!marketType||alias(r.market_type||r.marketType||"")===wanted)
     .filter(r=>!side||String(r.selection||r.side||"").toUpperCase()===String(side).toUpperCase())
     .filter(r=>Date.parse(r.provider_timestamp||r.collected_at||r.observedAt||0)<=cutoff)
-    .sort((a,b)=>Date.parse(a.provider_timestamp||a.collected_at)-Date.parse(b.provider_timestamp||b.collected_at));
+    .sort((a,b)=>actionTimestampMs(a.provider_timestamp||a.collected_at)-actionTimestampMs(b.provider_timestamp||b.collected_at));
   if(!xs.length)return {available:false,role:"market_intelligence",canDirectlyQualify:false,canAuthorize:false};
   const latest=xs.at(-1);
   const ticket=finite(latest.public_ticket_pct),money=finite(latest.public_money_pct);

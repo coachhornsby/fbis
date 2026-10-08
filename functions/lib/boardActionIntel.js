@@ -1,3 +1,4 @@
+import {currentActionDisplay} from './actionDisplayFreshness.js';
 /**
  * Attach ACTION Apify market intelligence onto board game rows for DISPLAY.
  *
@@ -184,13 +185,7 @@ export function buildBoardActionIntel(row = {}) {
     bestOdds?.book ||
     null;
 
-  const collectedAt =
-    row.collected_at ||
-    row.source_observed_at ||
-    row.observed_at ||
-    row.scraped_at ||
-    row.created_at ||
-    null;
+  const collectedAt = row.collected_at || null;
 
   return {
     provider: "ACTION_APIFY",
@@ -201,6 +196,7 @@ export function buildBoardActionIntel(row = {}) {
     sport: normalizeActionSport(row.sport),
     matchConfidence: row.match_confidence || null,
     collectedAt,
+    sourceObservedAt: row.source_observed_at || null,
     consensus: {
       spreadHome,
       total,
@@ -424,10 +420,10 @@ export async function rematchBoardActionIntel(games = [], db = null, { lookbackH
  * Also fills display sentiment/publicSplits from ACTION when those are empty,
  * without overwriting production-router odds fields.
  */
-export async function attachActionIntelToGames(games = [], db = null) {
+export async function attachActionIntelToGames(games = [], db = null, {now=Date.now()}={}) {
   const list = Array.isArray(games) ? games : [];
   if (!list.length || !db) {
-    return { games: list, attached: 0, checked: 0 };
+    return { games: list.map(game=>currentActionDisplay(game,now)), attached: 0, checked: 0 };
   }
   const ids = list.map((g) => g?.id || g?.eventId || g?.gameId).filter(Boolean);
   const byId = await loadBoardActionIntelByEventIds(db, ids);
@@ -452,7 +448,7 @@ export async function attachActionIntelToGames(games = [], db = null) {
   const out = list.map((g) => {
     const eid = String(g?.id || g?.eventId || g?.gameId || "");
     const intel = byId.get(eid);
-    if (!intel) return g;
+    if (!intel) return currentActionDisplay(g,now);
     attached += 1;
     if (intel.source === ACTION_BOARD_SOURCE.DURABLE_SERIES || intel.source === ACTION_BOARD_SOURCE.IDENTITY_LINK) {
       durableMatched += 1;
@@ -474,12 +470,12 @@ export async function attachActionIntelToGames(games = [], db = null) {
       bestBook: intel.movement?.bestBook ?? null,
       collectedAt: intel.collectedAt,
     };
-    return {
+    return currentActionDisplay({
       ...g,
       actionIntel: intel,
       sentiment: existingSentiment || sentimentFromAction,
       publicSplits: g.publicSplits || intel.publicSplits,
-    };
+    },now);
   });
   return {
     games: out,

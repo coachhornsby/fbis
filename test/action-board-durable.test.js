@@ -14,7 +14,7 @@ import {
   isPersistableActionMatchConfidence,
 } from "../functions/lib/actionEventState.js";
 import {
-  attachActionIntelToGames,
+  attachActionIntelToGames as attachAtClock,
   rematchBoardActionIntel,
 } from "../functions/lib/boardActionIntel.js";
 import { resolveCanonicalMarket } from "../functions/lib/canonical/marketRoles.js";
@@ -23,6 +23,14 @@ import { ODDS_PROVIDER_ORDER } from "../functions/lib/oddsProviderRouter.js";
 import { MATCH_CONFIDENCE } from "../functions/lib/actionApifyCandidate.js";
 import { executedAtFromSlipDate, parsePrizePicksSlip } from "../functions/lib/prizePicksSlip.js";
 import { attachMyBetsToBoard } from "../functions/lib/executedBets.js";
+
+// Existing identity/history contract fixtures use their fixed capture clock.
+// Current-use expiry is tested independently in action-temporal-integrity.
+const attachActionIntelToGames=(games,db)=>{
+  const rows=[...(db?._state?.observations||[]),...(db?._state?.shadowRows||[])];
+  const times=rows.map(r=>Date.parse(r.collected_at)).filter(Number.isFinite);
+  return attachAtClock(games,db,{now:times.length?Math.max(...times):Date.parse('2026-09-14T12:00:00Z')});
+};
 
 function firewallAssert(obj, label = "firewall") {
   assert.equal(obj.inProductionRouter, false, `${label}.inProductionRouter`);
