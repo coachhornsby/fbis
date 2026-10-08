@@ -72,7 +72,7 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   const m29 = await readFile(new URL("../migrations/0029_executed_bet_settlement_evidence.sql", import.meta.url), "utf8");
   assert.match(m29, /0029_executed_bet_settlement_evidence/i);
   assert.match(m29, /final_home_score/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0067_soccer_phase3b_validation_provenance["']/);
+  assert.match(health, /EXPECTED_MIGRATION_ID/);
   const m62 = await readFile(new URL("../migrations/0062_soccer_provider_mapping_registry.sql", import.meta.url), "utf8");
   assert.match(m62, /0062_soccer_provider_mapping_registry/i);
   assert.match(m62, /soccer_competition_provider_map/);
@@ -170,4 +170,18 @@ test("migration lineage repair is forward-only and verifier blocks new ambiguity
   assert.match(verifier, /legacyDuplicatePrefixes/);
   assert.match(verifier, /unexpectedDuplicatePrefixes/);
   assert.match(verifier, /legacyRegistrationExceptions/);
+});
+
+
+test("health migration tip is canonical and checked against repository latest", async () => {
+  const tip = await readFile(new URL("../functions/lib/migrationTip.js", import.meta.url), "utf8");
+  const health = await readFile(new URL("../functions/api/health.js", import.meta.url), "utf8");
+  const verifier = await readFile(new URL("../scripts/verify-migrations.mjs", import.meta.url), "utf8");
+  assert.match(tip, /0087_executed_bet_audit_backfill\.sql/);
+  assert.match(tip, /0087_executed_bet_audit_backfill/);
+  assert.match(health, /d1_migrations/);
+  assert.match(health, /schema_migrations/);
+  assert.match(health, /EXPECTED_MIGRATION_FILE/);
+  assert.match(health, /EXPECTED_MIGRATION_ID/);
+  assert.match(verifier, /files\.at\(-1\) !== EXPECTED_MIGRATION_FILE/);
 });

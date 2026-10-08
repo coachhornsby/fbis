@@ -9,6 +9,7 @@ import { loadDurableCandidateHealth } from "../lib/actionApifyEvidence.js";
 import { decorateActionMarketHealth } from "../lib/actionMarketIntelligence.js";
 import { buildOpsTelemetry } from "../lib/opsTelemetry.js";
 import { loadOpsControlPlane } from "../lib/opsHealthLedger.js";
+import { EXPECTED_MIGRATION_FILE, EXPECTED_MIGRATION_ID } from "../lib/migrationTip.js";
 // Action/Apify is live market intelligence, shadow-governed — never drives global DOWN.
 
 const MIGRATION_STATUS = {
@@ -19,7 +20,6 @@ const MIGRATION_STATUS = {
 };
 
 /** Production tip expects harden migration after public/Actions billing recovery. */
-const EXPECTED_MIGRATION = "0067_soccer_phase3b_validation_provenance";
 
 /**
  * Read-only health endpoint.
@@ -79,7 +79,7 @@ export async function onRequestGet(context) {
         {
           name: "schema-migration",
           ok: migrationOk,
-          detail: `${schema.status}:${schema.version || "none"} expected=${EXPECTED_MIGRATION}`,
+          detail: `${schema.status}:${schema.version || "none"} wrangler=${schema.wranglerVersion || "none"} expected=${EXPECTED_MIGRATION_ID}`,
         },
         {
           name: "scheduled-collect",
@@ -315,28 +315,29 @@ function buildMeta(request, env, schema) {
 }
 
 async function schemaVersion(env, { readOk }) {
-  if (!readOk || !env?.DB?.prepare) return { version: null, status: MIGRATION_STATUS.UNVERIFIED };
+  if (!readOk || !env?.DB?.prepare) return { version: null, wranglerVersion: null, status: MIGRATION_STATUS.UNVERIFIED };
   try {
-    const row = await env.DB.prepare("SELECT id FROM schema_migrations ORDER BY id DESC LIMIT 1").first();
-    const check = await env.DB.prepare("SELECT id FROM schema_migrations WHERE id = ? LIMIT 1")
-      .bind(EXPECTED_MIGRATION)
-      .first();
+    const [appTip, wranglerTip] = await Promise.all([
+      env.DB.prepare("SELECT id FROM schema_migrations WHERE id = ? LIMIT 1").bind(EXPECTED_MIGRATION_ID).first(),
+      env.DB.prepare("SELECT name FROM d1_migrations WHERE name = ? LIMIT 1").bind(EXPECTED_MIGRATION_FILE).first(),
+    ]);
+    const verified = appTip?.id === EXPECTED_MIGRATION_ID && wranglerTip?.name === EXPECTED_MIGRATION_FILE;
     return {
-      version: row?.id || null,
-      status: check?.id ? MIGRATION_STATUS.VERIFIED : MIGRATION_STATUS.UNVERIFIED,
+      version: appTip?.id || null,
+      wranglerVersion: wranglerTip?.name || null,
+      expectedMigrationId: EXPECTED_MIGRATION_ID,
+      expectedMigrationFile: EXPECTED_MIGRATION_FILE,
+      status: verified ? MIGRATION_STATUS.VERIFIED : MIGRATION_STATUS.UNVERIFIED,
     };
   } catch (err) {
     const msg = String(err?.message || err);
     if (/not authorized|authentication|permission/i.test(msg)) {
-      return { version: null, status: MIGRATION_STATUS.BLOCKED };
+      return { version: null, wranglerVersion: null, status: MIGRATION_STATUS.BLOCKED };
     }
     if (/no such table|no such column|syntax/i.test(msg)) {
-      return { version: null, status: MIGRATION_STATUS.FAILED };
+      return { version: null, wranglerVersion: null, status: MIGRATION_STATUS.FAILED };
     }
-    return {
-      version: null,
-      status: MIGRATION_STATUS.UNVERIFIED,
-    };
+    return { version: null, wranglerVersion: null, status: MIGRATION_STATUS.UNVERIFIED };
   }
 }
 

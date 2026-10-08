@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { EXPECTED_MIGRATION_FILE, EXPECTED_MIGRATION_ID } from "../functions/lib/migrationTip.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const migrationsDir = join(root, "migrations");
@@ -25,6 +26,15 @@ for (const path of schemaPaths) {
 }
 
 const files = (await readdir(migrationsDir)).filter((f) => f.endsWith(".sql")).sort();
+if (files.at(-1) !== EXPECTED_MIGRATION_FILE) {
+  console.error(`Canonical migration tip drift: latest=${files.at(-1)} expected=${EXPECTED_MIGRATION_FILE}`);
+  process.exit(1);
+}
+if (EXPECTED_MIGRATION_ID !== EXPECTED_MIGRATION_FILE.replace(/\.sql$/, "")) {
+  console.error("Canonical migration tip ID/file mismatch.");
+  process.exit(1);
+}
+
 const missing = [];
 const registrationFailures = [];
 const registrationColumnFailures = [];
