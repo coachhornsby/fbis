@@ -63,6 +63,8 @@ export async function listPublishedProjections(env, { sport = null, date = null,
     startTime: row.start_time,
     modelVersion: row.model_version,
     payloadHash: row.payload_hash,
+    temporalUse: "HISTORICAL_PUBLICATION",
+    currentUse: false,
     publishedAt: row.published_at,
     projection: JSON.parse(row.payload_json),
   }));

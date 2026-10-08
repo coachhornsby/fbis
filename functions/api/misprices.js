@@ -21,6 +21,7 @@ export async function onRequestGet(context) {
 
   const rows = [];
   let liveActionCount = 0;
+  const historicalSnapshots=[];
   let freshness = "contract-example";
 
   try {
@@ -51,25 +52,12 @@ export async function onRequestGet(context) {
       const seen = new Set(rows.map((r) => r.id));
       for (const r of stored.results || []) {
         if (seen.has(r.id)) continue;
-        rows.push({
-          id: r.id,
-          sport: r.sport,
-          eventId: r.event_id,
-          playerId: r.player_id,
-          marketType: r.market_type,
-          modelId: r.model_id,
-          state: r.state,
-          label: r.label,
-          projection: r.projection,
-          marketLine: r.market_line,
-          disagreementUnits: r.disagreement_units,
-          modelProbability: r.can_show_ev ? r.model_probability : null,
-          expectedValue: r.can_show_ev ? r.expected_value : null,
-          canShowEv: Boolean(r.can_show_ev),
-          informationCutoff: r.information_cutoff,
-          marketTimestamp: r.market_timestamp,
-          createdAt: r.created_at,
-          ...actionPolicyFlags(),
+        // This legacy schema has no source or acquisition provenance. It cannot
+        // establish a current comparison, even when market_timestamp looks fresh.
+        historicalSnapshots.push({
+          id:r.id,temporalUse:"HISTORICAL_RECORD",currentUse:false,
+          provenanceStatus:"UNVERIFIED_SOURCE_AND_ACQUISITION",
+          evidence:{...r},...actionPolicyFlags(),
         });
       }
       if (!liveActionCount && rows.length) freshness = "d1-snapshots";
@@ -125,6 +113,7 @@ export async function onRequestGet(context) {
     modelCount: models.length,
     count: ranked.length,
     misprices: ranked,
+    historicalSnapshots,
   };
 
   return new Response(JSON.stringify(payload), {

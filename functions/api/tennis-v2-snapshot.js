@@ -128,7 +128,8 @@ async function readLatest(db,limit=100){
     db.prepare(`SELECT * FROM tennis_market_snapshots ORDER BY observed_at DESC LIMIT ?`).bind(limit).all().catch(()=>({results:[]})),
     db.prepare(`SELECT * FROM tennis_v2_research_decisions ORDER BY decision_timestamp DESC LIMIT ?`).bind(limit).all().catch(()=>({results:[]})),
   ]);
-  return {markets:markets?.results||[],decisions:decisions?.results||[]};
+  return {markets:(markets?.results||[]).map(row=>({...row,temporalUse:"HISTORICAL_RESEARCH",currentUse:false})),
+    decisions:(decisions?.results||[]).map(row=>({...row,temporalUse:"HISTORICAL_RESEARCH",currentUse:false}))};
 }
 
 export async function onRequestGet(context){
@@ -212,7 +213,8 @@ export async function onRequestPost(context){
           const ms=await persistTennisMarketSnapshot(context.env.DB,{
             canonicalEventId:packet.eventId,tour:packet.tour||"atp",player1:packet.player1.name,player2:packet.player2.name,
             provider:q.source||"MARKET_FEED",sportsbook:q.book,player1NoVig:q.p1,player2NoVig:q.p2,hold:q.hold,
-            observedAt:q.observedAt||new Date().toISOString(),collectedAt:new Date().toISOString(),tradedVolume:q.volume,
+            observedAt:q.observedAt||new Date().toISOString(),
+            collectedAt:/ACTION/i.test(String(q.source||""))?q.collectedAt:new Date().toISOString(),tradedVolume:q.volume,
             snapshotType:packet.snapshotType||"DECISION"
           });
           if(ms.inserted)marketInserted++;

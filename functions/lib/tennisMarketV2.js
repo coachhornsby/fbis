@@ -44,6 +44,7 @@ export function normalizeTennisMarketQuotes(quotes=[]){
       book:String(q.book||"unknown").toLowerCase(),
       p1:nv.p1,p2:nv.p2,hold:nv.hold,
       observedAt:q.observedAt||null,
+      collectedAt:q.collectedAt??null,
       isExchange:Boolean(q.isExchange),
       volume:finite(q.volume),
       source:q.source||null,
