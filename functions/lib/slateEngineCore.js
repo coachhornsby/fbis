@@ -22,6 +22,8 @@ import { setMeta } from "./store.js";
 import { isUnusableCachedOddsMeta } from "./marketLineage.js";
 import { loadNpbV2Context, attachNpbFbisV2 } from "./npbFbisV2.js";
 import { loadKboV2Context, attachKboFbisV2 } from "./kboFbisV2.js";
+import { parseKboSchedule } from "./kboFbisV1.js";
+import { parseNpbScheduleMonth } from "./npbFbisV1.js";
 import { loadPitchApiBoardFixtures } from "./soccerPitchApiStore.js";
 
 export function shouldUseLiveMlbFeatureFallback(env = {}) {
@@ -1459,8 +1461,31 @@ export function slimFinal(game) {
   };
 }
 
+/**
+ * NPB/KBO do not have ESPN scoreboard routes. Read the existing official
+ * schedule parsers without fetching team/player/model inputs. Preserve their
+ * explicit completed flag; callers must never grade scheduled games.
+ */
+export async function fetchOfficialAsianBaseballResults(sport, date, { fetcher = fetch } = {}) {
+  const day = date || todayCT();
+  if (sport !== "npb" && sport !== "kbo") throw new Error("unsupported-asian-scoreboard-sport");
+  const year = day.slice(0, 4);
+  const month = day.slice(5, 7);
+  const url = sport === "npb"
+    ? `https://npb.jp/games/${year}/schedule_${month}_detail.html`
+    : "https://eng.koreabaseball.com/Schedule/DailySchedule.aspx";
+  const response = await fetcher(url, {
+    headers: { "User-Agent": "FBIS/1.0", Accept: "text/html,*/*" },
+  });
+  if (!response.ok) throw new Error(`OFFICIAL_${sport.toUpperCase()}_SCOREBOARD_HTTP_${response.status}`);
+  const html = await response.text();
+  if (!/<table\\b/i.test(html)) throw new Error(`OFFICIAL_${sport.toUpperCase()}_SCOREBOARD_SHAPE_INVALID`);
+  const games = sport === "npb" ? parseNpbScheduleMonth(html, day) : parseKboSchedule(html, day);
+  return games.map(slimFinal);
+}
+
 /** Scoreboard only — no Parlay, Pal, or Savant. Used to grade frozen projections. */
-export async function fetchResults(sport, date) {
+export async function fetchResults(sport, date, opts = {}) {
   const id = SPORTS[sport] ? sport : "mlb";
   const day = date || todayCT();
   if (id === "mlb") {
@@ -1475,6 +1500,7 @@ export async function fetchResults(sport, date) {
     const games = await fetchSoccerScoreboard(day);
     return games.map(slimFinal);
   }
+  if (id === "npb" || id === "kbo") return fetchOfficialAsianBaseballResults(id, day, opts);
   const json = await fetchEspnScoreboard(id, day);
   return (json.events || []).map((ev) => slimFinal(mapEvent(id, ev)));
 }
