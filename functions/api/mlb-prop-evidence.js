@@ -5,6 +5,7 @@ import { sha256Hex } from "../lib/sha256Hex.js";
 import { MLB_PROP_PROMOTION_GATE_VERSION } from "../lib/mlbPropPromotionGovernance.js";
 import { noVigPair } from "../lib/canonical/economicGrading.js";
 import { persistProspectiveEvidenceAtomic, persistEconomicGrade } from "../lib/canonical/evidenceStore.js";
+import { MLB_SETTLEMENT_ROWS_SQL } from "../lib/mlbSettlementQuery.js";
 
 const SUPPORTED_MARKETS=new Set([
   "strikeouts","pitcher_outs","walks_allowed","hits_allowed","earned_runs","pitch_count",
@@ -303,8 +304,7 @@ async function settle(context,{date,shard=0,shards=1,limitGames=6}={}){
     }catch(e){missing++;await reject(db,{operation:"settle",eventId,row:null,reason:"SETTLEMENT_FETCH_FAILED",details:{error:String(e?.message||e)},at:new Date().toISOString()});continue}
     if(String(feed?.gameData?.status?.abstractGameState||"").toLowerCase()!=="final"){missing++;continue}
     const players={...(feed?.liveData?.boxscore?.teams?.home?.players||{}),...(feed?.liveData?.boxscore?.teams?.away?.players||{})};
-    const rows=((await db.prepare(`SELECT * FROM mlb_prop_prospective_evidence WHERE event_id=? AND settled_at IS NULL AND temporal_integrity=1`).bind(eventId).all()).results||[])
-      .filter(row=>evidenceShardAccept(row.id,shard,shards));
+    const rows=(await db.prepare(MLB_SETTLEMENT_ROWS_SQL).bind(eventId,shards,shards,shard).all()).results||[];
     for(const row of rows){
       const player=players["ID"+row.player_id] || Object.values(players).find(x=>norm(x?.person?.fullName)===norm(row.player_name));
       const actual=playerActual(player,row.market);

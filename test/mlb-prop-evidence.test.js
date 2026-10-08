@@ -143,7 +143,8 @@ test("MLB settlement shards offer rows by immutable evidence identity",()=>{
   const src=fs.readFileSync(new URL("../functions/api/mlb-prop-evidence.js",import.meta.url),"utf8");
   const settle=src.slice(src.indexOf("async function settle"),src.indexOf("async function status"));
   assert.doesNotMatch(settle,/filter\(x=>shardAccept\(x,shard,shards\)\)/);
-  assert.match(settle,/filter\(row=>evidenceShardAccept\(row\.id,shard,shards\)\)/);
+  assert.match(settle,/prepare\(MLB_SETTLEMENT_ROWS_SQL\)\.bind\(eventId,shards,shards,shard\)/);
+  assert.doesNotMatch(settle,/filter\(row=>evidenceShardAccept/);
   const workflow=fs.readFileSync(new URL("../.github/workflows/mlb-prop-evidence.yml",import.meta.url),"utf8");
   assert.match(workflow,/operation:"settle",date:\$date,shard:\$shard,shards:12/);
 });
