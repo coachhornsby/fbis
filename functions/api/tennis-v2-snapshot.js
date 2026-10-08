@@ -3,7 +3,7 @@ import {actionTemporalValidity} from '../lib/actionTemporalValidity.js';
 import { proveTennisEvent } from "../lib/tennisEventIntegrity.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { simulateTennisV2 } from "../lib/tennisFbisV2.js";
-import { buildSharpMarketPrior } from "../lib/tennisMarketV2.js";
+import { buildSharpMarketPrior,hasActionTennisProvenance,tennisQuoteAcquisitionProvider } from "../lib/tennisMarketV2.js";
 import {
   actionObservationToTennisMarket,
   actionObservationToTennisMarkets,
@@ -49,7 +49,7 @@ async function courtSpeedForRows(db,tour,a,b){
   return finite(row?.court_speed_index);
 }
 export function currentTennisQuotes(quotes=[],now=Date.now()) {
-  return quotes.filter(q=>q && typeof q==='object' && (!/ACTION/i.test(String(q.source||q.provider||'')) ||
+  return quotes.filter(q=>q && typeof q==='object' && (!hasActionTennisProvenance(q) ||
     (q.observedAt != null && actionTemporalValidity({collectedAt:q.collectedAt,
       sourceObservedAt:q.observedAt},{now}).valid)));
 }
@@ -212,9 +212,9 @@ export async function onRequestPost(context){
         for(const q of market.quotes||[]){
           const ms=await persistTennisMarketSnapshot(context.env.DB,{
             canonicalEventId:packet.eventId,tour:packet.tour||"atp",player1:packet.player1.name,player2:packet.player2.name,
-            provider:q.source||"MARKET_FEED",sportsbook:q.book,player1NoVig:q.p1,player2NoVig:q.p2,hold:q.hold,
+            provider:tennisQuoteAcquisitionProvider(q),sportsbook:q.book,player1NoVig:q.p1,player2NoVig:q.p2,hold:q.hold,
             observedAt:q.observedAt||new Date().toISOString(),
-            collectedAt:/ACTION/i.test(String(q.source||""))?q.collectedAt:new Date().toISOString(),tradedVolume:q.volume,
+            collectedAt:hasActionTennisProvenance(q)?q.collectedAt:new Date().toISOString(),tradedVolume:q.volume,
             snapshotType:packet.snapshotType||"DECISION"
           });
           if(ms.inserted)marketInserted++;

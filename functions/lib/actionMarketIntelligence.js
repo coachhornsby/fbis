@@ -242,6 +242,10 @@ export async function loadLiveActionMisprices(db, { sport = "all", limit = 200, 
   for (const o of observations) {
     const eid = String(o.fbis_event_id || "");
     if (!eid || newestByEvent.has(eid)) continue;
+    // An ineligible row must not reserve the event's comparison slot.
+    if(!actionTemporalValidity({collectedAt:o.collected_at,
+      sourceObservedAt:o.source_observed_at??o.observed_at??null},
+      {now,freshnessSeconds:ACTION_RESEARCH_FRESHNESS_SECONDS}).valid)continue;
     newestByEvent.set(eid, o);
   }
 

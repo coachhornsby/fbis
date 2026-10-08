@@ -35,6 +35,16 @@ function sd(xs){
   return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1));
 }
 
+// Acquisition provider and sportsbook/source labels are distinct provenance.
+// Either field can identify ACTION; a book label cannot mask that acquisition.
+export function hasActionTennisProvenance(quote={}) {
+  return [quote.source,quote.provider].some(value=>/ACTION/i.test(String(value||"")));
+}
+export function tennisQuoteAcquisitionProvider(quote={}) {
+  return [quote.provider,quote.source].find(value=>/ACTION/i.test(String(value||"")))
+    ||quote.provider||quote.source||"MARKET_FEED";
+}
+
 /** Convert book quotes to no-vig p1 probabilities. */
 export function normalizeTennisMarketQuotes(quotes=[]){
   return (quotes||[]).map(q=>{
@@ -48,6 +58,7 @@ export function normalizeTennisMarketQuotes(quotes=[]){
       isExchange:Boolean(q.isExchange),
       volume:finite(q.volume),
       source:q.source||null,
+      provider:q.provider||null,
     }:null;
   }).filter(Boolean);
 }
