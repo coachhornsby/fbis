@@ -32,6 +32,8 @@ for(const [name,age,observedAge,expected] of [['valid',60,61,true],['stale',601,
 });
 test('independent and unspecified quote provenance retain existing semantics without gaining authority',()=>{
  const owned={source:'HERITAGE',provider:'HERITAGE',book:'heritage'},unknown={book:'pinnacle'};assert.deepEqual(currentTennisQuotes([owned,unknown],now),[owned,unknown]);
+ assert.equal(tennisQuoteAcquisitionProvider({source:'HERITAGE',provider:'THEODDS_API'}),'HERITAGE');
+ assert.equal(tennisQuoteAcquisitionProvider({provider:'THEODDS_API'}),'MARKET_FEED');
 });
 test('normalization preserves distinct provider and sportsbook-source identity',()=>{
  const q={source:'HERITAGE',provider:'ACTION_APIFY',collectedAt:at(60),observedAt:at(61),book:'heritage',p1Price:-110,p2Price:-110};const [n]=normalizeTennisMarketQuotes([q]);assert.equal(n.provider,'ACTION_APIFY');assert.equal(n.source,'HERITAGE');assert.equal(n.collectedAt,q.collectedAt);assert.equal(tennisQuoteAcquisitionProvider(n),'ACTION_APIFY');assert.equal(hasActionTennisProvenance(n),true);

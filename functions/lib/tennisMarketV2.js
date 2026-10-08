@@ -42,7 +42,7 @@ export function hasActionTennisProvenance(quote={}) {
 }
 export function tennisQuoteAcquisitionProvider(quote={}) {
   return [quote.provider,quote.source].find(value=>/ACTION/i.test(String(value||"")))
-    ||quote.provider||quote.source||"MARKET_FEED";
+    ||quote.source||"MARKET_FEED";
 }
 
 /** Convert book quotes to no-vig p1 probabilities. */

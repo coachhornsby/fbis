@@ -14,7 +14,7 @@ The bounded reader still has its existing 200/default, 500/max cap and text-orde
 
 `source || provider` hid ACTION acquisition when source held a named book. The required HERITAGE/ACTION_APIFY quote with missing capture passed. Reverse ordering already rejected. Check ACTION provenance in either field. Named sportsbook and acquisition provider are distinct: `tennis_market_snapshots` has separate provider/sportsbook; `persistTennisVenueOffer` stores sportsbook as source and provider in raw provenance. A named book does not certify independent acquisition.
 
-Keep original source and provider through quote normalization. At packet persistence, preserve the supplied ACTION acquisition label from either field and original capture time, rather than replacing provider with the book label/restamping acquisition. Different non-ACTION labels and unspecified metadata retain existing benchmark behavior; this does not grant independent-book or wager authority. Provenance beyond the supplied fields remains unverified; no guessed dataset/run/event mapping.
+Keep original source and provider through quote normalization. At packet persistence, preserve the supplied ACTION acquisition label from either field and original capture time, rather than replacing provider with the book label/restamping acquisition. Different non-ACTION labels and unspecified metadata retain existing benchmark behavior and the prior source/MARKET_FEED persistence fallback; this does not grant independent-book or wager authority. Provenance beyond the supplied fields remains unverified; no guessed dataset/run/event mapping.
 
 ### C — 24-hour/future-skew helper: VERIFIED DEFECT
 
