@@ -13,7 +13,9 @@ export async function listTmlDataFiles({baseUrl=DEFAULT_BASE,fetchImpl=fetch}={}
  return j.files.map(f=>({name:String(f.name||''),url:String(f.url||''),size:Number.isFinite(Number(f.size))?Number(f.size):null,updatedAt:f.updatedAt||f.updated_at||null,manifestRetrievedAt:retrievedAt})).filter(f=>f.name&&f.url);
 }
 export function classifyTmlFile(name){
- const n=String(name).toLowerCase();
+ const n=String(name).toLowerCase().replaceAll('\\\\','/');
+ // Backup/audit copies may have valid ATP filenames but are not canonical sources.
+ if(/(^|\\/)[^/]*(?:backup|audit)[^/]*(\\/|$)/.test(n)) return 'OTHER';
  if(/atp_quali\//.test(n)||/atp[_-]?quali/.test(n)) return 'ATP_QUALIFYING';
  if(/challenger/.test(n)||/ch_ongoing_tourney\.csv$/.test(n)) return /ongoing/.test(n)?'CHALLENGER_ONGOING':'CHALLENGER';
  if(/ongoing_tourneys/.test(n)&&!/wta/.test(n)) return 'ATP_ONGOING';
