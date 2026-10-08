@@ -110,3 +110,5 @@ The original `Date.UTC(year, month, 0)` calendar check maps years 0–99 to 1900
 Offset validation follows the existing ECMAScript grammar (00–23 hours, 00–59 minutes), rather than inventing a narrower geographic-zone policy. +24:00 and minute 60 fail closed. Source observation time remains optional where the capture does not supply it; missing acquisition time remains invalid. No archive/created time substitutes for acquisition time. Fixed-clock hardening tests cover calendar, offsets, precision, boundaries and clock overflow.
 
 Review gate: bounded code may proceed to independent review. Production deployment remains unauthorized; Phase 2B alternate consumers require their own review.
+
+A final equivalence check also reproduced Date.parse remapping space-separated zoned years 0000 and 0099 to 2000 and 1999. The parser now normalizes the separator to T for every accepted representation before parsing, including already-zoned SQLite-style text. Fixed-clock tests compare the actual years across UTC/SQLite representations.

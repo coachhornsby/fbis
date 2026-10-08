@@ -8,6 +8,7 @@ test('calendar validation uses actual four-digit year, including year zero',()=>
 });
 test('offset grammar and equivalent UTC/SQLite timestamps',()=>{
  assert.equal(parse('2026-10-08 12:00:00'),now);
+ for(const year of ['0000','0099','1900','2026'])assert.equal(parse(`${year}-01-01 00:00:00Z`),parse(`${year}-01-01T00:00:00Z`));
  assert.equal(parse('2026-10-08T07:00:00-05:00'),now);
  assert.equal(parse('2026-10-08T17:30:00+05:30'),now);
  for(const z of ['+24:00','-24:00','+00:60','-12:99'])assert.ok(Number.isNaN(parse('2026-10-08T12:00:00'+z)));

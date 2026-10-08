@@ -18,7 +18,7 @@ export function actionTimestampMs(value) {
   // a sub-millisecond future timestamp must never become equal to the clock.
   if(m[7]&&/[1-9]/.test(m[7].slice(3))) return NaN;
   if (month<1||month>12||day<1||day>days||hour>23||minute>59||second>59) return NaN;
-  return Date.parse(zone?text:text.replace(' ','T')+'Z');
+  return Date.parse(text.replace(' ','T')+(zone?'':'Z'));
 }
 
 export function actionTemporalValidity({collectedAt,sourceObservedAt=null},
