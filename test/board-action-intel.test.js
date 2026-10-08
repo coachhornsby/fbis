@@ -81,7 +81,7 @@ test("attachActionIntelToGames joins by event id and never promotes odds authori
     { id: "nfl_a", sport: "nfl", away: { abbr: "DEN" }, home: { abbr: "KC" } },
     { id: "nfl_b", sport: "nfl", away: { abbr: "DAL" }, home: { abbr: "NYG" } },
   ];
-  const out = await attachActionIntelToGames(games, db);
+  const out = await attachActionIntelToGames(games, db, {now:Date.parse("2026-09-13T20:00:00Z")});
   assert.equal(out.attached, 1);
   assert.equal(out.games[0].actionIntel.consensus.spreadHome, -1);
   assert.equal(out.games[0].actionIntel.canQualify, false);

@@ -1,3 +1,5 @@
+import {currentActionDisplay} from './actionDisplayFreshness.js';
+import {actionTimestampMs, currentActionRows, historicalActionRows} from './actionTemporalValidity.js';
 /**
  * NFL game-level wager decisioning.
  *
@@ -93,13 +95,14 @@ function pickExecution(game={}){
   return {spread,total,homeSpreadPrice,awaySpreadPrice,overPrice,underPrice,book,actionable,fresh};
 }
 
-function trajectoryRows(actionIntel={},family,selection){
-  const rows=(actionIntel.lineHistory||[]).filter(r=>{
+function trajectoryRows(actionIntel={},family,selection,decisionAt){
+  const rows=historicalActionRows(actionIntel.lineHistory||[],{now:decisionAt}).filter(r=>{
     const market=String(r.market||"").toLowerCase();
     const sel=String(r.selection||"").toLowerCase();
     return market===family&&sel===selection&&finite(r.line)!=null;
-  }).sort((a,b)=>String(a.providerTimestamp||a.collectedAt||"").localeCompare(String(b.providerTimestamp||b.collectedAt||"")));
-  return rows;
+  }).sort((a,b)=>actionTimestampMs(a.providerTimestamp||a.collectedAt)-actionTimestampMs(b.providerTimestamp||b.collectedAt));
+  // Historical opening is context only; a current terminal observation is required.
+  return currentActionRows(rows.slice(-1),{now:decisionAt}).length ? rows : [];
 }
 function slopePerHour(rows){
   if(rows.length<2)return null;
@@ -111,10 +114,10 @@ function slopePerHour(rows){
 }
 function sign(v){const n=finite(v);return n==null||Math.abs(n)<1e-9?0:(n>0?1:-1);}
 
-export function buildNflWagerIntelligence(game={},projection={}){
-  const a=game.actionIntel||{};
-  const spreadRows=trajectoryRows(a,"spread","home");
-  const totalRows=trajectoryRows(a,"total","over");
+export function buildNflWagerIntelligence(game={},projection={}, {decisionAt=Date.now()}={}){
+  const a=currentActionDisplay(game,decisionAt).actionIntel||{};
+  const spreadRows=trajectoryRows(a,"spread","home",decisionAt);
+  const totalRows=trajectoryRows(a,"total","over",decisionAt);
   const spreadOpen=spreadRows[0]||null,spreadNow=spreadRows.at(-1)||null;
   const totalOpen=totalRows[0]||null,totalNow=totalRows.at(-1)||null;
 
@@ -328,13 +331,13 @@ function candidate({
   };
 }
 
-export function evaluateNflGameWagers(game={},calibration={}){
+export function evaluateNflGameWagers(game={},calibration={}, {decisionAt=Date.now()}={}){
   const projection=game.nflProShadow;
   if(String(game.sport||"").toLowerCase()!=="nfl"||!projection?.ok||projection.independent!==true||projection.marketInformed===true){
     return {version:NFL_WAGER_DECISION_VERSION,ok:false,reason:"independent-nfl-projection-unavailable",candidates:[]};
   }
   const market=pickExecution(game);
-  const intel=buildNflWagerIntelligence(game,projection);
+  const intel=buildNflWagerIntelligence(game,projection,{decisionAt});
   const candidates=[];
   if(market.spread!=null){
     candidates.push(candidate({market:"spread",selection:"home",line:market.spread,price:market.homeSpreadPrice,probability:coverProbability(projection.margin,projection.sigmaMargin,market.spread,"home"),projection,sigma:projection.sigmaMargin,book:market.book,intel,game,calibration}));

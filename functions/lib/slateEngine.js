@@ -1,3 +1,4 @@
+import {currentActionDisplay} from './actionDisplayFreshness.js';
 /**
  * Public slate-engine facade.
  *
@@ -507,6 +508,13 @@ export async function buildSlate(sport, date, env = {}) {
     } catch {
       // Fail-open.
     }
+  }
+
+  // Validate ACTION inputs before any derived wager/market intelligence, including
+  // preattached inputs and projection exports that bypass today's display filter.
+  if (Array.isArray(next.games)) {
+    const actionDecisionAt = Date.now();
+    next = {...next, games: next.games.map(game => currentActionDisplay(game, actionDecisionAt))};
   }
 
   // NHL wager decisioning must run after ACTION intelligence is attached.

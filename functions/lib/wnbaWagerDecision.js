@@ -1,3 +1,4 @@
+import {currentActionRows} from './actionTemporalValidity.js';
 import { decisionFromOffer } from "./wagerDecisionEngine.js";
 
 const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -214,7 +215,7 @@ export async function loadWnbaOwnedOddsRows(db,eventId,{limit=240}={}){
   }catch{return [];}
 }
 
-export async function loadWnbaActionRows(db,eventId,{limit=120}={}){
+export async function loadWnbaActionRows(db,eventId,{limit=120,decisionAt=Date.now()}={}){
   if(!db?.prepare||!eventId)return [];
   try{
     const res=await db.prepare(
@@ -225,7 +226,7 @@ export async function loadWnbaActionRows(db,eventId,{limit=120}={}){
         ORDER BY collected_at ASC
         LIMIT ?`
     ).bind(String(eventId),Math.max(1,Math.min(240,Number(limit)||120))).all();
-    return res?.results||[];
+    return currentActionRows(res?.results||[],{now:decisionAt});
   }catch{return [];}
 }
 
@@ -264,12 +265,12 @@ export function wnbaEvidence(game={},projection={}){
   return {matchupReliability,dataQuality,uncertaintyQuality,historicalFactorReliability,priceQuality:0.75,stakeUnits:null};
 }
 
-export async function buildWnbaGameDecisions(game={},db=null,{minEv=0.03,calibrationLookup=null}={}){
+export async function buildWnbaGameDecisions(game={},db=null,{minEv=0.03,calibrationLookup=null,decisionAt=Date.now()}={}){
   const distribution=decomposeWnbaProjection(game);
   if(distribution.margin==null||distribution.total==null)return {gameId:game.id,ok:false,reason:"independent_projection_missing",offers:[]};
   const [ownedRows,actionRows]=await Promise.all([
     loadWnbaOwnedOddsRows(db,game.id),
-    loadWnbaActionRows(db,game.id),
+    loadWnbaActionRows(db,game.id,{decisionAt}),
   ]);
   const offers=mergeWnbaOffers(buildWnbaOffers(game),buildWnbaOffersFromOwnedRows(ownedRows));
   const evidence=wnbaEvidence(game,distribution);

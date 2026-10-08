@@ -35,7 +35,7 @@ test("missing canonical event withholds the actual production snapshot and all p
 
 test("prospective generation stops before reading profiles or writing when official identity is absent",async()=>{
  const queries=[];const db={prepare(sql){queries.push(sql);return {bind(){return {all:async()=>({results:[]})};}};}};
- const result=await autoDecisionForMarket(db,row);
+ const result=await autoDecisionForMarket(db,{...row,provider:"ACTION_APIFY",collected_at:"2026-10-08T02:59:00Z",observed_at:"2026-10-08T02:59:00Z"},{now:Date.parse("2026-10-08T03:00:00Z")});
  assert.equal(result.inserted,false);assert.equal(result.reason,"OFFICIAL_EVENT_MISSING");
  assert.equal(queries.length,1);assert.doesNotMatch(queries[0],/INSERT|tennis_player_profiles_current/);
 });

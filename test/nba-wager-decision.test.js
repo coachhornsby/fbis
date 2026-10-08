@@ -17,7 +17,7 @@ const projection={
 test("ACTION cannot directly qualify or authorize an NBA decision",()=>{
   const action=summarizeActionForDecision([{
     market_type:"spread",selection:"HOME",line:-4,
-    provider_timestamp:"2026-10-04T15:00:00Z",
+    provider_timestamp:"2026-10-04T15:59:00Z",collected_at:"2026-10-04T15:59:00Z",
     public_ticket_pct:42,public_money_pct:65,snapshot_type:"CURRENT"
   }],{decisionAt:"2026-10-04T16:00:00Z",marketType:"spread",side:"HOME",fbisDirection:"HOME_OR_OVER"});
   assert.equal(action.available,true);
