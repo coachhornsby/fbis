@@ -32,11 +32,17 @@ test('stored snapshot fallback cannot masquerade as a current comparison',async(
 });
 test('saved packet JSON reload drops stale derived ACTION, preserves independent execution and immutable original',()=>{
  const independent={book:'Heritage',spread:-2.5};
- const saved={generatedAt:at(0),games:[{actionIntel:{collectedAt:at(601),consensus:{spreadHome:-3}},nflWagerDecision:{wagerIntelligence:{current:{spread:-3},edgeTrajectory:{spreadCurrent:2}},executionMarket:independent,independentProjection:{margin:7}}}]};
+ const saved={generatedAt:at(0),games:[{actionIntel:{collectedAt:at(601),consensus:{spreadHome:-3}},nflWagerDecision:{wagerIntelligence:{current:{spread:-3},edgeTrajectory:{spreadCurrent:2}},executionMarket:independent,independentProjection:{margin:7},confidenceScore:80,candidates:[{americanPrice:-110,probability:.6,expectedValuePerUnitRisk:.145,marketIntelligence:{confirmation:"CONFIRMS"},confidenceScore:80}],bestWager:{marketIntelligence:{confirmation:"CONFIRMS"},confidenceScore:80,canAuthorizeWager:false}}}]};
  const serialized=JSON.stringify(saved);
  const view=researchPacketTemporalView(JSON.parse(serialized),{now});
  assert.equal(view.currentUse,false);assert.equal(view.games[0].actionIntel,null);assert.equal(view.games[0].nflWagerDecision.wagerIntelligence,null);
  assert.deepEqual(view.games[0].nflWagerDecision.executionMarket,independent);
+ assert.equal(view.games[0].nflWagerDecision.candidates[0].marketIntelligence,null);
+ assert.equal(view.games[0].nflWagerDecision.candidates[0].confidenceScore,null);
+ assert.equal(view.games[0].nflWagerDecision.candidates[0].probability,.6);
+ assert.equal(view.games[0].nflWagerDecision.candidates[0].expectedValuePerUnitRisk,.145);
+ assert.equal(view.games[0].nflWagerDecision.bestWager.marketIntelligence,null);
+ assert.equal(view.games[0].nflWagerDecision.bestWager.canAuthorizeWager,false);
  assert.deepEqual(view.games[0].nflWagerDecision.independentProjection,{margin:7});
  assert.equal(JSON.stringify(saved),serialized);
  const rawless=researchPacketTemporalView({games:[{nflWagerDecision:saved.games[0].nflWagerDecision}]},{now});
