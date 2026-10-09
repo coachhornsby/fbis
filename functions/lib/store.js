@@ -371,7 +371,7 @@ export async function persistSnapshot(env, row) {
         n(row.engine),
         n(row.actualHome),
         n(row.actualAway),
-        n(row.gradedAt),
+        n(isOpenSnapshot(row) ? null : row.gradedAt),
         n(row.deploymentCommit),
         n(row.projectionState),
         n(row.projectionKind),
@@ -495,7 +495,7 @@ async function persistSnapshotLegacy(env, row) {
         n(row.engine),
         n(row.actualHome),
         n(row.actualAway),
-        n(row.gradedAt)
+        n(isOpenSnapshot(row) ? null : row.gradedAt)
       )
       .run();
     const changes = Number(res?.meta?.changes) || 0;
@@ -536,10 +536,14 @@ export async function recordWriteConflict(env, entity, entityId, reason, detail)
 }
 
 /** Attach finals only. Never rewrite frozen projection fields. */
+function isOpenSnapshot(row) {
+  return String(row?.gameStatus || "").trim().toUpperCase() === "OPEN";
+}
+
 export async function gradeSnapshot(env, row) {
   markBound(env);
   if (!hasDb(env) || !row?.id) return { ok: false, reason: "unbound" };
-  if (row.actualHome == null && !row.gameStatus) return { ok: false, reason: "no-final" };
+  if (isOpenSnapshot(row) || (row.actualHome == null && !row.gameStatus)) return { ok: false, reason: "no-final" };
   try {
     await env.DB.prepare(
       `UPDATE prediction_snapshots
