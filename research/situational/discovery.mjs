@@ -57,12 +57,20 @@ export function scanGame(game, { maxQuoteAgeSeconds } = {}) {
   // Publish only the fields which have been attested, not arbitrary payload attachments.
   const cleanQuote = quoteUsable ? Object.fromEntries(['eventId', 'source', 'observedAt', 'availableAt', 'provenanceRef', 'pitVerified', 'side', 'market', 'line', 'price', 'book'].map(k => [k, game.quote[k]])) : null;
   const cardFeatureKeys = { 'rest-disadvantage': ['rest', 'opponentRest'], 'short-rest': ['rest'], 'winless-after-three': ['record'], 'unranked-favorite': ['ranking', 'opponentRanking'] };
+  // Whitelist evidence envelope and value fields; a matching source packet can still
+  // carry unrelated, unverified metadata even after its used values pass PIT gates.
+  const cardEvidence = key => {
+    const e = game.features[key], raw = e.value;
+    const value = key === 'record' ? { games: raw.games, wins: raw.wins } :
+      key === 'ranking' || key === 'opponentRanking' ? (raw.ranked ? { ranked: true, rank: raw.rank } : { ranked: false }) : raw;
+    return { ...Object.fromEntries(['eventId', 'source', 'observedAt', 'availableAt', 'provenanceRef', 'pitVerified'].map(k => [k, e[k]])), value };
+  };
   return { ...authority, version: VERSION, eventId: game.eventId, sport: game.sport, side: game.side,
     decisionAt: game.decisionAt, kickoff: game.kickoff, status: 'SHADOW',
     quote: cleanQuote, marketComparisonStatus: quoteUsable ? 'RESEARCH_QUOTE' : 'UNAVAILABLE',
     diagnostics: Object.fromEntries(PATTERNS.map(p => [p, conditions[p] === null ? 'MISSING_OR_INVALID_EVIDENCE' : conditions[p] ? 'MATCH' : 'NO_MATCH'])),
     candidates: PATTERNS.filter(p => conditions[p] === true).map(pattern => ({ pattern, conditions: pattern,
-      evidence: Object.fromEntries(cardFeatureKeys[pattern].map(k => [k, game.features[k]])), hypothesisOnly: true, validated: false })),
+      evidence: Object.fromEntries(cardFeatureKeys[pattern].map(k => [k, cardEvidence(k)])), hypothesisOnly: true, validated: false })),
     unavailableFamilies: ['travel', 'public-disagreement', 'reverse-line-movement', 'quarterback-adjustment', 'combinations', 'incumbent-disagreement'],
   };
 }
@@ -84,7 +92,7 @@ export function economics(quote, mass, oppositeQuote, { decisionAt, maxQuoteAgeS
   const decision = timestamp(decisionAt), observed = timestamp(quote.observedAt);
   const quotePIT = evidenceValid(quote, decisionAt, quote.eventId) && number(maxQuoteAgeSeconds) && maxQuoteAgeSeconds >= 0 &&
     decision !== null && observed !== null && decision - observed <= maxQuoteAgeSeconds * 1000;
-  const paired = quotePIT && evidenceValid(oppositeQuote, decisionAt, quote.eventId) && oppositeQuote.book === quote.book &&
+  const paired = quotePIT && quote.market === 'FULL_GAME_SPREAD' && evidenceValid(oppositeQuote, decisionAt, quote.eventId) && oppositeQuote.book === quote.book &&
     oppositeQuote.market === quote.market && oppositeQuote.side !== quote.side && ['HOME', 'AWAY'].includes(oppositeQuote.side) &&
     oppositeQuote.line === -quote.line && oppositeQuote.observedAt === quote.observedAt &&
     Number.isSafeInteger(oppositeQuote.price) && Math.abs(oppositeQuote.price) >= 100;
