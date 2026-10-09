@@ -145,8 +145,13 @@ test('published shadow cards expose only needed PIT evidence and normalized quot
   const g = fixture();
   g.features.unverifiedFuture = { ...evidence(1), observedAt: '2024-10-02T12:00:00Z', availableAt: '2024-10-02T12:00:00Z', pitVerified: false };
   g.quote.postgameResult = { homeScore: 99, awayScore: 0 };
+  g.features.record.postgameResult = { homeScore: 99 };
+  g.features.record.value.futureOutcome = { homeScore: 99 };
   const result = scan(g);
   assert.equal(result.quote.postgameResult, undefined);
+  const recordEvidence = result.candidates.find(c => c.pattern === 'winless-after-three').evidence.record;
+  assert.equal(recordEvidence.postgameResult, undefined);
+  assert.deepEqual(recordEvidence.value, { games: 4, wins: 0 });
   assert.deepEqual(Object.keys(result.candidates.find(c => c.pattern === 'short-rest').evidence), ['rest']);
   assert.deepEqual(Object.keys(result.candidates.find(c => c.pattern === 'rest-disadvantage').evidence), ['rest', 'opponentRest']);
   assert.equal(result.candidates.some(c => 'unverifiedFuture' in c.evidence), false);
@@ -169,4 +174,5 @@ test('direct economic calls require an explicit max quote age, not just PIT flag
   assert.ok(economicRaw(r.game.quote, null, r.oppositeQuote, { ...options, maxQuoteAgeSeconds: 300 }).noVigBaseline > 0);
   assert.equal(scan({ ...fixture(), quote: { ...fixture().quote, price: -112.5 } }).quote, null);
   assert.equal(economics({ ...r.game.quote, price: -112.5 }, null).status, 'UNAVAILABLE');
+  assert.equal(economics({ ...r.game.quote, market: 'REGULATION_SPREAD' }, null, { ...r.oppositeQuote, market: 'REGULATION_SPREAD' }).noVigBaseline, null);
 });
