@@ -52,6 +52,7 @@ test('wrong period or unsupported market rejected',()=>{
 });
 test('book identity is explicit, approved and never consensus',()=>{
   for(const book of ['','consensus','Unknown','OtherBook',null]){const f=fixture();f.record.book=book;assert.equal(adapt(f).quote,null);}
+  const f=fixture();f.record.book='openingline';f.context.policy.bookmakers.push('openingline');assert.equal(adapt(f).quote,null);
 });
 test('American odds reject strings fractions zero unsafe and nonfinite',()=>{
   for(const price of ['-110',-110.5,0,99,1e20,Infinity,null]){const f=fixture();f.record.price=price;assert.equal(adapt(f).quote,null);}

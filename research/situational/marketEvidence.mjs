@@ -91,7 +91,7 @@ export function adaptObservation(record, { event, decisionAt, policy, rawBody, m
   if (!['HOME','AWAY'].includes(record?.side) || record?.selectedTeamId !== (record?.side === 'HOME' ? event?.homeId : event?.awayId)) add('SELECTION_MISMATCH', 'INVALID_MARKET');
   if (!num(record?.line)) add('INVALID_LINE', 'INVALID_MARKET');
   if (!Number.isSafeInteger(record?.price) || Math.abs(record.price) < 100) add('INVALID_AMERICAN_ODDS', 'INVALID_MARKET');
-  if (!str(record?.book) || /^(consensus|average|unknown|none|n\/a)$/i.test(record.book) || !policy?.bookmakers?.includes(record.book)) add('INVALID_OR_UNVERIFIED_BOOK', 'INVALID_MARKET');
+  if (!str(record?.book) || /^(consensus|opening\s*line|average|unknown|none|n\/a)$/i.test(record.book) || !policy?.bookmakers?.includes(record.book)) add('INVALID_OR_UNVERIFIED_BOOK', 'INVALID_MARKET');
   if (!policy || policy.source !== record?.source || !str(policy.version) || !str(policy.provenanceRef) || !num(policy.maxAgeSeconds) || policy.maxAgeSeconds < 0) add('MISSING_SOURCE_FRESHNESS_POLICY', 'PROVENANCE_INCOMPLETE');
   if (observed === null) add(record?.observedAt == null || record?.observedAt === '' ? 'MISSING_PROVIDER_TIMESTAMP' : 'INVALID_PROVIDER_TIMESTAMP', 'PROVENANCE_INCOMPLETE');
   if (acquired === null) add('MISSING_OR_INVALID_ACQUISITION_TIMESTAMP', 'PROVENANCE_INCOMPLETE');
