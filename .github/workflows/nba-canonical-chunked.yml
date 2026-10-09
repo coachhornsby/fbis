@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with: { node-version: "22" }
       - run: node scripts/nba-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/nba-canonical-${{ matrix.chunk.id }}.jsonl
       - uses: actions/upload-artifact@v4
@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with: { node-version: "22" }
       - uses: actions/download-artifact@v4
         with:

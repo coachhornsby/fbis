@@ -42,7 +42,7 @@ jobs:
       TENNIS_V11_OUT: "research/tennis/v1-1-challenger-latest.json"
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4.1.0
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm

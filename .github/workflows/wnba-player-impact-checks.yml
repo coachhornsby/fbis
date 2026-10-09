@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with: { node-version: "22", cache: "npm" }
       - run: npm ci
       - run: node --test test/wnba-player-impact.test.js test/wnba-player-projections.test.js test/wnba-fbis-v2.test.js test/wnba-wager-decision.test.js test/wnba-wager-validation.test.js

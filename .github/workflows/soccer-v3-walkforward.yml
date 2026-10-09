@@ -30,7 +30,7 @@ jobs:
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with: { node-version: "22" }
       - name: Require harvest credential
         run: test -n "${HARVEST_SECRET:-}"
