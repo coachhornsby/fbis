@@ -7,7 +7,27 @@ import {
   haversineMiles,
   injuryType,
   injurySeverityClass,
+  parseNflRoster,
 } from "../functions/lib/nflTeamProfiles.js";
+
+test('NFL roster parser keeps athletes and excludes nested position and status metadata', () => {
+  const position = { id: '8', displayName: 'Quarterback', abbreviation: 'QB', leaf: true,
+    parent: { id: '70', displayName: 'Offense', abbreviation: 'OFF', leaf: false } };
+  const athlete = { id: '123456', displayName: 'Fixture Athlete', position,
+    status: { id: '1', displayName: 'Active', type: 'active' }, jersey: '9' };
+  const rows = parseNflRoster({ athletes: [{ position: 'QB', items: [athlete] }] });
+  assert.deepEqual(rows.map(({ id, name, position }) => ({ id, name, position })),
+    [{ id: '123456', name: 'Fixture Athlete', position: 'QB' }]);
+  assert.equal(rows[0].raw, athlete);
+  assert.equal(rows[0].jersey, '9');
+});
+test('NFL roster parser preserves wrapper identity, duplicate handling and valid position groups', () => {
+  const a = { athlete: { id: '123456', fullName: 'Fixture Athlete', position: { abbreviation: 'C' } } };
+  const rows = parseNflRoster({ items: [a, a] });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].id, '123456'); assert.equal(rows[0].position, 'C');
+  assert.deepEqual(parseNflRoster({ athletes: [{ displayName: 'No Identity', position: { abbreviation: 'QB' } }] }), []);
+});
 
 function event({id,date,home,away,week=1,city="Houston",venue="Example Stadium",neutralSite=false}){
   return {
