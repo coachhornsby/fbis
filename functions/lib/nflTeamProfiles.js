@@ -123,7 +123,7 @@ function rosterPosition(v){
  };
  return map[raw]||raw;
 }
-function parseRoster(payload){
+export function parseNflRoster(payload){
  const out=[],seen=new Set();
  function walk(v,positionHint=null,depth=0){
   if(v==null||depth>7)return;
@@ -147,7 +147,9 @@ function parseRoster(payload){
    }
   }
   for(const [k,x] of Object.entries(v)){
-   if(["links","logos","images"].includes(k))continue;
+   // ESPN athlete metadata is not another athlete. Passing the athlete's
+   // position hint into taxonomy/status children creates false roster rows.
+   if(["links","logos","images","position","parent","status"].includes(k))continue;
    walk(x,hint,depth+1);
   }
  }
@@ -608,7 +610,7 @@ export async function syncNflTeamProfile(env={},abbr,{season=seasonYear(),nowMs=
    return{ok:false,team:team.abbr,reason};
   }
 
-  const roster=parseRoster(src.roster.data),events=scheduleEvents(src.schedule.data);
+  const roster=parseNflRoster(src.roster.data),events=scheduleEvents(src.schedule.data);
   const schedule=buildScheduleProfile(events,team.abbr,season,nowMs);
   const official=latestByPlayer(availability),prior=new Map(existing.map(x=>[normName(x.player_name),x]));
   const usageRows=verse?.playersByTeam?.[canon(team.abbr)]||[];
