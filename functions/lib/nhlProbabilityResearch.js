@@ -53,10 +53,15 @@ function quote(win, lose, push = 0) {
   const american = decimal == null ? null : conditional >= 0.5
     ? (conditional === 1 ? null : -100 * conditional / (1 - conditional))
     : 100 * (1 - conditional) / conditional;
+  // Accepted PMF mass is not altered to manufacture representable odds.
+  // Treat the quote as unavailable if either odds format exceeds finite Number range.
+  const numericUnavailable = (decimal != null && !Number.isFinite(decimal)) ||
+    (american != null && !Number.isFinite(american));
   return { win, lose, push, conditionalOnNoPush: conditional,
-    fairDecimalOdds: decimal, fairAmericanOdds: american,
+    fairDecimalOdds: numericUnavailable ? null : decimal,
+    fairAmericanOdds: numericUnavailable ? null : american,
     fairOddsStatus: conditional == null ? "ALL_PUSH" : conditional === 0 || conditional === 1
-      ? "DEGENERATE" : "AVAILABLE",
+      ? "DEGENERATE" : numericUnavailable ? "NUMERIC_DOMAIN_UNAVAILABLE" : "AVAILABLE",
     qualification: "UNVALIDATED_RESEARCH", canQualify: false, canAuthorizeWager: false };
 }
 

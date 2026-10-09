@@ -18,6 +18,36 @@ function fixture() {
 }
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-10, `${a} != ${b}`);
 
+for (const tiny of [Number.MIN_VALUE, 1e-310]) {
+  test(`accepted tiny probability keeps nonfinite odds unavailable: ${tiny}`, () => {
+    const f = fixture();
+    f.regulation.cells = [{ home: 1, away: 0, probability: tiny }, { home: 0, away: 1, probability: 1 }];
+    const q = buildNhlResearchMarkets(f).fullGame.moneyline.home;
+    assert.equal(q.win, tiny);
+    assert.equal(q.fairOddsStatus, 'NUMERIC_DOMAIN_UNAVAILABLE');
+    assert.equal(q.fairDecimalOdds, null);
+    assert.equal(q.fairAmericanOdds, null);
+    assert.deepEqual(JSON.parse(JSON.stringify(q)), q);
+    assert.equal(q.canAuthorizeWager, false);
+  });
+}
+test('finite extreme fair odds and standard odds remain available without probability clamping', () => {
+  for (const probability of [1e-100, 1e-308, 0.25, 0.75]) {
+    const f = fixture();
+    f.regulation.cells = [{ home: 1, away: 0, probability }, { home: 0, away: 1, probability: 1 - probability }];
+    const q = buildNhlResearchMarkets(f).fullGame.moneyline.home;
+    assert.equal(q.win, probability);
+    // American odds can overflow before the decimal reciprocal does.
+    if (probability === 1e-308) {
+      assert.equal(q.fairOddsStatus, 'NUMERIC_DOMAIN_UNAVAILABLE');
+      assert.equal(q.fairDecimalOdds, null); assert.equal(q.fairAmericanOdds, null);
+    } else {
+      assert.equal(q.fairOddsStatus, 'AVAILABLE');
+      assert.ok(Number.isFinite(q.fairDecimalOdds)); assert.ok(Number.isFinite(q.fairAmericanOdds));
+    }
+  }
+});
+
 test("regulation and OT/SO moneyline reconcile from the same supplied law", () => {
   const r = buildNhlResearchMarkets(fixture());
   close(r.regulation.home.win, 0.3); close(r.regulation.draw.win, 0.4);

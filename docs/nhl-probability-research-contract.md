@@ -150,3 +150,7 @@ ordered team checks; no means adapter; no fabricated lines/prices; explicit unva
 uncertainty; bounded input sizes; no production imports; registry/accounting/policy
 diff absent. Rollback for a future approved merge is a code revert only; no schema/data
 migration exists. Merge/deploy and qualification all require separate authorization.
+
+## Numeric quote domain
+
+Accepted score-law probabilities are never clamped to manufacture finite odds. If either decimal or American odds overflows the finite JavaScript Number domain, both odds fields are null and fairOddsStatus is NUMERIC_DOMAIN_UNAVAILABLE. Win/lose/push probabilities and research authority remain unchanged. ALL_PUSH and DEGENERATE keep their existing semantics.
