@@ -39,7 +39,7 @@ jobs:
             echo "### Recent disagreement bands"
             jq -r '.recent2024_25.bands | to_entries[] | "- \(.key): n=\(.value.n), FBIS MAE=\(.value.fbisMae), KenPom MAE=\(.value.kenpomMae), advantage=\(.value.maeAdvantage)"' "$F"
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cbb-fbis-vs-kenpom-v1-${{ github.run_id }}
           path: |

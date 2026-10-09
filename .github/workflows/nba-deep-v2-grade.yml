@@ -68,7 +68,7 @@ jobs:
           stamp="$(date -u +%Y%m%dT%H%M%SZ)"
           npx wrangler r2 object put             "fbis-archive/evaluation/nba/deep-v2/${stamp}.json"             --file artifacts/nba-deep-prospective-validation.json --remote
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-deep-v2-grade-${{ github.run_id }}
           path: artifacts/nba-deep-prospective-validation.json

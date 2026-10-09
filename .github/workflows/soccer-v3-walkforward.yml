@@ -95,7 +95,7 @@ jobs:
             "$BASE/api/soccer-validation-evidence" | tee artifacts/soccer-phase3b-evidence-result.json
           jq -e '.ok == true and .researchOnly == true and .canQualify == false and .canAuthorize == false and .snapshotId != null and .codeSha != null and .written > 0' artifacts/soccer-phase3b-evidence-result.json >/dev/null
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: soccer-v3-walkforward-${{ github.run_id }}
           path: |

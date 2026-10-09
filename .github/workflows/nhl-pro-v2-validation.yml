@@ -52,7 +52,7 @@ jobs:
           jq -e '.integrity.noMarketInputs == true' data/models/nhl-pro-v2-validation.json >/dev/null
           jq -e '.integrity.fetchErrors == 0' data/models/nhl-pro-v2-validation.json >/dev/null
           jq '.aggregate,.promotion' data/models/nhl-pro-v2-validation.json
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v6
         with:
           name: nhl-pro-v2-validation-${{ github.run_id }}
           path: data/models/nhl-pro-v2-validation.json

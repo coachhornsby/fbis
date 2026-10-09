@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           npx wrangler d1 execute fbis --remote --command="SELECT COUNT(*) AS canonical_teams FROM cfb_canonical_teams; SELECT COUNT(*) AS provider_ids FROM cfb_team_provider_ids; SELECT COUNT(*) AS aliases FROM cfb_team_aliases; SELECT COUNT(*) AS conference_runs FROM cfb_conference_membership; SELECT state_family,mode,can_influence_projection,can_qualify,can_authorize_wager FROM cfb_state_overlay_governance WHERE state_family IN ('TEAM_DIRECTORY','TEAM_STATE');"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cfb-team-directory-phase-a
           path: artifacts/cfb-directory/*

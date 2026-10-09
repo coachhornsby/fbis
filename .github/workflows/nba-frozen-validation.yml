@@ -51,7 +51,7 @@ jobs:
           jq . artifacts/nba-holdout-validation.json
           jq -r '"## NBA frozen holdout\n- game n: \(.game.holdout.n)\n- margin MAE: \(.game.holdout.marginMae) vs baseline \(.game.benchmarkHoldout.marginMae)\n- total MAE: \(.game.holdout.totalMae) vs baseline \(.game.benchmarkHoldout.totalMae)\n- winner accuracy: \(.game.holdout.winnerAccuracy) vs baseline \(.game.benchmarkHoldout.winnerAccuracy)\n- state: \(.governance.maturity)"' artifacts/nba-holdout-validation.json >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-holdout-validation-${{ github.run_id }}
           path: artifacts/nba-holdout-validation.json

@@ -183,7 +183,7 @@ jobs:
           fi
           if [ -s artifacts/nba-deep-prospective-ledger.sql ]; then npx wrangler d1 execute fbis --remote --file=artifacts/nba-deep-prospective-ledger.sql; fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-prospective-shadow-${{ github.run_id }}
           path: |

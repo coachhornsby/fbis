@@ -54,7 +54,7 @@ jobs:
           node --check data/models/nhl-pro-v2.js
           node --check functions/lib/nhlProV2.js
           node --test test/nhl-pro-v2.test.js
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v6
         with:
           name: nhl-pro-v2-fit-${{ github.run_id }}
           path: data/models/nhl-pro-v2.js

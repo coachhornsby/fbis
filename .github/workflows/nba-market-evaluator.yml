@@ -179,7 +179,7 @@ jobs:
             echo "- Stake units: withheld until staking validation"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-game-level-evaluation-${{ github.run_id }}
           path: |

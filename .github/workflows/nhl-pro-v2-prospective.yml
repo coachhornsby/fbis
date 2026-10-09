@@ -76,7 +76,7 @@ jobs:
             echo "- total MAE: $(jq -r '.metrics.total.mae // "NA"' "$out")"
             echo "- Brier: $(jq -r '.metrics.probability.brier // "NA"' "$out")"
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v6
         with:
           name: nhl-pro-v2-prospective-${{ github.run_id }}
           path: artifacts/nhl-pro-v2-prospective.json

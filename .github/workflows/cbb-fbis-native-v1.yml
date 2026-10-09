@@ -86,7 +86,7 @@ jobs:
           set -euo pipefail
           F="artifacts/cbb-fbis-native-v1-walkforward-${{ matrix.season }}.json"
           jq -e '.ok == true and .rows >= 0' "$F" >/dev/null
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cbb-fbis-native-v1-season-${{ matrix.season }}-${{ github.run_id }}
           path: |
@@ -157,7 +157,7 @@ jobs:
             jq -r '"- frozen side dislocation >=10: validation ROI=\(.sideDislocation.validation.roi)%, 2025 secondary ROI=\(.sideDislocation.secondary2025.roi)%"' artifacts/cbb-money-selector-v1.json
             jq -r '"- money selector total threshold=\(.models.total.thresholdSelection.threshold), validation ROI=\(.models.total.validation.roi)%, 2025 secondary ROI=\(.models.total.secondary2025.roi)%"' artifacts/cbb-money-selector-v1.json
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cbb-fbis-native-v1-aggregate-${{ github.run_id }}
           path: |

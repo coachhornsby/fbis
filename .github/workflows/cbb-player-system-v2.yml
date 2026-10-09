@@ -82,7 +82,7 @@ jobs:
           set -euo pipefail
           node scripts/cbb-player-history-v1.mjs             "${{ matrix.season }}"             artifacts/frozen/cbb-fbis-native-v2-predictions.json             | tee "artifacts/cbb-player-history-${{ matrix.season }}.log"
           jq -e '.ok == true and .matchedGames > 0 and (.gameSamples|length) > 0 and (.propSamples|length) > 0' "artifacts/cbb-player-history-${{ matrix.season }}.json" >/dev/null
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cbb-player-history-${{ matrix.season }}-${{ github.run_id }}
           path: |
@@ -139,7 +139,7 @@ jobs:
               jq -r --arg m "$m" '"- prop "+$m+": validation gain="+(.markets[$m].validation.gain|tostring)+", 2025 gain="+(.markets[$m].confirmation.gain|tostring)+", promote="+(.markets[$m].promote|tostring)' "$P"
             done
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cbb-player-system-v2-${{ github.run_id }}
           path: |

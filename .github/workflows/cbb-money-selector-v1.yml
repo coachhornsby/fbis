@@ -58,7 +58,7 @@ jobs:
             jq -r '"- total direct selector threshold: \(.models.total.thresholdSelection.threshold), discovery OOF ROI=\(.models.total.thresholdSelection.roi)%, validation ROI=\(.models.total.validation.roi)%, 2025 secondary ROI=\(.models.total.secondary2025.roi)%"' "$F"
             jq -r '"- frozen >=10 side dislocation: validation n=\(.sideDislocation.validation.n), ROI=\(.sideDislocation.validation.roi)%, 2025 secondary n=\(.sideDislocation.secondary2025.n), ROI=\(.sideDislocation.secondary2025.roi)%"' "$F"
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cbb-money-selector-v1-${{ github.run_id }}
           path: |

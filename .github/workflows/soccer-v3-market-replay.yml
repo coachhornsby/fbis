@@ -43,7 +43,7 @@ jobs:
         run: node scripts/soccer-v3-market-replay.mjs
       - name: Show replay report
         run: jq . artifacts/soccer-v3-market-replay.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: soccer-v3-market-replay-${{ github.run_id }}
           path: |

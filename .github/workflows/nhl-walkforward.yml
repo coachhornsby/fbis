@@ -38,7 +38,7 @@ jobs:
           jq -e '.integrity.minimumGamesMet == true' data/models/nhl-fbis-v1-validation.json >/dev/null
           jq -e '.integrity.fetchErrors == 0' data/models/nhl-fbis-v1-validation.json >/dev/null
           jq '.aggregate' data/models/nhl-fbis-v1-validation.json
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v6
         with:
           name: nhl-walkforward-${{ github.run_id }}
           path: data/models/nhl-fbis-v1-validation.json

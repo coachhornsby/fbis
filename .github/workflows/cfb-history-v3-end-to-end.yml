@@ -51,7 +51,7 @@ jobs:
           cat artifacts/cfb-history-v3/cfbd_market_qa.json
           cat artifacts/cfb-final/cfb_final_qa.json
           cat artifacts/cfb-final/model/cfb_v3_walkforward_report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cfb-full-history-v3
           path: |

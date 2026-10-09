@@ -53,7 +53,7 @@ jobs:
           set -euo pipefail
           curl -fsS --connect-timeout 5 --max-time 20 --retry 2 --retry-delay 2 --retry-all-errors             -X POST -H "x-harvest-secret: $TOKEN" -H "content-type: application/json"             --data-binary @artifacts/soccer-competition-validation.json             "$BASE/api/soccer-competition-validation" | tee result.json
           jq -e '.ok == true' result.json >/dev/null
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: env.NO_TARGET != '1'
         with:
           name: soccer-competition-validation-${{ github.run_id }}

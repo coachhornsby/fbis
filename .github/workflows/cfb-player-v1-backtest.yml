@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '22'
       - run: node scripts/cfb-player-v1-backtest.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cfb-player-v1-backtest-${{ github.run_id }}
           path: artifacts/cfb-player-backtest/
