@@ -3,6 +3,37 @@ import assert from 'node:assert/strict';
 import { bestEdge, matchupSignalLabel } from '../src/lib/boardEvidence.js';
 import { buildMatchupFactors, attachMatchupFactors } from '../functions/lib/matchupFactors.js';
 import { projectCfbMatchupV2 } from '../functions/lib/cfbMatchupV2.js';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import { transformWithEsbuild } from 'vite';
+
+const componentPath = new URL('../src/components/board/MatchupFactors.jsx', import.meta.url);
+const transformed = await transformWithEsbuild(await readFile(componentPath, 'utf8'), componentPath.pathname, { loader: 'jsx', jsx: 'automatic' });
+const code = transformed.code
+  .replaceAll('"react/jsx-runtime"', JSON.stringify(pathToFileURL(createRequire(import.meta.url).resolve('react/jsx-runtime')).href))
+  .replaceAll('"../../lib/boardEvidence.js"', JSON.stringify(new URL('../src/lib/boardEvidence.js', import.meta.url).href));
+const { default: MatchupFactors } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+
+for (const margin of [null, undefined, '', ' ', false, 'bad', Infinity]) {
+  test(`actual NFL aggregate summary rejects invalid margins: ${String(margin)}`, () => {
+    const game = { sport: 'nfl', home: { abbr: 'HOME' }, away: { abbr: 'AWAY' }, nflGameMatchup: {
+      ok: true, signals: [], baseline: { margin }, adjustment: { margin }, final: { margin } } };
+    const html = renderToStaticMarkup(React.createElement(MatchupFactors, { game }));
+    assert.equal((html.match(/<strong>—<\/strong>/g) || []).length, 3);
+    assert.doesNotMatch(html, /<strong>[^<]*(?:0\.0|NaN|Infinity)/);
+  });
+}
+test('actual NFL aggregate summary preserves calculated zero and signed finite margins', () => {
+  const render = margin => renderToStaticMarkup(React.createElement(MatchupFactors, { game: {
+    sport: 'nfl', home: { abbr: 'HOME' }, away: { abbr: 'AWAY' }, nflGameMatchup: {
+      ok: true, signals: [], baseline: { margin }, adjustment: { margin }, final: { margin } } } }));
+  assert.match(render(0), /MATCHUP ADJ <strong>0\.0<\/strong>/);
+  assert.match(render(1.2), /MATCHUP ADJ <strong>\+1\.2<\/strong>/);
+  assert.match(render(-1.2), /MATCHUP ADJ <strong>-1\.2<\/strong>/);
+});
 
 const teams = { home: { abbr: 'HOME' }, away: { abbr: 'AWAY' } };
 const football = (sport, home, away, coverage) => ({ sport, ...teams,
