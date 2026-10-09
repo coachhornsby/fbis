@@ -667,3 +667,21 @@ function collegeDb(rows) {
     },
   };
 }
+
+describe('college failure evidence survives job persistence', () => {
+  for (const job of ['cfb-current-refresh','cfb-postgame-harvest']) {
+    it(`${job} retains unavailable-source reasons without acquiring data`, async () => {
+      const writes=[];
+      const env={DB:{prepare(sql){return{bind(...args){return{
+        async run(){writes.push({sql,args});return{meta:{changes:1}};},
+        async first(){return{used:0,cache_hits:0,n:0};},async all(){return{results:[]};}
+      };}};}}};
+      const payload=await runCollegeJob(job,env,{year:2026,date:'2026-10-08'});
+      assert.equal(payload.status,'failed');assert.ok(payload.errors.length>0);
+      const record=writes.find(r=>r.sql.includes('INSERT')&&r.sql.includes('job_runs'));
+      assert.ok(record);assert.equal(record.args[14],payload.errors.slice(0,8).join(' | '));
+      assert.equal(record.args[8],0);assert.equal(record.args[10],0);
+      assert.equal(JSON.stringify(record).includes('Bearer '),false);
+    });
+  }
+});
