@@ -18,6 +18,18 @@ function fixture() {
 }
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-10, `${a} != ${b}`);
 
+test('positive resolved mass below PMF tolerance is not ALL_PUSH', () => {
+  const f = fixture();
+  f.regulation.cells = [{ home: 2, away: 0, probability: 1 - 2e-11 },
+    { home: 3, away: 0, probability: 1e-11 }, { home: 1, away: 0, probability: 1e-11 }];
+  f.marketLines = [{ family: 'TOTAL', line: 2 }];
+  const q = buildNhlResearchMarkets(f).fullGame.markets[0].selection;
+  assert.equal(q.win, 1e-11); assert.equal(q.lose, 1e-11);
+  assert.equal(q.conditionalOnNoPush, 0.5);
+  assert.equal(q.fairOddsStatus, 'AVAILABLE');
+  assert.equal(q.fairDecimalOdds, 2); assert.equal(q.fairAmericanOdds, -100);
+});
+
 for (const tiny of [Number.MIN_VALUE, 1e-310]) {
   test(`accepted tiny probability keeps nonfinite odds unavailable: ${tiny}`, () => {
     const f = fixture();

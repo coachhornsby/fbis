@@ -48,7 +48,8 @@ function distribution(input, basis, eventId) {
 
 function quote(win, lose, push = 0) {
   requireValue(Math.abs(win + lose + push - 1) <= EPSILON, "SETTLEMENT_MASS_NOT_ONE");
-  const conditional = win + lose > EPSILON ? win / (win + lose) : null;
+  // Normalization tolerance must not erase positive resolved settlement mass.
+  const conditional = win + lose > 0 ? win / (win + lose) : null;
   const decimal = conditional > 0 ? 1 / conditional : null;
   const american = decimal == null ? null : conditional >= 0.5
     ? (conditional === 1 ? null : -100 * conditional / (1 - conditional))
