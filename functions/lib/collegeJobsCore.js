@@ -899,6 +899,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
     writesAttempted: writes.writesSucceeded,
     writesSucceeded: writes.writesSucceeded,
     writesFailed: writes.writesFailed,
+    errors: payload.errors,
     env,
   });
   return payload;
