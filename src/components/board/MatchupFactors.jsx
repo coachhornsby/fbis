@@ -1,3 +1,4 @@
+import { evidenceNumber } from "../../lib/boardEvidence.js";
 function normalizeFactors(game) {
   const raw =
     game?.matchupFactors ||
@@ -34,8 +35,8 @@ export default function MatchupFactors({ game }) {
   const gameSpecific = matchupSignals.filter((s) => s?.available).map((s) => ({
     id: `game-${s.id}`,
     label: s.label,
-    edge: Math.abs(Number(s.adjustment) || 0) < 0.15 ? "EVEN" : Number(s.adjustment) > 0 ? game?.home?.abbr : game?.away?.abbr,
-    value: (Number(s.adjustment) > 0 ? "+" : "") + Number(s.adjustment || 0).toFixed(1),
+    edge: !Number.isFinite(evidenceNumber(s.adjustment)) ? "UNAVAILABLE" : Math.abs(evidenceNumber(s.adjustment)) < 0.15 ? "EVEN" : Number(s.adjustment) > 0 ? game?.home?.abbr : game?.away?.abbr,
+    value: Number.isFinite(evidenceNumber(s.adjustment)) ? (evidenceNumber(s.adjustment) > 0 ? "+" : "") + evidenceNumber(s.adjustment).toFixed(1) : null,
     detail: s.evidence || null,
     source: "GAME MATCHUP ENGINE",
   }));
