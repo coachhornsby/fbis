@@ -6,6 +6,15 @@ Research-only offline prototype. No production imports, routes, schedules, schem
 
 `functions/lib/canonical/economicGrading.js`: pure American-price conversion and no-vig paired baseline. Input validation precedes use. `functions/lib/nflVerseFeed.js`: CSV parser only. Existing normalized-market ledger (migration 0095) is a possible future read-only adapter: retain original event/book/selection/line, source-observation/acquisition clocks and provenance. Its write/authority functions are not invoked. Existing NFL walk-forward and research-validation infrastructure informs the chronological design; no fitting or promotion is run.
 
+## Post-review evidence hardening (October 9, 2026)
+
+- Every game in the locked holdout cohort, including pattern nonmatches, now requires a verified FINAL outcome with validated post-kickoff completion/observation clocks and nonnegative integer scores. Nonmatches cannot silently bypass the cohort outcome contract.
+- Direct economic functions require a caller-supplied source-specific `maxQuoteAgeSeconds`. PIT attestations alone do not make an indefinitely old price executable. Odds must be integer American prices; no missing or decimal American prices are coerced.
+- Research cards publish only condition-relevant, PIT-attested feature records and a restricted primary quote record. Unrelated source payloads or future result fields cannot accidentally appear inside a candidate card.
+- Read-only production audit: Pages production success at SHA `d5d8499050c7ac0ce607d709baa234c4809678ec`; D1 migration tip `0097_apify_acquisition_authority.sql`. `action_market_book_observations` contains 13,089 NFL and 37,374 CFB rows, **zero with `provider_timestamp` populated** in either sport. `normalized_market_observations` contains 126 Tennis rows, no NFL/CFB rows. These counts describe storage coverage, not historical quote validity, bookmaker comparability, or complete production-chain health. `collected_at` is not a verified provider observation clock.
+- A future source adapter must preserve original quote clocks and capture-level provenance, produce an auditable immutable cohort manifest, and prove that each requested record was available before the research decision. Existing captures with unknown original clocks must remain `RETROSPECTIVE_UNVERIFIED`; no reconstructed clocks or assumed odds.
+- This remains a draft offline prototype. None of the changes authorize a merge, deployment, new paid data acquisition, provider reopening, model qualification or wagering.
+
 ## Executable contracts
 
 `research/situational/discovery.mjs` is pure. `scripts/situational-discovery.mjs` reads local files and prints JSON. Run:
