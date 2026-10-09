@@ -1,0 +1,51 @@
+name: Tennis WTA production shard
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: WTA season year
+        required: true
+        default: "2026"
+      tournament_group_id:
+        description: Exact WTA tournament group ID
+        required: true
+      confirm:
+        description: Type WRITE_ONE_WTA_SHARD
+        required: true
+
+concurrency:
+  group: tennis-wta-production-shard
+  cancel-in-progress: false
+
+jobs:
+  ingest-one:
+    if: ${{ inputs.confirm == 'WRITE_ONE_WTA_SHARD' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax checks
+        run: |
+          node --check scripts/tennis-wta-match-history-ingest.mjs
+          node --check scripts/tennis-wta-match-history-production.mjs
+      - name: Install Wrangler
+        run: npm install --no-save wrangler@4
+      - name: Write exactly one permanent WTA shard
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WTA_YEAR: ${{ inputs.year }}
+          WTA_TOURNAMENT_GROUP_ID: ${{ inputs.tournament_group_id }}
+          WTA_PRODUCTION_CONFIRM: ${{ inputs.confirm }}
+        run: node scripts/tennis-wta-match-history-production.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wta-production-audit-${{ github.run_id }}
+          path: |
+            artifacts/wta-production/summary.json
+            artifacts/wta-production/wta.sql
