@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with: { node-version: "22" }
       - run: node --test test/nba-fbis-v1.test.js test/nba-wager-decision.test.js test/nba-action-governance.test.js
 
@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with: { node-version: "22" }
       - run: node scripts/nba-canonical-build.mjs start=2026-03-01 end=2026-03-10
       - run: node scripts/nba-fbis-v1-walkforward.mjs artifacts/nba-canonical.jsonl
@@ -60,7 +60,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with: { node-version: "22" }
       - name: Build canonical history
         run: |

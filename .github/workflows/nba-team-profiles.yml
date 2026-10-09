@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 7
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with: { node-version: "22", cache: "npm" }
       - run: npm ci
       - name: Collect five NBA teams
@@ -58,7 +58,7 @@ jobs:
     timeout-minutes: 9
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with: { node-version: "22", cache: "npm" }
       - run: npm ci
       - run: node --test test/nba-team-profile.test.js
