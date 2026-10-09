@@ -81,7 +81,7 @@ jobs:
           jq -e '.governance.prospectiveGateChanged == false and .governance.canQualify == false and .governance.canAuthorizeWager == false and .governance.stakingAuthorized == false' "$f" >/dev/null
           jq '.population,.coverage,.aggregate,.power,.conclusion,.governance' "$f"
 
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v6
         with:
           name: nhl-goalie-prob-historical-expansion-v1-${{ github.run_id }}
           path: data/models/nhl-goalie-prob-historical-expansion-v1.json

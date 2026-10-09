@@ -25,7 +25,7 @@ jobs:
           CFB_MARKET_END: "2026"
         run: node scripts/cfb-cfbd-market-enrichment.mjs
       - run: cat artifacts/cfb-history-v3/cfbd_market_qa.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cfb-cfbd-market-history
           path: artifacts/cfb-history-v3/*

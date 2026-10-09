@@ -40,7 +40,7 @@ jobs:
         run: |
           jq . artifacts/soccer-v2-walkforward-report.json
           jq -r '. as $r | "## Soccer-FBIS-v2 head-to-head\n- n: \($r.v2.n)\n- v1 Brier: \($r.v1.brier)\n- v2 Brier: \($r.v2.brier)\n- v1 log loss: \($r.v1.logLoss)\n- v2 log loss: \($r.v2.logLoss)\n- v1 accuracy: \($r.v1.accuracy)\n- v2 accuracy: \($r.v2.accuracy)\n- decision: \($r.promotion.decision)"' artifacts/soccer-v2-walkforward-report.json >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: soccer-v2-walkforward-${{ github.run_id }}
           path: artifacts/soccer-v2-walkforward-*

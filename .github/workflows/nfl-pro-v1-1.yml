@@ -25,7 +25,7 @@ jobs:
         run: python scripts/nfl-pro-v1-1-walkforward.py
       - name: Summary
         run: jq . artifacts/nfl-pro-v1-2/report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nfl-pro-v1-2
           path: artifacts/nfl-pro-v1-2/*

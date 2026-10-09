@@ -21,7 +21,7 @@ jobs:
         env:
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
         run: node scripts/apify-account-audit.mjs
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: apify-account-read-only-audit-${{ github.run_id }}

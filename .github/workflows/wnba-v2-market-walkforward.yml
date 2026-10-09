@@ -28,7 +28,7 @@ jobs:
             echo "## WNBA-FBIS-v2 market walk-forward"
             jq -r '"- games: \(.games)","- margin MAE: \(.marginMae)","- total MAE: \(.totalMae)","- spread market n: \(.marketCoverage.spread)","- total market n: \(.marketCoverage.total)","- model vs market margin MAE: \(.versusMarket.spread.modelMarginMae) vs \(.versusMarket.spread.marketMarginMae)","- model vs market total MAE: \(.versusMarket.total.modelTotalMae) vs \(.versusMarket.total.marketTotalMae)"' artifacts/wnba-v2-market-walkforward-report.json
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wnba-v2-market-walkforward-${{ github.run_id }}
           path: artifacts/wnba-v2-market-walkforward-*

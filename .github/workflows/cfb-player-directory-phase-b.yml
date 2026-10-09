@@ -122,7 +122,7 @@ jobs:
         run: |
           set -euo pipefail
           npx wrangler d1 execute fbis --remote --command="SELECT COUNT(*) AS canonical_players FROM cfb_canonical_players; SELECT COUNT(*) AS provider_ids FROM cfb_player_provider_ids; SELECT COUNT(*) AS aliases FROM cfb_player_aliases; SELECT COUNT(*) AS memberships FROM cfb_roster_membership; SELECT COUNT(*) AS observations FROM cfb_roster_observations; SELECT COUNT(*) AS pit_unresolved FROM cfb_roster_membership WHERE pit_resolvable=0; SELECT COUNT(*) AS orphan_team_rows FROM cfb_roster_membership m LEFT JOIN cfb_canonical_teams t ON t.team_id=m.team_id WHERE t.team_id IS NULL; SELECT identity_status,COUNT(*) AS n FROM cfb_canonical_players GROUP BY identity_status; SELECT state_family,mode,can_influence_projection,can_qualify,can_authorize_wager FROM cfb_state_overlay_governance WHERE state_family IN ('PLAYER_DIRECTORY','ROSTER_STATE') ORDER BY state_family;"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cfb-player-directory-phase-b
           path: artifacts/cfb-player-directory/qa.json

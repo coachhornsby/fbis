@@ -34,7 +34,7 @@ jobs:
         run: |
           jq -e '.ok == true and .rows > 0' artifacts/cbb-v4-headtohead.json >/dev/null
           cat artifacts/cbb-v4-headtohead.json >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cbb-v4-headtohead
           path: artifacts/cbb-v4-headtohead.json

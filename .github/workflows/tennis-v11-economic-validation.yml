@@ -63,7 +63,7 @@ jobs:
           if(r.governance.canAuthorizeWager!==false) throw new Error("research gate violated");
           console.log(JSON.stringify({sample:r.sample,predictive:r.predictive,betting:r.betting,propHistoricalProbe:r.propHistoricalProbe,verdict:r.verdict,quota:r.quota},null,2));
           NODE
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v6
         with:
           name: tennis-v11-economic-validation
           path: |

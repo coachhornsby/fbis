@@ -29,7 +29,7 @@ jobs:
         run: python scripts/cfb-market-repair-from-checkpoint.py
       - name: Show QA
         run: cat artifacts/cfb-market-final/cfb_market_final_qa.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cfb-market-final
           path: artifacts/cfb-market-final/*

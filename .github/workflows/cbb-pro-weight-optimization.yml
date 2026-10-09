@@ -47,7 +47,7 @@ jobs:
             echo "### Selected weights by fold"
             jq -r '.folds[] | "- test \(.testSeason): CBBD=\(.weights.cbbd), Torvik=\(.weights.torvik), KenPom=\(.weights.kenpom); train objective=\(.trainObjective)"' "$FILE"
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cbb-pro-weight-optimization
           path: artifacts/cbb-pro-weight-optimization.json

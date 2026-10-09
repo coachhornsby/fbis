@@ -55,7 +55,7 @@ jobs:
           jq -e '.governance.productionChampion == "NHL-PRO-v2" and .governance.productionChampionChanged == false' data/models/nhl-persistent-state-challenger-v1.json >/dev/null
           jq -e '.governance.canQualify == false and .governance.canAuthorizeWager == false and .governance.stakingAuthorized == false' data/models/nhl-persistent-state-challenger-v1.json >/dev/null
           jq '.coverage,.aggregate,.ablation,.gates,.governance' data/models/nhl-persistent-state-challenger-v1.json
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v6
         with:
           name: nhl-persistent-state-challenger-v1-${{ github.run_id }}
           path: data/models/nhl-persistent-state-challenger-v1.json

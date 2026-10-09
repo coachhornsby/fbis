@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
       - run: node scripts/nba-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/nba-canonical-${{ matrix.chunk.id }}.jsonl
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-canonical-${{ matrix.chunk.id }}-${{ github.run_id }}
           path: artifacts/nba-canonical-${{ matrix.chunk.id }}*
@@ -43,7 +43,7 @@ jobs:
       - run: |
           node scripts/nba-fbis-v1-walkforward.mjs artifacts/nba-canonical.jsonl
           node scripts/nba-player-prop-walkforward.mjs artifacts/nba-canonical.jsonl
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-canonical-merged-${{ github.run_id }}
           path: artifacts/nba-*

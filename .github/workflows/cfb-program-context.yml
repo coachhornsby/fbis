@@ -21,7 +21,7 @@ jobs:
       - name: Build historical program context
         run: python scripts/cfb-program-context.py
       - run: cat artifacts/cfb-context/cfb_program_context_qa.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cfb-program-context
           path: artifacts/cfb-context/*

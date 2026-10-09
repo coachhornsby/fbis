@@ -63,7 +63,7 @@ jobs:
               jq -r '"- snapshot: "+.snapshotId+"\n- candidate="+(.totals.candidate|tostring)+", matched="+(.totals.matched|tostring)+", direct="+(.totals.direct|tostring)+", fallback="+(.totals.fallback|tostring)+", unmatched="+(.totals.unmatched|tostring)+"\n- match rate="+((100*.matchRate)|tostring)+"%\n- five-player reliable="+((100*.coverage.validFivePlayerFloorStateRate)|tostring)+"%, lineup attribution="+((100*.coverage.lineupPossessionAttributionRate)|tostring)+"%, shot-clock evidence="+((100*.coverage.shotClockEvidenceRate)|tostring)+"%, player linkage="+((100*.coverage.playerRotationNameLinkageRate)|tostring)+"%"' artifacts/pit/cbb-pit-audit-v1.json
             } >> "$GITHUB_STEP_SUMMARY"
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: cbb-pit-research-v1-${{ github.run_id }}

@@ -28,7 +28,7 @@ jobs:
         run: python scripts/nfl-market-weakness.py
       - name: Summary
         run: jq '{modelId,sample,verifiedCount,verified,governance}' artifacts/nfl-market-weakness/report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nfl-market-weakness
           path: artifacts/nfl-market-weakness/*

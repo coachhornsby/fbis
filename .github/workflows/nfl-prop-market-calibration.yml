@@ -52,7 +52,7 @@ jobs:
         run: |
           npx wrangler d1 execute fbis --remote --file=migrations/0065_nfl_qb_shadow_prop_calibration.sql
           npx wrangler d1 execute fbis --remote --file=artifacts/nfl-prop-market-calibration/calibration.sql
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nfl-prop-market-calibration-${{ github.run_id }}
           path: |

@@ -68,7 +68,7 @@ jobs:
             npx wrangler r2 object put "fbis-archive/${P}/${n}" --file "$f" --remote
           done
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wnba-possession-${{ matrix.chunk.id }}-${{ github.run_id }}
           path: artifacts/wnba-*
@@ -135,7 +135,7 @@ jobs:
           printf '{"runId":%s,"immutablePrefix":"%s","updatedAt":"%s"}\n' "$GITHUB_RUN_ID" "$IMM" "$(date -u +%FT%TZ)" > artifacts/merged/pointer.json
           npx wrangler r2 object put "fbis-archive/${CUR}/pointer.json" --file artifacts/merged/pointer.json --remote
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wnba-possession-ablation-${{ github.run_id }}
           path: artifacts/merged/

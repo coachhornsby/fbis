@@ -19,7 +19,7 @@ jobs:
         run: python scripts/nfl-prizepicks-history-backtest.py
       - name: Print validation summary
         run: jq '{sourceCommitCount,sourceFirstCommit,sourceLastCommit,historicalUniqueLines,scheduleMatchedLines,joinedModelLineRows,gradedRows,configuration,summary}' artifacts/nfl-prizepicks-history/report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nfl-prizepicks-history-backtest
           path: artifacts/nfl-prizepicks-history/*

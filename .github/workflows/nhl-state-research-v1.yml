@@ -39,7 +39,7 @@ jobs:
           jq -e '.governance.canAuthorizeWager == false and .governance.stakingAuthorized == false' data/models/nhl-state-research-v1.json >/dev/null
           jq -e '.sampleGames >= 2500' data/models/nhl-state-research-v1.json >/dev/null
           jq '.ranking,.findings' data/models/nhl-state-research-v1.json
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v6
         with:
           name: nhl-state-research-v1-${{ github.run_id }}
           path: data/models/nhl-state-research-v1.json

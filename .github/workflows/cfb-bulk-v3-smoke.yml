@@ -24,7 +24,7 @@ jobs:
           CFB_BULK_END: "2024"
         run: python scripts/cfb-bulk-history-v3.py
       - run: cat artifacts/cfb-history-v2/cfb_bulk_qa.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cfb-bulk-v3-smoke
           path: artifacts/cfb-history-v2/*

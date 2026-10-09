@@ -51,7 +51,7 @@ jobs:
             echo "### Candidates positive in both years"
             jq -r '.candidatesSurvivingBothYears[] as $n | "- \($n): 2024 ROI=\(.bySeason["2024"][$n].roi)% n=\(.bySeason["2024"][$n].n); 2025 ROI=\(.bySeason["2025"][$n].roi)% n=\(.bySeason["2025"][$n].n)"' "$F"
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cbb-market-information-v1-${{ github.run_id }}
           path: |

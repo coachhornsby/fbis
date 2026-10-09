@@ -61,7 +61,7 @@ jobs:
           test "$ok" = "1"
           npx wrangler r2 object put "fbis-archive/models/wnba/possession-challenger/v1/coefficients.json" --file artifacts/wnba-possession-challenger-coefficients.json --remote
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wnba-possession-challenger-coefficients-${{ github.run_id }}
           path: artifacts/wnba-possession-challenger-coefficients.json

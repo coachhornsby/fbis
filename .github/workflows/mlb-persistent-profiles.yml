@@ -45,7 +45,7 @@ jobs:
           mkdir -p artifacts
           node scripts/mlb-persistent-profile-source.mjs             shardIndex=${{ matrix.shard }} shardCount=6 concurrency=1             out=artifacts/mlb-profile-${{ matrix.shard }}.json             sql=artifacts/mlb-profile-${{ matrix.shard }}.sql
           jq -e '.quality.teams >= 4 and .quality.errors <= 1' artifacts/mlb-profile-${{ matrix.shard }}.json >/dev/null
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: mlb-profile-${{ matrix.shard }}-${{ github.run_id }}
           path: |
@@ -149,7 +149,7 @@ jobs:
             jq -r '"- Source calls: \(.quality.sourceCalls)"' artifacts/mlb-persistent-profiles.json
             jq -r '"- Errors: \(.quality.errors)"' artifacts/mlb-persistent-profiles.json
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: mlb-persistent-profiles-${{ github.run_id }}
           path: artifacts/mlb-persistent-profiles.json

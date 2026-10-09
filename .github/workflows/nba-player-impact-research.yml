@@ -54,7 +54,7 @@ jobs:
       - name: Reconstruct lineup stints
         run: |
           node scripts/nba-lineup-stints-build.mjs             games=artifacts/chunk/nba-canonical.jsonl             pbp=artifacts/chunk/nba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/chunk/nba-lineup-stints-${{ matrix.chunk.id }}.jsonl             effects=artifacts/chunk/nba-lineup-effects-${{ matrix.chunk.id }}.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-impact-chunk-${{ matrix.chunk.id }}-${{ github.run_id }}
           path: artifacts/chunk/nba-*
@@ -122,7 +122,7 @@ jobs:
           else
             echo "Impact layer retained in research/shadow: $decision"
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-player-impact-v1-${{ github.run_id }}
           path: artifacts/merged/

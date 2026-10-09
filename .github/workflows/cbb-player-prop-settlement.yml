@@ -68,7 +68,7 @@ jobs:
             echo "- Settled cohorts:"
             jq -r '.summary[]? | "  - \(.market) \(.edge_band): n=\(.n), W=\(.wins), L=\(.losses), hitRate=\((.hitRate//0)*100|round/100)%, avg line CLV=\(.avg_line_clv // "n/a")"' artifacts/summary.json
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: cbb-player-prop-settlement-${{ github.run_id }}

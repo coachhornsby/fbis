@@ -46,7 +46,7 @@ jobs:
           mkdir -p artifacts
           node scripts/nba-team-profile-source.mjs             shardIndex=${{ matrix.shard }} shardCount=6 concurrency=3             out=artifacts/nba-team-profile-source-${{ matrix.shard }}.json
           jq -e '.quality.teams==5' artifacts/nba-team-profile-source-${{ matrix.shard }}.json >/dev/null
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-team-profile-source-${{ matrix.shard }}-${{ github.run_id }}
           path: artifacts/nba-team-profile-source-${{ matrix.shard }}.json
@@ -147,7 +147,7 @@ jobs:
             jq -r '"- Schedule weak spots: \(.quality.weakSpots)"' artifacts/nba-team-profiles.json
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-team-profiles-${{ github.run_id }}
           path: artifacts/nba-team-profiles.json

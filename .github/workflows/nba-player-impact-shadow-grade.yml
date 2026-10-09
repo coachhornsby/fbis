@@ -82,7 +82,7 @@ jobs:
             echo "- Challenger qualification: OFF until promotion gate passes"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-player-impact-shadow-grade-${{ github.run_id }}
           path: artifacts/nba-impact-shadow-grade.json

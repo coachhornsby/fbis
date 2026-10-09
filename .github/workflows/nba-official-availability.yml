@@ -103,7 +103,7 @@ jobs:
           npx wrangler r2 object put "fbis-archive/${prefix}/report.txt" --file artifacts/report.txt --remote
           npx wrangler r2 object put "fbis-archive/${prefix}/normalized.json" --file artifacts/nba-official-availability.json --remote
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: nba-official-availability-${{ github.run_id }}
           path: artifacts/

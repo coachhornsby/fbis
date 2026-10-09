@@ -31,7 +31,7 @@ jobs:
             echo "- total 3pt: n=$(jq -r '.total["3"].n' artifacts/cfb-market-qualification-report.json) ROI=$(jq -r '.total["3"].roi' artifacts/cfb-market-qualification-report.json) hit=$(jq -r '.total["3"].hitRate' artifacts/cfb-market-qualification-report.json)"
             echo "- total 5pt: n=$(jq -r '.total["5"].n' artifacts/cfb-market-qualification-report.json) ROI=$(jq -r '.total["5"].roi' artifacts/cfb-market-qualification-report.json) hit=$(jq -r '.total["5"].hitRate' artifacts/cfb-market-qualification-report.json)"
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cfb-market-qualification-${{ github.run_id }}
           path: artifacts/cfb-market-qualification-report.json

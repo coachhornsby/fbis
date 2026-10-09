@@ -107,7 +107,7 @@ jobs:
               jq -r '"- snapshot="+.snapshotId+"\n- canonical teams="+(.canonicalTeams|tostring)+", players="+(.players|tostring)+", roster memberships="+(.rosterMemberships|tostring)+"\n- state events="+(.stateEvents|tostring)+", team snapshots="+(.teamSnapshots|tostring)+", player snapshots="+(.playerSnapshots|tostring)+", schedule items="+(.scheduleItems|tostring)+"\n- roster team coverage="+((100*.coverage.rosterTeamCoverage)|tostring)+"%, historical schedule coverage="+((100*.coverage.historicalScheduleTeamCoverage)|tostring)+"%, lineup/rotation linkage="+((100*.coverage.historicalLineupRotationLinkage)|tostring)+"%\n- conference="+((100*.coverage.conferenceCoverage)|tostring)+"%, coach="+((100*.coverage.coachCoverage)|tostring)+"%, venue="+((100*.coverage.venueCoverage)|tostring)+"%"' artifacts/cbb-directory/qa.json
             } >> "$GITHUB_STEP_SUMMARY"
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: cbb-directory-phase-a-${{ github.run_id }}
