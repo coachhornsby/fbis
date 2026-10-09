@@ -257,6 +257,7 @@ test("8b: evaluate helper — wrangler mismatch is reported without revoking VER
 
 test("9: scheduled-collect remains independent of schema tip failure", () => {
   const derived = deriveHealthState({
+    now: Date.parse("2026-10-08T14:00:00.000Z"),
     hasAuthoritativeData: true,
     requiredChecks: [
       { name: "schema-migration", required: true, ok: false, detail: "UNVERIFIED" },
@@ -275,6 +276,29 @@ test("9: scheduled-collect remains independent of schema tip failure", () => {
   assert.ok((derived.failures || []).some((f) => f.name === "schema-migration"));
   assert.equal(derived.state, "DEGRADED");
 });
+
+for (const [label, now, stale] of [
+  ["one millisecond before", "2026-10-09T00:59:59.999Z", false],
+  ["exactly at", "2026-10-09T01:00:00.000Z", false],
+  ["one millisecond after", "2026-10-09T01:00:00.001Z", true],
+]) {
+  test(`scheduled-collect freshness ${label} the 12-hour boundary`, () => {
+    const derived = deriveHealthState({
+      now: Date.parse(now),
+      requiredChecks: [
+        { name: "schema-migration", required: true, ok: false, detail: "UNVERIFIED" },
+        { name: "scheduled-collect", required: true, ok: true, detail: "healthy",
+          lastSuccessAt: "2026-10-08T13:00:00.000Z", freshnessMs: 12 * 60 * 60 * 1000 },
+      ],
+    });
+    const collect = derived.checks.find((c) => c.name === "scheduled-collect");
+    assert.equal(collect.stale, stale);
+    assert.equal(collect.ok, !stale);
+    assert.equal(derived.failures.some((c) => c.name === "scheduled-collect"), stale);
+    assert.ok(derived.failures.some((c) => c.name === "schema-migration"));
+    assert.equal(derived.state, "DEGRADED");
+  });
+}
 
 test("10: authority surfaces unchanged by tip module", async () => {
   const tip = readFileSync(join(root, "functions/lib/migrationTip.js"), "utf8");
