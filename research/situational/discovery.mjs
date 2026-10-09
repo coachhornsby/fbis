@@ -33,7 +33,7 @@ export function evidenceValid(e, decisionAt, eventId) {
 function marketValid(q, game, now, maxAgeSeconds) {
   const observed = timestamp(q?.observedAt);
   return evidenceValid(q, game.decisionAt, game.eventId) && q.side === game.side && q.market === 'FULL_GAME_SPREAD' &&
-    nonempty(q.book) && number(q.line) && number(q.price) && Math.abs(q.price) >= 100 &&
+    nonempty(q.book) && number(q.line) && Number.isSafeInteger(q.price) && Math.abs(q.price) >= 100 &&
     number(maxAgeSeconds) && maxAgeSeconds >= 0 && now - observed <= maxAgeSeconds * 1000;
 }
 
@@ -54,12 +54,15 @@ export function scanGame(game, { maxQuoteAgeSeconds } = {}) {
     'winless-after-three': record && Number.isSafeInteger(record.games) && Number.isSafeInteger(record.wins) && record.games >= 0 && record.wins >= 0 && record.wins <= record.games ? record.games >= 3 && record.wins === 0 : null,
     'unranked-favorite': game.sport !== 'CFB' ? false : quoteUsable && rank?.ranked === false && otherRank?.ranked === true && Number.isInteger(otherRank.rank) && otherRank.rank >= 1 && otherRank.rank <= 25 ? game.quote.line < 0 : null,
   };
+  // Publish only the fields which have been attested, not arbitrary payload attachments.
+  const cleanQuote = quoteUsable ? Object.fromEntries(['eventId', 'source', 'observedAt', 'availableAt', 'provenanceRef', 'pitVerified', 'side', 'market', 'line', 'price', 'book'].map(k => [k, game.quote[k]])) : null;
+  const cardFeatureKeys = { 'rest-disadvantage': ['rest', 'opponentRest'], 'short-rest': ['rest'], 'winless-after-three': ['record'], 'unranked-favorite': ['ranking', 'opponentRanking'] };
   return { ...authority, version: VERSION, eventId: game.eventId, sport: game.sport, side: game.side,
     decisionAt: game.decisionAt, kickoff: game.kickoff, status: 'SHADOW',
-    quote: quoteUsable ? game.quote : null, marketComparisonStatus: quoteUsable ? 'RESEARCH_QUOTE' : 'UNAVAILABLE',
+    quote: cleanQuote, marketComparisonStatus: quoteUsable ? 'RESEARCH_QUOTE' : 'UNAVAILABLE',
     diagnostics: Object.fromEntries(PATTERNS.map(p => [p, conditions[p] === null ? 'MISSING_OR_INVALID_EVIDENCE' : conditions[p] ? 'MATCH' : 'NO_MATCH'])),
     candidates: PATTERNS.filter(p => conditions[p] === true).map(pattern => ({ pattern, conditions: pattern,
-      evidence: game.features, hypothesisOnly: true, validated: false })),
+      evidence: Object.fromEntries(cardFeatureKeys[pattern].map(k => [k, game.features[k]])), hypothesisOnly: true, validated: false })),
     unavailableFamilies: ['travel', 'public-disagreement', 'reverse-line-movement', 'quarterback-adjustment', 'combinations', 'incumbent-disagreement'],
   };
 }
@@ -73,15 +76,19 @@ export function gradeSpread({ side, line, homeScore, awayScore }) {
 
 // Probability mass is supplied by a separately validated, line-specific model. Never
 // infer cover probability from expected margin or observed pattern cover frequency.
-export function economics(quote, mass, oppositeQuote, { decisionAt } = {}) {
-  if (!number(quote?.price) || Math.abs(quote.price) < 100 || !number(quote.line) || !nonempty(quote.book)) return { status: 'UNAVAILABLE' };
+export function economics(quote, mass, oppositeQuote, { decisionAt, maxQuoteAgeSeconds } = {}) {
+  if (!Number.isSafeInteger(quote?.price) || Math.abs(quote.price) < 100 || !number(quote.line) || !nonempty(quote.book)) return { status: 'UNAVAILABLE' };
   const decimal = americanToDecimal(quote.price);
   if (!Number.isFinite(decimal)) return { status: 'UNAVAILABLE' };
-  const paired = evidenceValid(quote, decisionAt, quote.eventId) && evidenceValid(oppositeQuote, decisionAt, quote.eventId) && oppositeQuote.book === quote.book &&
+  // Direct economic callers must also supply the source-specific quote freshness policy.
+  const decision = timestamp(decisionAt), observed = timestamp(quote.observedAt);
+  const quotePIT = evidenceValid(quote, decisionAt, quote.eventId) && number(maxQuoteAgeSeconds) && maxQuoteAgeSeconds >= 0 &&
+    decision !== null && observed !== null && decision - observed <= maxQuoteAgeSeconds * 1000;
+  const paired = quotePIT && evidenceValid(oppositeQuote, decisionAt, quote.eventId) && oppositeQuote.book === quote.book &&
     oppositeQuote.market === quote.market && oppositeQuote.side !== quote.side && ['HOME', 'AWAY'].includes(oppositeQuote.side) &&
     oppositeQuote.line === -quote.line && oppositeQuote.observedAt === quote.observedAt &&
-    number(oppositeQuote.price) && Math.abs(oppositeQuote.price) >= 100;
-  const validMass = evidenceValid(quote, decisionAt, quote.eventId) && quote.market === 'FULL_GAME_SPREAD' && ['HOME', 'AWAY'].includes(quote.side) && mass && ['win', 'loss', 'push'].every(k => number(mass[k]) && mass[k] >= 0 && mass[k] <= 1) &&
+    Number.isSafeInteger(oppositeQuote.price) && Math.abs(oppositeQuote.price) >= 100;
+  const validMass = quotePIT && quote.market === 'FULL_GAME_SPREAD' && ['HOME', 'AWAY'].includes(quote.side) && mass && ['win', 'loss', 'push'].every(k => number(mass[k]) && mass[k] >= 0 && mass[k] <= 1) &&
     Math.abs(mass.win + mass.loss + mass.push - 1) < 1e-12 && mass.eventId === quote.eventId && mass.line === quote.line && mass.side === quote.side &&
     nonempty(mass.validationRef) && nonempty(mass.modelVersion) && evidenceValid(mass, decisionAt, quote.eventId) &&
     timestamp(mass.validationAvailableAt) !== null && timestamp(mass.validationAvailableAt) <= timestamp(decisionAt);
@@ -109,14 +116,16 @@ export function evaluatePattern(rows, { pattern, registeredPatternCount = PATTER
     const packet = scanGame(r.game, { maxQuoteAgeSeconds: r.maxQuoteAgeSeconds });
     const decision = timestamp(r.game.decisionAt);
     if (packet.status !== 'SHADOW' || !packet.quote || decision < start || decision >= end || locked >= decision || packet.diagnostics[pattern] === 'MISSING_OR_INVALID_EVIDENCE') return reject('INVALID_POINT_IN_TIME_INPUT');
-    if (packet.diagnostics[pattern] === 'NO_MATCH') continue;
+    // Entire registered cohort must have valid final outcomes, including non-matches.
     const observed = timestamp(r.outcome?.observedAt);
     const completed = timestamp(r.outcome?.completedAt);
     if (r.outcome?.verified !== true || r.outcome.status !== 'FINAL' || r.outcome.eventId !== r.game.eventId || !nonempty(r.outcome.source) || !nonempty(r.outcome.provenanceRef) || observed === null || completed === null || completed <= timestamp(r.game.kickoff) || observed < completed) return reject('INVALID_OUTCOME_PROVENANCE');
     const grade = gradeSpread({ side: r.game.side, line: packet.quote.line, homeScore: r.outcome.homeScore, awayScore: r.outcome.awayScore });
+    if (!grade) return reject('INVALID_OUTCOME_PROVENANCE');
+    if (packet.diagnostics[pattern] === 'NO_MATCH') continue;
     const pairedEvidence = evidenceValid(r.oppositeQuote, r.game.decisionAt, r.game.eventId);
-    const econ = economics(packet.quote, null, pairedEvidence ? r.oppositeQuote : null, { decisionAt: r.game.decisionAt });
-    if (!grade || econ.noVigBaseline === null) return reject('MISSING_OUTCOME_OR_PAIRED_MARKET');
+    const econ = economics(packet.quote, null, pairedEvidence ? r.oppositeQuote : null, { decisionAt: r.game.decisionAt, maxQuoteAgeSeconds: r.maxQuoteAgeSeconds });
+    if (econ.noVigBaseline === null) return reject('MISSING_OUTCOME_OR_PAIRED_MARKET');
     observations.push({ grade, baseline: econ.noVigBaseline, price: packet.quote.price });
   }
   const wins = observations.filter(x => x.grade.ats === 'WIN').length, pushes = observations.filter(x => x.grade.ats === 'PUSH').length;
