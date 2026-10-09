@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { scanGame, timestamp, evidenceValid, gradeSpread, economics as economicRaw, evaluatePattern as evaluateRaw, chronologicalFolds, PATTERNS } from '../research/situational/discovery.mjs';
-const economics = (q, mass, opposite) => economicRaw(q, mass, opposite, { decisionAt: '2024-10-01T12:00:00Z' });
+const economics = (q, mass, opposite) => economicRaw(q, mass, opposite, { decisionAt: '2024-10-01T12:00:00Z', maxQuoteAgeSeconds: 300 });
 const plan = rows => ({ registration: { eventIds: [...new Set(rows.map(r => r.game.eventId))], patterns: PATTERNS, lockedAt: '2024-09-01T00:00:00Z', pitVerified: true, provenanceRef: 'locked-fixture-manifest' }, holdout: { startAt: '2024-10-01T00:00:00Z', endAt: '2024-11-01T00:00:00Z', unseen: true, provenanceRef: 'holdout-fixture' } });
 const evaluatePattern = (rows, options) => evaluateRaw(rows, { ...plan(rows), ...options });
 
@@ -139,4 +139,34 @@ test('other-game outcomes and uncertified opposite quotes cannot validate', () =
   assert.equal(evaluatePattern([r], { pattern: 'short-rest' }).reason, 'INVALID_OUTCOME_PROVENANCE');
   const b = row(); b.oppositeQuote.pitVerified = false;
   assert.equal(evaluatePattern([b], { pattern: 'short-rest' }).reason, 'MISSING_OUTCOME_OR_PAIRED_MARKET');
+});
+
+test('published shadow cards expose only needed PIT evidence and normalized quote fields', () => {
+  const g = fixture();
+  g.features.unverifiedFuture = { ...evidence(1), observedAt: '2024-10-02T12:00:00Z', availableAt: '2024-10-02T12:00:00Z', pitVerified: false };
+  g.quote.postgameResult = { homeScore: 99, awayScore: 0 };
+  const result = scan(g);
+  assert.equal(result.quote.postgameResult, undefined);
+  assert.deepEqual(Object.keys(result.candidates.find(c => c.pattern === 'short-rest').evidence), ['rest']);
+  assert.deepEqual(Object.keys(result.candidates.find(c => c.pattern === 'rest-disadvantage').evidence), ['rest', 'opponentRest']);
+  assert.equal(result.candidates.some(c => 'unverifiedFuture' in c.evidence), false);
+});
+
+test('nonmatching registered events still require validated completed outcomes and scores', () => {
+  const r = row(); r.game.features.rest.value = 7;
+  let result = evaluatePattern([r], { pattern: 'short-rest' });
+  assert.equal(result.nonMatchingEvents, 1);
+  r.outcome.status = 'LIVE';
+  assert.equal(evaluatePattern([r], { pattern: 'short-rest' }).reason, 'INVALID_OUTCOME_PROVENANCE');
+  r.outcome.status = 'FINAL'; r.outcome.homeScore = null;
+  assert.equal(evaluatePattern([r], { pattern: 'short-rest' }).reason, 'INVALID_OUTCOME_PROVENANCE');
+});
+
+test('direct economic calls require an explicit max quote age, not just PIT flags', () => {
+  const r = row(), options = { decisionAt: '2024-10-01T12:00:00Z' };
+  assert.equal(economicRaw(r.game.quote, null, r.oppositeQuote, options).noVigBaseline, null);
+  assert.equal(economicRaw(r.game.quote, null, r.oppositeQuote, { ...options, maxQuoteAgeSeconds: 299 }).noVigBaseline, null);
+  assert.ok(economicRaw(r.game.quote, null, r.oppositeQuote, { ...options, maxQuoteAgeSeconds: 300 }).noVigBaseline > 0);
+  assert.equal(scan({ ...fixture(), quote: { ...fixture().quote, price: -112.5 } }).quote, null);
+  assert.equal(economics({ ...r.game.quote, price: -112.5 }, null).status, 'UNAVAILABLE');
 });
