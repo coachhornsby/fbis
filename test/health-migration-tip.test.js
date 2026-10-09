@@ -257,6 +257,8 @@ test("8b: evaluate helper — wrangler mismatch is reported without revoking VER
 
 test("9: scheduled-collect remains independent of schema tip failure", () => {
   const derived = deriveHealthState({
+    // Freeze evaluation time so the fixture does not age into a false freshness failure.
+    now: Date.parse("2026-10-08T13:30:00.000Z"),
     hasAuthoritativeData: true,
     requiredChecks: [
       { name: "schema-migration", required: true, ok: false, detail: "UNVERIFIED" },
