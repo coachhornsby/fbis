@@ -9,6 +9,13 @@ function finite(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+// Strict parsing only for football/NHL presentation; no projection inputs are modified.
+function evidenceNumber(value) {
+  if ((typeof value !== "number" && typeof value !== "string") || (typeof value === "string" && !value.trim())) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function round(v, digits = 2) {
   const n = finite(v);
   if (n == null) return null;
@@ -64,10 +71,14 @@ function footballFactors(game) {
       ];
 
   return specs.flatMap(([id, label, hv, av]) => {
-    const home = finite(hv);
-    const away = finite(av);
-    if (home == null && away == null) return [];
-    const delta = (home ?? 0) - (away ?? 0);
+    const home = evidenceNumber(hv);
+    const away = evidenceNumber(av);
+    const coverageKey = { passing: "pass", rushing: "rush", explosive: "explosives", finishing: "finishingDrives" }[id] || id;
+    const missing = sport === "cfb" && shadow.coverage?.missing?.includes(coverageKey);
+    if (missing || home == null || away == null) return [factor(id, label, "UNAVAILABLE", null,
+      "Required explanatory inputs unavailable; neutral model fallback is not a measured matchup.",
+      sport === "nfl" ? "NFL-PRO-v1 decomposition" : "CFB-MATCHUP-v2 decomposition")];
+    const delta = home - away;
     return [factor(
       id,
       label,
@@ -314,16 +325,22 @@ function nhlFactors(game) {
   const p=game?.nhlProV2; const l=p?.layers;
   if(!p?.ok||!l)return [];
   const H=abbr(game,"home"),A=abbr(game,"away"),out=[];
-  const pair=(id,label,hv,av,icon,source="NHL-PRO-v2")=>{const h=finite(hv),a=finite(av);if(h==null||a==null)return;
+  const pair=(id,label,hv,av,icon,source="NHL-PRO-v2")=>{const h=evidenceNumber(hv),a=evidenceNumber(av);if(h==null||a==null)return;
     out.push(factor(id,`${icon} ${label}`,sideFromDelta(game,h-a),Math.abs(round(h-a,2)),`${H} ${round(h,2)} · ${A} ${round(a,2)}`,source));};
   pair("five-v-five","5v5 expected goals",l.eventChainXg?.home,l.eventChainXg?.away,"🏒");
   pair("finishing","Finishing / shooting",l.finishing?.home,l.finishing?.away,"🎯");
-  const hg=finite(l.goalie?.home?.impactPerShot),ag=finite(l.goalie?.away?.impactPerShot);
-  if(hg!=null||ag!=null) pair("goaltending","Goaltending GSAx impact",hg,ag,"🥅");
+  const hg=evidenceNumber(l.goalie?.home?.impactPerShot),ag=evidenceNumber(l.goalie?.away?.impactPerShot);
+  const goalieAvailable = (g) => g?.goalieId != null && g?.source === "NHL_PRO_V2_GSAX" && evidenceNumber(g.impactPerShot) != null;
+  if (goalieAvailable(l.goalie?.home) && goalieAvailable(l.goalie?.away)) {
+    pair("goaltending","Historical goalie GSAx impact",hg,ag,"🥅","NHL-PRO-v2 historical prior; not confirmed game-day starters");
+  } else {
+    out.push(factor("goaltending", "🥅 Goaltending GSAx impact", "UNAVAILABLE", null,
+      "Goalie identity or learned historical prior unavailable; starting goalies are not confirmed by this layer.", "NHL-PRO-v2"));
+  }
   pair("special-teams","Special teams xG",l.specialTeams?.home,l.specialTeams?.away,"⚡");
-  const hp=finite(l.tracking?.historicalProxy?.homeHighDanger),ap=finite(l.tracking?.historicalProxy?.awayHighDanger);
+  const hp=evidenceNumber(l.tracking?.historicalProxy?.homeHighDanger),ap=evidenceNumber(l.tracking?.historicalProxy?.awayHighDanger);
   if(hp!=null&&ap!=null) pair("high-danger","High-danger chances",hp,ap,"🔥");
-  const hr=finite(l.situation?.homeRestDays),ar=finite(l.situation?.awayRestDays);
+  const hr=evidenceNumber(l.situation?.homeRestDays),ar=evidenceNumber(l.situation?.awayRestDays);
   if(hr!=null&&ar!=null) pair("rest","Rest / schedule",hr,ar,"🧊");
   return out;
 }

@@ -1,3 +1,4 @@
+import { evidenceNumber } from "../../lib/boardEvidence.js";
 function normalizeFactors(game) {
   const raw =
     game?.matchupFactors ||
@@ -27,6 +28,12 @@ function titleForSport(sport) {
 }
 
 export default function MatchupFactors({ game }) {
+  const summaryMargin = (value, signed = false) => {
+    const n = evidenceNumber(value);
+    if (!Number.isFinite(n)) return "—";
+    if (signed) return `${n > 0 ? "+" : ""}${n.toFixed(1)}`;
+    return `${n > 0 ? game?.home?.abbr : game?.away?.abbr} ${Math.abs(n).toFixed(1)}`;
+  };
   const legacyFactors = normalizeFactors(game);
   const sport = String(game?.sport || "").toLowerCase();
   const matchup = sport === "nfl" ? game?.nflGameMatchup : null;
@@ -34,8 +41,8 @@ export default function MatchupFactors({ game }) {
   const gameSpecific = matchupSignals.filter((s) => s?.available).map((s) => ({
     id: `game-${s.id}`,
     label: s.label,
-    edge: Math.abs(Number(s.adjustment) || 0) < 0.15 ? "EVEN" : Number(s.adjustment) > 0 ? game?.home?.abbr : game?.away?.abbr,
-    value: (Number(s.adjustment) > 0 ? "+" : "") + Number(s.adjustment || 0).toFixed(1),
+    edge: !Number.isFinite(evidenceNumber(s.adjustment)) ? "UNAVAILABLE" : Math.abs(evidenceNumber(s.adjustment)) < 0.15 ? "EVEN" : Number(s.adjustment) > 0 ? game?.home?.abbr : game?.away?.abbr,
+    value: Number.isFinite(evidenceNumber(s.adjustment)) ? (evidenceNumber(s.adjustment) > 0 ? "+" : "") + evidenceNumber(s.adjustment).toFixed(1) : null,
     detail: s.evidence || null,
     source: "GAME MATCHUP ENGINE",
   }));
@@ -55,11 +62,11 @@ export default function MatchupFactors({ game }) {
       </div>
       {sport === "nfl" && matchup?.ok ? (
         <div className="matchup-factors-summary">
-          <span>BASELINE <strong>{matchup.baseline?.margin > 0 ? game?.home?.abbr : game?.away?.abbr} {Math.abs(Number(matchup.baseline?.margin || 0)).toFixed(1)}</strong></span>
+          <span>BASELINE <strong>{summaryMargin(matchup.baseline?.margin)}</strong></span>
           <i>→</i>
-          <span>MATCHUP ADJ <strong>{Number(matchup.adjustment?.margin || 0) > 0 ? "+" : ""}{Number(matchup.adjustment?.margin || 0).toFixed(1)}</strong></span>
+          <span>MATCHUP ADJ <strong>{summaryMargin(matchup.adjustment?.margin, true)}</strong></span>
           <i>→</i>
-          <span>GAME READ <strong>{matchup.final?.margin > 0 ? game?.home?.abbr : game?.away?.abbr} {Math.abs(Number(matchup.final?.margin || 0)).toFixed(1)}</strong></span>
+          <span>GAME READ <strong>{summaryMargin(matchup.final?.margin)}</strong></span>
         </div>
       ) : null}
       {factors.length ? (

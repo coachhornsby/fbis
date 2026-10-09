@@ -1,13 +1,8 @@
+import { fmt, lineLabel, bestEdge, matchupSignalLabel } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import "./compactGameCardEnhancements.css";
-
-function fmt(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return "—";
-  return (Math.round(n * 10) / 10).toFixed(Math.abs(n % 1) > 0.001 ? 1 : 0);
-}
 
 function Stars({ value = 1 }) {
   const safe = Math.max(1, Math.min(5, Number(value) || 1));
@@ -51,63 +46,6 @@ function VenueConditions({ context, game, sportId }) {
       {conditions ? <div className="cgc-condition-item cgc-condition-weather">{indoor ? <VenueIcon indoor /> : <WeatherIcon weather={weather} />}<strong>{conditions}</strong></div> : null}
     </div>
   );
-}
-
-function lineLabel(team, line) {
-  const n = Number(line);
-  if (!team || !Number.isFinite(n)) return "SPREAD";
-  if (Math.abs(n) < 0.05) return `${team.abbr || "PICK"} PK`;
-  return `${team.abbr || "TEAM"} ${n > 0 ? "+" : ""}${fmt(n)}`;
-}
-
-function bestEdge(vm) {
-  const cmp = vm.comparison || {};
-  const spreadAbs = Number(cmp.sideDiff);
-  const spreadSigned = Number(cmp.sideSignedDiff);
-  const total = Number(cmp.totalDiff);
-  const totalAbs = Number.isFinite(total) ? Math.abs(total) : -1;
-  const spreadMagnitude = Number.isFinite(spreadAbs) ? Math.abs(spreadAbs) : -1;
-
-  if (spreadMagnitude < 0 && totalAbs < 0) {
-    return { value: "—", detail: "NO EDGE", type: "EDGE", team: null, total: false };
-  }
-
-  if (spreadMagnitude >= totalAbs) {
-    const marketHomeSpread = Number(vm.market?.spread);
-    const away = vm.away || {};
-    const home = vm.home || {};
-    let team = null;
-    let offeredLine = null;
-
-    // signed gap = fair home spread - market home spread.
-    // Positive => market is too favorable to the away team.
-    // Negative => market is too favorable to the home team.
-    if (Number.isFinite(spreadSigned) && Number.isFinite(marketHomeSpread)) {
-      if (spreadSigned > 0) {
-        team = away;
-        offeredLine = -marketHomeSpread;
-      } else if (spreadSigned < 0) {
-        team = home;
-        offeredLine = marketHomeSpread;
-      }
-    }
-
-    return {
-      value: `+${fmt(spreadMagnitude)}`,
-      detail: lineLabel(team, offeredLine),
-      type: "SPREAD",
-      team,
-      total: false,
-    };
-  }
-
-  return {
-    value: `${total > 0 ? "+" : ""}${fmt(total)}`,
-    detail: total > 0 ? "OVER" : total < 0 ? "UNDER" : "TOTAL",
-    type: "TOTAL",
-    team: null,
-    total: true,
-  };
 }
 
 function mlbStarterInfo(game, side) {
@@ -155,14 +93,6 @@ function actionSplitLabel(split, away, home) {
   if (!Number.isFinite(awayPct) || !Number.isFinite(homePct)) return "—";
   if (homePct >= awayPct) return `${home.abbr || "HOME"} ${Math.round(homePct)}%`;
   return `${away.abbr || "AWAY"} ${Math.round(awayPct)}%`;
-}
-
-function matchupSignalLabel(signal, away, home) {
-  if (!signal?.available) return { text: "—", tone: "neutral" };
-  const n = Number(signal.adjustment);
-  if (!Number.isFinite(n) || Math.abs(n) < 0.15) return { text: "EVEN", tone: "neutral" };
-  const team = n > 0 ? home : away;
-  return { text: team?.abbr || (n > 0 ? "HOME" : "AWAY"), tone: n > 0 ? "home" : "away" };
 }
 
 function actionMoveLabel(action, away, home) {
