@@ -370,6 +370,10 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
           projectionState: game.cfb.projectionState,
           bettingAllowed: game.cfb.bettingAllowed,
           priorVersion: game.cfb.priorVersion,
+          // Preserve the exact consumed evidence in the existing checkpoint payload.
+          // This records missingness and original clocks; it does not certify freshness.
+          features: game.cfb.features == null ? null : structuredClone(game.cfb.features),
+          constants: game.cfb.constants == null ? null : structuredClone(game.cfb.constants),
           shadowHfa: game.cfb.shadowHfa || null,
           venue: game.cfb.venue || null,
           availability: game.availabilityImpact || null,

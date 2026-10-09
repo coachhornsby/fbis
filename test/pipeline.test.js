@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { unwrapPalResponse } from "../functions/lib/ballparkpal.js";
 import { classifyCheckpoint, pickCanonical, materiallyChanged, snapshotKey } from "../functions/lib/checkpoints.js";
 import { accuracyOf, freezeFromGame, collectBoards, harvestAll } from "../functions/lib/projLedger.js";
+import { persistSnapshot, mapSnapshotRow } from "../functions/lib/store.js";
 import { actionAcceptsJob } from "../functions/lib/jobs.js";
 import { seriesStats, buildAccuracyPack } from "../functions/lib/accuracyReport.js";
 import { attachFlatProps, attachPeriodF5, fetchParlayOdds, summarizeParlayEvent } from "../functions/lib/parlay.js";
@@ -1088,3 +1089,50 @@ function pipelineDb({ rejectWrites = false } = {}) {
     },
   };
 }
+
+
+describe("CFB consumed-feature checkpoint capture", () => {
+  function fixture() {
+    return { id: "401862797", sport: "cfb", start: "2026-10-10T17:00:00Z",
+      home: { name: "East Carolina", abbr: "ECU" }, away: { name: "Rice", abbr: "RICE" },
+      model: { projHome: 28, projAway: 21, pHomeFinal: 0.6, layers: {} },
+      cfb: { projectionState: "PROVISIONAL", bettingAllowed: false,
+        features: { home: { offAdj: 0, used: [], missing: ["epa_missing"], sourceAsOf: null },
+          away: { offAdj: 1.2, used: ["qb"], missing: [], sourceAsOf: "2026-10-09T12:00:00Z" },
+          summary: { homeUsed: [], awayUsed: ["qb"] } },
+        constants: { priorGames: 6, scales: { qb: 1.5 } } } };
+  }
+  it("retains the consumed vector and constants without inventing source clocks or readiness", () => {
+    const game = fixture(); const row = freezeFromGame("2026-10-09", game);
+    assert.deepEqual(row.uncertainty.features, game.cfb.features);
+    assert.deepEqual(row.uncertainty.constants, game.cfb.constants);
+    assert.equal(row.uncertainty.features.home.sourceAsOf, null);
+    assert.equal(row.uncertainty.features.home.offAdj, 0);
+    assert.equal(row.projectionState, "PROVISIONAL"); assert.equal(row.bettingAllowed, false);
+    assert.equal(row.projHome, 28); assert.equal(row.projAway, 21); assert.equal(row.pHomeFinal, 0.6);
+  });
+  it("detaches the captured evidence from later live mutations", () => {
+    const game = fixture(); const row = freezeFromGame("2026-10-09", game);
+    game.cfb.features.home.missing.push("qb_missing"); game.cfb.constants.scales.qb = 999;
+    assert.deepEqual(row.uncertainty.features.home.missing, ["epa_missing"]);
+    assert.equal(row.uncertainty.constants.scales.qb, 1.5);
+  });
+  it("round trips through the real snapshot writer and reader", async () => {
+    const game = fixture(); const row = freezeFromGame("2026-10-09", game); let values;
+    const env = { DB: { prepare(sql) { return { bind(...v) { values = v; return { async run() { return { meta: { changes: 1 } }; } }; } }; } } };
+    const saved = await persistSnapshot(env, { id: "fixture", gameId: game.id, sport: "cfb", date: "2026-10-09", checkpoint: "EARLY", modelVersion: "fixture", frozenAt: "2026-10-09T12:00:00Z", uncertainty: row.uncertainty });
+    assert.equal(saved.ok, true);
+    const layers = values.find(v => typeof v === "string" && v.includes('"_snap"'));
+    assert.ok(layers, "real writer must serialize snapshot metadata");
+    const loaded = mapSnapshotRow({ id: "fixture", game_id: game.id, sport: "cfb", layers_json: layers });
+    assert.deepEqual(loaded.uncertainty.features, game.cfb.features);
+    assert.deepEqual(loaded.uncertainty.constants, game.cfb.constants);
+  });
+  it("keeps absent vectors unavailable and unrelated sports unchanged", () => {
+    const game = fixture(); delete game.cfb.features; delete game.cfb.constants;
+    const row = freezeFromGame("2026-10-09", game);
+    assert.equal(row.uncertainty.features, null); assert.equal(row.uncertainty.constants, null);
+    const nfl = freezeFromGame("2026-10-09", { ...game, sport: "nfl", cfb: undefined });
+    assert.equal(nfl.uncertainty, null); assert.equal(nfl.projHome, 28);
+  });
+});
