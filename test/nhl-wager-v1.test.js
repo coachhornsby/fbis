@@ -42,7 +42,7 @@ test("positive provisional EV remains research-only without verified quote, scop
   assert.ok(out.offers.every(x=>x.canQualify===false));
   assert.equal(out.canQualify,false);
   assert.ok(out.offers.filter(x=>x.market==="moneyline").every(x=>x.modelProbability===null));
-  assert.ok(out.offers.every(x=>x.probabilityStatus==="RESEARCH_PROVISIONAL_SHRINK_NOT_VALIDATED"));
+  assert.ok(out.offers.every(x=>x.probabilityStatus==="MODEL_HEAD_UNVALIDATED_NO_SECONDARY_SHRINK"));
   assert.equal(out.canAuthorizeWager,false);
   assert.ok(out.offers.every(x=>x.stakingValidated===false));
 });
