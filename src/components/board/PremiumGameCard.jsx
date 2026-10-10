@@ -3,6 +3,7 @@ import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
 import TennisMatchCard from "./TennisMatchCard.jsx";
+import CfbFbsPropCards from "./CfbFbsPropCards.jsx";
 import "./premiumGameCard.css";
 
 function num(v) {
@@ -275,6 +276,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       {open ? (
         <div className="pgc-advanced">
           <AdvancedGameDetail game={game} onClose={() => onToggle?.(cardKey)} />
+          {sportId === "cfb" ? <CfbFbsPropCards game={game} /> : null}
           {typeof renderDetail === "function" ? <div className="pgc-detail">{renderDetail(game)}</div> : null}
         </div>
       ) : null}
