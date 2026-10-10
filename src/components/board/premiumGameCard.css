@@ -1127,3 +1127,20 @@
 .pgc-mlb-starter strong{font-size:11px;line-height:1.15;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pgc-mlb-starter span{font-size:9px;color:var(--muted,#aebaca);white-space:nowrap}
 @media(max-width:700px){.pgc-team-visual{min-width:78px}.pgc-mlb-starter{max-width:125px;padding:4px 5px}.pgc-mlb-starter img{width:32px;height:32px;flex-basis:32px}.pgc-mlb-starter strong{font-size:10px}.pgc-mlb-starter span{font-size:8px}}
+
+
+/* CFB FBS player research cards: never style unqualified projections as wagers. */
+.cfb-fbs-props { border: 1px solid var(--pgc-line); border-radius: 12px; padding: 14px; margin-top: 12px; }
+.cfb-fbs-props-heading { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; align-items: center; }
+.cfb-fbs-props-heading strong { font-size: .86rem; letter-spacing: .06em; }
+.cfb-fbs-props-heading span { color: var(--pgc-research); font-size: .73rem; }
+.cfb-fbs-props-disclaimer { color: var(--pgc-muted); font-size: .75rem; margin: 8px 0 12px; line-height: 1.45; }
+.cfb-fbs-props-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.cfb-fbs-prop-card { min-width: 0; background: var(--pgc-panel); border: 1px solid var(--pgc-line); border-radius: 10px; padding: 11px; display: flex; flex-direction: column; gap: 8px; }
+.cfb-fbs-prop-card header { display: flex; align-items: center; justify-content: space-between; gap: 5px; font-size: .73rem; }
+.cfb-fbs-prop-card header b { font-size: .63rem; font-weight: 600; color: var(--pgc-research); }
+.cfb-fbs-prop-card > strong { font-size: .88rem; }
+.cfb-fbs-prop-markets > div { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-top: 1px solid var(--pgc-line); font-size: .76rem; }
+.cfb-fbs-prop-markets span, .cfb-fbs-prop-card small { color: var(--pgc-muted); }
+.cfb-fbs-prop-card small { line-height: 1.35; }
+@media (max-width: 620px) { .cfb-fbs-props-grid { grid-template-columns: 1fr; } }
