@@ -627,7 +627,9 @@ export function attachCfbPlayerV1(games = [], opts = {}) {
     }
     const projection = projectCfbPlayerV1(game, opts);
     if (projection.ok) available += 1;
-    const playerProjectionRows = flattenCfbPlayerProjectionRows(projection);
+    const playerProjectionRows = flattenCfbPlayerProjectionRows(projection).map((row) => ({
+      ...row, fbsMatchup: game.cfbFbsMatchup === true,
+    }));
     return {
       ...game,
       challengers: { ...(game.challengers || {}), [CFB_PLAYER_V1_ID]: projection },
