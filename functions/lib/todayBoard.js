@@ -176,9 +176,18 @@ export function toBoardGame(game, sport, now = Date.now()) {
     bettingAuthority: game.bettingAuthority || null,
     modelDisagreement: game.modelDisagreement || null,
     researchProjection: game.researchProjection || null,
-    probabilityProvenance: game.probabilityProvenance || game.model?.probabilityProvenance || null,
+    // No calibrated CFB probability currently has display authority. Treat
+    // legacy/cached claims as unverified, regardless of their saved labels.
+    probabilityProvenance: sport === "cfb"
+      ? { probabilitySource: "UNKNOWN", modelId: "CFB-FBIS-v2",
+          modelVersion: game.modelVersion || null, validationStatus: "RESEARCH",
+          rawProbability: null }
+      : game.probabilityProvenance || game.model?.probabilityProvenance || null,
     pureProjectionAvailable: game.pureProjectionAvailable ?? null,
     canQualify:
+      // CFB's research score never confers wagering qualification, including
+      // legacy packets with no top-level qualificationBlocked field.
+      sport !== "cfb" &&
       game.qualificationBlocked !== true &&
       (game.canQualify === true ||
        game.model?.canQualify === true ||
@@ -205,7 +214,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
             : null,
     blockReason: game.cfb?.blockReason || null,
     marketLabels: game.marketLabels || null,
-    pHome: game.model?.pHomeFinal ?? null,
+    pHome: sport === "cfb" ? null : (game.model?.pHomeFinal ?? null),
     pinMlHome: game.odds?.pinHomeMl ?? null,
     pinMlAway: game.odds?.pinAwayMl ?? null,
     pinSpread,
@@ -248,7 +257,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     referenceMarketUnavailable: !marketAvail.referenceMarketAvailable,
     operationalMarketLabel: marketAvail.labels?.market || null,
     projectionUnavailable: (game.model?.projHome == null && game.model?.projAway == null) || game.projectionKind === "UNAVAILABLE",
-    qualificationBlocked: Boolean(game.qualificationBlocked || (game.cfb && !game.cfb.bettingAllowed) || (game.sport === "nfl" && game.projectionKind !== "FBIS")),
+    qualificationBlocked: Boolean(sport === "cfb" || game.qualificationBlocked || (game.cfb && !game.cfb.bettingAllowed) || (game.sport === "nfl" && game.projectionKind !== "FBIS")),
     challengers: game.challengers || null,
     championModel: game.championModel || null,
     // Preserve source-backed matchup evidence and NFL-PRO coverage on the public board DTO.

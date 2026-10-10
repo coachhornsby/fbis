@@ -245,7 +245,11 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
   const palAway = model.palAway ?? game.bpp?.awayRuns ?? null;
   if (projHome == null && palHome == null) return null;
   const w = { ...DEFAULT_WEIGHTS, ...(weights || {}) };
-  const pHomeFinal = model.pHomeFinal ?? blendWinProb(model.layers || {}, w);
+  // Preserve explicitly labeled legacy market/ESPN layers for audit, but never
+  // freeze their blend as a current independent CFB win probability.
+  const pHomeFinal = String(game.sport || "").toLowerCase() === "cfb"
+    ? null
+    : (model.pHomeFinal ?? blendWinProb(model.layers || {}, w));
   const snap = snapshotOdds(game);
   const checkpoint = classifyCheckpoint(game);
   return {

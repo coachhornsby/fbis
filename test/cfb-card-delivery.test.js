@@ -145,3 +145,120 @@ for(const status of [{live:false,completed:false},{live:true,completed:false},{l
  assert.equal(card.projection.home,p.home);assert.equal(card.gameState.live,status.live);assert.equal(card.gameState.completed,status.completed);
  assert.equal(x.cfb.bettingAllowed,false);
 });
+
+
+import {applyAvailabilityAdjustment} from '../functions/lib/availability.js';
+import {boardProbabilityDisplay} from '../src/lib/boardDecision.js';
+
+test('CFB fitted scores do not inherit market/ESPN probability or fair moneylines',()=>{
+ const cases=[
+  {spread:-10,espn:0.9,p:0.636576},
+  {spread:10,espn:0.1,p:0.410628},
+  {spread:null,espn:null,p:0.5},
+ ];
+ const out=cases.map(({spread,espn,p})=>{
+  const g=game({
+   projectionKind:'FBIS',projHome:32.9,projAway:22.4,projTotal:55.3,projMargin:10.5,
+   pHomeFinal:p,pAwayFinal:1-p,pHome:p,fairHomeMl:-175,fairAwayMl:144,
+   layers:{market:spread==null?null:0.7,espn,score:0.73,form:0.5},
+  });
+  g.odds={spread,total:51.5,pinHomeMl:-115,pinAwayMl:105};
+  g.espnHomeWinPct=espn;
+  const fitted=projectCfbFbisV2Production(g);
+  assert.equal(fitted.ok,true);
+  const promoted=promoteCfbFbisV2ToBoard([{...g,cfbFbisV2:fitted}]).games[0];
+  const product=productProjectionBoard({sport:'cfb',games:[promoted]},{tier:'pro'}).games[0];
+  const board=toBoardGame(promoted,'cfb');
+  const freeze=freezeFromGame('2026-10-10',promoted);
+  assert.deepEqual([promoted.model.pHomeFinal,promoted.model.pAwayFinal,promoted.model.pHome,
+   promoted.model.fairHomeMl,promoted.model.fairAwayMl],Array(5).fill(null));
+  assert.equal(promoted.probabilityProvenance.probabilitySource,'UNKNOWN');
+  assert.equal(product.projection.pHome,null);
+  assert.equal(product.projection.fairHomeMl,null);
+  assert.equal(product.intelligence.modelProbability,null);
+  assert.equal(product.intelligence.expectedRoi,null);
+  assert.equal(product.intelligence.marketDelta,null);
+  assert.equal(product.market.homeMl,-115); // sportsbook/reference preserved, never fair ML
+  assert.equal(board.pHome,null);
+  assert.equal(board.probabilityProvenance.probabilitySource,'UNKNOWN');
+  assert.equal(boardProbabilityDisplay(board).showFairProbability,false);
+  assert.equal(boardProbabilityDisplay(board).showFairOdds,false);
+  assert.deepEqual([freeze.pHome,freeze.pHomeFinal,freeze.pAwayFinal],[null,null,null]);
+  assert.equal(freeze.pMarket,spread==null?null:0.7);
+  assert.equal(freeze.pEspn,espn);
+  assert.equal(fitted.canQualify,false);assert.equal(promoted.qualificationBlocked,true);
+  assert.equal(product.projection.canQualify,false);assert.equal(board.qualificationBlocked,true);
+  // Model-v2's uncalibrated diagnostic is not promoted into consumer fair odds.
+  assert.ok(fitted.pHomeWin>0&&fitted.pHomeWin<1);
+  return {fitted,product,board,freeze};
+ });
+ for(const row of out.slice(1)){
+  assert.equal(row.product.projection.home,out[0].product.projection.home);
+  assert.equal(row.product.projection.away,out[0].product.projection.away);
+  assert.equal(row.product.projection.margin,out[0].product.projection.margin);
+  assert.equal(row.product.projection.total,out[0].product.projection.total);
+  assert.equal(row.product.projection.pHome,null);
+ }
+});
+
+test('CFB legacy saved model packets cannot bypass public API/Board/snapshot probability guards',()=>{
+ for(const p of [0,0.5,0.88,NaN,Infinity,null,undefined]){
+  const stale=game({
+   projectionKind:'FBIS',projHome:32.9,projAway:22.4,projMargin:10.5,projTotal:55.3,
+   pHomeFinal:p,pAwayFinal:0.12,fairHomeMl:-733,
+   layers:{market:0.9,espn:0.8,score:0.7},
+   probabilityProvenance:{
+    probabilitySource:'FBIS_CALIBRATED',modelId:'legacy',modelVersion:'old',
+    distributionModelId:'old',distributionModelVersion:'old',
+    calibratorId:'old',calibratorVersion:'old',validationStatus:'PRODUCTION',
+    oosSampleSize:999,rawProbability:p,
+   },
+  });
+  stale.probabilityProvenance=stale.model.probabilityProvenance;
+  const card=productProjectionBoard({sport:'cfb',games:[stale]},{tier:'pro'}).games[0];
+  const board=toBoardGame(stale,'cfb');
+  const snap=freezeFromGame('2026-10-10',stale);
+  assert.equal(card.projection.home,32.9);assert.equal(card.projection.away,22.4);
+  assert.equal(card.projection.pHome,null);assert.equal(card.projection.fairHomeMl,null);
+  assert.equal(card.intelligence.modelProbability,null);assert.equal(card.intelligence.expectedRoi,null);
+  assert.equal(board.pHome,null);assert.equal(boardProbabilityDisplay(board).showFairProbability,false);
+  assert.equal(board.canQualify,false);assert.equal(board.qualificationBlocked,true);
+  assert.equal(card.decision.status,'PASS');assert.equal(card.decision.blocked,true);
+  assert.equal(snap.pHomeFinal,null);assert.equal(snap.pAwayFinal,null);
+  assert.equal(snap.pMarket,0.9);assert.equal(snap.pEspn,0.8);
+ }
+});
+
+test('CFB availability-adjusted scores stay valid without reviving legacy probability',()=>{
+ const g=game({projectionKind:'FBIS',projHome:17.4,projAway:28.9,pHomeFinal:0.94,
+  layers:{market:0.9,espn:0.95}});
+ const fitted=projectCfbFbisV2Production(g);
+ const promoted=promoteCfbFbisV2ToBoard([{...g,cfbFbisV2:fitted}]).games[0];
+ const adjusted=applyAvailabilityAdjustment({...promoted,availabilityImpact:{
+  configured:true,homeScoreAdjustment:-2,awayScoreAdjustment:1,
+ }},'cfb');
+ const card=productProjectionBoard({sport:'cfb',games:[adjusted]},{tier:'pro'}).games[0];
+ const board=toBoardGame(adjusted,'cfb');
+ assert.equal(card.projection.home,adjusted.model.projHome);
+ assert.equal(card.projection.away,adjusted.model.projAway);
+ assert.notEqual(card.projection.home,fitted.home);
+ assert.equal(adjusted.model.pHomeFinal,null);
+ assert.equal(card.projection.pHome,null);assert.equal(card.projection.fairHomeMl,null);
+ assert.equal(board.pHome,null);
+ assert.deepEqual([freezeFromGame('2026-10-10',adjusted).pHomeFinal,
+  freezeFromGame('2026-10-10',adjusted).pAwayFinal],[null,null]);
+ assert.equal(adjusted.cfb.bettingAllowed,false);assert.equal(adjusted.qualificationBlocked,true);
+});
+
+test('other sports retain their previous probability/odds contracts',()=>{
+ const g={...game(),sport:'mlb',model:{
+  projectionKind:'FBIS',projHome:5,projAway:4,pHomeFinal:0.64,layers:{score:0.64},
+ }};
+ const card=productProjectionBoard({sport:'mlb',games:[g]},{tier:'pro'}).games[0];
+ const board=toBoardGame(g,'mlb');
+ const frozen=freezeFromGame('2026-10-10',g);
+ assert.equal(card.projection.pHome,0.64);
+ assert.equal(card.projection.fairHomeMl,-178);
+ assert.equal(board.pHome,0.64);
+ assert.equal(frozen.pHomeFinal,0.64);
+});
