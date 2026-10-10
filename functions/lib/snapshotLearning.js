@@ -136,8 +136,36 @@ export function selectCanonicalLearningSnapshots(rows = []) {
   };
 }
 
+/**
+ * Existing NHL snapshots may contain a legacy generic blended probability
+ * falsely labeled NHL-PRO-v2. Preserve raw frozen values, but do not count
+ * them as NHL calibrated probability learning without source-specific lineage.
+ * Goals/margin/total remain independently gradeable.
+ */
+export function nhlMoneylineSnapshotEvidence(row = {}) {
+  if(String(row.sport||"").toLowerCase()!=="nhl")
+    return {ok:true,reason:null,scope:"NON_NHL"};
+  const layer=row.layers||{};
+  const eventId=String(row.gameId||row.id||"");
+  const t=Date.parse(layer.probabilityFeatureCutoffTimestamp||"");
+  const freeze=Date.parse(row.frozenAt||"");
+  const start=Date.parse(row.start||"");
+  const p=row.pHomeFinal??row.pHome;
+  if(String(row.engine||"")!=="NHL-PRO-v2"||
+     layer.probabilitySource!=="NHL-PRO-v2:FULL_GAME_INCLUDING_OT_SHOOTOUT"||
+     String(layer.probabilitySourceEventId||"")!==eventId||
+     !layer.probabilityModelVersion||
+     String(layer.probabilityModelVersion)!==String(row.modelVersion||"")||
+     !Number.isFinite(t)||!Number.isFinite(freeze)||t>freeze||
+     !Number.isFinite(start)||freeze>=start||
+     p==null||!Number.isFinite(Number(p))||Number(p)<0||Number(p)>1)
+    return {ok:false,reason:"NHL_FULL_GAME_PROBABILITY_PROVENANCE_UNVERIFIED",scope:"FULL_GAME_INCLUDING_OT_SHOOTOUT"};
+  return {ok:true,reason:null,scope:"FULL_GAME_INCLUDING_OT_SHOOTOUT"};
+}
+
 export function toModelLabRow(row = {}) {
-  const pHome = finite(row.pHomeFinal ?? row.pHome);
+  const audit=nhlMoneylineSnapshotEvidence(row);
+  const pHome = audit.ok?finite(row.pHomeFinal ?? row.pHome):null;
   return {
     ...row,
     model_id: row.learningModelId || snapshotModelId(row),
@@ -150,6 +178,8 @@ export function toModelLabRow(row = {}) {
     actual_home: finite(row.actualHome),
     actual_away: finite(row.actualAway),
     p_home_win: pHome,
+    probability_evidence_status:audit.ok?"VERIFIED":"LEGACY_EXCLUDED",
+    probability_evidence_reason:audit.reason,
   };
 }
 
