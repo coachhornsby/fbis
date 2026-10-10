@@ -58,6 +58,12 @@ test("goalie shadow API is research-only and freezes required state fields",asyn
   assert.match(src,/qualificationChanged:false/);
   assert.match(src,/if\(!integrity\.modelInputSafe\)continue/);
   assert.match(src,/captured_at<=\?/);
+  assert.match(src,/qualifying_graded_n/);
+  assert.match(src,/qualifying_confirmed_graded_n/);
+  assert.match(src,/qualifying_market_graded_n/);
+  assert.match(src,/sampleReady:qualifyingCounts\.graded/);
+  assert.match(src,/marketSampleReady:qualifyingCounts\.marketGraded/);
+  assert.doesNotMatch(src,/sampleReady:Number\(metrics\?\.n\|\|0\)/);
   assert.match(src,/authority:false/);
   assert.match(src,/staking:false/);
 });
