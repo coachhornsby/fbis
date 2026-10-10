@@ -154,6 +154,10 @@ export function nhlMoneylineSnapshotEvidence(row = {}) {
   if(String(row.engine||"")!=="NHL-PRO-v2"||
      layer.probabilitySource!=="NHL-PRO-v2:FULL_GAME_INCLUDING_OT_SHOOTOUT"||
      String(layer.probabilitySourceEventId||"")!==eventId||
+     !layer.probabilityHomeTeam||!layer.probabilityAwayTeam||
+     String(layer.probabilityHomeTeam)===String(layer.probabilityAwayTeam)||
+     (row.homeAbbr&&String(row.homeAbbr).toUpperCase()!==String(layer.probabilityHomeTeam).toUpperCase())||
+     (row.awayAbbr&&String(row.awayAbbr).toUpperCase()!==String(layer.probabilityAwayTeam).toUpperCase())||
      !layer.probabilityModelVersion||
      String(layer.probabilityModelVersion)!==String(row.modelVersion||"")||
      !Number.isFinite(t)||!Number.isFinite(freeze)||t>freeze||
