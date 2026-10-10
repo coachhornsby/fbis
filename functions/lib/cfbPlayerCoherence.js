@@ -20,6 +20,7 @@ function sideVolume(sideProj) {
   const qb = sideProj?.QB1 || {};
   const rb = sideProj?.RB1 || {};
   const wr = sideProj?.WR1 || {};
+  const wr2 = sideProj?.WR2 || {};
   return {
     qbAttempts: num(qb.attempts?.projection),
     qbCompletions: num(qb.completions?.projection),
@@ -31,6 +32,9 @@ function sideVolume(sideProj) {
     wrReceptions: num(wr.receptions?.projection),
     wrRecYards: num(wr.receiving_yards?.projection),
     wrTargets: num(wr.receptions?.expectedTargets ?? wr.receiving_yards?.expectedTargets),
+    wr2Receptions: num(wr2.receptions?.projection),
+    wr2RecYards: num(wr2.receiving_yards?.projection),
+    wr2Targets: num(wr2.receptions?.expectedTargets ?? wr2.receiving_yards?.expectedTargets),
   };
 }
 
@@ -61,9 +65,11 @@ export function reconcileGamePlayerCoherence(game = {}, sideOut = {}) {
         : null;
 
     const wrTargets = vol.wrTargets ?? (vol.wrReceptions != null ? vol.wrReceptions / 0.62 : null);
+    const wr2Targets = vol.wr2Targets ?? (vol.wr2Receptions != null ? vol.wr2Receptions / 0.62 : null);
+    const modeledReceivingTargets = (wrTargets || 0) + (wr2Targets || 0);
     const otherReceivingTargets =
-      expectedDropbacks != null && wrTargets != null
-        ? round1(Math.max(0, expectedDropbacks - wrTargets))
+      expectedDropbacks != null && (wrTargets != null || wr2Targets != null)
+        ? round1(Math.max(0, expectedDropbacks - modeledReceivingTargets))
         : null;
     const otherReceivingYards =
       otherReceivingTargets != null ? round1(otherReceivingTargets * 7.2) : null;
@@ -79,8 +85,12 @@ export function reconcileGamePlayerCoherence(game = {}, sideOut = {}) {
     if (vol.qbCompletions != null && vol.qbAttempts != null && vol.qbCompletions > vol.qbAttempts + 0.05) {
       violations.push("completions-exceed-attempts");
     }
-    if (vol.wrReceptions != null && vol.qbCompletions != null && vol.wrReceptions > vol.qbCompletions * 0.85) {
-      violations.push("wr1-receptions-implausible-vs-completions");
+    const modeledReceiverCatches = (vol.wrReceptions || 0) + (vol.wr2Receptions || 0);
+    if (vol.qbCompletions != null && modeledReceiverCatches > vol.qbCompletions * 0.95) {
+      violations.push("wr1-wr2-receptions-exceed-completion-budget");
+    }
+    if (expectedDropbacks != null && modeledReceivingTargets > expectedDropbacks * 0.95) {
+      violations.push("wr1-wr2-targets-exceed-team-budget");
     }
     if (vol.qbAttempts != null && vol.qbPassYards != null && vol.qbAttempts > 0) {
       const ypa = vol.qbPassYards / vol.qbAttempts;
@@ -120,7 +130,7 @@ export function reconcileGamePlayerCoherence(game = {}, sideOut = {}) {
   return {
     ...diagnostics,
     dataQuality: qualityN ? round2(qualityAcc / qualityN) : 0.5,
-    method: "residual-buckets-qb1-rb1-wr1",
+    method: "residual-buckets-qb1-rb1-wr1-wr2",
     note: "Perfect accounting not required — only primary roles modeled",
   };
 }
