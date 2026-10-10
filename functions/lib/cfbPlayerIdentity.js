@@ -1,12 +1,12 @@
 /**
- * CFB player role identity — QB1 / RB1 / WR1 only.
+ * CFB player role identity — QB1 / RB1 / WR1 / WR2 only.
  * Role selection is temporal: only information available before kickoff.
  * Never use end-of-season leaders for historical role assignment.
  */
 
 import { TEMPORAL_CLASS } from "./cfbFeaturePipeline.js";
 
-export const PLAYER_ROLES = Object.freeze(["QB1", "RB1", "WR1"]);
+export const PLAYER_ROLES = Object.freeze(["QB1", "RB1", "WR1", "WR2"]);
 export const IDENTITY_VERSION = "cfb-player-identity-v1";
 
 /** Explicit role-confidence tiers for historical identity audit. */
@@ -596,7 +596,38 @@ function finalizeSkill(best, ranked, { role, team, position, asOf, week, kickoff
 }
 
 /**
- * Identify all six player roles for a game (away/home × QB1/RB1/WR1).
+ * WR2 is a separate wide receiver selected from pre-kickoff, dated receiving
+ * usage. A season-total ranking is not sufficient, and WR1 is never WR2.
+ */
+export function identifyWr2({ exclude = null, playerGameRows = [], team, kickoffTimestamp, ...rest } = {}) {
+  const prior = filterPlayerGamesBeforeKickoff(filterTeam(playerGameRows, team), kickoffTimestamp);
+  const eligible = prior.filter((row) => {
+    const position = posOf(row);
+    if (position && position !== "WR" && position !== "WR1" && position !== "WR2") return false;
+    const id = playerIdOf(row);
+    const name = nameKey(playerNameOf(row));
+    if (!name) return false;
+    if (exclude?.player_id && id && String(id) === String(exclude.player_id)) return false;
+    return name !== nameKey(exclude?.player_name);
+  });
+  const result = identifyWr1({
+    ...rest, team, kickoffTimestamp,
+    rosterRows: [], playerPpaRows: [], usageRows: [], playerGameRows: eligible,
+  });
+  if (!result.player_id || !result.player_name || !eligible.length) {
+    return { role: "WR2", player_id: null, player_name: null, team,
+      state: "WR_UNCERTAIN", role_confidence: 0, identity_as_of: rest.identityAsOf || null,
+      selection: { method: "insufficient-dated-receiver-usage", sample_size: 0 },
+      provenance: { identityVersion: IDENTITY_VERSION, temporalClass: TEMPORAL_CLASS.C,
+        kickoffTimestamp, widenUncertainty: true } };
+  }
+  return { ...result, role: "WR2", selection: {
+    ...result.selection, method: "second-receiver-prior-game-usage",
+  } };
+}
+
+/**
+ * Identify eight FBS player roles for a game (away/home × QB1/RB1/WR1/WR2).
  */
 export function identifyGamePlayerRoles(game = {}, feeds = {}) {
   const kickoff = game.startDate || game.start_date || game.kickoff || game.start;
@@ -645,6 +676,11 @@ export function identifyGamePlayerRoles(game = {}, feeds = {}) {
         identityAsOf: asOf,
       }),
     };
+    roles[side].WR2 = identifyWr2({
+      team, exclude: roles[side].WR1,
+      playerGameRows: sideFeeds.playerGameRows || feeds.playerGameRows || [],
+      kickoffTimestamp: kickoff, week, identityAsOf: asOf,
+    });
   }
   return {
     game_id: game.id || game.gameId || null,
@@ -653,7 +689,7 @@ export function identifyGamePlayerRoles(game = {}, feeds = {}) {
     kickoff_timestamp: kickoff,
     identity_as_of: asOf,
     identityVersion: IDENTITY_VERSION,
-    maxPlayers: 6,
+    maxPlayers: 8,
     roles,
   };
 }

@@ -1,5 +1,5 @@
 /**
- * CFB-PLAYER-v1 — shadow player projection model for QB1 / RB1 / WR1 only.
+ * CFB-PLAYER-v1 shadow engine extended for QB1 / RB1 / WR1 / WR2 research cards.
  * Consumes independent CFB game environment (CFB-FBIS-v2). Never uses market lines.
  */
 
@@ -387,15 +387,15 @@ export function projectRb(env, player, { ablation = "F" } = {}) {
   };
 }
 
-export function projectWr(env, player, { ablation = "F" } = {}) {
+export function projectWr(env, player, { ablation = "F", role = "WR1" } = {}) {
   const mask = PLAYER_ABLATION_MASKS.wr[ablation] || PLAYER_ABLATION_MASKS.wr.F;
-  const histTargets = num(player.hist?.targets) ?? COEF.wr.defaultTargets;
+  const histTargets = num(player.hist?.targets) ?? (role === "WR2" ? COEF.wr.defaultTargets * 0.65 : COEF.wr.defaultTargets);
   const histCatch = num(player.hist?.catchRate) ?? COEF.wr.defaultCatchRate;
   const histYpt = num(player.hist?.ypt) ?? COEF.wr.defaultYpt;
 
   let targets = histTargets;
   if (mask.dropbacks) {
-    const share = num(player.targetShare) ?? COEF.wr.defaultTargetShare;
+    const share = num(player.targetShare) ?? (role === "WR2" ? COEF.wr.defaultTargetShare * 0.65 : COEF.wr.defaultTargetShare);
     targets = env.expectedDropbacks * share;
   }
   if (mask.script) {
@@ -434,7 +434,7 @@ export function projectWr(env, player, { ablation = "F" } = {}) {
   return {
     receptions: propContract({
       player,
-      role: "WR1",
+      role,
       team: player.team,
       side: env.side,
       market: "receptions",
@@ -446,13 +446,13 @@ export function projectWr(env, player, { ablation = "F" } = {}) {
       ablation,
       extras: {
         expectedTargets: round1(targets),
-        targetShare: round2(num(player.targetShare) ?? COEF.wr.defaultTargetShare),
+        targetShare: round2(num(player.targetShare) ?? (role === "WR2" ? COEF.wr.defaultTargetShare * 0.65 : COEF.wr.defaultTargetShare)),
         targetProxy: player.targetProxy || "targets-or-receptions-proxy",
       },
     }),
     receiving_yards: propContract({
       player,
-      role: "WR1",
+      role,
       team: player.team,
       side: env.side,
       market: "receiving_yards",
@@ -482,9 +482,7 @@ function enrichPlayer(roleRow, hist = {}) {
   };
 }
 
-/**
- * Project all six players for a game from independent game model environment.
- */
+/** Project eight research-only role slots from independent game environment. */
 export function projectCfbPlayerV1(game = {}, opts = {}) {
   const rolesBundle = opts.roles || identifyGamePlayerRoles(game, opts.feeds || {});
   const hist = opts.playerHistory || {};
@@ -496,17 +494,23 @@ export function projectCfbPlayerV1(game = {}, opts = {}) {
     const qb = enrichPlayer(roles.QB1 || { role: "QB1", team: env.side, state: "QB_UNCERTAIN", role_confidence: 0 }, hist[side]?.QB1);
     const rb = enrichPlayer(roles.RB1 || { role: "RB1", team: env.side, state: "RB_UNCERTAIN", role_confidence: 0 }, hist[side]?.RB1);
     const wr = enrichPlayer(roles.WR1 || { role: "WR1", team: env.side, state: "WR_UNCERTAIN", role_confidence: 0 }, hist[side]?.WR1);
+    const wr2 = enrichPlayer(roles.WR2 || { role: "WR2", team: env.side, state: "WR_UNCERTAIN", role_confidence: 0 }, hist[side]?.WR2);
 
     const qbProj = projectQb(env, qb, { ablation: opts.qbAblation || "G" });
     const rbProj = projectRb(env, rb, { ablation: opts.rbAblation || "F" });
     const wrProj = projectWr(env, wr, { ablation: opts.wrAblation || "F" });
+    const wr2Proj = projectWr(env, wr2, { ablation: opts.wrAblation || "F", role: "WR2" });
 
     sideOut[side] = {
       environment: env,
-      identity: { QB1: roles.QB1, RB1: roles.RB1, WR1: roles.WR1 },
+      // Historical usage is separate from directory identity. Do not infer
+      // numerical player forecasts from default priors without PIT player form.
+      history: hist[side] || {},
+      identity: { QB1: roles.QB1, RB1: roles.RB1, WR1: roles.WR1, WR2: roles.WR2 },
       QB1: qbProj,
       RB1: rbProj,
       WR1: wrProj,
+      WR2: wr2Proj,
     };
   }
 
@@ -514,7 +518,8 @@ export function projectCfbPlayerV1(game = {}, opts = {}) {
   const anyUncertain = ["away", "home"].some((s) =>
     ["QB_UNCERTAIN", "RB_UNCERTAIN", "WR_UNCERTAIN"].includes(sideOut[s]?.identity?.QB1?.state) ||
     ["RB_UNCERTAIN"].includes(sideOut[s]?.identity?.RB1?.state) ||
-    ["WR_UNCERTAIN"].includes(sideOut[s]?.identity?.WR1?.state)
+    ["WR_UNCERTAIN"].includes(sideOut[s]?.identity?.WR1?.state) ||
+    ["WR_UNCERTAIN"].includes(sideOut[s]?.identity?.WR2?.state)
   );
 
   const projection = {
@@ -534,7 +539,7 @@ export function projectCfbPlayerV1(game = {}, opts = {}) {
       artifactId: CFB_PLAYER_V1_ARTIFACT.id,
       sourceVersion: CFB_PLAYER_V1_ARTIFACT.sourceVersion,
       championOverwritten: false,
-      maxPlayers: 6,
+      maxPlayers: 8,
     },
   };
 
@@ -559,22 +564,50 @@ export function flattenCfbPlayerProjectionRows(projection = {}) {
   const rows = [];
   const marketMap = {
     passing_yards: "passing_yards",
+    pass_attempts: "passing_attempts",
+    completions: "completions",
+    qb_carries: "rushing_attempts",
+    rb_carries: "rushing_attempts",
     rushing_yards: "rushing_yards",
     receiving_yards: "receiving_yards",
+    receptions: "receptions",
   };
   for (const side of ["away", "home"]) {
     const sideRow = projection?.players?.[side] || {};
-    for (const role of ["QB1", "RB1", "WR1"]) {
+    for (const role of ["QB1", "RB1", "WR1", "WR2"]) {
       const bundle = sideRow?.[role] || {};
+      const identity = sideRow.identity?.[role];
+      const history = sideRow.history?.[role] || null;
+      const cutoff = Date.parse(projection.roles?.kickoff_timestamp || "");
+      const identityAt = Date.parse(identity?.identity_as_of || "");
+      const verified = Boolean(identity?.player_id && identity?.player_name
+        && identity?.state !== "WR_UNCERTAIN"
+        && identity?.state !== "RB_UNCERTAIN"
+        && identity?.state !== "QB_UNCERTAIN"
+        && Number(identity?.selection?.sample_size || 0) >= 2
+        && history?.playerId != null
+        && String(history.playerId) === String(identity.player_id)
+        && Number(history?.sample_size || 0) >= 2
+        && Number.isFinite(Date.parse(history?.sourceAsOf || ""))
+        && Date.parse(history.sourceAsOf) < cutoff
+        && Number.isFinite(cutoff) && Number.isFinite(identityAt) && identityAt < cutoff);
+      if (!verified) continue;
       for (const [key, prop] of Object.entries(bundle)) {
-        if (!prop || !Number.isFinite(Number(prop.projection))) continue;
+        if (!prop || prop.player_id == null || !prop.player
+          || prop.projection == null || !Number.isFinite(Number(prop.projection))) continue;
         const canonical = marketMap[prop.market] || marketMap[key] || null;
         if (!canonical) continue;
         rows.push({
           playerId: prop.player_id ?? null,
           playerName: prop.player ?? null,
           team: prop.team ?? null,
-          position: role.replace("1", ""),
+          position: role.replace(/[12]$/, ""),
+          targetRole: role,
+          identityAsOf: identity.identity_as_of,
+          cutoffAt: projection.roles.kickoff_timestamp,
+          canAuthorizeWager: false,
+          eligibleForCard: false,
+          decisionEligible: false,
           market: canonical,
           fbisProjection: Number(prop.projection),
           fbisSigma: Number.isFinite(Number(prop.sigma)) ? Number(prop.sigma) : null,
@@ -597,14 +630,33 @@ export function attachCfbPlayerV1(games = [], opts = {}) {
   let available = 0;
   const next = (games || []).map((game) => {
     if (game.sport && game.sport !== "cfb") return game;
+    if (opts.fbsOnly === true && game.cfbFbsMatchup !== true) {
+      return { ...game, playerProjectionRows: [], cfbPlayerRoleCards: [],
+        playerProjectionStatus: { sport: "cfb", state: "OUT_OF_SCOPE_OR_UNVERIFIED_FBS", canQualify: false } };
+    }
     const projection = projectCfbPlayerV1(game, opts);
     if (projection.ok) available += 1;
-    const playerProjectionRows = flattenCfbPlayerProjectionRows(projection);
+    const playerProjectionRows = flattenCfbPlayerProjectionRows(projection).map((row) => ({
+      ...row, fbsMatchup: game.cfbFbsMatchup === true,
+    }));
     return {
       ...game,
       challengers: { ...(game.challengers || {}), [CFB_PLAYER_V1_ID]: projection },
       cfbPlayerV1: projection,
       playerProjectionRows,
+      cfbPlayerRoleCards: ["away", "home"].flatMap((side) =>
+        ["QB1", "RB1", "WR1", "WR2"].map((role) => {
+          const identity = projection.players?.[side]?.identity?.[role] || null;
+          const rows = playerProjectionRows.filter((row) =>
+            row.targetRole === role && row.playerId === identity?.player_id);
+          return { side, role, team: game[side]?.name || game[side]?.fullName || null,
+            playerId: identity?.player_id || null, playerName: identity?.player_name || null,
+            roleConfidence: identity?.role_confidence ?? null, sourceAt: identity?.identity_as_of || null,
+            markets: rows.map(({ market, fbisProjection, fbisSigma }) =>
+              ({ market, fbisProjection, fbisSigma })),
+            state: rows.length ? "RESEARCH" : "IDENTITY_OR_PIT_USAGE_UNAVAILABLE",
+            canQualify: false, canAuthorizeWager: false };
+        })),
       playerProjectionStatus: {
         sport: "cfb",
         state: playerProjectionRows.length ? "ACTIVE_RESEARCH" : "NO_MODELABLE_PLAYER_PROPS",
@@ -625,7 +677,7 @@ export function attachCfbPlayerV1(games = [], opts = {}) {
       qualificationAllowed: false,
       canQualify: false,
       canAuthorizeWager: false,
-      maxPlayersPerGame: 6,
+      maxPlayersPerGame: 8,
     },
   };
 }

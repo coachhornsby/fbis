@@ -275,6 +275,18 @@ export function toBoardGame(game, sport, now = Date.now()) {
     f5Book: game.odds?.f5 || null,
     playerMarkets: Array.isArray(game.playerMarkets) ? game.playerMarkets : [],
     playerProjectionRows: Array.isArray(game.playerProjectionRows) ? game.playerProjectionRows : [],
+    // FBS research roles are display-only; never client-authorized betting data.
+    cfbFbsMatchup: sport === "cfb" && game.cfbFbsMatchup === true,
+    cfbFbsScope: sport === "cfb" ? game.cfbFbsScope || "OUT_OF_SCOPE_OR_UNVERIFIED" : null,
+    cfbPlayerRoleCards: sport === "cfb" && game.cfbFbsMatchup === true
+      ? (Array.isArray(game.cfbPlayerRoleCards) ? game.cfbPlayerRoleCards : []).map((row) => ({
+          side: row.side, role: row.role, team: row.team, playerId: row.playerId,
+          playerName: row.playerName, roleConfidence: row.roleConfidence,
+          sourceAt: row.sourceAt, state: row.state,
+          markets: Array.isArray(row.markets) ? row.markets : [],
+          canQualify: false, canAuthorizeWager: false,
+        }))
+      : [],
     playerProjectionStatus: game.playerProjectionStatus || null,
     mlbPersistentState: sport === "mlb" ? (game.mlbPersistentState || null) : null,
     homeSp: sport === "mlb" ? (game.homeSp || null) : null,

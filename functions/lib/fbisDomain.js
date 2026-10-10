@@ -286,6 +286,10 @@ export function toDomainPlayerMarket(row = {}) {
     validationStatus: strOrNull(row.validationStatus),
     lineValidationStatus: strOrNull(row.lineValidationStatus),
 
+    // FBS research-scoping must survive conversion to domain events. No
+    // scope inference from a market or a player name is permitted.
+    fbsMatchup: row.fbsMatchup === true,
+
     // NFL role-calibration evidence must survive the board-domain adapter so
     // display policy can distinguish QB1/RB1/WR1/WR2/TE1 and apply the
     // historical PrizePicks star gates.
