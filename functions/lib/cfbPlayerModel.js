@@ -585,6 +585,8 @@ export function flattenCfbPlayerProjectionRows(projection = {}) {
         && identity?.state !== "RB_UNCERTAIN"
         && identity?.state !== "QB_UNCERTAIN"
         && Number(identity?.selection?.sample_size || 0) >= 2
+        && history?.playerId != null
+        && String(history.playerId) === String(identity.player_id)
         && Number(history?.sample_size || 0) >= 2
         && Number.isFinite(Date.parse(history?.sourceAsOf || ""))
         && Date.parse(history.sourceAsOf) < cutoff
