@@ -10,6 +10,7 @@
 
 import { americanToImplied, expectedRoi, twoWayMarket } from "./pricing.js";
 import { NHL_WAGER_CONFIDENCE_V1 } from "../../data/models/nhl-wager-confidence-v1.js";
+import { auditNhlMoneylineProbability } from "./nhlUnifiedMoneylineShadow.js";
 
 export const NHL_WAGER_V1_ID = "NHL-WAGER-v1";
 export const NHL_WAGER_V1_VERSION = "research-v1.0-game-level-ev";
@@ -67,6 +68,30 @@ function oddsPack(game={}){
   return {homeMl,awayMl,homeSpread,homeSpreadPrice,awaySpreadPrice,total,overPrice,underPrice};
 }
 
+/**
+ * Exact matched home/away pre-start quotes plus explicit OT/SO market scope.
+ * Database period 'fg' alone does not verify the sportsbook's settlement rule.
+ */
+export function verifyNhlFullGameMoneylineQuote(game={},odds={}){
+  const start=Date.parse(game.start||"");
+  const lines=game.marketLineHistory||[];
+  const scope=String(game.odds?.moneylineMarketScope||game.marketRules?.moneyline||"").toUpperCase();
+  if(scope!=="FULL_GAME_INCLUDING_OT_SHOOTOUT"||!Number.isFinite(start))
+    return {ok:false,reason:"MONEYLINE_SETTLEMENT_SCOPE_UNVERIFIED"};
+  const valid=lines.filter(r=>{
+    const t=Date.parse(r.collectedAt||"");
+    return r.source==="ODDS_SNAPSHOT" && String(r.sportsbook||"").trim() &&
+      Number.isFinite(t)&&t<start && t<=Date.now() &&
+      ["ml","moneyline","h2h"].includes(String(r.market||"").toLowerCase());
+  });
+  const h=valid.find(r=>String(r.selection).toLowerCase()==="home"&&Number(r.americanPrice)===odds.homeMl &&
+    valid.some(a=>String(a.selection).toLowerCase()==="away" &&
+      String(a.sportsbook)===String(r.sportsbook) &&
+      String(a.collectedAt)===String(r.collectedAt) &&
+      Number(a.americanPrice)===odds.awayMl));
+  return h?{ok:true,reason:null,book:h.sportsbook,observedAt:h.collectedAt,marketScope:scope}:
+    {ok:false,reason:"MATCHED_EXECUTION_QUOTE_UNVERIFIED"};
+}
 function marketFamily(v){
   const s=String(v||"").toLowerCase();
   if(s.includes("spread")||s==="rl"||s==="puck_line")return"spread";
@@ -214,7 +239,7 @@ function provisionalConfidence({ev,probEdge,reliability,trajectory,marketComplet
   return Math.round(clamp(score,0,100));
 }
 
-function offerRow({market,selection,line,price,oppositePrice,modelProbability,game,fbisSide,calibration}){
+function offerRow({market,selection,line,price,oppositePrice,modelProbability,game,fbisSide,calibration,integrity=null,quote=null,marketScopeVerified=false,probabilityCalibrationVerified=false,goalieEvidenceVerified=false}){
   const tw=twoWayMarket(price,oppositePrice);
   const noVig=tw.complete?tw.noVigA:null;
   const breakEven=americanToImplied(price);
@@ -236,13 +261,23 @@ function offerRow({market,selection,line,price,oppositePrice,modelProbability,ga
   if(ev!=null&&ev<=0)reasons.push("non-positive-ev");
   if(!calibrationState.ok)reasons.push(calibrationState.reason);
   if(reliability.score<.58)reasons.push("matchup-reliability-low");
+  if(!integrity?.ok)reasons.push("moneyline-projection-lineage-unverified");
+  if(!quote?.ok)reasons.push(quote?.reason||"execution-quote-unverified");
+  if(!marketScopeVerified)reasons.push("settlement-market-scope-unverified");
+  if(!probabilityCalibrationVerified)reasons.push("moneyline-probability-calibration-unverified");
+  if(!goalieEvidenceVerified)reasons.push("goalie-starter-uncertainty-unverified");
   const minEv=Number(calibration?.minEv??.03),minEdge=Number(calibration?.minProbabilityEdge??.02),minConf=Number(calibration?.minConfidence??70);
   const researchCandidate=Boolean(ev!=null&&edge!=null&&ev>=minEv&&edge>=minEdge&&reliability.score>=.58&&tw.complete);
-  const qualificationEligible=researchCandidate;
+  const qualificationEligible=Boolean(researchCandidate && integrity?.ok && quote?.ok &&
+    marketScopeVerified && probabilityCalibrationVerified && goalieEvidenceVerified && calibrationState.ok);
   const bet=qualificationEligible;
   return {
     market,selection,line:finite(line),americanPrice:finite(price),
     modelProbability:round(modelProbability),calibratedProbability:round(adjusted),
+    probabilityStatus:"RESEARCH_PROVISIONAL_SHRINK_NOT_VALIDATED",
+    quoteProvenance:quote?.ok?quote:null,
+    settlementScopeVerified:Boolean(marketScopeVerified),
+    sourceIntegrityVerified:Boolean(integrity?.ok),
     breakEvenProbability:round(breakEven),marketNoVigProbability:round(noVig),
     probabilityEdge:round(edge),expectedValue:round(ev),expectedRoi:round(ev),
     reliability,trajectory,
@@ -266,24 +301,32 @@ export function evaluateNhlGameWagers(game={},calibration=NHL_WAGER_CONFIDENCE_V
   if(ph==null||pa==null)return {ok:false,reason:"independent_projection_missing",offers:[],canQualify:false,canAuthorizeWager:false};
   const o=oddsPack(game),dist=nhlMarketDistribution(ph,pa,{totalLine:o.total,homeSpread:o.homeSpread});
   const home=String(game.home?.abbr||p.home||"HOME"),away=String(game.away?.abbr||p.away||"AWAY");
+  const integrity=auditNhlMoneylineProbability(game);
+  const quote=verifyNhlFullGameMoneylineQuote(game,o);
+  const goalie=p?.layers?.goalie||{};
+  const goalieEvidenceVerified=["home","away"].every(side=>
+    ["PIT_CONFIRMED_STARTER","PIT_PROJECTED_STARTER"].includes(goalie?.[side]?.selectionState));
+  const probabilityCalibrationVerified=Boolean(p?.moneylineCalibration?.validated===true &&
+    p?.moneylineCalibration?.marketScope==="FULL_GAME_INCLUDING_OT_SHOOTOUT");
   const offers=[];
   if(o.homeMl!=null&&o.awayMl!=null){
-    offers.push(offerRow({market:"moneyline",selection:"home",price:o.homeMl,oppositePrice:o.awayMl,modelProbability:finite(p?.probability?.homeWinIncludingOt)??dist.homeWinIncludingOt,game,fbisSide:"HOME",calibration}));
-    offers.push(offerRow({market:"moneyline",selection:"away",price:o.awayMl,oppositePrice:o.homeMl,modelProbability:finite(p?.probability?.awayWinIncludingOt)??dist.awayWinIncludingOt,game,fbisSide:"AWAY",calibration}));
+    offers.push(offerRow({market:"moneyline",selection:"home",price:o.homeMl,oppositePrice:o.awayMl,modelProbability:integrity.ok?finite(p?.probability?.homeWinIncludingOt):null,game,fbisSide:"HOME",calibration,integrity,quote,marketScopeVerified:quote.ok,probabilityCalibrationVerified,goalieEvidenceVerified}));
+    offers.push(offerRow({market:"moneyline",selection:"away",price:o.awayMl,oppositePrice:o.homeMl,modelProbability:integrity.ok?finite(p?.probability?.awayWinIncludingOt):null,game,fbisSide:"AWAY",calibration,integrity,quote,marketScopeVerified:quote.ok,probabilityCalibrationVerified,goalieEvidenceVerified}));
   }
   if(o.homeSpread!=null&&o.homeSpreadPrice!=null&&o.awaySpreadPrice!=null){
-    offers.push(offerRow({market:"spread",selection:"home",line:o.homeSpread,price:o.homeSpreadPrice,oppositePrice:o.awaySpreadPrice,modelProbability:dist.homeCover,game,fbisSide:"HOME",calibration}));
-    offers.push(offerRow({market:"spread",selection:"away",line:-o.homeSpread,price:o.awaySpreadPrice,oppositePrice:o.homeSpreadPrice,modelProbability:dist.awayCover,game,fbisSide:"AWAY",calibration}));
+    offers.push(offerRow({market:"spread",selection:"home",line:o.homeSpread,price:o.homeSpreadPrice,oppositePrice:o.awaySpreadPrice,modelProbability:dist.homeCover,game,fbisSide:"HOME",calibration,integrity,quote:{ok:false,reason:"FULL_GAME_OT_SETTLEMENT_NOT_MODELED"},marketScopeVerified:false,probabilityCalibrationVerified:false,goalieEvidenceVerified}));
+    offers.push(offerRow({market:"spread",selection:"away",line:-o.homeSpread,price:o.awaySpreadPrice,oppositePrice:o.homeSpreadPrice,modelProbability:dist.awayCover,game,fbisSide:"AWAY",calibration,integrity,quote:{ok:false,reason:"FULL_GAME_OT_SETTLEMENT_NOT_MODELED"},marketScopeVerified:false,probabilityCalibrationVerified:false,goalieEvidenceVerified}));
   }
   if(o.total!=null&&o.overPrice!=null&&o.underPrice!=null){
-    offers.push(offerRow({market:"total",selection:"over",line:o.total,price:o.overPrice,oppositePrice:o.underPrice,modelProbability:dist.over,game,fbisSide:"OVER",calibration}));
-    offers.push(offerRow({market:"total",selection:"under",line:o.total,price:o.underPrice,oppositePrice:o.overPrice,modelProbability:dist.under,game,fbisSide:"UNDER",calibration}));
+    offers.push(offerRow({market:"total",selection:"over",line:o.total,price:o.overPrice,oppositePrice:o.underPrice,modelProbability:dist.over,game,fbisSide:"OVER",calibration,integrity,quote:{ok:false,reason:"FULL_GAME_OT_SETTLEMENT_NOT_MODELED"},marketScopeVerified:false,probabilityCalibrationVerified:false,goalieEvidenceVerified}));
+    offers.push(offerRow({market:"total",selection:"under",line:o.total,price:o.underPrice,oppositePrice:o.overPrice,modelProbability:dist.under,game,fbisSide:"UNDER",calibration,integrity,quote:{ok:false,reason:"FULL_GAME_OT_SETTLEMENT_NOT_MODELED"},marketScopeVerified:false,probabilityCalibrationVerified:false,goalieEvidenceVerified}));
   }
   offers.sort((a,b)=>(b.expectedValue??-99)-(a.expectedValue??-99));
   return {
     ok:true,modelId:NHL_WAGER_V1_ID,version:NHL_WAGER_V1_VERSION,home,away,
     independentProjection:{projHome:ph,projAway:pa,margin:round(ph-pa),total:round(ph+pa),marketFree:true},
     disagreement:decomposeNhlProjectionDisagreement(game),
+    moneylineIntegrity:integrity,fullGameMoneylineQuote:quote,
     offers,bestOffer:offers[0]||null,
     researchCandidates:offers.filter(x=>x.researchCandidate),
     researchBets:offers.filter(x=>x.decision==="BET"),
