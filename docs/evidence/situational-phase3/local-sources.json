@@ -1,0 +1,45 @@
+{
+  "fixtures": [
+    {
+      "path": "test/fixtures/action-apify/completed-mlb.json",
+      "bytes": 1850,
+      "sha256": "5ac9b6efd606ab39b9e6452880773212fc930407e3241971bbb1003b5a6283d6",
+      "topLevelType": "dict",
+      "classification": "SYNTHETIC_TEST_FIXTURE_NOT_HISTORICAL_PROOF"
+    },
+    {
+      "path": "test/fixtures/action-apify/mlb-first-five.json",
+      "bytes": 1453,
+      "sha256": "7225ae7b1b5e84c0a6d45835f6770d3e55c66ee5bdaabebb158e432862252f87",
+      "topLevelType": "dict",
+      "classification": "SYNTHETIC_TEST_FIXTURE_NOT_HISTORICAL_PROOF"
+    },
+    {
+      "path": "test/fixtures/action-apify/scheduled-ncaaf.json",
+      "bytes": 4465,
+      "sha256": "86a0507bcc3c304b7f2e4e991fe95c8d2579d52e8ce76e36494c16bb16989347",
+      "topLevelType": "dict",
+      "classification": "SYNTHETIC_TEST_FIXTURE_NOT_HISTORICAL_PROOF"
+    }
+  ],
+  "attachmentZip": {
+    "files": 237,
+    "relevantNames": [
+      "FBIS/out/ncaa_odds_2026-02-20.json",
+      "FBIS/home_loose/fbis_spreads_2026-02-16.csv",
+      "FBIS/home_loose/test_odds_api_lines.py",
+      "FBIS/home_loose/test_tank01_odds.py",
+      "FBIS/home_loose/Untitled spreadsheet - Sheet1.csv",
+      "FBIS/home_loose/Untitled spreadsheet - Sheet2.csv",
+      "FBIS/home_loose/Untitled spreadsheet.xlsx",
+      "FBIS/GitHub_fbis/scripts/test_football_markets.py",
+      "FBIS/GitHub_fbis/scripts/test_odds_math.py",
+      "FBIS/GitHub_fbis/scripts/warm_odds_cache.py",
+      "FBIS/GitHub_fbis/app/football_markets.py",
+      "FBIS/GitHub_fbis/app/market_rank.py",
+      "FBIS/GitHub_fbis/app/odds.py",
+      "FBIS/Documents_FBIS/odds_cache.rds"
+    ],
+    "classification": "USER_ARCHIVE_NOT_CONTEMPORANEOUS_MARKET_PROOF"
+  }
+}
