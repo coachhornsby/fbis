@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"checkedAt\": \"2026-10-10T03:52:59.393Z\",\n  \"attempts\": [\n    {\n      \"key\": \"raw/action/2026/10/04/daily_20261004_b4f12d11bf.json\",\n      \"available\": false,\n      \"error\": \"Error: Cloudflare API error: 200\"\n    },\n    {\n      \"key\": \"raw/action/2026/10/05/daily_20261005_f9739a57c4.json\",\n      \"available\": false,\n      \"error\": \"Error: Cloudflare API error: 200\"\n    }\n  ]\n}"
+    }
+  ],
+  "isError": false
+}
