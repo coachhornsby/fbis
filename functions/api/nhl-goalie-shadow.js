@@ -101,6 +101,18 @@ export async function freezeRows(db,board,snapshotAt,codeSha){
     const deploymentAt=maxIso([h.deploymentEvidenceAt,a.deploymentEvidenceAt]);
     const availabilityAt=maxIso([h.availabilityEvidenceAt,a.availabilityEvidenceAt]);
     const integrity=temporalAudit({snapshotAt,gameStart:game.start,goalieAt,deploymentAt,availabilityAt,marketAt:market.observedAt});
+    // Reuse this immutable prospective goalie snapshot for the three-head
+    // research features without a migration or new betting authority.
+    // This does NOT qualify the unified challenger or construct a fitted
+    // probability when no out-of-time calibration artifact exists.
+    const unified=game.nhlUnifiedMoneylineShadow||null;
+    integrity.unifiedMoneylineResearch=unified?.ok&&String(unified.eventId)===String(game.id)
+      ? {modelId:unified.modelId,modelVersion:unified.modelVersion,
+          marketScope:unified.marketScope,components:unified.components,
+          candidate:unified.candidate,projectionLineage:unified.probabilityAudit?.projection||null,
+          canQualify:false,canAuthorizeWager:false}
+      : {status:"UNAVAILABLE_CONTEXT_ONLY",reasons:unified?.reasons||["NO_UNIFIED_PROJECTION"],
+          canQualify:false,canAuthorizeWager:false};
     if(!integrity.modelInputSafe)continue;
     const probabilityDelta=(finite(s.challenger?.homeWinProbability)??0)-(finite(s.incumbent?.homeWinProbability)??0);
     const hsGoalie=hg.goalies.find(g=>String(g.player_id)===String(hg.expectedStarterId));

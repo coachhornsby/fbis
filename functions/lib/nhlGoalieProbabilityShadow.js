@@ -1,4 +1,5 @@
 import { NHL_GOALIE_PROB_SHADOW_CONFIG as CONFIG } from "../../data/models/nhl-goalie-prob-shadow-v1.js";
+import { resolveNhlGoalieStarterEvidence } from "./nhlGoalieStarterEvidence.js";
 
 export const NHL_GOALIE_PROB_SHADOW_ID=CONFIG.modelId;
 export const NHL_GOALIE_PROB_SHADOW_VERSION=CONFIG.version;
@@ -48,6 +49,16 @@ export function projectNhlGoalieProbabilityShadow(game,profiles={}){
   const shadowP=clamp(0.5+0.86*((0.78*raw+0.22*elo)-0.5),0.04,0.96);
   const signal=Math.max(Math.abs(adj.vsHome),Math.abs(adj.vsAway));
   const homeState=persistentState(profiles,home),awayState=persistentState(profiles,away);
+  const starterEvidence={
+    home:resolveNhlGoalieStarterEvidence(profiles,home,{
+      eventId:game?.id,gameStart:p.gameStart||game.start,
+      cutoff:p.featureCutoffTimestamp,projectionGoalieId:p?.layers?.goalie?.home?.goalieId
+    }),
+    away:resolveNhlGoalieStarterEvidence(profiles,away,{
+      eventId:game?.id,gameStart:p.gameStart||game.start,
+      cutoff:p.featureCutoffTimestamp,projectionGoalieId:p?.layers?.goalie?.away?.goalieId
+    })
+  };
   const stateKnown=Boolean(homeState.team&&awayState.team);
   const gateFired=Boolean(CONFIG.historicalGateValidated&&stateKnown&&signal>=0.03);
   return{
@@ -61,7 +72,8 @@ export function projectNhlGoalieProbabilityShadow(game,profiles={}){
       goalieProbabilityScale:scale,scoreProjectionChanged:false
     },
     goalieSignal:{...adj,maxAbsGoalAdjustment:round(signal,5),homeGoalie:p?.layers?.goalie?.home||null,awayGoalie:p?.layers?.goalie?.away||null},
-    persistentState:{home:homeState,away:awayState,featureCutoffTimestamp:new Date().toISOString()},
+    starterEvidence,
+    persistentState:{home:homeState,away:awayState,featureCutoffTimestamp:p.featureCutoffTimestamp||null},
     historicalEvidence:CONFIG.historicalMetrics,
     marketInformed:false,canQualify:false,canAuthorizeWager:false,stakingAuthorized:false,
     note:"Prospective shadow only. NHL-PRO-v2 score projection remains incumbent; only goalie translation inside the shadow win-probability head is shrunk."

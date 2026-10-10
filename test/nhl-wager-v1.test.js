@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   evaluateNhlGameWagers,evaluateNhlPropWagerV1,deriveNhlMarketTrajectory,
-  decomposeNhlProjectionDisagreement,validateNhlConfidenceCalibration
+  decomposeNhlProjectionDisagreement,validateNhlConfidenceCalibration,verifyNhlFullGameMoneylineQuote
 } from "../functions/lib/nhlWagerV1.js";
 
 const goodCalibration={validated:true,minEv:.02,minProbabilityEdge:.01,minConfidence:60,bins:[
@@ -33,20 +33,24 @@ test("NHL confidence calibration is fail-closed and monotonic",()=>{
   ]}).ok,false);
   assert.equal(validateNhlConfidenceCalibration(goodCalibration).ok,true);
 });
-test("positive raw EV can qualify before confidence validation while staking stays disabled",()=>{
+test("positive provisional EV remains research-only without verified quote, scope and probability calibration",()=>{
   const out=evaluateNhlGameWagers(game());
   assert.equal(out.ok,true);
   assert.equal(out.offers.length,6);
-  assert.equal(out.decision,"BET");
-  assert.ok(out.offers.some(x=>x.researchCandidate));
-  assert.ok(out.offers.some(x=>x.canQualify===true));
-  assert.equal(out.canQualify,true);
+  assert.equal(out.decision,"PASS");
+  assert.ok(out.offers.every(x=>!x.researchCandidate));
+  assert.ok(out.offers.every(x=>x.canQualify===false));
+  assert.equal(out.canQualify,false);
+  assert.ok(out.offers.filter(x=>x.market==="moneyline").every(x=>x.modelProbability===null));
+  assert.ok(out.offers.every(x=>x.probabilityStatus==="DIAGNOSTIC_NOT_EXECUTION_PRICED"));
+  assert.ok(out.offers.every(x=>x.expectedRoi==null && x.calibratedProbability==null));
   assert.equal(out.canAuthorizeWager,false);
   assert.ok(out.offers.every(x=>x.stakingValidated===false));
 });
-test("validated confidence can authorize decision label but never staking yet",()=>{
+test("validated confidence alone does not qualify execution decisions",()=>{
   const out=evaluateNhlGameWagers(game(),goodCalibration);
-  assert.ok(out.offers.some(x=>x.decision==="BET"));
+  assert.ok(out.offers.every(x=>x.decision==="PASS"));
+  assert.equal(out.canQualify,false);
   assert.ok(out.offers.filter(x=>x.decision==="BET").every(x=>x.stakingValidated===false&&x.stakeUnits==null));
 });
 test("market trajectory and disagreement never mutate projection",()=>{
@@ -70,4 +74,112 @@ test("NHL validated props can qualify before confidence staking calibration",()=
   const calibrated=evaluateNhlPropWagerV1(row,goodCalibration);
   assert.equal(calibrated.confidenceValidated,true);
   assert.equal(calibrated.stakingValidated,false);
+});
+
+test("unverified regulation distribution cannot silently substitute for full-game moneyline",()=>{
+  const g=game();
+  delete g.nhlProV2.probability;
+  const out=evaluateNhlGameWagers(g,goodCalibration);
+  assert.equal(out.ok,true);
+  assert.equal(out.offers.filter(x=>x.market==="moneyline").length,2);
+  assert.ok(out.offers.filter(x=>x.market==="moneyline").every(x=>x.modelProbability==null&&x.expectedValue==null));
+  assert.equal(out.canQualify,false);
+});
+test("inconsistent complement and reversed teams block moneyline research EV",()=>{
+  const g=game();
+  g.nhlProV2.probability.awayWinIncludingOt=.8;
+  const out=evaluateNhlGameWagers(g,goodCalibration);
+  assert.equal(out.moneylineIntegrity.ok,false);
+  assert.ok(out.offers.filter(x=>x.market==="moneyline").every(x=>x.expectedValue==null));
+  const r=game();
+  r.nhlProV2.home="NYR";
+  assert.ok(evaluateNhlGameWagers(r).moneylineIntegrity.reasons.includes("HOME_AWAY_IDENTITY_MISMATCH"));
+});
+test("only fresh explicitly executable full-game quotes from the same book and time can qualify",()=>{
+  const g=game(),date="2026-10-09T20:00:00Z",now=Date.parse("2026-10-09T20:01:00Z");
+  g.odds.moneylineMarketScope="FULL_GAME_INCLUDING_OT_SHOOTOUT";
+  const quote={market:"ml",collectedAt:date,sportsbook:"book-a",source:"ODDS_SNAPSHOT",
+    marketScope:"FULL_GAME_INCLUDING_OT_SHOOTOUT",executionVerified:true,availableForExecution:true};
+  g.marketLineHistory=[
+    {...quote,selection:"home",americanPrice:-120},
+    {...quote,selection:"away",americanPrice:110}
+  ];
+  const q=verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110},now);
+  assert.equal(q.ok,true);
+  assert.equal(q.book,"book-a");
+  g.marketLineHistory[1].sportsbook="book-b";
+  assert.equal(verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110},now).ok,false);
+  g.marketLineHistory[1].sportsbook="book-a";
+  g.marketLineHistory[1].executionVerified=false;
+  assert.equal(verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110},now).ok,false);
+  g.marketLineHistory[1].executionVerified=true;
+  g.marketLineHistory[1].collectedAt="2026-10-09T21:00:00Z";
+  assert.equal(verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110},now).ok,false);
+  g.marketLineHistory[1].collectedAt=date;
+  assert.equal(verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110},now+360000).ok,false);
+});
+test("OT-unsafe spread and totals are never qualified with regulation distribution",()=>{
+  const out=evaluateNhlGameWagers(game(),goodCalibration);
+  const nonMl=out.offers.filter(x=>x.market==="spread"||x.market==="total");
+  assert.equal(nonMl.length,4);
+  assert.ok(nonMl.every(x=>!x.canQualify&&x.reasons.includes("settlement-market-scope-unverified")));
+  assert.ok(nonMl.every(x=>x.expectedRoi==null&&x.expectedValue==null&&!x.researchCandidate&&x.calibratedProbability==null));
+});
+
+function fullyVerifiedResearchGame(){
+  const g=game(),now=Date.now();
+  const instant=new Date(now-10000).toISOString();
+  const cutoff=new Date(now-60000).toISOString();
+  g.start=new Date(now+3600000).toISOString();
+  g.qualificationBlocked=true;
+  // An untrusted caller flag must NEVER grant authority.
+  g.bettingAuthority="AUTHORIZED";
+  g.nhlMoneylineOperatorAuthorization={approved:true};
+  g.nhlProV2.modelId="NHL-PRO-v2";
+  g.nhlProV2.modelVersion="research-v2.0-event-chain-gbdt";
+  g.nhlProV2.eventId=g.id;
+  g.nhlProV2.featureCutoffTimestamp=cutoff;
+  g.nhlProV2.marketInformed=false;
+  g.nhlProV2.dataLineage={asOf:cutoff,marketInputsUsedForProjection:false};
+  g.nhlProV2.probability={
+    homeRegWin:.53,awayRegWin:.29,regulationTie:.18,
+    rawHomeWinIncludingOt:.65,eloHead:.5,
+    homeWinIncludingOt:.64,awayWinIncludingOt:.36
+  };
+  for(const side of ["home","away"])
+    g.nhlProV2.layers.goalie[side].selectionState="PIT_CONFIRMED_STARTER";
+  g.nhlProV2.moneylineCalibration={
+    validated:true,marketScope:"FULL_GAME_INCLUDING_OT_SHOOTOUT"
+  };
+  g.odds.pinHomeMl=140;
+  g.odds.pinAwayMl=-155;
+  g.odds.moneylineMarketScope="FULL_GAME_INCLUDING_OT_SHOOTOUT";
+  const quote={
+    market:"ml",collectedAt:instant,sportsbook:"book-a",source:"ODDS_SNAPSHOT",
+    marketScope:"FULL_GAME_INCLUDING_OT_SHOOTOUT",
+    executionVerified:true,availableForExecution:true
+  };
+  g.marketLineHistory=[
+    {...quote,selection:"home",americanPrice:140},
+    {...quote,selection:"away",americanPrice:-155}
+  ];
+  return g;
+}
+test("even perfectly verified model/quote and caller approval cannot bypass NHL SHADOW gate",()=>{
+  const g=fullyVerifiedResearchGame();
+  const out=evaluateNhlGameWagers(g,goodCalibration);
+  assert.equal(out.moneylineIntegrity.ok,true);
+  assert.equal(out.fullGameMoneylineQuote.ok,true);
+  assert.equal(out.canQualify,false);
+  assert.equal(out.canAuthorizeWager,false);
+  assert.equal(out.decision,"PASS");
+  assert.deepEqual(out.researchBets,[]);
+  const ml=out.offers.filter(x=>x.market==="moneyline");
+  assert.equal(ml.length,2);
+  assert.ok(ml.some(x=>x.researchCandidate===true));
+  assert.ok(ml.every(x=>x.canQualify===false&&x.decision==="PASS"&&x.decisionStatus==="RESEARCH_ONLY_SHADOW"));
+  assert.ok(ml.every(x=>x.reasons.includes("nhl-game-wager-operator-promotion-not-authorized")));
+  assert.ok(ml.every(x=>x.reasons.includes("research-projection-qualification-blocked")));
+  const invalid=out.offers.filter(x=>x.market==="spread"||x.market==="total");
+  assert.ok(invalid.every(x=>x.expectedValue==null&&!x.researchCandidate&&x.calibratedProbability==null));
 });

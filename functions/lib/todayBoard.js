@@ -180,12 +180,13 @@ export function toBoardGame(game, sport, now = Date.now()) {
     pureProjectionAvailable: game.pureProjectionAvailable ?? null,
     canQualify:
       game.qualificationBlocked !== true &&
-      (game.canQualify === true ||
-       game.model?.canQualify === true ||
-       game.nflProShadow?.canQualify === true ||
-       game.nhlProV2?.canQualify === true ||
-       game.mlbDeepShadow?.canQualify === true ||
-       game.canQualify !== false),
+      (sport === "nhl"
+        ? Boolean(game.nhlWagerV1?.canQualify)
+        : (game.canQualify === true ||
+           game.model?.canQualify === true ||
+           game.nflProShadow?.canQualify === true ||
+           game.mlbDeepShadow?.canQualify === true ||
+           game.canQualify !== false)),
     projectionRecipe: game.model?.recipe || null,
     cbbPro: game.cbbPro || null,
     cfbDetail: game.cfb ? {
@@ -199,7 +200,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
       : game.sport === "nfl"
         ? Boolean(game.nflWagerDecision?.canQualify || game.nflProShadow?.canQualify)
         : game.sport === "nhl"
-          ? Boolean(game.nhlWagerV1?.canQualify || game.nhlProV2?.canQualify)
+          ? Boolean(!game.qualificationBlocked && game.nhlWagerV1?.canQualify)
           : game.sport === "mlb"
             ? Boolean(game.mlbDeepShadow?.canQualify)
             : null,
@@ -260,6 +261,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     nflWagerDecision: sport === "nfl" && game.nflWagerDecision ? game.nflWagerDecision : null,
     nhlProV2: sport === "nhl" && game.nhlProV2 ? game.nhlProV2 : null,
     nhlGoalieProbabilityShadow: sport === "nhl" && game.nhlGoalieProbabilityShadow ? game.nhlGoalieProbabilityShadow : null,
+    nhlUnifiedMoneylineShadow: sport === "nhl" && game.nhlUnifiedMoneylineShadow ? game.nhlUnifiedMoneylineShadow : null,
     tennisProjection: sport === "tennis" ? (game.tennisProjection || null) : null,
     tour: sport === "tennis" ? (game.tour || game.tennisProjection?.tour || null) : null,
     palMatched: Boolean(game.bpp),

@@ -10,6 +10,8 @@
  */
 
 import { querySnapshots } from "./store.js";
+import { nhlMoneylineSnapshotEvidence } from "./nhlMoneylineSnapshotEvidence.js";
+export { nhlMoneylineSnapshotEvidence } from "./nhlMoneylineSnapshotEvidence.js";
 import {
   evaluateModelRows,
   buildLearningFindings,
@@ -137,7 +139,8 @@ export function selectCanonicalLearningSnapshots(rows = []) {
 }
 
 export function toModelLabRow(row = {}) {
-  const pHome = finite(row.pHomeFinal ?? row.pHome);
+  const audit=nhlMoneylineSnapshotEvidence(row);
+  const pHome = audit.ok?finite(row.pHomeFinal ?? row.pHome):null;
   return {
     ...row,
     model_id: row.learningModelId || snapshotModelId(row),
@@ -150,6 +153,8 @@ export function toModelLabRow(row = {}) {
     actual_home: finite(row.actualHome),
     actual_away: finite(row.actualAway),
     p_home_win: pHome,
+    probability_evidence_status:audit.ok?"VERIFIED":"LEGACY_EXCLUDED",
+    probability_evidence_reason:audit.reason,
   };
 }
 

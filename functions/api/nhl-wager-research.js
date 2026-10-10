@@ -19,12 +19,16 @@ function checkpoint(start,snapshotAt){
   const a=Date.parse(start||""),b=Date.parse(snapshotAt||"");if(!Number.isFinite(a)||!Number.isFinite(b))return"CURRENT";
   const h=(a-b)/3600000;if(h>24)return"OPEN";if(h>4)return"CURRENT";if(h>1.5)return"DECISION";if(h>=0)return"FINAL_PREGAME";return"CLOSE";
 }
-function gameRows(board,snapshotAt){
+export function nhlWagerGameRows(board,snapshotAt){
   const rows=[];
   for(const game of board.games||[]){
     if(game.sport!=="nhl"||!game.nhlWagerV1?.ok)continue;
     for(const o of game.nhlWagerV1.offers||[]){
-      if(o.americanPrice==null||o.calibratedProbability==null)continue;
+      // Persist only evidence-backed full-game economic research. Keep raw
+      // regulation distributions, stale/non-executable quotes and uncalibrated
+      // model probabilities in the independent diagnostics, not the wager log.
+      if(o.market!=="moneyline"||o.marketProbabilityUsePermitted!==true||
+        o.americanPrice==null||o.calibratedProbability==null)continue;
       rows.push({
         eventId:String(game.id),eventStart:game.start||null,gameType:finite(game?.nhlProV2?.layers?.opportunity?.gameType??game?.gameType),wagerScope:"GAME",
         playerId:null,playerName:null,team:null,market:o.market,selection:o.selection,
@@ -32,11 +36,17 @@ function gameRows(board,snapshotAt){
         calibratedProbability:o.calibratedProbability,breakEvenProbability:o.breakEvenProbability,
         marketNoVigProbability:o.marketNoVigProbability,probabilityEdge:o.probabilityEdge,
         expectedRoi:o.expectedRoi,reliability:o.reliability?.score,confidence:o.confidence,
-        confidenceVersion:o.confidenceVersion,confidenceStatus:o.confidenceStatus,decision:o.decision,
+        confidenceVersion:o.confidenceVersion,confidenceStatus:o.confidenceStatus,decision:"PASS",
         suggestedUnits:o.suggestedUnits||0,modelId:game.nhlWagerV1.modelId,modelVersion:game.nhlWagerV1.version,
         projection:game.nhlWagerV1.independentProjection,disagreement:game.nhlWagerV1.disagreement,
-        trajectory:o.trajectory,sourceSnapshotType:checkpoint(game.start,snapshotAt),researchCandidate:Boolean(o.researchCandidate),
-        canQualify:Boolean(o.canQualify),canAuthorizeWager:false
+        trajectory:{...o.trajectory,quoteProvenance:o.quoteProvenance,
+          sourceIntegrityVerified:o.sourceIntegrityVerified,
+          settlementScopeVerified:o.settlementScopeVerified,
+          probabilityStatus:o.probabilityStatus},
+        sourceSnapshotType:checkpoint(game.start,snapshotAt),
+        researchCandidate:Boolean(o.researchCandidate),
+        // Research archive can never inherit a caller's BET or approval flag.
+        canQualify:false,canAuthorizeWager:false
       });
     }
   }
@@ -195,7 +205,7 @@ export async function onRequestPost(context){
     const s=await settle(db,resolved.date,board);return json({ok:true,mode,date:resolved.date,...s,...await summary(db)});
   }
   if(mode!=="capture")return json({ok:false,error:"invalid_mode"},400);
-  const snapshotAt=new Date().toISOString(),rows=[...gameRows(board,snapshotAt),...propRows(board,snapshotAt)];
+  const snapshotAt=new Date().toISOString(),rows=[...nhlWagerGameRows(board,snapshotAt),...propRows(board,snapshotAt)];
   const written=await persistRows(db,rows,snapshotAt);
   return json({ok:true,mode,date:resolved.date,snapshotAt,rows:rows.length,written,
     researchCandidates:rows.filter(r=>r.researchCandidate).length,qualified:rows.filter(r=>r.canQualify).length,researchBets:rows.filter(r=>r.decision==="BET").length,gameRows:rows.filter(r=>r.wagerScope==="GAME").length,
