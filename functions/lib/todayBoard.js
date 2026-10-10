@@ -852,6 +852,7 @@ export async function buildTodayBoard(
         ...env,
         parlayCacheOnly: true,
         palCacheOnly: true,
+        ...(sport === "cfb" ? { cfbdCacheOnly: true, cfbdScheduleFallback: false } : {}),
       });
       let bySnapshot = new Map();
       let byMarketOdds = new Map();

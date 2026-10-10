@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   weatherRunFactor,
@@ -13,7 +13,20 @@ import { projectMatchup } from "../functions/lib/savant.js";
 import { projectNflFormV0 } from "../functions/lib/nflModel.js";
 import { enrichGamesVenues } from "../functions/lib/venues.js";
 import { enrichGameTeams } from "../functions/lib/teams.js";
-import { resetCacheMem } from "../functions/lib/cache.js";
+import { resetCacheMem, writeCache } from "../functions/lib/cache.js";
+
+// Offline provider fixtures preserve the existing weather assertions.
+let originalFetch;
+beforeEach(() => {
+  originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input));
+    if (url.hostname === "geocoding-api.open-meteo.com") return Response.json({ results: [{ name: url.searchParams.get("name"), latitude: 47.6, longitude: -122.3, country_code: "US" }] });
+    if (url.hostname === "api.open-meteo.com") return Response.json({ hourly: { time: ["2026-09-10T00:00:00Z"], temperature_2m: [55], precipitation_probability: [60], wind_speed_10m: [18], weather_code: [3] } });
+    throw new Error(`Unexpected test acquisition: ${url.hostname}`);
+  };
+});
+afterEach(() => { globalThis.fetch = originalFetch; });
 
 describe("Open-Meteo weather helpers", () => {
   it("maps hot/windy/rain into a bounded run factor", () => {
@@ -256,6 +269,11 @@ describe("Kalshi direct sentiment", () => {
 
   it("matches open MLB markets onto a slate game without a Parlay key", async () => {
     resetCacheMem();
+    // Deterministic existing cache contract; never acquire provider data in CI.
+    await writeCache("v1:kalshi-direct:KXMLBGAME", { markets: [
+      { event_ticker: "fixture-sf-sd", yes_sub_title: "San Francisco Giants", last_price_dollars: 0.55 },
+      { event_ticker: "fixture-sf-sd", yes_sub_title: "San Diego Padres", last_price_dollars: 0.45 },
+    ] }, null, 15 * 60 * 1000);
     const { games, meta } = await attachKalshiSentiment(
       [
         {
@@ -271,6 +289,7 @@ describe("Kalshi direct sentiment", () => {
     );
     assert.equal(meta.enabled, true);
     assert.equal(meta.provider, "kalshi-direct");
+    assert.equal(meta.matched, 1);
     if (meta.matched > 0) {
       assert.ok(games[0].sentiment?.home != null || games[0].sentiment?.away != null);
       assert.equal(games[0].sentiment.source, "Kalshi");

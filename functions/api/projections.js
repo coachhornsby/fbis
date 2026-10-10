@@ -1,6 +1,6 @@
 import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
 import { productProjectionBoard } from "../lib/productProjection.js";
-import { buildTennisResearchSlate } from "../lib/todayBoard.js";
+import { buildTennisResearchSlate, boardDateCtForStart } from "../lib/todayBoard.js";
 import { authorizeProductTier, productResponsePolicy } from "../lib/productAccess.js";
 
 const SPORTS = new Set(["mlb", "npb", "kbo", "cfb", "cbb", "nfl", "nba", "wnba", "nhl", "soccer", "tennis"]);
@@ -35,12 +35,16 @@ export async function onRequestGet(context) {
     parlayCacheOnly: true,
     palCacheOnly: true,
     cfbdScheduleFallback: false,
+    cfbdCacheOnly: sport === "cfb",
   };
   try {
     const slate = sport === "tennis"
       ? await buildTennisResearchSlate(resolved.date, env)
       : await buildSlate(sport, resolved.date, env);
-    return json(productProjectionBoard(slate, { tier: access.tier }), 200, { tier: access.tier });
+    const selected = sport === "cfb"
+      ? { ...slate, games: (slate.games || []).filter((game) => boardDateCtForStart(game.start) === resolved.date) }
+      : slate;
+    return json(productProjectionBoard(selected, { tier: access.tier }), 200, { tier: access.tier });
   } catch (err) {
     return json({ ok: false, error: "projection-board-unavailable", detail: String(err?.message || err) }, 502, { tier: access.tier, maxAge: 5 });
   }

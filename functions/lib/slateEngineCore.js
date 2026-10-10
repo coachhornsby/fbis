@@ -1729,6 +1729,7 @@ export async function buildSlate(sport, date, env = {}) {
         }
       }
       if (!games.length) {
+        if (id === "cfb" && env.cfbdCacheOnly) throw err;
         if (id === "cfb" && env.CFBD_API_KEY && env.cfbdScheduleFallback !== false) {
           games = await fetchCfbdGamesForDate(day, env.CFBD_API_KEY);
           scheduleResolved = true;
@@ -1752,12 +1753,13 @@ export async function buildSlate(sport, date, env = {}) {
   const parlay = await fetchParlayOdds(id, env.PARLAY_API_KEY, env.caches, {
     date: day,
     cacheOnly: Boolean(env.parlayCacheOnly) || noGameScheduleResolved,
+    strictCacheOnly: id === "cfb" && Boolean(env.cfbdCacheOnly),
     backupApiKey: env.THEODDS_API_KEY,
     sharpApiKey: env.SHARPAPI_API_KEY,
     theRundownApiKey: env.THERUNDOWN_API_KEY,
   });
   // Persist board-vs-live odds health (no secrets) for /api/health.
-  if (env?.DB && parlay?.meta) {
+  if (env?.DB && parlay?.meta && !(id === "cfb" && env.cfbdCacheOnly)) {
     const m = parlay.meta;
     const usable = !isUnusableCachedOddsMeta(m) && !m.failClosed && Array.isArray(parlay.events) && parlay.events.length > 0;
     const prefix = `last_odds_${id}_`;

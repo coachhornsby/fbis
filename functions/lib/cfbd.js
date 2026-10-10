@@ -76,6 +76,9 @@ function queryString(query = {}) {
 
 async function cfbdRequest(base, path, env, { query, fetchFn = fetch } = {}) {
   const source = base === CBBD_BASE ? "cbbd" : "cfbd";
+  if (source === "cfbd" && env.cfbdCacheOnly) {
+    return { ok: false, status: 0, reason: "cache-only-miss", data: null, n: 0 };
+  }
   if (!collegeApiKey(env, source)) {
     return { ok: false, status: 0, reason: "no-api-key", data: null, n: 0 };
   }

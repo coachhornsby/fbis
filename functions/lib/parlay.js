@@ -763,6 +763,12 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     // Stale or unusable cache: fall through to live provider pool (fail closed if all fail).
   }
   if (opts.cacheOnly) {
+    if (opts.strictCacheOnly) {
+      return { events: [], meta: {
+        enabled: true, cached: true, skipped: true, cacheOnly: true,
+        source: "cache-only-miss", games: 0, error: "usable-cached-market-unavailable",
+      } };
+    }
     // Cache miss on TODAY sport=all: prefer sharp backup, then soft free books.
     if (opts.backupApiKey) {
       const backup = await fetchTheOddsJson(

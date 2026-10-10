@@ -153,6 +153,10 @@ export async function loadCfbDeepFeatures(env = {}, { fetchFn = fetch, now = Dat
   const cacheKey = `cfb-deep-v2-${season}`;
   const cached = await readCache(cacheKey, env.caches, TTL_MS);
   if (cached?.meta) return cached;
+  if (env.cfbdCacheOnly) return {
+    season, byEspnId: {}, bySchool: {},
+    meta: { configured: true, records: 0, cacheOnly: true, error: "cache-only-miss" },
+  };
 
   const [ppaPrimary, adv, games] = await Promise.all([
     fetchRows(key, "/ppa/teams", { year: season, seasonType: "regular" }, fetchFn),

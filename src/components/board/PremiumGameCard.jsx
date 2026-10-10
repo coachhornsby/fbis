@@ -48,8 +48,8 @@ function tennisPlayerMeta(team, tour) {
 
 function modelEdge(vm) {
   const cmp = vm.comparison || {};
-  const spread = Number(cmp.sideDiff);
-  const total = Number(cmp.totalDiff);
+  const spread = cmp.sideDiff == null ? NaN : Number(cmp.sideDiff);
+  const total = cmp.totalDiff == null ? NaN : Number(cmp.totalDiff);
   if (Number.isFinite(spread) && (!Number.isFinite(total) || Math.abs(spread) >= Math.abs(total))) {
     return {
       value: cmp.fbisSide?.label || signed(spread),
@@ -186,6 +186,9 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <SharpStars value={stars} />
         </div>
       </header>
+      {sportId === "cfb" && proj.available ? (
+        <div className="muted">{game.modelVersion || "CFB-FBIS-v2"} · {game.projectionState || game.cfb?.projectionState || "UNKNOWN"} · NO BETTING AUTHORITY</div>
+      ) : null}
 
       {hasFinalScore ? (
         <section className="pgc-final-score" aria-label="Final score">
