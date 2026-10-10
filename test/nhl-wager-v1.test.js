@@ -94,21 +94,28 @@ test("inconsistent complement and reversed teams block moneyline research EV",()
   r.nhlProV2.home="NYR";
   assert.ok(evaluateNhlGameWagers(r).moneylineIntegrity.reasons.includes("HOME_AWAY_IDENTITY_MISMATCH"));
 });
-test("same-book, same-time, pre-start full-game quotes are required",()=>{
-  const g=game(),date="2026-10-09T20:00:00Z";
+test("only fresh explicitly executable full-game quotes from the same book and time can qualify",()=>{
+  const g=game(),date="2026-10-09T20:00:00Z",now=Date.parse("2026-10-09T20:01:00Z");
   g.odds.moneylineMarketScope="FULL_GAME_INCLUDING_OT_SHOOTOUT";
+  const quote={market:"ml",collectedAt:date,sportsbook:"book-a",source:"ODDS_SNAPSHOT",
+    marketScope:"FULL_GAME_INCLUDING_OT_SHOOTOUT",executionVerified:true,availableForExecution:true};
   g.marketLineHistory=[
-    {market:"ml",selection:"home",americanPrice:-120,collectedAt:date,sportsbook:"book-a",source:"ODDS_SNAPSHOT"},
-    {market:"ml",selection:"away",americanPrice:110,collectedAt:date,sportsbook:"book-a",source:"ODDS_SNAPSHOT"}
+    {...quote,selection:"home",americanPrice:-120},
+    {...quote,selection:"away",americanPrice:110}
   ];
-  const q=verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110});
+  const q=verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110},now);
   assert.equal(q.ok,true);
   assert.equal(q.book,"book-a");
   g.marketLineHistory[1].sportsbook="book-b";
-  assert.equal(verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110}).ok,false);
+  assert.equal(verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110},now).ok,false);
   g.marketLineHistory[1].sportsbook="book-a";
+  g.marketLineHistory[1].executionVerified=false;
+  assert.equal(verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110},now).ok,false);
+  g.marketLineHistory[1].executionVerified=true;
   g.marketLineHistory[1].collectedAt="2026-10-09T21:00:00Z";
-  assert.equal(verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110}).ok,false);
+  assert.equal(verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110},now).ok,false);
+  g.marketLineHistory[1].collectedAt=date;
+  assert.equal(verifyNhlFullGameMoneylineQuote(g,{homeMl:-120,awayMl:110},now+360000).ok,false);
 });
 test("OT-unsafe spread and totals are never qualified with regulation distribution",()=>{
   const out=evaluateNhlGameWagers(game(),goodCalibration);
