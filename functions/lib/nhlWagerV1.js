@@ -72,7 +72,7 @@ function oddsPack(game={}){
  * Exact matched home/away pre-start quotes plus explicit OT/SO market scope.
  * Database period 'fg' alone does not verify the sportsbook's settlement rule.
  */
-export function verifyNhlFullGameMoneylineQuote(game={},odds={}){
+export function verifyNhlFullGameMoneylineQuote(game={},odds={},now=Date.now()){
   const start=Date.parse(game.start||"");
   const lines=game.marketLineHistory||[];
   const scope=String(game.odds?.moneylineMarketScope||game.marketRules?.moneyline||"").toUpperCase();
@@ -81,7 +81,12 @@ export function verifyNhlFullGameMoneylineQuote(game={},odds={}){
   const valid=lines.filter(r=>{
     const t=Date.parse(r.collectedAt||"");
     return r.source==="ODDS_SNAPSHOT" && String(r.sportsbook||"").trim() &&
-      Number.isFinite(t)&&t<start && t<=Date.now() &&
+      // A historical quote alone is NOT an executable price. Reject unknown
+      // execution availability, unknown market scope, or stale observations.
+      r.executionVerified===true && r.availableForExecution===true &&
+      r.marketScope==="FULL_GAME_INCLUDING_OT_SHOOTOUT" &&
+      Number.isFinite(t)&&Number.isFinite(now)&&t<start &&
+      t<=now && now-t<=300000 &&
       ["ml","moneyline","h2h"].includes(String(r.market||"").toLowerCase());
   });
   const h=valid.find(r=>String(r.selection).toLowerCase()==="home"&&Number(r.americanPrice)===odds.homeMl &&
@@ -90,7 +95,7 @@ export function verifyNhlFullGameMoneylineQuote(game={},odds={}){
       String(a.collectedAt)===String(r.collectedAt) &&
       Number(a.americanPrice)===odds.awayMl));
   return h?{ok:true,reason:null,book:h.sportsbook,observedAt:h.collectedAt,marketScope:scope}:
-    {ok:false,reason:"MATCHED_EXECUTION_QUOTE_UNVERIFIED"};
+    {ok:false,reason:"FRESH_EXECUTABLE_FULL_GAME_QUOTE_UNVERIFIED"};
 }
 function marketFamily(v){
   const s=String(v||"").toLowerCase();
