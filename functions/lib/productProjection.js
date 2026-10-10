@@ -486,6 +486,14 @@ function gameState(game = {}) {
 }
 
 function decision(game, sport) {
+  // Neither an old saved packet nor a fitted CFB score grants bet authority.
+  // In particular, never allow an uncalibrated legacy probability to drive a
+  // subscriber fair-price/EV decision simply because top-level flags are absent.
+  if (sport === "cfb") return {
+    status: "PASS", market: null, pick: null, modelProbability: null,
+    expectedRoi: null, lean: null, blocked: true,
+    blockReason: "CFB-FBIS-v2 probability unqualified — betting authority disabled",
+  };
   const bundle = recommendBundle(sport, game, game.model, DEFAULT_WEIGHTS);
   const rec = bundle?.qualified || null;
   const lean = bundle?.lean || null;
