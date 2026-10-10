@@ -222,6 +222,8 @@ test('CFB legacy saved model packets cannot bypass public API/Board/snapshot pro
   assert.equal(card.projection.pHome,null);assert.equal(card.projection.fairHomeMl,null);
   assert.equal(card.intelligence.modelProbability,null);assert.equal(card.intelligence.expectedRoi,null);
   assert.equal(board.pHome,null);assert.equal(boardProbabilityDisplay(board).showFairProbability,false);
+  assert.equal(board.canQualify,false);assert.equal(board.qualificationBlocked,true);
+  assert.equal(card.decision.status,'PASS');assert.equal(card.decision.blocked,true);
   assert.equal(snap.pHomeFinal,null);assert.equal(snap.pAwayFinal,null);
   assert.equal(snap.pMarket,0.9);assert.equal(snap.pEspn,0.8);
  }
