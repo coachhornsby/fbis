@@ -49,6 +49,7 @@ import {
 } from "./store.js";
 import { classifyCheckpoint, materiallyChanged, pickCanonical, snapshotKey, CHECKPOINTS, rowsForCheckpoint } from "./checkpoints.js";
 import { auditNhlMoneylineProbability } from "./nhlUnifiedMoneylineShadow.js";
+import { nhlMoneylineSnapshotEvidence, verifiedNhlProbabilityView } from "./nhlMoneylineSnapshotEvidence.js";
 import { buildAccuracyPack } from "./accuracyReport.js";
 import { overDiagnostics } from "./overDiagnostics.js";
 import { buildDailyReport } from "./dailyReport.js";
@@ -1003,9 +1004,16 @@ function isFutureStartTs(value, nowMs = Date.now()) {
 }
 
 export function accuracyOf(rows) {
-  const graded = (rows || []).filter(
+  const rawGraded = (rows || []).filter(
     (r) => r.actualHome != null && r.actualAway != null && ((r.projHome != null && r.projAway != null) || (r.palHome != null && r.palAway != null))
   );
+  // Do not let historical NHL market/form blend masquerade as a qualified
+  // PRO-v2 probability in Brier, log loss, calibration, winner-hit or model
+  // sub-blocks. Keep the immutable rows and independent score/market data.
+  const nhlModelProbabilityExcluded = rawGraded.filter(
+    (r) => String(r.sport || "").toLowerCase() === "nhl" && !nhlMoneylineSnapshotEvidence(r).ok
+  ).length;
+  const graded = rawGraded.map(verifiedNhlProbabilityView);
   const n = graded.length;
   const empty = {
     n: 0,
@@ -1023,6 +1031,7 @@ export function accuracyOf(rows) {
     brierMarket: null,
     brierPal: null,
     brierScore: null,
+    nhlModelProbabilityExcluded: 0,
     logLossModel: null,
     logLossMarket: null,
     logLossPal: null,
@@ -1091,6 +1100,7 @@ export function accuracyOf(rows) {
     brierMarket: brierMkt,
     brierPal: brier((r) => r.pPal),
     brierScore: brier((r) => r.pScore),
+    nhlModelProbabilityExcluded,
     brierImprovement: brierModel != null && brierMkt != null ? brierMkt - brierModel : null,
     logLossModel: ll(pKey),
     logLossMarket: ll((r) => r.impliedHome ?? r.pMarket),
