@@ -52,6 +52,17 @@ These are **not** immutable tracker reproductions. The four submitted rounded pr
 
 All four rows carry `engine=NHL-PRO-v2`, `model_version=research-v2.0-event-chain-gbdt`, `projection_kind=FBIS`; this labeled the generic probability blend as PRO-v2. The same 0.2814056/0.7185944 values occur in other different-goal games. This independently establishes a head-lineage error; **it is not a proof that the actual PRO-v2 win probability was incorrect**. Historical market/form probabilities must never be relabeled as pure PRO-v2 probabilities. D1 data and frozen outputs were not rewritten.
 
+**Independent archive corroboration:** Read-only query of `nhl_goalie_probability_shadow` found immutable pregame incumbent NHL-PRO-v2 `homeWinIncludingOt` for three of these same event IDs, each with `temporal_integrity_passed=1`, cutoff `2026-10-10T17:52:59.743Z` and code SHA `d5d8499050c7ac0ce607d709baa234c4809678ec`. This archive is a separate goalie SHADOW cohort; do not treat its probabilities as scores from the same exact tracker freezing instant unless timestamps agree.
+
+| Event ID | Tracker p_home_final | Archived PRO-v2 incumbent home probability | Archived PRO-v2 projected home / away | Delta (PRO minus tracker) |
+|---|---:|---:|---|---:|
+| 401892472 Buffalo | 0.3037462329 | 0.5494 | 3.31 / 3.19 | +0.24565 |
+| 401892477 St. Louis | 0.6688832882 | 0.5203 | 3.19 / 3.14 | -0.14858 |
+| 401891805 Florida | 0.7032918903 | 0.5305 | 3.39 / 3.12 | -0.17279 |
+| 401892480 Calgary | 0.2450952065 | Unavailable in this goalie cohort | 3.3 / 3.1 in tracker | Unknown |
+
+The tracker snapshots and goalie archive have different frozen timestamps; these differences are *model-head provenance comparisons*, not proof of simultaneous exact same-feature outputs. No writes were executed (`rows_written=0`, `changes=0`).
+
 ## 2. Changes
 
 - `projLedger.js`: research-freeze writer now takes valid `NHL-PRO-v2` event-aligned full-game probability only if source identity/cutoff and goal-mean matching checks pass; it never falls back to `blendWinProb` for NHL. Independently archives generic `p_market` for context while setting `p_score` to the true raw PRO-v2 goal-distribution head. Adds source/cutoff/market-separation metadata to `layers_json`. For an incompatible or missing head, `p_home_final` and `p_score` are null with `nhl_probability_lineage_invalid_fail_closed`, **without changing historical rows or other sports**.
@@ -91,7 +102,7 @@ The offline walk-forward script intentionally refuses to run without a supplied 
 
 ## 5. Remaining work and rollback
 
-1. D1 tracker rows and four exact event IDs were recovered read-only. Still obtain the original in-memory PRO-v2 head values and associated feature cutoff/code SHA for exact before/after comparison; historical rows only contain hybrid generic probability columns, not the full PRO-v2 probability object.
+1. D1 tracker rows and four exact event IDs were recovered read-only. The separate immutable goalie archive yielded source PRO-v2 pregame probabilities and code SHA for Buffalo/St. Louis/Florida but no Calgary row; these records have different freeze timestamps. Recover exact simultaneous model-head values for Calgary and confirm timestamp alignment for same-checkpoint comparisons. Historical tracker probability columns must not be rewritten.
 2. Independently verify confirmed starter sources (including their true publication time) and rate of mismatched goalie starts before considering wider deployment.
 3. Assemble a strict PIT historical cohort with all three archived predictions produced before each corresponding game, **not** reconstructed using later rosters or closing prices. Run the walk-forward and paired ablations, report negative results.
 4. Validate two-way full-game sportsbook settlement definition, quote price, bookmaker, availability, and timestamp; build an OT-aware full-game puck-line and total model before those markets can qualify.
