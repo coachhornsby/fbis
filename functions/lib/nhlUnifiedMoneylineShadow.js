@@ -23,10 +23,14 @@ export function auditNhlMoneylineProbability(game={}) {
   const cutoffMs=Date.parse(cutoff||"");
   if(!eventId||!home||!away||home===away) reasons.push("INVALID_EVENT_IDENTITY");
   if(!p?.ok||p.modelId!=="NHL-PRO-v2") reasons.push("INCUMBENT_PROJECTION_MISSING");
-  if(p?.eventId!=null && String(p.eventId)!==eventId) reasons.push("PROJECTION_EVENT_MISMATCH");
+  if(p?.eventId==null||String(p.eventId)!==eventId) reasons.push("PROJECTION_EVENT_MISMATCH");
   if(p?.home!==home||p?.away!==away) reasons.push("HOME_AWAY_IDENTITY_MISMATCH");
   if(!Number.isFinite(start)||!Number.isFinite(cutoffMs)||cutoffMs>=start) reasons.push("PIT_CUTOFF_NOT_VERIFIED");
-  if(p?.marketInformed===true) reasons.push("MARKET_INFORMED_PROJECTION");
+  if(p?.marketInformed!==false) reasons.push("MODEL_MARKET_INDEPENDENCE_NOT_VERIFIED");
+  if(p?.dataLineage?.marketInputsUsedForProjection!==false||
+     !Number.isFinite(Date.parse(p?.dataLineage?.asOf||""))||
+     Date.parse(p.dataLineage.asOf)>cutoffMs)
+    reasons.push("SOURCE_LINEAGE_NOT_VERIFIED");
   const h=finite(p?.projHome),a=finite(p?.projAway);
   if(h==null||a==null||h<=0||a<=0) reasons.push("INVALID_GOAL_MEANS");
   const prob=p?.probability||{};
