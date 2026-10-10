@@ -35,6 +35,24 @@ function persistentState(profiles,team){
     schedule:profiles?.schedule?.[k]||[],
   };
 }
+function goalieStarterEvidence(profile={},projectionGoalie={},cutoff=null,start=null){
+  const cutoffMs=Date.parse(cutoff||""),startMs=Date.parse(start||"");
+  const usable=(profile.goalies||[]).filter(g=>{
+    const t=Date.parse(g.source_updated_at||"");
+    return Number.isFinite(t)&&Number.isFinite(cutoffMs)&&Number.isFinite(startMs)&&
+      t<=cutoffMs&&t<startMs;
+  });
+  const confirmed=usable.find(g=>String(g.goalie_state||"").toUpperCase()==="CONFIRMED_STARTER")||null;
+  const expected=confirmed||usable.slice().sort((a,b)=>(finite(b.expected_start_probability)??-1)-(finite(a.expected_start_probability)??-1))[0]||null;
+  return {
+    state:confirmed?"CONFIRMED":expected?"PROJECTED":"HISTORICAL_PROXY_UNVERIFIED",
+    playerId:expected?.player_id==null?projectionGoalie.goalieId||null:String(expected.player_id),
+    expectedStartProbability:confirmed?1:finite(expected?.expected_start_probability),
+    evidenceAt:expected?.source_updated_at||null,
+    lineupMatched:confirmed?String(confirmed.player_id)===String(projectionGoalie.goalieId):null,
+    goalieSelectionState:projectionGoalie.selectionState||null
+  };
+}
 export function projectNhlGoalieProbabilityShadow(game,profiles={}){
   const p=game?.nhlProV2;
   if(!p?.ok)return{ok:false,reason:"NHL_PRO_V2_REQUIRED",modelId:NHL_GOALIE_PROB_SHADOW_ID,mode:"CONTEXT_ONLY",canQualify:false,canAuthorizeWager:false};
@@ -48,6 +66,10 @@ export function projectNhlGoalieProbabilityShadow(game,profiles={}){
   const shadowP=clamp(0.5+0.86*((0.78*raw+0.22*elo)-0.5),0.04,0.96);
   const signal=Math.max(Math.abs(adj.vsHome),Math.abs(adj.vsAway));
   const homeState=persistentState(profiles,home),awayState=persistentState(profiles,away);
+  const starterEvidence={
+    home:goalieStarterEvidence(homeState,p?.layers?.goalie?.home||{},p.featureCutoffTimestamp,p.gameStart||game.start),
+    away:goalieStarterEvidence(awayState,p?.layers?.goalie?.away||{},p.featureCutoffTimestamp,p.gameStart||game.start)
+  };
   const stateKnown=Boolean(homeState.team&&awayState.team);
   const gateFired=Boolean(CONFIG.historicalGateValidated&&stateKnown&&signal>=0.03);
   return{
@@ -61,7 +83,8 @@ export function projectNhlGoalieProbabilityShadow(game,profiles={}){
       goalieProbabilityScale:scale,scoreProjectionChanged:false
     },
     goalieSignal:{...adj,maxAbsGoalAdjustment:round(signal,5),homeGoalie:p?.layers?.goalie?.home||null,awayGoalie:p?.layers?.goalie?.away||null},
-    persistentState:{home:homeState,away:awayState,featureCutoffTimestamp:new Date().toISOString()},
+    starterEvidence,
+    persistentState:{home:homeState,away:awayState,featureCutoffTimestamp:p.featureCutoffTimestamp||null},
     historicalEvidence:CONFIG.historicalMetrics,
     marketInformed:false,canQualify:false,canAuthorizeWager:false,stakingAuthorized:false,
     note:"Prospective shadow only. NHL-PRO-v2 score projection remains incumbent; only goalie translation inside the shadow win-probability head is shrunk."
