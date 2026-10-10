@@ -25,6 +25,7 @@ import { loadMlbPersistentState, buildPersistentBullpenFeed, attachMlbPersistent
 import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { attachCfbFbisV2, promoteCfbFbisV2ToBoard } from "./cfbFbisV2.js";
 import { attachCfbPlayerV1 } from "./cfbPlayerModel.js";
+import { annotateCfbFbsMatchups, loadCfbFbsTeams } from "./cfbFbsPlayerScope.js";
 import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
 import { promoteMlbResearchToBoard, promoteNflResearchToBoard, promoteCbbResearchToBoard, promoteNhlResearchToBoard } from "./researchBoardPromote.js";
 import { loadNhlResearchPrior, attachNhlResearch } from "./nhlResearchModel.js";
@@ -177,8 +178,11 @@ export async function buildSlate(sport, date, env = {}) {
     const deep = attachCfbMatchupV2(enriched);
     const v2 = attachCfbFbisV2(deep.games);
     const promoted = promoteCfbFbisV2ToBoard(v2.games);
-    // Player model consumes game environment only — no CFBD fanout on customer refresh
-    const players = attachCfbPlayerV1(promoted.games);
+    // Read the existing canonical D1 FBS directory once; never infer FBS
+    // from school names alone or request paid providers on a Board refresh.
+    const fbsScope = await loadCfbFbsTeams(env);
+    const scoped = annotateCfbFbsMatchups(promoted.games, fbsScope.teams);
+    const players = attachCfbPlayerV1(scoped, { fbsOnly: true });
     next = {
       ...slate,
       games: players.games,
@@ -190,6 +194,13 @@ export async function buildSlate(sport, date, env = {}) {
         cfbFbisV2: v2.meta,
         cfbFbisV2Board: promoted.meta,
         cfbPlayerV1: players.meta,
+        cfbFbsPlayerScope: {
+          verifiedFbsTeams: fbsScope.teams.length,
+          eligibleGames: scoped.filter((g) => g.cfbFbsMatchup).length,
+          error: fbsScope.error,
+          acquisition: "READ_ONLY_D1",
+          canQualify: false,
+        },
       },
     };
   } else if (id === "nfl") {
