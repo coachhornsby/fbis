@@ -24,7 +24,7 @@ test("rejects missing immutable identity and after-start leakage",()=>{
   const r=historical("20212022",1);
   assert.equal(qualifyNhlPITHistoricalRow(r).ok,true);
   assert.ok(qualifyNhlPITHistoricalRow({...r,sourcePITVerified:false}).errors.includes("IMMUTABLE_PIT_SNAPSHOT_REQUIRED"));
-  assert.ok(qualifyNhlPITHistoricalRow({...r,featureCutoffTimestamp:r.gameStart}).errors.includes("FEATURE_OR_FROZEN_CUTOFF_INVALID")===false);
+  assert.ok(qualifyNhlPITHistoricalRow({...r,featureCutoffTimestamp:r.gameStart}).errors.includes("FEATURE_OR_FROZEN_CUTOFF_INVALID"));
   assert.ok(qualifyNhlPITHistoricalRow({...r,frozenAt:r.gameStart}).errors.includes("FEATURE_OR_FROZEN_CUTOFF_INVALID"));
   assert.ok(qualifyNhlPITHistoricalRow({...r,marketInformed:true}).errors.includes("MARKET_SCOPE_OR_PREDICTION_INDEPENDENCE_INVALID"));
 });
