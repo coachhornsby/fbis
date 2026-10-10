@@ -34,6 +34,8 @@ test("Oct 10 Buffalo PRO-v2 freeze never attaches generic market-derived ML prob
   assert.equal(f.pMarket,.28140560742914383);
   assert.equal(f.layers.probabilitySource,"NHL-PRO-v2:FULL_GAME_INCLUDING_OT_SHOOTOUT");
   assert.equal(f.layers.probabilitySourceEventId,g.id);
+  assert.equal(f.layers.probabilityHomeTeam,"BUF");
+  assert.equal(f.layers.probabilityAwayTeam,"UTA");
   assert.equal(f.layers.probabilityFeatureCutoffTimestamp,g.nhlProV2.featureCutoffTimestamp);
   assert.equal(f.layers.marketProbabilityNotUsedForModel,true);
   assert.equal(f.pAwayFinal,.491);
@@ -81,4 +83,9 @@ test("legacy mislabeled NHL probability is excluded from Brier learning without 
   const modern=freezeFromGame("2026-10-10",game());
   assert.equal(nhlMoneylineSnapshotEvidence(modern).ok,true);
   assert.equal(toModelLabRow(modern).p_home_win,.509);
+  const swapped={...modern,layers:{...modern.layers,probabilityHomeTeam:"UTA"}};
+  assert.equal(nhlMoneylineSnapshotEvidence(swapped).ok,false);
+  const wrongVersion=game();
+  wrongVersion.modelVersion="research-unrelated-head";
+  assert.equal(freezeFromGame("2026-10-10",wrongVersion).pHomeFinal,null);
 });
