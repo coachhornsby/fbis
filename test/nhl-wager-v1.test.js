@@ -38,11 +38,12 @@ test("positive provisional EV remains research-only without verified quote, scop
   assert.equal(out.ok,true);
   assert.equal(out.offers.length,6);
   assert.equal(out.decision,"PASS");
-  assert.ok(out.offers.some(x=>x.researchCandidate));
+  assert.ok(out.offers.every(x=>!x.researchCandidate));
   assert.ok(out.offers.every(x=>x.canQualify===false));
   assert.equal(out.canQualify,false);
   assert.ok(out.offers.filter(x=>x.market==="moneyline").every(x=>x.modelProbability===null));
-  assert.ok(out.offers.every(x=>x.probabilityStatus==="MODEL_HEAD_UNVALIDATED_NO_SECONDARY_SHRINK"));
+  assert.ok(out.offers.every(x=>x.probabilityStatus==="DIAGNOSTIC_NOT_EXECUTION_PRICED"));
+  assert.ok(out.offers.every(x=>x.expectedRoi==null && x.calibratedProbability==null));
   assert.equal(out.canAuthorizeWager,false);
   assert.ok(out.offers.every(x=>x.stakingValidated===false));
 });
@@ -122,4 +123,63 @@ test("OT-unsafe spread and totals are never qualified with regulation distributi
   const nonMl=out.offers.filter(x=>x.market==="spread"||x.market==="total");
   assert.equal(nonMl.length,4);
   assert.ok(nonMl.every(x=>!x.canQualify&&x.reasons.includes("settlement-market-scope-unverified")));
+  assert.ok(nonMl.every(x=>x.expectedRoi==null&&x.expectedValue==null&&!x.researchCandidate&&x.calibratedProbability==null));
+});
+
+function fullyVerifiedResearchGame(){
+  const g=game(),now=Date.now();
+  const instant=new Date(now-10000).toISOString();
+  const cutoff=new Date(now-60000).toISOString();
+  g.start=new Date(now+3600000).toISOString();
+  g.qualificationBlocked=true;
+  // An untrusted caller flag must NEVER grant authority.
+  g.bettingAuthority="AUTHORIZED";
+  g.nhlMoneylineOperatorAuthorization={approved:true};
+  g.nhlProV2.modelId="NHL-PRO-v2";
+  g.nhlProV2.modelVersion="research-v2.0-event-chain-gbdt";
+  g.nhlProV2.eventId=g.id;
+  g.nhlProV2.featureCutoffTimestamp=cutoff;
+  g.nhlProV2.marketInformed=false;
+  g.nhlProV2.dataLineage={asOf:cutoff,marketInputsUsedForProjection:false};
+  g.nhlProV2.probability={
+    homeRegWin:.53,awayRegWin:.29,regulationTie:.18,
+    rawHomeWinIncludingOt:.65,eloHead:.5,
+    homeWinIncludingOt:.64,awayWinIncludingOt:.36
+  };
+  for(const side of ["home","away"])
+    g.nhlProV2.layers.goalie[side].selectionState="PIT_CONFIRMED_STARTER";
+  g.nhlProV2.moneylineCalibration={
+    validated:true,marketScope:"FULL_GAME_INCLUDING_OT_SHOOTOUT"
+  };
+  g.odds.pinHomeMl=140;
+  g.odds.pinAwayMl=-155;
+  g.odds.moneylineMarketScope="FULL_GAME_INCLUDING_OT_SHOOTOUT";
+  const quote={
+    market:"ml",collectedAt:instant,sportsbook:"book-a",source:"ODDS_SNAPSHOT",
+    marketScope:"FULL_GAME_INCLUDING_OT_SHOOTOUT",
+    executionVerified:true,availableForExecution:true
+  };
+  g.marketLineHistory=[
+    {...quote,selection:"home",americanPrice:140},
+    {...quote,selection:"away",americanPrice:-155}
+  ];
+  return g;
+}
+test("even perfectly verified model/quote and caller approval cannot bypass NHL SHADOW gate",()=>{
+  const g=fullyVerifiedResearchGame();
+  const out=evaluateNhlGameWagers(g,goodCalibration);
+  assert.equal(out.moneylineIntegrity.ok,true);
+  assert.equal(out.fullGameMoneylineQuote.ok,true);
+  assert.equal(out.canQualify,false);
+  assert.equal(out.canAuthorizeWager,false);
+  assert.equal(out.decision,"PASS");
+  assert.deepEqual(out.researchBets,[]);
+  const ml=out.offers.filter(x=>x.market==="moneyline");
+  assert.equal(ml.length,2);
+  assert.ok(ml.some(x=>x.researchCandidate===true));
+  assert.ok(ml.every(x=>x.canQualify===false&&x.decision==="PASS"&&x.decisionStatus==="RESEARCH_ONLY_SHADOW"));
+  assert.ok(ml.every(x=>x.reasons.includes("nhl-game-wager-operator-promotion-not-authorized")));
+  assert.ok(ml.every(x=>x.reasons.includes("research-projection-qualification-blocked")));
+  const invalid=out.offers.filter(x=>x.market==="spread"||x.market==="total");
+  assert.ok(invalid.every(x=>x.expectedValue==null&&!x.researchCandidate&&x.calibratedProbability==null));
 });
