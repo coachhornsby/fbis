@@ -251,11 +251,15 @@ function offerRow({market,selection,line,price,oppositePrice,modelProbability,ga
   const combinedIntel={...(game.actionIntel||{}),lineHistory:[...(game.marketLineHistory||[]),...(game.actionIntel?.lineHistory||[])]};
   const trajectory=deriveNhlMarketTrajectory(combinedIntel,{market,selection,fbisSide});
   const reliability=reliabilityForGame(game,trajectory);
-  // Preserve the exact projection-head probability. A second reliability-based
-  // shrink is not a calibrated probability model and must not modify fair EV.
-  const adjusted=modelProbability==null?null:modelProbability;
-  const ev=adjusted!=null?expectedRoi(adjusted,price):null;
-  const edge=adjusted!=null&&noVig!=null?adjusted-noVig:null;
+  // Keep the independent probability as a diagnostic head, but never market-
+  // price or score economic opportunities when the full-game settlement, fresh
+  // executable quote, true calibration or goalie evidence is absent. A second
+  // reliability shrink would also be uncalibrated, so never apply one.
+  const marketReady=Boolean(market==="moneyline" && integrity?.ok && quote?.ok &&
+    marketScopeVerified && probabilityCalibrationVerified && goalieEvidenceVerified);
+  const adjusted=marketReady ? modelProbability : null;
+  const ev=adjusted!=null ? expectedRoi(adjusted,price) : null;
+  const edge=adjusted!=null&&noVig!=null ? adjusted-noVig : null;
   const rawConfidence=provisionalConfidence({ev,probEdge:edge,reliability,trajectory,marketComplete:tw.complete});
   const calibrationState=validateNhlConfidenceCalibration(calibration);
   const bin=calibrationState.ok?calibrationBin(rawConfidence,calibration):null;
@@ -273,15 +277,24 @@ function offerRow({market,selection,line,price,oppositePrice,modelProbability,ga
   if(!marketScopeVerified)reasons.push("settlement-market-scope-unverified");
   if(!probabilityCalibrationVerified)reasons.push("moneyline-probability-calibration-unverified");
   if(!goalieEvidenceVerified)reasons.push("goalie-starter-uncertainty-unverified");
+  if(game.qualificationBlocked===true)reasons.push("research-projection-qualification-blocked");
+  // There is no independently approved NHL-WAGER-v1 promotion/authorization
+  // contract in this research layer. Never derive authority from EV or a
+  // caller-supplied approval-looking flag.
+  reasons.push("nhl-game-wager-operator-promotion-not-authorized");
   const minEv=Number(calibration?.minEv??.03),minEdge=Number(calibration?.minProbabilityEdge??.02),minConf=Number(calibration?.minConfidence??70);
-  const researchCandidate=Boolean(ev!=null&&edge!=null&&ev>=minEv&&edge>=minEdge&&reliability.score>=.58&&tw.complete);
-  const qualificationEligible=Boolean(researchCandidate && integrity?.ok && quote?.ok &&
-    marketScopeVerified && probabilityCalibrationVerified && goalieEvidenceVerified && calibrationState.ok);
-  const bet=qualificationEligible;
+  const researchCandidate=Boolean(marketReady && ev!=null && edge!=null &&
+    ev>=minEv && edge>=minEdge && reliability.score>=.58 && tw.complete);
+  // NHL game betting authority has NOT been operator-approved. The independent
+  // researcher can report a vetted hypothetical edge but cannot label a BET.
+  const qualificationEligible=false;
+  const bet=false;
   return {
     market,selection,line:finite(line),americanPrice:finite(price),
     modelProbability:round(modelProbability),calibratedProbability:round(adjusted),
-    probabilityStatus:"MODEL_HEAD_UNVALIDATED_NO_SECONDARY_SHRINK",
+    probabilityStatus:marketReady?"VERIFIED_PRICE_RESEARCH_ONLY":"DIAGNOSTIC_NOT_EXECUTION_PRICED",
+    marketProbabilityUsePermitted:marketReady,
+    diagnosticOnly:!marketReady,
     quoteProvenance:quote?.ok?quote:null,
     settlementScopeVerified:Boolean(marketScopeVerified),
     sourceIntegrityVerified:Boolean(integrity?.ok),
@@ -296,10 +309,10 @@ function offerRow({market,selection,line,price,oppositePrice,modelProbability,ga
     researchCandidate,
     qualificationEligible,
     decision:bet?"BET":"PASS",
-    decisionStatus:bet?"QUALIFIED_STAKING_DISABLED":"PASS",
+    decisionStatus:"RESEARCH_ONLY_SHADOW",
     stakeUnits:null,suggestedUnits:0,stakingValidated:false,
     canQualify:qualificationEligible,canAuthorizeWager:false,reasons,
-    reason:bet?"Independent model edge and executable-price qualification gates cleared; staking remains disabled.":"Qualification gates not cleared."
+    reason:"NHL GAME SHADOW: operator promotion not authorized; unverified market or model inputs are diagnostic only."
   };
 }
 export function evaluateNhlGameWagers(game={},calibration=NHL_WAGER_CONFIDENCE_V1.game){
@@ -336,12 +349,12 @@ export function evaluateNhlGameWagers(game={},calibration=NHL_WAGER_CONFIDENCE_V
     moneylineIntegrity:integrity,fullGameMoneylineQuote:quote,
     offers,bestOffer:offers[0]||null,
     researchCandidates:offers.filter(x=>x.researchCandidate),
-    researchBets:offers.filter(x=>x.decision==="BET"),
-    decision:offers[0]?.decision||"PASS",
+    researchBets:[],
+    decision:"PASS",
     confidenceCalibrated:Boolean(offers[0]?.confidenceValidated),
     stakingValidated:false,
-    canQualify:Boolean(offers.some(x=>x.qualificationEligible)),canAuthorizeWager:false,
-    governance:"Qualified plays may be surfaced when independent model edge, executable price, reliability and two-way market gates pass. Unit stakes remain disabled until ROI, drawdown, CLV and confidence monotonicity validate."
+    canQualify:false,canAuthorizeWager:false,
+    governance:"SHADOW ONLY. No NHL GAME wager qualifies without separate operator-approved promotion. Unverified quotes, calibration, settlement and goalie inputs cannot form execution economics."
   };
 }
 
