@@ -1,4 +1,5 @@
 import { NHL_GOALIE_PROB_SHADOW_CONFIG as CONFIG } from "../../data/models/nhl-goalie-prob-shadow-v1.js";
+import { resolveNhlGoalieStarterEvidence } from "./nhlGoalieStarterEvidence.js";
 
 export const NHL_GOALIE_PROB_SHADOW_ID=CONFIG.modelId;
 export const NHL_GOALIE_PROB_SHADOW_VERSION=CONFIG.version;
@@ -35,24 +36,6 @@ function persistentState(profiles,team){
     schedule:profiles?.schedule?.[k]||[],
   };
 }
-function goalieStarterEvidence(profile={},projectionGoalie={},cutoff=null,start=null){
-  const cutoffMs=Date.parse(cutoff||""),startMs=Date.parse(start||"");
-  const usable=(profile.goalies||[]).filter(g=>{
-    const t=Date.parse(g.source_updated_at||"");
-    return Number.isFinite(t)&&Number.isFinite(cutoffMs)&&Number.isFinite(startMs)&&
-      t<=cutoffMs&&t<startMs;
-  });
-  const confirmed=usable.find(g=>String(g.goalie_state||"").toUpperCase()==="CONFIRMED_STARTER")||null;
-  const expected=confirmed||usable.slice().sort((a,b)=>(finite(b.expected_start_probability)??-1)-(finite(a.expected_start_probability)??-1))[0]||null;
-  return {
-    state:confirmed?"CONFIRMED":expected?"PROJECTED":"HISTORICAL_PROXY_UNVERIFIED",
-    playerId:expected?.player_id==null?projectionGoalie.goalieId||null:String(expected.player_id),
-    expectedStartProbability:confirmed?1:finite(expected?.expected_start_probability),
-    evidenceAt:expected?.source_updated_at||null,
-    lineupMatched:confirmed?String(confirmed.player_id)===String(projectionGoalie.goalieId):null,
-    goalieSelectionState:projectionGoalie.selectionState||null
-  };
-}
 export function projectNhlGoalieProbabilityShadow(game,profiles={}){
   const p=game?.nhlProV2;
   if(!p?.ok)return{ok:false,reason:"NHL_PRO_V2_REQUIRED",modelId:NHL_GOALIE_PROB_SHADOW_ID,mode:"CONTEXT_ONLY",canQualify:false,canAuthorizeWager:false};
@@ -67,8 +50,14 @@ export function projectNhlGoalieProbabilityShadow(game,profiles={}){
   const signal=Math.max(Math.abs(adj.vsHome),Math.abs(adj.vsAway));
   const homeState=persistentState(profiles,home),awayState=persistentState(profiles,away);
   const starterEvidence={
-    home:goalieStarterEvidence(homeState,p?.layers?.goalie?.home||{},p.featureCutoffTimestamp,p.gameStart||game.start),
-    away:goalieStarterEvidence(awayState,p?.layers?.goalie?.away||{},p.featureCutoffTimestamp,p.gameStart||game.start)
+    home:resolveNhlGoalieStarterEvidence(profiles,home,{
+      eventId:game?.id,gameStart:p.gameStart||game.start,
+      cutoff:p.featureCutoffTimestamp,projectionGoalieId:p?.layers?.goalie?.home?.goalieId
+    }),
+    away:resolveNhlGoalieStarterEvidence(profiles,away,{
+      eventId:game?.id,gameStart:p.gameStart||game.start,
+      cutoff:p.featureCutoffTimestamp,projectionGoalieId:p?.layers?.goalie?.away?.goalieId
+    })
   };
   const stateKnown=Boolean(homeState.team&&awayState.team);
   const gateFired=Boolean(CONFIG.historicalGateValidated&&stateKnown&&signal>=0.03);
