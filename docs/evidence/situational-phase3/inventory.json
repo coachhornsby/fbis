@@ -1,0 +1,34 @@
+{
+  "contract": "PHASE3-PROVENANCE-INVENTORY-v1",
+  "checkedAt": "2026-10-10T04:00:11.145Z",
+  "productionSHA": "d5d8499050c7ac0ce607d709baa234c4809678ec",
+  "counts": {
+    "NFL": {
+      "bookRows": 13089,
+      "providerClocks": 0,
+      "parentOrphans": 0,
+      "verifiedPIT": 0
+    },
+    "CFB": {
+      "bookRows": 37374,
+      "providerClocks": 0,
+      "parentOrphans": 0,
+      "verifiedPIT": 0
+    }
+  },
+  "asStoredClassification": "PROVENANCE_INCOMPLETE",
+  "excludedStoredRows": 50463,
+  "exclusion": "MISSING_PROVIDER_TIMESTAMP",
+  "historicalRecoveredRows": 0,
+  "reviewedRealReceipts": 0,
+  "rawObjectBodiesRetrieved": 0,
+  "rawAccessFailure": "Cloudflare API error: 200",
+  "sourceCoverageLimit": "Listed raw/action/ prefix and inspected D1/contracts/fixtures/user ZIP filenames; unavailable bodies are UNKNOWN, not missing",
+  "authority": {
+    "canAuthorizeWager": false,
+    "canPromote": false,
+    "canQualify": false
+  },
+  "costs": "UNKNOWN",
+  "newPaidProviderCalls": 0
+}

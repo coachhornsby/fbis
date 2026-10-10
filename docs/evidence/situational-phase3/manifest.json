@@ -1,0 +1,45 @@
+{
+  "preservation": "Git-versioned local evidence; not independently immutable or proof of source availability",
+  "files": [
+    {
+      "path": "docs/evidence/situational-phase3/inventory.json",
+      "bytes": 999,
+      "sha256": "04ac98c63dc0afa4a298d2929497312c4cb6535060d6ff94dc26b04ffc09fcbe"
+    },
+    {
+      "path": "docs/evidence/situational-phase3/local-sources.json",
+      "bytes": 1712,
+      "sha256": "bfb40a9a677e2514eae3c285c286570eeac8a244470b2147f029ffa9d7711a51"
+    },
+    {
+      "path": "docs/evidence/situational-phase3/p3bodyAttempts.json",
+      "bytes": 515,
+      "sha256": "2ef904b8f23e28ca17f00f937e6714d37cad28f91116dd17b037af89a631f210"
+    },
+    {
+      "path": "docs/evidence/situational-phase3/p3dbcheckpoint.json",
+      "bytes": 7929,
+      "sha256": "7be828d5498bda12430e8d51c8821f8a7486892e617e677c636135d27eabf18e"
+    },
+    {
+      "path": "docs/evidence/situational-phase3/p3detailKeys.json",
+      "bytes": 6083,
+      "sha256": "4ded530a41e6ab8e9d618f70f3838c1ad189105b831131402528651f2d74dad3"
+    },
+    {
+      "path": "docs/evidence/situational-phase3/p3rawInventory.json",
+      "bytes": 13414,
+      "sha256": "aeafc126424ee591adbad3dc80026a0550847e1952eed5ffa314293a25f5a253"
+    },
+    {
+      "path": "docs/evidence/situational-phase3/p3rawLineage.json",
+      "bytes": 13482,
+      "sha256": "041adbe08333e8ad6d03edcaa49626cb35acf1721757781d83e58434e666f197"
+    },
+    {
+      "path": "docs/evidence/situational-phase3/p3workflow.json",
+      "bytes": 72292,
+      "sha256": "3fd5ead59d848ee232fae68415fdae5c7f3ffcaa139a340ac446938a3fddba4f"
+    }
+  ]
+}
