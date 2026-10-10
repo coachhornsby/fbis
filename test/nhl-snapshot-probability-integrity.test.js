@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { freezeFromGame } from "../functions/lib/projLedger.js";
+import { nhlMoneylineSnapshotEvidence,toModelLabRow } from "../functions/lib/snapshotLearning.js";
 
 function game(){
   return {
@@ -58,4 +59,26 @@ test("non-NHL freeze retains existing generic probability behavior",()=>{
   const f=freezeFromGame("2026-10-10",g);
   assert.equal(f.pHomeFinal,.3037462328635065);
   assert.equal(f.pScore,.28140560742914383);
+});
+
+test("legacy mislabeled NHL probability is excluded from Brier learning without rewriting immutable row",()=>{
+  const immutable={
+    sport:"nhl",gameId:"401892472",engine:"NHL-PRO-v2",
+    modelVersion:"research-v2.0-event-chain-gbdt",
+    frozenAt:"2026-10-10T13:52:55.162Z",start:"2026-10-10T23:00:00Z",
+    pHomeFinal:.3037462328635065,pHome:.3037462328635065,
+    projHome:3.3,projAway:3.2,actualHome:3,actualAway:2,
+    layers:{market:.28140560742914383,score:.28140560742914383}
+  };
+  const original=JSON.stringify(immutable);
+  assert.equal(nhlMoneylineSnapshotEvidence(immutable).ok,false);
+  const normalized=toModelLabRow(immutable);
+  assert.equal(normalized.p_home_win,null);
+  assert.equal(normalized.probability_evidence_status,"LEGACY_EXCLUDED");
+  assert.equal(normalized.proj_home,3.3);
+  assert.equal(normalized.actual_home,3);
+  assert.equal(JSON.stringify(immutable),original);
+  const modern=freezeFromGame("2026-10-10",game());
+  assert.equal(nhlMoneylineSnapshotEvidence(modern).ok,true);
+  assert.equal(toModelLabRow(modern).p_home_win,.509);
 });
