@@ -258,6 +258,7 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     Math.abs(Number(pro.projAway)-Number(projAway))<=0.051);
   const nhlProbabilityEligible=Boolean(isNhl&&
     (recipe.engine||game.projectionEngine)==="NHL-PRO-v2"&&
+    String(game.modelVersion||"")===String(pro?.modelVersion||"")&&
     nhlAudit?.ok&&nhlScoreMatches);
   const pHomeFinal=isNhl
     ? nhlProbabilityEligible?nhlAudit.incumbent.homeWinIncludingOt:null
@@ -307,6 +308,8 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
         score:pScore,
         probabilitySource:nhlProbabilityEligible?"NHL-PRO-v2:FULL_GAME_INCLUDING_OT_SHOOTOUT":"UNAVAILABLE_FAIL_CLOSED",
         probabilitySourceEventId:nhlProbabilityEligible?nhlAudit.eventId:null,
+        probabilityHomeTeam:nhlProbabilityEligible?nhlAudit.home:null,
+        probabilityAwayTeam:nhlProbabilityEligible?nhlAudit.away:null,
         probabilityModelVersion:nhlProbabilityEligible?nhlAudit.projection.modelVersion:null,
         probabilityFeatureCutoffTimestamp:nhlProbabilityEligible?nhlAudit.projection.featureCutoffTimestamp:null,
         probabilityCalibrationStatus:"RESEARCH_NOT_PROSPECTIVELY_CALIBRATED",
