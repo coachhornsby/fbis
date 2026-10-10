@@ -123,13 +123,16 @@ function modelIdentity(sport, game = {}) {
   return { name: "FBIS", engine: null, independent: false, state: null };
 }
 
-function projection(game = {}) {
+function projection(game = {}, sport = "") {
+  // No CFB probability calibrator has been approved. Historical/legacy model
+  // packets can contain a market/ESPN blend even when fitted scores are valid.
+  const cfb = String(sport || game.sport || "").toLowerCase() === "cfb";
   const kind = game.model?.projectionKind || game.projectionKind || null;
   const home = finite(game.model?.projHome ?? game.projHome ?? game.projHomeScore);
   const away = finite(game.model?.projAway ?? game.projAway ?? game.projAwayScore);
   const margin = finite(game.model?.projMargin ?? (home != null && away != null ? home - away : null));
   const total = finite(game.model?.projTotal ?? (home != null && away != null ? home + away : null));
-  const pHome = finite(game.model?.pHomeFinal);
+  const pHome = cfb ? null : finite(game.model?.pHomeFinal);
   const independent = kind === "FBIS" && home != null && away != null;
   const research =
     String(game.projectionMaturity || game.model?.maturity || "").toUpperCase() === "RESEARCH" ||
@@ -144,8 +147,8 @@ function projection(game = {}) {
     margin: independent ? margin : null,
     total: independent ? total : null,
     // Never expose calibrated EV / fair odds for uncalibrated research.
-    pHome: independent && !research && pHome != null && pHome > 0 && pHome < 1 ? pHome : null,
-    fairHomeMl: independent && !research ? americanFromProbability(pHome) : null,
+    pHome: independent && !cfb && !research && pHome != null && pHome > 0 && pHome < 1 ? pHome : null,
+    fairHomeMl: independent && !cfb && !research ? americanFromProbability(pHome) : null,
     lifecycle: "PREGAME",
     liveReforecast: false,
     unavailableReason: independent ? null : "independent-production-projection-unavailable",
@@ -711,7 +714,7 @@ function llmFeatureDigest(game = {}, sport = "") {
 }
 
 export function productProjectionCard(game, sport, { tier = "public" } = {}) {
-  const proj = projection(game);
+  const proj = projection(game, sport);
   const pin = market(game);
   const d = decision(game, sport);
   const card = {
@@ -748,8 +751,8 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
   };
   if (tier === "pro") {
     card.intelligence = {
-      modelProbability: d.modelProbability,
-      expectedRoi: d.expectedRoi,
+      modelProbability: sport === "cfb" ? null : d.modelProbability,
+      expectedRoi: sport === "cfb" ? null : d.expectedRoi,
       lean: d.lean,
       marketDelta: proj.independent && proj.pHome != null && pin.noVigHome != null ? proj.pHome - pin.noVigHome : null,
       provenance: game.researchProvenance || null,
