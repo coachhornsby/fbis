@@ -1,0 +1,44 @@
+{
+  "contract": "NATIVE-ODDS-FEASIBILITY-v1",
+  "checkedAt": "2026-10-10T05:08:13.989Z",
+  "productionSHA": "d5d8499050c7ac0ce607d709baa234c4809678ec",
+  "sources": {
+    "sharpapi": {
+      "nativeResponsesInspected": 0,
+      "nativeQuotesInspected": 0,
+      "nativeAccepted": 0,
+      "nativeRejected": 0,
+      "decision": "NO-GO \u2014 UNVERIFIABLE EVIDENCE",
+      "clockSemantics": "PROVIDER_FEED_REFRESH_NOT_NECESSARILY_SOURCE_REOBSERVATION",
+      "terms": "UNKNOWN",
+      "accountCost": "UNKNOWN"
+    },
+    "theodds": {
+      "nativeResponsesInspected": 0,
+      "nativeQuotesInspected": 0,
+      "nativeAccepted": 0,
+      "nativeRejected": 0,
+      "decision": "CONDITIONAL \u2014 MISSING SPECIFIC EVIDENCE",
+      "clockSemantics": "PROVIDER_MARKET_LAST_SEEN_NOT_BOOK_NATIVE_PRICE_CHANGE",
+      "terms": "UNKNOWN",
+      "accountCost": "UNKNOWN"
+    }
+  },
+  "derivedD1": {
+    "NFL": 3944,
+    "CFB": 50929,
+    "sampleRowsInspected": 8,
+    "nativePayload": false,
+    "originalSourceClockColumn": false,
+    "eligibleEstablished": 0
+  },
+  "rawPrefixList": {
+    "returnedObjects": 232,
+    "nativeProviderKeyMatches": 0,
+    "coverage": "raw/ prefix returned below requested1000; other storage locations not proven absent"
+  },
+  "newProviderRequests": 0,
+  "marketClocksReconstructed": 0,
+  "economicResults": null,
+  "productionHookProposed": false
+}

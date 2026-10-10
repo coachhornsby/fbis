@@ -1,0 +1,11 @@
+{
+  "retrievedDateUTC": "2026-10-10",
+  "evidenceType": "PUBLIC_PROVIDER_DOCUMENTATION_NOT_ACCOUNT_OR_QUOTE_VERIFICATION",
+  "sources": [
+    {"url":"https://docs.sharpapi.io/en/concepts/pinnacle-odds-changed-at/","finding":"timestamp is refreshed feed delivery and may advance without source re-observation; removed former clock fields must not be guessed"},
+    {"url":"https://docs.sharpapi.io/en/concepts/market-lifecycle/","finding":"is_active=false is frozen/unbettable; removals disappear from snapshots; documented missing-field default is true but requires real schema/version review"},
+    {"url":"https://docs.sharpapi.io/en/api-reference/odds/","finding":"Native rows carry timestamp; pagination can require a next cursor. A partial page is not complete slate coverage"},
+    {"url":"https://docs.sharpapi.io/en/pricing/","finding":"Published free plan is $0/month, two books,12 requests/minute,60-second delay; actual FBIS account terms remain UNKNOWN"},
+    {"url":"https://the-odds-api.com/liveapi/guides/v4/","finding":"market last_update is provider's last market observation; suspended/closed markets can persist about15minutes with nonadvancing clock; presence does not prove OPEN"}
+  ]
+}

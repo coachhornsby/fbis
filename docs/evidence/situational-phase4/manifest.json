@@ -1,0 +1,30 @@
+{
+  "preservation": "Git-versioned evidence, not independent immutable timing attestation",
+  "files": [
+    {
+      "path": "docs/evidence/situational-phase4/decision.json",
+      "bytes": 1374,
+      "sha256": "598a42fa6ba8da58cfef9ef3003f5f7a19eba99bfe890ef359bd72a9dba42aa1"
+    },
+    {
+      "path": "docs/evidence/situational-phase4/official-semantics.json",
+      "bytes": 1208,
+      "sha256": "64b1db9bd0538030ff7cd6d4d5fab1ab07089a8e9f2454c653721be363a213d9"
+    },
+    {
+      "path": "docs/evidence/situational-phase4/p4artifacts.json",
+      "bytes": 2192,
+      "sha256": "8757235441ef2fab6c10ccb9c96b8652b1cba77639d1919b67723f79f83fbacf"
+    },
+    {
+      "path": "docs/evidence/situational-phase4/p4inventory.json",
+      "bytes": 25442,
+      "sha256": "f3f69e53df35dc146122e2427da564cbca713bbc5f8406bc03f6271e73a4c7c0"
+    },
+    {
+      "path": "docs/evidence/situational-phase4/p4storage.json",
+      "bytes": 8833,
+      "sha256": "7592862f7424a69980551430b9442587c75102276dff54f2c964c60d6c53daf9"
+    }
+  ]
+}
