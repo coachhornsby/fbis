@@ -26,6 +26,7 @@ Before repair:
 4. `nhlProV2.js` selected goalies by highest historical starts, even when a timestamp-valid confirmed starter exists in persistent profiles.
 5. `nhlWagerV1.js` could silently fall back to a separately recomputed distribution on missing probability, apply another unvalidated reliability shrinkage, and label positive provisional EV as `BET`/`canQualify` even when its confidence calibration was unvalidated. It also estimated full-game spreads/totals from a regulation-period distribution without explicit OT settlement adjustment.
 6. `todayBoard.js` could infer `bettingAllowed` from `nhlProV2.canQualify` rather than the actual wager qualification path; `promoteNhlResearchToBoard` correctly sets `qualificationBlocked` and clears the generic `pHomeFinal`.
+7. **Confirmed root cause, production D1 read-only:** `projLedger.freezeFromGame` previously computed `model.pHomeFinal ?? blendWinProb(model.layers,weights)`. NHL research promotion correctly cleared `model.pHomeFinal`, but the nullish fallback *reintroduced the generic market/form probability* while persisting PRO-v2 goal means and labeling the row `NHL-PRO-v2`. `slateEngineCore.projectGame` builds these generic heads independently of PRO-v2: `layers.market` from vig-free sportsbook/ESPN spread odds, `layers.score` from `logistic(projMargin,cfg.k)`, and `layers.form` from records. The tracker therefore displayed a hybrid score/probability pair. New freeze contract requires event-, team-, cutoff- and score-aligned PRO-v2 probability, or stores null and a fail-closed reason. Existing immutable records are untouched.
 
 ### October 10 discrepancy diagnostics
 
@@ -38,10 +39,22 @@ These are **not** immutable tracker reproductions. The four submitted rounded pr
 | St. Louis vs Columbus | 3.2 / 3.1 | 0.5229 | 0.669 | [0.4054,0.6252] |
 | Florida vs Minnesota | 3.4 / 3.1 | 0.5671 | 0.703 | [0.4356,0.6542] |
 
-*Conservative interval: each displayed team goal mean allowed ±0.05 (one-decimal rounding), and Elo probability allowed the entire [0,1] range before the PRO-v2 78/22 blend and outer shrinkage. Numerical integration uses the same 0–11 team-specific Poisson counts and 0–5 shared component. All four tracker percentages are outside these intervals. Thus, **the documented PRO-v2 blend alone cannot explain the combination of those displayed means and percentages**. Exact event IDs/frozen tracker records have not been recovered; causes such as a different model head, mismatched version, stale snapshot, or reversed team must be proven individually, not assumed.
+*Conservative interval: each displayed team goal mean allowed ±0.05 (one-decimal rounding), and Elo probability allowed the entire [0,1] range before the PRO-v2 78/22 blend and outer shrinkage. Numerical integration uses the same 0–11 team-specific Poisson counts and 0–5 shared component. All four tracker percentages are outside these intervals: the reported pairs are not the output of the PRO-v2 blended probability formula applied to those projected scores.*
+
+**Read-only production D1 verification, October 10**: `prediction_snapshots` contained 46 NHL checkpoint rows for this date (query had zero database changes and zero rows written). The relevant frozen records are:
+
+| Event ID | Matchup | Checkpoint | proj home / away | p_home_final | p_score | p_market | p_form |
+|---|---|---|---|---|---|---|---|
+| 401892472 | Utah @ Buffalo | MORNING | 3.3 / 3.2 | 0.3037462329 | 0.2814056074 | 0.2814056074 | 0.4545454545 |
+| 401892480 | Anaheim @ Calgary | MORNING | 3.3 / 3.1 | 0.2450952065 | 0.2814056074 | 0.2814056074 | 0 |
+| 401892477 | Columbus @ St. Louis | MORNING | 3.2 / 3.1 | 0.6688832882 | 0.7185943926 | 0.7185943926 | 0.3333333333 |
+| 401891805 | Minnesota @ Florida | PREGAME | 3.4 / 3.1 | 0.7032918903 | 0.7185943926 | 0.7185943926 | 0.6 |
+
+All four rows carry `engine=NHL-PRO-v2`, `model_version=research-v2.0-event-chain-gbdt`, `projection_kind=FBIS`; this labeled the generic probability blend as PRO-v2. The same 0.2814056/0.7185944 values occur in other different-goal games. This independently establishes a head-lineage error; **it is not a proof that the actual PRO-v2 win probability was incorrect**. Historical market/form probabilities must never be relabeled as pure PRO-v2 probabilities. D1 data and frozen outputs were not rewritten.
 
 ## 2. Changes
 
+- `projLedger.js`: research-freeze writer now takes valid `NHL-PRO-v2` event-aligned full-game probability only if source identity/cutoff and goal-mean matching checks pass; it never falls back to `blendWinProb` for NHL. Independently archives generic `p_market` for context while setting `p_score` to the true raw PRO-v2 goal-distribution head. Adds source/cutoff/market-separation metadata to `layers_json`. For an incompatible or missing head, `p_home_final` and `p_score` are null with `nhl_probability_lineage_invalid_fail_closed`, **without changing historical rows or other sports**.
 - `nhlUnifiedMoneylineShadow.js`: validates canonical event/team identity, feature cutoff prior to start, positive scoring means, regulation distribution mass, complementary full-game probabilities, unmodified projection, and component alignment. Publishes explicit PRO-v2, WIN-v1 and goalie shadow inputs. No combined probability is supplied without an independently validated fitted calibration artifact. Even an accepted fitted artifact returns research-only outputs with no authorization.
 - `nhlProV2.js`: stamps event ID, game start and feature-cutoff timestamp. A goalie explicitly marked `CONFIRMED_STARTER`, with source-observed timestamp before both feature cutoff and game start, supersedes the highest-start-count proxy. Missing, late, or unverified evidence retains the pre-existing historical proxy, now explicitly labeled as such.
 - `nhlGoalieProbabilityShadow.js`: adds confirmed/projected/proxy status, source timestamp and lineup alignment; removes wall-clock-dependent `featureCutoffTimestamp` from the pure projection result.
@@ -60,7 +73,7 @@ These are **not** immutable tracker reproductions. The four submitted rounded pr
 
 ## 4. Test/qualification contract
 
-New tests cover event/home-away mismatch, sum-to-one and regulation mass, cutoff failure, missing component, goalie/PIT confirmation, deterministic pure shadow, no synthetic weights, unvalidated fit, and wager fail-closed behavior on absent quote, settlement rules, probability, and unsafe spread/total.
+New tests reproduce the four-event probability-head contamination in production-derived fixtures and verify fail-closed future snapshot storage. Other tests cover event/home-away mismatch, sum-to-one and regulation mass, cutoff failure, missing component, goalie/PIT confirmation, deterministic pure shadow, no synthetic weights, unvalidated fit, and wager fail-closed behavior on absent quote, settlement rules, probability, and unsafe spread/total.
 
 The offline walk-forward script intentionally refuses to run without a supplied set of independently verified immutable pregame triple-head snapshots with disjoint chronological seasons. It never self-promotes fitted coefficients.
 
@@ -69,7 +82,7 @@ The offline walk-forward script intentionally refuses to run without a supplied 
 | Gate | Decision |
 |---|---|
 | Three-head SHADOW integrity mechanics | GO for isolated review after CI |
-| October 10 exact frozen-record provenance | STOP — frozen records/event identity still needed |
+| October 10 exact frozen-record probability-source defect | GO — source isolated to generic fallback; no historical rewrite |
 | Three-head predictive improvement | STOP — no joint PIT test population |
 | Three-head calibration/weights | STOP — no validated fitted artifact |
 | Market/economic qualification | STOP — no verified matched execution quote plus prospective CLV |
@@ -78,7 +91,7 @@ The offline walk-forward script intentionally refuses to run without a supplied 
 
 ## 5. Remaining work and rollback
 
-1. Recover immutable October 10 tracker rows, exact event/team IDs, projection SHAs, source cutoff and probability field labels, then compare frozen PRO-v2 components against displayed probability.
+1. D1 tracker rows and four exact event IDs were recovered read-only. Still obtain the original in-memory PRO-v2 head values and associated feature cutoff/code SHA for exact before/after comparison; historical rows only contain hybrid generic probability columns, not the full PRO-v2 probability object.
 2. Independently verify confirmed starter sources (including their true publication time) and rate of mismatched goalie starts before considering wider deployment.
 3. Assemble a strict PIT historical cohort with all three archived predictions produced before each corresponding game, **not** reconstructed using later rosters or closing prices. Run the walk-forward and paired ablations, report negative results.
 4. Validate two-way full-game sportsbook settlement definition, quote price, bookmaker, availability, and timestamp; build an OT-aware full-game puck-line and total model before those markets can qualify.
