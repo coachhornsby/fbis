@@ -503,6 +503,9 @@ export function projectCfbPlayerV1(game = {}, opts = {}) {
 
     sideOut[side] = {
       environment: env,
+      // Historical usage is separate from directory identity. Do not infer
+      // numerical player forecasts from default priors without PIT player form.
+      history: hist[side] || {},
       identity: { QB1: roles.QB1, RB1: roles.RB1, WR1: roles.WR1, WR2: roles.WR2 },
       QB1: qbProj,
       RB1: rbProj,
@@ -574,6 +577,7 @@ export function flattenCfbPlayerProjectionRows(projection = {}) {
     for (const role of ["QB1", "RB1", "WR1", "WR2"]) {
       const bundle = sideRow?.[role] || {};
       const identity = sideRow.identity?.[role];
+      const history = sideRow.history?.[role] || null;
       const cutoff = Date.parse(projection.roles?.kickoff_timestamp || "");
       const identityAt = Date.parse(identity?.identity_as_of || "");
       const verified = Boolean(identity?.player_id && identity?.player_name
@@ -581,6 +585,9 @@ export function flattenCfbPlayerProjectionRows(projection = {}) {
         && identity?.state !== "RB_UNCERTAIN"
         && identity?.state !== "QB_UNCERTAIN"
         && Number(identity?.selection?.sample_size || 0) >= 2
+        && Number(history?.sample_size || 0) >= 2
+        && Number.isFinite(Date.parse(history?.sourceAsOf || ""))
+        && Date.parse(history.sourceAsOf) < cutoff
         && Number.isFinite(cutoff) && Number.isFinite(identityAt) && identityAt < cutoff);
       if (!verified) continue;
       for (const [key, prop] of Object.entries(bundle)) {
