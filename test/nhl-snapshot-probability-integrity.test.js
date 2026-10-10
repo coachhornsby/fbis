@@ -18,7 +18,7 @@ function game(){
       ok:true,modelId:"NHL-PRO-v2",modelVersion:"research-v2.0-event-chain-gbdt",
       home:"BUF",away:"UTA",eventId:"401892472",
       featureCutoffTimestamp:"2026-10-10T18:00:00Z",projHome:3.327,projAway:3.183,
-      marketInformed:false,
+      marketInformed:false,dataLineage:{asOf:"2026-10-10T18:00:00Z",marketInputsUsedForProjection:false},
       probability:{homeRegWin:.42,awayRegWin:.38,regulationTie:.20,
         rawHomeWinIncludingOt:.5226,eloHead:.48,homeWinIncludingOt:.509,awayWinIncludingOt:.491}
     }
