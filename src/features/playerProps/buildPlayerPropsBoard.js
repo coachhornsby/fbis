@@ -150,6 +150,18 @@ export function withFbisPropAnalytics(row = {}) {
     };
   }
 
+  if (String(ranked.sport || "").toLowerCase() === "cfb" && ranked.fbsMatchup === true) {
+    // CFB player distributions have not been calibrated against player markets.
+    // A model-vs-line difference is not an authorized fair probability or EV.
+    return {
+      ...ranked, probabilityOver: null, probabilityUnder: null, probability: null,
+      edge: null, leanProbability: null, convictionTier: "NONE", convictionLean: null,
+      confidenceStars: null, confidenceLabel: "RESEARCH", confidenceTier: "RESEARCH",
+      confidenceSide: null, modelAuthorized: false, decisionEligible: false,
+      eligibleForCard: false, recommendationEligible: false,
+    };
+  }
+
   if (String(ranked.sport || "").toLowerCase() === "nhl") {
     if (String(ranked.marketCanonical || ranked.market || "") === "saves") {
       const env = ranked.shotEnvironment || {};
@@ -505,6 +517,10 @@ export function normalizeBoardGame(game = {}) {
       fbisSigma: p.fbisSigma ?? m.fbisSigma ?? null,
       projectionSource: p.source || null,
       modelMaturity: p.maturity || "RESEARCH",
+      fbsMatchup: p.fbsMatchup === true,
+      targetRole: p.targetRole || null,
+      fbsMatchup: p.fbsMatchup === true,
+      targetRole: p.targetRole || null,
       modelIndependent: p.independent !== false,
       availabilityStatus: p.availabilityStatus || null,
       roleConfidence: p.roleConfidence ?? null,
@@ -574,6 +590,14 @@ export function normalizeBoardGame(game = {}) {
  * Never invents rows, prices, or decision eligibility.
  */
 const NFL_TARGET_ROLES = new Set(["QB1","RB1","WR1","WR2","TE1"]);
+const CFB_FBS_ROLES = new Set(["QB1", "RB1", "WR1", "WR2"]);
+
+function isCfbFbsRoleProjection(row = {}) {
+  return String(row.sport || "").toLowerCase() === "cfb"
+    && row.fbsMatchup === true
+    && CFB_FBS_ROLES.has(String(row.targetRole || "").toUpperCase())
+    && Boolean(row.playerId || row.providerPlayerId) && Boolean(row.playerName);
+}
 
 function is49ersRoleProjection(row = {}) {
   if (String(row.sport || "").toLowerCase() !== "nfl") return false;
@@ -663,9 +687,11 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
     (r) =>
       (r.line != null && Number.isFinite(Number(r.line))) ||
       String(r.sport || "").toLowerCase() === "mlb" ||
-      is49ersRoleProjection(r),
+      is49ersRoleProjection(r) ||
+      isCfbFbsRoleProjection(r),
   );
-  const supportedRows = projectedRows.filter((r) => r.supportedMarket || is49ersRoleProjection(r));
+  const supportedRows = projectedRows.filter((r) =>
+    r.supportedMarket || is49ersRoleProjection(r) || isCfbFbsRoleProjection(r));
   const scopedBase = opts.supportedOnly === false ? projectedRows : supportedRows;
   const scoped = opts.enforceNflDisplayPolicy === true
     ? scopedBase.filter(nflBoardVisible)
@@ -673,14 +699,15 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
   const rows = sortPropsByConviction(scoped).map((r) => {
     const hasLine = r.line != null && Number.isFinite(Number(r.line));
     const mlbProjectionOnly = String(r.sport || "").toLowerCase() === "mlb" && !hasLine;
+    const cfbResearchRole = isCfbFbsRoleProjection(r);
     return {
       ...r,
-      displayMode: mlbProjectionOnly
+      displayMode: mlbProjectionOnly || cfbResearchRole
         ? "MODEL_PROJECTION"
         : is49ersRoleProjection(r) && Number(r.confidenceStars || 0) < 4
           ? "TEAM_PROJECTION"
           : "QUALIFIED_EDGE",
-      recommendationEligible: mlbProjectionOnly
+      recommendationEligible: mlbProjectionOnly || cfbResearchRole
         ? false
         : String(r.sport || "").toLowerCase() !== "nfl"
           ? r.eligibleForCard === true
