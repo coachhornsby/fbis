@@ -186,3 +186,25 @@ test("winner direction remains independent of sportsbook moneyline prices",()=>{
   assert.equal(a.projectedWinner,b.projectedWinner);
   assert.equal(a.winnerHead.classifierScore,b.winnerHead.classifierScore);
 });
+
+test("verified pregame confirmed starter supersedes high-start-count proxy; stale/future confirmation does not",()=>{
+  const context=ctx(false);
+  context.artifact.goalies["11"]={impactPerShot:.02};
+  context.base.currentGoalies.push({id:"11",name:"BOS confirmed backup",teams:["BOS"],starts:2});
+  context.sourceLineage.asOf="2026-10-09T22:00:00Z";
+  context.persistentProfiles={goalies:{bos:[{
+    player_id:"11",player_name:"BOS confirmed backup",goalie_state:"CONFIRMED_STARTER",
+    source_updated_at:"2026-10-09T20:00:00Z",starts:2
+  }]}};
+  const verified=projectNhlProV2Game(game,context);
+  assert.equal(verified.layers.goalie.home.goalieId,"11");
+  assert.equal(verified.layers.goalie.home.selectionState,"PIT_CONFIRMED_STARTER");
+  assert.equal(verified.eventId,null);
+  assert.equal(verified.featureCutoffTimestamp,"2026-10-09T22:00:00Z");
+  const bad=structuredClone(context);
+  bad.persistentProfiles.goalies.bos[0].source_updated_at="2026-10-10T01:00:00Z";
+  const fallback=projectNhlProV2Game(game,bad);
+  assert.equal(fallback.layers.goalie.home.goalieId,"10");
+  assert.equal(fallback.layers.goalie.home.selectionState,"HISTORICAL_STARTS_PROXY");
+  assert.notEqual(verified.projAway,fallback.projAway);
+});

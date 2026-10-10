@@ -48,6 +48,7 @@ import {
   persistMlbMarketProjections,
 } from "./store.js";
 import { classifyCheckpoint, materiallyChanged, pickCanonical, snapshotKey, CHECKPOINTS, rowsForCheckpoint } from "./checkpoints.js";
+import { auditNhlMoneylineProbability } from "./nhlUnifiedMoneylineShadow.js";
 import { buildAccuracyPack } from "./accuracyReport.js";
 import { overDiagnostics } from "./overDiagnostics.js";
 import { buildDailyReport } from "./dailyReport.js";
@@ -245,7 +246,26 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
   const palAway = model.palAway ?? game.bpp?.awayRuns ?? null;
   if (projHome == null && palHome == null) return null;
   const w = { ...DEFAULT_WEIGHTS, ...(weights || {}) };
-  const pHomeFinal = model.pHomeFinal ?? blendWinProb(model.layers || {}, w);
+  // NHL-PRO-v2 score projection must never be frozen with an unrelated
+  // generic market/form probability. The generic core's pHomeFinal can
+  // describe a *different* model head and is not NHL-PRO-v2 lineage.
+  const isNhl=String(game.sport||"").toLowerCase()==="nhl";
+  const nhlAudit=isNhl?auditNhlMoneylineProbability(game):null;
+  const pro=game.nhlProV2||null;
+  const nhlScoreMatches=Boolean(isNhl&&pro&&
+    Number.isFinite(Number(pro.projHome))&&Number.isFinite(Number(pro.projAway))&&
+    Math.abs(Number(pro.projHome)-Number(projHome))<=0.051&&
+    Math.abs(Number(pro.projAway)-Number(projAway))<=0.051);
+  const nhlProbabilityEligible=Boolean(isNhl&&
+    (recipe.engine||game.projectionEngine)==="NHL-PRO-v2"&&
+    String(game.modelVersion||"")===String(pro?.modelVersion||"")&&
+    nhlAudit?.ok&&nhlScoreMatches);
+  const pHomeFinal=isNhl
+    ? nhlProbabilityEligible?nhlAudit.incumbent.homeWinIncludingOt:null
+    : model.pHomeFinal ?? blendWinProb(model.layers || {}, w);
+  const pScore=isNhl
+    ? nhlProbabilityEligible?nhlAudit.distribution.rawHomeWinIncludingOt:null
+    : model.layers?.score??null;
   const snap = snapshotOdds(game);
   const checkpoint = classifyCheckpoint(game);
   return {
@@ -279,11 +299,23 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     pAwayFinal: pHomeFinal != null ? 1 - pHomeFinal : null,
     pMarket: model.layers?.market ?? null,
     pEspn: model.layers?.espn ?? null,
-    pScore: model.layers?.score ?? null,
+    pScore,
     pForm: model.layers?.form ?? null,
     pPal: model.layers?.pal ?? null,
     layers: {
       ...(model.layers || {}),
+      ...(isNhl ? {
+        score:pScore,
+        probabilitySource:nhlProbabilityEligible?"NHL-PRO-v2:FULL_GAME_INCLUDING_OT_SHOOTOUT":"UNAVAILABLE_FAIL_CLOSED",
+        probabilitySourceEventId:nhlProbabilityEligible?nhlAudit.eventId:null,
+        probabilityHomeTeam:nhlProbabilityEligible?nhlAudit.home:null,
+        probabilityAwayTeam:nhlProbabilityEligible?nhlAudit.away:null,
+        probabilityModelVersion:nhlProbabilityEligible?nhlAudit.projection.modelVersion:null,
+        probabilityFeatureCutoffTimestamp:nhlProbabilityEligible?nhlAudit.projection.featureCutoffTimestamp:null,
+        probabilityCalibrationStatus:"RESEARCH_NOT_PROSPECTIVELY_CALIBRATED",
+        marketProbabilityNotUsedForModel:true,
+        moneylineAuditReasons:nhlProbabilityEligible?[]:nhlAudit?.reasons||["NHL_PREDICTION_UNAVAILABLE"],
+      } : {}),
       availability: game.availabilityImpact || null,
       weather: game.weather || null,
       weatherImpact: game.weatherImpact || null,
@@ -301,6 +333,7 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     dataQuality: game.quality?.score ?? null,
     qualityFlags: [...new Set([
       ...(game.quality?.flags || []),
+      ...(isNhl&&!nhlProbabilityEligible?["nhl_probability_lineage_invalid_fail_closed"]:[]),
       ...(game.availabilityImpact?.configured ? ["availability_checked"] : []),
       ...(game.availabilityImpact?.criticalUnresolved ? ["critical_availability_unresolved"] : []),
       ...(game.availabilityImpact?.configured && game.availabilityImpact?.stale ? ["availability_stale"] : []),
