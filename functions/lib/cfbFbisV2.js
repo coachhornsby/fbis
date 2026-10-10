@@ -727,6 +727,16 @@ export function promoteCfbFbisV2ToBoard(games = []) {
     if ([projection.home, projection.away, projection.margin, projection.total]
       .some((value) => num(value) == null)) return game;
     const state = projection.projectionState || (projection.provisional ? "PROVISIONAL" : "COMPLETE");
+    // Fitted margin/total are valid score outputs, but pHomeWin/fair ML in
+    // cfbFbisV2 are uncalibrated diagnostics. The prior model packet may mix
+    // ESPN and sportsbook probabilities: never promote it as independent.
+    const probabilityProvenance = {
+      probabilitySource: "UNKNOWN",
+      modelId: CFB_FBIS_V2_ID,
+      modelVersion: projection.version || null,
+      validationStatus: "RESEARCH",
+      rawProbability: null,
+    };
     promoted += 1;
     return {
       ...game,
@@ -734,6 +744,7 @@ export function promoteCfbFbisV2ToBoard(games = []) {
       projAwayScore: projection.away,
       modelVersion: CFB_FBIS_V2_ID,
       projectionKind: "FBIS",
+      probabilityProvenance,
       // Serializers and snapshot writers consume model first. Keep the approved
       // fitted scores in that same packet, rather than an earlier prior model.
       model: {
@@ -742,6 +753,14 @@ export function promoteCfbFbisV2ToBoard(games = []) {
         projAway: projection.away,
         projMargin: projection.margin,
         projTotal: projection.total,
+        // Do not leave legacy market/ESPN blends in current independent fields.
+        // Keep named market/ESPN reference layers, not a purported FBIS fair p.
+        pHomeFinal: null,
+        pAwayFinal: null,
+        pHome: null,
+        fairHomeMl: null,
+        fairAwayMl: null,
+        probabilityProvenance,
         projectionKind: "FBIS",
         projectionState: state,
         version: CFB_FBIS_V2_ID,
