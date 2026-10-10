@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { freezeFromGame } from "../functions/lib/projLedger.js";
+import { freezeFromGame, accuracyOf } from "../functions/lib/projLedger.js";
 import { nhlMoneylineSnapshotEvidence,toModelLabRow } from "../functions/lib/snapshotLearning.js";
 
 function game(){
@@ -88,4 +88,43 @@ test("legacy mislabeled NHL probability is excluded from Brier learning without 
   const wrongVersion=game();
   wrongVersion.modelVersion="research-unrelated-head";
   assert.equal(freezeFromGame("2026-10-10",wrongVersion).pHomeFinal,null);
+});
+
+test("all ledger probability reporting excludes legacy hybrid NHL probabilities, not NHL goal/market benchmarks",()=>{
+  const legacy={
+    sport:"nhl",id:"401892472",gameId:"401892472",
+    engine:"NHL-PRO-v2",modelVersion:"research-v2.0-event-chain-gbdt",
+    frozenAt:"2026-10-10T13:52:55.162Z",start:"2026-10-10T23:00:00Z",
+    homeAbbr:"BUF",awayAbbr:"UTA",
+    pHomeFinal:.3037462328635065,pHome:.3037462328635065,
+    pMarket:.28140560742914383,pScore:.28140560742914383,
+    projHome:3.3,projAway:3.2,projTotal:6.5,projMargin:.1,
+    actualHome:3,actualAway:2,
+    layers:{market:.28140560742914383,score:.28140560742914383}
+  };
+  const before=JSON.stringify(legacy);
+  const a=accuracyOf([legacy]);
+  assert.equal(a.n,1);
+  assert.equal(a.nhlModelProbabilityExcluded,1);
+  assert.equal(a.brierModel,null);
+  assert.equal(a.brierScore,null);
+  assert.equal(a.logLossModel,null);
+  assert.equal(a.winnerHitProb,null);
+  assert.equal(a.models.ensemble.brier,null);
+  assert.equal(a.models.proprietary.brier,null);
+  assert.ok(a.brierMarket>0);
+  assert.ok(a.maeTeam!=null&&a.maeMargin!=null);
+  assert.equal(JSON.stringify(legacy),before);
+  const current={
+    ...freezeFromGame("2026-10-10",game()),
+    actualHome:3,actualAway:2,frozenAt:"2026-10-10T21:00:00Z"
+  };
+  const combined=accuracyOf([legacy,current]);
+  assert.equal(combined.nhlModelProbabilityExcluded,1);
+  assert.ok(Math.abs(combined.brierModel-(1-.509)**2)<1e-10);
+  assert.ok(Math.abs(combined.brierScore-(1-.5226)**2)<1e-10);
+  assert.ok(combined.logLossModel>0);
+  const mlb=accuracyOf([{...legacy,sport:"mlb"}]);
+  assert.equal(mlb.nhlModelProbabilityExcluded,0);
+  assert.ok(mlb.brierModel!=null&&mlb.brierScore!=null);
 });
