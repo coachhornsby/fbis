@@ -10,6 +10,8 @@
  */
 
 import { querySnapshots } from "./store.js";
+import { nhlMoneylineSnapshotEvidence } from "./nhlMoneylineSnapshotEvidence.js";
+export { nhlMoneylineSnapshotEvidence } from "./nhlMoneylineSnapshotEvidence.js";
 import {
   evaluateModelRows,
   buildLearningFindings,
@@ -134,37 +136,6 @@ export function selectCanonicalLearningSnapshots(rows = []) {
     rejectedPostStart,
     rejectedUngraded,
   };
-}
-
-/**
- * Existing NHL snapshots may contain a legacy generic blended probability
- * falsely labeled NHL-PRO-v2. Preserve raw frozen values, but do not count
- * them as NHL calibrated probability learning without source-specific lineage.
- * Goals/margin/total remain independently gradeable.
- */
-export function nhlMoneylineSnapshotEvidence(row = {}) {
-  if(String(row.sport||"").toLowerCase()!=="nhl")
-    return {ok:true,reason:null,scope:"NON_NHL"};
-  const layer=row.layers||{};
-  const eventId=String(row.gameId||row.id||"");
-  const t=Date.parse(layer.probabilityFeatureCutoffTimestamp||"");
-  const freeze=Date.parse(row.frozenAt||"");
-  const start=Date.parse(row.start||"");
-  const p=row.pHomeFinal??row.pHome;
-  if(String(row.engine||"")!=="NHL-PRO-v2"||
-     layer.probabilitySource!=="NHL-PRO-v2:FULL_GAME_INCLUDING_OT_SHOOTOUT"||
-     String(layer.probabilitySourceEventId||"")!==eventId||
-     !layer.probabilityHomeTeam||!layer.probabilityAwayTeam||
-     String(layer.probabilityHomeTeam)===String(layer.probabilityAwayTeam)||
-     (row.homeAbbr&&String(row.homeAbbr).toUpperCase()!==String(layer.probabilityHomeTeam).toUpperCase())||
-     (row.awayAbbr&&String(row.awayAbbr).toUpperCase()!==String(layer.probabilityAwayTeam).toUpperCase())||
-     !layer.probabilityModelVersion||
-     String(layer.probabilityModelVersion)!==String(row.modelVersion||"")||
-     !Number.isFinite(t)||!Number.isFinite(freeze)||t>freeze||
-     !Number.isFinite(start)||freeze>=start||
-     p==null||!Number.isFinite(Number(p))||Number(p)<0||Number(p)>1)
-    return {ok:false,reason:"NHL_FULL_GAME_PROBABILITY_PROVENANCE_UNVERIFIED",scope:"FULL_GAME_INCLUDING_OT_SHOOTOUT"};
-  return {ok:true,reason:null,scope:"FULL_GAME_INCLUDING_OT_SHOOTOUT"};
 }
 
 export function toModelLabRow(row = {}) {
