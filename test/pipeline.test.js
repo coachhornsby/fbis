@@ -1109,7 +1109,9 @@ describe("CFB consumed-feature checkpoint capture", () => {
     assert.equal(row.uncertainty.features.home.sourceAsOf, null);
     assert.equal(row.uncertainty.features.home.offAdj, 0);
     assert.equal(row.projectionState, "PROVISIONAL"); assert.equal(row.bettingAllowed, false);
-    assert.equal(row.projHome, 28); assert.equal(row.projAway, 21); assert.equal(row.pHomeFinal, 0.6);
+    assert.equal(row.projHome, 28); assert.equal(row.projAway, 21);
+    // The saved legacy 0.6 was not an approved independent CFB probability.
+    assert.equal(row.pHome, null); assert.equal(row.pHomeFinal, null); assert.equal(row.pAwayFinal, null);
   });
   it("detaches the captured evidence from later live mutations", () => {
     const game = fixture(); const row = freezeFromGame("2026-10-09", game);
