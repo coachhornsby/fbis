@@ -246,7 +246,9 @@ function offerRow({market,selection,line,price,oppositePrice,modelProbability,ga
   const combinedIntel={...(game.actionIntel||{}),lineHistory:[...(game.marketLineHistory||[]),...(game.actionIntel?.lineHistory||[])]};
   const trajectory=deriveNhlMarketTrajectory(combinedIntel,{market,selection,fbisSide});
   const reliability=reliabilityForGame(game,trajectory);
-  const adjusted=modelProbability==null?null:clamp(.5+(modelProbability-.5)*(.82+.12*reliability.score),.02,.98);
+  // Preserve the exact projection-head probability. A second reliability-based
+  // shrink is not a calibrated probability model and must not modify fair EV.
+  const adjusted=modelProbability==null?null:modelProbability;
   const ev=adjusted!=null?expectedRoi(adjusted,price):null;
   const edge=adjusted!=null&&noVig!=null?adjusted-noVig:null;
   const rawConfidence=provisionalConfidence({ev,probEdge:edge,reliability,trajectory,marketComplete:tw.complete});
@@ -274,7 +276,7 @@ function offerRow({market,selection,line,price,oppositePrice,modelProbability,ga
   return {
     market,selection,line:finite(line),americanPrice:finite(price),
     modelProbability:round(modelProbability),calibratedProbability:round(adjusted),
-    probabilityStatus:"RESEARCH_PROVISIONAL_SHRINK_NOT_VALIDATED",
+    probabilityStatus:"MODEL_HEAD_UNVALIDATED_NO_SECONDARY_SHRINK",
     quoteProvenance:quote?.ok?quote:null,
     settlementScopeVerified:Boolean(marketScopeVerified),
     sourceIntegrityVerified:Boolean(integrity?.ok),
