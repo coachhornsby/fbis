@@ -12,6 +12,7 @@ import { projectNhlWinnerV1 } from "./nhlWinV1.js";
 import { loadNhlPlayerEdgeSnapshot, aggregateNhlTrackingMatchup } from "./nhlPlayerTrackingV3.js";
 import { loadNhlOpportunitySnapshot, opportunityForGame } from "./nhlOpportunityV4.js";
 import { loadNhlPersistentProfiles, persistentTeamFor } from "./nhlPersistentProfiles.js";
+import { resolveNhlGoalieStarterEvidence, nhlGoalieTeamKey } from "./nhlGoalieStarterEvidence.js";
 
 export const NHL_PRO_V2_ID = "NHL-PRO-v2";
 export const NHL_PRO_V2_VERSION = "research-v2.0-event-chain-gbdt";
@@ -185,25 +186,21 @@ function shooterFactor(team,base,artifact){
   }
   return {factor:w?clamp(sum/w,0.88,1.14):1,coverage:rows.length?covered/Math.min(rows.length,12):0,players:Math.min(rows.length,12)};
 }
-function goalieImpact(team,base,artifact,profiles=null,cutoff=null,gameStart=null){
+function goalieImpact(team,base,artifact,profiles=null,cutoff=null,gameStart=null,eventId=null){
   const candidates=(base?.currentGoalies||[]).filter(g=>g.teams?.includes(team)).sort((a,b)=>(b.starts||0)-(a.starts||0));
   const prior=(base?.priorGoalies||[]).filter(g=>g.teams?.includes(team)).sort((a,b)=>(b.starts||0)-(a.starts||0));
-  const key=({LAK:"la",NJD:"nj",SJS:"sj",TBL:"tb"})[team]||team.toLowerCase();
-  const goalies=profiles?.goalies?.[key]||[];
-  const cutoffMs=Date.parse(cutoff||""),startMs=Date.parse(gameStart||"");
-  // An explicit pregame confirmation takes priority; updated-at timestamps
-  // that are missing, post-cutoff or post-start cannot change goal projections.
-  const confirmed=goalies.filter(row=>{
-    const observed=Date.parse(row.source_updated_at||"");
-    return String(row.goalie_state||"").toUpperCase()==="CONFIRMED_STARTER" &&
-      row.player_id!=null && Number.isFinite(observed) &&
-      Number.isFinite(cutoffMs) && observed<=cutoffMs &&
-      Number.isFinite(startMs) && observed<startMs;
-  }).sort((a,b)=>Date.parse(b.source_updated_at)-Date.parse(a.source_updated_at))[0]||null;
+  const defaultGoalie=candidates[0]||prior[0]||null;
+  const evidence=resolveNhlGoalieStarterEvidence(profiles,team,{
+    eventId,gameStart,cutoff,projectionGoalieId:defaultGoalie?.id||null
+  });
+  const confirmed=evidence.state==="CONFIRMED"
+    ? (profiles?.goalies?.[nhlGoalieTeamKey(team)]||[]).find(
+       row=>String(row.player_id)===String(evidence.playerId))
+    : null;
   const g=confirmed
-    ? [...candidates,...prior].find(row=>String(row.id)===String(confirmed.player_id))||
-      {id:confirmed.player_id,name:confirmed.player_name,starts:confirmed.starts}
-    : candidates[0]||prior[0]||null;
+    ? [...candidates,...prior].find(row=>String(row.id)===String(evidence.playerId))||
+      {id:evidence.playerId,name:confirmed.player_name,starts:confirmed.starts}
+    : defaultGoalie;
   if(!g)return {goalieId:null,impactPerShot:0,reliability:0,selectionState:"UNKNOWN",evidenceAt:null};
   const learned=artifact?.goalies?.[String(g.id)]||null;
   const starts=finite(g.starts)||0;
@@ -211,8 +208,10 @@ function goalieImpact(team,base,artifact,profiles=null,cutoff=null,gameStart=nul
     reliability:clamp(starts/(starts+5),0.45,0.9),
     source:learned?"NHL_PRO_V2_GSAX":"NO_V2_PRIOR",
     selectionState:confirmed?"PIT_CONFIRMED_STARTER":"HISTORICAL_STARTS_PROXY",
-    evidenceAt:confirmed?.source_updated_at||null,
-    expectedStartProbability:confirmed?1:null};
+    evidenceAt:confirmed?evidence.evidenceAt:null,
+    starterEventId:confirmed?evidence.eventId:null,
+    expectedStartProbability:confirmed?1:null,
+    confirmationSource:confirmed?evidence.source:null};
 }
 function poisson(lambda,k){let p=Math.exp(-lambda);for(let i=1;i<=k;i++)p*=lambda/i;return p;}
 function bivariateDistribution(home,away,totalLine=null,homeSpread=null){
@@ -395,8 +394,8 @@ export function projectNhlProV2Game(game,ctx){
 
   const hShoot=shooterFactor(home,base,artifact),aShoot=shooterFactor(away,base,artifact);
   homeGoals+=(hShoot.factor-1)*0.70;awayGoals+=(aShoot.factor-1)*0.70;
-  const hg=goalieImpact(home,base,artifact,ctx?.persistentProfiles,ctx?.sourceLineage?.asOf,game?.start),
-        ag=goalieImpact(away,base,artifact,ctx?.persistentProfiles,ctx?.sourceLineage?.asOf,game?.start);
+  const hg=goalieImpact(home,base,artifact,ctx?.persistentProfiles,ctx?.sourceLineage?.asOf,game?.start,game?.id),
+        ag=goalieImpact(away,base,artifact,ctx?.persistentProfiles,ctx?.sourceLineage?.asOf,game?.start,game?.id);
   homeGoals-=ag.impactPerShot*30*ag.reliability;awayGoals-=hg.impactPerShot*30*hg.reliability;
 
   const he=edgeAdjustment(home,away,ctx.edge),ae=edgeAdjustment(away,home,ctx.edge);
