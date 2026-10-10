@@ -67,9 +67,11 @@ function modelIdentity(sport, game = {}) {
     return {
       name: "FBIS CFB",
       engine: "Power + Opponent Residual + Context",
+      version: game.modelVersion || null,
       independent: game.projectionKind === "FBIS" || game.model?.projectionKind === "FBIS",
       state: game.cfb?.projectionState || game.projectionState || null,
       maturity: "PRODUCTION",
+      canQualify: false,
     };
   }
   if (sport === "cbb") {
@@ -136,6 +138,7 @@ function projection(game = {}) {
     kind,
     independent,
     maturity: research ? "RESEARCH" : kind === "FBIS" ? "PRODUCTION" : null,
+    state: game.cfb?.projectionState || game.projectionState || game.model?.projectionState || null,
     home: independent ? home : null,
     away: independent ? away : null,
     margin: independent ? margin : null,

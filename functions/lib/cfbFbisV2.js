@@ -724,6 +724,9 @@ export function promoteCfbFbisV2ToBoard(games = []) {
     if (game.sport && game.sport !== "cfb") return game;
     const projection = game.cfbFbisV2 || game.challengers?.[CFB_FBIS_V2_ID];
     if (!projection?.ok || !projection.fittedApplied) return game;
+    if ([projection.home, projection.away, projection.margin, projection.total]
+      .some((value) => num(value) == null)) return game;
+    const state = projection.projectionState || (projection.provisional ? "PROVISIONAL" : "COMPLETE");
     promoted += 1;
     return {
       ...game,
@@ -731,6 +734,19 @@ export function promoteCfbFbisV2ToBoard(games = []) {
       projAwayScore: projection.away,
       modelVersion: CFB_FBIS_V2_ID,
       projectionKind: "FBIS",
+      // Serializers and snapshot writers consume model first. Keep the approved
+      // fitted scores in that same packet, rather than an earlier prior model.
+      model: {
+        ...(game.model || {}),
+        projHome: projection.home,
+        projAway: projection.away,
+        projMargin: projection.margin,
+        projTotal: projection.total,
+        projectionKind: "FBIS",
+        projectionState: state,
+        version: CFB_FBIS_V2_ID,
+        recipe: { ...(game.model?.recipe || {}), engine: CFB_FBIS_V2_ID },
+      },
       projectionEngine: CFB_FBIS_V2_ID,
       projectionArchitecture: { Mstar: projection.Mstar || "A", Tstar: projection.Tstar || "A" },
       qualificationBlocked: true,
@@ -739,7 +755,7 @@ export function promoteCfbFbisV2ToBoard(games = []) {
         bettingAllowed: false,
         blockReason: "CFB-FBIS-v2 projection cutover — qualification disabled",
         productionModelId: CFB_FBIS_V2_ID,
-        projectionState: projection.projectionState || (projection.provisional ? "PROVISIONAL" : "COMPLETE"),
+        projectionState: state,
         dataQuality: projection.dataQuality ?? projection.dataCompleteness ?? null,
         uncertaintyState: projection.uncertainty?.uncertainty_state || projection.uncertaintyState || null,
         Mstar: projection.Mstar || "A",

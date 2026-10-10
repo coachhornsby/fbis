@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { finiteOrNull } from "../today/formatters.js";
+import { hasCurrentProjection as hasProjection } from "../../lib/currentProjectionValues.js";
 
 const CORE = ["cfb","nfl","nhl"];
 function shift(date,days){
@@ -13,8 +15,8 @@ function datesFor(sport,date){
   return [date];
 }
 function num(v,digits=0){
-  const n=Number(v);
-  return Number.isFinite(n)?n.toFixed(digits):"—";
+  const n=finiteOrNull(v);
+  return n==null?"—":n.toFixed(digits);
 }
 function modelId(game={}){
   return String(game?.model?.engine||game?.model?.name||game?.modelVersion||"FBIS").trim()||"FBIS";
@@ -23,12 +25,7 @@ function maturity(game={}){
   return String(game?.model?.maturity||game?.projection?.maturity||game?.maturity||"UNKNOWN").toUpperCase();
 }
 function quality(game={}){
-  const n=Number(game?.quality?.score);
-  return Number.isFinite(n)?n:null;
-}
-function hasProjection(game={}){
-  const p=game?.projection||{};
-  return Number.isFinite(Number(p.home))&&Number.isFinite(Number(p.away));
+  return finiteOrNull(game?.quality?.score);
 }
 function hasMarket(game={}){
   const m=game?.market||{};
