@@ -80,7 +80,7 @@ test("legacy mislabeled NHL probability is excluded from Brier learning without 
   assert.equal(normalized.proj_home,3.3);
   assert.equal(normalized.actual_home,3);
   assert.equal(JSON.stringify(immutable),original);
-  const modern=freezeFromGame("2026-10-10",game());
+  const modern={...freezeFromGame("2026-10-10",game()),frozenAt:"2026-10-10T21:00:00Z"};
   assert.equal(nhlMoneylineSnapshotEvidence(modern).ok,true);
   assert.equal(toModelLabRow(modern).p_home_win,.509);
   const swapped={...modern,layers:{...modern.layers,probabilityHomeTeam:"UTA"}};
