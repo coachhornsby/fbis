@@ -176,7 +176,13 @@ export function toBoardGame(game, sport, now = Date.now()) {
     bettingAuthority: game.bettingAuthority || null,
     modelDisagreement: game.modelDisagreement || null,
     researchProjection: game.researchProjection || null,
-    probabilityProvenance: game.probabilityProvenance || game.model?.probabilityProvenance || null,
+    // No calibrated CFB probability currently has display authority. Treat
+    // legacy/cached claims as unverified, regardless of their saved labels.
+    probabilityProvenance: sport === "cfb"
+      ? { probabilitySource: "UNKNOWN", modelId: "CFB-FBIS-v2",
+          modelVersion: game.modelVersion || null, validationStatus: "RESEARCH",
+          rawProbability: null }
+      : game.probabilityProvenance || game.model?.probabilityProvenance || null,
     pureProjectionAvailable: game.pureProjectionAvailable ?? null,
     canQualify:
       game.qualificationBlocked !== true &&
@@ -205,7 +211,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
             : null,
     blockReason: game.cfb?.blockReason || null,
     marketLabels: game.marketLabels || null,
-    pHome: game.model?.pHomeFinal ?? null,
+    pHome: sport === "cfb" ? null : (game.model?.pHomeFinal ?? null),
     pinMlHome: game.odds?.pinHomeMl ?? null,
     pinMlAway: game.odds?.pinAwayMl ?? null,
     pinSpread,
