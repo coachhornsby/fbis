@@ -66,6 +66,7 @@ The tracker snapshots and goalie archive have different frozen timestamps; these
 ## 2. Changes
 
 - `projLedger.js`: research-freeze writer now takes valid `NHL-PRO-v2` event-aligned full-game probability only if source identity/cutoff and goal-mean matching checks pass; it never falls back to `blendWinProb` for NHL. Independently archives generic `p_market` for context while setting `p_score` to the true raw PRO-v2 goal-distribution head. Adds source/cutoff/market-separation metadata to `layers_json`. For an incompatible or missing head, `p_home_final` and `p_score` are null with `nhl_probability_lineage_invalid_fail_closed`, **without changing historical rows or other sports**.
+- `snapshotLearning.js`: historical legacy NHL tracker probabilities without the exact model/source/event/version/cutoff contract are filtered from probability/Brier/log-loss training, but their existing frozen values remain preserved and their independent projected goals remain eligible for margin/total grading. The earlier 30-graded-game NHL-PRO-v2 tracker Brier ~0.2263 must **not** be treated as independently verified PRO-v2 probability quality unless its contributing records meet this new lineage gate.
 - `nhlUnifiedMoneylineShadow.js`: validates canonical event/team identity, feature cutoff prior to start, positive scoring means, regulation distribution mass, complementary full-game probabilities, unmodified projection, and component alignment. Publishes explicit PRO-v2, WIN-v1 and goalie shadow inputs. No combined probability is supplied without an independently validated fitted calibration artifact. Even an accepted fitted artifact returns research-only outputs with no authorization.
 - `nhlProV2.js`: stamps event ID, game start and feature-cutoff timestamp. A goalie explicitly marked `CONFIRMED_STARTER`, with source-observed timestamp before both feature cutoff and game start, supersedes the highest-start-count proxy. Missing, late, or unverified evidence retains the pre-existing historical proxy, now explicitly labeled as such. A read-only audit of production `nhl_goalie_profiles` found **0 `CONFIRMED_STARTER` rows**: 32 `LAST_CONFIRMED_STARTER`, 30 `DEPTH`, and 12 `EXPECTED_G1`. `LAST_CONFIRMED_STARTER` describes the prior appearance, not confirmation of the upcoming game; it is intentionally not promoted to a current confirmed starter.
 - `nhlGoalieProbabilityShadow.js`: adds confirmed/projected/proxy status, source timestamp and lineup alignment; removes wall-clock-dependent `featureCutoffTimestamp` from the pure projection result.
@@ -84,7 +85,7 @@ The tracker snapshots and goalie archive have different frozen timestamps; these
 
 ## 4. Test/qualification contract
 
-New tests reproduce the four-event probability-head contamination in production-derived fixtures and verify fail-closed future snapshot storage. Other tests cover event/home-away mismatch, sum-to-one and regulation mass, cutoff failure, missing component, goalie/PIT confirmation, deterministic pure shadow, no synthetic weights, unvalidated fit, and wager fail-closed behavior on absent quote, settlement rules, probability, and unsafe spread/total.
+New tests reproduce the four-event probability-head contamination in production-derived fixtures, verify fail-closed future snapshot storage, and show legacy rows are excluded from probability training without rewriting raw frozen values. Other tests cover event/home-away mismatch, sum-to-one and regulation mass, cutoff failure, missing component, goalie/PIT confirmation, deterministic pure shadow, no synthetic weights, unvalidated fit, and wager fail-closed behavior on absent quote, settlement rules, probability, and unsafe spread/total.
 
 The offline walk-forward script intentionally refuses to run without a supplied set of independently verified immutable pregame triple-head snapshots with disjoint chronological seasons. It never self-promotes fitted coefficients.
 
@@ -94,6 +95,7 @@ The offline walk-forward script intentionally refuses to run without a supplied 
 |---|---|
 | Three-head SHADOW integrity mechanics | GO for isolated review after CI |
 | October 10 exact frozen-record probability-source defect | GO — source isolated to generic fallback; no historical rewrite |
+| Existing tracker Brier interpreted as PRO-v2 calibration | STOP — legacy hybrid probability records excluded |
 | Three-head predictive improvement | STOP — no joint PIT test population |
 | Three-head calibration/weights | STOP — no validated fitted artifact |
 | Market/economic qualification | STOP — no verified matched execution quote plus prospective CLV |
