@@ -1,0 +1,15 @@
+{
+  "status": "VERIFIED_LOCAL_WORKERD_D1_R2",
+  "database": "local ephemeral workerd",
+  "remoteProductionMutations": 0,
+  "cards": 2,
+  "gameVersions": 2,
+  "cardVersions": 4,
+  "rawEvidenceObjects": 4,
+  "duplicateNoop": true,
+  "partialBlocksPublication": true,
+  "correctionPreservesOldVersions": true,
+  "sourceIdentity": "fixture only; real provider qualification pending",
+  "productionReady": false,
+  "canAuthorizeWager": false
+}
