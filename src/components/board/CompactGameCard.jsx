@@ -2,6 +2,7 @@ import { fmt, lineLabel, bestEdge, matchupSignalLabel } from "../../lib/boardEvi
 import TeamLogo from "../TeamLogo.jsx";
 import NhlEvidenceStrip from "./NhlEvidenceStrip.jsx";
 import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
+import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
 import NhlPlayerProjectionStrip from "./NhlPlayerProjectionStrip.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
@@ -189,6 +190,8 @@ export default function CompactGameCard({ game, onOpen }) {
   const action = vm.action || {};
   const sportId = String(vm.sport || game?.sport || "").toLowerCase();
   const isNfl = sportId === "nfl";
+  const isCfb = sportId === "cfb";
+  const isFootball = isNfl || isCfb;
   const isNhl = sportId === "nhl";
   const showStars = !isNhl || proj.available;
   const showAction = true; // Keep compact-card information architecture consistent across sports.
@@ -291,7 +294,7 @@ export default function CompactGameCard({ game, onOpen }) {
             <span>{isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
           </div>
 
-          {isNfl ? <div className="cgc-vs"><div className="nfl-hero-venue" aria-label="Stadium and weather">
+          {isFootball ? <div className="cgc-vs"><div className="nfl-hero-venue" aria-label="Stadium and weather">
             {vm.context?.venueLabel||vm.context?.venueName?<div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v3H3zm2 5h14v9h-3v-4H8v4H5zm4 1v2h6v-2zM1 21h22v2H1z"/></svg><strong>{vm.context.venueLabel||vm.context.venueName}</strong></div>:null}
             {vm.context?.weatherLine?<div><span aria-hidden="true">☀</span><strong>{vm.context.weatherLine}</strong></div>:null}
           </div><span>VS</span></div> : <span className="cgc-vs">VS</span>}
@@ -328,7 +331,7 @@ export default function CompactGameCard({ game, onOpen }) {
         </aside>
       </div>
 
-      {!isNfl ? <VenueConditions context={vm.context} game={game} sportId={sportId} /> : null}
+      {!isFootball ? <VenueConditions context={vm.context} game={game} sportId={sportId} /> : null}
 
       <div className="cgc-market-strip" aria-label="FBIS and market comparison">
         <div className="cgc-market-item">
@@ -372,7 +375,7 @@ export default function CompactGameCard({ game, onOpen }) {
 
       {isNhl && !action.available ? <div className="cgc-nhl-action-unavailable">ACTION splits: UNAVAILABLE · No movement signal inferred</div> : null}
 
-      {isNfl ? <NflDirectionalMatchups game={game} matchup={matchup} away={away} home={home} /> : (
+      {isNfl ? <NflDirectionalMatchups game={game} matchup={matchup} away={away} home={home} /> : isCfb ? <CfbDirectionalMatchups game={game} away={away} home={home} /> : (
         <section className={`cgc-matchup-read${genericMatchupItems.length ? "" : " is-unavailable"}`} aria-label="FBIS matchup analysis">
           <div className="cgc-matchup-read-head">
             <div><span>GAME MATCHUP</span><strong>{genericMatchupItems.length ? "FBIS ANALYSIS" : "NO ANALYTICS YET"}</strong></div>

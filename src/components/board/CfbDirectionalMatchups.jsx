@@ -1,0 +1,51 @@
+import cfbTeams from "../../../data/teams/cfb.js";
+import TeamLogo from "../TeamLogo.jsx";
+import "./nflDirectionalMatchups.css";
+
+const PAIRS=[
+ {id:"away-run-defense",a:"away",aUnit:"RUN DEFENSE",b:"home",bUnit:"RUN OFFENSE",off:"home",kind:"rush"},
+ {id:"away-run-offense",a:"away",aUnit:"RUN OFFENSE",b:"home",bUnit:"RUN DEFENSE",off:"away",kind:"rush"},
+ {id:"away-pass-defense",a:"away",aUnit:"PASS DEFENSE",b:"home",bUnit:"PASS OFFENSE",off:"home",kind:"pass"},
+ {id:"away-pass-offense",a:"away",aUnit:"PASS OFFENSE",b:"home",bUnit:"PASS DEFENSE",off:"away",kind:"pass"},
+];
+const finite=v=>v===null||v===undefined||v===""?null:Number.isFinite(Number(v))?Number(v):null;
+const read=(o,...keys)=>{for(const k of keys){const n=finite(o?.[k]);if(n!==null)return n;}return null;};
+function input(game,side){
+ const est=game?.cfb?.[side+"Est"]||{},fv=est.featureVector||{};
+ return {...(fv.raw||{}),...fv,...(game?.cfbMatchupInput?.[side]||{}),...(game?.cfbDeepInput?.[side]||{}),...(game?.cfbFbisV2Input?.[side]||{})};
+}
+const values=(f,kind,def)=>kind==="rush"?
+ (def?read(f,"rushEpaAllowed","defRushEpa","rushingPpaAllowed"):read(f,"rushEpa","epaRush","rushingPpa","ppaOffenseRushing")):
+ (def?read(f,"passEpaAllowed","defPassEpa","passingPpaAllowed"):read(f,"passEpa","epaPass","passingPpa","ppaOffensePassing"));
+export function cfbDirectionalEvidence(game){
+ const away=input(game,"away"),home=input(game,"home");
+ return PAIRS.map(p=>{
+  const offense=p.off==="home"?home:away,defense=p.off==="home"?away:home;
+  const o=values(offense,p.kind,false),d=values(defense,p.kind,true);
+  const available=o!==null&&d!==null;
+  const value=available?Math.round(Math.max(-1.5,Math.min(1.5,(o-d)*3.5))*100)/100:null;
+  const winner=value!==null&&Math.abs(value)>=.15?(value>0?p.off:p.off==="home"?"away":"home"):null;
+  return {...p,available,value,winner,status:!available?"UNAVAILABLE":winner?"EDGE":"EVEN"};
+ });
+}
+function colors(t){
+ const reg=cfbTeams.find(x=>String(x.espnId||"")===String(t?.espnId||"__")||x.abbr===t?.abbr)||{};
+ const primary=t?.color||t?.primaryColor||reg.color;
+ const secondary=t?.secondaryColor||t?.altColor||t?.alternateColor||reg.altColor;
+ const hex=(v,defaultValue)=>/^#?[a-f0-9]{6}$/i.test(String(v||""))?(String(v).startsWith("#")?String(v):"#"+v):defaultValue;
+ return {primary:hex(primary,"#214d76"),secondary:hex(secondary,"#b5d7ef")};
+}
+export default function CfbDirectionalMatchups({game,away,home}){
+ const teams={away,home},rows=cfbDirectionalEvidence(game);
+ return <section className="nfl-unit-panel cfb-unit-panel" aria-label="Four directional CFB unit matchups">
+  <header><strong>GAME MATCHUP</strong><span>4 DIRECTIONAL UNIT BATTLES</span></header>
+  <div className="nfl-unit-grid">{rows.map(r=>{
+   const winner=r.winner?teams[r.winner]:null,brand=winner?colors(winner):null;
+   return <div key={r.id} className={`nfl-unit-tile ${winner?"has-edge":"is-neutral"}`} style={brand?{"--unit-primary":brand.primary,"--unit-secondary":brand.secondary}:undefined}>
+    <div className="nfl-unit-line"><div><TeamLogo team={teams[r.a]} size={32}/><strong>{teams[r.a]?.abbr} {r.aUnit}</strong></div><span>VS</span><div><TeamLogo team={teams[r.b]} size={32}/><strong>{teams[r.b]?.abbr} {r.bUnit}</strong></div></div>
+    <div className="nfl-unit-result">{winner?<><TeamLogo team={winner} size={46}/><span className="nfl-unit-winner"><small>ADVANTAGE</small><strong>{winner.fullName||winner.name||winner.abbr}</strong></span></>:<strong>{r.status}</strong>}</div>
+    <small>{r.value!==null?`UNIT COMPARISON ${r.value>0?"+":""}${r.value.toFixed(2)}`: "UNIT DATA PENDING"}</small>
+   </div>;
+  })}</div>
+ </section>;
+}
