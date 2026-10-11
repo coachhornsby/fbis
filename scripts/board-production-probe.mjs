@@ -3,6 +3,7 @@
  * No credentials, paid APIs or DB writes. Do not publish response bodies.
  */
 const base = "https://fbis-myz.pages.dev";
+// One-time post-deploy read-only acceptance probe; no production writes.
 const day = process.env.BOARD_PROBE_DATE || "2026-10-10";
 for (const sport of ["cfb", "nhl", "nba", "all"]) {
   const url = new URL("/api/today", base);
