@@ -2751,6 +2751,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
       let n = 0;
       let pal = null;
       const days = [];
+      const nhlCoverageDays = [];
       let sportWrites = emptyWriteCounts();
       const sportFailReasons = [];
       for (const day of unique) {
@@ -2762,6 +2763,17 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         });
         if (!healthMode && odds === "full" && (slate?.games?.length || 0) > 0 && slate?.parlay?.error) {
           throw new Error(`Parlay full collect failed: ${slate.parlay.error}`);
+        }
+        if (sport === "nhl") {
+          const coverage = nhlSourceCompleteness(slate.games || []);
+          const assessment = {
+            ...coverage,date:day,checkedAt:new Date().toISOString(),
+            qualified:false,canAuthorizeWager:false
+          };
+          nhlCoverageDays.push(assessment);
+          // A successful collection job with zero prices must report zero prices,
+          // not masquerade as complete market coverage.
+          if (hasDb(env)) await setMeta(env,"nhl_source_coverage_last",JSON.stringify(assessment));
         }
         let frozen = { counts: emptyWriteCounts(), failReasons: [] };
         if (!healthMode) {
@@ -2842,6 +2854,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         date,
         dates: days,
         pal,
+        ...(sport === "nhl" ? {nhlCoverage:nhlCoverageDays} : {}),
         writes: sportWrites,
       });
       if (sportWrites.writesFailed) {
