@@ -219,6 +219,7 @@ export default function CompactGameCard({ game, onOpen }) {
   const finalAway = game?.away?.score ?? away?.score ?? null;
   const finalHome = game?.home?.score ?? home?.score ?? null;
   const hasFinalScore = isFinal && finalAway != null && finalHome != null;
+  const hasLiveScore = Boolean(vm.event?.live && finalAway != null && finalHome != null);
   const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
@@ -252,6 +253,13 @@ export default function CompactGameCard({ game, onOpen }) {
           </span>
         </div>
       </header>
+
+      {isNhl && vm.event?.live ? (
+        <section className="cgc-live-nhl-score" aria-label="Live NHL score">
+          <span>LIVE SCORE · PRE-GAME FORECAST IS SHOWN BELOW</span>
+          <strong>{hasLiveScore ? `${away.abbr} ${finalAway} – ${finalHome} ${home.abbr}` : "LIVE SCORE NOT AVAILABLE FROM FEED"}</strong>
+        </section>
+      ) : null}
 
       {hasFinalScore ? (
         <section className="cgc-final-score" aria-label="Final score">
