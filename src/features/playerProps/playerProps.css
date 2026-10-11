@@ -2731,3 +2731,19 @@
     bottom: 10px !important;
   }
 }
+
+/* Player Props inherits the same full-width shell canvas and gutters as Board. */
+.fbis-shell-main.route-player-props .player-props-page {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0 0 30px !important;
+  background: transparent;
+}
+.fbis-shell-main.route-player-props .pp-market.pp-premium-page {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-inline: 0;
+}
