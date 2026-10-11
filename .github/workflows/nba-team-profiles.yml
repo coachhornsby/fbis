@@ -54,8 +54,12 @@ jobs:
 
   build:
     needs: source
+    # Coordinate all main NBA D1 writers, not just this workflow's own runs.
+    concurrency:
+      group: ${{ github.ref == 'refs/heads/main' && 'nba-d1-profile-shadow-main' || format('nba-profile-build-{0}', github.run_id) }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
-    timeout-minutes: 9
+    timeout-minutes: 16
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -120,20 +124,27 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --file=migrations/0054_nba_persistent_team_profiles.sql
-          npx wrangler d1 execute fbis --remote --file=migrations/0068_nba_observation_health.sql
+          node scripts/d1-import-lock-retry.mjs migrations/0054_nba_persistent_team_profiles.sql
+          node scripts/d1-import-lock-retry.mjs migrations/0068_nba_observation_health.sql
           if [ -s artifacts/nba-official-lineups.sql ]; then
-            npx wrangler d1 execute fbis --remote --file=artifacts/nba-official-lineups.sql
+            node scripts/d1-import-lock-retry.mjs artifacts/nba-official-lineups.sql
           fi
-          npx wrangler d1 execute fbis --remote --file=artifacts/nba-lineup-health.sql
-          npx wrangler d1 execute fbis --remote --file=artifacts/nba-team-profiles.sql
+          node scripts/d1-import-lock-retry.mjs artifacts/nba-lineup-health.sql
+          node scripts/d1-import-lock-retry.mjs artifacts/nba-team-profiles.sql
           for f in artifacts/nba-team-schedule-*.sql; do
             [ -s "$f" ] || continue
-            npx wrangler d1 execute fbis --remote --file="$f"
+            node scripts/d1-import-lock-retry.mjs "$f"
           done
-          npx wrangler r2 object put "fbis-archive/models/nba/team-profiles/current.json"             --file artifacts/nba-team-profiles.json --remote
+          # This is a read-only strict gate over the final asOf cohort, not a
+          # workflow-success inference. A partially applied SQL run cannot
+          # advance either R2 current or the immutable snapshot publication.
+          node scripts/nba-profile-persistence-verify.mjs artifacts/nba-team-profiles.json
           stamp=$(date -u +%Y%m%dT%H%M%SZ)
           npx wrangler r2 object put "fbis-archive/models/nba/team-profiles/snapshots/${stamp}.json"             --file artifacts/nba-team-profiles.json --remote
+          npx wrangler r2 object put "fbis-archive/models/nba/team-profiles/current.json"             --file artifacts/nba-team-profiles.json --remote
+          mkdir -p artifacts/verify
+          npx wrangler r2 object get "fbis-archive/models/nba/team-profiles/current.json" --file artifacts/verify/nba-team-profiles-current.json --remote
+          cmp artifacts/nba-team-profiles.json artifacts/verify/nba-team-profiles-current.json
 
       - name: Publish summary
         run: |
