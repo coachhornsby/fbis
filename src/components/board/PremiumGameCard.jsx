@@ -6,6 +6,7 @@ import { confidenceStars } from "../../lib/confidenceStars.js";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
 import TennisMatchCard from "./TennisMatchCard.jsx";
 import "./premiumGameCard.css";
+import "./universalPremiumCard.css";
 
 function num(v) {
   const n = Number(v);
@@ -136,6 +137,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const market = vm.market || {};
   const edge = modelEdge(vm);
   const stars = confidenceStars(game);
+  const teamColor = team => { const v=String(team?.color||team?.primaryColor||team?.primary_color||"").trim();return /^#?[a-f0-9]{3}(?:[a-f0-9]{3})?$/i.test(v)?(v.startsWith("#")?v:`#${v}`):null; };
   const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
@@ -177,7 +179,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const tennisEdgeDelta = tennisProbEdge == null ? "NO MARKET EDGE" : "MODEL vs NO-VIG";
 
   return (
-    <article className={`pgc pgc-featured status-${String(vm.status?.tone || "neutral").toLowerCase()}`}>
+    <article className={`pgc pgc-featured fbis-universal-premium status-${String(vm.status?.tone || "neutral").toLowerCase()}`} style={{"--fbis-away":teamColor(away)||"#217ac3","--fbis-home":teamColor(home)||"#ae3448"}}>
       <header className="pgc-featured-head">
         <div className="pgc-featured-title">
           <span aria-hidden="true">🏆</span>
@@ -210,7 +212,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       <section className="pgc-featured-matchup">
         <div className="pgc-featured-team">
           <div className="pgc-team-visual">
-            <TeamLogo team={away} size={82} className="pgc-featured-logo" />
+            <TeamLogo team={away} size={103} className="pgc-featured-logo" />
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
           </div>
           <div>
@@ -231,7 +233,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
 
         <div className="pgc-featured-team pgc-featured-team-home">
           <div className="pgc-team-visual">
-            <TeamLogo team={home} size={82} className="pgc-featured-logo" />
+            <TeamLogo team={home} size={103} className="pgc-featured-logo" />
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
           </div>
           <div>
