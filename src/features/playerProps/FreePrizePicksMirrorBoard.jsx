@@ -84,7 +84,6 @@ function MirrorCard({row,time,projection}){
   style={{"--mirror-primary":primary,"--mirror-secondary":secondary}}>
   <div className="pp-card-visual pp-mirror-visual">
    {team?.logo?<div className="pp-team-watermark" aria-hidden="true"><img src={team.logo} alt=""/></div>:null}
-   <span className="pp-mirror-research-badge">PUBLIC MIRROR · RESEARCH</span>
    <div className="pp-premium-headshot">
     {!headshotFailed?<img src={imageUrl} alt={row.player} loading="lazy"
       onError={()=>setHeadshotFailed(true)}/>:null}
