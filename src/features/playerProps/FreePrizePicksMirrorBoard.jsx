@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import {
   FREE_NFL_MIRROR_URL,FREE_NFL_MIRROR_SOURCE_URL,
   normalizeFreeNflMirror,mirrorChicagoDay,
@@ -19,7 +19,15 @@ function MirrorCard({row,time,projection}){
  const [team,setTeam]=useState(null);
  const [headshotFailed,setHeadshotFailed]=useState(false);
  const [expanded,setExpanded]=useState(false);
- const [history,setHistory]=useState({state:"IDLE",games:[]});
+ const [history,setHistory]=useState({state:"IDLE",games:[],rank:null});
+ const cardRef=useRef(null);
+ const [visible,setVisible]=useState(false);
+ useEffect(()=>{
+  if(typeof IntersectionObserver==="undefined"){setVisible(true);return}
+  const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){setVisible(true);observer.disconnect()}},{rootMargin:"350px"});
+  if(cardRef.current)observer.observe(cardRef.current);
+  return()=>observer.disconnect();
+ },[]);
  useEffect(()=>{
   let active=true;
   const key=String(row.team||"").trim();
@@ -32,25 +40,27 @@ function MirrorCard({row,time,projection}){
   return()=>{active=false};
  },[row.team]);
  useEffect(()=>{
-  if(!expanded)return;
+  if(!visible||!row.market)return;
   let active=true;
   const q=new URLSearchParams({
    sport:"nfl",name:row.player,team:row.team,opponent:row.opponent,
    market:row.market||row.stat,line:String(row.line)
   });
-  setHistory({state:"LOADING",games:[]});
+  setHistory({state:"LOADING",games:[],rank:null});
   fetch("/api/player-prop-detail?"+q,{credentials:"same-origin"})
    .then(r=>r.ok?r.json():null)
    .then(x=>{
     if(!active)return;
     const games=Array.isArray(x?.detail?.last5)?x.detail.last5:[];
-    setHistory({state:games.length?"AVAILABLE":"UNAVAILABLE",games:games.slice(0,5)});
-   }).catch(()=>{if(active)setHistory({state:"UNAVAILABLE",games:[]})});
+    const rank=Number(x?.detail?.matchup?.defenseRank);
+    setHistory({state:games.length?"AVAILABLE":"UNAVAILABLE",games:games.slice(0,5),rank:Number.isInteger(rank)&&rank>=1&&rank<=32?rank:null});
+   }).catch(()=>{if(active)setHistory({state:"UNAVAILABLE",games:[],rank:null})});
   return()=>{active=false};
- },[expanded,row.id]);
+ },[visible,row.id,row.market]);
  const imageUrl="/api/player-image?"+new URLSearchParams({name:row.player,sport:"nfl",team:row.team,mode:"image"});
  const primary=team?.primaryColor||"#172b50",secondary=team?.secondaryColor||"#090f20";
- return <article className="pp-card pp-premium-card sport-nfl pp-mirror-card"
+ const delta=projection?projection.value-Number(row.line):null;
+ return <article ref={cardRef} className="pp-card pp-premium-card sport-nfl pp-mirror-card"
   style={{"--mirror-primary":primary,"--mirror-secondary":secondary}}>
   <div className="pp-card-visual pp-mirror-visual">
    {team?.logo?<div className="pp-team-watermark" aria-hidden="true"><img src={team.logo} alt=""/></div>:null}
@@ -65,9 +75,12 @@ function MirrorCard({row,time,projection}){
   <div className="pp-card-body">
    <div className="pp-player-title"><h3>{row.player}</h3><p>{row.team} · vs <b>{row.opponent}</b></p></div>
    <div className="pp-market-name pp-premium-market-name">{row.stat}</div>
-   <div className="pp-mirror-line-block"><span>PUBLIC STANDARD LINE</span><strong>{row.line}</strong>
-    <small>Not a verified live offer</small></div>
-   <div className="pp-mirror-projection"><div><span>FBIS PROJECTION</span><strong>{projection?projection.value.toFixed(1):"—"}</strong></div><div><span>PUBLIC MIRROR LINE</span><strong>{row.line}</strong><img className="pp-mirror-prizepicks-logo" src="https://app.prizepicks.com/images/pp-logos/pp-logo.svg" alt="PrizePicks" loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display="none";}}/></div><small>{projection?"FBIS model · "+(projection.modelVersion||"version unavailable"):"No matching published FBIS projection"}</small></div>
+   <div className="pp-mirror-comparison" aria-label="PrizePicks line versus FBIS model projection">
+    <div className="pp-mirror-comparison-cell"><span>PRIZEPICKS</span><strong>{row.line}</strong><img className="pp-mirror-prizepicks-logo" src="https://app.prizepicks.com/images/pp-logos/pp-logo.svg" alt="PrizePicks" loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display="none"}}/></div>
+    <div className="pp-mirror-comparison-cell"><span>FBIS PROJ</span><strong>{projection?projection.value.toFixed(1):"—"}</strong></div>
+    <div className={"pp-mirror-comparison-cell pp-mirror-delta "+(delta==null?"is-missing":delta>0?"is-positive":delta<0?"is-negative":"is-even")}><span>DIFFERENCE</span><strong>{delta==null?"—":(delta>0?"+":"")+delta.toFixed(1)}</strong></div>
+   </div>
+   <div className="pp-mirror-context"><span>VS {row.opponent||"—"} · DEFENSE VS {row.stat.toUpperCase()} <b>{history.rank?"#"+history.rank+" / 32":history.state==="LOADING"?"LOADING":"N/A"}</b></span><small>{projection?"FBIS "+(projection.modelVersion||"model"):"No matching published FBIS projection"} · Public line not verified live</small></div>
    <div className="pp-card-foot pp-premium-foot"><span>{time(row.startAt)} CT</span><span>Research only · No FBIS pick</span></div>
    <div className="pp-analytics">
     <button type="button" className="pp-analytics-toggle" onClick={()=>setExpanded(v=>!v)}
