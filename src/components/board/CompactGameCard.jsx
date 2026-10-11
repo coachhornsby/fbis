@@ -261,6 +261,12 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       </header>
 
+      {isNfl && game.nflInternationalContext?.international ? (
+        <div className="cgc-status-note" role="status" aria-label="International-game risk">
+          🌍 {game.nflInternationalContext.site?.city || "INTERNATIONAL"} · INTERNATIONAL / NEUTRAL · TRAVEL NOT VALIDATED · NO BET AUTHORITY
+        </div>
+      ) : null}
+
       {isNhl && vm.event?.live ? (
         <section className="cgc-live-nhl-score" aria-label="Live NHL score">
           <span>LIVE SCORE · PRE-GAME FORECAST IS SHOWN BELOW</span>
