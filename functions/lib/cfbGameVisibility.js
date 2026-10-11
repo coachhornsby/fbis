@@ -9,7 +9,7 @@ export function isFbsVsFbsGame(game) {
     // Explicit provider classification takes precedence over current membership.
     if (classification && classification !== 'FBS') return false;
     if (team.classificationSource === 'CFBD') return classification === 'FBS';
-    return season === 2026 && FBS_2026.has(String(team.espnId || ''));
+    return season === 2026 && FBS_2026.has(String(Object.hasOwn(team, 'providerTeamId') ? team.providerTeamId || '' : team.espnId || ''));
   });
 }
 export function fbsOnlySlate(payload) {

@@ -889,6 +889,8 @@ export function mapEvent(sport, event) {
   const away = teamPayload(awayC);
   home.espnId = homeC?.team?.id || homeC?.id || null;
   away.espnId = awayC?.team?.id || awayC?.id || null;
+  home.providerTeamId = homeC?.team?.id || null;
+  away.providerTeamId = awayC?.team?.id || null;
   home.conference = homeC?.team?.conferenceId || null;
   away.conference = awayC?.team?.conferenceId || null;
   const odds = parseOdds(comp, sport);
