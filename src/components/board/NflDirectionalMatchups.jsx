@@ -1,3 +1,4 @@
+import nflTeams from "../../../data/teams/nfl.js";
 import TeamLogo from "../TeamLogo.jsx";
 import "./nflDirectionalMatchups.css";
 
@@ -9,7 +10,9 @@ const PAIRS=[
 ];
 const numeric=v=>v==null||v===""?null:Number.isFinite(Number(v))?Number(v):null;
 const color=(t,secondary=false)=>{
- const v=secondary?(t?.secondaryColor||t?.secondary_color||t?.alternateColor||t?.alternate_color):(t?.color||t?.primaryColor||t?.primary_color);
+ const canonical=nflTeams.find(x=>x.abbr===t?.abbr);
+
+ const v=secondary?(t?.secondaryColor||t?.secondary_color||t?.alternateColor||t?.alternate_color||t?.altColor||canonical?.altColor):(t?.color||t?.primaryColor||t?.primary_color||canonical?.color);
  return /^#?[0-9a-f]{6}$/i.test(String(v||""))?(String(v).startsWith("#")?String(v):"#"+v):null;
 };
 /* Directional evidence ONLY: a generic run/coverage score cannot identify which unit won. */
