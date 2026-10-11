@@ -50,7 +50,7 @@ test("poststart, future and missing scoring snapshots cannot masquerade as prega
     assert.equal(x.qualificationBlocked,true);
   }
   assert.equal(toDurableBoardGame(cfb("401000001",{start:"2026-10-11T23:00:00Z"}),{date:today,now}),null);
-  assert.equal(toDurableBoardGame(cfb("401000001",{home_abbr:null}),{date:today,now}).home.abbr,null);
+  assert.equal(toDurableBoardGame(cfb("401000001",{home_name:"Yale Bulldogs",home_abbr:null}),{date:today,now}).home.abbr,null);
 });
 test("D1 date-scoped fallback never writes or accesses provider endpoints",async()=>{
   const store=db([cfb("401000001"),cfb("401000002",{sport:"nhl",home_abbr:"BUF",away_abbr:"UTA"})]);
