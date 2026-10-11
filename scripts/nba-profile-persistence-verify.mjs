@@ -71,7 +71,7 @@ export async function readNbaPersistence(profile,{fetchImpl=fetch,env=process.en
   const database=env.CLOUDFLARE_D1_DATABASE_ID||"b50c724c-903b-4241-8ce1-48d931e7a44c";
   if(!account||!token||!database)throw new Error("D1_READ_ONLY_CREDENTIALS_UNAVAILABLE");
   const asOf=String(profile?.asOf||"");
-  if(!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(asOf))
+  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(asOf))
     throw new Error("RECONCILIATION_AS_OF_INVALID");
   try {
     const res=await fetchImpl(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/d1/database/${encodeURIComponent(database)}/query`,{
