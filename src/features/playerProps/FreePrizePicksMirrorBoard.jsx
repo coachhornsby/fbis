@@ -16,7 +16,7 @@ function matchingProjection(row,projections){
 }
 
 const teamCache=new Map();
-function MirrorCard({row,time,projection}){
+function MirrorCard({row,time,projection,defenseRanks}){
  const [team,setTeam]=useState(null);
  const [opponentTeam,setOpponentTeam]=useState(null);
  const [headshotFailed,setHeadshotFailed]=useState(false);
@@ -77,7 +77,8 @@ function MirrorCard({row,time,projection}){
  const market=String(row.market||"").toLowerCase();
  const isRun=/^(rushing_|rush_|carries)/.test(market);
  const defenseType=isRun?"RUN":"PASS";
- const defenseRank=isRun?history.runDefense:history.passDefense;
+ const oppCode=nflTeamCode(opponentTeam?.abbr||row.opponentCode||"");
+ const defenseRank=defenseRanks?.[oppCode]?.[isRun?"run":"pass"]||null;
  const defenseTier=defenseRank?.rank>=1&&defenseRank.rank<=10?"top-ten":defenseRank?.rank>=21&&defenseRank.rank<=32?"bottom-twelve":"neutral";
  const delta=projection?projection.value-Number(row.line):null;
  return <article ref={cardRef} className="pp-card pp-premium-card sport-nfl pp-mirror-card"
@@ -142,6 +143,8 @@ export default function FreePrizePicksMirrorBoard(){
   const [search,setSearch]=useState("");
   const [limit,setLimit]=useState(48);
   const [projections,setProjections]=useState([]);
+  const [defenseRanks,setDefenseRanks]=useState({});
+  useEffect(()=>{let active=true;fetch("/api/nfl-defense-ranks").then(r=>r.ok?r.json():null).then(x=>{if(active)setDefenseRanks(x?.teams||{})}).catch(()=>{});return()=>{active=false}},[refresh]);
   const [projectionStatus,setProjectionStatus]=useState("LOADING");
   useEffect(()=>{
    let active=true;
@@ -241,7 +244,7 @@ export default function FreePrizePicksMirrorBoard(){
             <>
               <div className="pp-card-grid pp-premium-grid pp-mirror-grid">
                 {rows.slice(0,limit).map(row=>(
-                  <MirrorCard key={row.id} row={row} time={time} projection={matchingProjection(row,projections)}/>
+                  <MirrorCard key={row.id} row={row} time={time} projection={matchingProjection(row,projections)} defenseRanks={defenseRanks}/>
                 ))}
               </div>
               {rows.length>limit?(
