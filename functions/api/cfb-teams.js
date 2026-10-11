@@ -50,7 +50,7 @@ export async function loadFbsTeamDirectory(db, requestedTeamId = null, options =
         optionalTeamFeatures(db, team.teamId), optionalTeamForm(db, team.espnId,season),
         loadFbsTeamSeasonEvidence(db,team,season,playerId),
       ]);
-      const publicFacts = await loadCfbPublicTeamFacts(team.espnId, Number(season));
+      const publicFacts = await (options.publicFactsLoader || loadCfbPublicTeamFacts)(team.espnId, Number(season));
       evidence.schedule = publicFacts.schedule;
       return { status: 200, body: {
         ok: true, team, featureState, legacyForm, evidence, apRanking:publicFacts.apRanking, modelAuthority: noModelAuthority,
@@ -74,6 +74,7 @@ export async function onRequestGet(context) {
   const result = await loadFbsTeamDirectory(context.env?.DB, teamId, {
     season: url.searchParams.get("season") || 2026,
     playerId: url.searchParams.get("player") || null,
+    publicFactsLoader: context.publicFactsLoader,
   });
   return json(result.body, result.status);
 }
