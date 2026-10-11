@@ -86,3 +86,15 @@ The verifier must write **APPROVED** or **REJECTED** with exact evidence and rea
 
 ### Safety and economic governance
 No automated model promotion, wager authorization, altered frozen PIT evidence, destructive migration, historical deletion, paid upgrade, or duplicate paid provider run. Preserve the existing review, CI and operator-approval gates. Monitor cost of the watchdog itself; prefer bounded reads and live evidence over repeated full replays.
+
+
+## Required shared systems map and cross-scheduler awareness
+
+Read [the shared agent/scheduler/sport operating map](docs/ops/agent-schedules-and-sport-scope.md) before repair, verification, scheduling, paid acquisition, database/schema write or cross-sport shared-platform change. The map records verified scheduling planes, domain boundaries and currently UNKNOWN agent timing. It does not supersede current provider/runtime state.
+
+- Before every mutation, discover live schedules and in-flight jobs in **GitHub Actions**, **Cloudflare Worker crons**, **ChatGPT task manager**, and **Gemini Spark's own automation platform**, to the extent actually accessible. Do not guess or pretend cross-platform schedule access; publish UNKNOWN if inaccessible.
+- Maintain a live **FBIS Agent Schedule Registry** in Sports Betting Tracker containing owner, cadence, timezone, next/last execution when known, trigger/backup, resource read/write sets, concurrency policy, idempotency keys and spend guard. Any schedule mutation requires collision analysis and separately authorized CI/deploy.
+- A row in a Google Sheet is *advisory*, not a distributed lock. Do not run overlapping writes to shared D1/R2/Sheet/provider resources without atomic resource claim/fencing or coordination proof. Distinct schedules alone are not enough.
+- Sport ownership is logical: each bucket has independent source integrity, models, availability, temporal/prospective validation and governance. Shared D1/R2, markets, identity services, settlement, and platform infrastructure are shared resources requiring platform-level regression tests.
+- First verify sport requirements and current production maturity; model/research scope is not evidence of existing working production capabilities. Track unknown/missing controls and never silently substitute other-sport assumptions.
+- Do not claim reciprocal agent scheduling or comprehensive per-sport coverage is implemented until Gemini publishes real schedule metadata, ChatGPT sees it from a shared source, every active Github/Worker schedule is inventoried, and a concurrent-write race test passes.
