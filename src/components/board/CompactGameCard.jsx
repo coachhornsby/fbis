@@ -2,6 +2,7 @@ import { fmt, lineLabel, bestEdge, matchupSignalLabel } from "../../lib/boardEvi
 import TeamLogo from "../TeamLogo.jsx";
 import NhlEvidenceStrip from "./NhlEvidenceStrip.jsx";
 import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
+import NflInjuryIntegrityStrip from "./NflInjuryIntegrityStrip.jsx";
 import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
 import NhlPlayerProjectionStrip from "./NhlPlayerProjectionStrip.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
@@ -261,6 +262,7 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       </header>
 
+      {isNfl ? <NflInjuryIntegrityStrip game={game} /> : null}
       {isNfl && game.nflInternationalContext?.international ? (
         <div className="cgc-status-note" role="status" aria-label="International-game risk">
           🌍 {game.nflInternationalContext.site?.city || "INTERNATIONAL"} · INTERNATIONAL / NEUTRAL · TRAVEL NOT VALIDATED · NO BET AUTHORITY

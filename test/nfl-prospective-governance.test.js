@@ -95,3 +95,49 @@ test("versioned post-gate rows enter the cohort and enforce gate-off equality",(
   assert.equal(r.integrity.gateOffMismatches,0);
   assert.equal(r.checks.gateOffExact,true);
 });
+
+
+test("confirmed official NFL QB1 OUT is surfaced but cannot modify a score or wager authority",async()=>{
+  const {nflInjuryScoreIntegrity}=await import("../src/lib/nflInjuryScoreIntegrity.js");
+  const home={abbr:"ATL"},away={abbr:"BAL"};
+  const originalScore={home:22.6,away:24.3};
+  const game={sport:"nfl",home,away,nflProShadow:{...originalScore,margin:-1.7,total:46.9},
+    nflPersistentProfile:{configured:true,home:{players:[]},away:{players:[
+      {player_name:"Lamar Jackson",position:"QB",depth_rank:1,role_label:"QB1",health_state:"OUT",injury_detail:"Ankle",state_source:"nfl-official",state_source_updated_at:"2026-10-11T15:54:51.949Z"},
+      {player_name:"Tyler Huntley",position:"QB",depth_rank:2,role_label:"QB2",health_state:"AVAILABLE",state_source:"roster-presence"}
+    ]}}};
+  const x=nflInjuryScoreIntegrity(game);
+  assert.equal(x.kind,"CONFIRMED_QB_OUT");
+  assert.equal(x.critical,true);
+  assert.equal(x.confirmedQbOut[0].name,"Lamar Jackson");
+  assert.equal(x.confirmedQbOut[0].replacement.name,"Tyler Huntley");
+  assert.equal(x.scoreUsesPersistentInjuries,false);
+  assert.equal(x.canQualify,false);
+  assert.equal(x.canAuthorizeWager,false);
+  assert.deepEqual(game.nflProShadow,{...originalScore,margin:-1.7,total:46.9});
+});
+
+test("NFL injury strip fails closed for missing state and does not infer injury from roster alone",async()=>{
+  const {nflInjuryScoreIntegrity}=await import("../src/lib/nflInjuryScoreIntegrity.js");
+  const absent=nflInjuryScoreIntegrity({sport:"nfl"});
+  assert.equal(absent.kind,"NO_PERSONNEL_STATE");
+  assert.equal(absent.scoreUsesPersistentInjuries,false);
+  assert.equal(absent.canAuthorizeWager,false);
+  const unverified=nflInjuryScoreIntegrity({sport:"nfl",home:{abbr:"BAL"},away:{abbr:"ATL"},nflPersistentProfile:{
+    configured:true,home:{players:[{player_name:"Example",position:"QB",role_label:"QB1",health_state:"OUT",state_source:"roster-presence"}]},away:{players:[]}}});
+  assert.equal(unverified.critical,false);
+  assert.equal(unverified.confirmedQbOut.length,0);
+  assert.equal(nflInjuryScoreIntegrity({sport:"cfb"}),null);
+});
+
+test("NFL game cards display official QB OUT warning without changing NFL projection calculation",()=>{
+  const fs=require("node:fs");
+  for(const path of ["src/components/board/CompactGameCard.jsx","src/components/board/PremiumGameCard.jsx"]){
+    const content=fs.readFileSync(path,"utf8");
+    assert.match(content,/<NflInjuryIntegrityStrip game=\{game\}/);
+  }
+  const view=fs.readFileSync("src/components/board/NflInjuryIntegrityStrip.jsx","utf8");
+  assert.match(view,/RESEARCH SCORE NOT INJURY-ADJUSTED/);
+  assert.match(view,/NFL official injury report/);
+  assert.doesNotMatch(view,/api\/nfl-qb-shadow|\.prepare\s*\(|\bfetch\s*\(/);
+});
