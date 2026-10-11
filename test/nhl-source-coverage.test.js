@@ -8,6 +8,9 @@ import {projectNhlResearchGame} from "../functions/lib/nhlResearchModel.js";
 import {NHL_PRO_V2_ARTIFACT} from "../data/models/nhl-pro-v2.js";
 import {NHL_FBIS_V1_ARTIFACT} from "../data/models/nhl-fbis-v1.js";
 import {packNhlEspnMarketObservations,nhlSourceCompleteness} from "../functions/lib/nhlFreeMarket.js";
+import {resolveCanonicalMarket} from "../functions/lib/canonical/marketRoles.js";
+import {marketLines} from "../src/lib/boardDecision.js";
+import {buildNhlCardEvidence} from "../src/lib/nhlCardEvidence.js";
 const pairs=[["LA","LAK","VGK"],["SJ","SJS","EDM"],["TB","TBL","NYI"],["NJ","NJD","VAN"]];
 test("ESPN aliases map only model feature inputs, leaving ESPN event identities intact",()=>{
  for(const [raw,official] of pairs)assert.equal(nhlModelTeamCode(raw),official);
@@ -81,4 +84,27 @@ test("NHL provider mapping is disabled for paid collection unless separately opt
  assert.match(src,/strictCacheOnly:[\s\S]*NHL_ODDS_PROVIDER_OPT_IN/);
  assert.match(parlay,/nhl: "icehockey_nhl"/);
  assert.match(today,/String\(row\.book\|\|""\) !== "Pinnacle"/);
+});
+
+test("board labels observed ESPN full-game ML as non-execution source, not Pinnacle or certified EV",()=>{
+ const odds={...g.odds,nhlEspnObserved:true};
+ const evt={...g,odds};
+ const canonical=resolveCanonicalMarket(evt,{now:Date.parse("2026-10-11T00:30:00Z")});
+ assert.equal(canonical.consensus.source,"OBSERVED_ESPN");
+ assert.deepEqual(canonical.consensus.moneyline,{home:-125,away:115});
+ assert.equal(canonical.consensus.executable,false);
+ assert.equal(canonical.execution.available,false);
+ const lines=marketLines({...evt,market:canonical});
+ assert.equal(lines.homeMl,-125);assert.equal(lines.awayMl,115);
+ assert.equal(lines.observedOnly,true);
+ const displayed=buildNhlCardEvidence(evt,{sport:"nhl",away:{abbr:"ANA"},home:{abbr:"CGY"},market:lines,action:{available:false}});
+ assert.equal(displayed.market.book,"OBSERVED_ESPN");
+ assert.match(displayed.market.role,/NOT EXECUTABLE/);
+ assert.equal(displayed.qualified,false);
+});
+test("unpaired ESPN moneylines cannot leak into canonical market ML field",()=>{
+ const odds={...g.odds,awayMl:null,nhlEspnObserved:true};
+ const evt={...g,odds};
+ const lines=marketLines({...evt,market:resolveCanonicalMarket(evt)});
+ assert.equal(lines.homeMl,null);assert.equal(lines.awayMl,null);
 });
