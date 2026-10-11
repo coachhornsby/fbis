@@ -548,9 +548,7 @@ export default function App() {
           <Ticker items={slate?.ticker || []} logged={loggedOpen} />
         ) : null}
 
-        {route === "teams" ? (
-          <CfbTeamsView refreshKey={cfbTeamsRefresh} />
-        ) : route === "models" || route === "publish" ? (
+        {route === "models" || route === "publish" ? (
           <div className="canonical-models-stack">
             <CurrentProjectionsView date={todayDate} sportFilter={sportFilter} />
           </div>
@@ -561,6 +559,8 @@ export default function App() {
               onSportFilterChange={setPlayerPropsSport}
             />
           </div>
+        ) : route === "teams" ? (
+          <CfbTeamsView refreshKey={cfbTeamsRefresh} />
         ) : route === "performance" ? (
           <TrackView
             report={track}
