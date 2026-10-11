@@ -5,6 +5,8 @@ on:
       - scripts/cfb-d1-import-partition.py
       - scripts/cfb-existing-backup-verify.py
       - test/cfb-d1-partition.test.py
+      - scripts/cfb-d1-dependency-plan.py
+      - test/cfb-d1-dependency.test.py
       - .github/workflows/cfb-offline-recovery-contract.yml
   workflow_dispatch:
 permissions:
@@ -19,7 +21,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Test statement-boundary partition and checksum fail-closed
-        run: python test/cfb-d1-partition.test.py -v
+        run: |
+          python test/cfb-d1-partition.test.py -v
+          python test/cfb-d1-dependency.test.py -v
       - name: Verify repository recovery documentation retains remote gate
         run: |
           python - <<'PY'
