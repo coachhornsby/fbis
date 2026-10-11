@@ -28,12 +28,14 @@ export async function freezeCfbPregameFeatures(env,{dates=null,now=new Date().to
  const clock=time(now);
  if(clock==null||!env?.DB)return {ok:false,reason:"time-or-db-unavailable"};
  const feed=await loadCfbDeepFeatures(env,{now:clock,fetchFn});
- if(!feed?.meta?.asOf||!Object.keys(feed.bySchool||{}).length)return {ok:false,reason:"deep-feed-unavailable",feed:feed?.meta||null};
+ if(!feed?.meta?.asOf||!Object.keys(feed.bySchool||{}).length)return {ok:false,reason:Number(feed?.meta?.httpStatus)===429?"CFBD 429 rate-limited":"deep-feed-unavailable",feed:feed?.meta||null};
  const {buildSlate}=await import("./slateEngineCore.js");
- const datesToCheck=dates||[dateCT(now),dateCT(clock+86400000)];
- const summary={ok:true,checked:0,eligible:0,inserted:0,existing:0,failed:0,missing:0,feed:feed.meta,days:datesToCheck,authority:"research-only"};
- for(const date of datesToCheck.slice(0,3)){
-  const slate=await buildSlate("cfb",date,{...env,cfbdCacheOnly:true,parlayCacheOnly:true});
+ const datesToCheck=dates||Array.from({length:8},(_,i)=>dateCT(clock+i*86400000));
+ const summary={ok:true,checked:0,eligible:0,inserted:0,existing:0,failed:0,missing:0,skippedDates:[],feed:feed.meta,days:datesToCheck,authority:"research-only"};
+ for(const date of datesToCheck.slice(0,8)){
+  let slate;
+  try{slate=await buildSlate("cfb",date,{...env,cfbdCacheOnly:true,parlayCacheOnly:true});}
+  catch(err){summary.skippedDates.push({date,reason:String(err?.message||err).slice(0,160)});continue;}
   for(const game of attachCfbDeepFeatures((slate?.games||[]).slice(0,100),feed)){
    summary.checked++;
    const candidate=safeCfbFeatureFreeze(game,feed,{now});
