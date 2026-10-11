@@ -49,6 +49,9 @@ FIELDS={
   "interceptions":"defensive_interceptions","interceptionYards":"interception_return_yards",
   "interceptionTouchdowns":"interception_td",
  },
+ "interceptions":{"interceptions":"defensive_interceptions",
+   "interceptionYards":"interception_return_yards",
+   "interceptionTouchdowns":"interception_td"},
  "fumbles":{"fumbles":"fumbles","fumblesLost":"fumbles_lost",
             "fumblesRecovered":"fumbles_recovered"},
  "kickReturns":{
@@ -68,6 +71,7 @@ CATEGORY_ALIASES={
  "passing":"passing","rushing":"rushing","receiving":"receiving",
  "defensive":"defensive","defense":"defensive",
  "fumbles":"fumbles","fumble":"fumbles",
+ "interceptions":"interceptions",
  "kickreturns":"kickReturns","kickreturn":"kickReturns",
  "kicking":"kicking","punting":"punting",
  "puntreturns":"puntReturns","puntreturn":"puntReturns",
@@ -144,14 +148,15 @@ def from_completed_schedule(path,season):
   gid=str(r.get("game_id") or "")
   home=str(r.get("home_id") or "")
   away=str(r.get("away_id") or "")
-  completed=str(r.get("completed") or "").strip().lower() in ("true","1")
+  complete_flag=r.get("completed")
+  completed=str(complete_flag).strip().lower() in ("true","1") if complete_flag not in (None,"") else True
   tbd=str(r.get("start_time_tbd") or "").strip().lower() in ("true","1")
   status=str(r.get("status") or "").upper()
-  if not completed or tbd or any(x in status for x in ("CANCEL","POSTPONE","SCHEDULE")):
+  if not completed or tbd or status!="STATUS_FINAL" or r.get("home_score") in (None,"") or r.get("away_score") in (None,""):
    n["excluded_incomplete"]+=1;continue
   if not ID.fullmatch(gid) or not ID.fullmatch(home) or not ID.fullmatch(away):
    n["missing_ids_or_start"]+=1;continue
-  try:date=parse_time(r.get("start_date"))
+  try:date=parse_time(r.get("start_date") or r.get("game_date"))
   except(ValueError,TypeError):
    n["missing_ids_or_start"]+=1;continue
   for key,opponent in [((gid,home),r.get("away_team") or ""),
@@ -198,10 +203,26 @@ def build(args):
   cat=CATEGORY_ALIASES.get(catKey)
   if not cat:
    count["unmapped_category"]+=1;continue
-  if any(source.get("stat_"+str(n)) not in (None,"") for n in range(1,6)):
-   count["unnamed_stats_quarantined"]+=1
-   continue
-  metrics=converted(source,cat)
+  raw=[source.get("stat_"+str(n)) for n in range(1,6)]
+  if any(v not in (None,"") for v in raw):
+   # Verified from 2026 SDV release: passing only, order C/A,YDS,YPA,TD,INT.
+   # All five must parse and be internally consistent; never guess generic stat_i.
+   pair=fixed_pair(raw[0])
+   other=[numeric(v) for v in raw[1:]]
+   if cat=="passing" and pair and all(v is not None for v in other):
+    completions,attempts=pair
+    yards,ypa,td,interceptions=other
+    if 0<=completions<=attempts and attempts>0 and -100<=yards<=1000 and 0<=ypa<=50 and 0<=td<=20 and 0<=interceptions<=20 and abs(yards/attempts-ypa)<2:
+     metrics={"completions":completions,"passing_attempts":attempts,
+       "passing_yards":yards,"yards_per_pass_attempt":ypa,
+       "passing_td":td,"passing_interceptions":interceptions}
+     count["validated_fallback_passing_rows"]+=1
+    else:
+     count["unnamed_stats_quarantined"]+=1;continue
+   else:
+    count["unnamed_stats_quarantined"]+=1;continue
+  else:
+   metrics=converted(source,cat)
   if not metrics:
    count["no_named_metrics"]+=1;continue
   group_key=(game,team,athlete)
