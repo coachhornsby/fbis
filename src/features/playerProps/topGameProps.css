@@ -1,0 +1,17 @@
+.top-game-props{margin:14px 0;padding:16px;border:1px solid var(--line,rgba(148,163,184,.22));border-radius:14px;background:var(--surface,rgba(15,23,42,.25));color:inherit}
+.top-game-props-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.top-game-props-heading h3{font-size:13px;letter-spacing:.075em;margin:0;font-weight:800}
+.top-game-props-heading>span,.top-game-props-disclaimer{font-size:11px;opacity:.75}
+.top-game-props-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.top-game-prop{display:flex;flex-direction:column;gap:7px;min-width:0;padding:12px;border:1px solid var(--line,rgba(148,163,184,.2));border-radius:10px;background:var(--card,rgba(127,127,127,.045))}
+.top-game-prop-order{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:10px;font-weight:800;letter-spacing:.07em;opacity:.75}
+.top-game-prop-player{font-size:14px;overflow-wrap:anywhere}
+.top-game-prop-detail{font-size:12px;opacity:.8}
+.top-game-prop-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:8px 0;border-top:1px solid var(--line,rgba(148,163,184,.16));border-bottom:1px solid var(--line,rgba(148,163,184,.16))}
+.top-game-prop-metrics>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.top-game-prop-metrics small{font-size:9px;font-weight:700;opacity:.65}
+.top-game-prop-metrics strong{font-variant-numeric:tabular-nums;font-size:16px}
+.top-game-prop-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px;font-size:10px;opacity:.72}
+.top-game-props-empty{padding:8px 0;font-size:12px;opacity:.75}
+.top-game-props-disclaimer{margin:10px 0 0}
+@media(max-width:860px){.top-game-props-grid{grid-template-columns:1fr}}

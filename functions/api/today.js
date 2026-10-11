@@ -85,6 +85,8 @@ export async function onRequestGet(context) {
       d1: ping.ok ? "healthy" : ping.reason || "error",
       sportsLoaded: BOARD_SPORTS_OK(board),
       gamesLoaded: board.counts.games,
+      durableFallbackGames: Number(board?.counts?.durableFallbackGames || 0),
+      boardDeliveryMode: board?.parlay?.durableReadOnly ? "D1_UNVERIFIED_MATCHUPS" : "RESEARCH_FEEDS",
       projectionsAvailable: board.games.filter((g) => !g.projectionUnavailable).length,
       marketsAvailable: board.games.filter((g) => !g.marketUnavailable).length,
       qualifiedTickets: board.counts.qualified,
@@ -133,7 +135,7 @@ export async function onRequestGet(context) {
     const failedSports = Object.entries(sourceStatus.statuses)
       .filter(([k]) => !successfulSports.includes(k))
       .map(([k]) => k);
-    const allSportsAuthoritative = failedSports.length === 0;
+    const allSportsAuthoritative = failedSports.length === 0 && Number(board?.counts?.durableFallbackGames || 0) === 0;
     const domain = toDomainTodayBoard(withBets, {
       date: resolved.date,
       sportFilter: focusSport || "all",

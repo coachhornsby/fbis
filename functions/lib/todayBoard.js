@@ -13,6 +13,7 @@ import { palUnavailableReason } from "./ballparkpal.js";
 import { canonicalProjectionConfidence } from "./projectionConfidence.js";
 import { buildPropConvictions, summarizeMlbPropWatch } from "./propConviction.js";
 import { querySnapshots, queryOddsSnapshots } from "./store.js";
+import { loadDurableTodayGames } from "./todayDurableFallback.js";
 import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
 import { tennisCardContext } from "./tennisPlayerBank.js";
 import {
@@ -174,6 +175,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     projectionEngine: game.projectionEngine || null,
     publicationStatus: game.publicationStatus || null,
     bettingAuthority: game.bettingAuthority || null,
+    durableFallback: game.durableFallback || null,
     modelDisagreement: game.modelDisagreement || null,
     researchProjection: game.researchProjection || null,
     probabilityProvenance: game.probabilityProvenance || game.model?.probabilityProvenance || null,
@@ -242,7 +244,9 @@ export function toBoardGame(game, sport, now = Date.now()) {
           reason: lean.reason || noPlayReason({ ...game, lean, rec: null, market }),
         }
       : null,
-    noPlayReason: rec ? null : noPlayReason({ ...game, market }),
+    noPlayReason: game.durableFallback
+      ? game.noPlayReason || "Stored schedule only — no live verification or betting authority"
+      : rec ? null : noPlayReason({ ...game, market }),
     // Operational market = execution OR consensus. Pinnacle/reference alone is NOT enough.
     marketUnavailable: !marketAvail.marketAvailable,
     executionMarketUnavailable: !marketAvail.executionMarketAvailable,
@@ -825,7 +829,20 @@ export async function buildTodayBoard(
   env = {},
   { buildSlateFn, querySnapshotsFn, queryOddsSnapshotsFn, now = Date.now(), focusSport = "all" } = {}
 ) {
-  const builder = buildSlateFn || buildSlate;
+  // ALL is a bounded, read-only D1 schedule view rather than eleven sequential
+  // live-provider/advanced-model builds. This avoids 60s frontend timeouts
+  // hiding already-harvested games. A focused sport retains its rich live slate.
+  const durableAll = !buildSlateFn && focusSport === "all" && env?.DB?.prepare
+    ? await loadDurableTodayGames(env,date,"all",{now})
+    : null;
+  const durableAllActive=Boolean(durableAll?.ok && durableAll.games.length);
+  const builder = buildSlateFn || (durableAllActive
+    ? async (sport)=>({
+        sport, games:durableAll.games.filter(g=>g.sport===sport),
+        durableOnly:true,
+        parlay:{cached:true,skipped:true,cacheOnly:true},
+      })
+    : buildSlate);
   const querySnaps = querySnapshotsFn || querySnapshots;
   const queryOdds = queryOddsSnapshotsFn || queryOddsSnapshots;
   const sportsToLoad =
@@ -848,7 +865,7 @@ export async function buildTodayBoard(
       // The customer-facing board is a read path, never a collection path.
       // A focused tab must not burn quota or block on live provider/network I/O.
       // Scheduled /api/collect jobs own live provider refreshes and D1/cache writes.
-      const slate = sport === "tennis"
+      const slate = sport === "tennis" && !durableAllActive
         ? await buildTennisResearchSlate(date, env)
         : await builder(sport, date, {
         ...env,
@@ -856,10 +873,11 @@ export async function buildTodayBoard(
         palCacheOnly: true,
         ...(sport === "cfb" ? { cfbdCacheOnly: true, cfbdScheduleFallback: false } : {}),
       });
+      const durableOnly=slate.durableOnly === true;
       let bySnapshot = new Map();
       let byMarketOdds = new Map();
       let byMarketHistory = new Map();
-      if (env.DB) {
+      if (env.DB && !durableOnly) {
         const snapQ = await querySnaps(env, { sport, since: date, until: date, checkpoint: "LATEST" });
         if (snapQ?.ok && Array.isArray(snapQ.rows) && snapQ.rows.length) {
           bySnapshot = buildSnapshotOddsByGame(snapQ.rows);
@@ -877,13 +895,28 @@ export async function buildTodayBoard(
       // YYYYMMDD date is requested (notably football). TODAY is explicitly a
       // Chicago-calendar-day product, so fail closed to games that actually
       // start on the selected CT date before recommendation/qualification.
-      const selectedDateGames = (slate.games || []).filter(
+      let selectedDateGames = (slate.games || []).filter(
         (g) => boardDateCtForStart(g?.start) === date
       );
-      const hydratedGames = selectedDateGames.map((g) => ({
-        ...hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id))),
-        marketLineHistory: byMarketHistory.get(String(g.id)) || [],
-      }));
+      // Recover a missing focused-sport matchup without attaching unverified
+      // operational odds, live results or recommendations.
+      if (!durableOnly && env.DB) {
+        const stored=await loadDurableTodayGames(env,date,sport,{now});
+        if(stored.ok){
+          const seen=new Set(selectedDateGames.map(g=>String(g.id)));
+          selectedDateGames=[
+            ...selectedDateGames,
+            ...stored.games.filter(g=>!seen.has(String(g.id))),
+          ];
+        }
+      }
+      const durableFallbackCount=selectedDateGames.filter(g=>g.durableFallback).length;
+      const hydratedGames = selectedDateGames.map((g) => g.durableFallback
+        ? {...g,marketLineHistory:[]}
+        : ({
+          ...hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id))),
+          marketLineHistory: byMarketHistory.get(String(g.id)) || [],
+        }));
       const recSlate = sport === "tennis"
         ? {
             ...slate,
@@ -902,9 +935,14 @@ export async function buildTodayBoard(
       let slateGames = (recSlate.games || []).map((g) => ({
         ...g,
         sport,
+        rec:g.durableFallback?null:g.rec,
+        lean:g.durableFallback?null:g.lean,
+        qualificationBlocked:g.durableFallback?true:g.qualificationBlocked,
+        canQualify:g.durableFallback?false:g.canQualify,
+        canAuthorizeWager:g.durableFallback?false:g.canAuthorizeWager,
         palUnavailableReason: g.bpp ? g.palUnavailableReason : palReason,
       }));
-      if (env.DB && sport !== "tennis") {
+      if (env.DB && !durableOnly && sport !== "tennis") {
         try {
           const { attachActionIntelToGames } = await import("./boardActionIntel.js");
           const attached = await attachActionIntelToGames(slateGames, env.DB);
@@ -920,13 +958,17 @@ export async function buildTodayBoard(
         }
       }
 
-      if (sport === "nhl") slateGames = slateGames.map((g)=>({...g,nhlWagerV1:evaluateNhlGameWagers(g)}));
-      if (env.DB) slateGames = await attachPrizePicksMarkets(slateGames, sport, date, env.DB);
+      if (sport === "nhl" && !durableOnly)
+        slateGames = slateGames.map((g)=>g.durableFallback?g:({...g,nhlWagerV1:evaluateNhlGameWagers(g)}));
+      if (env.DB && !durableOnly)
+        slateGames = await attachPrizePicksMarkets(slateGames, sport, date, env.DB);
       const rows = slateGames.map((g) => currentActionDisplay(toBoardGame(g, sport, now), now));
       const tennisIntegrityBlocked = sport === "tennis" && (slate.research?.withheld > 0 || slate.research?.configured === false);
       feeds[sport] = {
         ok: !tennisIntegrityBlocked,
         n: rows.length,
+        durableFallbackGames:durableFallbackCount,
+        source:durableOnly?"D1_SCHEDULE_PRESTART_SNAPSHOT":"RESEARCH_SLATE_WITH_DURABLE_RECOVERY",
         error: tennisIntegrityBlocked ? `TENNIS_EVENT_INTEGRITY_BLOCKED: ${slate.research?.withheld || 0} snapshots withheld; official event/projection evidence unavailable` : null,
         liveFocus: false,
         focused,
@@ -968,14 +1010,31 @@ export async function buildTodayBoard(
       });
       games.push(...rows);
     } catch (err) {
-      feeds[sport] = { ok: false, n: 0, error: String(err?.message || err) };
-      sports.push({
-        sport,
-        label: SPORTS[sport].label,
-        n: 0,
-        games: [],
-        error: String(err?.message || err),
-      });
+      // A focused upstream failure is not an empty schedule. Recover the
+      // matching durable game identities and prestart scores, but do not
+      // reinterpret their archived state as live, priced or qualified.
+      const upstreamError=String(err?.message||err);
+      const recovered=env?.DB?.prepare
+        ? await loadDurableTodayGames(env,date,sport,{now})
+        : {ok:false,games:[]};
+      if(recovered.ok && recovered.games.length){
+        const rows=recovered.games.map(g=>currentActionDisplay(toBoardGame(g,sport,now),now));
+        feeds[sport]={
+          ok:true,n:rows.length,durableFallbackGames:rows.length,
+          source:"D1_SCHEDULE_PRESTART_SNAPSHOT",warning:upstreamError,
+          error:null,
+        };
+        sports.push({
+          sport,label:SPORTS[sport].label,n:rows.length,
+          games:sortByStart(rows),
+        });
+        games.push(...rows);
+      }else{
+        feeds[sport]={ok:false,n:0,error:upstreamError};
+        sports.push({
+          sport,label:SPORTS[sport].label,n:0,games:[],error:upstreamError,
+        });
+      }
     }
   }
   const all = sortByStart(games);
@@ -1013,6 +1072,7 @@ export async function buildTodayBoard(
     groups: groupBySport(all).filter((g) => sportsToLoad.includes(g.sport)),
     counts: {
       games: all.length,
+      durableFallbackGames:all.filter(g=>g.durableFallback).length,
       bySport: Object.fromEntries(sports.map((s) => [s.sport, s.n])),
       scheduled: all.filter((g) => isPreStartStatus(g.status)).length,
       live: all.filter((g) => isLiveStatus(g.status)).length,
@@ -1038,6 +1098,7 @@ export async function buildTodayBoard(
       cacheOnly: true,
       focusSport: focusSport || "all",
       extraFullOddsRequests: parlayNetwork,
+      durableReadOnly:durableAllActive,
     },
   };
 }

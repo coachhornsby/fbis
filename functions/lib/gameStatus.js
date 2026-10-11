@@ -6,6 +6,7 @@ import { resolveCanonicalMarket } from "./canonical/marketRoles.js";
 
 export const BOARD_STATUSES = [
   "scheduled",
+  "unverified", // stored schedule fallback, not a live or final assertion
   "pregame",
   "live",
   "halftime",
@@ -16,6 +17,7 @@ export const BOARD_STATUSES = [
 ];
 
 export function classifyBoardStatus(game, now = Date.now()) {
+  if(game?.durableFallback?.statusUnverified===true) return "unverified";
   const detail = String(game?.status?.detail || game?.status?.state || "").toLowerCase();
   if (/postpone/.test(detail) || game?.status?.postponed) return "postponed";
   if (/cancel/.test(detail) || game?.status?.canceled) return "canceled";

@@ -4,6 +4,7 @@ import { sortByConfidence } from "../../lib/confidenceStars.js";
 import CompactGameCard from "./CompactGameCard.jsx";
 import PremiumGameCard from "./PremiumGameCard.jsx";
 import MatchupFactors from "./MatchupFactors.jsx";
+import TopGameProps from "../../features/playerProps/TopGameProps.jsx";
 import "./decisionBoard.css";
 
 export function BoardSummaryStrip({ games = [] }) {
@@ -51,6 +52,7 @@ export default function DecisionBoard({ games = [], renderDetail }) {
       <div className="decision-board db-game-page">
         <button type="button" className="db-back-btn" onClick={() => setSelected(null)}>← Back to Board</button>
         <PremiumGameCard game={selected} />
+        {String(selected?.sport || "").toLowerCase() === "nfl" ? <TopGameProps game={selected} /> : null}
         <MatchupFactors game={selected} />
         {typeof renderDetail === "function" ? (
           String(selected?.sport || "").toLowerCase() === "nfl" ? (
