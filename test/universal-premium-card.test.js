@@ -8,7 +8,7 @@ test("non-tennis compact cards preserve full names, 25 percent bigger logos and 
  assert.match(card,/fbis-full-team-name/);
  assert.match(card,/size=\{83\}/);
  assert.doesNotMatch(card,/className="cgc-abbr"/);
- assert.match(card,/--fbis-tile-team/);
+ assert.match(card,/NflDirectionalMatchups/);
  assert.match(css,/cgc-best-edge>\*/);
  assert.match(css,/overflow-wrap:anywhere/);
  assert.match(css,/tone-neutral/);
