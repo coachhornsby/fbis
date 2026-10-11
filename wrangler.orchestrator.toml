@@ -8,7 +8,7 @@ workers_dev = true
 enabled = true
 
 [triggers]
-crons = ["7 * * * *", "17 * * * *", "37 * * * *", "*/10 * * * *"]
+crons = ["7 * * * *", "17 * * * *", "37 * * * *", "27,57 * * * *", "*/10 * * * *"]
 
 [vars]
 SPREADSHEET_ID = "1B1IVONVvmP50JPCqb64fzEsSaTv6AuHQ04YqEzBhjAo"
@@ -32,6 +32,9 @@ SP_K_DELTA = "0.75"
 GITHUB_OIDC_AUDIENCE = "sports-projection-orchestrator"
 GITHUB_OIDC_REPOSITORY = "coachhornsby/fbis"
 ORCH_CRON_ENABLED = "true"
+# Active recovery is fail closed until the narrowly scoped GitHub workflow
+# dispatch credential is installed as a Worker SECRET, never in this TOML.
+TENNIS_RECOVERY_ENABLED = "true"
 
 # The Tennis refresh watchdog uses read-only latest metadata; no ingestion
 # authority or paid provider capability is added by this binding.
