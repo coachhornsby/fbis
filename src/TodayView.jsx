@@ -14,6 +14,7 @@ import { buildGameWorkspaceView } from "./features/game/buildGameWorkspaceView.j
 import "./features/game/game.css";
 import { resolveBoardProjection } from "./lib/boardDecision.js";
 import DecisionBoard from "./components/board/DecisionBoard.jsx";
+import TopGameProps from "./features/playerProps/TopGameProps.jsx";
 
 const FILTERS = [
   ["all", "All games"],
@@ -109,6 +110,13 @@ export default function TodayView({
             <button className="header-btn" onClick={copyChatGptReview} disabled={loading || !shown.some((g) => g.games.length)}>COPY CHATGPT REVIEW</button>
             {onRetry && <button className="header-btn" onClick={() => onRetry?.()} disabled={loading}>{loading ? "Retrying…" : "Retry"}</button>}
           </div>
+          {counts.durableFallbackGames>0 ? (
+            <p className="muted" role="status">
+              Showing {counts.durableFallbackGames} stored matchup cards from durable pregame snapshots.
+              Live scores, current prices and wager qualification are unavailable on those cards.
+              Select a sport for its richer verified feed when available.
+            </p>
+          ) : null}
           <p className="muted" style={{ marginTop: 8 }}>
             {chatCopyStatus ? `${chatCopyStatus} ` : ""}
             {attemptAt ? `Current attempt ${fmtTs(attemptAt)}. ` : ""}
@@ -402,7 +410,10 @@ export function GameDetails({ g }) {
       {g.sport === "cfb" ? <CfbGameDetails g={g} /> : <LegacyGameLab g={g} lab={lab} />}
     </details>
   );
-  return <GameWorkspace event={event} weather={weather} footer={footer} />;
+  return <>
+    <TopGameProps game={g} />
+    <GameWorkspace event={event} weather={weather} footer={footer} />
+  </>;
 }
 
 function LegacyGameLab({ g, lab }) {
