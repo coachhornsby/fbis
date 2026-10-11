@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {isPreImportLock,runD1ImportWithRetry} from "../scripts/d1-import-lock-retry.mjs";
 import {
-  checkNbaProfileReconciliation,parseD1Counts,readNbaPersistence,
+  checkNbaProfileReconciliation,parseD1Counts,parseWranglerD1Counts,readNbaPersistence,
 } from "../scripts/nba-profile-persistence-verify.mjs";
 import {
   TENNIS_HEALTH_CRON,evaluateTennisRefreshScope,checkTennisRefreshHealth,
@@ -143,4 +143,26 @@ test("NBA jobs share a production D1 writer lock; Tennis uses independent existi
   assert.match(wrangler,/37 \* \* \* \*/);
   assert.match(wrangler,/binding = "R2_ARCHIVE"/);
   assert.doesNotMatch(worker,/github\.com\/repos\/coachhornsby\/fbis\/actions\/workflows.*tennis/i);
+});
+
+test("transient D1 7500 uses a second read-only Wrangler verification without rerunning writes",async()=>{
+  let calls=0,sql=null;
+  const row=await readNbaPersistence(fakeProfile,{
+    env:{CLOUDFLARE_API_TOKEN:"test-only",CLOUDFLARE_ACCOUNT_ID:"account"},
+    fetchImpl:async()=>({ok:true,json:async()=>({
+      success:false,errors:[{code:7500,message:"internal error"}],
+    })}),
+    wranglerRead:async cmd=>{calls++;sql=cmd;return complete;},
+  });
+  assert.deepEqual(row,complete);
+  assert.equal(calls,1);
+  assert.match(sql,/^SELECT/);
+  assert.match(sql,/2026-10-11T01:04:12.000Z/);
+  assert.doesNotMatch(sql,/\\b(?:INSERT|UPDATE|DELETE|REPLACE|DROP)\\b/i);
+  assert.deepEqual(parseWranglerD1Counts([{success:true,results:[complete]}]),complete);
+  await assert.rejects(readNbaPersistence(fakeProfile,{
+    env:{CLOUDFLARE_API_TOKEN:"test-only",CLOUDFLARE_ACCOUNT_ID:"account"},
+    fetchImpl:async()=>({ok:false,status:401}),
+    wranglerRead:async()=>{throw Error("AUTHENTICATION_ERROR_SHOULD_NOT_RETRY");},
+  }),/HTTP_401/);
 });
