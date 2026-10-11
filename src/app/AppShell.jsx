@@ -157,6 +157,7 @@ function mobileNavIcon(id) {
   switch (id) {
     case "board": return "▥";
     case "player-props": return "▥";
+    case "teams": return "⌂";
     case "models": return "◫";
     case "model-lab": return "⌁";
     case "bets": return "✓";
