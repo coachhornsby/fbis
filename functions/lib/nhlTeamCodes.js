@@ -5,7 +5,7 @@
  */
 const ALIASES = Object.freeze({
   LA:"LAK", SJ:"SJS", TB:"TBL", NJ:"NJD",
-  L.A:"LAK", "N.J":"NJD", "S.J":"SJS", "T.B":"TBL",
+  "L.A":"LAK", "N.J":"NJD", "S.J":"SJS", "T.B":"TBL",
 });
 export function nhlModelTeamCode(team) {
   const t=String(team||"").trim().toUpperCase();
