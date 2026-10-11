@@ -43,3 +43,5 @@ jobs:
           path: /tmp/cfb-source-reconcile/fbs-full-identity-reconciliation.json
           if-no-files-found: warn
           retention-days: 30
+
+# rerun with bounded transient D1 read retries
