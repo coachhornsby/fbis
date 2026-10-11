@@ -30,3 +30,114 @@
 .fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-nfl-market strong,.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-nfl-action strong{font-size:clamp(13px,1.2vw,18px)!important;overflow-wrap:anywhere}
 @media(max-width:700px){.fbis-shell-main.route-board .fbis-universal-premium .cgc-logo .team-logo{width:70px!important;height:70px!important}.fbis-shell-main.route-board .fbis-universal-premium .cgc-best-edge{padding:9px 5px!important}.fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-pill{min-height:78px!important}.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-logo{width:87px!important;height:87px!important}}
 @media(prefers-reduced-motion:reduce){.fbis-shell-main.route-board .fbis-universal-premium *{animation:none!important;transition:none!important}}
+
+
+/* Featured matchup correction: three balanced columns with fixed logo space.
+   The previous home layout had a 103px logo inside an 86px grid track,
+   pushing the Washington team name into a few characters of width. */
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-matchup{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(140px,.65fr) minmax(0,1fr)!important;
+  gap:clamp(12px,2vw,28px)!important;
+  align-items:center!important;
+  min-width:0;
+  padding:22px clamp(16px,2.3vw,32px)!important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-team,
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-team-home{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:9px!important;
+  text-align:center!important;
+  min-width:0!important;
+  width:100%;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-team>div,
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-team-home>div{
+  min-width:0!important;
+  width:100%;
+  text-align:center!important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-team-visual{
+  min-width:0!important;
+  width:100%!important;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-name{
+  display:block!important;
+  width:100%;
+  max-width:100%!important;
+  font-size:clamp(18px,1.7vw,27px)!important;
+  line-height:1.12!important;
+  letter-spacing:-.025em!important;
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  overflow-wrap:normal!important;
+  word-break:normal!important;
+  hyphens:none!important;
+  text-transform:none!important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-score{
+  font-size:clamp(30px,3vw,44px)!important;
+  line-height:1.05;
+  font-weight:950;
+  color:#f7fbff;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-center{
+  min-width:0!important;
+  max-width:100%;
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-center>strong,
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-edge-delta{
+  max-width:100%;
+  overflow-wrap:anywhere;
+  white-space:normal;
+  line-height:1.2;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .nhl-evidence,
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .nhl-original-props,
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-nfl-action{
+  margin-top:10px;
+  border-radius:12px;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .nhl-evidence-grid{
+  gap:10px;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .nhl-evidence-block{
+  min-width:0;
+  padding:12px;
+  border-radius:9px;
+  background:linear-gradient(120deg,rgba(24,68,106,.47),rgba(4,23,44,.42));
+}
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .nhl-evidence-block>strong{
+  overflow-wrap:anywhere;
+  line-height:1.3;
+  font-size:clamp(13px,1.2vw,18px)!important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .nhl-evidence-block>span,
+.fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .nhl-original-props header>strong{
+  font-size:12px!important;
+  letter-spacing:.04em;
+}
+@media (max-width:760px){
+ .fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-matchup{grid-template-columns:minmax(0,1fr) minmax(85px,.5fr) minmax(0,1fr)!important;gap:8px!important;padding:14px 9px!important}
+ .fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-name{font-size:clamp(13px,2.7vw,20px)!important}
+ .fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-logo{width:72px!important;height:72px!important}
+}
+@media (max-width:430px){
+ .fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-matchup{grid-template-columns:minmax(0,1fr) 65px minmax(0,1fr)!important;gap:5px!important}
+ .fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-name{font-size:13px!important}
+ .fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-logo{width:62px!important;height:62px!important}
+}

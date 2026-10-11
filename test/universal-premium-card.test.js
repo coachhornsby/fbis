@@ -22,3 +22,13 @@ test("premium card remains sport specialized and tennis route stays separate",as
  assert.match(css,/\.fbis-universal-premium/);
  assert.doesNotMatch(css,/\[data-sport="tennis"\]/);
 });
+
+test("featured cards give both full team names a balanced width and keep tennis isolated",async()=>{
+ const css=await load("universalPremiumCard.css");
+ assert.match(css,/\.pgc-featured-team-home\{/);
+ assert.match(css,/flex-direction:column!important/);
+ assert.match(css,/word-break:normal!important/);
+ assert.match(css,/grid-template-columns:minmax\(0,1fr\) minmax\(140px,\.65fr\) minmax\(0,1fr\)/);
+ assert.match(css,/\.nhl-evidence-block>strong/);
+ assert.doesNotMatch(css,/\[data-sport="tennis"\]/);
+});
