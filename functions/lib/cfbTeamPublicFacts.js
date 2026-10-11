@@ -7,7 +7,7 @@ async function publicJson(url,fetchFn=fetch){
  if(raw.byteLength>2*1024*1024)throw Error("ESPN_RESPONSE_OVERSIZE");
  return JSON.parse(new TextDecoder().decode(raw));
 }
-const score=x=>x!=null && x!=="" && Number.isFinite(Number(x)) ? Number(x):null;
+const score=x=>{const v=x&&typeof x==="object"?(x.value??x.displayValue??x.score):x;return v!=null&&v!==""&&Number.isFinite(Number(v))?Number(v):null;};
 export function parseCfbTeamSchedule(payload,teamId,season){
  const events=Array.isArray(payload?.events)?payload.events:[];
  const out=new Map();
@@ -19,7 +19,7 @@ export function parseCfbTeamSchedule(payload,teamId,season){
   const opp=sides.find(v=>v!==own);
   const home=own.homeAway==="home",neutral=!!c.neutralSite;
   const status=c.status||event.status||{};
-  const complete=status.type?.completed===true && status.type?.name==="STATUS_FINAL";
+  const complete=(status.type?.completed===true || status.type?.name==="STATUS_FINAL" || event.status?.type?.completed===true || event.status?.type?.name==="STATUS_FINAL");
   const ownScore=complete?score(own.score):null,oppScore=complete?score(opp.score):null;
   const scored=complete&&ownScore!==null&&oppScore!==null;
   const outcome=scored?(ownScore>oppScore?"W":ownScore<oppScore?"L":"T"):null;
