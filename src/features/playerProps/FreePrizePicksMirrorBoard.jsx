@@ -5,8 +5,17 @@ import {
 } from "./freePrizePicksMirror.js";
 
 
+const canonical=v=>String(v||"").trim().toLowerCase().replace(/[^a-z0-9]+/g," ");
+function matchingProjection(row,projections){
+ if(!row.market)return null;
+ const found=projections.filter(p=>canonical(p.player_name||p.playerName)===canonical(row.player)&&canonical(p.canonical_market||p.stat_type||p.market)===canonical(row.market)&&String(p.odds_tier||"standard").toLowerCase()==="standard"&&String(p.duration||"full").toLowerCase()==="full");
+ if(found.length!==1)return null;
+ const p=found[0],value=p.fbis_projection??p.fbisProjection;
+ return value!=null&&value!==""&&Number.isFinite(Number(value))?{value:Number(value),modelVersion:p.model_version||p.modelVersion||null}:null;
+}
+
 const teamCache=new Map();
-function MirrorCard({row,time}){
+function MirrorCard({row,time,projection}){
  const [team,setTeam]=useState(null);
  const [headshotFailed,setHeadshotFailed]=useState(false);
  const [expanded,setExpanded]=useState(false);
@@ -58,6 +67,7 @@ function MirrorCard({row,time}){
    <div className="pp-market-name pp-premium-market-name">{row.stat}</div>
    <div className="pp-mirror-line-block"><span>PUBLIC STANDARD LINE</span><strong>{row.line}</strong>
     <small>Not a verified live offer</small></div>
+   <div className="pp-mirror-projection"><div><span>FBIS PROJECTION</span><strong>{projection?projection.value.toFixed(1):"—"}</strong></div><div><span>PUBLIC MIRROR LINE</span><strong>{row.line}</strong></div><small>{projection?"FBIS model · "+(projection.modelVersion||"version unavailable"):"No matching published FBIS projection"}</small></div>
    <div className="pp-card-foot pp-premium-foot"><span>{time(row.startAt)} CT</span><span>Research only · No FBIS pick</span></div>
    <div className="pp-analytics">
     <button type="button" className="pp-analytics-toggle" onClick={()=>setExpanded(v=>!v)}
@@ -67,10 +77,19 @@ function MirrorCard({row,time}){
      {history.state==="UNAVAILABLE"?<p>Verified last-five-game statistics unavailable for this player and market.</p>:null}
      {history.state==="AVAILABLE"?<div className="pp-history-block">
       <div className="pp-history-head"><strong>LAST 5 · {row.stat}</strong></div>
-      <div className="pp-history-bars">{history.games.map((g,i)=><div className="pp-history-game" key={i}>
-       <b>{Number.isFinite(Number(g.value))?Number(g.value):"—"}</b>
-       <span>{g.opponent||"—"}</span><small>{g.date||g.gameDate||""}</small>
-      </div>)}</div>
+      <div className="pp-history-bars">{history.games.map((g,i)=>{
+       const value=g.value==null?NaN:Number(g.value);
+       const valid=Number.isFinite(value);
+       const numbers=history.games.map(v=>v.value==null?NaN:Number(v.value)).filter(Number.isFinite);
+       const max=Math.max(1,Number(row.line)||0,...numbers);
+       return <div className="pp-history-game" key={i}>
+        <div className="pp-history-bar-wrap">
+         {valid?<div className="pp-history-bar" style={{height:Math.max(5,value/max*100)+"%",background:value>Number(row.line)?"#38dd9e":"#fa7388"}}/>:null}
+         <div className="pp-history-line" style={{bottom:Math.min(100,Number(row.line)/max*100)+"%"}}/>
+        </div>
+        <b>{valid?value:"—"}</b><span>{g.opponent||"—"}</span><small>{g.date||g.gameDate||""}</small>
+       </div>;
+      })}</div>
      </div>:null}
     </div>:null}
    </div>
@@ -90,6 +109,16 @@ export default function FreePrizePicksMirrorBoard(){
   const [coreOnly,setCoreOnly]=useState(true);
   const [search,setSearch]=useState("");
   const [limit,setLimit]=useState(48);
+  const [projections,setProjections]=useState([]);
+  useEffect(()=>{
+   let active=true;
+   const q=new URLSearchParams({date:mirrorChicagoDay(new Date()),sport:"nfl",mode:"sport"});
+   fetch("/api/selective-props?"+q,{credentials:"same-origin"})
+    .then(r=>r.ok?r.json():null)
+    .then(j=>{if(active)setProjections(Array.isArray(j?.rows)?j.rows:[])})
+    .catch(()=>{if(active)setProjections([])});
+   return()=>{active=false};
+  },[refresh]);
 
   useEffect(()=>{
     const controller=new AbortController();
@@ -178,7 +207,7 @@ export default function FreePrizePicksMirrorBoard(){
             <>
               <div className="pp-card-grid pp-premium-grid pp-mirror-grid">
                 {rows.slice(0,limit).map(row=>(
-                  <MirrorCard key={row.id} row={row} time={time}/>
+                  <MirrorCard key={row.id} row={row} time={time} projection={matchingProjection(row,projections)}/>
                 ))}
               </div>
               {rows.length>limit?(
