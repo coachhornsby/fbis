@@ -15,7 +15,7 @@ def save(path,obj):path.write_text(json.dumps(obj,indent=2)+'\n')
 def quote(name):return '"'+name.replace('"','""')+'"'
 def statements(path):
  opener=gzip.open if str(path).endswith('.gz') else open;buffer=''
- with opener(path,'rt',encoding='utf-8') as stream:
+ with opener(path,'rt',encoding='utf-8',newline='') as stream:
   for line in stream:
    buffer+=line
    if len(buffer.encode())>2_000_000:raise ValueError('Source statement exceeds accepted bound')
@@ -96,7 +96,10 @@ def rehearse(root,manifest,report):
    db.executescript('BEGIN;\n'+data.decode()+'\nCOMMIT;')
    if db.execute('PRAGMA foreign_key_check').fetchone():raise ValueError('Cross-file foreign-key violation')
   if counts(db)!=report['restored_table_counts']:raise ValueError('Full table-count reconciliation failed')
-  if schemas(db)!=report['schema']:raise ValueError('Exact schema reconciliation failed')
+  actual_schema=schemas(db)
+  if actual_schema!=report['schema']:
+   save(root/'schema-reconciliation.json',{'status':'MISMATCH','actual_only':[r for r in actual_schema if r not in report['schema']],'expected_only':[r for r in report['schema'] if r not in actual_schema]})
+   raise ValueError('Exact schema reconciliation failed')
   if [r[0] for r in db.execute('PRAGMA integrity_check')]!=['ok']:raise ValueError('Integrity failure')
   for t,expected in report['migration_ledgers_before'].items():
    if [list(r) for r in db.execute('SELECT * FROM '+quote(t))]!=[list(r) for r in expected]:raise ValueError('Migration ledger mismatch')

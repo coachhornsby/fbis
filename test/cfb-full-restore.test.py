@@ -35,6 +35,13 @@ class FullRecovery(unittest.TestCase):
   with tempfile.TemporaryDirectory() as d:
    root=pathlib.Path(d);source,r=self.fixture(root);source.write_text(source.read_text()+'UPDATE parent SET id=2;\n')
    with self.assertRaisesRegex(ValueError,'Unsupported'):m.stage(source,r,root/'parts',1024)
+ def test_original_crlf_ddl_and_multiline_values_preserved(self):
+  with tempfile.TemporaryDirectory() as d:
+   root=pathlib.Path(d);source,r=self.fixture(root);sql=source.read_text().replace('id INTEGER PRIMARY KEY,parent','id INTEGER PRIMARY KEY,\r\nparent').replace('quoted;\\nvalue','quoted;\r\nvalue')
+   source.write_bytes(sql.encode());db=sqlite3.connect(':memory:');db.executescript(sql)
+   r.update(sql_sha256=hashlib.sha256(sql.encode()).hexdigest(),sql_bytes=len(sql.encode()),schema=m.schemas(db),table_content_digests={t:m.content_digest(db,t) for t in r['restored_table_counts']})
+   parts=m.stage(source,r,root/'parts',1024);m.rehearse(root/'parts',parts,r)
+   self.assertEqual(parts['status'],'VERIFIED_LOCAL_FK_ENFORCED_PARTS')
  def test_full_remote_reconciliation_contract_without_network(self):
   with tempfile.TemporaryDirectory() as d:
    root=pathlib.Path(d);source,r=self.fixture(root);parts=m.stage(source,r,root/'parts',1024);m.rehearse(root/'parts',parts,r)
