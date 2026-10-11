@@ -128,6 +128,8 @@ export function lookupNflHomeStadium(team = {}) {
 export function enrichGameVenue(game = {}) {
   if (!game || (game.sport && game.sport !== "nfl")) return game;
   if (game.venueLat != null && game.venueLon != null) return game;
+  // Never replace a confirmed overseas ground with the designated home team's US stadium.
+  if (game.nflInternationalContext?.international === true) return game;
   if (game.venueIndoor === true || game.venue) {
     // Keep ESPN venue; still fill coords from catalog when possible.
   }

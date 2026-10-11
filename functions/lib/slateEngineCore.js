@@ -18,6 +18,7 @@ import { canonicalProbabilityFields } from "./probability.js";
 import { attachWeather, parseVenueLocation } from "./weather.js";
 import { attachAvailability } from "./availability.js";
 import { enrichGamesVenues } from "./venues.js";
+import { attachNflInternationalContext } from "./nflInternationalContext.js";
 import { attachKalshiSentiment } from "./kalshi.js";
 import { setMeta } from "./store.js";
 import { isUnusableCachedOddsMeta } from "./marketLineage.js";
@@ -945,6 +946,7 @@ export function mapEvent(sport, event) {
     venueId: comp.venue?.id || null,
     venueCity: comp.venue?.address?.city || "",
     venueState: comp.venue?.address?.state || "",
+    venueCountry: comp.venue?.address?.country || null,
     venueIndoor: comp.venue?.indoor === true,
     venueLat: num(comp.venue?.address?.latitude ?? comp.venue?.latitude),
     venueLon: num(comp.venue?.address?.longitude ?? comp.venue?.longitude),
@@ -1797,6 +1799,7 @@ export async function buildSlate(sport, date, env = {}) {
   games = kalshi.games || games;
 
   // Soft-odds stubs / CFBD boards often lack ESPN lat/lon — fill NFL stadiums, then geocode.
+  games = attachNflInternationalContext(games);
   games = enrichGamesVenues(games);
 
   // Free Open-Meteo weather (MLB coords from Stats; NFL/CFB from ESPN, stadium catalog, or geocode).
