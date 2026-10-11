@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS raw_evidence(hash TEXT PRIMARY KEY,body TEXT NOT NULL
   acquired_at TEXT NOT NULL,source TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS game_versions(id TEXT PRIMARY KEY,game_id TEXT NOT NULL,
   season INTEGER NOT NULL,game_at TEXT NOT NULL,observed_at TEXT NOT NULL,
-  evidence_hash TEXT NOT NULL REFERENCES raw_evidence(hash),body TEXT NOT NULL);
+  evidence_hash TEXT NOT NULL REFERENCES raw_evidence(hash),body TEXT NOT NULL,committed_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS game_versions_pit ON game_versions(game_id,observed_at);
 CREATE TABLE IF NOT EXISTS current_games(game_id TEXT PRIMARY KEY,
   version_id TEXT NOT NULL REFERENCES game_versions(id));
@@ -80,6 +80,10 @@ class Ledger:
         self.db = sqlite3.connect(path)
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.executescript(SCHEMA)
+        if "committed_at" not in {r[1] for r in self.db.execute("PRAGMA table_info(game_versions)")}:
+            # Old local rehearsal versions remain unavailable for PIT; never backdate commit clocks.
+            self.db.execute("ALTER TABLE game_versions ADD COLUMN committed_at TEXT")
+            self.db.commit()
 
     def state(self, game_id, state, at, error=None):
         with self.db:
@@ -207,8 +211,8 @@ class Ledger:
                     payload["season"], payload["game_at"], {t["team_id"] for t in payload["teams"]}):
                     raise ValueError("correction changed game identity")
             with self.db:
-                self.db.execute("INSERT INTO game_versions VALUES(?,?,?,?,?,?,?)",
-                    (version, game_id, payload["season"], payload["game_at"], payload["observed_at"], raw_hash, encode(payload)))
+                self.db.execute("INSERT INTO game_versions VALUES(?,?,?,?,?,?,?,?)",
+                    (version, game_id, payload["season"], payload["game_at"], payload["observed_at"], raw_hash, encode(payload), at))
                 self.db.execute("INSERT INTO current_games VALUES(?,?) ON CONFLICT(game_id) DO UPDATE SET version_id=excluded.version_id",
                     (game_id, version))
                 for index, team in enumerate(payload["teams"]):
@@ -236,9 +240,9 @@ class Ledger:
             raise ValueError("decision cutoff must precede kickoff")
         # Select latest acquired version *as of* cutoff, never current pointers.
         candidates = {}
-        for vid, gid, observed, body in self.db.execute("SELECT id,game_id,observed_at,body FROM game_versions"):
+        for vid, gid, observed, body, committed in self.db.execute("SELECT id,game_id,observed_at,body,committed_at FROM game_versions"):
             p = json.loads(body)
-            if p["temporal_class"] != "POSTGAME_OBSERVED" or stamp(observed) > stamp(cutoff) or stamp(p["game_at"]) >= stamp(cutoff):
+            if committed is None or stamp(committed) > stamp(cutoff) or p["temporal_class"] != "POSTGAME_OBSERVED" or stamp(observed) > stamp(cutoff) or stamp(p["game_at"]) >= stamp(cutoff):
                 continue
             if gid not in candidates or stamp(observed) > stamp(candidates[gid][1]):
                 candidates[gid] = (vid, observed, p)
@@ -246,6 +250,16 @@ class Ledger:
             "teams": teams, "game_versions": sorted(v for v, _, p in candidates.values()
                 if p["season"] == season and any(t["team_id"] in teams for t in p["teams"])),
             "model_authority": False, "wager_authority": False}
+        body["team_state"] = {}
+        for team_id in teams:
+            own=[];opponents=[]
+            for _,_,p in candidates.values():
+                if p["season"]!=season:continue
+                team=next((t for t in p["teams"] if t["team_id"]==team_id),None)
+                if team is not None:
+                    own.append(team["metrics"])
+                    opponents.append(next(t["metrics"] for t in p["teams"] if t["team_id"]!=team_id))
+            body["team_state"][team_id]={"games":len(own),"offense":aggregate(own),"defense":aggregate(opponents)}
         sid = digest(body)
         with self.db:
             self.db.execute("INSERT OR IGNORE INTO pregame_snapshots VALUES(?,?,?,?)", (sid, game_id, cutoff, encode(body)))

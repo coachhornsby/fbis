@@ -305,10 +305,59 @@ function trackerImmutableConflictFields(existing, packed) {
   return conflicts;
 }
 
+// Link an imported sportsbook ticket to a canonical GAME identity only.
+// Never infer the contemporaneous model/market attribution from a later snapshot.
+function trackerTeamKey(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+export function selectTrackerCanonicalGameId(ticket, games) {
+  const away = trackerTeamKey(ticket?.awayTeam);
+  const home = trackerTeamKey(ticket?.homeTeam);
+  if (!away || !home || !ticket?.date || !ticket?.sport) return null;
+  const matches = (games || []).filter((game) =>
+    String(game?.date || "") === String(ticket.date) &&
+    String(game?.sport || "").toLowerCase() === String(ticket.sport).toLowerCase() &&
+    trackerTeamKey(game?.away_name) === away &&
+    trackerTeamKey(game?.home_name) === home
+  );
+  const ids = [...new Set(matches.map((game) => String(game.id || "")).filter(Boolean))];
+  const providerIds = ids.filter((id) => /^\d+$/.test(id));
+  // A single ESPN-style game identity may coexist with duplicate legacy feeds.
+  // If the provider records disagree, abstain instead of linking the wrong game.
+  if (providerIds.length > 1) return null;
+  if (providerIds.length === 1) return providerIds[0];
+  return ids.length === 1 ? ids[0] : null;
+}
+
+async function lookupTrackerGameId(env, ticket, bySlate) {
+  const date = String(ticket?.date || "");
+  const sport = String(ticket?.sport || "").toLowerCase();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !sport) return null;
+  const key = `${sport}:${date}`;
+  if (!bySlate.has(key)) {
+    try {
+      const res = await env.DB.prepare(
+        "SELECT id, sport, date, away_name, home_name FROM games WHERE sport = ? AND date = ?"
+      ).bind(sport, date).all();
+      bySlate.set(key, res.results || []);
+    } catch {
+      // The tracker can still import; absent canonical identity must remain NULL.
+      bySlate.set(key, []);
+    }
+  }
+  return selectTrackerCanonicalGameId(ticket, bySlate.get(key));
+}
+
 export async function syncTrackerBets(env, tickets) {
   if (!hasDb(env)) return { ok:false, status:503, body:{ ok:false, error:"D1 unbound" } };
   const existingQ = await queryExecutedBets(env, { includeRaw:false });
   if (!existingQ.ok) return { ok:false, status:503, body:{ ok:false, error:existingQ.reason || "executed-bet-read-failed" } };
+  const bySlate = new Map();
   const existingByExecutionKey = new Map((existingQ.rows || []).map((row) => [
     `${String(row.executionBook || "")}\u0000${String(row.externalTicketId || "")}`,
     row,
@@ -326,6 +375,11 @@ export async function syncTrackerBets(env, tickets) {
     }
     const executionKey = `${String(packed.executionBook || "Heritage")}\u0000${String(packed.externalTicketId || "")}`;
     const prior = existingByExecutionKey.get(executionKey) || null;
+    // Resolve a deterministic canonical event while preserving any existing ID.
+    // Ineligibility for model calibration or CLV is not changed by this link.
+    if (!packed.gameId && !prior?.gameId) {
+      packed.gameId = await lookupTrackerGameId(env, packed, bySlate);
+    }
     let res;
     if (prior) {
       const immutableFields = trackerImmutableConflictFields(prior, packed);
@@ -364,6 +418,7 @@ export async function syncTrackerBets(env, tickets) {
     }
     const settledExisting = String(existing.result || "OPEN") !== "OPEN";
     const patch = {
+      gameId: existing.gameId || packed.gameId || null,
       matchupText: packed.matchupText,
       awayTeam: packed.awayTeam,
       homeTeam: packed.homeTeam,
@@ -378,8 +433,9 @@ export async function syncTrackerBets(env, tickets) {
       matchStatus: packed.matchStatus || "tracker-synced",
       recommendationStatus: packed.recommendationStatus || "TRACKER_SYNCED",
       attributionLabel: packed.attributionLabel || "TRACKER SYNCED",
-      clv: packed.clv,
-      clvStatus: packed.clvStatus || "unavailable",
+      // Tracker replay cannot erase CLV already captured under a separate audit.
+      clv: existing.clv ?? packed.clv,
+      clvStatus: existing.clvStatus === "ok" ? "ok" : (packed.clvStatus || existing.clvStatus || "unavailable"),
     };
     const changed = Object.entries(patch).some(([k,v]) => !trackerFieldEqual(existing?.[k] ?? null, v ?? null));
     if (!changed) {

@@ -6,7 +6,7 @@ This is a partial implementation and audited recovery package, not a completed p
 
 Read-only Cloudflare and GitHub inspection began against main/Pages `a240d6c604b3ec2a1565e8f98bb69d2afbdc0087`, Pages deployment `bce5b6c0-1414-4147-82e3-ed875c49fcc7`. Production UUID remains `b50c724c-903b-4241-8ce1-48d931e7a44c`; rehearsal UUID `1142b60c-6e00-4286-87b8-4edff9de3129` exists and has a 20,480-byte file. Listing metadata `num_tables=0` is not an actual schema count: a SQL inventory found 267 tables including Cloudflare internal storage.
 
-Both migration ledgers end at 0097. Five original persistence tables remain absent. Four 0099 research statistic tables remain absent. CFB pregame feature vectors and HFA games have zero rows. Canonical directory: 901 total teams, 138 active FBS, 152,640 players, 397,958 memberships and 470,584 roster observations. These counts do not prove complete player performance coverage or current participation.
+At 04:14 UTC, main and production Pages had advanced independently to `f54a66db95aed555dc7cea1388c3023640e128c9`, deployment `0567d677-192e-49eb-adb9-71b1a71f6ff4` (successful). This branch preserves that tracker-linkage change. A fresh read-only audit still found both migration ledgers at 0097. Five original persistence tables remain absent. Four 0099 research statistic tables remain absent. CFB pregame feature vectors and HFA games have zero rows. Canonical directory: 901 total teams, 138 active FBS, 152,640 players, 397,958 memberships and 470,584 roster observations. These counts do not prove complete player performance coverage or current participation.
 
 CFB game directory has 1,059 rows; predictions have 3,106 rows (2,211 labeled CFB-FBIS-v2). Dedicated published projections, prospective evidence, normalized market observations, normalized economic grades and shared economic grades have zero CFB rows. Do not interpret these zeros as absence of all odds or projections in legacy storage.
 
@@ -44,7 +44,7 @@ SportsDataverse repository LICENSE is MIT. Preserve its notice. That repository 
 
 The merged UI and bounded read-only API support FBS identities, rosters, seasons, schedules and available game/season/player metrics. Empty ledgers display unavailable values. This code has not been deployed or verified in a live browser during this work.
 
-`cfb_postgame_rehearsal.py` is an **offline reference implementation**, not a production collector. It demonstrates durable job state, immutable raw/game/card records, exact provider/canonical joins, time-aware player memberships, participation evidence, FBS/non-FBS games, atomic two-card publication, correction versions, retries, paired-denominator rates, immutable cutoff snapshots and an outbox for cache/model/dependency work. It has 13 passing tests. Outbox consumers, lease-based concurrent processing, provider adapters, D1 bounded transaction integration, game polling/reconciliation and production freshness/load testing are not complete. Its health query reports pending jobs and missing card pairs; it is not the requested production dashboard.
+`cfb_postgame_rehearsal.py` is an **offline reference implementation**, not a production collector. It demonstrates durable job state, immutable raw/game/card records, exact provider/canonical joins, time-aware player memberships, participation evidence, FBS/non-FBS games, atomic two-card publication, correction versions, retries, paired-denominator rates, immutable cutoff snapshots and an outbox for cache/model/dependency work. It has 15 passing tests, including a chronological two-game feature sequence and exclusion of data normalized after the decision cutoff. A separate disabled D1/R2 pilot passes eight transaction tests and a local workerd D1/R2 integration: both cards, verified players, NULL metrics, duplicate processing, corrections and rollback. Pointer guards reject concurrent changes before publishing aggregates. The candidate schema is outside automatic migration files; no route or scheduler activates the pilot. Qualified provider adapters, canonical verification implementation, leases, polling/reconciliation, outbox consumers and production freshness/load testing are not complete. Its health query reports pending jobs and missing card pairs; it is not the requested production dashboard.
 
 ## Modeling and learning evidence
 
@@ -61,11 +61,11 @@ Bounded offline learning findings record season/regime errors and hypotheses wit
 | # | Deliverable | Status | Evidence or remaining work |
 |---|---|---|---|
 | 1 | Production baseline | PARTIAL | Live SHA, ledgers, selected counts/contracts verified; full operational/data inventory incomplete |
-| 2 | Full backup manifest | PARTIAL | New five-part source manifest located; independent remote-byte verification drill pending; original 603 parts unlocated |
-| 3 | Full isolated restoration | PARTIAL | Prior limited restore exists; stricter all-table restore pending; remote D1 full import not exercised |
+| 2 | Full backup manifest | VERIFIED | Newer five-part single-bookmark alternative verified byte-for-byte; original 603 parts and explicit creation time remain unavailable |
+| 3 | Full isolated restoration | VERIFIED | Full local SQLite restore: 266 tables, 3,285,588 rows, zero FK errors; remote D1 full import remains unverified |
 | 4 | 0098/0099/import artifacts | PARTIAL | Reconciled code and local tests; independent review and production approval outstanding |
 | 5 | Persistent team/player statistical database | PARTIAL | Existing identities plus 35,320-row isolated research import; production performance ledgers absent |
-| 6 | Automated ingestion/corrections | PARTIAL | Offline transaction reference tested; production collector/scheduler/adapter absent |
+| 6 | Automated ingestion/corrections | PARTIAL | Offline reference and isolated D1/R2 pilot tested; production collector/scheduler/adapter absent |
 | 7 | Refreshed cards for all active FBS | BLOCKED | Undeployed UI; source coverage/production ledgers not populated |
 | 8 | Verified player statistical pages | PARTIAL | UI implemented; live data/browser acceptance pending |
 | 9 | Reconciliation/health dashboard | PARTIAL | Machine reconciliation/reference health; production dashboard/alerts incomplete |
@@ -75,7 +75,7 @@ Bounded offline learning findings record season/regime errors and hypotheses wit
 | 13 | Walk-forward/calibration reports | VERIFIED | Corrected score-state research report generated; independent review pending; no production improvement claim |
 | 14 | Prospective shadow pipeline | NOT STARTED | No CFB prospective evidence populated; offline PIT reference is not active shadow collection |
 | 15 | Economic qualification framework | PARTIAL | Existing shared framework inspected; CFB evidence/joins absent; measurements NULL |
-| 16 | Full end-to-end regression | PARTIAL | 1,449 JS tests and 18 Python tests; remote D1/collectors/UI/full-chain tests outstanding |
+| 16 | Full end-to-end regression | PARTIAL | 1,461 JS tests, 23 Python tests and local workerd/D1/R2 integration; remote D1/collectors/UI/full-chain tests outstanding |
 | 17 | Runbooks/docs | PARTIAL | This report and existing release preflight; full production operations remain unqualified |
 | 18 | PR/commits/CI/release gates | PARTIAL | Draft #957; first hosted CI passed; latest-head CI and reviewer acceptance required |
 
@@ -87,7 +87,15 @@ Do not approve a general "go ahead" or merge this combined PR as a shortcut. Mai
 2. **0099 only:** separately approve exact SQL hash after live 0098 postflight and independent contract review. Verify four tables/indexes, CHECK authority constraints, correct dual-ledger entry and preservation. Rollback: disable consumers and retain evidence, revert code if deployed; no data deletion.
 3. **Frozen source import:** approve exact qualified source manifest, quarantine list, importer SHA and accepted recovery report hash. Dry run, then bounded insert/verify. Acceptance counts 745/138/26618/7819, exact stored content, NULL historical source timestamps, zero model influence. Rollback: stop batches, retain immutable rows and journal; resume idempotently only after resolving failure. Unexpected records stop execution rather than overwrite them.
 4. **Code deployment:** approve exact tested commit only after schema/data compatibility and live browser QA. Rollback to known Pages artifact, retaining additive data. Merge/deploy must not run a new unreviewed schema operation.
-5. **Production postgame automation:** requires completed D1 adapter, canonical/source contracts, all-game queue reconciliation, simultaneous correction tests, load/freshness measurements, outbox consumers and nonproduction end-to-end drill. Default disabled until separately approved deployment.
+5. **Production postgame automation:** requires qualified D1 pilot, canonical/source contracts, all-game queue reconciliation, simultaneous correction tests, load/freshness measurements, outbox consumers and nonproduction end-to-end drill. Default disabled until separately approved deployment.
 6. **Model promotion:** requires frozen common-cohort chronological testing, player/source availability qualification and prospective economic evidence through existing FBIS standards. No threshold changes, automatic champion replacement or wagering authorization.
 
 No production execution approval is requested yet: recovery acceptance and independent review are incomplete.
+
+## Strict recovery and frozen-source acceptance evidence
+
+Hosted verification run `38110310315` at commit `f1fc6e8f9fd799968be6163874ceeda3c882e467` passed. Artifact `11691544549`, ZIP SHA-256 `95780c2353c9ee8aff516589070f669de005d24054501ddf6591bfb691a08e39`, contains the accepted stricter report in `research/cfb/recovery-20261011/independent-reconciliation.json`. It verifies all five remote part bytes/hashes, full gzip/SQL hashes, 3,286,209 source statements, every table count, schema objects, both original ledgers, zero FK violations and integrity before/after idempotent migration rehearsal. No production mutation occurred. Remote D1 acceptance is explicitly false.
+
+Frozen source coverage includes 432 final FBS-involving games and all 745 expected FBS team sides, with some player records on each. It omits 119 non-FBS opponent sides from the FBS ledger. Presence of player rows does not prove all participants or categories are complete. Two unresolved athlete/team pairs remain quarantined. No full Team Card automation claim follows from this snapshot.
+
+`cfb-d1-import-partition.py` prepares bounded complete-statement files from an accepted report, checks the original full SQL checksum, rejects explicit cross-file transactions and emits an ordered manifest. Three fixture contracts pass. It has not partitioned the full export or imported a remote D1 database; this is preparation, not remote recovery evidence.

@@ -33,10 +33,10 @@ class Pipeline(unittest.TestCase):
   self.assertEqual(self.l.db.execute('SELECT COUNT(*) FROM current_cards').fetchone()[0],0)
   self.assertEqual(self.l.health()['states']['RETRY_PENDING'],1);self.process();self.assertEqual(self.card()['games'],1)
  def test_correction_preserves_snapshot(self):
-  v=self.process();s,b=self.l.snapshot('next',['home','away'],2026,'2026-10-11T00:15:00Z','2026-10-17T20:00:00Z')
+  v=self.process();s,b=self.l.snapshot('next',['home','away'],2026,'2026-10-11T00:25:00Z','2026-10-17T20:00:00Z')
   p=game();p['observed_at']='2026-10-11T00:30:00Z';p['teams'][0]['metrics']['yards']=420
   self.process(p,at='2026-10-11T00:31:00Z');self.assertEqual(self.card()['offense']['yards']['total'],420)
-  self.assertEqual(b['game_versions'],[v]);self.assertEqual(self.l.snapshot('next',['home','away'],2026,'2026-10-11T00:15:00Z','2026-10-17T20:00:00Z')[0],s)
+  self.assertEqual(b['game_versions'],[v]);self.assertEqual(self.l.snapshot('next',['home','away'],2026,'2026-10-11T00:25:00Z','2026-10-17T20:00:00Z')[0],s)
   self.assertEqual(self.l.db.execute('SELECT COUNT(*) FROM card_versions').fetchone()[0],4)
  def test_old_replay_quarantined(self):
   self.process();p=game();p['observed_at']='2026-10-11T00:30:00Z';p['teams'][0]['metrics']['yards']=420;self.process(p,at='2026-10-11T00:31:00Z')
@@ -72,8 +72,23 @@ class Pipeline(unittest.TestCase):
   self.process();self.l.discover({'game_id':'g1','status':'FINAL'},AT);self.assertEqual(self.l.health()['states']['VERIFIED'],1)
  def test_pit_rejects_late_and_retrospective(self):
   p=game();p['temporal_class']='RETROSPECTIVE';self.process(p)
-  _,b=self.l.snapshot('next',['home','away'],2026,'2026-10-11T00:15:00Z','2026-10-17T20:00:00Z');self.assertEqual(b['game_versions'],[])
+  _,b=self.l.snapshot('next',['home','away'],2026,'2026-10-11T00:25:00Z','2026-10-17T20:00:00Z');self.assertEqual(b['game_versions'],[])
   with self.assertRaises(ValueError):self.l.snapshot('next',['home'],2026,AT,AT)
+ def test_late_normalization_excluded_from_pit(self):
+  self.process()
+  _,b=self.l.snapshot('next',['home','away'],2026,'2026-10-11T00:15:00Z','2026-10-17T20:00:00Z')
+  self.assertEqual(b['game_versions'],[])
+ def test_chronological_replay_features_and_correction(self):
+  first=self.process()
+  _,a=self.l.snapshot('next',['home','away'],2026,'2026-10-11T00:25:00Z','2026-10-17T20:00:00Z')
+  self.assertEqual(a['team_state']['home']['games'],1)
+  second=game();second['game_id']='g2';second['provider_game_id']='101';second['game_at']='2026-10-17T20:00:00Z';second['observed_at']='2026-10-18T00:10:00Z'
+  second['scores']['home']=42;second['teams'][0]['metrics']['points']=42
+  self.process(second,at='2026-10-18T00:20:00Z')
+  _,b=self.l.snapshot('third',['home','away'],2026,'2026-10-18T00:25:00Z','2026-10-24T20:00:00Z')
+  self.assertEqual(b['team_state']['home']['offense']['points']['mean'],35)
+  self.assertEqual(a['team_state']['home']['offense']['points']['mean'],28)
+  self.assertEqual(self.card()['games'],2)
  def test_paired_ratios_missing_not_zero(self):
   a=aggregate([{'yards':100,'plays':20},{'yards':None,'plays':80}]);self.assertEqual(a['yards_per_play']['value'],5);self.assertEqual(a['yards_per_play']['games'],1)
 if __name__=='__main__':unittest.main()

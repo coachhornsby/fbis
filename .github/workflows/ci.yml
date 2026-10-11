@@ -40,6 +40,8 @@ jobs:
         run: npm test
       - name: Build app
         run: npm run build
+      - name: Isolated CFB workerd D1 R2 pilot
+        run: node test/support/cfb-pilot-miniflare.mjs
 
   cfb-offline-rehearsal:
     name: CFB OFFLINE CONTRACTS
@@ -54,6 +56,7 @@ jobs:
       - run: python3 test/cfb-postgame-rehearsal.test.py
       - run: python3 test/cfb-final-status.test.py
       - run: python3 test/cfb-import-contract.test.py
+      - run: python3 test/cfb-d1-partition.test.py
 
   deploy-production:
     name: DEPLOY PRODUCTION
