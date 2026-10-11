@@ -1,3 +1,4 @@
+import {loadCfbFrozenUnitEvidence} from "./cfbPitFeatureDelivery.js";
 import { fbsOnlySlate } from "./cfbGameVisibility.js";
 /**
  * Public slate-engine facade.
@@ -183,9 +184,11 @@ export async function buildSlate(sport, date, env = {}) {
     const promoted = promoteCfbFbisV2ToBoard(v2.games);
     // Player model consumes game environment only — no CFBD fanout on customer refresh
     const players = attachCfbPlayerV1(promoted.games);
+    const pit = await loadCfbFrozenUnitEvidence(env.DB,players.games);
+    const cfbGames=players.games.map(g=>pit.byGameId?.[String(g.id)]?{...g,cfbUnitAudit:pit.byGameId[String(g.id)]}:g);
     next = {
       ...slate,
-      games: players.games,
+      games: cfbGames,
       modelVersion: "CFB-FBIS-v2",
       research: {
         ...(slate.research || {}),
@@ -194,6 +197,7 @@ export async function buildSlate(sport, date, env = {}) {
         cfbFbisV2: v2.meta,
         cfbFbisV2Board: promoted.meta,
         cfbPlayerV1: players.meta,
+        cfbUnitEvidence:{records:pit.records,coveredGames:Object.keys(pit.byGameId||{}).length,error:pit.error||null,role:"PIT display evidence only"},
       },
     };
   } else if (id === "nfl") {

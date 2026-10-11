@@ -540,10 +540,27 @@ function isOpenSnapshot(row) {
   return String(row?.gameStatus || "").trim().toUpperCase() === "OPEN";
 }
 
+/** CFB final-score writes must be after the canonical kickoff. Do not trust cached
+ * grading timestamps or a populated score without a coherent event clock. */
+async function cfbGradingTimeGuard(env,gameId,gradedAt,explicitSport=null){
+ const at=Date.parse(String(gradedAt||""));
+ if(!Number.isFinite(at))return {ok:false,reason:"invalid-grading-timestamp"};
+ let game;
+ try{game=await env.DB.prepare("SELECT sport,start FROM games WHERE id=? LIMIT 1").bind(String(gameId)).first();}
+ catch{return explicitSport==="cfb"?{ok:false,reason:"cfb-grading-game-lookup-failed"}:{ok:true};}
+ const sport=String(game?.sport||explicitSport||"").toLowerCase();
+ if(sport!=="cfb")return {ok:true};
+ const start=Date.parse(String(game?.start||""));
+ if(!Number.isFinite(start))return {ok:false,reason:"cfb-event-start-unverified"};
+ if(at<start)return {ok:false,reason:"cfb-grade-before-kickoff"};
+ return {ok:true};
+}
+
 export async function gradeSnapshot(env, row) {
   markBound(env);
   if (!hasDb(env) || !row?.id) return { ok: false, reason: "unbound" };
   if (isOpenSnapshot(row) || (row.actualHome == null && !row.gameStatus)) return { ok: false, reason: "no-final" };
+  if(String(row.sport||"").toLowerCase()==="cfb"){const guard=await cfbGradingTimeGuard(env,row.gameId,row.gradedAt||new Date().toISOString(),"cfb");if(!guard.ok)return guard;}
   try {
     await env.DB.prepare(
       `UPDATE prediction_snapshots
@@ -679,6 +696,8 @@ export async function gradeSnapshotsForGame(env, { gameId, actualHome, actualAwa
   if (!hasDb(env) || !gameId) return { ok: false, reason: "unbound" };
   if (actualHome == null) return { ok: false, reason: "no-final" };
   const at = gradedAt || new Date().toISOString();
+  const guard=await cfbGradingTimeGuard(env,gameId,at);
+  if(!guard.ok)return guard;
   try {
     await env.DB.prepare(
       `UPDATE prediction_snapshots

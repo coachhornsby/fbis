@@ -14,6 +14,7 @@ on:
         type: choice
         options:
           - cfb-current-refresh
+          - cfb-pregame-freeze
           - cbb-current-refresh
           - cfb-postgame-harvest
           - cbb-postgame-harvest
@@ -256,6 +257,7 @@ jobs:
           elif [ "$EVENT_NAME" = "schedule" ]; then
             # Keep sequential for CFBD quota; each call has its own bounded retries.
             call cfb-current-refresh "" true
+            call cfb-pregame-freeze "" true
             call cbb-current-refresh "" true
             call cfb-postgame-harvest "" true
             call cbb-postgame-harvest "" true
