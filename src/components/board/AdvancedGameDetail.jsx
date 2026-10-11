@@ -45,6 +45,11 @@ export default function AdvancedGameDetail({ game, onClose }) {
         <HeroTeam team={vm.home} score={vm.projectedScores?.home} projectionLabel={vm.projectedScores?.label} side="home" />
       </header>
 
+      {String(game?.sport || "").toLowerCase() === "nfl" && game?.nflInternationalContext?.international ? (
+        <div className="agd-hero-venue" role="status" aria-label="International-game risk">
+          🌍 INTERNATIONAL / NEUTRAL — {game.nflInternationalContext.site?.city || "OVERSEAS"} — TRAVEL NOT VALIDATED — NO BET AUTHORITY
+        </div>
+      ) : null}
       <nav className="agd-tabs" aria-label="Detail sections">
         {tabs.map((t) => (
           <button
