@@ -44,7 +44,7 @@ test("SDV ESPN player box normalization: FBS only, strict game join, paired pass
   assert.equal(manifest.player_game_rows,3);
   assert.equal(manifest.fbs_whitelisted_teams,2);
   assert.equal(manifest.counts.excluded_non_fbs,1);
-  assert.equal(manifest.counts.missing_game_date,1);
+  assert.equal(manifest.counts.bad_identifiers,1);
   assert.equal(manifest.counts.future_game,1);
   assert.equal(manifest.counts.unnamed_stats_quarantined,1);
   assert.equal(manifest.feature_authority,false);
@@ -82,7 +82,7 @@ test("Normalized box CSV and hash-bound manifest feed source-specific immutable 
   const r=run(stage,args);
   assert.equal(r.status,0,r.stderr);
   const report=JSON.parse(readFileSync(stagePrefix+".manifest.json","utf8"));
-  assert.equal(report.files["player-game"].records,3);
+  assert.equal(report.files["player-game"].records,3,JSON.stringify(report));
   assert.equal(report.files["player-season"].records,3);
   assert.equal(report.player_source_manifest_verified,true);
   const rows=readFileSync(stagePrefix+".player-game.jsonl","utf8").trim().split("\n").map(JSON.parse);
