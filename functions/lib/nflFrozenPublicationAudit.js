@@ -21,7 +21,8 @@ export function buildNflFrozenAuditPacket(game = {}, slate = {}) {
   const hasInput = pitInput && Object.keys(pitInput.home || {}).length && Object.keys(pitInput.away || {}).length;
   return {
     schema: "nfl-frozen-score-audit-v1",
-    ok: true,
+    ok: Boolean(displayedScoreMatches && hasInput),
+    reason: !displayedScoreMatches ? "displayed-score-diverges-from-shadow" : !hasInput ? "frozen-feature-inputs-unavailable" : null,
     modelId: shadow.modelId,
     modelVersion: shadow.version,
     projection: { home: shadow.home, away: shadow.away, total: shadow.total, margin: shadow.margin },
