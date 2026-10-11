@@ -1,6 +1,8 @@
 import { fmt, lineLabel, bestEdge, matchupSignalLabel } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlEvidenceStrip from "./NhlEvidenceStrip.jsx";
+import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
+import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
 import NhlPlayerProjectionStrip from "./NhlPlayerProjectionStrip.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
@@ -188,6 +190,8 @@ export default function CompactGameCard({ game, onOpen }) {
   const action = vm.action || {};
   const sportId = String(vm.sport || game?.sport || "").toLowerCase();
   const isNfl = sportId === "nfl";
+  const isCfb = sportId === "cfb";
+  const isFootball = isNfl || isCfb;
   const isNhl = sportId === "nhl";
   const showStars = !isNhl || proj.available;
   const showAction = true; // Keep compact-card information architecture consistent across sports.
@@ -290,7 +294,10 @@ export default function CompactGameCard({ game, onOpen }) {
             <span>{isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
           </div>
 
-          <span className="cgc-vs">VS</span>
+          {isFootball ? <div className="cgc-vs"><div className="nfl-hero-venue" aria-label="Stadium and weather">
+            {vm.context?.venueLabel||vm.context?.venueName?<div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v3H3zm2 5h14v9h-3v-4H8v4H5zm4 1v2h6v-2zM1 21h22v2H1z"/></svg><strong>{vm.context.venueLabel||vm.context.venueName}</strong></div>:null}
+            {vm.context?.weatherLine?<div><span aria-hidden="true">☀</span><strong>{vm.context.weatherLine}</strong></div>:null}
+          </div><span>VS</span></div> : <span className="cgc-vs">VS</span>}
 
           <div className="cgc-team-block">
             <TeamLogo team={home} size={83} className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
@@ -324,7 +331,7 @@ export default function CompactGameCard({ game, onOpen }) {
         </aside>
       </div>
 
-      <VenueConditions context={vm.context} game={game} sportId={sportId} />
+      {!isFootball ? <VenueConditions context={vm.context} game={game} sportId={sportId} /> : null}
 
       <div className="cgc-market-strip" aria-label="FBIS and market comparison">
         <div className="cgc-market-item">
@@ -368,28 +375,7 @@ export default function CompactGameCard({ game, onOpen }) {
 
       {isNhl && !action.available ? <div className="cgc-nhl-action-unavailable">ACTION splits: UNAVAILABLE · No movement signal inferred</div> : null}
 
-      {isNfl && matchup?.ok ? (
-        <section className="cgc-matchup-read" aria-label="FBIS individual game matchup analysis">
-          <div className="cgc-matchup-read-head">
-            <div><span>GAME MATCHUP</span><strong>{matchup?.adjustment?.evidenceQualified ? "QUALIFIED" : "READ"}</strong></div>
-            <b>{matchup?.coverage ? `${matchup.coverage.available}/${matchup.coverage.total}` : "—"}</b>
-          </div>
-          <div className="cgc-matchup-pills">
-            {matchupItems.filter((item) => item.text !== "—").map((item) => (
-              <div className={`cgc-matchup-pill tone-${item.tone}`} style={item.tone==="home"?{"--fbis-tile-team":homeBrand}:item.tone==="away"?{"--fbis-tile-team":awayBrand}:undefined} key={item.id}>
-                <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "SIG"}</i><em>{item.label}</em></span><strong>{item.text}</strong>
-              </div>
-            ))}
-          </div>
-          <div className="cgc-matchup-adjustment">
-            <span>BASELINE <b>{Number.isFinite(baselineMargin) ? `${baselineMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(baselineMargin))}` : "—"}</b></span>
-            <i>→</i>
-            <span>ADJ <b>{Number.isFinite(matchupAdj) ? `${matchupAdj > 0 ? "+" : ""}${fmt(matchupAdj)}` : "0"}</b></span>
-            <i>→</i>
-            <span>GAME READ <b>{Number.isFinite(finalMargin) ? `${finalMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(finalMargin))}` : "—"}</b></span>
-          </div>
-        </section>
-      ) : (
+      {isNfl ? <NflDirectionalMatchups game={game} matchup={matchup} away={away} home={home} /> : isCfb ? <CfbDirectionalMatchups game={game} away={away} home={home} /> : (
         <section className={`cgc-matchup-read${genericMatchupItems.length ? "" : " is-unavailable"}`} aria-label="FBIS matchup analysis">
           <div className="cgc-matchup-read-head">
             <div><span>GAME MATCHUP</span><strong>{genericMatchupItems.length ? "FBIS ANALYSIS" : "NO ANALYTICS YET"}</strong></div>

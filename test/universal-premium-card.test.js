@@ -8,7 +8,7 @@ test("non-tennis compact cards preserve full names, 25 percent bigger logos and 
  assert.match(card,/fbis-full-team-name/);
  assert.match(card,/size=\{83\}/);
  assert.doesNotMatch(card,/className="cgc-abbr"/);
- assert.match(card,/--fbis-tile-team/);
+ assert.match(card,/NflDirectionalMatchups/);
  assert.match(css,/cgc-best-edge>\*/);
  assert.match(css,/overflow-wrap:anywhere/);
  assert.match(css,/tone-neutral/);
@@ -20,5 +20,15 @@ test("premium card remains sport specialized and tennis route stays separate",as
  assert.match(premium,/fbis-universal-premium/);
  assert.match(premium,/size=\{103\}/);
  assert.match(css,/\.fbis-universal-premium/);
+ assert.doesNotMatch(css,/\[data-sport="tennis"\]/);
+});
+
+test("featured cards give both full team names a balanced width and keep tennis isolated",async()=>{
+ const css=await load("universalPremiumCard.css");
+ assert.match(css,/\.pgc-featured-team-home\{/);
+ assert.match(css,/flex-direction:column!important/);
+ assert.match(css,/word-break:normal!important/);
+ assert.match(css,/grid-template-columns:minmax\(0,1fr\) minmax\(140px,\.65fr\) minmax\(0,1fr\)/);
+ assert.match(css,/\.nhl-evidence-block>strong/);
  assert.doesNotMatch(css,/\[data-sport="tennis"\]/);
 });
