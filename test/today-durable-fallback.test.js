@@ -105,3 +105,21 @@ test("injected healthy focused builder keeps its real projection and status",asy
   assert.equal(data.games[0].projHome,32);
   assert.equal(data.games[0].durableFallback,null);
 });
+
+test("ALL sports uses one read-only D1 query and does not invoke live builders",async()=>{
+  const store=db([
+    cfb("cfb-all"),
+    cfb("nhl-all",{sport:"nhl",home_abbr:"BUF",away_abbr:"UTA"}),
+    cfb("nba-all",{sport:"nba",home_abbr:"LAL",away_abbr:"BOS"}),
+  ]);
+  const board=await buildTodayBoard(today,{DB:store},{now});
+  assert.equal(board.counts.games,3);
+  assert.equal(board.counts.durableFallbackGames,3);
+  assert.equal(board.parlay.durableReadOnly,true);
+  assert.equal(board.feeds.cfb.n,1);
+  assert.equal(board.feeds.nhl.n,1);
+  assert.equal(board.feeds.nba.n,1);
+  assert.equal(board.games.length,3);
+  assert.ok(board.games.every(g=>g.status==="unverified" && !g.canQualify && g.rec==null));
+  assert.equal(store.metrics.calls,1);
+});
