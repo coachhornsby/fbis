@@ -64,6 +64,17 @@ test("missing token never triggers GitHub calls or changes R2, even when stale",
   assert.equal(env.R2_ARCHIVE.data.size,0);
 });
 
+test("fresh canonical R2 does not raise a false missing-token Cron alarm",async()=>{
+  const env={...config(),TENNIS_GITHUB_DISPATCH_TOKEN:"",R2_ARCHIVE:r2()};
+  const api=github();
+  const result=await recoverStaleTennis(env,{
+    health:health(35,120),now,scheduledTime:now,request:api.request,
+  });
+  assert.equal(result.state,"NOT_DUE");
+  assert.equal(result.reason,"FRESH");
+  assert.equal(api.calls.length,0);
+});
+
 test("bounded current recovery dispatch is main-only, fixed workflow/scope and makes no bets",async()=>{
   const env={...config(),R2_ARCHIVE:r2()};
   const api=github();
