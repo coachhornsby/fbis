@@ -19,6 +19,7 @@ import { legacyToRoute, normalizeRoute, routeToLegacy } from "./app/navigation.j
 import PrizePicksMarketPanel from "./features/playerProps/PrizePicksMarketPanel.jsx";
 import ModelLabView from "./features/modelLab/ModelLabView.jsx";
 import CurrentProjectionsView from "./features/models/CurrentProjectionsView.jsx";
+import CfbTeamsView from "./features/cfbTeams/CfbTeamsView.jsx";
 import DataHealthView from "./features/dataHealth/DataHealthView.jsx";
 import MispricesView from "./features/misprices/MispricesView.jsx";
 import "./features/playerProps/playerProps.css";
@@ -134,6 +135,7 @@ export default function App() {
   });
   const [sysTab, setSysTab] = useState("overall");
   const [cfbWeekShift, setCfbWeekShift] = useState(0);
+  const [cfbTeamsRefresh, setCfbTeamsRefresh] = useState(0);
   const boardRequestId = useRef(0);
   const todayRequestId = useRef(0);
   const trackRequestId = useRef(0);
@@ -321,6 +323,7 @@ export default function App() {
       models: "MODELS",
       "model-lab": "MODEL LAB",
       "player-props": "PLAYER PROPS",
+      teams: "FBS TEAM PROFILES",
       bets: "MY BETS",
       performance: "MODELS",
       publish: "MODELS",
@@ -479,6 +482,7 @@ export default function App() {
   );
 
   const shellFreshness =
+    route === "teams" ? "CURRENT" :
     route === "market" || route === "markets" || tab === "board"
       ? boardStale
         ? "STALE"
@@ -504,14 +508,16 @@ export default function App() {
       <AppShell
         route={route}
         sportFilter={sportFilter}
-        freshnessLabel="MARKET DATA"
+        freshnessLabel={route === "teams" ? "SAVED FBS DIRECTORY" : "MARKET DATA"}
         freshnessState={shellFreshness}
         healthLabel={healthLabel}
         healthTone={health}
         onRouteChange={onRouteChange}
         onSportFilterChange={onSportFilterChange}
         onRefresh={() =>
-          route === "system" || route === "performance" || tab === "sys"
+          route === "teams"
+            ? setCfbTeamsRefresh((n) => n + 1)
+            : route === "system" || route === "performance" || tab === "sys"
             ? refreshTrack()
             : route === "bets" || tab === "bets"
               ? refreshBets()
@@ -540,7 +546,9 @@ export default function App() {
           <Ticker items={slate?.ticker || []} logged={loggedOpen} />
         ) : null}
 
-        {route === "models" || route === "publish" ? (
+        {route === "teams" ? (
+          <CfbTeamsView refreshKey={cfbTeamsRefresh} />
+        ) : route === "models" || route === "publish" ? (
           <div className="canonical-models-stack">
             <CurrentProjectionsView date={todayDate} sportFilter={sportFilter} />
           </div>
