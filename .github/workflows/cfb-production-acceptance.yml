@@ -1,0 +1,31 @@
+name: CFB read-only production acceptance
+on:
+  workflow_dispatch:
+  push:
+    branches: [engineering/cfb-finalization-20261011]
+    paths: ['scripts/cfb-production-acceptance.mjs', '.github/workflows/cfb-production-acceptance.yml']
+permissions:
+  contents: read
+concurrency:
+  group: cfb-read-only-production-acceptance
+  cancel-in-progress: false
+jobs:
+  verify-source-api-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compare current two-week source fixtures with live API cards
+        run: |
+          DAY=$(TZ=America/Chicago date +%F)
+          node scripts/cfb-production-acceptance.mjs "$DAY" "$RUNNER_TEMP/cfb-production-acceptance.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cfb-production-acceptance-${{ github.run_id }}
+          path: ${{ runner.temp }}/cfb-production-acceptance.json
+          retention-days: 30
+          if-no-files-found: error

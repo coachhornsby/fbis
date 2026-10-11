@@ -54,7 +54,9 @@ export async function onRequestGet(context) {
         payload.requestedDate = resolved.date;
       }
     }
-    if(sport === "cfb") payload.cfbScheduleHealth={source:publicWeek?.source||"EXISTING_SCHEDULE",publicScheduleError,cfbdScheduleRequired:!publicWeek};
+    if(sport === "cfb") payload.cfbScheduleHealth={source:publicWeek?.source||"EXISTING_SCHEDULE",publicScheduleError,cfbdScheduleRequired:!publicWeek,
+      observedAt:publicWeek?.observedAt||null,coverage:publicWeek?.coverage||null,
+      state:publicWeek?(publicWeek.coverage?.successfulDays===7?'SOURCE_COMPLETE':'PARTIAL_SOURCE'):'FALLBACK_SOURCE'};
     return json(compactMlbSlatePayload(payload), 200, 30);
   } catch (err) {
     if(publicWeek?.games.length) {
@@ -62,6 +64,8 @@ export async function onRequestGet(context) {
         qualificationBlocked:true,canQualify:false,canAuthorizeWager:false,blockReason:"CFB model unavailable; verified public schedule retained"}));
       return json({sport:"cfb",date:resolved.date,games,ticker:[],counts:{games:games.length},
         week:{mode:"cfb-week",shift:weekShift,number:publicWeek.week,range:publicWeek.range},
+        cfbScheduleHealth:{source:publicWeek.source,observedAt:publicWeek.observedAt,coverage:publicWeek.coverage,
+          state:publicWeek.coverage?.successfulDays===7?'SOURCE_COMPLETE':'PARTIAL_SOURCE',cfbdScheduleRequired:false},
         cfb:{state:"DEGRADED",source:publicWeek.source,reason:String(err?.message||err)},modelVersion:null},200,30);
     }
     if (sport === "cfb" && env.CFBD_API_KEY) {

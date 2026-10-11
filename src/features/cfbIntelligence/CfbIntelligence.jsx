@@ -1,4 +1,5 @@
 import {useEffect,useMemo,useState} from 'react';
+import CfbCategoryRankings from './CfbCategoryRankings.jsx';
 const fmt=v=>v==null?'Unavailable':Number(v).toFixed(3);
 export default function CfbIntelligence(){
  const [data,setData]=useState(null),[error,setError]=useState(''),[conference,setConference]=useState('ALL'),[selected,setSelected]=useState(''),[metric,setMetric]=useState('');
@@ -11,6 +12,7 @@ export default function CfbIntelligence(){
    <p>2026 · {data.coverage.rankedTeams}/{data.coverage.expectedFbsTeams} ranked FBS teams · {data.coverage.numericMetricColumns} metrics · Acquired {data.source.observedAt}</p>
    <p>SportsDataverse opponent-adjusted EPA. Research rankings. Production model: {data.model.version}. These rankings carry no wagering authority.</p>
    <details><summary>Methodology, freshness and model input coverage</summary><p>{data.methodology.team}</p><p>{data.methodology.conference}</p><p>{data.methodology.limitation}</p><p>{data.model.explanation} Margin features: {data.model.marginFeatures.join(', ')}. Total features: {data.model.totalFeatures.join(', ')}.</p><a href={data.source.url}>Source dataset</a><p>Source SHA-256: {data.source.sha256}</p></details>
+   <CfbCategoryRankings data={data}/>
    <h3>Conference strength</h3><div style={{overflowX:'auto'}}><table><thead><tr>{['Rank','Conference','Rated / members','Team-game samples','Adjusted net EPA','Offense','Defense','Variation','Top team'].map(x=><th key={x}>{x}</th>)}</tr></thead><tbody>{data.conferences.map(c=><tr key={c.name}><td>{c.rank??'—'}</td><td><button onClick={()=>setConference(c.name)}>{c.name}</button></td><td>{c.rankedTeams}/{c.teams}</td><td>{c.teamGameSamples}</td><td>{fmt(c.metrics.net_adj_epa.value)}</td><td>{fmt(c.metrics.adj_off_epa.value)}</td><td>{fmt(c.metrics.adj_def_epa.value)}</td><td>{fmt(c.withinConferenceSd)}</td><td>{c.bestTeam||'Unavailable'}</td></tr>)}</tbody></table></div>
    <details><summary>Conference efficiency and situational breakdown</summary>{data.conferences.map(c=><details key={c.name}><summary>{c.name}</summary><table><tbody>{Object.entries(c.metrics).map(([key,value])=><tr key={key}><th>{key.replaceAll('_',' ')}</th><td>{fmt(value.value)}</td><td>{value.teams} contributing teams</td></tr>)}</tbody></table></details>)}</details>
    <h3>FBS team rankings</h3><label>Conference <select value={conference} onChange={e=>setConference(e.target.value)}><option value="ALL">All conferences</option>{data.conferences.map(c=><option key={c.name}>{c.name}</option>)}</select></label>
