@@ -1,3 +1,4 @@
+import { isFbsVsFbsGame } from "./cfbGameVisibility.js";
 import { proveTennisEvent } from "./tennisEventIntegrity.js";
 import { currentActionDisplay } from "./actionDisplayFreshness.js";
 /**
@@ -965,7 +966,7 @@ export async function buildTodayBoard(
         slateGames = slateGames.map((g)=>g.durableFallback?g:({...g,nhlWagerV1:evaluateNhlGameWagers(g)}));
       if (env.DB && !durableOnly)
         slateGames = await attachPrizePicksMarkets(slateGames, sport, date, env.DB);
-      const rows = slateGames.map((g) => currentActionDisplay(toBoardGame(g, sport, now), now));
+      const rows = slateGames.filter(isFbsVsFbsGame).map((g) => currentActionDisplay(toBoardGame(g, sport, now), now));
       const tennisIntegrityBlocked = sport === "tennis" && (slate.research?.withheld > 0 || slate.research?.configured === false);
       feeds[sport] = {
         ok: !tennisIntegrityBlocked,
@@ -1021,7 +1022,7 @@ export async function buildTodayBoard(
         ? await loadDurableTodayGames(env,date,sport,{now})
         : {ok:false,games:[]};
       if(recovered.ok && recovered.games.length){
-        const rows=recovered.games.map(g=>currentActionDisplay(toBoardGame(g,sport,now),now));
+        const rows=recovered.games.filter(isFbsVsFbsGame).map(g=>currentActionDisplay(toBoardGame(g,sport,now),now));
         feeds[sport]={
           ok:true,n:rows.length,durableFallbackGames:rows.length,
           source:"D1_SCHEDULE_PRESTART_SNAPSHOT",warning:upstreamError,
