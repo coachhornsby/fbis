@@ -141,3 +141,24 @@
  .fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-name{font-size:13px!important}
  .fbis-shell-main.route-board .fbis-universal-premium.pgc-featured .pgc-featured-logo{width:62px!important;height:62px!important}
 }
+
+
+/* Keep the entire model/market edge on one line, across every compact sport card. */
+.fbis-shell-main.route-board .fbis-universal-premium .cgc-best-edge > strong {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(15px, 1.75vw, 27px) !important;
+  line-height: 1.1 !important;
+  text-align: center;
+}
+@media (max-width: 700px) {
+  .fbis-shell-main.route-board .fbis-universal-premium .cgc-best-edge > strong {
+    font-size: clamp(14px, 3.5vw, 24px) !important;
+  }
+}
