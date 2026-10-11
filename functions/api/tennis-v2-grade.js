@@ -1,80 +1,69 @@
-import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
-import { noVigAmerican, profitUnits } from "../lib/tennisV2Ledger.js";
+import { authorizeHarvest, unauthorizedBody } from '../lib/auth.js';
+import { evaluateTennisSettlement } from '../lib/tennisSettlementEvidence.js';
 
-function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}})}
-const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
-const safe=v=>{if(v==null)return null;if(typeof v==="object")return v;try{return JSON.parse(v)}catch{return null}};
+const json = (body,status=200) => new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+const bounded = (v,fallback,max) => Number.isFinite(Number(v))?Math.max(1,Math.min(max,Math.floor(Number(v)))):fallback;
 
-async function latestClose(db,eventId,eventStart){
-  const row=await db.prepare(
-    `SELECT * FROM tennis_market_snapshots
-      WHERE canonical_event_id=? AND observed_at<=?
-      ORDER BY observed_at DESC LIMIT 1`
-  ).bind(eventId,eventStart||"9999-12-31T23:59:59Z").first().catch(()=>null);
-  return row||null;
+// Only an explicitly linked OFFICIAL match can settle a decision. Provider or
+// athlete names submitted in the request never establish a winner or event.
+async function officialMatch(db,d) {
+  const matches=(await db.prepare(`SELECT m.* FROM tennis_official_matches m
+    WHERE m.match_id=? OR m.match_id IN (
+      SELECT canonical_event_id FROM action_event_identity_links
+      WHERE match_confidence='EXACT' AND
+      (canonical_event_id=? OR (provider_event_id=? AND lower(sport)=?)))`)
+    .bind(d.canonical_event_id,d.canonical_event_id,
+      String(d.canonical_event_id||'').replace(/^tennis:action:/,''),String(d.tour||'').toLowerCase()).all()).results||[];
+  return matches.length===1?matches[0]:null;
 }
-function selectedP1(d,minEdge){
-  const edge=finite(d.model_edge);
-  if(edge==null||Math.abs(edge)<minEdge)return null;
-  return edge>0;
-}
-function entryPrice(d,selP1){
-  const m=safe(d.market_json)||{};
-  const q=Array.isArray(m.quotes)?m.quotes.find(x=>x.book==="pinnacle")||m.quotes[0]:null;
-  if(q){
-    const p=selP1?q.p1Price:q.p2Price;
-    if(finite(p)!=null)return finite(p);
-  }
-  return null;
+async function closingMarkets(db,d) {
+  return (await db.prepare(`SELECT id,canonical_event_id,tour,player1,player2,market_type,
+      player1_no_vig_prob,observed_at,collected_at,snapshot_type
+    FROM tennis_market_snapshots
+    WHERE canonical_event_id=? AND market_type='moneyline'
+      AND observed_at>=? AND observed_at<? AND collected_at<?
+    ORDER BY observed_at DESC LIMIT 40`).bind(d.canonical_event_id,
+      d.decision_timestamp,d.event_start_time,d.event_start_time).all()).results||[];
 }
 
-export async function onRequestPost(context){
+export async function onRequestPost(context) {
   const auth=authorizeHarvest(context.request,context.env);
   if(!auth.ok)return json(unauthorizedBody(auth.reason),401);
-  if(!context.env?.DB)return json({ok:false,error:"database unavailable"},503);
+  if(!context.env?.DB)return json({ok:false,error:'database unavailable'},503);
   const body=await context.request.json().catch(()=>({}));
-  const results=Array.isArray(body.results)?body.results:[];
-  const minEdge=Math.max(0,Math.min(.25,Number(body.minEdge)||.02));
-  let graded=0,bets=0,wins=0,losses=0,skipped=0;
+  if(body.mode!=='official' || body.results!==undefined || body.winner!==undefined)
+    return json({ok:false,error:'only mode=official supports source-verified settlement; submitted winners are rejected'},400);
+  const eventIds=Array.isArray(body.eventIds)?body.eventIds.filter(x=>typeof x==='string'&&x.length&&x.length<=160).slice(0,100):[];
+  const limit=bounded(body.limit,100,200);
+  const minEdge=Number.isFinite(Number(body.minEdge))?Math.max(0,Math.min(.25,Number(body.minEdge))):.02;
+  const db=context.env.DB;
+  let graded=0,blocked=0,unpriced=0,clvMissing=0;
   const details=[];
-  for(const rr of results){
-    const eventId=String(rr.eventId||"");
-    const winner=String(rr.winner||"").trim();
-    if(!eventId||!winner){skipped++;continue;}
-    const res=await context.env.DB.prepare(
-      `SELECT * FROM tennis_v2_research_decisions
-       WHERE canonical_event_id=? AND graded_at IS NULL
-       ORDER BY decision_timestamp`
-    ).bind(eventId).all();
-    for(const d of res?.results||[]){
-      const sel=selectedP1(d,minEdge);
-      const wonP1=winner.toLowerCase()===String(d.player1||"").toLowerCase();
-      const wonP2=winner.toLowerCase()===String(d.player2||"").toLowerCase();
-      if(!wonP1&&!wonP2){skipped++;continue;}
-      const close=await latestClose(context.env.DB,eventId,d.event_start_time);
-      const closeP1=finite(close?.player1_no_vig_prob);
-      const closeSelected=closeP1==null?null:(sel===null?null:(sel?closeP1:1-closeP1));
-      const entryMarket=finite(d.market_prior_p1);
-      const entrySelected=sel===null?null:(sel?entryMarket:1-entryMarket);
-      const clv=entrySelected!=null&&closeSelected!=null?closeSelected-entrySelected:null;
-      let units=null,price=null,resultLabel="PASS";
-      if(sel!==null){
-        bets++;
-        price=entryPrice(d,sel);
-        units=profitUnits({selectedP1:sel,wonP1,price});
-        if(units!=null){
-          if(units>0)wins++;else losses++;
-          resultLabel=units>0?"WIN":"LOSS";
-        }else resultLabel=sel===wonP1?"WIN_UNPRICED":"LOSS_UNPRICED";
-      }
-      await context.env.DB.prepare(
-        `UPDATE tennis_v2_research_decisions
-         SET result_winner=?,closing_p1_no_vig=?,clv=?,profit_units=?,graded_at=?
-         WHERE id=?`
-      ).bind(winner,closeP1,clv,units,new Date().toISOString(),d.id).run();
-      graded++;
-      details.push({decisionId:d.id,eventId,selection:sel===null?"PASS":(sel?d.player1:d.player2),edge:d.model_edge,result:resultLabel,clv,units,closeSource:close?.provider||null});
+  try {
+    const res=await db.prepare(`SELECT * FROM tennis_v2_research_decisions
+      WHERE graded_at IS NULL AND event_start_time IS NOT NULL
+        AND event_start_time < ? AND can_qualify=0 AND can_authorize_wager=0
+      ORDER BY event_start_time ASC LIMIT ?`).bind(new Date().toISOString(),limit).all();
+    for(const d of res?.results||[]) {
+      if(eventIds.length && !eventIds.includes(d.canonical_event_id))continue;
+      let event,closings;
+      try {event=await officialMatch(db,d);closings=event?await closingMarkets(db,d):[];}
+      catch(e){blocked++;details.push({decisionId:d.id,reason:'OFFICIAL_EVIDENCE_QUERY_FAILED'});continue;}
+      const grade=evaluateTennisSettlement(d,event,closings,{minEdge});
+      if(!grade.eligible){blocked++;details.push({decisionId:d.id,eventId:d.canonical_event_id,reason:grade.reason});continue;}
+      // Research-only: guard state at write time and do not touch frozen model evidence.
+      const update=await db.prepare(`UPDATE tennis_v2_research_decisions
+        SET result_winner=?,closing_p1_no_vig=?,clv=?,profit_units=?,graded_at=?
+        WHERE id=? AND graded_at IS NULL AND can_qualify=0 AND can_authorize_wager=0`)
+        .bind(grade.winner,grade.closingP1,grade.clv,grade.profitUnits,new Date().toISOString(),d.id).run();
+      if(Number(update?.meta?.changes??update?.changes??0)!==1){blocked++;details.push({decisionId:d.id,reason:'GRADE_NOT_COMMITTED'});continue;}
+      graded++;if(grade.price==null)unpriced++;if(grade.clv==null)clvMissing++;
+      details.push({decisionId:d.id,eventId:d.canonical_event_id,officialMatchId:grade.resultEvidence,
+        selected:grade.selectedP1===null?'PASS':(grade.selectedP1?d.player1:d.player2),
+        outcome:grade.winner,clv:grade.clv,profitUnits:grade.profitUnits,
+        closingSnapshotId:grade.marketEvidence});
     }
-  }
-  return json({ok:true,minEdge,graded,bets,wins,losses,skipped,details,governance:{researchOnly:true,canAuthorizeWager:false}});
+    return json({ok:true,mode:'official',graded,blocked,unpriced,clvMissing,details,
+      governance:{researchOnly:true,canQualify:false,canAuthorizeWager:false,bet:false}});
+  }catch(e){return json({ok:false,error:String(e?.message||e)},500);}
 }
