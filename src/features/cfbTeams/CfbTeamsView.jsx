@@ -41,7 +41,7 @@ function MetricGroups({groups}) {
     </section>)}</div>;
 }
 function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,intelligenceError}) {
-  const {team,featureState,legacyForm,evidence={}} = detail, s=team.stadium;
+  const {team,featureState,legacyForm,evidence={},apRanking} = detail, s=team.stadium;
   const [positionFilter,setPositionFilter]=useState("ALL");
   const [playerSearch,setPlayerSearch]=useState("");
   const roster=evidence?.roster?.players||[];
@@ -61,6 +61,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
         <div className="ft-kicker">{show(team.conference)} · FBS</div>
         <h2>{team.displayName}</h2>
         <p>{team.school} · {show(team.abbreviation)} · RESEARCH PROFILE</p>
+        <p><strong>AP Top 25: {apRanking?.state==="AVAILABLE"?(apRanking.rank?"#"+apRanking.rank:"Unranked"):"Unavailable"}</strong> · {apRanking?.week?"Week "+apRanking.week:"Poll week unavailable"} · {apRanking?.asOf||"Date unavailable"}</p>
         <div className="ft-color-row">
           <span className="ft-swatch" style={{background:team.colors.primary || "transparent"}}/>
           <span className="ft-swatch" style={{background:team.colors.secondary || "transparent"}}/>
@@ -199,12 +200,15 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
     </section>
     <section className="ft-panel">
       <div className="ft-heading"><h3>Season games and opponents</h3>
-        <small>{evidence?.schedule?.count||0} fixtures in saved game table</small></div>
-      <p className="ft-note">Stored fixture identities are not proof of final scores or completed-game statistics.
-        Results remain unavailable until independently observed records are ingested.</p>
-      <div className="ft-table-scroll"><table className="ft-table"><thead><tr><th>Date</th><th>Site</th><th>Opponent</th><th>Result</th></tr></thead>
+        <small>{evidence?.schedule?.count||0} ESPN team events · {show(evidence?.schedule?.state)}</small></div>
+      <p className="ft-note">Team-specific ESPN fixtures. W/L and final scores appear only when the event status is officially final. AP ranking is separate from FBIS ratings.</p>
+      {evidence?.schedule?.state!=="AVAILABLE" ? <p role="status">Current schedule source unavailable; stored fixtures are not shown as verified.</p> : null}
+      <div className="ft-table-scroll"><table className="ft-table"><thead><tr><th>Date</th><th>Site</th><th>Opponent</th><th>Status</th><th>Score</th><th>W/L</th></tr></thead>
         <tbody>{(evidence?.schedule?.games||[]).map(g=><tr key={g.id}>
-          <td>{show(g.date)}</td><td>{show(g.location)}</td><td>{show(g.opponent)}</td><td>Not verified</td>
+          <td>{show(g.date)}</td><td>{show(g.location)}</td><td>{show(g.opponent)}</td>
+          <td>{g.completed?"Final":show(g.status)}</td>
+          <td>{g.verifiedResult?g.pointsFor+"–"+g.pointsAgainst:"—"}</td>
+          <td>{g.result||"—"}</td>
         </tr>)}</tbody></table></div>
     </section>
     <section className="ft-panel">
