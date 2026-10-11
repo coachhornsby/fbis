@@ -64,3 +64,7 @@ test('a postgame correction changes future features while prior snapshot bytes s
  a.cards=await materializeResearchCards({teams,teamRows:[{...row(teams[0].team_id,42),observed_at:'2026-10-11T04:40:00Z'},row(teams[1].team_id)],playerRows:[],decisionAt});
  const next=await buildForwardSnapshot(a);assert.notEqual(next.id,old.id);assert.notEqual(next.card_versions.home,old.card_versions.home);assert.equal(JSON.stringify(old),frozen);
 });
+test('known completed-game source gaps remain visible on cards and shadow forecasts',async()=>{
+ const a=await args();a.cards=await materializeResearchCards({teams,teamRows:teams.map(t=>row(t.team_id)),playerRows:[],decisionAt,sourcePending:[{team_id:teams[0].team_id,game_id:'missing'}]});
+ assert.deepEqual(a.cards[0].coverage.recent_final_games_pending,['missing']);assert.ok((await buildForwardSnapshot(a)).qualification_reasons.includes('FINAL_GAME_STATS_PENDING'));
+});

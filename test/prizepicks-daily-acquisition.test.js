@@ -29,3 +29,18 @@ test("legacy paid collector is disabled",()=>{
   assert.match(s,/LEGACY_PRIZEPICKS_COLLECTOR_DISABLED/);
   assert.doesNotMatch(s,/await runActor\(/);
 });
+
+test("PrizePicks workflow reports degraded ingestion separately from budget-safe collection skip",()=>{
+  const y=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
+  const api=fs.readFileSync("functions/api/prizepicks-props.js","utf8");
+  assert.match(y,/name: Assert durable daily ingestion health\s*\n\s*if: always\(\)/);
+  assert.match(y,/mode=ingestion_health/);
+  assert.match(y,/if \[ "\$code" != "200" \] \|\| \[ "\$healthy" != "true" \]/);
+  assert.match(y,/SKIP_COLLECTION=1/);
+  assert.match(api,/mode==="ingestion_health"/);
+  assert.match(api,/acquisition\?\.state==="COMPLETE"/);
+  assert.match(api,/LEFT JOIN nfl_prop_state_snapshots s ON s\.prop_line_id=p\.id/);
+  assert.match(api,/DAILY_CAPTURE_NOT_COMPLETE/);
+  assert.match(api,/NFL_STATE_SNAPSHOT_GAP/);
+  assert.match(api,/canQualify:false,canAuthorizeWager:false/);
+});

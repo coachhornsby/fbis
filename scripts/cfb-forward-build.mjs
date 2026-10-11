@@ -23,14 +23,14 @@ const priorByTeam={};
 for(const row of accepted.sort((a,b)=>Date.parse(a.feature_capture_at)-Date.parse(b.feature_capture_at)))for(const key of ['home','away']){
  const p=row.captured_priors[key];priorByTeam[row.team_ids[key]]={off:p.off??null,def:p.def??null,observed_at:capture.capture_finished_at,legacy_capture_id:row.id};
 }
-const decisionAt=new Date().toISOString();
-const cards=await materializeResearchCards({teams,teamRows,playerRows,decisionAt,quarantined});
 const observedSchedule=await json('schedule.json');
 const observedTeamGames=new Set(teamRows.map(r=>r.team_id+'|'+r.game_id));
 const activeIds=new Set(teams.map(t=>t.team_id));
 const postgameGaps=[];
 for(const f of observedSchedule.filter(f=>f.status==='STATUS_FINAL'))for(const key of ['home','away']){const teamId='cfb:espn:'+f[key+'_id'];if(activeIds.has(teamId)&&!observedTeamGames.has(teamId+'|'+f.game_id))postgameGaps.push({game_id:f.game_id,team_id:teamId,game_at:f.game_date,state:'SOURCE_PENDING',reason:'FINAL_ON_ESPN_WITHOUT_SDV_TEAM_BOX_VERSION'});}
 await save('completed-game-source-gaps.json',postgameGaps);
+const decisionAt=new Date().toISOString();
+const cards=await materializeResearchCards({teams,teamRows,playerRows,decisionAt,quarantined,sourcePending:postgameGaps});
 const fixtures=observedSchedule.filter(f=>Number(f.season)===2026&&f.status==='STATUS_SCHEDULED'&&Date.parse(f.game_date)>Date.parse(decisionAt)&&Date.parse(f.game_date)<Date.parse(decisionAt)+14*86400000);
 const prospective=[],pending=[];
 for(const f of fixtures){try{prospective.push(await buildForwardSnapshot({fixture:f,cards,priorByTeam,receipts:capture.receipts,decisionAt,codeSha:capture.code_sha}));}catch(e){pending.push({game_id:f.game_id,reason:e.message});}}

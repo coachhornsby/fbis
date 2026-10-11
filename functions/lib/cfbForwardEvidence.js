@@ -23,7 +23,7 @@ export function summarizeCardMetrics(rows){
  result.passing={...result.passing,completion_rate:{games:pairs.length,mean:attempts?pairs.reduce((a,r)=>a+r.off_completions,0)/attempts:null,total:null}};
  return result;
 }
-export async function materializeResearchCards({teams,teamRows,playerRows,decisionAt,season=2026,quarantined=[]}){
+export async function materializeResearchCards({teams,teamRows,playerRows,decisionAt,season=2026,quarantined=[],sourcePending=[]}){
  const cutoff=clock(decisionAt),teamIds=new Set(teams.map(t=>t.team_id)),byTeam=new Map(),seen=new Map();
  for(const r of teamRows){
   if(r.season!==season||!teamIds.has(r.team_id)||clock(r.observed_at)>cutoff||clock(r.game_at)>=cutoff)continue;
@@ -51,7 +51,7 @@ export async function materializeResearchCards({teams,teamRows,playerRows,decisi
    rolling5:summarizeCardMetrics(games.slice(-5).map(g=>JSON.parse(g.metrics_json))),
    players:Object.fromEntries(Object.entries(players).map(([id,rs])=>[id,{games:rs.length,summary:summarizeCardMetrics(rs.map(r=>JSON.parse(r.metrics_json))),game_ids:rs.map(r=>r.game_id)}])),
    game_versions:games.map(g=>({id:g.id,game_id:g.game_id,game_at:g.game_at,content_hash:g.content_hash,observed_at:g.observed_at})),
-   coverage:{quarantined_player_rows:quarantined.filter(r=>r.team_id===team.team_id).length,all_participation_verified:false,opponent_adjusted:null},
+   coverage:{quarantined_player_rows:quarantined.filter(r=>r.team_id===team.team_id).length,all_participation_verified:false,recent_final_games_pending:sourcePending.filter(r=>r.team_id===team.team_id).map(r=>r.game_id).sort(),opponent_adjusted:null},
    temporal_class:'RESEARCH_CARD_FROM_OBSERVED_POSTGAME_RECORDS',can_authorize_wager:false,can_influence_production:false};
   cards.push({...body,version:await sha256Hex(canonicalJson(body)),materialized_at:decisionAt,last_source_observation:games.map(g=>g.observed_at).sort((a,b)=>clock(a)-clock(b)).at(-1)||null});
  }
@@ -94,6 +94,7 @@ export async function buildForwardSnapshot({fixture,cards,priorByTeam={},receipt
   versions[key]=card.version;
   if(card.coverage.quarantined_player_rows)reasons.push('QUARANTINED_PLAYER_SOURCE');
   if(!card.games)reasons.push('TEAM_STATS_UNAVAILABLE');
+  if(card.coverage.recent_final_games_pending?.length)reasons.push('FINAL_GAME_STATS_PENDING');
   if(!numeric(prior?.off)||!numeric(prior?.def))reasons.push('PRIOR_STRENGTH_UNAVAILABLE');
  }
  const modelInput={sport:'cfb',home:{id:fixture.home_id},away:{id:fixture.away_id},neutral:fixture.neutral_site===true||fixture.neutral_site==='true',cfbFbisV2Input:side,featureCutoffOk:true};
