@@ -2865,8 +2865,8 @@
 }
 .pp-mirror-card{border-radius:17px !important}
 .pp-mirror-card .pp-card-visual.pp-mirror-visual{height:130px !important}
-.pp-mirror-card .pp-team-watermark{transform:translate(-50%,-50%) scale(1.4) !important;transform-origin:center !important}
-.pp-mirror-card .pp-team-watermark img{transform:scale(1.4) !important;transform-origin:center !important}
+.pp-mirror-card .pp-team-watermark{transform:translateY(-50%) scale(1.4) !important;transform-origin:center !important}
+.pp-mirror-card .pp-team-watermark img{transform:none !important}
 .pp-mirror-card .pp-card-body{padding:12px 9px 9px !important}
 .pp-mirror-card .pp-player-title h3{font-size:clamp(16px,1.4vw,21px) !important}
 .pp-mirror-card .pp-player-title p{font-size:10px !important;line-height:1.2 !important}
