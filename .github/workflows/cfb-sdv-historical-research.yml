@@ -35,7 +35,7 @@ jobs:
           assert m['pit_certified'] is False
           assert m['can_influence_projection'] is False
           for a in m['assets']:
-              f=p/'raw'/f"{a['kind']}_{a['year']}.csv"
+              f=p/'raw'/f"{a['kind']}_{a['year']}.asset"
               assert hashlib.sha256(f.read_bytes()).hexdigest()==a['sha256']
           for year,detail in m['seasons'].items():
               print(year,detail)
