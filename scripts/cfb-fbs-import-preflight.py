@@ -8,6 +8,8 @@ import os
 import pathlib
 import sys
 import urllib.request
+import urllib.error
+import time
 from collections import Counter
 
 DB="b50c724c-903b-4241-8ce1-48d931e7a44c"
@@ -19,9 +21,18 @@ def query(sql):
  req=urllib.request.Request("https://api.cloudflare.com/client/v4/accounts/"+ACCOUNT+
  "/d1/database/"+DB+"/query",data=json.dumps({"sql":sql}).encode(),
  headers={"Authorization":"Bearer "+token,"Content-Type":"application/json"},method="POST")
- with urllib.request.urlopen(req,timeout=90) as response:r=json.load(response)
- if not r.get("success"):raise RuntimeError("D1 read failed: "+str(r.get("errors")))
- return r["result"][0]["results"]
+ for attempt in range(9):
+  try:
+   with urllib.request.urlopen(req,timeout=90) as response:r=json.load(response)
+   if not r.get("success"):raise RuntimeError("D1 read failed: "+str(r.get("errors")))
+   return r["result"][0]["results"]
+  except (urllib.error.HTTPError,urllib.error.URLError,TimeoutError,RuntimeError) as e:
+   if attempt>=8 or (isinstance(e,urllib.error.HTTPError) and e.code not in (429,500,502,503,504)):
+    raise
+   wait=min(2*(attempt+1),18)
+   print("D1 read transient failure; retry",attempt+1,"in",wait,"seconds",flush=True)
+   time.sleep(wait)
+ raise RuntimeError("D1 query retries exhausted")
 def rows(name):
  p=root/("fbs-2026-ledger."+name+".jsonl")
  h=hashlib.sha256()
@@ -44,11 +55,10 @@ if len(active)!=138:raise RuntimeError("unexpected canonical FBS team count")
 membership=set()
 size=1000
 for off in range(0,30000,size):
- lines=query("SELECT m.team_id,m.player_id FROM cfb_roster_membership m "
-   "JOIN cfb_canonical_players p ON p.player_id=m.player_id "
-   "WHERE m.season=2026 AND m.team_id IN "
+ lines=query("SELECT team_id,player_id FROM cfb_roster_membership "
+   "WHERE season=2026 AND team_id IN "
    "(SELECT team_id FROM cfb_canonical_teams WHERE active=1 AND subdivision='FBS') "
-   "ORDER BY m.team_id,m.player_id LIMIT "+str(size)+" OFFSET "+str(off))
+   "LIMIT "+str(size)+" OFFSET "+str(off))
  if not lines:break
  membership.update((r["team_id"],r["player_id"]) for r in lines)
  print("read canonical FBS memberships",len(membership),flush=True)
