@@ -240,6 +240,28 @@ jobs:
           name: prizepicks-curated-${{ github.run_id }}
           path: artifacts/
           retention-days: 14
+      - name: Assert durable daily ingestion health
+        if: always()
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 30 -o "$body" -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" "$BASE/api/prizepicks-props?mode=ingestion_health&_t=$(date +%s)" || true)"
+          healthy="$(jq -r '.healthy // false' "$body" 2>/dev/null || echo false)"
+          {
+            echo "## PrizePicks daily ingestion integrity"
+            echo "- Endpoint HTTP: ${code:-unknown}"
+            echo "- Current-day acquisition: $(jq -r '.acquisition.state // "NONE"' "$body" 2>/dev/null || echo NONE)"
+            echo "- Latest acquisition day: $(jq -r '.latestAcquisition.ct_date // "NONE"' "$body" 2>/dev/null || echo NONE)"
+            echo "- NFL lines: $(jq -r '.nfl.lines // 0' "$body" 2>/dev/null || echo 0)"
+            echo "- NFL state snapshots: $(jq -r '.nfl.snapshots // 0' "$body" 2>/dev/null || echo 0)"
+            echo "- NFL state gap: $(jq -r '.nfl.missingSnapshots // 0' "$body" 2>/dev/null || echo 0)"
+            echo "- Status: $([ "$code" = "200" ] && [ "$healthy" = "true" ] && echo HEALTHY || echo DEGRADED)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" != "200" ] || [ "$healthy" != "true" ]; then
+            echo "::error::PrizePicks ingestion is not verified healthy; a budget-safe skip is not successful ingestion."
+            exit 1
+          fi
+
 # operator-trigger: 2026-10-04 daily Zen recovery
 # incident-recovery: 2026-10-05 missing scheduled acquisition
 # operator-recovery: 2026-10-05 coverage repair after Apify limit increase
