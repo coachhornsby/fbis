@@ -1,3 +1,4 @@
+import {loadCfbPublicWeek} from "../lib/cfbPublicSchedule.js";
 import { isFbsVsFbsGame } from "../lib/cfbGameVisibility.js";
 import { buildSlate, resolveSlateDate, findNextCfbdGameDate, fetchCfbdGamesForWeek } from "../lib/slateEngine.js";
 import { compactMlbSlatePayload } from "../lib/propConviction.js";
@@ -21,10 +22,18 @@ export async function onRequestGet(context) {
     caches: caches.default,
     DB: context.env.DB,
   };
+  let publicWeek = null;
+  let publicScheduleError = null;
+  if (sport === "cfb") {
+    try { publicWeek = await loadCfbPublicWeek(resolved.date, env, weekShift); }
+    catch(error) { publicScheduleError = String(error?.message || error); }
+  }
   try {
-    let payload = await buildSlate(sport, resolved.date, env);
-    if (sport === "cfb" && env.CFBD_API_KEY) {
-      const weekly = await fetchCfbdGamesForWeek(resolved.date, env.CFBD_API_KEY, weekShift);
+    let payload = await buildSlate(sport, resolved.date, {...env,
+      ...(publicWeek ? {prefetchedGames:publicWeek.games,cfbdScheduleFallback:false} : {})});
+    if(publicWeek) payload.week = {mode:"cfb-week",shift:weekShift,number:publicWeek.week,range:publicWeek.range,source:publicWeek.source};
+    if (sport === "cfb" && env.CFBD_API_KEY && !publicWeek) {
+      const weekly = await fetchCfbdGamesForWeek(resolved.date, env.CFBD_API_KEY, weekShift).catch(error=>({games:[],error:String(error?.message||error)}));
       if ((weekly.games || []).length) {
         payload = await buildSlate(sport, resolved.date, {
           ...env,
@@ -38,15 +47,23 @@ export async function onRequestGet(context) {
         };
       }
     }
-    if (!rawDate && sport === "cfb" && payload.games?.length === 0 && env.CFBD_API_KEY) {
-      const nextDate = await findNextCfbdGameDate(resolved.date, env.CFBD_API_KEY, 14);
+    if (!rawDate && sport === "cfb" && payload.games?.length === 0 && env.CFBD_API_KEY && !publicWeek) {
+      const nextDate = await findNextCfbdGameDate(resolved.date, env.CFBD_API_KEY, 14).catch(()=>null);
       if (nextDate && nextDate !== resolved.date) {
         payload = await buildSlate(sport, nextDate, env);
         payload.requestedDate = resolved.date;
       }
     }
+    if(sport === "cfb") payload.cfbScheduleHealth={source:publicWeek?.source||"EXISTING_SCHEDULE",publicScheduleError,cfbdScheduleRequired:!publicWeek};
     return json(compactMlbSlatePayload(payload), 200, 30);
   } catch (err) {
+    if(publicWeek?.games.length) {
+      const games=publicWeek.games.map(g=>({...g,projectionUnavailable:true,marketUnavailable:true,
+        qualificationBlocked:true,canQualify:false,canAuthorizeWager:false,blockReason:"CFB model unavailable; verified public schedule retained"}));
+      return json({sport:"cfb",date:resolved.date,games,ticker:[],counts:{games:games.length},
+        week:{mode:"cfb-week",shift:weekShift,number:publicWeek.week,range:publicWeek.range},
+        cfb:{state:"DEGRADED",source:publicWeek.source,reason:String(err?.message||err)},modelVersion:null},200,30);
+    }
     if (sport === "cfb" && env.CFBD_API_KEY) {
       try {
         const weekly = await fetchCfbdGamesForWeek(resolved.date, env.CFBD_API_KEY, weekShift);

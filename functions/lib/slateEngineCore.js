@@ -1,3 +1,4 @@
+import {fetchWithCfbBackoff} from "./cfbProviderBackoff.js";
 /** Shared slate builder — used by Pages Functions and local Vite middleware. */
 
 import { BASEBALL, EXECUTION_BOOK, runLine } from "./books.js";
@@ -1282,7 +1283,7 @@ async function fetchCfbdGamesSeason(year, apiKey) {
   url.searchParams.set("year", String(year));
   url.searchParams.set("seasonType", "both");
   url.searchParams.set("classification", "fbs");
-  const res = await fetch(String(url), {
+  const res = await fetchWithCfbBackoff(String(url), {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       Accept: "application/json",
@@ -1301,7 +1302,7 @@ async function fetchCfbdGamesRange(startDay, endDay, apiKey) {
   url.searchParams.set("endDate", endDay);
   url.searchParams.set("seasonType", "both");
   url.searchParams.set("classification", "fbs");
-  const res = await fetch(String(url), {
+  const res = await fetchWithCfbBackoff(String(url), {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       Accept: "application/json",

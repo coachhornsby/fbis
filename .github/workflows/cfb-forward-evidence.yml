@@ -1,12 +1,14 @@
 name: CFB forward evidence (read-only shadow)
 on:
   push:
-    branches: [engineering/cfb-shadow-rollout-20261011]
+    branches: [engineering/cfb-shadow-rollout-20261011, engineering/cfb-sdv-resilience-20261011]
     paths:
       - '.github/workflows/cfb-forward-evidence.yml'
       - 'scripts/cfb-forward-*.py'
       - 'scripts/cfb-forward-*.mjs'
       - 'functions/lib/cfbForwardEvidence.js'
+      - 'functions/lib/cfbSdv*.js'
+      - 'scripts/cfb-sdv-intelligence-build.mjs'
   # Activation requires separately approved merge; cron runs only from main.
   schedule:
     - cron: '15 */6 * * *'
@@ -40,6 +42,8 @@ jobs:
         run: node scripts/cfb-forward-market-research.mjs "$RUNNER_TEMP/cfb-forward"
       - name: Reconcile captured clocks, cards and forecasts
         run: node scripts/cfb-forward-reconcile.mjs "$RUNNER_TEMP/cfb-forward"
+      - name: Preserve all-stat research features and ranking source coverage
+        run: node scripts/cfb-sdv-intelligence-build.mjs "$RUNNER_TEMP/cfb-forward" "$RUNNER_TEMP/cfb-forward/sdv-intelligence" "$RUNNER_TEMP/cfb-forward/schedule.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

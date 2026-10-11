@@ -1,3 +1,4 @@
+import {fetchWithCfbBackoff} from "./cfbProviderBackoff.js";
 /**
  * CFBD / CBBD HTTP client. Server-side only.
  * Cache, batch, incremental. Quota ledger. Never logs the bearer.
@@ -78,12 +79,12 @@ export async function collegeRequest(source, path, env = {}, { query, fetchFn = 
   }
   const url = `${base}${path}${queryString(query)}`;
   try {
-    const res = await fetchFn(url, {
+    const res = await fetchWithCfbBackoff(url, {
       headers: {
         Authorization: `Bearer ${key}`,
         Accept: "application/json",
       },
-    });
+    },env,fetchFn);
     const status = res.status;
     let json = null;
     try {

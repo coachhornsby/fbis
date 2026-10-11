@@ -1,0 +1,18 @@
+import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';import {createHash} from 'node:crypto';
+import {buildSdvIntelligence,attachSdvResults} from '../functions/lib/cfbSdvIntelligence.js';
+import {buildSdvFeatureSnapshot} from '../functions/lib/cfbSdvFeatureSnapshot.js';
+const [input,output,scheduleFile]=process.argv.slice(2);if(!input||!output)throw Error('Usage: input-directory output-directory [prospective-calendar.json]');
+const manifest=existsSync(input+'/coverage-manifest.json')?JSON.parse(readFileSync(input+'/coverage-manifest.json','utf8')):{datasets:JSON.parse(readFileSync(input+'/capture-receipts.json','utf8')).receipts.filter(r=>['cfb_team_summaries_2026.csv','cfb_schedule_2026.csv'].includes(r.file)).map(r=>({...r,family:r.file.startsWith('cfb_team')?'team_summaries':'schedules',status:'AVAILABLE',url:r.source,acquired_at:r.observed_at}))};
+function verified(family){const row=manifest.datasets.find(r=>r.family===family);if(row?.status!=='AVAILABLE')throw Error(`${family} unavailable`);const bytes=readFileSync(input+'/'+row.file);if(createHash('sha256').update(bytes).digest('hex')!==row.sha256)throw Error('Source checksum mismatch');return {row,text:bytes.toString('utf8')};}
+const summary=verified('team_summaries'),results=verified('schedules');
+const intelligence=attachSdvResults(buildSdvIntelligence(summary.text,{url:summary.row.url,sha256:summary.row.sha256,observedAt:summary.row.acquired_at,providerPublicationAt:null}),results.text);
+intelligence.resultSource={url:results.row.url,sha256:results.row.sha256,observedAt:results.row.acquired_at};
+const fields=Object.keys(intelligence.teams[0]?.stats||{});const candidateFields=fields.filter(k=>!k.endsWith('_rank')&&!k.endsWith('_conf_pct'));
+const report={generatedAt:new Date().toISOString(),sourceHashes:[summary.row.sha256,results.row.sha256],coverage:intelligence.coverage,
+ teamsWithSummaryLag:intelligence.teams.filter(t=>t.summaryGameGap>0).length,conferences:intelligence.conferences.map(c=>({name:c.name,teams:c.teams,ranked:c.rankedTeams,teamGameSamples:c.teamGameSamples})),
+ productionModel:intelligence.model,metricContract:fields.map(k=>({field:k,availableTeams:intelligence.teams.filter(t=>t.stats[k]!=null).length,missingTeams:intelligence.teams.filter(t=>t.stats[k]==null).length,role:candidateFields.includes(k)?'RESEARCH_CANDIDATE':'DESCRIPTIVE_REDUNDANT_RANK',directProductionFeature:false})),
+ prospectiveSnapshots:0,prospectiveRejected:[],canAuthorizeWager:false};
+mkdirSync(output,{recursive:true});
+if(scheduleFile){const cutoff=new Date().toISOString(),snapshots=[];for(const r of JSON.parse(readFileSync(scheduleFile,'utf8'))){if(r.status!=='STATUS_SCHEDULED'||Date.parse(r.game_date)<=Date.parse(cutoff))continue;try{snapshots.push(buildSdvFeatureSnapshot(intelligence,{id:r.game_id,start:r.game_date,providerStartTimeTbd:r.provider_start_time_tbd,home:{espnId:r.home_id},away:{espnId:r.away_id}},cutoff));}catch(error){report.prospectiveRejected.push({gameId:r.game_id,reason:error.message});}}
+report.prospectiveSnapshots=snapshots.length;writeFileSync(output+'/all-stat-snapshots.jsonl',snapshots.map(s=>JSON.stringify(s)).join('\n')+'\n');}
+writeFileSync(output+'/intelligence.json',JSON.stringify(intelligence));writeFileSync(output+'/model-stat-coverage.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({teams:intelligence.teams.length,conferences:intelligence.conferences.length,sourceColumns:fields.length+5,candidateNumericFields:candidateFields.length,ranked:intelligence.coverage.rankedTeams,summaryLagTeams:report.teamsWithSummaryLag,prospectiveSnapshots:report.prospectiveSnapshots,productionChanged:false}));
