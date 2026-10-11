@@ -77,7 +77,7 @@ function dbMock({tables=[sample(),sample({team_id:"cfb:espn:444",subdivision:"FC
   if(failed)throw Error("DB inaccessible");
   if(/INSERT|UPDATE|DELETE|REPLACE|fetch/i.test(sql))throw Error("WRITE OR PROVIDER NOT ALLOWED");
   return {
-   bind(...args){return {first:async()=>{
+   bind(...args){return {all:this.all,first:async()=>{
      if(sql.includes("cfb_canonical_teams"))return tables.find(x=>x.team_id===args[0]&&x.active===1&&x.subdivision==="FBS")||null;
      if(sql.includes("team_feature_snapshots")){if(missingSnapshots)throw Error("no such table");return null;}
      if(sql.includes("team_form"))return null;
