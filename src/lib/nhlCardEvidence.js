@@ -10,6 +10,7 @@ const goalieState = value => {
   const s=String(value||"").toUpperCase();
   if(s==="CONFIRMED_STARTER"||s==="CONFIRMED")return "CONFIRMED";
   if(s==="EXPECTED_G1"||s==="PROJECTED")return "PROJECTED";
+  if(s==="PRIOR_GAME_STARTER_UNVERIFIED")return "PRIOR GAME ONLY";
   return "UNVERIFIED";
 };
 function projectedGoalie(game,side) {
@@ -22,9 +23,11 @@ function projectedGoalie(game,side) {
   // Event-bound starter evidence wins for DISPLAY only; it never changes model math.
   const named=(state!=="UNVERIFIED" ? text(evidence?.name) : null);
   const n=named || text(m?.name) || (m?.goalieId!=null ? `ID ${m.goalieId}` : null);
-  const stateNote=evidence?.lineupMatched===false ? "PROJECTED GOALIE MISMATCH" :
+  const stateNote=evidence?.lineupMatched===false ? "MODEL / STARTER MISMATCH" :
+    state === "PRIOR GAME ONLY" ? "PREVIOUS GAME · NOT CONFIRMED TODAY" :
     state === "UNVERIFIED" ? "STARTER NOT CONFIRMED" : state;
-  return {name:n||"No modeled goalie",state:stateNote,evidenceAt:evidence?.evidenceAt||null,source:evidence?.source||m?.source||null,modeled:Boolean(n)};
+  return {name:n||"No sourced goalie",state:stateNote,evidenceAt:evidence?.evidenceAt||null,
+    source:evidence?.source||m?.source||null,modeled:Boolean(m?.name||m?.goalieId),sourced:Boolean(named),priorGameStarter:Boolean(evidence?.priorGameStarter)};
 }
 function recordedMoneyline(game) {
   const start=Date.parse(game?.start||"");
@@ -66,7 +69,9 @@ export function buildNhlCardEvidence(game, vm) {
   const coverage={
     projection:teamMatch?"AVAILABLE":"UNAVAILABLE",
     moneyline:currentML?"AVAILABLE":snapshot?"HISTORICAL_ONLY":"UNAVAILABLE",
-    goalies:goalies.away.state==="CONFIRMED"&&goalies.home.state==="CONFIRMED"?"CONFIRMED":goalies.away.modeled||goalies.home.modeled?"PARTIAL":"UNAVAILABLE",
+    goalies:goalies.away.state==="CONFIRMED"&&goalies.home.state==="CONFIRMED"?"CONFIRMED":
+      goalies.away.state==="PROJECTED"&&goalies.home.state==="PROJECTED"?"PROJECTED":
+      goalies.away.sourced||goalies.home.sourced||goalies.away.modeled||goalies.home.modeled?"CONTEXT_ONLY":"UNAVAILABLE",
     matchup:matchups.some(m=>m?.available!==false)?"AVAILABLE":"UNAVAILABLE",
     action:vm?.action?.available?"AVAILABLE":"UNAVAILABLE",
   };
@@ -89,7 +94,7 @@ export function buildNhlCardEvidence(game, vm) {
       !teamMatch?"Independent NHL projection unavailable":null,
       !probabilityValid?"Moneyline probability withheld pending integrity":null,
       coverage.moneyline==="UNAVAILABLE"?"No current or timestamped stored moneyline quote":null,
-      coverage.goalies!=="CONFIRMED"?"Goalie starts not confirmed for both teams":null,
+      coverage.goalies!=="CONFIRMED"?"Both current-game starters are not source-confirmed":null,
       coverage.matchup==="UNAVAILABLE"?"No source-backed NHL matchup factors":null,
     ].filter(Boolean)
   };

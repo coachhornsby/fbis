@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { buildNhlCardEvidence } from "../src/lib/nhlCardEvidence.js";
-import { attachNhlCardStarterEvidence } from "../functions/lib/nhlCardStarterEvidence.js";
+import { attachNhlCardStarterEvidence, nhlOfficialEventCrosswalk } from "../functions/lib/nhlCardStarterEvidence.js";
 import { bestEdge } from "../src/lib/boardEvidence.js";
 
 function game(){
@@ -106,4 +106,54 @@ test("stale or unrelated goalie rows never become confirmed current-game starter
   const x=attachNhlCardStarterEvidence([game],profiles,Date.parse("2026-10-10T20:00:00Z")).games[0];
   assert.equal(x.nhlStarterEvidence.home.state,"HISTORICAL_PROXY_UNVERIFIED");
   assert.equal(x.nhlStarterEvidence.home.name,null);
+});
+
+test("official NHL game ID crosswalk recovers expected starters on ESPN-identified matchup",()=>{
+ const start="2026-10-11T02:00:00Z",updated="2026-10-10T23:44:00Z",now=Date.parse("2026-10-11T01:20:00Z");
+ const game={sport:"nhl",id:"401892481",start,home:{abbr:"VGK"},away:{abbr:"LA"},modelVersion:"FBIS-v1.4"};
+ const teams={
+  vgk:{next_game_id:"2026020083",next_game_start:start,next_opponent_key:"la",next_site:"HOME",source_updated_at:updated},
+  la:{next_game_id:"2026020083",next_game_start:start,next_opponent_key:"vgk",next_site:"ROAD",source_updated_at:updated}
+ };
+ const profiles={teams,goalies:{
+  vgk:[{player_id:"100",player_name:"Projected Goalie",goalie_state:"EXPECTED_G1",team_key:"vgk",expected_start_probability:.7,source_updated_at:updated}],
+  la:[{player_id:"200",player_name:"Previous Starter",goalie_state:"LAST_CONFIRMED_STARTER",team_key:"la",hierarchy_rank:1,expected_start_probability:.7,source_updated_at:updated}],
+ }};
+ const cross=nhlOfficialEventCrosswalk(game,profiles,now);
+ assert.equal(cross.officialGameId,"2026020083");
+ const attached=attachNhlCardStarterEvidence([game],profiles,now).games[0];
+ assert.equal(attached.nhlStarterEvidence.home.name,"Projected Goalie");
+ assert.equal(attached.nhlStarterEvidence.home.state,"PROJECTED");
+ assert.equal(attached.nhlStarterEvidence.away.name,"Previous Starter");
+ assert.equal(attached.nhlStarterEvidence.away.state,"PRIOR_GAME_STARTER_UNVERIFIED");
+ assert.equal(attached.nhlStarterEvidence.away.eventIdentity.officialGameId,"2026020083");
+ assert.equal(attached.nhlStarterEvidence.modelInputsChanged,false);
+ assert.equal(attached.nhlStarterEvidence.canQualify,false);
+ const vm={sport:"nhl",home:{abbr:"VGK"},away:{abbr:"LA"},market:{total:6.5},action:{available:false}};
+ const display=buildNhlCardEvidence(attached,vm);
+ assert.equal(display.goalies.home.state,"PROJECTED");
+ assert.equal(display.goalies.away.state,"PREVIOUS GAME · NOT CONFIRMED TODAY");
+ assert.equal(display.coverage.goalies,"CONTEXT_ONLY");
+ assert.equal(display.coverage.projection,"UNAVAILABLE");
+});
+test("crosswalk fails closed on wrong opponent, swapped home/road, stale and post-start observations",()=>{
+ const start="2026-10-11T02:00:00Z";
+ const g={sport:"nhl",id:"espn123",start,home:{abbr:"CGY"},away:{abbr:"ANA"}};
+ const rows={teams:{
+  cgy:{next_game_id:"nhl-true",next_game_start:start,next_opponent_key:"ana",next_site:"HOME",source_updated_at:"2026-10-10T23:20:00Z"},
+  ana:{next_game_id:"nhl-true",next_game_start:start,next_opponent_key:"cgy",next_site:"ROAD",source_updated_at:"2026-10-10T23:20:00Z"}
+ }};
+ const now=Date.parse("2026-10-11T01:00:00Z");
+ assert.equal(nhlOfficialEventCrosswalk(g,rows,now).officialGameId,"nhl-true");
+ for(const field of ["next_opponent_key","next_site","next_game_id","next_game_start","source_updated_at"]){
+  const bad=JSON.parse(JSON.stringify(rows));
+  bad.teams.cgy[field]=field==="next_opponent_key"?"vgk":field==="next_site"?"ROAD":field==="next_game_id"?"other":field==="next_game_start"?"2026-10-11T04:00:00Z":"2026-10-11T03:00:00Z";
+  assert.equal(nhlOfficialEventCrosswalk(g,bad,now),null,field);
+ }
+});
+test("NHL compact card never advertises a legacy implied score as independent model",async()=>{
+ const code=await readFile(new URL("../src/components/board/CompactGameCard.jsx",import.meta.url),"utf8");
+ assert.match(code,/NO INDEPENDENT NHL MODEL/);
+ assert.match(code,/MODEL \/ REFERENCE GAP/);
+ assert.match(code,/PREGAME PROJ/);
 });
