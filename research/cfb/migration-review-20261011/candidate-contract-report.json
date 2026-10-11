@@ -1,0 +1,55 @@
+{
+  "status": "PARTIAL_OFFLINE_CONTRACTS_VERIFIED",
+  "generated_at": "2026-10-11T15:57:36.203156+00:00",
+  "production_database": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "production_writes": 0,
+  "production_execution_authorized": false,
+  "artifacts": {
+    "docs/sql/cfb-review-20261011/0098-college-persistence.sql": "7f4d4fe5316080f841f244bdca7b965b9703126a0f8c7c8ecaa4890ebe706448",
+    "docs/sql/cfb-review-20261011/0099-original.sql": "e23a6a90913190099a4019ef2170013c7a16a87036aa1e6ab03469e56f71400c",
+    "docs/sql/cfb-review-20261011/0099-cfb-statistical-ledgers.sql": "b9daaaf4a9e3115f7ca9fb9308ea5cb268e0e4cf62adf2878bb53efb1ff4b0e4",
+    "docs/sql/cfb-review-20261011/0099-contract.json": "01423c1b025a0438d167f6e98167958a030786207f0461138e54098ea5b0e851",
+    "docs/sql/cfb-review-20261011/0098-original-contract.json": "5e6d57653823ca94ba26a7193137566b5b9a66c8c32176c0f4e64dd724010fc5"
+  },
+  "0098_source_pr": 942,
+  "0098_source_head": "117031d37b476260363d81074103139744cda259",
+  "0099_authoritative_source_pr": 957,
+  "0099_original_sha256": "e23a6a90913190099a4019ef2170013c7a16a87036aa1e6ab03469e56f71400c",
+  "defect": "Original0099postflight accepted missing UNIQUE constraints; reproduced in SQLite.",
+  "hardening": "Exact full CREATE TABLE constraints and required index definitions, with conflicting preexisting tables rejected before DDL. Missing expected indexes may be repaired idempotently.",
+  "tests": 7,
+  "required_gates": [
+    "Complete remote source-bookmark recovery and independent acceptance",
+    "Current production schema and dual-ledger preflight",
+    "Independent full original-contract review",
+    "Exact SQL hash and database UUID execution approval for0098only",
+    "Live0098postflight before separate0099approval",
+    "Explicit Wrangler ledger synchronization proposal after schema postflight"
+  ],
+  "operations": [
+    {
+      "id": "0098-schema-only",
+      "command": "npx wrangler d1 execute b50c724c-903b-4241-8ce1-48d931e7a44c --remote --file docs/sql/cfb-review-20261011/0098-college-persistence.sql",
+      "sha256": "7f4d4fe5316080f841f244bdca7b965b9703126a0f8c7c8ecaa4890ebe706448",
+      "rollback": "Stop consumers and retain additive tables and original evidence. No DROP or production restore."
+    },
+    {
+      "id": "0099-schema-only",
+      "command": "npx wrangler d1 execute b50c724c-903b-4241-8ce1-48d931e7a44c --remote --file docs/sql/cfb-review-20261011/0099-cfb-statistical-ledgers.sql",
+      "sha256": "b9daaaf4a9e3115f7ca9fb9308ea5cb268e0e4cf62adf2878bb53efb1ff4b0e4",
+      "rollback": "Stop consumers and retain immutable rows. No destructive rollback."
+    }
+  ],
+  "acceptance": [
+    "Original records and prior ledger timestamps unchanged",
+    "Five0098tables/four indexes match original contracts",
+    "Four0099tables/full uniqueness/default/authority CHECK constraints and indexes match reviewed specification",
+    "Zero foreign-key violations and preserved record fingerprints",
+    "Wrangler ledger reconciliation separately reviewed; no migration markedcompletebeforelivepostflight"
+  ],
+  "limitations": [
+    "Local SQLite fixtures are not full restored-dataset migration acceptance",
+    "No production migration/import or automatic numbered-migration activation",
+    "Full35,320row researchimport qualification remains separate"
+  ]
+}
