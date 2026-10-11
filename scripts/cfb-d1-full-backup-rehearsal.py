@@ -123,7 +123,10 @@ def main():
     if total<100*1024*1024:
         raise RuntimeError("full-data export unexpectedly small")
     run(["gzip","-t",str(out)])
-    digest=hashlib.sha256(out.read_bytes()).hexdigest()
+    with out.open("rb") as fd:
+        d=hashlib.sha256()
+        for block in iter(lambda:fd.read(1024*1024),b""):d.update(block)
+    digest=d.hexdigest()
     print(f"full export transfer verified: {total} SQL bytes / {out.stat().st_size} compressed bytes",flush=True)
 
     # First proof: locally restore exact production export before touching prod.
@@ -137,7 +140,9 @@ def main():
 
     # Validate schema migrations only in this restored, isolated database.
     staged=ROOT/"staged_migrations.sqlite"
-    run(["cp","--reflink=auto",str(restored),str(staged)])
+    # The compressed backup remains immutable. Reuse the first restored DB
+    # in-place to avoid needing two simultaneous 6.4GB SQLite copies.
+    restored.rename(staged)
     for path in ["migrations/0098_college_persistence_recovery.sql",
                  "migrations/0099_cfb_fbs_statistical_ledgers.sql"]:
         with open(path,"rb") as f:
