@@ -20,8 +20,9 @@ export default function NhlEvidenceStrip({game,vm,expanded=false}){
       </div>
       <div className="nhl-evidence-block">
         <span>GOALIE CONTEXT · SOURCE STATUS</span>
-        <strong>{`${e.away} ${e.goalies.away.name} · ${e.home} ${e.goalies.home.name}`}</strong>
-        <small>{`${e.away}: ${e.goalies.away.state} · ${e.home}: ${e.goalies.home.state}`}</small>
+        <div className="nhl-goalie-pair">{[["away",e.away],["home",e.home]].map(([side,abbr])=><div key={side} className={`nhl-goalie-side${e.goalies[side].sourced?"":" is-unverified"}`}>
+          <span>{abbr}</span><strong>{e.goalies[side].name==="No sourced goalie"?"Starter not identified":e.goalies[side].name}</strong><small>{e.goalies[side].state}</small>
+        </div>)}</div>
       </div>
     </div>
     <div className="nhl-evidence-coverage"><strong>DATA COVERAGE</strong>{Object.entries(e.coverage).map(([key,state])=><span key={key} className={state==="AVAILABLE"||state==="CONFIRMED"?"is-ready":"is-missing"}>{key.toUpperCase()}: {state.replaceAll("_"," ")}</span>)}</div>
