@@ -1,0 +1,19 @@
+name: Board production read-only probe
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/board-production-probe.mjs
+permissions:
+  contents: read
+jobs:
+  board-read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Probe today's public BOARD API without provider writes
+        run: node scripts/board-production-probe.mjs
