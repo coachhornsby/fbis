@@ -1,0 +1,58 @@
+[
+  {
+    "game_id": "401856712",
+    "team_id": "cfb:espn:333",
+    "game_at": "2026-10-10T23:30Z",
+    "state": "SOURCE_PENDING",
+    "reason": "FINAL_ON_ESPN_WITHOUT_SDV_TEAM_BOX_VERSION"
+  },
+  {
+    "game_id": "401856712",
+    "team_id": "cfb:espn:61",
+    "game_at": "2026-10-10T23:30Z",
+    "state": "SOURCE_PENDING",
+    "reason": "FINAL_ON_ESPN_WITHOUT_SDV_TEAM_BOX_VERSION"
+  },
+  {
+    "game_id": "401856715",
+    "team_id": "cfb:espn:96",
+    "game_at": "2026-10-10T23:00Z",
+    "state": "SOURCE_PENDING",
+    "reason": "FINAL_ON_ESPN_WITHOUT_SDV_TEAM_BOX_VERSION"
+  },
+  {
+    "game_id": "401856715",
+    "team_id": "cfb:espn:99",
+    "game_at": "2026-10-10T23:00Z",
+    "state": "SOURCE_PENDING",
+    "reason": "FINAL_ON_ESPN_WITHOUT_SDV_TEAM_BOX_VERSION"
+  },
+  {
+    "game_id": "401856827",
+    "team_id": "cfb:espn:254",
+    "game_at": "2026-10-11T00:00Z",
+    "state": "SOURCE_PENDING",
+    "reason": "FINAL_ON_ESPN_WITHOUT_SDV_TEAM_BOX_VERSION"
+  },
+  {
+    "game_id": "401856827",
+    "team_id": "cfb:espn:2305",
+    "game_at": "2026-10-11T00:00Z",
+    "state": "SOURCE_PENDING",
+    "reason": "FINAL_ON_ESPN_WITHOUT_SDV_TEAM_BOX_VERSION"
+  },
+  {
+    "game_id": "401858485",
+    "team_id": "cfb:espn:213",
+    "game_at": "2026-10-10T23:30Z",
+    "state": "SOURCE_PENDING",
+    "reason": "FINAL_ON_ESPN_WITHOUT_SDV_TEAM_BOX_VERSION"
+  },
+  {
+    "game_id": "401858485",
+    "team_id": "cfb:espn:30",
+    "game_at": "2026-10-10T23:30Z",
+    "state": "SOURCE_PENDING",
+    "reason": "FINAL_ON_ESPN_WITHOUT_SDV_TEAM_BOX_VERSION"
+  }
+]

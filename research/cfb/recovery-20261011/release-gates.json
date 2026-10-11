@@ -49,5 +49,16 @@
     "independent technical review unavailable",
     "original export creation time unavailable",
     "source redistribution and time-aware athlete membership qualification incomplete"
-  ]
+  ],
+  "read_only_shadow_rollout": {
+    "pr": 963,
+    "head": "d2cda7f9117eacd8abc8cc399e1d34e2222d54bb",
+    "ci_run": 38113414566,
+    "capture_run": 38113410369,
+    "artifact": 11692741368,
+    "artifact_sha256": "87a7b3c3c24a21736fdef487699d3d7aa098cf079191351f59841efd363da277",
+    "operation_artifact": "research/cfb/forward-20261011/rollout-operation.json",
+    "execution_authorized": false,
+    "independent_human_review": false
+  }
 }

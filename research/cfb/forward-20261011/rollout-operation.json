@@ -1,0 +1,31 @@
+{
+  "operation": "MERGE_READ_ONLY_SHADOW_ROLLOUT_AND_NORMAL_PAGES_RELEASE",
+  "pr": 963,
+  "exact_head": "d2cda7f9117eacd8abc8cc399e1d34e2222d54bb",
+  "expected_main": "59330eabce92f02050fab485a86cb83fe16e6f51",
+  "expected_migration_tip": "0097_apify_acquisition_authority",
+  "numbered_migrations_in_diff": 0,
+  "database_writes": 0,
+  "model_authority_change": false,
+  "wager_authority_change": false,
+  "cron": "15 */6 * * *",
+  "artifact_retention_days": 30,
+  "estimated_artifact_storage_bytes_30_days": 814101240,
+  "production_execution_authorized": false,
+  "approval_preconditions": [
+    "independent technical review",
+    "exact-head successful CI and hosted reconciliation",
+    "migration tip unchanged or separately reconciled",
+    "artifact storage billing headroom confirmed; no unapproved charges",
+    "durable evidence archival plan before expiration"
+  ],
+  "acceptance": [
+    "138 research cards with visible source coverage",
+    "all captured pregame clocks and content hashes reconcile",
+    "zero database writes or paid sports provider activation",
+    "no retrospective captures counted as prospective",
+    "same fixed production authority; no wagers authorized",
+    "first scheduled capture verified after approval"
+  ],
+  "rollback": "Disable CFB forward evidence workflow, preserve artifacts and hashes, revert focused code through reviewed release. No database deletion or restore."
+}

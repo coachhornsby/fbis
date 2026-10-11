@@ -1,3 +1,5 @@
+import {readFile} from 'node:fs/promises';
+import {materializeResearchCards,buildForwardSnapshot} from '../../functions/lib/cfbForwardEvidence.js';
 // Isolated workerd/D1/R2 integration. No credentials or remote resources.
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
 import {build} from 'esbuild';
@@ -23,5 +25,15 @@ try {
  await send('/process',{payload,rawBody,at:'2026-10-11T00:31:00Z'});
  state=await send('/inspect');const home=JSON.parse(state.cards.find(c=>c.team_id==='h').body_json);
  assert.equal(home.offense.yards.total,420);assert.deepEqual(home.players,{});
- console.log(JSON.stringify({status:'VERIFIED_LOCAL_WORKERD_D1_R2',cards:state.cards.length,idempotency:true,correction:true,production_mutations:0}));
+ await send('/forward-init');
+ const teamRows=['1','2'].map(id=>({team_id:'cfb:espn:'+id,season:2026,id:'row'+id,game_id:'old',game_at:'2026-10-10T20:00:00Z',observed_at:'2026-10-11T00:10:00Z',content_hash:'fixture'+id,metrics_json:JSON.stringify({scoring:{points_for:28,points_against:14}})}));
+ const cards=await materializeResearchCards({teams:teamRows.map(r=>({team_id:r.team_id})),teamRows,playerRows:[],decisionAt:'2026-10-11T01:00:00Z'});
+ const snapshot=await buildForwardSnapshot({fixture:{game_id:'future-fixture',home_id:'1',away_id:'2',status:'STATUS_SCHEDULED',game_date:'2026-10-17T20:00:00Z'},cards,receipts:[{sha256:'a'.repeat(64),observed_at:'2026-10-11T00:10:00Z'}],decisionAt:'2026-10-11T01:00:00Z',codeSha:'b'.repeat(40)});
+ await send('/forward',snapshot);await send('/forward',snapshot);
+ let snapshots=await send('/forward-inspect');assert.equal(snapshots.results.length,1);assert.equal(JSON.parse(snapshots.results[0].body_json).id,snapshot.id);
+ const actual=process.argv[2]?(await readFile(process.argv[2],'utf8')).trim().split('\n').filter(Boolean).map(JSON.parse):[];
+ for(const p of actual){await send('/forward',p);await send('/forward',p);}
+ snapshots=await send('/forward-inspect');assert.equal(snapshots.results.length,actual.length+1);
+ for(const p of actual)assert.equal(JSON.parse(snapshots.results.find(r=>r.id===p.id).body_json).id,p.id);
+ console.log(JSON.stringify({status:'VERIFIED_LOCAL_WORKERD_D1_R2',cards:state.cards.length,idempotency:true,correction:true,immutable_shadow_snapshots:snapshots.results.length,actual_prospective_samples:actual.length,production_mutations:0}));
 } finally {await mf.dispose();}

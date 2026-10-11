@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-10-11T04:57:44.592Z",
+  "decision_at": "2026-10-11T04:57:44.535Z",
+  "code_sha": "17190bb3acb80884babe2b5228384d25f14461c4",
+  "production_mutation": false,
+  "production_upcoming_fixtures": 0,
+  "active_fbs_cards": 138,
+  "cards_with_team_statistics": 138,
+  "team_game_versions": 745,
+  "accepted_player_game_records": 26618,
+  "quarantined_player_game_records": 2,
+  "recent_final_team_sides_missing_stats": 8,
+  "legacy_captures_accepted": 40,
+  "legacy_captures_rejected": {
+    "MISSING_INPUT_OR_CODE_EVIDENCE": 9706,
+    "NOT_PREGAME": 291,
+    "MISSING_CANONICAL_PARTICIPANTS": 37
+  },
+  "fully_qualified_historical_pit_samples": 0,
+  "prospective_snapshots": 43,
+  "shadow_projected": 43,
+  "source_pending_games": 29,
+  "bet_eligible": 0,
+  "prospective_economic_observations": 0,
+  "roi": null,
+  "clv": null,
+  "continuous_schedule_active": false,
+  "can_authorize_wager": false,
+  "limitations": [
+    "Research cards are not published production state",
+    "Legacy captured features lack complete upstream provenance",
+    "Player roster membership does not prove all participants are covered",
+    "New card inputs with incumbent coefficients remain a shadow experiment",
+    "Kickoff/venue and source licensing qualification pending"
+  ]
+}

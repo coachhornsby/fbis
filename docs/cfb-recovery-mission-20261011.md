@@ -66,16 +66,16 @@ Bounded offline learning findings record season/regime errors and hypotheses wit
 | 4 | 0098/0099/import artifacts | PARTIAL | Reconciled code and local tests; independent review and production approval outstanding |
 | 5 | Persistent team/player statistical database | PARTIAL | Existing identities plus 35,320-row isolated research import; production performance ledgers absent |
 | 6 | Automated ingestion/corrections | PARTIAL | Offline reference and isolated D1/R2 pilot tested; production collector/scheduler/adapter absent |
-| 7 | Refreshed cards for all active FBS | BLOCKED | Undeployed UI; source coverage/production ledgers not populated |
+| 7 | Refreshed cards for all active FBS | PARTIAL | All 138 research cards generated and reconciled; eight recent final team sides remain source-pending; production publication blocked |
 | 8 | Verified player statistical pages | PARTIAL | UI implemented; live data/browser acceptance pending |
 | 9 | Reconciliation/health dashboard | PARTIAL | Machine reconciliation/reference health; production dashboard/alerts incomplete |
 | 10 | Team strength/adjustment framework | PARTIAL | Retrospective score-state challenger and ratings; production qualification absent |
-| 11 | Historical PIT dataset | BLOCKED | Acquisition timestamps unavailable; retrospectively ordered dataset cannot qualify as PIT |
+| 11 | Historical PIT dataset | PARTIAL | 40 actual legacy pregame feature captures recovered; full upstream PIT qualification remains blocked, qualified samples zero |
 | 12 | Incumbent/challenger models | PARTIAL | Incumbent reconstructed by artifact; challenger run; common-cohort incumbent evaluation incomplete |
 | 13 | Walk-forward/calibration reports | VERIFIED | Corrected score-state research report generated; independent review pending; no production improvement claim |
-| 14 | Prospective shadow pipeline | NOT STARTED | No CFB prospective evidence populated; offline PIT reference is not active shadow collection |
+| 14 | Prospective shadow pipeline | PARTIAL | 43 real future-game snapshots captured and replayed into isolated workerd/D1; recurring rollout PR #963 awaits approval |
 | 15 | Economic qualification framework | PARTIAL | Existing shared framework inspected; CFB evidence/joins absent; measurements NULL |
-| 16 | Full end-to-end regression | PARTIAL | 1,461 JS tests, 23 Python tests and local workerd/D1/R2 integration; remote D1/collectors/UI/full-chain tests outstanding |
+| 16 | Full end-to-end regression | PARTIAL | 1,472 JS tests, 23 Python tests and local workerd/D1/R2 integration; remote D1/collectors/UI/full-chain tests outstanding |
 | 17 | Runbooks/docs | PARTIAL | This report and existing release preflight; full production operations remain unqualified |
 | 18 | PR/commits/CI/release gates | PARTIAL | Draft #957; tested code cb477a19 passed exact-head CI/source QA; independent reviewer acceptance outstanding |
 
@@ -105,3 +105,17 @@ Frozen source coverage includes 432 final FBS-involving games and all 745 expect
 Read-only live inventory at approximately 04:22 UTC records all 928 schema objects (267 tables, 655 indexes, five views, one trigger) and counts all 266 user tables: 3,290,568 rows. Internal `_cf_KV` cannot be read through D1 API (`SQLITE_AUTH`). Thirty-eight advancing tables account for 4,980 additional rows relative to the frozen source bookmark. Live counts were acquired in separate bounded query batches, not an atomic snapshot; they must never replace bookmark reconciliation. Full definitions/counts are in `live-production-inventory.json`. Full workflow health and coverage still require additional qualification.
 
 Code commit `cb477a19dab1af53fc5449cb67695c74d818b5db` passed CI run 38111036517 and source QA run 38111036537. `ci-evidence.json` links the exact accepted code, independent full-restore run and artifact hash. Evidence-only updates do not change that tested implementation. No independent human technical review has occurred.
+
+## Forward execution checkpoint
+
+Main and production Pages advanced through unrelated PrizePicks PR #962 to `59330eabce92f02050fab485a86cb83fe16e6f51`. CFB qualification remains disabled and the audited production games table still has zero future fixtures. This work made no production changes.
+
+A branch-only read-only capture now produces all 138 FBS research cards, retaining 745 team-games, 26,618 accepted player-games and 7,819 team/player pairs. Two player-game observations remain quarantined. ESPN calendar discovery adds real upcoming fixtures: 43 future shadow forecasts at the observed cutoff, with 27 unconfirmed kickoff times and two non-FBS participants pending. Eight recent final FBS team sides are missing SDV boxes. These gaps appear on the corresponding card versions and new shadow qualification reasons; no complete-current-card claim is made.
+
+Historical snapshot audit recovers 40 captured pregame feature records. Their source provenance is incomplete; fully qualified historical PIT samples remain zero. Original roster-based starter claims are preserved as unverified legacy evidence and excluded from new model inputs. Every new snapshot records source receipts, data/card versions, actual materialization/decision/calculation clocks and a stable input fingerprint. Repeated forecasts are version history, not independent economic opportunities.
+
+The initial validated capture at `17190bb3acb80884babe2b5228384d25f14461c4` passed hosted CI (1,434 tests on the focused main-based branch), capture and strict downloaded-artifact reconciliation. All 43 real snapshots were inserted twice into isolated workerd/D1 alongside one synthetic fixture: exactly 44 immutable snapshots, no duplicate accumulation. Updated engineering branch passes 1,472 local JS tests, ten forward contracts and the existing Python contracts. Evidence is in `research/cfb/forward-20261011/`; full source evidence remains in authenticated workflow artifacts, not republished here. Preservation beyond artifact retention remains an operator gate.
+
+Focused PR #963 contains no numbered migrations, production routes/UI edits or coefficient changes. It proposes six-hour read-only collection; a separately approved merge also invokes the existing standard Pages release. It does not solve production postgame publication, 15-minute freshness, pricing joins, settlement or economic qualification. Review and approve its exact operation independently of recovery PR #957. The concrete acceptance and rollback artifact is `research/cfb/forward-20261011/rollout-operation.json`; current qualification, ROI and CLV remain unavailable/NULL.
+
+Focused rollout head `d2cda7f9117eacd8abc8cc399e1d34e2222d54bb` passed CI run 38113414566 and hosted capture/reconciliation run 38113410369 (138 cards, 43 unique future-game snapshots, 33 raw/normalized receipt digests verified). Artifact 11692741368 has SHA-256 `87a7b3c3c24a21736fdef487699d3d7aa098cf079191351f59841efd363da277` and expires 2026-11-10T05:01:55Z. Independent human review, billing headroom and recurring activation approval remain outstanding.

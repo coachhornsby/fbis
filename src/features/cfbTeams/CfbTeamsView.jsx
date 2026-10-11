@@ -110,7 +110,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange}) {
         <p className="ft-note">Published {stamp(detail.publishedCard.publishedAt)} · Version {show(detail.publishedCard.version)}</p>
         <div className="ft-metric-grid">{Object.entries(detail.publishedCard.card.offense||{}).map(([key,m])=>
           <div className="ft-metric" key={key}><span>{key.replaceAll("_"," ")}</span>
-            <strong>{m.mean==null?"Unavailable":Number(m.mean).toLocaleString("en-US",{maximumFractionDigits:3})}</strong>
+            <strong>{(m.mean??m.value)==null?"Unavailable":Number(m.mean??m.value).toLocaleString("en-US",{maximumFractionDigits:3})}</strong>
             <small>{m.games} contributing games · Total {show(m.total)}</small></div>)}</div>
         <details className="ft-raw"><summary>Game versions, player statistics and coverage</summary>
           <pre>{JSON.stringify(detail.publishedCard.card,null,2)}</pre></details>

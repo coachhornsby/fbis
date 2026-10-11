@@ -1,0 +1,12 @@
+{
+  "status": "VERIFIED_CAPTURE_RECONCILIATION",
+  "code_sha": "d2cda7f9117eacd8abc8cc399e1d34e2222d54bb",
+  "cards": 138,
+  "prospective_snapshot_versions": 43,
+  "distinct_future_games": 43,
+  "production_writes": 0,
+  "bet_eligible": 0,
+  "economic_observations": 0,
+  "independent_human_review": false,
+  "raw_receipts_verified": 33
+}

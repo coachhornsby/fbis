@@ -205,6 +205,32 @@ export async function onRequestGet(context){
     if(row?.run_id){ coverage=(await context.env.DB.prepare("SELECT sport,COUNT(*) rows FROM prizepicks_prop_lines WHERE run_id=? GROUP BY sport ORDER BY sport").bind(row.run_id).all())?.results||[]; }
     return json({ok:true,ctDate:day,acquisition:row||null,alreadyStarted:!!row,coverage});
   }
+  if(mode==="ingestion_health"){
+    const auth=authorizeHarvest(context.request,context.env);
+    if(!auth.ok) return json(unauthorizedBody(),401);
+    const day=todayCt();
+    const acquisition=await context.env.DB.prepare(
+      "SELECT ct_date,run_id,state,rows_returned,started_at,completed_at FROM prizepicks_daily_acquisitions WHERE ct_date=?"
+    ).bind(day).first();
+    const latest=await context.env.DB.prepare(
+      "SELECT ct_date,run_id,state,started_at,completed_at FROM prizepicks_daily_acquisitions ORDER BY ct_date DESC LIMIT 1"
+    ).first();
+    const nfl=acquisition?.run_id
+      ? await context.env.DB.prepare(`SELECT COUNT(*) AS lines, COUNT(s.id) AS snapshots,
+          SUM(CASE WHEN s.id IS NULL THEN 1 ELSE 0 END) AS missing_snapshots
+          FROM prizepicks_prop_lines p LEFT JOIN nfl_prop_state_snapshots s ON s.prop_line_id=p.id
+          WHERE p.run_id=? AND p.sport='nfl'`).bind(acquisition.run_id).first()
+      : {lines:0,snapshots:0,missing_snapshots:0};
+    const complete=acquisition?.state==="COMPLETE" && Number(acquisition.rows_returned)>0;
+    const missingSnapshots=Number(nfl?.missing_snapshots||0);
+    const healthy=complete && missingSnapshots===0;
+    return json({
+      ok:true,healthy,ctDate:day,acquisition:acquisition||null,latestAcquisition:latest||null,
+      nfl:{lines:Number(nfl?.lines||0),snapshots:Number(nfl?.snapshots||0),missingSnapshots},
+      reasons:[...(!complete?["DAILY_CAPTURE_NOT_COMPLETE"]:[]),...(missingSnapshots>0?["NFL_STATE_SNAPSHOT_GAP"]:[])],
+      decisionEligible:false,canQualify:false,canAuthorizeWager:false
+    });
+  }
   if(mode==="budget"){
     const auth=authorizeHarvest(context.request,context.env);
     if(!auth.ok) return json(unauthorizedBody(),401);
