@@ -302,12 +302,12 @@ export default function CompactGameCard({ game, onOpen }) {
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
             <strong className="cgc-proj">{proj.available ? (proj.home ?? "—") : "—"}</strong>
-            <span>FBIS SCORE</span>
+            <span>{isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
           </div>
         </div>
 
         <aside className={`cgc-best-edge${soccerPick ? " is-side" : edge.total ? " is-total" : " is-side"}`}>
-          <span>{soccerPick ? "CONFIDENCE PICK" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : "MODEL / MARKET GAP"}</span>
+          <span>{soccerPick ? "CONFIDENCE PICK" : isNhl && !proj.available ? "NO PURE PROJECTION" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : isNhl && market.referenceOnly ? "MODEL / REFERENCE GAP" : "MODEL / MARKET GAP"}</span>
           <div className="cgc-edge-identity">
             {soccerPick ? (
               soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={42} className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
@@ -319,7 +319,7 @@ export default function CompactGameCard({ game, onOpen }) {
           </div>
           <strong>{soccerPick ? `${stars}★` : edge.value}</strong>
           <b>{soccerPick ? soccerPick.pick || "—" : edge.detail}</b>
-          <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : edge.type}</small>
+          <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : isNhl ? `${edge.type} · RESEARCH ONLY` : edge.type}</small>
         </aside>
       </div>
 
@@ -407,7 +407,7 @@ export default function CompactGameCard({ game, onOpen }) {
 
       <footer className="cgc-footer">
         <div className="cgc-footer-metric">
-          <strong>{vm?.projection?.modelId && vm?.projection?.modelVersion
+          <strong>{isNhl && !proj.available ? "NO INDEPENDENT NHL MODEL" : vm?.projection?.modelId && vm?.projection?.modelVersion
             ? `${vm.projection.modelId} · ${vm.projection.modelVersion}`
             : vm?.projection?.modelId || game?.modelVersion || "FBIS"}</strong>
           <span>MODEL</span>
