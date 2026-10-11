@@ -1,0 +1,42 @@
+name: MLB NHL October 11 all-game evidence capture
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/mlb-nhl-oct11-evidence-capture.mjs"
+      - ".github/workflows/mlb-nhl-oct11-evidence-capture.yml"
+  workflow_dispatch:
+  schedule:
+    # 2026-10-11 17:00–18:59 Chicago and 19:00–23:59 Chicago.
+    # UTC ranges intentionally span midnight; script validates Chicago date.
+    - cron: "*/10 22,23 11 10 *"
+    - cron: "*/10 0-4 12 10 *"
+
+concurrency:
+  group: mlb-nhl-oct11-capture
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: { node-version: "22" }
+      - name: Check capture syntax
+        run: node --check scripts/mlb-nhl-oct11-evidence-capture.mjs
+      - name: Capture all MLB and NHL October 11 slate games
+        run: node scripts/mlb-nhl-oct11-evidence-capture.mjs
+      - name: Persist run-scoped immutable evidence even on partial failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlb-nhl-oct11-evidence-${{ github.run_id }}
+          path: artifacts/mlb-nhl-oct11/
+          if-no-files-found: warn
+          retention-days: 90
