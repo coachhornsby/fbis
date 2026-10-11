@@ -11,8 +11,8 @@ const PRODUCTION_DB = 'b50c724c-903b-4241-8ce1-48d931e7a44c';
 const stable = value => JSON.stringify(value, (_key, v) => v && typeof v === 'object' && !Array.isArray(v)
   ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v);
 const time = value => {
-  if (!value || !/Z$|[+-]\d\d:\d\d$/.test(value)) throw new Error('Explicit UTC offset required');
-  const n = Date.parse(value); if (!Number.isFinite(n)) throw new Error('Invalid timestamp'); return n;
+  if (!value || !/Z$|[+-]\d\d:\d\d$/.test(value)) throw new CfbValidationError('Explicit UTC offset required');
+  const n = Date.parse(value); if (!Number.isFinite(n)) throw new CfbValidationError('Invalid timestamp'); return n;
 };
 const all = async statement => (await statement.all()).results || [];
 const additive = new Set(['points','plays','yards','rushes','rush_yards','pass_attempts','completions',
