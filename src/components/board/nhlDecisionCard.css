@@ -56,3 +56,24 @@
 .nhlc-expanded{max-width:none}
 @media(max-width:720px){.nhlc{padding:11px;gap:9px}.nhlc-matchup{grid-template-columns:minmax(0,1fr) minmax(125px,1.2fr) minmax(0,1fr)}.nhlc-projection>strong{font-size:19px}.nhlc-team>strong{font-size:15px}.nhlc-props-grid{grid-template-columns:1fr}.nhlc-market strong{font-size:12px}.nhlc-headline>strong{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.nhlc-openable{transition:none}.nhlc-openable:hover{transform:none}}
+
+
+/* Premium NHL hero preserves the original branded matchup and prominent gap. */
+.nhlc{--nhlc-edge:rgba(91,164,224,.34);position:relative;overflow:hidden;background:radial-gradient(ellipse at 12% 10%,rgba(28,104,165,.28),transparent 52%),radial-gradient(ellipse at 90% 16%,rgba(71,43,139,.19),transparent 48%),linear-gradient(155deg,#091d34,#081424 75%);border-radius:18px;border:1px solid rgba(108,168,218,.38);box-shadow:0 12px 36px rgba(0,0,0,.32)}
+.nhlc:before{content:"";height:3px;position:absolute;left:0;right:0;top:0;background:linear-gradient(90deg,#19b9ad,#2b8ccf,#8b6bd8)}
+.nhlc-premium-kicker{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid rgba(124,167,219,.2);padding:4px 1px 10px;font-size:10px;font-weight:850;letter-spacing:.13em;color:#8ab7dc}
+.nhlc-premium-kicker strong{color:#d0e8fc;font-size:10px}
+.nhlc-matchup-premium{padding:14px 6px 18px;grid-template-columns:minmax(0,1fr) minmax(140px,1.4fr) minmax(0,1fr)}
+.nhlc-matchup-premium .nhlc-team{gap:7px}
+.nhlc-matchup-premium .nhlc-team>strong{font-size:21px;color:#f3f8ff;letter-spacing:.025em}
+.nhlc-matchup-premium .nhlc-team>span{font-size:11px}
+.nhlc-matchup-premium .nhlc-projection>strong{font-size:32px;color:#fff;letter-spacing:-.035em}
+.nhlc-edge-hero{display:grid;grid-template-columns:1.05fr 1fr;gap:0;border:1px solid rgba(49,198,179,.34);border-radius:12px;overflow:hidden;background:linear-gradient(105deg,rgba(13,86,94,.44),rgba(16,36,69,.8))}
+.nhlc-edge-main{padding:15px 16px;display:flex;flex-direction:column;gap:5px;justify-content:center}
+.nhlc-edge-main>span,.nhlc-edge-stats span{font-size:9px;letter-spacing:.085em;font-weight:850;color:#a8c6da}
+.nhlc-edge-main>strong{font-size:25px;font-weight:900;color:#70eed1;line-height:1.13}
+.nhlc-edge-main>small{font-size:10px;line-height:1.4;color:#b7d0da}
+.nhlc-edge-stats{display:grid;gap:10px;padding:13px 15px;background:rgba(4,13,29,.36);border-left:1px solid rgba(91,164,224,.24)}
+.nhlc-edge-stats>div{display:grid;gap:5px}
+.nhlc-edge-stats strong{font-size:12px;font-weight:850;color:#edf6ff}
+@media(max-width:550px){.nhlc-matchup-premium .nhlc-projection>strong{font-size:23px}.nhlc-matchup-premium .nhlc-team>strong{font-size:17px}.nhlc-edge-hero{grid-template-columns:1fr}.nhlc-edge-stats{grid-template-columns:1fr 1fr;border-left:0;border-top:1px solid rgba(91,164,224,.24)}.nhlc-edge-main>strong{font-size:22px}}

@@ -5,6 +5,13 @@ import { selectNhlCardProps } from "../../lib/nhlCardProps.js";
 import "./nhlDecisionCard.css";
 
 const number = value => value==null||value===""||!Number.isFinite(Number(value))?"—":Number(value).toFixed(1);
+const implied = value => {
+  if (value == null || value === "") return null;
+  const n=Number(value);
+  if (!Number.isFinite(n) || n===0) return null;
+  return n>0?100/(n+100):-n/(-n+100);
+};
+const pct = value => value == null?"—":`${(value*100).toFixed(1)}%`;
 const factorWeight = row => {
   const v=Number(row?.value);
   return Number.isFinite(v)?Math.abs(v):0;
@@ -47,6 +54,14 @@ export default function NhlDecisionCard({game,vm:givenVm,onOpen,expanded=false})
   const hasQuote=quote&&(quote.home!=="—"||quote.away!=="—");
   const quoteSource=hasQuote?[quote.book,quote.role].filter(Boolean).join(" · "):"No verified paired moneyline";
   const label=final?"FINAL":live?"LIVE":"PREGAME";
+  const audited=ml?.valid&&ml?.integrity==="PIT-AUDITED RESEARCH";
+  const modelHome=audited?Number(game?.nhlProV2?.probability?.homeWinIncludingOt):null;
+  const pHome=implied(market.homeMl),pAway=implied(market.awayMl);
+  const pairedMarket=hasQuote&&quote.role!=="ARCHIVED SNAPSHOT · NOT CURRENT"&&pHome!=null&&pAway!=null&&pHome+pAway>0;
+  const noVigHome=pairedMarket?pHome/(pHome+pAway):null;
+  const gap=audited&&pairedMarket?modelHome-noVigHome:null;
+  const gapSide=gap==null?null:gap>=0?home.abbr:away.abbr;
+  const gapLabel=gap==null?"Not available":`${gapSide} +${(Math.abs(gap)*100).toFixed(1)} pp`;
   const open=typeof onOpen==="function"?()=>onOpen(game):null;
   return <article
     className={`nhlc${open?" nhlc-openable":""}${expanded?" nhlc-expanded":""}`}
@@ -60,11 +75,16 @@ export default function NhlDecisionCard({game,vm:givenVm,onOpen,expanded=false})
       <div className="nhlc-labels"><span className={`nhlc-state nhlc-state-${label.toLowerCase()}`}>{label}</span><span className="nhlc-research">RESEARCH ONLY</span></div>
     </header>
     {scored?<div className="nhlc-score"><span>{final?"FINAL":"LIVE"} SCORE</span><strong>{away.abbr} {actualAway} – {actualHome} {home.abbr}</strong></div>:null}
-    <div className="nhlc-matchup">
-      <div className="nhlc-team"><TeamLogo team={away} size={46}/><strong>{away.abbr}</strong><span title={away.fullName||away.name}>{away.fullName||away.name||""}</span></div>
+    <div className="nhlc-premium-kicker"><span>FBIS HOCKEY INTELLIGENCE</span><strong>MODEL vs MARKET</strong></div>
+    <div className="nhlc-matchup nhlc-matchup-premium">
+      <div className="nhlc-team"><TeamLogo team={away} size={76}/><strong>{away.abbr}</strong><span title={away.fullName||away.name}>{away.fullName||away.name||""}</span></div>
       <div className="nhlc-projection"><span>FBIS PRE-GAME FORECAST</span><strong>{p.available?`${number(p.away)} – ${number(p.home)}`:"Unavailable"}</strong><small>{p.available?`Projected total ${number(p.total)} goals`:"No independent projection"}</small></div>
       <div className="nhlc-team"><TeamLogo team={home} size={46}/><strong>{home.abbr}</strong><span title={home.fullName||home.name}>{home.fullName||home.name||""}</span></div>
     </div>
+    <section className="nhlc-edge-hero" aria-label="Model versus market gap">
+      <div className="nhlc-edge-main"><span>MODEL–MARKET GAP</span><strong>{gapLabel}</strong><small>{gap==null?"Needs audited probability and two-sided current market":`Difference vs no-vig moneyline · ${quote.book||"market"}`}</small></div>
+      <div className="nhlc-edge-stats"><div><span>FBIS WIN PROBABILITY</span><strong>{audited?`${away.abbr} ${pct(1-modelHome)} · ${home.abbr} ${pct(modelHome)}`:"Integrity pending"}</strong></div><div><span>MARKET NO-VIG</span><strong>{noVigHome==null?"Not available":`${away.abbr} ${pct(1-noVigHome)} · ${home.abbr} ${pct(noVigHome)}`}</strong></div></div>
+    </section>
     <div className="nhlc-market" aria-label="Model and sportsbook context">
       <div><span>MARKET TOTAL</span><strong>{market.total==null?"—":number(market.total)}</strong></div>
       <div><span>PUCK LINE</span><strong>{market.spreadLabel||"—"}</strong></div>
