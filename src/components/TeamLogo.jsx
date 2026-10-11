@@ -69,7 +69,12 @@ export default function TeamLogo({
         aria-label={title || name}
         role="img"
       >
-        {abbr && abbr !== "—" ? abbr.slice(0, 4) : "?"}
+        {abbr && abbr !== "—" ? abbr.slice(0, 4) : (
+          <svg width={Math.round(px * .48)} height={Math.round(px * .48)} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+            <path d="M12 2.5 20 6v5.8c0 5.2-3.3 8.1-8 10-4.7-1.9-8-4.8-8-10V6l8-3.5Z" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M8 12h8M12 8v8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity=".65" />
+          </svg>
+        )}
       </span>
     );
   }
