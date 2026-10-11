@@ -211,6 +211,17 @@ PLAYER_ADDITIVE={
  "rec_yards":"receivingYards","receptions":"receptions",
  "targets":"targets","pass_td":"passTouchdowns","rushing_td":"rushTouchdowns",
  "receiving_td":"receivingTouchdowns","interceptions":"interceptions",
+ "total_tackles":"totalTackles","solo_tackles":"soloTackles",
+ "sacks":"sacks","tackles_for_loss":"tacklesForLoss",
+ "passes_defended":"passesDefended","hurries":"hurries",
+ "defensive_td":"defensiveTouchdowns","defensive_interceptions":"defensiveInterceptions",
+ "interception_return_yards":"interceptionReturnYards","interception_td":"interceptionTouchdowns",
+ "fumbles":"fumbles","fumbles_lost":"fumblesLost","fumbles_recovered":"fumblesRecovered",
+ "field_goals_made":"fieldGoalsMade","field_goal_attempts":"fieldGoalAttempts",
+ "extra_points_made":"extraPointsMade","extra_point_attempts":"extraPointAttempts",
+ "punts":"punts","punt_yards":"puntYards",
+ "kick_returns":"kickReturns","kick_return_yards":"kickReturnYards",
+ "punt_returns":"puntReturns","punt_return_yards":"puntReturnYards",
 }
 def partial_player_season(records,as_of):
  buckets=defaultdict(list)
