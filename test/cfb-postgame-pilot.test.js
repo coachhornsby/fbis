@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { aggregatePostgameMetrics,processCfbPostgamePilot,validatePostgameEnvelope,cfbPostgamePilotHealth } from '../functions/lib/cfbPostgamePilot.js';
+import { aggregatePostgameMetrics,processCfbPostgamePilot,validatePostgameEnvelope,cfbPostgamePilotHealth,claimCfbPostgamePilotLease } from '../functions/lib/cfbPostgamePilot.js';
 const at='2026-10-11T00:20:00Z';
 const fixture=()=>({game_id:'g1',provider_game_id:'100',season:2026,source:'fixture',status:'FINAL',
   game_at:'2026-10-10T20:00:00Z',observed_at:'2026-10-11T00:10:00Z',temporal_class:'POSTGAME_OBSERVED',scores:{home:28,away:14},teams:[
@@ -77,4 +77,19 @@ test('health detects stale existing card pointers after a correction',async()=>{
  const p=fixture();p.observed_at='2026-10-11T00:30:00Z';p.teams[0].metrics.yards=420;const corrected=await h.process(p,{at:'2026-10-11T00:31:00Z'});
  assert.equal((await cfbPostgamePilotHealth(h.db)).staleCardVersions.length,0);h.sqlite.prepare("UPDATE cfb_postgame_card_current SET version_id=? WHERE team_id='h'").run(old);
  const health=await cfbPostgamePilotHealth(h.db);assert.deepEqual(health.staleCardVersions,[{game_id:'g1',version:corrected.version,team_id:'h'}]);assert.equal(health.productionReady,false);
+});
+
+test('native lease ownership prevents concurrent or expired worker publication',async()=>{
+ const h=harness(),now=new Date().toISOString();
+ const claim=token=>claimCfbPostgamePilotLease({db:h.db,databaseId:'isolated-test',mode:'nonproduction',gameId:'g1',at:now,token});
+ const first=await claim('one');assert.ok(first);assert.equal(await claim('two'),null);
+ h.sqlite.prepare("UPDATE cfb_postgame_leases SET expires_at='2020-01-01T00:00:00Z'").run();const next=await claim('two');assert.ok(next);
+ await assert.rejects(h.process(fixture(),{at:now,lease:first}),/lease/);assert.equal(h.sqlite.prepare('SELECT COUNT(*) AS n FROM cfb_postgame_card_current').get().n,0);
+ await h.process(fixture(),{at:now,lease:next});assert.equal(h.card('h').games,1);assert.equal(h.sqlite.prepare('SELECT COUNT(*) AS n FROM cfb_postgame_leases').get().n,0);
+});
+test('lease replacement during acquisition rolls back the complete publication batch',async()=>{
+ const h=harness(),now=new Date().toISOString();const lease=await claimCfbPostgamePilotLease({db:h.db,databaseId:'isolated-test',mode:'nonproduction',gameId:'g1',at:now,token:'one'});
+ h.interleave(()=>h.sqlite.prepare("UPDATE cfb_postgame_leases SET lease_token='two'").run());
+ await assert.rejects(h.process(fixture(),{at:now,lease}),/malformed JSON/);assert.equal(h.sqlite.prepare('SELECT COUNT(*) AS n FROM cfb_postgame_game_versions').get().n,0);assert.equal(h.sqlite.prepare('SELECT COUNT(*) AS n FROM cfb_postgame_card_current').get().n,0);
+ assert.equal(h.sqlite.prepare('SELECT lease_token FROM cfb_postgame_leases').get().lease_token,'two');
 });

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import * as SDK from 'miniflare';
-import {processCfbPostgamePilot,cfbPostgamePilotHealth} from '../functions/lib/cfbPostgamePilot.js';
+import {processCfbPostgamePilot,cfbPostgamePilotHealth,claimCfbPostgamePilotLease} from '../functions/lib/cfbPostgamePilot.js';
 const options={modules:true,script:'export default {fetch(){return new Response("offline CFB integration");}}',compatibilityDate:'2024-09-23',d1Databases:['DB'],r2Buckets:['ARCHIVE']};
 const mf=new SDK.Miniflare(SDK.convertV4MiniflareOptions ? SDK.convertV4MiniflareOptions(options) : options);
 try {
@@ -22,7 +22,13 @@ try {
  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM cfb_postgame_card_versions').first()).n,4);assert.equal((await cfbPostgamePilotHealth(db)).staleCardVersions.length,0);
  const keys=await archive.list();assert.equal(keys.objects.length,4);
  for(const o of keys.objects){const obj=await archive.get(o.key);JSON.parse(await obj.text());}
- const report={status:'VERIFIED_LOCAL_WORKERD_D1_R2',database:'local ephemeral workerd',remoteProductionMutations:0,cards:count.n,gameVersions:2,cardVersions:4,rawEvidenceObjects:keys.objects.length,duplicateNoop:true,partialBlocksPublication:true,correctionPreservesOldVersions:true,sourceIdentity:'fixture only; real provider qualification pending',productionReady:false,canAuthorizeWager:false};
+ const at=new Date().toISOString();
+ const lease=await claimCfbPostgamePilotLease({db,databaseId:'local-workerd-only',mode:'nonproduction',gameId:'g1',at,token:'native-owner'});assert.ok(lease);
+ assert.equal(await claimCfbPostgamePilotLease({db,databaseId:'local-workerd-only',mode:'nonproduction',gameId:'g1',at,token:'competitor'}),null);
+ await assert.rejects(runGame(corrected,{at,lease:{token:'competitor'}}));
+ assert.equal((await runGame(corrected,{at,lease})).version,next.version);
+ assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM cfb_postgame_leases').first()).n,0);
+ const report={nativeLeaseVerified:true,status:'VERIFIED_LOCAL_WORKERD_D1_R2',database:'local ephemeral workerd',remoteProductionMutations:0,cards:count.n,gameVersions:2,cardVersions:4,rawEvidenceObjects:keys.objects.length,duplicateNoop:true,partialBlocksPublication:true,correctionPreservesOldVersions:true,sourceIdentity:'fixture only; real provider qualification pending',productionReady:false,canAuthorizeWager:false};
  console.log(JSON.stringify(report));
  if(process.env.CFB_INTEGRATION_REPORT){mkdirSync(new URL('.',`file://${process.env.CFB_INTEGRATION_REPORT}`).pathname,{recursive:true});writeFileSync(process.env.CFB_INTEGRATION_REPORT,JSON.stringify(report,null,2)+'\n');}
 } finally {await mf.dispose();}

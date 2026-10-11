@@ -26,3 +26,9 @@ CREATE TABLE IF NOT EXISTS cfb_postgame_outbox (
  id TEXT PRIMARY KEY, kind TEXT NOT NULL, version_id TEXT NOT NULL,
  body_json TEXT NOT NULL, completed_at TEXT
 );
+
+-- Optional nonproduction lease contract; still outside automatic migrations.
+CREATE TABLE IF NOT EXISTS cfb_postgame_leases (
+ game_id TEXT PRIMARY KEY, lease_token TEXT NOT NULL, expires_at TEXT NOT NULL
+ CHECK (julianday(expires_at) IS NOT NULL)
+);
