@@ -150,6 +150,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const finalAway = game?.away?.score ?? away?.score ?? null;
   const finalHome = game?.home?.score ?? home?.score ?? null;
   const hasFinalScore = isFinal && finalAway != null && finalHome != null;
+  const hasLiveScore = Boolean(vm.event?.live && finalAway != null && finalHome != null);
   const tennis = game?.tennisProjection || {};
   const tennisTour = String(game?.tour || tennis.tour || "TENNIS").toUpperCase();
   const tennisRef = game?.market?.reference || {};
@@ -191,6 +192,12 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <div className="muted">{game.modelVersion || "CFB-FBIS-v2"} · {game.projectionState || game.cfb?.projectionState || "UNKNOWN"} · NO BETTING AUTHORITY</div>
       ) : null}
 
+      {sportId === "nhl" && vm.event?.live ? (
+        <section className="cgc-live-nhl-score" aria-label="Live NHL score">
+          <span>LIVE SCORE · PRE-GAME FORECAST BELOW</span>
+          <strong>{hasLiveScore ? `${away.abbr} ${finalAway} – ${finalHome} ${home.abbr}` : "LIVE SCORE NOT AVAILABLE FROM FEED"}</strong>
+        </section>
+      ) : null}
       {hasFinalScore ? (
         <section className="pgc-final-score" aria-label="Final score">
           <span>FINAL SCORE</span>
