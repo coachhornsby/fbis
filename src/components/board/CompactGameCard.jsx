@@ -177,7 +177,8 @@ function normalizeTeamColor(team, fallback) {
 
 export default function CompactGameCard({ game, onOpen }) {
   const vm = buildGameCardViewModel(game);
-  const stars = confidenceStars(game);
+  const stored = game?.durableFallback?.statusUnverified === true;
+  const stars = stored ? null : confidenceStars(game);
   const away = vm.away || {};
   const home = vm.home || {};
   const awayBrand = normalizeTeamColor(away, "#0b5fa5");
@@ -235,7 +236,7 @@ export default function CompactGameCard({ game, onOpen }) {
 
   return (
     <article
-      className={"cgc pgc fbis-universal-premium"+(stars===5&&showStars?" cgc-five-star":"")}
+      className={"cgc pgc fbis-universal-premium"+(stars===5&&showStars&&!stored?" cgc-five-star":"")+(stored?" cgc-stored":"")}
       data-game-id={vm.id || game?.id || ""}
       data-sport={vm.sport || ""}
       tabIndex={0}
@@ -247,7 +248,7 @@ export default function CompactGameCard({ game, onOpen }) {
           onOpen?.(game);
         }
       }}
-      aria-label={`Open ${away.abbr || "away"} at ${home.abbr || "home"} analysis`}
+      aria-label={`Open ${away.abbr && away.abbr!=="—"?away.abbr:away.name||"away"} at ${home.abbr && home.abbr!=="—"?home.abbr:home.name||"home"} analysis`}
     >
       <header className="cgc-head">
         <div className="cgc-head-left">
@@ -255,7 +256,7 @@ export default function CompactGameCard({ game, onOpen }) {
           <span className="cgc-time">{vm.timing?.timeLine || "—"}</span>
         </div>
         <div className="cgc-head-right">
-          {showStars ? <span title={isNhl ? "Model confidence rating, not a qualified betting signal" : "Model confidence rating"}><Stars value={stars} /></span> : <span className="cgc-rating-unavailable">NO MODEL RATING</span>}
+          {stored ? null : showStars ? <span title={isNhl ? "Model confidence rating, not a qualified betting signal" : "Model confidence rating"}><Stars value={stars} /></span> : <span className="cgc-rating-unavailable">NO MODEL RATING</span>}
           <span className={`cgc-status cgc-status-${String(vm.status?.tone || "neutral").toLowerCase()}`}>
             {vm.status?.label || "FBIS"}
           </span>
@@ -294,12 +295,12 @@ export default function CompactGameCard({ game, onOpen }) {
               <strong className="cgc-team-name cgc-team-name-mlb">{away.fullName || away.name || away.abbr || "—"}</strong>
             ) : (
               <>
-                <strong className="cgc-team-name fbis-full-team-name">{away.fullName || away.name || away.abbr || "—"}</strong>
+                <strong className={`cgc-team-name fbis-full-team-name${!away.abbr||away.abbr==="—"?" cgc-unresolved-school":""}`}>{away.fullName || away.name || away.abbr || "—"}</strong>
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
             <strong className="cgc-proj">{proj.available ? (proj.away ?? "—") : "—"}</strong>
-            <span>{isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
+            <span>{stored ? "STORED PREGAME" : isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
           </div>
 
           {isFootball ? <div className="cgc-vs"><div className="nfl-hero-venue" aria-label="Stadium and weather">
@@ -313,15 +314,24 @@ export default function CompactGameCard({ game, onOpen }) {
               <strong className="cgc-team-name cgc-team-name-mlb">{home.fullName || home.name || home.abbr || "—"}</strong>
             ) : (
               <>
-                <strong className="cgc-team-name fbis-full-team-name">{home.fullName || home.name || home.abbr || "—"}</strong>
+                <strong className={`cgc-team-name fbis-full-team-name${!home.abbr||home.abbr==="—"?" cgc-unresolved-school":""}`}>{home.fullName || home.name || home.abbr || "—"}</strong>
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
             <strong className="cgc-proj">{proj.available ? (proj.home ?? "—") : "—"}</strong>
-            <span>{isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
+            <span>{stored ? "STORED PREGAME" : isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
           </div>
         </div>
 
+        {stored ? (
+          <aside className="cgc-best-edge cgc-stored-market" aria-label="No verified market">
+            <span>MARKET UNAVAILABLE</span>
+            <div className="cgc-edge-identity" aria-hidden="true" />
+            <strong>—</strong>
+            <b>No verified odds</b>
+            <small>STORED PREGAME · NO EDGE</small>
+          </aside>
+        ) : (
         <aside className={`cgc-best-edge${soccerPick ? " is-side" : edge.total ? " is-total" : " is-side"}`}>
           <span>{soccerPick ? "CONFIDENCE PICK" : isNhl && !proj.available ? "NO PURE PROJECTION" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : isNhl && market.referenceOnly ? "MODEL / REFERENCE GAP" : "MODEL / MARKET GAP"}</span>
           <div className="cgc-edge-identity">
@@ -337,9 +347,10 @@ export default function CompactGameCard({ game, onOpen }) {
           <b>{soccerPick ? soccerPick.pick || "—" : edge.detail}</b>
           <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : isNhl ? `${edge.type} · RESEARCH ONLY` : edge.type}</small>
         </aside>
+        )}
       </div>
 
-      {!isFootball ? <VenueConditions context={vm.context} game={game} sportId={sportId} /> : null}
+      {!isFootball && !stored ? <VenueConditions context={vm.context} game={game} sportId={sportId} /> : null}
 
       <div className="cgc-market-strip" aria-label="FBIS and market comparison">
         <div className="cgc-market-item">
@@ -348,7 +359,7 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
         <div className="cgc-market-divider" aria-hidden="true" />
         <div className="cgc-market-item cgc-market-item-fbis">
-          <span>FBIS TOTAL</span>
+          <span>{stored ? "STORED FBIS TOTAL" : "FBIS TOTAL"}</span>
           <strong>{proj.total ?? "—"}</strong>
         </div>
         <div className="cgc-market-divider" aria-hidden="true" />
@@ -358,9 +369,9 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       </div>
 
-      {isNhl ? <><NhlEvidenceStrip game={game} vm={vm} /><NhlPlayerProjectionStrip game={game} /></> : null}
+      {!stored && isNhl ? <><NhlEvidenceStrip game={game} vm={vm} /><NhlPlayerProjectionStrip game={game} /></> : null}
 
-      {showAction && (!isNhl || action.available) ? (
+      {showAction && !stored && (!isNhl || action.available) ? (
         <div className={`cgc-action-strip${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="cgc-action-brand">
             <span>ACTION</span>
@@ -381,9 +392,14 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       ) : null}
 
-      {isNhl && !action.available ? <div className="cgc-nhl-action-unavailable">ACTION splits: UNAVAILABLE · No movement signal inferred</div> : null}
+      {!stored && isNhl && !action.available ? <div className="cgc-nhl-action-unavailable">ACTION splits: UNAVAILABLE · No movement signal inferred</div> : null}
 
-      {isNfl ? <NflDirectionalMatchups game={game} matchup={matchup} away={away} home={home} /> : isCfb ? <CfbDirectionalMatchups game={game} away={away} home={home} /> : (
+      {stored ? (
+        <section className="cgc-stored-summary" aria-label="Stored pregame data limitations">
+          <strong>STORED PREGAME SNAPSHOT</strong>
+          <span>Game status, matchup analytics, sportsbook lines and player props require live source verification.</span>
+        </section>
+      ) : isNfl ? <NflDirectionalMatchups game={game} matchup={matchup} away={away} home={home} /> : isCfb ? <CfbDirectionalMatchups game={game} away={away} home={home} /> : (
         <section className={`cgc-matchup-read${genericMatchupItems.length ? "" : " is-unavailable"}`} aria-label="FBIS matchup analysis">
           <div className="cgc-matchup-read-head">
             <div><span>GAME MATCHUP</span><strong>{genericMatchupItems.length ? "FBIS ANALYSIS" : "NO ANALYTICS YET"}</strong></div>
@@ -408,8 +424,8 @@ export default function CompactGameCard({ game, onOpen }) {
           <span>MODEL</span>
         </div>
         <div className="cgc-footer-metric">
-          <strong>{vm.comparison?.hasDiff ? (vm.comparison?.sideDiffLabel || vm.comparison?.totalDiffLabel || "—") : "NOT EVALUATED"}</strong>
-          <span>MODEL / MARKET GAP</span>
+          <strong>{stored ? "UNVERIFIED" : vm.comparison?.hasDiff ? (vm.comparison?.sideDiffLabel || vm.comparison?.totalDiffLabel || "—") : "NOT EVALUATED"}</strong>
+          <span>{stored ? "SOURCE STATE" : "MODEL / MARKET GAP"}</span>
         </div>
         <span className="cgc-view">VIEW <b>→</b></span>
       </footer>
