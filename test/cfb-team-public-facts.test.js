@@ -36,3 +36,13 @@ test("Provider errors do not present saved/guessed results or rank as current",a
  assert.equal(result.schedule.state,"SOURCE_UNAVAILABLE");assert.equal(result.schedule.count,0);
  assert.equal(result.apRanking.rank,null);assert.equal(result.apRanking.state,"SOURCE_UNAVAILABLE");
 });
+
+test("ESPN object scores from completed games create final W/L",()=>{
+ const fixture=event(22,true,true);
+ fixture.competitions[0].competitors[0].score={value:31,displayValue:"31"};
+ fixture.competitions[0].competitors[1].score={value:24,displayValue:"24"};
+ const result=parseCfbTeamSchedule({events:[fixture]},team,2026)[0];
+ assert.equal(result.completed,true);assert.equal(result.pointsFor,31);
+ assert.equal(result.pointsAgainst,24);assert.equal(result.result,"W");
+ assert.equal(result.verifiedResult,true);
+});
