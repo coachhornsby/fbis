@@ -93,3 +93,14 @@ test('lease replacement during acquisition rolls back the complete publication b
  await assert.rejects(h.process(fixture(),{at:now,lease}),/malformed JSON/);assert.equal(h.sqlite.prepare('SELECT COUNT(*) AS n FROM cfb_postgame_game_versions').get().n,0);assert.equal(h.sqlite.prepare('SELECT COUNT(*) AS n FROM cfb_postgame_card_current').get().n,0);
  assert.equal(h.sqlite.prepare('SELECT lease_token FROM cfb_postgame_leases').get().lease_token,'two');
 });
+
+test('invalid player and special-team attempt pairs quarantine without publishing either card',async()=>{
+ for(const pair of [['completions','passing_attempts'],['extra_points_made','extra_point_attempts'],['redzone_scores','redzone_attempts']]){
+  const h=harness(),p=fixture();p.teams[0].players[0].metrics={[pair[0]]:3,[pair[1]]:2};
+  await assert.rejects(h.process(p),/attempt reconciliation/);
+  assert.equal(h.sqlite.prepare('SELECT COUNT(*) AS n FROM cfb_postgame_card_current').get().n,0);
+  assert.equal(h.sqlite.prepare('SELECT state FROM cfb_postgame_jobs').get().state,'QUARANTINED');
+ }
+ const p=fixture();p.teams[0].players[0].metrics={completions:null,passing_attempts:2,passing_yards:-5};
+ assert.doesNotThrow(()=>validatePostgameEnvelope(p,at));
+});
