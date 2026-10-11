@@ -108,6 +108,7 @@ def parse_schedule(rows, year):
             raise ValueError("Duplicate canonical game id in schedule: " + gid)
         eligible[gid] = {
             "season": year, "game_id": gid, "kickoff": row["start_date"],
+            "week": int(number(row.get("week")) or 0),
             "home_id": home, "away_id": away,
             "home_points": hs, "away_points": ass,
         }
@@ -166,7 +167,8 @@ def match_advanced(rows, schedule, year, feature_names):
             continue
         accepted.append({
             "season": year, "game_id": gid, "team_id": tid, "opponent_id": opp,
-            "kickoff": game["kickoff"], "is_home": home,
+            "kickoff": game["kickoff"], "week": game["week"], "is_home": home,
+            "final_score_for": pf, "final_score_against": pa,
             "metrics": dict(sorted(metric.items())),
             "temporal_class": "POSTGAME_ONLY",
             "can_influence_projection": False, "source_publication_verified": False,
