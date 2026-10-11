@@ -35,9 +35,9 @@ export function cfbTotalDispersionAudit(rows=[]){
 export function gradeCfbFrozenRows(rows=[]){
  const accepted=[],rejected=[];
  for(const r of rows||[]){
-  const start=iso(r.eventStartAt),decision=iso(r.predictionAt),observed=iso(r.observedAt),finalAt=iso(r.finalAt);
+  const start=iso(r.eventStartAt),decision=iso(r.predictionAt),observed=iso(r.observedAt),finalAt=iso(r.finalAt),gradedAt=iso(r.gradedAt);
   const nums=[r.projHome,r.projAway,r.actualHome,r.actualAway].map(finite);
-  const reason=start==null||decision==null?"missing-cutoff-proof":decision>=start?"poststart-prediction":r.featureCutoffOk!==true?"features-not-pit-verified":observed!=null&&observed>decision?"observation-after-decision":finalAt!=null&&finalAt<start?"invalid-final-timestamp":nums.some(v=>v==null)?"missing-score":"";
+  const reason=start==null||decision==null?"missing-cutoff-proof":decision>=start?"poststart-prediction":r.featureCutoffOk!==true?"features-not-pit-verified":observed!=null&&observed>decision?"observation-after-decision":finalAt!=null&&finalAt<start?"invalid-final-timestamp":gradedAt!=null&&gradedAt<start?"graded-before-kickoff":nums.some(v=>v==null)?"missing-score":"";
   if(reason){rejected.push({gameId:r.gameId||null,reason});continue;}
   const [ph,pa,ah,aa]=nums,pMargin=ph-pa,aMargin=ah-aa,pTotal=ph+pa,aTotal=ah+aa;
   accepted.push({...r,projectedMargin:pMargin,actualMargin:aMargin,marginError:pMargin-aMargin,totalError:pTotal-aTotal,homeError:ph-ah,awayError:pa-aa,
