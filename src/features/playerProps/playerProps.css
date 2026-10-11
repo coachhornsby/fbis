@@ -2896,3 +2896,27 @@
 @media(max-width:620px){
  .fbis-shell-main.route-player-props .pp-card-grid.pp-premium-grid.pp-mirror-grid{grid-template-columns:1fr !important}
 }
+
+/* Mirror hero composition: logo centered, portrait 25% larger, badge clear of face. */
+.pp-mirror-card .pp-card-visual.pp-mirror-visual .pp-team-watermark {
+  left:50% !important;
+  top:50% !important;
+  transform:translate(-50%,-50%) scale(1.4) !important;
+  transform-origin:center center !important;
+}
+.pp-mirror-card .pp-card-visual.pp-mirror-visual .pp-team-watermark img {
+  transform:none !important;
+  object-fit:contain !important;
+}
+.pp-mirror-card .pp-card-visual.pp-mirror-visual .pp-premium-headshot {
+  transform:scale(1.25) !important;
+  transform-origin:center bottom !important;
+  z-index:3 !important;
+}
+.pp-mirror-card .pp-card-visual.pp-mirror-visual .pp-team-pill {
+  top:auto !important;
+  bottom:5px !important;
+  left:50% !important;
+  transform:translateX(-50%) !important;
+  z-index:9 !important;
+}
