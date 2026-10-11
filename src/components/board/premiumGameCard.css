@@ -1127,3 +1127,19 @@
 .pgc-mlb-starter strong{font-size:11px;line-height:1.15;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pgc-mlb-starter span{font-size:9px;color:var(--muted,#aebaca);white-space:nowrap}
 @media(max-width:700px){.pgc-team-visual{min-width:78px}.pgc-mlb-starter{max-width:125px;padding:4px 5px}.pgc-mlb-starter img{width:32px;height:32px;flex-basis:32px}.pgc-mlb-starter strong{font-size:10px}.pgc-mlb-starter span{font-size:8px}}
+
+
+/* Read-only stored matchups have no market or confidence authority. */
+.fbis-shell-main.route-board .pgc.status-stored {
+  border-color: rgba(140,160,185,.35) !important;
+  box-shadow: 0 10px 26px rgba(0,0,0,.32) !important;
+}
+.fbis-shell-main.route-board .pgc.status-stored .pgc-featured-center > strong {
+  font-size: clamp(11px,1.05vw,15px) !important;
+  line-height: 1.3 !important;
+  color: #b9cbd9 !important;
+  text-shadow: none !important;
+}
+.fbis-shell-main.route-board .pgc.status-stored .pgc-edge-delta {
+  color: #92aabc !important;
+}
