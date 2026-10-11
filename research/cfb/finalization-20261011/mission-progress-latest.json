@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-10-11T16:36:37.237Z",
+  "as_of": "2026-10-11T16:37:05.056Z",
   "mission_complete": false,
   "production_db_mutations": 0,
   "can_authorize_wager": false,
@@ -10,7 +10,7 @@
       "number": 1,
       "deliverable": "Verified production baseline",
       "status": "VERIFIED",
-      "evidence_or_blocker": "Read-only production inventory; Pages82929802 successfully deployed; subsequent source-only PR994 main2d1d563 pending final deploy verification."
+      "evidence_or_blocker": "Read-only production inventory; latest main2d1d563 and Pages17d3b970 deployment verified successful; no production database mutations."
     },
     {
       "number": 2,
@@ -117,8 +117,8 @@
   ],
   "latest_source_main": "2d1d5630a2dd9316c42f8e65e21c54d49483af22",
   "last_verified_pages": {
-    "sha": "82929802cf7a2e0751375aa40c045db6552f6b6a",
-    "id": "4c51955c-0ae6-4df5-99e7-889ec652db17",
+    "sha": "2d1d5630a2dd9316c42f8e65e21c54d49483af22",
+    "id": "17d3b970-0540-4f93-b9c3-e40b827ea027",
     "status": "success"
   },
   "latest_successful_shadow": {
