@@ -1,0 +1,9 @@
+# Verified ranking release
+
+PR983 merged as d55ddd50eb85119fe2ca90c2686c78b9525b8a4a. Production Pages deployment 86ca93c5-260c-4441-8a18-2ce184888cf0 reported success at 2026-10-11T15:15:04.174021Z. CI38150385083 passed build and production deployment. Branch CI38150153762 and hosted read-only source/API acceptance38150151098 passed.
+
+The post-deployment read-only audit confirms intelligence v2, 21 ranking categories, 138 teams, 783 numeric metric fields and 11 conferences. Both windows reconcile exactly: 33 and 37 FBS-only games, complete seven-day sources, no missing/duplicate/non-FBS cards. All 70 games have incumbent CFB-FBIS-v2 forecast scores and all 70 remain provisional/qualification-blocked. This is not betting eligibility or economic qualification evidence.
+
+Live browser verification: FBS directory loaded 138 teams; Alabama profile displayed 21 national/conference ranking rows, 783 summary fields (28 unavailable), record 5–1 and six contributing games. Selecting season2025 excluded current2026 summaries, displaying the explicit historical-evidence warning. Persistent statistical ledger and player performance remain visibly unavailable. Saved legacy fixture lists contain conflicts and are explicitly unverified; venue metadata still requires school verification.
+
+Independent Gemini review was requested via Operator Handoff rows172–173; no completed independent review is asserted. Full remote backup recovery,0098/0099 migrations, persistent postgame automation and production advanced-model qualification remain blocked. The v2 audit found117 count differences against all final games. This was a scope mismatch, not verified provider delay: the upstream summary builder filters FBS vs FBS. The v3 correction compares only FBS final games and preserves non-FBS outcomes in full records.

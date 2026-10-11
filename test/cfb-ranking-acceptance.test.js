@@ -15,6 +15,7 @@ test('interconference records use only official final FBS pairs and season confe
  const d=buildSdvIntelligence(csv);
  attachSdvResults(d,'game_id,season,status,home_id,away_id,home_score,away_score,home_team,away_team,game_date\n1,2026,STATUS_FINAL,333,99,20,10,Alabama,LSU,2026-10-01\n2,2026,STATUS_FINAL,333,999999,30,10,Alabama,FCS,2026-10-02\n3,2026,STATUS_IN_PROGRESS,333,99,30,10,Alabama,LSU,2026-10-03\n');
  const s=d.conferences.find(c=>c.name==='SEC').interconference;assert.equal(s.games,1);assert.equal(s.wins,1);assert.equal(s.pointsFor,20);
+ const a=d.teams.find(t=>t.espnId==='333');assert.equal(a.record.sourceFinalGames,2);assert.equal(a.record.sourceFbsFinalGames,1);assert.equal(a.summaryScope.excludedNonFbsFinalGames,1);assert.equal(a.summaryGameGap,0);
 });
 test('source/API acceptance rejects missing, duplicated, non-FBS and reversed cards',()=>{
  const game={id:'1',sport:'cfb',season:2026,start:'2026-10-17T19:00Z',home:{espnId:'333'},away:{espnId:'61'}};

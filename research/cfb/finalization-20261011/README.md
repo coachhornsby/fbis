@@ -10,10 +10,10 @@ Local validation: production build passed; full npm test passed 1,490 tests; foc
 
 Production remains at migration 0097. The five 0098 persistence tables and four 0099 statistical tables are absent. Pregame feature and player-role snapshots have zero rows. The full remote independent recovery and Gemini Spark verification remain blockers. This release adds no database migrations, coefficient changes, paid source activation, wagering authority, or champion promotion.
 
-Of 138 summary teams, 117 have summary-game gaps versus final results at the recorded observation. This release exposes that lag; it does not claim automatic postgame reconciliation is complete. Source publication times unavailable from the provider remain null.
+Of 138 summary teams, 117 had summary-count differences versus all final results at the recorded observation. Follow-up inspection established that the summary builder filters FBS vs FBS, so these differences do not prove provider lag; it does not claim automatic postgame reconciliation is complete. Source publication times unavailable from the provider remain null.
 
 ## Exact acceptance and rollback
 
-After deployment, run scripts/cfb-production-acceptance.mjs with the current America/Chicago date. Require 138 unique FBS identities, both weekly windows matching source IDs/orientation/kickoff, all seven source days per window, no duplicate/non-FBS cards, and 21 ranking categories. Verify team profiles show current source hash, metric sample counts, summary lag and explicit missing-data states; historical season selection must hide current-season summaries. Independently review the same deployed SHA with Gemini Spark before declaring the release verified.
+After deployment, run scripts/cfb-production-acceptance.mjs with the current America/Chicago date. Require 138 unique FBS identities, both weekly windows matching source IDs/orientation/kickoff, all seven source days per window, no duplicate/non-FBS cards, and 21 ranking categories. Verify team profiles show current source hash, metric sample counts, FBS sample-count differences and explicit missing-data states; historical season selection must hide current-season summaries. Independently review the same deployed SHA with Gemini Spark before declaring the release verified.
 
 Rollback: revert this release commit and deploy the resulting Pages artifact. No database rollback is needed because this release does not mutate schema or records. Retain the acceptance JSON and CI artifacts; do not erase historical source evidence.
