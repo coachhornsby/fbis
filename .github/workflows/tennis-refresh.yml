@@ -2,6 +2,15 @@ name: Tennis canonical refresh
 run-name: Tennis canonical ${{ github.event.inputs.scope || 'current' }} ${{ github.event.inputs.recovery_slot || github.event_name }}
 
 on:
+  # One bounded canonical-current refresh at recovery release, independent of
+  # GitHub's unreliable timed schedule. Subsequent pushes outside these files
+  # do not trigger any Tennis acquisition.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/tennis-refresh.yml"
+      - "workers/tennis-refresh-recovery.mjs"
+      - "scripts/tennis-refresh-recovery-gate.mjs"
   schedule:
     # Poll current/ongoing Tennis sources hourly. No human dispatch is required.
     - cron: "17 * * * *"
