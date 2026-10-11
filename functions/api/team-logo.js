@@ -144,6 +144,8 @@ export async function onRequestGet(context){
       name:best.displayName||best.name||name,
       abbr:best.abbreviation||null,
       logo,
+      primaryColor:/^[0-9a-f]{6}$/i.test(String(best.color||""))?"#"+best.color:null,
+      secondaryColor:/^[0-9a-f]{6}$/i.test(String(best.alternateColor||""))?"#"+best.alternateColor:null,
       espnId:best.id||null,
     },
   });
