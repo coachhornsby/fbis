@@ -28,7 +28,7 @@ export async function freezeCfbPregameFeatures(env,{dates=null,now=new Date().to
  const clock=time(now);
  if(clock==null||!env?.DB)return {ok:false,reason:"time-or-db-unavailable"};
  const feed=await loadCfbDeepFeatures(env,{now:clock,fetchFn});
- if(!feed?.meta?.asOf||!Object.keys(feed.bySchool||{}).length)return {ok:false,reason:"deep-feed-unavailable",feed:feed?.meta||null};
+ if(!feed?.meta?.asOf||!Object.keys(feed.bySchool||{}).length)return {ok:false,reason:Number(feed?.meta?.httpStatus)===429?"CFBD 429 rate-limited":"deep-feed-unavailable",feed:feed?.meta||null};
  const {buildSlate}=await import("./slateEngineCore.js");
  const datesToCheck=dates||Array.from({length:8},(_,i)=>dateCT(clock+i*86400000));
  const summary={ok:true,checked:0,eligible:0,inserted:0,existing:0,failed:0,missing:0,skippedDates:[],feed:feed.meta,days:datesToCheck,authority:"research-only"};
