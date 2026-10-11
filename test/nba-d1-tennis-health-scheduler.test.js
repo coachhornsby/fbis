@@ -111,6 +111,8 @@ test("Tennis fresh current/full metadata from R2 is HEALTHY and never betting au
 test("Tennis watchdog reports missing, stale, mismatched and unsafe R2 refreshes",async()=>{
   assert.equal(evaluateTennisRefreshScope("current",null,null,now).state,"MISSING");
   const old=r2Scope("current",{at:"2026-10-10T23:00:00Z"});
+  old.health.refreshStartedAt="2026-10-10T22:59:00Z";
+  old.manifest.refreshStartedAt=old.health.refreshStartedAt;
   assert.equal(evaluateTennisRefreshScope("current",old.health,old.manifest,now).state,"STALE");
   const mismatch=r2Scope("full",{manifestMismatch:true});
   assert.equal(evaluateTennisRefreshScope("full",mismatch.health,mismatch.manifest,now).state,"INVALID");
