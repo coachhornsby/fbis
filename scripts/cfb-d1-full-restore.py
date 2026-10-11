@@ -99,7 +99,7 @@ def rehearse(root,manifest,report):
   if schemas(db)!=report['schema']:raise ValueError('Exact schema reconciliation failed')
   if [r[0] for r in db.execute('PRAGMA integrity_check')]!=['ok']:raise ValueError('Integrity failure')
   for t,expected in report['migration_ledgers_before'].items():
-   if [list(r) for r in db.execute('SELECT * FROM '+quote(t))]!=expected:raise ValueError('Migration ledger mismatch')
+   if [list(r) for r in db.execute('SELECT * FROM '+quote(t))]!=[list(r) for r in expected]:raise ValueError('Migration ledger mismatch')
   for t,expected in report.get('table_content_digests',{}).items():
    if content_digest(db,t)!=expected:raise ValueError('Local complete content mismatch: '+t)
   manifest['status']='VERIFIED_LOCAL_FK_ENFORCED_PARTS';manifest['local_transaction_integrity']=['ok'];save(root/'import-manifest.json',manifest)
@@ -199,7 +199,7 @@ class Remote:
    if {'rows':n,'sha256':digest.hexdigest()}!={k:expected[k] for k in ('rows','sha256')}:raise ValueError('Complete remote content mismatch: '+table)
    self.journal.setdefault('verified_table_content',{})[table]={'rows':n,'sha256':digest.hexdigest()};save(self.path,self.journal)
   for table,expected in report['migration_ledgers_before'].items():
-   if [[r[c] for c in report['table_content_digests'][table]['columns']] for r in ledgers[table]]!=expected:raise ValueError('Remote migration ledger mismatch')
+   if [[r[c] for c in report['table_content_digests'][table]['columns']] for r in ledgers[table]]!=[list(r) for r in expected]:raise ValueError('Remote migration ledger mismatch')
   self.journal.update(status='VERIFIED_REMOTE_FULL_RESTORE_PENDING_INDEPENDENT_REVIEW' ,table_counts=actual,schema=schema,migration_ledgers=ledgers,
    remote_d1_full_restore_verified=True,limitations=['Independent verifier acceptance and unknown original export creation time remain separate production gates.'],complete_content_reconciliation=True)
   save(self.path,self.journal);return self.journal
