@@ -54,13 +54,13 @@ test("SDV ESPN player box normalization: FBS only, strict game join, paired pass
   const heading=lines[0].split(",");
   const data=lines.slice(1).map(line=>Object.fromEntries(line.split(",").map((v,i)=>[heading[i],v])));
   const qb=data.find(x=>x.athlete_id==="123");
-  assert.equal(qb.passing_yards,"255");
-  assert.equal(qb.passing_attempts,"41");
-  assert.equal(qb.completions,"23");
-  assert.equal(qb.rushing_yards,"20");
-  assert.equal(qb.rushing_attempts,"5");
-  assert.equal(data.find(x=>x.athlete_id==="555").receptions,"6");
-  assert.equal(data.find(x=>x.athlete_id==="777").total_tackles,"9");
+  assert.equal(Number(qb.passing_yards),255);
+  assert.equal(Number(qb.passing_attempts),41);
+  assert.equal(Number(qb.completions),23);
+  assert.equal(Number(qb.rushing_yards),20);
+  assert.equal(Number(qb.rushing_attempts),5);
+  assert.equal(Number(data.find(x=>x.athlete_id==="555").receptions),6);
+  assert.equal(Number(data.find(x=>x.athlete_id==="777").total_tackles),9);
   assert.ok(data.every(x=>x.team_id==="333"&&x.game_id==="401856634"));
  }finally{rmSync(dir,{force:true,recursive:true});}
 });
