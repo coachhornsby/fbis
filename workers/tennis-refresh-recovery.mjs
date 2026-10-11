@@ -114,8 +114,8 @@ export async function recoverStaleTennis(env,{
   if(!enabled(env))return status("DISABLED",{checkedAt});
   if(!env?.R2_ARCHIVE?.get||!env?.R2_ARCHIVE?.put)
     return status("BLOCKED",{checkedAt,reason:"R2_RECOVERY_STATE_UNAVAILABLE"});
-  const token=String(env?.TENNIS_GITHUB_DISPATCH_TOKEN||"").trim();
-  if(!token)return status("BLOCKED",{checkedAt,reason:"GITHUB_DISPATCH_CREDENTIAL_NOT_CONFIGURED"});
+  // A missing credential should alert only when there is an actual overdue
+  // recovery candidate, not generate false failed Cron runs while R2 is fresh.
   if(!Number.isFinite(Number(scheduledTime)) ||
      Math.abs(now-Number(scheduledTime))>5*60000)
     return status("BLOCKED",{checkedAt,reason:"STALE_CLOUDFLARE_SCHEDULE_EVENT"});
@@ -125,6 +125,8 @@ export async function recoverStaleTennis(env,{
     checkedAt,reason:target.reason,
   });
   const scope=target.scope;
+  const token=String(env?.TENNIS_GITHUB_DISPATCH_TOKEN||"").trim();
+  if(!token)return status("BLOCKED",{checkedAt,scope,reason:"GITHUB_DISPATCH_CREDENTIAL_NOT_CONFIGURED"});
   const global=await readMarker(env.R2_ARCHIVE,LAST_DISPATCH_KEY);
   const scopeMarker=await readMarker(env.R2_ARCHIVE,SCOPE_KEYS[scope]);
   const globalAgo=minutesSince(global?.dispatchedAt,now);
