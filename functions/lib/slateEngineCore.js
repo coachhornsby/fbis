@@ -1403,6 +1403,8 @@ function mapCfbdGame(g) {
       },
       home: {
         name: g.homeTeam || "Home",
+        classification: g.homeClassification || g.home_classification || null,
+        classificationSource: "CFBD",
         abbr: inferAbbr(g.homeTeam || ""),
         logo: "",
         score: num(g.homePoints),
@@ -1411,6 +1413,8 @@ function mapCfbdGame(g) {
       },
       away: {
         name: g.awayTeam || "Away",
+        classification: g.awayClassification || g.away_classification || null,
+        classificationSource: "CFBD",
         abbr: inferAbbr(g.awayTeam || ""),
         logo: "",
         score: num(g.awayPoints),
