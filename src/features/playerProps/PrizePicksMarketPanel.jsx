@@ -550,18 +550,6 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
 
   return (
     <section className="pp-market pp-premium-page" aria-label="FBIS player props" data-display-policy="nfl-4star-tiers-v3">
-      <header className="pp-premium-header">
-        <div className="pp-premium-brand">
-          <div className="pp-premium-mark" aria-hidden="true">
-            <span></span><span></span><span></span>
-          </div>
-          <div>
-            <div className="pp-premium-brandline">FBIS</div>
-            <h1>Player Props</h1>
-          </div>
-        </div>
-        <div className="pp-premium-live"><i></i> LIVE</div>
-      </header>
 
       <nav className="pp-sport-strip pp-premium-tabs" aria-label="Player prop sport filter">
         {SPORTS.map(s=>(
