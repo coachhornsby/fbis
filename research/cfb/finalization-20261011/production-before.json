@@ -1,0 +1,123 @@
+{
+  "observedAt": "2026-10-11T15:02:25.814Z",
+  "day": "2026-10-11",
+  "base": "https://fbis-myz.pages.dev",
+  "classification": "READ_ONLY_PRODUCTION_ACCEPTANCE",
+  "productionWrites": 0,
+  "paidAcquisitionStarts": 0,
+  "windows": [
+    {
+      "shift": 0,
+      "range": {
+        "since": "2026-10-11",
+        "until": "2026-10-17"
+      },
+      "expected": 33,
+      "published": 33,
+      "missing": [],
+      "failures": [],
+      "passed": true,
+      "sourceCoverage": {
+        "requestedDays": 7,
+        "successfulDays": 7,
+        "failures": []
+      },
+      "sourceObservedAt": "2026-10-11T15:02:33.816Z",
+      "projectionDeclaredUnavailable": 0,
+      "projectionShapeRecognized": 0,
+      "note": "Forecast/market qualification is evaluated separately; fixture parity does not establish bet eligibility",
+      "apiHealth": {
+        "source": "ESPN_PUBLIC",
+        "publicScheduleError": null,
+        "cfbdScheduleRequired": false
+      }
+    },
+    {
+      "shift": 1,
+      "range": {
+        "since": "2026-10-18",
+        "until": "2026-10-24"
+      },
+      "expected": 37,
+      "published": 37,
+      "missing": [],
+      "failures": [],
+      "passed": true,
+      "sourceCoverage": {
+        "requestedDays": 7,
+        "successfulDays": 7,
+        "failures": []
+      },
+      "sourceObservedAt": "2026-10-11T15:03:03.101Z",
+      "projectionDeclaredUnavailable": 0,
+      "projectionShapeRecognized": 0,
+      "note": "Forecast/market qualification is evaluated separately; fixture parity does not establish bet eligibility",
+      "apiHealth": {
+        "source": "ESPN_PUBLIC",
+        "publicScheduleError": null,
+        "cfbdScheduleRequired": false
+      }
+    }
+  ],
+  "http": [
+    {
+      "path": "/api/cfb-teams",
+      "status": 200,
+      "bytes": 191270,
+      "sha256": "52e77e573a620b3313eb0e00688043be60be66abd8965c1045181a651d03ff3f",
+      "observedAt": "2026-10-11T15:02:29.368Z"
+    },
+    {
+      "path": "/api/cfb-intelligence",
+      "status": 200,
+      "bytes": 3970172,
+      "sha256": "be469b9935ef074364ad57626c85bd7d754ccfffa7ff3fc482f5b925c1a5883f",
+      "observedAt": "2026-10-11T15:02:30.917Z"
+    },
+    {
+      "path": "/api/slate?sport=cfb&date=2026-10-11&weekShift=0",
+      "status": 200,
+      "bytes": 2178771,
+      "sha256": "4ecd5472b8e1ad79fdb4a8bbba5baaa1a618a1245ebad31cb65d77ecd2ee43b0",
+      "observedAt": "2026-10-11T15:03:00.141Z"
+    },
+    {
+      "path": "/api/slate?sport=cfb&date=2026-10-11&weekShift=1",
+      "status": 200,
+      "bytes": 2429002,
+      "sha256": "0bd0a17c248c913898492b317a250208922aa747bf4781f29712b51ffa7dc11a",
+      "observedAt": "2026-10-11T15:03:21.632Z"
+    }
+  ],
+  "failures": [],
+  "directory": {
+    "count": 138,
+    "teams": 138,
+    "uniqueIds": 138
+  },
+  "intelligence": {
+    "coverage": {
+      "teams": 138,
+      "expectedFbsTeams": 138,
+      "columns": 788,
+      "numericMetricColumns": 783,
+      "rankedTeams": 138,
+      "summaryGameGaps": 117
+    },
+    "version": "cfb-sdv-intelligence-v1",
+    "conferences": 11,
+    "categories": 0,
+    "summaryLag": 117,
+    "source": {
+      "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_cfb_team_summaries/cfb_team_summaries_2026.csv",
+      "sha256": "7459cc0dcf70fbfe1c70e2fd18e489337a9691c762b712ec6ca2f2d12fb31dc0",
+      "bytes": 1142055,
+      "observedAt": "2026-10-11T15:02:29.605Z",
+      "lastModified": "Sun, 11 Oct 2026 12:59:18 GMT",
+      "providerPublicationAt": null
+    },
+    "allStatsConsumed": false,
+    "canAuthorizeWager": false
+  },
+  "passed": true
+}

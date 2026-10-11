@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./cfbTeams.css";
+import CfbCurrentSummary from './CfbCurrentSummary.jsx';
 
 function initialTeam() {
   return typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("team");
@@ -39,7 +40,7 @@ function MetricGroups({groups}) {
         </div>)}</div>
     </section>)}</div>;
 }
-function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange}) {
+function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,intelligenceError}) {
   const {team,featureState,legacyForm,evidence={}} = detail, s=team.stadium;
   const [positionFilter,setPositionFilter]=useState("ALL");
   const [playerSearch,setPlayerSearch]=useState("");
@@ -67,6 +68,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange}) {
         </div>
       </div>
     </header>
+    <CfbCurrentSummary intelligence={intelligence} error={intelligenceError} teamId={team.teamId} season={evidence.season||2026}/>
     <section className="ft-panel">
       <div className="ft-heading"><h3>Identity & team colors</h3><small>ESPN/SDV-sourced · school verification pending</small></div>
       <dl className="ft-facts">
@@ -214,6 +216,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange}) {
   </div>;
 }
 export default function CfbTeamsView({refreshKey=0}) {
+  const [intelligence,setIntelligence]=useState(null),[intelligenceError,setIntelligenceError]=useState('');
   const [directory,setDirectory]=useState(null);
   const [id,setId]=useState(initialTeam);
   const [detail,setDetail]=useState(null);
@@ -223,6 +226,12 @@ export default function CfbTeamsView({refreshKey=0}) {
   const [conference,setConference]=useState("ALL");
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
+  useEffect(()=>{
+    const ac=new AbortController();
+    fetch('/api/cfb-intelligence',{signal:ac.signal}).then(readJson).then(d=>{setIntelligence(d);setIntelligenceError('');})
+      .catch(e=>{if(!ac.signal.aborted)setIntelligenceError('Source summary unavailable: '+e.message);});
+    return()=>ac.abort();
+  },[refreshKey]);
   useEffect(()=>{
     const ac=new AbortController();
     setLoading(true);
@@ -263,7 +272,7 @@ export default function CfbTeamsView({refreshKey=0}) {
       <h1>Team Profiles</h1><p>Persistent identity, branding, stadium and statistical-state records.</p>
       </div><strong>{directory ? directory.count+" FBS teams" : "FBS directory"}</strong></div>
     {error && <div className="ft-error" role="alert">{error}</div>}
-    {id ? (detail ? <TeamProfile detail={detail} onBack={()=>select(null)} onSeasonChange={n=>{setSeason(n);setPlayerId(null);}} onPlayerChange={setPlayerId}/>
+    {id ? (detail ? <TeamProfile detail={detail} intelligence={intelligence} intelligenceError={intelligenceError} onBack={()=>select(null)} onSeasonChange={n=>{setSeason(n);setPlayerId(null);}} onPlayerChange={setPlayerId}/>
       : <div className="ft-panel"><button type="button" onClick={()=>select(null)}>← All FBS teams</button>
         <p>Loading profile or data unavailable…</p></div>)
       : <>
@@ -285,7 +294,7 @@ export default function CfbTeamsView({refreshKey=0}) {
           <b>View team →</b>
         </button>)}</div>
       </>}
-    <p className="ft-footer">Read-only saved D1 data · SportsDataverse / ESPN + CFBD context.
-      School-official validation pending · No provider acquisition · No projection authority.</p>
+    <p className="ft-footer">Read-only saved D1 identity/roster data and separately cached public SDV summaries.
+      School-official validation pending · No CFBD acquisition · No projection authority.</p>
   </section>;
 }

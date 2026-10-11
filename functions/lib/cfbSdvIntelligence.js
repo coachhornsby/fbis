@@ -1,8 +1,9 @@
 import {readCache,writeCache} from './cache.js';
 import {isFbsVsFbsGame} from './cfbGameVisibility.js';
 import FITTED from '../../data/models/cfb-fbis-v2-fitted-aa.js';
+import {attachDetailedCfbRankings} from './cfbRankingMetrics.js';
 export const SDV_SUMMARY_SOURCE='https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_cfb_team_summaries/cfb_team_summaries_2026.csv';
-export const SDV_INTELLIGENCE_VERSION='cfb-sdv-intelligence-v1';
+export const SDV_INTELLIGENCE_VERSION='cfb-sdv-intelligence-v2';
 export function parseCsv(text) {
   const rows=[];let row=[],field='',quoted=false;
   for(let i=0;i<text.length;i++){
@@ -42,9 +43,10 @@ export function buildSdvIntelligence(csv,receipt={}) {
   const conferences=[...new Set(teams.map(t=>t.conference).filter(Boolean))].map(name=>{
     const members=teams.filter(t=>t.conference===name),metrics={};
     for(const key of ['net_adj_epa','adj_off_epa','adj_def_epa','success_off','success_def','EPAplay_off_pass','EPAplay_def_pass','EPAplay_off_rush','EPAplay_def_rush','explosive_off','explosive_def','havoc_def','pts_per_opp_off','pts_per_opp_def','playsgame_off','yardsplay_off','yardsplay_def']){
-      const valid=members.filter(t=>t.games>0&&t.stats[key]!=null&&t.stats.plays_off>0);
-      const weight=valid.reduce((n,t)=>n+t.stats.plays_off,0);
-      metrics[key]={value:weight?valid.reduce((n,t)=>n+t.stats[key]*t.stats.plays_off,0)/weight:null,teams:valid.length,weight};
+      const weightField=key.includes('_def')?'plays_def':'plays_off';
+      const valid=members.filter(t=>t.games>0&&t.stats[key]!=null&&t.stats[weightField]>0);
+      const weight=valid.reduce((n,t)=>n+t.stats[weightField],0);
+      metrics[key]={value:weight?valid.reduce((n,t)=>n+t.stats[key]*t.stats[weightField],0)/weight:null,teams:valid.length,weight,weightField};
     }
     const values=members.filter(t=>t.rank!=null).map(t=>t.stats.net_adj_epa);
     const mean=values.length?values.reduce((a,b)=>a+b,0)/values.length:null;
@@ -53,14 +55,14 @@ export function buildSdvIntelligence(csv,receipt={}) {
       bestTeam:members.find(t=>t.rank!=null)?.name||null,unranked:members.filter(t=>t.rank==null).length};
   }).sort((a,b)=>(b.metrics.net_adj_epa.value??-Infinity)-(a.metrics.net_adj_epa.value??-Infinity)||a.name.localeCompare(b.name));
   for(const [i,c] of conferences.entries())c.rank=c.metrics.net_adj_epa.value==null?null:i+1;
-  return {ok:true,season:2026,version:SDV_INTELLIGENCE_VERSION,teams,conferences,source:receipt,
-    methodology:{team:'FBS ranks from SDV opponent-adjusted EPA: offense higher is better; defense lower is better; net offense minus defense. Ties share rank.',conference:'Mean of member SDV ratings weighted by reported offensive play count; no independent conference-strength coefficient. Conference rows are descriptive, with sample counts and dispersion.',authority:'Research/display only; these rankings do not alter champion forecasts or wagering gates.',limitation:'Current season summaries are retrospective at acquisition. Provider latency and missing recent games can affect ranks; no historical PIT claim.'},
+  return attachDetailedCfbRankings({ok:true,season:2026,version:SDV_INTELLIGENCE_VERSION,teams,conferences,source:receipt,
+    methodology:{team:'FBS ranks from SDV opponent-adjusted EPA: offense higher is better; defense lower is better; net offense minus defense. Ties share rank. Other category ranks use the named source metric and declared orientation.',conference:'Headline metrics use the corresponding offensive or defensive play count. Detailed category ranks use equal-weight team means so conference depth is visible. Neither is an independently fitted conference-strength coefficient.',authority:'Research/display only; these rankings do not alter champion forecasts or wagering gates.',limitation:'Current season summaries are retrospective at acquisition. Provider latency and missing recent games can affect ranks; no historical PIT claim.'},
     coverage:{teams:teams.length,expectedFbsTeams:138,columns:parsed.columns.length,numericMetricColumns:parsed.columns.length-5,rankedTeams:teams.filter(t=>t.rank!=null).length},
     model:{id:FITTED.modelId,version:FITTED.version,marginFeatures:FITTED.margin.features,totalFeatures:FITTED.total.features,allStatsConsumed:false,canQualify:false,canAuthorizeWager:false,
-      explanation:'Production retains fitted A/A features. All SDV statistics are exposed for analysis; adding features requires chronological challenger tests and separate production approval.'}};
+      explanation:'Production retains fitted A/A features. All SDV statistics are exposed for analysis; adding features requires chronological challenger tests and separate production approval.'}});
 }
 export async function loadSdvIntelligence(env={},fetchFn=fetch) {
-  const key='cfb-sdv-intelligence-2026-v1';
+  const key='cfb-sdv-intelligence-2026-v2';
   const cached=await readCache(key,env.caches,30*60_000);if(cached)return cached;
   const response=await fetchFn(SDV_SUMMARY_SOURCE,{headers:{Accept:'text/csv'},signal:AbortSignal.timeout(15000)});
   if(!response.ok)throw Error(`SDV summary ${response.status}`);
@@ -95,6 +97,24 @@ export function attachSdvResults(intelligence,scheduleCsv){
     }
     team.record={wins,losses,ties,pending,sourceFinalGames:games.length};team.results=games.sort((a,b)=>String(a.start).localeCompare(String(b.start)));
     team.summaryGameGap=team.games==null?null:Math.max(0,games.length-team.games);
+  }
+  const identities=new Map(intelligence.teams.map(t=>[t.espnId,t]));
+  for(const conference of intelligence.conferences){
+    const record={games:0,wins:0,losses:0,ties:0,pending:0,pointsFor:0,pointsAgainst:0,
+      scope:'Official-final FBS-versus-FBS games between different source-season conferences; no predictive authority'};
+    for(const {row} of byId.values()){
+      const home=identities.get(row.home_id),away=identities.get(row.away_id);
+      if(!home||!away||!home.conference||!away.conference||home.conference===away.conference)continue;
+      const isHome=home.conference===conference.name,isAway=away.conference===conference.name;
+      if(!isHome&&!isAway)continue;
+      const scored=nullableNumber(isHome?row.home_score:row.away_score),allowed=nullableNumber(isHome?row.away_score:row.home_score);
+      record.games++;
+      if(scored==null||allowed==null){record.pending++;continue;}
+      record.pointsFor+=scored;record.pointsAgainst+=allowed;
+      if(scored>allowed)record.wins++;else if(scored<allowed)record.losses++;else record.ties++;
+    }
+    if(record.games===record.pending){record.pointsFor=null;record.pointsAgainst=null;}
+    conference.interconference=record;
   }
   return intelligence;
 }
