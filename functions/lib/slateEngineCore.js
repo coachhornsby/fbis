@@ -263,6 +263,7 @@ function parseOdds(comp, sport) {
     awayMl: num(awayOdds.moneyLine ?? raw.awayTeamOdds?.moneyLine),
     details: raw.details || "",
     book: sport === "nhl" ? "ESPN_FEED_REFERENCE" : EXECUTION_BOOK,
+    nhlEspnObserved: sport === "nhl",
     softSource: "espn",
   };
 }
