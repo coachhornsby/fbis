@@ -42,6 +42,18 @@ export function analyzeNflGameMatchup(game={},baseline=game.nflProShadow){
   const expHome=hExp!=null&&aExpDef!=null?(hExp-aExpDef):null,expAway=aExp!=null&&hExpDef!=null?(aExp-hExpDef):null;
   const earlyHome=hEarly!=null&&aEarlyDef!=null?hEarly-aEarlyDef:null,earlyAway=aEarly!=null&&hEarlyDef!=null?aEarly-hEarlyDef:null;
 
+  // Independent directional display diagnostics from pregame offense and defense features.
+  const unit=(id,off,def,offSide)=>{const ok=off!=null&&def!=null;
+    const delta=ok?round1(clamp((off-def)*3,-1.5,1.5)):null;
+    return {id,available:ok,adjustment:delta,winner:ok&&Math.abs(delta)>=.15?(delta>0?offSide:offSide==="home"?"away":"home"):null,evidence:"point-in-time-team-features",role:"research-display-only"};
+  };
+  const passOff=(sep,yac)=>sep!=null&&yac!=null?(sep-2.9)*.35+yac*.12:null;
+  const unitMatchups=[
+    unit("away-run-defense",hRush,aRushDef,"home"),
+    unit("away-run-offense",aRush,hRushDef,"away"),
+    unit("away-pass-defense",passOff(hSep,hYac),aPassDef,"home"),
+    unit("away-pass-offense",passOff(aSep,aYac),hPassDef,"away")
+  ];
   const signals=[
     signal("pressure","QB pressure × protection/pass rush",pressureHome,pressureAway,1,.8),
     signal("run","Run efficiency/YOE × run defense",runHome,runAway,1,.7),
@@ -63,7 +75,7 @@ export function analyzeNflGameMatchup(game={},baseline=game.nflProShadow){
     baseline:{home:baseline.home,away:baseline.away,margin:baseline.margin,total:baseline.total},
     final:{home,away,margin,total,pHomeWin:pGreater(margin,0,sigmaMargin),sigmaMargin,sigmaTotal:round1((baseline.sigmaTotal||12.8)*uncertaintyMultiplier)},
     adjustment:{home:round1(homeAdjustment),away:round1(awayAdjustment),margin:round1(marginAdjustment),evidenceQualified,cap:MAX_MARGIN_ADJ},
-    coverage:{available:available.length,total:signals.length,share:coverage},signals,
+    coverage:{available:available.length,total:signals.length,share:coverage},signals,unitMatchups,
     availability:{configured:Boolean(game.availabilityImpact?.configured),criticalUnresolved:Boolean(game.availabilityImpact?.criticalUnresolved),stale:Boolean(game.availabilityImpact?.configured&&game.availabilityImpact?.stale)},
     marketInformed:false,marketUsed:false,canQualify:false,canAuthorizeWager:false};
 }
