@@ -1,0 +1,50 @@
+name: Verify NFL defensive rankings in production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/nfl-defense-rank-smoke.yml"
+      - "functions/api/nfl-defense-ranks.js"
+      - "functions/lib/nflVerseFeed.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Wait for matching production deployment
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          base="https://fbis-myz.pages.dev"
+          ready=0
+          for i in $(seq 1 48); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$base/api/health?_verify=$i-$(date +%s)" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null || true)"
+            if [[ "$code" == "200" && "${live,,}" == "${EXPECTED_SHA,,}" ]]; then
+              echo "PRODUCTION_SHA_VERIFIED=$live"
+              ready=1
+              break
+            fi
+            echo "Awaiting production: attempt=$i status=$code sha=${live:-unknown}"
+            sleep 10
+          done
+          [[ "$ready" == "1" ]] || { echo "::error::Production did not reach expected SHA"; exit 1; }
+      - name: Verify all 32 pass/run defenses in live API
+        run: |
+          set -euo pipefail
+          base="https://fbis-myz.pages.dev"
+          body="$(mktemp)"
+          status="$(curl -sS --max-time 45 -o "$body" -w "%{http_code}" "$base/api/nfl-defense-ranks?_verify=$(date +%s)")"
+          echo "HTTP_STATUS=$status"
+          jq '{ok,source,asOf,completeTeams,reason,passRanked:([.teams[]|select(.pass != null)]|length),runRanked:([.teams[]|select(.run != null)]|length),SF:.teams.SF,SEA:.teams.SEA}' "$body"
+          [[ "$status" == "200" ]] || exit 1
+          jq -e '.ok == true and .completeTeams == 32 and ([.teams[]|select(.pass != null)]|length) == 32 and ([.teams[]|select(.run != null)]|length) == 32' "$body" >/dev/null
+          echo "NFL_DEFENSE_RANKINGS_LIVE_VERIFIED=32_PASS_32_RUN"
