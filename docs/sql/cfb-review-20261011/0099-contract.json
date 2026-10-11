@@ -1,0 +1,38 @@
+{
+  "cfb_player_game_stat_observations": {
+    "sql": "CREATE TABLE cfb_player_game_stat_observations (\n id TEXT PRIMARY KEY,\n team_id TEXT NOT NULL,\n player_id TEXT NOT NULL,\n game_id TEXT NOT NULL,\n season INTEGER NOT NULL,\n opponent TEXT,\n game_at TEXT NOT NULL,\n source TEXT NOT NULL,\n source_timestamp TEXT,\n observed_at TEXT NOT NULL,\n content_hash TEXT NOT NULL,\n temporal_class TEXT NOT NULL DEFAULT 'POSTGAME_ARCHIVE_NOT_PIT',\n metrics_json TEXT NOT NULL,\n ingested_at TEXT NOT NULL,\n can_influence_projection INTEGER NOT NULL DEFAULT 0 CHECK (can_influence_projection=0),\n UNIQUE(team_id,player_id,game_id,source,content_hash)\n)",
+    "indexes": [
+      {
+        "name": "idx_cfb_player_game_stats_player",
+        "sql": "CREATE INDEX idx_cfb_player_game_stats_player\n ON cfb_player_game_stat_observations(team_id,season,player_id,game_at DESC)"
+      }
+    ]
+  },
+  "cfb_player_season_stat_snapshots": {
+    "sql": "CREATE TABLE cfb_player_season_stat_snapshots (\n id TEXT PRIMARY KEY,\n team_id TEXT NOT NULL,\n player_id TEXT NOT NULL,\n season INTEGER NOT NULL,\n source TEXT NOT NULL,\n source_timestamp TEXT,\n observed_at TEXT NOT NULL,\n content_hash TEXT NOT NULL,\n metrics_json TEXT NOT NULL,\n source_game_ids_json TEXT,\n ingestion_version TEXT,\n can_influence_projection INTEGER NOT NULL DEFAULT 0 CHECK (can_influence_projection=0),\n UNIQUE(team_id,player_id,season,source,content_hash)\n)",
+    "indexes": [
+      {
+        "name": "idx_cfb_player_season_stats",
+        "sql": "CREATE INDEX idx_cfb_player_season_stats\n ON cfb_player_season_stat_snapshots(team_id,season,player_id,observed_at DESC)"
+      }
+    ]
+  },
+  "cfb_team_game_stat_observations": {
+    "sql": "CREATE TABLE cfb_team_game_stat_observations (\n id TEXT PRIMARY KEY,\n team_id TEXT NOT NULL,\n game_id TEXT NOT NULL,\n season INTEGER NOT NULL,\n opponent TEXT,\n game_at TEXT NOT NULL,\n source TEXT NOT NULL,\n source_timestamp TEXT,\n observed_at TEXT NOT NULL,\n content_hash TEXT NOT NULL,\n temporal_class TEXT NOT NULL DEFAULT 'POSTGAME_ARCHIVE_NOT_PIT',\n metrics_json TEXT NOT NULL,\n ingested_at TEXT NOT NULL,\n can_influence_projection INTEGER NOT NULL DEFAULT 0 CHECK (can_influence_projection=0),\n UNIQUE(team_id,game_id,source,content_hash)\n)",
+    "indexes": [
+      {
+        "name": "idx_cfb_team_game_stats_team",
+        "sql": "CREATE INDEX idx_cfb_team_game_stats_team\n ON cfb_team_game_stat_observations(team_id,season,game_at DESC)"
+      }
+    ]
+  },
+  "cfb_team_season_stat_snapshots": {
+    "sql": "CREATE TABLE cfb_team_season_stat_snapshots (\n id TEXT PRIMARY KEY,\n team_id TEXT NOT NULL,\n season INTEGER NOT NULL,\n source TEXT NOT NULL,\n source_timestamp TEXT,\n observed_at TEXT NOT NULL,\n content_hash TEXT NOT NULL,\n metrics_json TEXT NOT NULL,\n source_game_ids_json TEXT,\n ingestion_version TEXT,\n can_influence_projection INTEGER NOT NULL DEFAULT 0 CHECK (can_influence_projection=0),\n UNIQUE(team_id,season,source,content_hash)\n)",
+    "indexes": [
+      {
+        "name": "idx_cfb_team_season_stats",
+        "sql": "CREATE INDEX idx_cfb_team_season_stats\n ON cfb_team_season_stat_snapshots(team_id,season,observed_at DESC)"
+      }
+    ]
+  }
+}
