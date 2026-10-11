@@ -340,7 +340,7 @@ function positionalDefenseFactor(game,side,position,market,playerFeed={}){
   return{factor:clamp(1+(ratio-1)*strength,0.86,1.14),available:true,allowed,league:avg,strength};
 }
 
-function nflRowsForSide(game, side, playerFeed = {}) {
+function nflRowsForSide(game, side, playerFeed = {}, {includeDepthResearch=false} = {}) {
   const team = teamAbbr(game[side]);
   const players = playerFeed.byTeam?.[team] || [];
   const targetRoles=nflTargetRoles(players);
@@ -350,7 +350,7 @@ function nflRowsForSide(game, side, playerFeed = {}) {
   for (const p of players) {
     const position = String(p.position || "").toUpperCase();
     const targetRole=targetRoles.get(p.id||p.name)||null;
-    if(!targetRole) continue;
+    if(!targetRole&&!includeDepthResearch) continue;
     const snapShare = finite(p.snapShare);
     const roleFloor=position==="QB"?0.72:position==="RB"?0.38:position==="TE"?0.45:0.50;
     const snapRole = snapShare == null ? 0.55 : clamp((snapShare-roleFloor)/(1-roleFloor),0,1);
@@ -398,7 +398,8 @@ function nflRowsForSide(game, side, playerFeed = {}) {
         notes:"Target-role NFL projection: validated 65% last-five floor with 20% current-season and 15% prior-season stabilization; QB passing attempts use validated 70/15/15. Adjusted by snap role, Next Gen efficiency, team environment, market-calibrated opponent allowance, and pass/rush EPA. Market lines are excluded from projection inputs.",
       });
       if (!row) continue;
-      row.targetRole=targetRole;
+      row.targetRole=targetRole||"DEPTH_RESEARCH";
+      if(!targetRole){row.propGate="HOLD";row.gateReason="unvalidated_depth_role_research";row.eligibleForCard=false;row.source="NFLVERSE_DEPTH_ROLE_RESEARCH_SHADOW";row.notes="Exploratory secondary-role estimate from independent player data; not target-role validated, not qualified, never a wager authorization.";}
       row.roleConfidence=round1(roleConfidence);
       row.snapShare=snapShare==null?null:round1(snapShare);
       row.recent5=p.recent5||null;
@@ -419,8 +420,8 @@ function nflRowsForSide(game, side, playerFeed = {}) {
         opponentMatchup:matchup.passEpaAllowed!=null||matchup.rushEpaAllowed!=null||matchup.pressure!=null,
         positionDefense:positionDefense.available,
         recent5:recentGames>=3,
-        targetRole:true,
-        targetRoleName:targetRole,
+        targetRole:Boolean(targetRole),
+        targetRoleName:targetRole||null,
         trackingGames:Number(p.trackingGames||0),
         snapGames:Number(p.snapGames||0),
       };
@@ -436,11 +437,11 @@ function nflRowsForSide(game, side, playerFeed = {}) {
   return out.filter(Boolean);
 }
 
-export function attachNflPlayerProjectionResearch(games = [], playerFeed = {}) {
+export function attachNflPlayerProjectionResearch(games = [], playerFeed = {}, options = {}) {
   return (games || []).map((game) => {
     const rows = [
-      ...nflRowsForSide(game, "home", playerFeed),
-      ...nflRowsForSide(game, "away", playerFeed),
+      ...nflRowsForSide(game, "home", playerFeed, options),
+      ...nflRowsForSide(game, "away", playerFeed, options),
     ];
     return {
       ...game,
