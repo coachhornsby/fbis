@@ -1,0 +1,1901 @@
+{
+  "source_run": 38113191609,
+  "source_commit": "17190bb3acb80884babe2b5228384d25f14461c4",
+  "source_artifact": 11691779522,
+  "artifact_zip_sha256": "1b958f060b6b2e006a6c33548296ea6a2fa2a28c376020f9bc6e4229c7bda68d",
+  "expires_at": "2026-11-10T04:57:44Z",
+  "cards": [
+    {
+      "team_id": "cfb:espn:103",
+      "version": "67c48ed13def5fa15723983aa91907c7ce5c7ae0258b574c1dc2cee19193bcdf",
+      "games": 5,
+      "player_count": 55,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.676Z"
+    },
+    {
+      "team_id": "cfb:espn:113",
+      "version": "f3f6cbcc25f2c238142cc9df5ab3d2e1ba32968aaf4f7e6657258afe400b3a6d",
+      "games": 6,
+      "player_count": 56,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.689Z"
+    },
+    {
+      "team_id": "cfb:espn:12",
+      "version": "953aa0102c0f7435158a8a627fc0d328ca69176f7ac88cc9f8dd842ef1f2087b",
+      "games": 6,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.702Z"
+    },
+    {
+      "team_id": "cfb:espn:120",
+      "version": "eac934f3cb730416cd87c71eeeb31b193e80614fa613bfeedf4c19035831ba42",
+      "games": 6,
+      "player_count": 60,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.715Z"
+    },
+    {
+      "team_id": "cfb:espn:127",
+      "version": "c1f6cd513f6cad5efbab459972c73a4f2cfa1979f8cb67b5b0eaa2e628367a51",
+      "games": 6,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.726Z"
+    },
+    {
+      "team_id": "cfb:espn:130",
+      "version": "942357a2e6ca8a7336154382d814abd551fc2da4ceadc4e659098235b959209c",
+      "games": 5,
+      "player_count": 49,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.736Z"
+    },
+    {
+      "team_id": "cfb:espn:135",
+      "version": "d1e3bda1d77fbd992f748d1a4859c1d53d2384278c8639def8a3a5676254e911",
+      "games": 5,
+      "player_count": 60,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.746Z"
+    },
+    {
+      "team_id": "cfb:espn:142",
+      "version": "ae159c39d9b445c74a0f13c57ff4481776bb3d421df6a727eb9508c4a184b5b6",
+      "games": 6,
+      "player_count": 56,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.758Z"
+    },
+    {
+      "team_id": "cfb:espn:145",
+      "version": "d57e0c9bafd1c9c7c590275e037ef168b5542148911370bf791a6542d14bceb3",
+      "games": 5,
+      "player_count": 56,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.768Z"
+    },
+    {
+      "team_id": "cfb:espn:150",
+      "version": "a9911dfe537570fcaf54b78be628c8a609d1cc05b865cbcf9c5ac250e29a917c",
+      "games": 5,
+      "player_count": 62,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.779Z"
+    },
+    {
+      "team_id": "cfb:espn:151",
+      "version": "d488ae8599ef33630ee5789fb7f7cd4d4ddf5e8f53ab23bdc8ad137e56bdafc6",
+      "games": 5,
+      "player_count": 59,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.789Z"
+    },
+    {
+      "team_id": "cfb:espn:152",
+      "version": "f9e501ee2ca57972c9320e0c6c9cf8b4c0c5fee530dc8fc2fcb78f97669bb9c7",
+      "games": 6,
+      "player_count": 65,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.802Z"
+    },
+    {
+      "team_id": "cfb:espn:153",
+      "version": "178718f00fd3493be5abbace340d4a231b9133c60a3719cbda52bf22754bdf18",
+      "games": 5,
+      "player_count": 52,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.810Z"
+    },
+    {
+      "team_id": "cfb:espn:154",
+      "version": "80dde650708e6366aa85343629c11a7aa72c948c56be24875d483b49eb91aad9",
+      "games": 6,
+      "player_count": 65,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.817Z"
+    },
+    {
+      "team_id": "cfb:espn:158",
+      "version": "6396fe5bc8092c40da8ef1e0fb442d6b478a34155bd545c86bdf2d05bdddc555",
+      "games": 6,
+      "player_count": 55,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.825Z"
+    },
+    {
+      "team_id": "cfb:espn:16",
+      "version": "d42dd417ebd48bc4b837e92ef119c8a111e0b1d0fda90c9b4c568c37d9b23d1d",
+      "games": 6,
+      "player_count": 61,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.832Z"
+    },
+    {
+      "team_id": "cfb:espn:164",
+      "version": "379fdd34c86c91bc34a664b5c60643a84a59f2d18215e202c73bffbbbf7189b8",
+      "games": 5,
+      "player_count": 55,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.839Z"
+    },
+    {
+      "team_id": "cfb:espn:166",
+      "version": "1e5921923bf6b52e14d6f9d4cfbd34fac26a1d4fb02c65e264f791029226b3f9",
+      "games": 6,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.847Z"
+    },
+    {
+      "team_id": "cfb:espn:167",
+      "version": "43fd8accea6cdffc80fdd72066bf3727dbf8e0ec999a84de2a56407e02125e12",
+      "games": 5,
+      "player_count": 63,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.855Z"
+    },
+    {
+      "team_id": "cfb:espn:183",
+      "version": "a563f01cc9c816946fb5ab8da5a7d8cafd5438cb4d4780ee3e1f27a63fe7983a",
+      "games": 4,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.861Z"
+    },
+    {
+      "team_id": "cfb:espn:189",
+      "version": "a2650dbab4a1355110875cf3e63bdac41aac9ce862fe056a72fccbe8cb28677c",
+      "games": 6,
+      "player_count": 53,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.868Z"
+    },
+    {
+      "team_id": "cfb:espn:193",
+      "version": "75d75be6746325ddae866560219757f9d4c945d6461b807fae3b0a932fab4177",
+      "games": 6,
+      "player_count": 55,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.879Z"
+    },
+    {
+      "team_id": "cfb:espn:194",
+      "version": "083c8f79807e8e6ee02ad04c8dd67c159383baf5281d0d2e83b24cd52269a843",
+      "games": 6,
+      "player_count": 65,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.891Z"
+    },
+    {
+      "team_id": "cfb:espn:195",
+      "version": "be5e7ad9888ae6ffe67451229c8725d081be0a2c315e3cf332fcd398ce99c711",
+      "games": 6,
+      "player_count": 59,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.904Z"
+    },
+    {
+      "team_id": "cfb:espn:197",
+      "version": "dee08bb2fa9fa1d0443d2bb968b77f9e5d85b67bbae3422f33951bfa63ffd2bf",
+      "games": 5,
+      "player_count": 56,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.911Z"
+    },
+    {
+      "team_id": "cfb:espn:2",
+      "version": "75e2f388a07443bf23a14f32f162161147f1fcc3a5bd9b2453c96802228a26b2",
+      "games": 5,
+      "player_count": 48,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.918Z"
+    },
+    {
+      "team_id": "cfb:espn:2005",
+      "version": "b4518361a0bcae135416b20b7bd41a72fc35f83a46683709d98cede5a770c1a1",
+      "games": 4,
+      "player_count": 54,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.924Z"
+    },
+    {
+      "team_id": "cfb:espn:2006",
+      "version": "ee882d5513bc8f8e52abd2dcd7ce581e7dbd1090bca41bcc8615e8e0ec4ba476",
+      "games": 6,
+      "player_count": 59,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.931Z"
+    },
+    {
+      "team_id": "cfb:espn:201",
+      "version": "9b5fe3cb00df0ae15a06e32bb929eed3787e2c2cfcd8858a5ee98da6f12d373a",
+      "games": 5,
+      "player_count": 52,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.941Z"
+    },
+    {
+      "team_id": "cfb:espn:202",
+      "version": "f22e5ba581d16024c84f075bec7183db3239404bf55348764a9452927c36289c",
+      "games": 6,
+      "player_count": 60,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.948Z"
+    },
+    {
+      "team_id": "cfb:espn:2026",
+      "version": "e851c6e54e8f10038d2c375773a8e66df4f8867d48e66b3da5a7cbf2324ddb96",
+      "games": 5,
+      "player_count": 59,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.959Z"
+    },
+    {
+      "team_id": "cfb:espn:2032",
+      "version": "6a54cf8a93c1afaa7b6722eee887acef71c78aa8c14e913b547a20a255757d56",
+      "games": 6,
+      "player_count": 51,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.967Z"
+    },
+    {
+      "team_id": "cfb:espn:204",
+      "version": "1fae09337cdd1c9100843a13bc81d3b0efec023aa9817c6a62a8741bcdcde182",
+      "games": 5,
+      "player_count": 55,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.976Z"
+    },
+    {
+      "team_id": "cfb:espn:2050",
+      "version": "5356775f708e02dd5fa5f3a895af27476393030c645aa9a65a7cbc1884435d73",
+      "games": 6,
+      "player_count": 58,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.983Z"
+    },
+    {
+      "team_id": "cfb:espn:2084",
+      "version": "1595cd5999b33eeeb72df1c1e3779979330412236863d9c329f99b4ccb90eca4",
+      "games": 6,
+      "player_count": 49,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.991Z"
+    },
+    {
+      "team_id": "cfb:espn:21",
+      "version": "236053e75be729d1363237b28cecb2e842c48486350e6272d9ac9cf5ee370f6f",
+      "games": 5,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:43.998Z"
+    },
+    {
+      "team_id": "cfb:espn:2116",
+      "version": "fb0d187ccc2408bd398d3d162991589813a5de78fd8ff7b449af75348c2a5c77",
+      "games": 6,
+      "player_count": 63,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.003Z"
+    },
+    {
+      "team_id": "cfb:espn:2117",
+      "version": "cb712953c59af873caf560d0689dc450b8fd1720cf725e4ee8ed5ca4ba7ee823",
+      "games": 6,
+      "player_count": 59,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.012Z"
+    },
+    {
+      "team_id": "cfb:espn:213",
+      "version": "692649266065b49af537738bd372402763fbce33f159a670952698bff9b03d19",
+      "games": 5,
+      "player_count": 58,
+      "missing_final_games": [
+        "401858485"
+      ],
+      "materialized_at": "2026-10-11T04:57:44.017Z"
+    },
+    {
+      "team_id": "cfb:espn:2132",
+      "version": "8dd2095481695800dcd6c2ce1efadb85bc2dc5f7201df4e2a83704a0a560345d",
+      "games": 5,
+      "player_count": 54,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.024Z"
+    },
+    {
+      "team_id": "cfb:espn:218",
+      "version": "e73f7663902b295dd4ffd30a0debf5bdfd3b029c9fc34b064808d3b538a8975d",
+      "games": 6,
+      "player_count": 55,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.030Z"
+    },
+    {
+      "team_id": "cfb:espn:2199",
+      "version": "4258852b5efc743d3e481d653e0d784c3dfebe1a9811476ac3c9f734243e6370",
+      "games": 7,
+      "player_count": 58,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.038Z"
+    },
+    {
+      "team_id": "cfb:espn:221",
+      "version": "b64339a892505cea1ed272a3ebe6b8562785a66216a601ee0b082ef75f322d83",
+      "games": 6,
+      "player_count": 61,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.050Z"
+    },
+    {
+      "team_id": "cfb:espn:2226",
+      "version": "db6aff5e9ac62f64bcffb821626f70a7ef67abd9ffc00f598d8db6926b08e486",
+      "games": 5,
+      "player_count": 61,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.062Z"
+    },
+    {
+      "team_id": "cfb:espn:2229",
+      "version": "1084d390af40345092cd22ccd0d61d83a5d3b9c9ee9ddf3d051b8a45a5df0ea1",
+      "games": 5,
+      "player_count": 52,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.073Z"
+    },
+    {
+      "team_id": "cfb:espn:2247",
+      "version": "a9558eba6e78b44cffb10139e7caeb4adfd2c6e9d55e6f566cba2d50850d2f10",
+      "games": 5,
+      "player_count": 67,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.079Z"
+    },
+    {
+      "team_id": "cfb:espn:228",
+      "version": "9057a82a18a966ffe877cca1963d6ab6e01156f46528897f95437e75fdf3eaf5",
+      "games": 5,
+      "player_count": 50,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.086Z"
+    },
+    {
+      "team_id": "cfb:espn:2294",
+      "version": "1c82a71d6f616ca3e740ab3740929e7f9455ba66aab90bb876ccbf45ada8f3ad",
+      "games": 6,
+      "player_count": 62,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.097Z"
+    },
+    {
+      "team_id": "cfb:espn:23",
+      "version": "0be92a5cde20b662c0f44210a8361ee4cccd71c09aa5c6ce856cc47205710ae6",
+      "games": 6,
+      "player_count": 49,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.107Z"
+    },
+    {
+      "team_id": "cfb:espn:2305",
+      "version": "1032a19199e5e0102d6b18d8b44c161ef9a95b6ca1983e31b64d9e21aa751385",
+      "games": 4,
+      "player_count": 61,
+      "missing_final_games": [
+        "401856827"
+      ],
+      "materialized_at": "2026-10-11T04:57:44.118Z"
+    },
+    {
+      "team_id": "cfb:espn:2306",
+      "version": "a82179ec1583032668c7e6d28d388f7d629da744ac3d4a325d2b30630a2bd420",
+      "games": 5,
+      "player_count": 53,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.127Z"
+    },
+    {
+      "team_id": "cfb:espn:2309",
+      "version": "400e6cb2277ee2d37249a68d8bd48bb92a781fc91f527d6e8e3513f5863a7fd4",
+      "games": 6,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.132Z"
+    },
+    {
+      "team_id": "cfb:espn:2335",
+      "version": "b54fdb0e17fce2b75754a9b41f130fc01a615cda4e28d5a61da0afef41971225",
+      "games": 6,
+      "player_count": 60,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.136Z"
+    },
+    {
+      "team_id": "cfb:espn:2348",
+      "version": "f00a40e03db5bf2b3a752213faa9b801219988a85e8befbc8c29bdfc9ce507d2",
+      "games": 4,
+      "player_count": 66,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.141Z"
+    },
+    {
+      "team_id": "cfb:espn:235",
+      "version": "fa3905ab808172f853a7b6799f86b32218c54ffbcec48b6d72c178a3c863dc87",
+      "games": 5,
+      "player_count": 55,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.145Z"
+    },
+    {
+      "team_id": "cfb:espn:238",
+      "version": "6711f012cfc875898e0ad8dbcf7c736f8c5814c478618a31b0c71be4254e31f1",
+      "games": 6,
+      "player_count": 51,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.149Z"
+    },
+    {
+      "team_id": "cfb:espn:239",
+      "version": "a4d4bbcb52245878fd5720b7b2db3a13afe01f3952f433a049e907a75f68f501",
+      "games": 5,
+      "player_count": 55,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.154Z"
+    },
+    {
+      "team_id": "cfb:espn:2390",
+      "version": "4efbd39a2b12d0acb0859a13f067eeb4b5a2a89fb45dd79de5b0f53cd59ebdfc",
+      "games": 5,
+      "player_count": 69,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.159Z"
+    },
+    {
+      "team_id": "cfb:espn:2393",
+      "version": "6e1ab629a9bc9a02e4b0f1aced3ab32afe4a8a49d793fb9c123965eece932049",
+      "games": 5,
+      "player_count": 54,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.163Z"
+    },
+    {
+      "team_id": "cfb:espn:24",
+      "version": "7baa0f6df5a9f0521285dc6e361bea5b671cb022be8072799474f20723a02854",
+      "games": 6,
+      "player_count": 58,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.167Z"
+    },
+    {
+      "team_id": "cfb:espn:242",
+      "version": "c5d0a6499195fbe7e04b28bac5633474812b911cb40144f8a64ef43690ca4261",
+      "games": 6,
+      "player_count": 55,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.171Z"
+    },
+    {
+      "team_id": "cfb:espn:2426",
+      "version": "9c8f7c7512e6be0adddab932ad1efd89d813fa9034496c28f00cb004e289ff05",
+      "games": 5,
+      "player_count": 53,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.176Z"
+    },
+    {
+      "team_id": "cfb:espn:2429",
+      "version": "4dbfd731439669f2acee76bf0293479aac14babd4f2433dac39c969bf4a81372",
+      "games": 6,
+      "player_count": 60,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.181Z"
+    },
+    {
+      "team_id": "cfb:espn:2433",
+      "version": "ceaf243efb710715a855188367cba4c2adcfe8c84768db1946236016adadad77",
+      "games": 5,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.186Z"
+    },
+    {
+      "team_id": "cfb:espn:2439",
+      "version": "bcb527f76cf1cb3105b7be8480ab98472bcc20f62c7e6e19c84c8b78bb7fb434",
+      "games": 5,
+      "player_count": 54,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.190Z"
+    },
+    {
+      "team_id": "cfb:espn:2440",
+      "version": "112b56b61fe1ceab2ced0464cb9a2ee5af9f1206597547aa56a448d419751844",
+      "games": 4,
+      "player_count": 47,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.193Z"
+    },
+    {
+      "team_id": "cfb:espn:2449",
+      "version": "555cb7a44832815c141d932ac62dbad3e5300463c27f45dc1a76bd1e274e210b",
+      "games": 5,
+      "player_count": 62,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.198Z"
+    },
+    {
+      "team_id": "cfb:espn:245",
+      "version": "d221561238277a0646f6d013112aa5f8b760372f1f0763b59bfe6666b3c91627",
+      "games": 6,
+      "player_count": 59,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.206Z"
+    },
+    {
+      "team_id": "cfb:espn:2459",
+      "version": "62f4c4d1e807260d6f199ddeee516f1e027294aac38c27838b3b1ca4784b290f",
+      "games": 4,
+      "player_count": 48,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.215Z"
+    },
+    {
+      "team_id": "cfb:espn:248",
+      "version": "84c6f19a5c3b626492bbca7c865db80297366a1343edbf288e94895f42e81f7f",
+      "games": 6,
+      "player_count": 52,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.226Z"
+    },
+    {
+      "team_id": "cfb:espn:2483",
+      "version": "2d3c561f216890b5cdd737950923951e9502b4b8948469e3c48a833aef4ec0d4",
+      "games": 5,
+      "player_count": 59,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.236Z"
+    },
+    {
+      "team_id": "cfb:espn:249",
+      "version": "dd45090280e6b00633cbb40c7888e1b43571fbac76737f206dcb710b2b0602f1",
+      "games": 6,
+      "player_count": 58,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.247Z"
+    },
+    {
+      "team_id": "cfb:espn:25",
+      "version": "ed582cde0baae7293172da0c7fca563801a4a010e4b92140b61745379f7d7677",
+      "games": 6,
+      "player_count": 63,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.252Z"
+    },
+    {
+      "team_id": "cfb:espn:2509",
+      "version": "ef3bbef6f8c02e867120d71b91d7dfb1c5cdbb2b01f8d65d9d3d769801413fef",
+      "games": 5,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.256Z"
+    },
+    {
+      "team_id": "cfb:espn:251",
+      "version": "65170317a027f3def9a3acd0367609ad58cdc542a24d89238bf51365a713d752",
+      "games": 5,
+      "player_count": 52,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.260Z"
+    },
+    {
+      "team_id": "cfb:espn:252",
+      "version": "39560243a026785aa974ce4ac8f303c21b59ecf157dedb5405b54b4c462b2ada",
+      "games": 5,
+      "player_count": 61,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.264Z"
+    },
+    {
+      "team_id": "cfb:espn:2534",
+      "version": "fbc7681c8b5a06b64ef5e80c795081c3591409d024f90eb62673d4e3844a96c3",
+      "games": 5,
+      "player_count": 60,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.269Z"
+    },
+    {
+      "team_id": "cfb:espn:254",
+      "version": "dc32a243e9cdc45ded4b170b41b2cd8be7ce57e6897207ae9299858f41bd3368",
+      "games": 4,
+      "player_count": 52,
+      "missing_final_games": [
+        "401856827"
+      ],
+      "materialized_at": "2026-10-11T04:57:44.274Z"
+    },
+    {
+      "team_id": "cfb:espn:256",
+      "version": "7054e4798b8acd16678fb06b72f496162e4453a14382e65b51fe0087ec6b86bc",
+      "games": 5,
+      "player_count": 63,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.279Z"
+    },
+    {
+      "team_id": "cfb:espn:2567",
+      "version": "3f1698f7ee2246fb7d136a35c53bec7a5692b706f97af798e00a286aa257ca5a",
+      "games": 5,
+      "player_count": 56,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.283Z"
+    },
+    {
+      "team_id": "cfb:espn:2572",
+      "version": "ba99b4c59b5b9274dd61541eb9f81ae74be3a83e8993a612bbc8c00676f6a627",
+      "games": 5,
+      "player_count": 65,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.287Z"
+    },
+    {
+      "team_id": "cfb:espn:2579",
+      "version": "f176d34168edcb3f1f72c0849ba51b85b3fc509714086d478148bcb06bb5747e",
+      "games": 6,
+      "player_count": 63,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.292Z"
+    },
+    {
+      "team_id": "cfb:espn:258",
+      "version": "7d64dbe12e806b51c70e610a4ef331fd96856dd514088dc731fad2e59311ca53",
+      "games": 5,
+      "player_count": 70,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.297Z"
+    },
+    {
+      "team_id": "cfb:espn:259",
+      "version": "fdef64d4245e68d220c3a7d1aeeece9c4cde943377b0f23cd21b34c8c0548749",
+      "games": 6,
+      "player_count": 67,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.302Z"
+    },
+    {
+      "team_id": "cfb:espn:26",
+      "version": "258ffd058660d5e095ac1079cfd6b90e0625ec7bc521e9fd0f3614a73fd65d46",
+      "games": 5,
+      "player_count": 54,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.306Z"
+    },
+    {
+      "team_id": "cfb:espn:2623",
+      "version": "dfbf467fed26c9ee5a847616722b753b4532cdcc0a8a4157f236dd5e044594d1",
+      "games": 5,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.310Z"
+    },
+    {
+      "team_id": "cfb:espn:2628",
+      "version": "7544b590df2ffc2f12866ed39962f51697b12919c924f1c35cc28712728d79bc",
+      "games": 5,
+      "player_count": 54,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.314Z"
+    },
+    {
+      "team_id": "cfb:espn:2633",
+      "version": "a64c040465e90d49ed7e07c98302396b8710f0c6c4b03e6d870c1d035bed3759",
+      "games": 6,
+      "player_count": 63,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.318Z"
+    },
+    {
+      "team_id": "cfb:espn:2636",
+      "version": "d8fa5dd986c2aba9f0b3703b79574acc587599535d2b4b497a5794b0d523c683",
+      "games": 6,
+      "player_count": 54,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.324Z"
+    },
+    {
+      "team_id": "cfb:espn:2638",
+      "version": "85487c25c3196349e8e763387deb9d71aeb74ad92661732faf6d1763e51dd011",
+      "games": 5,
+      "player_count": 60,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.328Z"
+    },
+    {
+      "team_id": "cfb:espn:264",
+      "version": "0f5fd387e1f92c526f5e2210abfba6e1b050f5f00879bec8aa630564b44dd6b6",
+      "games": 6,
+      "player_count": 51,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.332Z"
+    },
+    {
+      "team_id": "cfb:espn:2641",
+      "version": "01f048e4b7dc3a49f8c85a05be3c6ebb007c88b8c3010957b43a5efe23f51976",
+      "games": 5,
+      "player_count": 52,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.336Z"
+    },
+    {
+      "team_id": "cfb:espn:2649",
+      "version": "d0aae7d23feb9662b2affd011e47d1e0956bd15d077d2ef4ecee92ab1af49895",
+      "games": 6,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.341Z"
+    },
+    {
+      "team_id": "cfb:espn:265",
+      "version": "16a122b844b3adb8bae1adb2109e2eb0a609dc9dd421cc276b27f4b32936876f",
+      "games": 6,
+      "player_count": 50,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.345Z"
+    },
+    {
+      "team_id": "cfb:espn:2653",
+      "version": "fea92a4b35c52dcb1dc437547a62c3114ff6309925692bc85a862caba0fd3864",
+      "games": 5,
+      "player_count": 48,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.349Z"
+    },
+    {
+      "team_id": "cfb:espn:2655",
+      "version": "08c1a88950f59d9589334048f03e9e64950138d87b81fe07dc33921c1ddcc6d7",
+      "games": 5,
+      "player_count": 55,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.353Z"
+    },
+    {
+      "team_id": "cfb:espn:2711",
+      "version": "9f194d6b040fd1d93edc50ea13c0a914984d754867105c3a9a89c5a39759e381",
+      "games": 6,
+      "player_count": 54,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.358Z"
+    },
+    {
+      "team_id": "cfb:espn:275",
+      "version": "1964e7c2843d74e633cfb4b778c706a4c278aa4a2c65d37f1324043ede944cc6",
+      "games": 5,
+      "player_count": 54,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.362Z"
+    },
+    {
+      "team_id": "cfb:espn:2751",
+      "version": "12a58bd172d70215c5b014a4132c4f955a3e3529ba23b107079aaf4984c2bdb7",
+      "games": 6,
+      "player_count": 47,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.365Z"
+    },
+    {
+      "team_id": "cfb:espn:276",
+      "version": "d136a94432d844339b9b42c18f2b3b698bacff1f002f0e7975d0c42854af279f",
+      "games": 5,
+      "player_count": 48,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.369Z"
+    },
+    {
+      "team_id": "cfb:espn:277",
+      "version": "835a44e7064eebb1be55bb9b76578de486b71286a45834fb3e05188b505e3e49",
+      "games": 6,
+      "player_count": 56,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.375Z"
+    },
+    {
+      "team_id": "cfb:espn:278",
+      "version": "a86730614d2e478efe806ef08d0480d85d0076a48c85aa9cfea70daec182d3f4",
+      "games": 5,
+      "player_count": 56,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.379Z"
+    },
+    {
+      "team_id": "cfb:espn:290",
+      "version": "b56756eb8a5c3131c779b2f3f748bfb8b99b7283477c5ca183fa96d6f52dd4a5",
+      "games": 5,
+      "player_count": 59,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.383Z"
+    },
+    {
+      "team_id": "cfb:espn:295",
+      "version": "61675d5a23bf343a6ed557e78c45523e21ff587e17f0e336c0103fac3f5a79b9",
+      "games": 6,
+      "player_count": 53,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.388Z"
+    },
+    {
+      "team_id": "cfb:espn:30",
+      "version": "ec770368a66dbc7abeee3302c2389104b21ea83e04e07d5cf6ab08eae463a384",
+      "games": 6,
+      "player_count": 59,
+      "missing_final_games": [
+        "401858485"
+      ],
+      "materialized_at": "2026-10-11T04:57:44.392Z"
+    },
+    {
+      "team_id": "cfb:espn:309",
+      "version": "1490351bbaa77df8495be473dcec7bc7e40909509f6ccf16f3549e187fbcc800",
+      "games": 5,
+      "player_count": 50,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.397Z"
+    },
+    {
+      "team_id": "cfb:espn:324",
+      "version": "be85e043524ce1cf5f8d4bf5442400427b800032fd558b68564b3a9eca184dd9",
+      "games": 5,
+      "player_count": 58,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.401Z"
+    },
+    {
+      "team_id": "cfb:espn:326",
+      "version": "11bf818a0e1517427fc485e701c69a16f6c303bd4cf3598212b17b49b388ac85",
+      "games": 5,
+      "player_count": 67,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.406Z"
+    },
+    {
+      "team_id": "cfb:espn:328",
+      "version": "5ed7b5e477660483a0da7882f5180e951ce80e74526894995c4591f678961b05",
+      "games": 6,
+      "player_count": 46,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.410Z"
+    },
+    {
+      "team_id": "cfb:espn:333",
+      "version": "530914cbf8adbd4e5e4e6d62ad15a37e4dc18cfde983c9304cb3b78a37f95adb",
+      "games": 5,
+      "player_count": 52,
+      "missing_final_games": [
+        "401856712"
+      ],
+      "materialized_at": "2026-10-11T04:57:44.415Z"
+    },
+    {
+      "team_id": "cfb:espn:338",
+      "version": "ea349d1a2ae940d1b2f95e07836bd8a27f3cf89ea127b481c1897741ccc1150b",
+      "games": 5,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.419Z"
+    },
+    {
+      "team_id": "cfb:espn:344",
+      "version": "ce49e45808594bbc44adb2ccabd79fc5a7bbc73ec5e62dab033bb5592f9367c1",
+      "games": 5,
+      "player_count": 56,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.424Z"
+    },
+    {
+      "team_id": "cfb:espn:349",
+      "version": "d6e3f775785051749a98b68ed43a2f19a11d2716bdacb0a1c224266953b7f150",
+      "games": 5,
+      "player_count": 62,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.428Z"
+    },
+    {
+      "team_id": "cfb:espn:356",
+      "version": "b25371ef27eaf33acea5cfbd375e0377bac2a2e5da563efcdfca6913c4fb87a9",
+      "games": 6,
+      "player_count": 51,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.432Z"
+    },
+    {
+      "team_id": "cfb:espn:36",
+      "version": "932a811e07409500ceeebb63960d3c8de41dac82dd6ba6d2e491f9964c767b75",
+      "games": 5,
+      "player_count": 59,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.436Z"
+    },
+    {
+      "team_id": "cfb:espn:38",
+      "version": "af5a7ebad55bb622363033704644430d50349c33d845390195ac9c06d24d9446",
+      "games": 5,
+      "player_count": 53,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.440Z"
+    },
+    {
+      "team_id": "cfb:espn:41",
+      "version": "ef2f311a74bb86987e47f09977f783a9d5b6158388f2c145b40bcb362d1b2948",
+      "games": 6,
+      "player_count": 61,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.445Z"
+    },
+    {
+      "team_id": "cfb:espn:48",
+      "version": "a1c26f0ae3e06da4b0ea9104811f7165e2d0af89b35666601bb45be3dfee181d",
+      "games": 5,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.450Z"
+    },
+    {
+      "team_id": "cfb:espn:5",
+      "version": "001066d39ee997ccf7998ba8fc139a0da58922f583850c5ece2dbe7b775ca71b",
+      "games": 5,
+      "player_count": 47,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.454Z"
+    },
+    {
+      "team_id": "cfb:espn:52",
+      "version": "ec161c8221e3ee9d3367f3d33d18b54c827b632eede46cc12897e2c80c06f7a9",
+      "games": 6,
+      "player_count": 52,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.458Z"
+    },
+    {
+      "team_id": "cfb:espn:55",
+      "version": "efe4e6e45a1ff773896282ed04400fa5ed4b5399ef4081aa4b87057eac7971d1",
+      "games": 6,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.462Z"
+    },
+    {
+      "team_id": "cfb:espn:57",
+      "version": "e8f8c1749e36180d4b5d69f0ea145abdbb1e7b0c6237a97c3c05b94a69bd8549",
+      "games": 6,
+      "player_count": 56,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.467Z"
+    },
+    {
+      "team_id": "cfb:espn:58",
+      "version": "3de770dddd07f03c23b6c3afd5a727d62d897d077b00fd656b4b544eb398ebf9",
+      "games": 6,
+      "player_count": 56,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.470Z"
+    },
+    {
+      "team_id": "cfb:espn:59",
+      "version": "87424f5d860e0cf5144aa77c1ee49593cc9feafa42a8efde5e48a31f1b8f1533",
+      "games": 5,
+      "player_count": 52,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.475Z"
+    },
+    {
+      "team_id": "cfb:espn:6",
+      "version": "dd48717f5b01e27c07862a07f42af314a8f2b97e27d4a7015ed00ee6b643e880",
+      "games": 6,
+      "player_count": 53,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.479Z"
+    },
+    {
+      "team_id": "cfb:espn:61",
+      "version": "695bea96df37facd703e6f2a71e113b78cedffa073a02e512ffd3fc8dd2c8865",
+      "games": 5,
+      "player_count": 77,
+      "missing_final_games": [
+        "401856712"
+      ],
+      "materialized_at": "2026-10-11T04:57:44.484Z"
+    },
+    {
+      "team_id": "cfb:espn:62",
+      "version": "1d53b77aaaa932b1b6ff35895c6e7b67df7b0c1efe3e996fcc37adf40cb18ee1",
+      "games": 5,
+      "player_count": 55,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.488Z"
+    },
+    {
+      "team_id": "cfb:espn:66",
+      "version": "e50531d08ab71f52651d5ce43ce0704c29f67f35291f8ca13fcb64e2a2b15f72",
+      "games": 6,
+      "player_count": 65,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.492Z"
+    },
+    {
+      "team_id": "cfb:espn:68",
+      "version": "58e3cb403e6cf149fb05bd799c8e1116154f07f2677449a5a07c53dcddbf70fd",
+      "games": 5,
+      "player_count": 49,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.497Z"
+    },
+    {
+      "team_id": "cfb:espn:77",
+      "version": "be7c918379043ac1b41bd9286bc4e9266b5c9a64681c0c5698fbd11513f2728d",
+      "games": 5,
+      "player_count": 56,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.501Z"
+    },
+    {
+      "team_id": "cfb:espn:8",
+      "version": "596f3046a85745038bf3131dcf785d07f09f08c57dd8c0c7b5f32faef7501653",
+      "games": 6,
+      "player_count": 51,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.505Z"
+    },
+    {
+      "team_id": "cfb:espn:84",
+      "version": "5f2d655f28801117f3e2dd81c8cee924c594928ebcb8f6657a562e1628254b01",
+      "games": 6,
+      "player_count": 49,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.509Z"
+    },
+    {
+      "team_id": "cfb:espn:87",
+      "version": "8e6bd1e5a9a847554739309b9bc8f522300d5a3cd0a2dc95dcff93203e1e9d37",
+      "games": 6,
+      "player_count": 64,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.513Z"
+    },
+    {
+      "team_id": "cfb:espn:9",
+      "version": "ce7bae5f7f8e2d4d923b7514833e24a654cb27d5ec3fd6d6243714bd5f00a69d",
+      "games": 4,
+      "player_count": 53,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.517Z"
+    },
+    {
+      "team_id": "cfb:espn:96",
+      "version": "4466e797f797a0bffb2fea90ef99155a4e242c96a9620878bd83f20b9135744c",
+      "games": 5,
+      "player_count": 54,
+      "missing_final_games": [
+        "401856715"
+      ],
+      "materialized_at": "2026-10-11T04:57:44.522Z"
+    },
+    {
+      "team_id": "cfb:espn:97",
+      "version": "045de313b41d78567354261e0cc5bfe1590cacd06f87c582fd1a82e5312d8f13",
+      "games": 6,
+      "player_count": 57,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.526Z"
+    },
+    {
+      "team_id": "cfb:espn:98",
+      "version": "e86cdf72abefc2f50d6e0d163923c84c307c7d338261a3cfe75ff337cd7f5af5",
+      "games": 6,
+      "player_count": 61,
+      "missing_final_games": [],
+      "materialized_at": "2026-10-11T04:57:44.531Z"
+    },
+    {
+      "team_id": "cfb:espn:99",
+      "version": "816aed09210e57b45accb14afd7effaeb41a9f516e1725d823e371dc7bcbdc8d",
+      "games": 5,
+      "player_count": 57,
+      "missing_final_games": [
+        "401856715"
+      ],
+      "materialized_at": "2026-10-11T04:57:44.535Z"
+    }
+  ],
+  "prospective_snapshots": [
+    {
+      "id": "44e2e49a5630affeeefcaa87442ece05945414b16e7c974cb9c5bf1f03dbdeba",
+      "input_fingerprint": "e55e4f3825d73fd1b49b619eca84d8028189133b1f4fa8ec99357c6c2b1f5614",
+      "game_id": "401871067",
+      "event_start_at": "2026-10-13T23:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.538Z",
+      "card_versions": {
+        "home": "6e1ab629a9bc9a02e4b0f1aced3ab32afe4a8a49d793fb9c123965eece932049",
+        "away": "a1c26f0ae3e06da4b0ea9104811f7165e2d0af89b35666601bb45be3dfee181d"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "751ac5f7cae4578a4ea8f238aae9f90638dfb6c3d593a562cc9654e99ef8f1b8",
+      "input_fingerprint": "250c1b17c103848f2ecfe7bd61c6ad14320785c2371c64f55952d9d049a67b34",
+      "game_id": "401871053",
+      "event_start_at": "2026-10-14T00:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.538Z",
+      "card_versions": {
+        "home": "efe4e6e45a1ff773896282ed04400fa5ed4b5399ef4081aa4b87057eac7971d1",
+        "away": "1084d390af40345092cd22ccd0d61d83a5d3b9c9ee9ddf3d051b8a45a5df0ea1"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "cc385e244b452c4a61fcbc2c98b471858ae4d269e307befe43f574269b5d856c",
+      "input_fingerprint": "f33b5242ad9bd5dce758bf058de1c18cca60a7e0cae3485af4f037b1e82cb550",
+      "game_id": "401871054",
+      "event_start_at": "2026-10-14T23:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.539Z",
+      "card_versions": {
+        "home": "dfbf467fed26c9ee5a847616722b753b4532cdcc0a8a4157f236dd5e044594d1",
+        "away": "ea349d1a2ae940d1b2f95e07836bd8a27f3cf89ea127b481c1897741ccc1150b"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "705b0c117b9a2d11ddd8a51a062d57bacb14ed6aeda455b81c471f710346f39b",
+      "input_fingerprint": "b2bfbd112256a2cce98f136d19ce7da6e629dd8371abe963df2554730e6a5a60",
+      "game_id": "401871068",
+      "event_start_at": "2026-10-15T00:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.540Z",
+      "card_versions": {
+        "home": "fbc7681c8b5a06b64ef5e80c795081c3591409d024f90eb62673d4e3844a96c3",
+        "away": "e86cdf72abefc2f50d6e0d163923c84c307c7d338261a3cfe75ff337cd7f5af5"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "2effe622d3fcfac3efdc8fc015a68037c97751dcbae71c39dd6d99702aeee56d",
+      "input_fingerprint": "c61800535aa6f3b66879753fbad387137647cfd5a1dea97406eac1475ece4fe2",
+      "game_id": "401862800",
+      "event_start_at": "2026-10-15T23:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.540Z",
+      "card_versions": {
+        "home": "001066d39ee997ccf7998ba8fc139a0da58922f583850c5ece2dbe7b775ca71b",
+        "away": "d488ae8599ef33630ee5789fb7f7cd4d4ddf5e8f53ab23bdc8ad137e56bdafc6"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "42a8966d96bd63675bcea51ab7e86acad04e86ee20d47622df5fcba773f20fae",
+      "input_fingerprint": "a4b1f48dae9bfe86769e86787e4897741f42778fa702e0ad81f07d1b09c01543",
+      "game_id": "401869950",
+      "event_start_at": "2026-10-15T23:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.541Z",
+      "card_versions": {
+        "home": "61675d5a23bf343a6ed557e78c45523e21ff587e17f0e336c0103fac3f5a79b9",
+        "away": "b56756eb8a5c3131c779b2f3f748bfb8b99b7283477c5ca183fa96d6f52dd4a5"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "3a824af76c5a2102c0a196cc34c0d23cf85aaac6cfc6140269ca4b2ac0bcbf4c",
+      "input_fingerprint": "b268f86c680516920d11c604a079197d74a3a1161fbc2304924484bf5989745f",
+      "game_id": "401860923",
+      "event_start_at": "2026-10-16T00:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.541Z",
+      "card_versions": {
+        "home": "11bf818a0e1517427fc485e701c69a16f6c303bd4cf3598212b17b49b388ac85",
+        "away": "932a811e07409500ceeebb63960d3c8de41dac82dd6ba6d2e491f9964c767b75"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "aab6c0f87075507678d7b1090c75a95415df366f19ec66272b02ebae87f60e14",
+      "input_fingerprint": "cca192b6903cb484844a9c2e66e18be65a5be8c27505de4800774d2a5a63982e",
+      "game_id": "401862801",
+      "event_start_at": "2026-10-16T23:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.542Z",
+      "card_versions": {
+        "home": "08c1a88950f59d9589334048f03e9e64950138d87b81fe07dc33921c1ddcc6d7",
+        "away": "fa3905ab808172f853a7b6799f86b32218c54ffbcec48b6d72c178a3c863dc87"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "60ca6a58cf0a9795a5aeee5a869600179680dafb04bfc8d6118689e78e95e2e5",
+      "input_fingerprint": "b1a3650553adff16b016a7459433e84792c801c81460c3695251c0b5c37d89a7",
+      "game_id": "401858493",
+      "event_start_at": "2026-10-17T00:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.543Z",
+      "card_versions": {
+        "home": "ef3bbef6f8c02e867120d71b91d7dfb1c5cdbb2b01f8d65d9d3d769801413fef",
+        "away": "0f5fd387e1f92c526f5e2210abfba6e1b050f5f00879bec8aa630564b44dd6b6"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING"
+      ]
+    },
+    {
+      "id": "f085f480ed2b065285f4e89e2fab2325ea08a27254e9655dd826af66a6efbb78",
+      "input_fingerprint": "4d4d5a062fdc7979b474c4b0a2a56642700ac6d60cf3243ad2eda255a4c42929",
+      "game_id": "401869844",
+      "event_start_at": "2026-10-17T00:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.543Z",
+      "card_versions": {
+        "home": "be85e043524ce1cf5f8d4bf5442400427b800032fd558b68564b3a9eca184dd9",
+        "away": "e851c6e54e8f10038d2c375773a8e66df4f8867d48e66b3da5a7cbf2324ddb96"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "b612a5aaf5d7804b4a32c81dde9ed6fbf31ff169376b3ba418b341d923bcd43d",
+      "input_fingerprint": "8cf7fec11cc56c62862c885425565860d1f5b0fcf7156f9cac73d6aabf40a43f",
+      "game_id": "401856724",
+      "event_start_at": "2026-10-17T16:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.544Z",
+      "card_versions": {
+        "home": "65170317a027f3def9a3acd0367609ad58cdc542a24d89238bf51365a713d752",
+        "away": "e8f8c1749e36180d4b5d69f0ea145abdbb1e7b0c6237a97c3c05b94a69bd8549"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "920b877b83af4c7105742d925c206c92aceafafd5ffd36a6c4c9be5518beb4f1",
+      "input_fingerprint": "9f5543da4e6b941090fbe8dcb0a80f3044d4a1e916f52d71514b4f9424cb5969",
+      "game_id": "401858488",
+      "event_start_at": "2026-10-17T16:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.544Z",
+      "card_versions": {
+        "home": "5f2d655f28801117f3e2dd81c8cee924c594928ebcb8f6657a562e1628254b01",
+        "away": "083c8f79807e8e6ee02ad04c8dd67c159383baf5281d0d2e83b24cd52269a843"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "bd4f740419bbc3bcfba448fe15e58ba9b053bab00d2983a73a4843cd4628ff39",
+      "input_fingerprint": "59d0247926a57944a1d641d3014e9b278b503604d7afe59addccde40ff98bb14",
+      "game_id": "401856720",
+      "event_start_at": "2026-10-17T16:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.545Z",
+      "card_versions": {
+        "home": "816aed09210e57b45accb14afd7effaeb41a9f516e1725d823e371dc7bcbdc8d",
+        "away": "ce49e45808594bbc44adb2ccabd79fc5a7bbc73ec5e62dab033bb5592f9367c1"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "FINAL_GAME_STATS_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "79a0d9783e6edd9835df2b294c7cc18c94783c6954fcbd3aded9a3bdccdaa1cd",
+      "input_fingerprint": "7abf76aab862d889a5314a08e177adbda7bdf772ea1c74922abc3d586c4d6848",
+      "game_id": "401858268",
+      "event_start_at": "2026-10-17T16:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.545Z",
+      "card_versions": {
+        "home": "3f1698f7ee2246fb7d136a35c53bec7a5692b706f97af798e00a286aa257ca5a",
+        "away": "7d64dbe12e806b51c70e610a4ef331fd96856dd514088dc731fad2e59311ca53"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "de02fe1cc596a2e0ade5cb585515ab5ce1a277a52909a13a965c829523e14535",
+      "input_fingerprint": "7c66abcba75ff1b7132453e942fee7d17ccc468e1cce9d3664d59dc2649df854",
+      "game_id": "401858267",
+      "event_start_at": "2026-10-17T16:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.545Z",
+      "card_versions": {
+        "home": "67c48ed13def5fa15723983aa91907c7ce5c7ae0258b574c1dc2cee19193bcdf",
+        "away": "b64339a892505cea1ed272a3ebe6b8562785a66216a601ee0b082ef75f322d83"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "58fd8abb0cd2e142ec2099662bfa575050e6d3b9301f7674fd22e897b6b4dff2",
+      "input_fingerprint": "c5c6069d38ddeac79aa859bf73e9568763a4027b2ac1def2dae36c5e204600f9",
+      "game_id": "401856829",
+      "event_start_at": "2026-10-17T16:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.546Z",
+      "card_versions": {
+        "home": "835a44e7064eebb1be55bb9b76578de486b71286a45834fb3e05188b505e3e49",
+        "away": "8dd2095481695800dcd6c2ce1efadb85bc2dc5f7201df4e2a83704a0a560345d"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "19c28d50a2bf344eab1b505f7112eee3396afc93d05ba2f3fa005fbed56f4420",
+      "input_fingerprint": "9df8bbe1351b77a0acff427a7931de47823cec81a8e710dea89f4f99542dd8e7",
+      "game_id": "401856830",
+      "event_start_at": "2026-10-17T16:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.546Z",
+      "card_versions": {
+        "home": "a82179ec1583032668c7e6d28d388f7d629da744ac3d4a325d2b30630a2bd420",
+        "away": "1032a19199e5e0102d6b18d8b44c161ef9a95b6ca1983e31b64d9e21aa751385"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "FINAL_GAME_STATS_PENDING"
+      ]
+    },
+    {
+      "id": "317ae0fff3626af64f7dc8094f2f49d9f2c4cc6c7466e4060d2c66a594bf27fb",
+      "input_fingerprint": "ce73ed2caa40b72a504e06794903eb851425e2e33661349c9c99bd32fb39b75a",
+      "game_id": "401858491",
+      "event_start_at": "2026-10-17T16:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.547Z",
+      "card_versions": {
+        "home": "c1f6cd513f6cad5efbab459972c73a4f2cfa1979f8cb67b5b0eaa2e628367a51",
+        "away": "be7c918379043ac1b41bd9286bc4e9266b5c9a64681c0c5698fbd11513f2728d"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "dc075feddf4175e63df821ee51fdcb33c5ff6bb9a353b07ab19610695c088e53",
+      "input_fingerprint": "733bb586783dc52b9477170c79b1ec02294b270b92d03dd07de3d0c3d79c3712",
+      "game_id": "401862802",
+      "event_start_at": "2026-10-17T16:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.547Z",
+      "card_versions": {
+        "home": "d6e3f775785051749a98b68ed43a2f19a11d2716bdacb0a1c224266953b7f150",
+        "away": "db6aff5e9ac62f64bcffb821626f70a7ef67abd9ffc00f598d8db6926b08e486"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "c4373b8c864ec1809aa221700351b2fc35a602053bce98f4ae69c17abc639918",
+      "input_fingerprint": "9baa17ebc538658d2be2e89868cb933c2ef0d7ad829ed283cab64b00172ec5a6",
+      "game_id": "401866441",
+      "event_start_at": "2026-10-17T16:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.548Z",
+      "card_versions": {
+        "home": "a2650dbab4a1355110875cf3e63bdac41aac9ce862fe056a72fccbe8cb28677c",
+        "away": "5356775f708e02dd5fa5f3a895af27476393030c645aa9a65a7cbc1884435d73"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "88c26ba2489f2a29c4e516b0be34ba6733ddfbb7a7b2450eee72a1e0103899eb",
+      "input_fingerprint": "3d404b0d3d609b1bac97dd83d3168665f427d43874310cebb48604d9f8b0bc47",
+      "game_id": "401869957",
+      "event_start_at": "2026-10-17T16:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.548Z",
+      "card_versions": {
+        "home": "7054e4798b8acd16678fb06b72f496162e4453a14382e65b51fe0087ec6b86bc",
+        "away": "a9558eba6e78b44cffb10139e7caeb4adfd2c6e9d55e6f566cba2d50850d2f10"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "63086a458648231443ced977a95c256beda11eaa71ffdcc6dd81684eddaadca3",
+      "input_fingerprint": "eb6dbcaa3fdc6ab13ef572285cd9e8c9492f7e62d7f02a84a13d5b77995e0735",
+      "game_id": "401858489",
+      "event_start_at": "2026-10-17T16:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.548Z",
+      "card_versions": {
+        "home": "eac934f3cb730416cd87c71eeeb31b193e80614fa613bfeedf4c19035831ba42",
+        "away": "379fdd34c86c91bc34a664b5c60643a84a59f2d18215e202c73bffbbbf7189b8"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "15637e42d5835c8fd46394eb32929fb29dbebf9a8d6d68412baefa6d501299a7",
+      "input_fingerprint": "eedc9240a6d994f2b814f1e4459c0ab1de295dc54813ca27f5014032cc6c6772",
+      "game_id": "401862803",
+      "event_start_at": "2026-10-17T17:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.549Z",
+      "card_versions": {
+        "home": "e73f7663902b295dd4ffd30a0debf5bdfd3b029c9fc34b064808d3b538a8975d",
+        "away": "4dbfd731439669f2acee76bf0293479aac14babd4f2433dac39c969bf4a81372"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING"
+      ]
+    },
+    {
+      "id": "f655ba4e29a4c77cd10024238d1134735cc5ce26351adac07f1c38ed5f16ef83",
+      "input_fingerprint": "ef3a3af8d4f455e0a812aa992abf639f0080da68266d0ab782e6de9bbe27801b",
+      "game_id": "401866442",
+      "event_start_at": "2026-10-17T17:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.549Z",
+      "card_versions": {
+        "home": "1595cd5999b33eeeb72df1c1e3779979330412236863d9c329f99b4ccb90eca4",
+        "away": "f3f6cbcc25f2c238142cc9df5ab3d2e1ba32968aaf4f7e6657258afe400b3a6d"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING"
+      ]
+    },
+    {
+      "id": "0a5f91d355c088accf2b6234a21bb60a07278b75ab7d93a35a4c8afc20f0ff4b",
+      "input_fingerprint": "ec8f5550af2a3e0eb84693f334b245f01d00163a7bfc4764a77331cb6fbe73f8",
+      "game_id": "401866443",
+      "event_start_at": "2026-10-17T17:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.550Z",
+      "card_versions": {
+        "home": "cb712953c59af873caf560d0689dc450b8fd1720cf725e4ee8ed5ca4ba7ee823",
+        "away": "9f194d6b040fd1d93edc50ea13c0a914984d754867105c3a9a89c5a39759e381"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING"
+      ]
+    },
+    {
+      "id": "5fc742a79419025efe1545e85f717f3d4519540abacbb9770d8793b5a1983992",
+      "input_fingerprint": "2f5cb11f571e2e467d7e3c6628eb4fa382acde7dda6e162d940a7905c5b829cb",
+      "game_id": "401856719",
+      "event_start_at": "2026-10-17T19:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.550Z",
+      "card_versions": {
+        "home": "695bea96df37facd703e6f2a71e113b78cedffa073a02e512ffd3fc8dd2c8865",
+        "away": "75e2f388a07443bf23a14f32f162161147f1fcc3a5bd9b2453c96802228a26b2"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "FINAL_GAME_STATS_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "3f171877b6d859f50861e6f5ad19b81e7108a3a93a53269ca7626b001752c479",
+      "input_fingerprint": "4231c01392e7dbdb54059fff40e78e49f76564bc07b5f0da27a7c71cd9289854",
+      "game_id": "401856723",
+      "event_start_at": "2026-10-17T19:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.550Z",
+      "card_versions": {
+        "home": "a64c040465e90d49ed7e07c98302396b8710f0c6c4b03e6d870c1d035bed3759",
+        "away": "530914cbf8adbd4e5e4e6d62ad15a37e4dc18cfde983c9304cb3b78a37f95adb"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "FINAL_GAME_STATS_PENDING"
+      ]
+    },
+    {
+      "id": "7757a6c1bf3bf03fa749ec76d3da7d33c49116f44624a30857bb63ef983dc22b",
+      "input_fingerprint": "8e73d087be042c6dfbf775a9baa9f3ed56a0e521fe10db583b77dbe1bb1878bf",
+      "game_id": "401856721",
+      "event_start_at": "2026-10-17T19:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.551Z",
+      "card_versions": {
+        "home": "d57e0c9bafd1c9c7c590275e037ef168b5542148911370bf791a6542d14bceb3",
+        "away": "ae159c39d9b445c74a0f13c57ff4481776bb3d421df6a727eb9508c4a184b5b6"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "6c48aa65ad45ceb50854242754be986278a575f6c2443b25458ee0e6ee076e28",
+      "input_fingerprint": "7bdb8235a3d68e820989818df0a9c00f8dc0f0e4a01f39578f45c2370fa966a0",
+      "game_id": "401856828",
+      "event_start_at": "2026-10-17T19:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.551Z",
+      "card_versions": {
+        "home": "01f048e4b7dc3a49f8c85a05be3c6ebb007c88b8c3010957b43a5efe23f51976",
+        "away": "ce7bae5f7f8e2d4d923b7514833e24a654cb27d5ec3fd6d6243714bd5f00a69d"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "05e2bb52cafe4fdb865d40b80d87fa9cc5595ca3d387a5fa64446c0ee9b87755",
+      "input_fingerprint": "714d08c3dabb6ee6b63b1d740395a67d6b891258127068213670afa4e41c0d9d",
+      "game_id": "401858490",
+      "event_start_at": "2026-10-17T19:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.551Z",
+      "card_versions": {
+        "home": "942357a2e6ca8a7336154382d814abd551fc2da4ceadc4e659098235b959209c",
+        "away": "692649266065b49af537738bd372402763fbce33f159a670952698bff9b03d19"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE",
+        "FINAL_GAME_STATS_PENDING"
+      ]
+    },
+    {
+      "id": "aad68de26ce7f631b522066ea87f03e41c175ffb45c22d5a1d94806b0f8f2b03",
+      "input_fingerprint": "046747284179cd76d8efff5f098b11e6a26c09f8bd7b546dc547db3679ca9d78",
+      "game_id": "401858264",
+      "event_start_at": "2026-10-17T19:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.552Z",
+      "card_versions": {
+        "home": "fdef64d4245e68d220c3a7d1aeeece9c4cde943377b0f23cd21b34c8c0548749",
+        "away": "87424f5d860e0cf5144aa77c1ee49593cc9feafa42a8efde5e48a31f1b8f1533"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING"
+      ]
+    },
+    {
+      "id": "ff0a73efe6a5c4a18ddb55bade3dd31f226708706412554fea16fa8e8565a8bf",
+      "input_fingerprint": "bc3fe6aae21f41585c1fe219a135d45cc6abccf7df7d15f868aa744e5159da98",
+      "game_id": "401871055",
+      "event_start_at": "2026-10-20T23:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.552Z",
+      "card_versions": {
+        "home": "1084d390af40345092cd22ccd0d61d83a5d3b9c9ee9ddf3d051b8a45a5df0ea1",
+        "away": "6e1ab629a9bc9a02e4b0f1aced3ab32afe4a8a49d793fb9c123965eece932049"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "629271bf1fe8a1f1d5dc3f58808762121cd623cfbd7c83992e4e35edac18e055",
+      "input_fingerprint": "a33bc93392110389fd8caafbe279a5c5f9e826f4194cf798084434f07bdc4a3f",
+      "game_id": "401871069",
+      "event_start_at": "2026-10-20T23:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.552Z",
+      "card_versions": {
+        "home": "a1c26f0ae3e06da4b0ea9104811f7165e2d0af89b35666601bb45be3dfee181d",
+        "away": "dfbf467fed26c9ee5a847616722b753b4532cdcc0a8a4157f236dd5e044594d1"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "c19ad3df609e42c60cf9a8ccd0c2bc4e495d75eab2dbba42de43ed0948750464",
+      "input_fingerprint": "0c719b5422236b9cb113959c4f1df2b8b0bf5c884411377e74b45c6412553c05",
+      "game_id": "401871092",
+      "event_start_at": "2026-10-20T23:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.553Z",
+      "card_versions": {
+        "home": "d136a94432d844339b9b42c18f2b3b698bacff1f002f0e7975d0c42854af279f",
+        "away": "dd48717f5b01e27c07862a07f42af314a8f2b97e27d4a7015ed00ee6b643e880"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "b08e979523d0bd6f67706c655a41e2ee6facc93355b2a14ebf26538e3d585300",
+      "input_fingerprint": "9e7a7c7d288b5c6139c577ce40b7413786ba61488f0bbc9e31af6f4bd21a57de",
+      "game_id": "401871070",
+      "event_start_at": "2026-10-22T00:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.553Z",
+      "card_versions": {
+        "home": "fbc7681c8b5a06b64ef5e80c795081c3591409d024f90eb62673d4e3844a96c3",
+        "away": "1e5921923bf6b52e14d6f9d4cfbd34fac26a1d4fb02c65e264f791029226b3f9"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "b983b6e6caba0fbc444050a4ef96a2949d490b26583bae37debd9ec5c5578654",
+      "input_fingerprint": "6edb22247ac150f5f83a49f1f7a23267229f9f61f2d010ce8856297e9597929a",
+      "game_id": "401869845",
+      "event_start_at": "2026-10-22T23:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.553Z",
+      "card_versions": {
+        "home": "e851c6e54e8f10038d2c375773a8e66df4f8867d48e66b3da5a7cbf2324ddb96",
+        "away": "7054e4798b8acd16678fb06b72f496162e4453a14382e65b51fe0087ec6b86bc"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "a901f563aafe3a2b928b928c5565e3517f1e281f5d194c15c9e9edea0e3ae688",
+      "input_fingerprint": "637207b934d7e2da9042a94373e18d99d6fda3d42b37a05d515affeb0046b9aa",
+      "game_id": "401871056",
+      "event_start_at": "2026-10-22T23:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.554Z",
+      "card_versions": {
+        "home": "ea349d1a2ae940d1b2f95e07836bd8a27f3cf89ea127b481c1897741ccc1150b",
+        "away": "b54fdb0e17fce2b75754a9b41f130fc01a615cda4e28d5a61da0afef41971225"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "c4f53a33509c6d864e2d4faf91df26264fa0b234466663fe5f276e1b2353709f",
+      "input_fingerprint": "727db9eece7882d985852b2402b967a17b1141c088fb4d1ce1c6075a54289058",
+      "game_id": "401862807",
+      "event_start_at": "2026-10-22T23:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.554Z",
+      "card_versions": {
+        "home": "fa3905ab808172f853a7b6799f86b32218c54ffbcec48b6d72c178a3c863dc87",
+        "away": "d488ae8599ef33630ee5789fb7f7cd4d4ddf5e8f53ab23bdc8ad137e56bdafc6"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "57f1b86fa64e2cbad7db88dfa34bb2d8ecbde1aaebe3f0a063963c12b60ffc43",
+      "input_fingerprint": "8fa82dc2587ef0a4e467c7ebc6145551bb8364a24bfbef5361423926e36e1647",
+      "game_id": "401858271",
+      "event_start_at": "2026-10-23T23:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.554Z",
+      "card_versions": {
+        "home": "7d64dbe12e806b51c70e610a4ef331fd96856dd514088dc731fad2e59311ca53",
+        "away": "a9911dfe537570fcaf54b78be628c8a609d1cc05b865cbcf9c5ac250e29a917c"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING"
+      ]
+    },
+    {
+      "id": "e909da660ba4bed1a3600f4d3dd4c7b3aafb47f42726be0fa7f9298284c84297",
+      "input_fingerprint": "66925ea799ea17f169375a74550107833373ff8b5814ba9a55ee629ff708e70c",
+      "game_id": "401861965",
+      "event_start_at": "2026-10-23T23:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.555Z",
+      "card_versions": {
+        "home": "ef2f311a74bb86987e47f09977f783a9d5b6158388f2c145b40bcb362d1b2948",
+        "away": "f3f6cbcc25f2c238142cc9df5ab3d2e1ba32968aaf4f7e6657258afe400b3a6d"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING"
+      ]
+    },
+    {
+      "id": "8b50c6fa403f92a9bfbf3033ce692f4e1253628a5bfd936d494651c78a7c3935",
+      "input_fingerprint": "9c70db3991dc78f0c0b8f5f0074092e60c1f3a1fa4ad4904ffb306cfda2867e1",
+      "game_id": "401862808",
+      "event_start_at": "2026-10-24T00:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.555Z",
+      "card_versions": {
+        "home": "f22e5ba581d16024c84f075bec7183db3239404bf55348764a9452927c36289c",
+        "away": "d6e3f775785051749a98b68ed43a2f19a11d2716bdacb0a1c224266953b7f150"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "0961cf7a98c5e8d53d7dd2d4f858c2acc60bc578f996d1df68f19f0b6ddd44fc",
+      "input_fingerprint": "496321ecd63d9307f452531a83bd571599de5e0e43e4ed8de07f54cba7926c2f",
+      "game_id": "401864525",
+      "event_start_at": "2026-10-24T01:00:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.555Z",
+      "card_versions": {
+        "home": "12a58bd172d70215c5b014a4132c4f955a3e3529ba23b107079aaf4984c2bdb7",
+        "away": "b4518361a0bcae135416b20b7bd41a72fc35f83a46683709d98cede5a770c1a1"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING"
+      ]
+    },
+    {
+      "id": "832669faa88395f29f43c6660a1e8da25ea73baeffe2beac7589d295e4bd13c4",
+      "input_fingerprint": "7ada56698a582cc13e88874e3b9d12043a0e0736177d3bd066c815ad14feac1b",
+      "game_id": "401858272",
+      "event_start_at": "2026-10-24T02:30:00.000Z",
+      "decision_at": "2026-10-11T04:57:44.535Z",
+      "calculated_at": "2026-10-11T04:57:44.556Z",
+      "card_versions": {
+        "home": "7baa0f6df5a9f0521285dc6e361bea5b671cb022be8072799474f20723a02854",
+        "away": "f9e501ee2ca57972c9320e0c6c9cf8b4c0c5fee530dc8fc2fcb78f97669bb9c7"
+      },
+      "qualification_reasons": [
+        "MODEL_QUALIFICATION_DISABLED",
+        "PROSPECTIVE_ECONOMIC_COHORT_PENDING",
+        "KICKOFF_AND_VENUE_SOURCE_QUALIFICATION_PENDING",
+        "PRIOR_STRENGTH_UNAVAILABLE"
+      ]
+    }
+  ],
+  "source_data_republished": false
+}

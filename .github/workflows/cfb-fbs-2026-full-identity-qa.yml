@@ -1,0 +1,49 @@
+name: CFB FBS full staged player identity reconciliation
+on:
+  push:
+    branches:
+      - feat/cfb-fbs-sdv-player-box-qualified-staging
+    paths:
+      - .github/workflows/cfb-fbs-2026-full-identity-qa.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: cfb-fbs-canonical-staged-identity-qa
+  cancel-in-progress: false
+
+jobs:
+  source-team-player-identity:
+    if: ${{ github.repository == 'coachhornsby/fbis' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Check Cloudflare credentials and fetch qualified 2026 SDV artifact
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN}"
+          test "${CLOUDFLARE_ACCOUNT_ID}" = "2fdc80b8d99070adcef12f7a785c3fc1"
+          mkdir -p /tmp/cfb-source-reconcile
+          gh run download 38099918732 -n cfb-sdv-fbs-2026-source-qa-38099918732 -D /tmp/cfb-source-reconcile
+      - name: Full canonical identity and provenance reconciliation
+        run: python3 scripts/cfb-fbs-import-preflight.py /tmp/cfb-source-reconcile
+      - name: Upload aggregate-only reconciliation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-fbs-2026-full-canonical-identity
+          path: /tmp/cfb-source-reconcile/fbs-full-identity-reconciliation.json
+          if-no-files-found: warn
+          retention-days: 30
+
+# rerun with bounded transient D1 read retries
+
+# source-excluded records are quarantined, never written to production

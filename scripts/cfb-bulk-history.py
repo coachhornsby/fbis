@@ -17,6 +17,7 @@ reproducible. No market field is used to construct football-strength features.
 All rolling features are shifted by one game.
 """
 from __future__ import annotations
+from cfb_final_status import final_mask as authoritative_final_mask
 import io, json, os, re, urllib.request
 from pathlib import Path
 import numpy as np
@@ -117,6 +118,7 @@ def betting_clean(df):
     return x.drop_duplicates("game_id")
 
 def merge_team_tables(schedule, tables):
+    schedule=schedule[authoritative_final_mask(schedule)].copy()
     rows=[]
     for _,g in schedule.iterrows():
         gid=g["game_id"]
@@ -247,7 +249,7 @@ def main():
     games=games.sort_values(["season","week","game_date","game_id"]).reset_index(drop=True)
 
     # Final/model eligibility. ESPN-native schedule is FBS-scoped but can contain FCS opponents.
-    final_mask=pd.to_numeric(games.get("home_score"),errors="coerce").notna() & pd.to_numeric(games.get("away_score"),errors="coerce").notna()
+    final_mask=authoritative_final_mask(games)
     games["is_final"]=final_mask.astype(int)
     games["training_eligible"]=(final_mask & (games["season"]<END)).astype(int)
 

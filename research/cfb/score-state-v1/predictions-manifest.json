@@ -1,0 +1,8 @@
+{
+  "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+  "records": 6420,
+  "compressed_sha256": "f9ce74915bba6b8edc92d4dba6140cce7bfa491141a72df984b0c36e5bbfb814",
+  "decompressed_sha256": "1fb50f1738bfa15142b3765ccf437e92e1c3b45bf1a1569d752ae5e8e43ba596",
+  "temporal_class": "RETROSPECTIVE",
+  "economic_evidence": null
+}

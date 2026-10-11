@@ -1,0 +1,273 @@
+{
+  "capture_finished_at": "2026-10-11T04:57:40.981252Z",
+  "code_sha": "17190bb3acb80884babe2b5228384d25f14461c4",
+  "paid_provider_usage": false,
+  "production_mutation": false,
+  "receipts": [
+    {
+      "bytes": 72292,
+      "file": "cfb_schedule_2026.csv",
+      "observed_at": "2026-10-11T04:57:02.125627Z",
+      "sha256": "e62cd243d73bd7ed33ef0293ec9dbb1d8bc6b8104877083c85e7d26f2c1ecc4f",
+      "source": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_cfb_schedules/cfb_schedule_2026.csv",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 95018,
+      "file": "team_box_2026.csv",
+      "observed_at": "2026-10-11T04:57:02.223027Z",
+      "sha256": "4464c1964031cdd8ae0a03f7d0ccb56ec261a7667aa8f313d13a85e8fbee3119",
+      "source": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_cfb_team_box/team_box_2026.csv",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 4470444,
+      "file": "player_box_2026.csv",
+      "observed_at": "2026-10-11T04:57:02.354054Z",
+      "sha256": "9f328b02004a1dd6e2596dca11b248ccbe18dac16e922a3d21f18909c741a874",
+      "source": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_cfb_player_box/player_box_2026.csv",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 1937928,
+      "file": "canonical-teams.json",
+      "observed_at": "2026-10-11T04:57:03.451488Z",
+      "sha256": "0a71bca35579abfe6c0e4f791b05bef895d4e88886f51bb1ab94578f2019d4e8",
+      "source": "D1_READ_ONLY:b50c724c-903b-4241-8ce1-48d931e7a44c",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 1243695,
+      "file": "memberships.json",
+      "observed_at": "2026-10-11T04:57:17.118341Z",
+      "sha256": "7e3984845df7d9fc484d140ca3bcfe59cdcad805a4e05917fe281a1ad6e2720d",
+      "source": "D1_READ_ONLY:b50c724c-903b-4241-8ce1-48d931e7a44c",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 55457227,
+      "file": "legacy-captures.json",
+      "observed_at": "2026-10-11T04:57:35.322337Z",
+      "sha256": "56229e31efb10f20dd3fae045a7c5f3f55fd3d6a4ba8457ced31dc33748da2c4",
+      "source": "D1_READ_ONLY:b50c724c-903b-4241-8ce1-48d931e7a44c",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 3,
+      "file": "production-upcoming.json",
+      "observed_at": "2026-10-11T04:57:35.650471Z",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "source": "D1_READ_ONLY:b50c724c-903b-4241-8ce1-48d931e7a44c",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 3833,
+      "file": "espn-schedule-2026-10-04.json",
+      "observed_at": "2026-10-11T04:57:35.822011Z",
+      "sha256": "2c7c73b2d454012547a5e4b906bbba6b36e12363d32c6130c315ce7fdd258ce0",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261004",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 3833,
+      "file": "espn-schedule-2026-10-05.json",
+      "observed_at": "2026-10-11T04:57:35.870240Z",
+      "sha256": "2c7c73b2d454012547a5e4b906bbba6b36e12363d32c6130c315ce7fdd258ce0",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261005",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 22226,
+      "file": "espn-schedule-2026-10-06.json",
+      "observed_at": "2026-10-11T04:57:35.920868Z",
+      "sha256": "74c0c54a6611e4d4523108d3b27d5e1436f5e25a2ac22d0d900073199e095bb9",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261006",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 31626,
+      "file": "espn-schedule-2026-10-07.json",
+      "observed_at": "2026-10-11T04:57:36.052369Z",
+      "sha256": "b1931e7447bcb8e68d8dba712d4850b4408066be4ece21d4ad0b84f904afd320",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261007",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 63354,
+      "file": "espn-schedule-2026-10-08.json",
+      "observed_at": "2026-10-11T04:57:36.102071Z",
+      "sha256": "b93ba02b77f8ef126b03c82e2a392e1149aeb0c533d399c072d3ad2ea93de747",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261008",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 77533,
+      "file": "espn-schedule-2026-10-09.json",
+      "observed_at": "2026-10-11T04:57:36.144229Z",
+      "sha256": "203e3863e144cf1860d330fd3a80ed98347aa1963f892d932f2423ab6214e9f9",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261009",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 408152,
+      "file": "espn-schedule-2026-10-10.json",
+      "observed_at": "2026-10-11T04:57:36.207108Z",
+      "sha256": "f4aa013e083b86ed5e1ab082eb9fc7476f9d64137833a5b170cfa78e5944af93",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261010",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 3833,
+      "file": "espn-schedule-2026-10-11.json",
+      "observed_at": "2026-10-11T04:57:36.245212Z",
+      "sha256": "2c7c73b2d454012547a5e4b906bbba6b36e12363d32c6130c315ce7fdd258ce0",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261011",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 3833,
+      "file": "espn-schedule-2026-10-12.json",
+      "observed_at": "2026-10-11T04:57:36.283508Z",
+      "sha256": "2c7c73b2d454012547a5e4b906bbba6b36e12363d32c6130c315ce7fdd258ce0",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261012",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 41791,
+      "file": "espn-schedule-2026-10-13.json",
+      "observed_at": "2026-10-11T04:57:36.331600Z",
+      "sha256": "129feaca24bdd1869a87e4a81df8354724abb568f58377fb1c8e5a908c72243c",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261013",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 42132,
+      "file": "espn-schedule-2026-10-14.json",
+      "observed_at": "2026-10-11T04:57:36.367505Z",
+      "sha256": "fdfa603aa8f8fa668f77f3b30c6c1c85d56620e3e52370ac365c7a64315c7d4e",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261014",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 47861,
+      "file": "espn-schedule-2026-10-15.json",
+      "observed_at": "2026-10-11T04:57:36.415822Z",
+      "sha256": "2c0c10212ce119ecbe8f794c438e9db41a96bf8956e852eee32fa4caf0eb32b5",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261015",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 41630,
+      "file": "espn-schedule-2026-10-16.json",
+      "observed_at": "2026-10-11T04:57:36.518551Z",
+      "sha256": "5e978b71c79adc640c78f4d2c4a7facc58f3423fb287243e97b0772819c174b6",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261016",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 367744,
+      "file": "espn-schedule-2026-10-17.json",
+      "observed_at": "2026-10-11T04:57:36.594288Z",
+      "sha256": "42496bd326bcc345210b0b1b6fbf96c4ee4143e40cf254dee21970532082979d",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261017",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 3833,
+      "file": "espn-schedule-2026-10-18.json",
+      "observed_at": "2026-10-11T04:57:36.656781Z",
+      "sha256": "2c7c73b2d454012547a5e4b906bbba6b36e12363d32c6130c315ce7fdd258ce0",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261018",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 3833,
+      "file": "espn-schedule-2026-10-19.json",
+      "observed_at": "2026-10-11T04:57:36.707585Z",
+      "sha256": "2c7c73b2d454012547a5e4b906bbba6b36e12363d32c6130c315ce7fdd258ce0",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261019",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 41368,
+      "file": "espn-schedule-2026-10-20.json",
+      "observed_at": "2026-10-11T04:57:36.859781Z",
+      "sha256": "9e302e9c7bb6c19d71ef8dd6a9670b0785367f8a01bf0237dbe04fb7f615ed07",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261020",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 16074,
+      "file": "espn-schedule-2026-10-21.json",
+      "observed_at": "2026-10-11T04:57:36.916574Z",
+      "sha256": "73d38f7ac79b8eb04de59de597844edcdee3061e53017ed332fc6cf82ca58895",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261021",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 40547,
+      "file": "espn-schedule-2026-10-22.json",
+      "observed_at": "2026-10-11T04:57:36.963563Z",
+      "sha256": "2c405ebbc6de2984307949340e3ec93c163fdf24632b6c3add2c531c459171b9",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261022",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 64733,
+      "file": "espn-schedule-2026-10-23.json",
+      "observed_at": "2026-10-11T04:57:37.047876Z",
+      "sha256": "eba673f24c1c53a282938547a278e07bfc9b563ea85bca2d4ea9b9339e0936ff",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261023",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 300709,
+      "file": "espn-schedule-2026-10-24.json",
+      "observed_at": "2026-10-11T04:57:37.175352Z",
+      "sha256": "5ceba06fb9e8eab618485b19f9cc26ab3eef78da7347276b7a2dedadd7bf6e64",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261024",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 3833,
+      "file": "espn-schedule-2026-10-25.json",
+      "observed_at": "2026-10-11T04:57:37.333560Z",
+      "sha256": "2c7c73b2d454012547a5e4b906bbba6b36e12363d32c6130c315ce7fdd258ce0",
+      "source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates=20261025",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 34170,
+      "file": "schedule.json",
+      "observed_at": "2026-10-11T04:57:37.335101Z",
+      "sha256": "c5dd90f82d6221ecc1ddfdf6fa69a73baa1660b68107f2583b008bd379ac1fde",
+      "source": "FBIS_EXACT_ID_ESPN_SCHEDULE_NORMALIZATION",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 921893,
+      "file": "fbs-2026-ledger.team-game.jsonl",
+      "observed_at": "2026-10-11T04:57:40.967164Z",
+      "sha256": "38b10f2392db80d5c9d39ff69773dfa522b57e37833bf86ab4b9bfacef88fc96",
+      "source": "FBIS_NORMALIZATION_FROM_CAPTURED_SDV",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 18999517,
+      "file": "fbs-2026-ledger.player-game.jsonl",
+      "observed_at": "2026-10-11T04:57:40.981121Z",
+      "sha256": "3198f13d06cdd32e18b2bbfe112e5de9d46827ad16562a91850654082e9cea34",
+      "source": "FBIS_NORMALIZATION_FROM_CAPTURED_SDV",
+      "source_publication_at": null
+    },
+    {
+      "bytes": 1429,
+      "file": "fbs-2026-ledger.manifest.json",
+      "observed_at": "2026-10-11T04:57:40.981240Z",
+      "sha256": "03c0792a4a1c2a54e67f1e54d3fdc56e5c1b2601b55f9cad463f0432668bc203",
+      "source": "FBIS_NORMALIZATION_FROM_CAPTURED_SDV",
+      "source_publication_at": null
+    }
+  ],
+  "upstream_license_qualification": "Research only; upstream redistribution rights pending qualification"
+}

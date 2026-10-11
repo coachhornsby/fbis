@@ -1,0 +1,15 @@
+{
+  "status": "OFFLINE_SOURCE_VALIDATED_PRODUCTION_UNCHANGED",
+  "database": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "backup_bookmark": null,
+  "expected": {
+    "team-game": 745,
+    "team-season": 138,
+    "player-game": 26618,
+    "player-season": 7819
+  },
+  "quarantined_pairs": 2,
+  "source_research_only": true,
+  "imported_attempts": {},
+  "verified_final_counts": {}
+}

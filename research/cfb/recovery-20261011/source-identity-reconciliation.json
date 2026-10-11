@@ -1,0 +1,48 @@
+{
+  "mode": "READ_ONLY_FULL_CANONICAL_RECONCILIATION",
+  "source_manifest_sha256": "049c488b64dccccbe85e67e8d01872949152250f334f68b6f5546de5126b3d40",
+  "fbs_teams": 138,
+  "canonical_fbs_player_memberships": 15733,
+  "checks": {
+    "team-game": {
+      "rows": 745,
+      "failures": {}
+    },
+    "team-season": {
+      "rows": 138,
+      "failures": {}
+    },
+    "player-game": {
+      "rows": 26620,
+      "failures": {
+        "missing_canonical_team_player_membership": 2
+      }
+    },
+    "player-season": {
+      "rows": 7821,
+      "failures": {
+        "missing_canonical_team_player_membership": 2
+      }
+    }
+  },
+  "model_authority": false,
+  "quarantine_pairs": [
+    {
+      "team_id": "cfb:espn:2449",
+      "player_id": "cfb:espn-player:5299519"
+    },
+    {
+      "team_id": "cfb:espn:2653",
+      "player_id": "cfb:espn-player:5156174"
+    }
+  ],
+  "quarantine_policy": "NO_IMPORT_UNTIL_CANONICAL_TEAM_ROSTER_MEMBERSHIP_RESOLVED",
+  "admissible_rows": {
+    "team-game": 745,
+    "team-season": 138,
+    "player-game": 26618,
+    "player-season": 7819
+  },
+  "admissible_total": 35320,
+  "status": "PASS_WITH_QUARANTINE"
+}

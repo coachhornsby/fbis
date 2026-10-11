@@ -1,0 +1,9 @@
+{
+  "status": "VERIFIED_LOCAL_WORKERD_D1_R2",
+  "cards": 2,
+  "idempotency": true,
+  "correction": true,
+  "immutable_shadow_snapshots": 44,
+  "actual_prospective_samples": 43,
+  "production_mutations": 0
+}

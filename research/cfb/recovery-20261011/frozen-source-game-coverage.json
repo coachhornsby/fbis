@@ -1,0 +1,13 @@
+{
+  "source_observed_at": "2026-10-11T00:53:00Z",
+  "eligible_final_fbs_games": 432,
+  "expected_fbs_team_games": 745,
+  "actual_fbs_team_games": 745,
+  "missing_fbs_team_games": [],
+  "unexpected_team_games": [],
+  "fbs_team_games_with_any_player_rows": 745,
+  "missing_any_player_rows": [],
+  "all_side_expected": 864,
+  "non_fbs_opponent_sides_not_in_fbs_ledger": 119,
+  "scope": "Frozen SDV snapshot, not current production or player completeness proof"
+}

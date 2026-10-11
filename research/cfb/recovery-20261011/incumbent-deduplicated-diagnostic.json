@@ -1,0 +1,37 @@
+{
+  "result": [
+    {
+      "results": [
+        {
+          "unique_games_with_actuals": 628,
+          "margin_mae": 14.064012738853505,
+          "total_mae": 13.086624203821655,
+          "first": "2026-09-10",
+          "last": "2026-10-10"
+        }
+      ],
+      "success": true,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "WNAM",
+        "served_by_colo": "DFW",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 44.3864
+        },
+        "duration": 44.3864,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 6409109504,
+        "rows_read": 12398,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    }
+  ],
+  "errors": [],
+  "messages": [],
+  "success": true,
+  "status": 200
+}

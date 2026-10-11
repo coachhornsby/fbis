@@ -1,0 +1,36 @@
+name: CFB FBS 2026 research import exact-source dry-run
+on:
+  push:
+    branches:
+      - feat/cfb-fbs-sdv-player-box-qualified-staging
+    paths:
+      - .github/workflows/cfb-fbs-stat-import-dryrun.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  dryrun:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Download exact prior qualified 2026 source artifact
+        run: |
+          mkdir -p /tmp/cfb-stat-source
+          gh run download 38099918732 -n cfb-sdv-fbs-2026-source-qa-38099918732 -D /tmp/cfb-stat-source
+      - name: Syntax and exact-source dryrun (NO D1 access)
+        run: |
+          python3 -m py_compile scripts/cfb-fbs-2026-research-import.py
+          python3 scripts/cfb-fbs-2026-research-import.py --source-dir /tmp/cfb-stat-source --report /tmp/cfb-stat-source/import-dryrun.json
+      - name: Upload non-sensitive dryrun manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-fbs-import-dryrun
+          path: /tmp/cfb-stat-source/import-dryrun.json
+          if-no-files-found: error
+          retention-days: 30

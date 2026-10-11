@@ -1,0 +1,1015 @@
+[
+  {
+    "sql": "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+    "response": {
+      "result": [
+        {
+          "results": [
+            {
+              "name": "_cf_KV"
+            },
+            {
+              "name": "accuracy_daily_summary"
+            },
+            {
+              "name": "action_event_identity_links"
+            },
+            {
+              "name": "action_market_book_observations"
+            },
+            {
+              "name": "action_market_snapshot_pointers"
+            },
+            {
+              "name": "apify_sports_cost_ledger"
+            },
+            {
+              "name": "asian_baseball_backfill_shards"
+            },
+            {
+              "name": "asian_baseball_enrichment_shards"
+            },
+            {
+              "name": "asian_baseball_game_observations"
+            },
+            {
+              "name": "asian_baseball_game_provider_crosswalk"
+            },
+            {
+              "name": "asian_baseball_games"
+            },
+            {
+              "name": "asian_baseball_park_factors"
+            },
+            {
+              "name": "asian_baseball_player_game_observations"
+            },
+            {
+              "name": "asian_baseball_player_identities"
+            },
+            {
+              "name": "asian_baseball_pregame_snapshots"
+            },
+            {
+              "name": "bayesian_learning_state"
+            },
+            {
+              "name": "canonical_dq_findings"
+            },
+            {
+              "name": "canonical_feature_registry"
+            },
+            {
+              "name": "canonical_governance_meta"
+            },
+            {
+              "name": "canonical_misprice_snapshots"
+            },
+            {
+              "name": "canonical_model_registry"
+            },
+            {
+              "name": "canonical_probability_provenance"
+            },
+            {
+              "name": "canonical_promotion_evidence"
+            },
+            {
+              "name": "canonical_provider_health"
+            },
+            {
+              "name": "canonical_publication_ledger"
+            },
+            {
+              "name": "canonical_runtime_version"
+            },
+            {
+              "name": "canonical_source_registry"
+            },
+            {
+              "name": "cbb_availability_observations"
+            },
+            {
+              "name": "cbb_canonical_teams"
+            },
+            {
+              "name": "cbb_conference_membership"
+            },
+            {
+              "name": "cbb_directory_phase_b_runs"
+            },
+            {
+              "name": "cbb_directory_population_runs"
+            },
+            {
+              "name": "cbb_game_state_snapshots"
+            },
+            {
+              "name": "cbb_player_aliases"
+            },
+            {
+              "name": "cbb_player_prop_signals"
+            },
+            {
+              "name": "cbb_player_provider_ids"
+            },
+            {
+              "name": "cbb_player_state_snapshots"
+            },
+            {
+              "name": "cbb_players"
+            },
+            {
+              "name": "cbb_roster_membership"
+            },
+            {
+              "name": "cbb_roster_observations"
+            },
+            {
+              "name": "cbb_rotation_observations"
+            },
+            {
+              "name": "cbb_schedule_items"
+            },
+            {
+              "name": "cbb_shadow_challenger_definitions"
+            },
+            {
+              "name": "cbb_state_events"
+            },
+            {
+              "name": "cbb_state_overlay_governance"
+            },
+            {
+              "name": "cbb_team_aliases"
+            },
+            {
+              "name": "cbb_team_context_observations"
+            },
+            {
+              "name": "cbb_team_state_snapshots"
+            },
+            {
+              "name": "cfb_canonical_players"
+            },
+            {
+              "name": "cfb_canonical_teams"
+            },
+            {
+              "name": "cfb_conference_membership"
+            },
+            {
+              "name": "cfb_hfa_external"
+            },
+            {
+              "name": "cfb_hfa_games"
+            },
+            {
+              "name": "cfb_hfa_ratings"
+            },
+            {
+              "name": "cfb_player_aliases"
+            },
+            {
+              "name": "cfb_player_projections"
+            },
+            {
+              "name": "cfb_player_prop_comparisons"
+            },
+            {
+              "name": "cfb_player_prop_signals_v2"
+            },
+            {
+              "name": "cfb_player_provider_ids"
+            },
+            {
+              "name": "cfb_player_role_snapshots"
+            },
+            {
+              "name": "cfb_pregame_feature_vectors"
+            },
+            {
+              "name": "cfb_prop_market_lines"
+            },
+            {
+              "name": "cfb_roster_membership"
+            },
+            {
+              "name": "cfb_roster_observations"
+            },
+            {
+              "name": "cfb_roster_source_coverage"
+            },
+            {
+              "name": "cfb_state_overlay_governance"
+            },
+            {
+              "name": "cfb_team_aliases"
+            },
+            {
+              "name": "cfb_team_identity_observations"
+            },
+            {
+              "name": "cfb_team_provider_ids"
+            },
+            {
+              "name": "cfbd_endpoint_audit"
+            },
+            {
+              "name": "challenger_evaluations"
+            },
+            {
+              "name": "continuous_learning_meta"
+            },
+            {
+              "name": "d1_migrations"
+            },
+            {
+              "name": "daily_metrics"
+            },
+            {
+              "name": "daily_reports"
+            },
+            {
+              "name": "ev_audit_records"
+            },
+            {
+              "name": "executed_bet_audit"
+            },
+            {
+              "name": "executed_bets"
+            },
+            {
+              "name": "external_acquisition_account"
+            },
+            {
+              "name": "external_acquisition_batches"
+            },
+            {
+              "name": "external_acquisition_consumers"
+            },
+            {
+              "name": "external_acquisition_policy"
+            },
+            {
+              "name": "external_acquisition_requests"
+            },
+            {
+              "name": "external_acquisitions"
+            },
+            {
+              "name": "fbis_economic_cohort_metrics"
+            },
+            {
+              "name": "fbis_economic_grades"
+            },
+            {
+              "name": "fbis_ops_components"
+            },
+            {
+              "name": "fbis_ops_health"
+            },
+            {
+              "name": "fbis_ops_invariant_checks"
+            },
+            {
+              "name": "fbis_prospective_evidence"
+            },
+            {
+              "name": "fbis_run_manifests"
+            },
+            {
+              "name": "fbis_state_observations"
+            },
+            {
+              "name": "fbis_watchdog_metrics"
+            },
+            {
+              "name": "games"
+            },
+            {
+              "name": "harvest_retry_queue"
+            },
+            {
+              "name": "job_runs"
+            },
+            {
+              "name": "learning_monitor_runs"
+            },
+            {
+              "name": "manual_score_audit"
+            },
+            {
+              "name": "mlb_hitter_profiles"
+            },
+            {
+              "name": "mlb_market_projections"
+            },
+            {
+              "name": "mlb_pitcher_profiles"
+            },
+            {
+              "name": "mlb_player_state_profiles"
+            },
+            {
+              "name": "mlb_profile_refresh_state"
+            },
+            {
+              "name": "mlb_prop_evidence_rejections"
+            },
+            {
+              "name": "mlb_prop_evidence_runs"
+            },
+            {
+              "name": "mlb_prop_prospective_evidence"
+            },
+            {
+              "name": "mlb_team_profile_snapshots"
+            },
+            {
+              "name": "mlb_team_profiles"
+            },
+            {
+              "name": "mlb_team_schedule_items"
+            },
+            {
+              "name": "model_learning_findings"
+            },
+            {
+              "name": "model_promotion_decisions"
+            },
+            {
+              "name": "model_validation_runs"
+            },
+            {
+              "name": "model_versions"
+            },
+            {
+              "name": "nba_confidence_calibration"
+            },
+            {
+              "name": "nba_decision_validation_runs"
+            },
+            {
+              "name": "nba_deep_game_shadow"
+            },
+            {
+              "name": "nba_deep_validation_runs"
+            },
+            {
+              "name": "nba_game_features"
+            },
+            {
+              "name": "nba_game_market_evaluations"
+            },
+            {
+              "name": "nba_game_projections"
+            },
+            {
+              "name": "nba_lineup_observations"
+            },
+            {
+              "name": "nba_observation_health"
+            },
+            {
+              "name": "nba_official_availability_reports"
+            },
+            {
+              "name": "nba_player_game_features"
+            },
+            {
+              "name": "nba_player_impact_benchmarks"
+            },
+            {
+              "name": "nba_player_impact_snapshots"
+            },
+            {
+              "name": "nba_player_impact_validation"
+            },
+            {
+              "name": "nba_player_prop_impact_shadow"
+            },
+            {
+              "name": "nba_player_prop_projections"
+            },
+            {
+              "name": "nba_player_role_contexts"
+            },
+            {
+              "name": "nba_player_state_events"
+            },
+            {
+              "name": "nba_player_state_profiles"
+            },
+            {
+              "name": "nba_prop_comparisons"
+            },
+            {
+              "name": "nba_prop_market_evaluations"
+            },
+            {
+              "name": "nba_prospective_exclusions"
+            },
+            {
+              "name": "nba_prospective_game_shadow"
+            },
+            {
+              "name": "nba_prospective_gate"
+            },
+            {
+              "name": "nba_prospective_market_links"
+            },
+            {
+              "name": "nba_qualification_state"
+            },
+            {
+              "name": "nba_team_coach_history"
+            },
+            {
+              "name": "nba_team_profile_snapshots"
+            },
+            {
+              "name": "nba_team_profiles"
+            },
+            {
+              "name": "nba_team_schedule_items"
+            },
+            {
+              "name": "nba_wager_decisions"
+            },
+            {
+              "name": "nfl_player_profiles"
+            },
+            {
+              "name": "nfl_player_state_events"
+            },
+            {
+              "name": "nfl_profile_sync_runs"
+            },
+            {
+              "name": "nfl_prop_market_calibration_runs"
+            },
+            {
+              "name": "nfl_prop_state_snapshots"
+            },
+            {
+              "name": "nfl_qb_personnel_shadow_predictions"
+            },
+            {
+              "name": "nfl_team_coach_history"
+            },
+            {
+              "name": "nfl_team_profile_snapshots"
+            },
+            {
+              "name": "nfl_team_profiles"
+            },
+            {
+              "name": "nfl_team_schedule_profile"
+            },
+            {
+              "name": "nfl_wager_decisions"
+            },
+            {
+              "name": "nfl_wager_outcomes"
+            },
+            {
+              "name": "nhl_deployment_observations"
+            },
+            {
+              "name": "nhl_goalie_probability_shadow"
+            },
+            {
+              "name": "nhl_goalie_profiles"
+            },
+            {
+              "name": "nhl_linemate_profiles"
+            },
+            {
+              "name": "nhl_player_profiles"
+            },
+            {
+              "name": "nhl_player_tracking_profiles"
+            },
+            {
+              "name": "nhl_profile_sync_runs"
+            },
+            {
+              "name": "nhl_replacement_observations"
+            },
+            {
+              "name": "nhl_team_coach_history"
+            },
+            {
+              "name": "nhl_team_profile_snapshots"
+            },
+            {
+              "name": "nhl_team_profiles"
+            },
+            {
+              "name": "nhl_team_schedule_profile"
+            },
+            {
+              "name": "nhl_wager_confidence_runs"
+            },
+            {
+              "name": "nhl_wager_decisions"
+            },
+            {
+              "name": "nhl_wager_settlements"
+            },
+            {
+              "name": "normalized_market_decision_links"
+            },
+            {
+              "name": "normalized_market_economic_grades"
+            },
+            {
+              "name": "normalized_market_observations"
+            },
+            {
+              "name": "odds_snapshots"
+            },
+            {
+              "name": "online_learning_shadow"
+            },
+            {
+              "name": "pipeline_stage_runs"
+            },
+            {
+              "name": "player_availability_observations"
+            },
+            {
+              "name": "player_prop_cards"
+            },
+            {
+              "name": "player_prop_legs"
+            },
+            {
+              "name": "prediction_layers"
+            },
+            {
+              "name": "prediction_snapshots"
+            },
+            {
+              "name": "predictions"
+            },
+            {
+              "name": "prizepicks_daily_acquisitions"
+            },
+            {
+              "name": "prizepicks_prop_lines"
+            },
+            {
+              "name": "prizepicks_prop_observations"
+            },
+            {
+              "name": "published_projections"
+            },
+            {
+              "name": "recalibration_runs"
+            },
+            {
+              "name": "schema_migrations"
+            },
+            {
+              "name": "shadow_candidate_scheduler_state"
+            },
+            {
+              "name": "shadow_collection_runs"
+            },
+            {
+              "name": "shadow_cost_ledger"
+            },
+            {
+              "name": "shadow_dead_letters"
+            },
+            {
+              "name": "shadow_line_movement"
+            },
+            {
+              "name": "shadow_market_books"
+            },
+            {
+              "name": "shadow_market_observations"
+            },
+            {
+              "name": "shadow_market_splits"
+            },
+            {
+              "name": "shadow_observation_keys"
+            },
+            {
+              "name": "shadow_promotion_metrics"
+            },
+            {
+              "name": "shadow_provider_comparisons"
+            },
+            {
+              "name": "shadow_provider_reliability"
+            },
+            {
+              "name": "shadow_provider_runs"
+            },
+            {
+              "name": "shadow_schema_fingerprints"
+            },
+            {
+              "name": "soccer_availability_observations"
+            },
+            {
+              "name": "soccer_competition_coverage"
+            },
+            {
+              "name": "soccer_competition_provider_map"
+            },
+            {
+              "name": "soccer_competition_validation"
+            },
+            {
+              "name": "soccer_matches"
+            },
+            {
+              "name": "soccer_pitchapi_backfill_queue"
+            },
+            {
+              "name": "soccer_pitchapi_discovery_runs"
+            },
+            {
+              "name": "soccer_pitchapi_lineup_observations"
+            },
+            {
+              "name": "soccer_pitchapi_match_features"
+            },
+            {
+              "name": "soccer_pitchapi_player_match"
+            },
+            {
+              "name": "soccer_pitchapi_sync_runs"
+            },
+            {
+              "name": "soccer_player_state"
+            },
+            {
+              "name": "soccer_player_state_snapshots"
+            },
+            {
+              "name": "soccer_prospective_shadow"
+            },
+            {
+              "name": "soccer_research_routes"
+            },
+            {
+              "name": "soccer_team_state"
+            },
+            {
+              "name": "soccer_team_state_snapshots"
+            },
+            {
+              "name": "soccer_validation_evidence"
+            },
+            {
+              "name": "sqlite_sequence"
+            },
+            {
+              "name": "store_meta"
+            },
+            {
+              "name": "strategies"
+            },
+            {
+              "name": "strategy_qualification_attempts"
+            },
+            {
+              "name": "strategy_settlement_corrections"
+            },
+            {
+              "name": "strategy_ticket_probability_corrections"
+            },
+            {
+              "name": "strategy_tickets"
+            },
+            {
+              "name": "team_form"
+            },
+            {
+              "name": "team_form_games"
+            },
+            {
+              "name": "tennis_availability_observations"
+            },
+            {
+              "name": "tennis_context_snapshots"
+            },
+            {
+              "name": "tennis_identity_review_queue"
+            },
+            {
+              "name": "tennis_ingestion_state"
+            },
+            {
+              "name": "tennis_market_snapshots"
+            },
+            {
+              "name": "tennis_match_history"
+            },
+            {
+              "name": "tennis_match_identity_review_queue"
+            },
+            {
+              "name": "tennis_official_match_observations"
+            },
+            {
+              "name": "tennis_official_matches"
+            },
+            {
+              "name": "tennis_performance_observations"
+            },
+            {
+              "name": "tennis_player_aliases"
+            },
+            {
+              "name": "tennis_player_bank"
+            },
+            {
+              "name": "tennis_player_profiles_current"
+            },
+            {
+              "name": "tennis_player_source_ids"
+            },
+            {
+              "name": "tennis_players"
+            },
+            {
+              "name": "tennis_profile_observations"
+            },
+            {
+              "name": "tennis_ranking_observations"
+            },
+            {
+              "name": "tennis_source_audits"
+            },
+            {
+              "name": "tennis_tournament_speed_current"
+            },
+            {
+              "name": "tennis_v2_research_decisions"
+            },
+            {
+              "name": "tennis_wta_shards"
+            },
+            {
+              "name": "wnba_game_impact_shadow"
+            },
+            {
+              "name": "wnba_game_possession_challenger_shadow"
+            },
+            {
+              "name": "wnba_game_possession_market_shadow"
+            },
+            {
+              "name": "wnba_player_impact_snapshots"
+            },
+            {
+              "name": "wnba_player_impact_validation"
+            },
+            {
+              "name": "wnba_player_opportunity_shadow"
+            },
+            {
+              "name": "wnba_player_opportunity_validation"
+            },
+            {
+              "name": "wnba_player_prop_impact_shadow"
+            },
+            {
+              "name": "wnba_player_role_contexts"
+            },
+            {
+              "name": "wnba_possession_challenger_coefficients"
+            },
+            {
+              "name": "wnba_possession_challenger_validation"
+            },
+            {
+              "name": "wnba_prop_validation"
+            },
+            {
+              "name": "wnba_team_possession_feature_snapshots"
+            },
+            {
+              "name": "wnba_wager_decisions"
+            },
+            {
+              "name": "wnba_wager_results"
+            },
+            {
+              "name": "write_conflicts"
+            }
+          ],
+          "success": true,
+          "meta": {
+            "served_by": "v3-prod",
+            "served_by_region": "WNAM",
+            "served_by_colo": "DFW",
+            "served_by_primary": true,
+            "timings": {
+              "sql_duration_ms": 1.1393
+            },
+            "duration": 1.1393,
+            "changes": 0,
+            "last_row_id": 2614,
+            "changed_db": false,
+            "size_after": 6408978432,
+            "rows_read": 1195,
+            "rows_written": 0,
+            "total_attempts": 1
+          }
+        }
+      ],
+      "errors": [],
+      "messages": [],
+      "success": true,
+      "status": 200
+    }
+  },
+  {
+    "sql": "SELECT name FROM sqlite_master WHERE name IN ('source_observations','team_feature_snapshots','game_feature_snapshots','api_usage','team_season_identity')",
+    "response": {
+      "result": [
+        {
+          "results": [],
+          "success": true,
+          "meta": {
+            "served_by": "v3-prod",
+            "served_by_region": "WNAM",
+            "served_by_colo": "DFW",
+            "served_by_primary": true,
+            "timings": {
+              "sql_duration_ms": 0.8097
+            },
+            "duration": 0.8097,
+            "changes": 0,
+            "last_row_id": 2614,
+            "changed_db": false,
+            "size_after": 6408978432,
+            "rows_read": 928,
+            "rows_written": 0,
+            "total_attempts": 1
+          }
+        }
+      ],
+      "errors": [],
+      "messages": [],
+      "success": true,
+      "status": 200
+    }
+  },
+  {
+    "sql": "SELECT COUNT(*) AS n FROM cfb_pregame_feature_vectors",
+    "response": {
+      "result": [
+        {
+          "results": [
+            {
+              "n": 0
+            }
+          ],
+          "success": true,
+          "meta": {
+            "served_by": "v3-prod",
+            "served_by_region": "WNAM",
+            "served_by_colo": "DFW",
+            "served_by_primary": true,
+            "timings": {
+              "sql_duration_ms": 0.2184
+            },
+            "duration": 0.2184,
+            "changes": 0,
+            "last_row_id": 2614,
+            "changed_db": false,
+            "size_after": 6408978432,
+            "rows_read": 0,
+            "rows_written": 0,
+            "total_attempts": 1
+          }
+        }
+      ],
+      "errors": [],
+      "messages": [],
+      "success": true,
+      "status": 200
+    }
+  },
+  {
+    "sql": "SELECT * FROM schema_migrations ORDER BY rowid DESC LIMIT 5",
+    "response": {
+      "result": [
+        {
+          "results": [
+            {
+              "id": "0097_apify_acquisition_authority",
+              "applied_at": "2026-10-07T20:03:41.283Z"
+            },
+            {
+              "id": "0096_cbb_phase_b_future_transfer_leakage",
+              "applied_at": "2026-10-07 15:38:34"
+            },
+            {
+              "id": "0095_normalized_market_observation_ledger",
+              "applied_at": "2026-10-07 12:47:28"
+            },
+            {
+              "id": "0094_tennis_wta_match_history_pit",
+              "applied_at": "2026-10-06 18:34:07"
+            },
+            {
+              "id": "0093_fbis_historical_evidence_diagnostics",
+              "applied_at": "2026-10-06 18:15:25"
+            }
+          ],
+          "success": true,
+          "meta": {
+            "served_by": "v3-prod",
+            "served_by_region": "WNAM",
+            "served_by_colo": "DFW",
+            "served_by_primary": true,
+            "timings": {
+              "sql_duration_ms": 0.2699
+            },
+            "duration": 0.2699,
+            "changes": 0,
+            "last_row_id": 2614,
+            "changed_db": false,
+            "size_after": 6408978432,
+            "rows_read": 5,
+            "rows_written": 0,
+            "total_attempts": 1
+          }
+        }
+      ],
+      "errors": [],
+      "messages": [],
+      "success": true,
+      "status": 200
+    }
+  },
+  {
+    "sql": "SELECT * FROM d1_migrations ORDER BY id DESC LIMIT 5",
+    "response": {
+      "result": [
+        {
+          "results": [
+            {
+              "id": 112,
+              "name": "0097_apify_acquisition_authority.sql",
+              "applied_at": "2026-10-07 20:03:41"
+            },
+            {
+              "id": 111,
+              "name": "0096_cbb_phase_b_future_transfer_leakage.sql",
+              "applied_at": "2026-10-07 15:45:38"
+            },
+            {
+              "id": 110,
+              "name": "0095_normalized_market_observation_ledger.sql",
+              "applied_at": "2026-10-07 12:47:28"
+            },
+            {
+              "id": 109,
+              "name": "0094_tennis_wta_match_history_pit.sql",
+              "applied_at": "2026-10-06 18:34:07"
+            },
+            {
+              "id": 108,
+              "name": "0093_fbis_historical_evidence_diagnostics.sql",
+              "applied_at": "2026-10-06 18:15:25"
+            }
+          ],
+          "success": true,
+          "meta": {
+            "served_by": "v3-prod",
+            "served_by_region": "WNAM",
+            "served_by_colo": "DFW",
+            "served_by_primary": true,
+            "timings": {
+              "sql_duration_ms": 0.3077
+            },
+            "duration": 0.3077,
+            "changes": 0,
+            "last_row_id": 21223,
+            "changed_db": false,
+            "size_after": 6409076736,
+            "rows_read": 5,
+            "rows_written": 0,
+            "total_attempts": 1
+          }
+        }
+      ],
+      "errors": [],
+      "messages": [],
+      "success": true,
+      "status": 200
+    }
+  }
+]

@@ -1,0 +1,44 @@
+name: CFB forward evidence (read-only shadow)
+on:
+  push:
+    branches: [engineering/cfb-recovery-postgame-20261011]
+    paths:
+      - '.github/workflows/cfb-forward-evidence.yml'
+      - 'scripts/cfb-forward-*.py'
+      - 'scripts/cfb-forward-*.mjs'
+      - 'functions/lib/cfbForwardEvidence.js'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cfb-forward-evidence-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Capture public releases and read-only production feature evidence
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 scripts/cfb-forward-capture.py --output-dir "$RUNNER_TEMP/cfb-forward" --code-sha "$GITHUB_SHA"
+      - name: Materialize research cards and freeze future shadow projections
+        run: node scripts/cfb-forward-build.mjs "$RUNNER_TEMP/cfb-forward"
+      - name: Preserve separately labelled public research prices
+        run: node scripts/cfb-forward-market-research.mjs "$RUNNER_TEMP/cfb-forward"
+      - name: Reconcile captured clocks, cards and forecasts
+        run: node scripts/cfb-forward-reconcile.mjs "$RUNNER_TEMP/cfb-forward"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cfb-forward-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/cfb-forward/
+          retention-days: 90
+          if-no-files-found: error

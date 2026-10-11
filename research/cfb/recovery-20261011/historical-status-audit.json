@@ -1,0 +1,33 @@
+{
+  "source_records": 18957,
+  "verified_final_status_records": 18769,
+  "excluded_records": 188,
+  "by_status": {
+    "STATUS_CANCELED": 95,
+    "STATUS_POSTPONED": 93
+  },
+  "by_season": {
+    "2004": 5,
+    "2005": 10,
+    "2007": 2,
+    "2008": 3,
+    "2011": 1,
+    "2012": 2,
+    "2013": 1,
+    "2014": 3,
+    "2015": 3,
+    "2016": 3,
+    "2017": 13,
+    "2018": 11,
+    "2019": 1,
+    "2020": 121,
+    "2021": 4,
+    "2022": 4,
+    "2024": 1
+  },
+  "all_excluded_have_zero_zero_scores": false,
+  "affected_artifact": "cfb-full-history-v3.zip",
+  "previous_final_claim_invalid": true,
+  "original_v3_model_evaluation_requires_rebuild": true,
+  "incumbent_coefficient_changes": false
+}

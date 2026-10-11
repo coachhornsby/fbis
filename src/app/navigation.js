@@ -8,6 +8,7 @@
 export const CUSTOMER_NAV = Object.freeze([
   { id: "board", label: "BOARD", description: "Decision workstation — FBIS → Market → Diff → Decision" },
   { id: "player-props", label: "PLAYER PROPS", description: "Curated PrizePicks lines + FBIS player projections" },
+  { id: "teams", label: "FBS TEAMS", description: "Persistent FBS school profiles, stadiums and team feature history" },
   { id: "bets", label: "MY BETS", description: "Manual wager journal and performance" },
   { id: "models", label: "MODELS", description: "Model health, status, coverage, and readiness — no betting picks" },
   { id: "model-lab", label: "MODEL LAB", description: "Validation, version comparison, prospective evidence" },
@@ -48,6 +49,7 @@ export const SPORT_FILTER_ROUTES_LEGACY = SPORT_FILTER_ROUTES;
 export function legacyToRoute({ tab, sport } = {}) {
   if (tab === "sys") return { route: "system", sportFilter: sport || "all" };
   if (tab === "bets") return { route: "bets", sportFilter: sport || "all" };
+  if (tab === "teams") return { route: "teams", sportFilter: "cfb" };
   if (tab === "today") return { route: "board", sportFilter: sport || "all" };
   if (tab === "board") return { route: "market", sportFilter: sport || "mlb" };
   return { route: "board", sportFilter: "all" };
@@ -62,6 +64,8 @@ export function routeToLegacy(route, sportFilter = "all") {
       return { tab: "sys", sport: sportFilter === "all" ? "mlb" : sportFilter };
     case "bets":
       return { tab: "bets", sport: sportFilter === "all" ? "mlb" : sportFilter };
+    case "teams":
+      return { tab: "teams", sport: "cfb" };
     case "board":
     case "today": // legacy alias
       return { tab: "today", sport: sportFilter === "all" ? "mlb" : sportFilter };

@@ -1,0 +1,81 @@
+{
+  "result": [
+    {
+      "results": [
+        {
+          "model_version": "CFB-FBIS-v2",
+          "projection_kind": "FBIS",
+          "n": 2211,
+          "with_actuals": 2056,
+          "first": "2026-09-11T14:37:10.181Z",
+          "last": "2026-10-11T02:09:59.946Z"
+        },
+        {
+          "model_version": "FBIS-v1.4",
+          "projection_kind": "FBIS",
+          "n": 631,
+          "with_actuals": 628,
+          "first": "2026-09-03T15:44:16.538Z",
+          "last": "2026-09-11T02:28:23.501Z"
+        },
+        {
+          "model_version": "FBIS-v1.3",
+          "projection_kind": "FBIS",
+          "n": 264,
+          "with_actuals": 264,
+          "first": "2026-08-27T23:26:25.914Z",
+          "last": "2026-09-03T12:08:57.069Z"
+        }
+      ],
+      "success": true,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "WNAM",
+        "served_by_colo": "DFW",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 78.3655
+        },
+        "duration": 78.3655,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 6409109504,
+        "rows_read": 6216,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "results": [
+        {
+          "nominal_pregame_graded": 1949,
+          "margin_mae": 13.124114930733711,
+          "total_mae": 12.954489481785531
+        }
+      ],
+      "success": true,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "WNAM",
+        "served_by_colo": "DFW",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 18.8446
+        },
+        "duration": 18.8446,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 6409109504,
+        "rows_read": 5163,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    }
+  ],
+  "errors": [],
+  "messages": [],
+  "success": true,
+  "status": 200
+}

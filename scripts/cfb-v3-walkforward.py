@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from cfb_final_status import final_mask
 import json, re
 from pathlib import Path
 import numpy as np
@@ -81,7 +82,7 @@ def export_model(model,features):
 
 def main():
     d=pd.read_csv(DATA,low_memory=False)
-    d=d[(numeric(d.home_score).notna())&(numeric(d.away_score).notna())].copy()
+    d=d[final_mask(d)].copy()
     d["home_margin"]=numeric(d.home_margin);d["final_total"]=numeric(d.final_total)
     d["season"]=numeric(d.season).astype(int);d["week"]=numeric(d.week)
     margin_candidates=candidate_cols(d,"margin");total_candidates=candidate_cols(d,"total")
