@@ -145,6 +145,20 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange}) {
       {" · "}Collected {stamp(evidence.teamStatistics.asOf)} · Read-only, not an active model input.</p>}
     </section>
     <section className="ft-panel">
+      <div className="ft-heading"><h3>Individual game team statistics</h3>
+        <small>{evidence?.teamGameStatistics?.count||0} source-observed team-game records</small></div>
+      {(evidence?.teamGameStatistics?.games||[]).length
+        ? <div className="ft-game-stats">{evidence.teamGameStatistics.games.map(g=>
+          <details className="ft-game-entry" key={g.gameId}>
+            <summary>{show(g.gameAt)} · {show(g.opponent)} · {g.stats.metricsCount} metrics</summary>
+            <p className="ft-note">Source: {show(g.stats.source)} · Observed {stamp(g.stats.asOf)}</p>
+            <MetricGroups groups={g.stats.groups}/>
+          </details>)}</div>
+        : <div className="ft-missing">No source-observed individual team-game efficiency and box-score records
+          are stored for this season. The historical SDV team-game archive is a staging candidate,
+          not live production state.</div>}
+    </section>
+    <section className="ft-panel">
       <div className="ft-heading"><h3>2026 and historical team rosters · All positions</h3>
         <small>{roster.length} distinct players · {show(evidence?.roster?.state)}</small></div>
       <p className="ft-note">Every listed player is a dated SportsDataverse/ESPN roster membership, not a confirmed starter,
