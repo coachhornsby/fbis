@@ -60,7 +60,7 @@ Bounded offline learning findings record season/regime errors and hypotheses wit
 
 | # | Deliverable | Status | Evidence or remaining work |
 |---|---|---|---|
-| 1 | Production baseline | PARTIAL | Live SHA, ledgers, selected counts/contracts verified; full operational/data inventory incomplete |
+| 1 | Production baseline | PARTIAL | Current SHA/Pages, both ledgers, all 928 schema objects and all 266 user-table counts verified; complete workflow/source/operational audit remains incomplete |
 | 2 | Full backup manifest | VERIFIED | Newer five-part single-bookmark alternative verified byte-for-byte; original 603 parts and explicit creation time remain unavailable |
 | 3 | Full isolated restoration | VERIFIED | Full local SQLite restore: 266 tables, 3,285,588 rows, zero FK errors; remote D1 full import remains unverified |
 | 4 | 0098/0099/import artifacts | PARTIAL | Reconciled code and local tests; independent review and production approval outstanding |
@@ -77,7 +77,7 @@ Bounded offline learning findings record season/regime errors and hypotheses wit
 | 15 | Economic qualification framework | PARTIAL | Existing shared framework inspected; CFB evidence/joins absent; measurements NULL |
 | 16 | Full end-to-end regression | PARTIAL | 1,461 JS tests, 23 Python tests and local workerd/D1/R2 integration; remote D1/collectors/UI/full-chain tests outstanding |
 | 17 | Runbooks/docs | PARTIAL | This report and existing release preflight; full production operations remain unqualified |
-| 18 | PR/commits/CI/release gates | PARTIAL | Draft #957; first hosted CI passed; latest-head CI and reviewer acceptance required |
+| 18 | PR/commits/CI/release gates | PARTIAL | Draft #957; tested code cb477a19 passed exact-head CI/source QA; independent reviewer acceptance outstanding |
 
 ## Exact release gates and rollback
 
@@ -99,3 +99,9 @@ Hosted verification run `38110310315` at commit `f1fc6e8f9fd799968be6163874ceeda
 Frozen source coverage includes 432 final FBS-involving games and all 745 expected FBS team sides, with some player records on each. It omits 119 non-FBS opponent sides from the FBS ledger. Presence of player rows does not prove all participants or categories are complete. Two unresolved athlete/team pairs remain quarantined. No full Team Card automation claim follows from this snapshot.
 
 `cfb-d1-import-partition.py` prepares bounded complete-statement files from an accepted report, checks the original full SQL checksum, rejects explicit cross-file transactions and emits an ordered manifest. Three fixture contracts pass. It has not partitioned the full export or imported a remote D1 database; this is preparation, not remote recovery evidence.
+
+## Final live inventory and CI
+
+Read-only live inventory at approximately 04:22 UTC records all 928 schema objects (267 tables, 655 indexes, five views, one trigger) and counts all 266 user tables: 3,290,568 rows. Internal `_cf_KV` cannot be read through D1 API (`SQLITE_AUTH`). Thirty-eight advancing tables account for 4,980 additional rows relative to the frozen source bookmark. Live counts were acquired in separate bounded query batches, not an atomic snapshot; they must never replace bookmark reconciliation. Full definitions/counts are in `live-production-inventory.json`. Full workflow health and coverage still require additional qualification.
+
+Code commit `cb477a19dab1af53fc5449cb67695c74d818b5db` passed CI run 38111036517 and source QA run 38111036537. `ci-evidence.json` links the exact accepted code, independent full-restore run and artifact hash. Evidence-only updates do not change that tested implementation. No independent human technical review has occurred.

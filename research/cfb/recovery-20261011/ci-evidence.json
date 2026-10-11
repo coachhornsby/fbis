@@ -1,0 +1,24 @@
+{
+  "validated_code_sha": "cb477a19dab1af53fc5449cb67695c74d818b5db",
+  "ci": {
+    "id": 38111036517,
+    "url": "https://github.com/coachhornsby/fbis/actions/runs/38111036517",
+    "status": "success",
+    "js_tests": 1461,
+    "python_contracts": 23,
+    "build": "passed",
+    "local_workerd_d1_r2": "passed"
+  },
+  "source_qualification": {
+    "id": 38111036537,
+    "status": "success"
+  },
+  "strict_restore": {
+    "id": 38110310315,
+    "artifact": 11691544549,
+    "status": "success",
+    "artifact_sha256": "95780c2353c9ee8aff516589070f669de005d24054501ddf6591bfb691a08e39"
+  },
+  "independent_technical_review": "NOT_COMPLETED",
+  "production_mutations": 0
+}
