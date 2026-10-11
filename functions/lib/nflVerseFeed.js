@@ -380,7 +380,7 @@ async function readArchivedSnapshot(env={}, season, now){
 }
 
 export async function loadNflVerseFeatures(env={}, {fetchFn=fetch,now=Date.now(),forceNetwork=false}={}){
-  const season=seasonYear(new Date(now)),cacheKey=`nflverse-features-v3-${season}`,cached=await readCache(cacheKey,env.caches,TTL_MS);if(cached?.meta)return cached;
+  const season=seasonYear(new Date(now)),cacheKey=`nflverse-features-v3-${season}`,cached=await readCache(cacheKey,env.caches,TTL_MS);if(cached?.meta&&Object.keys(cached.byTeam||{}).length>=28&&Object.keys(cached.playersByTeam||{}).length>=28)return cached;
   if(!forceNetwork){
     const archived=await readArchivedSnapshot(env,season,now);
     if(archived){
