@@ -5,7 +5,7 @@ export function isFbsVsFbsGame(game) {
   const season = Number(game.season || String(game.start || '').slice(0, 4));
   return ['home', 'away'].every(side => {
     const team = game[side] || {};
-    const classification = String(team.classification || '').trim().toUpperCase();
+    const classification = String(team.classificationSource === 'CFBD' ? team.providerClassification || '' : team.classification || '').trim().toUpperCase();
     // Explicit provider classification takes precedence over current membership.
     if (classification && classification !== 'FBS') return false;
     if (team.classificationSource === 'CFBD') return classification === 'FBS';

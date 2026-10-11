@@ -1403,7 +1403,7 @@ function mapCfbdGame(g) {
       },
       home: {
         name: g.homeTeam || "Home",
-        classification: g.homeClassification || g.home_classification || null,
+        providerClassification: g.homeClassification || g.home_classification || null,
         classificationSource: "CFBD",
         abbr: inferAbbr(g.homeTeam || ""),
         logo: "",
@@ -1413,7 +1413,7 @@ function mapCfbdGame(g) {
       },
       away: {
         name: g.awayTeam || "Away",
-        classification: g.awayClassification || g.away_classification || null,
+        providerClassification: g.awayClassification || g.away_classification || null,
         classificationSource: "CFBD",
         abbr: inferAbbr(g.awayTeam || ""),
         logo: "",

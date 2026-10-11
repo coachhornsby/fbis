@@ -4,9 +4,9 @@ import {isFbsVsFbsGame, fbsOnlySlate} from '../functions/lib/cfbGameVisibility.j
 const game = {id:'1',sport:'cfb',start:'2026-10-11T19:00:00Z',home:{espnId:'333'},away:{espnId:'61'},status:{}};
 test('verified FBS sides appear; FCS, unknown and unsupported seasons are withheld',()=>{
  assert.equal(isFbsVsFbsGame(game),true);
- for(const away of [{espnId:'999999'},{name:'Texas'},{espnId:'61',classification:'FCS',classificationSource:'CFBD'}]) assert.equal(isFbsVsFbsGame({...game,away}),false);
+ for(const away of [{espnId:'999999'},{name:'Texas'},{espnId:'61',providerClassification:'FCS',classification:'FBS',classificationSource:'CFBD'}]) assert.equal(isFbsVsFbsGame({...game,away}),false);
  assert.equal(isFbsVsFbsGame({...game,start:'2025-10-11'}),false);
- assert.equal(isFbsVsFbsGame({...game,home:{classification:'FBS',classificationSource:'CFBD'},away:{classification:'FBS',classificationSource:'CFBD'}}),true);
+ assert.equal(isFbsVsFbsGame({...game,home:{providerClassification:'FBS',classificationSource:'CFBD'},away:{providerClassification:'FBS',classificationSource:'CFBD'}}),true);
  assert.equal(isFbsVsFbsGame({sport:'nhl'}),true);
 });
 test('slate counts and ticker exclude withheld CFB cards without mutating input',()=>{
