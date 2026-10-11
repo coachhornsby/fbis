@@ -130,8 +130,8 @@ test("NFL injury strip fails closed for missing state and does not infer injury 
   assert.equal(nflInjuryScoreIntegrity({sport:"cfb"}),null);
 });
 
-test("NFL game cards display official QB OUT warning without changing NFL projection calculation",()=>{
-  const fs=require("node:fs");
+test("NFL game cards display official QB OUT warning without changing NFL projection calculation",async()=>{
+  const fs=await import("node:fs");
   for(const path of ["src/components/board/CompactGameCard.jsx","src/components/board/PremiumGameCard.jsx"]){
     const content=fs.readFileSync(path,"utf8");
     assert.match(content,/<NflInjuryIntegrityStrip game=\{game\}/);
