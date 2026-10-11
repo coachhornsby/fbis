@@ -195,6 +195,11 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <div className="muted">{game.modelVersion || "CFB-FBIS-v2"} · {game.projectionState || game.cfb?.projectionState || "UNKNOWN"} · NO BETTING AUTHORITY</div>
       ) : null}
 
+      {isNfl && game.nflInternationalContext?.international ? (
+        <div className="pgc-status-note" role="status" aria-label="International-game risk">
+          🌍 {game.nflInternationalContext.site?.city || "INTERNATIONAL"} · INTERNATIONAL / NEUTRAL · TRAVEL NOT VALIDATED · NO BET AUTHORITY
+        </div>
+      ) : null}
       {sportId === "nhl" && vm.event?.live ? (
         <section className="cgc-live-nhl-score" aria-label="Live NHL score">
           <span>LIVE SCORE · PRE-GAME FORECAST BELOW</span>
