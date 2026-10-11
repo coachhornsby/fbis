@@ -31,6 +31,7 @@ import { loadNhlResearchPrior, attachNhlResearch } from "./nhlResearchModel.js";
 import { attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
 import { loadNhlProV2Context, attachNhlProV2, NHL_PRO_V2_ID, NHL_PRO_V2_VERSION } from "./nhlProV2.js";
 import { attachNhlGoalieProbabilityShadow } from "./nhlGoalieProbabilityShadow.js";
+import { attachNhlCardStarterEvidence } from "./nhlCardStarterEvidence.js";
 import { attachNhlUnifiedMoneylineShadow } from "./nhlUnifiedMoneylineShadow.js";
 import { evaluateNhlGameWagers } from "./nhlWagerV1.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
@@ -260,7 +261,8 @@ export async function buildSlate(sport, date, env = {}) {
     const baseline = attachNhlResearch(slate.games || [], prior);
     const fiveLayer = attachNhlV1(baseline.games, v1Context);
     const proV2 = attachNhlProV2(fiveLayer.games, proContext);
-    const goalieShadow = attachNhlGoalieProbabilityShadow(proV2.games, proContext.persistentProfiles||{});
+    const starterContext = attachNhlCardStarterEvidence(proV2.games, proContext.persistentProfiles||{});
+    const goalieShadow = attachNhlGoalieProbabilityShadow(starterContext.games, proContext.persistentProfiles||{});
     const unifiedShadow = attachNhlUnifiedMoneylineShadow(goalieShadow.games);
     const research = promoteNhlResearchToBoard(unifiedShadow.games);
     const playerResearch = attachNhlPlayerProjectionResearch(research.games, {...v1Context, playerEdge:proContext.playerEdge||null, opportunity:proContext.opportunity||null, persistentProfiles:proContext.persistentProfiles||null});
@@ -308,6 +310,7 @@ export async function buildSlate(sport, date, env = {}) {
           persistentProfileStatus: proContext.persistentProfiles?.__timeout ? "TIMEOUT_FAIL_SOFT" : proContext.persistentProfiles?.__error ? "DEGRADED_FAIL_SOFT" : proContext.persistentProfiles?.ok ? "ACTIVE" : "UNAVAILABLE",
           persistentProfileRequestTimeSourceFetches: 0,
         },
+        nhlCardStarterEvidence: starterContext.meta,
         nhlGoalieProbabilityShadow: goalieShadow.meta,
         nhlUnifiedMoneylineShadow: unifiedShadow.meta,
         nhlResearchBoard: research.meta,
