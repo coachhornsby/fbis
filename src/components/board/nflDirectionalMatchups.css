@@ -37,3 +37,12 @@
 .fbis-shell-main.route-board .nfl-unit-winner>small{font-size:10px;font-weight:950;letter-spacing:.10em;color:color-mix(in srgb,var(--unit-secondary) 65%,white)}
 .fbis-shell-main.route-board .nfl-unit-winner>strong{font-size:clamp(15px,1.45vw,20px);font-weight:950;line-height:1.16;overflow-wrap:break-word}
 @media(max-width:560px){.fbis-shell-main.route-board .nfl-unit-result .team-logo{width:40px!important;height:40px!important}}
+
+
+/* Same premium football presentation for CFB, without changing other sports. */
+.fbis-shell-main.route-board .cgc[data-sport="cfb"] .cgc-vs{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.fbis-shell-main.route-board .cgc[data-sport="cfb"] .cgc-matchup{grid-template-columns:minmax(0,1fr) minmax(130px,.8fr) minmax(0,1fr)!important}
+.fbis-shell-main.route-board .cgc[data-sport="cfb"]>.cgc-conditions{display:none!important}
+.fbis-shell-main.route-board .cfb-unit-panel .nfl-unit-line .team-logo,
+.fbis-shell-main.route-board .cfb-unit-panel .nfl-unit-result .team-logo{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+@media(max-width:650px){.fbis-shell-main.route-board .cgc[data-sport="cfb"] .cgc-matchup{grid-template-columns:minmax(0,1fr) minmax(90px,.65fr) minmax(0,1fr)!important}}
