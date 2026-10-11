@@ -1,0 +1,34 @@
+name: CFB Offline Recovery Contract
+on:
+  pull_request:
+    paths:
+      - scripts/cfb-d1-import-partition.py
+      - scripts/cfb-existing-backup-verify.py
+      - test/cfb-d1-partition.test.py
+      - .github/workflows/cfb-offline-recovery-contract.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-local-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test statement-boundary partition and checksum fail-closed
+        run: python test/cfb-d1-partition.test.py -v
+      - name: Verify repository recovery documentation retains remote gate
+        run: |
+          python - <<'PY'
+          import json
+          with open('research/cfb/recovery-20261011/release-gates.json') as f:
+              d=json.load(f)
+          assert d['production_execution_authorized'] is False
+          assert d['merge_authorized'] is False
+          assert d['remote_d1_restore_verified'] is False
+          assert '0098' in {op['id'] for op in d['operations']}
+          assert '0099' in {op['id'] for op in d['operations']}
+          PY

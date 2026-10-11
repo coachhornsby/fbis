@@ -1,0 +1,64 @@
+{
+  "status": "PREPARATORY_ONLY",
+  "production_database": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "accepted_local_report_sha256": "2b514b7c74a9aeebfdecef995d78850119d668cea1678ac3a7b9f0fe141f23df",
+  "artifact_hashes": {
+    "migrations/0098_college_persistence_recovery.sql": "7f4d4fe5316080f841f244bdca7b965b9703126a0f8c7c8ecaa4890ebe706448",
+    "migrations/0099_cfb_fbs_statistical_ledgers.sql": "e23a6a90913190099a4019ef2170013c7a16a87036aa1e6ab03469e56f71400c",
+    "scripts/cfb-fbs-2026-research-import.py": "828a7cd270df2ff97d470513a23c511b70026c6f8ac844274129cf743b419810",
+    "research/cfb/recovery-20261011/independent-reconciliation.json": "2b514b7c74a9aeebfdecef995d78850119d668cea1678ac3a7b9f0fe141f23df",
+    "docs/sql/cfb-postgame-operational-candidate.sql": "e83df5b598d14ed255a92c021ef5e390b933d3e3ac63743e694529eecfe684f1"
+  },
+  "production_execution_authorized": false,
+  "merge_authorized": false,
+  "remote_d1_restore_verified": false,
+  "operations": [
+    {
+      "id": "0098",
+      "sql": "migrations/0098_college_persistence_recovery.sql",
+      "command": "npx wrangler d1 execute fbis --remote --file migrations/0098_college_persistence_recovery.sql",
+      "acceptance": [
+        "approved exact hash",
+        "accepted remote recovery path",
+        "five original table and index contracts",
+        "existing records and ledger history preserved"
+      ],
+      "rollback": "Stop consumers; retain additive tables and evidence. No DROP or production restore."
+    },
+    {
+      "id": "0099",
+      "sql": "migrations/0099_cfb_fbs_statistical_ledgers.sql",
+      "command": "npx wrangler d1 execute fbis --remote --file migrations/0099_cfb_fbs_statistical_ledgers.sql",
+      "acceptance": [
+        "separate approval after live 0098 postflight",
+        "four research tables",
+        "authority CHECK constraints",
+        "ledger reconciliation"
+      ],
+      "rollback": "Disable consumers; retain immutable evidence."
+    }
+  ],
+  "other_gates": [
+    "frozen source import exact manifest and quarantine review",
+    "separate tested code deployment approval",
+    "production pilot qualification and deployment approval",
+    "model promotion through unchanged qualification standards"
+  ],
+  "blockers": [
+    "remote D1 full recovery unverified",
+    "independent technical review unavailable",
+    "original export creation time unavailable",
+    "source redistribution and time-aware athlete membership qualification incomplete"
+  ],
+  "read_only_shadow_rollout": {
+    "pr": 963,
+    "head": "d664327f6b5ccb191fb7777f68303d8bcd096feb",
+    "ci_run": 38113835251,
+    "capture_run": 38113832636,
+    "artifact": 11692219666,
+    "artifact_sha256": "2370cc58bb1c5f4dd28756af852da243432d45512df2c03bd7034f8f31117a34",
+    "operation_artifact": "research/cfb/forward-20261011/rollout-operation.json",
+    "execution_authorized": false,
+    "independent_human_review": false
+  }
+}
