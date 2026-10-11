@@ -51,6 +51,7 @@ jobs:
             --season 2026 \
             --source-observed-at "$ts" \
             --output-prefix "$RUNNER_TEMP/cfb-sdv-qa/fbs-2026"
+          python3 scripts/cfb-team-player-stat-staging.py             --player-only             --archive-observed-at "$ts"             --player-csv "$RUNNER_TEMP/cfb-sdv-qa/fbs-2026.player-game.csv"             --player-manifest "$RUNNER_TEMP/cfb-sdv-qa/fbs-2026.manifest.json"             --season 2026             --output-prefix "$RUNNER_TEMP/cfb-sdv-qa/fbs-2026-ledger"
           python3 - <<'PY'
           import json,os,pathlib
           p=pathlib.Path(os.environ["RUNNER_TEMP"])/"cfb-sdv-qa/fbs-2026.manifest.json"
@@ -60,7 +61,13 @@ jobs:
           assert m["feature_authority"] is False
           assert m["betting_authority"] is False
           assert m["source_publication_time_verified"] is False
+          ledger=json.loads((p.parent/"fbs-2026-ledger.manifest.json").read_text())
+          assert ledger["files"]["player-game"]["records"]==m["player_game_rows"]
+          assert ledger["model_authority"] is False
+          assert ledger["player_source_manifest_verified"] is True
           print("STAGING QA:",m["player_game_rows"],"FBS player-game records",m["counts"])
+          print("IMMUTABLE RESEARCH LEDGER:",ledger["files"]["player-game"]["records"],"player-games,",
+            ledger["files"]["player-season"]["records"],"partial player-season profiles")
           PY
       - name: Publish 7-day research artifact, never production state
         if: always()
