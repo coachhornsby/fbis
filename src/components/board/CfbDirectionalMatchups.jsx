@@ -27,6 +27,10 @@ export function cfbDirectionalEvidence(game){
   return {...p,available,value,winner,status:!available?"UNAVAILABLE":winner?"EDGE":"EVEN",reason:r.reason||null};
  });
 
+ const start=Date.parse(String(game?.start||game?.startTime||game?.startDate||""));
+ const asOf=Date.parse(String(game?.featureSnapshotAt||""));
+ if(game?.featureCutoffOk!==true||!Number.isFinite(start)||!Number.isFinite(asOf)||asOf>=start)
+   return PAIRS.map(p=>({...p,available:false,value:null,winner:null,status:"UNAVAILABLE"}));
  const away=input(game,"away"),home=input(game,"home");
  return PAIRS.map(p=>{
   const offense=p.off==="home"?home:away,defense=p.off==="home"?away:home;
