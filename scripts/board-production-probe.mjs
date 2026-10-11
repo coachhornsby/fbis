@@ -25,6 +25,13 @@ for (const sport of ["cfb", "nhl", "nba", "all"]) {
       result.health = j.health?.state ?? null;
       result.emptyKind = j.empty?.kind ?? null;
       result.groups = (j.groups || []).map(g=>({sport:g.sport,n:g.games?.length||0}));
+      result.propCoverage = {
+        gamesWithModelRows: (j.games||[]).filter(g => (g.playerProjectionRows||[]).length>0).length,
+        totalModelRows: (j.games||[]).reduce((n,g)=>n+(g.playerProjectionRows||[]).length,0),
+        gamesWithMarketRows: (j.games||[]).filter(g => (g.playerMarkets||[]).length>0).length,
+        totalMarketRows: (j.games||[]).reduce((n,g)=>n+(g.playerMarkets||[]).length,0),
+        storedFallbackCards: (j.games||[]).filter(g=>g.durableFallback).length,
+      };
       result.failedSports = Object.entries(j.feeds||{}).filter(([,f])=>f?.error)
         .map(([sport,f])=>({sport,error:String(f.error).slice(0,180)}));
       result.error = String(j.error || "").slice(0,350);
