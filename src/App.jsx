@@ -30,15 +30,18 @@ function readUrlState() {
   if (typeof window === "undefined") return { tab: "today", date: todayCT(), sport: "mlb", route: "today", sportFilter: "all" };
   const u = new URL(window.location.href);
   const tab = u.searchParams.get("tab") || "today";
-  const sport = u.searchParams.get("sport") || "mlb";
+  const sportRaw = u.searchParams.get("sport") || "mlb";
   const routeParam = u.searchParams.get("route");
-  const mapped = legacyToRoute({ tab, sport });
+  const mapped = legacyToRoute({ tab, sport: sportRaw });
+  const normalizedRoute = normalizeRoute(routeParam || mapped.route);
+  const filter = u.searchParams.get("sportFilter") || mapped.sportFilter || "all";
+  const sport = normalizedRoute === "board" && SPORTS[filter] ? filter : sportRaw;
   return {
     tab,
     date: u.searchParams.get("date") || todayCT(),
     sport,
-    route: normalizeRoute(routeParam || mapped.route),
-    sportFilter: u.searchParams.get("sportFilter") || mapped.sportFilter || "all",
+    route: normalizedRoute,
+    sportFilter: filter,
   };
 }
 
@@ -46,7 +49,9 @@ function writeUrlState({ tab, date, sport, route, sportFilter }) {
   if (typeof window === "undefined") return;
   const u = new URL(window.location.href);
   u.searchParams.set("tab", tab);
-  if (sport) u.searchParams.set("sport", sport);
+  // Board uses one canonical sport filter. Do not leave stale legacy sport=mlb on NHL links.
+  const boardSport = route === "board" && SPORTS[sportFilter] ? sportFilter : sport;
+  if (boardSport) u.searchParams.set("sport", boardSport);
   if (route) u.searchParams.set("route", route);
   if (sportFilter) u.searchParams.set("sportFilter", sportFilter);
   if (tab === "today" && date) u.searchParams.set("date", date);
