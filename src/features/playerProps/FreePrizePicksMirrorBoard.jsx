@@ -102,17 +102,32 @@ export default function FreePrizePicksMirrorBoard(){
           </div>
           {rows.length?(
             <>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
+              <div className="pp-card-grid pp-premium-grid pp-mirror-grid">
                 {rows.slice(0,limit).map(row=>(
-                  <article key={row.id} style={{border:"1px solid var(--border, #536070)",borderRadius:12,padding:12}}>
-                    <strong>{row.player}</strong>
-                    <div style={{fontSize:".85rem",opacity:.8}}>{row.team} · vs {row.opponent}</div>
-                    <div style={{display:"flex",gap:8,alignItems:"baseline",justifyContent:"space-between",marginTop:10}}>
-                      <span>{row.stat}</span>
-                      <strong style={{fontSize:"1.2rem"}}>{row.line}</strong>
+                  <article key={row.id} className="pp-card pp-premium-card sport-nfl pp-mirror-card">
+                    <div className="pp-card-visual pp-mirror-visual">
+                      <div className="pp-watermark" aria-hidden="true">{row.team||"NFL"}</div>
+                      <span className="pp-mirror-research-badge">PUBLIC MIRROR · RESEARCH</span>
+                      <div className="pp-mirror-player-initials" aria-hidden="true">
+                        {String(row.player||"?").split(/\\s+/).slice(0,2).map(n=>n[0]||"").join("").toUpperCase()}
+                      </div>
+                      <div className="pp-team-pill">NFL · {row.team||"TEAM"}</div>
                     </div>
-                    <div style={{fontSize:".8rem",opacity:.7,marginTop:7}}>
-                      {time(row.startAt)} CT · Standard · Research only
+                    <div className="pp-card-body">
+                      <div className="pp-player-title">
+                        <h3>{row.player}</h3>
+                        <p>{row.team} · vs <b>{row.opponent}</b></p>
+                      </div>
+                      <div className="pp-market-name pp-premium-market-name">{row.stat}</div>
+                      <div className="pp-mirror-line-block">
+                        <span>PUBLIC STANDARD LINE</span>
+                        <strong>{row.line}</strong>
+                        <small>Not a verified live offer</small>
+                      </div>
+                      <div className="pp-card-foot pp-premium-foot">
+                        <span>{time(row.startAt)} CT</span>
+                        <span>Research only · No FBIS pick</span>
+                      </div>
                     </div>
                   </article>
                 ))}
