@@ -23,7 +23,7 @@ function MirrorCard({row,time}){
   return()=>{active=false};
  },[row.team]);
  useEffect(()=>{
-  if(!expanded||history.state!=="IDLE")return;
+  if(!expanded)return;
   let active=true;
   const q=new URLSearchParams({
    sport:"nfl",name:row.player,team:row.team,opponent:row.opponent,
@@ -38,7 +38,7 @@ function MirrorCard({row,time}){
     setHistory({state:games.length?"AVAILABLE":"UNAVAILABLE",games:games.slice(0,5)});
    }).catch(()=>{if(active)setHistory({state:"UNAVAILABLE",games:[]})});
   return()=>{active=false};
- },[expanded,row,history.state]);
+ },[expanded,row.id]);
  const imageUrl="/api/player-image?"+new URLSearchParams({name:row.player,sport:"nfl",team:row.team,mode:"image"});
  const primary=team?.primaryColor||"#172b50",secondary=team?.secondaryColor||"#090f20";
  return <article className="pp-card pp-premium-card sport-nfl pp-mirror-card"
