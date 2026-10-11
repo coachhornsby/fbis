@@ -5,6 +5,7 @@ import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { createHash } from "node:crypto";
 
 const root=new URL("../",import.meta.url);
 const script=new URL("../scripts/cfb-team-player-stat-staging.py",import.meta.url).pathname;
@@ -44,9 +45,14 @@ test("Offline archive staging preserves every numeric field and rejects future/l
    "g1,2026,2026-10-01T10:00:00Z,333,unknown,Opponent,101,17,1,0",
   ].join("\n")+"\n");
   const prefix=join(dir,"stage");
+  const manifestPath=join(dir,"player-source.manifest.json");
+  const digest=createHash("sha256").update(readFileSync(playerFile)).digest("hex");
+  writeFileSync(manifestPath,JSON.stringify({source:"SDV_ESPN_CFB_PLAYER_BOX",
+    season:2026,sha256:digest,source_observed_at:"2026-10-02T14:00:00Z",
+    source_publication_time_verified:false}));
   const run=spawnSync("python3",[script,"--archive",teamFile,
     "--archive-observed-at","2026-10-03T10:00:00Z",
-    "--season","2026","--player-csv",playerFile,
+    "--season","2026","--player-csv",playerFile,"--player-manifest",manifestPath,
     "--output-prefix",prefix],{encoding:"utf8",timeout:30000});
   assert.equal(run.status,0,run.stderr);
   const manifest=JSON.parse(readFileSync(prefix+".manifest.json","utf8"));
