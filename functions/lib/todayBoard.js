@@ -1010,14 +1010,31 @@ export async function buildTodayBoard(
       });
       games.push(...rows);
     } catch (err) {
-      feeds[sport] = { ok: false, n: 0, error: String(err?.message || err) };
-      sports.push({
-        sport,
-        label: SPORTS[sport].label,
-        n: 0,
-        games: [],
-        error: String(err?.message || err),
-      });
+      // A focused upstream failure is not an empty schedule. Recover the
+      // matching durable game identities and prestart scores, but do not
+      // reinterpret their archived state as live, priced or qualified.
+      const upstreamError=String(err?.message||err);
+      const recovered=env?.DB?.prepare
+        ? await loadDurableTodayGames(env,date,sport,{now})
+        : {ok:false,games:[]};
+      if(recovered.ok && recovered.games.length){
+        const rows=recovered.games.map(g=>currentActionDisplay(toBoardGame(g,sport,now),now));
+        feeds[sport]={
+          ok:true,n:rows.length,durableFallbackGames:rows.length,
+          source:"D1_SCHEDULE_PRESTART_SNAPSHOT",warning:upstreamError,
+          error:null,
+        };
+        sports.push({
+          sport,label:SPORTS[sport].label,n:rows.length,
+          games:sortByStart(rows),
+        });
+        games.push(...rows);
+      }else{
+        feeds[sport]={ok:false,n:0,error:upstreamError};
+        sports.push({
+          sport,label:SPORTS[sport].label,n:0,games:[],error:upstreamError,
+        });
+      }
     }
   }
   const all = sortByStart(games);
