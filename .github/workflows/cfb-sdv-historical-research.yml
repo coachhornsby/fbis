@@ -1,8 +1,6 @@
 name: CFB SDV Historical Research — one-shot
 on:
-  push:
-    branches:
-      - engineering/cfb-sdv-advanced-historical-20261011
+  pull_request:
     paths:
       - .github/workflows/cfb-sdv-historical-research.yml
   workflow_dispatch:
