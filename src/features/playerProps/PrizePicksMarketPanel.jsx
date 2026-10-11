@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { propProjectionStars } from "./buildPlayerPropsBoard.js";
 import TrackedPropCards from "./TrackedPropCards.jsx";
+import FreePrizePicksMirrorBoard from "./FreePrizePicksMirrorBoard.jsx";
 
 const SPORTS=["top25","nfl","mlb","cfb","cbb","tennis","nba","wnba","nhl","soccer"];
 const TIER_ORDER={standard:0,goblin:1,demon:2};
@@ -585,6 +586,8 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
           {loading?"LOADING":groups.length+" PROPS"}
         </div>
       </div>
+
+      {(localSport==="nfl"||localSport==="top25")?<FreePrizePicksMirrorBoard/>:null}
 
       {freshness?.stale?
         <div className="pp-empty error-text">Today's PrizePicks acquisition has not completed. Stale prior-day props are hidden.</div>
