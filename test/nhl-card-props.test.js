@@ -27,6 +27,10 @@ test("no model, no player/event identity, out or market-informed player never be
  assert.deepEqual(selectNhlCardProps({...g,nhlProV2:{ok:false}}, {now:early}),[]);
  g.playerProjectionRows[0].eventId="different-event";
  g.playerProjectionRows[1].marketInformed=true;
+ const fallback=selectNhlCardProps(g,{now:early});
+ assert.equal(fallback.length,1); // The independent points forecast remains valid research context.
+ assert.equal(fallback[0].market,"points");
+ g.playerProjectionRows[2].propGate="BLOCKED";
  assert.deepEqual(selectNhlCardProps(g,{now:early}),[]);
 });
 test("no retrospective in-play or final projections without explicit PIT pregame lock",()=>{
