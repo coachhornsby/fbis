@@ -114,10 +114,11 @@ def asset_rows(path,member=None):
  else:
   with path.open("r",encoding="utf-8-sig",newline="") as f:
    yield from csv.DictReader(f)
-def fbs_ids(path):
+def fbs_ids(path,season=None):
  result=set()
  with open(path,encoding="utf-8-sig",newline="") as f:
   for row in csv.DictReader(f):
+   if season is not None and row.get("season") not in (None,"",str(season)):continue
    raw=str(row.get("team_id","")).replace("cfb:espn:","").strip()
    if ID.fullmatch(raw) and (not row.get("subdivision") or row["subdivision"]=="FBS"):
     result.add(raw)
@@ -141,7 +142,7 @@ def from_completed_schedule(path,season):
  """ESPN SDV schedule is one row/game and carries start_date and both team IDs.
  Strictly no incomplete/cancelled/TBD rows in a *performance* ledger.
  """
- games={}
+ games={};identities={}
  n={"excluded_incomplete":0,"missing_ids_or_start":0,"accepted":0}
  for r in asset_rows(path):
   if str(r.get("season"))!=str(season):continue
@@ -152,13 +153,20 @@ def from_completed_schedule(path,season):
   completed=str(complete_flag).strip().lower() in ("true","1") if complete_flag not in (None,"") else True
   tbd=str(r.get("start_time_tbd") or "").strip().lower() in ("true","1")
   status=str(r.get("status") or "").upper()
-  if not completed or tbd or status!="STATUS_FINAL" or r.get("home_score") in (None,"") or r.get("away_score") in (None,""):
+  if not completed or tbd or status not in {"STATUS_FINAL","STATUS_FINAL_OVERTIME"} or r.get("home_score") in (None,"") or r.get("away_score") in (None,""):
    n["excluded_incomplete"]+=1;continue
-  if not ID.fullmatch(gid) or not ID.fullmatch(home) or not ID.fullmatch(away):
+  if not ID.fullmatch(gid) or not ID.fullmatch(home) or not ID.fullmatch(away) or home==away:
    n["missing_ids_or_start"]+=1;continue
   try:date=parse_time(r.get("start_date") or r.get("game_date"))
   except(ValueError,TypeError):
    n["missing_ids_or_start"]+=1;continue
+  scores=[numeric(r.get(side+'_score')) for side in ('home','away')]
+  if any(v is None or v<0 or v!=int(v) for v in scores):
+   n['excluded_incomplete']+=1;continue
+  identity=(home,away,date,*scores)
+  if gid in identities and identities[gid]!=identity:raise ValueError('Conflicting official game identity or result')
+  if gid in identities:continue
+  identities[gid]=identity
   for key,opponent in [((gid,home),r.get("away_team") or ""),
                         ((gid,away),r.get("home_team") or "")]:
    if key in games and games[key][0]!=date:
@@ -166,6 +174,10 @@ def from_completed_schedule(path,season):
    games[key]=(date,opponent)
   n["accepted"]+=1
  return games,n
+
+def fbs_involving_sides(games,fbs):
+ eligible={gid for gid,team in games if team in fbs}
+ return {key for key in games if key[0] in eligible}
 
 def converted(source,category):
  # Keep ONLY semantically named stats from ESPN's agreed category.
@@ -179,9 +191,13 @@ def converted(source,category):
  return metrics
 def build(args):
  observed=parse_time(args.source_observed_at)
- allowed=fbs_ids(args.fbs_teams)
+ allowed=fbs_ids(args.fbs_teams,args.season);fbs_count=len(allowed)
  games,scheduleQa=from_completed_schedule(args.schedule,args.season) if args.schedule else (
    game_lookup(args.team_games,args.team_game_member,args.season),{"source":"team_game_archive"})
+ involving=None
+ if getattr(args,'include_non_fbs_opponents',False):
+  if not args.schedule:raise ValueError('Verified final schedule required for opponent mode')
+  involving=fbs_involving_sides(games,allowed)
  grouped={}
  count=defaultdict(int)
  bad=set()
@@ -190,7 +206,7 @@ def build(args):
   team=str(source.get("team_id") or "")
   athlete=str(source.get("athlete_id") or "")
   game=str(source.get("game_id") or "")
-  if team not in allowed:count["excluded_non_fbs"]+=1;continue
+  if (involving is None and team not in allowed) or (involving is not None and (game,team) not in involving):count['excluded_non_fbs' if involving is None else 'excluded_competition_scope']+=1;continue
   if not ID.fullmatch(athlete) or not ID.fullmatch(game):
    count["bad_identifiers"]+=1;continue
   key=(game,team)
@@ -239,9 +255,10 @@ def build(args):
  count["unique_player_games"]=len(rows)
  fieldnames=["game_id","season","game_date","team_id","athlete_id","opponent"]
  extra=sorted(set(k for r in rows for k in r if k not in fieldnames))
- return rows,fieldnames+extra,dict(count),len(allowed),observed,scheduleQa
+ return rows,fieldnames+extra,dict(count),fbs_count,observed,scheduleQa
 def run(argv=None):
  p=argparse.ArgumentParser(description=__doc__)
+ p.add_argument("--include-non-fbs-opponents",action="store_true",help="Retain both sides of verified FBS-involving games for postgame intelligence")
  p.add_argument("--player-box",required=True)
  p.add_argument("--player-box-member")
  p.add_argument("--team-games",help="Offline completed team-game advanced CSV or ZIP")
@@ -268,6 +285,7 @@ def run(argv=None):
   "source_observed_at":observed,"source_publication_time_verified":False,
   "temporal_class":"POSTGAME_OBSERVED_NOT_HISTORICAL_PIT",
   "fbs_whitelisted_teams":fbsCount,"counts":counts,
+  "competition_scope":"FBS_INVOLVING_BOTH_SIDES" if args.include_non_fbs_opponents else "FBS_TEAM_SIDES",
   "schedule_qa":scheduleQa,"game_date_reference":"SDV_COMPLETED_SCHEDULE" if args.schedule else "OFFLINE_TEAM_GAME_ARCHIVE",
   "player_game_rows":len(rows),"output":str(dest),"sha256":fileHash,
   "feature_authority":False,"betting_authority":False,
