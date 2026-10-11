@@ -1,3 +1,4 @@
+import CfbIntelligence from "./features/cfbIntelligence/CfbIntelligence.jsx";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, kickoff, formatMarketPeriod, formatClv } from "./lib/format.js";
@@ -645,6 +646,7 @@ export default function App() {
               </div>
             )}
 
+            {sport === "cfb" && <CfbIntelligence />}
             <Panel
               title={`${String(SPORTS[sport]?.label || sport).toUpperCase()} Intelligence Board`}
               stamp={updated}

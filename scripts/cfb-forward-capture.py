@@ -22,7 +22,7 @@ def paged(sql,max_pages=100):
 def capture(root,code_sha):
  root.mkdir(parents=True,exist_ok=True);receipts=[]
  def receipt(path,source):receipts.append({'file':path.name,'source':source,'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'bytes':path.stat().st_size,'observed_at':now(),'source_publication_at':None})
- for tag,name in [('espn_cfb_schedules','cfb_schedule_2026.csv'),('espn_cfb_team_box','team_box_2026.csv'),('espn_cfb_player_box','player_box_2026.csv')]:
+ for tag,name in [('espn_cfb_schedules','cfb_schedule_2026.csv'),('espn_cfb_team_box','team_box_2026.csv'),('espn_cfb_player_box','player_box_2026.csv'),('espn_cfb_team_summaries','cfb_team_summaries_2026.csv'),('cfb_ratings_weekly','cfb_ratings_weekly_2026.csv'),('espn_cfb_adv_team_gamelog','adv_team_gamelog_2026.csv')]:
   url=f'https://github.com/sportsdataverse/sportsdataverse-data/releases/download/{tag}/{name}'
   path=root/name
   with urllib.request.urlopen(url,timeout=150) as response,path.open('wb') as target:

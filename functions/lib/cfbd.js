@@ -1,3 +1,4 @@
+import {fetchWithCfbBackoff} from "./cfbProviderBackoff.js";
 /**
  * CollegeFootballData (and optional CollegeBasketballData) client.
  * Authorized CFB team-specific prior source. Never logs the API key.
@@ -84,12 +85,12 @@ async function cfbdRequest(base, path, env, { query, fetchFn = fetch } = {}) {
   }
   const url = `${base}${path}${queryString(query)}`;
   try {
-    const res = await fetchFn(url, {
+    const res = await fetchWithCfbBackoff(url, {
       headers: {
         Authorization: `Bearer ${collegeApiKey(env, source)}`,
         Accept: "application/json",
       },
-    });
+    },env,fetchFn);
     const status = res.status;
     let json = null;
     try {

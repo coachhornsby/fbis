@@ -1,3 +1,4 @@
+import {fetchWithCfbBackoff} from "./cfbProviderBackoff.js";
 /**
  * CFBD deep CFB feature feed for CFB-FBIS-v2.
  * Market-blind. Cached. Uses current-season team PPA + advanced team stats +
@@ -93,13 +94,13 @@ export function parseCfbAdvancedRow(row = {}) {
   };
 }
 
-async function fetchRows(key, path, query, fetchFn) {
+async function fetchRows(key, path, query, fetchFn, env) {
   try {
     const qs = new URLSearchParams();
     for (const [k,v] of Object.entries(query || {})) if (v != null) qs.set(k, String(v));
-    const res = await fetchFn(`${BASE}${path}?${qs}`, {
+    const res = await fetchWithCfbBackoff(`${BASE}${path}?${qs}`, {
       headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
-    });
+    },env,fetchFn);
     const status = res.status;
     if (!res.ok) return { ok: false, status, rows: [], path, error: `CFBD ${status} ${path}` };
     return { ok: true, status, rows: unwrap(await res.json()), path, error: null };
@@ -159,14 +160,14 @@ export async function loadCfbDeepFeatures(env = {}, { fetchFn = fetch, now = Dat
   };
 
   const [ppaPrimary, adv, games] = await Promise.all([
-    fetchRows(key, "/ppa/teams", { year: season, seasonType: "regular" }, fetchFn),
-    fetchRows(key, "/stats/season/advanced", { year: season, seasonType: "regular" }, fetchFn),
-    fetchRows(key, "/games", { year: season, seasonType: "regular" }, fetchFn),
+    fetchRows(key, "/ppa/teams", { year: season, seasonType: "regular" }, fetchFn, env),
+    fetchRows(key, "/stats/season/advanced", { year: season, seasonType: "regular" }, fetchFn, env),
+    fetchRows(key, "/games", { year: season, seasonType: "regular" }, fetchFn, env),
   ]);
 
   let ppa = ppaPrimary;
   if (!ppa.ok || !ppa.rows.length) {
-    ppa = await fetchRows(key, "/ppa/teams/season", { year: season }, fetchFn);
+    ppa = await fetchRows(key, "/ppa/teams/season", { year: season }, fetchFn, env);
   }
 
   const index = { byEspnId: {}, bySchool: {} };

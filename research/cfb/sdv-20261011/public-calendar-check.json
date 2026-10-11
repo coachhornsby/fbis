@@ -1,0 +1,213 @@
+{
+  "observedAt": "2026-10-11T05:53:33.447Z",
+  "range": {
+    "since": "2026-10-11",
+    "until": "2026-10-17"
+  },
+  "coverage": {
+    "requestedDays": 7,
+    "successfulDays": 7,
+    "failures": []
+  },
+  "verifiedFbsGames": 33,
+  "fixtures": [
+    {
+      "gameId": "401871067",
+      "homeProviderId": "2393",
+      "awayProviderId": "48",
+      "start": "2026-10-13T23:00Z"
+    },
+    {
+      "gameId": "401871053",
+      "homeProviderId": "55",
+      "awayProviderId": "2229",
+      "start": "2026-10-14T00:00Z"
+    },
+    {
+      "gameId": "401871054",
+      "homeProviderId": "2623",
+      "awayProviderId": "338",
+      "start": "2026-10-14T23:30Z"
+    },
+    {
+      "gameId": "401871068",
+      "homeProviderId": "2534",
+      "awayProviderId": "98",
+      "start": "2026-10-15T00:00Z"
+    },
+    {
+      "gameId": "401862800",
+      "homeProviderId": "5",
+      "awayProviderId": "151",
+      "start": "2026-10-15T23:30Z"
+    },
+    {
+      "gameId": "401869950",
+      "homeProviderId": "295",
+      "awayProviderId": "290",
+      "start": "2026-10-15T23:30Z"
+    },
+    {
+      "gameId": "401860923",
+      "homeProviderId": "326",
+      "awayProviderId": "36",
+      "start": "2026-10-16T00:00Z"
+    },
+    {
+      "gameId": "401862801",
+      "homeProviderId": "2655",
+      "awayProviderId": "235",
+      "start": "2026-10-16T23:30Z"
+    },
+    {
+      "gameId": "401858493",
+      "homeProviderId": "2509",
+      "awayProviderId": "264",
+      "start": "2026-10-17T00:00Z"
+    },
+    {
+      "gameId": "401869844",
+      "homeProviderId": "324",
+      "awayProviderId": "2026",
+      "start": "2026-10-17T00:00Z"
+    },
+    {
+      "gameId": "401858492",
+      "homeProviderId": "2483",
+      "awayProviderId": "158",
+      "start": "2026-10-17T04:00Z"
+    },
+    {
+      "gameId": "401858494",
+      "homeProviderId": "26",
+      "awayProviderId": "275",
+      "start": "2026-10-17T04:00Z"
+    },
+    {
+      "gameId": "401856724",
+      "homeProviderId": "251",
+      "awayProviderId": "57",
+      "start": "2026-10-17T16:00Z"
+    },
+    {
+      "gameId": "401858488",
+      "homeProviderId": "84",
+      "awayProviderId": "194",
+      "start": "2026-10-17T16:00Z"
+    },
+    {
+      "gameId": "401856720",
+      "homeProviderId": "99",
+      "awayProviderId": "344",
+      "start": "2026-10-17T16:00Z"
+    },
+    {
+      "gameId": "401858268",
+      "homeProviderId": "2567",
+      "awayProviderId": "258",
+      "start": "2026-10-17T16:00Z"
+    },
+    {
+      "gameId": "401858267",
+      "homeProviderId": "103",
+      "awayProviderId": "221",
+      "start": "2026-10-17T16:00Z"
+    },
+    {
+      "gameId": "401856829",
+      "homeProviderId": "277",
+      "awayProviderId": "2132",
+      "start": "2026-10-17T16:00Z"
+    },
+    {
+      "gameId": "401856830",
+      "homeProviderId": "2306",
+      "awayProviderId": "2305",
+      "start": "2026-10-17T16:00Z"
+    },
+    {
+      "gameId": "401858491",
+      "homeProviderId": "127",
+      "awayProviderId": "77",
+      "start": "2026-10-17T16:00Z"
+    },
+    {
+      "gameId": "401862802",
+      "homeProviderId": "349",
+      "awayProviderId": "2226",
+      "start": "2026-10-17T16:00Z"
+    },
+    {
+      "gameId": "401866441",
+      "homeProviderId": "189",
+      "awayProviderId": "2050",
+      "start": "2026-10-17T16:00Z"
+    },
+    {
+      "gameId": "401869957",
+      "homeProviderId": "256",
+      "awayProviderId": "2247",
+      "start": "2026-10-17T16:00Z"
+    },
+    {
+      "gameId": "401858489",
+      "homeProviderId": "120",
+      "awayProviderId": "164",
+      "start": "2026-10-17T16:30Z"
+    },
+    {
+      "gameId": "401862803",
+      "homeProviderId": "218",
+      "awayProviderId": "2429",
+      "start": "2026-10-17T17:00Z"
+    },
+    {
+      "gameId": "401866442",
+      "homeProviderId": "2084",
+      "awayProviderId": "113",
+      "start": "2026-10-17T17:00Z"
+    },
+    {
+      "gameId": "401866443",
+      "homeProviderId": "2117",
+      "awayProviderId": "2711",
+      "start": "2026-10-17T17:30Z"
+    },
+    {
+      "gameId": "401856719",
+      "homeProviderId": "61",
+      "awayProviderId": "2",
+      "start": "2026-10-17T19:30Z"
+    },
+    {
+      "gameId": "401856723",
+      "homeProviderId": "2633",
+      "awayProviderId": "333",
+      "start": "2026-10-17T19:30Z"
+    },
+    {
+      "gameId": "401856721",
+      "homeProviderId": "145",
+      "awayProviderId": "142",
+      "start": "2026-10-17T19:30Z"
+    },
+    {
+      "gameId": "401856828",
+      "homeProviderId": "2641",
+      "awayProviderId": "9",
+      "start": "2026-10-17T19:30Z"
+    },
+    {
+      "gameId": "401858490",
+      "homeProviderId": "130",
+      "awayProviderId": "213",
+      "start": "2026-10-17T19:30Z"
+    },
+    {
+      "gameId": "401858264",
+      "homeProviderId": "259",
+      "awayProviderId": "59",
+      "start": "2026-10-17T19:30Z"
+    }
+  ]
+}

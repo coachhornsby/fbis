@@ -1,3 +1,4 @@
+import CfbIntelligence from "../cfbIntelligence/CfbIntelligence.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { finiteOrNull } from "../today/formatters.js";
 import { hasCurrentProjection as hasProjection } from "../../lib/currentProjectionValues.js";
@@ -122,6 +123,7 @@ export default function CurrentProjectionsView({date,sportFilter="all"}){
   const marketReady=state.rows.filter(hasMarket).length;
 
   return <section className="panel panel-board model-status-page">
+    {sports.includes("cfb") && <CfbIntelligence />}
     <div className="panel-header">
       <div>
         <div className="shell-placeholder-kicker">MODEL OPERATIONS</div>
