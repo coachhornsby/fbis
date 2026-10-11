@@ -30,9 +30,9 @@ export async function freezeCfbPregameFeatures(env,{dates=null,now=new Date().to
  const feed=await loadCfbDeepFeatures(env,{now:clock,fetchFn});
  if(!feed?.meta?.asOf||!Object.keys(feed.bySchool||{}).length)return {ok:false,reason:"deep-feed-unavailable",feed:feed?.meta||null};
  const {buildSlate}=await import("./slateEngineCore.js");
- const datesToCheck=dates||[dateCT(now),dateCT(clock+86400000)];
+ const datesToCheck=dates||Array.from({length:8},(_,i)=>dateCT(clock+i*86400000));
  const summary={ok:true,checked:0,eligible:0,inserted:0,existing:0,failed:0,missing:0,feed:feed.meta,days:datesToCheck,authority:"research-only"};
- for(const date of datesToCheck.slice(0,3)){
+ for(const date of datesToCheck.slice(0,8)){
   const slate=await buildSlate("cfb",date,{...env,cfbdCacheOnly:true,parlayCacheOnly:true});
   for(const game of attachCfbDeepFeatures((slate?.games||[]).slice(0,100),feed)){
    summary.checked++;
