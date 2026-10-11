@@ -2,6 +2,7 @@ import { authorizeOperatorWrite, unauthorizedBody } from "../lib/auth.js";
 import { buildSlate, resolveSlateDate, shiftDateCT, todayCT } from "../lib/slateEngine.js";
 import { productProjectionCard } from "../lib/productProjection.js";
 import { insertPublishedProjection, listPublishedProjections, sha256Hex } from "../lib/publishedProjectionStore.js";
+import { buildNflFrozenAuditPacket } from "../lib/nflFrozenPublicationAudit.js";
 
 const SPORTS = new Set(["mlb", "npb", "kbo", "cfb", "cbb", "nfl"]);
 
@@ -128,6 +129,7 @@ export async function onRequestPost(context) {
         sourceTimestamp: game.odds?.sourceTimestamp || null,
         freshness: game.odds?.freshness || null,
       },
+      ...(sport === "nfl" ? { nflFrozenAudit: buildNflFrozenAuditPacket(game, found.slate) } : {}),
       frozenProjectionRef: {
         gameId: game.id,
         modelId: game.researchProjection?.modelId || game.projectionEngine || null,
