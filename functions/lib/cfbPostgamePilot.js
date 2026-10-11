@@ -54,7 +54,7 @@ export function validatePostgameEnvelope(p, at) {
     }
     for (const metrics of [t.metrics, ...t.players.map(p => p.metrics)]) {
       if (!metrics || Object.values(metrics).some(v => v != null && (typeof v !== 'number' || !Number.isFinite(v)))) throw new CfbValidationError('Invalid metric');
-      for (const [made,attempts] of [['completions','pass_attempts'],['third_conversions','third_attempts'],['fourth_conversions','fourth_attempts'],['field_goals_made','field_goal_attempts'],['field_goals','field_goal_attempts']]) {
+      for (const [made,attempts] of [['completions','pass_attempts'],['completions','passing_attempts'],['redzone_scores','redzone_attempts'],['extra_points_made','extra_point_attempts'],['third_conversions','third_attempts'],['fourth_conversions','fourth_attempts'],['field_goals_made','field_goal_attempts'],['field_goals','field_goal_attempts']]) {
         if(metrics[made]!=null&&metrics[attempts]!=null&&!(0<=metrics[made]&&metrics[made]<=metrics[attempts])) throw new CfbValidationError('Invalid attempt reconciliation');
       }
     }
