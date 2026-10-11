@@ -1,7 +1,7 @@
 {
   "operation": "MERGE_READ_ONLY_SHADOW_ROLLOUT_AND_NORMAL_PAGES_RELEASE",
   "pr": 963,
-  "exact_head": "d2cda7f9117eacd8abc8cc399e1d34e2222d54bb",
+  "exact_head": "d664327f6b5ccb191fb7777f68303d8bcd096feb",
   "expected_main": "59330eabce92f02050fab485a86cb83fe16e6f51",
   "expected_migration_tip": "0097_apify_acquisition_authority",
   "numbered_migrations_in_diff": 0,

@@ -29,3 +29,5 @@ The new workflow cron runs at minute 15 every six hours from main. Existing Clou
 Disable the CFB forward evidence workflow, preserve its artifacts and capture hashes, and revert this focused code commit through a reviewed release. No production database records require rollback. Preserve immutable snapshots and existing model authority. A source failure stops the build, leaves raw evidence for diagnosis and remains visible in job status; do not fabricate missing inputs.
 
 Historical captures lack complete upstream provenance, so a fully qualified historical PIT dataset remains blocked. Continuous card publication, pricing joins, settlement and qualification are separate stages. This rollout starts the evidence needed to test them.
+
+The same captured public calendar responses supply 78 separately labelled research price observations across 13 games. They are not eligible quotes or closing-line evidence; bookmaker update times, ROI and CLV remain NULL. Existing model probability comparisons are research diagnostics only and grant no wager authority.

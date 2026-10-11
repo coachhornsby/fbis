@@ -52,11 +52,11 @@
   ],
   "read_only_shadow_rollout": {
     "pr": 963,
-    "head": "d2cda7f9117eacd8abc8cc399e1d34e2222d54bb",
-    "ci_run": 38113414566,
-    "capture_run": 38113410369,
-    "artifact": 11692741368,
-    "artifact_sha256": "87a7b3c3c24a21736fdef487699d3d7aa098cf079191351f59841efd363da277",
+    "head": "d664327f6b5ccb191fb7777f68303d8bcd096feb",
+    "ci_run": 38113835251,
+    "capture_run": 38113832636,
+    "artifact": 11692219666,
+    "artifact_sha256": "2370cc58bb1c5f4dd28756af852da243432d45512df2c03bd7034f8f31117a34",
     "operation_artifact": "research/cfb/forward-20261011/rollout-operation.json",
     "execution_authorized": false,
     "independent_human_review": false

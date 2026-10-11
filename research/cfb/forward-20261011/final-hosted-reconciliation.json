@@ -1,6 +1,6 @@
 {
   "status": "VERIFIED_CAPTURE_RECONCILIATION",
-  "code_sha": "d2cda7f9117eacd8abc8cc399e1d34e2222d54bb",
+  "code_sha": "d664327f6b5ccb191fb7777f68303d8bcd096feb",
   "cards": 138,
   "prospective_snapshot_versions": 43,
   "distinct_future_games": 43,
@@ -8,5 +8,7 @@
   "bet_eligible": 0,
   "economic_observations": 0,
   "independent_human_review": false,
-  "raw_receipts_verified": 33
+  "raw_receipts_verified": 33,
+  "unqualified_research_quotes": 78,
+  "eligible_quotes": 0
 }
