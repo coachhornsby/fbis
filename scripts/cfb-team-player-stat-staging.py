@@ -87,7 +87,22 @@ def dataset_rows(path,member):
  else:
   with p.open("r",encoding="utf-8-sig",newline="") as f:
    yield from csv.DictReader(f)
+def verified_team_source(args):
+ if not args.team_manifest:return None
+ data=json.loads(pathlib.Path(args.team_manifest).read_text())
+ digest=hashlib.sha256(pathlib.Path(args.archive).read_bytes()).hexdigest()
+ if data.get("source")!="SDV_ESPN_CFB_TEAM_BOX" or data.get("sha256")!=digest:
+  raise ValueError("team box source manifest/hash mismatch")
+ if data.get("season")!=args.season or data.get("source_publication_time_verified") is not False:
+  raise ValueError("team box season/publication contract mismatch")
+ return data
+
 def team_records(args,as_of):
+ team_manifest=verified_team_source(args)
+ team_asof=iso(team_manifest["source_observed_at"]) if team_manifest else as_of
+ if team_asof>as_of:raise ValueError("team box observed after staging cutoff")
+ team_source=team_manifest["source"] if team_manifest else "FBIS_SDV_CFBD_HISTORY_ARCHIVE"
+ temporal="POSTGAME_OBSERVED_NOT_HISTORICAL_PIT" if team_manifest else "POSTGAME_ARCHIVE_NOT_PIT"
  out=[]
  seen=set()
  rejected=0
@@ -113,9 +128,9 @@ def team_records(args,as_of):
    "team_id":team_id,"game_id":game_id,"season":args.season,
    "opponent":source.get("opponent_name") or None,
    "opponent_team_id":canonical(source.get("opponent_id"),"cfb:espn"),
-   "game_at":game_at,"source":"FBIS_SDV_CFBD_HISTORY_ARCHIVE",
-   "source_timestamp":None,"observed_at":as_of,"content_hash":h,
-   "temporal_class":"POSTGAME_ARCHIVE_NOT_PIT",
+   "game_at":game_at,"source":team_source,
+   "source_timestamp":None,"observed_at":team_asof,"content_hash":h,
+   "temporal_class":temporal,
    "metrics_json":json.dumps(metrics,sort_keys=True,separators=(",",":")),
    "ingested_at":None,"can_influence_projection":0,
   })
@@ -144,8 +159,8 @@ def partial_team_season(records,as_of):
   h=content_hash([metrics,ids])
   output.append({
    "id":"cfb-team-season:"+content_hash([team_id,season,h])[:32],
-   "team_id":team_id,"season":season,"source":"FBIS_SDV_CFBD_HISTORY_ARCHIVE",
-   "source_timestamp":None,"observed_at":as_of,"content_hash":h,
+   "team_id":team_id,"season":season,"source":rows[0]["source"],
+   "source_timestamp":None,"observed_at":rows[0]["observed_at"],"content_hash":h,
    "metrics_json":json.dumps(metrics,sort_keys=True,separators=(",",":")),
    "source_game_ids_json":json.dumps(ids),
    "ingestion_version":"cfb-stat-staging-v1",
@@ -261,6 +276,7 @@ def partial_player_season(records,as_of):
 def main(argv=None):
  parser=argparse.ArgumentParser(description=__doc__)
  parser.add_argument("--archive",help="Required except for --player-only research staging")
+ parser.add_argument("--team-manifest",help="SHA-256 bound SDV team box manifest when --archive is a current box source")
  parser.add_argument("--player-only",action="store_true",help="Stage only manifest-verified player game/season rows")
  parser.add_argument("--member",default=ARCHIVE_MEMBER)
  parser.add_argument("--archive-observed-at",required=True)
@@ -291,6 +307,7 @@ def main(argv=None):
   "source_publication_timestamp_verified":False,
   "team_rows_rejected":rg,"player_rows_rejected":rp,
   "player_source_manifest_verified":bool(args.player_csv and args.player_manifest),
+  "team_source_manifest_verified":bool(args.archive and args.team_manifest),
   "files":files,
   "note":"Staging only; contains postgame historical evidence, not pregame forecasts or production data.",
  }
