@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { buildNhlCardEvidence } from "../src/lib/nhlCardEvidence.js";
+import { attachNhlCardStarterEvidence } from "../functions/lib/nhlCardStarterEvidence.js";
 import { bestEdge } from "../src/lib/boardEvidence.js";
 
 function game(){
@@ -75,4 +76,34 @@ test("NHL compact and expanded cards share evidence contract and avoid unconditi
   assert.doesNotMatch(component,/canAuthorizeWager\s*:\s*true/);
   assert.match(compact,/LIVE SCORE NOT AVAILABLE FROM FEED/);
   assert.match(premium,/LIVE SCORE NOT AVAILABLE FROM FEED/);
+});
+
+test("point-in-time persisted goalie profiles enrich every NHL card without changing forecasts",()=>{
+  const g={sport:"nhl",id:"401892479",start:"2026-10-10T23:00:00Z",
+    home:{abbr:"VGK"},away:{abbr:"LA"},odds:{total:6.5}};
+  const profiles={teams:{vgk:{next_game_id:"401892479",next_game_start:g.start},la:{next_game_id:"401892479",next_game_start:g.start}},
+    goalies:{
+      vgk:[{player_id:"100",player_name:"Expected Vegas Goalie",goalie_state:"EXPECTED_G1",team_key:"vgk",expected_start_probability:.7,source_updated_at:"2026-10-10T16:00:00Z"}],
+      la:[{player_id:"200",player_name:"Expected LA Goalie",goalie_state:"EXPECTED_G1",team_key:"la",expected_start_probability:.6,source_updated_at:"2026-10-10T16:00:00Z"}]}};
+  const result=attachNhlCardStarterEvidence([g],profiles,Date.parse("2026-10-10T19:00:00Z"));
+  const enriched=result.games[0];
+  assert.equal(enriched.nhlStarterEvidence.home.name,"Expected Vegas Goalie");
+  assert.equal(enriched.nhlStarterEvidence.away.name,"Expected LA Goalie");
+  assert.equal(enriched.nhlStarterEvidence.home.state,"PROJECTED");
+  assert.equal(enriched.nhlStarterEvidence.canQualify,false);
+  assert.equal(enriched.odds,g.odds);
+  const vm={sport:"nhl",home:{abbr:"VGK"},away:{abbr:"LA"},market:{},action:{available:false}};
+  const card=buildNhlCardEvidence(enriched,vm);
+  assert.equal(card.goalies.home.name,"Expected Vegas Goalie");
+  assert.equal(card.goalies.away.state,"PROJECTED");
+  assert.equal(card.coverage.projection,"UNAVAILABLE");
+});
+test("stale or unrelated goalie rows never become confirmed current-game starters",()=>{
+  const game={sport:"nhl",id:"new-game",start:"2026-10-10T23:00:00Z",home:{abbr:"CGY"},away:{abbr:"ANA"}};
+  const profiles={teams:{cgy:{next_game_id:"previous-game"}},goalies:{cgy:[{
+    player_id:"12",player_name:"Prior Starter",team_key:"cgy",goalie_state:"LAST_CONFIRMED_STARTER",
+    source_updated_at:"2026-10-10T16:00:00Z"}]}};
+  const x=attachNhlCardStarterEvidence([game],profiles,Date.parse("2026-10-10T20:00:00Z")).games[0];
+  assert.equal(x.nhlStarterEvidence.home.state,"HISTORICAL_PROXY_UNVERIFIED");
+  assert.equal(x.nhlStarterEvidence.home.name,null);
 });
