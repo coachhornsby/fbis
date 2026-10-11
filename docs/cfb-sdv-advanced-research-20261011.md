@@ -2,7 +2,7 @@
 
 ## Scope
 - **2021–2025** five-season acquisition only. Source: public, versioned [SportsDataverse releases](https://github.com/sportsdataverse/sportsdataverse-data).
-- `espn_cfb_schedules` / `cfb_schedule_{year}.csv`: season-specific fixture metadata; require **completed FBS versus FBS** and canonical numeric ESPN IDs.
+- `cfb_schedules` / `cfb_schedules_{year}.csv.gz`: unified season-specific fixture metadata with historical FBS/FCS division; require **completed FBS versus FBS** and canonical numeric ESPN IDs.
 - `espn_cfb_adv_team_gamelog` / `adv_team_gamelog_{year}.csv`: game-side advanced EPA, efficiency, pace, special-teams and situational numeric metrics.
 - Exact canonical joins: season + ESPN game/team/opponent IDs, role/home-away and final-score agreement; reject FCS, duplicates and inconsistent pairs.
 - Preserve release CSV bytes with SHA-256 receipt, response metadata, current retrieval URL and complete per-season counts. The source data is not rewritten.
@@ -18,7 +18,7 @@ These releases were downloaded **retrospectively**. They contain final-game stat
 - 2025 is the untouched holdout for downstream model selection. Compare Ridge / ElasticNet / domain-subset / SVD against the same games and frozen incumbent values only when valid.
 
 ## Running
-On branch `engineering/cfb-sdv-advanced-historical-20261011`, the one-shot *push* workflow captures the 10 current release assets, validates season coverage, and uploads a retention-limited artifact containing `raw/`, `manifest.json`, `advanced_numeric_catalog.json`, and `advanced_team_game_final.jsonl`.
+On branch `engineering/cfb-sdv-advanced-historical-20261011`, the one-shot *push* workflow captures the 10 current release assets, validates season coverage, and uploads a retention-limited artifact containing `raw/*.asset` (original gzip/CSV bytes), `manifest.json`, `advanced_numeric_catalog.json`, and `advanced_team_game_final.jsonl`.
 
 Local test (no network): `python -m unittest discover -s test -p test_cfb_sdv_historical_collect.py -v`.
 
