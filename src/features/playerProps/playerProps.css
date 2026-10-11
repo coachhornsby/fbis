@@ -2811,3 +2811,6 @@
 .pp-mirror-card .pp-history-bar{width:100%;min-height:0;border-radius:4px 4px 0 0}
 .pp-mirror-card .pp-history-line{position:absolute;left:0;right:0;height:1px;background:#f3c652;z-index:2}
 .pp-mirror-card .pp-history-game b{font-size:13px}
+
+/* Brand attribution below the public mirror line, distinct from FBIS model output. */
+.pp-mirror-prizepicks-logo{display:block;width:38px;height:38px;max-width:100%;object-fit:contain;align-self:center;margin:5px auto 0;filter:drop-shadow(0 2px 5px rgba(0,0,0,.35))}
