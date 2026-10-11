@@ -865,7 +865,7 @@ export async function buildTodayBoard(
       // The customer-facing board is a read path, never a collection path.
       // A focused tab must not burn quota or block on live provider/network I/O.
       // Scheduled /api/collect jobs own live provider refreshes and D1/cache writes.
-      const slate = sport === "tennis"
+      const slate = sport === "tennis" && !durableAllActive
         ? await buildTennisResearchSlate(date, env)
         : await builder(sport, date, {
         ...env,
