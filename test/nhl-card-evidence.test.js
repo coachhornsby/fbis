@@ -157,3 +157,14 @@ test("NHL compact card never advertises a legacy implied score as independent mo
  assert.match(code,/MODEL \/ REFERENCE GAP/);
  assert.match(code,/PREGAME PROJ/);
 });
+
+test("NHL goalie context presents independently labeled sides and responsive source tiles",async()=>{
+ const {readFile}=await import("node:fs/promises");
+ const jsx=await readFile(new URL("../src/components/board/NhlEvidenceStrip.jsx",import.meta.url),"utf8");
+ const css=await readFile(new URL("../src/components/board/nhlEvidenceStrip.css",import.meta.url),"utf8");
+ assert.match(jsx,/nhl-goalie-pair/);
+ assert.match(jsx,/Starter not identified/);
+ assert.match(jsx,/e\.goalies\[side\]\.state/);
+ assert.match(css,/auto-fit,minmax/);
+ assert.match(css,/nhl-goalie-side/);
+});
