@@ -2857,3 +2857,42 @@
 }
 .pp-mirror-card .pp-mirror-defense-logo img{max-width:28px;max-height:28px;width:100%;height:100%;object-fit:contain}
 .pp-mirror-card .pp-mirror-defense strong{font-size:16px;color:#f5fbff;font-variant-numeric:tabular-nums}
+
+/* Compact premium mirror: higher data density and stronger opponent-rank hierarchy. */
+.fbis-shell-main.route-player-props .pp-card-grid.pp-premium-grid.pp-mirror-grid{
+ grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+ gap:9px !important;
+}
+.pp-mirror-card{border-radius:17px !important}
+.pp-mirror-card .pp-card-visual.pp-mirror-visual{height:130px !important}
+.pp-mirror-card .pp-team-watermark{transform:translate(-50%,-50%) scale(1.4) !important;transform-origin:center !important}
+.pp-mirror-card .pp-team-watermark img{transform:scale(1.4) !important;transform-origin:center !important}
+.pp-mirror-card .pp-card-body{padding:12px 9px 9px !important}
+.pp-mirror-card .pp-player-title h3{font-size:clamp(16px,1.4vw,21px) !important}
+.pp-mirror-card .pp-player-title p{font-size:10px !important;line-height:1.2 !important}
+.pp-mirror-card .pp-market-name.pp-premium-market-name{font-size:clamp(17px,1.5vw,21px) !important;margin:5px 0 7px !important}
+.pp-mirror-card .pp-mirror-comparison-cell{padding:7px 2px !important;gap:2px !important}
+.pp-mirror-card .pp-mirror-comparison-cell strong{font-size:clamp(19px,1.9vw,25px) !important}
+.pp-mirror-card .pp-mirror-context{margin:6px 0 0 !important;gap:3px !important}
+.pp-mirror-card .pp-mirror-defense{
+ min-height:46px !important;gap:10px !important;
+ background:rgba(5,15,34,.88);
+ font-size:clamp(12px,1.0vw,15px) !important;letter-spacing:.04em;
+}
+.pp-mirror-card .pp-mirror-defense-logo{width:43px !important;height:43px !important;flex-basis:43px !important}
+.pp-mirror-card .pp-mirror-defense-logo img{max-width:42px !important;max-height:42px !important}
+.pp-mirror-card .pp-mirror-defense strong{font-size:clamp(24px,2.2vw,33px) !important;line-height:1 !important;font-weight:950 !important;white-space:nowrap}
+.pp-mirror-card .pp-mirror-defense.rank-top-ten strong{color:#ff3a67 !important;text-shadow:0 0 15px rgba(255,58,103,.65)}
+.pp-mirror-card .pp-mirror-defense.rank-bottom-twelve strong{color:#36ff9e !important;text-shadow:0 0 15px rgba(54,255,158,.60)}
+.pp-mirror-card .pp-mirror-defense.rank-neutral strong{color:#e5f4ff !important}
+.pp-mirror-card .pp-card-foot.pp-premium-foot{margin-top:6px !important;padding-top:5px !important}
+.pp-mirror-card .pp-analytics-toggle{min-height:33px !important}
+@media(max-width:1390px){
+ .fbis-shell-main.route-player-props .pp-card-grid.pp-premium-grid.pp-mirror-grid{grid-template-columns:repeat(3,minmax(0,1fr)) !important}
+}
+@media(max-width:930px){
+ .fbis-shell-main.route-player-props .pp-card-grid.pp-premium-grid.pp-mirror-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+}
+@media(max-width:620px){
+ .fbis-shell-main.route-player-props .pp-card-grid.pp-premium-grid.pp-mirror-grid{grid-template-columns:1fr !important}
+}
