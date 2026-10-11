@@ -62,7 +62,7 @@ FBIS must operate as a **repairer/verifier pair**, not two independent surveilla
 - If a required verifier is unavailable, mark VALIDATING / AWAITING_INDEPENDENT_VERIFICATION rather than RESOLVED. Do not fabricate a second-party approval.
 
 ### Shared ledger lifecycle
-Before each pass, read live GitHub/Cloudflare state, \`FBIS Incident Ledger\` and \`FBIS Operator Handoff\`. Reuse the stable incident ID. Respect existing validation-backed Status values in the sheet; put substate in Action Taken / Next Action if needed.
+Before each pass, read live GitHub/Cloudflare state, `FBIS Incident Ledger` and `FBIS Operator Handoff`. Reuse the stable incident ID. Respect existing validation-backed Status values in the sheet; put substate in Action Taken / Next Action if needed.
 
 1. **INVESTIGATING** — identify failure fingerprint and current impact; record evidence and assign **implementer** and **independent verifier**.
 2. **REPAIRING** — implementer records the root-cause hypothesis, bounded fix, commit/PR, regression tests, and applicable production safety/approval gates.
