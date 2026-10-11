@@ -30,9 +30,11 @@ import { resolveBoardProjection } from "./lib/boardDecision.js";
 function readUrlState() {
   if (typeof window === "undefined") return { tab: "today", date: todayCT(), sport: "mlb", route: "today", sportFilter: "all" };
   const u = new URL(window.location.href);
-  const tab = u.searchParams.get("tab") || "today";
-  const sport = u.searchParams.get("sport") || "mlb";
   const routeParam = u.searchParams.get("route");
+  // A direct /?route=teams deep link must not start the paid/fallback Today
+  // or Slate refresh loop in the background.
+  const tab = routeParam === "teams" ? "teams" : (u.searchParams.get("tab") || "today");
+  const sport = routeParam === "teams" ? "cfb" : (u.searchParams.get("sport") || "mlb");
   const mapped = legacyToRoute({ tab, sport });
   return {
     tab,
