@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { topThreeGamePlayerProps } from "./topGamePlayerProps.js";
 import "./topGameProps.css";
 
@@ -7,8 +8,45 @@ const fmtPrice = (v) => v == null || v === "" || !Number.isFinite(Number(v))
   ? "—" : Number(v)>0?"+".concat(Math.round(Number(v))):String(Math.round(Number(v)));
 
 export default function TopGameProps({game}) {
-  const rows=topThreeGamePlayerProps(game);
   const durable=Boolean(game?.durableFallback);
+  const [drilldown,setDrilldown]=useState(null);
+  const [drilldownState,setDrilldownState]=useState("idle");
+  // This component is mounted only in expanded details. When the all-sports
+  // board uses the fast read-only schedule, fetch a single sport on demand,
+  // never all eleven, and never grant authority to a recovered game.
+  const date=game?.durableFallback?.boardDate;
+  const sport=String(game?.sport||"").toLowerCase();
+  const gameId=String(game?.id||"");
+  useEffect(()=>{
+    if(!durable||!date||!sport||!gameId||typeof fetch!=="function"){
+      setDrilldown(null);
+      setDrilldownState("idle");
+      return undefined;
+    }
+    const controller=new AbortController();
+    setDrilldownState("loading");
+    setDrilldown(null);
+    const query=new URLSearchParams({date,sport});
+    fetch(`/api/today?${query.toString()}`,{signal:controller.signal})
+      .then(async(response)=>{
+        if(!response.ok)throw Error("FOCUSED_FEED_HTTP_"+response.status);
+        return response.json();
+      })
+      .then(data=>{
+        if(controller.signal.aborted)return;
+        const hit=(data.games||[]).find(g=>String(g.id)===gameId &&
+          String(g.sport||"").toLowerCase()===sport && !g.durableFallback);
+        if(!hit)throw Error("NO_VERIFIED_PLAYER_FEATURES");
+        setDrilldown(hit);
+        setDrilldownState("complete");
+      })
+      .catch(error=>{
+        if(controller.signal.aborted)return;
+        setDrilldownState(String(error?.message||error));
+      });
+    return ()=>controller.abort();
+  },[durable,date,sport,gameId]);
+  const rows=topThreeGamePlayerProps(drilldown||game);
   return (
     <section className="top-game-props" aria-label="Top three game player props">
       <div className="top-game-props-heading">
@@ -35,10 +73,12 @@ export default function TopGameProps({game}) {
           ))}
         </div>
       ) : (
-        <p className="top-game-props-empty">
-          {durable
-            ? "Stored schedule fallback: individual player projections and markets have not been verified."
-            : "No game-matched, independent FBIS player projections available for this matchup."}
+        <p className="top-game-props-empty" role="status">
+          {durable && drilldownState==="loading"
+            ? "Loading game-specific player projections from the focused sport feed…"
+            : durable && drilldownState!=="complete"
+              ? "Game-specific player projections unavailable. No player prop is inferred from stored scores."
+              : "No game-matched, independent FBIS player projections available for this matchup."}
         </p>
       )}
       <p className="top-game-props-disclaimer">Research display only. Missing prices, lines and probabilities are not estimated. No automatic wager qualification.</p>
