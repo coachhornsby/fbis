@@ -103,3 +103,71 @@ test("free mirror audit has no network, provider launch, D1 or qualification sid
   assert.match(code,/canCreateStateSnapshots:false/);
   assert.match(code,/rightsReviewRequired:true/);
 });
+
+
+test("free NFL mirror accepts only today's pregame standard source lines without any betting authority",async()=>{
+  const {normalizeFreeNflMirror,mirrorChicagoDay}=await import("../src/features/playerProps/freePrizePicksMirror.js");
+  const now="2026-10-11T13:31:00.000Z";
+  assert.equal(mirrorChicagoDay(now),"2026-10-11");
+  const row=(id,overrides={})=>({
+    projectionId:id,playerId:"p"+id,player:"Example Player",Team:"New England Patriots",
+    Opponent:"Las Vegas Raiders",teamCode:"NE",opponentCode:"LV",
+    gameId:"186658",stat:"Pass Yards",line:"204.5",sport:"NFL",status:"pre_game",
+    oddsType:"standard",startDateCST:"2026-10-11",startTimeIso:"2026-10-11T13:00:00.000-04:00",
+    providerFetchedAt:"2026-10-11T12:08:00.000Z",...overrides,
+  });
+  const feed={sport:"NFL",scrapedAt:"2026-10-11T12:09:39.506Z",
+    collectionStatus:{ok:true,providerFetchedAt:"2026-10-11T12:08:00.000Z"},
+    props:[
+      row("valid"),
+      row("started",{startTimeIso:"2026-10-11T09:30:00.000-04:00"}),
+      row("tomorrow",{startDateCST:"2026-10-12",startTimeIso:"2026-10-12T13:00:00.000-04:00"}),
+      row("discount",{oddsType:"goblin"}),
+      row("null",{line:""}),
+      row("dup",{stat:"Receptions",line:"5.5"}),
+      row("dup",{stat:"Receptions",line:"5.5"}),
+    ]};
+  const report=normalizeFreeNflMirror(feed,{now:new Date(now)});
+  assert.equal(report.ok,true);
+  assert.equal(report.rows.length,2);
+  assert.equal(report.coreRows,2);
+  assert.equal(report.excludedStarted,1);
+  assert.equal(report.excludedOtherDate,1);
+  assert.equal(report.excludedInvalid,3);
+  assert.ok(report.rows.every(x=>x.researchOnly&&x.canQualify===false&&x.canAuthorizeWager===false));
+  assert.ok(report.rows.every(x=>x.canonicalEventId===null&&x.evidenceEligible===false&&x.canCreateStateSnapshots===false));
+  assert.equal(report.rows[0].source,"THIRD_PARTY_GITHUB_MIRROR");
+});
+
+test("free NFL mirror refuses prior-day, post-publication, or stale source data",async()=>{
+  const {normalizeFreeNflMirror}=await import("../src/features/playerProps/freePrizePicksMirror.js");
+  const feed={sport:"NFL",props:[],scrapedAt:"2026-10-10T12:09:00Z",
+    collectionStatus:{ok:true,providerFetchedAt:"2026-10-10T12:08:00Z"}};
+  const now=new Date("2026-10-11T15:00:00Z");
+  const old=normalizeFreeNflMirror(feed,{now});
+  assert.equal(old.ok,false);assert.equal(old.error,"MIRROR_NOT_TODAY");
+  const future=normalizeFreeNflMirror({...feed,scrapedAt:"2026-10-11T15:05:00Z",
+    collectionStatus:{ok:true,providerFetchedAt:"2026-10-11T16:00:00Z"}},{now});
+  assert.equal(future.ok,false);assert.equal(future.error,"MIRROR_TIME_INTEGRITY_FAILED");
+  const invalid=normalizeFreeNflMirror({sport:"NFL",props:{}},{now});
+  assert.equal(invalid.ok,false);assert.equal(invalid.error,"MIRROR_SCHEMA_INVALID");
+  for(const x of [old,future,invalid]){
+    assert.equal(x.canQualify,false);assert.equal(x.canAuthorizeWager,false);
+    assert.equal(x.evidenceEligible,false);assert.deepEqual(x.rows,[]);
+  }
+});
+
+test("free NFL board stays separate from paid acquisition and main model pipeline",()=>{
+  const panel=fs.readFileSync("src/features/playerProps/PrizePicksMarketPanel.jsx","utf8");
+  const board=fs.readFileSync("src/features/playerProps/FreePrizePicksMirrorBoard.jsx","utf8");
+  const normalize=fs.readFileSync("src/features/playerProps/freePrizePicksMirror.js","utf8");
+  assert.match(panel,/localSport==="nfl"\|\|localSport==="top25"/);
+  assert.match(panel,/<FreePrizePicksMirrorBoard\/>/);
+  assert.match(board,/No FBIS pick, star rating, or wagering authority/);
+  assert.match(board,/sourceUrl|FREE_NFL_MIRROR_SOURCE_URL/);
+  assert.match(normalize,/MIRROR_NOT_TODAY/);
+  assert.match(normalize,/excludedStarted/);
+  assert.match(normalize,/evidenceEligible:false/);
+  assert.doesNotMatch(normalize,/\bfetch\s*\(|\bPOST\b|\bINSERT\b|\.prepare\s*\(/);
+  assert.doesNotMatch(board,/api\/prizepicks-props|api\/apify-acquire/);
+});
