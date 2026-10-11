@@ -226,7 +226,7 @@ export async function onRequestGet(context){
       detail=await nflDetail(context,{name,team,opponent,market,line});
       if(!detail || detail?.unavailable || !detail?.last5?.length) {
         const fallback=await loadEspnLastFive({sport,name,team,market,line});
-        if(fallback && !fallback.unavailable) detail=fallback;
+        if(fallback && !fallback.unavailable) detail={...fallback,matchup:detail?.matchup||fallback.matchup||null,role:detail?.role||fallback.role||null,advanced:detail?.advanced||fallback.advanced||null};
       }
     } else if(sport==="mlb") {
       detail=await mlbDetail({name,market,line});
