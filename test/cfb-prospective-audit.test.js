@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import {cfbTotalDispersionAudit,cfbUnitFeatureAudit,gradeCfbFrozenRows,cfbErrorSegments,compareCfbTotalShadows} from "../functions/lib/cfbProspectiveAudit.js";
 const base={gameId:"g1",eventStartAt:"2026-10-10T19:00:00Z",predictionAt:"2026-10-10T17:00:00Z",featureCutoffOk:true,projHome:28,projAway:20,actualHome:31,actualAway:17,conference:"SEC"};
 test("CFB scoreboard only accepts explicitly pregame frozen predictions",()=>{
- const r=gradeCfbFrozenRows([base,{...base,gameId:"late",predictionAt:"2026-10-10T20:00:00Z"},{...base,gameId:"unsafe",featureCutoffOk:false}]);
- assert.equal(r.n,1);assert.equal(r.rejected.length,2);assert.equal(r.metrics.marginMae,6);assert.equal(r.metrics.totalMae,0);
+ const r=gradeCfbFrozenRows([base,{...base,gameId:"late",predictionAt:"2026-10-10T20:00:00Z"},{...base,gameId:"unsafe",featureCutoffOk:false},{...base,gameId:"early-grade",gradedAt:"2026-10-09T00:00:00Z"}]);
+ assert.equal(r.n,1);assert.equal(r.rejected.length,3);assert.equal(r.metrics.marginMae,6);assert.equal(r.metrics.totalMae,0);
  assert.equal(r.canAuthorizeWager,false);
 });
 test("CFB total dispersion detects severe compression without promoting models",()=>{
