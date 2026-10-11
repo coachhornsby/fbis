@@ -4,6 +4,9 @@ on:
     paths:
       - scripts/cfb_postgame_rehearsal.py
       - test/cfb-postgame-rehearsal.test.py
+      - functions/lib/cfbPostgamePilot.js
+      - test/cfb-postgame-pilot.test.js
+      - docs/sql/cfb-postgame-operational-candidate.sql
       - scripts/cfb-sdv-team-box-normalize.py
       - scripts/cfb-sdv-player-box-normalize.py
       - test/cfb-sdv-opponent-contract.test.py
@@ -22,8 +25,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Reconcile both cards, players, corrections and immutable snapshots
         run: |
           python test/cfb-postgame-rehearsal.test.py -v
           python test/cfb-postgame-queue.test.py -v
           python test/cfb-sdv-opponent-contract.test.py -v
+          node --test test/cfb-postgame-pilot.test.js

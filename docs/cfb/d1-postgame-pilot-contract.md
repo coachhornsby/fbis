@@ -1,0 +1,11 @@
+# Disabled D1/R2 postgame transaction adapter
+
+This module is extracted and reconciled from stale combined PR957. It has no route, scheduler, production flag or numbered migration. It explicitly refuses the production UUID and requires nonproduction mode, a qualified canonical identity verifier, original source bytes and isolated D1/R2 dependencies.
+
+Source evidence is content-addressed in R2 separately from normalized records. Validated game versions, both team-card versions, current pointers and dependency/cache/research outbox entries commit together in one D1 batch. Game and card pointer guards reject concurrent changes instead of losing an intervening opponent game. Re-polling identical normalized content does not double-count; corrections preserve old versions and replace dependent aggregates.
+
+The additive contract now includes verified passing, rushing, receiving, defense, kicking, punting and return categories. Longest values use maxima; unavailable data stays NULL with observation counts. Rates use paired denominators. Partial sources, invalid identity/results and transient transaction failures retain distinct durable states. Health checks card contents for the exact current game version.
+
+Eleven real SQLite transaction contracts pass, including concurrent interleaving, partial responses, rollback between card writes, original evidence separation, corrections, per-position aggregation and stale existing card pointers. SQLite tests do not substitute for actual D1/R2 integration and load acceptance.
+
+Production remains blocked by full recovery acceptance, separately approved schema/import execution, qualified source and time-aware identity/membership adapters, durable D1 leases within the same publication transaction, source rate/latency budgets, outbox consumers, all-game reconciliation and independent review. The Python queue and this D1 pilot are independently tested components; they are not claimed as an integrated production worker. No challenger or wagering authority is granted.
