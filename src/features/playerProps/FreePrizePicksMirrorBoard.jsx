@@ -18,9 +18,10 @@ function matchingProjection(row,projections){
 const teamCache=new Map();
 function MirrorCard({row,time,projection}){
  const [team,setTeam]=useState(null);
+ const [opponentTeam,setOpponentTeam]=useState(null);
  const [headshotFailed,setHeadshotFailed]=useState(false);
  const [expanded,setExpanded]=useState(false);
- const [history,setHistory]=useState({state:"IDLE",games:[],rank:null});
+ const [history,setHistory]=useState({state:"IDLE",games:[],rank:null,passDefense:null,runDefense:null});
  const cardRef=useRef(null);
  const [visible,setVisible]=useState(false);
  useEffect(()=>{
@@ -41,25 +42,42 @@ function MirrorCard({row,time,projection}){
   return()=>{active=false};
  },[row.team]);
  useEffect(()=>{
+  let active=true;
+  const key=String(row.opponent||"").trim();
+  if(!key){setOpponentTeam(null);return}
+  const cacheKey="opponent:"+key;
+  if(!teamCache.has(cacheKey)){
+   const q=new URLSearchParams({sport:"nfl",name:key});
+   teamCache.set(cacheKey,fetch("/api/team-logo?"+q,{credentials:"same-origin"})
+    .then(r=>r.ok?r.json():null).then(x=>x?.found?x.team:null).catch(()=>null));
+  }
+  teamCache.get(cacheKey).then(t=>{if(active)setOpponentTeam(t)});
+  return()=>{active=false};
+ },[row.opponent]);
+ useEffect(()=>{
   if(!visible||!row.market)return;
   let active=true;
   const q=new URLSearchParams({
    sport:"nfl",name:row.player,team:row.team,opponent:row.opponent,
    market:row.market||row.stat,line:String(row.line)
   });
-  setHistory({state:"LOADING",games:[],rank:null});
+  setHistory({state:"LOADING",games:[],rank:null,passDefense:null,runDefense:null});
   fetch("/api/player-prop-detail?"+q,{credentials:"same-origin"})
    .then(r=>r.ok?r.json():null)
    .then(x=>{
     if(!active)return;
     const games=Array.isArray(x?.detail?.last5)?x.detail.last5:[];
     const rank=Number(x?.detail?.matchup?.defenseRank);
-    setHistory({state:games.length?"AVAILABLE":"UNAVAILABLE",games:games.slice(0,5),rank:Number.isInteger(rank)&&rank>=1&&rank<=32?rank:null});
-   }).catch(()=>{if(active)setHistory({state:"UNAVAILABLE",games:[],rank:null})});
+    setHistory({state:games.length?"AVAILABLE":"UNAVAILABLE",games:games.slice(0,5),rank:Number.isInteger(rank)&&rank>=1&&rank<=32?rank:null,passDefense:x?.detail?.matchup?.passDefense||null,runDefense:x?.detail?.matchup?.runDefense||null});
+   }).catch(()=>{if(active)setHistory({state:"UNAVAILABLE",games:[],rank:null,passDefense:null,runDefense:null})});
   return()=>{active=false};
  },[visible,row.id,row.market]);
  const imageUrl="/api/player-image?"+new URLSearchParams({name:row.player,sport:"nfl",team:row.team,mode:"image"});
  const primary=team?.primaryColor||"#172b50",secondary=team?.secondaryColor||"#090f20";
+ const market=String(row.market||"").toLowerCase();
+ const isRun=/^(rushing_|rush_|carries)/.test(market);
+ const defenseType=isRun?"RUN":"PASS";
+ const defenseRank=isRun?history.runDefense:history.passDefense;
  const delta=projection?projection.value-Number(row.line):null;
  return <article ref={cardRef} className="pp-card pp-premium-card sport-nfl pp-mirror-card"
   style={{"--mirror-primary":primary,"--mirror-secondary":secondary}}>
@@ -81,7 +99,7 @@ function MirrorCard({row,time,projection}){
     <div className="pp-mirror-comparison-cell"><span>FBIS PROJ</span><strong>{projection?projection.value.toFixed(1):"—"}</strong></div>
     <div className={"pp-mirror-comparison-cell pp-mirror-delta "+(delta==null?"is-missing":delta>0?"is-positive":delta<0?"is-negative":"is-even")}><span>DIFFERENCE</span><strong>{delta==null?"—":(delta>0?"+":"")+delta.toFixed(1)}</strong></div>
    </div>
-   <div className="pp-mirror-context"><span>VS {row.opponent||"—"} · DEFENSE VS {row.stat.toUpperCase()} <b>{history.rank?"#"+history.rank+" / 32":history.state==="LOADING"?"LOADING":"N/A"}</b></span><small>{projection?"FBIS "+(projection.modelVersion||"model"):"No matching published FBIS projection"} · Public line not verified live</small></div>
+   <div className="pp-mirror-context"><div className="pp-mirror-defense"><span className="pp-mirror-defense-logo">{opponentTeam?.logo?<img src={opponentTeam.logo} alt={row.opponent+" logo"} loading="lazy"/>:null}</span><span>{defenseType} DEFENSE</span><strong>{defenseRank?.rank?"#"+defenseRank.rank:"N/A"}</strong></div><small>{projection?"FBIS "+(projection.modelVersion||"model"):"No matching published FBIS projection"} · Public line not verified live</small></div>
    <div className="pp-card-foot pp-premium-foot"><span>{time(row.startAt)} CT</span><span>Research only · No FBIS pick</span></div>
    <div className="pp-analytics">
     <button type="button" className="pp-analytics-toggle" onClick={()=>setExpanded(v=>!v)}

@@ -90,10 +90,21 @@ async function nflDetail(context,{name,team,opponent,market,line}){
   const defenseRank=rankedDefense.length>=28&&defense!=null
     ?rankedDefense.findIndex(x=>canonNfl(x.code)===opp)+1:null;
   const verifiedRank=defenseRank>0?defenseRank:null;
+  // Team pass/run defense: rank by defensive EPA allowed per play; #1 is stingiest.
+  // Require near-complete NFL team coverage before presenting ordinal claims.
+  const defenseRankFor=(field)=>{
+    const ranked=Object.entries(feed?.byTeam||{}).map(([code,data])=>({code:canonNfl(code),value:n(data?.[field])}))
+      .filter(x=>x.value!=null).sort((a,b)=>a.value-b.value);
+    if(ranked.length<28)return null;
+    const at=ranked.findIndex(x=>x.code===opp);
+    return at>=0?{rank:at+1,teams:ranked.length,measure:"defensive EPA allowed per play"}:null;
+  };
+  const passDefense=defenseRankFor("passEpaAllowed");
+  const runDefense=defenseRankFor("rushEpaAllowed");
   const currentSeason=last5.filter(g=>Number(g.season)===new Date().getFullYear()).map(g=>Number(g.value)).filter(Number.isFinite);
   const seasonAvg=p?.seasonAvg?.[field]!=null?n(p.seasonAvg[field]):(currentSeason.length?currentSeason.reduce((s,v)=>s+v,0)/currentSeason.length:null);
   const recent5Avg=last5.length?last5.reduce((s,g)=>s+(Number(g.value)||0),0)/last5.length:null;
-  return {source:"nflverse",sourceLabel:"nflverse weekly player stats",statField:field,last5,season:{games:n(p?.games)??currentSeason.length,average:seasonAvg,recent5Average:recent5Avg},role:{position:position||null,snapShare:n(p?.snapShare),trackingGames:n(p?.trackingGames),snapGames:n(p?.snapGames)},matchup:{opponent:opp||null,opponentAllowed:defense==null?null:Number(defense),leagueAverageAllowed:league==null?null:Number(league),matchupFactor:defense!=null&&league?Number(defense)/Number(league):null,defenseRank:verifiedRank,rankBasis:"fewest allowed to position",rankedTeams:rankedDefense.length},advanced:p?.ngs||null};
+  return {source:"nflverse",sourceLabel:"nflverse weekly player stats",statField:field,last5,season:{games:n(p?.games)??currentSeason.length,average:seasonAvg,recent5Average:recent5Avg},role:{position:position||null,snapShare:n(p?.snapShare),trackingGames:n(p?.trackingGames),snapGames:n(p?.snapGames)},matchup:{opponent:opp||null,opponentAllowed:defense==null?null:Number(defense),leagueAverageAllowed:league==null?null:Number(league),matchupFactor:defense!=null&&league?Number(defense)/Number(league):null,defenseRank:verifiedRank,rankBasis:"fewest allowed to position",rankedTeams:rankedDefense.length,passDefense,runDefense},advanced:p?.ngs||null};
 }
 async function mlbPerson(name){
   const controller=new AbortController();
