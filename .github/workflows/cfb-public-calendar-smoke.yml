@@ -1,0 +1,31 @@
+name: CFB FBS Public Calendar Evidence
+on:
+  pull_request:
+    paths:
+      - scripts/cfb-public-calendar-smoke.mjs
+      - .github/workflows/cfb-public-calendar-smoke.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cfb-public-calendar-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify-fbs-week:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify two complete public FBS schedule windows (no paid APIs)
+        run: node scripts/cfb-public-calendar-smoke.mjs 2026-10-11 "$RUNNER_TEMP/fbs-calendar.json"
+      - name: Save schedule source coverage evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-fbs-public-calendar-${{ github.run_id }}
+          path: ${{ runner.temp }}/fbs-calendar.json
+          retention-days: 7
+          if-no-files-found: warn
