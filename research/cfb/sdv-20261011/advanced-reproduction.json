@@ -1,0 +1,61 @@
+{
+  "status": "VERIFIED_REPRODUCTION_RESEARCH_ONLY",
+  "generated_at": "2026-10-11T16:11:04.606410+00:00",
+  "hosted_run": 38121932530,
+  "hosted_artifact": 11695862979,
+  "artifact_sha256": "3bddc829890cbbf24b98d9bded5fccfbe53248f30f21ec2caf52733e6d72302d",
+  "all_source_hashes_verified": true,
+  "source_assets": 10,
+  "historical_pit_qualified": false,
+  "independent_technical_review_completed": false,
+  "can_influence_projection": false,
+  "can_authorize_wager": false,
+  "economic_metrics": null,
+  "reproduction_tolerance": 1e-10,
+  "source_sha256": "766806e9cc6975ce3f4b012b47cada73ccf6a178209d28f42d37abce51d9335a",
+  "holdout_season": 2025,
+  "holdout_games": 807,
+  "feature_columns": 154,
+  "tasks": {
+    "margin": {
+      "selected": {
+        "k": 0,
+        "alpha": 500.0,
+        "validation_mae": 14.169602689634962
+      },
+      "raw_ridge": {
+        "k": 0,
+        "alpha": 500.0,
+        "validation_mae": 14.169602689634962
+      },
+      "selected_holdout_mae": 14.28455516980544,
+      "ridge_holdout_mae": 14.28455516980544,
+      "selected_minus_ridge": 0.0,
+      "paired_95pct_week_block_ci": [
+        0.0,
+        0.0
+      ]
+    },
+    "total": {
+      "selected": {
+        "k": 40,
+        "alpha": 500.0,
+        "validation_mae": 13.189918114247536
+      },
+      "raw_ridge": {
+        "k": 0,
+        "alpha": 500.0,
+        "validation_mae": 13.207850603761598
+      },
+      "selected_holdout_mae": 12.990058684839218,
+      "ridge_holdout_mae": 12.933783861933971,
+      "selected_minus_ridge": 0.05627482290524498,
+      "paired_95pct_week_block_ci": [
+        -0.12588096537798335,
+        0.2152796195012947
+      ]
+    }
+  },
+  "conclusion": "No validated SVD improvement. Margin selected raw ridge; total SVD was0.0563points worse on2025holdout and paired95%week-block interval includeszero.",
+  "source_policy": "Postgame historical data observed now. Prior-game construction is retrospective, not proof of historical acquisition or publication times. No sportsbook prices/ROI/CLV manufactured."
+}

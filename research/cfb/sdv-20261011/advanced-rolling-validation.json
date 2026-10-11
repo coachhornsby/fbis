@@ -1,0 +1,397 @@
+{
+  "data_class": "RETROSPECTIVE_PRIOR_GAME_RESEARCH_ONLY",
+  "source_publication_pit_certified": false,
+  "model_authority": "NONE",
+  "can_authorize_wager": false,
+  "game_counts": {
+    "2021": 741,
+    "2022": 746,
+    "2023": 783,
+    "2024": 781,
+    "2025": 807
+  },
+  "num_rolling_feature_columns": 154,
+  "tasks": {
+    "margin": {
+      "selected": {
+        "k": 0,
+        "alpha": 500.0,
+        "validation_mae": 14.169602689634962
+      },
+      "raw_ridge": {
+        "k": 0,
+        "alpha": 500.0,
+        "validation_mae": 14.169602689634962
+      },
+      "holdout_n": 807,
+      "selected_holdout_mae": 14.28455516980544,
+      "ridge_holdout_mae": 14.28455516980544,
+      "selected_minus_ridge": 0.0,
+      "paired_95pct_week_block_ci": [
+        0.0,
+        0.0
+      ],
+      "grid": [
+        {
+          "k": 0,
+          "alpha": 500.0,
+          "validation_mae": 14.169602689634962
+        },
+        {
+          "k": 80,
+          "alpha": 500.0,
+          "validation_mae": 14.17628087113777
+        },
+        {
+          "k": 80,
+          "alpha": 100.0,
+          "validation_mae": 14.25616886111711
+        },
+        {
+          "k": 0,
+          "alpha": 100.0,
+          "validation_mae": 14.261278369766865
+        },
+        {
+          "k": 80,
+          "alpha": 10.0,
+          "validation_mae": 14.319868172261268
+        },
+        {
+          "k": 40,
+          "alpha": 500.0,
+          "validation_mae": 14.33198616869815
+        },
+        {
+          "k": 10,
+          "alpha": 10.0,
+          "validation_mae": 14.359691820973453
+        },
+        {
+          "k": 10,
+          "alpha": 100.0,
+          "validation_mae": 14.35984641806955
+        },
+        {
+          "k": 10,
+          "alpha": 500.0,
+          "validation_mae": 14.361356598014087
+        },
+        {
+          "k": 20,
+          "alpha": 500.0,
+          "validation_mae": 14.375639837793203
+        },
+        {
+          "k": 20,
+          "alpha": 100.0,
+          "validation_mae": 14.398208301321205
+        },
+        {
+          "k": 20,
+          "alpha": 10.0,
+          "validation_mae": 14.404514686040672
+        },
+        {
+          "k": 40,
+          "alpha": 100.0,
+          "validation_mae": 14.405071200564512
+        },
+        {
+          "k": 40,
+          "alpha": 10.0,
+          "validation_mae": 14.43056871572338
+        },
+        {
+          "k": 0,
+          "alpha": 10.0,
+          "validation_mae": 14.493044066340415
+        },
+        {
+          "k": 5,
+          "alpha": 10.0,
+          "validation_mae": 14.551309823543463
+        },
+        {
+          "k": 5,
+          "alpha": 100.0,
+          "validation_mae": 14.551369634830765
+        },
+        {
+          "k": 5,
+          "alpha": 500.0,
+          "validation_mae": 14.55178887638214
+        }
+      ]
+    },
+    "total": {
+      "selected": {
+        "k": 40,
+        "alpha": 500.0,
+        "validation_mae": 13.189918114247536
+      },
+      "raw_ridge": {
+        "k": 0,
+        "alpha": 500.0,
+        "validation_mae": 13.207850603761598
+      },
+      "holdout_n": 807,
+      "selected_holdout_mae": 12.990058684839218,
+      "ridge_holdout_mae": 12.933783861933971,
+      "selected_minus_ridge": 0.05627482290524498,
+      "paired_95pct_week_block_ci": [
+        -0.12588096537798335,
+        0.2152796195012947
+      ],
+      "grid": [
+        {
+          "k": 40,
+          "alpha": 500.0,
+          "validation_mae": 13.189918114247536
+        },
+        {
+          "k": 40,
+          "alpha": 100.0,
+          "validation_mae": 13.201113173664657
+        },
+        {
+          "k": 40,
+          "alpha": 10.0,
+          "validation_mae": 13.20562230509754
+        },
+        {
+          "k": 0,
+          "alpha": 500.0,
+          "validation_mae": 13.207850603761598
+        },
+        {
+          "k": 80,
+          "alpha": 500.0,
+          "validation_mae": 13.213314925632922
+        },
+        {
+          "k": 0,
+          "alpha": 100.0,
+          "validation_mae": 13.254357577563592
+        },
+        {
+          "k": 80,
+          "alpha": 100.0,
+          "validation_mae": 13.278584361983055
+        },
+        {
+          "k": 20,
+          "alpha": 500.0,
+          "validation_mae": 13.321126222383114
+        },
+        {
+          "k": 20,
+          "alpha": 100.0,
+          "validation_mae": 13.328441364771995
+        },
+        {
+          "k": 20,
+          "alpha": 10.0,
+          "validation_mae": 13.330319187513565
+        },
+        {
+          "k": 10,
+          "alpha": 500.0,
+          "validation_mae": 13.331795125762293
+        },
+        {
+          "k": 10,
+          "alpha": 100.0,
+          "validation_mae": 13.334657248136653
+        },
+        {
+          "k": 10,
+          "alpha": 10.0,
+          "validation_mae": 13.335403133165382
+        },
+        {
+          "k": 0,
+          "alpha": 10.0,
+          "validation_mae": 13.337629199603521
+        },
+        {
+          "k": 80,
+          "alpha": 10.0,
+          "validation_mae": 13.339119909614414
+        },
+        {
+          "k": 5,
+          "alpha": 500.0,
+          "validation_mae": 13.414193334671175
+        },
+        {
+          "k": 5,
+          "alpha": 100.0,
+          "validation_mae": 13.419004274352533
+        },
+        {
+          "k": 5,
+          "alpha": 10.0,
+          "validation_mae": 13.420294417127185
+        }
+      ]
+    }
+  },
+  "input_sha256": "766806e9cc6975ce3f4b012b47cada73ccf6a178209d28f42d37abce51d9335a",
+  "feature_names": [
+    "home_EPA_explosive",
+    "home_EPA_explosive_passing",
+    "home_EPA_explosive_passing_rate",
+    "home_EPA_explosive_rate",
+    "home_EPA_explosive_rushing",
+    "home_EPA_explosive_rushing_rate",
+    "home_EPA_fg",
+    "home_EPA_kickoff",
+    "home_EPA_non_explosive",
+    "home_EPA_non_explosive_passing",
+    "home_EPA_non_explosive_passing_per_play",
+    "home_EPA_non_explosive_per_play",
+    "home_EPA_non_explosive_rushing",
+    "home_EPA_non_explosive_rushing_per_play",
+    "home_EPA_overall_off",
+    "home_EPA_overall_offense",
+    "home_EPA_overall_total",
+    "home_EPA_passing_overall",
+    "home_EPA_passing_per_play",
+    "home_EPA_penalty",
+    "home_EPA_per_play",
+    "home_EPA_plays",
+    "home_EPA_punt",
+    "home_EPA_rushing_overall",
+    "home_EPA_rushing_per_play",
+    "home_EPA_rushing_power",
+    "home_EPA_rushing_power_per_play",
+    "home_EPA_sp",
+    "home_EPA_special_teams",
+    "home_field_goals",
+    "home_first_downs_created",
+    "home_first_downs_created_rate",
+    "home_kickoff_plays",
+    "home_line_yards",
+    "home_line_yards_per_carry",
+    "home_off_yards",
+    "home_open_field_yards",
+    "home_pass_yards",
+    "home_passes",
+    "home_passes_rate",
+    "home_passing_first_downs_created",
+    "home_passing_first_downs_created_rate",
+    "home_penalties",
+    "home_penalty_first_downs_created",
+    "home_penalty_first_downs_created_rate",
+    "home_penalty_yards",
+    "home_punt_plays",
+    "home_rush_yards",
+    "home_rushes",
+    "home_rushes_rate",
+    "home_rushing_first_downs_created",
+    "home_rushing_first_downs_created_rate",
+    "home_rushing_highlight",
+    "home_rushing_highlight_rate",
+    "home_rushing_highlight_yards",
+    "home_rushing_highlight_yards_per_opp",
+    "home_rushing_opportunity",
+    "home_rushing_opportunity_rate",
+    "home_rushing_power",
+    "home_rushing_power_rate",
+    "home_rushing_power_success",
+    "home_rushing_power_success_rate",
+    "home_rushing_stopped",
+    "home_rushing_stopped_rate",
+    "home_rushing_stuff",
+    "home_rushing_stuff_rate",
+    "home_sack_yards",
+    "home_scrimmage_plays",
+    "home_second_level_yards",
+    "home_special_teams_plays",
+    "home_total_off_yards",
+    "home_total_pen_yards",
+    "home_total_yards",
+    "home_yards_per_pass",
+    "home_yards_per_play",
+    "home_yards_per_rush",
+    "away_EPA_explosive",
+    "away_EPA_explosive_passing",
+    "away_EPA_explosive_passing_rate",
+    "away_EPA_explosive_rate",
+    "away_EPA_explosive_rushing",
+    "away_EPA_explosive_rushing_rate",
+    "away_EPA_fg",
+    "away_EPA_kickoff",
+    "away_EPA_non_explosive",
+    "away_EPA_non_explosive_passing",
+    "away_EPA_non_explosive_passing_per_play",
+    "away_EPA_non_explosive_per_play",
+    "away_EPA_non_explosive_rushing",
+    "away_EPA_non_explosive_rushing_per_play",
+    "away_EPA_overall_off",
+    "away_EPA_overall_offense",
+    "away_EPA_overall_total",
+    "away_EPA_passing_overall",
+    "away_EPA_passing_per_play",
+    "away_EPA_penalty",
+    "away_EPA_per_play",
+    "away_EPA_plays",
+    "away_EPA_punt",
+    "away_EPA_rushing_overall",
+    "away_EPA_rushing_per_play",
+    "away_EPA_rushing_power",
+    "away_EPA_rushing_power_per_play",
+    "away_EPA_sp",
+    "away_EPA_special_teams",
+    "away_field_goals",
+    "away_first_downs_created",
+    "away_first_downs_created_rate",
+    "away_kickoff_plays",
+    "away_line_yards",
+    "away_line_yards_per_carry",
+    "away_off_yards",
+    "away_open_field_yards",
+    "away_pass_yards",
+    "away_passes",
+    "away_passes_rate",
+    "away_passing_first_downs_created",
+    "away_passing_first_downs_created_rate",
+    "away_penalties",
+    "away_penalty_first_downs_created",
+    "away_penalty_first_downs_created_rate",
+    "away_penalty_yards",
+    "away_punt_plays",
+    "away_rush_yards",
+    "away_rushes",
+    "away_rushes_rate",
+    "away_rushing_first_downs_created",
+    "away_rushing_first_downs_created_rate",
+    "away_rushing_highlight",
+    "away_rushing_highlight_rate",
+    "away_rushing_highlight_yards",
+    "away_rushing_highlight_yards_per_opp",
+    "away_rushing_opportunity",
+    "away_rushing_opportunity_rate",
+    "away_rushing_power",
+    "away_rushing_power_rate",
+    "away_rushing_power_success",
+    "away_rushing_power_success_rate",
+    "away_rushing_stopped",
+    "away_rushing_stopped_rate",
+    "away_rushing_stuff",
+    "away_rushing_stuff_rate",
+    "away_sack_yards",
+    "away_scrimmage_plays",
+    "away_second_level_yards",
+    "away_special_teams_plays",
+    "away_total_off_yards",
+    "away_total_pen_yards",
+    "away_total_yards",
+    "away_yards_per_pass",
+    "away_yards_per_play",
+    "away_yards_per_rush",
+    "home_prior_n",
+    "away_prior_n"
+  ]
+}
