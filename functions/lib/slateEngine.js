@@ -1,3 +1,4 @@
+import { fbsOnlySlate } from "./cfbGameVisibility.js";
 /**
  * Public slate-engine facade.
  *
@@ -611,7 +612,7 @@ export async function buildSlate(sport, date, env = {}) {
     }),
   };
 
-  return next;
+  return fbsOnlySlate(next);
 }
 
 export function qualificationIntegrity(sport, game) {

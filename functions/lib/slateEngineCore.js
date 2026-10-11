@@ -889,6 +889,8 @@ export function mapEvent(sport, event) {
   const away = teamPayload(awayC);
   home.espnId = homeC?.team?.id || homeC?.id || null;
   away.espnId = awayC?.team?.id || awayC?.id || null;
+  home.providerTeamId = homeC?.team?.id || null;
+  away.providerTeamId = awayC?.team?.id || null;
   home.conference = homeC?.team?.conferenceId || null;
   away.conference = awayC?.team?.conferenceId || null;
   const odds = parseOdds(comp, sport);
@@ -1403,6 +1405,8 @@ function mapCfbdGame(g) {
       },
       home: {
         name: g.homeTeam || "Home",
+        providerClassification: g.homeClassification || g.home_classification || null,
+        classificationSource: "CFBD",
         abbr: inferAbbr(g.homeTeam || ""),
         logo: "",
         score: num(g.homePoints),
@@ -1411,6 +1415,8 @@ function mapCfbdGame(g) {
       },
       away: {
         name: g.awayTeam || "Away",
+        providerClassification: g.awayClassification || g.away_classification || null,
+        classificationSource: "CFBD",
         abbr: inferAbbr(g.awayTeam || ""),
         logo: "",
         score: num(g.awayPoints),

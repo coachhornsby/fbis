@@ -1,3 +1,4 @@
+import { isFbsVsFbsGame } from "../lib/cfbGameVisibility.js";
 import { buildSlate, resolveSlateDate, findNextCfbdGameDate, fetchCfbdGamesForWeek } from "../lib/slateEngine.js";
 import { compactMlbSlatePayload } from "../lib/propConviction.js";
 
@@ -49,7 +50,7 @@ export async function onRequestGet(context) {
     if (sport === "cfb" && env.CFBD_API_KEY) {
       try {
         const weekly = await fetchCfbdGamesForWeek(resolved.date, env.CFBD_API_KEY, weekShift);
-        const games = (weekly.games || []).map((g) => ({
+        const games = (weekly.games || []).filter(isFbsVsFbsGame).map((g) => ({
           ...g,
           projectionUnavailable: true,
           marketUnavailable: true,

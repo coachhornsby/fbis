@@ -1,3 +1,4 @@
+import { isFbsVsFbsGame } from "../../../functions/lib/cfbGameVisibility.js";
 import { useMemo, useState } from "react";
 import PremiumGameCard from "./PremiumGameCard.jsx";
 import SlateToolbar from "./SlateToolbar.jsx";
@@ -18,7 +19,7 @@ export default function BoardGrid({
   const [hideBlocked, setHideBlocked] = useState(false);
   const [open, setOpen] = useState(() => new Set());
 
-  const sorted = useMemo(() => sortBoardGames(games), [games]);
+  const sorted = useMemo(() => sortBoardGames(games.filter(isFbsVsFbsGame)), [games]);
   const visible = useMemo(() => {
     let rows = filterBoardGames(sorted, filter);
     if (hideBlocked) rows = filterBoardGames(rows, "HIDE_BLOCKED");

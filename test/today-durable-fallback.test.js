@@ -67,17 +67,14 @@ test("D1 date-scoped fallback never writes or accesses provider endpoints",async
   assert.equal(store.metrics.calls,1);
   assert.deepEqual(store.metrics.bindings.slice(1),[today,"all","all"]);
 });
-test("focused upstream exception restores schedule cards from D1 rather than empty board",async()=>{
+test("focused upstream exception withholds CFB schedule cards without verified participant IDs",async()=>{
   const store=db([cfb()]);
   const data=await buildTodayBoard(today,{DB:store},{
     focusSport:"cfb",now,
     buildSlateFn:async()=>{throw Error("ESPN_503");},
   });
-  assert.equal(data.counts.games,1);
-  assert.equal(data.counts.durableFallbackGames,1);
-  assert.equal(data.games[0].status,"unverified");
-  assert.equal(data.games[0].rec,null);
-  assert.equal(data.games[0].canQualify,false);
+  assert.equal(data.counts.games,0);
+  assert.equal(data.counts.durableFallbackGames,0);
   assert.equal(data.feeds.cfb.source,"D1_SCHEDULE_PRESTART_SNAPSHOT");
   assert.equal(data.feeds.cfb.error,null);
   assert.match(data.feeds.cfb.warning,/ESPN_503/);
@@ -92,7 +89,7 @@ test("injected healthy focused builder keeps its real projection and status",asy
       sport:"cfb",date:today,
       games:[{
         id:"cfb-1",sport:"cfb",start:"2026-10-10T23:00:00Z",
-        home:{name:"Texas",abbr:"TEX"},away:{name:"Oklahoma",abbr:"OU"},
+        home:{name:"Texas",abbr:"TEX",espnId:"251"},away:{name:"Oklahoma",abbr:"OU",espnId:"201"},
         status:{detail:"Scheduled"},
         model:{projHome:32,projAway:24,projTotal:56,projMargin:8,projectionKind:"FBIS"},
         projectionKind:"FBIS",odds:{},
@@ -113,13 +110,13 @@ test("ALL sports uses one read-only D1 query and does not invoke live builders",
     cfb("nba-all",{sport:"nba",home_abbr:"LAL",away_abbr:"BOS"}),
   ]);
   const board=await buildTodayBoard(today,{DB:store},{now});
-  assert.equal(board.counts.games,3);
-  assert.equal(board.counts.durableFallbackGames,3);
+  assert.equal(board.counts.games,2);
+  assert.equal(board.counts.durableFallbackGames,2);
   assert.equal(board.parlay.durableReadOnly,true);
-  assert.equal(board.feeds.cfb.n,1);
+  assert.equal(board.feeds.cfb.n,0);
   assert.equal(board.feeds.nhl.n,1);
   assert.equal(board.feeds.nba.n,1);
-  assert.equal(board.games.length,3);
+  assert.equal(board.games.length,2);
   assert.ok(board.games.every(g=>g.status==="unverified" && !g.canQualify && g.rec==null));
   assert.equal(store.metrics.calls,1);
 });
