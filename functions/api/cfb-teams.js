@@ -1,3 +1,4 @@
+import {loadPublishedCfbTeamCard} from '../lib/cfbPublishedTeamCard.js';
 import { toFbsTeamList, toFbsTeamProfile, toTeamFeatureSummary, toLegacyFormSummary } from "../lib/cfbTeamProfiles.js";
 import {loadFbsTeamSeasonEvidence,validProfileSeason,validProfilePlayer} from "../lib/cfbTeamSeasonEvidence.js";
 
@@ -45,12 +46,13 @@ export async function loadFbsTeamDirectory(db, requestedTeamId = null, options =
       if (!validProfileSeason(season))return {status:400,body:{ok:false,error:"invalid-season"}};
       const playerId=options.playerId||null;
       if (playerId && !validProfilePlayer(playerId))return {status:400,body:{ok:false,error:"invalid-player-id"}};
-      const [featureState, legacyForm, evidence] = await Promise.all([
+      const [featureState, legacyForm, evidence, publishedCard] = await Promise.all([
         optionalTeamFeatures(db, team.teamId), optionalTeamForm(db, team.espnId,season),
         loadFbsTeamSeasonEvidence(db,team,season,playerId),
+        loadPublishedCfbTeamCard(db,team.teamId,season),
       ]);
       return { status: 200, body: {
-        ok: true, team, featureState, legacyForm, evidence, modelAuthority: noModelAuthority,
+        ok: true, team, featureState, legacyForm, evidence, publishedCard, modelAuthority: noModelAuthority,
         storage: "PERSISTENT_D1_READ_ONLY", externalProviderRequests: 0,
       } };
     }

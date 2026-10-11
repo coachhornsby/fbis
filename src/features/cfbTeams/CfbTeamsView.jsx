@@ -103,6 +103,21 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange}) {
         Stadium naming and precise pin placement remain subject to school/venue verification.</p>
     </section>
     <section className="ft-panel">
+      <div className="ft-heading"><h3>Published Team Card</h3><small>{show(detail.publishedCard?.state)}</small></div>
+      {detail.publishedCard?.card ? <>
+        <p>{detail.publishedCard.card.record.wins} wins · {detail.publishedCard.card.record.losses} losses
+          {" · "}{detail.publishedCard.card.games} contributing games</p>
+        <p className="ft-note">Published {stamp(detail.publishedCard.publishedAt)} · Version {show(detail.publishedCard.version)}</p>
+        <div className="ft-metric-grid">{Object.entries(detail.publishedCard.card.offense||{}).map(([key,m])=>
+          <div className="ft-metric" key={key}><span>{key.replaceAll("_"," ")}</span>
+            <strong>{m.mean==null?"Unavailable":Number(m.mean).toLocaleString("en-US",{maximumFractionDigits:3})}</strong>
+            <small>{m.games} contributing games · Total {show(m.total)}</small></div>)}</div>
+        <details className="ft-raw"><summary>Game versions, player statistics and coverage</summary>
+          <pre>{JSON.stringify(detail.publishedCard.card,null,2)}</pre></details>
+      </> : <p className="ft-missing">No validated Team Card version has been published for this season.
+        Completed games awaiting publication remain a data-health gap.</p>}
+    </section>
+    <section className="ft-panel">
       <div className="ft-heading"><h3>Persistent team statistics</h3>
         <small>{hasSnapshot ? "Saved research snapshot" : "Not populated"}</small></div>
       {hasSnapshot ? <>
