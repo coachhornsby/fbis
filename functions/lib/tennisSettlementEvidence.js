@@ -13,9 +13,9 @@ export function normalTennisFinish(e) {
   const reason = String(e?.result_reason || '').toUpperCase();
   const score = String(e?.score_text || '').trim();
   if (!score || /RET|W\/O|WALKOVER|DEFAULT|DEF\.|ABANDON|CANCEL|SUSPEND|INCOMPLETE|DISQUAL|MTO/i.test(`${reason} ${score}`)) return false;
-  // WTA's MatchState "F" reports status, not settlement. Require a complete
-  // score with a winning majority of completed sets before accepting it.
-  if (!['F','NORMAL','COMPLETED_NORMAL','FINISHED_NORMAL'].includes(reason)) return false;
+  // WTA's MatchState 'F' proves terminal status, not normal settlement.
+  // Require independently mapped normal-completion evidence and a complete score.
+  if (!['NORMAL','COMPLETED_NORMAL','FINISHED_NORMAL'].includes(reason)) return false;
   const sets = [...score.matchAll(/(?:^|\s)(\d{1,2})\s*[-:]\s*(\d{1,2})(?=\s|$|\()/g)].map(x => [Number(x[1]),Number(x[2])]);
   if (sets.length < 2 || sets.length > 5) return false;
   let a=0,b=0;
