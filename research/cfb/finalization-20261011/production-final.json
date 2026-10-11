@@ -1,0 +1,147 @@
+{
+  "observedAt": "2026-10-11T15:23:29.707Z",
+  "day": "2026-10-11",
+  "base": "https://fbis-myz.pages.dev",
+  "classification": "READ_ONLY_PRODUCTION_ACCEPTANCE",
+  "productionWrites": 0,
+  "paidAcquisitionStarts": 0,
+  "windows": [
+    {
+      "shift": 0,
+      "range": {
+        "since": "2026-10-11",
+        "until": "2026-10-17"
+      },
+      "expected": 33,
+      "published": 33,
+      "missing": [],
+      "failures": [],
+      "passed": true,
+      "sourceCoverage": {
+        "requestedDays": 7,
+        "successfulDays": 7,
+        "failures": []
+      },
+      "sourceObservedAt": "2026-10-11T15:23:37.930Z",
+      "projectionDeclaredUnavailable": 0,
+      "projectionShapeRecognized": 33,
+      "provisionalForecasts": 33,
+      "qualificationBlocked": 33,
+      "modelVersions": [
+        "CFB-FBIS-v2"
+      ],
+      "note": "Forecast/market qualification is evaluated separately; fixture parity does not establish bet eligibility",
+      "apiHealth": {
+        "source": "ESPN_PUBLIC",
+        "publicScheduleError": null,
+        "cfbdScheduleRequired": false,
+        "observedAt": "2026-10-11T15:23:38.008Z",
+        "coverage": {
+          "requestedDays": 7,
+          "successfulDays": 7,
+          "failures": []
+        },
+        "state": "SOURCE_COMPLETE"
+      }
+    },
+    {
+      "shift": 1,
+      "range": {
+        "since": "2026-10-18",
+        "until": "2026-10-24"
+      },
+      "expected": 37,
+      "published": 37,
+      "missing": [],
+      "failures": [],
+      "passed": true,
+      "sourceCoverage": {
+        "requestedDays": 7,
+        "successfulDays": 7,
+        "failures": []
+      },
+      "sourceObservedAt": "2026-10-11T15:23:57.865Z",
+      "projectionDeclaredUnavailable": 0,
+      "projectionShapeRecognized": 37,
+      "provisionalForecasts": 37,
+      "qualificationBlocked": 37,
+      "modelVersions": [
+        "CFB-FBIS-v2"
+      ],
+      "note": "Forecast/market qualification is evaluated separately; fixture parity does not establish bet eligibility",
+      "apiHealth": {
+        "source": "ESPN_PUBLIC",
+        "publicScheduleError": null,
+        "cfbdScheduleRequired": false,
+        "observedAt": "2026-10-11T15:23:57.927Z",
+        "coverage": {
+          "requestedDays": 7,
+          "successfulDays": 7,
+          "failures": []
+        },
+        "state": "SOURCE_COMPLETE"
+      }
+    }
+  ],
+  "http": [
+    {
+      "path": "/api/cfb-teams",
+      "status": 200,
+      "bytes": 191270,
+      "sha256": "52e77e573a620b3313eb0e00688043be60be66abd8965c1045181a651d03ff3f",
+      "observedAt": "2026-10-11T15:23:33.630Z"
+    },
+    {
+      "path": "/api/cfb-intelligence",
+      "status": 200,
+      "bytes": 4462583,
+      "sha256": "8cc891247c9e81f516341d5c07e987a9746fd19ea688d0cd581ca3fd91d89cec",
+      "observedAt": "2026-10-11T15:23:35.323Z"
+    },
+    {
+      "path": "/api/slate?sport=cfb&date=2026-10-11&weekShift=0",
+      "status": 200,
+      "bytes": 2200219,
+      "sha256": "a8a5f115fbf8ed6b98be407a554300a129d041b209aea4f9b46939b683d971b0",
+      "observedAt": "2026-10-11T15:23:53.947Z"
+    },
+    {
+      "path": "/api/slate?sport=cfb&date=2026-10-11&weekShift=1",
+      "status": 200,
+      "bytes": 2430944,
+      "sha256": "ea2f594de629bcca53458d13dcd267bd486275e95545dda9a9708da409f8ef73",
+      "observedAt": "2026-10-11T15:24:00.655Z"
+    }
+  ],
+  "failures": [],
+  "directory": {
+    "count": 138,
+    "teams": 138,
+    "uniqueIds": 138
+  },
+  "intelligence": {
+    "coverage": {
+      "teams": 138,
+      "expectedFbsTeams": 138,
+      "columns": 788,
+      "numericMetricColumns": 783,
+      "rankedTeams": 138,
+      "summaryGameGaps": 0
+    },
+    "version": "cfb-sdv-intelligence-v3",
+    "conferences": 11,
+    "categories": 21,
+    "summaryLag": 0,
+    "source": {
+      "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_cfb_team_summaries/cfb_team_summaries_2026.csv",
+      "sha256": "7459cc0dcf70fbfe1c70e2fd18e489337a9691c762b712ec6ca2f2d12fb31dc0",
+      "bytes": 1142055,
+      "observedAt": "2026-10-11T15:23:34.001Z",
+      "lastModified": "Sun, 11 Oct 2026 12:59:18 GMT",
+      "providerPublicationAt": null
+    },
+    "allStatsConsumed": false,
+    "canAuthorizeWager": false
+  },
+  "passed": true
+}
