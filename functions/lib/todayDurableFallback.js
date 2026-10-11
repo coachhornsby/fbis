@@ -29,7 +29,7 @@ export function toDurableBoardGame(row, {date,now=Date.now()}={}) {
     home:{name:row.home_name||row.home_abbr,abbr:row.home_abbr},
     away:{name:row.away_name||row.away_abbr,abbr:row.away_abbr},
     status:{state:"unverified",detail:"Stored schedule · live/final status unverified",live:false,completed:false},
-    durableFallback:{source:"D1_SCHEDULE_PRESTART_SNAPSHOT",statusUnverified:true,
+    durableFallback:{source:"D1_SCHEDULE_PRESTART_SNAPSHOT",boardDate:date,statusUnverified:true,
       updatedAt:row.updated_at||null,scoreFrozenAt:scoreValid?row.frozen_at:null,
       probabilityUnverified:true,marketUnverified:true},
     projectionKind:scoreValid?"FBIS":"UNAVAILABLE",
