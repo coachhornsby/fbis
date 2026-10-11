@@ -547,7 +547,7 @@ async function cfbGradingTimeGuard(env,gameId,gradedAt,explicitSport=null){
  if(!Number.isFinite(at))return {ok:false,reason:"invalid-grading-timestamp"};
  let game;
  try{game=await env.DB.prepare("SELECT sport,start FROM games WHERE id=? LIMIT 1").bind(String(gameId)).first();}
- catch{return {ok:false,reason:"cfb-grading-game-lookup-failed"};}
+ catch{return explicitSport==="cfb"?{ok:false,reason:"cfb-grading-game-lookup-failed"}:{ok:true};}
  const sport=String(game?.sport||explicitSport||"").toLowerCase();
  if(sport!=="cfb")return {ok:true};
  const start=Date.parse(String(game?.start||""));
