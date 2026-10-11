@@ -4,6 +4,7 @@
  * when live scoreboards are unavailable/slow. Never invent scores, fresh odds,
  * game status, prop lines, win probabilities or wagering qualification.
  */
+import { resolveTeamExact, espnLogoUrl } from "./teams.js";
 const ctDate = value => {
   const d = new Date(value || "");
   return Number.isFinite(d.getTime())
@@ -29,6 +30,19 @@ const cleanAbbr = v => {
   const str=String(v||"").trim();
   return str && !/^[—–−\\-?]+$/.test(str) ? str : null;
 };
+/** Only unique name-resolved canonical teams receive official abbreviations/logos. */
+function teamFromStoredName(sport,name,rawAbbr) {
+  const canonical=resolveTeamExact(sport,{name});
+  const logo=canonical?.logo ||
+    (canonical?.espnId ? espnLogoUrl(sport,canonical.espnId,canonical.abbr) : null);
+  return {
+    name,fullName:canonical?.displayName || name,
+    abbr:canonical?.abbr || cleanAbbr(rawAbbr),
+    logo:logo || null,
+    canonicalId:canonical?.id || null,
+    sport,
+  };
+}
 
 
 /** Pure mapper: rows originate in persisted D1 games + pregame snapshots. */
@@ -45,8 +59,8 @@ export function toDurableBoardGame(row, {date,now=Date.now()}={}) {
   return {
     id:String(row.id),sport:String(row.sport).toLowerCase(),date,
     start:row.start,
-    home:{name:row.home_name,abbr:cleanAbbr(row.home_abbr),sport:String(row.sport).toLowerCase()},
-    away:{name:row.away_name,abbr:cleanAbbr(row.away_abbr),sport:String(row.sport).toLowerCase()},
+    home:teamFromStoredName(String(row.sport).toLowerCase(),row.home_name,row.home_abbr),
+    away:teamFromStoredName(String(row.sport).toLowerCase(),row.away_name,row.away_abbr),
     status:{state:"unverified",detail:"Stored schedule · live/final status unverified",live:false,completed:false},
     durableFallback:{source:"D1_SCHEDULE_PRESTART_SNAPSHOT",boardDate:date,statusUnverified:true,
       updatedAt:row.updated_at||null,scoreFrozenAt:scoreValid?row.frozen_at:null,
