@@ -13,6 +13,7 @@ import { loadNhlPlayerEdgeSnapshot, aggregateNhlTrackingMatchup } from "./nhlPla
 import { loadNhlOpportunitySnapshot, opportunityForGame } from "./nhlOpportunityV4.js";
 import { loadNhlPersistentProfiles, persistentTeamFor } from "./nhlPersistentProfiles.js";
 import { resolveNhlGoalieStarterEvidence, nhlGoalieTeamKey } from "./nhlGoalieStarterEvidence.js";
+import { nhlModelTeamCode } from "./nhlTeamCodes.js";
 
 export const NHL_PRO_V2_ID = "NHL-PRO-v2";
 export const NHL_PRO_V2_VERSION = "research-v2.0-event-chain-gbdt";
@@ -356,7 +357,8 @@ export async function loadNhlProV2Context(date,games=[],{fetcher=fetch,sportsDat
 }
 
 export function projectNhlProV2Game(game,ctx){
-  const home=String(game?.home?.abbr||"").toUpperCase(),away=String(game?.away?.abbr||"").toUpperCase();
+  const displayHome=String(game?.home?.abbr||"").toUpperCase(),displayAway=String(game?.away?.abbr||"").toUpperCase();
+  const home=nhlModelTeamCode(displayHome),away=nhlModelTeamCode(displayAway);
   const base=ctx?.base,artifact=ctx?.artifact||NHL_PRO_V2_ARTIFACT;
   const hs=base?.teams?.[home],as=base?.teams?.[away];
   if(!ctx?.ok||!hs||!as)return {ok:false,reason:"nhl-pro-v2-context-missing",home,away};
@@ -438,12 +440,13 @@ export function projectNhlProV2Game(game,ctx){
     }
   });
   return {
-    ok:true,modelId:NHL_PRO_V2_ID,modelVersion:NHL_PRO_V2_VERSION,home,away,
+    ok:true,modelId:NHL_PRO_V2_ID,modelVersion:NHL_PRO_V2_VERSION,home:displayHome,away:displayAway,
+    modelHomeCode:home,modelAwayCode:away,
     eventId:game?.id==null?null:String(game.id),gameStart:game?.start||null,
     featureCutoffTimestamp:ctx?.sourceLineage?.asOf||null,
     projHome:round(homeGoals,2),projAway:round(awayGoals,2),margin:round(homeGoals-awayGoals,2),total:round(homeGoals+awayGoals,2),
     projectedScore:probability.mostLikelyScore,
-    projectedWinner:winnerHead?.ok?winnerHead.pick:(calibratedHomeWin>=0.5?home:away),
+    projectedWinner:(winnerHead?.ok?winnerHead.pick:(calibratedHomeWin>=0.5?home:away))===home?displayHome:displayAway,
     probability,
     winnerHead,
     layers:{
