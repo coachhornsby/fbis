@@ -40,7 +40,38 @@ def capture(root,code_sha):
  }
  for filename,sql in queries.items():
   path=root/filename;write(path,paged(sql));receipt(path,'D1_READ_ONLY:'+DB)
- with (root/'cfb_schedule_2026.csv').open(newline='') as f:write(root/'schedule.json',list(csv.DictReader(f)))
+ # SDV's completed-game release is not an upcoming-event discovery contract.
+ # Query exact public ESPN calendar days; keep canonical numeric provider IDs.
+ fixtures={};discovery=[]
+ today=datetime.datetime.now(datetime.timezone.utc).date()
+ for offset in range(15):
+  day=today+datetime.timedelta(days=offset)
+  url='https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates='+day.strftime('%Y%m%d')
+  path=root/('espn-schedule-'+day.isoformat()+'.json')
+  with urllib.request.urlopen(url,timeout=60) as response:
+   data=response.read(8*1024*1024+1)
+  if len(data)>8*1024*1024:raise RuntimeError('ESPN discovery response exceeds limit')
+  path.write_bytes(data);receipt(path,url);body=json.loads(data)
+  events=body.get('events')
+  if not isinstance(events,list) or len(events)>=1000:raise RuntimeError('Invalid or truncated ESPN calendar response')
+  discovery.append({'day':day.isoformat(),'events':len(events)})
+  for event in events:
+   competitions=event.get('competitions') or []
+   if len(competitions)!=1:raise RuntimeError('Ambiguous event competition')
+   c=competitions[0];competitors=c.get('competitors') or []
+   sides={r.get('homeAway'):r for r in competitors}
+   if len(competitors)!=2 or set(sides)!={'home','away'}:raise RuntimeError('Ambiguous scheduled participants')
+   f={'game_id':str(event['id']),'season':event.get('season',{}).get('year'),
+      'game_date':event.get('date'),'status':event.get('status',{}).get('type',{}).get('name'),
+      'home_id':str(sides['home']['team']['id']),'away_id':str(sides['away']['team']['id']),
+      'home_team':sides['home']['team'].get('displayName'),'away_team':sides['away']['team'].get('displayName'),
+      'neutral_site':c.get('neutralSite'),'venue_id':c.get('venue',{}).get('id'),
+      'source_file':path.name,'provider_start_time_tbd':c.get('timeValid') is False}
+   old=fixtures.get(f['game_id'])
+   if old and (old['home_id'],old['away_id'],old['game_date'])!=(f['home_id'],f['away_id'],f['game_date']):raise RuntimeError('Conflicting schedule versions within capture')
+   fixtures[f['game_id']]=f
+ write(root/'schedule.json',list(fixtures.values()));receipt(root/'schedule.json','FBIS_EXACT_ID_ESPN_SCHEDULE_NORMALIZATION')
+ write(root/'schedule-discovery.json',discovery)
  write(root/'capture-receipts.json',{'code_sha':code_sha,'receipts':receipts,'production_mutation':False,'paid_provider_usage':False,'capture_finished_at':now(),'upstream_license_qualification':'Research only; public SDV availability does not establish upstream redistribution rights'})
  # All normalized evidence is labelled with the actual completed acquisition clock.
  ts=now()

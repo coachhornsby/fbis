@@ -76,6 +76,7 @@ export function recoverLegacyPregameCapture(row){
 
 export async function buildForwardSnapshot({fixture,cards,priorByTeam={},receipts,decisionAt,codeSha}){
  const cutoff=clock(decisionAt);
+ if(fixture.provider_start_time_tbd===true)throw Error('Kickoff time unconfirmed');
  if(fixture.status!=='STATUS_SCHEDULED'||clock(fixture.game_date)<=cutoff)throw Error('Not an upcoming scheduled game');
  if(!/^[a-f0-9]{40}$/.test(codeSha||''))throw Error('Code SHA required');
  if(!receipts?.length||receipts.some(r=>! /^[a-f0-9]{64}$/.test(r.sha256)||clock(r.observed_at)>cutoff))throw Error('Invalid source receipt');
