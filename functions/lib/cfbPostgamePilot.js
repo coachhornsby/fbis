@@ -6,6 +6,7 @@
 import { sha256Hex } from './sha256Hex.js';
 
 class CfbValidationError extends Error {}
+class CfbLeaseError extends Error {}
 class CfbPartialSourceError extends CfbValidationError {}
 const PRODUCTION_DB = 'b50c724c-903b-4241-8ce1-48d931e7a44c';
 const stable = value => JSON.stringify(value, (_key, v) => v && typeof v === 'object' && !Array.isArray(v)
@@ -74,7 +75,7 @@ function materialize(teamId, season, games) {
     players:Object.fromEntries(Object.entries(players).map(([id,rows]) => [id,aggregatePostgameMetrics(rows)])),
     game_versions:relevant.map(g => g.version),opponent_adjusted:null,model_authority:false,wager_authority:false};
 }
-export async function processCfbPostgamePilot({db,archive,databaseId,mode,identityVerifier,payload,rawBody,at}) {
+export async function processCfbPostgamePilot({db,archive,databaseId,mode,identityVerifier,payload,rawBody,at,lease=null}) {
   if (mode !== 'nonproduction' || !databaseId || databaseId === PRODUCTION_DB) throw new Error('Pilot refuses production database');
   if (!db || !archive || typeof identityVerifier !== 'function') throw new Error('Qualified dependencies required');
   if (typeof rawBody !== 'string' || !rawBody.trim()) throw new Error('Original source bytes required');
@@ -83,7 +84,12 @@ export async function processCfbPostgamePilot({db,archive,databaseId,mode,identi
   // Original evidence survives rejected normalization; content-addressed put is idempotent.
   await archive.put(rawKey, raw, {httpMetadata:{contentType:'application/json'}});
   const s = (sql,...values) => db.prepare(sql).bind(...values);
-  const state = (value,error=null) => s('INSERT INTO cfb_postgame_jobs(game_id,state,attempts,last_error,updated_at) VALUES(?,?,1,?,?) ON CONFLICT(game_id) DO UPDATE SET state=excluded.state,attempts=cfb_postgame_jobs.attempts+1,last_error=excluded.last_error,updated_at=excluded.updated_at',payload.game_id,value,error,at).run();
+  const owned = `EXISTS(SELECT 1 FROM cfb_postgame_leases WHERE game_id=? AND lease_token=? AND julianday(expires_at)>julianday('now') AND julianday(expires_at)>julianday(?))`;
+  const leaseGuard=()=>s(`SELECT CASE WHEN ${owned} THEN 1 ELSE json('cfb_pilot_lease_conflict') END`,payload.game_id,lease.token,at);
+  if(lease && !await s(`SELECT game_id FROM cfb_postgame_leases WHERE game_id=? AND lease_token=? AND julianday(expires_at)>julianday('now') AND julianday(expires_at)>julianday(?)`,payload.game_id,lease.token,at).first())throw new CfbLeaseError('Expired or superseded lease');
+  const state = (value,error=null) => lease
+   ?s(`INSERT INTO cfb_postgame_jobs(game_id,state,attempts,last_error,updated_at) SELECT ?,?,1,?,? WHERE ${owned} ON CONFLICT(game_id) DO UPDATE SET state=excluded.state,attempts=cfb_postgame_jobs.attempts+1,last_error=excluded.last_error,updated_at=excluded.updated_at`,payload.game_id,value,error,at,payload.game_id,lease.token,at).run()
+   :s('INSERT INTO cfb_postgame_jobs(game_id,state,attempts,last_error,updated_at) VALUES(?,?,1,?,?) ON CONFLICT(game_id) DO UPDATE SET state=excluded.state,attempts=cfb_postgame_jobs.attempts+1,last_error=excluded.last_error,updated_at=excluded.updated_at',payload.game_id,value,error,at).run();
   await state('VALIDATING');
   try {
     validatePostgameEnvelope(payload, at);
@@ -94,7 +100,7 @@ export async function processCfbPostgamePilot({db,archive,databaseId,mode,identi
     normalized.teams=normalized.teams.map(t=>({...t,players:[...t.players].sort((a,b)=>a.player_id.localeCompare(b.player_id))})).sort((a,b)=>a.side.localeCompare(b.side));
     const version = await sha256Hex(stable(normalized));
     const prior = await s('SELECT v.id,v.observed_at,v.body_json FROM cfb_postgame_game_current c JOIN cfb_postgame_game_versions v ON v.id=c.version_id WHERE c.game_id=?',payload.game_id).first();
-    if (prior?.id === version) { await state('VERIFIED'); return {version,duplicate:true}; }
+    if (prior?.id === version) { if(lease)await db.batch([leaseGuard(),s('UPDATE cfb_postgame_jobs SET state=?,last_error=NULL,updated_at=? WHERE game_id=?','VERIFIED',at,payload.game_id),s('DELETE FROM cfb_postgame_leases WHERE game_id=? AND lease_token=?',payload.game_id,lease.token)]);else await state('VERIFIED'); return {version,duplicate:true}; }
     if (prior && time(payload.observed_at) <= time(prior.observed_at)) throw new CfbValidationError('Out-of-order correction');
     if (prior) {
       const old=JSON.parse(prior.body_json);
@@ -111,6 +117,7 @@ export async function processCfbPostgamePilot({db,archive,databaseId,mode,identi
     games.push({version,payload});
     const guards=[s("SELECT CASE WHEN COALESCE((SELECT version_id FROM cfb_postgame_game_current WHERE game_id=?),'')=? THEN 1 ELSE json('cfb_pilot_game_conflict') END",payload.game_id,prior?.id || '')];
     for (let i=0;i<2;i++) guards.push(s("SELECT CASE WHEN COALESCE((SELECT version_id FROM cfb_postgame_card_current WHERE team_id=? AND season=?),'')=? THEN 1 ELSE json('cfb_pilot_card_conflict') END",payload.teams[i].team_id,payload.season,expectedCards[i]?.version_id || ''));
+    if(lease)guards.push(leaseGuard());
     const writes=[s('INSERT INTO cfb_postgame_game_versions VALUES(?,?,?,?,?,?,?,?)',version,payload.game_id,payload.season,payload.observed_at,at,rawKey,rawHash,stable(payload)),
       s('INSERT INTO cfb_postgame_game_current VALUES(?,?) ON CONFLICT(game_id) DO UPDATE SET version_id=excluded.version_id',payload.game_id,version)];
     for (const t of payload.teams) {
@@ -120,6 +127,7 @@ export async function processCfbPostgamePilot({db,archive,databaseId,mode,identi
     }
     for (const kind of ['CACHE_INVALIDATION','MODEL_STATE_RESEARCH_REFRESH','DEPENDENT_RATINGS_RECOMPUTE']) writes.push(s('INSERT INTO cfb_postgame_outbox VALUES(?,?,?,?,NULL)',`${version}:${kind}`,kind,version,stable({game_id:payload.game_id,teams:payload.teams.map(t=>t.team_id)})));
     writes.push(s('UPDATE cfb_postgame_jobs SET state=?,last_error=NULL,updated_at=? WHERE game_id=?',prior ? 'CORRECTED':'VERIFIED',at,payload.game_id));
+    if(lease)writes.push(s('DELETE FROM cfb_postgame_leases WHERE game_id=? AND lease_token=?',payload.game_id,lease.token));
     await db.batch([...guards,...writes]);
     return {version,duplicate:false,production:false};
   } catch (error) {
@@ -139,4 +147,16 @@ export async function cfbPostgamePilotHealth(db) {
  OR json_extract(v.body_json,'$.season') IS NOT p.season
  OR NOT EXISTS(SELECT 1 FROM json_each(v.body_json,'$.game_versions') x WHERE x.value=c.version_id)`).bind());
  return {states:Object.fromEntries(states.map(r=>[r.state,r.n])),staleCardVersions:stale.map(r=>({...r})),productionReady:false,canAuthorizeWager:false};
+}
+
+/** Atomic local/nonproduction lease acquisition; no scheduler is activated. */
+export async function claimCfbPostgamePilotLease({db,databaseId,mode,gameId,at,token,seconds=300}) {
+ if(mode!=='nonproduction'||!databaseId||databaseId===PRODUCTION_DB)throw Error('Pilot refuses production database');
+ if(!gameId||!token||!Number.isInteger(seconds)||seconds<1||seconds>3600)throw new CfbValidationError('Invalid bounded lease');
+ const expires=new Date(time(at)+seconds*1000).toISOString();
+ if(time(expires)<=Date.now())throw new CfbLeaseError('Lease acquisition clock already expired');
+ const row=await db.prepare(`INSERT INTO cfb_postgame_leases(game_id,lease_token,expires_at) VALUES(?,?,?)
+ ON CONFLICT(game_id) DO UPDATE SET lease_token=excluded.lease_token,expires_at=excluded.expires_at
+ WHERE julianday(cfb_postgame_leases.expires_at)<=julianday('now') RETURNING lease_token,expires_at`).bind(gameId,token,expires).first();
+ return row?{token:row.lease_token,expiresAt:row.expires_at}:null;
 }
