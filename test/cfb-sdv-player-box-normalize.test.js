@@ -51,8 +51,8 @@ test("SDV ESPN player box normalization: FBS only, strict game join, paired pass
   assert.equal(manifest.source_publication_time_verified,false);
   const lines=readFileSync(prefix+".player-game.csv","utf8").trim().split("\n");
   assert.equal(lines.length,4);
-  const heading=lines[0].split(",");
-  const data=lines.slice(1).map(line=>Object.fromEntries(line.split(",").map((v,i)=>[heading[i],v])));
+  const heading=lines[0].replace(/\r$/, "").split(",");
+  const data=lines.slice(1).map(line=>Object.fromEntries(line.replace(/\r$/, "").split(",").map((v,i)=>[heading[i],v])));
   const qb=data.find(x=>x.athlete_id==="123");
   assert.equal(Number(qb.passing_yards),255);
   assert.equal(Number(qb.passing_attempts),41);
@@ -60,7 +60,7 @@ test("SDV ESPN player box normalization: FBS only, strict game join, paired pass
   assert.equal(Number(qb.rushing_yards),20);
   assert.equal(Number(qb.rushing_attempts),5);
   assert.equal(Number(data.find(x=>x.athlete_id==="555").receptions),6);
-  assert.equal(Number(data.find(x=>x.athlete_id==="777").total_tackles),9,JSON.stringify({headers:heading,defender:data.find(x=>x.athlete_id==="777")}));
+  assert.equal(Number(data.find(x=>x.athlete_id==="777").total_tackles),9);
   assert.ok(data.every(x=>x.team_id==="333"&&x.game_id==="401856634"));
  }finally{rmSync(dir,{force:true,recursive:true});}
 });
