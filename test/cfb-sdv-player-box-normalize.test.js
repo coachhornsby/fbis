@@ -100,3 +100,26 @@ test("Normalized box CSV and hash-bound manifest feed source-specific immutable 
   assert.match(tampered.stderr,/manifest\/hash mismatch/);
  }finally{rmSync(dir,{force:true,recursive:true});}
 });
+
+
+test("SDV completed schedule join excludes scheduled, cancelled, TBD and non-FBS games",()=>{
+ const dir=mkdtempSync(join(tmpdir(),"cfb-sdv-schedule-"));
+ try{
+  const {teams,players}=fixture(dir),schedule=join(dir,"schedule.csv"),prefix=join(dir,"ready");
+  writeFileSync(schedule,[
+   "game_id,season,start_date,home_id,away_id,home_team,away_team,completed,start_time_tbd,status",
+   "401856634,2026,2026-10-01T10:00:00Z,333,888,Alabama,Georgia,true,false,STATUS_FINAL",
+   "401856635,2026,2026-10-13T10:00:00Z,333,888,Alabama,Georgia,false,false,STATUS_SCHEDULED",
+   "401856636,2026,2026-10-02T10:00:00Z,333,888,Alabama,Georgia,true,true,STATUS_FINAL",
+   "401856637,2026,2026-10-02T10:00:00Z,333,888,Alabama,Georgia,false,false,STATUS_CANCELED",
+  ].join("\n")+"\n");
+  const r=run(adapter,["--player-box",players,"--schedule",schedule,"--fbs-teams",teams,
+    "--season","2026","--source-observed-at","2026-10-03T00:00:00Z","--output-prefix",prefix]);
+  assert.equal(r.status,0,r.stderr);
+  const report=JSON.parse(readFileSync(prefix+".manifest.json","utf8"));
+  assert.equal(report.schedule_qa.accepted,1);
+  assert.equal(report.schedule_qa.excluded_incomplete,3);
+  assert.equal(report.game_date_reference,"SDV_COMPLETED_SCHEDULE");
+  assert.equal(report.player_game_rows,3);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
