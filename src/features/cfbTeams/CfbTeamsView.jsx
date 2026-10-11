@@ -27,8 +27,29 @@ function TeamMark({team, hero = false}) {
 function Fact({label,value}) {
   return <div className="ft-fact"><dt>{label}</dt><dd>{show(value)}</dd></div>;
 }
-function TeamProfile({detail,onBack}) {
-  const {team,featureState,legacyForm} = detail, s=team.stadium;
+function MetricGroups({groups}) {
+  const populated=Object.entries(groups||{}).filter(([,m])=>m&&Object.keys(m).length);
+  if(!populated.length)return <div className="ft-missing">No source-observed statistical metrics yet</div>;
+  return <div className="ft-metric-sections">{populated.map(([family,metrics])=>
+    <section className="ft-metric-section" key={family}>
+      <h4>{family.replaceAll("_"," ").toUpperCase()}</h4>
+      <div className="ft-metric-grid">{Object.entries(metrics).map(([name,value])=>
+        <div className="ft-metric" key={name}><span>{name.replaceAll("_"," ")}</span>
+          <strong>{value == null?"—":Number(value).toLocaleString("en-US",{maximumFractionDigits:3})}</strong>
+        </div>)}</div>
+    </section>)}</div>;
+}
+function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange}) {
+  const {team,featureState,legacyForm,evidence={}} = detail, s=team.stadium;
+  const [positionFilter,setPositionFilter]=useState("ALL");
+  const [playerSearch,setPlayerSearch]=useState("");
+  const roster=evidence?.roster?.players||[];
+  const selectedId=evidence?.selectedPlayer||null;
+  const selected=roster.find(r=>r.playerId===selectedId)||null;
+  const playerStats=selectedId?evidence?.playerStatistics?.byPlayer?.[selectedId]:null;
+  const positionOptions=["ALL",...new Set(roster.map(r=>r.position).filter(Boolean))].sort();
+  const visibleRoster=roster.filter(r=>(positionFilter==="ALL"||r.position===positionFilter)&&
+    (!playerSearch.trim()||[r.name,r.position,r.jersey].filter(Boolean).some(v=>String(v).toLowerCase().includes(playerSearch.toLowerCase()))));
   const hasSnapshot = featureState?.state === "RESEARCH_SNAPSHOT";
   const features = featureState?.features || {};
   return <div className="ft-profile">
@@ -108,6 +129,69 @@ function TeamProfile({detail,onBack}) {
       </div> : null}
     </section>
     <section className="ft-panel">
+      <div className="ft-heading"><h3>Season team statistics · All available fields</h3>
+        <small>{evidence?.teamStatistics?.state === "SOURCE_OBSERVED" ? "Source observed" : "Not populated"}</small></div>
+      <div className="ft-stats-summary">Selected season
+        <select aria-label="Season" value={evidence.season||2026} onChange={e=>onSeasonChange(Number(e.target.value))}>
+          {(evidence.availableSeasons||[2026]).map(y=><option key={y} value={y}>{y}</option>)}
+        </select>
+        <span>{evidence?.teamStatistics?.metricsCount||0} verified stored season metrics</span>
+      </div>
+      <MetricGroups groups={evidence.teamStatistics?.groups} />
+      {evidence.teamStatistics?.state !== "SOURCE_OBSERVED" ? <p className="ft-note">
+        No qualified team offensive, defensive, passing, rushing, situational, tempo, line-play,
+        havoc or special-teams statistical ledger has been persisted for this season. The roster is not a substitute.
+      </p> : <p className="ft-note">Source: {show(evidence.teamStatistics.source)} · Source as-of {stamp(evidence.teamStatistics.sourceAsOf)}
+      {" · "}Collected {stamp(evidence.teamStatistics.asOf)} · Read-only, not an active model input.</p>}
+    </section>
+    <section className="ft-panel">
+      <div className="ft-heading"><h3>2026 and historical team rosters · All positions</h3>
+        <small>{roster.length} distinct players · {show(evidence?.roster?.state)}</small></div>
+      <p className="ft-note">Every listed player is a dated SportsDataverse/ESPN roster membership, not a confirmed starter,
+        appearance or statistical performance. Membership does not authorize game or prop projections.</p>
+      <div className="ft-filters ft-roster-filters">
+        <label>Find a player<input type="search" value={playerSearch} onChange={e=>setPlayerSearch(e.target.value)}
+          placeholder="Player, jersey or position…"/></label>
+        <label>Position<select value={positionFilter} onChange={e=>setPositionFilter(e.target.value)}>
+          {positionOptions.map(p=><option key={p} value={p}>{p==="ALL"?"All positions":p}</option>)}
+        </select></label>
+      </div>
+      <div className="ft-results">{visibleRoster.length} matching players · {evidence?.playerStatistics?.availableCount||0} verified player season statistical records</div>
+      <div className="ft-table-scroll"><table className="ft-table"><thead><tr>
+        <th>Jersey</th><th>Player</th><th>Position</th><th>Class</th><th>Height</th><th>Weight</th><th>Performance</th>
+      </tr></thead><tbody>{visibleRoster.map(r=><tr key={r.playerId} className={selectedId===r.playerId?"ft-selected":""}>
+        <td>{show(r.jersey)}</td><td><button type="button" className="ft-player-link" onClick={()=>onPlayerChange(selectedId===r.playerId?null:r.playerId)}>{r.name}</button></td>
+        <td>{show(r.position)}</td><td>{show(r.classYear)}</td>
+        <td>{r.heightInches == null?"—":r.heightInches+" in"}</td><td>{r.weightPounds == null?"—":r.weightPounds+" lb"}</td>
+        <td>{evidence.playerStatistics?.byPlayer?.[r.playerId]?.state==="SOURCE_OBSERVED"?"Verified stats":"—"}</td>
+      </tr>)}</tbody></table></div>
+      {selected ? <div className="ft-player-detail">
+        <div className="ft-heading"><h4>{selected.name} · {show(selected.position)} · #{show(selected.jersey)}</h4>
+          <button type="button" onClick={()=>onPlayerChange(null)}>Close</button></div>
+        <p className="ft-muted">{show(selected.classYear)} · {selected.heightInches==null?"—":selected.heightInches+" in"}
+        {" · "}{selected.weightPounds==null?"—":selected.weightPounds+" lb"}
+        {" · "}Roster observed {stamp(selected.observedAt)}</p>
+        <h4>Individual season statistics</h4>
+        <MetricGroups groups={playerStats?.groups}/>
+        {!playerStats?.groups ? <p className="ft-note">Verified passing, rushing, receiving, defense,
+          kicking, punting, return and advanced totals are not yet stored for this player.</p> : null}
+        <h4>Individual game statistics</h4>
+        {(evidence.playerGameStatistics?.rows||[]).length ? (evidence.playerGameStatistics.rows.map(g=><div className="ft-player-game" key={g.gameId}>
+          <strong>{show(g.gameAt)} · {show(g.opponent)}</strong><MetricGroups groups={g.groups}/></div>))
+          : <p className="ft-note">No individually verified game box-score/statistical observations stored.</p>}
+      </div> : null}
+    </section>
+    <section className="ft-panel">
+      <div className="ft-heading"><h3>Season games and opponents</h3>
+        <small>{evidence?.schedule?.count||0} fixtures in saved game table</small></div>
+      <p className="ft-note">Stored fixture identities are not proof of final scores or completed-game statistics.
+        Results remain unavailable until independently observed records are ingested.</p>
+      <div className="ft-table-scroll"><table className="ft-table"><thead><tr><th>Date</th><th>Site</th><th>Opponent</th><th>Result</th></tr></thead>
+        <tbody>{(evidence?.schedule?.games||[]).map(g=><tr key={g.id}>
+          <td>{show(g.date)}</td><td>{show(g.location)}</td><td>{show(g.opponent)}</td><td>Not verified</td>
+        </tr>)}</tbody></table></div>
+    </section>
+    <section className="ft-panel">
       <h3>Planned weekly update lifecycle</h3>
       <p className="ft-muted">Completed-game source record → append team observations → new immutable team
         snapshot → frozen matchup inputs. This read-only profile does not rebuild weekly history,
@@ -119,6 +203,8 @@ export default function CfbTeamsView({refreshKey=0}) {
   const [directory,setDirectory]=useState(null);
   const [id,setId]=useState(initialTeam);
   const [detail,setDetail]=useState(null);
+  const [season,setSeason]=useState(2026);
+  const [playerId,setPlayerId]=useState(null);
   const [term,setTerm]=useState("");
   const [conference,setConference]=useState("ALL");
   const [error,setError]=useState("");
@@ -135,10 +221,11 @@ export default function CfbTeamsView({refreshKey=0}) {
     if(!id){setDetail(null);return undefined;}
     const ac=new AbortController();
     setDetail(null);
-    fetch("/api/cfb-teams?team="+encodeURIComponent(id),{signal:ac.signal}).then(readJson)
+    fetch("/api/cfb-teams?team="+encodeURIComponent(id)+"&season="+season+
+      (playerId?"&player="+encodeURIComponent(playerId):""),{signal:ac.signal}).then(readJson)
       .then(setDetail).catch(e=>{if(!ac.signal.aborted)setError(e.message);});
     return ()=>ac.abort();
-  },[id,refreshKey]);
+  },[id,refreshKey,season,playerId]);
   const teams=directory?.teams||[];
   const conferences=useMemo(()=>["ALL",...new Set(teams.map(t=>t.conference).filter(Boolean))]
     .sort((a,b)=>a==="ALL"?-1:b==="ALL"?1:a.localeCompare(b)),[teams]);
@@ -149,6 +236,8 @@ export default function CfbTeamsView({refreshKey=0}) {
   }),[teams,term,conference]);
   function select(next) {
     setId(next);
+    setPlayerId(null);
+    setSeason(2026);
     if(typeof window!=="undefined"){
       const url=new URL(window.location.href);
       if(next)url.searchParams.set("team",next); else url.searchParams.delete("team");
@@ -160,7 +249,7 @@ export default function CfbTeamsView({refreshKey=0}) {
       <h1>Team Profiles</h1><p>Persistent identity, branding, stadium and statistical-state records.</p>
       </div><strong>{directory ? directory.count+" FBS teams" : "FBS directory"}</strong></div>
     {error && <div className="ft-error" role="alert">{error}</div>}
-    {id ? (detail ? <TeamProfile detail={detail} onBack={()=>select(null)}/>
+    {id ? (detail ? <TeamProfile detail={detail} onBack={()=>select(null)} onSeasonChange={n=>{setSeason(n);setPlayerId(null);}} onPlayerChange={setPlayerId}/>
       : <div className="ft-panel"><button type="button" onClick={()=>select(null)}>← All FBS teams</button>
         <p>Loading profile or data unavailable…</p></div>)
       : <>
