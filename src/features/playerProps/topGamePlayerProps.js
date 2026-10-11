@@ -45,6 +45,12 @@ export function topThreeGamePlayerProps(game={}) {
     const result=withFbisPropAnalytics({
       ...raw,sport,marketCanonical:market,
       fbisProjection:finite(raw.fbisProjection??raw.projection),line,
+      // Do not interpret a missing line as zero or derive synthetic
+      // over/under probabilities from a model-only projection.
+      fbisSigma:line==null?null:raw.fbisSigma,
+      probabilityOver:line==null?null:raw.probabilityOver,
+      probabilityUnder:line==null?null:raw.probabilityUnder,
+      edge:line==null?null:raw.edge,
     });
     rows.push({
       ...result,marketLabel:formatMarketLabel(market),
