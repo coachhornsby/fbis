@@ -1,8 +1,5 @@
 name: CFB SDV Historical Research — one-shot
 on:
-  pull_request:
-    paths:
-      - .github/workflows/cfb-sdv-historical-research.yml
   workflow_dispatch:
 permissions:
   contents: read
