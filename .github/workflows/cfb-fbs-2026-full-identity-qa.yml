@@ -45,3 +45,5 @@ jobs:
           retention-days: 30
 
 # rerun with bounded transient D1 read retries
+
+# source-excluded records are quarantined, never written to production
