@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter, defaultdict
 import csv
+import gzip
 import hashlib
 import io
 import json
@@ -18,7 +19,7 @@ import urllib.request
 
 BASE = "https://github.com/sportsdataverse/sportsdataverse-data/releases/download"
 SOURCES = {
-    "schedule": ("espn_cfb_schedules", "cfb_schedule_{year}.csv"),
+    "schedule": ("cfb_schedules", "cfb_schedules_{year}.csv.gz"),
     "advanced": ("espn_cfb_adv_team_gamelog", "adv_team_gamelog_{year}.csv"),
 }
 METADATA = {
@@ -51,7 +52,8 @@ def acquire(kind, year, input_dir=None):
             headers = {key: response.headers.get(key) for key in ("ETag", "Last-Modified", "Content-Length")}
     if len(b) > MAX_BYTES or len(b) < 20:
         raise ValueError(f"SDV {kind}/{year} invalid asset size {len(b)}")
-    txt = b.decode("utf-8-sig")
+    decoded = gzip.decompress(b) if kind == "schedule" and not input_dir else b
+    txt = decoded.decode("utf-8-sig")
     rows = list(csv.DictReader(io.StringIO(txt)))
     if not rows or any(None in r for r in rows):
         raise ValueError(f"Invalid CSV rows {kind}/{year}")
@@ -211,7 +213,7 @@ def collect(years, out, input_dir=None):
         raw = {}
         for kind in SOURCES:
             data, rows, receipt = acquire(kind, year, input_dir)
-            write_new(out / "raw" / f"{kind}_{year}.csv", data)
+            write_new(out / "raw" / f"{kind}_{year}.asset", data)
             manifest["assets"].append(receipt)
             raw[kind] = rows
         schedule, schedule_rejections = parse_schedule(raw["schedule"], year)
