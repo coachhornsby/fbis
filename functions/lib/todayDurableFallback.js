@@ -11,10 +11,29 @@ const ctDate = value => {
     : null;
 };
 const finite = value => value == null || value === "" ? null : Number.isFinite(Number(value)) ? Number(value) : null;
+/**
+ * Durable games are keyed by multiple collector identities. ESPN game IDs are
+ * decimal event IDs. Hash/slug acquisition IDs (including ncaaf_*_b2) can
+ * repeat a single event and can even collapse distinct schools: production
+ * had "North Carolina A&T" as North Carolina/UNC on a hash record. Those
+ * records are not canonical board fixtures. The filter applies only to known
+ * ESPN-scheduled leagues; non-ESPN sport ID formats are not guessed here.
+ */
+const ESPN_SCHEDULE_SPORTS = new Set(["cfb","cbb","nfl","nba","wnba","nhl","mlb"]);
+export function hasDurableScheduleAuthority(row={}) {
+  const sport=String(row.sport||"").toLowerCase();
+  if(!row.id || !sport)return false;
+  return !ESPN_SCHEDULE_SPORTS.has(sport) || /^[0-9]+$/.test(String(row.id));
+}
+const cleanAbbr = v => {
+  const str=String(v||"").trim();
+  return str && !/^[—–−\\-?]+$/.test(str) ? str : null;
+};
+
 
 /** Pure mapper: rows originate in persisted D1 games + pregame snapshots. */
 export function toDurableBoardGame(row, {date,now=Date.now()}={}) {
-  if (!row?.id || !row?.sport || !row?.home_abbr || !row?.away_abbr ||
+  if (!hasDurableScheduleAuthority(row) || !row?.home_name || !row?.away_name ||
       ctDate(row.start) !== date || !Number.isFinite(Date.parse(row.start || "")))
     return null;
   const gameStartMs=Date.parse(row.start);
@@ -26,8 +45,8 @@ export function toDurableBoardGame(row, {date,now=Date.now()}={}) {
   return {
     id:String(row.id),sport:String(row.sport).toLowerCase(),date,
     start:row.start,
-    home:{name:row.home_name||row.home_abbr,abbr:row.home_abbr},
-    away:{name:row.away_name||row.away_abbr,abbr:row.away_abbr},
+    home:{name:row.home_name,abbr:cleanAbbr(row.home_abbr),sport:String(row.sport).toLowerCase()},
+    away:{name:row.away_name,abbr:cleanAbbr(row.away_abbr),sport:String(row.sport).toLowerCase()},
     status:{state:"unverified",detail:"Stored schedule · live/final status unverified",live:false,completed:false},
     durableFallback:{source:"D1_SCHEDULE_PRESTART_SNAPSHOT",boardDate:date,statusUnverified:true,
       updatedAt:row.updated_at||null,scoreFrozenAt:scoreValid?row.frozen_at:null,
@@ -80,6 +99,8 @@ export async function loadDurableTodayGames(env={},date,sport="all",{now=Date.no
         LEFT JOIN prediction_snapshots p ON p.game_id=g.id AND p.sport=g.sport
           AND p.date=g.date AND p.frozen_at<g.start AND p.frozen_at<=?
         WHERE g.date=? AND (?='all' OR g.sport=?)
+          AND (g.sport NOT IN ('cfb','cbb','nfl','nba','wnba','nhl','mlb')
+            OR (length(g.id)>0 AND g.id NOT GLOB '*[^0-9]*'))
       )
       SELECT * FROM chosen WHERE rn=1 ORDER BY start,id LIMIT 700
     `;
