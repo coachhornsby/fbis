@@ -35,20 +35,52 @@ const dateMs = value => {
 const market = game => {
   const odds = game.odds || {};
   const pin = game.pin || {};
-  const observedAt = first(odds.observedAt, odds.asOf, odds.sourceTimestamp, pin.observedAt);
+  const bookGroups = game.market || {};
+  const execution = bookGroups.execution || {};
+  const reference = bookGroups.reference || {};
+  const consensus = bookGroups.consensus || {};
+  const active = execution.available ? execution : reference.available ? reference : {};
+  const marketRole = execution.available ? "EXECUTION_MARKET" :
+    reference.available ? "REFERENCE_MARKET_NOT_EXECUTABLE" : "UNAVAILABLE";
+  const observedAt = first(active.observedAt, odds.observedAt, odds.asOf, odds.sourceTimestamp,
+    pin.observedAt, bookGroups.comparisonTimestamp);
   const observedMs = dateMs(observedAt);
-  const marketObservation = observedMs !== null && observedMs <= stamp.getTime() ? "TIMESTAMPED" : "UNVERIFIED_TIME";
+  const sourceVerified = observedMs !== null && observedMs <= stamp.getTime();
   return {
-    bookmaker: first(odds.book, pin.book),
-    observedAt, sourceTimestamp: first(odds.sourceTimestamp, pin.sourceTimestamp),
-    freshness: first(odds.freshness, pin.freshness),
-    observationStatus: marketObservation,
-    homeMoneyline: numberOrNull(first(odds.pinHomeMl, odds.homeMl, odds.homeMoneyline, pin.moneyline?.priceA, pin.moneyline?.home)),
-    awayMoneyline: numberOrNull(first(odds.pinAwayMl, odds.awayMl, odds.awayMoneyline, pin.moneyline?.priceB, pin.moneyline?.away)),
-    spread: numberOrNull(first(odds.pinSpread, odds.spread, pin.spread?.line)),
-    total: numberOrNull(first(odds.pinTotal, odds.total, pin.total?.line)),
-    spreadHomePrice: numberOrNull(first(odds.pinSpreadHomePrice, pin.spread?.priceA)),
-    totalOverPrice: numberOrNull(first(odds.pinOverPrice, pin.total?.priceA)),
+    marketRole,
+    bookmaker: first(active.book, active.provider, odds.book, pin.book),
+    observedAt, sourceTimestamp: first(active.sourceTimestamp, odds.sourceTimestamp, pin.sourceTimestamp),
+    freshness: first(active.freshness, odds.freshness, pin.freshness),
+    observationStatus: sourceVerified ? "TIMESTAMPED" : "UNVERIFIED_TIME",
+    executionAvailable: execution.available === true,
+    referenceAvailable: reference.available === true,
+    homeMoneyline: numberOrNull(first(active.moneyline?.home, odds.pinHomeMl, odds.homeMl,
+      odds.homeMoneyline, pin.moneyline?.priceA, game.pinMlHome)),
+    awayMoneyline: numberOrNull(first(active.moneyline?.away, odds.pinAwayMl, odds.awayMl,
+      odds.awayMoneyline, pin.moneyline?.priceB, game.pinMlAway)),
+    spread: numberOrNull(first(active.spread, odds.pinSpread, odds.spread, pin.spread?.line, game.pinSpread)),
+    total: numberOrNull(first(active.total, odds.pinTotal, odds.total, pin.total?.line, game.pinTotal)),
+    spreadHomePrice: numberOrNull(first(active.spreadPrice, odds.pinSpreadHomePrice,
+      pin.spread?.priceA, game.pinSpreadHomePrice)),
+    totalOverPrice: numberOrNull(first(active.totalPrice, odds.pinOverPrice,
+      pin.total?.priceA, game.pinOverPrice)),
+    reference: {
+      provider: reference.provider || null, available: reference.available === true,
+      homeMoneyline: numberOrNull(reference.moneyline?.home),
+      awayMoneyline: numberOrNull(reference.moneyline?.away),
+      observedAt: reference.observedAt || null,
+      incomplete: reference.incomplete || null,
+    },
+    execution: {
+      book: execution.book || null, available: execution.available === true,
+      observedAt: execution.observedAt || null,
+      homeMoneyline: numberOrNull(execution.moneyline?.home),
+      awayMoneyline: numberOrNull(execution.moneyline?.away),
+    },
+    consensus: {
+      source: consensus.source || null, books: numberOrNull(consensus.books),
+      observedAt: consensus.observedAt || null,
+    },
   };
 };
 const projection = game => ({
