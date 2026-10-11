@@ -20,3 +20,20 @@
 .fbis-shell-main.route-board .cgc[data-sport="nfl"] .cgc-matchup{grid-template-columns:minmax(0,1fr) minmax(130px,.8fr) minmax(0,1fr)!important}
 .fbis-shell-main.route-board .cgc[data-sport="nfl"]>.cgc-conditions{display:none!important}
 @media(max-width:650px){.fbis-shell-main.route-board .nfl-unit-grid{grid-template-columns:1fr}.fbis-shell-main.route-board .cgc[data-sport="nfl"] .cgc-matchup{grid-template-columns:minmax(0,1fr) minmax(90px,.65fr) minmax(0,1fr)!important}.fbis-shell-main.route-board .nfl-hero-venue>div{font-size:9px}}
+
+
+/* NFL-specific logo treatment: transparent artwork, no white circular plates. */
+.fbis-shell-main.route-board .nfl-unit-tile .team-logo-plate,
+.fbis-shell-main.route-board .nfl-unit-tile [class*="logo-plate"]{
+ background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;
+}
+.fbis-shell-main.route-board .nfl-unit-tile .team-logo,
+.fbis-shell-main.route-board .nfl-unit-tile img{
+ object-fit:contain!important;background:transparent!important;border:0!important;border-radius:0!important;
+ filter:drop-shadow(0 2px 3px rgba(0,0,0,.9)) drop-shadow(0 0 2px rgba(255,255,255,.45));
+}
+.fbis-shell-main.route-board .nfl-unit-result .team-logo{width:46px!important;height:46px!important}
+.fbis-shell-main.route-board .nfl-unit-winner{display:flex;flex-direction:column;align-items:flex-start;min-width:0;gap:3px;text-align:left}
+.fbis-shell-main.route-board .nfl-unit-winner>small{font-size:10px;font-weight:950;letter-spacing:.10em;color:color-mix(in srgb,var(--unit-secondary) 65%,white)}
+.fbis-shell-main.route-board .nfl-unit-winner>strong{font-size:clamp(15px,1.45vw,20px);font-weight:950;line-height:1.16;overflow-wrap:break-word}
+@media(max-width:560px){.fbis-shell-main.route-board .nfl-unit-result .team-logo{width:40px!important;height:40px!important}}

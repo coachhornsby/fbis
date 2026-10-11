@@ -19,3 +19,14 @@ test("NFL venue and weather are in hero with sport-local four tile route",async(
  assert.match(css,/--unit-secondary/);
  assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
+
+test("NFL unit tiles use transparent logos and concise winning team identity",async()=>{
+ const jsx=await read("NflDirectionalMatchups.jsx");
+ const css=await read("nflDirectionalMatchups.css");
+ assert.match(jsx,/nfl-unit-winner/);
+ assert.match(jsx,/ADVANTAGE/);
+ assert.doesNotMatch(jsx,/\} EDGE<\/strong>/);
+ assert.match(css,/team-logo-plate/);
+ assert.match(css,/background:transparent!important/);
+ assert.match(css,/drop-shadow/);
+});

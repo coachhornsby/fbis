@@ -39,7 +39,7 @@ export default function NflDirectionalMatchups({game,matchup,away,home}){
    const secondary=winner?color(winner,true)||"#b7d4ed":null;
    return <div className={`nfl-unit-tile ${winner?"has-edge":"is-neutral"}`} key={r.id} style={winner?{"--unit-primary":primary,"--unit-secondary":secondary}:undefined}>
     <div className="nfl-unit-line"><div><TeamLogo team={teams[r.a]} size={32}/><strong>{teams[r.a]?.abbr} {r.aUnit}</strong></div><span>VS</span><div><TeamLogo team={teams[r.b]} size={32}/><strong>{teams[r.b]?.abbr} {r.bUnit}</strong></div></div>
-    <div className="nfl-unit-result">{winner?<><TeamLogo team={winner} size={40}/><strong>{winner.fullName||winner.name||winner.abbr} EDGE</strong></>:<strong>{r.status}</strong>}</div>
+    <div className="nfl-unit-result">{winner?<><TeamLogo team={winner} size={46}/><span className="nfl-unit-winner"><small>ADVANTAGE</small><strong>{winner.fullName||winner.name||winner.abbr}</strong></span></>:<strong>{r.status}</strong>}</div>
     {r.value!=null?<small>MODEL ADJUSTMENT {r.value>0?"+":""}{r.value.toFixed(2)}</small>:<small>{r.status==="UNAVAILABLE"?"DIRECTIONAL DATA PENDING":"NO MATERIAL EDGE"}</small>}
    </div>;
   })}</div>
