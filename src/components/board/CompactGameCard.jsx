@@ -1,5 +1,6 @@
 import { fmt, lineLabel, bestEdge, matchupSignalLabel } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
+import NhlEvidenceStrip from "./NhlEvidenceStrip.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import "./compactGameCardEnhancements.css";
@@ -185,6 +186,8 @@ export default function CompactGameCard({ game, onOpen }) {
   const action = vm.action || {};
   const sportId = String(vm.sport || game?.sport || "").toLowerCase();
   const isNfl = sportId === "nfl";
+  const isNhl = sportId === "nhl";
+  const showStars = !isNhl || proj.available;
   const showAction = true; // Keep compact-card information architecture consistent across sports.
   const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
   const edge = bestEdge(vm);
@@ -216,6 +219,7 @@ export default function CompactGameCard({ game, onOpen }) {
   const finalAway = game?.away?.score ?? away?.score ?? null;
   const finalHome = game?.home?.score ?? home?.score ?? null;
   const hasFinalScore = isFinal && finalAway != null && finalHome != null;
+  const hasLiveScore = Boolean(vm.event?.live && finalAway != null && finalHome != null);
   const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
@@ -223,7 +227,7 @@ export default function CompactGameCard({ game, onOpen }) {
 
   return (
     <article
-      className={"cgc pgc"+(stars===5?" cgc-five-star":"")}
+      className={"cgc pgc"+(stars===5&&showStars?" cgc-five-star":"")}
       data-game-id={vm.id || game?.id || ""}
       data-sport={vm.sport || ""}
       tabIndex={0}
@@ -243,12 +247,19 @@ export default function CompactGameCard({ game, onOpen }) {
           <span className="cgc-time">{vm.timing?.timeLine || "—"}</span>
         </div>
         <div className="cgc-head-right">
-          <Stars value={stars} />
+          {showStars ? <span title={isNhl ? "Model confidence rating, not a qualified betting signal" : "Model confidence rating"}><Stars value={stars} /></span> : <span className="cgc-rating-unavailable">NO MODEL RATING</span>}
           <span className={`cgc-status cgc-status-${String(vm.status?.tone || "neutral").toLowerCase()}`}>
             {vm.status?.label || "FBIS"}
           </span>
         </div>
       </header>
+
+      {isNhl && vm.event?.live ? (
+        <section className="cgc-live-nhl-score" aria-label="Live NHL score">
+          <span>LIVE SCORE · PRE-GAME FORECAST IS SHOWN BELOW</span>
+          <strong>{hasLiveScore ? `${away.abbr} ${finalAway} – ${finalHome} ${home.abbr}` : "LIVE SCORE NOT AVAILABLE FROM FEED"}</strong>
+        </section>
+      ) : null}
 
       {hasFinalScore ? (
         <section className="cgc-final-score" aria-label="Final score">
@@ -274,7 +285,7 @@ export default function CompactGameCard({ game, onOpen }) {
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
             <strong className="cgc-proj">{proj.available ? (proj.away ?? "—") : "—"}</strong>
-            <span>FBIS SCORE</span>
+            <span>{isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
           </div>
 
           <span className="cgc-vs">VS</span>
@@ -296,7 +307,7 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
 
         <aside className={`cgc-best-edge${soccerPick ? " is-side" : edge.total ? " is-total" : " is-side"}`}>
-          <span>{soccerPick ? "CONFIDENCE PICK" : "BEST EDGE"}</span>
+          <span>{soccerPick ? "CONFIDENCE PICK" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : "MODEL / MARKET GAP"}</span>
           <div className="cgc-edge-identity">
             {soccerPick ? (
               soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={42} className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
@@ -331,7 +342,9 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       </div>
 
-      {showAction ? (
+      {isNhl ? <NhlEvidenceStrip game={game} vm={vm} /> : null}
+
+      {showAction && (!isNhl || action.available) ? (
         <div className={`cgc-action-strip${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="cgc-action-brand">
             <span>ACTION</span>
@@ -351,6 +364,8 @@ export default function CompactGameCard({ game, onOpen }) {
           </div>
         </div>
       ) : null}
+
+      {isNhl && !action.available ? <div className="cgc-nhl-action-unavailable">ACTION splits: UNAVAILABLE · No movement signal inferred</div> : null}
 
       {isNfl && matchup?.ok ? (
         <section className="cgc-matchup-read" aria-label="FBIS individual game matchup analysis">
@@ -398,7 +413,7 @@ export default function CompactGameCard({ game, onOpen }) {
           <span>MODEL</span>
         </div>
         <div className="cgc-footer-metric">
-          <strong>{vm.comparison?.sideDiffLabel || vm.comparison?.totalDiffLabel || "—"}</strong>
+          <strong>{vm.comparison?.hasDiff ? (vm.comparison?.sideDiffLabel || vm.comparison?.totalDiffLabel || "—") : "NOT EVALUATED"}</strong>
           <span>MODEL / MARKET GAP</span>
         </div>
         <span className="cgc-view">VIEW <b>→</b></span>

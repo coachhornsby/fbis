@@ -23,7 +23,9 @@ export function sortByConfidence(games = []) {
     const finalB = buildBoardGameViewModel(b).event?.final ? 1 : 0;
     if (finalA !== finalB) return finalA - finalB;
 
-    const starDiff = confidenceStars(b) - confidenceStars(a);
+    // A five-star shell with no independent NHL forecast must never outrank an evidence-backed card.
+    const effectiveStars = g => String(g?.sport||"").toLowerCase()==="nhl" && !buildBoardGameViewModel(g)?.projection?.available ? -1 : confidenceStars(g);
+    const starDiff = effectiveStars(b) - effectiveStars(a);
     if (starDiff) return starDiff;
 
     const scoreA = Number(a?.confidenceScore);
