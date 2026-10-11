@@ -1,0 +1,72 @@
+name: CFB SDV source qualification (read-only)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cfb-sdv-source-qualification.yml'
+      - 'scripts/cfb-sdv-player-box-normalize.py'
+      - 'data/cfb/fbs-2026-active-team-ids.csv'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cfb-sdv-source-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify-public-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download only public no-auth SDV 2026 data releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cfb-sdv-qa"
+          base="https://github.com/sportsdataverse/sportsdataverse-data/releases/download"
+          curl -fLsS --retry 2 --retry-delay 2 --max-time 150 \
+            "$base/espn_cfb_schedules/cfb_schedule_2026.csv" \
+            -o "$RUNNER_TEMP/cfb-sdv-qa/cfb_schedule_2026.csv"
+          curl -fLsS --retry 2 --retry-delay 2 --max-time 150 \
+            "$base/espn_cfb_player_box/player_box_2026.csv" \
+            -o "$RUNNER_TEMP/cfb-sdv-qa/player_box_2026.csv"
+          curl -fLsS --retry 2 --retry-delay 2 --max-time 150 \
+            "$base/espn_cfb_team_box/team_box_2026.csv" \
+            -o "$RUNNER_TEMP/cfb-sdv-qa/team_box_2026.csv"
+          sha256sum "$RUNNER_TEMP"/cfb-sdv-qa/*.csv \
+            > "$RUNNER_TEMP/cfb-sdv-qa/source-assets.sha256"
+          du -h "$RUNNER_TEMP"/cfb-sdv-qa/*.csv
+      - name: Strict FBS box-score and completed-game source qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          python3 scripts/cfb-sdv-player-box-normalize.py \
+            --player-box "$RUNNER_TEMP/cfb-sdv-qa/player_box_2026.csv" \
+            --schedule "$RUNNER_TEMP/cfb-sdv-qa/cfb_schedule_2026.csv" \
+            --fbs-teams data/cfb/fbs-2026-active-team-ids.csv \
+            --season 2026 \
+            --source-observed-at "$ts" \
+            --output-prefix "$RUNNER_TEMP/cfb-sdv-qa/fbs-2026"
+          python3 - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"cfb-sdv-qa/fbs-2026.manifest.json"
+          m=json.loads(p.read_text())
+          assert m["fbs_whitelisted_teams"]==138,m
+          assert m["player_game_rows"]>0,"No completed FBS athlete/game records"
+          assert m["feature_authority"] is False
+          assert m["betting_authority"] is False
+          assert m["source_publication_time_verified"] is False
+          print("STAGING QA:",m["player_game_rows"],"FBS player-game records",m["counts"])
+          PY
+      - name: Publish 7-day research artifact, never production state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-sdv-fbs-2026-source-qa-${{ github.run_id }}
+          path: ${{ runner.temp }}/cfb-sdv-qa/
+          if-no-files-found: warn
+          retention-days: 7
