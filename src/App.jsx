@@ -20,6 +20,7 @@ import { legacyToRoute, normalizeRoute, routeToLegacy } from "./app/navigation.j
 import PrizePicksMarketPanel from "./features/playerProps/PrizePicksMarketPanel.jsx";
 import ModelLabView from "./features/modelLab/ModelLabView.jsx";
 import CurrentProjectionsView from "./features/models/CurrentProjectionsView.jsx";
+import CfbTeamsView from "./features/cfbTeams/CfbTeamsView.jsx";
 import DataHealthView from "./features/dataHealth/DataHealthView.jsx";
 import MispricesView from "./features/misprices/MispricesView.jsx";
 import "./features/playerProps/playerProps.css";
@@ -30,12 +31,12 @@ import { resolveBoardProjection } from "./lib/boardDecision.js";
 function readUrlState() {
   if (typeof window === "undefined") return { tab: "today", date: todayCT(), sport: "mlb", route: "today", sportFilter: "all" };
   const u = new URL(window.location.href);
-  const tab = u.searchParams.get("tab") || "today";
-  const sportRaw = u.searchParams.get("sport") || "mlb";
   const routeParam = u.searchParams.get("route");
+  const tab = routeParam === "teams" ? "teams" : (u.searchParams.get("tab") || "today");
+  const sportRaw = routeParam === "teams" ? "cfb" : (u.searchParams.get("sport") || "mlb");
   const mapped = legacyToRoute({ tab, sport: sportRaw });
   const normalizedRoute = normalizeRoute(routeParam || mapped.route);
-  const filter = u.searchParams.get("sportFilter") || mapped.sportFilter || "all";
+  const filter = routeParam === "teams" ? "cfb" : (u.searchParams.get("sportFilter") || mapped.sportFilter || "all");
   const sport = normalizedRoute === "board" && SPORTS[filter] ? filter : sportRaw;
   return {
     tab,
@@ -140,6 +141,7 @@ export default function App() {
   });
   const [sysTab, setSysTab] = useState("overall");
   const [cfbWeekShift, setCfbWeekShift] = useState(0);
+  const [cfbTeamsRefresh, setCfbTeamsRefresh] = useState(0);
   const boardRequestId = useRef(0);
   const todayRequestId = useRef(0);
   const trackRequestId = useRef(0);
@@ -327,6 +329,7 @@ export default function App() {
       models: "MODELS",
       "model-lab": "MODEL LAB",
       "player-props": "PLAYER PROPS",
+      teams: "FBS TEAM PROFILES",
       bets: "MY BETS",
       performance: "MODELS",
       publish: "MODELS",
@@ -485,6 +488,7 @@ export default function App() {
   );
 
   const shellFreshness =
+    route === "teams" ? "CURRENT" :
     route === "market" || route === "markets" || tab === "board"
       ? boardStale
         ? "STALE"
@@ -510,14 +514,16 @@ export default function App() {
       <AppShell
         route={route}
         sportFilter={sportFilter}
-        freshnessLabel="MARKET DATA"
+        freshnessLabel={route === "teams" ? "SAVED FBS DIRECTORY" : "MARKET DATA"}
         freshnessState={shellFreshness}
         healthLabel={healthLabel}
         healthTone={health}
         onRouteChange={onRouteChange}
         onSportFilterChange={onSportFilterChange}
         onRefresh={() =>
-          route === "system" || route === "performance" || tab === "sys"
+          route === "teams"
+            ? setCfbTeamsRefresh((n) => n + 1)
+            : route === "system" || route === "performance" || tab === "sys"
             ? refreshTrack()
             : route === "bets" || tab === "bets"
               ? refreshBets()
@@ -557,6 +563,8 @@ export default function App() {
               onSportFilterChange={setPlayerPropsSport}
             />
           </div>
+        ) : route === "teams" ? (
+          <CfbTeamsView refreshKey={cfbTeamsRefresh} />
         ) : route === "performance" ? (
           <TrackView
             report={track}
