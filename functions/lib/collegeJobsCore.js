@@ -4,6 +4,7 @@
  */
 
 import { collegeKeyHealth, assertNoSecretLeak } from "./collegeSecrets.js";
+import {freezeCfbPregameFeatures} from "./cfbPitFeatureDelivery.js";
 import { cfbdGet, cbbdGet, cfbSeasonYear, cbbSeasonYear, summarizeSchema, collegePublicResult } from "./collegeApi.js";
 import { queryQuota, insertSourceObservation, insertTeamFeatureSnapshot, insertGameFeatureSnapshot, insertModelPrediction, gradeModelPrediction, upsertModelRegistry, insertModelArtifact, insertValidationRun, insertPromotionDecision, upsertTeamSeasonIdentity, queryModelPredictions, queryEndpointUsage, upsertQbTransferHistory, insertCfbdEndpointAudit } from "./collegeStore.js";
 import { COLLEGE_MODELS, evaluatePromotion, PROMOTION_CRITERIA } from "./collegeModels.js";
@@ -42,6 +43,7 @@ function shiftDateCT(date, days) {
 export const COLLEGE_JOBS = [
   "cfb-reference-backfill",
   "cfb-current-refresh",
+  "cfb-pregame-freeze",
   "cfb-postgame-harvest",
   "cfb-qb-transfer-refresh",
   "cfbd-endpoint-audit",
@@ -354,6 +356,10 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
   let report = [];
 
   try {
+    if (job === "cfb-pregame-freeze") {
+      const result=await freezeCfbPregameFeatures(env,{now:started});
+      return jobPayload({ok:result.ok,job,status:result.ok?"success":JOB_FAILED,attemptedAt:started,successfulAt:result.ok?new Date().toISOString():null,errors:result.ok?[]:[result.reason||"cfb-pregame-freeze-failed"],env,writes,d1:{bound:hasDb(env),cfbPregame:result}});
+    }
     if (job === "college-health") {
       const quota = await queryQuota(env);
       const storage = await storageBudget(env);
