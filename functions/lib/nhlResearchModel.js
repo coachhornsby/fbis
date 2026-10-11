@@ -8,6 +8,8 @@
  * lines are used in the projection.
  */
 
+import { nhlModelTeamCode } from "./nhlTeamCodes.js";
+
 export const NHL_RESEARCH_MODEL_ID = "NHL-FBIS-PURE";
 export const NHL_RESEARCH_MODEL_VERSION = "research-v0-team-prior";
 
@@ -136,8 +138,8 @@ export function projectNhlResearchGame(game, prior) {
   if (!prior?.ok) return { ok: false, reason: "nhl-prior-unavailable" };
   const homeAbbr = String(game?.home?.abbr || "").toUpperCase();
   const awayAbbr = String(game?.away?.abbr || "").toUpperCase();
-  const h = prior.byAbbr?.[homeAbbr];
-  const a = prior.byAbbr?.[awayAbbr];
+  const h = prior.byAbbr?.[nhlModelTeamCode(homeAbbr)];
+  const a = prior.byAbbr?.[nhlModelTeamCode(awayAbbr)];
   if (!h || !a) {
     return {
       ok: false,

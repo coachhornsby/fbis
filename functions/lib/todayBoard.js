@@ -397,7 +397,9 @@ function hydrateOddsFromSnapshot(game, snapshot) {
 function buildMarketOddsByGame(rows = []) {
   const by = new Map();
   for (const row of rows || []) {
-    if (!row || row.period !== "fg" || row.rejectedPostStart) continue;
+    // Only actual Pinnacle snapshot rows may hydrate pin* fields.
+    // ESPN reference rows remain in marketLineHistory with their true book.
+    if (!row || row.period !== "fg" || row.rejectedPostStart || String(row.book||"") !== "Pinnacle") continue;
     const id = String(row.gameId || "");
     if (!id) continue;
     if (!by.has(id)) by.set(id, { at: 0 });

@@ -262,7 +262,8 @@ function parseOdds(comp, sport) {
     homeMl: num(homeOdds.moneyLine ?? raw.homeTeamOdds?.moneyLine),
     awayMl: num(awayOdds.moneyLine ?? raw.awayTeamOdds?.moneyLine),
     details: raw.details || "",
-    book: EXECUTION_BOOK,
+    book: sport === "nhl" ? "ESPN_FEED_REFERENCE" : EXECUTION_BOOK,
+    nhlEspnObserved: sport === "nhl",
     softSource: "espn",
   };
 }
@@ -1752,8 +1753,12 @@ export async function buildSlate(sport, date, env = {}) {
   const noGameScheduleResolved = scheduleResolved && games.length === 0;
   const parlay = await fetchParlayOdds(id, env.PARLAY_API_KEY, env.caches, {
     date: day,
-    cacheOnly: Boolean(env.parlayCacheOnly) || noGameScheduleResolved,
-    strictCacheOnly: id === "cfb" && Boolean(env.cfbdCacheOnly),
+    // NHL is disabled for billable provider fetches by default. Operators may
+    // explicitly opt in after confirming provider sport key and quota budget.
+    cacheOnly: (id === "nhl" && env.NHL_ODDS_PROVIDER_OPT_IN !== "true") ||
+      Boolean(env.parlayCacheOnly) || noGameScheduleResolved,
+    strictCacheOnly: (id === "nhl" && env.NHL_ODDS_PROVIDER_OPT_IN !== "true") ||
+      (id === "cfb" && Boolean(env.cfbdCacheOnly)),
     backupApiKey: env.THEODDS_API_KEY,
     sharpApiKey: env.SHARPAPI_API_KEY,
     theRundownApiKey: env.THERUNDOWN_API_KEY,

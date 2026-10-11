@@ -15,6 +15,7 @@
 
 import { NHL_FBIS_V1_ARTIFACT } from "../../data/models/nhl-fbis-v1.js";
 import { buildNhlSourceLineage } from "./nhlDataSources.js";
+import { nhlModelTeamCode } from "./nhlTeamCodes.js";
 
 export const NHL_FBIS_V1_ID = "NHL-FBIS-v1";
 export const NHL_FBIS_V1_VERSION = "research-v1.2-five-layer-source-lineage";
@@ -435,8 +436,8 @@ export async function loadNhlV1Context(date,games=[],{fetcher=fetch,sportsDatave
 }
 
 export function projectNhlV1Game(game,ctx){
-  const home=String(game?.home?.abbr||"").toUpperCase();
-  const away=String(game?.away?.abbr||"").toUpperCase();
+  const home=nhlModelTeamCode(game?.home?.abbr);
+  const away=nhlModelTeamCode(game?.away?.abbr);
   const hs=ctx?.teams?.[home],as=ctx?.teams?.[away];
   if(!ctx?.ok||!hs||!as) return {ok:false,reason:"nhl-v1-team-context-missing",home,away};
 

@@ -53,6 +53,7 @@ function isSoftQuoteBook(key) {
 export { namesMatch };
 
 export const PARLAY_SPORT = {
+  nhl: "icehockey_nhl", // dormant until explicit paid-provider opt-in; cache-only otherwise
   mlb: "baseball_mlb",
   nba: "basketball_nba",
   nfl: "americanfootball_nfl",

@@ -368,10 +368,14 @@ function softConsensusFromOdds(odds, observedAt) {
   // Soft packed lines only when Pinnacle is not present as the sole packed source,
   // or when softSource explicitly indicates multi-book soft.
   const softHint = Boolean(odds?.softSource || odds?.softPresent);
+  const espnNhlObserved = odds?.softSource === "espn" && odds?.nhlEspnObserved === true;
+  const homeEspnMl=espnNhlObserved && validAmerican(odds?.homeMl) ? num(odds.homeMl) : null;
+  const awayEspnMl=espnNhlObserved && validAmerican(odds?.awayMl) ? num(odds.awayMl) : null;
+  const espnMoneyline=homeEspnMl!=null&&awayEspnMl!=null?{home:homeEspnMl,away:awayEspnMl}:{home:null,away:null};
   const hasSoftPrices =
     odds?.softSpreadHomePrice != null ||
     odds?.softOverPrice != null ||
-    (softHint && (odds?.spread != null || odds?.total != null));
+    (softHint && (odds?.spread != null || odds?.total != null || espnMoneyline.home != null));
   if (!hasSoftPrices && !softHint) {
     // ESPN / generic packed spread without pin may still be usable consensus.
     if (!odds?.pinPresent && (odds?.spread != null || odds?.total != null || odds?.homeMl != null)) {
@@ -393,7 +397,10 @@ function softConsensusFromOdds(odds, observedAt) {
     spread: num(odds.spread),
     total: num(odds.total),
     books: odds?.books != null ? Number(odds.books) : null,
-    source: str(odds.softSource) || "soft",
+    source: espnNhlObserved ? "OBSERVED_ESPN" : str(odds.softSource) || "soft",
+    moneyline: espnMoneyline,
+    observedOnly:espnNhlObserved,
+    executable:false,
     observedAt: str(observedAt),
     freshness: inferFreshness(observedAt),
     role: MARKET_ROLE.CONSENSUS,

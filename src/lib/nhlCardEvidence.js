@@ -53,10 +53,11 @@ export function buildNhlCardEvidence(game, vm) {
   const probabilityValid=Boolean(teamMatch&&prob!=null&&inverse!=null&&prob>0&&prob<1&&Math.abs(prob+inverse-1)<0.002&&audit?.ok!==false);
   const probabilityIntegrity=audit?.ok===false?"INTEGRITY HOLD":audit?.ok===true?"PIT-AUDITED RESEARCH":"PIT NOT VERIFIED";
   const market=vm?.market||{};
-  const currentML=market.homeMl!=null||market.awayMl!=null;
+  const currentML=market.homeMl!=null&&market.awayMl!=null;
   const snapshot=!currentML?recordedMoneyline(game):null;
   const book=market.book||"Unspecified";
-  const role=market.role==="EXECUTION_MARKET"?"EXECUTION QUOTE":market.role==="CONSENSUS_MARKET"?"OBSERVED CONSENSUS":market.role==="REFERENCE_MARKET"?"REFERENCE ONLY":"NO CURRENT MARKET";
+  const mr=market.marketRole||market.role;
+  const role=mr==="EXECUTION_MARKET"?"EXECUTION QUOTE":market.observedOnly?"OBSERVED FEED · NOT EXECUTABLE":mr==="CONSENSUS_MARKET"?"OBSERVED CONSENSUS":mr==="REFERENCE_MARKET"?"REFERENCE ONLY":"NO CURRENT MARKET";
   const marketInfo=currentML?{
     home:american(market.homeMl),away:american(market.awayMl),
     book,role,observedAt:game?.market?.asOf||game?.market?.observedAt||game?.market?.execution?.sourceObservedAt||game?.market?.consensus?.sourceObservedAt||null
@@ -93,7 +94,7 @@ export function buildNhlCardEvidence(game, vm) {
     notes:[
       !teamMatch?"Independent NHL projection unavailable":null,
       !probabilityValid?"Moneyline probability withheld pending integrity":null,
-      coverage.moneyline==="UNAVAILABLE"?"No current or timestamped stored moneyline quote":null,
+      coverage.moneyline==="UNAVAILABLE"?"No paired, sourced moneyline quote; NHL paid market collectors remain opt-in":null,
       coverage.goalies!=="CONFIRMED"?"Both current-game starters are not source-confirmed":null,
       coverage.matchup==="UNAVAILABLE"?"No source-backed NHL matchup factors":null,
     ].filter(Boolean)
