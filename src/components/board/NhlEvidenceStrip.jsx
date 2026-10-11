@@ -19,7 +19,7 @@ export default function NhlEvidenceStrip({game,vm,expanded=false}){
         <small>{b.role}{b.book?` · ${b.book}`:""}{b.observedAt?` · ${b.observedAt}`:""}</small>
       </div>
       <div className="nhl-evidence-block">
-        <span>MODELED GOALTENDERS</span>
+        <span>GOALIE CONTEXT · SOURCE STATUS</span>
         <strong>{`${e.away} ${e.goalies.away.name} · ${e.home} ${e.goalies.home.name}`}</strong>
         <small>{`${e.away}: ${e.goalies.away.state} · ${e.home}: ${e.goalies.home.state}`}</small>
       </div>
