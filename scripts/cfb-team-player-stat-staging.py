@@ -197,7 +197,7 @@ def player_records(args,as_of):
    "season":args.season,"opponent":source.get("opponent") or None,
    "game_at":game_at,"source":source_manifest["source"],
    "source_timestamp":None,"observed_at":player_observed_at,"content_hash":h,
-   "temporal_class":"POSTGAME_ARCHIVE_NOT_PIT",
+   "temporal_class":"POSTGAME_OBSERVED_NOT_HISTORICAL_PIT",
    "metrics_json":json.dumps(metrics,sort_keys=True,separators=(",",":")),
    "ingested_at":None,"can_influence_projection":0,
   })
@@ -260,7 +260,8 @@ def partial_player_season(records,as_of):
 
 def main(argv=None):
  parser=argparse.ArgumentParser(description=__doc__)
- parser.add_argument("--archive",required=True)
+ parser.add_argument("--archive",help="Required except for --player-only research staging")
+ parser.add_argument("--player-only",action="store_true",help="Stage only manifest-verified player game/season rows")
  parser.add_argument("--member",default=ARCHIVE_MEMBER)
  parser.add_argument("--archive-observed-at",required=True)
  parser.add_argument("--season",type=int,default=2026)
@@ -268,8 +269,12 @@ def main(argv=None):
  parser.add_argument("--player-manifest",help="Mandatory SDV player box adapter manifest if --player-csv supplied")
  parser.add_argument("--output-prefix",required=True)
  args=parser.parse_args(argv)
+ if not args.player_only and not args.archive:
+  parser.error("--archive required unless --player-only")
+ if args.player_only and not args.player_csv:
+  parser.error("--player-only requires --player-csv and --player-manifest")
  as_of=iso(args.archive_observed_at)
- games,rg=team_records(args,as_of)
+ games,rg=([],0) if args.player_only else team_records(args,as_of)
  seasons=partial_team_season(games,as_of)
  players,rp=player_records(args,as_of)
  player_seasons=partial_player_season(players,as_of)
