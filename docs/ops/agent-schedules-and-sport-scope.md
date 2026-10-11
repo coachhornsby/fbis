@@ -17,7 +17,7 @@ source -> verified identity -> time-stamped D1/R2 evidence -> sport-specific sta
 
 | Domain | Intended intelligence / modeling job | Operational evidence and authority cautions |
 | --- | --- | --- |
-| **CFB** | FBS team/player directory, every-final postgame state, opponent-adjusted rating, scores/spread/total/winner and future PIT projections | D1 college ledgers, source manifests, R2 `canonical/cfb/`, Team Cards, final-game completeness; migration 0098/0099 and player research staging must clear recovery/governance gates |
+| **CFB** | FBS team/player directory, every-final postgame state, opponent-adjusted rating, scores/spread/total/winner and future PIT projections | D1 college ledgers, source manifests, R2 CFB-scoped research/archives (discover actual prefixes), Team Cards, final-game completeness; migration 0098/0099 and player research staging must clear recovery/governance gates |
 | **CBB** | 362-team season-aware directory, roster/player state, game stats, adjusted efficiency, matchup forecasts, shadow challenger qualification | D1 `cbb_*`, schedule/state snapshots; CBBD quota and PIT gates; separate research challenger from incumbent |
 | **NFL** | Weekly team/player/availability context, QB/personnel, game spread/total/winner, supported player props | Official starts/status, observed odds, immutable projections and official terminal results; do not infer unavailable starters |
 | **NBA** | Team/player profiles, injury/rotation context, game and prop estimates, prospective shadow trials | D1 `nba_*`; pre-tip timestamp gate is mandatory; post-tip shadow rows are never prospective qualifying evidence |
