@@ -40,11 +40,9 @@ export function selectTennisRecoveryScope(health,{now=Date.now()}={}) {
   // scheduling failure. Never auto-rebuild over unknown contamination.
   if([current,full].some(s=>!["HEALTHY","STALE"].includes(s.state)))
     return {scope:null,reason:"SOURCE_INTEGRITY_UNVERIFIED"};
-  if(full.state==="STALE" &&
-     full.ageMinutes>=TENNIS_RECOVERY_AGE_MINUTES.full)
+  if(full.ageMinutes>=TENNIS_RECOVERY_AGE_MINUTES.full)
     return {scope:"full",reason:"FULL_SCHEDULE_MISSED",ageMinutes:full.ageMinutes};
-  if(current.state==="STALE" &&
-     current.ageMinutes>=TENNIS_RECOVERY_AGE_MINUTES.current)
+  if(current.ageMinutes>=TENNIS_RECOVERY_AGE_MINUTES.current)
     return {scope:"current",reason:"CURRENT_SCHEDULE_MISSED",ageMinutes:current.ageMinutes};
   return {scope:null,reason:health.ok?"FRESH":"NOT_PAST_RECOVERY_THRESHOLD"};
 }
