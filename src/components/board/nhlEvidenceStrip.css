@@ -1,0 +1,17 @@
+/* NHL-specific evidence; never style research-only model gaps as qualified EV. */
+.nhl-evidence{padding:10px 12px;border:1px solid rgba(77,144,205,.35);border-radius:10px;background:rgba(3,19,34,.86);color:#e4f2ff;display:grid;gap:8px;min-width:0}
+.nhl-evidence-head{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:10px;letter-spacing:.055em}
+.nhl-evidence-head span{color:#d0a3ff;font-weight:700;text-align:right}
+.nhl-evidence-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.nhl-evidence-block{display:grid;gap:3px;min-width:0;border-right:1px solid rgba(83,144,204,.22);padding-right:5px}
+.nhl-evidence-block:last-child{border-right:0}
+.nhl-evidence-block>span{font-size:9px;color:#8eafcf;font-weight:700;letter-spacing:.02em}
+.nhl-evidence-block>strong{font-size:11px;color:#f1f8ff;overflow-wrap:anywhere}
+.nhl-evidence-block>small{font-size:9px;color:#adbdce;overflow-wrap:anywhere;line-height:1.35}
+.nhl-evidence-coverage{display:flex;flex-wrap:wrap;align-items:center;gap:5px;font-size:9px}
+.nhl-evidence-coverage>strong{color:#8eafcf;font-size:9px;margin-right:3px}
+.nhl-evidence-coverage>span{border-radius:5px;border:1px solid rgba(84,143,195,.35);padding:3px 4px}
+.nhl-evidence-coverage .is-ready{color:#a6ebd3}.nhl-evidence-coverage .is-missing{color:#dcbec5}
+.nhl-evidence-note{font-size:9px;color:#c7b1d7;line-height:1.4}
+.nhl-evidence.is-expanded .nhl-evidence-block>strong{font-size:13px}
+@media(max-width:1200px){.nhl-evidence-grid{grid-template-columns:1fr}.nhl-evidence-block{border-right:0;border-bottom:1px solid rgba(83,144,204,.22);padding-bottom:5px}.nhl-evidence-block:last-child{border-bottom:0}}
