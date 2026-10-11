@@ -1,4 +1,5 @@
 name: Tennis canonical refresh
+run-name: Tennis canonical ${{ github.event.inputs.scope || 'current' }} ${{ github.event.inputs.recovery_slot || github.event_name }}
 
 on:
   schedule:
@@ -13,6 +14,11 @@ on:
         type: choice
         options: [current, full]
         default: current
+      recovery_slot:
+        description: Scheduled Cloudflare recovery slot (UTC ISO), or empty for manual refresh
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -50,14 +56,38 @@ jobs:
           fi
           echo "scope=${scope}" >> "$GITHUB_OUTPUT"
           echo "Tennis refresh scope=${scope}"
+      - name: Recheck R2 freshness after queued Cloudflare recovery
+        id: recovery_gate
+        env:
+          RECOVERY_SLOT: ${{ github.event.inputs.recovery_slot }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RECOVERY_SLOT}" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          test -n "${CLOUDFLARE_API_TOKEN}" && test -n "${CLOUDFLARE_ACCOUNT_ID}"
+          scope="${{ steps.scope.outputs.scope }}"
+          mkdir -p artifacts/tennis-recovery-preflight
+          for file in refresh-health.json source-manifest.json; do
+            npx wrangler r2 object get "fbis-archive/tennis/canonical/${scope}/latest/${file}" --file="artifacts/tennis-recovery-preflight/${file}" --remote
+          done
+          node scripts/tennis-refresh-recovery-gate.mjs "${scope}" \
+            artifacts/tennis-recovery-preflight/refresh-health.json \
+            artifacts/tennis-recovery-preflight/source-manifest.json "$GITHUB_OUTPUT"
       - name: Acquire, canonicalize, reconcile, and rebuild
+        if: steps.recovery_gate.outputs.run == 'true'
         run: node scripts/tennis-auto-refresh.mjs --scope=${{ steps.scope.outputs.scope }}
       - name: Require refresh health
+        if: steps.recovery_gate.outputs.run == 'true'
         run: |
           set -euo pipefail
           jq -e '.ok == true and .canonicalMatches > 0 and .players > 0 and .latestObservation != "" and .bet == false' artifacts/tennis-refresh/refresh-health.json >/dev/null
           jq -c '{scope,refreshStartedAt,refreshCompletedAt,manifestRetrievedAt,workflowSha,workflowRunId,files,rawObservations,canonicalMatches,duplicatesRemoved,identityCollisions,disagreementRate,players,latestObservation,latestByKind,bet}' artifacts/tennis-refresh/refresh-health.json
       - name: Persist immutable refresh snapshot to R2
+        if: steps.recovery_gate.outputs.run == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -71,6 +101,7 @@ jobs:
             npx wrangler r2 object put "fbis-archive/${base}/${f}" --file="artifacts/tennis-refresh/${f}" --remote
           done
       - name: Update latest R2 aliases
+        if: steps.recovery_gate.outputs.run == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
