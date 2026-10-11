@@ -1,0 +1,55 @@
+name: CFB SDV Historical Research — one-shot
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cfb-sdv-historical-research-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  collect-postgame-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test immutable SDV contract (no provider calls)
+        run: python -m unittest discover -s test -p test_cfb_sdv_historical_collect.py -v
+      - name: Install offline statistical research requirements
+        run: python -m pip install --quiet numpy scikit-learn
+      - name: Validate lagged advanced-feature anti-leakage contract
+        run: python -m unittest discover -s test -p test_cfb_sdv_advanced_rolling_backtest.py -v
+      - name: Acquire real SDV advanced gamelogs and FBS fixture evidence
+        run: |
+          python scripts/cfb-sdv-historical-collect.py \
+            --years 2021 2022 2023 2024 2025 \
+            --out "$RUNNER_TEMP/cfb-sdv-research-${{ github.run_id }}"
+      - name: Evaluate historical prior-game advanced metrics (research only)
+        run: |
+          python scripts/cfb-sdv-advanced-rolling-backtest.py \
+            --input "$RUNNER_TEMP/cfb-sdv-research-${{ github.run_id }}/advanced_team_game_final.jsonl" \
+            --output "$RUNNER_TEMP/cfb-sdv-research-${{ github.run_id }}/advanced_rolling_svd_vs_ridge_research.json"
+      - name: Verify manifest and show counts
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP']) / 'cfb-sdv-research-${{ github.run_id }}'
+          m=json.loads((p/'manifest.json').read_text())
+          assert len(m['assets']) == 10, 'expected 2 verified assets per season'
+          assert m['pit_certified'] is False
+          assert m['can_influence_projection'] is False
+          for a in m['assets']:
+              f=p/'raw'/f"{a['kind']}_{a['year']}.asset"
+              assert hashlib.sha256(f.read_bytes()).hexdigest()==a['sha256']
+          for year,detail in m['seasons'].items():
+              print(year,detail)
+              assert detail['paired_fbs_games'] > 0, 'No matched completed FBS games'
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-sdv-historical-postgame-${{ github.run_id }}
+          path: ${{ runner.temp }}/cfb-sdv-research-${{ github.run_id }}/
+          retention-days: 7
+          if-no-files-found: error
