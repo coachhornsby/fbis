@@ -18,6 +18,15 @@ const values=(f,kind,def)=>kind==="rush"?
  (def?read(f,"rushEpaAllowed","defRushEpa","rushingPpaAllowed"):read(f,"rushEpa","epaRush","rushingPpa","ppaOffenseRushing")):
  (def?read(f,"passEpaAllowed","defPassEpa","passingPpaAllowed"):read(f,"passEpa","epaPass","passingPpa","ppaOffensePassing"));
 export function cfbDirectionalEvidence(game){
+ const audited=game?.cfbUnitAudit?.tiles;
+ if(audited) return PAIRS.map(p=>{
+  const r=audited[p.id]||{};
+  const available=r.eligible===true&&finite(r.offense)!=null&&finite(r.defense)!=null;
+  const value=available?Math.round(Math.max(-1.5,Math.min(1.5,(Number(r.offense)-Number(r.defense))*3.5))*100)/100:null;
+  const winner=value!=null&&Math.abs(value)>=.15?(value>0?p.off:p.off==="home"?"away":"home"):null;
+  return {...p,available,value,winner,status:!available?"UNAVAILABLE":winner?"EDGE":"EVEN",reason:r.reason||null};
+ });
+
  const away=input(game,"away"),home=input(game,"home");
  return PAIRS.map(p=>{
   const offense=p.off==="home"?home:away,defense=p.off==="home"?away:home;
