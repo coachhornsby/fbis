@@ -91,4 +91,14 @@ class Pipeline(unittest.TestCase):
   self.assertEqual(self.card()['games'],2)
  def test_paired_ratios_missing_not_zero(self):
   a=aggregate([{'yards':100,'plays':20},{'yards':None,'plays':80}]);self.assertEqual(a['yards_per_play']['value'],5);self.assertEqual(a['yards_per_play']['games'],1)
+# End-to-end reconciliation must check current contents, not pointer existence.
+class CardHealth(unittest.TestCase):
+ def test_stale_existing_pointer_detected(self):
+  l=Ledger();first=l.process(game(),DIRECTORY,MEMBERS,AT)
+  old=l.db.execute("SELECT version_id FROM current_cards WHERE team_id='home'").fetchone()[0]
+  second=game();second['observed_at']='2026-10-11T00:30:00Z';second['teams'][0]['metrics']['yards']=420
+  current=l.process(second,DIRECTORY,MEMBERS,'2026-10-11T00:31:00Z')
+  self.assertEqual(l.health()['missing_card_pairs'],0)
+  l.db.execute("UPDATE current_cards SET version_id=? WHERE team_id='home'",(old,));l.db.commit()
+  health=l.health();self.assertEqual(health['missing_card_pairs'],1);self.assertEqual(health['stale_card_versions'],[{'game_id':'g1','version':current,'teams':['home']}])
 if __name__=='__main__':unittest.main()

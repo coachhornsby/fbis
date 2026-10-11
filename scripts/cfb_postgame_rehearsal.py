@@ -267,9 +267,22 @@ class Ledger:
 
     def health(self):
         states = dict(self.db.execute("SELECT state,COUNT(*) FROM jobs GROUP BY state"))
-        missing = self.db.execute("SELECT COUNT(*) FROM current_games c JOIN game_versions v ON v.id=c.version_id "
-            "WHERE (SELECT COUNT(*) FROM current_cards p WHERE p.season=v.season AND EXISTS "
-            "(SELECT 1 FROM json_each(v.body,'$.teams') t WHERE json_extract(t.value,'$.team_id')=p.team_id))<>2").fetchone()[0]
-        return {"states": states, "missing_card_pairs": missing,
+        missing = 0
+        stale = []
+        for version, payload in self._games():
+            affected = []
+            for team in payload['teams']:
+                row = self.db.execute("SELECT v.body FROM current_cards c JOIN card_versions v ON v.id=c.version_id "
+                    "WHERE c.team_id=? AND c.season=?", (team['team_id'],payload['season'])).fetchone()
+                if row is None:
+                    affected.append(team['team_id'])
+                    continue
+                card = json.loads(row[0])
+                if card.get('team_id')!=team['team_id'] or card.get('season')!=payload['season'] or version not in card.get('game_versions',[]):
+                    affected.append(team['team_id'])
+            if affected:
+                missing += 1
+                stale.append({'game_id':payload['game_id'],'version':version,'teams':affected})
+        return {"states": states, "missing_card_pairs": missing, "stale_card_versions": stale,
             "pending_outbox": self.db.execute("SELECT COUNT(*) FROM refresh_outbox WHERE completed_at IS NULL").fetchone()[0],
             "production_ready": False}
