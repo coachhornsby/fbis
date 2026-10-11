@@ -235,7 +235,7 @@ export default function TodayView({
             <div className="board-well decision-board-well">
               <DecisionBoard
                 games={shown.flatMap((group) => group.games)}
-                renderDetail={(g) => <GameDetails g={g} />}
+                renderDetail={(g) => <GameDetails g={g} includeTopProps={String(g.sport || "").toLowerCase() !== "nfl"} />}
               />
             </div>
           )}
@@ -400,7 +400,7 @@ function TodayTable({ games, propWatch }) {
   );
 }
 
-export function GameDetails({ g }) {
+export function GameDetails({ g, includeTopProps = true }) {
   const { event, weather, lab } = buildGameWorkspaceView(g);
   const footer = (
     <details className="game-ws-lab">
@@ -411,7 +411,7 @@ export function GameDetails({ g }) {
     </details>
   );
   return <>
-    <TopGameProps game={g} />
+    {includeTopProps ? <TopGameProps game={g} /> : null}
     <GameWorkspace event={event} weather={weather} footer={footer} />
   </>;
 }
