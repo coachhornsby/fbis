@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {summarizeCfbHistoricalMarketGrades as summarize} from "../functions/lib/cfbHistoricalMarketDiagnostics.js";
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 
@@ -15,7 +16,7 @@ const oos=JSON.parse(fs.readFileSync("artifacts/cfb-v2-oos-predictions.json","ut
 const select=JSON.parse(fs.readFileSync("data/cfbd/calibration/final-select-report.json","utf8"));
 const ablation=select?.selection?.selected?.ablation || select?.selected?.ablation || select?.selection?.ablation || "A";
 const rows=Array.isArray(oos?.[ablation])?oos[ablation]:[];
-const priceWin=100/110;
+
 const thresholds=[1,2,3,4,5,6,7];
 
 function gradeSpread(r,threshold){
@@ -37,12 +38,7 @@ function gradeTotal(r,threshold){
   const result=Math.abs(diff)<1e-9?"PUSH":(diff>0?"OVER":"UNDER");
   return {side,result,win:result===side,loss:result!=="PUSH"&&result!==side,push:result==="PUSH",edge};
 }
-function summarize(grades){
-  const g=grades.filter(Boolean),wins=g.filter(x=>x.win).length,losses=g.filter(x=>x.loss).length,pushes=g.filter(x=>x.push).length;
-  const decisions=wins+losses;
-  const units=wins*priceWin-losses;
-  return {n:g.length,decisions,wins,losses,pushes,hitRate:decisions?wins/decisions:null,units,roi:decisions?units/decisions:null,avgAbsEdge:g.length?g.reduce((s,x)=>s+Math.abs(x.edge),0)/g.length:null};
-}
+
 const spread={},total={};
 for(const t of thresholds){
   spread[t]=summarize(rows.map(r=>gradeSpread(r,t)));
@@ -53,13 +49,16 @@ const report={
   modelId:"CFB-FBIS-v2",
   selectedAblation:ablation,
   sampleN:rows.length,
-  pricingAssumption:"-110 flat for historical threshold screening; not a substitute for executable-book pricing",
+  temporalClass:"RETROSPECTIVE_MARKET_RELATIVE_DIAGNOSTIC",
+  pricingAssumption:null,
+  economicEvidence:null,
+  economicUnavailableReason:"NO_QUALIFIED_CONTEMPORANEOUS_EXECUTABLE_PRICE_OR_SETTLEMENT",
   spread,
   total,
   governance:{
     autoPromote:false,
     canQualify:false,
-    rule:"Historical market-relative evidence must be positive and stable before an operator-approved qualification change."
+    rule:"Historical outcome diagnostics cannot establish economic qualification; qualified contemporaneous prices, settlement and prospective evidence are required by existing governance."
   }
 };
 fs.writeFileSync("artifacts/cfb-market-qualification-report.json",JSON.stringify(report,null,2));
