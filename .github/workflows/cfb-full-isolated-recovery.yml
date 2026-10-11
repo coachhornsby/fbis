@@ -11,9 +11,9 @@ permissions:
   contents: read
 concurrency:
   group: cfb-full-isolated-recovery
-  # One correction push supersedes run38152936643 while its target is absent.
+  # One correction push supersedes run38153742072 while its target is absent.
   # All later pushes and manual runs retain in-progress imports.
-  cancel-in-progress: ${{ contains(github.event.head_commit.message, '[supersede-local-only-38152936643]') }}
+  cancel-in-progress: ${{ contains(github.event.head_commit.message, '[supersede-local-only-38153742072]') }}
 jobs:
   existing-bookmark-drill:
     runs-on: ubuntu-latest

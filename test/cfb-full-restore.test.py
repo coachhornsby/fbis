@@ -44,15 +44,18 @@ class FullRecovery(unittest.TestCase):
    self.assertEqual(parts['status'],'VERIFIED_LOCAL_FK_ENFORCED_PARTS')
  def test_full_remote_reconciliation_contract_without_network(self):
   with tempfile.TemporaryDirectory() as d:
-   root=pathlib.Path(d);source,r=self.fixture(root);parts=m.stage(source,r,root/'parts',1024);m.rehearse(root/'parts',parts,r)
+   root=pathlib.Path(d);source,r=self.fixture(root)
+   sql=source.read_text().replace('quoted;\\nvalue','x'*150000);source.write_bytes(sql.encode());db=sqlite3.connect(':memory:');db.executescript(sql);r.update(sql_sha256=hashlib.sha256(sql.encode()).hexdigest(),sql_bytes=len(sql.encode()),table_content_digests={t:m.content_digest(db,t) for t in r['restored_table_counts']})
+   parts=m.stage(source,r,root/'parts',200000);m.rehearse(root/'parts',parts,r)
    class Fake(m.Remote):
     def __init__(self):
-     self.path=root/'remote.json';self.journal={'status':'NOT_STARTED','production_mutations':0,'imports':[]};self.target=None;self.name=None;self.db=sqlite3.connect(':memory:');self.db.execute('PRAGMA foreign_keys=ON');self.index=0;self.calls=[]
+     self.path=root/'remote.json';self.journal={'status':'NOT_STARTED','production_mutations':0,'imports':[]};self.target=None;self.name=None;self.db=sqlite3.connect(':memory:');self.db.execute('PRAGMA foreign_keys=ON');self.index=0;self.calls=[];self.queries=[]
     def api(self,method,path,body=None):
      self.calls.append(path)
      if path=='/d1/database':return {'uuid':'00000000-0000-0000-0000-000000000001'}
      m.target_guard(self.target,self.name)
      if path.endswith('/query'):
+      self.queries.append(body['sql'])
       cur=self.db.execute(body['sql']);return [{'success':True,'results':[dict(zip([x[0] for x in cur.description],row)) for row in cur]}]
      if body['action']=='init':return {'filename':'fixture'}
      if body['action']=='ingest':
@@ -60,5 +63,6 @@ class FullRecovery(unittest.TestCase):
      raise AssertionError('Unexpected operation')
    fake=Fake();result=fake.execute(root/'parts',parts,r,123)
    self.assertTrue(result['complete_content_reconciliation']);self.assertEqual(fake.index,len(parts['parts']));self.assertEqual(result['production_mutations'],0)
+   self.assertTrue(any('hex(substr' in sql for sql in fake.queries))
    self.assertFalse(any(t in path for t in m.FORBIDDEN for path in fake.calls))
 if __name__=='__main__':unittest.main()

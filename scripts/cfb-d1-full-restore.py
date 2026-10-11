@@ -120,10 +120,10 @@ def content_digest(db,table):
  columns=[r[1] for r in db.execute('PRAGMA table_info('+quote(table)+')')]
  if not columns:raise ValueError('Missing table columns')
  expression=','.join(value_expression(c) for c in columns)
- digest=hashlib.sha256();n=0
+ digest=hashlib.sha256();n=0;max_row_bytes=0
  for row in db.execute('SELECT '+expression+' FROM '+quote(table)+' ORDER BY '+cursor_column(columns)):
-  digest.update((json.dumps(list(row),ensure_ascii=True,separators=(',',':'))+'\n').encode());n+=1
- return {'rows':n,'sha256':digest.hexdigest(),'columns':columns,'algorithm':'SHA256 typed lossless SQLite values / ordered JSON rows / newline'}
+  data=(json.dumps(list(row),ensure_ascii=True,separators=(',',':'))+'\n').encode();digest.update(data);n+=1;max_row_bytes=max(max_row_bytes,len(data))
+ return {'rows':n,'sha256':digest.hexdigest(),'columns':columns,'max_encoded_row_bytes':max_row_bytes,'algorithm':'SHA256 typed lossless SQLite values / ordered JSON rows / newline'}
 
 def target_guard(target,name):
  if target in FORBIDDEN or not re.fullmatch(r'fbis-cfb-full-recovery-20261011-[0-9]+',name):raise ValueError('Nonproduction target contract rejected')
@@ -187,14 +187,26 @@ class Remote:
   if self.query('PRAGMA foreign_key_check'):raise ValueError('Remote foreign-key violation')
   ledgers={t:self.query('SELECT * FROM '+quote(t)) for t in report['migration_ledgers_before']}
   for table,expected in report['table_content_digests'].items():
-   expression=','.join(value_expression(c)+' AS '+quote(c) for c in expected['columns']);digest=hashlib.sha256();n=0;cursor=None
+   expression=','.join("CASE WHEN typeof("+quote(c)+") IN ('text','blob') AND length(CAST("+quote(c)+" AS BLOB))>131072 THEN 'large:deferred' ELSE "+value_expression(c)+" END AS "+quote(c) for c in expected['columns']);digest=hashlib.sha256();n=0;cursor=None
+   page_size=max(1,min(500,524288//max(1,expected.get('max_encoded_row_bytes',524288))))
    rowid=cursor_column(expected['columns'])
    if '__recovery_cursor' in expected['columns']:raise ValueError('Reserved recovery cursor column collision')
    while True:
     where='' if cursor is None else ' WHERE '+rowid+'>'+str(cursor)
-    rows=self.query('SELECT CAST('+rowid+' AS TEXT) AS __recovery_cursor,'+expression+' FROM '+quote(table)+where+' ORDER BY '+rowid+' LIMIT 500')
+    rows=self.query('SELECT CAST('+rowid+' AS TEXT) AS __recovery_cursor,'+expression+' FROM '+quote(table)+where+' ORDER BY '+rowid+' LIMIT '+str(page_size))
     if not rows:break
     for row in rows:
+     for c in expected['columns']:
+      if row[c]=='large:deferred':
+       q=quote(c);key=str(int(row['__recovery_cursor']));base=' FROM '+quote(table)+' WHERE '+rowid+'='+key
+       info=self.query('SELECT typeof('+q+') AS kind,length(CAST('+q+' AS BLOB)) AS n'+base)[0]
+       if info['kind'] not in ('text','blob'):raise ValueError('Unexpected large-value type')
+       chunks=[]
+       for offset in range(1,info['n']+1,131072):
+        chunk=self.query('SELECT hex(substr(CAST('+q+' AS BLOB),'+str(offset)+',131072)) AS part'+base)[0]['part']
+        if len(chunk)!=2*min(131072,info['n']-offset+1):raise ValueError('Truncated large-value chunk')
+        chunks.append(chunk)
+       row[c]=info['kind']+':'+''.join(chunks)
      digest.update((json.dumps([row[c] for c in expected['columns']],ensure_ascii=True,separators=(',',':'))+'\n').encode());n+=1
     next_cursor=int(rows[-1]['__recovery_cursor'])
     if cursor is not None and next_cursor<=cursor:raise ValueError('Nonadvancing reconciliation cursor')
