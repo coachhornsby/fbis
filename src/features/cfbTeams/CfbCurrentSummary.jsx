@@ -8,8 +8,9 @@ export default function CfbCurrentSummary({intelligence,teamId,season,error=''})
  const conference=intelligence.conferences.find(c=>c.name===team.conference);
  return <section className="ft-panel" aria-label="Current source statistics and national rankings">
   <h3>Current source statistics & national rankings</h3>
-  <p>{team.name} · {team.conference} · {team.record?`${team.record.wins}–${team.record.losses}`:'Record unavailable'} · {team.games??'Unavailable'} summary games / {team.record?.sourceFinalGames??'Unavailable'} source final games</p>
-  {team.summaryGameGap>0&&<p className="ft-note">Source lag: {team.summaryGameGap} final games are not represented in the summary count. These are current source summaries, not complete published statistical ledgers.</p>}
+  <p>{team.name} · {team.conference} · {team.record?`${team.record.wins}–${team.record.losses}`:'Record unavailable'} · {team.games??'Unavailable'} summary games / {team.record?.sourceFbsFinalGames??'Unavailable'} FBS source final games</p>
+  {team.summaryGameGap>0&&<p className="ft-note">FBS sample-count gap: {team.summaryGameGap}. A count difference does not establish which games are absent or source delay. These are current source summaries, not complete published statistical ledgers.</p>}
+  <p className="ft-note">Summary scope: FBS vs FBS; {team.summaryScope?.excludedNonFbsFinalGames??'Unavailable'} non-FBS finals remain in the full record and results.</p>
   <p className="ft-note">Observed {intelligence.source.observedAt} · {intelligence.version} · Display only; production model inputs unchanged. Rating confidence intervals unavailable.</p>
   <div className="ft-table-scroll"><table className="ft-table"><thead><tr><th>Category</th><th>National rank</th><th>Source value</th><th>Eligible teams</th><th>Conference rank</th></tr></thead><tbody>
    {intelligence.rankingMetrics.map(metric=>{const r=team.rankings[metric.id];return <tr key={metric.id}><th>{metric.label}</th><td>{r.rank??'Unavailable'}</td><td>{fmt(r.value)}</td><td>{r.eligibleTeams}</td><td>{conference?.rankings?.[metric.id]?.rank??'Unavailable'}</td></tr>;})}

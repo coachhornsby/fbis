@@ -3,7 +3,7 @@ import {isFbsVsFbsGame} from './cfbGameVisibility.js';
 import FITTED from '../../data/models/cfb-fbis-v2-fitted-aa.js';
 import {attachDetailedCfbRankings} from './cfbRankingMetrics.js';
 export const SDV_SUMMARY_SOURCE='https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_cfb_team_summaries/cfb_team_summaries_2026.csv';
-export const SDV_INTELLIGENCE_VERSION='cfb-sdv-intelligence-v2';
+export const SDV_INTELLIGENCE_VERSION='cfb-sdv-intelligence-v3';
 export function parseCsv(text) {
   const rows=[];let row=[],field='',quoted=false;
   for(let i=0;i<text.length;i++){
@@ -62,7 +62,7 @@ export function buildSdvIntelligence(csv,receipt={}) {
       explanation:'Production retains fitted A/A features. All SDV statistics are exposed for analysis; adding features requires chronological challenger tests and separate production approval.'}});
 }
 export async function loadSdvIntelligence(env={},fetchFn=fetch) {
-  const key='cfb-sdv-intelligence-2026-v2';
+  const key='cfb-sdv-intelligence-2026-v3';
   const cached=await readCache(key,env.caches,30*60_000);if(cached)return cached;
   const response=await fetchFn(SDV_SUMMARY_SOURCE,{headers:{Accept:'text/csv'},signal:AbortSignal.timeout(15000)});
   if(!response.ok)throw Error(`SDV summary ${response.status}`);
@@ -87,6 +87,7 @@ export function attachSdvResults(intelligence,scheduleCsv){
     const signature=JSON.stringify(row);if(byId.has(row.game_id)&&byId.get(row.game_id).signature!==signature)throw Error('Conflicting schedule result versions');
     byId.set(row.game_id,{row,signature});
   }
+  const identities=new Map(intelligence.teams.map(t=>[t.espnId,t]));
   for(const team of intelligence.teams){
     const games=[];let wins=0,losses=0,ties=0,pending=0;
     for(const {row} of byId.values()){
@@ -96,9 +97,12 @@ export function attachSdvResults(intelligence,scheduleCsv){
       games.push({gameId:row.game_id,start:row.game_date,opponentId:`cfb:espn:${home?row.away_id:row.home_id}`,opponent:home?row.away_team:row.home_team,home,scored,allowed,status:row.status});
     }
     team.record={wins,losses,ties,pending,sourceFinalGames:games.length};team.results=games.sort((a,b)=>String(a.start).localeCompare(String(b.start)));
-    team.summaryGameGap=team.games==null?null:Math.max(0,games.length-team.games);
+    const fbsFinalGames=games.filter(g=>identities.has(g.opponentId.replace('cfb:espn:',''))).length;
+    team.record.sourceFbsFinalGames=fbsFinalGames;
+    team.summaryScope={competition:'FBS_VS_FBS',sourceFbsFinalGames:fbsFinalGames,excludedNonFbsFinalGames:games.length-fbsFinalGames,
+      state:'SOURCE_SUMMARY_SAMPLE_COUNT',limitation:'valid_games counts games with valid adjusted EPA; a sample-count difference is not proof of source delay or exact missing games.'};
+    team.summaryGameGap=team.games==null?null:Math.max(0,fbsFinalGames-team.games);
   }
-  const identities=new Map(intelligence.teams.map(t=>[t.espnId,t]));
   for(const conference of intelligence.conferences){
     const record={games:0,wins:0,losses:0,ties:0,pending:0,pointsFor:0,pointsAgainst:0,
       scope:'Official-final FBS-versus-FBS games between different source-season conferences; no predictive authority'};
