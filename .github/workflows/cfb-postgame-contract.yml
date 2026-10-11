@@ -4,6 +4,8 @@ on:
     paths:
       - scripts/cfb_postgame_rehearsal.py
       - test/cfb-postgame-rehearsal.test.py
+      - scripts/cfb_postgame_queue.py
+      - test/cfb-postgame-queue.test.py
       - .github/workflows/cfb-postgame-contract.yml
   workflow_dispatch:
 permissions:
@@ -18,4 +20,6 @@ jobs:
         with:
           python-version: '3.11'
       - name: Reconcile both cards, players, corrections and immutable snapshots
-        run: python test/cfb-postgame-rehearsal.test.py -v
+        run: |
+          python test/cfb-postgame-rehearsal.test.py -v
+          python test/cfb-postgame-queue.test.py -v
