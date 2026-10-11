@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { RECOVERY_CRON, recoverCurrentPipeline } from "./prospective-pipeline-recovery.mjs";
+import { TENNIS_HEALTH_CRON, checkTennisRefreshHealth, runTennisHealthCron } from "./tennis-refresh-health.mjs";
 import {
   CFG,
   configureRuntime,
@@ -247,6 +248,11 @@ async function scheduledCycle(env) {
 async function handleFetch(request, env) {
   configureRuntime(env);
   const url = new URL(request.url);
+  // Public aggregate status only; source rows and credentials remain private.
+  if (request.method === "GET" && url.pathname === "/health/tennis-canonical") {
+    const h = await checkTennisRefreshHealth(env);
+    return json(h.ok ? 200 : 503, h);
+  }
   if (request.method === "GET" && url.pathname === "/health") {
     return json(200, {
       ...healthSummary(),
@@ -328,9 +334,12 @@ async function handleFetch(request, env) {
 export default {
   fetch: handleFetch,
   async scheduled(controller, env, ctx) {
-    const task = String(controller?.cron || "") === RECOVERY_CRON
+    const cron=String(controller?.cron||"");
+    const task = cron === TENNIS_HEALTH_CRON
+      ? runTennisHealthCron(env)
+      : cron === RECOVERY_CRON
       ? recoverCurrentPipeline(env, controller)
-      : String(controller?.cron || "") === "17 * * * *"
+      : cron === "17 * * * *"
       ? runScheduledNhlGoalieShadow(env)
       : scheduledCycle(env);
     ctx.waitUntil(
@@ -342,7 +351,9 @@ export default {
             error: String(error?.message || error),
             providerResults: error?.providerResults || null,
           }));
-          if (String(controller?.cron || "") === RECOVERY_CRON) throw error;
+          // Health/recovery watchdog failures must be visible as cron failures,
+          // not swallowed after logging. This does NOT trigger data collectors.
+          if (cron === RECOVERY_CRON || cron === TENNIS_HEALTH_CRON) throw error;
         })
     );
   },
