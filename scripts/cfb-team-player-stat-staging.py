@@ -181,6 +181,51 @@ def player_records(args,as_of):
    "ingested_at":None,"can_influence_projection":0,
   })
  return out,rejected
+PLAYER_ADDITIVE={
+ "passing_yards":"passingYards","pass_yards":"passingYards",
+ "pass_attempts":"passAttempts","passing_attempts":"passAttempts",
+ "completions":"completions","rushing_yards":"rushingYards",
+ "rush_yards":"rushingYards","rushing_attempts":"rushAttempts",
+ "rush_attempts":"rushAttempts","receiving_yards":"receivingYards",
+ "rec_yards":"receivingYards","receptions":"receptions",
+ "targets":"targets","pass_td":"passTouchdowns","rushing_td":"rushTouchdowns",
+ "receiving_td":"receivingTouchdowns","interceptions":"interceptions",
+}
+def partial_player_season(records,as_of):
+ buckets=defaultdict(list)
+ for record in records:
+  buckets[(record["team_id"],record["player_id"],record["season"])].append(record)
+ output=[]
+ for (team_id,player_id,season),rows in sorted(buckets.items()):
+  totals={};counts={}
+  for row in rows:
+   obj=json.loads(row["metrics_json"])
+   flat={}
+   for family in obj.values():flat.update(family)
+   found=set()
+   for src,out in PLAYER_ADDITIVE.items():
+    if out in found:continue
+    n=number(flat.get(src))
+    if n is None:continue
+    totals[out]=totals.get(out,0)+n
+    counts[out]=counts.get(out,0)+1
+    found.add(out)
+  if not totals:continue
+  games=sorted(row["game_id"] for row in rows)
+  metrics={"partial_season_totals":totals,"stat_observation_counts":counts,
+           "coverage":{"source_games_included":len(rows)}}
+  h=content_hash([metrics,games])
+  output.append({
+   "id":"cfb-player-season:"+content_hash([team_id,player_id,season,h])[:32],
+   "team_id":team_id,"player_id":player_id,"season":season,
+   "source":"VERIFIED_PLAYER_GAME_SOURCE_REQUIRED","source_timestamp":None,
+   "observed_at":as_of,"content_hash":h,
+   "metrics_json":json.dumps(metrics,sort_keys=True,separators=(",",":")),
+   "source_game_ids_json":json.dumps(games),
+   "ingestion_version":"cfb-stat-staging-v1","can_influence_projection":0,
+  })
+ return output
+
 def main(argv=None):
  parser=argparse.ArgumentParser(description=__doc__)
  parser.add_argument("--archive",required=True)
@@ -194,10 +239,11 @@ def main(argv=None):
  games,rg=team_records(args,as_of)
  seasons=partial_team_season(games,as_of)
  players,rp=player_records(args,as_of)
+ player_seasons=partial_player_season(players,as_of)
  files={}
  prefix=pathlib.Path(args.output_prefix)
  prefix.parent.mkdir(parents=True,exist_ok=True)
- for name,rows in [("team-game",games),("team-season",seasons),("player-game",players)]:
+ for name,rows in [("team-game",games),("team-season",seasons),("player-game",players),("player-season",player_seasons)]:
   file=pathlib.Path(str(prefix)+"."+name+".jsonl")
   files[name]={"path":str(file),"records":len(rows),"sha256":write_jsonl(file,rows)}
  manifest={
