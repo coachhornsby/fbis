@@ -20,6 +20,14 @@ test("unavailable decomposition fails closed",()=>{
 });
 test("display mismatch is an explicit diagnostic",()=>{
  const packet=buildNflFrozenAuditPacket({nflProShadow:shadow,model:{projHome:18,projAway:18}});
- assert.equal(packet.ok,true);
+ assert.equal(packet.ok,false);
+ assert.equal(packet.reason,"displayed-score-diverges-from-shadow");
  assert.equal(packet.publishedScoreMatches,false);
+});
+
+test("cannot claim complete audit when contemporaneous feature input missing",()=>{
+ const packet=buildNflFrozenAuditPacket({nflProShadow:shadow,model:{projHome:23.5,projAway:21.5}});
+ assert.equal(packet.ok,false);
+ assert.equal(packet.reason,"frozen-feature-inputs-unavailable");
+ assert.equal(packet.pitVerified,false);
 });
