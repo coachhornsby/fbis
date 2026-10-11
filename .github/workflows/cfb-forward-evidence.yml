@@ -36,6 +36,8 @@ jobs:
         run: python3 scripts/cfb-forward-capture.py --output-dir "$RUNNER_TEMP/cfb-forward" --code-sha "$GITHUB_SHA"
       - name: Materialize research cards and freeze future shadow projections
         run: node scripts/cfb-forward-build.mjs "$RUNNER_TEMP/cfb-forward"
+      - name: Reconcile captured clocks, cards and forecasts
+        run: node scripts/cfb-forward-reconcile.mjs "$RUNNER_TEMP/cfb-forward"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
