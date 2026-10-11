@@ -12,20 +12,20 @@ function fixture(dir){
  writeFileSync(teams,"team_id,subdivision\ncfb:espn:333,FBS\ncfb:espn:888,FBS\ncfb:espn:444,FCS\n");
  writeFileSync(game,[
   "game_id,season,week,game_date,team_id,opponent_id,team_name,opponent_name,points_for,points_against,off_pass_yards",
-  "g1,2026,5,2026-10-01T10:00:00Z,333,888,Alabama,Georgia,35,21,275",
-  "g1,2026,5,2026-10-01T10:00:00Z,888,333,Georgia,Alabama,21,35,230",
-  "g2,2026,8,2026-10-13T10:00:00Z,333,888,Alabama,Georgia,21,35,275",
+  "401856634,2026,5,2026-10-01T10:00:00Z,333,888,Alabama,Georgia,35,21,275",
+  "401856634,2026,5,2026-10-01T10:00:00Z,888,333,Georgia,Alabama,21,35,230",
+  "401856635,2026,8,2026-10-13T10:00:00Z,333,888,Alabama,Georgia,21,35,275",
  ].join("\n")+"\n");
  writeFileSync(players,[
   "season,game_id,team_id,athlete_id,athlete_name,category,completions/passingAttempts,passingYards,passingTouchdowns,rushingAttempts,rushingYards,receptions,receivingYards,totalTackles,stat_1",
-  "2026,g1,333,123,Valid Quarterback,passing,23/41,255,2,,,,,,",
-  "2026,g1,333,123,Valid Quarterback,rushing,,,,5,20,,,,",
-  "2026,g1,333,555,Valid Receiver,receiving,,,,,,6,85,,",
-  "2026,g1,333,777,Valid Defender,defensive,,,,,,,,9,",
-  "2026,g1,444,987,FCS Athlete,passing,20/21,245,1,,,,,,",
+  "2026,401856634,333,123,Valid Quarterback,passing,23/41,255,2,,,,,,",
+  "2026,401856634,333,123,Valid Quarterback,rushing,,,,5,20,,,,",
+  "2026,401856634,333,555,Valid Receiver,receiving,,,,,,6,85,,",
+  "2026,401856634,333,777,Valid Defender,defensive,,,,,,,,9,",
+  "2026,401856634,444,987,FCS Athlete,passing,20/21,245,1,,,,,,",
   "2026,unknown,333,123,Valid Quarterback,passing,23/41,255,2,,,,,,",
-  "2026,g2,333,123,Valid Quarterback,passing,23/41,255,2,,,,,,",
-  "2026,g1,333,666,Unknown Box,passing,23/41,255,2,,,,,,60",
+  "2026,401856635,333,123,Valid Quarterback,passing,23/41,255,2,,,,,,",
+  "2026,401856634,333,666,Unknown Box,passing,23/41,255,2,,,,,,60",
  ].join("\n")+"\n");
  return {teams,game,players};
 }
@@ -61,7 +61,7 @@ test("SDV ESPN player box normalization: FBS only, strict game join, paired pass
   assert.equal(qb.rushing_attempts,"5");
   assert.equal(data.find(x=>x.athlete_id==="555").receptions,"6");
   assert.equal(data.find(x=>x.athlete_id==="777").total_tackles,"9");
-  assert.ok(data.every(x=>x.team_id==="333"&&x.game_id==="g1"));
+  assert.ok(data.every(x=>x.team_id==="333"&&x.game_id==="401856634"));
  }finally{rmSync(dir,{force:true,recursive:true});}
 });
 
@@ -92,7 +92,7 @@ test("Normalized box CSV and hash-bound manifest feed source-specific immutable 
   assert.equal(qb.observed_at,"2026-10-02T14:00:00Z");
   assert.equal(qb.can_influence_projection,0);
   const m=JSON.parse(qb.metrics_json);
-  assert.equal(m.advanced.total_tackles,undefined);
+  assert.equal(m.advanced?.total_tackles,undefined);
   assert.equal(m.passing.passing_yards,255);
   appendFileSync(prefix+".player-game.csv","\n");
   const tampered=run(stage,args);
