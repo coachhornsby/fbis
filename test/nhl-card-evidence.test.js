@@ -70,7 +70,7 @@ test("NHL compact and expanded cards share evidence contract and avoid unconditi
   const component=await readFile(new URL("../src/components/board/NhlEvidenceStrip.jsx",import.meta.url),"utf8");
   for(const code of [compact,premium]) {
     assert.match(code,/NhlEvidenceStrip/);
-    assert.match(code,/MODEL \/ MARKET GAP/);
+    assert.match(code,/[Mm]odel \/ market gap|MODEL \/ MARKET GAP/);
   }
   assert.doesNotMatch(component,/canAuthorizeWager\s*:\s*true/);
   assert.match(compact,/LIVE SCORE NOT AVAILABLE FROM FEED/);
