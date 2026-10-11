@@ -27,16 +27,16 @@ export function bestEdge(vm) {
   const spreadMagnitude = Number.isFinite(spreadAbs) ? Math.abs(spreadAbs) : -1;
 
   // The absence of a qualified model/market is not a losing or zero-edge bet.
-  if (!vm?.projection?.available) {
+  if (Object.prototype.hasOwnProperty.call(vm || {}, "projection") && !vm.projection?.available) {
     return { value: "—", detail: "NO INDEPENDENT MODEL", type: "NO MODEL", team: null, total: false };
   }
-  if (!vm?.market?.available && !vm?.market?.referenceOnly) {
+  if (vm?.market && vm.market.available === false && !vm.market.referenceOnly) {
     return { value: "—", detail: "NO CURRENT MARKET", type: "NOT EVALUATED", team: null, total: false };
   }
   if (spreadMagnitude < 0 && totalAbs < 0) {
     return { value: "—", detail: "NO COMPARABLE LINE", type: "NOT EVALUATED", team: null, total: false };
   }
-  if (spreadMagnitude === 0 && totalAbs === 0) {
+  if (spreadMagnitude === 0 && totalAbs === 0 && vm?.projection?.available) {
     return { value: "0", detail: "MODEL AND MARKET ALIGNED", type: "MODEL GAP", team: null, total: false };
   }
 
