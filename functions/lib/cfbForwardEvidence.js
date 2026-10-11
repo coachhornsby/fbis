@@ -8,7 +8,7 @@ const clock=v=>{
  return Date.parse(v);
 };
 const numeric=v=>typeof v==='number'&&Number.isFinite(v);
-const totalKeys=new Set(['points_for','points_against','off_total_yards','off_pass_yards','off_passes','off_completions','off_rushes','off_rush_yards','off_first_downs_created','situ_third_down_attempts','situ_third_down_conversions','situ_fourth_down_attempts','situ_fourth_down_conversions','situ_penalties','situ_penalty_yards','to_turnovers','to_fumbles_lost','to_interceptions_thrown']);
+const totalKeys=new Set(['points_for','points_against','off_total_yards','off_pass_yards','off_passes','off_completions','off_rushes','off_rush_yards','off_first_downs_created','situ_third_down_attempts','situ_third_down_conversions','situ_fourth_down_attempts','situ_fourth_down_conversions','situ_penalties','situ_penalty_yards','to_turnovers','to_fumbles_lost','to_interceptions_thrown','passing_yards','pass_yards','pass_attempts','passing_attempts','completions','rushing_yards','rush_yards','rushing_attempts','rush_attempts','receiving_yards','rec_yards','receptions','targets','pass_td','rushing_td','receiving_td','interceptions','total_tackles','solo_tackles','sacks','tackles_for_loss','passes_defended','hurries','defensive_td','defensive_interceptions','interception_return_yards','interception_td','fumbles','fumbles_lost','fumbles_recovered','field_goals_made','field_goal_attempts','extra_points_made','extra_point_attempts','punts','punt_yards','kick_returns','kick_return_yards','punt_returns','punt_return_yards']);
 export function summarizeCardMetrics(rows){
  const result={};
  for(const family of new Set(rows.flatMap(r=>Object.keys(r||{})))){
@@ -93,13 +93,16 @@ export async function buildForwardSnapshot({fixture,cards,priorByTeam={},receipt
   versions[key]=card.version;
   if(card.coverage.quarantined_player_rows)reasons.push('QUARANTINED_PLAYER_SOURCE');
   if(!card.games)reasons.push('TEAM_STATS_UNAVAILABLE');
+  if(!numeric(prior?.off)||!numeric(prior?.def))reasons.push('PRIOR_STRENGTH_UNAVAILABLE');
  }
  const modelInput={sport:'cfb',home:{id:fixture.home_id},away:{id:fixture.away_id},neutral:fixture.neutral_site===true||fixture.neutral_site==='true',cfbFbisV2Input:side,featureCutoffOk:true};
  const projection=projectCfbFbisV2Production(modelInput);
+ const validProjection=projection.ok&&[projection.home,projection.away,projection.margin,projection.total,projection.pHomeWin,projection.sigmaMargin,projection.sigmaTotal].every(numeric)&&projection.pHomeWin>=0&&projection.pHomeWin<=1&&projection.sigmaMargin>0&&projection.sigmaTotal>0;
+ if(!validProjection)reasons.push('VALID_PROJECTION_UNAVAILABLE');
  const body={version:CFB_FORWARD_VERSION,game_id:String(fixture.game_id),event_start_at:new Date(clock(fixture.game_date)).toISOString(),decision_at:new Date(cutoff).toISOString(),code_sha:codeSha,team_ids:ids,
   card_versions:versions,source_receipts:receipts,model_input:modelInput,model_version:projection.version||null,
-  projection:projection.ok?{home:projection.home,away:projection.away,margin:projection.margin,total:projection.total,p_home:projection.pHomeWin,p_away:1-projection.pHomeWin,sigma_margin:projection.sigmaMargin,sigma_total:projection.sigmaTotal}:null,
-  projection_state:projection.ok?'SHADOW_PROJECTED':'SOURCE_PENDING',projection_reason:projection.reason||null,
+  projection:validProjection?{home:projection.home,away:projection.away,margin:projection.margin,total:projection.total,p_home:projection.pHomeWin,p_away:1-projection.pHomeWin,sigma_margin:projection.sigmaMargin,sigma_total:projection.sigmaTotal}:null,
+  projection_state:validProjection?'SHADOW_PROJECTED':'SOURCE_PENDING',projection_reason:projection.reason||null,
   projection_role:'FROZEN_INCUMBENT_COEFFICIENTS_ON_NEW_CARD_INPUT_SHADOW',observed_production_projection:null,
   temporal_class:'PROSPECTIVE_FEATURE_CAPTURE',upstream_stat_publication_times_verified:false,
   qualification_reasons:[...new Set(reasons)],can_qualify:false,can_authorize_wager:false,roi:null,clv:null,market_quote:null};

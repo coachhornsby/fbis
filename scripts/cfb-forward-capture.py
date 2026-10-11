@@ -36,7 +36,7 @@ def capture(root,code_sha):
   'canonical-teams.json':"SELECT * FROM cfb_canonical_teams ORDER BY team_id",
   'memberships.json':"SELECT team_id,player_id,season FROM cfb_roster_membership WHERE season=2026 AND team_id IN (SELECT team_id FROM cfb_canonical_teams WHERE active=1 AND upper(trim(subdivision))='FBS') ORDER BY team_id,player_id",
   'legacy-captures.json':"SELECT id,game_id,model_version,frozen_at,deployment_commit,layers_json,proj_home,proj_away,proj_margin,proj_total FROM prediction_snapshots WHERE sport='cfb' ORDER BY id",
-  'production-upcoming.json':"SELECT id,start,home_name,away_name FROM games WHERE sport='cfb' AND start>strftime('%Y-%m-%dT%H:%M:%SZ','now') ORDER BY start,game_id",
+  'production-upcoming.json':"SELECT id,start,home_name,away_name FROM games WHERE sport='cfb' AND start>strftime('%Y-%m-%dT%H:%M:%SZ','now') ORDER BY start,id",
  }
  for filename,sql in queries.items():
   path=root/filename;write(path,paged(sql));receipt(path,'D1_READ_ONLY:'+DB)
