@@ -1,7 +1,7 @@
 import { fmt, lineLabel, bestEdge, matchupSignalLabel } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlEvidenceStrip from "./NhlEvidenceStrip.jsx";
-import NhlDecisionCard from "./NhlDecisionCard.jsx";
+import NhlPlayerProjectionStrip from "./NhlPlayerProjectionStrip.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import "./compactGameCardEnhancements.css";
@@ -226,7 +226,6 @@ export default function CompactGameCard({ game, onOpen }) {
     : null;
   const soccerPickTeam = soccerPick?.side === "HOME" ? home : soccerPick?.side === "AWAY" ? away : null;
 
-  if (isNhl) return <NhlDecisionCard game={game} vm={vm} onOpen={onOpen} />;
 
   return (
     <article
@@ -345,7 +344,7 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       </div>
 
-      {isNhl ? <NhlEvidenceStrip game={game} vm={vm} /> : null}
+      {isNhl ? <><NhlEvidenceStrip game={game} vm={vm} /><NhlPlayerProjectionStrip game={game} /></> : null}
 
       {showAction && (!isNhl || action.available) ? (
         <div className={`cgc-action-strip${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">

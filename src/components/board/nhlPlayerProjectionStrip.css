@@ -1,0 +1,12 @@
+.nhl-original-props{margin:8px 0 0;padding:11px 12px;background:rgba(4,22,41,.84);border:1px solid rgba(65,135,178,.4);border-radius:10px;color:#eff7ff}
+.nhl-original-props header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+.nhl-original-props header strong{font-size:11px;letter-spacing:.06em}
+.nhl-original-props header small{color:#a88ce7;font-size:9px}
+.nhl-original-props-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.nhl-original-prop{min-width:0;display:flex;align-items:center;justify-content:space-between;gap:9px;background:rgba(23,54,81,.7);border:1px solid rgba(71,132,184,.25);border-radius:8px;padding:9px}
+.nhl-original-prop span{display:grid;gap:4px;min-width:0}
+.nhl-original-prop span strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nhl-original-prop small{font-size:9px;color:#abc4d7}
+.nhl-original-prop b{font-size:19px;color:#5be9c5}
+.nhl-original-props p{font-size:11px;color:#aac3d2;margin:0}
+@media(max-width:550px){.nhl-original-props-grid{grid-template-columns:1fr}}

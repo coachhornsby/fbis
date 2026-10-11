@@ -1,6 +1,6 @@
 import TeamLogo from "../TeamLogo.jsx";
 import NhlEvidenceStrip from "./NhlEvidenceStrip.jsx";
-import NhlDecisionCard from "./NhlDecisionCard.jsx";
+import NhlPlayerProjectionStrip from "./NhlPlayerProjectionStrip.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
@@ -146,7 +146,6 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   if (isTennis) {
     return <TennisMatchCard game={game} open={open} onToggle={onToggle} renderDetail={renderDetail} />;
   }
-  if (sportId === "nhl") return <><NhlDecisionCard game={game} vm={vm} expanded={!onToggle||open} onOpen={onToggle ? () => onToggle(cardKey) : undefined}/>{open && typeof renderDetail === "function" ? <div className="nhlc-expanded-detail">{renderDetail(game)}</div> : null}</>;
   const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
   const isFinal = String(vm.status?.key || "").toUpperCase() === "FINAL" || Boolean(game?.status?.completed);
   const finalAway = game?.away?.score ?? away?.score ?? null;
@@ -263,7 +262,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           </>
         )}
       </section>
-      {sportId === "nhl" ? <NhlEvidenceStrip game={game} vm={vm} expanded /> : null}
+      {sportId === "nhl" ? <><NhlEvidenceStrip game={game} vm={vm} expanded /><NhlPlayerProjectionStrip game={game} /></> : null}
       {sportId !== "nhl" || action.available ? (
         <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="pgc-nfl-action-head"><strong>ACTION</strong><span>{action.headline?.label || (action.available ? "MARKET INTEL" : action.emptyLabel || "NO SNAPSHOT")}</span></div>

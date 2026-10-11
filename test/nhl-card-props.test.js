@@ -62,8 +62,8 @@ test("both NHL card routes use the same concise card without changing other spor
   readFile(new URL("../src/components/board/PremiumGameCard.jsx",import.meta.url),"utf8"),
   readFile(new URL("../src/components/board/NhlDecisionCard.jsx",import.meta.url),"utf8")
  ]);
- assert.match(compact,/if \(isNhl\) return <NhlDecisionCard/);
- assert.match(premium,/if \(sportId === "nhl"\) return <><NhlDecisionCard/);
+ assert.doesNotMatch(compact,/if \(isNhl\) return <NhlDecisionCard/);
+ assert.doesNotMatch(premium,/if \(sportId === "nhl"\) return <><NhlDecisionCard/);
  assert.match(card,/selectNhlCardProps/);
  assert.doesNotMatch(card,/BEST EDGE|NO EDGE|PROBABILITY UNVERIFIED · INTEGRITY HOLD/);
 });
@@ -81,4 +81,19 @@ test("NHL premium hero retains model-market gap and provenance guard without alt
  assert.match(card,/selectNhlCardProps/);
  assert.match(style,/nhlc-edge-hero/);
  assert.match(style,/nhlc-matchup-premium/);
+});
+
+test("original branded NHL card restored for compact and premium routes; props appended below source evidence",async()=>{
+ const [compact,premium,props]=await Promise.all([
+ readFile(new URL("../src/components/board/CompactGameCard.jsx",import.meta.url),"utf8"),
+ readFile(new URL("../src/components/board/PremiumGameCard.jsx",import.meta.url),"utf8"),
+ readFile(new URL("../src/components/board/NhlPlayerProjectionStrip.jsx",import.meta.url),"utf8")
+ ]);
+ assert.match(compact,/cgc-team-atmosphere/);
+ assert.match(compact,/cgc-best-edge/);
+ assert.match(compact,/MODEL \/ MARKET GAP/);
+ assert.match(compact,/<NhlEvidenceStrip game=\{game\} vm=\{vm\}/);
+ assert.match(compact,/<NhlPlayerProjectionStrip game=\{game\}/);
+ assert.match(premium,/<NhlPlayerProjectionStrip game=\{game\}/);
+ assert.match(props,/selectNhlCardProps/);
 });
