@@ -60,5 +60,39 @@
     "operation_artifact": "research/cfb/forward-20261011/rollout-operation.json",
     "execution_authorized": false,
     "independent_human_review": false
-  }
+  },
+  "local_full_restore_verified": true,
+  "local_full_restore_artifact": {
+    "run_id": 38110310315,
+    "artifact_id": 11691544549,
+    "artifact_sha256": "95780c2353c9ee8aff516589070f669de005d24054501ddf6591bfb691a08e39",
+    "state": "VERIFIED_LOCAL_FULL_RESTORE",
+    "foreign_key_violations": 0,
+    "sqlite_integrity": "ok",
+    "remote_d1_restore_verified": false
+  },
+  "live_preflight_bookmark": {
+    "bookmark": "000009c5-00001968-00005101-062b45f91aaafa758b466d96746c6edb",
+    "observed_at": "2026-10-11T14:31:29.563Z",
+    "action": "READ_ONLY_ONLY_NOT_A_VERIFIED_REMOTE_RESTORE"
+  },
+  "merged_safe_slices": [
+    {
+      "pr": 976,
+      "scope": "postgame SDV research only"
+    },
+    {
+      "pr": 941,
+      "scope": "read-only FBS team profiles"
+    },
+    {
+      "pr": 981,
+      "scope": "public forward FBS coverage audit"
+    },
+    {
+      "pr": 982,
+      "scope": "offline backup and partition preflight only"
+    }
+  ],
+  "remaining_release_gate": "REMOTE_RECOVERY_PROOF_AND_INDEPENDENT_0098_0099_RELEASE_ACCEPTANCE_REQUIRED"
 }
