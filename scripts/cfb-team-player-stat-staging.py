@@ -152,8 +152,29 @@ def partial_team_season(records,as_of):
    "can_influence_projection":0,
   })
  return output
+def verified_player_source(args):
+ # Admission requires an exact manifest and byte hash from our SDV player-box adapter.
+ if not args.player_csv or not args.player_manifest:
+  return None
+ manifest=json.loads(pathlib.Path(args.player_manifest).read_text())
+ digest=hashlib.sha256(pathlib.Path(args.player_csv).read_bytes()).hexdigest()
+ if manifest.get("source")!="SDV_ESPN_CFB_PLAYER_BOX" or manifest.get("sha256")!=digest:
+  raise ValueError("player box source manifest/hash mismatch")
+ if manifest.get("season")!=args.season:
+  raise ValueError("player box season does not match stage season")
+ if manifest.get("source_publication_time_verified") is not False:
+  raise ValueError("unexpected player box publication state")
+ return manifest
+
 def player_records(args,as_of):
  if not args.player_csv:return [],0
+ source_manifest=verified_player_source(args)
+ if not source_manifest:
+  # Do not import unknown player game CSVs into a source-specific archive.
+  raise ValueError("--player-manifest required for player game statistics")
+ player_observed_at=iso(source_manifest["source_observed_at"])
+ if player_observed_at>as_of:
+  raise ValueError("player source observed after archive stage cutoff")
  out=[];seen=set();rejected=0
  for source in dataset_rows(args.player_csv,args.member):
   if source.get("season")!=str(args.season):continue
@@ -174,8 +195,8 @@ def player_records(args,as_of):
    "id":"cfb-player-game:"+content_hash([team_id,player_id,game_id,h])[:32],
    "team_id":team_id,"player_id":player_id,"game_id":game_id,
    "season":args.season,"opponent":source.get("opponent") or None,
-   "game_at":game_at,"source":"VERIFIED_PLAYER_GAME_SOURCE_REQUIRED",
-   "source_timestamp":None,"observed_at":as_of,"content_hash":h,
+   "game_at":game_at,"source":source_manifest["source"],
+   "source_timestamp":None,"observed_at":player_observed_at,"content_hash":h,
    "temporal_class":"POSTGAME_ARCHIVE_NOT_PIT",
    "metrics_json":json.dumps(metrics,sort_keys=True,separators=(",",":")),
    "ingested_at":None,"can_influence_projection":0,
@@ -218,8 +239,8 @@ def partial_player_season(records,as_of):
   output.append({
    "id":"cfb-player-season:"+content_hash([team_id,player_id,season,h])[:32],
    "team_id":team_id,"player_id":player_id,"season":season,
-   "source":"VERIFIED_PLAYER_GAME_SOURCE_REQUIRED","source_timestamp":None,
-   "observed_at":as_of,"content_hash":h,
+   "source":rows[0]["source"],"source_timestamp":None,
+   "observed_at":rows[0]["observed_at"],"content_hash":h,
    "metrics_json":json.dumps(metrics,sort_keys=True,separators=(",",":")),
    "source_game_ids_json":json.dumps(games),
    "ingestion_version":"cfb-stat-staging-v1","can_influence_projection":0,
@@ -233,6 +254,7 @@ def main(argv=None):
  parser.add_argument("--archive-observed-at",required=True)
  parser.add_argument("--season",type=int,default=2026)
  parser.add_argument("--player-csv")
+ parser.add_argument("--player-manifest",help="Mandatory SDV player box adapter manifest if --player-csv supplied")
  parser.add_argument("--output-prefix",required=True)
  args=parser.parse_args(argv)
  as_of=iso(args.archive_observed_at)
@@ -252,6 +274,7 @@ def main(argv=None):
   "can_authorize_wager":False,"source":"FBIS_SDV_CFBD_HISTORY_ARCHIVE",
   "source_publication_timestamp_verified":False,
   "team_rows_rejected":rg,"player_rows_rejected":rp,
+  "player_source_manifest_verified":bool(args.player_csv and args.player_manifest),
   "files":files,
   "note":"Staging only; contains postgame historical evidence, not pregame forecasts or production data.",
  }
