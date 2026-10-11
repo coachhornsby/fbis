@@ -264,7 +264,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     matchupFactors: Array.isArray(game.matchupFactors) ? game.matchupFactors : [],
     nflProShadow: sport === "nfl" && game.nflProShadow ? game.nflProShadow : null,
     nflGameMatchup: sport === "nfl" && game.nflGameMatchup ? game.nflGameMatchup : null,
-    cfbUnitAudit: sport === "cfb" ? cfbUnitFeatureAudit(game) : null,
+    cfbUnitAudit: sport === "cfb" ? (game.cfbUnitAudit || cfbUnitFeatureAudit(game)) : null,
     nflWagerDecision: sport === "nfl" && game.nflWagerDecision ? game.nflWagerDecision : null,
     nhlProV2: sport === "nhl" && game.nhlProV2 ? game.nhlProV2 : null,
     nhlStarterEvidence: sport === "nhl" && game.nhlStarterEvidence ? game.nhlStarterEvidence : null,
