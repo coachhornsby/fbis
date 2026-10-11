@@ -107,11 +107,11 @@ test("SDV completed schedule join excludes scheduled, cancelled, TBD and non-FBS
  try{
   const {teams,players}=fixture(dir),schedule=join(dir,"schedule.csv"),prefix=join(dir,"ready");
   writeFileSync(schedule,[
-   "game_id,season,start_date,home_id,away_id,home_team,away_team,completed,start_time_tbd,status",
-   "401856634,2026,2026-10-01T10:00:00Z,333,888,Alabama,Georgia,true,false,STATUS_FINAL",
-   "401856635,2026,2026-10-13T10:00:00Z,333,888,Alabama,Georgia,false,false,STATUS_SCHEDULED",
-   "401856636,2026,2026-10-02T10:00:00Z,333,888,Alabama,Georgia,true,true,STATUS_FINAL",
-   "401856637,2026,2026-10-02T10:00:00Z,333,888,Alabama,Georgia,false,false,STATUS_CANCELED",
+   "game_id,season,start_date,home_id,away_id,home_team,away_team,completed,start_time_tbd,status,home_score,away_score",
+   "401856634,2026,2026-10-01T10:00:00Z,333,888,Alabama,Georgia,true,false,STATUS_FINAL,35,21",
+   "401856635,2026,2026-10-13T10:00:00Z,333,888,Alabama,Georgia,false,false,STATUS_SCHEDULED,,",
+   "401856636,2026,2026-10-02T10:00:00Z,333,888,Alabama,Georgia,true,true,STATUS_FINAL,28,24",
+   "401856637,2026,2026-10-02T10:00:00Z,333,888,Alabama,Georgia,false,false,STATUS_CANCELED,,",
   ].join("\n")+"\n");
   const r=run(adapter,["--player-box",players,"--schedule",schedule,"--fbs-teams",teams,
     "--season","2026","--source-observed-at","2026-10-03T00:00:00Z","--output-prefix",prefix]);
