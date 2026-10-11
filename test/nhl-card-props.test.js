@@ -67,3 +67,18 @@ test("both NHL card routes use the same concise card without changing other spor
  assert.match(card,/selectNhlCardProps/);
  assert.doesNotMatch(card,/BEST EDGE|NO EDGE|PROBABILITY UNVERIFIED · INTEGRITY HOLD/);
 });
+
+test("NHL premium hero retains model-market gap and provenance guard without altering player props",async()=>{
+ const [card,style]=await Promise.all([
+  readFile(new URL("../src/components/board/NhlDecisionCard.jsx",import.meta.url),"utf8"),
+  readFile(new URL("../src/components/board/nhlDecisionCard.css",import.meta.url),"utf8")
+ ]);
+ assert.match(card,/MODEL–MARKET GAP/);
+ assert.match(card,/FBIS WIN PROBABILITY/);
+ assert.match(card,/MARKET NO-VIG/);
+ assert.match(card,/PIT-AUDITED RESEARCH/);
+ assert.match(card,/ARCHIVED SNAPSHOT · NOT CURRENT/);
+ assert.match(card,/selectNhlCardProps/);
+ assert.match(style,/nhlc-edge-hero/);
+ assert.match(style,/nhlc-matchup-premium/);
+});
