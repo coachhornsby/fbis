@@ -12,7 +12,7 @@ function matchingProjection(row,projections){
  const found=projections.filter(p=>canonical(p.player_name||p.playerName)===canonical(row.player)&&canonical(p.canonical_market||p.stat_type||p.market)===canonical(row.market)&&nflTeamCode(p.team)===nflTeamCode(row.teamCode)&&String(p.odds_tier||"standard").toLowerCase()==="standard"&&String(p.duration||"full").toLowerCase()==="full");
  if(found.length!==1)return null;
  const p=found[0],value=p.fbis_projection??p.fbisProjection;
- return value!=null&&value!==""&&Number.isFinite(Number(value))?{value:Number(value),modelVersion:p.model_version||p.modelVersion||null}:null;
+ return value!=null&&value!==""&&Number.isFinite(Number(value))?{value:Number(value),modelVersion:p.model_version||p.modelVersion||null,exploratory:p.research_tier==="EXPLORATORY_DEPTH_SHADOW"}:null;
 }
 
 const teamCache=new Map();
@@ -97,10 +97,10 @@ function MirrorCard({row,time,projection}){
    <div className="pp-market-name pp-premium-market-name">{row.stat}</div>
    <div className="pp-mirror-comparison" aria-label="PrizePicks line versus FBIS model projection">
     <div className="pp-mirror-comparison-cell"><span>PRIZEPICKS</span><strong>{row.line}</strong><img className="pp-mirror-prizepicks-logo" src="https://app.prizepicks.com/images/pp-logos/pp-logo.svg" alt="PrizePicks" loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display="none"}}/></div>
-    <div className="pp-mirror-comparison-cell"><span>FBIS PROJ</span><strong>{projection?projection.value.toFixed(1):"—"}</strong></div>
+    <div className="pp-mirror-comparison-cell"><span>{projection?.exploratory?"FBIS SHADOW":"FBIS PROJ"}</span><strong>{projection?projection.value.toFixed(1):"—"}</strong></div>
     <div className={"pp-mirror-comparison-cell pp-mirror-delta "+(delta==null?"is-missing":delta>0?"is-positive":delta<0?"is-negative":"is-even")}><span>DIFFERENCE</span><strong>{delta==null?"—":(delta>0?"+":"")+delta.toFixed(1)}</strong></div>
    </div>
-   <div className="pp-mirror-context"><div className={"pp-mirror-defense rank-"+defenseTier}><span className="pp-mirror-defense-logo">{opponentTeam?.logo?<img src={opponentTeam.logo} alt={row.opponent+" logo"} loading="lazy"/>:null}</span><span>{defenseType} DEFENSE</span><strong>{defenseRank?.rank?"#"+defenseRank.rank:"N/A"}</strong></div><small>{projection?"FBIS "+(projection.modelVersion||"model"):"No matching published FBIS projection"} · Public line not verified live</small></div>
+   <div className="pp-mirror-context"><div className={"pp-mirror-defense rank-"+defenseTier}><span className="pp-mirror-defense-logo">{opponentTeam?.logo?<img src={opponentTeam.logo} alt={row.opponent+" logo"} loading="lazy"/>:null}</span><span>{defenseType} DEFENSE</span><strong>{defenseRank?.rank?"#"+defenseRank.rank:"N/A"}</strong></div><small>{projection?(projection.exploratory?"Exploratory depth-role shadow · ":"FBIS ")+(projection.modelVersion||"model"):"No matching published FBIS projection"} · Public line not verified live</small></div>
    <div className="pp-card-foot pp-premium-foot"><span>{time(row.startAt)} CT</span><span>Research only · No FBIS pick</span></div>
    <div className="pp-analytics">
     <button type="button" className="pp-analytics-toggle" onClick={()=>setExpanded(v=>!v)}
