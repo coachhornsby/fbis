@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { RECOVERY_CRON, recoverCurrentPipeline } from "./prospective-pipeline-recovery.mjs";
 import { TENNIS_HEALTH_CRON, checkTennisRefreshHealth, runTennisHealthCron } from "./tennis-refresh-health.mjs";
+import { TENNIS_RECOVERY_CRON, runTennisRecoveryCron } from "./tennis-refresh-recovery.mjs";
 import {
   CFG,
   configureRuntime,
@@ -251,7 +252,15 @@ async function handleFetch(request, env) {
   // Public aggregate status only; source rows and credentials remain private.
   if (request.method === "GET" && url.pathname === "/health/tennis-canonical") {
     const h = await checkTennisRefreshHealth(env);
-    return json(h.ok ? 200 : 503, h);
+    return json(h.ok ? 200 : 503, {
+      ...h,
+      recovery: {
+        enabled:String(env.TENNIS_RECOVERY_ENABLED||"false").toLowerCase()==="true",
+        credentialConfigured:Boolean(env.TENNIS_GITHUB_DISPATCH_TOKEN),
+        cadence:TENNIS_RECOVERY_CRON,
+        automationScope:"CURRENT_AND_FULL_CANONICAL_ONLY",
+      },
+    });
   }
   if (request.method === "GET" && url.pathname === "/health") {
     return json(200, {
@@ -335,7 +344,9 @@ export default {
   fetch: handleFetch,
   async scheduled(controller, env, ctx) {
     const cron=String(controller?.cron||"");
-    const task = cron === TENNIS_HEALTH_CRON
+    const task = cron === TENNIS_RECOVERY_CRON
+      ? runTennisRecoveryCron(env,{scheduledTime:controller.scheduledTime})
+      : cron === TENNIS_HEALTH_CRON
       ? runTennisHealthCron(env)
       : cron === RECOVERY_CRON
       ? recoverCurrentPipeline(env, controller)
@@ -353,7 +364,8 @@ export default {
           }));
           // Health/recovery watchdog failures must be visible as cron failures,
           // not swallowed after logging. This does NOT trigger data collectors.
-          if (cron === RECOVERY_CRON || cron === TENNIS_HEALTH_CRON) throw error;
+          if (cron === RECOVERY_CRON || cron === TENNIS_HEALTH_CRON ||
+              cron === TENNIS_RECOVERY_CRON) throw error;
         })
     );
   },
