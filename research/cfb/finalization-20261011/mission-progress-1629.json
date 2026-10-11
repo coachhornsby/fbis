@@ -1,0 +1,118 @@
+{
+  "as_of": "2026-10-11T16:29:00Z",
+  "mission_complete": false,
+  "production_db_mutations": 0,
+  "can_authorize_wager": false,
+  "model_authority": "CFB-FBIS-v2 unchanged",
+  "recovery_run": "https://github.com/coachhornsby/fbis/actions/runs/38153970674",
+  "deliverables": [
+    {
+      "number": 1,
+      "deliverable": "Verified production baseline",
+      "status": "VERIFIED",
+      "evidence_or_blocker": "Read-only D1 inventory; Pages ff9007 deployed; later source-only lease merge 8e2e9 pending deploy verification."
+    },
+    {
+      "number": 2,
+      "deliverable": "Checksum-verified full backup manifest",
+      "status": "VERIFIED",
+      "evidence_or_blocker": "Existing five-part single-bookmark alternative verified; original 603 parts not located; export creation time unavailable."
+    },
+    {
+      "number": 3,
+      "deliverable": "Isolated full restoration",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "Local full 266-table restoration and typed content reconciliation passed; remote run 38153970674 importing, target b6ecec0b-5e2b-4bee-8e7e-ca500028b39b; independent acceptance pending."
+    },
+    {
+      "number": 4,
+      "deliverable": "0098 and 0099 migration/import artifacts",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "Exact contracts tested; 0099 missing-uniqueness defect fixed in PR990; no production application or independent acceptance."
+    },
+    {
+      "number": 5,
+      "deliverable": "Persistent team/player statistics database",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "Existing canonical directories and isolated ledgers; production statistical ledgers absent."
+    },
+    {
+      "number": 6,
+      "deliverable": "Automated postgame ingestion/corrections",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "Durable final discovery, leases, atomic paired cards, correction versions tested; real production collector/outbox activation pending."
+    },
+    {
+      "number": 7,
+      "deliverable": "Every active FBS Team Card",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "138 source-backed public research profiles; complete postgame publication not active."
+    },
+    {
+      "number": 8,
+      "deliverable": "Detailed player pages",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "Available roster/stat interfaces; verified all-position live coverage incomplete."
+    },
+    {
+      "number": 9,
+      "deliverable": "Reconciliation and health dashboard",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "Content-level stale-card checks and durable queue state tested; production dashboard integration pending."
+    },
+    {
+      "number": 10,
+      "deliverable": "Team strength/opponent adjustment",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "SDV source metrics and ranking display available; independently calibrated production rating refresh pending."
+    },
+    {
+      "number": 11,
+      "deliverable": "Historical PIT modeling dataset",
+      "status": "BLOCKED",
+      "evidence_or_blocker": "Retrospective research datasets available; fully qualified historical point-in-time cohort unavailable."
+    },
+    {
+      "number": 12,
+      "deliverable": "Incumbent and challengers",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "Incumbent preserved; raw Ridge/SVD challengers reproducible, no promotion."
+    },
+    {
+      "number": 13,
+      "deliverable": "Walk-forward and calibration reports",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "2025 holdout 807 games reproduced; SVD total MAE12.9901 vs raw12.9338, improvement unsupported; distributional qualification incomplete."
+    },
+    {
+      "number": 14,
+      "deliverable": "Prospective shadow pipeline",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "Read-only recurring snapshots preserve evidence; executable quote joins and prospective economic cohort incomplete."
+    },
+    {
+      "number": 15,
+      "deliverable": "Economic qualification framework",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "Existing governance preserved; qualified prospective ROI/CLV unavailable."
+    },
+    {
+      "number": 16,
+      "deliverable": "Full end-to-end regression",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "Offline queue and transaction chain plus native local workerd verified; production-scale complete chain pending."
+    },
+    {
+      "number": 17,
+      "deliverable": "Runbooks and operations",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "Recovery/migration/adapter artifacts documented; complete operational rollout contingent on gates."
+    },
+    {
+      "number": 18,
+      "deliverable": "PRs commits CI release gates",
+      "status": "PARTIAL",
+      "evidence_or_blocker": "PR988-992 merged after passing CI; PR987 full recovery in progress; independent verifier pending."
+    }
+  ]
+}
