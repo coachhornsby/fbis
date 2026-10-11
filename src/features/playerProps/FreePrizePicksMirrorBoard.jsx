@@ -123,13 +123,14 @@ export default function FreePrizePicksMirrorBoard(){
   const [search,setSearch]=useState("");
   const [limit,setLimit]=useState(48);
   const [projections,setProjections]=useState([]);
+  const [projectionStatus,setProjectionStatus]=useState("LOADING");
   useEffect(()=>{
    let active=true;
-   const q=new URLSearchParams({date:mirrorChicagoDay(new Date()),sport:"nfl",mode:"sport"});
-   fetch("/api/selective-props?"+q,{credentials:"same-origin"})
+   const q=new URLSearchParams({date:mirrorChicagoDay(new Date())});
+   fetch("/api/nfl-mirror-projections?"+q,{credentials:"same-origin"})
     .then(r=>r.ok?r.json():null)
-    .then(j=>{if(active)setProjections(Array.isArray(j?.rows)?j.rows:[])})
-    .catch(()=>{if(active)setProjections([])});
+    .then(j=>{if(active){setProjections(j?.ok&&Array.isArray(j?.rows)?j.rows:[]);setProjectionStatus(j?.ok?(j.rows?.length?"AVAILABLE":"NONE"):"UNAVAILABLE")}})
+    .catch(()=>{if(active){setProjections([]);setProjectionStatus("UNAVAILABLE")}});
    return()=>{active=false};
   },[refresh]);
 
@@ -198,6 +199,7 @@ export default function FreePrizePicksMirrorBoard(){
             <span>Published: {time(result.publishedAt)} CT</span>
             <span>{result.rows.length} upcoming standard props</span>
             <span>{result.coreRows} across FBIS six markets</span>
+            <span>Independent FBIS model: {projectionStatus==="LOADING"?"loading":projectionStatus==="AVAILABLE"?projections.length+" current candidates":projectionStatus==="NONE"?"no current projections":"unavailable"}</span>
             <span>{result.excludedStarted} started-game rows hidden</span>
           </div>
           <div role="group" aria-label="Free mirror filters" style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:10,marginBottom:12}}>
