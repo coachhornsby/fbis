@@ -282,7 +282,7 @@ export default function CompactGameCard({ game, onOpen }) {
               <strong className="cgc-team-name cgc-team-name-mlb">{away.fullName || away.name || away.abbr || "—"}</strong>
             ) : (
               <>
-                <strong className="cgc-team-name fbis-full-team-name">away.fullName || away.name || away.abbr || "—"}</strong>
+                <strong className="cgc-team-name fbis-full-team-name">{away.fullName || away.name || away.abbr || "—"}</strong>
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
@@ -298,7 +298,7 @@ export default function CompactGameCard({ game, onOpen }) {
               <strong className="cgc-team-name cgc-team-name-mlb">{home.fullName || home.name || home.abbr || "—"}</strong>
             ) : (
               <>
-                <strong className="cgc-team-name fbis-full-team-name">home.fullName || home.name || home.abbr || "—"}</strong>
+                <strong className="cgc-team-name fbis-full-team-name">{home.fullName || home.name || home.abbr || "—"}</strong>
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
