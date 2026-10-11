@@ -7,6 +7,7 @@ import { loadFbsTeamDirectory, onRequestGet } from "../functions/api/cfb-teams.j
 import {toRosterProfiles,rosterProfile,teamSchedule,normalizeStats,statSnapshot} from "../functions/lib/cfbTeamStatProfile.js";
 import {loadFbsTeamSeasonEvidence} from "../functions/lib/cfbTeamSeasonEvidence.js";
 
+const emptyPublic=async()=>({schedule:{state:"AVAILABLE",games:[],count:0},apRanking:{state:"AVAILABLE",rank:null}});
 const sample = (overrides = {}) => ({
   team_id:"cfb:espn:333", school_name:"Alabama", athletic_name:"Crimson Tide",
   abbreviation:"ALA", active:1, subdivision:"FBS", current_conference:"SEC",
@@ -105,17 +106,17 @@ test("List endpoint queries persistent FBS identities only and performs zero acq
 });
 test("Single team endpoint blocks FCS, unverified IDs and reports missing feature persistence",async()=>{
  const {db,calls}=dbMock();
- const g=await loadFbsTeamDirectory(db,"cfb:espn:333");
+ const g=await loadFbsTeamDirectory(db,"cfb:espn:333",{publicFactsLoader:emptyPublic});
  assert.equal(g.status,200); assert.equal(g.body.team.stadium.name,"Bryant-Denny Stadium");
  assert.equal(g.body.featureState.state,"PERSISTENCE_UNAVAILABLE");
- assert.equal(g.body.externalProviderRequests,0);
- assert.equal((await loadFbsTeamDirectory(db,"cfb:espn:444")).status,404);
- assert.equal((await loadFbsTeamDirectory(db,"cfb:espn:444 OR 1=1")).status,400);
+ assert.equal(g.body.externalProviderRequests,2);
+ assert.equal((await loadFbsTeamDirectory(db,"cfb:espn:444",{publicFactsLoader:emptyPublic})).status,404);
+ assert.equal((await loadFbsTeamDirectory(db,"cfb:espn:444 OR 1=1",{publicFactsLoader:emptyPublic})).status,400);
  assert.ok(calls.every(x=>/^SELECT /i.test(x)));
 });
 test("GET handler responds as JSON, and database failures fail closed",async()=>{
  const {db}=dbMock();
- const r=await onRequestGet({env:{DB:db},request:new Request("https://fbis.test/api/cfb-teams?team=cfb%3Aespn%3A333")});
+ const r=await onRequestGet({env:{DB:db},publicFactsLoader:emptyPublic,request:new Request("https://fbis.test/api/cfb-teams?team=cfb%3Aespn%3A333")});
  assert.equal(r.status,200);
  assert.equal((await r.json()).team.school,"Alabama");
  assert.equal((await loadFbsTeamDirectory(dbMock({failed:true}).db)).status,503);
@@ -126,7 +127,7 @@ test("Navigation keeps Team Profiles separate from game slates and wager authori
  assert.match(app,/route === "teams"/);
  assert.match(app,/<CfbTeamsView refreshKey=/);
  const api=readFileSync(new URL("../functions/api/cfb-teams.js",import.meta.url),"utf8");
- assert.doesNotMatch(api,/cfbdGet|fetch\(|buildSlate|runCollegeJob|recordApiUsage/);
+ assert.doesNotMatch(api,/cfbdGet|buildSlate|runCollegeJob|recordApiUsage/);
 });
 
 test("All-position roster preserves actual membership, physical attributes and zero projection authority",()=>{
@@ -214,13 +215,13 @@ test("FBS season evidence returns saved complete rosters and all stat groups wit
 });
 test("Missing statistical tables keep rosters visible without inventing season statistics",async()=>{
  const {db}=dbMock();
- const result=await loadFbsTeamDirectory(db,"cfb:espn:333",{season:2026});
+ const result=await loadFbsTeamDirectory(db,"cfb:espn:333",{season:2026,publicFactsLoader:emptyPublic});
  assert.equal(result.status,200);
  assert.equal(result.body.evidence.teamStatistics.state,"NO_VERIFIED_STATS");
  assert.equal(result.body.evidence.teamStatistics.storageState,"NOT_POPULATED");
  assert.equal(result.body.evidence.playerStatistics.availableCount,0);
  assert.equal(result.body.evidence.roster.count,0);
- assert.equal((await loadFbsTeamDirectory(db,"cfb:espn:333",{season:2030})).status,400);
+ assert.equal((await loadFbsTeamDirectory(db,"cfb:espn:333",{season:2030,publicFactsLoader:emptyPublic})).status,400);
  assert.equal((await loadFbsTeamDirectory(db,"cfb:espn:333",{playerId:"x' OR 1=1"})).status,400);
 });
 test("Team page exposes both all-player roster and grouped actual stat sections",()=>{

@@ -1,3 +1,4 @@
+import { loadCfbPublicTeamFacts } from "../lib/cfbTeamPublicFacts.js";
 import { toFbsTeamList, toFbsTeamProfile, toTeamFeatureSummary, toLegacyFormSummary } from "../lib/cfbTeamProfiles.js";
 import {loadFbsTeamSeasonEvidence,validProfileSeason,validProfilePlayer} from "../lib/cfbTeamSeasonEvidence.js";
 
@@ -49,9 +50,11 @@ export async function loadFbsTeamDirectory(db, requestedTeamId = null, options =
         optionalTeamFeatures(db, team.teamId), optionalTeamForm(db, team.espnId,season),
         loadFbsTeamSeasonEvidence(db,team,season,playerId),
       ]);
+      const publicFacts = await (options.publicFactsLoader || loadCfbPublicTeamFacts)(team.espnId, Number(season));
+      evidence.schedule = publicFacts.schedule;
       return { status: 200, body: {
-        ok: true, team, featureState, legacyForm, evidence, modelAuthority: noModelAuthority,
-        storage: "PERSISTENT_D1_READ_ONLY", externalProviderRequests: 0,
+        ok: true, team, featureState, legacyForm, evidence, apRanking:publicFacts.apRanking, modelAuthority: noModelAuthority,
+        storage: "PERSISTENT_D1_READ_ONLY", externalProviderRequests: 2,
       } };
     }
     const results = await db.prepare("SELECT * " + baseSql + " ORDER BY school_name ASC LIMIT 180").all();
@@ -71,6 +74,7 @@ export async function onRequestGet(context) {
   const result = await loadFbsTeamDirectory(context.env?.DB, teamId, {
     season: url.searchParams.get("season") || 2026,
     playerId: url.searchParams.get("player") || null,
+    publicFactsLoader: context.publicFactsLoader,
   });
   return json(result.body, result.status);
 }
