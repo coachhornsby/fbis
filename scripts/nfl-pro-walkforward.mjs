@@ -206,5 +206,47 @@ decision.status=decision.promoteCandidate?"PROMOTION_EVIDENCE_PASS":"RESEARCH_HO
 decision.rule="NFL-PRO-v2 must beat NFL-PRO-v1 and calibrated form baseline on paired walk-forward margin MAE, total MAE, and winner accuracy with n>=400. Historical test only uses feature families available point-in-time in this harness; absent NGS/availability families remain missing.";
 decision.featureCaveat="This run reconstructs NGS weekly passing/rushing/receiving and snap counts strictly from weeks before each target game; week=0 season summaries are excluded. Historical availability remains excluded until a timestamp-safe source is validated.";
 fs.writeFileSync("artifacts/nfl-pro-walkforward-rows.jsonl",paired.map(x=>JSON.stringify(x)).join("\n")+"\n");
+
+/**
+ * Frozen-input family knockouts on the untouched 2025 season.
+ * Diagnostic ablation of deployed research formula, NOT a fitted improvement.
+ * No market data and no postgame feature ingestion.
+ */
+const ablationFamilies={
+  quarterback:["qbEpa","qbCpoe","qbNgsCpoe","qbTimeToThrow","qbAggressiveness","qbPressureEpa","qbSackRate","qbScrambleEpa","qbPrior"],
+  teamEfficiency:["offenseEpa","defenseEpa","successRate","successRateAllowed","earlyDownEpa","earlyDownEpaAllowed"],
+  passingMatchup:["passEpa","passEpaAllowed","explosiveRate","explosiveRateAllowed"],
+  rushingMatchup:["rushEpa","rushEpaAllowed","lineYards","lineYardsAllowed"],
+  tracking:["rushYoePerAtt","rushEfficiency","receivingSeparation","receivingYacOe"],
+  pressure:["pressureRate","pressureRateAllowed"],
+};
+const holdoutInputs=gameInputs.filter(r=>r.season===2025);
+function knockout(row,fields) {
+  const home={...(row.modelGame.nflFeatures?.home||{})},away={...(row.modelGame.nflFeatures?.away||{})};
+  for(const field of fields){delete home[field];delete away[field];}
+  return {...row.modelGame,nflFeatures:{home,away}};
+}
+function diagnostic(rows,fields=null){
+  const eligible=[];
+  for(const row of rows){
+    const control=projectNflProV1(row.modelGame);
+    if(!control.ok)continue;
+    const trial=fields?projectNflProV1(knockout(row,fields)):control;
+    if(!trial.ok)continue;
+    eligible.push({controlMargin:Math.abs(control.margin-row.actualMargin),controlTotal:Math.abs(control.total-row.actualTotal),
+      trialMargin:Math.abs(trial.margin-row.actualMargin),trialTotal:Math.abs(trial.total-row.actualTotal)});
+  }
+  const meanField=field=>eligible.length?eligible.reduce((a,r)=>a+r[field],0)/eligible.length:null;
+  return {pairedN:eligible.length,controlMarginMae:meanField("controlMargin"),controlTotalMae:meanField("controlTotal"),
+    knockedOutMarginMae:meanField("trialMargin"),knockedOutTotalMae:meanField("trialTotal"),
+    deltaMarginMae:eligible.length?meanField("trialMargin")-meanField("controlMargin"):null,
+    deltaTotalMae:eligible.length?meanField("trialTotal")-meanField("controlTotal"):null};
+}
+const ablations={status:"HISTORICAL_DIAGNOSTIC_ONLY",trainSeason:2024,holdoutSeason:2025,
+  caveat:"Knockout changes deployed formula missingness normalization. Not a refitted counterfactual, economic proof, or promotion evidence.",
+  families:Object.fromEntries(Object.entries(ablationFamilies).map(([name,fields])=>[name,diagnostic(holdoutInputs,fields)]))};
+fs.writeFileSync("artifacts/nfl-pro-ablation-report.json",JSON.stringify(ablations,null,2));
+decision.ablationArtifact="nfl-pro-ablation-report.json";
+
 fs.writeFileSync("artifacts/nfl-pro-walkforward-report.json",JSON.stringify(decision,null,2));
 console.log(JSON.stringify(decision,null,2));
