@@ -283,6 +283,11 @@ function candidate({
   if(game.availabilityImpact?.criticalUnresolved)reasons.push("critical-availability-unresolved");
   if(game.availabilityImpact?.configured && game.availabilityImpact?.stale)reasons.push("availability-stale");
   if(!projection.coverage||Number(projection.coverage.share||0)<0.55)reasons.push("projection-coverage-low");
+  // Research-only international context may flag risk, not create an unvalidated edge.
+  if(game.nflInternationalContext?.international===true){
+    if(!game.nflInternationalContext.arrivalEvidenceComplete)reasons.push("international-arrival-evidence-missing");
+    if(game.nflInternationalContext.adjustmentValidated!==true)reasons.push("international-context-unvalidated");
+  }
 
   const evGate=ev!=null&&ev>=Number(calibration?.minEv??0.025);
   const probGate=probability!=null&&be!=null&&(probability-be)>=Number(calibration?.minProbabilityEdge??0.02);
@@ -292,7 +297,8 @@ function candidate({
   // even while confidence monotonicity and staking rules are still accumulating.
   const qualificationEligible=evGate&&probGate&&reasons.filter(r=>[
     "market-line-missing","actual-price-missing","probability-unavailable","break-even-unavailable","ev-unavailable",
-    "critical-availability-unresolved","availability-stale","projection-coverage-low"
+    "critical-availability-unresolved","availability-stale","projection-coverage-low",
+    "international-arrival-evidence-missing","international-context-unvalidated"
   ].includes(r)).length===0;
   const bet=qualificationEligible;
 
