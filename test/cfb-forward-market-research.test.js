@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {researchPrices} from '../scripts/cfb-forward-market-research.mjs';
+const snapshot={id:'s',input_fingerprint:'i',decision_at:'2026-10-11T05:00:00Z',event_start_at:'2026-10-17T20:00:00Z',team_ids:{home:'cfb:espn:1',away:'cfb:espn:2'},projection:{p_home:.6,p_away:.4}};
+const game={id:'g',competitions:[{competitors:[{homeAway:'home',team:{id:'1'}},{homeAway:'away',team:{id:'2'}}]}]};
+const receipt={observed_at:'2026-10-11T04:59:00Z',file:'fixture.json',sha256:'a'.repeat(64)};
+const odds={provider:{id:'100',name:'DraftKings'},homeTeamOdds:{team:{id:'1'}},awayTeamOdds:{team:{id:'2'}},moneyline:{home:{close:{odds:'-150'}},away:{close:{odds:'+130'}}},pointSpread:{home:{close:{line:'-3',odds:'-110'}}},total:{over:{close:{line:'o50.5',odds:'-110'}}}};
+test('actual signed prices retain receipt clocks and never imply closing or eligible evidence',()=>{const rows=researchPrices({odds,game,receipt,snapshot});assert.equal(rows.length,4);assert.equal(rows[0].quote_implied_probability,.6);assert.equal(rows[0].probability_difference,0);assert.equal(rows[2].line,-3);assert.equal(rows[3].line,50.5);for(const r of rows){assert.equal(r.clv,null);assert.equal(r.eligible_quote,false);assert.equal(r.is_verified_closing_quote,false);assert.equal(r.can_authorize_wager,false);}});
+test('identity and cutoff failures produce no research quote',()=>{assert.deepEqual(researchPrices({odds,game,receipt:{...receipt,observed_at:'2026-10-11T05:01:00Z'},snapshot}),[]);assert.deepEqual(researchPrices({odds:{...odds,homeTeamOdds:{team:{id:'3'}}},game,receipt,snapshot}),[]);});
+test('missing or malformed odds never receive fabricated defaults',()=>{const o=structuredClone(odds);o.moneyline.home.close.odds='0';o.moneyline.away.close.odds=null;o.pointSpread.home.close.line='PK';o.total.over.close.line='unknown';assert.deepEqual(researchPrices({odds:o,game,receipt,snapshot}),[]);});
