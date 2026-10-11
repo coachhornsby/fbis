@@ -1,0 +1,22 @@
+.fbis-shell-main.route-board .nfl-unit-panel{padding:13px;border:1px solid rgba(84,158,218,.55);border-radius:12px;background:linear-gradient(145deg,#0b3155,#04182b);color:#eff8ff}
+.fbis-shell-main.route-board .nfl-unit-panel>header{display:flex;justify-content:space-between;gap:10px;margin-bottom:10px;align-items:center;flex-wrap:wrap}
+.fbis-shell-main.route-board .nfl-unit-panel>header strong{color:#69d6ff;font-size:14px;font-weight:950}
+.fbis-shell-main.route-board .nfl-unit-panel>header span{font-size:10px;color:#aecae4;font-weight:850}
+.fbis-shell-main.route-board .nfl-unit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fbis-shell-main.route-board .nfl-unit-tile{min-width:0;display:grid;gap:12px;border-radius:12px;padding:13px;border:2px solid #637d9a;background:linear-gradient(145deg,#1b304b,#07172a)}
+.fbis-shell-main.route-board .nfl-unit-tile.has-edge{border-color:var(--unit-secondary);background:linear-gradient(135deg,color-mix(in srgb,var(--unit-primary) 58%,#061728),#061b32 91%);box-shadow:inset 0 1px rgba(255,255,255,.12),0 0 13px color-mix(in srgb,var(--unit-secondary) 33%,transparent)}
+.fbis-shell-main.route-board .nfl-unit-line{display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr);gap:5px;align-items:center}
+.fbis-shell-main.route-board .nfl-unit-line>div{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0}
+.fbis-shell-main.route-board .nfl-unit-line strong{font-size:clamp(10px,1vw,13px);line-height:1.3;overflow-wrap:normal}
+.fbis-shell-main.route-board .nfl-unit-line>span{font-size:9px;color:#89b4d2;text-align:center;font-weight:900}
+.fbis-shell-main.route-board .nfl-unit-result{display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;text-align:center}
+.fbis-shell-main.route-board .nfl-unit-result strong{font-size:clamp(15px,1.45vw,20px);line-height:1.2;font-weight:950}
+.fbis-shell-main.route-board .nfl-unit-tile>small{text-align:center;color:#b7d2e7;font-size:10px;font-weight:800}
+.fbis-shell-main.route-board .nfl-hero-venue{display:grid;gap:3px;place-items:center;min-width:0;max-width:100%;padding:5px;border-radius:8px;background:rgba(3,20,36,.54)}
+.fbis-shell-main.route-board .nfl-hero-venue>div{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;font-size:10px;line-height:1.3;text-align:center;color:#d5edff}
+.fbis-shell-main.route-board .nfl-hero-venue svg{flex:0 0 16px;width:16px;height:16px;fill:#76cbf4}
+.fbis-shell-main.route-board .nfl-hero-venue strong{overflow-wrap:break-word}
+.fbis-shell-main.route-board .cgc[data-sport="nfl"] .cgc-vs{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.fbis-shell-main.route-board .cgc[data-sport="nfl"] .cgc-matchup{grid-template-columns:minmax(0,1fr) minmax(130px,.8fr) minmax(0,1fr)!important}
+.fbis-shell-main.route-board .cgc[data-sport="nfl"]>.cgc-conditions{display:none!important}
+@media(max-width:650px){.fbis-shell-main.route-board .nfl-unit-grid{grid-template-columns:1fr}.fbis-shell-main.route-board .cgc[data-sport="nfl"] .cgc-matchup{grid-template-columns:minmax(0,1fr) minmax(90px,.65fr) minmax(0,1fr)!important}.fbis-shell-main.route-board .nfl-hero-venue>div{font-size:9px}}
