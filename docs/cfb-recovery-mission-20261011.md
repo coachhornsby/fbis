@@ -61,8 +61,8 @@ Bounded offline learning findings record season/regime errors and hypotheses wit
 | # | Deliverable | Status | Evidence or remaining work |
 |---|---|---|---|
 | 1 | Production baseline | PARTIAL | Current SHA/Pages, both ledgers, all 928 schema objects and all 266 user-table counts verified; complete workflow/source/operational audit remains incomplete |
-| 2 | Full backup manifest | VERIFIED | Newer five-part single-bookmark alternative verified byte-for-byte; original 603 parts and explicit creation time remain unavailable |
-| 3 | Full isolated restoration | VERIFIED | Full local SQLite restore: 266 tables, 3,285,588 rows, zero FK errors; remote D1 full import remains unverified |
+| 2 | Full backup manifest | PARTIAL | Newer five-part single-bookmark alternative verified byte-for-byte; original 603 parts and explicit creation time remain unavailable |
+| 3 | Full isolated restoration | PARTIAL | Full local SQLite restore: 266 tables, 3,285,588 rows, zero FK errors; remote D1 full import remains unverified |
 | 4 | 0098/0099/import artifacts | PARTIAL | Reconciled code and local tests; independent review and production approval outstanding |
 | 5 | Persistent team/player statistical database | PARTIAL | Existing identities plus 35,320-row isolated research import; production performance ledgers absent |
 | 6 | Automated ingestion/corrections | PARTIAL | Offline reference and isolated D1/R2 pilot tested; production collector/scheduler/adapter absent |
