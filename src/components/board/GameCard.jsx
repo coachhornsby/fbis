@@ -115,6 +115,12 @@ export default function GameCard({
         </div>
       </header>
 
+      {String(game.sport || "").toLowerCase() === "nfl" && game.nflInternationalContext?.international ? (
+        <div className="gc-action-footnote muted" role="status" aria-label="International-game risk">
+          🌍 {game.nflInternationalContext.site?.city || "INTERNATIONAL"} · INTERNATIONAL / NEUTRAL · TRAVEL NOT VALIDATED · NO BET AUTHORITY
+        </div>
+      ) : null}
+
       <div className={matchupClass} aria-label="Matchup">
         <div className="gc-side away">
           <div className="gc-team-logo-stack">
