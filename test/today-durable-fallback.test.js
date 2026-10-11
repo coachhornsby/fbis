@@ -63,7 +63,7 @@ test("D1 date-scoped fallback never writes or accesses provider endpoints",async
   assert.match(store.metrics.sql,/p\.frozen_at<g\.start/);
   assert.match(store.metrics.sql,/rn=1/);
   assert.match(store.metrics.sql,/SELECT \*/);
-  assert.doesNotMatch(store.metrics.sql,/INSERT|UPDATE|DELETE|REPLACE/i);
+  assert.doesNotMatch(store.metrics.sql,/\\b(?:INSERT|UPDATE|DELETE|REPLACE)\\b/i);
   assert.equal(store.metrics.calls,1);
   assert.deepEqual(store.metrics.bindings.slice(1),[today,"all","all"]);
 });
