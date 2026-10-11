@@ -1,4 +1,5 @@
 import TeamLogo from "../TeamLogo.jsx";
+import NhlEvidenceStrip from "./NhlEvidenceStrip.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
@@ -183,7 +184,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <div className="pgc-featured-meta">
           <span>{[vm.timing?.dateLine, vm.timing?.timeLine].filter(Boolean).join(" · ") || "—"}</span>
           <span className="pgc-sport-pill">{String(vm.sport || "").toUpperCase()}</span>
-          <SharpStars value={stars} />
+          {sportId !== "nhl" || proj.available ? <span title={sportId === "nhl" ? "Model confidence rating, not wagering authority" : "Model confidence rating"}><SharpStars value={stars} /></span> : <span>NO MODEL RATING</span>}
         </div>
       </header>
       {sportId === "cfb" && proj.available ? (
@@ -215,7 +216,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
 
         <div className="pgc-featured-center">
           <span className="pgc-vs">VS</span>
-          <small>{soccerPick ? "Confidence Pick" : "Model Edge"}</small>
+          <small>{soccerPick ? "Confidence Pick" : vm.decision?.evAvailable ? "Calibrated edge" : "Model / market gap"}</small>
           <strong>{soccerPick ? soccerPick.pick || "—" : isTennis ? tennisEdgeValue : edge.value}</strong>
           <span className="pgc-edge-delta">{soccerPick ? `${stars}★ · 1X2` : isTennis ? tennisEdgeDelta : `${edge.delta} ${edge.type}`}</span>
         </div>
@@ -248,12 +249,13 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         ) : (
           <>
             <div><span>{marketSideLabel}</span><strong>{market.spreadLabel || cmp.marketSide?.label || "—"}</strong></div>
-            <div><span>FBIS TOTAL</span><strong>{proj.total ?? "—"}</strong></div>
+            <div><span>{sportId === "nhl" ? "PREGAME FBIS TOTAL" : "FBIS TOTAL"}</span><strong>{proj.total ?? "—"}</strong></div>
             <div><span>MARKET TOTAL</span><strong>{market.total ?? "—"}</strong></div>
           </>
         )}
       </section>
-      {true ? (
+      {sportId === "nhl" ? <NhlEvidenceStrip game={game} vm={vm} expanded /> : null}
+      {sportId !== "nhl" || action.available ? (
         <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="pgc-nfl-action-head"><strong>ACTION</strong><span>{action.headline?.label || (action.available ? "MARKET INTEL" : action.emptyLabel || "NO SNAPSHOT")}</span></div>
           <div><span>TICKETS</span><strong>{splitLabel(action.tickets, away, home)}</strong></div>
@@ -261,6 +263,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <div><span>LINE MOVE</span><strong>{action.lineMove?.label || action.movement?.label || "NO MOVE"}</strong></div>
         </section>
       ) : null}
+      {sportId === "nhl" && !action.available ? <p className="cgc-nhl-action-unavailable">ACTION splits and movement: UNAVAILABLE · No proxy signals inferred</p> : null}
       <footer className="pgc-footer pgc-featured-footer">
         <span>{vm.footer?.marketSourceLabel || "Market Source: —"}</span>
         {typeof onToggle === "function" ? (
