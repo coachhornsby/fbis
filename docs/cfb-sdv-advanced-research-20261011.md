@@ -33,3 +33,31 @@ Manual only (no recurring cost): `python scripts/cfb-sdv-historical-collect.py -
 
 ## Agents
 ChatGPT is implementation owner for this isolated CFB acquisition branch. Gemini Spark is second-party verifier; do not edit this branch concurrently or replicate full history in a different crawler. This collector is independent of Soccer/Tennis and PR #963's CFB prospective shadow capture.
+
+
+## Verified hosted execution — October 11, 2026
+
+Successful exact-head research run: [38121803992](https://github.com/coachhornsby/fbis/actions/runs/38121803992) at commit `8fb821d7352aad0fbc8738423b4592a81a33cdd5`. Raw asset + retrospective evaluation [artifact #11695513399](https://github.com/coachhornsby/fbis/actions/runs/38121803992/artifacts/11695513399) (7-day retention, expires October 18), SHA-256 `d5fc38639873112fb3f5f472448a1e20aa5ef99194e1c42c1c310100bd8f8f48`. Hosted CI also passed.
+
+Matched completed FBS-FBS games with paired advanced records:
+
+| Season | Matched | Eligible | Coverage |
+|---|---:|---:|---:|
+| 2021 | 741 | 770 | 96.23% |
+| 2022 | 746 | 776 | 96.13% |
+| 2023 | 783 | 792 | 98.86% |
+| 2024 | 781 | 798 | 97.87% |
+| 2025 | 807 | 808 | 99.88% |
+
+**Actual SDV gamelog feature family: 76 numeric postgame columns.** Retrospective matchup design uses 154 lagged inputs (76 per side + 2 sample-size counts), with training-only preprocessing, 2023/2024 chronological tuning and held-out 2025 (807 games).
+
+| Target | 2023-24 validated best | 2025 best MAE | 2025 raw Ridge MAE | Selected-minus-Ridge 95% CI |
+|---|---|---:|---:|---|
+| Margin | Ridge k=0 alpha=500 | 14.2846 | 14.2846 | [0,0] |
+| Total | SVD k=40 alpha=500 | 12.9901 | **12.9338** | [-0.1259, 0.2153] |
+
+**No incremental SVD advantage established.** The 2025 total SVD result is 0.0563 points MAE worse than raw Ridge; the confidence interval contains zero. This does not validate the synthetic 788/95.3% claim or establish an FBIS incumbent comparison.
+
+Artifacts and code remain **research only**, historical first-publication/PIT timing **unverified**, no model promotion, no D1/odds/wager changes. Gemini's independent artifact validation is still pending.
+
+Next: investigate source-coverage gaps and revision histories; discover original timestamped weekly releases for true PIT, measure opponent-adjusted EPA/defense/drive/situational families, expand schema only after provenance proof.
