@@ -32,6 +32,7 @@ import { attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js
 import { loadNhlProV2Context, attachNhlProV2, NHL_PRO_V2_ID, NHL_PRO_V2_VERSION } from "./nhlProV2.js";
 import { attachNhlGoalieProbabilityShadow } from "./nhlGoalieProbabilityShadow.js";
 import { attachNhlCardStarterEvidence } from "./nhlCardStarterEvidence.js";
+import { nhlSourceCompleteness } from "./nhlFreeMarket.js";
 import { attachNhlUnifiedMoneylineShadow } from "./nhlUnifiedMoneylineShadow.js";
 import { evaluateNhlGameWagers } from "./nhlWagerV1.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
@@ -310,6 +311,7 @@ export async function buildSlate(sport, date, env = {}) {
           persistentProfileStatus: proContext.persistentProfiles?.__timeout ? "TIMEOUT_FAIL_SOFT" : proContext.persistentProfiles?.__error ? "DEGRADED_FAIL_SOFT" : proContext.persistentProfiles?.ok ? "ACTIVE" : "UNAVAILABLE",
           persistentProfileRequestTimeSourceFetches: 0,
         },
+        nhlSourceCompleteness: nhlSourceCompleteness(playerResearch),
         nhlCardStarterEvidence: starterContext.meta,
         nhlGoalieProbabilityShadow: goalieShadow.meta,
         nhlUnifiedMoneylineShadow: unifiedShadow.meta,
