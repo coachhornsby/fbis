@@ -5,6 +5,7 @@ import NhlPlayerProjectionStrip from "./NhlPlayerProjectionStrip.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import "./compactGameCardEnhancements.css";
+import "./universalPremiumCard.css";
 
 function Stars({ value = 1 }) {
   const safe = Math.max(1, Math.min(5, Number(value) || 1));
@@ -229,7 +230,7 @@ export default function CompactGameCard({ game, onOpen }) {
 
   return (
     <article
-      className={"cgc pgc"+(stars===5&&showStars?" cgc-five-star":"")}
+      className={"cgc pgc fbis-universal-premium"+(stars===5&&showStars?" cgc-five-star":"")}
       data-game-id={vm.id || game?.id || ""}
       data-sport={vm.sport || ""}
       tabIndex={0}
@@ -276,13 +277,12 @@ export default function CompactGameCard({ game, onOpen }) {
           {away.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-away" src={away.logoUrl} alt="" aria-hidden="true" /> : null}
           {home.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-home" src={home.logoUrl} alt="" aria-hidden="true" /> : null}
           <div className="cgc-team-block">
-            <TeamLogo team={away} size={66} className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
+            <TeamLogo team={away} size={83} className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
             {sportId === "mlb" ? (
               <strong className="cgc-team-name cgc-team-name-mlb">{away.fullName || away.name || away.abbr || "—"}</strong>
             ) : (
               <>
-                <strong className="cgc-abbr">{away.abbr || "—"}</strong>
-                <span className="cgc-team-name">{away.fullName || away.name || away.abbr || "—"}</span>
+                <strong className="cgc-team-name fbis-full-team-name">{away.fullName || away.name || away.abbr || "—"}</strong>
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
@@ -293,13 +293,12 @@ export default function CompactGameCard({ game, onOpen }) {
           <span className="cgc-vs">VS</span>
 
           <div className="cgc-team-block">
-            <TeamLogo team={home} size={66} className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
+            <TeamLogo team={home} size={83} className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
             {sportId === "mlb" ? (
               <strong className="cgc-team-name cgc-team-name-mlb">{home.fullName || home.name || home.abbr || "—"}</strong>
             ) : (
               <>
-                <strong className="cgc-abbr">{home.abbr || "—"}</strong>
-                <span className="cgc-team-name">{home.fullName || home.name || home.abbr || "—"}</span>
+                <strong className="cgc-team-name fbis-full-team-name">{home.fullName || home.name || home.abbr || "—"}</strong>
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
@@ -377,7 +376,7 @@ export default function CompactGameCard({ game, onOpen }) {
           </div>
           <div className="cgc-matchup-pills">
             {matchupItems.filter((item) => item.text !== "—").map((item) => (
-              <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
+              <div className={`cgc-matchup-pill tone-${item.tone}`} style={item.tone==="home"?{"--fbis-tile-team":homeBrand}:item.tone==="away"?{"--fbis-tile-team":awayBrand}:undefined} key={item.id}>
                 <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "SIG"}</i><em>{item.label}</em></span><strong>{item.text}</strong>
               </div>
             ))}
