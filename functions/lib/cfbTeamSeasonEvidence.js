@@ -18,7 +18,7 @@ async function optionally(db,sql,bindings=[],transform=x=>x){
 }
 export async function loadFbsTeamSeasonEvidence(db,team,season=2026,playerId=null){
  const teamId=team.teamId;
- const [rosterResult,seasonsResult,scheduleResult,teamStatsResult,playerStatsResult]=await Promise.all([
+ const [rosterResult,seasonsResult,scheduleResult,teamStatsResult,playerStatsResult,teamGamesResult]=await Promise.all([
   optionally(db,"SELECT m.player_id,m.position,m.position_abbreviation,m.jersey,m.class_year, "+
     "m.height,m.weight,m.season,m.first_game_at,m.last_game_at,m.games_rostered,"+
     "m.observed_at,m.source,p.canonical_name,p.current_position,p.identity_status "+
@@ -41,6 +41,9 @@ export async function loadFbsTeamSeasonEvidence(db,team,season=2026,playerId=nul
   optionally(db,"SELECT player_id,metrics_json,source,source_timestamp,observed_at,season,content_hash "+
     "FROM cfb_player_season_stat_snapshots WHERE team_id=? AND season=? "+
     "ORDER BY observed_at DESC LIMIT 350",[teamId,season]),
+  optionally(db,"SELECT game_id,opponent,game_at,metrics_json,source,source_timestamp,"+
+    "observed_at,season,content_hash FROM cfb_team_game_stat_observations "+
+    "WHERE team_id=? AND season=? ORDER BY game_at DESC LIMIT 30",[teamId,season]),
  ]);
  const roster=rosterResult.rows;
  const known=new Set(roster.map(r=>r.playerId));
@@ -64,6 +67,12 @@ export async function loadFbsTeamSeasonEvidence(db,team,season=2026,playerId=nul
    provenance:"Dated roster memberships, not confirmed playing time or depth chart",modelAuthority:false},
   schedule:{state:scheduleResult.state,games:scheduleResult.rows,count:scheduleResult.rows.length,
    provenance:"Stored fixtures; result scores not verified"},
+  teamGameStatistics:{state:teamGamesResult.state,storageReason:teamGamesResult.reason||null,
+    count:teamGamesResult.rows.length,
+    games:teamGamesResult.rows.map(r=>({
+      gameId:r.game_id,gameAt:r.game_at,opponent:r.opponent,
+      stats:statSnapshot(r,"team"),
+    }))},
   teamStatistics:{...statSnapshot(teamStatsResult.rows[0]||null,"team"),
    storageState:teamStatsResult.state,storageReason:teamStatsResult.reason||null,
    provenance:"Source-labeled season statistics; no future observations allowed in historical pregame input"},
