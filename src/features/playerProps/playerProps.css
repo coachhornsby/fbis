@@ -2785,3 +2785,16 @@
  .pp-mirror-research-badge {top:7px;right:7px;padding:5px 6px;font-size:8px}
 }
 @media(max-width:540px) {.pp-mirror-grid {grid-template-columns:1fr}}
+
+/* Public mirror premium artwork follows source-verified NFL team colors. */
+.pp-mirror-card .pp-card-visual.pp-mirror-visual {
+ background:radial-gradient(circle at 48% 5%,color-mix(in srgb,var(--mirror-primary) 72%,transparent),transparent 76%),
+ linear-gradient(138deg,var(--mirror-primary),var(--mirror-secondary)) !important;
+}
+.pp-mirror-card .pp-premium-headshot {z-index:3}
+.pp-mirror-card .pp-team-watermark {z-index:1}
+.pp-mirror-card .pp-premium-headshot > span {display:flex}
+.pp-mirror-card .pp-history-bars {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.pp-mirror-card .pp-history-game {display:flex;flex-direction:column;gap:5px;min-width:0;text-align:center}
+.pp-mirror-card .pp-history-game b {font-size:15px;color:#fff}
+.pp-mirror-card .pp-history-game span,.pp-mirror-card .pp-history-game small {font-size:10px;overflow-wrap:anywhere}

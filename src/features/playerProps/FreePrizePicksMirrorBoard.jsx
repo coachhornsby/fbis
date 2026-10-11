@@ -4,6 +4,80 @@ import {
   normalizeFreeNflMirror,mirrorChicagoDay,
 } from "./freePrizePicksMirror.js";
 
+
+const teamCache=new Map();
+function MirrorCard({row,time}){
+ const [team,setTeam]=useState(null);
+ const [headshotFailed,setHeadshotFailed]=useState(false);
+ const [expanded,setExpanded]=useState(false);
+ const [history,setHistory]=useState({state:"IDLE",games:[]});
+ useEffect(()=>{
+  let active=true;
+  const key=String(row.team||"").trim();
+  if(!teamCache.has(key)){
+   const q=new URLSearchParams({sport:"nfl",name:key});
+   teamCache.set(key,fetch("/api/team-logo?"+q,{credentials:"same-origin"})
+    .then(r=>r.ok?r.json():null).then(x=>x?.found?x.team:null).catch(()=>null));
+  }
+  teamCache.get(key).then(t=>{if(active)setTeam(t)});
+  return()=>{active=false};
+ },[row.team]);
+ useEffect(()=>{
+  if(!expanded)return;
+  let active=true;
+  const q=new URLSearchParams({
+   sport:"nfl",name:row.player,team:row.team,opponent:row.opponent,
+   market:row.market||row.stat,line:String(row.line)
+  });
+  setHistory({state:"LOADING",games:[]});
+  fetch("/api/player-prop-detail?"+q,{credentials:"same-origin"})
+   .then(r=>r.ok?r.json():null)
+   .then(x=>{
+    if(!active)return;
+    const games=Array.isArray(x?.detail?.last5)?x.detail.last5:[];
+    setHistory({state:games.length?"AVAILABLE":"UNAVAILABLE",games:games.slice(0,5)});
+   }).catch(()=>{if(active)setHistory({state:"UNAVAILABLE",games:[]})});
+  return()=>{active=false};
+ },[expanded,row.id]);
+ const imageUrl="/api/player-image?"+new URLSearchParams({name:row.player,sport:"nfl",team:row.team,mode:"image"});
+ const primary=team?.primaryColor||"#172b50",secondary=team?.secondaryColor||"#090f20";
+ return <article className="pp-card pp-premium-card sport-nfl pp-mirror-card"
+  style={{"--mirror-primary":primary,"--mirror-secondary":secondary}}>
+  <div className="pp-card-visual pp-mirror-visual">
+   {team?.logo?<div className="pp-team-watermark" aria-hidden="true"><img src={team.logo} alt=""/></div>:null}
+   <span className="pp-mirror-research-badge">PUBLIC MIRROR · RESEARCH</span>
+   <div className="pp-premium-headshot">
+    {!headshotFailed?<img src={imageUrl} alt={row.player} loading="lazy"
+      onError={()=>setHeadshotFailed(true)}/>:null}
+    {headshotFailed?<span style={{display:"flex"}}>{String(row.player||"?").split(/\\s+/).slice(0,2).map(n=>n[0]||"").join("").toUpperCase()}</span>:null}
+   </div>
+   <div className="pp-team-pill">NFL · {team?.abbr||row.team||"TEAM"}</div>
+  </div>
+  <div className="pp-card-body">
+   <div className="pp-player-title"><h3>{row.player}</h3><p>{row.team} · vs <b>{row.opponent}</b></p></div>
+   <div className="pp-market-name pp-premium-market-name">{row.stat}</div>
+   <div className="pp-mirror-line-block"><span>PUBLIC STANDARD LINE</span><strong>{row.line}</strong>
+    <small>Not a verified live offer</small></div>
+   <div className="pp-card-foot pp-premium-foot"><span>{time(row.startAt)} CT</span><span>Research only · No FBIS pick</span></div>
+   <div className="pp-analytics">
+    <button type="button" className="pp-analytics-toggle" onClick={()=>setExpanded(v=>!v)}
+     aria-expanded={expanded}>Last 5 games <span>{expanded?"⌃":"⌄"}</span></button>
+    {expanded?<div className="pp-analytics-body">
+     {history.state==="LOADING"?<p>Loading observed player history…</p>:null}
+     {history.state==="UNAVAILABLE"?<p>Verified last-five-game statistics unavailable for this player and market.</p>:null}
+     {history.state==="AVAILABLE"?<div className="pp-history-block">
+      <div className="pp-history-head"><strong>LAST 5 · {row.stat}</strong></div>
+      <div className="pp-history-bars">{history.games.map((g,i)=><div className="pp-history-game" key={i}>
+       <b>{Number.isFinite(Number(g.value))?Number(g.value):"—"}</b>
+       <span>{g.opponent||"—"}</span><small>{g.date||g.gameDate||""}</small>
+      </div>)}</div>
+     </div>:null}
+    </div>:null}
+   </div>
+  </div>
+ </article>;
+}
+
 /**
  * Standalone, third-party research surface. Never enters the wager/prop
  * model pipeline, and never claims a live executable PrizePicks quote.
@@ -104,32 +178,7 @@ export default function FreePrizePicksMirrorBoard(){
             <>
               <div className="pp-card-grid pp-premium-grid pp-mirror-grid">
                 {rows.slice(0,limit).map(row=>(
-                  <article key={row.id} className="pp-card pp-premium-card sport-nfl pp-mirror-card">
-                    <div className="pp-card-visual pp-mirror-visual">
-                      <div className="pp-watermark" aria-hidden="true">{row.team||"NFL"}</div>
-                      <span className="pp-mirror-research-badge">PUBLIC MIRROR · RESEARCH</span>
-                      <div className="pp-mirror-player-initials" aria-hidden="true">
-                        {String(row.player||"?").split(/\\s+/).slice(0,2).map(n=>n[0]||"").join("").toUpperCase()}
-                      </div>
-                      <div className="pp-team-pill">NFL · {row.team||"TEAM"}</div>
-                    </div>
-                    <div className="pp-card-body">
-                      <div className="pp-player-title">
-                        <h3>{row.player}</h3>
-                        <p>{row.team} · vs <b>{row.opponent}</b></p>
-                      </div>
-                      <div className="pp-market-name pp-premium-market-name">{row.stat}</div>
-                      <div className="pp-mirror-line-block">
-                        <span>PUBLIC STANDARD LINE</span>
-                        <strong>{row.line}</strong>
-                        <small>Not a verified live offer</small>
-                      </div>
-                      <div className="pp-card-foot pp-premium-foot">
-                        <span>{time(row.startAt)} CT</span>
-                        <span>Research only · No FBIS pick</span>
-                      </div>
-                    </div>
-                  </article>
+                  <MirrorCard key={row.id} row={row} time={time}/>
                 ))}
               </div>
               {rows.length>limit?(
