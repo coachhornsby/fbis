@@ -61,6 +61,10 @@ jobs:
           cmp artifacts/replay-1.normalized.sql artifacts/replay-2.normalized.sql
       # This never runs for PRs, schedules, or ordinary manual validation.
       # It is opt-in on main, and must persist original source bytes before D1.
+      - name: Install pinned Wrangler for explicit D1 apply
+        if: github.event_name == 'workflow_dispatch' && inputs.apply_to_production == true && github.ref == 'refs/heads/main'
+        run: npm ci
+
       - name: Archive verified source shards before explicitly approved D1 application
         if: github.event_name == 'workflow_dispatch' && inputs.apply_to_production == true && github.ref == 'refs/heads/main'
         env:
