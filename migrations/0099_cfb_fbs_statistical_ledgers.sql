@@ -86,25 +86,25 @@ CREATE INDEX IF NOT EXISTS idx_cfb_player_season_stats
 
 -- Verify all four research-only contracts and required indexes before recording tip.
 SELECT CASE WHEN
- (SELECT COUNT(*) FROM pragma_table_info('cfb_team_game_stat_observations'))=15
+ (SELECT COUNT(*) FROM pragma_table_info('cfb_team_game_stat_observations'))=14
  AND EXISTS(SELECT 1 FROM sqlite_master WHERE name='idx_cfb_team_game_stats_team' AND type='index')
  AND EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='cfb_team_game_stat_observations'
    AND instr(replace(sql,' ',''),'CHECK(can_influence_projection=0)')>0)
  THEN 1 ELSE json('cfb_stat_0099_cfb_team_game_stat_observations_contract_mismatch') END AS cfb_team_game_stat_observations_verified;
 SELECT CASE WHEN
- (SELECT COUNT(*) FROM pragma_table_info('cfb_team_season_stat_snapshots'))=12
+ (SELECT COUNT(*) FROM pragma_table_info('cfb_team_season_stat_snapshots'))=11
  AND EXISTS(SELECT 1 FROM sqlite_master WHERE name='idx_cfb_team_season_stats' AND type='index')
  AND EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='cfb_team_season_stat_snapshots'
    AND instr(replace(sql,' ',''),'CHECK(can_influence_projection=0)')>0)
  THEN 1 ELSE json('cfb_stat_0099_cfb_team_season_stat_snapshots_contract_mismatch') END AS cfb_team_season_stat_snapshots_verified;
 SELECT CASE WHEN
- (SELECT COUNT(*) FROM pragma_table_info('cfb_player_game_stat_observations'))=16
+ (SELECT COUNT(*) FROM pragma_table_info('cfb_player_game_stat_observations'))=15
  AND EXISTS(SELECT 1 FROM sqlite_master WHERE name='idx_cfb_player_game_stats_player' AND type='index')
  AND EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='cfb_player_game_stat_observations'
    AND instr(replace(sql,' ',''),'CHECK(can_influence_projection=0)')>0)
  THEN 1 ELSE json('cfb_stat_0099_cfb_player_game_stat_observations_contract_mismatch') END AS cfb_player_game_stat_observations_verified;
 SELECT CASE WHEN
- (SELECT COUNT(*) FROM pragma_table_info('cfb_player_season_stat_snapshots'))=13
+ (SELECT COUNT(*) FROM pragma_table_info('cfb_player_season_stat_snapshots'))=12
  AND EXISTS(SELECT 1 FROM sqlite_master WHERE name='idx_cfb_player_season_stats' AND type='index')
  AND EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='cfb_player_season_stat_snapshots'
    AND instr(replace(sql,' ',''),'CHECK(can_influence_projection=0)')>0)
