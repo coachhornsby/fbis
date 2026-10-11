@@ -37,7 +37,7 @@ jobs:
       CFB_ROSTER_END: ${{ inputs.end_year }}
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install roster dependencies
