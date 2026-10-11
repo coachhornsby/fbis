@@ -1,0 +1,24 @@
+{
+  "status": "VERIFIED_LOCAL_IMPORT_REIMPORT",
+  "records": 35320,
+  "counts": {
+    "team-game": 745,
+    "team-season": 138,
+    "player-game": 26618,
+    "player-season": 7819
+  },
+  "row_identity_hashes": {
+    "team-game": "c735854909cb141f45811cd99327049797e2d77205a84bf3f0ab9e7ac1cb4b9e",
+    "team-season": "f7914b32ae71459c81f5f3da2c3e7c16b8422e446453d4a2402133ed8feacbef",
+    "player-game": "779ee57fff451943332e703c721373aeee769b0e042ff7b9a0f42dea7408670e",
+    "player-season": "fcffe7115e3ce90bf0603188bf75253f5b85d3adc59094436019cbf0660f85c7"
+  },
+  "passes": 2,
+  "exact_destination_content_verified": true,
+  "integrity": "ok",
+  "production_mutations": 0,
+  "limitations": [
+    "Isolated SQLite; remote D1 write not performed",
+    "Roster identity proof separate; time-aware historical membership not requalified here"
+  ]
+}

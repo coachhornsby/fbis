@@ -1,0 +1,4909 @@
+{
+  "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+  "states": [
+    {
+      "block": "2026-01",
+      "hfa_points": 7.089812999588798,
+      "intercept_ppg": 23.499031819444657,
+      "teams": {
+        "103": {
+          "offense_points": -0.2701730766628676,
+          "defense_points_allowed": 0.9289903798800705,
+          "net_points": -1.199163456542938
+        },
+        "107": {
+          "offense_points": -0.4178657768970736,
+          "defense_points_allowed": -0.20908392493841202,
+          "net_points": -0.20878185195866159
+        },
+        "113": {
+          "offense_points": -4.760720518585765,
+          "defense_points_allowed": 5.331066157562706,
+          "net_points": -10.09178667614847
+        },
+        "119": {
+          "offense_points": -0.3649435480163951,
+          "defense_points_allowed": 0.815397160369264,
+          "net_points": -1.1803407083856592
+        },
+        "12": {
+          "offense_points": 1.4489665700535304,
+          "defense_points_allowed": -2.0312162015022235,
+          "net_points": 3.4801827715557536
+        },
+        "120": {
+          "offense_points": -0.8034579284900168,
+          "defense_points_allowed": 0.2585015225670261,
+          "net_points": -1.061959451057043
+        },
+        "125290": {
+          "offense_points": -0.13952890811574611,
+          "defense_points_allowed": -0.09185155814075752,
+          "net_points": -0.0476773499749886
+        },
+        "125291": {
+          "offense_points": -0.09185155814075752,
+          "defense_points_allowed": -0.13952890811574611,
+          "net_points": 0.0476773499749886
+        },
+        "127": {
+          "offense_points": -1.6718602304947068,
+          "defense_points_allowed": 0.49981036480186203,
+          "net_points": -2.1716705952965687
+        },
+        "13": {
+          "offense_points": -0.7440952611496163,
+          "defense_points_allowed": 1.1328059669559554,
+          "net_points": -1.8769012281055717
+        },
+        "130": {
+          "offense_points": 1.3510003133206303,
+          "defense_points_allowed": -4.263367172365327,
+          "net_points": 5.614367485685957
+        },
+        "135": {
+          "offense_points": -1.1808474773734212,
+          "defense_points_allowed": -2.165400708290114,
+          "net_points": 0.9845532309166929
+        },
+        "142": {
+          "offense_points": 1.6575502644922935,
+          "defense_points_allowed": -3.5919160407133526,
+          "net_points": 5.249466305205646
+        },
+        "145": {
+          "offense_points": 5.337914882953439,
+          "defense_points_allowed": -4.162985655965514,
+          "net_points": 9.500900538918952
+        },
+        "147": {
+          "offense_points": 0.6453502822167125,
+          "defense_points_allowed": 0.5262858829642013,
+          "net_points": 0.11906439925251122
+        },
+        "149": {
+          "offense_points": 0.9522740047915002,
+          "defense_points_allowed": 0.09333464611081649,
+          "net_points": 0.8589393586806837
+        },
+        "150": {
+          "offense_points": 2.9222962503316525,
+          "defense_points_allowed": -0.2205812032736429,
+          "net_points": 3.1428774536052955
+        },
+        "151": {
+          "offense_points": 1.6696930858111638,
+          "defense_points_allowed": -2.268969673179844,
+          "net_points": 3.9386627589910077
+        },
+        "152": {
+          "offense_points": 1.489746406150225,
+          "defense_points_allowed": -0.24893108534814545,
+          "net_points": 1.7386774914983705
+        },
+        "153": {
+          "offense_points": -0.9202934418767584,
+          "defense_points_allowed": -0.43891043250925627,
+          "net_points": -0.48138300936750217
+        },
+        "154": {
+          "offense_points": -0.5883097918973917,
+          "defense_points_allowed": -0.949934274610057,
+          "net_points": 0.36162448271266523
+        },
+        "155": {
+          "offense_points": -0.5553125106981279,
+          "defense_points_allowed": -0.4057605677686429,
+          "net_points": -0.14955194292948504
+        },
+        "158": {
+          "offense_points": -0.19918694038150825,
+          "defense_points_allowed": -1.7134022422495399,
+          "net_points": 1.5142153018680315
+        },
+        "16": {
+          "offense_points": 2.0034894372317096,
+          "defense_points_allowed": 1.1476019717906412,
+          "net_points": 0.8558874654410684
+        },
+        "160": {
+          "offense_points": -0.06306445982378105,
+          "defense_points_allowed": 0.8921463701693175,
+          "net_points": -0.9552108299930986
+        },
+        "164": {
+          "offense_points": 1.1676484660443174,
+          "defense_points_allowed": 0.7276221972018997,
+          "net_points": 0.4400262688424177
+        },
+        "166": {
+          "offense_points": -2.2219499877723057,
+          "defense_points_allowed": 1.2590603542736798,
+          "net_points": -3.4810103420459857
+        },
+        "167": {
+          "offense_points": 1.1449390912736888,
+          "defense_points_allowed": 0.6868482081120254,
+          "net_points": 0.45809088316166335
+        },
+        "183": {
+          "offense_points": -0.6708843008498653,
+          "defense_points_allowed": 1.8581241159811333,
+          "net_points": -2.5290084168309983
+        },
+        "189": {
+          "offense_points": -1.5580854955618109,
+          "defense_points_allowed": -1.3995995321154628,
+          "net_points": -0.15848596344634802
+        },
+        "193": {
+          "offense_points": -0.9134395547210226,
+          "defense_points_allowed": -3.039529444430726,
+          "net_points": 2.1260898897097036
+        },
+        "194": {
+          "offense_points": 4.870991496619577,
+          "defense_points_allowed": -8.678209851390827,
+          "net_points": 13.549201348010403
+        },
+        "195": {
+          "offense_points": 0.7508870203484845,
+          "defense_points_allowed": -3.1010766619668297,
+          "net_points": 3.851963682315314
+        },
+        "197": {
+          "offense_points": -2.9376858343322367,
+          "defense_points_allowed": 2.493573634557464,
+          "net_points": -5.431259468889701
+        },
+        "2": {
+          "offense_points": 0.2326684307282397,
+          "defense_points_allowed": -3.015052508084703,
+          "net_points": 3.2477209388129427
+        },
+        "2000": {
+          "offense_points": 0.017044413543195528,
+          "defense_points_allowed": 1.20661258691798,
+          "net_points": -1.1895681733747845
+        },
+        "2005": {
+          "offense_points": -0.11285599555232138,
+          "defense_points_allowed": -0.2846944725053366,
+          "net_points": 0.17183847695301518
+        },
+        "2006": {
+          "offense_points": -2.6384728371065838,
+          "defense_points_allowed": 1.1965266725680181,
+          "net_points": -3.834999509674602
+        },
+        "201": {
+          "offense_points": 1.0792989568660882,
+          "defense_points_allowed": -4.312669758100168,
+          "net_points": 5.391968714966256
+        },
+        "2010": {
+          "offense_points": -1.0616457330023723,
+          "defense_points_allowed": 1.5918988743655855,
+          "net_points": -2.653544607367958
+        },
+        "2011": {
+          "offense_points": 0.543255067708833,
+          "defense_points_allowed": 0.8179517654145427,
+          "net_points": -0.2746966977057097
+        },
+        "2016": {
+          "offense_points": -1.8809697602850965,
+          "defense_points_allowed": 1.8507869922932025,
+          "net_points": -3.731756752578299
+        },
+        "202": {
+          "offense_points": -1.7197539074236414,
+          "defense_points_allowed": 3.0790226315753912,
+          "net_points": -4.798776538999032
+        },
+        "2026": {
+          "offense_points": -0.46335463597840737,
+          "defense_points_allowed": 1.7017243700501006,
+          "net_points": -2.165079006028508
+        },
+        "2029": {
+          "offense_points": -1.1155999722601588,
+          "defense_points_allowed": 2.0562522432458525,
+          "net_points": -3.1718522155060116
+        },
+        "2032": {
+          "offense_points": -0.6717382512155844,
+          "defense_points_allowed": 1.1725295969670173,
+          "net_points": -1.8442678481826018
+        },
+        "204": {
+          "offense_points": -2.342311403440135,
+          "defense_points_allowed": 0.7071070828701809,
+          "net_points": -3.0494184863103158
+        },
+        "2046": {
+          "offense_points": -0.6149797090061728,
+          "defense_points_allowed": -0.2873224434607782,
+          "net_points": -0.32765726554539465
+        },
+        "2050": {
+          "offense_points": -3.253667269909643,
+          "defense_points_allowed": 2.334955284399936,
+          "net_points": -5.588622554309579
+        },
+        "2065": {
+          "offense_points": -1.4519919058332373,
+          "defense_points_allowed": 1.7854991614714477,
+          "net_points": -3.237491067304685
+        },
+        "2083": {
+          "offense_points": -0.5484750920411158,
+          "defense_points_allowed": 1.03270432523125,
+          "net_points": -1.5811794172723657
+        },
+        "2084": {
+          "offense_points": -1.0480296315288868,
+          "defense_points_allowed": -0.1832129672364784,
+          "net_points": -0.8648166642924084
+        },
+        "2097": {
+          "offense_points": -1.3339011345452225,
+          "defense_points_allowed": 2.371999632690633,
+          "net_points": -3.7059007672358555
+        },
+        "21": {
+          "offense_points": -1.2371928610154497,
+          "defense_points_allowed": -2.7146134803082322,
+          "net_points": 1.4774206192927826
+        },
+        "2110": {
+          "offense_points": -0.81764474655274,
+          "defense_points_allowed": 1.5476757518328081,
+          "net_points": -2.365320498385548
+        },
+        "2115": {
+          "offense_points": -0.7535230520552948,
+          "defense_points_allowed": 1.9063092640411776,
+          "net_points": -2.6598323160964723
+        },
+        "2116": {
+          "offense_points": -0.050230210719964793,
+          "defense_points_allowed": -1.0808611643283343,
+          "net_points": 1.0306309536083695
+        },
+        "2117": {
+          "offense_points": -1.7944167076423032,
+          "defense_points_allowed": -0.12063056877477542,
+          "net_points": -1.6737861388675277
+        },
+        "2127": {
+          "offense_points": -1.9533358224580215,
+          "defense_points_allowed": 0.28699305260823177,
+          "net_points": -2.240328875066253
+        },
+        "213": {
+          "offense_points": 3.688325851459847,
+          "defense_points_allowed": -4.50411442041669,
+          "net_points": 8.192440271876537
+        },
+        "2132": {
+          "offense_points": 0.8873547615987822,
+          "defense_points_allowed": -0.6162134917188875,
+          "net_points": 1.5035682533176697
+        },
+        "2142": {
+          "offense_points": -0.3757960398959102,
+          "defense_points_allowed": 1.7479947381988352,
+          "net_points": -2.1237907780947456
+        },
+        "2169": {
+          "offense_points": -0.6366153901509937,
+          "defense_points_allowed": 0.7679904145395666,
+          "net_points": -1.4046058046905603
+        },
+        "218": {
+          "offense_points": -1.2642592151669876,
+          "defense_points_allowed": 2.0506341967887884,
+          "net_points": -3.314893411955776
+        },
+        "2184": {
+          "offense_points": -1.9581362681500825,
+          "defense_points_allowed": 3.0952586902415495,
+          "net_points": -5.053394958391632
+        },
+        "219": {
+          "offense_points": -0.051904006763571535,
+          "defense_points_allowed": -0.058348412304981175,
+          "net_points": 0.00644440554140964
+        },
+        "2193": {
+          "offense_points": -0.46878664796376707,
+          "defense_points_allowed": 1.7850112239286267,
+          "net_points": -2.253797871892394
+        },
+        "2197": {
+          "offense_points": -1.5087576077338933,
+          "defense_points_allowed": 1.2746843060121138,
+          "net_points": -2.783441913746007
+        },
+        "2198": {
+          "offense_points": -1.558793878343468,
+          "defense_points_allowed": 1.5318773003494586,
+          "net_points": -3.0906711786929266
+        },
+        "2199": {
+          "offense_points": -1.3117042326960313,
+          "defense_points_allowed": 1.1809376989857896,
+          "net_points": -2.492641931681821
+        },
+        "221": {
+          "offense_points": 2.367363983652285,
+          "defense_points_allowed": -0.3429003233662223,
+          "net_points": 2.7102643070185075
+        },
+        "2210": {
+          "offense_points": -0.6585374375158023,
+          "defense_points_allowed": 0.350660320308415,
+          "net_points": -1.0091977578242173
+        },
+        "222": {
+          "offense_points": -0.4989252251706252,
+          "defense_points_allowed": 1.043978972550653,
+          "net_points": -1.542904197721278
+        },
+        "2226": {
+          "offense_points": 0.16180978486472464,
+          "defense_points_allowed": 2.605330594089449,
+          "net_points": -2.4435208092247245
+        },
+        "2229": {
+          "offense_points": -0.11080102153906932,
+          "defense_points_allowed": 1.068965481602897,
+          "net_points": -1.1797665031419664
+        },
+        "2230": {
+          "offense_points": -0.47064272897483933,
+          "defense_points_allowed": 1.6092036061424668,
+          "net_points": -2.079846335117306
+        },
+        "2241": {
+          "offense_points": -0.30661309280132526,
+          "defense_points_allowed": 1.5165148430848365,
+          "net_points": -1.8231279358861618
+        },
+        "2247": {
+          "offense_points": -2.228082952586558,
+          "defense_points_allowed": 3.416339151287813,
+          "net_points": -5.644422103874371
+        },
+        "227": {
+          "offense_points": -0.6931824334449488,
+          "defense_points_allowed": 0.9260711689603783,
+          "net_points": -1.619253602405327
+        },
+        "2277": {
+          "offense_points": -1.107592360089937,
+          "defense_points_allowed": 1.89394997392791,
+          "net_points": -3.001542334017847
+        },
+        "228": {
+          "offense_points": 1.9519096072850508,
+          "defense_points_allowed": -2.924802141337339,
+          "net_points": 4.876711748622389
+        },
+        "2287": {
+          "offense_points": -1.495709850879805,
+          "defense_points_allowed": 0.6042761242267629,
+          "net_points": -2.099985975106568
+        },
+        "2294": {
+          "offense_points": 0.5436331723585264,
+          "defense_points_allowed": -5.176730965035784,
+          "net_points": 5.72036413739431
+        },
+        "2296": {
+          "offense_points": -0.33338045168746894,
+          "defense_points_allowed": 0.800176426139079,
+          "net_points": -1.133556877826548
+        },
+        "23": {
+          "offense_points": -0.7747493193380529,
+          "defense_points_allowed": 1.7802414892656444,
+          "net_points": -2.5549908086036974
+        },
+        "2305": {
+          "offense_points": 1.5161525479367548,
+          "defense_points_allowed": -0.46389572974003385,
+          "net_points": 1.9800482776767887
+        },
+        "2306": {
+          "offense_points": 2.4584211548746437,
+          "defense_points_allowed": -1.183136956999047,
+          "net_points": 3.6415581118736906
+        },
+        "2309": {
+          "offense_points": -3.53146711169713,
+          "defense_points_allowed": 4.529412096482467,
+          "net_points": -8.060879208179596
+        },
+        "231": {
+          "offense_points": -0.8092597267662865,
+          "defense_points_allowed": 1.4277289461123004,
+          "net_points": -2.236988672878587
+        },
+        "2320": {
+          "offense_points": -0.9879024811952832,
+          "defense_points_allowed": 0.45713510520627576,
+          "net_points": -1.445037586401559
+        },
+        "2329": {
+          "offense_points": -0.24768109083005327,
+          "defense_points_allowed": 0.23392380680659436,
+          "net_points": -0.4816048976366476
+        },
+        "233": {
+          "offense_points": -0.8388320920941195,
+          "defense_points_allowed": 1.3608804658513765,
+          "net_points": -2.199712557945496
+        },
+        "2335": {
+          "offense_points": 0.6400597815508895,
+          "defense_points_allowed": -0.29849840292181046,
+          "net_points": 0.9385581844727
+        },
+        "2341": {
+          "offense_points": -1.3013296083174408,
+          "defense_points_allowed": 0.7894743538303424,
+          "net_points": -2.090803962147783
+        },
+        "2348": {
+          "offense_points": -1.0258175462533115,
+          "defense_points_allowed": -1.8019571503310545,
+          "net_points": 0.7761396040777431
+        },
+        "235": {
+          "offense_points": 3.3869078676038864,
+          "defense_points_allowed": -1.2813650338118112,
+          "net_points": 4.668272901415698
+        },
+        "236": {
+          "offense_points": -0.9867926617244888,
+          "defense_points_allowed": 1.2504307571773356,
+          "net_points": -2.2372234189018245
+        },
+        "2377": {
+          "offense_points": -1.5202217200312316,
+          "defense_points_allowed": 1.1514122316671203,
+          "net_points": -2.671633951698352
+        },
+        "238": {
+          "offense_points": 3.6688857902434706,
+          "defense_points_allowed": -1.1733364327737734,
+          "net_points": 4.842222223017244
+        },
+        "2382": {
+          "offense_points": -0.7521081661723621,
+          "defense_points_allowed": 1.8975070564242333,
+          "net_points": -2.649615222596595
+        },
+        "2385": {
+          "offense_points": 0.13161271305983419,
+          "defense_points_allowed": 0.6380055993938024,
+          "net_points": -0.5063928863339682
+        },
+        "239": {
+          "offense_points": 2.270097408914125,
+          "defense_points_allowed": 1.7037664957207201,
+          "net_points": 0.5663309131934049
+        },
+        "2390": {
+          "offense_points": 4.352607007354527,
+          "defense_points_allowed": -4.831167865421324,
+          "net_points": 9.18377487277585
+        },
+        "2393": {
+          "offense_points": -2.5636634735347625,
+          "defense_points_allowed": 2.216803061278217,
+          "net_points": -4.780466534812979
+        },
+        "24": {
+          "offense_points": -2.603857927507966,
+          "defense_points_allowed": 1.5651289570803528,
+          "net_points": -4.168986884588319
+        },
+        "2405": {
+          "offense_points": 0.7016912633698039,
+          "defense_points_allowed": 1.237690612269133,
+          "net_points": -0.535999348899329
+        },
+        "2415": {
+          "offense_points": -1.0996555747003196,
+          "defense_points_allowed": 1.0063044186937018,
+          "net_points": -2.1059599933940216
+        },
+        "242": {
+          "offense_points": -2.8189300585459365,
+          "defense_points_allowed": 1.043991911250677,
+          "net_points": -3.8629219697966137
+        },
+        "2426": {
+          "offense_points": 1.1394934222306232,
+          "defense_points_allowed": -1.5033244189518864,
+          "net_points": 2.6428178411825094
+        },
+        "2428": {
+          "offense_points": -0.9665848430969991,
+          "defense_points_allowed": 1.4093857458214685,
+          "net_points": -2.3759705889184675
+        },
+        "2429": {
+          "offense_points": -4.325715785280505,
+          "defense_points_allowed": 3.2261643231655595,
+          "net_points": -7.551880108446065
+        },
+        "2433": {
+          "offense_points": -4.104646194903847,
+          "defense_points_allowed": 1.7798959398003715,
+          "net_points": -5.884542134704218
+        },
+        "2439": {
+          "offense_points": 4.11497272637276,
+          "defense_points_allowed": -0.2812780278059102,
+          "net_points": 4.39625075417867
+        },
+        "2440": {
+          "offense_points": -3.5425873071394167,
+          "defense_points_allowed": 0.5890736048049844,
+          "net_points": -4.131660911944401
+        },
+        "2447": {
+          "offense_points": -1.4877031852060296,
+          "defense_points_allowed": 0.5412927463361026,
+          "net_points": -2.0289959315421324
+        },
+        "2448": {
+          "offense_points": -1.2854778407042793,
+          "defense_points_allowed": 2.012321953136453,
+          "net_points": -3.297799793840732
+        },
+        "2449": {
+          "offense_points": 5.523562263415766,
+          "defense_points_allowed": -4.873595177438293,
+          "net_points": 10.397157440854059
+        },
+        "245": {
+          "offense_points": 3.2496836891300336,
+          "defense_points_allowed": -3.104923116489356,
+          "net_points": 6.354606805619389
+        },
+        "2450": {
+          "offense_points": -1.0343139728120045,
+          "defense_points_allowed": 1.3623041981134676,
+          "net_points": -2.396618170925472
+        },
+        "2453": {
+          "offense_points": -1.106774488659,
+          "defense_points_allowed": 1.2700307679224612,
+          "net_points": -2.376805256581461
+        },
+        "2458": {
+          "offense_points": -0.020765251444822677,
+          "defense_points_allowed": 0.5137310510258791,
+          "net_points": -0.5344963024707018
+        },
+        "2459": {
+          "offense_points": -2.9897627751152447,
+          "defense_points_allowed": -1.8268312177248758,
+          "net_points": -1.162931557390369
+        },
+        "2460": {
+          "offense_points": -1.10857420550738,
+          "defense_points_allowed": 1.338431832618851,
+          "net_points": -2.447006038126231
+        },
+        "2464": {
+          "offense_points": -0.44765622242568653,
+          "defense_points_allowed": -0.05869513198390058,
+          "net_points": -0.38896109044178595
+        },
+        "2466": {
+          "offense_points": -1.8867962277824923,
+          "defense_points_allowed": 4.465462768513271,
+          "net_points": -6.352258996295763
+        },
+        "248": {
+          "offense_points": -0.9991107782271058,
+          "defense_points_allowed": -1.6571695016990415,
+          "net_points": 0.6580587234719357
+        },
+        "2483": {
+          "offense_points": 6.5761162153758255,
+          "defense_points_allowed": -4.819629683836727,
+          "net_points": 11.395745899212553
+        },
+        "249": {
+          "offense_points": 6.971989064257395,
+          "defense_points_allowed": 1.5070595963043505,
+          "net_points": 5.464929467953044
+        },
+        "25": {
+          "offense_points": -0.05317191416054018,
+          "defense_points_allowed": -0.25893076001616716,
+          "net_points": 0.20575884585562698
+        },
+        "2502": {
+          "offense_points": -1.1436610030676415,
+          "defense_points_allowed": 3.4610173343468102,
+          "net_points": -4.604678337414452
+        },
+        "2504": {
+          "offense_points": -0.9320476747517878,
+          "defense_points_allowed": 0.9239779497559091,
+          "net_points": -1.856025624507697
+        },
+        "2509": {
+          "offense_points": -3.0748584166516797,
+          "defense_points_allowed": 2.9647698117955397,
+          "net_points": -6.039628228447219
+        },
+        "251": {
+          "offense_points": 3.683945158248122,
+          "defense_points_allowed": -4.254619487729817,
+          "net_points": 7.938564645977939
+        },
+        "252": {
+          "offense_points": 2.228588901459929,
+          "defense_points_allowed": -3.5728551056324127,
+          "net_points": 5.801444007092342
+        },
+        "2523": {
+          "offense_points": -1.1706526538030533,
+          "defense_points_allowed": 0.6994596341788728,
+          "net_points": -1.870112287981926
+        },
+        "2529": {
+          "offense_points": -0.7245035819550941,
+          "defense_points_allowed": 0.32747876815719934,
+          "net_points": -1.0519823501122936
+        },
+        "253": {
+          "offense_points": -0.3863687608367701,
+          "defense_points_allowed": 0.20572737286404488,
+          "net_points": -0.5920961337008149
+        },
+        "2534": {
+          "offense_points": -3.1789645740440062,
+          "defense_points_allowed": 1.8040079715797137,
+          "net_points": -4.98297254562372
+        },
+        "2535": {
+          "offense_points": -1.8387930386268656,
+          "defense_points_allowed": 1.3138394530768016,
+          "net_points": -3.152632491703667
+        },
+        "254": {
+          "offense_points": 3.819060485744223,
+          "defense_points_allowed": -3.7266572109537814,
+          "net_points": 7.545717696698004
+        },
+        "2545": {
+          "offense_points": -1.9989185519507497,
+          "defense_points_allowed": 1.2946769614507074,
+          "net_points": -3.293595513401457
+        },
+        "2546": {
+          "offense_points": -0.5487464903972878,
+          "defense_points_allowed": 0.620459314195511,
+          "net_points": -1.1692058045927989
+        },
+        "256": {
+          "offense_points": 4.319952862601778,
+          "defense_points_allowed": -4.069170659154726,
+          "net_points": 8.389123521756504
+        },
+        "2567": {
+          "offense_points": 4.166606669027046,
+          "defense_points_allowed": -3.4816671243016692,
+          "net_points": 7.648273793328715
+        },
+        "2569": {
+          "offense_points": -1.21258062134799,
+          "defense_points_allowed": 1.5766910720998804,
+          "net_points": -2.78927169344787
+        },
+        "257": {
+          "offense_points": -0.9592710522285951,
+          "defense_points_allowed": 0.30885405276641276,
+          "net_points": -1.2681251049950077
+        },
+        "2571": {
+          "offense_points": -0.9271826850999395,
+          "defense_points_allowed": -1.1890325635237975,
+          "net_points": 0.261849878423858
+        },
+        "2572": {
+          "offense_points": -1.5435150710697458,
+          "defense_points_allowed": 2.2239056240899377,
+          "net_points": -3.7674206951596836
+        },
+        "2579": {
+          "offense_points": 0.0983010271941833,
+          "defense_points_allowed": -2.871608946815704,
+          "net_points": 2.9699099740098873
+        },
+        "258": {
+          "offense_points": 0.506723083054538,
+          "defense_points_allowed": -1.760343798132588,
+          "net_points": 2.2670668811871257
+        },
+        "2582": {
+          "offense_points": -0.5447110541419875,
+          "defense_points_allowed": 0.9979353372223083,
+          "net_points": -1.5426463913642958
+        },
+        "259": {
+          "offense_points": -0.7028985345392018,
+          "defense_points_allowed": -0.21856102043466236,
+          "net_points": -0.48433751410453946
+        },
+        "2598": {
+          "offense_points": -2.0785275556531917,
+          "defense_points_allowed": 0.6191395166828795,
+          "net_points": -2.6976670723360714
+        },
+        "26": {
+          "offense_points": -2.484220207844088,
+          "defense_points_allowed": -0.011328918038337384,
+          "net_points": -2.4728912898057502
+        },
+        "2617": {
+          "offense_points": -0.8228499720189013,
+          "defense_points_allowed": 0.02774458893669568,
+          "net_points": -0.8505945609555969
+        },
+        "2619": {
+          "offense_points": -1.3148525190208884,
+          "defense_points_allowed": 0.7178809926544141,
+          "net_points": -2.0327335116753025
+        },
+        "2623": {
+          "offense_points": 0.7675637452621284,
+          "defense_points_allowed": 1.2515056691815325,
+          "net_points": -0.48394192391940405
+        },
+        "2627": {
+          "offense_points": -0.1974236372509185,
+          "defense_points_allowed": 0.16125421419227712,
+          "net_points": -0.35867785144319564
+        },
+        "2628": {
+          "offense_points": 2.7767037383786524,
+          "defense_points_allowed": -1.0692024236534658,
+          "net_points": 3.845906162032118
+        },
+        "2630": {
+          "offense_points": -1.9221928653548512,
+          "defense_points_allowed": 0.8889221784391496,
+          "net_points": -2.811115043794001
+        },
+        "2633": {
+          "offense_points": 5.4384242652514185,
+          "defense_points_allowed": -1.4812340512762314,
+          "net_points": 6.91965831652765
+        },
+        "2634": {
+          "offense_points": -1.2835519957795658,
+          "defense_points_allowed": 1.5901248640459176,
+          "net_points": -2.8736768598254834
+        },
+        "2635": {
+          "offense_points": -0.9346312963413455,
+          "defense_points_allowed": 1.0664815517140227,
+          "net_points": -2.001112848055368
+        },
+        "2636": {
+          "offense_points": 3.9293989858044793,
+          "defense_points_allowed": 0.26922906167973015,
+          "net_points": 3.660169924124749
+        },
+        "2638": {
+          "offense_points": -2.435111853612474,
+          "defense_points_allowed": 1.9553632704187462,
+          "net_points": -4.39047512403122
+        },
+        "264": {
+          "offense_points": 2.9885113540819828,
+          "defense_points_allowed": -3.0023495382427776,
+          "net_points": 5.99086089232476
+        },
+        "2640": {
+          "offense_points": -1.394186611993837,
+          "defense_points_allowed": 1.5848100870529864,
+          "net_points": -2.9789966990468235
+        },
+        "2641": {
+          "offense_points": 5.963886351507282,
+          "defense_points_allowed": -3.5210712957251853,
+          "net_points": 9.484957647232468
+        },
+        "2643": {
+          "offense_points": -2.0525732593259782,
+          "defense_points_allowed": 1.2553683605625299,
+          "net_points": -3.307941619888508
+        },
+        "2649": {
+          "offense_points": 1.864544738411895,
+          "defense_points_allowed": -4.157392072788083,
+          "net_points": 6.021936811199978
+        },
+        "265": {
+          "offense_points": 0.992968864365588,
+          "defense_points_allowed": -1.6783627552740614,
+          "net_points": 2.6713316196396493
+        },
+        "2653": {
+          "offense_points": -0.916609593763671,
+          "defense_points_allowed": -1.6919523392573808,
+          "net_points": 0.7753427454937097
+        },
+        "2655": {
+          "offense_points": 1.4550639589535026,
+          "defense_points_allowed": -2.8218566977431476,
+          "net_points": 4.2769206566966504
+        },
+        "2678": {
+          "offense_points": -1.0096599981730983,
+          "defense_points_allowed": 1.3625011209769673,
+          "net_points": -2.3721611191500656
+        },
+        "2681": {
+          "offense_points": -2.1389438366327744,
+          "defense_points_allowed": 1.689511452673181,
+          "net_points": -3.828455289305955
+        },
+        "2692": {
+          "offense_points": -1.0964283050823007,
+          "defense_points_allowed": 2.2987791009087455,
+          "net_points": -3.395207405991046
+        },
+        "2710": {
+          "offense_points": -1.5816862315118312,
+          "defense_points_allowed": 2.6119767600726576,
+          "net_points": -4.193662991584489
+        },
+        "2711": {
+          "offense_points": 0.011533335631499766,
+          "defense_points_allowed": -1.6112858086056008,
+          "net_points": 1.6228191442371005
+        },
+        "2717": {
+          "offense_points": -0.6197436480006211,
+          "defense_points_allowed": 0.7699520389631483,
+          "net_points": -1.3896956869637695
+        },
+        "2729": {
+          "offense_points": -0.39348980574679404,
+          "defense_points_allowed": 1.0595641391189052,
+          "net_points": -1.4530539448656992
+        },
+        "2747": {
+          "offense_points": -0.9980641510158862,
+          "defense_points_allowed": 0.9700028541343482,
+          "net_points": -1.9680670051502345
+        },
+        "275": {
+          "offense_points": -3.685295093063796,
+          "defense_points_allowed": -2.9274922417104725,
+          "net_points": -0.7578028513533237
+        },
+        "2751": {
+          "offense_points": -3.976544374582041,
+          "defense_points_allowed": -1.970980569879001,
+          "net_points": -2.0055638047030397
+        },
+        "2754": {
+          "offense_points": 0.3798711371807575,
+          "defense_points_allowed": 1.3512027707913428,
+          "net_points": -0.9713316336105853
+        },
+        "2755": {
+          "offense_points": -0.9187960826827607,
+          "defense_points_allowed": 1.8324937124480427,
+          "net_points": -2.7512897951308033
+        },
+        "276": {
+          "offense_points": 1.3413272059943724,
+          "defense_points_allowed": 0.10560405777475988,
+          "net_points": 1.2357231482196125
+        },
+        "277": {
+          "offense_points": -0.1700690538699222,
+          "defense_points_allowed": 1.2031759451168373,
+          "net_points": -1.3732449989867594
+        },
+        "2771": {
+          "offense_points": -1.2649858368712945,
+          "defense_points_allowed": 0.13299259422195706,
+          "net_points": -1.3979784310932515
+        },
+        "278": {
+          "offense_points": -0.20729249956949888,
+          "defense_points_allowed": -2.526754999980067,
+          "net_points": 2.3194625004105682
+        },
+        "2803": {
+          "offense_points": -1.0593890845223954,
+          "defense_points_allowed": 0.04193763160397282,
+          "net_points": -1.1013267161263682
+        },
+        "2815": {
+          "offense_points": -1.7446475722122574,
+          "defense_points_allowed": 0.1670645050647899,
+          "net_points": -1.9117120772770473
+        },
+        "282": {
+          "offense_points": -2.1289623977575665,
+          "defense_points_allowed": 2.455174841525342,
+          "net_points": -4.584137239282908
+        },
+        "2837": {
+          "offense_points": -1.715590635758745,
+          "defense_points_allowed": 2.1003277204491018,
+          "net_points": -3.8159183562078467
+        },
+        "290": {
+          "offense_points": 0.6397151879001879,
+          "defense_points_allowed": 1.7250845692660228,
+          "net_points": -1.085369381365835
+        },
+        "2900": {
+          "offense_points": -0.5139727138664087,
+          "defense_points_allowed": 1.145173170141147,
+          "net_points": -1.6591458840075557
+        },
+        "2916": {
+          "offense_points": -0.25338900340927406,
+          "defense_points_allowed": 0.5191337372690016,
+          "net_points": -0.7725227406782756
+        },
+        "295": {
+          "offense_points": 1.3804542567781362,
+          "defense_points_allowed": -2.494800592204416,
+          "net_points": 3.875254848982552
+        },
+        "30": {
+          "offense_points": 4.628893697519074,
+          "defense_points_allowed": -1.0071872863279885,
+          "net_points": 5.636080983847062
+        },
+        "302": {
+          "offense_points": -0.37622760324763554,
+          "defense_points_allowed": 1.7181648822351645,
+          "net_points": -2.0943924854828
+        },
+        "304": {
+          "offense_points": 0.07743451082144778,
+          "defense_points_allowed": 0.7748121670351507,
+          "net_points": -0.6973776562137028
+        },
+        "309": {
+          "offense_points": 0.5403681527452158,
+          "defense_points_allowed": 0.49593208114553744,
+          "net_points": 0.04443607159967833
+        },
+        "3101": {
+          "offense_points": -0.2269237175735582,
+          "defense_points_allowed": 0.8564789504108705,
+          "net_points": -1.0834026679844286
+        },
+        "311": {
+          "offense_points": -1.1438544304873286,
+          "defense_points_allowed": 1.010531503907073,
+          "net_points": -2.1543859343944014
+        },
+        "3146": {
+          "offense_points": -0.13368593896280456,
+          "defense_points_allowed": -0.07495338587830128,
+          "net_points": -0.058732553084503286
+        },
+        "3147": {
+          "offense_points": -0.07495338587830128,
+          "defense_points_allowed": -0.13368593896280456,
+          "net_points": 0.058732553084503286
+        },
+        "3193": {
+          "offense_points": -0.1158775006020338,
+          "defense_points_allowed": -0.018686645405636134,
+          "net_points": -0.09719085519639767
+        },
+        "3194": {
+          "offense_points": -0.018686645405636134,
+          "defense_points_allowed": -0.1158775006020338,
+          "net_points": 0.09719085519639767
+        },
+        "322": {
+          "offense_points": -1.3028094546432667,
+          "defense_points_allowed": 0.6322430945855531,
+          "net_points": -1.9350525492288198
+        },
+        "324": {
+          "offense_points": -0.9582113664871911,
+          "defense_points_allowed": 2.247033710081217,
+          "net_points": -3.205245076568408
+        },
+        "326": {
+          "offense_points": 4.322117259507852,
+          "defense_points_allowed": 1.243681478724513,
+          "net_points": 3.078435780783339
+        },
+        "328": {
+          "offense_points": 2.54489948015168,
+          "defense_points_allowed": 2.2882967038146513,
+          "net_points": 0.2566027763370289
+        },
+        "331": {
+          "offense_points": -0.8638331708058448,
+          "defense_points_allowed": 1.333401361758539,
+          "net_points": -2.1972345325643836
+        },
+        "333": {
+          "offense_points": 3.8712502552499815,
+          "defense_points_allowed": -5.000673044500131,
+          "net_points": 8.871923299750112
+        },
+        "338": {
+          "offense_points": -1.3530375001948804,
+          "defense_points_allowed": 0.1714400499408487,
+          "net_points": -1.524477550135729
+        },
+        "344": {
+          "offense_points": 0.8358911160459237,
+          "defense_points_allowed": 1.1155707989107602,
+          "net_points": -0.27967968286483647
+        },
+        "349": {
+          "offense_points": -0.693133657881374,
+          "defense_points_allowed": -3.706780838477849,
+          "net_points": 3.0136471805964753
+        },
+        "356": {
+          "offense_points": 1.183062997822218,
+          "defense_points_allowed": -1.5134934654568253,
+          "net_points": 2.6965564632790433
+        },
+        "36": {
+          "offense_points": -2.5983167950532113,
+          "defense_points_allowed": 1.2207755027148592,
+          "net_points": -3.8190922977680706
+        },
+        "38": {
+          "offense_points": -0.19524178046086033,
+          "defense_points_allowed": 0.5571804500189425,
+          "net_points": -0.7524222304798027
+        },
+        "399": {
+          "offense_points": -0.9055225305897601,
+          "defense_points_allowed": 0.2770758602386323,
+          "net_points": -1.1825983908283924
+        },
+        "41": {
+          "offense_points": 2.0111584868485752,
+          "defense_points_allowed": 0.09646174538479788,
+          "net_points": 1.9146967414637774
+        },
+        "47": {
+          "offense_points": -1.006507866988517,
+          "defense_points_allowed": 1.221115786496471,
+          "net_points": -2.2276236534849883
+        },
+        "48": {
+          "offense_points": 1.297023942014531,
+          "defense_points_allowed": 1.1005648682211797,
+          "net_points": 0.19645907379335137
+        },
+        "5": {
+          "offense_points": -0.21158589600727296,
+          "defense_points_allowed": 4.146800585489275,
+          "net_points": -4.358386481496548
+        },
+        "50": {
+          "offense_points": -0.7320361619655714,
+          "defense_points_allowed": 1.442501759811831,
+          "net_points": -2.1745379217774023
+        },
+        "52": {
+          "offense_points": 0.8060685122697758,
+          "defense_points_allowed": -1.8593155229097218,
+          "net_points": 2.6653840351794975
+        },
+        "55": {
+          "offense_points": 1.7269985190234276,
+          "defense_points_allowed": -0.6120681468908121,
+          "net_points": 2.3390666659142396
+        },
+        "57": {
+          "offense_points": -0.17669573784515152,
+          "defense_points_allowed": -2.010319788925818,
+          "net_points": 1.8336240510806665
+        },
+        "58": {
+          "offense_points": 5.000646285083824,
+          "defense_points_allowed": -0.510975726867954,
+          "net_points": 5.511622011951777
+        },
+        "59": {
+          "offense_points": 2.5711683162684897,
+          "defense_points_allowed": -0.6599801383481372,
+          "net_points": 3.231148454616627
+        },
+        "6": {
+          "offense_points": 1.1232972438244324,
+          "defense_points_allowed": 0.17229765279525322,
+          "net_points": 0.9509995910291792
+        },
+        "61": {
+          "offense_points": 4.090049746740617,
+          "defense_points_allowed": -4.907820491826553,
+          "net_points": 8.99787023856717
+        },
+        "62": {
+          "offense_points": -0.7424888366964703,
+          "defense_points_allowed": -0.059726509223204494,
+          "net_points": -0.6827623274732657
+        },
+        "66": {
+          "offense_points": 1.2486578937463286,
+          "defense_points_allowed": -2.785818034965852,
+          "net_points": 4.0344759287121805
+        },
+        "68": {
+          "offense_points": 2.8782045708708868,
+          "defense_points_allowed": -1.9425994463306628,
+          "net_points": 4.820804017201549
+        },
+        "70": {
+          "offense_points": -0.613397261300179,
+          "defense_points_allowed": -1.5745941249729027,
+          "net_points": 0.9611968636727237
+        },
+        "77": {
+          "offense_points": -1.8387899671116812,
+          "defense_points_allowed": -2.2773162009857493,
+          "net_points": 0.4385262338740681
+        },
+        "79": {
+          "offense_points": -1.1456224046353487,
+          "defense_points_allowed": 0.5856800810463231,
+          "net_points": -1.7313024856816717
+        },
+        "8": {
+          "offense_points": 2.7023195380981724,
+          "defense_points_allowed": 1.1005727954466273,
+          "net_points": 1.601746742651545
+        },
+        "84": {
+          "offense_points": 6.467348866981972,
+          "defense_points_allowed": -5.762290792772572,
+          "net_points": 12.229639659754543
+        },
+        "87": {
+          "offense_points": 7.0092455533952105,
+          "defense_points_allowed": -5.305212439727109,
+          "net_points": 12.31445799312232
+        },
+        "9": {
+          "offense_points": 0.45029376576692554,
+          "defense_points_allowed": -1.4562242730255839,
+          "net_points": 1.9065180387925094
+        },
+        "93": {
+          "offense_points": -1.9485499038607739,
+          "defense_points_allowed": 2.8726798785346563,
+          "net_points": -4.82122978239543
+        },
+        "96": {
+          "offense_points": -1.2042585616744843,
+          "defense_points_allowed": -1.404910370191622,
+          "net_points": 0.2006518085171376
+        },
+        "97": {
+          "offense_points": 2.9935971024216115,
+          "defense_points_allowed": -2.6142080330844926,
+          "net_points": 5.607805135506104
+        },
+        "98": {
+          "offense_points": 0.7441674611074842,
+          "defense_points_allowed": -1.1469042643892702,
+          "net_points": 1.8910717254967544
+        },
+        "99": {
+          "offense_points": 1.5144080627509335,
+          "defense_points_allowed": -2.473777333784839,
+          "net_points": 3.9881853965357728
+        }
+      }
+    },
+    {
+      "block": "2026-08",
+      "hfa_points": 7.188703024841029,
+      "intercept_ppg": 23.43378093134692,
+      "teams": {
+        "103": {
+          "offense_points": -0.3152908938497886,
+          "defense_points_allowed": 0.8753681472662379,
+          "net_points": -1.1906590411160265
+        },
+        "107": {
+          "offense_points": -0.2933451034296838,
+          "defense_points_allowed": -0.16195022415268204,
+          "net_points": -0.13139487927700175
+        },
+        "113": {
+          "offense_points": -3.841712428460011,
+          "defense_points_allowed": 4.198759097081471,
+          "net_points": -8.04047152554148
+        },
+        "119": {
+          "offense_points": -0.26757698257745505,
+          "defense_points_allowed": 0.5772637671588298,
+          "net_points": -0.8448407497362849
+        },
+        "12": {
+          "offense_points": 0.9986271851627143,
+          "defense_points_allowed": -1.5292668381456578,
+          "net_points": 2.527894023308372
+        },
+        "120": {
+          "offense_points": -0.7711029593160036,
+          "defense_points_allowed": 0.33834927765374145,
+          "net_points": -1.109452236969745
+        },
+        "127": {
+          "offense_points": -1.4986131532096707,
+          "defense_points_allowed": 0.5305576518220106,
+          "net_points": -2.0291708050316815
+        },
+        "13": {
+          "offense_points": -0.5175383870929479,
+          "defense_points_allowed": 0.8156050279148297,
+          "net_points": -1.3331434150077777
+        },
+        "130": {
+          "offense_points": 0.8089510650423832,
+          "defense_points_allowed": -3.326490082865888,
+          "net_points": 4.1354411479082716
+        },
+        "135": {
+          "offense_points": -1.0806006412457398,
+          "defense_points_allowed": -1.6685544949338513,
+          "net_points": 0.5879538536881115
+        },
+        "142": {
+          "offense_points": 1.1744809083427212,
+          "defense_points_allowed": -2.716943404881226,
+          "net_points": 3.891424313223947
+        },
+        "145": {
+          "offense_points": 4.450399404024771,
+          "defense_points_allowed": -2.854987310296215,
+          "net_points": 7.305386714320986
+        },
+        "147": {
+          "offense_points": 0.4095862151036156,
+          "defense_points_allowed": 0.42780263379077316,
+          "net_points": -0.018216418687157565
+        },
+        "149": {
+          "offense_points": 0.6630474750546954,
+          "defense_points_allowed": 0.07441571880805391,
+          "net_points": 0.5886317562466415
+        },
+        "150": {
+          "offense_points": 2.223967389612662,
+          "defense_points_allowed": -0.08527773877753668,
+          "net_points": 2.3092451283901987
+        },
+        "151": {
+          "offense_points": 1.3549248103287288,
+          "defense_points_allowed": -1.7688097073102582,
+          "net_points": 3.123734517638987
+        },
+        "152": {
+          "offense_points": 1.106203668876302,
+          "defense_points_allowed": -0.05054327822977951,
+          "net_points": 1.1567469471060814
+        },
+        "153": {
+          "offense_points": -0.7894743932993824,
+          "defense_points_allowed": -0.2914642855798556,
+          "net_points": -0.4980101077195268
+        },
+        "154": {
+          "offense_points": -0.16424409239937043,
+          "defense_points_allowed": -0.5348414572626893,
+          "net_points": 0.37059736486331885
+        },
+        "155": {
+          "offense_points": -0.44090173063385824,
+          "defense_points_allowed": -0.2160127178360666,
+          "net_points": -0.22488901279779164
+        },
+        "158": {
+          "offense_points": -0.30691207840108925,
+          "defense_points_allowed": -1.2913865764086978,
+          "net_points": 0.9844744980076086
+        },
+        "16": {
+          "offense_points": 1.665248622928622,
+          "defense_points_allowed": 0.8393933030125716,
+          "net_points": 0.8258553199160504
+        },
+        "160": {
+          "offense_points": -0.03060542420548735,
+          "defense_points_allowed": 0.5891426165999114,
+          "net_points": -0.6197480408053988
+        },
+        "164": {
+          "offense_points": 0.7428782118897905,
+          "defense_points_allowed": 0.6945736631730036,
+          "net_points": 0.04830454871678691
+        },
+        "166": {
+          "offense_points": -1.7358955719520262,
+          "defense_points_allowed": 0.9740885134519184,
+          "net_points": -2.7099840854039448
+        },
+        "167": {
+          "offense_points": 0.8809767113798691,
+          "defense_points_allowed": 0.5512260265495764,
+          "net_points": 0.3297506848302927
+        },
+        "183": {
+          "offense_points": -0.6366780727227788,
+          "defense_points_allowed": 1.6577869541185954,
+          "net_points": -2.294465026841374
+        },
+        "189": {
+          "offense_points": -1.2439316428701301,
+          "defense_points_allowed": -1.153894304105564,
+          "net_points": -0.0900373387645661
+        },
+        "193": {
+          "offense_points": -0.7814405321497635,
+          "defense_points_allowed": -2.491953047760377,
+          "net_points": 1.7105125156106136
+        },
+        "194": {
+          "offense_points": 3.509665171747246,
+          "defense_points_allowed": -6.81856549320627,
+          "net_points": 10.328230664953516
+        },
+        "195": {
+          "offense_points": 0.5802760629919165,
+          "defense_points_allowed": -2.54969896913935,
+          "net_points": 3.1299750321312665
+        },
+        "197": {
+          "offense_points": -2.4615100651403194,
+          "defense_points_allowed": 2.1611634435669096,
+          "net_points": -4.622673508707229
+        },
+        "2": {
+          "offense_points": 0.017657800864322264,
+          "defense_points_allowed": -2.2161339791422896,
+          "net_points": 2.233791780006612
+        },
+        "2000": {
+          "offense_points": -3.234968559820222e-05,
+          "defense_points_allowed": 0.8990499857064901,
+          "net_points": -0.8990823353920883
+        },
+        "2005": {
+          "offense_points": -0.11530133876334014,
+          "defense_points_allowed": -0.22461105145417676,
+          "net_points": 0.10930971269083661
+        },
+        "2006": {
+          "offense_points": -2.0780536824368054,
+          "defense_points_allowed": 0.8692832552622209,
+          "net_points": -2.9473369376990264
+        },
+        "201": {
+          "offense_points": 0.6275272718800442,
+          "defense_points_allowed": -3.2463940708922694,
+          "net_points": 3.873921342772314
+        },
+        "2010": {
+          "offense_points": -0.7349005383605521,
+          "defense_points_allowed": 1.1135388132990742,
+          "net_points": -1.8484393516596263
+        },
+        "2011": {
+          "offense_points": 0.3888736065327569,
+          "defense_points_allowed": 0.5508957665146018,
+          "net_points": -0.16202215998184494
+        },
+        "2016": {
+          "offense_points": -1.2905801433068746,
+          "defense_points_allowed": 1.2853629172599867,
+          "net_points": -2.5759430605668614
+        },
+        "202": {
+          "offense_points": -1.3489761699282738,
+          "defense_points_allowed": 2.468823578321332,
+          "net_points": -3.817799748249606
+        },
+        "2026": {
+          "offense_points": -0.3507070082307177,
+          "defense_points_allowed": 1.3679973831990697,
+          "net_points": -1.7187043914297875
+        },
+        "2029": {
+          "offense_points": -0.7738174487420466,
+          "defense_points_allowed": 1.454905564768482,
+          "net_points": -2.2287230135105287
+        },
+        "2032": {
+          "offense_points": -0.4945836293979849,
+          "defense_points_allowed": 0.9369191121891763,
+          "net_points": -1.4315027415871613
+        },
+        "204": {
+          "offense_points": -1.9393850826660153,
+          "defense_points_allowed": 0.6371010726157648,
+          "net_points": -2.57648615528178
+        },
+        "2046": {
+          "offense_points": -0.45698692791768286,
+          "defense_points_allowed": -0.17147766340655013,
+          "net_points": -0.28550926451113273
+        },
+        "2050": {
+          "offense_points": -2.6222853482504025,
+          "defense_points_allowed": 1.8238974396312826,
+          "net_points": -4.4461827878816855
+        },
+        "2065": {
+          "offense_points": -1.0352198280849123,
+          "defense_points_allowed": 1.2795472862611634,
+          "net_points": -2.3147671143460755
+        },
+        "2083": {
+          "offense_points": -0.3806902208534528,
+          "defense_points_allowed": 0.7087825102102024,
+          "net_points": -1.0894727310636552
+        },
+        "2084": {
+          "offense_points": -0.816358300913077,
+          "defense_points_allowed": -0.2335883574840064,
+          "net_points": -0.5827699434290706
+        },
+        "2097": {
+          "offense_points": -0.937130547507094,
+          "defense_points_allowed": 1.6686824143808707,
+          "net_points": -2.6058129618879646
+        },
+        "21": {
+          "offense_points": -1.002401476441814,
+          "defense_points_allowed": -2.159512609419946,
+          "net_points": 1.1571111329781318
+        },
+        "2110": {
+          "offense_points": -0.5692229800768918,
+          "defense_points_allowed": 1.0823013826235028,
+          "net_points": -1.6515243627003946
+        },
+        "2115": {
+          "offense_points": -0.4907450299350111,
+          "defense_points_allowed": 1.293922419898046,
+          "net_points": -1.784667449833057
+        },
+        "2116": {
+          "offense_points": -0.12418987163736692,
+          "defense_points_allowed": -0.7309555744807616,
+          "net_points": 0.6067657028433947
+        },
+        "2117": {
+          "offense_points": -1.4388391006996304,
+          "defense_points_allowed": -0.15101721208266988,
+          "net_points": -1.2878218886169606
+        },
+        "2127": {
+          "offense_points": -1.357150222159365,
+          "defense_points_allowed": 0.22300361150951192,
+          "net_points": -1.580153833668877
+        },
+        "213": {
+          "offense_points": 2.7547570691900383,
+          "defense_points_allowed": -3.481871919403333,
+          "net_points": 6.236628988593371
+        },
+        "2132": {
+          "offense_points": 0.4117930292227271,
+          "defense_points_allowed": -0.15559296130040945,
+          "net_points": 0.5673859905231365
+        },
+        "2142": {
+          "offense_points": -0.24277447777594674,
+          "defense_points_allowed": 1.1832552866988473,
+          "net_points": -1.426029764474794
+        },
+        "2169": {
+          "offense_points": -0.43367036482586757,
+          "defense_points_allowed": 0.5255690918385488,
+          "net_points": -0.9592394566644165
+        },
+        "218": {
+          "offense_points": -1.0188706527511335,
+          "defense_points_allowed": 1.7158348669706027,
+          "net_points": -2.7347055197217363
+        },
+        "2184": {
+          "offense_points": -1.3592014189602513,
+          "defense_points_allowed": 2.158119336257455,
+          "net_points": -3.517320755217706
+        },
+        "219": {
+          "offense_points": -0.029990036215351283,
+          "defense_points_allowed": -0.03658728190080612,
+          "net_points": 0.00659724568545484
+        },
+        "2193": {
+          "offense_points": -0.34038248918108954,
+          "defense_points_allowed": 1.271471377804686,
+          "net_points": -1.6118538669857756
+        },
+        "2197": {
+          "offense_points": -1.090062256632888,
+          "defense_points_allowed": 0.916479787262076,
+          "net_points": -2.0065420438949637
+        },
+        "2198": {
+          "offense_points": -1.1101211817579968,
+          "defense_points_allowed": 1.0963917552417857,
+          "net_points": -2.2065129369997827
+        },
+        "2199": {
+          "offense_points": -1.053570482938961,
+          "defense_points_allowed": 0.8764329556452785,
+          "net_points": -1.9300034385842393
+        },
+        "221": {
+          "offense_points": 1.7837301967775105,
+          "defense_points_allowed": -0.1970104875451138,
+          "net_points": 1.9807406843226243
+        },
+        "2210": {
+          "offense_points": -0.45436071960185886,
+          "defense_points_allowed": 0.2618073822065599,
+          "net_points": -0.7161681018084187
+        },
+        "222": {
+          "offense_points": -0.36632267545789843,
+          "defense_points_allowed": 0.7454168585240235,
+          "net_points": -1.1117395339819218
+        },
+        "2226": {
+          "offense_points": 0.1376416244280951,
+          "defense_points_allowed": 2.1280966867041546,
+          "net_points": -1.9904550622760595
+        },
+        "2229": {
+          "offense_points": -0.042393769569995646,
+          "defense_points_allowed": 0.8619578530820473,
+          "net_points": -0.9043516226520429
+        },
+        "2230": {
+          "offense_points": -0.31961939019690205,
+          "defense_points_allowed": 1.0920939222943937,
+          "net_points": -1.4117133124912957
+        },
+        "2241": {
+          "offense_points": -0.2330194976536484,
+          "defense_points_allowed": 1.0746390671372232,
+          "net_points": -1.3076585647908716
+        },
+        "2247": {
+          "offense_points": -1.7960184425104468,
+          "defense_points_allowed": 2.8093668129577463,
+          "net_points": -4.605385255468193
+        },
+        "227": {
+          "offense_points": -0.47769637875195936,
+          "defense_points_allowed": 0.6341471189711221,
+          "net_points": -1.1118434977230813
+        },
+        "2277": {
+          "offense_points": -0.779029245245356,
+          "defense_points_allowed": 1.3248998141435362,
+          "net_points": -2.103929059388892
+        },
+        "228": {
+          "offense_points": 1.448121631860287,
+          "defense_points_allowed": -2.2199020191166605,
+          "net_points": 3.6680236509769477
+        },
+        "2287": {
+          "offense_points": -1.1498413914755587,
+          "defense_points_allowed": 0.5123774824065551,
+          "net_points": -1.662218873882114
+        },
+        "2294": {
+          "offense_points": 0.27374196617120583,
+          "defense_points_allowed": -3.9905721238231147,
+          "net_points": 4.26431408999432
+        },
+        "2296": {
+          "offense_points": -0.20584141206856277,
+          "defense_points_allowed": 0.5291460542809971,
+          "net_points": -0.7349874663495599
+        },
+        "23": {
+          "offense_points": -0.6674336586322255,
+          "defense_points_allowed": 1.419694433184238,
+          "net_points": -2.0871280918164636
+        },
+        "2305": {
+          "offense_points": 1.0741511019864256,
+          "defense_points_allowed": -0.2254298240519391,
+          "net_points": 1.2995809260383646
+        },
+        "2306": {
+          "offense_points": 1.8421414745820335,
+          "defense_points_allowed": -0.8539470107805658,
+          "net_points": 2.6960884853625995
+        },
+        "2309": {
+          "offense_points": -2.8397609724031723,
+          "defense_points_allowed": 3.561134762260261,
+          "net_points": -6.400895734663433
+        },
+        "231": {
+          "offense_points": -0.5933643391596111,
+          "defense_points_allowed": 1.0037118511907783,
+          "net_points": -1.5970761903503894
+        },
+        "2320": {
+          "offense_points": -0.6563883250329963,
+          "defense_points_allowed": 0.3480646570575005,
+          "net_points": -1.0044529820904968
+        },
+        "2329": {
+          "offense_points": -0.17614803074807361,
+          "defense_points_allowed": 0.15459120604690454,
+          "net_points": -0.3307392367949782
+        },
+        "233": {
+          "offense_points": -0.648649871964901,
+          "defense_points_allowed": 0.9932446900926016,
+          "net_points": -1.6418945620575025
+        },
+        "2335": {
+          "offense_points": 0.5411766585280068,
+          "defense_points_allowed": -0.28032695216193354,
+          "net_points": 0.8215036106899403
+        },
+        "2341": {
+          "offense_points": -0.9097716333683733,
+          "defense_points_allowed": 0.556872512554681,
+          "net_points": -1.4666441459230541
+        },
+        "2348": {
+          "offense_points": -0.765067731978109,
+          "defense_points_allowed": -1.4784262101713177,
+          "net_points": 0.7133584781932087
+        },
+        "235": {
+          "offense_points": 2.726018477684977,
+          "defense_points_allowed": -0.9623109944433561,
+          "net_points": 3.6883294721283333
+        },
+        "236": {
+          "offense_points": -0.6910737754505992,
+          "defense_points_allowed": 0.8945246306501369,
+          "net_points": -1.5855984061007362
+        },
+        "2377": {
+          "offense_points": -1.0471987864633994,
+          "defense_points_allowed": 0.8212402562702609,
+          "net_points": -1.8684390427336601
+        },
+        "238": {
+          "offense_points": 2.736590563294184,
+          "defense_points_allowed": -0.7828149948153346,
+          "net_points": 3.5194055581095185
+        },
+        "2382": {
+          "offense_points": -0.5810707802094222,
+          "defense_points_allowed": 1.3548768225760741,
+          "net_points": -1.9359476027854963
+        },
+        "2385": {
+          "offense_points": 0.0992798353949601,
+          "defense_points_allowed": 0.4394014966132993,
+          "net_points": -0.3401216612183392
+        },
+        "239": {
+          "offense_points": 1.6687954703730468,
+          "defense_points_allowed": 1.497709705186458,
+          "net_points": 0.1710857651865887
+        },
+        "2390": {
+          "offense_points": 3.571626376329841,
+          "defense_points_allowed": -3.9541278388147623,
+          "net_points": 7.5257542151446035
+        },
+        "2393": {
+          "offense_points": -2.028233498270471,
+          "defense_points_allowed": 1.7333475744896576,
+          "net_points": -3.761581072760128
+        },
+        "24": {
+          "offense_points": -2.1964128615839518,
+          "defense_points_allowed": 1.3952883007042138,
+          "net_points": -3.5917011622881656
+        },
+        "2405": {
+          "offense_points": 0.5083943235813555,
+          "defense_points_allowed": 0.8305329198317785,
+          "net_points": -0.32213859625042296
+        },
+        "2415": {
+          "offense_points": -0.7776737763373119,
+          "defense_points_allowed": 0.7043670022538545,
+          "net_points": -1.4820407785911665
+        },
+        "242": {
+          "offense_points": -2.4647654142710964,
+          "defense_points_allowed": 1.1902236457800413,
+          "net_points": -3.654989060051138
+        },
+        "2426": {
+          "offense_points": 1.0970370191590237,
+          "defense_points_allowed": -1.280904742620956,
+          "net_points": 2.37794176177998
+        },
+        "2428": {
+          "offense_points": -0.6737190507451677,
+          "defense_points_allowed": 0.9638468233938509,
+          "net_points": -1.6375658741390184
+        },
+        "2429": {
+          "offense_points": -3.495289327809633,
+          "defense_points_allowed": 2.6826610837913667,
+          "net_points": -6.177950411601
+        },
+        "2433": {
+          "offense_points": -3.2701814065109285,
+          "defense_points_allowed": 1.4476063941596646,
+          "net_points": -4.717787800670593
+        },
+        "2439": {
+          "offense_points": 3.2895289308898215,
+          "defense_points_allowed": -0.23080282599406454,
+          "net_points": 3.520331756883886
+        },
+        "2440": {
+          "offense_points": -2.8557641205197197,
+          "defense_points_allowed": 0.5258494382699825,
+          "net_points": -3.3816135587897023
+        },
+        "2447": {
+          "offense_points": -1.0458134138233726,
+          "defense_points_allowed": 0.4007647401789538,
+          "net_points": -1.4465781540023264
+        },
+        "2448": {
+          "offense_points": -0.8859787463511462,
+          "defense_points_allowed": 1.3805179573121527,
+          "net_points": -2.266496703663299
+        },
+        "2449": {
+          "offense_points": 4.469976980930682,
+          "defense_points_allowed": -3.9477867009320287,
+          "net_points": 8.417763681862711
+        },
+        "245": {
+          "offense_points": 2.414374050804321,
+          "defense_points_allowed": -2.286959479339218,
+          "net_points": 4.70133353014354
+        },
+        "2450": {
+          "offense_points": -0.7066650301214797,
+          "defense_points_allowed": 0.9422803676101545,
+          "net_points": -1.6489453977316342
+        },
+        "2453": {
+          "offense_points": -0.7652866729700409,
+          "defense_points_allowed": 0.8792718998574299,
+          "net_points": -1.6445585728274708
+        },
+        "2458": {
+          "offense_points": 0.004349657793287457,
+          "defense_points_allowed": 0.3456938762874037,
+          "net_points": -0.3413442184941163
+        },
+        "2459": {
+          "offense_points": -2.3820960420039055,
+          "defense_points_allowed": -1.5136351206148546,
+          "net_points": -0.8684609213890508
+        },
+        "2460": {
+          "offense_points": -0.8273169432105246,
+          "defense_points_allowed": 0.967974761160274,
+          "net_points": -1.7952917043707988
+        },
+        "2464": {
+          "offense_points": -0.3228557044120259,
+          "defense_points_allowed": -0.022153151532969047,
+          "net_points": -0.30070255287905684
+        },
+        "2466": {
+          "offense_points": -1.3264736370965042,
+          "defense_points_allowed": 3.1142935352900345,
+          "net_points": -4.440767172386539
+        },
+        "248": {
+          "offense_points": -0.8912815943278761,
+          "defense_points_allowed": -1.1820288326995918,
+          "net_points": 0.2907472383717157
+        },
+        "2483": {
+          "offense_points": 5.006669444550126,
+          "defense_points_allowed": -3.597832879468744,
+          "net_points": 8.60450232401887
+        },
+        "249": {
+          "offense_points": 5.570110923170172,
+          "defense_points_allowed": 1.2622484090638166,
+          "net_points": 4.307862514106356
+        },
+        "25": {
+          "offense_points": -0.1357550373439387,
+          "defense_points_allowed": -0.1318798760451335,
+          "net_points": -0.0038751612988052186
+        },
+        "2502": {
+          "offense_points": -0.8339763773266767,
+          "defense_points_allowed": 2.4913058911561525,
+          "net_points": -3.3252822684828294
+        },
+        "2504": {
+          "offense_points": -0.6423520310733998,
+          "defense_points_allowed": 0.623805087244148,
+          "net_points": -1.2661571183175477
+        },
+        "2509": {
+          "offense_points": -2.632824338906279,
+          "defense_points_allowed": 2.4257435045666917,
+          "net_points": -5.058567843472971
+        },
+        "251": {
+          "offense_points": 2.7572023867265663,
+          "defense_points_allowed": -3.2564020476610724,
+          "net_points": 6.013604434387639
+        },
+        "252": {
+          "offense_points": 1.6736044014561433,
+          "defense_points_allowed": -2.691179047389272,
+          "net_points": 4.364783448845415
+        },
+        "2523": {
+          "offense_points": -0.7893187951880668,
+          "defense_points_allowed": 0.4855101105936585,
+          "net_points": -1.2748289057817253
+        },
+        "2529": {
+          "offense_points": -0.4829975329919262,
+          "defense_points_allowed": 0.2258072333033176,
+          "net_points": -0.7088047662952438
+        },
+        "253": {
+          "offense_points": -0.2743125772698762,
+          "defense_points_allowed": 0.14782280208558352,
+          "net_points": -0.4221353793554597
+        },
+        "2534": {
+          "offense_points": -2.51314240613175,
+          "defense_points_allowed": 1.4248537824887275,
+          "net_points": -3.9379961886204775
+        },
+        "2535": {
+          "offense_points": -1.3007188779914671,
+          "defense_points_allowed": 0.9516840784720357,
+          "net_points": -2.252402956463503
+        },
+        "254": {
+          "offense_points": 2.956380078501295,
+          "defense_points_allowed": -2.8867090699668436,
+          "net_points": 5.843089148468138
+        },
+        "2545": {
+          "offense_points": -1.417373396250427,
+          "defense_points_allowed": 0.9116413523355518,
+          "net_points": -2.329014748585979
+        },
+        "2546": {
+          "offense_points": -0.3901290117229025,
+          "defense_points_allowed": 0.44567760258363975,
+          "net_points": -0.8358066143065422
+        },
+        "256": {
+          "offense_points": 3.5041234672132013,
+          "defense_points_allowed": -3.2356914725976624,
+          "net_points": 6.739814939810864
+        },
+        "2567": {
+          "offense_points": 3.244011367047708,
+          "defense_points_allowed": -2.748033660423958,
+          "net_points": 5.992045027471667
+        },
+        "2569": {
+          "offense_points": -0.8529801999120316,
+          "defense_points_allowed": 1.123753121387008,
+          "net_points": -1.9767333212990397
+        },
+        "257": {
+          "offense_points": -0.6628438190898391,
+          "defense_points_allowed": 0.21322863506809042,
+          "net_points": -0.8760724541579296
+        },
+        "2571": {
+          "offense_points": -0.6836395010624168,
+          "defense_points_allowed": -0.7739251523245239,
+          "net_points": 0.09028565126210708
+        },
+        "2572": {
+          "offense_points": -1.2185156643112411,
+          "defense_points_allowed": 1.7944216739499737,
+          "net_points": -3.0129373382612146
+        },
+        "2579": {
+          "offense_points": -0.1956127955944382,
+          "defense_points_allowed": -2.145250614601722,
+          "net_points": 1.9496378190072836
+        },
+        "258": {
+          "offense_points": 0.31145576046287476,
+          "defense_points_allowed": -1.3049292036066866,
+          "net_points": 1.6163849640695613
+        },
+        "2582": {
+          "offense_points": -0.3791808387771657,
+          "defense_points_allowed": 0.6728877904499203,
+          "net_points": -1.052068629227086
+        },
+        "259": {
+          "offense_points": -0.6832710778062924,
+          "defense_points_allowed": -0.04838930468191066,
+          "net_points": -0.6348817731243817
+        },
+        "2598": {
+          "offense_points": -1.4138084467590082,
+          "defense_points_allowed": 0.38821227527781366,
+          "net_points": -1.8020207220368218
+        },
+        "26": {
+          "offense_points": -2.2034720806098322,
+          "defense_points_allowed": 0.15563882253582115,
+          "net_points": -2.359110903145653
+        },
+        "2617": {
+          "offense_points": -0.5697398893840665,
+          "defense_points_allowed": 0.03165116708917763,
+          "net_points": -0.6013910564732441
+        },
+        "2619": {
+          "offense_points": -0.9066975813616557,
+          "defense_points_allowed": 0.48424711973658535,
+          "net_points": -1.390944701098241
+        },
+        "2623": {
+          "offense_points": 0.6373762386558335,
+          "defense_points_allowed": 0.9576404681196865,
+          "net_points": -0.320264229463853
+        },
+        "2627": {
+          "offense_points": -0.1546918102945104,
+          "defense_points_allowed": 0.12366223857915919,
+          "net_points": -0.2783540488736696
+        },
+        "2628": {
+          "offense_points": 2.065223973026159,
+          "defense_points_allowed": -0.8447150335460882,
+          "net_points": 2.9099390065722472
+        },
+        "2630": {
+          "offense_points": -1.3341110681060535,
+          "defense_points_allowed": 0.6152841130170544,
+          "net_points": -1.949395181123108
+        },
+        "2633": {
+          "offense_points": 4.174226800102565,
+          "defense_points_allowed": -0.9957555832543804,
+          "net_points": 5.169982383356945
+        },
+        "2634": {
+          "offense_points": -0.9186207906655547,
+          "defense_points_allowed": 1.1367916347319125,
+          "net_points": -2.055412425397467
+        },
+        "2635": {
+          "offense_points": -0.6656015540763642,
+          "defense_points_allowed": 0.7376818196326339,
+          "net_points": -1.403283373708998
+        },
+        "2636": {
+          "offense_points": 3.13756370269568,
+          "defense_points_allowed": 0.29876742990049304,
+          "net_points": 2.8387962727951868
+        },
+        "2638": {
+          "offense_points": -1.907146540146402,
+          "defense_points_allowed": 1.5254035586962267,
+          "net_points": -3.4325500988426287
+        },
+        "264": {
+          "offense_points": 2.220885709974599,
+          "defense_points_allowed": -2.2475513289118334,
+          "net_points": 4.4684370388864325
+        },
+        "2640": {
+          "offense_points": -0.9618741963264533,
+          "defense_points_allowed": 1.0808844433512126,
+          "net_points": -2.042758639677666
+        },
+        "2641": {
+          "offense_points": 4.212949438981892,
+          "defense_points_allowed": -2.769131999580131,
+          "net_points": 6.982081438562023
+        },
+        "2643": {
+          "offense_points": -1.4871589952405782,
+          "defense_points_allowed": 0.9288152305975143,
+          "net_points": -2.4159742258380925
+        },
+        "2649": {
+          "offense_points": 1.4843694399009073,
+          "defense_points_allowed": -3.4112752887515647,
+          "net_points": 4.8956447286524725
+        },
+        "265": {
+          "offense_points": 0.6980553597840716,
+          "defense_points_allowed": -1.2585042536621405,
+          "net_points": 1.956559613446212
+        },
+        "2653": {
+          "offense_points": -0.7164581453557414,
+          "defense_points_allowed": -1.3350492714324758,
+          "net_points": 0.6185911260767344
+        },
+        "2655": {
+          "offense_points": 1.0656642768365647,
+          "defense_points_allowed": -2.211672360235668,
+          "net_points": 3.2773366370722328
+        },
+        "2678": {
+          "offense_points": -0.696756825282037,
+          "defense_points_allowed": 0.9404710333639223,
+          "net_points": -1.6372278586459594
+        },
+        "2681": {
+          "offense_points": -1.470167552043412,
+          "defense_points_allowed": 1.167464250375772,
+          "net_points": -2.6376318024191843
+        },
+        "2692": {
+          "offense_points": -0.8006820002949646,
+          "defense_points_allowed": 1.6731288163153335,
+          "net_points": -2.473810816610298
+        },
+        "2710": {
+          "offense_points": -1.1305243785149919,
+          "defense_points_allowed": 1.8130263134071887,
+          "net_points": -2.9435506919221806
+        },
+        "2711": {
+          "offense_points": -0.007802392193283563,
+          "defense_points_allowed": -1.3486909013723476,
+          "net_points": 1.340888509179064
+        },
+        "2717": {
+          "offense_points": -0.4335230190048512,
+          "defense_points_allowed": 0.5231132581347835,
+          "net_points": -0.9566362771396346
+        },
+        "2729": {
+          "offense_points": -0.27560593564341435,
+          "defense_points_allowed": 0.7263715101878802,
+          "net_points": -1.0019774458312944
+        },
+        "2747": {
+          "offense_points": -0.6961788913990223,
+          "defense_points_allowed": 0.669670145900427,
+          "net_points": -1.3658490372994492
+        },
+        "275": {
+          "offense_points": -3.1726286014178338,
+          "defense_points_allowed": -2.146029525834958,
+          "net_points": -1.0265990755828756
+        },
+        "2751": {
+          "offense_points": -3.2214536158457583,
+          "defense_points_allowed": -1.554339025977123,
+          "net_points": -1.6671145898686353
+        },
+        "2754": {
+          "offense_points": 0.23403262994901883,
+          "defense_points_allowed": 0.9797610953227326,
+          "net_points": -0.7457284653737137
+        },
+        "2755": {
+          "offense_points": -0.675609428221078,
+          "defense_points_allowed": 1.2894516364837763,
+          "net_points": -1.9650610647048543
+        },
+        "276": {
+          "offense_points": 1.0797626401305223,
+          "defense_points_allowed": 0.12296825632766385,
+          "net_points": 0.9567943838028584
+        },
+        "277": {
+          "offense_points": -0.27023389044495927,
+          "defense_points_allowed": 1.1349270402559752,
+          "net_points": -1.4051609307009345
+        },
+        "2771": {
+          "offense_points": -0.8396682280095917,
+          "defense_points_allowed": 0.06190681459167893,
+          "net_points": -0.9015750426012706
+        },
+        "278": {
+          "offense_points": -0.16781872082148122,
+          "defense_points_allowed": -2.049101918025397,
+          "net_points": 1.8812831972039157
+        },
+        "2803": {
+          "offense_points": -0.6874324355178466,
+          "defense_points_allowed": -0.001363328201246336,
+          "net_points": -0.6860691073166003
+        },
+        "2815": {
+          "offense_points": -1.2085013333763104,
+          "defense_points_allowed": 0.1134248555672424,
+          "net_points": -1.3219261889435527
+        },
+        "282": {
+          "offense_points": -1.5188048100200553,
+          "defense_points_allowed": 1.7551122848109404,
+          "net_points": -3.2739170948309955
+        },
+        "2837": {
+          "offense_points": -1.2246368328279484,
+          "defense_points_allowed": 1.4908940059803966,
+          "net_points": -2.715530838808345
+        },
+        "290": {
+          "offense_points": 0.5230959973550229,
+          "defense_points_allowed": 1.4040729827563783,
+          "net_points": -0.8809769854013554
+        },
+        "2900": {
+          "offense_points": -0.3739859105798311,
+          "defense_points_allowed": 0.8064626361948751,
+          "net_points": -1.1804485467747061
+        },
+        "2916": {
+          "offense_points": -0.16758299402321317,
+          "defense_points_allowed": 0.36843366214923573,
+          "net_points": -0.5360166561724489
+        },
+        "295": {
+          "offense_points": 1.1167924914858107,
+          "defense_points_allowed": -1.9591473318890593,
+          "net_points": 3.07593982337487
+        },
+        "30": {
+          "offense_points": 3.485732671373516,
+          "defense_points_allowed": -0.702984563898013,
+          "net_points": 4.188717235271529
+        },
+        "302": {
+          "offense_points": -0.26588682939044994,
+          "defense_points_allowed": 1.2289493644234115,
+          "net_points": -1.4948361938138615
+        },
+        "304": {
+          "offense_points": 0.06492924312151468,
+          "defense_points_allowed": 0.5660238433695464,
+          "net_points": -0.5010946002480317
+        },
+        "309": {
+          "offense_points": 0.46796284070057864,
+          "defense_points_allowed": 0.39436187106063214,
+          "net_points": 0.0736009696399465
+        },
+        "3101": {
+          "offense_points": -0.15079950560972374,
+          "defense_points_allowed": 0.5843937032573522,
+          "net_points": -0.735193208867076
+        },
+        "311": {
+          "offense_points": -0.7914412042250737,
+          "defense_points_allowed": 0.7134679730693244,
+          "net_points": -1.504909177294398
+        },
+        "322": {
+          "offense_points": -0.8997009939004057,
+          "defense_points_allowed": 0.4167503083184273,
+          "net_points": -1.3164513022188329
+        },
+        "324": {
+          "offense_points": -0.7901890862959278,
+          "defense_points_allowed": 1.8300952748526547,
+          "net_points": -2.6202843611485824
+        },
+        "326": {
+          "offense_points": 3.726716964459759,
+          "defense_points_allowed": 0.7543311562343628,
+          "net_points": 2.972385808225396
+        },
+        "328": {
+          "offense_points": 1.9849868489074773,
+          "defense_points_allowed": 1.8838808479876017,
+          "net_points": 0.10110600091987565
+        },
+        "331": {
+          "offense_points": -0.5990025295769799,
+          "defense_points_allowed": 0.9467926337132281,
+          "net_points": -1.545795163290208
+        },
+        "333": {
+          "offense_points": 2.4523325235830793,
+          "defense_points_allowed": -3.5973090502908995,
+          "net_points": 6.049641573873979
+        },
+        "338": {
+          "offense_points": -1.0474969303345478,
+          "defense_points_allowed": 0.10085844865255793,
+          "net_points": -1.1483553789871057
+        },
+        "344": {
+          "offense_points": 0.5878354946959791,
+          "defense_points_allowed": 1.4818519655156575,
+          "net_points": -0.8940164708196784
+        },
+        "349": {
+          "offense_points": -0.535570080915325,
+          "defense_points_allowed": -2.8950111696285856,
+          "net_points": 2.3594410887132606
+        },
+        "356": {
+          "offense_points": 0.8412661418038611,
+          "defense_points_allowed": -1.0752956240155405,
+          "net_points": 1.9165617658194014
+        },
+        "36": {
+          "offense_points": -2.1274278967564766,
+          "defense_points_allowed": 1.014283248543948,
+          "net_points": -3.1417111453004245
+        },
+        "38": {
+          "offense_points": -0.2979488272705113,
+          "defense_points_allowed": 0.5931321617438955,
+          "net_points": -0.8910809890144068
+        },
+        "399": {
+          "offense_points": -0.644739454747019,
+          "defense_points_allowed": 0.20100939497977674,
+          "net_points": -0.8457488497267958
+        },
+        "41": {
+          "offense_points": 1.67457284591957,
+          "defense_points_allowed": 0.06119285969859428,
+          "net_points": 1.6133799862209757
+        },
+        "47": {
+          "offense_points": -0.6773415480825755,
+          "defense_points_allowed": 0.8321346901426038,
+          "net_points": -1.5094762382251794
+        },
+        "48": {
+          "offense_points": 1.061807775606936,
+          "defense_points_allowed": 0.8208378234328504,
+          "net_points": 0.24096995217408557
+        },
+        "5": {
+          "offense_points": -0.1704492577347183,
+          "defense_points_allowed": 3.384853383864295,
+          "net_points": -3.555302641599013
+        },
+        "50": {
+          "offense_points": -0.501788147021317,
+          "defense_points_allowed": 1.004367737378786,
+          "net_points": -1.506155884400103
+        },
+        "52": {
+          "offense_points": 0.5197605835732741,
+          "defense_points_allowed": -1.3689375890603475,
+          "net_points": 1.8886981726336216
+        },
+        "55": {
+          "offense_points": 1.4545581039789008,
+          "defense_points_allowed": -0.5631193423189295,
+          "net_points": 2.01767744629783
+        },
+        "57": {
+          "offense_points": -0.38141247794288224,
+          "defense_points_allowed": -1.3752196761249404,
+          "net_points": 0.9938071981820582
+        },
+        "58": {
+          "offense_points": 4.007188821484298,
+          "defense_points_allowed": -0.33392705719081495,
+          "net_points": 4.3411158786751125
+        },
+        "59": {
+          "offense_points": 1.942673832430517,
+          "defense_points_allowed": -0.39945861092439156,
+          "net_points": 2.3421324433549087
+        },
+        "6": {
+          "offense_points": 0.9482953148146044,
+          "defense_points_allowed": 0.14746854121768393,
+          "net_points": 0.8008267735969204
+        },
+        "61": {
+          "offense_points": 3.1087197831064572,
+          "defense_points_allowed": -3.4440950282777285,
+          "net_points": 6.552814811384186
+        },
+        "62": {
+          "offense_points": -0.5983907354583967,
+          "defense_points_allowed": -0.05141818594975574,
+          "net_points": -0.5469725495086409
+        },
+        "66": {
+          "offense_points": 0.8691997482694014,
+          "defense_points_allowed": -2.083956511454923,
+          "net_points": 2.9531562597243246
+        },
+        "68": {
+          "offense_points": 2.2748794457009405,
+          "defense_points_allowed": -1.459999966401062,
+          "net_points": 3.7348794121020026
+        },
+        "70": {
+          "offense_points": -0.4372338681308202,
+          "defense_points_allowed": -1.0954101737409767,
+          "net_points": 0.6581763056101565
+        },
+        "77": {
+          "offense_points": -1.6074580254433168,
+          "defense_points_allowed": -1.7272170284807193,
+          "net_points": 0.1197590030374025
+        },
+        "79": {
+          "offense_points": -0.8280225095261088,
+          "defense_points_allowed": 0.4429331430866367,
+          "net_points": -1.2709556526127455
+        },
+        "8": {
+          "offense_points": 1.9401736148659645,
+          "defense_points_allowed": 1.0929443688614193,
+          "net_points": 0.8472292460045452
+        },
+        "84": {
+          "offense_points": 5.779552384410026,
+          "defense_points_allowed": -4.9407259870081015,
+          "net_points": 10.720278371418129
+        },
+        "87": {
+          "offense_points": 5.456795721641204,
+          "defense_points_allowed": -4.150275136481359,
+          "net_points": 9.607070858122563
+        },
+        "9": {
+          "offense_points": 0.23279391994890145,
+          "defense_points_allowed": -0.9716346626543414,
+          "net_points": 1.2044285826032428
+        },
+        "93": {
+          "offense_points": -1.383877330190665,
+          "defense_points_allowed": 2.044400011597233,
+          "net_points": -3.428277341787898
+        },
+        "96": {
+          "offense_points": -1.1341041654825361,
+          "defense_points_allowed": -0.9149340053480447,
+          "net_points": -0.21917016013449142
+        },
+        "97": {
+          "offense_points": 2.243789926171871,
+          "defense_points_allowed": -1.9430884669437511,
+          "net_points": 4.186878393115622
+        },
+        "98": {
+          "offense_points": 0.6038292814219768,
+          "defense_points_allowed": -0.940854082039247,
+          "net_points": 1.5446833634612238
+        },
+        "99": {
+          "offense_points": 0.9072290241497738,
+          "defense_points_allowed": -1.7687046402518176,
+          "net_points": 2.675933664401591
+        }
+      }
+    },
+    {
+      "block": "2026-09",
+      "hfa_points": 7.256811540271723,
+      "intercept_ppg": 23.375694865976673,
+      "teams": {
+        "103": {
+          "offense_points": -0.3055095485772905,
+          "defense_points_allowed": 0.8635497344970848,
+          "net_points": -1.1690592830743753
+        },
+        "107": {
+          "offense_points": -0.2764365661633726,
+          "defense_points_allowed": -0.15643359407807741,
+          "net_points": -0.12000297208529517
+        },
+        "113": {
+          "offense_points": -3.782020830330558,
+          "defense_points_allowed": 4.058359643596187,
+          "net_points": -7.840380473926745
+        },
+        "119": {
+          "offense_points": -0.2471536553920281,
+          "defense_points_allowed": 0.5475184664753988,
+          "net_points": -0.7946721218674269
+        },
+        "12": {
+          "offense_points": 0.9511655637061518,
+          "defense_points_allowed": -1.4527148431466497,
+          "net_points": 2.4038804068528012
+        },
+        "120": {
+          "offense_points": -0.7558533709397958,
+          "defense_points_allowed": 0.34706447875634255,
+          "net_points": -1.1029178496961383
+        },
+        "127": {
+          "offense_points": -1.4652063862862135,
+          "defense_points_allowed": 0.5354221406011802,
+          "net_points": -2.0006285268873936
+        },
+        "13": {
+          "offense_points": -0.4865022454247057,
+          "defense_points_allowed": 0.7830325933429072,
+          "net_points": -1.2695348387676129
+        },
+        "130": {
+          "offense_points": 0.7552253719040387,
+          "defense_points_allowed": -3.184135449338345,
+          "net_points": 3.939360821242384
+        },
+        "135": {
+          "offense_points": -1.0497834874496133,
+          "defense_points_allowed": -1.5933889061665698,
+          "net_points": 0.5436054187169566
+        },
+        "142": {
+          "offense_points": 1.1313240263365305,
+          "defense_points_allowed": -2.5944462422973626,
+          "net_points": 3.725770268633893
+        },
+        "145": {
+          "offense_points": 4.280452418618478,
+          "defense_points_allowed": -2.7282473976935298,
+          "net_points": 7.008699816312008
+        },
+        "147": {
+          "offense_points": 0.3927495228134373,
+          "defense_points_allowed": 0.4182011054612034,
+          "net_points": -0.025451582647766147
+        },
+        "149": {
+          "offense_points": 0.6315423548180054,
+          "defense_points_allowed": 0.0796084219880107,
+          "net_points": 0.5519339328299947
+        },
+        "150": {
+          "offense_points": 2.1676103159885813,
+          "defense_points_allowed": -0.05005068875866839,
+          "net_points": 2.21766100474725
+        },
+        "151": {
+          "offense_points": 1.3216578320890577,
+          "defense_points_allowed": -1.6865690192019949,
+          "net_points": 3.0082268512910524
+        },
+        "152": {
+          "offense_points": 0.6431021861478579,
+          "defense_points_allowed": 0.06653543833834458,
+          "net_points": 0.5765667478095133
+        },
+        "153": {
+          "offense_points": -0.951577711712324,
+          "defense_points_allowed": -0.7002774155024872,
+          "net_points": -0.25130029620983674
+        },
+        "154": {
+          "offense_points": -0.1418578464290554,
+          "defense_points_allowed": -0.484327261656074,
+          "net_points": 0.34246941522701857
+        },
+        "155": {
+          "offense_points": -0.4073329171163698,
+          "defense_points_allowed": -0.19395530066053956,
+          "net_points": -0.21337761645583025
+        },
+        "158": {
+          "offense_points": -0.3140454756297797,
+          "defense_points_allowed": -1.23123461254581,
+          "net_points": 0.9171891369160303
+        },
+        "16": {
+          "offense_points": 1.3406107366054887,
+          "defense_points_allowed": 0.7271023153070473,
+          "net_points": 0.6135084212984414
+        },
+        "160": {
+          "offense_points": -0.025601890367708307,
+          "defense_points_allowed": 0.5538631520957012,
+          "net_points": -0.5794650424634096
+        },
+        "164": {
+          "offense_points": 0.6943873815215275,
+          "defense_points_allowed": 0.6891424310694139,
+          "net_points": 0.005244950452113595
+        },
+        "166": {
+          "offense_points": -1.7588957143205581,
+          "defense_points_allowed": 0.9236861556895927,
+          "net_points": -2.682581870010151
+        },
+        "167": {
+          "offense_points": 0.8437712613655045,
+          "defense_points_allowed": 0.5460067109252316,
+          "net_points": 0.29776455044027295
+        },
+        "183": {
+          "offense_points": -0.615969849378561,
+          "defense_points_allowed": 1.6360121334168407,
+          "net_points": -2.2519819827954017
+        },
+        "189": {
+          "offense_points": -1.1892093088246802,
+          "defense_points_allowed": -1.1117312974064948,
+          "net_points": -0.07747801141818544
+        },
+        "193": {
+          "offense_points": -0.748317770498388,
+          "defense_points_allowed": -2.399265498385981,
+          "net_points": 1.6509477278875933
+        },
+        "194": {
+          "offense_points": 3.3655481383622026,
+          "defense_points_allowed": -6.5544405454614845,
+          "net_points": 9.919988683823687
+        },
+        "195": {
+          "offense_points": 0.6065978680303175,
+          "defense_points_allowed": -2.420437172041898,
+          "net_points": 3.0270350400722155
+        },
+        "197": {
+          "offense_points": -2.382290743634266,
+          "defense_points_allowed": 2.1122466423687394,
+          "net_points": -4.494537386003005
+        },
+        "2": {
+          "offense_points": 0.0037491944311507023,
+          "defense_points_allowed": -2.1069868147516213,
+          "net_points": 2.110736009182772
+        },
+        "2000": {
+          "offense_points": 0.012168206544598712,
+          "defense_points_allowed": 0.8677635096464836,
+          "net_points": -0.8555953031018849
+        },
+        "2005": {
+          "offense_points": -0.11843472540280997,
+          "defense_points_allowed": -0.207228732508261,
+          "net_points": 0.08879400710545102
+        },
+        "2006": {
+          "offense_points": -1.9915781837274433,
+          "defense_points_allowed": 0.8324310010753011,
+          "net_points": -2.8240091848027444
+        },
+        "201": {
+          "offense_points": 0.5848410750008723,
+          "defense_points_allowed": -3.09935849797752,
+          "net_points": 3.6841995729783923
+        },
+        "2010": {
+          "offense_points": -0.6936586065025993,
+          "defense_points_allowed": 1.0551937922261556,
+          "net_points": -1.7488523987287548
+        },
+        "2011": {
+          "offense_points": 0.37141821350128995,
+          "defense_points_allowed": 0.5196685982423009,
+          "net_points": -0.148250384741011
+        },
+        "2016": {
+          "offense_points": -1.2161461537696097,
+          "defense_points_allowed": 1.217288192749051,
+          "net_points": -2.433434346518661
+        },
+        "202": {
+          "offense_points": -1.2847095271572366,
+          "defense_points_allowed": 2.3856854850595655,
+          "net_points": -3.670395012216802
+        },
+        "2026": {
+          "offense_points": -0.3279097320055277,
+          "defense_points_allowed": 1.327999565215237,
+          "net_points": -1.6559092972207647
+        },
+        "2029": {
+          "offense_points": -0.7315321330188601,
+          "defense_points_allowed": 1.3800831714835633,
+          "net_points": -2.1116153045024233
+        },
+        "2032": {
+          "offense_points": -0.4652070122182803,
+          "defense_points_allowed": 0.9113639500719884,
+          "net_points": -1.3765709622902689
+        },
+        "204": {
+          "offense_points": -1.8775665536730166,
+          "defense_points_allowed": 0.6302137933778569,
+          "net_points": -2.5077803470508737
+        },
+        "2046": {
+          "offense_points": -0.4328220043655016,
+          "defense_points_allowed": -0.1601778334833503,
+          "net_points": -0.2726441708821513
+        },
+        "2050": {
+          "offense_points": -2.5207716829733564,
+          "defense_points_allowed": 1.7571637630362476,
+          "net_points": -4.277935446009604
+        },
+        "2065": {
+          "offense_points": -0.9807514777378609,
+          "defense_points_allowed": 1.216266210511363,
+          "net_points": -2.197017688249224
+        },
+        "2083": {
+          "offense_points": -0.3588346382212672,
+          "defense_points_allowed": 0.6700484820510327,
+          "net_points": -1.0288831202723
+        },
+        "2084": {
+          "offense_points": -0.7729103239312141,
+          "defense_points_allowed": -0.2286242353741069,
+          "net_points": -0.5442860885571071
+        },
+        "2097": {
+          "offense_points": -0.8853334490651735,
+          "defense_points_allowed": 1.5939207489824951,
+          "net_points": -2.4792541980476686
+        },
+        "21": {
+          "offense_points": -0.9463594723674744,
+          "defense_points_allowed": -2.0407547222113123,
+          "net_points": 1.0943952498438378
+        },
+        "2110": {
+          "offense_points": -0.5346251327588615,
+          "defense_points_allowed": 1.0320072248492718,
+          "net_points": -1.5666323576081331
+        },
+        "2115": {
+          "offense_points": -0.45895160362202914,
+          "defense_points_allowed": 1.2226819869637073,
+          "net_points": -1.6816335905857365
+        },
+        "2116": {
+          "offense_points": -0.11678754314628934,
+          "defense_points_allowed": -0.6738277915268484,
+          "net_points": 0.557040248380559
+        },
+        "2117": {
+          "offense_points": -1.3768568759004232,
+          "defense_points_allowed": -0.14745596047731668,
+          "net_points": -1.2294009154231065
+        },
+        "2127": {
+          "offense_points": -1.2805898871363623,
+          "defense_points_allowed": 0.21187013721358916,
+          "net_points": -1.4924600243499515
+        },
+        "213": {
+          "offense_points": 2.638010293784097,
+          "defense_points_allowed": -3.3349099910856537,
+          "net_points": 5.972920284869751
+        },
+        "2132": {
+          "offense_points": 0.39500900498428476,
+          "defense_points_allowed": -0.11884741031099783,
+          "net_points": 0.5138564152952826
+        },
+        "2142": {
+          "offense_points": -0.22597066090076648,
+          "defense_points_allowed": 1.1168640742889286,
+          "net_points": -1.3428347351896952
+        },
+        "2169": {
+          "offense_points": -0.4112795503144631,
+          "defense_points_allowed": 0.4962701015428579,
+          "net_points": -0.907549651857321
+        },
+        "218": {
+          "offense_points": -0.9756867412205542,
+          "defense_points_allowed": 1.6690679138563125,
+          "net_points": -2.644754655076867
+        },
+        "2184": {
+          "offense_points": -1.2838048197482932,
+          "defense_points_allowed": 2.0435676498948365,
+          "net_points": -3.3273724696431297
+        },
+        "219": {
+          "offense_points": -0.027335969342320666,
+          "defense_points_allowed": -0.03422370199154728,
+          "net_points": 0.0068877326492266105
+        },
+        "2193": {
+          "offense_points": -0.3174374265592374,
+          "defense_points_allowed": 1.2111301723851486,
+          "net_points": -1.528567598944386
+        },
+        "2197": {
+          "offense_points": -1.0340834711949936,
+          "defense_points_allowed": 0.8691459761952319,
+          "net_points": -1.9032294473902254
+        },
+        "2198": {
+          "offense_points": -1.0503508943918067,
+          "defense_points_allowed": 1.0412227656178124,
+          "net_points": -2.091573660009619
+        },
+        "2199": {
+          "offense_points": -1.085299930040084,
+          "defense_points_allowed": 0.5828881854641568,
+          "net_points": -1.6681881155042408
+        },
+        "221": {
+          "offense_points": 1.7216184732124429,
+          "defense_points_allowed": -0.16503618499655612,
+          "net_points": 1.886654658208999
+        },
+        "2210": {
+          "offense_points": -0.4286758600174652,
+          "defense_points_allowed": 0.24885987693248127,
+          "net_points": -0.6775357369499465
+        },
+        "222": {
+          "offense_points": -0.34775798023761506,
+          "defense_points_allowed": 0.7085473234819698,
+          "net_points": -1.0563053037195849
+        },
+        "2226": {
+          "offense_points": 0.14642766632341914,
+          "defense_points_allowed": 2.0591978994638866,
+          "net_points": -1.9127702331404675
+        },
+        "2229": {
+          "offense_points": -0.011561785376785556,
+          "defense_points_allowed": 0.8851270868325118,
+          "net_points": -0.8966888722092974
+        },
+        "2230": {
+          "offense_points": -0.3000340003634618,
+          "defense_points_allowed": 1.0311569324940555,
+          "net_points": -1.3311909328575173
+        },
+        "2241": {
+          "offense_points": -0.22106732542985502,
+          "defense_points_allowed": 1.0180787257547952,
+          "net_points": -1.2391460511846502
+        },
+        "2247": {
+          "offense_points": -1.7217330731308373,
+          "defense_points_allowed": 2.7263354421062904,
+          "net_points": -4.448068515237128
+        },
+        "227": {
+          "offense_points": -0.45009557770191116,
+          "defense_points_allowed": 0.5989239619944782,
+          "net_points": -1.0490195396963893
+        },
+        "2277": {
+          "offense_points": -0.7369696262480161,
+          "defense_points_allowed": 1.255672622593679,
+          "net_points": -1.992642248841695
+        },
+        "228": {
+          "offense_points": 1.3977689618773206,
+          "defense_points_allowed": -2.114029842287062,
+          "net_points": 3.5117988041643824
+        },
+        "2287": {
+          "offense_points": -1.0754724762835617,
+          "defense_points_allowed": 0.5016897718245061,
+          "net_points": -1.5771622481080678
+        },
+        "2294": {
+          "offense_points": 0.24591101792442463,
+          "defense_points_allowed": -3.828221545250218,
+          "net_points": 4.074132563174643
+        },
+        "2296": {
+          "offense_points": -0.1905751442627384,
+          "defense_points_allowed": 0.49810984002497094,
+          "net_points": -0.6886849842877093
+        },
+        "23": {
+          "offense_points": -0.5598118313412878,
+          "defense_points_allowed": 1.4963578739824883,
+          "net_points": -2.056169705323776
+        },
+        "2305": {
+          "offense_points": 1.02430112198874,
+          "defense_points_allowed": -0.18797133047696038,
+          "net_points": 1.2122724524657003
+        },
+        "2306": {
+          "offense_points": 1.7702597210195243,
+          "defense_points_allowed": -0.7917650319130094,
+          "net_points": 2.5620247529325337
+        },
+        "2309": {
+          "offense_points": -2.7302221565014584,
+          "defense_points_allowed": 3.428959513483815,
+          "net_points": -6.159181669985273
+        },
+        "231": {
+          "offense_points": -0.5633619985227198,
+          "defense_points_allowed": 0.9520810981004857,
+          "net_points": -1.5154430966232055
+        },
+        "2320": {
+          "offense_points": -0.6170111327270116,
+          "defense_points_allowed": 0.33373577532027593,
+          "net_points": -0.9507469080472875
+        },
+        "2329": {
+          "offense_points": -0.1670117010242529,
+          "defense_points_allowed": 0.14549911620619982,
+          "net_points": -0.3125108172304527
+        },
+        "233": {
+          "offense_points": -0.6047036199355524,
+          "defense_points_allowed": 0.9481929390092977,
+          "net_points": -1.55289655894485
+        },
+        "2335": {
+          "offense_points": 0.5272776743784572,
+          "defense_points_allowed": -0.2570726883938444,
+          "net_points": 0.7843503627723016
+        },
+        "2341": {
+          "offense_points": -0.851322951445183,
+          "defense_points_allowed": 0.5336251052306585,
+          "net_points": -1.3849480566758414
+        },
+        "2348": {
+          "offense_points": -0.6945810089717774,
+          "defense_points_allowed": -1.3955920910245745,
+          "net_points": 0.701011082052797
+        },
+        "235": {
+          "offense_points": 2.6753052682487817,
+          "defense_points_allowed": -1.2541031550010002,
+          "net_points": 3.929408423249782
+        },
+        "236": {
+          "offense_points": -0.6445880879841019,
+          "defense_points_allowed": 0.8485929286943439,
+          "net_points": -1.4931810166784458
+        },
+        "2377": {
+          "offense_points": -0.9882832668347551,
+          "defense_points_allowed": 0.7800454046684596,
+          "net_points": -1.7683286715032147
+        },
+        "238": {
+          "offense_points": 2.6150179870723753,
+          "defense_points_allowed": -0.7520512365791796,
+          "net_points": 3.367069223651555
+        },
+        "2382": {
+          "offense_points": -0.5480473106305203,
+          "defense_points_allowed": 1.287138729078937,
+          "net_points": -1.8351860397094573
+        },
+        "2385": {
+          "offense_points": 0.09786722093876737,
+          "defense_points_allowed": 0.42300942390689944,
+          "net_points": -0.32514220296813207
+        },
+        "239": {
+          "offense_points": 1.6011898700172538,
+          "defense_points_allowed": 1.4788493092052144,
+          "net_points": 0.12234056081203937
+        },
+        "2390": {
+          "offense_points": 3.4389037915852,
+          "defense_points_allowed": -3.784474544678046,
+          "net_points": 7.223378336263246
+        },
+        "2393": {
+          "offense_points": -1.9479075914464243,
+          "defense_points_allowed": 1.685209314175927,
+          "net_points": -3.6331169056223516
+        },
+        "24": {
+          "offense_points": -1.8680718669966472,
+          "defense_points_allowed": 1.4623176756310337,
+          "net_points": -3.330389542627681
+        },
+        "2405": {
+          "offense_points": 0.4855331511014087,
+          "defense_points_allowed": 0.7828511089032585,
+          "net_points": -0.2973179578018498
+        },
+        "2415": {
+          "offense_points": -0.7367151192927033,
+          "defense_points_allowed": 0.6670714337109757,
+          "net_points": -1.403786553003679
+        },
+        "242": {
+          "offense_points": -2.3583113711847035,
+          "defense_points_allowed": 1.1665270698671928,
+          "net_points": -3.5248384410518963
+        },
+        "2426": {
+          "offense_points": 1.1393852523637351,
+          "defense_points_allowed": -1.2702948187928624,
+          "net_points": 2.4096800711565978
+        },
+        "2428": {
+          "offense_points": -0.6317204619389796,
+          "defense_points_allowed": 0.9134412216574661,
+          "net_points": -1.5451616835964457
+        },
+        "2429": {
+          "offense_points": -3.3530218797627285,
+          "defense_points_allowed": 2.608741011667474,
+          "net_points": -5.961762891430203
+        },
+        "2433": {
+          "offense_points": -3.1480365600648548,
+          "defense_points_allowed": 1.4038914756646756,
+          "net_points": -4.551928035729531
+        },
+        "2439": {
+          "offense_points": 2.8350300709889855,
+          "defense_points_allowed": -0.18514121955370408,
+          "net_points": 3.0201712905426894
+        },
+        "2440": {
+          "offense_points": -2.761385467320012,
+          "defense_points_allowed": 0.5333161839870977,
+          "net_points": -3.29470165130711
+        },
+        "2447": {
+          "offense_points": -0.9875475105354037,
+          "defense_points_allowed": 0.38758590710893864,
+          "net_points": -1.3751334176443424
+        },
+        "2448": {
+          "offense_points": -0.8369218826394782,
+          "defense_points_allowed": 1.3062310644708701,
+          "net_points": -2.143152947110348
+        },
+        "2449": {
+          "offense_points": 4.282260084714529,
+          "defense_points_allowed": -4.228410662856689,
+          "net_points": 8.510670747571218
+        },
+        "245": {
+          "offense_points": 2.309023276512077,
+          "defense_points_allowed": -2.171714642203785,
+          "net_points": 4.480737918715862
+        },
+        "2450": {
+          "offense_points": -0.6662319888110367,
+          "defense_points_allowed": 0.891821190810715,
+          "net_points": -1.5580531796217518
+        },
+        "2453": {
+          "offense_points": -0.7187802742564353,
+          "defense_points_allowed": 0.8317756212461969,
+          "net_points": -1.5505558955026322
+        },
+        "2458": {
+          "offense_points": 0.011019959566251175,
+          "defense_points_allowed": 0.33290167575198953,
+          "net_points": -0.32188171618573835
+        },
+        "2459": {
+          "offense_points": -2.2864715542971403,
+          "defense_points_allowed": -1.4558840293414819,
+          "net_points": -0.8305875249556585
+        },
+        "2460": {
+          "offense_points": -0.7745634467001646,
+          "defense_points_allowed": 0.9226010613194877,
+          "net_points": -1.6971645080196525
+        },
+        "2464": {
+          "offense_points": -0.30463794521283316,
+          "defense_points_allowed": -0.015621328711273539,
+          "net_points": -0.28901661650155963
+        },
+        "2466": {
+          "offense_points": -1.2541438100632696,
+          "defense_points_allowed": 2.9487882533894134,
+          "net_points": -4.202932063452683
+        },
+        "248": {
+          "offense_points": -0.8590206300353085,
+          "defense_points_allowed": -1.1049675024381915,
+          "net_points": 0.24594687240288304
+        },
+        "2483": {
+          "offense_points": 4.8111352563663585,
+          "defense_points_allowed": -3.447531887978201,
+          "net_points": 8.25866714434456
+        },
+        "249": {
+          "offense_points": 5.384867325771055,
+          "defense_points_allowed": 1.2275138647232464,
+          "net_points": 4.1573534610478085
+        },
+        "25": {
+          "offense_points": -0.13125032075955215,
+          "defense_points_allowed": -0.11588315780789796,
+          "net_points": -0.01536716295165419
+        },
+        "2502": {
+          "offense_points": -0.7939618815725551,
+          "defense_points_allowed": 2.3793465875590996,
+          "net_points": -3.173308469131655
+        },
+        "2504": {
+          "offense_points": -0.6050958712479958,
+          "defense_points_allowed": 0.5870866434383357,
+          "net_points": -1.1921825146863316
+        },
+        "2509": {
+          "offense_points": -2.567357482980189,
+          "defense_points_allowed": 2.3668045283320285,
+          "net_points": -4.9341620113122175
+        },
+        "251": {
+          "offense_points": 2.642617503293248,
+          "defense_points_allowed": -3.112928855578773,
+          "net_points": 5.755546358872021
+        },
+        "252": {
+          "offense_points": 1.6098969813492832,
+          "defense_points_allowed": -2.5685057316359345,
+          "net_points": 4.178402712985218
+        },
+        "2523": {
+          "offense_points": -0.7432771422685566,
+          "defense_points_allowed": 0.45944248484227623,
+          "net_points": -1.2027196271108327
+        },
+        "2529": {
+          "offense_points": -0.45488768680806196,
+          "defense_points_allowed": 0.21383808734251342,
+          "net_points": -0.6687257741505754
+        },
+        "253": {
+          "offense_points": -0.26003454373333923,
+          "defense_points_allowed": 0.13982368241594825,
+          "net_points": -0.39985822614928745
+        },
+        "2534": {
+          "offense_points": -2.423912901185367,
+          "defense_points_allowed": 1.3920424893010621,
+          "net_points": -3.8159553904864287
+        },
+        "2535": {
+          "offense_points": -1.2316304623128436,
+          "defense_points_allowed": 0.9046745174207741,
+          "net_points": -2.1363049797336178
+        },
+        "254": {
+          "offense_points": 2.846019243897153,
+          "defense_points_allowed": -2.762540769263378,
+          "net_points": 5.608560013160531
+        },
+        "2545": {
+          "offense_points": -1.3427117203577383,
+          "defense_points_allowed": 0.8625721825460538,
+          "net_points": -2.2052839029037923
+        },
+        "2546": {
+          "offense_points": -0.35829097798596304,
+          "defense_points_allowed": 0.42592597476222427,
+          "net_points": -0.7842169527481873
+        },
+        "256": {
+          "offense_points": 3.3977930571339803,
+          "defense_points_allowed": -3.1116421491617254,
+          "net_points": 6.509435206295706
+        },
+        "2567": {
+          "offense_points": 3.137965043143039,
+          "defense_points_allowed": -2.630234585677562,
+          "net_points": 5.768199628820601
+        },
+        "2569": {
+          "offense_points": -0.8060429509091327,
+          "defense_points_allowed": 1.066296594386674,
+          "net_points": -1.8723395452958067
+        },
+        "257": {
+          "offense_points": -0.610402863847451,
+          "defense_points_allowed": 0.2050883838325506,
+          "net_points": -0.8154912476800016
+        },
+        "2571": {
+          "offense_points": -0.6283105081681742,
+          "defense_points_allowed": -0.7152020917751399,
+          "net_points": 0.0868915836069657
+        },
+        "2572": {
+          "offense_points": -1.167152396278847,
+          "defense_points_allowed": 1.749018730819274,
+          "net_points": -2.9161711270981208
+        },
+        "2579": {
+          "offense_points": -0.2069625251834676,
+          "defense_points_allowed": -2.034959339361145,
+          "net_points": 1.8279968141776775
+        },
+        "258": {
+          "offense_points": 0.3945523504099977,
+          "defense_points_allowed": -1.6699426604090428,
+          "net_points": 2.0644950108190407
+        },
+        "2582": {
+          "offense_points": -0.358766362634623,
+          "defense_points_allowed": 0.6355270506606685,
+          "net_points": -0.9942934132952915
+        },
+        "259": {
+          "offense_points": -0.6566158295400386,
+          "defense_points_allowed": -0.020177844881824437,
+          "net_points": -0.6364379846582142
+        },
+        "2598": {
+          "offense_points": -1.3293501386592035,
+          "defense_points_allowed": 0.36238069738639905,
+          "net_points": -1.6917308360456025
+        },
+        "26": {
+          "offense_points": -2.1510339091440214,
+          "defense_points_allowed": 0.18232183973896202,
+          "net_points": -2.3333557488829832
+        },
+        "2617": {
+          "offense_points": -0.537987170136593,
+          "defense_points_allowed": 0.0305952432365496,
+          "net_points": -0.5685824133731426
+        },
+        "2619": {
+          "offense_points": -0.8577504408437544,
+          "defense_points_allowed": 0.45639920767183156,
+          "net_points": -1.314149648515586
+        },
+        "2623": {
+          "offense_points": 0.6228532419889394,
+          "defense_points_allowed": 0.9223223556600573,
+          "net_points": -0.29946911367111784
+        },
+        "2627": {
+          "offense_points": -0.14701836919838823,
+          "defense_points_allowed": 0.11741508724782157,
+          "net_points": -0.2644334564462098
+        },
+        "2628": {
+          "offense_points": 1.5501301775743244,
+          "defense_points_allowed": -0.9909848771173047,
+          "net_points": 2.541115054691629
+        },
+        "2630": {
+          "offense_points": -1.2603930822362008,
+          "defense_points_allowed": 0.5809067248290051,
+          "net_points": -1.841299807065206
+        },
+        "2633": {
+          "offense_points": 4.017279079650511,
+          "defense_points_allowed": -0.9285704854604017,
+          "net_points": 4.945849565110913
+        },
+        "2634": {
+          "offense_points": -0.8592467718698062,
+          "defense_points_allowed": 1.0845114447766655,
+          "net_points": -1.9437582166464717
+        },
+        "2635": {
+          "offense_points": -0.6294804555695263,
+          "defense_points_allowed": 0.6974706099384749,
+          "net_points": -1.326951065508001
+        },
+        "2636": {
+          "offense_points": 3.0361474852328807,
+          "defense_points_allowed": 0.3030227714732227,
+          "net_points": 2.733124713759658
+        },
+        "2638": {
+          "offense_points": -1.8027530502453761,
+          "defense_points_allowed": 1.5475028631155336,
+          "net_points": -3.3502559133609098
+        },
+        "264": {
+          "offense_points": 2.1267553636706875,
+          "defense_points_allowed": -2.1437733711946065,
+          "net_points": 4.2705287348652945
+        },
+        "2640": {
+          "offense_points": -0.907680844780138,
+          "defense_points_allowed": 1.0201653239105422,
+          "net_points": -1.9278461686906803
+        },
+        "2641": {
+          "offense_points": 4.064141132537179,
+          "defense_points_allowed": -2.6447584800443993,
+          "net_points": 6.708899612581578
+        },
+        "2643": {
+          "offense_points": -1.403749125939842,
+          "defense_points_allowed": 0.889808329634322,
+          "net_points": -2.293557455574164
+        },
+        "2649": {
+          "offense_points": 1.4406825728376214,
+          "defense_points_allowed": -3.295629250189828,
+          "net_points": 4.7363118230274495
+        },
+        "265": {
+          "offense_points": 0.6709520079864882,
+          "defense_points_allowed": -1.2007164470892828,
+          "net_points": 1.871668455075771
+        },
+        "2653": {
+          "offense_points": -0.6745725837400864,
+          "defense_points_allowed": -1.2734248223918092,
+          "net_points": 0.5988522386517228
+        },
+        "2655": {
+          "offense_points": 1.0433868149846264,
+          "defense_points_allowed": -2.1168858302920692,
+          "net_points": 3.1602726452766956
+        },
+        "2678": {
+          "offense_points": -0.6579068052745313,
+          "defense_points_allowed": 0.8915152719136655,
+          "net_points": -1.5494220771881968
+        },
+        "2681": {
+          "offense_points": -1.3866701337168459,
+          "defense_points_allowed": 1.104343434672346,
+          "net_points": -2.491013568389192
+        },
+        "2692": {
+          "offense_points": -0.7575234896805579,
+          "defense_points_allowed": 1.604586927442149,
+          "net_points": -2.362110417122707
+        },
+        "2710": {
+          "offense_points": -1.0720692508314973,
+          "defense_points_allowed": 1.7180253061884854,
+          "net_points": -2.790094557019983
+        },
+        "2711": {
+          "offense_points": 0.0052039466152390456,
+          "defense_points_allowed": -1.3010025175242086,
+          "net_points": 1.3062064641394477
+        },
+        "2717": {
+          "offense_points": -0.4099414689728873,
+          "defense_points_allowed": 0.4995398578753749,
+          "net_points": -0.9094813268482622
+        },
+        "2729": {
+          "offense_points": -0.24624747118685797,
+          "defense_points_allowed": 0.6834025580891785,
+          "net_points": -0.9296500292760365
+        },
+        "2747": {
+          "offense_points": -0.6579976625331968,
+          "defense_points_allowed": 0.6325575026809531,
+          "net_points": -1.2905551652141498
+        },
+        "275": {
+          "offense_points": -3.0868107683540265,
+          "defense_points_allowed": -2.0401184996531123,
+          "net_points": -1.0466922687009141
+        },
+        "2751": {
+          "offense_points": -3.1149002207648726,
+          "defense_points_allowed": -1.484375347893684,
+          "net_points": -1.6305248728711885
+        },
+        "2754": {
+          "offense_points": 0.2319741720610519,
+          "defense_points_allowed": 0.9332450947138338,
+          "net_points": -0.7012709226527819
+        },
+        "2755": {
+          "offense_points": -0.6431101384282701,
+          "defense_points_allowed": 1.2225223333705555,
+          "net_points": -1.8656324717988255
+        },
+        "276": {
+          "offense_points": 1.0484777857920866,
+          "defense_points_allowed": 0.13085255913080587,
+          "net_points": 0.9176252266612808
+        },
+        "277": {
+          "offense_points": -0.2641535994482221,
+          "defense_points_allowed": 1.1279598519312768,
+          "net_points": -1.3921134513794988
+        },
+        "2771": {
+          "offense_points": -0.7878132130212133,
+          "defense_points_allowed": 0.054630973882447725,
+          "net_points": -0.8424441869036611
+        },
+        "278": {
+          "offense_points": -0.1672628474907924,
+          "defense_points_allowed": -1.9695235118100303,
+          "net_points": 1.8022606643192378
+        },
+        "2803": {
+          "offense_points": -0.6428463715659722,
+          "defense_points_allowed": 0.00046348843932407296,
+          "net_points": -0.6433098600052963
+        },
+        "2815": {
+          "offense_points": -1.141771843008142,
+          "defense_points_allowed": 0.10617482104840244,
+          "net_points": -1.2479466640565444
+        },
+        "282": {
+          "offense_points": -1.4332013192461504,
+          "defense_points_allowed": 1.6738606245063146,
+          "net_points": -3.107061943752465
+        },
+        "2837": {
+          "offense_points": -1.158823787760182,
+          "defense_points_allowed": 1.4170783696668263,
+          "net_points": -2.5759021574270085
+        },
+        "290": {
+          "offense_points": 0.5116964128836872,
+          "defense_points_allowed": 1.368274786284095,
+          "net_points": -0.8565783734004078
+        },
+        "2900": {
+          "offense_points": -0.3440134820884343,
+          "defense_points_allowed": 0.7671577279760892,
+          "net_points": -1.1111712100645235
+        },
+        "2916": {
+          "offense_points": -0.15687114970103128,
+          "defense_points_allowed": 0.34977362774530163,
+          "net_points": -0.506644777446333
+        },
+        "295": {
+          "offense_points": 1.0839984899624124,
+          "defense_points_allowed": -1.877624642640207,
+          "net_points": 2.9616231326026194
+        },
+        "30": {
+          "offense_points": 3.466635034771273,
+          "defense_points_allowed": -0.5491965760727465,
+          "net_points": 4.015831610844019
+        },
+        "302": {
+          "offense_points": -0.24703961926466306,
+          "defense_points_allowed": 1.180255706023829,
+          "net_points": -1.4272953252884921
+        },
+        "304": {
+          "offense_points": 0.06561479368936174,
+          "defense_points_allowed": 0.5510892608202093,
+          "net_points": -0.4854744671308475
+        },
+        "309": {
+          "offense_points": 0.4683854068006636,
+          "defense_points_allowed": 0.3944798497588468,
+          "net_points": 0.07390555704181678
+        },
+        "3101": {
+          "offense_points": -0.1418133776852303,
+          "defense_points_allowed": 0.556968912932214,
+          "net_points": -0.6987822906174442
+        },
+        "311": {
+          "offense_points": -0.746796568239884,
+          "defense_points_allowed": 0.6766622419444737,
+          "net_points": -1.4234588101843577
+        },
+        "322": {
+          "offense_points": -0.849090337833456,
+          "defense_points_allowed": 0.39097014174707734,
+          "net_points": -1.2400604795805332
+        },
+        "324": {
+          "offense_points": -0.7497208902886651,
+          "defense_points_allowed": 1.7768583712288772,
+          "net_points": -2.526579261517542
+        },
+        "326": {
+          "offense_points": 3.6100102889186005,
+          "defense_points_allowed": 0.7353508785664253,
+          "net_points": 2.874659410352175
+        },
+        "328": {
+          "offense_points": 1.9023392018418712,
+          "defense_points_allowed": 1.8361175647790573,
+          "net_points": 0.06622163706281392
+        },
+        "331": {
+          "offense_points": -0.5631323427422172,
+          "defense_points_allowed": 0.9113319985382898,
+          "net_points": -1.4744643412805072
+        },
+        "333": {
+          "offense_points": 2.344923233743606,
+          "defense_points_allowed": -3.4426018242365273,
+          "net_points": 5.787525057980133
+        },
+        "338": {
+          "offense_points": -1.0043729017054932,
+          "defense_points_allowed": 0.11542407792463719,
+          "net_points": -1.1197969796301304
+        },
+        "344": {
+          "offense_points": 0.5483578138053624,
+          "defense_points_allowed": 1.4597350556085065,
+          "net_points": -0.9113772418031441
+        },
+        "349": {
+          "offense_points": -0.5053432353060447,
+          "defense_points_allowed": -2.7783143411573934,
+          "net_points": 2.2729711058513486
+        },
+        "356": {
+          "offense_points": 0.7943751177261565,
+          "defense_points_allowed": -1.0141471149572903,
+          "net_points": 1.8085222326834467
+        },
+        "36": {
+          "offense_points": -2.064033350819186,
+          "defense_points_allowed": 0.996812720632824,
+          "net_points": -3.06084607145201
+        },
+        "38": {
+          "offense_points": -0.2952484496443607,
+          "defense_points_allowed": 0.6031471242671059,
+          "net_points": -0.8983955739114666
+        },
+        "399": {
+          "offense_points": -0.6115780482918215,
+          "defense_points_allowed": 0.1902301382855524,
+          "net_points": -0.8018081865773738
+        },
+        "41": {
+          "offense_points": 1.634850425555603,
+          "defense_points_allowed": 0.06521388884910193,
+          "net_points": 1.569636536706501
+        },
+        "47": {
+          "offense_points": -0.6349535262626127,
+          "defense_points_allowed": 0.7865545651424035,
+          "net_points": -1.4215080914050162
+        },
+        "48": {
+          "offense_points": 1.0294615463398442,
+          "defense_points_allowed": 0.7967728949658651,
+          "net_points": 0.2326886513739791
+        },
+        "5": {
+          "offense_points": -0.14467634424873047,
+          "defense_points_allowed": 3.2743545704079766,
+          "net_points": -3.419030914656707
+        },
+        "50": {
+          "offense_points": -0.4723994491778663,
+          "defense_points_allowed": 0.9518398078935848,
+          "net_points": -1.424239257071451
+        },
+        "52": {
+          "offense_points": 0.5586383959442001,
+          "defense_points_allowed": -1.396874140474071,
+          "net_points": 1.955512536418271
+        },
+        "55": {
+          "offense_points": 1.0810548814629757,
+          "defense_points_allowed": -0.5582081682322606,
+          "net_points": 1.6392630496952363
+        },
+        "57": {
+          "offense_points": -0.38584112108812885,
+          "defense_points_allowed": -1.2896254636047064,
+          "net_points": 0.9037843425165776
+        },
+        "58": {
+          "offense_points": 3.885068815300064,
+          "defense_points_allowed": -0.3116633658024028,
+          "net_points": 4.196732181102466
+        },
+        "59": {
+          "offense_points": 1.8733818493966954,
+          "defense_points_allowed": -0.34820338725495487,
+          "net_points": 2.2215852366516504
+        },
+        "6": {
+          "offense_points": 0.927071864842777,
+          "defense_points_allowed": 0.14968765601830608,
+          "net_points": 0.7773842088244709
+        },
+        "61": {
+          "offense_points": 2.98458795962129,
+          "defense_points_allowed": -3.2858693132941243,
+          "net_points": 6.270457272915414
+        },
+        "62": {
+          "offense_points": -0.5194747783591543,
+          "defense_points_allowed": 0.2043539012486229,
+          "net_points": -0.7238286796077773
+        },
+        "66": {
+          "offense_points": 0.8336978710803808,
+          "defense_points_allowed": -1.9783811545837,
+          "net_points": 2.812079025664081
+        },
+        "68": {
+          "offense_points": 2.1910164975306605,
+          "defense_points_allowed": -1.3706011066543162,
+          "net_points": 3.5616176041849767
+        },
+        "70": {
+          "offense_points": -0.41147397692639676,
+          "defense_points_allowed": -1.0333800163189242,
+          "net_points": 0.6219060393925274
+        },
+        "77": {
+          "offense_points": -1.5663453032787265,
+          "defense_points_allowed": -1.6493378999143438,
+          "net_points": 0.08299259663561731
+        },
+        "79": {
+          "offense_points": -0.7702573818080137,
+          "defense_points_allowed": 0.4256383039591181,
+          "net_points": -1.195895685767132
+        },
+        "8": {
+          "offense_points": 1.8569241285679756,
+          "defense_points_allowed": 1.0894949626509622,
+          "net_points": 0.7674291659170134
+        },
+        "84": {
+          "offense_points": 5.563242473713975,
+          "defense_points_allowed": -4.748103430505211,
+          "net_points": 10.311345904219188
+        },
+        "87": {
+          "offense_points": 5.196498062219634,
+          "defense_points_allowed": -3.915521879509454,
+          "net_points": 9.112019941729088
+        },
+        "9": {
+          "offense_points": 0.21669079497798674,
+          "defense_points_allowed": -0.9009775435130947,
+          "net_points": 1.1176683384910815
+        },
+        "93": {
+          "offense_points": -1.3052324590423892,
+          "defense_points_allowed": 1.950066272113614,
+          "net_points": -3.255298731156003
+        },
+        "96": {
+          "offense_points": -1.1100642220261578,
+          "defense_points_allowed": -0.847850640751806,
+          "net_points": -0.2622135812743518
+        },
+        "97": {
+          "offense_points": 2.1594142287891356,
+          "defense_points_allowed": -1.8482564943063897,
+          "net_points": 4.007670723095526
+        },
+        "98": {
+          "offense_points": 0.5891012651985652,
+          "defense_points_allowed": -0.8900380092239965,
+          "net_points": 1.4791392744225615
+        },
+        "99": {
+          "offense_points": 0.8551229203000023,
+          "defense_points_allowed": -1.6767244528119472,
+          "net_points": 2.5318473731119493
+        }
+      }
+    },
+    {
+      "block": "2026-10",
+      "hfa_points": 9.495705683103912,
+      "intercept_ppg": 22.462859659300456,
+      "teams": {
+        "103": {
+          "offense_points": -1.3678218068302908,
+          "defense_points_allowed": 0.2528262555952996,
+          "net_points": -1.6206480624255903
+        },
+        "107": {
+          "offense_points": -0.8426273848097254,
+          "defense_points_allowed": 0.41352172385824904,
+          "net_points": -1.2561491086679744
+        },
+        "113": {
+          "offense_points": -2.399427500397325,
+          "defense_points_allowed": 1.7116329918179787,
+          "net_points": -4.111060492215303
+        },
+        "119": {
+          "offense_points": -0.825676921647566,
+          "defense_points_allowed": 1.2460132874148224,
+          "net_points": -2.0716902090623885
+        },
+        "12": {
+          "offense_points": 1.6447438943555994,
+          "defense_points_allowed": -2.23367125233873,
+          "net_points": 3.8784151466943295
+        },
+        "120": {
+          "offense_points": -0.4711988606632956,
+          "defense_points_allowed": 0.4162790555299931,
+          "net_points": -0.8874779161932886
+        },
+        "127": {
+          "offense_points": -1.7282490175333038,
+          "defense_points_allowed": -0.3046387734817021,
+          "net_points": -1.4236102440516016
+        },
+        "13": {
+          "offense_points": -0.43217440590354267,
+          "defense_points_allowed": 0.487768599366864,
+          "net_points": -0.9199430052704067
+        },
+        "130": {
+          "offense_points": 0.2728554327453478,
+          "defense_points_allowed": -3.464908707578164,
+          "net_points": 3.737764140323512
+        },
+        "135": {
+          "offense_points": -0.2552159595343136,
+          "defense_points_allowed": -2.1110489085289244,
+          "net_points": 1.8558329489946108
+        },
+        "142": {
+          "offense_points": 1.9416666760732029,
+          "defense_points_allowed": -3.0413515811325063,
+          "net_points": 4.983018257205709
+        },
+        "145": {
+          "offense_points": 4.537428213950486,
+          "defense_points_allowed": -1.8943045842450716,
+          "net_points": 6.431732798195558
+        },
+        "147": {
+          "offense_points": 0.290231063823836,
+          "defense_points_allowed": -0.6384637734085701,
+          "net_points": 0.9286948372324061
+        },
+        "149": {
+          "offense_points": 0.3235215543163939,
+          "defense_points_allowed": 1.0458134953049627,
+          "net_points": -0.7222919409885689
+        },
+        "150": {
+          "offense_points": 2.631005333176822,
+          "defense_points_allowed": -1.4612656913804356,
+          "net_points": 4.092271024557258
+        },
+        "151": {
+          "offense_points": 1.0224483345818605,
+          "defense_points_allowed": -1.9210079170070888,
+          "net_points": 2.943456251588949
+        },
+        "152": {
+          "offense_points": 2.2233275610140106,
+          "defense_points_allowed": -0.3152142529129869,
+          "net_points": 2.5385418139269973
+        },
+        "153": {
+          "offense_points": -0.8364368976446215,
+          "defense_points_allowed": -1.3799289209862013,
+          "net_points": 0.5434920233415799
+        },
+        "154": {
+          "offense_points": 0.4739256066836586,
+          "defense_points_allowed": -0.5615729572966175,
+          "net_points": 1.035498563980276
+        },
+        "155": {
+          "offense_points": -0.8603688011617517,
+          "defense_points_allowed": -0.25796341745796847,
+          "net_points": -0.6024053837037833
+        },
+        "158": {
+          "offense_points": 1.3051522589131632,
+          "defense_points_allowed": -2.3778070308429373,
+          "net_points": 3.6829592897561003
+        },
+        "16": {
+          "offense_points": -0.3004716197492943,
+          "defense_points_allowed": 1.083017213199378,
+          "net_points": -1.3834888329486723
+        },
+        "160": {
+          "offense_points": -0.9840066724291453,
+          "defense_points_allowed": 1.8812541646171872,
+          "net_points": -2.8652608370463324
+        },
+        "164": {
+          "offense_points": 0.9826080788074226,
+          "defense_points_allowed": 1.0260776312495783,
+          "net_points": -0.04346955244215567
+        },
+        "166": {
+          "offense_points": -1.57263749597366,
+          "defense_points_allowed": 1.0404954644696056,
+          "net_points": -2.6131329604432656
+        },
+        "167": {
+          "offense_points": 2.1163785879758237,
+          "defense_points_allowed": -1.2635922387749696,
+          "net_points": 3.3799708267507933
+        },
+        "183": {
+          "offense_points": -0.31873182644649306,
+          "defense_points_allowed": 0.8082725285222431,
+          "net_points": -1.127004354968736
+        },
+        "189": {
+          "offense_points": -2.9292788577257025,
+          "defense_points_allowed": -0.1940680646763327,
+          "net_points": -2.7352107930493696
+        },
+        "193": {
+          "offense_points": -0.6469705940072558,
+          "defense_points_allowed": -1.8615310344380929,
+          "net_points": 1.2145604404308372
+        },
+        "194": {
+          "offense_points": 4.4944515657865365,
+          "defense_points_allowed": -6.859209317564257,
+          "net_points": 11.353660883350793
+        },
+        "195": {
+          "offense_points": 0.9346285034843625,
+          "defense_points_allowed": -1.5182523122983385,
+          "net_points": 2.452880815782701
+        },
+        "197": {
+          "offense_points": -0.7550124386197,
+          "defense_points_allowed": 0.7628939076036388,
+          "net_points": -1.5179063462233389
+        },
+        "2": {
+          "offense_points": -0.011383886717967327,
+          "defense_points_allowed": -2.1153608082732274,
+          "net_points": 2.10397692155526
+        },
+        "2000": {
+          "offense_points": -0.23376662833284026,
+          "defense_points_allowed": 0.5377915900614568,
+          "net_points": -0.7715582183942971
+        },
+        "2005": {
+          "offense_points": 0.42624759453851924,
+          "defense_points_allowed": -0.27294894772201145,
+          "net_points": 0.6991965422605306
+        },
+        "2006": {
+          "offense_points": -2.527278380973179,
+          "defense_points_allowed": 1.232418622983709,
+          "net_points": -3.759697003956888
+        },
+        "201": {
+          "offense_points": -0.17934752360308576,
+          "defense_points_allowed": -3.934861253842799,
+          "net_points": 3.7555137302397132
+        },
+        "2010": {
+          "offense_points": -0.5683416848808853,
+          "defense_points_allowed": 0.8975526268787001,
+          "net_points": -1.4658943117595853
+        },
+        "2011": {
+          "offense_points": 0.21212585166564937,
+          "defense_points_allowed": 0.5982320695868332,
+          "net_points": -0.3861062179211838
+        },
+        "2016": {
+          "offense_points": -1.8831036283411247,
+          "defense_points_allowed": 1.7601787598453669,
+          "net_points": -3.6432823881864915
+        },
+        "202": {
+          "offense_points": -1.6230089956865141,
+          "defense_points_allowed": 0.5877424597769981,
+          "net_points": -2.2107514554635124
+        },
+        "2026": {
+          "offense_points": 0.44057471851577407,
+          "defense_points_allowed": 0.6015700861740718,
+          "net_points": -0.16099536765829775
+        },
+        "2029": {
+          "offense_points": -0.7621171491452706,
+          "defense_points_allowed": 2.052795622548958,
+          "net_points": -2.8149127716942286
+        },
+        "2032": {
+          "offense_points": -0.46758350611280597,
+          "defense_points_allowed": 0.13977076156934665,
+          "net_points": -0.6073542676821526
+        },
+        "204": {
+          "offense_points": -1.1579689860648659,
+          "defense_points_allowed": -0.032717711796020225,
+          "net_points": -1.1252512742688456
+        },
+        "2046": {
+          "offense_points": -0.7899726353279245,
+          "defense_points_allowed": -0.516081342225459,
+          "net_points": -0.2738912931024655
+        },
+        "2050": {
+          "offense_points": -2.8408697363776496,
+          "defense_points_allowed": 2.2413325184919426,
+          "net_points": -5.082202254869593
+        },
+        "2065": {
+          "offense_points": -1.2641172203330797,
+          "defense_points_allowed": 2.5395308128850926,
+          "net_points": -3.803648033218172
+        },
+        "2083": {
+          "offense_points": -1.149154225563018,
+          "defense_points_allowed": 1.6534711678027565,
+          "net_points": -2.8026253933657745
+        },
+        "2084": {
+          "offense_points": -1.3650418235574275,
+          "defense_points_allowed": 0.2530323155621479,
+          "net_points": -1.6180741391195754
+        },
+        "2097": {
+          "offense_points": -1.4775536064206078,
+          "defense_points_allowed": 2.0814532195201774,
+          "net_points": -3.559006825940785
+        },
+        "21": {
+          "offense_points": -1.0490617554135502,
+          "defense_points_allowed": -1.8810830801985143,
+          "net_points": 0.8320213247849642
+        },
+        "2110": {
+          "offense_points": -0.9911159804585545,
+          "defense_points_allowed": 0.9589028434495651,
+          "net_points": -1.9500188239081195
+        },
+        "2115": {
+          "offense_points": -0.6846029706625816,
+          "defense_points_allowed": 2.2379991443472007,
+          "net_points": -2.9226021150097825
+        },
+        "2116": {
+          "offense_points": 0.5290957372727975,
+          "defense_points_allowed": -1.8896044151528388,
+          "net_points": 2.4187001524256364
+        },
+        "2117": {
+          "offense_points": -2.773633399472012,
+          "defense_points_allowed": -0.26705320560743495,
+          "net_points": -2.5065801938645773
+        },
+        "2127": {
+          "offense_points": -2.0644918091504,
+          "defense_points_allowed": -0.09773058825442581,
+          "net_points": -1.9667612208959742
+        },
+        "213": {
+          "offense_points": 2.9824586979313605,
+          "defense_points_allowed": -4.163569330934457,
+          "net_points": 7.146028028865818
+        },
+        "2132": {
+          "offense_points": 1.4355424473483651,
+          "defense_points_allowed": -0.42985900694361917,
+          "net_points": 1.8654014542919843
+        },
+        "2142": {
+          "offense_points": -0.5655618456270861,
+          "defense_points_allowed": 0.060897359884869155,
+          "net_points": -0.6264592055119552
+        },
+        "2169": {
+          "offense_points": -0.37671692512263333,
+          "defense_points_allowed": 1.148843991123616,
+          "net_points": -1.5255609162462491
+        },
+        "218": {
+          "offense_points": -0.58984166152601,
+          "defense_points_allowed": 1.525324261899269,
+          "net_points": -2.115165923425279
+        },
+        "2184": {
+          "offense_points": -2.4113591714594134,
+          "defense_points_allowed": 2.138171019795494,
+          "net_points": -4.549530191254908
+        },
+        "219": {
+          "offense_points": -0.0077004168028570125,
+          "defense_points_allowed": -0.04160174158714783,
+          "net_points": 0.033901324784290816
+        },
+        "2193": {
+          "offense_points": -0.9277016022178148,
+          "defense_points_allowed": 1.1260363673957865,
+          "net_points": -2.0537379696136013
+        },
+        "2197": {
+          "offense_points": -1.4304911226119337,
+          "defense_points_allowed": 1.8018552156840912,
+          "net_points": -3.2323463382960247
+        },
+        "2198": {
+          "offense_points": -1.4627093018067805,
+          "defense_points_allowed": 1.3362217299765826,
+          "net_points": -2.798931031783363
+        },
+        "2199": {
+          "offense_points": -2.031418772130912,
+          "defense_points_allowed": 1.1291995098593997,
+          "net_points": -3.1606182819903115
+        },
+        "221": {
+          "offense_points": 2.4221964747782536,
+          "defense_points_allowed": -1.6837007142171196,
+          "net_points": 4.105897188995373
+        },
+        "2210": {
+          "offense_points": -0.2953851710321042,
+          "defense_points_allowed": 0.13946443065684783,
+          "net_points": -0.43484960168895204
+        },
+        "222": {
+          "offense_points": -0.5970357001245765,
+          "defense_points_allowed": 1.5653557455088987,
+          "net_points": -2.1623914456334754
+        },
+        "2226": {
+          "offense_points": 0.6081275915288273,
+          "defense_points_allowed": 2.1673900611762904,
+          "net_points": -1.559262469647463
+        },
+        "2229": {
+          "offense_points": -0.9637793234645515,
+          "defense_points_allowed": -0.7712071902668189,
+          "net_points": -0.1925721331977326
+        },
+        "2230": {
+          "offense_points": -1.763506694084645,
+          "defense_points_allowed": 1.5277684341661057,
+          "net_points": -3.291275128250751
+        },
+        "2241": {
+          "offense_points": 0.546312617070896,
+          "defense_points_allowed": 0.4532315414791235,
+          "net_points": 0.09308107559177248
+        },
+        "2247": {
+          "offense_points": -0.29185578312074767,
+          "defense_points_allowed": 1.8345139423229653,
+          "net_points": -2.126369725443713
+        },
+        "2261": {
+          "offense_points": -1.0372114356910906,
+          "defense_points_allowed": 1.382990319090741,
+          "net_points": -2.4202017547818317
+        },
+        "227": {
+          "offense_points": -0.8195699836391268,
+          "defense_points_allowed": 0.7079336159191555,
+          "net_points": -1.5275035995582824
+        },
+        "2277": {
+          "offense_points": -1.8420128777677376,
+          "defense_points_allowed": 2.046117784483242,
+          "net_points": -3.8881306622509797
+        },
+        "228": {
+          "offense_points": 0.5990940677621291,
+          "defense_points_allowed": -2.5331458665275455,
+          "net_points": 3.1322399342896747
+        },
+        "2287": {
+          "offense_points": -0.6667962321946138,
+          "defense_points_allowed": 0.22331836496320417,
+          "net_points": -0.8901145971578179
+        },
+        "2294": {
+          "offense_points": 0.8854941538906906,
+          "defense_points_allowed": -5.1262433304508574,
+          "net_points": 6.011737484341548
+        },
+        "2296": {
+          "offense_points": -0.21843949345057928,
+          "defense_points_allowed": 0.18163342896621118,
+          "net_points": -0.4000729224167905
+        },
+        "23": {
+          "offense_points": -0.934717127938541,
+          "defense_points_allowed": 1.071756685441724,
+          "net_points": -2.006473813380265
+        },
+        "2305": {
+          "offense_points": 1.0592394175599489,
+          "defense_points_allowed": -0.3859851519197346,
+          "net_points": 1.4452245694796835
+        },
+        "2306": {
+          "offense_points": 2.8127700528287525,
+          "defense_points_allowed": -1.8437041040312592,
+          "net_points": 4.656474156860011
+        },
+        "2309": {
+          "offense_points": -3.3491424154817615,
+          "defense_points_allowed": 3.7964520272164464,
+          "net_points": -7.145594442698208
+        },
+        "231": {
+          "offense_points": -0.9841129349688126,
+          "defense_points_allowed": 1.5968738652762895,
+          "net_points": -2.580986800245102
+        },
+        "2320": {
+          "offense_points": -1.1263908754187075,
+          "defense_points_allowed": 0.5077634511833559,
+          "net_points": -1.6341543266020633
+        },
+        "2329": {
+          "offense_points": -0.14144360574996764,
+          "defense_points_allowed": 0.11514060378638832,
+          "net_points": -0.25658420953635597
+        },
+        "233": {
+          "offense_points": -0.25471849614929715,
+          "defense_points_allowed": 0.9002916954173164,
+          "net_points": -1.1550101915666136
+        },
+        "2335": {
+          "offense_points": 0.6661913138499699,
+          "defense_points_allowed": -1.102558560520078,
+          "net_points": 1.768749874370048
+        },
+        "2341": {
+          "offense_points": -2.0127710340357443,
+          "defense_points_allowed": 0.6608313746061093,
+          "net_points": -2.6736024086418535
+        },
+        "2348": {
+          "offense_points": 0.3540722935518577,
+          "defense_points_allowed": -1.352590576131043,
+          "net_points": 1.7066628696829007
+        },
+        "235": {
+          "offense_points": 2.9965739879572673,
+          "defense_points_allowed": -0.9310371741384995,
+          "net_points": 3.9276111620957668
+        },
+        "236": {
+          "offense_points": -0.5480902182273618,
+          "defense_points_allowed": 0.6920519141882753,
+          "net_points": -1.2401421324156372
+        },
+        "2377": {
+          "offense_points": -0.7539024121905369,
+          "defense_points_allowed": 0.6004144982778304,
+          "net_points": -1.3543169104683672
+        },
+        "238": {
+          "offense_points": 2.2117349668388915,
+          "defense_points_allowed": -1.3273450533748727,
+          "net_points": 3.539080020213764
+        },
+        "2382": {
+          "offense_points": -0.8633259176796549,
+          "defense_points_allowed": 1.3504851774451752,
+          "net_points": -2.21381109512483
+        },
+        "2385": {
+          "offense_points": -1.5413435755600706,
+          "defense_points_allowed": 3.5193212346150213,
+          "net_points": -5.060664810175092
+        },
+        "239": {
+          "offense_points": 1.7757083255275383,
+          "defense_points_allowed": -0.05983642655013107,
+          "net_points": 1.8355447520776693
+        },
+        "2390": {
+          "offense_points": 5.359764619458725,
+          "defense_points_allowed": -5.125273292143813,
+          "net_points": 10.48503791160254
+        },
+        "2393": {
+          "offense_points": -1.7903610059620079,
+          "defense_points_allowed": 0.7533707956347332,
+          "net_points": -2.543731801596741
+        },
+        "24": {
+          "offense_points": -2.4530567191141324,
+          "defense_points_allowed": 1.7183899175733175,
+          "net_points": -4.17144663668745
+        },
+        "2400": {
+          "offense_points": -1.0625364471939638,
+          "defense_points_allowed": 0.9167024215472223,
+          "net_points": -1.9792388687411862
+        },
+        "2405": {
+          "offense_points": 0.2203119740304815,
+          "defense_points_allowed": 1.4029543819282566,
+          "net_points": -1.182642407897775
+        },
+        "2415": {
+          "offense_points": -1.2518881636272488,
+          "defense_points_allowed": 2.0959329823217145,
+          "net_points": -3.3478211459489633
+        },
+        "242": {
+          "offense_points": -2.8789318427530564,
+          "defense_points_allowed": 1.1289863667740636,
+          "net_points": -4.00791820952712
+        },
+        "2426": {
+          "offense_points": 1.3822706225265393,
+          "defense_points_allowed": -1.2968257916318386,
+          "net_points": 2.679096414158378
+        },
+        "2428": {
+          "offense_points": -0.9819004705699754,
+          "defense_points_allowed": 1.0386826703184124,
+          "net_points": -2.020583140888388
+        },
+        "2429": {
+          "offense_points": -3.6003391553598423,
+          "defense_points_allowed": 3.014426033097251,
+          "net_points": -6.614765188457094
+        },
+        "2433": {
+          "offense_points": -3.398477612620672,
+          "defense_points_allowed": 2.8196504415213552,
+          "net_points": -6.218128054142028
+        },
+        "2439": {
+          "offense_points": 2.4277420229549844,
+          "defense_points_allowed": -1.338361741532828,
+          "net_points": 3.7661037644878124
+        },
+        "2440": {
+          "offense_points": -2.4485264380555978,
+          "defense_points_allowed": 0.23167333744376814,
+          "net_points": -2.680199775499366
+        },
+        "2447": {
+          "offense_points": -2.3230719329782428,
+          "defense_points_allowed": 2.844951716763019,
+          "net_points": -5.1680236497412615
+        },
+        "2448": {
+          "offense_points": -1.223111224838435,
+          "defense_points_allowed": 2.3036655975908924,
+          "net_points": -3.526776822429327
+        },
+        "2449": {
+          "offense_points": 4.3764364460404055,
+          "defense_points_allowed": -4.880721810983498,
+          "net_points": 9.257158257023903
+        },
+        "245": {
+          "offense_points": 2.1738300499270915,
+          "defense_points_allowed": -2.395660053984967,
+          "net_points": 4.569490103912059
+        },
+        "2450": {
+          "offense_points": -1.6672776852608886,
+          "defense_points_allowed": 1.6995421471044045,
+          "net_points": -3.366819832365293
+        },
+        "2453": {
+          "offense_points": -1.0500676740126516,
+          "defense_points_allowed": 0.61992998169339,
+          "net_points": -1.6699976557060414
+        },
+        "2458": {
+          "offense_points": -0.28939933192063516,
+          "defense_points_allowed": -0.27748592779086795,
+          "net_points": -0.011913404129767213
+        },
+        "2459": {
+          "offense_points": -2.9612238940174467,
+          "defense_points_allowed": -0.5896288457260813,
+          "net_points": -2.3715950482913652
+        },
+        "2460": {
+          "offense_points": -1.2804807360802961,
+          "defense_points_allowed": 1.709569968777983,
+          "net_points": -2.9900507048582794
+        },
+        "2464": {
+          "offense_points": -0.7247201302474,
+          "defense_points_allowed": -0.03770018812815608,
+          "net_points": -0.6870199421192439
+        },
+        "2466": {
+          "offense_points": -1.6417625674899765,
+          "defense_points_allowed": 4.462199759826622,
+          "net_points": -6.103962327316599
+        },
+        "248": {
+          "offense_points": 1.4268343800923855,
+          "defense_points_allowed": -1.9975390292570825,
+          "net_points": 3.424373409349468
+        },
+        "2483": {
+          "offense_points": 6.103129108894764,
+          "defense_points_allowed": -3.5361482536787032,
+          "net_points": 9.639277362573468
+        },
+        "249": {
+          "offense_points": 6.081297077965861,
+          "defense_points_allowed": 0.9134855960449986,
+          "net_points": 5.167811481920862
+        },
+        "25": {
+          "offense_points": -0.5718525384705955,
+          "defense_points_allowed": -0.3704698622903408,
+          "net_points": -0.20138267618025468
+        },
+        "2502": {
+          "offense_points": -1.3501938853545612,
+          "defense_points_allowed": 4.576726731811961,
+          "net_points": -5.926920617166522
+        },
+        "2504": {
+          "offense_points": -1.2577114332112238,
+          "defense_points_allowed": 0.76629218266365,
+          "net_points": -2.0240036158748738
+        },
+        "2509": {
+          "offense_points": -1.7604441191997637,
+          "defense_points_allowed": 3.300207251203745,
+          "net_points": -5.060651370403509
+        },
+        "251": {
+          "offense_points": 2.8602242622643894,
+          "defense_points_allowed": -4.34395996071978,
+          "net_points": 7.2041842229841695
+        },
+        "252": {
+          "offense_points": 2.8084493864932596,
+          "defense_points_allowed": -3.2503063317157936,
+          "net_points": 6.058755718209053
+        },
+        "2523": {
+          "offense_points": -0.875556931112749,
+          "defense_points_allowed": 0.977461140733007,
+          "net_points": -1.853018071845756
+        },
+        "2529": {
+          "offense_points": -1.0207285359761045,
+          "defense_points_allowed": 0.5033295547503174,
+          "net_points": -1.5240580907264218
+        },
+        "253": {
+          "offense_points": -0.18649652262344776,
+          "defense_points_allowed": 1.267109910298889,
+          "net_points": -1.4536064329223368
+        },
+        "2534": {
+          "offense_points": -1.6933378504332626,
+          "defense_points_allowed": 0.8858228318949471,
+          "net_points": -2.57916068232821
+        },
+        "2535": {
+          "offense_points": -1.0285541466458517,
+          "defense_points_allowed": 0.6688668693567685,
+          "net_points": -1.6974210160026202
+        },
+        "254": {
+          "offense_points": 4.286977509408112,
+          "defense_points_allowed": -4.136669154917096,
+          "net_points": 8.423646664325208
+        },
+        "2545": {
+          "offense_points": -0.8096593764955677,
+          "defense_points_allowed": 1.051331525697269,
+          "net_points": -1.8609909021928368
+        },
+        "2546": {
+          "offense_points": -0.5418320802569867,
+          "defense_points_allowed": 0.44698432841306085,
+          "net_points": -0.9888164086700475
+        },
+        "256": {
+          "offense_points": 4.772802072722757,
+          "defense_points_allowed": -4.2881821212411655,
+          "net_points": 9.060984193963922
+        },
+        "2567": {
+          "offense_points": 3.785280242961386,
+          "defense_points_allowed": -2.597875405255021,
+          "net_points": 6.383155648216407
+        },
+        "2569": {
+          "offense_points": -0.4973726314032088,
+          "defense_points_allowed": 0.8599045014600812,
+          "net_points": -1.35727713286329
+        },
+        "257": {
+          "offense_points": -1.4309502547664104,
+          "defense_points_allowed": 1.7638022199157652,
+          "net_points": -3.1947524746821756
+        },
+        "2571": {
+          "offense_points": -0.6399012905020378,
+          "defense_points_allowed": -0.5358454872812228,
+          "net_points": -0.10405580322081498
+        },
+        "2572": {
+          "offense_points": -1.2181573928865739,
+          "defense_points_allowed": 1.5613205258241623,
+          "net_points": -2.779477918710736
+        },
+        "2579": {
+          "offense_points": 0.7153802917778483,
+          "defense_points_allowed": -1.8838010403083911,
+          "net_points": 2.5991813320862396
+        },
+        "258": {
+          "offense_points": 1.5262782399664507,
+          "defense_points_allowed": -2.4051384492247028,
+          "net_points": 3.9314166891911535
+        },
+        "2582": {
+          "offense_points": -0.941945309681948,
+          "defense_points_allowed": 2.5048895526235575,
+          "net_points": -3.4468348623055056
+        },
+        "259": {
+          "offense_points": 1.2452105475453474,
+          "defense_points_allowed": -1.2576062410581499,
+          "net_points": 2.5028167886034973
+        },
+        "2598": {
+          "offense_points": -1.2264221832413553,
+          "defense_points_allowed": 0.2680983141808477,
+          "net_points": -1.494520497422203
+        },
+        "26": {
+          "offense_points": 0.15649572841435833,
+          "defense_points_allowed": -0.6688641355187475,
+          "net_points": 0.8253598639331058
+        },
+        "2617": {
+          "offense_points": -0.5008057307118835,
+          "defense_points_allowed": -0.17694199401869465,
+          "net_points": -0.32386373669318885
+        },
+        "2619": {
+          "offense_points": -1.0026057242852633,
+          "defense_points_allowed": 0.8998602519608465,
+          "net_points": -1.9024659762461098
+        },
+        "2623": {
+          "offense_points": 0.267610022362078,
+          "defense_points_allowed": 1.1214112003003815,
+          "net_points": -0.8538011779383036
+        },
+        "2627": {
+          "offense_points": -0.07720355953235153,
+          "defense_points_allowed": -0.689553237925947,
+          "net_points": 0.6123496783935956
+        },
+        "2628": {
+          "offense_points": 2.0166996971972546,
+          "defense_points_allowed": -2.1856134155685307,
+          "net_points": 4.202313112765785
+        },
+        "2630": {
+          "offense_points": -1.6530598240478727,
+          "defense_points_allowed": 1.5128219712768796,
+          "net_points": -3.1658817953247524
+        },
+        "2633": {
+          "offense_points": 4.6432113342871935,
+          "defense_points_allowed": -1.9254970402187541,
+          "net_points": 6.568708374505947
+        },
+        "2634": {
+          "offense_points": -1.3684902367837022,
+          "defense_points_allowed": 2.013591773954392,
+          "net_points": -3.3820820107380944
+        },
+        "2635": {
+          "offense_points": -0.45213467415493375,
+          "defense_points_allowed": 0.4168414133384364,
+          "net_points": -0.8689760874933701
+        },
+        "2636": {
+          "offense_points": 3.6959764202109886,
+          "defense_points_allowed": 0.31222794956713834,
+          "net_points": 3.3837484706438503
+        },
+        "2638": {
+          "offense_points": -2.218843775965989,
+          "defense_points_allowed": 2.304548264347477,
+          "net_points": -4.523392040313466
+        },
+        "264": {
+          "offense_points": 1.1862638722005432,
+          "defense_points_allowed": -2.536025753021456,
+          "net_points": 3.722289625221999
+        },
+        "2640": {
+          "offense_points": -1.2578808307420741,
+          "defense_points_allowed": 1.4633970810857653,
+          "net_points": -2.7212779118278396
+        },
+        "2641": {
+          "offense_points": 4.399379668922665,
+          "defense_points_allowed": -3.1351578840571843,
+          "net_points": 7.53453755297985
+        },
+        "2643": {
+          "offense_points": -0.39649065602039996,
+          "defense_points_allowed": 1.3112843151941316,
+          "net_points": -1.7077749712145316
+        },
+        "2649": {
+          "offense_points": 2.4321148145767495,
+          "defense_points_allowed": -2.487740823850827,
+          "net_points": 4.919855638427577
+        },
+        "265": {
+          "offense_points": -0.014388839592263041,
+          "defense_points_allowed": -1.5458788884222934,
+          "net_points": 1.5314900488300303
+        },
+        "2653": {
+          "offense_points": -1.2074899807886585,
+          "defense_points_allowed": -1.8765527383184752,
+          "net_points": 0.6690627575298167
+        },
+        "2655": {
+          "offense_points": 0.0723435499619785,
+          "defense_points_allowed": -2.45701329775404,
+          "net_points": 2.5293568477160187
+        },
+        "2678": {
+          "offense_points": -1.2766744658083682,
+          "defense_points_allowed": 2.439166874294148,
+          "net_points": -3.715841340102516
+        },
+        "2681": {
+          "offense_points": -2.264059940840327,
+          "defense_points_allowed": 3.723337872109726,
+          "net_points": -5.987397812950054
+        },
+        "2692": {
+          "offense_points": -0.605307432794011,
+          "defense_points_allowed": 2.310321407353212,
+          "net_points": -2.9156288401472232
+        },
+        "2698": {
+          "offense_points": -1.631507338000223,
+          "defense_points_allowed": 1.6140665967784125,
+          "net_points": -3.245573934778635
+        },
+        "2710": {
+          "offense_points": -1.358495370553006,
+          "defense_points_allowed": 1.567438428232226,
+          "net_points": -2.9259337987852323
+        },
+        "2711": {
+          "offense_points": -0.29714891944067723,
+          "defense_points_allowed": -2.040141742928315,
+          "net_points": 1.7429928234876377
+        },
+        "2717": {
+          "offense_points": -0.8115493820808719,
+          "defense_points_allowed": 1.5258136289861208,
+          "net_points": -2.3373630110669925
+        },
+        "2729": {
+          "offense_points": -0.7952710129834932,
+          "defense_points_allowed": 1.781237957453964,
+          "net_points": -2.576508970437457
+        },
+        "2747": {
+          "offense_points": -0.9503097520431936,
+          "defense_points_allowed": 0.7327096210048286,
+          "net_points": -1.683019373048022
+        },
+        "275": {
+          "offense_points": -2.0510508144387907,
+          "defense_points_allowed": -2.5863106141158485,
+          "net_points": 0.5352597996770578
+        },
+        "2751": {
+          "offense_points": -3.7149269403580094,
+          "defense_points_allowed": -2.012140964550937,
+          "net_points": -1.7027859758070725
+        },
+        "2754": {
+          "offense_points": 0.013951380890595246,
+          "defense_points_allowed": 1.3333979875235507,
+          "net_points": -1.3194466066329553
+        },
+        "2755": {
+          "offense_points": -1.0661226106073258,
+          "defense_points_allowed": 2.112640419403573,
+          "net_points": -3.1787630300108987
+        },
+        "276": {
+          "offense_points": 0.6710703286986627,
+          "defense_points_allowed": 0.5630247413473719,
+          "net_points": 0.10804558735129077
+        },
+        "277": {
+          "offense_points": 0.6699367214743941,
+          "defense_points_allowed": 1.1697870107096613,
+          "net_points": -0.4998502892352672
+        },
+        "2771": {
+          "offense_points": -1.2847271872058932,
+          "defense_points_allowed": 0.3588938688164567,
+          "net_points": -1.6436210560223499
+        },
+        "278": {
+          "offense_points": -0.1975567115900031,
+          "defense_points_allowed": -2.5500166665642086,
+          "net_points": 2.3524599549742056
+        },
+        "2803": {
+          "offense_points": -1.1312823947835626,
+          "defense_points_allowed": 1.004843861348447,
+          "net_points": -2.13612625613201
+        },
+        "2815": {
+          "offense_points": -2.202609662908902,
+          "defense_points_allowed": 0.608089015317774,
+          "net_points": -2.810698678226676
+        },
+        "282": {
+          "offense_points": -1.4116541399960392,
+          "defense_points_allowed": 1.9513890966374674,
+          "net_points": -3.363043236633507
+        },
+        "2837": {
+          "offense_points": -1.9683377119066194,
+          "defense_points_allowed": 1.8658789591801852,
+          "net_points": -3.8342166710868044
+        },
+        "284": {
+          "offense_points": -1.078549868399549,
+          "defense_points_allowed": 0.37946365148926814,
+          "net_points": -1.4580135198888171
+        },
+        "290": {
+          "offense_points": 0.13817984799665592,
+          "defense_points_allowed": 0.7719441803463744,
+          "net_points": -0.6337643323497184
+        },
+        "2900": {
+          "offense_points": -0.2821813636406538,
+          "defense_points_allowed": 0.684504563896186,
+          "net_points": -0.9666859275368398
+        },
+        "2916": {
+          "offense_points": -0.6937968179830166,
+          "defense_points_allowed": 1.5364549734997326,
+          "net_points": -2.230251791482749
+        },
+        "292": {
+          "offense_points": -0.30673967264535,
+          "defense_points_allowed": 0.42449218891643886,
+          "net_points": -0.7312318615617889
+        },
+        "295": {
+          "offense_points": 0.49637026298077436,
+          "defense_points_allowed": -1.348947856436807,
+          "net_points": 1.8453181194175814
+        },
+        "30": {
+          "offense_points": 4.032991747932682,
+          "defense_points_allowed": -0.5380099953362821,
+          "net_points": 4.5710017432689645
+        },
+        "302": {
+          "offense_points": -0.5539584630599358,
+          "defense_points_allowed": 1.856515545836876,
+          "net_points": -2.410474008896812
+        },
+        "304": {
+          "offense_points": 0.35528604452126944,
+          "defense_points_allowed": -0.4836481022773687,
+          "net_points": 0.8389341467986382
+        },
+        "309": {
+          "offense_points": 0.48220716456885376,
+          "defense_points_allowed": -0.5329068559704195,
+          "net_points": 1.0151140205392732
+        },
+        "3101": {
+          "offense_points": -0.6510416019316664,
+          "defense_points_allowed": 1.7359546128709948,
+          "net_points": -2.3869962148026613
+        },
+        "311": {
+          "offense_points": -1.5897913117716953,
+          "defense_points_allowed": 1.1768305820663523,
+          "net_points": -2.766621893838048
+        },
+        "322": {
+          "offense_points": -1.2877197696306604,
+          "defense_points_allowed": 1.182932198315889,
+          "net_points": -2.4706519679465493
+        },
+        "324": {
+          "offense_points": -0.9570952652730631,
+          "defense_points_allowed": 1.0584121877928099,
+          "net_points": -2.015507453065873
+        },
+        "326": {
+          "offense_points": 3.7163745080835415,
+          "defense_points_allowed": 1.2592185802836955,
+          "net_points": 2.457155927799846
+        },
+        "328": {
+          "offense_points": 0.2613034817303297,
+          "defense_points_allowed": 0.7150467914260986,
+          "net_points": -0.4537433096957689
+        },
+        "331": {
+          "offense_points": -0.7218404155138616,
+          "defense_points_allowed": 1.4642724089502621,
+          "net_points": -2.1861128244641237
+        },
+        "333": {
+          "offense_points": 4.243115222337602,
+          "defense_points_allowed": -3.494737285749842,
+          "net_points": 7.737852508087444
+        },
+        "338": {
+          "offense_points": -1.4499340764315447,
+          "defense_points_allowed": -0.5772900425338015,
+          "net_points": -0.8726440338977433
+        },
+        "344": {
+          "offense_points": 2.2808896069280036,
+          "defense_points_allowed": 0.4135794745373405,
+          "net_points": 1.8673101323906631
+        },
+        "349": {
+          "offense_points": 0.06293037672339982,
+          "defense_points_allowed": -3.2515203336271985,
+          "net_points": 3.3144507103505982
+        },
+        "356": {
+          "offense_points": 1.4138030233081242,
+          "defense_points_allowed": -0.9602126753079046,
+          "net_points": 2.374015698616029
+        },
+        "36": {
+          "offense_points": -0.4701253346724666,
+          "defense_points_allowed": 1.7749955715611576,
+          "net_points": -2.245120906233624
+        },
+        "38": {
+          "offense_points": -0.579974455927202,
+          "defense_points_allowed": -0.42735206887595895,
+          "net_points": -0.15262238705124304
+        },
+        "399": {
+          "offense_points": -0.6773553275894676,
+          "defense_points_allowed": -0.26440578436934964,
+          "net_points": -0.41294954322011795
+        },
+        "41": {
+          "offense_points": 2.5502766301739292,
+          "defense_points_allowed": -0.49419233098596665,
+          "net_points": 3.044468961159896
+        },
+        "47": {
+          "offense_points": -1.9358324765560744,
+          "defense_points_allowed": 2.4101316289800856,
+          "net_points": -4.34596410553616
+        },
+        "48": {
+          "offense_points": 0.47324352507402756,
+          "defense_points_allowed": 0.21566565507170635,
+          "net_points": 0.25757787000232124
+        },
+        "5": {
+          "offense_points": -0.7258721586514412,
+          "defense_points_allowed": 2.4565492454975804,
+          "net_points": -3.1824214041490215
+        },
+        "50": {
+          "offense_points": -0.833785372275506,
+          "defense_points_allowed": 2.510337626605803,
+          "net_points": -3.344122998881309
+        },
+        "52": {
+          "offense_points": 0.6073717466284616,
+          "defense_points_allowed": -1.3818467768140106,
+          "net_points": 1.9892185234424722
+        },
+        "55": {
+          "offense_points": 1.3262291960467743,
+          "defense_points_allowed": -0.9483085635297414,
+          "net_points": 2.2745377595765155
+        },
+        "57": {
+          "offense_points": 2.4808405101269795,
+          "defense_points_allowed": -1.4541023965236624,
+          "net_points": 3.934942906650642
+        },
+        "58": {
+          "offense_points": 3.8383087730669287,
+          "defense_points_allowed": -1.7983431848968672,
+          "net_points": 5.636651957963796
+        },
+        "59": {
+          "offense_points": 1.4089107754753167,
+          "defense_points_allowed": -0.3921680146332126,
+          "net_points": 1.8010787901085292
+        },
+        "6": {
+          "offense_points": 1.3244264717107004,
+          "defense_points_allowed": 0.5315051916213238,
+          "net_points": 0.7929212800893766
+        },
+        "61": {
+          "offense_points": 5.252863395392857,
+          "defense_points_allowed": -4.069801275253442,
+          "net_points": 9.322664670646299
+        },
+        "62": {
+          "offense_points": -1.4722552960716524,
+          "defense_points_allowed": -0.12667787610161052,
+          "net_points": -1.3455774199700419
+        },
+        "66": {
+          "offense_points": 1.3904215759646168,
+          "defense_points_allowed": -2.8634660768713274,
+          "net_points": 4.253887652835944
+        },
+        "68": {
+          "offense_points": 2.8608033662740313,
+          "defense_points_allowed": -2.144247472201284,
+          "net_points": 5.005050838475315
+        },
+        "70": {
+          "offense_points": -0.48049732016797764,
+          "defense_points_allowed": 0.33410308566597735,
+          "net_points": -0.814600405833955
+        },
+        "77": {
+          "offense_points": -0.8415301909489058,
+          "defense_points_allowed": -2.375572847943284,
+          "net_points": 1.5340426569943784
+        },
+        "79": {
+          "offense_points": -1.1065864906310543,
+          "defense_points_allowed": 1.0066162756693764,
+          "net_points": -2.1132027663004305
+        },
+        "8": {
+          "offense_points": 1.0198481161938964,
+          "defense_points_allowed": 0.8844532785721573,
+          "net_points": 0.1353948376217391
+        },
+        "84": {
+          "offense_points": 6.174511494700314,
+          "defense_points_allowed": -5.72934672621764,
+          "net_points": 11.903858220917954
+        },
+        "87": {
+          "offense_points": 6.013980796764876,
+          "defense_points_allowed": -4.945009380904787,
+          "net_points": 10.958990177669662
+        },
+        "9": {
+          "offense_points": 1.63324637568301,
+          "defense_points_allowed": -1.307166218865759,
+          "net_points": 2.9404125945487687
+        },
+        "93": {
+          "offense_points": -2.2457102842924317,
+          "defense_points_allowed": 2.9205922034809104,
+          "net_points": -5.166302487773342
+        },
+        "96": {
+          "offense_points": -0.4971782825112583,
+          "defense_points_allowed": -1.0232479458403299,
+          "net_points": 0.5260696633290716
+        },
+        "97": {
+          "offense_points": 3.0741769372343746,
+          "defense_points_allowed": -1.1485906867336788,
+          "net_points": 4.222767623968053
+        },
+        "98": {
+          "offense_points": 0.3284803279643172,
+          "defense_points_allowed": 0.0946644417042635,
+          "net_points": 0.2338158862600537
+        },
+        "99": {
+          "offense_points": 1.7078648009323125,
+          "defense_points_allowed": -2.831416583289539,
+          "net_points": 4.539281384221852
+        }
+      }
+    }
+  ],
+  "authority": "RESEARCH_ONLY"
+}

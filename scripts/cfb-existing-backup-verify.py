@@ -63,7 +63,9 @@ def verify(manifest,root,download=False):
     if not sqlite3.complete_statement(buffer):continue
     statement=buffer.strip();buffer=''
     # Strip comment lines before classifying (SQL dump comments are line-leading).
-    statement='\n'.join(l for l in statement.splitlines() if not l.lstrip().startswith('--')).strip()
+    while statement.startswith('--'):
+     _,_,statement=statement.partition('\n')
+     statement=statement.lstrip()
     if not statement:continue
     m=INSERT.match(statement)
     if m:

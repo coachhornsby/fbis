@@ -1,0 +1,55 @@
+{
+  "success": true,
+  "status": 200,
+  "errors": [],
+  "count": 5,
+  "objects": [
+    {
+      "key": "d1-recovery/fbis/0000097a-0001f724-00005101-7a338de1ed66762831022ae4224fb28f/backup.part.0000",
+      "etag": "9caae91a3117ac7d9d5cbcec2755685c",
+      "last_modified": "2026-10-11T02:37:24.970Z",
+      "size": 188743680,
+      "http_metadata": {
+        "contentType": "application/gzip"
+      },
+      "custom_metadata": {},
+      "storage_class": "Standard"
+    },
+    {
+      "key": "d1-recovery/fbis/0000097a-0001f724-00005101-7a338de1ed66762831022ae4224fb28f/backup.part.0001",
+      "etag": "c37d0be91e178c2638aba0d87f6b4a55",
+      "last_modified": "2026-10-11T02:37:35.144Z",
+      "size": 188743680,
+      "http_metadata": {},
+      "custom_metadata": {},
+      "storage_class": "Standard"
+    },
+    {
+      "key": "d1-recovery/fbis/0000097a-0001f724-00005101-7a338de1ed66762831022ae4224fb28f/backup.part.0002",
+      "etag": "0f815b5749a90fac881d010dea19aa50",
+      "last_modified": "2026-10-11T02:37:48.743Z",
+      "size": 188743680,
+      "http_metadata": {},
+      "custom_metadata": {},
+      "storage_class": "Standard"
+    },
+    {
+      "key": "d1-recovery/fbis/0000097a-0001f724-00005101-7a338de1ed66762831022ae4224fb28f/backup.part.0003",
+      "etag": "9d66299188c2549125cfda80535aa26e",
+      "last_modified": "2026-10-11T02:38:00.133Z",
+      "size": 188743680,
+      "http_metadata": {},
+      "custom_metadata": {},
+      "storage_class": "Standard"
+    },
+    {
+      "key": "d1-recovery/fbis/0000097a-0001f724-00005101-7a338de1ed66762831022ae4224fb28f/backup.part.0004",
+      "etag": "7e02a017ff9fd73a7486263fee73ff6e",
+      "last_modified": "2026-10-11T02:38:12.765Z",
+      "size": 180810226,
+      "http_metadata": {},
+      "custom_metadata": {},
+      "storage_class": "Standard"
+    }
+  ]
+}

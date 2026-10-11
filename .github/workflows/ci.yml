@@ -41,6 +41,20 @@ jobs:
       - name: Build app
         run: npm run build
 
+  cfb-offline-rehearsal:
+    name: CFB OFFLINE CONTRACTS
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 -m pip install pandas==2.2.3
+      - run: python3 test/cfb-postgame-rehearsal.test.py
+      - run: python3 test/cfb-final-status.test.py
+      - run: python3 test/cfb-import-contract.test.py
+
   deploy-production:
     name: DEPLOY PRODUCTION
     if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}

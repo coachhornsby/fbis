@@ -1,0 +1,1017 @@
+{
+  "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+  "source_sha256": "b714f831ab3d8366ecb642c2d077e39fbce33ca5425494b8dd32e9adbf3b1ce6",
+  "status": "RETROSPECTIVE_RESEARCH_ONLY",
+  "source_rows": 18957,
+  "accepted_final_rows": 18769,
+  "excluded_status_counts": {
+    "STATUS_CANCELED": 95,
+    "STATUS_POSTPONED": 93
+  },
+  "source_last_game": "2026-10-02T01:00:00+00:00",
+  "predeclared": {
+    "alpha": 20.0,
+    "half_life_days": 365.0,
+    "training_window_days": 1098,
+    "test_start": 2019,
+    "fit_schedule": "monthly",
+    "test_selection": "all complete archived games; FBS season-scope qualification still required"
+  },
+  "overall": {
+    "n": 6420,
+    "margin_mae": 16.082974628983,
+    "margin_rmse": 20.439564479607856,
+    "total_mae": 13.105363538283251,
+    "total_rmse": 16.50484700231455,
+    "brier": 0.20059962767457734,
+    "log_loss": 0.5860781897208616,
+    "margin_80_coverage": 0.7951713395638629,
+    "margin_95_coverage": 0.9454828660436138,
+    "total_80_coverage": 0.8060747663551402,
+    "total_95_coverage": 0.9503115264797508
+  },
+  "by_season": {
+    "2019": {
+      "n": 891,
+      "margin_mae": 16.035896129715336,
+      "margin_rmse": 20.36126691100206,
+      "total_mae": 13.23949823554619,
+      "total_rmse": 16.663113222027846,
+      "brier": 0.19066736804997317,
+      "log_loss": 0.5640882734348468,
+      "margin_80_coverage": 0.8047138047138047,
+      "margin_95_coverage": 0.9528619528619529,
+      "total_80_coverage": 0.8080808080808081,
+      "total_95_coverage": 0.9595959595959596
+    },
+    "2020": {
+      "n": 571,
+      "margin_mae": 15.3139860061298,
+      "margin_rmse": 19.283634897197775,
+      "total_mae": 13.916268397024663,
+      "total_rmse": 17.714071051239365,
+      "brier": 0.20571912391307431,
+      "log_loss": 0.5960914892695369,
+      "margin_80_coverage": 0.8178633975481612,
+      "margin_95_coverage": 0.9597197898423818,
+      "total_80_coverage": 0.7915936952714536,
+      "total_95_coverage": 0.9457092819614711
+    },
+    "2021": {
+      "n": 891,
+      "margin_mae": 16.156331095493485,
+      "margin_rmse": 20.439761338200316,
+      "total_mae": 12.917299971347708,
+      "total_rmse": 16.53841391761537,
+      "brier": 0.205027074444847,
+      "log_loss": 0.5968498816654203,
+      "margin_80_coverage": 0.7890011223344556,
+      "margin_95_coverage": 0.9461279461279462,
+      "total_80_coverage": 0.8361391694725028,
+      "total_95_coverage": 0.9517396184062851
+    },
+    "2022": {
+      "n": 900,
+      "margin_mae": 15.747507004387643,
+      "margin_rmse": 20.193738251702026,
+      "total_mae": 13.37018087887755,
+      "total_rmse": 16.74299614465346,
+      "brier": 0.2101511459434534,
+      "log_loss": 0.6094103342240343,
+      "margin_80_coverage": 0.8,
+      "margin_95_coverage": 0.9288888888888889,
+      "total_80_coverage": 0.7866666666666666,
+      "total_95_coverage": 0.9488888888888889
+    },
+    "2023": {
+      "n": 911,
+      "margin_mae": 15.65352486795313,
+      "margin_rmse": 19.937199217553225,
+      "total_mae": 13.360537965722346,
+      "total_rmse": 16.510297154826695,
+      "brier": 0.20475981962752798,
+      "log_loss": 0.5957329070215295,
+      "margin_80_coverage": 0.8046103183315039,
+      "margin_95_coverage": 0.9484083424807903,
+      "total_80_coverage": 0.8024149286498353,
+      "total_95_coverage": 0.9506037321624589
+    },
+    "2024": {
+      "n": 965,
+      "margin_mae": 15.833140893102355,
+      "margin_rmse": 20.161927723154864,
+      "total_mae": 12.850650792617897,
+      "total_rmse": 16.403744111222547,
+      "brier": 0.20438173038383164,
+      "log_loss": 0.5919737265927738,
+      "margin_80_coverage": 0.8020725388601037,
+      "margin_95_coverage": 0.9544041450777202,
+      "total_80_coverage": 0.805181347150259,
+      "total_95_coverage": 0.938860103626943
+    },
+    "2025": {
+      "n": 958,
+      "margin_mae": 16.058315682478188,
+      "margin_rmse": 20.286059848922246,
+      "total_mae": 12.75559333518153,
+      "total_rmse": 15.866154867916803,
+      "brier": 0.19753838460127823,
+      "log_loss": 0.5771160753527801,
+      "margin_80_coverage": 0.7954070981210856,
+      "margin_95_coverage": 0.9488517745302714,
+      "total_80_coverage": 0.7933194154488518,
+      "total_95_coverage": 0.954070981210856
+    },
+    "2026": {
+      "n": 333,
+      "margin_mae": 20.20772314293584,
+      "margin_rmse": 25.262151622479763,
+      "total_mae": 12.189754207182881,
+      "total_rmse": 15.220838903810062,
+      "brier": 0.16720081788386865,
+      "log_loss": 0.5181501981755341,
+      "margin_80_coverage": 0.6876876876876877,
+      "margin_95_coverage": 0.9009009009009009,
+      "total_80_coverage": 0.8468468468468469,
+      "total_95_coverage": 0.954954954954955
+    }
+  },
+  "paired_model": {
+    "n": 6420,
+    "margin_mae": 16.082974628983,
+    "margin_rmse": 20.439564479607856,
+    "total_mae": 13.105363538283251,
+    "total_rmse": 16.50484700231455,
+    "brier": 0.20059962767457734,
+    "log_loss": 0.5860781897208616,
+    "margin_80_coverage": 0.7951713395638629,
+    "margin_95_coverage": 0.9454828660436138,
+    "total_80_coverage": 0.8060747663551402,
+    "total_95_coverage": 0.9503115264797508
+  },
+  "benchmark": {
+    "n": 6420,
+    "margin_mae": 12.175778816199378,
+    "total_mae": 12.574493769470404,
+    "temporal_status": "RETROSPECTIVE_BENCHMARK_TIME_UNVERIFIED",
+    "economic_qualification": false
+  },
+  "calibration": [
+    {
+      "probability_bin": 0.2,
+      "n": 10,
+      "mean_probability": 0.28316882283968464,
+      "home_win_rate": 0.1
+    },
+    {
+      "probability_bin": 0.3,
+      "n": 212,
+      "mean_probability": 0.36220193473224366,
+      "home_win_rate": 0.2028301886792453
+    },
+    {
+      "probability_bin": 0.4,
+      "n": 754,
+      "mean_probability": 0.4595548729801637,
+      "home_win_rate": 0.3302387267904509
+    },
+    {
+      "probability_bin": 0.5,
+      "n": 1541,
+      "mean_probability": 0.5540905754013855,
+      "home_win_rate": 0.5217391304347826
+    },
+    {
+      "probability_bin": 0.6,
+      "n": 2285,
+      "mean_probability": 0.6507881077158645,
+      "home_win_rate": 0.6897155361050328
+    },
+    {
+      "probability_bin": 0.7,
+      "n": 1106,
+      "mean_probability": 0.7324335034580889,
+      "home_win_rate": 0.8372513562386981
+    },
+    {
+      "probability_bin": 0.8,
+      "n": 129,
+      "mean_probability": 0.873882295913069,
+      "home_win_rate": 0.8914728682170543
+    },
+    {
+      "probability_bin": 0.9,
+      "n": 383,
+      "mean_probability": 0.9335339606703232,
+      "home_win_rate": 0.9347258485639687
+    }
+  ],
+  "fits": [
+    {
+      "block": "2010-09",
+      "train_n": 2417,
+      "max_training_game_at": "2010-01-30T21:00:00+00:00",
+      "hfa_points": 6.294276614369042,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2010-10",
+      "train_n": 2422,
+      "max_training_game_at": "2010-09-30T23:30:00+00:00",
+      "hfa_points": 7.464946505554656,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2010-11",
+      "train_n": 2412,
+      "max_training_game_at": "2010-10-31T03:30:00+00:00",
+      "hfa_points": 6.641152748921818,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2010-12",
+      "train_n": 2422,
+      "max_training_game_at": "2010-11-28T03:00:00+00:00",
+      "hfa_points": 6.12056558555338,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2011-01",
+      "train_n": 2432,
+      "max_training_game_at": "2010-12-31T20:30:00+00:00",
+      "hfa_points": 5.947728272404902,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2011-09",
+      "train_n": 2419,
+      "max_training_game_at": "2011-01-29T21:00:00+00:00",
+      "hfa_points": 5.992730428238041,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2011-10",
+      "train_n": 2403,
+      "max_training_game_at": "2011-09-30T00:00:00+00:00",
+      "hfa_points": 7.301638771780437,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2011-11",
+      "train_n": 2445,
+      "max_training_game_at": "2011-10-30T02:30:00+00:00",
+      "hfa_points": 6.910380537132991,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2011-12",
+      "train_n": 2465,
+      "max_training_game_at": "2011-11-27T04:00:00+00:00",
+      "hfa_points": 6.408064575819802,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2012-01",
+      "train_n": 2444,
+      "max_training_game_at": "2011-12-31T20:30:00+00:00",
+      "hfa_points": 6.36204404790186,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2012-08",
+      "train_n": 2436,
+      "max_training_game_at": "2012-01-28T21:00:00+00:00",
+      "hfa_points": 6.410032082463256,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2012-09",
+      "train_n": 2453,
+      "max_training_game_at": "2012-08-31T23:30:00+00:00",
+      "hfa_points": 6.500780024944041,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2012-10",
+      "train_n": 2501,
+      "max_training_game_at": "2012-09-30T02:30:00+00:00",
+      "hfa_points": 7.579910485194072,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2012-11",
+      "train_n": 2505,
+      "max_training_game_at": "2012-10-28T02:15:00+00:00",
+      "hfa_points": 7.093545453370955,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2012-12",
+      "train_n": 2477,
+      "max_training_game_at": "2012-11-30T00:30:00+00:00",
+      "hfa_points": 6.601062545417914,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2013-01",
+      "train_n": 2484,
+      "max_training_game_at": "2012-12-31T20:30:00+00:00",
+      "hfa_points": 6.480952733444072,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2013-08",
+      "train_n": 2476,
+      "max_training_game_at": "2013-01-26T21:00:00+00:00",
+      "hfa_points": 6.515774101938515,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2013-09",
+      "train_n": 2538,
+      "max_training_game_at": "2013-08-31T23:30:00+00:00",
+      "hfa_points": 7.215488094629176,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2013-10",
+      "train_n": 2531,
+      "max_training_game_at": "2013-09-29T04:00:00+00:00",
+      "hfa_points": 8.107821200186091,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2013-11",
+      "train_n": 2532,
+      "max_training_game_at": "2013-10-31T23:30:00+00:00",
+      "hfa_points": 7.211553219942153,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2013-12",
+      "train_n": 2518,
+      "max_training_game_at": "2013-11-30T21:00:00+00:00",
+      "hfa_points": 6.877872212372711,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2014-01",
+      "train_n": 2533,
+      "max_training_game_at": "2013-12-31T21:00:00+00:00",
+      "hfa_points": 6.828918971168309,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2014-08",
+      "train_n": 2526,
+      "max_training_game_at": "2014-01-25T21:00:00+00:00",
+      "hfa_points": 6.847243840340615,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2014-09",
+      "train_n": 2608,
+      "max_training_game_at": "2014-08-31T23:30:00+00:00",
+      "hfa_points": 7.75646555272715,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2014-10",
+      "train_n": 2585,
+      "max_training_game_at": "2014-09-28T02:30:00+00:00",
+      "hfa_points": 7.703909907205485,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2014-11",
+      "train_n": 2544,
+      "max_training_game_at": "2014-10-30T23:30:00+00:00",
+      "hfa_points": 6.985559414899474,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2014-12",
+      "train_n": 2585,
+      "max_training_game_at": "2014-11-30T03:30:00+00:00",
+      "hfa_points": 6.2810722551322575,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2015-01",
+      "train_n": 2590,
+      "max_training_game_at": "2014-12-31T21:00:00+00:00",
+      "hfa_points": 6.139737736336748,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2015-09",
+      "train_n": 2580,
+      "max_training_game_at": "2015-01-24T21:00:00+00:00",
+      "hfa_points": 6.127242623181865,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2015-10",
+      "train_n": 2593,
+      "max_training_game_at": "2015-09-27T02:30:00+00:00",
+      "hfa_points": 7.701206167993566,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2015-11",
+      "train_n": 2592,
+      "max_training_game_at": "2015-10-31T23:30:00+00:00",
+      "hfa_points": 6.943033938556279,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2015-12",
+      "train_n": 2607,
+      "max_training_game_at": "2015-11-29T04:00:00+00:00",
+      "hfa_points": 6.121667100698817,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2016-01",
+      "train_n": 2614,
+      "max_training_game_at": "2015-12-31T21:00:00+00:00",
+      "hfa_points": 5.858495532193851,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2016-08",
+      "train_n": 2603,
+      "max_training_game_at": "2016-01-30T19:30:00+00:00",
+      "hfa_points": 5.893011639061544,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2016-09",
+      "train_n": 2593,
+      "max_training_game_at": "2016-08-27T02:00:00+00:00",
+      "hfa_points": 5.8542612209007325,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2016-10",
+      "train_n": 2583,
+      "max_training_game_at": "2016-09-30T00:30:00+00:00",
+      "hfa_points": 7.167851461515734,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2016-11",
+      "train_n": 2641,
+      "max_training_game_at": "2016-10-30T03:59:00+00:00",
+      "hfa_points": 6.362376285169101,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2016-12",
+      "train_n": 2671,
+      "max_training_game_at": "2016-11-27T04:00:00+00:00",
+      "hfa_points": 6.0446901162968025,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2017-01",
+      "train_n": 2634,
+      "max_training_game_at": "2016-12-31T20:00:00+00:00",
+      "hfa_points": 5.849082772770425,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2017-08",
+      "train_n": 2619,
+      "max_training_game_at": "2017-01-28T19:30:00+00:00",
+      "hfa_points": 5.987175518678653,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2017-09",
+      "train_n": 2615,
+      "max_training_game_at": "2017-08-31T23:30:00+00:00",
+      "hfa_points": 6.0727307945627516,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2017-10",
+      "train_n": 2623,
+      "max_training_game_at": "2017-09-30T23:30:00+00:00",
+      "hfa_points": 6.5600601907972775,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2017-11",
+      "train_n": 2649,
+      "max_training_game_at": "2017-10-29T03:15:00+00:00",
+      "hfa_points": 5.940914839835553,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2017-12",
+      "train_n": 2667,
+      "max_training_game_at": "2017-11-26T03:15:00+00:00",
+      "hfa_points": 5.875420494805049,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2018-01",
+      "train_n": 2639,
+      "max_training_game_at": "2017-12-31T01:00:00+00:00",
+      "hfa_points": 5.874995982782148,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2018-08",
+      "train_n": 2626,
+      "max_training_game_at": "2018-01-27T19:30:00+00:00",
+      "hfa_points": 5.993172537340922,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2018-09",
+      "train_n": 2646,
+      "max_training_game_at": "2018-08-31T23:00:00+00:00",
+      "hfa_points": 6.1489630368547825,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2018-10",
+      "train_n": 2689,
+      "max_training_game_at": "2018-09-30T02:30:00+00:00",
+      "hfa_points": 7.521715052207441,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2018-11",
+      "train_n": 2680,
+      "max_training_game_at": "2018-10-31T23:30:00+00:00",
+      "hfa_points": 6.675244596791944,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2018-12",
+      "train_n": 2652,
+      "max_training_game_at": "2018-11-25T03:30:00+00:00",
+      "hfa_points": 6.176878997590239,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2019-01",
+      "train_n": 2651,
+      "max_training_game_at": "2018-12-31T20:45:00+00:00",
+      "hfa_points": 6.211186703563448,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2019-08",
+      "train_n": 2640,
+      "max_training_game_at": "2019-01-26T19:30:00+00:00",
+      "hfa_points": 6.313098307949718,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2019-09",
+      "train_n": 2714,
+      "max_training_game_at": "2019-08-31T23:30:00+00:00",
+      "hfa_points": 6.870908705396646,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2019-10",
+      "train_n": 2692,
+      "max_training_game_at": "2019-09-29T02:30:00+00:00",
+      "hfa_points": 7.592192653140647,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2019-11",
+      "train_n": 2677,
+      "max_training_game_at": "2019-10-27T02:30:00+00:00",
+      "hfa_points": 7.171062850373767,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2019-12",
+      "train_n": 2649,
+      "max_training_game_at": "2019-11-30T23:00:00+00:00",
+      "hfa_points": 6.395214664631333,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2020-01",
+      "train_n": 2663,
+      "max_training_game_at": "2019-12-31T21:30:00+00:00",
+      "hfa_points": 6.3330667986647935,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2020-09",
+      "train_n": 2650,
+      "max_training_game_at": "2020-01-25T19:30:00+00:00",
+      "hfa_points": 6.443225808066144,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2020-10",
+      "train_n": 2448,
+      "max_training_game_at": "2020-09-27T02:15:00+00:00",
+      "hfa_points": 6.2600301336157305,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2020-11",
+      "train_n": 2338,
+      "max_training_game_at": "2020-10-31T23:30:00+00:00",
+      "hfa_points": 5.902870800095135,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2020-12",
+      "train_n": 2278,
+      "max_training_game_at": "2020-11-29T04:00:00+00:00",
+      "hfa_points": 5.537017166690659,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2021-01",
+      "train_n": 2351,
+      "max_training_game_at": "2020-12-31T21:00:00+00:00",
+      "hfa_points": 4.862851310042005,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2021-02",
+      "train_n": 2347,
+      "max_training_game_at": "2021-01-30T19:30:00+00:00",
+      "hfa_points": 4.84512058055852,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2021-03",
+      "train_n": 2348,
+      "max_training_game_at": "2021-02-21T22:00:00+00:00",
+      "hfa_points": 4.846221763047139,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2021-08",
+      "train_n": 2349,
+      "max_training_game_at": "2021-03-07T22:00:00+00:00",
+      "hfa_points": 4.854663136804648,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2021-09",
+      "train_n": 2350,
+      "max_training_game_at": "2021-08-29T02:00:00+00:00",
+      "hfa_points": 4.926884570195452,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2021-10",
+      "train_n": 2366,
+      "max_training_game_at": "2021-09-30T23:30:00+00:00",
+      "hfa_points": 6.9273128673648445,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2021-11",
+      "train_n": 2357,
+      "max_training_game_at": "2021-10-31T02:30:00+00:00",
+      "hfa_points": 6.037198154662945,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2021-12",
+      "train_n": 2358,
+      "max_training_game_at": "2021-11-28T03:30:00+00:00",
+      "hfa_points": 5.3336267028094,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2022-01",
+      "train_n": 2357,
+      "max_training_game_at": "2021-12-31T20:30:00+00:00",
+      "hfa_points": 5.230439557509425,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2022-02",
+      "train_n": 2350,
+      "max_training_game_at": "2022-01-29T23:00:00+00:00",
+      "hfa_points": 5.230554508480917,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2022-08",
+      "train_n": 2353,
+      "max_training_game_at": "2022-02-19T21:00:00+00:00",
+      "hfa_points": 5.313255230381976,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2022-09",
+      "train_n": 2355,
+      "max_training_game_at": "2022-08-28T02:30:00+00:00",
+      "hfa_points": 5.308756889017839,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2022-10",
+      "train_n": 2337,
+      "max_training_game_at": "2022-09-30T23:30:00+00:00",
+      "hfa_points": 7.229903096388996,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2022-11",
+      "train_n": 2383,
+      "max_training_game_at": "2022-10-30T03:59:00+00:00",
+      "hfa_points": 6.526741641459891,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2022-12",
+      "train_n": 2419,
+      "max_training_game_at": "2022-11-27T04:00:00+00:00",
+      "hfa_points": 5.668530761710432,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2023-01",
+      "train_n": 2374,
+      "max_training_game_at": "2022-12-31T21:00:00+00:00",
+      "hfa_points": 5.69572686328857,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2023-02",
+      "train_n": 2359,
+      "max_training_game_at": "2023-01-28T23:00:00+00:00",
+      "hfa_points": 5.663245406920773,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2023-08",
+      "train_n": 2362,
+      "max_training_game_at": "2023-02-25T21:00:00+00:00",
+      "hfa_points": 5.7978072020504,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2023-09",
+      "train_n": 2374,
+      "max_training_game_at": "2023-08-31T23:30:00+00:00",
+      "hfa_points": 5.850461691049787,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2023-10",
+      "train_n": 2656,
+      "max_training_game_at": "2023-09-30T23:30:00+00:00",
+      "hfa_points": 7.268116557278912,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2023-11",
+      "train_n": 2743,
+      "max_training_game_at": "2023-10-31T23:30:00+00:00",
+      "hfa_points": 6.484717131459738,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2023-12",
+      "train_n": 2814,
+      "max_training_game_at": "2023-11-26T04:00:00+00:00",
+      "hfa_points": 6.135146840829944,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2024-01",
+      "train_n": 2715,
+      "max_training_game_at": "2023-12-30T21:30:00+00:00",
+      "hfa_points": 6.201436629731583,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2024-08",
+      "train_n": 2702,
+      "max_training_game_at": "2024-01-09T00:30:00+00:00",
+      "hfa_points": 6.3095279654701,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2024-09",
+      "train_n": 2783,
+      "max_training_game_at": "2024-08-31T23:45:00+00:00",
+      "hfa_points": 7.433257641057602,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2024-10",
+      "train_n": 2766,
+      "max_training_game_at": "2024-09-29T03:00:00+00:00",
+      "hfa_points": 7.828209552844167,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2024-11",
+      "train_n": 2782,
+      "max_training_game_at": "2024-10-31T23:30:00+00:00",
+      "hfa_points": 7.1556785009852115,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2024-12",
+      "train_n": 2758,
+      "max_training_game_at": "2024-11-30T23:30:00+00:00",
+      "hfa_points": 6.692943407727696,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2025-01",
+      "train_n": 2784,
+      "max_training_game_at": "2024-12-31T20:30:00+00:00",
+      "hfa_points": 6.551529000562196,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2025-08",
+      "train_n": 2776,
+      "max_training_game_at": "2025-01-21T00:30:00+00:00",
+      "hfa_points": 6.64582922025661,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2025-09",
+      "train_n": 2862,
+      "max_training_game_at": "2025-08-31T23:30:00+00:00",
+      "hfa_points": 7.600449299160593,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2025-10",
+      "train_n": 2834,
+      "max_training_game_at": "2025-09-28T02:15:00+00:00",
+      "hfa_points": 8.473091749534122,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2025-11",
+      "train_n": 2801,
+      "max_training_game_at": "2025-10-31T23:30:00+00:00",
+      "hfa_points": 7.868179478783803,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2025-12",
+      "train_n": 2836,
+      "max_training_game_at": "2025-11-30T04:00:00+00:00",
+      "hfa_points": 7.080147107043648,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2026-01",
+      "train_n": 2842,
+      "max_training_game_at": "2025-12-31T20:30:00+00:00",
+      "hfa_points": 7.089812999588798,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2026-08",
+      "train_n": 2834,
+      "max_training_game_at": "2026-01-20T00:30:00+00:00",
+      "hfa_points": 7.188703024841029,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2026-09",
+      "train_n": 2835,
+      "max_training_game_at": "2026-08-30T02:00:00+00:00",
+      "hfa_points": 7.256811540271723,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    },
+    {
+      "block": "2026-10",
+      "train_n": 2842,
+      "max_training_game_at": "2026-09-27T03:00:00+00:00",
+      "hfa_points": 9.495705683103912,
+      "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+      "alpha": 20.0
+    }
+  ],
+  "incumbent_comparison": null,
+  "roi": null,
+  "clv": null,
+  "prospective_n": 0,
+  "production_authority": false,
+  "wager_authority": false,
+  "limitations": [
+    "Source acquisition timestamps absent: no historical PIT claim",
+    "Common venue HFA only; individual venue effects not estimated",
+    "No verified injuries or player impact",
+    "No incumbent evaluation: exact original feature contract unavailable in this score dataset",
+    "Archive stops before current week; partial 2026",
+    "No hyperparameter search; independent reviewer and prospective testing pending"
+  ]
+}

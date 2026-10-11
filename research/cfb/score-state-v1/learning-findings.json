@@ -1,0 +1,152 @@
+{
+  "status": "RESEARCH_FINDINGS_ONLY",
+  "model_version": "CFB-SCORE-STATE-RESEARCH-v1",
+  "findings": [
+    {
+      "group_kind": "predicted_margin_regime",
+      "group": "large",
+      "n": 545,
+      "margin_bias": -9.909979813187519,
+      "total_bias": -0.5297737735636955,
+      "margin_mae": 17.642429774392696,
+      "total_mae": 12.518282717127095,
+      "temporal_class": "RETROSPECTIVE",
+      "hypothesis": "Test season transitions, sample-dependent shrinkage and forecast-regime calibration on a new frozen chronological holdout.",
+      "automatic_promotion": false,
+      "wager_authority": false
+    },
+    {
+      "group_kind": "predicted_margin_regime",
+      "group": "small",
+      "n": 5875,
+      "margin_bias": -0.05273983241963999,
+      "total_bias": 0.662886705380383,
+      "margin_mae": 15.93831027932372,
+      "total_mae": 13.15982465275646,
+      "temporal_class": "RETROSPECTIVE",
+      "hypothesis": "Test season transitions, sample-dependent shrinkage and forecast-regime calibration on a new frozen chronological holdout.",
+      "automatic_promotion": false,
+      "wager_authority": false
+    },
+    {
+      "group_kind": "season",
+      "group": "2019",
+      "n": 891,
+      "margin_bias": -0.5395933613572185,
+      "total_bias": 0.8193851015845487,
+      "margin_mae": 16.035896129715336,
+      "total_mae": 13.23949823554619,
+      "temporal_class": "RETROSPECTIVE",
+      "hypothesis": "Test season transitions, sample-dependent shrinkage and forecast-regime calibration on a new frozen chronological holdout.",
+      "automatic_promotion": false,
+      "wager_authority": false
+    },
+    {
+      "group_kind": "season",
+      "group": "2020",
+      "n": 571,
+      "margin_bias": 2.442847395340201,
+      "total_bias": -0.961348396548381,
+      "margin_mae": 15.3139860061298,
+      "total_mae": 13.916268397024663,
+      "temporal_class": "RETROSPECTIVE",
+      "hypothesis": "Test season transitions, sample-dependent shrinkage and forecast-regime calibration on a new frozen chronological holdout.",
+      "automatic_promotion": false,
+      "wager_authority": false
+    },
+    {
+      "group_kind": "season",
+      "group": "2021",
+      "n": 891,
+      "margin_bias": -0.5359688702519653,
+      "total_bias": 1.1367873527402028,
+      "margin_mae": 16.156331095493485,
+      "total_mae": 12.917299971347708,
+      "temporal_class": "RETROSPECTIVE",
+      "hypothesis": "Test season transitions, sample-dependent shrinkage and forecast-regime calibration on a new frozen chronological holdout.",
+      "automatic_promotion": false,
+      "wager_authority": false
+    },
+    {
+      "group_kind": "season",
+      "group": "2022",
+      "n": 900,
+      "margin_bias": -0.849010083570697,
+      "total_bias": 1.0390874717983993,
+      "margin_mae": 15.747507004387643,
+      "total_mae": 13.370180878877548,
+      "temporal_class": "RETROSPECTIVE",
+      "hypothesis": "Test season transitions, sample-dependent shrinkage and forecast-regime calibration on a new frozen chronological holdout.",
+      "automatic_promotion": false,
+      "wager_authority": false
+    },
+    {
+      "group_kind": "season",
+      "group": "2023",
+      "n": 911,
+      "margin_bias": -0.8016179344972829,
+      "total_bias": 0.9771180513859731,
+      "margin_mae": 15.653524867953132,
+      "total_mae": 13.360537965722344,
+      "temporal_class": "RETROSPECTIVE",
+      "hypothesis": "Test season transitions, sample-dependent shrinkage and forecast-regime calibration on a new frozen chronological holdout.",
+      "automatic_promotion": false,
+      "wager_authority": false
+    },
+    {
+      "group_kind": "season",
+      "group": "2024",
+      "n": 965,
+      "margin_bias": -0.474527515418065,
+      "total_bias": -0.1485850472267784,
+      "margin_mae": 15.833140893102351,
+      "total_mae": 12.850650792617898,
+      "temporal_class": "RETROSPECTIVE",
+      "hypothesis": "Test season transitions, sample-dependent shrinkage and forecast-regime calibration on a new frozen chronological holdout.",
+      "automatic_promotion": false,
+      "wager_authority": false
+    },
+    {
+      "group_kind": "season",
+      "group": "2025",
+      "n": 958,
+      "margin_bias": -0.7340440350345183,
+      "total_bias": 0.9349320014830114,
+      "margin_mae": 16.058315682478188,
+      "total_mae": 12.75559333518153,
+      "temporal_class": "RETROSPECTIVE",
+      "hypothesis": "Test season transitions, sample-dependent shrinkage and forecast-regime calibration on a new frozen chronological holdout.",
+      "automatic_promotion": false,
+      "wager_authority": false
+    },
+    {
+      "group_kind": "season",
+      "group": "2026",
+      "n": 333,
+      "margin_bias": -10.485913443080786,
+      "total_bias": -0.49819997337764804,
+      "margin_mae": 20.20772314293584,
+      "total_mae": 12.189754207182881,
+      "temporal_class": "RETROSPECTIVE",
+      "hypothesis": "Test season transitions, sample-dependent shrinkage and forecast-regime calibration on a new frozen chronological holdout.",
+      "automatic_promotion": false,
+      "wager_authority": false
+    }
+  ],
+  "platform_learning_candidates": [
+    {
+      "label": "PLATFORM LEARNING CANDIDATE",
+      "topic": "Explicit final-status eligibility before rolling statistics",
+      "evidence": "188 cancelled/postponed CFB records had numeric scores in the prior archive",
+      "independent_testing_required": "Sport-specific status contracts and suspended/forfeit tests before reuse"
+    },
+    {
+      "label": "PLATFORM LEARNING CANDIDATE",
+      "topic": "Immutable import conflict detection",
+      "evidence": "Reimport rehearsal validates exact destination contents instead of accepting row counts",
+      "independent_testing_required": "Per-sport identity/version contract and concurrent correction tests"
+    }
+  ],
+  "prospective_evidence": false,
+  "economic_evidence": null
+}

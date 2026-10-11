@@ -1,0 +1,127 @@
+{
+  "result": [
+    {
+      "results": [
+        {
+          "entity": "teams",
+          "n": 901
+        },
+        {
+          "entity": "players",
+          "n": 152640
+        },
+        {
+          "entity": "roster_membership",
+          "n": 397958
+        },
+        {
+          "entity": "roster_observations",
+          "n": 470584
+        },
+        {
+          "entity": "hfa_games",
+          "n": 0
+        }
+      ],
+      "success": true,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "WNAM",
+        "served_by_colo": "DFW",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 1491.2925
+        },
+        "duration": 1491.2925,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 6409109504,
+        "rows_read": 1022084,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "results": [
+        {
+          "subdivision": "D2",
+          "active": 0,
+          "n": 21
+        },
+        {
+          "subdivision": "D2",
+          "active": 1,
+          "n": 167
+        },
+        {
+          "subdivision": "D2_D3",
+          "active": 0,
+          "n": 28
+        },
+        {
+          "subdivision": "D3",
+          "active": 0,
+          "n": 12
+        },
+        {
+          "subdivision": "D3",
+          "active": 1,
+          "n": 238
+        },
+        {
+          "subdivision": "FBS",
+          "active": 0,
+          "n": 12
+        },
+        {
+          "subdivision": "FBS",
+          "active": 1,
+          "n": 138
+        },
+        {
+          "subdivision": "FCS",
+          "active": 0,
+          "n": 13
+        },
+        {
+          "subdivision": "FCS",
+          "active": 1,
+          "n": 128
+        },
+        {
+          "subdivision": "NAIA",
+          "active": 1,
+          "n": 135
+        },
+        {
+          "subdivision": "UNKNOWN",
+          "active": 1,
+          "n": 9
+        }
+      ],
+      "success": true,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "WNAM",
+        "served_by_colo": "DFW",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 1.277
+        },
+        "duration": 1.277,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 6409109504,
+        "rows_read": 901,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    }
+  ],
+  "errors": [],
+  "messages": [],
+  "success": true,
+  "status": 200
+}

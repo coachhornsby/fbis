@@ -16,7 +16,7 @@
     "test:asian-baseball-history": "node --test test/asian-baseball-history.test.js test/asian-baseball-v2.test.js test/npb-fbis-v1.test.js test/kbo-fbis-v1.test.js test/kbo-advanced-v1-1.test.js",
     "test:asian-baseball-pregame": "node --test test/asian-baseball-pregame.test.js test/asian-baseball-history.test.js test/asian-baseball-v2.test.js test/npb-fbis-v1.test.js test/kbo-fbis-v1.test.js",
     "test:asian-baseball-enrichment": "node --test test/asian-baseball-enrichment.test.js test/asian-baseball-pregame.test.js test/asian-baseball-history.test.js",
-    "test:cfb-rehearsal": "python3 test/cfb-postgame-rehearsal.test.py"
+    "test:cfb-rehearsal": "python3 test/cfb-postgame-rehearsal.test.py && python3 test/cfb-final-status.test.py && python3 test/cfb-import-contract.test.py"
   },
   "dependencies": {
     "react": "^19.1.0",

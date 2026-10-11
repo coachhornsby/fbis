@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import os
+import math
 import pathlib
 import sys
 import time
@@ -47,7 +48,19 @@ def records(root):
   data=[json.loads(line) for line in path.read_text().splitlines() if line.strip()]
   if len(data)!=expected["records"]:raise RuntimeError("source row mismatch "+name)
   clean=[]
+  seen=set()
   for row in data:
+   if row["id"] in seen:raise RuntimeError("duplicate immutable row identity "+name)
+   seen.add(row["id"])
+   metrics=json.loads(row["metrics_json"])
+   value=([metrics,json.loads(row["source_game_ids_json"])] if name.endswith("season") else metrics)
+   calculated=hashlib.sha256(json.dumps(value,sort_keys=True,separators=(",",":"),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+   if calculated!=row["content_hash"]:raise RuntimeError("row content hash mismatch "+name)
+   identity=[row["team_id"]]
+   if name.startswith("player"):identity.append(row["player_id"])
+   identity.extend([row["season"] if name.endswith("season") else row["game_id"],calculated])
+   expected_id="cfb-"+name+":"+hashlib.sha256(json.dumps(identity,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()[:32]
+   if row["id"]!=expected_id:raise RuntimeError("non-deterministic immutable ID "+name)
    if row.get("season")!=2026 or row.get("can_influence_projection")!=0:
     raise RuntimeError("incorrect source season or model authority")
    if row.get("source_timestamp") is not None:
@@ -111,15 +124,17 @@ def validate_data(staged,fbs,memberships):
     raise RuntimeError("unexpected source observation time")
 def backed_up(report_path):
  report=json.loads(pathlib.Path(report_path).read_text())
- if report.get("status")!="LOCAL_RESTORE_AND_R2_UPLOAD_COMPLETE" or report.get("database_id")!=DB:
+ if report.get("status")!="VERIFIED_LOCAL_FULL_RESTORE" or report.get("source_database")!=DB:
   raise RuntimeError("verified full-backup rehearsal proof absent")
- if report.get("archive_bucket")!="fbis-archive" or not report.get("parts"):
-  raise RuntimeError("private R2 backup archive proof absent")
- if report.get("snapshot",{}).get("migration_tip")!="0097_apify_acquisition_authority":
-  raise RuntimeError("source backup is not pre-migration 0097")
- if not all(name in report.get("migration_rehearsal",[]) for name in
-    ["0098_college_persistence_recovery","0099_cfb_fbs_statistical_ledgers"]):
-  raise RuntimeError("migration recovery rehearsal unproven")
+ if not report.get("parts") or report.get("foreign_key_violation_count")!=0 or not report.get("migration_preservation"):
+  raise RuntimeError("full-data reconciliation is not accepted")
+ if report.get("integrity")!=["ok"] or report.get("postmigration_integrity")!=["ok"]:
+  raise RuntimeError("restoration integrity unproven")
+ if not report.get("restored_table_counts") or not report.get("source_tuple_counts"):
+  raise RuntimeError("complete source reconciliation missing")
+ # Approval must bind the exact reviewed reconciliation artifact, not a general success label.
+ if os.environ.get("CFB_ACCEPTED_RECOVERY_REPORT_SHA256")!=hashed_file(pathlib.Path(report_path)):
+  raise RuntimeError("exact recovery acceptance artifact not authorized")
  return report["bookmark"]
 def statement(name,rows_):
  table,columns,_=TABLES[name]
@@ -130,7 +145,16 @@ def statement(name,rows_):
    value=("__NOW__" if column=="ingested_at" else row.get(column))
    parts.append("strftime('%Y-%m-%dT%H:%M:%fZ','now')" if value=="__NOW__" else quote(value))
   values.append("("+",".join(parts)+")")
- return "INSERT OR IGNORE INTO "+table+"("+",".join(columns)+") VALUES "+",".join(values)
+ return "INSERT INTO "+table+"("+",".join(columns)+") VALUES "+",".join(values)+" ON CONFLICT(id) DO NOTHING"
+def verify_batch(name,batch):
+ table,columns,_=TABLES[name]
+ fields=[c for c in columns if c!="ingested_at"]
+ stored=rows("SELECT "+",".join(fields)+" FROM "+table+" WHERE id IN ("+",".join(quote(r["id"]) for r in batch)+")")
+ by_id={r["id"]:r for r in stored}
+ for record in batch:
+  actual=by_id.get(record["id"])
+  if actual is None or any(actual.get(c)!=record.get(c) for c in fields):
+   raise RuntimeError("immutable destination content mismatch "+record["id"])
 def main():
  parser=argparse.ArgumentParser(description=__doc__)
  parser.add_argument("--source-dir",required=True)
@@ -156,7 +180,10 @@ def main():
   for name,items in data.items():
    for offset in range(0,len(items),args.batch_size):
     batch=items[offset:offset+args.batch_size]
-    api(statement(name,batch))
+    sql=statement(name,batch)
+    if len(sql.encode())>100000:raise RuntimeError("batch exceeds D1 statement byte limit; reduce batch size")
+    api(sql)
+    verify_batch(name,batch)
     imported[name]+=len(batch)
     if offset%1000<args.batch_size:
      print("idempotent insertion",name,imported[name],"/",len(items),flush=True)
