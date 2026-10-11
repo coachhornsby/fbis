@@ -67,7 +67,7 @@ function MirrorCard({row,time,projection}){
    <div className="pp-market-name pp-premium-market-name">{row.stat}</div>
    <div className="pp-mirror-line-block"><span>PUBLIC STANDARD LINE</span><strong>{row.line}</strong>
     <small>Not a verified live offer</small></div>
-   <div className="pp-mirror-projection"><div><span>FBIS PROJECTION</span><strong>{projection?projection.value.toFixed(1):"—"}</strong></div><div><span>PUBLIC MIRROR LINE</span><strong>{row.line}</strong></div><small>{projection?"FBIS model · "+(projection.modelVersion||"version unavailable"):"No matching published FBIS projection"}</small></div>
+   <div className="pp-mirror-projection"><div><span>FBIS PROJECTION</span><strong>{projection?projection.value.toFixed(1):"—"}</strong></div><div><span>PUBLIC MIRROR LINE</span><strong>{row.line}</strong><img className="pp-mirror-prizepicks-logo" src="https://app.prizepicks.com/images/pp-logos/pp-logo.svg" alt="PrizePicks" loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display="none";}}/></div><small>{projection?"FBIS model · "+(projection.modelVersion||"version unavailable"):"No matching published FBIS projection"}</small></div>
    <div className="pp-card-foot pp-premium-foot"><span>{time(row.startAt)} CT</span><span>Research only · No FBIS pick</span></div>
    <div className="pp-analytics">
     <button type="button" className="pp-analytics-toggle" onClick={()=>setExpanded(v=>!v)}
