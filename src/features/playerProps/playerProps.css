@@ -2920,3 +2920,13 @@
   transform:translateX(-50%) !important;
   z-index:9 !important;
 }
+
+/* Explicitly override inherited right-aligned premium portraits in mirror cards. */
+.pp-mirror-card .pp-card-visual.pp-mirror-visual .pp-premium-headshot {
+  left:50% !important;
+  right:auto !important;
+  bottom:0 !important;
+  top:auto !important;
+  transform:translateX(-50%) scale(1.25) !important;
+  transform-origin:center bottom !important;
+}
