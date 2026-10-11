@@ -1,0 +1,24 @@
+name: Tennis independent health live probe
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/tennis-independent-health-probe.yml"
+permissions:
+  contents: read
+jobs:
+  read-only-tennis-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify public Cloudflare R2-only health endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 30 -H "accept: application/json" -o "$body" -w "%{http_code}" 'https://fbis-orchestrator.coachhornsby.workers.dev/health/tennis-canonical')"
+          echo "tennis_health_http=$http"
+          cat "$body"
+          jq -e '.scheduler=="CLOUDFLARE_INDEPENDENT_CRON" and (.scopes|length==2) and ([.scopes[].scope]|sort)==["current","full"] and (.ok|type=="boolean")' "$body"
+          case "$http" in 200|503) ;; *) echo "Unexpected status $http"; exit 1;; esac
+          echo "Read-only Tennis health endpoint is operational; freshness health may legitimately be DEGRADED."
