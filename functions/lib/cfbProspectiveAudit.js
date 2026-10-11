@@ -17,7 +17,7 @@ export function cfbUnitFeatureAudit(game={}){
  const out={},missing=[];
  for(const [id,kind,offSide,defSide] of pairs){
   const o=pick(side(game,offSide),specs[kind].off),d=pick(side(game,defSide),specs[kind].def);
-  const eligible=game.featureCutoffOk===true && finite(o)!=null && finite(d)!=null && iso(game.featureSnapshotAt)!=null && iso(game.startTime||game.startDate||game.kickoff)!=null && iso(game.featureSnapshotAt)<iso(game.startTime||game.startDate||game.kickoff);
+  const eligible=game.featureCutoffOk===true && finite(o)!=null && finite(d)!=null && iso(game.featureSnapshotAt)!=null && iso(game.start||game.startTime||game.startDate||game.kickoff)!=null && iso(game.featureSnapshotAt)<iso(game.start||game.startTime||game.startDate||game.kickoff);
   out[id]={eligible,offense:o,defense:d,reason:eligible?null:game.featureCutoffOk!==true?"cutoff-unverified":o==null||d==null?"missing-directional-feature":"missing-or-poststart-feature-snapshot"};
   if(!eligible)missing.push({id,reason:out[id].reason});
  }
