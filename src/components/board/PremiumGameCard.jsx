@@ -262,7 +262,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           </>
         )}
       </section>
-      {sportId === "nhl" ? <NhlEvidenceStrip game={game} vm={vm} expanded /> : null}
+      {sportId === "nhl" ? <><NhlEvidenceStrip game={game} vm={vm} expanded /><NhlPlayerProjectionStrip game={game} /></> : null}
       {sportId !== "nhl" || action.available ? (
         <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="pgc-nfl-action-head"><strong>ACTION</strong><span>{action.headline?.label || (action.available ? "MARKET INTEL" : action.emptyLabel || "NO SNAPSHOT")}</span></div>
