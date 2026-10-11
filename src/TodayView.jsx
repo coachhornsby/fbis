@@ -120,7 +120,7 @@ export default function TodayView({
           <p className="muted" style={{ marginTop: 8 }}>
             {chatCopyStatus ? `${chatCopyStatus} ` : ""}
             {attemptAt ? `Current attempt ${fmtTs(attemptAt)}. ` : ""}
-            Population: scheduled and live board rows for this date/sport filter. {lastSuccessAt ? `Last successful load ${fmtTs(lastSuccessAt)}.` : "No successful load yet."}
+            Population: matchup rows for this date/sport filter; stored fallback statuses are unverified. {lastSuccessAt ? `Last successful load ${fmtTs(lastSuccessAt)}.` : "No successful load yet."}
             {stale ? " Showing last-known-good snapshot (stale)." : ""}
           </p>
           <div className="filter-row" style={{ marginTop: 10 }}>
