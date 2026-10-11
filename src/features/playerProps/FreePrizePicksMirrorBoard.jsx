@@ -78,6 +78,7 @@ function MirrorCard({row,time,projection}){
  const isRun=/^(rushing_|rush_|carries)/.test(market);
  const defenseType=isRun?"RUN":"PASS";
  const defenseRank=isRun?history.runDefense:history.passDefense;
+ const defenseTier=defenseRank?.rank>=1&&defenseRank.rank<=10?"top-ten":defenseRank?.rank>=21&&defenseRank.rank<=32?"bottom-twelve":"neutral";
  const delta=projection?projection.value-Number(row.line):null;
  return <article ref={cardRef} className="pp-card pp-premium-card sport-nfl pp-mirror-card"
   style={{"--mirror-primary":primary,"--mirror-secondary":secondary}}>
@@ -99,7 +100,7 @@ function MirrorCard({row,time,projection}){
     <div className="pp-mirror-comparison-cell"><span>FBIS PROJ</span><strong>{projection?projection.value.toFixed(1):"—"}</strong></div>
     <div className={"pp-mirror-comparison-cell pp-mirror-delta "+(delta==null?"is-missing":delta>0?"is-positive":delta<0?"is-negative":"is-even")}><span>DIFFERENCE</span><strong>{delta==null?"—":(delta>0?"+":"")+delta.toFixed(1)}</strong></div>
    </div>
-   <div className="pp-mirror-context"><div className="pp-mirror-defense"><span className="pp-mirror-defense-logo">{opponentTeam?.logo?<img src={opponentTeam.logo} alt={row.opponent+" logo"} loading="lazy"/>:null}</span><span>{defenseType} DEFENSE</span><strong>{defenseRank?.rank?"#"+defenseRank.rank:"N/A"}</strong></div><small>{projection?"FBIS "+(projection.modelVersion||"model"):"No matching published FBIS projection"} · Public line not verified live</small></div>
+   <div className="pp-mirror-context"><div className={"pp-mirror-defense rank-"+defenseTier}><span className="pp-mirror-defense-logo">{opponentTeam?.logo?<img src={opponentTeam.logo} alt={row.opponent+" logo"} loading="lazy"/>:null}</span><span>{defenseType} DEFENSE</span><strong>{defenseRank?.rank?"#"+defenseRank.rank:"N/A"}</strong></div><small>{projection?"FBIS "+(projection.modelVersion||"model"):"No matching published FBIS projection"} · Public line not verified live</small></div>
    <div className="pp-card-foot pp-premium-foot"><span>{time(row.startAt)} CT</span><span>Research only · No FBIS pick</span></div>
    <div className="pp-analytics">
     <button type="button" className="pp-analytics-toggle" onClick={()=>setExpanded(v=>!v)}
