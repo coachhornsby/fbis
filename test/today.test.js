@@ -359,10 +359,10 @@ describe("TODAY cache-only and MY BET markers", () => {
       queryOddsSnapshotsFn: async () => ({
         ok: true,
         rows: [
-          { gameId: "evt-2", period: "fg", market: "ML", side: "HOME", price: -121, capturedAt: "2026-08-28T22:20:00Z" },
-          { gameId: "evt-2", period: "fg", market: "ML", side: "AWAY", price: 109, capturedAt: "2026-08-28T22:20:00Z" },
-          { gameId: "evt-2", period: "fg", market: "SPREAD", side: "HOME", line: -1.5, price: -110, capturedAt: "2026-08-28T22:20:00Z" },
-          { gameId: "evt-2", period: "fg", market: "TOTAL", side: "OVER", line: 8.5, price: -108, capturedAt: "2026-08-28T22:20:00Z" },
+          { gameId: "evt-2", book: "Pinnacle", period: "fg", market: "ML", side: "HOME", price: -121, capturedAt: "2026-08-28T22:20:00Z" },
+          { gameId: "evt-2", book: "Pinnacle", period: "fg", market: "ML", side: "AWAY", price: 109, capturedAt: "2026-08-28T22:20:00Z" },
+          { gameId: "evt-2", book: "Pinnacle", period: "fg", market: "SPREAD", side: "HOME", line: -1.5, price: -110, capturedAt: "2026-08-28T22:20:00Z" },
+          { gameId: "evt-2", book: "Pinnacle", period: "fg", market: "TOTAL", side: "OVER", line: 8.5, price: -108, capturedAt: "2026-08-28T22:20:00Z" },
         ],
       }),
     });
