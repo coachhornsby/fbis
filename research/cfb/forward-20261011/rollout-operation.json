@@ -2,7 +2,7 @@
   "operation": "MERGE_READ_ONLY_SHADOW_ROLLOUT_AND_NORMAL_PAGES_RELEASE",
   "pr": 963,
   "exact_head": "d664327f6b5ccb191fb7777f68303d8bcd096feb",
-  "expected_main": "59330eabce92f02050fab485a86cb83fe16e6f51",
+  "expected_main": "9412422396a75041ee93229f41420d4765106392",
   "expected_migration_tip": "0097_apify_acquisition_authority",
   "numbered_migrations_in_diff": 0,
   "database_writes": 0,
@@ -27,5 +27,7 @@
     "same fixed production authority; no wagers authorized",
     "first scheduled capture verified after approval"
   ],
-  "rollback": "Disable CFB forward evidence workflow, preserve artifacts and hashes, revert focused code through reviewed release. No database deletion or restore."
+  "rollback": "Disable CFB forward evidence workflow, preserve artifacts and hashes, revert focused code through reviewed release. No database deletion or restore.",
+  "tested_source_base": "59330eabce92f02050fab485a86cb83fe16e6f51",
+  "later_main_delta_reviewed": "PR #964: offline PrizePicks audit script and test only; merge CI must validate combined release before Pages deployment"
 }

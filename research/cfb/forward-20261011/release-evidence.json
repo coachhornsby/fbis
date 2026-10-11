@@ -1,7 +1,7 @@
 {
-  "production_main_sha": "59330eabce92f02050fab485a86cb83fe16e6f51",
-  "production_pages_sha": "59330eabce92f02050fab485a86cb83fe16e6f51",
-  "pages_deployment": "22b8319a-8f85-4b00-ad86-19d916897b7e",
+  "production_main_sha": "9412422396a75041ee93229f41420d4765106392",
+  "production_pages_sha": "9412422396a75041ee93229f41420d4765106392",
+  "pages_deployment": "1e99b770-3c0d-4acc-b6d5-bd6edb0c5b6e",
   "production_changes_by_this_work": 0,
   "rollout_pr": 963,
   "recovery_pr": 957,
@@ -22,5 +22,6 @@
   "rollout_final_artifact_expires_at": "2026-11-10T05:09:25Z",
   "research_market_prices": 78,
   "research_market_games": 13,
-  "eligible_quotes": 0
+  "eligible_quotes": 0,
+  "subsequent_main_delta_reviewed": "Unrelated offline PrizePicks mirror audit (#964); no CFB, model, route or migration changes"
 }
