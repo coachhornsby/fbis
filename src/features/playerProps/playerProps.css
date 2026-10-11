@@ -2798,3 +2798,16 @@
 .pp-mirror-card .pp-history-game {display:flex;flex-direction:column;gap:5px;min-width:0;text-align:center}
 .pp-mirror-card .pp-history-game b {font-size:15px;color:#fff}
 .pp-mirror-card .pp-history-game span,.pp-mirror-card .pp-history-game small {font-size:10px;overflow-wrap:anywhere}
+
+/* Free mirror: same FBIS evidence graph vocabulary without implying wager eligibility. */
+.pp-mirror-projection{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px;margin-top:8px;border:1px solid rgba(102,136,183,.33);border-radius:12px;background:rgba(3,12,26,.66);text-align:center}
+.pp-mirror-projection>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.pp-mirror-projection span{font-size:10px;font-weight:850;letter-spacing:.04em;color:#9cc7e8}
+.pp-mirror-projection strong{font-size:25px;color:#fff;font-variant-numeric:tabular-nums}
+.pp-mirror-projection small{grid-column:1/-1;color:#aabbd2;font-size:10px}
+.pp-mirror-card .pp-history-bars{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;min-height:148px;align-items:end}
+.pp-mirror-card .pp-history-game{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.pp-mirror-card .pp-history-bar-wrap{height:94px;width:100%;max-width:46px;position:relative;display:flex;flex-direction:column;justify-content:flex-end;border-radius:5px;background:rgba(20,41,70,.62);overflow:hidden}
+.pp-mirror-card .pp-history-bar{width:100%;min-height:0;border-radius:4px 4px 0 0}
+.pp-mirror-card .pp-history-line{position:absolute;left:0;right:0;height:1px;background:#f3c652;z-index:2}
+.pp-mirror-card .pp-history-game b{font-size:13px}
