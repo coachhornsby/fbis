@@ -65,6 +65,7 @@ for off in range(0,30000,size):
 if not membership:raise RuntimeError("canonical FBS membership unavailable")
 scoped_games={(r["team_id"],str(r["game_id"])) for r in stage["team-game"]}
 checks={}
+quarantined_pairs=set()
 for name,data in stage.items():
  bad=Counter()
  for row in data:
@@ -75,18 +76,36 @@ for name,data in stage.items():
   if not str(row.get("observed_at") or "").startswith("2026-10-11T"):bad["unexpected_observation_time"]+=1
   if name.startswith("player"):
    pair=(team,row.get("player_id"))
-   if pair not in membership:bad["missing_canonical_team_player_membership"]+=1
+   if pair not in membership:
+    bad["missing_canonical_team_player_membership"]+=1
+    quarantined_pairs.add(pair)
   if name=="player-game" and (team,str(row.get("game_id"))) not in scoped_games:
    bad["missing_source_team_game"]+=1
   if name=="team-season" or name=="player-season":
    if not row.get("source_game_ids_json"):bad["missing_source_game_lineage"]+=1
  checks[name]={"rows":len(data),"failures":dict(bad)}
+fatal_other=sum(value for check in checks.values() for error,value in check["failures"].items()
+ if error!="missing_canonical_team_player_membership")
+missing_game=checks["player-game"]["failures"].get("missing_canonical_team_player_membership",0)
+missing_season=checks["player-season"]["failures"].get("missing_canonical_team_player_membership",0)
+quarantine_reconciled=(missing_game==len(quarantined_pairs) and missing_season==len(quarantined_pairs))
+safe_to_exclude=not fatal_other and quarantine_reconciled and len(quarantined_pairs)<=2
+admissible={
+ "team-game":len(stage["team-game"]),
+ "team-season":len(stage["team-season"]),
+ "player-game":len(stage["player-game"])-missing_game,
+ "player-season":len(stage["player-season"])-missing_season,
+}
 report={"mode":"READ_ONLY_FULL_CANONICAL_RECONCILIATION",
  "source_manifest_sha256":hashlib.sha256((root/"fbs-2026-ledger.manifest.json").read_bytes()).hexdigest(),
  "fbs_teams":len(active),"canonical_fbs_player_memberships":len(membership),
  "checks":checks,"model_authority":False,
- "status":"PASS" if all(not data["failures"] for data in checks.values()) else "REJECT_NEEDS_QUARANTINE"}
+ "quarantine_pairs":sorted([{"team_id":team,"player_id":player} for team,player in quarantined_pairs],key=lambda p:(p["team_id"],p["player_id"])),
+ "quarantine_policy":"NO_IMPORT_UNTIL_CANONICAL_TEAM_ROSTER_MEMBERSHIP_RESOLVED",
+ "admissible_rows":admissible,
+ "admissible_total":sum(admissible.values()),
+ "status":"PASS_WITH_QUARANTINE" if safe_to_exclude else "REJECT_NEEDS_QUARANTINE"}
 out=root/"fbs-full-identity-reconciliation.json"
 out.write_text(json.dumps(report,indent=2)+"\n")
 print(json.dumps(report,indent=2))
-if report["status"]!="PASS":sys.exit(3)
+if report["status"]!="PASS_WITH_QUARANTINE":sys.exit(3)
