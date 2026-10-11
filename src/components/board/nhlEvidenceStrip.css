@@ -15,3 +15,10 @@
 .nhl-evidence-note{font-size:9px;color:#c7b1d7;line-height:1.4}
 .nhl-evidence.is-expanded .nhl-evidence-block>strong{font-size:13px}
 @media(max-width:1200px){.nhl-evidence-grid{grid-template-columns:1fr}.nhl-evidence-block{border-right:0;border-bottom:1px solid rgba(83,144,204,.22);padding-bottom:5px}.nhl-evidence-block:last-child{border-bottom:0}}
+
+/* Expose live state separately from immutable pregame score. */
+.cgc-live-nhl-score{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;padding:8px 10px;border:1px solid rgba(222,64,102,.55);border-radius:8px;background:rgba(91,11,34,.15)}
+.cgc-live-nhl-score span{font-size:10px;color:#ffadb9;font-weight:700}
+.cgc-live-nhl-score strong{font-size:13px;color:#fff}
+.cgc-nhl-action-unavailable{border:1px solid rgba(107,151,179,.28);background:rgba(8,26,43,.63);border-radius:7px;padding:6px 10px;font-size:10px;color:#a8b7c7}
+.cgc-rating-unavailable{font-size:10px;color:#b9c8dc}
