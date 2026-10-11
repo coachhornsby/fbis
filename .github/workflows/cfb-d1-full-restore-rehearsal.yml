@@ -1,0 +1,59 @@
+name: CFB D1 Full Backup and Isolated Restore Rehearsal
+# Single bounded run on a controlled branch only. NEVER writes production D1.
+on:
+  push:
+    branches:
+      - feature/cfb-fbs-stat-ledger-0099
+    paths:
+      - .github/workflows/cfb-d1-full-restore-rehearsal.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cfb-d1-full-backup-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  full-backup-restore-proof:
+    if: ${{ github.repository == 'coachhornsby/fbis' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BACKUP_WORKDIR: /tmp/fbis-d1-recovery
+    steps:
+      - name: Checkout immutable rehearsal implementation
+        uses: actions/checkout@v4.2.2
+      - name: Require credentials and nonproduction-only intent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN}" && test -n "${CLOUDFLARE_ACCOUNT_ID}"
+          test "${CLOUDFLARE_ACCOUNT_ID}" = "2fdc80b8d99070adcef12f7a785c3fc1"
+          echo "Rehearsal does not mutate production D1; full backup saved only in private R2."
+      - name: Check available disk and SQLite
+        shell: bash
+        run: |
+          df -h /tmp
+          if ! command -v sqlite3 >/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y sqlite3
+          fi
+          sqlite3 --version
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install Wrangler using pinned repository lockfile
+        run: npm ci
+      - name: Export and restore FULL production data into isolated local SQLite
+        run: python3 scripts/cfb-d1-full-backup-rehearsal.py
+      - name: Upload sanitised recovery evidence ONLY (never production SQL or DB)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-d1-full-restore-evidence-${{ github.sha }}
+          path: /tmp/fbis-d1-recovery/recovery-report.json
+          if-no-files-found: warn
+          retention-days: 30

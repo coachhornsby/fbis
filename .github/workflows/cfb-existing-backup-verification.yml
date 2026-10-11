@@ -1,0 +1,29 @@
+name: CFB existing backup independent verification
+on:
+  push:
+    branches: [engineering/cfb-recovery-postgame-20261011]
+    paths: [.github/workflows/cfb-existing-backup-verification.yml, scripts/cfb-existing-backup-verify.py]
+permissions:
+  contents: read
+concurrency:
+  group: cfb-existing-backup-independent-verification
+  cancel-in-progress: false
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Read existing private archive and restore only local SQLite
+        run: python3 scripts/cfb-existing-backup-verify.py --manifest research/cfb/recovery-20261011/original-recovery-report.json --root /tmp/cfb-independent-restore --download
+      - name: Publish reconciliation metadata only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-independent-restore-reconciliation
+          path: /tmp/cfb-independent-restore/independent-reconciliation.json
+          if-no-files-found: warn
+          retention-days: 30

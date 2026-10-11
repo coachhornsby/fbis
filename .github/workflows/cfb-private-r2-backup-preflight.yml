@@ -1,0 +1,40 @@
+name: CFB private R2 backup permission preflight
+on:
+  push:
+    branches:
+      - feature/cfb-fbs-stat-ledger-0099
+    paths:
+      - .github/workflows/cfb-private-r2-backup-preflight.yml
+
+permissions:
+  contents: read
+
+jobs:
+  r2-backup-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Prove private R2 read-write for controlled full-backup key
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN}"
+          test "${CLOUDFLARE_ACCOUNT_ID}" = "2fdc80b8d99070adcef12f7a785c3fc1"
+          f="$(mktemp)"
+          o="$(mktemp)"
+          key="fbis-archive/d1-recovery/preflight/backup-access-${GITHUB_RUN_ID}.txt"
+          printf "FBIS private R2 backup permissions test\n" > "$f"
+          npx wrangler r2 object put "$key" --file "$f" --remote --force >/dev/null
+          npx wrangler r2 object get "$key" --file "$o" --remote >/dev/null
+          cmp "$f" "$o"
+          npx wrangler r2 object delete "$key" --remote --force >/dev/null
+          echo "PRIVATE_R2_BACKUP_READ_WRITE_OK"
