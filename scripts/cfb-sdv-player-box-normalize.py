@@ -132,6 +132,36 @@ def game_lookup(path,member,season):
   if key in games and games[key][0]!=date:raise ValueError("conflicting source game timestamp")
   games[key]=(date,row.get("opponent_name") or "")
  return games
+
+def from_completed_schedule(path,season):
+ """ESPN SDV schedule is one row/game and carries start_date and both team IDs.
+ Strictly no incomplete/cancelled/TBD rows in a *performance* ledger.
+ """
+ games={}
+ n={"excluded_incomplete":0,"missing_ids_or_start":0,"accepted":0}
+ for r in asset_rows(path):
+  if str(r.get("season"))!=str(season):continue
+  gid=str(r.get("game_id") or "")
+  home=str(r.get("home_id") or "")
+  away=str(r.get("away_id") or "")
+  completed=str(r.get("completed") or "").strip().lower() in ("true","1")
+  tbd=str(r.get("start_time_tbd") or "").strip().lower() in ("true","1")
+  status=str(r.get("status") or "").upper()
+  if not completed or tbd or any(x in status for x in ("CANCEL","POSTPONE","SCHEDULE")):
+   n["excluded_incomplete"]+=1;continue
+  if not ID.fullmatch(gid) or not ID.fullmatch(home) or not ID.fullmatch(away):
+   n["missing_ids_or_start"]+=1;continue
+  try:date=parse_time(r.get("start_date"))
+  except(ValueError,TypeError):
+   n["missing_ids_or_start"]+=1;continue
+  for key,opponent in [((gid,home),r.get("away_team") or ""),
+                        ((gid,away),r.get("home_team") or "")]:
+   if key in games and games[key][0]!=date:
+    raise ValueError("conflicting completed schedule game date")
+   games[key]=(date,opponent)
+  n["accepted"]+=1
+ return games,n
+
 def converted(source,category):
  # Keep ONLY semantically named stats from ESPN's agreed category.
  metrics={}
@@ -145,7 +175,8 @@ def converted(source,category):
 def build(args):
  observed=parse_time(args.source_observed_at)
  allowed=fbs_ids(args.fbs_teams)
- games=game_lookup(args.team_games,args.team_game_member,args.season)
+ games,scheduleQa=from_completed_schedule(args.schedule,args.season) if args.schedule else (
+   game_lookup(args.team_games,args.team_game_member,args.season),{"source":"team_game_archive"})
  grouped={}
  count=defaultdict(int)
  bad=set()
@@ -187,19 +218,22 @@ def build(args):
  count["unique_player_games"]=len(rows)
  fieldnames=["game_id","season","game_date","team_id","athlete_id","opponent"]
  extra=sorted(set(k for r in rows for k in r if k not in fieldnames))
- return rows,fieldnames+extra,dict(count),len(allowed),observed
+ return rows,fieldnames+extra,dict(count),len(allowed),observed,scheduleQa
 def run(argv=None):
  p=argparse.ArgumentParser(description=__doc__)
  p.add_argument("--player-box",required=True)
  p.add_argument("--player-box-member")
- p.add_argument("--team-games",required=True)
+ p.add_argument("--team-games",help="Offline completed team-game advanced CSV or ZIP")
+ p.add_argument("--schedule",help="SDV espn_cfb_schedules/cfb_schedule_{season}.csv (completed games only)")
  p.add_argument("--team-game-member",default=DEFAULT_GAME_MEMBER)
  p.add_argument("--fbs-teams",required=True)
  p.add_argument("--source-observed-at",required=True)
  p.add_argument("--season",type=int,required=True)
  p.add_argument("--output-prefix",required=True)
  args=p.parse_args(argv)
- rows,fields,counts,fbsCount,observed=build(args)
+ if bool(args.schedule)==bool(args.team_games):
+  p.error("Exactly one of --schedule (SDV release) or --team-games (archive) is required")
+ rows,fields,counts,fbsCount,observed,scheduleQa=build(args)
  out=pathlib.Path(args.output_prefix)
  out.parent.mkdir(parents=True,exist_ok=True)
  dest=pathlib.Path(str(out)+".player-game.csv")
@@ -213,6 +247,7 @@ def run(argv=None):
   "source_observed_at":observed,"source_publication_time_verified":False,
   "temporal_class":"POSTGAME_OBSERVED_NOT_HISTORICAL_PIT",
   "fbs_whitelisted_teams":fbsCount,"counts":counts,
+  "schedule_qa":scheduleQa,"game_date_reference":"SDV_COMPLETED_SCHEDULE" if args.schedule else "OFFLINE_TEAM_GAME_ARCHIVE",
   "player_game_rows":len(rows),"output":str(dest),"sha256":fileHash,
   "feature_authority":False,"betting_authority":False,
   "required_next_step":"verify player-game rows vs ESPN box, publisher refresh coverage, then immutable D1 import gate",
