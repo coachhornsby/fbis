@@ -1,0 +1,44 @@
+name: CFB full isolated recovery
+on:
+  push:
+    branches: [engineering/cfb-full-restore-20261011]
+    paths:
+      - scripts/cfb-d1-full-restore.py
+      - test/cfb-full-restore.test.py
+      - .github/workflows/cfb-full-isolated-recovery.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cfb-full-isolated-recovery
+  cancel-in-progress: false
+jobs:
+  existing-bookmark-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Credential-free recovery contracts
+        run: python test/cfb-full-restore.test.py
+      - name: Restore existing archive into a fresh isolated D1
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: >-
+          python scripts/cfb-d1-full-restore.py
+          --manifest research/cfb/recovery-20261011/original-recovery-report.json
+          --root "$RUNNER_TEMP/cfb-full-recovery-${{ github.run_id }}"
+          --remote-run-id "${{ github.run_id }}"
+      - name: Retain reconciliation evidence, never raw SQL or credentials
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-full-isolated-recovery-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/cfb-full-recovery-${{ github.run_id }}/*.json
+            ${{ runner.temp }}/cfb-full-recovery-${{ github.run_id }}/parts/import-manifest.json
+          if-no-files-found: warn
+          retention-days: 30
