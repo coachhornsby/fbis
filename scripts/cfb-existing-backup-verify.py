@@ -26,7 +26,7 @@ def tuple_count(sql):
  if quoted or depth or n==0:raise ValueError('unsupported VALUES tuple syntax')
  return n
 
-def verify(manifest,root,download=False):
+def verify(manifest,root,download=False,migrations=()):
  root=pathlib.Path(root);root.mkdir(parents=True,exist_ok=True)
  if manifest['database_id']!='b50c724c-903b-4241-8ce1-48d931e7a44c':raise ValueError('wrong source')
  parts=manifest['parts'];names=[p['name'] for p in parts]
@@ -86,8 +86,8 @@ def verify(manifest,root,download=False):
   fk=c.execute('PRAGMA foreign_key_check').fetchall()
   ledger={t:list(c.execute('SELECT * FROM '+t)) for t in ['schema_migrations','d1_migrations']}
   before_counts=dict(counts);before_schema=schema
-  for migration in ['0098_college_persistence_recovery.sql','0099_cfb_fbs_statistical_ledgers.sql']:
-   sql=(pathlib.Path('migrations')/migration).read_text();c.executescript(sql);c.executescript(sql)
+  for migration in migrations:
+   sql=pathlib.Path(migration).read_text();c.executescript(sql);c.executescript(sql)
   preserved=all(c.execute('SELECT COUNT(*) FROM "'+t.replace('"','""')+'"').fetchone()[0]==n for t,n in before_counts.items() if t not in ['schema_migrations','d1_migrations','sqlite_sequence'])
   after_integrity=[r[0] for r in c.execute('PRAGMA integrity_check')]
   report={'status':'VERIFIED_LOCAL_FULL_RESTORE' if not fk and preserved and after_integrity==['ok'] else 'BLOCKED_RECONCILIATION',
@@ -95,8 +95,8 @@ def verify(manifest,root,download=False):
    'archive_sha256':archive_hash.hexdigest(),'sql_sha256':raw_sha.hexdigest(),'sql_bytes':raw_bytes,
    'source_statement_count':statements,'source_tuple_counts':dict(expected),'restored_table_counts':counts,
    'schema':before_schema,'migration_ledgers_before':ledger,'foreign_key_violation_count':len(fk),
-   'foreign_key_violations_sample':fk[:50],'integrity':integrity,'migration_preservation':preserved,
-   'postmigration_integrity':after_integrity,'production_mutations':0,
+   'foreign_key_violations_sample':fk[:50],'integrity':integrity,'migration_preservation':preserved if migrations else None,'rehearsed_migrations':[str(p) for p in migrations],
+   'postmigration_integrity':after_integrity if migrations else None,'production_mutations':0,
    'remote_d1_full_restore_verified':False,'source_export_created_at':None,
    'limitations':['SQLite full restore; remote D1 import not exercised','Original 603-part export not located; verified newer single-bookmark compressed archive instead']}
   (root/'independent-reconciliation.json').write_text(json.dumps(report,indent=2)+'\n')
@@ -104,5 +104,5 @@ def verify(manifest,root,download=False):
  finally:c.close()
  return report
 if __name__=='__main__':
- p=argparse.ArgumentParser();p.add_argument('--manifest',required=True);p.add_argument('--root',required=True);p.add_argument('--download',action='store_true');a=p.parse_args()
- verify(json.loads(pathlib.Path(a.manifest).read_text()),a.root,a.download)
+ p=argparse.ArgumentParser();p.add_argument('--manifest',required=True);p.add_argument('--root',required=True);p.add_argument('--download',action='store_true');p.add_argument('--migration',action='append',default=[]);a=p.parse_args()
+ verify(json.loads(pathlib.Path(a.manifest).read_text()),a.root,a.download,a.migration)

@@ -7,6 +7,7 @@ on:
       - test/cfb-d1-partition.test.py
       - scripts/cfb-d1-dependency-plan.py
       - test/cfb-d1-dependency.test.py
+      - test/cfb-backup-source-only.test.py
       - .github/workflows/cfb-offline-recovery-contract.yml
   workflow_dispatch:
 permissions:
@@ -24,6 +25,7 @@ jobs:
         run: |
           python test/cfb-d1-partition.test.py -v
           python test/cfb-d1-dependency.test.py -v
+          python test/cfb-backup-source-only.test.py -v
       - name: Verify repository recovery documentation retains remote gate
         run: |
           python - <<'PY'

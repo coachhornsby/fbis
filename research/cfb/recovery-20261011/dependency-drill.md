@@ -16,3 +16,5 @@ python scripts/cfb-d1-dependency-plan.py --reconciliation research/cfb/recovery-
 ```
 
 Acceptance: successful graph qualification plus six tests. Remote recovery acceptance remains a separate operation and requires independent verifier evidence.
+
+The source restore verifier previously tried to rehearse unmerged numbered migrations unconditionally, which prevents running against current main. It now restores source-only by default, records migration-preservation/postmigration checks as null, and rehearses only explicitly supplied --migration paths. A regression fixture proves source-only restore without claiming any migration qualification.
