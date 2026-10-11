@@ -1,4 +1,5 @@
 import { toFbsTeamList, toFbsTeamProfile, toTeamFeatureSummary, toLegacyFormSummary } from "../lib/cfbTeamProfiles.js";
+import {loadFbsTeamSeasonEvidence,validProfileSeason,validProfilePlayer} from "../lib/cfbTeamSeasonEvidence.js";
 
 const headers = { "content-type": "application/json; charset=utf-8",
   "cache-control": "public, max-age=180" };
@@ -20,16 +21,16 @@ async function optionalTeamFeatures(db, teamId) {
       reason: "team_feature_snapshots not readable" };
   }
 }
-async function optionalTeamForm(db, espnId) {
+async function optionalTeamForm(db, espnId, season=2026) {
   if (!espnId) return null;
   try {
     const row = await db.prepare(
-      "SELECT games,points_for,points_against,updated_at FROM team_form WHERE sport='cfb' AND season=2026 AND team_key=?"
-    ).bind("id:" + espnId).first();
+      "SELECT games,points_for,points_against,updated_at FROM team_form WHERE sport='cfb' AND season=? AND team_key=?"
+    ).bind(season,"id:" + espnId).first();
     return toLegacyFormSummary(row);
   } catch { return null; }
 }
-export async function loadFbsTeamDirectory(db, requestedTeamId = null) {
+export async function loadFbsTeamDirectory(db, requestedTeamId = null, options = {}) {
   if (!db?.prepare) return { status: 503, body: { ok: false, error: "database-unavailable" } };
   try {
     if (requestedTeamId != null) {
@@ -40,11 +41,16 @@ export async function loadFbsTeamDirectory(db, requestedTeamId = null) {
         .bind(requestedTeamId).first();
       const team = toFbsTeamProfile(row);
       if (!team) return { status: 404, body: { ok: false, error: "fbs-team-not-found" } };
-      const [featureState, legacyForm] = await Promise.all([
-        optionalTeamFeatures(db, team.teamId), optionalTeamForm(db, team.espnId),
+      const season = options.season ?? 2026;
+      if (!validProfileSeason(season))return {status:400,body:{ok:false,error:"invalid-season"}};
+      const playerId=options.playerId||null;
+      if (playerId && !validProfilePlayer(playerId))return {status:400,body:{ok:false,error:"invalid-player-id"}};
+      const [featureState, legacyForm, evidence] = await Promise.all([
+        optionalTeamFeatures(db, team.teamId), optionalTeamForm(db, team.espnId,season),
+        loadFbsTeamSeasonEvidence(db,team,season,playerId),
       ]);
       return { status: 200, body: {
-        ok: true, team, featureState, legacyForm, modelAuthority: noModelAuthority,
+        ok: true, team, featureState, legacyForm, evidence, modelAuthority: noModelAuthority,
         storage: "PERSISTENT_D1_READ_ONLY", externalProviderRequests: 0,
       } };
     }
@@ -62,6 +68,9 @@ export async function loadFbsTeamDirectory(db, requestedTeamId = null) {
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const teamId = url.searchParams.get("team");
-  const result = await loadFbsTeamDirectory(context.env?.DB, teamId);
+  const result = await loadFbsTeamDirectory(context.env?.DB, teamId, {
+    season: url.searchParams.get("season") || 2026,
+    playerId: url.searchParams.get("player") || null,
+  });
   return json(result.body, result.status);
 }
