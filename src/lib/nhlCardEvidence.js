@@ -57,7 +57,7 @@ export function buildNhlCardEvidence(game, vm) {
   const snapshot=!currentML?recordedMoneyline(game):null;
   const book=market.book||"Unspecified";
   const mr=market.marketRole||market.role;
-  const role=mr==="EXECUTION_MARKET"?"EXECUTION QUOTE":mr==="CONSENSUS_MARKET"?"OBSERVED CONSENSUS":mr==="REFERENCE_MARKET"?"REFERENCE ONLY":"NO CURRENT MARKET";
+  const role=mr==="EXECUTION_MARKET"?"EXECUTION QUOTE":market.observedOnly?"OBSERVED FEED · NOT EXECUTABLE":mr==="CONSENSUS_MARKET"?"OBSERVED CONSENSUS":mr==="REFERENCE_MARKET"?"REFERENCE ONLY":"NO CURRENT MARKET";
   const marketInfo=currentML?{
     home:american(market.homeMl),away:american(market.awayMl),
     book,role,observedAt:game?.market?.asOf||game?.market?.observedAt||game?.market?.execution?.sourceObservedAt||game?.market?.consensus?.sourceObservedAt||null
