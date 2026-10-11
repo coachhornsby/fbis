@@ -1,0 +1,31 @@
+name: NFL October 11 pregame evidence capture
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/nfl-oct11-prospective-capture.mjs
+      - .github/workflows/nfl-oct11-pregame-capture.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 19-20 11 10 *'
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Freeze three NFL matchup observations (research only)
+        run: node scripts/nfl-oct11-prospective-capture.mjs
+      - name: Retain immutable run-scoped evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-oct11-prospective-${{ github.run_id }}
+          path: artifacts/nfl-pregame-oct11/
+          if-no-files-found: warn
+          retention-days: 90
