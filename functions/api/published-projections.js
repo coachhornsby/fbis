@@ -2,6 +2,7 @@ import { authorizeOperatorWrite, unauthorizedBody } from "../lib/auth.js";
 import { buildSlate, resolveSlateDate, shiftDateCT, todayCT } from "../lib/slateEngine.js";
 import { productProjectionCard } from "../lib/productProjection.js";
 import { insertPublishedProjection, listPublishedProjections, sha256Hex } from "../lib/publishedProjectionStore.js";
+import { buildNflFrozenAuditPacket } from "../lib/nflFrozenPublicationAudit.js";
 
 const SPORTS = new Set(["mlb", "npb", "kbo", "cfb", "cbb", "nfl"]);
 
@@ -86,6 +87,7 @@ export async function onRequestPost(context) {
     CBBD_API_KEY: context.env.CBBD_API_KEY,
     KENPOM_API_KEY: context.env.KENPOM_API_KEY,
     DB: context.env.DB,
+    ARCHIVE: context.env.ARCHIVE,
     caches: caches.default,
   };
 
@@ -128,6 +130,7 @@ export async function onRequestPost(context) {
         sourceTimestamp: game.odds?.sourceTimestamp || null,
         freshness: game.odds?.freshness || null,
       },
+      ...(sport === "nfl" ? { nflFrozenAudit: buildNflFrozenAuditPacket(game, found.slate) } : {}),
       frozenProjectionRef: {
         gameId: game.id,
         modelId: game.researchProjection?.modelId || game.projectionEngine || null,
