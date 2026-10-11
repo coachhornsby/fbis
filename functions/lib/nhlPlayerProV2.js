@@ -2,6 +2,7 @@ import { NHL_PLAYER_PRO_V2_ARTIFACT } from "../../data/models/nhl-player-pro-v2.
 import { playerTrackingFor } from "./nhlPlayerTrackingV3.js";
 import { opportunityForGame, opportunityForPlayer } from "./nhlOpportunityV4.js";
 import { persistentPlayerFor } from "./nhlPersistentProfiles.js";
+import { nhlModelTeamCode } from "./nhlTeamCodes.js";
 
 export const NHL_PLAYER_PRO_V2_ID="NHL-PLAYER-PRO-v2";
 export const NHL_PLAYER_PRO_V2_VERSION="research-v2.0-share-environment";
@@ -42,9 +43,10 @@ function playerSigma(playerId,market,fallback){
 
 export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
   const team=teamAbbr(game?.[side]),opp=teamAbbr(game?.[side==="home"?"away":"home"]);
-  const skaters=ctx?.skatersByTeam?.[team]||[];
+  const canonicalTeam=nhlModelTeamCode(team),canonicalOpp=nhlModelTeamCode(opp);
+  const skaters=ctx?.skatersByTeam?.[canonicalTeam]||ctx?.skatersByTeam?.[team]||[];
   if(!team||!opp||!skaters.length)return [];
-  const teamCtx=ctx?.teams?.[team]||{},oppCtx=ctx?.teams?.[opp]||{};
+  const teamCtx=ctx?.teams?.[canonicalTeam]||ctx?.teams?.[team]||{},oppCtx=ctx?.teams?.[canonicalOpp]||ctx?.teams?.[opp]||{};
   const teamGoals=sideGoals(game,side)??finite(teamCtx.gfpg)??3.05;
   const oppGoals=sideGoals(game,side==="home"?"away":"home")??finite(oppCtx.gfpg)??3.05;
   const teamShots=clamp(((finite(teamCtx.shotsFor)??30)+(finite(oppCtx.shotsAgainst)??30))/2,20,42);
@@ -62,7 +64,7 @@ export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
   const oppSide=opportunity?.[side]||null;
   for(const x of rates){
     const p=x.p,role=opportunityForPlayer(opportunity,side,p.id);
-    const persistent=persistentPlayerFor(ctx,team,p.id);
+    const persistent=persistentPlayerFor(ctx,canonicalTeam,p.id);
     const persistentAgeMs=Date.now()-Date.parse(persistent?.source_updated_at||"");
     const persistentUnavailable=Number.isFinite(persistentAgeMs)&&persistentAgeMs<=7*86400000&&["OUT","IR"].includes(String(persistent?.availability_state||"").toUpperCase());
     if(role?.scratched||persistentUnavailable)continue;

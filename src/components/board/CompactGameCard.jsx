@@ -1,6 +1,7 @@
 import { fmt, lineLabel, bestEdge, matchupSignalLabel } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlEvidenceStrip from "./NhlEvidenceStrip.jsx";
+import NhlDecisionCard from "./NhlDecisionCard.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import "./compactGameCardEnhancements.css";
@@ -224,6 +225,8 @@ export default function CompactGameCard({ game, onOpen }) {
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
   const soccerPickTeam = soccerPick?.side === "HOME" ? home : soccerPick?.side === "AWAY" ? away : null;
+
+  if (isNhl) return <NhlDecisionCard game={game} vm={vm} onOpen={onOpen} />;
 
   return (
     <article
