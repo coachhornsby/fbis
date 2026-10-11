@@ -1,5 +1,6 @@
 import TeamLogo from "../TeamLogo.jsx";
 import NhlEvidenceStrip from "./NhlEvidenceStrip.jsx";
+import NflInjuryIntegrityStrip from "./NflInjuryIntegrityStrip.jsx";
 import NhlPlayerProjectionStrip from "./NhlPlayerProjectionStrip.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
@@ -195,6 +196,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <div className="muted">{game.modelVersion || "CFB-FBIS-v2"} · {game.projectionState || game.cfb?.projectionState || "UNKNOWN"} · NO BETTING AUTHORITY</div>
       ) : null}
 
+      {isNfl ? <NflInjuryIntegrityStrip game={game} /> : null}
       {isNfl && game.nflInternationalContext?.international ? (
         <div className="pgc-status-note" role="status" aria-label="International-game risk">
           🌍 {game.nflInternationalContext.site?.city || "INTERNATIONAL"} · INTERNATIONAL / NEUTRAL · TRAVEL NOT VALIDATED · NO BET AUTHORITY
