@@ -6,9 +6,10 @@ import {
 
 
 const canonical=v=>String(v||"").trim().toLowerCase().replace(/[^a-z0-9]+/g," ");
+const nflTeamCode=v=>{const code=String(v||"").trim().toUpperCase();return ({JAC:"JAX",SFO:"SF",WSH:"WAS",LA:"LAR",STL:"LAR",OAK:"LV",SD:"LAC",ARZ:"ARI"})[code]||code;};
 function matchingProjection(row,projections){
- if(!row.market)return null;
- const found=projections.filter(p=>canonical(p.player_name||p.playerName)===canonical(row.player)&&canonical(p.canonical_market||p.stat_type||p.market)===canonical(row.market)&&String(p.odds_tier||"standard").toLowerCase()==="standard"&&String(p.duration||"full").toLowerCase()==="full");
+ if(!row.market||!row.teamCode)return null;
+ const found=projections.filter(p=>canonical(p.player_name||p.playerName)===canonical(row.player)&&canonical(p.canonical_market||p.stat_type||p.market)===canonical(row.market)&&nflTeamCode(p.team)===nflTeamCode(row.teamCode)&&String(p.odds_tier||"standard").toLowerCase()==="standard"&&String(p.duration||"full").toLowerCase()==="full");
  if(found.length!==1)return null;
  const p=found[0],value=p.fbis_projection??p.fbisProjection;
  return value!=null&&value!==""&&Number.isFinite(Number(value))?{value:Number(value),modelVersion:p.model_version||p.modelVersion||null}:null;
