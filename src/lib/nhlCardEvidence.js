@@ -8,17 +8,20 @@ const american = value => { const n=numeric(value); return n==null ? "—" : n>0
 const text = value => value == null || value === "" ? null : String(value);
 const goalieState = value => {
   const s=String(value||"").toUpperCase();
-  if(s==="CONFIRMED_STARTER")return "CONFIRMED";
-  if(s==="EXPECTED_G1")return "PROJECTED";
+  if(s==="CONFIRMED_STARTER"||s==="CONFIRMED")return "CONFIRMED";
+  if(s==="EXPECTED_G1"||s==="PROJECTED")return "PROJECTED";
   return "UNVERIFIED";
 };
 function projectedGoalie(game,side) {
   const p=game?.nhlProV2?.ok ? game.nhlProV2 : null;
   const m=p?.layers?.goalie?.[side] || null;
-  const evidence=game?.nhlGoalieProbabilityShadow?.starterEvidence?.[side] ||
+  const evidence=game?.nhlStarterEvidence?.[side] ||
+    game?.nhlGoalieProbabilityShadow?.starterEvidence?.[side] ||
     game?.nhlUnifiedMoneylineShadow?.components?.goalieShadow?.starterEvidence?.[side] || null;
   const state=goalieState(evidence?.state);
-  const n=text(m?.name) || (m?.goalieId!=null ? `ID ${m.goalieId}` : null);
+  // Event-bound starter evidence wins for DISPLAY only; it never changes model math.
+  const named=(state!=="UNVERIFIED" ? text(evidence?.name) : null);
+  const n=named || text(m?.name) || (m?.goalieId!=null ? `ID ${m.goalieId}` : null);
   const stateNote=evidence?.lineupMatched===false ? "PROJECTED GOALIE MISMATCH" :
     state === "UNVERIFIED" ? "STARTER NOT CONFIRMED" : state;
   return {name:n||"No modeled goalie",state:stateNote,evidenceAt:evidence?.evidenceAt||null,source:evidence?.source||m?.source||null,modeled:Boolean(n)};
