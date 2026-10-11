@@ -1,0 +1,7 @@
+# SportsDataverse postgame competition scope
+
+The statistical adapters retain their existing default FBS-side research scope. An explicit `--include-non-fbs-opponents` mode now admits both teams and available player records from an authoritative final game involving an FBS team. It excludes unrelated non-FBS versus non-FBS games. Public FBS versus FBS website filtering remains separate from statistical preservation.
+
+Opponent mode requires the completed schedule, numeric provider game/team/athlete IDs and a season-qualified FBS whitelist. It does not label a non-FBS participant as FBS. Exact duplicate final rows deduplicate; conflicting final participants, dates or scores stop normalization. Overtime finals qualify. Cancelled/incomplete/TBD events, invalid scores and identical opponents cannot enter the completed-game reference. Metadata extraction ignores other seasons and nonfinal rows.
+
+Four offline contracts exercise team and player opponent preservation, unchanged default filtering, overtime, duplicate notifications, conflicting identity/result evidence and invalid final records. Current acquired observations remain postgame research, not historical PIT. Neither adapter establishes time-aware athlete membership, complete player-category coverage or source redistribution authority; those remain independent publication gates. No provider rate limit, paid API, production import, scheduler or champion change occurs here.

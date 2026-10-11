@@ -4,6 +4,9 @@ on:
     paths:
       - scripts/cfb_postgame_rehearsal.py
       - test/cfb-postgame-rehearsal.test.py
+      - scripts/cfb-sdv-team-box-normalize.py
+      - scripts/cfb-sdv-player-box-normalize.py
+      - test/cfb-sdv-opponent-contract.test.py
       - scripts/cfb_postgame_queue.py
       - test/cfb-postgame-queue.test.py
       - .github/workflows/cfb-postgame-contract.yml
@@ -23,3 +26,4 @@ jobs:
         run: |
           python test/cfb-postgame-rehearsal.test.py -v
           python test/cfb-postgame-queue.test.py -v
+          python test/cfb-sdv-opponent-contract.test.py -v

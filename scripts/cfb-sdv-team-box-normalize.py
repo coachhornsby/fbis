@@ -47,12 +47,16 @@ def sha(path):return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 def normalize(args):
  adapter=SourceFileLoader("cfb_sdv_player_box",str(pathlib.Path(__file__).with_name(
     "cfb-sdv-player-box-normalize.py"))).load_module()
- fbs=adapter.fbs_ids(args.fbs_teams)
+ fbs=adapter.fbs_ids(args.fbs_teams,args.season)
  games,qa=adapter.from_completed_schedule(args.schedule,args.season)
+ involving=adapter.fbs_involving_sides(games,fbs) if getattr(args,"include_non_fbs_opponents",False) else None
  # Game-side identity and source-fact validation: no names as joins.
  metadata={}
  with open(args.schedule,encoding="utf-8-sig",newline="") as f:
   for row in csv.DictReader(f):
+   if str(row.get('season'))!=str(args.season) or str(row.get('status') or '').upper() not in {'STATUS_FINAL','STATUS_FINAL_OVERTIME'}:continue
+   if row.get('completed') not in (None,'') and str(row['completed']).lower() not in {'true','1'}:continue
+   if str(row.get('start_time_tbd') or '').lower() in {'true','1'}:continue
    gid=str(row.get("game_id") or "")
    for side in ("home","away"):
     tid=str(row.get(side+"_id") or "")
@@ -67,7 +71,7 @@ def normalize(args):
   if str(raw.get("season"))!=str(args.season):continue
   team=str(raw.get("team_id") or "")
   game=str(raw.get("game_id") or "")
-  if team not in fbs:
+  if (involving is None and team not in fbs) or (involving is not None and (game,team) not in involving):
    reject["non_fbs"]+=1;continue
   if not ID.fullmatch(game) or not ID.fullmatch(team) or (game,team) not in games:
    reject["not_final_or_unmatched"]+=1;continue
@@ -111,6 +115,7 @@ def normalize(args):
 
 def run():
  p=argparse.ArgumentParser(description=__doc__)
+ p.add_argument("--include-non-fbs-opponents",action="store_true",help="Retain both sides of verified FBS-involving games for postgame intelligence")
  p.add_argument("--team-box",required=True)
  p.add_argument("--schedule",required=True)
  p.add_argument("--fbs-teams",required=True)
@@ -128,6 +133,7 @@ def run():
   "source_observed_at":asof,"source_publication_time_verified":False,
   "temporal_class":"POSTGAME_OBSERVED_NOT_HISTORICAL_PIT",
   "fbs_whitelisted_teams":fbs,"source_schedule_qa":qa,
+  "competition_scope":"FBS_INVOLVING_BOTH_SIDES" if args.include_non_fbs_opponents else "FBS_TEAM_SIDES",
   "row_count":len(rows),"distinct_team_ids":len(set(r["team_id"] for r in rows)),
   "distinct_game_ids":len(set(r["game_id"] for r in rows)),
   "rejections":reject,
