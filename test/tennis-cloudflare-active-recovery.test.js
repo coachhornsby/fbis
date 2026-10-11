@@ -10,7 +10,7 @@ import {decideTennisRecoveryExecution} from "../scripts/tennis-refresh-recovery-
 
 const now=Date.parse("2026-10-11T05:57:00.000Z");
 const health=(currentAge=145,fullAge=200,overrides={})=>({
-  ok:false,status:"DEGRADED",
+  ok:currentAge<=115 && fullAge<=480,status:currentAge<=115 && fullAge<=480?"HEALTHY":"DEGRADED",
   scopes:[
     {scope:"current",state:currentAge>115?"STALE":"HEALTHY",ageMinutes:currentAge},
     {scope:"full",state:fullAge>480?"STALE":"HEALTHY",ageMinutes:fullAge},
