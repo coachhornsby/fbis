@@ -43,7 +43,7 @@ export async function materializeResearchCards({teams,teamRows,playerRows,decisi
    if(old&&clock(old.observed_at)===clock(r.observed_at)&&old.content_hash!==r.content_hash)throw Error('Ambiguous player correction');
    if(!old||clock(r.observed_at)>clock(old.observed_at))playerVersions.set(key,r);
   }
-  for(const r of playerVersions.values())(players[r.player_id]||=[]).push(r);
+  for(const r of [...playerVersions.values()].sort((a,b)=>clock(a.game_at)-clock(b.game_at)||a.game_id.localeCompare(b.game_id)))(players[r.player_id]||=[]).push(r);
   const record={wins:0,losses:0,ties:0,unavailable:0};
   for(const g of games){const score=JSON.parse(g.metrics_json).scoring;if(!numeric(score?.points_for)||!numeric(score?.points_against)){record.unavailable++;continue;}
    record.wins+=score.points_for>score.points_against;record.losses+=score.points_for<score.points_against;record.ties+=score.points_for===score.points_against;}

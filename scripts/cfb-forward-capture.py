@@ -44,7 +44,7 @@ def capture(root,code_sha):
  # Query exact public ESPN calendar days; keep canonical numeric provider IDs.
  fixtures={};discovery=[]
  today=datetime.datetime.now(datetime.timezone.utc).date()
- for offset in range(15):
+ for offset in range(-7,15):
   day=today+datetime.timedelta(days=offset)
   url='https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=1000&dates='+day.strftime('%Y%m%d')
   path=root/('espn-schedule-'+day.isoformat()+'.json')
