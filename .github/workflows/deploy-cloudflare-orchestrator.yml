@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - "workers/sports-projection-orchestrator-worker.mjs"
+      - "workers/tennis-refresh-health.mjs"
+      - "workers/tennis-refresh-recovery.mjs"
       - "workers/prospective-pipeline-recovery.mjs"
       - "services/sports-projection-orchestrator/orchestrator.mjs"
       - "wrangler.orchestrator.toml"
@@ -36,6 +38,18 @@ jobs:
           test -n "${CLOUDFLARE_API_TOKEN}"
           test -n "${CLOUDFLARE_ACCOUNT_ID}"
           npx --yes wrangler@4 deploy --config wrangler.orchestrator.toml
+      - name: Install least-privilege Tennis dispatch credential when provisioned
+        shell: bash
+        env:
+          TENNIS_DISPATCH_TOKEN: ${{ secrets.TENNIS_DISPATCH_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TENNIS_DISPATCH_TOKEN:-}" ]; then
+            echo "::warning::TENNIS_DISPATCH_GITHUB_TOKEN is not configured; independent Tennis recovery remains fail-closed."
+          else
+            printf '%s' "${TENNIS_DISPATCH_TOKEN}" | npx --yes wrangler@4 secret put TENNIS_GITHUB_DISPATCH_TOKEN --config wrangler.orchestrator.toml
+            echo "Tennis workflow dispatch credential installed in Cloudflare Worker."
+          fi
       - name: Verify worker health
         shell: bash
         run: |
