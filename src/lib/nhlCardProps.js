@@ -30,7 +30,7 @@ export function selectNhlCardProps(game={}, {now=Date.now(),live=false,final=fal
       if(started&&!lockedBeforeStart(row,start))return false;
       return true;
     })
-    .sort((a,b)=>((a.market==="shots_on_goal"?1:0)-(b.market==="shots_on_goal"?1:0)) || Number(b.fbisProjection)-Number(a.fbisProjection));
+    .sort((a,b)=>((b.market==="shots_on_goal"?1:0)-(a.market==="shots_on_goal"?1:0)) || Number(b.fbisProjection)-Number(a.fbisProjection));
   // One SOG leader from each team where possible; two different skaters.
   const pick=[],seen=new Set();
   for(const key of [away,home]){
