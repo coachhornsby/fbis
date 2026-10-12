@@ -326,6 +326,14 @@ export function hasUsableMarketSummary(summary) {
   return Boolean(pairedMoneyline || pairedSpread || pairedTotal);
 }
 
+function fallbackSourceLineage(events, provider) {
+  // Only a source's original quote timestamp is evidence of price freshness.
+  const times = events.map(e => e.observedAt).filter(Boolean).map(t => Date.parse(t));
+  const complete = times.length === events.length && times.every(Number.isFinite);
+  const observedAt = complete ? new Date(Math.min(...times)).toISOString() : null;
+  return { provider, receivedAt: new Date().toISOString(), observedAt, asOf: observedAt };
+}
+
 function summarizeUsableEvents(events, sportId) {
   return (events || [])
     .map((event) => summarizeParlayEvent(event, sportId))
@@ -835,36 +843,16 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       if (backup.events?.length) {
         const events = summarizeUsableEvents(backup.events, sportId);
         if (events.length) {
-        const quoteTimes = events.map(e => e.observedAt).filter(Boolean).map(t => Date.parse(t));
-        const fullyTimestamped = quoteTimes.length === events.length && quoteTimes.every(Number.isFinite);
-        const observedAt = fullyTimestamped ? new Date(Math.min(...quoteTimes)).toISOString() : null;
-        const quoteTimes = events.map(e => e.observedAt).filter(Boolean).map(t => Date.parse(t));
-        const fullyTimestamped = quoteTimes.length === events.length && quoteTimes.every(Number.isFinite);
-        const observedAt = fullyTimestamped ? new Date(Math.min(...quoteTimes)).toISOString() : null;
-        const quoteTimes = events.map(e => e.observedAt).filter(Boolean).map(t => Date.parse(t));
-        const fullyTimestamped = quoteTimes.length === events.length && quoteTimes.every(Number.isFinite);
-        const observedAt = fullyTimestamped ? new Date(Math.min(...quoteTimes)).toISOString() : null;
         const payload = {
           events,
           meta: {
             enabled: true,
-            provider: "therundown",
-            receivedAt: new Date().toISOString(),
-            observedAt,
-            asOf: observedAt,
-            provider: "sharpapi",
-            receivedAt: new Date().toISOString(),
-            observedAt,
-            asOf: observedAt,
-            provider: "theodds",
-            receivedAt: new Date().toISOString(),
-            observedAt,
-            asOf: observedAt,
             remaining: backup.credits.remaining,
             used: backup.credits.used,
             cached: false,
             skipped: false,
             source: "theodds-free-cacheonly",
+            ...fallbackSourceLineage(events, "theodds"),
             free: true,
             sharp: SHARP_BOOK,
             execution: EXECUTION_BOOK,
@@ -894,6 +882,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
             cached: false,
             skipped: false,
             source: "sharpapi-free-cacheonly",
+            ...fallbackSourceLineage(events, "sharpapi"),
             free: true,
             softBooks: sharp.books,
             sharp: SHARP_BOOK,
@@ -924,6 +913,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
             cached: false,
             skipped: false,
             source: "therundown-free-cacheonly",
+            ...fallbackSourceLineage(events, "therundown"),
             free: true,
             softBooks: rundown.books,
             sharp: SHARP_BOOK,
