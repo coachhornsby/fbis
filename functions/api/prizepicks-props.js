@@ -72,6 +72,8 @@ export function nflPropTemporalEligibility({eventId,frozenAt,lineObservedAt,stat
   const freeze=isoMs(frozenAt),reasons=[];
   if(!eventId)reasons.push("canonical_event_missing");
   if(freeze==null)reasons.push("freeze_timestamp_invalid");
+  // An ingestion timestamp is not a provider line observation. Missing source clock is not prospective evidence.
+  if(!lineObservedAt)reasons.push("line_source_timestamp_missing");
   for(const [label,value] of [["line_observed_after_freeze",lineObservedAt],["state_source_after_freeze",stateSourceUpdatedAt],["player_profile_after_freeze",playerProfileUpdatedAt]]){
     const ms=isoMs(value);
     if(value&&ms==null)reasons.push(label.replace("_after_freeze","_timestamp_invalid"));
@@ -376,6 +378,9 @@ export async function onRequestPost(context){
     const side=delta==null||Math.abs(delta)<1e-9?null:(delta>0?"MORE":"LESS");
     const projectionId=projectionIdOf(raw);
     const id=sha256Hex(JSON.stringify([runId,projectionId,sport,playerName,market,line,tierOf(raw),durationOf(raw),collectedAt]));
+    const rawObservedAt=s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]));
+    const observedMs=isoMs(rawObservedAt);
+    const sourceObservedAt=observedMs==null?null:new Date(observedMs).toISOString();
     statements.push(context.env.DB.prepare(
       `INSERT OR REPLACE INTO prizepicks_prop_lines(
         id,run_id,projection_id,fbis_event_id,sport,league,player_id,player_name,player_headshot_url,team,opponent,game_id,start_time,
@@ -386,7 +391,7 @@ export async function onRequestPost(context){
       id,runId,projectionId,s(cand?.eventId),sport,s(first(raw,["league","leagueName","league.name"])),
       playerIdOf(raw),playerName,headshotOf(raw),s(teamOf(raw)||cand?.team),s(opponentOf(raw)||candidateOpponent(cand,teamOf(raw))),gameIdOf(raw),s(startOf(raw)||cand?.start),
       stat,market,line,tierOf(raw),durationOf(raw),fbisProjection,fbisSigma,delta,side,
-      s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt,collectedAt,JSON.stringify(raw),
+      sourceObservedAt,collectedAt,JSON.stringify(raw),
       s(cand?.modelSource),s(cand?.modelVersion)
     ));
     if(sport==="nfl"){
@@ -401,7 +406,7 @@ export async function onRequestPost(context){
       });
       const stateRaw=parseJson(state?.raw_json,{})||{};
       const injuryEvidence=stateRaw?.officialAvailability||stateRaw?.availability||null;
-      const lineObservedAt=s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt;
+      const lineObservedAt=sourceObservedAt;
       const temporal=nflPropTemporalEligibility({
         eventId:canonicalEventId,
         frozenAt:nflStateFrozenAt,
