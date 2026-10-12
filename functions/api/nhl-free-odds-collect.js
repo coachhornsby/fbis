@@ -1,5 +1,6 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { fetchParlayOdds } from "../lib/parlay.js";
+import { classifyNhlQuoteEvidence } from "../lib/nhlBookQuoteEvidence.js";
 
 /**
  * Scheduled NHL sportsbook observation only. Explicitly excludes paid
@@ -14,6 +15,7 @@ export async function onRequestPost(context) {
   const url=new URL(context.request.url);
   const date=url.searchParams.get("date")||null;
   if(date&&!/^\d{4}-\d{2}-\d{2}$/.test(date))return json({ok:false,error:"invalid-date"},400);
+  if(!context.env.DB)return json({ok:false,error:"durable-evidence-db-unavailable"},503);
   if(!context.env.SHARPAPI_API_KEY&&!context.env.THERUNDOWN_API_KEY)
     return json({ok:false,error:"no-configured-free-nhl-provider"},503);
   try{
@@ -26,6 +28,33 @@ export async function onRequestPost(context) {
       date,
     });
     const events=result.events||[];
+    const capturedAt=new Date().toISOString();
+    let persistedMoneylineRows=0;
+    for(const e of events){
+      const book=String(e.moneylineBook||"");
+      const {captureClass,sourceObservedAt}=classifyNhlQuoteEvidence({
+        gameStart:e.commence,sourceObservedAt:e.observedAt,capturedAt,
+      });
+      if(!book||!Number.isInteger(e.homeMl)||!Number.isInteger(e.awayMl))continue;
+      for(const [selection,price] of [["HOME",e.homeMl],["AWAY",e.awayMl]]){
+        const id=crypto.randomUUID();
+        await context.env.DB.prepare(`INSERT INTO nhl_bookmaker_quote_evidence
+          (id,source_event_id,game_start,home_team,away_team,market_family,
+          selection,bookmaker,provider,american_price,source_observed_at,
+          captured_at,capture_class,can_qualify,can_authorize_wager)
+          VALUES (?1,?2,?3,?4,?5,'moneyline',?6,?7,?8,?9,?10,?11,?12,0,0)`)
+          .bind(id,String(e.parlayId),e.commence||null,String(e.homeTeam),String(e.awayTeam),
+            selection,book,String(result.meta?.provider||"unknown"),price,
+            sourceObservedAt,capturedAt,captureClass)
+          .run();
+        persistedMoneylineRows++;
+      }
+    }
+    const readback=await context.env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM nhl_bookmaker_quote_evidence WHERE captured_at=?1"
+    ).bind(capturedAt).first();
+    const readbackValidated=Number(readback?.n||0)===persistedMoneylineRows;
+    if(!readbackValidated)throw new Error("durable-quote-evidence-readback-mismatch");
     const observed=events.filter(e=>e.observedAt).length;
     const pairedMoneylines=events.filter(e=>e.homeMl!=null&&e.awayMl!=null).length;
     const payload={
@@ -36,6 +65,9 @@ export async function onRequestPost(context) {
       provider:result.meta?.provider||null,
       games:events.length,
       pairedMoneylines,
+      persistedMoneylineRows,
+      readbackValidated,
+      evidenceStore:"nhl_bookmaker_quote_evidence",
       pricedWithOriginalTimestamp:observed,
       capturedAt:new Date().toISOString(),
       cacheOnly:Boolean(result.meta?.cached),
