@@ -86,7 +86,7 @@ async function boundedMap(items,fn,limit=3){
   return results;
 }
 export async function auditDailySlate({date,sports=ENABLED_SPORTS,recovery=true}={}){
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date||"")) throw Error("date YYYY-MM-DD required");
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date||"")) throw Error("date YYYY-MM-DD required");
   const detail=await boundedMap(sports,async sport=>{
     let expected=null;
     let sourceError=null;
@@ -143,7 +143,7 @@ if(process.argv[1] && import.meta.url===new URL("file://"+process.argv[1]).href)
       "|---|---:|---:|---:|---|",...rows,
       "",report.errors.length?"Missing/unverified: "+report.errors.join("; "):"Independent-source checks passed where supported.",
       "No model promotion, paid data acquisition or wager authorization was performed.",""
-    ].join("\\n"));
+    ].join("\n"));
   }
   if(!report.ok)process.exitCode=1;
 }
