@@ -50,6 +50,15 @@ test("NFL prop state exact event key normalizes equivalent timestamps without he
   );
 });
 
+test("missing and malformed provider quote time never create prospective NFL evidence",()=>{
+ const missing=nflPropTemporalEligibility({eventId:"e",frozenAt:"2026-10-12T06:00:00Z",lineObservedAt:null});
+ assert.equal(missing.eligible,false);
+ assert.ok(missing.reasons.includes("line_source_timestamp_missing"));
+ const malformed=nflPropTemporalEligibility({eventId:"e",frozenAt:"2026-10-12T06:00:00Z",lineObservedAt:"wrong"});
+ assert.equal(malformed.eligible,false);
+ assert.ok(malformed.reasons.includes("line_observed_timestamp_invalid"));
+});
+
 test("NFL prop state evidence fails closed for missing event or post-freeze state",()=>{
   const good=nflPropTemporalEligibility({
     eventId:"401872980",frozenAt:"2026-10-07T15:00:10Z",
