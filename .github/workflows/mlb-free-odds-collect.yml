@@ -1,0 +1,52 @@
+name: MLB free sportsbook evidence collection
+on:
+  schedule:
+    # 20-minute research capture cadence across US baseball pregame windows.
+    - cron: "*/20 0-5,15-23 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/mlb-free-odds-collect.js"
+      - ".github/workflows/mlb-free-odds-collect.yml"
+  workflow_dispatch:
+concurrency:
+  group: mlb-free-odds-evidence
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: "22"}
+      - name: Verify exact deployed code after merge
+        if: github.event_name == 'push'
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Capture MLB paired-book quotes and prove durable readback
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          test -n "${HARVEST_SECRET:-}"
+          date="$(TZ=America/Chicago date +%F)"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            date="$(TZ=America/Chicago date -d tomorrow +%F)"
+          fi
+          code="$(curl -sS --max-time 100 -o artifacts/mlb-free-odds.json -w "%{http_code}" \
+            -X POST -H "x-harvest-secret: $HARVEST_SECRET" \
+            "$BASE/api/mlb-free-odds-collect?date=$date")"
+          cat artifacts/mlb-free-odds.json
+          test "$code" = "200"
+          jq -e '.ok==true and .pairedMoneylines>0 and .readbackValidated==true and .persistedMoneylineRows==(.pairedMoneylines*2) and .canQualify==false and .canAuthorizeWager==false' artifacts/mlb-free-odds.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mlb-free-odds-${{ github.run_id }}
+          path: artifacts/mlb-free-odds.json
+          if-no-files-found: warn
+          retention-days: 14

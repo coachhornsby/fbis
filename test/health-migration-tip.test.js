@@ -73,8 +73,8 @@ function memoryDb({ tipPresent = true, watermarkOnly = false, includeWrangler = 
 test("canonical tip declaration matches sorted migrations directory tip", () => {
   assert.equal(EXPECTED_MIGRATION, EXPECTED_MIGRATION_ID);
   assert.equal(EXPECTED_MIGRATION_ID, EXPECTED_MIGRATION_FILE.replace(/\.sql$/, ""));
-  assert.equal(EXPECTED_MIGRATION_FILE, "0098_nhl_bookmaker_quote_evidence.sql");
-  assert.equal(EXPECTED_MIGRATION_ID, "0098_nhl_bookmaker_quote_evidence");
+  assert.equal(EXPECTED_MIGRATION_FILE, "0099_mlb_bookmaker_quote_evidence.sql");
+  assert.equal(EXPECTED_MIGRATION_ID, "0099_mlb_bookmaker_quote_evidence");
 });
 
 test("1: tip present → VERIFIED", async () => {
@@ -194,7 +194,7 @@ test("6: real migration verifier passes aligned tip, rejects drift, and passes r
 
     // Valid SQL, registered id, known schema, and a unique prefix: the only
     // failing contract is the stale canonical tip declaration.
-    const advancedFile = "0099_future_drift_probe.sql";
+    const advancedFile = "0100_future_drift_probe.sql";
     addMigration(advancedFile);
     const drifted = runVerifier();
     assert.equal(drifted.status, 1, drifted.stderr || drifted.stdout);
@@ -208,7 +208,7 @@ test("6: real migration verifier passes aligned tip, rejects drift, and passes r
       .replace(JSON.stringify(EXPECTED_MIGRATION_ID), JSON.stringify(advancedFile.replace(/\.sql$/, ""))));
     const repaired = runVerifier();
     assert.equal(repaired.status, 0, repaired.stderr || repaired.stdout);
-    assert.match(repaired.stdout, /Verified canonical migration tip: 0099_future_drift_probe\.sql/);
+    assert.match(repaired.stdout, /Verified canonical migration tip: 0100_future_drift_probe\.sql/);
     assert.match(repaired.stdout, /Verified 2 migrations against canonical schema bundle \(1 tables\)/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -223,7 +223,7 @@ test("7: grandfathered duplicate prefixes remain supported by verifier", () => {
   assert.match(verifier, /0079_soccer_phase3f_research_routing\.sql/);
   const tip = readFileSync(join(root, "functions/lib/migrationTip.js"), "utf8");
   // Tip uses full identity, not numeric prefix alone.
-  assert.match(tip, /0098_nhl_bookmaker_quote_evidence/);
+  assert.match(tip, /0099_mlb_bookmaker_quote_evidence/);
   assert.doesNotMatch(tip, /EXPECTED_MIGRATION_ID\s*=\s*["']0098["']/);
   const run = spawnSync("node", ["scripts/verify-migrations.mjs"], {
     cwd: root,
