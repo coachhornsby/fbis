@@ -1,5 +1,6 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { fetchParlayOdds } from "../lib/parlay.js";
+import { classifyNhlQuoteEvidence } from "../lib/nhlBookQuoteEvidence.js";
 
 /**
  * Scheduled NHL sportsbook observation only. Explicitly excludes paid
@@ -29,17 +30,11 @@ export async function onRequestPost(context) {
     const events=result.events||[];
     const capturedAt=new Date().toISOString();
     let persistedMoneylineRows=0;
-    const capturedMs=Date.parse(capturedAt);
     for(const e of events){
       const book=String(e.moneylineBook||"");
-      const gameStartMs=Date.parse(e.commence||"");
-      const startValid=Number.isFinite(gameStartMs);
-      const sourceMs=Date.parse(e.observedAt||"");
-      const sourceVerified=Number.isFinite(sourceMs) && sourceMs <= capturedMs &&
-        startValid && sourceMs < gameStartMs;
-      const captureClass=!startValid?"UNKNOWN_START":
-        capturedMs>=gameStartMs?"POST_START":
-        sourceVerified?"PREGAME_SOURCE_TIME_VERIFIED":"PREGAME_UNVERIFIED_SOURCE_TIME";
+      const {captureClass,sourceObservedAt}=classifyNhlQuoteEvidence({
+        gameStart:e.commence,sourceObservedAt:e.observedAt,capturedAt,
+      });
       if(!book||!Number.isInteger(e.homeMl)||!Number.isInteger(e.awayMl))continue;
       for(const [selection,price] of [["HOME",e.homeMl],["AWAY",e.awayMl]]){
         const id=crypto.randomUUID();
@@ -50,7 +45,7 @@ export async function onRequestPost(context) {
           VALUES (?1,?2,?3,?4,?5,'moneyline',?6,?7,?8,?9,?10,?11,?12,0,0)`)
           .bind(id,String(e.parlayId),e.commence||null,String(e.homeTeam),String(e.awayTeam),
             selection,book,String(result.meta?.provider||"unknown"),price,
-            sourceVerified?new Date(sourceMs).toISOString():null,capturedAt,captureClass)
+            sourceObservedAt,capturedAt,captureClass)
           .run();
         persistedMoneylineRows++;
       }
