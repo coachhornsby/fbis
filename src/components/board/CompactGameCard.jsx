@@ -6,6 +6,7 @@ import NflInjuryIntegrityStrip from "./NflInjuryIntegrityStrip.jsx";
 import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
 import NhlPlayerProjectionStrip from "./NhlPlayerProjectionStrip.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
+import { matchupAdvantageTeam, matchupTeamColors } from "../../lib/matchupTeamBrand.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import "./compactGameCardEnhancements.css";
 import "./universalPremiumCard.css";
@@ -211,13 +212,17 @@ export default function CompactGameCard({ game, onOpen }) {
   ].map(([id, label]) => ({ id, ...splitMatchupVisual(id, label), ...matchupSignalLabel(matchupById[id], away, home) }));
   const genericMatchupItems = genericFactors.map((factor, i) => {
     const edge = String(factor?.edge || factor?.advantage || factor?.team || "EVEN").toUpperCase();
-    const homeHit = edge === String(home.abbr || "").toUpperCase();
-    const awayHit = edge === String(away.abbr || "").toUpperCase();
+    const identified = matchupAdvantageTeam(factor, away, home);
+    const team = identified?.team || null;
+    const colors = team ? matchupTeamColors(team) : null;
     const id = factor?.id || `factor-${i}`;
     const visual = splitMatchupVisual(id, factor?.label || factor?.name || "MATCHUP");
     const metric = factor?.value == null ? null : String(factor.value);
     const detail = factor?.detail == null ? null : String(factor.detail);
-    return { id, ...visual, text: homeHit ? home.abbr : awayHit ? away.abbr : edge || "EVEN", metric, detail, tone: homeHit ? "home" : awayHit ? "away" : "neutral" };
+    return {
+      id, ...visual, text: team?.abbr || edge || "EVEN", metric, detail,
+      tone: identified?.side || "neutral", team, colors,
+    };
   });
   const baselineMargin = Number(matchup?.baseline?.margin);
   const finalMargin = Number(matchup?.final?.margin);
@@ -391,8 +396,21 @@ export default function CompactGameCard({ game, onOpen }) {
           </div>
           <div className="cgc-matchup-pills">
             {genericMatchupItems.length ? genericMatchupItems.map((item) => (
-              <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
-                <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "SIG"}</i><em>{item.label}</em></span><strong>{item.text}</strong>{item.metric ? <small className="cgc-matchup-metric">{item.metric}</small> : null}
+              <div
+                className={`cgc-matchup-pill tone-${item.tone}${item.team ? " is-team-branded" : ""}`}
+                key={item.id}
+                style={item.team ? {
+                  "--fbis-tile-team": item.colors?.primary || "#18334e",
+                  "--fbis-tile-border": item.colors?.secondary || "#759bb5",
+                } : undefined}
+              >
+                <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "SIG"}</i><em>{item.label}</em></span>
+                {item.team ? (
+                  <span className="cgc-matchup-team-mark" title={item.team.fullName || item.team.name || item.team.abbr}>
+                    <TeamLogo team={{ ...item.team, sport: sportId }} size={40} className="cgc-matchup-team-logo" />
+                  </span>
+                ) : <strong>{item.text}</strong>}
+                {item.metric ? <small className="cgc-matchup-metric">{item.metric}</small> : null}
               </div>
             )) : <div className="cgc-matchup-pill tone-neutral"><span>STATUS</span><strong>AWAITING MATCHUP DATA</strong></div>}
           </div>
