@@ -7,6 +7,9 @@ on:
     branches: [main]
     paths:
       - "functions/api/mlb-free-odds-collect.js"
+      - "functions/lib/parlay.js"
+      - "functions/lib/sharpApi.js"
+      - "functions/lib/theRundown.js"
       - ".github/workflows/mlb-free-odds-collect.yml"
   workflow_dispatch:
 concurrency:
