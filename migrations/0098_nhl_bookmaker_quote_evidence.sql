@@ -22,3 +22,6 @@ CREATE INDEX IF NOT EXISTS idx_nhl_quote_evidence_game_time
 ON nhl_bookmaker_quote_evidence (source_event_id, captured_at);
 CREATE INDEX IF NOT EXISTS idx_nhl_quote_evidence_book_time
 ON nhl_bookmaker_quote_evidence (bookmaker, captured_at);
+
+INSERT OR IGNORE INTO schema_migrations(id,applied_at)
+VALUES ('0098_nhl_bookmaker_quote_evidence',strftime('%Y-%m-%dT%H:%M:%fZ','now'));
