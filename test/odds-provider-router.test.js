@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { hasUsableMarketSummary } from "../functions/lib/parlay.js";
+import { hasUsableMarketSummary, providerMarketAsOf } from "../functions/lib/parlay.js";
 import {
   ODDS_PROVIDER_ORDER,
   canQualifyFromOddsResolution,
@@ -29,6 +29,18 @@ function okResult(provider, events, extra = {}) {
 }
 
 describe("market completeness", () => {
+  it("does not turn a request receipt into a bookmaker quote clock", () => {
+    const events = [{home_team:"Home",away_team:"Away",bookmakers:[{
+      key:"pinnacle",title:"Pinnacle",last_update:"2026-10-12T05:55:00Z",
+      markets:[{key:"h2h",outcomes:[{name:"Home",price:-120},{name:"Away",price:105}]}],
+    }]}];
+    assert.equal(providerMarketAsOf(events,"nfl","2026-10-12T05:59:00Z"),"2026-10-12T05:55:00.000Z");
+    assert.equal(providerMarketAsOf(events,"nfl","2024-10-12T06:00:00Z"),"2024-10-12T06:00:00.000Z");
+    const noSource=structuredClone(events);delete noSource[0].bookmakers[0].last_update;
+    assert.equal(providerMarketAsOf(noSource,"nfl"),null);
+    assert.equal(providerMarketAsOf([],"nfl"),null);
+  });
+
   it("rejects event shells with no usable prices", () => {
     assert.equal(hasUsableMarketSummary({ homeMl: null, awayMl: null, spread: null, total: null }), false);
     assert.equal(hasUsableMarketSummary({ homeMl: -120, awayMl: 105 }), true);

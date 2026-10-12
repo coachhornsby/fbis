@@ -329,9 +329,18 @@ export function hasUsableMarketSummary(summary) {
 function fallbackSourceLineage(events, provider) {
   // Only a source's original quote timestamp is evidence of price freshness.
   const times = events.map(e => e.observedAt).filter(Boolean).map(t => Date.parse(t));
-  const complete = times.length === events.length && times.every(Number.isFinite);
+  const complete = events.length > 0 && times.length === events.length && times.every(Number.isFinite);
   const observedAt = complete ? new Date(Math.min(...times)).toISOString() : null;
   return { provider, receivedAt: new Date().toISOString(), observedAt, asOf: observedAt };
+}
+
+// Provider response/collection time cannot substitute for an original book quote clock.
+export function providerMarketAsOf(events, sportId, providerAsOf = null) {
+  const quoted = fallbackSourceLineage(summarizeUsableEvents(events, sportId), "source").observedAt;
+  const headerMs = providerAsOf == null ? NaN : Date.parse(String(providerAsOf));
+  const header = Number.isFinite(headerMs) ? new Date(headerMs).toISOString() : null;
+  if (quoted && header) return new Date(Math.min(Date.parse(quoted), headerMs)).toISOString();
+  return quoted || header || null;
 }
 
 function summarizeUsableEvents(events, sportId) {
@@ -989,7 +998,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
           rateLimited: credit,
           quotaExhausted: credit,
           quotaRemaining: pin.credits?.remaining ?? null,
-          asOf: pin.credits?.asOf || new Date().toISOString(),
+          asOf: providerMarketAsOf(pin.events || [], sportId, pin.credits?.asOf),
           meta: { credits: pin.credits },
         };
       },
@@ -1010,7 +1019,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
           events: backup.events || [],
           error: backup.error || (marketIncomplete ? "market-empty" : null),
           quotaRemaining: backup.credits?.remaining ?? null,
-          asOf: backup.credits?.asOf || new Date().toISOString(),
+          asOf: providerMarketAsOf(backup.events || [], sportId, backup.credits?.asOf),
           meta: { credits: backup.credits },
         };
       },
@@ -1029,7 +1038,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
           events: soft.events || [],
           error: soft.error || (marketIncomplete ? "market-empty" : null),
           quotaRemaining: soft.credits?.remaining ?? null,
-          asOf: soft.credits?.asOf || new Date().toISOString(),
+          asOf: providerMarketAsOf(soft.events || [], sportId, soft.credits?.asOf),
           meta: { soft: true, books: soft.books },
         };
       },
@@ -1048,7 +1057,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
           events: soft.events || [],
           error: soft.error || (marketIncomplete ? "market-empty" : null),
           quotaRemaining: soft.credits?.remaining ?? null,
-          asOf: soft.credits?.asOf || new Date().toISOString(),
+          asOf: providerMarketAsOf(soft.events || [], sportId, soft.credits?.asOf),
           meta: { soft: true, books: soft.books },
         };
       },
@@ -1218,7 +1227,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   }
 
   const events = combined.map((ev) => summarizeParlayEvent(ev, sportId));
-  const observedAt = pool.asOf || pin.credits.asOf || new Date().toISOString();
+  const observedAt = pool.asOf || null;
   const receivedAt = new Date().toISOString();
   const baseMeta = {
     enabled: true,
