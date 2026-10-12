@@ -7,6 +7,14 @@ on:
       - "wrangler.soccer-backfill.toml"
       - "wrangler.market-probe.toml"
       - ".github/workflows/fbis-workers-source-audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "workers/**"
+      - "wrangler.orchestrator.toml"
+      - "wrangler.soccer-backfill.toml"
+      - "wrangler.market-probe.toml"
+      - ".github/workflows/fbis-workers-source-audit.yml"
   workflow_dispatch:
 permissions:
   contents: read
