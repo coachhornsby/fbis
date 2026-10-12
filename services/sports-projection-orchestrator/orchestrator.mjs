@@ -671,6 +671,8 @@ function snapshotFromCandidate(game,sport,boardGeneratedAt){
 }
 function snapshotRow(s){ return HEADERS.snapshots.map(h=>s[h]??''); }
 
+const ALL_PROJECTIONS_MAX_ROWS = 10000;
+
 function projectionSheetKey(sport,eventId){
   return String(sport||'').toLowerCase()+'|'+String(eventId||'');
 }
@@ -882,7 +884,7 @@ export async function syncLearningDashboard(report={}){
     ...auditRows
   ]);
 
-  const allRange=q(CFG.sheets.allProjections)+'!A1:AJ3000';
+  const allRange=q(CFG.sheets.allProjections)+`!A1:AJ${ALL_PROJECTIONS_MAX_ROWS}`;
   const existing=await sheets.get(allRange);
   const sourceRows=existing.values||[];
   const allRows=[ALL_PROJECTION_HEADERS];
@@ -942,8 +944,8 @@ export async function syncLearningDashboard(report={}){
     }
   }
 
-  if(allRows.length>3000) throw new Error('All Projections capacity exhausted');
-  await sheets.clear(q(CFG.sheets.allProjections)+'!A1:AJ3000');
+  if(allRows.length>ALL_PROJECTIONS_MAX_ROWS) throw new Error(`All Projections capacity exhausted (${ALL_PROJECTIONS_MAX_ROWS} rows)`);
+  await sheets.clear(q(CFG.sheets.allProjections)+`!A1:AJ${ALL_PROJECTIONS_MAX_ROWS}`);
   await sheets.update(q(CFG.sheets.allProjections)+'!A1:AJ'+allRows.length,allRows);
 
   return {
@@ -961,7 +963,7 @@ export async function syncLearningDashboard(report={}){
 }
 
 async function syncAllProjectionBoards(boards){
-  const range=q(CFG.sheets.allProjections)+'!A1:AJ3000';
+  const range=q(CFG.sheets.allProjections)+`!A1:AJ${ALL_PROJECTIONS_MAX_ROWS}`;
   const res=await sheets.get(range);
   const existing=res.values||[];
   const rows=[ALL_PROJECTION_HEADERS];
@@ -1007,8 +1009,8 @@ async function syncAllProjectionBoards(boards){
       written++;
     }
   }
-  if(rows.length>3000) throw new Error('All Projections capacity exhausted');
-  await sheets.clear(q(CFG.sheets.allProjections)+'!A1:AJ3000');
+  if(rows.length>ALL_PROJECTIONS_MAX_ROWS) throw new Error(`All Projections capacity exhausted (${ALL_PROJECTIONS_MAX_ROWS} rows)`);
+  await sheets.clear(q(CFG.sheets.allProjections)+`!A1:AJ${ALL_PROJECTIONS_MAX_ROWS}`);
   await sheets.update(q(CFG.sheets.allProjections)+'!A1:AJ'+rows.length,rows);
   return {ok:true,written,canonicalRows:Math.max(0,rows.length-1),boards:(boards||[]).filter(b=>b?.ok).length,at:now()};
 }
