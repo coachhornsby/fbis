@@ -1,0 +1,53 @@
+name: NHL free sportsbook collection
+on:
+  schedule:
+    # UTC; evening and afternoon US hockey windows. Hard bounded free providers.
+    - cron: "*/20 0-5,15-23 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/nhl-free-odds-collect.js"
+      - "functions/lib/parlay.js"
+      - "functions/lib/sharpApi.js"
+      - "functions/lib/theRundown.js"
+      - "functions/lib/slateEngineCore.js"
+      - ".github/workflows/nhl-free-odds-collect.yml"
+  workflow_dispatch:
+concurrency:
+  group: nhl-free-odds-collector
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: { node-version: "22" }
+      - name: Verify production SHA before collecting after merge
+        if: github.event_name == 'push'
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Collect free NHL bookstore quotes, not paid Parlay/TheOdds
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          test -n "${HARVEST_SECRET:-}"
+          date="$(TZ=America/Chicago date +%F)"
+          code="$(curl -sS --max-time 100 -o artifacts/nhl-free-odds.json -w "%{http_code}" \
+            -X POST -H "x-harvest-secret: $HARVEST_SECRET" \
+            "$BASE/api/nhl-free-odds-collect?date=$date")"
+          cat artifacts/nhl-free-odds.json
+          test "$code" = "200"
+          jq -e '.ok==true and .games>0 and .canQualify==false and .canAuthorizeWager==false' artifacts/nhl-free-odds.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nhl-free-odds-${{ github.run_id }}
+          path: artifacts/nhl-free-odds.json
+          if-no-files-found: warn
+          retention-days: 14

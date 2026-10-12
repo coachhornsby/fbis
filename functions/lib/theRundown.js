@@ -21,6 +21,7 @@ export const THERUNDOWN_SPORT = {
   cfb: { sportId: 1 },
   nfl: { sportId: 2 },
   mlb: { sportId: 3 },
+  nhl: { sportId: 6 },
   nba: { sportId: 4 },
   cbb: { sportId: 5 },
 };
@@ -64,11 +65,15 @@ function bookTitle(key) {
   return key;
 }
 
-function pushBookOutcome(bookMap, key, marketKey, outcome) {
+function pushBookOutcome(bookMap, key, marketKey, outcome, observedAt = null) {
   if (!bookMap.has(key)) {
     bookMap.set(key, { key, title: bookTitle(key), markets: new Map() });
   }
   const book = bookMap.get(key);
+  if (observedAt && Number.isFinite(Date.parse(observedAt))) {
+    const iso = new Date(observedAt).toISOString();
+    if (!book.last_update || iso < book.last_update) book.last_update = iso;
+  }
   if (!book.markets.has(marketKey)) {
     book.markets.set(marketKey, { key: marketKey, outcomes: [] });
   }
@@ -102,18 +107,18 @@ export function theRundownEventsToParlay(events = [], sportId = "mlb") {
             if (marketId === 1) {
               const name = namesMatch(participant.name, homeName) ? homeName : namesMatch(participant.name, awayName) ? awayName : null;
               if (!name) continue;
-              pushBookOutcome(books, bookKey, "h2h", { name, price: Number(price.price) });
+              pushBookOutcome(books, bookKey, "h2h", { name, price: Number(price.price) }, price.updated_at || price.last_update || price.updated || null);
             } else if (marketId === 2) {
               const name = namesMatch(participant.name, homeName) ? homeName : namesMatch(participant.name, awayName) ? awayName : null;
               const point = parsePoint(line.value);
               if (!name || point == null) continue;
-              pushBookOutcome(books, bookKey, "spreads", { name, price: Number(price.price), point });
+              pushBookOutcome(books, bookKey, "spreads", { name, price: Number(price.price), point }, price.updated_at || price.last_update || price.updated || null);
             } else if (marketId === 3) {
               const point = parsePoint(line.value);
               if (point == null) continue;
               const name = /^over$/i.test(String(participant.name || "")) ? "Over" : /^under$/i.test(String(participant.name || "")) ? "Under" : null;
               if (!name) continue;
-              pushBookOutcome(books, bookKey, "totals", { name, price: Number(price.price), point });
+              pushBookOutcome(books, bookKey, "totals", { name, price: Number(price.price), point }, price.updated_at || price.last_update || price.updated || null);
             }
           }
         }
@@ -152,7 +157,7 @@ export function theRundownEventsToParlay(events = [], sportId = "mlb") {
         }
         if (outcomes.length) markets.push({ key: market.key, outcomes });
       }
-      if (markets.length) bookmakers.push({ key: book.key, title: book.title, markets });
+      if (markets.length) bookmakers.push({ key: book.key, title: book.title, last_update: book.last_update || null, markets });
     }
     if (!bookmakers.length) continue;
     out.push({
@@ -177,9 +182,10 @@ export async function fetchTheRundownOdds(sportId, apiKey, date) {
   }
   const url = new URL(`${BASE}/sports/${cfg.sportId}/events/${isoDate(date)}`);
   url.searchParams.set("market_ids", "1,2,3");
-  url.searchParams.set("affiliate_ids", "19,22,23,30,34");
+  // Free-plan-compatible sportsbook subset only; paid book 34 is not requested.
+  url.searchParams.set("affiliate_ids", "19,22,23");
   url.searchParams.set("main_line", "true");
-  url.searchParams.set("offset", "300");
+  url.searchParams.set("hide_closed", "true");
 
   const res = await fetch(String(url), {
     headers: { Accept: "application/json", "X-TheRundown-Key": apiKey },

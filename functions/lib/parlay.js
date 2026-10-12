@@ -86,6 +86,7 @@ function outcomes(bookmakers, marketKey, pred) {
           name: o.name,
           price: Number(o.price),
           point: o.point == null ? null : Number(o.point),
+          observedAt: m.last_update || book.last_update || null,
         });
       }
     }
@@ -138,6 +139,13 @@ function packFg(books, sportId, home, away) {
   const herAway = sideMl(heritageH2h, away);
   const softHome = sideMl(softH2h, home);
   const softAway = sideMl(softH2h, away);
+  // Never present moneyline sides from two different sportsbooks as one pair.
+  const pairedSoft = softH2h
+    .filter(r => namesMatch(r.name, home))
+    .map(h => ({ home: h, away: softH2h.find(a => a.bookKey === h.bookKey && namesMatch(a.name, away)) }))
+    .find(pair => pair.away) || null;
+  const pairedHer = herHome && herAway && herHome.bookKey === herAway.bookKey;
+  const pairedPin = pinHome && pinAway && pinHome.bookKey === pinAway.bookKey;
 
   const pinSpreadPair = pickExactRunLinePair(
     pinSpreads.filter((r) => namesMatch(r.name, home) && r.point != null),
@@ -171,26 +179,26 @@ function packFg(books, sportId, home, away) {
   const totalPair = pinTotalPair || herTotalPair || softTotalPair;
   const spread = spreadPair?.point ?? null;
   const total = totalPair?.point ?? null;
-  const hasPin = Boolean(pinHome && pinAway) || Boolean(pinSpreadPair) || Boolean(pinTotalPair);
+  const hasPin = Boolean(pairedPin) || Boolean(pinSpreadPair) || Boolean(pinTotalPair);
   const hasSoft =
     !hasPin &&
-    ((softHome && softAway) || Boolean(softSpreadPair) || Boolean(softTotalPair));
+    (Boolean(pairedSoft) || Boolean(softSpreadPair) || Boolean(softTotalPair));
 
   return {
-    homeMl: herHome?.price ?? pinHome?.price ?? softHome?.price ?? null,
-    awayMl: herAway?.price ?? pinAway?.price ?? softAway?.price ?? null,
-    fairHomeMl: pinHome && pinAway ? pinHome.price : null,
-    fairAwayMl: pinHome && pinAway ? pinAway.price : null,
-    pinHomeMl: pinHome && pinAway ? pinHome.price : null,
-    pinAwayMl: pinHome && pinAway ? pinAway.price : null,
+    homeMl: pairedHer ? herHome.price : pairedPin ? pinHome.price : pairedSoft?.home.price ?? null,
+    awayMl: pairedHer ? herAway.price : pairedPin ? pinAway.price : pairedSoft?.away.price ?? null,
+    fairHomeMl: pairedPin ? pinHome.price : null,
+    fairAwayMl: pairedPin ? pinAway.price : null,
+    pinHomeMl: pairedPin ? pinHome.price : null,
+    pinAwayMl: pairedPin ? pinAway.price : null,
     pinSpreadHomePrice: pinSpreadPair?.home.price ?? null,
     pinSpreadAwayPrice: pinSpreadPair?.away.price ?? null,
     pinSpread: pinSpreadPair?.point ?? null,
     pinTotal: pinTotalPair?.point ?? null,
     pinOverPrice: pinTotalPair?.over.price ?? null,
     pinUnderPrice: pinTotalPair?.under.price ?? null,
-    heritageHomeMl: herHome?.price ?? null,
-    heritageAwayMl: herAway?.price ?? null,
+    heritageHomeMl: pairedHer ? herHome.price : null,
+    heritageAwayMl: pairedHer ? herAway.price : null,
     heritageSpreadHomePrice: herSpreadPair?.home.price ?? null,
     heritageSpreadAwayPrice: herSpreadPair?.away.price ?? null,
     heritageOverPrice: herTotalPair?.over.price ?? null,
@@ -204,9 +212,12 @@ function packFg(books, sportId, home, away) {
     total,
     totalPrice: (pinTotalPair || herTotalPair || softTotalPair)?.over.price ?? null,
     details: "",
-    book: EXECUTION_BOOK,
+    book: pairedHer ? EXECUTION_BOOK : pairedPin ? SHARP_BOOK : pairedSoft?.home?.book || spreadPair?.home?.book || totalPair?.over?.book || null,
+    moneylineBook: pairedHer ? EXECUTION_BOOK : pairedPin ? SHARP_BOOK : pairedSoft?.home?.book || null,
+    spreadBook: spreadPair?.home?.book || null,
+    totalBook: totalPair?.over?.book || null,
     sharp: hasPin ? SHARP_BOOK : "",
-    heritageListed: Boolean(herHome || herAway || herSpreadPair || herTotalPair),
+    heritageListed: Boolean(pairedHer || herSpreadPair || herTotalPair),
     pinPresent: hasPin,
     softPresent: hasSoft,
   };
@@ -262,8 +273,25 @@ export function summarizeParlayEvent(event, sportId) {
     fg.pinPresent || fg.heritageListed
       ? null
       : event.softSource || (fg.softPresent ? "sharpapi" : null);
+  // Book-level timestamps are source observations, unlike request receipt time.
+  // Never assert that a quote was observed at the time FBIS fetched it.
+  const useBook = fg.pinPresent ? isSharpBook : fg.heritageListed ? isExecutionBook : isSoftQuoteBook;
+  const selectedBook = books.find(b => useBook(String(b.key || "").toLowerCase()) &&
+    (b.markets || []).some(m => ["h2h", "spreads", "totals"].includes(m.key) &&
+      (m.outcomes || []).some(o => validAmerican(o.price)))) || null;
+  const quoteTime = selectedBook?.last_update ||
+    (selectedBook?.markets || []).find(m => ["h2h", "spreads", "totals"].includes(m.key) && m.last_update)?.last_update || null;
+  const observedMs = quoteTime == null ? NaN : Date.parse(quoteTime);
+  const observedAt = Number.isFinite(observedMs) && observedMs <= Date.now() ?
+    new Date(observedMs).toISOString() : null;
   return {
     parlayId: event.id,
+    quoteBook: selectedBook?.title || selectedBook?.key || null,
+    observedAt,
+    providerSource: event.softSource || null,
+    moneylineBook: fg.moneylineBook || null,
+    spreadBook: fg.spreadBook || null,
+    totalBook: fg.totalBook || null,
     homeTeam: home,
     awayTeam: away,
     commence: event.commence_time,
@@ -298,6 +326,14 @@ export function hasUsableMarketSummary(summary) {
   return Boolean(pairedMoneyline || pairedSpread || pairedTotal);
 }
 
+function fallbackSourceLineage(events, provider) {
+  // Only a source's original quote timestamp is evidence of price freshness.
+  const times = events.map(e => e.observedAt).filter(Boolean).map(t => Date.parse(t));
+  const complete = times.length === events.length && times.every(Number.isFinite);
+  const observedAt = complete ? new Date(Math.min(...times)).toISOString() : null;
+  return { provider, receivedAt: new Date().toISOString(), observedAt, asOf: observedAt };
+}
+
 function summarizeUsableEvents(events, sportId) {
   return (events || [])
     .map((event) => summarizeParlayEvent(event, sportId))
@@ -322,10 +358,17 @@ function applyOdds(game, p) {
     homeMl: p.homeMl ?? game.odds?.homeMl ?? null,
     awayMl: p.awayMl ?? game.odds?.awayMl ?? null,
     details: p.details || game.odds?.details || "",
-    book: EXECUTION_BOOK,
+    book: p.quoteBook || null,
+    moneylineBook: p.moneylineBook || null,
+    spreadBook: p.spreadBook || null,
+    totalBook: p.totalBook || null,
+    observedAt: p.observedAt || null,
+    sourceTimestamp: p.observedAt || null,
+    quoteBook: p.quoteBook || null,
+    providerSource: p.providerSource || null,
     sharp: p.sharp || (p.pinPresent ? SHARP_BOOK : game.odds?.sharp || ""),
-    homeMlBook: EXECUTION_BOOK,
-    awayMlBook: EXECUTION_BOOK,
+    homeMlBook: p.moneylineBook || null,
+    awayMlBook: p.moneylineBook || null,
     books: p.books,
     sentiment: p.sentiment || game.odds?.sentiment || null,
     softSource: p.pinPresent
@@ -430,10 +473,17 @@ export function mergeParlay(games, parlayEvents, sport, slateDay = null) {
         homeMl: p.homeMl,
         awayMl: p.awayMl,
         details: p.details,
-        book: EXECUTION_BOOK,
+        book: p.quoteBook || null,
+        moneylineBook: p.moneylineBook || null,
+        spreadBook: p.spreadBook || null,
+        totalBook: p.totalBook || null,
+        observedAt: p.observedAt || null,
+        sourceTimestamp: p.observedAt || null,
+        quoteBook: p.quoteBook || null,
+        providerSource: p.providerSource || null,
         sharp: p.sharp || SHARP_BOOK,
-        homeMlBook: EXECUTION_BOOK,
-        awayMlBook: EXECUTION_BOOK,
+        homeMlBook: p.moneylineBook || null,
+        awayMlBook: p.moneylineBook || null,
         books: p.books,
         sentiment: p.sentiment || null,
         f5: p.f5 || null,
@@ -745,7 +795,16 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       maxAgeMs: TTL_MS,
     });
     const cachedHasUsableMarket = Array.isArray(cached.events) && cached.events.some(hasUsableMarketSummary);
-    if (!unusable && freshness.ok && cachedHasUsableMarket) {
+    // Soft fallback quotes without provider quote timestamps can be displayed
+    // for a bounded cache receipt interval, but are NEVER CLV/EV eligible.
+    // This prevents per-request polling loops when a free feed omits last_update.
+    const receiptTime = Date.parse(cachedMeta.receivedAt || "");
+    const boundedUnverifiedSoft = sportId === "nhl" &&
+      /^(sharpapi|therundown)-free-cacheonly$/.test(String(cachedMeta.source || "")) &&
+      !cachedMeta.observedAt && !cachedMeta.asOf &&
+      Number.isFinite(receiptTime) && Date.now() >= receiptTime &&
+      Date.now() - receiptTime <= TTL_MS;
+    if (!unusable && (freshness.ok || boundedUnverifiedSoft) && cachedHasUsableMarket) {
       const lineage = attachMarketLineage(cachedMeta, {
         provider: cachedMeta.provider || null,
         cached: true,
@@ -754,11 +813,11 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         retryOf: opts.retryOf || null,
       });
       // Preserve original observedAt / asOf — do not rewrite to "now".
-      lineage.observedAt = freshness.observedAt;
-      lineage.asOf = freshness.observedAt;
+      lineage.observedAt = freshness.ok ? freshness.observedAt : null;
+      lineage.asOf = freshness.ok ? freshness.observedAt : null;
       lineage.sourceMode = MARKET_SOURCE_MODE.CACHED_PROVIDER;
-      lineage.freshnessStatus = "fresh";
-      lineage.cacheAgeMs = freshness.ageMs;
+      lineage.freshnessStatus = freshness.ok ? "fresh" : "source-timestamp-unverified";
+      lineage.cacheAgeMs = freshness.ok ? freshness.ageMs : Date.now() - receiptTime;
       return { ...cached, meta: lineage };
     }
     // Stale or unusable cache: fall through to live provider pool (fail closed if all fail).
@@ -793,6 +852,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
             cached: false,
             skipped: false,
             source: "theodds-free-cacheonly",
+            ...fallbackSourceLineage(events, "theodds"),
             free: true,
             sharp: SHARP_BOOK,
             execution: EXECUTION_BOOK,
@@ -822,6 +882,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
             cached: false,
             skipped: false,
             source: "sharpapi-free-cacheonly",
+            ...fallbackSourceLineage(events, "sharpapi"),
             free: true,
             softBooks: sharp.books,
             sharp: SHARP_BOOK,
@@ -852,6 +913,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
             cached: false,
             skipped: false,
             source: "therundown-free-cacheonly",
+            ...fallbackSourceLineage(events, "therundown"),
             free: true,
             softBooks: rundown.books,
             sharp: SHARP_BOOK,
