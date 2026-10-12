@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { classifyNhlQuoteEvidence as classifyBookQuote } from "../functions/lib/nhlBookQuoteEvidence.js";
-import { summarizeParlayEvent, mergeParlay } from "../functions/lib/parlay.js";
+import { summarizeParlayEvent, mergeParlay, fetchParlayOdds } from "../functions/lib/parlay.js";
+import { resetCacheMem } from "../functions/lib/cache.js";
 
 test("MLB quote captured before first pitch retains independent bookmaker timestamp",()=>{
  const r=classifyBookQuote({gameStart:"2026-10-12T00:00:00Z",
@@ -48,4 +49,31 @@ test("MLB reference market and free-book provenance do not become operator execu
  assert.equal(g.odds.book,"DraftKings");
  assert.equal(g.odds.sourceTimestamp,"2026-10-11T23:30:00.000Z");
  assert.equal(g.odds.heritageListed,false);
+});
+
+test("MLB rolling provider tomorrow prices cannot populate today's cache",async()=>{
+ resetCacheMem();
+ const previous=globalThis.fetch;
+ let hits=0;
+ globalThis.fetch=async(url)=>{
+  hits++;
+  const market=new URL(url).searchParams.get("market");
+  const core={event_id:"tomorrow-mlb",home_team:"Tampa Bay Rays",away_team:"Cleveland Guardians",
+   event_start_time:"2026-10-13T00:00:00Z",sportsbook:"draftkings",updated_at:"2026-10-11T20:00:00Z"};
+  const data=market==="moneyline"?[
+   {...core,market_type:"moneyline",selection_type:"home",odds_american:-170},
+   {...core,market_type:"moneyline",selection_type:"away",odds_american:140},
+  ]:[];
+  return new Response(JSON.stringify({data}),{status:200});
+ };
+ try{
+  const bad=await fetchParlayOdds("mlb",null,null,{cacheOnly:true,strictCacheOnly:false,sharpApiKey:"test",
+   date:"2026-10-11"});
+  assert.equal(bad.events.length,0);
+  const right=await fetchParlayOdds("mlb",null,null,{cacheOnly:true,strictCacheOnly:false,sharpApiKey:"test",
+   date:"2026-10-12"});
+  assert.equal(right.events.length,1);
+  assert.equal(right.events[0].homeMl,-170);
+  assert.equal(hits,6);
+ }finally{globalThis.fetch=previous;resetCacheMem();}
 });
