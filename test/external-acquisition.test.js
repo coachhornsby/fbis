@@ -92,10 +92,10 @@ test('provider reconciliation updates current usage, blocks exhaustion and never
  const request=()=>new Request('https://example.test/api/apify-account-refresh',{method:'POST',headers:{'x-harvest-secret':'secret'}});
  try{
    globalThis.fetch=async(url,init)=>{calls.push({url,method:init.method||'GET'});return new Response(JSON.stringify({data:{monthlyUsageCycle:{startAt:'2026-09-12T00:00:00.000Z',endAt:'2026-10-11T23:59:59.999Z'},current:{monthlyUsageUsd:0},limits:{maxMonthlyUsageUsd:35}}}));};
-   assert.equal((await refreshAccount({env,request:request()})).status,200);assert.equal(sql.prepare('SELECT state FROM external_acquisition_account').get().state,'BLOCKED');
+   const reset=await refreshAccount({env,request:request()});assert.equal(reset.status,200);const resetBody=await reset.json();assert.equal(resetBody.manualReauthorizationRequired,true);assert.equal(resetBody.headroomUsd,22);assert.equal(sql.prepare('SELECT state FROM external_acquisition_account').get().state,'BLOCKED');
    sql.exec("UPDATE external_acquisition_account SET state='ACTIVE'");
    globalThis.fetch=async(url,init)=>{calls.push({url,method:init.method||'GET'});return new Response(JSON.stringify({data:{monthlyUsageCycle:{startAt:'2026-09-12T00:00:00.000Z',endAt:'2026-10-11T23:59:59.999Z'},current:{monthlyUsageUsd:35.2607},limits:{maxMonthlyUsageUsd:35}}}));};
-   const response=await (await refreshAccount({env,request:request()})).json();assert.equal(response.account.state,'BLOCKED');assert.equal(response.account.provider_usage_usd,35.2607);assert.equal(response.account.period_end,'2026-10-12T00:00:00.000Z');assert.equal(response.automaticEnable,false);
+   const response=await (await refreshAccount({env,request:request()})).json();assert.equal(response.account.state,'BLOCKED');assert.equal(response.account.provider_usage_usd,35.2607);assert.equal(response.account.period_end,'2026-10-12T00:00:00.000Z');assert.equal(response.automaticEnable,false);assert.equal(response.manualReauthorizationRequired,false);assert.equal(response.headroomUsd,0);
    assert.ok(calls.every(c=>c.method==='GET'&&c.url.endsWith('/users/me/limits')));
  }finally{globalThis.fetch=original;}
 });

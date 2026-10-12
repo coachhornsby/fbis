@@ -208,6 +208,21 @@ describe("odds provider router", () => {
     assert.equal(resolution.provider, "theodds");
   });
 
+  it("rejects future source timestamps, including valid-looking complete provider payloads", async () => {
+    const nowMs = Date.parse("2026-10-12T06:00:00Z");
+    const future = okResult("parlay", [{ id: "future" }], { asOf: "2026-10-12T06:00:01Z" });
+    assert.equal(isFreshComplete(future, { nowMs }), false);
+    const resolution = await resolveOddsProviders({
+      configured: { parlay: true, theodds: true },
+      nowMs,
+      fetchers: {
+        parlay: async () => future,
+        theodds: async () => okResult("theodds", [{ id: "safe" }], { asOf: "2026-10-12T05:59:00Z" }),
+      },
+    });
+    assert.equal(resolution.provider, "theodds");
+  });
+
   it("does not qualify wagers from missing market data", () => {
     assert.equal(canQualifyFromOddsResolution(null), false);
     assert.equal(canQualifyFromOddsResolution({ ok: false, failClosed: true, events: [] }), false);

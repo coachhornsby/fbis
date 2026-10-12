@@ -13,6 +13,10 @@ export async function onRequestPost({request,env}){
    const at=new Date().toISOString(),end=new Date(endMs+1).toISOString();
    await env.DB.prepare(`UPDATE external_acquisition_account SET period_start=?,period_end=?,provider_usage_usd=?,usage_observed_at=?,state=CASE WHEN ?>=MIN(hard_cap_usd,?) THEN 'BLOCKED' ELSE state END,reason=CASE WHEN ?>=? THEN 'APIFY_USAGE_LIMIT_REACHED' WHEN ?>=hard_cap_usd THEN 'FBIS_ACCOUNT_BUDGET_EXHAUSTED' ELSE reason END WHERE id='apify'`).bind(start,end,usage,at,usage,limit,usage,limit,usage).run();
    const account=await env.DB.prepare("SELECT * FROM external_acquisition_account WHERE id='apify'").first();
-   return json({ok:true,account,providerLimitUsd:limit,readOnlyProviderOperation:true,acquisitionsEnabled:account?.state==='ACTIVE',automaticEnable:false});
+   const ceiling=Math.min(limit,Number(account?.target_usd),Number(account?.hard_cap_usd));
+   const headroomUsd=Number.isFinite(ceiling)?Math.max(0,ceiling-usage):0;
+   // A new provider billing cycle can create headroom without lifting an old administrative block.
+   // Credential rotation and an explicit operator review are separate prerequisites.
+   return json({ok:true,account,providerLimitUsd:limit,headroomUsd,manualReauthorizationRequired:account?.state!=='ACTIVE'&&headroomUsd>0,readOnlyProviderOperation:true,acquisitionsEnabled:account?.state==='ACTIVE',automaticEnable:false});
  }catch{return json({ok:false,state:'UNKNOWN',reason:'ACCOUNT_RECONCILIATION_FAILED'},503);}
 }

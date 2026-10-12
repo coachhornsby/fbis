@@ -65,7 +65,7 @@ export function isFreshComplete(result, { nowMs = Date.now(), maxAgeMs = 15 * 60
   // Freshness requires an original observation timestamp — never invent one.
   if (!result.asOf) return false;
   const t = Date.parse(result.asOf);
-  if (!Number.isFinite(t)) return false;
+  if (!Number.isFinite(t) || t > nowMs) return false;
   if (nowMs - t > maxAgeMs) return false;
   return true;
 }
