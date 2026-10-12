@@ -762,7 +762,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     return { events: [], meta: { enabled: false, remaining: null, cached: false } };
   }
   const baseball = BASEBALL.has(sportId);
-  const cacheKey = `${CACHE_VER}:odds${baseball ? "-props-v3" : ""}:${sportKey}`;
+  const cacheKey = `${CACHE_VER}:odds${baseball ? "-props-v3" : ""}:${sportKey}${sportId === "nhl" && opts.date ? `:${opts.date}` : ""}`;
   const cached = await readCache(cacheKey, cfCache, TTL_MS);
   if (cached) {
     const cachedMeta = { ...(cached.meta || {}), cached: true };
@@ -822,6 +822,11 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     }
     // Stale or unusable cache: fall through to live provider pool (fail closed if all fail).
   }
+  // SharpAPI is a rolling upcoming fixture feed: only same-day NHL games
+  // may satisfy the requested sports/date capture or warm that slate's cache.
+  const scopeToRequestedNhlDay = (events) => sportId === "nhl" && opts.date
+    ? (events || []).filter(e => chicagoDateForIso(e.commence_time) === opts.date)
+    : (events || []);
   if (opts.cacheOnly) {
     if (opts.strictCacheOnly) {
       return { events: [], meta: {
@@ -841,7 +846,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         opts.backupApiKey
       );
       if (backup.events?.length) {
-        const events = summarizeUsableEvents(backup.events, sportId);
+        const events = summarizeUsableEvents(scopeToRequestedNhlDay(backup.events), sportId);
         if (events.length) {
         const payload = {
           events,
@@ -871,7 +876,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     if (opts.sharpApiKey) {
       const sharp = await fetchSharpApiOdds(sportId, opts.sharpApiKey);
       if (sharp.events?.length) {
-        const events = summarizeUsableEvents(sharp.events, sportId);
+        const events = summarizeUsableEvents(scopeToRequestedNhlDay(sharp.events), sportId);
         if (events.length) {
         const payload = {
           events,
@@ -902,7 +907,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     if (opts.theRundownApiKey) {
       const rundown = await fetchTheRundownOdds(sportId, opts.theRundownApiKey, opts.date);
       if (rundown.events?.length) {
-        const events = summarizeUsableEvents(rundown.events, sportId);
+        const events = summarizeUsableEvents(scopeToRequestedNhlDay(rundown.events), sportId);
         if (events.length) {
         const payload = {
           events,

@@ -135,3 +135,27 @@ test("verified DK/FD pairs are observable consensus, never unauthorized executio
  assert.equal(market.consensus.bookmaker,"DraftKings");
  assert.equal(market.execution.available,false);
 });
+
+test("rolling free NHL provider excludes next Chicago-day fixtures from the requested slate",async()=>{
+  resetCacheMem();
+  const prev=globalThis.fetch;
+  const calls=[];
+  globalThis.fetch=async(url)=>{
+    calls.push(String(url));
+    const market=new URL(url).searchParams.get("market");
+    const core={event_id:"tomorrow",home_team:"Buffalo Sabres",away_team:"Florida Panthers",
+      event_start_time:"2026-10-12T23:00:00Z",sportsbook:"fanduel",updated_at:"2026-10-11T20:00:00Z"};
+    const data=market==="moneyline"?[
+      {...core,market_type:"moneyline",selection_type:"home",odds_american:-130},
+      {...core,market_type:"moneyline",selection_type:"away",odds_american:110},
+    ]:[];
+    return new Response(JSON.stringify({data}),{status:200});
+  };
+  try{
+    const r=await fetchParlayOdds("nhl",null,null,{cacheOnly:true,strictCacheOnly:false,
+      sharpApiKey:"synthetic",date:"2026-10-11"});
+    assert.equal(r.events.length,0);
+    assert.equal(r.meta.source,"free-backups-empty");
+    assert.equal(calls.length,3);
+  }finally{globalThis.fetch=prev;resetCacheMem();}
+});
