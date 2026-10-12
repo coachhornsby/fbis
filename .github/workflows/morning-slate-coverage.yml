@@ -1,0 +1,148 @@
+name: Morning full-game slate and learning-sheet coverage
+
+# Completeness is independent of betting eligibility: all allowed sports/games
+# must be represented even where model probabilities and wagers are blocked.
+on:
+  schedule:
+    # 08:45 & 16:45 Chicago, both CDT and CST. The gate rejects the UTC twin.
+    - cron: "45 13,14,21,22 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/morning-slate-coverage.yml"
+      - "scripts/morning-slate-coverage.mjs"
+      - "test/morning-slate-coverage.test.mjs"
+      - "services/sports-projection-orchestrator/orchestrator.mjs"
+
+concurrency:
+  group: fbis-daily-full-slate-coverage
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  slate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Gate to 08:45 / 16:45 Central
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_hour="$(TZ=America/Chicago date +%H)"
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$local_hour" != "08" ] && [ "$local_hour" != "16" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Skipped redundant UTC cron at Central hour $local_hour"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify deployed SHA before writes to Google Sheets
+        if: steps.gate.outputs.run == 'true' && github.event_name == 'push'
+        id: deploy
+        env:
+          BASE: https://fbis-myz.pages.dev
+          EXPECTED_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 36); do
+            body="$(mktemp)"
+            http="$(curl -sS --max-time 25 -o "$body" -w '%{http_code}' "$BASE/api/health?_t=$(date +%s)" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null || true)"
+            if [ "$http" = "200" ] && [ "$live" = "$EXPECTED_SHA" ]; then
+              echo "Production SHA confirmed: $live"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Production SHA not verified; no sheet refresh performed"
+          exit 1
+      - name: Regression contracts for missing games / Chicago date
+        if: steps.gate.outputs.run == 'true'
+        run: node --test test/morning-slate-coverage.test.mjs
+      - name: Verify every independently scheduled game on today's slate
+        if: steps.gate.outputs.run == 'true'
+        id: audit
+        continue-on-error: true
+        env:
+          FBIS_BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          export SLATE_DATE="$(TZ=America/Chicago date +%F)"
+          node scripts/morning-slate-coverage.mjs | tee artifacts/slate-coverage.json
+      - name: Get orchestrator OIDC token
+        if: steps.gate.outputs.run == 'true' && (github.event_name != 'push' || steps.deploy.outcome == 'success')
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'
+          if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - name: Sync ALL pregame snapshots and completed results to Google Sheet
+        if: steps.oidc.outcome == 'success'
+        env:
+          BASE: https://fbis-myz.pages.dev
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          mkdir -p artifacts
+          code="$(curl -sS --max-time 180 --retry 1 --retry-delay 3 \
+            -H "x-harvest-secret: $HARVEST_SECRET" \
+            -H "accept: application/json" \
+            -o artifacts/learning-report.json -w '%{http_code}' \
+            "$BASE/api/learning-report?since=2026-01-01&limit=5000")"
+          test "$code" = 200
+          jq -e '.ok == true and .source == "prediction_snapshots" and (.audit|type=="array")' artifacts/learning-report.json >/dev/null
+          sync_http="$(curl -sS --max-time 180 --retry 1 --retry-delay 3 \
+            -X POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "content-type: application/json" \
+            --data-binary @artifacts/learning-report.json \
+            -o artifacts/sheet-sync.json -w '%{http_code}' \
+            "$ORCH_URL/api/sync-learning-dashboard")"
+          echo "Google Sheet sync HTTP $sync_http"
+          jq -c '{ok,allProjectionCanonicalRows,allProjectionBackfilled,allProjectionFinalsReconciled,allProjectionAwaitingFinals,modelRows,auditRows}' artifacts/sheet-sync.json
+          test "$sync_http" = 200
+          jq -e '.ok == true and (.allProjectionCanonicalRows >= 0) and (.auditRows >= 0)' artifacts/sheet-sync.json >/dev/null
+          {
+            echo "## All-game Google Sheet learning mirror"
+            echo "- Canonical All Projections rows: $(jq -r '.allProjectionCanonicalRows' artifacts/sheet-sync.json)"
+            echo "- Backfilled game/model rows: $(jq -r '.allProjectionBackfilled' artifacts/sheet-sync.json)"
+            echo "- Graded final rows: $(jq -r '.allProjectionFinalsReconciled' artifacts/sheet-sync.json)"
+            echo "- Awaiting finals: $(jq -r '.allProjectionAwaitingFinals' artifacts/sheet-sync.json)"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Fail closed on any unresolved scheduled game
+        if: always() && steps.gate.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s artifacts/slate-coverage.json
+          jq -e '.ok == true and (.errors|length)==0' artifacts/slate-coverage.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.gate.outputs.run == 'true'
+        with:
+          name: slate-coverage-${{ github.run_id }}
+          path: |
+            artifacts/slate-coverage.json
+            artifacts/sheet-sync.json
+          if-no-files-found: warn
+          retention-days: 14
