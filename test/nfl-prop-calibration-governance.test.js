@@ -2,6 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
+test("portable calibration mirror matches canonical locked JSON",async()=>{
+ const {default:calibration}=await import("../functions/lib/nflPropCalibrationArtifact.js");
+ const canonical=JSON.parse(fs.readFileSync(new URL("../data/models/nfl-prop-market-calibration-v2.json",import.meta.url),"utf8"));
+ assert.deepEqual(calibration,canonical);
+});
+
 import { nflCanonicalGameKey, nflPropTemporalEligibility } from "../functions/api/prizepicks-props.js";
 import {
   selectivePropStars,
