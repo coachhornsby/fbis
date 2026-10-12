@@ -1,4 +1,4 @@
-import criteria from "../../data/models/nfl-qb-prospective-promotion-gate-v1.json" with { type: "json" };
+import criteria from "../../data/models/nfl-qb-prospective-promotion-gate-v1.json";
 
 function finite(v){const n=Number(v);return v==null||v===""||!Number.isFinite(n)?null:n}
 function avg(rows,key){
