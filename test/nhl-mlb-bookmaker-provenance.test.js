@@ -31,7 +31,7 @@ test("SharpAPI NHL two-sided moneyline and goal totals preserve authentic book t
   assert.equal(p.spread,-1.5);
   assert.equal(p.total,5.5);
   assert.equal(p.quoteBook,"DraftKings");
-  assert.equal(p.observedAt,when);
+  assert.equal(p.observedAt,"2026-10-11T18:30:00.000Z");
   assert.equal(p.pinPresent,false);
   assert.equal(p.heritageListed,false);
   const games=mergeParlay([{
@@ -42,7 +42,7 @@ test("SharpAPI NHL two-sided moneyline and goal totals preserve authentic book t
   assert.equal(games.length,1);
   assert.equal(games[0].odds.book,"DraftKings");
   assert.equal(games[0].odds.homeMlBook,"DraftKings");
-  assert.equal(games[0].odds.observedAt,when);
+  assert.equal(games[0].odds.observedAt,"2026-10-11T18:30:00.000Z");
   assert.equal(games[0].odds.heritageListed,false);
 });
 
