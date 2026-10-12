@@ -1,4 +1,4 @@
-import fit from "../../data/models/nfl-qb-personnel-overlay-v1-fit.json" with { type: "json" };
+import fit from "../../data/models/nfl-qb-personnel-overlay-v1-fit.json";
 
 export const NFL_QB_PERSONNEL_SHADOW_ID = "NFL-QB-PERSONNEL-OVERLAY-v1";
 export const NFL_QB_PERSONNEL_GATE = Object.freeze({
