@@ -35,9 +35,27 @@ export async function linkMarketDecision(db,{decisionId,observationId,role="ENTR
  .bind(id,decisionId,observationId,String(role).toUpperCase(),decisionTimestamp,new Date().toISOString()).run();
  return {inserted:Number(r?.meta?.changes||r?.changes||0)>0,id};
 }
-export async function latestVenueOffers(db,{sport,eventId,limit=100}={}){
+// Current-board read only: historical rows remain available in the immutable ledger.
+// A recent collection timestamp never refreshes an old provider observation.
+export async function latestVenueOffers(db,{sport,eventId,limit=100,now=new Date(),maxAgeMs=24*60*60*1000}={}){
  if(!db?.prepare||!sport||!eventId)return [];
- const q=await db.prepare(`WITH ranked AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY source,market_family,coalesce(stat_family,''),coalesce(player_name,''),coalesce(side,''),coalesce(line,-999999) ORDER BY collected_at DESC,created_at DESC) rn FROM normalized_market_observations WHERE sport=? AND canonical_event_id=?) SELECT * FROM ranked WHERE rn=1 ORDER BY market_family,source,player_name,side LIMIT ?`)
- .bind(sport,eventId,Math.max(1,Math.min(500,Number(limit)||100))).all().catch(()=>({results:[]}));
+ const nowMs=now instanceof Date?now.getTime():Date.parse(String(now));
+ const ageMs=Number(maxAgeMs);
+ if(!Number.isFinite(nowMs)||!Number.isFinite(ageMs)||ageMs<=0)return [];
+ const since=new Date(nowMs-ageMs).toISOString(),until=new Date(nowMs).toISOString();
+ // Do not display a price from a completed event as a current board offer.
+ // Historical and postgame evaluation remain available via their own ledger reads.
+ const oldestEvent=new Date(nowMs-36*60*60*1000).toISOString();
+ const q=await db.prepare(`WITH ranked AS (
+ SELECT *,ROW_NUMBER() OVER(
+ PARTITION BY source,market_family,coalesce(stat_family,''),coalesce(player_name,''),coalesce(side,''),coalesce(line,-999999)
+ ORDER BY collected_at DESC,created_at DESC) rn
+ FROM normalized_market_observations
+ WHERE sport=? AND canonical_event_id=?
+ AND collected_at BETWEEN ? AND ?
+ AND (source_observed_at IS NULL OR source_observed_at='' OR source_observed_at BETWEEN ? AND ?)
+ AND (event_start_time IS NULL OR event_start_time>=?)
+ ) SELECT * FROM ranked WHERE rn=1 ORDER BY market_family,source,player_name,side LIMIT ?`)
+ .bind(sport,eventId,since,until,since,until,oldestEvent,Math.max(1,Math.min(500,Number(limit)||100))).all().catch(()=>({results:[]}));
  return q?.results||[];
 }
