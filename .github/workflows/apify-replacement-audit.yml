@@ -1,0 +1,70 @@
+name: Apify replacement providers audit
+on:
+  pull_request:
+    paths: [".github/workflows/apify-replacement-audit.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  provider-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe public coverage and authentication boundaries
+        env:
+          PARLAY_API_KEY: ${{ secrets.PARLAY_API_KEY }}
+          SPORTSGAMEODDS_API_KEY: ${{ secrets.SPORTSGAMEODDS_API_KEY }}
+        run: |
+          mkdir -p audit-output
+          cat > /tmp/probe.py <<'PY'
+          import json,os,urllib.request,urllib.error,datetime,time
+          out={"timestamp_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"results":[]}
+          probes=[
+            ("parlay_books","https://parlay-api.com/v1/bookmakers","PARLAY_API_KEY"),
+            ("parlay_props_coverage_nfl","https://parlay-api.com/v1/sports/americanfootball_nfl/props/coverage","PARLAY_API_KEY"),
+            ("parlay_props_coverage_nba","https://parlay-api.com/v1/sports/basketball_nba/props/coverage","PARLAY_API_KEY"),
+            ("parlay_prizepicks_nfl","https://parlay-api.com/v1/sports/americanfootball_nfl/props?bookmakers=prizepicks&limit=100","PARLAY_API_KEY"),
+            ("parlay_underdog_nfl","https://parlay-api.com/v1/sports/americanfootball_nfl/props?bookmakers=underdog&limit=100","PARLAY_API_KEY"),
+            ("sgo_events_nfl","https://api.sportsgameodds.com/v2/events?leagueID=NFL&oddsAvailable=true&limit=2","SPORTSGAMEODDS_API_KEY"),
+          ]
+          for name,url,keyenv in probes:
+            key=os.environ.get(keyenv,"")
+            item={"name":name,"has_credential":bool(key),"status":"not_run"}
+            if not key and name in ("parlay_prizepicks_nfl","parlay_underdog_nfl","sgo_events_nfl"):
+              item["status"]="blocked_no_credential"
+              out["results"].append(item);continue
+            headers={"User-Agent":"FBIS-ReadOnly-Audit/1.0","Accept":"application/json"}
+            if key:headers["X-API-Key"]=key
+            req=urllib.request.Request(url,headers=headers)
+            start=time.monotonic()
+            try:
+              with urllib.request.urlopen(req,timeout=15) as res:
+                raw=res.read(300000);item["http"]=res.status
+                parsed=json.loads(raw.decode("utf8"))
+                item["status"]="returned";item["latency_ms"]=round((time.monotonic()-start)*1000)
+                item["json_type"]=type(parsed).__name__
+                if isinstance(parsed,dict):
+                  item["keys"]=list(parsed.keys())[:30]
+                  for k in ("data","bookmakers","markets","results"):
+                    if isinstance(parsed.get(k),list):
+                      item[k+"_count"]=len(parsed[k])
+                      if parsed[k] and isinstance(parsed[k][0],dict):item[k+"_field_names"]=list(parsed[k][0].keys())[:40]
+                  item["next_offset"]=res.headers.get("x-next-offset")
+                  item["has_more"]=res.headers.get("x-result-has-more")
+                elif isinstance(parsed,list):
+                  item["row_count"]=len(parsed)
+                  if parsed and isinstance(parsed[0],dict):item["field_names"]=list(parsed[0].keys())[:40]
+            except urllib.error.HTTPError as e:item.update(status="http_error",http=e.code)
+            except Exception as e:item.update(status="exception",error=type(e).__name__+":"+str(e)[:160])
+            out["results"].append(item)
+          with open("audit-output/results.json","w") as f:json.dump(out,f,indent=2)
+          print(json.dumps(out,indent=2))
+          PY
+          python /tmp/probe.py
+      - name: Upload safe report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: apify-replacement-audit
+          path: audit-output/
+          retention-days: 7
