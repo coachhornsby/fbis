@@ -38,6 +38,12 @@ jobs:
           mkdir -p artifacts
           test -n "${HARVEST_SECRET:-}"
           date="$(TZ=America/Chicago date +%F)"
+          # On deploy, smoke-test the next pregame slate if today's games are over.
+          # Scheduled captures continue to request today in Chicago.
+          if [ "${{ github.event_name }}" = "push" ]; then
+            date="$(TZ=America/Chicago date -d tomorrow +%F)"
+          fi
+          echo "NHL research collection requested CT date=$date"
           code="$(curl -sS --max-time 100 -o artifacts/nhl-free-odds.json -w "%{http_code}" \
             -X POST -H "x-harvest-secret: $HARVEST_SECRET" \
             "$BASE/api/nhl-free-odds-collect?date=$date")"
