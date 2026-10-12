@@ -1,0 +1,34 @@
+name: Verify FBIS Worker source
+on:
+  pull_request:
+    paths:
+      - "workers/**"
+      - "wrangler.orchestrator.toml"
+      - "wrangler.soccer-backfill.toml"
+      - "wrangler.market-probe.toml"
+      - ".github/workflows/fbis-workers-source-audit.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Verify source files and configuration
+        run: |
+          test -f workers/sports-projection-orchestrator-worker.mjs
+          test -f workers/soccer-pitchapi-backfill-worker.mjs
+          test -f workers/market-probe-20261007-worker.mjs
+          node --check workers/soccer-pitchapi-backfill-worker.mjs
+          node --check workers/market-probe-20261007-worker.mjs
+          npx wrangler deploy --config wrangler.orchestrator.toml --dry-run --outdir /tmp/orchestrator-build
+          npx wrangler deploy --config wrangler.soccer-backfill.toml --dry-run --outdir /tmp/soccer-build
+          npx wrangler deploy --config wrangler.market-probe.toml --dry-run --outdir /tmp/probe-build
+          echo "Three GitHub reproducible worker builds; no live deploys."
