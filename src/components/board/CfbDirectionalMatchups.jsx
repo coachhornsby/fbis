@@ -55,7 +55,7 @@ export default function CfbDirectionalMatchups({game,away,home}){
   <div className="nfl-unit-grid">{rows.map(r=>{
    const winner=r.winner?teams[r.winner]:null,brand=winner?colors(winner):null;
    return <div key={r.id} className={`nfl-unit-tile ${winner?"has-edge":"is-neutral"}`} style={brand?{"--unit-primary":brand.primary,"--unit-secondary":brand.secondary}:undefined}>
-    <div className="nfl-unit-line"><div><TeamLogo team={teams[r.a]} size={32}/><strong>{teams[r.a]?.abbr} {r.aUnit}</strong></div><span>VS</span><div><TeamLogo team={teams[r.b]} size={32}/><strong>{teams[r.b]?.abbr} {r.bUnit}</strong></div></div>
+    <div className="nfl-unit-line"><div><TeamLogo team={teams[r.a]} size={32}/><strong>{r.aUnit}</strong></div><span>VS</span><div><TeamLogo team={teams[r.b]} size={32}/><strong>{r.bUnit}</strong></div></div>
     <div className="nfl-unit-result">{winner?<><TeamLogo team={winner} size={46}/><span className="nfl-unit-winner"><small>ADVANTAGE</small><strong>{winner.fullName||winner.name||winner.abbr}</strong></span></>:<strong>{r.status}</strong>}</div>
     <small>{r.value!==null?`UNIT COMPARISON ${r.value>0?"+":""}${r.value.toFixed(2)}`: "UNIT DATA PENDING"}</small>
    </div>;
