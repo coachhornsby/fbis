@@ -795,11 +795,11 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       maxAgeMs: TTL_MS,
     });
     const cachedHasUsableMarket = Array.isArray(cached.events) && cached.events.some(hasUsableMarketSummary);
-    // Soft fallback quotes without provider quote timestamps can be displayed
+    // NHL/MLB soft fallback quotes without provider quote timestamps can be displayed
     // for a bounded cache receipt interval, but are NEVER CLV/EV eligible.
     // This prevents per-request polling loops when a free feed omits last_update.
     const receiptTime = Date.parse(cachedMeta.receivedAt || "");
-    const boundedUnverifiedSoft = sportId === "nhl" &&
+    const boundedUnverifiedSoft = (sportId === "nhl" || sportId === "mlb") &&
       /^(sharpapi|therundown)-free-cacheonly$/.test(String(cachedMeta.source || "")) &&
       !cachedMeta.observedAt && !cachedMeta.asOf &&
       Number.isFinite(receiptTime) && Date.now() >= receiptTime &&
