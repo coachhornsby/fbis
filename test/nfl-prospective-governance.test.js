@@ -12,6 +12,12 @@ import {
   executableNflMarketSnapshot,
 } from "../functions/lib/nflQbPersonnelShadow.js";
 
+test("portable QB personnel fit mirrors the frozen canonical JSON", async () => {
+  const canonical=JSON.parse(readFileSync(new URL("../data/models/nfl-qb-personnel-overlay-v1-fit.json",import.meta.url),"utf8"));
+  const { default: fit } = await import("../functions/lib/nflQbPersonnelFit.js");
+  assert.deepEqual(fit,canonical);
+});
+
 test("Cloudflare-compatible criteria mirror matches the canonical immutable JSON artifact", () => {
   const canonical=JSON.parse(readFileSync(new URL("../data/models/nfl-qb-prospective-promotion-gate-v1.json",import.meta.url),"utf8"));
   assert.deepEqual(nflQbProspectiveCriteria(),canonical);
