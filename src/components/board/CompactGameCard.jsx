@@ -1,4 +1,4 @@
-import { fmt, lineLabel, bestEdge, matchupSignalLabel } from "../../lib/boardEvidence.js";
+import { lineLabel, bestEdge } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlEvidenceStrip from "./NhlEvidenceStrip.jsx";
 import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
@@ -201,15 +201,6 @@ export default function CompactGameCard({ game, onOpen }) {
   const edge = bestEdge(vm);
   const matchup = isNfl ? game?.nflGameMatchup : null;
   const genericFactors = !isNfl && Array.isArray(game?.matchupFactors) ? game.matchupFactors.slice(0, 5) : [];
-  const matchupSignals = Array.isArray(matchup?.signals) ? matchup.signals : [];
-  const matchupById = Object.fromEntries(matchupSignals.map((s) => [s.id, s]));
-  const matchupItems = [
-    ["pressure", "PRESSURE"],
-    ["run", "RUN"],
-    ["coverageRoute", "COVERAGE"],
-    ["explosive", "EXPLOSIVE"],
-    ["earlyDown", "EARLY DOWN"],
-  ].map(([id, label]) => ({ id, ...splitMatchupVisual(id, label), ...matchupSignalLabel(matchupById[id], away, home) }));
   const genericMatchupItems = genericFactors.map((factor, i) => {
     const edge = String(factor?.edge || factor?.advantage || factor?.team || "EVEN").toUpperCase();
     const homeHit = edge === String(home.abbr || "").toUpperCase();
@@ -220,9 +211,6 @@ export default function CompactGameCard({ game, onOpen }) {
     const detail = factor?.detail == null ? null : String(factor.detail);
     return { id, ...visual, text: homeHit ? home.abbr : awayHit ? away.abbr : edge || "EVEN", metric, detail, tone: homeHit ? "home" : awayHit ? "away" : "neutral" };
   });
-  const baselineMargin = Number(matchup?.baseline?.margin);
-  const finalMargin = Number(matchup?.final?.margin);
-  const matchupAdj = Number(matchup?.adjustment?.margin);
   const isFinal = String(vm.status?.key || "").toUpperCase() === "FINAL" || Boolean(game?.status?.completed);
   const finalAway = game?.away?.score ?? away?.score ?? null;
   const finalHome = game?.home?.score ?? home?.score ?? null;
