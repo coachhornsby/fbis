@@ -266,6 +266,7 @@ describe("Parlay collect budget", () => {
           bookmakers: [
             {
               key: "pinnacle",
+                  last_update: new Date().toISOString(),
               title: "Pinnacle",
               markets: [
                 { key: "h2h", outcomes: [{ name: "Chicago Cubs", price: -130 }, { name: "Pittsburgh Pirates", price: 115 }] },
@@ -407,6 +408,7 @@ describe("Parlay collect budget", () => {
               bookmakers: [
                 {
                   key: "pinnacle",
+                  last_update: new Date().toISOString(),
                   title: "Pinnacle",
                   markets: [
                     { key: "h2h", outcomes: [{ name: "Chicago Cubs", price: -140 }, { name: "Pittsburgh Pirates", price: 120 }] },
