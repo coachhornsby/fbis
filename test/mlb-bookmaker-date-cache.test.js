@@ -13,7 +13,7 @@ test("MLB free bookmaker date cache cannot borrow next-day rolling fixtures", as
     const row=(id,at,selection,odds)=>({
       event_id:id, home_team:"Milwaukee Brewers",away_team:"Los Angeles Dodgers",
       event_start_time:at,sportsbook:"draftkings",
-      updated_at:"2026-10-11T12:00:00Z",
+      // Real free tiers sometimes omit original bookmaker quote timestamps.
       market_type:"moneyline",selection_type:selection,odds_american:odds,
     });
     const rows=market==="moneyline" ? [
@@ -31,6 +31,11 @@ test("MLB free bookmaker date cache cannot borrow next-day rolling fixtures", as
     assert.equal(first.events.length,1);
     assert.equal(first.events[0].parlayId,"mlb-11");
     const calls=requests;
+    assert.equal(first.meta.observedAt,null);
+    const repeat=await fetchParlayOdds("mlb",null,null,{...opts,date:"2026-10-11"});
+    assert.equal(repeat.events.length,1);
+    assert.equal(repeat.meta.freshnessStatus,"source-timestamp-unverified");
+    assert.equal(requests,calls,"receipt-bounded unverified cache must avoid repeated provider charges");
     const second=await fetchParlayOdds("mlb",null,null,{...opts,date:"2026-10-12"});
     assert.equal(second.events.length,1);
     assert.equal(second.events[0].parlayId,"mlb-12");
