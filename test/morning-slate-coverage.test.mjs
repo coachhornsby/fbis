@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {chicagoDate,utcStamp,missingScheduledIds,checkCoverage,ENABLED_SPORTS} from "../scripts/morning-slate-coverage.mjs";
+import {chicagoDate,utcStamp,missingScheduledIds,checkCoverage,ENABLED_SPORTS,scheduleEventMatches,normalizedScheduleTeam} from "../scripts/morning-slate-coverage.mjs";
 
 test("Chicago game date follows DST and UTC midnight boundaries",()=>{
   assert.equal(chicagoDate("2026-10-13T00:15:00Z"),"2026-10-12");
@@ -40,4 +40,15 @@ test("enabled sports include every scheduled export league",()=>{
   for(const sport of ["mlb","nfl","nhl","nba","soccer","wnba","npb","kbo","cfb","cbb"]){
     assert.ok(ENABLED_SPORTS.includes(sport));
   }
+});
+
+test("ESPN MLB IDs match MLB Stats IDs by teams and kickoff, not provider identifiers",()=>{
+  const espn={id:"401908023",away:"CLE",home:"TB",start:"2026-10-13T00:00:00Z"};
+  const game={id:"849820",away:{abbr:"CLE"},home:{abbr:"TBR"},start:"2026-10-13T00:00:00Z"};
+  assert.ok(scheduleEventMatches(espn,game,"mlb"));
+  assert.deepEqual(missingScheduledIds([espn],[game],"mlb"),[]);
+  assert.equal(normalizedScheduleTeam("TB","mlb"),"TBR");
+  assert.equal(scheduleEventMatches({...espn,away:"NYY"},game,"mlb"),false);
+  assert.equal(scheduleEventMatches({...espn,start:"2026-10-12T20:00:00Z"},game,"mlb"),false);
+  assert.equal(scheduleEventMatches(espn,game,"nfl"),false);
 });

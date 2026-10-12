@@ -27,15 +27,35 @@ export function utcStamp(date,offsetDays=0){
   if(!Number.isFinite(stamp))throw Error("Invalid date "+date);
   return new Date(stamp+offsetDays*DAY_MS).toISOString().slice(0,10).replaceAll("-","");
 }
-export function missingScheduledIds(scheduled,board){
-  const available=new Set((board||[]).map(g=>String(g.id||"")).filter(Boolean));
-  return [...new Set((scheduled||[]).map(g=>String(g.id||"")).filter(Boolean))].filter(id=>!available.has(id));
+const MLB_TEAM_ALIASES={TB:"TBR",TBR:"TBR",CHW:"CWS",CWS:"CWS",WSH:"WSN",WAS:"WSN",WSN:"WSN",SF:"SFG",SFG:"SFG",SD:"SDP",SDP:"SDP",KC:"KCR",KCR:"KCR",AZ:"ARI",ARI:"ARI"};
+export function normalizedScheduleTeam(value,sport){
+  const raw=String(value||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
+  return sport==="mlb"?(MLB_TEAM_ALIASES[raw]||raw):raw;
+}
+export function scheduleEventMatches(scheduled,boardEvent,sport){
+  if(String(scheduled?.id||"")===String(boardEvent?.id||""))return true;
+  // MLB Stats IDs and ESPN IDs are different provider namespaces.
+  if(sport!=="mlb")return false;
+  const away=normalizedScheduleTeam(scheduled?.away,sport);
+  const home=normalizedScheduleTeam(scheduled?.home,sport);
+  const boardAway=normalizedScheduleTeam(boardEvent?.away?.abbr||boardEvent?.away?.abbreviation,sport);
+  const boardHome=normalizedScheduleTeam(boardEvent?.home?.abbr||boardEvent?.home?.abbreviation,sport);
+  const start=Date.parse(scheduled?.start||"");
+  const boardStart=Date.parse(boardEvent?.start||"");
+  return Boolean(away&&home&&away===boardAway&&home===boardHome&&
+    Number.isFinite(start)&&Number.isFinite(boardStart)&&
+    Math.abs(start-boardStart)<=90*60000);
+}
+export function missingScheduledIds(scheduled,board,sport=""){
+  const games=board||[];
+  return [...new Map((scheduled||[]).filter(g=>g?.id).map(g=>[String(g.id),g])).values()]
+    .filter(e=>!games.some(g=>scheduleEventMatches(e,g,sport))).map(e=>String(e.id));
 }
 export function checkCoverage(sport,board,scheduled=null){
   const games=Array.isArray(board)?board:[];
   const unmodeled=games.filter(g=>g.projection?.independent!==true);
   const duplicateIds=games.map(g=>String(g.id||"")).filter(Boolean).filter((id,i,a)=>a.indexOf(id)!==i);
-  const missing=scheduled===null?[]:missingScheduledIds(scheduled,games);
+  const missing=scheduled===null?[]:missingScheduledIds(scheduled,games,sport);
   return {sport,boardGames:games.length,independentModels:games.length-unmodeled.length,
     unavailableModels:unmodeled.length,duplicateIds:[...new Set(duplicateIds)],
     sourceStatus:scheduled===null?"SOURCE_UNVERIFIED":"ESPN_VERIFIED",
@@ -53,10 +73,19 @@ async function getBoard(sport,date){
   const url=new URL("/api/projections",BASE);
   url.searchParams.set("sport",sport);
   url.searchParams.set("date",date);
-  url.searchParams.set("_slate_check",String(Date.now()));
-  const data=await jsonGet(url.toString());
-  if(data.ok!==true||!Array.isArray(data.games))throw Error(sport+" board bad contract: "+String(data.error||"missing games"));
-  return data.games;
+  let last;
+  for(let attempt=1;attempt<=3;attempt++){
+    url.searchParams.set("_slate_check",String(Date.now())+"-"+attempt);
+    try{
+      const data=await jsonGet(url.toString());
+      if(data.ok!==true||!Array.isArray(data.games))throw Error(sport+" board bad contract: "+String(data.error||"missing games"));
+      return data.games;
+    }catch(e){
+      last=e;
+      if(attempt<3)await new Promise(resolve=>setTimeout(resolve,1000*attempt));
+    }
+  }
+  throw last;
 }
 async function getEspnSchedule(sport,date){
   const route=ESPN[sport];
@@ -72,6 +101,8 @@ async function getEspnSchedule(sport,date){
     for(const e of data.events){
       if(!e?.id||chicagoDate(e.date)!==date)continue;
       events.set(String(e.id),{id:String(e.id),start:e.date,
+        home:e.competitions?.[0]?.competitors?.find(t=>t.homeAway==="home")?.team?.abbreviation||null,
+        away:e.competitions?.[0]?.competitors?.find(t=>t.homeAway==="away")?.team?.abbreviation||null,
         state:e.status?.type?.name||null});
     }
   }
@@ -98,7 +129,7 @@ export async function auditDailySlate({date,sports=ENABLED_SPORTS,recovery=true}
     try{board=await getBoard(sport,date)}
     catch(e){boardError=String(e?.message||e)}
     let coverage=checkCoverage(sport,board,expected);
-    if(recovery && !boardError && expected && coverage.missingEventIds.length){
+    if(recovery && ((expected && coverage.missingEventIds.length)||boardError)){
       // The public slate path is cache-only for paid feeds; it may refresh free
       // source context. It must not create wager authority or initiate paid runs.
       attemptedFreeRecovery=true;
@@ -108,6 +139,7 @@ export async function auditDailySlate({date,sports=ENABLED_SPORTS,recovery=true}
         warm.searchParams.set("date",date);
         await jsonGet(warm.toString());
         board=await getBoard(sport,date);
+        boardError=null;
         coverage=checkCoverage(sport,board,expected);
       }catch(e){boardError="free-refresh-failed: "+String(e?.message||e)}
     }
