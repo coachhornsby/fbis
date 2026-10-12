@@ -1,0 +1,90 @@
+name: Deploy FBIS Workers from GitHub
+on:
+  push:
+    branches: [main]
+    paths:
+      - "workers/sports-projection-orchestrator-worker.mjs"
+      - "workers/prospective-pipeline-recovery.mjs"
+      - "workers/tennis-refresh-health.mjs"
+      - "workers/tennis-refresh-recovery.mjs"
+      - "wrangler.orchestrator.toml"
+      - "workers/soccer-pitchapi-backfill-worker.mjs"
+      - "wrangler.soccer-backfill.toml"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Select a Worker (market probe is archival and cannot deploy automatically)"
+        required: true
+        type: choice
+        options: [orchestrator, soccer-backfill]
+permissions:
+  contents: read
+concurrency:
+  group: fbis-workers-production
+  cancel-in-progress: false
+jobs:
+  orchestrator:
+    if: ${{ github.event_name == 'push' || inputs.target == 'orchestrator' }}
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Verify bundling before any deployment
+        run: npx wrangler deploy --config wrangler.orchestrator.toml --dry-run --outdir /tmp/fbis-orchestrator
+      - name: Require Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+      - name: Deploy versioned orchestrator
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.orchestrator.toml
+  soccer-backfill:
+    if: ${{ github.event_name == 'push' || inputs.target == 'soccer-backfill' }}
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Validate exact worker source
+        run: |
+          node --check workers/soccer-pitchapi-backfill-worker.mjs
+          npx wrangler deploy --config wrangler.soccer-backfill.toml --dry-run --outdir /tmp/fbis-soccer
+      - name: Guard against plain-text control tokens
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          node --input-type=module <<'JS'
+          const id=process.env.CLOUDFLARE_ACCOUNT_ID,token=process.env.CLOUDFLARE_API_TOKEN;
+          if(!id||!token)throw Error('Cloudflare credentials missing');
+          const r=await fetch(`https://api.cloudflare.com/client/v4/accounts/${id}/workers/scripts/fbis-soccer-pitchapi-backfill/settings`,{headers:{Authorization:`Bearer ${token}`}});
+          if(!r.ok)throw Error('Cannot verify soccer Worker secret bindings');
+          const data=await r.json();
+          const bindings=data.result?.bindings||[];
+          for(const name of ['SOCCER_CONTROL_TOKEN','SOCCER_WORKER_TOKEN']){
+            const b=bindings.find(x=>x.name===name);
+            if(b?.type!=='secret_text')throw Error(`${name} must be a Cloudflare secret_text binding before deploying. No changes made.`);
+          }
+          console.log('Soccer token bindings are securely configured');
+          JS
+      - name: Deploy only after security gate
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.soccer-backfill.toml
