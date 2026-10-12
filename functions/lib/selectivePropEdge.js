@@ -1,4 +1,4 @@
-import nflPropMarketCalibration from "../../data/models/nfl-prop-market-calibration-v2.json" with { type: "json" };
+import nflPropMarketCalibration from "../../data/models/nfl-prop-market-calibration-v2.json";
 
 /**
  * Selective FBIS player-prop portfolio.
