@@ -4,6 +4,7 @@ import { SHARPAPI_SPORT, sharpRowsToEvents } from "../functions/lib/sharpApi.js"
 import { THERUNDOWN_SPORT, theRundownEventsToParlay } from "../functions/lib/theRundown.js";
 import { summarizeParlayEvent, mergeParlay, fetchParlayOdds } from "../functions/lib/parlay.js";
 import { resetCacheMem } from "../functions/lib/cache.js";
+import { resolveCanonicalMarket } from "../functions/lib/canonical/marketRoles.js";
 
 test("NHL has distinct supported free-tier bookmaker routes", () => {
   assert.equal(SHARPAPI_SPORT.nhl.league,"nhl");
@@ -124,4 +125,13 @@ test("TheRundown soft NHL market conversion retains source quote",()=>{
   assert.equal(p.awayMl,115);
   assert.equal(p.quoteBook,"DraftKings");
   assert.equal(p.observedAt,"2026-10-11T18:35:00.000Z");
+});
+
+test("verified DK/FD pairs are observable consensus, never unauthorized execution",()=>{
+ const market=resolveCanonicalMarket({odds:{softSource:"sharpapi",moneylineBook:"DraftKings",pinPresent:false,
+   homeMl:-130,awayMl:115,observedAt:"2026-10-11T18:30:00Z"}});
+ assert.equal(market.consensus.moneyline.home,-130);
+ assert.equal(market.consensus.moneyline.away,115);
+ assert.equal(market.consensus.bookmaker,"DraftKings");
+ assert.equal(market.execution.available,false);
 });
