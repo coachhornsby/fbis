@@ -775,7 +775,16 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       maxAgeMs: TTL_MS,
     });
     const cachedHasUsableMarket = Array.isArray(cached.events) && cached.events.some(hasUsableMarketSummary);
-    if (!unusable && freshness.ok && cachedHasUsableMarket) {
+    // Soft fallback quotes without provider quote timestamps can be displayed
+    // for a bounded cache receipt interval, but are NEVER CLV/EV eligible.
+    // This prevents per-request polling loops when a free feed omits last_update.
+    const receiptTime = Date.parse(cachedMeta.receivedAt || "");
+    const boundedUnverifiedSoft = sportId === "nhl" &&
+      /^(sharpapi|therundown)-free-cacheonly$/.test(String(cachedMeta.source || "")) &&
+      !cachedMeta.observedAt && !cachedMeta.asOf &&
+      Number.isFinite(receiptTime) && Date.now() >= receiptTime &&
+      Date.now() - receiptTime <= TTL_MS;
+    if (!unusable && (freshness.ok || boundedUnverifiedSoft) && cachedHasUsableMarket) {
       const lineage = attachMarketLineage(cachedMeta, {
         provider: cachedMeta.provider || null,
         cached: true,
@@ -784,11 +793,11 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         retryOf: opts.retryOf || null,
       });
       // Preserve original observedAt / asOf — do not rewrite to "now".
-      lineage.observedAt = freshness.observedAt;
-      lineage.asOf = freshness.observedAt;
+      lineage.observedAt = freshness.ok ? freshness.observedAt : null;
+      lineage.asOf = freshness.ok ? freshness.observedAt : null;
       lineage.sourceMode = MARKET_SOURCE_MODE.CACHED_PROVIDER;
-      lineage.freshnessStatus = "fresh";
-      lineage.cacheAgeMs = freshness.ageMs;
+      lineage.freshnessStatus = freshness.ok ? "fresh" : "source-timestamp-unverified";
+      lineage.cacheAgeMs = freshness.ok ? freshness.ageMs : Date.now() - receiptTime;
       return { ...cached, meta: lineage };
     }
     // Stale or unusable cache: fall through to live provider pool (fail closed if all fail).
@@ -814,10 +823,31 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       if (backup.events?.length) {
         const events = summarizeUsableEvents(backup.events, sportId);
         if (events.length) {
+        const quoteTimes = events.map(e => e.observedAt).filter(Boolean).map(t => Date.parse(t));
+        const fullyTimestamped = quoteTimes.length === events.length && quoteTimes.every(Number.isFinite);
+        const observedAt = fullyTimestamped ? new Date(Math.min(...quoteTimes)).toISOString() : null;
+        const quoteTimes = events.map(e => e.observedAt).filter(Boolean).map(t => Date.parse(t));
+        const fullyTimestamped = quoteTimes.length === events.length && quoteTimes.every(Number.isFinite);
+        const observedAt = fullyTimestamped ? new Date(Math.min(...quoteTimes)).toISOString() : null;
+        const quoteTimes = events.map(e => e.observedAt).filter(Boolean).map(t => Date.parse(t));
+        const fullyTimestamped = quoteTimes.length === events.length && quoteTimes.every(Number.isFinite);
+        const observedAt = fullyTimestamped ? new Date(Math.min(...quoteTimes)).toISOString() : null;
         const payload = {
           events,
           meta: {
             enabled: true,
+            provider: "therundown",
+            receivedAt: new Date().toISOString(),
+            observedAt,
+            asOf: observedAt,
+            provider: "sharpapi",
+            receivedAt: new Date().toISOString(),
+            observedAt,
+            asOf: observedAt,
+            provider: "theodds",
+            receivedAt: new Date().toISOString(),
+            observedAt,
+            asOf: observedAt,
             remaining: backup.credits.remaining,
             used: backup.credits.used,
             cached: false,
