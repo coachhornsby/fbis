@@ -1,0 +1,7 @@
+name = "fbis-market-probe-20261007"
+main = "workers/market-probe-20261007-worker.mjs"
+compatibility_date = "2026-10-07"
+workers_dev = false
+
+# Intentionally no routes, schedules, or bindings.
+# This is an archived probe, not an automatically deployed production service.
