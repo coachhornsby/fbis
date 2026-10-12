@@ -6,6 +6,7 @@ import TeamLogo, { TeamIdentity, TicketMatchup } from "./components/TeamLogo.jsx
 import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
 import BoardGrid from "./components/board/BoardGrid.jsx";
 import { mergeBoardQaFixtures, mergeTodayQaFixtures } from "./lib/boardFixtures.js";
+import { mergeVerifiedSportBoards } from "./lib/mergeVerifiedSportBoards.js";
 import { gradeOpenBets, loadState, logBet, summarize } from "./lib/learning.js";
 import { captureSlate } from "./lib/ledger.js";
 import TrackView from "./TrackView.jsx";
@@ -144,6 +145,7 @@ export default function App() {
   const [cfbTeamsRefresh, setCfbTeamsRefresh] = useState(0);
   const boardRequestId = useRef(0);
   const todayRequestId = useRef(0);
+  const focusedTodayCache = useRef({ date: "", at: 0, results: [] });
   const trackRequestId = useRef(0);
 
   const refresh = useCallback(async (signal) => {
@@ -246,6 +248,46 @@ export default function App() {
       setTodayBoard(mergeTodayQaFixtures(data));
       setTodayLastSuccessAt(new Date().toISOString());
       setTodayStale(false);
+      // The bounded ALL response deliberately contains D1-only matchup cards.
+      // Hydrate those cards from the same verified per-sport feeds already used
+      // by the sport tabs, without scraping providers or promoting governance.
+      if (todaySport === "all" && data.health?.boardDeliveryMode === "D1_UNVERIFIED_MATCHUPS") {
+        const old = focusedTodayCache.current;
+        if (old.date === todayDate && Date.now() - old.at < 120_000 && old.results.length) {
+          setTodayBoard(mergeTodayQaFixtures(mergeVerifiedSportBoards(data, old.results)));
+        } else {
+          const targets = BOARD_SPORTS.filter((id) =>
+            Number(data.counts?.bySport?.[id] || 0) > 0 || id === "tennis" || id === "cfb"
+          );
+          const verified = [];
+          await Promise.all(targets.map(async (id) => {
+            const sub = new AbortController();
+            const timeoutId = setTimeout(() => sub.abort(), 25_000);
+            const abort = () => sub.abort();
+            ac.signal.addEventListener("abort", abort, { once: true });
+            try {
+              const url = `/api/today?date=${encodeURIComponent(todayDate)}&sport=${id}&_t=${Date.now()}`;
+              const response = await fetch(url, { signal: sub.signal });
+              if (!response.ok) return;
+              const focusedBoard = await responseJson(response, `Today ${id}`);
+              if (ac.signal.aborted || signal?.aborted || requestId !== todayRequestId.current) return;
+              verified.push({ sport: id, board: focusedBoard });
+              const restored = mergeVerifiedSportBoards(data, verified);
+              if (restored !== data) {
+                setTodayBoard(mergeTodayQaFixtures(restored));
+                setTodayLastSuccessAt(new Date().toISOString());
+              }
+            } catch {
+              // Never let a failed focused feed erase stored matchup cards.
+            } finally {
+              clearTimeout(timeoutId);
+              ac.signal.removeEventListener("abort", abort);
+            }
+          }));
+          if (!ac.signal.aborted && !signal?.aborted && requestId === todayRequestId.current)
+            focusedTodayCache.current = { date: todayDate, at: Date.now(), results: verified };
+        }
+      }
     } catch (err) {
       if (err?.name === "AbortError" || requestId !== todayRequestId.current) return;
       const msg = String(err.message || err);
