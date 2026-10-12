@@ -762,7 +762,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     return { events: [], meta: { enabled: false, remaining: null, cached: false } };
   }
   const baseball = BASEBALL.has(sportId);
-  const cacheKey = `${CACHE_VER}:odds${baseball ? "-props-v3" : ""}:${sportKey}${sportId === "nhl" && opts.date ? `:${opts.date}` : ""}`;
+  const cacheKey = `${CACHE_VER}:odds${baseball ? "-props-v3" : ""}:${sportKey}${(sportId === "nhl" || sportId === "mlb") && opts.date ? `:${opts.date}` : ""}`;
   const cached = await readCache(cacheKey, cfCache, TTL_MS);
   if (cached) {
     const cachedMeta = { ...(cached.meta || {}), cached: true };
@@ -822,9 +822,9 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     }
     // Stale or unusable cache: fall through to live provider pool (fail closed if all fail).
   }
-  // SharpAPI is a rolling upcoming fixture feed: only same-day NHL games
+  // Free provider feeds include rolling future fixtures: use matching NHL/MLB Chicago dates
   // may satisfy the requested sports/date capture or warm that slate's cache.
-  const scopeToRequestedNhlDay = (events) => sportId === "nhl" && opts.date
+  const scopeToRequestedNhlDay = (events) => (sportId === "nhl" || sportId === "mlb") && opts.date
     ? (events || []).filter(e => chicagoDateForIso(e.commence_time) === opts.date)
     : (events || []);
   if (opts.cacheOnly) {
