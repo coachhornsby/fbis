@@ -1,0 +1,20 @@
+name: Audit Pages JSON import compatibility
+on:
+  pull_request:
+    paths:
+      - 'functions/**'
+      - '.github/workflows/audit-pages-json-imports.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject unsupported JSON import attributes
+        run: |
+          if grep -RnE 'with[[:space:]]*\{[[:space:]]*type:[[:space:]]*[\x27\x22]json[\x27\x22]' functions --include='*.js' --include='*.mjs'; then
+            echo 'ERROR: native Pages builder rejects JSON import attributes'; exit 1
+          fi
+          echo 'No unsupported JSON import attributes found.'
