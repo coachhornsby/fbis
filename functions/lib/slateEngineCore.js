@@ -1762,13 +1762,15 @@ export async function buildSlate(sport, date, env = {}) {
   const noGameScheduleResolved = scheduleResolved && games.length === 0;
   const parlay = await fetchParlayOdds(id, env.PARLAY_API_KEY, env.caches, {
     date: day,
-    // NHL is disabled for billable provider fetches by default. Operators may
-    // explicitly opt in after confirming provider sport key and quota budget.
+    // NHL may use cached lines and bounded free-tier SharpAPI/TheRundown
+    // backups without opting into billable Parlay/TheOdds calls.
+    // Paid NHL collection remains explicitly disabled unless opted in.
     cacheOnly: (id === "nhl" && env.NHL_ODDS_PROVIDER_OPT_IN !== "true") ||
       Boolean(env.parlayCacheOnly) || noGameScheduleResolved,
-    strictCacheOnly: (id === "nhl" && env.NHL_ODDS_PROVIDER_OPT_IN !== "true") ||
-      (id === "cfb" && Boolean(env.cfbdCacheOnly)),
-    backupApiKey: env.THEODDS_API_KEY,
+    strictCacheOnly: (id === "cfb" && Boolean(env.cfbdCacheOnly)) ||
+      (id === "nhl" && Boolean(env.parlayCacheOnly)),
+    backupApiKey: id === "nhl" && env.NHL_ODDS_PROVIDER_OPT_IN !== "true"
+      ? null : env.THEODDS_API_KEY,
     sharpApiKey: env.SHARPAPI_API_KEY,
     theRundownApiKey: env.THERUNDOWN_API_KEY,
   });
