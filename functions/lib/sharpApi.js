@@ -16,6 +16,7 @@ const SOFT_BOOKS = ["draftkings", "fanduel"];
 /** FBIS sport → SharpAPI league + market keys for FG lines. */
 export const SHARPAPI_SPORT = {
   mlb: { league: "mlb", markets: ["moneyline", "run_line", "total_runs"] },
+  nhl: { league: "nhl", markets: ["moneyline", "puck_line", "total_goals"] },
   nba: { league: "nba", markets: ["moneyline", "point_spread", "total_points"] },
   nfl: { league: "nfl", markets: ["moneyline", "point_spread", "total_points"] },
   cfb: { league: "ncaaf", markets: ["moneyline", "point_spread", "total_points"] },
@@ -102,11 +103,16 @@ export function sharpRowsToEvents(rows = [], sportId = "mlb") {
       });
     }
     const book = ev.bookmakers.get(bk);
+    const sourceTime = row.last_update || row.updated_at || row.source_updated_at || null;
+    if (sourceTime && Number.isFinite(Date.parse(sourceTime))) {
+      const ts = new Date(sourceTime).toISOString();
+      if (!book.last_update || ts < book.last_update) book.last_update = ts;
+    }
     const mt = String(row.market_type || "").toLowerCase();
     let marketKey = null;
     if (mt === "moneyline") marketKey = "h2h";
-    else if (mt === "run_line" || mt === "point_spread" || mt === "spread") marketKey = "spreads";
-    else if (mt === "total_runs" || mt === "total_points" || mt === "total") marketKey = "totals";
+    else if (mt === "run_line" || mt === "puck_line" || mt === "point_spread" || mt === "spread") marketKey = "spreads";
+    else if (mt === "total_runs" || mt === "total_goals" || mt === "total_points" || mt === "total") marketKey = "totals";
     if (!marketKey) continue;
     if (!validAmerican(row.odds_american)) continue;
 
@@ -178,7 +184,7 @@ export function sharpRowsToEvents(rows = [], sportId = "mlb") {
           })),
         });
       }
-      if (markets.length) bookmakers.push({ key: book.key, title: book.title, markets });
+      if (markets.length) bookmakers.push({ key: book.key, title: book.title, last_update: book.last_update || null, markets });
     }
     if (!bookmakers.length) continue;
     events.push({
