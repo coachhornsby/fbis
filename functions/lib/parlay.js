@@ -139,6 +139,13 @@ function packFg(books, sportId, home, away) {
   const herAway = sideMl(heritageH2h, away);
   const softHome = sideMl(softH2h, home);
   const softAway = sideMl(softH2h, away);
+  // Never present moneyline sides from two different sportsbooks as one pair.
+  const pairedSoft = softH2h
+    .filter(r => namesMatch(r.name, home))
+    .map(h => ({ home: h, away: softH2h.find(a => a.bookKey === h.bookKey && namesMatch(a.name, away)) }))
+    .find(pair => pair.away) || null;
+  const pairedHer = herHome && herAway && herHome.bookKey === herAway.bookKey;
+  const pairedPin = pinHome && pinAway && pinHome.bookKey === pinAway.bookKey;
 
   const pinSpreadPair = pickExactRunLinePair(
     pinSpreads.filter((r) => namesMatch(r.name, home) && r.point != null),
@@ -172,26 +179,26 @@ function packFg(books, sportId, home, away) {
   const totalPair = pinTotalPair || herTotalPair || softTotalPair;
   const spread = spreadPair?.point ?? null;
   const total = totalPair?.point ?? null;
-  const hasPin = Boolean(pinHome && pinAway) || Boolean(pinSpreadPair) || Boolean(pinTotalPair);
+  const hasPin = Boolean(pairedPin) || Boolean(pinSpreadPair) || Boolean(pinTotalPair);
   const hasSoft =
     !hasPin &&
-    ((softHome && softAway) || Boolean(softSpreadPair) || Boolean(softTotalPair));
+    (Boolean(pairedSoft) || Boolean(softSpreadPair) || Boolean(softTotalPair));
 
   return {
-    homeMl: herHome?.price ?? pinHome?.price ?? softHome?.price ?? null,
-    awayMl: herAway?.price ?? pinAway?.price ?? softAway?.price ?? null,
-    fairHomeMl: pinHome && pinAway ? pinHome.price : null,
-    fairAwayMl: pinHome && pinAway ? pinAway.price : null,
-    pinHomeMl: pinHome && pinAway ? pinHome.price : null,
-    pinAwayMl: pinHome && pinAway ? pinAway.price : null,
+    homeMl: pairedHer ? herHome.price : pairedPin ? pinHome.price : pairedSoft?.home.price ?? null,
+    awayMl: pairedHer ? herAway.price : pairedPin ? pinAway.price : pairedSoft?.away.price ?? null,
+    fairHomeMl: pairedPin ? pinHome.price : null,
+    fairAwayMl: pairedPin ? pinAway.price : null,
+    pinHomeMl: pairedPin ? pinHome.price : null,
+    pinAwayMl: pairedPin ? pinAway.price : null,
     pinSpreadHomePrice: pinSpreadPair?.home.price ?? null,
     pinSpreadAwayPrice: pinSpreadPair?.away.price ?? null,
     pinSpread: pinSpreadPair?.point ?? null,
     pinTotal: pinTotalPair?.point ?? null,
     pinOverPrice: pinTotalPair?.over.price ?? null,
     pinUnderPrice: pinTotalPair?.under.price ?? null,
-    heritageHomeMl: herHome?.price ?? null,
-    heritageAwayMl: herAway?.price ?? null,
+    heritageHomeMl: pairedHer ? herHome.price : null,
+    heritageAwayMl: pairedHer ? herAway.price : null,
     heritageSpreadHomePrice: herSpreadPair?.home.price ?? null,
     heritageSpreadAwayPrice: herSpreadPair?.away.price ?? null,
     heritageOverPrice: herTotalPair?.over.price ?? null,
@@ -207,7 +214,7 @@ function packFg(books, sportId, home, away) {
     details: "",
     book: EXECUTION_BOOK,
     sharp: hasPin ? SHARP_BOOK : "",
-    heritageListed: Boolean(herHome || herAway || herSpreadPair || herTotalPair),
+    heritageListed: Boolean(pairedHer || herSpreadPair || herTotalPair),
     pinPresent: hasPin,
     softPresent: hasSoft,
   };
