@@ -1,4 +1,6 @@
-import criteria from "../../data/models/nfl-qb-prospective-promotion-gate-v1.json" with { type: "json" };
+// Pages Functions uses Wrangler 3 esbuild, which does not parse JSON import attributes.
+// The bundler supports a standard JSON default import without attributes.
+import criteria from "./nflQbProspectiveCriteria.js";
 
 function finite(v){const n=Number(v);return v==null||v===""||!Number.isFinite(n)?null:n}
 function avg(rows,key){
