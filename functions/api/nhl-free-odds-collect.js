@@ -50,6 +50,11 @@ export async function onRequestPost(context) {
         persistedMoneylineRows++;
       }
     }
+    const readback=await context.env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM nhl_bookmaker_quote_evidence WHERE captured_at=?1"
+    ).bind(capturedAt).first();
+    const readbackValidated=Number(readback?.n||0)===persistedMoneylineRows;
+    if(!readbackValidated)throw new Error("durable-quote-evidence-readback-mismatch");
     const observed=events.filter(e=>e.observedAt).length;
     const pairedMoneylines=events.filter(e=>e.homeMl!=null&&e.awayMl!=null).length;
     const payload={
@@ -61,6 +66,7 @@ export async function onRequestPost(context) {
       games:events.length,
       pairedMoneylines,
       persistedMoneylineRows,
+      readbackValidated,
       evidenceStore:"nhl_bookmaker_quote_evidence",
       pricedWithOriginalTimestamp:observed,
       capturedAt:new Date().toISOString(),
