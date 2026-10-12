@@ -43,7 +43,7 @@ jobs:
             "$BASE/api/nhl-free-odds-collect?date=$date")"
           cat artifacts/nhl-free-odds.json
           test "$code" = "200"
-          jq -e '.ok==true and .games>0 and .canQualify==false and .canAuthorizeWager==false' artifacts/nhl-free-odds.json >/dev/null
+          jq -e '.ok==true and .games>0 and .persistedMoneylineRows >= (.pairedMoneylines*2) and .canQualify==false and .canAuthorizeWager==false' artifacts/nhl-free-odds.json >/dev/null
       - uses: actions/upload-artifact@v4
         if: always()
         with:
