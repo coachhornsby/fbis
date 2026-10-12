@@ -1,0 +1,15 @@
+name = "fbis-soccer-pitchapi-backfill"
+main = "workers/soccer-pitchapi-backfill-worker.mjs"
+compatibility_date = "2026-10-05"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[observability]
+enabled = true
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+# SOCCER_CONTROL_TOKEN and SOCCER_WORKER_TOKEN exist in the live Worker as
+# plain-text bindings. Move both to true secrets before the first GitHub deploy.
+# Do not put credential values in source control.
