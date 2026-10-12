@@ -17,6 +17,8 @@ jobs:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
         with: {node-version: '22'}
+      - name: Test audit artifact secret redaction
+        run: node --test test/apify-account-audit-redaction.test.js
       - name: Read account, schedules and run metadata; never launch an Actor
         env:
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
