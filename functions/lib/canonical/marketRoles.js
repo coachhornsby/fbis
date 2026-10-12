@@ -372,10 +372,15 @@ function softConsensusFromOdds(odds, observedAt) {
   const homeEspnMl=espnNhlObserved && validAmerican(odds?.homeMl) ? num(odds.homeMl) : null;
   const awayEspnMl=espnNhlObserved && validAmerican(odds?.awayMl) ? num(odds.awayMl) : null;
   const espnMoneyline=homeEspnMl!=null&&awayEspnMl!=null?{home:homeEspnMl,away:awayEspnMl}:{home:null,away:null};
+  const officialSoftSource = ["sharpapi","therundown"].includes(String(odds?.softSource || "").toLowerCase());
+  const bookPaired = officialSoftSource && odds?.moneylineBook &&
+    validAmerican(odds?.homeMl) && validAmerican(odds?.awayMl);
+  const observedSoftMoneyline = bookPaired ? {home:num(odds.homeMl),away:num(odds.awayMl)} : null;
+  const pairedSoftMoneyline = observedSoftMoneyline || espnMoneyline;
   const hasSoftPrices =
     odds?.softSpreadHomePrice != null ||
     odds?.softOverPrice != null ||
-    (softHint && (odds?.spread != null || odds?.total != null || espnMoneyline.home != null));
+    (softHint && (odds?.spread != null || odds?.total != null || pairedSoftMoneyline.home != null));
   if (!hasSoftPrices && !softHint) {
     // ESPN / generic packed spread without pin may still be usable consensus.
     if (!odds?.pinPresent && (odds?.spread != null || odds?.total != null || odds?.homeMl != null)) {
@@ -398,7 +403,8 @@ function softConsensusFromOdds(odds, observedAt) {
     total: num(odds.total),
     books: odds?.books != null ? Number(odds.books) : null,
     source: espnNhlObserved ? "OBSERVED_ESPN" : str(odds.softSource) || "soft",
-    moneyline: espnMoneyline,
+    moneyline: pairedSoftMoneyline,
+    bookmaker: observedSoftMoneyline ? str(odds.moneylineBook) : null,
     observedOnly:espnNhlObserved,
     executable:false,
     observedAt: str(observedAt),
