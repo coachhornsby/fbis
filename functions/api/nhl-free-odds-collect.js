@@ -31,6 +31,7 @@ export async function onRequestPost(context) {
     const payload={
       ok:events.length>0,
       sport:"nhl",
+      requestedDateCt:date,
       source:result.meta?.source||null,
       provider:result.meta?.provider||null,
       games:events.length,
@@ -39,7 +40,7 @@ export async function onRequestPost(context) {
       capturedAt:new Date().toISOString(),
       cacheOnly:Boolean(result.meta?.cached),
       observations:events.map(e=>({
-        eventId:e.parlayId,home:e.homeTeam,away:e.awayTeam,
+        eventId:e.parlayId,home:e.homeTeam,away:e.awayTeam,commence:e.commence||null,
         moneylineBook:e.moneylineBook||null,spreadBook:e.spreadBook||null,totalBook:e.totalBook||null,
         homeMl:e.homeMl??null,awayMl:e.awayMl??null,
         spread:e.spread??null,total:e.total??null,
