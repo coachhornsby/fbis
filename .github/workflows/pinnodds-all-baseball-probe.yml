@@ -1,6 +1,10 @@
 name: Pinnodds all-baseball league and player-prop inventory
 on:
   workflow_dispatch:
+  schedule:
+    # 00:23, 06:23, 12:23 and 18:23 UTC, spanning Asian and US baseball windows.
+    # Exactly two sport_id=6 snapshots per run => nominal 8 requests/day.
+    - cron: "23 0,6,12,18 * * *"
   push:
     branches: [main]
     paths:
