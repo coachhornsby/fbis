@@ -4,7 +4,7 @@ import "./nhlBettingIntelligence.css";
 
 const NA="N/A";
 const pct=v=>v==null?NA:`${(v*100).toFixed(1)}%`;
-const cents=v=>v==null?NA:`${(v*100).toFixed(1).replace(/\\.0$/,"")}¢`;
+const cents=v=>v==null?NA:`${(v*100).toFixed(1).replace(/\.0$/,"")}¢`;
 const pp=v=>v==null?NA:`${v>0?"+":""}${(v*100).toFixed(1)} pp`;
 const number=v=>v==null?NA:String(v);
 function Stat({label,value,kind=""}){
@@ -20,7 +20,6 @@ export default function NhlBettingIntelligence({game,vm}){
   const validModel=b.modelProbability!=null;
   const hasReference=b.pinnedProbability!=null;
   const hasBook=poly.bid!=null||poly.ask!=null;
-  const sourceState=b.limitations[0]||"Research evidence only";
   return <section className="nhl-bi" aria-label="NHL betting intelligence research" style={{
     "--nhl-bi-team": b.team?.color||b.team?.primaryColor||b.team?.primary_color||"#b7213d"
   }}>
