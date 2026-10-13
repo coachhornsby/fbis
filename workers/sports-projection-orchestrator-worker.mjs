@@ -275,6 +275,10 @@ async function handleFetch(request, env) {
   if (!auth) return json(401, { error: "unauthorized" });
 
   try {
+    if (request.method === "GET" && url.pathname === "/api/pinnodds-baseball-probe") {
+      // Non-chargeable ready probe. Available only after OIDC authentication.
+      return json(405,{error:"method-not-allowed",probeReady:true});
+    }
     if (request.method === "POST" && url.pathname === "/api/pinnodds-baseball-probe") {
       // OIDC/control-token authenticated operator inventory. Exactly two
       // provider calls, never a cron, no market writes or wagering authority.
