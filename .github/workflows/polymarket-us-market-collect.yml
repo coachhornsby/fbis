@@ -9,10 +9,10 @@ on:
       - "functions/lib/polymarketUs.js"
       - "functions/lib/polymarketBoard.js"
       - "functions/api/polymarket-collect.js"
-      - "functions/api/polymarket-status.js"
+      - "functions/api/polymarket-status.js"\n      - "functions/lib/polymarketUsSignedWs.js"\n      - "functions/api/polymarket-ws-capture.js"
       - "functions/api/projections.js"
       - "src/components/board/**"
-      - "test/polymarket*.test.js"
+      - "test/polymarket*.test.js"\n      - "functions/lib/polymarketUsSignedWs.js"\n      - "functions/api/polymarket-ws-capture.js"
       - ".github/workflows/polymarket-us-market-collect.yml"
   push:
     branches: [main]
@@ -42,7 +42,7 @@ jobs:
         with:
           node-version: "22"
       - name: Polymarket US source/identity/governance regression tests
-        run: node --test test/polymarket-us-readonly.test.js test/polymarket-board.test.js
+        run: node --test test/polymarket-us-readonly.test.js test/polymarket-board.test.js test/polymarket-us-signed-ws.test.js
       - name: Verify production deployment before new scheduled collector
         if: github.event_name == 'push'
         run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
@@ -71,10 +71,27 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           test "$code" = "200"
           jq -e '.ok==true and .canAuthorizeWager==false and .source=="POLYMARKET_US_PUBLIC" and (.allFbisSports | length)==11 and (.states | length)==11 and (.readbackValidated == true or (.attemptedOffers==0 and .readbackValidated == null))' artifacts/polymarket-us-collect.json >/dev/null
+      - name: Read-only authenticated Polymarket US WebSocket BBO sampling
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          code="$(curl -sS --max-time 50 --retry 0 \
+            -o artifacts/polymarket-us-ws.json -w '%{http_code}' \
+            -X POST -H "x-harvest-secret: $HARVEST_SECRET" \
+            "$BASE/api/polymarket-ws-capture")"
+          jq -c '{ok,source,connected,subscribed,readOnly,tradingEnabled,sampledMarketCount,marketMessages,parsedMarketMessages,validBbo,inserted,reason}' artifacts/polymarket-us-ws.json
+          echo "- Authenticated US Market WebSocket HTTP: $code" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Matched live BBO responses: $(jq -r '.validBbo // 0' artifacts/polymarket-us-ws.json)" >> "$GITHUB_STEP_SUMMARY"
+          test "$code" = "200"
+          jq -e '.ok==true and .connected==true and .subscribed==true and .readOnly==true and .tradingEnabled==false and .canAuthorizeWager==false' artifacts/polymarket-us-ws.json >/dev/null
       - uses: actions/upload-artifact@v4
         if: always() && github.event_name != 'pull_request'
         with:
           name: polymarket-us-research-${{ github.run_id }}
-          path: artifacts/polymarket-us-collect.json
+          path: |
+            artifacts/polymarket-us-collect.json
+            artifacts/polymarket-us-ws.json
           if-no-files-found: warn
           retention-days: 14
