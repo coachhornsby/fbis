@@ -1,4 +1,5 @@
 import { fetchEspnTennisRankings, buildTennisResearchBoardRows } from "../lib/tennisPrizePicksResearch.js";
+import { marketTemporalStatus } from "../lib/marketTemporal.js";
 import {
   PRO_PLAYER_PROP_SPORTS,
   canonicalizeProPlayerPropMarket,
@@ -107,9 +108,7 @@ async function loadPrizePicksRows(db, eventIds = [], sportParam = null) {
   ).bind(...binds).all();
   const newest = new Map();
   for (const row of result?.results || []) {
-    // NFL board is intentionally limited to model-matched QB1/RB1/WR1/WR2/TE1 rows.
-    // Unmatched PrizePicks players (backups, WR3+, RB2+, TE2+) do not reach the board.
-    if (String(row.sport || "").toLowerCase() === "nfl" && num(row.fbis_projection) == null) continue;
+    // Observed prices remain research data even when no independent model exists.
     const key = [row.fbis_event_id,row.player_name,row.canonical_market,row.odds_tier,row.duration].join("|");
     if (newest.has(key)) continue;
     newest.set(key,{
@@ -157,7 +156,7 @@ async function loadPrizePicksRows(db, eventIds = [], sportParam = null) {
   return [...newest.values()];
 }
 
-function buildRows(observations, metadata) {
+export function buildRows(observations, metadata) {
   // Durable series can contain many snapshots. Keep the newest quote for each
   // event/player/market/book/selection, then pair over/under into one board row.
   const newestSide = new Map();
@@ -170,7 +169,7 @@ function buildRows(observations, metadata) {
     if (!canonical) continue;
     const selection = String(row.selection || "").toLowerCase();
     if (selection !== "over" && selection !== "under") continue;
-    const key = [row.canonical_event_id, player, canonical, row.sportsbook, selection].join("|");
+    const key = [row.canonical_event_id, player, canonical, row.market_period, row.line, row.sportsbook, selection].join("|");
     if (!newestSide.has(key)) newestSide.set(key, { ...row, sport, canonical });
   }
 
@@ -178,7 +177,7 @@ function buildRows(observations, metadata) {
   for (const row of newestSide.values()) {
     const meta = findMetadata(metadata, row) || {};
     const player = playerKey(row);
-    const key = [row.canonical_event_id, player, row.canonical, row.sportsbook].join("|");
+    const key = [row.canonical_event_id, player, row.canonical, row.market_period, row.line, row.sportsbook].join("|");
     if (!markets.has(key)) {
       const mlbId = row.sport === "mlb" ? extractMlbId(meta) : null;
       const upstreamImage = str(meta.imageUrl || meta.headshotUrl || meta.photoUrl);
@@ -246,6 +245,17 @@ function cleanHeadshotUrl(url){
   return /^https?:\/\//i.test(u) ? u : null;
 }
 
+async function propSourceStatus(db) {
+  try {
+    const result = await db.prepare(`SELECT p.source,p.state,p.reason,a.state account_state,a.reason account_reason
+      FROM external_acquisition_policy p LEFT JOIN external_acquisition_account a ON a.id='apify'
+      WHERE p.source IN ('action','prizepicks')`).all();
+    return (result?.results || []).map(row => ({ source: row.source,
+      state: row.account_state === 'BLOCKED' ? 'BLOCKED' : row.state,
+      reason: row.account_state === 'BLOCKED' ? row.account_reason : row.reason }));
+  } catch { return [{source:'acquisition',state:'UNKNOWN',reason:'ACQUISITION_STATUS_UNAVAILABLE'}]; }
+}
+
 export async function onRequestGet(context) {
   if (!context.env?.DB) return json({ ok: false, error: "database unavailable", rows: [] }, 503);
 
@@ -255,8 +265,11 @@ export async function onRequestGet(context) {
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean),
-  )].slice(0, 80);
-  const sportParam = normalizeProPropSport(url.searchParams.get("sport"));
+  )];
+  if (eventIds.length > 80) return json({ok:false,error:"EVENT_BATCH_TOO_LARGE",maxEvents:80,rows:[]},400);
+  const requestedSport = str(url.searchParams.get("sport"));
+  const sportParam = normalizeProPropSport(requestedSport);
+  if (requestedSport && !sportParam) return json({ok:true,rows:[],sports:PRO_PLAYER_PROP_SPORTS,diagnostics:{checkedEvents:eventIds.length,absenceReason:"UNSUPPORTED_PROP_SPORT"}});
   const dateParam = str(url.searchParams.get("date"));
 
   if (!eventIds.length && sportParam === "tennis") {
@@ -334,12 +347,19 @@ export async function onRequestGet(context) {
     );
     const actionRows = buildRows(observations, metadata);
     let prizePicksRows = [];
+    let prizePicksError = null;
     try {
       prizePicksRows = await loadPrizePicksRows(context.env.DB, eventIds, sportParam);
-    } catch {
+    } catch (error) {
       prizePicksRows = [];
+      prizePicksError = String(error?.message || error);
     }
-    const rows = [...actionRows, ...prizePicksRows].sort((a,b) => {
+    const checkedAt = new Date();
+    const sourceStatus = await propSourceStatus(context.env.DB);
+    const rows = [...actionRows, ...prizePicksRows].map(row => ({...row,
+      temporal: marketTemporalStatus({source:row.book,providerObservedAt:row.sourceObservedAt,
+        collectedAt:row.collectedAt,eventId:row.fbisEventId},{now:checkedAt,maxAgeMs:24*60*60*1000}),
+    })).sort((a,b) => {
       const event = String(a.fbisEventId || "").localeCompare(String(b.fbisEventId || ""));
       if (event) return event;
       const player = String(a.playerName || "").localeCompare(String(b.playerName || ""));
@@ -364,6 +384,10 @@ export async function onRequestGet(context) {
         boardRows: rows.length,
         actionRows: actionRows.length,
         prizePicksRows: prizePicksRows.length,
+        prizePicksError,
+        sourceStatus,
+        absenceReason: rows.length ? null : sourceStatus.some(s=>s.state==='BLOCKED') ? 'ACQUISITION_BLOCKED' : 'NO_OBSERVED_PROPS_FOR_EVENTS',
+        displayCheckedAt: checkedAt.toISOString(),
         metadataSources: new Set(observations.map((row) => row.source_observation_id).filter(Boolean)).size,
       },
     });

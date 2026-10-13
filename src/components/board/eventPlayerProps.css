@@ -1,0 +1,11 @@
+.event-player-props{margin:12px;border:1px solid #35506a;border-radius:10px;background:#071729;color:#e4edf8;font-size:12px}
+.event-player-props summary{cursor:pointer;padding:12px;font-weight:800;list-style-position:inside}
+.event-player-props summary span{float:right;color:#9eb3c9;font-weight:400}
+.event-props-body{padding:0 12px 12px}
+.event-props-body p{margin:8px 0;color:#b7c9da;overflow-wrap:anywhere}
+.event-props-table{overflow-x:auto;max-width:100%}
+.event-props-table table{width:100%;border-collapse:collapse;text-align:left}
+.event-props-table th,.event-props-table td{padding:8px;border-bottom:1px solid #2b4158;vertical-align:top}
+.event-props-table td span{display:block;color:#9eb3c9;font-size:11px;margin-top:3px;overflow-wrap:anywhere}
+.event-props-table td strong{display:block}
+@media(max-width:560px){.event-player-props summary span{float:none;display:block;margin-top:5px}.event-props-table table{min-width:620px}}
