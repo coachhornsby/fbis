@@ -77,9 +77,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          code="$(curl -sS --max-time 50 --retry 0 \\
-            -o artifacts/polymarket-us-ws.json -w '%{http_code}' \\
-            -X POST -H "x-harvest-secret: $HARVEST_SECRET" \\
+          code="$(curl -sS --max-time 50 --retry 0 \
+            -o artifacts/polymarket-us-ws.json -w '%{http_code}' \
+            -X POST -H "x-harvest-secret: $HARVEST_SECRET" \
             "$BASE/api/polymarket-ws-capture")"
           jq -c '{ok,source,connected,subscribed,readOnly,tradingEnabled,sampledMarketCount,marketMessages,parsedMarketMessages,validBbo,inserted,reason}' artifacts/polymarket-us-ws.json
           echo "- Authenticated US Market WebSocket HTTP: $code" >> "$GITHUB_STEP_SUMMARY"
@@ -90,6 +90,8 @@ jobs:
         if: always() && github.event_name != 'pull_request'
         with:
           name: polymarket-us-research-${{ github.run_id }}
-          path: |\n            artifacts/polymarket-us-collect.json\n            artifacts/polymarket-us-ws.json
+          path: |
+            artifacts/polymarket-us-collect.json
+            artifacts/polymarket-us-ws.json
           if-no-files-found: warn
           retention-days: 14
