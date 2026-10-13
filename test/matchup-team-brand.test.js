@@ -53,12 +53,12 @@ test("both NHL signal variants show large translucent marks without changing the
   const code=await readFile(new URL(path,import.meta.url),"utf8");
   assert.match(code,/matchupSignalColors/);
   assert.match(code,/cgc-matchup-team-mark" aria-hidden="true"/);
-  assert.match(code,/size=\\{112\\}/);
+  assert.ok(code.includes("size={112}"));
  }
  const css=await readFile(new URL("../src/components/board/universalPremiumCard.css",import.meta.url),"utf8");
- assert.match(css,/var\\(--fbis-tile-border/);
- assert.match(css,/opacity: \\.20 !important/);
- assert.match(css,/position: absolute !important/);
- assert.match(css,/pointer-events: none !important/);
- assert.match(css,/\\.cgc-matchup-pill\\.is-team-branded \\.cgc-matchup-metric/);
+ assert.ok(css.includes("var(--fbis-tile-border"));
+ assert.ok(css.includes("opacity: .20 !important"));
+ assert.ok(css.includes("position: absolute !important"));
+ assert.ok(css.includes("pointer-events: none !important"));
+ assert.ok(css.includes(".cgc-matchup-pill.is-team-branded .cgc-matchup-metric"));
 });
