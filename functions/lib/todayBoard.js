@@ -431,27 +431,36 @@ function buildMarketOddsByGame(rows = []) {
   return by;
 }
 
-/** Soft/reference books from odds_snapshots — never write into pin* fields. */
-function buildSoftMarketOddsByGame(rows = []) {
-  const by = new Map();
+/**
+ * Soft/reference books from odds_snapshots — never write into pin* fields.
+ * ML HOME/AWAY are atomic: same game, book, market, period, and capture snapshot.
+ * Equal-timestamp quotes from different books never form a fabricated pair.
+ */
+export function buildSoftMarketOddsByGame(rows = []) {
+  const buckets = new Map();
   for (const row of rows || []) {
     if (!row || row.period !== "fg" || row.rejectedPostStart) continue;
     const book = String(row.book || "");
     if (!book || book === "Pinnacle") continue;
     const id = String(row.gameId || "");
     if (!id) continue;
-    if (!by.has(id)) by.set(id, { at: 0, book });
-    const pack = by.get(id);
-    const at = Date.parse(row.capturedAt || "") || 0;
-    if (at < (pack.at || 0)) continue;
-    if (at > (pack.at || 0)) {
-      pack.at = at;
-      pack.book = book;
-      pack.homeMl = null;
-      pack.awayMl = null;
-      pack.spread = null;
-      pack.total = null;
+    const capturedAt = String(row.capturedAt || "");
+    const at = Date.parse(capturedAt) || 0;
+    if (!at) continue;
+    const key = `${id}\0${book}\0${capturedAt}`;
+    if (!buckets.has(key)) {
+      buckets.set(key, {
+        gameId: id,
+        book,
+        capturedAt,
+        at,
+        homeMl: null,
+        awayMl: null,
+        spread: null,
+        total: null,
+      });
     }
+    const pack = buckets.get(key);
     const mkt = String(row.market || "").toUpperCase();
     const side = String(row.side || "").toUpperCase();
     if (mkt === "ML") {
@@ -463,18 +472,39 @@ function buildSoftMarketOddsByGame(rows = []) {
       pack.total = row.line;
     }
   }
+  const by = new Map();
+  for (const pack of buckets.values()) {
+    // Incomplete same-book snapshots are discarded — never cross-book stitch.
+    if (pack.homeMl == null || pack.awayMl == null) continue;
+    const prev = by.get(pack.gameId);
+    if (!prev || pack.at > prev.at) {
+      by.set(pack.gameId, {
+        at: pack.at,
+        book: pack.book,
+        homeMl: pack.homeMl,
+        awayMl: pack.awayMl,
+        spread: pack.spread,
+        total: pack.total,
+      });
+    }
+  }
   return by;
 }
 
-function hydrateOddsFromSoftMarketRows(game, pack) {
+/** Soft hydrate never demotes or contradicts an existing Pinnacle/reference pair. */
+export function hydrateOddsFromSoftMarketRows(game, pack) {
   if (!pack) return game;
   const odds = { ...(game.odds || {}) };
+  const pinPairPresent =
+    odds.pinPresent === true ||
+    (odds.pinHomeMl != null && odds.pinAwayMl != null);
   // Live soft already present wins over snapshot hydrate.
   if (odds.homeMl != null && odds.awayMl != null) return { ...game, odds };
   if (pack.homeMl == null || pack.awayMl == null) return { ...game, odds };
   odds.homeMl = pack.homeMl;
   odds.awayMl = pack.awayMl;
-  odds.pinPresent = false;
+  // Soft display quotes coexist with pin* reference; never set pinPresent=false over Pin.
+  if (!pinPairPresent) odds.pinPresent = false;
   odds.moneylineBook = pack.book || odds.moneylineBook || null;
   odds.book = pack.book || odds.book || null;
   if (String(pack.book || "") === "ESPN_FEED_REFERENCE") {

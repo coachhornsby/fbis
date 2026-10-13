@@ -65,13 +65,15 @@ export function packNhlSoftBookMarketObservations(game,{date,at=new Date().toISO
   if(h==null||a==null)return {rows:[],reason:"NO_SOFT_TWO_SIDED_MONEYLINE"};
   const sum=implied(h)+implied(a);
   if(sum<0.94||sum>1.25)return {rows:[],reason:"UNPLAUSIBLE_SOFT_MONEYLINE_PAIR"};
+  // capturedAt is always FBIS freeze/acquisition time — never substitute provider clocks.
+  // sourceObservedAt is kept separately when the provider time is a verified pregame stamp.
   const observedMs=Date.parse(odds.observedAt||odds.sourceTimestamp||"");
-  const capturedAt=Number.isFinite(observedMs)&&observedMs<startMs
-    ? String(odds.observedAt||odds.sourceTimestamp)
-    : at;
+  const sourceObservedAt=Number.isFinite(observedMs)&&observedMs<startMs&&observedMs<=freezeMs
+    ? new Date(observedMs).toISOString()
+    : null;
   const base={gameId:String(game.id),sport:"nhl",date:date||null,
     book,market:"ml",period:"fg",line:null,
-    capturedAt,gameStart:game.start,checkpoint,rejectedPostStart:0,paired:1,
+    capturedAt:at,sourceObservedAt,gameStart:game.start,checkpoint,rejectedPostStart:0,paired:1,
     eventId:String(game.id)};
   // Moneyline pair only — do not invent puck/total prices when soft quotes omit them.
   return {rows:[

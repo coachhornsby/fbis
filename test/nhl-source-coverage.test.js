@@ -8,6 +8,7 @@ import {projectNhlResearchGame} from "../functions/lib/nhlResearchModel.js";
 import {NHL_PRO_V2_ARTIFACT} from "../data/models/nhl-pro-v2.js";
 import {NHL_FBIS_V1_ARTIFACT} from "../data/models/nhl-fbis-v1.js";
 import {packNhlEspnMarketObservations,packNhlSoftBookMarketObservations,nhlSourceCompleteness} from "../functions/lib/nhlFreeMarket.js";
+import {buildSoftMarketOddsByGame,hydrateOddsFromSoftMarketRows} from "../functions/lib/todayBoard.js";
 import {resolveCanonicalMarket} from "../functions/lib/canonical/marketRoles.js";
 import {marketLines} from "../src/lib/boardDecision.js";
 import {buildNhlCardEvidence} from "../src/lib/nhlCardEvidence.js";
@@ -84,14 +85,71 @@ test("NHL collector completeness is explicit without granting wager authority",(
 test("SharpAPI soft NHL quotes persist real book names into odds_snapshots rows, never Pinnacle",()=>{
  const soft={...g,odds:{softSource:"sharpapi",moneylineBook:"DraftKings",homeMl:-130,awayMl:+110,
    observedAt:"2026-10-10T22:00:00Z",pinPresent:false}};
- const x=packNhlSoftBookMarketObservations(soft,{date:"2026-10-10",at:"2026-10-10T23:00:00Z",checkpoint:"PREGAME"});
+ const freezeAt="2026-10-10T23:00:00Z";
+ const x=packNhlSoftBookMarketObservations(soft,{date:"2026-10-10",at:freezeAt,checkpoint:"PREGAME"});
  assert.equal(x.rows.length,2);
  assert.ok(x.rows.every(r=>r.book==="DraftKings"&&r.paired===1&&r.market==="ml"));
- assert.equal(x.rows[0].capturedAt,"2026-10-10T22:00:00Z");
- assert.equal(packNhlSoftBookMarketObservations({...soft,odds:{...soft.odds,softSource:"espn"}}, {date:"2026-10-10",at:"2026-10-10T23:00:00Z"}).rows.length,0);
- assert.equal(packNhlSoftBookMarketObservations({...soft,odds:{...soft.odds,pinPresent:true}}, {date:"2026-10-10",at:"2026-10-10T23:00:00Z"}).rows.length,0);
- assert.equal(packNhlSoftBookMarketObservations({...soft,odds:{...soft.odds,moneylineBook:"Pinnacle"}}, {date:"2026-10-10",at:"2026-10-10T23:00:00Z"}).rows.length,0);
+ // Honest timestamps: capturedAt is FBIS freeze time; sourceObservedAt stays separate.
+ assert.equal(x.rows[0].capturedAt,freezeAt);
+ assert.equal(x.rows[0].sourceObservedAt,"2026-10-10T22:00:00.000Z");
+ assert.equal(packNhlSoftBookMarketObservations({...soft,odds:{...soft.odds,softSource:"espn"}}, {date:"2026-10-10",at:freezeAt}).rows.length,0);
+ assert.equal(packNhlSoftBookMarketObservations({...soft,odds:{...soft.odds,pinPresent:true}}, {date:"2026-10-10",at:freezeAt}).rows.length,0);
+ assert.equal(packNhlSoftBookMarketObservations({...soft,odds:{...soft.odds,moneylineBook:"Pinnacle"}}, {date:"2026-10-10",at:freezeAt}).rows.length,0);
  assert.equal(packNhlSoftBookMarketObservations(soft,{date:"2026-10-10",at:"2026-10-11T02:01:00Z"}).rows.length,0);
+});
+test("soft packer never substitutes stale or post-start source clocks into capturedAt",()=>{
+ const freezeAt="2026-10-10T23:00:00Z";
+ const soft={...g,odds:{softSource:"sharpapi",moneylineBook:"FanDuel",homeMl:-120,awayMl:+100,
+   observedAt:"2026-10-11T03:00:00Z",pinPresent:false}};
+ const postStart=packNhlSoftBookMarketObservations(soft,{date:"2026-10-10",at:freezeAt});
+ assert.equal(postStart.rows.length,2);
+ assert.equal(postStart.rows[0].capturedAt,freezeAt);
+ assert.equal(postStart.rows[0].sourceObservedAt,null);
+ const afterFreeze=packNhlSoftBookMarketObservations({
+   ...soft,odds:{...soft.odds,observedAt:"2026-10-10T23:30:00Z"}}, {date:"2026-10-10",at:freezeAt});
+ assert.equal(afterFreeze.rows[0].capturedAt,freezeAt);
+ assert.equal(afterFreeze.rows[0].sourceObservedAt,null);
+ const missing=packNhlSoftBookMarketObservations({
+   ...soft,odds:{softSource:"sharpapi",moneylineBook:"FanDuel",homeMl:-120,awayMl:+100,pinPresent:false}},
+   {date:"2026-10-10",at:freezeAt});
+ assert.equal(missing.rows[0].capturedAt,freezeAt);
+ assert.equal(missing.rows[0].sourceObservedAt,null);
+});
+test("soft market hydrate pairs HOME/AWAY atomically from one book — never cross-book stitch",()=>{
+ const ts="2026-10-10T22:00:00Z";
+ const mixed=[
+  {gameId:"g1",book:"DraftKings",period:"fg",market:"ML",side:"HOME",price:-140,capturedAt:ts},
+  {gameId:"g1",book:"FanDuel",period:"fg",market:"ML",side:"AWAY",price:120,capturedAt:ts},
+ ];
+ assert.equal(buildSoftMarketOddsByGame(mixed).has("g1"),false);
+ const complete=[
+  ...mixed,
+  {gameId:"g1",book:"DraftKings",period:"fg",market:"ML",side:"AWAY",price:120,capturedAt:ts},
+  {gameId:"g1",book:"FanDuel",period:"fg",market:"ML",side:"HOME",price:-135,capturedAt:"2026-10-10T21:00:00Z"},
+  {gameId:"g1",book:"FanDuel",period:"fg",market:"ML",side:"AWAY",price:115,capturedAt:"2026-10-10T21:00:00Z"},
+ ];
+ const pack=buildSoftMarketOddsByGame(complete).get("g1");
+ assert.equal(pack.book,"DraftKings");
+ assert.equal(pack.homeMl,-140);
+ assert.equal(pack.awayMl,120);
+});
+test("soft hydrate preserves Pinnacle presence and coexists with soft display quotes",()=>{
+ const softPack={book:"DraftKings",homeMl:-130,awayMl:110,at:1};
+ const withPin=hydrateOddsFromSoftMarketRows(
+  {id:"g1",odds:{pinPresent:true,pinHomeMl:-125,pinAwayMl:105}}, softPack);
+ assert.equal(withPin.odds.pinPresent,true);
+ assert.equal(withPin.odds.pinHomeMl,-125);
+ assert.equal(withPin.odds.pinAwayMl,105);
+ assert.equal(withPin.odds.homeMl,-130);
+ assert.equal(withPin.odds.awayMl,110);
+ assert.equal(withPin.odds.moneylineBook,"DraftKings");
+ const pinPairOnly=hydrateOddsFromSoftMarketRows(
+  {id:"g1",odds:{pinHomeMl:-125,pinAwayMl:105}}, softPack);
+ assert.notEqual(pinPairOnly.odds.pinPresent,false);
+ assert.equal(pinPairOnly.odds.pinHomeMl,-125);
+ const softOnly=hydrateOddsFromSoftMarketRows({id:"g1",odds:{}}, softPack);
+ assert.equal(softOnly.odds.pinPresent,false);
+ assert.equal(softOnly.odds.homeMl,-130);
 });
 test("NHL provider mapping is disabled for paid collection unless separately opted in",async()=>{
  const src=await readFile(new URL("../functions/lib/slateEngineCore.js",import.meta.url),"utf8");
@@ -104,6 +162,7 @@ test("NHL provider mapping is disabled for paid collection unless separately opt
  assert.match(parlay,/nhl: "icehockey_nhl"/);
  assert.match(today,/String\(row\.book\|\|""\) !== "Pinnacle"/);
  assert.match(today,/buildSoftMarketOddsByGame|hydrateOddsFromSoftMarketRows/);
+ assert.match(today,/same book|atomic|never cross-book/i);
  assert.match(ledger,/packNhlSoftBookMarketObservations/);
  assert.match(ledger,/nhl_source_coverage_alert/);
 });
