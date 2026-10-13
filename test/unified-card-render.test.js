@@ -13,6 +13,7 @@ test('compact and featured team sports share matchup visuals and event prop expa
   const html=render(kind,game(sport));
   assert.match(html,/fbis-universal-premium/,`${sport} ${kind}`);
   assert.match(html,/PLAYER PROPS/,`${sport} ${kind}`);
+  assert.match(html,/MARKET DETAILS/,`${sport} ${kind}`);
   assert.match(html,/GAME MATCHUP/,`${sport} ${kind}`);
  }
 });

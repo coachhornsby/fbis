@@ -49,3 +49,12 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           npx wrangler deploy --config wrangler.polymarket-us-stream.toml
           echo "Published dedicated Polymarket US read-only stream; credentials provisioned separately as encrypted Worker secrets." >> "$GITHUB_STEP_SUMMARY"
+      - name: Activate collector after Pages and Worker are ready
+        if: github.event_name != 'pull_request'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+          curl --fail-with-body -sS --retry 4 --retry-all-errors --retry-delay 5 --max-time 60 -X POST -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/polymarket-stream-start"
