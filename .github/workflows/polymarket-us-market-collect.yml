@@ -9,10 +9,12 @@ on:
       - "functions/lib/polymarketUs.js"
       - "functions/lib/polymarketBoard.js"
       - "functions/api/polymarket-collect.js"
-      - "functions/api/polymarket-status.js"\n      - "functions/lib/polymarketUsSignedWs.js"\n      - "functions/api/polymarket-ws-capture.js"
+      - "functions/api/polymarket-status.js"
+      - "functions/lib/polymarketUsSignedWs.js"
+      - "functions/api/polymarket-ws-capture.js"
       - "functions/api/projections.js"
       - "src/components/board/**"
-      - "test/polymarket*.test.js"\n      - "functions/lib/polymarketUsSignedWs.js"\n      - "functions/api/polymarket-ws-capture.js"
+      - "test/polymarket*.test.js"
       - ".github/workflows/polymarket-us-market-collect.yml"
   push:
     branches: [main]
