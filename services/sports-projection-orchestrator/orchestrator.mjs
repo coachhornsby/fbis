@@ -1,4 +1,8 @@
 import crypto from 'node:crypto';
+import {
+  resolveTrackerExecutedAt,
+  trackerCalibrationEligibility,
+} from '../../functions/lib/trackerReceiptClock.js';
 
 let runtimeEnv = process.env;
 
@@ -1359,17 +1363,17 @@ function trackerTicket(row,rowNumber){
   // historical rows to Heritage ticket IDs would duplicate already-synced bets.
   const externalTicketId=trackerId;
   const placedAt=String(row["Placed At"]||"").trim();
-  // Synthetic TRACKER-* IDs predate the Placed At enrichment. Keep executedAt
-  // deterministic for a stable external identity; preserve the real placed time
-  // in tracker metadata instead of mutating an immutable execution field.
-  const executedAt=date?date+"T12:00:00.000Z":now();
+  // Prefer authenticated Placed At as ledger executedAt. Synthetic noon remains
+  // the identity-stable fallback only when Placed At is missing/unparseable, and
+  // is explicitly non-prospective (never CLV/attribution proof).
+  const clock=resolveTrackerExecutedAt({date,placedAtRaw:placedAt,nowIso:now()});
   const settled=result!=="OPEN";
   return {
     externalTicketId,executionBook:book||"Unknown",sport,date,matchupText:matchup,
     awayTeam,homeTeam,market,period:market.startsWith("F5 ")?"F5":"FG",
     selectedSide,selectedTeam:cleanSelection,executionLine:line,executionPrice:odds,
     riskAmount:risk,toWinAmount:toWin,potentialPayout:(risk!=null&&toWin!=null)?risk+toWin:null,
-    executedAt,timezone:"America/Chicago",
+    executedAt:clock.executedAt,timezone:"America/Chicago",
     importSource:"sports-betting-tracker-live-sync",matchStatus:"tracker-synced",
     recommendationStatus:"TRACKER_SYNCED",result,profit,
     settledReturn:result==="WON"&&risk!=null&&toWin!=null?risk+toWin:
@@ -1383,12 +1387,17 @@ function trackerTicket(row,rowNumber){
       betRationale:String(row["Bet Rationale"]||""),
       finalScore:String(row["Final Score"]||""),
       heritageTicketId:String(row["Heritage Ticket ID"]||"").trim(),
-      placedAt:String(row["Placed At"]||"").trim(),
+      placedAt,
+      placedAtIso:clock.placedAtIso,
+      executedAtProvenance:clock.provenance,
+      prospectiveProofEligible:clock.prospectiveProofEligible,
       eventStart:String(row["Event Start"]||"").trim(),
-      calibrationEligibility:"INELIGIBLE - TRACKER SYNC UNVERIFIED",
+      calibrationEligibility:trackerCalibrationEligibility(clock.provenance),
     }
   };
 }
+
+export { trackerTicket };
 
 export async function syncBetTrackerToD1({since="2026-09-21"}={}){
   if(!sheets.available()) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required for bet tracker sync");

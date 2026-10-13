@@ -70,16 +70,19 @@ test("settlement callers use OPEN compare-and-set and tracker cannot reopen sett
 });
 
 
-test("tracker replay preserves ledgered executedAt while still checking financial execution fields", async () => {
+test("tracker replay preserves authentic executedAt; synthetic noon may one-way repair from Placed At", async () => {
   const bets = await readFile(new URL("../functions/api/bets.js", import.meta.url), "utf8");
   assert.match(bets, /function trackerImmutableConflictFields/);
   assert.match(bets, /executionLine/);
   assert.match(bets, /executionPrice/);
   assert.match(bets, /riskAmount/);
   assert.match(bets, /trackerReplayPreservedExecutedAt:true/);
+  assert.match(bets, /trackerReplayRepairedSyntheticExecutedAt:true/);
+  assert.match(bets, /shouldRepairSyntheticTrackerClock/);
   const helperStart = bets.indexOf("function trackerImmutableConflictFields");
   const helperEnd = bets.indexOf("export async function syncTrackerBets", helperStart);
   const helper = bets.slice(helperStart, helperEnd);
+  // Financial immutable conflict helper still does not treat executedAt as a money field.
   assert.doesNotMatch(helper, /executedAt/);
 });
 

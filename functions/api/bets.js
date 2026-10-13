@@ -33,6 +33,13 @@ import { durableHealth, scheduledHealth } from "../lib/jobs.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
 import { BET_TRACKER_RECONCILE_SEED } from "../lib/betTrackerReconcileSeed.js";
+import {
+  isAuthenticTrackerReceiptClock,
+  isSyntheticTrackerNoon,
+  resolveTrackerExecutedAt,
+  shouldRepairSyntheticTrackerClock,
+  trackerCalibrationEligibility,
+} from "../lib/trackerReceiptClock.js";
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -380,6 +387,33 @@ export async function syncTrackerBets(env, tickets) {
     if (!packed.gameId && !prior?.gameId) {
       packed.gameId = await lookupTrackerGameId(env, packed, bySlate);
     }
+    // Stamp receipt-clock provenance on tracker metadata for prospective-proof gates.
+    const clock = resolveTrackerExecutedAt({
+      date: packed.date,
+      placedAtRaw: packed.trackerMetadata?.placedAt || packed.trackerMetadata?.placedAtIso || null,
+    });
+    packed.trackerMetadata = {
+      ...(packed.trackerMetadata || {}),
+      executedAtProvenance:
+        packed.trackerMetadata?.executedAtProvenance || clock.provenance,
+      prospectiveProofEligible:
+        packed.trackerMetadata?.prospectiveProofEligible ?? clock.prospectiveProofEligible,
+      placedAtIso: packed.trackerMetadata?.placedAtIso || clock.placedAtIso,
+      calibrationEligibility:
+        packed.trackerMetadata?.calibrationEligibility ||
+        trackerCalibrationEligibility(
+          packed.trackerMetadata?.executedAtProvenance || clock.provenance
+        ),
+    };
+    // Never let synthetic noon claim prospective eligibility even if metadata is stale.
+    if (!isAuthenticTrackerReceiptClock(packed.trackerMetadata.executedAtProvenance)) {
+      packed.trackerMetadata.prospectiveProofEligible = false;
+      packed.trackerMetadata.calibrationEligibility = trackerCalibrationEligibility(
+        packed.trackerMetadata.executedAtProvenance
+      );
+      packed.clvStatus = packed.clvStatus || "unavailable";
+    }
+
     let res;
     if (prior) {
       const immutableFields = trackerImmutableConflictFields(prior, packed);
@@ -392,11 +426,34 @@ export async function syncTrackerBets(env, tickets) {
         });
         continue;
       }
-      // Historical tracker rows were written under more than one executedAt
-      // derivation. Preserve the already-ledgered execution timestamp rather
-      // than treating transport-derived timestamp drift as a financial mutation.
-      res = { ok:true, already:true, existing:prior, trackerReplayPreservedExecutedAt:true };
+      // Prefer preserving an already-ledgered authentic clock. Allow one-way repair
+      // only when the ledger still carries synthetic noon and Placed At authenticates.
+      const nextClock = resolveTrackerExecutedAt({
+        date: packed.date || prior.date,
+        placedAtRaw: packed.trackerMetadata?.placedAt || null,
+      });
+      if (shouldRepairSyntheticTrackerClock(prior, { ...nextClock, date: packed.date || prior.date })) {
+        packed.executedAt = nextClock.executedAt;
+        packed.trackerMetadata = {
+          ...(packed.trackerMetadata || {}),
+          executedAtProvenance: nextClock.provenance,
+          placedAtIso: nextClock.placedAtIso,
+          prospectiveProofEligible: nextClock.prospectiveProofEligible,
+          calibrationEligibility: trackerCalibrationEligibility(nextClock.provenance),
+          receiptClockRepairedFrom: prior.executedAt,
+        };
+        res = { ok:true, already:true, existing:prior, trackerReplayRepairedSyntheticExecutedAt:true };
+      } else {
+        // Preserve the already-ledgered execution timestamp rather than treating
+        // transport-derived timestamp drift as a financial mutation.
+        res = { ok:true, already:true, existing:prior, trackerReplayPreservedExecutedAt:true };
+      }
     } else {
+      if (!isAuthenticTrackerReceiptClock(packed.trackerMetadata.executedAtProvenance) &&
+          isSyntheticTrackerNoon(packed.executedAt, packed.date)) {
+        // Keep synthetic noon for identity stability, but never as prospective proof.
+        packed.clvStatus = "unavailable";
+      }
       res = await persistExecutedBet(env, packed);
     }
     if (res.conflict) {
@@ -417,6 +474,7 @@ export async function syncTrackerBets(env, tickets) {
       continue;
     }
     const settledExisting = String(existing.result || "OPEN") !== "OPEN";
+    const repairClock = res.trackerReplayRepairedSyntheticExecutedAt === true;
     const patch = {
       gameId: existing.gameId || packed.gameId || null,
       matchupText: packed.matchupText,
@@ -425,6 +483,8 @@ export async function syncTrackerBets(env, tickets) {
       selectedSide: packed.selectedSide,
       selectedTeam: packed.selectedTeam,
       trackerMetadata: packed.trackerMetadata,
+      // One-way synthetic-noon → authenticated Placed At repair only.
+      ...(repairClock ? { executedAt: packed.executedAt } : {}),
       result: settledExisting ? existing.result : (packed.result || "OPEN"),
       profit: settledExisting ? existing.profit : packed.profit,
       settledReturn: settledExisting ? existing.settledReturn : packed.settledReturn,
