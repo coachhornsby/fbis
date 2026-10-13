@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { readPinnoddsAccountUsage } from "./pinnodds-account-usage.mjs";
 import { probePinnoddsBaseball } from "./pinnodds-baseball-probe.mjs";
 import { auditPinnoddsMlbPeriods } from "./pinnodds-mlb-period-audit.mjs";
 import { RECOVERY_CRON, recoverCurrentPipeline } from "./prospective-pipeline-recovery.mjs";
@@ -276,6 +277,10 @@ async function handleFetch(request, env) {
   if (!auth) return json(401, { error: "unauthorized" });
 
   try {
+    if(url.pathname==="/api/pinnodds-account-usage"){
+      if(request.method==="GET")return json(405,{ready:true,version:"pinnodds-account-usage-v1"});
+      if(request.method==="POST")return json(200,await readPinnoddsAccountUsage({apiKey:env.PINNODDS_API_KEY}));
+    }
     if (url.pathname === "/api/pinnodds-mlb-period-audit") {
       if(request.method==="GET")return json(405,{error:"method-not-allowed",probeReady:true,version:"mlb-period-audit-v1"});
       if(request.method==="POST"){
