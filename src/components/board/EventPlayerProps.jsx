@@ -19,7 +19,7 @@ export default function EventPlayerProps({game}) {
     return()=>controller.abort();
   },[expanded,eventId,sport]);
   if(!eventId||sport==='tennis')return null;
-  return <details className="event-player-props" onClick={event=>event.stopPropagation()} onToggle={event=>setExpanded(event.currentTarget.open)}>
+  return <details className="event-player-props" onClick={event=>event.stopPropagation()} onKeyDown={event=>event.stopPropagation()} onToggle={event=>setExpanded(event.currentTarget.open)}>
     <summary>PLAYER PROPS <span>{result ? `${result.rows.length} observed markets` : 'View sources and markets'}</span></summary>
     {expanded ? <div className="event-props-body">
       <p>Observed market prices · Research only · No wager authority</p>
