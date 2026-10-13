@@ -1,0 +1,36 @@
+name: Historical data gap and licensing audit
+on:
+  pull_request:
+    paths:
+      - scripts/audit-historical-data.py
+      - .github/workflows/historical-data-gap-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Static data-source inventory (no external downloads)
+        run: python scripts/audit-historical-data.py
+      - name: Confirm restricted sources are not import-authorized
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('audit-output/historical-gap.json'))
+          blocked={s['source'] for s in d['source_decisions'] if s['status'].startswith('blocked')}
+          assert {'MoneyPuck','Tennis-Data','Football-Data'} <= blocked
+          assert d['production_season_counts']=='not_measured'
+          print('License gate passed, production coverage explicitly unmeasured')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: historical-data-gap-inventory
+          path: audit-output/historical-gap.json
+          retention-days: 14
