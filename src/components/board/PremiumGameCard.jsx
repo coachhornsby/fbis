@@ -1,3 +1,7 @@
+import MatchupSignals from "./MatchupSignals.jsx";
+import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
+import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
+import EventPlayerProps from "./EventPlayerProps.jsx";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlBettingIntelligence from "./NhlBettingIntelligence.jsx";
 import NhlMatchupSignals from "./NhlMatchupSignals.jsx";
@@ -282,6 +286,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       </section>
       {!stored && sportId === "nhl" ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
       {!stored && sportId === "nhl" ? <NhlMatchupSignals game={game} away={away} home={home} /> : null}
+      {!stored && sportId !== "nhl" ? sportId === "nfl" ? <NflDirectionalMatchups game={game} matchup={game.nflGameMatchup} away={away} home={home} /> : sportId === "cfb" ? <CfbDirectionalMatchups game={game} away={away} home={home} /> : <MatchupSignals game={game} away={away} home={home} sport={sportId} /> : null}
       {!stored && sportId !== "nhl" ? (
         <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="pgc-nfl-action-head"><strong>ACTION</strong><span>{action.headline?.label || (action.available ? "MARKET INTEL" : action.emptyLabel || "NO SNAPSHOT")}</span></div>
@@ -290,6 +295,8 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <div><span>LINE MOVE</span><strong>{action.lineMove?.label || action.movement?.label || "NO MOVE"}</strong></div>
         </section>
       ) : null}
+
+      {!stored ? <EventPlayerProps game={game} /> : null}
 
       <footer className="pgc-footer pgc-featured-footer">
         <span>{vm.footer?.marketSourceLabel || "Market Source: —"}</span>

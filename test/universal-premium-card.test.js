@@ -32,3 +32,11 @@ test("featured cards give both full team names a balanced width and keep tennis 
  assert.match(css,/\.nhl-evidence-block>strong/);
  assert.doesNotMatch(css,/\[data-sport="tennis"\]/);
 });
+test('shared cards keep their layout on MARKET and BOARD without route-only selectors',async()=>{
+ const [css,premium,signals]=await Promise.all([load('universalPremiumCard.css'),load('premiumGameCard.css'),load('matchupSignals.css')]);
+ assert.doesNotMatch(css,/\.fbis-shell-main\.route-board/);
+ assert.doesNotMatch(premium,/\.fbis-shell-main\.route-board/);
+ assert.match(signals,/max-width:560px/);
+ assert.match(signals,/repeat\(2,minmax\(0,1fr\)\)/);
+ assert.doesNotMatch(signals,/tmc|tennis/);
+});

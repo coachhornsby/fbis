@@ -48,7 +48,7 @@ test("NHL signal tiles use each club's true secondary outline, including Utah an
 
 test("both NHL signal variants show large translucent marks without changing the top hero",async()=>{
  const {readFile}=await import("node:fs/promises");
- const paths=["../src/components/board/CompactGameCard.jsx","../src/components/board/NhlMatchupSignals.jsx"];
+ const paths=["../src/components/board/MatchupSignals.jsx"];
  for(const path of paths){
   const code=await readFile(new URL(path,import.meta.url),"utf8");
   assert.match(code,/matchupSignalColors/);
