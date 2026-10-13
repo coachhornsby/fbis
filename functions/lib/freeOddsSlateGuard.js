@@ -56,11 +56,35 @@ async function countMlbScheduled(date, fetchImpl) {
  * A missing requested gameWeek row is NOT a verified empty slate — falls back to ESPN
  * or throws for SCHEDULE_UNVERIFIED.
  */
+async function countNhlViaEspn(date, fetchImpl) {
+  const stamp = String(date || "").replace(/-/g, "");
+  const url =
+    `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${stamp}&limit=300`;
+  const json = await fetchJson(url, fetchImpl, {
+    label: "ESPN NHL scoreboard",
+    shapeCheck: (b) => Array.isArray(b?.events) || Array.isArray(b?.content?.sbData?.events),
+  });
+  const events = json?.events || json?.content?.sbData?.events || [];
+  const ctEvents = events.filter((ev) => {
+    const start =
+      ev?.date ||
+      ev?.competitions?.[0]?.date ||
+      ev?.competitions?.[0]?.startDate ||
+      null;
+    return CT_YMD(start) === date;
+  });
+  return {
+    scheduledGames: ctEvents.length,
+    scheduleSource: "espn-nhl-scoreboard",
+  };
+}
+
 async function countNhlScheduled(date, fetchImpl) {
   const adjacent = [shiftYmd(date, -1), date, shiftYmd(date, 1)].filter(Boolean);
   const byId = new Map();
   let sawRequestedCalendarRow = false;
-  let officialOk = false;
+  let officialSuccesses = 0;
+  let officialFailures = 0;
   let officialError = null;
 
   for (const day of adjacent) {
@@ -70,7 +94,7 @@ async function countNhlScheduled(date, fetchImpl) {
         label: "NHL official schedule",
         shapeCheck: (b) => Array.isArray(b?.gameWeek),
       });
-      officialOk = true;
+      officialSuccesses++;
       for (const row of json.gameWeek || []) {
         const rowDate = String(row?.date || "").slice(0, 10);
         if (rowDate === date) sawRequestedCalendarRow = true;
@@ -82,51 +106,41 @@ async function countNhlScheduled(date, fetchImpl) {
         }
       }
     } catch (error) {
+      officialFailures++;
       officialError = String(error?.message || error);
     }
   }
 
-  if (officialOk && byId.size > 0) {
+  // Positive evidence wins even if some adjacent days failed.
+  if (byId.size > 0) {
     return {
       scheduledGames: byId.size,
       scheduleSource: "nhl-official-schedule",
     };
   }
 
-  // Verified empty only when the official feed included the requested calendar row
-  // (possibly with zero games) after CT-normalized adjacent scan found none.
-  if (officialOk && sawRequestedCalendarRow && byId.size === 0) {
+  // Partial official outage with zero found games: cannot certify EMPTY_SLATE.
+  // A failed Monday request can hide a Sunday-CT game tip-off.
+  const partialOfficialOutage = officialSuccesses > 0 && officialFailures > 0;
+  const needFallback =
+    partialOfficialOutage ||
+    officialSuccesses === 0 ||
+    !sawRequestedCalendarRow;
+
+  if (!needFallback && sawRequestedCalendarRow && byId.size === 0) {
+    // All adjacent official requests succeeded, requested row present, CT count zero.
     return { scheduledGames: 0, scheduleSource: "nhl-official-schedule" };
   }
 
-  // Missing requested date in gameWeek (or official wholly unavailable) → ESPN fallback.
   try {
-    const stamp = String(date || "").replace(/-/g, "");
-    const url =
-      `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${stamp}&limit=300`;
-    const json = await fetchJson(url, fetchImpl, {
-      label: "ESPN NHL scoreboard",
-      shapeCheck: (b) => Array.isArray(b?.events) || Array.isArray(b?.content?.sbData?.events),
-    });
-    const events = json?.events || json?.content?.sbData?.events || [];
-    const ctEvents = events.filter((ev) => {
-      const start =
-        ev?.date ||
-        ev?.competitions?.[0]?.date ||
-        ev?.competitions?.[0]?.startDate ||
-        null;
-      return CT_YMD(start) === date;
-    });
-    return {
-      scheduledGames: ctEvents.length,
-      scheduleSource: "espn-nhl-scoreboard",
-    };
+    return await countNhlViaEspn(date, fetchImpl);
   } catch (espnError) {
-    throw new Error(
-      officialOk && !sawRequestedCalendarRow
-        ? `nhl-schedule-date-absent:${date}`
-        : `nhl-schedule-unverified:${officialError || espnError?.message || espnError}`
-    );
+    const reason = !sawRequestedCalendarRow && !partialOfficialOutage
+      ? `nhl-schedule-date-absent:${date}`
+      : partialOfficialOutage
+        ? `nhl-schedule-partial-outage:${officialError || espnError?.message || espnError}`
+        : `nhl-schedule-unverified:${officialError || espnError?.message || espnError}`;
+    throw new Error(reason);
   }
 }
 

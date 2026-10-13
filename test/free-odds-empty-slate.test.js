@@ -216,6 +216,7 @@ test("NHL CT boundary: adjacent official day supplies game for requested Chicago
 });
 
 test("NHL verified empty requires requested calendar row present", async () => {
+  // All adjacent official days succeed; requested row empty; no CT games.
   const fetchImpl = async () => ({
     ok: true,
     json: async () => ({
@@ -226,6 +227,61 @@ test("NHL verified empty requires requested calendar row present", async () => {
   assert.equal(empty.ok, true);
   assert.equal(empty.scheduledGames, 0);
   assert.equal(empty.scheduleSource, "nhl-official-schedule");
+});
+
+test("NHL partial adjacent outage does not certify EMPTY_SLATE", async () => {
+  // Requested Sunday row succeeds empty, but Monday official fails — a CT-Sunday
+  // tip-off may live on Monday's feed. Must fall back (or go red), never empty.
+  let espnHits = 0;
+  const fetchImplRecoverable = async (url) => {
+    const u = String(url);
+    if (u.includes("api-web.nhle.com")) {
+      const day = u.split("/").pop();
+      if (day === "2026-10-13") return { ok: false, status: 503 };
+      return {
+        ok: true,
+        json: async () => ({
+          gameWeek: [{ date: "2026-10-12", games: [] }],
+        }),
+      };
+    }
+    if (u.includes("site.api.espn.com")) {
+      espnHits++;
+      return {
+        ok: true,
+        json: async () => ({
+          events: [{ id: "401", date: "2026-10-13T04:00:00Z" }], // Sunday 11pm CT
+        }),
+      };
+    }
+    throw new Error(`unexpected ${u}`);
+  };
+  const recovered = await verifyCtScheduleGameCount("nhl", "2026-10-12", {
+    fetchImpl: fetchImplRecoverable,
+  });
+  assert.equal(recovered.ok, true);
+  assert.equal(recovered.scheduledGames, 1);
+  assert.equal(recovered.scheduleSource, "espn-nhl-scoreboard");
+  assert.ok(espnHits > 0);
+
+  const fetchImplRed = async (url) => {
+    const u = String(url);
+    if (u.includes("api-web.nhle.com")) {
+      const day = u.split("/").pop();
+      if (day === "2026-10-13") return { ok: false, status: 503 };
+      return {
+        ok: true,
+        json: async () => ({
+          gameWeek: [{ date: "2026-10-12", games: [] }],
+        }),
+      };
+    }
+    return { ok: false, status: 502 };
+  };
+  const red = await verifyCtScheduleGameCount("nhl", "2026-10-12", { fetchImpl: fetchImplRed });
+  assert.equal(red.ok, false);
+  assert.match(String(red.error), /nhl-schedule-partial-outage|nhl-schedule-unverified/);
+  assert.equal(red.scheduledGames, null);
 });
 
 test("NHL workflow jq rejects games>0 with zero paired moneylines", () => {
