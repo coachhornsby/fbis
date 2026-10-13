@@ -2,28 +2,38 @@
  * Market display overlay only: read immutable Polymarket US observations.
  * Never hydrate stale quotes as actionable execution prices or model inputs.
  */
+import { marketTemporalStatus, providerObservationTime } from "./marketTemporal.js";
+
 export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Date(),maxAgeMs=45*60*1000}={}){
- const ids=[...new Set(games.map(g=>String(g.id||"")).filter(Boolean))].slice(0,100);
+ const ids=[...new Set(games.map(g=>String(g.id||"")).filter(Boolean))];
  if(!db?.prepare||!ids.length)return {byId:new Map(),source:"Polymarket US",available:false};
  const end=now.toISOString(),cutoff=new Date(now.getTime()-maxAgeMs).toISOString();
- const params=ids.map(()=>"?").join(",");
+ const rows=[];
+ for(let i=0;i<ids.length;i+=40){
+ const chunk=ids.slice(i,i+40);
+ const params=chunk.map(()=>"?").join(",");
  const query=`WITH fresh AS (
-  SELECT canonical_event_id,sport,source,market_family,side,line,period,contract_price,source_market_id,
+  SELECT id,canonical_event_id,sport,source,market_family,side,line,period,contract_price,source_market_id,source_outcome_id,event_start_time,
     collected_at,source_observed_at,raw_payload_json,execution_eligible,can_qualify,can_authorize_wager,
-    ROW_NUMBER() OVER (PARTITION BY source,canonical_event_id,market_family,source_market_id,side,line ORDER BY collected_at DESC) rn
+    ROW_NUMBER() OVER (PARTITION BY source,canonical_event_id,market_family,source_market_id,source_outcome_id,period,side,line ORDER BY collected_at DESC,id DESC) rn
   FROM normalized_market_observations
   WHERE source IN ('Polymarket US','Polymarket US WebSocket') AND sport=? AND canonical_event_id IN (${params})
     AND collected_at BETWEEN ? AND ?
     AND (event_start_time IS NULL OR event_start_time >= ?)
- ) SELECT * FROM fresh WHERE rn=1 ORDER BY canonical_event_id,CASE WHEN source='Polymarket US WebSocket' THEN 0 ELSE 1 END,market_family,source_market_id LIMIT 240`;
- const rows=(await db.prepare(query).bind(sport,...ids,cutoff,end,
-   new Date(now.getTime()-8*60*60*1000).toISOString()).all())?.results||[];
+ ) SELECT * FROM fresh WHERE rn=1 ORDER BY canonical_event_id,CASE WHEN source='Polymarket US WebSocket' THEN 0 ELSE 1 END,market_family,source_market_id,id LIMIT ? OFFSET ?`;
+ for(let offset=0;;offset+=500){
+ const page=(await db.prepare(query).bind(sport,...chunk,cutoff,end,
+   new Date(now.getTime()-8*60*60*1000).toISOString(),500,offset).all())?.results||[];
+ rows.push(...page);
+ if(page.length<500)break;
+ }
+ }
  const byId=new Map();
  for(const r of rows){
   const key=String(r.canonical_event_id);
   if(!byId.has(key))byId.set(key,[]);
   const arr=byId.get(key);
-  if(arr.length>=12)continue;
+
   const display=Number(r.contract_price);
   let raw=null;
   if(r.source==="Polymarket US WebSocket"){
@@ -36,16 +46,24 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
         includesOvertimeAndShootout:parsed?.includesOvertimeAndShootout===true};
     }catch{raw=null}
   }
+  let payload=null;
+  try{payload=JSON.parse(r.raw_payload_json||"null")}catch{}
+  const providerObservedAt=providerObservationTime({source:r.source,raw:payload,sourceObservedAt:
+    payload && Object.hasOwn(payload,"sourceObservedAt") ? payload.sourceObservedAt :
+    payload?.quoteProvenance==="collector-capture-only" ? null : r.source_observed_at});
+  const temporal=marketTemporalStatus({source:r.source,providerObservedAt,collectedAt:r.collected_at,
+    eventId:r.canonical_event_id,eventStartAt:r.event_start_time},{now,maxAgeMs});
+  if(!temporal.currentDisplayEligible)continue;
   arr.push({
     source:r.source,marketFamily:r.market_family,side:r.side,period:r.period,
     line:r.line,contractPrice:r.contract_price==null?null:Number.isFinite(display)?display:null,
     americanOdds:null,quoteKind:r.source==="Polymarket US WebSocket"?"OBSERVED_BBO_NOT_GUARANTEED_FILL":"DISPLAY_REFERENCE_NOT_EXECUTABLE",
-    sourceMarketId:r.source_market_id,observedAt:r.collected_at,collectedAt:r.collected_at,
-    sourceObservedAt:r.source_observed_at,raw,
+    sourceMarketId:r.source_market_id,sourceOutcomeId:r.source_outcome_id,observedAt:providerObservedAt,collectedAt:r.collected_at,
+    sourceObservedAt:providerObservedAt,providerObservedAt,temporal,raw,
     executionEligible:false,canQualify:false,canAuthorizeWager:false
   });
  }
- return {byId,source:"Polymarket US",available:rows.length>0};
+ return {byId,source:"Polymarket US",available:[...byId.values()].some(x=>x.length>0),diagnostics:{requestedEvents:ids.length,loadedObservations:rows.length,displayedOffers:[...byId.values()].reduce((n,x)=>n+x.length,0)}};
 }
 export function attachPolymarketBoardOffers(cards,loaded){
  return (cards||[]).map(card=>{
