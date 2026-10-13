@@ -4,10 +4,10 @@ on:
     - cron: '23 0,3,6,9,12,15,18,21 * * *'
   workflow_dispatch:
   pull_request:
-    paths: ['workers/pinnodds-governed-capture.mjs','functions/lib/pinnodds*.js','functions/api/pinnodds*.js','scripts/collect-pinnodds-governed.mjs','.github/workflows/pinnodds-governed-capture.yml']
+    paths: ['workers/pinnodds-governed-capture.mjs','functions/lib/pinnodds*.js','functions/api/pinnodds*.js','scripts/collect-pinnodds-governed.mjs','scripts/github-oidc.mjs','test/github-oidc.test.mjs','.github/workflows/pinnodds-governed-capture.yml']
   push:
     branches: [main]
-    paths: ['workers/pinnodds-governed-capture.mjs','functions/lib/pinnodds*.js','functions/api/pinnodds*.js','scripts/collect-pinnodds-governed.mjs','.github/workflows/pinnodds-governed-capture.yml']
+    paths: ['workers/pinnodds-governed-capture.mjs','functions/lib/pinnodds*.js','functions/api/pinnodds*.js','scripts/collect-pinnodds-governed.mjs','scripts/github-oidc.mjs','test/github-oidc.test.mjs','.github/workflows/pinnodds-governed-capture.yml']
 permissions:
   contents: read
   id-token: write
@@ -26,7 +26,7 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: '22'
-      - run: node --test test/pinnodds-markets.test.js test/pinnodds-governed-capture.test.mjs test/pinnodds-ingestion.test.js test/pinnodds-player-props.test.js
+      - run: node --test test/pinnodds-markets.test.js test/pinnodds-governed-capture.test.mjs test/pinnodds-ingestion.test.js test/pinnodds-player-props.test.js test/github-oidc.test.mjs
       - name: Verify exact production release before writing
         if: github.event_name == 'push'
         run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
