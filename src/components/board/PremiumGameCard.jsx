@@ -2,6 +2,7 @@ import MatchupSignals from "./MatchupSignals.jsx";
 import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
 import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
+import EventMarkets from "./EventMarkets.jsx";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlBettingIntelligence from "./NhlBettingIntelligence.jsx";
 import NhlMatchupSignals from "./NhlMatchupSignals.jsx";
@@ -296,7 +297,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </section>
       ) : null}
 
-      {!stored ? <EventPlayerProps game={game} /> : null}
+      {!stored ? <><EventMarkets game={game} /><EventPlayerProps game={game} /></> : null}
 
       <footer className="pgc-footer pgc-featured-footer">
         <span>{vm.footer?.marketSourceLabel || "Market Source: —"}</span>

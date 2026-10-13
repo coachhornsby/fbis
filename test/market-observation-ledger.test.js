@@ -20,3 +20,11 @@ test("invalid current-board read clocks fail closed before SQL",async()=>{
  assert.deepEqual(await latestVenueOffers(db,{sport:"nfl",eventId:"e1",maxAgeMs:-1}),[]);
  assert.equal(db.calls.length,0);
 });
+
+test("identical lines in distinct periods receive distinct immutable observation IDs",async()=>{
+ const offer={source:'PinnOdds',sourceType:'sportsbook',sport:'mlb',eventId:'game',marketFamily:'total',side:'over',line:4.5,decimalOdds:1.9,sourceMarketId:'market',sourceOutcomeId:'over',sourceObservedAt:null};
+ const opts={collectedAt:'2026-10-13T17:00:00Z'},db=dbMock();
+ const full=await persistNormalizedMarketObservation(db,{...offer,period:'full_game'},opts);
+ const first=await persistNormalizedMarketObservation(db,{...offer,period:'first_five'},opts);
+ assert.notEqual(full.id,first.id);
+});

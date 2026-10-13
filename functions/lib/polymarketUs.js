@@ -13,6 +13,8 @@ const CODE_ALIASES = {tbr:"tb",tampa:"tb",sfg:"sf",sd:"sdp",wsn:"wsh",was:"wsh",
 const tidyCode = value => CODE_ALIASES[CLEAN(value).replace(/ /g,"")]||CLEAN(value).replace(/ /g,"");
 export function classifyPolymarketUsLeague(league={}) {
   const slug=CLEAN(league.slug).replace(/ /g,"-"), name=CLEAN(league.name);
+  const listedAlias={itfm:'tennis',itfw:'tennis',atpcq:'tennis',wcbb:'cbb',fwc:'soccer',lal:'soccer',bun:'soccer',sea:'soccer',nb1:'soccer',flc:'soccer'};
+  if(listedAlias[slug])return listedAlias[slug];
   const is=(re)=>re.test(slug)||re.test(name);
   if(is(/^(nfl|national-football-league)$|national football league/))return "nfl";
   if(is(/^(ncaaf|cfb|college-football)$|college football|ncaa football/))return "cfb";
@@ -77,6 +79,7 @@ export function matchPolymarketUsEvent(e,games=[],sport){
     {id:null,reason:candidates.length?"AMBIGUOUS_EVENT_MATCH":"UNMATCHED_PROVIDER_EVENT"};
 }
 export function parsePolymarketUsPrice(value){
+  if(value==null||value==="")return null;
   const n=Number(typeof value==="object"&&value!==null?value.value:value);
   return Number.isFinite(n)&&n>=0&&n<=1?Number(n.toFixed(5)):null;
 }
@@ -89,7 +92,7 @@ export function polymarketUsMarketFamily(m={}){
   return "unclassified";
 }
 /** Display quote != executable best ask. Preserve both distinctly. */
-export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=new Date().toISOString(),maxMarkets=8}={}){
+export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=new Date().toISOString(),maxMarkets=Infinity}={}){
   const markets=Array.isArray(e.markets)?e.markets.slice(0,Math.max(0,maxMarkets)):[];
   const offers=[];
   const providerEventId=String(e.id||e.gameId||"");
@@ -110,11 +113,13 @@ export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=ne
         homeTeam:e.homeTeam?.name||null,awayTeam:e.awayTeam?.name||null,
         marketFamily:family,statFamily:null,side:label,line:m.line,
         contractPrice:price,americanOdds:null,executionEligible:false,
-        standardOrAlt:"unknown",period:"full_game",sourceMarketId:slug,
+        standardOrAlt:"unknown",period:/full_game/i.test(String(m.sportsMarketType||""))?"full_game":"unspecified",sourceMarketId:slug,
         sourceOutcomeId:String(side.id||side.identifier||label),fetchedAt:capturedAt,
         raw:{providerEventId,providerMarketId:String(m.id||slug),providerOutcomeId:String(side.id||""),
           providerTitle:e.title||null,marketTitle:m.question||m.title||null,
           providerMarketType:m.sportsMarketTypeV2||m.sportsMarketType||null,
+          contractLong:typeof side.long==="boolean"?side.long:null,
+          providerMarket:m,providerSide:side,
           marketState:m.status||null,providerEventState:e.eventState?.type||null,
           isLive:Boolean(e.live||e.eventState?.live),sideDescription:label,
           displayedProbability:price,priceKind:"DISPLAY_QUOTE_NOT_BEST_ASK",

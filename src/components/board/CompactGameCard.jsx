@@ -1,4 +1,5 @@
 import EventPlayerProps from "./EventPlayerProps.jsx";
+import EventMarkets from "./EventMarkets.jsx";
 import { lineLabel, bestEdge } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlBettingIntelligence from "./NhlBettingIntelligence.jsx";
@@ -346,7 +347,7 @@ export default function CompactGameCard({ game, onOpen }) {
       )}
 
 
-      {!stored ? <EventPlayerProps game={game} /> : null}
+      {!stored ? <><EventMarkets game={game} /><EventPlayerProps game={game} /></> : null}
 
       <footer className="cgc-footer">
         <div className="cgc-footer-metric">
