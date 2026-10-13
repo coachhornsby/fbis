@@ -2,13 +2,10 @@ name: Zen ACTION daily full slate
 
 on:
   schedule:
-    # GitHub cron is UTC. Fire redundant windows covering 07:30-10:30 Chicago
-    # across both CDT/CST; the job itself gates to the intended CT hours.
-    - cron: "30 12,13,14,15,16 * * *"
-    - cron: "0 13,14,15,16 * * *"
-  push:
-    branches: [main]
-    paths: [".github/workflows/action-daily-snapshot.yml"]
+    # One UTC daily trigger: 09:30 CDT / 08:30 CST.
+    # An atomic server-side guard also caps all ACTION paid launches at one per rolling 24h.
+    # Acquisition remains administratively BLOCKED until the operator reauthorizes it.
+    - cron: "30 14 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -20,7 +17,6 @@ permissions:
 
 jobs:
   collect:
-    if: github.event_name != 'schedule' || ((github.event.schedule == '30 12,13,14,15,16 * * *') || (github.event.schedule == '0 13,14,15,16 * * *'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
