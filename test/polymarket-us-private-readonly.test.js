@@ -10,11 +10,11 @@ test("signed REST credentials strictly permit GET-only portfolio and never order
  const prefix=Buffer.from("302e020100300506032b657004220420","hex");
  const pk=createPrivateKey({key:Buffer.concat([prefix,Buffer.alloc(32,10)]),format:"der",type:"pkcs8"});
  for(const path of POLY_US_ACCOUNT_READ_PATHS){
-  const h=await signedPolymarketUsAccountGetHeaders({keyId,secretKey:secret,path,webCrypto});
+  const h=await signedPolymarketUsAccountGetHeaders({keyId,secretKey:secret,path,webCrypto:webcrypto});
   assert.ok(verify(null,Buffer.from(h["X-PM-Timestamp"]+"GET"+path),createPublicKey(pk),Buffer.from(h["X-PM-Signature"],"base64")));
   assert.ok(!JSON.stringify(h).includes(secret));
  }
- await assert.rejects(signedPolymarketUsAccountGetHeaders({keyId,secretKey:secret,path:"/v1/orders",webCrypto}),/not-allowed/);
+ await assert.rejects(signedPolymarketUsAccountGetHeaders({keyId,secretKey:secret,path:"/v1/orders",webCrypto:webcrypto}),/not-allowed/);
 });
 test("private sync uses only 3 GETs, excludes bank records, saves deduped trade/position, returns aggregate-only",async()=>{
  const queries=[],bindings=[],calls=[];
