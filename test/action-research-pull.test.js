@@ -55,6 +55,17 @@ test("historical Action research hard-clamps configured budget to $25", async ()
   assert.ok(body.plan.estimatedCostUsd <= 0.75 + 1e-9);
 });
 
+test("POST with sport cannot start a separate paid Action research run", async () => {
+  const res=await onRequestPost({
+    request:req("https://example.test/api/action-research-pull",{method:"POST",body:JSON.stringify({sport:"nhl",maxItems:20})}),
+    env:baseEnv(),
+  });
+  assert.equal(res.status,409);
+  const body=await res.json();
+  assert.equal(body.executed,false);
+  assert.equal(body.status,"action_research_paid_paused");
+});
+
 test("POST without sport fails before any Actor execution", async () => {
   const res=await onRequestPost({
     request:req("https://example.test/api/action-research-pull",{method:"POST",body:JSON.stringify({})}),
