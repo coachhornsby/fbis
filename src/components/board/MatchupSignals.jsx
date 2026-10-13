@@ -1,3 +1,4 @@
+import "./matchupSignals.css";
 import TeamLogo from '../TeamLogo.jsx';
 import {matchupAdvantageTeam,matchupSignalColors} from '../../lib/matchupTeamBrand.js';
 import {splitMatchupVisual} from '../../lib/matchupVisual.js';

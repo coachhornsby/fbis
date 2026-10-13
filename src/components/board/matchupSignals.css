@@ -1,0 +1,10 @@
+/* Component-scoped layout works in BOARD and MARKET; Tennis has no shared shell. */
+.fbis-shell-main .fbis-universal-premium .cgc-matchup-read{margin:10px 12px;padding:10px;border:1px solid #35506a;border-radius:10px}
+.fbis-shell-main .fbis-universal-premium .cgc-matchup-read-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;font-size:11px}
+.fbis-shell-main .fbis-universal-premium .cgc-matchup-read-head strong{display:block;color:#e4f2ff;margin-top:3px}
+.fbis-shell-main .fbis-universal-premium .cgc-matchup-read .cgc-matchup-pills{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(100px,1fr))!important;gap:6px!important;flex-wrap:wrap!important;overflow:visible!important}
+.fbis-shell-main .fbis-universal-premium .cgc-matchup-read .cgc-matchup-pill{min-width:0!important;min-height:88px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:8px;padding:10px 6px;border:1px solid #30485e;border-radius:8px;color:#e4edf8;font-size:12px;flex:initial!important}
+.fbis-shell-main .fbis-universal-premium .cgc-matchup-pill-label{display:flex;align-items:center;gap:4px;text-align:center}
+.fbis-shell-main .fbis-universal-premium .cgc-matchup-pill-label em{font-style:normal;font-size:10px;font-weight:800}
+.fbis-shell-main .fbis-universal-premium .cgc-matchup-icon{font-style:normal;font-size:11px;font-weight:800}
+@media(max-width:560px){.fbis-shell-main .fbis-universal-premium .cgc-matchup-read .cgc-matchup-pills{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
