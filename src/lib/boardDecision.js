@@ -511,8 +511,13 @@ export function marketLines(game) {
     const awayMl = useExec ? exec.moneyline?.away : useCons ? cons.moneyline?.away : useRef ? ref.moneyline?.away : null;
     let book = "Market";
     if (useExec) book = exec.book || "Execution";
-    else if (useCons) book = cons.source === "ACTION" ? "Consensus" : cons.source || "Consensus";
-    else if (useRef) book = "Reference";
+    else if (useCons) {
+      // Prefer real sportsbook name for durable soft evidence; never invent a transport.
+      book =
+        cons.source === "ACTION"
+          ? "Consensus"
+          : cons.bookmaker || cons.source || "Consensus";
+    } else if (useRef) book = "Reference";
     return {
       spread: spread == null || Number.isNaN(Number(spread)) ? null : Number(spread),
       total: total == null || Number.isNaN(Number(total)) ? null : Number(total),

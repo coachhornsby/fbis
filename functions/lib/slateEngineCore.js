@@ -267,6 +267,8 @@ function parseOdds(comp, sport) {
     book: sport === "nhl" ? "ESPN_FEED_REFERENCE" : EXECUTION_BOOK,
     nhlEspnObserved: sport === "nhl",
     softSource: "espn",
+    // ESPN soft quotes must never be treated as Pinnacle (pinPresent !== false elsewhere).
+    ...(sport === "nhl" ? { pinPresent: false } : {}),
   };
 }
 

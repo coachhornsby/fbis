@@ -50,7 +50,7 @@ import {
 import { classifyCheckpoint, materiallyChanged, pickCanonical, snapshotKey, CHECKPOINTS, rowsForCheckpoint } from "./checkpoints.js";
 import { auditNhlMoneylineProbability } from "./nhlUnifiedMoneylineShadow.js";
 import { nhlMoneylineSnapshotEvidence, verifiedNhlProbabilityView } from "./nhlMoneylineSnapshotEvidence.js";
-import { packNhlEspnMarketObservations, nhlSourceCompleteness } from "./nhlFreeMarket.js";
+import { packNhlEspnMarketObservations, packNhlSoftBookMarketObservations, nhlSourceCompleteness } from "./nhlFreeMarket.js";
 import { buildAccuracyPack } from "./accuracyReport.js";
 import { overDiagnostics } from "./overDiagnostics.js";
 import { buildDailyReport } from "./dailyReport.js";
@@ -2053,14 +2053,21 @@ async function persistSnap(env, row, date, game = null) {
     ? packPinOddsRows({ ...game, date, sport: row.sport, start: row.start || game.start }, { capturedAt: new Date().toISOString(), checkpoint: row.checkpoint })
     : { rows: [] };
   let rows = packed.rows;
-  // NHL free scoreboard reference is not Pinnacle or an execution book.
-  // Preserve its original book/collection time and never insert post-puck-drop.
+  // NHL: Pin first, then free soft books (SharpAPI/TheRundown), then ESPN reference.
+  // Soft books keep real bookmaker names — never invent Pinnacle from soft quotes.
   if (!rows.length && game?.sport === "nhl") {
-    const reference = packNhlEspnMarketObservations(
+    const soft = packNhlSoftBookMarketObservations(
       {...game, date, sport:"nhl",start:row.start||game.start},
       {date,at:new Date().toISOString(),checkpoint:row.checkpoint}
     );
-    rows=reference.rows;
+    rows = soft.rows;
+    if (!rows.length) {
+      const reference = packNhlEspnMarketObservations(
+        {...game, date, sport:"nhl",start:row.start||game.start},
+        {date,at:new Date().toISOString(),checkpoint:row.checkpoint}
+      );
+      rows=reference.rows;
+    }
   }
   if (!rows.length) {
     const snap = (row.snapshots || []).at(-1);
@@ -2768,12 +2775,21 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
           const coverage = nhlSourceCompleteness(slate.games || []);
           const assessment = {
             ...coverage,date:day,checkedAt:new Date().toISOString(),
-            qualified:false,canAuthorizeWager:false
+            qualified:false,canAuthorizeWager:false,canQualify:false
           };
           nhlCoverageDays.push(assessment);
           // A successful collection job with zero prices must report zero prices,
           // not masquerade as complete market coverage.
-          if (hasDb(env)) await setMeta(env,"nhl_source_coverage_last",JSON.stringify(assessment));
+          if (hasDb(env)) {
+            await setMeta(env,"nhl_source_coverage_last",JSON.stringify(assessment));
+            if (coverage.zeroPriceRegime) {
+              await setMeta(env,"nhl_source_coverage_alert",JSON.stringify({
+                ...assessment,
+                alert:true,
+                signalClass:"NON_EMPTY_SLATE_ZERO_ML_PAIRS",
+              }));
+            }
+          }
         }
         let frozen = { counts: emptyWriteCounts(), failReasons: [] };
         if (!healthMode) {

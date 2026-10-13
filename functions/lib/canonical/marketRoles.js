@@ -368,15 +368,24 @@ function softConsensusFromOdds(odds, observedAt) {
   // Soft packed lines only when Pinnacle is not present as the sole packed source,
   // or when softSource explicitly indicates multi-book soft.
   const softHint = Boolean(odds?.softSource || odds?.softPresent);
-  const espnNhlObserved = odds?.softSource === "espn" && odds?.nhlEspnObserved === true;
+  const softSource = String(odds?.softSource || "").toLowerCase();
+  const espnNhlObserved = softSource === "espn" && odds?.nhlEspnObserved === true;
+  const snapshotSoft = softSource === "odds_snapshot_soft";
   const homeEspnMl=espnNhlObserved && validAmerican(odds?.homeMl) ? num(odds.homeMl) : null;
   const awayEspnMl=espnNhlObserved && validAmerican(odds?.awayMl) ? num(odds.awayMl) : null;
   const espnMoneyline=homeEspnMl!=null&&awayEspnMl!=null?{home:homeEspnMl,away:awayEspnMl}:{home:null,away:null};
-  const officialSoftSource = ["sharpapi","therundown"].includes(String(odds?.softSource || "").toLowerCase());
+  // odds_snapshot_soft = durable same-book sportsbook evidence (not a transport provider).
+  const officialSoftSource = ["sharpapi","therundown","odds_snapshot_soft"].includes(softSource);
   const bookPaired = officialSoftSource && odds?.moneylineBook &&
     validAmerican(odds?.homeMl) && validAmerican(odds?.awayMl);
   const observedSoftMoneyline = bookPaired ? {home:num(odds.homeMl),away:num(odds.awayMl)} : null;
   const pairedSoftMoneyline = observedSoftMoneyline || espnMoneyline;
+  // When provider clocks cannot be recovered (odds_snapshots round-trip), never treat
+  // FBIS capture/asOf time as source observation time for freshness claims.
+  const sourceClockUnverified =
+    odds?.sourceTimestampUnverified === true ||
+    (snapshotSoft && !str(odds?.sourceObservedAt));
+  const consensusObservedAt = sourceClockUnverified ? null : str(observedAt);
   const hasSoftPrices =
     odds?.softSpreadHomePrice != null ||
     odds?.softOverPrice != null ||
@@ -390,25 +399,31 @@ function softConsensusFromOdds(odds, observedAt) {
         total: num(odds.total),
         books: odds?.books != null ? Number(odds.books) : null,
         source: str(odds.softSource) || "soft_or_feed",
-        observedAt: str(observedAt),
-        freshness: inferFreshness(observedAt),
+        observedAt: consensusObservedAt,
+        freshness: inferFreshness(consensusObservedAt),
         role: MARKET_ROLE.CONSENSUS,
       };
     }
     return null;
   }
+  const source = espnNhlObserved
+    ? "OBSERVED_ESPN"
+    : snapshotSoft
+      ? "ODDS_SNAPSHOT_SOFT"
+      : str(odds.softSource) || "soft";
   return {
     available: true,
     spread: num(odds.spread),
     total: num(odds.total),
     books: odds?.books != null ? Number(odds.books) : null,
-    source: espnNhlObserved ? "OBSERVED_ESPN" : str(odds.softSource) || "soft",
+    source,
     moneyline: pairedSoftMoneyline,
     bookmaker: observedSoftMoneyline ? str(odds.moneylineBook) : null,
-    observedOnly:espnNhlObserved,
-    executable:false,
-    observedAt: str(observedAt),
-    freshness: inferFreshness(observedAt),
+    observedOnly: espnNhlObserved || snapshotSoft,
+    executable: false,
+    sourceTimestampUnverified: sourceClockUnverified || undefined,
+    observedAt: consensusObservedAt,
+    freshness: sourceClockUnverified ? "UNKNOWN" : inferFreshness(consensusObservedAt),
     role: MARKET_ROLE.CONSENSUS,
   };
 }
@@ -641,7 +656,14 @@ export function resolveCanonicalMarket(game = {}, { operatorBooks = null, now = 
       role: MARKET_ROLE.CONSENSUS,
     };
   if (consensus.available) {
-    consensus.freshness = inferFreshness(consensus.observedAt || observedAt, "CONSENSUS", now);
+    // Preserve explicit UNKNOWN when soft snapshot clocks are unverified —
+    // never fall back to game.asOf / capture-adjacent stamps as provider time.
+    if (consensus.sourceTimestampUnverified === true || consensus.freshness === "UNKNOWN") {
+      consensus.observedAt = consensus.observedAt || null;
+      consensus.freshness = "UNKNOWN";
+    } else {
+      consensus.freshness = inferFreshness(consensus.observedAt || observedAt, "CONSENSUS", now);
+    }
     consensus.executable = false;
   }
 
