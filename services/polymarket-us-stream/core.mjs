@@ -45,3 +45,15 @@ export function liveBboOffer(tick,base){
       streamService:"fbis-polymarket-us-stream",streamMode:"RECONNECTING",
       canQualify:false,canAuthorizeWager:false,modelInfluence:"none"}};
 }
+
+/** Control frames never become price observations. */
+export function parseStreamControl(raw){
+ let value;try{value=typeof raw==="string"?JSON.parse(raw):raw}catch{return null}
+ if(!value||typeof value!=="object")return null;
+ if(Object.hasOwn(value,"error"))return{type:"error"};
+ if(Object.hasOwn(value,"heartbeat"))return{type:"heartbeat"};
+ return null;
+}
+export function streamIsHealthy({connected,lastMessageAt,now=Date.now(),maxAgeMs=120000}={}){
+ return connected===true&&Number.isFinite(lastMessageAt)&&lastMessageAt>0&&now>=lastMessageAt&&now-lastMessageAt<=maxAgeMs;
+}

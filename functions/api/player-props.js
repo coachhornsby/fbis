@@ -366,10 +366,15 @@ export async function onRequestGet(context) {
     const checkedAt = new Date();
     const sourceStatus = await propSourceStatus(context.env.DB);
     sourceStatus.push({source:"prizepicks_free_mirror",state:freeMirrorError?"ERROR":!freeSupported?"UNSUPPORTED":Number(mirrorCoverage?.n||0)>0?"CAPTURED":"NOT_COLLECTED",reason:freeMirrorError?"FREE_MIRROR_READ_FAILED":!freeSupported?"SPORT_NOT_PUBLISHED_BY_FREE_MIRROR":Number(mirrorCoverage?.n||0)>0?"DAILY_SNAPSHOT_NOT_LIVE_VERIFIED":"NO_DURABLE_FREE_MIRROR_CAPTURE",lastCollectedAt:mirrorCoverage?.collected_at||null,publisherCapturedAt:mirrorCoverage?.observed_at||null});
-    const rows = [...actionRows, ...prizePicksRows, ...freeMirrorRows].map(row => ({...row,
-      temporal: marketTemporalStatus({source:row.book,providerObservedAt:row.sourceObservedAt,
-        collectedAt:row.collectedAt,eventId:row.fbisEventId},{now:checkedAt,maxAgeMs:24*60*60*1000}),
-    })).sort((a,b) => {
+    const rows = [...actionRows, ...prizePicksRows, ...freeMirrorRows].map(row => {
+      const temporal=marketTemporalStatus({source:row.book,providerObservedAt:row.sourceObservedAt,
+        collectedAt:row.collectedAt,eventId:row.fbisEventId},{now:checkedAt,maxAgeMs:24*60*60*1000});
+      if(row.provider==='PRIZEPICKS_FREE_MIRROR')Object.assign(temporal,{
+        status:temporal.status==='CURRENT'?'DAILY_REFERENCE':temporal.status,
+        providerTimeConfidence:'MIRROR_REPORTED_CAPTURE',currentDisplayEligible:false,
+        prospectiveEvidenceEligible:false,modelInputEligible:false});
+      return{...row,temporal};
+    }).sort((a,b) => {
       const event = String(a.fbisEventId || "").localeCompare(String(b.fbisEventId || ""));
       if (event) return event;
       const player = String(a.playerName || "").localeCompare(String(b.playerName || ""));

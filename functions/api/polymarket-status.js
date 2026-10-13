@@ -17,6 +17,10 @@ export async function onRequestGet({env}){
       COUNT(DISTINCT source_market_id) contracts
       FROM normalized_market_observations
       WHERE source='Polymarket US WebSocket' AND collected_at>=?1`).bind(cutoff).first();
+  let stream=null;
+  try{const response=await fetch("https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health",{signal:AbortSignal.timeout(4000)});
+   if(response.ok){const value=await response.json();if(value.ok===true)stream=value;}
+  }catch{}
   const by=new Map((r.results||[]).map(x=>[x.sport,x]));
   const states=FBIS_POLY_SPORTS.map(s=>{
    const item=by.get(s);return {sport:s,
@@ -38,7 +42,12 @@ export async function onRequestGet({env}){
       bboRecordsLast24h:Number(ws?.n||0),
       matchedEventsLast24h:Number(ws?.matched_games||0),
       contractCountLast24h:Number(ws?.contracts||0),
-      operational: Number(ws?.n||0)>0
+      operational:stream?.operational===true,
+      connectionStatus:stream?stream.connected?"CONNECTED":"DISCONNECTED":"HEALTH_UNAVAILABLE",
+      lastMessageAt:stream?.lastMessageAt||null,
+      lastHeartbeatAt:stream?.lastHeartbeatAt||null,
+      lastError:stream?.lastError||null,
+      lastClose:stream?.lastClose||null
     },sports:states});
  }catch(error){return json({ok:false,error:"market-status-unavailable",detail:String(error?.message||error)},502)}
 }

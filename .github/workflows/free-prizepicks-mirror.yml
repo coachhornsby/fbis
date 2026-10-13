@@ -36,7 +36,7 @@ jobs:
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
           mkdir -p artifacts
-          curl -fsS --max-time 75 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' --data '{"operation":"capture"}' "$BASE/api/free-prizepicks-collect" > artifacts/free-mirror-capture.json
+          curl --fail-with-body -sS --retry 4 --retry-all-errors --retry-delay 5 --max-time 75 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' --data '{"operation":"capture"}' "$BASE/api/free-prizepicks-collect" > artifacts/free-mirror-capture.json
           jq -e '.ok==true and .researchOnly==true and .canAuthorizeWager==false' artifacts/free-mirror-capture.json >/dev/null
           snapshot="$(jq -er '.snapshotId' artifacts/free-mirror-capture.json)"
           pages="$(jq -er '.pages' artifacts/free-mirror-capture.json)"
@@ -44,11 +44,11 @@ jobs:
           test "$pages" -le 100
           for ((index=0;index<pages;index++)); do
             jq -nc --arg snapshotId "$snapshot" --argjson batchIndex "$index" '{operation:"consume",snapshotId:$snapshotId,batchIndex:$batchIndex}' > artifacts/request.json
-            curl -fsS --retry 2 --retry-delay 2 --max-time 150 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' --data-binary @artifacts/request.json "$BASE/api/free-prizepicks-collect" > "artifacts/free-mirror-batch-$index.json"
+            curl --fail-with-body -sS --retry 2 --retry-delay 2 --max-time 150 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' --data-binary @artifacts/request.json "$BASE/api/free-prizepicks-collect" > "artifacts/free-mirror-batch-$index.json"
             jq -e '.ok==true and .canAuthorizeWager==false' "artifacts/free-mirror-batch-$index.json" >/dev/null
           done
           jq -nc --arg snapshotId "$snapshot" '{operation:"complete",snapshotId:$snapshotId}' > artifacts/request.json
-          curl -fsS --max-time 75 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' --data-binary @artifacts/request.json "$BASE/api/free-prizepicks-collect" > artifacts/free-mirror-complete.json
+          curl --fail-with-body -sS --retry 4 --retry-all-errors --retry-delay 5 --max-time 75 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' --data-binary @artifacts/request.json "$BASE/api/free-prizepicks-collect" > artifacts/free-mirror-complete.json
           jq -e '.ok==true and .distinctProps==.expectedRows and .canAuthorizeWager==false' artifacts/free-mirror-complete.json >/dev/null
           jq '{ok,publishedAt,collectedAt,expectedRows,persistedRows,matchedRows,sourceSports}' artifacts/free-mirror-complete.json
           while IFS=$'\t' read -r sport event_id; do

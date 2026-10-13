@@ -2,7 +2,7 @@ import {DurableObject} from "cloudflare:workers";
 import {polymarketUsSubscribe,parsePolymarketUsLite}
   from "../../functions/lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
-import {fairMarketSelection,shouldSaveBbo,liveBboOffer} from "./core.mjs";
+import {fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy} from "./core.mjs";
 
 const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
 const MAX_MARKETS=48, MAX_BATCH=40, MAX_QUEUE=200;
@@ -16,12 +16,16 @@ export class PolymarketMarketStream extends DurableObject {
     this.lastSaved=new Map();this.connectedAt=0;this.reconnectCount=0;
     this.received=0;this.parsed=0;this.inserted=0;
     this.lastError=null;this.lastConnectAttempt=0;this.flushTimer=null;
-    this.running=false;
+    this.running=false;this.lastMessageAt=0;this.lastHeartbeatAt=0;this.heartbeats=0;this.lastClose=null;
   }
   status(){
     return {connected:this.socket?.readyState===WebSocket.OPEN,
       connectedAt:this.connectedAt?new Date(this.connectedAt).toISOString():null,
       subscriptions:this.subscribed.size,queued:this.queue.size,
+      operational:!this.lastError&&streamIsHealthy({connected:this.socket?.readyState===WebSocket.OPEN,lastMessageAt:this.lastMessageAt}),
+      lastMessageAt:this.lastMessageAt?new Date(this.lastMessageAt).toISOString():null,
+      lastHeartbeatAt:this.lastHeartbeatAt?new Date(this.lastHeartbeatAt).toISOString():null,
+      heartbeats:this.heartbeats,lastClose:this.lastClose,
       received:this.received,parsed:this.parsed,inserted:this.inserted,
       reconnects:this.reconnectCount,lastError:this.lastError,
       readOnly:true,canAuthorizeWager:false};
@@ -103,9 +107,11 @@ export class PolymarketMarketStream extends DurableObject {
       this.subscribed=new Map(candidates.map(c=>[c.source_market_id,c]));
       this.socket.accept();
       const socket=this.socket;
-      socket.addEventListener("message",e=>this.onMessage(e));
-      socket.addEventListener("close",()=>{
+      socket.addEventListener("message",e=>{if(this.socket===socket)this.onMessage(e)});
+      socket.addEventListener("close",event=>{
         if(this.socket===socket){this.socket=null;
+          this.lastClose={at:new Date().toISOString(),code:event.code,reason:String(event.reason||"" ).slice(0,200)};
+          this.lastError="upstream-socket-closed-"+event.code;
           this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS).catch(()=>{});}
       });
       socket.addEventListener("error",()=>{
@@ -114,7 +120,7 @@ export class PolymarketMarketStream extends DurableObject {
       });
       socket.send(JSON.stringify(polymarketUsSubscribe(
         [...this.subscribed.keys()],"fbis-always-on-market-lite")));
-      this.connectedAt=Date.now();this.reconnectCount++;
+      this.connectedAt=Date.now();this.lastMessageAt=0;this.lastHeartbeatAt=0;this.reconnectCount++;
       this.lastError=null;
       await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
     }catch{
@@ -123,7 +129,16 @@ export class PolymarketMarketStream extends DurableObject {
     }finally{this.running=false}
   }
   onMessage(evt){
-    this.received++;
+    this.received++;this.lastMessageAt=Date.now();
+    const control=parseStreamControl(evt.data);
+    if(control?.type==="heartbeat"){
+      this.lastHeartbeatAt=this.lastMessageAt;this.heartbeats++;
+      try{this.socket?.send(JSON.stringify({heartbeat:{}}))}catch{this.lastError="heartbeat-send-failed"}
+      return;
+    }
+    if(control?.type==="error"){this.lastError="upstream-subscription-error";
+      try{this.socket?.close(1000,"subscription rejected")}catch{}
+      this.socket=null;this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS).catch(()=>{});return;}
     const tick=parsePolymarketUsLite(evt.data);
     if(!tick||!this.subscribed.has(tick.marketSlug))return;
     this.parsed++;
@@ -164,7 +179,8 @@ export class PolymarketMarketStream extends DurableObject {
     await this.flush();
     // Rotate before Cloudflare outbound keep-alive's 15-minute instance limit.
     if(!this.socket||this.socket.readyState!==WebSocket.OPEN||
-        Date.now()-this.connectedAt>=ROTATE_MS){
+        Date.now()-this.connectedAt>=ROTATE_MS||
+        Date.now()-(this.lastMessageAt||this.connectedAt)>2*RECONNECT_MS){
       try{this.socket?.close(1000,"9-minute stream rotation")}catch{}
       this.socket=null;
       await this.connect();
