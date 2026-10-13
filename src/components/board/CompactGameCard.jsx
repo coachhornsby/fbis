@@ -1,10 +1,10 @@
 import { lineLabel, bestEdge } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
-import NhlEvidenceStrip from "./NhlEvidenceStrip.jsx";
+import NhlBettingIntelligence from "./NhlBettingIntelligence.jsx";
 import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
 import NflInjuryIntegrityStrip from "./NflInjuryIntegrityStrip.jsx";
 import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
-import NhlPlayerProjectionStrip from "./NhlPlayerProjectionStrip.jsx";
+
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { matchupAdvantageTeam, matchupTeamColors } from "../../lib/matchupTeamBrand.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
@@ -203,7 +203,8 @@ export default function CompactGameCard({ game, onOpen }) {
   const matchup = isNfl ? game?.nflGameMatchup : null;
   const genericFactors = !isNfl && Array.isArray(game?.matchupFactors) ? game.matchupFactors.slice(0, 5) : [];
   const genericMatchupItems = genericFactors.map((factor, i) => {
-    const edge = String(factor?.edge || factor?.advantage || factor?.team || "EVEN").toUpperCase();
+    const rawEdge = String(factor?.edge || factor?.advantage || factor?.team || "EVEN").toUpperCase();
+    const edge = isNhl && /^(UNAVAILABLE|UNKNOWN|UNVERIFIED|NOT AVAILABLE)$/.test(rawEdge) ? "N/A" : rawEdge;
     const identified = matchupAdvantageTeam(factor, away, home);
     const team = identified?.team || null;
     const colors = team ? matchupTeamColors(team) : null;
@@ -362,7 +363,7 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       </div>
 
-      {Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => o.source === "Polymarket US") ? (
+      {!isNhl && Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => o.source === "Polymarket US") ? (
         <div className="cgc-status-note" aria-label="Polymarket US research market data">
           <strong>POLYMARKET US · MARKET RESEARCH</strong>
           <span>{game.market.venueOffers.filter(o => o.source === "Polymarket US" && o.contractPrice != null).slice(0,3).map(o =>
@@ -371,9 +372,9 @@ export default function CompactGameCard({ game, onOpen }) {
           <small>Displayed probabilities only · NOT executable ask · FBIS bet authority unchanged</small>
         </div>
       ) : null}
-      {!stored && isNhl ? <><NhlEvidenceStrip game={game} vm={vm} /><NhlPlayerProjectionStrip game={game} /></> : null}
+      {!stored && isNhl ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
 
-      {showAction && !stored && (!isNhl || action.available) ? (
+      {showAction && !stored && !isNhl ? (
         <div className={`cgc-action-strip${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="cgc-action-brand">
             <span>ACTION</span>
@@ -394,7 +395,7 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       ) : null}
 
-      {!stored && isNhl && !action.available ? <div className="cgc-nhl-action-unavailable">ACTION splits: UNAVAILABLE · No movement signal inferred</div> : null}
+
 
       {stored ? (
         <section className="cgc-stored-summary" aria-label="Stored pregame data limitations">
