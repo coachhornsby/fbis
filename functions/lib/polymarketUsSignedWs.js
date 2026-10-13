@@ -62,3 +62,32 @@ export function parsePolymarketUsLite(raw){
     bidDepth:Number(data.bid_depth??data.bidDepth)||null,
     askDepth:Number(data.ask_depth??data.askDepth)||null};
 }
+
+/** Strict read-only authenticated account API. NO orders, POST, trading paths. */
+export const POLY_US_ACCOUNT_READ_PATHS=Object.freeze([
+  "/v1/portfolio/positions",
+  "/v1/portfolio/activities",
+  "/v1/account/balances"
+]);
+export async function signedPolymarketUsAccountGetHeaders({
+  keyId,secretKey,path,timestamp=Date.now(),webCrypto=crypto
+}={}){
+  if(!POLY_US_ACCOUNT_READ_PATHS.includes(path))throw Error("private-read-path-not-allowed");
+  if(!/^[0-9a-f-]{36}$/i.test(keyId||""))throw Error("polymarket-key-id-not-configured");
+  if(!Number.isSafeInteger(timestamp)||timestamp<0)throw Error("invalid-timestamp");
+  const input=bytesFromBase64(secretKey);
+  if(!input||input.length!==64)throw Error("polymarket-secret-not-configured");
+  const pkcs8=new Uint8Array(PKCS8_PREFIX.length+32);
+  pkcs8.set(PKCS8_PREFIX);
+  pkcs8.set(input.subarray(0,32),PKCS8_PREFIX.length);
+  try{
+    const key=await webCrypto.subtle.importKey("pkcs8",pkcs8,{name:"Ed25519"},false,["sign"]);
+    const message=new TextEncoder().encode(String(timestamp)+"GET"+path);
+    const sig=await webCrypto.subtle.sign({name:"Ed25519"},key,message);
+    return {
+      "X-PM-Access-Key":keyId,
+      "X-PM-Timestamp":String(timestamp),
+      "X-PM-Signature":asBase64(sig)
+    };
+  }finally{input.fill(0);pkcs8.fill(0)}
+}
