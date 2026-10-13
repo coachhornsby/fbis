@@ -32,6 +32,20 @@ export async function onRequestPost(context){
   // The provider may list tomorrow's game even when asked about today's schedule.
   // Do not treat those events as evidence for the requested Chicago calendar date.
   const events=(result.events||[]).filter(e=>chicagoDay(e.commence)===date);
+  // No CT-date games is an expected skip (offseason / empty slate). Missing quotes
+  // on a non-empty slate stay fail-closed (503) so coverage gaps still page.
+  if(!events.length){
+   return json({
+    ok:true,skipped:true,skipReason:"EMPTY_SLATE",
+    signalClass:"EXPECTED_EMPTY_SLATE",
+    requestedDateCt:date,sport:"mlb",
+    source:result.meta?.source||null,provider:result.meta?.provider||null,
+    games:0,pairedMoneylines:0,persistedMoneylineRows:0,readbackValidated:true,
+    capturedAt:new Date().toISOString(),observations:[],
+    evidenceStore:"mlb_bookmaker_quote_evidence",
+    authority:false,canQualify:false,canAuthorizeWager:false,
+   },200);
+  }
   let persistedMoneylineRows=0;
   const observations=[];
   for(const e of events){

@@ -28,6 +28,19 @@ export async function onRequestPost(context) {
       date,
     });
     const events=result.events||[];
+    // Empty Chicago slate / off-window is an expected skip, not a collector outage.
+    // Games present without quotes remain fail-closed below via workflow gates.
+    if(!events.length){
+      return json({
+        ok:true,skipped:true,skipReason:"EMPTY_SLATE",
+        signalClass:"EXPECTED_EMPTY_SLATE",
+        sport:"nhl",requestedDateCt:date,
+        source:result.meta?.source||null,provider:result.meta?.provider||null,
+        games:0,pairedMoneylines:0,persistedMoneylineRows:0,readbackValidated:true,
+        evidenceStore:"nhl_bookmaker_quote_evidence",
+        observations:[],failClosed:true,canQualify:false,canAuthorizeWager:false,
+      },200);
+    }
     const capturedAt=new Date().toISOString();
     let persistedMoneylineRows=0;
     for(const e of events){

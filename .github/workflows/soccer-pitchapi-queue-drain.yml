@@ -13,7 +13,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      has_work: ${{ steps.peek.outputs.has_work }}
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Peek queue without leasing work
+        id: peek
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          status="$(curl -fsS --connect-timeout 5 --max-time 20 --retry 2 --retry-delay 2 --retry-all-errors \
+            -H "x-harvest-secret: $HARVEST_SECRET" \
+            "$BASE/api/soccer-pitchapi-queue-status")"
+          echo "$status" | jq .
+          empty="$(echo "$status" | jq -r '.empty // true')"
+          if [ "$empty" = "true" ]; then
+            echo "has_work=false" >> "$GITHUB_OUTPUT"
+            echo "EXPECTED_EMPTY_QUEUE — skip six-worker drain"
+          else
+            echo "has_work=true" >> "$GITHUB_OUTPUT"
+          fi
+
   drain:
+    needs: preflight
+    if: needs.preflight.outputs.has_work == 'true'
     strategy:
       fail-fast: false
       max-parallel: 6

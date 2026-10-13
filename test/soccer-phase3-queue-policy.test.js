@@ -35,4 +35,7 @@ test("soccer Phase 3 worker envelope remains unchanged", async () => {
   assert.match(workflow,/worker:\s*\[1, 2, 3, 4, 5, 6\]/);
   assert.match(workflow,/for iteration in 1 2 3; do/);
   assert.match(workflow,/--max-time 120/);
+  assert.match(workflow,/soccer-pitchapi-queue-status/);
+  assert.match(workflow,/needs:\s*preflight/);
+  assert.match(workflow,/has_work == 'true'/);
 });

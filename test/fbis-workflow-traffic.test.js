@@ -13,6 +13,8 @@ test("high-frequency Soccer queue drain is schedule/manual only", async () => {
   assert.doesNotMatch(yml, /workflow_run:/);
   assert.match(yml, /group:\s*soccer-pitchapi-queue-drain/);
   assert.match(yml, /max-parallel:\s*6/);
+  assert.match(yml, /soccer-pitchapi-queue-status/);
+  assert.match(yml, /needs:\s*preflight/);
 });
 
 test("NHL wager evidence is schedule/manual only", async () => {
