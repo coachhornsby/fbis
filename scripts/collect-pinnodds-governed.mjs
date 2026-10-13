@@ -1,14 +1,18 @@
+import {createGitHubOidcProvider} from './github-oidc.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 const base=process.env.BASE||'https://fbis-myz.pages.dev',worker='https://fbis-orchestrator.coachhornsby.workers.dev';
-const secret=process.env.HARVEST_SECRET,oidc=process.env.OIDC_TOKEN;
-if(!secret||!oidc)throw Error('EXISTING_COLLECTION_AUTH_REQUIRED');
+const secret=process.env.HARVEST_SECRET;
+if(!secret)throw Error('EXISTING_COLLECTION_AUTH_REQUIRED');
+// GitHub OIDC credentials expire during 15-slot collections; obtain fresh tokens per window.
+const getOidcToken=createGitHubOidcProvider();
 const hour=new Date().getUTCHours(),scope=process.env.GITHUB_EVENT_NAME==='schedule'&&hour%6!==0?'drops':'full';
 const runId=`run-${process.env.GITHUB_RUN_ID||Date.now()}-${process.env.GITHUB_RUN_ATTEMPT||1}`;
 await mkdir('artifacts',{recursive:true});
 async function call(path,body,{upstream=false}={}){
  const attempts=upstream?1:4;
  for(let attempt=0;attempt<attempts;attempt++){
-  try{const response=await fetch((upstream?worker:base)+path,{method:'POST',headers:{'content-type':'application/json',...(upstream?{authorization:'Bearer '+oidc}:{'x-harvest-secret':secret})},body:JSON.stringify(body),signal:AbortSignal.timeout(upstream?65000:150000)});const result=await response.json();
+  try{const headers={'content-type':'application/json',...(upstream?{authorization:'Bearer '+await getOidcToken()}:{'x-harvest-secret':secret})};
+   const response=await fetch((upstream?worker:base)+path,{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(upstream?65000:150000)});const result=await response.json();
    if(!response.ok||result.ok!==true)throw Error(`COLLECTOR_${response.status}_${result.error||'RECONCILIATION_FAILED'}`);return result;
   }catch(error){if(attempt+1===attempts)throw error;await new Promise(resolve=>setTimeout(resolve,5000));}
  }
