@@ -1,0 +1,66 @@
+name: Verify Polymarket US private reconciliation and persistent market stream
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/polymarket-us-phase2-smoke.yml"
+      - ".github/workflows/polymarket-us-private-reconcile.yml"
+permissions:
+  contents: read
+concurrency:
+  group: fbis-polymarket-phase2-verification
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE: https://fbis-myz.pages.dev
+      STREAM_BASE: https://fbis-polymarket-us-stream.coachhornsby.workers.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Verify production Pages SHA
+        if: github.event_name == 'push'
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Verify private GET-only positions, activity and balance access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 120 -o "$body" -w '%{http_code}' \
+            -X POST -H "x-harvest-secret: $HARVEST_SECRET" \
+            "$BASE/api/polymarket-private-sync")"
+          jq -c '{ok,readOnly,positionsCount,activityCount,insertedActivities,positionsComplete,activitiesComplete,balanceEndpointVerified,reason,statuses}' "$body"
+          test "$code" = 200
+          jq -e '.ok == true and .readOnly == true and .tradingEnabled == false and .canAuthorizeWager == false and .balanceEndpointVerified == true' "$body" >/dev/null
+          {
+            echo "## Private account evidence"
+            echo "- Positions captured: $(jq -r '.positionsCount' "$body")"
+            echo "- Activities captured: $(jq -r '.activityCount' "$body")"
+            echo "- Pages fully traversed: $(jq -r '[.positionsComplete,.activitiesComplete] | all' "$body")"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify Durable Object live stream quote activity
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 25 -o "$body" -w '%{http_code}' "$STREAM_BASE/health")"
+          echo "Persistent Worker health HTTP $code"
+          test "$code" = 200
+          jq -c '{ok,source,mode,connected,subscriptions,queued,received,parsed,inserted,reconnects,lastError,readOnly,canAuthorizeWager}' "$body"
+          jq -e '.ok == true and .readOnly == true and .canAuthorizeWager == false' "$body" >/dev/null
+          {
+            echo "## Durable market stream"
+            echo "- Connected: $(jq -r '.connected' "$body")"
+            echo "- Contract subscriptions: $(jq -r '.subscriptions' "$body")"
+            echo "- Market events received: $(jq -r '.received' "$body")"
+            echo "- BBO rows saved: $(jq -r '.inserted' "$body")"
+            echo "- Last error: $(jq -r '.lastError' "$body")"
+          } >> "$GITHUB_STEP_SUMMARY"
+          jq -e '.connected == true and .subscriptions > 0 and .inserted > 0' "$body" >/dev/null
