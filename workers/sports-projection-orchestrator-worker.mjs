@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { probePinnoddsBaseball } from "./pinnodds-baseball-probe.mjs";
 import { RECOVERY_CRON, recoverCurrentPipeline } from "./prospective-pipeline-recovery.mjs";
 import { TENNIS_HEALTH_CRON, checkTennisRefreshHealth, runTennisHealthCron } from "./tennis-refresh-health.mjs";
 import { TENNIS_RECOVERY_CRON, runTennisRecoveryCron } from "./tennis-refresh-recovery.mjs";
@@ -274,6 +275,16 @@ async function handleFetch(request, env) {
   if (!auth) return json(401, { error: "unauthorized" });
 
   try {
+    if (request.method === "GET" && url.pathname === "/api/pinnodds-baseball-probe") {
+      // Non-chargeable ready probe. Available only after OIDC authentication.
+      return json(405,{error:"method-not-allowed",probeReady:true});
+    }
+    if (request.method === "POST" && url.pathname === "/api/pinnodds-baseball-probe") {
+      // OIDC/control-token authenticated operator inventory. Exactly two
+      // provider calls, never a cron, no market writes or wagering authority.
+      const audit=await probePinnoddsBaseball({apiKey:env.PINNODDS_API_KEY});
+      return json(audit.ok?200:502,{...audit,authorizedCaller:auth.type});
+    }
     if (request.method === "GET" && url.pathname === "/api/validate/sheets") {
       return json(200, await validateSheetsAccess());
     }
