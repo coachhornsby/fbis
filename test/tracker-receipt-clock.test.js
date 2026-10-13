@@ -53,6 +53,19 @@ test("rejects invalid dates, DST spring-forward gaps, and ambiguous fall-back wa
   assert.equal(parseTrackerPlacedAt(""), null);
 });
 
+test("rejects invalid absolute-ISO calendar dates (Z and numeric offset) — no Date.parse overflow", () => {
+  // Date.parse would normalize these; the receipt-clock path must reject instead.
+  assert.equal(parseTrackerPlacedAt("2026-02-30T14:30:00Z"), null);
+  assert.equal(parseTrackerPlacedAt("2026-02-30T14:30:00.000Z"), null);
+  assert.equal(parseTrackerPlacedAt("2026-02-29T14:30:00-05:00"), null); // 2026 is not a leap year
+  assert.equal(parseTrackerPlacedAt("2026-02-29T14:30:00Z"), null);
+  assert.equal(parseTrackerPlacedAt("2026-13-01T14:30:00Z"), null);
+  assert.equal(parseTrackerPlacedAt("2026-04-31T14:30:00Z"), null);
+  // Valid absolute ISO still accepted.
+  assert.equal(parseTrackerPlacedAt("2026-02-28T14:30:00Z")?.iso, "2026-02-28T14:30:00.000Z");
+  assert.equal(parseTrackerPlacedAt("2024-02-29T14:30:00Z")?.iso, "2024-02-29T14:30:00.000Z"); // leap year
+});
+
 test("resolveTrackerExecutedAt prefers Placed At and marks synthetic noon non-prospective", () => {
   const auth = resolveTrackerExecutedAt({
     date: "2026-10-10",
@@ -193,4 +206,6 @@ test("bets sync derives clock at API boundary; never trusts caller provenance up
   assert.match(orch, /resolveTrackerExecutedAt/);
   assert.match(orch, /executedAtProvenance/);
   assert.doesNotMatch(bets, /canAuthorizeWager\s*=\s*true/);
+  const pkg = await readFile(new URL("../package.json", import.meta.url), "utf8");
+  assert.match(pkg, /test\/tracker-receipt-clock\.test\.js/);
 });

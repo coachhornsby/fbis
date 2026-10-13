@@ -192,6 +192,41 @@ function heritageWallComponents(raw, yearHint) {
 }
 
 /**
+ * Extract Y-M-D H:M:S from an absolute ISO stamp (Z or ±offset).
+ * Used to reject Date.parse() normalization of impossible calendar dates.
+ */
+function parseAbsoluteIsoComponents(text) {
+  const m = String(text || "")
+    .trim()
+    .match(
+      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})$/i
+    );
+  if (!m) return null;
+  return {
+    year: Number(m[1]),
+    month: Number(m[2]),
+    day: Number(m[3]),
+    hour: Number(m[4]),
+    minute: Number(m[5]),
+    second: m[6] == null ? 0 : Number(m[6]),
+  };
+}
+
+function isValidClockTime(hour, minute, second) {
+  return (
+    Number.isInteger(hour) &&
+    Number.isInteger(minute) &&
+    Number.isInteger(second) &&
+    hour >= 0 &&
+    hour <= 23 &&
+    minute >= 0 &&
+    minute <= 59 &&
+    second >= 0 &&
+    second <= 59
+  );
+}
+
+/**
  * Parse a tracker "Placed At" cell into a verified ISO instant.
  * Returns null when the stamp cannot be authenticated without ambiguity.
  */
@@ -201,6 +236,10 @@ export function parseTrackerPlacedAt(raw, { date = null, yearHint = null } = {})
 
   // Absolute ISO only when Z / numeric offset is present — never treat bare T as UTC.
   if (hasExplicitTimezone(text)) {
+    const parts = parseAbsoluteIsoComponents(text);
+    if (!parts) return null;
+    if (!isValidCalendarDate(parts.year, parts.month, parts.day)) return null;
+    if (!isValidClockTime(parts.hour, parts.minute, parts.second)) return null;
     const ms = Date.parse(text);
     if (!Number.isFinite(ms)) return null;
     return { iso: new Date(ms).toISOString(), source: "iso-offset" };
