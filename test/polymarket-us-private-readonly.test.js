@@ -36,7 +36,7 @@ test("private sync uses only 3 GETs, excludes bank records, saves deduped trade/
  const out=await syncPolymarketUsPrivate(fakeDb,env,{fetchImpl});
  assert.equal(out.ok,true);assert.equal(out.positionsCount,1);
  assert.equal(out.activityCount,2);assert.equal(out.balanceEndpointVerified,true);
- assert.equal(out.bankDetailsReadOrStored,false);
+ assert.equal(out.bankDetailsPersisted,false);
  assert.equal(out.automaticWagerGrading,false);
  assert.equal(out.canAuthorizeWager,false);
  assert.equal(calls.length,3);assert.ok(calls.every(c=>c.method==="GET"&&!c.path.includes("/orders")));
