@@ -1,5 +1,5 @@
 import TeamLogo from "../TeamLogo.jsx";
-import {matchupAdvantageTeam,matchupTeamColors} from "../../lib/matchupTeamBrand.js";
+import {matchupAdvantageTeam,matchupSignalColors} from "../../lib/matchupTeamBrand.js";
 
 const slots=[
   {id:"five-v-five",icon:"5V5",label:"5V5 xG"},
@@ -18,15 +18,15 @@ export default function NhlMatchupSignals({game,away,home}){
     {slots.map(slot=>{
      const factor=factors.find(f=>String(f.id||"").toLowerCase()===slot.id)||null;
      const identified=factor?.available===false?null:matchupAdvantageTeam(factor,away,home);
-     const team=identified?.team||null,colors=team?matchupTeamColors(team):null;
+     const team=identified?.team||null,colors=team?matchupSignalColors(team,"nhl"):null;
      const raw=factor?.edge||factor?.advantage||factor?.team||"N/A";
      const neutral=missing(raw)?"N/A":String(raw).toUpperCase();
      const value=factor?.value==null?null:String(factor.value);
      return <div key={slot.id} className={`cgc-matchup-pill tone-${identified?.side||"neutral"}${team?" is-team-branded":""}`}
        style={team?{"--fbis-tile-team":colors?.primary||"#173448","--fbis-tile-border":colors?.secondary||"#83b8d2"}:undefined}>
        <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{slot.icon}</i><em>{slot.label}</em></span>
-       {team?<span className="cgc-matchup-team-mark" title={team.name||team.abbr}>
-          <TeamLogo team={{...team,sport:"nhl"}} size={40} className="cgc-matchup-team-logo"/>
+       {team?<span className="cgc-matchup-team-mark" aria-hidden="true">
+          <TeamLogo team={{...team,sport:"nhl"}} size={112} className="cgc-matchup-team-logo"/>
         </span>:<strong>{neutral}</strong>}
        {value!=null?<small className="cgc-matchup-metric">{value}</small>:null}
       </div>;
