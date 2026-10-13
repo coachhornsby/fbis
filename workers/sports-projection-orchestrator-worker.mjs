@@ -4,6 +4,8 @@ import { auditPinnoddsMlbPeriods } from "./pinnodds-mlb-period-audit.mjs";
 import { RECOVERY_CRON, recoverCurrentPipeline } from "./prospective-pipeline-recovery.mjs";
 import { TENNIS_HEALTH_CRON, checkTennisRefreshHealth, runTennisHealthCron } from "./tennis-refresh-health.mjs";
 import { TENNIS_RECOVERY_CRON, runTennisRecoveryCron } from "./tennis-refresh-recovery.mjs";
+import { PINNODDS_REST_CRON, runScheduledPinnOdds } from "./pinnodds-rest-scheduler.mjs";
+import { pinnOddsBudgetStatus, collectPinnOddsPrematch, reservePinnOddsRequest, finishPinnOddsRequest } from "../functions/lib/pinnOddsRest.js";
 import {
   CFG,
   configureRuntime,
@@ -252,6 +254,15 @@ async function handleFetch(request, env) {
   configureRuntime(env);
   const url = new URL(request.url);
   // Public aggregate status only; source rows and credentials remain private.
+  if (request.method === "GET" && url.pathname === "/health/pinnodds") {
+    try {
+      const [budget, feeds] = await Promise.all([
+        pinnOddsBudgetStatus(env.DB),
+        env.DB.prepare("SELECT sport_id,last_success_at,last_full_at,last_data_status,last_data_age_ms,last_event_count,last_offer_count FROM pinnodds_feed_state ORDER BY sport_id").all(),
+      ]);
+      return json(200,{...budget,collectorEnabled:String(env.PINNODDS_COLLECT_ENABLED||"false").toLowerCase()==="true",credentialConfigured:Boolean(env.PINNODDS_API_KEY),transport:"REST_ONLY",canQualify:false,canAuthorizeWager:false,feeds:feeds.results||[]});
+    } catch { return json(503,{ok:false,reason:"PINNODDS_LEDGER_UNAVAILABLE"}); }
+  }
   if (request.method === "GET" && url.pathname === "/health/tennis-canonical") {
     const h = await checkTennisRefreshHealth(env);
     return json(h.ok ? 200 : 503, {
@@ -276,10 +287,53 @@ async function handleFetch(request, env) {
   if (!auth) return json(401, { error: "unauthorized" });
 
   try {
+    if (request.method === "POST" && url.pathname === "/api/pinnodds/collect") {
+      if (String(env.PINNODDS_COLLECT_ENABLED||"false").toLowerCase()!=="true")
+        return json(503,{ok:false,reason:"COLLECTOR_DISABLED"});
+      const body=await requestBody(request);
+      const sportId=Number(body?.sportId);
+      if(![1,2,3,4,5,6].includes(sportId))return json(400,{ok:false,reason:"INVALID_SPORT"});
+      const result=await collectPinnOddsPrematch(env,{sportId,purpose:"diagnostic",full:body?.full===true});
+      return json(result.ok?200:503,{...result,transport:"REST_ONLY"});
+    }
     if (url.pathname === "/api/pinnodds-mlb-period-audit") {
-      if(request.method==="GET")return json(405,{error:"method-not-allowed",probeReady:true,version:"mlb-period-audit-v1"});
+      if(request.method==="GET"){
+        let ready=false;
+        try{ready=Boolean(env.DB?.prepare)&&Boolean(await env.DB.prepare("SELECT COUNT(*) AS n FROM pinnodds_api_requests").first())}
+        catch{ready=false}
+        return json(405,{error:"method-not-allowed",probeReady:ready,version:"mlb-period-audit-v1"});
+      }
       if(request.method==="POST"){
-        const audit=await auditPinnoddsMlbPeriods({apiKey:env.PINNODDS_API_KEY});
+        if(!env.DB?.prepare||!env.PINNODDS_API_KEY)
+          return json(503,{ok:false,reason:"PINNODDS_LEDGER_OR_CREDENTIAL_UNAVAILABLE"});
+        // Every actual provider HTTP attempt, including failed detail lookups,
+        // is reserved atomically before the request. No untracked probe bypass.
+        const trackedFetch=async(url,opts)=>{
+          const slot=await reservePinnOddsRequest(env.DB,{sportId:6,purpose:"diagnostic"});
+          if(!slot.ok)throw Error("PINNODDS_QUOTA_BLOCKED");
+          let status=null,retryUntil=null,result="FAILED",age=null,dataStatus=null;
+          try{
+            const response=await fetch(url,opts);
+            status=response.status;
+            age=Number(response.headers.get("x-data-age-ms"));
+            if(!Number.isFinite(age))age=null;
+            dataStatus=response.headers.get("x-data-status")||null;
+            if(status===429){
+              const raw=response.headers.get("retry-after"),n=Number(raw),date=Date.parse(raw||"");
+              retryUntil=Number.isFinite(n)&&n>=0?new Date(Date.now()+Math.min(n,86400)*1000).toISOString()
+                :Number.isFinite(date)?new Date(date).toISOString():new Date(Date.now()+3600000).toISOString();
+            }
+            result=response.ok?"SUCCESS":"HTTP_ERROR";
+            return response;
+          }finally{
+            await finishPinnOddsRequest(env.DB,slot,{
+              status:result,httpStatus:status,dataAgeMs:age,dataStatus,
+              errorCode:status===429?"RATE_LIMITED":result!=="SUCCESS"?result:null,
+              retryAfterUntil:retryUntil
+            });
+          }
+        };
+        const audit=await auditPinnoddsMlbPeriods({apiKey:env.PINNODDS_API_KEY,fetchImpl:trackedFetch});
         return json(audit.ok?200:502,{...audit,version:"mlb-period-audit-v1",authorizedCaller:auth.type});
       }
     }
@@ -290,7 +344,32 @@ async function handleFetch(request, env) {
     if (request.method === "POST" && url.pathname === "/api/pinnodds-baseball-probe") {
       // OIDC/control-token authenticated operator inventory. Exactly two
       // provider calls, never a cron, no market writes or wagering authority.
+      if(!env.DB?.prepare||!env.PINNODDS_API_KEY)
+        return json(503,{ok:false,reason:"PINNODDS_LEDGER_OR_CREDENTIAL_UNAVAILABLE"});
+      // The existing probe issues at most two REST calls. Reserve diagnostic
+      // slots before starting; charge even if the provider returns an error.
+      const reserved=[];
+      for(let i=0;i<2;i++){
+        const slot=await reservePinnOddsRequest(env.DB,{sportId:6,purpose:"diagnostic"});
+        if(!slot.ok){
+          for(const prior of reserved)await finishPinnOddsRequest(env.DB,prior,{status:"NOT_SENT_RESERVED",errorCode:"SECOND_SLOT_DENIED"});
+          return json(429,{ok:false,reason:"QUOTA_OR_COOLDOWN",requestsMade:0,inventoryVersion:"stat-taxonomy-v2"});
+        }
+        reserved.push(slot);
+      }
       const audit=await probePinnoddsBaseball({apiKey:env.PINNODDS_API_KEY});
+      for(let i=0;i<reserved.length;i++){
+        const record=audit.results?.[i]||null,http=record?.http??null,raw=record?.retryAfter||null;
+        const seconds=raw===null?NaN:Number(raw),date=Date.parse(raw||"");
+        const retryUntil=http===429
+          ?Number.isFinite(seconds)&&seconds>=0?new Date(Date.now()+Math.min(seconds,86400)*1000).toISOString()
+          :Number.isFinite(date)?new Date(date).toISOString():new Date(Date.now()+3600000).toISOString():null;
+        await finishPinnOddsRequest(env.DB,reserved[i],{
+          status:record?record.ok?"SUCCESS":"FAILED":"NOT_SENT_RESERVED",
+          httpStatus:http,dataStatus:record?.status??null,dataAgeMs:record?.dataAgeMs??null,
+          eventCount:record?.eventsReturned??null,errorCode:record?.reason??null,retryAfterUntil:retryUntil
+        });
+      }
       return json(audit.ok?200:502,{...audit,inventoryVersion:"stat-taxonomy-v2",authorizedCaller:auth.type});
     }
     if (request.method === "GET" && url.pathname === "/api/validate/sheets") {
@@ -363,7 +442,9 @@ export default {
   fetch: handleFetch,
   async scheduled(controller, env, ctx) {
     const cron=String(controller?.cron||"");
-    const task = cron === TENNIS_RECOVERY_CRON
+    const task = cron === PINNODDS_REST_CRON
+      ? runScheduledPinnOdds(env,{now:new Date(controller.scheduledTime||Date.now())})
+      : cron === TENNIS_RECOVERY_CRON
       ? runTennisRecoveryCron(env,{scheduledTime:controller.scheduledTime})
       : cron === TENNIS_HEALTH_CRON
       ? runTennisHealthCron(env)
