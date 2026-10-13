@@ -1,4 +1,4 @@
-import {authorizeStrategyPost} from "../lib/auth.js";
+import {authorizeHarvest} from "../lib/auth.js";
 import {signedPolymarketUsAccountGetHeaders} from "../lib/polymarketUsSignedWs.js";
 
 const json=(x,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{"content-type":"application/json","cache-control":"private, no-store","x-robots-tag":"noindex"}});
@@ -115,7 +115,7 @@ export async function syncPolymarketUsPrivate(db,env,{fetchImpl=fetch,now=new Da
 /** Must carry explicit server-side HARVEST_SECRET or STRATEGY_IMPORT_SECRET in HEADER.
  * Never expose private positions via GET or user-facing game endpoints. */
 export async function onRequestPost({request,env}){
-  if(!authorizeStrategyPost(request,env).ok)return json({ok:false,reason:"unauthorized"},403);
+  if(!authorizeHarvest(request,env).ok)return json({ok:false,reason:"unauthorized"},403);
   try{
     const result=await syncPolymarketUsPrivate(env.DB,env);
     return json(result,result.ok?200:502);
