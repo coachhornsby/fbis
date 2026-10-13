@@ -1,0 +1,72 @@
+name: Pinnodds all-baseball league and player-prop inventory
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "workers/pinnodds-baseball-probe.mjs"
+      - ".github/workflows/pinnodds-all-baseball-probe.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: fbis-pinnodds-baseball-inventory
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Verify bounded quota and player-prop inventory contracts
+        run: node --test test/pinnodds-baseball-probe.test.mjs
+      - name: Wait for production orchestrator version
+        if: github.event_name == 'push'
+        run: node scripts/verify-orchestrator-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Obtain repository-scoped GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep="?"
+          if [[ "$url" == *"?"* ]]; then sep="&"; fi
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -er '.value' <<<"$body")"
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - name: Perform TWO live Pinnodds baseball calls (prematch + live)
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          status="$(curl -sS --max-time 145 --retry 0 -w '%{http_code}' \
+            -H "Authorization: Bearer $OIDC_TOKEN" -H "content-type: application/json" \
+            -X POST -o artifacts/pinnodds-baseball-probe.json \
+            "https://fbis-orchestrator.coachhornsby.workers.dev/api/pinnodds-baseball-probe")"
+          echo "Pinnodds probe status: $status"
+          jq -c '{ok,capturedAt,requestsMade,requestedSpecials,results:[.results[] | {feed,ok,http,status,eventsReturned,baseEvents,specials,leagueCount,starterFieldCount,leagueBreakdown,samplePlayerProps:(.samplePlayerProps|.[0:8])}]}' artifacts/pinnodds-baseball-probe.json
+          {
+            echo "## Pinnodds all-baseball player props audit"
+            echo "Generated at: $(jq -r '.capturedAt // "unknown"' artifacts/pinnodds-baseball-probe.json)"
+            echo "| Feed | Status | Events | Specials | MLB props | NPB props | KBO props |"
+            echo "|---|---|---:|---:|---:|---:|---:|"
+            jq -r '.results[] | "| \(.feed) | \(.status // .reason // "unknown") | \(.baseEvents // 0) | \(.specials // 0) | \(.leagueBreakdown.MLB.playerProps // 0) | \(.leagueBreakdown.NPB.playerProps // 0) | \(.leagueBreakdown.KBO.playerProps // 0) |"' artifacts/pinnodds-baseball-probe.json
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$status" = "200"
+          jq -e '.ok == true and .requestsMade == 2 and .requestedSpecials == true and .canAuthorizeWager == false' artifacts/pinnodds-baseball-probe.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pinnodds-baseball-market-inventory-${{ github.run_id }}
+          path: artifacts/pinnodds-baseball-probe.json
+          if-no-files-found: warn
+          retention-days: 14
