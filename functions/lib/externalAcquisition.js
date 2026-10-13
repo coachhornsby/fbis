@@ -51,6 +51,9 @@ export async function startPaidAcquisition(env,{source,input,component,sport='sh
  const age=+now-Date.parse(account.usage_observed_at||'');
  if(!Number.isFinite(age)||age<0||age>3600000||!(account.period_start<=at&&at<account.period_end)||account.provider_usage_usd==null)return deny('ACCOUNT_USAGE_RECONCILIATION_STALE');
  const id='acq_'+crypto.randomUUID(),hour=new Date(+now-3600000).toISOString(),day=new Date(+now-86400000).toISOString();
+ // ACTION is one paid Actor launch TOTAL per rolling 24 hours, regardless of sport,
+ // component, profile or operator-configured policy. Missing/zero policy fails closed.
+ const effectiveDailyRunLimit=source==='action' ? Math.min(1,Math.max(0,Number(policy.daily_run_limit)||0)) : policy.daily_run_limit;
  // D1 serializes this ONE conditional insert: claim, budget reserve and rate limits are atomic.
  const claim=await DB.prepare(`INSERT INTO external_acquisitions(id,source,actor,scope_hash,scope_json,origin,state,reserved_charge_usd,created_at,updated_at)
  SELECT ?,?,?,?,?,?,'CLAIMED',?,?,?
@@ -59,7 +62,7 @@ export async function startPaidAcquisition(env,{source,input,component,sport='sh
  AND (SELECT COUNT(*) FROM external_acquisitions WHERE source=? AND created_at>=?) < ?
  AND COALESCE((SELECT SUM(reserved_charge_usd) FROM external_acquisitions WHERE source=? AND created_at>=?),0)+? <= ?
  AND ?+COALESCE((SELECT SUM(reserved_charge_usd) FROM external_acquisitions WHERE created_at>=? OR state IN ('CLAIMED','UNKNOWN_START','RUNNING')),0)+? <= ?`)
- .bind(id,source,policy.actor,hash,scope,origin||component,policy.per_run_cap_usd,at,at,source,hash,since,source,hour,policy.hourly_run_limit,source,day,policy.daily_run_limit,source,day,policy.per_run_cap_usd,policy.daily_cap_usd,account.provider_usage_usd,account.usage_observed_at,policy.per_run_cap_usd,Math.min(account.target_usd,account.hard_cap_usd)).run();
+ .bind(id,source,policy.actor,hash,scope,origin||component,policy.per_run_cap_usd,at,at,source,hash,since,source,hour,policy.hourly_run_limit,source,day,effectiveDailyRunLimit,source,day,policy.per_run_cap_usd,policy.daily_cap_usd,account.provider_usage_usd,account.usage_observed_at,policy.per_run_cap_usd,Math.min(account.target_usd,account.hard_cap_usd)).run();
  if(Number(claim.meta?.changes)!==1)return deny('ACQUISITION_BUDGET_RATE_OR_SCOPE_CONFLICT');
  await demand(DB,{source,component,sport,hash,outcome:'CLAIMED',id,now:at});
  let response;
