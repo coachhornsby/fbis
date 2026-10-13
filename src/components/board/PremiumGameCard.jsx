@@ -1,5 +1,6 @@
 import TeamLogo from "../TeamLogo.jsx";
 import NhlBettingIntelligence from "./NhlBettingIntelligence.jsx";
+import NhlMatchupSignals from "./NhlMatchupSignals.jsx";
 import NflInjuryIntegrityStrip from "./NflInjuryIntegrityStrip.jsx";
 
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
@@ -280,6 +281,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         )}
       </section>
       {!stored && sportId === "nhl" ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
+      {!stored && sportId === "nhl" ? <NhlMatchupSignals game={game} away={away} home={home} /> : null}
       {!stored && sportId !== "nhl" ? (
         <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="pgc-nfl-action-head"><strong>ACTION</strong><span>{action.headline?.label || (action.available ? "MARKET INTEL" : action.emptyLabel || "NO SNAPSHOT")}</span></div>
