@@ -14,7 +14,7 @@ test("Polymarket collector clock stays in raw capture, not the source-observed-a
  assert.equal(call.args[columns.indexOf("source_observed_at")],null);
  assert.equal(call.args[columns.indexOf("collected_at")],"2026-10-13T07:11:00Z");
  assert.match(call.args[columns.indexOf("raw_payload_json")],/collectorCapturedAt/);
- assert.equal(call.args[columns.indexOf("can_authorize_wager")],undefined,"authority flags are bound as literals");
+ assert.match(call.sql,/,0,0,0,\?,\?,\?\)/,"decision and wagering gates stay hard-coded false");
 });
 test("decision links preserve explicit timestamp and role",async()=>{const db=dbMock();const r=await linkMarketDecision(db,{decisionId:"d1",observationId:"o1",role:"ENTRY",decisionTimestamp:"2026-10-07T12:02:00Z"});assert.equal(r.inserted,true);assert.ok(db.calls[0].args.includes("ENTRY"));});
 test("latest venue query partitions by source and threshold",async()=>{const db=dbMock();const rows=await latestVenueOffers(db,{sport:"tennis",eventId:"e1"});assert.equal(rows[0].source,"draftkings");assert.match(db.calls[0].sql,/PARTITION BY source,market_family/);});
