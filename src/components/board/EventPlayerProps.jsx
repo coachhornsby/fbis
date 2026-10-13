@@ -33,8 +33,8 @@ export default function EventPlayerProps({game}) {
               <td><strong>{row.playerName||row.providerPlayerId||'Unidentified player'}</strong><span>{String(row.marketCanonical||row.market||'Unknown market').replaceAll('_',' ')} · {row.period||'event'}</span></td>
               <td>{row.book||row.provider||'Unknown source'}<span>{line??'—'}</span></td>
               <td>{odds(row.overOdds)} / {odds(row.underOdds)}</td>
-              <td>{projection??'No validated projection'}{gap!=null?<span>Difference {gap>0?'+':''}{gap}</span>:null}</td>
-              <td>{row.temporal?.status||'SOURCE_TIME_UNKNOWN'}<span>Collected {row.collectedAt||'unknown'}</span><span>Provider time {row.sourceObservedAt||'unknown'}</span><span>RESEARCH / NOT QUALIFIED</span></td>
+              <td>{projection??'No comparable projection'}{gap!=null?<span>Difference {gap>0?'+':''}{gap}</span>:null}</td>
+              <td>{row.temporal?.status||'SOURCE_TIME_UNKNOWN'}<span>Collected {row.collectedAt||'unknown'}</span><span>{row.providerTimeConfidence==='MIRROR_REPORTED_CAPTURE'?'Mirror capture':'Provider time'} {row.sourceObservedAt||'unknown'}</span>{row.quoteKind==='DAILY_MIRROR_REFERENCE_NOT_LIVE_VERIFIED'?<span>Daily snapshot · Not live verified</span>:null}<span>RESEARCH / NOT QUALIFIED</span></td>
             </tr>;
           })}</tbody>
         </table></div> : <p>{result.diagnostics?.absenceReason||'NO_OBSERVED_PROPS_FOR_EVENTS'}</p>}
