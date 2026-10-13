@@ -61,11 +61,19 @@ function analyzeBoard(data,feed,response){
  const groups=new Map(),offerSample=[];
  const ensure=(name)=>{const league=asStr(name||"UNKNOWN");if(!groups.has(league))groups.set(league,{
   league,scope:classifyBaseballLeague(league),events:0,specials:0,playerProps:0,
-  starterFields:new Set(),categories:new Map(),examples:[]});return groups.get(league)};
+  starterFields:new Set(),categories:new Map(),propUnits:new Map(),
+  statKinds:new Map(),pricedPlayerProps:0,propExamplesByStat:new Map(),
+  specialExamples:[],mainMarketTypes:new Map(),examples:[]});return groups.get(league)};
  for(const e of events){
   if(!e||typeof e!=="object")continue;
   const l=ensure(e.league_name);
   if(!e.special&&!e.special_category){l.events++;
+    for(const [p,v] of Object.entries(e.periods||{})){
+      for(const field of ["money_line","spreads","totals","team_total","team_totals"]){
+        if(v?.[field]&&Object.keys(v[field]).length)
+          l.mainMarketTypes.set(field,(l.mainMarketTypes.get(field)||0)+1);
+      }
+    }
     for(const k of pitcherKeys(e))l.starterFields.add(k);
     if(l.examples.length<2)l.examples.push({id:e.event_id,home:asStr(e.home),away:asStr(e.away),
       starts:e.starts??null,topFields:safeKeys(e),starterFields:pitcherKeys(e),
@@ -74,14 +82,42 @@ function analyzeBoard(data,feed,response){
     l.specials++;
     const category=asStr(e.special_category||"uncategorized");
     l.categories.set(category,(l.categories.get(category)||0)+1);
+    if(l.specialExamples.length<3)l.specialExamples.push({
+      description:asStr(e.special),category,units:asStr(e.special_units)});
     const isProp=/player|pitcher|batter/i.test(category)||/strikeout|pitcher|hits allowed|total bases|outs recorded|stolen base/i.test(asStr(e.special));
-    if(isProp){l.playerProps++;
-      if(offerSample.length<30)offerSample.push(sampleSpecial(e))}
+    if(isProp){
+      l.playerProps++;
+      const unit=asStr(e.special_units||"UNSPECIFIED");
+      l.propUnits.set(unit,(l.propUnits.get(unit)||0)+1);
+      const label=(asStr(e.special)+" "+unit).toLowerCase();
+      let kind="OTHER_PLAYER_PROP";
+      if(/strikeout|\bks\b/.test(label))kind="STRIKEOUTS";
+      else if(/outs recorded|pitching outs/.test(label))kind="PITCHING_OUTS";
+      else if(/hits allowed/.test(label))kind="HITS_ALLOWED";
+      else if(/walks allowed/.test(label))kind="WALKS_ALLOWED";
+      else if(/earned runs allowed/.test(label))kind="EARNED_RUNS_ALLOWED";
+      else if(/total bases/.test(label))kind="TOTAL_BASES";
+      else if(/runs batted in|\brbi\b/.test(label))kind="RBIS";
+      else if(/home runs/.test(label))kind="HOME_RUNS";
+      else if(/stolen bases/.test(label))kind="STOLEN_BASES";
+      else if(/\bhits\b/.test(label))kind="HITS";
+      else if(/\bruns\b/.test(label))kind="RUNS";
+      l.statKinds.set(kind,(l.statKinds.get(kind)||0)+1);
+      const sampled=sampleSpecial(e);
+      if(sampled.sampleOutcomes.some(x=>Number(x.decimalOdds)>1))l.pricedPlayerProps++;
+      if(!l.propExamplesByStat.has(kind))l.propExamplesByStat.set(kind,sampled);
+      if(offerSample.length<30)offerSample.push(sampled)
+    }
   }
  }
  const leagues=[...groups.values()].map(g=>({
   league:g.league,scope:g.scope,events:g.events,specials:g.specials,playerProps:g.playerProps,
   categories:[...g.categories.entries()].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count).slice(0,15),
+  propUnits:[...g.propUnits.entries()].map(([unit,count])=>({unit,count})).sort((a,b)=>b.count-a.count),
+  propStatKinds:[...g.statKinds.entries()].map(([kind,count])=>({kind,count})).sort((a,b)=>b.count-a.count),
+  propExamplesByStat:[...g.propExamplesByStat.values()].slice(0,15),
+  pricedPlayerProps:g.pricedPlayerProps,mainMarketTypes:[...g.mainMarketTypes.entries()].map(([type,count])=>({type,count})),
+  specialExamples:g.specialExamples,
   starterFields:[...g.starterFields],examples:g.examples
  })).sort((a,b)=>b.events-a.events||b.playerProps-a.playerProps);
  const classCounts=Object.fromEntries(["MLB","NPB","KBO","MiLB","OTHER_BASEBALL"].map(s=>[s,{

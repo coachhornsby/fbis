@@ -31,6 +31,10 @@ test("exactly two GETs with special markets, no secret in result and no authorit
  assert.equal(result.requestsMade,2);
  assert.ok(calls.every(x=>x.method==="GET"&&x.url.includes("sport_id=6&include_specials=1")||x.url.includes("sport_id=6&event_type=live&include_specials=1")));
  assert.equal(result.results[0].leagueBreakdown.MLB.playerProps,1);
+ const mlb=result.results[0].leagues.find(l=>l.scope==="MLB");
+ assert.deepEqual(mlb.propStatKinds,[{kind:"STRIKEOUTS",count:1}]);
+ assert.equal(mlb.pricedPlayerProps,1);
+ assert.deepEqual(mlb.propUnits,[{unit:"Strikeouts",count:1}]);
  assert.equal(result.results[0].leagueBreakdown.NPB.events,1);
  assert.equal(result.results[0].leagueBreakdown.KBO.events,1);
  assert.equal(result.results[0].samplePlayerProps[0].sampleOutcomes[0].points,5.5);
