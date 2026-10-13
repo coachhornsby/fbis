@@ -15,7 +15,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   WHERE source IN ('Polymarket US','Polymarket US WebSocket') AND sport=? AND canonical_event_id IN (${params})
     AND collected_at BETWEEN ? AND ?
     AND (event_start_time IS NULL OR event_start_time >= ?)
- ) SELECT * FROM fresh WHERE rn=1 ORDER BY canonical_event_id,market_family,source_market_id LIMIT 240`;
+ ) SELECT * FROM fresh WHERE rn=1 ORDER BY canonical_event_id,CASE WHEN source='Polymarket US WebSocket' THEN 0 ELSE 1 END,market_family,source_market_id LIMIT 240`;
  const rows=(await db.prepare(query).bind(sport,...ids,cutoff,end,
    new Date(now.getTime()-8*60*60*1000).toISOString()).all())?.results||[];
  const byId=new Map();
