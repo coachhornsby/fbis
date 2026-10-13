@@ -2,6 +2,7 @@ import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
 import { productProjectionBoard } from "../lib/productProjection.js";
 import { buildTennisResearchSlate, boardDateCtForStart } from "../lib/todayBoard.js";
 import { authorizeProductTier, productResponsePolicy } from "../lib/productAccess.js";
+import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "../lib/polymarketBoard.js";
 
 const SPORTS = new Set(["mlb", "npb", "kbo", "cfb", "cbb", "nfl", "nba", "wnba", "nhl", "soccer", "tennis"]);
 
@@ -44,7 +45,17 @@ export async function onRequestGet(context) {
     const selected = sport === "cfb"
       ? { ...slate, games: (slate.games || []).filter((game) => boardDateCtForStart(game.start) === resolved.date) }
       : slate;
-    return json(productProjectionBoard(selected, { tier: access.tier }), 200, { tier: access.tier });
+    const board=productProjectionBoard(selected,{tier:access.tier});
+    // Market overlay is a separate, source-labeled read. Model calculations have
+    // already finished; incomplete quote coverage cannot affect their authority.
+    let overlay={byId:new Map(),available:false};
+    if(context.env.DB?.prepare && board.games?.length){
+      try{overlay=await loadPolymarketUsBoardOffers(context.env.DB,board.games,sport)}
+      catch(_){/* stale/missing provider never breaks independent FBIS projections */}
+    }
+    return json({...board,games:attachPolymarketBoardOffers(board.games,overlay),
+      polymarketResearch:{source:"Polymarket US",available:Boolean(overlay.available),
+        qualified:false,executable:false}},200,{tier:access.tier});
   } catch (err) {
     return json({ ok: false, error: "projection-board-unavailable", detail: String(err?.message || err) }, 502, { tier: access.tier, maxAge: 5 });
   }

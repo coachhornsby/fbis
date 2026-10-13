@@ -217,6 +217,13 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </section>
       ) : null}
 
+      {Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => o.source === "Polymarket US") ? (
+        <div className="pgc-status-note" aria-label="Polymarket US research market data">
+          <strong>POLYMARKET US · RESEARCH</strong> · {game.market.venueOffers.filter(o => o.source === "Polymarket US" && o.contractPrice != null).slice(0,3).map(o =>
+            `${o.side} ${Math.round(o.contractPrice * 1000)/10}%`
+          ).join(" · ") || "NO PRICED QUOTE"} · Display only, not executable
+        </div>
+      ) : null}
       <section className="pgc-featured-matchup">
         <div className="pgc-featured-team">
           <div className="pgc-team-visual">

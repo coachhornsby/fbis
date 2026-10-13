@@ -248,6 +248,17 @@ export default function GameCard({
         </div>
       </section>
 
+      {Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => o.source === "Polymarket US") ? (
+        <section className="gc-reference" aria-label="Polymarket US reference probabilities">
+          <div className="gc-section-label">POLYMARKET US · DISPLAY-ONLY PROBABILITIES</div>
+          {game.market.venueOffers.filter(o=>o.source==="Polymarket US").slice(0,6).map((o,i)=>(
+            <div key={o.sourceMarketId+"-"+o.side+"-"+i}>
+              {o.marketFamily.toUpperCase()} · {o.side}: {o.contractPrice==null ? "NO PRICE" : `${Math.round(o.contractPrice*1000)/10}%`}
+            </div>
+          ))}
+          <div className="gc-action-footnote muted">Indicative display prices only · NOT verified asks · no FBIS wagering authority</div>
+        </section>
+      ) : null}
       <MultiBookMarketTable game={game} />
 
       {game.market?.reference?.available && (mkt.referenceOnly || mkt.book === "Reference" || !game.market?.marketAvailable) ? (
