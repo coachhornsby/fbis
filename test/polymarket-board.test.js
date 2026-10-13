@@ -32,3 +32,26 @@ test("unsupported D1 or no canonical games is empty, never a fabricated quote",a
  assert.equal(r.available,false);
  assert.equal(r.byId.size,0);
 });
+
+test("NHL board overlay passes only sanitized WebSocket BBO and never implies execution or depth",async()=>{
+ const db={prepare(){return{bind(){return{async all(){return{results:[{
+  canonical_event_id:"nj-det",sport:"nhl",source:"Polymarket US WebSocket",
+  market_family:"moneyline",period:"full_game",side:"Detroit Red Wings",
+  source_market_id:"nj-det-det",contract_price:.47,
+  collected_at:"2026-10-13T14:58:00Z",source_observed_at:null,
+  raw_payload_json:JSON.stringify({bestBid:.45,bestAsk:.47,privateAccountId:"PRIVATE-NEVER-RETURN"}),
+  execution_eligible:0,can_qualify:0,can_authorize_wager:0
+ }]}}}}}}};
+ const r=await loadPolymarketUsBoardOffers(db,[{id:"nj-det"}],"nhl",{now:new Date("2026-10-13T15:00:00Z")});
+ const card=attachPolymarketBoardOffers([{id:"nj-det"}],r)[0];
+ const quote=card.market.venueOffers[0];
+ assert.equal(quote.source,"Polymarket US WebSocket");
+ assert.equal(quote.raw.bestBid,.45);
+ assert.equal(quote.raw.bestAsk,.47);
+ assert.equal("privateAccountId" in quote.raw,false);
+ assert.equal(quote.executionEligible,false);
+ assert.equal(quote.canQualify,false);
+ assert.equal(quote.canAuthorizeWager,false);
+ assert.equal(quote.sourceObservedAt,null);
+ assert.equal(quote.quoteKind,"OBSERVED_BBO_NOT_GUARANTEED_FILL");
+});
