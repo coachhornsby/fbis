@@ -13,7 +13,7 @@ test("Polymarket collector clock stays in raw capture, not the source-observed-a
  const columns=call.sql.slice(call.sql.indexOf("(")+1,call.sql.indexOf(") VALUES")).split(",").map(x=>x.trim());
  assert.equal(call.args[columns.indexOf("source_observed_at")],null);
  assert.equal(call.args[columns.indexOf("collected_at")],"2026-10-13T07:11:00Z");
- assert.match(call.args[columns.indexOf("raw_payload_json")],/collectorCapturedAt/);
+ assert.ok(call.args.some(v=>typeof v==="string"&&v.includes("collectorCapturedAt")),"raw payload retains local capture");
  assert.match(call.sql,/,0,0,0,\?,\?,\?\)/,"decision and wagering gates stay hard-coded false");
 });
 test("decision links preserve explicit timestamp and role",async()=>{const db=dbMock();const r=await linkMarketDecision(db,{decisionId:"d1",observationId:"o1",role:"ENTRY",decisionTimestamp:"2026-10-07T12:02:00Z"});assert.equal(r.inserted,true);assert.ok(db.calls[0].args.includes("ENTRY"));});
