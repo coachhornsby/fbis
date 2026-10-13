@@ -35,13 +35,13 @@ export function liveBboOffer(tick,base){
     awayTeam:base.away_team,marketFamily:base.market_family,
     side:base.side,line:base.line,contractPrice:tick.bestAsk,
     standardOrAlt:"unknown",period:"full_game",sourceMarketId:tick.marketSlug,
-    sourceOutcomeId:base.source_outcome_id,fetchedAt:tick.at,
+    sourceOutcomeId:base.source_outcome_id,fetchedAt:null,
     executionEligible:false,canQualify:false,canAuthorizeWager:false,
     raw:{providerEventId:base.provider_event_id,providerMarketId:tick.marketSlug,
       providerOutcomeId:base.source_outcome_id,quoteKind:"WS_LIVE_BBO_UNVERIFIED_FILL",
       bestBid:tick.bestBid,bestAsk:tick.bestAsk,lastTrade:tick.lastTrade,
       bidDepth:tick.bidDepth,askDepth:tick.askDepth,
-      sourceObservedAt:null,quoteObservedAt:null,marketObservedAt:null,
+      collectorCapturedAt:tick.at,sourceObservedAt:null,quoteObservedAt:null,marketObservedAt:null,
       streamService:"fbis-polymarket-us-stream",streamMode:"RECONNECTING",
       canQualify:false,canAuthorizeWager:false,modelInfluence:"none"}};
 }
