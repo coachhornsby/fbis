@@ -277,13 +277,13 @@ async function handleFetch(request, env) {
   try {
     if (request.method === "GET" && url.pathname === "/api/pinnodds-baseball-probe") {
       // Non-chargeable ready probe. Available only after OIDC authentication.
-      return json(405,{error:"method-not-allowed",probeReady:true});
+      return json(405,{error:"method-not-allowed",probeReady:true,inventoryVersion:"stat-taxonomy-v2"});
     }
     if (request.method === "POST" && url.pathname === "/api/pinnodds-baseball-probe") {
       // OIDC/control-token authenticated operator inventory. Exactly two
       // provider calls, never a cron, no market writes or wagering authority.
       const audit=await probePinnoddsBaseball({apiKey:env.PINNODDS_API_KEY});
-      return json(audit.ok?200:502,{...audit,authorizedCaller:auth.type});
+      return json(audit.ok?200:502,{...audit,inventoryVersion:"stat-taxonomy-v2",authorizedCaller:auth.type});
     }
     if (request.method === "GET" && url.pathname === "/api/validate/sheets") {
       return json(200, await validateSheetsAccess());
