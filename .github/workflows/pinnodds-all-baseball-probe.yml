@@ -45,11 +45,12 @@ jobs:
         run: |
           set -euo pipefail
           for i in $(seq 1 45); do
-            code="$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' \
+            ready="$(mktemp)"
+            code="$(curl -sS --max-time 15 -o "$ready" -w '%{http_code}' \
               -H "Authorization: Bearer $OIDC_TOKEN" \
               "https://fbis-orchestrator.coachhornsby.workers.dev/api/pinnodds-baseball-probe" || true)"
-            if [ "$code" = "405" ]; then
-              echo "Authenticated Pinnodds probe route ready, no upstream requests charged."
+            if [ "$code" = "405" ] && jq -e '.probeReady==true and .inventoryVersion=="stat-taxonomy-v2"' "$ready" >/dev/null 2>&1; then
+              echo "Authenticated Pinnodds taxonomy-v2 probe ready, no upstream requests charged."
               exit 0
             fi
             sleep 8
@@ -77,7 +78,7 @@ jobs:
             jq -r '.results[] | "| \(.feed) | \(.status // .reason // "unknown") | \(.baseEvents // 0) | \(.specials // 0) | \(.leagueBreakdown.MLB.playerProps // 0) | \(.leagueBreakdown.NPB.playerProps // 0) | \(.leagueBreakdown.KBO.playerProps // 0) |"' artifacts/pinnodds-baseball-probe.json
           } >> "$GITHUB_STEP_SUMMARY"
           test "$status" = "200"
-          jq -e '.ok == true and .requestsMade == 2 and .requestedSpecials == true and .canAuthorizeWager == false' artifacts/pinnodds-baseball-probe.json >/dev/null
+          jq -e '.ok == true and .inventoryVersion == "stat-taxonomy-v2" and .requestsMade == 2 and .requestedSpecials == true and .canAuthorizeWager == false and (.results | all(.leagues | all(.propStatKinds != null and .propUnits != null)))' artifacts/pinnodds-baseball-probe.json >/dev/null
       - uses: actions/upload-artifact@v4
         if: always()
         with:
