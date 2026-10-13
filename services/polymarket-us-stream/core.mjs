@@ -57,3 +57,10 @@ export function parseStreamControl(raw){
 export function streamIsHealthy({connected,lastMessageAt,now=Date.now(),maxAgeMs=120000}={}){
  return connected===true&&Number.isFinite(lastMessageAt)&&lastMessageAt>0&&now>=lastMessageAt&&now-lastMessageAt<=maxAgeMs;
 }
+/** A handshake timeout must stop once upgraded; aborting later kills the live socket. */
+export async function fetchStreamUpgrade(url,options={}, {fetchImpl=fetch,timeoutMs=20000,timers={setTimeout,clearTimeout}}={}){
+ const controller=new AbortController();
+ const timeout=timers.setTimeout(()=>controller.abort(),timeoutMs);
+ try{return await fetchImpl(url,{...options,signal:controller.signal});}
+ finally{timers.clearTimeout(timeout);}
+}

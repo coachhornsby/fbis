@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {STREAM_SPORTS,fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy} from "../services/polymarket-us-stream/core.mjs";
+import {STREAM_SPORTS,fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,fetchStreamUpgrade} from "../services/polymarket-us-stream/core.mjs";
 test("persistent market selection distributes subscriptions over all supported sports",()=>{
  const rows=STREAM_SPORTS.flatMap(s=>Array.from({length:5},(_,i)=>({
    sport:s,source_market_id:s+"-"+i,canonical_event_id:s+"-game"
@@ -46,4 +46,10 @@ test("heartbeat and subscription errors remain control frames",()=>{
  assert.deepEqual(parseStreamControl({error:"failure",request_id:"abc"}),{type:"error"});
  assert.equal(parseStreamControl('{'),null);
  assert.equal(parseStreamControl({marketDataLite:{marketSlug:"nhl-home"}}),null);
+});
+
+test("handshake deadline is cleared on upgrade and cannot abort a live connection",async()=>{
+ let signal,cleared=false,callback;
+ const response=await fetchStreamUpgrade('https://provider.test/ws',{headers:{Upgrade:'websocket'}},{fetchImpl:async(url,options)=>{signal=options.signal;return{status:101}},timers:{setTimeout(fn){callback=fn;return 1},clearTimeout(id){assert.equal(id,1);cleared=true;callback=null;}}});
+ assert.equal(response.status,101);assert.equal(cleared,true);assert.equal(callback,null);assert.equal(signal.aborted,false);
 });
