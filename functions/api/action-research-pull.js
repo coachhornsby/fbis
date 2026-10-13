@@ -65,12 +65,7 @@ export async function onRequestPost(context){
   let body={}; try{body=await context.request.json();}catch{}
   const opts=optsFrom(body);
   if(!opts.sport) return json({ok:false,error:"sport-required"},400);
-  const d=db(context.env);
-  const researchEnv=context.env;
-  const plan=planCandidateCollection(researchEnv,opts);
-  const mtd=await queryMonthToDateSpendUsd(d);
-  const safety=evaluateSchedulerSafety(plan,{monthToDateCostUsd:mtd.mtdUsd});
-  if(!safety.allowed) return json({ok:false,executed:false,status:"blocked",blocks:safety.blocks,budget:safety,inProductionRouter:false,canQualify:false,canAuthorizeWager:false},409);
-  const result=await runCandidateCollection(researchEnv,{...opts,maxItems:plan.input.maxGames,fbisEvents:[],gamesExpected:null,db:d,monthToDateCostUsd:mtd.mtdUsd});
-  return json({...result,rows:undefined,executed:true,inProductionRouter:false,canQualify:false,canAuthorizeWager:false},result.ok?200:502);
+  // Retain GET-only research planning. Historical paid pulls would preempt the
+  // operator's one shared daily ACTION source slot; they remain disabled.
+  return json({ok:false,executed:false,status:"action_research_paid_paused",reason:"Only the governed daily ACTION acquisition may launch a paid Action Actor.",inProductionRouter:false,canQualify:false,canAuthorizeWager:false},409);
 }
