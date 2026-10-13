@@ -1,0 +1,48 @@
+name: Deploy persistent Polymarket US market stream
+on:
+  pull_request:
+    paths:
+      - "services/polymarket-us-stream/**"
+      - "wrangler.polymarket-us-stream.toml"
+      - "functions/lib/polymarketUsSignedWs.js"
+      - "functions/lib/marketObservationLedger.js"
+      - ".github/workflows/deploy-polymarket-us-stream.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/polymarket-us-stream/**"
+      - "wrangler.polymarket-us-stream.toml"
+      - "functions/lib/polymarketUsSignedWs.js"
+      - ".github/workflows/deploy-polymarket-us-stream.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fbis-polymarket-us-durable-stream-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - run: npm ci --ignore-scripts
+      - name: Market source/governance regression
+        run: node --test test/polymarket-us-signed-ws.test.js test/polymarket-us-persistent-stream.test.js
+      - name: Verify Worker and Durable Object bundle
+        run: npx wrangler deploy --config wrangler.polymarket-us-stream.toml --dry-run --outdir /tmp/fbis-polymarket-us-stream
+      - name: Deploy isolated read-only stream to Cloudflare
+        if: github.event_name != 'pull_request'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npx wrangler deploy --config wrangler.polymarket-us-stream.toml
+          echo "Published dedicated Polymarket US read-only stream; credentials provisioned separately as encrypted Worker secrets." >> "$GITHUB_STEP_SUMMARY"
