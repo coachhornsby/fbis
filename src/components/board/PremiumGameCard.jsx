@@ -1,7 +1,8 @@
 import TeamLogo from "../TeamLogo.jsx";
-import NhlEvidenceStrip from "./NhlEvidenceStrip.jsx";
+import NhlBettingIntelligence from "./NhlBettingIntelligence.jsx";
+import NhlMatchupSignals from "./NhlMatchupSignals.jsx";
 import NflInjuryIntegrityStrip from "./NflInjuryIntegrityStrip.jsx";
-import NhlPlayerProjectionStrip from "./NhlPlayerProjectionStrip.jsx";
+
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
@@ -217,7 +218,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </section>
       ) : null}
 
-      {Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => o.source === "Polymarket US") ? (
+      {sportId !== "nhl" && Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => o.source === "Polymarket US") ? (
         <div className="pgc-status-note" aria-label="Polymarket US research market data">
           <strong>POLYMARKET US · RESEARCH</strong> · {game.market.venueOffers.filter(o => o.source === "Polymarket US" && o.contractPrice != null).slice(0,3).map(o =>
             `${o.side} ${Math.round(o.contractPrice * 1000)/10}%`
@@ -279,8 +280,9 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           </>
         )}
       </section>
-      {!stored && sportId === "nhl" ? <><NhlEvidenceStrip game={game} vm={vm} expanded /><NhlPlayerProjectionStrip game={game} /></> : null}
-      {!stored && (sportId !== "nhl" || action.available) ? (
+      {!stored && sportId === "nhl" ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
+      {!stored && sportId === "nhl" ? <NhlMatchupSignals game={game} away={away} home={home} /> : null}
+      {!stored && sportId !== "nhl" ? (
         <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="pgc-nfl-action-head"><strong>ACTION</strong><span>{action.headline?.label || (action.available ? "MARKET INTEL" : action.emptyLabel || "NO SNAPSHOT")}</span></div>
           <div><span>TICKETS</span><strong>{splitLabel(action.tickets, away, home)}</strong></div>
@@ -288,7 +290,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <div><span>LINE MOVE</span><strong>{action.lineMove?.label || action.movement?.label || "NO MOVE"}</strong></div>
         </section>
       ) : null}
-      {!stored && sportId === "nhl" && !action.available ? <p className="cgc-nhl-action-unavailable">ACTION splits and movement: UNAVAILABLE · No proxy signals inferred</p> : null}
+
       <footer className="pgc-footer pgc-featured-footer">
         <span>{vm.footer?.marketSourceLabel || "Market Source: —"}</span>
         {typeof onToggle === "function" ? (

@@ -68,11 +68,15 @@ test("missing model or market means unevaluated, not NO EDGE",()=>{
 test("NHL compact and expanded cards share evidence contract and avoid unconditional edge badges",async()=>{
   const compact=await readFile(new URL("../src/components/board/CompactGameCard.jsx",import.meta.url),"utf8");
   const premium=await readFile(new URL("../src/components/board/PremiumGameCard.jsx",import.meta.url),"utf8");
-  const component=await readFile(new URL("../src/components/board/NhlEvidenceStrip.jsx",import.meta.url),"utf8");
+  const component=await readFile(new URL("../src/components/board/NhlBettingIntelligence.jsx",import.meta.url),"utf8");
   for(const code of [compact,premium]) {
-    assert.match(code,/NhlEvidenceStrip/);
+    assert.match(code,/NhlBettingIntelligence/);
     assert.match(code,/[Mm]odel \/ market gap|MODEL \/ MARKET GAP/);
+    assert.doesNotMatch(code,/<NhlEvidenceStrip/);
+    assert.doesNotMatch(code,/<NhlPlayerProjectionStrip/);
   }
+  assert.match(component,/RESEARCH ONLY/);
+  assert.match(component,/const NA="N\/A"/);
   assert.doesNotMatch(component,/canAuthorizeWager\s*:\s*true/);
   assert.match(compact,/LIVE SCORE NOT AVAILABLE FROM FEED/);
   assert.match(premium,/LIVE SCORE NOT AVAILABLE FROM FEED/);
