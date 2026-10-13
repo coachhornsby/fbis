@@ -1,0 +1,91 @@
+name: Pinnodds MLB F5 and F3 period-price verification
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "workers/pinnodds-mlb-period-audit.mjs"
+      - "workers/sports-projection-orchestrator-worker.mjs"
+      - ".github/workflows/pinnodds-mlb-period-audit.yml"
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: fbis-pinnodds-mlb-period-one-shot
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Period semantics, paired quote fields, bounded request tests
+        run: node --test test/pinnodds-mlb-period-audit.test.mjs
+      - name: Obtain GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep="?"
+          if [[ "$url" == *"?"* ]]; then sep="&"; fi
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -er '.value' <<<"$body")"
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - name: Wait for period audit version (NO provider calls)
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 45); do
+            body="$(mktemp)"
+            status="$(curl -sS --max-time 15 -o "$body" -w '%{http_code}' \
+              -H "Authorization: Bearer $OIDC_TOKEN" \
+              "https://fbis-orchestrator.coachhornsby.workers.dev/api/pinnodds-mlb-period-audit" || true)"
+            if [ "$status" = "405" ] && jq -e '.probeReady == true and .version == "mlb-period-audit-v1"' "$body" >/dev/null 2>&1; then
+              echo "Correct production code is live; safe to probe once."
+              exit 0
+            fi
+            sleep 8
+          done
+          echo "Targeted probe version unavailable; no provider requests made."
+          exit 1
+      - name: Execute bounded MLB event-market GETs
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          response="artifacts/pinnodds-mlb-periods.json"
+          code="$(curl -sS --max-time 145 --retry 0 -w '%{http_code}' \
+            -X POST -H "Authorization: Bearer $OIDC_TOKEN" \
+            -o "$response" \
+            "https://fbis-orchestrator.coachhornsby.workers.dev/api/pinnodds-mlb-period-audit")"
+          echo "Period audit HTTP $code"
+          jq -c '{ok,capturedAt,requestsMade,requestedEvents,baseEventsCount,sourceStatus,f5PeriodCount,f3ExplicitlyLabeledCount,priced,unknownPeriodCount,verifiedEventDetail:[.verifiedEventDetail[]|{ok,eventId,home,away,league,periods:[.periods[]?|{key,number,description,classification,periodStatus,quoted,quoteStatus,moneyline,spreads,totals,sourceOpenFlags}]}]}' "$response"
+          {
+            echo "## Authenticated Pinnodds MLB full-period market audit"
+            echo "Captured: $(jq -r '.capturedAt' "$response")"
+            echo "API requests made: $(jq -r '.requestsMade' "$response")"
+            echo "F5 periods: $(jq -r '.f5PeriodCount' "$response")"
+            echo "F5 priced ML/Run lines/Totals: $(jq -r '.priced.F5 | "\(.moneyline)/\(.runLines)/\(.totals)"' "$response")"
+            echo "Explicit F3 labeled periods: $(jq -r '.f3ExplicitlyLabeledCount' "$response")"
+            echo "Unverified period labels: $(jq -r '.unknownPeriodCount' "$response")"
+            echo "### Period markets by matchup"
+            jq -r '.verifiedEventDetail[] | "- \(.away) at \(.home): " + ([.periods[]? | "\(.key)=\(.description) (\(.classification), ML=\(.quoted.moneyline), RL=\(.quoted.runLines), Tot=\(.quoted.totals))"] | join("; "))' "$response"
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$code" = "200"
+          jq -e '.ok == true and .version == "mlb-period-audit-v1" and .requestsMade <= 4 and .requestedEvents > 0 and .canAuthorizeWager == false' "$response" >/dev/null
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pinnodds-mlb-f5-f3-period-verification-${{ github.run_id }}
+          path: artifacts/pinnodds-mlb-periods.json
+          if-no-files-found: warn
+          retention-days: 14
