@@ -1,0 +1,70 @@
+name: Verify existing PinnOdds account capability
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['workers/pinnodds-account-usage.mjs','.github/workflows/pinnodds-account-capability.yml']
+  push:
+    branches: [main]
+    paths: ['workers/pinnodds-account-usage.mjs','.github/workflows/pinnodds-account-capability.yml']
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  capability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: node --test test/pinnodds-account-usage.test.mjs
+      - name: Obtain repository-scoped GitHub OIDC token
+        if: github.event_name != 'pull_request'
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep="?"
+          if [[ "$url" == *"?"* ]]; then sep="&"; fi
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -er '.value' <<<"$body")"
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - name: Wait for authenticated account capability route
+        if: github.event_name != 'pull_request'
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 45); do
+            ready="$(mktemp)"
+            code="$(curl -sS --max-time 15 -o "$ready" -w '%{http_code}' \
+              -H "Authorization: Bearer $OIDC_TOKEN" \
+              "https://fbis-orchestrator.coachhornsby.workers.dev/api/pinnodds-account-usage" || true)"
+            if [ "$code" = "405" ] && jq -e '.ready==true and .version=="pinnodds-account-usage-v1"' "$ready" >/dev/null 2>&1; then
+              echo "Authenticated Pinnodds account capability route ready, no upstream requests charged."
+              exit 0
+            fi
+            sleep 8
+          done
+          echo "Pinnodds production probe route unavailable: no API requests made."
+          exit 1
+      - name: Read existing plan and usage without charging odds quota
+        if: github.event_name != 'pull_request'
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail-with-body -sS --max-time 75 -X POST -H "Authorization: Bearer $OIDC_TOKEN" https://fbis-orchestrator.coachhornsby.workers.dev/api/pinnodds-account-usage > artifacts/pinnodds-account-capability.json
+          jq -e '.ok==true and .chargeableOddsRequests==0 and .canAuthorizeWager==false' artifacts/pinnodds-account-capability.json >/dev/null
+          jq . artifacts/pinnodds-account-capability.json
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name != 'pull_request'
+        with:
+          name: pinnodds-existing-capability-${{ github.run_id }}
+          path: artifacts/pinnodds-account-capability.json
+          retention-days: 14
