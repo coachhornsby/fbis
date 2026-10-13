@@ -1,3 +1,4 @@
+import {reservePinnoddsRun,capturePinnoddsSnapshot} from "./pinnodds-governed-capture.mjs";
 import crypto from "node:crypto";
 import { readPinnoddsAccountUsage } from "./pinnodds-account-usage.mjs";
 import { probePinnoddsBaseball } from "./pinnodds-baseball-probe.mjs";
@@ -277,6 +278,15 @@ async function handleFetch(request, env) {
   if (!auth) return json(401, { error: "unauthorized" });
 
   try {
+    if(url.pathname==="/api/pinnodds-capture"){
+      if(request.method==="GET")return json(405,{ready:true,version:"pinnodds-governed-capture-v1"});
+      if(request.method==="POST"){
+        const body=await request.json();
+        if(body.operation==='reserve')return json(200,await reservePinnoddsRun(env,body));
+        if(body.operation==='capture')return json(200,await capturePinnoddsSnapshot(env,body));
+        return json(400,{error:'INVALID_OPERATION'});
+      }
+    }
     if(url.pathname==="/api/pinnodds-account-usage"){
       if(request.method==="GET")return json(405,{ready:true,version:"pinnodds-account-usage-v1"});
       if(request.method==="POST")return json(200,await readPinnoddsAccountUsage({apiKey:env.PINNODDS_API_KEY}));

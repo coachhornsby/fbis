@@ -9,7 +9,7 @@ export async function persistNormalizedMarketObservation(db,input,{modelProbabil
  if(!db?.prepare)return {inserted:false,reason:"database-unavailable"};
  const o=priceMarketOffer(normalizeMarketOffer(input),{modelProbability,pairedAmericanOdds});
  const collected=collectedAt||new Date().toISOString(), observed=providerObservationTime(input);
- const natural=[o.source,o.sourceType,o.sport,o.eventId,o.playerId||o.playerName,o.marketFamily,o.statFamily,o.period,o.side,o.line,o.americanOdds,o.contractPrice,o.payoutMultiplier,o.sourceMarketId,o.sourceOutcomeId,observed,collected].join("|");
+ const natural=[o.source,o.sourceType,o.sport,o.eventId,o.playerId||o.playerName,o.marketFamily,o.statFamily,o.period,o.side,o.line,o.americanOdds,o.decimalOdds,o.contractPrice,o.payoutMultiplier,o.sourceMarketId,o.sourceOutcomeId,observed,collected].join("|");
  const h=await digest(natural),id="nmo_"+h.slice(0,28),raw=JSON.stringify(o.raw??null),rawHash=await digest(raw);
  const res=await db.prepare(`INSERT OR IGNORE INTO normalized_market_observations(
  id,observation_key,source,source_type,sport,league,canonical_event_id,provider_event_id,event_start_time,home_team,away_team,

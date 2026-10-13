@@ -28,3 +28,9 @@ test("identical lines in distinct periods receive distinct immutable observation
  const first=await persistNormalizedMarketObservation(db,{...offer,period:'first_five'},opts);
  assert.notEqual(full.id,first.id);
 });
+
+test("distinct observed decimal prices receive distinct immutable observation IDs",async()=>{
+ const offer={source:'PinnOdds',sourceType:'sportsbook',sport:'mlb',eventId:'game',marketFamily:'total',side:'over',line:4.5,period:'full_game',sourceMarketId:'market',sourceOutcomeId:'over',sourceObservedAt:null};
+ const opts={collectedAt:'2026-10-13T17:00:00Z'},db=dbMock();
+ assert.notEqual((await persistNormalizedMarketObservation(db,{...offer,decimalOdds:1.8},opts)).id,(await persistNormalizedMarketObservation(db,{...offer,decimalOdds:1.9},opts)).id);
+});

@@ -5,6 +5,7 @@ on:
     paths:
       - "workers/sports-projection-orchestrator-worker.mjs"
       - "workers/pinnodds-account-usage.mjs"
+      - "workers/pinnodds-governed-capture.mjs"
       - "workers/prospective-pipeline-recovery.mjs"
       - "workers/tennis-refresh-health.mjs"
       - "workers/tennis-refresh-recovery.mjs"

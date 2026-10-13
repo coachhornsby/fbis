@@ -6,6 +6,7 @@ on:
       - "workers/sports-projection-orchestrator-worker.mjs"
       - "workers/pinnodds-baseball-probe.mjs"
       - "workers/pinnodds-account-usage.mjs"
+      - "workers/pinnodds-governed-capture.mjs"
       - "workers/pinnodds-mlb-period-audit.mjs"
       - "workers/tennis-refresh-health.mjs"
       - "workers/tennis-refresh-recovery.mjs"

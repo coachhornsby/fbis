@@ -1,3 +1,4 @@
+import {loadPinnoddsPlayerProps} from "../lib/pinnoddsPlayerProps.js";
 import {FREE_PROP_MIRROR_SOURCE,FREE_PROP_MIRROR_SPORTS,loadFreeMirrorRows} from "../lib/freePrizePicksMirror.js";
 import { fetchEspnTennisRankings, buildTennisResearchBoardRows } from "../lib/tennisPrizePicksResearch.js";
 import { marketTemporalStatus } from "../lib/marketTemporal.js";
@@ -8,6 +9,8 @@ import {
   mlbHeadshotUrl,
   normalizeProPropSport,
 } from "../lib/proPlayerProps.js";
+
+const PROP_RESEARCH_SPORTS=Object.freeze([...PRO_PLAYER_PROP_SPORTS,"soccer"]);
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -269,8 +272,8 @@ export async function onRequestGet(context) {
   )];
   if (eventIds.length > 80) return json({ok:false,error:"EVENT_BATCH_TOO_LARGE",maxEvents:80,rows:[]},400);
   const requestedSport = str(url.searchParams.get("sport"));
-  const sportParam = normalizeProPropSport(requestedSport);
-  if (requestedSport && !sportParam) return json({ok:true,rows:[],sports:PRO_PLAYER_PROP_SPORTS,diagnostics:{checkedEvents:eventIds.length,absenceReason:"UNSUPPORTED_PROP_SPORT"}});
+  const sportParam = normalizeProPropSport(requestedSport) || (requestedSport?.toLowerCase()==="soccer"?"soccer":null);
+  if (requestedSport && !sportParam) return json({ok:true,rows:[],sports:PROP_RESEARCH_SPORTS,diagnostics:{checkedEvents:eventIds.length,absenceReason:"UNSUPPORTED_PROP_SPORT"}});
   const dateParam = str(url.searchParams.get("date"));
 
   if (!eventIds.length && sportParam === "tennis") {
@@ -290,7 +293,7 @@ export async function onRequestGet(context) {
       return json({
         ok:true,
         rows,
-        sports:PRO_PLAYER_PROP_SPORTS,
+        sports:PROP_RESEARCH_SPORTS,
         governance:{role:"research_projection",inProductionRouter:false,decisionEligible:false,canQualify:false,canAuthorizeWager:false},
         diagnostics:{
           checkedEvents:new Set(rows.map(x=>x.fbisEventId)).size,
@@ -311,7 +314,7 @@ export async function onRequestGet(context) {
     return json({
       ok: true,
       rows: [],
-      sports: PRO_PLAYER_PROP_SPORTS,
+      sports: PROP_RESEARCH_SPORTS,
       diagnostics: { checkedEvents: 0, durableObservations: 0, boardRows: 0 },
     });
   }
@@ -359,6 +362,8 @@ export async function onRequestGet(context) {
     let freeMirrorRows = [], freeMirrorError = null;
     try { freeMirrorRows = await loadFreeMirrorRows(context.env.DB,eventIds,sportParam); }
     catch(error) { freeMirrorError=String(error?.message||error); }
+    let pinnoddsRows=[],pinnoddsError=null;
+    try{pinnoddsRows=await loadPinnoddsPlayerProps(context.env.DB,eventIds,sportParam);}catch(error){pinnoddsError=String(error?.message||error);}
     const freeSupported=FREE_PROP_MIRROR_SPORTS.includes(sportParam);
     let mirrorCoverage=null;
     try { mirrorCoverage=await context.env.DB.prepare(`SELECT COUNT(*) n,MAX(collected_at) collected_at,MAX(source_observed_at) observed_at FROM normalized_market_observations WHERE source=? AND sport=?`).bind(FREE_PROP_MIRROR_SOURCE,sportParam).first(); }
@@ -366,9 +371,10 @@ export async function onRequestGet(context) {
     const checkedAt = new Date();
     const sourceStatus = await propSourceStatus(context.env.DB);
     sourceStatus.push({source:"prizepicks_free_mirror",state:freeMirrorError?"ERROR":!freeSupported?"UNSUPPORTED":Number(mirrorCoverage?.n||0)>0?"CAPTURED":"NOT_COLLECTED",reason:freeMirrorError?"FREE_MIRROR_READ_FAILED":!freeSupported?"SPORT_NOT_PUBLISHED_BY_FREE_MIRROR":Number(mirrorCoverage?.n||0)>0?"DAILY_SNAPSHOT_NOT_LIVE_VERIFIED":"NO_DURABLE_FREE_MIRROR_CAPTURE",lastCollectedAt:mirrorCoverage?.collected_at||null,publisherCapturedAt:mirrorCoverage?.observed_at||null});
-    const rows = [...actionRows, ...prizePicksRows, ...freeMirrorRows].map(row => {
+    sourceStatus.push({source:"pinnodds",state:pinnoddsError?"ERROR":pinnoddsRows.length?"CAPTURED":"NO_EVENT_PROPS",reason:pinnoddsError?"PINNODDS_PROP_READ_FAILED":"PROVIDER_QUOTE_CLOCK_UNKNOWN"});
+    const rows = [...actionRows, ...prizePicksRows, ...freeMirrorRows,...pinnoddsRows].map(row => {
       const temporal=marketTemporalStatus({source:row.book,providerObservedAt:row.sourceObservedAt,
-        collectedAt:row.collectedAt,eventId:row.fbisEventId},{now:checkedAt,maxAgeMs:24*60*60*1000});
+        collectedAt:row.collectedAt,eventId:row.fbisEventId},{now:checkedAt,maxAgeMs:row.provider==='PINNODDS'?45*60*1000:24*60*60*1000});
       if(row.provider==='PRIZEPICKS_FREE_MIRROR')Object.assign(temporal,{
         status:temporal.status==='CURRENT'?'DAILY_REFERENCE':temporal.status,
         providerTimeConfidence:'MIRROR_REPORTED_CAPTURE',currentDisplayEligible:false,
@@ -385,7 +391,7 @@ export async function onRequestGet(context) {
     return json({
       ok: true,
       rows,
-      sports: PRO_PLAYER_PROP_SPORTS,
+      sports: PROP_RESEARCH_SPORTS,
       governance: {
         role: "market_intelligence",
         inProductionRouter: false,
@@ -401,6 +407,7 @@ export async function onRequestGet(context) {
         actionReadError,
         prizePicksRows: prizePicksRows.length,
         prizePicksError,
+        pinnoddsRows:pinnoddsRows.length,pinnoddsError,
         freeMirrorRows:freeMirrorRows.length,
         freeMirrorError,
         sourceStatus,
