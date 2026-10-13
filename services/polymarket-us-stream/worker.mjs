@@ -2,7 +2,7 @@ import {DurableObject} from "cloudflare:workers";
 import {polymarketUsSubscribe,parsePolymarketUsLite}
   from "../../functions/lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
-import {fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy} from "./core.mjs";
+import {fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,fetchStreamUpgrade} from "./core.mjs";
 
 const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
 const MAX_MARKETS=48, MAX_BATCH=40, MAX_QUEUE=200;
@@ -95,7 +95,7 @@ export class PolymarketMarketStream extends DurableObject {
         return;
       }
       const headers=signed.headers;
-      const r=await fetch(UPSTREAM,{headers:{...headers,Upgrade:"websocket"},signal:AbortSignal.timeout(20000)});
+      const r=await fetchStreamUpgrade(UPSTREAM,{headers:{...headers,Upgrade:"websocket"}});
       if(r.status!==101||!r.webSocket){
         this.lastError="upstream-handshake-"+r.status;
         await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
