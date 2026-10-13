@@ -32,4 +32,6 @@ test("all live evidence stays nonexecuting with precise source and bid/ask",()=>
  assert.equal(o.raw.bestBid,0.48);
  assert.equal(o.raw.bestAsk,0.51);
  assert.equal(o.raw.sourceObservedAt,null);
+ assert.equal(o.fetchedAt,null,"stream arrival is not the exchange's source clock");
+ assert.equal(o.raw.collectorCapturedAt,t.at);
 });
