@@ -87,3 +87,44 @@ This is NOT an always-on socket, full exchange order book capture, full-market
 historical replay, private account reconciliation or automated trading.
 A dedicated durable streaming service and prospectively validated model
 challengers remain future phases. Never claim this short sampler is a persistent feed.
+
+## Durable streaming and private account read-only reconciliation (Phase 2)
+
+### Market stream
+`wrangler.polymarket-us-stream.toml` deploys an isolated Worker with one
+Durable Object coordinating a rotating, reconnecting outbound US Market WebSocket.
+Its every-five-minute Cloudflare Cron reactivates the object after deploys or outages.
+The object rotates every 9 minutes, refreshes the live contract subscription,
+uses a round-robin sport sample (up to 48 active contracts), deduplicates/throttles
+quotes, and batches up to 40 immutable source-labeled records per write cycle.
+This is a persistent, self-healing *bounded-scope stream*, not exhaustive
+exchange coverage. All 11 sports are eligible; some may be unlisted on the US exchange.
+
+The Worker requires two encrypted runtime secrets, provisioned outside GitHub:
+`POLYMARKET_US_KEY_ID`, `POLYMARKET_US_SECRET_KEY`.
+The source repository contains neither value. Worker `GET /health` publishes only
+aggregate counts and never allows credentials, account data or trading controls.
+Market data and captures are research-only and cannot qualify a wager.
+
+### Private account (explicit operator authorization)
+`POST /api/polymarket-private-sync` is a server-to-server endpoint requiring a
+valid existing secret in an HTTP header; no GET and no browser account endpoint.
+It requests only three allowlisted **GET** paths on the authenticated US API:
+- `/v1/portfolio/positions`
+- `/v1/portfolio/activities`
+- `/v1/account/balances`
+
+Account balances are checked for accessibility, not returned to the caller or
+saved; sensitive bank/destination records are not stored. Position and trade/
+resolution summaries are sanitized and persisted only in isolated private D1
+tables under migration `0100_polymarket_us_private_read_only`, with page cursors,
+source IDs and no automatic grading, public balance view or wagering rights.
+The API key itself may retain trading privileges: **this integration limits its
+own code to allowlisted GETs, it does not change the privileges of the key at
+Polymarket**. No automated order functions are imported or allowed.
+
+The hourly private sync is separate from market streaming. Phase 3 will add
+private WebSocket events, authenticated operator review workflows and a
+reconciliation gate for bookmaker/exchange settlement receipts, plus
+prospective economics for individual markets. Do not promote models or infer
+profitability from market ingestion alone.

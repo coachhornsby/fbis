@@ -1,0 +1,172 @@
+import {DurableObject} from "cloudflare:workers";
+import {signedPolymarketUsHeaders,polymarketUsSubscribe,parsePolymarketUsLite}
+  from "../../functions/lib/polymarketUsSignedWs.js";
+import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
+import {fairMarketSelection,shouldSaveBbo,liveBboOffer} from "./core.mjs";
+
+const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
+const MAX_MARKETS=48, MAX_BATCH=40, MAX_QUEUE=200;
+const RECONNECT_MS=60000, ROTATE_MS=9*60000, FLUSH_MS=5000;
+const toJSON=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
+
+export class PolymarketMarketStream extends DurableObject {
+  constructor(ctx,env){
+    super(ctx,env);
+    this.socket=null;this.subscribed=new Map();this.queue=new Map();
+    this.lastSaved=new Map();this.connectedAt=0;this.reconnectCount=0;
+    this.received=0;this.parsed=0;this.inserted=0;
+    this.lastError=null;this.lastConnectAttempt=0;this.flushTimer=null;
+    this.running=false;
+  }
+  status(){
+    return {connected:this.socket?.readyState===WebSocket.OPEN,
+      connectedAt:this.connectedAt?new Date(this.connectedAt).toISOString():null,
+      subscriptions:this.subscribed.size,queued:this.queue.size,
+      received:this.received,parsed:this.parsed,inserted:this.inserted,
+      reconnects:this.reconnectCount,lastError:this.lastError,
+      readOnly:true,canAuthorizeWager:false};
+  }
+  async fetch(req){
+    const pathname=new URL(req.url).pathname;
+    if(pathname==="/status")return toJSON(this.status());
+    if(pathname!=="/start"||req.method!=="POST")return toJSON({ok:false},405);
+    if(!this.env.POLYMARKET_US_KEY_ID||!this.env.POLYMARKET_US_SECRET_KEY)
+      return toJSON({ok:false,reason:"credentials-not-configured"},503);
+    if(!this.socket||this.socket.readyState!==WebSocket.OPEN)await this.connect();
+    else await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
+    return toJSON({ok:!!this.socket, ...this.status()});
+  }
+  async candidates(){
+    const now=Date.now();
+    const latest=new Date(now-35*60000).toISOString();
+    const from=new Date(now-4*3600000).toISOString();
+    const until=new Date(now+48*3600000).toISOString();
+    const q=await this.env.DB.prepare(`WITH recent AS (
+       SELECT sport,league,canonical_event_id,provider_event_id,
+        event_start_time,home_team,away_team,market_family,side,line,
+        source_market_id,source_outcome_id,collected_at,
+        ROW_NUMBER() OVER(PARTITION BY source_market_id ORDER BY collected_at DESC) rn
+       FROM normalized_market_observations
+       WHERE source='Polymarket US' AND source_market_id IS NOT NULL
+       AND collected_at>=?1 AND event_start_time BETWEEN ?2 AND ?3
+      ) SELECT * FROM recent WHERE rn=1 ORDER BY
+       CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,
+       collected_at DESC LIMIT 750`)
+       .bind(latest,from,until).all();
+    return fairMarketSelection(q.results||[],{perSport:6,maxMarkets:MAX_MARKETS});
+  }
+  async connect(){
+    if(this.running)return;
+    this.running=true;this.lastConnectAttempt=Date.now();
+    try{
+      const candidates=await this.candidates();
+      if(!candidates.length){
+        this.lastError="no-active-markets";
+        await this.ctx.storage.setAlarm(Date.now()+2*RECONNECT_MS);
+        return;
+      }
+      // Always use fresh signature on each connection.
+      const headers=await signedPolymarketUsHeaders({
+        keyId:this.env.POLYMARKET_US_KEY_ID,
+        secretKey:this.env.POLYMARKET_US_SECRET_KEY,
+        path:"/v1/ws/markets"
+      });
+      const r=await fetch(UPSTREAM,{headers:{...headers,Upgrade:"websocket"},signal:AbortSignal.timeout(20000)});
+      if(r.status!==101||!r.webSocket){
+        this.lastError="upstream-handshake-"+r.status;
+        await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
+        return;
+      }
+      const old=this.socket;
+      if(old){try{old.close(1000,"refresh")}catch{}}
+      this.socket=r.webSocket;
+      this.subscribed=new Map(candidates.map(c=>[c.source_market_id,c]));
+      this.socket.accept();
+      const socket=this.socket;
+      socket.addEventListener("message",e=>this.onMessage(e));
+      socket.addEventListener("close",()=>{
+        if(this.socket===socket){this.socket=null;
+          this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS).catch(()=>{});}
+      });
+      socket.addEventListener("error",()=>{
+        if(this.socket===socket){this.socket=null;this.lastError="upstream-socket-error";
+          this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS).catch(()=>{});}
+      });
+      socket.send(JSON.stringify(polymarketUsSubscribe(
+        [...this.subscribed.keys()],"fbis-always-on-market-lite")));
+      this.connectedAt=Date.now();this.reconnectCount++;
+      this.lastError=null;
+      await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
+    }catch{
+      this.lastError="connection-or-provider-error";
+      await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
+    }finally{this.running=false}
+  }
+  onMessage(evt){
+    this.received++;
+    const tick=parsePolymarketUsLite(evt.data);
+    if(!tick||!this.subscribed.has(tick.marketSlug))return;
+    this.parsed++;
+    const entry={...tick,timeMs:Date.now(),at:new Date().toISOString()};
+    if(!shouldSaveBbo(entry,this.lastSaved.get(tick.marketSlug)))return;
+    // Collapse high-frequency ticks by contract, not by first-come-wins.
+    if(this.queue.size>=MAX_QUEUE&&!this.queue.has(tick.marketSlug))
+      this.queue.delete(this.queue.keys().next().value);
+    this.queue.set(tick.marketSlug,entry);
+    if(!this.flushTimer){
+      this.flushTimer=setTimeout(()=>{
+        this.flushTimer=null;
+        this.ctx.waitUntil(this.flush());
+      },FLUSH_MS);
+    }
+  }
+  async flush(){
+    if(!this.queue.size)return;
+    const ticks=[...this.queue.values()].slice(0,MAX_BATCH);
+    for(const tick of ticks)this.queue.delete(tick.marketSlug);
+    const offers=ticks.map(t=>liveBboOffer(t,this.subscribed.get(t.marketSlug))).filter(Boolean);
+    try{
+      const r=await persistNormalizedMarketBatch(this.env.DB,offers,{
+        snapshotType:"CURRENT",collectedAt:new Date().toISOString(),modelProbability:null
+      });
+      this.inserted+=r.inserted;
+      for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
+    }catch{
+      this.lastError="d1-bbo-persist-error";
+      // No fabrication and no optimistic D1 success count.
+      for(const t of ticks)if(this.queue.size<MAX_QUEUE)this.queue.set(t.marketSlug,t);
+    }
+    if(this.queue.size&&!this.flushTimer){
+      this.flushTimer=setTimeout(()=>{this.flushTimer=null;this.ctx.waitUntil(this.flush())},FLUSH_MS);
+    }
+  }
+  async alarm(){
+    await this.flush();
+    // Rotate before Cloudflare outbound keep-alive's 15-minute instance limit.
+    if(!this.socket||this.socket.readyState!==WebSocket.OPEN||
+        Date.now()-this.connectedAt>=ROTATE_MS){
+      try{this.socket?.close(1000,"9-minute stream rotation")}catch{}
+      this.socket=null;
+      await this.connect();
+    }else await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
+  }
+}
+
+export default {
+  async scheduled(_event,env,ctx){
+    // Safe periodic reactivation after worker restarts/deployment. One DO
+    // instance covers fair samples from all FBIS sports that list contracts.
+    const id=env.PM_STREAM.idFromName("active-sports-fbis");
+    const stub=env.PM_STREAM.get(id);
+    ctx.waitUntil(stub.fetch("https://internal/start",{method:"POST"}));
+  },
+  async fetch(request,env){
+    const u=new URL(request.url);
+    if(u.pathname!=="/health")return toJSON({ok:false,error:"not-found"},404);
+    const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis"));
+    const r=await stub.fetch("https://internal/status");
+    const status=await r.json();
+    return toJSON({ok:true,source:"Polymarket US signed persistent market collector",
+      mode:"DURABLE_OBJECT_RECONNECTING",...status,privateAccountAccess:false});
+  }
+};
