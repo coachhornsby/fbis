@@ -37,6 +37,25 @@ test('ambiguous transport never permits a replacement paid run, including later 
  await startPaidAcquisition(env,{...request,fetchImpl});await startPaidAcquisition(env,{...request,fetchImpl,now:new Date(+now+86400000)});
  assert.equal(calls.length,1);assert.equal(sql.prepare('SELECT state FROM external_acquisitions').get().state,'UNKNOWN_START');
 });
+test('Action source limits total paid Actor launches to one per rolling 24 hours, even when DB policy allows 12',async()=>{
+ const {env,sql}=fixture(),calls=[],fetchImpl=provider(calls);
+ sql.exec("UPDATE external_acquisition_policy SET daily_run_limit=12,hourly_run_limit=12,daily_cap_usd=50 WHERE source='action'");
+ const first=await startPaidAcquisition(env,{...request,fetchImpl});
+ assert.equal(first.status,201);
+ const later=new Date(+now+2*3600000);
+ sql.prepare("UPDATE external_acquisition_account SET usage_observed_at=?").run(later.toISOString());
+ const second=await startPaidAcquisition(env,{...request,component:'other-sport',sport:'nhl',input:{leagues:['nhl'],maxGames:10},now:later,fetchImpl});
+ assert.equal(second.status,409);
+ assert.equal((await second.json()).error.type,'ACQUISITION_BUDGET_RATE_OR_SCOPE_CONFLICT');
+ assert.equal(calls.length,1);
+ assert.equal(sql.prepare("SELECT COUNT(*) n FROM external_acquisitions WHERE source='action'").get().n,1);
+});
+test('Action daily workflow has exactly one scheduled opportunity and no push-triggered paid request',()=>{
+ const s=readFileSync(new URL('../.github/workflows/action-daily-snapshot.yml',import.meta.url),'utf8');
+ assert.equal((s.match(/cron:/g)||[]).length,1);
+ assert.match(s,/cron: "30 14 \* \* \*"/);
+ assert.doesNotMatch(s,/^  push:/m);
+});
 test('budget reservations serialize across different sports/scopes',async()=>{
  const {env}=fixture({usage:20}),calls=[];const fetchImpl=provider(calls);
  await Promise.all([startPaidAcquisition(env,{...request,fetchImpl}),startPaidAcquisition(env,{...request,input:{leagues:['nhl']},sport:'nhl',fetchImpl})]);
