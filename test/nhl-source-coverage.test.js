@@ -7,7 +7,7 @@ import {projectNhlV1Game} from "../functions/lib/nhlFbisV1.js";
 import {projectNhlResearchGame} from "../functions/lib/nhlResearchModel.js";
 import {NHL_PRO_V2_ARTIFACT} from "../data/models/nhl-pro-v2.js";
 import {NHL_FBIS_V1_ARTIFACT} from "../data/models/nhl-fbis-v1.js";
-import {packNhlEspnMarketObservations,nhlSourceCompleteness} from "../functions/lib/nhlFreeMarket.js";
+import {packNhlEspnMarketObservations,packNhlSoftBookMarketObservations,nhlSourceCompleteness} from "../functions/lib/nhlFreeMarket.js";
 import {resolveCanonicalMarket} from "../functions/lib/canonical/marketRoles.js";
 import {marketLines} from "../src/lib/boardDecision.js";
 import {buildNhlCardEvidence} from "../src/lib/nhlCardEvidence.js";
@@ -74,16 +74,38 @@ test("NHL collector completeness is explicit without granting wager authority",(
    {...g,id:"missing",odds:{},nhlProV2:{ok:false,reason:"MISSING_TEAM_CODE"}}];
  const c=nhlSourceCompleteness(rows);
  assert.equal(c.scheduled,2);assert.equal(c.pure,1);assert.equal(c.mlPairs,1);
+ assert.equal(c.zeroPriceRegime,false);
  assert.equal(c.missing.find(x=>x.eventId==="missing").projectionReason,"MISSING_TEAM_CODE");
+ const emptyPrices=nhlSourceCompleteness([{...g,id:"a",odds:{}},{...g,id:"b",odds:{}}]);
+ assert.equal(emptyPrices.zeroPriceRegime,true);
+ assert.equal(emptyPrices.signalClass,"NON_EMPTY_SLATE_ZERO_ML_PAIRS");
+ assert.equal(emptyPrices.mlPairs,0);
+});
+test("SharpAPI soft NHL quotes persist real book names into odds_snapshots rows, never Pinnacle",()=>{
+ const soft={...g,odds:{softSource:"sharpapi",moneylineBook:"DraftKings",homeMl:-130,awayMl:+110,
+   observedAt:"2026-10-10T22:00:00Z",pinPresent:false}};
+ const x=packNhlSoftBookMarketObservations(soft,{date:"2026-10-10",at:"2026-10-10T23:00:00Z",checkpoint:"PREGAME"});
+ assert.equal(x.rows.length,2);
+ assert.ok(x.rows.every(r=>r.book==="DraftKings"&&r.paired===1&&r.market==="ml"));
+ assert.equal(x.rows[0].capturedAt,"2026-10-10T22:00:00Z");
+ assert.equal(packNhlSoftBookMarketObservations({...soft,odds:{...soft.odds,softSource:"espn"}}, {date:"2026-10-10",at:"2026-10-10T23:00:00Z"}).rows.length,0);
+ assert.equal(packNhlSoftBookMarketObservations({...soft,odds:{...soft.odds,pinPresent:true}}, {date:"2026-10-10",at:"2026-10-10T23:00:00Z"}).rows.length,0);
+ assert.equal(packNhlSoftBookMarketObservations({...soft,odds:{...soft.odds,moneylineBook:"Pinnacle"}}, {date:"2026-10-10",at:"2026-10-10T23:00:00Z"}).rows.length,0);
+ assert.equal(packNhlSoftBookMarketObservations(soft,{date:"2026-10-10",at:"2026-10-11T02:01:00Z"}).rows.length,0);
 });
 test("NHL provider mapping is disabled for paid collection unless separately opted in",async()=>{
  const src=await readFile(new URL("../functions/lib/slateEngineCore.js",import.meta.url),"utf8");
  const parlay=await readFile(new URL("../functions/lib/parlay.js",import.meta.url),"utf8");
  const today=await readFile(new URL("../functions/lib/todayBoard.js",import.meta.url),"utf8");
+ const ledger=await readFile(new URL("../functions/lib/projLedger.js",import.meta.url),"utf8");
  assert.match(src,/NHL_ODDS_PROVIDER_OPT_IN/);
  assert.match(src,/strictCacheOnly:[\s\S]*NHL_ODDS_PROVIDER_OPT_IN/);
+ assert.match(src,/pinPresent:\s*false/);
  assert.match(parlay,/nhl: "icehockey_nhl"/);
  assert.match(today,/String\(row\.book\|\|""\) !== "Pinnacle"/);
+ assert.match(today,/buildSoftMarketOddsByGame|hydrateOddsFromSoftMarketRows/);
+ assert.match(ledger,/packNhlSoftBookMarketObservations/);
+ assert.match(ledger,/nhl_source_coverage_alert/);
 });
 
 test("board labels observed ESPN full-game ML as non-execution source, not Pinnacle or certified EV",()=>{

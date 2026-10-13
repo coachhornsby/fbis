@@ -431,6 +431,63 @@ function buildMarketOddsByGame(rows = []) {
   return by;
 }
 
+/** Soft/reference books from odds_snapshots — never write into pin* fields. */
+function buildSoftMarketOddsByGame(rows = []) {
+  const by = new Map();
+  for (const row of rows || []) {
+    if (!row || row.period !== "fg" || row.rejectedPostStart) continue;
+    const book = String(row.book || "");
+    if (!book || book === "Pinnacle") continue;
+    const id = String(row.gameId || "");
+    if (!id) continue;
+    if (!by.has(id)) by.set(id, { at: 0, book });
+    const pack = by.get(id);
+    const at = Date.parse(row.capturedAt || "") || 0;
+    if (at < (pack.at || 0)) continue;
+    if (at > (pack.at || 0)) {
+      pack.at = at;
+      pack.book = book;
+      pack.homeMl = null;
+      pack.awayMl = null;
+      pack.spread = null;
+      pack.total = null;
+    }
+    const mkt = String(row.market || "").toUpperCase();
+    const side = String(row.side || "").toUpperCase();
+    if (mkt === "ML") {
+      if (side === "HOME") pack.homeMl = row.price;
+      if (side === "AWAY") pack.awayMl = row.price;
+    } else if (mkt === "SPREAD" && side === "HOME") {
+      pack.spread = row.line;
+    } else if (mkt === "TOTAL" && side === "OVER") {
+      pack.total = row.line;
+    }
+  }
+  return by;
+}
+
+function hydrateOddsFromSoftMarketRows(game, pack) {
+  if (!pack) return game;
+  const odds = { ...(game.odds || {}) };
+  // Live soft already present wins over snapshot hydrate.
+  if (odds.homeMl != null && odds.awayMl != null) return { ...game, odds };
+  if (pack.homeMl == null || pack.awayMl == null) return { ...game, odds };
+  odds.homeMl = pack.homeMl;
+  odds.awayMl = pack.awayMl;
+  odds.pinPresent = false;
+  odds.moneylineBook = pack.book || odds.moneylineBook || null;
+  odds.book = pack.book || odds.book || null;
+  if (String(pack.book || "") === "ESPN_FEED_REFERENCE") {
+    odds.softSource = "espn";
+    odds.nhlEspnObserved = true;
+  } else if (!odds.softSource) {
+    odds.softSource = "odds_snapshot_soft";
+  }
+  if (odds.spread == null && pack.spread != null) odds.spread = pack.spread;
+  if (odds.total == null && pack.total != null) odds.total = pack.total;
+  return { ...game, odds };
+}
+
 function buildMarketLineHistoryByGame(rows = []) {
   const by = new Map();
   for (const row of rows || []) {
@@ -882,6 +939,7 @@ export async function buildTodayBoard(
       const durableOnly=slate.durableOnly === true;
       let bySnapshot = new Map();
       let byMarketOdds = new Map();
+      let bySoftMarketOdds = new Map();
       let byMarketHistory = new Map();
       if (env.DB && !durableOnly) {
         const snapQ = await querySnaps(env, { sport, since: date, until: date, checkpoint: "LATEST" });
@@ -892,6 +950,7 @@ export async function buildTodayBoard(
         if (oddsQ?.ok && Array.isArray(oddsQ.rows) && oddsQ.rows.length) {
           byMarketOdds = buildMarketOddsByGame(oddsQ.rows);
           byMarketHistory = buildMarketLineHistoryByGame(oddsQ.rows);
+          if (sport === "nhl") bySoftMarketOdds = buildSoftMarketOddsByGame(oddsQ.rows);
         }
       }
       if (slate?.parlay?.cached === false && slate?.parlay?.skipped !== true && !slate?.parlay?.error) {
@@ -917,12 +976,20 @@ export async function buildTodayBoard(
         }
       }
       const durableFallbackCount=selectedDateGames.filter(g=>g.durableFallback).length;
-      const hydratedGames = selectedDateGames.map((g) => g.durableFallback
-        ? {...g,marketLineHistory:[]}
-        : ({
-          ...hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id))),
+      const hydratedGames = selectedDateGames.map((g) => {
+        if (g.durableFallback) return {...g,marketLineHistory:[]};
+        const withPin = hydrateOddsFromMarketRows(
+          hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))),
+          byMarketOdds.get(String(g.id))
+        );
+        const withSoft = sport === "nhl"
+          ? hydrateOddsFromSoftMarketRows(withPin, bySoftMarketOdds.get(String(g.id)))
+          : withPin;
+        return {
+          ...withSoft,
           marketLineHistory: byMarketHistory.get(String(g.id)) || [],
-        }));
+        };
+      });
       const recSlate = sport === "tennis"
         ? {
             ...slate,
