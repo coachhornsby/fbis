@@ -1,5 +1,6 @@
 import TeamLogo from "../TeamLogo.jsx";
 import { buildNhlBettingIntelligence } from "../../lib/nhlBettingIntelligence.js";
+import { teamHex } from "../../lib/matchupTeamBrand.js";
 import "./nhlBettingIntelligence.css";
 
 const NA="N/A";
@@ -21,7 +22,7 @@ export default function NhlBettingIntelligence({game,vm}){
   const hasReference=b.pinnedProbability!=null;
   const hasBook=poly.bid!=null||poly.ask!=null;
   return <section className="nhl-bi" aria-label="NHL betting intelligence research" style={{
-    "--nhl-bi-team": b.team?.color||b.team?.primaryColor||b.team?.primary_color||"#b7213d"
+    "--nhl-bi-team": teamHex(b.team?.color||b.team?.primaryColor||b.team?.primary_color)||"#b7213d"
   }}>
     <header className="nhl-bi-head"><strong>▥ BETTING INTELLIGENCE</strong><span>RESEARCH ONLY</span></header>
     <div className="nhl-bi-lead">
