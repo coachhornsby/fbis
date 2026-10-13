@@ -78,13 +78,14 @@ export async function onRequestPost({request,env}){
         homeTeam:base.home_team,awayTeam:base.away_team,marketFamily:base.market_family,
         side:base.side,line:base.line,contractPrice:t.bestAsk,
         standardOrAlt:"unknown",period:"full_game",sourceMarketId:t.marketSlug,
-        sourceOutcomeId:base.source_outcome_id,fetchedAt:t.capturedAt,
+        sourceOutcomeId:base.source_outcome_id,fetchedAt:null,
         executionEligible:false,canQualify:false,canAuthorizeWager:false,
         raw:{providerEventId:base.provider_event_id,
           providerMarketId:t.marketSlug,providerOutcomeId:base.source_outcome_id,
           quoteKind:"WS_BBO_BEST_ASK_NO_VERIFIED_FILL",bestBid:t.bestBid,bestAsk:t.bestAsk,
           lastTrade:t.lastTrade,bidDepth:t.bidDepth,askDepth:t.askDepth,
-          connectionStartedAt:capturedAt,sourceObservedAt:null,quoteObservedAt:null,
+          connectionStartedAt:capturedAt,collectorCapturedAt:t.capturedAt,
+          sourceObservedAt:null,quoteObservedAt:null,
           marketObservedAt:null,canQualify:false,canAuthorizeWager:false,
           marketAccess:"READ_ONLY",accountDataCollected:false}};
     });

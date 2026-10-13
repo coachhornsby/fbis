@@ -31,6 +31,9 @@ test("market quote preserves displayed probability and no bogus executable price
  const o=polymarketUsMarketOffers(E,"nfl",{canonicalId:"401872994",capturedAt:"2026-10-12T23:50:00Z"});
  assert.equal(o.length,2);
  assert.equal(o[0].contractPrice,0.43);
+ assert.equal(o[0].fetchedAt,null,"collector capture is not a provider observation");
+ assert.equal(o[0].raw.collectorCapturedAt,"2026-10-12T23:50:00Z");
+ assert.equal(o[0].raw.sourceObservedAt,null);
  assert.equal(o[1].contractPrice,0.6);
  assert.equal(o[0].source,"Polymarket US");
  assert.equal(o[0].sourceType,"exchange");
@@ -45,7 +48,7 @@ test("market quote preserves displayed probability and no bogus executable price
  assert.equal(polymarketUsMarketFamily({sportsMarketTypeV2:"nonstandard"}),"unclassified");
 });
 test("strict unit checks reject 43 or 110 as unvalidated contract prices",()=>{
- for(const v of [43,110,-0.1,"garbage"])assert.equal(parsePolymarketUsPrice(v),null);
+ for(const v of [null,undefined,"", "  ",{value:null},43,110,-0.1,"garbage"])assert.equal(parsePolymarketUsPrice(v),null);
  assert.equal(parsePolymarketUsPrice({value:"0.2"}),0.2);
 });
 test("provider events must match two independent teams plus kickoff before canonical linking",()=>{

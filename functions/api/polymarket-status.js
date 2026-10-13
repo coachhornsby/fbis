@@ -1,5 +1,12 @@
 import { FBIS_POLY_SPORTS } from "../lib/polymarketUs.js";
 const json=(v,s=200)=>new Response(JSON.stringify(v),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
+/** A past BBO record is not proof an always-on stream is still delivering data. */
+export function classifyPolymarketBboFreshness(lastCapture,{now=new Date(),maxAgeMs=15*60*1000}={}){
+ const ageMs=lastCapture?now.getTime()-Date.parse(lastCapture):NaN;
+ const fresh=Number.isFinite(ageMs)&&ageMs>=0&&ageMs<=maxAgeMs;
+ return {fresh,ageMs:Number.isFinite(ageMs)&&ageMs>=0?ageMs:null,
+   evidenceStatus:fresh?"RECENT_BBO_CAPTURE":"NO_RECENT_BBO_EVIDENCE"};
+}
 /** Public research coverage status. No account data or trading credentials. */
 export async function onRequestGet({env}){
  if(!env.DB?.prepare)return json({ok:false,error:"database-unavailable"},503);
@@ -17,6 +24,7 @@ export async function onRequestGet({env}){
       COUNT(DISTINCT source_market_id) contracts
       FROM normalized_market_observations
       WHERE source='Polymarket US WebSocket' AND collected_at>=?1`).bind(cutoff).first();
+  const bboHealth=classifyPolymarketBboFreshness(ws?.last_capture||null,{now});
   const by=new Map((r.results||[]).map(x=>[x.sport,x]));
   const states=FBIS_POLY_SPORTS.map(s=>{
    const item=by.get(s);return {sport:s,
@@ -38,7 +46,8 @@ export async function onRequestGet({env}){
       bboRecordsLast24h:Number(ws?.n||0),
       matchedEventsLast24h:Number(ws?.matched_games||0),
       contractCountLast24h:Number(ws?.contracts||0),
-      operational: Number(ws?.n||0)>0
+      ...bboHealth,
+      operational: bboHealth.fresh
     },sports:states});
  }catch(error){return json({ok:false,error:"market-status-unavailable",detail:String(error?.message||error)},502)}
 }
