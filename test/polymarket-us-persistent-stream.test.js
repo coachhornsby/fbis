@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {STREAM_SPORTS,fairMarketSelection,shouldSaveBbo,liveBboOffer} from "../services/polymarket-us-stream/core.mjs";
+import {STREAM_SPORTS,fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy} from "../services/polymarket-us-stream/core.mjs";
 test("persistent market selection distributes subscriptions over all supported sports",()=>{
  const rows=STREAM_SPORTS.flatMap(s=>Array.from({length:5},(_,i)=>({
    sport:s,source_market_id:s+"-"+i,canonical_event_id:s+"-game"
@@ -32,4 +32,18 @@ test("all live evidence stays nonexecuting with precise source and bid/ask",()=>
  assert.equal(o.raw.bestBid,0.48);
  assert.equal(o.raw.bestAsk,0.51);
  assert.equal(o.raw.sourceObservedAt,null);
+});
+
+test("stream health requires a connected socket and a recent message",()=>{
+ assert.equal(streamIsHealthy({connected:false,lastMessageAt:1000,now:2000}),false);
+ assert.equal(streamIsHealthy({connected:true,lastMessageAt:0,now:2000}),false);
+ assert.equal(streamIsHealthy({connected:true,lastMessageAt:1000,now:122000}),false);
+ assert.equal(streamIsHealthy({connected:true,lastMessageAt:3000,now:2000}),false);
+ assert.equal(streamIsHealthy({connected:true,lastMessageAt:1000,now:2000}),true);
+});
+test("heartbeat and subscription errors remain control frames",()=>{
+ assert.deepEqual(parseStreamControl('{"heartbeat":{}}'),{type:"heartbeat"});
+ assert.deepEqual(parseStreamControl({error:"failure",request_id:"abc"}),{type:"error"});
+ assert.equal(parseStreamControl('{'),null);
+ assert.equal(parseStreamControl({marketDataLite:{marketSlug:"nhl-home"}}),null);
 });

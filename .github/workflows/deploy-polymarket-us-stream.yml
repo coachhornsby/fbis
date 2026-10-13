@@ -34,7 +34,7 @@ jobs:
           node-version: "22"
       - run: npm ci --ignore-scripts
       - name: Market source/governance regression
-        run: node --test test/polymarket-us-signed-ws.test.js test/polymarket-us-persistent-stream.test.js
+        run: node --test test/polymarket-us-signed-ws.test.js test/polymarket-us-persistent-stream.test.js test/polymarket-stream-control.test.js
       - name: Verify Worker and Durable Object bundle
         run: npx wrangler deploy --config wrangler.polymarket-us-stream.toml --dry-run --outdir /tmp/fbis-polymarket-us-stream
       - name: Deploy isolated read-only stream to Cloudflare
