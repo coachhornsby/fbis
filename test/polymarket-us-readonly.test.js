@@ -72,3 +72,19 @@ test("US public endpoint discovery paginates and rejects silent response-contrac
  await assert.rejects(fetchPolymarketUsLeagueEvents("../private",fetchImpl),/Invalid public league slug/);
  await assert.rejects(fetchPolymarketUsLeagueEvents("nba",async()=>({ok:true,json:async()=>({data:[]})})),/contract changed/);
 });
+
+test("cross-provider NBA nickname display maps to full canonical club only with both sides and kickoff",()=>{
+ const e={id:"135229",title:"CLE Cavaliers vs. ORL Magic",startTime:"2026-10-13T23:00:00Z",
+   markets:[{marketSides:[{description:"Cavaliers"},{description:"Magic"}]}]};
+ const g={id:"401898403",start:"2026-10-13T23:00:00Z",
+   home_name:"Orlando Magic",away_name:"Cleveland Cavaliers",
+   home_abbr:"ORL",away_abbr:"CLE"};
+ assert.equal(matchPolymarketUsEvent(e,[g],"nba").id,g.id);
+ assert.equal(matchPolymarketUsEvent({...e,title:"CLE Cavaliers vs. BOS Celtics",markets:[{marketSides:[{description:"Cavaliers"},{description:"Celtics"}]}]},[g],"nba").id,null);
+});
+test("soccer local alias Lens matches Racing Club de Lens with opponent and kickoff",()=>{
+ const e={id:"140430",title:"Racing Club de Lens vs. Sporting CP",startTime:"2026-10-13T16:45:00Z",markets:[]};
+ const g={id:"m_0Z7ndF",start:e.startTime,home_name:"Lens",away_name:"Sporting CP"};
+ assert.equal(matchPolymarketUsEvent(e,[g],"soccer").id,g.id);
+ assert.equal(matchPolymarketUsEvent({...e,title:"Racing Club de Lens vs. Sporting CP",startTime:"2026-10-14T16:45:00Z"},[g],"soccer").id,null);
+});
