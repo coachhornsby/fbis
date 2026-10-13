@@ -1,0 +1,48 @@
+name: Provision Polymarket US stream signer link
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/polymarket-stream-signer-link.yml"
+permissions:
+  contents: read
+concurrency:
+  group: fbis-polymarket-stream-signer-provision
+  cancel-in-progress: false
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - run: npm ci --ignore-scripts
+      - name: Install one dedicated inter-service credential (not Polymarket key)
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          # Fresh random token stays in runner memory; no logging or files.
+          broker_token="$(openssl rand -hex 48)"
+          printf '%s' "$broker_token" | npx wrangler secret put FBIS_STREAM_PROXY_TOKEN --config wrangler.polymarket-us-stream.toml
+          printf '%s' "$broker_token" | npx wrangler pages secret put POLYMARKET_STREAM_PROXY_TOKEN --project-name fbis --env production
+          unset broker_token
+          echo "Service-to-service token installed. No Polymarket key copied." >> "$GITHUB_STEP_SUMMARY"
+      - name: Rebuild Pages to bind new server secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          uri="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/fbis/deployments?env=production&page=1&per_page=1"
+          body="$(mktemp)"
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$uri" -o "$body"
+          deployment="$(jq -er '.result[0].id' "$body")"
+          curl -fsS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/fbis/deployments/$deployment/retry"             -o /dev/null
+          echo "Pages re-deployment requested to bind protected market-only signer token." >> "$GITHUB_STEP_SUMMARY"

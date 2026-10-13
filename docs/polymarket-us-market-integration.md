@@ -100,9 +100,13 @@ quotes, and batches up to 40 immutable source-labeled records per write cycle.
 This is a persistent, self-healing *bounded-scope stream*, not exhaustive
 exchange coverage. All 11 sports are eligible; some may be unlisted on the US exchange.
 
-The Worker requires two encrypted runtime secrets, provisioned outside GitHub:
-`POLYMARKET_US_KEY_ID`, `POLYMARKET_US_SECRET_KEY`.
-The source repository contains neither value. Worker `GET /health` publishes only
+The Worker stores **no copy** of the operator's Polymarket US signing key.
+It holds one separately generated encrypted inter-service token,
+`FBIS_STREAM_PROXY_TOKEN`, paired with `POLYMARKET_STREAM_PROXY_TOKEN`
+in the existing Pages secret store. The Worker POSTs only to the protected
+`/api/polymarket-stream-sign` endpoint, which issues a short-lived Ed25519
+signature restricted to `/v1/ws/markets`. The source repository contains
+neither the operator's signing key nor the inter-service token. Worker `GET /health` publishes only
 aggregate counts and never allows credentials, account data or trading controls.
 Market data and captures are research-only and cannot qualify a wager.
 

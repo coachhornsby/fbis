@@ -1,5 +1,5 @@
 import {DurableObject} from "cloudflare:workers";
-import {signedPolymarketUsHeaders,polymarketUsSubscribe,parsePolymarketUsLite}
+import {polymarketUsSubscribe,parsePolymarketUsLite}
   from "../../functions/lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
 import {fairMarketSelection,shouldSaveBbo,liveBboOffer} from "./core.mjs";
@@ -30,8 +30,8 @@ export class PolymarketMarketStream extends DurableObject {
     const pathname=new URL(req.url).pathname;
     if(pathname==="/status")return toJSON(this.status());
     if(pathname!=="/start"||req.method!=="POST")return toJSON({ok:false},405);
-    if(!this.env.POLYMARKET_US_KEY_ID||!this.env.POLYMARKET_US_SECRET_KEY)
-      return toJSON({ok:false,reason:"credentials-not-configured"},503);
+    if(!this.env.FBIS_STREAM_PROXY_TOKEN)
+      return toJSON({ok:false,reason:"stream-signer-not-configured"},503);
     if(!this.socket||this.socket.readyState!==WebSocket.OPEN)await this.connect();
     else await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
     return toJSON({ok:!!this.socket, ...this.status()});
@@ -65,12 +65,32 @@ export class PolymarketMarketStream extends DurableObject {
         await this.ctx.storage.setAlarm(Date.now()+2*RECONNECT_MS);
         return;
       }
-      // Always use fresh signature on each connection.
-      const headers=await signedPolymarketUsHeaders({
-        keyId:this.env.POLYMARKET_US_KEY_ID,
-        secretKey:this.env.POLYMARKET_US_SECRET_KEY,
-        path:"/v1/ws/markets"
+      // Fresh market-only signature is produced by Pages. The Polymarket
+      // private key stays in the original encrypted Pages secret store.
+      const brokerResponse=await fetch("https://fbis-myz.pages.dev/api/polymarket-stream-sign",{
+        method:"POST",
+        headers:{"x-fbis-stream-token":this.env.FBIS_STREAM_PROXY_TOKEN},
+        signal:AbortSignal.timeout(12000)
       });
+      if(!brokerResponse.ok){
+        this.lastError="market-signature-broker-"+brokerResponse.status;
+        await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
+        return;
+      }
+      const signed=await brokerResponse.json();
+      if(signed.ok!==true||signed.path!=="/v1/ws/markets"||
+         !signed.headers?.["X-PM-Access-Key"]||!signed.headers?.["X-PM-Signature"]){
+        this.lastError="invalid-broker-signature";
+        await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
+        return;
+      }
+      const signedAt=Number(signed.headers["X-PM-Timestamp"]);
+      if(!Number.isFinite(signedAt)||Math.abs(Date.now()-signedAt)>15000){
+        this.lastError="stale-broker-signature";
+        await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
+        return;
+      }
+      const headers=signed.headers;
       const r=await fetch(UPSTREAM,{headers:{...headers,Upgrade:"websocket"},signal:AbortSignal.timeout(20000)});
       if(r.status!==101||!r.webSocket){
         this.lastError="upstream-handshake-"+r.status;
