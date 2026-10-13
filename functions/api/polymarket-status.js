@@ -12,6 +12,11 @@ export async function onRequestGet({env}){
     SUM(CASE WHEN contract_price IS NOT NULL THEN 1 ELSE 0 END) displayed_prices
     FROM normalized_market_observations WHERE source='Polymarket US' AND collected_at>=?1
     GROUP BY sport`).bind(cutoff).all();
+  const ws=await env.DB.prepare(`SELECT COUNT(*) n,MAX(collected_at) last_capture,
+      COUNT(DISTINCT canonical_event_id) matched_games,
+      COUNT(DISTINCT source_market_id) contracts
+      FROM normalized_market_observations
+      WHERE source='Polymarket US WebSocket' AND collected_at>=?1`).bind(cutoff).first();
   const by=new Map((r.results||[]).map(x=>[x.sport,x]));
   const states=FBIS_POLY_SPORTS.map(s=>{
    const item=by.get(s);return {sport:s,
@@ -25,7 +30,16 @@ export async function onRequestGet({env}){
   });
   return json({ok:true,source:"Polymarket US public gateway",
     region:"US",windowHours:24,readOnly:true,canQualify:false,canAuthorizeWager:false,
-    fullMarketCoverageVerified:false,sports:states});
+    fullMarketCoverageVerified:false,
+    signedMarketWebsocket:{
+      credentialsConfigured:Boolean(env.POLYMARKET_US_KEY_ID&&env.POLYMARKET_US_SECRET_KEY),
+      readOnly:true,
+      lastBboCapture:ws?.last_capture||null,
+      bboRecordsLast24h:Number(ws?.n||0),
+      matchedEventsLast24h:Number(ws?.matched_games||0),
+      contractCountLast24h:Number(ws?.contracts||0),
+      operational: Number(ws?.n||0)>0
+    },sports:states});
  }catch(error){return json({ok:false,error:"market-status-unavailable",detail:String(error?.message||error)},502)}
 }
 export async function onRequestPost(){return json({ok:false,error:"method-not-allowed"},405)}
