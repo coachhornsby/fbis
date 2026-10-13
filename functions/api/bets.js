@@ -34,6 +34,7 @@ import { deriveHealthState, writeVerificationState } from "../lib/healthContract
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
 import { BET_TRACKER_RECONCILE_SEED } from "../lib/betTrackerReconcileSeed.js";
 import {
+  applyValidatedTrackerReceiptClock,
   isAuthenticTrackerReceiptClock,
   isSyntheticTrackerNoon,
   resolveTrackerExecutedAt,
@@ -295,7 +296,7 @@ function trackerFieldEqual(a, b) {
   return left === right;
 }
 
-function trackerImmutableConflictFields(existing, packed) {
+export function trackerImmutableConflictFields(existing, packed) {
   const fields = [
     ["selectedSide", "selected_side"],
     ["executionLine", "execution_line"],
@@ -387,31 +388,14 @@ export async function syncTrackerBets(env, tickets) {
     if (!packed.gameId && !prior?.gameId) {
       packed.gameId = await lookupTrackerGameId(env, packed, bySlate);
     }
-    // Stamp receipt-clock provenance on tracker metadata for prospective-proof gates.
-    const clock = resolveTrackerExecutedAt({
-      date: packed.date,
-      placedAtRaw: packed.trackerMetadata?.placedAt || packed.trackerMetadata?.placedAtIso || null,
-    });
-    packed.trackerMetadata = {
-      ...(packed.trackerMetadata || {}),
-      executedAtProvenance:
-        packed.trackerMetadata?.executedAtProvenance || clock.provenance,
-      prospectiveProofEligible:
-        packed.trackerMetadata?.prospectiveProofEligible ?? clock.prospectiveProofEligible,
-      placedAtIso: packed.trackerMetadata?.placedAtIso || clock.placedAtIso,
-      calibrationEligibility:
-        packed.trackerMetadata?.calibrationEligibility ||
-        trackerCalibrationEligibility(
-          packed.trackerMetadata?.executedAtProvenance || clock.provenance
-        ),
-    };
-    // Never let synthetic noon claim prospective eligibility even if metadata is stale.
-    if (!isAuthenticTrackerReceiptClock(packed.trackerMetadata.executedAtProvenance)) {
-      packed.trackerMetadata.prospectiveProofEligible = false;
-      packed.trackerMetadata.calibrationEligibility = trackerCalibrationEligibility(
-        packed.trackerMetadata.executedAtProvenance
-      );
-      packed.clvStatus = packed.clvStatus || "unavailable";
+    // Derive receipt-clock provenance solely from validated Placed At at the API
+    // boundary. Caller-supplied provenance / eligibility flags never upgrade.
+    const validated = applyValidatedTrackerReceiptClock(packed);
+    packed.executedAt = validated.executedAt;
+    packed.trackerMetadata = validated.trackerMetadata;
+    const clock = validated.clock;
+    if (!clock.prospectiveProofEligible) {
+      packed.clvStatus = packed.clvStatus === "ok" ? "ok" : "unavailable";
     }
 
     let res;
@@ -428,24 +412,27 @@ export async function syncTrackerBets(env, tickets) {
       }
       // Prefer preserving an already-ledgered authentic clock. Allow one-way repair
       // only when the ledger still carries synthetic noon and Placed At authenticates.
-      const nextClock = resolveTrackerExecutedAt({
-        date: packed.date || prior.date,
-        placedAtRaw: packed.trackerMetadata?.placedAt || null,
-      });
-      if (shouldRepairSyntheticTrackerClock(prior, { ...nextClock, date: packed.date || prior.date })) {
-        packed.executedAt = nextClock.executedAt;
+      if (shouldRepairSyntheticTrackerClock(prior, { ...clock, date: packed.date || prior.date })) {
         packed.trackerMetadata = {
-          ...(packed.trackerMetadata || {}),
-          executedAtProvenance: nextClock.provenance,
-          placedAtIso: nextClock.placedAtIso,
-          prospectiveProofEligible: nextClock.prospectiveProofEligible,
-          calibrationEligibility: trackerCalibrationEligibility(nextClock.provenance),
+          ...packed.trackerMetadata,
           receiptClockRepairedFrom: prior.executedAt,
         };
         res = { ok:true, already:true, existing:prior, trackerReplayRepairedSyntheticExecutedAt:true };
       } else {
         // Preserve the already-ledgered execution timestamp rather than treating
         // transport-derived timestamp drift as a financial mutation.
+        packed.executedAt = prior.executedAt;
+        const priorProv = prior.trackerMetadata?.executedAtProvenance || null;
+        if (isAuthenticTrackerReceiptClock(priorProv)) {
+          // Do not demote an authentic ledger clock when this sync lacks Placed At.
+          packed.trackerMetadata = {
+            ...packed.trackerMetadata,
+            executedAtProvenance: priorProv,
+            prospectiveProofEligible: true,
+            placedAtIso: prior.trackerMetadata?.placedAtIso || packed.trackerMetadata.placedAtIso,
+            calibrationEligibility: trackerCalibrationEligibility(priorProv),
+          };
+        }
         res = { ok:true, already:true, existing:prior, trackerReplayPreservedExecutedAt:true };
       }
     } else {
