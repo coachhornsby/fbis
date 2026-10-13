@@ -1,0 +1,80 @@
+name: Polymarket US all-sport read-only market observations
+on:
+  schedule:
+    # Hourly; bounded public market discovery, NO auth/account/order endpoints.
+    - cron: "12 * * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "functions/lib/polymarketUs.js"
+      - "functions/lib/polymarketBoard.js"
+      - "functions/api/polymarket-collect.js"
+      - "functions/api/polymarket-status.js"
+      - "functions/api/projections.js"
+      - "src/components/board/**"
+      - "test/polymarket*.test.js"
+      - ".github/workflows/polymarket-us-market-collect.yml"
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/polymarketUs.js"
+      - "functions/lib/polymarketBoard.js"
+      - "functions/api/polymarket-collect.js"
+      - "functions/api/polymarket-status.js"
+      - "functions/api/projections.js"
+      - ".github/workflows/polymarket-us-market-collect.yml"
+
+concurrency:
+  group: fbis-polymarket-us-market-observations
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  collector:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Polymarket US source/identity/governance regression tests
+        run: node --test test/polymarket-us-readonly.test.js test/polymarket-board.test.js
+      - name: Verify production deployment before new scheduled collector
+        if: github.event_name == 'push'
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Capture read-only US exchange data for all FBIS sports
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          mkdir -p artifacts
+          CT_DATE="$(TZ=America/Chicago date +%F)"
+          echo "Collecting Polymarket US research CT day $CT_DATE"
+          code="$(curl -sS --max-time 430 --retry 1 --retry-delay 2 \
+            -o artifacts/polymarket-us-collect.json \
+            -w '%{http_code}' -X POST -H "x-harvest-secret: $HARVEST_SECRET" \
+            "$BASE/api/polymarket-collect?date=$CT_DATE")"
+          echo "Collector HTTP $code"
+          jq -c '{ok,source,date,capturedAt,attemptedOffers,inserted,readbackRows,readbackValidated,matchedOffers,unmatchedOffers,sourceLeagueCatalogueComplete,states,errors,canAuthorizeWager}' artifacts/polymarket-us-collect.json
+          {
+            echo "## Polymarket US exchange research — $CT_DATE"
+            echo "| Sport | Listed leagues | Provider events | Observations | Linked | Status |"
+            echo "|---|---:|---:|---:|---:|---|"
+            jq -r '.states[] | "| \(.sport) | \(.leagueCount) | \(.providerEvents) | \(.offers) | \(.matched) | \(.status) |"' artifacts/polymarket-us-collect.json
+            echo ""
+            echo "US exchange read-only. Sampled coverage; no authenticated account access, betting, model promotion, or automated order execution."
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$code" = "200"
+          jq -e '.ok==true and .canAuthorizeWager==false and .source=="POLYMARKET_US_PUBLIC" and (.allFbisSports | length)==11 and (.states | length)==11 and (.readbackValidated == true or (.attemptedOffers==0 and .readbackValidated == null))' artifacts/polymarket-us-collect.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name != 'pull_request'
+        with:
+          name: polymarket-us-research-${{ github.run_id }}
+          path: artifacts/polymarket-us-collect.json
+          if-no-files-found: warn
+          retention-days: 14
