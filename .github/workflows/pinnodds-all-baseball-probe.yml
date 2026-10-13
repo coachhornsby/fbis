@@ -68,7 +68,7 @@ jobs:
             -X POST -o artifacts/pinnodds-baseball-probe.json \
             "https://fbis-orchestrator.coachhornsby.workers.dev/api/pinnodds-baseball-probe")"
           echo "Pinnodds probe status: $status"
-          jq -c '{ok,capturedAt,requestsMade,requestedSpecials,results:[.results[] | {feed,ok,http,status,eventsReturned,baseEvents,specials,leagueCount,starterFieldCount,leagueBreakdown,samplePlayerProps:(.samplePlayerProps|.[0:8])}]}' artifacts/pinnodds-baseball-probe.json
+          jq -c '{ok,capturedAt,requestsMade,requestedSpecials,results:[.results[] | {feed,ok,http,status,eventsReturned,baseEvents,specials,leagueCount,starterFieldCount,leagueBreakdown,leagues:[.leagues[]|{league,scope,events,specials,playerProps,pricedPlayerProps,propStatKinds,propUnits,specialExamples,mainMarketTypes,starterFields,propExamplesByStat:(.propExamplesByStat|.[0:8])}]}]}' artifacts/pinnodds-baseball-probe.json
           {
             echo "## Pinnodds all-baseball player props audit"
             echo "Generated at: $(jq -r '.capturedAt // "unknown"' artifacts/pinnodds-baseball-probe.json)"
