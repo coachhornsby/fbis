@@ -1,0 +1,48 @@
+name: Polymarket US private account read-only reconciliation
+on:
+  schedule:
+    - cron: "27 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/polymarket-us-private-reconcile.yml"
+      - "functions/api/polymarket-private-sync.js"
+      - "migrations/0100_polymarket_us_private_read_only.sql"
+permissions:
+  contents: read
+concurrency:
+  group: fbis-polymarket-us-private-readonly
+  cancel-in-progress: false
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Prove account GET-only auth and sanitization
+        run: node --test test/polymarket-us-private-readonly.test.js
+      - name: Verify deployed commit
+        if: github.event_name == 'push'
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Sync private positions and activities without raw account output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          response="$(mktemp)"
+          http="$(curl -sS --max-time 110 --retry 1 -X POST \
+            -H "x-harvest-secret: $HARVEST_SECRET" \
+            -H "accept: application/json" \
+            -o "$response" -w '%{http_code}' \
+            "$BASE/api/polymarket-private-sync")"
+          jq -c '{ok,source,readOnly,positionsCount,activityCount,insertedPositions,insertedActivities,positionsComplete,activitiesComplete,balanceEndpointVerified,reason,statuses,canAuthorizeWager}' "$response"
+          echo "Read-only private sync HTTP $http" >> "$GITHUB_STEP_SUMMARY"
+          test "$http" = "200"
+          jq -e '.ok == true and .readOnly == true and .tradingEnabled == false and .canAuthorizeWager == false and .balanceEndpointVerified == true' "$response" >/dev/null
