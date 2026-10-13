@@ -110,7 +110,7 @@ export async function syncPolymarketUsPrivate(db,env,{fetchImpl=fetch,now=new Da
     positionsComplete:positions.complete,activitiesComplete:activities.complete,
     pages:{positions:positions.pages,activities:activities.pages},
     balanceEndpointVerified:true,balanceCurrencies:balances.body.balances.map(b=>String(b.currency||"")).filter(Boolean).slice(0,5),
-    bankDetailsReadOrStored:false,automaticWagerGrading:false};
+    bankDetailsPersisted:false,bankDetailsReturned:false,automaticWagerGrading:false};
 }
 /** Must carry explicit server-side HARVEST_SECRET or STRATEGY_IMPORT_SECRET in HEADER.
  * Never expose private positions via GET or user-facing game endpoints. */
