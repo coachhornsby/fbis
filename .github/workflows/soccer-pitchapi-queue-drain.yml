@@ -32,12 +32,25 @@ jobs:
             -H "x-harvest-secret: $HARVEST_SECRET" \
             "$BASE/api/soccer-pitchapi-queue-status")"
           echo "$status" | jq .
-          empty="$(echo "$status" | jq -r '.empty // true')"
+          # Strict contract — never coalesce empty with a default (jq treats false as missing).
+          echo "$status" | jq -e '
+            .ok == true
+            and (.empty | type == "boolean")
+            and (.pendingEligible | type == "number" and . >= 0 and . == floor)
+            and (
+              (.empty == true and .pendingEligible == 0)
+              or (.empty == false and .pendingEligible > 0)
+            )
+          ' >/dev/null
+          empty="$(echo "$status" | jq -r '.empty')"
           if [ "$empty" = "true" ]; then
             echo "has_work=false" >> "$GITHUB_OUTPUT"
             echo "EXPECTED_EMPTY_QUEUE — skip six-worker drain"
-          else
+          elif [ "$empty" = "false" ]; then
             echo "has_work=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Malformed empty field: $empty" >&2
+            exit 1
           fi
 
   drain:

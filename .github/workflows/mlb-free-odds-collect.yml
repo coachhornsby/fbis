@@ -45,12 +45,17 @@ jobs:
             "$BASE/api/mlb-free-odds-collect?date=$date")"
           cat artifacts/mlb-free-odds.json
           test "$code" = "200"
-          # EMPTY_SLATE is expected; non-empty CT slate without paired quotes still fails.
+          # EMPTY_SLATE only after independent schedule verification (API).
+          # Non-empty CT slate without paired quotes remains fail-closed (non-200).
           jq -e '
-            (.ok==true and .skipped==true and .skipReason=="EMPTY_SLATE")
+            (.ok==true and .skipped==true and .skipReason=="EMPTY_SLATE"
+              and .scheduledGames==0 and .signalClass=="EXPECTED_EMPTY_SLATE")
             or
-            (.ok==true and .pairedMoneylines>0 and .readbackValidated==true
+            (.ok==true and .skipped!=true
+              and (.scheduledGames|type=="number") and .scheduledGames>0
+              and .pairedMoneylines>0
               and .persistedMoneylineRows==(.pairedMoneylines*2)
+              and .readbackValidated==true
               and .canQualify==false and .canAuthorizeWager==false)
           ' artifacts/mlb-free-odds.json >/dev/null
       - uses: actions/upload-artifact@v4

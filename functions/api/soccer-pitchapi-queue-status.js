@@ -3,6 +3,8 @@ import { authorizeSoccerWorker, unauthorizedBody } from "../lib/soccerWorkerAuth
 /**
  * Read-only queue peek for drain preflight. Does not lease work.
  * Empty queue → workflow exits green without spawning six workers.
+ * Count aligns with claim eligibility: PENDING or expired LEASED, attempts<6,
+ * and not blocked by another active same-league lease.
  */
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -12,12 +14,23 @@ function json(body, status = 200) {
 }
 
 async function pendingEligibleCount(db, nowIso) {
-  const row = await db.prepare(`
+  const row = await db
+    .prepare(`
     SELECT COUNT(*) AS n
     FROM soccer_pitchapi_backfill_queue q
     WHERE (q.status='PENDING' OR (q.status='LEASED' AND (q.lease_until IS NULL OR q.lease_until<?)))
       AND q.attempts<6
-  `).bind(nowIso).first();
+      AND NOT EXISTS (
+        SELECT 1 FROM soccer_pitchapi_backfill_queue active
+        WHERE active.heritage_key=q.heritage_key
+          AND active.id<>q.id
+          AND active.status='LEASED'
+          AND active.lease_until IS NOT NULL
+          AND active.lease_until>=?
+      )
+  `)
+    .bind(nowIso, nowIso)
+    .first();
   return Math.max(0, Number(row?.n) || 0);
 }
 

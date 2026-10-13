@@ -1,43 +1,223 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import {
+  classifyFreeOddsSlate,
+  emptySlateReadbackValidated,
+  verifyCtScheduleGameCount,
+} from "../functions/lib/freeOddsSlateGuard.js";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("NHL free-odds collector returns EMPTY_SLATE instead of 503 when no events", async () => {
-  const src = await read("functions/api/nhl-free-odds-collect.js");
-  assert.match(src, /skipReason:"EMPTY_SLATE"/);
-  assert.match(src, /signalClass:"EXPECTED_EMPTY_SLATE"/);
-  assert.match(src, /if\(!events\.length\)/);
-  assert.match(src, /return json\(\{[\s\S]*skipReason:"EMPTY_SLATE"[\s\S]*\},200\)/);
-});
+function jqBool(filter, json) {
+  const out = execFileSync("jq", ["-e", filter], {
+    input: JSON.stringify(json),
+    encoding: "utf8",
+  }).trim();
+  return out === "true";
+}
 
-test("MLB free-odds collector returns EMPTY_SLATE for zero CT-date games", async () => {
-  const src = await read("functions/api/mlb-free-odds-collect.js");
-  assert.match(src, /skipReason:"EMPTY_SLATE"/);
-  assert.match(src, /signalClass:"EXPECTED_EMPTY_SLATE"/);
-  assert.match(src, /if\(!events\.length\)/);
-  // Non-empty slate without quotes must still fail closed.
-  assert.match(src, /return json\(payload,pairedMoneylines\?200:503\)/);
-});
-
-test("free-odds workflows accept EMPTY_SLATE as green", async () => {
-  const nhl = await read(".github/workflows/nhl-free-odds-collect.yml");
-  const mlb = await read(".github/workflows/mlb-free-odds-collect.yml");
-  for (const yml of [nhl, mlb]) {
-    assert.match(yml, /skipReason=="EMPTY_SLATE"/);
-    assert.match(yml, /\.skipped==true/);
+function jqExitOk(filter, json) {
+  try {
+    execFileSync("jq", ["-e", filter], {
+      input: JSON.stringify(json),
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    return true;
+  } catch {
+    return false;
   }
+}
+
+const NHL_SUCCESS_FILTER = `
+  (.ok==true and .skipped==true and .skipReason=="EMPTY_SLATE"
+    and .scheduledGames==0 and .signalClass=="EXPECTED_EMPTY_SLATE")
+  or
+  (.ok==true and .skipped!=true
+    and (.scheduledGames|type=="number") and .scheduledGames>0
+    and .pairedMoneylines>0
+    and .persistedMoneylineRows>=(.pairedMoneylines*2)
+    and .readbackValidated==true
+    and .canQualify==false and .canAuthorizeWager==false)
+`;
+
+const PITCH_CONTRACT = `
+  .ok == true
+  and (.empty | type == "boolean")
+  and (.pendingEligible | type == "number" and . >= 0 and . == floor)
+  and (
+    (.empty == true and .pendingEligible == 0)
+    or (.empty == false and .pendingEligible > 0)
+  )
+`;
+
+test("classifyFreeOddsSlate: EMPTY_SLATE only when schedule verified empty", () => {
+  assert.equal(
+    classifyFreeOddsSlate({
+      scheduleOk: true,
+      scheduledGames: 0,
+      pairedMoneylines: 0,
+      persistedMoneylineRows: 0,
+    }).kind,
+    "EMPTY_SLATE"
+  );
+  assert.equal(
+    classifyFreeOddsSlate({
+      scheduleOk: true,
+      scheduledGames: 3,
+      pairedMoneylines: 0,
+      persistedMoneylineRows: 0,
+    }).kind,
+    "COVERAGE_GAP"
+  );
+  assert.equal(
+    classifyFreeOddsSlate({
+      scheduleOk: false,
+      scheduledGames: null,
+      pairedMoneylines: 0,
+      persistedMoneylineRows: 0,
+    }).kind,
+    "SCHEDULE_UNVERIFIED"
+  );
+  assert.equal(
+    classifyFreeOddsSlate({
+      scheduleOk: true,
+      scheduledGames: 2,
+      pairedMoneylines: 2,
+      persistedMoneylineRows: 4,
+    }).kind,
+    "OK"
+  );
+  assert.equal(emptySlateReadbackValidated(), null);
 });
 
-test("PitchAPI drain peeks queue status before spawning workers", async () => {
-  const status = await read("functions/api/soccer-pitchapi-queue-status.js");
-  const workflow = await read(".github/workflows/soccer-pitchapi-queue-drain.yml");
-  assert.match(status, /pendingEligible/);
-  assert.match(status, /EXPECTED_EMPTY_QUEUE/);
-  // Peek may read LEASED rows for eligibility count but must never mutate/lease.
-  assert.doesNotMatch(status, /\bUPDATE\b|\.run\(\)|lease_until=/);
-  assert.match(workflow, /soccer-pitchapi-queue-status/);
-  assert.match(workflow, /needs:\s*preflight/);
-  assert.match(workflow, /has_work == 'true'/);
+test("verifyCtScheduleGameCount uses independent schedule APIs (mocked)", async () => {
+  const mlbFetch = async (url) => {
+    assert.match(String(url), /statsapi\.mlb\.com/);
+    return {
+      ok: true,
+      json: async () => ({ dates: [{ games: [{ id: 1 }, { id: 2 }] }] }),
+    };
+  };
+  const mlb = await verifyCtScheduleGameCount("mlb", "2026-10-12", { fetchImpl: mlbFetch });
+  assert.equal(mlb.ok, true);
+  assert.equal(mlb.scheduledGames, 2);
+  assert.equal(mlb.scheduleSource, "mlb-statsapi");
+
+  const nhlFetch = async (url) => {
+    assert.match(String(url), /api-web\.nhle\.com/);
+    return {
+      ok: true,
+      json: async () => ({
+        gameWeek: [{ date: "2026-10-12", games: [{ id: 10 }] }],
+      }),
+    };
+  };
+  const nhl = await verifyCtScheduleGameCount("nhl", "2026-10-12", { fetchImpl: nhlFetch });
+  assert.equal(nhl.ok, true);
+  assert.equal(nhl.scheduledGames, 1);
+  assert.equal(nhl.scheduleSource, "nhl-official-schedule");
+
+  const emptyMlb = await verifyCtScheduleGameCount("mlb", "2026-10-12", {
+    fetchImpl: async () => ({ ok: true, json: async () => ({ dates: [] }) }),
+  });
+  assert.equal(emptyMlb.scheduledGames, 0);
+
+  const bad = await verifyCtScheduleGameCount("mlb", "2026-10-12", {
+    fetchImpl: async () => ({ ok: false, status: 500 }),
+  });
+  assert.equal(bad.ok, false);
+});
+
+test("NHL workflow jq rejects games>0 with zero paired moneylines", () => {
+  assert.equal(
+    jqExitOk(NHL_SUCCESS_FILTER, {
+      ok: true,
+      skipped: false,
+      scheduledGames: 1,
+      pairedMoneylines: 0,
+      persistedMoneylineRows: 0,
+      readbackValidated: true,
+      canQualify: false,
+      canAuthorizeWager: false,
+    }),
+    false
+  );
+  assert.equal(
+    jqExitOk(NHL_SUCCESS_FILTER, {
+      ok: true,
+      skipped: true,
+      skipReason: "EMPTY_SLATE",
+      scheduledGames: 0,
+      signalClass: "EXPECTED_EMPTY_SLATE",
+    }),
+    true
+  );
+  assert.equal(
+    jqExitOk(NHL_SUCCESS_FILTER, {
+      ok: true,
+      skipped: false,
+      scheduledGames: 2,
+      pairedMoneylines: 2,
+      persistedMoneylineRows: 4,
+      readbackValidated: true,
+      canQualify: false,
+      canAuthorizeWager: false,
+    }),
+    true
+  );
+});
+
+test("PitchAPI preflight jq: empty:false enables work; empty:true skips; malformed fails", () => {
+  // Reproduce the original defect: false // true === true in jq
+  assert.equal(jqBool(".empty // true", { empty: false }), true);
+
+  assert.equal(
+    jqExitOk(PITCH_CONTRACT, { ok: true, empty: false, pendingEligible: 25 }),
+    true
+  );
+  assert.equal(
+    jqExitOk(PITCH_CONTRACT, { ok: true, empty: true, pendingEligible: 0 }),
+    true
+  );
+  assert.equal(
+    jqExitOk(PITCH_CONTRACT, { ok: true, empty: false, pendingEligible: 0 }),
+    false
+  );
+  assert.equal(jqExitOk(PITCH_CONTRACT, { ok: true, pendingEligible: 3 }), false);
+  assert.equal(jqExitOk(PITCH_CONTRACT, { empty: false, pendingEligible: 3 }), false);
+  assert.equal(
+    jqExitOk(PITCH_CONTRACT, { ok: true, empty: "yes", pendingEligible: 1 }),
+    false
+  );
+
+  // Strict .empty string compare used by workflow after contract check
+  assert.equal(execFileSync("jq", ["-r", ".empty"], {
+    input: JSON.stringify({ empty: false }),
+    encoding: "utf8",
+  }).trim(), "false");
+});
+
+test("workflow sources use strict empty parsing and schedule-gated EMPTY_SLATE", async () => {
+  const nhlYml = await read(".github/workflows/nhl-free-odds-collect.yml");
+  const mlbYml = await read(".github/workflows/mlb-free-odds-collect.yml");
+  const pitchYml = await read(".github/workflows/soccer-pitchapi-queue-drain.yml");
+  const nhlApi = await read("functions/api/nhl-free-odds-collect.js");
+  const mlbApi = await read("functions/api/mlb-free-odds-collect.js");
+
+  for (const yml of [nhlYml, mlbYml]) {
+    assert.match(yml, /pairedMoneylines>0/);
+    assert.match(yml, /scheduledGames==0/);
+    assert.match(yml, /EXPECTED_EMPTY_SLATE/);
+  }
+  assert.doesNotMatch(pitchYml, /\.empty\s*\/\/\s*true/);
+  assert.match(pitchYml, /\.empty \| type == "boolean"/);
+  assert.match(pitchYml, /elif \[ "\$empty" = "false" \]/);
+  assert.match(pitchYml, /has_work=true/);
+  assert.match(nhlApi, /verifyCtScheduleGameCount/);
+  assert.match(mlbApi, /verifyCtScheduleGameCount/);
+  assert.match(nhlApi, /pairedPersisted/);
+  assert.match(mlbApi, /emptySlateReadbackValidated/);
 });
