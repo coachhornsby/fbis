@@ -26,9 +26,6 @@ jobs:
           node-version: "22"
       - name: Verify bounded quota and player-prop inventory contracts
         run: node --test test/pinnodds-baseball-probe.test.mjs
-      - name: Wait for production orchestrator version
-        if: github.event_name == 'push'
-        run: node scripts/verify-orchestrator-deployment-sha.mjs "$GITHUB_SHA"
       - name: Obtain repository-scoped GitHub OIDC token
         id: oidc
         shell: bash
@@ -41,6 +38,24 @@ jobs:
           token="$(jq -er '.value' <<<"$body")"
           echo "::add-mask::$token"
           echo "token=$token" >> "$GITHUB_OUTPUT"
+      - name: Wait for authenticated read-only probe route (no Pinnodds calls)
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 45); do
+            code="$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' \
+              -H "Authorization: Bearer $OIDC_TOKEN" \
+              "https://fbis-orchestrator.coachhornsby.workers.dev/api/pinnodds-baseball-probe" || true)"
+            if [ "$code" = "405" ]; then
+              echo "Authenticated Pinnodds probe route ready, no upstream requests charged."
+              exit 0
+            fi
+            sleep 8
+          done
+          echo "Pinnodds production probe route unavailable: no API requests made."
+          exit 1
       - name: Perform TWO live Pinnodds baseball calls (prematch + live)
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
