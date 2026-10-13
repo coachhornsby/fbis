@@ -362,6 +362,15 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       </div>
 
+      {Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => o.source === "Polymarket US") ? (
+        <div className="cgc-status-note" aria-label="Polymarket US research market data">
+          <strong>POLYMARKET US · MARKET RESEARCH</strong>
+          <span>{game.market.venueOffers.filter(o => o.source === "Polymarket US" && o.contractPrice != null).slice(0,3).map(o =>
+            `${o.side} ${Math.round(o.contractPrice * 1000)/10}% (${o.marketFamily})`
+          ).join(" · ") || "Current price not available"}</span>
+          <small>Displayed probabilities only · NOT executable ask · FBIS bet authority unchanged</small>
+        </div>
+      ) : null}
       {!stored && isNhl ? <><NhlEvidenceStrip game={game} vm={vm} /><NhlPlayerProjectionStrip game={game} /></> : null}
 
       {showAction && !stored && (!isNhl || action.available) ? (
