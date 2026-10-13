@@ -2,11 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-test("PrizePicks workflow has redundant guarded morning schedules and a workflow-file-only recovery trigger",()=>{
+test("free mirror is scheduled while paid acquisition is manual and retains its spending gates",()=>{
   const y=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
-  assert.match(y,/cron: "5,35 13,14,15,16 \* \* \*"/);
+  const triggers=y.slice(y.indexOf("on:"),y.indexOf("concurrency:"));
+  assert.match(triggers,/workflow_dispatch:/);
+  assert.doesNotMatch(triggers,/schedule:|push:/);
+  const free=fs.readFileSync(".github/workflows/free-prizepicks-mirror.yml","utf8");
+  assert.match(free,/cron: '17 13,15 \* \* \*'/);
+  assert.doesNotMatch(free,/APIFY_TOKEN|api\/apify-acquire/);
   assert.doesNotMatch(y,/timezone:/);
-  assert.match(y,/push:\s*\n\s+branches: \[main\]\s*\n\s+paths: \["\.github\/workflows\/prizepicks-targeted-props\.yml"\]/);
+
   assert.match(y,/Reuse existing daily reservation without a replacement paid call/);
   assert.match(y,/RECOVER_ARTIFACT/);
   assert.match(y,/Reserve today's single paid PrizePicks acquisition/);

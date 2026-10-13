@@ -1,3 +1,4 @@
+import {FREE_PROP_MIRROR_SOURCE,FREE_PROP_MIRROR_SPORTS,loadFreeMirrorRows} from "../lib/freePrizePicksMirror.js";
 import { fetchEspnTennisRankings, buildTennisResearchBoardRows } from "../lib/tennisPrizePicksResearch.js";
 import { marketTemporalStatus } from "../lib/marketTemporal.js";
 import {
@@ -320,6 +321,7 @@ export async function onRequestGet(context) {
   const binds = sportParam ? [...eventIds, sportParam] : eventIds;
 
   try {
+    let actionReadError=null;
     const result = await context.env.DB
       .prepare(
         `SELECT id, canonical_event_id, canonical_player_id, provider_event_id, provider_player_id,
@@ -338,7 +340,7 @@ export async function onRequestGet(context) {
           LIMIT 4000`,
       )
       .bind(...binds)
-      .all();
+      .all().catch(error=>{actionReadError=String(error?.message||error);return {results:[]};});
 
     const observations = result?.results || [];
     const metadata = await loadMetadata(
@@ -354,9 +356,17 @@ export async function onRequestGet(context) {
       prizePicksRows = [];
       prizePicksError = String(error?.message || error);
     }
+    let freeMirrorRows = [], freeMirrorError = null;
+    try { freeMirrorRows = await loadFreeMirrorRows(context.env.DB,eventIds,sportParam); }
+    catch(error) { freeMirrorError=String(error?.message||error); }
+    const freeSupported=FREE_PROP_MIRROR_SPORTS.includes(sportParam);
+    let mirrorCoverage=null;
+    try { mirrorCoverage=await context.env.DB.prepare(`SELECT COUNT(*) n,MAX(collected_at) collected_at,MAX(source_observed_at) observed_at FROM normalized_market_observations WHERE source=? AND sport=?`).bind(FREE_PROP_MIRROR_SOURCE,sportParam).first(); }
+    catch {}
     const checkedAt = new Date();
     const sourceStatus = await propSourceStatus(context.env.DB);
-    const rows = [...actionRows, ...prizePicksRows].map(row => ({...row,
+    sourceStatus.push({source:"prizepicks_free_mirror",state:freeMirrorError?"ERROR":!freeSupported?"UNSUPPORTED":Number(mirrorCoverage?.n||0)>0?"CAPTURED":"NOT_COLLECTED",reason:freeMirrorError?"FREE_MIRROR_READ_FAILED":!freeSupported?"SPORT_NOT_PUBLISHED_BY_FREE_MIRROR":Number(mirrorCoverage?.n||0)>0?"DAILY_SNAPSHOT_NOT_LIVE_VERIFIED":"NO_DURABLE_FREE_MIRROR_CAPTURE",lastCollectedAt:mirrorCoverage?.collected_at||null,publisherCapturedAt:mirrorCoverage?.observed_at||null});
+    const rows = [...actionRows, ...prizePicksRows, ...freeMirrorRows].map(row => ({...row,
       temporal: marketTemporalStatus({source:row.book,providerObservedAt:row.sourceObservedAt,
         collectedAt:row.collectedAt,eventId:row.fbisEventId},{now:checkedAt,maxAgeMs:24*60*60*1000}),
     })).sort((a,b) => {
@@ -383,10 +393,13 @@ export async function onRequestGet(context) {
         durableObservations: observations.length,
         boardRows: rows.length,
         actionRows: actionRows.length,
+        actionReadError,
         prizePicksRows: prizePicksRows.length,
         prizePicksError,
+        freeMirrorRows:freeMirrorRows.length,
+        freeMirrorError,
         sourceStatus,
-        absenceReason: rows.length ? null : sourceStatus.some(s=>s.state==='BLOCKED') ? 'ACQUISITION_BLOCKED' : 'NO_OBSERVED_PROPS_FOR_EVENTS',
+        absenceReason: rows.length ? null : freeSupported ? Number(mirrorCoverage?.n||0)>0 ? 'NO_FREE_MIRROR_PROPS_FOR_EVENTS' : 'NO_DURABLE_FREE_MIRROR_CAPTURE' : sourceStatus.some(s=>s.state==='BLOCKED') ? 'ACQUISITION_BLOCKED' : 'NO_OBSERVED_PROPS_FOR_EVENTS',
         displayCheckedAt: checkedAt.toISOString(),
         metadataSources: new Set(observations.map((row) => row.source_observation_id).filter(Boolean)).size,
       },

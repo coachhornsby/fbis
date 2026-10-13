@@ -44,6 +44,7 @@ export function normalizeFreeNflMirror(feed,{now=new Date(),date=mirrorChicagoDa
   const clock=now instanceof Date?now:new Date(now);
   const nowMs=clock.getTime();
   if(!Number.isFinite(nowMs)||!date)return failed("CLOCK_INVALID");
+  if(feed?.sport==="NFL"&&feed.totalProps===0&&feed.props==null)feed={...feed,props:[]};
   if(!feed||feed.sport!=="NFL"||!Array.isArray(feed.props))return failed("MIRROR_SCHEMA_INVALID");
   const observedMs=validInstant(feed.collectionStatus?.providerFetchedAt);
   const publishedMs=validInstant(feed.scrapedAt);
