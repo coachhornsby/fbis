@@ -2920,7 +2920,7 @@ export async function updateExecutedBet(env, id, patch, action = "correction", o
     const mapped = { ...current, ...patch };
     const update = env.DB.prepare(
       `UPDATE executed_bets SET
-        game_id = ?, matchup_text = ?, away_team = ?, home_team = ?,
+        executed_at = ?, game_id = ?, matchup_text = ?, away_team = ?, home_team = ?,
         selected_side = ?, selected_team = ?, match_status = ?, match_confidence = ?,
         result = ?, profit = ?, settled_return = ?, graded_at = ?, void_reason = ?,
         matched_prediction_id = ?, matched_strategy_ticket_id = ?, recommendation_status = ?,
@@ -2932,6 +2932,8 @@ export async function updateExecutedBet(env, id, patch, action = "correction", o
         settlement_source = ?, settlement_evidence_json = ?, tracker_metadata_json = ?
        WHERE id = ?${expectedResult != null ? " AND result = ?" : ""}`
     ).bind(
+      // executed_at is only changed when patch supplies it (one-way synthetic-noon repair).
+      n(mapped.executedAt),
       n(mapped.gameId),
       n(mapped.matchupText),
       n(mapped.awayTeam),

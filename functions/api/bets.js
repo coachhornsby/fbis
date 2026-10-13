@@ -33,6 +33,14 @@ import { durableHealth, scheduledHealth } from "../lib/jobs.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
 import { BET_TRACKER_RECONCILE_SEED } from "../lib/betTrackerReconcileSeed.js";
+import {
+  applyValidatedTrackerReceiptClock,
+  isAuthenticTrackerReceiptClock,
+  isSyntheticTrackerNoon,
+  resolveTrackerExecutedAt,
+  shouldRepairSyntheticTrackerClock,
+  trackerCalibrationEligibility,
+} from "../lib/trackerReceiptClock.js";
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -288,7 +296,7 @@ function trackerFieldEqual(a, b) {
   return left === right;
 }
 
-function trackerImmutableConflictFields(existing, packed) {
+export function trackerImmutableConflictFields(existing, packed) {
   const fields = [
     ["selectedSide", "selected_side"],
     ["executionLine", "execution_line"],
@@ -380,6 +388,16 @@ export async function syncTrackerBets(env, tickets) {
     if (!packed.gameId && !prior?.gameId) {
       packed.gameId = await lookupTrackerGameId(env, packed, bySlate);
     }
+    // Derive receipt-clock provenance solely from validated Placed At at the API
+    // boundary. Caller-supplied provenance / eligibility flags never upgrade.
+    const validated = applyValidatedTrackerReceiptClock(packed);
+    packed.executedAt = validated.executedAt;
+    packed.trackerMetadata = validated.trackerMetadata;
+    const clock = validated.clock;
+    if (!clock.prospectiveProofEligible) {
+      packed.clvStatus = packed.clvStatus === "ok" ? "ok" : "unavailable";
+    }
+
     let res;
     if (prior) {
       const immutableFields = trackerImmutableConflictFields(prior, packed);
@@ -392,11 +410,37 @@ export async function syncTrackerBets(env, tickets) {
         });
         continue;
       }
-      // Historical tracker rows were written under more than one executedAt
-      // derivation. Preserve the already-ledgered execution timestamp rather
-      // than treating transport-derived timestamp drift as a financial mutation.
-      res = { ok:true, already:true, existing:prior, trackerReplayPreservedExecutedAt:true };
+      // Prefer preserving an already-ledgered authentic clock. Allow one-way repair
+      // only when the ledger still carries synthetic noon and Placed At authenticates.
+      if (shouldRepairSyntheticTrackerClock(prior, { ...clock, date: packed.date || prior.date })) {
+        packed.trackerMetadata = {
+          ...packed.trackerMetadata,
+          receiptClockRepairedFrom: prior.executedAt,
+        };
+        res = { ok:true, already:true, existing:prior, trackerReplayRepairedSyntheticExecutedAt:true };
+      } else {
+        // Preserve the already-ledgered execution timestamp rather than treating
+        // transport-derived timestamp drift as a financial mutation.
+        packed.executedAt = prior.executedAt;
+        const priorProv = prior.trackerMetadata?.executedAtProvenance || null;
+        if (isAuthenticTrackerReceiptClock(priorProv)) {
+          // Do not demote an authentic ledger clock when this sync lacks Placed At.
+          packed.trackerMetadata = {
+            ...packed.trackerMetadata,
+            executedAtProvenance: priorProv,
+            prospectiveProofEligible: true,
+            placedAtIso: prior.trackerMetadata?.placedAtIso || packed.trackerMetadata.placedAtIso,
+            calibrationEligibility: trackerCalibrationEligibility(priorProv),
+          };
+        }
+        res = { ok:true, already:true, existing:prior, trackerReplayPreservedExecutedAt:true };
+      }
     } else {
+      if (!isAuthenticTrackerReceiptClock(packed.trackerMetadata.executedAtProvenance) &&
+          isSyntheticTrackerNoon(packed.executedAt, packed.date)) {
+        // Keep synthetic noon for identity stability, but never as prospective proof.
+        packed.clvStatus = "unavailable";
+      }
       res = await persistExecutedBet(env, packed);
     }
     if (res.conflict) {
@@ -417,6 +461,7 @@ export async function syncTrackerBets(env, tickets) {
       continue;
     }
     const settledExisting = String(existing.result || "OPEN") !== "OPEN";
+    const repairClock = res.trackerReplayRepairedSyntheticExecutedAt === true;
     const patch = {
       gameId: existing.gameId || packed.gameId || null,
       matchupText: packed.matchupText,
@@ -425,6 +470,8 @@ export async function syncTrackerBets(env, tickets) {
       selectedSide: packed.selectedSide,
       selectedTeam: packed.selectedTeam,
       trackerMetadata: packed.trackerMetadata,
+      // One-way synthetic-noon → authenticated Placed At repair only.
+      ...(repairClock ? { executedAt: packed.executedAt } : {}),
       result: settledExisting ? existing.result : (packed.result || "OPEN"),
       profit: settledExisting ? existing.profit : packed.profit,
       settledReturn: settledExisting ? existing.settledReturn : packed.settledReturn,
