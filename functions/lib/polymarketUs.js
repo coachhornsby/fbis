@@ -77,7 +77,10 @@ export function matchPolymarketUsEvent(e,games=[],sport){
     {id:null,reason:candidates.length?"AMBIGUOUS_EVENT_MATCH":"UNMATCHED_PROVIDER_EVENT"};
 }
 export function parsePolymarketUsPrice(value){
-  const n=Number(typeof value==="object"&&value!==null?value.value:value);
+  // An absent quote or order-book side is NOT a zero-price contract.
+  const raw=typeof value==="object"&&value!==null?value.value:value;
+  if(raw==null||typeof raw==="string"&&!raw.trim())return null;
+  const n=Number(raw);
   return Number.isFinite(n)&&n>=0&&n<=1?Number(n.toFixed(5)):null;
 }
 export function polymarketUsMarketFamily(m={}){
@@ -111,7 +114,7 @@ export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=ne
         marketFamily:family,statFamily:null,side:label,line:m.line,
         contractPrice:price,americanOdds:null,executionEligible:false,
         standardOrAlt:"unknown",period:"full_game",sourceMarketId:slug,
-        sourceOutcomeId:String(side.id||side.identifier||label),fetchedAt:capturedAt,
+        sourceOutcomeId:String(side.id||side.identifier||label),fetchedAt:null,
         raw:{providerEventId,providerMarketId:String(m.id||slug),providerOutcomeId:String(side.id||""),
           providerTitle:e.title||null,marketTitle:m.question||m.title||null,
           providerMarketType:m.sportsMarketTypeV2||m.sportsMarketType||null,
@@ -119,7 +122,8 @@ export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=ne
           isLive:Boolean(e.live||e.eventState?.live),sideDescription:label,
           displayedProbability:price,priceKind:"DISPLAY_QUOTE_NOT_BEST_ASK",
           bestBid:parsePolymarketUsPrice(m.bestBidQuote),bestAsk:parsePolymarketUsPrice(m.bestAskQuote),
-          quoteProvenance:"collector-capture-only",marketObservedAt:null,
+          quoteProvenance:"collector-capture-only",collectorCapturedAt:capturedAt,
+          sourceObservedAt:null,marketObservedAt:null,
           canQualify:false,canAuthorizeWager:false,modelInfluence:"none"}
       });
     }
