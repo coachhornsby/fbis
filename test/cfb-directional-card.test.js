@@ -18,7 +18,7 @@ test("CFB hero shares NFL location and weather; tennis and other sports retain t
  const css=await read("nflDirectionalMatchups.css");
  assert.match(compact,/isCfb \? <CfbDirectionalMatchups/);
  assert.match(compact,/isFootball \? <div className="cgc-vs">/);
- assert.match(compact,/!isFootball \? <VenueConditions/);
+ assert.match(compact,/!isFootball && !stored \? <VenueConditions/);
  assert.match(css,/data-sport="cfb"/);
  assert.match(css,/cfb-unit-panel/);
  assert.match(css,/--unit-secondary/);

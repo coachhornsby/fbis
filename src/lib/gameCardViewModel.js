@@ -736,6 +736,11 @@ function buildStatus(board) {
   const d = board.decision || {};
   const a = board.authority || {};
   const e = board.event || {};
+  // Stored matchups have no verified live status, execution market or
+  // confidence assessment. They are neither operational BLOCKED bets nor
+  // comparable research picks; show a distinct neutral delivery status.
+  if (board.raw?.durableFallback?.statusUnverified === true)
+    return { key:"STORED_UNVERIFIED",icon:"archive",label:"STORED · UNVERIFIED",tone:"stored" };
 
   if (e.final) return { key: "FINAL", icon: "🏁", label: "FINAL", tone: "final" };
   if (e.live) return { key: "LIVE", icon: "🔴", label: "LIVE", tone: "live" };

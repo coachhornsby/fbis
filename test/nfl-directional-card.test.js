@@ -15,7 +15,7 @@ test("NFL venue and weather are in hero with sport-local four tile route",async(
  const css=await read("nflDirectionalMatchups.css");
  assert.match(jsx,/isNfl \? <NflDirectionalMatchups/);
  assert.match(jsx,/nfl-hero-venue/);
- assert.match(jsx,/!isFootball \? <VenueConditions/);
+ assert.match(jsx,/!isFootball && !stored \? <VenueConditions/);
  assert.match(css,/--unit-secondary/);
  assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });

@@ -608,3 +608,54 @@
   .fbis-shell-main.route-board .cgc-starter-copy > strong { max-width: 88px; font-size: 9px; }
   .fbis-shell-main.route-board .cgc-starter-copy > span { font-size: 7.5px; }
 }
+
+
+/* Canonical read-only matchup state: never style unverified D1 snapshots as picks. */
+.fbis-shell-main.route-board .cgc.cgc-stored {
+  border-color: rgba(130,160,195,.42) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,.36) !important;
+}
+.fbis-shell-main.route-board .cgc.cgc-stored .cgc-status-stored {
+  color: #c3d1e2 !important;
+  border-color: rgba(150,172,196,.4) !important;
+  background: rgba(105,123,145,.16) !important;
+}
+.fbis-shell-main.route-board .cgc.cgc-stored .cgc-best-edge.cgc-stored-market {
+  border-color: rgba(119,148,173,.38) !important;
+  background: linear-gradient(180deg,rgba(57,75,91,.24),rgba(6,20,34,.7)) !important;
+  box-shadow: none !important;
+  color: #c3d1e2 !important;
+}
+.fbis-shell-main.route-board .cgc.cgc-stored .cgc-stored-market > strong {
+  color: #b3bfd0 !important;
+  text-shadow: none !important;
+}
+.fbis-shell-main.route-board .cgc.cgc-stored .cgc-unresolved-school {
+  font-size: clamp(12px, 1.15vw, 17px) !important;
+  line-height: 1.18 !important;
+  letter-spacing: .005em !important;
+  font-weight: 850 !important;
+  max-width: 190px;
+  overflow-wrap: anywhere;
+  text-shadow: none !important;
+}
+.fbis-shell-main.route-board .cgc.cgc-stored .cgc-stored-summary {
+  border: 1px solid rgba(112,148,181,.3);
+  border-radius: 10px;
+  padding: 11px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(8,20,35,.55);
+}
+.fbis-shell-main.route-board .cgc.cgc-stored .cgc-stored-summary strong {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .055em;
+  color: #b9d4e8;
+}
+.fbis-shell-main.route-board .cgc.cgc-stored .cgc-stored-summary span {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #a2b7ce;
+}

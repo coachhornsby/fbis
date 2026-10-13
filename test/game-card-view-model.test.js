@@ -2,6 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolveTeamLogo } from "../src/lib/resolveTeamLogo.js";
 import { buildGameCardViewModel } from "../src/lib/gameCardViewModel.js";
+import { toDurableBoardGame } from "../functions/lib/todayDurableFallback.js";
+import { toBoardGame } from "../functions/lib/todayBoard.js";
 
 function mlbOppositeSides(overrides = {}) {
   return {
@@ -196,5 +198,43 @@ describe("buildGameCardViewModel", () => {
     );
     assert.match(vm.marketCopy.primary, /CONSENSUS/i);
     assert.doesNotMatch(String(vm.marketCopy.primary), /sharpapi/i);
+  });
+});
+
+describe("read-only durable BOARD cards",()=>{
+  it("does not display an operational blocked/pick status for a stored matchup",()=>{
+    const now=Date.parse("2026-10-10T22:00:00Z");
+    const pre=toDurableBoardGame({
+      id:"401856714",sport:"cfb",date:"2026-10-10",start:"2026-10-10T23:00:00Z",
+      away_name:"Oklahoma",away_abbr:"OU",home_name:"Texas",home_abbr:"TEX",
+      frozen_at:"2026-10-10T20:30:00Z",proj_home:31.5,proj_away:24.7,
+      engine:"CFB-FBIS-v2",model_version:"test",
+    },{date:"2026-10-10",now});
+    assert.ok(pre);
+    const board=toBoardGame(pre,"cfb",now);
+    assert.equal(board.durableFallback.statusUnverified,true);
+    const vm=buildGameCardViewModel(board);
+    assert.equal(vm.status.key,"STORED_UNVERIFIED");
+    assert.equal(vm.status.label,"STORED · UNVERIFIED");
+    assert.equal(vm.status.tone,"stored");
+    assert.equal(vm.market.available,false);
+    assert.equal(vm.projection.available,true);
+    assert.equal(vm.decision.evAvailable,false);
+    assert.equal(board.canQualify,false);
+    assert.equal(board.rec,null);
+    assert.equal(board.pinSpread,null);
+    assert.equal(board.pinTotal,null);
+  });
+  it("uses verified canonical team logos when stored provider team names resolve uniquely",()=>{
+    const now=Date.parse("2026-10-10T22:00:00Z");
+    const game=toDurableBoardGame({
+      id:"401856714",sport:"cfb",date:"2026-10-10",start:"2026-10-10T23:00:00Z",
+      away_name:"Oklahoma",away_abbr:"OU",home_name:"Texas",home_abbr:"TEX",
+      frozen_at:null,proj_home:null,proj_away:null,
+    },{date:"2026-10-10",now});
+    assert.ok(game?.home.logo && game?.away.logo);
+    assert.ok(game?.home.canonicalId && game?.away.canonicalId);
+    assert.equal(resolveTeamLogo(game.home).available,true);
+    assert.equal(resolveTeamLogo(game.away).available,true);
   });
 });
