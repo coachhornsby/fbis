@@ -1,0 +1,64 @@
+/**
+ * Polymarket US authenticated read-only stream signing.
+ * Docs: timestamp + "GET" + /v1/ws/markets, signed Ed25519; API secret only in runtime env.
+ * Never log, serialize, store, or return keys, headers or raw signature.
+ */
+const PKCS8_PREFIX=Uint8Array.from([0x30,0x2e,0x02,0x01,0x00,0x30,0x05,0x06,0x03,0x2b,0x65,0x70,0x04,0x22,0x04,0x20]);
+function bytesFromBase64(source){
+  if(typeof source!=="string"||!source)return null;
+  const bytes=atob(source.trim());
+  return Uint8Array.from(bytes,c=>c.charCodeAt(0));
+}
+function asBase64(bytes){
+  const u=new Uint8Array(bytes);
+  let s="";for(const b of u)s+=String.fromCharCode(b);
+  return btoa(s);
+}
+export async function signedPolymarketUsHeaders({keyId,secretKey,path="/v1/ws/markets",timestamp=Date.now(),webCrypto=crypto}={}){
+  if(!/^[0-9a-f-]{36}$/i.test(keyId||""))throw Error("polymarket-key-id-not-configured");
+  if(!["/v1/ws/markets"].includes(path))throw Error("read-only-market-ws-path-only");
+  const input=bytesFromBase64(secretKey);
+  if(!input||input.length!==64)throw Error("polymarket-secret-not-configured");
+  if(!Number.isSafeInteger(timestamp)||timestamp<0)throw Error("invalid-timestamp");
+  const pkcs8=new Uint8Array(PKCS8_PREFIX.length+32);
+  pkcs8.set(PKCS8_PREFIX);
+  pkcs8.set(input.subarray(0,32),PKCS8_PREFIX.length);
+  const signer=await webCrypto.subtle.importKey("pkcs8",pkcs8,{name:"Ed25519"},false,["sign"]);
+  const message=new TextEncoder().encode(String(timestamp)+"GET"+path);
+  const signature=await webCrypto.subtle.sign({name:"Ed25519"},signer,message);
+  input.fill(0);pkcs8.fill(0);
+  return {
+    "X-PM-Access-Key":keyId,
+    "X-PM-Timestamp":String(timestamp),
+    "X-PM-Signature":asBase64(signature)
+  };
+}
+export function polymarketUsSubscribe(slugs,requestId="fbis-market-lite"){
+  const clean=[...new Set((slugs||[]).filter(s=>/^[a-z0-9-]{1,160}$/i.test(s)))].slice(0,50);
+  if(!clean.length)throw Error("no-valid-market-symbols");
+  return {
+    subscribe:{
+      request_id:requestId,
+      subscription_type:2,
+      market_slugs:clean,
+      responses_debounced:true
+    }
+  };
+}
+export function parsePolymarketUsLite(raw){
+  let obj;
+  try{obj=typeof raw==="string"?JSON.parse(raw):raw}catch{return null}
+  if(!obj||typeof obj!=="object"||obj.error||obj.heartbeat)return null;
+  const data=obj.market_data_lite||obj.marketDataLite;
+  if(!data?.market_slug&&!data?.marketSlug)return null;
+  const money=v=>{const n=Number(v&&typeof v==="object"?v.value:v);return Number.isFinite(n)&&n>=0&&n<=1?n:null};
+  const slug=String(data.market_slug||data.marketSlug);
+  if(!/^[a-z0-9-]{1,160}$/i.test(slug))return null;
+  const bid=money(data.best_bid??data.bestBid),ask=money(data.best_ask??data.bestAsk);
+  if(bid!==null&&ask!==null&&bid>ask)return null;
+  return {marketSlug:slug,bestBid:bid,bestAsk:ask,
+    lastTrade:money(data.last_trade_px??data.lastTradePx),
+    current:money(data.current_px??data.currentPx),
+    bidDepth:Number(data.bid_depth??data.bidDepth)||null,
+    askDepth:Number(data.ask_depth??data.askDepth)||null};
+}
