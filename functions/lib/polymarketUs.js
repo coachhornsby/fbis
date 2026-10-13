@@ -38,12 +38,17 @@ export function marketEventStart(e={}){
   return e.startTime||e.eventDate||e.startDate||e.gameStartTime||null;
 }
 function normName(x){return CLEAN(x).replace(/\b(the|club|fc|football|basketball|baseball|hockey|team)\b/g,"").replace(/\s+/g," ").trim();}
+const GENERIC_TEAM_TOKENS=new Set(["city","united","town","club","athletic","sporting","real","international","national","state","university","college","rovers"]);
 function teamMatches(a,b,abbr){
   const x=normName(a), y=normName(b);
   if(!x||!y)return false;
   if(x===y)return true;
   if(abbr && tidyCode(abbr)===tidyCode(a))return true;
-  if(x.length>=6 && y.length>=6 && (x.endsWith(" "+y)||y.endsWith(" "+x)))return true;
+  // Exchange team sides may display just nicknames ("Magic"/"Cavaliers")
+  // and soccer feeds may use local variants ("Lens"/"Racing Club de Lens").
+  // Require a distinct non-generic suffix, plus two-team/2h/unique-game gate.
+  const short=x.length<y.length?x:y,long=x.length<y.length?y:x;
+  if(short.length>=4 && !GENERIC_TEAM_TOKENS.has(short) && long.endsWith(" "+short))return true;
   return false;
 }
 /** Match only with two independent team identities and <=2h kickoff tolerance.
@@ -54,7 +59,7 @@ export function matchPolymarketUsEvent(e,games=[],sport){
   const sides=Array.isArray(e.markets)?e.markets.flatMap(m=>m.marketSides||[]):[];
   const participants=[e.awayTeam?.name,e.homeTeam?.name,
     ...(e.teams||[]).map(x=>x.name||x),
-    ...sides.map(x=>x.team?.name)].filter(Boolean);
+    ...sides.flatMap(x=>[x.team?.name,x.description])].filter(Boolean);
   const title=String(e.title||"");
   const candidates=games.filter(g=>{
     const gt=Date.parse(g.start||"");
@@ -64,7 +69,8 @@ export function matchPolymarketUsEvent(e,games=[],sport){
     const names=(participants.length?participants:[]).concat(title);
     return [away,home].every((name,i)=>
       names.some(n=>teamMatches(n,name,i===0?g.away_abbr:g.home_abbr))||
-      normName(title).includes(normName(name)) && normName(name).length>=6
+      normName(name).length>=4 && !GENERIC_TEAM_TOKENS.has(normName(name)) &&
+      normName(title).includes(normName(name))
     );
   });
   return candidates.length===1?{id:String(candidates[0].id),reason:"TWO_TEAM_KICKOFF_VERIFIED"}:
