@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {loadPolymarketUsBoardOffers,attachPolymarketBoardOffers} from "../functions/lib/polymarketBoard.js";
+import {classifyPolymarketBboFreshness} from "../functions/api/polymarket-status.js";
 
 test("board overlay adds display quote without authorizing wagers or changing model",async()=>{
  const seen={sql:null,bindings:null};
@@ -31,4 +32,16 @@ test("unsupported D1 or no canonical games is empty, never a fabricated quote",a
  const r=await loadPolymarketUsBoardOffers(null,[{id:"1"}],"mlb");
  assert.equal(r.available,false);
  assert.equal(r.byId.size,0);
+});
+
+test("stream health cannot promote an old WebSocket quote as operational",()=>{
+ const now=new Date("2026-10-13T07:30:00Z");
+ const fresh=classifyPolymarketBboFreshness("2026-10-13T07:28:00Z",{now});
+ assert.equal(fresh.fresh,true);
+ assert.equal(fresh.ageMs,120000);
+ const stale=classifyPolymarketBboFreshness("2026-10-13T05:36:13Z",{now});
+ assert.equal(stale.fresh,false);
+ assert.equal(stale.evidenceStatus,"NO_RECENT_BBO_EVIDENCE");
+ assert.equal(classifyPolymarketBboFreshness(null,{now}).fresh,false);
+ assert.equal(classifyPolymarketBboFreshness("2026-10-14T07:30:00Z",{now}).fresh,false);
 });
