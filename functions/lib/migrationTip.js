@@ -10,10 +10,10 @@
  */
 
 /** Latest migration filename (Wrangler d1_migrations.name form). */
-export const EXPECTED_MIGRATION_FILE = "0100_polymarket_us_private_read_only.sql";
+export const EXPECTED_MIGRATION_FILE = "0101_pinnodds_market_research_foundation.sql";
 
 /** Latest migration id (schema_migrations.id form; no .sql suffix). */
-export const EXPECTED_MIGRATION_ID = "0100_polymarket_us_private_read_only";
+export const EXPECTED_MIGRATION_ID = "0101_pinnodds_market_research_foundation";
 
 /** @deprecated Prefer EXPECTED_MIGRATION_ID — kept for response field naming. */
 export const EXPECTED_MIGRATION = EXPECTED_MIGRATION_ID;

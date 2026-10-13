@@ -8,9 +8,11 @@ workers_dev = true
 enabled = true
 
 [triggers]
-crons = ["7 * * * *", "17 * * * *", "37 * * * *", "27,57 * * * *", "*/10 * * * *"]
+crons = ["7 * * * *", "17 * * * *", "37 * * * *", "27,57 * * * *", "*/10 * * * *", "12,32,52 * * * *"]
 
 [vars]
+# Fail closed until migration, live preview and source-coverage gate pass.
+PINNODDS_COLLECT_ENABLED = "false"
 SPREADSHEET_ID = "1B1IVONVvmP50JPCqb64fzEsSaTv6AuHQ04YqEzBhjAo"
 ORCHESTRATOR_VERSION = "AI-ORCH-v0.4-cloudflare"
 PROJECTION_PROTOCOL = "MULTISPORT-PROJ-v0.2"
@@ -41,3 +43,9 @@ TENNIS_RECOVERY_ENABLED = "true"
 [[r2_buckets]]
 binding = "R2_ARCHIVE"
 bucket_name = "fbis-archive"
+
+# Shared production D1: single atomic PinnOdds quota ledger across Workers.
+[[d1_databases]]
+binding = "DB"
+database_name = "fbis"
+database_id = "b50c724c-903b-4241-8ce1-48d931e7a44c"

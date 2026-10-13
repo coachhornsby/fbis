@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - "workers/sports-projection-orchestrator-worker.mjs"
+      - "workers/pinnodds-rest-scheduler.mjs"
+      - "functions/lib/pinnOddsRest.js"
       - "workers/pinnodds-baseball-probe.mjs"
       - "workers/pinnodds-mlb-period-audit.mjs"
       - "workers/tennis-refresh-health.mjs"
