@@ -510,8 +510,16 @@ export function hydrateOddsFromSoftMarketRows(game, pack) {
   if (String(pack.book || "") === "ESPN_FEED_REFERENCE") {
     odds.softSource = "espn";
     odds.nhlEspnObserved = true;
-  } else if (!odds.softSource) {
+  } else {
+    // Real sportsbook from durable soft snapshot — replace conflicting ESPN classification.
+    // Never infer SharpAPI/TheRundown transport from the bookmaker name alone.
     odds.softSource = "odds_snapshot_soft";
+    odds.nhlEspnObserved = false;
+    // odds_snapshots does not persist sourceObservedAt — mark freshness unverified.
+    // Do not promote FBIS capturedAt into observedAt / sourceObservedAt.
+    odds.sourceTimestampUnverified = true;
+    odds.sourceObservedAt = null;
+    odds.observedAt = null;
   }
   if (odds.spread == null && pack.spread != null) odds.spread = pack.spread;
   if (odds.total == null && pack.total != null) odds.total = pack.total;

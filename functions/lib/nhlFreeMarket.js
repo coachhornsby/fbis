@@ -66,7 +66,9 @@ export function packNhlSoftBookMarketObservations(game,{date,at=new Date().toISO
   const sum=implied(h)+implied(a);
   if(sum<0.94||sum>1.25)return {rows:[],reason:"UNPLAUSIBLE_SOFT_MONEYLINE_PAIR"};
   // capturedAt is always FBIS freeze/acquisition time — never substitute provider clocks.
-  // sourceObservedAt is kept separately when the provider time is a verified pregame stamp.
+  // sourceObservedAt is kept on the packed row when verified; odds_snapshots cannot store it
+  // (no migration). Consumers must treat snapshot-hydrate freshness as unverified unless an
+  // existing evidence path (e.g. nhl_bookmaker_quote_evidence) recovers the provider clock.
   const observedMs=Date.parse(odds.observedAt||odds.sourceTimestamp||"");
   const sourceObservedAt=Number.isFinite(observedMs)&&observedMs<startMs&&observedMs<=freezeMs
     ? new Date(observedMs).toISOString()

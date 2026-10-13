@@ -151,6 +151,57 @@ test("soft hydrate preserves Pinnacle presence and coexists with soft display qu
  assert.equal(softOnly.odds.pinPresent,false);
  assert.equal(softOnly.odds.homeMl,-130);
 });
+test("snapshot→hydrate→canonical: Case A odds_snapshot_soft DK pair is recognized, freshness UNKNOWN",()=>{
+ const rows=[
+  {gameId:"espn401",book:"DraftKings",period:"fg",market:"ML",side:"HOME",price:-130,capturedAt:"2026-10-10T23:00:00Z"},
+  {gameId:"espn401",book:"DraftKings",period:"fg",market:"ML",side:"AWAY",price:110,capturedAt:"2026-10-10T23:00:00Z"},
+ ];
+ const pack=buildSoftMarketOddsByGame(rows).get("espn401");
+ const hydrated=hydrateOddsFromSoftMarketRows(
+  {id:"espn401",sport:"nhl",asOf:"2026-10-10T23:05:00Z",odds:{}}, pack);
+ assert.equal(hydrated.odds.softSource,"odds_snapshot_soft");
+ assert.equal(hydrated.odds.sourceTimestampUnverified,true);
+ assert.equal(hydrated.odds.observedAt,null);
+ const canonical=resolveCanonicalMarket(hydrated,{now:Date.parse("2026-10-10T23:10:00Z")});
+ assert.equal(canonical.consensus.source,"ODDS_SNAPSHOT_SOFT");
+ assert.equal(canonical.consensus.bookmaker,"DraftKings");
+ assert.deepEqual(canonical.consensus.moneyline,{home:-130,away:110});
+ assert.equal(canonical.consensus.executable,false);
+ assert.equal(canonical.consensus.freshness,"UNKNOWN");
+ assert.equal(canonical.consensus.observedAt,null);
+ assert.equal(canonical.execution.available,false);
+ const lines=marketLines({...hydrated,market:canonical});
+ assert.equal(lines.homeMl,-130);assert.equal(lines.awayMl,110);
+ assert.equal(lines.book,"DraftKings");
+ assert.equal(lines.observedOnly,true);
+ assert.equal(lines.marketRole,"CONSENSUS_MARKET");
+});
+test("snapshot→hydrate→canonical: Case B DK hydrate clears ESPN classification",()=>{
+ const rows=[
+  {gameId:"espn401",book:"DraftKings",period:"fg",market:"ML",side:"HOME",price:-140,capturedAt:"2026-10-10T22:00:00Z"},
+  {gameId:"espn401",book:"DraftKings",period:"fg",market:"ML",side:"AWAY",price:120,capturedAt:"2026-10-10T22:00:00Z"},
+ ];
+ const pack=buildSoftMarketOddsByGame(rows).get("espn401");
+ const hydrated=hydrateOddsFromSoftMarketRows({
+  id:"espn401",sport:"nhl",
+  odds:{softSource:"espn",nhlEspnObserved:true,observedAt:"2026-10-10T20:00:00Z"},
+ }, pack);
+ assert.equal(hydrated.odds.softSource,"odds_snapshot_soft");
+ assert.equal(hydrated.odds.nhlEspnObserved,false);
+ assert.equal(hydrated.odds.moneylineBook,"DraftKings");
+ assert.equal(hydrated.odds.homeMl,-140);
+ assert.equal(hydrated.odds.awayMl,120);
+ const canonical=resolveCanonicalMarket(hydrated,{now:Date.parse("2026-10-10T23:00:00Z")});
+ assert.equal(canonical.consensus.source,"ODDS_SNAPSHOT_SOFT");
+ assert.notEqual(canonical.consensus.source,"OBSERVED_ESPN");
+ assert.equal(canonical.consensus.bookmaker,"DraftKings");
+ assert.deepEqual(canonical.consensus.moneyline,{home:-140,away:120});
+ assert.equal(canonical.consensus.freshness,"UNKNOWN");
+ const lines=marketLines({...hydrated,market:canonical});
+ assert.equal(lines.book,"DraftKings");
+ assert.equal(lines.homeMl,-140);
+ assert.notEqual(lines.book,"OBSERVED_ESPN");
+});
 test("NHL provider mapping is disabled for paid collection unless separately opted in",async()=>{
  const src=await readFile(new URL("../functions/lib/slateEngineCore.js",import.meta.url),"utf8");
  const parlay=await readFile(new URL("../functions/lib/parlay.js",import.meta.url),"utf8");
