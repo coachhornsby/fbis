@@ -58,3 +58,32 @@ Sources:
 - https://docs.polymarket.us/api-reference/sports/get-events-by-league-slug
 - https://docs.polymarket.us/api-reference/markets/get-market-bbo
 - https://docs.polymarket.us/concepts/market-data
+
+## Authenticated US market WebSocket — first bounded phase
+
+Runtime-only Cloudflare Pages production secrets:
+`POLYMARKET_US_KEY_ID` and `POLYMARKET_US_SECRET_KEY` (both `secret_text`).
+No API keys, secret bytes, signatures or private account data are put in GitHub,
+logs, D1, public JSON payloads, build output, or browser bundles.
+
+- Auth: Ed25519 signature of `timestamp + GET + /v1/ws/markets` with the
+  32-byte private seed from the developer-portal 64-byte base64 key.
+- Endpoint: `POST /api/polymarket-ws-capture`, requires existing HARVEST_SECRET
+  server-to-server authorization (not usable from ordinary browser clients).
+- Behavior: bounded **six-second** MARKET_DATA_LITE observation of a sampled
+  eight-contract universe from the existing public collector.
+- Persistence: append-only `normalized_market_observations` source
+  `Polymarket US WebSocket`, captured-at timestamp, verified book BBO quote,
+  spread/depth, provider and canonical event IDs when known.
+- Limitations: best ask is a **read-only observed book price, not a guaranteed
+  fill**. Market data remains unqualified with `canAuthorizeWager=false`.
+- Public operational status: `GET /api/polymarket-status` shows only whether
+  credentials are configured and whether any BBOs were saved in 24 hours.
+  It never returns authentication material.
+- Scheduler: existing hourly Polymarket collector runs this additional
+  authenticated BBO step after the publicly accessible market discovery.
+
+This is NOT an always-on socket, full exchange order book capture, full-market
+historical replay, private account reconciliation or automated trading.
+A dedicated durable streaming service and prospectively validated model
+challengers remain future phases. Never claim this short sampler is a persistent feed.
