@@ -6,7 +6,7 @@ import NflInjuryIntegrityStrip from "./NflInjuryIntegrityStrip.jsx";
 import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
 
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
-import { matchupAdvantageTeam, matchupTeamColors } from "../../lib/matchupTeamBrand.js";
+import { matchupAdvantageTeam, matchupSignalColors } from "../../lib/matchupTeamBrand.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import "./compactGameCardEnhancements.css";
 import "./universalPremiumCard.css";
@@ -207,7 +207,7 @@ export default function CompactGameCard({ game, onOpen }) {
     const edge = isNhl && /^(UNAVAILABLE|UNKNOWN|UNVERIFIED|NOT AVAILABLE)$/.test(rawEdge) ? "N/A" : rawEdge;
     const identified = matchupAdvantageTeam(factor, away, home);
     const team = identified?.team || null;
-    const colors = team ? matchupTeamColors(team) : null;
+    const colors = team ? matchupSignalColors(team,sportId) : null;
     const id = factor?.id || `factor-${i}`;
     const visual = splitMatchupVisual(id, factor?.label || factor?.name || "MATCHUP");
     const metric = factor?.value == null ? null : String(factor.value);
@@ -420,8 +420,8 @@ export default function CompactGameCard({ game, onOpen }) {
               >
                 <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "SIG"}</i><em>{item.label}</em></span>
                 {item.team ? (
-                  <span className="cgc-matchup-team-mark" title={item.team.fullName || item.team.name || item.team.abbr}>
-                    <TeamLogo team={{ ...item.team, sport: sportId }} size={40} className="cgc-matchup-team-logo" />
+                  <span className="cgc-matchup-team-mark" aria-hidden="true">
+                    <TeamLogo team={{ ...item.team, sport: sportId }} size={112} className="cgc-matchup-team-logo" />
                   </span>
                 ) : <strong>{item.text}</strong>}
                 {item.metric ? <small className="cgc-matchup-metric">{item.metric}</small> : null}
