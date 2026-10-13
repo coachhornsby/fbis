@@ -1,4 +1,5 @@
 import { normalizeMarketOffer, priceMarketOffer } from "./normalizedMarket.js";
+import { providerObservationTime } from "./marketTemporal.js";
 
 const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const bit=v=>v==null?null:(v?1:0);
@@ -7,7 +8,7 @@ async function digest(v){const b=await crypto.subtle.digest("SHA-256",new TextEn
 export async function persistNormalizedMarketObservation(db,input,{modelProbability=null,pairedAmericanOdds=null,snapshotType="CURRENT",modelId=null,modelVersion=null,collectedAt=null}={}){
  if(!db?.prepare)return {inserted:false,reason:"database-unavailable"};
  const o=priceMarketOffer(normalizeMarketOffer(input),{modelProbability,pairedAmericanOdds});
- const collected=collectedAt||new Date().toISOString(), observed=o.fetchedAt||null;
+ const collected=collectedAt||new Date().toISOString(), observed=providerObservationTime(input);
  const natural=[o.source,o.sourceType,o.sport,o.eventId,o.playerId||o.playerName,o.marketFamily,o.statFamily,o.side,o.line,o.americanOdds,o.contractPrice,o.payoutMultiplier,o.sourceMarketId,o.sourceOutcomeId,observed,collected].join("|");
  const h=await digest(natural),id="nmo_"+h.slice(0,28),raw=JSON.stringify(o.raw??null),rawHash=await digest(raw);
  const res=await db.prepare(`INSERT OR IGNORE INTO normalized_market_observations(

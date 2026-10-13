@@ -55,3 +55,25 @@ test("NHL board overlay passes only sanitized WebSocket BBO and never implies ex
  assert.equal(quote.sourceObservedAt,null);
  assert.equal(quote.quoteKind,"OBSERVED_BBO_NOT_GUARANTEED_FILL");
 });
+
+test('board reads all event batches and quote pages without 12-offer truncation',async()=>{
+ const calls=[];
+ const db={prepare(sql){return{bind(...args){calls.push({sql,args});return{async all(){
+  const ids=args.slice(1,-5),offset=args.at(-1);
+  const count=ids.includes('g0')?(offset===0?500:13):1;
+  return{results:Array.from({length:count},(_,i)=>({id:`${offset+i}`,canonical_event_id:ids[0],source:'Polymarket US',market_family:'total',source_market_id:`m${offset+i}`,period:'full_game',side:'over',contract_price:.5,collected_at:'2026-10-13T15:59:00Z',source_observed_at:null}))};
+ }}}}}};
+ const loaded=await loadPolymarketUsBoardOffers(db,Array.from({length:125},(_,i)=>({id:`g${i}`})),'nhl',{now:new Date('2026-10-13T16:00:00Z')});
+ assert.equal(calls.length,5);assert.equal(loaded.byId.get('g0').length,513);
+ assert.equal(loaded.diagnostics.requestedEvents,125);assert.equal(loaded.byId.has('g120'),true);
+ assert.ok(calls.every(c=>c.args.length<=46));
+ assert.equal(loaded.byId.get('g0')[0].observedAt,null);
+ assert.equal(loaded.byId.get('g0')[0].temporal.status,'SOURCE_TIME_UNKNOWN');
+});
+test('recent collection cannot refresh stale or future provider evidence',async()=>{
+ const rows=['2026-10-12T12:00:00Z','2026-10-13T16:10:00Z',null].map((time,i)=>({canonical_event_id:'game',source:'Polymarket US',source_market_id:`m${i}`,contract_price:.4,collected_at:'2026-10-13T15:59:00Z',source_observed_at:time}));
+ const db={prepare(){return{bind(){return{async all(){return{results:rows}}}}}}};
+ const r=await loadPolymarketUsBoardOffers(db,[{id:'game'}],'nhl',{now:new Date('2026-10-13T16:00:00Z')});
+ assert.equal(r.byId.get('game').length,1);
+ assert.equal(r.byId.get('game')[0].temporal.status,'SOURCE_TIME_UNKNOWN');
+});
