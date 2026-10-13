@@ -6,6 +6,8 @@ import {
   classifyFreeOddsSlate,
   emptySlateReadbackValidated,
   verifyCtScheduleGameCount,
+  chicagoDayFromIso,
+  shiftYmd,
 } from "../functions/lib/freeOddsSlateGuard.js";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
@@ -106,12 +108,16 @@ test("verifyCtScheduleGameCount uses independent schedule APIs (mocked)", async 
   assert.equal(mlb.scheduledGames, 2);
   assert.equal(mlb.scheduleSource, "mlb-statsapi");
 
+  // 00:30 UTC on Oct 13 is still Oct 12 in America/Chicago (CDT).
   const nhlFetch = async (url) => {
     assert.match(String(url), /api-web\.nhle\.com/);
     return {
       ok: true,
       json: async () => ({
-        gameWeek: [{ date: "2026-10-12", games: [{ id: 10 }] }],
+        gameWeek: [{
+          date: "2026-10-12",
+          games: [{ id: 10, startTimeUTC: "2026-10-13T00:30:00Z" }],
+        }],
       }),
     };
   };
@@ -119,6 +125,7 @@ test("verifyCtScheduleGameCount uses independent schedule APIs (mocked)", async 
   assert.equal(nhl.ok, true);
   assert.equal(nhl.scheduledGames, 1);
   assert.equal(nhl.scheduleSource, "nhl-official-schedule");
+  assert.equal(chicagoDayFromIso("2026-10-13T00:30:00Z"), "2026-10-12");
 
   const emptyMlb = await verifyCtScheduleGameCount("mlb", "2026-10-12", {
     fetchImpl: async () => ({ ok: true, json: async () => ({ dates: [] }) }),
@@ -129,6 +136,96 @@ test("verifyCtScheduleGameCount uses independent schedule APIs (mocked)", async 
     fetchImpl: async () => ({ ok: false, status: 500 }),
   });
   assert.equal(bad.ok, false);
+});
+
+test("NHL missing gameWeek target date is not EMPTY_SLATE — ESPN fallback or unverified", async () => {
+  // Official returns a week that never includes 2026-10-12 → must not certify zero.
+  let espnHits = 0;
+  const fetchImpl = async (url) => {
+    const u = String(url);
+    if (u.includes("api-web.nhle.com")) {
+      return {
+        ok: true,
+        json: async () => ({
+          gameWeek: [{ date: "2026-10-11", games: [{ id: 1, startTimeUTC: "2026-10-11T23:00:00Z" }] }],
+        }),
+      };
+    }
+    if (u.includes("site.api.espn.com")) {
+      espnHits++;
+      return {
+        ok: true,
+        json: async () => ({
+          events: [{ id: "401", date: "2026-10-12T23:00:00Z" }],
+        }),
+      };
+    }
+    throw new Error(`unexpected url ${u}`);
+  };
+  const viaEspn = await verifyCtScheduleGameCount("nhl", "2026-10-12", { fetchImpl });
+  assert.equal(viaEspn.ok, true);
+  assert.equal(viaEspn.scheduledGames, 1);
+  assert.equal(viaEspn.scheduleSource, "espn-nhl-scoreboard");
+  assert.ok(espnHits > 0);
+
+  const unverified = await verifyCtScheduleGameCount("nhl", "2026-10-12", {
+    fetchImpl: async (url) => {
+      if (String(url).includes("api-web.nhle.com")) {
+        return {
+          ok: true,
+          json: async () => ({ gameWeek: [{ date: "2026-10-14", games: [] }] }),
+        };
+      }
+      return { ok: false, status: 503 };
+    },
+  });
+  assert.equal(unverified.ok, false);
+  assert.match(String(unverified.error), /nhl-schedule-date-absent|nhl-schedule-unverified/);
+  assert.equal(unverified.scheduledGames, null);
+});
+
+test("NHL CT boundary: adjacent official day supplies game for requested Chicago date", async () => {
+  // Game listed under official calendar 2026-10-13 but tip-off is still 2026-10-12 CT.
+  const fetchImpl = async (url) => {
+    const day = String(url).split("/").pop();
+    if (day === "2026-10-13") {
+      return {
+        ok: true,
+        json: async () => ({
+          gameWeek: [{
+            date: "2026-10-13",
+            games: [{ id: 99, startTimeUTC: "2026-10-13T04:00:00Z" }], // 11pm CT Oct 12
+          }],
+        }),
+      };
+    }
+    // Other adjacent days return weeks that include the requested calendar row empty.
+    return {
+      ok: true,
+      json: async () => ({
+        gameWeek: [{ date: "2026-10-12", games: [] }],
+      }),
+    };
+  };
+  assert.equal(chicagoDayFromIso("2026-10-13T04:00:00Z"), "2026-10-12");
+  assert.equal(shiftYmd("2026-10-12", 1), "2026-10-13");
+  const result = await verifyCtScheduleGameCount("nhl", "2026-10-12", { fetchImpl });
+  assert.equal(result.ok, true);
+  assert.equal(result.scheduledGames, 1);
+  assert.equal(result.scheduleSource, "nhl-official-schedule");
+});
+
+test("NHL verified empty requires requested calendar row present", async () => {
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => ({
+      gameWeek: [{ date: "2026-10-12", games: [] }],
+    }),
+  });
+  const empty = await verifyCtScheduleGameCount("nhl", "2026-10-12", { fetchImpl });
+  assert.equal(empty.ok, true);
+  assert.equal(empty.scheduledGames, 0);
+  assert.equal(empty.scheduleSource, "nhl-official-schedule");
 });
 
 test("NHL workflow jq rejects games>0 with zero paired moneylines", () => {

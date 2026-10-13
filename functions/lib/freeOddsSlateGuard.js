@@ -16,6 +16,15 @@ const CT_YMD = (value) => {
     : null;
 };
 
+/** Shift a YYYY-MM-DD calendar day by deltaDays (UTC noon anchor avoids DST edge quirks). */
+export function shiftYmd(ymd, deltaDays) {
+  const [y, m, d] = String(ymd || "").split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  dt.setUTCDate(dt.getUTCDate() + Number(deltaDays || 0));
+  return dt.toISOString().slice(0, 10);
+}
+
 async function fetchJson(url, fetchImpl, { label, shapeCheck } = {}) {
   const res = await fetchImpl(url, {
     headers: {
@@ -41,19 +50,57 @@ async function countMlbScheduled(date, fetchImpl) {
   return { scheduledGames: games.length, scheduleSource: "mlb-statsapi" };
 }
 
+/**
+ * Count NHL games whose startTimeUTC falls on the requested America/Chicago date.
+ * Fetches adjacent official schedule days so UTC/CT midnight crossings are covered.
+ * A missing requested gameWeek row is NOT a verified empty slate — falls back to ESPN
+ * or throws for SCHEDULE_UNVERIFIED.
+ */
 async function countNhlScheduled(date, fetchImpl) {
-  try {
-    const url = `https://api-web.nhle.com/v1/schedule/${encodeURIComponent(date)}`;
-    const json = await fetchJson(url, fetchImpl, {
-      label: "NHL official schedule",
-      shapeCheck: (b) => Array.isArray(b?.gameWeek),
-    });
-    const target = (json.gameWeek || []).find((row) => String(row?.date || "").slice(0, 10) === date);
+  const adjacent = [shiftYmd(date, -1), date, shiftYmd(date, 1)].filter(Boolean);
+  const byId = new Map();
+  let sawRequestedCalendarRow = false;
+  let officialOk = false;
+  let officialError = null;
+
+  for (const day of adjacent) {
+    try {
+      const url = `https://api-web.nhle.com/v1/schedule/${encodeURIComponent(day)}`;
+      const json = await fetchJson(url, fetchImpl, {
+        label: "NHL official schedule",
+        shapeCheck: (b) => Array.isArray(b?.gameWeek),
+      });
+      officialOk = true;
+      for (const row of json.gameWeek || []) {
+        const rowDate = String(row?.date || "").slice(0, 10);
+        if (rowDate === date) sawRequestedCalendarRow = true;
+        for (const g of row?.games || []) {
+          const ct = CT_YMD(g?.startTimeUTC);
+          if (ct !== date) continue;
+          const id = String(g?.id || `${g?.startTimeUTC}-${g?.homeTeam?.id}-${g?.awayTeam?.id}`);
+          byId.set(id, g);
+        }
+      }
+    } catch (error) {
+      officialError = String(error?.message || error);
+    }
+  }
+
+  if (officialOk && byId.size > 0) {
     return {
-      scheduledGames: Array.isArray(target?.games) ? target.games.length : 0,
+      scheduledGames: byId.size,
       scheduleSource: "nhl-official-schedule",
     };
-  } catch {
+  }
+
+  // Verified empty only when the official feed included the requested calendar row
+  // (possibly with zero games) after CT-normalized adjacent scan found none.
+  if (officialOk && sawRequestedCalendarRow && byId.size === 0) {
+    return { scheduledGames: 0, scheduleSource: "nhl-official-schedule" };
+  }
+
+  // Missing requested date in gameWeek (or official wholly unavailable) → ESPN fallback.
+  try {
     const stamp = String(date || "").replace(/-/g, "");
     const url =
       `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${stamp}&limit=300`;
@@ -62,7 +109,24 @@ async function countNhlScheduled(date, fetchImpl) {
       shapeCheck: (b) => Array.isArray(b?.events) || Array.isArray(b?.content?.sbData?.events),
     });
     const events = json?.events || json?.content?.sbData?.events || [];
-    return { scheduledGames: events.length, scheduleSource: "espn-nhl-scoreboard" };
+    const ctEvents = events.filter((ev) => {
+      const start =
+        ev?.date ||
+        ev?.competitions?.[0]?.date ||
+        ev?.competitions?.[0]?.startDate ||
+        null;
+      return CT_YMD(start) === date;
+    });
+    return {
+      scheduledGames: ctEvents.length,
+      scheduleSource: "espn-nhl-scoreboard",
+    };
+  } catch (espnError) {
+    throw new Error(
+      officialOk && !sawRequestedCalendarRow
+        ? `nhl-schedule-date-absent:${date}`
+        : `nhl-schedule-unverified:${officialError || espnError?.message || espnError}`
+    );
   }
 }
 
