@@ -36,7 +36,7 @@ test('prop API rejects oversized batches explicitly and reports unsupported spor
  const context=url=>({env:{DB:{prepare(){throw Error('must not query')}}},request:new Request(url)});
  const tooLarge=await onRequestGet(context('https://fbis.test/api/player-props?eventIds='+Array.from({length:81},(_,i)=>i).join(',')));
  assert.equal(tooLarge.status,400);assert.equal((await tooLarge.json()).error,'EVENT_BATCH_TOO_LARGE');
- const unsupported=await onRequestGet(context('https://fbis.test/api/player-props?eventIds=g&sport=soccer'));
+ const unsupported=await onRequestGet(context('https://fbis.test/api/player-props?eventIds=g&sport=volleyball'));
  assert.equal((await unsupported.json()).diagnostics.absenceReason,'UNSUPPORTED_PROP_SPORT');
 });
 test('empty prop API reports blocked acquisition rather than claiming that the provider has no markets',async()=>{

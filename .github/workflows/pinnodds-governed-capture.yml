@@ -1,0 +1,76 @@
+name: PinnOdds governed complete REST snapshots
+on:
+  schedule:
+    - cron: '23 0,3,6,9,12,15,18,21 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths: ['workers/pinnodds-governed-capture.mjs','functions/lib/pinnodds*.js','functions/api/pinnodds*.js','scripts/collect-pinnodds-governed.mjs','.github/workflows/pinnodds-governed-capture.yml']
+  push:
+    branches: [main]
+    paths: ['workers/pinnodds-governed-capture.mjs','functions/lib/pinnodds*.js','functions/api/pinnodds*.js','scripts/collect-pinnodds-governed.mjs','.github/workflows/pinnodds-governed-capture.yml']
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: fbis-pinnodds-governed-capture
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: node --test test/pinnodds-markets.test.js test/pinnodds-governed-capture.test.mjs test/pinnodds-ingestion.test.js test/pinnodds-player-props.test.js
+      - name: Verify exact production release before writing
+        if: github.event_name == 'push'
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Obtain repository-scoped GitHub OIDC token
+        if: github.event_name != 'pull_request'
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep="?"
+          if [[ "$url" == *"?"* ]]; then sep="&"; fi
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -er '.value' <<<"$body")"
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - name: Wait for authenticated account capability route
+        if: github.event_name != 'pull_request'
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 45); do
+            ready="$(mktemp)"
+            code="$(curl -sS --max-time 15 -o "$ready" -w '%{http_code}' \
+              -H "Authorization: Bearer $OIDC_TOKEN" \
+              "https://fbis-orchestrator.coachhornsby.workers.dev/api/pinnodds-capture" || true)"
+            if [ "$code" = "405" ] && jq -e '.ready==true and .version=="pinnodds-governed-capture-v1"' "$ready" >/dev/null 2>&1; then
+              echo "Authenticated Pinnodds account capability route ready, no upstream requests charged."
+              exit 0
+            fi
+            sleep 8
+          done
+          echo "Pinnodds production probe route unavailable: no API requests made."
+          exit 1
+      - name: Archive and reconcile existing-entitlement REST data
+        if: github.event_name != 'pull_request'
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        run: node scripts/collect-pinnodds-governed.mjs
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name != 'pull_request'
+        with:
+          name: pinnodds-governed-${{ github.run_id }}
+          path: artifacts/pinnodds-*.json
+          retention-days: 14
