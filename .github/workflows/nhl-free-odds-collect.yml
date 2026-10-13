@@ -49,7 +49,19 @@ jobs:
             "$BASE/api/nhl-free-odds-collect?date=$date")"
           cat artifacts/nhl-free-odds.json
           test "$code" = "200"
-          jq -e '.ok==true and .games>0 and .readbackValidated==true and .persistedMoneylineRows >= (.pairedMoneylines*2) and .canQualify==false and .canAuthorizeWager==false' artifacts/nhl-free-odds.json >/dev/null
+          # EMPTY_SLATE only after independent schedule verification (API).
+          # Non-empty NHL success requires genuinely persisted paired moneylines.
+          jq -e '
+            (.ok==true and .skipped==true and .skipReason=="EMPTY_SLATE"
+              and .scheduledGames==0 and .signalClass=="EXPECTED_EMPTY_SLATE")
+            or
+            (.ok==true and .skipped!=true
+              and (.scheduledGames|type=="number") and .scheduledGames>0
+              and .pairedMoneylines>0
+              and .persistedMoneylineRows>=(.pairedMoneylines*2)
+              and .readbackValidated==true
+              and .canQualify==false and .canAuthorizeWager==false)
+          ' artifacts/nhl-free-odds.json >/dev/null
       - uses: actions/upload-artifact@v4
         if: always()
         with:

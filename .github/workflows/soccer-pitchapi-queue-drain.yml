@@ -13,7 +13,49 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      has_work: ${{ steps.peek.outputs.has_work }}
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Peek queue without leasing work
+        id: peek
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          status="$(curl -fsS --connect-timeout 5 --max-time 20 --retry 2 --retry-delay 2 --retry-all-errors \
+            -H "x-harvest-secret: $HARVEST_SECRET" \
+            "$BASE/api/soccer-pitchapi-queue-status")"
+          echo "$status" | jq .
+          # Strict contract — never coalesce empty with a default (jq treats false as missing).
+          echo "$status" | jq -e '
+            .ok == true
+            and (.empty | type == "boolean")
+            and (.pendingEligible | type == "number" and . >= 0 and . == floor)
+            and (
+              (.empty == true and .pendingEligible == 0)
+              or (.empty == false and .pendingEligible > 0)
+            )
+          ' >/dev/null
+          empty="$(echo "$status" | jq -r '.empty')"
+          if [ "$empty" = "true" ]; then
+            echo "has_work=false" >> "$GITHUB_OUTPUT"
+            echo "EXPECTED_EMPTY_QUEUE — skip six-worker drain"
+          elif [ "$empty" = "false" ]; then
+            echo "has_work=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Malformed empty field: $empty" >&2
+            exit 1
+          fi
+
   drain:
+    needs: preflight
+    if: needs.preflight.outputs.has_work == 'true'
     strategy:
       fail-fast: false
       max-parallel: 6

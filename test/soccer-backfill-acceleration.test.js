@@ -17,6 +17,8 @@ test("soccer accelerated backfill is six-worker, bounded, and contention-safe", 
   assert.match(workflow,/max-parallel:\s*6/);
   assert.match(workflow,/worker:\s*\[1, 2, 3, 4, 5, 6\]/);
   assert.match(workflow,/for iteration in 1 2 3; do/);
+  assert.match(workflow,/soccer-pitchapi-queue-status/);
+  assert.match(workflow,/needs:\s*preflight/);
   assert.match(discover,/0,12,'PENDING'/);
   assert.match(claim,/claimAttempt<=5/);
   assert.match(claim,/pageSize:Math\.max\(12/);
