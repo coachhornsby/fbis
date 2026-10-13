@@ -1,0 +1,21 @@
+name = "fbis-polymarket-us-stream"
+main = "services/polymarket-us-stream/worker.mjs"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Dedicated read-only market collector; no order execution routes.
+[triggers]
+crons = ["*/5 * * * *"]
+
+[[durable_objects.bindings]]
+name = "PM_STREAM"
+class_name = "PolymarketMarketStream"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PolymarketMarketStream"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fbis"
+database_id = "b50c724c-903b-4241-8ce1-48d931e7a44c"
