@@ -16,10 +16,8 @@ const json=(body,status=200)=>new Response(JSON.stringify(body),{
 });
 const utcDay=(value,offset)=>new Date(Date.parse(value+"T12:00:00Z")+offset*86400000).toISOString().slice(0,10);
 const num=(x)=>Number.isFinite(Number(x))?Number(x):null;
-const unique=(xs)=>[...new Set(xs)];
-const deadlineMs=85_000;
 export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(),
-  maxLeaguesPerSport=5,maxEventsPerSport=12,maxMarketsPerEvent=10,maxOffers=360
+  maxLeaguesPerSport=3,maxEventsPerSport=6,maxMarketsPerEvent=8,maxOffers=150,maxOffersPerSport=14
 }={}){
  if(!db?.prepare)throw Error("d1-unavailable");
  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||"")))throw Error("valid-CT-date-required");
@@ -61,14 +59,15 @@ export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(
     if(!Number.isFinite(eventMs)||chicagoMarketDay(eventStart)!==date)continue;
     // Skip long-completed games. Later RESULT evidence is separate.
     if(eventMs < startMs-8*60*60*1000)continue;
-    if(sampled>=maxEventsPerSport||offers.length>=maxOffers){truncated=true;break}
+    if(sampled>=maxEventsPerSport||offers.length>=maxOffers||offers.length-offersBefore>=maxOffersPerSport){truncated=true;break}
     providerIds.add(String(event.id));sampled++;nEvents++;
     const identity=matchPolymarketUsEvent(event,sportGames,sport);
+    if(Array.isArray(event.markets)&&event.markets.length>maxMarketsPerEvent)truncated=true;
     const marketOffers=polymarketUsMarketOffers(event,sport,{
       canonicalId:identity.id,capturedAt,maxMarkets:maxMarketsPerEvent
     });
     for(const offer of marketOffers){
-      if(offers.length>=maxOffers){truncated=true;break}
+      if(offers.length>=maxOffers||offers.length-offersBefore>=maxOffersPerSport){truncated=true;break}
       if(offer.contractPrice===null)unpriced++;
       offers.push({...offer,raw:{...offer.raw,providerLeagueSlug:slug,
         eventMatchStatus:identity.reason,providerPlatform:"POLYMARKET_US",
@@ -81,7 +80,8 @@ export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(
    sourceErrors.length?"PROVIDER_ERRORS":
    truncated?"SAMPLED_PARTIAL":
    !nEvents?"NO_SAME_DAY_MARKETS_LISTED":
-   offers.length===offersBefore?"MARKETS_UNPRICED_OR_UNSUPPORTED":"RESEARCH_OBSERVATIONS";
+   offers.length===offersBefore?"MARKETS_UNAVAILABLE":
+   unpriced===offers.length-offersBefore?"NO_PRICED_MARKETS":"RESEARCH_OBSERVATIONS";
   report.states.push({sport,leagueCount:leagues.length,leaguesVisited:selected,
     gamesInFbis:sportGames.length,providerEvents:nEvents,offers:offers.length-offersBefore,
     matched,unmatched,unpriced,sourceErrors,truncated,status});
