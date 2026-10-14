@@ -2767,10 +2767,11 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         dates.push(day);
         const slate = await builder(sport, day, {
           ...env,
-          parlayCacheOnly: odds !== "full" || healthMode,
+          // Research-only CFB ingestion must never be gated by depleted Parlay credits.
+          parlayCacheOnly: sport === "cfb" || odds !== "full" || healthMode,
           palCacheOnly: !shouldFetchPalNetwork(sport, day, date, { healthMode, dayOffset }),
         });
-        if (!healthMode && odds === "full" && (slate?.games?.length || 0) > 0 && slate?.parlay?.error) {
+        if (sport !== "cfb" && !healthMode && odds === "full" && (slate?.games?.length || 0) > 0 && slate?.parlay?.error) {
           throw new Error(`Parlay full collect failed: ${slate.parlay.error}`);
         }
         if (sport === "nhl") {
@@ -2865,22 +2866,28 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         }
         days.push({ date: day, n: slate.games?.length || 0 });
       }
-      if (sport === "cfb" && !healthMode && trigger === "schedule" && cfbCollectedGames.length) {
+      if (sport === "cfb" && !healthMode && trigger === "schedule") {
         // Immutable source-only PIT research evidence in the EXISTING approved table.
         // This does not touch recovery-gated 0098/0099 ledgers, forecasts or permissions.
         // The prior CFB slate construction warmed the CFBD cache. Freeze never
         // triggers an additional paid API request and rejects poststart observations.
         try {
           const {freezeCfbPregameFeatures} = await import("./cfbPitFeatureDelivery.js");
+          // Build a bounded 8-day window, independent of this board's yesterday
+          // through +2 collection window. On Wednesday, Saturday games were
+          // outside the old pregame capture window.
           cfbPit = await freezeCfbPregameFeatures(env, {
-            games: cfbCollectedGames, now: new Date().toISOString(),
+            dates: Array.from({length: 8}, (_, offset) => shiftDateCT(date, offset)),
+            now: new Date().toISOString(),
           });
         } catch (error) {
           cfbPit = {ok:false,reason:"cfb-pit-freeze-exception",detail:String(error?.message||error).slice(0,240)};
         }
         if (cfbPit.ok === false) {
           sportFailReasons.push("CFB PIT source capture: " + (cfbPit.reason || cfbPit.lastWriteError || "failed"));
-          if (cfbPit.failed) sportWrites.writesFailed += cfbPit.failed;
+          // Source outages are failed research ingestion, never successful
+          // collection merely because other writes (games/odds) succeeded.
+          sportWrites.writesFailed += Math.max(1, Number(cfbPit.failed)||0);
         }
       }
       writes = mergeWriteCounts(writes, sportWrites);
