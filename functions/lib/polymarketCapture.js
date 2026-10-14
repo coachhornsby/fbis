@@ -1,6 +1,7 @@
 /** Immutable paginated public discovery. Each page is archived before bounded ingestion. */
 import {POLY_US_API,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers} from './polymarketUs.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
+import {loadVerifiedTennisCandidates} from './polymarketTennisIdentity.js';
 const PAGE=20,BATCH=100;
 const key=id=>`market-sources/polymarket-us/receipts/${id}.json`;
 const valid=id=>/^[a-z0-9-]{1,180}$/i.test(id||'');
@@ -23,7 +24,11 @@ export async function capturePolymarketPage(env,{receiptId,kind,slug=null,sport=
  let offers=[];
  if(kind==='events'){
   const starts=items.map(e=>Date.parse(e.startTime||e.eventDate||e.startDate||e.gameStartTime||'')).filter(Number.isFinite);
-  const games=starts.length?(await env.DB.prepare(`SELECT id,sport,start,home_name,away_name,home_abbr,away_abbr FROM games WHERE sport=? AND julianday(start) BETWEEN julianday(?) AND julianday(?)`)
+  // Tennis has a separate canonical official schedule; it is NOT in games.
+  // Never fall back to old Action-only or Polymarket-only provisional IDs.
+  const games=sport==='tennis'?
+    await loadVerifiedTennisCandidates(env.DB,items.map(e=>e.startTime||e.eventDate||e.startDate||e.gameStartTime)):
+    starts.length?(await env.DB.prepare(`SELECT id,sport,start,home_name,away_name,home_abbr,away_abbr FROM games WHERE sport=? AND julianday(start) BETWEEN julianday(?) AND julianday(?)`)
     .bind(sport,new Date(Math.min(...starts)-7200000).toISOString(),new Date(Math.max(...starts)+7200000).toISOString()).all())?.results||[]:[];
   for(const event of items){
    const match=matchPolymarketUsEvent(event,games,sport);
