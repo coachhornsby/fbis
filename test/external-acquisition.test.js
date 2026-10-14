@@ -93,7 +93,7 @@ test('large canonical payload is rejected before archival, SQL writes or model e
  const {env,sql,objects}=fixture();env.HARVEST_SECRET='secret';
  const response=await consumePrizePicks({env,request:new Request('https://example.test/api/prizepicks-props',{method:'POST',headers:{'x-harvest-secret':'secret','content-type':'application/json'},body:JSON.stringify({runId:'current-run',rows:Array.from({length:501},()=>({player_name:'Player'}))})})});
  assert.equal(response.status,410);
- assert.equal((await response.json()).error,'ODDS_INGESTOR_RETIRED_ACTIVE_SOURCES_ONLY');
+ assert.equal((await response.json()).error,'MARKET_INGESTOR_RETIRED_APPROVED_FEEDS_ONLY');
  assert.equal(objects.size,0);assert.equal(sql.prepare('SELECT count(*) n FROM external_acquisition_batches').get().n,0);
 });
 test('live consumers exclude partial and stale captures while retaining historical rows',()=>{
