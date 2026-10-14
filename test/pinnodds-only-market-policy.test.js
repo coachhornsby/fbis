@@ -14,6 +14,11 @@ test("sole active odds source is PinnOdds, no silent Parlay or soft bookmaker fa
  for(const source of ["Parlay","SharpAPI","ACTION","PrizePicks paid/Apify","Kalshi"])
    assert.equal(allowNewMarketObservation({source}),false);
  assert.equal(isActiveOddsProvider("PinnOdds"),true);
+ assert.equal(ACTIVE_MARKET_SOURCES.length,4);
+ for(const source of ["PinnOdds","Polymarket US","Polymarket US WebSocket","PrizePicks GitHub Mirror"])
+   assert.equal(allowNewMarketObservation({source}),true);
+ for(const source of ["Parlay","ACTION","PrizePicks Paid Apify"])
+   assert.equal(allowNewMarketObservation({source}),false);
  assert.equal(retiredOddsCollectorResponse("Parlay").blocked,true);
  const game=pinnoddsOnlySlateMarket({id:"401866441",sport:"cfb",odds:{homeMl:-150,pinHomeMl:-148},
    market:{reference:{homeMoneyline:-150}},pin:{spread:{noVigA:.55}},rec:{pick:"legacy"},lean:{pick:"legacy"},
