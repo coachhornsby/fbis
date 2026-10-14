@@ -21,3 +21,29 @@ test("CFB D1 reads latest authentic snapshot and rejects post-kickoff observatio
  const badDb={prepare(){return {bind(){return this;},async all(){return {results:[unsafe]};}}}};
  const bad=await loadCfbFrozenUnitEvidence(badDb,[game]);assert.equal(Object.keys(bad.byGameId).length,0);
 });
+
+import {freezeCfbPregameFeatures} from "../functions/lib/cfbPitFeatureDelivery.js";
+import {resetCacheMem,writeCache} from "../functions/lib/cache.js";
+test("scheduled CFB feature freeze consumes warmed CFBD cache without provider fanout",async()=>{
+ resetCacheMem();
+ const inserted=[];
+ const env={DB:{prepare(sql){return {bind(...values){this.values=values;return this;},async run(){inserted.push({sql,values:this.values});return {meta:{changes:1}};}};}}};
+ const payload={...feed,bySchool:{kentucky:{school:"Kentucky",espnId:"96",...features.home},lsu:{school:"LSU",espnId:"99",...features.away}},
+   byEspnId:{"96":{school:"Kentucky",espnId:"96",...features.home},"99":{school:"LSU",espnId:"99",...features.away}},meta:{...feed.meta,httpStatus:200}};
+ await writeCache("cfb-deep-v2-2026",payload,null,7200000);
+ try{
+  const r=await freezeCfbPregameFeatures(env,{now:"2026-10-17T16:00:00Z",games:[game,game],
+    fetchFn:()=>{throw Error("paid provider fanout prohibited");}});
+  assert.equal(r.ok,true);assert.equal(r.checked,1);assert.equal(r.inserted,1);
+  assert.equal(inserted.length,1);assert.match(inserted[0].sql,/INSERT OR IGNORE INTO cfb_pregame_feature_vectors/);
+  assert.equal(r.authority,"research-only");
+ }finally{resetCacheMem();}
+});
+test("CFB PIT ingest reports cache miss rather than making a paid request",async()=>{
+ resetCacheMem();
+ const DB={prepare(){throw Error("no D1 call on cache miss")}};
+ const r=await freezeCfbPregameFeatures({DB},{now:"2026-10-17T16:00:00Z",games:[game],
+   fetchFn:()=>{throw Error("paid provider fanout prohibited");}});
+ assert.equal(r.ok,false);assert.equal(r.reason,"deep-feed-unavailable");
+ resetCacheMem();
+});
