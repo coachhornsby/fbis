@@ -1,0 +1,461 @@
+{
+  "generatedAt": "2026-10-14T06:23:03.181898Z",
+  "productionCommit": "3cdc5dbfb4ab03928160fa3cf1e9c6875d2fa5ea",
+  "mergedPr": 1099,
+  "deploy": "DEPLOY PRODUCTION success on main CI",
+  "todayPolymarketResearch": {
+    "source": "Polymarket US",
+    "available": true,
+    "qualified": false,
+    "executable": false,
+    "bySport": {
+      "tennis": {
+        "available": true,
+        "diagnostics": {
+          "requestedEvents": 23,
+          "loadedObservations": 497,
+          "displayedOffers": 497
+        }
+      },
+      "nba": {
+        "available": true,
+        "diagnostics": {
+          "requestedEvents": 7,
+          "loadedObservations": 390,
+          "displayedOffers": 390
+        }
+      },
+      "nhl": {
+        "available": true,
+        "diagnostics": {
+          "requestedEvents": 2,
+          "loadedObservations": 158,
+          "displayedOffers": 158
+        }
+      },
+      "mlb": {
+        "available": true,
+        "diagnostics": {
+          "requestedEvents": 1,
+          "loadedObservations": 86,
+          "displayedOffers": 86
+        }
+      }
+    }
+  },
+  "polyVenueOfferCards": 29,
+  "auditSports": [
+    {
+      "sport": "nfl",
+      "totalObservations": 65230,
+      "linkedObservations": 56366,
+      "unmatchedObservations": 8864,
+      "observationLinkageRate": 0.8641,
+      "eligibleEvents": 2,
+      "eventsWithLinkedMarket": 0,
+      "eventMarketCoverage": 0,
+      "bySource": [
+        {
+          "source": "Polymarket US",
+          "totalObservations": 61413,
+          "linkedObservations": 53021,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-14T06:19:15.018Z"
+        },
+        {
+          "source": "Polymarket US WebSocket",
+          "totalObservations": 1062,
+          "linkedObservations": 1062,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-14T06:20:21.349Z"
+        },
+        {
+          "source": "PinnOdds",
+          "totalObservations": 2467,
+          "linkedObservations": 2012,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-13T19:04:47.333Z"
+        },
+        {
+          "source": "PrizePicks GitHub Mirror",
+          "totalObservations": 288,
+          "linkedObservations": 271,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-13T17:10:23.301Z"
+        }
+      ]
+    },
+    {
+      "sport": "cfb",
+      "totalObservations": 19401,
+      "linkedObservations": 8505,
+      "unmatchedObservations": 10896,
+      "observationLinkageRate": 0.4384,
+      "eligibleEvents": 2,
+      "eventsWithLinkedMarket": 2,
+      "eventMarketCoverage": 1,
+      "bySource": [
+        {
+          "source": "Polymarket US",
+          "totalObservations": 13208,
+          "linkedObservations": 5188,
+          "status": "PARTIAL",
+          "latestCollectedAt": "2026-10-14T00:54:27.651Z"
+        },
+        {
+          "source": "Polymarket US WebSocket",
+          "totalObservations": 2847,
+          "linkedObservations": 2847,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-14T06:20:21.349Z"
+        },
+        {
+          "source": "PinnOdds",
+          "totalObservations": 3072,
+          "linkedObservations": 426,
+          "status": "PARTIAL",
+          "latestCollectedAt": "2026-10-13T19:04:47.333Z"
+        },
+        {
+          "source": "PrizePicks GitHub Mirror",
+          "totalObservations": 274,
+          "linkedObservations": 44,
+          "status": "PARTIAL",
+          "latestCollectedAt": "2026-10-13T17:10:23.301Z"
+        }
+      ]
+    },
+    {
+      "sport": "cbb",
+      "totalObservations": 110,
+      "linkedObservations": 0,
+      "unmatchedObservations": 110,
+      "observationLinkageRate": 0,
+      "eligibleEvents": 0,
+      "eventsWithLinkedMarket": 0,
+      "eventMarketCoverage": null,
+      "bySource": [
+        {
+          "source": "PinnOdds",
+          "totalObservations": 110,
+          "linkedObservations": 0,
+          "status": "BROKEN_OR_UNMATCHED",
+          "latestCollectedAt": "2026-10-13T18:52:38.101Z"
+        }
+      ]
+    },
+    {
+      "sport": "nba",
+      "totalObservations": 7011,
+      "linkedObservations": 5970,
+      "unmatchedObservations": 1041,
+      "observationLinkageRate": 0.8515,
+      "eligibleEvents": 10,
+      "eventsWithLinkedMarket": 5,
+      "eventMarketCoverage": 0.5,
+      "bySource": [
+        {
+          "source": "Polymarket US",
+          "totalObservations": 3544,
+          "linkedObservations": 2786,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-14T06:13:59.547Z"
+        },
+        {
+          "source": "Polymarket US WebSocket",
+          "totalObservations": 2228,
+          "linkedObservations": 2228,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-14T06:20:21.349Z"
+        },
+        {
+          "source": "PinnOdds",
+          "totalObservations": 1223,
+          "linkedObservations": 940,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-13T18:52:38.101Z"
+        },
+        {
+          "source": "PrizePicks GitHub Mirror",
+          "totalObservations": 16,
+          "linkedObservations": 16,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-13T17:10:23.301Z"
+        }
+      ]
+    },
+    {
+      "sport": "wnba",
+      "totalObservations": 198,
+      "linkedObservations": 0,
+      "unmatchedObservations": 198,
+      "observationLinkageRate": 0,
+      "eligibleEvents": 0,
+      "eventsWithLinkedMarket": 0,
+      "eventMarketCoverage": null,
+      "bySource": [
+        {
+          "source": "Polymarket US",
+          "totalObservations": 72,
+          "linkedObservations": 0,
+          "status": "BROKEN_OR_UNMATCHED",
+          "latestCollectedAt": "2026-10-14T06:12:44.296Z"
+        },
+        {
+          "source": "PinnOdds",
+          "totalObservations": 126,
+          "linkedObservations": 0,
+          "status": "BROKEN_OR_UNMATCHED",
+          "latestCollectedAt": "2026-10-13T18:52:38.101Z"
+        }
+      ]
+    },
+    {
+      "sport": "mlb",
+      "totalObservations": 4869,
+      "linkedObservations": 4265,
+      "unmatchedObservations": 604,
+      "observationLinkageRate": 0.8759,
+      "eligibleEvents": 3,
+      "eventsWithLinkedMarket": 1,
+      "eventMarketCoverage": 0.3333,
+      "bySource": [
+        {
+          "source": "Polymarket US",
+          "totalObservations": 1426,
+          "linkedObservations": 832,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-14T06:08:46.113Z"
+        },
+        {
+          "source": "Polymarket US WebSocket",
+          "totalObservations": 2473,
+          "linkedObservations": 2473,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-14T06:20:21.349Z"
+        },
+        {
+          "source": "PinnOdds",
+          "totalObservations": 931,
+          "linkedObservations": 921,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-13T19:13:43.176Z"
+        },
+        {
+          "source": "PrizePicks GitHub Mirror",
+          "totalObservations": 39,
+          "linkedObservations": 39,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-13T17:10:23.301Z"
+        }
+      ]
+    },
+    {
+      "sport": "npb",
+      "totalObservations": 2005,
+      "linkedObservations": 0,
+      "unmatchedObservations": 2005,
+      "observationLinkageRate": 0,
+      "eligibleEvents": 0,
+      "eventsWithLinkedMarket": 0,
+      "eventMarketCoverage": null,
+      "bySource": [
+        {
+          "source": "Polymarket US",
+          "totalObservations": 24,
+          "linkedObservations": 0,
+          "status": "BROKEN_OR_UNMATCHED",
+          "latestCollectedAt": "2026-10-14T00:49:39.537Z"
+        },
+        {
+          "source": "Polymarket US WebSocket",
+          "totalObservations": 1835,
+          "linkedObservations": 0,
+          "status": "BROKEN_OR_UNMATCHED",
+          "latestCollectedAt": "2026-10-14T06:20:16.348Z"
+        },
+        {
+          "source": "PinnOdds",
+          "totalObservations": 146,
+          "linkedObservations": 0,
+          "status": "BROKEN_OR_UNMATCHED",
+          "latestCollectedAt": "2026-10-13T19:13:43.176Z"
+        }
+      ]
+    },
+    {
+      "sport": "kbo",
+      "totalObservations": 781,
+      "linkedObservations": 0,
+      "unmatchedObservations": 781,
+      "observationLinkageRate": 0,
+      "eligibleEvents": 0,
+      "eventsWithLinkedMarket": 0,
+      "eventMarketCoverage": null,
+      "bySource": [
+        {
+          "source": "Polymarket US",
+          "totalObservations": 4,
+          "linkedObservations": 0,
+          "status": "BROKEN_OR_UNMATCHED",
+          "latestCollectedAt": "2026-10-14T00:49:36.201Z"
+        },
+        {
+          "source": "Polymarket US WebSocket",
+          "totalObservations": 698,
+          "linkedObservations": 0,
+          "status": "BROKEN_OR_UNMATCHED",
+          "latestCollectedAt": "2026-10-14T06:20:16.348Z"
+        },
+        {
+          "source": "PinnOdds",
+          "totalObservations": 79,
+          "linkedObservations": 0,
+          "status": "BROKEN_OR_UNMATCHED",
+          "latestCollectedAt": "2026-10-13T19:13:43.176Z"
+        }
+      ]
+    },
+    {
+      "sport": "nhl",
+      "totalObservations": 30016,
+      "linkedObservations": 16817,
+      "unmatchedObservations": 13199,
+      "observationLinkageRate": 0.5603,
+      "eligibleEvents": 19,
+      "eventsWithLinkedMarket": 16,
+      "eventMarketCoverage": 0.8421,
+      "bySource": [
+        {
+          "source": "Polymarket US",
+          "totalObservations": 18130,
+          "linkedObservations": 5260,
+          "status": "PARTIAL",
+          "latestCollectedAt": "2026-10-14T06:17:58.983Z"
+        },
+        {
+          "source": "Polymarket US WebSocket",
+          "totalObservations": 6131,
+          "linkedObservations": 6131,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-14T06:20:21.349Z"
+        },
+        {
+          "source": "PinnOdds",
+          "totalObservations": 5755,
+          "linkedObservations": 5426,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-13T18:55:05.429Z"
+        }
+      ]
+    },
+    {
+      "sport": "soccer",
+      "totalObservations": 26829,
+      "linkedObservations": 1391,
+      "unmatchedObservations": 25438,
+      "observationLinkageRate": 0.0518,
+      "eligibleEvents": 13,
+      "eventsWithLinkedMarket": 7,
+      "eventMarketCoverage": 0.5385,
+      "bySource": [
+        {
+          "source": "Polymarket US",
+          "totalObservations": 20648,
+          "linkedObservations": 736,
+          "status": "PARTIAL",
+          "latestCollectedAt": "2026-10-14T06:15:24.475Z"
+        },
+        {
+          "source": "Polymarket US WebSocket",
+          "totalObservations": 1081,
+          "linkedObservations": 401,
+          "status": "PARTIAL",
+          "latestCollectedAt": "2026-10-14T06:20:11.348Z"
+        },
+        {
+          "source": "PinnOdds",
+          "totalObservations": 5100,
+          "linkedObservations": 254,
+          "status": "PARTIAL",
+          "latestCollectedAt": "2026-10-13T18:38:32.217Z"
+        }
+      ]
+    },
+    {
+      "sport": "tennis",
+      "totalObservations": 14607,
+      "linkedObservations": 841,
+      "unmatchedObservations": 13766,
+      "observationLinkageRate": 0.0576,
+      "eligibleEvents": 13,
+      "eventsWithLinkedMarket": 21,
+      "eventMarketCoverage": 1.6154,
+      "bySource": [
+        {
+          "source": "Polymarket US",
+          "totalObservations": 2454,
+          "linkedObservations": 546,
+          "status": "PARTIAL",
+          "latestCollectedAt": "2026-10-14T06:07:58.474Z"
+        },
+        {
+          "source": "Polymarket US WebSocket",
+          "totalObservations": 491,
+          "linkedObservations": 295,
+          "status": "LINKED",
+          "latestCollectedAt": "2026-10-14T06:20:21.349Z"
+        },
+        {
+          "source": "PinnOdds",
+          "totalObservations": 11662,
+          "linkedObservations": 0,
+          "status": "BROKEN_OR_UNMATCHED",
+          "latestCollectedAt": "2026-10-13T18:52:12.490Z"
+        }
+      ]
+    }
+  ],
+  "pinnoddsTennis": [
+    {
+      "kind": "board",
+      "sportId": 2,
+      "feed": "prematch",
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T18:43:05.613Z",
+      "snapshotId": "run-38448188039-1-board-2-prematch",
+      "providerStatus": "fresh",
+      "providerEventCount": 298,
+      "normalizedRows": 5602,
+      "matchedRows": 0,
+      "reconciled": true,
+      "reasons": {},
+      "rematched": false,
+      "paidProviderCall": null,
+      "providerQuoteClockVerified": false,
+      "dropBufferComplete": null
+    },
+    {
+      "kind": "board",
+      "sportId": 2,
+      "feed": "live",
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T18:52:12.490Z",
+      "snapshotId": "run-38448188039-1-board-2-live",
+      "providerStatus": "fresh",
+      "providerEventCount": 23,
+      "normalizedRows": 256,
+      "matchedRows": 0,
+      "reconciled": true,
+      "reasons": {},
+      "rematched": false,
+      "paidProviderCall": null,
+      "providerQuoteClockVerified": false,
+      "dropBufferComplete": null
+    }
+  ],
+  "governance": {
+    "todayQualified": false,
+    "todayExecutable": false
+  }
+}
