@@ -31,7 +31,6 @@ export async function freezeCfbPregameFeatures(env,{dates=null,games=null,now=ne
  // inside the follow-up freeze (a cache miss is explicit, not a hidden fetch).
  const feed=await loadCfbDeepFeatures({...env,cfbdCacheOnly:true},{now:clock,fetchFn});
  if(!feed?.meta?.asOf||!Object.keys(feed.bySchool||{}).length)return {ok:false,reason:Number(feed?.meta?.httpStatus)===429?"CFBD 429 rate-limited":"deep-feed-unavailable",feed:feed?.meta||null};
- const {buildSlate}=await import("./slateEngineCore.js");
  const datesToCheck=dates||Array.from({length:8},(_,i)=>dateCT(clock+i*86400000));
  const summary={ok:true,checked:0,eligible:0,inserted:0,existing:0,failed:0,missing:0,skippedDates:[],feed:feed.meta,days:datesToCheck,authority:"research-only",source:"CFBD_CACHED_PREGAME"};
  const process=async slateGames=>{
