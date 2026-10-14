@@ -9,6 +9,7 @@
  * Market-source permission is distinct from bet/execution authorization.
  */
 export const ACTIVE_ODDS_PROVIDER = "PinnOdds";
+export const ACTIVE_MARKET_SOURCES=Object.freeze(["PinnOdds","Polymarket US","Polymarket US WebSocket","PrizePicks GitHub Mirror"]);
 export const ACTIVE_MARKET_FEEDS = Object.freeze([
   "PinnOdds",
   "Polymarket US",
@@ -27,7 +28,7 @@ export function allowNewMarketObservation(value) {
 }
 export function retiredOddsCollectorResponse(source="LEGACY_ODDS"){
  return {
-  ok:false,blocked:true,source,activeOddsSource:ACTIVE_ODDS_PROVIDER,
+  ok:false,blocked:true,source,activeOddsSource:ACTIVE_ODDS_PROVIDER,activeMarketSources:ACTIVE_MARKET_SOURCES,
   activeMarketFeeds:ACTIVE_MARKET_FEEDS,
   error:"MARKET_INGESTOR_RETIRED_APPROVED_FEEDS_ONLY",canQualify:false,canAuthorizeWager:false,
  };
@@ -41,6 +42,7 @@ export function pinnoddsOnlySlateMarket(game={}){
    capturedAt:null,marketAvailable:false,pinPresent:false},
   market:null,pin:null,rec:null,lean:null,
   qualificationBlocked:true,canQualify:false,canAuthorizeWager:false,
-  activeOddsSource:"PinnOdds",activeOddsPolicy:"PINNODDS_ONLY",
+  activeOddsSource:"PinnOdds",activeOddsPolicy:"APPROVED_MARKETS_ONLY",
+  activeMarketSources:ACTIVE_MARKET_SOURCES,
  };
 }
