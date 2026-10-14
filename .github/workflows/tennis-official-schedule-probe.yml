@@ -1,0 +1,25 @@
+name: Tennis official schedule contract audit
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/tennis-official-schedule-probe.mjs'
+      - '.github/workflows/tennis-official-schedule-probe.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: node scripts/tennis-official-schedule-probe.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: tennis-official-schedule-contract
+          path: artifacts/tennis-official-schedule-probe/
+          retention-days: 30
