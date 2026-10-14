@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-10-14T05:55:28Z",
-  "triggerSha": "e292a9584625414168d302910c363f44205bf558",
+  "generatedAt": "2026-10-14T07:05:35Z",
+  "triggerSha": "50d3e2ca820baa9511a680c8c25def1ed936a277",
   "snapshotDate": "2026-10-17",
   "before": {
     "ok": true,
     "lifecycle": "SHADOW",
-    "collectorCodeSha": "e292a9584625414168d302910c363f44205bf558",
-    "rows": 20,
-    "events": 1,
+    "collectorCodeSha": "50d3e2ca820baa9511a680c8c25def1ed936a277",
+    "rows": 50,
+    "events": 4,
     "withMarket": 0,
     "governanceViolations": 0,
     "firstSnapshotAt": "2026-10-07T14:51:19.371Z",
-    "latestSnapshotAt": "2026-10-07T14:57:04.398Z",
+    "latestSnapshotAt": "2026-10-14T05:55:11.559Z",
     "byRoute": [
       {
         "competition_key": "eng.2",
@@ -40,6 +40,34 @@
         "n": 4,
         "with_market": 0,
         "latest_snapshot_at": "2026-10-07T14:57:04.398Z"
+      },
+      {
+        "competition_key": "fra.1",
+        "market_family": "1X2",
+        "n": 9,
+        "with_market": 0,
+        "latest_snapshot_at": "2026-10-14T05:55:11.559Z"
+      },
+      {
+        "competition_key": "fra.1",
+        "market_family": "BTTS",
+        "n": 6,
+        "with_market": 0,
+        "latest_snapshot_at": "2026-10-14T05:55:11.559Z"
+      },
+      {
+        "competition_key": "fra.1",
+        "market_family": "GOALS",
+        "n": 9,
+        "with_market": 0,
+        "latest_snapshot_at": "2026-10-14T05:55:11.559Z"
+      },
+      {
+        "competition_key": "fra.1",
+        "market_family": "TOTALS_O25",
+        "n": 6,
+        "with_market": 0,
+        "latest_snapshot_at": "2026-10-14T05:55:11.559Z"
       }
     ],
     "researchOnly": true,
@@ -48,12 +76,12 @@
   },
   "first": {
     "ok": true,
-    "snapshotAt": "2026-10-14T05:55:05.346Z",
-    "collectorCodeSha": "fe5a49f4551c078784d46a526c47e8df2c014746",
+    "snapshotAt": "2026-10-14T07:05:06.049Z",
+    "collectorCodeSha": "50d3e2ca820baa9511a680c8c25def1ed936a277",
     "slateGames": 9,
-    "eligibleGames": 3,
-    "attempted": 30,
-    "written": 30,
+    "eligibleGames": 7,
+    "attempted": 70,
+    "written": 70,
     "existing": 0,
     "fixtures": [
       {
@@ -66,13 +94,13 @@
         "homeHistoryCount": 38,
         "awayHistoryCount": 38,
         "v2MarketUsed": false,
-        "v31MarketUsed": null,
-        "postMatchTargetFeaturesUsed": null,
-        "persistentStateUsed": null,
+        "v31MarketUsed": false,
+        "postMatchTargetFeaturesUsed": false,
+        "persistentStateUsed": false,
         "v2Ok": true,
         "v2Reason": null,
-        "v31Ok": false,
-        "v31Reason": "insufficient-pitchapi-history"
+        "v31Ok": true,
+        "v31Reason": null
       },
       {
         "eventId": "401884767",
@@ -84,13 +112,13 @@
         "homeHistoryCount": 38,
         "awayHistoryCount": 38,
         "v2MarketUsed": false,
-        "v31MarketUsed": null,
-        "postMatchTargetFeaturesUsed": null,
-        "persistentStateUsed": null,
+        "v31MarketUsed": false,
+        "postMatchTargetFeaturesUsed": false,
+        "persistentStateUsed": false,
         "v2Ok": true,
         "v2Reason": null,
-        "v31Ok": false,
-        "v31Reason": "insufficient-pitchapi-history"
+        "v31Ok": true,
+        "v31Reason": null
       },
       {
         "eventId": "401884765",
@@ -102,13 +130,13 @@
         "homeHistoryCount": 4,
         "awayHistoryCount": 38,
         "v2MarketUsed": false,
-        "v31MarketUsed": null,
-        "postMatchTargetFeaturesUsed": null,
-        "persistentStateUsed": null,
+        "v31MarketUsed": false,
+        "postMatchTargetFeaturesUsed": false,
+        "persistentStateUsed": false,
         "v2Ok": true,
         "v2Reason": null,
-        "v31Ok": false,
-        "v31Reason": "insufficient-pitchapi-history"
+        "v31Ok": true,
+        "v31Reason": null
       },
       {
         "eventId": "401884764",
@@ -156,13 +184,13 @@
         "homeHistoryCount": 38,
         "awayHistoryCount": 38,
         "v2MarketUsed": false,
-        "v31MarketUsed": null,
-        "postMatchTargetFeaturesUsed": null,
-        "persistentStateUsed": null,
+        "v31MarketUsed": false,
+        "postMatchTargetFeaturesUsed": false,
+        "persistentStateUsed": false,
         "v2Ok": true,
         "v2Reason": null,
-        "v31Ok": false,
-        "v31Reason": "insufficient-pitchapi-history"
+        "v31Ok": true,
+        "v31Reason": null
       },
       {
         "eventId": "401876432",
@@ -223,17 +251,17 @@
       {
         "ok": true,
         "date": "2026-10-17",
-        "snapshotAt": "2026-10-14T05:55:05.346Z",
+        "snapshotAt": "2026-10-14T07:05:06.049Z",
         "slateGames": 6,
-        "eligibleGames": 0,
-        "attempted": 0,
-        "written": 0,
+        "eligibleGames": 4,
+        "attempted": 40,
+        "written": 40,
         "existing": 0,
         "skipped": {
-          "v31-projection-unavailable": 6
+          "v31-projection-unavailable": 2
         },
         "skippedDetails": {
-          "v31-projection-unavailable:insufficient-pitchapi-history": 6
+          "v31-projection-unavailable:insufficient-pitchapi-history": 2
         },
         "fixtures": [
           {
@@ -246,13 +274,13 @@
             "homeHistoryCount": 38,
             "awayHistoryCount": 38,
             "v2MarketUsed": false,
-            "v31MarketUsed": null,
-            "postMatchTargetFeaturesUsed": null,
-            "persistentStateUsed": null,
+            "v31MarketUsed": false,
+            "postMatchTargetFeaturesUsed": false,
+            "persistentStateUsed": false,
             "v2Ok": true,
             "v2Reason": null,
-            "v31Ok": false,
-            "v31Reason": "insufficient-pitchapi-history"
+            "v31Ok": true,
+            "v31Reason": null
           },
           {
             "eventId": "401884767",
@@ -264,13 +292,13 @@
             "homeHistoryCount": 38,
             "awayHistoryCount": 38,
             "v2MarketUsed": false,
-            "v31MarketUsed": null,
-            "postMatchTargetFeaturesUsed": null,
-            "persistentStateUsed": null,
+            "v31MarketUsed": false,
+            "postMatchTargetFeaturesUsed": false,
+            "persistentStateUsed": false,
             "v2Ok": true,
             "v2Reason": null,
-            "v31Ok": false,
-            "v31Reason": "insufficient-pitchapi-history"
+            "v31Ok": true,
+            "v31Reason": null
           },
           {
             "eventId": "401884765",
@@ -282,13 +310,13 @@
             "homeHistoryCount": 4,
             "awayHistoryCount": 38,
             "v2MarketUsed": false,
-            "v31MarketUsed": null,
-            "postMatchTargetFeaturesUsed": null,
-            "persistentStateUsed": null,
+            "v31MarketUsed": false,
+            "postMatchTargetFeaturesUsed": false,
+            "persistentStateUsed": false,
             "v2Ok": true,
             "v2Reason": null,
-            "v31Ok": false,
-            "v31Reason": "insufficient-pitchapi-history"
+            "v31Ok": true,
+            "v31Reason": null
           },
           {
             "eventId": "401884764",
@@ -336,17 +364,17 @@
             "homeHistoryCount": 38,
             "awayHistoryCount": 38,
             "v2MarketUsed": false,
-            "v31MarketUsed": null,
-            "postMatchTargetFeaturesUsed": null,
-            "persistentStateUsed": null,
+            "v31MarketUsed": false,
+            "postMatchTargetFeaturesUsed": false,
+            "persistentStateUsed": false,
             "v2Ok": true,
             "v2Reason": null,
-            "v31Ok": false,
-            "v31Reason": "insufficient-pitchapi-history"
+            "v31Ok": true,
+            "v31Reason": null
           }
         ],
         "lifecycle": "SHADOW",
-        "collectorCodeSha": "fe5a49f4551c078784d46a526c47e8df2c014746",
+        "collectorCodeSha": "50d3e2ca820baa9511a680c8c25def1ed936a277",
         "publicProjectionRoutingChanged": false,
         "persistentStateUsed": false,
         "marketUsedInModel": false,
@@ -357,7 +385,7 @@
       {
         "ok": true,
         "date": "2026-10-17",
-        "snapshotAt": "2026-10-14T05:55:11.559Z",
+        "snapshotAt": "2026-10-14T07:05:16.010Z",
         "slateGames": 3,
         "eligibleGames": 3,
         "attempted": 30,
@@ -422,7 +450,7 @@
           }
         ],
         "lifecycle": "SHADOW",
-        "collectorCodeSha": "fe5a49f4551c078784d46a526c47e8df2c014746",
+        "collectorCodeSha": "50d3e2ca820baa9511a680c8c25def1ed936a277",
         "publicProjectionRoutingChanged": false,
         "persistentStateUsed": false,
         "marketUsedInModel": false,
@@ -437,13 +465,13 @@
   },
   "second": {
     "ok": true,
-    "snapshotAt": "2026-10-14T05:55:18.521Z",
-    "collectorCodeSha": "fe5a49f4551c078784d46a526c47e8df2c014746",
+    "snapshotAt": "2026-10-14T07:05:22.702Z",
+    "collectorCodeSha": "50d3e2ca820baa9511a680c8c25def1ed936a277",
     "slateGames": 9,
-    "eligibleGames": 3,
-    "attempted": 30,
+    "eligibleGames": 7,
+    "attempted": 70,
     "written": 0,
-    "existing": 30,
+    "existing": 70,
     "fixtures": [
       {
         "eventId": "401884769",
@@ -455,13 +483,13 @@
         "homeHistoryCount": 38,
         "awayHistoryCount": 38,
         "v2MarketUsed": false,
-        "v31MarketUsed": null,
-        "postMatchTargetFeaturesUsed": null,
-        "persistentStateUsed": null,
+        "v31MarketUsed": false,
+        "postMatchTargetFeaturesUsed": false,
+        "persistentStateUsed": false,
         "v2Ok": true,
         "v2Reason": null,
-        "v31Ok": false,
-        "v31Reason": "insufficient-pitchapi-history"
+        "v31Ok": true,
+        "v31Reason": null
       },
       {
         "eventId": "401884767",
@@ -473,13 +501,13 @@
         "homeHistoryCount": 38,
         "awayHistoryCount": 38,
         "v2MarketUsed": false,
-        "v31MarketUsed": null,
-        "postMatchTargetFeaturesUsed": null,
-        "persistentStateUsed": null,
+        "v31MarketUsed": false,
+        "postMatchTargetFeaturesUsed": false,
+        "persistentStateUsed": false,
         "v2Ok": true,
         "v2Reason": null,
-        "v31Ok": false,
-        "v31Reason": "insufficient-pitchapi-history"
+        "v31Ok": true,
+        "v31Reason": null
       },
       {
         "eventId": "401884765",
@@ -491,13 +519,13 @@
         "homeHistoryCount": 4,
         "awayHistoryCount": 38,
         "v2MarketUsed": false,
-        "v31MarketUsed": null,
-        "postMatchTargetFeaturesUsed": null,
-        "persistentStateUsed": null,
+        "v31MarketUsed": false,
+        "postMatchTargetFeaturesUsed": false,
+        "persistentStateUsed": false,
         "v2Ok": true,
         "v2Reason": null,
-        "v31Ok": false,
-        "v31Reason": "insufficient-pitchapi-history"
+        "v31Ok": true,
+        "v31Reason": null
       },
       {
         "eventId": "401884764",
@@ -545,13 +573,13 @@
         "homeHistoryCount": 38,
         "awayHistoryCount": 38,
         "v2MarketUsed": false,
-        "v31MarketUsed": null,
-        "postMatchTargetFeaturesUsed": null,
-        "persistentStateUsed": null,
+        "v31MarketUsed": false,
+        "postMatchTargetFeaturesUsed": false,
+        "persistentStateUsed": false,
         "v2Ok": true,
         "v2Reason": null,
-        "v31Ok": false,
-        "v31Reason": "insufficient-pitchapi-history"
+        "v31Ok": true,
+        "v31Reason": null
       },
       {
         "eventId": "401876432",
@@ -612,17 +640,17 @@
       {
         "ok": true,
         "date": "2026-10-17",
-        "snapshotAt": "2026-10-14T05:55:18.521Z",
+        "snapshotAt": "2026-10-14T07:05:22.702Z",
         "slateGames": 6,
-        "eligibleGames": 0,
-        "attempted": 0,
+        "eligibleGames": 4,
+        "attempted": 40,
         "written": 0,
-        "existing": 0,
+        "existing": 40,
         "skipped": {
-          "v31-projection-unavailable": 6
+          "v31-projection-unavailable": 2
         },
         "skippedDetails": {
-          "v31-projection-unavailable:insufficient-pitchapi-history": 6
+          "v31-projection-unavailable:insufficient-pitchapi-history": 2
         },
         "fixtures": [
           {
@@ -635,13 +663,13 @@
             "homeHistoryCount": 38,
             "awayHistoryCount": 38,
             "v2MarketUsed": false,
-            "v31MarketUsed": null,
-            "postMatchTargetFeaturesUsed": null,
-            "persistentStateUsed": null,
+            "v31MarketUsed": false,
+            "postMatchTargetFeaturesUsed": false,
+            "persistentStateUsed": false,
             "v2Ok": true,
             "v2Reason": null,
-            "v31Ok": false,
-            "v31Reason": "insufficient-pitchapi-history"
+            "v31Ok": true,
+            "v31Reason": null
           },
           {
             "eventId": "401884767",
@@ -653,13 +681,13 @@
             "homeHistoryCount": 38,
             "awayHistoryCount": 38,
             "v2MarketUsed": false,
-            "v31MarketUsed": null,
-            "postMatchTargetFeaturesUsed": null,
-            "persistentStateUsed": null,
+            "v31MarketUsed": false,
+            "postMatchTargetFeaturesUsed": false,
+            "persistentStateUsed": false,
             "v2Ok": true,
             "v2Reason": null,
-            "v31Ok": false,
-            "v31Reason": "insufficient-pitchapi-history"
+            "v31Ok": true,
+            "v31Reason": null
           },
           {
             "eventId": "401884765",
@@ -671,13 +699,13 @@
             "homeHistoryCount": 4,
             "awayHistoryCount": 38,
             "v2MarketUsed": false,
-            "v31MarketUsed": null,
-            "postMatchTargetFeaturesUsed": null,
-            "persistentStateUsed": null,
+            "v31MarketUsed": false,
+            "postMatchTargetFeaturesUsed": false,
+            "persistentStateUsed": false,
             "v2Ok": true,
             "v2Reason": null,
-            "v31Ok": false,
-            "v31Reason": "insufficient-pitchapi-history"
+            "v31Ok": true,
+            "v31Reason": null
           },
           {
             "eventId": "401884764",
@@ -725,17 +753,17 @@
             "homeHistoryCount": 38,
             "awayHistoryCount": 38,
             "v2MarketUsed": false,
-            "v31MarketUsed": null,
-            "postMatchTargetFeaturesUsed": null,
-            "persistentStateUsed": null,
+            "v31MarketUsed": false,
+            "postMatchTargetFeaturesUsed": false,
+            "persistentStateUsed": false,
             "v2Ok": true,
             "v2Reason": null,
-            "v31Ok": false,
-            "v31Reason": "insufficient-pitchapi-history"
+            "v31Ok": true,
+            "v31Reason": null
           }
         ],
         "lifecycle": "SHADOW",
-        "collectorCodeSha": "fe5a49f4551c078784d46a526c47e8df2c014746",
+        "collectorCodeSha": "50d3e2ca820baa9511a680c8c25def1ed936a277",
         "publicProjectionRoutingChanged": false,
         "persistentStateUsed": false,
         "marketUsedInModel": false,
@@ -746,7 +774,7 @@
       {
         "ok": true,
         "date": "2026-10-17",
-        "snapshotAt": "2026-10-14T05:55:23.505Z",
+        "snapshotAt": "2026-10-14T07:05:30.597Z",
         "slateGames": 3,
         "eligibleGames": 3,
         "attempted": 30,
@@ -811,7 +839,7 @@
           }
         ],
         "lifecycle": "SHADOW",
-        "collectorCodeSha": "fe5a49f4551c078784d46a526c47e8df2c014746",
+        "collectorCodeSha": "50d3e2ca820baa9511a680c8c25def1ed936a277",
         "publicProjectionRoutingChanged": false,
         "persistentStateUsed": false,
         "marketUsedInModel": false,
