@@ -1,4 +1,4 @@
-import directory from '../../data/soccer-team-branding.json' with { type: 'json' };
+import directory from '../../data/soccer-team-branding.js';
 import { resolveSoccerBrand, soccerBrandKey } from './soccerTeamBranding.js';
 import { SOCCER_RESEARCH_ROUTES } from './soccerResearchRouting.js';
 

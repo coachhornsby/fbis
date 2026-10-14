@@ -1,4 +1,4 @@
-import directory from "../../data/soccer-team-branding.json" with { type: "json" };
+import directory from "../../data/soccer-team-branding.js";
 
 // Presentation metadata only. Never changes model identity or predictive inputs.
 export function soccerBrandKey(value) {

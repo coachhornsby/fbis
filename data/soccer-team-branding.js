@@ -1,4 +1,4 @@
-{
+export default {
   "source": "ESPN team directory",
   "observedAt": "2026-10-14T05:21:22.570558+00:00",
   "leagues": {
@@ -7612,4 +7612,4 @@
     ],
     "qat.1": []
   }
-}
+};
