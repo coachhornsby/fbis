@@ -119,7 +119,8 @@ function matchIds(rows,game){
   if(!h||!a||h===a)return[h,a,null];
   const same=(raw,key)=>pitchApiTeamNameKey(raw,league)===key;
   const exact=[...rows].reverse().find(r=>same(r.home_team_name,h)&&same(r.away_team_name,a));
-  if(exact)return[teamKey(exact.home_team_id,exact.home_team_name),teamKey(exact.away_team_id,exact.away_team_name),exact.pitch_match_id];
+  // A past head-to-head provides team identities, never the future fixture's match ID.
+  if(exact)return[teamKey(exact.home_team_id,exact.home_team_name),teamKey(exact.away_team_id,exact.away_team_name),null];
   const ht=[...rows].reverse().find(r=>same(r.home_team_name,h)||same(r.away_team_name,h));
   const at=[...rows].reverse().find(r=>same(r.home_team_name,a)||same(r.away_team_name,a));
   return[ht?teamKey(same(ht.home_team_name,h)?ht.home_team_id:ht.away_team_id,h):h,
