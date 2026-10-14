@@ -3,6 +3,12 @@ on:
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/tennis-fixture-projections.yml"
+      - "functions/lib/tennisProjectionPipeline.js"
+      - "functions/api/tennis-projection-coverage.js"
 permissions:
   contents: read
 concurrency:
@@ -18,7 +24,12 @@ jobs:
         with:
           node-version: '22'
       - name: Resolve deployed production before writes
-        run: VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+          else
+            VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs
+          fi
       - name: Attempt verified fixtures without market dependency
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
