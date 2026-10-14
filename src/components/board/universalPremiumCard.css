@@ -251,3 +251,101 @@
     font-size: 12px !important;
   }
 }
+
+/* Board identity hierarchy: out-rank legacy 8px compact overrides. */
+.fbis-shell-main.route-board .fbis-universal-premium.cgc .cgc-matchup {
+  min-height: 290px !important;
+  padding: 24px 12px !important;
+  grid-template-columns: minmax(0,1fr) 30px minmax(0,1fr) !important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.cgc .cgc-team-block {
+  gap: 12px !important;
+  align-items: center !important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.cgc .cgc-team-block:first-of-type {
+  --club-accent: var(--cgc-away-brand,#24a8ff);
+}
+.fbis-shell-main.route-board .fbis-universal-premium.cgc .cgc-team-block:last-of-type {
+  --club-accent: var(--cgc-home-brand,#ff657d);
+}
+.fbis-shell-main.route-board .fbis-universal-premium.cgc .cgc-logo,
+.fbis-shell-main.route-board .fbis-universal-premium.cgc .cgc-logo .team-logo {
+  width: 104px !important;
+  height: 104px !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  filter: drop-shadow(0 5px 14px rgba(0,0,0,.55)) !important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.cgc .cgc-team-name {
+  font-size: clamp(20px,1.8vw,29px) !important;
+  line-height: 1.12 !important;
+  font-weight: 950 !important;
+  letter-spacing: -.025em !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+  color: #fff !important;
+  text-shadow: 0 2px 5px #000,0 0 24px color-mix(in srgb,var(--club-accent) 65%,transparent) !important;
+  padding: 4px 7px 9px !important;
+  border-bottom: 3px solid color-mix(in srgb,var(--club-accent) 75%,#fff) !important;
+  white-space: normal !important;
+  overflow-wrap: break-word !important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium.cgc .cgc-proj {
+  font-size: clamp(30px,2.7vw,42px) !important;
+  color: #fff !important;
+  text-shadow: 0 1px 5px #000,0 0 18px color-mix(in srgb,var(--club-accent) 50%,transparent) !important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-read-head span {
+  font-size: 16px !important;
+  letter-spacing: .055em !important;
+  color: #63dcff !important;
+  text-shadow: 0 0 16px rgba(50,193,255,.45) !important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-pill {
+  --signal-accent: #66ddff;
+  min-height: 112px !important;
+  padding: 12px 8px !important;
+  border-top: 3px solid var(--signal-accent) !important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-pill:nth-child(2) { --signal-accent:#bd9aff; }
+.fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-pill:nth-child(3) { --signal-accent:#5bf0bc; }
+.fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-pill:nth-child(4) { --signal-accent:#ffcf6c; }
+.fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-pill:nth-child(5) { --signal-accent:#ff96d1; }
+.fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-pill-label {
+  flex-wrap: wrap !important;
+  gap: 7px !important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-pill-label em {
+  font-size: clamp(12px,1vw,15px) !important;
+  line-height: 1.2 !important;
+  font-weight: 950 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  color: var(--signal-accent) !important;
+  text-shadow: 0 1px 4px #000 !important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-icon {
+  color: var(--signal-accent) !important;
+  border-color: var(--signal-accent) !important;
+  font-size: 12px !important;
+  width: 34px !important;
+  height: 34px !important;
+  flex-basis: 34px !important;
+  box-shadow: 0 0 14px color-mix(in srgb,var(--signal-accent) 25%,transparent) !important;
+}
+.fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-pill > strong,
+.fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-pill .cgc-matchup-metric {
+  font-size: clamp(18px,1.6vw,25px) !important;
+  line-height: 1.1 !important;
+  font-weight: 950 !important;
+  color: #fff !important;
+  text-shadow: 0 2px 4px #000,0 0 16px color-mix(in srgb,var(--signal-accent) 35%,transparent) !important;
+}
+@media (max-width:600px) {
+  .fbis-shell-main.route-board .fbis-universal-premium.cgc .cgc-matchup {min-height:240px!important;padding:16px 6px!important;}
+  .fbis-shell-main.route-board .fbis-universal-premium.cgc .cgc-logo,
+  .fbis-shell-main.route-board .fbis-universal-premium.cgc .cgc-logo .team-logo {width:82px!important;height:82px!important;}
+  .fbis-shell-main.route-board .fbis-universal-premium.cgc .cgc-team-name {font-size:19px!important;}
+  .fbis-shell-main.route-board .fbis-universal-premium .cgc-matchup-pills {grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+}
