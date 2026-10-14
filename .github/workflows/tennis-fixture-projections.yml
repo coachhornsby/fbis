@@ -9,6 +9,8 @@ on:
       - ".github/workflows/tennis-fixture-projections.yml"
       - "functions/lib/tennisProjectionPipeline.js"
       - "functions/api/tennis-projection-coverage.js"
+      - "functions/lib/tennisOfficialSchedule.js"
+      - "functions/api/tennis-official-schedule.js"
 permissions:
   contents: read
 concurrency:
@@ -17,7 +19,7 @@ concurrency:
 jobs:
   project:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
@@ -30,6 +32,15 @@ jobs:
           else
             VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs
           fi
+      - name: Refresh official WTA order of play before inference
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          mkdir -p artifacts
+          curl --fail-with-body --max-time 180 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            https://fbis-myz.pages.dev/api/tennis-official-schedule > artifacts/official-schedule.json
+          jq -e '.ok == true' artifacts/official-schedule.json
       - name: Attempt verified fixtures without market dependency
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}

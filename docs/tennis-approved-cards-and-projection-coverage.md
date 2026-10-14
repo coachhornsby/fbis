@@ -84,6 +84,12 @@ portraits, blocked states, and neutral flags are checked.
 The approved design's real portraits and populated official projections cannot
 be verified until authorized portrait assets and trustworthy official upcoming
 schedule evidence exist. An image URL's public availability alone is not a grant
-of image rights. This release does not guess either. ATP schedule ingestion is
-absent; the existing WTA match ingestor targets history and does not establish a
-current scheduled-event feed. Those source limitations remain explicit.
+of image rights. This release does not guess either. ATP schedule ingestion remains absent. The official WTA source audit found an
+available upcoming order-of-play contract; this release adds a separate WTA
+schedule capture before inference. Official source IDs resolve players, explicit
+timezone clocks establish scheduled instants, and Followed By / Unscheduled
+23:59 placeholders become TIME_UNVERIFIED with no start timestamp. Raw source
+responses and match observations retain point-in-time provenance. No research
+fixture is promoted by this path. Permanent canonical player research pages
+expose the existing D1 identity, surface, and recent-match evidence with their
+source and last-included-match timestamps.

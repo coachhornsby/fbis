@@ -635,8 +635,19 @@ function tennisRankProfile(name, rankings) {
 }
 
 async function tennisVenueOffers(db,row,now){
-  return tennisFixtureOffers(db,{id:row.canonical_event_id,start:row.event_start_time,
-    home_name:row.player1,away_name:row.player2},{now});
+  const fixture={id:row.canonical_event_id,start:row.event_start_time,home_name:row.player1,away_name:row.player2};
+  const direct=await tennisFixtureOffers(db,fixture,{now});
+  if(direct.length)return direct;
+  // Read an independently persisted offer only through a unique exact pair +
+  // instant match. Preserve the original fixture ID and every source clock.
+  const res=await db.prepare(`SELECT fixture_id,player1_name,player2_name,match_time FROM tennis_external_fixtures
+    WHERE tour=? AND source='ESPN_PUBLIC' AND julianday(fetched_at)>=julianday(?)
+    AND ABS(julianday(match_time)-julianday(?))<0.000001 LIMIT 10`)
+    .bind(String(row.tour).toLowerCase(),new Date(+now-4*3600000).toISOString(),row.event_start_time).all();
+  const pair=[tennisNameKey(row.player1),tennisNameKey(row.player2)].sort().join("|");
+  const links=(res.results||[]).filter(f=>[tennisNameKey(f.player1_name),tennisNameKey(f.player2_name)].sort().join("|")===pair&&Date.parse(f.match_time)===Date.parse(row.event_start_time));
+  if(links.length!==1)return [];
+  return (await tennisFixtureOffers(db,{...fixture,id:links[0].fixture_id},{now})).map(o=>({...o,sourceFixtureId:links[0].fixture_id,displayFixtureId:row.canonical_event_id,fixtureLinkProof:"EXACT_TOUR_PLAYER_PAIR_START"}));
 }
 
 export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} = {}) {
