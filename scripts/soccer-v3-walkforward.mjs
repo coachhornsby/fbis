@@ -5,7 +5,7 @@ import { projectSoccerV3, SOCCER_FBIS_V3_ID, SOCCER_FBIS_V3_VERSION } from "../f
 
 const leagues=["eng.1","eng.2","ger.1","esp.1","ita.1","fra.1","uefa.champions","uefa.europa","usa.1","mex.1"];
 const mean=xs=>{const a=xs.filter(Number.isFinite);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;};
-const n=v=>{const x=Number(v);return Number.isFinite(x)?x:null;};
+const n=v=>{if(v==null||typeof v==='boolean'||(typeof v==='string'&&!v.trim()))return null;const x=Number(v);return Number.isFinite(x)?x:null;};
 const outcome=(h,a)=>h>a?"H":h<a?"A":"D";
 const probs=p=>({H:Number(p.pHomeWin),D:Number(p.pDraw),A:Number(p.pAwayWin)});
 const argmax=p=>["H","D","A"].sort((a,b)=>p[b]-p[a])[0];
