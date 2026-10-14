@@ -36,14 +36,31 @@ jobs:
           fi
           echo "LEAGUE_KEY=$key" >> "$GITHUB_ENV"
           echo "HERITAGE_NAME=$name" >> "$GITHUB_ENV"
-      - name: Export bounded history
+      - name: Export bounded source-aware history
         if: env.NO_TARGET != '1'
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          curl -fsS --connect-timeout 5 --max-time 45 --retry 2 --retry-delay 2 --retry-all-errors             -H "x-harvest-secret: $TOKEN"             "$BASE/api/soccer-pitchapi-export?league=$LEAGUE_KEY&start=2021-01-01&limit=1400" > raw.json
-          jq --arg name "$HERITAGE_NAME" --arg league "$LEAGUE_KEY"             '{ok,heritageName:$name,heritageKey:$league,league:$league,rows:(.rows // [])}' raw.json             > artifacts/soccer-competition-history.json
-          jq -e '.rows|length >= 120' artifacts/soccer-competition-history.json >/dev/null
+          work="$(mktemp -d)"
+          : > "$work/rows.ndjson"
+          offset=0
+          while true; do
+            curl -fsS --connect-timeout 5 --max-time 45 --retry 2 --retry-delay 2 --retry-all-errors \
+              -H "x-harvest-secret: $TOKEN" \
+              "$BASE/api/soccer-pitchapi-export?mode=model&league=$LEAGUE_KEY&start=2021-01-01&limit=250&offset=$offset" \
+              -o "$work/chunk.json"
+            jq -e '.ok == true and .mode == "model" and (.rows|length) == .count' "$work/chunk.json" >/dev/null
+            jq -c '.rows[]' "$work/chunk.json" >> "$work/rows.ndjson"
+            n="$(jq -r '.count' "$work/chunk.json")"
+            offset=$((offset+n))
+            if [ "$offset" -gt 7500 ]; then echo "competition history exceeds bounded limit" >&2; exit 1; fi
+            if [ "$n" -lt 250 ]; then break; fi
+          done
+          jq -s --arg name "$HERITAGE_NAME" --arg league "$LEAGUE_KEY" \
+            '{ok:true,heritageName:$name,heritageKey:$league,league:$league,rows:.}' "$work/rows.ndjson" \
+            > artifacts/soccer-competition-history.json
+          jq -e '(.rows|length) >= 120 and (([.rows[].pitch_match_id]|length) == ([.rows[].pitch_match_id]|unique|length))' artifacts/soccer-competition-history.json >/dev/null
+          rm -rf "$work"
       - name: Walk-forward v2 vs v3.1
         if: env.NO_TARGET != '1'
         run: node scripts/soccer-competition-validate.mjs artifacts/soccer-competition-history.json artifacts/soccer-competition-validation.json
