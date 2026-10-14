@@ -11,7 +11,7 @@ const allRows=(payload.rows||[]).sort((a,b)=>String(a.match_date).localeCompare(
 const rows=allRows.slice(-1400),league=String(payload.league||payload.heritageKey||rows[0]?.league_key||"");
 const warmup=Math.min(200,Math.max(80,Math.floor(rows.length*.2))),seen=[],scored=[];
 const mean=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
-const n=v=>{const x=Number(v);return Number.isFinite(x)?x:null;};
+const n=v=>{if(v==null||typeof v==='boolean'||(typeof v==='string'&&!v.trim()))return null;const x=Number(v);return Number.isFinite(x)?x:null;};
 const outcome=(h,a)=>h>a?"H":h<a?"A":"D";
 const probs=p=>({H:Number(p.pHomeWin),D:Number(p.pDraw),A:Number(p.pAwayWin)});
 const argmax=p=>["H","D","A"].sort((a,b)=>p[b]-p[a])[0];
