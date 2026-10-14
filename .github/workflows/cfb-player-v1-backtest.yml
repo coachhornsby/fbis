@@ -15,7 +15,7 @@ jobs:
       CFB_PLAYER_BT_SEASONS: "2023,2024,2025"
       CFB_PLAYER_BT_MAX_WEEK: "15"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
