@@ -73,3 +73,17 @@ test("missing directional values withhold source records instead of producing sy
  const g=attachCfbDeepFeatures([game],r)[0];
  assert.equal(safeCfbFeatureFreeze(g,r,{now}).ok,false);
 });
+test("prospective 8-day source scan cannot claim success when eligible FBS events lack directional coverage",async()=>{
+ resetCacheMem();
+ await writeCache("cfb-sdv-intelligence-2026-v3",fixture,null,30*60*1000);
+ try {
+  const incomplete={...game,home:{espnId:"98",name:"Unmatched FBS team"}};
+  const DB={prepare(){throw Error("no invalid D1 writes permitted")}};
+  const r=await freezeCfbPregameFeatures({DB},{games:[incomplete],now,
+    fetchFn:()=>{throw Error("unexpected live provider request");}});
+  assert.equal(r.ok,false);
+  assert.equal(r.upcomingFbsGames,1);
+  assert.equal(r.reason,"zero-eligible-pregame-feature-observations");
+  assert.equal(r.inserted,0);
+ }finally{resetCacheMem();}
+});
