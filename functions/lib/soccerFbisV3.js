@@ -11,7 +11,7 @@ import { pitchApiTeamNameKey } from "./soccerPitchApiIdentity.js";
 import { buildScoreMatrix } from "./soccerFbisV1.js";
 
 export const SOCCER_FBIS_V3_ID="SOCCER-FBIS-v3";
-export const SOCCER_FBIS_V3_VERSION="research-v1.2-phase3-score-layer";
+export const SOCCER_FBIS_V3_VERSION="research-v1.3-source-aware-advanced-history";
 const MIN_LEAGUE=80,MIN_TEAM=8,LR=.03,L2=.0008;
 const FIELDS=[
  ["xg",1.2],["npxg",1.1],["xgot",1],["xg_per_shot",.12],["sot",3],
