@@ -35,7 +35,7 @@ function withRecs(slate, weights = DEFAULT_WEIGHTS) {
   return {
     ...slate,
     games: (slate?.games || []).map((game) => {
-      if(game.activeOddsPolicy==="PINNODDS_ONLY"||game.qualificationBlocked===true)
+      if(game.activeOddsPolicy==="APPROVED_MARKETS_ONLY"||game.qualificationBlocked===true)
         return {...game,rec:null,lean:null,canQualify:false,canAuthorizeWager:false};
       const bundle = recommendBundle(slate.sport, game, game.model, weights);
       return { ...game, rec: bundle.qualified, lean: bundle.lean };
@@ -1210,10 +1210,33 @@ export async function buildTodayBoard(
     }
   }
   let all = sortByStart(games);
-  // Polymarket and other non-PinnOdds market-price overlays are retired.
-  // Their immutable ledgers remain readable in historical audit endpoints.
-  const polymarketResearch={source:"Polymarket US",available:false,retired:true,
-    reason:"PINNODDS_ONLY_ACTIVE_ODDS_SOURCE",qualified:false,executable:false,bySport:{}};
+  // Read-only Polymarket ledger overlay (same contract as /api/projections).
+  // Collection stays on scheduled jobs; this never spends provider quota.
+  const polymarketResearch = { source: "Polymarket US", available: false, qualified: false, executable: false, bySport: {} };
+  if (env.DB?.prepare && all.length) {
+    const bySport = new Map();
+    for (const g of all) {
+      const key = String(g.sport || "");
+      if (!bySport.has(key)) bySport.set(key, []);
+      bySport.get(key).push(g);
+    }
+    const overlaid = [];
+    for (const [sportKey, sportGames] of bySport) {
+      let overlay = { byId: new Map(), available: false };
+      try {
+        overlay = await loadPolymarketUsBoardOffers(env.DB, sportGames, sportKey, { now: new Date(now) });
+      } catch {
+        /* missing/stale provider never breaks the independent FBIS slate */
+      }
+      polymarketResearch.bySport[sportKey] = {
+        available: Boolean(overlay.available),
+        diagnostics: overlay.diagnostics || null,
+      };
+      if (overlay.available) polymarketResearch.available = true;
+      overlaid.push(...attachPolymarketBoardOffers(sportGames, overlay));
+    }
+    all = sortByStart(overlaid);
+  }
   // Derive sport groups from the same canonical game objects (already ACTION-hydrated).
   for (const s of sports) {
     const byId = new Map(all.filter((g) => g.sport === s.sport).map((g) => [g.id, g]));
