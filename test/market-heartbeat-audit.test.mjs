@@ -27,3 +27,16 @@ test("no active contracts is reported as idle, not a fabricated live connection"
 test("missing public health is blocked without assuming the feed is healthy",()=>{
  const x=fixture();x.stream={ok:false};assert.equal(evaluateMarketHeartbeat({...x,now}).ok,false);
 });
+
+test("deployment activation rejects HTTP-200 disconnected websockets",async()=>{
+ const {readFileSync}=await import("node:fs");
+ const workflow=readFileSync(new URL("../.github/workflows/deploy-polymarket-us-stream.yml",import.meta.url),"utf8");
+ assert.match(workflow,/\.connected==true/);
+ assert.match(workflow,/\.ok==true/);
+});
+test("health diagnostics expose signer configuration without secrets",()=>{
+ const x=fixture();x.stream.signerProxyConfigured=false;x.stream.workerSignerProxyConfigured=true;
+ const out=evaluateMarketHeartbeat({...x,now});
+ assert.equal(out.websocket.workerSignerProxyConfigured,true);
+ assert.equal(out.websocket.doSignerProxyConfigured,false);
+});

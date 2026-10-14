@@ -50,6 +50,12 @@ export function evaluateMarketHeartbeat({pinnodds, polymarket, stream, now = Dat
       lastHeartbeatAt: stream?.lastHeartbeatAt || null,
       lastBboPersistedAt: polymarket?.signedMarketWebsocket?.lastBboCapture || null,
       persistedBboAgeMinutes: persistedWsAgeMinutes,
-      lastError: stream?.lastError || null}
+      lastError: stream?.lastError || null,
+      lastClose: stream?.lastClose || null,
+      reconnects: stream?.reconnects ?? null,
+      subscriptions: stream?.subscriptions ?? null,
+      lastConnectAttemptAt: stream?.lastConnectAttemptAt || null,
+      workerSignerProxyConfigured: stream?.workerSignerProxyConfigured ?? null,
+      doSignerProxyConfigured: stream?.signerProxyConfigured ?? null}
   };
 }
