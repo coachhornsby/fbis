@@ -29,14 +29,18 @@ export function extractEspnTennisFixtures(body,{tour,fetchedAt}={}){
  const reject=reason=>{reasons[reason]=(reasons[reason]||0)+1;};
  for(const e of events){
   if(!token(e?.id)){reject("EVENT_ID_UNVERIFIED");continue}
-  for(const c of Array.isArray(e.competitions)?e.competitions:[]){
+  // ESPN tennis scoreboards use tournament events containing round groupings.
+  // Each grouping contains individual match competitions.
+  const comps=[...(Array.isArray(e.competitions)?e.competitions:[]),
+    ...(Array.isArray(e.groupings)?e.groupings.flatMap(g=>Array.isArray(g.competitions)?g.competitions:[]):[])];
+  for(const c of comps){
    if(!token(c?.id)){reject("COMPETITION_ID_UNVERIFIED");continue}
    if(!Array.isArray(c?.competitors)||c.competitors.length!==2){reject("NOT_VERIFIED_SINGLES");continue}
    const names=c.competitors.map(competitorName);
    if(!names[0]||!names[1]||normal(names[0])===normal(names[1])){reject("PLAYER_IDENTITY_UNVERIFIED");continue}
    // A tournament start is not a match start. Only use competition date,
    // or event date if the event represents exactly one competition.
-   const matchTime=iso(c.date||(e.competitions.length===1?e.date:null));
+   const matchTime=iso(c.date||(comps.length===1?e.date:null));
    if(!matchTime){reject("MATCH_TIME_UNVERIFIED");continue}
    const ms=Date.parse(matchTime);
    if(ms<clock-8*3600000||ms>clock+72*3600000){reject("MATCH_OUTSIDE_WINDOW");continue}
