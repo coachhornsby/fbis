@@ -1,4 +1,5 @@
 import cfbTeams from "../../../data/teams/cfb.js";
+import {cfbSdvDirectionalEvidence} from "../../lib/cfbSdvDirectionalEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
 import "./nflDirectionalMatchups.css";
 
@@ -18,6 +19,10 @@ const values=(f,kind,def)=>kind==="rush"?
  (def?read(f,"rushEpaAllowed","defRushEpa","rushingPpaAllowed"):read(f,"rushEpa","epaRush","rushingPpa","ppaOffenseRushing")):
  (def?read(f,"passEpaAllowed","defPassEpa","passingPpaAllowed"):read(f,"passEpa","epaPass","passingPpa","ppaOffensePassing"));
 export function cfbDirectionalEvidence(game){
+ // Prefer the already frozen 4/4 game PIT record. When missing, render an
+ // explicitly marked current-season SDV comparison, never a betting signal.
+ const research=game?.cfbUnitAudit?.available!==4?cfbSdvDirectionalEvidence(game):null;
+ if(research) return PAIRS.map(p=>({...p,...research.find(r=>r.id===p.id)}));
  const audited=game?.cfbUnitAudit?.tiles;
  if(audited) return PAIRS.map(p=>{
   const r=audited[p.id]||{};
@@ -50,15 +55,19 @@ function colors(t){
 }
 export default function CfbDirectionalMatchups({game,away,home}){
  const teams={away,home},rows=cfbDirectionalEvidence(game);
+ const sdvResearch=rows.some(r=>r.sourceType==="SDV_SOURCE_OBSERVED_RESEARCH");
  return <section className="nfl-unit-panel cfb-unit-panel" aria-label="Four directional CFB unit matchups">
-  <header><strong>GAME MATCHUP</strong><span>4 DIRECTIONAL UNIT BATTLES</span></header>
+  <header><strong>GAME MATCHUP</strong><span>{sdvResearch?"4 SDV SOURCE COMPARISONS · RESEARCH ONLY":"4 DIRECTIONAL UNIT BATTLES"}</span></header>
   <div className="nfl-unit-grid">{rows.map(r=>{
    const winner=r.winner?teams[r.winner]:null,brand=winner?colors(winner):null;
    return <div key={r.id} className={`nfl-unit-tile ${winner?"has-edge":"is-neutral"}`} style={brand?{"--unit-primary":brand.primary,"--unit-secondary":brand.secondary}:undefined}>
     <div className="nfl-unit-line"><div><TeamLogo team={teams[r.a]} size={32}/><strong>{r.aUnit}</strong></div><span>VS</span><div><TeamLogo team={teams[r.b]} size={32}/><strong>{r.bUnit}</strong></div></div>
-    <div className="nfl-unit-result">{winner?<><TeamLogo team={winner} size={46}/><span className="nfl-unit-winner"><small>ADVANTAGE</small><strong>{winner.fullName||winner.name||winner.abbr}</strong></span></>:<strong>{r.status}</strong>}</div>
-    <small>{r.value!==null?`UNIT COMPARISON ${r.value>0?"+":""}${r.value.toFixed(2)}`: "UNIT DATA PENDING"}</small>
+    <div className="nfl-unit-result">{winner?<><TeamLogo team={winner} size={46}/><span className="nfl-unit-winner"><small>{r.sourceType==="SDV_SOURCE_OBSERVED_RESEARCH"?"CURRENT-SEASON EPA TILT":"ADVANTAGE"}</small><strong>{winner.fullName||winner.name||winner.abbr}</strong></span></>:<strong>{r.status}</strong>}</div>
+    <small>{r.sourceType==="SDV_SOURCE_OBSERVED_RESEARCH"
+      ? r.available?`OFF EPA ${r.offenseEpa.toFixed(3)} · OPP DEF EPA ${r.defenseEpaAllowed.toFixed(3)} · DIFF ${r.value>0?"+":""}${r.value.toFixed(3)}`:"SDV DIRECTIONAL DATA UNAVAILABLE"
+      : r.value!==null?`UNIT COMPARISON ${r.value>0?"+":""}${r.value.toFixed(2)}`: "UNIT DATA PENDING"}</small>
    </div>;
   })}</div>
+  {sdvResearch?<small style={{display:"block",marginTop:8,opacity:.72}}>Source: SportsDataverse 2026 FBS summaries. Acquisition time is not provider publication proof. These comparisons are not immutable game PIT evidence, model projections, betting edges, or authorized selections.</small>:null}
  </section>;
 }
