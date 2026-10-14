@@ -55,6 +55,7 @@ jobs:
             args+=(--sport-id="${SPORT_ID}")
           fi
           echo "paidProviderCalls=0 rematchArgs=${args[*]}"
+          mkdir -p artifacts
           node scripts/rematch-pinnodds-archived.mjs "${args[@]}" | tee artifacts/pinnodds-archive-rematch.json
       - name: Publish rematch receipt
         if: always()
