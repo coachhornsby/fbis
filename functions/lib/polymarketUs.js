@@ -61,6 +61,8 @@ function tennisFullName(value){
   .replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
 }
 function tennisTitlePlayers(title){
+ // Doubles and team pairings require a different canonical match contract.
+ if(/[\/&]/.test(String(title||"")))return null;
  const parts=String(title||"").split(/\s+(?:vs?\.?|versus)\s+/i);
  if(parts.length!==2)return null;
  const names=parts.map(tennisFullName);
