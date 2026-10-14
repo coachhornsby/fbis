@@ -81,9 +81,7 @@ and 390 pixels. Visual fixtures are explicitly labeled test data and excluded
 from production authoring routes. Reduced-motion behavior, long names, missing
 portraits, blocked states, and neutral flags are checked.
 
-The approved design's real portraits and populated official projections cannot
-be verified until authorized portrait assets and trustworthy official upcoming
-schedule evidence exist. An image URL's public availability alone is not a grant
+The approved design's real portraits remain blocked on authorized portrait assets. An image URL's public availability alone is not a grant
 of image rights. This release does not guess either. ATP schedule ingestion remains absent. The official WTA source audit found an
 available upcoming order-of-play contract; this release adds a separate WTA
 schedule capture before inference. Official source IDs resolve players, explicit
@@ -93,3 +91,20 @@ responses and match observations retain point-in-time provenance. No research
 fixture is promoted by this path. Permanent canonical player research pages
 expose the existing D1 identity, surface, and recent-match evidence with their
 source and last-included-match timestamps.
+
+
+Production readback at 2026-10-14T18:40:21Z verified 13 upcoming official WTA
+fixtures and eight persisted PURE projections. Five remain blocked: four
+SURFACE_PROFILE_MISSING and one PROFILE_SAMPLE_MISSING. Missing-output rate is
+38.46%, with zero stale output records. This is pipeline freshness, not a claim
+that historical performance samples are current; displayed last-match dates
+include May 2026 and October 2025. Three October 14 CT official cards render
+actual probabilities, fair odds and simulator totals. Shnaider–Muchova renders
+28.2%/71.8% and 23.7 games; these are persisted production outputs, not mockup
+constants. Neutral-athlete presentation suppresses national flags.
+
+Verified official schedules precede a separate independent ESPN section, and
+both explicitly disclaim wager authority. Missing primary market quote clocks
+suppress comparative edges. Polymarket observations remain informational and
+retain original fixture IDs and collection timestamps. No Action snapshot was
+available for the inspected cards. MLB production cards also remained functional.

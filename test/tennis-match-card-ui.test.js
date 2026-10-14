@@ -25,6 +25,9 @@ test("Tennis card actually renders populated recent form and missing-form fallba
     assert.match(populated,/flagcdn.com\/w80\/pl.png/);
     assert.match(populated,/flagcdn.com\/w80\/us.png/);
     assert.doesNotMatch(populated,/ATP #0|0 points|♙/);
+    const projected=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,tennisProjection:{eventIntegrity:{valid:true},player1WinProb:.6,player2WinProb:.4,modelId:"TENNIS-FBIS-v2-CONTEXT",modelVersion:"verified-version"}}}));
+    assert.match(projected,/TENNIS-FBIS-v2-CONTEXT · verified-version/);
+    assert.doesNotMatch(projected,/model unavailable/i);
     const withheld=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,tennisProjection:{player1WinProb:.764,player2WinProb:.236}}}));
     assert.match(withheld,/withheld/);
     assert.doesNotMatch(withheld,/76.4|FAIR ML|WIN PROBABILITY/);

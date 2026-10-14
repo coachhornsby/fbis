@@ -817,6 +817,7 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
         marketPriorP2: marketP2,
         marketAdjustedP1: row.market_v2_p1 == null ? null : Number(row.market_v2_p1),
         modelEdge: row.model_edge == null ? null : Number(row.model_edge),
+        modelId: row.pure_model_id || null,
         profileCutoffs: safeJson(row.context_json)?.profileCutoffs || null,
         modelVersion: safeJson(row.context_json)?.modelVersion || "v2-deep-context-market-separated",
         ...(safeJson(row.context_json)?.projectedTotalGames != null ? {projectedTotalGames:safeJson(row.context_json).projectedTotalGames} : {}),
