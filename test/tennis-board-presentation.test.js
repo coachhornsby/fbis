@@ -10,7 +10,15 @@ function fakeDb(rows) {
     row.context_json=JSON.stringify({eventProof:{matchId:e.match_id,source:e.source,observedAt:e.observed_at,player1Id:"p1",player2Id:"p2",startTime:e.match_time,surface:e.surface,tournament:e.tournament_name}});
     return e;
   });
-  return {prepare(sql){return {bind(){return {async all(){return {results:sql.includes("FROM tennis_official_matches")?official:sql.includes("WITH ranked AS")?rows:[]};}};}};}};
+  return {prepare(sql){return {bind(){return {async all(){return {results:
+      sql.includes("FROM tennis_official_matches")?official:
+      sql.includes("WITH ranked AS")?rows:
+      sql.includes("FROM tennis_player_portraits") && rows[0]?.player1 === "Roman Safiullin" ?[{
+        fbis_player_id:"p1",asset_key:"tennis/portraits/p1/approved.webp",
+        content_type:"image/webp",approval_status:"APPROVED",public_display_allowed:1,
+        display_scope:"PUBLIC_WEB",rights_evidence_ref:"test-authorized-public-use",
+        approved_at:"2026-01-01T00:00:00Z"
+      }]:[]};}};}};}};
 }
 
 function rankingPayload(name, rank, points, id, headshot) {
@@ -25,7 +33,7 @@ function rankingPayload(name, rank, points, id, headshot) {
   };
 }
 
-test("tennis TODAY cards carry full identity, rankings, headshots, market lines and ACTION splits", async () => {
+test("tennis TODAY cards carry verified canonical portraits, rankings, markets and ACTION splits", async () => {
   const rows = [{
     canonical_event_id: "tennis:action:114596",
     tour: "atp",
@@ -104,7 +112,9 @@ test("tennis TODAY cards carry full identity, rankings, headshots, market lines 
   assert.equal(game.away.fullName, "Shintaro Mochizuki");
   assert.equal(game.home.rank, 79);
   assert.equal(game.home.rankingPoints, 744);
-  assert.equal(game.home.logo, "https://a.espncdn.com/roman.png");
+  assert.equal(game.home.logo, "/api/tennis-portrait?id=p1");
+  // Source-discovered ESPN/WTA headshot URLs are not publication permissions.
+  assert.equal(game.away.logo, null);
   assert.equal(game.away.rank, 123);
   assert.equal(game.away.rankingPoints, 491);
   assert.equal(game.market.reference.moneyline.home, -285);
@@ -124,13 +134,15 @@ test("tennis TODAY cards carry full identity, rankings, headshots, market lines 
   const board = toBoardGame(game, "tennis");
   assert.equal(board.home.rank, 79);
   assert.equal(board.away.rank, 123);
-  assert.equal(board.home.logo, "https://a.espncdn.com/roman.png");
+  assert.equal(board.home.logo, "/api/tennis-portrait?id=p1");
   assert.equal(board.tennisProjection.marketPriorP1, 0.742);
   assert.equal(board.projTotal, null);
   assert.equal(board.projMargin, null);
   assert.equal(board.market.reference.available, true);
   assert.equal(board.home.countryCode,"RUS");
-  assert.equal(board.home.headshotUrl,"https://a.espncdn.com/roman.png");
+  assert.equal(board.home.headshotUrl,"/api/tennis-portrait?id=p1");
+  assert.equal(board.home.imageSource, "RIGHTS_VERIFIED_TENNIS_PORTRAIT");
+  assert.equal(board.away.headshotUrl, null);
   assert.equal(board.marketUnavailable, true);
 });
 
