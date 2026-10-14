@@ -57,4 +57,11 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
-          curl --fail-with-body -sS --retry 4 --retry-all-errors --retry-delay 5 --max-time 60 -X POST -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/polymarket-stream-start"
+          response="$(curl --fail-with-body -sS --retry 4 --retry-all-errors --retry-delay 5 --max-time 60 -X POST -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/polymarket-stream-start")"
+          # HTTP 200 may wrap a disconnected DO. Inspect the JSON state before
+          # treating the live WS collector as started. Never print credentials.
+          echo "$response" | jq -c '{ok,connected,operational,lastError,lastConnectAttemptAt,signerProxyConfigured,subscriptions}'
+          if ! jq -e '.ok==true and .connected==true' <<<"$response" >/dev/null; then
+            echo "Persistent Polymarket WebSocket did not connect; deployment activation is NOT healthy."
+            exit 1
+          fi
