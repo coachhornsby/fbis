@@ -9,7 +9,7 @@ INSERT INTO tennis_players (
 )
 SELECT
  'tennis:atp:research:' || b.player_key,'atp',b.player_name,b.player_key,'M','UNKNOWN',
- b.current_rank,'FBIS_SUPPLEMENTAL_RESEARCH',NULL,1,
+ NULL,'FBIS_SUPPLEMENTAL_RESEARCH',NULL,1,
  b.source_as_of,b.updated_at,b.updated_at,b.updated_at
 FROM tennis_player_bank b
 WHERE b.tour='atp'
