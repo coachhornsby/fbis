@@ -18,3 +18,27 @@ test('unsupported leagues and missing odds remain diagnosed, never zero-priced o
  assert.equal(pinnoddsSport(3,'Euroleague'),null);assert.equal(pinnoddsSport(5,'NCAA Football'),'cfb');assert.equal(pinnoddsSport(6,'Japan NPB'),'npb');
  const result=normalizePinnoddsMarkets({events:[{...event,league_name:'Minor League Baseball'},{...event,periods:{num_0:{money_line:{home:0,away:null}}}}]},options);assert.equal(result.rows.length,0);assert.equal(result.reasons.UNSUPPORTED_LEAGUE,1);assert.equal(result.reasons.UNPRICED_SELECTION,1);
 });
+
+test('nested soccer prematch preserves parent prices and every separately identified special',()=>{
+ const parent={event_id:900,league_name:'Premier League',home:'Home FC',away:'Away FC',
+  starts:'2026-10-15T13:00:00Z',
+  periods:{num_0:{number:0,money_line:{home:1.83,away:4.12,draw:3.47}}},
+  specials:[{event_id:901,special:'Player One (Goals)',special_category:'Player Props',
+    special_units:'goals',special_markets:{num_0:[{type:'total',key:'goals',
+      prices:[{name:'Yes',price:2.8,participant_id:3},{name:'No',price:1.43,participant_id:4}]}]}}]};
+ const args={sportId:1,feed:'prematch',capturedAt:'2026-10-14T13:00:00Z',
+  snapshotId:'nested-soccer',rawKey:'raw-soccer',games:[]};
+ const result=normalizePinnoddsMarkets({events:[parent]},args);
+ assert.equal(result.inputEvents,2);
+ assert.equal(result.rows.filter(r=>r.marketFamily==='moneyline').length,3);
+ const props=result.rows.filter(r=>r.marketFamily==='player_prop');
+ assert.equal(props.length,2);
+ assert.ok(props.every(p=>p.raw.providerEventId==='901'&&p.raw.providerParentId===900));
+ assert.ok(props.every(p=>p.sourceObservedAt===null&&!p.executionEligible&&!p.raw.canAuthorizeWager));
+});
+test('nested soccer fails closed rather than silently dropping malformed specials',()=>{
+ const parent={event_id:900,league_name:'Premier League',specials:{not:'array'}};
+ assert.throws(()=>normalizePinnoddsMarkets({events:[parent]},{sportId:1,feed:'prematch'}),/NESTED_SPECIALS_CONTRACT_CHANGED/);
+ const other={event_id:900,league_name:'Premier League',specials:[{event_id:901,parent_id:1000}]};
+ assert.throws(()=>normalizePinnoddsMarkets({events:[other]},{sportId:1,feed:'prematch'}),/NESTED_PARENT_CONFLICT/);
+});
