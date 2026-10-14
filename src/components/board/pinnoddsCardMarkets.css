@@ -1,0 +1,12 @@
+.pinnodds-board-odds{margin:10px 0;padding:10px;border:1px solid color-mix(in srgb,currentColor 17%,transparent);border-radius:10px;background:rgba(90,118,140,.055);font-size:.8rem}
+.pinnodds-board-odds header{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px}
+.pinnodds-board-odds header strong{letter-spacing:.075em}
+.pinnodds-board-odds header span{font-size:.65rem;font-weight:800;opacity:.8}
+.pinnodds-board-odds.empty{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:.7rem}
+.pinnodds-board-odds.empty span{opacity:.7}
+.pinnodds-odds-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px}
+.pinnodds-odds-family{display:grid;gap:3px;padding:7px;border-radius:6px;background:rgba(110,125,135,.06)}
+.pinnodds-odds-family b{font-size:.67rem;letter-spacing:.07em;opacity:.8}
+.pinnodds-odds-family span{display:flex;justify-content:space-between;gap:8px;font-variant-numeric:tabular-nums}
+.pinnodds-odds-family em{font-style:normal;font-weight:800}
+.pinnodds-board-odds small{display:block;margin-top:7px;line-height:1.4;opacity:.74}
