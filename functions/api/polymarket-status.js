@@ -17,11 +17,32 @@ export async function onRequestGet({env}){
       COUNT(DISTINCT source_market_id) contracts
       FROM normalized_market_observations
       WHERE source='Polymarket US WebSocket' AND collected_at>=?1`).bind(cutoff).first();
+  // Coverage must be evaluated by sport; a healthy multi-sport socket does
+  // not imply any live ATP/WTA subscriptions or a verified tennis schedule.
+  const tennisSources=await env.DB.prepare(`SELECT source,COUNT(*) observations,
+      COUNT(DISTINCT source_market_id) contracts,COUNT(DISTINCT provider_event_id) provider_events,
+      COUNT(DISTINCT canonical_event_id) matched_events,MAX(collected_at) last_capture,
+      SUM(CASE WHEN event_start_time>=?2 THEN 1 ELSE 0 END) upcoming_observations
+      FROM normalized_market_observations
+      WHERE sport='tennis' AND source IN ('Polymarket US','Polymarket US WebSocket')
+      AND collected_at>=?1 GROUP BY source`).bind(cutoff,now.toISOString()).all();
+  const officialTennis=await env.DB.prepare(`SELECT COUNT(*) n FROM tennis_official_matches
+      WHERE source IN ('ATP_OFFICIAL','WTA_OFFICIAL') AND match_time>=?1
+      AND player1_id IS NOT NULL AND player2_id IS NOT NULL`).bind(now.toISOString()).first();
   let stream=null;
   try{const response=await fetch("https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health",{signal:AbortSignal.timeout(4000)});
    if(response.ok){const value=await response.json();if(value.ok===true)stream=value;}
   }catch{}
   const by=new Map((r.results||[]).map(x=>[x.sport,x]));
+  const tennisMap=new Map((tennisSources.results||[]).map(x=>[x.source,x]));
+  const tennisRest=tennisMap.get('Polymarket US')||{};
+  const tennisWs=tennisMap.get('Polymarket US WebSocket')||{};
+  const upcoming=Number(tennisRest.upcoming_observations||0);
+  const officialCount=Number(officialTennis?.n||0);
+  const tennisStatus=officialCount===0&&upcoming>0?'OFFICIAL_SCHEDULE_MISSING':
+    upcoming>0&&Number(tennisRest.matched_events||0)===0?'UPCOMING_MARKETS_UNMATCHED':
+    upcoming===0?'NO_UPCOMING_REST_CONTRACTS':
+    Number(tennisWs.observations||0)===0?'UPCOMING_REST_ONLY_NO_WEBSOCKET':'RESEARCH_OBSERVATIONS';
   const states=FBIS_POLY_SPORTS.map(s=>{
    const item=by.get(s);return {sport:s,
     status:item?.observations>0?"RECENT_OBSERVATIONS":"NO_RECENT_MARKET_CAPTURE",
@@ -35,6 +56,13 @@ export async function onRequestGet({env}){
   return json({ok:true,source:"Polymarket US public gateway",
     region:"US",windowHours:24,readOnly:true,canQualify:false,canAuthorizeWager:false,
     fullMarketCoverageVerified:false,
+    tennisCoverage:{status:tennisStatus,officialUpcomingMatches:officialCount,
+      rest:{observations:Number(tennisRest.observations||0),providerEvents:Number(tennisRest.provider_events||0),
+        matchedEvents:Number(tennisRest.matched_events||0),contracts:Number(tennisRest.contracts||0),
+        upcomingObservations:upcoming,lastCapture:tennisRest.last_capture||null},
+      websocket:{observations:Number(tennisWs.observations||0),contracts:Number(tennisWs.contracts||0),
+        matchedEvents:Number(tennisWs.matched_events||0),lastCapture:tennisWs.last_capture||null},
+      canQualify:false,canAuthorizeWager:false},
     signedMarketWebsocket:{
       credentialsConfigured:Boolean(env.POLYMARKET_US_KEY_ID&&env.POLYMARKET_US_SECRET_KEY),
       readOnly:true,
