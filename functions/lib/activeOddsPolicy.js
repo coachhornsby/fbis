@@ -1,25 +1,35 @@
 /**
  * FBIS active market-source policy (2026-10-14).
- * The only authorized NEW price/odds acquisition is PinnOdds.
+ * Three approved active market feeds:
+ *   PinnOdds — sportsbook quotes/reference research.
+ *   Polymarket US + WebSocket — exchange market observations.
+ *   PrizePicks GitHub Mirror — ONE existing free pick'em feed.
+ * All other sportsbook/paid odds collectors are retired.
  * Historical observations are retained unchanged for audit/CLV.
  * Market-source permission is distinct from bet/execution authorization.
  */
 export const ACTIVE_ODDS_PROVIDER = "PinnOdds";
+export const ACTIVE_MARKET_FEEDS = Object.freeze([
+  "PinnOdds",
+  "Polymarket US",
+  "Polymarket US WebSocket",
+  "PrizePicks GitHub Mirror",
+]);
 export const RETIRED_ODDS_PROVIDERS = Object.freeze([
- "Parlay","TheOdds","SharpAPI","TheRundown","ACTION","Polymarket US",
- "Polymarket US WebSocket","PrizePicks GitHub Mirror",
- "PrizePicks","Kalshi","ESPN sportsbook reference",
+ "Parlay","TheOdds","SharpAPI","TheRundown","ACTION",
+ "PrizePicks paid/Apify","Kalshi","ESPN sportsbook reference",
 ]);
 export function isActiveOddsProvider(value) {
  return String(value??"").trim().toLowerCase()==="pinnodds";
 }
 export function allowNewMarketObservation(value) {
- return isActiveOddsProvider(value?.source);
+ return ACTIVE_MARKET_FEEDS.includes(String(value?.source??"").trim());
 }
 export function retiredOddsCollectorResponse(source="LEGACY_ODDS"){
  return {
   ok:false,blocked:true,source,activeOddsSource:ACTIVE_ODDS_PROVIDER,
-  error:"ODDS_INGESTOR_RETIRED_PINNODDS_ONLY",canQualify:false,canAuthorizeWager:false,
+  activeMarketFeeds:ACTIVE_MARKET_FEEDS,
+  error:"MARKET_INGESTOR_RETIRED_APPROVED_FEEDS_ONLY",canQualify:false,canAuthorizeWager:false,
  };
 }
 export function pinnoddsOnlySlateMarket(game={}){
