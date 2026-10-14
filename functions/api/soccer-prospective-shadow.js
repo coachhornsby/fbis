@@ -38,12 +38,17 @@ async function snapshot(context,date){
   const snapshotAt=new Date().toISOString();
   const slate=await buildSlate("soccer",resolved.date,envForSlate(context));
   let attempted=0,written=0,existing=0,eligibleGames=0;
-  const skipped={},skippedDetails={};
+  const skipped={},skippedDetails={},fixtures=[];
   for(const game of slate.games||[]){
     if(game?.status?.completed||game?.status?.live){
       skipped["not-pregame"]=(skipped["not-pregame"]||0)+1;
       continue;
     }
+    const v2=game.soccerFbisV2, v31=game.soccerFbisV3;
+    fixtures.push({eventId:String(game.id),competition:game.soccerLeague||game.league||null,
+      home:game.home?.name,away:game.away?.name,kickoff:game.start,
+      canonicalHistoryCount:v2?.provenance?.historyMatches??v2?.diagnostics?.historyMatches??null,
+      v2Ok:v2?.ok===true,v2Reason:v2?.reason||null,v31Ok:v31?.ok===true,v31Reason:v31?.reason||null});
     const built=buildSoccerProspectiveShadowRecords(game,slate,{
       snapshotAt,
       collectorCodeSha:context.env.CF_PAGES_COMMIT_SHA||null,
@@ -74,7 +79,7 @@ async function snapshot(context,date){
     date:resolved.date,
     snapshotAt,
     slateGames:Number(slate.games?.length||0),
-    eligibleGames,attempted,written,existing,skipped,skippedDetails,
+    eligibleGames,attempted,written,existing,skipped,skippedDetails,fixtures,
     lifecycle:"SHADOW",
     collectorCodeSha:context.env.CF_PAGES_COMMIT_SHA||null,
     publicProjectionRoutingChanged:false,

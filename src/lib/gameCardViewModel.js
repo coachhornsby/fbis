@@ -12,6 +12,7 @@ const SCORE_UNIT = Object.freeze({
   cfb: { unit: "PTS", projectedLabel: "FBIS PROJECTED SCORE", shortUnit: "PTS" },
   nba: { unit: "PTS", projectedLabel: "FBIS PROJECTED SCORE", shortUnit: "PTS" },
   cbb: { unit: "PTS", projectedLabel: "FBIS PROJECTED SCORE", shortUnit: "PTS" },
+  soccer: { unit: "GOALS", projectedLabel: "FBIS PROJECTED GOALS", shortUnit: "GOALS" },
   nhl: { unit: "GOALS", projectedLabel: "FBIS PROJECTED GOALS", shortUnit: "GOALS" },
 });
 
@@ -32,8 +33,8 @@ export function buildGameCardViewModel(game) {
   const sport = String(board.sport || game?.sport || "").toLowerCase();
   const units = SCORE_UNIT[sport] || SCORE_UNIT.nfl;
 
-  const away = enrichTeam(board.teams?.away, board.teams?.awayAbbr);
-  const home = enrichTeam(board.teams?.home, board.teams?.homeAbbr);
+  const away = enrichTeam({ ...board.teams?.away, sport }, board.teams?.awayAbbr);
+  const home = enrichTeam({ ...board.teams?.home, sport }, board.teams?.homeAbbr);
   const comparison = buildComparison(board, away, home, units);
   const action = buildActionPanel(game, away, home, units);
   const context = buildContext(game, sport, away, home);
