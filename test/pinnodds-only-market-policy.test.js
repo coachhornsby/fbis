@@ -1,12 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {ACTIVE_ODDS_PROVIDER,isActiveOddsProvider,retiredOddsCollectorResponse,
+import {ACTIVE_ODDS_PROVIDER,ACTIVE_MARKET_FEEDS,isActiveOddsProvider,allowNewMarketObservation,retiredOddsCollectorResponse,
   pinnoddsOnlySlateMarket} from "../functions/lib/activeOddsPolicy.js";
 import {selectPinnoddsBoardOffers} from "../functions/lib/pinnoddsBoardResearch.js";
 test("sole active odds source is PinnOdds, no silent Parlay or soft bookmaker fallback",()=>{
  assert.equal(ACTIVE_ODDS_PROVIDER,"PinnOdds");
- for(const p of ["parlay","theodds","sharpapi","therundown","ACTION","Polymarket US","PrizePicks"])
+ for(const p of ["parlay","theodds","sharpapi","therundown","ACTION","Polymarket US","PrizePicks GitHub Mirror"])
   assert.equal(isActiveOddsProvider(p),false);
+ assert.deepEqual(ACTIVE_MARKET_FEEDS,[
+   "PinnOdds","Polymarket US","Polymarket US WebSocket","PrizePicks GitHub Mirror"
+ ]);
+ for(const source of ACTIVE_MARKET_FEEDS)assert.equal(allowNewMarketObservation({source}),true);
+ for(const source of ["Parlay","SharpAPI","ACTION","PrizePicks paid/Apify","Kalshi"])
+   assert.equal(allowNewMarketObservation({source}),false);
  assert.equal(isActiveOddsProvider("PinnOdds"),true);
  assert.equal(retiredOddsCollectorResponse("Parlay").blocked,true);
  const game=pinnoddsOnlySlateMarket({id:"401866441",sport:"cfb",odds:{homeMl:-150,pinHomeMl:-148},
