@@ -32,7 +32,11 @@ export function normalizePinnoddsMarkets(body,{sportId,feed,capturedAt,games=[],
  for(const event of events){
   const sport=pinnoddsSport(sportId,event.league_name);if(!sport){reasons.UNSUPPORTED_LEAGUE=(reasons.UNSUPPORTED_LEAGUE||0)+1;continue;}
   const parent=event.special||event.special_category?parents.get(String(event.parent_id)):event;
-  const identity=parent?matchPolymarketUsEvent({startTime:parent.starts,homeTeam:{name:parent.home},awayTeam:{name:parent.away}},games.filter(g=>g.sport===sport),sport):{id:null,reason:'PARENT_EVENT_UNAVAILABLE'};
+  const identity=parent?matchPolymarketUsEvent({startTime:parent.starts,homeTeam:{name:parent.home},awayTeam:{name:parent.away},
+   // Tennis requires two full player names, tour and start to match safely.
+   title:sport==='tennis'?String(parent.home||'')+' vs. '+String(parent.away||''):undefined,
+   seriesSlug:sport==='tennis'?(/\bwta\b/i.test(parent.league_name||'')?'wta':/\batp\b/i.test(parent.league_name||'')?'atp':''):undefined},
+   games.filter(g=>g.sport===sport),sport):{id:null,reason:'PARENT_EVENT_UNAVAILABLE'};
   const base={source:'PinnOdds',sourceType:'sportsbook',sport,league:event.league_name,eventId:identity.id,eventStart:parent?.starts||event.starts,
    homeTeam:parent?.home||null,awayTeam:parent?.away||null,sourceObservedAt:null,fetchedAt:capturedAt,executionEligible:false};
   function add({family,period,selection,line=null,price,marketKey,scope=null,stat=null,player=null,original}){
