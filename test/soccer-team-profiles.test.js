@@ -43,3 +43,16 @@ test('big chances recover singular raw key instead of displaying legacy manufact
  const missing=summarizeSoccerAdvanced([{...row,raw_stats_json:null}],{name:'Barcelona'},'2026-10-14');
  assert.equal(missing.metrics.find(m=>m.key==='big_chances').value,null);
 });
+
+
+test('German club profile matches verified ESPN/PitchAPI aliases and masks absent raw advanced metrics',()=>{
+ const rows=[{status:'finished',match_date:'2026-09-01',home_team_name:'Hamburger SV',away_team_name:'Mainz 05',
+  home_team_id:'t_hsv',away_team_id:'t_mainz',home_xg:1.2,away_xg:1.1,home_ppda:0,away_ppda:0,raw_advanced_json:null}];
+ const x=summarizeSoccerAdvanced(rows,{name:'Hamburg SV',league:'ger.1'},'2026-10-14');
+ assert.equal(x.sampleSize,1);
+ assert.equal(x.metrics.find(m=>m.key==='xg').value,1.2);
+ assert.equal(x.metrics.find(m=>m.key==='ppda').value,null);
+ assert.equal(x.metrics.find(m=>m.key==='ppda').sampleSize,0);
+ const wrongLeague=summarizeSoccerAdvanced(rows,{name:'Hamburg SV',league:'fra.1'},'2026-10-14');
+ assert.equal(wrongLeague.sampleSize,0);
+});

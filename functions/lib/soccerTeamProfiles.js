@@ -1,6 +1,8 @@
 import directory from '../../data/soccer-team-branding.js';
 import { resolveSoccerBrand, soccerBrandKey } from './soccerTeamBranding.js';
 import { SOCCER_RESEARCH_ROUTES } from './soccerResearchRouting.js';
+import { PITCHAPI_ADVANCED_ONLY_FIELDS } from './soccerPitchApiStore.js';
+import { matchesPitchApiTeamName } from './soccerPitchApiIdentity.js';
 
 export function soccerTeamDirectory() {
  const competitions=[...new Set(SOCCER_RESEARCH_ROUTES.map(r=>r.competition))];
@@ -49,12 +51,13 @@ function metricNumber(value) {
  const n=Number(value);return Number.isFinite(n)?n:null;
 }
 export function summarizeSoccerAdvanced(rows,team,asOf) {
- const names=new Set([team.name,team.displayName,team.fullName].filter(Boolean).map(soccerBrandKey));
+ const names=[team.name,team.displayName,team.fullName].filter(Boolean),league=team.league||'';
  const cutoff=Date.parse(asOf);
  const samples=rows.filter(r=>String(r.status).toLowerCase()==='finished'&&Date.parse(r.start_time||r.match_date)<cutoff)
   .flatMap(r=>{
-   // PitchAPI IDs are a different namespace from ESPN IDs. Match exact club names only.
-   const h=names.has(soccerBrandKey(r.home_team_name)),a=names.has(soccerBrandKey(r.away_team_name));
+   // Stable PitchAPI IDs remain distinct from ESPN IDs. Aliases require a verified league.
+   const h=names.some(name=>matchesPitchApiTeamName(r.home_team_name,name,league)),
+     a=names.some(name=>matchesPitchApiTeamName(r.away_team_name,name,league));
    if(h===a)return [];
    return [{row:r,side:h?'home':'away',opponentSide:h?'away':'home'}];
   }).sort((a,b)=>b.row.match_date.localeCompare(a.row.match_date));
@@ -70,6 +73,7 @@ export function summarizeSoccerAdvanced(rows,team,asOf) {
    }catch{return null;}
   }
   if(column==='big_chances')return null;
+  if(PITCHAPI_ADVANCED_ONLY_FIELDS.includes(column) && sample.row.raw_advanced_json==null)return null;
   return metricNumber(sample.row[`${sample.side}_${column}`]);
  };
  const average=(list,column)=>{const values=list.map(s=>sourceValue(s,column)).filter(v=>v!=null);
@@ -78,6 +82,8 @@ export function summarizeSoccerAdvanced(rows,team,asOf) {
   recent10:average(samples.slice(0,10),key),opponent:average(samples.map(s=>({...s,side:s.opponentSide})),key)}));
  const observed=samples.map(s=>s.row.source_observed_at).filter(Boolean).sort().at(-1)||null;
  return {source:'PitchAPI persisted match features',sourceObservedAt:observed,asOf,sampleSize:samples.length,
+  advancedSourceMatches:samples.filter(s=>s.row.raw_advanced_json!=null).length,
+  advancedSourceMissing:samples.filter(s=>s.row.raw_advanced_json==null).length,
   historyStart:samples.at(-1)?.row.match_date||null,historyEnd:samples[0]?.row.match_date||null,
   teamIds:[...new Set(samples.map(s=>String(s.row[`${s.side}_team_id`])).filter(v=>v&&v!=='undefined'))],
   reconciliation:{bigChancesSource:'Retained PitchAPI full-match raw stats (big_chance)',

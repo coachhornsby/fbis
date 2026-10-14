@@ -1,9 +1,6 @@
-export function normalizeSoccerName(v=""){
-  return String(v||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
-    .replace(/\b(fc|cf|sc|afc|club|de|futbol|football|soccer)\b/g," ")
-    .replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
-}
-function n(v){const x=Number(v);return Number.isFinite(x)?x:null;}
+import { normalizeSoccerName, matchesPitchApiTeamName } from './soccerPitchApiIdentity.js';
+export { normalizeSoccerName };
+function n(v){if(v==null||typeof v==='boolean'||(typeof v==='string'&&!v.trim()))return null;const x=Number(v);return Number.isFinite(x)?x:null;}
 function now(){return new Date().toISOString();}
 function json(v){return v==null?null:JSON.stringify(v);}
 export async function persistPitchApiBundle(env,bundle={}){
@@ -147,7 +144,7 @@ export async function refreshPitchApiCompetitionCoverage(env,{leagueKey}={}){
   const row=await db.prepare(`SELECT
       COUNT(*) AS pitch_match_count,
       SUM(CASE WHEN
-        status='finished' AND
+        status='finished' AND raw_advanced_json IS NOT NULL AND
         home_score IS NOT NULL AND away_score IS NOT NULL AND
         home_xg IS NOT NULL AND away_xg IS NOT NULL AND
         home_ppda IS NOT NULL AND away_ppda IS NOT NULL AND
@@ -181,9 +178,23 @@ export const PITCHAPI_MODEL_HISTORY_COLUMNS = Object.freeze([
  "passes_into_box","key_passes","through_balls","progressive_pass_distance","carries_into_final_third","carries_into_box",
  "avg_defensive_action_x","buildup_attacks","direct_attacks","network_centralization"].flatMap(field=>[`home_${field}`,`away_${field}`])
 ]);
+// Fields sourced from /advanced/teams only. Older source-absent records
+// were incorrectly persisted as numeric zero; mask them at read time rather
+// than rewriting any historical feature or prospective prediction record.
+export const PITCHAPI_ADVANCED_ONLY_FIELDS = Object.freeze([
+  "ppda","field_tilt","final_third_entries","box_entries","high_turnovers",
+  "counterpress_regains","ball_recovery_time","xt","vaep","progressive_passes",
+  "progressive_carries","xag","passes_per_sequence","direct_speed","pass_accuracy",
+  "passes_into_box","key_passes","through_balls","progressive_pass_distance",
+  "carries_into_final_third","carries_into_box","avg_defensive_action_x",
+  "buildup_attacks","direct_attacks","network_centralization"
+]);
+const ADVANCED_ONLY_COLUMNS = new Set(PITCHAPI_ADVANCED_ONLY_FIELDS.flatMap(k=>[`home_${k}`,`away_${k}`]));
 export async function loadPitchApiHistory(env,{leagueKey,beforeDate,startDate="2021-01-01"}={}){
   const db=env?.DB;if(!db?.prepare||!leagueKey)return[];
-  const r=await db.prepare(`SELECT ${PITCHAPI_MODEL_HISTORY_COLUMNS.join(",")} FROM soccer_pitchapi_match_features
+  const columns=PITCHAPI_MODEL_HISTORY_COLUMNS.map(key=>ADVANCED_ONLY_COLUMNS.has(key)
+    ? `CASE WHEN raw_advanced_json IS NULL THEN NULL ELSE ${key} END AS ${key}` : key);
+  const r=await db.prepare(`SELECT ${columns.join(",")} FROM soccer_pitchapi_match_features
     WHERE league_key=? AND match_date>=? AND match_date<? AND status='finished'
     ORDER BY match_date,pitch_match_id`).bind(leagueKey,startDate,beforeDate||"9999-12-31").all();
   return r?.results||[];
@@ -199,8 +210,7 @@ export async function findPitchApiFixture(env,{leagueKey,date,homeName,awayName}
   const db=env?.DB;if(!db?.prepare||!leagueKey||!date)return null;
   const r=await db.prepare(`SELECT * FROM soccer_pitchapi_match_features
     WHERE league_key=? AND match_date=? ORDER BY source_observed_at DESC`).bind(leagueKey,date).all();
-  const h=normalizeSoccerName(homeName),a=normalizeSoccerName(awayName);
-  return (r?.results||[]).find(x=>normalizeSoccerName(x.home_team_name)===h&&normalizeSoccerName(x.away_team_name)===a)||null;
+  return (r?.results||[]).find(x=>matchesPitchApiTeamName(x.home_team_name,homeName,leagueKey)&&matchesPitchApiTeamName(x.away_team_name,awayName,leagueKey))||null;
 }
 export async function loadPitchApiPlayerHistory(env,{playerIds=[],beforeDate,startDate="2021-01-01"}={}){
   const db=env?.DB;if(!db?.prepare||!playerIds.length)return[];

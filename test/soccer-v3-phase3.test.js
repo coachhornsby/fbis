@@ -38,7 +38,7 @@ test("soccer v3.1 Phase 3 score layer stays research-only and coherent",()=>{
   const game={id:"target",start:"2026-05-01T18:00:00Z",home:{name:"Alpha"},away:{name:"Beta"}};
   const p=projectSoccerV3(game,v2,history);
   assert.equal(p.ok,true);
-  assert.equal(SOCCER_FBIS_V3_VERSION,"research-v1.2-phase3-score-layer");
+  assert.equal(SOCCER_FBIS_V3_VERSION,"research-v1.3-source-aware-advanced-history");
   assert.equal(p.scoreLayer.active,true);
   assert.ok(p.scoreLayer.weight>=.10&&p.scoreLayer.weight<=.22);
   assert.ok(p.home>0&&p.away>0&&p.total>0);
