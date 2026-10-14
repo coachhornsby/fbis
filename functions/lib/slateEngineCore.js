@@ -3,7 +3,6 @@ import {fetchWithCfbBackoff} from "./cfbProviderBackoff.js";
 
 import { BASEBALL, EXECUTION_BOOK, runLine } from "./books.js";
 import { fetchBallparkPal, mergeBallparkPal, palSlateView } from "./ballparkpal.js";
-import { fetchParlayOdds, mergeParlay } from "./parlay.js";
 import { fetchSavantSlate } from "./savant.js";
 import { MODEL_VERSION, expectedRoi, pinMarkets, priceSelection, softBookLabel, tagFromEv, validAmericanOdds } from "./pricing.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
@@ -19,7 +18,6 @@ import { attachWeather, parseVenueLocation } from "./weather.js";
 import { attachAvailability } from "./availability.js";
 import { enrichGamesVenues } from "./venues.js";
 import { attachNflInternationalContext } from "./nflInternationalContext.js";
-import { attachKalshiSentiment } from "./kalshi.js";
 import { setMeta } from "./store.js";
 import { isUnusableCachedOddsMeta } from "./marketLineage.js";
 import { loadNpbV2Context, attachNpbFbisV2 } from "./npbFbisV2.js";
@@ -1772,6 +1770,7 @@ export async function buildSlate(sport, date, env = {}) {
     canQualify:false,canAuthorizeWager:false,
   }};
   games=games.map(g=>attachMarketLabels(enrichGameTeams(id,g)));
+  const kalshi={meta:{enabled:false,source:"RETIRED_ODDS_INGESTOR"}};
 
   // Soft-odds stubs / CFBD boards often lack ESPN lat/lon — fill NFL stadiums, then geocode.
   games = attachNflInternationalContext(games);
