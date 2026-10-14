@@ -1,12 +1,4 @@
-# Touch this file on main to rematch archived PinnOdds tennis boards.
-# No paid provider calls. Uses --post-capture-fixtures for research linkage
-# when ESPN fixtures arrived after the paid capture clock.
-# Requested: 2026-10-14T06:37:00Z — prior rematch matchedRows=0 under PIT asOf
-trigger: pinnodds-tennis-archive-rematch
-requestedAt: 2026-10-14T06:37:00Z
-mode: post-capture-fixtures
-snapshots:
-  - run-38448188039-1-board-2-prematch
-  - run-38448188039-1-board-2-live
+# Re-run after #1102 deploy de0ccc6a — post-capture fixtures API now live
+requestedAt: 2026-10-14T06:42:00Z
+deploySha: de0ccc6a5869972f8b207de60ea5a7da6261cdd4
 paidProviderCalls: 0
-prospectiveEvidenceEligible: false
