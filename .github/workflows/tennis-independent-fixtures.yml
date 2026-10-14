@@ -34,6 +34,10 @@ jobs:
         with:
           node-version: '22'
       - run: node --test test/tennis-external-fixtures.test.mjs test/polymarket-tennis-identity.test.js test/polymarket-us-readonly.test.js
+      - name: Inspect public ESPN fixture contract (no writes)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: node scripts/probe-tennis-fixtures.mjs
       - name: Verify exact production release before collecting
         if: github.event_name != 'pull_request'
         run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
