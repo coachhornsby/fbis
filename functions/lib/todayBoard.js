@@ -19,6 +19,7 @@ import { loadDurableTodayGames } from "./todayDurableFallback.js";
 import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
 import { inspectTennisProjectionCoverage, publicTennisCoverage } from "./tennisProjectionPipeline.js";
 import { tennisCardContext } from "./tennisPlayerBank.js";
+import { approvedTennisPortraits } from "./tennisPortraits.js";
 import { buildIndependentTennisCards, tennisFixtureOffers } from "./tennisIntelligenceBank.js";
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "./polymarketBoard.js";
 import {
@@ -725,9 +726,10 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
     row.tournament=integrity.event.tournament_name;
     row.indoor=integrity.event.indoor_outdoor==="INDOOR"?1:integrity.event.indoor_outdoor==="OUTDOOR"?0:null;
     row.court_speed_index=null;
-    const [bankContext,venueOffers] = await Promise.all([
+    const [bankContext,venueOffers,portraitMap] = await Promise.all([
       tennisCardContext(env.DB,{tour:row.tour,player1:row.player1,player2:row.player2,surface:row.surface}).catch(()=>null),
-      tennisVenueOffers(env.DB,row,now).catch(()=>[])
+      tennisVenueOffers(env.DB,row,now).catch(()=>[]),
+      approvedTennisPortraits(env.DB,[integrity.p1.fbis_player_id,integrity.p2.fbis_player_id])
     ]);
     const p1 = row.pure_p1 == null ? NaN : Number(row.pure_p1);
     const p1Prob = Number.isFinite(p1) ? p1 : null;
@@ -737,6 +739,8 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
     const quote = Array.isArray(marketJson.quotes) ? marketJson.quotes[0] || {} : {};
     const p1Rank = integrity.p1;
     const p2Rank = integrity.p2;
+    const p1Portrait = portraitMap.get(p1Rank.fbis_player_id);
+    const p2Portrait = portraitMap.get(p2Rank.fbis_player_id);
     const p1Price = row.player1_price == null ? (quote?.p1Price == null ? null : Number(quote.p1Price)) : Number(row.player1_price);
     const p2Price = row.player2_price == null ? (quote?.p2Price == null ? null : Number(quote.p2Price)) : Number(row.player2_price);
     const marketP1 = row.player1_no_vig_prob == null
@@ -763,29 +767,29 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
         name: row.player2,
         fullName: row.player2,
         abbr: tennisPlayerAbbr(row.player2),
-        logo: p2Rank?.headshot || null,
+        logo: p2Portrait?.url || null,
         canonicalId: p2Rank.fbis_player_id,
         countryCode: p2Rank.country,
-        headshotUrl: p2Rank.headshot || null,
+        headshotUrl: p2Portrait?.url || null,
         rankingAsOf: p2Rank.rankDate || null,
         rankingSource: p2Rank.rankSource || null,
         rank: p2Rank?.rank ?? null,
         rankingPoints: p2Rank?.points ?? null,
-        imageSource: p2Rank?.headshot ? "OFFICIAL_TENNIS_PLAYER" : null,
+        imageSource: p2Portrait ? "RIGHTS_VERIFIED_TENNIS_PORTRAIT" : null,
       },
       home: {
         name: row.player1,
         fullName: row.player1,
         abbr: tennisPlayerAbbr(row.player1),
-        logo: p1Rank?.headshot || null,
+        logo: p1Portrait?.url || null,
         canonicalId: p1Rank.fbis_player_id,
         countryCode: p1Rank.country,
-        headshotUrl: p1Rank.headshot || null,
+        headshotUrl: p1Portrait?.url || null,
         rankingAsOf: p1Rank.rankDate || null,
         rankingSource: p1Rank.rankSource || null,
         rank: p1Rank?.rank ?? null,
         rankingPoints: p1Rank?.points ?? null,
-        imageSource: p1Rank?.headshot ? "OFFICIAL_TENNIS_PLAYER" : null,
+        imageSource: p1Portrait ? "RIGHTS_VERIFIED_TENNIS_PORTRAIT" : null,
       },
       model: {
         id: row.pure_model_id || "TENNIS-FBIS-v2-CONTEXT",
@@ -930,9 +934,14 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
     projectionCoverage = publicTennisCoverage(coverage);
     for (const f of coverage.fixtures) {
       if (!f.proof.valid || boardDateCtForStart(f.match_time) !== date || games.some(g => g.id === f.match_id)) continue;
+      const [playerBank,portraitMap] = await Promise.all([
+        tennisCardContext(env.DB,{tour:f.tour,player1:f.player1,player2:f.player2,surface:f.surface}).catch(()=>null),
+        approvedTennisPortraits(env.DB,[f.proof.p1.fbis_player_id,f.proof.p2.fbis_player_id])
+      ]);
       const team = p => ({name:p.display_name,fullName:p.display_name,canonicalId:p.fbis_player_id,
-        countryCode:p.country,rank:p.rank??null,rankingPoints:p.points??null,headshotUrl:p.headshot||null});
-      const playerBank = await tennisCardContext(env.DB,{tour:f.tour,player1:f.player1,player2:f.player2,surface:f.surface}).catch(()=>null);
+        countryCode:p.country,rank:p.rank??null,rankingPoints:p.points??null,
+        headshotUrl:portraitMap.get(p.fbis_player_id)?.url||null,
+        imageSource:portraitMap.has(p.fbis_player_id)?"RIGHTS_VERIFIED_TENNIS_PORTRAIT":null});
       games.push({id:f.match_id,sport:"tennis",tour:f.tour.toUpperCase(),start:f.match_time,status:{detail:"Scheduled"},
         home:team(f.proof.p1),away:team(f.proof.p2),projectionKind:"UNAVAILABLE",pureProjectionAvailable:false,
         projectionUnavailable:true,publicationStatus:"RESEARCH_PUBLISHABLE",projectionMaturity:"RESEARCH",
