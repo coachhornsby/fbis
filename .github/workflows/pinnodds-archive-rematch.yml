@@ -12,6 +12,13 @@ on:
         required: false
         type: string
         default: "run-38448188039-1-board-2-prematch,run-38448188039-1-board-2-live"
+  # Merge-trigger path: agents cannot workflow_dispatch (403). Touching this
+  # marker on main runs rematch with HARVEST_SECRET and zero paid provider calls.
+  push:
+    branches: [main]
+    paths:
+      - "ops/triggers/pinnodds-tennis-archive-rematch"
+      - ".github/workflows/pinnodds-archive-rematch.yml"
 permissions:
   contents: read
 concurrency:
@@ -24,6 +31,9 @@ jobs:
     env:
       BASE: https://fbis-myz.pages.dev
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      # workflow_dispatch inputs are empty on push; default to known tennis archives.
+      SNAPSHOT_IDS: ${{ github.event_name == 'workflow_dispatch' && inputs.snapshot_ids || 'run-38448188039-1-board-2-prematch,run-38448188039-1-board-2-live' }}
+      SPORT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.sport_id || '2' }}
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
@@ -35,21 +45,21 @@ jobs:
         run: |
           set -euo pipefail
           args=()
-          if [ -n "${{ inputs.snapshot_ids }}" ]; then
-            IFS=',' read -r -a ids <<< "${{ inputs.snapshot_ids }}"
+          if [ -n "${SNAPSHOT_IDS}" ]; then
+            IFS=',' read -r -a ids <<< "${SNAPSHOT_IDS}"
             for id in "${ids[@]}"; do
               id="$(echo "$id" | xargs)"
               [ -n "$id" ] && args+=(--snapshot-id="$id")
             done
-          elif [ -n "${{ inputs.sport_id }}" ]; then
-            args+=(--sport-id="${{ inputs.sport_id }}")
+          elif [ -n "${SPORT_ID}" ]; then
+            args+=(--sport-id="${SPORT_ID}")
           fi
-          node scripts/rematch-pinnodds-archived.mjs "${args[@]}"
+          echo "paidProviderCalls=0 rematchArgs=${args[*]}"
+          node scripts/rematch-pinnodds-archived.mjs "${args[@]}" | tee artifacts/pinnodds-archive-rematch.json
       - name: Publish rematch receipt
         if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
           name: pinnodds-archive-rematch-${{ github.run_id }}
-          path: |
-            artifacts/**
+          path: artifacts/**
           if-no-files-found: ignore
