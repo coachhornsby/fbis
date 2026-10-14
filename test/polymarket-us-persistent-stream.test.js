@@ -74,3 +74,19 @@ test("SQL roster is balanced by sport before subscription cap",async()=>{
  assert.match(worker,/WHERE sport_rank<=6/);
  assert.doesNotMatch(worker,/collected_at DESC LIMIT 750/);
 });
+
+test("active tennis retains six WS slots inside 48 while other sport groups retain four",()=>{
+ const rows=STREAM_SPORTS.flatMap(sport=>Array.from({length:6},(_,i)=>({
+  sport,source_market_id:sport+"-contract-"+i,canonical_event_id:null
+ })));
+ const result=fairMarketSelection(rows,{perSport:6,maxMarkets:48});
+ assert.equal(result.length,48);
+ assert.equal(result.filter(r=>r.sport==="tennis").length,6);
+ for(const sport of STREAM_SPORTS.filter(s=>s!=="tennis")){
+  assert.ok(result.filter(r=>r.sport===sport).length>=4,sport+" lost baseline coverage");
+ }
+ assert.equal(new Set(result.map(r=>r.source_market_id)).size,48);
+ const withoutTennis=fairMarketSelection(rows.filter(r=>r.sport!=="tennis"),{perSport:6,maxMarkets:48});
+ assert.equal(withoutTennis.length,48);
+ assert.equal(withoutTennis.filter(r=>r.sport==="tennis").length,0);
+});
