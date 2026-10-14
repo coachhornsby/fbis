@@ -34,7 +34,9 @@ export async function tennisFixtureOffers(db, fixture, { now = new Date() } = {}
 }
 
 export async function buildTennisIntelligenceBank(db, { limit = 50, now = new Date() } = {}) {
-  const until = now.toISOString(), since = new Date(+now - 18 * 3600000).toISOString();
+  // Independent fixtures refresh every three hours. Do not retain disappeared
+  // scheduled fixtures for eighteen hours after their last source observation.
+  const until = now.toISOString(), since = new Date(+now - 4 * 3600000).toISOString();
   const q = await db.prepare(`SELECT fixture_id AS id,tour,player1_name AS away_name,
     player2_name AS home_name,match_time AS start,status,source,fetched_at,raw_hash,raw_key
     FROM tennis_external_fixtures WHERE source='ESPN_PUBLIC' AND status IN ('SCHEDULED','IN_PROGRESS')

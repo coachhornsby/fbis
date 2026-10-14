@@ -64,6 +64,7 @@ export async function inspectTennisProjectionCoverage(db, { now = new Date(), li
     verifiedFixtures: fixtures.filter(f => f.proof.valid).length, scheduledCandidates: fixtures.length,
     successfulProjections: fixtures.filter(f => f.available).length,
     missingOutputs: fixtures.filter(f => !f.available).length,
+    missingOutputRate: fixtures.length ? fixtures.filter(f=>!f.available).length/fixtures.length : null,
     staleOutputs: fixtures.filter(f => f.freshness === 'STALE').length, blockedReasons, fixtures,
     researchOnly: true, canQualify: false, canAuthorizeWager: false };
 }
