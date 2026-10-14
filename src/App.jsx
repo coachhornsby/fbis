@@ -39,8 +39,12 @@ function readUrlState() {
   const normalizedRoute = normalizeRoute(routeParam || mapped.route);
   const filter = routeParam === "teams" ? "cfb" : (u.searchParams.get("sportFilter") || mapped.sportFilter || "all");
   const sport = normalizedRoute === "board" && SPORTS[filter] ? filter : sportRaw;
+  // The product route is authoritative on cold loads. A legacy ?tab=board
+  // combined with ?route=board would otherwise render TodayView but trigger
+  // only the old /api/board loader, leaving verified tennis cards at zero.
+  const resolvedTab = routeParam ? routeToLegacy(normalizedRoute, filter).tab : tab;
   return {
-    tab,
+    tab: resolvedTab,
     date: u.searchParams.get("date") || todayCT(),
     sport,
     route: normalizedRoute,
