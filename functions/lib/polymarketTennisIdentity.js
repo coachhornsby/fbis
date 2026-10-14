@@ -2,7 +2,10 @@
  * A snapshot of an Action market is NOT a verified tennis schedule.
  * No source-local Polymarket identifier is ever treated as canonical.
  */
-export async function loadVerifiedTennisCandidates(db,starts=[],{asOf=new Date().toISOString()}={}){
+export async function loadVerifiedTennisCandidates(db,starts=[],{
+ asOf=new Date().toISOString(),
+ includeCompleted=false,
+}={}){
  if(!db?.prepare)return [];
  const times=(starts||[]).map(x=>Date.parse(x||"")).filter(Number.isFinite);
  if(!times.length)return [];
@@ -11,6 +14,10 @@ export async function loadVerifiedTennisCandidates(db,starts=[],{asOf=new Date()
  const until=new Date(Math.max(...times)+2*3600000).toISOString();
  // True official matches take precedence over independent ESPN research
  // identities when both exist. Neither source is inferred from market prices.
+ // includeCompleted is research-rematch only: never invents prices or clocks.
+ const espnStatus=includeCompleted
+  ?"f.status IN ('SCHEDULED','IN_PROGRESS','FINAL','COMPLETED','STATUS_FINAL','STATUS_FULL_TIME')"
+  :"f.status IN ('SCHEDULED','IN_PROGRESS')";
  const result=await db.prepare(`
   SELECT m.match_id AS id,m.match_time AS start,m.tour AS tour,
          p1.canonical_name AS away_name,p2.canonical_name AS home_name,
@@ -29,7 +36,7 @@ export async function loadVerifiedTennisCandidates(db,starts=[],{asOf=new Date()
          f.player1_name AS away_name,f.player2_name AS home_name,
          'tennis' AS sport,'ESPN_PUBLIC' AS fixture_source
   FROM tennis_external_fixtures f
-  WHERE f.source='ESPN_PUBLIC' AND f.status IN ('SCHEDULED','IN_PROGRESS')
+  WHERE f.source='ESPN_PUBLIC' AND ${espnStatus}
     AND f.match_time BETWEEN ?1 AND ?2 AND f.fetched_at>=?3
     AND julianday(f.fetched_at)<=julianday(?4)
   ORDER BY start,id
