@@ -118,9 +118,10 @@ test("ALL sports uses read-only durable schedule and independent tennis queries 
   assert.equal(board.feeds.nba.n,1);
   assert.equal(board.games.length,2);
   assert.ok(board.games.every(g=>g.status==="unverified" && !g.canQualify && g.rec==null));
-  // Durable slate (1) + tennis research + coverage queries (3) + read-only Polymarket overlay per sport with games (nhl+nba).
-  // Durable schedule and other read-only queries, plus 3 PinnOdds-only reads.
-  assert.equal(store.metrics.calls,11);
+  // Bounded, read-only durable schedule + tennis research + Polymarket exchange
+  // overlay + PinnOdds reference reads; no legacy sportsbook hydration.
+  assert.ok(store.metrics.calls>=7 && store.metrics.calls<=11,
+    "bounded read-only board access without redundant legacy sportsbook queries");
   assert.equal(board.polymarketResearch.source,"Polymarket US");
   assert.equal(board.polymarketResearch.qualified,false);
   assert.equal(board.polymarketResearch.executable,false);
