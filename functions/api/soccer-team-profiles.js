@@ -1,4 +1,5 @@
 import { soccerTeamDirectory, summarizeSoccerTeamMatches, summarizeSoccerAdvanced } from '../lib/soccerTeamProfiles.js';
+import { loadSoccerPitchApiPlayerContributors } from '../lib/soccerTeamPlayerContributors.js';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'public, max-age=300'}});
 async function roster(env,team) {
  const key=`soccer/team-profiles/${team.league}/${team.espnId}/roster.json`;
@@ -39,7 +40,14 @@ export async function onRequestGet(context) {
    advanced=summarizeSoccerAdvanced(pitch,team,asOf);
   }catch(err){advanced={...summarizeSoccerAdvanced([],team,asOf),unavailableReason:String(err.message)};}
   const squad=await roster(context.env,team);
-  return json({ok:true,team,stats,advanced,roster:squad,coverage:{branding:!!team.logo,history:stats.sampleSize,
+  let playerContributors;
+  try{
+    playerContributors=await loadSoccerPitchApiPlayerContributors(context.env,{
+      league:team.league,teamIds:advanced.teamIds||[],startDate:start,asOf:asOf.slice(0,10)
+    });
+  }catch(err){playerContributors={source:'PitchAPI persisted player match observations',players:[],researchOnly:true,
+    unavailableReason:String(err.message),providerIdPolicy:'Provider IDs are not interchangeable'};}
+  return json({ok:true,team,stats,advanced,roster:squad,playerContributors,coverage:{branding:!!team.logo,history:stats.sampleSize,
    advancedMatches:advanced.sampleSize,advancedMetrics:advanced.availableMetrics,rosterPlayers:squad.players.length,rosterStale:squad.stale},persistentStateUsedInProjection:false,canQualify:false,canAuthorize:false});
  }catch(err){return json({ok:false,error:'team-profile-query-failed',detail:String(err.message)},503);}
 }
