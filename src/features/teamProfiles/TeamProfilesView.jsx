@@ -62,6 +62,16 @@ export default function TeamProfilesView({refreshKey=0}) {
  {profile.roster.unavailableReason&&<p>{profile.roster.unavailableReason}</p>}
  <div style={{overflowX:'auto'}}><table><thead><tr><th>Player</th><th>Position</th><th>Number</th><th>Age</th></tr></thead><tbody>
  {profile.roster.players.map(p=><tr key={p.id}><td>{p.name}</td><td>{p.position||'—'}</td><td>{p.jersey||'—'}</td><td>{p.age??'—'}</td></tr>)}</tbody></table></div>
+ <h3>PitchAPI acquired player-match contributions</h3>
+ <p>{profile.playerContributors?.scope||'No verified advanced player-match observations available.'}</p>
+ <p>{profile.playerContributors?.providerIdPolicy||'PitchAPI IDs are distinct from ESPN roster IDs.'}</p>
+ {profile.playerContributors?.unavailableReason&&<p role="status">{profile.playerContributors.unavailableReason}</p>}
+ <div style={{overflowX:'auto'}}><table><thead><tr><th>Player</th><th>Matches</th><th>Minutes</th><th>Goals</th><th>Assists</th><th>xT</th><th>VAEP</th><th>xAG</th><th>Progressive passes</th><th>Last match</th></tr></thead><tbody>
+ {(profile.playerContributors?.players||[]).map(p=><tr key={p.id}><td>{p.name||'Unknown'}</td>
+ <td>{p.acquiredMatches??'—'}</td><td>{p.minutes??'—'}</td><td>{p.goals??'—'}</td><td>{p.assists??'—'}</td>
+ <td>{fmt(p.expectedThreat)}</td><td>{fmt(p.vaep)}</td><td>{fmt(p.expectedAssistedGoals)}</td>
+ <td>{p.progressivePasses??'—'}</td><td>{p.latestMatch||'—'}</td></tr>)}
+ </tbody></table></div>
  </article>}
  </>}
  </section>;
