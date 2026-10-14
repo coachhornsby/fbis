@@ -1,3 +1,4 @@
+import {retiredOddsCollectorResponse} from "../lib/activeOddsPolicy.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { fetchParlayOdds } from "../lib/parlay.js";
 import { classifyNhlQuoteEvidence } from "../lib/nhlBookQuoteEvidence.js";
@@ -20,6 +21,7 @@ const json = (data, status = 200) =>
 export async function onRequestPost(context) {
   const auth = authorizeHarvest(context.request, context.env);
   if (!auth.ok) return json(unauthorizedBody(auth.reason), 403);
+  return json(retiredOddsCollectorResponse("NHL_SHARPAPI_THERUNDOWN"),410);
   const url = new URL(context.request.url);
   const date = url.searchParams.get("date") || null;
   if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ ok: false, error: "invalid-date" }, 400);
