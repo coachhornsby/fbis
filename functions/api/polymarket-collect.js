@@ -25,7 +25,7 @@ export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(
  const capturedAt=now.toISOString();
  const next=utcDay(date,1);
  const games=await db.prepare("SELECT id,sport,date,start,home_name,away_name,home_abbr,away_abbr FROM games WHERE date BETWEEN ?1 AND ?2").bind(date,next).all();
- const tennisGames=await loadVerifiedTennisCandidates(db,[date+"T00:00:00Z",next+"T23:59:59Z"]);
+ const tennisGames=await loadVerifiedTennisCandidates(db,[date+"T00:00:00Z",next+"T23:59:59Z"],{asOf:capturedAt});
  const source=await fetchPolymarketUsLeagues(fetchImpl,{maxPages:8});
  const leagueBySport=new Map(FBIS_POLY_SPORTS.map(s=>[s,[]]));
  for(const league of source.leagues){

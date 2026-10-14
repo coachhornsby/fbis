@@ -27,7 +27,7 @@ export async function capturePolymarketPage(env,{receiptId,kind,slug=null,sport=
   // Tennis has a separate canonical official schedule; it is NOT in games.
   // Never fall back to old Action-only or Polymarket-only provisional IDs.
   const games=sport==='tennis'?
-    await loadVerifiedTennisCandidates(env.DB,items.map(e=>e.startTime||e.eventDate||e.startDate||e.gameStartTime)):
+    await loadVerifiedTennisCandidates(env.DB,items.map(e=>e.startTime||e.eventDate||e.startDate||e.gameStartTime),{asOf:capturedAt}):
     starts.length?(await env.DB.prepare(`SELECT id,sport,start,home_name,away_name,home_abbr,away_abbr FROM games WHERE sport=? AND julianday(start) BETWEEN julianday(?) AND julianday(?)`)
     .bind(sport,new Date(Math.min(...starts)-7200000).toISOString(),new Date(Math.max(...starts)+7200000).toISOString()).all())?.results||[]:[];
   for(const event of items){

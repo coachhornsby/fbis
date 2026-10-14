@@ -17,7 +17,10 @@ export async function preparePinnoddsSnapshot(env,{snapshotId}={}){
     .bind(new Date(Math.min(...starts)-7200000).toISOString(),new Date(Math.max(...starts)+7200000).toISOString()).all())?.results||[]:[];
   // Tennis is not in the generic games table. Verified independent fixtures are
   // display-only; snapshot source and raw acquisition times remain immutable.
-  if(receipt.sportId===2)games.push(...await loadVerifiedTennisCandidates(env.DB,body.events.map(e=>e.starts)));
+  if(receipt.sportId===2){
+   games.length=0;
+   games.push(...await loadVerifiedTennisCandidates(env.DB,body.events.map(e=>e.starts),{asOf:receipt.collectedAt}));
+  }
   result=normalizePinnoddsMarkets(body,{sportId:receipt.sportId,feed:receipt.feed,capturedAt:receipt.collectedAt,games,snapshotId,rawKey:receipt.rawKey});
  }
  const prepared={...receipt,...result,batchSize,batches:Math.ceil(result.rows.length/batchSize)};

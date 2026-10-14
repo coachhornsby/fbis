@@ -38,6 +38,8 @@ jobs:
         run: find functions -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Run test suite
         run: npm test
+      - name: Verify tennis fixture, player, profile and market integration
+        run: npm run test:tennis
       - name: Build app
         run: npm run build
 
