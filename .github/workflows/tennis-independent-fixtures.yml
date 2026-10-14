@@ -11,6 +11,7 @@ on:
       - 'functions/lib/pinnoddsMarkets.js'
       - 'functions/api/tennis-external-fixtures.js'
       - 'scripts/collect-tennis-external-fixtures.mjs'
+      - 'scripts/probe-tennis-fixtures.mjs'
       - 'test/tennis-external-fixtures.test.mjs'
       - '.github/workflows/tennis-independent-fixtures.yml'
   push:
