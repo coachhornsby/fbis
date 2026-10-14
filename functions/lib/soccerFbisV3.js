@@ -7,6 +7,7 @@
  * the result is observed.
  */
 import { normalizeSoccerName, loadPitchApiHistory, loadEligiblePitchApiLineups, findPitchApiFixture } from "./soccerPitchApiStore.js";
+import { pitchApiTeamNameKey } from "./soccerPitchApiIdentity.js";
 import { buildScoreMatrix } from "./soccerFbisV1.js";
 
 export const SOCCER_FBIS_V3_ID="SOCCER-FBIS-v3";
@@ -21,7 +22,7 @@ const FIELDS=[
  ["possession",20],["pass_accuracy",10],["passes_per_sequence",2],["direct_speed",1],
  ["buildup_attacks",7],["direct_attacks",6],["network_centralization",.18],
 ];
-function n(v){const x=Number(v);return Number.isFinite(x)?x:null;}
+function n(v){if(v==null||typeof v==='boolean'||(typeof v==='string'&&!v.trim()))return null;const x=Number(v);return Number.isFinite(x)?x:null;}
 function clamp(v,a,b){return Math.max(a,Math.min(b,Number(v)));}
 function softmax(z){const m=Math.max(...z),e=z.map(x=>Math.exp(x-m)),s=e.reduce((a,b)=>a+b,0)||1;return e.map(x=>x/s);}
 function teamKey(id,name){return id?String(id):normalizeSoccerName(name);}
@@ -112,12 +113,17 @@ function phase3ScoreLayer(state,hk,ak,v2){
 }
 
 function matchIds(rows,game){
-  const h=normalizeSoccerName(game?.home?.name||game?.homeTeam||""),a=normalizeSoccerName(game?.away?.name||game?.awayTeam||"");
-  const exact=[...rows].reverse().find(r=>normalizeSoccerName(r.home_team_name)===h&&normalizeSoccerName(r.away_team_name)===a);
+  const league=String(game.soccerLeague||game.league||'');
+  const h=pitchApiTeamNameKey(game?.home?.name||game?.homeTeam||'',league);
+  const a=pitchApiTeamNameKey(game?.away?.name||game?.awayTeam||'',league);
+  if(!h||!a||h===a)return[h,a,null];
+  const same=(raw,key)=>pitchApiTeamNameKey(raw,league)===key;
+  const exact=[...rows].reverse().find(r=>same(r.home_team_name,h)&&same(r.away_team_name,a));
   if(exact)return[teamKey(exact.home_team_id,exact.home_team_name),teamKey(exact.away_team_id,exact.away_team_name),exact.pitch_match_id];
-  const ht=[...rows].reverse().find(r=>normalizeSoccerName(r.home_team_name)===h||normalizeSoccerName(r.away_team_name)===h);
-  const at=[...rows].reverse().find(r=>normalizeSoccerName(r.home_team_name)===a||normalizeSoccerName(r.away_team_name)===a);
-  return[ht?teamKey(normalizeSoccerName(ht.home_team_name)===h?ht.home_team_id:ht.away_team_id,h):h,at?teamKey(normalizeSoccerName(at.home_team_name)===a?at.home_team_id:at.away_team_id,a):a,null];
+  const ht=[...rows].reverse().find(r=>same(r.home_team_name,h)||same(r.away_team_name,h));
+  const at=[...rows].reverse().find(r=>same(r.home_team_name,a)||same(r.away_team_name,a));
+  return[ht?teamKey(same(ht.home_team_name,h)?ht.home_team_id:ht.away_team_id,h):h,
+    at?teamKey(same(at.home_team_name,a)?at.home_team_id:at.away_team_id,a):a,null];
 }
 export function projectSoccerV3(game,v2,rows=[]){
   const cutoff=String(game.start||game.date||"").slice(0,10);if(!v2?.ok)return{ok:false,reason:"v2-required",modelId:SOCCER_FBIS_V3_ID};
