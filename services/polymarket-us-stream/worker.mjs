@@ -28,14 +28,18 @@ export class PolymarketMarketStream extends DurableObject {
       heartbeats:this.heartbeats,lastClose:this.lastClose,
       received:this.received,parsed:this.parsed,inserted:this.inserted,
       reconnects:this.reconnectCount,lastError:this.lastError,
+      signerProxyConfigured:Boolean(this.env.FBIS_STREAM_PROXY_TOKEN),
+      lastConnectAttemptAt:this.lastConnectAttempt?new Date(this.lastConnectAttempt).toISOString():null,
       readOnly:true,canAuthorizeWager:false};
   }
   async fetch(req){
     const pathname=new URL(req.url).pathname;
     if(pathname==="/status")return toJSON(this.status());
     if(pathname!=="/start"||req.method!=="POST")return toJSON({ok:false},405);
-    if(!this.env.FBIS_STREAM_PROXY_TOKEN)
-      return toJSON({ok:false,reason:"stream-signer-not-configured"},503);
+    if(!this.env.FBIS_STREAM_PROXY_TOKEN){
+      this.lastError="stream-signer-not-configured";
+      return toJSON({ok:false,reason:this.lastError,...this.status()},503);
+    }
     if(!this.socket||this.socket.readyState!==WebSocket.OPEN)await this.connect();
     else await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
     return toJSON({ok:!!this.socket, ...this.status()});
@@ -194,7 +198,9 @@ export default {
     // instance covers fair samples from all FBIS sports that list contracts.
     const id=env.PM_STREAM.idFromName("active-sports-fbis");
     const stub=env.PM_STREAM.get(id);
-    ctx.waitUntil(stub.fetch("https://internal/start",{method:"POST"}));
+    ctx.waitUntil(stub.fetch("https://internal/start",{method:"POST"}).then(async response=>{
+      if(!response.ok) console.warn("POLYMARKET_MARKET_STREAM_RESTART_FAILED",response.status);
+    }).catch(()=>console.warn("POLYMARKET_MARKET_STREAM_RESTART_UNREACHABLE")));
   },
   async fetch(request,env){
     const u=new URL(request.url);
@@ -209,6 +215,8 @@ export default {
     const r=await stub.fetch("https://internal/status");
     const status=await r.json();
     return toJSON({ok:true,source:"Polymarket US signed persistent market collector",
-      mode:"DURABLE_OBJECT_RECONNECTING",...status,privateAccountAccess:false});
+      mode:"DURABLE_OBJECT_RECONNECTING",...status,
+      workerSignerProxyConfigured:Boolean(env.FBIS_STREAM_PROXY_TOKEN),
+      privateAccountAccess:false});
   }
 };
