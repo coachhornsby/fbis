@@ -77,3 +77,25 @@ test("never fabricates qualification when no focused sport returned authoritativ
   assert.equal(restored.counts.qualified, 0);
   assert.equal(restored.games[0].rec, null);
 });
+
+test("recovers genuine tennis cards when the all-sports D1 skeleton has no tennis group", () => {
+  const b = base();
+  const tennis = focused("tennis", [
+    { ...focusedGame("tennis", "tennis:espn:wta:e:c"), projHome: null,
+      projAway: null, qualificationBlocked: true, canQualify: false,
+      canAuthorizeWager: false, rec: null, lean: null,
+      market: { reference: { available: true }, venueOffers: [
+        { source: "PinnOdds", decimalOdds: 1.9, canAuthorizeWager: false }
+      ] } },
+  ]);
+  assert.equal(b.groups.some(g => g.sport === "tennis"), false);
+  const restored = mergeVerifiedSportBoards(b, [{ sport: "tennis", board: tennis }]);
+  assert.equal(restored.counts.bySport.tennis, 1);
+  assert.equal(restored.counts.games, 3);
+  assert.equal(restored.groups.find(g => g.sport === "tennis").games.length, 1);
+  assert.equal(restored.games.find(g => g.sport === "tennis").id, "tennis:espn:wta:e:c");
+  assert.equal(restored.games.find(g => g.sport === "tennis").market.venueOffers[0].source, "PinnOdds");
+  assert.equal(restored.games.find(g => g.sport === "tennis").canAuthorizeWager, false);
+  assert.equal(restored.coverage.qualificationAuthoritative, false);
+  assert.equal(b.groups.length, 2, "must not mutate original D1 response");
+});
