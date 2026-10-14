@@ -42,6 +42,27 @@ jobs:
       - name: Verify exact production release before collecting
         if: github.event_name != 'pull_request'
         run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Gate fixture collection on deployed D1 schema
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # New Pages SHA can activate before its additive D1 migration finishes.
+          # Never query the provider until the read-only status route proves both.
+          for attempt in $(seq 1 36); do
+            payload="$(curl -fsS --connect-timeout 5 --max-time 12 \
+              'https://fbis-myz.pages.dev/api/polymarket-status' || true)"
+            if jq -e '.ok == true and (.tennisCoverage.independentResearchUpcomingFixtures | type == "number")' \
+                <<<"$payload" >/dev/null 2>&1; then
+              echo "Tennis research fixture D1 schema is live."
+              break
+            fi
+            if [ "$attempt" = 36 ]; then
+              echo "TENNIS_RESEARCH_SCHEMA_NOT_READY: no source requests launched."
+              exit 1
+            fi
+            sleep 8
+          done
       - name: Gather bounded public tennis fixture schedules
         if: github.event_name != 'pull_request'
         env:
