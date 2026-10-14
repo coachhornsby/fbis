@@ -34,8 +34,12 @@ export class PolymarketMarketStream extends DurableObject {
   }
   async fetch(req){
     const pathname=new URL(req.url).pathname;
-    if(pathname==="/status")return toJSON(this.status());
+    if(pathname==="/status")return toJSON({...this.status(),retired:true,activeOddsSource:"PinnOdds"});
     if(pathname!=="/start"||req.method!=="POST")return toJSON({ok:false},405);
+    try{this.socket?.close(1000,"retired: PinnOdds only")}catch{}
+    this.socket=null;this.queue.clear();this.subscribed.clear();
+    await this.ctx.storage.deleteAlarm();
+    return toJSON({ok:false,blocked:true,reason:"PINNODDS_ONLY_ACTIVE_ODDS_SOURCE"},410);
     if(!this.env.FBIS_STREAM_PROXY_TOKEN){
       this.lastError="stream-signer-not-configured";
       return toJSON({ok:false,reason:this.lastError,...this.status()},503);
@@ -69,6 +73,11 @@ export class PolymarketMarketStream extends DurableObject {
     return fairMarketSelection(q.results||[],{perSport:6,maxMarkets:MAX_MARKETS});
   }
   async connect(){
+    // Retired. The original authenticated collector is retained in Git history.
+    try{this.socket?.close(1000,"retired: PinnOdds only")}catch{}
+    this.socket=null;this.queue.clear();this.subscribed.clear();
+    await this.ctx.storage.deleteAlarm();
+    return;
     if(this.running)return;
     this.running=true;this.lastConnectAttempt=Date.now();
     try{
@@ -165,6 +174,8 @@ export class PolymarketMarketStream extends DurableObject {
     }
   }
   async flush(){
+    this.queue.clear();
+    return;
     if(!this.queue.size)return;
     const ticks=[...this.queue.values()].slice(0,MAX_BATCH);
     for(const tick of ticks)this.queue.delete(tick.marketSlug);
@@ -185,6 +196,10 @@ export class PolymarketMarketStream extends DurableObject {
     }
   }
   async alarm(){
+    try{this.socket?.close(1000,"retired: PinnOdds only")}catch{}
+    this.socket=null;this.queue.clear();this.subscribed.clear();
+    await this.ctx.storage.deleteAlarm();
+    return;
     await this.flush();
     // Rotate before Cloudflare outbound keep-alive's 15-minute instance limit.
     if(!this.socket||this.socket.readyState!==WebSocket.OPEN||
@@ -199,6 +214,8 @@ export class PolymarketMarketStream extends DurableObject {
 
 export default {
   async scheduled(_event,env,ctx){
+    // Disabled by operator: PinnOdds is the sole active odds ingestor.
+    return;
     // Safe periodic reactivation after worker restarts/deployment. One DO
     // instance covers fair samples from all FBIS sports that list contracts.
     const id=env.PM_STREAM.idFromName("active-sports-fbis");
