@@ -8,6 +8,7 @@ test("PitchAPI sync refreshes competition QA counters from persisted rows", asyn
   assert.match(store, /refreshPitchApiCompetitionCoverage/);
   assert.match(store, /pitch_match_count/);
   assert.match(store, /advanced_rows/);
+  assert.match(store, /status='finished' AND raw_advanced_json IS NOT NULL/);
   assert.match(store, /advanced_coverage/);
   assert.match(store, /history_start/);
   assert.match(store, /home_network_centralization IS NOT NULL/);
