@@ -49,10 +49,19 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           npx wrangler deploy --config wrangler.polymarket-us-stream.toml
           echo "Published dedicated Polymarket US read-only stream; credentials provisioned separately as encrypted Worker secrets." >> "$GITHUB_STEP_SUMMARY"
-      - name: Verify retired Polymarket Worker stays disabled
+      - name: Activate collector after Pages and Worker are ready
         if: github.event_name != 'pull_request'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          BASE: https://fbis-myz.pages.dev
         run: |
           set -euo pipefail
-          response="$(curl --fail-with-body -sS --max-time 30 https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health)"
-          echo "$response" | jq -e '.retired==true and .activeOddsSource=="PinnOdds"' >/dev/null
-          echo "Retired Polymarket streaming worker responds but does not reconnect or ingest." >> "$GITHUB_STEP_SUMMARY"
+          node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+          response="$(curl --fail-with-body -sS --retry 4 --retry-all-errors --retry-delay 5 --max-time 60 -X POST -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/polymarket-stream-start")"
+          # HTTP 200 may wrap a disconnected DO. Inspect the JSON state before
+          # treating the live WS collector as started. Never print credentials.
+          echo "$response" | jq -c '{ok,connected,operational,lastError,lastConnectAttemptAt,signerProxyConfigured,subscriptions}'
+          if ! jq -e '.ok==true and .connected==true' <<<"$response" >/dev/null; then
+            echo "Persistent Polymarket WebSocket did not connect; deployment activation is NOT healthy."
+            exit 1
+          fi
