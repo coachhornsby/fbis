@@ -4592,3 +4592,6 @@ CREATE TABLE IF NOT EXISTS tennis_external_fixtures (
 );
 CREATE INDEX IF NOT EXISTS idx_tennis_external_fixtures_time
  ON tennis_external_fixtures(tour,match_time,source);
+
+INSERT OR IGNORE INTO schema_migrations(id,applied_at)
+VALUES ('0101_tennis_external_schedule_research',strftime('%Y-%m-%dT%H:%M:%fZ','now'));
