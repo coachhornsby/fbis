@@ -50,11 +50,11 @@ test('Action source limits total paid Actor launches to one per rolling 24 hours
  assert.equal(calls.length,1);
  assert.equal(sql.prepare("SELECT COUNT(*) n FROM external_acquisitions WHERE source='action'").get().n,1);
 });
-test('Action daily workflow has exactly one scheduled opportunity and no push-triggered paid request',()=>{
- const s=readFileSync(new URL('../.github/workflows/action-daily-snapshot.yml',import.meta.url),'utf8');
- assert.equal((s.match(/cron:/g)||[]).length,1);
- assert.match(s,/cron: "30 14 \* \* \*"/);
- assert.doesNotMatch(s,/^  push:/m);
+test('ACTION odds collection is retired with no active scheduled opportunity',()=>{
+ const body=readFileSync(new URL('../.github/workflows/action-daily-snapshot.yml',import.meta.url),'utf8');
+ assert.match(body,/RETIRED/);assert.match(body,/PinnOdds/);
+ assert.doesNotMatch(body,/cron:|^  schedule:/m);
+ assert.doesNotMatch(body,/^  push:/m);
 });
 test('budget reservations serialize across different sports/scopes',async()=>{
  const {env}=fixture({usage:20}),calls=[];const fetchImpl=provider(calls);
@@ -92,7 +92,9 @@ test('old canonical consumption cannot bless a fresh capture with zero usable ob
 test('large canonical payload is rejected before archival, SQL writes or model enrichment',async()=>{
  const {env,sql,objects}=fixture();env.HARVEST_SECRET='secret';
  const response=await consumePrizePicks({env,request:new Request('https://example.test/api/prizepicks-props',{method:'POST',headers:{'x-harvest-secret':'secret','content-type':'application/json'},body:JSON.stringify({runId:'current-run',rows:Array.from({length:501},()=>({player_name:'Player'}))})})});
- assert.equal(response.status,413);assert.equal((await response.json()).error,'bounded_consumption_required');assert.equal(objects.size,0);assert.equal(sql.prepare('SELECT count(*) n FROM external_acquisition_batches').get().n,0);
+ assert.equal(response.status,410);
+ assert.equal((await response.json()).error,'ODDS_INGESTOR_RETIRED_PINNODDS_ONLY');
+ assert.equal(objects.size,0);assert.equal(sql.prepare('SELECT count(*) n FROM external_acquisition_batches').get().n,0);
 });
 test('live consumers exclude partial and stale captures while retaining historical rows',()=>{
  const sql=new DatabaseSync(':memory:');sql.exec("CREATE TABLE prizepicks_daily_acquisitions(run_id TEXT,state TEXT);CREATE TABLE prizepicks_prop_lines(run_id TEXT,collected_at TEXT)");
