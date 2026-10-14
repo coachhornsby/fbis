@@ -91,7 +91,7 @@ export async function runTennisProjectionPipeline(db, opts = {}) {
       eventStartTime: f.match_time, market: null, snapshotType: 'PURE_FIXTURE',
       context: { eventProof: f.proof.proof, modelVersion: TENNIS_V2_VERSION,
         projectedTotalGames: pure.match?.totalGames?.mean ?? null,
-        profileCutoffs: f.profiles.map(r => ({ source: r.source, sourceAsOf: r.source_as_of, retrievedAt: r.updated_at })),
+        profileCutoffs: f.profiles.map(r => ({ source: r.source, sourceAsOf: r.source_as_of, retrievedAt: r.updated_at, lastMatchDate:r.last_match_date })),
         simulations: pure.simulations, diagnostics:pure.contextDiagnostics, marketFree: true } });
     attempts.push({ eventId: f.match_id, ...result });
   }
