@@ -2,7 +2,7 @@ import {DurableObject} from "cloudflare:workers";
 import {polymarketUsSubscribe,parsePolymarketUsLite}
   from "../../functions/lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
-import {fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,fetchStreamUpgrade} from "./core.mjs";
+import {fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,fetchStreamUpgrade,streamContractRosterWindow} from "./core.mjs";
 
 const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
 const MAX_MARKETS=48, MAX_BATCH=40, MAX_QUEUE=200;
@@ -46,7 +46,7 @@ export class PolymarketMarketStream extends DurableObject {
   }
   async candidates(){
     const now=Date.now();
-    const latest=new Date(now-35*60000).toISOString();
+    const {since:rosterSince,freshSince}=streamContractRosterWindow(now);
     const from=new Date(now-4*3600000).toISOString();
     const until=new Date(now+48*3600000).toISOString();
     const q=await this.env.DB.prepare(`WITH recent AS (
@@ -58,9 +58,10 @@ export class PolymarketMarketStream extends DurableObject {
        WHERE source='Polymarket US' AND source_market_id IS NOT NULL
        AND collected_at>=?1 AND event_start_time BETWEEN ?2 AND ?3
       ) SELECT * FROM recent WHERE rn=1 ORDER BY
+       CASE WHEN collected_at>=?4 THEN 0 ELSE 1 END,
        CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,
        collected_at DESC LIMIT 750`)
-       .bind(latest,from,until).all();
+       .bind(rosterSince,from,until,freshSince).all();
     return fairMarketSelection(q.results||[],{perSport:6,maxMarkets:MAX_MARKETS});
   }
   async connect(){
