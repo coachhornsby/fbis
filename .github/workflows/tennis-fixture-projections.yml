@@ -1,0 +1,42 @@
+name: Tennis verified fixture projections
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tennis-fixture-projections
+  cancel-in-progress: false
+jobs:
+  project:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Resolve deployed production before writes
+        run: VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs
+      - name: Attempt verified fixtures without market dependency
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          mkdir -p artifacts
+          curl --fail-with-body --max-time 120 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            https://fbis-myz.pages.dev/api/tennis-projection-coverage > artifacts/inference.json
+          jq -e '.ok == true' artifacts/inference.json
+      - name: Record readback coverage and blocked reasons
+        if: always()
+        run: |
+          mkdir -p artifacts
+          curl --fail-with-body --max-time 60 https://fbis-myz.pages.dev/api/tennis-projection-coverage > artifacts/coverage.json
+          jq -e '.ok == true' artifacts/coverage.json
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: tennis-fixture-projection-coverage
+          path: artifacts/
+          retention-days: 30

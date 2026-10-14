@@ -144,9 +144,10 @@ export async function persistTennisContexts(db,{eventId,tour,players=[],contexts
 }
 export async function persistTennisV2Decision(db,{eventId,tour,player1,player2,pureModelId,pureP1,market,actionIntel,context,eventStartTime,decisionTimestamp=null,snapshotType="DECISION"}={}){
   if(!db?.prepare)return {inserted:false};
-  const prior=market?.p1;
+  const prior=finite(market?.p1);
   const proj=tennisMarketResidualProjection({fundamentalP1:pureP1,market,actionIntel,contextDifferential:context?.differential||0});
-  if(proj.p1==null)return {inserted:false,reason:proj.reason||"projection-unavailable"};
+  if(!(finite(pureP1)>0&&finite(pureP1)<1))return {inserted:false,reason:"pure-probability-invalid"};
+  if(proj.p1==null && snapshotType!=="PURE_FIXTURE")return {inserted:false,reason:proj.reason||"projection-unavailable"};
   const ts=decisionTimestamp||new Date().toISOString();
   const h=await hash([eventId,ts,snapshotType,pureP1,prior,proj.p1].join("|"));
   const id=`tvd_${h.slice(0,28)}`;
@@ -158,7 +159,7 @@ export async function persistTennisV2Decision(db,{eventId,tour,player1,player2,p
     ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,0,0,?)`
   ).bind(
     id,eventId,tour,player1,player2,pureModelId||"TENNIS-FBIS-v2-CONTEXT",proj.modelId,pureP1,prior,proj.p1,
-    proj.marketResidual,proj.p1-prior,JSON.stringify(context||null),JSON.stringify(proj.action||actionIntel||null),
+    proj.marketResidual??null,proj.p1==null||prior==null?null:proj.p1-prior,JSON.stringify(context||null),JSON.stringify(proj.action||actionIntel||null),
     JSON.stringify(market||null),ts,eventStartTime||null,snapshotType,ts
   ).run();
   return {inserted:Number(res?.meta?.changes||res?.changes||0)>0,id,projection:proj};
