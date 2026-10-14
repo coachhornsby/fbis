@@ -40,7 +40,14 @@ export async function freezeCfbPregameFeatures(env,{dates=null,games=null,now=ne
  const cfbdMeta=feed?.meta||null;
  let fallback=null;
  const hasSource=source=>source?.meta?.asOf && Object.keys(source.byEspnId||{}).length>0;
- if(!hasSource(feed)){
+ const directionalCount=source=>Object.values(source?.byEspnId||{}).filter(row=>
+   ["passEpa","rushEpa","passEpaAllowed","rushEpaAllowed"]
+     .every(key=>row?.[key]!=null&&Number.isFinite(Number(row[key])))).length;
+ // A 200 response can contain only completed-game form while PPA/advanced
+ // endpoints were rate-limited. Count actual directional fields, not teams.
+ const requiresFallback=!hasSource(feed)||Number(feed.meta?.httpStatus)!==200
+   ||directionalCount(feed)<Math.min(100,Object.keys(feed.byEspnId||{}).length);
+ if(requiresFallback){
   try {
    const intelligence=await loadSdvIntelligence({caches:env.caches},fetchFn);
    fallback=buildSdvPitResearchFeed(intelligence,{now});
