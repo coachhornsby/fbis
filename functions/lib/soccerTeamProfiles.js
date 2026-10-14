@@ -82,6 +82,8 @@ export function summarizeSoccerAdvanced(rows,team,asOf) {
   recent10:average(samples.slice(0,10),key),opponent:average(samples.map(s=>({...s,side:s.opponentSide})),key)}));
  const observed=samples.map(s=>s.row.source_observed_at).filter(Boolean).sort().at(-1)||null;
  return {source:'PitchAPI persisted match features',sourceObservedAt:observed,asOf,sampleSize:samples.length,
+  advancedSourceMatches:samples.filter(s=>s.row.raw_advanced_json!=null).length,
+  advancedSourceMissing:samples.filter(s=>s.row.raw_advanced_json==null).length,
   historyStart:samples.at(-1)?.row.match_date||null,historyEnd:samples[0]?.row.match_date||null,
   teamIds:[...new Set(samples.map(s=>String(s.row[`${s.side}_team_id`])).filter(v=>v&&v!=='undefined'))],
   reconciliation:{bigChancesSource:'Retained PitchAPI full-match raw stats (big_chance)',
