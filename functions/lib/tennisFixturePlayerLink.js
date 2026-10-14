@@ -13,7 +13,7 @@ export async function resolveTennisFixturePlayers(db, fixture) {
   const tour = String(fixture?.tour || "").toLowerCase();
   const names = [fixture?.away_name, fixture?.home_name];
   if (!db?.prepare || !validTour.has(tour) || !fixture?.id ||
-      names.some(n => !n || normalize(n).split(" ").length < 2) ||
+      names.some(n => !n || /[\\/&]/.test(n) || normalize(n).split(" ").length < 2) ||
       normalize(names[0]) === normalize(names[1]))
     return { fixtureId: fixture?.id || null, verified: false, reason: "INVALID_FIXTURE", players: [] };
   const players = [];
