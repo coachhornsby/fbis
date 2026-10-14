@@ -57,10 +57,14 @@ export class PolymarketMarketStream extends DurableObject {
        FROM normalized_market_observations
        WHERE source='Polymarket US' AND source_market_id IS NOT NULL
        AND collected_at>=?1 AND event_start_time BETWEEN ?2 AND ?3
-      ) SELECT * FROM recent WHERE rn=1 ORDER BY
-       CASE WHEN collected_at>=?4 THEN 0 ELSE 1 END,
-       CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,
-       collected_at DESC LIMIT 750`)
+      ), balanced AS (
+       SELECT *,ROW_NUMBER() OVER(PARTITION BY sport ORDER BY
+        CASE WHEN collected_at>=?4 THEN 0 ELSE 1 END,
+        CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,
+        collected_at DESC) sport_rank
+       FROM recent WHERE rn=1
+      ) SELECT * FROM balanced WHERE sport_rank<=6
+       ORDER BY sport,sport_rank LIMIT 66`)
        .bind(rosterSince,from,until,freshSince).all();
     return fairMarketSelection(q.results||[],{perSport:6,maxMarkets:MAX_MARKETS});
   }
