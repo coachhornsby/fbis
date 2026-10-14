@@ -76,6 +76,36 @@ test('rematch reuses archived raw tennis snapshot without paid provider calls',a
  assert.equal(latest.paidProviderCall,false);
 });
 
+test('post-capture fixture rematch can link tennis after ESPN fixtures arrive',async()=>{
+ const snapshotId='tennis-postcapture-board-2-prematch',at='2026-10-13T18:43:05.613Z';
+ const fixture={id:'tennis:espn:wta:381-2026:185348',start:'2026-10-14T06:00:00.000Z',tour:'wta',
+  away_name:'Jessica Pegula',home_name:'Jelena Ostapenko',sport:'tennis',fixture_source:'ESPN_PUBLIC'};
+ const receipt={ok:true,snapshotId,sportId:2,feed:'prematch',kind:'board',collectedAt:at,rawKey:'raw-tennis'};
+ let asOfSeen=null,includeCompletedSeen=false;
+ const env=archiveEnv({
+  receipt,rawKey:'raw-tennis',
+  rawBody:{events:[{event_id:99,league_name:'WTA Singles',starts:fixture.start,
+   home:'Jessica Pegula',away:'Jelena Ostapenko',periods:{num_0:{number:0,money_line:{home:1.8,away:2.05}}}}]},
+  tennisFixtures:[fixture],
+ });
+ // Intercept tennis candidate load args via SQL bind on external fixtures path.
+ const orig=env.DB.prepare;
+ env.DB.prepare=function(sql){
+  if(/tennis_external_fixtures|tennis_official_matches/.test(sql)){
+   includeCompletedSeen=/FINAL|COMPLETED/.test(sql);
+   return{bind(...args){asOfSeen=args[3];return{async all(){return{results:[fixture]}}}}};
+  }
+  return orig.call(env.DB,sql);
+ };
+ const prepared=await rematchPinnoddsSnapshot(env,{snapshotId,phase:'prepare',postCaptureFixtures:true});
+ assert.equal(prepared.matchedRows,2);
+ assert.equal(prepared.postCaptureFixtures,true);
+ assert.equal(prepared.prospectiveEvidenceEligible,false);
+ assert.notEqual(asOfSeen,at);
+ assert.equal(includeCompletedSeen,true);
+ assert.ok(Date.parse(asOfSeen)>Date.parse(at));
+});
+
 test('phased rematch prepare/consume/finalize avoids single-request board timeouts',async()=>{
  const snapshotId='tennis-phased-board-2-prematch',at='2026-10-13T18:43:05.613Z';
  const fixture={id:'tennis:espn:wta:381-2026:185348',start:'2026-10-14T06:00:00.000Z',tour:'wta',

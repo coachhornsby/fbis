@@ -20,6 +20,7 @@ if (!secret) throw new Error("EXISTING_COLLECTION_AUTH_REQUIRED");
 
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has("--dry-run");
+const postCaptureFixtures = args.has("--post-capture-fixtures");
 const sportFilter = [...args].find((a) => a.startsWith("--sport-id="));
 const sportId = sportFilter ? Number(sportFilter.split("=")[1]) : null;
 const explicitIds = [...args].filter((a) => a.startsWith("--snapshot-id=")).map((a) => a.split("=")[1]).filter(Boolean);
@@ -71,7 +72,12 @@ for (const board of boards) {
   }
   try {
     // Batched rematch: prepare → consume pages → finalize (avoids Pages timeouts).
-    const prepared = await call({ operation: "rematch", phase: "prepare", snapshotId: board.snapshotId });
+    const prepared = await call({
+      operation: "rematch",
+      phase: "prepare",
+      snapshotId: board.snapshotId,
+      postCaptureFixtures,
+    });
     let inserted = 0;
     for (let batchIndex = 0; batchIndex < (prepared.batches || 0); batchIndex++) {
       const consumed = await call({
@@ -87,7 +93,13 @@ for (const board of boards) {
       phase: "finalize",
       snapshotId: board.snapshotId,
     });
-    summary.results.push({ ...finalized, inserted });
+    summary.results.push({
+      ...finalized,
+      inserted,
+      postCaptureFixtures,
+      fixtureAsOf: prepared.fixtureAsOf || null,
+      prepareMatchedRows: prepared.matchedRows || 0,
+    });
   } catch (error) {
     summary.ok = false;
     summary.errors.push({

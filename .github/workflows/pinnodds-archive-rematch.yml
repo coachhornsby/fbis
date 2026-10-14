@@ -54,6 +54,10 @@ jobs:
           elif [ -n "${SPORT_ID}" ]; then
             args+=(--sport-id="${SPORT_ID}")
           fi
+          # Tennis archives captured before ESPN fixture ingestion need an
+          # explicit research rematch against post-capture fixtures. Prices and
+          # collection clocks stay immutable; still not prospective/executable.
+          args+=(--post-capture-fixtures)
           echo "paidProviderCalls=0 rematchArgs=${args[*]}"
           mkdir -p artifacts
           node scripts/rematch-pinnodds-archived.mjs "${args[@]}" | tee artifacts/pinnodds-archive-rematch.json

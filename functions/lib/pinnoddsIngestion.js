@@ -7,7 +7,7 @@ async function source(env,snapshotId){
  const object=await env.ARCHIVE.get(`${root}/receipts/${snapshotId}.json`);if(!object)throw Error('PROVIDER_RECEIPT_NOT_FOUND');
  const receipt=await object.json();if(receipt.ok!==true)throw Error('PROVIDER_CAPTURE_INCOMPLETE');return receipt;
 }
-async function normalizeFromArchivedRaw(env,receipt,{snapshotId}={}){
+async function normalizeFromArchivedRaw(env,receipt,{snapshotId,fixtureAsOf=null,includeCompleted=false}={}){
  const object=await env.ARCHIVE.get(receipt.rawKey);if(!object)throw Error('RAW_SNAPSHOT_NOT_FOUND');
  const body=await object.json();let result={rows:[],reasons:{},inputEvents:0,normalizedRows:0,matchedRows:0};
  if(receipt.kind==='board'){
@@ -18,19 +18,30 @@ async function normalizeFromArchivedRaw(env,receipt,{snapshotId}={}){
   // display-only; snapshot source and raw acquisition times remain immutable.
   if(receipt.sportId===2){
    games.length=0;
-   games.push(...await loadVerifiedTennisCandidates(env.DB,body.events.map(e=>e.starts),{asOf:receipt.collectedAt}));
+   const asOf=fixtureAsOf||receipt.collectedAt;
+   games.push(...await loadVerifiedTennisCandidates(env.DB,body.events.map(e=>e.starts),{asOf,includeCompleted}));
   }
   result=normalizePinnoddsMarkets(body,{sportId:receipt.sportId,feed:receipt.feed,capturedAt:receipt.collectedAt,games,snapshotId,rawKey:receipt.rawKey});
  }
  return result;
 }
 
-export async function preparePinnoddsSnapshot(env,{snapshotId,force=false}={}){
+export async function preparePinnoddsSnapshot(env,{snapshotId,force=false,postCaptureFixtures=false}={}){
  const receipt=await source(env,snapshotId),normalizedKey=`${root}/normalized/${snapshotId}.json`;
  const prior=force?null:await env.ARCHIVE.get(normalizedKey);
  if(prior){const {rows,...result}=await prior.json();return{ok:true,...result};}
- const result=await normalizeFromArchivedRaw(env,receipt,{snapshotId});
- const prepared={...receipt,...result,batchSize,batches:Math.ceil(result.rows.length/batchSize),rematchedAt:force?new Date().toISOString():undefined};
+ // postCaptureFixtures: research-only rematch may use fixtures observed after the
+ // paid capture clock. Never rewrites collectedAt / sourceObservedAt; never executable.
+ const fixtureAsOf=postCaptureFixtures?new Date().toISOString():null;
+ const result=await normalizeFromArchivedRaw(env,receipt,{snapshotId,fixtureAsOf,includeCompleted:postCaptureFixtures===true});
+ const prepared={
+  ...receipt,...result,batchSize,batches:Math.ceil(result.rows.length/batchSize),
+  rematchedAt:force?new Date().toISOString():undefined,
+  postCaptureFixtures:postCaptureFixtures===true,
+  fixtureAsOf:fixtureAsOf||receipt.collectedAt,
+  prospectiveEvidenceEligible:false,
+  canAuthorizeWager:false,
+ };
  await env.ARCHIVE.put(normalizedKey,JSON.stringify(prepared),{httpMetadata:{contentType:'application/json'}});
  const {rows,...publicResult}=prepared;return{ok:true,...publicResult};
 }
@@ -44,13 +55,14 @@ export async function preparePinnoddsSnapshot(env,{snapshotId,force=false}={}){
  * unmatched D1 rows remain immutable; newly linked rows insert under a distinct
  * observation_key (eventId is part of the natural key).
  */
-export async function rematchPinnoddsSnapshot(env,{snapshotId,phase='all',batchIndex}={}){
+export async function rematchPinnoddsSnapshot(env,{snapshotId,phase='all',batchIndex,postCaptureFixtures=false}={}){
  if(phase==='prepare'||phase==='all'){
-  const prepared=await preparePinnoddsSnapshot(env,{snapshotId,force:true});
+  const prepared=await preparePinnoddsSnapshot(env,{snapshotId,force:true,postCaptureFixtures});
   if(phase==='prepare'){
    return{ok:true,operation:'rematch',phase:'prepare',snapshotId,paidProviderCall:false,
     matchedRows:prepared.matchedRows||0,normalizedRows:prepared.normalizedRows||0,
-    batches:prepared.batches||0,canAuthorizeWager:false};
+    batches:prepared.batches||0,postCaptureFixtures:prepared.postCaptureFixtures===true,
+    fixtureAsOf:prepared.fixtureAsOf||null,prospectiveEvidenceEligible:false,canAuthorizeWager:false};
   }
  }
  if(phase==='consume'){
