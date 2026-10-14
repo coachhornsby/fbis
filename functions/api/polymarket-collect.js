@@ -1,5 +1,6 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { persistNormalizedMarketBatch } from "../lib/marketObservationLedger.js";
+import {loadVerifiedTennisCandidates} from "../lib/polymarketTennisIdentity.js";
 import {
   FBIS_POLY_SPORTS, classifyPolymarketUsLeague, chicagoMarketDay,
   fetchPolymarketUsLeagues, fetchPolymarketUsLeagueEvents,
@@ -24,6 +25,7 @@ export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(
  const capturedAt=now.toISOString();
  const next=utcDay(date,1);
  const games=await db.prepare("SELECT id,sport,date,start,home_name,away_name,home_abbr,away_abbr FROM games WHERE date BETWEEN ?1 AND ?2").bind(date,next).all();
+ const tennisGames=await loadVerifiedTennisCandidates(db,[date+"T00:00:00Z",next+"T23:59:59Z"]);
  const source=await fetchPolymarketUsLeagues(fetchImpl,{maxPages:8});
  const leagueBySport=new Map(FBIS_POLY_SPORTS.map(s=>[s,[]]));
  for(const league of source.leagues){
@@ -39,7 +41,7 @@ export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(
  const startMs=now.getTime();
  for(const sport of FBIS_POLY_SPORTS){
   const leagues=leagueBySport.get(sport)||[];
-  const sportGames=(games.results||[]).filter(g=>String(g.sport).toLowerCase()===sport);
+  const sportGames=sport==="tennis"?tennisGames:(games.results||[]).filter(g=>String(g.sport).toLowerCase()===sport);
   const selected=leagues.slice(0,maxLeaguesPerSport);
   let nEvents=0,matched=0,unmatched=0,unpriced=0,sourceErrors=[];
   let truncated=leagues.length>selected.length;
@@ -84,7 +86,8 @@ export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(
    unpriced===offers.length-offersBefore?"NO_PRICED_MARKETS":"RESEARCH_OBSERVATIONS";
   report.states.push({sport,leagueCount:leagues.length,leaguesVisited:selected,
     gamesInFbis:sportGames.length,providerEvents:nEvents,offers:offers.length-offersBefore,
-    matched,unmatched,unpriced,sourceErrors,truncated,status});
+    matched,unmatched,unpriced,sourceErrors,truncated,status,
+    ...(sport==="tennis"?{officialScheduleCandidates:tennisGames.length,officialScheduleMissing:tennisGames.length===0}:{})});
  }
  report.attemptedOffers=offers.length;
  report.matchedOffers=report.states.reduce((s,x)=>s+x.matched,0);
