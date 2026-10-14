@@ -1,13 +1,91 @@
-# RETIRED 2026-10-14: Sole active odds / price ingestor is PinnOdds.
-# Historical workflow available in Git history; no scheduled or manual
-# non-PinnOdds provider calls may run.
-name: Polymarket US all-sport read-only market observations — RETIRED (PinnOdds only)
+name: Polymarket US all-sport read-only market observations
 on:
+  schedule:
+    # Hourly; paginated public discovery, immutable archive and bounded ingestion.
+    - cron: "12 * * * *"
   workflow_dispatch:
+    inputs:
+      sport:
+        description: 'Public discovery scope (no trading or paid provider collection)'
+        type: choice
+        options: [all, tennis]
+        default: all
+  pull_request:
+    paths:
+      - "functions/lib/polymarketUs.js"
+      - "functions/lib/polymarketCapture.js"
+      - "functions/api/polymarket-pages.js"
+      - "scripts/collect-polymarket-pages.mjs"
+      - "functions/lib/polymarketBoard.js"
+      - "functions/api/polymarket-collect.js"
+      - "functions/api/polymarket-status.js"
+      - "functions/lib/polymarketUsSignedWs.js"
+      - "functions/api/polymarket-ws-capture.js"
+      - "functions/api/projections.js"
+      - "src/components/board/**"
+      - "test/polymarket*.test.js"
+      - ".github/workflows/polymarket-us-market-collect.yml"
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/polymarketUs.js"
+      - "functions/lib/polymarketCapture.js"
+      - "functions/api/polymarket-pages.js"
+      - "scripts/collect-polymarket-pages.mjs"
+      - "functions/lib/polymarketBoard.js"
+      - "functions/api/polymarket-collect.js"
+      - "functions/api/polymarket-status.js"
+      - "functions/api/projections.js"
+      - ".github/workflows/polymarket-us-market-collect.yml"
+
+concurrency:
+  group: fbis-polymarket-us-market-observations
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
-  retired:
+  collector:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      SPORT_SCOPE: ${{ inputs.sport || 'all' }}
     steps:
-      - run: echo "RETIRED_ODDS_INGESTOR_PINNODDS_ONLY; no provider calls, writes, or paid collection."
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Polymarket US source/identity/governance regression tests
+        run: node --test test/polymarket-us-readonly.test.js test/polymarket-board.test.js test/polymarket-us-signed-ws.test.js test/polymarket-pages.test.js
+      - name: Verify production deployment before new scheduled collector
+        if: github.event_name == 'push'
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Archive and reconcile all pages from listed supported public leagues
+        if: github.event_name != 'pull_request'
+        run: node scripts/collect-polymarket-pages.mjs
+      - name: Read-only authenticated Polymarket US WebSocket BBO sampling
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          code="$(curl -sS --max-time 50 --retry 0 \
+            -o artifacts/polymarket-us-ws.json -w '%{http_code}' \
+            -X POST -H "x-harvest-secret: $HARVEST_SECRET" \
+            "$BASE/api/polymarket-ws-capture")"
+          jq -c '{ok,source,connected,subscribed,readOnly,tradingEnabled,sampledMarketCount,marketMessages,parsedMarketMessages,validBbo,inserted,reason}' artifacts/polymarket-us-ws.json
+          echo "- Authenticated US Market WebSocket HTTP: $code" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Matched live BBO responses: $(jq -r '.validBbo // 0' artifacts/polymarket-us-ws.json)" >> "$GITHUB_STEP_SUMMARY"
+          test "$code" = "200"
+          jq -e '.ok==true and .connected==true and .subscribed==true and .readOnly==true and .tradingEnabled==false and .canAuthorizeWager==false' artifacts/polymarket-us-ws.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name != 'pull_request'
+        with:
+          name: polymarket-us-research-${{ github.run_id }}
+          path: |
+            artifacts/polymarket-us-complete.json
+            artifacts/polymarket-page-*.json
+            artifacts/polymarket-us-ws.json
+          if-no-files-found: warn
+          retention-days: 14
