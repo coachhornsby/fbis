@@ -202,22 +202,17 @@ test("snapshot→hydrate→canonical: Case B DK hydrate clears ESPN classificati
  assert.equal(lines.homeMl,-140);
  assert.notEqual(lines.book,"OBSERVED_ESPN");
 });
-test("NHL provider mapping is disabled for paid collection unless separately opted in",async()=>{
+test("NHL production market calls are retired and only PinnOdds captures can reach CURRENT board",async()=>{
  const src=await readFile(new URL("../functions/lib/slateEngineCore.js",import.meta.url),"utf8");
- const parlay=await readFile(new URL("../functions/lib/parlay.js",import.meta.url),"utf8");
  const today=await readFile(new URL("../functions/lib/todayBoard.js",import.meta.url),"utf8");
- const ledger=await readFile(new URL("../functions/lib/projLedger.js",import.meta.url),"utf8");
- assert.match(src,/NHL_ODDS_PROVIDER_OPT_IN/);
- assert.match(src,/strictCacheOnly:[\s\S]*NHL_ODDS_PROVIDER_OPT_IN/);
- assert.match(src,/pinPresent:\s*false/);
- assert.match(parlay,/nhl: "icehockey_nhl"/);
- assert.match(today,/String\(row\.book\|\|""\) !== "Pinnacle"/);
- assert.match(today,/buildSoftMarketOddsByGame|hydrateOddsFromSoftMarketRows/);
- assert.match(today,/same book|atomic|never cross-book/i);
- assert.match(ledger,/packNhlSoftBookMarketObservations/);
- assert.match(ledger,/nhl_source_coverage_alert/);
+ const api=await readFile(new URL("../functions/api/nhl-free-odds-collect.js",import.meta.url),"utf8");
+ assert.doesNotMatch(src,/await fetchParlayOdds\(/);
+ assert.doesNotMatch(src,/await attachKalshiSentiment\(/);
+ assert.match(src,/PINNODDS_LEDGER_ONLY/);
+ assert.match(today,/pinnoddsOnlySlateMarket/);
+ assert.match(today,/loadPinnoddsBoardResearch/);
+ assert.match(api,/retiredOddsCollectorResponse/);
 });
-
 test("board labels observed ESPN full-game ML as non-execution source, not Pinnacle or certified EV",()=>{
  const odds={...g.odds,nhlEspnObserved:true};
  const evt={...g,odds};
