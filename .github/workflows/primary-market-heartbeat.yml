@@ -1,38 +1,13 @@
-name: FBIS primary market-data heartbeat
+# RETIRED 2026-10-14: Sole active odds / price ingestor is PinnOdds.
+# Historical workflow available in Git history; no scheduled or manual
+# non-PinnOdds provider calls may run.
+name: FBIS primary market-data heartbeat — RETIRED (PinnOdds only)
 on:
-  schedule:
-    - cron: '17 * * * *'
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/primary-market-heartbeat.yml'
-      - 'scripts/market-heartbeat-audit.mjs'
-      - 'scripts/lib/marketHeartbeatAudit.mjs'
-      - 'test/market-heartbeat-audit.test.mjs'
-      - 'services/polymarket-us-stream/**'
-  pull_request:
-    paths:
-      - '.github/workflows/primary-market-heartbeat.yml'
-      - 'scripts/market-heartbeat-audit.mjs'
-      - 'scripts/lib/marketHeartbeatAudit.mjs'
-      - 'test/market-heartbeat-audit.test.mjs'
 permissions:
   contents: read
-concurrency:
-  group: fbis-primary-market-heartbeat
-  cancel-in-progress: false
 jobs:
-  audit:
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
     steps:
-      - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4.1.0
-        with:
-          node-version: '22'
-      - name: Verify heartbeat classification
-        run: node --test test/market-heartbeat-audit.test.mjs
-      - name: Inspect public production status (never calls providers)
-        if: github.event_name != 'pull_request'
-        run: node scripts/market-heartbeat-audit.mjs
+      - run: echo "RETIRED_ODDS_INGESTOR_PINNODDS_ONLY; no provider calls, writes, or paid collection."
