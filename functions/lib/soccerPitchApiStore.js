@@ -3,7 +3,7 @@ export function normalizeSoccerName(v=""){
     .replace(/\b(fc|cf|sc|afc|club|de|futbol|football|soccer)\b/g," ")
     .replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
 }
-function n(v){const x=Number(v);return Number.isFinite(x)?x:null;}
+function n(v){if(v==null||typeof v==='boolean'||(typeof v==='string'&&!v.trim()))return null;const x=Number(v);return Number.isFinite(x)?x:null;}
 function now(){return new Date().toISOString();}
 function json(v){return v==null?null:JSON.stringify(v);}
 export async function persistPitchApiBundle(env,bundle={}){
@@ -199,8 +199,8 @@ export async function findPitchApiFixture(env,{leagueKey,date,homeName,awayName}
   const db=env?.DB;if(!db?.prepare||!leagueKey||!date)return null;
   const r=await db.prepare(`SELECT * FROM soccer_pitchapi_match_features
     WHERE league_key=? AND match_date=? ORDER BY source_observed_at DESC`).bind(leagueKey,date).all();
-  const h=normalizeSoccerName(homeName),a=normalizeSoccerName(awayName);
-  return (r?.results||[]).find(x=>normalizeSoccerName(x.home_team_name)===h&&normalizeSoccerName(x.away_team_name)===a)||null;
+  const {matchesPitchApiTeamName}=await import('./soccerPitchApiIdentity.js');
+  return (r?.results||[]).find(x=>matchesPitchApiTeamName(x.home_team_name,homeName,leagueKey)&&matchesPitchApiTeamName(x.away_team_name,awayName,leagueKey))||null;
 }
 export async function loadPitchApiPlayerHistory(env,{playerIds=[],beforeDate,startDate="2021-01-01"}={}){
   const db=env?.DB;if(!db?.prepare||!playerIds.length)return[];
