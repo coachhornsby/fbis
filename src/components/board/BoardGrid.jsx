@@ -1,5 +1,6 @@
 import { isFbsVsFbsGame } from "../../../functions/lib/cfbGameVisibility.js";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { cfbBoardSeasonEvidence } from "../../lib/cfbBoardSeasonJoin.js";
 import PremiumGameCard from "./PremiumGameCard.jsx";
 import SlateToolbar from "./SlateToolbar.jsx";
 import { filterBoardGames, sortBoardGames } from "../../lib/boardDecision.js";
@@ -18,8 +19,28 @@ export default function BoardGrid({
   const [filter, setFilter] = useState("ALL");
   const [hideBlocked, setHideBlocked] = useState(false);
   const [open, setOpen] = useState(() => new Set());
+  const [cfbSource, setCfbSource] = useState(null);
 
-  const sorted = useMemo(() => sortBoardGames(games.filter(isFbsVsFbsGame)), [games]);
+  // Read-only independent FBS statistics. One request per board mount, never
+  // a per-card provider fanout and never fed into model/recommendation logic.
+  useEffect(() => {
+    if (sport !== "cfb") { setCfbSource(null); return; }
+    const ac = new AbortController();
+    setCfbSource(null);
+    fetch("/api/cfb-intelligence", {signal:ac.signal})
+      .then(async response => {
+        if (!response.ok) throw Error("SDV source unavailable");
+        return response.json();
+      })
+      .then(data => {if (!ac.signal.aborted) setCfbSource(data);})
+      .catch(() => {if (!ac.signal.aborted) setCfbSource({ok:false});});
+    return () => ac.abort();
+  }, [sport]);
+
+  const sorted = useMemo(() => sortBoardGames(games.filter(isFbsVsFbsGame)
+    .map(g => sport === "cfb"
+      ? {...g,cfbSeasonEvidence:cfbBoardSeasonEvidence({...g,sport:"cfb"},cfbSource)}
+      : g)), [games,sport,cfbSource]);
   const visible = useMemo(() => {
     let rows = filterBoardGames(sorted, filter);
     if (hideBlocked) rows = filterBoardGames(rows, "HIDE_BLOCKED");
