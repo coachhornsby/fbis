@@ -119,6 +119,31 @@ describe("TODAY cache-only and MY BET markers", () => {
     assert.equal(board.feeds.cbb.sources.cbbd.source, "cbbd");
   });
 
+  it("exposes research-only Polymarket overlay metadata without wager authority", async () => {
+    const board = await buildTodayBoard("2026-10-14", { DB: null }, {
+      focusSport: "nhl",
+      buildSlateFn: async () => ({
+        sport: "nhl",
+        date: "2026-10-14",
+        games: [{
+          id: "401892504",
+          sport: "nhl",
+          start: "2026-10-14T23:00:00Z",
+          home: { name: "Washington Capitals", abbr: "WSH" },
+          away: { name: "Montreal Canadiens", abbr: "MTL" },
+          status: { detail: "Scheduled" },
+          odds: {},
+          model: { projHome: 3.1, projAway: 2.8 },
+        }],
+        parlay: { cached: true, skipped: true },
+      }),
+    });
+    assert.equal(board.polymarketResearch.source, "Polymarket US");
+    assert.equal(board.polymarketResearch.qualified, false);
+    assert.equal(board.polymarketResearch.executable, false);
+    assert.equal(board.polymarketResearch.available, false);
+  });
+
   it("passes parlayCacheOnly and palCacheOnly into the slate builder", async () => {
     const seen = [];
     await buildTodayBoard("2026-08-27", {}, {

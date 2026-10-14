@@ -1,0 +1,153 @@
+{
+  "generatedAt": "2026-10-14T06:09:41.228184Z",
+  "productionCommitAtAudit": "cfb657349a332601dc78bdcf7a83025a119d3aaa",
+  "mergedPrs": {
+    "1093": "Cross-provider fixture matching tests",
+    "1094": "Fixture-to-player identity resolver",
+    "1095": "ATP supplemental identity seeding",
+    "1097": "Unified tennis intelligence-bank API (merge cfb65734) \u2014 DEPLOYED"
+  },
+  "eligibility": {
+    "polymarketStatusWindowHours": 24,
+    "pinnodds": "Latest ARCHIVE board receipts (often stale vs 7h RECENT gate)",
+    "observationLinkageRate": "linkedObservations / totalObservations in window",
+    "eventMarketCoverage": "eventsWithLinkedMarket / eligibleEvents"
+  },
+  "matrix": [
+    {
+      "sport": "nfl",
+      "PinnOdds": "PARTIAL",
+      "Polymarket": "VERIFIED WORKING",
+      "Other": "PARTIAL",
+      "CanonicalLinkage": "VERIFIED WORKING",
+      "CardRendering": "PARTIAL",
+      "Status": "PARTIAL",
+      "notes": "Poly linkRate~0.86, 24 matched games; PinnOdds football_family matched well historically"
+    },
+    {
+      "sport": "cfb",
+      "PinnOdds": "PARTIAL",
+      "Polymarket": "PARTIAL",
+      "Other": "PARTIAL",
+      "CanonicalLinkage": "PARTIAL",
+      "CardRendering": "PARTIAL",
+      "Status": "PARTIAL",
+      "notes": "Poly linkRate~0.39, 7 matched games"
+    },
+    {
+      "sport": "cbb",
+      "PinnOdds": "UNSUPPORTED",
+      "Polymarket": "NO_RECENT",
+      "Other": "UNSUPPORTED",
+      "CanonicalLinkage": "NOT VERIFIED",
+      "CardRendering": "NOT VERIFIED",
+      "Status": "UNSUPPORTED",
+      "notes": "Off-season / no recent Poly capture"
+    },
+    {
+      "sport": "nba",
+      "PinnOdds": "PARTIAL",
+      "Polymarket": "VERIFIED WORKING",
+      "Other": "PARTIAL",
+      "CanonicalLinkage": "VERIFIED WORKING",
+      "CardRendering": "PARTIAL",
+      "Status": "PARTIAL",
+      "notes": "Poly linkRate~0.79, 28 matched games"
+    },
+    {
+      "sport": "wnba",
+      "PinnOdds": "PARTIAL",
+      "Polymarket": "BROKEN",
+      "Other": "UNSUPPORTED",
+      "CanonicalLinkage": "BROKEN",
+      "CardRendering": "NOT VERIFIED",
+      "Status": "BROKEN",
+      "notes": "36 Poly obs, 0 matched games \u2014 residual markets vs empty slate"
+    },
+    {
+      "sport": "mlb",
+      "PinnOdds": "PARTIAL",
+      "Polymarket": "PARTIAL",
+      "Other": "PARTIAL",
+      "CanonicalLinkage": "PARTIAL",
+      "CardRendering": "PARTIAL",
+      "Status": "PARTIAL",
+      "notes": "Poly linkRate~0.63, 2 matched games (postseason thin)"
+    },
+    {
+      "sport": "npb",
+      "PinnOdds": "PARTIAL",
+      "Polymarket": "BROKEN",
+      "Other": "UNSUPPORTED",
+      "CanonicalLinkage": "BROKEN",
+      "CardRendering": "NOT VERIFIED",
+      "Status": "BROKEN",
+      "notes": "24 obs, 0 matched"
+    },
+    {
+      "sport": "kbo",
+      "PinnOdds": "PARTIAL",
+      "Polymarket": "BROKEN",
+      "Other": "UNSUPPORTED",
+      "CanonicalLinkage": "BROKEN",
+      "CardRendering": "NOT VERIFIED",
+      "Status": "BROKEN",
+      "notes": "4 obs, 0 matched"
+    },
+    {
+      "sport": "nhl",
+      "PinnOdds": "VERIFIED WORKING",
+      "Polymarket": "PARTIAL",
+      "Other": "PARTIAL",
+      "CanonicalLinkage": "PARTIAL",
+      "CardRendering": "VERIFIED WORKING",
+      "Status": "PARTIAL",
+      "notes": "Projections cards show Poly WS venueOffers; linkRate~0.32"
+    },
+    {
+      "sport": "soccer",
+      "PinnOdds": "BROKEN",
+      "Polymarket": "BROKEN",
+      "Other": "PARTIAL",
+      "CanonicalLinkage": "BROKEN",
+      "CardRendering": "PARTIAL",
+      "Status": "BROKEN",
+      "notes": "Poly linkRate~0.04; PinnOdds live matchedRows 51/2790; many leagues vs sparse FBIS games"
+    },
+    {
+      "sport": "tennis",
+      "PinnOdds": "BROKEN",
+      "Polymarket": "VERIFIED WORKING",
+      "Other": "UNSUPPORTED",
+      "CanonicalLinkage": "PARTIAL",
+      "CardRendering": "VERIFIED WORKING",
+      "Status": "PARTIAL",
+      "notes": "After #1097: Poly REST matchedEvents=13, today cards show Polymarket venueOffers. PinnOdds still matchedRows=0 on archived snapshots \u2014 rematch op ready, needs HARVEST_SECRET"
+    }
+  ],
+  "pinnoddsTennisRematchTargets": [
+    {
+      "snapshotId": "run-38448188039-1-board-2-prematch",
+      "normalizedRows": 5602,
+      "matchedRows": 0,
+      "collectedAt": "2026-10-13T18:43:05.613Z"
+    },
+    {
+      "snapshotId": "run-38448188039-1-board-2-live",
+      "normalizedRows": 256,
+      "matchedRows": 0,
+      "collectedAt": "2026-10-13T18:52:12.490Z"
+    }
+  ],
+  "unverifiedDueToAccess": [
+    "HARVEST_SECRET not available in this agent environment \u2014 cannot POST /api/pinnodds-ingest rematch",
+    "Paid PinnOdds re-capture intentionally skipped (quota protection)",
+    "Apify usage limit BLOCKED \u2014 Action Network paid collection unavailable"
+  ],
+  "governance": {
+    "polymarketCanQualify": false,
+    "polymarketCanAuthorizeWager": false,
+    "pinnoddsCanAuthorizeWager": false,
+    "actionApifyMode": "shadow"
+  }
+}
