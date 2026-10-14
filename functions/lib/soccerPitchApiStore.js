@@ -178,9 +178,23 @@ export const PITCHAPI_MODEL_HISTORY_COLUMNS = Object.freeze([
  "passes_into_box","key_passes","through_balls","progressive_pass_distance","carries_into_final_third","carries_into_box",
  "avg_defensive_action_x","buildup_attacks","direct_attacks","network_centralization"].flatMap(field=>[`home_${field}`,`away_${field}`])
 ]);
+// Fields sourced from /advanced/teams only. Older source-absent records
+// were incorrectly persisted as numeric zero; mask them at read time rather
+// than rewriting any historical feature or prospective prediction record.
+export const PITCHAPI_ADVANCED_ONLY_FIELDS = Object.freeze([
+  "ppda","field_tilt","final_third_entries","box_entries","high_turnovers",
+  "counterpress_regains","ball_recovery_time","xt","vaep","progressive_passes",
+  "progressive_carries","xag","passes_per_sequence","direct_speed","pass_accuracy",
+  "passes_into_box","key_passes","through_balls","progressive_pass_distance",
+  "carries_into_final_third","carries_into_box","avg_defensive_action_x",
+  "buildup_attacks","direct_attacks","network_centralization"
+]);
+const ADVANCED_ONLY_COLUMNS = new Set(PITCHAPI_ADVANCED_ONLY_FIELDS.flatMap(k=>[`home_${k}`,`away_${k}`]));
 export async function loadPitchApiHistory(env,{leagueKey,beforeDate,startDate="2021-01-01"}={}){
   const db=env?.DB;if(!db?.prepare||!leagueKey)return[];
-  const r=await db.prepare(`SELECT ${PITCHAPI_MODEL_HISTORY_COLUMNS.join(",")} FROM soccer_pitchapi_match_features
+  const columns=PITCHAPI_MODEL_HISTORY_COLUMNS.map(key=>ADVANCED_ONLY_COLUMNS.has(key)
+    ? `CASE WHEN raw_advanced_json IS NULL THEN NULL ELSE ${key} END AS ${key}` : key);
+  const r=await db.prepare(`SELECT ${columns.join(",")} FROM soccer_pitchapi_match_features
     WHERE league_key=? AND match_date>=? AND match_date<? AND status='finished'
     ORDER BY match_date,pitch_match_id`).bind(leagueKey,startDate,beforeDate||"9999-12-31").all();
   return r?.results||[];
