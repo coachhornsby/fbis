@@ -34,13 +34,30 @@ jobs:
         with: { node-version: "22" }
       - name: Require harvest credential
         run: test -n "${HARVEST_SECRET:-}"
-      - name: Export PitchAPI history from D1 in bounded league files
+      - name: Export source-aware scalar history in bounded pages
         run: |
           set -euo pipefail
           mkdir -p artifacts/pitchapi
           for league in eng.1 eng.2 ger.1 esp.1 ita.1 fra.1 uefa.champions uefa.europa usa.1 mex.1; do
-            curl -sS --connect-timeout 5 --max-time 30 --retry 2 --retry-delay 2 --retry-all-errors               -H "x-harvest-secret: $HARVEST_SECRET"               "$BASE/api/soccer-pitchapi-export?league=$league&start=2021-01-01&limit=5000"               -o "artifacts/pitchapi/$league.json"
-            jq -e '.ok == true' "artifacts/pitchapi/$league.json" >/dev/null
+            work="$(mktemp -d)"
+            offset=0
+            : > "$work/rows.ndjson"
+            while true; do
+              curl -fsS --connect-timeout 5 --max-time 45 --retry 2 --retry-delay 2 --retry-all-errors \
+                -H "x-harvest-secret: $HARVEST_SECRET" \
+                "$BASE/api/soccer-pitchapi-export?mode=model&league=$league&start=2021-01-01&limit=250&offset=$offset" \
+                -o "$work/chunk.json"
+              jq -e '.ok == true and .mode == "model" and (.rows|length) == .count' "$work/chunk.json" >/dev/null
+              jq -c '.rows[]' "$work/chunk.json" >> "$work/rows.ndjson"
+              n="$(jq -r '.count' "$work/chunk.json")"
+              offset=$((offset+n))
+              if [ "$offset" -gt 7500 ]; then echo "export exceeded bounded league budget: $league" >&2; exit 1; fi
+              if [ "$n" -lt 250 ]; then break; fi
+            done
+            jq -s --arg league "$league" '{ok:true,league:$league,rows:.,mode:"model"}' "$work/rows.ndjson" > "artifacts/pitchapi/$league.json"
+            jq -e '([.rows[].pitch_match_id]|length) == ([.rows[].pitch_match_id]|unique|length)' "artifacts/pitchapi/$league.json" >/dev/null
+            echo "$league: $offset source-aware scalar matches"
+            rm -rf "$work"
           done
       - name: Run causal v3 vs v2 walk-forward
         run: node scripts/soccer-v3-walkforward.mjs

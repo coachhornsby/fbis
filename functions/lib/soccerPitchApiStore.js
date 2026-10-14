@@ -190,11 +190,16 @@ export const PITCHAPI_ADVANCED_ONLY_FIELDS = Object.freeze([
   "buildup_attacks","direct_attacks","network_centralization"
 ]);
 const ADVANCED_ONLY_COLUMNS = new Set(PITCHAPI_ADVANCED_ONLY_FIELDS.flatMap(k=>[`home_${k}`,`away_${k}`]));
+// Export/research and edge models share the exact same source-aware scalar
+// projection. The SQL may inspect a raw-payload column for presence but never
+// returns raw JSON to a Worker or CI job.
+export function pitchApiModelHistorySelect() {
+  return PITCHAPI_MODEL_HISTORY_COLUMNS.map(key=>ADVANCED_ONLY_COLUMNS.has(key)
+    ? `CASE WHEN raw_advanced_json IS NULL THEN NULL ELSE ${key} END AS ${key}` : key).join(",");
+}
 export async function loadPitchApiHistory(env,{leagueKey,beforeDate,startDate="2021-01-01"}={}){
   const db=env?.DB;if(!db?.prepare||!leagueKey)return[];
-  const columns=PITCHAPI_MODEL_HISTORY_COLUMNS.map(key=>ADVANCED_ONLY_COLUMNS.has(key)
-    ? `CASE WHEN raw_advanced_json IS NULL THEN NULL ELSE ${key} END AS ${key}` : key);
-  const r=await db.prepare(`SELECT ${columns.join(",")} FROM soccer_pitchapi_match_features
+  const r=await db.prepare(`SELECT ${pitchApiModelHistorySelect()} FROM soccer_pitchapi_match_features
     WHERE league_key=? AND match_date>=? AND match_date<? AND status='finished'
     ORDER BY match_date,pitch_match_id`).bind(leagueKey,startDate,beforeDate||"9999-12-31").all();
   return r?.results||[];
