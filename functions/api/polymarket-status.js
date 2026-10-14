@@ -47,7 +47,13 @@ export async function onRequestGet({env}){
       lastMessageAt:stream?.lastMessageAt||null,
       lastHeartbeatAt:stream?.lastHeartbeatAt||null,
       lastError:stream?.lastError||null,
-      lastClose:stream?.lastClose||null
+      lastClose:stream?.lastClose||null,
+      subscriptions:Number(stream?.subscriptions||0),
+      received:Number(stream?.received||0),
+      parsed:Number(stream?.parsed||0),
+      inserted:Number(stream?.inserted||0),
+      reconnects:Number(stream?.reconnects||0),
+      lastConnectAttemptAt:stream?.lastConnectAttemptAt||null
     },sports:states});
  }catch(error){return json({ok:false,error:"market-status-unavailable",detail:String(error?.message||error)},502)}
 }
