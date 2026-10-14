@@ -4,6 +4,12 @@ on:
     # Hourly; paginated public discovery, immutable archive and bounded ingestion.
     - cron: "12 * * * *"
   workflow_dispatch:
+    inputs:
+      sport:
+        description: 'Public discovery scope (no trading or paid provider collection)'
+        type: choice
+        options: [all, tennis]
+        default: all
   pull_request:
     paths:
       - "functions/lib/polymarketUs.js"
@@ -44,6 +50,7 @@ jobs:
     env:
       BASE: https://fbis-myz.pages.dev
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      SPORT_SCOPE: ${{ inputs.sport || 'all' }}
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0

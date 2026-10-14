@@ -1,6 +1,8 @@
 /** Drive bounded Pages operations. Secrets stay in headers, never artifacts. */
 import {mkdir,writeFile} from 'node:fs/promises';
 const base=process.env.BASE||'https://fbis-myz.pages.dev',secret=process.env.HARVEST_SECRET;
+const sportScope=process.env.SPORT_SCOPE||'all';
+if(!['all','tennis'].includes(sportScope))throw Error('INVALID_PUBLIC_DISCOVERY_SCOPE');
 if(!secret)throw Error('HARVEST_SECRET_REQUIRED');
 const run=`run-${process.env.GITHUB_RUN_ID||Date.now()}-${process.env.GITHUB_RUN_ATTEMPT||1}`;
 await mkdir('artifacts',{recursive:true});
@@ -33,11 +35,14 @@ async function traverse(kind,slug=null,sport=null){
 const catalogue=await traverse('catalogue'),leagues=new Map();
 for(const page of catalogue)for(const league of page.leagues||[])if(league.sport)leagues.set(league.slug,league);
 const results=[],errors=[];
-for(const league of leagues.values()){
+// Tennis goes first so a slow football/baseball catalogue cannot starve its fresh evidence.
+const selected=[...leagues.values()].filter(l=>sportScope==='all'||l.sport===sportScope)
+ .sort((a,b)=>Number(b.sport==='tennis')-Number(a.sport==='tennis'));
+for(const league of selected){
  try{const pages=await traverse('events',league.slug,league.sport);results.push({league:league.slug,sport:league.sport,pages:pages.length,events:pages.reduce((s,p)=>s+p.itemCount,0),observations:pages.reduce((s,p)=>s+p.persistedRows,0),complete:true});}
  catch(error){errors.push({league:league.slug,sport:league.sport,error:error.message});}
 }
-const summary={ok:errors.length===0,run,catalogueComplete:true,listedLeagueCount:leagues.size,results,errors,
+const summary={ok:errors.length===0,run,sportScope,catalogueComplete:true,listedLeagueCount:leagues.size,selectedLeagueCount:selected.length,results,errors,
  availablePublicLeaguePagesComplete:errors.length===0,fullProviderEntitlementCoverageVerified:false,providerSnapshotAtomic:false,
  readOnly:true,canAuthorizeWager:false};
 await writeFile('artifacts/polymarket-us-complete.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary));
