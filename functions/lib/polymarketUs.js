@@ -53,11 +53,44 @@ function teamMatches(a,b,abbr){
   if(short.length>=4 && !GENERIC_TEAM_TOKENS.has(short) && long.endsWith(" "+short))return true;
   return false;
 }
+/** Singles tennis matching requires two *complete* player names and a verified
+ * start time. Never attach a sportsbook event using one surname, a market side,
+ * an Action-only event id, or a synthetic source identity. */
+function tennisFullName(value){
+ return String(value||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase()
+  .replace(/[^a-z0-9]+/g," ").trim().replace(/\\s+/g," ");
+}
+function tennisTitlePlayers(title){
+ const parts=String(title||"").split(/\\s+(?:vs?\\.?|versus)\\s+/i);
+ if(parts.length!==2)return null;
+ const names=parts.map(tennisFullName);
+ if(names.some(x=>x.split(" ").length<2||x.length<5||/\\s\\/\\s/.test(x)))return null;
+ if(names[0]===names[1])return null;
+ return names;
+}
+function matchTennisNames(e,games,start){
+ const parts=tennisTitlePlayers(e.title);
+ if(!parts)return {id:null,reason:"TENNIS_PLAYERS_UNVERIFIED"};
+ const series=String(e.seriesSlug||e.leagueSlug||"").toLowerCase();
+ const expectedTour=/^(wta|atp)(?:-|$)/.exec(series)?.[1]||null;
+ const candidates=games.filter(g=>{
+  if(expectedTour&&g.tour&&String(g.tour).toLowerCase()!==expectedTour)return false;
+  const at=Date.parse(g.start||"");
+  if(!Number.isFinite(at)||Math.abs(at-start)>2*60*60*1000)return false;
+  const left=tennisFullName(g.away_name||g.player1||"");
+  const right=tennisFullName(g.home_name||g.player2||"");
+  return left&&right&&left!==right&&
+   ((left===parts[0]&&right===parts[1])||(left===parts[1]&&right===parts[0]));
+ });
+ return candidates.length===1?{id:String(candidates[0].id),reason:"TENNIS_TWO_PLAYER_START_VERIFIED"}:
+  {id:null,reason:candidates.length?"AMBIGUOUS_TENNIS_EVENT":"UNMATCHED_TENNIS_EVENT"};
+}
 /** Match only with two independent team identities and <=2h kickoff tolerance.
  * Do not derive canonical ID from Polymarket IDs or bookmaker prices. */
 export function matchPolymarketUsEvent(e,games=[],sport){
   const start=Date.parse(marketEventStart(e)||"");
   if(!Number.isFinite(start))return {id:null,reason:"EVENT_START_UNVERIFIED"};
+  if(sport==="tennis")return matchTennisNames(e,games,start);
   const sides=Array.isArray(e.markets)?e.markets.flatMap(m=>m.marketSides||[]):[];
   const participants=[e.awayTeam?.name,e.homeTeam?.name,
     ...(e.teams||[]).map(x=>x.name||x),
