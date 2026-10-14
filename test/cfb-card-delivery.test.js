@@ -145,3 +145,13 @@ for(const status of [{live:false,completed:false},{live:true,completed:false},{l
  assert.equal(card.projection.home,p.home);assert.equal(card.gameState.live,status.live);assert.equal(card.gameState.completed,status.completed);
  assert.equal(x.cfb.bettingAllowed,false);
 });
+
+import {isFbsVsFbsGame} from "../functions/lib/cfbGameVisibility.js";
+test("CFB board DTO retains exact provider identities required by the FBS-only second filter",()=>{
+ const g=game(),b=toBoardGame(g,"cfb");
+ assert.equal(b.home.espnId,"204");assert.equal(b.away.espnId,"21");
+ assert.equal(b.home.providerTeamId,"204");assert.equal(b.away.providerTeamId,"21");
+ assert.equal(isFbsVsFbsGame(b),true,"Valid FBS matchup must remain visible on BoardGrid");
+ const fcs=toBoardGame({...g,away:{...g.away,espnId:"1"}},"cfb");
+ assert.equal(isFbsVsFbsGame(fcs),false,"Verified FBS filtering must remain strict");
+});
