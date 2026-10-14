@@ -66,3 +66,11 @@ test("WebSocket discovery fallback never extends indefinitely",()=>{
  const {since,freshSince}=streamContractRosterWindow(Date.parse("2026-10-14T03:16:00Z"));
  assert.equal(Date.parse(freshSince)-Date.parse(since),(6*60-35)*60*1000);
 });
+
+test("SQL roster is balanced by sport before subscription cap",async()=>{
+ const {readFileSync}=await import("node:fs");
+ const worker=readFileSync(new URL("../services/polymarket-us-stream/worker.mjs",import.meta.url),"utf8");
+ assert.match(worker,/PARTITION BY sport ORDER BY/);
+ assert.match(worker,/WHERE sport_rank<=6/);
+ assert.doesNotMatch(worker,/collected_at DESC LIMIT 750/);
+});
