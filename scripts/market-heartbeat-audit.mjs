@@ -31,6 +31,8 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     `| PinnOdds | ${report.pinnodds.freshFullBoardScopes}/12 full-board scopes captured within 8h |`,
     `| Polymarket REST | Last collection ${report.polymarket.restCaptureAgeMinutes ?? "unknown"} minutes ago |`,
     `| Polymarket WebSocket | ${report.websocket.operational ? "Connected and operational" : report.websocket.idleNoActiveMarkets ? "Idle: no active markets" : "Disconnected or inactive"} |`,
+    `| Stream signer proxy | Worker: ${String(report.websocket.workerSignerProxyConfigured)} / DO: ${String(report.websocket.doSignerProxyConfigured)} |`,
+    `| Last connection attempt | ${report.websocket.lastConnectAttemptAt || "not observed"} |`,
     "",
     `Failures: ${report.failures.join(", ") || "none"}`,
     "",
