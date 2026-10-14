@@ -44,3 +44,16 @@ test("cannot request unbounded date windows or invalid tours",async()=>{
  await assert.rejects(captureEspnTennisSchedule({ARCHIVE:{put(){}},DB:{prepare(){}}},{tour:"atp",date:"20261201",now:new Date(clock)}),/OUTSIDE_ALLOWED_WINDOW/);
  await assert.rejects(captureEspnTennisSchedule({ARCHIVE:{put(){}},DB:{prepare(){}}},{tour:"tennis",date:"20261014",now:new Date(clock)}),/INVALID_SOURCE_SCOPE/);
 });
+
+test("actual ESPN tennis tournament groupings contain the match competitions",()=>{
+ const payload={events:[{id:"event42",date:"2026-10-10T00:00:00Z",
+  groupings:[{grouping:{name:"Singles"},competitions:[{
+   id:"c123",date:"2026-10-15T14:30:00Z",timeValid:true,
+   status:{type:{state:"pre"}},competitors:[
+    {athlete:{displayName:"Elsa Jacquemot"}},{athlete:{displayName:"Teodora Kostovic"}}]
+  }]}]}]};
+ const parsed=extractEspnTennisFixtures(payload,{tour:"wta",fetchedAt:clock});
+ assert.equal(parsed.rows.length,1);
+ assert.equal(parsed.rows[0].fixtureId,"tennis:espn:wta:event42:c123");
+ assert.equal(parsed.rows[0].matchTime,"2026-10-15T14:30:00.000Z");
+});
