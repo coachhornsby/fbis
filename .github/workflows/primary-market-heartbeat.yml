@@ -10,6 +10,7 @@ on:
       - 'scripts/market-heartbeat-audit.mjs'
       - 'scripts/lib/marketHeartbeatAudit.mjs'
       - 'test/market-heartbeat-audit.test.mjs'
+      - 'services/polymarket-us-stream/**'
   pull_request:
     paths:
       - '.github/workflows/primary-market-heartbeat.yml'
