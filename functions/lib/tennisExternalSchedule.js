@@ -35,6 +35,11 @@ export function extractEspnTennisFixtures(body,{tour,fetchedAt}={}){
     ...(Array.isArray(e.groupings)?e.groupings.flatMap(g=>Array.isArray(g.competitions)?g.competitions:[]):[])];
   for(const c of comps){
    if(!token(c?.id)){reject("COMPETITION_ID_UNVERIFIED");continue}
+   const bracket=String(c.type?.slug||"").toLowerCase();
+   if(bracket&&bracket!==(tour==="atp"?"mens-singles":"womens-singles")){
+    reject("NOT_VERIFIED_SINGLES");continue;
+   }
+   if(c.timeValid===false){reject("MATCH_TIME_UNVERIFIED");continue}
    if(!Array.isArray(c?.competitors)||c.competitors.length!==2){reject("NOT_VERIFIED_SINGLES");continue}
    const names=c.competitors.map(competitorName);
    if(!names[0]||!names[1]||normal(names[0])===normal(names[1])){reject("PLAYER_IDENTITY_UNVERIFIED");continue}
