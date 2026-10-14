@@ -20,8 +20,19 @@ export function fairMarketSelection(rows,{perSport=6,maxMarkets=48}={}){
     if(!group)continue;seen.add(slug);group.push(row);
   }
   const result=[];
+  // Reserve the six tennis contracts whenever they actually exist; across
+  // eleven sports the original 48-slot round robin allocated tennis only four.
+  // Other sports still receive >=4 when each has enough contracts (48 total).
+  // No stale/expired market is created here: upstream candidates determine eligibility.
+  if(maxMarkets>=STREAM_SPORTS.length*4 && perSport>=5){
+    for(const item of (groups.get("tennis")||[]).slice(0,perSport)){
+      if(result.length>=maxMarkets)break;
+      result.push(item);
+    }
+  }
   for(let i=0;i<perSport&&result.length<maxMarkets;i++){
     for(const sport of STREAM_SPORTS){
+      if(result.some(r=>r.source_market_id===groups.get(sport)?.[i]?.source_market_id))continue;
       const item=groups.get(sport)?.[i];
       if(item)result.push(item);
       if(result.length>=maxMarkets)break;
