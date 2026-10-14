@@ -2761,6 +2761,8 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
       const nhlCoverageDays = [];
       let sportWrites = emptyWriteCounts();
       const sportFailReasons = [];
+      const cfbCollectedGames = [];
+      let cfbPit = null;
       for (const day of unique) {
         dates.push(day);
         const slate = await builder(sport, day, {
@@ -2798,6 +2800,8 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         sportWrites = mergeWriteCounts(sportWrites, frozen.counts || emptyWriteCounts());
         if (frozen.failReasons?.length) sportFailReasons.push(...frozen.failReasons);
         n += slate.games?.length || 0;
+        if (sport === "cfb" && !healthMode && trigger === "schedule")
+          cfbCollectedGames.push(...(slate.games || []));
         const palView = slate.pal?.match || slate.pal?.meta || slate.pal || null;
         const recordsPalHealth = sport === "mlb" && shouldRecordPalHealth(day, date, { healthMode, dayOffset });
         // Preserve the operator-day MLB Pal observation in the job response.
@@ -2861,6 +2865,24 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         }
         days.push({ date: day, n: slate.games?.length || 0 });
       }
+      if (sport === "cfb" && !healthMode && trigger === "schedule" && cfbCollectedGames.length) {
+        // Immutable source-only PIT research evidence in the EXISTING approved table.
+        // This does not touch recovery-gated 0098/0099 ledgers, forecasts or permissions.
+        // The prior CFB slate construction warmed the CFBD cache. Freeze never
+        // triggers an additional paid API request and rejects poststart observations.
+        try {
+          const {freezeCfbPregameFeatures} = await import("./cfbPitFeatureDelivery.js");
+          cfbPit = await freezeCfbPregameFeatures(env, {
+            games: cfbCollectedGames, now: new Date().toISOString(),
+          });
+        } catch (error) {
+          cfbPit = {ok:false,reason:"cfb-pit-freeze-exception",detail:String(error?.message||error).slice(0,240)};
+        }
+        if (cfbPit.ok === false) {
+          sportFailReasons.push("CFB PIT source capture: " + (cfbPit.reason || cfbPit.lastWriteError || "failed"));
+          if (cfbPit.failed) sportWrites.writesFailed += cfbPit.failed;
+        }
+      }
       writes = mergeWriteCounts(writes, sportWrites);
       gamesDiscovered += n;
       sports.push({
@@ -2871,6 +2893,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         dates: days,
         pal,
         ...(sport === "nhl" ? {nhlCoverage:nhlCoverageDays} : {}),
+        ...(sport === "cfb" ? {cfbPit:cfbPit || {ok:false,reason:healthMode?"health-mode":trigger!=="schedule"?"not-scheduled":cfbCollectedGames.length?"source-unavailable":"no-collected-games",authority:"research-only"}} : {}),
         writes: sportWrites,
       });
       if (sportWrites.writesFailed) {

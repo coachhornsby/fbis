@@ -1,0 +1,12 @@
+.cfb-sdv-strip{margin:12px 0;padding:14px;border:1px solid color-mix(in srgb,currentColor 20%,transparent);border-radius:12px;background:rgba(110,125,150,.06)}
+.cfb-sdv-strip header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.cfb-sdv-strip header strong{font-size:.89rem;letter-spacing:.05em}
+.cfb-sdv-strip header span,.cfb-sdv-strip p{font-size:.72rem;opacity:.77}
+.cfb-sdv-coverage{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:8px 0;font-size:.78rem;font-weight:700}
+.cfb-sdv-scroll{width:100%;overflow-x:auto}
+.cfb-sdv-strip table{width:100%;border-collapse:collapse;font-size:.78rem}
+.cfb-sdv-strip th,.cfb-sdv-strip td{padding:6px 8px;border-bottom:1px solid color-mix(in srgb,currentColor 13%,transparent);text-align:right;font-variant-numeric:tabular-nums}
+.cfb-sdv-strip th:first-child{text-align:left}
+.cfb-sdv-strip thead th{font-size:.7rem;opacity:.83}
+.cfb-sdv-strip p{line-height:1.45;margin:8px 0 0}
+.cfb-sdv-strip.is-unavailable{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;font-size:.78rem}

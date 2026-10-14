@@ -24,27 +24,40 @@ export function safeCfbFeatureFreeze(game,feed,{now=new Date().toISOString()}={}
  features,modelId:"CFB-PIT-DIRECTIONAL-RESEARCH",contentHash:sha256Hex(JSON.stringify({asOf,features})),
  decomposition:{directionalAudit:audit.available,source:"cached-pregame-aggregates",authority:"display-only"},uncertainty:{provisional:audit.available!==4},jobRunId:null}};
 }
-export async function freezeCfbPregameFeatures(env,{dates=null,now=new Date().toISOString(),fetchFn=fetch}={}){
+export async function freezeCfbPregameFeatures(env,{dates=null,games=null,now=new Date().toISOString(),fetchFn=fetch}={}){
  const clock=time(now);
  if(clock==null||!env?.DB)return {ok:false,reason:"time-or-db-unavailable"};
- const feed=await loadCfbDeepFeatures(env,{now:clock,fetchFn});
+ // Collection already acquired and cached this feed. Never spend extra CFBD quota
+ // inside the follow-up freeze (a cache miss is explicit, not a hidden fetch).
+ const feed=await loadCfbDeepFeatures({...env,cfbdCacheOnly:true},{now:clock,fetchFn});
  if(!feed?.meta?.asOf||!Object.keys(feed.bySchool||{}).length)return {ok:false,reason:Number(feed?.meta?.httpStatus)===429?"CFBD 429 rate-limited":"deep-feed-unavailable",feed:feed?.meta||null};
- const {buildSlate}=await import("./slateEngineCore.js");
  const datesToCheck=dates||Array.from({length:8},(_,i)=>dateCT(clock+i*86400000));
- const summary={ok:true,checked:0,eligible:0,inserted:0,existing:0,failed:0,missing:0,skippedDates:[],feed:feed.meta,days:datesToCheck,authority:"research-only"};
- for(const date of datesToCheck.slice(0,8)){
-  let slate;
-  try{slate=await buildSlate("cfb",date,{...env,cfbdCacheOnly:true,parlayCacheOnly:true});}
-  catch(err){summary.skippedDates.push({date,reason:String(err?.message||err).slice(0,160)});continue;}
-  for(const game of attachCfbDeepFeatures((slate?.games||[]).slice(0,100),feed)){
+ const summary={ok:true,checked:0,eligible:0,inserted:0,existing:0,failed:0,missing:0,skippedDates:[],feed:feed.meta,days:datesToCheck,authority:"research-only",source:"CFBD_CACHED_PREGAME"};
+ const process=async slateGames=>{
+  // Dedupe by event ID; never backfill completed games or overwrite historical PIT.
+  const seen=new Set();
+  for(const game of attachCfbDeepFeatures((slateGames||[]).slice(0,500),feed)){
+   if(seen.has(String(game?.id)))continue;
+   seen.add(String(game?.id));
    summary.checked++;
    const candidate=safeCfbFeatureFreeze(game,feed,{now});
    if(!candidate.ok){summary.missing++;continue;}
    summary.eligible++;
    const save=await insertCfbPregameFeatureVector(env,candidate.record);
    if(save.ok){summary.inserted+=Number(save.inserted||0);summary.existing+=Number(save.already||0);}
-   else summary.failed++;
+   else {summary.failed++;summary.lastWriteError=save.reason||"feature-vector-write-failed";}
   }
+ };
+ if(Array.isArray(games)){
+  await process(games);
+ }else{
+  const {buildSlate}=await import("./slateEngineCore.js");
+  const gathered=[];
+  for(const date of datesToCheck.slice(0,8)){
+   try{const slate=await buildSlate("cfb",date,{...env,cfbdCacheOnly:true,parlayCacheOnly:true});gathered.push(...(slate?.games||[]));}
+   catch(err){summary.skippedDates.push({date,reason:String(err?.message||err).slice(0,160)});}
+  }
+  await process(gathered);
  }
  summary.ok=summary.failed===0;
  return summary;
