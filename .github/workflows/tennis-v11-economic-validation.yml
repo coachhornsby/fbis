@@ -22,7 +22,7 @@ jobs:
       TENNIS_ECON_SIMS: "1200"
       TENNIS_ECON_OUT: "research/tennis/economic-usopen-2025.json"
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: 22

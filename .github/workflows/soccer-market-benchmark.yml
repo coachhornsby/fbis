@@ -28,7 +28,7 @@ jobs:
       SOCCER_MARKET_BENCHMARK_MIN_MATCHED: "20"
       SOCCER_MARKET_WAIT_SECS: "45"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22

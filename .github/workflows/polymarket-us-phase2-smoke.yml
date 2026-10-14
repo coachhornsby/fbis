@@ -20,7 +20,7 @@ jobs:
       STREAM_BASE: https://fbis-polymarket-us-stream.coachhornsby.workers.dev
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"

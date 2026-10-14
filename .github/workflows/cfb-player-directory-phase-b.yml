@@ -36,7 +36,7 @@ jobs:
       CFB_ROSTER_START: ${{ inputs.start_year }}
       CFB_ROSTER_END: ${{ inputs.end_year }}
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
