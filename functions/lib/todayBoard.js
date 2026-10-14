@@ -138,6 +138,13 @@ export function toBoardGame(game, sport, now = Date.now()) {
       abbr: game.away?.abbr,
       logo: game.away?.logo,
       canonicalId: game.away?.canonicalId,
+      // Preserve provider identity through the second FBS-only board filter.
+      // A name or mascot must never stand in for a verified FBS ID.
+      espnId: sport === "cfb" ? game.away?.espnId ?? null : null,
+      providerTeamId: sport === "cfb" ? game.away?.providerTeamId ?? null : null,
+      classification: sport === "cfb" ? game.away?.classification ?? null : null,
+      providerClassification: sport === "cfb" ? game.away?.providerClassification ?? null : null,
+      classificationSource: sport === "cfb" ? game.away?.classificationSource ?? null : null,
       countryCode: game.away?.countryCode || null,
       headshotUrl: game.away?.headshotUrl || null,
       rankingAsOf: game.away?.rankingAsOf || null,
@@ -158,6 +165,13 @@ export function toBoardGame(game, sport, now = Date.now()) {
       abbr: game.home?.abbr,
       logo: game.home?.logo,
       canonicalId: game.home?.canonicalId,
+      // Preserve provider identity through the second FBS-only board filter.
+      // A name or mascot must never stand in for a verified FBS ID.
+      espnId: sport === "cfb" ? game.home?.espnId ?? null : null,
+      providerTeamId: sport === "cfb" ? game.home?.providerTeamId ?? null : null,
+      classification: sport === "cfb" ? game.home?.classification ?? null : null,
+      providerClassification: sport === "cfb" ? game.home?.providerClassification ?? null : null,
+      classificationSource: sport === "cfb" ? game.home?.classificationSource ?? null : null,
       countryCode: game.home?.countryCode || null,
       headshotUrl: game.home?.headshotUrl || null,
       rankingAsOf: game.home?.rankingAsOf || null,
