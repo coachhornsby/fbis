@@ -39,7 +39,7 @@ export async function onRequestGet({env}){
   const tennisWs=tennisMap.get('Polymarket US WebSocket')||{};
   const upcoming=Number(tennisRest.upcoming_observations||0);
   const officialCount=Number(officialTennis?.n||0);
-  const tennisStatus=officialCount===0&&upcoming>0?'OFFICIAL_SCHEDULE_MISSING':
+  const tennisStatus=officialCount===0?'OFFICIAL_SCHEDULE_MISSING':
     upcoming>0&&Number(tennisRest.matched_events||0)===0?'UPCOMING_MARKETS_UNMATCHED':
     upcoming===0?'NO_UPCOMING_REST_CONTRACTS':
     Number(tennisWs.observations||0)===0?'UPCOMING_REST_ONLY_NO_WEBSOCKET':'RESEARCH_OBSERVATIONS';
