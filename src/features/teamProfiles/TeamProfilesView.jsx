@@ -36,7 +36,7 @@ export default function TeamProfilesView({refreshKey=0}) {
  <span>Clean sheets: {profile.stats.cleanSheets??'Unavailable'}</span><span>BTTS: {profile.stats.bttsRate==null?'Unavailable':`${Math.round(profile.stats.bttsRate*100)}%`}</span></div>
  <h3>Recent acquired results</h3><ul>{profile.stats.recentMatches.map(m=><li key={m.eventId}>{m.date} · {m.home?'vs':'at'} {m.opponent} · {m.goalsFor}-{m.goalsAgainst} ({m.result})</li>)}</ul>
  <h3>PitchAPI advanced team data</h3>
- <p>{profile.advanced.scope} · {profile.advanced.sampleSize} matches · {profile.advanced.availableMetrics}/{profile.advanced.metrics.length} metrics available.</p>
+ <p>{profile.advanced.scope} · {profile.advanced.sampleSize} acquired matches · {profile.advanced.advancedSourceMatches??'—'} source-backed advanced matches · {profile.advanced.advancedSourceMissing??'—'} missing advanced payloads · {profile.advanced.availableMetrics}/{profile.advanced.metrics.length} metrics available.</p>
  <p>Latest source observation: {profile.advanced.sourceObservedAt||'Unavailable'} · Match window: {profile.advanced.historyStart||'—'} to {profile.advanced.historyEnd||'—'}.</p>
  {profile.advanced.reconciliation.storedBigChancesMismatchCount>0&&<p>Source reconciliation: {profile.advanced.reconciliation.storedBigChancesMismatchCount} stored big-chance values differ from retained PitchAPI responses. This display uses the retained source values.</p>}
  {profile.advanced.unavailableReason&&<p>{profile.advanced.unavailableReason}</p>}
