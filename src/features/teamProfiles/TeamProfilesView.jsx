@@ -5,6 +5,7 @@ import TeamLogo from '../../components/TeamLogo.jsx';
 export default function TeamProfilesView({refreshKey=0}) {
  const [sport,setSport]=useState('soccer'),[directory,setDirectory]=useState(null),[league,setLeague]=useState('eng.1');
  const [search,setSearch]=useState(''),[selected,setSelected]=useState(null),[profile,setProfile]=useState(null),[error,setError]=useState(null);
+ const [leagueRankings,setLeagueRankings]=useState(null),[rankError,setRankError]=useState(null);
  useEffect(()=>{const ac=new AbortController();fetch('/api/soccer-team-profiles',{signal:ac.signal}).then(r=>r.json()).then(d=>{
   if(!d.ok)throw new Error(d.error);setDirectory(d);
  }).catch(e=>{if(e.name!=='AbortError')setError(e.message);});return()=>ac.abort();},[refreshKey]);
@@ -12,6 +13,12 @@ export default function TeamProfilesView({refreshKey=0}) {
   fetch(`/api/soccer-team-profiles?team=${encodeURIComponent(selected)}&league=${encodeURIComponent(league)}`,{signal:ac.signal})
    .then(r=>r.json()).then(d=>{if(!d.ok)throw new Error(d.error);setProfile(d);})
    .catch(e=>{if(e.name!=='AbortError')setError(e.message);});return()=>ac.abort();},[selected,league,refreshKey]);
+ useEffect(()=>{if(sport!=='soccer')return;const ac=new AbortController();setLeagueRankings(null);setRankError(null);
+   fetch(`/api/soccer-team-rankings?league=${encodeURIComponent(league)}`,{signal:ac.signal})
+    .then(r=>r.json()).then(d=>{if(!d.ok)throw new Error(d.error);setLeagueRankings(d);})
+    .catch(e=>{if(e.name!=='AbortError')setRankError(e.message);});return()=>ac.abort();
+ },[sport,league,refreshKey]);
+ const selectedRanking=leagueRankings?.teams?.find(t=>t.id===selected);
  const teams=(directory?.competitions.find(c=>c.league===league)?.teams||[]).filter(t=>t.name.toLowerCase().includes(search.toLowerCase()));
  const fmt=v=>v==null?'Unavailable':Number(v).toFixed(2);
  return <section style={{padding:20}}><div className="toolbar"><h2>FBIS Team Profiles</h2>
@@ -42,6 +49,15 @@ export default function TeamProfilesView({refreshKey=0}) {
  {profile.advanced.unavailableReason&&<p>{profile.advanced.unavailableReason}</p>}
  <div style={{overflowX:'auto'}}><table><thead><tr><th>Metric</th><th>Team average</th><th>Opponent average</th><th>Samples</th><th>Last 10 matches</th></tr></thead><tbody>
  {profile.advanced.metrics.map(m=><tr key={m.key}><td>{m.label}</td><td>{fmt(m.value)}</td><td>{fmt(m.opponent.value)}</td><td>{m.sampleSize}</td><td>{fmt(m.recent10.value)} ({m.recent10.sampleSize})</td></tr>)}</tbody></table></div>
+ <h3>Competition source rankings</h3>
+ <p>{leagueRankings?.methodology||'Comparisons loading or unavailable.'}</p>
+ {rankError&&<p role="status">Ranking source unavailable: {rankError}</p>}
+ {selectedRanking?.missingReason&&<p>{selectedRanking.missingReason.replaceAll('-',' ')}</p>}
+ {selectedRanking&&!selectedRanking.missingReason&&<div style={{overflowX:'auto'}}><table><thead><tr><th>Metric</th><th>Rank</th><th>Value</th><th>Sample</th></tr></thead><tbody>
+ {(leagueRankings?.metrics||[]).map(metric=>{const r=selectedRanking.ranks?.[metric.key];return <tr key={metric.key}>
+ <td>{metric.label}</td><td>{r? `#${r.rank} / ${r.eligibleTeams}`:'Unavailable'}</td>
+ <td>{r?fmt(r.value):'—'}</td><td>{r?.sample??'—'}</td></tr>;})}
+ </tbody></table></div>}
  <h3>Roster</h3><p>{profile.roster.source||'Roster unavailable'}{profile.roster.observedAt?` · Acquired ${profile.roster.observedAt}`:''}{profile.roster.stale?' · Stale snapshot':''}</p>
  {profile.roster.unavailableReason&&<p>{profile.roster.unavailableReason}</p>}
  <div style={{overflowX:'auto'}}><table><thead><tr><th>Player</th><th>Position</th><th>Number</th><th>Age</th></tr></thead><tbody>
