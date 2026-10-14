@@ -1,4 +1,3 @@
-import {retiredOddsCollectorResponse} from "../lib/activeOddsPolicy.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { persistNormalizedMarketBatch } from "../lib/marketObservationLedger.js";
 import {loadVerifiedTennisCandidates} from "../lib/polymarketTennisIdentity.js";
@@ -110,7 +109,6 @@ export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(
 export async function onRequestPost(context){
  const auth=authorizeHarvest(context.request,context.env);
  if(!auth.ok)return json(unauthorizedBody(auth.reason),403);
-  return json(retiredOddsCollectorResponse("POLYMARKET_US"),410);
  if(!context.env?.DB)return json({ok:false,error:"durable-d1-unavailable"},503);
  const u=new URL(context.request.url);
  const date=u.searchParams.get("date");
