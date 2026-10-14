@@ -23,8 +23,10 @@ export default function CfbSeasonStatStrip({evidence}) {
     ["Offensive success rate","offenseSuccess",3],
     ["Defensive success rate","defenseSuccess",3],
     ["Defensive havoc","havocDefense",3],
-    ["Passing EPA/play","passingOffenseEpa",3],
-    ["Rushing EPA/play","rushingOffenseEpa",3],
+    ["Passing offense EPA/play","passingOffenseEpa",3],
+    ["Passing defense EPA allowed","passingDefenseEpa",3],
+    ["Rushing offense EPA/play","rushingOffenseEpa",3],
+    ["Rushing defense EPA allowed","rushingDefenseEpa",3],
     ["Points/opportunity","pointsPerOpportunityOffense",2],
   ];
   return <section className="cfb-sdv-strip" aria-label="2026 CFB SportsDataverse team statistics">
