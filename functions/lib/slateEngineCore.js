@@ -1641,10 +1641,10 @@ async function enrichCfbVenuesFromEspn(games, anchorDay) {
 
 const SOCCER_ESPN_LEAGUES = Object.freeze(["eng.1","esp.1","ger.1","ita.1","fra.1","usa.1","usa.nwsl"]);
 
-async function fetchSoccerScoreboard(date) {
+async function fetchSoccerScoreboard(date, competition = null) {
   const stamp = dateStamp(date);
   const games = [];
-  for (const league of SOCCER_ESPN_LEAGUES) {
+  for (const league of SOCCER_ESPN_LEAGUES.filter(league=>!competition||league===competition)) {
     try {
       const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${stamp}&limit=100`;
       const json = await fetchJsonGuarded(url, {
@@ -1706,7 +1706,7 @@ export async function buildSlate(sport, date, env = {}) {
 
   if (id === "soccer") {
     const [espnGames,pitchGames] = await Promise.all([
-      fetchSoccerScoreboard(day).catch(()=>[]),
+      fetchSoccerScoreboard(day, env.soccerProofCompetition || null).catch(()=>[]),
       loadPitchApiBoardFixtures(env,{date:day}).catch(()=>[]),
     ]);
     const byFixture=new Map();
@@ -1719,7 +1719,7 @@ export async function buildSlate(sport, date, env = {}) {
       const k=fixtureKey(g);
       if(!byFixture.has(k)) byFixture.set(k,g);
     }
-    games=[...byFixture.values()];
+    games=[...byFixture.values()].filter(g=>!env.soccerProofCompetition||g.soccerLeague===env.soccerProofCompetition);
     scheduleResolved=true;
   }
 
@@ -1940,3 +1940,4 @@ export async function buildSlate(sport, date, env = {}) {
   };
   return slate;
 }
+
