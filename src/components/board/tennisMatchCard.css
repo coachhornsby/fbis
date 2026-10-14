@@ -21,3 +21,7 @@
 .tmc-main{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,.9fr) minmax(0,1.05fr);align-items:start}.tmc-main .tmc-projection-panel{grid-column:4}.tmc-main .tmc-panel th,.tmc-main .tmc-panel td{padding:9px 7px}.tmc-main .tmc-comparison td:not(:first-child){font-size:19px}.tmc-main .tmc-projected{grid-template-columns:1fr}.tmc-main .tmc-projected>div{padding:7px 10px}.tmc-main .tmc-projected b{font-size:13px}.tmc-main .tmc-projection-panel .tmc-projected div:first-child b{font-size:21px}.tmc-main .tmc-info dl{gap:9px;padding:10px;font-size:11px}.tmc-market-details{padding:0 10px 10px}.tmc-market-details:empty{display:none}.tmc-lower{align-items:start}.tmc-context-summary{padding:12px!important}.tmc-action-status{align-self:start}
 @container(max-width:1050px){.tmc-main{grid-template-columns:1fr 1fr}.tmc-main .tmc-projection-panel{grid-column:auto;grid-row:1;grid-column:2}.tmc-main .tmc-projected{grid-template-columns:1fr 1fr}}
 @container(max-width:600px){.tmc-main{grid-template-columns:1fr}.tmc-main .tmc-projection-panel{grid-column:1;grid-row:1}.tmc-main .tmc-panel th,.tmc-main .tmc-panel td{padding:9px 7px}}
+/* Shared board layout and title styles must not shrink the approved Tennis hero. */
+.db-grid>.db-grid-item-tennis,.board-card-grid>[role="listitem"]:has(>.tmc){grid-column:1/-1;min-width:0}
+.tmc,.tmc h2,.tmc h3{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.tmc h2,.tmc h3{font-style:normal;text-transform:none}
