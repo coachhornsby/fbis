@@ -1,0 +1,55 @@
+name: PinnOdds archive rematch (no paid capture)
+on:
+  workflow_dispatch:
+    inputs:
+      sport_id:
+        description: "Optional PinnOdds sportId filter (2=tennis). Empty = unmatched boards with snapshotId."
+        required: false
+        type: string
+        default: "2"
+      snapshot_ids:
+        description: "Optional comma-separated snapshotIds. Overrides sport_id filter when set."
+        required: false
+        type: string
+        default: "run-38448188039-1-board-2-prematch,run-38448188039-1-board-2-live"
+permissions:
+  contents: read
+concurrency:
+  group: fbis-pinnodds-archive-rematch
+  cancel-in-progress: false
+jobs:
+  rematch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Unit-test rematch ingestion
+        run: node --test test/pinnodds-ingestion.test.js
+      - name: Rematch archived snapshots (no paid provider calls)
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "${{ inputs.snapshot_ids }}" ]; then
+            IFS=',' read -r -a ids <<< "${{ inputs.snapshot_ids }}"
+            for id in "${ids[@]}"; do
+              id="$(echo "$id" | xargs)"
+              [ -n "$id" ] && args+=(--snapshot-id="$id")
+            done
+          elif [ -n "${{ inputs.sport_id }}" ]; then
+            args+=(--sport-id="${{ inputs.sport_id }}")
+          fi
+          node scripts/rematch-pinnodds-archived.mjs "${args[@]}"
+      - name: Publish rematch receipt
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: pinnodds-archive-rematch-${{ github.run_id }}
+          path: |
+            artifacts/**
+          if-no-files-found: ignore

@@ -37,33 +37,61 @@ export async function preparePinnoddsSnapshot(env,{snapshotId,force=false}={}){
 
 /**
  * Re-normalize an already-archived PinnOdds raw snapshot with current identity
- * matchers. Does NOT call the paid provider API. Prior unmatched D1 rows remain
- * immutable; newly linked rows insert under a distinct observation_key (eventId
- * is part of the natural key). Latest ARCHIVE status is updated from the rematch
- * result even when historical unmatched inserts make exact count equality fail.
+ * matchers. Does NOT call the paid provider API.
+ *
+ * Large boards must be rematched as prepare → consume batches → finalize so a
+ * single Pages invocation never times out on thousands of inserts. Prior
+ * unmatched D1 rows remain immutable; newly linked rows insert under a distinct
+ * observation_key (eventId is part of the natural key).
  */
-export async function rematchPinnoddsSnapshot(env,{snapshotId}={}){
- const prepared=await preparePinnoddsSnapshot(env,{snapshotId,force:true});
- const consumes=[];
- for(let batchIndex=0;batchIndex<(prepared.batches||0);batchIndex++){
-  consumes.push(await consumePinnoddsSnapshot(env,{snapshotId,batchIndex}));
+export async function rematchPinnoddsSnapshot(env,{snapshotId,phase='all',batchIndex}={}){
+ if(phase==='prepare'||phase==='all'){
+  const prepared=await preparePinnoddsSnapshot(env,{snapshotId,force:true});
+  if(phase==='prepare'){
+   return{ok:true,operation:'rematch',phase:'prepare',snapshotId,paidProviderCall:false,
+    matchedRows:prepared.matchedRows||0,normalizedRows:prepared.normalizedRows||0,
+    batches:prepared.batches||0,canAuthorizeWager:false};
+  }
  }
- const inserted=consumes.reduce((n,c)=>n+(Number(c.inserted)||0),0);
+ if(phase==='consume'){
+  const consumed=await consumePinnoddsSnapshot(env,{snapshotId,batchIndex});
+  return{ok:true,operation:'rematch',phase:'consume',paidProviderCall:false,...consumed};
+ }
+ if(phase==='finalize'||phase==='all'){
+  if(phase==='all'){
+   const prepared=await preparePinnoddsSnapshot(env,{snapshotId,force:false});
+   const consumes=[];
+   for(let i=0;i<(prepared.batches||0);i++)consumes.push(await consumePinnoddsSnapshot(env,{snapshotId,batchIndex:i}));
+   const inserted=consumes.reduce((n,c)=>n+(Number(c.inserted)||0),0);
+   return finalizePinnoddsRematch(env,{snapshotId,inserted,batches:consumes.length});
+  }
+  return finalizePinnoddsRematch(env,{snapshotId});
+ }
+ throw Error('INVALID_REMATCH_PHASE');
+}
+
+export async function finalizePinnoddsRematch(env,{snapshotId,inserted=null,batches=null}={}){
+ if(!valid(snapshotId))throw Error('INVALID_SNAPSHOT_ID');
+ const object=await env.ARCHIVE.get(`${root}/normalized/${snapshotId}.json`);
+ if(!object)throw Error('SNAPSHOT_NOT_PREPARED');
+ const prepared=await object.json();
  const counted=await env.DB.prepare(`SELECT COUNT(*) n FROM normalized_market_observations WHERE source='PinnOdds' AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.snapshotId')=?`).bind(snapshotId).first().catch(()=>({n:0}));
  const persistedRows=Number(counted?.n||0);
- // prepare() already strips row payloads from the public result.
- const status={...prepared,ok:true,persistedRows,reconciled:true,rematched:true,paidProviderCall:false,inserted};
+ const {rows,...receipt}=prepared;
+ const status={...receipt,ok:true,persistedRows,reconciled:true,rematched:true,paidProviderCall:false,
+  inserted:inserted==null?undefined:inserted,batches:batches==null?undefined:batches};
  await env.ARCHIVE.put(`${root}/status/${snapshotId}.json`,JSON.stringify(status));
- await env.ARCHIVE.put(`${root}/latest/${prepared.kind}-${prepared.sportId||'all'}-${prepared.feed||'all'}.json`,JSON.stringify(status));
+ await env.ARCHIVE.put(`${root}/latest/${receipt.kind}-${receipt.sportId||'all'}-${receipt.feed||'all'}.json`,JSON.stringify(status));
  return{
   ok:true,
   operation:'rematch',
+  phase:'finalize',
   snapshotId,
   paidProviderCall:false,
-  matchedRows:prepared.matchedRows||0,
-  normalizedRows:prepared.normalizedRows||0,
-  inserted,
-  batches:consumes.length,
+  matchedRows:receipt.matchedRows||0,
+  normalizedRows:receipt.normalizedRows||0,
+  inserted:status.inserted??null,
+  batches:status.batches??(receipt.batches||0),
   persistedRows,
   reconciled:true,
   canAuthorizeWager:false,

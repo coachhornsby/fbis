@@ -79,14 +79,16 @@ test("missing database fails closed", async () => {
 });
 
 test("tennis event coverage uses official/ESPN fixtures not games table", async () => {
-  let sawTennisUnion = false;
+  let sawEligibleUnion = false;
+  let sawLinkedIntersect = false;
   const db = dbMock({
     default(sql) {
-      if (sql.includes("tennis_official_matches") || sql.includes("tennis_external_fixtures")) {
-        sawTennisUnion = true;
+      if (sql.includes("SELECT COUNT(*) AS n FROM (") && sql.includes("tennis_official_matches")) {
+        sawEligibleUnion = true;
         return { n: 17 };
       }
-      if (sql.includes("FROM normalized_market_observations") && sql.includes("DISTINCT canonical_event_id")) {
+      if (sql.includes("COUNT(DISTINCT o.canonical_event_id)") && sql.includes("tennis_external_fixtures")) {
+        sawLinkedIntersect = true;
         return { n: 13 };
       }
       if (sql.includes("FROM normalized_market_observations") && sql.includes("source = ?")) {
@@ -107,7 +109,8 @@ test("tennis event coverage uses official/ESPN fixtures not games table", async 
     lookbackHours: 48,
   });
   assert.equal(report.ok, true);
-  assert.equal(sawTennisUnion, true);
+  assert.equal(sawEligibleUnion, true);
+  assert.equal(sawLinkedIntersect, true);
   assert.equal(report.totals.eligibleEvents, 17);
   assert.equal(report.totals.eventsWithLinkedMarket, 13);
   assert.equal(report.totals.eventMarketCoverage, 0.7647);

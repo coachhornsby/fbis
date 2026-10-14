@@ -87,12 +87,24 @@ export async function auditSportMarketCoverage(db, sport, {
       )
     `).bind(since, until, since, until).first().catch(() => ({ n: 0 }));
     eligibleEvents = Number(slate?.n) || 0;
+    // Event coverage denominator is the same fixture window — do not count
+    // linked observations whose fixtures fall outside the eligible slate.
     const linked = await db.prepare(`
-      SELECT COUNT(DISTINCT canonical_event_id) AS n
-      FROM normalized_market_observations
-      WHERE sport='tennis' AND canonical_event_id IS NOT NULL AND TRIM(canonical_event_id) != ''
-        AND collected_at BETWEEN ? AND ?
-    `).bind(since, until).first().catch(() => ({ n: 0 }));
+      SELECT COUNT(DISTINCT o.canonical_event_id) AS n
+      FROM normalized_market_observations o
+      WHERE o.sport='tennis'
+        AND o.canonical_event_id IS NOT NULL AND TRIM(o.canonical_event_id) != ''
+        AND o.collected_at BETWEEN ? AND ?
+        AND (
+          o.canonical_event_id IN (
+            SELECT match_id FROM tennis_official_matches WHERE match_time BETWEEN ? AND ?
+          )
+          OR o.canonical_event_id IN (
+            SELECT fixture_id FROM tennis_external_fixtures
+             WHERE source='ESPN_PUBLIC' AND match_time BETWEEN ? AND ?
+          )
+        )
+    `).bind(since, until, since, until, since, until).first().catch(() => ({ n: 0 }));
     eventsWithMarket = Number(linked?.n) || 0;
   } else {
     const slate = await db.prepare(`
