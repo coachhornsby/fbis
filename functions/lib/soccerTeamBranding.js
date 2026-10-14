@@ -1,10 +1,12 @@
 import directory from "../../data/soccer-team-branding.js";
 
 // Presentation metadata only. Never changes model identity or predictive inputs.
+const BRAND_NAME_ALIASES = Object.freeze({bayernmunchen:"bayernmunich",viking:"vikingfk"});
 export function soccerBrandKey(value) {
-  return String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+  const key = String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().replace(/\b(fc|cf|sc|afc|football club)\b/g, " ")
     .replace(/[^a-z0-9]/g, "");
+  return BRAND_NAME_ALIASES[key] || key;
 }
 const hex = value => /^[0-9a-f]{6}$/i.test(String(value || "")) ? `#${value}` : null;
 export function resolveSoccerBrand(team = {}, league = "", source = directory) {
