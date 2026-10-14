@@ -5,10 +5,11 @@ import fs from "node:fs";
 test("exactly one free PrizePicks mirror remains scheduled and paid acquisition is retired",()=>{
  const paid=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
  const free=fs.readFileSync(".github/workflows/free-prizepicks-mirror.yml","utf8");
- assert.match(paid,/RETIRED/);assert.doesNotMatch(paid,/^  schedule:/m);
- assert.match(free,/cron: '17 13,15 \\* \\* \\*'/);
- assert.match(free,/api\\/free-prizepicks-collect/);
- assert.doesNotMatch(free,/APIFY_TOKEN|api\\/apify-acquire/);
+ assert.match(paid,/RETIRED/);
+ assert.doesNotMatch(paid,/^  schedule:/m);
+ assert.equal((free.match(/cron:/g)||[]).length,1,"exactly one active free mirror schedule");
+ assert.ok(free.includes("/api/free-prizepicks-collect"));
+ assert.doesNotMatch(free,/APIFY_TOKEN|api\/apify-acquire/);
 });
 test("PrizePicks API enforces durable daily acquisition reservation",()=>{
   const s=fs.readFileSync("functions/api/prizepicks-props.js","utf8");
