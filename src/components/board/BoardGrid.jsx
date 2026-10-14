@@ -20,11 +20,12 @@ export default function BoardGrid({
   const [hideBlocked, setHideBlocked] = useState(false);
   const [open, setOpen] = useState(() => new Set());
   const [cfbSource, setCfbSource] = useState(null);
+  const hasCfbGames = games.some(g => (g.sport || sport) === "cfb");
 
   // Read-only independent FBS statistics. One request per board mount, never
   // a per-card provider fanout and never fed into model/recommendation logic.
   useEffect(() => {
-    if (sport !== "cfb") { setCfbSource(null); return; }
+    if (!hasCfbGames) { setCfbSource(null); return; }
     const ac = new AbortController();
     setCfbSource(null);
     fetch("/api/cfb-intelligence", {signal:ac.signal})
@@ -35,10 +36,10 @@ export default function BoardGrid({
       .then(data => {if (!ac.signal.aborted) setCfbSource(data);})
       .catch(() => {if (!ac.signal.aborted) setCfbSource({ok:false});});
     return () => ac.abort();
-  }, [sport]);
+  }, [hasCfbGames]);
 
   const sorted = useMemo(() => sortBoardGames(games.filter(isFbsVsFbsGame)
-    .map(g => sport === "cfb"
+    .map(g => (g.sport || sport) === "cfb"
       ? {...g,cfbSeasonEvidence:cfbBoardSeasonEvidence({...g,sport:"cfb"},cfbSource)}
       : g)), [games,sport,cfbSource]);
   const visible = useMemo(() => {
