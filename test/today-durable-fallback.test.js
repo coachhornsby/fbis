@@ -16,7 +16,7 @@ function db(rows){const metrics={calls:0,sql:null,bindings:[]};return {
   metrics,
   prepare(sql){
     metrics.calls++;metrics.sql=sql;
-    return {bind(...args){metrics.bindings=args;return {all:async()=>({results:rows})}}};
+    return {bind(...args){metrics.bindings=args;return {all:async()=>({results:/tennis_v2_research_decisions|tennis_external_fixtures/.test(sql)?[]:rows})}}};
   },
 };}
 test("read-only fallback marks a recovered game as unverified, never a live result or wager",()=>{
@@ -103,7 +103,7 @@ test("injected healthy focused builder keeps its real projection and status",asy
   assert.equal(data.games[0].durableFallback,null);
 });
 
-test("ALL sports uses one read-only D1 query and does not invoke live builders",async()=>{
+test("ALL sports uses read-only durable schedule and independent tennis queries without live builders",async()=>{
   const store=db([
     cfb("401000001"),
     cfb("401000002",{sport:"nhl",home_abbr:"BUF",away_abbr:"UTA"}),
@@ -118,7 +118,7 @@ test("ALL sports uses one read-only D1 query and does not invoke live builders",
   assert.equal(board.feeds.nba.n,1);
   assert.equal(board.games.length,2);
   assert.ok(board.games.every(g=>g.status==="unverified" && !g.canQualify && g.rec==null));
-  assert.equal(store.metrics.calls,1);
+  assert.equal(store.metrics.calls,3);
 });
 
 test("only provenance-backed ESPN event IDs appear on durable CFB/NBA/MLB schedules",async()=>{

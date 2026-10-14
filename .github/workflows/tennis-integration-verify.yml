@@ -1,0 +1,26 @@
+name: Tennis integration production verification
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: '22'}
+      - name: Verify deployed release before read-only proof
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Verify bank, card hydration, quote clocks and betting governance
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: node scripts/verify-tennis-integration.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tennis-integration-production-${{ github.run_id }}
+          path: artifacts/tennis-integration-production.json
+          retention-days: 30
+          if-no-files-found: ignore

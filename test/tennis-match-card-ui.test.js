@@ -28,6 +28,15 @@ test("Tennis card actually renders populated recent form and missing-form fallba
     const withheld=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,tennisProjection:{player1WinProb:.764,player2WinProb:.236}}}));
     assert.match(withheld,/withheld/);
     assert.doesNotMatch(withheld,/76.4|FAIR ML|WIN PROBABILITY/);
+    const independent=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,
+      id:"tennis:espn:atp:1:2",tennisProjection:{player1WinProb:null,player2WinProb:null,
+        researchFixture:{verified:true,source:"ESPN_PUBLIC",fixtureId:"tennis:espn:atp:1:2"},
+        venueOffers:[{source:"PinnOdds",marketFamily:"moneyline",period:"full_game",side:"home",decimalOdds:1.8},
+          {source:"Polymarket US",marketFamily:"moneyline",period:"full_game",side:"away",contractPrice:.42}]}}}));
+    assert.match(independent,/Independent ESPN research fixture/);
+    assert.match(independent,/PROJECTION UNAVAILABLE/);
+    assert.match(independent,/1.800 dec/);
+    assert.match(independent,/42.0¢/);
     const missing=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,tennisProjection:{eventIntegrity:{valid:true}}}}));
     assert.equal((missing.match(/Recent form unavailable/g)||[]).length,2);
   } finally { await server.close(); }
