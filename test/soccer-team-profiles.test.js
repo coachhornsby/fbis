@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { soccerTeamDirectory, summarizeSoccerTeamMatches } from '../functions/lib/soccerTeamProfiles.js';
+import { soccerTeamDirectory, summarizeSoccerTeamMatches, summarizeSoccerAdvanced } from '../functions/lib/soccerTeamProfiles.js';
 import { onRequestGet } from '../functions/api/soccer-team-profiles.js';
 
 test('owned soccer directory covers all ten routed competitions',()=>{
@@ -21,4 +21,14 @@ test('team profile uses retained roster snapshot and keeps projection influence 
  const body=await r.json();assert.equal(body.ok,true);assert.equal(body.roster.players.length,1);assert.equal(body.persistentStateUsedInProjection,false);assert.equal(body.canAuthorize,false);
  const ambiguous=await onRequestGet({env,request:new Request('https://fbis.test/api/soccer-team-profiles?team=83')});
  assert.equal(ambiguous.status,400);
+});
+
+test('PitchAPI team metrics preserve missing values and provider identity boundaries',()=>{
+ const row={status:'finished',match_date:'2026-10-01',home_team_name:'Barcelona',away_team_name:'Other',home_team_id:'pitch-bar',away_team_id:'83',home_xg:2.4,away_xg:0,home_ppda:null,away_ppda:12,source_observed_at:'2026-10-02'};
+ const p=summarizeSoccerAdvanced([row,{...row,match_date:'2026-11-01'},{...row,home_team_name:'Wrong',away_team_name:'Also Wrong'}],{name:'Barcelona',espnId:'83'},'2026-10-14');
+ assert.equal(p.sampleSize,1);assert.equal(p.metrics.find(m=>m.key==='xg').value,2.4);
+ assert.equal(p.metrics.find(m=>m.key==='xg').opponent.value,0);
+ assert.equal(p.metrics.find(m=>m.key==='ppda').value,null);
+ assert.equal(p.metrics.find(m=>m.key==='ppda').sampleSize,0);
+ assert.deepEqual(p.teamIds,['pitch-bar']);
 });

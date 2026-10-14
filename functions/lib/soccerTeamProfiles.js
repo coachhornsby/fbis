@@ -32,3 +32,42 @@ export function summarizeSoccerTeamMatches(rows, team, asOf) {
   recentMatches:matches.slice(0,10),asOf,source:'FBIS canonical soccer_matches',
   scope:'Trailing 900 days of acquired final matches; not season standings'};
 }
+
+export const SOCCER_PROFILE_METRICS = Object.freeze([
+ ['xg','Expected goals'],['npxg','Non-penalty xG'],['xgot','xG on target'],['xg_open_play','Open-play xG'],['xg_set_play','Set-play xG'],
+ ['xg_per_shot','xG per shot'],['shots','Shots'],['sot','Shots on target'],['big_chances','Big chances'],
+ ['ppda','PPDA'],['field_tilt','Field tilt'],['possession','Possession'],['final_third_entries','Final-third entries'],['box_entries','Box entries'],
+ ['high_turnovers','High turnovers'],['counterpress_regains','Counterpress regains'],['ball_recovery_time','Ball recovery time'],
+ ['xt','Expected threat'],['vaep','VAEP'],['xag','Expected assisted goals'],['progressive_passes','Progressive passes'],
+ ['progressive_carries','Progressive carries'],['pass_accuracy','Pass accuracy'],['passes_into_box','Passes into box'],['key_passes','Key passes'],
+ ['through_balls','Through balls'],['progressive_pass_distance','Progressive pass distance'],['carries_into_final_third','Carries into final third'],
+ ['carries_into_box','Carries into box'],['avg_defensive_action_x','Defensive action height'],['buildup_attacks','Buildup attacks'],
+ ['direct_attacks','Direct attacks'],['network_centralization','Passing network centralization'],['passes_per_sequence','Passes per sequence'],['direct_speed','Direct speed'],
+]);
+function metricNumber(value) {
+ if(value==null||typeof value==='boolean'||(typeof value==='string'&&!value.trim()))return null;
+ const n=Number(value);return Number.isFinite(n)?n:null;
+}
+export function summarizeSoccerAdvanced(rows,team,asOf) {
+ const names=new Set([team.name,team.displayName,team.fullName].filter(Boolean).map(soccerBrandKey));
+ const cutoff=Date.parse(asOf);
+ const samples=rows.filter(r=>String(r.status).toLowerCase()==='finished'&&Date.parse(r.start_time||r.match_date)<cutoff)
+  .flatMap(r=>{
+   // PitchAPI IDs are a different namespace from ESPN IDs. Match exact club names only.
+   const h=names.has(soccerBrandKey(r.home_team_name)),a=names.has(soccerBrandKey(r.away_team_name));
+   if(h===a)return [];
+   return [{row:r,side:h?'home':'away',opponentSide:h?'away':'home'}];
+  }).sort((a,b)=>b.row.match_date.localeCompare(a.row.match_date));
+ const average=(list,column)=>{const values=list.map(s=>metricNumber(s.row[`${s.side}_${column}`])).filter(v=>v!=null);
+  return {value:values.length?values.reduce((a,b)=>a+b,0)/values.length:null,sampleSize:values.length};};
+ const metrics=SOCCER_PROFILE_METRICS.map(([key,label])=>({key,label,...average(samples,key),
+  recent10:average(samples.slice(0,10),key),opponent:average(samples.map(s=>({...s,side:s.opponentSide})),key)}));
+ const observed=samples.map(s=>s.row.source_observed_at).filter(Boolean).sort().at(-1)||null;
+ return {source:'PitchAPI persisted match features',sourceObservedAt:observed,asOf,sampleSize:samples.length,
+  historyStart:samples.at(-1)?.row.match_date||null,historyEnd:samples[0]?.row.match_date||null,
+  teamIds:[...new Set(samples.map(s=>String(s.row[`${s.side}_team_id`])).filter(v=>v&&v!=='undefined'))],
+  metrics,availableMetrics:metrics.filter(m=>m.sampleSize>0).length,
+  identityPolicy:'Exact normalized name within competition; provider IDs never equated',
+  scope:'Trailing 900 days of acquired finished matches; values are provider-reported',
+  persistentStateUsedInProjection:false};
+}

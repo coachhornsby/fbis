@@ -35,6 +35,12 @@ export default function TeamProfilesView({refreshKey=0}) {
  <span>Goals for / match: {fmt(profile.stats.goalsForPerMatch)}</span><span>Goals against / match: {fmt(profile.stats.goalsAgainstPerMatch)}</span>
  <span>Clean sheets: {profile.stats.cleanSheets??'Unavailable'}</span><span>BTTS: {profile.stats.bttsRate==null?'Unavailable':`${Math.round(profile.stats.bttsRate*100)}%`}</span></div>
  <h3>Recent acquired results</h3><ul>{profile.stats.recentMatches.map(m=><li key={m.eventId}>{m.date} · {m.home?'vs':'at'} {m.opponent} · {m.goalsFor}-{m.goalsAgainst} ({m.result})</li>)}</ul>
+ <h3>PitchAPI advanced team data</h3>
+ <p>{profile.advanced.scope} · {profile.advanced.sampleSize} matches · {profile.advanced.availableMetrics}/{profile.advanced.metrics.length} metrics available.</p>
+ <p>Latest source observation: {profile.advanced.sourceObservedAt||'Unavailable'} · Match window: {profile.advanced.historyStart||'—'} to {profile.advanced.historyEnd||'—'}.</p>
+ {profile.advanced.unavailableReason&&<p>{profile.advanced.unavailableReason}</p>}
+ <div style={{overflowX:'auto'}}><table><thead><tr><th>Metric</th><th>Team average</th><th>Opponent average</th><th>Samples</th><th>Last 10 matches</th></tr></thead><tbody>
+ {profile.advanced.metrics.map(m=><tr key={m.key}><td>{m.label}</td><td>{fmt(m.value)}</td><td>{fmt(m.opponent.value)}</td><td>{m.sampleSize}</td><td>{fmt(m.recent10.value)} ({m.recent10.sampleSize})</td></tr>)}</tbody></table></div>
  <h3>Roster</h3><p>{profile.roster.source||'Roster unavailable'}{profile.roster.observedAt?` · Acquired ${profile.roster.observedAt}`:''}{profile.roster.stale?' · Stale snapshot':''}</p>
  {profile.roster.unavailableReason&&<p>{profile.roster.unavailableReason}</p>}
  <div style={{overflowX:'auto'}}><table><thead><tr><th>Player</th><th>Position</th><th>Number</th><th>Age</th></tr></thead><tbody>

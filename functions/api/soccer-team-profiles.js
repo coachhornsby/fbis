@@ -1,4 +1,4 @@
-import { soccerTeamDirectory, summarizeSoccerTeamMatches } from '../lib/soccerTeamProfiles.js';
+import { soccerTeamDirectory, summarizeSoccerTeamMatches, summarizeSoccerAdvanced } from '../lib/soccerTeamProfiles.js';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'public, max-age=300'}});
 async function roster(env,team) {
  const key=`soccer/team-profiles/${team.league}/${team.espnId}/roster.json`;
@@ -32,8 +32,14 @@ export async function onRequestGet(context) {
  if(!context.env.DB?.prepare)return json({ok:false,error:'database-unavailable'},503);
  try {
   const rows=(await context.env.DB.prepare("SELECT * FROM soccer_matches WHERE league=? AND status='FINAL' AND match_date>=? AND match_date<? ORDER BY match_date DESC").bind(team.league,start,asOf.slice(0,10)).all()).results||[];
-  const stats=summarizeSoccerTeamMatches(rows,team,asOf),squad=await roster(context.env,team);
-  return json({ok:true,team,stats,roster:squad,coverage:{branding:!!team.logo,history:stats.sampleSize,
-   rosterPlayers:squad.players.length,rosterStale:squad.stale},persistentStateUsedInProjection:false,canQualify:false,canAuthorize:false});
+  const stats=summarizeSoccerTeamMatches(rows,team,asOf);
+  let advanced;
+  try {
+   const pitch=(await context.env.DB.prepare("SELECT * FROM soccer_pitchapi_match_features WHERE league_key=? AND status='finished' AND match_date>=? AND match_date<? ORDER BY match_date DESC").bind(team.league,start,asOf.slice(0,10)).all()).results||[];
+   advanced=summarizeSoccerAdvanced(pitch,team,asOf);
+  }catch(err){advanced={...summarizeSoccerAdvanced([],team,asOf),unavailableReason:String(err.message)};}
+  const squad=await roster(context.env,team);
+  return json({ok:true,team,stats,advanced,roster:squad,coverage:{branding:!!team.logo,history:stats.sampleSize,
+   advancedMatches:advanced.sampleSize,advancedMetrics:advanced.availableMetrics,rosterPlayers:squad.players.length,rosterStale:squad.stale},persistentStateUsedInProjection:false,canQualify:false,canAuthorize:false});
  }catch(err){return json({ok:false,error:'team-profile-query-failed',detail:String(err.message)},503);}
 }
