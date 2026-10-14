@@ -14,6 +14,13 @@ for(const tour of ["atp","wta"]){
    firstEventFields:Object.keys(event||{}).slice(0,20),
    competitionFields:Object.keys(comp||{}).slice(0,20),
    competitorFields:Object.keys(comp?.competitors?.[0]||{}).slice(0,20),
+   groupingsType:Array.isArray(event?.groupings)?"array":typeof event?.groupings,
+   groupingsLength:event?.groupings?.length??null,
+   groupingFields:Object.keys(event?.groupings?.[0]||{}).slice(0,25),
+   groupingSummary:(event?.groupings||[]).slice(0,3).map(g=>({name:g.name||null,keys:Object.keys(g||{}).slice(0,25),
+    competitions:g.competitions?.length??null,groups:g.groups?.length??null,
+    firstCompetitionFields:Object.keys(g.competitions?.[0]||{}).slice(0,22),
+    firstGroupFields:Object.keys(g.groups?.[0]||{}).slice(0,22)})),
    sourceContractVerified:response.ok&&Array.isArray(body?.events||body?.tournaments)}));
  }catch(error){console.log(JSON.stringify({tour,source:"ESPN_PUBLIC",
   error:String(error?.message||error).slice(0,100),sourceContractVerified:false}));}
