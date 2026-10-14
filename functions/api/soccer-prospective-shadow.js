@@ -32,11 +32,11 @@ function envForSlate(context){
   };
 }
 
-async function snapshot(context,date){
+async function snapshot(context,date,competition=null){
   const resolved=resolveSlateDate(date||ctDate(),{maxPast:0,maxFuture:3});
   if(!resolved.ok)return{ok:false,error:resolved.error};
   const snapshotAt=new Date().toISOString();
-  const slate=await buildSlate("soccer",resolved.date,envForSlate(context));
+  const slate=await buildSlate("soccer",resolved.date,{...envForSlate(context),soccerProofCompetition:competition});
   let attempted=0,written=0,existing=0,eligibleGames=0;
   const skipped={},skippedDetails={},fixtures=[];
   for(const game of slate.games||[]){
@@ -48,6 +48,9 @@ async function snapshot(context,date){
     fixtures.push({eventId:String(game.id),competition:game.soccerLeague||game.league||null,
       home:game.home?.name,away:game.away?.name,kickoff:game.start,
       canonicalHistoryCount:v2?.provenance?.historyMatches??v2?.diagnostics?.historyMatches??null,
+      homeHistoryCount:v2?.uncertainty?.homeHistoryGames??null,awayHistoryCount:v2?.uncertainty?.awayHistoryGames??null,
+      v2MarketUsed:v2?.provenance?.marketUsed??null,v31MarketUsed:v31?.provenance?.marketUsed??null,
+      postMatchTargetFeaturesUsed:v31?.provenance?.postMatchTargetFeaturesUsed??null,persistentStateUsed:v31?.provenance?.persistentStateUsed??null,
       v2Ok:v2?.ok===true,v2Reason:v2?.reason||null,v31Ok:v31?.ok===true,v31Reason:v31?.reason||null});
     const built=buildSoccerProspectiveShadowRecords(game,slate,{
       snapshotAt,
@@ -127,7 +130,9 @@ export async function onRequest(context){
   try{
     if(mode==="summary")return json(await summary(context.env.DB,context.env.CF_PAGES_COMMIT_SHA||null));
     if(mode==="snapshot"){
-      const result=await snapshot(context,url.searchParams.get("date"));
+      const competition=url.searchParams.get("competition");
+      if(competition && !["ger.1","fra.1","esp.1"].includes(competition))return json({ok:false,error:"unsupported-proof-competition"},400);
+      const result=await snapshot(context,url.searchParams.get("date"),competition);
       return json(result,result.ok?200:400);
     }
     return json({ok:false,error:"unsupported-mode"},400);

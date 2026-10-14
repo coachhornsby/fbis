@@ -170,9 +170,20 @@ export async function refreshPitchApiCompetitionCoverage(env,{leagueKey}={}){
   return{ok:true,leagueKey,pitchMatchCount:total,advancedRows:advanced,advancedCoverage:coverage,historyStart:row?.history_start||null,historyEnd:row?.history_end||null};
 }
 
+// Models consume scalar features only. Retained raw payloads stay in D1 for
+// audits/exports/profiles, but must not enter the edge model-history working set.
+export const PITCHAPI_MODEL_HISTORY_COLUMNS = Object.freeze([
+ "pitch_match_id","fbis_event_id","league_key","pitch_league_id","pitch_league_name","season","match_date","start_time","status",
+ "home_team_id","home_team_name","away_team_id","away_team_name","home_score","away_score","source_observed_at",
+ ...["xg","npxg","xgot","xg_open_play","xg_set_play","xg_per_shot","shots","sot","big_chances","ppda","field_tilt",
+ "final_third_entries","box_entries","high_turnovers","counterpress_regains","ball_recovery_time","xt","vaep",
+ "progressive_passes","progressive_carries","xag","possession","passes_per_sequence","direct_speed","pass_accuracy",
+ "passes_into_box","key_passes","through_balls","progressive_pass_distance","carries_into_final_third","carries_into_box",
+ "avg_defensive_action_x","buildup_attacks","direct_attacks","network_centralization"].flatMap(field=>[`home_${field}`,`away_${field}`])
+]);
 export async function loadPitchApiHistory(env,{leagueKey,beforeDate,startDate="2021-01-01"}={}){
   const db=env?.DB;if(!db?.prepare||!leagueKey)return[];
-  const r=await db.prepare(`SELECT * FROM soccer_pitchapi_match_features
+  const r=await db.prepare(`SELECT ${PITCHAPI_MODEL_HISTORY_COLUMNS.join(",")} FROM soccer_pitchapi_match_features
     WHERE league_key=? AND match_date>=? AND match_date<? AND status='finished'
     ORDER BY match_date,pitch_match_id`).bind(leagueKey,startDate,beforeDate||"9999-12-31").all();
   return r?.results||[];
@@ -233,3 +244,4 @@ export async function loadPitchApiBoardFixtures(env,{date}={}){
 export function pitchApiHistoryToGames(rows=[]){
   return rows.map(pitchApiRowToGame).filter(g=>g.id&&g.date);
 }
+

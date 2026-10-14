@@ -16,143 +16,82 @@ concurrency:
 jobs:
   proof:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
-      - name: Controlled prospective snapshot + idempotency retry
+      - name: Controlled competition-batched prospective proof
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           GITHUB_TOKEN: ${{ github.token }}
           BASE: https://fbis-myz.pages.dev
-          SNAPSHOT_DATE: "2026-10-17"
-          REQUIRED_REPAIR_SHA: "9b1202f6a5a99931ac24e87f1b6e7369aab0d789"
         shell: bash
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
-          # Current bounded future slate; never replay the expired October 9 proof.
           SNAPSHOT_DATE="$(TZ=America/Chicago date -d '+3 days' +%F)"
-
-          # Do not proof stale Pages code. Wait until production collector SHA
-          # contains the bounded Phase 3H-R2 repair in its ancestry.
-          REQUIRED_REPAIR_SHA="${GITHUB_SHA}"
           collector_sha=""
           for deploy_attempt in $(seq 1 72); do
-            summary="$(curl -sS --max-time 30 \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              "${BASE}/api/soccer-prospective-shadow?mode=summary&_t=$(date +%s)" || true)"
+            summary="$(curl -sS --max-time 30 -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/soccer-prospective-shadow?mode=summary&_t=$(date +%s)" || true)"
             collector_sha="$(printf '%s\n' "$summary" | jq -r '.collectorCodeSha // empty' 2>/dev/null || true)"
             if [ -n "$collector_sha" ]; then
-              compare="$(curl -sS \
-                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-                -H "Accept: application/vnd.github+json" \
-                "https://api.github.com/repos/${GITHUB_REPOSITORY}/compare/${REQUIRED_REPAIR_SHA}...${collector_sha}" || true)"
+              compare="$(curl -sS -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/compare/${GITHUB_SHA}...${collector_sha}" || true)"
               relation="$(printf '%s\n' "$compare" | jq -r '.status // empty' 2>/dev/null || true)"
               echo "deploy attempt=${deploy_attempt} collector=${collector_sha} relation=${relation}"
-              if [ "$relation" = "ahead" ] || [ "$relation" = "identical" ]; then
-                break
-              fi
+              if [ "$relation" = "ahead" ] || [ "$relation" = "identical" ]; then break; fi
             fi
             collector_sha=""
             sleep 5
           done
           test -n "$collector_sha"
-
-          # Start early inside a five-minute idempotency bucket so bounded
-          # transient retries and the duplicate proof remain in one bucket.
+          # Begin near the bucket boundary to leave room for both actual runs.
           rem=$(( $(date +%s) % 300 ))
-          if [ "$rem" -gt 240 ]; then
-            sleep $((300 - rem + 5))
-          fi
-
+          if [ "$rem" -gt 30 ]; then sleep $((300 - rem + 5)); fi
+          work="$(mktemp -d)"
+          printf '%s\n' "$summary" > "$work/before.json"
           request_snapshot() {
-            local out status body
-            out="$(mktemp)"
-            status="$(curl -sS --max-time 90 -o "$out" -w "%{http_code}" \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              "${BASE}/api/soccer-prospective-shadow?mode=snapshot&date=${SNAPSHOT_DATE}&_t=$(date +%s)" || true)"
-            body="$(cat "$out")"
-            rm -f "$out"
-            printf '%s\n%s' "$status" "$body"
+            local league="$1" out="$2" status raw
+            status="$(curl -sS --max-time 90 -o "$out" -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/soccer-prospective-shadow?mode=snapshot&competition=${league}&date=${SNAPSHOT_DATE}&_t=$(date +%s)" || true)"
+            if ! jq -e 'type == "object"' "$out" >/dev/null 2>&1; then
+              raw="$(head -c 600 "$out")"
+              jq -n --arg http "$status" --arg raw "$raw" '{ok:false,error:"non-json-production-response",http:$http,detail:$raw}' > "$out"
+            fi
+            jq -c '{ok,error,http,date,snapshotAt,collectorCodeSha,slateGames,eligibleGames,attempted,written,existing,skipped,skippedDetails}' "$out"
           }
-
-          publish_evidence() {
-            local first_body="${1:-}" second_body="${2:-}" evidence encoded current sha payload
-            evidence="$(jq -n \
-              --arg generatedAt "$(date -u +%FT%TZ)" \
-              --arg triggerSha "${GITHUB_SHA}" \
-              --arg snapshotDate "${SNAPSHOT_DATE}" \
-              --argjson first "${first_body:-null}" \
-              --argjson second "${second_body:-null}" \
-              '{generatedAt:$generatedAt,triggerSha:$triggerSha,snapshotDate:$snapshotDate,first:$first,second:$second}')"
-            encoded="$(printf '%s\n' "$evidence" | base64 -w0)"
-            current="$(curl -sS -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/ops/soccer-phase3h-r-proof-latest.json?ref=main")"
-            sha="$(printf '%s\n' "$current" | jq -r '.sha // empty')"
-            if [ -n "$sha" ]; then
-              payload="$(jq -n --arg message "Soccer Phase 3H-R: record controlled proof evidence" --arg content "$encoded" --arg sha "$sha" '{message:$message,content:$content,sha:$sha,branch:"main"}')"
-            else
-              payload="$(jq -n --arg message "Soccer Phase 3H-R: record controlled proof evidence" --arg content "$encoded" '{message:$message,content:$content,branch:"main"}')"
-            fi
-            curl -fsS -X PUT \
-              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/ops/soccer-phase3h-r-proof-latest.json" \
-              -d "$payload" >/dev/null
+          aggregate() {
+            jq -s '{ok:all(.[];.ok == true),snapshotAt:.[0].snapshotAt,collectorCodeSha:.[0].collectorCodeSha,
+              slateGames:(map(.slateGames // 0)|add),eligibleGames:(map(.eligibleGames // 0)|add),
+              attempted:(map(.attempted // 0)|add),written:(map(.written // 0)|add),existing:(map(.existing // 0)|add),
+              fixtures:[.[]|.fixtures[]?],batches:.,researchOnly:all(.[];.researchOnly == true),
+              canQualify:any(.[];.canQualify == true),canAuthorize:any(.[];.canAuthorize == true)}' "$@"
           }
-
-          first=""
-          for attempt in 1 2 3 4 5 6; do
-            raw="$(request_snapshot)"
-            status="$(printf '%s\n' "$raw" | head -n1)"
-            body="$(printf '%s\n' "$raw" | tail -n +2)"
-            echo "first attempt=${attempt} http=${status}"
-            printf '%s\n' "$body" | jq -c '{ok,error,detail,date,snapshotAt,collectorCodeSha,slateGames,eligibleGames,attempted,written,existing,skipped,skippedDetails,researchOnly,canQualify,canAuthorize}' 2>/dev/null || printf '%s\n' "$body"
-            if [ "$status" = "200" ] && printf '%s\n' "$body" | jq -e '.ok == true and .eligibleGames > 0 and .attempted > 0 and .written > 0 and .researchOnly == true and .canQualify == false and .canAuthorize == false' >/dev/null 2>&1; then
-              first="$body"
-              break
-            fi
-            sleep 3
+          # A competition batch bounds the memory/CPU working set without
+          # changing histories, coefficients, gates, routing or model inputs.
+          failed=0
+          for pass in first second; do
+            for league in ger.1 fra.1; do
+              out="$work/${pass}-${league}.json"
+              request_snapshot "$league" "$out"
+              if ! jq -e '.ok == true and .eligibleGames > 0 and .attempted > 0 and .researchOnly == true and .canQualify == false and .canAuthorize == false' "$out" >/dev/null; then failed=1; fi
+            done
           done
-          if [ -z "$first" ]; then
-            publish_evidence "${body:-null}" "null"
-            exit 1
-          fi
-
-          second=""
-          for attempt in 1 2 3 4 5 6; do
-            raw="$(request_snapshot)"
-            status="$(printf '%s\n' "$raw" | head -n1)"
-            body="$(printf '%s\n' "$raw" | tail -n +2)"
-            echo "second attempt=${attempt} http=${status}"
-            printf '%s\n' "$body" | jq -c '{ok,error,detail,date,snapshotAt,slateGames,eligibleGames,attempted,written,existing,skipped,skippedDetails,researchOnly,canQualify,canAuthorize}' 2>/dev/null || printf '%s\n' "$body"
-            if [ "$status" = "200" ] && printf '%s\n' "$body" | jq -e '.ok == true and .attempted > 0 and .written == 0 and .existing == .attempted and .researchOnly == true and .canQualify == false and .canAuthorize == false' >/dev/null 2>&1; then
-              second="$body"
-              break
-            fi
-            sleep 3
+          aggregate "$work/first-ger.1.json" "$work/first-fra.1.json" > "$work/first.json"
+          aggregate "$work/second-ger.1.json" "$work/second-fra.1.json" > "$work/second.json"
+          jq -n --arg generatedAt "$(date -u +%FT%TZ)" --arg triggerSha "$GITHUB_SHA" --arg snapshotDate "$SNAPSHOT_DATE" \
+            --slurpfile before "$work/before.json" --slurpfile first "$work/first.json" --slurpfile second "$work/second.json" \
+            '{generatedAt:$generatedAt,triggerSha:$triggerSha,snapshotDate:$snapshotDate,before:$before[0],first:$first[0],second:$second[0]}' > "$work/evidence.json"
+          current="$(curl -fsS -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/ops/soccer-phase3h-r-proof-latest.json?ref=main")"
+          sha="$(printf '%s\n' "$current" | jq -r .sha)"
+          encoded="$(base64 -w0 "$work/evidence.json")"
+          jq -n --arg sha "$sha" --arg content "$encoded" '{message:"Soccer R4: record competition-batched production proof",content:$content,sha:$sha,branch:"main"}' > "$work/publish.json"
+          curl -fsS -X PUT -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/ops/soccer-phase3h-r-proof-latest.json" --data-binary "@$work/publish.json" >/dev/null
+          test "$failed" = 0
+          jq -e '.written > 0 and .existing == 0' "$work/first.json" >/dev/null
+          jq -e '.written == 0 and .existing == .attempted and .attempted > 0' "$work/second.json" >/dev/null
+          jq -e '[.fixtures[] | select((.competition == "ger.1" or .competition == "fra.1") and .v2Ok and .v31Ok and .canonicalHistoryCount > 0 and .v2MarketUsed == false and .v31MarketUsed == false and .postMatchTargetFeaturesUsed == false and .persistentStateUsed == false) | .competition] | unique | length == 2' "$work/first.json" >/dev/null
+          for league in ger.1 fra.1; do
+            a="$(jq -r .snapshotAt "$work/first-${league}.json")"
+            b="$(jq -r .snapshotAt "$work/second-${league}.json")"
+            test "$a" != "$b"
           done
-          if [ -z "$second" ]; then
-            publish_evidence "$first" "${body:-null}"
-            exit 1
-          fi
-          publish_evidence "$first" "$second"
-          # A working fallback league is not proof that the canonical path recovered.
-          printf '%s\n' "$first" | jq -e '[.fixtures[] | select((.competition == "ger.1" or .competition == "fra.1") and .v2Ok == true and .v31Ok == true and .canonicalHistoryCount > 0) | .competition] | unique | length == 2' >/dev/null
-          test "$(printf '%s\n' "$first" | jq -r .snapshotAt)" != "$(printf '%s\n' "$second" | jq -r .snapshotAt)"
-
-          first_bucket="$(printf '%s\n' "$first" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
-          second_bucket="$(printf '%s\n' "$second" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
-          test "$first_bucket" = "$second_bucket"
-
-# Phase 3H-R controlled rerun trigger after cross-provider identity repair.
-
-# Phase 3H-R3 loader-error diagnostic trigger.
-
-# Phase 3H-R3 diagnostic deployment-gate trigger.
-
-# Phase 3H-R3 future-slate proof trigger: 2026-10-09.
-
-# Phase 3H-R3 durable loader-error proof trigger.
-
-# Phase 3H-R3 null-season repair production proof trigger.
+          buckets="$(jq -s '[.[]|.snapshotAt|sub("\\.[0-9]+Z$";"Z")|fromdateiso8601 / 300 | floor] | unique | length' "$work/first-ger.1.json" "$work/first-fra.1.json" "$work/second-ger.1.json" "$work/second-fra.1.json")"
+          test "$buckets" = 1
