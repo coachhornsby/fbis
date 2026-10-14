@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { describe, it, test } from "node:test";
 import assert from "node:assert/strict";
 import {
   ADMIN_NAV,
@@ -71,4 +71,11 @@ describe("cold sport-filter board request",()=>{
   assert.match(app,/\[todaySport, setTodaySport\] = useState\(\(\) => SPORTS\[String\(initial\.sportFilter/);
   assert.match(app,/fetch\(`\/api\/today\?date=\$\{todayDate\}&sport=\$\{todaySport\}/);
  });
+});
+
+test("cold Board URLs honor the new Board loader even when an old tab query remains",()=>{
+ const app=readFileSync(new URL("../src/App.jsx",import.meta.url),"utf8");
+ assert.match(app,/routeParam \? routeToLegacy\(normalizedRoute, filter\)\.tab : tab/);
+ assert.equal(routeToLegacy("board","tennis").tab,"today");
+ assert.equal(routeToLegacy("market","tennis").tab,"board");
 });

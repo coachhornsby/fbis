@@ -28,6 +28,16 @@ export function mergeVerifiedSportBoards(base, focused = []) {
     const focusedGroup = focusedBoard.groups.find(g => g.sport === group.sport);
     return { ...group, ...focusedGroup, games: focusedBoard.games };
   });
+  // Focused feeds may contain a sport absent from the fast D1 schedule snapshot.
+  // Tennis fixtures live outside the generic games table, so replacing only
+  // existing groups silently discards genuine verified ATP/WTA cards.
+  const presentSports = new Set(groups.map(g => g.sport));
+  for (const [sport, focusedBoard] of selected) {
+    if (presentSports.has(sport)) continue;
+    const focusedGroup = focusedBoard.groups.find(g => g.sport === sport);
+    groups.push({ ...focusedGroup, games: focusedBoard.games, n: focusedBoard.games.length });
+    presentSports.add(sport);
+  }
   const games = groups.flatMap(g => g.games || []).sort((a, b) => {
     const t = (Date.parse(a.start || "") || 0) - (Date.parse(b.start || "") || 0);
     return t || String(a.sport || "").localeCompare(String(b.sport || ""));
