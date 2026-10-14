@@ -61,3 +61,21 @@ test("no signer secret blocks automatic reconnect without hidden side effects",a
  assert.equal(state.ok,false);assert.equal(state.recovery,"NOT_ATTEMPTED_MISSING_SECRET");
  assert.equal(posts,0);
 });
+
+test("upcoming tennis markets with no verified official schedule raise an incident",()=>{
+ const p=poly();
+ p.tennisCoverage={status:"OFFICIAL_SCHEDULE_MISSING",officialUpcomingMatches:0,
+  rest:{providerEvents:3,upcomingObservations:4},websocket:{observations:0}};
+ const state=evaluatePulse(pin(),p);
+ assert.ok(state.incidents.includes("TENNIS_CANONICAL_FIXTURES_MISSING"));
+ assert.ok(state.notes.includes("TENNIS_UPCOMING_REST_WITHOUT_WS"));
+ assert.equal(state.repairableWebsocket,false);
+});
+test("no upcoming tennis market is not a critical outage even with empty official schedule",()=>{
+ const p=poly();
+ p.tennisCoverage={status:"OFFICIAL_SCHEDULE_MISSING",officialUpcomingMatches:0,
+  rest:{providerEvents:0,upcomingObservations:0},websocket:{observations:0}};
+ const state=evaluatePulse(pin(),p);
+ assert.equal(state.ok,true);
+ assert.ok(state.notes.includes("TENNIS_OFFICIAL_SCHEDULE_EMPTY"));
+});

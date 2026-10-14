@@ -32,13 +32,24 @@ export function evaluatePulse(pin,poly,{now=Date.now()}={}){
  const matches=markets.reduce((n,s)=>n+(Number(s.matchedGames)||0),0);
  if(!markets.some(s=>ageMs(s.lastCapture,now)<=6*3600000)||!prices)incidents.push("POLYMARKET_REST_BOARD_UNAVAILABLE");
  if(!matches)notes.push("POLYMARKET_NO_MATCHED_EVENTS");
+ const tennis=poly?.tennisCoverage||null;
+ if(tennis?.status==="OFFICIAL_SCHEDULE_MISSING"){
+  if(Number(tennis.rest?.upcomingObservations||0)>0)incidents.push("TENNIS_CANONICAL_FIXTURES_MISSING");
+  else notes.push("TENNIS_OFFICIAL_SCHEDULE_EMPTY");
+ }
+ if(Number(tennis?.rest?.upcomingObservations||0)>0&&
+    Number(tennis?.websocket?.observations||0)===0)notes.push("TENNIS_UPCOMING_REST_WITHOUT_WS");
+ if(tennis?.status==="UPCOMING_MARKETS_UNMATCHED")incidents.push("TENNIS_UPCOMING_MARKETS_UNMATCHED");
  return {ok:incidents.length===0,incidents,notes,
   pinnodds:{expectedBoards:12,healthyBoards:healthy,missingBoards:missing,staleBoards:stale,failedBoards:failed,
    latestBoardAt:(pin?.results||[]).filter(r=>r.kind==="board").map(r=>r.collectedAt).filter(Boolean).sort().at(-1)||null},
   polymarket:{websocketConnected:ws.connectionStatus==="CONNECTED",websocketOperational:ws.operational===true,
    subscriptions:Number(ws.subscriptions||0),lastMessageAt:ws.lastMessageAt||null,lastBboCapture:ws.lastBboCapture||null,
    matchedEventsLast24h:Number(ws.matchedEventsLast24h||0),bboRecordsLast24h:Number(ws.bboRecordsLast24h||0),
-   lastError:ws.lastError||null,restMatchedGames:matches,restDisplayedPrices:prices},
+   lastError:ws.lastError||null,restMatchedGames:matches,restDisplayedPrices:prices,
+   tennis:tennis?{status:tennis.status,officialUpcomingMatches:tennis.officialUpcomingMatches,
+    restEvents:tennis.rest?.providerEvents||0,restUpcomingObservations:tennis.rest?.upcomingObservations||0,
+    wsObservations:tennis.websocket?.observations||0,wsLastCapture:tennis.websocket?.lastCapture||null}:null},
   repairableWebsocket:!connectionHealthy};
 }
 export async function runMarketPulse({fetchImpl=fetch,now=Date.now(),base=BASE,secret="",sleep=ms=>new Promise(r=>setTimeout(r,ms))}={}){
@@ -83,6 +94,7 @@ export async function executePulse(options={}){
   "**PinnOdds boards:** "+String(pulse.pinnodds?.healthyBoards??"?")+"/"+String(pulse.pinnodds?.expectedBoards??12),
   "**WebSocket subscriptions:** "+String(pulse.polymarket?.subscriptions??"?"),
   "**Last WS BBO:** "+(pulse.polymarket?.lastBboCapture||"unknown"),
+  "**Tennis identity:** "+(pulse.polymarket?.tennis?.status||"unknown"),
   "**Safety:** No PinnOdds provider requests; no Action/Apify requests; no model/wager authority changes."];
  const summary=lines.join("\n")+"\n";
  console.log(summary);
