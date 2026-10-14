@@ -1,5 +1,6 @@
 import {normalizePinnoddsMarkets} from './pinnoddsMarkets.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
+import {loadVerifiedTennisCandidates} from './polymarketTennisIdentity.js';
 const root='market-sources/pinnodds',valid=id=>/^[a-z0-9-]{1,180}$/i.test(id||''),batchSize=100;
 async function source(env,snapshotId){
  if(!valid(snapshotId))throw Error('INVALID_SNAPSHOT_ID');
@@ -14,6 +15,9 @@ export async function preparePinnoddsSnapshot(env,{snapshotId}={}){
   const starts=body.events.map(e=>Date.parse(e.starts||'')).filter(Number.isFinite);
   const games=starts.length?(await env.DB.prepare(`SELECT id,sport,start,home_name,away_name,home_abbr,away_abbr FROM games WHERE julianday(start) BETWEEN julianday(?) AND julianday(?)`)
     .bind(new Date(Math.min(...starts)-7200000).toISOString(),new Date(Math.max(...starts)+7200000).toISOString()).all())?.results||[]:[];
+  // Tennis is not in the generic games table. Verified independent fixtures are
+  // display-only; snapshot source and raw acquisition times remain immutable.
+  if(receipt.sportId===2)games.push(...await loadVerifiedTennisCandidates(env.DB,body.events.map(e=>e.starts)));
   result=normalizePinnoddsMarkets(body,{sportId:receipt.sportId,feed:receipt.feed,capturedAt:receipt.collectedAt,games,snapshotId,rawKey:receipt.rawKey});
  }
  const prepared={...receipt,...result,batchSize,batches:Math.ceil(result.rows.length/batchSize)};

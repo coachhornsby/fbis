@@ -42,3 +42,21 @@ test('nested soccer fails closed rather than silently dropping malformed special
  const other={event_id:900,league_name:'Premier League',specials:[{event_id:901,parent_id:1000}]};
  assert.throws(()=>normalizePinnoddsMarkets({events:[other]},{sportId:1,feed:'prematch'}),/NESTED_PARENT_CONFLICT/);
 });
+
+test('PinnOdds tennis match prices link only to verified source-backed singles fixtures',()=>{
+ const start="2026-10-15T18:00:00Z";
+ const source={event_id:80001,league_name:"ATP",home:"Valerio Aboian",away:"Franco Roncadelli",
+  starts:start,periods:{num_0:{number:0,money_line:{home:2.51,away:1.546}}}};
+ const canonical={id:"tennis:espn:atp:202:303",sport:"tennis",tour:"atp",start,
+  home_name:"Valerio Aboian",away_name:"Franco Roncadelli",fixture_source:"ESPN_PUBLIC"};
+ const opts={sportId:2,feed:"prematch",capturedAt:"2026-10-15T12:00:00Z",snapshotId:"tennis-fixture",rawKey:"raw",games:[canonical]};
+ const found=normalizePinnoddsMarkets({events:[source]},opts);
+ assert.equal(found.rows.length,2);
+ assert.equal(found.matchedRows,2);
+ assert.ok(found.rows.every(r=>r.eventId===canonical.id&&r.decimalOdds>1));
+ assert.ok(found.rows.every(r=>r.raw.sourceObservedAt===null&&!r.executionEligible&&!r.raw.canAuthorizeWager));
+ const unmatched=normalizePinnoddsMarkets({events:[source]},{...opts,games:[]});
+ assert.equal(unmatched.matchedRows,0);
+ const wrong=normalizePinnoddsMarkets({events:[source]},{...opts,games:[{...canonical,start:"2026-10-16T00:00:00Z"}]});
+ assert.equal(wrong.matchedRows,0);
+});

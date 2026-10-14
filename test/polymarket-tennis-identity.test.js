@@ -9,10 +9,19 @@ const event={id:"us-158278",seriesSlug:"wta",title:"Elsa Jacquemot vs. Teodora K
  marketSides:[{id:"a",description:"Elsa Jacquemot",quote:{value:.51}},{id:"b",description:"Teodora Kostovic",quote:{value:.49}}]}]};
 const official={id:"WTA_OFFICIAL:fixture-1",start,tour:"wta",away_name:"Teodora Kostović",home_name:"Elsa Jacquemot"};
 function mockDb(rows){
- return {prepare(sql){assert.match(sql,/tennis_official_matches/);assert.match(sql,/ATP_OFFICIAL/);
-  assert.match(sql,/WTA_OFFICIAL/);assert.match(sql,/JOIN tennis_players/);
-  return {bind(from,until){assert.ok(Date.parse(from)<Date.parse(start));assert.ok(Date.parse(until)>Date.parse(start));return{async all(){return{results:rows}}}}}}}};
+ return {prepare(sql){
+  assert.match(sql,/tennis_official_matches/);
+  assert.match(sql,/ATP_OFFICIAL/);
+  assert.match(sql,/WTA_OFFICIAL/);
+  assert.match(sql,/JOIN tennis_players/);
+  return {bind(from,until){
+   assert.ok(Date.parse(from)<Date.parse(start));
+   assert.ok(Date.parse(until)>Date.parse(start));
+   return {async all(){return {results:rows}}};
+  }};
+ }};
 }
+
 test("only verified source-backed official candidates enter Polymarket tennis matching",async()=>{
  const rows=await loadVerifiedTennisCandidates(mockDb([official]),[start]);
  assert.deepEqual(rows,[official]);

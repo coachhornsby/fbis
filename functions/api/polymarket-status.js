@@ -29,6 +29,10 @@ export async function onRequestGet({env}){
   const officialTennis=await env.DB.prepare(`SELECT COUNT(*) n FROM tennis_official_matches
       WHERE source IN ('ATP_OFFICIAL','WTA_OFFICIAL') AND match_time>=?1
       AND player1_id IS NOT NULL AND player2_id IS NOT NULL`).bind(now.toISOString()).first();
+  const espnTennis=await env.DB.prepare(`SELECT COUNT(*) n FROM tennis_external_fixtures
+      WHERE source='ESPN_PUBLIC' AND status IN ('SCHEDULED','IN_PROGRESS')
+      AND match_time>=?1 AND fetched_at>=?2`)
+      .bind(now.toISOString(),new Date(now.getTime()-18*3600000).toISOString()).first();
   let stream=null;
   try{const response=await fetch("https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health",{signal:AbortSignal.timeout(4000)});
    if(response.ok){const value=await response.json();if(value.ok===true)stream=value;}
@@ -39,7 +43,10 @@ export async function onRequestGet({env}){
   const tennisWs=tennisMap.get('Polymarket US WebSocket')||{};
   const upcoming=Number(tennisRest.upcoming_observations||0);
   const officialCount=Number(officialTennis?.n||0);
-  const tennisStatus=officialCount===0?'OFFICIAL_SCHEDULE_MISSING':
+  const externalCount=Number(espnTennis?.n||0);
+  const tennisStatus=officialCount===0&&externalCount===0?'OFFICIAL_SCHEDULE_MISSING':
+    officialCount===0&&externalCount>0&&upcoming===0?'INDEPENDENT_RESEARCH_SCHEDULE_ONLY':
+    officialCount===0&&externalCount>0&&Number(tennisRest.matched_events||0)>0?'RESEARCH_FIXTURES_MATCHED':
     upcoming>0&&Number(tennisRest.matched_events||0)===0?'UPCOMING_MARKETS_UNMATCHED':
     upcoming===0?'NO_UPCOMING_REST_CONTRACTS':
     Number(tennisWs.observations||0)===0?'UPCOMING_REST_ONLY_NO_WEBSOCKET':'RESEARCH_OBSERVATIONS';
@@ -57,6 +64,8 @@ export async function onRequestGet({env}){
     region:"US",windowHours:24,readOnly:true,canQualify:false,canAuthorizeWager:false,
     fullMarketCoverageVerified:false,
     tennisCoverage:{status:tennisStatus,officialUpcomingMatches:officialCount,
+      independentResearchUpcomingFixtures:externalCount,
+      scheduleAuthority:officialCount>0?'ATP_WTA_OFFICIAL_EVIDENCE':externalCount>0?'ESPN_PUBLIC_RESEARCH_ONLY':'UNAVAILABLE',
       rest:{observations:Number(tennisRest.observations||0),providerEvents:Number(tennisRest.provider_events||0),
         matchedEvents:Number(tennisRest.matched_events||0),contracts:Number(tennisRest.contracts||0),
         upcomingObservations:upcoming,lastCapture:tennisRest.last_capture||null},

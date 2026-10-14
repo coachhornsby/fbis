@@ -1,0 +1,56 @@
+name: FBIS independent tennis fixtures
+on:
+  schedule:
+    - cron: '31 */3 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'functions/lib/tennisExternalSchedule.js'
+      - 'functions/lib/polymarketTennisIdentity.js'
+      - 'functions/lib/pinnoddsIngestion.js'
+      - 'functions/lib/pinnoddsMarkets.js'
+      - 'functions/api/tennis-external-fixtures.js'
+      - 'scripts/collect-tennis-external-fixtures.mjs'
+      - 'scripts/probe-tennis-fixtures.mjs'
+      - 'test/tennis-external-fixtures.test.mjs'
+      - '.github/workflows/tennis-independent-fixtures.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tennis-independent-fixtures.yml'
+      - 'functions/lib/tennisExternalSchedule.js'
+      - 'functions/api/tennis-external-fixtures.js'
+permissions:
+  contents: read
+concurrency:
+  group: fbis-tennis-independent-fixtures
+  cancel-in-progress: false
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: node --test test/tennis-external-fixtures.test.mjs test/polymarket-tennis-identity.test.js test/polymarket-us-readonly.test.js
+      - name: Inspect public ESPN fixture contract (no writes)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: node scripts/probe-tennis-fixtures.mjs
+      - name: Verify exact production release before collecting
+        if: github.event_name != 'pull_request'
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Gather bounded public tennis fixture schedules
+        if: github.event_name != 'pull_request'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: node scripts/collect-tennis-external-fixtures.mjs
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name != 'pull_request'
+        with:
+          name: tennis-independent-fixtures-${{ github.run_id }}
+          path: artifacts/tennis-external-fixtures.json
+          retention-days: 14
+          if-no-files-found: ignore
