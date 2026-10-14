@@ -61,6 +61,7 @@ export async function freezeCfbPregameFeatures(env,{dates=null,games=null,now=ne
   authority:"research-only",canQualify:false,canAuthorizeWager:false};
  const datesToCheck=dates||Array.from({length:8},(_,i)=>dateCT(clock+i*86400000));
  const summary={ok:true,checked:0,eligible:0,inserted:0,existing:0,failed:0,missing:0,skippedDates:[],feed:feed.meta,cfbd:cfbdMeta,days:datesToCheck,authority:"research-only",canQualify:false,canAuthorizeWager:false,source:feed.meta.source||"CFBD_CACHED_PREGAME"};
+ let inspectedGames=Array.isArray(games)?games:[];
  const process=async slateGames=>{
   // Dedupe by event ID; never backfill completed games or overwrite historical PIT.
   const seen=new Set();
@@ -85,12 +86,17 @@ export async function freezeCfbPregameFeatures(env,{dates=null,games=null,now=ne
    try{const slate=await buildSlate("cfb",date,{...env,cfbdCacheOnly:true,parlayCacheOnly:true});gathered.push(...(slate?.games||[]));}
    catch(err){summary.skippedDates.push({date,reason:String(err?.message||err).slice(0,160)});}
   }
+  inspectedGames=gathered;
   await process(gathered);
  }
  summary.ok=summary.failed===0;
- const upcoming=(Array.isArray(games)?games:[]).filter(g=>isFbsVsFbsGame(g)&&time(g?.start||g?.startTime||g?.startDate)>clock);
- if(summary.checked>0&&upcoming.length>0&&summary.eligible===0) {
+ const upcoming=inspectedGames.filter(g=>isFbsVsFbsGame(g)&&time(g?.start||g?.startTime||g?.startDate)>clock);
+ summary.upcomingFbsGames=[...new Set(upcoming.map(g=>String(g.id)))].length;
+ if(upcoming.length>0&&summary.eligible===0) {
    summary.ok=false; summary.reason="zero-eligible-pregame-feature-observations";
+ }
+ if(summary.checked===0&&summary.skippedDates.length) {
+   summary.ok=false;summary.reason="schedule-discovery-failed";
  }
  return summary;
 }
