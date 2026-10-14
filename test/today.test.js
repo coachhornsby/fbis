@@ -323,7 +323,7 @@ describe("TODAY cache-only and MY BET markers", () => {
     assert.equal(next.counts.myBets, 1);
   });
 
-  it("hydrates missing cache-only odds from D1 snapshots", async () => {
+  it("does not hydrate retired cached odds from historical D1 snapshots", async () => {
     const board = await buildTodayBoard("2026-08-28", { DB: {} }, {
       buildSlateFn: async (sport) => ({
         sport,
@@ -353,17 +353,18 @@ describe("TODAY cache-only and MY BET markers", () => {
       }),
     });
     const game = board.games.find((g) => g.id === "evt-1");
-    assert.equal(game.pinMlHome, -132);
-    assert.equal(game.pinMlAway, 118);
-    assert.equal(game.pinSpread, -1.5);
-    assert.equal(game.pinTotal, 8.5);
-    // Hydrated Pinnacle is REFERENCE only — not an operational market.
-    assert.equal(game.referenceMarketAvailable, true);
+    assert.equal(game.pinMlHome, null);
+    assert.equal(game.pinMlAway, null);
+    assert.equal(game.pinSpread, null);
+    assert.equal(game.pinTotal, null);
+    // Archived Parlay-derived Pinnacle data must not become a live PinnOdds quote.
+    assert.equal(game.activeOddsSource, "PinnOdds");
+    assert.equal(game.referenceMarketAvailable, false);
     assert.equal(game.marketUnavailable, true);
     assert.equal(game.executionMarketAvailable, false);
   });
 
-  it("hydrates missing odds from odds_snapshots rows", async () => {
+  it("does not treat historical odds_snapshots as live PinnOdds", async () => {
     const board = await buildTodayBoard("2026-08-28", { DB: {} }, {
       buildSlateFn: async (sport) => ({
         sport,
@@ -392,12 +393,13 @@ describe("TODAY cache-only and MY BET markers", () => {
       }),
     });
     const game = board.games.find((g) => g.id === "evt-2");
-    assert.equal(game.pinMlHome, -121);
-    assert.equal(game.pinMlAway, 109);
-    assert.equal(game.pinSpread, -1.5);
-    assert.equal(game.pinTotal, 8.5);
-    // Snapshot Pin hydrate remains reference; operational market stays unavailable.
-    assert.equal(game.referenceMarketAvailable, true);
+    assert.equal(game.pinMlHome, null);
+    assert.equal(game.pinMlAway, null);
+    assert.equal(game.pinSpread, null);
+    assert.equal(game.pinTotal, null);
+    // Archived Parlay-derived Pinnacle data must not become a live PinnOdds quote.
+    assert.equal(game.activeOddsSource, "PinnOdds");
+    assert.equal(game.referenceMarketAvailable, false);
     assert.equal(game.marketUnavailable, true);
     assert.equal(game.executionMarketAvailable, false);
   });

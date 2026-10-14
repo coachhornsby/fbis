@@ -1,3 +1,4 @@
+import {retiredOddsCollectorResponse} from "../lib/activeOddsPolicy.js";
 import { startPaidAcquisition, recordAcquisitionRun, captureAcquisitionRaw, recordAcquisitionConsumer } from '../lib/externalAcquisition.js';
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { queryGames } from "../lib/store.js";
@@ -69,6 +70,7 @@ async function upsertCostLedger(db,cost){
 }
 export async function onRequestPost(context){
  const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(),401);
+  return json(retiredOddsCollectorResponse("ACTION_APIFY"),410);
  const url=new URL(context.request.url);let body={};try{body=await context.request.json()}catch{}const mode=String(url.searchParams.get("mode")||body.mode||"start").toLowerCase();
  const db=dbOf(context.env);if(!db)return json({ok:false,status:"d1_unavailable"},503);const now=new Date(),today=day(now),yesterday=prev(today),cfg=readCandidateConfig(context.env);
  if(mode==="start"){

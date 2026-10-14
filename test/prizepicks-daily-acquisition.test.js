@@ -2,24 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-test("free mirror is scheduled while paid acquisition is manual and retains its spending gates",()=>{
-  const y=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
-  const triggers=y.slice(y.indexOf("on:"),y.indexOf("concurrency:"));
-  assert.match(triggers,/workflow_dispatch:/);
-  assert.doesNotMatch(triggers,/schedule:|push:/);
-  const free=fs.readFileSync(".github/workflows/free-prizepicks-mirror.yml","utf8");
-  assert.match(free,/cron: '17 13,15 \* \* \*'/);
-  assert.doesNotMatch(free,/APIFY_TOKEN|api\/apify-acquire/);
-  assert.doesNotMatch(y,/timezone:/);
-
-  assert.match(y,/Reuse existing daily reservation without a replacement paid call/);
-  assert.match(y,/RECOVER_ARTIFACT/);
-  assert.match(y,/Reserve today's single paid PrizePicks acquisition/);
-  assert.match(y,/Pull full PrizePicks board once/);
-  assert.doesNotMatch(y,/playerNames:\$players/);
-  assert.doesNotMatch(y,/run-sync-get-dataset-items|listLeagues/);
-  assert.match(y,/api\/apify-acquire/);
-  assert.match(y,/bounded resumable batches/);
+test("exactly one free PrizePicks mirror remains scheduled and paid acquisition is retired",()=>{
+ const paid=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
+ const free=fs.readFileSync(".github/workflows/free-prizepicks-mirror.yml","utf8");
+ assert.match(paid,/RETIRED/);
+ assert.doesNotMatch(paid,/^  schedule:/m);
+ assert.equal((free.match(/cron:/g)||[]).length,1,"exactly one active free mirror schedule");
+ assert.ok(free.includes("/api/free-prizepicks-collect"));
+ assert.doesNotMatch(free,/APIFY_TOKEN|api\/apify-acquire/);
 });
 test("PrizePicks API enforces durable daily acquisition reservation",()=>{
   const s=fs.readFileSync("functions/api/prizepicks-props.js","utf8");
@@ -35,22 +25,13 @@ test("legacy paid collector is disabled",()=>{
   assert.doesNotMatch(s,/await runActor\(/);
 });
 
-test("PrizePicks workflow reports degraded ingestion separately from budget-safe collection skip",()=>{
-  const y=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
-  const api=fs.readFileSync("functions/api/prizepicks-props.js","utf8");
-  assert.match(y,/name: Assert durable daily ingestion health\s*\n\s*if: always\(\)/);
-  assert.match(y,/mode=ingestion_health/);
-  assert.match(y,/if \[ "\$code" != "200" \] \|\| \[ "\$healthy" != "true" \]/);
-  assert.match(y,/SKIP_COLLECTION=1/);
-  assert.match(api,/mode==="ingestion_health"/);
-  assert.match(api,/acquisition\?\.state==="COMPLETE"/);
-  assert.match(api,/LEFT JOIN nfl_prop_state_snapshots s ON s\.prop_line_id=p\.id/);
-  assert.match(api,/DAILY_CAPTURE_NOT_COMPLETE/);
-  assert.match(api,/NFL_STATE_SNAPSHOT_GAP/);
-  assert.match(api,/canQualify:false,canAuthorizeWager:false/);
+test("historical PrizePicks schema remains readable but new acquisition is blocked",()=>{
+ const workflow=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
+ const api=fs.readFileSync("functions/api/prizepicks-props.js","utf8");
+ assert.match(workflow,/RETIRED/);
+ assert.match(api,/retiredOddsCollectorResponse\("PRIZEPICKS_APIFY"\)/);
+ assert.match(api,/prizepicks_daily_acquisitions/);
 });
-
-
 test("offline free NFL mirror audit accepts six standard markets but creates no authoritative evidence",async()=>{
   const {auditFreeNflMirror}=await import("../scripts/audit-free-prop-mirror.mjs");
   const feed={sport:"NFL",scrapedAt:"2026-10-10T12:09:36Z",collectionStatus:{ok:true,sourceCount:7,providerFetchedAt:"2026-10-10T12:08:00Z"},props:[

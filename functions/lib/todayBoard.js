@@ -1,5 +1,7 @@
 import {cfbUnitFeatureAudit} from "./cfbProspectiveAudit.js";
 import { isFbsVsFbsGame } from "./cfbGameVisibility.js";
+import {pinnoddsOnlySlateMarket} from "./activeOddsPolicy.js";
+import {loadPinnoddsBoardResearch} from "./pinnoddsBoardResearch.js";
 import { proveTennisEvent } from "./tennisEventIntegrity.js";
 import { currentActionDisplay } from "./actionDisplayFreshness.js";
 /**
@@ -33,6 +35,8 @@ function withRecs(slate, weights = DEFAULT_WEIGHTS) {
   return {
     ...slate,
     games: (slate?.games || []).map((game) => {
+      if(game.activeOddsPolicy==="APPROVED_MARKETS_ONLY"||game.qualificationBlocked===true)
+        return {...game,rec:null,lean:null,canQualify:false,canAuthorizeWager:false};
       const bundle = recommendBundle(slate.sport, game, game.model, weights);
       return { ...game, rec: bundle.qualified, lean: bundle.lean };
     }),
@@ -254,6 +258,10 @@ export function toBoardGame(game, sport, now = Date.now()) {
     referenceMarketAvailable: marketAvail.referenceMarketAvailable,
     consensusAvailable: marketAvail.consensusAvailable,
     intelligenceAvailable: marketAvail.intelligenceAvailable,
+    // Market receipt, never executable: quote time is not provider-verified.
+    pinnoddsResearch: game.pinnoddsResearch || null,
+    pinnoddsEvidenceState: game.pinnoddsEvidenceState || null,
+    activeOddsSource: "PinnOdds",
     modelVersion: game.modelVersion || null,
     checkpoint: game.checkpoint || null,
     rec: rec
@@ -1084,19 +1092,18 @@ export async function buildTodayBoard(
         }
       }
       const durableFallbackCount=selectedDateGames.filter(g=>g.durableFallback).length;
-      const hydratedGames = selectedDateGames.map((g) => {
-        if (g.durableFallback) return {...g,marketLineHistory:[]};
-        const withPin = hydrateOddsFromMarketRows(
-          hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))),
-          byMarketOdds.get(String(g.id))
-        );
-        const withSoft = sport === "nhl"
-          ? hydrateOddsFromSoftMarketRows(withPin, bySoftMarketOdds.get(String(g.id)))
-          : withPin;
-        return {
-          ...withSoft,
-          marketLineHistory: byMarketHistory.get(String(g.id)) || [],
-        };
+      // Sole active odds source: read matched PinnOdds captures from D1.
+      // Historical Parlay/soft/Pinnacle-through-Parlay snapshots remain
+      // auditable in storage but cannot hydrate CURRENT board pricing.
+      const pinnodds=await loadPinnoddsBoardResearch(env.DB,{
+        sport,games:selectedDateGames,now:new Date(now).toISOString(),
+      });
+      const hydratedGames=selectedDateGames.map(g=>{
+        const clean=pinnoddsOnlySlateMarket(g);
+        const evidence=pinnodds.byGame?.[String(g.id)]||null;
+        return {...clean,marketLineHistory:[],
+          pinnoddsResearch:evidence,
+          pinnoddsEvidenceState:evidence?.status||pinnodds.reason||"NO_PINNODDS_OBSERVATIONS"};
       });
       const recSlate = sport === "tennis"
         ? {
@@ -1123,27 +1130,11 @@ export async function buildTodayBoard(
         canAuthorizeWager:g.durableFallback?false:g.canAuthorizeWager,
         palUnavailableReason: g.bpp ? g.palUnavailableReason : palReason,
       }));
-      if (env.DB && !durableOnly && sport !== "tennis") {
-        try {
-          const { attachActionIntelToGames } = await import("./boardActionIntel.js");
-          const attached = await attachActionIntelToGames(slateGames, env.DB);
-          slateGames = attached.games || slateGames;
-          actionIntelMeta.checked += attached.checked || 0;
-          actionIntelMeta.attached += attached.attached || 0;
-          actionIntelMeta.rematched += attached.rematched || 0;
-          actionIntelMeta.durableMatched += attached.durableMatched || 0;
-          actionIntelMeta.legacyFallbackMatched += attached.legacyFallbackMatched || 0;
-          for (const id of attached.matchedIds || []) actionIntelMeta.matchedIds.add(String(id));
-        } catch {
-          // Fail-open: continue without ACTION on this sport.
-        }
-      }
-
+      // ACTION market intelligence is archived only; no new/current overlays.
       if (sport === "nhl" && !durableOnly)
         slateGames = slateGames.map((g)=>g.durableFallback?g:({...g,nhlWagerV1:evaluateNhlGameWagers(g)}));
-      if (env.DB && !durableOnly)
-        slateGames = await attachPrizePicksMarkets(slateGames, sport, date, env.DB);
-      const rows = slateGames.filter(isFbsVsFbsGame).map((g) => currentActionDisplay(toBoardGame(g, sport, now), now));
+      // Retired PrizePicks market lines are unavailable on CURRENT board.
+      const rows = slateGames.filter(isFbsVsFbsGame).map((g) => toBoardGame(g, sport, now));
       const tennisIntegrityBlocked = sport === "tennis" && (slate.research?.withheld > 0 || slate.research?.configured === false);
       feeds[sport] = {
         ok: !tennisIntegrityBlocked,

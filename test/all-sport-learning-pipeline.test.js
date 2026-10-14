@@ -73,32 +73,23 @@ test("research ops and projection export enumerate all six sports without paused
 });
 
 
-test("Zen ACTION is the only scheduled ACTION acquisition workflow", async () => {
-  const daily = await readFile(new URL("../.github/workflows/action-daily-snapshot.yml", import.meta.url), "utf8");
-  assert.match(daily, /Zen ACTION daily full slate/);
-  assert.match(daily, /cron:\s*"30 14 \* \* \*"/);
-  assert.equal((daily.match(/cron:/g) || []).length, 1);
-  assert.doesNotMatch(daily, /^  push:/m);
-  assert.doesNotMatch(daily, /timezone:/);
-  assert.match(daily, /action-daily-async\?mode=start/);
-
-  for (const rel of [
-    "../.github/workflows/action-daily-watchdog.yml",
-    "../.github/workflows/action-player-props.yml",
-    "../.github/workflows/action-post-deploy-repair.yml",
-    "../.github/workflows/action-restore-validation.yml",
-  ]) {
-    const body = await readFile(new URL(rel, import.meta.url), "utf8");
-    assert.match(body, /PAUSED/);
-    assert.match(body, /workflow_dispatch/);
-    assert.doesNotMatch(body, /\bschedule\s*:/);
+test("ACTION and other non-PinnOdds odds schedules are retired; learning exports remain",async()=>{
+  for(const file of ["action-daily-snapshot.yml","mlb-free-odds-collect.yml","nhl-free-odds-collect.yml"]){
+    const body=await readFile(new URL("../.github/workflows/"+file,import.meta.url),"utf8");
+    assert.match(body,/RETIRED/);assert.match(body,/PinnOdds/);
+    assert.doesNotMatch(body,/^  schedule:/m);
+    assert.doesNotMatch(body,/^  push:/m);
   }
-
-  const harvest = await readFile(new URL("../.github/workflows/harvest.yml", import.meta.url), "utf8");
-  assert.match(harvest, /ACTION_RECOVERY_ENABLED="false"/);
-  assert.match(harvest, /if:\s*\$\{\{ false \}\}/);
+  // Polymarket exchange ingestion is approved and MUST stay scheduled.
+  const poly=await readFile(new URL("../.github/workflows/polymarket-us-market-collect.yml",import.meta.url),"utf8");
+  assert.match(poly,/cron:/);
+  assert.ok(poly.includes("/api/polymarket-ws-capture"));
+  const free=await readFile(new URL("../.github/workflows/free-prizepicks-mirror.yml",import.meta.url),"utf8");
+  assert.match(free,/cron:/);
+  assert.match(free,/api\/free-prizepicks-collect/);
+  const harvest=await readFile(new URL("../.github/workflows/harvest.yml",import.meta.url),"utf8");
+  assert.match(harvest,/ACTION_RECOVERY_ENABLED="false"/);
 });
-
 
 test("orchestrator mirrors every fetched board projection to the operator sheet before LLM gating", async () => {
   const orchestrator = await readFile(

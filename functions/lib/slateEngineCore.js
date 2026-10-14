@@ -3,7 +3,6 @@ import {fetchWithCfbBackoff} from "./cfbProviderBackoff.js";
 
 import { BASEBALL, EXECUTION_BOOK, runLine } from "./books.js";
 import { fetchBallparkPal, mergeBallparkPal, palSlateView } from "./ballparkpal.js";
-import { fetchParlayOdds, mergeParlay } from "./parlay.js";
 import { fetchSavantSlate } from "./savant.js";
 import { MODEL_VERSION, expectedRoi, pinMarkets, priceSelection, softBookLabel, tagFromEv, validAmericanOdds } from "./pricing.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
@@ -19,7 +18,6 @@ import { attachWeather, parseVenueLocation } from "./weather.js";
 import { attachAvailability } from "./availability.js";
 import { enrichGamesVenues } from "./venues.js";
 import { attachNflInternationalContext } from "./nflInternationalContext.js";
-import { attachKalshiSentiment } from "./kalshi.js";
 import { setMeta } from "./store.js";
 import { isUnusableCachedOddsMeta } from "./marketLineage.js";
 import { loadNpbV2Context, attachNpbFbisV2 } from "./npbFbisV2.js";
@@ -1762,45 +1760,17 @@ export async function buildSlate(sport, date, env = {}) {
   // never spend provider quota or wait on live odds just to prove "no games".
   // Live odds remain allowed as a schedule fallback only when schedule discovery failed.
   const noGameScheduleResolved = scheduleResolved && games.length === 0;
-  const parlay = await fetchParlayOdds(id, env.PARLAY_API_KEY, env.caches, {
-    date: day,
-    // NHL may use cached lines and bounded free-tier SharpAPI/TheRundown
-    // backups without opting into billable Parlay/TheOdds calls.
-    // Paid NHL collection remains explicitly disabled unless opted in.
-    cacheOnly: (id === "nhl" && env.NHL_ODDS_PROVIDER_OPT_IN !== "true") ||
-      Boolean(env.parlayCacheOnly) || noGameScheduleResolved,
-    strictCacheOnly: (id === "cfb" && Boolean(env.cfbdCacheOnly)) ||
-      (id === "nhl" && Boolean(env.parlayCacheOnly)),
-    backupApiKey: id === "nhl" && env.NHL_ODDS_PROVIDER_OPT_IN !== "true"
-      ? null : env.THEODDS_API_KEY,
-    sharpApiKey: env.SHARPAPI_API_KEY,
-    theRundownApiKey: env.THERUNDOWN_API_KEY,
-  });
-  // Persist board-vs-live odds health (no secrets) for /api/health.
-  if (env?.DB && parlay?.meta && !(id === "cfb" && env.cfbdCacheOnly)) {
-    const m = parlay.meta;
-    const usable = !isUnusableCachedOddsMeta(m) && !m.failClosed && Array.isArray(parlay.events) && parlay.events.length > 0;
-    const prefix = `last_odds_${id}_`;
-    const pairs = [
-      [`${prefix}source`, m.source || ""],
-      [`${prefix}source_mode`, m.sourceMode || ""],
-      [`${prefix}cached`, m.cached ? "1" : "0"],
-      [`${prefix}usable`, usable ? "1" : "0"],
-      [`${prefix}provider`, m.provider || ""],
-      [`${prefix}observed_at`, m.observedAt || m.asOf || ""],
-      [`${prefix}games`, String(Array.isArray(parlay.events) ? parlay.events.length : Number(m.games || 0))],
-      [`${prefix}at`, new Date().toISOString()],
-    ];
-    for (const [k, v] of pairs) {
-      try { await setMeta(env, k, v); } catch { /* best-effort */ }
-    }
-  }
-  games = mergeParlay(games, parlay.events, id, day);
-  games = games.map((g) => attachMarketLabels(enrichGameTeams(id, g)));
-
-  // Free Kalshi public API for winner sentiment (independent of Parlay credits).
-  const kalshi = await attachKalshiSentiment(games, id, env.caches, { replace: false });
-  games = kalshi.games || games;
+  // PinnOdds is the only active sportsbook-odds acquisition path.
+  // Its governed collector persists immutable normalized observations to D1.
+  // No Parlay/TheOdds/SharpAPI/TheRundown or exchange/sentiment HTTP fetch here.
+  // The board attaches source-verified PinnOdds research observations downstream.
+  const parlay = {events:[],meta:{
+    source:"PinnOdds",provider:"PinnOdds",cached:false,skipped:true,cacheOnly:true,
+    enabled:false,sourceMode:"PINNODDS_LEDGER_ONLY",retiredLegacyOdds:true,
+    canQualify:false,canAuthorizeWager:false,
+  }};
+  games=games.map(g=>attachMarketLabels(enrichGameTeams(id,g)));
+  const kalshi={meta:{enabled:false,source:"RETIRED_ODDS_INGESTOR"}};
 
   // Soft-odds stubs / CFBD boards often lack ESPN lat/lon — fill NFL stadiums, then geocode.
   games = attachNflInternationalContext(games);

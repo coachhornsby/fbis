@@ -1,3 +1,4 @@
+import {retiredOddsCollectorResponse} from "../lib/activeOddsPolicy.js";
 import {querySharedApifyMonthToDateUsd} from '../lib/sharedApifyBudget.js';
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { canonicalizeProPlayerPropMarket, normalizeProPropSport } from "../lib/proPlayerProps.js";
@@ -273,6 +274,7 @@ export async function onRequestGet(context){
 export async function onRequestPost(context){
   const auth=authorizeHarvest(context.request,context.env);
   if(!auth.ok) return json(unauthorizedBody(),401);
+  return json(retiredOddsCollectorResponse("PRIZEPICKS_APIFY"),410);
   if(!context.env?.DB) return json({ok:false,error:"database unavailable"},503);
   let body={};try{body=await context.request.json()}catch{}
   const operation=String(body.operation||"").toLowerCase();

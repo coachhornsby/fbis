@@ -102,6 +102,7 @@ test("PrizePicks persistence retains separate prop model source and version line
   const workflow=fs.readFileSync(new URL("../.github/workflows/prizepicks-targeted-props.yml",import.meta.url),"utf8");
   assert.match(api,/raw_json,model_source,model_version/);
   assert.match(api,/s\(cand\?\.modelSource\),s\(cand\?\.modelVersion\)/);
-  assert.match(workflow,/modelSource:\(\.source \/\/ null\)/);
-  assert.match(workflow,/modelVersion:\(\.modelVersion \/\/ null\)/);
+  assert.match(workflow,/RETIRED/);
+  assert.match(workflow,/PinnOdds/);
+  assert.doesNotMatch(workflow,/^  schedule:/m);
 });
