@@ -43,7 +43,7 @@ export function BoardSummaryStrip({ games = [] }) {
 
 export default function DecisionBoard({ games = [], renderDetail }) {
   const [selected, setSelected] = useState(null);
-  const ranked = useMemo(() => sortByConfidence(games), [games]);
+  const ranked = useMemo(() => sortByConfidence(games).sort((a,b)=>Number(Boolean(a.tennisProjection?.researchFixture))-Number(Boolean(b.tennisProjection?.researchFixture))), [games]);
 
   if (!games.length) return <div className="empty">No games on this filter.</div>;
 
@@ -69,6 +69,7 @@ export default function DecisionBoard({ games = [], renderDetail }) {
   return (
     <div className="decision-board">
       <BoardSummaryStrip games={ranked} />
+      {ranked.some(g=>g.tennisProjection?.researchFixture)?<p className="tmc-research-separator" role="note">Independent Tennis research fixtures · Separate from verified scheduled events · No projection or wager authority</p>:null}
       <div className="db-grid" role="list" aria-label="Decision board cards">
         {ranked.map((g) => {
           const isTennis = String(g?.sport || "").toLowerCase() === "tennis";

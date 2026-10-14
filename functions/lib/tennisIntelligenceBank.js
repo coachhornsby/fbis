@@ -34,7 +34,9 @@ export async function tennisFixtureOffers(db, fixture, { now = new Date() } = {}
 }
 
 export async function buildTennisIntelligenceBank(db, { limit = 50, now = new Date() } = {}) {
-  const until = now.toISOString(), since = new Date(+now - 18 * 3600000).toISOString();
+  // Independent fixtures refresh every three hours. Do not retain disappeared
+  // scheduled fixtures for eighteen hours after their last source observation.
+  const until = now.toISOString(), since = new Date(+now - 4 * 3600000).toISOString();
   const q = await db.prepare(`SELECT fixture_id AS id,tour,player1_name AS away_name,
     player2_name AS home_name,match_time AS start,status,source,fetched_at,raw_hash,raw_key
     FROM tennis_external_fixtures WHERE source='ESPN_PUBLIC' AND status IN ('SCHEDULED','IN_PROGRESS')
@@ -87,7 +89,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
       ...p, headshot: p.headshotUrl ?? null, recentForm: context?.players?.[i]?.recentForm || [] })) };
     const venueOffers = f.venueOffers.map(o => ({ ...o, side: o.side === "home" ? "away" : o.side === "away" ? "home" : o.side }));
     games.push({ id: f.id, sport: "tennis", tour: f.tour, start: f.start, status: f.status,
-      home: team(p1), away: team(p2), projectionKind: "UNAVAILABLE", pureProjectionAvailable: false,
+      home: team(p1), away: team(p2), projectionKind: "UNAVAILABLE", pureProjectionAvailable: false, projectionUnavailable: true,
       publicationStatus: "RESEARCH_FIXTURE_ONLY", canQualify: false, canAuthorizeWager: false, qualificationBlocked: true,
       qualificationBlockReason: "INDEPENDENT_FIXTURE_NO_PIT_PROJECTION", rec: null, lean: null, authorized: false,
       quality: { state: "RESEARCH", flags: ["research_only", "independent_fixture", "projection_unavailable"] },
@@ -95,6 +97,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
       tennisProjection: { researchFixture: { verified: true, source: f.source, fixtureId: f.id,
         fetchedAt: f.fetched_at, rawHash: f.raw_hash, rawKey: f.raw_key },
         eventIntegrity: { valid: false, reason: "OFFICIAL_PROJECTION_UNAVAILABLE" },
+        blockedReason: "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
         player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
         surface: null, tournament: null, playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
     });

@@ -118,8 +118,8 @@ test("ALL sports uses read-only durable schedule and independent tennis queries 
   assert.equal(board.feeds.nba.n,1);
   assert.equal(board.games.length,2);
   assert.ok(board.games.every(g=>g.status==="unverified" && !g.canQualify && g.rec==null));
-  // Durable slate (1) + tennis research queries (2) + read-only Polymarket overlay per sport with games (nhl+nba).
-  assert.equal(store.metrics.calls,5);
+  // Durable slate (1) + tennis research + coverage queries (3) + read-only Polymarket overlay per sport with games (nhl+nba).
+  assert.equal(store.metrics.calls,6);
   assert.equal(board.polymarketResearch.source,"Polymarket US");
   assert.equal(board.polymarketResearch.qualified,false);
   assert.equal(board.polymarketResearch.executable,false);

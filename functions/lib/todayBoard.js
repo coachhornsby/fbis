@@ -17,6 +17,7 @@ import { buildPropConvictions, summarizeMlbPropWatch } from "./propConviction.js
 import { querySnapshots, queryOddsSnapshots } from "./store.js";
 import { loadDurableTodayGames } from "./todayDurableFallback.js";
 import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
+import { inspectTennisProjectionCoverage, publicTennisCoverage } from "./tennisProjectionPipeline.js";
 import { tennisCardContext } from "./tennisPlayerBank.js";
 import { buildIndependentTennisCards, tennisFixtureOffers } from "./tennisIntelligenceBank.js";
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "./polymarketBoard.js";
@@ -717,7 +718,7 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
       tennisCardContext(env.DB,{tour:row.tour,player1:row.player1,player2:row.player2,surface:row.surface}).catch(()=>null),
       tennisVenueOffers(env.DB,row,now).catch(()=>[])
     ]);
-    const p1 = Number(row.pure_p1);
+    const p1 = row.pure_p1 == null ? NaN : Number(row.pure_p1);
     const p1Prob = Number.isFinite(p1) ? p1 : null;
     const p2Prob = p1Prob == null ? null : 1 - p1Prob;
     const marketJson = safeJson(row.market_json) || {};
@@ -784,7 +785,7 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
         projHome: p1Prob == null ? null : p1Prob * 100,
         // Tennis probabilities are not score projections. Total-games/spread belong only
         // to explicit simulator outputs; keep them null until those outputs exist.
-        projTotal: null,
+        projTotal: safeJson(row.context_json)?.projectedTotalGames ?? null,
         projMargin: null,
         projectionKind: "FBIS",
       },
@@ -805,6 +806,11 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
         marketPriorP2: marketP2,
         marketAdjustedP1: row.market_v2_p1 == null ? null : Number(row.market_v2_p1),
         modelEdge: row.model_edge == null ? null : Number(row.model_edge),
+        modelVersion: safeJson(row.context_json)?.modelVersion || "v2-deep-context-market-separated",
+        ...(safeJson(row.context_json)?.projectedTotalGames != null ? {projectedTotalGames:safeJson(row.context_json).projectedTotalGames} : {}),
+        tournamentLevel: integrity.event.tournament_level || null,
+        round: integrity.event.round_code || null,
+        venue: integrity.event.venue || null,
         decisionTimestamp: row.decision_timestamp,
         snapshotType: row.snapshot_type || "DECISION",
         tour: String(row.tour || "").toUpperCase(),
@@ -905,6 +911,28 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
       authorized: false,
     };
   }))).filter(Boolean);
+  let projectionCoverage;
+  try {
+    const coverage = await inspectTennisProjectionCoverage(env.DB, {now});
+    projectionCoverage = publicTennisCoverage(coverage);
+    for (const f of coverage.fixtures) {
+      if (!f.proof.valid || boardDateCtForStart(f.match_time) !== date || games.some(g => g.id === f.match_id)) continue;
+      const team = p => ({name:p.display_name,fullName:p.display_name,canonicalId:p.fbis_player_id,
+        countryCode:p.country,rank:p.rank??null,rankingPoints:p.points??null,headshotUrl:p.headshot||null});
+      const playerBank = await tennisCardContext(env.DB,{tour:f.tour,player1:f.player1,player2:f.player2,surface:f.surface}).catch(()=>null);
+      games.push({id:f.match_id,sport:"tennis",tour:f.tour.toUpperCase(),start:f.match_time,status:{detail:"Scheduled"},
+        home:team(f.proof.p1),away:team(f.proof.p2),projectionKind:"UNAVAILABLE",pureProjectionAvailable:false,
+        projectionUnavailable:true,publicationStatus:"RESEARCH_PUBLISHABLE",projectionMaturity:"RESEARCH",
+        modelId:"TENNIS-FBIS-v2-CONTEXT",canQualify:false,canAuthorizeWager:false,authorized:false,rec:null,lean:null,
+        qualificationBlocked:true,qualificationBlockReason:f.blockedReason,
+        tennisProjection:{eventIntegrity:{valid:true,...f.proof.proof},player1:f.player1,player2:f.player2,
+          player1WinProb:null,player2WinProb:null,blockedReason:f.blockedReason,
+          tournament:f.tournament_name,tournamentLevel:f.tournament_level,round:f.round_code,venue:f.venue,
+          surface:f.surface,indoor:f.indoor_outdoor==="INDOOR"?true:f.indoor_outdoor==="OUTDOOR"?false:null,playerBank},
+        market:{marketAvailable:false,executionActionable:false,reference:{available:false}},
+        quality:{state:"RESEARCH",flags:["research_only","projection_unavailable"]}});
+    }
+  } catch { projectionCoverage={status:"UNAVAILABLE",reason:"COVERAGE_EVIDENCE_UNAVAILABLE"}; }
   const independent = await buildIndependentTennisCards(env.DB, date, {now});
   // Official projection cards take precedence for the same tour/player pair/start.
   const key = g => [String(g.tour).toLowerCase(), [tennisNameKey(g.home?.name),tennisNameKey(g.away?.name)].sort().join("|"),Date.parse(g.start)].join(":");
@@ -921,6 +949,7 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
       records: games.length,
       withheld: blocked.length,
       blockedEvents: blocked,
+      projectionCoverage,
       independentFixtures: independent.coverage,
       modelId: "TENNIS-FBIS-v2-CONTEXT",
       maturity: "RESEARCH",
