@@ -39,7 +39,10 @@ export async function capturePinnoddsSnapshot(env,{runId,kind,sportId=null,feed=
  const claim=await env.R2_ARCHIVE.put(receiptKey,JSON.stringify({ok:false,snapshotId,state:'ATTEMPT_RESERVED',at:now.toISOString()}),{...jsonOptions,onlyIf:{etagDoesNotMatch:'*'}});
  if(!claim)throw Error('CAPTURE_ALREADY_RESERVED');
  const url=new URL(kind==='board'?'/kit/v1/markets':kind==='drops'?'/api/drops':'/health','https://pinnodds.com');
- if(kind==='board'){url.searchParams.set('sport_id',sportId);url.searchParams.set('event_type',feed);url.searchParams.set('include_specials','1');}
+ // Flat soccer prematch specials can expand beyond the Worker string limit. The
+ // provider's nested format keeps every special attached to its parent event;
+ // the ingest normalizer expands them after immutable raw archival.
+ if(kind==='board'){url.searchParams.set('sport_id',sportId);url.searchParams.set('event_type',feed);url.searchParams.set('include_specials',sportId===1&&feed==='prematch'?'nested':'1');}
  if(kind==='drops'){url.searchParams.set('mode',feed);url.searchParams.set('min_drop_pct','0');url.searchParams.set('max_age_sec','10800');url.searchParams.set('limit','10000');}
  const response=await fetchImpl(url,{headers:{'x-api-key':env.PINNODDS_API_KEY,accept:'application/json'},signal:AbortSignal.timeout(45000)});
  if(!response.ok)throw Error('PINNODDS_PROVIDER_HTTP_'+response.status);
