@@ -14,8 +14,22 @@ export function pinnoddsSport(sportId,league=''){
 }
 export function normalizePinnoddsMarkets(body,{sportId,feed,capturedAt,games=[],snapshotId,rawKey}={}){
  if(!Array.isArray(body?.events))throw Error('PINNODDS_EVENTS_CONTRACT_CHANGED');
- const rows=[],reasons={},parents=new Map(body.events.filter(e=>!e.special&&!e.special_category).map(e=>[String(e.event_id),e]));
- for(const event of body.events){
+ // The vendor's nested specials mode returns one parent row per match.
+ // Expand in memory after immutable source archival so every prop/alt/special
+ // retains its own ID, price, parent linkage and provenance.
+ const events=[];
+ for(const parent of body.events){
+  events.push(parent);
+  if(parent.specials==null)continue;
+  if(!Array.isArray(parent.specials))throw Error('PINNODDS_NESTED_SPECIALS_CONTRACT_CHANGED');
+  for(const special of parent.specials){
+   if(!special||typeof special!=='object'||special.event_id==null)throw Error('PINNODDS_NESTED_SPECIAL_ID_REQUIRED');
+   if(special.parent_id!=null&&String(special.parent_id)!==String(parent.event_id))throw Error('PINNODDS_NESTED_PARENT_CONFLICT');
+   events.push({...special,parent_id:parent.event_id,league_name:special.league_name||parent.league_name});
+  }
+ }
+ const rows=[],reasons={},parents=new Map(events.filter(e=>!e.special&&!e.special_category).map(e=>[String(e.event_id),e]));
+ for(const event of events){
   const sport=pinnoddsSport(sportId,event.league_name);if(!sport){reasons.UNSUPPORTED_LEAGUE=(reasons.UNSUPPORTED_LEAGUE||0)+1;continue;}
   const parent=event.special||event.special_category?parents.get(String(event.parent_id)):event;
   const identity=parent?matchPolymarketUsEvent({startTime:parent.starts,homeTeam:{name:parent.home},awayTeam:{name:parent.away}},games.filter(g=>g.sport===sport),sport):{id:null,reason:'PARENT_EVENT_UNAVAILABLE'};
@@ -53,5 +67,5 @@ export function normalizePinnoddsMarkets(body,{sportId,feed,capturedAt,games=[],
     stat,player:isPlayer?(player||(!/^(over|under|yes|no|home|away|draw)(\s|$)/i.test(String(outcome.name||''))?String(outcome.name||'')||null:null)):null,original:{...outcome,market}});
   }
  }
- return{rows,reasons,inputEvents:body.events.length,normalizedRows:rows.length,matchedRows:rows.filter(r=>r.eventId).length};
+ return{rows,reasons,inputEvents:events.length,normalizedRows:rows.length,matchedRows:rows.filter(r=>r.eventId).length};
 }
