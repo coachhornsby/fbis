@@ -1,3 +1,4 @@
+import {retiredOddsCollectorResponse} from "../lib/activeOddsPolicy.js";
 import {authorizeHarvest,unauthorizedBody} from '../lib/auth.js';
 import {FREE_PROP_MIRROR_URL,FREE_PROP_MIRROR_SOURCE,normalizeMirrorProps} from '../lib/freePrizePicksMirror.js';
 import {persistNormalizedMarketBatch} from '../lib/marketObservationLedger.js';
@@ -45,6 +46,7 @@ export async function consumeFreeMirror(env,{snapshotId,batchIndex,now=new Date(
 }
 export async function onRequestPost({env,request}){
  const auth=authorizeHarvest(request,env);if(!auth.ok)return json(unauthorizedBody(auth.reason),403);
+  return json(retiredOddsCollectorResponse("PRIZEPICKS_FREE_MIRROR"),410);
  if(!env.ARCHIVE?.get||!env.DB?.prepare)return json({ok:false,error:'DURABLE_STORAGE_REQUIRED'},503);
  try{
   const body=await request.json();
