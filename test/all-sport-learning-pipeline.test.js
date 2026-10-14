@@ -74,13 +74,16 @@ test("research ops and projection export enumerate all six sports without paused
 
 
 test("ACTION and other non-PinnOdds odds schedules are retired; learning exports remain",async()=>{
-  for(const file of ["action-daily-snapshot.yml","mlb-free-odds-collect.yml","nhl-free-odds-collect.yml",
-    "polymarket-us-market-collect.yml"]){
+  for(const file of ["action-daily-snapshot.yml","mlb-free-odds-collect.yml","nhl-free-odds-collect.yml"]){
     const body=await readFile(new URL("../.github/workflows/"+file,import.meta.url),"utf8");
     assert.match(body,/RETIRED/);assert.match(body,/PinnOdds/);
     assert.doesNotMatch(body,/^  schedule:/m);
     assert.doesNotMatch(body,/^  push:/m);
   }
+  // Polymarket exchange ingestion is approved and MUST remain scheduled.
+  const exchange=await readFile(new URL("../.github/workflows/polymarket-us-market-collect.yml",import.meta.url),"utf8");
+  assert.match(exchange,/cron:/);
+  assert.match(exchange,/api\\/polymarket-ws-capture/);
   const free=await readFile(new URL("../.github/workflows/free-prizepicks-mirror.yml",import.meta.url),"utf8");
   assert.match(free,/cron:/);
   assert.match(free,/api\/free-prizepicks-collect/);
