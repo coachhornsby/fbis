@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { soccerTeamDirectory, summarizeSoccerTeamMatches } from '../functions/lib/soccerTeamProfiles.js';
+import { onRequestGet } from '../functions/api/soccer-team-profiles.js';
+
+test('owned soccer directory covers all ten routed competitions',()=>{
+ const d=soccerTeamDirectory();assert.equal(d.length,10);assert.ok(d.every(c=>c.teams.length>0));
+ assert.ok(d.flatMap(c=>c.teams).every(t=>t.id&&t.name&&t.logo));
+});
+test('team history excludes future, nonfinal, wrong-team and absent scores',()=>{
+ const base={status:'FINAL',match_date:'2026-10-01',event_id:'one',home_team_id:'83',home_team_name:'Barcelona',away_team_id:'x',away_team_name:'Opponent',home_score:2,away_score:1};
+ const s=summarizeSoccerTeamMatches([base,{...base,event_id:'future',match_date:'2026-11-01'},
+  {...base,status:'SCHEDULED'},{...base,home_score:null},{...base,home_team_id:'other',home_team_name:'Other'}],{name:'Barcelona',espnId:'83'},'2026-10-14T05:00:00Z');
+ assert.equal(s.sampleSize,1);assert.equal(s.wins,1);assert.equal(s.goalsForPerMatch,2);
+ assert.equal(summarizeSoccerTeamMatches([],{name:'Barcelona',espnId:'83'},'2026-10-14').goalsForPerMatch,null);
+});
+test('team profile uses retained roster snapshot and keeps projection influence off',async()=>{
+ let calls=0;
+ const env={DB:{prepare(){return{bind(){return{all:async()=>({results:[]})}}}}},ARCHIVE:{get:async()=>({json:async()=>({observedAt:new Date().toISOString(),source:'ESPN team roster',players:[{id:'1',name:'Player'}]})})}};
+ const r=await onRequestGet({env,request:new Request('https://fbis.test/api/soccer-team-profiles?league=esp.1&team=83')});
+ const body=await r.json();assert.equal(body.ok,true);assert.equal(body.roster.players.length,1);assert.equal(body.persistentStateUsedInProjection,false);assert.equal(body.canAuthorize,false);
+ const ambiguous=await onRequestGet({env,request:new Request('https://fbis.test/api/soccer-team-profiles?team=83')});
+ assert.equal(ambiguous.status,400);
+});

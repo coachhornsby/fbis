@@ -348,15 +348,15 @@ function nhlFactors(game) {
 function soccerFactors(game) {
   const p=game?.soccerFbis; if(!p?.ok)return [];
   const d=p.diagnostics||{},H=abbr(game,"home"),A=abbr(game,"away"),out=[];
-  const pair=(id,label,hv,av,icon,lowerBetter=false)=>{const h=finite(hv),a=finite(av);if(h==null||a==null)return;
+  const pair=(id,label,hv,av,icon,lowerBetter=false)=>{const h=evidenceNumber(hv),a=evidenceNumber(av);if(h==null||a==null)return;
     const delta=lowerBetter?a-h:h-a;
-    out.push(factor(id,`${icon} ${label}`,sideFromDelta(game,delta),Math.abs(round(h-a,2)),`${H} ${round(h,2)} · ${A} ${round(a,2)}`,"SOCCER-FBIS-v1 point-in-time history"));};
+    out.push(factor(id,`${icon} ${label}`,sideFromDelta(game,delta),Math.abs(round(h-a,2)),`${H} ${round(h,2)} · ${A} ${round(a,2)}`,"SOCCER-FBIS-v2 point-in-time history"));};
   pair("attack","Attack strength",d.homeAttackRate,d.awayAttackRate,"⚽");
   pair("defense","Defensive resistance",d.homeDefenseRate,d.awayDefenseRate,"🛡️",true);
-  if(finite(p.home)!=null&&finite(p.away)!=null) pair("expected-goals","Expected goals",p.home,p.away,"🎯");
-  if(finite(d.homeRestDays)!=null&&finite(d.awayRestDays)!=null) pair("rest","Rest / schedule",d.homeRestDays,d.awayRestDays,"🔋");
-  if(finite(p.pBttsYes)!=null) out.push(factor("btts","🔥 Both-teams-to-score profile",p.pBttsYes>=.5?"YES":"NO",round(p.pBttsYes*100,1)+"%",
-    `Model BTTS Yes ${round(p.pBttsYes*100,1)}%`,"SOCCER-FBIS-v1"));
+  if(evidenceNumber(p.home)!=null&&evidenceNumber(p.away)!=null) pair("expected-goals","Expected goals",p.home,p.away,"🎯");
+  if(evidenceNumber(d.homeRestDays)!=null&&evidenceNumber(d.awayRestDays)!=null) pair("rest","Rest / schedule",d.homeRestDays,d.awayRestDays,"🔋");
+  if(evidenceNumber(p.pBttsYes)!=null) out.push(factor("btts","🔥 Both-teams-to-score profile",p.pBttsYes>=.5?"YES":"NO",round(p.pBttsYes*100,1)+"%",
+    `Model BTTS Yes ${round(p.pBttsYes*100,1)}%`,"SOCCER-FBIS-v2"));
   return out;
 }
 

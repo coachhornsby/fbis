@@ -23,15 +23,18 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           GITHUB_TOKEN: ${{ github.token }}
           BASE: https://fbis-myz.pages.dev
-          SNAPSHOT_DATE: "2026-10-09"
+          SNAPSHOT_DATE: "2026-10-17"
           REQUIRED_REPAIR_SHA: "9b1202f6a5a99931ac24e87f1b6e7369aab0d789"
         shell: bash
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
+          # Current bounded future slate; never replay the expired October 9 proof.
+          SNAPSHOT_DATE="$(TZ=America/Chicago date -d '+3 days' +%F)"
 
           # Do not proof stale Pages code. Wait until production collector SHA
           # contains the bounded Phase 3H-R2 repair in its ancestry.
+          REQUIRED_REPAIR_SHA="${GITHUB_SHA}"
           collector_sha=""
           for deploy_attempt in $(seq 1 72); do
             summary="$(curl -sS --max-time 30 \
@@ -134,6 +137,9 @@ jobs:
             exit 1
           fi
           publish_evidence "$first" "$second"
+          # A working fallback league is not proof that the canonical path recovered.
+          printf '%s\n' "$first" | jq -e '[.fixtures[] | select((.competition == "ger.1" or .competition == "fra.1") and .v2Ok == true and .v31Ok == true and .canonicalHistoryCount > 0) | .competition] | unique | length == 2' >/dev/null
+          test "$(printf '%s\n' "$first" | jq -r .snapshotAt)" != "$(printf '%s\n' "$second" | jq -r .snapshotAt)"
 
           first_bucket="$(printf '%s\n' "$first" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
           second_bucket="$(printf '%s\n' "$second" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
