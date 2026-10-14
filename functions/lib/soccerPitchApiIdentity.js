@@ -1,4 +1,8 @@
-import { normalizeSoccerName } from './soccerPitchApiStore.js';
+export function normalizeSoccerName(v=""){
+  return String(v||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/\b(fc|cf|sc|afc|club|de|futbol|football|soccer)\b/g," ")
+    .replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
+}
 
 // Verified by provider-name/ID comparisons in production PitchAPI ger.1 history.
 // Competition scope prevents short display aliases (e.g. Mainz) from leaking
