@@ -44,6 +44,6 @@ test("CFB PIT ingest reports cache miss rather than making a paid request",async
  const DB={prepare(){throw Error("no D1 call on cache miss")}};
  const r=await freezeCfbPregameFeatures({DB},{now:"2026-10-17T16:00:00Z",games:[game],
    fetchFn:()=>{throw Error("paid provider fanout prohibited");}});
- assert.equal(r.ok,false);assert.equal(r.reason,"deep-feed-unavailable");
+ assert.equal(r.ok,false);assert.equal(r.reason,"independent-cfb-feature-sources-unavailable");
  resetCacheMem();
 });
