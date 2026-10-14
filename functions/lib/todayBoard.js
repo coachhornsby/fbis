@@ -35,6 +35,8 @@ function withRecs(slate, weights = DEFAULT_WEIGHTS) {
   return {
     ...slate,
     games: (slate?.games || []).map((game) => {
+      if(game.activeOddsPolicy==="PINNODDS_ONLY"||game.qualificationBlocked===true)
+        return {...game,rec:null,lean:null,canQualify:false,canAuthorizeWager:false};
       const bundle = recommendBundle(slate.sport, game, game.model, weights);
       return { ...game, rec: bundle.qualified, lean: bundle.lean };
     }),
