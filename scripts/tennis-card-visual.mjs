@@ -16,7 +16,7 @@ try {
   await page.locator('.tmc').waitFor();
   const metrics=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,
    headings:[...document.querySelectorAll('.tmc-player-copy h2')].map(x=>({name:x.textContent,width:x.clientWidth,scroll:x.scrollWidth})),
-   cardWidth:document.querySelector(".tmc").getBoundingClientRect().width,itemWidth:document.querySelector(".db-grid-item-tennis").getBoundingClientRect().width,gridWidth:document.querySelector(".db-grid").getBoundingClientRect().width,
+   cardWidth:document.querySelector(".tmc").getBoundingClientRect().width,itemWidth:document.querySelector(".db-grid-item-tennis").getBoundingClientRect().width,gridWidth:document.querySelector(".db-grid").clientWidth-parseFloat(getComputedStyle(document.querySelector(".db-grid")).paddingLeft)-parseFloat(getComputedStyle(document.querySelector(".db-grid")).paddingRight),
    font:getComputedStyle(document.querySelector(".tmc h2")).fontFamily,
    bar:!!document.querySelector('.tmc-probability-track'),projection:!!document.querySelector('.tmc-projection-panel'),
    transition:getComputedStyle(document.querySelector('.tmc-probability-track>span')||document.querySelector('.tmc')).transitionDuration,
