@@ -2,12 +2,21 @@ name: PinnOdds governed complete REST snapshots
 on:
   schedule:
     - cron: '23 0,3,6,9,12,15,18,21 * * *'
+    # One bounded backup attempt in each three-hour window. Same durable
+    # reservation key means no new paid launch if the primary already ran.
+    - cron: '23 1,4,7,10,13,16,19,22 * * *'
   workflow_dispatch:
+    inputs:
+      paid_capture:
+        description: 'Explicitly authorize governed provider collection'
+        required: false
+        type: boolean
+        default: false
   pull_request:
-    paths: ['workers/pinnodds-governed-capture.mjs','functions/lib/pinnodds*.js','functions/api/pinnodds*.js','scripts/collect-pinnodds-governed.mjs','scripts/github-oidc.mjs','test/github-oidc.test.mjs','.github/workflows/pinnodds-governed-capture.yml']
+    paths: ['workers/pinnodds-governed-capture.mjs','functions/lib/pinnodds*.js','functions/api/pinnodds*.js','scripts/collect-pinnodds-governed.mjs','scripts/lib/pinnoddsSchedule.mjs','test/pinnodds-schedule.test.mjs','scripts/github-oidc.mjs','test/github-oidc.test.mjs','.github/workflows/pinnodds-governed-capture.yml']
   push:
     branches: [main]
-    paths: ['workers/pinnodds-governed-capture.mjs','functions/lib/pinnodds*.js','functions/api/pinnodds*.js','scripts/collect-pinnodds-governed.mjs','scripts/github-oidc.mjs','test/github-oidc.test.mjs','.github/workflows/pinnodds-governed-capture.yml']
+    paths: ['workers/pinnodds-governed-capture.mjs','functions/lib/pinnodds*.js','functions/api/pinnodds*.js','scripts/collect-pinnodds-governed.mjs','scripts/lib/pinnoddsSchedule.mjs','test/pinnodds-schedule.test.mjs','scripts/github-oidc.mjs','test/github-oidc.test.mjs','.github/workflows/pinnodds-governed-capture.yml']
 permissions:
   contents: read
   id-token: write
@@ -26,12 +35,12 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: '22'
-      - run: node --test test/pinnodds-markets.test.js test/pinnodds-governed-capture.test.mjs test/pinnodds-ingestion.test.js test/pinnodds-player-props.test.js test/github-oidc.test.mjs
+      - run: node --test test/pinnodds-markets.test.js test/pinnodds-governed-capture.test.mjs test/pinnodds-ingestion.test.js test/pinnodds-player-props.test.js test/github-oidc.test.mjs test/pinnodds-schedule.test.mjs
       - name: Verify exact production release before writing
-        if: github.event_name == 'push'
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.paid_capture == true)
         run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
       - name: Obtain repository-scoped GitHub OIDC token
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.paid_capture == true)
         id: oidc
         shell: bash
         run: |
@@ -44,7 +53,7 @@ jobs:
           echo "::add-mask::$token"
           echo "token=$token" >> "$GITHUB_OUTPUT"
       - name: Wait for authenticated account capability route
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.paid_capture == true)
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
         shell: bash
@@ -64,12 +73,12 @@ jobs:
           echo "Pinnodds production probe route unavailable: no API requests made."
           exit 1
       - name: Archive and reconcile existing-entitlement REST data
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.paid_capture == true)
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
         run: node scripts/collect-pinnodds-governed.mjs
       - uses: actions/upload-artifact@v4
-        if: always() && github.event_name != 'pull_request'
+        if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.paid_capture == true))
         with:
           name: pinnodds-governed-${{ github.run_id }}
           path: artifacts/pinnodds-*.json
