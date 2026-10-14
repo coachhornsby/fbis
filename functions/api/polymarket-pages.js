@@ -1,10 +1,8 @@
-import {retiredOddsCollectorResponse} from "../lib/activeOddsPolicy.js";
 import {authorizeHarvest,unauthorizedBody} from '../lib/auth.js';
 import {capturePolymarketPage,consumePolymarketPage,reconcilePolymarketPage} from '../lib/polymarketCapture.js';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 export async function onRequestPost({env,request}){
  const auth=authorizeHarvest(request,env);if(!auth.ok)return json(unauthorizedBody(auth.reason),403);
-  return json(retiredOddsCollectorResponse("POLYMARKET_PAGES"),410);
  try{const body=await request.json();let result;
   if(body.operation==='capture')result=await capturePolymarketPage(env,body);
   else if(body.operation==='consume')result=await consumePolymarketPage(env,body);
