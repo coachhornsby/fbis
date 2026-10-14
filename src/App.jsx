@@ -21,7 +21,7 @@ import { legacyToRoute, normalizeRoute, routeToLegacy } from "./app/navigation.j
 import PrizePicksMarketPanel from "./features/playerProps/PrizePicksMarketPanel.jsx";
 import ModelLabView from "./features/modelLab/ModelLabView.jsx";
 import CurrentProjectionsView from "./features/models/CurrentProjectionsView.jsx";
-import CfbTeamsView from "./features/cfbTeams/CfbTeamsView.jsx";
+import TeamProfilesView from "./features/teamProfiles/TeamProfilesView.jsx";
 import DataHealthView from "./features/dataHealth/DataHealthView.jsx";
 import MispricesView from "./features/misprices/MispricesView.jsx";
 import "./features/playerProps/playerProps.css";
@@ -371,7 +371,7 @@ export default function App() {
       models: "MODELS",
       "model-lab": "MODEL LAB",
       "player-props": "PLAYER PROPS",
-      teams: "FBS TEAM PROFILES",
+      teams: "FBIS TEAM PROFILES",
       bets: "MY BETS",
       performance: "MODELS",
       publish: "MODELS",
@@ -556,7 +556,7 @@ export default function App() {
       <AppShell
         route={route}
         sportFilter={sportFilter}
-        freshnessLabel={route === "teams" ? "SAVED FBS DIRECTORY" : "MARKET DATA"}
+        freshnessLabel={route === "teams" ? "TEAM DIRECTORY" : "MARKET DATA"}
         freshnessState={shellFreshness}
         healthLabel={healthLabel}
         healthTone={health}
@@ -606,7 +606,7 @@ export default function App() {
             />
           </div>
         ) : route === "teams" ? (
-          <CfbTeamsView refreshKey={cfbTeamsRefresh} />
+          <TeamProfilesView refreshKey={cfbTeamsRefresh} />
         ) : route === "performance" ? (
           <TrackView
             report={track}

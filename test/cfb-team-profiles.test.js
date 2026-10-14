@@ -125,7 +125,9 @@ test("GET handler responds as JSON, and database failures fail closed",async()=>
 test("Navigation keeps Team Profiles separate from game slates and wager authority",()=>{
  const app=readFileSync(new URL("../src/App.jsx",import.meta.url),"utf8");
  assert.match(app,/route === "teams"/);
- assert.match(app,/<CfbTeamsView refreshKey=/);
+ assert.match(app,/<TeamProfilesView refreshKey=/);
+ const teams=readFileSync(new URL("../src/features/teamProfiles/TeamProfilesView.jsx",import.meta.url),"utf8");
+ assert.match(teams,/<CfbTeamsView refreshKey=/);
  const api=readFileSync(new URL("../functions/api/cfb-teams.js",import.meta.url),"utf8");
  assert.doesNotMatch(api,/cfbdGet|buildSlate|runCollegeJob|recordApiUsage/);
 });

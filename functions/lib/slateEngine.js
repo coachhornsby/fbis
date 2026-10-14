@@ -1,3 +1,4 @@
+import { attachSoccerTeamBranding } from "./soccerTeamBranding.js";
 import {loadCfbFrozenUnitEvidence} from "./cfbPitFeatureDelivery.js";
 import { fbsOnlySlate } from "./cfbGameVisibility.js";
 /**
@@ -380,7 +381,7 @@ export async function buildSlate(sport, date, env = {}) {
     const v3 = await attachSoccerV3Research(soccer.games, env);
     next = {
       ...next,
-      games: v3.games,
+      games: attachSoccerTeamBranding(v3.games),
       modelVersion: soccer.meta?.version || next.modelVersion,
       research: {
         ...(next.research || {}),
