@@ -38,6 +38,7 @@ export default function TeamProfilesView({refreshKey=0}) {
  <h3>PitchAPI advanced team data</h3>
  <p>{profile.advanced.scope} · {profile.advanced.sampleSize} matches · {profile.advanced.availableMetrics}/{profile.advanced.metrics.length} metrics available.</p>
  <p>Latest source observation: {profile.advanced.sourceObservedAt||'Unavailable'} · Match window: {profile.advanced.historyStart||'—'} to {profile.advanced.historyEnd||'—'}.</p>
+ {profile.advanced.reconciliation.storedBigChancesMismatchCount>0&&<p>Source reconciliation: {profile.advanced.reconciliation.storedBigChancesMismatchCount} stored big-chance values differ from retained PitchAPI responses. This display uses the retained source values.</p>}
  {profile.advanced.unavailableReason&&<p>{profile.advanced.unavailableReason}</p>}
  <div style={{overflowX:'auto'}}><table><thead><tr><th>Metric</th><th>Team average</th><th>Opponent average</th><th>Samples</th><th>Last 10 matches</th></tr></thead><tbody>
  {profile.advanced.metrics.map(m=><tr key={m.key}><td>{m.label}</td><td>{fmt(m.value)}</td><td>{fmt(m.opponent.value)}</td><td>{m.sampleSize}</td><td>{fmt(m.recent10.value)} ({m.recent10.sampleSize})</td></tr>)}</tbody></table></div>

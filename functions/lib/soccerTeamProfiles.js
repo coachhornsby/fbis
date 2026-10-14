@@ -58,7 +58,21 @@ export function summarizeSoccerAdvanced(rows,team,asOf) {
    if(h===a)return [];
    return [{row:r,side:h?'home':'away',opponentSide:h?'away':'home'}];
   }).sort((a,b)=>b.row.match_date.localeCompare(a.row.match_date));
- const average=(list,column)=>{const values=list.map(s=>metricNumber(s.row[`${s.side}_${column}`])).filter(v=>v!=null);
+ const sourceValue=(sample,column)=>{
+  // Legacy ingestion missed PitchAPI's singular big_chance key and coerced missing to 0.
+  // Reconcile presentation from retained full-match source; never alter model inputs.
+  if(column==='big_chances' && sample.row.raw_stats_json){
+   try {
+    const raw=JSON.parse(sample.row.raw_stats_json);
+    const full=raw.periods?.find(p=>String(p.period).toLowerCase()==='all');
+    const item=full?.groups?.flatMap(g=>g.items||[]).find(i=>i.key==='big_chance'||i.key==='big_chances');
+    return metricNumber(item?.[sample.side]);
+   }catch{return null;}
+  }
+  if(column==='big_chances')return null;
+  return metricNumber(sample.row[`${sample.side}_${column}`]);
+ };
+ const average=(list,column)=>{const values=list.map(s=>sourceValue(s,column)).filter(v=>v!=null);
   return {value:values.length?values.reduce((a,b)=>a+b,0)/values.length:null,sampleSize:values.length};};
  const metrics=SOCCER_PROFILE_METRICS.map(([key,label])=>({key,label,...average(samples,key),
   recent10:average(samples.slice(0,10),key),opponent:average(samples.map(s=>({...s,side:s.opponentSide})),key)}));
@@ -66,6 +80,8 @@ export function summarizeSoccerAdvanced(rows,team,asOf) {
  return {source:'PitchAPI persisted match features',sourceObservedAt:observed,asOf,sampleSize:samples.length,
   historyStart:samples.at(-1)?.row.match_date||null,historyEnd:samples[0]?.row.match_date||null,
   teamIds:[...new Set(samples.map(s=>String(s.row[`${s.side}_team_id`])).filter(v=>v&&v!=='undefined'))],
+  reconciliation:{bigChancesSource:'Retained PitchAPI full-match raw stats (big_chance)',
+   storedBigChancesMismatchCount:samples.filter(s=>sourceValue(s,'big_chances')!=null&&sourceValue(s,'big_chances')!==metricNumber(s.row[`${s.side}_big_chances`])).length},
   metrics,availableMetrics:metrics.filter(m=>m.sampleSize>0).length,
   identityPolicy:'Exact normalized name within competition; provider IDs never equated',
   scope:'Trailing 900 days of acquired finished matches; values are provider-reported',

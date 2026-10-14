@@ -32,3 +32,14 @@ test('PitchAPI team metrics preserve missing values and provider identity bounda
  assert.equal(p.metrics.find(m=>m.key==='ppda').sampleSize,0);
  assert.deepEqual(p.teamIds,['pitch-bar']);
 });
+
+test('big chances recover singular raw key instead of displaying legacy manufactured zero',()=>{
+ const row={status:'finished',match_date:'2026-10-01',home_team_name:'Barcelona',away_team_name:'Other',home_team_id:'pitch-bar',home_big_chances:0,
+  raw_stats_json:JSON.stringify({periods:[{period:'All',groups:[{items:[{key:'big_chance',home:'7',away:'0'}]}]}]})};
+ const p=summarizeSoccerAdvanced([row],{name:'Barcelona'},'2026-10-14');
+ assert.equal(p.metrics.find(m=>m.key==='big_chances').value,7);
+ assert.equal(p.metrics.find(m=>m.key==='big_chances').opponent.value,0);
+ assert.equal(p.reconciliation.storedBigChancesMismatchCount,1);
+ const missing=summarizeSoccerAdvanced([{...row,raw_stats_json:null}],{name:'Barcelona'},'2026-10-14');
+ assert.equal(missing.metrics.find(m=>m.key==='big_chances').value,null);
+});
