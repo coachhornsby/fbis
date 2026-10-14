@@ -1,6 +1,7 @@
 import directory from '../../data/soccer-team-branding.js';
 import { resolveSoccerBrand, soccerBrandKey } from './soccerTeamBranding.js';
 import { SOCCER_RESEARCH_ROUTES } from './soccerResearchRouting.js';
+import { PITCHAPI_ADVANCED_ONLY_FIELDS } from './soccerPitchApiStore.js';
 
 export function soccerTeamDirectory() {
  const competitions=[...new Set(SOCCER_RESEARCH_ROUTES.map(r=>r.competition))];
@@ -70,6 +71,7 @@ export function summarizeSoccerAdvanced(rows,team,asOf) {
    }catch{return null;}
   }
   if(column==='big_chances')return null;
+  if(PITCHAPI_ADVANCED_ONLY_FIELDS.includes(column) && sample.row.raw_advanced_json==null)return null;
   return metricNumber(sample.row[`${sample.side}_${column}`]);
  };
  const average=(list,column)=>{const values=list.map(s=>sourceValue(s,column)).filter(v=>v!=null);
