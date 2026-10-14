@@ -20,6 +20,13 @@ for(const tour of ["atp","wta"]){
    groupingSummary:(event?.groupings||[]).slice(0,3).map(g=>({name:g.name||null,keys:Object.keys(g||{}).slice(0,25),
     competitions:g.competitions?.length??null,groups:g.groups?.length??null,
     firstCompetitionFields:Object.keys(g.competitions?.[0]||{}).slice(0,22),
+    sampleCompetition:(()=>{const c=g.competitions?.find(c=>c?.competitors?.length===2)||g.competitions?.[0];return c?{
+     date:c.date,startDate:c.startDate,timeValid:c.timeValid,type:c.type,format:c.format,
+     state:c.status?.type?.state,competitors:c.competitors?.length,
+     firstCompetitorFields:Object.keys(c.competitors?.[0]||{}),
+     firstAthleteFields:Object.keys(c.competitors?.[0]?.athlete||{}).slice(0,15),
+     firstCompetitorName:c.competitors?.[0]?.athlete?.displayName||c.competitors?.[0]?.displayName||null
+    }:null})(),
     firstGroupFields:Object.keys(g.groups?.[0]||{}).slice(0,22)})),
    sourceContractVerified:response.ok&&Array.isArray(body?.events||body?.tournaments)}));
  }catch(error){console.log(JSON.stringify({tour,source:"ESPN_PUBLIC",
