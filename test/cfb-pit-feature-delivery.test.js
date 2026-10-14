@@ -27,7 +27,7 @@ import {resetCacheMem,writeCache} from "../functions/lib/cache.js";
 test("scheduled CFB feature freeze consumes warmed CFBD cache without provider fanout",async()=>{
  resetCacheMem();
  const inserted=[];
- const env={DB:{prepare(sql){return {bind(...values){this.values=values;return this;},async run(){inserted.push({sql,values:this.values});return {meta:{changes:1}};}};}}};
+ const env={CFBD_API_KEY:"fixture-only",DB:{prepare(sql){return {bind(...values){this.values=values;return this;},async run(){inserted.push({sql,values:this.values});return {meta:{changes:1}};}};}}};
  const payload={...feed,bySchool:{kentucky:{school:"Kentucky",espnId:"96",...features.home},lsu:{school:"LSU",espnId:"99",...features.away}},
    byEspnId:{"96":{school:"Kentucky",espnId:"96",...features.home},"99":{school:"LSU",espnId:"99",...features.away}},meta:{...feed.meta,httpStatus:200}};
  await writeCache("cfb-deep-v2-2026",payload,null,7200000);
