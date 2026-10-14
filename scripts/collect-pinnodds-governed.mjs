@@ -1,12 +1,24 @@
 import {createGitHubOidcProvider} from './github-oidc.mjs';
+import {pinnoddsWindow,pinnoddsWindowComplete} from './lib/pinnoddsSchedule.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
+async function main(){
 const base=process.env.BASE||'https://fbis-myz.pages.dev',worker='https://fbis-orchestrator.coachhornsby.workers.dev';
 const secret=process.env.HARVEST_SECRET;
 if(!secret)throw Error('EXISTING_COLLECTION_AUTH_REQUIRED');
 // GitHub OIDC credentials expire during 15-slot collections; obtain fresh tokens per window.
 const getOidcToken=createGitHubOidcProvider();
-const hour=new Date().getUTCHours(),scope=process.env.GITHUB_EVENT_NAME==='schedule'&&hour%6!==0?'drops':'full';
-const runId=`run-${process.env.GITHUB_RUN_ID||Date.now()}-${process.env.GITHUB_RUN_ATTEMPT||1}`;
+const window=pinnoddsWindow();
+const {scope,runId}=window;
+// Before reserving billable requests, read R2 receipts through the public
+// read-only status API. Failed status => fail closed, no provider call.
+const response=await fetch(base+'/api/pinnodds-status',{headers:{'cache-control':'no-store'},signal:AbortSignal.timeout(20000)});
+if(!response.ok)throw Error('PINNODDS_STATUS_HTTP_'+response.status);
+const status=await response.json();
+if(pinnoddsWindowComplete(status,window)){
+ console.log(JSON.stringify({ok:true,status:'already_collected_slot',scope,runId,paidProviderCalls:0}));
+ return;
+}
+
 await mkdir('artifacts',{recursive:true});
 async function call(path,body,{upstream=false}={}){
  const attempts=upstream?1:4;
@@ -42,3 +54,6 @@ const summary={ok:errors.length===0,runId,scope,requestsReserved:reservation.req
 await writeFile('artifacts/pinnodds-governed-complete.json',JSON.stringify(summary,null,2));
 console.log(JSON.stringify({ok:summary.ok,scope,requestsReserved:summary.requestsReserved,observations:summary.observations,matchedRows:summary.matchedRows,errors}));
 if(errors.length)process.exitCode=1;
+
+}
+await main();
