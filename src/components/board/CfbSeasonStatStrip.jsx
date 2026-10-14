@@ -1,7 +1,7 @@
 import React from "react";
 import "./cfbSeasonStatStrip.css";
 const fmt = (v, places=3) => v === null || v === undefined || !Number.isFinite(Number(v))
-  ? "—" : Number(v).toFixed(places).replace(/\\.?0+$/, "");
+  ? "—" : Number(Number(v).toFixed(places)).toString();
 const stamp = s => s && Number.isFinite(Date.parse(s))
   ? new Date(s).toLocaleString("en-US", {timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"})
   : "Unverified";
