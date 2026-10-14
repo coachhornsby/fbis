@@ -1,3 +1,4 @@
+import {retiredOddsCollectorResponse} from "../lib/activeOddsPolicy.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { fetchParlayOdds } from "../lib/parlay.js";
 import { classifyNhlQuoteEvidence as classifyQuote } from "../lib/nhlBookQuoteEvidence.js";
@@ -18,6 +19,7 @@ const json = (data, status = 200) =>
 export async function onRequestPost(context) {
   const auth = authorizeHarvest(context.request, context.env);
   if (!auth.ok) return json(unauthorizedBody(auth.reason), 403);
+  return json(retiredOddsCollectorResponse("MLB_SHARPAPI_THERUNDOWN"),410);
   if (!context.env.DB) return json({ ok: false, error: "durable-evidence-db-unavailable" }, 503);
   if (!context.env.SHARPAPI_API_KEY && !context.env.THERUNDOWN_API_KEY)
     return json({ ok: false, error: "no-configured-free-mlb-provider" }, 503);
