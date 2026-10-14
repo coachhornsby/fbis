@@ -1,0 +1,285 @@
+{
+  "generatedAt": "2026-10-14T06:06:28.217624Z",
+  "productionCommit": "cfb657349a332601dc78bdcf7a83025a119d3aaa",
+  "eligibility": "polymarket-status windowHours=24 (endpoint default); pinnodds from latest ARCHIVE receipts (may be stale vs 7h gate)",
+  "tennisCoverage": {
+    "status": "RESEARCH_FIXTURES_MATCHED",
+    "officialUpcomingMatches": 0,
+    "independentResearchUpcomingFixtures": 17,
+    "scheduleAuthority": "ESPN_PUBLIC_RESEARCH_ONLY",
+    "rest": {
+      "observations": 1035,
+      "providerEvents": 41,
+      "matchedEvents": 18,
+      "contracts": 515,
+      "upcomingObservations": 806,
+      "lastCapture": "2026-10-14T06:06:16.037Z"
+    },
+    "websocket": {
+      "observations": 196,
+      "contracts": 8,
+      "matchedEvents": 0,
+      "lastCapture": "2026-10-13T17:33:36.831Z"
+    },
+    "canQualify": false,
+    "canAuthorizeWager": false
+  },
+  "sports": [
+    {
+      "sport": "nfl",
+      "polymarket": {
+        "totalObservations": 60821,
+        "linkedObservations": 52429,
+        "unmatchedObservations": 8392,
+        "observationLinkageRate": 0.862,
+        "matchedGames": 24,
+        "providerEvents": 28,
+        "lastCapture": "2026-10-14T04:56:46.286Z",
+        "status": "RECENT_OBSERVATIONS"
+      }
+    },
+    {
+      "sport": "cfb",
+      "polymarket": {
+        "totalObservations": 13152,
+        "linkedObservations": 5132,
+        "unmatchedObservations": 8020,
+        "observationLinkageRate": 0.3902,
+        "matchedGames": 7,
+        "providerEvents": 27,
+        "lastCapture": "2026-10-14T00:54:27.651Z",
+        "status": "RECENT_OBSERVATIONS"
+      }
+    },
+    {
+      "sport": "cbb",
+      "polymarket": {
+        "totalObservations": 0,
+        "linkedObservations": 0,
+        "unmatchedObservations": 0,
+        "observationLinkageRate": null,
+        "matchedGames": 0,
+        "providerEvents": 0,
+        "lastCapture": null,
+        "status": "NO_RECENT_MARKET_CAPTURE"
+      }
+    },
+    {
+      "sport": "nba",
+      "polymarket": {
+        "totalObservations": 2822,
+        "linkedObservations": 2218,
+        "unmatchedObservations": 604,
+        "observationLinkageRate": 0.786,
+        "matchedGames": 28,
+        "providerEvents": 94,
+        "lastCapture": "2026-10-14T04:25:13.467Z",
+        "status": "RECENT_OBSERVATIONS"
+      }
+    },
+    {
+      "sport": "wnba",
+      "polymarket": {
+        "totalObservations": 36,
+        "linkedObservations": 0,
+        "unmatchedObservations": 36,
+        "observationLinkageRate": 0.0,
+        "matchedGames": 0,
+        "providerEvents": 1,
+        "lastCapture": "2026-10-14T04:23:38.977Z",
+        "status": "RECENT_OBSERVATIONS"
+      }
+    },
+    {
+      "sport": "mlb",
+      "polymarket": {
+        "totalObservations": 1108,
+        "linkedObservations": 696,
+        "unmatchedObservations": 412,
+        "observationLinkageRate": 0.6282,
+        "matchedGames": 2,
+        "providerEvents": 6,
+        "lastCapture": "2026-10-14T04:19:15.210Z",
+        "status": "RECENT_OBSERVATIONS"
+      }
+    },
+    {
+      "sport": "npb",
+      "polymarket": {
+        "totalObservations": 24,
+        "linkedObservations": 0,
+        "unmatchedObservations": 24,
+        "observationLinkageRate": 0.0,
+        "matchedGames": 0,
+        "providerEvents": 6,
+        "lastCapture": "2026-10-14T00:49:39.537Z",
+        "status": "RECENT_OBSERVATIONS"
+      }
+    },
+    {
+      "sport": "kbo",
+      "polymarket": {
+        "totalObservations": 4,
+        "linkedObservations": 0,
+        "unmatchedObservations": 4,
+        "observationLinkageRate": 0.0,
+        "matchedGames": 0,
+        "providerEvents": 1,
+        "lastCapture": "2026-10-14T00:49:36.201Z",
+        "status": "RECENT_OBSERVATIONS"
+      }
+    },
+    {
+      "sport": "nhl",
+      "polymarket": {
+        "totalObservations": 15656,
+        "linkedObservations": 5048,
+        "unmatchedObservations": 10608,
+        "observationLinkageRate": 0.3224,
+        "matchedGames": 18,
+        "providerEvents": 47,
+        "lastCapture": "2026-10-14T04:29:29.912Z",
+        "status": "RECENT_OBSERVATIONS"
+      }
+    },
+    {
+      "sport": "soccer",
+      "polymarket": {
+        "totalObservations": 17484,
+        "linkedObservations": 694,
+        "unmatchedObservations": 16790,
+        "observationLinkageRate": 0.0397,
+        "matchedGames": 6,
+        "providerEvents": 116,
+        "lastCapture": "2026-10-14T04:26:47.652Z",
+        "status": "RECENT_OBSERVATIONS"
+      }
+    },
+    {
+      "sport": "tennis",
+      "polymarket": {
+        "totalObservations": 1033,
+        "linkedObservations": 468,
+        "unmatchedObservations": 565,
+        "observationLinkageRate": 0.453,
+        "matchedGames": 18,
+        "providerEvents": 41,
+        "lastCapture": "2026-10-14T06:06:16.037Z",
+        "status": "RECENT_OBSERVATIONS"
+      }
+    }
+  ],
+  "pinnoddsLatestBoards": {
+    "soccer:prematch": {
+      "status": "NOT_CAPTURED",
+      "collectedAt": null,
+      "providerEventCount": null,
+      "normalizedRows": null,
+      "matchedRows": null,
+      "reasons": null
+    },
+    "soccer:live": {
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T18:38:32.217Z",
+      "providerEventCount": 248,
+      "normalizedRows": 2790,
+      "matchedRows": 51,
+      "reasons": {}
+    },
+    "tennis:prematch": {
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T18:43:05.613Z",
+      "providerEventCount": 298,
+      "normalizedRows": 5602,
+      "matchedRows": 0,
+      "reasons": {}
+    },
+    "tennis:live": {
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T18:52:12.490Z",
+      "providerEventCount": 23,
+      "normalizedRows": 256,
+      "matchedRows": 0,
+      "reasons": {}
+    },
+    "basketball_family:prematch": {
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T18:52:38.101Z",
+      "providerEventCount": 289,
+      "normalizedRows": 1459,
+      "matchedRows": 940,
+      "reasons": {
+        "UNSUPPORTED_LEAGUE": 130
+      }
+    },
+    "basketball_family:live": {
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T18:55:02.790Z",
+      "providerEventCount": 21,
+      "normalizedRows": 0,
+      "matchedRows": 0,
+      "reasons": {
+        "UNSUPPORTED_LEAGUE": 21
+      }
+    },
+    "nhl:prematch": {
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T18:55:05.429Z",
+      "providerEventCount": 1385,
+      "normalizedRows": 5755,
+      "matchedRows": 5426,
+      "reasons": {
+        "UNSUPPORTED_LEAGUE": 179
+      }
+    },
+    "nhl:live": {
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T19:04:44.747Z",
+      "providerEventCount": 7,
+      "normalizedRows": 0,
+      "matchedRows": 0,
+      "reasons": {
+        "UNSUPPORTED_LEAGUE": 7
+      }
+    },
+    "football_family:prematch": {
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T19:04:47.333Z",
+      "providerEventCount": 300,
+      "normalizedRows": 5539,
+      "matchedRows": 2438,
+      "reasons": {
+        "UNSUPPORTED_LEAGUE": 4
+      }
+    },
+    "football_family:live": {
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T19:13:36.995Z",
+      "providerEventCount": 0,
+      "normalizedRows": 0,
+      "matchedRows": 0,
+      "reasons": {}
+    },
+    "baseball_family:prematch": {
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T19:13:43.176Z",
+      "providerEventCount": 191,
+      "normalizedRows": 1156,
+      "matchedRows": 921,
+      "reasons": {}
+    },
+    "baseball_family:live": {
+      "status": "STALE_CAPTURE",
+      "collectedAt": "2026-10-13T19:15:43.367Z",
+      "providerEventCount": 0,
+      "normalizedRows": 0,
+      "matchedRows": 0,
+      "reasons": {}
+    }
+  },
+  "notes": [
+    "Tennis Polymarket REST matchedEvents recovered after #1097 (cfb65734).",
+    "PinnOdds tennis boards still show matchedRows=0 on last capture (pre-#1097 stale receipts).",
+    "Do not spend PinnOdds quota unless rematch-from-archive is unavailable."
+  ]
+}

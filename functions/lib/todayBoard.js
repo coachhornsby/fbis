@@ -19,6 +19,7 @@ import { loadDurableTodayGames } from "./todayDurableFallback.js";
 import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
 import { tennisCardContext } from "./tennisPlayerBank.js";
 import { buildIndependentTennisCards, tennisFixtureOffers } from "./tennisIntelligenceBank.js";
+import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "./polymarketBoard.js";
 import {
   resolveCanonicalMarket,
   marketAvailabilitySummary,
@@ -1152,7 +1153,34 @@ export async function buildTodayBoard(
       }
     }
   }
-  const all = sortByStart(games);
+  let all = sortByStart(games);
+  // Read-only Polymarket ledger overlay (same contract as /api/projections).
+  // Collection stays on scheduled jobs; this never spends provider quota.
+  const polymarketResearch = { source: "Polymarket US", available: false, qualified: false, executable: false, bySport: {} };
+  if (env.DB?.prepare && all.length) {
+    const bySport = new Map();
+    for (const g of all) {
+      const key = String(g.sport || "");
+      if (!bySport.has(key)) bySport.set(key, []);
+      bySport.get(key).push(g);
+    }
+    const overlaid = [];
+    for (const [sportKey, sportGames] of bySport) {
+      let overlay = { byId: new Map(), available: false };
+      try {
+        overlay = await loadPolymarketUsBoardOffers(env.DB, sportGames, sportKey, { now: new Date(now) });
+      } catch {
+        /* missing/stale provider never breaks the independent FBIS slate */
+      }
+      polymarketResearch.bySport[sportKey] = {
+        available: Boolean(overlay.available),
+        diagnostics: overlay.diagnostics || null,
+      };
+      if (overlay.available) polymarketResearch.available = true;
+      overlaid.push(...attachPolymarketBoardOffers(sportGames, overlay));
+    }
+    all = sortByStart(overlaid);
+  }
   // Derive sport groups from the same canonical game objects (already ACTION-hydrated).
   for (const s of sports) {
     const byId = new Map(all.filter((g) => g.sport === s.sport).map((g) => [g.id, g]));
@@ -1165,6 +1193,7 @@ export async function buildTodayBoard(
     generatedAt: new Date().toISOString(),
     sports,
     games: all,
+    polymarketResearch,
     actionIntel: {
       role: "market_intelligence",
       governanceMode: "shadow",
