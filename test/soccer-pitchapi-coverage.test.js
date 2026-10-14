@@ -20,7 +20,7 @@ test('model history omits raw payloads while retaining all scalar model evidence
  let sql,binds;
  await loadPitchApiHistory({DB:{prepare(q){sql=q;return{bind(...args){binds=args;return{all:async()=>({results:[]})}}}}}},
   {leagueKey:'ger.1',startDate:'2021-01-01',beforeDate:'2026-10-17'});
- assert.doesNotMatch(sql,/SELECT \*/);assert.doesNotMatch(sql,/raw_.*json/);
+ assert.doesNotMatch(sql,/SELECT \*/);assert.match(sql,/CASE WHEN raw_advanced_json IS NULL THEN NULL ELSE home_ppda END AS home_ppda/);
  for(const key of ['home_xg','away_ppda','home_network_centralization','away_npxg','home_xg_open_play','start_time'])assert.ok(PITCHAPI_MODEL_HISTORY_COLUMNS.includes(key),key);
  assert.deepEqual(binds,['ger.1','2021-01-01','2026-10-17']);assert.match(sql,/status='finished'/);
 });
