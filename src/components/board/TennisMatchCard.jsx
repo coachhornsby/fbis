@@ -42,6 +42,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const when=game?.start?new Date(game.start):null;
   const time=when&&Number.isFinite(when.getTime())?when.toLocaleString("en-US",{timeZone:"America/Chicago",weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true}):"—";
   const status=game?.publicationStatus||"RESEARCH";
+  const statusLabel=t.researchFixture?"RESEARCH FIXTURE":display.valid?"RESEARCH PROJECTION":"PROJECTION BLOCKED";
   const bank=t?.playerBank||{}, bp1=bank.players?.[0]||{}, bp2=bank.players?.[1]||{}, h2h=bank.headToHead||{};
   const recent=(p)=>(p?.recentForm||[]);
   const formRecord=(p)=>{const xs=recent(p).slice(0,5).map(x=>String(x?.result||"").toUpperCase()).filter(x=>x==="W"||x==="L");return xs.length?`${xs.filter(x=>x==="W").length}–${xs.filter(x=>x==="L").length}`:null};
@@ -51,7 +52,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const sideStyle=(team,bp)=>{const cc=country(team,bp);return {"--tmc-country":countryColor(cc),"--tmc-flag":!neutralTennisAthlete(cc,team)&&flagUrl(cc)?`url("${flagUrl(cc)}")`:"none"}};
   const stamp=value=>value&&Number.isFinite(Date.parse(value))?new Date(value).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"}):"Unavailable";
   return <article className={`tmc tmc-surface-${theme}`} aria-label={`${away.fullName||away.name} versus ${home.fullName||home.name}`}>
-    <header className="tmc-top"><div><b>{tour}</b><strong>{t.tournament||"Tournament unverified"}</strong>{t.tournamentLevel?<span>{t.tournamentLevel}</span>:null}{t.round?<span>{t.round}</span>:null}<span>{surface||"SURFACE UNVERIFIED"}</span></div><div><span>{time} CT</span><em>{status.includes("FIXTURE")?"RESEARCH FIXTURE":status}</em></div></header>
+    <header className="tmc-top"><div><b>{tour}</b><strong>{t.tournament||"Tournament unverified"}</strong>{t.tournamentLevel?<span>{t.tournamentLevel}</span>:null}{t.round?<span>{t.round}</span>:null}<span>{surface||"SURFACE UNVERIFIED"}</span></div><div><span>{time} CT</span><em>{statusLabel}</em></div></header>
     <section className="tmc-hero">
       <div className="tmc-player-side" style={sideStyle(away,bp2)}><PlayerVisual key={away.canonicalId||away.fbisPlayerId||away.name} team={away} bp={bp2}/>{identity(away,bp2)}</div>
       <div className="tmc-vs">VS</div>
@@ -92,7 +93,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
 
     </div>
     <section className="tmc-panel tmc-surface-profiles"><h3>SURFACE RESEARCH PROFILES</h3><div className="tmc-surface-comparison">{[bp2,bp1].map((p,i)=><div key={i}><b>{p.fixtureName||[away,home][i].name}</b>{p.profiles?.length?<table><thead><tr><th>Surface</th><th>Matches</th><th>Elo</th><th>Serve won</th><th>Return won</th></tr></thead><tbody>{p.profiles.map(s=><tr key={s.surface} className={String(s.surface).toLowerCase()===String(t.surface).toLowerCase()?"tmc-active-surface":""}><td>{s.surface}</td><td>{s.profile?.surfaceMatches??"—"}</td><td>{s.profile?.surfaceElo?.[s.surface]==null?"—":Math.round(s.profile.surfaceElo[s.surface])}</td><td>{s.profile?.surfaceMatches>0?pct(s.profile?.servePointWin):"No sample"}</td><td>{s.profile?.surfaceMatches>0?pct(s.profile?.returnPointWin):"No sample"}</td></tr>)}</tbody></table>:<p>Surface profiles unavailable</p>}<small>{p.profiles?.[0]?.source} · Data as of {p.profiles?.[0]?.sourceAsOf||"unavailable"} · Last included match {p.profiles?.[0]?.lastMatchDate||"unavailable"} · Research only</small>{[away,home][i].canonicalId||[away,home][i].fbisPlayerId?<details><summary>Canonical player intelligence</summary><a href={`/api/tennis-player-profile?id=${encodeURIComponent([away,home][i].canonicalId||[away,home][i].fbisPlayerId)}`}>Open permanent player profile →</a><p>Player ID: {[away,home][i].canonicalId||[away,home][i].fbisPlayerId}</p><p>Hold {pct(p.holdPct)} · Break {pct(p.breakPct)} · Surface Elo {p.surfaceElo==null?"—":Math.round(p.surfaceElo)}</p><p>Source as of {[away,home][i].rankingAsOf||p.sourceAsOf||"Unavailable"}</p></details>:null}</div>)}</div></section>
-    <footer className="tmc-footer"><span>FBIS TENNIS · MARKET INTELLIGENCE · {status}</span>{typeof onToggle==="function"?<button onClick={()=>onToggle(cardKey)}>{open?"Hide Details":"View Details"} →</button>:null}</footer>
+    <footer className="tmc-footer"><span>FBIS TENNIS · MARKET INTELLIGENCE · {statusLabel}</span>{typeof onToggle==="function"?<button onClick={()=>onToggle(cardKey)}>{open?"Hide Details":"View Details"} →</button>:null}</footer>
     {open?<div className="tmc-advanced"><AdvancedGameDetail game={game} onClose={()=>onToggle?.(cardKey)}/>{typeof renderDetail==="function"?renderDetail(game):null}</div>:null}
   </article>;
 }

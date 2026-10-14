@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { buildBoardGameViewModel } from "../../lib/boardViewModel.js";
 import { sortByConfidence } from "../../lib/confidenceStars.js";
 import CompactGameCard from "./CompactGameCard.jsx";
@@ -69,16 +69,19 @@ export default function DecisionBoard({ games = [], renderDetail }) {
   return (
     <div className="decision-board">
       <BoardSummaryStrip games={ranked} />
-      {ranked.some(g=>g.tennisProjection?.researchFixture)?<p className="tmc-research-separator" role="note">Independent Tennis research fixtures · Separate from verified scheduled events · No projection or wager authority</p>:null}
       <div className="db-grid" role="list" aria-label="Decision board cards">
-        {ranked.map((g) => {
+        {ranked.map((g,index) => {
           const isTennis = String(g?.sport || "").toLowerCase() === "tennis";
           return (
-            <div key={`${g.sport}:${g.id}`} role="listitem" className={isTennis ? "db-grid-item db-grid-item-tennis" : "db-grid-item"}>
+            <Fragment key={`${g.sport}:${g.id}`}>
+            {isTennis&&index===0&&!g.tennisProjection?.researchFixture?<div className="tmc-official-separator" role="note">Verified official Tennis schedule · FBIS model research · No wager authority</div>:null}
+            {g.tennisProjection?.researchFixture&&!ranked[index-1]?.tennisProjection?.researchFixture?<div className="tmc-research-separator" role="note">Independent Tennis research fixtures · Separate from verified scheduled events · No projection or wager authority</div>:null}
+            <div role="listitem" className={isTennis ? "db-grid-item db-grid-item-tennis" : "db-grid-item"}>
               {isTennis
                 ? <PremiumGameCard game={g} />
                 : <CompactGameCard game={g} onOpen={setSelected} />}
             </div>
+            </Fragment>
           );
         })}
       </div>
