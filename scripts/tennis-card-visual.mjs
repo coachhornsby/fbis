@@ -16,12 +16,15 @@ try {
   await page.locator('.tmc').waitFor();
   const metrics=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,
    headings:[...document.querySelectorAll('.tmc-player-copy h2')].map(x=>({name:x.textContent,width:x.clientWidth,scroll:x.scrollWidth})),
+   cardWidth:document.querySelector(".tmc").getBoundingClientRect().width,itemWidth:document.querySelector(".db-grid-item-tennis").getBoundingClientRect().width,gridWidth:document.querySelector(".db-grid").clientWidth-parseFloat(getComputedStyle(document.querySelector(".db-grid")).paddingLeft)-parseFloat(getComputedStyle(document.querySelector(".db-grid")).paddingRight),
+   font:getComputedStyle(document.querySelector(".tmc h2")).fontFamily,
    bar:!!document.querySelector('.tmc-probability-track'),projection:!!document.querySelector('.tmc-projection-panel'),
    transition:getComputedStyle(document.querySelector('.tmc-probability-track>span')||document.querySelector('.tmc')).transitionDuration,
    neutralFlag:!!document.querySelector('img[src*="/ru.png"]')}));
   await page.screenshot({path:`${out}/${name}.png`,fullPage:true});
   results.push({name,...metrics,errors});
-  if(errors.length||metrics.scroll>width+1||metrics.headings.some(x=>x.scroll>x.width+1)||!metrics.projection||metrics.neutralFlag||metrics.transition!=='0s')throw Error(JSON.stringify(results));
+  await writeFile(`${out}/metrics.json`,JSON.stringify(results,null,2));
+  if(errors.length||metrics.scroll>width+1||metrics.headings.some(x=>x.scroll>x.width+1)||Math.abs(metrics.itemWidth-metrics.gridWidth)>2||!metrics.font.includes("sans-serif")||!metrics.projection||metrics.neutralFlag||metrics.transition!=='0s')throw Error(JSON.stringify(results));
   await page.close();
  }
  await writeFile(`${out}/metrics.json`,JSON.stringify(results,null,2));
