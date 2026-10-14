@@ -13,7 +13,7 @@ function fakeDb(rows) {
   return {prepare(sql){return {bind(){return {async all(){return {results:
       sql.includes("FROM tennis_official_matches")?official:
       sql.includes("WITH ranked AS")?rows:
-      sql.includes("FROM tennis_player_portraits")?[{
+      sql.includes("FROM tennis_player_portraits") && rows[0]?.player1 === "Roman Safiullin" ?[{
         fbis_player_id:"p1",asset_key:"tennis/portraits/p1/approved.webp",
         content_type:"image/webp",approval_status:"APPROVED",public_display_allowed:1,
         display_scope:"PUBLIC_WEB",rights_evidence_ref:"test-authorized-public-use",
