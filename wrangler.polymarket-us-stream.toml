@@ -4,9 +4,8 @@ compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 
 # Dedicated read-only market collector; no order execution routes.
-# Retired: no cron activation. Only PinnOdds may acquire market prices.
 [triggers]
-crons = []
+crons = ["*/5 * * * *"]
 
 [[durable_objects.bindings]]
 name = "PM_STREAM"
