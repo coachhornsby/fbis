@@ -25,6 +25,9 @@ test("Tennis card actually renders populated recent form and missing-form fallba
     assert.match(populated,/flagcdn.com\/w80\/pl.png/);
     assert.match(populated,/flagcdn.com\/w80\/us.png/);
     assert.doesNotMatch(populated,/ATP #0|0 points|♙/);
+    const projected=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,tennisProjection:{eventIntegrity:{valid:true},player1WinProb:.6,player2WinProb:.4,modelId:"TENNIS-FBIS-v2-CONTEXT",modelVersion:"verified-version"}}}));
+    assert.match(projected,/TENNIS-FBIS-v2-CONTEXT · verified-version/);
+    assert.doesNotMatch(projected,/model unavailable/i);
     const withheld=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,tennisProjection:{player1WinProb:.764,player2WinProb:.236}}}));
     assert.match(withheld,/withheld/);
     assert.doesNotMatch(withheld,/76.4|FAIR ML|WIN PROBABILITY/);
@@ -37,6 +40,13 @@ test("Tennis card actually renders populated recent form and missing-form fallba
     assert.match(independent,/PROJECTION UNAVAILABLE/);
     assert.match(independent,/1.800 dec/);
     assert.match(independent,/42.0¢/);
+    const {default:DecisionBoard}=await server.ssrLoadModule("/src/components/board/DecisionBoard.jsx");
+    const officialGame={...game,id:"official-order",home:{name:"Official Home"},away:{name:"Official Away"}};
+    const researchGame={...game,id:"tennis:espn:wta:order",home:{name:"Independent Home"},away:{name:"Independent Away"},tennisProjection:{researchFixture:{verified:true,source:"ESPN_PUBLIC",fixtureId:"tennis:espn:wta:order"}}};
+    const separated=renderToStaticMarkup(createElement(DecisionBoard,{games:[researchGame,officialGame]}));
+    assert.ok(separated.indexOf("Verified official Tennis schedule")<separated.indexOf("Official Away versus Official Home"));
+    assert.ok(separated.indexOf("Official Away versus Official Home")<separated.indexOf("Independent Tennis research fixtures"));
+    assert.ok(separated.indexOf("Independent Tennis research fixtures")<separated.indexOf("Independent Away versus Independent Home"));
     const missing=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,tennisProjection:{eventIntegrity:{valid:true}}}}));
     assert.equal((missing.match(/Recent form unavailable/g)||[]).length,2);
   } finally { await server.close(); }
