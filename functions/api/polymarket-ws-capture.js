@@ -1,4 +1,3 @@
-import {retiredOddsCollectorResponse} from "../lib/activeOddsPolicy.js";
 import {authorizeHarvest} from "../lib/auth.js";
 import {signedPolymarketUsHeaders,polymarketUsSubscribe,parsePolymarketUsLite} from "../lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../lib/marketObservationLedger.js";
@@ -26,7 +25,6 @@ async function latestPublicMarkets(db,{limit=8}={}){
  */
 export async function onRequestPost({request,env}){
   if(!authorizeHarvest(request,env).ok)return json({ok:false,reason:"unauthorized"},403);
-  return json(retiredOddsCollectorResponse("POLYMARKET_US_WS"),410);
   if(!env?.DB?.prepare)return json({ok:false,reason:"database-unavailable"},503);
   if(!env.POLYMARKET_US_KEY_ID||!env.POLYMARKET_US_SECRET_KEY)
     return json({ok:false,reason:"polymarket-credentials-not-configured"},503);
