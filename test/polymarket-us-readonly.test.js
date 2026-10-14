@@ -88,3 +88,24 @@ test("soccer local alias Lens matches Racing Club de Lens with opponent and kick
  assert.equal(matchPolymarketUsEvent(e,[g],"soccer").id,g.id);
  assert.equal(matchPolymarketUsEvent({...e,title:"Racing Club de Lens vs. Sporting CP",startTime:"2026-10-14T16:45:00Z"},[g],"soccer").id,null);
 });
+
+test("tennis identifies exactly two complete names against an independent official match, either order",()=>{
+ const start="2026-10-13T16:00:00Z";
+ const event={title:"Elsa Jacquemot vs. Teodora Kostovic",startTime:start,seriesSlug:"wta"};
+ const games=[{id:"WTA_OFFICIAL:123",tour:"wta",start,home_name:"Elsa Jacquemot",away_name:"Teodora Kostićović"}];
+ // A materially different family name must NOT match through partial surname heuristics.
+ assert.equal(matchPolymarketUsEvent(event,games,"tennis").id,null);
+ const canonical=[{...games[0],away_name:"Teodora Kostović",home_name:"Elsa Jacquemot"}];
+ assert.deepEqual(matchPolymarketUsEvent(event,canonical,"tennis"),
+  {id:"WTA_OFFICIAL:123",reason:"TENNIS_TWO_PLAYER_START_VERIFIED"});
+ assert.equal(matchPolymarketUsEvent({...event,title:"Jacquemot vs. Kostovic"},canonical,"tennis").id,null);
+ assert.equal(matchPolymarketUsEvent({...event,startTime:"2026-10-13T21:00:00Z"},canonical,"tennis").id,null);
+ assert.equal(matchPolymarketUsEvent({...event,seriesSlug:"atp"},canonical,"tennis").id,null);
+ assert.equal(matchPolymarketUsEvent(event,[...canonical,{...canonical[0],id:"duplicate"}],"tennis").reason,"AMBIGUOUS_TENNIS_EVENT");
+});
+test("tennis never infers a canonical ID from a provider event without official opponents",()=>{
+ const e={id:"158278",title:"Elsa Jacquemot vs. Teodora Kostovic",startTime:"2026-10-13T16:00:00Z"};
+ assert.deepEqual(matchPolymarketUsEvent(e,[],"tennis"),{id:null,reason:"UNMATCHED_TENNIS_EVENT"});
+ assert.equal(matchPolymarketUsEvent({...e,title:"Jacquemot / Partner vs. Kostovic"},[],"tennis").id,null);
+ assert.equal(matchPolymarketUsEvent({...e,startTime:null},[],"tennis").reason,"EVENT_START_UNVERIFIED");
+});
