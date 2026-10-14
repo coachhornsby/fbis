@@ -29,3 +29,17 @@ test('ambiguous or failed upstream attempts never trigger automatic recharge',as
  await assert.rejects(capturePinnoddsSnapshot(env,capture),/PROVIDER_HTTP_503/);
  await assert.rejects(capturePinnoddsSnapshot(env,capture),/NO_AUTOMATIC_RECHARGE/);assert.equal(calls,1);
 });
+
+test('soccer prematch requests nested complete specials in one accounted capture',async()=>{
+ const env={PINNODDS_API_KEY:'test-only',R2_ARCHIVE:archive()};
+ await reservePinnoddsRun(env,{runId:'soccer-nested',now,fetchImpl:accountFetch()});
+ let calls=0;
+ const capture=await capturePinnoddsSnapshot(env,{runId:'soccer-nested',kind:'board',sportId:1,feed:'prematch',now,
+  fetchImpl:async(url)=>{calls++;assert.equal(url.searchParams.get('include_specials'),'nested');
+   return new Response(JSON.stringify({last:1,events:[{event_id:10,specials:[{event_id:11,special:'Goal',special_markets:{}}]}]}));}});
+ assert.equal(calls,1);
+ assert.equal(capture.providerEventCount,1);
+ assert.ok(env.R2_ARCHIVE.map.has(capture.rawKey));
+ await capturePinnoddsSnapshot(env,{runId:'soccer-nested',kind:'board',sportId:1,feed:'prematch',now});
+ assert.equal(calls,1);
+});
