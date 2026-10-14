@@ -57,14 +57,14 @@ function teamMatches(a,b,abbr){
  * start time. Never attach a sportsbook event using one surname, a market side,
  * an Action-only event id, or a synthetic source identity. */
 function tennisFullName(value){
- return String(value||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase()
-  .replace(/[^a-z0-9]+/g," ").trim().replace(/\\s+/g," ");
+ return String(value||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase()
+  .replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
 }
 function tennisTitlePlayers(title){
- const parts=String(title||"").split(/\\s+(?:vs?\\.?|versus)\\s+/i);
+ const parts=String(title||"").split(/\s+(?:vs?\.?|versus)\s+/i);
  if(parts.length!==2)return null;
  const names=parts.map(tennisFullName);
- if(names.some(x=>x.split(" ").length<2||x.length<5||/\\s\\/\\s/.test(x)))return null;
+ if(names.some(x=>x.split(" ").length<2||x.length<5||/\s\/\s/.test(x)))return null;
  if(names[0]===names[1])return null;
  return names;
 }
