@@ -1130,27 +1130,11 @@ export async function buildTodayBoard(
         canAuthorizeWager:g.durableFallback?false:g.canAuthorizeWager,
         palUnavailableReason: g.bpp ? g.palUnavailableReason : palReason,
       }));
-      if (env.DB && !durableOnly && sport !== "tennis") {
-        try {
-          const { attachActionIntelToGames } = await import("./boardActionIntel.js");
-          const attached = await attachActionIntelToGames(slateGames, env.DB);
-          slateGames = attached.games || slateGames;
-          actionIntelMeta.checked += attached.checked || 0;
-          actionIntelMeta.attached += attached.attached || 0;
-          actionIntelMeta.rematched += attached.rematched || 0;
-          actionIntelMeta.durableMatched += attached.durableMatched || 0;
-          actionIntelMeta.legacyFallbackMatched += attached.legacyFallbackMatched || 0;
-          for (const id of attached.matchedIds || []) actionIntelMeta.matchedIds.add(String(id));
-        } catch {
-          // Fail-open: continue without ACTION on this sport.
-        }
-      }
-
+      // ACTION market intelligence is archived only; no new/current overlays.
       if (sport === "nhl" && !durableOnly)
         slateGames = slateGames.map((g)=>g.durableFallback?g:({...g,nhlWagerV1:evaluateNhlGameWagers(g)}));
-      if (env.DB && !durableOnly)
-        slateGames = await attachPrizePicksMarkets(slateGames, sport, date, env.DB);
-      const rows = slateGames.filter(isFbsVsFbsGame).map((g) => currentActionDisplay(toBoardGame(g, sport, now), now));
+      // Retired PrizePicks market lines are unavailable on CURRENT board.
+      const rows = slateGames.filter(isFbsVsFbsGame).map((g) => toBoardGame(g, sport, now));
       const tennisIntegrityBlocked = sport === "tennis" && (slate.research?.withheld > 0 || slate.research?.configured === false);
       feeds[sport] = {
         ok: !tennisIntegrityBlocked,
@@ -1226,33 +1210,10 @@ export async function buildTodayBoard(
     }
   }
   let all = sortByStart(games);
-  // Read-only Polymarket ledger overlay (same contract as /api/projections).
-  // Collection stays on scheduled jobs; this never spends provider quota.
-  const polymarketResearch = { source: "Polymarket US", available: false, qualified: false, executable: false, bySport: {} };
-  if (env.DB?.prepare && all.length) {
-    const bySport = new Map();
-    for (const g of all) {
-      const key = String(g.sport || "");
-      if (!bySport.has(key)) bySport.set(key, []);
-      bySport.get(key).push(g);
-    }
-    const overlaid = [];
-    for (const [sportKey, sportGames] of bySport) {
-      let overlay = { byId: new Map(), available: false };
-      try {
-        overlay = await loadPolymarketUsBoardOffers(env.DB, sportGames, sportKey, { now: new Date(now) });
-      } catch {
-        /* missing/stale provider never breaks the independent FBIS slate */
-      }
-      polymarketResearch.bySport[sportKey] = {
-        available: Boolean(overlay.available),
-        diagnostics: overlay.diagnostics || null,
-      };
-      if (overlay.available) polymarketResearch.available = true;
-      overlaid.push(...attachPolymarketBoardOffers(sportGames, overlay));
-    }
-    all = sortByStart(overlaid);
-  }
+  // Polymarket and other non-PinnOdds market-price overlays are retired.
+  // Their immutable ledgers remain readable in historical audit endpoints.
+  const polymarketResearch={source:"Polymarket US",available:false,retired:true,
+    reason:"PINNODDS_ONLY_ACTIVE_ODDS_SOURCE",qualified:false,executable:false,bySport:{}};
   // Derive sport groups from the same canonical game objects (already ACTION-hydrated).
   for (const s of sports) {
     const byId = new Map(all.filter((g) => g.sport === s.sport).map((g) => [g.id, g]));
