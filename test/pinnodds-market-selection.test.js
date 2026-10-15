@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {pinnoddsMarketOrder,selectPinnoddsGameMarkets} from "../src/lib/pinnoddsMarketSelection.js";
+import {selectPinnoddsBoardOffers} from "../functions/lib/pinnoddsBoardResearch.js";
 
 const snapshot="2026-10-15T12:00:00Z";
 const quote=(marketFamily,side,line,decimalOdds,sourceMarketId,standardOrAlt="unknown")=>({
@@ -52,4 +53,25 @@ test("explicit main/standard pair beats near-even alternate pair",()=>{
  ]}}).families.spread;
  assert.equal(selected.marketKey,"16");
  assert.equal(selected.primaryVerified,true);
+});
+
+test("board bridge retains provider standard designation and keeps one provider market ID per pair",()=>{
+  const make=(side,line,odds,id,standard_or_alt)=>({
+    source:"PinnOdds",canonical_event_id:"401862800",market_family:"spread",
+    period:"full_game",side,line,decimal_odds:odds,
+    collected_at:"2026-10-15T12:00:00Z",event_start_time:"2026-10-16T02:00:00Z",
+    source_market_id:id,standard_or_alt,
+  });
+  const rows=[
+    make("away",-14.5,1.91,"alt-14.5","alternate"),make("home",14.5,1.91,"alt-14.5","alternate"),
+    make("away",-15,1.83,"main-15","standard"),make("home",15,2.01,"main-15","standard"),
+  ];
+  const mapped=selectPinnoddsBoardOffers(rows,{now:"2026-10-15T13:00:00Z"});
+  assert.equal(mapped["401862800"].offers.filter(x=>x.marketFamily==="spread").length,2);
+  const game={sport:"cfb",pinnoddsResearch:mapped["401862800"]};
+  const selected=selectPinnoddsGameMarkets(game).families.spread;
+  assert.equal(selected.marketKey,"15");
+  assert.equal(selected.primaryVerified,true);
+  assert.equal(selected.quotes[0].american,-120);
+  assert.equal(selected.quotes[1].american,101);
 });
