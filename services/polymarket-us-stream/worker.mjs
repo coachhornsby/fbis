@@ -56,7 +56,7 @@ export class PolymarketMarketStream extends DurableObject {
         CASE WHEN sport='soccer' AND json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time_winner%' THEN COALESCE(json_extract(raw_payload_json,'$.providerSide.team.name'),REPLACE(json_extract(raw_payload_json,'$.providerMarket.title'),' (Reg. Time)','')) ELSE side END side,line,
         CASE WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%first_half%' THEN 'first_half' WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%second_half%' THEN 'second_half' WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time%' OR json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_game%' THEN 'full_game' ELSE period END period,
         source_market_id,source_outcome_id,collected_at,raw_payload_json,
-        ROW_NUMBER() OVER(PARTITION BY source_market_id ORDER BY collected_at DESC) rn
+        ROW_NUMBER() OVER(PARTITION BY source_market_id ORDER BY collected_at DESC,CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,id DESC) rn
        FROM normalized_market_observations
        WHERE source='Polymarket US' AND source_market_id IS NOT NULL
        AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.contractLong')=1

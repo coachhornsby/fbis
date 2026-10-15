@@ -79,3 +79,12 @@ test('market batches use bounded D1 transactions with unchanged IDs, clocks and 
  const a=await persistNormalizedMarketBatch(db,offers,{collectedAt:now.toISOString()}),b=await persistNormalizedMarketBatch(db,offers,{collectedAt:now.toISOString()});
  assert.equal(a.inserted,105);assert.equal(b.inserted,0);assert.deepEqual(a.ids,b.ids);assert.deepEqual(sizes,[100,5,100,5]);assert.equal(individual,0);
 });
+
+test('verified soccer local names match only inside their competition and unique opponent/kickoff',async()=>{
+ const {matchPolymarketUsEvent}=await import('../functions/lib/polymarketUs.js');
+ const game={id:'g',league:'ger.1',start:'2026-10-16T18:30Z',home_name:'Eintracht Frankfurt',away_name:'FC Cologne'};
+ const event={startTime:game.start,title:'Eintracht Frankfurt vs. 1. FC Koln'};
+ assert.equal(matchPolymarketUsEvent(event,[game],'soccer').id,'g');assert.equal(matchPolymarketUsEvent(event,[{...game,league:'eng.1'}],'soccer').id,null);
+ const spanish={id:'s',league:'esp.1',start:'2026-10-16T19:00Z',home_name:'Deportivo',away_name:'Levante'};
+ assert.equal(matchPolymarketUsEvent({startTime:spanish.start,title:'RC Deportivo A Coruña vs. Levante'},[spanish],'soccer').id,'s');
+});

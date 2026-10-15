@@ -53,6 +53,16 @@ function teamMatches(a,b,abbr){
   if(short.length>=4 && !GENERIC_TEAM_TOKENS.has(short) && long.endsWith(" "+short))return true;
   return false;
 }
+// Verified against the independent ESPN fixtures and the provider's two-team
+// event titles at the same kickoff. Aliases never cross competition scope.
+const SOCCER_MARKET_NAME_ALIASES={
+ 'ger.1':{'1 koln':'cologne','koln':'cologne'},
+ 'esp.1':{'rc deportivo a coruna':'deportivo','deportivo la coruna':'deportivo'},
+};
+function soccerMarketTeamMatches(a,b,abbr,league){
+ const aliases=SOCCER_MARKET_NAME_ALIASES[league]||{},left=normName(a),right=normName(b);
+ return Boolean(left&&right&&(aliases[left]||left)===(aliases[right]||right))||teamMatches(a,b,abbr);
+}
 /** Singles tennis matching requires two *complete* player names and a verified
  * start time. Never attach a sportsbook event using one surname, a market side,
  * an Action-only event id, or a synthetic source identity. */
@@ -103,11 +113,12 @@ export function matchPolymarketUsEvent(e,games=[],sport){
     if(!Number.isFinite(gt)||Math.abs(gt-start)>2*60*60*1000)return false;
     const away=g.away_name||g.awayName||g.away?.name,home=g.home_name||g.homeName||g.home?.name;
     if(!away||!home)return false;
+    const matchTeam=(a,b,abbr)=>sport==="soccer"?soccerMarketTeamMatches(a,b,abbr,g.league||g.soccerLeague):teamMatches(a,b,abbr);
     if(sport==="soccer"&&e.homeTeam?.name&&e.awayTeam?.name&&
-      (!teamMatches(e.homeTeam.name,home,g.home_abbr)||!teamMatches(e.awayTeam.name,away,g.away_abbr)))return false;
-    const names=(participants.length?participants:[]).concat(title);
+      (!matchTeam(e.homeTeam.name,home,g.home_abbr)||!matchTeam(e.awayTeam.name,away,g.away_abbr)))return false;
+    const names=(participants.length?participants:[]).concat(title,...(sport==="soccer"?title.split(/\s+(?:vs?\.?|versus)\s+/i):[]));
     return [away,home].every((name,i)=>
-      names.some(n=>teamMatches(n,name,i===0?g.away_abbr:g.home_abbr))||
+      names.some(n=>matchTeam(n,name,i===0?g.away_abbr:g.home_abbr))||
       normName(name).length>=4 && !GENERIC_TEAM_TOKENS.has(normName(name)) &&
       normName(title).includes(normName(name))
     );
