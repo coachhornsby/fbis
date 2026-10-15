@@ -22,7 +22,10 @@ export function verifiedTennisPortrait(row, { now = new Date() } = {}) {
   return {
     playerId: row.fbis_player_id, url: tennisPortraitUrl(row.fbis_player_id),
     assetKey: key, contentType: row.content_type,
-    credit: row.attribution_text || null, expiresAt: row.expires_at || null,
+    credit: row.attribution_text || null,
+    sourceUrl: /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/i.test(row.source_reference||"") ? row.source_reference : null,
+    licenseUrl: /^https:\/\/creativecommons\.org\/(licenses\/|publicdomain\/zero\/)/i.test(row.rights_evidence_ref||"") ? row.rights_evidence_ref : null,
+    expiresAt: row.expires_at || null,
   };
 }
 export async function approvedTennisPortraits(db, playerIds, opts = {}) {
@@ -31,7 +34,7 @@ export async function approvedTennisPortraits(db, playerIds, opts = {}) {
   if (!db?.prepare || ids.length === 0) return found;
   try {
     const placeholders = ids.map(()=>"?").join(",");
-    const result = await db.prepare(`SELECT fbis_player_id,asset_key,content_type,approval_status,public_display_allowed,display_scope,rights_evidence_ref,approved_at,expires_at,attribution_text
+    const result = await db.prepare(`SELECT fbis_player_id,asset_key,content_type,approval_status,public_display_allowed,display_scope,rights_evidence_ref,source_reference,approved_at,expires_at,attribution_text
       FROM tennis_player_portraits WHERE fbis_player_id IN (${placeholders})`).bind(...ids).all();
     for (const row of result?.results||[]) {
       const approved = verifiedTennisPortrait(row,opts);
