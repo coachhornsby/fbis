@@ -51,9 +51,11 @@ export class PolymarketMarketStream extends DurableObject {
     const until=new Date(now+48*3600000).toISOString();
     const q=await this.env.DB.prepare(`WITH recent AS (
        SELECT sport,league,canonical_event_id,provider_event_id,
-        event_start_time,home_team,away_team,market_family,side,line,
+        event_start_time,home_team,away_team,
+        CASE WHEN sport='soccer' AND json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time_winner%' THEN 'moneyline' ELSE market_family END market_family,
+        CASE WHEN sport='soccer' AND json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time_winner%' THEN COALESCE(json_extract(raw_payload_json,'$.providerSide.team.name'),REPLACE(json_extract(raw_payload_json,'$.providerMarket.title'),' (Reg. Time)','')) ELSE side END side,line,
         CASE WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%first_half%' THEN 'first_half' WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%second_half%' THEN 'second_half' WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time%' OR json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_game%' THEN 'full_game' ELSE period END period,
-        source_market_id,source_outcome_id,collected_at,
+        source_market_id,source_outcome_id,collected_at,raw_payload_json,
         ROW_NUMBER() OVER(PARTITION BY source_market_id ORDER BY collected_at DESC) rn
        FROM normalized_market_observations
        WHERE source='Polymarket US' AND source_market_id IS NOT NULL
@@ -61,6 +63,8 @@ export class PolymarketMarketStream extends DurableObject {
        AND collected_at>=?1 AND event_start_time BETWEEN ?2 AND ?3
       ), balanced AS (
        SELECT *,ROW_NUMBER() OVER(PARTITION BY sport ORDER BY
+        CASE WHEN julianday(event_start_time)>=julianday('now') THEN 0 ELSE 1 END,
+        CASE WHEN json_extract(raw_payload_json,'$.marketState') IN ('MARKET_STATUS_OPEN','MARKET_STATE_OPEN') THEN 0 ELSE 1 END,
         CASE WHEN collected_at>=?4 THEN 0 ELSE 1 END,
         CASE WHEN period='full_game' THEN 0 ELSE 1 END,
         CASE WHEN market_family='moneyline' THEN 0 ELSE 1 END,

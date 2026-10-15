@@ -1,3 +1,4 @@
+import {polymarketUsPeriod,polymarketUsMarketFamily,polymarketUsSideLabel} from "./polymarketUs.js";
 /**
  * Market display overlay only: read immutable Polymarket US and soccer PinnOdds observations.
  * Never hydrate stale quotes as actionable execution prices or model inputs.
@@ -48,6 +49,11 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   }
   let payload=null;
   try{payload=JSON.parse(r.raw_payload_json||"null")}catch{}
+  const soccerContract=sport==="soccer"&&payload?.providerMarket;
+  const family=soccerContract?polymarketUsMarketFamily(payload.providerMarket):r.market_family;
+  const period=soccerContract?polymarketUsPeriod(payload.providerMarket):r.period;
+  const side=soccerContract?polymarketUsSideLabel(payload.providerMarket,payload.providerSide,"soccer"):r.side;
+  if(soccerContract&&family==="moneyline"&&payload.contractLong!==true)continue;
   if(sport==="soccer"&&r.source==="Polymarket US WebSocket"&&payload?.contractBindingVerified!==true)continue;
   const providerObservedAt=providerObservationTime({source:r.source,raw:payload,sourceObservedAt:
     payload && Object.hasOwn(payload,"sourceObservedAt") ? payload.sourceObservedAt :
@@ -57,7 +63,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   const historicalReference=sport==="soccer"&&r.source==="PinnOdds"&&!temporal.currentDisplayEligible&&temporal.researchEligible&&now.getTime()-Date.parse(r.collected_at)<=7*3600000;
   if(!temporal.currentDisplayEligible&&!historicalReference)continue;
   arr.push({
-    source:r.source,marketFamily:r.market_family,side:r.side,period:r.period,
+    source:r.source,marketFamily:family,side,period,
     historicalReference,line:r.line,contractPrice:r.contract_price==null?null:Number.isFinite(display)?display:null,
     decimalOdds:r.decimal_odds==null?null:Number(r.decimal_odds),
     americanOdds:r.source==="PinnOdds"&&r.american_odds!=null?Number(r.american_odds):null,quoteKind:r.source==="PinnOdds"?"DECIMAL_BOOK_REFERENCE_NOT_EXECUTION_VERIFIED":r.source==="Polymarket US WebSocket"?"OBSERVED_BBO_NOT_GUARANTEED_FILL":"DISPLAY_REFERENCE_NOT_EXECUTABLE",

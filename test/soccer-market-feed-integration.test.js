@@ -51,3 +51,9 @@ test('soccer book home and away prices cannot attach with reversed team orientat
  assert.equal(matchPolymarketUsEvent({startTime:fixtures[0].start,homeTeam:{name:'Cologne'},awayTeam:{name:'Frankfurt'}},fixtures,'soccer').id,null);
  assert.equal(matchPolymarketUsEvent({startTime:fixtures[0].start,homeTeam:{name:'Frankfurt'},awayTeam:{name:'Cologne'}},fixtures,'soccer').id,'g');
 });
+
+test('soccer drawable exchange contracts identify match-winner, draw and complement explicitly',async()=>{
+ const {polymarketUsMarketOffers}=await import('../functions/lib/polymarketUs.js');
+ const offers=polymarketUsMarketOffers({id:'event',markets:[{id:'draw',sportsMarketType:'soccer_team_full_time_winner',sportsMarketTypeV2:'SPORTS_MARKET_TYPE_DRAWABLE_OUTCOME',title:'Tie (Reg. Time)',marketSides:[{id:'yes',description:'yes',long:true,price:'.24'},{id:'no',description:'no',long:false,price:'.78'}]}]},'soccer');
+ assert.equal(offers[0].marketFamily,'moneyline');assert.equal(offers[0].period,'full_game');assert.equal(offers[0].side,'Draw');assert.equal(offers[1].side,'Not Draw');
+});

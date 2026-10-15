@@ -122,7 +122,7 @@ export function parsePolymarketUsPrice(value){
 }
 export function polymarketUsMarketFamily(m={}){
   const type=String(m.sportsMarketTypeV2||m.sportsMarketType||m.marketType||"").toUpperCase();
-  if(type.includes("MONEYLINE")||type==="ML")return "moneyline";
+  if(type.includes("MONEYLINE")||type==="ML"||String(m.sportsMarketType||"").includes("soccer_team_full_time_winner"))return "moneyline";
   if(type.includes("SPREAD")||type.includes("HANDICAP"))return "spread";
   if(type.includes("TOTAL")||type.includes("OVER_UNDER"))return "total";
   if(type.includes("PLAYER")||type.includes("PROP"))return "player_prop";
@@ -134,6 +134,14 @@ export function polymarketUsPeriod(m={}) {
  if(type.includes("second_half"))return "second_half";
  if(type.includes("full_game")||type.includes("full_time"))return "full_game";
  return "unspecified";
+}
+export function polymarketUsSideLabel(m={},side={},sport='') {
+ if(sport==='soccer'&&String(m.sportsMarketType||'').includes('full_time_winner')){
+  const title=String(m.title||'').replace(/\s*\(Reg\. Time\)\s*$/i,'').trim();
+  const outcome=side.team?.name||(/^(tie|draw)\b/i.test(title)?'Draw':title);
+  if(outcome&&typeof side.long==='boolean')return side.long?outcome:`Not ${outcome}`;
+ }
+ return String(side.description||side.team?.name||side.identifier||side.id||'');
 }
 /** Display quote != executable best ask. Preserve both distinctly. */
 export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=new Date().toISOString(),maxMarkets=Infinity}={}){
@@ -149,7 +157,7 @@ export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=ne
     for(const side of sides){
       const price=parsePolymarketUsPrice(side.quote ?? side.price);
       // Quote is an app display/reference probability; may NOT be the best ask.
-      const label=String(side.description||side.team?.name||side.identifier||side.id||"");
+      const label=polymarketUsSideLabel(m,side,sport);
       if(!label)continue;
       offers.push({
         source:"Polymarket US",sourceType:"exchange",sport,league:String(e.seriesSlug||sport),

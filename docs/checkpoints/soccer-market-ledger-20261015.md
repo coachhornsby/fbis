@@ -15,3 +15,7 @@ No public model promotion or wager authority change. This is the market connecti
 Verification: focused tests and full npm suite passed; production proof results are recorded in the reconciliation workflow artifacts. See the associated pull request for deployment status.
 
 Primary source for full-book semantics: https://docs.polymarket.us/api-reference/websocket/markets
+
+Production verification: release 78a8f5cffe063cf6f00bfc26635f3480de879050 deployed successfully. Reconciliation run 38690395212 appended 1,472 Polymarket observations across 36 soccer events, retaining original clocks. Three one-shot shadow batches wrote 110 rows; 20 carried market references, none qualified for economic evaluation, and governance violations were zero. The new full-book Worker has persisted real provider transaction timestamps.
+
+Follow-up: soccer prematch PinnOdds raw capture existed but no normalized snapshot had completed. Bound soccer prematch normalization to independently verified fixture identities, retaining every returned market for selected fixtures and all excluded provider events in the immutable raw archive. Public status exposes the scope and excluded counts. Replay the already-paid capture with zero additional provider requests. Also classify Polymarket DRAWABLE_OUTCOME/full-time-winner contracts as moneyline, name the actual team/draw rather than generic yes/no, and prioritize upcoming open contracts over completed markets in stream selection.
