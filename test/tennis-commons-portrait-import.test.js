@@ -38,12 +38,26 @@ const fbis=()=>{
   return {saved,DB,ARCHIVE,get writes(){return writes;}};
 };
 test("curated manifest never duplicates player IDs or permits unreviewed external URL inputs",()=>{
-  assert.equal(TENNIS_COMMONS_PORTRAIT_BATCH.length,11);
-  assert.equal(new Set(TENNIS_COMMONS_PORTRAIT_BATCH.map(c=>c.playerId)).size,11);
+  assert.equal(TENNIS_COMMONS_PORTRAIT_BATCH.length,14);
+  assert.equal(new Set(TENNIS_COMMONS_PORTRAIT_BATCH.map(c=>c.playerId)).size,14);
   for (const c of TENNIS_COMMONS_PORTRAIT_BATCH){
     assert.match(c.playerId,/^tennis:wta:\d+$/);
     assert.match(c.sourceUrl,/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
     assert.match(c.licenseUrl,/^https:\/\/creativecommons\.org\//);
+  }
+});
+test("new 2026 WTA board Commons candidates remain tied to exact canonical player identities",()=>{
+  for(const [id,name,file] of [
+    ["tennis:wta:321280","Raluka Serban","Raluca Șerban (2023 US Open) 04.jpg"],
+    ["tennis:wta:334791","Teodora Kostovic","Teodora Kostović (2026 US Open) 02 (cropped).jpg"],
+    ["tennis:wta:328988","Anouk Koevermans","Anouk Koevermans (2026 US Open) 01 (cropped).jpg"]
+  ]){
+    const p=TENNIS_COMMONS_PORTRAIT_BATCH.find(x=>x.playerId===id);
+    assert.ok(p);
+    assert.equal(p.playerName,name);
+    assert.equal(p.fileTitle,file);
+    assert.equal(p.author,"Hameltion");
+    assert.equal(p.license,"CC BY-SA 4.0");
   }
 });
 test("import is private; exact player and manually curated image are required",async()=>{
