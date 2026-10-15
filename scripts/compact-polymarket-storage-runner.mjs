@@ -3,15 +3,16 @@ import {writeFile} from 'node:fs/promises';
 import {compactArchivedRaw,payloadHash,restoreArchivedRaw,receiptKey} from '../functions/lib/polymarketPayloadArchive.js';
 import {sqlQuote as quote,compactUpdateSql} from './lib/polymarket-storage-sql.mjs';
 import {getArchivedReceipt} from './lib/archived-receipt-retry.mjs';
+import {compactionBudget,compactionPageLimit} from './lib/storage-compaction-budget.mjs';
 const token=process.env.CLOUDFLARE_API_TOKEN,account=process.env.CLOUDFLARE_ACCOUNT_ID,secret=process.env.HARVEST_SECRET;
 if(!token||!account||!secret)throw Error('Existing Cloudflare and harvest credentials required');
 const cutoff=process.env.COMPACTION_CUTOFF||new Date().toISOString();
 if(!Number.isFinite(Date.parse(cutoff)))throw Error('Invalid cutoff');
 const api=`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/b50c724c-903b-4241-8ce1-48d931e7a44c/query`;
 const result={cutoff,completed:false,examined:0,updated:0,bytesRemoved:0,restoreChecks:0,reasons:{},newArchiveObjects:0,deletedRows:0};
-let cursor=Number(process.env.COMPACTION_START_ROWID||0),batches=0;
-if(!Number.isSafeInteger(cursor)||cursor<0)throw Error('Invalid start rowid');
-result.startRowid=cursor;
+const budget=compactionBudget({startRowid:process.env.COMPACTION_START_ROWID||0,maxRows:process.env.COMPACTION_MAX_ROWS||5000});
+let cursor=budget.startRowid,batches=0;
+result.startRowid=cursor;result.maxRows=budget.maxRows;result.paused=false;
 async function query(sql){
  for(let i=0;i<8;i++){
   try{
@@ -40,7 +41,9 @@ try{
  const upper=(await query(`SELECT MAX(rowid) upper_rowid FROM normalized_market_observations INDEXED BY idx_norm_market_source WHERE source='Polymarket US' AND collected_at<=${quote(cutoff)}`))[0].results[0].upper_rowid||0;
  result.upperRowid=upper;
  while(true){
-  const rows=(await query(`SELECT rowid storage_rowid,id,CASE WHEN json_extract(raw_payload_json,'$.archiveRef.version')='polymarket-receipt-v1' THEN NULL ELSE raw_payload_json END raw_payload_json,raw_payload_hash FROM normalized_market_observations NOT INDEXED WHERE rowid>${cursor} AND rowid<=${upper} AND source='Polymarket US' AND collected_at<=${quote(cutoff)} AND length(raw_payload_json)<=65536 ORDER BY rowid LIMIT 500`))[0].results;
+  const pageLimit=compactionPageLimit(result.examined,budget.maxRows);
+  if(!pageLimit){result.paused=true;break;}
+  const rows=(await query(`SELECT rowid storage_rowid,id,CASE WHEN json_extract(raw_payload_json,'$.archiveRef.version')='polymarket-receipt-v1' THEN NULL ELSE raw_payload_json END raw_payload_json,raw_payload_hash FROM normalized_market_observations NOT INDEXED WHERE rowid>${cursor} AND rowid<=${upper} AND source='Polymarket US' AND collected_at<=${quote(cutoff)} AND length(raw_payload_json)<=65536 ORDER BY rowid LIMIT ${pageLimit}`))[0].results;
   if(!rows.length)break;
   const updates=[];
   for(const row of rows){
@@ -81,6 +84,6 @@ try{
  await query('CREATE INDEX IF NOT EXISTS idx_norm_market_snapshot ON normalized_market_observations(snapshot_type,sport,collected_at)');
  const indexes=(await query("SELECT name FROM sqlite_schema WHERE type='index' AND name IN ('idx_norm_market_player','idx_norm_market_snapshot')"))[0].results;
  if(indexes.length!==2)throw Error('INDEX_RESTORATION_INCOMPLETE');
- result.indexesRestored=true;result.completed=true;
+ result.indexesRestored=true;result.completed=!result.paused;
 }catch(e){result.error=String(e.message);throw e;}
 finally{await save();console.log(JSON.stringify(result));}
