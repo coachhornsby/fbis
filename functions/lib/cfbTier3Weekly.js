@@ -75,14 +75,14 @@ export async function parseCfbTier3WeeklyCsv(raw, {receivedAt=new Date().toISOSt
   };
 }
 export async function saveCfbTier3WeeklySnapshot(env,snapshot,raw) {
-  if(!env?.DB?.prepare||!env?.DB?.batch||!env?.ARCHIVE?.put)
+  if(!env?.TIER3_DB?.prepare||!env?.TIER3_DB?.batch||!env?.ARCHIVE?.put)
     return {ok:false,reason:"TIER3_PRIVATE_STORAGE_REQUIRED"};
   const key=`licensed/cfbd/tier3/${snapshot.season}/week-${String(snapshot.week).padStart(2,"0")}/${snapshot.sourceSha256}.csv`;
   // Private archive is written before D1 index; no public URL or raw payload in response.
   await env.ARCHIVE.put(key,raw,{httpMetadata:{contentType:"text/csv"},
     customMetadata:{source:"cfbd-tier3-weekly",sha256:snapshot.sourceSha256}});
   const statements=[
-    env.DB.prepare(`INSERT OR IGNORE INTO cfb_tier3_training_snapshots
+    env.TIER3_DB.prepare(`INSERT OR IGNORE INTO cfb_tier3_training_snapshots
       (snapshot_id,source_sha256,season,week,source_filename,received_at,raw_r2_key,
        row_count,feature_count,schema_columns_json)
       VALUES(?,?,?,?,?,?,?,?,?,?)`)
@@ -90,7 +90,7 @@ export async function saveCfbTier3WeeklySnapshot(env,snapshot,raw) {
         snapshot.filename,snapshot.receivedAt,key,snapshot.rowCount,snapshot.featureCount,JSON.stringify(snapshot.columns))
   ];
   for(const row of snapshot.games){
-    statements.push(env.DB.prepare(`INSERT OR IGNORE INTO cfb_tier3_training_games
+    statements.push(env.TIER3_DB.prepare(`INSERT OR IGNORE INTO cfb_tier3_training_games
       (snapshot_id,game_id,season,week,kickoff_literal,home_team_source,
        away_team_source,home_conference_source,away_conference_source,neutral_site,
        opening_spread,features_json,row_sha256,identity_status,point_in_time_status,authority)
@@ -100,7 +100,7 @@ export async function saveCfbTier3WeeklySnapshot(env,snapshot,raw) {
         row.openingSpread,JSON.stringify(row.features),row.rowSha256,
         row.identityStatus,row.pointInTimeStatus,row.authority));
   }
-  await env.DB.batch(statements);
+  await env.TIER3_DB.batch(statements);
   return {ok:true,snapshotId:snapshot.snapshotId,sourceSha256:snapshot.sourceSha256,
     season:snapshot.season,week:snapshot.week,rows:snapshot.rowCount,
     features:snapshot.featureCount,authority:CFB_TIER3_AUTHORITY,networkCalls:0,
