@@ -22,3 +22,24 @@
 .fbis-moneyline-note{color:#a6bfd4;font-size:10px!important;line-height:1.45!important;margin:9px 0 0!important}
 @media(max-width:850px){.fbis-moneyline-cards{grid-template-columns:1fr}.fbis-moneyline-venue{min-height:73px}.fbis-moneyline-venue strong{font-size:clamp(18px,4vw,23px)}}
 @media(max-width:350px){.fbis-moneyline-venue>span{font-size:8px}.fbis-moneyline-venue b{font-size:14px}.fbis-moneyline-side{padding:6px}}
+
+
+/* Contained cards: no overflow on desktop boards or narrow phones. */
+.fbis-moneyline-comparison{container-type:inline-size;overflow:hidden}
+.fbis-moneyline-cards{grid-template-columns:repeat(auto-fit,minmax(min(100%,385px),1fr))}
+.fbis-moneyline-team{display:flex;gap:7px;align-items:center;flex-wrap:wrap;min-height:40px;margin-bottom:9px;min-width:0}
+.fbis-moneyline-team h4{flex:1 1 100px;min-width:0;margin:0!important;font-size:clamp(11px,2.1cqi,15px)!important;line-height:1.15;overflow-wrap:anywhere}
+.fbis-moneyline-gap-pill{font-size:9px;font-weight:900;color:#c7d5e8;background:rgba(42,52,77,.8);padding:5px 6px;border-radius:6px;max-width:100%;overflow-wrap:anywhere}
+.fbis-moneyline-gap-pill.is-positive{color:#b5ffda;border:1px solid rgba(66,244,155,.44);background:rgba(10,96,67,.6)}
+.fbis-moneyline-team .team-logo-plate,.fbis-moneyline-gap-banner .team-logo-plate{flex-shrink:0;background:transparent!important;border:0!important;box-shadow:none!important}
+.fbis-moneyline-team img,.fbis-moneyline-gap-banner img{object-fit:contain}
+.fbis-moneyline-gap-banner{display:flex;align-items:center;gap:9px;min-width:0;flex-wrap:wrap;padding:8px 10px;margin:0 0 9px;border:1px solid rgba(51,216,157,.55);border-radius:10px;background:linear-gradient(110deg,rgba(7,102,70,.48),rgba(7,25,54,.82))}
+.fbis-moneyline-gap-banner>div{display:grid;flex:1 1 130px;gap:2px;min-width:0}
+.fbis-moneyline-gap-banner>div>strong{font-size:12px;color:#f3fffc;font-weight:950;overflow-wrap:anywhere;line-height:1.2}
+.fbis-moneyline-gap-banner>div>span{font-size:9px;color:#afd9d1;line-height:1.2}
+.fbis-moneyline-gap-banner>b{color:#a2ffd2;font-size:clamp(16px,3.4cqi,23px);white-space:nowrap;font-weight:950}
+.fbis-moneyline-venue{min-width:0;overflow:hidden;box-sizing:border-box}
+.fbis-moneyline-venue>span,.fbis-moneyline-venue small{max-width:100%;overflow-wrap:anywhere;line-height:1.2}
+.fbis-moneyline-venue strong{font-size:clamp(15px,3.4cqi,24px);max-width:100%;white-space:nowrap}
+.fbis-moneyline-venue b{font-size:clamp(14px,3.1cqi,21px);max-width:100%;white-space:nowrap}
+@container(max-width:420px){.fbis-moneyline-triplet{gap:4px}.fbis-moneyline-venue{padding:6px 1px}.fbis-moneyline-venue>span{font-size:8px}.fbis-moneyline-team h4{font-size:13px!important}.fbis-moneyline-venue small{font-size:8px}}
