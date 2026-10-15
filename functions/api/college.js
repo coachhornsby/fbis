@@ -88,10 +88,20 @@ export async function onRequestGet(context) {
        "cfb-qb-transfer-refresh","cfbd-endpoint-audit"].includes(job);
     runEnv.cfbdNetworkAuthorized = scheduledOwner || manualOwner;
     runEnv.cfbdCacheOnly = !runEnv.cfbdNetworkAuthorized;
+    // Basketball draws on the same subscription. No unowned CBBD HTTP on
+    // cache misses, including board / ad-hoc read operations.
+    const scheduledCbbOwner = options.trigger === "schedule" &&
+      ["cbb-current-refresh","cbb-postgame-harvest"].includes(job);
+    const manualCbbOwner = options.trigger === "workflow_dispatch" &&
+      options.operatorApproved &&
+      ["cbb-current-refresh","cbb-postgame-harvest","cbb-reference-backfill",
+       "cbbd-endpoint-audit"].includes(job);
+    runEnv.cbbdNetworkAuthorized = scheduledCbbOwner || manualCbbOwner;
+    runEnv.cbbdCacheOnly = !runEnv.cbbdNetworkAuthorized;
     // CFBD and CBBD share the same subscription allowance. Pause scheduled
     // basketball collection too if the provider confirms zero shared calls.
     const sharedCollegeAcquisition = runEnv.cfbdNetworkAuthorized ||
-      ["cbb-current-refresh","cbb-postgame-harvest"].includes(job);
+      runEnv.cbbdNetworkAuthorized;
     if (sharedCollegeAcquisition) {
       const quota = await cfbCfbdAcquisitionHealth(runEnv);
       // A provider-confirmed zero balance is a monthly account-level stop, not

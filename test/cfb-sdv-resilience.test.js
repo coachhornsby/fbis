@@ -12,7 +12,7 @@ test('Retry-After delta and HTTP date are respected; cross-endpoint calls pause 
  await fetchWithCfbBackoff('https://api.collegefootballdata.com/games',{}, {},fn);
  const blocked=await fetchWithCfbBackoff('https://api.collegefootballdata.com/ppa/teams',{}, {},fn);
  assert.equal(calls,1);assert.equal(blocked.headers.get('X-FBIS-Cooldown'),'true');
- await fetchWithCfbBackoff('https://api.collegebasketballdata.com/games',{}, {},fn);assert.equal(calls,2);resetCacheMem();
+ const basketballBlocked=await fetchWithCfbBackoff('https://api.collegebasketballdata.com/games',{}, {},fn);assert.equal(calls,1);assert.equal(basketballBlocked.headers.get('X-FBIS-Cooldown'),'true');resetCacheMem();
 });
 test('concurrent same-URL provider reads share one request with independent bodies',async()=>{
  resetCacheMem();let calls=0;const fn=async()=>{calls++;await new Promise(r=>setTimeout(r,5));return Response.json([1]);};

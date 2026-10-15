@@ -135,7 +135,7 @@ describe("CBBD capability audit", () => {
         async json() { return [{ season, ok: true }]; },
       };
     };
-    const env = { ...collegeDb(new Map()), CBBD_API_KEY: FAKE };
+    const env = { ...collegeDb(new Map()), CBBD_API_KEY: FAKE, cbbdNetworkAuthorized: true };
     const a = await runCbbdEndpointAudit(env, {
       seasons: [2024],
       maxRequests: 2,
@@ -200,7 +200,7 @@ describe("CBBD capability audit", () => {
         },
       };
     };
-    const env = { ...collegeDb(new Map()), CBBD_API_KEY: FAKE };
+    const env = { ...collegeDb(new Map()), CBBD_API_KEY: FAKE, cbbdNetworkAuthorized: true };
     const audit = await runCbbdEndpointAudit(env, {
       seasons: [2026, 2024, 2022],
       maxRequests: 10,

@@ -9,7 +9,10 @@ export function retryAfterUntil(value, now=Date.now()) {
   return Math.max(now+60_000,Number.isFinite(date)?date:now+15*60_000);
 }
 export async function fetchWithCfbBackoff(url,options={},env={},fetchFn=fetch) {
-  if(new URL(url).hostname!=='api.collegefootballdata.com')return fetchFn(url,options);
+  // CFBD and CBBD consume the same provider allowance.
+  // Both must pass the same persisted D1 permit and cooldown.
+  if(!["api.collegefootballdata.com","api.collegebasketballdata.com"].includes(new URL(url).hostname))
+    return fetchFn(url,options);
   const cache=env.caches||globalThis.caches?.default;
   const blocked=await readCache(KEY,cache,24*60*60_000);
   if(blocked?.until>Date.now())return Response.json({error:'CFBD cooldown; cached/public sources required'},{status:429,headers:{'Retry-After':String(Math.ceil((blocked.until-Date.now())/1000)),'X-FBIS-Cooldown':'true'}});

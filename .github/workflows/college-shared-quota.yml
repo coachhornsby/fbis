@@ -1,0 +1,23 @@
+name: College shared API quota safety
+on:
+  pull_request:
+    paths:
+      - "functions/lib/cfbProviderBackoff.js"
+      - "functions/lib/cfbCfbdAcquisition.js"
+      - "functions/lib/collegeApi.js"
+      - "functions/api/college.js"
+      - "test/college-shared-quota.test.js"
+      - ".github/workflows/college-shared-quota.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-shared-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test test/college-shared-quota.test.js test/cfb-cfbd-acquisition.test.js test/cfb-cfbd-429-idempotency.test.js
