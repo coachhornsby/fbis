@@ -4,6 +4,7 @@ import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
 import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
 import CfbSeasonStatStrip from "./CfbSeasonStatStrip.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
+import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
 import EventMarkets from "./EventMarkets.jsx";
@@ -156,6 +157,9 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const cardKey = `${vm.sport || ""}:${vm.id || game?.id}`;
   const sportId = String(vm.sport || game?.sport || "").toLowerCase();
   const isNfl = sportId === "nfl";
+  const referenceGap = pinnoddsReferenceDifference(game,proj);
+  const referenceLead = referenceGap.leading;
+  const showReferenceGap = !stored && !vm.decision?.evAvailable && referenceGap.available;
   const isTennis = sportId === "tennis";
   if (isTennis) {
     return <TennisMatchCard game={game} open={open} onToggle={onToggle} renderDetail={renderDetail} />;
@@ -245,9 +249,9 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
 
         <div className="pgc-featured-center">
           <span className="pgc-vs">VS</span>
-          <small>{stored ? "Stored pregame context" : soccerPick ? "Confidence Pick" : vm.decision?.evAvailable ? "Calibrated edge" : "Model / market gap"}</small>
-          <strong>{stored ? "NO VERIFIED EDGE" : soccerPick ? soccerPick.pick || "—" : isTennis ? tennisEdgeValue : edge.value}</strong>
-          <span className="pgc-edge-delta">{stored ? "NO EXECUTABLE MARKET" : soccerPick ? `${stars}★ · 1X2` : isTennis ? tennisEdgeDelta : `${edge.delta} ${edge.type}`}</span>
+          <small>{stored ? "Stored pregame context" : soccerPick ? "Confidence Pick" : vm.decision?.evAvailable ? "Calibrated edge" : showReferenceGap ? "FBIS / PinnOdds point gap" : "Model / market gap"}</small>
+          <strong>{stored ? "NO VERIFIED EDGE" : soccerPick ? soccerPick.pick || "—" : isTennis ? tennisEdgeValue : showReferenceGap ? `${referenceLead.delta > 0 ? "+" : ""}${referenceLead.delta} PTS` : edge.value}</strong>
+          <span className="pgc-edge-delta">{stored ? "NO EXECUTABLE MARKET" : soccerPick ? `${stars}★ · 1X2` : isTennis ? tennisEdgeDelta : showReferenceGap ? `${referenceLead.kind.toUpperCase()} · PROJECTION DIFF · NOT EV` : `${edge.delta} ${edge.type}`}</span>
         </div>
 
         <div className="pgc-featured-team pgc-featured-team-home">
@@ -265,28 +269,23 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </div>
       </section>
 
-      <section className={`pgc-nfl-market${isTennis ? " pgc-tennis-market" : ""}`} aria-label="FBIS and market summary">
-        {isTennis ? (
-          <>
-            <div><span>MARKET ML</span><strong>{tennisAwayMl == null && tennisHomeMl == null ? "—" : `${away.abbr} ${fmtOdds(tennisAwayMl)} · ${home.abbr} ${fmtOdds(tennisHomeMl)}`}</strong></div>
-            <div><span>FBIS FAIR ML</span><strong>{proj.available ? `${away.abbr} ${fairAmerican((Number(proj.away) || 0) / 100)} · ${home.abbr} ${fairAmerican((Number(proj.home) || 0) / 100)}` : "—"}</strong></div>
-            <div><span>GAME SPREAD</span><strong>{tennisSpreadLabel}</strong></div>
-            <div><span>TOTAL GAMES</span><strong>{tennisTotalLabel}</strong></div>
-            <div><span>SURFACE</span><strong>{[tennis.surface ? String(tennis.surface).toUpperCase() : null, tennis.indoor === true ? "INDOOR" : tennis.indoor === false ? "OUTDOOR" : null].filter(Boolean).join(" · ") || "—"}</strong></div>
-            <div><span>EVENT</span><strong>{[tennisTour, tennis.tournament].filter(Boolean).join(" · ") || tennisTour}</strong></div>
-          </>
-        ) : (
-          <>
+      {["cfb","nfl","cbb","nba","wnba","nhl","mlb","npb","kbo"].includes(sportId) ? (
+        <>
+          {["nhl","mlb","npb","kbo"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
+          <PinnoddsCardMarkets game={game} projection={proj} />
+          {["cfb","nfl","cbb","nba","wnba"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
+        </>
+      ) : (
+        <>
+          <section className="pgc-nfl-market" aria-label="FBIS and market summary">
             <div><span>{marketSideLabel}</span><strong>{market.spreadLabel || cmp.marketSide?.label || "—"}</strong></div>
-            <div><span>{stored ? "STORED FBIS TOTAL" : sportId === "nhl" ? "PREGAME FBIS TOTAL" : "FBIS TOTAL"}</span><strong>{proj.total ?? "—"}</strong></div>
+            <div><span>FBIS TOTAL</span><strong>{proj.total ?? "—"}</strong></div>
             <div><span>MARKET TOTAL</span><strong>{market.total ?? "—"}</strong></div>
-          </>
-        )}
-      </section>
+          </section>
+          <MoneylinePriceComparison game={game} />
+        </>
+      )}
       {sportId === "cfb" ? <CfbSeasonStatStrip evidence={game.cfbSeasonEvidence} /> : null}
-      {["nfl","cfb","nba","cbb","wnba"].includes(sportId) ? <PinnoddsCardMarkets game={game} /> : null}
-      <MoneylinePriceComparison game={game} />
-      {["nhl","mlb","npb","kbo"].includes(sportId) ? <PinnoddsCardMarkets game={game} /> : null}
       {!stored && sportId === "nhl" ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
       {!stored && sportId === "nhl" ? <NhlMatchupSignals game={game} away={away} home={home} /> : null}
       {!stored && sportId !== "nhl" ? sportId === "nfl" ? <NflDirectionalMatchups game={game} matchup={game.nflGameMatchup} away={away} home={home} /> : sportId === "cfb" ? <CfbDirectionalMatchups game={game} away={away} home={home} /> : <MatchupSignals game={game} away={away} home={home} sport={sportId} /> : null}
