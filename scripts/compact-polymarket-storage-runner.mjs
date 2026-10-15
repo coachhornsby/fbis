@@ -2,6 +2,7 @@
 import {writeFile} from 'node:fs/promises';
 import {compactArchivedRaw,payloadHash,restoreArchivedRaw,receiptKey} from '../functions/lib/polymarketPayloadArchive.js';
 import {sqlQuote as quote,compactUpdateSql} from './lib/polymarket-storage-sql.mjs';
+import {getArchivedReceipt} from './lib/archived-receipt-retry.mjs';
 const token=process.env.CLOUDFLARE_API_TOKEN,account=process.env.CLOUDFLARE_ACCOUNT_ID,secret=process.env.HARVEST_SECRET;
 if(!token||!account||!secret)throw Error('Existing Cloudflare and harvest credentials required');
 const cutoff=process.env.COMPACTION_CUTOFF||new Date().toISOString();
@@ -24,10 +25,9 @@ const cache=new Map();
 const identity=raw=>JSON.stringify([raw.providerMarketId,raw.providerOutcomeId]);
 async function receipt(id){
  const key=receiptKey(id);if(cache.has(key))return cache.get(key);
- const r=await fetch('https://fbis-myz.pages.dev/api/polymarket-storage',{method:'POST',headers:{'content-type':'application/json','x-harvest-secret':secret},body:JSON.stringify({operation:'receipt',receiptId:id}),signal:AbortSignal.timeout(120000)});
- if(r.status===404||r.status===413){cache.set(key,null);return null;}
- if(!r.ok)throw Error('RECEIPT_HTTP_'+r.status);
- const value=await r.json(),byIdentity=new Map();
+ const value=await getArchivedReceipt({url:'https://fbis-myz.pages.dev/api/polymarket-storage',headers:{'content-type':'application/json','x-harvest-secret':secret},body:JSON.stringify({operation:'receipt',receiptId:id})});
+ if(value===null){cache.set(key,null);return null;}
+ const byIdentity=new Map();
  for(const offer of value.offers||[]){if(!offer?.raw)continue;const k=identity(offer.raw);if(!byIdentity.has(k))byIdentity.set(k,[]);byIdentity.get(k).push(offer);}
  const entry={receiptId:value.receiptId,rawKey:value.rawKey,byIdentity};
  if(cache.size>=2)cache.delete(cache.keys().next().value);cache.set(key,entry);return entry;
