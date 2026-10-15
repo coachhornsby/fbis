@@ -7,6 +7,7 @@ Repair:
 - Append corrected identities to the immutable market ledger, preserving captured prices and provider/collection clocks. Old unmatched evidence remains intact. Post-capture links cannot become prospective economic evidence.
 - Reconcile hourly and run a one-shot production proof on release. No additional paid PinnOdds capture is triggered.
 - Subscribe the existing read-only Polymarket Worker to full market data. Official documentation identifies `marketData.transactTime`; lite messages omit it. Preserve real transaction timestamps, accept only open full books, and keep null when absent. Preserve first/second-half periods. Bind the long contract explicitly; old soccer socket records without verified contract binding are excluded from current card overlays.
+- Cards show PinnOdds as LAST CAPTURE for up to seven hours with explicit older-capture labels; this never refreshes clocks or makes an old capture current. Soccer exchange headline probabilities require full-game moneyline contracts.
 - The shadow collector now reads PinnOdds and Polymarket references. Complete, coherent, recent, pre-kickoff, provider-timestamped PinnOdds 1X2/BTTS/O2.5/core Asian markets can populate economic fields. Exchange prices stay separately labeled references. Unknown clocks, missing draws, mixed captures, or later identity links cannot qualify.
 
 No public model promotion or wager authority change. This is the market connection repair, not completion of the full Phase 3I calibration/closing-price/result-grading program.

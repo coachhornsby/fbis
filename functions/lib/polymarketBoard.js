@@ -7,7 +7,7 @@ import { marketTemporalStatus, providerObservationTime } from "./marketTemporal.
 export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Date(),maxAgeMs=45*60*1000}={}){
  const ids=[...new Set(games.map(g=>String(g.id||"")).filter(Boolean))];
  if(!db?.prepare||!ids.length)return {byId:new Map(),source:"Polymarket US",available:false};
- const end=now.toISOString(),cutoff=new Date(now.getTime()-maxAgeMs).toISOString();
+ const end=now.toISOString(),cutoff=new Date(now.getTime()-(sport==="soccer"?7*3600000:maxAgeMs)).toISOString();
  const rows=[];
  for(let i=0;i<ids.length;i+=40){
  const chunk=ids.slice(i,i+40);
@@ -54,10 +54,11 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
     payload?.quoteProvenance==="collector-capture-only" ? null : r.source_observed_at});
   const temporal=marketTemporalStatus({source:r.source,providerObservedAt,collectedAt:r.collected_at,
     eventId:r.canonical_event_id,eventStartAt:r.event_start_time},{now,maxAgeMs});
-  if(!temporal.currentDisplayEligible)continue;
+  const historicalReference=sport==="soccer"&&r.source==="PinnOdds"&&!temporal.currentDisplayEligible&&temporal.researchEligible&&now.getTime()-Date.parse(r.collected_at)<=7*3600000;
+  if(!temporal.currentDisplayEligible&&!historicalReference)continue;
   arr.push({
     source:r.source,marketFamily:r.market_family,side:r.side,period:r.period,
-    line:r.line,contractPrice:r.contract_price==null?null:Number.isFinite(display)?display:null,
+    historicalReference,line:r.line,contractPrice:r.contract_price==null?null:Number.isFinite(display)?display:null,
     decimalOdds:r.decimal_odds==null?null:Number(r.decimal_odds),
     americanOdds:r.source==="PinnOdds"&&r.american_odds!=null?Number(r.american_odds):null,quoteKind:r.source==="PinnOdds"?"DECIMAL_BOOK_REFERENCE_NOT_EXECUTION_VERIFIED":r.source==="Polymarket US WebSocket"?"OBSERVED_BBO_NOT_GUARANTEED_FILL":"DISPLAY_REFERENCE_NOT_EXECUTABLE",
     sourceMarketId:r.source_market_id,sourceOutcomeId:r.source_outcome_id,observedAt:providerObservedAt,collectedAt:r.collected_at,
