@@ -8,7 +8,9 @@ test("CFB directional panels specify four offense-versus-defense categories",asy
  assert.match(src,/cfbDirectionalEvidence/);
  assert.match(src,/passEpaAllowed/);
  assert.match(src,/rushEpaAllowed/);
- assert.match(src,/ADVANTAGE/);
+ assert.match(src,/EFFICIENCY TILT/);
+ assert.match(src,/CFBD ADJ. EPA GAP/);
+ assert.match(src,/SOURCES DISAGREE/);
  assert.match(src,/TeamLogo team=\{winner\}/);
  assert.match(src,/altColor/);
  assert.match(src,/UNIT DATA PENDING/);
