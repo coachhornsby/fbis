@@ -44,6 +44,8 @@ jobs:
           path: artifacts/cfb-capacity-consumer-audit.json
           if-no-files-found: ignore
           retention-days: 7
+      - name: Test bounded source-preserving storage compaction
+        run: node --test test/storage-compaction-budget.test.mjs
       - name: Syntax check Cloudflare Functions
         run: find functions -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Run test suite
