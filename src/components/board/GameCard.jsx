@@ -19,8 +19,8 @@ import {
   teamCardTitle,
 } from "../../lib/boardDecision.js";
 import { fmtAmerican, fmtNum } from "../../lib/format.js";
-import { marketDisplayAmerican, marketDisplayImplied, signedAmerican } from "../../lib/marketQuoteDisplay.js";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
+import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import { venueAtmosphereClass } from "../../lib/venueAtmosphere.js";
 import { GameDetails } from "../../TodayView.jsx";
@@ -250,21 +250,8 @@ export default function GameCard({
         </div>
       </section>
 
-      {game.pinnoddsResearch ? <PinnoddsCardMarkets game={game} /> : null}
-      {Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => String(o.source||"").startsWith("Polymarket US") && o.marketFamily === "moneyline" && marketDisplayImplied(o) != null) ? (
-        <section className="gc-reference" aria-label="Polymarket US moneyline price equivalents">
-          <div className="gc-section-label">POLYMARKET US · MARKET-IMPLIED % / AMERICAN EQUIVALENT</div>
-          {game.market.venueOffers.filter(o => String(o.source||"").startsWith("Polymarket US") && o.marketFamily === "moneyline" && marketDisplayImplied(o) != null)
-            .sort((a,b) => Number(b.source === "Polymarket US WebSocket") - Number(a.source === "Polymarket US WebSocket") || String(b.collectedAt||"").localeCompare(String(a.collectedAt||"")))
-            .slice(0,6).map((o,i)=>(
-              <div key={o.sourceMarketId+"-"+o.sourceOutcomeId+"-"+o.side+"-"+i}>
-                <strong>{String(o.side||"SELECTION").toUpperCase()}</strong> · {(marketDisplayImplied(o)*100).toFixed(2)}% · {signedAmerican(marketDisplayAmerican(o))}
-                <span className="muted"> · {o.source === "Polymarket US WebSocket" ? "WS observed ask · fill unverified" : "Indicative contract price"}</span>
-              </div>
-            ))}
-          <div className="gc-action-footnote muted">Contract price implies a break-even %, excluding fees. Not a no-vig estimate or FBIS win probability. Research only; not an executable offer.</div>
-        </section>
-      ) : null}
+      <MoneylinePriceComparison game={game} />
+      {game.pinnoddsResearch?.offers?.some(o=>o.marketFamily==="spread"||o.marketFamily==="total") ? <PinnoddsCardMarkets game={game} marketFamilies={["spread","total"]} /> : null}
       <MultiBookMarketTable game={game} />
 
       {game.market?.reference?.available && (mkt.referenceOnly || mkt.book === "Reference" || !game.market?.marketAvailable) ? (
