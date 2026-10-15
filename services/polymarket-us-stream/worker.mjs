@@ -182,6 +182,7 @@ export class PolymarketMarketStream extends DurableObject {
         snapshotType:"CURRENT",collectedAt:new Date().toISOString(),modelProbability:null
       });
       this.inserted+=r.inserted;
+      if(this.lastError==="d1-bbo-persist-error")this.lastError=null;
       for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
     }catch{
       this.lastError="d1-bbo-persist-error";
