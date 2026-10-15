@@ -6,13 +6,13 @@ const line=v=>v==null?"":` · ${Number(v)>0?"+":""}${Number(v)}`;
 const fmtTime=s=>s&&Number.isFinite(Date.parse(s))?new Date(s).toLocaleString("en-US",{
  timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"
 }):"Unverified";
-export default function PinnoddsCardMarkets({game}){
+export default function PinnoddsCardMarkets({game,marketFamilies=["moneyline","spread","total"]}){
  const evidence=game?.pinnoddsResearch;
- const rows=evidence?.offers||[];
+ const rows=(evidence?.offers||[]).filter(o=>marketFamilies.includes(o.marketFamily));
  if(!rows.length)return <section className="pinnodds-board-odds empty" aria-label="PinnOdds market availability">
   <strong>PINNODDS</strong><span>No matched, recent full-game quote · Market unavailable</span>
  </section>;
- const families=["moneyline","spread","total"];
+ const families=marketFamilies;
  return <section className="pinnodds-board-odds" aria-label="PinnOdds research-only odds">
    <header><strong>PINNODDS · CAPTURED LINES</strong><span>RESEARCH ONLY · NOT EXECUTABLE</span></header>
    <div className="pinnodds-odds-grid">{families.map(f=>{
