@@ -147,6 +147,49 @@ function buildCompletedForm(rows = [], now = Date.now()) {
   return bySchool;
 }
 
+// Prefer canonical weekly D1 state over any daytime provider request.
+// Research-only fields preserve source units and their as-of timestamps.
+async function readPersistedCfbDeep(env,season,now) {
+  if(!env.DB?.prepare)return null;
+  try {
+    const result=await env.DB.prepare(`
+      SELECT team_id,features_json,as_of FROM team_feature_snapshots
+      WHERE sport='cfb' AND season=? AND feature_version='cfb-features-v1'
+        AND as_of<=?
+      ORDER BY as_of DESC LIMIT 700
+    `).bind(season,new Date(now).toISOString()).all();
+    const index={byEspnId:{},bySchool:{}};
+    const seen=new Set();
+    let maxAsOf=null;
+    for(const rec of result?.results||[]){
+      if(seen.has(String(rec.team_id)))continue;
+      let fields;
+      try{fields=JSON.parse(rec.features_json||"{}");}catch{continue;}
+      const school=fields.team||fields.school;
+      if(!school)continue;
+      seen.add(String(rec.team_id));
+      const value={
+        offensePpa:num(fields.ppaOff),defensePpa:num(fields.ppaDef),
+        successRate:num(fields.offensiveSuccessRate),
+        successRateAllowed:num(fields.defensiveSuccessRate),
+        explosiveRate:num(fields.offensiveExplosiveness),
+        explosiveRateAllowed:num(fields.defensiveExplosiveness),
+        lineYards:num(fields.offensiveLineYards),
+        lineYardsAllowed:num(fields.defensiveLineYards),
+        havocRate:num(fields.defensiveHavoc),
+        havocAllowed:num(fields.offensiveHavoc)
+      };
+      put(index,school,value);
+      if(!maxAsOf||String(rec.as_of)>maxAsOf)maxAsOf=String(rec.as_of);
+    }
+    const records=Object.keys(index.bySchool).length;
+    if(!records)return null;
+    return {season,...index,meta:{configured:true,records,
+      source:"cfbd-weekly-persisted-d1",asOf:maxAsOf,cacheOnly:true,
+      networkCalls:0,modelAuthority:false,wagerAuthority:false}};
+  }catch{return null;}
+}
+
 export async function loadCfbDeepFeatures(env = {}, { fetchFn = fetch, now = Date.now() } = {}) {
   const season = seasonYear(new Date(now));
   const key = collegeApiKey(env, "cfbd");
@@ -154,10 +197,14 @@ export async function loadCfbDeepFeatures(env = {}, { fetchFn = fetch, now = Dat
   const cacheKey = `cfb-deep-v2-${season}`;
   const cached = await readCache(cacheKey, env.caches, TTL_MS);
   if (cached?.meta) return cached;
-  if (env.cfbdCacheOnly) return {
-    season, byEspnId: {}, bySchool: {},
-    meta: { configured: true, records: 0, cacheOnly: true, error: "cache-only-miss" },
-  };
+  if (env.cfbdCacheOnly || (env.DB?.prepare && env.cfbdNetworkAuthorized !== true)) {
+    const persisted=await readPersistedCfbDeep(env,season,now);
+    if(persisted)return persisted;
+    return {
+      season, byEspnId: {}, bySchool: {},
+      meta: { configured: true, records: 0, cacheOnly: true, error: "persisted-feature-miss", networkCalls:0 },
+    };
+  }
 
   const [ppaPrimary, adv, games] = await Promise.all([
     fetchRows(key, "/ppa/teams", { year: season, seasonType: "regular" }, fetchFn, env),
