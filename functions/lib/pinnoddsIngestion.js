@@ -23,7 +23,7 @@ async function normalizeFromArchivedRaw(env,receipt,{snapshotId,fixtureAsOf=null
    const asOf=fixtureAsOf||receipt.collectedAt;
    games.push(...await loadVerifiedTennisCandidates(env.DB,body.events.map(e=>e.starts),{asOf,includeCompleted}));
   }
-  if(receipt.sportId===1)games.push(...(await loadSoccerMarketFixtures(env)).fixtures.filter(g=>!games.some(x=>String(x.id)===g.id)));
+  if(receipt.sportId===1)for(const g of (await loadSoccerMarketFixtures(env)).fixtures){const existing=games.find(x=>String(x.id)===g.id);if(existing)Object.assign(existing,g);else games.push(g);}
   let scopeDiagnostics={};
   if(receipt.sportId===1&&receipt.feed==='prematch'){
    const soccer=games.filter(g=>g.sport==='soccer');
