@@ -1,5 +1,6 @@
 import React from "react";
 import "./pinnoddsCardMarkets.css";
+import { marketDisplayAmerican, marketDisplayImplied, signedAmerican } from "../../lib/marketQuoteDisplay.js";
 const val=v=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toFixed(3).replace(/0+$/,"").replace(/\.$/,"");
 const line=v=>v==null?"":` · ${Number(v)>0?"+":""}${Number(v)}`;
 const fmtTime=s=>s&&Number.isFinite(Date.parse(s))?new Date(s).toLocaleString("en-US",{
@@ -21,7 +22,7 @@ export default function PinnoddsCardMarkets({game}){
       <b>{f==="moneyline"?"MONEYLINE":f==="spread"?"SPREAD":"TOTAL"}</b>
       {offers.map(o=><span key={[f,o.side,o.line,o.sourceMarketId].join("|")}>
        <strong>{String(o.side).toUpperCase()}{line(o.line)}</strong>
-       <em>{val(o.decimalOdds)} dec</em>
+       <em>{signedAmerican(marketDisplayAmerican(o))} · {val(o.decimalOdds)} dec · {marketDisplayImplied(o)==null ? "—" : `${(marketDisplayImplied(o)*100).toFixed(1)}%`} raw implied</em>
       </span>)}
     </div>;
    })}</div>
