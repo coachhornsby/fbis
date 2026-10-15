@@ -1,5 +1,17 @@
 # FBIS Cloudflare storage recovery — 2026-10-15 verified checkpoint
 
+## Current disposition — 2026-10-15 (supersedes earlier cost/target inventory below)
+
+- **Production D1 `fbis` remains intact**, approximately 10.00 GB and still at its per-database hard capacity boundary. Production D1 history has **not** been deleted, vacuumed, repartitioned, or sharded.
+- **Complete historical 2004 CFB roster**: 13,644/13,644 rows in 137 content-addressed R2 objects (25,659,280 bytes), all SHA-256 verified and independently reconciled to every source D1 row. Source rowids remain sparse and preserved. Full manifest `research/storage-recovery/cfb-roster-cold-pilot/2004/full-season-manifest-675ad4a9f3cb17a87f09acc577bd40f2e2f8e7e4ea59bf501df14b48b063aa8c.json`.
+- [PR #1166](https://github.com/coachhornsby/fbis/pull/1166) merged with internal SHA-256 verified R2 paging and a header-only, private diagnostic `GET /api/cfb-roster-archive`. No CFB card, odds, wagering, source-acquisition, or model routing was cut over. Its production smoke gate verifies unauthorized 403 and authenticated 200 with zero D1 reads/writes.
+- **Failed, isolated 4.73 GB recovery rehearsal target was retired**: `fbis-cfb-full-recovery-20261011-38153970674` / `b6ecec0b-5e2b-4bee-8e7e-ca500028b39b`. It was not used by Pages production/preview or the four deployed Workers; the incomplete import had failed at `import-0166.sql`. The original five R2 backup parts, local 266-table/3,285,588-row recovery evidence and GitHub Actions artifact `11709586433` remain preserved. This is **not** acceptance of remote full restore.
+- **Permanent pre-retirement evidence**, verified by SHA-256 and R2 readback: `research/storage-recovery/2026-10-15/failed-cfb-remote-drill/retirement-evidence-c067ecd8091c680b949f0f2577ef442ad83c908f524d608877b9d8746ad4b9cf.json`. Independent disposition is also recorded on [PR #987](https://github.com/coachhornsby/fbis/pull/987).
+- D1 paid storage is now approximately 10 GB total, rather than 14.73 GB. At the published rates, approximate ongoing Cloudflare Workers + D1/R2 storage cost falls from **$12.5 to ~$9/month** when usage persists a whole month; actual invoiced charges, read/write/request overages and taxes are not verified. No additional Cloudflare subscription was purchased.
+- The user-facing **storage availability problem is not fully resolved**: freeing the unused recovery database lowered account-wide D1 charges but did not raise the 10 GB limit on the production D1. Future cost-controlled capacity work must qualify cold-data consumer dependencies, independent recovery, archival read paths and staged write relief before shrinking or sharding production.
+
+---
+
 ## Scope and safety
 - This is an inventory and recovery-gate record. No production purge, R2 deletion, D1 database removal, automatic migration, model change, or wagering-authority change.
 - Cloudflare account: verified through connected account tools. FBIS production D1 is `b50c724c-903b-4241-8ce1-48d931e7a44c`.
