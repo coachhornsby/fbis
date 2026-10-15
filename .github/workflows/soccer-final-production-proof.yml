@@ -25,10 +25,16 @@ jobs:
       - name: Verify deployed soccer adapter ancestry
         run: |
           set -euo pipefail
-          status=$(curl -fsS --retry 4 --retry-all-errors --max-time 45 -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/soccer-prospective-shadow?mode=summary")
-          sha=$(jq -r '.collectorCodeSha' <<<"$status")
-          relation=$(gh api "repos/$GITHUB_REPOSITORY/compare/920a04724ed16b3b47bd33a4528bd942da443b7e...$sha" --jq .status)
-          [ "$relation" = identical ] || [ "$relation" = ahead ]
+          for attempt in $(seq 1 60); do
+            status=$(curl -fsS --max-time 45 -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/soccer-prospective-shadow?mode=summary" || true)
+            sha=$(jq -r '.collectorCodeSha // empty' <<<"$status" 2>/dev/null || true)
+            if [ -n "$sha" ]; then
+              relation=$(gh api "repos/$GITHUB_REPOSITORY/compare/20fc438de9d55981515f2b83531454b9b60ab030...$sha" --jq .status || true)
+              if [ "$relation" = identical ] || [ "$relation" = ahead ]; then exit 0; fi
+            fi
+            sleep 5
+          done
+          exit 1
       - name: Reactivate the signed market stream after storage headroom returns
         run: |
           set -euo pipefail
@@ -40,7 +46,7 @@ jobs:
           set -euo pipefail
           day=$(TZ=America/Chicago date -d '+2 days' +%F)
           for league in ger.1 fra.1 esp.1; do
-            curl -fsS --retry 4 --retry-all-errors --retry-delay 3 --max-time 120 -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/soccer-prospective-shadow?mode=snapshot&competition=$league&date=$day" > "artifacts/shadow-$league.json"
+            curl --fail-with-body -sS --retry 4 --retry-all-errors --retry-delay 3 --max-time 120 -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/soccer-prospective-shadow?mode=snapshot&competition=$league&date=$day" > "artifacts/shadow-$league.json" || { cat "artifacts/shadow-$league.json"; exit 1; }
             jq -e '.ok and .researchOnly and (.canQualify==false) and (.canAuthorize==false)' "artifacts/shadow-$league.json"
           done
           tomorrow=$(TZ=America/Chicago date -d '+1 day' +%F)
@@ -54,5 +60,3 @@ jobs:
         with:
           name: soccer-post-storage-${{ github.run_id }}
           path: artifacts/**
-
-# Final proof after deployed stream version 25dc1dd7 restored 45 subscriptions.
