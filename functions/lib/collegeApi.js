@@ -77,6 +77,14 @@ export async function collegeRequest(source, path, env = {}, { query, fetchFn = 
       return hit;
     }
   }
+  // Live CFB HTTP acquisition is owned by the single early-morning
+  // cfb-postgame-harvest. Every other Cloudflare job must reuse cached state.
+  // Check AFTER the cache read: this policy does not hide acquired evidence.
+  if (src === "cfbd" && env.cfbdCacheOnly === true) {
+    return {ok:false,status:0,reason:"CFBD_MORNING_ONLY_CACHE_MISS",
+      data:null,n:0,path,source:src,cacheHit:false,
+      quotaCost:0,networkAttempted:false};
+  }
   const url = `${base}${path}${queryString(query)}`;
   try {
     const res = await fetchWithCfbBackoff(url, {
