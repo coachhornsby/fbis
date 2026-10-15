@@ -109,3 +109,21 @@ Cloudflare D1 has a per-database maximum of 10 GB. Account-level overage billing
 - Planned first bounded resume: exclusive cursor `509110` from GitHub Action `38776633057`, at most **5,000 scanned** `Polymarket US` observations, frozen capture cutoff `2026-10-15T19:00:00Z`, page limit 500, no source deletions. Missing/changed source archives remain untouched.
 - Existing source-hash, exact R2 receipt matching, compare-and-swap and periodic lossless readback checks remain mandatory. `paused=true` with `completed=false` denotes a deliberate budget stop; this is **not** a full-ledger verification.
 - Physical D1 file size must be checked after completion; logical bytes removed are not identical to actual billed storage reclaimed. Manual action trigger requires a separate committed marker change after CI and reviewed production SHA.
+
+
+## Production raw-CFB index reclamation and full targeted season restore — 2026-10-15
+
+**Actual reclaimed physical D1 storage: 65,671,168 bytes (65.67 MB decimal)**, from 10,002,251,776 to 9,936,580,608 bytes at the verified postflight. Both removed structures were non-unique secondary indexes exclusively on the raw historic `cfb_roster_observations` table: `idx_cfb_roster_obs_player_time` and `idx_cfb_roster_obs_team_time`. Their exact original DDL and the production preflight Time Travel bookmark were archived in private R2.
+
+- No source rows deleted: original 470,584 `cfb_roster_observations`, including 13,644 from 2004, remain present. Both system-enforced UNIQUE/PRIMARY indexes were retained; the 2004 `cfb_roster_membership` count of 6,822 remains unchanged.
+- Verified repo-wide consumer scan: no Pages/Worker SQL selects from raw observations. Present CFB team profiles read separate dated roster-membership and canonical identity tables. R2 archive reader uses its pinned complete-season manifest.
+- Full **2004** restore to isolated rehearsal D1 `fbis-cfb-recovery-rehearsal-20261011` (UUID `1142b60c-6e00-4286-87b8-4edff9de3129`): 137 R2 objects, 13,644 full source rows restored into R2-segment backing records; then reconstructed into a relational table cloned from the original **27-column** source schema with original SQLite rowids.
+- Independent relational content comparison: **13,644 rows checked, zero mismatching rows across 27 fields**, 13,644 distinct IDs and hashes, same original source rowid range. This qualifies the complete **targeted 2004 season**, not the entire production database's 10 GB recovery, and does not authorize a broad database restore.
+- Preflight DDL/Time Travel bookmark evidence key: `research/storage-recovery/2026-10-15/index-reclaim/preflight-bd15be02489162ff0e5b22368f2b780506fe66f618ad073e5f91b21c344d48e3.json`.
+- Immutable verified postflight evidence key: `research/storage-recovery/2026-10-15/index-reclaim/result-5a7fb1f0cd60d7dcadc5cc853f473d4f1c49ad32def00dcc47ddda9435e09b9c.json` (SHA-256 as included in filename).
+- Original CREATE INDEX statements remain in the R2 preflight for scoped rollback. Do not perform an unqualified production Time Travel restore: it would reverse unrelated betting/evidence writes.
+- Migration `0108_cfb_archived_roster_index_retirement.sql` records index-only cleanup idempotently; `schema.extensions.sql` no longer recreates the deleted indexes on fresh databases. Source record restoration remains possible through pinned R2 objects.
+- New raw-2004 ingest guard excludes the redundant historic raw payload only; canonical player identity, dated roster memberships, roster/state provenance, prospect qualification, and all other seasons retain their existing behavior.
+- `cfb-player-directory-phase-b.yml` is manual-only to prevent an unrelated code push from initiating a large historic provider re-download or D1 backfill.
+- **Outstanding capacity:** production primary D1 remains approximately 9.94 GB, still near the hard 10 GB database limit. Future space recovery should favor hash-proven lossless source payload compaction and further fully reversible R2 cohorts, never deletes based on an unverified full database backup. Billing remains estimated and usage-based.
+
