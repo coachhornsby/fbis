@@ -450,6 +450,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
   let gamesDiscovered = 0;
   let report = [];
   const cfbDailyArchives=[];
+  let coreAdvancedSummary = null;
 
   try {
     if (job === "cfb-pregame-freeze") {
@@ -827,6 +828,19 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         catalog.coreRefreshWeek = targetWeek;
         catalog.coreThroughWeekBound = coreThroughWeekBound(targetWeek);
         catalog.weeklyReconstruction = weeklyMeta;
+        coreAdvancedSummary = {
+          season: y,
+          targetWeek,
+          throughWeek: coreThroughWeekBound(targetWeek),
+          teams: catalog.n,
+          coreEnriched: catalog.coreEnriched ?? null,
+          coreIndexed: catalog.coreIndexed ?? null,
+          coreScrubbed: catalog.coreScrubbed ?? null,
+          weekly: weeklyMeta,
+          authority: CFB_CORE_ADVANCED_AUTHORITY,
+          canAuthorizeWager: false,
+          canInfluenceProjection: false,
+        };
         gamesDiscovered += catalog.n;
         writes.writesSucceeded += await persistTeamFeatures(env, "cfb", y, catalog, id);
       }
@@ -1103,6 +1117,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
     errors: errors.concat(report.filter((r) => r && !r.ok).map((r) => r.reason)).slice(0, 20),
     env,
     d1: {bound:hasDb(env),quota,endpoints:report,keyHealth:collegeKeyHealth(env),
+      ...(coreAdvancedSummary?{coreAdvanced:coreAdvancedSummary}:{}),
       ...(job==="cfb-postgame-harvest"?{
         cfbDailyArchive:{date:opts.date||shiftDateCT(todayCT(),-1),
           payloads:cfbDailyArchives,modelAuthority:false,wagerAuthority:false,

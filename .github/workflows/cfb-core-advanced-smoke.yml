@@ -1,0 +1,75 @@
+name: CFB CORE advanced smoke
+
+# Validates week-aware CORE + advanced indexing. Live provider calls only on
+# workflow_dispatch (uses CFBD_API_KEY). Pull requests run fixture mode only.
+on:
+  pull_request:
+    paths:
+      - "functions/lib/cfbCoreAdvancedPlumbing.js"
+      - "functions/lib/collegeJobsCore.js"
+      - "functions/lib/cfbCfbdAcquisition.js"
+      - "scripts/cfb-core-advanced-live-smoke.mjs"
+      - "test/cfb-core-advanced-plumbing.test.js"
+      - ".github/workflows/cfb-core-advanced-smoke.yml"
+  workflow_dispatch:
+    inputs:
+      week:
+        description: Target CFB week (optional)
+        type: string
+        required: false
+      season:
+        description: Season year
+        type: string
+        required: false
+        default: "2026"
+      live:
+        description: Spend CFBD quota for a live smoke (research-only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    name: Offline CORE plumbing tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Unit tests
+        run: node --test test/cfb-core-advanced-plumbing.test.js
+      - name: Fixture smoke
+        run: node scripts/cfb-core-advanced-live-smoke.mjs --season 2026 --week 8
+
+  live:
+    name: Live CORE smoke (dispatch only)
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.live == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Live provider smoke
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+        run: |
+          set -euo pipefail
+          EXTRA=""
+          if [ -n "${{ github.event.inputs.week }}" ]; then
+            EXTRA="$EXTRA --week ${{ github.event.inputs.week }}"
+          fi
+          if [ -n "${{ github.event.inputs.season }}" ]; then
+            EXTRA="$EXTRA --season ${{ github.event.inputs.season }}"
+          fi
+          node scripts/cfb-core-advanced-live-smoke.mjs $EXTRA | tee artifacts-core-smoke.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cfb-core-advanced-smoke
+          path: artifacts-core-smoke.json
+          if-no-files-found: ignore
+          retention-days: 14
