@@ -109,3 +109,26 @@ test("an outage-aged contract directory cannot refresh REST prices or supply a s
  const noClock=liveBboOffer({marketSlug:'soccer-draw',at:now.toISOString(),bestAsk:0.27},base);
  assert.equal(noClock.raw.sourceObservedAt,null);
 });
+
+
+test("a successful retried socket flush clears only its recovered database error",async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const file=new URL('../services/polymarket-us-stream/worker.mjs',import.meta.url);
+ let source=await readFile(file,'utf8');
+ source=source.replace('import {DurableObject} from "cloudflare:workers";', 'class DurableObject { constructor(ctx,env){this.ctx=ctx;this.env=env;} }');
+ source=source.replace(/from\s+["'](\.[^"']+)["']/g,(_,path)=>'from '+JSON.stringify(new URL(path,file).href));
+ const {PolymarketMarketStream}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+ let fail=true;
+ const DB={prepare(){return{bind(){return{async run(){if(fail)throw Error('D1 unavailable');return{meta:{changes:1}}}}}}}};
+ const worker=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB});
+ worker.subscribed.set('soccer-draw',{sport:'soccer',canonical_event_id:'game',event_start_time:'2026-10-17T14:00:00Z',market_family:'moneyline',period:'full_game',side:'Draw'});
+ const tick={marketSlug:'soccer-draw',bestAsk:0.27,sourceObservedAt:'2026-10-15T16:44:00Z',at:'2026-10-15T16:44:01Z'};
+ worker.queue.set(tick.marketSlug,tick);
+ await worker.flush();
+ assert.equal(worker.lastError,'d1-bbo-persist-error');assert.equal(worker.queue.size,1);
+ clearTimeout(worker.flushTimer);worker.flushTimer=null;
+ fail=false;await worker.flush();
+ assert.equal(worker.queue.size,0);assert.equal(worker.inserted,1);assert.equal(worker.lastError,null);
+ worker.lastError='upstream-subscription-error';worker.queue.set(tick.marketSlug,tick);await worker.flush();
+ assert.equal(worker.lastError,'upstream-subscription-error');
+});
