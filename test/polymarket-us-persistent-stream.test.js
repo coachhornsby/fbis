@@ -58,13 +58,13 @@ test("bounded REST roster IDs bootstrap a WebSocket after an hourly collector mi
  const now=Date.parse("2026-10-14T03:16:00Z");
  const window=streamContractRosterWindow(now);
  assert.equal(window.freshSince,"2026-10-14T02:41:00.000Z");
- assert.equal(window.since,"2026-10-13T21:16:00.000Z");
+ assert.equal(window.since,"2026-10-13T03:16:00.000Z");
  assert.ok(Date.parse("2026-10-14T00:54:00Z")>=Date.parse(window.since));
 });
 test("WebSocket discovery fallback never extends indefinitely",()=>{
  assert.throws(()=>streamContractRosterWindow(NaN),/invalid-roster-clock/);
  const {since,freshSince}=streamContractRosterWindow(Date.parse("2026-10-14T03:16:00Z"));
- assert.equal(Date.parse(freshSince)-Date.parse(since),(6*60-35)*60*1000);
+ assert.equal(Date.parse(freshSince)-Date.parse(since),(24*60-35)*60*1000);
 });
 
 test("SQL roster is balanced by sport before subscription cap",async()=>{
@@ -89,4 +89,23 @@ test("active tennis retains six WS slots inside 48 while other sport groups reta
  const withoutTennis=fairMarketSelection(rows.filter(r=>r.sport!=="tennis"),{perSport:6,maxMarkets:48});
  assert.equal(withoutTennis.length,48);
  assert.equal(withoutTennis.filter(r=>r.sport==="tennis").length,0);
+});
+
+
+test("an outage-aged contract directory cannot refresh REST prices or supply a socket quote clock",async()=>{
+ const {marketTemporalStatus}=await import('../functions/lib/marketTemporal.js');
+ const now=new Date('2026-10-15T16:30:00Z'),old='2026-10-15T07:19:00Z';
+ const window=streamContractRosterWindow(now.getTime());
+ assert.ok(Date.parse(old)>=Date.parse(window.since));
+ assert.ok(Date.parse('2026-10-14T15:00:00Z')<Date.parse(window.since));
+ const base={sport:'soccer',canonical_event_id:'401884770',event_start_time:'2026-10-16T18:30:00Z',period:'full_game',collected_at:old,source_observed_at:old};
+ const stale=marketTemporalStatus({source:'Polymarket US',eventId:base.canonical_event_id,collectedAt:old,providerObservedAt:old},{now});
+ assert.equal(stale.currentDisplayEligible,false);
+ const live=liveBboOffer({marketSlug:'soccer-draw',at:now.toISOString(),sourceObservedAt:'2026-10-15T16:29:59Z',bestAsk:0.27},base);
+ assert.equal(live.raw.sourceObservedAt,'2026-10-15T16:29:59Z');
+ assert.equal(live.contractPrice,0.27);
+ assert.equal(live.executionEligible,false);
+ assert.equal(live.canAuthorizeWager,false);
+ const noClock=liveBboOffer({marketSlug:'soccer-draw',at:now.toISOString(),bestAsk:0.27},base);
+ assert.equal(noClock.raw.sourceObservedAt,null);
 });
