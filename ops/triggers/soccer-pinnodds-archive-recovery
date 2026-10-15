@@ -1,1 +1,1 @@
-Recover archived soccer prematch snapshot with verified-fixture normalization; no paid pull.
+Retry interrupted archive replay with idempotent D1 batch transactions; zero paid pulls. 2026-10-15.
