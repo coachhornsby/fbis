@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: soccer-post-storage-recovery
+  group: soccer-final-card-proof
   cancel-in-progress: false
 jobs:
   soccer-recovery:
@@ -29,27 +29,12 @@ jobs:
           sha=$(jq -r '.collectorCodeSha' <<<"$status")
           relation=$(gh api "repos/$GITHUB_REPOSITORY/compare/920a04724ed16b3b47bd33a4528bd942da443b7e...$sha" --jq .status)
           [ "$relation" = identical ] || [ "$relation" = ahead ]
-      - name: Replay existing soccer capture after database recovery
+      - name: Reactivate the signed market stream after storage headroom returns
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          node scripts/recover-soccer-pinnodds-prematch.mjs | tee artifacts/soccer-pinn-recovery.jsonl
-      - name: Reactivate the signed market stream after storage headroom returns
-        run: |
-          curl -fsS --retry 4 --retry-all-errors --retry-delay 3 --max-time 60 -X POST -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/polymarket-stream-start"
-      - name: Reconcile source identities without changing quote clocks
-        run: |
-          set -euo pipefail
-          cursor=''
-          for page in $(seq 1 100); do
-            body=$(jq -nc --arg cursor "$cursor" '{cursor:$cursor}')
-            curl -fsS --retry 4 --retry-all-errors --retry-delay 3 --max-time 100 -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' -d "$body" "$BASE/api/soccer-market-reconcile" > "artifacts/page-$page.json"
-            jq -c '{ok,examined,matched,inserted,nextCursor,reasons,originalClocksPreserved,paidProviderCalls}' "artifacts/page-$page.json"
-            jq -e '.ok and .originalClocksPreserved and .paidProviderCalls==0' "artifacts/page-$page.json" >/dev/null
-            cursor=$(jq -r '.nextCursor // empty' "artifacts/page-$page.json")
-            [ -n "$cursor" ] || break
-          done
-          [ -z "$cursor" ] || { echo 'Reconciliation page budget exhausted'; exit 1; }
+          curl -fsS --retry 4 --retry-all-errors --retry-delay 3 --max-time 60 -X POST -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/polymarket-stream-start" | tee artifacts/stream-start.json
+          jq -e '.ok and .connected' artifacts/stream-start.json
       - name: Verify soccer shadow records and source delivery
         run: |
           set -euo pipefail
@@ -59,7 +44,7 @@ jobs:
             jq -e '.ok and .researchOnly and (.canQualify==false) and (.canAuthorize==false)' "artifacts/shadow-$league.json"
           done
           tomorrow=$(TZ=America/Chicago date -d '+1 day' +%F)
-          curl -fsS --retry 4 --retry-all-errors --retry-delay 3 --max-time 120 "$BASE/api/slate?sport=soccer&date=$tomorrow" > artifacts/soccer-board.json
+          curl -fsS --retry 4 --retry-all-errors --retry-delay 3 --max-time 120 "$BASE/api/projections?sport=soccer&date=$tomorrow" > artifacts/soccer-board.json
           jq '{games:(.games|length),sourceOffers:[.games[].market.venueOffers[]?.source]|group_by(.)|map({source:.[0],offers:length})}' artifacts/soccer-board.json
           jq -e '(.games|length)>0 and any(.games[].market.venueOffers[]?; .source=="PinnOdds") and any(.games[].market.venueOffers[]?; .source=="Polymarket US WebSocket")' artifacts/soccer-board.json
           curl -fsS --max-time 30 https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health > artifacts/stream-health.json
