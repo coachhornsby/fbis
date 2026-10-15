@@ -1,0 +1,10 @@
+.fbis-moneyline-comparison{margin-block:12px}
+.fbis-comparison-scroll{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+.fbis-comparison-table{width:100%;min-width:655px;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.fbis-comparison-table th,.fbis-comparison-table td{padding:9px 8px;text-align:center;border-bottom:1px solid var(--border,rgba(132,148,168,.22))}
+.fbis-comparison-table thead th{font-size:11px;font-weight:700;line-height:1.35;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;opacity:.85}
+.fbis-comparison-table tbody th{text-align:left;font-size:12px;line-height:1.3;min-width:112px}
+.fbis-comparison-table tbody td{font-size:14px;font-weight:750;white-space:nowrap}
+.fbis-comparison-table .fbis-model-probability,.fbis-comparison-table .fbis-model-price{font-weight:850}
+.fbis-comparison-table tbody tr:last-child th,.fbis-comparison-table tbody tr:last-child td{border-bottom:0}
+@media(max-width:700px){.fbis-comparison-table{min-width:625px}.fbis-comparison-table th,.fbis-comparison-table td{padding:8px 6px}}
