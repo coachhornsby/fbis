@@ -1,0 +1,68 @@
+name: CFB CFBD controlled production acceptance
+on:
+  push:
+    branches:
+      - ops/cfb-cfbd-live-acceptance-20261015
+    paths:
+      - .github/workflows/cfb-cfbd-production-acceptance.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cfb-cfbd-controlled-acceptance
+  cancel-in-progress: false
+jobs:
+  live-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Verify deployed collector, quota receipts, and CFBD key
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "HARVEST_SECRET not installed"; exit 2; }
+          mkdir -p artifacts
+          BASE=https://fbis-myz.pages.dev
+          health_code=$(curl -sS --max-time 45 -o artifacts/health-before.json -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/college?job=college-health&trigger=workflow_dispatch")
+          echo "college-health HTTP=${health_code}"
+          jq -c '{ok,status,acquisition:.d1.cfbdAcquisition,keyHealth:{cfbd:(.keyHealth.cfbd // .d1.keys.cfbd // null)}}' artifacts/health-before.json || true
+          test "${health_code}" = "200"
+          jq -e '.ok == true and .status == "success" and .d1.cfbdAcquisition.bound == true and .d1.cfbdAcquisition.blockedUntil == null and (.d1.cfbdAcquisition.attemptsToday < .d1.cfbdAcquisition.maxDaily)' artifacts/health-before.json >/dev/null
+          echo "Production D1 request guard present and within local daily budget"
+      - name: Bounded postgame ingestion and weekly advanced research snapshot
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          BASE=https://fbis-myz.pages.dev
+          call() {
+            local job="$1" file="artifacts/${1}.json" http
+            http=$(curl -sS --max-time 180 -o "$file" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" -H 'accept: application/json' "${BASE}/api/college?job=${job}&trigger=workflow_dispatch&operatorApproved=true")
+            echo "${job} HTTP=${http}"
+            jq -c '{ok,status,job,errors:(.errors // []),writes:.writes,d1:{bound:.d1.bound,gamesDiscovered:.d1.gamesDiscovered,cfbDailyArchive:.d1.cfbDailyArchive}}' "$file" || true
+            if [ "$http" != "200" ] || ! jq -e '.ok == true and .status == "success"' "$file" >/dev/null 2>&1; then
+              echo "${job} did not complete; stopping acquisition without retries"
+              return 1
+            fi
+          }
+          call cfb-postgame-harvest
+          call cfb-current-refresh
+      - name: Verify persistent acquisition receipts and coverage
+        if: always()
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          http=$(curl -sS --max-time 45 -o artifacts/health-after.json -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "https://fbis-myz.pages.dev/api/college?job=college-health&trigger=workflow_dispatch")
+          echo "postflight college-health HTTP=${http}"
+          jq -c '{ok,status,acquisition:.d1.cfbdAcquisition}' artifacts/health-after.json || true
+      - name: Preserve private diagnostic artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-cfbd-controlled-acceptance
+          path: artifacts/
+          retention-days: 7
+          if-no-files-found: ignore
