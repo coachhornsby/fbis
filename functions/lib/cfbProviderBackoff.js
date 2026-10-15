@@ -1,3 +1,4 @@
+import {reserveCfbdRequest,completeCfbdRequest} from "./cfbCfbdAcquisition.js";
 import {readCache,writeCache} from './cache.js';
 const KEY='cfbd-provider-backoff-v1';
 const inFlight=new Map();
@@ -19,7 +20,14 @@ export async function fetchWithCfbBackoff(url,options={},env={},fetchFn=fetch) {
   const promise=providerQueue.then(async()=>{
     const cooldown=await readCache(KEY,cache,24*60*60_000);
     if(cooldown?.until>Date.now())return Response.json({error:'CFBD cooldown; cached/public sources required'},{status:429,headers:{'Retry-After':String(Math.ceil((cooldown.until-Date.now())/1000)),'X-FBIS-Cooldown':'true'}});
-    const response=await fetchFn(url,options);
+    // Cache and in-flight deduplication are advisory. D1 owns the durable
+    // cross-isolate provider request permit before any outbound CFBD HTTP.
+    const permit=await reserveCfbdRequest(env,url);
+    if(!permit.allowed)return Response.json({error:permit.reason},{status:503,headers:{"X-FBIS-CFBD-Gate":permit.reason}});
+    let response;
+    try { response=await fetchFn(url,options); }
+    catch(err) { await completeCfbdRequest(env,permit,0,null); throw err; }
+    await completeCfbdRequest(env,permit,response.status,response);
     if(response.status===429){
       const until=retryAfterUntil(response.headers?.get?.('Retry-After'));
       await writeCache(KEY,{until,observedAt:new Date().toISOString()},cache,Math.max(60_000,until-Date.now()));
