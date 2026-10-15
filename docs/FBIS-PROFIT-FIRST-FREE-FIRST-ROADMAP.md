@@ -109,7 +109,21 @@ Preserve missing metrics as **UNKNOWN/NULL**, never invented zeroes. Clearly sep
 6. Build the opportunity terminal from proven data, not fabricated fast-twitch projections.
 7. Consider premium feeds or execution only under Section 3's explicit profit-funded approval process.
 
-## 9. Source-of-truth and adoption
+## 9. Market Money Flow Intelligence — approved roadmap candidate
+
+The dedicated implementation specification is **docs/FBIS-POLYMARKET-US-MARKET-FLOW-INTELLIGENCE-BUILD.md**.
+
+Add **Market Probability Movement**, **Observed Flow Signal**, **Flow Analysis**, fee/depth-aware Polymarket US quotes, and **Potential Informed Flow — Unverified** to the bounded market-intelligence and matchup-card research roadmap. Prioritize usable, readable cards and transparent underlying evidence.
+
+- Retain actual trade aggressor direction, bids/asks and depth, validated cumulative-volume changes, market-state timing and gap metrics. Build confidence only from verified units and coverage.
+- Market probability movement must distinguish last trade, midpoint, bid, ask, executable prices and independent FBIS fair value.
+- Aggressive-buy/sell flow is **not** sportsbook ticket percentage, total net money entering an exchange or a verified count of sharp bettors. Do not label inferred activity as confirmed sharp money.
+- Show price-leading patterns and cross-venue agreement as research hypotheses; validate prospectively against outcomes, later market movement, fill-adjusted net economics and independent model baselines.
+- Preserve $0 incremental monthly spending, read-only provider roles, market-blind champions and operator authorization.
+
+**Status:** proposed engineering scope only; no implementation, model-qualification change, or live trading authorization is implied.
+
+## 10. Source-of-truth and adoption
 
 - Code, schemas, risk rules, model standards, and this charter live in Git.
 - Live operational truth lives in Cloudflare/D1, not in an outdated README or spreadsheet mirror.
