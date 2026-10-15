@@ -1,4 +1,5 @@
 import {cfbUnitFeatureAudit} from "./cfbProspectiveAudit.js";
+import {loadCfbDirectionalBoardResearch} from "./cfbDirectionalBoardResearch.js";
 import { isFbsVsFbsGame } from "./cfbGameVisibility.js";
 import {pinnoddsOnlySlateMarket} from "./activeOddsPolicy.js";
 import {loadPinnoddsBoardResearch} from "./pinnoddsBoardResearch.js";
@@ -1245,6 +1246,18 @@ export async function buildTodayBoard(
       overlaid.push(...attachPolymarketBoardOffers(sportGames, overlay));
     }
     all = sortByStart(overlaid);
+  }
+  // Derived-only read from private weekly CFBD and 2026 SDV D1 archives.
+  // Never changes models, qualification, captured markets, or live CFBD quota.
+  if (env.TIER3_DB?.prepare && env.DB?.prepare && all.some(g=>g.sport==="cfb")) {
+    try {
+      const comparisons=await loadCfbDirectionalBoardResearch(env,all,{now:new Date(now).toISOString()});
+      all=all.map(g=>g.sport==="cfb"?{
+        ...g,cfbDirectionalResearch:comparisons.byGameId?.[String(g.id)]||null,
+      }:g);
+    } catch {
+      // Optional research overlay must not break the TODAY production board.
+    }
   }
   // Derive sport groups from the same canonical game objects (already ACTION-hydrated).
   for (const s of sports) {
