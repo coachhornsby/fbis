@@ -1,5 +1,5 @@
 /**
- * Market display overlay only: read immutable Polymarket US observations.
+ * Market display overlay only: read immutable Polymarket US and soccer PinnOdds observations.
  * Never hydrate stale quotes as actionable execution prices or model inputs.
  */
 import { marketTemporalStatus, providerObservationTime } from "./marketTemporal.js";
@@ -13,11 +13,11 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
  const chunk=ids.slice(i,i+40);
  const params=chunk.map(()=>"?").join(",");
  const query=`WITH fresh AS (
-  SELECT id,canonical_event_id,sport,source,market_family,side,line,period,contract_price,source_market_id,source_outcome_id,event_start_time,
+  SELECT id,canonical_event_id,sport,source,market_family,side,line,period,contract_price,decimal_odds,american_odds,source_market_id,source_outcome_id,event_start_time,
     collected_at,source_observed_at,raw_payload_json,execution_eligible,can_qualify,can_authorize_wager,
     ROW_NUMBER() OVER (PARTITION BY source,canonical_event_id,market_family,source_market_id,source_outcome_id,period,side,line ORDER BY collected_at DESC,id DESC) rn
   FROM normalized_market_observations
-  WHERE source IN ('Polymarket US','Polymarket US WebSocket') AND sport=? AND canonical_event_id IN (${params})
+  WHERE source IN (${sport === 'soccer' ? "'Polymarket US','Polymarket US WebSocket','PinnOdds'" : "'Polymarket US','Polymarket US WebSocket'"}) AND sport=? AND canonical_event_id IN (${params})
     AND collected_at BETWEEN ? AND ?
     AND (event_start_time IS NULL OR event_start_time >= ?)
  ) SELECT * FROM fresh WHERE rn=1 ORDER BY canonical_event_id,CASE WHEN source='Polymarket US WebSocket' THEN 0 ELSE 1 END,market_family,source_market_id,id LIMIT ? OFFSET ?`;
@@ -57,7 +57,8 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   arr.push({
     source:r.source,marketFamily:r.market_family,side:r.side,period:r.period,
     line:r.line,contractPrice:r.contract_price==null?null:Number.isFinite(display)?display:null,
-    americanOdds:null,quoteKind:r.source==="Polymarket US WebSocket"?"OBSERVED_BBO_NOT_GUARANTEED_FILL":"DISPLAY_REFERENCE_NOT_EXECUTABLE",
+    decimalOdds:r.decimal_odds==null?null:Number(r.decimal_odds),
+    americanOdds:r.source==="PinnOdds"&&r.american_odds!=null?Number(r.american_odds):null,quoteKind:r.source==="PinnOdds"?"DECIMAL_BOOK_REFERENCE_NOT_EXECUTION_VERIFIED":r.source==="Polymarket US WebSocket"?"OBSERVED_BBO_NOT_GUARANTEED_FILL":"DISPLAY_REFERENCE_NOT_EXECUTABLE",
     sourceMarketId:r.source_market_id,sourceOutcomeId:r.source_outcome_id,observedAt:providerObservedAt,collectedAt:r.collected_at,
     sourceObservedAt:providerObservedAt,providerObservedAt,temporal,raw,
     executionEligible:false,canQualify:false,canAuthorizeWager:false

@@ -77,3 +77,20 @@ test('recent collection cannot refresh stale or future provider evidence',async(
  assert.equal(r.byId.get('game').length,1);
  assert.equal(r.byId.get('game')[0].temporal.status,'SOURCE_TIME_UNKNOWN');
 });
+
+test('soccer overlay reads PinnOdds with decimal prices and preserves unknown provider clock', async()=>{
+ let query='';
+ const db={prepare(sql){query=sql;return{bind(){return{async all(){return{results:[{
+  canonical_event_id:'match',source:'PinnOdds',market_family:'moneyline',side:'draw',period:'full_game',
+  source_market_id:'p:0:ml',decimal_odds:3.4,contract_price:null,source_observed_at:null,
+  collected_at:'2026-10-15T05:40:00Z',raw_payload_json:'{"sourceObservedAt":null}'
+ }]}}}}}}};
+ const r=await loadPolymarketUsBoardOffers(db,[{id:'match'}],'soccer',{now:new Date('2026-10-15T05:45:00Z')});
+ assert.match(query,/'PinnOdds'/);
+ const o=attachPolymarketBoardOffers([{id:'match',projection:{home:1}}],r)[0];
+ assert.equal(o.market.venueOffers[0].decimalOdds,3.4);
+ assert.equal(o.market.venueOffers[0].contractPrice,null);
+ assert.equal(o.market.venueOffers[0].providerObservedAt,null);
+ assert.equal(o.market.venueOffers[0].temporal.prospectiveEvidenceEligible,false);
+ assert.equal(o.projection.home,1);
+});
