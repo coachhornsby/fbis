@@ -59,3 +59,29 @@ test("bounded separate D1 data access derives values without emitting licensed r
  assert.equal(result.byGameId[game.id].rows[2].disagreement,true);
  assert.ok(!JSON.stringify(result).includes("homePassOff"));
 });
+
+test("source coverage is auditable, with no licensed metrics exposed in the public health report",async()=>{
+ const stub=returnRows=>({prepare(sql){return {bind(...ids){return {all:async()=>({results:returnRows})}}}}});
+ const result=await loadCfbDirectionalBoardResearch({DB:stub([sdv]),TIER3_DB:stub([cfbd])},[game],{now});
+ assert.deepEqual(result.coverage,{games:1,cfbd:1,sdv:1,disagreements:1});
+ assert.deepEqual(result.sourceHealth,{cfbd:"MATCHED",sdv:"MATCHED"});
+ assert.equal(result.networkCalls,0);
+ assert.equal(JSON.stringify(result.coverage).includes("adjusted_passing_epa"),false);
+});
+test("missing private weekly binding preserves SDV comparison and reports missing source",async()=>{
+ const sdvDb={prepare(){return {bind(){return {all:async()=>({results:[sdv]})}}}}};
+ const result=await loadCfbDirectionalBoardResearch({DB:sdvDb},[game],{now});
+ assert.equal(result.sourceHealth.cfbd,"DB_BINDING_MISSING");
+ assert.equal(result.sourceHealth.sdv,"MATCHED");
+ assert.deepEqual(result.coverage,{games:1,cfbd:0,sdv:1,disagreements:0});
+ assert.equal(result.byGameId[game.id].source,"SDV_2026_SEASON");
+ assert.equal(result.canAuthorizeWager,undefined);
+});
+test("read failure surfaces in health without taking down the independent SDV source",async()=>{
+ const fail={prepare(){return {bind(){return {all:async()=>{throw Error("private SQL detail must stay private")}}}}}};
+ const sdvDb={prepare(){return {bind(){return {all:async()=>({results:[sdv]})}}}}};
+ const result=await loadCfbDirectionalBoardResearch({DB:sdvDb,TIER3_DB:fail},[game],{now});
+ assert.equal(result.sourceHealth.cfbd,"READ_FAILED");
+ assert.equal(result.sourceHealth.sdv,"MATCHED");
+ assert.equal(JSON.stringify(result).includes("private SQL detail"),false);
+});

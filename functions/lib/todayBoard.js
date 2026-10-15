@@ -1249,13 +1249,19 @@ export async function buildTodayBoard(
   }
   // Derived-only read from private weekly CFBD and 2026 SDV D1 archives.
   // Never changes models, qualification, captured markets, or live CFBD quota.
-  if (env.TIER3_DB?.prepare && env.DB?.prepare && all.some(g=>g.sport==="cfb")) {
+  // Expose safe coverage/read-health signals even when one source is missing.
+  let cfbDirectionalCoverage=null;
+  if (all.some(g=>g.sport==="cfb")) {
     try {
       const comparisons=await loadCfbDirectionalBoardResearch(env,all,{now:new Date(now).toISOString()});
+      cfbDirectionalCoverage={...comparisons.coverage,sourceHealth:comparisons.sourceHealth};
       all=all.map(g=>g.sport==="cfb"?{
         ...g,cfbDirectionalResearch:comparisons.byGameId?.[String(g.id)]||null,
       }:g);
     } catch {
+      cfbDirectionalCoverage={games:all.filter(g=>g.sport==="cfb").length,
+        cfbd:0,sdv:0,disagreements:0,
+        sourceHealth:{cfbd:"READ_FAILED",sdv:"READ_FAILED"}};
       // Optional research overlay must not break the TODAY production board.
     }
   }
@@ -1294,6 +1300,7 @@ export async function buildTodayBoard(
     groups: groupBySport(all).filter((g) => sportsToLoad.includes(g.sport)),
     counts: {
       games: all.length,
+      cfbDirectionalCoverage,
       durableFallbackGames:all.filter(g=>g.durableFallback).length,
       bySport: Object.fromEntries(sports.map((s) => [s.sport, s.n])),
       scheduled: all.filter((g) => isPreStartStatus(g.status)).length,
