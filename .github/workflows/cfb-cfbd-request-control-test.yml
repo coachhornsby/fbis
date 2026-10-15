@@ -4,6 +4,8 @@ on:
     paths:
       - "test/cfb-cfbd-429-idempotency.test.js"
       - "test/cfb-cfbd-acquisition.test.js"
+      - "test/cfb-cfbd-quota-paused.test.js"
+      - "functions/api/college.js"
       - "functions/lib/cfbCfbdAcquisition.js"
       - "migrations/0103_cfb_cfbd_acquisition_receipts.sql"
       - "functions/lib/cfbProviderBackoff.js"
