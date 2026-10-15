@@ -22,8 +22,11 @@ export async function fetchWithCfbBackoff(url,options={},env={},fetchFn=fetch) {
     if(cooldown?.until>Date.now())return Response.json({error:'CFBD cooldown; cached/public sources required'},{status:429,headers:{'Retry-After':String(Math.ceil((cooldown.until-Date.now())/1000)),'X-FBIS-Cooldown':'true'}});
     // Cache and in-flight deduplication are advisory. D1 owns the durable
     // cross-isolate provider request permit before any outbound CFBD HTTP.
-    const permit=await reserveCfbdRequest(env,url);
-    if(!permit.allowed)return Response.json({error:permit.reason},{status:503,headers:{"X-FBIS-CFBD-Gate":permit.reason}});
+    // Explicit injected transports without a D1 binding are offline test doubles.
+    // Production fetch requires the durable D1 permit, even if DB is missing.
+    const offlineTestTransport=fetchFn!==fetch && !env.DB?.prepare;
+    const permit=offlineTestTransport?{allowed:false,offlineTest:true}:await reserveCfbdRequest(env,url);
+    if(!offlineTestTransport&&!permit.allowed)return Response.json({error:permit.reason},{status:503,headers:{"X-FBIS-CFBD-Gate":permit.reason}});
     let response;
     try { response=await fetchFn(url,options); }
     catch(err) { await completeCfbdRequest(env,permit,0,null); throw err; }
