@@ -16,15 +16,26 @@ const fixture=(license="CC BY-SA 4.0")=>({
     Artist:{value:"<a>Hameltion</a>"}
   }}]}]}
 });
-const fbis=()=>{const saved={};let writes=0;return{
-  saved,
-  DB:{prepare(sql){return{bind(...args){return{
-    async first(){if(sql.includes("FROM tennis_players"))return {fbis_player_id:choice.playerId,canonical_name:choice.playerName};if(sql.includes("FROM tennis_player_portraits"))return null;throw Error("unexpected first")},
-    async run(){writes++;saved.args=args;return {meta:{changes:1}}}
-  }}}}},
-  ARCHIVE:{async put(key,bytes,opts){saved.key=key;saved.bytes=bytes.byteLength;saved.contentType=opts.httpMetadata.contentType}},
-  get writes(){return writes}
-}};
+const fbis=()=>{
+  const saved={};let writes=0;
+  const DB={
+    prepare(sql){
+      return {bind(...args){
+        return {
+          async first(){
+            if(sql.includes("FROM tennis_players"))return {fbis_player_id:choice.playerId,canonical_name:choice.playerName};
+            if(sql.includes("FROM tennis_player_portraits"))return null;
+            throw Error("unexpected first");
+          },
+          async run(){writes++;saved.args=args;return {meta:{changes:1}};}
+        };
+      }};
+    }
+  };
+  const ARCHIVE={async put(key,bytes,opts){
+    saved.key=key;saved.bytes=bytes.byteLength;saved.contentType=opts.httpMetadata.contentType;
+  }};
+  return {saved,DB,ARCHIVE,get writes(){return writes;}};
 };
 test("curated manifest never duplicates player IDs or permits unreviewed external URL inputs",()=>{
   assert.equal(TENNIS_COMMONS_PORTRAIT_BATCH.length,11);
