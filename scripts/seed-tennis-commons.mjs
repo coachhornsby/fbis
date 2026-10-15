@@ -23,8 +23,20 @@ const fetchWithTimeout=async(url,opts={})=>{
 const results=[];
 
 for(const c of TENNIS_COMMONS_PORTRAIT_BATCH){
-  await new Promise(resolve=>setTimeout(resolve,850)); // respect upstream rate limits
   try{
+    // Existing rights-approved R2 portraits need no repeat Wikimedia API fetch.
+    // The authenticated importer is idempotent, but upstream queries are rate-limited.
+    const existingUrl=new URL("https://fbis-myz.pages.dev/api/tennis-portrait");
+    existingUrl.searchParams.set("id",c.playerId);
+    const live=await fetchWithTimeout(existingUrl.href,{method:"GET"});
+    const isAlreadyApproved=live.ok&&String(live.headers.get("content-type")||"").startsWith("image/jpeg");
+    await live.body?.cancel();
+    if(isAlreadyApproved){
+      console.log(JSON.stringify({playerId:c.playerId,player:c.playerName,status:"ALREADY_REGISTERED",source:"LIVE_APPROVED_PORTRAIT"}));
+      results.push({playerId:c.playerId,status:"ALREADY_REGISTERED"});
+      continue;
+    }
+    await new Promise(resolve=>setTimeout(resolve,1000)); // spare Wikimedia upstream quota
     const api=new URL("https://commons.wikimedia.org/w/api.php");
     for(const [key,value] of Object.entries({action:"query",format:"json",formatversion:"2",prop:"imageinfo",iiprop:"url|mime|size|extmetadata",iiurlwidth:"720",titles:"File:"+c.fileTitle}))api.searchParams.set(key,value);
     const response=await fetchWithTimeout(api.href,{headers:{"user-agent":"FBIS-Tennis-CC-portrait-import/1.0 (GitHub coachhornsby/fbis; rights-verified image user)","accept":"application/json"}});

@@ -47,3 +47,11 @@ FROM tennis_player_portraits ORDER BY fbis_player_id;
 ```
 
 Verify the corresponding `/api/tennis-portrait?id=...` responds with actual JPEG bytes and the same photo appears in the model card and profile.
+
+## Second WTA board batch — 2026-10-15
+
+The initial production transfer confirmed **10** rights-approved portrait records from the 2026-10-15 board. An additional seven curated source-file mappings now target Rebeka Masarova, Raluka Serban (named Raluca Șerban on Commons), Teodora Kostovic, Anouk Koevermans, Andrea Lazaro Garcia, Antonia Ruzic, and Lea Boskovic.
+
+Before consulting Wikimedia API for a source already imported, `scripts/seed-tennis-commons.mjs` checks the live approved portrait endpoint and skips it when it returns verified JPEG media. All newly imported candidates still require live Commons title, photographer, license, trusted-domain and JPEG checks, and a SHA-256 verified upload. Wikimedia may return HTTP 429; failed sources remain silhouettes and must not be described as loaded.
+
+The default cards keep the matchup, flag background, ranking, FBIS win probabilities and dropdown for detailed intelligence. Missing market prices and the board's separate DEGRADED provider health remain outside the portrait pipeline.

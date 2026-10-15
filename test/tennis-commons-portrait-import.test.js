@@ -38,12 +38,29 @@ const fbis=()=>{
   return {saved,DB,ARCHIVE,get writes(){return writes;}};
 };
 test("curated manifest never duplicates player IDs or permits unreviewed external URL inputs",()=>{
-  assert.equal(TENNIS_COMMONS_PORTRAIT_BATCH.length,11);
-  assert.equal(new Set(TENNIS_COMMONS_PORTRAIT_BATCH.map(c=>c.playerId)).size,11);
+  assert.equal(TENNIS_COMMONS_PORTRAIT_BATCH.length,17);
+  assert.equal(new Set(TENNIS_COMMONS_PORTRAIT_BATCH.map(c=>c.playerId)).size,17);
   for (const c of TENNIS_COMMONS_PORTRAIT_BATCH){
     assert.match(c.playerId,/^tennis:wta:\d+$/);
     assert.match(c.sourceUrl,/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
     assert.match(c.licenseUrl,/^https:\/\/creativecommons\.org\//);
+  }
+});
+test("new 2026 WTA board Commons candidates remain tied to exact canonical player identities",()=>{
+  for(const [id,name,file] of [
+    ["tennis:wta:321280","Raluka Serban","Raluca Șerban (2023 US Open) 04.jpg"],
+    ["tennis:wta:334791","Teodora Kostovic","Teodora Kostović (2026 US Open) 02 (cropped).jpg"],
+    ["tennis:wta:328988","Anouk Koevermans","Anouk Koevermans (2026 US Open) 01 (cropped).jpg"],
+    ["tennis:wta:318080","Andrea Lazaro Garcia","Lazaro Garcia WMQ22 (6) (52191158451).jpg"],
+    ["tennis:wta:329505","Antonia Ruzic","2023 Roland Garros Qualifying Tournament - 37 (cropped2).jpg"],
+    ["tennis:wta:323171","Lea Boskovic","Boskovic WMQ22 (2) (52191665080).jpg"]
+  ]){
+    const p=TENNIS_COMMONS_PORTRAIT_BATCH.find(x=>x.playerId===id);
+    assert.ok(p);
+    assert.equal(p.playerName,name);
+    assert.equal(p.fileTitle,file);
+    assert.ok(["Hameltion","si.robi","DarDarCH"].includes(p.author));
+    assert.ok(["CC BY-SA 4.0","CC BY-SA 2.0"].includes(p.license));
   }
 });
 test("import is private; exact player and manually curated image are required",async()=>{
