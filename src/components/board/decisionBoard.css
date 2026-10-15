@@ -1877,3 +1877,13 @@
   width:57.5px!important;
   height:57.5px!important;
 }
+
+
+/* CFB weekly-source coverage: independent of pricing/executable-market health. */
+.db-cfb-source-strip{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:9px 0 5px}
+.db-cfb-source-strip>span{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:5px 8px;border:1px solid rgba(124,160,199,.38);border-radius:7px;color:#c7d4e4;background:rgba(25,47,77,.64);font-size:10px;font-weight:850;letter-spacing:.025em;line-height:1.2;white-space:normal}
+.db-cfb-source-strip>span b{font-weight:950;font-size:11px;color:#f4f9ff;white-space:nowrap}
+.db-cfb-source-strip>span.is-covered{border-color:rgba(66,209,172,.46);color:#a3f6d9;background:rgba(5,100,76,.22)}
+.db-cfb-source-strip>span.is-partial{border-color:rgba(246,180,70,.6);color:#ffdaa0;background:rgba(112,61,22,.31)}
+.db-cfb-source-strip>span.is-conflict{border-color:rgba(233,169,78,.56);color:#ffe0aa;background:rgba(110,67,18,.38)}
+@media(max-width:500px){.db-cfb-source-strip{gap:4px}.db-cfb-source-strip>span{font-size:9px;padding:5px 6px}.db-cfb-source-strip>span b{font-size:10px}}
