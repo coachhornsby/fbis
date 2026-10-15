@@ -4,10 +4,29 @@ import {DatabaseSync} from 'node:sqlite';
 import {compactArchivedRaw,restoreArchivedRaw,payloadHash,receiptKey,compactPolymarketPayloadBatch} from '../functions/lib/polymarketPayloadArchive.js';
 import {polymarketUsMarketFamily,polymarketUsPeriod,polymarketUsSideLabel} from '../functions/lib/polymarketUs.js';
 import {onRequestPost} from '../functions/api/polymarket-storage.js';
+import {compactUpdateSql} from '../scripts/lib/polymarket-storage-sql.mjs';
 const rawKey='market-sources/polymarket-us/raw/'+'a'.repeat(64)+'.json';
 const raw={receiptId:'fixture-123',rawSnapshotKey:rawKey,providerMarketId:'market1',providerOutcomeId:'yes1',providerTitle:'Home vs Away',contractLong:true,sourceObservedAt:null,quoteProvenance:'collector-capture-only',providerMarket:{id:'market1',sportsMarketType:'soccer_team_full_time_winner',sportsMarketTypeV2:'SPORTS_MARKET_TYPE_MONEYLINE',title:'Home (Reg. Time)',description:'Full settlement rules remain available',marketSides:[{id:'yes1',quote:.6,long:true,team:{name:'Home'},branding:'x'.repeat(2000)},{id:'no1',quote:.4,long:false,team:{name:'Away'},branding:'y'.repeat(2000)}]},providerSide:{id:'yes1',long:true,team:{name:'Home'},quote:.6}};
 const receipt={receiptId:raw.receiptId,rawKey,offers:[{raw}]};
 const archive=(r=receipt)=>({async get(k){assert.equal(k,receiptKey(raw.receiptId));return r?{size:JSON.stringify(r).length,async json(){return structuredClone(r)}}:null;}});
+test('authorized receipt transport streams original bytes without parsing and rejects arbitrary keys',async()=>{
+ let reads=0;const text=JSON.stringify(receipt),env={HARVEST_SECRET:'test',ARCHIVE:{async get(k){reads++;assert.equal(k,receiptKey(raw.receiptId));return {size:Buffer.byteLength(text),body:new Response(text).body,json(){throw Error('must not parse in Pages')}}}}};
+ const request=(body,auth=true)=>new Request('https://fbis/api/polymarket-storage',{method:'POST',headers:auth?{'x-harvest-secret':'test'}:{},body:JSON.stringify(body)});
+ assert.equal((await onRequestPost({env,request:request({operation:'receipt',receiptId:raw.receiptId},false)})).status,403);assert.equal(reads,0);
+ const response=await onRequestPost({env,request:request({operation:'receipt',receiptId:raw.receiptId})});assert.equal(response.status,200);assert.equal(await response.text(),text);assert.equal(reads,1);
+ assert.equal((await onRequestPost({env,request:request({operation:'receipt',receiptId:'../../private'})})).status,400);assert.equal(reads,1);
+ assert.equal((await onRequestPost({env:{...env,ARCHIVE:{get:async()=>null}},request:request({operation:'receipt',receiptId:raw.receiptId})})).status,404);
+ assert.equal((await onRequestPost({env:{...env,ARCHIVE:{get:async()=>({size:129*1024*1024})}},request:request({operation:'receipt',receiptId:raw.receiptId})})).status,413);
+});
+test('runner SQL round-trips quotes and Unicode, preserves other rows, and retains compare-and-swap',()=>{
+ const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE normalized_market_observations(id TEXT PRIMARY KEY,raw_payload_json TEXT,raw_payload_hash TEXT)');
+ const id="quote'; DROP TABLE normalized_market_observations;--",text=JSON.stringify({name:"O'Brien 🏀",value:"'; DELETE FROM normalized_market_observations;--"});
+ db.prepare('INSERT INTO normalized_market_observations VALUES(?,?,?)').run(id,'old','oldhash');db.prepare('INSERT INTO normalized_market_observations VALUES(?,?,?)').run('other','retain','retainhash');
+ const statement=compactUpdateSql({id,text,hash:'newhash',oldHash:'oldhash'});db.exec(statement);assert.equal(db.prepare('SELECT raw_payload_json FROM normalized_market_observations WHERE id=?').get(id).raw_payload_json,text);
+ assert.equal(db.prepare('SELECT raw_payload_json FROM normalized_market_observations WHERE id=?').get('other').raw_payload_json,'retain');
+ db.exec(compactUpdateSql({id,text:'bad',hash:'bad',oldHash:'oldhash'}));assert.equal(db.prepare('SELECT raw_payload_json FROM normalized_market_observations WHERE id=?').get(id).raw_payload_json,text);
+ assert.throws(()=>compactUpdateSql({id,text:'x'.repeat(100000),hash:'h',oldHash:'old'}),/TOO_LARGE/);db.close();
+});
 test('round-trip restores exact original hash while preserving every live identity and settlement field',async()=>{
  const original=await payloadHash(raw),c=await compactArchivedRaw(raw,receipt,{originalHash:original});assert.equal(c.changed,true);
  assert.equal(c.raw.providerMarket.marketSides,undefined);assert.equal(c.raw.providerMarket.description,raw.providerMarket.description);
