@@ -1,12 +1,39 @@
-.pinnodds-board-odds{margin:10px 0;padding:10px;border:1px solid color-mix(in srgb,currentColor 17%,transparent);border-radius:10px;background:rgba(90,118,140,.055);font-size:.8rem}
-.pinnodds-board-odds header{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px}
-.pinnodds-board-odds header strong{letter-spacing:.075em}
-.pinnodds-board-odds header span{font-size:.65rem;font-weight:800;opacity:.8}
-.pinnodds-board-odds.empty{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:.7rem}
-.pinnodds-board-odds.empty span{opacity:.7}
-.pinnodds-odds-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px}
-.pinnodds-odds-family{display:grid;gap:3px;padding:7px;border-radius:6px;background:rgba(110,125,135,.06)}
-.pinnodds-odds-family b{font-size:.67rem;letter-spacing:.07em;opacity:.8}
-.pinnodds-odds-family span{display:flex;justify-content:space-between;gap:8px;font-variant-numeric:tabular-nums}
-.pinnodds-odds-family em{font-style:normal;font-weight:800}
-.pinnodds-board-odds small{display:block;margin-top:7px;line-height:1.4;opacity:.74}
+/* Price-first FBIS bookmaker panels. Strong emphasis on a paired line and its actual American price. */
+.fbis-priced-markets{--pd-bg:#071523;--pd-edge:#31445d;--pd-text:#f1f7ff;color:var(--pd-text)!important;margin:14px 0;padding:13px;border:1px solid rgba(69,158,250,.44);border-radius:15px;background:radial-gradient(ellipse 90% 100% at 95% 0%,rgba(27,109,207,.21),transparent 75%),linear-gradient(140deg,#071725,#0c1930 70%,#10132a);box-shadow:0 9px 20px rgba(0,0,0,.16),inset 0 1px rgba(255,255,255,.07);isolation:isolate}
+.fbis-priced-markets-priority{border-color:rgba(70,189,255,.7);box-shadow:0 0 0 1px rgba(0,136,255,.13),0 9px 24px rgba(0,71,160,.19)}
+.fbis-priced-header{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:11px}
+.fbis-priced-heading{display:flex;align-items:center;gap:9px}
+.fbis-priced-flare{width:31px;height:31px;display:grid;place-items:center;border:1px solid rgba(40,206,255,.4);border-radius:10px;background:linear-gradient(145deg,#00d1f0,#2944ba);box-shadow:0 0 13px rgba(14,158,250,.3);font-size:14px;color:#fff}
+.fbis-priced-heading>span:last-child{display:grid;gap:1px}
+.fbis-priced-heading strong{font-size:13px;letter-spacing:.13em;line-height:1.1;font-weight:950;color:#fff}
+.fbis-priced-heading small{font-size:9px;letter-spacing:.095em;color:#6cdfff;font-weight:850}
+.fbis-priced-research-tag{font-weight:850;color:#e6d7ae;border:1px solid rgba(250,184,72,.36);border-radius:5px;background:rgba(212,156,39,.11);letter-spacing:.055em;padding:4px 6px;font-size:9px}
+.fbis-priced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fbis-priced-family{position:relative;min-width:0;border:1px solid rgba(74,150,237,.3);border-radius:12px;overflow:hidden;background:linear-gradient(145deg,rgba(27,57,103,.73),rgba(8,20,47,.84));box-shadow:inset 0 1px rgba(255,255,255,.07)}
+.fbis-priced-total{border-color:rgba(231,126,232,.4);background:linear-gradient(145deg,rgba(77,31,107,.67),rgba(15,17,52,.87))}
+.fbis-priced-family-head{display:flex;align-items:center;gap:6px;padding:9px 10px;border-bottom:1px solid rgba(210,231,255,.12);background:rgba(0,0,0,.11)}
+.fbis-priced-family-head>span{color:#72e7ff;font-size:16px;font-weight:950}
+.fbis-priced-total .fbis-priced-family-head>span{color:#efa6fb}
+.fbis-priced-family-head strong{font-size:11px;letter-spacing:.07em;font-weight:950;color:#effaff}
+.fbis-priced-family-head small{margin-left:auto;font-size:8px;letter-spacing:.06em;font-weight:900;color:#f8ce77;white-space:nowrap}
+.fbis-priced-selections{display:grid;gap:3px;padding:8px}
+.fbis-priced-selection{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.85fr) auto;align-items:center;gap:7px;min-width:0;padding:8px 7px;border:1px solid rgba(139,189,241,.17);background:rgba(5,13,33,.72);border-radius:8px}
+.fbis-priced-team{font-weight:900;color:#dce7fb;font-size:11px;overflow-wrap:anywhere;line-height:1.1}
+.fbis-priced-line{font-size:clamp(18px,2vw,24px);letter-spacing:-.04em;line-height:1;white-space:nowrap;font-weight:950;color:#70e0ff;text-shadow:0 0 12px rgba(46,197,255,.3);font-variant-numeric:tabular-nums}
+.fbis-priced-total .fbis-priced-line{color:#ffb9fa;text-shadow:0 0 12px rgba(228,79,217,.23)}
+.fbis-priced-odds{display:inline-grid;place-items:center;min-width:49px;min-height:31px;border:1px solid rgba(71,232,163,.46);background:linear-gradient(150deg,rgba(3,113,84,.86),rgba(10,69,72,.8));border-radius:8px;padding:3px 7px;color:#adffe2;font-size:15px;line-height:1;font-weight:950;white-space:nowrap;box-shadow:0 0 11px rgba(0,190,144,.15);font-variant-numeric:tabular-nums}
+.fbis-priced-family.is-unavailable{opacity:.7}
+.fbis-priced-family.is-unavailable p{margin:10px;font-size:11px;color:#bfcee2}
+.fbis-priced-footnote{font-size:10px!important;line-height:1.45!important;color:#bacde5!important;margin:10px 2px 0!important;max-width:100%}
+.fbis-priced-footnote b{font-weight:900;color:#a8e5ff}
+.fbis-priced-empty{padding:14px 4px;color:#c6d7e9;font-size:12px}
+@media(max-width:520px){.fbis-priced-markets{margin:11px 0;padding:10px;border-radius:12px}.fbis-priced-grid{gap:7px}.fbis-priced-family-head{padding:7px 6px;gap:4px}.fbis-priced-family-head strong{font-size:9px}.fbis-priced-family-head small{font-size:7px}.fbis-priced-selections{padding:5px}.fbis-priced-selection{grid-template-columns:minmax(0,1fr) auto;gap:4px;padding:7px 5px}.fbis-priced-team{grid-column:1/-1;font-size:10px}.fbis-priced-line{font-size:19px}.fbis-priced-odds{min-width:45px;min-height:27px;font-size:14px}.fbis-priced-heading strong{font-size:12px}}
+@media(max-width:360px){.fbis-priced-grid{grid-template-columns:1fr}.fbis-priced-selection{grid-template-columns:minmax(0,1fr) auto auto}.fbis-priced-team{grid-column:auto}.fbis-priced-line{font-size:19px}}
+@media(prefers-reduced-motion:no-preference){.fbis-priced-markets-priority .fbis-priced-flare{animation:fbis-quote-flare 5s ease-in-out infinite alternate}@keyframes fbis-quote-flare{0%{box-shadow:0 0 6px rgba(14,158,250,.17)}100%{box-shadow:0 0 15px rgba(14,158,250,.4)}}}
+
+/* Each handicap reflects the game's actual brand palette without altering quote semantics. */
+.fbis-priced-spread .fbis-priced-away,.fbis-priced-spread .fbis-priced-home{border-left:3px solid var(--fbis-away,var(--cgc-away-brand,#33b4ee))}
+.fbis-priced-spread .fbis-priced-home{border-left-color:var(--fbis-home,var(--cgc-home-brand,#ec557b))}
+.fbis-priced-total .fbis-priced-over{border-left:3px solid #29ddf4}
+.fbis-priced-total .fbis-priced-under{border-left:3px solid #c281ff}
+.fbis-priced-market-missing{font-size:12px;font-weight:750}

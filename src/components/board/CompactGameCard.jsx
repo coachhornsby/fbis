@@ -2,6 +2,7 @@ import SoccerPinnOdds from "./SoccerPinnOdds.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
 import EventMarkets from "./EventMarkets.jsx";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
+import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import { lineLabel, bestEdge } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlBettingIntelligence from "./NhlBettingIntelligence.jsx";
@@ -306,7 +307,9 @@ export default function CompactGameCard({ game, onOpen }) {
       </div>
 
       <SoccerPinnOdds game={game} className="cgc-status-note" />
+      {["nfl","cfb","nba","cbb","wnba"].includes(sportId) ? <PinnoddsCardMarkets game={game} compact /> : null}
       <MoneylinePriceComparison game={game} />
+      {["nhl","mlb","npb","kbo"].includes(sportId) ? <PinnoddsCardMarkets game={game} compact /> : null}
       {!stored && isNhl ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
 
       {showAction && !stored && !isNhl ? (

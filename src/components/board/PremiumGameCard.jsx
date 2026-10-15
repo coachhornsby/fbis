@@ -284,8 +284,9 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         )}
       </section>
       {sportId === "cfb" ? <CfbSeasonStatStrip evidence={game.cfbSeasonEvidence} /> : null}
+      {["nfl","cfb","nba","cbb","wnba"].includes(sportId) ? <PinnoddsCardMarkets game={game} /> : null}
       <MoneylinePriceComparison game={game} />
-      {game.pinnoddsResearch?.offers?.some(o=>o.marketFamily==="spread"||o.marketFamily==="total") ? <PinnoddsCardMarkets game={game} marketFamilies={["spread","total"]} /> : null}
+      {["nhl","mlb","npb","kbo"].includes(sportId) ? <PinnoddsCardMarkets game={game} /> : null}
       {!stored && sportId === "nhl" ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
       {!stored && sportId === "nhl" ? <NhlMatchupSignals game={game} away={away} home={home} /> : null}
       {!stored && sportId !== "nhl" ? sportId === "nfl" ? <NflDirectionalMatchups game={game} matchup={game.nflGameMatchup} away={away} home={home} /> : sportId === "cfb" ? <CfbDirectionalMatchups game={game} away={away} home={home} /> : <MatchupSignals game={game} away={away} home={home} sport={sportId} /> : null}
