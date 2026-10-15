@@ -5,18 +5,30 @@ import {fetchWithCfbBackoff} from "../functions/lib/cfbProviderBackoff.js";
 import {resetCacheMem} from "../functions/lib/cache.js";
 const URL="https://api.collegefootballdata.com/ppa/teams?year=2026";
 function mockDb() {
-  const seen=new Set(), receipts=[], control=[];
+  const seen = new Set();
+  const receipts = [];
+  const control = [];
   return {
-    receipts,control,
+    receipts,
+    control,
     prepare(sql) {
-      return {bind(...params) {return {async run() {
-        if(sql.includes("INSERT OR IGNORE INTO cfb_cfbd_acquisition_receipts")){
-          const unique=params[0]+"|"+params[1];
-          if(seen.has(unique))return {meta:{changes:0}};
-          seen.add(unique);receipts.push(params);return {meta:{changes:1}};
+      return {
+        bind(...params) {
+          return {
+            async run() {
+              if (sql.includes("INSERT OR IGNORE INTO cfb_cfbd_acquisition_receipts")) {
+                const unique = params[0] + "|" + params[1];
+                if (seen.has(unique)) return { meta: { changes: 0 } };
+                seen.add(unique);
+                receipts.push(params);
+                return { meta: { changes: 1 } };
+              }
+              control.push({ sql, params });
+              return { meta: { changes: 1 } };
+            }
+          };
         }
-        control.push({sql,params});return {meta:{changes:1}};
-      }}};}
+      };
     }
   };
 }
