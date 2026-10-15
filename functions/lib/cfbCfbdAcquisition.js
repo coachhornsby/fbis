@@ -13,14 +13,23 @@ const positive = (value, fallback) => {
 };
 export async function cfbdRequestHash(url) {
   const u = new URL(url);
-  const text = u.pathname + "?" + [...u.searchParams.entries()].sort(([a,av],[b,bv]) => a.localeCompare(b) || av.localeCompare(bv))
+  // Preserve historical CFBD hashes while separating CBBD requests with the
+  // same path/query (the two APIs share the subscription quota).
+  const sourcePrefix=u.hostname==="api.collegebasketballdata.com"?"cbbd:":"";
+  const text = sourcePrefix + u.pathname + "?" + [...u.searchParams.entries()].sort(([a,av],[b,bv]) => a.localeCompare(b) || av.localeCompare(bv))
     .map(([k,v])=>encodeURIComponent(k)+"="+encodeURIComponent(v)).join("&");
   const bytes = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return { hash: [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join(""), endpoint:u.pathname };
+  return { hash: [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join(""), endpoint:sourcePrefix+u.pathname };
 }
 export async function reserveCfbdRequest(env, url, now = Date.now()) {
-  if (env.cfbdCacheOnly || env.cfbdNetworkAuthorized !== true) return { allowed:false, reason:"CFBD_OWNER_DENIED" };
+  const hostname=new URL(url).hostname;
+  const basketball=hostname==="api.collegebasketballdata.com";
+  if (!basketball && hostname!=="api.collegefootballdata.com") return {allowed:false,reason:"COLLEGE_UNKNOWN_HOST"};
+  if (basketball ?
+      (env.cbbdCacheOnly || env.cbbdNetworkAuthorized !== true) :
+      (env.cfbdCacheOnly || env.cfbdNetworkAuthorized !== true))
+    return { allowed:false, reason:"COLLEGE_OWNER_DENIED" };
   if (!env.DB?.prepare) return { allowed:false, reason:"CFBD_D1_REQUIRED" };
   const day=receiptDate(now), month=new Date(now).toISOString().slice(0,7);
   const {hash,endpoint}=await cfbdRequestHash(url);
