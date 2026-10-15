@@ -100,6 +100,33 @@ export const TENNIS_COMMONS_PORTRAIT_BATCH = Object.freeze([
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rebeka_Masarova.jpg"
+  },
+  {
+    "playerId": "tennis:wta:321280",
+    "playerName": "Raluka Serban",
+    "fileTitle": "Raluca Șerban (2023 US Open) 04.jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Raluca_%C8%98erban_(2023_US_Open)_04.jpg"
+  },
+  {
+    "playerId": "tennis:wta:334791",
+    "playerName": "Teodora Kostovic",
+    "fileTitle": "Teodora Kostović (2026 US Open) 02 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Teodora_Kostovi%C4%87_(2026_US_Open)_02_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:wta:328988",
+    "playerName": "Anouk Koevermans",
+    "fileTitle": "Anouk Koevermans (2026 US Open) 01 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Anouk_Koevermans_(2026_US_Open)_01_(cropped).jpg"
   }
 ]);
 export const tennisCommonsPortraitCandidate = id => TENNIS_COMMONS_PORTRAIT_BATCH.find(x=>x.playerId===id)||null;
