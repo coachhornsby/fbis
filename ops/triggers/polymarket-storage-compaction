@@ -1,5 +1,1 @@
-Resume lossless Polymarket compaction with streaming verification of large existing receipts.
-Pinned MIT parser; retain only requested offers, preserve exact hashes and bound memory.
-No new archive objects, schema, provider pulls or deleted observations. 2026-10-15.
-
-2026-10-15T16:12Z: run deployed streaming receipt verification; prior b2f5 run predates 5cb581cb. Recover database write headroom before soccer proof.
+Resume verified lossless compaction against current production. 2026-10-15T16:10Z
