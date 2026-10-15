@@ -23,6 +23,7 @@ import CBB_REG from "../../data/models/cbb-reg-v1.js";
 import CFB_FBIS_V2 from "../../data/models/cfb-fbis-v2.js";
 import { runCfbdEndpointAudit, auditArtifactPayload, auditContentHash } from "./cfbdEndpointAudit.js";
 import { runCbbdEndpointAudit } from "./cbbdEndpointAudit.js";
+import { persistCbbTeamProfiles } from "./cbbTeamProfiles.js";
 import { featureAvailabilityTable, markdownFeatureTable, FEATURE_CATALOG_VERSION } from "./cfbdFeatureCatalog.js";
 import { loadTorvikCbbCatalog, mergeCbbCatalogs } from "./torvikCbb.js";
 import { loadKenpomCbbCatalog, loadKenpomFanmatch } from "./kenpomCbb.js";
@@ -88,6 +89,8 @@ const CBB_REFRESH_ENDPOINTS = [
   ["/ratings/adjusted", (y) => ({ year: y })],
   ["/ratings/srs", (y) => ({ year: y })],
   ["/teams", (y) => ({ year: y })],
+  // One bulk leaderboard covers all D-I profiles; NEVER one request per team.
+  ["/stats/team/leaderboard", (y) => ({ season: y })],
 ];
 
 const CBB_BACKFILL_EXTRA = [
@@ -746,6 +749,30 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         }
 
         const cbbdCatalog = indexCbbdAdjusted(fetched.bundles["/ratings/adjusted"] || []);
+        // Store point-in-time team identity/shooting/efficiency facts for research.
+        // The morning owner has already fetched the entire season in one call.
+        // Empty preseason responses remain empty, not fabricated profiles.
+        const leagueRows = fetched.bundles["/stats/team/leaderboard"] || [];
+        if (leagueRows.length) {
+          const snapshot = await persistCbbTeamProfiles(env, leagueRows, {
+            season: y,
+            observedAt: new Date().toISOString(),
+            jobRunId: id,
+          });
+          report.push({
+            ok: snapshot.ok,
+            status: snapshot.ok ? 200 : 503,
+            n: snapshot.matched || 0,
+            path: "cbb_team_profile_snapshots",
+            source: "cbbd-store",
+            cacheHit: true,
+            reason: snapshot.ok ? null : snapshot.reason,
+            unmatched: snapshot.unresolvedCount ?? null,
+            inserted: snapshot.inserted ?? 0,
+          });
+          if (!snapshot.ok) throw Error("CBB_PROFILE_PERSISTENCE_FAILED:" + snapshot.reason);
+          writes.writesSucceeded += snapshot.inserted || 0;
+        }
         const [torvik, kenpom] = await Promise.all([
           loadTorvikCbbCatalog(env, {
             cbbSeason: y,
@@ -936,7 +963,8 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
   }
 
   const failed = report.filter((r) => r && r.ok === false).length;
-  const status = job==="cfb-postgame-harvest" && (errors.length>0 || failed>0)
+  const profileWriteFailed = errors.some((e) => String(e).includes("CBB_PROFILE_PERSISTENCE_FAILED"));
+  const status = (profileWriteFailed || (job==="cfb-postgame-harvest" && (errors.length>0 || failed>0)))
     ? JOB_FAILED : classifyJobStatus({
     okSports: failed === report.length && report.length ? 0 : 1,
     failedSports: failed && failed === report.length ? 1 : 0,

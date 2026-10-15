@@ -58,7 +58,7 @@ export async function queryQuota(env, { month = utcMonthKey() } = {}) {
       .first();
     return quotaHealth({ used: Number(row?.used) || 0, cacheHits: Number(row?.cache_hits) || 0, month });
   } catch {
-    return quotaHealth({ used: 0, month });
+    return quotaHealth({ used: 0, month, configured: false });
   }
 }
 

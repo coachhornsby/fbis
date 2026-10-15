@@ -2,11 +2,21 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fetchWithCfbBackoff } from "../functions/lib/cfbProviderBackoff.js";
 import { cfbdRequestHash, reserveCfbdRequest } from "../functions/lib/cfbCfbdAcquisition.js";
-import { collegeRequest } from "../functions/lib/collegeApi.js";
+import { collegeRequest, cbbSeasonYear } from "../functions/lib/collegeApi.js";
+import { MONTHLY_QUOTA, QUOTA_DESIGN_TARGET, quotaHealth } from "../functions/lib/quota.js";
 import { resetCacheMem } from "../functions/lib/cache.js";
 
 const football = "https://api.collegefootballdata.com/games?year=2026";
 const basketball = "https://api.collegebasketballdata.com/games?year=2026";
+test("Tier 3 is one shared 75k allowance; CBB uses ending year",()=>{
+  assert.equal(MONTHLY_QUOTA,75000);
+  assert.equal(QUOTA_DESIGN_TARGET,30000);
+  assert.equal(quotaHealth({used:35000}).level,"watch");
+  assert.equal(quotaHealth({used:67500}).level,"critical");
+  assert.equal(cbbSeasonYear(new Date("2026-10-15T14:00:00Z")),2027);
+  assert.equal(cbbSeasonYear(new Date("2027-03-01T14:00:00Z")),2027);
+  assert.equal(cbbSeasonYear(new Date("2026-03-01T14:00:00Z")),2026);
+});
 function dbStub() {
   const seen = new Set();
   const receipts = [];
