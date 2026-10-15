@@ -3,8 +3,10 @@ on:
   pull_request:
     paths:
       - "functions/lib/cfbTier3Weekly.js"
+      - "functions/lib/cfbTier3FeatureRegistry.js"
       - "functions/api/college-tier3.js"
       - "migrations/0105_cfb_tier3_training_research.sql"
+      - "migrations/0106_cfb_tier3_schema_identity.sql"
       - "test/cfb-tier3-weekly.test.js"
       - ".github/workflows/cfb-tier3-weekly.yml"
   workflow_dispatch:

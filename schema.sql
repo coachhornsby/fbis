@@ -1983,6 +1983,8 @@ CREATE TABLE IF NOT EXISTS cfb_tier3_training_snapshots (
   row_count INTEGER NOT NULL,
   feature_count INTEGER NOT NULL,
   schema_columns_json TEXT NOT NULL,
+  schema_version TEXT,
+  header_sha256 TEXT,
   status TEXT NOT NULL DEFAULT 'research_only' CHECK(status='research_only'),
   can_influence_projection INTEGER NOT NULL DEFAULT 0 CHECK(can_influence_projection=0),
   can_authorize_wager INTEGER NOT NULL DEFAULT 0 CHECK(can_authorize_wager=0)
@@ -2004,6 +2006,13 @@ CREATE TABLE IF NOT EXISTS cfb_tier3_training_games (
   identity_status TEXT NOT NULL DEFAULT 'pending_canonical_match',
   point_in_time_status TEXT NOT NULL DEFAULT 'source_feature_cutoff_unverified',
   authority TEXT NOT NULL DEFAULT 'research_only' CHECK(authority='research_only'),
+  home_canonical_id TEXT,
+  away_canonical_id TEXT,
+  identity_detail_json TEXT,
   PRIMARY KEY(snapshot_id,game_id)
 );
 CREATE INDEX IF NOT EXISTS idx_cfb_tier3_games_week ON cfb_tier3_training_games(season,week,game_id);
+CREATE INDEX IF NOT EXISTS idx_cfb_tier3_games_home_canonical
+  ON cfb_tier3_training_games(season, week, home_canonical_id);
+CREATE INDEX IF NOT EXISTS idx_cfb_tier3_games_away_canonical
+  ON cfb_tier3_training_games(season, week, away_canonical_id);
