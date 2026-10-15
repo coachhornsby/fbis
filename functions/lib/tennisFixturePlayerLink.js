@@ -24,7 +24,7 @@ export async function resolveTennisFixturePlayers(db, fixture) {
   for (const name of names) {
     const key = normalize(name);
     const official = await db.prepare(
-      `SELECT fbis_player_id AS player_id,canonical_name AS player_name,current_rank,ranking_points,country_code,official_source,official_headshot_url AS headshot_url,career_wins,career_losses,official_observed_at AS source_as_of,active_state FROM tennis_players WHERE tour=? AND normalized_name=? ORDER BY ${TENNIS_LIBRARY_ACTIVE_ORDER} LIMIT 2`
+      `SELECT fbis_player_id AS player_id,canonical_name AS player_name,current_rank,ranking_points,country_code,official_source,career_wins,career_losses,official_observed_at AS source_as_of,active_state FROM tennis_players WHERE tour=? AND normalized_name=? ORDER BY ${TENNIS_LIBRARY_ACTIVE_ORDER} LIMIT 2`
     ).bind(tour, key).all();
     const canonical = single(official?.results, key);
     const ambiguousOfficial = !canonical && (official?.results || []).length > 1;
@@ -55,7 +55,9 @@ export async function resolveTennisFixturePlayers(db, fixture) {
       rank: canonical?.current_rank ?? supplement?.current_rank ?? null,
       rankingPoints: canonical?.ranking_points ?? null,
       country: canonical?.country_code ?? null,
-      headshotUrl: canonical?.headshot_url || supplement?.headshot_url || null,
+      // Official/bank photo URLs are never display grants. Board cards use
+      // approvedTennisPortraits only; leave null here to prevent silhouette bypass.
+      headshotUrl: null,
       careerWins: canonical?.career_wins ?? null,
       careerLosses: canonical?.career_losses ?? null,
       sourceAsOf: canonical?.source_as_of || supplement?.source_as_of || null
