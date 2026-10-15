@@ -858,7 +858,10 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             report.push(collegePublicResult(box));
             if(!box.ok)throw Error(box.reason||"CFBD_DAILY_BOX_FETCH_FAILED");
             const selected=cfbDailyBoxRows(box.data,finals);
-            if(selected.length===0)throw Error("CFBD_DAILY_BOX_INCOMPLETE: "+endpoint);
+            const expected=finals.filter(g=>Number(g.week)===w.week&&
+              String(g.seasonType||g.season_type||"regular")===w.seasonType).length;
+            if(selected.length!==expected)throw Error("CFBD_DAILY_BOX_INCOMPLETE: "+endpoint+
+              " matched="+selected.length+" expected="+expected);
             const persisted=await persistObservation(env,{
               source:"cfbd",sport,endpoint,season:yearCfb,partition:date,
               data:selected,jobRunId:id,archiveFullPayload:true,
