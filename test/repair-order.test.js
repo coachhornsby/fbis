@@ -31,7 +31,7 @@ test("matchExecutedBet corrects college tickets mislabeled as mlb", () => {
   assert.equal(hit.game.id, "cfb-1");
 });
 
-test("fetchResultsForReconcile falls back to CFBD when ESPN returns HTML", async () => {
+test("fetchResultsForReconcile reports missing schedule when ESPN is HTML and CFBD is not authorized", async () => {
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
     const s = String(url);
@@ -55,18 +55,16 @@ test("fetchResultsForReconcile falls back to CFBD when ESPN returns HTML", async
     return new Response("not found", { status: 404 });
   };
   try {
-    const games = await fetchResultsForReconcile("cfb", "2026-09-05", { cfbdApiKey: "test-key" });
-    assert.equal(games.length, 1);
-    assert.equal(games[0].status.completed, true);
-    assert.equal(games[0].home.score, 38);
-    assert.equal(games[0].away.score, 14);
-    assert.equal(games[0].home.name, "Penn State");
+    await assert.rejects(
+      () => fetchResultsForReconcile("cfb", "2026-09-05", { cfbdApiKey: "test-key" }),
+      /CFBD fallback: CFBD games 503/
+    );
   } finally {
     globalThis.fetch = realFetch;
   }
 });
 
-test("fetchResultsForReconcile preferCfbd skips ESPN when CFBD has games", async () => {
+test("fetchResultsForReconcile preferCfbd cannot bypass the CFBD acquisition owner", async () => {
   const realFetch = globalThis.fetch;
   let espnHits = 0;
   globalThis.fetch = async (url) => {
@@ -92,13 +90,14 @@ test("fetchResultsForReconcile preferCfbd skips ESPN when CFBD has games", async
     return new Response("not found", { status: 404 });
   };
   try {
-    const games = await fetchResultsForReconcile("cfb", "2026-09-05", {
-      cfbdApiKey: "test-key",
-      preferCfbd: true,
-    });
-    assert.equal(espnHits, 0);
-    assert.equal(games.length, 1);
-    assert.equal(games[0].home.name, "New Mexico");
+    await assert.rejects(
+      () => fetchResultsForReconcile("cfb", "2026-09-05", {
+        cfbdApiKey: "test-key",
+        preferCfbd: true,
+      }),
+      /CFBD fallback: CFBD games 503/
+    );
+    assert.ok(espnHits > 0, "unauthorized CFBD fallback must not suppress ESPN");
   } finally {
     globalThis.fetch = realFetch;
   }
