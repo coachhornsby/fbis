@@ -43,6 +43,7 @@ export function fairMarketSelection(rows,{perSport=6,maxMarkets=48}={}){
 export function shouldSaveBbo(current,last,{minIntervalMs=10000,minDelta=0.0025}={}){
   if(!current?.marketSlug||current.bestAsk==null&&current.bestBid==null)return false;
   if(!last)return true;
+  if(current.marketState!==last.marketState)return true;
   if(current.timeMs-last.timeMs>=minIntervalMs)return true;
   for(const key of ["bestBid","bestAsk"]){
     if(current[key]!=null&&last[key]!=null&&Math.abs(current[key]-last[key])>=minDelta)return true;
@@ -55,13 +56,13 @@ export function liveBboOffer(tick,base){
     sport:base.sport,league:base.league,eventId:base.canonical_event_id,
     eventStart:base.event_start_time,homeTeam:base.home_team,
     awayTeam:base.away_team,marketFamily:base.market_family,
-    side:base.side,line:base.line,contractPrice:tick.bestAsk,
+    side:base.side,line:base.line,contractPrice:tick.marketState&&tick.marketState!=="MARKET_STATE_OPEN"?null:tick.bestAsk,
     standardOrAlt:"unknown",period:base.period||"unspecified",sourceMarketId:tick.marketSlug,
     sourceOutcomeId:base.source_outcome_id,fetchedAt:tick.at,
     executionEligible:false,canQualify:false,canAuthorizeWager:false,
     raw:{providerEventId:base.provider_event_id,providerMarketId:tick.marketSlug,
       providerOutcomeId:base.source_outcome_id,contractBindingVerified:true,contractLong:true,quoteKind:"WS_LIVE_BBO_UNVERIFIED_FILL",
-      bestBid:tick.bestBid,bestAsk:tick.bestAsk,lastTrade:tick.lastTrade,
+      bestBid:tick.marketState&&tick.marketState!=="MARKET_STATE_OPEN"?null:tick.bestBid,bestAsk:tick.marketState&&tick.marketState!=="MARKET_STATE_OPEN"?null:tick.bestAsk,lastTrade:tick.lastTrade,
       bidDepth:tick.bidDepth,askDepth:tick.askDepth,
       sourceObservedAt:tick.sourceObservedAt||null,quoteObservedAt:tick.sourceObservedAt||null,marketObservedAt:tick.sourceObservedAt||null,marketState:tick.marketState||null,
       streamService:"fbis-polymarket-us-stream",streamMode:"RECONNECTING",

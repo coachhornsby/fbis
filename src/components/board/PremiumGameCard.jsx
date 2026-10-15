@@ -1,3 +1,4 @@
+import MarketFlowIntelligence from "./MarketFlowIntelligence.jsx";
 import SoccerPinnOdds from "./SoccerPinnOdds.jsx";
 import MatchupSignals from "./MatchupSignals.jsx";
 import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
@@ -227,6 +228,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       ) : null}
 
       <SoccerPinnOdds game={game} className="pgc-status-note" />
+      <MarketFlowIntelligence game={game}/>
       {sportId !== "nhl" && Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source) && (sportId !== "soccer" || (o.period === "full_game" && o.marketFamily === "moneyline"))) ? (
         <div className="pgc-status-note" aria-label="Polymarket US research market data">
           <strong>POLYMARKET US · RESEARCH</strong> · {game.market.venueOffers.filter(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source) && (sportId !== "soccer" || (o.period === "full_game" && o.marketFamily === "moneyline")) && o.contractPrice != null).slice(0,3).map(o =>
