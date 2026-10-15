@@ -1,0 +1,75 @@
+name: Tennis portrait cutout publish
+on:
+  workflow_dispatch:
+  # Merge-trigger: agents cannot workflow_dispatch (403). Touching the marker
+  # publishes reviewed transparent WebPs for already-APPROVED portrait rows.
+  push:
+    branches: [main]
+    paths:
+      - "ops/triggers/tennis-portrait-cutout-publish"
+      - "ops/tennis-portrait-cutouts/approved/**"
+      - ".github/workflows/tennis-portrait-cutout-publish.yml"
+      - "scripts/publish-tennis-portrait-cutouts.mjs"
+      - "functions/api/tennis-portrait-cutout.js"
+permissions:
+  contents: read
+concurrency:
+  group: fbis-tennis-portrait-cutout-publish
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Unit-test cutout publish route
+        run: node --test test/tennis-portrait-cutout.test.js test/tennis-portrait-registry.test.js
+      - name: Wait for production SHA containing cutout route
+        run: |
+          set -euo pipefail
+          want="$GITHUB_SHA"
+          for i in $(seq 1 36); do
+            got="$(curl -fsS --max-time 20 "$BASE/api/health" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const j=JSON.parse(s);process.stdout.write(j.deploymentCommit||j.build?.commitSha||"")}')"
+            echo "attempt $i prod=$got want=$want"
+            if [ "$got" = "$want" ]; then exit 0; fi
+            sleep 10
+          done
+          echo "Production has not yet deployed this SHA; refusing cutout publish against stale API"
+          exit 1
+      - name: Publish reviewed cutouts (no new photo acquisition)
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          node scripts/publish-tennis-portrait-cutouts.mjs --input-dir ops/tennis-portrait-cutouts/approved | tee artifacts/tennis-portrait-cutout-publish.json
+      - name: Verify live portrait MIME is image/webp for published IDs
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          import { readdir } from "node:fs/promises";
+          const base = process.env.BASE;
+          const files = (await readdir("ops/tennis-portrait-cutouts/approved")).filter(f => f.endsWith(".webp"));
+          let ok = 0, fail = 0;
+          for (const file of files) {
+            const id = file.replace(/\.webp$/, "");
+            const res = await fetch(`${base}/api/tennis-portrait?id=${encodeURIComponent(id)}`);
+            const type = res.headers.get("content-type") || "";
+            const pass = res.ok && type.startsWith("image/webp");
+            console.log(JSON.stringify({ id, http: res.status, type, pass }));
+            if (pass) ok++; else fail++;
+          }
+          console.log(JSON.stringify({ ok, fail }));
+          if (fail) process.exit(1);
+          NODE
+      - name: Upload publish receipt
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: tennis-portrait-cutout-publish-${{ github.run_id }}
+          path: artifacts/**
+          if-no-files-found: ignore
