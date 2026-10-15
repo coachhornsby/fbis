@@ -1,6 +1,7 @@
 import SoccerPinnOdds from "./SoccerPinnOdds.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
 import EventMarkets from "./EventMarkets.jsx";
+import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import { lineLabel, bestEdge } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlBettingIntelligence from "./NhlBettingIntelligence.jsx";
@@ -305,15 +306,7 @@ export default function CompactGameCard({ game, onOpen }) {
       </div>
 
       <SoccerPinnOdds game={game} className="cgc-status-note" />
-      {!isNhl && Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source) && (sportId !== "soccer" || (o.period === "full_game" && o.marketFamily === "moneyline"))) ? (
-        <div className="cgc-status-note" aria-label="Polymarket US research market data">
-          <strong>POLYMARKET US · MARKET RESEARCH</strong>
-          <span>{game.market.venueOffers.filter(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source) && (sportId !== "soccer" || (o.period === "full_game" && o.marketFamily === "moneyline")) && o.contractPrice != null).slice(0,3).map(o =>
-            `${o.side} ${Math.round(o.contractPrice * 1000)/10}% (${o.marketFamily})`
-          ).join(" · ") || "Current price not available"}</span>
-          <small>Displayed probabilities only · NOT executable ask · FBIS bet authority unchanged</small>
-        </div>
-      ) : null}
+      <MoneylinePriceComparison game={game} />
       {!stored && isNhl ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
 
       {showAction && !stored && !isNhl ? (
