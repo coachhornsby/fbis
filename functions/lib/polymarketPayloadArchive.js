@@ -49,7 +49,8 @@ export async function restoreArchivedRaw(raw,archive,{storedHash=null}={}){
   if(o?.raw?.providerMarketId!==raw.providerMarketId||o?.raw?.providerOutcomeId!==raw.providerOutcomeId)continue;
   if(await payloadHash(o.raw)===raw.archiveRef.originalPayloadHash){
    const {archiveRef,...current}=raw;
-   return {...current,providerMarket:{...current.providerMarket,marketSides:o.raw.providerMarket.marketSides}};
+   // Preserve original property order as well as values for byte-exact SHA replay.
+   return {...o.raw,...current,providerMarket:{...o.raw.providerMarket,...current.providerMarket}};
   }
  }
  throw Error('ARCHIVED_PAYLOAD_HASH_MISMATCH');
