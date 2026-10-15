@@ -119,3 +119,4 @@ export default function CfbDirectionalMatchups({game,away,home}){
    CFBD Tier 3 Week {source?.week??"—"} adjusted efficiency takes display priority; SDV 2026 is an independent comparison. SDV samples: away {source?.sdv?.awayGames??"—"} games, home {source?.sdv?.homeGames??"—"} games. Values are EPA/play differences, not predicted points or win probabilities. Source-feature cutoff not established; no model or betting authorization.
   </p>:sdvOnly?<p className="cfb-directional-footnote">SportsDataverse current-season source efficiency only. No fitted model or betting authorization.</p>:null}
  </section>;
+}
