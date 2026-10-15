@@ -16,14 +16,15 @@ export function cfbDailyFinals(rows,date) {
  return (Array.isArray(rows)?rows:[]).filter(g=>{
   const started=chicagoDate(g.startDate||g.start_time||g.startTime||g.kickoff);
   if(started!==date)return false;
-  const final=g.completed===true||g.status==="completed"||g.status==="final"||
-     g.status==="STATUS_FINAL"||g.status==="STATUS_FINAL_OVERTIME";
+  const final=g.completed!==false&&(g.completed===true||g.status==="completed"||g.status==="final"||
+     g.status==="STATUS_FINAL"||g.status==="STATUS_FINAL_OVERTIME");
   const scores=finite(g.homePoints??g.home_points??g.homeScore)!=null&&
      finite(g.awayPoints??g.away_points??g.awayScore)!=null;
   if(!final||!scores)return false;
   const home=String(g.homeClassification||g.home_classification||"").toLowerCase();
   const away=String(g.awayClassification||g.away_classification||"").toLowerCase();
-  if(home&&home!=="fbs"||away&&away!=="fbs")return false;
+  // A row with unknown classification cannot prove FBS-vs-FBS.
+  if(home!=="fbs"||away!=="fbs")return false;
   return /^\d+$/.test(String(g.id||g.gameId||""));
  });
 }
