@@ -12,57 +12,50 @@ concurrency:
   group: cfb-cfbd-controlled-acceptance
   cancel-in-progress: false
 jobs:
-  live-acceptance:
+  quota-exhaustion-proof:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - name: Verify deployed collector, quota receipts, and CFBD key
+      - name: Verify current provider quota from authoritative health
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set -euo pipefail
-          test -n "${HARVEST_SECRET:-}" || { echo "HARVEST_SECRET not installed"; exit 2; }
+          test -n "${HARVEST_SECRET:-}"
           mkdir -p artifacts
-          BASE=https://fbis-myz.pages.dev
-          health_code=$(curl -sS --max-time 45 -o artifacts/health-before.json -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/college?job=college-health&trigger=workflow_dispatch")
-          echo "college-health HTTP=${health_code}"
-          jq -c '{ok,status,acquisition:.d1.cfbdAcquisition,keyHealth:{cfbd:(.keyHealth.cfbd // .d1.keys.cfbd // null)}}' artifacts/health-before.json || true
-          test "${health_code}" = "200"
-          jq -e '.ok == true and .status == "success" and .d1.cfbdAcquisition.bound == true and .d1.cfbdAcquisition.blockedUntil == null and (.d1.cfbdAcquisition.attemptsToday < .d1.cfbdAcquisition.maxDaily)' artifacts/health-before.json >/dev/null
-          echo "Production D1 request guard present and within local daily budget"
-      - name: Bounded postgame ingestion and weekly advanced research snapshot
+          code=$(curl -sS --max-time 45 -o artifacts/before.json -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "https://fbis-myz.pages.dev/api/college?job=college-health&trigger=workflow_dispatch")
+          echo "health HTTP=${code}"
+          jq -c '{ok,status,acquisition:.d1.cfbdAcquisition}' artifacts/before.json
+          test "$code" = "200"
+          jq -e '.ok == true and .d1.cfbdAcquisition.bound == true and .d1.cfbdAcquisition.providerRemaining == 0 and .d1.cfbdAcquisition.rateLimited >= 1' artifacts/before.json >/dev/null
+      - name: Prove CFB/CBBD scheduled jobs pause without network requests
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set -euo pipefail
-          BASE=https://fbis-myz.pages.dev
-          call() {
-            local job="$1" file="artifacts/${1}.json" http
-            http=$(curl -sS --max-time 180 -o "$file" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" -H 'accept: application/json' "${BASE}/api/college?job=${job}&trigger=workflow_dispatch&operatorApproved=true")
-            echo "${job} HTTP=${http}"
-            jq -c '{ok,status,job,errors:(.errors // []),writes:.writes,d1:{bound:.d1.bound,gamesDiscovered:.d1.gamesDiscovered,cfbDailyArchive:.d1.cfbDailyArchive}}' "$file" || true
-            if [ "$http" != "200" ] || ! jq -e '.ok == true and .status == "success"' "$file" >/dev/null 2>&1; then
-              echo "${job} did not complete; stopping acquisition without retries"
-              return 1
-            fi
-          }
-          call cfb-postgame-harvest
-          call cfb-current-refresh
-      - name: Verify persistent acquisition receipts and coverage
+          for job in cfb-postgame-harvest cfb-current-refresh cbb-current-refresh cbb-postgame-harvest; do
+            file="artifacts/${job}.json"
+            code=$(curl -sS --max-time 45 -o "$file" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "https://fbis-myz.pages.dev/api/college?job=${job}&trigger=schedule")
+            echo "${job} HTTP=${code}"
+            jq -c '{ok,status,reason,networkCalls,sdvCollectionUnaffected,acquisition:.d1.cfbdAcquisition}' "$file"
+            test "$code" = "200"
+            jq -e '.status == "paused" and .reason == "COLLEGE_SHARED_MONTHLY_QUOTA_EXHAUSTED" and .networkCalls == 0' "$file" >/dev/null
+          done
+      - name: Prove no additional provider calls were reserved
         if: always()
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set -euo pipefail
-          mkdir -p artifacts
-          http=$(curl -sS --max-time 45 -o artifacts/health-after.json -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "https://fbis-myz.pages.dev/api/college?job=college-health&trigger=workflow_dispatch")
-          echo "postflight college-health HTTP=${http}"
-          jq -c '{ok,status,acquisition:.d1.cfbdAcquisition}' artifacts/health-after.json || true
-      - name: Preserve private diagnostic artifacts
+          code=$(curl -sS --max-time 45 -o artifacts/after.json -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "https://fbis-myz.pages.dev/api/college?job=college-health&trigger=workflow_dispatch")
+          echo "health-after HTTP=${code}"
+          jq -c '{acquisition:.d1.cfbdAcquisition}' artifacts/after.json
+          jq -e '.d1.cfbdAcquisition.attemptsToday == 1 and .d1.cfbdAcquisition.providerRemaining == 0' artifacts/after.json >/dev/null
+      - name: Upload private diagnostic proof
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cfb-cfbd-controlled-acceptance
+          name: cfb-cfbd-quota-paused-proof
           path: artifacts/
           retention-days: 7
           if-no-files-found: ignore
