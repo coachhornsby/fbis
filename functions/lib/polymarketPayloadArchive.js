@@ -59,8 +59,9 @@ export async function restoreArchivedRaw(raw,archive,{storedHash=null}={}){
 export async function compactPolymarketPayloadBatch(env,{afterRowid=0,limit=250,cutoff,dryRun=true}={}){
  if(!Number.isSafeInteger(afterRowid)||afterRowid<0||!Number.isSafeInteger(limit)||limit<1||limit>500||!Number.isFinite(Date.parse(cutoff)))throw Error('INVALID_COMPACTION_SCOPE');
  if(!env.DB?.prepare||!env.DB?.batch||!env.ARCHIVE?.get)throw Error('ARCHIVE_AND_DATABASE_REQUIRED');
+ // Force the rowid range: a source index otherwise scans/sorts the entire ledger per page.
  const rows=(await env.DB.prepare(`SELECT rowid storage_rowid,id,raw_payload_json,raw_payload_hash
-   FROM normalized_market_observations WHERE rowid>? AND source='Polymarket US'
+   FROM normalized_market_observations NOT INDEXED WHERE rowid>? AND source='Polymarket US'
    AND collected_at<=? AND length(raw_payload_json)<=65536
    ORDER BY rowid LIMIT ?`).bind(afterRowid,cutoff,limit).all()).results||[];
  const cache=new Map(),statements=[],proofs=[],reasons={};let before=0,after=0;
