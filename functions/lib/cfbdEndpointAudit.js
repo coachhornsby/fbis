@@ -89,6 +89,12 @@ function safeDiag(row) {
  * Low-level authenticated GET that never caches and never returns the bearer.
  */
 export async function probeCfbdEndpoint(path, env = {}, { query = {}, fetchFn = fetch } = {}) {
+  // Diagnostics cannot escape the morning-only production acquisition gate.
+  if (env.cfbdCacheOnly === true) {
+    return {ok:false,httpStatus:0,data:null,n:0,latencyMs:0,
+      error:"CFBD_MORNING_ONLY_AUDIT_DISABLED",
+      classification:AUDIT_CLASS.TRANSIENT_FAILURE,networkAttempted:false};
+  }
   const key = collegeApiKey(env, "cfbd");
   const started = Date.now();
   if (!key) {
