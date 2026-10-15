@@ -25,3 +25,6 @@ CREATE INDEX IF NOT EXISTS idx_cfb_cfbd_receipts_month
 ON cfb_cfbd_acquisition_receipts(request_month);
 CREATE INDEX IF NOT EXISTS idx_cfb_cfbd_receipts_status
 ON cfb_cfbd_acquisition_receipts(request_day, request_status);
+
+INSERT OR IGNORE INTO schema_migrations (id, applied_at)
+VALUES ('0103_cfb_cfbd_acquisition_receipts',datetime('now'));
