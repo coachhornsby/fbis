@@ -142,7 +142,7 @@ export function buildSoccerProspectiveShadowRecords(game={},slate={},{
     for(const [selection,k] of [["HOME","pHomeWin"],["DRAW","pDraw"],["AWAY","pAwayWin"]]){
       rows.push(probabilityRow({game,route:one,marketFamily:"1X2",selection,snapshotAt:snapshot,idempotencyBucket,collectorCodeSha},{
         v2Probability:v2[k],v31Probability:v31[k],
-        market:noMarket("COMPLETE_3WAY_1X2_MARKET_UNAVAILABLE"),
+        market:game.soccerMarkets?.byFamily?.["1X2"]?.[selection]||noMarket("COMPLETE_3WAY_1X2_MARKET_UNAVAILABLE"),
       }));
     }
   }
@@ -163,7 +163,7 @@ export function buildSoccerProspectiveShadowRecords(game={},slate={},{
     for(const [selection,k] of [["YES","pBttsYes"],["NO","pBttsNo"]]){
       rows.push(probabilityRow({game,route:btts,marketFamily:"BTTS",selection,snapshotAt:snapshot,idempotencyBucket,collectorCodeSha},{
         v2Probability:v2[k],v31Probability:v31[k],
-        market:noMarket("BTTS_MARKET_UNAVAILABLE"),
+        market:game.soccerMarkets?.byFamily?.BTTS?.[selection]||noMarket("BTTS_MARKET_UNAVAILABLE"),
       }));
     }
   }
@@ -175,14 +175,14 @@ export function buildSoccerProspectiveShadowRecords(game={},slate={},{
       ? twoWaySnapshot(pin.total,2.5,observedAt,snapshot,kickoff)
       : {available:false,reason:"O25_MARKET_NOT_AVAILABLE"};
     for(const [selection,side,mktSide] of [["OVER","over","a"],["UNDER","under","b"]]){
-      const market=snap.available?{
+      const market=game.soccerMarkets?.byFamily?.TOTALS_O25?.[selection]|| (snap.available?{
         marketNoVigProbability:finite(snap[mktSide]?.noVig),
         entryLine:2.5,
         entryPrice:finite(snap[mktSide]?.price),
         lineTimestamp:snap.observedAt,
         marketHistoryAvailable:1,
         marketUnavailableReason:null,
-      }:noMarket(snap.reason);
+      }:noMarket(snap.reason));
       rows.push(probabilityRow({game,route:totals,marketFamily:"TOTALS_O25",selection,snapshotAt:snapshot,idempotencyBucket,collectorCodeSha},{
         v2Probability:totalProb(v2,side),v31Probability:totalProb(v31,side),market,
       }));
@@ -191,7 +191,7 @@ export function buildSoccerProspectiveShadowRecords(game={},slate={},{
 
   const asian=routeFor(competition,"ASIAN_HANDICAP");
   if(asian){
-    const line=finite(game?.odds?.pinSpread??game?.odds?.spread);
+    const line=finite(game.soccerMarkets?.byFamily?.asianHomeLine??game?.odds?.pinSpread??game?.odds?.spread);
     const core=line!=null&&CORE_ASIAN_LINES.has(line);
     const snap=core
       ? twoWaySnapshot(pin.spread,line,observedAt,snapshot,kickoff)
@@ -199,14 +199,14 @@ export function buildSoccerProspectiveShadowRecords(game={},slate={},{
     if(core){
       for(const [selection,mktSide] of [["HOME","a"],["AWAY","b"]]){
         const sideLine=selection==="HOME"?line:-line;
-        const market=snap.available?{
+        const market=game.soccerMarkets?.byFamily?.ASIAN_HANDICAP?.[selection]|| (snap.available?{
           marketNoVigProbability:finite(snap[mktSide]?.noVig),
           entryLine:sideLine,
           entryPrice:finite(snap[mktSide]?.price),
           lineTimestamp:snap.observedAt,
           marketHistoryAvailable:1,
           marketUnavailableReason:null,
-        }:noMarket(snap.reason);
+        }:noMarket(snap.reason));
         rows.push(probabilityRow({game,route:asian,marketFamily:"ASIAN_HANDICAP",selection,snapshotAt:snapshot,idempotencyBucket,collectorCodeSha},{
           v2Probability:asianProb(v2,line,selection),v31Probability:asianProb(v31,line,selection),market,
         }));
@@ -221,6 +221,8 @@ export function buildSoccerProspectiveShadowRecords(game={},slate={},{
     collectorCodeSha:collectorCodeSha||null,
     modelFreezeAt:snapshot,
     marketObservedAt:observedAt,
+    marketReferences:game.soccerMarkets?.references||[],
+    marketReferencePolicy:"PROVIDER_CLOCK_REQUIRED_FOR_ECONOMIC_EVIDENCE",
     modelMarketSeparation:true,
     v2MarketUsed:false,
     v31MarketUsed:false,

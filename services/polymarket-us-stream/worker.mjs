@@ -52,14 +52,18 @@ export class PolymarketMarketStream extends DurableObject {
     const q=await this.env.DB.prepare(`WITH recent AS (
        SELECT sport,league,canonical_event_id,provider_event_id,
         event_start_time,home_team,away_team,market_family,side,line,
+        CASE WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%first_half%' THEN 'first_half' WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%second_half%' THEN 'second_half' WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time%' OR json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_game%' THEN 'full_game' ELSE period END period,
         source_market_id,source_outcome_id,collected_at,
         ROW_NUMBER() OVER(PARTITION BY source_market_id ORDER BY collected_at DESC) rn
        FROM normalized_market_observations
        WHERE source='Polymarket US' AND source_market_id IS NOT NULL
+       AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.contractLong')=1
        AND collected_at>=?1 AND event_start_time BETWEEN ?2 AND ?3
       ), balanced AS (
        SELECT *,ROW_NUMBER() OVER(PARTITION BY sport ORDER BY
         CASE WHEN collected_at>=?4 THEN 0 ELSE 1 END,
+        CASE WHEN period='full_game' THEN 0 ELSE 1 END,
+        CASE WHEN market_family='moneyline' THEN 0 ELSE 1 END,
         CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,
         collected_at DESC) sport_rank
        FROM recent WHERE rn=1
@@ -128,7 +132,7 @@ export class PolymarketMarketStream extends DurableObject {
           this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS).catch(()=>{});}
       });
       socket.send(JSON.stringify(polymarketUsSubscribe(
-        [...this.subscribed.keys()],"fbis-always-on-market-lite")));
+        [...this.subscribed.keys()],"fbis-always-on-market-book",{fullBook:true})));
       this.connectedAt=Date.now();this.lastMessageAt=0;this.lastHeartbeatAt=0;this.reconnectCount++;
       this.lastError=null;
       await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);

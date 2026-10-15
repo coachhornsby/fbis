@@ -94,3 +94,9 @@ test('soccer overlay reads PinnOdds with decimal prices and preserves unknown pr
  assert.equal(o.market.venueOffers[0].temporal.prospectiveEvidenceEligible,false);
  assert.equal(o.projection.home,1);
 });
+
+test('soccer last PinnOdds capture stays labeled historical without refreshing its clock',async()=>{
+ const db={prepare(){return{bind(){return{all:async()=>({results:[{canonical_event_id:'g',source:'PinnOdds',market_family:'moneyline',period:'full_game',side:'home',decimal_odds:2.2,collected_at:'2026-10-15T00:39:00Z',source_observed_at:null}]})}}}}};
+ const r=await loadPolymarketUsBoardOffers(db,[{id:'g'}],'soccer',{now:new Date('2026-10-15T06:05:00Z')});
+ const quote=r.byId.get('g')[0];assert.equal(quote.historicalReference,true);assert.equal(quote.collectedAt,'2026-10-15T00:39:00Z');assert.equal(quote.temporal.currentDisplayEligible,false);assert.equal(quote.temporal.prospectiveEvidenceEligible,false);
+});

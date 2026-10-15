@@ -33,13 +33,13 @@ export async function signedPolymarketUsHeaders({keyId,secretKey,path="/v1/ws/ma
     "X-PM-Signature":asBase64(signature)
   };
 }
-export function polymarketUsSubscribe(slugs,requestId="fbis-market-lite"){
+export function polymarketUsSubscribe(slugs,requestId="fbis-market-lite",{fullBook=false}={}){
   const clean=[...new Set((slugs||[]).filter(s=>/^[a-z0-9-]{1,160}$/i.test(s)))].slice(0,50);
   if(!clean.length)throw Error("no-valid-market-symbols");
   return {
     subscribe:{
       request_id:requestId,
-      subscription_type:2,
+      subscription_type:fullBook?"SUBSCRIPTION_TYPE_MARKET_DATA":2,
       market_slugs:clean,
       responses_debounced:true
     }
@@ -49,14 +49,18 @@ export function parsePolymarketUsLite(raw){
   let obj;
   try{obj=typeof raw==="string"?JSON.parse(raw):raw}catch{return null}
   if(!obj||typeof obj!=="object"||obj.error||obj.heartbeat)return null;
-  const data=obj.market_data_lite||obj.marketDataLite;
+  const full=obj.market_data||obj.marketData;
+  const data=full||obj.market_data_lite||obj.marketDataLite;
   if(!data?.market_slug&&!data?.marketSlug)return null;
-  const money=v=>{const n=Number(v&&typeof v==="object"?v.value:v);return Number.isFinite(n)&&n>=0&&n<=1?n:null};
+  if(full&&data.state!=="MARKET_STATE_OPEN")return null;
+  const money=v=>{if(v==null||v==="")return null;const n=Number(v&&typeof v==="object"?v.value:v);return Number.isFinite(n)&&n>=0&&n<=1?n:null};
   const slug=String(data.market_slug||data.marketSlug);
   if(!/^[a-z0-9-]{1,160}$/i.test(slug))return null;
-  const bid=money(data.best_bid??data.bestBid),ask=money(data.best_ask??data.bestAsk);
+  const bid=money(full?data.bids?.[0]?.px:data.best_bid??data.bestBid),ask=money(full?data.offers?.[0]?.px:data.best_ask??data.bestAsk);
   if(bid!==null&&ask!==null&&bid>ask)return null;
+  const providerTime=full?(data.transactTime||data.transact_time):null;
   return {marketSlug:slug,bestBid:bid,bestAsk:ask,
+    sourceObservedAt:providerTime&&Number.isFinite(Date.parse(providerTime))?new Date(providerTime).toISOString():null,marketState:data.state||null,
     lastTrade:money(data.last_trade_px??data.lastTradePx),
     current:money(data.current_px??data.currentPx),
     bidDepth:Number(data.bid_depth??data.bidDepth)||null,

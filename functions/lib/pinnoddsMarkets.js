@@ -63,10 +63,11 @@ export function normalizePinnoddsMarkets(body,{sportId,feed,capturedAt,games=[],
   }
   for(const [period,markets] of Object.entries(event.special_markets||{}))for(const market of Array.isArray(markets)?markets:[]){
    const isPlayer=/player|pitcher|batter/i.test(event.special_category||'');
+   const btts=sport==='soccer'&&/^both teams to score\??$/i.test(String(event.special||'').trim());
    const matched=/^(.+?)\s*\(([^()]*)\)\s*$/.exec(String(event.special||''));
    const player=event.player_name||matched?.[1]||null;
    const stat=isPlayer?canonicalizeProPlayerPropMarket(sport,event.special_units||matched?.[2]||''):null;
-   for(const [index,outcome] of (market.prices||[]).entries())add({family:isPlayer?'player_prop':'special',period:period==='num_0'?'full_game':period,
+   for(const [index,outcome] of (market.prices||[]).entries())add({family:isPlayer?'player_prop':btts?'btts':'special',period:sport==='soccer'&&/1st half|first half/i.test(event.special||'')?'first_half':sport==='soccer'&&/2nd half|second half/i.test(event.special||'')?'second_half':period==='num_0'?'full_game':period,
     selection:String(outcome.name||index),line:num(outcome.points),price:outcome.price,marketKey:[market.type,market.key,index].join(':'),
     stat,player:isPlayer?(player||(!/^(over|under|yes|no|home|away|draw)(\s|$)/i.test(String(outcome.name||''))?String(outcome.name||'')||null:null)):null,original:{...outcome,market}});
   }

@@ -227,9 +227,9 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       ) : null}
 
       <SoccerPinnOdds game={game} className="pgc-status-note" />
-      {sportId !== "nhl" && Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source)) ? (
+      {sportId !== "nhl" && Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source) && (sportId !== "soccer" || (o.period === "full_game" && o.marketFamily === "moneyline"))) ? (
         <div className="pgc-status-note" aria-label="Polymarket US research market data">
-          <strong>POLYMARKET US · RESEARCH</strong> · {game.market.venueOffers.filter(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source) && o.contractPrice != null).slice(0,3).map(o =>
+          <strong>POLYMARKET US · RESEARCH</strong> · {game.market.venueOffers.filter(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source) && (sportId !== "soccer" || (o.period === "full_game" && o.marketFamily === "moneyline")) && o.contractPrice != null).slice(0,3).map(o =>
             `${o.side} ${Math.round(o.contractPrice * 1000)/10}%`
           ).join(" · ") || "NO PRICED QUOTE"} · Display only, not executable
         </div>
