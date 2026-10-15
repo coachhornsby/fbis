@@ -1,0 +1,5 @@
+# Touch this file on main to publish reviewed transparent WebP cutouts
+# for already-APPROVED tennis_player_portraits rows.
+# No new photo acquisition. Requires HARVEST_SECRET + live cutout API.
+# Requested: 2026-10-15T06:10:00Z — 17/17 cutouts visually reviewed APPROVED_FOR_PUBLISH
+trigger: tennis-portrait-cutout-publish

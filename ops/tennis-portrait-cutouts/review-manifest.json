@@ -1,0 +1,195 @@
+{
+  "reviewed_at": "2026-10-15T06:10:00Z",
+  "decision": "PUBLISH_ALL_17",
+  "count": 17,
+  "publish_rule": "Good cutout -> publish WebP; bad cutout -> keep current approved JPG",
+  "players": [
+    {
+      "player_id": "tennis:wta:318080",
+      "player_name": "Andrea Lazaro Garcia",
+      "output": "tennis:wta:318080.webp",
+      "bytes": 152202,
+      "target_r2_key": "tennis/portraits/tennis:wta:318080/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:319939",
+      "player_name": "Jelena Ostapenko",
+      "output": "tennis:wta:319939.webp",
+      "bytes": 46926,
+      "target_r2_key": "tennis/portraits/tennis:wta:319939/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:321106",
+      "player_name": "Dalma Galfi",
+      "output": "tennis:wta:321106.webp",
+      "bytes": 205472,
+      "target_r2_key": "tennis/portraits/tennis:wta:321106/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:321280",
+      "player_name": "Raluka Serban",
+      "output": "tennis:wta:321280.webp",
+      "bytes": 106614,
+      "target_r2_key": "tennis/portraits/tennis:wta:321280/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:322087",
+      "player_name": "Rebeka Masarova",
+      "output": "tennis:wta:322087.webp",
+      "bytes": 137404,
+      "target_r2_key": "tennis/portraits/tennis:wta:322087/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:323079",
+      "player_name": "Tamara Zidansek",
+      "output": "tennis:wta:323079.webp",
+      "bytes": 91882,
+      "target_r2_key": "tennis/portraits/tennis:wta:323079/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:323171",
+      "player_name": "Lea Boskovic",
+      "output": "tennis:wta:323171.webp",
+      "bytes": 297584,
+      "target_r2_key": "tennis/portraits/tennis:wta:323171/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:325088",
+      "player_name": "Bianca Andreescu",
+      "output": "tennis:wta:325088.webp",
+      "bytes": 187606,
+      "target_r2_key": "tennis/portraits/tennis:wta:325088/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:325433",
+      "player_name": "Nuria Brancaccio",
+      "output": "tennis:wta:325433.webp",
+      "bytes": 138916,
+      "target_r2_key": "tennis/portraits/tennis:wta:325433/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:326408",
+      "player_name": "Iga Swiatek",
+      "output": "tennis:wta:326408.webp",
+      "bytes": 102054,
+      "target_r2_key": "tennis/portraits/tennis:wta:326408/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:326735",
+      "player_name": "Leylah Fernandez",
+      "output": "tennis:wta:326735.webp",
+      "bytes": 28208,
+      "target_r2_key": "tennis/portraits/tennis:wta:326735/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:326891",
+      "player_name": "Leyre Romero Gormaz",
+      "output": "tennis:wta:326891.webp",
+      "bytes": 125220,
+      "target_r2_key": "tennis/portraits/tennis:wta:326891/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:328907",
+      "player_name": "Martyna Kubka",
+      "output": "tennis:wta:328907.webp",
+      "bytes": 154250,
+      "target_r2_key": "tennis/portraits/tennis:wta:328907/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:328988",
+      "player_name": "Anouk Koevermans",
+      "output": "tennis:wta:328988.webp",
+      "bytes": 119950,
+      "target_r2_key": "tennis/portraits/tennis:wta:328988/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:329409",
+      "player_name": "Ashlyn Krueger",
+      "output": "tennis:wta:329409.webp",
+      "bytes": 112966,
+      "target_r2_key": "tennis/portraits/tennis:wta:329409/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:329505",
+      "player_name": "Antonia Ruzic",
+      "output": "tennis:wta:329505.webp",
+      "bytes": 162714,
+      "target_r2_key": "tennis/portraits/tennis:wta:329505/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    },
+    {
+      "player_id": "tennis:wta:334791",
+      "player_name": "Teodora Kostovic",
+      "output": "tennis:wta:334791.webp",
+      "bytes": 136276,
+      "target_r2_key": "tennis/portraits/tennis:wta:334791/approved-cutout.webp",
+      "status": "APPROVED_FOR_PUBLISH",
+      "review_notes": "Clean subject isolation; minor rembg hair fringe acceptable on dark FBIS cards; identity matches sourced JPG.",
+      "reviewed_at": "2026-10-15T06:10:00Z",
+      "reviewed_by": "FBIS_CUTOUT_REVIEW_20261015"
+    }
+  ]
+}
