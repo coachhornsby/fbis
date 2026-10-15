@@ -184,7 +184,7 @@ async function persistObservation(env, { source, sport, endpoint, season, partit
     const saved=await putArchive(env,r2k,archiveFullPayload?raw:{ n: Array.isArray(data) ? data.length : 0, schema: summarizeSchema(data) });
     if(archiveFullPayload&&!saved?.ok)throw Error("CFBD_DAILY_ARCHIVE_WRITE_FAILED");
   }
-  return insertSourceObservation(env, {
+  const dbInsert=await insertSourceObservation(env, {
     id: `${source}:${sport}:${endpoint}:${season}:${partition || "all"}:${hash.slice(0, 16)}`,
     source,
     sport,
@@ -199,6 +199,16 @@ async function persistObservation(env, { source, sport, endpoint, season, partit
     jobRunId,
     meta: summarizeSchema(data),
   });
+  if(archiveFullPayload && !dbInsert?.ok &&
+    /no such table:\\s*source_observations/i.test(String(dbInsert?.reason||""))){
+    // Production does not have the legacy college source_observations schema.
+    // The full immutable R2 payload is still durably archived, and its key
+    // is recorded in the existing job_runs.dates_json manifest. This is NOT
+    // migration 0098/0099 or postgame model-state authorization.
+    return {ok:true,inserted:1,r2Key:r2k,storage:"R2_RAW_JOB_MANIFEST",
+      legacyPointerTableUnavailable:true,canQualify:false,canAuthorizeWager:false};
+  }
+  return {...dbInsert,r2Key:r2k,storage:archiveFullPayload?"R2_RAW_AND_D1_POINTER":"COLLEGE_SOURCE_POINTER"};
 }
 
 async function fetchEndpoints(source, specs, env, year, jobRunId, sport) {
@@ -361,6 +371,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
   const yearCbb = Number(opts.year) || cbbSeasonYear();
   let gamesDiscovered = 0;
   let report = [];
+  const cfbDailyArchives=[];
 
   try {
     if (job === "cfb-pregame-freeze") {
@@ -853,6 +864,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
               data:selected,jobRunId:id,archiveFullPayload:true,
             });
             if(!persisted?.ok)throw Error("CFBD_DAILY_D1_ARCHIVE_POINTER_FAILED: "+endpoint);
+            if(persisted.r2Key)cfbDailyArchives.push({endpoint,week:w.week,seasonType:w.seasonType,r2Key:persisted.r2Key,storage:persisted.storage});
             writes.writesSucceeded+=persisted.inserted||0;
           }
         }
@@ -902,6 +914,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         sport, endpoint: path, season: sport === "cfb" ? yearCfb : yearCbb,
         partition: date, data: finals, jobRunId: id,archiveFullPayload:sport==="cfb" });
       if(sport==="cfb"&&!dailySaved?.ok)throw Error("CFBD_DAILY_RESULTS_POINTER_FAILED");
+      if(sport==="cfb"&&dailySaved.r2Key)cfbDailyArchives.push({endpoint:path,r2Key:dailySaved.r2Key,storage:dailySaved.storage});
       if(sport==="cfb")writes.writesSucceeded+=dailySaved.inserted||0;
     }
   } catch (err) {
@@ -930,7 +943,12 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
     writes,
     errors: errors.concat(report.filter((r) => r && !r.ok).map((r) => r.reason)).slice(0, 20),
     env,
-    d1: { bound: hasDb(env), quota, endpoints: report, keyHealth: collegeKeyHealth(env) },
+    d1: {bound:hasDb(env),quota,endpoints:report,keyHealth:collegeKeyHealth(env),
+      ...(job==="cfb-postgame-harvest"?{
+        cfbDailyArchive:{date:opts.date||shiftDateCT(todayCT(),-1),
+          payloads:cfbDailyArchives,modelAuthority:false,wagerAuthority:false,
+          postgameStatTablesPromoted:false}
+      }:{})},
   });
   await recordJob(env, {
     id,
@@ -941,6 +959,10 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
     status: payload.status,
     sport: payload.sports[0],
     gamesDiscovered,
+    ...(job==="cfb-postgame-harvest"?{
+      dates:[{date:opts.date||shiftDateCT(todayCT(),-1),
+        archivePayloads:cfbDailyArchives,postgameStatTablesPromoted:false}]
+    }:{}),
     writesAttempted: writes.writesSucceeded,
     writesSucceeded: writes.writesSucceeded,
     writesFailed: writes.writesFailed,
