@@ -1,3 +1,4 @@
+import {loadCfbDeepFeatures} from "../functions/lib/cfbDeepFeed.js";
 import {indexCfbRatings} from "../functions/lib/collegeJobsCore.js";
 import {test} from "node:test";
 import assert from "node:assert/strict";
@@ -92,4 +93,25 @@ test("weekly CFBD advanced sources become point-in-time research team features",
   assert.equal(row.talent,970);
   assert.equal(row.returningPpa,0.65);
   assert.equal(catalog.coverage["/ppa/teams"],1);
+});
+
+test("board deep features consume persisted CFBD without contacting the provider",async()=>{
+  resetCacheMem();
+  let network=0;
+  const db={prepare(){return {bind(){return {async all(){return {results:[{
+    team_id:"osu",as_of:"2026-10-13T13:00:00.000Z",
+    features_json:JSON.stringify({team:"Ohio State",ppaOff:0.27,ppaDef:-0.11,
+      offensiveSuccessRate:0.47,defensiveSuccessRate:0.33,talent:966})
+  }]};}};}};}};
+  const env={DB:db,CFBD_API_KEY:"offline-key",cfbdCacheOnly:true};
+  const result=await loadCfbDeepFeatures(env,{
+    now:Date.parse("2026-10-15T14:00:00Z"),
+    fetchFn:async()=>{network++;throw Error("no network");}
+  });
+  assert.equal(network,0);
+  assert.equal(result.meta.source,"cfbd-weekly-persisted-d1");
+  assert.equal(result.meta.records,1);
+  const rec=Object.values(result.bySchool)[0];
+  assert.equal(rec.offensePpa,0.27);
+  assert.equal(rec.successRateAllowed,0.33);
 });
