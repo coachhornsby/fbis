@@ -1,0 +1,26 @@
+name: Isolate maintenance CPU limit
+on:
+  push:
+    branches: [fix/polymarket-storage-diagnostics-20261015]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          node --input-type=module <<'JS'
+          for(const apply of [false,true])for(const limit of [1,10,50,250,500]){
+            const start=Date.now();
+            try{
+              const r=await fetch('https://fbis-myz.pages.dev/api/polymarket-storage',{method:'POST',headers:{'content-type':'application/json','x-harvest-secret':process.env.HARVEST_SECRET},body:JSON.stringify({operation:'compact',apply,afterRowid:200553,limit,cutoff:'2026-10-15T16:12:25.588Z'}),signal:AbortSignal.timeout(65000)});
+              const v=await r.json();console.log(JSON.stringify({apply,limit,status:r.status,ms:Date.now()-start,error:v.error,examined:v.examined,updated:v.updated,eligible:v.eligible,reasons:v.reasons}));
+            }catch(e){console.log(JSON.stringify({apply,limit,ms:Date.now()-start,error:String(e.message)}))}
+          }
+          JS
