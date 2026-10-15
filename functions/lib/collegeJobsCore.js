@@ -64,6 +64,11 @@ const CFB_REFRESH_ENDPOINTS = [
   ["/ratings/elo", (y) => ({ year: y })],
   ["/ratings/core", (y) => ({ year: y })],
   ["/teams/fbs", (y) => ({ year: y })],
+  // Weekly advanced research snapshots; SVD remains the play-by-play source.
+  ["/ppa/teams", (y) => ({ year: y, seasonType: "regular" })],
+  ["/stats/season/advanced", (y) => ({ year: y, seasonType: "regular" })],
+  ["/talent", (y) => ({ year: y })],
+  ["/player/returning", (y) => ({ year: y })],
 ];
 
 const CFB_BACKFILL_EXTRA = [
@@ -227,7 +232,12 @@ async function fetchEndpoints(source, specs, env, year, jobRunId, sport) {
       data: res.ok ? res.data : [],
       jobRunId,
       status: res.ok ? "ok" : "failed",
+      archiveFullPayload: source === "cfbd" && res.ok,
     });
+    if(source === "cfbd" && !res.ok) {
+      // Do not silently report a partial advanced refresh as successful.
+      throw Error(res.reason || "CFBD_WEEKLY_REFRESH_INCOMPLETE");
+    }
   }
   return { report, bundles };
 }
