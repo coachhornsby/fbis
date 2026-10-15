@@ -13,7 +13,7 @@ test("CFB directional panels specify four offense-versus-defense categories",asy
  assert.match(src,/SOURCES DISAGREE/);
  assert.match(src,/TeamLogo team=\{winner\}/);
  assert.match(src,/altColor/);
- assert.match(src,/UNIT DATA PENDING/);
+ assert.match(src,/DIRECTIONAL DATA PENDING/);
 });
 test("CFB hero shares NFL location and weather; tennis and other sports retain their routing",async()=>{
  const compact=await read("CompactGameCard.jsx");
