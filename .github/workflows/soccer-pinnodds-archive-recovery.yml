@@ -28,6 +28,14 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts
           node scripts/recover-soccer-pinnodds-prematch.mjs | tee artifacts/soccer-pinn-recovery.jsonl
+      - name: Verify shadow references after recovery
+        run: |
+          set -euo pipefail
+          day=$(TZ=America/Chicago date -d '+2 days' +%F)
+          for league in ger.1 fra.1 esp.1; do
+            curl -fsS --max-time 120 -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/soccer-prospective-shadow?mode=snapshot&competition=$league&date=$day" > "artifacts/shadow-$league.json"
+            jq -e '.ok and .researchOnly and (.canQualify==false) and (.canAuthorize==false)' "artifacts/shadow-$league.json"
+          done
       - uses: actions/upload-artifact@v4.6.2
         if: always()
         with:
