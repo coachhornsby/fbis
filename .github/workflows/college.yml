@@ -207,7 +207,8 @@ jobs:
                   return 0
                 fi
                 if [ "$allow_rate_limit" = "true" ] && [ "$rate_limited" = "true" ]; then
-                  echo "college job soft-degraded job=${job}: upstream provider rate limited; retaining last-known persisted data and stopping retries"
+                  CFBD_RATE_LIMITED=1
+                  echo "college job degraded job=${job}: upstream provider rate limited; retaining last-known persisted data; stopping retries (not successful ingestion)"
                   {
                     echo "## College research degraded"
                     echo "- job: ${job}"
@@ -263,6 +264,10 @@ jobs:
             call cbb-current-refresh "" true
             call cbb-postgame-harvest "" true
             call college-health
+            if [ "${CFBD_RATE_LIMITED:-0}" = "1" ]; then
+              echo "CFBD 429: morning CFB ingestion FAILED. Other college tasks ran independently; no retry was attempted."
+              exit 1
+            fi
           else
             call "$JOB" "${EXTRA}"
           fi
