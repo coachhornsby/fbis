@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { fetchWithCfbBackoff } from "../functions/lib/cfbProviderBackoff.js";
 import { cfbdRequestHash, reserveCfbdRequest } from "../functions/lib/cfbCfbdAcquisition.js";
 import { collegeRequest, cbbSeasonYear } from "../functions/lib/collegeApi.js";
-import { MONTHLY_QUOTA, QUOTA_DESIGN_TARGET, quotaHealth } from "../functions/lib/quota.js";
+import { MONTHLY_QUOTA, QUOTA_DESIGN_TARGET, quotaHealth, reconcileSharedCollegeQuota } from "../functions/lib/quota.js";
 import { resetCacheMem } from "../functions/lib/cache.js";
 
 const football = "https://api.collegefootballdata.com/games?year=2026";
@@ -94,4 +94,18 @@ test("CBBD cache-only miss cannot make an outbound network request",async()=>{
   assert.equal(result.ok,false);
   assert.equal(result.networkAttempted,false);
   assert.equal(calls,0);
+});
+
+test("provider 429 monthly zero wins over local balance, and prior month cannot contaminate reset",()=>{
+  const local=quotaHealth({month:"2026-10",used:49});
+  const p={bound:true,month:"2026-10",providerRemaining:0,last429At:"2026-10-15T06:26:50Z"};
+  const reconciled=reconcileSharedCollegeQuota(local,p);
+  assert.equal(reconciled.remaining,0);
+  assert.equal(reconciled.estimatedLocalRemaining,74951);
+  assert.equal(reconciled.balanceSource,"provider-confirmed-zero");
+  assert.equal(reconciled.level,"exhausted");
+  const next=reconcileSharedCollegeQuota(quotaHealth({month:"2026-11",used:0}),p);
+  assert.equal(next.remaining,75000);
+  assert.equal(next.providerBalanceVerified,false);
+  assert.equal(next.balanceSource,"local-estimate-only");
 });
