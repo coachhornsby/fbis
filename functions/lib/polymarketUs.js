@@ -103,6 +103,8 @@ export function matchPolymarketUsEvent(e,games=[],sport){
     if(!Number.isFinite(gt)||Math.abs(gt-start)>2*60*60*1000)return false;
     const away=g.away_name||g.awayName||g.away?.name,home=g.home_name||g.homeName||g.home?.name;
     if(!away||!home)return false;
+    if(sport==="soccer"&&e.homeTeam?.name&&e.awayTeam?.name&&
+      (!teamMatches(e.homeTeam.name,home,g.home_abbr)||!teamMatches(e.awayTeam.name,away,g.away_abbr)))return false;
     const names=(participants.length?participants:[]).concat(title);
     return [away,home].every((name,i)=>
       names.some(n=>teamMatches(n,name,i===0?g.away_abbr:g.home_abbr))||

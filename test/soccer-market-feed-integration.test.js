@@ -44,3 +44,10 @@ test('PinnOdds full-match BTTS and first-half specials retain different families
  assert.equal(result.rows.filter(r=>r.marketFamily==='btts'&&r.period==='full_game').length,2);
  assert.equal(result.rows.filter(r=>r.marketFamily==='special'&&r.period==='first_half').length,2);
 });
+
+test('soccer book home and away prices cannot attach with reversed team orientation',async()=>{
+ const {matchPolymarketUsEvent}=await import('../functions/lib/polymarketUs.js');
+ const fixtures=[{id:'g',start:'2026-10-16T18:30Z',home_name:'Eintracht Frankfurt',away_name:'FC Cologne'}];
+ assert.equal(matchPolymarketUsEvent({startTime:fixtures[0].start,homeTeam:{name:'Cologne'},awayTeam:{name:'Frankfurt'}},fixtures,'soccer').id,null);
+ assert.equal(matchPolymarketUsEvent({startTime:fixtures[0].start,homeTeam:{name:'Frankfurt'},awayTeam:{name:'Cologne'}},fixtures,'soccer').id,'g');
+});
