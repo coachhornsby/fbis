@@ -37,7 +37,7 @@ export async function reserveCfbdRequest(env, url, now = Date.now()) {
   const monthly=positive(env.CFBD_MONTHLY_NETWORK_BUDGET,1400);
   // Tier 3 provider allowance is 75k; retain 5k safety reserve.
   // This is not a substitute for the provider-confirmed remaining-call stop.
-  const providerSafe=positive(env.CFBD_SHARED_PROVIDER_SAFE_BUDGET,70000);
+  const providerSafe=Math.min(67500,positive(env.CFBD_SHARED_PROVIDER_SAFE_BUDGET,67500));
   try {
     // One statement: atomic D1 quota checks + idempotent reservation.
     const res=await env.DB.prepare(`
