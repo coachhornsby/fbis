@@ -9,7 +9,7 @@ import "./decisionBoard.css";
 
 export function BoardSummaryStrip({ games = [] }) {
   const stats = useMemo(() => {
-    let research = 0, watch = 0, qualified = 0, blocked = 0, live = 0, final = 0, withMarket = 0;
+    let research = 0, watch = 0, qualified = 0, blocked = 0, live = 0, final = 0, withMarket = 0, pinnodds = 0;
     for (const g of games || []) {
       const vm = buildBoardGameViewModel(g);
       if (vm.event?.final) final += 1;
@@ -19,8 +19,9 @@ export function BoardSummaryStrip({ games = [] }) {
       else if (vm.decision?.qualification === "QUALIFIED") qualified += 1;
       if (vm.decision?.dqState || vm.quality?.marketUnresolved) blocked += 1;
       if (vm.market?.available) withMarket += 1;
+      if (Array.isArray(g?.pinnoddsResearch?.offers) && g.pinnoddsResearch.offers.length > 0) pinnodds += 1;
     }
-    return { n: games.length, research, watch, qualified, blocked, live, final, withMarket };
+    return { n: games.length, research, watch, qualified, blocked, live, final, withMarket, pinnodds };
   }, [games]);
 
   if (!stats.n) return null;
@@ -34,7 +35,8 @@ export function BoardSummaryStrip({ games = [] }) {
         {stats.blocked > 0 ? <div className="db-sum-tile db-sum-block"><strong>{stats.blocked}</strong><span>BLOCK</span></div> : null}
         {stats.live > 0 ? <div className="db-sum-tile db-sum-live"><strong>{stats.live}</strong><span>LIVE</span></div> : null}
         {stats.final > 0 ? <div className="db-sum-tile db-sum-final"><strong>{stats.final}</strong><span>FINAL</span></div> : null}
-        <div className="db-sum-tile db-sum-mkt"><strong>{stats.withMarket}</strong><span>MKT</span></div>
+        <div className="db-sum-tile db-sum-mkt"><strong>{stats.pinnodds}</strong><span>PIN CAPTURES</span></div>
+        <div className="db-sum-tile db-sum-mkt"><strong>{stats.withMarket}</strong><span>EXEC MKT</span></div>
       </div>
       <div className="db-legend"><span className="db-leg-fbis">● FBIS</span><span className="db-leg-mkt">● Market</span></div>
     </div>

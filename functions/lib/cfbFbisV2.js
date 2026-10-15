@@ -742,6 +742,9 @@ export function promoteCfbFbisV2ToBoard(games = []) {
         projAway: projection.away,
         projMargin: projection.margin,
         projTotal: projection.total,
+        // Carry the already fitted, independent CFB probability to the
+        // board's fair-price contract. Do not estimate it from rounded scores.
+        pHomeFinal: num(projection.pHomeWin),
         projectionKind: "FBIS",
         projectionState: state,
         version: CFB_FBIS_V2_ID,
