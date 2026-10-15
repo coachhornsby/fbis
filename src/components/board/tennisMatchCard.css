@@ -111,3 +111,23 @@
 .tmc-compact .tmc-photo-credits{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;padding:0 12px 8px;font-size:9px;color:#a9c3d9}
 .tmc-compact .tmc-photo-credits a{color:#a1cee7;text-decoration:underline;text-underline-offset:2px}
 .tmc-compact .tmc-photo-credits a:hover{color:#fff}
+
+/* Single larger country flag and clean portrait canvas. Flag no longer repeats
+   as a hero wallpaper or photo-overlay badge. Approved transparent cutouts
+   blend naturally into this player-color stage. */
+.tmc-compact .tmc-player-side:before{background-image:none!important;opacity:0!important}
+.tmc-compact .tmc-player-side:after{background:linear-gradient(0deg,#020b1585,transparent 70%);opacity:.68}
+.tmc-compact .tmc-country{display:none!important}
+.tmc-compact .tmc-player-copy .tmc-nationality{display:flex;gap:9px;align-items:center;min-height:30px;margin:8px 0 5px;font-size:11px;letter-spacing:.04em}
+.tmc-compact .tmc-nationality .tmc-primary-flag{width:54px;height:35px;display:block;object-fit:cover;flex:none;border:1px solid #b5d1e9a0;border-radius:4px;box-shadow:0 3px 12px #0009}
+.tmc-compact .tmc-neutral-mark{display:inline-flex;align-items:center;justify-content:center;min-width:48px;min-height:30px;border:1px solid #94b8d4a0;border-radius:5px;background:#0b2743;color:#e6f2fa;font-size:12px;font-weight:900}
+.tmc-compact .tmc-portrait-asset{background:transparent;object-fit:contain;object-position:center bottom;isolation:isolate}
+@container(max-width:620px){
+ .tmc-compact .tmc-player-copy .tmc-nationality{font-size:9px;gap:5px}
+ .tmc-compact .tmc-nationality .tmc-primary-flag{width:44px;height:29px}
+}
+@container(max-width:425px){
+ .tmc-compact .tmc-player-copy .tmc-nationality{gap:5px;min-height:24px;margin:5px 0 3px;font-size:8px;flex-wrap:wrap;justify-content:center}
+ .tmc-compact .tmc-nationality .tmc-primary-flag{width:39px;height:25px}
+ .tmc-compact .tmc-neutral-mark{min-width:35px;min-height:24px;font-size:10px}
+}
