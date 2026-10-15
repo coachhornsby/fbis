@@ -68,3 +68,13 @@ both indexes to exist. This is a maintenance runner, not a new recurring service
 The player lookup index stores only non-null canonical player IDs. Equality
 lookups for a known player continue to use that index. Rows without a canonical
 player remain in the ledger and use the existing event/source indexes.
+
+The unused MLB projection subject index is retired. Current production readers
+filter these records by game/date or market type, rather than by subject ID;
+the game and market indexes remain. Projection rows and model outputs are retained.
+
+For a recorded checkpoint, `COMPACTION_START_ROWID` can resume after the last
+audited cursor. The result records that starting point; earlier coverage must be
+verified separately before reporting whole-ledger completion. REST updates are
+grouped into at most 500 individually size-bounded, conditional statements, and already
+compacted payload bodies are omitted from transfers.
