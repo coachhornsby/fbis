@@ -1,7 +1,7 @@
 /** Private operational readback of fully verified retrospective CFB roster R2 data.
  * Not exposed on public team cards, decision pipeline, or model inputs.
  */
-import {authorizeHarvest,unauthorizedBody} from "../lib/auth.js";
+import {harvestSecret} from "../lib/auth.js";
 import {readVerifiedCfbColdRosterPage} from "../lib/cfbColdRosterArchive.js";
 const headers={
   "content-type":"application/json; charset=utf-8",
@@ -10,8 +10,10 @@ const headers={
 };
 const json=(value,status)=>new Response(JSON.stringify(value),{status,headers});
 export async function onRequestGet(context) {
-  const auth=authorizeHarvest(context.request,context.env);
-  if (!auth.ok) return json(unauthorizedBody(auth.reason),403);
+  // Header-only. Never accept operator tokens from URLs or browser origins.
+  const secret=harvestSecret(context.env);
+  const received=context.request.headers?.get("x-harvest-secret");
+  if (!secret || received!==secret) return json({ok:false,error:"FORBIDDEN"},403);
   const u=new URL(context.request.url);
   const season=u.searchParams.get("season")||"2004";
   const afterRowid=u.searchParams.get("afterRowid")||"0";
