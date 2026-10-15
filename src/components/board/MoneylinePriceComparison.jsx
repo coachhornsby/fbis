@@ -3,7 +3,7 @@ import {buildMoneylinePriceComparison} from "../../lib/marketPriceComparison.js"
 import {signedAmerican} from "../../lib/marketQuoteDisplay.js";
 import "./moneylinePriceComparison.css";
 
-const percent = p => p == null ? "—" : `${(p * 100).toFixed(1)}%`;
+const percent = p => p == null ? "—" : `${(p * 100).toFixed(2)}%`;
 const american = p => p == null ? "—" : signedAmerican(p);
 
 export default function MoneylinePriceComparison({game}) {
