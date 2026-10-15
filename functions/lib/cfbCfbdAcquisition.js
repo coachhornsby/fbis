@@ -35,6 +35,9 @@ export async function reserveCfbdRequest(env, url, now = Date.now()) {
   const {hash,endpoint}=await cfbdRequestHash(url);
   const daily=positive(env.CFBD_DAILY_NETWORK_BUDGET,45);
   const monthly=positive(env.CFBD_MONTHLY_NETWORK_BUDGET,1400);
+  // Tier 3 provider allowance is 75k; retain 5k safety reserve.
+  // This is not a substitute for the provider-confirmed remaining-call stop.
+  const providerSafe=positive(env.CFBD_SHARED_PROVIDER_SAFE_BUDGET,70000);
   try {
     // One statement: atomic D1 quota checks + idempotent reservation.
     const res=await env.DB.prepare(`
@@ -50,8 +53,8 @@ export async function reserveCfbdRequest(env, url, now = Date.now()) {
             WHERE provider_remaining IS NOT NULL ORDER BY acquired_at DESC LIMIT 1),'') <> ?
         )
         AND (SELECT COALESCE(SUM(quota_cost),0) FROM api_usage
-          WHERE month=? AND source IN ('cfbd','cbbd')) < 27500
-    `).bind(day,hash,month,endpoint,new Date(now).toISOString(),now,day,daily,month,monthly,month,month).run();
+          WHERE month=? AND source IN ('cfbd','cbbd')) < ?
+    `).bind(day,hash,month,endpoint,new Date(now).toISOString(),now,day,daily,month,monthly,month,month,providerSafe).run();
     if(Number(res?.meta?.changes||0)!==1)return {allowed:false,reason:"CFBD_DUPLICATE_COOLDOWN_OR_BUDGET"};
     return {allowed:true,day,hash,endpoint};
   } catch {
