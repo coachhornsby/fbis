@@ -206,7 +206,9 @@ jobs:
                   fi
                   return 0
                 fi
-                if [ "$allow_rate_limit" = "true" ] && [ "$rate_limited" = "true" ]; then
+                # Any CFBD/CBBD 429 must stop this Worker job immediately.
+                # A Worker retry can replay provider requests even when some writes succeeded.
+                if [ "$rate_limited" = "true" ]; then
                   CFBD_RATE_LIMITED=1
                   echo "college job degraded job=${job}: upstream provider rate limited; retaining last-known persisted data; stopping retries (not successful ingestion)"
                   {
@@ -220,6 +222,11 @@ jobs:
               else
                 echo "college job non-json/transport job=${job} attempt=${attempt} curl_ec=${curl_ec} http=${http:-000}"
                 echo "body_snip=${body_snip}"
+              fi
+              if [ "${http:-000}" = "429" ]; then
+                CFBD_RATE_LIMITED=1
+                echo "Provider/Worker HTTP 429: stopping all retries for ${job}"
+                return 1
               fi
               classification="$(classify_failure "${http:-000}" "$curl_ec" "$body_snip")"
               echo "college classification=${classification} job=${job} attempt=${attempt} http=${http:-000} curl_ec=${curl_ec}"

@@ -1,0 +1,23 @@
+name: CFB CFBD request-control regression
+on:
+  pull_request:
+    paths:
+      - "test/cfb-cfbd-429-idempotency.test.js"
+      - "functions/lib/cfbProviderBackoff.js"
+      - "functions/lib/cfbDeepFeed.js"
+      - "functions/lib/cfbd.js"
+      - ".github/workflows/cfb-cfbd-request-control-test.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-request-control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run deterministic CFBD mock regression tests without provider credentials
+        run: node --test test/cfb-cfbd-429-idempotency.test.js
