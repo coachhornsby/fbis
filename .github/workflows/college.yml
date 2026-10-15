@@ -7,6 +7,7 @@ name: FBIS college research
 on:
   schedule:
     - cron: "30 12 * * *"
+    - cron: "30 13 * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -142,6 +143,12 @@ jobs:
             JOB="cfb-current-refresh"
           fi
           echo "job=$JOB event=${EVENT_NAME} trigger=${TRIGGER}"
+          # Dual UTC cron entries resolve exactly one 07:30 America/Chicago
+          # acquisition window across daylight-saving transitions.
+          if [ "${EVENT_NAME}" = "schedule" ] && [ "$(TZ=America/Chicago date +%H)" != "07" ]; then
+            echo "Skipping offset-mismatched cron; 07:30 Central owns the daily window."
+            exit 0
+          fi
 
           classify_failure() {
             local http="$1"
@@ -257,6 +264,9 @@ jobs:
           if [ -n "${WEEK_INPUT:-}" ]; then
             EXTRA="${EXTRA}&week=${WEEK_INPUT}"
           fi
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            EXTRA="${EXTRA}&operatorApproved=${OPERATOR:-false}"
+          fi
 
           if [ "$JOB" = "model-promote" ]; then
             call model-promote "&operatorApproved=${OPERATOR:-false}${EXTRA}"
@@ -267,6 +277,11 @@ jobs:
             # Never call all six rating endpoints, pregame freeze and postgame
             # as separate quota-consuming daily jobs.
             call cfb-postgame-harvest "" true
+            # Once weekly, within the SAME acquisition owner/window, capture
+            # CFBD ratings, PPA, advanced team form, talent and returners.
+            if [ "$(TZ=America/Chicago date +%u)" = "1" ] && [ "${CFBD_RATE_LIMITED:-0}" != "1" ]; then
+              call cfb-current-refresh "" true
+            fi
             # Independent basketball/health tasks do not spend CFBD quota.
             call cbb-current-refresh "" true
             call cbb-postgame-harvest "" true
