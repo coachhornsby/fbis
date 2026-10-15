@@ -3,41 +3,38 @@ import {buildMoneylinePriceComparison} from "../../lib/marketPriceComparison.js"
 import {signedAmerican} from "../../lib/marketQuoteDisplay.js";
 import "./moneylinePriceComparison.css";
 
-const percent = p => p == null ? "—" : `${(p * 100).toFixed(2)}%`;
-const american = p => p == null ? "—" : signedAmerican(p);
-
-export default function MoneylinePriceComparison({game}) {
-  const {rows,hasPrices,researchOnly,projectionState}=buildMoneylinePriceComparison(game);
-  if(!hasPrices)return null;
-  return <section className="gc-reference fbis-moneyline-comparison" aria-label="FBIS full game moneyline price comparison">
-    <div className="gc-section-label">FULL-GAME MONEYLINE · SOURCE PRICE COMPARISON</div>
-    <div className="fbis-comparison-scroll">
-      <table className="fbis-comparison-table">
-        <thead><tr>
-          <th scope="col">Team</th>
-          <th scope="col">PinnOdds<br/>American</th>
-          <th scope="col">Polymarket<br/>Probability</th>
-          <th scope="col">Polymarket<br/>American</th>
-          <th scope="col">FBIS<br/>Probability</th>
-          <th scope="col">FBIS<br/>Fair price</th>
-        </tr></thead>
-        <tbody>{rows.map(r=><tr key={r.side}>
-          <th scope="row">{r.label}</th>
-          <td className="fbis-market-price">{american(r.pinnoddsAmerican)}</td>
-          <td className="fbis-market-probability">{percent(r.polymarketProbability)}</td>
-          <td className="fbis-market-price">{american(r.polymarketAmerican)}</td>
-          <td className="fbis-model-probability">{percent(r.fbisProbability)}</td>
-          <td className="fbis-model-price">{american(r.fbisFairAmerican)}</td>
-        </tr>)}</tbody>
-      </table>
+const percent=p=>p==null?"—":`${(p*100).toFixed(2)}%`;
+const american=p=>p==null?"—":signedAmerican(p);
+export default function MoneylinePriceComparison({game}){
+ const {rows,hasPrices,researchOnly,projectionState}=buildMoneylinePriceComparison(game);
+ if(!hasPrices)return null;
+ return <section className="gc-reference fbis-moneyline-comparison" aria-label="PinnOdds Polymarket and FBIS moneyline prices">
+  <header className="fbis-moneyline-header">
+   <strong>◆ MONEYLINE PRICEBOARD</strong>
+   <span><i>PINNODDS</i> / <i>POLYMARKET</i> / <i>FBIS FAIR</i></span>
+  </header>
+  <div className="fbis-moneyline-cards">{rows.map(r=><div key={r.side} className={`fbis-moneyline-side fbis-moneyline-${r.side}`}>
+   <h4>{r.label}</h4>
+   <div className="fbis-moneyline-triplet">
+    <div className="fbis-moneyline-venue fbis-moneyline-pin">
+      <span>PINNODDS</span>
+      <strong>{american(r.pinnoddsAmerican)}</strong>
+      <small>Book price</small>
     </div>
-    <div className="gc-action-footnote muted">
-      PinnOdds = captured decimal quote converted to American, provider quote time unverified.
-      Polymarket = observed contract/ask-implied break-even probability and American equivalent before fees, not no-vig.
-      FBIS = independent model probability and indicative fair price.
-      {researchOnly ? " RESEARCH ONLY · NO WAGER AUTHORIZATION." : ""}
-      {projectionState ? ` Projection status: ${String(projectionState).replaceAll("_"," ")}.` : ""}
-      Missing or unmatched quotes show —.
+    <div className="fbis-moneyline-venue fbis-moneyline-poly">
+      <span>POLYMARKET</span>
+      <strong>{percent(r.polymarketProbability)}</strong>
+      <b>{american(r.polymarketAmerican)}</b>
+      <small>Contract-implied</small>
     </div>
-  </section>;
+    <div className="fbis-moneyline-venue fbis-moneyline-fbis">
+      <span>FBIS MODEL</span>
+      <strong>{percent(r.fbisProbability)}</strong>
+      <b>{american(r.fbisFairAmerican)}</b>
+      <small>Fair price</small>
+    </div>
+   </div>
+  </div>)}</div>
+  <p className="fbis-moneyline-note">Market prices and independent FBIS fair prices shown side-by-side. Polymarket contract probability is before fees; missing prices show —. Captured PinnOdds quotes may move. {researchOnly?"Research comparison, not an authorized wager. ":""}{projectionState?`Model: ${String(projectionState).replaceAll("_"," ")}.`:""}</p>
+ </section>;
 }
