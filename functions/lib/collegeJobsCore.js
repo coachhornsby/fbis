@@ -200,7 +200,7 @@ async function persistObservation(env, { source, sport, endpoint, season, partit
     meta: summarizeSchema(data),
   });
   if(archiveFullPayload && !dbInsert?.ok &&
-    /no such table:\\s*source_observations/i.test(String(dbInsert?.reason||""))){
+    /no such table:\s*source_observations/i.test(String(dbInsert?.reason||""))){
     // Production does not have the legacy college source_observations schema.
     // The full immutable R2 payload is still durably archived, and its key
     // is recorded in the existing job_runs.dates_json manifest. This is NOT
