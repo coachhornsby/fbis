@@ -54,3 +54,5 @@ jobs:
         with:
           name: soccer-post-storage-${{ github.run_id }}
           path: artifacts/**
+
+# Final proof after deployed stream version 25dc1dd7 restored 45 subscriptions.
