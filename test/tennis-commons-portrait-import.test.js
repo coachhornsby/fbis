@@ -77,8 +77,8 @@ test("legitimate Commons JPEG imports into one canonical R2 path and approved ri
     assert.equal(env.saved.bytes,1024);
     assert.equal(env.writes,1);
     assert.equal(env.saved.args[0],choice.playerId);
-    assert.equal(env.saved.args[4],choice.sourceUrl);
-    assert.equal(env.saved.args[5],`Photo: ${choice.author} · ${choice.license} · resized for FBIS`);
+    assert.equal(env.saved.args[3],choice.sourceUrl);
+    assert.equal(env.saved.args[4],`Photo: ${choice.author} · ${choice.license} · resized for FBIS`);
   }finally{globalThis.fetch=realFetch;}
 });
 test("real imported rights record satisfies display gate",()=>{
