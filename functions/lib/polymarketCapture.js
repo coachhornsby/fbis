@@ -1,3 +1,4 @@
+import {compactArchivedRaw} from "./polymarketPayloadArchive.js";
 import {loadSoccerMarketFixtures} from "./soccerMarketFixtures.js";
 /** Immutable paginated public discovery. Each page is archived before bounded ingestion. */
 import {POLY_US_API,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers} from './polymarketUs.js';
@@ -51,7 +52,9 @@ export async function consumePolymarketPage(env,{receiptId,batchIndex}={}){
  if(!valid(receiptId)||!Number.isSafeInteger(batchIndex)||batchIndex<0)throw Error('INVALID_BATCH_IDENTITY');
  const stored=await env.ARCHIVE.get(key(receiptId));if(!stored)throw Error('RECEIPT_NOT_FOUND');
  const receipt=await stored.json();if(batchIndex>=receipt.batches)throw Error('BATCH_OUT_OF_RANGE');
- const offers=receipt.offers.slice(batchIndex*BATCH,(batchIndex+1)*BATCH);
+ const originalOffers=receipt.offers.slice(batchIndex*BATCH,(batchIndex+1)*BATCH);
+ const offers=[];
+ for(const offer of originalOffers){const compact=await compactArchivedRaw(offer.raw,receipt);offers.push({...offer,raw:compact.raw});}
  const saved=await persistNormalizedMarketBatch(env.DB,offers,{snapshotType:'RESEARCH',collectedAt:receipt.capturedAt,modelProbability:null});
  return{ok:true,receiptId,batchIndex,expectedRows:offers.length,inserted:saved.inserted,canAuthorizeWager:false};
 }

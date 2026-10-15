@@ -1,0 +1,38 @@
+name: Polymarket verified payload storage compaction
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [ops/triggers/polymarket-storage-compaction]
+permissions:
+  contents: read
+concurrency:
+  group: fbis-polymarket-payload-compaction
+  cancel-in-progress: false
+jobs:
+  compact:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Wait for validated production deployment
+        env:
+          VERIFY_MAX_ATTEMPTS: '150'
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Compact only source receipts already archived and hash verified
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          COMPACTION_APPLY: 'true'
+          COMPACTION_MAX_ROWS: '500000'
+        run: node scripts/compact-polymarket-storage.mjs
+      - name: Publish bounded migration evidence
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: polymarket-storage-result
+          path: /tmp/fbis-polymarket-storage-result.json
+          if-no-files-found: ignore
