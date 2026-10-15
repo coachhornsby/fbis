@@ -480,6 +480,32 @@ jobs:
             cat artifacts/college-capability-audit-summary.log
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Verify protected CFB R2 archive readback after production deploy
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          BASE=https://fbis-myz.pages.dev
+          test -n "${HARVEST_SECRET}" || { echo "Archive auth unconfigured"; exit 1; }
+          anonymous_file="$(mktemp)"
+          anon_code="$(curl -sS --retry 3 --max-time 40 -o "$anonymous_file" -w '%{http_code}' "${BASE}/api/cfb-roster-archive?season=2004&limit=1")"
+          test "$anon_code" = "403" || { echo "CFB R2 archive auth gate failed http=$anon_code"; exit 1; }
+          authenticated_file="$(mktemp)"
+          code="$(curl -sS --retry 3 --max-time 60 -H "x-harvest-secret: ${HARVEST_SECRET}" -o "$authenticated_file" -w '%{http_code}' "${BASE}/api/cfb-roster-archive?season=2004&afterRowid=0&limit=3")"
+          test "$code" = "200" || { echo "CFB R2 archive readback failed http=$code"; exit 1; }
+          jq -e '.ok == true
+            and .state == "VERIFIED_RETROSPECTIVE_R2_ARCHIVE"
+            and .season == 2004
+            and .sourceRecordCount == 13644
+            and .count == 3
+            and (.rows | length) == 3
+            and .rows[0].__archive_rowid == "1"
+            and (.rows | all(.season == 2004))
+            and .canInfluenceProjection == false
+            and .canAuthorizeWager == false
+            and .productionD1Reads == 0
+            and .productionD1Writes == 0' "$authenticated_file" > /dev/null
+          echo "Verified header-only protected retrospective R2 readback: 3 rows; no D1 reads/writes or model authority."
       - name: Upload college capability audit artifact
         if: always() && contains(github.event.head_commit.message, '[college-capability-audit]')
         uses: actions/upload-artifact@v4
