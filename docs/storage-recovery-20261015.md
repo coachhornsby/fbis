@@ -60,3 +60,24 @@ Cloudflare D1 has a per-database maximum of 10 GB. Account-level overage billing
 - Not verified/authorized: live read-path cutover, independent complete-season reconciliation, D1 space reclaimed, production deletion, wagering-model authority, or monthly savings.
 - The bounded reusable exporter lives in `scripts/cfb-roster-cold-archive-pilot.mjs`, and its manual workflow defaults to dry-run. It requires an explicit `apply=true` input and caps each invocation at 2,000 rows. Existing R2 objects have content hashes in their keys; it will never delete D1 rows.
 - The connected billing-usage API still denied read access. Budget arithmetic remains an estimate rather than a verified invoice.
+
+## Full 2004 CFB roster archive — independently reconciled
+- The entire season-2004 `cfb_roster_observations` source population (**13,644 / 13,644 rows**) was copied, without mutation, into **137 content-addressed R2 segments**, totaling **25,659,280 bytes**.
+- Each object was SHA-256 checked after the R2 readback, and each archived row was independently compared to the exact original D1 range with all raw fields. Full checks: 13,644 unique source record IDs, ascending rowids with no overlaps, source row-count and bounds unchanged on final independent read.
+- D1 source rowids **1 through 79,448** are a sparse time-overlapping keyspace; no claim is made that all integers in this interval belong to the 2004 season.
+- Complete-season R2 manifest: `research/storage-recovery/cfb-roster-cold-pilot/2004/full-season-manifest-675ad4a9f3cb17a87f09acc577bd40f2e2f8e7e4ea59bf501df14b48b063aa8c.json`.
+- Manifest SHA-256: `675ad4a9f3cb17a87f09acc577bd40f2e2f8e7e4ea59bf501df14b48b063aa8c`; size **40,496 bytes**, verified via independent R2 read.
+- The earlier 500-row R2 pilot at `research/storage-recovery/2026-10-15/cfb-roster-2004-pilot/` remains intact and is redundant evidence, not deleted.
+- Immutable full-season archives are **retrospective research only**. This is *not* point-in-time source qualification or betting authorization.
+
+### Private readback path and security
+- `functions/lib/cfbColdRosterArchive.js` pins the accepted manifest SHA and verifies every requested object's SHA-256, rowid bounds, source season, schema and research-only restrictions before returning results. Reading is paginated to at most **100 rows**.
+- `GET /api/cfb-roster-archive?season=2004&afterRowid=0&limit=100` is a **private diagnostic**, requiring the existing `x-harvest-secret` HTTP header. Query-string secrets are **not accepted**. Responses are `private, no-store`; missing or unqualified R2 data fail closed with 503. Other seasons and write methods are rejected.
+- This endpoint never changes the live `/api/cfb-teams`, canonical D1 identity or roster membership tables, wager decision logic, model coefficients, or qualifications.
+- CI explicitly runs the R2 manifest, content validation, unauthorized-access, failure-path and non-mutation tests.
+
+### Outstanding hard gates
+1. The complete season-2004 archive does **not** constitute authorization to delete its D1 copy. Active-read dependency audit, changes to consumer query routes, independent full-DB restore qualification, and a rehearsed rollback must precede any DELETE or schema compaction.
+2. The CFB isolated full recovery run failed during part 167 of 277. Its **4.73 GB** remote target remains incomplete and protected; cleanup needs a separate, verified disposition.
+3. The source D1 remains at/near the **10 GB maximum**. R2 duplication *increases* archived data, and no bill or byte savings can be attributed to these copies until actual D1 physical storage reduces.
+4. No new subscriptions, production row deletes, R2 deletes, or recovery-target deletes are part of this phase.
