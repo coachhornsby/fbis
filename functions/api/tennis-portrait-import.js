@@ -54,7 +54,7 @@ export async function onRequestPost({request,env}){
       const artist=String(license.Artist?.value||"");
       if(candidate.author&&!artist.toLowerCase().includes(candidate.author.toLowerCase()))return json({ok:false,reason:"COMMONS_AUTHOR_MISMATCH"},409);
       const thumbnail=info.thumburl||info.url;
-      if(!hostIs(thumbnail,"upload.wikimedia.org")||!new URL(thumbnail).pathname.startsWith("/wikipedia/commons/"))return json({ok:false,reason:"COMMONS_IMAGE_HOST_REJECTED"},409);
+      if(!(hostIs(thumbnail,"upload.wikimedia.org")||hostIs(thumbnail,"thumb.wikimedia.org"))||!new URL(thumbnail).pathname.startsWith("/wikipedia/commons/"))return json({ok:false,reason:"COMMONS_IMAGE_HOST_REJECTED"},409);
       if(info.mime!=="image/jpeg")return json({ok:false,reason:"SOURCE_MIME_NOT_JPEG"},409);
       const photoResponse=await fetch(thumbnail,{...noStore,headers:{accept:"image/jpeg"}});
       if(!photoResponse.ok)return json({ok:false,reason:"COMMONS_IMAGE_UNAVAILABLE",http:photoResponse.status},502);
