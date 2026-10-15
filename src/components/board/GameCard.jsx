@@ -1,3 +1,4 @@
+import MarketFlowIntelligence from "./MarketFlowIntelligence.jsx";
 import { useId } from "react";
 import TeamLogo from "../TeamLogo.jsx";
 import { ChallengerSelect } from "../ChallengerSelect.jsx";
@@ -248,6 +249,7 @@ export default function GameCard({
         </div>
       </section>
 
+      <MarketFlowIntelligence game={game}/>
       {Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => o.source === "Polymarket US") ? (
         <section className="gc-reference" aria-label="Polymarket US reference probabilities">
           <div className="gc-section-label">POLYMARKET US · DISPLAY-ONLY PROBABILITIES</div>

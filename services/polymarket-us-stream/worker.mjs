@@ -1,5 +1,6 @@
+import {flowSummary,tradeIdentity} from "../../functions/lib/polymarketFlow.js";
 import {DurableObject} from "cloudflare:workers";
-import {polymarketUsSubscribe,parsePolymarketUsLite}
+import {polymarketUsSubscribe,parsePolymarketUsLite,parsePolymarketUsTrade}
   from "../../functions/lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
 import {fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,fetchStreamUpgrade,streamContractRosterWindow} from "./core.mjs";
@@ -12,6 +13,7 @@ const toJSON=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"co
 export class PolymarketMarketStream extends DurableObject {
   constructor(ctx,env){
     super(ctx,env);
+    this.flow=new Map();this.flowDropped=0;this.tradeReceived=0;this.tradeClassified=0;this.flowLastPersistAt=0;this.flowPersistError=null;this.flowEnabled=env.POLYMARKET_FLOW_CAPTURE==="true";
     this.socket=null;this.subscribed=new Map();this.queue=new Map();
     this.lastSaved=new Map();this.connectedAt=0;this.reconnectCount=0;
     this.received=0;this.parsed=0;this.inserted=0;
@@ -30,10 +32,19 @@ export class PolymarketMarketStream extends DurableObject {
       reconnects:this.reconnectCount,lastError:this.lastError,
       signerProxyConfigured:Boolean(this.env.FBIS_STREAM_PROXY_TOKEN),
       lastConnectAttemptAt:this.lastConnectAttempt?new Date(this.lastConnectAttempt).toISOString():null,
+      flow:{enabled:this.flowEnabled,tradeReceived:this.tradeReceived,tradeClassified:this.tradeClassified,dropped:this.flowDropped,markets:this.flow.size,persistError:this.flowPersistError,storage:"BOUNDED_EXISTING_DO",maxTradesPerMarket:256,maxQuotesPerMarket:120,coverage:"OBSERVED_ONLY"},
       readOnly:true,canAuthorizeWager:false};
   }
   async fetch(req){
     const pathname=new URL(req.url).pathname;
+    if(pathname==="/flow"){
+      const u=new URL(req.url),slug=u.searchParams.get("market"),window=u.searchParams.get("window")||"15m";
+      if(!["1m","5m","15m","1h"].includes(window))return toJSON({ok:false,error:"invalid-window"},400);
+      let entries=slug?[[slug,this.flow.get(slug)]]:[...this.flow];
+      if(slug&&!entries[0][1]){const saved=await this.ctx.storage.get("flow:"+slug);if(saved)entries=[[slug,{...saved,gaps:[...(saved.gaps||[]),{start:saved.savedAt||saved.coverageStart}]}]];}
+      return toJSON({ok:true,enabled:this.flowEnabled,researchOnly:true,markets:entries.filter(([,v])=>v).map(([market,v])=>({marketSlug:market,
+        identity:v.identity,latestBook:v.quotes.at(-1)||null,...flowSummary({...v,window})}))});
+    }
     if(pathname==="/status")return toJSON(this.status());
     if(pathname!=="/start"||req.method!=="POST")return toJSON({ok:false},405);
     if(!this.env.FBIS_STREAM_PROXY_TOKEN){
@@ -129,12 +140,18 @@ export class PolymarketMarketStream extends DurableObject {
         if(this.socket===socket){this.socket=null;
           this.lastClose={at:new Date().toISOString(),code:event.code,reason:String(event.reason||"" ).slice(0,200)};
           this.lastError="upstream-socket-closed-"+event.code;
+          for(const v of this.flow.values())v.disconnectedAt=new Date().toISOString();
           this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS).catch(()=>{});}
       });
       socket.addEventListener("error",()=>{
         if(this.socket===socket){this.socket=null;this.lastError="upstream-socket-error";
+          for(const v of this.flow.values())v.disconnectedAt=new Date().toISOString();
           this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS).catch(()=>{});}
       });
+      if(this.flowEnabled){
+        for(const [slug,v] of this.flow){v.gaps.push({start:v.disconnectedAt||new Date().toISOString(),end:new Date().toISOString()});v.gaps=v.gaps.slice(-20);}
+        socket.send(JSON.stringify(polymarketUsSubscribe([...this.subscribed.keys()],"fbis-public-trades",{trades:true})));
+      }
       socket.send(JSON.stringify(polymarketUsSubscribe(
         [...this.subscribed.keys()],"fbis-always-on-market-book",{fullBook:true})));
       this.connectedAt=Date.now();this.lastMessageAt=0;this.lastHeartbeatAt=0;this.reconnectCount++;
@@ -156,9 +173,24 @@ export class PolymarketMarketStream extends DurableObject {
     if(control?.type==="error"){this.lastError="upstream-subscription-error";
       try{this.socket?.close(1000,"subscription rejected")}catch{}
       this.socket=null;this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS).catch(()=>{});return;}
+    if(this.flowEnabled){
+      const trade=parsePolymarketUsTrade(evt.data);
+      if(trade&&this.subscribed.has(trade.marketSlug)){
+        this.tradeReceived++;if(trade.direction)this.tradeClassified++;
+        const v=this.flowEntry(trade.marketSlug);const key=tradeIdentity(trade);
+        if(!v.trades.some(t=>tradeIdentity(t)===key))v.trades.push(trade);
+        if(v.trades.length>256){v.trades.shift();v.truncated=true;this.flowDropped++;}
+        return;
+      }
+    }
     const tick=parsePolymarketUsLite(evt.data);
     if(!tick||!this.subscribed.has(tick.marketSlug))return;
     this.parsed++;
+    if(this.flowEnabled){const v=this.flowEntry(tick.marketSlug),last=v.quotes.at(-1);
+      if(!last||Date.now()-Date.parse(last.at)>=30000||tick.marketState!==last.marketState){
+        v.quotes.push({...tick,at:new Date().toISOString()});if(v.quotes.length>120)v.quotes.shift();
+      }
+    }
     const entry={...tick,timeMs:Date.now(),at:new Date().toISOString()};
     if(!shouldSaveBbo(entry,this.lastSaved.get(tick.marketSlug)))return;
     // Collapse high-frequency ticks by contract, not by first-come-wins.
@@ -171,6 +203,27 @@ export class PolymarketMarketStream extends DurableObject {
         this.ctx.waitUntil(this.flush());
       },FLUSH_MS);
     }
+  }
+  flowEntry(slug){
+    if(!this.flow.has(slug)){
+      if(this.flow.size>=MAX_MARKETS){this.flow.delete(this.flow.keys().next().value);this.flowDropped++;}
+      const base=this.subscribed.get(slug);
+      // Identity retains the named selection. NO is never assigned to the other
+      // team without explicit mutually-exclusive two-outcome settlement evidence.
+      this.flow.set(slug,{trades:[],quotes:[],gaps:[],coverageStart:new Date().toISOString(),truncated:false,
+        identity:{sport:base.sport,eventId:base.canonical_event_id,selection:base.side,family:base.market_family,
+          period:base.period,line:base.line,twoTeamWinnerVerified:false}});
+    }
+    return this.flow.get(slug);
+  }
+  async persistFlow(){
+    if(!this.flowEnabled||Date.now()-this.flowLastPersistAt<60000)return;
+    try{
+      const keys=await this.ctx.storage.list({prefix:"flow:"});
+      const active=new Set(this.flow.keys());for(const k of keys.keys())if(!active.has(k.slice(5)))await this.ctx.storage.delete(k);
+      for(const [slug,v] of this.flow)await this.ctx.storage.put("flow:"+slug,{...v,savedAt:new Date().toISOString()});
+      this.flowLastPersistAt=Date.now();this.flowPersistError=null;
+    }catch{this.flowPersistError="bounded-flow-storage-failed";}
   }
   async flush(){
     if(!this.queue.size)return;
@@ -193,11 +246,13 @@ export class PolymarketMarketStream extends DurableObject {
     }
   }
   async alarm(){
+    await this.persistFlow();
     await this.flush();
     // Rotate before Cloudflare outbound keep-alive's 15-minute instance limit.
     if(!this.socket||this.socket.readyState!==WebSocket.OPEN||
         Date.now()-this.connectedAt>=ROTATE_MS||
         Date.now()-(this.lastMessageAt||this.connectedAt)>2*RECONNECT_MS){
+      for(const v of this.flow.values())v.disconnectedAt=new Date().toISOString();
       try{this.socket?.close(1000,"9-minute stream rotation")}catch{}
       this.socket=null;
       await this.connect();
@@ -222,6 +277,10 @@ export default {
       if(!env.FBIS_STREAM_PROXY_TOKEN||request.headers.get('x-fbis-stream-token')!==env.FBIS_STREAM_PROXY_TOKEN)return toJSON({ok:false,error:"unauthorized"},403);
       const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis"));
       return stub.fetch("https://internal/start",{method:"POST"});
+    }
+    if(u.pathname==="/flow"){
+      const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis"));
+      return stub.fetch("https://internal/flow"+u.search);
     }
     if(u.pathname!=="/health")return toJSON({ok:false,error:"not-found"},404);
     const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis"));

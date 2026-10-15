@@ -1,3 +1,4 @@
+import MarketFlowIntelligence from "./MarketFlowIntelligence.jsx";
 import SoccerPinnOdds from "./SoccerPinnOdds.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
 import EventMarkets from "./EventMarkets.jsx";
@@ -305,6 +306,7 @@ export default function CompactGameCard({ game, onOpen }) {
       </div>
 
       <SoccerPinnOdds game={game} className="cgc-status-note" />
+      <MarketFlowIntelligence game={game}/>
       {!isNhl && Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source) && (sportId !== "soccer" || (o.period === "full_game" && o.marketFamily === "moneyline"))) ? (
         <div className="cgc-status-note" aria-label="Polymarket US research market data">
           <strong>POLYMARKET US · MARKET RESEARCH</strong>
