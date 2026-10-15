@@ -5,13 +5,13 @@ const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.
 const bit=v=>v==null?null:(v?1:0);
 async function digest(v){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(String(v)));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 
-export async function persistNormalizedMarketObservation(db,input,{modelProbability=null,pairedAmericanOdds=null,snapshotType="CURRENT",modelId=null,modelVersion=null,collectedAt=null}={}){
+export async function persistNormalizedMarketObservation(db,input,{modelProbability=null,pairedAmericanOdds=null,snapshotType="CURRENT",modelId=null,modelVersion=null,collectedAt=null,deferWrite=false}={}){
  if(!db?.prepare)return {inserted:false,reason:"database-unavailable"};
  const o=priceMarketOffer(normalizeMarketOffer(input),{modelProbability,pairedAmericanOdds});
  const collected=collectedAt||new Date().toISOString(), observed=providerObservationTime(input);
  const natural=[o.source,o.sourceType,o.sport,o.eventId,o.playerId||o.playerName,o.marketFamily,o.statFamily,o.period,o.side,o.line,o.americanOdds,o.decimalOdds,o.contractPrice,o.payoutMultiplier,o.sourceMarketId,o.sourceOutcomeId,observed,collected].join("|");
  const h=await digest(natural),id="nmo_"+h.slice(0,28),raw=JSON.stringify(o.raw??null),rawHash=await digest(raw);
- const res=await db.prepare(`INSERT OR IGNORE INTO normalized_market_observations(
+ const statement=db.prepare(`INSERT OR IGNORE INTO normalized_market_observations(
  id,observation_key,source,source_type,sport,league,canonical_event_id,provider_event_id,event_start_time,home_team,away_team,
  canonical_player_id,provider_player_id,player_name,team,opponent,market_family,stat_family,side,line,american_odds,decimal_odds,
  contract_price,payout_multiplier,standard_or_alt,promo,period,source_market_id,source_outcome_id,source_observed_at,collected_at,
@@ -22,11 +22,22 @@ export async function persistNormalizedMarketObservation(db,input,{modelProbabil
  o.playerId,o.raw?.providerPlayerId||o.playerId,o.playerName,o.team,o.opponent,o.marketFamily,o.statFamily,o.side,finite(o.line),finite(o.americanOdds),finite(o.decimalOdds),
  finite(o.contractPrice),finite(o.payoutMultiplier),o.standardOrAlt,bit(o.promo),o.period,o.sourceMarketId,o.sourceOutcomeId,observed,collected,
  snapshotType,modelId,modelVersion,finite(o.modelProbability),finite(o.fairAmericanPrice),finite(o.rawImpliedProbability),finite(o.noVigMarketProbability),
- finite(o.probabilityEdge),finite(o.expectedReturnPerUnitRisk),bit(o.executionEligible),raw,rawHash,collected).run();
+ finite(o.probabilityEdge),finite(o.expectedReturnPerUnitRisk),bit(o.executionEligible),raw,rawHash,collected);
+ if(deferWrite)return{statement,id,observation:o};
+ const res=await statement.run();
  return {inserted:Number(res?.meta?.changes||res?.changes||0)>0,id,observation:o};
 }
 export async function persistNormalizedMarketBatch(db,offers=[],opts={}){
- let inserted=0;const ids=[];for(const o of offers){const r=await persistNormalizedMarketObservation(db,o,opts);inserted+=r.inserted?1:0;ids.push(r.id)}
+ let inserted=0;const ids=[];
+ if(db?.batch&&db?.prepare){
+  for(let start=0;start<offers.length;start+=100){
+   const prepared=await Promise.all(offers.slice(start,start+100).map(o=>persistNormalizedMarketObservation(db,o,{...opts,deferWrite:true})));
+   const results=await db.batch(prepared.map(r=>r.statement));
+   inserted+=results.reduce((n,r)=>n+Number(r?.meta?.changes||r?.changes||0),0);ids.push(...prepared.map(r=>r.id));
+  }
+  return{attempted:offers.length,inserted,ids};
+ }
+ for(const o of offers){const r=await persistNormalizedMarketObservation(db,o,opts);inserted+=r.inserted?1:0;ids.push(r.id)}
  return {attempted:offers.length,inserted,ids};
 }
 export async function linkMarketDecision(db,{decisionId,observationId,role="ENTRY",decisionTimestamp}={}){

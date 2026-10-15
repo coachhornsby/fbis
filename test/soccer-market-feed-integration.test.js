@@ -63,3 +63,19 @@ test('legacy drawable references reach shadow records with actual draw label and
  const d=soccerShadowMarketSnapshot([{id:'draw',source:'Polymarket US',canonical_event_id:'g',market_family:'unclassified',period:'unspecified',side:'yes',contract_price:.24,collected_at:'2026-10-15T05:59:30Z',raw_payload_json:JSON.stringify(raw)}],context);
  assert.equal(d.references[0].side,'Draw');assert.equal(d.references[0].family,'moneyline');assert.equal(d.references[0].providerObservedAt,null);assert.equal(d.byFamily['1X2'],undefined);
 });
+
+test('archive ingestion retries transient D1 loss with the same snapshot and cannot call paid capture',async()=>{
+ const {ingestPinnArchiveStep}=await import('../scripts/lib/soccerPinnArchiveRetry.mjs');
+ const requests=[];const body={operation:'consume',snapshotId:'existing-paid-capture',batchIndex:25};
+ const r=await ingestPinnArchiveStep({base:'https://fbis.test',secret:'test',body,wait:async()=>{},fetchImpl:async(url,args)=>{requests.push({url,body:JSON.parse(args.body)});return requests.length===1?{ok:false,status:502,json:async()=>({ok:false,error:'D1_ERROR: Network connection lost.'})}:{ok:true,status:200,json:async()=>({ok:true,inserted:100})}}});
+ assert.equal(r.inserted,100);assert.equal(requests.length,2);assert.ok(requests.every(r=>r.url.endsWith('/api/pinnodds-ingest')));assert.deepEqual(requests[0].body,requests[1].body);
+ await assert.rejects(ingestPinnArchiveStep({body:{operation:'capture'}}),/ARCHIVE_INGEST_OPERATION_ONLY/);
+});
+
+test('market batches use bounded D1 transactions with unchanged IDs, clocks and duplicate handling',async()=>{
+ const {persistNormalizedMarketBatch}=await import('../functions/lib/marketObservationLedger.js');const ids=new Set(),sizes=[];let individual=0;
+ const db={prepare(){return{bind(...args){return{args,run:async()=>{individual++;throw Error('must batch')}}}}},async batch(stmts){sizes.push(stmts.length);return stmts.map(s=>{const changed=!ids.has(s.args[0]);ids.add(s.args[0]);assert.equal(s.args[30],now.toISOString());return{meta:{changes:changed?1:0}}})}};
+ const offers=Array.from({length:105},(_,i)=>({source:'PinnOdds',sourceType:'sportsbook',sport:'soccer',eventId:'g',marketFamily:'moneyline',side:'home',decimalOdds:2,sourceMarketId:`m${i}`,sourceOutcomeId:'home',sourceObservedAt:null}));
+ const a=await persistNormalizedMarketBatch(db,offers,{collectedAt:now.toISOString()}),b=await persistNormalizedMarketBatch(db,offers,{collectedAt:now.toISOString()});
+ assert.equal(a.inserted,105);assert.equal(b.inserted,0);assert.deepEqual(a.ids,b.ids);assert.deepEqual(sizes,[100,5,100,5]);assert.equal(individual,0);
+});
