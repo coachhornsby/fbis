@@ -1,27 +1,43 @@
-name: Polymarket storage bounded write diagnostic
+name: Polymarket bounded storage recovery
 on:
   push:
     branches: [fix/polymarket-storage-diagnostics-20261015]
 permissions:
   contents: read
+concurrency:
+  group: fbis-polymarket-payload-compaction
+  cancel-in-progress: true
 jobs:
-  diagnose:
+  compact:
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - {start: 0, end: 125000}
+          - {start: 125000, end: 250000}
+          - {start: 250000, end: 375000}
+          - {start: 375000, end: 9007199254740991}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 180
     steps:
+      - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: '22'
-      - name: Inspect one failing archive batch and expose only safe error details
+      - name: Verify deployed maintenance source
+        run: node scripts/verify-deployment-sha.mjs d582960917eefcc1fa891e505ca4364988112c89
+      - name: Compact existing verified archives in bounded rowid section
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-        run: |
-          node --input-type=module <<'JS'
-          for (const limit of [1,10,250]) {
-            const r=await fetch('https://fbis-myz.pages.dev/api/polymarket-storage',{
-              method:'POST',headers:{'content-type':'application/json','x-harvest-secret':process.env.HARVEST_SECRET},
-              body:JSON.stringify({operation:'compact',apply:true,afterRowid:9383,limit,cutoff:'2026-10-15T07:34:20.682Z'}),signal:AbortSignal.timeout(60000)});
-            const text=await r.text();let v;try{v=JSON.parse(text)}catch{v={error:'NON_JSON_RESPONSE'}};
-            console.log(JSON.stringify({limit,http:r.status,ok:v.ok,error:v.error,examined:v.examined,eligible:v.eligible,reasons:v.reasons}));
-          }
-          JS
+          COMPACTION_APPLY: 'true'
+          COMPACTION_CUTOFF: '2026-10-15T16:12:25.588Z'
+          COMPACTION_START: ${{ matrix.start }}
+          COMPACTION_END: ${{ matrix.end }}
+        run: node scripts/compact-polymarket-storage-shard.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: polymarket-storage-section-${{ matrix.start }}
+          path: /tmp/fbis-polymarket-storage-result.json
+          if-no-files-found: ignore

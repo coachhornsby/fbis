@@ -49,11 +49,11 @@ describe("secret non-exposure", () => {
 });
 
 describe("quota", () => {
-  it("alerts at 50/75/90/100 and designs under 30k", () => {
-    assert.equal(MONTHLY_QUOTA, 30000);
-    assert.deepEqual(quotaAlerts(15000).map((a) => a.threshold), [0.5]);
-    assert.ok(quotaAlerts(30000).some((a) => a.threshold === 1));
-    const h = quotaHealth({ used: 27000 });
+  it("alerts at 50/75/90/100 and designs under Tier 3 cap", () => {
+    assert.equal(MONTHLY_QUOTA, 75000);
+    assert.deepEqual(quotaAlerts(37500).map((a) => a.threshold), [0.5]);
+    assert.ok(quotaAlerts(75000).some((a) => a.threshold === 1));
+    const h = quotaHealth({ used: 67500 });
     assert.equal(h.level, "critical");
     const est = estimateMonthlyCalls();
     assert.equal(est.underCap, true);

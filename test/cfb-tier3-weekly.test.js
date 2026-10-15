@@ -36,7 +36,7 @@ test("private R2 + D1 write without any network HTTP or model promotion",async()
    async batch(stmts){history.push(...stmts);return [{meta:{changes:1}}]}};
  const ARCHIVE={async put(key,raw){saved.push({key,raw})}};
  const input=csv();const snapshot=await parseCfbTier3WeeklyCsv(input);
- const res=await saveCfbTier3WeeklySnapshot({DB,ARCHIVE},snapshot,input);
+ const res=await saveCfbTier3WeeklySnapshot({TIER3_DB:DB,ARCHIVE},snapshot,input);
  assert.equal(res.ok,true);assert.equal(res.networkCalls,0);
  assert.equal(history.length,2);assert.equal(saved.length,1);
  assert.equal(saved[0].raw,input);assert.match(saved[0].key,/licensed\/cfbd\/tier3/);

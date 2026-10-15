@@ -10,7 +10,7 @@ const respond=(payload,status=200)=>new Response(JSON.stringify(payload),
   {status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 export async function onRequestPost({request,env}) {
   if(!isAuthorized(request,env))return respond({ok:false,error:"unauthorized"},401);
-  if(!env?.DB?.batch||!env?.ARCHIVE?.put)
+  if(!env?.TIER3_DB?.batch||!env?.ARCHIVE?.put)
     return respond({ok:false,error:"private-storage-not-configured"},503);
   const type=request.headers.get("content-type")||"";
   if(!type.toLowerCase().startsWith("text/csv"))
@@ -31,14 +31,14 @@ export async function onRequestPost({request,env}) {
 }
 export async function onRequestGet({request,env}) {
   if(!isAuthorized(request,env))return respond({ok:false,error:"unauthorized"},401);
-  if(!env?.DB?.prepare)return respond({ok:false,error:"D1-required"},503);
+  if(!env?.TIER3_DB?.prepare)return respond({ok:false,error:"D1-required"},503);
   const url=new URL(request.url);
   const season=Number(url.searchParams.get("season")||2026);
   const week=Number(url.searchParams.get("week")||7);
   if(!Number.isInteger(season)||!Number.isInteger(week)||week<1||week>20)
     return respond({ok:false,error:"invalid-season-week"},400);
   try {
-    const rows=await env.DB.prepare(`SELECT snapshot_id,source_sha256,season,week,received_at,
+    const rows=await env.TIER3_DB.prepare(`SELECT snapshot_id,source_sha256,season,week,received_at,
      provider_published_at,row_count,feature_count,status,can_influence_projection,
      can_authorize_wager FROM cfb_tier3_training_snapshots
      WHERE season=? AND week=? ORDER BY received_at DESC LIMIT 10`)

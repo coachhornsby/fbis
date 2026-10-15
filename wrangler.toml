@@ -12,6 +12,12 @@ binding = "DB"
 database_name = "fbis"
 database_id = "b50c724c-903b-4241-8ce1-48d931e7a44c"
 
+# Licensed Tier 3 research data is isolated from the full 10GB primary D1.
+[[d1_databases]]
+binding = "TIER3_DB"
+database_name = "fbis-cfb-tier3-research"
+database_id = "3dcddd30-8790-48f0-a6a3-cc3ad9b95295"
+
 [[r2_buckets]]
 binding = "ARCHIVE"
 bucket_name = "fbis-archive"
