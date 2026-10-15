@@ -5,20 +5,16 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: fbis-polymarket-bounded-recovery
+  group: fbis-polymarket-remaining-recovery
   cancel-in-progress: true
 jobs:
   compact:
     strategy:
       fail-fast: false
-      max-parallel: 7
+      max-parallel: 2
       matrix:
         include:
-          - {start: 0, end: 125000}
-          - {start: 125000, end: 200000}
           - {start: 200000, end: 250000}
-          - {start: 250000, end: 375000}
-          - {start: 375000, end: 475000}
           - {start: 475000, end: 525000}
           - {start: 525000, end: 9007199254740991}
     runs-on: ubuntu-latest
