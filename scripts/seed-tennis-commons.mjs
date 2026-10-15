@@ -29,10 +29,11 @@ for(const c of TENNIS_COMMONS_PORTRAIT_BATCH){
     const existingUrl=new URL("https://fbis-myz.pages.dev/api/tennis-portrait");
     existingUrl.searchParams.set("id",c.playerId);
     const live=await fetchWithTimeout(existingUrl.href,{method:"GET"});
-    const isAlreadyApproved=live.ok&&String(live.headers.get("content-type")||"").startsWith("image/jpeg");
+    const liveType=String(live.headers.get("content-type")||"");
+    const isAlreadyApproved=live.ok&&(liveType.startsWith("image/jpeg")||liveType.startsWith("image/webp")||liveType.startsWith("image/png"));
     await live.body?.cancel();
     if(isAlreadyApproved){
-      console.log(JSON.stringify({playerId:c.playerId,player:c.playerName,status:"ALREADY_REGISTERED",source:"LIVE_APPROVED_PORTRAIT"}));
+      console.log(JSON.stringify({playerId:c.playerId,player:c.playerName,status:"ALREADY_REGISTERED",source:"LIVE_APPROVED_PORTRAIT",contentType:liveType}));
       results.push({playerId:c.playerId,status:"ALREADY_REGISTERED"});
       continue;
     }

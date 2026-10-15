@@ -1,13 +1,17 @@
 /** Read-only player evidence for independently verified tennis fixtures.
  * Player data enriches research cards; it never establishes a fixture or wager authority.
+ * Canonical lookup prefers RANKED_ACTIVE library members.
  */
+import { TENNIS_LIBRARY_ACTIVE_ORDER, isTennisLibraryActive } from "./tennisActiveLibrary.js";
 const normalize = value => String(value || "").normalize("NFKD")
   .replace(/[\u0300-\u036f]/g, "").toLowerCase()
   .replace(/[^a-z0-9]+/g, " ").trim();
 const validTour = new Set(["atp", "wta"]);
 function single(rows, key) {
   const matches = (rows || []).filter(x => normalize(x.player_name) === key);
-  return matches.length === 1 ? matches[0] : null;
+  if (matches.length === 1) return matches[0];
+  const active = matches.filter(isTennisLibraryActive);
+  return active.length === 1 ? active[0] : null;
 }
 export async function resolveTennisFixturePlayers(db, fixture) {
   const tour = String(fixture?.tour || "").toLowerCase();
@@ -20,10 +24,10 @@ export async function resolveTennisFixturePlayers(db, fixture) {
   for (const name of names) {
     const key = normalize(name);
     const official = await db.prepare(
-      "SELECT fbis_player_id AS player_id,canonical_name AS player_name,current_rank,ranking_points,country_code,official_source,official_headshot_url AS headshot_url,career_wins,career_losses,official_observed_at AS source_as_of FROM tennis_players WHERE tour=? AND normalized_name=? LIMIT 2"
+      `SELECT fbis_player_id AS player_id,canonical_name AS player_name,current_rank,ranking_points,country_code,official_source,official_headshot_url AS headshot_url,career_wins,career_losses,official_observed_at AS source_as_of,active_state FROM tennis_players WHERE tour=? AND normalized_name=? ORDER BY ${TENNIS_LIBRARY_ACTIVE_ORDER} LIMIT 2`
     ).bind(tour, key).all();
     const canonical = single(official?.results, key);
-    const ambiguousOfficial = (official?.results || []).length > 1;
+    const ambiguousOfficial = !canonical && (official?.results || []).length > 1;
     if (ambiguousOfficial) {
       players.push({ fixtureName: name, matched: false, reason: "AMBIGUOUS_CANONICAL_IDENTITY" });
       continue;

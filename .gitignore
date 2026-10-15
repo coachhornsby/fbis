@@ -44,4 +44,6 @@ service-account*.json
 
 # Local tennis portrait cutout working dirs (publish only ops/tennis-portrait-cutouts/approved)
 sourced/
+sourced-headshots/
 cutouts/
+cutouts-headshots/
