@@ -24,3 +24,21 @@ test('full catalogue pages require continuation and scope substitution is reject
  const receipt=await capturePolymarketPage(env(),{receiptId:'catalogue-0',kind:'catalogue',fetchImpl:async()=>new Response(JSON.stringify({leagues:Array.from({length:20},(_,i)=>({slug:'league-'+i}))})),now:at});assert.equal(receipt.nextOffset,20);
  await assert.rejects(capturePolymarketPage(env(),{receiptId:'bad-scope',kind:'events',slug:'mlb',sport:'nfl',now:at}),/INVALID_LEAGUE_SCOPE/);
 });
+
+
+test('bulk page ingestion defers near the D1 cap without deleting archives or retiming observations',async()=>{
+ const {onRequestPost}=await import('../functions/api/polymarket-pages.js');
+ let probes=0,archiveReads=0;
+ const env={HARVEST_SECRET:'capacity-test-secret',DB:{prepare(sql){assert.equal(sql,'SELECT 1 AS healthy');return{bind(){return{async all(){probes++;return{results:[{healthy:1}],meta:{size_after:9_900_000_000}}}}}}}},ARCHIVE:{async get(){archiveReads++;throw Error('must not consume while reserved')}}};
+ const request=new Request('https://fbis.test/api/polymarket-pages',{method:'POST',headers:{'content-type':'application/json','x-harvest-secret':env.HARVEST_SECRET},body:JSON.stringify({operation:'consume',receiptId:'existing-receipt',batchIndex:0})});
+ const response=await onRequestPost({env,request}),body=await response.json();
+ assert.equal(response.status,409);assert.equal(body.error,'BULK_WRITE_DEFERRED_CAPACITY');assert.equal(body.archiveRetained,true);assert.equal(body.canAuthorizeWager,false);assert.equal(probes,1);assert.equal(archiveReads,0);
+});
+
+
+test('bulk ingestion cannot assume spare capacity when D1 omits size metadata',async()=>{
+ const {onRequestPost}=await import('../functions/api/polymarket-pages.js');
+ const env={HARVEST_SECRET:'capacity-test-secret',DB:{prepare(){return{bind(){return{async all(){return{results:[{healthy:1}],meta:{}}}}}}}}};
+ const request=new Request('https://fbis.test/api/polymarket-pages',{method:'POST',headers:{'content-type':'application/json','x-harvest-secret':env.HARVEST_SECRET},body:JSON.stringify({operation:'consume',receiptId:'existing-receipt',batchIndex:0})});
+ const response=await onRequestPost({env,request});assert.equal(response.status,503);assert.equal((await response.json()).error,'DATABASE_CAPACITY_UNKNOWN');
+});

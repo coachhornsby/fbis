@@ -42,17 +42,18 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          curl -fsS --max-time 120 -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' -d '{"operation":"fixtures"}' "$BASE/api/soccer-market-reconcile" > artifacts/fixtures.json
+          curl -fsS --retry 4 --retry-all-errors --retry-delay 3 --max-time 120 -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' -d '{"operation":"fixtures"}' "$BASE/api/soccer-market-reconcile" > artifacts/fixtures.json
           jq -e '.ok and (.fixtures|length)>0' artifacts/fixtures.json
           cursor=''
-          for page in $(seq 1 100); do
+          for page in $(seq 1 250); do
             body=$(jq -nc --arg cursor "$cursor" '{cursor:$cursor}')
-            curl -fsS --max-time 100 -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' -d "$body" "$BASE/api/soccer-market-reconcile" > "artifacts/page-$page.json"
+            curl -fsS --retry 4 --retry-all-errors --retry-delay 3 --max-time 100 -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' -d "$body" "$BASE/api/soccer-market-reconcile" > "artifacts/page-$page.json"
             jq -c '{ok,examined,matched,inserted,nextCursor,reasons,fixtureCount,originalClocksPreserved,paidProviderCalls}' "artifacts/page-$page.json"
             jq -e '.ok and .originalClocksPreserved and .paidProviderCalls==0' "artifacts/page-$page.json" >/dev/null
             cursor=$(jq -r '.nextCursor // empty' "artifacts/page-$page.json")
             [ -n "$cursor" ] || break
           done
+          [ -z "$cursor" ] || { echo 'Reconciliation page budget exhausted'; exit 1; }
       - name: One-shot shadow adapter proof after release
         if: github.event_name != 'schedule'
         shell: bash
@@ -60,7 +61,7 @@ jobs:
           set -euo pipefail
           day=$(TZ=America/Chicago date -d '+2 days' +%F)
           for league in ger.1 fra.1 esp.1; do
-            curl -fsS --max-time 120 -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/soccer-prospective-shadow?mode=snapshot&competition=$league&date=$day" > "artifacts/shadow-$league.json"
+            curl -fsS --retry 4 --retry-all-errors --retry-delay 3 --max-time 120 -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/soccer-prospective-shadow?mode=snapshot&competition=$league&date=$day" > "artifacts/shadow-$league.json"
             jq -e '.ok and .researchOnly and (.canQualify==false) and (.canAuthorize==false)' "artifacts/shadow-$league.json"
           done
       - uses: actions/upload-artifact@v4.6.2

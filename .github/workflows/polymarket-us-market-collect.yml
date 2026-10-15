@@ -56,6 +56,8 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
+      - name: Install locked collector dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Polymarket US source/identity/governance regression tests
         run: node --test test/polymarket-us-readonly.test.js test/polymarket-board.test.js test/polymarket-us-signed-ws.test.js test/polymarket-pages.test.js
       - name: Verify production deployment before new scheduled collector

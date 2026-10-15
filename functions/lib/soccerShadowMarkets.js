@@ -41,7 +41,7 @@ export function soccerShadowMarketSnapshot(rows=[],{eventId,kickoff,snapshotAt}=
 export async function loadSoccerShadowMarkets(db,games,{snapshotAt}={}){
  const byId=new Map();if(!db?.prepare)return byId;
  for(const game of games||[]){
-  const rows=(await db.prepare(`WITH latest AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY source,source_market_id,source_outcome_id,period,side,line ORDER BY collected_at DESC,CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,id DESC) rn FROM normalized_market_observations WHERE sport='soccer' AND canonical_event_id=? AND source IN ('PinnOdds','Polymarket US','Polymarket US WebSocket') AND collected_at BETWEEN ? AND ? AND market_family IN ('moneyline','total','btts','spread','unclassified')) SELECT * FROM latest WHERE rn=1`).bind(String(game.id),new Date(Date.parse(snapshotAt)-7*3600000).toISOString(),snapshotAt).all())?.results||[];
+  const rows=(await db.prepare(`WITH latest AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY source,source_market_id,source_outcome_id,period,side,line ORDER BY collected_at DESC,CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,id DESC) rn FROM normalized_market_observations INDEXED BY idx_norm_market_event_time WHERE sport='soccer' AND canonical_event_id=? AND source IN ('PinnOdds','Polymarket US','Polymarket US WebSocket') AND collected_at BETWEEN ? AND ? AND market_family IN ('moneyline','total','btts','spread','unclassified')) SELECT * FROM latest WHERE rn=1`).bind(String(game.id),new Date(Date.parse(snapshotAt)-7*3600000).toISOString(),snapshotAt).all())?.results||[];
   byId.set(String(game.id),soccerShadowMarketSnapshot(rows,{eventId:String(game.id),kickoff:game.start,snapshotAt}));
  }
  return byId;

@@ -1,0 +1,45 @@
+name: Polymarket final bounded runner recovery
+on:
+  push:
+    branches: [fix/polymarket-storage-diagnostics-20261015]
+    paths: [.github/workflows/polymarket-storage-resume-runner.yml]
+permissions:
+  contents: read
+concurrency:
+  group: fbis-polymarket-final-runner
+  cancel-in-progress: true
+jobs:
+  compact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - name: Verify current deployed maintenance source
+        run: |
+          VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs > /tmp/storage-live.json
+          node --input-type=module <<'JS'
+          import {readFile} from 'node:fs/promises';
+          const sha=JSON.parse(await readFile('/tmp/storage-live.json','utf8')).productionSha;
+          if(!/^[a-f0-9]{40}$/.test(sha))throw Error('Live SHA missing');
+          for(const path of ['functions/lib/polymarketPayloadArchive.js','functions/api/polymarket-storage.js']){
+            const r=await fetch('https://raw.githubusercontent.com/coachhornsby/fbis/'+sha+'/'+path);
+            if(!r.ok||await r.text()!==await readFile(path,'utf8'))throw Error('Deployed maintenance source mismatch');
+          }
+          console.log('Verified deployed maintenance source at '+sha);
+          JS
+      - name: Resume first remaining source candidate with exact archive proofs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          COMPACTION_START_ROWID: '471570'
+        run: node scripts/compact-polymarket-storage-runner.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: polymarket-storage-final-recovery
+          path: /tmp/fbis-polymarket-storage-result.json

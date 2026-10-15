@@ -1,1 +1,1 @@
-Resume verified lossless compaction against current production. 2026-10-15T16:10Z
+Run lossless archive compaction outside Pages CPU limits and restore temporary indexes.
