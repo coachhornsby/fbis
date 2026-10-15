@@ -23,7 +23,7 @@ let cursor=start,batches=0;result.startRowid=start;result.endRowid=end;
 let failure=null;
 try{
 while(result.examined<maxRows){
- const value=await call({operation:'compact',apply,cutoff,afterRowid:cursor,limit:Math.min(500,maxRows-result.examined)});
+ const value=await call({operation:'compact',apply,cutoff,afterRowid:cursor,limit:Math.min(250,maxRows-result.examined)});
  result.examined+=value.examined;result.eligible+=value.eligible;result.updated+=value.updated;result.bytesRemoved+=value.bytesRemoved;result.potentialBytesSaved+=value.potentialPayloadBytesSaved;
  for(const [key,n] of Object.entries(value.reasons||{}))result.reasons[key]=(result.reasons[key]||0)+n;
  if(apply&&value.verificationSamples?.length&&(result.restoreChecks===0||batches%25===0||value.nextCursor===null)){

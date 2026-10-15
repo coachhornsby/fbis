@@ -14,7 +14,10 @@ jobs:
       max-parallel: 2
       matrix:
         include:
-          - {start: 200000, end: 250000}
+          - {start: 123249, end: 125000}
+          - {start: 199908, end: 200000}
+          - {start: 471570, end: 475000}
+          - {start: 200553, end: 250000}
           - {start: 475000, end: 525000}
           - {start: 525000, end: 9007199254740991}
     runs-on: ubuntu-latest
