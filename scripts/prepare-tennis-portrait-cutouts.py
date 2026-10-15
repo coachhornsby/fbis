@@ -14,7 +14,7 @@ import json
 import re
 from pathlib import Path
 
-PLAYER_ID = re.compile(r"^tennis:(?:wta|atp):[a-z0-9:_-]+$", re.I)
+PLAYER_ID = re.compile(r"^tennis:(?:wta|atp):[a-z0-9:_ -]+$", re.I)
 EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 
 def cutout(image_bytes: bytes, max_width=960):

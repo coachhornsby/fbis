@@ -13,12 +13,16 @@ function db({canonical={},bank={}}={}) {
 }
 test("verified fixture enriches from canonical WTA bank without changing authority",async()=>{
  const result=await resolveTennisFixturePlayers(db({canonical:{
-  "jessica pegula":[{player_id:"wta:pegula",player_name:"Jessica Pegula",current_rank:5,career_wins:300,career_losses:150}],
+  "jessica pegula":[{player_id:"wta:pegula",player_name:"Jessica Pegula",current_rank:5,career_wins:300,career_losses:150,headshot_url:"https://www.wtatennis.com/blocked.jpg"}],
   "jelena ostapenko":[{player_id:"wta:ostapenko",player_name:"Jelena Ostapenko",current_rank:20}]
+ },bank:{
+  "jessica pegula":[{player_id:"bank:pegula",player_name:"Jessica Pegula",current_rank:5,headshot_url:"https://example.invalid/bank.jpg"}]
  }}),fixture);
  assert.equal(result.verified,true);
  assert.equal(result.players[0].fbisPlayerId,"wta:pegula");
  assert.equal(result.players[0].careerWins,300);
+ // Rights-gated portraits only — official/bank URLs must never surface.
+ assert.equal(result.players[0].headshotUrl,null);
  assert.equal(result.players[1].headshotUrl,null);
  assert.equal(result.canAuthorizeWager,false);
  assert.equal(result.canQualify,false);

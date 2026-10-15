@@ -1,7 +1,8 @@
 // Rights-gated Tennis portraits. A discovered URL or official-site photo is not a grant.
 // Use only manually approved R2 assets tied to an exact canonical player identity.
-const ID = /^[a-zA-Z0-9:_-]{1,160}$/;
-const KEY = /^tennis\/portraits\/([a-zA-Z0-9:_-]+)\/([a-zA-Z0-9._-]+)\.(webp|png|jpg|jpeg)$/;
+// ATP research IDs use spaces (tennis:atp:research:alex de minaur).
+const ID = /^[a-zA-Z0-9:_ -]{1,160}$/;
+const KEY = /^tennis\/portraits\/([a-zA-Z0-9:_ -]+)\/([a-zA-Z0-9._-]+)\.(webp|png|jpg|jpeg)$/;
 const MIME = new Set(["image/webp", "image/png", "image/jpeg"]);
 export const tennisPortraitUrl = id => ID.test(String(id||""))
   ? `/api/tennis-portrait?id=${encodeURIComponent(id)}` : null;

@@ -29,12 +29,24 @@ for(const c of TENNIS_COMMONS_PORTRAIT_BATCH){
     const existingUrl=new URL("https://fbis-myz.pages.dev/api/tennis-portrait");
     existingUrl.searchParams.set("id",c.playerId);
     const live=await fetchWithTimeout(existingUrl.href,{method:"GET"});
-    const isAlreadyApproved=live.ok&&String(live.headers.get("content-type")||"").startsWith("image/jpeg");
+    const liveType=String(live.headers.get("content-type")||"");
+    const isAlreadyApproved=live.ok&&(liveType.startsWith("image/jpeg")||liveType.startsWith("image/webp")||liveType.startsWith("image/png"));
     await live.body?.cancel();
     if(isAlreadyApproved){
-      console.log(JSON.stringify({playerId:c.playerId,player:c.playerName,status:"ALREADY_REGISTERED",source:"LIVE_APPROVED_PORTRAIT"}));
-      results.push({playerId:c.playerId,status:"ALREADY_REGISTERED"});
-      continue;
+      // Probe import for curated source drift (re-crop / headshot replace) without Commons download.
+      const probe=await fetchWithTimeout(endpoint,{method:"POST",headers:{"x-harvest-secret":secret,"content-type":"application/json"},body:JSON.stringify({playerId:c.playerId})});
+      const probed=await probe.json().catch(()=>({reason:"INVALID_PROBE_RESPONSE"}));
+      if(probed.status==="ALREADY_REGISTERED"){
+        console.log(JSON.stringify({playerId:c.playerId,player:c.playerName,status:"ALREADY_REGISTERED",source:"LIVE_APPROVED_PORTRAIT",contentType:liveType}));
+        results.push({playerId:c.playerId,status:"ALREADY_REGISTERED"});
+        continue;
+      }
+      if(probed.status!=="NEEDS_REPLACE"){
+        console.log(JSON.stringify({playerId:c.playerId,player:c.playerName,status:"SOURCE_OR_TRANSFER_FAILED",reason:probed.status||probed.reason||"PROBE_FAILED",http:probe.status}));
+        results.push({playerId:c.playerId,status:"SOURCE_OR_TRANSFER_FAILED",reason:probed.status||probed.reason||"PROBE_FAILED"});
+        continue;
+      }
+      console.log(JSON.stringify({playerId:c.playerId,player:c.playerName,status:"NEEDS_REPLACE",previous:probed.previous,next:probed.next}));
     }
     await new Promise(resolve=>setTimeout(resolve,1000)); // spare Wikimedia upstream quota
     const api=new URL("https://commons.wikimedia.org/w/api.php");
@@ -73,9 +85,10 @@ for(const c of TENNIS_COMMONS_PORTRAIT_BATCH){
   }
 }
 const counts={
-  imported:results.filter(x=>x.status==="IMPORTED").length,
+  imported:results.filter(x=>x.status==="IMPORTED"||x.status==="REPLACED").length,
+  replaced:results.filter(x=>x.status==="REPLACED").length,
   already:results.filter(x=>x.status==="ALREADY_REGISTERED").length,
-  rejected:results.filter(x=>x.status!=="IMPORTED"&&x.status!=="ALREADY_REGISTERED").length,
+  rejected:results.filter(x=>x.status!=="IMPORTED"&&x.status!=="REPLACED"&&x.status!=="ALREADY_REGISTERED").length,
   total:results.length
 };
 console.log("TENNIS_COMMONS_SEED_SUMMARY "+JSON.stringify(counts));

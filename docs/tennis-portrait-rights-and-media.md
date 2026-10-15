@@ -55,3 +55,34 @@ The initial production transfer confirmed **10** rights-approved portrait record
 Before consulting Wikimedia API for a source already imported, `scripts/seed-tennis-commons.mjs` checks the live approved portrait endpoint and skips it when it returns verified JPEG media. All newly imported candidates still require live Commons title, photographer, license, trusted-domain and JPEG checks, and a SHA-256 verified upload. Wikimedia may return HTTP 429; failed sources remain silhouettes and must not be described as loaded.
 
 The default cards keep the matchup, flag background, ranking, FBIS win probabilities and dropdown for detailed intelligence. Missing market prices and the board's separate DEGRADED provider health remain outside the portrait pipeline.
+
+## Reviewed transparent cutouts — 2026-10-15
+
+After the 17 APPROVED Commons JPEGs were live, operators staged local rembg WebP cutouts under `ops/tennis-portrait-cutouts/approved/` (canonical `{fbis_player_id}.webp`). Visual review is recorded in `ops/tennis-portrait-cutouts/review-manifest.json`.
+
+`POST /api/tennis-portrait-cutout` (HARVEST_SECRET) replaces only already-APPROVED public rows: RIFF/WEBP + SHA-256 gate, R2 key `tennis/portraits/{id}/approved-cutout.webp`, `content_type=image/webp`. It does not import new players or grant rights. Merge-trigger `ops/triggers/tennis-portrait-cutout-publish` runs the publish workflow after production has the cutout route SHA.
+
+Verify each updated ID returns `image/webp` from `GET /api/tennis-portrait?id=...`, and that Tennis cards show one large flag with the transparent cutout (silhouette only where no approved asset exists).
+
+Prefer head-and-shoulders / cropped Commons files (not distant full-body action). Leylah Fernandez was re-sourced to `Leylah Fernandez (2025 DC Open) 03 (cropped).jpg` for that reason.
+
+## Active / ranked library only — 2026-10-15
+
+The product athlete library is **ranked-active**, not the full historical WTA directory.
+
+- `active_state='RANKED_ACTIVE'` (or a positive `current_rank`) = in the active library
+- `active_state='LIBRARY_INACTIVE'` = retained for provenance, excluded from default library surfaces
+- Migration `0105_tennis_active_ranked_library.sql` marks membership from current rank
+- WTA official ingest defaults to `WTA_LIBRARY_MODE=ranked_only`
+- WTA ranked reconcile demotes players missing from the current ranking date to `LIBRARY_INACTIVE`
+- ATP research seed only inserts bank rows with a current rank and keeps `active_state` aligned
+
+Portrait expansion for active board players continues through curated Commons headshot-style crops in `tennisCommonsPortraitBatch.js`, then `[tennis-commons-seed]` + cutout publish. ATP/WTA/PrizePicks scrapes remain disallowed.
+
+## Active library portrait expansion — 2026-10-15 (batch 59)
+
+The curated Commons manifest now covers **59** exact canonical identities (WTA official IDs + ATP research bank IDs). Additions prioritize headshot-style cropped files for ranked-active players. ATP research IDs may contain spaces (`tennis:atp:research:jannik sinner`); portrait URL/key validation accepts them.
+
+When a curated `sourceUrl` changes for an already-APPROVED row (Leylah Fernandez distant full-body → `Leylah Fernandez (2025 DC Open) 03 (cropped).jpg`), import returns `NEEDS_REPLACE` on probe and `REPLACED` after a verified byte transfer. Seed probes before skipping live portraits so re-crops publish.
+
+Board players without a rights-cleared Commons crop (for example Matilde Jorge, Joelle Steur, Ane Mintegi Del Olmo on the 2026-10-15 slate) remain silhouettes — never substitute another athlete's photo.
