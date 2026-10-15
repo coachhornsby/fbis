@@ -1,0 +1,117 @@
+import {loadCfbDeepFeatures} from "../functions/lib/cfbDeepFeed.js";
+import {indexCfbRatings} from "../functions/lib/collegeJobsCore.js";
+import {test} from "node:test";
+import assert from "node:assert/strict";
+import {reserveCfbdRequest,completeCfbdRequest,cfbdRequestHash} from "../functions/lib/cfbCfbdAcquisition.js";
+import {fetchWithCfbBackoff} from "../functions/lib/cfbProviderBackoff.js";
+import {resetCacheMem} from "../functions/lib/cache.js";
+const URL="https://api.collegefootballdata.com/ppa/teams?year=2026";
+function mockDb() {
+  const seen = new Set();
+  const receipts = [];
+  const control = [];
+  return {
+    receipts,
+    control,
+    prepare(sql) {
+      return {
+        bind(...params) {
+          return {
+            async run() {
+              if (sql.includes("INSERT OR IGNORE INTO cfb_cfbd_acquisition_receipts")) {
+                const unique = params[0] + "|" + params[1];
+                if (seen.has(unique)) return { meta: { changes: 0 } };
+                seen.add(unique);
+                receipts.push(params);
+                return { meta: { changes: 1 } };
+              }
+              control.push({ sql, params });
+              return { meta: { changes: 1 } };
+            }
+          };
+        }
+      };
+    }
+  };
+}
+test("owner authorization is required for D1-bound production CFBD HTTP",async()=>{
+  resetCacheMem();
+  const db=mockDb();let network=0;
+  const transport=async()=>{network++;return Response.json([])};
+  const res=await fetchWithCfbBackoff(URL,{}, {DB:db},transport);
+  assert.equal(res.status,503);
+  assert.equal(network,0);
+  assert.equal(db.receipts.length,0);
+});
+test("no D1 means production authorization fails closed",async()=>{
+  const permit=await reserveCfbdRequest({cfbdNetworkAuthorized:true},URL);
+  assert.equal(permit.allowed,false);
+  assert.equal(permit.reason,"CFBD_D1_REQUIRED");
+});
+test("one atomic D1 receipt per endpoint/query per Chicago partition",async()=>{
+  const db=mockDb(); const env={DB:db,cfbdNetworkAuthorized:true};
+  const a=await reserveCfbdRequest(env,URL,Date.parse("2026-10-15T12:30:00Z"));
+  const b=await reserveCfbdRequest(env,URL,Date.parse("2026-10-15T12:32:00Z"));
+  assert.equal(a.allowed,true);
+  assert.equal(b.allowed,false);
+  assert.equal(db.receipts.length,1);
+  const hash1=await cfbdRequestHash("https://api.collegefootballdata.com/ppa/teams?year=2026&seasonType=regular");
+  const hash2=await cfbdRequestHash("https://api.collegefootballdata.com/ppa/teams?seasonType=regular&year=2026");
+  assert.equal(hash1.hash,hash2.hash);
+});
+test("429 receipt records durable cooldown and preserves reserved attempt",async()=>{
+  const db=mockDb();const env={DB:db,cfbdNetworkAuthorized:true};
+  const permit=await reserveCfbdRequest(env,URL);
+  await completeCfbdRequest(env,permit,429,new Response("limited",{status:429,headers:{"Retry-After":"120","X-CallLimit-Remaining":"5"}}));
+  assert.ok(db.control.some(x=>x.sql.includes("last_429_at")));
+  assert.ok(db.control.some(x=>x.sql.includes("request_status")));
+  assert.equal(db.receipts.length,1);
+});
+test("different production Worker instances cannot replay same permit",async()=>{
+  const db=mockDb();const env={DB:db,cfbdNetworkAuthorized:true};
+  // Separate logical calls to the durable reservation store.
+  const first=await reserveCfbdRequest(env,URL);
+  const second=await reserveCfbdRequest({...env},URL);
+  assert.equal(first.allowed,true);assert.equal(second.allowed,false);
+});
+
+test("weekly CFBD advanced sources become point-in-time research team features",()=>{
+  const catalog=indexCfbRatings({
+    "/ratings/sp":[{team:"Ohio State",rating:23.5,offense:{rating:41},defense:{rating:15}}],
+    "/ratings/fpi":[{team:"Ohio State",fpi:19.4}],
+    "/ppa/teams":[{team:"Ohio State",offense:{overall:0.34},defense:{overall:-0.12}}],
+    "/stats/season/advanced":[{team:"Ohio State",offense:{successRate:0.48},defense:{successRate:0.33}}],
+    "/talent":[{school:"Ohio State",talent:970}],
+    "/player/returning":[{team:"Ohio State",percentPPA:0.65}],
+  });
+  const row=Object.values(catalog.byCanonicalId)[0];
+  assert.ok(row,"canonical team must match");
+  assert.equal(row.sp,23.5);
+  assert.equal(row.fpi,19.4);
+  assert.equal(row.ppaOff,0.34);
+  assert.equal(row.defensiveSuccessRate,0.33);
+  assert.equal(row.talent,970);
+  assert.equal(row.returningPpa,0.65);
+  assert.equal(catalog.coverage["/ppa/teams"],1);
+});
+
+test("board deep features consume persisted CFBD without contacting the provider",async()=>{
+  resetCacheMem();
+  let network=0;
+  const db={prepare(){return {bind(){return {async all(){return {results:[{
+    team_id:"osu",as_of:"2026-10-13T13:00:00.000Z",
+    features_json:JSON.stringify({team:"Ohio State",ppaOff:0.27,ppaDef:-0.11,
+      offensiveSuccessRate:0.47,defensiveSuccessRate:0.33,talent:966})
+  }]};}};}};}};
+  const env={DB:db,CFBD_API_KEY:"offline-key",cfbdCacheOnly:true};
+  const result=await loadCfbDeepFeatures(env,{
+    now:Date.parse("2026-10-15T14:00:00Z"),
+    fetchFn:async()=>{network++;throw Error("no network");}
+  });
+  assert.equal(network,0);
+  assert.equal(result.meta.source,"cfbd-weekly-persisted-d1");
+  assert.equal(result.meta.records,1);
+  const rec=Object.values(result.bySchool)[0];
+  assert.equal(rec.offensePpa,0.27);
+  assert.equal(rec.successRateAllowed,0.33);
+});

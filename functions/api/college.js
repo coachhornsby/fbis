@@ -79,8 +79,15 @@ export async function onRequestGet(context) {
     // harvester. All other operations can read durable / cached CFBD facts,
     // but cannot spend provider quota (even for an accidental old cron).
     const runEnv = envFrom(context);
-    runEnv.cfbdCacheOnly = job !== "cfb-postgame-harvest";
-    const payload = await runCollegeJob(job, runEnv, parseCollegeJobOptions(context.request));
+    const options = parseCollegeJobOptions(context.request);
+    const scheduledOwner = options.trigger === "schedule" &&
+      ["cfb-postgame-harvest","cfb-current-refresh"].includes(job);
+    const manualOwner = options.trigger === "workflow_dispatch" && options.operatorApproved &&
+      ["cfb-postgame-harvest","cfb-current-refresh","cfb-reference-backfill",
+       "cfb-qb-transfer-refresh","cfbd-endpoint-audit"].includes(job);
+    runEnv.cfbdNetworkAuthorized = scheduledOwner || manualOwner;
+    runEnv.cfbdCacheOnly = !runEnv.cfbdNetworkAuthorized;
+    const payload = await runCollegeJob(job, runEnv, options);
     payload.keyHealth = collegeKeyHealth(context.env);
     return new Response(JSON.stringify(payload), {
       status: httpStatusForJob(payload.status),

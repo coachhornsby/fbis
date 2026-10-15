@@ -554,7 +554,7 @@ describe("ESPN scoreboard fallback", () => {
     }
   });
 
-  it("falls back to CFBD games when ESPN endpoints fail for CFB", async () => {
+  it("blocks CFBD network fallback when ESPN endpoints fail for CFB", async () => {
     const realFetch = globalThis.fetch;
     globalThis.fetch = async (url) => {
       const s = String(url);
@@ -578,17 +578,16 @@ describe("ESPN scoreboard fallback", () => {
       return new Response("not found", { status: 404 });
     };
     try {
-      const slate = await buildSlate("cfb", "2026-09-03", { CFBD_API_KEY: "x" });
-      assert.equal(Array.isArray(slate.games), true);
-      assert.equal(slate.games.length, 1);
-      assert.equal(slate.games[0].home.name, "Ohio State");
-      assert.equal(slate.games[0].away.name, "Texas");
+      await assert.rejects(
+        () => buildSlate("cfb", "2026-09-03", { CFBD_API_KEY: "x" }),
+        /CFBD games 503/
+      );
     } finally {
       globalThis.fetch = realFetch;
     }
   });
 
-  it("finds the next CFB game date from CFBD season schedule", async () => {
+  it("blocks CFBD next-date lookup outside acquisition owner", async () => {
     const realFetch = globalThis.fetch;
     globalThis.fetch = async (url) => {
       if (String(url).startsWith("https://api.collegefootballdata.com/games")) {
@@ -600,8 +599,10 @@ describe("ESPN scoreboard fallback", () => {
       return new Response("denied", { status: 403 });
     };
     try {
-      const next = await findNextCfbdGameDate("2026-08-28", "x", 14);
-      assert.equal(next, "2026-08-28");
+      await assert.rejects(
+        () => findNextCfbdGameDate("2026-08-28", "x", 14),
+        /CFBD games 503/
+      );
     } finally {
       globalThis.fetch = realFetch;
     }
