@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
 import {compactArchivedRaw,restoreArchivedRaw,payloadHash,receiptKey,compactPolymarketPayloadBatch} from '../functions/lib/polymarketPayloadArchive.js';
 import {polymarketUsMarketFamily,polymarketUsPeriod,polymarketUsSideLabel} from '../functions/lib/polymarketUs.js';
 import {onRequestPost} from '../functions/api/polymarket-storage.js';
@@ -9,6 +10,14 @@ const rawKey='market-sources/polymarket-us/raw/'+'a'.repeat(64)+'.json';
 const raw={receiptId:'fixture-123',rawSnapshotKey:rawKey,providerMarketId:'market1',providerOutcomeId:'yes1',providerTitle:'Home vs Away',contractLong:true,sourceObservedAt:null,quoteProvenance:'collector-capture-only',providerMarket:{id:'market1',sportsMarketType:'soccer_team_full_time_winner',sportsMarketTypeV2:'SPORTS_MARKET_TYPE_MONEYLINE',title:'Home (Reg. Time)',description:'Full settlement rules remain available',marketSides:[{id:'yes1',quote:.6,long:true,team:{name:'Home'},branding:'x'.repeat(2000)},{id:'no1',quote:.4,long:false,team:{name:'Away'},branding:'y'.repeat(2000)}]},providerSide:{id:'yes1',long:true,team:{name:'Home'},quote:.6}};
 const receipt={receiptId:raw.receiptId,rawKey,offers:[{raw}]};
 const archive=(r=receipt)=>({async get(k){assert.equal(k,receiptKey(raw.receiptId));return r?{size:JSON.stringify(r).length,async json(){return structuredClone(r)}}:null;}});
+test('sparse player index preserves rows and supports known-player lookups after repeated migration',()=>{
+ const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE schema_migrations(id TEXT PRIMARY KEY,applied_at TEXT); CREATE TABLE normalized_market_observations(id TEXT PRIMARY KEY,sport TEXT,canonical_player_id TEXT,stat_family TEXT,collected_at TEXT)');
+ db.prepare('INSERT INTO normalized_market_observations VALUES(?,?,?,?,?)').run('game','nba',null,'spread','2026-10-15');db.prepare('INSERT INTO normalized_market_observations VALUES(?,?,?,?,?)').run('player','nba','p1','points','2026-10-15');
+ const migration=readFileSync(new URL('../migrations/0106_sparse_normalized_player_index.sql',import.meta.url),'utf8');db.exec(migration);db.exec(migration);
+ const query="SELECT id FROM normalized_market_observations WHERE sport='nba' AND canonical_player_id='p1' AND stat_family='points'";
+ assert.match(db.prepare('EXPLAIN QUERY PLAN '+query).all().map(x=>x.detail).join(' '),/idx_norm_market_player/);
+ assert.equal(db.prepare(query).get().id,'player');assert.equal(db.prepare('SELECT COUNT(*) n FROM normalized_market_observations').get().n,2);assert.match(db.prepare("SELECT sql FROM sqlite_schema WHERE name='idx_norm_market_player'").get().sql,/WHERE canonical_player_id IS NOT NULL/);db.close();
+});
 test('authorized receipt transport streams original bytes without parsing and rejects arbitrary keys',async()=>{
  let reads=0;const text=JSON.stringify(receipt),env={HARVEST_SECRET:'test',ARCHIVE:{async get(k){reads++;assert.equal(k,receiptKey(raw.receiptId));return {size:Buffer.byteLength(text),body:new Response(text).body,json(){throw Error('must not parse in Pages')}}}}};
  const request=(body,auth=true)=>new Request('https://fbis/api/polymarket-storage',{method:'POST',headers:auth?{'x-harvest-secret':'test'}:{},body:JSON.stringify(body)});
