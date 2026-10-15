@@ -49,3 +49,18 @@ A newer maintenance trigger supersedes an older run. This is safe because source
 evidence is already archived, every row update uses compare-and-swap, and a new
 pass skips compacted records. Production deployment jobs retain their own existing
 serialization; only this resumable maintenance workflow cancels obsolete runs.
+
+## One-shot runner
+
+Large historical receipts can exceed Pages CPU budgets even when they fit in
+streaming memory. The one-shot workflow runs archive parsing and the unchanged
+source-hash proof on its GitHub runner. Authorized `operation: receipt` streams
+only allowlisted existing receipt bodies (at most 128 MiB) from R2 without parsing
+them in Pages. No public archive access is added.
+
+The runner reads bounded D1 pages through the existing Cloudflare API credential,
+updates only payload JSON/hash with compare-and-swap, verifies source restoration,
+and records its cutoff and maximum rowid. It uploads no archive objects and deletes
+no observations. Its final step rebuilds the two optional normalized-ledger indexes
+that may be temporarily removed to bootstrap a full database. Completion requires
+both indexes to exist. This is a maintenance runner, not a new recurring service.
