@@ -31,7 +31,7 @@ jobs:
           }
           console.log('Verified deployed maintenance source at '+sha);
           JS
-      - name: Resume first remaining source candidate with exact archive proofs
+      - name: Finish remaining candidates with bounded REST batches and exact source proofs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

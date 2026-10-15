@@ -60,8 +60,8 @@ try{
    if(reason)result.reasons[reason]=(result.reasons[reason]||0)+1;
   }
   let proof=null;
-  for(let i=0;i<updates.length;i+=100){
-   const group=updates.slice(i,i+100);
+  for(let i=0;i<updates.length;i+=500){
+   const group=updates.slice(i,i+500);
    const sql=group.map(compactUpdateSql).join('\n');
    const written=await query(sql);
    if(written.length!==group.length)throw Error('D1_RESULT_ALIGNMENT_MISMATCH');
