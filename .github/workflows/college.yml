@@ -255,11 +255,12 @@ jobs:
           elif [ "$JOB" = "model-train-validate" ]; then
             call model-train-validate "${EXTRA}"
           elif [ "$EVENT_NAME" = "schedule" ]; then
-            # Keep sequential for CFBD quota; each call has its own bounded retries.
-            call cfb-current-refresh "" true
-            call cfb-pregame-freeze "" true
-            call cbb-current-refresh "" true
+            # Exactly ONE daily CFB acquisition job (07:30 CDT / 06:30 CST).
+            # Never call all six rating endpoints, pregame freeze and postgame
+            # as separate quota-consuming daily jobs.
             call cfb-postgame-harvest "" true
+            # Independent basketball/health tasks do not spend CFBD quota.
+            call cbb-current-refresh "" true
             call cbb-postgame-harvest "" true
             call college-health
           else
