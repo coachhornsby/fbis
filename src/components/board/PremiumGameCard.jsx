@@ -160,6 +160,8 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const referenceGap = pinnoddsReferenceDifference(game,proj);
   const referenceLead = referenceGap.leading;
   const showReferenceGap = !stored && !vm.decision?.evAvailable && referenceGap.available;
+  const referenceTeam = showReferenceGap && referenceLead?.kind==="spread"
+    ? referenceLead.side==="home" ? home : referenceLead.side==="away" ? away : null : null;
   const isTennis = sportId === "tennis";
   if (isTennis) {
     return <TennisMatchCard game={game} open={open} onToggle={onToggle} renderDetail={renderDetail} />;
@@ -250,6 +252,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <div className="pgc-featured-center">
           <span className="pgc-vs">VS</span>
           <small>{stored ? "Stored pregame context" : soccerPick ? "Confidence Pick" : vm.decision?.evAvailable ? "Calibrated edge" : showReferenceGap ? "FBIS / PinnOdds point gap" : "Model / market gap"}</small>
+          {referenceTeam ? <div className="pgc-market-gap-team"><TeamLogo team={referenceTeam} size={44} /> <span>{referenceTeam.abbr || referenceTeam.name} · projected spread tilt</span></div> : showReferenceGap && referenceLead?.kind==="total" ? <div className="pgc-market-gap-team is-total"><b>{String(referenceLead.side).toUpperCase()}</b><span>projected total tilt</span></div> : null}
           <strong>{stored ? "NO VERIFIED EDGE" : soccerPick ? soccerPick.pick || "—" : isTennis ? tennisEdgeValue : showReferenceGap ? `${referenceLead.delta > 0 ? "+" : ""}${referenceLead.delta} PTS` : edge.value}</strong>
           <span className="pgc-edge-delta">{stored ? "NO EXECUTABLE MARKET" : soccerPick ? `${stars}★ · 1X2` : isTennis ? tennisEdgeDelta : showReferenceGap ? `${referenceLead.kind.toUpperCase()} · PROJECTION DIFF · NOT EV` : `${edge.delta} ${edge.type}`}</span>
         </div>

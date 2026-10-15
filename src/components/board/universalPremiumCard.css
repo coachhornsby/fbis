@@ -349,3 +349,13 @@
   .fbis-shell-main .fbis-universal-premium.cgc .cgc-team-name {font-size:19px!important;}
   .fbis-shell-main .fbis-universal-premium .cgc-matchup-pills {grid-template-columns:repeat(2,minmax(0,1fr))!important;}
 }
+
+
+/* Directional market hero: a logo for the projected spread-side tilt. */
+.fbis-shell-main .pgc-featured-center .pgc-market-gap-team{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;max-width:100%;margin:4px auto;padding:4px 7px;border-radius:9px;border:1px solid rgba(85,230,187,.4);background:rgba(4,60,50,.43)}
+.fbis-shell-main .pgc-market-gap-team .team-logo-plate{background:transparent!important;border:0!important;box-shadow:none!important;flex-shrink:0}
+.fbis-shell-main .pgc-market-gap-team>span{font-size:10px;font-weight:850;line-height:1.2;color:#a7f7d4;max-width:92px;overflow-wrap:anywhere}
+.fbis-shell-main .pgc-market-gap-team.is-total>b{font-size:13px;font-weight:950;color:#e8bcff}
+.fbis-shell-main .cgc-best-edge .cgc-edge-identity{display:flex;align-items:center;justify-content:center;min-height:38px}
+.fbis-shell-main .cgc-best-edge .cgc-edge-logo{object-fit:contain;max-width:100%;max-height:48px}
+@media(max-width:580px){.fbis-shell-main .pgc-market-gap-team>span{font-size:9px;max-width:65px}.fbis-shell-main .pgc-featured-center .pgc-market-gap-team{padding:3px;gap:2px}}

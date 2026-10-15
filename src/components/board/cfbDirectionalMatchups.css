@@ -1,0 +1,39 @@
+/* Compact, source-attributed CFB research comparisons. Overrides shared NFL unit styles. */
+.fbis-shell-main .cfb-directional-v2{container-type:inline-size;min-width:0}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.fbis-shell-main .cfb-directional-headline{display:grid;gap:3px;min-width:0}
+.fbis-shell-main .cfb-directional-headline>strong{font-size:13px;color:#62d9ff;letter-spacing:.06em}
+.fbis-shell-main .cfb-directional-headline>span{font-size:9px;font-weight:900;letter-spacing:.05em;color:#c1ddf0}
+.fbis-shell-main .cfb-directional-source-tags{display:flex;flex-wrap:wrap;gap:5px}
+.fbis-shell-main .cfb-directional-tag{font-size:9px!important;padding:4px 7px;border-radius:6px;font-weight:950;white-space:normal;line-height:1.2;letter-spacing:.025em}
+.fbis-shell-main .cfb-directional-tag.is-cfbd{color:#d3f4ff;border:1px solid rgba(65,193,255,.52);background:rgba(23,102,143,.35)}
+.fbis-shell-main .cfb-directional-tag.is-sdv{color:#ecd9ff;border:1px solid rgba(191,132,255,.45);background:rgba(82,36,140,.32)}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-tile{min-width:0;gap:7px;padding:9px!important;border-width:1px;border-radius:11px;overflow:hidden}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-tile.has-disagreement{border-color:rgba(251,196,78,.85);box-shadow:inset 0 0 0 1px rgba(242,175,67,.15)}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair{min-width:0;grid-template-columns:minmax(0,1fr) 19px minmax(0,1fr);gap:4px;align-items:center}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair>div{min-width:0;display:grid;grid-template-columns:27px minmax(0,1fr);gap:4px;align-items:center;justify-content:start}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair>div:last-child{grid-template-columns:minmax(0,1fr) 27px;direction:rtl}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair>div:last-child>*{direction:ltr}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair strong{min-width:0;overflow-wrap:anywhere;font-size:clamp(9px,1cqi,11px)!important;line-height:1.16;text-align:left;white-space:normal!important}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair>div:last-child strong{text-align:right}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-result{justify-content:flex-start;text-align:left;min-width:0;gap:8px;min-height:44px}
+.fbis-shell-main .cfb-directional-result-text{display:grid;gap:2px;min-width:0}
+.fbis-shell-main .cfb-directional-result-text>small{font-size:8px;font-weight:950;letter-spacing:.05em;color:#bbd8ed}
+.fbis-shell-main .cfb-directional-result-text>strong{font-size:clamp(12px,1.7cqi,16px)!important;line-height:1.14;overflow-wrap:anywhere;word-break:normal}
+.fbis-shell-main .cfb-directional-neutral-symbol{font-size:27px;line-height:1;color:#b8c9d7}
+.fbis-shell-main .cfb-directional-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;min-width:0}
+.fbis-shell-main .cfb-directional-metric{display:grid;gap:3px;align-items:center;justify-items:center;min-width:0;text-align:center;padding:6px 3px;border:1px solid rgba(72,189,250,.45);border-radius:7px;background:rgba(5,37,64,.73)}
+.fbis-shell-main .cfb-directional-metric.is-sdv{border-color:rgba(187,136,241,.41);background:rgba(64,29,93,.47)}
+.fbis-shell-main .cfb-directional-metric span{font-size:clamp(8px,1cqi,10px);letter-spacing:0;font-weight:850;color:#c7e4f9;line-height:1.2;overflow-wrap:anywhere}
+.fbis-shell-main .cfb-directional-metric strong{font-size:clamp(14px,2.15cqi,21px);font-weight:950;line-height:1.05;font-variant-numeric:tabular-nums;color:#73eaff;overflow-wrap:anywhere}
+.fbis-shell-main .cfb-directional-metric.is-sdv strong{color:#e1afff}
+.fbis-shell-main .cfb-directional-status{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;min-width:0}
+.fbis-shell-main .cfb-directional-status span{font-size:8px;font-weight:800;color:#bad1e5}
+.fbis-shell-main .cfb-directional-status b{color:#a9ecd0;font-size:9px;font-weight:900}
+.fbis-shell-main .cfb-directional-status .cfb-directional-disagree{color:#ffd78c;background:rgba(106,62,12,.51);border:1px solid rgba(239,181,77,.5);border-radius:5px;padding:3px 5px}
+.fbis-shell-main .cfb-directional-legacy{text-align:center;line-height:1.35;font-weight:850;font-size:10px;color:#c6daed}
+.fbis-shell-main .cfb-directional-footnote{margin:10px 0 0!important;font-size:10px!important;line-height:1.45;color:#b9d0e1}
+.fbis-shell-main .cfb-directional-v2 .team-logo-plate{padding:0!important;box-shadow:none!important;background:transparent!important;border:0!important}
+.fbis-shell-main .cfb-directional-v2 .team-logo{object-fit:contain;max-width:100%}
+@container(max-width:610px){.fbis-shell-main .cfb-directional-v2 .cfb-directional-grid{grid-template-columns:1fr}.fbis-shell-main .cfb-directional-result-text>strong{font-size:15px!important}.fbis-shell-main .cfb-directional-metric strong{font-size:19px}.fbis-shell-main .cfb-directional-metric span{font-size:10px}.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair strong{font-size:11px!important}}

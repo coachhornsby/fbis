@@ -163,6 +163,8 @@ export default function CompactGameCard({ game, onOpen }) {
   const referenceGap = pinnoddsReferenceDifference(game,proj);
   const referenceLead = referenceGap.leading;
   const showReferenceGap = !stored && !vm.decision?.evAvailable && referenceGap.available;
+  const referenceTeam = showReferenceGap && referenceLead?.kind === "spread"
+    ? referenceLead.side === "home" ? home : referenceLead.side === "away" ? away : null : null;
   const matchup = isNfl ? game?.nflGameMatchup : null;
   const isFinal = String(vm.status?.key || "").toUpperCase() === "FINAL" || Boolean(game?.status?.completed);
   const finalAway = game?.away?.score ?? away?.score ?? null;
@@ -278,6 +280,9 @@ export default function CompactGameCard({ game, onOpen }) {
           <div className="cgc-edge-identity">
             {soccerPick ? (
               soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={42} className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
+            ) : showReferenceGap ? (
+              referenceTeam ? <TeamLogo team={referenceTeam} size={46} className="cgc-edge-logo" />
+                : <div className="cgc-total-mark">{referenceLead?.kind==="total" ? String(referenceLead.side).toUpperCase() : "EVEN"}</div>
             ) : edge.team ? (
               <TeamLogo team={edge.team} size={42} className="cgc-edge-logo" />
             ) : edge.total ? (
