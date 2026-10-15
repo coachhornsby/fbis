@@ -50,6 +50,8 @@ jobs:
         run: |
           python3 -m py_compile scripts/cfb-player-directory-build.py scripts/lib/cfb_roster_retention.py
           python3 -m unittest discover -s test -p 'test_cfb_roster_retention.py'
+      - name: Validate reversible CFB raw roster index-retirement migration
+        run: node --test test/cfb-roster-index-retirement.test.mjs
       - name: Syntax check Cloudflare Functions
         run: find functions -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Run test suite
