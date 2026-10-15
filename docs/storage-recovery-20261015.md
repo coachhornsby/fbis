@@ -93,3 +93,19 @@ Cloudflare D1 has a per-database maximum of 10 GB. Account-level overage billing
 2. The CFB isolated full recovery run failed during part 167 of 277. Its **4.73 GB** remote target remains incomplete and protected; cleanup needs a separate, verified disposition.
 3. The source D1 remains at/near the **10 GB maximum**. R2 duplication *increases* archived data, and no bill or byte savings can be attributed to these copies until actual D1 physical storage reduces.
 4. No new subscriptions, production row deletes, R2 deletes, or recovery-target deletes are part of this phase.
+
+
+## Production capacity consumer audit and restore rehearsal — 2026-10-15
+
+- [PR #1168](https://github.com/coachhornsby/fbis/pull/1168) merged a read-only, repository-wide `git grep` dependency inventory. CI found 23 references to `cfb_roster_observations`, of which 2 in Pages runtime are **archive provenance labels, not SQL SELECT statements**. The actual team profile runtime references `cfb_roster_membership` and `cfb_canonical_players`; leave those untouched.
+- The source `cfb_roster_observations` remains in the canonical production D1; no cross-sport dependency or unqualified missing SQL references should be assumed absent merely from an initial `git grep` classification. Scripts and workflow `cfb-player-directory-phase-b.yml` still generate raw roster observation rows. To reclaim space durably, prevent re-ingestion before modifying historical D1 retention.
+- The full retrospective **2004** source archive contains 13,644 records in 137 readback-verified R2 objects. A separate, existing `fbis-cfb-recovery-rehearsal-20261011` D1 was used for a **100-row sample remote restore**. All 100 exact row JSON bytes and SHA-256 digests reconciled with the archived R2 part. Production rows and source indexes were not changed.
+- Permanent SHA-256-verified remote restore sample evidence: `research/storage-recovery/2026-10-15/cfb-roster-targeted-restore-probe-bedaefacea4703998ab9da5b3a326662e23140a89fe26b0d3a76a446e0b31e33.json`. The initial 100-row bulk insert encountered D1's 100 KB statement limit; rerunning as batches of 10 rows succeeded. Both the source R2 digest and individual restored row digests were verified.
+- **Release decision:** Complete-season remote recovery and full-database remote recovery remain **unqualified**. No D1 DELETE, DROP, historical consumer rerouting, model decision change, or betting evidence retirement is approved.
+
+## Hash-verified normalized market payload compaction control
+
+- [PR #1169](https://github.com/coachhornsby/fbis/pull/1169) adds enforced `COMPACTION_MAX_ROWS` semantics; the prior runner ignored this environment variable.
+- Planned first bounded resume: exclusive cursor `509110` from GitHub Action `38776633057`, at most **5,000 scanned** `Polymarket US` observations, frozen capture cutoff `2026-10-15T19:00:00Z`, page limit 500, no source deletions. Missing/changed source archives remain untouched.
+- Existing source-hash, exact R2 receipt matching, compare-and-swap and periodic lossless readback checks remain mandatory. `paused=true` with `completed=false` denotes a deliberate budget stop; this is **not** a full-ledger verification.
+- Physical D1 file size must be checked after completion; logical bytes removed are not identical to actual billed storage reclaimed. Manual action trigger requires a separate committed marker change after CI and reviewed production SHA.
