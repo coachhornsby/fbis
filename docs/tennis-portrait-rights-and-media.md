@@ -29,3 +29,21 @@ Revoke by setting `approval_status='REVOKED'` or `public_display_allowed=0` imme
 Apply migration `0102_tennis_player_portrait_rights.sql` using the repository's established forward-only D1 migration process before inserting images. Do not bypass migration reconciliation. The read path tolerates a not-yet-applied migration by withholding all portraits.
 
 Validate `npm test`, `npm run test:tennis`, `npm run verify:migrations` and `npm run build`, plus live UI checks before deployment. Verify that existing Tennis cards stay responsive on desktop and mobile with zero image rows.
+
+
+## Curated Wikimedia Commons seed — October 15, 2026
+
+The `functions/lib/tennisCommonsPortraitBatch.js` list has exact canonical WTA IDs and independently reviewed Commons file descriptions, authors and candidate Creative Commons licenses. Every candidate must additionally pass live Commons API checks of filename, image MIME, license URL, license label and author, before a thumbnail may be transferred to R2 and the rights-aware record activated.
+
+The operator-only `POST /api/tennis-portrait-import` route takes a single `{"playerId":"tennis:wta:326408"}` object, requires the existing server-side `HARVEST_SECRET`, accepts no arbitrary URL, and writes image bytes into `ARCHIVE` R2. It does not scrape ATP, WTA or PrizePicks. An explicitly tagged production release `[tennis-commons-seed]` invokes this route once for the eleven curated IDs; each result is logged by canonical ID and the remaining missing players fall back to neutral silhouettes.
+
+The portrait credit, source-file page and exact Creative Commons license links are exposed on compact matchup cards and permanent player profiles. Wikimedia thumbnails are resized copies for presentation; the attribution text states 'resized for FBIS'. Rights state and source data are stored in `tennis_player_portraits`. All model and bet authority logic remains unchanged.
+
+**Operationally:** Import results may be partial because Commons is an independent upstream source. Do not mark a row approved on a failed metadata or transfer check, and do not treat selection in the curated manifest as proof of a completed import. Confirm coverage with:
+
+```sql
+SELECT fbis_player_id,approval_status,source_reference,rights_evidence_ref
+FROM tennis_player_portraits ORDER BY fbis_player_id;
+```
+
+Verify the corresponding `/api/tennis-portrait?id=...` responds with actual JPEG bytes and the same photo appears in the model card and profile.
