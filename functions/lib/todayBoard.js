@@ -798,6 +798,9 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
         rank: p2Rank?.rank ?? null,
         rankingPoints: p2Rank?.points ?? null,
         imageSource: p2Portrait ? "RIGHTS_VERIFIED_TENNIS_PORTRAIT" : null,
+        portraitCredit: p2Portrait?.credit || null,
+        portraitSourceUrl: p2Portrait?.sourceUrl || null,
+        portraitLicenseUrl: p2Portrait?.licenseUrl || null,
       },
       home: {
         name: row.player1,
@@ -812,6 +815,9 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
         rank: p1Rank?.rank ?? null,
         rankingPoints: p1Rank?.points ?? null,
         imageSource: p1Portrait ? "RIGHTS_VERIFIED_TENNIS_PORTRAIT" : null,
+        portraitCredit: p1Portrait?.credit || null,
+        portraitSourceUrl: p1Portrait?.sourceUrl || null,
+        portraitLicenseUrl: p1Portrait?.licenseUrl || null,
       },
       model: {
         id: row.pure_model_id || "TENNIS-FBIS-v2-CONTEXT",
@@ -963,7 +969,10 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
       const team = p => ({name:p.display_name,fullName:p.display_name,canonicalId:p.fbis_player_id,
         countryCode:p.country,rank:p.rank??null,rankingPoints:p.points??null,
         headshotUrl:portraitMap.get(p.fbis_player_id)?.url||null,
-        imageSource:portraitMap.has(p.fbis_player_id)?"RIGHTS_VERIFIED_TENNIS_PORTRAIT":null});
+        imageSource:portraitMap.has(p.fbis_player_id)?"RIGHTS_VERIFIED_TENNIS_PORTRAIT":null,
+        portraitCredit:portraitMap.get(p.fbis_player_id)?.credit||null,
+        portraitSourceUrl:portraitMap.get(p.fbis_player_id)?.sourceUrl||null,
+        portraitLicenseUrl:portraitMap.get(p.fbis_player_id)?.licenseUrl||null});
       games.push({id:f.match_id,sport:"tennis",tour:f.tour.toUpperCase(),start:f.match_time,status:{detail:"Scheduled"},
         home:team(f.proof.p1),away:team(f.proof.p2),projectionKind:"UNAVAILABLE",pureProjectionAvailable:false,
         projectionUnavailable:true,publicationStatus:"RESEARCH_PUBLISHABLE",projectionMaturity:"RESEARCH",

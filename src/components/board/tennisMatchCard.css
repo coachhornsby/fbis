@@ -106,3 +106,8 @@
   .tmc-compact .tmc-quick-status{margin-left:0}
   .tmc-compact .tmc-expand-toggle{padding:10px}
 }
+
+/* Compact and accessible Creative Commons image-credit links. */
+.tmc-compact .tmc-photo-credits{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;padding:0 12px 8px;font-size:9px;color:#a9c3d9}
+.tmc-compact .tmc-photo-credits a{color:#a1cee7;text-decoration:underline;text-underline-offset:2px}
+.tmc-compact .tmc-photo-credits a:hover{color:#fff}
