@@ -17,7 +17,7 @@ export function classifyTmlFile(name){
  if(/atp_quali\//.test(n)||/atp[_-]?quali/.test(n)) return 'ATP_QUALIFYING';
  if(/challenger/.test(n)||/ch_ongoing_tourney\.csv$/.test(n)) return /ongoing/.test(n)?'CHALLENGER_ONGOING':'CHALLENGER';
  if(/ongoing_tourneys/.test(n)&&!/wta/.test(n)) return 'ATP_ONGOING';
- if(/(^|\/)20(1[5-9]|2[0-6])\.csv$/.test(n)&&!/wta/.test(n)) return 'ATP_TOUR';
+ if(/^20(1[5-9]|2[0-6])\.csv$/.test(n)) return 'ATP_TOUR';
  return 'OTHER';
 }
 function validateCsvPayload(text,file){
@@ -35,7 +35,11 @@ export async function fetchTmlCanonicalFile(file,{fetchImpl=fetch,ingestedAt=new
  const text=await r.text(); const payload=validateCsvPayload(text,file);
  if(file.size!=null && file.size===0) throw new Error(`TML manifest reports zero-byte file ${file.name}`);
  const observations=parseTmlCsv(text,{source:'tennismylife',sourceFile:file.name,ingestedAt,sourceUpdatedAt:file.updatedAt});
- if(!observations.length) throw new Error(`TML file ${file.name} has zero valid observations`);
+ if(!observations.length) {
+  const dataRows=Math.max(0,text.split(/\r?\n/).filter(line=>line.trim()).length-1);
+  const headerColumns=payload.header.split(',').length;
+  throw new Error(`TML file ${file.name} has zero valid observations (actualBytes=${payload.bytes}, reportedSize=${file.size??'unknown'}, nonEmptyDataRows=${dataRows}, headerColumns=${headerColumns}, headerHash=${payload.headerHash})`);
+ }
  return {observations,payload};
 }
 export async function acquireTmlCanonical({baseUrl=DEFAULT_BASE,fetchImpl=fetch,include=(f)=>classifyTmlFile(f.name)!=='OTHER'}={}){
