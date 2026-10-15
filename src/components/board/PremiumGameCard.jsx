@@ -1,8 +1,7 @@
+import SoccerPinnOdds from "./SoccerPinnOdds.jsx";
 import MatchupSignals from "./MatchupSignals.jsx";
 import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
 import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
-import CfbSeasonStatStrip from "./CfbSeasonStatStrip.jsx";
-import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
 import EventMarkets from "./EventMarkets.jsx";
 import TeamLogo from "../TeamLogo.jsx";
@@ -225,9 +224,10 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </section>
       ) : null}
 
-      {sportId !== "nhl" && Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => o.source === "Polymarket US") ? (
+      <SoccerPinnOdds game={game} className="pgc-status-note" />
+      {sportId !== "nhl" && Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source)) ? (
         <div className="pgc-status-note" aria-label="Polymarket US research market data">
-          <strong>POLYMARKET US · RESEARCH</strong> · {game.market.venueOffers.filter(o => o.source === "Polymarket US" && o.contractPrice != null).slice(0,3).map(o =>
+          <strong>POLYMARKET US · RESEARCH</strong> · {game.market.venueOffers.filter(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source) && o.contractPrice != null).slice(0,3).map(o =>
             `${o.side} ${Math.round(o.contractPrice * 1000)/10}%`
           ).join(" · ") || "NO PRICED QUOTE"} · Display only, not executable
         </div>
@@ -287,8 +287,6 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           </>
         )}
       </section>
-      {sportId === "cfb" ? <CfbSeasonStatStrip evidence={game.cfbSeasonEvidence} /> : null}
-      <PinnoddsCardMarkets game={game} />
       {!stored && sportId === "nhl" ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
       {!stored && sportId === "nhl" ? <NhlMatchupSignals game={game} away={away} home={home} /> : null}
       {!stored && sportId !== "nhl" ? sportId === "nfl" ? <NflDirectionalMatchups game={game} matchup={game.nflGameMatchup} away={away} home={home} /> : sportId === "cfb" ? <CfbDirectionalMatchups game={game} away={away} home={home} /> : <MatchupSignals game={game} away={away} home={home} sport={sportId} /> : null}

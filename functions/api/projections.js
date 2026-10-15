@@ -54,7 +54,7 @@ export async function onRequestGet(context) {
       catch(_){/* stale/missing provider never breaks independent FBIS projections */}
     }
     return json({...board,games:attachPolymarketBoardOffers(board.games,overlay),
-      polymarketResearch:{source:"Polymarket US",available:Boolean(overlay.available),
+      polymarketResearch:{source:"Polymarket US",available:[...overlay.byId.values()].some(offers => offers.some(o => o.source.startsWith("Polymarket US"))),
         qualified:false,executable:false}},200,{tier:access.tier});
   } catch (err) {
     return json({ ok: false, error: "projection-board-unavailable", detail: String(err?.message || err) }, 502, { tier: access.tier, maxAge: 5 });
