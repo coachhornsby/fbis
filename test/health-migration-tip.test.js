@@ -73,8 +73,8 @@ function memoryDb({ tipPresent = true, watermarkOnly = false, includeWrangler = 
 test("canonical tip declaration matches sorted migrations directory tip", () => {
   assert.equal(EXPECTED_MIGRATION, EXPECTED_MIGRATION_ID);
   assert.equal(EXPECTED_MIGRATION_ID, EXPECTED_MIGRATION_FILE.replace(/\.sql$/, ""));
-  assert.equal(EXPECTED_MIGRATION_FILE, "0104_cfb_college_storage_repair.sql");
-  assert.equal(EXPECTED_MIGRATION_ID, "0104_cfb_college_storage_repair");
+  assert.equal(EXPECTED_MIGRATION_FILE, "0105_cfb_tier3_training_research.sql");
+  assert.equal(EXPECTED_MIGRATION_ID, "0105_cfb_tier3_training_research");
 });
 
 test("1: tip present → VERIFIED", async () => {
@@ -224,7 +224,7 @@ test("7: grandfathered duplicate prefixes remain supported by verifier", () => {
   assert.match(verifier, /0079_soccer_phase3f_research_routing\.sql/);
   const tip = readFileSync(join(root, "functions/lib/migrationTip.js"), "utf8");
   // Tip uses full identity, not numeric prefix alone.
-  assert.match(tip, /0104_cfb_college_storage_repair/);
+  assert.match(tip, /0105_cfb_tier3_training_research/);
   assert.doesNotMatch(tip, /EXPECTED_MIGRATION_ID\s*=\s*["']0098["']/);
   const run = spawnSync("node", ["scripts/verify-migrations.mjs"], {
     cwd: root,
