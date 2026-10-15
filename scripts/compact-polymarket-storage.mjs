@@ -11,7 +11,7 @@ const apply=process.env.COMPACTION_APPLY==='true';
 async function call(body){
  for(let attempt=0;attempt<6;attempt++){
   try{const r=await fetch(BASE+'/api/polymarket-storage',{method:'POST',headers:{'content-type':'application/json','x-harvest-secret':secret},body:JSON.stringify(body),signal:AbortSignal.timeout(60000)});
-   if(!r.ok)throw Error('maintenance-http-'+r.status);
+   if(!r.ok){const detail=(await r.text()).slice(0,800);throw Error('maintenance-http-'+r.status+': '+detail);}
    const value=await r.json();if(!value.ok)throw Error(value.error||'maintenance-error');return value;
   }catch(e){if(attempt===5)throw e;await new Promise(r=>setTimeout(r,Math.min(15000,1000*2**attempt)));}
  }
@@ -21,7 +21,7 @@ let cursor=0,batches=0;
 let failure=null;
 try{
 while(result.examined<maxRows){
- const value=await call({operation:'compact',apply,cutoff,afterRowid:cursor,limit:Math.min(250,maxRows-result.examined)});
+ const value=await call({operation:'compact',apply,cutoff,afterRowid:cursor,limit:Math.min(50,maxRows-result.examined)});
  result.examined+=value.examined;result.eligible+=value.eligible;result.updated+=value.updated;result.bytesRemoved+=value.bytesRemoved;result.potentialBytesSaved+=value.potentialPayloadBytesSaved;
  for(const [key,n] of Object.entries(value.reasons||{}))result.reasons[key]=(result.reasons[key]||0)+n;
  if(apply&&value.verificationSamples?.length&&(result.restoreChecks===0||batches%25===0||value.nextCursor===null)){
