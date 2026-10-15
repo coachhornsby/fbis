@@ -1,64 +1,107 @@
-# Soccer Phase 3H-R4 checkpoint — October 14, 2026
+# Soccer Phase 3H-R4 — production closeout
 
-Classification: **BOUNDED_REPAIR_REQUIRED**. The release is prepared on PR #1096; the fresh authenticated production proof remains pending merge/deployment. No Phase 3I scheduler was added.
+Verified October 15, 2026. Classification: **PROSPECTIVE_SHADOW_READY**.
 
-## Verified live baseline
+The canonical null-season repair, bounded memory repair and verified provider-name reconciliation ran successfully in production. The prospective first-write and same-bucket retry contract passed for Bundesliga and Ligue 1. This is infrastructure readiness, not economic qualification. Recurring collection is not activated by this report.
 
-| Check | Observed result |
+## Deployment and proof identity
+
+| Check | Verified result |
 |---|---|
-| Main SHA, latest check | `722448f349ac27d53842043efc0f044e724796aa` |
-| Production deployment | `f5825501-3094-4347-b539-333a75047f79` |
-| Production SHA | `722448f349ac27d53842043efc0f044e724796aa` |
-| Production completed | `2026-10-14T05:33:24.810479Z` |
-| Null-season fix ancestry | Earlier production/main `1c7a5f84...` was independently verified as descendant of `9b1202f6...`; latest main continued forward through other releases |
-| Original deployment lag | Cleared before this repair started |
-| Collector SHA | New authenticated collector summary not executed; no credential was exposed/reconstructed |
-| Migrations | Soccer 0079 and 0081 applied |
-| Routes | 50: 27 PASS, 17 PARTIAL_PASS, 1 FAIL, 5 INSUFFICIENT_EVIDENCE; 44 shadow eligible |
-| Baseline prospective ledger | 20 rows, 1 event, 0 genuine-market rows, 20 unavailable-market rows |
-| Baseline duplicates | 0 duplicate shadow IDs |
-| Baseline flag violations | 0 |
-| Latest proof evidence | October 7 snapshots for the now-expired October 9 slate |
-| Core canonical history, one-year D1 query | ger.1 288; fra.1 287; esp.1 369 final matches before October 16 |
-| Championship Stage B | 251 DONE shards, 2,878 persisted; updated October 9 |
-| UEL history | 77 DONE shards, 817 persisted |
-| Historical cadence | Existing queue drain remains every five minutes; independent of prospective proof |
+| Main and current production SHA at verification | `77d0a5f86cb3c76183c58ca5867cbc57335c7943` |
+| Current production deployment ID | `594fdfb0-629b-4139-ada2-7cdb44012ac6` |
+| Production completed | `2026-10-15T05:15:41.677036Z` |
+| Successful proof collector/trigger SHA | `50d3e2ca820baa9511a680c8c25def1ed936a277` |
+| Ancestry to null-season repair `9b1202f6...` | Proof collector is a verified descendant, 442 commits ahead |
+| Current production ancestry | 23 commits ahead of successful proof collector |
+| Successful authenticated workflow | GitHub Actions run `38525616858`, SUCCESS; CI `38525616730`, SUCCESS |
+| Proof slate | October 17, 2026, genuinely future at both snapshots |
+| Evidence file | `ops/soccer-phase3h-r-proof-latest.json`, generated `2026-10-14T07:05:35Z` |
 
-The production data is real; the new production proof is **not yet run**. First/second timestamps, attempted/written/existing counts, same-bucket confirmation, new-row provenance, core projected fixture counts, and new competition/family counts remain pending. They must not be filled from the old proof.
+The original stale-Pages blocker had cleared. A fresh proof then exposed Cloudflare 1102 resource failures. Model-history SELECT * was loading roughly 40–49 MB of unused raw JSON per core league. Model acquisition now selects the scalar features consumed by the models; full raw source payloads remain retained for audit/profile paths. The one-shot works in competition batches. Histories, coefficients and gates were not shortened or weakened.
 
-## Reviewable repair
+Germany subsequently failed cross-provider names despite sufficient history. Verified competition-scoped aliases reconcile Bayern Munich/Bayern München, Hamburg SV/Hamburger SV, 1. FC Union Berlin/Union Berlin and Mainz/Mainz 05. Numeric provider IDs are not equated. These repairs are now present in current source and the successful collector.
 
-- Verified provider branding for 442 distinct clubs across 24 populated competition directories; exact competition-scoped names only, no substring identity guesses.
-- Match cards retain soccer sport identity, crests, team colors, league, and v2/v3 diagnostics. Soccer projected scores use GOALS.
-- Missing rest data no longer becomes zero-day evidence in matchup display.
-- TEAMS adds 240 club entries across all ten immutable Soccer route competitions and preserves FBS profiles.
-- Team profiles show acquired canonical history, recent results, sourced rosters, freshness and coverage. Successful roster snapshots are retained in R2, with stale fallback labeled.
-- Advanced profiles show 35 PitchAPI metrics with per-field sample counts, opponent averages, last-ten averages, source observation date and match window.
-- PitchAPI IDs and ESPN IDs are never equated. Exact normalized team names within the competition determine advanced-profile membership.
-- Profile display has no persistent-state projection influence and no wager authority.
-- One-shot uses the current Chicago date plus three days instead of October 9. It waits for the deployed trigger SHA, records fixture diagnostics, and requires nonzero successful ger.1 and fra.1 paths, distinct actual timestamps and same-bucket idempotency.
-- No thresholds, coefficients, immutable routes, qualification flags or public authority changed.
+## First write and retry
 
-## Deployment and validation
+| Measure | First | Retry |
+|---|---:|---:|
+| Fixtures examined | 9 | 9 |
+| Core canonical v2 successes | 9 | 9 |
+| v2 + v3.1 eligible fixtures | 7 | 7 |
+| Attempted rows | 70 | 70 |
+| Written rows | 70 | 0 |
+| Existing rows | 0 | 70 |
+| Bundesliga snapshot | `2026-10-14T07:05:06.049Z` | `2026-10-14T07:05:22.702Z` |
+| Ligue 1 snapshot | `2026-10-14T07:05:16.010Z` | `2026-10-14T07:05:30.597Z` |
 
-The first preview failed because the Pages-hosted older Functions bundler rejected JSON import attributes. Changed the branding directory to a plain JavaScript data module. Local Pages Functions build and the subsequent Cloudflare preview deployment succeeded.
+All four actual timestamps differ and share five-minute bucket **5973205**, starting 07:05 UTC. Ledger before this proof: **50** rows. After: **120** rows across **8** total distinct events. The earlier 20-row initial baseline and 30-row Ligue 1 diagnostic run account for the preceding 50; they are not counted as the new 70.
 
-Full standard test command: 1,582 passed, zero failed before the final advanced-profile additions. Advanced-profile, identity and reconciliation regression tests passed after those additions. Vite build passed. Browser verified club crest/color cards and Barcelona's advanced-data profile. Barcelona preview reported 90 advanced matches, 45 acquired canonical matches and 30 roster players. These are different acquired source histories, not claims of complete season coverage.
+## Canonical-league evidence
 
-Independent Workers preview checks fail because their generic `wrangler preview` command lacks worker-specific entry/config. The Soccer Pages preview is successful; those checks should not be mislabeled as a Soccer model failure.
+| Competition | Canonical league history | Fixtures | v2 successes | Eligible challenger fixtures |
+|---|---:|---:|---:|---:|
+| ger.1 | 342 | 6 | 6 | 4 |
+| fra.1 | 350 | 3 | 3 | 3 |
 
-Automatic approval review rejected the direct default-branch push as a high-impact shared-repository mutation without explicit authorization for that push. Work was placed on a separate branch and PR instead. Production release requires explicit approval; it has not happened for this change.
+Union Berlin–Dortmund, Hamburg–Stuttgart and Bayern–Leipzig each had 38 canonical matches per side. Schalke–Mainz had 4/38. Strasbourg–PSG and Lille–Brest had 39/39; Troyes–Lens had 5/39. Exact fixture diagnostics and provider flags remain in the proof JSON.
+
+Remaining skipped Bundesliga fixtures:
+
+| Fixture | Canonical home/away history | v2 | v3.1 reason |
+|---|---:|---|---|
+| SV Elversberg–FC Augsburg | 4 / 38 | OK | insufficient-pitchapi-history |
+| Werder Bremen–SC Paderborn 07 | 38 / 4 | OK | insufficient-pitchapi-history |
+
+An independent D1 check found five finished Bundesliga PitchAPI matches for each promoted club, below the unchanged eight-team-match challenger minimum. These exclusions remain fail-closed. Neither is a history-0 loader failure.
+
+## Persisted-row audit
+
+Every one of the 70 newly persisted records was inspected at the data source, including IDs, selections, kickoff/snapshot times, route/version, evidence snapshot/SHA, model IDs, probability/projection values, market fields and full provenance.
+
+| Competition | 1X2 | BTTS | GOALS | O2.5 | AH |
+|---|---:|---:|---:|---:|---:|
+| ger.1 | 12 | 8 | 12 | 8 | 0 |
+| fra.1 | 9 | 6 | 9 | 6 | 0 |
+| Total | 21 | 14 | 21 | 14 | 0 |
+
+New proof: **7 events, 2 competitions, 4 families, 0 genuine-market rows, 70 explicit unavailable-market rows**.
+
+- GOALS probabilities are NULL; both numerical goal forecasts are populated.
+- Probability-family v2/v3.1 values lie within [0,1].
+- Missing market probabilities, lines, prices and timestamps remain NULL, with explicit reasons.
+- No Asian-handicap observations were manufactured without qualifying evidence.
+- All rows precede kickoff and bind the expected immutable route and evidence version/SHA.
+- All rows have research_only=1, can_qualify=0, can_authorize=0.
+- All provenance confirms modelMarketSeparation=true; v2MarketUsed=false; v31MarketUsed=false; persistentStateUsed=false; executionEvidence=false; authoritativeModel=SOCCER-FBIS-v2; publicProjectionRoutingChanged=false.
+- Collector SHA and model-freeze timestamps agree with the actual persisted snapshots.
+- **Zero row violations. Zero duplicate shadow IDs or duplicate event × family × selection × five-minute observations across the full 120-row ledger.**
+
+The lack of contemporaneous prices means prospective CLV, market-relative edge realization and simulated ROI remain unavailable. No economic claim follows from this proof.
+
+## Routes, migrations and historical independence
+
+- 50 immutable routes, 10 competitions, 5 families; 27 PASS, 17 PARTIAL_PASS, 1 FAIL, 5 INSUFFICIENT_EVIDENCE; 44 shadow eligible; zero route governance violations.
+- EPL 1X2 remains FAIL/incumbent-only. UEL's five routes remain insufficient/ineligible. Existing regression tests cover PASS/PARTIAL eligibility and stale/wrong-SHA evidence falling back to v2.
+- Soccer migrations 0079 and 0081 are applied.
+- Championship Stage B: 251 DONE shards / 2,878 persisted. UEL: 77 DONE / 817 persisted. These acquired records remain retained.
+- Historical queue-drain cadence remains every five minutes, independently of prospective proof. Completed shards are not rescheduled merely to raise proof counts.
+- UEL advanced authority remains deferred; no routes or backfill policies changed to force readiness.
+
+## Cards and team profiles
+
+The deployed board includes club branding, larger 104px crests, responsive 20–29px names, team-color accents and larger colored matchup text/values. A production browser check measured approximately 24.5px names at the inspected desktop width. The TEAMS view includes 240 entries across the ten research competitions, acquired match history, sourced/retained roster snapshots and 35 PitchAPI advanced metrics with coverage, source dates and last-ten comparisons.
+
+Barcelona's verified profile showed 90 PitchAPI matches and 30 roster players. Its big-chances display reconciles retained raw full-match observations rather than trusting legacy zero-filled values. Club/profile display does not alter model authority.
 
 ## PLATFORM LEARNING CANDIDATE
 
-The exact optional SQL predicate audit found the Soccer season guard already repaired and the shared observation-store requestedMaxItems predicate guarded against null.
+Nullable numeric filters can silently create false constraints or false zero evidence. The original null-season predicate is repaired. The separate PitchAPI numeric helper now explicitly rejects null, blank and boolean inputs in current source. Legacy big-chances source/storage mismatches still demonstrate why historical records need source reconciliation rather than indiscriminate zero replacement.
 
-A broader numeric-helper audit found `Number(null)` risk in `soccerPitchApiStore.js`'s `n(v)` helper. Browser reconciliation produced concrete evidence: Barcelona–Getafe `m_4HSsqt` retained raw full-match PitchAPI stats with `big_chance.home = 7`, while the stored big-chances metric had been zero. Profile presentation now reads that metric from the retained full-match raw source and flags stored/source mismatches; missing raw evidence remains unavailable. It does not silently rewrite model history.
+Infrastructure lessons: bound edge model-history payloads; retain raw source outside the model working set; use competition-scoped verified aliases; verify deployed ancestry; preserve actual acquisition times and explicit NULL market semantics; retain non-JSON failure evidence. These are data/governance practices, not predictive assumptions transferable between sports.
 
-Recommend a separate bounded ingestion-key/null-helper repair and a raw-source reconstruction audit before changing existing model evidence. Do not mass-edit predictive code or reinterpret all stored zeroes as missing.
+## Final authority and next phase
 
-## Governance and release gate
+**PROSPECTIVE_SHADOW_READY**.
 
-Public Soccer v2 remains incumbent. v3.1 remains a competition × family research challenger. Model-market separation, persistent-state influence OFF, qualification OFF and wager authorization OFF remain intact. UEL historical research remains retained and its advanced authority stays deferred.
-
-After approved release, inspect every newly written row and verify all required field/provenance/market-null contracts. Do not declare PROSPECTIVE_SHADOW_READY unless canonical ger.1 and fra.1 paths pass in production and first-write/same-bucket idempotency are demonstrated. Only then provide the complete Phase 3I activation prompt.
+Public v2 remains authoritative. Persistent-state projection influence, automatic qualification and wager authorization remain OFF. v3.1 remains research-only. The complete next prompt is `docs/soccer-phase3i-activation-prompt.md`. It specifies recurring collection and forward evidence accumulation; this closeout does not activate its scheduler or grant wagering authority.
