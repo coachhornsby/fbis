@@ -127,6 +127,33 @@ export const TENNIS_COMMONS_PORTRAIT_BATCH = Object.freeze([
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Anouk_Koevermans_(2026_US_Open)_01_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:wta:318080",
+    "playerName": "Andrea Lazaro Garcia",
+    "fileTitle": "Lazaro Garcia WMQ22 (6) (52191158451).jpg",
+    "author": "si.robi",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lazaro_Garcia_WMQ22_(6)_(52191158451).jpg"
+  },
+  {
+    "playerId": "tennis:wta:329505",
+    "playerName": "Antonia Ruzic",
+    "fileTitle": "2023 Roland Garros Qualifying Tournament - 37 (cropped2).jpg",
+    "author": "DarDarCH",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:2023_Roland_Garros_Qualifying_Tournament_-_37_(cropped2).jpg"
+  },
+  {
+    "playerId": "tennis:wta:323171",
+    "playerName": "Lea Boskovic",
+    "fileTitle": "Boskovic WMQ22 (2) (52191665080).jpg",
+    "author": "si.robi",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Boskovic_WMQ22_(2)_(52191665080).jpg"
   }
 ]);
 export const tennisCommonsPortraitCandidate = id => TENNIS_COMMONS_PORTRAIT_BATCH.find(x=>x.playerId===id)||null;
