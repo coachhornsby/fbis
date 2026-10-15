@@ -1,3 +1,4 @@
+import {loadSoccerShadowMarkets} from "../lib/soccerShadowMarkets.js";
 import { authorizeSoccerWorker, unauthorizedBody } from "../lib/soccerWorkerAuth.js";
 import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
 import { soccerHistoryHealth } from "../lib/store.js";
@@ -37,6 +38,7 @@ async function snapshot(context,date,competition=null){
   if(!resolved.ok)return{ok:false,error:resolved.error};
   const snapshotAt=new Date().toISOString();
   const slate=await buildSlate("soccer",resolved.date,{...envForSlate(context),soccerProofCompetition:competition});
+  const marketSnapshots=await loadSoccerShadowMarkets(context.env.DB,slate.games||[],{snapshotAt});
   let attempted=0,written=0,existing=0,eligibleGames=0;
   const skipped={},skippedDetails={},fixtures=[];
   for(const game of slate.games||[]){
@@ -52,7 +54,7 @@ async function snapshot(context,date,competition=null){
       v2MarketUsed:v2?.provenance?.marketUsed??null,v31MarketUsed:v31?.provenance?.marketUsed??null,
       postMatchTargetFeaturesUsed:v31?.provenance?.postMatchTargetFeaturesUsed??null,persistentStateUsed:v31?.provenance?.persistentStateUsed??null,
       v2Ok:v2?.ok===true,v2Reason:v2?.reason||null,v31Ok:v31?.ok===true,v31Reason:v31?.reason||null});
-    const built=buildSoccerProspectiveShadowRecords(game,slate,{
+    const built=buildSoccerProspectiveShadowRecords({...game,soccerMarkets:marketSnapshots.get(String(game.id))},slate,{
       snapshotAt,
       collectorCodeSha:context.env.CF_PAGES_COMMIT_SHA||null,
     });

@@ -1,0 +1,70 @@
+name: Soccer market identity reconciliation
+on:
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/triggers/soccer-market-reconcile'
+      - '.github/workflows/soccer-market-reconcile.yml'
+permissions:
+  contents: read
+concurrency:
+  group: soccer-market-reconcile
+  cancel-in-progress: false
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Wait for deployed reconciliation adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            status=$(curl -sS --max-time 25 -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/soccer-prospective-shadow?mode=summary" || true)
+            sha=$(jq -r '.collectorCodeSha // empty' <<<"$status" 2>/dev/null || true)
+            if [ -n "$sha" ]; then
+              relation=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...$sha" --jq .status || true)
+              if [ "$relation" = identical ] || [ "$relation" = ahead ]; then exit 0; fi
+            fi
+            sleep 5
+          done
+          exit 1
+      - name: Refresh independent fixtures and reconcile captured prices
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl -fsS --max-time 120 -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' -d '{"operation":"fixtures"}' "$BASE/api/soccer-market-reconcile" > artifacts/fixtures.json
+          jq -e '.ok and (.fixtures|length)>0' artifacts/fixtures.json
+          cursor=''
+          for page in $(seq 1 30); do
+            body=$(jq -nc --arg cursor "$cursor" '{cursor:$cursor}')
+            curl -fsS --max-time 100 -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' -d "$body" "$BASE/api/soccer-market-reconcile" > "artifacts/page-$page.json"
+            jq -c '{ok,examined,matched,inserted,nextCursor,reasons,fixtureCount,originalClocksPreserved,paidProviderCalls}' "artifacts/page-$page.json"
+            jq -e '.ok and .originalClocksPreserved and .paidProviderCalls==0' "artifacts/page-$page.json" >/dev/null
+            cursor=$(jq -r '.nextCursor // empty' "artifacts/page-$page.json")
+            [ -n "$cursor" ] || break
+          done
+      - name: One-shot shadow adapter proof after release
+        if: github.event_name != 'schedule'
+        shell: bash
+        run: |
+          set -euo pipefail
+          day=$(TZ=America/Chicago date -d '+2 days' +%F)
+          for league in ger.1 fra.1 esp.1; do
+            curl -fsS --max-time 120 -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/soccer-prospective-shadow?mode=snapshot&competition=$league&date=$day" > "artifacts/shadow-$league.json"
+            jq -e '.ok and .researchOnly and (.canQualify==false) and (.canAuthorize==false)' "artifacts/shadow-$league.json"
+          done
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: soccer-market-reconcile-${{ github.run_id }}
+          path: artifacts/**

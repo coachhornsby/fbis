@@ -1,3 +1,4 @@
+import {loadSoccerMarketFixtures} from "./soccerMarketFixtures.js";
 /** Immutable paginated public discovery. Each page is archived before bounded ingestion. */
 import {POLY_US_API,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers} from './polymarketUs.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
@@ -30,6 +31,7 @@ export async function capturePolymarketPage(env,{receiptId,kind,slug=null,sport=
     await loadVerifiedTennisCandidates(env.DB,items.map(e=>e.startTime||e.eventDate||e.startDate||e.gameStartTime),{asOf:capturedAt}):
     starts.length?(await env.DB.prepare(`SELECT id,sport,start,home_name,away_name,home_abbr,away_abbr FROM games WHERE sport=? AND julianday(start) BETWEEN julianday(?) AND julianday(?)`)
     .bind(sport,new Date(Math.min(...starts)-7200000).toISOString(),new Date(Math.max(...starts)+7200000).toISOString()).all())?.results||[]:[];
+  if(sport==='soccer')games.push(...(await loadSoccerMarketFixtures(env,{fetchImpl,now})).fixtures.filter(g=>!games.some(x=>String(x.id)===g.id)));
   for(const event of items){
    const match=matchPolymarketUsEvent(event,games,sport);
    offers.push(...polymarketUsMarketOffers(event,sport,{canonicalId:match.id,capturedAt,maxMarkets:Infinity}).map(offer=>({...offer,raw:{...offer.raw,

@@ -48,6 +48,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   }
   let payload=null;
   try{payload=JSON.parse(r.raw_payload_json||"null")}catch{}
+  if(sport==="soccer"&&r.source==="Polymarket US WebSocket"&&payload?.contractBindingVerified!==true)continue;
   const providerObservedAt=providerObservationTime({source:r.source,raw:payload,sourceObservedAt:
     payload && Object.hasOwn(payload,"sourceObservedAt") ? payload.sourceObservedAt :
     payload?.quoteProvenance==="collector-capture-only" ? null : r.source_observed_at});

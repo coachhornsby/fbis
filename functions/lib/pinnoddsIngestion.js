@@ -1,3 +1,4 @@
+import {loadSoccerMarketFixtures} from "./soccerMarketFixtures.js";
 import {normalizePinnoddsMarkets} from './pinnoddsMarkets.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
 import {loadVerifiedTennisCandidates} from './polymarketTennisIdentity.js';
@@ -21,6 +22,7 @@ async function normalizeFromArchivedRaw(env,receipt,{snapshotId,fixtureAsOf=null
    const asOf=fixtureAsOf||receipt.collectedAt;
    games.push(...await loadVerifiedTennisCandidates(env.DB,body.events.map(e=>e.starts),{asOf,includeCompleted}));
   }
+  if(receipt.sportId===1)games.push(...(await loadSoccerMarketFixtures(env)).fixtures.filter(g=>!games.some(x=>String(x.id)===g.id)));
   result=normalizePinnoddsMarkets(body,{sportId:receipt.sportId,feed:receipt.feed,capturedAt:receipt.collectedAt,games,snapshotId,rawKey:receipt.rawKey});
  }
  return result;

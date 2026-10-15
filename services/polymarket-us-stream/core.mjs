@@ -56,14 +56,14 @@ export function liveBboOffer(tick,base){
     eventStart:base.event_start_time,homeTeam:base.home_team,
     awayTeam:base.away_team,marketFamily:base.market_family,
     side:base.side,line:base.line,contractPrice:tick.bestAsk,
-    standardOrAlt:"unknown",period:"full_game",sourceMarketId:tick.marketSlug,
+    standardOrAlt:"unknown",period:base.period||"unspecified",sourceMarketId:tick.marketSlug,
     sourceOutcomeId:base.source_outcome_id,fetchedAt:tick.at,
     executionEligible:false,canQualify:false,canAuthorizeWager:false,
     raw:{providerEventId:base.provider_event_id,providerMarketId:tick.marketSlug,
-      providerOutcomeId:base.source_outcome_id,quoteKind:"WS_LIVE_BBO_UNVERIFIED_FILL",
+      providerOutcomeId:base.source_outcome_id,contractBindingVerified:true,contractLong:true,quoteKind:"WS_LIVE_BBO_UNVERIFIED_FILL",
       bestBid:tick.bestBid,bestAsk:tick.bestAsk,lastTrade:tick.lastTrade,
       bidDepth:tick.bidDepth,askDepth:tick.askDepth,
-      sourceObservedAt:null,quoteObservedAt:null,marketObservedAt:null,
+      sourceObservedAt:tick.sourceObservedAt||null,quoteObservedAt:tick.sourceObservedAt||null,marketObservedAt:tick.sourceObservedAt||null,marketState:tick.marketState||null,
       streamService:"fbis-polymarket-us-stream",streamMode:"RECONNECTING",
       canQualify:false,canAuthorizeWager:false,modelInfluence:"none"}};
 }

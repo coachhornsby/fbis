@@ -39,7 +39,7 @@ export function chicagoMarketDay(value){
 export function marketEventStart(e={}){
   return e.startTime||e.eventDate||e.startDate||e.gameStartTime||null;
 }
-function normName(x){return CLEAN(x).replace(/\b(the|club|fc|football|basketball|baseball|hockey|team)\b/g,"").replace(/\s+/g," ").trim();}
+function normName(x){return CLEAN(String(x??"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"")).replace(/\b(the|club|fc|football|basketball|baseball|hockey|team)\b/g,"").replace(/\s+/g," ").trim();}
 const GENERIC_TEAM_TOKENS=new Set(["city","united","town","club","athletic","sporting","real","international","national","state","university","college","rovers"]);
 function teamMatches(a,b,abbr){
   const x=normName(a), y=normName(b);
@@ -126,6 +126,13 @@ export function polymarketUsMarketFamily(m={}){
   if(type.includes("PLAYER")||type.includes("PROP"))return "player_prop";
   return "unclassified";
 }
+export function polymarketUsPeriod(m={}) {
+ const type=String(m.sportsMarketType||"").toLowerCase();
+ if(type.includes("first_half"))return "first_half";
+ if(type.includes("second_half"))return "second_half";
+ if(type.includes("full_game")||type.includes("full_time"))return "full_game";
+ return "unspecified";
+}
 /** Display quote != executable best ask. Preserve both distinctly. */
 export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=new Date().toISOString(),maxMarkets=Infinity}={}){
   const markets=Array.isArray(e.markets)?e.markets.slice(0,Math.max(0,maxMarkets)):[];
@@ -148,7 +155,7 @@ export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=ne
         homeTeam:e.homeTeam?.name||null,awayTeam:e.awayTeam?.name||null,
         marketFamily:family,statFamily:null,side:label,line:m.line,
         contractPrice:price,americanOdds:null,executionEligible:false,
-        standardOrAlt:"unknown",period:/full_game/i.test(String(m.sportsMarketType||""))?"full_game":"unspecified",sourceMarketId:slug,
+        standardOrAlt:"unknown",period:polymarketUsPeriod(m),sourceMarketId:slug,
         sourceOutcomeId:String(side.id||side.identifier||label),fetchedAt:capturedAt,
         raw:{providerEventId,providerMarketId:String(m.id||slug),providerOutcomeId:String(side.id||""),
           providerTitle:e.title||null,marketTitle:m.question||m.title||null,
