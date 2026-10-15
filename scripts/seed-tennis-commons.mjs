@@ -10,11 +10,20 @@ const endpoint="https://fbis-myz.pages.dev/api/tennis-portrait-import";
 if(!secret||secret.length<24)throw new Error("HARVEST_SECRET unavailable; refusing image upload");
 const normalized=s=>String(s||"").replaceAll("_"," ").normalize("NFKC").trim().toLowerCase();
 const licenseUrl=s=>String(s||"").replace(/^http:/,"https:").replace(/\/?$/,"/");
-const validHost=(link,hostname)=>{try{let u=new URL(link);return u.protocol==="https:"&&u.hostname===hostname&&!u.username&&!u.password;}catch{return false;}};
-const fetchWithTimeout=async(url,opts={})=>fetch(url,{...opts,signal:AbortSignal.timeout(25000)});
+const validHost=(link,hostnames)=>{try{const u=new URL(link);return u.protocol==="https:"&&hostnames.includes(u.hostname)&&!u.username&&!u.password;}catch{return false;}};
+const fetchWithTimeout=async(url,opts={})=>{
+  let response;
+  for(let attempt=0;attempt<4;attempt++){
+    response=await fetch(url,{...opts,signal:AbortSignal.timeout(25000)});
+    if(response.status!==429||attempt===3)return response;
+    await new Promise(resolve=>setTimeout(resolve,2200*(attempt+1)));
+  }
+  return response;
+};
 const results=[];
 
 for(const c of TENNIS_COMMONS_PORTRAIT_BATCH){
+  await new Promise(resolve=>setTimeout(resolve,850)); // respect upstream rate limits
   try{
     const api=new URL("https://commons.wikimedia.org/w/api.php");
     for(const [key,value] of Object.entries({action:"query",format:"json",formatversion:"2",prop:"imageinfo",iiprop:"url|mime|size|extmetadata",iiurlwidth:"720",titles:"File:"+c.fileTitle}))api.searchParams.set(key,value);
@@ -25,11 +34,14 @@ for(const c of TENNIS_COMMONS_PORTRAIT_BATCH){
     if(page.missing||normalized(page.title)!==normalized("File:"+c.fileTitle))throw Error("SOURCE_FILE_MISMATCH");
     const actualShort=String(license.LicenseShortName?.value||"").trim().toUpperCase().replace(/\s+/g," ");
     if(actualShort!==c.license.toUpperCase()&&!(c.license==="CC0 1.0"&&actualShort==="CC0"))throw Error("SOURCE_LICENSE_MISMATCH:"+actualShort);
-    if(licenseUrl(license.LicenseUrl?.value)!==licenseUrl(c.licenseUrl))throw Error("SOURCE_LICENSE_URL_MISMATCH");
+    const verifiedLicense=licenseUrl(license.LicenseUrl?.value);
+    const expectedLicense=licenseUrl(c.licenseUrl);
+    const cc0Deed=c.license==="CC0 1.0"&&verifiedLicense==="https://creativecommons.org/publicdomain/zero/1.0/deed.en/";
+    if(verifiedLicense!==expectedLicense&&!cc0Deed)throw Error("SOURCE_LICENSE_URL_MISMATCH");
     if(!String(license.Artist?.value||"").toLowerCase().includes(c.author.toLowerCase()))throw Error("SOURCE_ARTIST_MISMATCH");
     if(info.mime!=="image/jpeg")throw Error("SOURCE_NOT_JPEG");
     const thumbnail=info.thumburl||info.url;
-    if(!validHost(thumbnail,"upload.wikimedia.org")||!new URL(thumbnail).pathname.startsWith("/wikipedia/commons/"))throw Error("IMAGE_URL_NOT_TRUSTED");
+    if(!validHost(thumbnail,["upload.wikimedia.org","thumb.wikimedia.org"])||!new URL(thumbnail).pathname.startsWith("/wikipedia/commons/"))throw Error("IMAGE_URL_NOT_TRUSTED");
     const pic=await fetchWithTimeout(thumbnail,{headers:{"user-agent":"FBIS-Tennis-CC-portrait-import/1.0 (GitHub coachhornsby/fbis)"}});
     if(!pic.ok)throw Error("IMAGE_HTTP_"+pic.status);
     const bytes=Buffer.from(await pic.arrayBuffer());
