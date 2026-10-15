@@ -1,3 +1,4 @@
+import {indexCfbRatings} from "../functions/lib/collegeJobsCore.js";
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {reserveCfbdRequest,completeCfbdRequest,cfbdRequestHash} from "../functions/lib/cfbCfbdAcquisition.js";
@@ -71,4 +72,24 @@ test("different production Worker instances cannot replay same permit",async()=>
   const first=await reserveCfbdRequest(env,URL);
   const second=await reserveCfbdRequest({...env},URL);
   assert.equal(first.allowed,true);assert.equal(second.allowed,false);
+});
+
+test("weekly CFBD advanced sources become point-in-time research team features",()=>{
+  const catalog=indexCfbRatings({
+    "/ratings/sp":[{team:"Ohio State",rating:23.5,offense:{rating:41},defense:{rating:15}}],
+    "/ratings/fpi":[{team:"Ohio State",fpi:19.4}],
+    "/ppa/teams":[{team:"Ohio State",offense:{overall:0.34},defense:{overall:-0.12}}],
+    "/stats/season/advanced":[{team:"Ohio State",offense:{successRate:0.48},defense:{successRate:0.33}}],
+    "/talent":[{school:"Ohio State",talent:970}],
+    "/player/returning":[{team:"Ohio State",percentPPA:0.65}],
+  });
+  const row=Object.values(catalog.byCanonicalId)[0];
+  assert.ok(row,"canonical team must match");
+  assert.equal(row.sp,23.5);
+  assert.equal(row.fpi,19.4);
+  assert.equal(row.ppaOff,0.34);
+  assert.equal(row.defensiveSuccessRate,0.33);
+  assert.equal(row.talent,970);
+  assert.equal(row.returningPpa,0.65);
+  assert.equal(catalog.coverage["/ppa/teams"],1);
 });
