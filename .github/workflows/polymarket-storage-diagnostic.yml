@@ -1,4 +1,4 @@
-name: Polymarket storage read-only diagnostic
+name: Polymarket storage bounded write diagnostic
 on:
   push:
     branches: [fix/polymarket-storage-diagnostics-20261015]
@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: '22'
-      - name: Inspect one failing archive batch without applying changes
+      - name: Inspect one failing archive batch and expose only safe error details
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
@@ -20,7 +20,7 @@ jobs:
           for (const limit of [1,10,250]) {
             const r=await fetch('https://fbis-myz.pages.dev/api/polymarket-storage',{
               method:'POST',headers:{'content-type':'application/json','x-harvest-secret':process.env.HARVEST_SECRET},
-              body:JSON.stringify({operation:'compact',apply:false,afterRowid:9383,limit,cutoff:'2026-10-15T07:34:20.682Z'}),signal:AbortSignal.timeout(60000)});
+              body:JSON.stringify({operation:'compact',apply:true,afterRowid:9383,limit,cutoff:'2026-10-15T07:34:20.682Z'}),signal:AbortSignal.timeout(60000)});
             const text=await r.text();let v;try{v=JSON.parse(text)}catch{v={error:'NON_JSON_RESPONSE'}};
             console.log(JSON.stringify({limit,http:r.status,ok:v.ok,error:v.error,examined:v.examined,eligible:v.eligible,reasons:v.reasons}));
           }
