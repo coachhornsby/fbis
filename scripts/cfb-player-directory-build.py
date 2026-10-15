@@ -3,6 +3,7 @@ import hashlib, io, json, os, re
 from pathlib import Path
 from urllib.request import Request, urlopen
 import pandas as pd
+from lib.cfb_roster_retention import persist_d1_raw_roster_observation
 
 START=int(os.getenv("CFB_ROSTER_START") or "2004")
 END=int(os.getenv("CFB_ROSTER_END") or "2026")
@@ -281,7 +282,11 @@ ON CONFLICT(player_id,team_id,season,source) DO UPDATE SET
 position=excluded.position,position_abbreviation=excluded.position_abbreviation,jersey=excluded.jersey,class_year=excluded.class_year,height=excluded.height,weight=excluded.weight,first_game_id=excluded.first_game_id,first_week=excluded.first_week,first_game_at=excluded.first_game_at,last_game_id=excluded.last_game_id,last_week=excluded.last_week,last_game_at=excluded.last_game_at,games_rostered=excluded.games_rostered,pit_resolvable=excluded.pit_resolvable,temporal_confidence=excluded.temporal_confidence,effective_from=excluded.effective_from,effective_to=excluded.effective_to,observed_at=excluded.observed_at,ingested_at=excluded.ingested_at,confidence=excluded.confidence,raw_json=excluded.raw_json,research_only=1,can_influence_projection=0;""")
 
         oid=f"rosterobs:{hid(SOURCE,season,tid_raw,provider_pid or pid,content_hash)}"
-        sql.append(f"""INSERT OR IGNORE INTO cfb_roster_observations
+        # Completed 2004 is content-addressed, full-season R2; do not rehydrate its
+        # redundant raw evidence into the near-capacity primary D1.
+        # All membership and identity writes above still run for every season.
+        if persist_d1_raw_roster_observation(season):
+            sql.append(f"""INSERT OR IGNORE INTO cfb_roster_observations
 (id,player_id,team_id,provider,provider_player_id,provider_team_id,season,position,jersey,class_year,first_game_id,first_week,first_game_at,last_game_id,last_week,last_game_at,games_rostered,pit_resolvable,temporal_confidence,payload_json,source_timestamp,observed_at,ingested_at,content_hash,confidence,research_only,can_influence_projection)
 VALUES ({esc(oid)},{esc(pid)},{esc(tid)},'ESPN',{esc(provider_pid)},{esc(tid_raw)},{season},{esc(position)},{esc(jersey)},{esc(class_year)},{esc(tm.get('first_game_id'))},{sqlnum(tm.get('first_week'))},{esc(tm.get('first_game_at'))},{esc(tm.get('last_game_id'))},{sqlnum(tm.get('last_week'))},{esc(tm.get('last_game_at'))},{sqlnum(games)},{pit_resolvable},{temporal_confidence},{esc(raw_json)},NULL,{esc(observed)},{esc(observed)},{esc(content_hash)},{confidence},1,0);""")
 
@@ -289,6 +294,7 @@ VALUES ({esc(oid)},{esc(pid)},{esc(tid)},'ESPN',{esc(provider_pid)},{esc(tid_raw
     shard.write_text("\n".join(sql)+"\n")
     cov={
       "season":season,
+      "rawObservationWritesEnabled":persist_d1_raw_roster_observation(season),
       "rosterRows":int(len(roster)),
       "stableIdRows":stable,
       "provisionalRows":provisional,
