@@ -75,3 +75,31 @@ test("Tennis UI refinement does not introduce wager authorization or synthetic m
   assert.match(jsx,/POINTS —/);
   assert.doesNotMatch(jsx,/#0|EVEN/);
 });
+
+test("Tennis cards default to compact matchup with a native closed intelligence dropdown", async()=>{
+  const server=await createServer({configFile:false,plugins:[react()],optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true},appType:"custom"});
+  try {
+    const {default:TennisMatchCard}=await server.ssrLoadModule("/src/components/board/TennisMatchCard.jsx");
+    const game={id:"compact-regression",sport:"tennis",tour:"WTA",home:{name:"Iva Jovic",countryCode:"US",rank:11},away:{name:"Maja Chwalinska",countryCode:"PL",rank:22},tennisProjection:{eventIntegrity:{valid:true},player1WinProb:.715,player2WinProb:.285,surface:"hard",tournament:"Wuhan Open"}};
+    const rendered=renderToStaticMarkup(createElement(TennisMatchCard,{game}));
+    assert.match(rendered,/class="tmc tmc-compact/);
+    assert.match(rendered,/28\.5%/);
+    assert.match(rendered,/71\.5%/);
+    assert.match(rendered,/MATCHUP INTELLIGENCE/);
+    assert.match(rendered,/FBIS PROJECTION/);
+    assert.match(rendered,/MODEL VS MARKET/);
+    assert.match(rendered,/RECENT FORM \(LAST 5\)/);
+    const match=rendered.match(/<details class="tmc-expand"[^>]*>/);
+    assert.ok(match,"matchup intelligence native details must exist");
+    assert.doesNotMatch(match[0],/\bopen(?:=|\s|>)/,"default closed");
+    assert.ok(rendered.indexOf("tmc-probability")<rendered.indexOf("tmc-expand"),"FBIS probability stays visible above dropdown");
+    assert.ok(rendered.indexOf("tmc-expand")<rendered.indexOf("tmc-main"),"full market/form panels are inside details");
+  } finally { await server.close(); }
+});
+
+test("Tennis compact grid returns to two columns and details expand full width",()=>{
+  assert.match(css,/db-grid>\.db-grid-item-tennis:has\(>\.tmc-compact\)/);
+  assert.match(css,/tmc-expand\[open\]/);
+  assert.match(css,/@container\(max-width:425px\)/);
+  assert.match(css,/prefers-reduced-motion:reduce/);
+});

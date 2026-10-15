@@ -17,6 +17,10 @@ try {
   const metrics=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,
    headings:[...document.querySelectorAll('.tmc-player-copy h2')].map(x=>({name:x.textContent,width:x.clientWidth,scroll:x.scrollWidth})),
    cardWidth:document.querySelector(".tmc").getBoundingClientRect().width,itemWidth:document.querySelector(".db-grid-item-tennis").getBoundingClientRect().width,gridWidth:document.querySelector(".db-grid").clientWidth-parseFloat(getComputedStyle(document.querySelector(".db-grid")).paddingLeft)-parseFloat(getComputedStyle(document.querySelector(".db-grid")).paddingRight),
+   gridColumns:getComputedStyle(document.querySelector(".db-grid")).gridTemplateColumns.split(" ").filter(Boolean).length,
+   collapsed:!document.querySelector(".tmc-expand").open,
+   detailHidden:!document.querySelector(".tmc-main").checkVisibility({contentVisibilityAuto:true}),
+   summary:document.querySelector(".tmc-expand-toggle")?.textContent,
    font:getComputedStyle(document.querySelector(".tmc h2")).fontFamily,
    bar:!!document.querySelector('.tmc-probability-track'),projection:!!document.querySelector('.tmc-projection-panel'),
    transition:getComputedStyle(document.querySelector('.tmc-probability-track>span')||document.querySelector('.tmc')).transitionDuration,
@@ -24,7 +28,22 @@ try {
   await page.screenshot({path:`${out}/${name}.png`,fullPage:true});
   results.push({name,...metrics,errors});
   await writeFile(`${out}/metrics.json`,JSON.stringify(results,null,2));
-  if(errors.length||metrics.scroll>width+1||metrics.headings.some(x=>x.scroll>x.width+1)||Math.abs(metrics.itemWidth-metrics.gridWidth)>2||!metrics.font.includes("sans-serif")||!metrics.projection||metrics.neutralFlag||metrics.transition!=='0s')throw Error(JSON.stringify(results));
+  const compactColumnsValid=metrics.gridColumns===1
+    ? Math.abs(metrics.itemWidth-metrics.gridWidth)<=2
+    : metrics.gridColumns===2&&metrics.itemWidth<metrics.gridWidth*.75;
+  if(errors.length||metrics.scroll>width+1||metrics.headings.some(x=>x.scroll>x.width+1)||!compactColumnsValid||!metrics.collapsed||!metrics.detailHidden||!metrics.summary?.includes("MATCHUP INTELLIGENCE")||!metrics.font.includes("sans-serif")||!metrics.projection||metrics.neutralFlag||metrics.transition!=='0s')throw Error(JSON.stringify(results));
+  await page.locator(".tmc-expand-toggle").click();
+  const expanded=await page.evaluate(()=>({
+    open:document.querySelector(".tmc-expand").open,
+    itemWidth:document.querySelector(".db-grid-item-tennis").getBoundingClientRect().width,
+    gridWidth:document.querySelector(".db-grid").clientWidth-parseFloat(getComputedStyle(document.querySelector(".db-grid")).paddingLeft)-parseFloat(getComputedStyle(document.querySelector(".db-grid")).paddingRight),
+    detailVisible:document.querySelector(".tmc-main").getClientRects().length>0,
+    marketVisible:document.querySelector(".tmc-comparison").getClientRects().length>0,
+    horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1
+  }));
+  if(!expanded.open||!expanded.detailVisible||!expanded.marketVisible||expanded.horizontalOverflow||Math.abs(expanded.itemWidth-expanded.gridWidth)>2)throw Error(JSON.stringify({results,expanded}));
+  if(name==="desktop"||name.startsWith("mobile"))await page.screenshot({path:`${out}/${name}-expanded.png`,fullPage:true});
+  results[results.length-1].expanded=expanded;
   await page.close();
  }
  await writeFile(`${out}/metrics.json`,JSON.stringify(results,null,2));
