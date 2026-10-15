@@ -103,3 +103,17 @@ test("Tennis compact grid returns to two columns and details expand full width",
   assert.match(css,/@container\(max-width:425px\)/);
   assert.match(css,/prefers-reduced-motion:reduce/);
 });
+
+test("Tennis compact cards use a single enlarged national flag per player",async()=>{
+ const server=await createServer({configFile:false,plugins:[react()],optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true},appType:"custom"});
+ try{
+   const {default:TennisMatchCard}=await server.ssrLoadModule("/src/components/board/TennisMatchCard.jsx");
+   const game={id:"one-flag",sport:"tennis",tour:"WTA",away:{name:"Player Alpha",countryCode:"PL"},home:{name:"Player Beta",countryCode:"US"},tennisProjection:{eventIntegrity:{valid:true},player1WinProb:.55,player2WinProb:.45}};
+   const markup=renderToStaticMarkup(createElement(TennisMatchCard,{game}));
+   assert.equal((markup.match(/class="tmc-primary-flag"/g)||[]).length,2);
+   assert.doesNotMatch(markup,/class="tmc-country"/);
+   assert.doesNotMatch(markup,/--tmc-flag/);
+   assert.match(css,/tmc-nationality \.tmc-primary-flag\{width:54px;height:35px/);
+   assert.match(css,/tmc-player-side:before\{background-image:none!important/);
+ }finally{await server.close()}
+});
