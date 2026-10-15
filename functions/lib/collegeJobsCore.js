@@ -1,4 +1,5 @@
 import {cfbCfbdAcquisitionHealth} from "./cfbCfbdAcquisition.js";
+import {reconcileSharedCollegeQuota} from "./quota.js";
 /**
  * Authenticated college research jobs. Each job is a separate Worker invocation.
  * Shadow models never auto-promote. Training does not run in this Worker.
@@ -394,6 +395,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
     if (job === "college-health") {
       const quota = await queryQuota(env);
       const cfbdAcquisition = await cfbCfbdAcquisitionHealth(env);
+      const sharedQuota = reconcileSharedCollegeQuota(quota, cfbdAcquisition);
       const storage = await storageBudget(env);
       const keys = collegeKeyHealth(env);
       return jobPayload({
@@ -404,7 +406,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         successfulAt: new Date().toISOString(),
         env,
         writes,
-        d1: { bound: hasDb(env), quota, cfbdAcquisition, storage, keys, identity: { cfb: collegeTeamCoverage("cfb"), cbb: collegeTeamCoverage("cbb") } },
+        d1: { bound: hasDb(env), quota: sharedQuota, cfbdAcquisition, storage, keys, identity: { cfb: collegeTeamCoverage("cfb"), cbb: collegeTeamCoverage("cbb") } },
       });
     }
 
