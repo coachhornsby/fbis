@@ -87,3 +87,39 @@ test("reader refuses fabricated seasons, invalid page limits and untrusted key p
   await assert.rejects(readVerifiedCfbColdRosterPage(f.env,{manifestKey:f.key,limit:300}),/INVALID_NUMBER/);
   await assert.rejects(readVerifiedCfbColdRosterPage(f.env,{manifestKey:"private/users/"+sha("bad")+".json"}),/MANIFEST_KEY_OUT_OF_SCOPE/);
 });
+
+
+import {onRequestGet,onRequestPost} from "../functions/api/cfb-roster-archive.js";
+const req=(path,secret=null)=>new Request("https://fbis-myz.pages.dev"+path,{
+  headers:secret?{"x-harvest-secret":secret}:{},
+});
+test("protected Pages readback refuses unauthorized or URL-query secrets",async()=>{
+  let reached=false;
+  const env={HARVEST_SECRET:"private",ARCHIVE:{}};
+  const loader=async()=>{reached=true;return {state:"should-not-leak"};};
+  for(const request of [req("/api/cfb-roster-archive"),req("/api/cfb-roster-archive?secret=private"),req("/api/cfb-roster-archive","wrong")]){
+    const r=await onRequestGet({env,request,coldRosterReader:loader});
+    assert.equal(r.status,403);
+    assert.equal(r.headers.get("cache-control"),"private, no-store");
+  }
+  assert.equal(reached,false);
+});
+test("protected Pages readback delegates only bounded season scope and never writes",async()=>{
+  const expected={state:"VERIFIED_RETROSPECTIVE_R2_ARCHIVE",rows:[records[0]],researchOnly:true,canAuthorizeWager:false};
+  let calls=0,passed;
+  const r=await onRequestGet({env:{HARVEST_SECRET:"private"},request:req("/api/cfb-roster-archive?season=2004&afterRowid=5&limit=1","private"),
+    coldRosterReader:async(env,scope)=>{calls++;passed=scope;return expected;}});
+  assert.equal(r.status,200);assert.equal(calls,1);
+  assert.deepEqual(passed,{season:2004,afterRowid:5,limit:1});
+  assert.deepEqual((await r.json()).rows,expected.rows);
+  assert.equal(r.headers.get("cache-control"),"private, no-store");
+});
+test("private Pages reader fails closed on invalid scope and missing R2 source",async()=>{
+  const env={HARVEST_SECRET:"private"};
+  assert.equal((await onRequestGet({env,request:req("/api/cfb-roster-archive?season=2026","private")})).status,400);
+  assert.equal((await onRequestGet({env,request:req("/api/cfb-roster-archive?limit=101","private")})).status,400);
+  assert.equal((await onRequestGet({env,request:req("/api/cfb-roster-archive?afterRowid=-1","private")})).status,400);
+  const error=await onRequestGet({env,request:req("/api/cfb-roster-archive","private"),coldRosterReader:async()=>{throw Error("R2_SHA256_MISMATCH")}});
+  assert.equal(error.status,503);assert.equal((await error.json()).status,"FAIL_CLOSED");
+  assert.equal((await onRequestPost()).status,405);
+});
