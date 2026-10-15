@@ -75,7 +75,12 @@ export async function onRequestGet(context) {
     });
   }
   try {
-    const payload = await runCollegeJob(job, envFrom(context), parseCollegeJobOptions(context.request));
+    // The sole scheduled CFBD network owner is the early-morning postgame
+    // harvester. All other operations can read durable / cached CFBD facts,
+    // but cannot spend provider quota (even for an accidental old cron).
+    const runEnv = envFrom(context);
+    runEnv.cfbdCacheOnly = job !== "cfb-postgame-harvest";
+    const payload = await runCollegeJob(job, runEnv, parseCollegeJobOptions(context.request));
     payload.keyHealth = collegeKeyHealth(context.env);
     return new Response(JSON.stringify(payload), {
       status: httpStatusForJob(payload.status),
