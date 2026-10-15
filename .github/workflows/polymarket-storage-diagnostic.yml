@@ -9,6 +9,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   compact:
+    if: false
     strategy:
       fail-fast: false
       max-parallel: 2
