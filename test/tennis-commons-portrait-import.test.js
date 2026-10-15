@@ -102,3 +102,24 @@ test("real imported rights record satisfies display gate",()=>{
   assert.equal(approved?.sourceUrl,choice.sourceUrl);
   assert.equal(approved?.licenseUrl,choice.licenseUrl);
 });
+
+test("authenticated GitHub-side Commons transfer enforces exact manifest, SHA-256 and valid JPEG bytes",async()=>{
+  const {createHash}=await import("node:crypto");
+  const env=fbis();env.HARVEST_SECRET=secret;
+  const bytes=Buffer.alloc(1024);bytes.set([255,216,255,224]);
+  const payload={
+    playerId:choice.playerId,fileTitle:choice.fileTitle,licenseUrl:choice.licenseUrl,
+    dataBase64:bytes.toString("base64"),imageSha256:createHash("sha256").update(bytes).digest("hex")
+  };
+  const req=obj=>new Request("https://fbis.example/api/tennis-portrait-import",{
+    method:"POST",headers:{"x-harvest-secret":secret,"content-type":"application/json"},body:JSON.stringify(obj)
+  });
+  assert.equal((await onRequestPost({request:req({...payload,fileTitle:"File:SomeoneElse.jpg"}),env})).status,409);
+  assert.equal((await onRequestPost({request:req({...payload,imageSha256:"0".repeat(64)}),env})).status,422);
+  assert.equal(env.writes,0);
+  const res=await onRequestPost({request:req(payload),env});
+  assert.equal(res.status,200,await res.clone().text());
+  assert.equal((await res.json()).status,"IMPORTED");
+  assert.equal(env.saved.key,`tennis/portraits/${choice.playerId}/commons-curated-20261015.jpg`);
+  assert.equal(env.writes,1);
+});
