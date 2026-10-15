@@ -5,7 +5,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: fbis-polymarket-payload-compaction
+  group: fbis-polymarket-bounded-recovery
   cancel-in-progress: true
 jobs:
   compact:
