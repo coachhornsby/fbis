@@ -72,8 +72,7 @@ const CFB_REFRESH_ENDPOINTS = [
 ];
 
 const CFB_BACKFILL_EXTRA = [
-  ["/talent", (y) => ({ year: y })],
-  ["/player/returning", (y) => ({ year: y })],
+  // Talent and returning production already appear in the standard refresh.
   ["/recruiting/teams", (y) => ({ year: y })],
   ["/games", (y) => ({ year: y, seasonType: "regular" })],
 ];
