@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   soccer-recovery:
-    if: github.event.workflow_run.conclusion == 'success' and github.event.workflow_run.head_branch == 'main'
+    if: github.event.workflow_run.conclusion == 'success' and github.event.workflow_run.head_branch == 'main' and github.event.workflow_run.id == 38766761904
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -51,6 +51,7 @@ jobs:
           tomorrow=$(TZ=America/Chicago date -d '+1 day' +%F)
           curl -fsS --retry 4 --retry-all-errors --retry-delay 3 --max-time 120 "$BASE/api/slate?sport=soccer&date=$tomorrow" > artifacts/soccer-board.json
           jq '{games:(.games|length),sourceOffers:[.games[].market.venueOffers[]?.source]|group_by(.)|map({source:.[0],offers:length})}' artifacts/soccer-board.json
+          jq -e '(.games|length)>0 and any(.games[].market.venueOffers[]?; .source=="PinnOdds") and any(.games[].market.venueOffers[]?; .source=="Polymarket US WebSocket")' artifacts/soccer-board.json
           curl -fsS --max-time 30 https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health > artifacts/stream-health.json
           jq -e '.ok and .operational and .connected' artifacts/stream-health.json
       - uses: actions/upload-artifact@v4.6.2
