@@ -31,7 +31,7 @@ jobs:
         run: |
           set -euo pipefail
           cursor=''
-          for page in $(seq 1 100); do
+          for page in $(seq 1 250); do
             body=$(jq -nc --arg cursor "$cursor" '{cursor:$cursor}')
             curl -fsS --retry 4 --retry-all-errors --retry-delay 3 --max-time 100 -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' -d "$body" "$BASE/api/soccer-market-reconcile" > "artifacts/page-$page.json"
             jq -c '{ok,examined,matched,inserted,nextCursor,reasons,originalClocksPreserved,paidProviderCalls}' "artifacts/page-$page.json"
