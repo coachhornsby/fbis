@@ -46,6 +46,10 @@ jobs:
           retention-days: 7
       - name: Test bounded source-preserving storage compaction
         run: node --test test/storage-compaction-budget.test.mjs
+      - name: Verify CFB historical source-ingest retention gate
+        run: |
+          python3 -m py_compile scripts/cfb-player-directory-build.py scripts/lib/cfb_roster_retention.py
+          python3 -m unittest test/test_cfb_roster_retention.py
       - name: Syntax check Cloudflare Functions
         run: find functions -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Run test suite
