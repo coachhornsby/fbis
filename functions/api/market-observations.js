@@ -20,7 +20,7 @@ export async function onRequestGet({env,request}){
    if(r.source==='PrizePicks GitHub Mirror')Object.assign(temporal,{status:'DAILY_REFERENCE',providerTimeConfidence:'MIRROR_REPORTED_CAPTURE',currentDisplayEligible:false,prospectiveEvidenceEligible:false,modelInputEligible:false});
    return{id:r.id,source:r.source,eventId:r.canonical_event_id,sport:r.sport,playerName:r.player_name,marketFamily:r.market_family,statFamily:r.stat_family,
     side:r.side,line:r.line,period:r.period,americanOdds:r.american_odds,decimalOdds:r.decimal_odds,contractPrice:r.contract_price,
-    displayAmericanOdds:marketDisplayAmerican(r),displayImpliedProbability:marketDisplayImplied(r),displayPriceKind:r.contract_price!=null?'CONTRACT_COST_IMPLIED':r.decimal_odds!=null?'DECIMAL_RAW_IMPLIED':'AMERICAN_RAW_IMPLIED',
+    displayAmericanOdds:marketDisplayAmerican({americanOdds:r.american_odds,decimalOdds:r.decimal_odds,contractPrice:r.contract_price}),displayImpliedProbability:marketDisplayImplied({americanOdds:r.american_odds,decimalOdds:r.decimal_odds,contractPrice:r.contract_price}),displayPriceKind:r.contract_price!=null?'CONTRACT_COST_IMPLIED':r.decimal_odds!=null?'DECIMAL_RAW_IMPLIED':'AMERICAN_RAW_IMPLIED',
     sourceMarketId:r.source_market_id,sourceOutcomeId:r.source_outcome_id,providerObservedAt,collectedAt:r.collected_at,temporal,
     quoteKind:raw.quoteKind||raw.priceKind||'OBSERVED_REFERENCE',canQualify:false,canAuthorizeWager:false};
   });
