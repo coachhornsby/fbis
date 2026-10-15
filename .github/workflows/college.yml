@@ -198,6 +198,17 @@ jobs:
                 jq -c '{http: $http, ok: .ok, job: .job, status: .status, errors: (.errors // []), d1: (.d1.bound // false)}' --arg http "$http" "$tmp" || true
                 ok=$(jq -r '(.ok == true) and (.status == "success")' "$tmp" 2>/dev/null || echo false)
                 rate_limited=$(jq -r '[.errors[]? | tostring] | any(test("(CFBD|CBBD) 429|rate.?limit"; "i"))' "$tmp" 2>/dev/null || echo false)
+                if [ "$http" = "200" ] && jq -e '.status == "paused" and .reason == "COLLEGE_SHARED_MONTHLY_QUOTA_EXHAUSTED" and .networkCalls == 0' "$tmp" >/dev/null; then
+                  CFBD_QUOTA_PAUSED=1
+                  echo "CFBD/CBBD shared allowance exhausted: no college-provider traffic; prior observations retained."
+                  {
+                    echo "## CFBD/CBBD acquisition paused"
+                    echo "- reason: provider-confirmed zero remaining monthly calls"
+                    echo "- provider calls: 0"
+                    echo "- new CFBD coverage: unavailable; existing SDV state retained"
+                  } >> "$GITHUB_STEP_SUMMARY"
+                  return 0
+                fi
                 if [ "$http" = "200" ] && [ "$ok" = "true" ]; then
                   echo "college job success job=${job} attempt=${attempt}"
                   # Persist audit artifact for download when present
@@ -279,7 +290,7 @@ jobs:
             call cfb-postgame-harvest "" true
             # Once weekly, within the SAME acquisition owner/window, capture
             # CFBD ratings, PPA, advanced team form, talent and returners.
-            if [ "$(TZ=America/Chicago date +%u)" = "1" ] && [ "${CFBD_RATE_LIMITED:-0}" != "1" ]; then
+            if [ "$(TZ=America/Chicago date +%u)" = "1" ] && [ "${CFBD_RATE_LIMITED:-0}" != "1" ] && [ "${CFBD_QUOTA_PAUSED:-0}" != "1" ]; then
               call cfb-current-refresh "" true
             fi
             # Independent basketball/health tasks do not spend CFBD quota.

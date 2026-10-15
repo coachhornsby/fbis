@@ -1,3 +1,4 @@
+import {cfbCfbdAcquisitionHealth} from "../lib/cfbCfbdAcquisition.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { httpStatusForJob, parseJobTrigger } from "../lib/jobs.js";
 import { COLLEGE_JOBS, runCollegeJob } from "../lib/collegeJobs.js";
@@ -87,6 +88,28 @@ export async function onRequestGet(context) {
        "cfb-qb-transfer-refresh","cfbd-endpoint-audit"].includes(job);
     runEnv.cfbdNetworkAuthorized = scheduledOwner || manualOwner;
     runEnv.cfbdCacheOnly = !runEnv.cfbdNetworkAuthorized;
+    // CFBD and CBBD share the same subscription allowance. Pause scheduled
+    // basketball collection too if the provider confirms zero shared calls.
+    const sharedCollegeAcquisition = runEnv.cfbdNetworkAuthorized ||
+      ["cbb-current-refresh","cbb-postgame-harvest"].includes(job);
+    if (sharedCollegeAcquisition) {
+      const quota = await cfbCfbdAcquisitionHealth(runEnv);
+      // A provider-confirmed zero balance is a monthly account-level stop, not
+      // a new HTTP 429 each morning. Preserve SDV and previously acquired state.
+      const depleted = quota.bound === true && quota.providerRemaining === 0 &&
+        String(quota.last429At || "").slice(0, 7) === quota.month;
+      if (depleted) {
+        return new Response(JSON.stringify({
+          ok: false, status: "paused", job, reason: "COLLEGE_SHARED_MONTHLY_QUOTA_EXHAUSTED",
+          networkCalls: 0, canQualify: false, canAuthorizeWager: false,
+          sourceCoverage: "unavailable-new-cfbd", sdvCollectionUnaffected: true,
+          d1: {bound: true, cfbdAcquisition: quota}
+        }), {
+          status: 200,
+          headers: {"content-type": "application/json; charset=utf-8","cache-control": "no-store"}
+        });
+      }
+    }
     const payload = await runCollegeJob(job, runEnv, options);
     payload.keyHealth = collegeKeyHealth(context.env);
     return new Response(JSON.stringify(payload), {
