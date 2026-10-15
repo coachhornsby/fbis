@@ -984,22 +984,55 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
   return payload;
 }
 
-function indexCfbRatings(bundles) {
-  const sp = bundles["/ratings/sp"] || [];
-  const byEspnId = {};
-  const byCanonicalId = {};
-  for (const row of sp) {
-    const mapped = mapSourceTeam("cfb", row);
-    const off = Number(row.offense?.rating ?? row.offensiveRating);
-    const def = Number(row.defense?.rating ?? row.defensiveRating);
-    if (!Number.isFinite(off) || !Number.isFinite(def)) continue;
-    const rec = { off, def, sp: Number(row.rating), team: row.team, conference: row.conference, canonicalId: mapped.ok ? mapped.canonicalId : null };
-    if (mapped.ok) {
-      byCanonicalId[mapped.canonicalId] = rec;
-      if (mapped.espnId) byEspnId[String(mapped.espnId)] = rec;
+export function indexCfbRatings(bundles) {
+  // Persist research-grade advanced fields alongside SP ratings. Source values
+  // retain their own names; no PPA-to-EPA equivalence is assumed.
+  const byEspnId={},byCanonicalId={};
+  const n=v=>v==null||v===""||!Number.isFinite(Number(v))?null:Number(v);
+  const collections=[
+    ["/ratings/sp",(r)=>({sp:n(r.rating),off:n(r.offense?.rating??r.offensiveRating),def:n(r.defense?.rating??r.defensiveRating)})],
+    ["/ratings/fpi",(r)=>({fpi:n(r.fpi??r.rating)})],
+    ["/ratings/srs/expanded",(r)=>({srs:n(r.rating)})],
+    ["/ratings/elo",(r)=>({elo:n(r.elo??r.rating)})],
+    ["/ratings/core",(r)=>({core:n(r.rating)})],
+    ["/ppa/teams",(r)=>({ppaOff:n(r.offense?.overall),ppaDef:n(r.defense?.overall)})],
+    ["/stats/season/advanced",(r)=>({
+      offensiveSuccessRate:n(r.offense?.successRate),
+      defensiveSuccessRate:n(r.defense?.successRate),
+      offensiveExplosiveness:n(r.offense?.explosiveness),
+      defensiveExplosiveness:n(r.defense?.explosiveness),
+      offensiveLineYards:n(r.offense?.lineYards),
+      defensiveLineYards:n(r.defense?.lineYards),
+      offensiveHavoc:n(r.offense?.havoc?.total),
+      defensiveHavoc:n(r.defense?.havoc?.total),
+    })],
+    ["/talent",(r)=>({talent:n(r.talent)})],
+    ["/player/returning",(r)=>({
+      returningPpa:n(r.percentPPA),
+      returningYards:n(r.percentYards),
+      returningUsage:n(r.percentUsage),
+    })],
+  ];
+  const coverage={};
+  for(const [path,map] of collections){
+    const rows=Array.isArray(bundles[path])?bundles[path]:[];
+    coverage[path]=rows.length;
+    for(const row of rows){
+      const school=row.team||row.school;
+      if(!school)continue;
+      const mapped=mapSourceTeam("cfb",{...row,team:school});
+      if(!mapped.ok)continue;
+      const id=mapped.canonicalId;
+      const previous=byCanonicalId[id]||{
+        canonicalId:id,team:school,conference:row.conference||null
+      };
+      const patch=Object.fromEntries(Object.entries(map(row)).filter(([,v])=>v!==null));
+      const record={...previous,...patch};
+      byCanonicalId[id]=record;
+      if(mapped.espnId)byEspnId[String(mapped.espnId)]=record;
     }
   }
-  return { byCanonicalId, byEspnId, n: sp.length };
+  return {byCanonicalId,byEspnId,n:Object.keys(byCanonicalId).length,coverage};
 }
 
 export function gradeScores(pred, actualHome, actualAway) {
