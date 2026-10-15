@@ -38,6 +38,8 @@ jobs:
         run: find functions -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Run test suite
         run: npm test
+      - name: Verify CFB private cold archive readback and integrity gates
+        run: node --test test/cfb-roster-cold-archive.test.mjs test/cfb-verified-cold-roster-read.test.mjs
       - name: Verify tennis fixture, player, profile and market integration
         run: npm run test:tennis
       - name: Build app
