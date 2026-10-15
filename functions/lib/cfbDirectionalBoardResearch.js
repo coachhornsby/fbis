@@ -94,16 +94,29 @@ const sqlSdv=n=>`SELECT game_id,season,source_version,feature_as_of_timestamp,co
  AND source_version='cfb-sdv-source-observed-research-v1'
  ORDER BY feature_as_of_timestamp DESC LIMIT 500`;
 const query=async(db,sql,ids)=>{
- if(!db?.prepare||!ids.length)return [];
- try {const q=await db.prepare(sql).bind(...ids).all();return q?.results||[];}
- catch{return [];}
+ if(!ids.length)return {rows:[],state:"NO_EVENTS"};
+ if(!db?.prepare)return {rows:[],state:"DB_BINDING_MISSING"};
+ try {
+   const q=await db.prepare(sql).bind(...ids).all();
+   return {rows:Array.isArray(q?.results)?q.results:[],state:"READ_OK"};
+ } catch {
+   // No SQL, private table schema, or licensed source fields leave the backend.
+   return {rows:[],state:"READ_FAILED"};
+ }
 };
 export async function loadCfbDirectionalBoardResearch(env={},games=[],opts={}) {
  const selected=(games||[]).filter(g=>g?.sport==="cfb"),ids=[...new Set(selected.map(g=>String(g.id||"")).filter(v=>(/^\d{5,20}$/).test(v)))].slice(0,100);
- if(!ids.length)return {byGameId:{},cfbdGames:0,sdvGames:0,networkCalls:0};
+ if(!ids.length)return {byGameId:{},cfbdGames:0,sdvGames:0,networkCalls:0,
+  sourceHealth:{cfbd:"NO_EVENTS",sdv:"NO_EVENTS"},coverage:{games:0,cfbd:0,sdv:0,disagreements:0}};
  const [cfbd,sdv]=await Promise.all([
   query(env.TIER3_DB,sqlCfbd(ids.length),ids),
   query(env.DB,sqlSdv(ids.length),ids)
  ]);
- return buildCfbDirectionalBoardMap(selected,cfbd,sdv,opts);
+ const derived=buildCfbDirectionalBoardMap(selected,cfbd.rows,sdv.rows,opts);
+ const coverage={games:ids.length,cfbd:derived.cfbdGames,sdv:derived.sdvGames,
+  disagreements:Object.values(derived.byGameId).reduce((n,g)=>n+(g.disagreements||0),0)};
+ return {...derived,coverage,sourceHealth:{
+   cfbd:cfbd.state!=="READ_OK"?cfbd.state:derived.cfbdGames?"MATCHED":"NO_ELIGIBLE_MATCH",
+   sdv:sdv.state!=="READ_OK"?sdv.state:derived.sdvGames?"MATCHED":"NO_ELIGIBLE_MATCH",
+ },networkCalls:0};
 }
