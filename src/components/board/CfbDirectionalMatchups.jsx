@@ -2,6 +2,7 @@ import cfbTeams from "../../../data/teams/cfb.js";
 import {cfbSdvDirectionalEvidence} from "../../lib/cfbSdvDirectionalEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
 import "./nflDirectionalMatchups.css";
+import "./cfbDirectionalMatchups.css";
 
 const PAIRS=[
  {id:"away-run-defense",a:"away",aUnit:"RUN DEFENSE",b:"home",bUnit:"RUN OFFENSE",off:"home",kind:"rush"},
@@ -19,6 +20,22 @@ const values=(f,kind,def)=>kind==="rush"?
  (def?read(f,"rushEpaAllowed","defRushEpa","rushingPpaAllowed"):read(f,"rushEpa","epaRush","rushingPpa","ppaOffenseRushing")):
  (def?read(f,"passEpaAllowed","defPassEpa","passingPpaAllowed"):read(f,"passEpa","epaPass","passingPpa","ppaOffensePassing"));
 export function cfbDirectionalEvidence(game){
+ const derived=game?.cfbDirectionalResearch;
+ if(Array.isArray(derived?.rows)&&derived.rows.length===4&&derived.authority==="RESEARCH_DISPLAY_ONLY"){
+  return PAIRS.map(p=>{
+   const d=derived.rows.find(x=>x.id===p.id);
+   const primary=d?.cfbdDifference??d?.sdvDifference??null;
+   const active=d?.cfbdDifference!=null?"CFBD_TIER3_ADJUSTED":d?.sdvDifference!=null?"SDV_SEASON":null;
+   const strong=primary!=null&&Math.abs(primary)>=.05;
+   const winner=strong?(primary>0?p.off:p.off==="home"?"away":"home"):null;
+   return {...p,available:primary!=null,value:primary,winner,
+     sourceType:active,cfbdDifference:d?.cfbdDifference??null,
+     sdvDifference:d?.sdvDifference??null,disagreement:d?.disagreement===true,
+     status:primary==null?"SOURCE GAP":winner?"EFFICIENCY TILT":"NEAR EVEN",
+     cfbdSeason:derived.season,cfbdWeek:derived.week};
+  });
+ }
+
  // Prefer the already frozen 4/4 game PIT record. When missing, render an
  // explicitly marked current-season SDV comparison, never a betting signal.
  const research=game?.cfbUnitAudit?.available!==4?cfbSdvDirectionalEvidence(game):null;
@@ -53,21 +70,52 @@ function colors(t){
  const hex=(v,defaultValue)=>/^#?[a-f0-9]{6}$/i.test(String(v||""))?(String(v).startsWith("#")?String(v):"#"+v):defaultValue;
  return {primary:hex(primary,"#214d76"),secondary:hex(secondary,"#b5d7ef")};
 }
+const signed3=v=>v==null?"—":`${v>0?"+":""}${Number(v).toFixed(3)}`;
 export default function CfbDirectionalMatchups({game,away,home}){
  const teams={away,home},rows=cfbDirectionalEvidence(game);
- const sdvResearch=rows.some(r=>r.sourceType==="SDV_SOURCE_OBSERVED_RESEARCH");
- return <section className="nfl-unit-panel cfb-unit-panel" aria-label="Four directional CFB unit matchups">
-  <header><strong>GAME MATCHUP</strong><span>{sdvResearch?"4 SDV SOURCE COMPARISONS · RESEARCH ONLY":"4 DIRECTIONAL UNIT BATTLES"}</span></header>
-  <div className="nfl-unit-grid">{rows.map(r=>{
+ const source=game?.cfbDirectionalResearch||null;
+ const cfbdRows=rows.filter(r=>r.sourceType==="CFBD_TIER3_ADJUSTED");
+ const both=cfbdRows.length>0&&rows.some(r=>r.sdvDifference!=null);
+ const useSource=rows.some(r=>r.sourceType==="CFBD_TIER3_ADJUSTED"||r.sourceType==="SDV_SEASON");
+ const sdvOnly=rows.some(r=>r.sourceType==="SDV_SOURCE_OBSERVED_RESEARCH");
+ return <section className="nfl-unit-panel cfb-unit-panel cfb-directional-v2" aria-label="CFB passing and rushing matchup comparisons">
+  <header className="cfb-directional-head">
+   <div className="cfb-directional-headline"><strong>GAME MATCHUP</strong>
+    <span>{useSource?"2026 OPPONENT EFFICIENCY COMPARISONS":"PASSING + RUSHING UNIT COMPARISONS"}</span></div>
+   <div className="cfb-directional-source-tags">
+    {cfbdRows.length>0?<span className="cfb-directional-tag is-cfbd">CFBD {source?.season||2026} · WK {source?.week??"—"}</span>:null}
+    {both||source?.sdv?<span className="cfb-directional-tag is-sdv">SDV 2026 · {source?.sdv?.awayGames??"—"} / {source?.sdv?.homeGames??"—"} G</span>:null}
+   </div>
+  </header>
+  <div className="nfl-unit-grid cfb-directional-grid">{rows.map(r=>{
    const winner=r.winner?teams[r.winner]:null,brand=winner?colors(winner):null;
-   return <div key={r.id} className={`nfl-unit-tile ${winner?"has-edge":"is-neutral"}`} style={brand?{"--unit-primary":brand.primary,"--unit-secondary":brand.secondary}:undefined}>
-    <div className="nfl-unit-line"><div><TeamLogo team={teams[r.a]} size={32}/><strong>{r.aUnit}</strong></div><span>VS</span><div><TeamLogo team={teams[r.b]} size={32}/><strong>{r.bUnit}</strong></div></div>
-    <div className="nfl-unit-result">{winner?<><TeamLogo team={winner} size={46}/><span className="nfl-unit-winner"><small>{r.sourceType==="SDV_SOURCE_OBSERVED_RESEARCH"?"CURRENT-SEASON EPA TILT":"ADVANTAGE"}</small><strong>{winner.fullName||winner.name||winner.abbr}</strong></span></>:<strong>{r.status}</strong>}</div>
-    <small>{r.sourceType==="SDV_SOURCE_OBSERVED_RESEARCH"
-      ? r.available?`OFF EPA ${r.offenseEpa.toFixed(3)} · OPP DEF EPA ${r.defenseEpaAllowed.toFixed(3)} · DIFF ${r.value>0?"+":""}${r.value.toFixed(3)}`:"SDV DIRECTIONAL DATA UNAVAILABLE"
-      : r.value!==null?`UNIT COMPARISON ${r.value>0?"+":""}${r.value.toFixed(2)}`: "UNIT DATA PENDING"}</small>
-   </div>;
+   const hasCfbd=r.cfbdDifference!=null,hasSdv=r.sdvDifference!=null;
+   const compare=hasCfbd||hasSdv;
+   return <article key={r.id} className={`nfl-unit-tile cfb-directional-tile ${winner?"has-edge":"is-neutral"}${r.disagreement?" has-disagreement":""}`} style={brand?{"--unit-primary":brand.primary,"--unit-secondary":brand.secondary}:undefined}>
+    <div className="nfl-unit-line cfb-directional-pair">
+     <div><TeamLogo team={teams[r.a]} size={27}/><strong>{r.aUnit}</strong></div>
+     <span>VS</span>
+     <div><TeamLogo team={teams[r.b]} size={27}/><strong>{r.bUnit}</strong></div>
+    </div>
+    <div className="nfl-unit-result cfb-directional-result">
+     {winner?<TeamLogo team={winner} size={37}/>:<span className="cfb-directional-neutral-symbol">≈</span>}
+     <div className="cfb-directional-result-text"><small>{r.sourceType==="CFBD_TIER3_ADJUSTED"?"CFBD EFFICIENCY TILT":r.sourceType==="SDV_SEASON"||r.sourceType==="SDV_SOURCE_OBSERVED_RESEARCH"?"SDV EFFICIENCY TILT":"UNIT COMPARISON"}</small>
+      <strong>{winner?winner.fullName||winner.name||winner.abbr:r.available?"NEAR EVEN":"DATA PENDING"}</strong>
+     </div>
+    </div>
+    {compare?<div className="cfb-directional-metrics">
+      <div className="cfb-directional-metric is-cfbd"><span>CFBD ADJ. EPA GAP</span><strong>{signed3(r.cfbdDifference)}</strong></div>
+      <div className="cfb-directional-metric is-sdv"><span>SDV EPA GAP</span><strong>{signed3(r.sdvDifference)}</strong></div>
+     </div>:<div className="cfb-directional-legacy">{r.sourceType==="SDV_SOURCE_OBSERVED_RESEARCH"&&r.available
+       ?`SDV OFF ${r.offenseEpa.toFixed(3)} · DEF ${r.defenseEpaAllowed.toFixed(3)} · Δ ${signed3(r.value)}`
+       :r.value!=null?`UNIT COMPARISON ${r.value>0?"+":""}${r.value.toFixed(2)}`:"DIRECTIONAL DATA PENDING"}</div>}
+    {compare?<div className="cfb-directional-status">
+     <span>OFFENSE − OPP. DEFENSE</span>
+     {r.disagreement?<b className="cfb-directional-disagree">SOURCES DISAGREE</b>:<b>{r.available?"DISPLAY ONLY":"NO COMPARISON"}</b>}
+    </div>:null}
+   </article>;
   })}</div>
-  {sdvResearch?<small style={{display:"block",marginTop:8,opacity:.72}}>Source: SportsDataverse 2026 FBS summaries. Acquisition time is not provider publication proof. These comparisons are not immutable game PIT evidence, model projections, betting edges, or authorized selections.</small>:null}
+  {useSource?<p className="cfb-directional-footnote">
+   CFBD Tier 3 Week {source?.week??"—"} adjusted efficiency takes display priority; SDV 2026 is an independent comparison. SDV samples: away {source?.sdv?.awayGames??"—"} games, home {source?.sdv?.homeGames??"—"} games. Values are EPA/play differences, not predicted points or win probabilities. Source-feature cutoff not established; no model or betting authorization.
+  </p>:sdvOnly?<p className="cfb-directional-footnote">SportsDataverse current-season source efficiency only. No fitted model or betting authorization.</p>:null}
  </section>;
-}
