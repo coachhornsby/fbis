@@ -1,0 +1,3 @@
+One-shot migration of repeated market-side arrays to existing verified source receipts.
+Preserve all observation rows, prices, source clocks and settlement metadata.
+No new archive objects or provider pulls. 2026-10-15.

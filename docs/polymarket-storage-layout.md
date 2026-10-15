@@ -1,0 +1,37 @@
+# Polymarket source evidence storage
+
+The normalized quote ledger retains price, identity, timestamps and trading authority
+columns. Existing immutable R2 page receipts preserve the full provider source.
+
+`polymarket-receipt-v1` removes only `providerMarket.marketSides` from inline
+`raw_payload_json`. All other properties, including the selected `providerSide`,
+market rules/description, family, period and source clocks stay inline. The embedded
+`archiveRef` identifies the receipt and original full-payload SHA-256. The row's
+`raw_payload_hash` hashes the compact stored JSON. Observation IDs/keys do not change.
+
+Before compaction the archived offer must hash exactly to the original inline raw
+payload. Missing archives, mismatches, derived records or oversize receipts stay
+inline. No new objects are uploaded, no provider is called and no rows are deleted.
+Future paginated ingestion reuses its already-read receipt to compact before writing.
+
+Authorized POST `/api/polymarket-storage` supports:
+
+- `operation: compact`, ISO `cutoff`, numeric `afterRowid`, `limit` 1–500.
+  Defaults to dry-run; only literal `apply: true` writes.
+- `operation: restore`, one `observationId`. Validates the compact hash, receipt
+  identity and archived source hash before restoring omitted arrays. Full source
+  reads remain protected by the existing harvest authorization.
+
+Migration uses bounded keyset scans, compare-and-swap updates and small transactions.
+Concurrent source writers cannot be overwritten. Existing semantic readers use only
+retained fields. Archive restoration retains any later derivation metadata.
+
+The one-shot GitHub workflow waits for the exact validated Pages SHA, then performs
+bounded migration and periodic source reconstruction/hash checks. Its artifact holds
+runtime results; do not commit live telemetry to Git. Payload bytes removed are exact
+UTF-8 byte differences; they are not a claim of identical reduction in billed file
+size. SQLite may reuse freed pages before its reported file size decreases.
+
+Rollback: load an observation through restore, compare current storage digest, and
+conditionally restore the original JSON/hash. Scope rollback to the migrated IDs and
+check space headroom first. No model, price, gate or timestamp rollback is required.
