@@ -64,3 +64,7 @@ and records its cutoff and maximum rowid. It uploads no archive objects and dele
 no observations. Its final step rebuilds the two optional normalized-ledger indexes
 that may be temporarily removed to bootstrap a full database. Completion requires
 both indexes to exist. This is a maintenance runner, not a new recurring service.
+
+The player lookup index stores only non-null canonical player IDs. Equality
+lookups for a known player continue to use that index. Rows without a canonical
+player remain in the ledger and use the existing event/source indexes.
