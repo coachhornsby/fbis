@@ -325,6 +325,38 @@ jobs:
           echo "Release gate smoke passed for ${DEPLOY_SHA}"
           echo "DEPLOY PRODUCTION complete — research catch-up runs in harvest.yml, not this gate."
 
+      # One-time, explicit commit-tagged media seed. Does not run on ordinary releases.
+      # Source files and CC licenses are verified by the operator-only importer before R2/D1 writes.
+      - name: Seed approved Wikimedia Commons Tennis portraits
+        if: contains(github.event.head_commit.message, '[tennis-commons-seed]')
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}"
+          imported=0; already=0; rejected=0
+          for id in \
+            tennis:wta:326408 tennis:wta:319939 tennis:wta:326735 \
+            tennis:wta:329409 tennis:wta:325088 tennis:wta:325433 \
+            tennis:wta:326891 tennis:wta:328907 tennis:wta:321106 \
+            tennis:wta:323079 tennis:wta:322087; do
+            result="$(mktemp)"
+            http="$(curl -sS --connect-timeout 8 --max-time 45 -o "$result" -w "%{http_code}" \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "content-type: application/json" \
+              -d "{\"playerId\":\"$id\"}" \
+              "https://fbis-myz.pages.dev/api/tennis-portrait-import" || true)"
+            status="$(jq -r '.status // .reason // "UNKNOWN"' "$result" 2>/dev/null || echo INVALID_RESPONSE)"
+            echo "portrait id=$id http=$http status=$status"
+            if [ "$status" = IMPORTED ]; then imported=$((imported+1))
+            elif [ "$status" = ALREADY_REGISTERED ]; then already=$((already+1))
+            else rejected=$((rejected+1)); fi
+            rm -f "$result"
+          done
+          echo "Tennis portraits: imported=$imported already=$already rejected=$rejected; rejected entries remain silhouettes"
+          # This optional media seed must not roll back unrelated production code or wager gates.
+          # Review any rejected IDs from this step's logs and retry via an operator-approved workflow.
+
       - name: CFBD endpoint audit (live production)
         if: contains(github.event.head_commit.message, '[cfbd-audit]') || contains(github.event.head_commit.message, '[college-capability-audit]')
         env:
