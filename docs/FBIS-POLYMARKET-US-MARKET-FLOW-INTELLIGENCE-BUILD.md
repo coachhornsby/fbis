@@ -117,18 +117,43 @@ Keep current FBIS team/player cards, identities, branding, approved layouts and 
 **Compact all-sport matchup/ticker module:**
 - prominent Market Probability Movement: arrow, start -> current implied %, movement in pp and selected time frame, with freshness badge;
 - prominent Observed Flow Signal: directional arrow + BUYING PRESSURE / SELLING PRESSURE / MIXED / BALANCED / INSUFFICIENT DATA, with evidence count;
-- thin Flow Analysis split bar: aggressor YES-buy vs YES-sell *classified traded volume*, with timeframe and quantity/validated USD units;
+- **clarity-first Flow Analysis**: replace the ambiguous combined 72%/28% split bar with **two separate horizontal bars on the same 0–100% scale** labeled "Aggressive YES buys" and "Aggressive YES sells"; show the percentage to the right of each, a plainly worded top-line result ("BUYERS ARE MORE AGGRESSIVE" / "SELLERS ARE MORE AGGRESSIVE" / "MIXED" / "INSUFFICIENT DATA"), the lookback, verified volume unit, and classified sample coverage;
 - Polymarket US best executable ask and equivalent American odds, FBIS independent fair %, plus Pinnacle benchmark only when verified;
 - freshness/market-state, market family, source and gap indicators; never paint all empty values as zero.
 
 **Expanded Flow Analysis panel (click through to game/market workspace):**
 - large responsive Market Probability Movement time-series chart with bid/ask spread band, last trade, price change by 1/5/15/60 minutes, and separately distinguished FBIS fair % and verified Pinnacle no-vig reference;
 - Observed Flow Signal card with label, confidence/sample and supporting factors (aggressive flow, book changes, price confirmation, source coverage);
-- side-by-side aggressive buying/selling tiles, split bar, directional net flow, large-trade timeline, trade prints, and liquidity gauge;
+- paired aggressive buying/selling bars (same 0–100% scale, **no stacked split bar**), directional net flow and its exact denominator, large-trade timeline, trade prints, and liquidity gauge;
 - top-of-book plus depth ladder, cumulative size and estimated impact; market-state, quote age, source event clock and reconnect/data-gap markers;
 - 'Potential Informed Flow — Unverified' section with transparent reasons and an option to open the underlying prospective evidence; never imply bettor identity;
 - candidate research valuation: fair-vs-executable-price, fees, ladder-fill sensitivity, valid market match, uncertainty, and qualified/manual versus shadow eligibility;
 - visible filters by sport, market family, pregame/live, signal direction, strength, liquidity, sample sufficiency and quote freshness.
+
+**Visual acceptance specification — clean, plain-English Flow Analysis (illustration only):**
+
+```text
+FLOW ANALYSIS                        LAST 15 MIN · EXAMPLE
+BUYERS ARE MORE AGGRESSIVE
+72% of classified traded shares were initiated by YES buyers
+
+AGGRESSIVE YES BUYS                 72%
+██████████████░░░░░░
+AGGRESSIVE YES SELLS                28%
+██████░░░░░░░░░░░░░░
+
+MARKET PRICE MOVEMENT
+Last traded price: 51¢ → 57¢       +6¢ (+6 percentage points)
+Observed direction: PRICE ROSE
+
+WHAT THIS MEANS
+More classified trade quantity was buyer-initiated than seller-initiated
+during this window. The observed market price also increased.
+It does NOT mean 72% of bettors, tickets, or all money were on YES.
+It does NOT establish sharp-money or future-outcome certainty.
+```
+
+**Visual rules:** Place conclusion first, followed by two *independent aligned bars*, followed by price movement in a separate row, followed by a one-sentence explanation. Never combine price trend and traded-flow percentages into one unclear bar. Avoid showing both a BUYING PRESSURE badge and a second contradictory implied direction without explanation. Keep percentage labels visible without relying on color; one accent color for aggressive buys and a distinct muted neutral for sells, with accessible labels and sufficient contrast. Source and time window must be prominent. When no valid classified trades exist, show **INSUFFICIENT TRADE DATA** instead of a guessed percentage or default 50/50. Selected side may be YES/NO or an appropriately mapped outcome, but the denominator must always be the total *classified aggressor-side traded quantity within the time window*, not total bookmaker handle or resting order size. Price movement uses explicitly labeled last trade or midpoint, never silently switches series. Reserve enhanced trade-feed metadata for the expanded panel; default card must be scannable without clicking.
 
 **Design:** bold dynamic team names/logos/colors appropriate to current sport card branding; clear movement colors, contrasting directional segments, no misleading green when price moves against our selected outcome; responsive mobile/desktop layouts; accessible charts and reduced-motion behavior; no fake charts, static dummy 'sharp money', or invented logos/quotes.
 
