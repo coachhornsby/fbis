@@ -54,7 +54,8 @@ test("Tennis card actually renders populated recent form and missing-form fallba
 
 test("Tennis hero uses full identity, country treatment, centered VS, and neutral portrait fallback",()=>{
   assert.match(jsx,/tmc-player-side/);
-  assert.match(jsx,/--tmc-flag/);
+  assert.doesNotMatch(jsx,/--tmc-flag/);
+  assert.match(jsx,/tmc-primary-flag/);
   assert.match(jsx,/countryColor/);
   assert.match(jsx,/tmc-vs">VS/);
   assert.match(jsx,/Player headshot unavailable/);
