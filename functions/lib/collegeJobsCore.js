@@ -172,7 +172,7 @@ function slimRows(rows, keep) {
 }
 
 async function persistObservation(env, { source, sport, endpoint, season, partition, data, jobRunId, status = "ok", archiveFullPayload = false }) {
-  const hash = await hashPayload({ endpoint, season, n: Array.isArray(data) ? data.length : 0, sample: summarizeSchema(data) });
+  const hash = await hashPayload(archiveFullPayload ? {endpoint,season,data} : { endpoint, season, n: Array.isArray(data) ? data.length : 0, sample: summarizeSchema(data) });
   let r2k = null;
   if (archiveFullPayload && !r2Bound(env))throw Error("CFBD_DAILY_RAW_ARCHIVE_REQUIRED");
   if (r2Bound(env) && data) {
@@ -909,7 +909,8 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
   }
 
   const failed = report.filter((r) => r && r.ok === false).length;
-  const status = classifyJobStatus({
+  const status = job==="cfb-postgame-harvest" && (errors.length>0 || failed>0)
+    ? JOB_FAILED : classifyJobStatus({
     okSports: failed === report.length && report.length ? 0 : 1,
     failedSports: failed && failed === report.length ? 1 : 0,
     writesFailed: 0,
