@@ -171,7 +171,7 @@ function slimRows(rows, keep) {
   });
 }
 
-async function persistObservation(env, { source, sport, endpoint, season, partition, data, jobRunId, status = "ok", archiveFullPayload = false }) {
+export async function persistObservation(env, { source, sport, endpoint, season, partition, data, jobRunId, status = "ok", archiveFullPayload = false }) {
   const hash = await hashPayload(archiveFullPayload ? {endpoint,season,data} : { endpoint, season, n: Array.isArray(data) ? data.length : 0, sample: summarizeSchema(data) });
   let r2k = null;
   if (archiveFullPayload && !r2Bound(env))throw Error("CFBD_DAILY_RAW_ARCHIVE_REQUIRED");
