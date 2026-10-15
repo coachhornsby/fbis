@@ -30,3 +30,10 @@
 @media(max-width:520px){.fbis-priced-markets{margin:11px 0;padding:10px;border-radius:12px}.fbis-priced-grid{gap:7px}.fbis-priced-family-head{padding:7px 6px;gap:4px}.fbis-priced-family-head strong{font-size:9px}.fbis-priced-family-head small{font-size:7px}.fbis-priced-selections{padding:5px}.fbis-priced-selection{grid-template-columns:minmax(0,1fr) auto;gap:4px;padding:7px 5px}.fbis-priced-team{grid-column:1/-1;font-size:10px}.fbis-priced-line{font-size:19px}.fbis-priced-odds{min-width:45px;min-height:27px;font-size:14px}.fbis-priced-heading strong{font-size:12px}}
 @media(max-width:360px){.fbis-priced-grid{grid-template-columns:1fr}.fbis-priced-selection{grid-template-columns:minmax(0,1fr) auto auto}.fbis-priced-team{grid-column:auto}.fbis-priced-line{font-size:19px}}
 @media(prefers-reduced-motion:no-preference){.fbis-priced-markets-priority .fbis-priced-flare{animation:fbis-quote-flare 5s ease-in-out infinite alternate}@keyframes fbis-quote-flare{0%{box-shadow:0 0 6px rgba(14,158,250,.17)}100%{box-shadow:0 0 15px rgba(14,158,250,.4)}}}
+
+/* Each handicap reflects the game's actual brand palette without altering quote semantics. */
+.fbis-priced-spread .fbis-priced-away,.fbis-priced-spread .fbis-priced-home{border-left:3px solid var(--fbis-away,var(--cgc-away-brand,#33b4ee))}
+.fbis-priced-spread .fbis-priced-home{border-left-color:var(--fbis-home,var(--cgc-home-brand,#ec557b))}
+.fbis-priced-total .fbis-priced-over{border-left:3px solid #29ddf4}
+.fbis-priced-total .fbis-priced-under{border-left:3px solid #c281ff}
+.fbis-priced-market-missing{font-size:12px;font-weight:750}
