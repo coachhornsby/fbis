@@ -7,7 +7,7 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
   headers: { "content-type": "application/json", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
-const ID = /^tennis:(?:wta|atp):[a-zA-Z0-9:_-]{1,120}$/;
+const ID = /^tennis:(?:wta|atp):[a-zA-Z0-9:_ -]{1,120}$/;
 const WEBP_RIFF = (bytes) => bytes.length >= 12
   && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46
   && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;

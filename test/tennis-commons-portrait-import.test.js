@@ -39,13 +39,19 @@ const fbis=()=>{
 };
 test("curated manifest never duplicates player IDs or permits unreviewed external URL inputs",()=>{
   const n=TENNIS_COMMONS_PORTRAIT_BATCH.length;
-  assert.equal(n,31);
+  assert.equal(n,59);
   assert.equal(new Set(TENNIS_COMMONS_PORTRAIT_BATCH.map(c=>c.playerId)).size,n);
   for (const c of TENNIS_COMMONS_PORTRAIT_BATCH){
     assert.match(c.playerId,/^tennis:(?:wta:\d+|atp:research:[a-z0-9 .-]+)$/);
     assert.match(c.sourceUrl,/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
     assert.match(c.licenseUrl,/^https:\/\/creativecommons\.org\//);
   }
+  assert.ok(TENNIS_COMMONS_PORTRAIT_BATCH.some(c=>c.playerId==="tennis:atp:research:jannik sinner"));
+  assert.ok(TENNIS_COMMONS_PORTRAIT_BATCH.some(c=>c.playerId==="tennis:wta:320760"&&c.playerName==="Aryna Sabalenka"));
+  assert.equal(
+    TENNIS_COMMONS_PORTRAIT_BATCH.find(c=>c.playerId==="tennis:wta:326735")?.fileTitle,
+    "Leylah Fernandez (2025 DC Open) 03 (cropped).jpg"
+  );
 });
 test("new 2026 WTA board Commons candidates remain tied to exact canonical player identities",()=>{
   for(const [id,name,file] of [
@@ -140,4 +146,54 @@ test("authenticated GitHub-side Commons transfer enforces exact manifest, SHA-25
   assert.equal((await res.json()).status,"IMPORTED");
   assert.equal(env.saved.key,`tennis/portraits/${choice.playerId}/commons-curated-20261015.jpg`);
   assert.equal(env.writes,1);
+});
+
+test("curated source change reports NEEDS_REPLACE then UPSERTs replacement JPEG",async()=>{
+  const {createHash}=await import("node:crypto");
+  const fernandez=TENNIS_COMMONS_PORTRAIT_BATCH.find(c=>c.playerId==="tennis:wta:326735");
+  assert.ok(fernandez);
+  const saved={}; let writes=0;
+  const env={
+    HARVEST_SECRET:secret,
+    saved,
+    get writes(){return writes;},
+    ARCHIVE:{async put(key,bytes,opts){saved.key=key;saved.bytes=bytes.byteLength;saved.contentType=opts.httpMetadata.contentType;}},
+    DB:{prepare(sql){return{bind(...args){return{
+      async first(){
+        if(sql.includes("FROM tennis_players"))return {fbis_player_id:fernandez.playerId,canonical_name:fernandez.playerName};
+        if(sql.includes("FROM tennis_player_portraits"))return {
+          fbis_player_id:fernandez.playerId,approval_status:"APPROVED",
+          source_reference:"https://commons.wikimedia.org/wiki/File:Old_Fernandez_distant.jpg"
+        };
+        throw Error("unexpected first");
+      },
+      async run(){writes++;saved.args=args;return {meta:{changes:1}};}
+    };}};}}
+  };
+  const probe=await onRequestPost({request:request(fernandez.playerId),env});
+  assert.equal(probe.status,200);
+  assert.equal((await probe.json()).status,"NEEDS_REPLACE");
+  assert.equal(env.writes,0);
+  const bytes=Buffer.alloc(1024);bytes.set([255,216,255,224]);
+  const res=await onRequestPost({request:new Request("https://fbis.example/api/tennis-portrait-import",{
+    method:"POST",headers:{"x-harvest-secret":secret,"content-type":"application/json"},
+    body:JSON.stringify({
+      playerId:fernandez.playerId,fileTitle:fernandez.fileTitle,licenseUrl:fernandez.licenseUrl,
+      dataBase64:bytes.toString("base64"),imageSha256:createHash("sha256").update(bytes).digest("hex")
+    })
+  }),env});
+  assert.equal(res.status,200,await res.clone().text());
+  assert.equal((await res.json()).status,"REPLACED");
+  assert.equal(env.writes,1);
+  assert.equal(env.saved.args[3],fernandez.sourceUrl);
+});
+
+test("ATP research IDs with spaces are valid portrait URL keys",()=>{
+  const id="tennis:atp:research:jannik sinner";
+  assert.equal(verifiedTennisPortrait({
+    fbis_player_id:id,asset_key:`tennis/portraits/${id}/commons-curated-20261015.jpg`,
+    content_type:"image/jpeg",approval_status:"APPROVED",public_display_allowed:1,display_scope:"PUBLIC_WEB",
+    rights_evidence_ref:"https://creativecommons.org/licenses/by-sa/4.0/",source_reference:"https://commons.wikimedia.org/wiki/File:x.jpg",
+    approved_at:"2026-10-14T00:00:00Z",attribution_text:"Photo: Hameltion · CC BY-SA 4.0 · resized for FBIS"
+  })?.url,`/api/tennis-portrait?id=${encodeURIComponent(id)}`);
 });

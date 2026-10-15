@@ -78,3 +78,11 @@ The product athlete library is **ranked-active**, not the full historical WTA di
 - ATP research seed only inserts bank rows with a current rank and keeps `active_state` aligned
 
 Portrait expansion for active board players continues through curated Commons headshot-style crops in `tennisCommonsPortraitBatch.js`, then `[tennis-commons-seed]` + cutout publish. ATP/WTA/PrizePicks scrapes remain disallowed.
+
+## Active library portrait expansion — 2026-10-15 (batch 59)
+
+The curated Commons manifest now covers **59** exact canonical identities (WTA official IDs + ATP research bank IDs). Additions prioritize headshot-style cropped files for ranked-active players. ATP research IDs may contain spaces (`tennis:atp:research:jannik sinner`); portrait URL/key validation accepts them.
+
+When a curated `sourceUrl` changes for an already-APPROVED row (Leylah Fernandez distant full-body → `Leylah Fernandez (2025 DC Open) 03 (cropped).jpg`), import returns `NEEDS_REPLACE` on probe and `REPLACED` after a verified byte transfer. Seed probes before skipping live portraits so re-crops publish.
+
+Board players without a rights-cleared Commons crop (for example Matilde Jorge, Joelle Steur, Ane Mintegi Del Olmo on the 2026-10-15 slate) remain silhouettes — never substitute another athlete's photo.

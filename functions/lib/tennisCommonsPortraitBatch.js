@@ -280,6 +280,258 @@ export const TENNIS_COMMONS_PORTRAIT_BATCH = Object.freeze([
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Alejandro_Davidovich_Fokina_(2023_US_Open)_03_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:wta:320760",
+    "playerName": "Aryna Sabalenka",
+    "fileTitle": "Aryna Sabalenka (2023 US Open) 23 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Aryna_Sabalenka_%282023_US_Open%29_23_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:328560",
+    "playerName": "Coco Gauff",
+    "fileTitle": "Coco Gauff (2023 DC Open) 03 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Coco_Gauff_%282023_DC_Open%29_03_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:316956",
+    "playerName": "Jessica Pegula",
+    "fileTitle": "Jessica Pegula (Roland Garros 2023) 04 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jessica_Pegula_%28Roland_Garros_2023%29_04_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:316959",
+    "playerName": "Madison Keys",
+    "fileTitle": "Madison Keys (2023 DC Open) 01a (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Madison_Keys_%282023_DC_Open%29_01a_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:328120",
+    "playerName": "Qinwen Zheng",
+    "fileTitle": "Zheng Qinwen (2024 US Open) 01 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Zheng_Qinwen_%282024_US_Open%29_01_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:325410",
+    "playerName": "Emma Navarro",
+    "fileTitle": "Emma Navarro (2023 US Open) 08 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Emma_Navarro_%282023_US_Open%29_08_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:330482",
+    "playerName": "Diana Shnaider",
+    "fileTitle": "Diana Shnaider (Roland Garros 2023) 01 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Diana_Shnaider_%28Roland_Garros_2023%29_01_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:331809",
+    "playerName": "Mirra Andreeva",
+    "fileTitle": "Mirra Andreeva 2023 US Open 19 cropped.jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mirra_Andreeva_2023_US_Open_19_cropped.jpg"
+  },
+  {
+    "playerId": "tennis:wta:326384",
+    "playerName": "Amanda Anisimova",
+    "fileTitle": "Amanda Anisimova (2024 DC Open) 05 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Amanda_Anisimova_%282024_DC_Open%29_05_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:326482",
+    "playerName": "Marta Kostyuk",
+    "fileTitle": "Marta Kostyuk (2023 US Open) 06 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Marta_Kostyuk_%282023_US_Open%29_06_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:322082",
+    "playerName": "Daria Kasatkina",
+    "fileTitle": "Daria Kasatkina (Roland Garros 2023) 02 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Daria_Kasatkina_%28Roland_Garros_2023%29_02_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:322222",
+    "playerName": "Liudmila Samsonova",
+    "fileTitle": "Liudmila Samsonova (2023 US Open) 17 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Liudmila_Samsonova_%282023_US_Open%29_17_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:317964",
+    "playerName": "Elise Mertens",
+    "fileTitle": "Elise Mertens (2023 DC Open) 01 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Elise_Mertens_%282023_DC_Open%29_01_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:319125",
+    "playerName": "Katie Boulter",
+    "fileTitle": "Katie Boulter (2023 DC Open) 01 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Katie_Boulter_%282023_DC_Open%29_01_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:320277",
+    "playerName": "Magdalena Frech",
+    "fileTitle": "Magdalena Fr\u0119ch (2023 US Open) 04 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Magdalena_Fr%C4%99ch_%282023_US_Open%29_04_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:320942",
+    "playerName": "Sofia Kenin",
+    "fileTitle": "Sofia Kenin (2023 US Open) 06 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sofia_Kenin_%282023_US_Open%29_06_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:324166",
+    "playerName": "Elena Rybakina",
+    "fileTitle": "Elena Rybakina (cropped).jpg",
+    "author": "Peter Menzel",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Elena_Rybakina_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:322191",
+    "playerName": "Karolina Muchova",
+    "fileTitle": "Karolina Muchova (49981619216) (cropped).jpg",
+    "author": "Carine06",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Karolina_Muchova_%2849981619216%29_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:wta:318176",
+    "playerName": "Beatriz Haddad Maia",
+    "fileTitle": "Beatriz Haddad Maia RG 2023 cropped.jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Beatriz_Haddad_Maia_RG_2023_cropped.jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:jannik sinner",
+    "playerName": "Jannik Sinner",
+    "fileTitle": "Jannik Sinner (2024 US Open) 04 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jannik_Sinner_%282024_US_Open%29_04_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:carlos alcaraz",
+    "playerName": "Carlos Alcaraz",
+    "fileTitle": "Carlos Alcaraz (cropped).jpg",
+    "author": "Yannick JAMOT",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Carlos_Alcaraz_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:daniil medvedev",
+    "playerName": "Daniil Medvedev",
+    "fileTitle": "Daniil Medvedev (2025 DC Open) 05 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Daniil_Medvedev_%282025_DC_Open%29_05_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:andrey rublev",
+    "playerName": "Andrey Rublev",
+    "fileTitle": "Andrey Rublev (2023 US Open) 02 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Andrey_Rublev_%282023_US_Open%29_02_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:tommy paul",
+    "playerName": "Tommy Paul",
+    "fileTitle": "Tommy Paul (2023 US Open) 03 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tommy_Paul_%282023_US_Open%29_03_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:ben shelton",
+    "playerName": "Ben Shelton",
+    "fileTitle": "Ben Shelton (Roland Garros 2023) 02 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ben_Shelton_%28Roland_Garros_2023%29_02_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:holger rune",
+    "playerName": "Holger Rune",
+    "fileTitle": "Holger Rune (2023 US Open) 34 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Holger_Rune_%282023_US_Open%29_34_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:sebastian korda",
+    "playerName": "Sebastian Korda",
+    "fileTitle": "Sebastian Korda (2023 DC Open) 04 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sebastian_Korda_%282023_DC_Open%29_04_%28cropped%29.jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:taylor fritz",
+    "playerName": "Taylor Fritz",
+    "fileTitle": "Taylor Fritz - Delray Beach Open Final Round (cropped).jpg",
+    "author": "Rickmunroe01",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Taylor_Fritz_-_Delray_Beach_Open_Final_Round_%28cropped%29.jpg"
   }
 ]);
 export const tennisCommonsPortraitCandidate = id => TENNIS_COMMONS_PORTRAIT_BATCH.find(x=>x.playerId===id)||null;

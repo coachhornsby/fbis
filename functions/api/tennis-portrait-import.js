@@ -21,7 +21,14 @@ export async function onRequestPost({request,env}){
     const player=await env.DB.prepare("SELECT fbis_player_id,canonical_name FROM tennis_players WHERE fbis_player_id=?").bind(id).first();
     if(player?.fbis_player_id!==id||norm(player?.canonical_name)!==norm(candidate.playerName))return json({ok:false,reason:"PLAYER_IDENTITY_MISMATCH"},409);
     const existing=await env.DB.prepare("SELECT fbis_player_id,approval_status,source_reference FROM tennis_player_portraits WHERE fbis_player_id=?").bind(id).first();
-    if(existing)return json({ok:true,status:"ALREADY_REGISTERED",playerId:id,approval:existing.approval_status});
+    // Same curated Commons source already approved → idempotent skip.
+    // Different source_reference (e.g. Fernandez headshot re-crop) → allow replace.
+    if(existing){
+      if(existing.source_reference===candidate.sourceUrl&&existing.approval_status==="APPROVED")
+        return json({ok:true,status:"ALREADY_REGISTERED",playerId:id,approval:existing.approval_status});
+      if(typeof input?.dataBase64!=="string")
+        return json({ok:true,status:"NEEDS_REPLACE",playerId:id,previous:existing.source_reference,next:candidate.sourceUrl});
+    }
     let bytes;
     // Alternative verified source transfer: GitHub Actions obtains Commons license
     // metadata and image using its own network, then sends bytes over authenticated
@@ -72,8 +79,22 @@ export async function onRequestPost({request,env}){
     const write=await env.DB.prepare(`INSERT INTO tennis_player_portraits
       (fbis_player_id,asset_key,content_type,source_name,source_reference,attribution_text,display_scope,approval_status,public_display_allowed,rights_evidence_ref,approved_at,expires_at,reviewed_by)
       VALUES (?,?,?,'WIKIMEDIA_COMMONS',?,?,'PUBLIC_WEB','APPROVED',1,?, ?,NULL,'FBIS_CURATED_COMMONS_BATCH_20261015')
-      ON CONFLICT(fbis_player_id) DO NOTHING`).bind(id,key,"image/jpeg",candidate.sourceUrl,credit,candidate.licenseUrl,now).run();
+      ON CONFLICT(fbis_player_id) DO UPDATE SET
+        asset_key=excluded.asset_key,
+        content_type=excluded.content_type,
+        source_name=excluded.source_name,
+        source_reference=excluded.source_reference,
+        attribution_text=excluded.attribution_text,
+        display_scope=excluded.display_scope,
+        approval_status=excluded.approval_status,
+        public_display_allowed=excluded.public_display_allowed,
+        rights_evidence_ref=excluded.rights_evidence_ref,
+        approved_at=excluded.approved_at,
+        expires_at=excluded.expires_at,
+        reviewed_by=excluded.reviewed_by
+      WHERE tennis_player_portraits.source_reference IS NOT excluded.source_reference`).bind(id,key,"image/jpeg",candidate.sourceUrl,credit,candidate.licenseUrl,now).run();
     if(write?.meta?.changes!==1)return json({ok:false,reason:"DATABASE_INSERT_NOT_CONFIRMED"},503);
-    return json({ok:true,status:"IMPORTED",playerId:id,player:player.canonical_name,bytes:bytes.byteLength,license:candidate.license,source:candidate.sourceUrl});
+    const status=existing?"REPLACED":"IMPORTED";
+    return json({ok:true,status,playerId:id,player:player.canonical_name,bytes:bytes.byteLength,license:candidate.license,source:candidate.sourceUrl});
   }catch(e){return json({ok:false,reason:"IMPORT_FAILED",detail:String(e?.message||e).slice(0,160)},503);}
 }
