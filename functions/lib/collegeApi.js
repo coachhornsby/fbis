@@ -80,8 +80,9 @@ export async function collegeRequest(source, path, env = {}, { query, fetchFn = 
   // Live CFB HTTP acquisition is owned by the single early-morning
   // cfb-postgame-harvest. Every other Cloudflare job must reuse cached state.
   // Check AFTER the cache read: this policy does not hide acquired evidence.
-  if (src === "cfbd" && env.cfbdCacheOnly === true) {
-    return {ok:false,status:0,reason:"CFBD_MORNING_ONLY_CACHE_MISS",
+  if ((src === "cfbd" && env.cfbdCacheOnly === true) ||
+      (src === "cbbd" && env.cbbdCacheOnly === true)) {
+    return {ok:false,status:0,reason:"COLLEGE_MORNING_ONLY_CACHE_MISS",
       data:null,n:0,path,source:src,cacheHit:false,
       quotaCost:0,networkAttempted:false};
   }
@@ -94,6 +95,8 @@ export async function collegeRequest(source, path, env = {}, { query, fetchFn = 
       },
     },env,fetchFn);
     const status = res.status;
+    const locallyBlocked = Boolean(res.headers?.get?.("X-FBIS-CFBD-Gate") ||
+      res.headers?.get?.("X-FBIS-Cooldown"));
     let json = null;
     try {
       json = await res.json();
@@ -113,8 +116,9 @@ export async function collegeRequest(source, path, env = {}, { query, fetchFn = 
         path,
         source: src,
         cacheHit: false,
+        networkAttempted: !locallyBlocked,
       };
-      await writeCache(ck, fail, env.caches, ERR_TTL_MS);
+      if (!locallyBlocked) await writeCache(ck, fail, env.caches, ERR_TTL_MS);
       await recordApiUsage(env, usageRow(src, path, fail, started, query));
       return fail;
     }
@@ -156,7 +160,8 @@ function usageRow(source, path, res, started, query, extra = {}) {
     cacheHit: Boolean(extra.cacheHit || res.cacheHit),
     httpStatus: res.status ?? 0,
     recordsReturned: res.n ?? 0,
-    quotaCost: extra.cacheHit || res.cacheHit ? QUOTA_COST.cacheHit : QUOTA_COST.default,
+    quotaCost: extra.cacheHit || res.cacheHit || res.networkAttempted === false
+      ? QUOTA_COST.cacheHit : QUOTA_COST.default,
     ok: Boolean(res.ok),
     reason: res.reason || null,
     queryKeys: query ? Object.keys(query).sort().join(",") : "",
