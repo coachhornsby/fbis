@@ -35,7 +35,10 @@ export async function reserveCfbdRequest(env, url, now = Date.now()) {
       WHERE (SELECT blocked_until_ms FROM cfb_cfbd_acquisition_control WHERE id=1) <= ?
         AND (SELECT COUNT(*) FROM cfb_cfbd_acquisition_receipts WHERE request_day=?) < ?
         AND (SELECT COUNT(*) FROM cfb_cfbd_acquisition_receipts WHERE request_month=?) < ?
-    `).bind(day,hash,month,endpoint,new Date(now).toISOString(),now,day,daily,month,monthly).run();
+        AND (SELECT COALESCE(last_remaining,1000000) FROM cfb_cfbd_acquisition_control WHERE id=1) > 100
+        AND (SELECT COALESCE(SUM(quota_cost),0) FROM api_usage
+          WHERE month=? AND source IN ('cfbd','cbbd')) < 27500
+    `).bind(day,hash,month,endpoint,new Date(now).toISOString(),now,day,daily,month,monthly,month).run();
     if(Number(res?.meta?.changes||0)!==1)return {allowed:false,reason:"CFBD_DUPLICATE_COOLDOWN_OR_BUDGET"};
     return {allowed:true,day,hash,endpoint};
   } catch {
@@ -67,4 +70,26 @@ export async function completeCfbdRequest(env,permit, status, response, now=Date
   } catch {
     // Original reservation remains durable and blocks automatic replay.
   }
+}
+
+export async function cfbCfbdAcquisitionHealth(env, now=Date.now()) {
+  if(!env.DB?.prepare)return {bound:false,status:"unavailable"};
+  const day=receiptDate(now), month=new Date(now).toISOString().slice(0,7);
+  try {
+    const usage=await env.DB.prepare(`
+      SELECT COUNT(*) attempts,
+       SUM(CASE WHEN request_status='ok' THEN 1 ELSE 0 END) succeeded,
+       SUM(CASE WHEN request_status='rate_limited' THEN 1 ELSE 0 END) rate_limited
+      FROM cfb_cfbd_acquisition_receipts WHERE request_month=?`).bind(month).first();
+    const today=await env.DB.prepare(`SELECT COUNT(*) attempts FROM cfb_cfbd_acquisition_receipts WHERE request_day=?`).bind(day).first();
+    const control=await env.DB.prepare("SELECT blocked_until_ms,last_429_at,last_remaining FROM cfb_cfbd_acquisition_control WHERE id=1").first();
+    return {bound:true,month,day,attempts:Number(usage?.attempts||0),
+      successes:Number(usage?.succeeded||0),rateLimited:Number(usage?.rate_limited||0),
+      attemptsToday:Number(today?.attempts||0),maxDaily:positive(env.CFBD_DAILY_NETWORK_BUDGET,45),
+      maxMonthly:positive(env.CFBD_MONTHLY_NETWORK_BUDGET,1400),
+      providerRemaining:control?.last_remaining??null,
+      last429At:control?.last_429_at??null,
+      blockedUntil:Number(control?.blocked_until_ms||0)>now?
+       new Date(Number(control.blocked_until_ms)).toISOString():null};
+  }catch{return {bound:true,status:"receipt-read-error"};}
 }
