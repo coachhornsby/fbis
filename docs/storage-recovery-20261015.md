@@ -47,3 +47,16 @@ Cloudflare D1 has a per-database maximum of 10 GB. Account-level overage billing
 - Merge the audited read-only transport retry only after CI and reviewer check.
 - Run compaction from a verified cursor with a bounded row cap; retain before/after evidence, row counts, source reconstitution proof, unchanged market/model evidence, and no deletes.
 - Separately design a cold-history D1-to-R2 move behind a disabled rollout gate, with complete reconciliation and tested readback.
+
+
+## Live cold archive pilot — 2026-10-15
+- The connected Cloudflare API copied **500** records from `cfb_roster_observations`, season **2004**, into five private R2 objects in `fbis-archive`.
+- Source season row count: **13,644**. Only 500 were copied; this does **not** establish complete-season coverage.
+- Five SHA-256 hashes were recomputed from downloaded R2 objects and matched the uploaded bytes. Each original 100-row D1 range was reread and matched in full JSON serialization. Source reads are retrospective and do not create prospective evidence.
+- Total segment payload bytes: **867,291**; manifest bytes: **2,456**.
+- Manifest R2 key: `research/storage-recovery/2026-10-15/cfb-roster-2004-pilot/manifest-9dca1afc000cd6951769f92b74f7c45381f117ac51d995c07caf97f4b4ac2f38.json`.
+- Manifest SHA-256: `9dca1afc000cd6951769f92b74f7c45381f117ac51d995c07caf97f4b4ac2f38`.
+- Verified: readback for all five segments, source recheck, source DB mutations **zero**, R2 archive objects present.
+- Not verified/authorized: live read-path cutover, independent complete-season reconciliation, D1 space reclaimed, production deletion, wagering-model authority, or monthly savings.
+- The bounded reusable exporter lives in `scripts/cfb-roster-cold-archive-pilot.mjs`, and its manual workflow defaults to dry-run. It requires an explicit `apply=true` input and caps each invocation at 2,000 rows. Existing R2 objects have content hashes in their keys; it will never delete D1 rows.
+- The connected billing-usage API still denied read access. Budget arithmetic remains an estimate rather than a verified invoice.
