@@ -18,21 +18,27 @@ async function call(body){
 }
 const result={cutoff,apply,examined:0,eligible:0,updated:0,bytesRemoved:0,potentialBytesSaved:0,restoreChecks:0,reasons:{},completed:false};
 let cursor=0,batches=0;
+let failure=null;
+try{
 while(result.examined<maxRows){
  const value=await call({operation:'compact',apply,cutoff,afterRowid:cursor,limit:Math.min(250,maxRows-result.examined)});
  result.examined+=value.examined;result.eligible+=value.eligible;result.updated+=value.updated;result.bytesRemoved+=value.bytesRemoved;result.potentialBytesSaved+=value.potentialPayloadBytesSaved;
  for(const [key,n] of Object.entries(value.reasons||{}))result.reasons[key]=(result.reasons[key]||0)+n;
- if(apply&&value.verificationSamples?.length&&(batches%25===0||value.nextCursor===null)){
+ if(apply&&value.verificationSamples?.length&&(result.restoreChecks===0||batches%25===0||value.nextCursor===null)){
   const proof=value.verificationSamples[0],restored=await call({operation:'restore',observationId:proof.id});
   const hash=createHash('sha256').update(JSON.stringify(restored.raw)).digest('hex');
   if(hash!==proof.originalHash)throw Error('RESTORED_SOURCE_HASH_MISMATCH');result.restoreChecks++;
  }
- batches++;if(batches%25===0)console.log(JSON.stringify({...result,batches,nextCursor:value.nextCursor}));
+ batches++;result.batches=batches;result.nextCursor=value.nextCursor;
+ await writeFile('/tmp/fbis-polymarket-storage-result.json',JSON.stringify(result,null,2));
+ if(batches%25===0)console.log(JSON.stringify({...result,batches,nextCursor:value.nextCursor}));
  if(value.nextCursor===null){result.completed=true;break;}
  if(value.nextCursor<=cursor)throw Error('COMPACTION_CURSOR_DID_NOT_ADVANCE');cursor=value.nextCursor;
 }
+if(!result.completed)throw Error('Compaction row budget exhausted; scope is incomplete');
+}catch(error){failure=error;result.error=String(error?.message||error);}
 result.nextCursor=result.completed?null:cursor;result.batches=batches;
 console.log(JSON.stringify(result));
 await writeFile('/tmp/fbis-polymarket-storage-result.json',JSON.stringify(result,null,2));
 if(process.env.GITHUB_STEP_SUMMARY)await writeFile(process.env.GITHUB_STEP_SUMMARY,`# Polymarket storage migration\n\n${JSON.stringify(result,null,2)}\n`,{flag:'a'});
-if(!result.completed)throw Error('Compaction row budget exhausted; scope is incomplete');
+if(failure)throw failure;

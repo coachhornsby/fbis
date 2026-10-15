@@ -35,3 +35,17 @@ size. SQLite may reuse freed pages before its reported file size decreases.
 Rollback: load an observation through restore, compare current storage digest, and
 conditionally restore the original JSON/hash. Scope rollback to the migrated IDs and
 check space headroom first. No model, price, gate or timestamp rollback is required.
+
+## Large receipt handling
+
+Historical receipts can exceed 16 MB. Maintenance and restoration stream R2 bodies
+through the pinned dependency-free MIT @streamparser/json parser. Only requested
+market/outcome objects survive parsing; emitted siblings are released. Reads are
+bounded to 128 MiB per receipt and 1,000 matching offers. Two receipt match sets
+are cached per request, including missing-object results. No new archive objects
+or database indexes are created. The rowid range scan avoids source-index sorting.
+
+A newer maintenance trigger supersedes an older run. This is safe because source
+evidence is already archived, every row update uses compare-and-swap, and a new
+pass skips compacted records. Production deployment jobs retain their own existing
+serialization; only this resumable maintenance workflow cancels obsolete runs.
