@@ -77,3 +77,32 @@ export function estimateMonthlyCalls({
     note: "CFB-FBIS-v2 features are scheduled/background only — never from customer page loads",
   };
 }
+
+/**
+ * Provider-call counters outside FBIS are not in D1 api_usage.
+ * A provider-confirmed zero from a current-month 429 supersedes any higher
+ * local estimate. Old-month headers never carry into a new billing month.
+ */
+export function reconcileSharedCollegeQuota(local = {}, provider = {}) {
+  const month = local.month || utcMonthKey();
+  const confirmedZero = provider?.bound === true &&
+    provider?.month === month &&
+    Number(provider?.providerRemaining) === 0 &&
+    provider?.providerRemaining != null &&
+    String(provider?.last429At || "").startsWith(month);
+  const localRemaining = local.configured === false ? null : local.remaining ?? null;
+  return {
+    ...local,
+    cap: MONTHLY_QUOTA,
+    estimatedLocalUsed: local.used ?? null,
+    estimatedLocalRemaining: localRemaining,
+    providerReportedRemaining: provider?.providerRemaining ?? null,
+    providerLast429At: provider?.last429At ?? null,
+    providerConfirmedZero: confirmedZero,
+    remaining: confirmedZero ? 0 : localRemaining,
+    level: confirmedZero ? "exhausted" : local.level || "unavailable",
+    sharedAcross: ["cfbd", "cbbd"],
+    balanceSource: confirmedZero ? "provider-confirmed-zero" : "local-estimate-only",
+    providerBalanceVerified: confirmedZero,
+  };
+}
