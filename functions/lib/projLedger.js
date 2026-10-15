@@ -2176,8 +2176,11 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   // For settleOnly CFB, try CFBD first to avoid ESPN HTML/circuit burning Pages CPU.
   const fetchFn = opts.fetchResultsFn || ((s, d) =>
     fetchResultsForReconcile(s, d, {
-      cfbdApiKey: collegeApiKey(env, "cfbd"),
-      preferCfbd: settleOnly && s === "cfb",
+      // CFBD is reserved for the single daily /api/college postgame run.
+      // Routine hourly settlement uses public scoreboard/SDV or persisted
+      // results, not an additional CFBD request.
+      cfbdApiKey: null,
+      preferCfbd: false,
     }));
   // Lightweight path for Pages CPU/time limits: fetch finals + settle tickets only.
   if (settleOnly) {
@@ -2769,6 +2772,9 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
           ...env,
           // Research-only CFB ingestion must never be gated by depleted Parlay credits.
           parlayCacheOnly: sport === "cfb" || odds !== "full" || healthMode,
+          // All non-morning slates are strictly CFBD CACHE-ONLY. CFBD requests
+          // are owned by the single early-morning college postgame job.
+          ...(sport === "cfb" ? {cfbdCacheOnly:true} : {}),
           palCacheOnly: !shouldFetchPalNetwork(sport, day, date, { healthMode, dayOffset }),
         });
         if (sport !== "cfb" && !healthMode && odds === "full" && (slate?.games?.length || 0) > 0 && slate?.parlay?.error) {

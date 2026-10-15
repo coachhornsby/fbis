@@ -104,42 +104,28 @@ test("fetchResultsForReconcile preferCfbd skips ESPN when CFBD has games", async
   }
 });
 
-test("settleOnly harvest uses CFBD finals when ESPN is blocked", async () => {
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    const s = String(url);
-    if (s.includes("espn.com")) {
-      return new Response("<html>challenge</html>", { status: 200, headers: { "content-type": "text/html; charset=UTF-8" } });
-    }
-    if (s.startsWith("https://api.collegefootballdata.com/games")) {
-      return new Response(JSON.stringify([{
-        id: 401628002,
-        startDate: "2026-09-05T19:00:00.000Z",
-        completed: true,
-        homeTeam: "South Florida",
-        awayTeam: "Florida International",
-        homePoints: 28,
-        awayPoints: 21,
-        week: 1,
-        neutralSite: false,
-        venue: "Stadium",
-      }]), { status: 200, headers: { "content-type": "application/json" } });
-    }
-    return new Response("not found", { status: 404 });
-  };
-  try {
-    const report = await harvestSport("cfb", 1, { CFBD_API_KEY: "test-key" }, {
-      settleOnly: true,
-      date: "2026-09-05",
-    });
-    assert.equal(report.ok, true);
-    assert.equal(report.errors.length, 0);
-    assert.ok(report.finalsDiscovered >= 1);
-    assert.equal(report.finals[0].home.name, "South Florida");
-    assert.equal(report.finals[0].away.name, "Florida International");
-  } finally {
-    globalThis.fetch = realFetch;
+test("scheduled CFB settlement does not re-query paid CFBD when public ESPN is blocked",async()=>{
+ const realFetch=globalThis.fetch;
+ let cfbdHits=0;
+ globalThis.fetch=async url=>{
+  const s=String(url);
+  if(s.includes("espn.com"))
+    return new Response("<html>challenge</html>",{status:200,headers:{"content-type":"text/html"}});
+  if(s.startsWith("https://api.collegefootballdata.com/")){
+   cfbdHits++;
+   return new Response(JSON.stringify([{id:401628002,completed:true,
+    homeTeam:"South Florida",awayTeam:"Florida International",homePoints:28,awayPoints:21}]),
+    {status:200,headers:{"content-type":"application/json"}});
   }
+  return new Response("not found",{status:404});
+ };
+ try{
+  const report=await harvestSport("cfb",1,{CFBD_API_KEY:"test-key"},
+   {settleOnly:true,date:"2026-09-05"});
+  assert.equal(cfbdHits,0,"routine settlement cannot burn separate CFBD quota");
+  assert.equal(report.finalsDiscovered,0,"HTML challenge cannot fabricate a final");
+  assert.equal(report.finals.length,0);
+ }finally{globalThis.fetch=realFetch;}
 });
 
 test("summarizeExecutedBets counts MANUAL_REVIEW separately from open and settled", () => {

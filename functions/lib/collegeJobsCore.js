@@ -5,6 +5,7 @@
 
 import { collegeKeyHealth, assertNoSecretLeak } from "./collegeSecrets.js";
 import {freezeCfbPregameFeatures} from "./cfbPitFeatureDelivery.js";
+import {cfbDailyFinals,cfbDailyWeeks,cfbDailyBoxRows} from "./cfbDailyPostgame.js";
 import { cfbdGet, cbbdGet, cfbSeasonYear, cbbSeasonYear, summarizeSchema, collegePublicResult } from "./collegeApi.js";
 import { queryQuota, insertSourceObservation, insertTeamFeatureSnapshot, insertGameFeatureSnapshot, insertModelPrediction, gradeModelPrediction, upsertModelRegistry, insertModelArtifact, insertValidationRun, insertPromotionDecision, upsertTeamSeasonIdentity, queryModelPredictions, queryEndpointUsage, upsertQbTransferHistory, insertCfbdEndpointAudit } from "./collegeStore.js";
 import { COLLEGE_MODELS, evaluatePromotion, PROMOTION_CRITERIA } from "./collegeModels.js";
@@ -170,14 +171,20 @@ function slimRows(rows, keep) {
   });
 }
 
-async function persistObservation(env, { source, sport, endpoint, season, partition, data, jobRunId, status = "ok" }) {
-  const hash = await hashPayload({ endpoint, season, n: Array.isArray(data) ? data.length : 0, sample: summarizeSchema(data) });
+export async function persistObservation(env, { source, sport, endpoint, season, partition, data, jobRunId, status = "ok", archiveFullPayload = false }) {
+  const hash = await hashPayload(archiveFullPayload ? {endpoint,season,data} : { endpoint, season, n: Array.isArray(data) ? data.length : 0, sample: summarizeSchema(data) });
   let r2k = null;
+  if (archiveFullPayload && !r2Bound(env))throw Error("CFBD_DAILY_RAW_ARCHIVE_REQUIRED");
   if (r2Bound(env) && data) {
+    // Historical source bytes are essential for reproducible postgame data;
+    // older research jobs intentionally persisted a schema-only audit.
+    const raw=archiveFullPayload?JSON.stringify(data):null;
+    if(raw&&raw.length>9*1024*1024)throw Error("CFBD_DAILY_RAW_OVERSIZE");
     r2k = r2Key({ kind: "raw", source, sport, season, endpoint, partition, hash: hash.slice(0, 12), name: `${hash.slice(0, 12)}.json` });
-    await putArchive(env, r2k, { n: Array.isArray(data) ? data.length : 0, schema: summarizeSchema(data) });
+    const saved=await putArchive(env,r2k,archiveFullPayload?raw:{ n: Array.isArray(data) ? data.length : 0, schema: summarizeSchema(data) });
+    if(archiveFullPayload&&!saved?.ok)throw Error("CFBD_DAILY_ARCHIVE_WRITE_FAILED");
   }
-  return insertSourceObservation(env, {
+  const dbInsert=await insertSourceObservation(env, {
     id: `${source}:${sport}:${endpoint}:${season}:${partition || "all"}:${hash.slice(0, 16)}`,
     source,
     sport,
@@ -192,6 +199,16 @@ async function persistObservation(env, { source, sport, endpoint, season, partit
     jobRunId,
     meta: summarizeSchema(data),
   });
+  if(archiveFullPayload && !dbInsert?.ok &&
+    /no such table:\s*source_observations/i.test(String(dbInsert?.reason||""))){
+    // Production does not have the legacy college source_observations schema.
+    // The full immutable R2 payload is still durably archived, and its key
+    // is recorded in the existing job_runs.dates_json manifest. This is NOT
+    // migration 0098/0099 or postgame model-state authorization.
+    return {ok:true,inserted:1,r2Key:r2k,storage:"R2_RAW_JOB_MANIFEST",
+      legacyPointerTableUnavailable:true,canQualify:false,canAuthorizeWager:false};
+  }
+  return {...dbInsert,r2Key:r2k,storage:archiveFullPayload?"R2_RAW_AND_D1_POINTER":"COLLEGE_SOURCE_POINTER"};
 }
 
 async function fetchEndpoints(source, specs, env, year, jobRunId, sport) {
@@ -354,6 +371,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
   const yearCbb = Number(opts.year) || cbbSeasonYear();
   let gamesDiscovered = 0;
   let report = [];
+  const cfbDailyArchives=[];
 
   try {
     if (job === "cfb-pregame-freeze") {
@@ -818,11 +836,42 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
       const sport = job.startsWith("cfb") ? "cfb" : "cbb";
       const date = opts.date || shiftDateCT(todayCT(), -1);
       const path = "/games";
-      const query = sport === "cfb" ? { year: yearCfb, seasonType: "regular" } : { season: yearCbb, startDateRange: date, endDateRange: date };
-      const res = sport === "cfb" ? await cfbdGet(path, env, { query }) : await cbbdGet(path, env, { query });
+      // ONE scheduled morning CFB batch. A single /games response discovers
+      // yesterday's completed fixtures; weekly bulk box-score calls only happen
+      // when a prior-day FBS game actually finished.
+      const query = sport === "cfb" ? { year: yearCfb, seasonType: "both" } : { season: yearCbb, startDateRange: date, endDateRange: date };
+      const res = sport === "cfb" ? await cfbdGet(path, env, { query,fetchFn:opts.fetchFn||fetch }) : await cbbdGet(path, env, { query });
       report.push(collegePublicResult(res));
-      const finals = (res.data || []).filter((g) => (g.homePoints ?? g.home_points ?? g.homeScore) != null);
+      if(!res.ok)throw Error(res.reason||"COLLEGE_DAILY_GAME_DISCOVERY_FAILED");
+      const finals = sport === "cfb"
+        ? cfbDailyFinals(res.data,date)
+        : (res.data || []).filter(g=>(g.homePoints??g.home_points??g.homeScore)!=null);
       gamesDiscovered = finals.length;
+      if(sport === "cfb"){
+        const weeks=cfbDailyWeeks(finals,yearCfb);
+        if(finals.length && !weeks.length)throw Error("CFBD_DAILY_MISSING_WEEK_METADATA");
+        // A week request provides all box scores, not one HTTP call per team,
+        // player or game. Strict partitioning only persists yesterday's IDs.
+        for(const w of weeks){
+          for(const endpoint of ["/games/teams","/games/players"]){
+            const box=await cfbdGet(endpoint,env,{query:w,fetchFn:opts.fetchFn||fetch});
+            report.push(collegePublicResult(box));
+            if(!box.ok)throw Error(box.reason||"CFBD_DAILY_BOX_FETCH_FAILED");
+            const selected=cfbDailyBoxRows(box.data,finals);
+            const expected=finals.filter(g=>Number(g.week)===w.week&&
+              String(g.seasonType||g.season_type||"regular")===w.seasonType).length;
+            if(selected.length!==expected)throw Error("CFBD_DAILY_BOX_INCOMPLETE: "+endpoint+
+              " matched="+selected.length+" expected="+expected);
+            const persisted=await persistObservation(env,{
+              source:"cfbd",sport,endpoint,season:yearCfb,partition:date,
+              data:selected,jobRunId:id,archiveFullPayload:true,
+            });
+            if(!persisted?.ok)throw Error("CFBD_DAILY_D1_ARCHIVE_POINTER_FAILED: "+endpoint);
+            if(persisted.r2Key)cfbDailyArchives.push({endpoint,week:w.week,seasonType:w.seasonType,r2Key:persisted.r2Key,storage:persisted.storage});
+            writes.writesSucceeded+=persisted.inserted||0;
+          }
+        }
+      }
       if (sport === "cbb") {
         const fanmatch = await loadKenpomFanmatch(env, { date, fetchFn: opts.fetchFn || fetch });
         const benchmark = fanmatch.ok
@@ -864,14 +913,20 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         await gradeModelPrediction(env, { id: pred.id, actualHome: hs, actualAway: as, grade });
         writes.writesSucceeded += 1;
       }
-      await persistObservation(env, { source: sport === "cfb" ? "cfbd" : "cbbd", sport, endpoint: path, season: sport === "cfb" ? yearCfb : yearCbb, partition: date, data: finals, jobRunId: id });
+      const dailySaved=await persistObservation(env, { source: sport === "cfb" ? "cfbd" : "cbbd",
+        sport, endpoint: path, season: sport === "cfb" ? yearCfb : yearCbb,
+        partition: date, data: finals, jobRunId: id,archiveFullPayload:sport==="cfb" });
+      if(sport==="cfb"&&!dailySaved?.ok)throw Error("CFBD_DAILY_RESULTS_POINTER_FAILED");
+      if(sport==="cfb"&&dailySaved.r2Key)cfbDailyArchives.push({endpoint:path,r2Key:dailySaved.r2Key,storage:dailySaved.storage});
+      if(sport==="cfb")writes.writesSucceeded+=dailySaved.inserted||0;
     }
   } catch (err) {
     errors.push(String(err?.message || err));
   }
 
   const failed = report.filter((r) => r && r.ok === false).length;
-  const status = classifyJobStatus({
+  const status = job==="cfb-postgame-harvest" && (errors.length>0 || failed>0)
+    ? JOB_FAILED : classifyJobStatus({
     okSports: failed === report.length && report.length ? 0 : 1,
     failedSports: failed && failed === report.length ? 1 : 0,
     writesFailed: 0,
@@ -891,7 +946,12 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
     writes,
     errors: errors.concat(report.filter((r) => r && !r.ok).map((r) => r.reason)).slice(0, 20),
     env,
-    d1: { bound: hasDb(env), quota, endpoints: report, keyHealth: collegeKeyHealth(env) },
+    d1: {bound:hasDb(env),quota,endpoints:report,keyHealth:collegeKeyHealth(env),
+      ...(job==="cfb-postgame-harvest"?{
+        cfbDailyArchive:{date:opts.date||shiftDateCT(todayCT(),-1),
+          payloads:cfbDailyArchives,modelAuthority:false,wagerAuthority:false,
+          postgameStatTablesPromoted:false}
+      }:{})},
   });
   await recordJob(env, {
     id,
@@ -902,6 +962,10 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
     status: payload.status,
     sport: payload.sports[0],
     gamesDiscovered,
+    ...(job==="cfb-postgame-harvest"?{
+      dates:[{date:opts.date||shiftDateCT(todayCT(),-1),
+        archivePayloads:cfbDailyArchives,postgameStatTablesPromoted:false}]
+    }:{}),
     writesAttempted: writes.writesSucceeded,
     writesSucceeded: writes.writesSucceeded,
     writesFailed: writes.writesFailed,
