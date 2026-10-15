@@ -19,7 +19,7 @@ try {
    cardWidth:document.querySelector(".tmc").getBoundingClientRect().width,itemWidth:document.querySelector(".db-grid-item-tennis").getBoundingClientRect().width,gridWidth:document.querySelector(".db-grid").clientWidth-parseFloat(getComputedStyle(document.querySelector(".db-grid")).paddingLeft)-parseFloat(getComputedStyle(document.querySelector(".db-grid")).paddingRight),
    gridColumns:getComputedStyle(document.querySelector(".db-grid")).gridTemplateColumns.split(" ").filter(Boolean).length,
    collapsed:!document.querySelector(".tmc-expand").open,
-   detailHidden:document.querySelector(".tmc-main").getClientRects().length===0,
+   detailHidden:!document.querySelector(".tmc-main").checkVisibility({contentVisibilityAuto:true}),
    summary:document.querySelector(".tmc-expand-toggle")?.textContent,
    font:getComputedStyle(document.querySelector(".tmc h2")).fontFamily,
    bar:!!document.querySelector('.tmc-probability-track'),projection:!!document.querySelector('.tmc-projection-panel'),
