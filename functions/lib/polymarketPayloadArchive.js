@@ -1,3 +1,4 @@
+import {JSONParser} from "@streamparser/json";
 /** Lossless storage representation only. Prices, IDs and clocks never change.
  * Full evidence already exists in immutable Polymarket page receipts in R2.
  */
@@ -36,14 +37,47 @@ export async function compactArchivedRaw(raw,receipt,{originalHash=null}={}){
  if(after>=before)return {raw,changed:false,reason:'NO_STORAGE_SAVING'};
  return {raw:result,changed:true,reason:'ARCHIVE_VERIFIED',originalHash:digest};
 }
+const offerIdentity=raw=>JSON.stringify([raw?.providerMarketId,raw?.providerOutcomeId]);
+/** Parse only selected offer objects. keepStack=false releases unmatched siblings.
+ * The receipt stays in R2; no replacement or auxiliary objects are created.
+ */
+export async function readReceiptMatches(archive,key,identities){
+ const object=await archive.get(key);
+ if(!object)return null;
+ const maxBytes=128*1024*1024;
+ if(object.size>maxBytes)throw Error('ARCHIVED_RECEIPT_TOO_LARGE');
+ // Unit-test stores may expose json() only; real R2 bodies always stream.
+ if(!object.body?.getReader){
+  const receipt=await object.json();
+  return {...receipt,offers:(receipt.offers||[]).filter(o=>identities.has(offerIdentity(o.raw)))};
+ }
+ const receipt={offers:[]};
+ const parser=new JSONParser({paths:['$.receiptId','$.rawKey','$.offers.*'],keepStack:false,stringBufferSize:65536});
+ parser.onValue=({key,value})=>{
+  if(key==='receiptId')receipt.receiptId=value;
+  else if(key==='rawKey')receipt.rawKey=value;
+  else if(value?.raw&&identities.has(offerIdentity(value.raw))){
+   if(receipt.offers.length>=1000)throw Error('ARCHIVE_MATCH_BUDGET_EXCEEDED');
+   receipt.offers.push(value);
+  }
+ };
+ const reader=object.body.getReader();let read=0;
+ try{
+  while(true){const part=await reader.read();if(part.done)break;
+   read+=part.value.byteLength;if(read>maxBytes)throw Error('ARCHIVED_RECEIPT_TOO_LARGE');
+   parser.write(part.value);
+  }
+  if(!parser.isEnded)parser.end();
+ }catch(error){await reader.cancel().catch(()=>{});throw error;}
+ finally{reader.releaseLock();}
+ return receipt;
+}
 export async function restoreArchivedRaw(raw,archive,{storedHash=null}={}){
  if(!raw?.archiveRef)return raw;
  if(raw.archiveRef.version!==POLY_PAYLOAD_STORAGE_VERSION||raw.archiveRef.receiptKey!==receiptKey(raw.receiptId)||!validRawKey(raw.rawSnapshotKey))throw Error('INVALID_ARCHIVE_REFERENCE');
  if(storedHash&&await payloadHash(raw)!==storedHash)throw Error('STORED_PAYLOAD_HASH_MISMATCH');
- const object=await archive.get(raw.archiveRef.receiptKey);
- if(!object)throw Error('ARCHIVED_RECEIPT_MISSING');
- if(object.size>16*1024*1024)throw Error('ARCHIVED_RECEIPT_TOO_LARGE');
- const receipt=await object.json();
+ const receipt=await readReceiptMatches(archive,raw.archiveRef.receiptKey,new Set([offerIdentity(raw)]));
+ if(!receipt)throw Error('ARCHIVED_RECEIPT_MISSING');
  if(!receiptMatches(receipt,raw))throw Error('ARCHIVED_RECEIPT_IDENTITY_MISMATCH');
  for(const o of receipt.offers){
   if(o?.raw?.providerMarketId!==raw.providerMarketId||o?.raw?.providerOutcomeId!==raw.providerOutcomeId)continue;
@@ -65,17 +99,21 @@ export async function compactPolymarketPayloadBatch(env,{afterRowid=0,limit=250,
    AND collected_at<=? AND length(raw_payload_json)<=65536
    ORDER BY rowid LIMIT ?`).bind(afterRowid,cutoff,limit).all()).results||[];
  const cache=new Map(),statements=[],proofs=[],reasons={};let before=0,after=0;
+ const identities=new Set();
+ for(const row of rows){try{const raw=JSON.parse(row.raw_payload_json);if(!raw.archiveRef)identities.add(offerIdentity(raw));}catch{}}
+
  for(const row of rows){
   let raw;try{raw=JSON.parse(row.raw_payload_json)}catch{reasons.INVALID_JSON=(reasons.INVALID_JSON||0)+1;continue;}
   if(raw?.archiveRef){reasons.ALREADY_COMPACT=(reasons.ALREADY_COMPACT||0)+1;continue;}
   if(!raw?.receiptId||!validRawKey(raw.rawSnapshotKey)){reasons.NO_ARCHIVE_REFERENCE=(reasons.NO_ARCHIVE_REFERENCE||0)+1;continue;}
-  const key=receiptKey(raw.receiptId);let receipt=cache.get(key);
-  if(!receipt){
-   const object=await env.ARCHIVE.get(key);
-   if(!object||object.size>16*1024*1024){reasons.ARCHIVE_MISSING_OR_TOO_LARGE=(reasons.ARCHIVE_MISSING_OR_TOO_LARGE||0)+1;continue;}
-   receipt=await object.json();
+  const key=receiptKey(raw.receiptId);let receipt;
+  if(cache.has(key))receipt=cache.get(key);
+  else{
+   try{receipt=await readReceiptMatches(env.ARCHIVE,key,identities);}
+   catch(error){if(error.message!=='ARCHIVED_RECEIPT_TOO_LARGE')throw error;receipt={unavailable:'ARCHIVE_TOO_LARGE'};}
    if(cache.size>=2)cache.delete(cache.keys().next().value);cache.set(key,receipt);
   }
+  if(!receipt||receipt.unavailable){const reason=receipt?.unavailable||'ARCHIVE_MISSING';reasons[reason]=(reasons[reason]||0)+1;continue;}
   const compact=await compactArchivedRaw(raw,receipt,{originalHash:row.raw_payload_hash});
   if(!compact.changed){reasons[compact.reason]=(reasons[compact.reason]||0)+1;continue;}
   const text=JSON.stringify(compact.raw),hash=await payloadHash(text);

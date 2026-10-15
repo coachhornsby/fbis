@@ -70,3 +70,35 @@ test('source replay preserves property order when omitted arrays were not the la
  assert.equal(JSON.stringify(restored),JSON.stringify(reordered));
  assert.equal(await payloadHash(restored),await payloadHash(reordered));
 });
+
+test('large receipts stream selected offers without buffering the full body or losing UTF-8 escapes',async()=>{
+ const {readReceiptMatches}=await import('../functions/lib/polymarketPayloadArchive.js');
+ const unicode={...raw,providerTitle:'São Paulo — München "home" \\ path'};
+ const doc={receiptId:raw.receiptId,rawKey,offers:[{raw:{...raw,providerMarketId:'unmatched'}},{raw:unicode}]};
+ const bytes=new TextEncoder().encode(JSON.stringify(doc));let i=0,jsonCalled=false;
+ const streamed={async get(){return {size:30*1024*1024,body:new ReadableStream({pull(c){if(i>=bytes.length)return c.close();c.enqueue(bytes.slice(i,i+7));i+=7;}}),async json(){jsonCalled=true;throw Error('must stream')}};}};
+ const found=await readReceiptMatches(streamed,receiptKey(raw.receiptId),new Set([JSON.stringify([raw.providerMarketId,raw.providerOutcomeId])]));
+ assert.equal(found.offers.length,1);assert.equal(jsonCalled,false);assert.equal(await payloadHash(found.offers[0].raw),await payloadHash(unicode));
+ const c=await compactArchivedRaw(unicode,found);assert.equal(c.changed,true);
+ i=0;assert.equal(await payloadHash(await restoreArchivedRaw(c.raw,streamed)),await payloadHash(unicode));
+});
+
+test('truncated or oversized receipt streams cannot authorize removal of inline evidence',async()=>{
+ const {readReceiptMatches}=await import('../functions/lib/polymarketPayloadArchive.js');
+ const target=new Set([JSON.stringify([raw.providerMarketId,raw.providerOutcomeId])]);
+ await assert.rejects(readReceiptMatches({async get(){return {size:129*1024*1024}}},receiptKey(raw.receiptId),target),/TOO_LARGE/);
+ await assert.rejects(readReceiptMatches({async get(){return {size:50,body:new Response('{"receiptId":"oops","offers":[').body}}},receiptKey(raw.receiptId),target));
+});
+
+test('a real receipt above the old 16 MB ceiling retains only the requested source offer',async()=>{
+ const {readReceiptMatches}=await import('../functions/lib/polymarketPayloadArchive.js');
+ const filler=new TextEncoder().encode(JSON.stringify({raw:{providerMarketId:'other',providerOutcomeId:'other',padding:'z'.repeat(32768)}})+',');
+ let stage=0,n=0;const total=550;
+ const body=new ReadableStream({pull(c){
+  if(stage===0){c.enqueue(new TextEncoder().encode(JSON.stringify({receiptId:raw.receiptId,rawKey}).slice(0,-1)+',"offers":['));stage=1;return;}
+  if(n++<total){c.enqueue(filler);return;}
+  if(stage===1){c.enqueue(new TextEncoder().encode(JSON.stringify({raw})+']}'));stage=2;return;}c.close();
+ }});
+ const result=await readReceiptMatches({async get(){return {body,size:filler.length*total+10000}}},receiptKey(raw.receiptId),new Set([JSON.stringify([raw.providerMarketId,raw.providerOutcomeId])]));
+ assert.equal(result.offers.length,1);assert.equal(await payloadHash(result.offers[0].raw),await payloadHash(raw));
+});
