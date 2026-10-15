@@ -198,11 +198,11 @@ jobs:
                 jq -c '{http: $http, ok: .ok, job: .job, status: .status, errors: (.errors // []), d1: (.d1.bound // false)}' --arg http "$http" "$tmp" || true
                 ok=$(jq -r '(.ok == true) and (.status == "success")' "$tmp" 2>/dev/null || echo false)
                 rate_limited=$(jq -r '[.errors[]? | tostring] | any(test("(CFBD|CBBD) 429|rate.?limit"; "i"))' "$tmp" 2>/dev/null || echo false)
-                if [ "$http" = "200" ] && jq -e '.status == "paused" and .reason == "CFBD_MONTHLY_QUOTA_EXHAUSTED" and .networkCalls == 0' "$tmp" >/dev/null; then
+                if [ "$http" = "200" ] && jq -e '.status == "paused" and .reason == "COLLEGE_SHARED_MONTHLY_QUOTA_EXHAUSTED" and .networkCalls == 0' "$tmp" >/dev/null; then
                   CFBD_QUOTA_PAUSED=1
-                  echo "CFBD monthly allowance exhausted: no provider traffic, SDV/previous observations retained."
+                  echo "CFBD/CBBD shared allowance exhausted: no college-provider traffic; prior observations retained."
                   {
-                    echo "## CFB CFBD acquisition paused"
+                    echo "## CFBD/CBBD acquisition paused"
                     echo "- reason: provider-confirmed zero remaining monthly calls"
                     echo "- provider calls: 0"
                     echo "- new CFBD coverage: unavailable; existing SDV state retained"
