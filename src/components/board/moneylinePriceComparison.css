@@ -1,10 +1,24 @@
-.fbis-moneyline-comparison{margin-block:12px}
-.fbis-comparison-scroll{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
-.fbis-comparison-table{width:100%;min-width:655px;border-collapse:collapse;font-variant-numeric:tabular-nums}
-.fbis-comparison-table th,.fbis-comparison-table td{padding:9px 8px;text-align:center;border-bottom:1px solid var(--border,rgba(132,148,168,.22))}
-.fbis-comparison-table thead th{font-size:11px;font-weight:700;line-height:1.35;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;opacity:.85}
-.fbis-comparison-table tbody th{text-align:left;font-size:12px;line-height:1.3;min-width:112px}
-.fbis-comparison-table tbody td{font-size:14px;font-weight:750;white-space:nowrap}
-.fbis-comparison-table .fbis-model-probability,.fbis-comparison-table .fbis-model-price{font-weight:850}
-.fbis-comparison-table tbody tr:last-child th,.fbis-comparison-table tbody tr:last-child td{border-bottom:0}
-@media(max-width:700px){.fbis-comparison-table{min-width:625px}.fbis-comparison-table th,.fbis-comparison-table td{padding:8px 6px}}
+.fbis-moneyline-comparison{margin:12px 0!important;min-width:0;padding:13px!important;border:1px solid rgba(72,183,252,.46)!important;border-radius:14px!important;background:linear-gradient(130deg,rgba(8,28,51,.96),rgba(10,15,41,.94))!important;box-shadow:0 8px 24px rgba(0,25,63,.25)}
+.fbis-moneyline-header{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:11px}
+.fbis-moneyline-header>strong{font-size:13px;letter-spacing:.075em;font-weight:950;color:#f2f8ff}
+.fbis-moneyline-header>span{display:flex;gap:6px;flex-wrap:wrap;font-size:9px;font-weight:950;letter-spacing:.05em;color:#b2d2fb}
+.fbis-moneyline-header i{font-style:normal;color:#82dfff}
+.fbis-moneyline-header i:nth-child(2){color:#dcb7ff}
+.fbis-moneyline-header i:nth-child(3){color:#9df7c7}
+.fbis-moneyline-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.fbis-moneyline-side{min-width:0;overflow:hidden;padding:9px;border-radius:11px;border:1px solid color-mix(in srgb,var(--fbis-away,var(--cgc-away-brand,#4da5e8)) 65%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--fbis-away,var(--cgc-away-brand,#2474bf)) 21%,transparent),rgba(8,18,38,.95))}
+.fbis-moneyline-side.fbis-moneyline-home{border-color:color-mix(in srgb,var(--fbis-home,var(--cgc-home-brand,#ba3754)) 65%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--fbis-home,var(--cgc-home-brand,#af435f)) 18%,transparent),rgba(8,18,38,.95))}
+.fbis-moneyline-side h4{margin:0 0 8px!important;color:#f9fcff;font-size:12px!important;font-weight:950!important;line-height:1.25!important;letter-spacing:.02em;overflow-wrap:anywhere}
+.fbis-moneyline-triplet{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.fbis-moneyline-venue{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-width:0;min-height:91px;gap:2px;padding:7px 3px;border:1px solid rgba(125,180,247,.31);background:rgba(7,26,58,.88);border-radius:8px;box-shadow:inset 0 1px rgba(255,255,255,.06)}
+.fbis-moneyline-venue>span{color:#a3c4f7;font-weight:900;letter-spacing:.02em;font-size:9px}
+.fbis-moneyline-venue strong{color:#6fe1ff;font-size:clamp(16px,1.6vw,23px);font-weight:950;line-height:1.04;font-variant-numeric:tabular-nums}
+.fbis-moneyline-venue b{font-weight:950;font-size:16px;line-height:1.1}
+.fbis-moneyline-venue small{font-size:8px;color:#a5bdd5;line-height:1.2}
+.fbis-moneyline-poly{border-color:rgba(189,118,253,.43);background:linear-gradient(155deg,rgba(81,35,134,.6),rgba(22,16,57,.9))}
+.fbis-moneyline-poly strong,.fbis-moneyline-poly b{color:#e4b9ff}
+.fbis-moneyline-fbis{border-color:rgba(70,242,165,.38);background:linear-gradient(145deg,rgba(12,106,78,.44),rgba(6,42,38,.93))}
+.fbis-moneyline-fbis strong,.fbis-moneyline-fbis b{color:#adffde}
+.fbis-moneyline-note{color:#a6bfd4;font-size:10px!important;line-height:1.45!important;margin:9px 0 0!important}
+@media(max-width:850px){.fbis-moneyline-cards{grid-template-columns:1fr}.fbis-moneyline-venue{min-height:73px}.fbis-moneyline-venue strong{font-size:clamp(18px,4vw,23px)}}
+@media(max-width:350px){.fbis-moneyline-venue>span{font-size:8px}.fbis-moneyline-venue b{font-size:14px}.fbis-moneyline-side{padding:6px}}
