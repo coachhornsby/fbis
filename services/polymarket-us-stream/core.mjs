@@ -1,9 +1,9 @@
 /** Persistent US stream market selection & paced quote persistence controls. */
 export const STREAM_SPORTS=Object.freeze(["nfl","cfb","cbb","nba","wnba","mlb","npb","kbo","nhl","soccer","tennis"]);
-/** A six-hour, research-only REST contract roster can bootstrap signed WS
- * after a delayed hourly REST job. It NEVER refreshes REST quote timestamps.
+/** A 24-hour, research-only REST contract roster can bootstrap signed WS
+ * after an overnight database outage interrupts hourly discovery. It NEVER refreshes REST quote timestamps.
  */
-export const STREAM_CONTRACT_ROSTER_MAX_AGE_MS=6*60*60*1000;
+export const STREAM_CONTRACT_ROSTER_MAX_AGE_MS=24*60*60*1000;
 export const STREAM_CONTRACT_ROSTER_FRESH_MS=35*60*1000;
 export function streamContractRosterWindow(now=Date.now()){
  if(!Number.isFinite(now))throw Error("invalid-roster-clock");
