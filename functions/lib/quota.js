@@ -1,10 +1,10 @@
 /**
- * Shared CFBD/CBBD monthly quota ledger. Tier 2 = 30,000 calls.
+ * Shared CFBD/CBBD monthly quota display. Operator confirmed Tier 3 = 75,000 calls.
  * Production design target is well under the cap. Alerts at 50/75/90/100%.
  * Never stores credentials. Failed sources stay unavailable — never zero-fill.
  */
 
-export const MONTHLY_QUOTA = 30000;
+export const MONTHLY_QUOTA = 75000;
 export const QUOTA_DESIGN_TARGET = 8000;
 export const QUOTA_ALERTS = [0.5, 0.75, 0.9, 1];
 export const QUOTA_COST = { default: 1, cacheHit: 0 };
