@@ -56,3 +56,13 @@ test('archive reconstruction preserves later derivation metadata without rewriti
  assert.equal(restored.identityLinkedAt,derived.identityLinkedAt);assert.equal(restored.postCaptureIdentityLink,true);
  assert.deepEqual(restored.providerMarket.marketSides,raw.providerMarket.marketSides);
 });
+
+
+test('source replay preserves property order when omitted arrays were not the last field',async()=>{
+ const reordered={...raw,providerMarket:{marketSides:raw.providerMarket.marketSides,...Object.fromEntries(Object.entries(raw.providerMarket).filter(([k])=>k!=='marketSides'))}};
+ const r={...receipt,offers:[{raw:reordered}]};
+ const c=await compactArchivedRaw(reordered,r);assert.equal(c.changed,true);
+ const restored=await restoreArchivedRaw(c.raw,archive(r));
+ assert.equal(JSON.stringify(restored),JSON.stringify(reordered));
+ assert.equal(await payloadHash(restored),await payloadHash(reordered));
+});
