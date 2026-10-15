@@ -10,6 +10,18 @@ const rawKey='market-sources/polymarket-us/raw/'+'a'.repeat(64)+'.json';
 const raw={receiptId:'fixture-123',rawSnapshotKey:rawKey,providerMarketId:'market1',providerOutcomeId:'yes1',providerTitle:'Home vs Away',contractLong:true,sourceObservedAt:null,quoteProvenance:'collector-capture-only',providerMarket:{id:'market1',sportsMarketType:'soccer_team_full_time_winner',sportsMarketTypeV2:'SPORTS_MARKET_TYPE_MONEYLINE',title:'Home (Reg. Time)',description:'Full settlement rules remain available',marketSides:[{id:'yes1',quote:.6,long:true,team:{name:'Home'},branding:'x'.repeat(2000)},{id:'no1',quote:.4,long:false,team:{name:'Away'},branding:'y'.repeat(2000)}]},providerSide:{id:'yes1',long:true,team:{name:'Home'},quote:.6}};
 const receipt={receiptId:raw.receiptId,rawKey,offers:[{raw}]};
 const archive=(r=receipt)=>({async get(k){assert.equal(k,receiptKey(raw.receiptId));return r?{size:JSON.stringify(r).length,async json(){return structuredClone(r)}}:null;}});
+test('retired MLB subject index changes neither current reader plans nor retained projection rows',()=>{
+ const db=new DatabaseSync(':memory:');db.exec(`CREATE TABLE schema_migrations(id TEXT PRIMARY KEY,applied_at TEXT);
+ CREATE TABLE mlb_market_projections(id TEXT PRIMARY KEY,game_id TEXT,date TEXT,checkpoint TEXT,period TEXT,market_type TEXT,subject_id TEXT,frozen_at TEXT);
+ CREATE INDEX idx_mlb_market_proj_game ON mlb_market_projections(game_id,date,checkpoint);
+ CREATE INDEX idx_mlb_market_proj_market ON mlb_market_projections(period,market_type,date);
+ CREATE INDEX idx_mlb_market_proj_subject ON mlb_market_projections(subject_id,market_type,date);`);
+ const insert=db.prepare('INSERT INTO mlb_market_projections VALUES(?,?,?,?,?,?,?,?)');for(let i=0;i<2000;i++)insert.run('p'+i,'g'+i%20,'2026-10-15','PRE','FULL','SPORTSBOOK_PROP:player_strikeouts',i%3?'s'+i:null,'2026-10-15T00:00:00Z');db.exec('ANALYZE');
+ const queries=["SELECT * FROM mlb_market_projections WHERE date='2026-10-15' AND game_id='g1' ORDER BY frozen_at DESC LIMIT 500","SELECT * FROM mlb_market_projections WHERE date='2026-10-15' ORDER BY frozen_at DESC LIMIT 500","SELECT id,game_id FROM mlb_market_projections WHERE date='2026-10-15' AND market_type LIKE 'SPORTSBOOK_PROP:%' AND frozen_at<='2026-10-16'"];
+ const plans=queries.map(q=>db.prepare('EXPLAIN QUERY PLAN '+q).all().map(x=>x.detail));const rows=queries.map(q=>db.prepare(q).all());
+ const migration=readFileSync(new URL('../migrations/0107_retire_unused_mlb_subject_index.sql',import.meta.url),'utf8');db.exec(migration);db.exec(migration);
+ queries.forEach((q,i)=>{assert.deepEqual(db.prepare('EXPLAIN QUERY PLAN '+q).all().map(x=>x.detail),plans[i]);assert.deepEqual(db.prepare(q).all(),rows[i]);});assert.equal(db.prepare('SELECT COUNT(*) n FROM mlb_market_projections').get().n,2000);db.close();
+});
 test('sparse player index preserves rows and supports known-player lookups after repeated migration',()=>{
  const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE schema_migrations(id TEXT PRIMARY KEY,applied_at TEXT); CREATE TABLE normalized_market_observations(id TEXT PRIMARY KEY,sport TEXT,canonical_player_id TEXT,stat_family TEXT,collected_at TEXT)');
  db.prepare('INSERT INTO normalized_market_observations VALUES(?,?,?,?,?)').run('game','nba',null,'spread','2026-10-15');db.prepare('INSERT INTO normalized_market_observations VALUES(?,?,?,?,?)').run('player','nba','p1','points','2026-10-15');

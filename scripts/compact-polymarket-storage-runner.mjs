@@ -8,7 +8,9 @@ const cutoff=process.env.COMPACTION_CUTOFF||new Date().toISOString();
 if(!Number.isFinite(Date.parse(cutoff)))throw Error('Invalid cutoff');
 const api=`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/b50c724c-903b-4241-8ce1-48d931e7a44c/query`;
 const result={cutoff,completed:false,examined:0,updated:0,bytesRemoved:0,restoreChecks:0,reasons:{},newArchiveObjects:0,deletedRows:0};
-let cursor=0,batches=0;
+let cursor=Number(process.env.COMPACTION_START_ROWID||0),batches=0;
+if(!Number.isSafeInteger(cursor)||cursor<0)throw Error('Invalid start rowid');
+result.startRowid=cursor;
 async function query(sql){
  for(let i=0;i<8;i++){
   try{
@@ -38,10 +40,11 @@ try{
  const upper=(await query(`SELECT MAX(rowid) upper_rowid FROM normalized_market_observations INDEXED BY idx_norm_market_source WHERE source='Polymarket US' AND collected_at<=${quote(cutoff)}`))[0].results[0].upper_rowid||0;
  result.upperRowid=upper;
  while(true){
-  const rows=(await query(`SELECT rowid storage_rowid,id,raw_payload_json,raw_payload_hash FROM normalized_market_observations NOT INDEXED WHERE rowid>${cursor} AND rowid<=${upper} AND source='Polymarket US' AND collected_at<=${quote(cutoff)} AND length(raw_payload_json)<=65536 ORDER BY rowid LIMIT 500`))[0].results;
+  const rows=(await query(`SELECT rowid storage_rowid,id,CASE WHEN json_extract(raw_payload_json,'$.archiveRef.version')='polymarket-receipt-v1' THEN NULL ELSE raw_payload_json END raw_payload_json,raw_payload_hash FROM normalized_market_observations NOT INDEXED WHERE rowid>${cursor} AND rowid<=${upper} AND source='Polymarket US' AND collected_at<=${quote(cutoff)} AND length(raw_payload_json)<=65536 ORDER BY rowid LIMIT 500`))[0].results;
   if(!rows.length)break;
   const updates=[];
   for(const row of rows){
+   if(row.raw_payload_json===null){result.reasons.ALREADY_COMPACT=(result.reasons.ALREADY_COMPACT||0)+1;continue;}
    const raw=JSON.parse(row.raw_payload_json);let reason=null;
    if(raw.archiveRef)reason='ALREADY_COMPACT';
    else if(!raw.receiptId||!raw.rawSnapshotKey)reason='NO_ARCHIVE_REFERENCE';
@@ -57,8 +60,8 @@ try{
    if(reason)result.reasons[reason]=(result.reasons[reason]||0)+1;
   }
   let proof=null;
-  for(let i=0;i<updates.length;i+=25){
-   const group=updates.slice(i,i+25);
+  for(let i=0;i<updates.length;i+=500){
+   const group=updates.slice(i,i+500);
    const sql=group.map(compactUpdateSql).join('\n');
    const written=await query(sql);
    if(written.length!==group.length)throw Error('D1_RESULT_ALIGNMENT_MISMATCH');
