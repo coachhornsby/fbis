@@ -51,3 +51,15 @@ test('soccer book home and away prices cannot attach with reversed team orientat
  assert.equal(matchPolymarketUsEvent({startTime:fixtures[0].start,homeTeam:{name:'Cologne'},awayTeam:{name:'Frankfurt'}},fixtures,'soccer').id,null);
  assert.equal(matchPolymarketUsEvent({startTime:fixtures[0].start,homeTeam:{name:'Frankfurt'},awayTeam:{name:'Cologne'}},fixtures,'soccer').id,'g');
 });
+
+test('soccer drawable exchange contracts identify match-winner, draw and complement explicitly',async()=>{
+ const {polymarketUsMarketOffers}=await import('../functions/lib/polymarketUs.js');
+ const offers=polymarketUsMarketOffers({id:'event',markets:[{id:'draw',sportsMarketType:'soccer_team_full_time_winner',sportsMarketTypeV2:'SPORTS_MARKET_TYPE_DRAWABLE_OUTCOME',title:'Tie (Reg. Time)',marketSides:[{id:'yes',description:'yes',long:true,price:'.24'},{id:'no',description:'no',long:false,price:'.78'}]}]},'soccer');
+ assert.equal(offers[0].marketFamily,'moneyline');assert.equal(offers[0].period,'full_game');assert.equal(offers[0].side,'Draw');assert.equal(offers[1].side,'Not Draw');
+});
+
+test('legacy drawable references reach shadow records with actual draw label and unchanged clock',()=>{
+ const raw={providerMarket:{sportsMarketType:'soccer_team_full_time_winner',title:'Tie (Reg. Time)'},providerSide:{description:'yes',long:true},contractLong:true,sourceObservedAt:null};
+ const d=soccerShadowMarketSnapshot([{id:'draw',source:'Polymarket US',canonical_event_id:'g',market_family:'unclassified',period:'unspecified',side:'yes',contract_price:.24,collected_at:'2026-10-15T05:59:30Z',raw_payload_json:JSON.stringify(raw)}],context);
+ assert.equal(d.references[0].side,'Draw');assert.equal(d.references[0].family,'moneyline');assert.equal(d.references[0].providerObservedAt,null);assert.equal(d.byFamily['1X2'],undefined);
+});

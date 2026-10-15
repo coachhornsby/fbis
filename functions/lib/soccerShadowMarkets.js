@@ -1,10 +1,14 @@
+import {polymarketUsPeriod,polymarketUsMarketFamily,polymarketUsSideLabel} from "./polymarketUs.js";
 import {marketTemporalStatus} from './marketTemporal.js';
 const number=v=>v==null||v===''?null:Number.isFinite(Number(v))?Number(v):null;
 export function soccerShadowMarketSnapshot(rows=[],{eventId,kickoff,snapshotAt}={}){
  const references=[];const groups=new Map();
- for(const r of rows){
-  if(String(r.canonical_event_id)!==String(eventId)||r.period!=='full_game')continue;
+ for(const original of rows){
+  const r={...original};
+  if(String(r.canonical_event_id)!==String(eventId))continue;
   let raw={};try{raw=JSON.parse(r.raw_payload_json||'{}')||{}}catch{}
+  if(r.source==='Polymarket US'&&raw.providerMarket){r.period=polymarketUsPeriod(raw.providerMarket);r.market_family=polymarketUsMarketFamily(raw.providerMarket);r.side=polymarketUsSideLabel(raw.providerMarket,raw.providerSide,'soccer');if(r.market_family==='moneyline'&&raw.contractLong!==true)continue;}
+  if(r.period!=='full_game')continue;
   if(r.source==='Polymarket US WebSocket'&&raw.contractBindingVerified!==true)continue;
   const observed=Object.hasOwn(raw,'sourceObservedAt')?raw.sourceObservedAt:r.source_observed_at;
   const temporal=marketTemporalStatus({source:r.source,providerObservedAt:observed,collectedAt:r.collected_at,eventId,eventStartAt:kickoff,projectionAsOf:snapshotAt},{now:new Date(snapshotAt),maxAgeMs:20*60*1000});
@@ -37,7 +41,7 @@ export function soccerShadowMarketSnapshot(rows=[],{eventId,kickoff,snapshotAt}=
 export async function loadSoccerShadowMarkets(db,games,{snapshotAt}={}){
  const byId=new Map();if(!db?.prepare)return byId;
  for(const game of games||[]){
-  const rows=(await db.prepare(`WITH latest AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY source,source_market_id,source_outcome_id,period,side,line ORDER BY collected_at DESC,CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,id DESC) rn FROM normalized_market_observations WHERE sport='soccer' AND canonical_event_id=? AND source IN ('PinnOdds','Polymarket US','Polymarket US WebSocket') AND collected_at BETWEEN ? AND ? AND market_family IN ('moneyline','total','btts','spread')) SELECT * FROM latest WHERE rn=1`).bind(String(game.id),new Date(Date.parse(snapshotAt)-7*3600000).toISOString(),snapshotAt).all())?.results||[];
+  const rows=(await db.prepare(`WITH latest AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY source,source_market_id,source_outcome_id,period,side,line ORDER BY collected_at DESC,CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,id DESC) rn FROM normalized_market_observations WHERE sport='soccer' AND canonical_event_id=? AND source IN ('PinnOdds','Polymarket US','Polymarket US WebSocket') AND collected_at BETWEEN ? AND ? AND market_family IN ('moneyline','total','btts','spread','unclassified')) SELECT * FROM latest WHERE rn=1`).bind(String(game.id),new Date(Date.parse(snapshotAt)-7*3600000).toISOString(),snapshotAt).all())?.results||[];
   byId.set(String(game.id),soccerShadowMarketSnapshot(rows,{eventId:String(game.id),kickoff:game.start,snapshotAt}));
  }
  return byId;

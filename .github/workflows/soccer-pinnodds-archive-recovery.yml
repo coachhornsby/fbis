@@ -1,0 +1,43 @@
+name: Recover soccer PinnOdds prematch archive
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['ops/triggers/soccer-pinnodds-archive-recovery']
+permissions:
+  contents: read
+concurrency:
+  group: soccer-pinnodds-archive-recovery
+  cancel-in-progress: false
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Wait for production release
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Recover existing capture without a paid provider pull
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          node scripts/recover-soccer-pinnodds-prematch.mjs | tee artifacts/soccer-pinn-recovery.jsonl
+      - name: Verify shadow references after recovery
+        run: |
+          set -euo pipefail
+          day=$(TZ=America/Chicago date -d '+2 days' +%F)
+          for league in ger.1 fra.1 esp.1; do
+            curl -fsS --max-time 120 -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/soccer-prospective-shadow?mode=snapshot&competition=$league&date=$day" > "artifacts/shadow-$league.json"
+            jq -e '.ok and .researchOnly and (.canQualify==false) and (.canAuthorize==false)' "artifacts/shadow-$league.json"
+          done
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: soccer-pinn-recovery-${{ github.run_id }}
+          path: artifacts/**

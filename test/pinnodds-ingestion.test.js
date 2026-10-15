@@ -130,3 +130,16 @@ test('phased rematch prepare/consume/finalize avoids single-request board timeou
  assert.equal(finalized.matchedRows,2);
  assert.equal(finalized.rematched===true||JSON.parse(env._values.get('market-sources/pinnodds/latest/board-2-prematch.json')).rematched,true);
 });
+
+test('soccer prematch normalizes every market inside the verified fixture universe and retains excluded events in raw',async()=>{
+ const snapshotId='soccer-source-prematch',now=new Date(),at=now.toISOString(),start=new Date(now.getTime()+3600000).toISOString();
+ const event=(id,home,away)=>({event_id:id,league_name:'Premier League',starts:start,home,away,periods:{num_0:{money_line:{home:2,draw:3,away:4}}},specials:[{event_id:id+10,special:'Both Teams To Score?',special_category:'team',special_markets:{num_0:[{prices:[{name:'yes',price:1.9},{name:'no',price:1.9}]}]}}]});
+ const raw={events:[event(1,'Home','Away'),event(2,'Outside','Universe')]};
+ const env=archiveEnv({receipt:{ok:true,snapshotId,sportId:1,feed:'prematch',kind:'board',collectedAt:at,rawKey:'raw'},rawKey:'raw',rawBody:raw});
+ env._values.set(`soccer/market-fixtures/${at.slice(0,10)}.json`,JSON.stringify({observedAt:at,fixtures:[{id:'g',sport:'soccer',start,home_name:'Home',away_name:'Away'}],errors:[],complete:true}));
+ const prepared=await preparePinnoddsSnapshot(env,{snapshotId});
+ assert.equal(prepared.normalizedRows,5);assert.equal(prepared.matchedRows,5);assert.equal(prepared.selectedParentEvents,1);assert.equal(prepared.excludedUnmatchedProviderEvents,1);
+ assert.equal(JSON.parse(env._values.get('raw')).events.length,2);
+ await consumePinnoddsSnapshot(env,{snapshotId,batchIndex:0});assert.equal(env._writes.size,5);
+ for(const r of env._writes.values()){assert.equal(r[30],at);assert.equal(r[29],null);}
+});

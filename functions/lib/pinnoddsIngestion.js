@@ -1,3 +1,4 @@
+import {matchPolymarketUsEvent} from "./polymarketUs.js";
 import {loadSoccerMarketFixtures} from "./soccerMarketFixtures.js";
 import {normalizePinnoddsMarkets} from './pinnoddsMarkets.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
@@ -23,7 +24,18 @@ async function normalizeFromArchivedRaw(env,receipt,{snapshotId,fixtureAsOf=null
    games.push(...await loadVerifiedTennisCandidates(env.DB,body.events.map(e=>e.starts),{asOf,includeCompleted}));
   }
   if(receipt.sportId===1)games.push(...(await loadSoccerMarketFixtures(env)).fixtures.filter(g=>!games.some(x=>String(x.id)===g.id)));
+  let scopeDiagnostics={};
+  if(receipt.sportId===1&&receipt.feed==='prematch'){
+   const soccer=games.filter(g=>g.sport==='soccer');
+   if(!soccer.length)throw Error('SOCCER_FIXTURE_DIRECTORY_UNAVAILABLE');
+   const providerInputEvents=body.events.length;
+   const selected=new Set(body.events.filter(e=>!e.special&&!e.special_category&&matchPolymarketUsEvent({startTime:e.starts,homeTeam:{name:e.home},awayTeam:{name:e.away}},soccer,'soccer').id).map(e=>String(e.event_id)));
+   body.events=body.events.filter(e=>selected.has(String(e.event_id))||selected.has(String(e.parent_id)));
+   scopeDiagnostics={ingestionScope:'VERIFIED_SOCCER_FIXTURES_ALL_MARKETS',providerInputEvents,selectedParentEvents:selected.size,excludedUnmatchedProviderEvents:providerInputEvents-body.events.length,unmatchedEvidence:'IMMUTABLE_RAW_ARCHIVE_RETAINED'};
+  }
   result=normalizePinnoddsMarkets(body,{sportId:receipt.sportId,feed:receipt.feed,capturedAt:receipt.collectedAt,games,snapshotId,rawKey:receipt.rawKey});
+  Object.assign(result,scopeDiagnostics);
+  if(fixtureAsOf)for(const row of result.rows)Object.assign(row.raw,{postCaptureIdentityLink:true,identityLinkedAt:fixtureAsOf});
  }
  return result;
 }
