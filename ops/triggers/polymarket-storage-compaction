@@ -1,3 +1,3 @@
-One-shot hash-verified storage compaction with property-order-preserving archive replay.
-Resume safely; already-compacted observations are skipped. No archive uploads or provider pulls.
-2026-10-15 replay verification correction.
+Resume verified Polymarket storage compaction using an integer-rowid range scan.
+Avoid repeated source-index scans and temporary sorting. Existing records and archives preserved.
+2026-10-15 bounded migration performance correction.

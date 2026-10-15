@@ -28,14 +28,18 @@ test('missing, wrong-time or corrupted source evidence never permits compaction 
 });
 function fixtureDb(){
  const sqlite=new DatabaseSync(':memory:');sqlite.exec('CREATE TABLE normalized_market_observations(id TEXT PRIMARY KEY,source TEXT,collected_at TEXT,contract_price REAL,canonical_event_id TEXT,raw_payload_json TEXT,raw_payload_hash TEXT)');
- return {sqlite,prepare(sql){return {bind(...args){return {async all(){return {results:sqlite.prepare(sql).all(...args)}},async first(){return sqlite.prepare(sql).get(...args)},sql,args}}}},async batch(stmts){sqlite.exec('BEGIN');try{const result=stmts.map(s=>({meta:{changes:sqlite.prepare(s.sql).run(...s.args).changes}}));sqlite.exec('COMMIT');return result;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
+ const queries=[];return {sqlite,queries,prepare(sql){queries.push(sql);return {bind(...args){return {async all(){return {results:sqlite.prepare(sql).all(...args)}},async first(){return sqlite.prepare(sql).get(...args)},sql,args}}}},async batch(stmts){sqlite.exec('BEGIN');try{const result=stmts.map(s=>({meta:{changes:sqlite.prepare(s.sql).run(...s.args).changes}}));sqlite.exec('COMMIT');return result;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 }
 test('real SQLite migration is repeatable, dry-run safe and changes only the storage representation',async()=>{
  const DB=fixtureDb(),s=JSON.stringify(raw),h=await payloadHash(s);
  DB.sqlite.prepare('INSERT INTO normalized_market_observations VALUES(?,?,?,?,?,?,?)').run('nmo_'+'1'.repeat(28),'Polymarket US','2026-10-14T12:00:00Z',.6,'event1',s,h);
  DB.sqlite.prepare('INSERT INTO normalized_market_observations VALUES(?,?,?,?,?,?,?)').run('nmo_'+'2'.repeat(28),'PinnOdds','2026-10-14T12:00:00Z',.7,'event2',s,h);
  const env={DB,ARCHIVE:archive()},scope={cutoff:'2026-10-15T00:00:00Z',limit:10};
- const preview=await compactPolymarketPayloadBatch(env,scope);assert.equal(preview.eligible,1);assert.equal(preview.updated,0);
+ DB.sqlite.exec('CREATE INDEX source_idx ON normalized_market_observations(source)');
+ const preview=await compactPolymarketPayloadBatch(env,scope);
+ const scan=DB.queries.find(q=>q.includes('SELECT rowid storage_rowid'));
+ const plan=DB.sqlite.prepare('EXPLAIN QUERY PLAN '+scan).all(0,scope.cutoff,10).map(p=>p.detail).join(' ');
+ assert.match(plan,/INTEGER PRIMARY KEY/);assert.doesNotMatch(plan,/TEMP B-TREE/);assert.equal(preview.eligible,1);assert.equal(preview.updated,0);
  assert.equal(DB.sqlite.prepare('SELECT raw_payload_json FROM normalized_market_observations WHERE source=?').get('Polymarket US').raw_payload_json,s);
  const applied=await compactPolymarketPayloadBatch(env,{...scope,dryRun:false});assert.equal(applied.updated,1);assert.ok(applied.bytesRemoved>3000);
  const rows=DB.sqlite.prepare('SELECT * FROM normalized_market_observations ORDER BY id').all();assert.equal(rows.length,2);assert.equal(rows[0].contract_price,.6);assert.equal(rows[0].collected_at,'2026-10-14T12:00:00Z');assert.equal(rows[0].canonical_event_id,'event1');assert.equal(rows[1].raw_payload_json,s);
