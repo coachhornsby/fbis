@@ -44,3 +44,8 @@ market/outcome objects survive parsing; emitted siblings are released. Reads are
 bounded to 128 MiB per receipt and 1,000 matching offers. Two receipt match sets
 are cached per request, including missing-object results. No new archive objects
 or database indexes are created. The rowid range scan avoids source-index sorting.
+
+A newer maintenance trigger supersedes an older run. This is safe because source
+evidence is already archived, every row update uses compare-and-swap, and a new
+pass skips compacted records. Production deployment jobs retain their own existing
+serialization; only this resumable maintenance workflow cancels obsolete runs.
