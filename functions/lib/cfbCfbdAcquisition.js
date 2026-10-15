@@ -35,9 +35,7 @@ export async function reserveCfbdRequest(env, url, now = Date.now()) {
       WHERE (SELECT blocked_until_ms FROM cfb_cfbd_acquisition_control WHERE id=1) <= ?
         AND (SELECT COUNT(*) FROM cfb_cfbd_acquisition_receipts WHERE request_day=?) < ?
         AND (SELECT COUNT(*) FROM cfb_cfbd_acquisition_receipts WHERE request_month=?) < ?
-        AND (SELECT COALESCE(SUM(quota_cost),0) FROM api_usage
-          WHERE month=? AND source IN ('cfbd','cbbd')) < 27500
-    `).bind(day,hash,month,endpoint,new Date(now).toISOString(),now,day,daily,month,monthly,month).run();
+    `).bind(day,hash,month,endpoint,new Date(now).toISOString(),now,day,daily,month,monthly).run();
     if(Number(res?.meta?.changes||0)!==1)return {allowed:false,reason:"CFBD_DUPLICATE_COOLDOWN_OR_BUDGET"};
     return {allowed:true,day,hash,endpoint};
   } catch {
