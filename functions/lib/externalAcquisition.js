@@ -1,5 +1,8 @@
 import { sha256Hex } from './sha256Hex.js';
 
+// Operator hard ceiling: each paid Actor launch may cost no more than USD $0.70.
+export const FBIS_MAX_PAID_PULL_USD = 0.70;
+
 // This is the only FBIS implementation allowed to POST a paid Actor launch.
 // A transport/persistence failure after START is ambiguous, never permission to relaunch.
 export function canonicalScope(value) {
@@ -29,6 +32,13 @@ export async function startPaidAcquisition(env,{source,input,component,sport='sh
  try {policy=await DB.prepare('SELECT * FROM external_acquisition_policy WHERE source=?').bind(source).first();account=await DB.prepare("SELECT * FROM external_acquisition_account WHERE id='apify'").first();}
  catch{return fail('ACQUISITION_POLICY_UNAVAILABLE',503);}
  if(!policy||!component)return fail('ACQUISITION_POLICY_REQUIRED',503);
+ const policyCap=Number(policy.per_run_cap_usd);
+ if(!Number.isFinite(policyCap)||policyCap<=0)return fail('PER_PULL_PRICE_UNVERIFIED',409);
+ const runCapUsd=Math.min(FBIS_MAX_PAID_PULL_USD,policyCap);
+ // Only a source request explicitly scoped to independently modeled players/events
+ // may initiate a new paid run; broad leagues do not establish such evidence.
+ const projectedTargets=Array.isArray(input?.projectedEventIds)?input.projectedEventIds:[];
+ if(!projectedTargets.length && source!=='action')return fail('FBIS_PROJECTION_SCOPE_REQUIRED',409);
  const since=new Date(+now-policy.freshness_seconds*1000).toISOString();
  const reusable=await DB.prepare("SELECT * FROM external_acquisitions WHERE source=? AND scope_hash=? AND ((state IN ('CLAIMED','UNKNOWN_START','RUNNING')) OR (created_at>=? AND state='CAPTURED')) ORDER BY created_at DESC LIMIT 1").bind(source,hash,since).first();
  if(reusable){
@@ -62,12 +72,12 @@ export async function startPaidAcquisition(env,{source,input,component,sport='sh
  AND (SELECT COUNT(*) FROM external_acquisitions WHERE source=? AND created_at>=?) < ?
  AND COALESCE((SELECT SUM(reserved_charge_usd) FROM external_acquisitions WHERE source=? AND created_at>=?),0)+? <= ?
  AND ?+COALESCE((SELECT SUM(reserved_charge_usd) FROM external_acquisitions WHERE created_at>=? OR state IN ('CLAIMED','UNKNOWN_START','RUNNING')),0)+? <= ?`)
- .bind(id,source,policy.actor,hash,scope,origin||component,policy.per_run_cap_usd,at,at,source,hash,since,source,hour,policy.hourly_run_limit,source,day,effectiveDailyRunLimit,source,day,policy.per_run_cap_usd,policy.daily_cap_usd,account.provider_usage_usd,account.usage_observed_at,policy.per_run_cap_usd,Math.min(account.target_usd,account.hard_cap_usd)).run();
+ .bind(id,source,policy.actor,hash,scope,origin||component,runCapUsd,at,at,source,hash,since,source,hour,policy.hourly_run_limit,source,day,effectiveDailyRunLimit,source,day,runCapUsd,policy.daily_cap_usd,account.provider_usage_usd,account.usage_observed_at,runCapUsd,Math.min(account.target_usd,account.hard_cap_usd)).run();
  if(Number(claim.meta?.changes)!==1)return deny('ACQUISITION_BUDGET_RATE_OR_SCOPE_CONFLICT');
  await demand(DB,{source,component,sport,hash,outcome:'CLAIMED',id,now:at});
  let response;
  try{
-   response=await fetchImpl(`https://api.apify.com/v2/acts/${encodeURIComponent(policy.actor)}/runs?waitForFinish=${Math.min(60,Math.max(0,waitSecs))}&maxTotalChargeUsd=${policy.per_run_cap_usd}`,{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:scope});
+   response=await fetchImpl(`https://api.apify.com/v2/acts/${encodeURIComponent(policy.actor)}/runs?waitForFinish=${Math.min(60,Math.max(0,waitSecs))}&maxTotalChargeUsd=${runCapUsd}`,{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:scope});
    const payload=await response.json(),run=payload.data;
    if(!response.ok||!run?.id){await DB.prepare("UPDATE external_acquisitions SET state='UNKNOWN_START',error=?,updated_at=? WHERE id=?").bind(`start-http-${response.status}`,at,id).run();return fail('ACQUISITION_START_UNCERTAIN',502);}
    await DB.prepare("UPDATE external_acquisitions SET state='RUNNING',provider_run_id=?,dataset_id=?,provider_status=?,updated_at=? WHERE id=?").bind(run.id,run.defaultDatasetId||null,run.status||'READY',at,id).run();
