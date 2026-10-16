@@ -5,13 +5,13 @@
 
 /** Performance-band colors for bars and strength-coded text (readable on dark UI). */
 const BAND_COLORS = {
-  Elite: "#3ecf8e",
-  Strong: "#5bb8e8",
-  "Above Average": "#c5d67a",
-  "Below Average": "#e0a84a",
-  Poor: "#e07272",
+  Elite: "#39ff94",
+  Strong: "#00eaff",
+  "Above Average": "#e9ff57",
+  "Below Average": "#ffb837",
+  Poor: "#ff588b",
 };
-const BAND_COLOR_FALLBACK = "#8aa3b5";
+const BAND_COLOR_FALLBACK = "#92a8b9";
 
 function bandColor(band) {
   return BAND_COLORS[band] || BAND_COLOR_FALLBACK;
@@ -38,7 +38,11 @@ function PercentileMetricList({ series = [] }) {
         const pct = m.percentile;
         const band = m.performance;
         const color = bandColor(band);
-        const barW = pct == null ? 0 : Math.max(2, Math.min(100, pct));
+        const barW = pct == null ? 0 : Math.max(0, Math.min(100, pct));
+        const provisional = m.percentileScope === "observed_fbs";
+        const rankScope = m.national?.representative ? "National FBS" : "Observed FBS";
+        const legend = provisional ? " · observed sample" : "";
+        const metricStyle = { "--ft-metric-neon": color };
         const tip = [
           m.description,
           `Units: ${m.units || "n/a"}`,
@@ -48,25 +52,34 @@ function PercentileMetricList({ series = [] }) {
           m.source ? `Source: ${m.source}` : null,
           m.season != null ? `Season: ${m.season}` : null,
           m.asOf ? `As of: ${m.asOf}` : null,
+          m.period ? `Comparison period: ${m.period}` : null,
+          provisional ? "Percentile among observed peers only; not an FBS-wide claim" : null,
+          m.national?.expected ? `FBS population: ${m.national.expected}; metric coverage: ${m.national.of}` : null,
         ].filter(Boolean).join(" · ");
         return (
-          <li className="ft-metric-rank" key={m.id} title={tip} style={{ borderLeftColor: color }}>
+          <li className={`ft-metric-rank${provisional ? " ft-metric-provisional" : ""}${pct == null ? " ft-metric-unranked" : ""}`}
+            key={m.id} title={tip} style={metricStyle}>
             <div className="ft-metric-rank-top">
               <div className="ft-metric-rank-label">
                 <strong>{m.label}</strong>
                 <span className="ft-metric-info" aria-label={tip}>i</span>
                 <em className="ft-polarity">{m.preferredDirection === "higher" ? "↑ better" : "↓ better"}</em>
               </div>
-              <div className="ft-metric-rank-value" style={{ color }}>{fmtMetric(m)}</div>
+              <div className="ft-metric-rank-value" aria-label={`${m.label} ${fmtMetric(m)}`}>{fmtMetric(m)}</div>
             </div>
-            <div className="ft-percentile-track" aria-hidden={pct == null}>
-              <div className="ft-percentile-fill" style={{ width: `${barW}%`, background: color }} />
+            <div className="ft-percentile-track"
+              role="meter" aria-label={`${rankScope} performance percentile for ${m.label}`}
+              aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct == null ? undefined : pct}
+              aria-valuetext={pct == null ? "Not ranked" : `${fmt(pct, 1)}th percentile${legend}`}>
+              {pct != null ? <div className="ft-percentile-fill" style={{ "--ft-fill": `${barW}%`, width: `${barW}%` }}>
+                <span className="ft-percentile-sheen" />
+              </div> : null}
             </div>
-            <div className="ft-metric-rank-meta" style={{ color }}>
-              {band ? <span className="ft-band">{band}</span> : <span className="ft-band ft-band-na">Unranked</span>}
-              <span>{pct != null ? `${fmt(pct, 1)}th %ile` : "percentile unavailable"}</span>
-              <span>Nat {m.national?.display || "—"}</span>
-              <span>Conf {m.conference?.display || "—"}{m.conference?.name ? ` (${m.conference.name})` : ""}</span>
+            <div className="ft-metric-rank-meta">
+              {band ? <span className="ft-band">{band}{provisional ? " · observed" : ""}</span> : <span className="ft-band ft-band-na">Unranked</span>}
+              <span className="ft-percentile-label">{pct != null ? `${fmt(pct, 1)}th %ile${legend}` : "Percentile unavailable"}</span>
+              <span className="ft-rank-label">{rankScope}: {m.national?.display || "—"}</span>
+              <span className="ft-rank-label">{m.conference?.representative ? "Conference" : "Observed conf"}: {m.conference?.display || "—"}{m.conference?.name ? ` (${m.conference.name})` : ""}</span>
             </div>
           </li>
         );
@@ -140,7 +153,8 @@ export default function CfbResearchPanels({ researchPanels }) {
         <small>Research only · no wager authority</small>
       </div>
       <p className="ft-muted">
-        National percentile bars and ranks are FBIS-computed from persisted FBS snapshots ({rankAuthority || "fbis_computed_research"}).
+        Dynamic strength bars and ranks are FBIS-computed from persisted, time-aligned FBS snapshots ({rankAuthority || "fbis_computed_research"}).
+        Partial coverage is labeled observed-only; never represented as a complete national ranking.
         Source rating values stay source-published where labeled.
         {" · "}State {state}
         {season != null ? ` · season ${season}` : ""}
