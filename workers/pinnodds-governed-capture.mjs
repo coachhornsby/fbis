@@ -1,20 +1,27 @@
 import {readPinnoddsAccountUsage} from './pinnodds-account-usage.mjs';
 export const PINNODDS_CAPTURE_REQUESTS=15;
-export const MAX_PINNODDS_USD_PER_PAID_PULL=0.70;
+// PinnOdds public Trial REST tier is $0; its requests consume quota, not dollars.
+// The paid-Actor $0.70 ceiling applies to Apify, NOT to PinnOdds.
+export const PINNODDS_TRIAL_REST_COST_USD=0;
+export const PINNODDS_TRIAL_DOCUMENTED_LIMITS=Object.freeze({perDay:100,perMinute:20});
 /**
- * Full-sport boards and drops are not scoped to one verified projected event.
- * A provider quota balance is a request count, NOT a USD cost quote.
- * Until targeted event requests and their charge are independently verified,
- * do not make any chargeable odds request.
+ * Only individually scoped events with previously verified FBIS projections
+ * may be acquired. Legacy whole-sport boards/drop buffers stay paused.
+ * The caller must prove the event identity and model forecast before admission.
  */
-export function requireProjectedPaidScope({canonicalEventId=null,providerEventId=null,costUsd=null,kind='board'}={}){
- if(!canonicalEventId||!providerEventId||!['prematch_event','live_event'].includes(kind))
+export function requireProjectedFreeScope({canonicalEventId=null,providerEventId=null,kind='board'}={}){
+ if(!canonicalEventId||!/^[0-9]+$/.test(String(providerEventId||''))||!['prematch_event','live_event'].includes(kind))
    throw Error('PINNODDS_PROJECTION_ONLY_EVENT_SCOPE_REQUIRED');
- if(typeof costUsd!=='number'||!Number.isFinite(costUsd)||costUsd<0)
-   throw Error('PINNODDS_PER_PULL_USD_COST_UNVERIFIED');
- if(costUsd>MAX_PINNODDS_USD_PER_PAID_PULL+1e-9)
-   throw Error('PINNODDS_PER_PULL_OVER_70_CENTS');
- return {allowed:true,canonicalEventId,providerEventId,costUsd};
+ return {allowed:true,canonicalEventId,providerEventId:String(providerEventId),costUsd:PINNODDS_TRIAL_REST_COST_USD};
+}
+export function verifyPinnoddsFreeTrial(usage){
+ const planId=String(usage?.plan?.id||'').toLowerCase();
+ if(planId!=='trial'&&planId!=='free')throw Error('PINNODDS_FREE_PLAN_NOT_VERIFIED');
+ const limits=usage?.plan?.limits||{};
+ if(!Number.isFinite(Number(limits.perDay))||Number(limits.perDay)<=0||
+    !Number.isFinite(Number(limits.perMin))||Number(limits.perMin)<=0)
+   throw Error('PINNODDS_FREE_QUOTA_NOT_VERIFIED');
+ return {planId,limits,perRequestUsd:PINNODDS_TRIAL_REST_COST_USD};
 }
 
 const root='market-sources/pinnodds';
@@ -23,12 +30,13 @@ const jsonOptions={httpMetadata:{contentType:'application/json'}};
 async function hash(value){const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return [...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join('');}
 export async function reservePinnoddsRun(env,{runId,scope='full',now=new Date(),fetchImpl=fetch}={}){
  if(!['full','drops'].includes(scope))throw Error('INVALID_RESERVATION_SCOPE');
- // Legacy reservations represent broad paid requests and cannot meet the owner's projected-event-only rule.
- requireProjectedPaidScope({kind:scope});
+ // Legacy full-sport/drop-buffer requests remain paused for projection-only scope, NOT for price.
+ requireProjectedFreeScope({kind:scope});
  const requests=scope==='drops'?2:PINNODDS_CAPTURE_REQUESTS;
  if(!valid(runId)||!env.R2_ARCHIVE?.get||!env.R2_ARCHIVE?.put)throw Error('INVALID_DURABLE_RESERVATION');
  const runKey=`${root}/runs/${runId}.json`,existing=await env.R2_ARCHIVE.get(runKey);if(existing)return await existing.json();
  const account=await readPinnoddsAccountUsage({apiKey:env.PINNODDS_API_KEY,fetchImpl});
+ verifyPinnoddsFreeTrial(account.usage);
  const usage=account.usage,limits=usage?.plan?.limits,used=Number(usage?.usage_today),daily=Number(limits?.perDay),minute=Number(limits?.perMin);
  if(usage?.status!=='active'||!Number.isFinite(used)||used<0||!Number.isFinite(daily)||daily<=0||!Number.isFinite(minute)||minute<requests)throw Error('UNVERIFIED_ACCOUNT_ENTITLEMENT');
  if(used+requests+10>daily)throw Error('INSUFFICIENT_EXISTING_DAILY_QUOTA');
@@ -50,7 +58,7 @@ export async function reservePinnoddsRun(env,{runId,scope='full',now=new Date(),
  throw Error('RESERVATION_CONTENTION');
 }
 export async function capturePinnoddsSnapshot(env,{runId,kind,sportId=null,feed=null,fetchImpl=fetch,now=new Date()}={}){
- requireProjectedPaidScope({kind});
+ requireProjectedFreeScope({kind});
  if(!valid(runId)||!['board','drops','health'].includes(kind)||kind!=='health'&&!['live','prematch'].includes(feed)||kind==='board'&&![1,2,3,4,5,6].includes(sportId))throw Error('INVALID_CAPTURE_SCOPE');
  const runObject=await env.R2_ARCHIVE.get(`${root}/runs/${runId}.json`);if(!runObject)throw Error('QUOTA_RESERVATION_REQUIRED');
  const reservation=await runObject.json();if(reservation.scope==='drops'&&kind!=='drops')throw Error('RESERVATION_SCOPE_MISMATCH');if(reservation.day!==now.toISOString().slice(0,10))throw Error('RESERVATION_EXPIRED');
