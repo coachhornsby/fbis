@@ -13,6 +13,7 @@ import {
   classifyPerformance,
   rankMetricForTeam,
   CFB_RESEARCH_METRIC_BY_ID,
+  researchPeriodForMetric,
 } from "../functions/lib/cfbTeamResearchRanking.js";
 import { loadFbsTeamDirectory } from "../functions/api/cfb-teams.js";
 
@@ -308,4 +309,70 @@ test("team detail API loads peers for ranks and never grants model authority", a
   assert.ok(!r.body.researchPanels.metrics.some((m) => m.id === "coreSpecialTeams"));
   const offHavoc = r.body.researchPanels.metrics.find((m) => m.id === "offensiveHavoc");
   assert.equal(offHavoc.polarity, "lower_better");
+});
+
+
+test("midrank percentiles split ties fairly while keeping competition rank", () => {
+  const ranking = competitionRanks([
+    { teamId: "a", value: 10 }, { teamId: "b", value: 10 },
+    { teamId: "c", value: 8 }, { teamId: "d", value: 4 },
+  ]);
+  assert.equal(ranking.byId.get("a"), 1);
+  assert.equal(ranking.byId.get("b"), 1);
+  assert.equal(ranking.byId.get("c"), 3);
+  assert.equal(ranking.midrankById.get("a"), 1.5);
+  assert.equal(ranking.midrankById.get("b"), 1.5);
+  assert.equal(performancePercentile(ranking.midrankById.get("a"), 4), 83.3);
+});
+
+test("20-team sample is labeled observed, not a representative national FBS rank", () => {
+  const peers = Array.from({ length: 25 }, (_, i) => ({
+    teamId: "team:" + i, conference: "SEC", value: i, periodKey: "week:7",
+  }));
+  const small = rankMetricForTeam({
+    metricId: "ppaOff", teamId: "team:24", conference: "SEC",
+    peerRows: peers, periodKey: "week:7", periodVerified: true,
+    expectedNationalCount: 138, expectedConferenceCount: 16,
+  });
+  assert.equal(small.national.scope, "observed_fbs");
+  assert.equal(small.national.representative, false);
+  assert.match(small.national.display, /observed/);
+  assert.equal(small.percentileScope, "observed_fbs");
+  const full = rankMetricForTeam({
+    metricId: "ppaOff", teamId: "team:119", conference: "SEC",
+    peerRows: Array.from({ length: 120 }, (_, i) => ({
+      teamId: "team:" + i, conference: i < 12 ? "SEC" : "Big Ten",
+      value: i, periodKey: "week:7",
+    })), periodKey: "week:7", periodVerified: true,
+    expectedNationalCount: 138, expectedConferenceCount: 16,
+  });
+  assert.equal(full.national.representative, true);
+  assert.equal(full.national.scope, "national_fbs");
+  assert.doesNotMatch(full.national.display, /observed/);
+});
+
+test("research ranks never mix verified Week 5 with verified Week 7", () => {
+  const peers = Array.from({ length: 25 }, (_, i) => ({
+    teamId: "week7-" + i, conference: "SEC", value: i, periodKey: "week:7",
+  })).concat(Array.from({ length: 30 }, (_, i) => ({
+    teamId: "week5-" + i, conference: "SEC", value: 100 + i, periodKey: "week:5",
+  })));
+  const r = rankMetricForTeam({
+    metricId: "ppaOff", teamId: "week7-24", conference: "SEC",
+    peerRows: peers, periodKey: "week:7", periodVerified: true,
+    expectedNationalCount: 138, expectedConferenceCount: 16,
+  });
+  assert.equal(r.national.of, 25);
+  assert.equal(r.national.rank, 1);
+  assert.equal(r.national.representative, false);
+});
+
+test("unverified source cutoffs are observational, not nationally certified", () => {
+  const raw = researchPeriodForMetric("core", { coreThroughWeek: 7, coreWeekBounded: true }, "2026-10-16T12:00:00Z");
+  assert.equal(raw.verified, true);
+  assert.equal(raw.key, "week:7");
+  const unknown = researchPeriodForMetric("core", { coreThroughWeek: 7 }, "2026-10-16T12:00:00Z");
+  assert.equal(unknown.verified, false);
+  assert.equal(unknown.key, "observed:2026-10-16");
+  assert.equal(researchPeriodForMetric("ppaOff", {}, null).key, null);
 });
