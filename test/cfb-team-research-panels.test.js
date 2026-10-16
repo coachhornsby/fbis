@@ -80,7 +80,8 @@ test("research panels map CORE/PPA/efficiency without granting authority", () =>
   assert.ok(!core.series.some((s) => s.id === "coreSpecialTeams"), "CORE panel excludes special teams");
   const ppaOff = panels.metrics.find((m) => m.id === "ppaOff");
   assert.ok(ppaOff.national.rank != null);
-  assert.match(ppaOff.national.display, /^#\d+ of \d+$/);
+  assert.match(ppaOff.national.display, /^#\d+ of \d+ observed$/);
+  assert.equal(ppaOff.national.representative, false);
   assert.ok(ppaOff.percentile != null);
   assert.ok(["Elite", "Strong", "Above Average", "Below Average", "Poor"].includes(ppaOff.performance));
   assert.equal(ppaOff.preferredDirection, "higher");
