@@ -143,3 +143,36 @@ test('soccer prematch normalizes every market inside the verified fixture univer
  await consumePinnoddsSnapshot(env,{snapshotId,batchIndex:0});assert.equal(env._writes.size,5);
  for(const r of env._writes.values()){assert.equal(r[30],at);assert.equal(r[29],null);}
 });
+
+
+test('fresh $0 full-board archive ingests only games with FBIS model snapshots',async()=>{
+ const snapshotId='free-board-projection-scope',at='2026-10-16T12:00:00Z',start='2026-10-17T00:00:00Z';
+ const events=[
+  {event_id:101,league_name:'MLB',starts:start,home:'Home',away:'Away',periods:{num_0:{money_line:{home:1.8,away:2.1}}}},
+  {event_id:102,league_name:'MLB',starts:start,home:'Else',away:'Other',periods:{num_0:{money_line:{home:2.0,away:1.9}}}},
+ ];
+ const rawBody={events};const receipt={ok:true,snapshotId,sportId:6,feed:'prematch',kind:'board',
+   collectedAt:at,rawKey:'raw-free',projectionScope:'FBIS_MODELED_EVENTS_ONLY',providerCostUsd:0};
+ const games=[
+  {id:'fbis-modeled',sport:'mlb',start,home_name:'Home',away_name:'Away'},
+  {id:'fbis-other',sport:'mlb',start,home_name:'Else',away_name:'Other'},
+ ];
+ const env=archiveEnv({receipt,rawKey:receipt.rawKey,rawBody,games});
+ const prepareOrig=env.DB.prepare;
+ env.DB.prepare=(sql)=>{
+  if(/FROM prediction_snapshots/.test(sql))return{bind(){return{async all(){return{results:[
+   {event_id:'fbis-modeled',model_at:'2026-10-15T12:00:00Z'}
+  ]}}}}};
+  if(/FROM published_projections/.test(sql))return{bind(){return{async all(){return{results:[]}}}}};
+  return prepareOrig(sql);
+ };
+ const result=await preparePinnoddsSnapshot(env,{snapshotId});
+ assert.equal(result.normalizedRows,2);
+ assert.equal(result.projectedEventCount,1);
+ assert.equal(result.rejectedNoCanonicalOrModel,2);
+ assert.equal(result.providerCostUsd,0);
+ assert.equal(result.ingestionScope,'IMMUTABLE_FULL_BOARD_FETCH_FBISEXISTING_PROJECTIONS_GAME_MARKETS');
+ assert.equal((await env.ARCHIVE.get(receipt.rawKey)).json instanceof Function,true);
+ assert.equal((await consumePinnoddsSnapshot(env,{snapshotId,batchIndex:0})).inserted,2);
+ assert.equal((await reconcilePinnoddsSnapshot(env,{snapshotId})).reconciled,true);
+});
