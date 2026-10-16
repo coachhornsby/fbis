@@ -1,0 +1,1 @@
+Run exactly one bounded authenticated public-market Polymarket WS capture; require exact post-commit 50-column market-history shadow receipt; zero trades, zero source deletes.
