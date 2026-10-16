@@ -58,7 +58,7 @@ function PercentileMetricList({ series = [] }) {
         ].filter(Boolean).join(" · ");
         return (
           <li className={`ft-metric-rank${provisional ? " ft-metric-provisional" : ""}${pct == null ? " ft-metric-unranked" : ""}`}
-            key={m.id} title={tip} style={metricStyle}>
+            key={`${m.id}:${m.value}:${m.percentile}`} title={tip} style={metricStyle}>
             <div className="ft-metric-rank-top">
               <div className="ft-metric-rank-label">
                 <strong>{m.label}</strong>
