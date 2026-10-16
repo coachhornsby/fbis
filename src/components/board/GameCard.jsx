@@ -251,7 +251,7 @@ export default function GameCard({
       </section>
 
       <MoneylinePriceComparison game={game} />
-      {game.pinnoddsResearch?.offers?.some(o=>o.marketFamily==="spread"||o.marketFamily==="total") ? <PinnoddsCardMarkets game={game} marketFamilies={["spread","total"]} /> : null}
+      {game.pinnoddsResearch?.offers?.length ? <PinnoddsCardMarkets game={game} /> : null}
       <MultiBookMarketTable game={game} />
 
       {game.market?.reference?.available && (mkt.referenceOnly || mkt.book === "Reference" || !game.market?.marketAvailable) ? (

@@ -66,6 +66,26 @@ export async function preparePinnoddsSnapshot(env,{snapshotId,force=false,postCa
   canAuthorizeWager:false,
  };
  await env.ARCHIVE.put(normalizedKey,JSON.stringify(prepared),{httpMetadata:{contentType:'application/json'}});
+ // D1 may be at its 10 GB ceiling. Publish a bounded, modeled-only R2 price
+ // read model directly after verified preparation, before attempting D1 writes.
+ // Do NOT mark database reconciliation complete, or infer a provider quote clock.
+ if(receipt.projectionScope==='FBIS_MODELED_EVENTS_ONLY'&&receipt.kind==='board'
+    &&['prematch','live'].includes(receipt.feed)&&Number.isInteger(receipt.sportId)){
+   const key=`${root}/latest-modeled/board-${receipt.sportId}-${receipt.feed}.json`;
+   const existing=await env.ARCHIVE.get(key);
+   const previous=existing?await existing.json():null;
+   if(!previous?.collectedAt||Date.parse(previous.collectedAt)<=Date.parse(receipt.collectedAt)){
+    await env.ARCHIVE.put(key,JSON.stringify({
+     schemaVersion:1,source:'PinnOdds',sportId:receipt.sportId,feed:receipt.feed,
+     snapshotId,collectedAt:receipt.collectedAt,providerObservedAt:null,
+     ingestionScope:result.ingestionScope,rawKey:receipt.rawKey,
+     modeledEventCount:result.projectedEventCount||0,
+     sourceEventCount:receipt.providerEventCount||0,
+     rows:result.rows,readOnly:true,providerTimestampVerified:false,
+     canQualify:false,canAuthorizeWager:false,d1Reconciled:false
+    }),{httpMetadata:{contentType:'application/json'}});
+   }
+  }
  const {rows,...publicResult}=prepared;return{ok:true,...publicResult};
 }
 

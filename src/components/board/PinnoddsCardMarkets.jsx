@@ -18,8 +18,8 @@ const side=(game,family,q)=>family==="spread"||family==="moneyline"?team(game,q.
 export default function PinnoddsCardMarkets({game,projection,marketFamilies,compact=false}){
  const selection=selectPinnoddsGameMarkets(game);
  const sport=String(game?.sport||"").toLowerCase();
- const order=marketFamilies||pinnoddsMarketOrder(sport);
- if(!order.length)return null;
+ const order=marketFamilies||["moneyline",...pinnoddsMarketOrder(sport).filter(f=>f!=="moneyline")];
+ if(!order.length || !game?.pinnoddsResearch?.offers?.length)return null;
  const difference=pinnoddsReferenceDifference(game,projection);
  const priority=["cfb","nfl","cbb","nba","wnba"].includes(sport);
  const hasPaired=order.some(f=>selection.families[f]);
@@ -52,7 +52,7 @@ export default function PinnoddsCardMarkets({game,projection,marketFamilies,comp
     </div>:projection?.available&&pair?<div className="fbis-priced-model-row"><span>FBIS comparison unavailable</span></div>:null}
    </div>;
   })}</div>
-  {!hasPaired?<p className="fbis-priced-empty">No paired PinnOdds spread/total in this game capture. FBIS projections remain independent.</p>:null}
-  <p className="fbis-priced-footnote"><b>PINNODDS CAPTURE:</b> {stamp(selection.capturedAt)} CT. Matched line with its quoted American price. Projected point differences are not cover probability, EV, or an executable bet; quotes may change.</p>
+  {!hasPaired?<p className="fbis-priced-empty">No verified paired PinnOdds moneyline, spread or total in this captured market. FBIS projections remain independent.</p>:null}
+  <p className="fbis-priced-footnote"><b>PINNODDS LAST CAPTURE:</b> {stamp(selection.capturedAt)}. Matched line with its quoted American price. Projected point differences are not cover probability, EV, or an executable bet; quotes may change.</p>
  </section>;
 }

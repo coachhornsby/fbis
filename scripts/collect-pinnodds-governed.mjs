@@ -7,7 +7,10 @@ const secret=process.env.HARVEST_SECRET;
 if(!secret)throw Error('EXISTING_COLLECTION_AUTH_REQUIRED');
 // GitHub OIDC credentials expire during 15-slot collections; obtain fresh tokens per window.
 const getOidcToken=createGitHubOidcProvider();
-const window=pinnoddsWindow();
+// One-time recovery may pull the next *existing* full slot early. The regular
+// scheduled collector reuses the same durable runId, preventing double quota use.
+const window=process.env.PINNODDS_RESTORE_ONCE==='1'
+ ? pinnoddsWindow(new Date('2026-10-16T18:23:00Z')) : pinnoddsWindow();
 const {scope,runId}=window;
 // Before reserving billable requests, read R2 receipts through the public
 // read-only status API. Failed status => fail closed, no provider call.

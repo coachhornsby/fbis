@@ -3,6 +3,7 @@ import {loadCfbDirectionalBoardResearch} from "./cfbDirectionalBoardResearch.js"
 import { isFbsVsFbsGame } from "./cfbGameVisibility.js";
 import {pinnoddsOnlySlateMarket} from "./activeOddsPolicy.js";
 import {loadPinnoddsBoardResearch} from "./pinnoddsBoardResearch.js";
+import {loadPinnoddsR2BoardResearch,preferFreshPinnoddsArchive} from "./pinnoddsArchiveBoard.js";
 import { proveTennisEvent } from "./tennisEventIntegrity.js";
 import { currentActionDisplay } from "./actionDisplayFreshness.js";
 /**
@@ -1105,9 +1106,13 @@ export async function buildTodayBoard(
       // Sole active odds source: read matched PinnOdds captures from D1.
       // Historical Parlay/soft/Pinnacle-through-Parlay snapshots remain
       // auditable in storage but cannot hydrate CURRENT board pricing.
-      const pinnodds=await loadPinnoddsBoardResearch(env.DB,{
+      const d1Pinnodds=await loadPinnoddsBoardResearch(env.DB,{
         sport,games:selectedDateGames,now:new Date(now).toISOString(),
       });
+      const r2Pinnodds=await loadPinnoddsR2BoardResearch(env.ARCHIVE,{
+        sport,games:selectedDateGames,now:new Date(now).toISOString(),
+      });
+      const pinnodds=preferFreshPinnoddsArchive(d1Pinnodds,r2Pinnodds);
       const hydratedGames=selectedDateGames.map(g=>{
         const clean=pinnoddsOnlySlateMarket(g);
         const evidence=pinnodds.byGame?.[String(g.id)]||null;
