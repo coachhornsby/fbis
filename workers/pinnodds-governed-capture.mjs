@@ -36,6 +36,7 @@ export async function reservePinnoddsRun(env,{runId,scope='full',now=new Date(),
  if(!valid(runId)||!env.R2_ARCHIVE?.get||!env.R2_ARCHIVE?.put)throw Error('INVALID_DURABLE_RESERVATION');
  const runKey=`${root}/runs/${runId}.json`,existing=await env.R2_ARCHIVE.get(runKey);if(existing)return await existing.json();
  const account=await readPinnoddsAccountUsage({apiKey:env.PINNODDS_API_KEY,fetchImpl});
+ verifyPinnoddsFreeTrial(account.usage);
  const usage=account.usage,limits=usage?.plan?.limits,used=Number(usage?.usage_today),daily=Number(limits?.perDay),minute=Number(limits?.perMin);
  if(usage?.status!=='active'||!Number.isFinite(used)||used<0||!Number.isFinite(daily)||daily<=0||!Number.isFinite(minute)||minute<requests)throw Error('UNVERIFIED_ACCOUNT_ENTITLEMENT');
  if(used+requests+10>daily)throw Error('INSUFFICIENT_EXISTING_DAILY_QUOTA');
