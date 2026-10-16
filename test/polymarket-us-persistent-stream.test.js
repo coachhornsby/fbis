@@ -262,13 +262,15 @@ test("history-shard recovery write on primary D1 failure does not claim primary 
   async exec(sql){sqlite.exec(sql);},
   prepare(sql){
    const st=sqlite.prepare(sql);
+   const run=async(...args)=>{const r=args.length?st.run(...args):st.run();return{meta:{changes:r.changes||0}};};
+   const all=async(...args)=>({results:args.length?st.all(...args):st.all()});
+   const first=async(...args)=>((args.length?st.get(...args):st.get())||null);
    return{
+    async run(...args){return run(...args);},
+    async all(...args){return all(...args);},
+    async first(...args){return first(...args);},
     bind(...args){
-     return{
-      async run(){const r=st.run(...args);return{meta:{changes:r.changes||0}};},
-      async all(){return{results:st.all(...args)};},
-      async first(){return st.get(...args)||null;},
-     };
+     return{async run(){return run(...args);},async all(){return all(...args);},async first(){return first(...args);}};
     },
    };
   },
