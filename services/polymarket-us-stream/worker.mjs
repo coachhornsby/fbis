@@ -3,6 +3,7 @@ import {polymarketUsSubscribe,parsePolymarketUsLite}
   from "../../functions/lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
 import {mirrorPersistentStreamRows} from "./shadow.mjs";
+import {resolveMarketStreamWriteTarget} from "./storageOwnership.mjs";
 import {fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,fetchStreamUpgrade,streamContractRosterWindow} from "./core.mjs";
 
 const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
@@ -20,6 +21,7 @@ export class PolymarketMarketStream extends DurableObject {
     this.running=false;this.lastMessageAt=0;this.lastHeartbeatAt=0;this.heartbeats=0;this.lastClose=null;
     this.shadowPendingIds=[];this.shadowLoaded=false;this.shadowVerified=0;this.shadowWritten=0;
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
+    this.lastWriteOwner=null;
   }
   status(){
     return {connected:this.socket?.readyState===WebSocket.OPEN,
@@ -30,6 +32,9 @@ export class PolymarketMarketStream extends DurableObject {
       lastHeartbeatAt:this.lastHeartbeatAt?new Date(this.lastHeartbeatAt).toISOString():null,
       heartbeats:this.heartbeats,lastClose:this.lastClose,
       received:this.received,parsed:this.parsed,inserted:this.inserted,
+      wsResearchWriteOwner:this.env.MARKET_HISTORY_WS_WRITE_OWNER==="shard"
+        ?"SHARD_WS_RESEARCH_ONLY":"PRIMARY_D1",
+      lastWriteOwner:this.lastWriteOwner,
       shadow:{enabled:this.env.MARKET_HISTORY_SHADOW_WS==="enabled",
        loaded:this.shadowLoaded,pending:this.shadowPendingIds.length,
        verified:this.shadowVerified,written:this.shadowWritten,failed:this.shadowFailed,
@@ -255,18 +260,28 @@ export class PolymarketMarketStream extends DurableObject {
     const ticks=[...this.queue.values()].slice(0,MAX_BATCH);
     for(const tick of ticks)this.queue.delete(tick.marketSlug);
     const offers=ticks.map(t=>liveBboOffer(t,this.subscribed.get(t.marketSlug))).filter(Boolean);
+    let target=null;
     try{
-      const r=await persistNormalizedMarketBatch(this.env.DB,offers,{
+      target=resolveMarketStreamWriteTarget(this.env);
+      // This is source WebSocket BBO evidence only: never a bet decision.
+      // Explicit shard ownership does NOT copy research quotes to the
+      // full primary D1, and source provider timestamps are not refreshed.
+      const r=await persistNormalizedMarketBatch(target.db,offers,{
         snapshotType:"CURRENT",collectedAt:new Date().toISOString(),modelProbability:null
       });
       this.inserted+=r.inserted;
-      if(this.lastError==="d1-bbo-persist-error")this.lastError=null;
+      this.lastWriteOwner=target.writeOwner;
+      if(this.lastError==="d1-bbo-persist-error"||
+         this.lastError==="market-shard-bbo-persist-error")this.lastError=null;
       for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
-      // Canonical D1 committed first; mirror failure must not change its truth.
-      try{await this.queueCommittedShadow(r.ids)}
-      catch{this.shadowFailed++;this.lastShadowError="shadow-queue-unavailable";}
+      // Only the legacy primary owner may dual-mirror; the shard owner
+      // already wrote all source observations to its dedicated ledger.
+      if(!target.isShard){
+        try{await this.queueCommittedShadow(r.ids)}
+        catch{this.shadowFailed++;this.lastShadowError="shadow-queue-unavailable";}
+      }
     }catch{
-      this.lastError="d1-bbo-persist-error";
+      this.lastError=target?.isShard?"market-shard-bbo-persist-error":"d1-bbo-persist-error";
       // No fabrication and no optimistic D1 success count.
       for(const t of ticks)if(this.queue.size<MAX_QUEUE)this.queue.set(t.marketSlug,t);
     }
