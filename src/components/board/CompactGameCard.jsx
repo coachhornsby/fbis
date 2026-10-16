@@ -176,6 +176,13 @@ export default function CompactGameCard({ game, onOpen }) {
   const showReferenceGap = !stored && !vm.decision?.evAvailable && referenceGap.available;
   const referenceTeam = showReferenceGap && referenceLead?.kind === "spread"
     ? referenceLead.side === "home" ? home : referenceLead.side === "away" ? away : null : null;
+  // The highlighted side is the team with the spread-price disagreement, not necessarily the projected winner.
+  const gapTeam = showReferenceGap ? referenceTeam : !edge.total ? edge.team : null;
+  const rawGapTeam = gapTeam === away ? game?.away : gapTeam === home ? game?.home : null;
+  const gapTeamColor = normalizeTeamColor(gapTeam, null) || normalizeTeamColor(rawGapTeam, null);
+  const gapTeamLabel = gapTeam?.abbr && gapTeam.abbr !== "—" ? gapTeam.abbr : gapTeam?.name || null;
+  const gapTotalSide = String(showReferenceGap ? referenceLead?.side : edge.detail || "").toLowerCase();
+  const gapIsTotal = showReferenceGap ? referenceLead?.kind === "total" : edge.total;
   const matchup = isNfl ? game?.nflGameMatchup : null;
   const isFinal = String(vm.status?.key || "").toUpperCase() === "FINAL" || Boolean(game?.status?.completed);
   const finalAway = game?.away?.score ?? away?.score ?? null;
@@ -186,6 +193,12 @@ export default function CompactGameCard({ game, onOpen }) {
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
   const soccerPickTeam = soccerPick?.side === "HOME" ? home : soccerPick?.side === "AWAY" ? away : null;
+  const gapPresentationClass = !soccerPick && gapIsTotal
+    ? ` cgc-gap-total cgc-gap-total-${gapTotalSide === "over" || gapTotalSide === "under" ? gapTotalSide : "even"}`
+    : !soccerPick && gapTeam ? ` cgc-gap-team${gapTeamColor ? " cgc-gap-team-branded" : ""}`
+    : !soccerPick ? " cgc-gap-neutral" : "";
+  const gapPresentationStyle = !soccerPick && gapTeamColor ? { "--cgc-gap-brand": gapTeamColor } : undefined;
+
 
 
   return (
@@ -286,7 +299,7 @@ export default function CompactGameCard({ game, onOpen }) {
             <small>STORED PREGAME · NO EDGE</small>
           </aside>
         ) : (
-        <aside className={`cgc-best-edge${soccerPick ? " is-side" : (showReferenceGap ? referenceLead?.kind === "total" : edge.total) ? " is-total" : " is-side"}`}>
+        <aside className={`cgc-best-edge${soccerPick ? " is-side" : gapIsTotal ? " is-total" : " is-side"}${gapPresentationClass}`} style={gapPresentationStyle}>
           <span>{soccerPick ? "CONFIDENCE PICK" : showReferenceGap ? "FBIS / PINNODDS GAP" : isNhl && !proj.available ? "NO PURE PROJECTION" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : isNhl && market.referenceOnly ? "MODEL / REFERENCE GAP" : "MODEL / MARKET GAP"}</span>
           <div className="cgc-edge-identity">
             {soccerPick ? (
@@ -294,10 +307,10 @@ export default function CompactGameCard({ game, onOpen }) {
             ) : showReferenceGap ? (
               referenceLead?.kind === "total"
                 ? <TotalGapDirection side={referenceLead.side} />
-                : referenceTeam ? <TeamLogo team={referenceTeam} size={46} className="cgc-edge-logo" />
+                : referenceTeam ? <><TeamLogo team={referenceTeam} size={64} className="cgc-edge-logo" /><span className="cgc-gap-side-name">{gapTeamLabel}</span></>
                 : <div className="cgc-total-mark">EVEN</div>
             ) : edge.team ? (
-              <TeamLogo team={edge.team} size={42} className="cgc-edge-logo" />
+              <><TeamLogo team={edge.team} size={64} className="cgc-edge-logo" /><span className="cgc-gap-side-name">{gapTeamLabel}</span></>
             ) : edge.total ? (
               <TotalGapDirection side={edge.detail} />
             ) : null}
