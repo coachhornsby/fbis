@@ -1,0 +1,1 @@
+2026-10-16 authenticated one-shot: copy 8 already-persisted primary Polymarket US WebSocket observations to history D1; verify 50 columns and repeat idempotence; production dual-write flag stays disabled.

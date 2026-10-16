@@ -43,3 +43,13 @@ Once separately enabled:
 - Tests cover disabled-by-default behavior, parity, idempotence, malformed IDs, missing binding, tampering, and wager-authority rejection.
 
 **Operational status:** Do not enable the switch until the shadow copy is validated against actual WebSocket production capture records under a bounded session. This code alone never routes the live system away from primary D1, cannot shrink the primary database, and does not satisfy all historical cohort recovery requirements.
+
+
+## Authenticated production WebSocket replay — one-shot validation
+
+A separate operator-only POST `/api/market-history-ws-shadow-pilot` performs one capped 8-record **existing-source** replay using `marketHistoryWsShadow.js`. It only accepts the existing `x-harvest-secret` request header, an exact `{ "operation":"verifyExistingWsRows", "limit":8 }` contract, and no extra keys. The endpoint **never calls Polymarket** and never changes the shared Pages shadow flag.
+
+- It selects the latest 8 already-persisted `Polymarket US WebSocket` rows that have `can_qualify=0`, `can_authorize_wager=0`; source IDs are required to be canonical `nmo_` hashes and strictly scope-checked by the common mirror.
+- All 50 source columns, hash, observation key, quoted prices, provider timestamps, raw payloads, and source DB rowids are copied and independently reconciled. Any corruption or unexpected live authority fails closed.
+- Trigger workflow `.github/workflows/market-history-ws-one-shot-pilot.yml` through `ops/triggers/market-history-ws-one-shot-pilot`. It requires exact deployed SHA and header-authentication, runs the same bounded operation twice to prove idempotence, and retains a sanitized artifact.
+- This is an **operator-run rehearsal**, not continuous replication and not a reason to delete anything from the primary database. The live flag remains OFF. Do not enable continuous mirroring until coverage and source consistency are verified from the deployed production job, not merely unit tests.
