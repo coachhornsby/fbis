@@ -1,1 +1,1 @@
-2026-10-16 authenticated one-shot: copy 8 already-persisted primary Polymarket US WebSocket observations to history D1; verify 50 columns and repeat idempotence; production dual-write flag stays disabled.
+2026-10-16 one-shot revision 2: prove eight FIRST-TIME insertions from the oldest canonical WebSocket source cohort, followed by idempotent zero on repeat. Existing source retained; live flag disabled; all 50 columns checked.
