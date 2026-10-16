@@ -220,6 +220,8 @@ export function buildCfbTeamResearchPanels({
   conference = null,
   season = null,
   peers = null,
+  expectedNationalCount = null,
+  expectedConferenceCount = null,
 } = {}) {
   const features = featureState?.features || null;
   const flat = flattenFeatures(features || {});
@@ -235,8 +237,10 @@ export function buildCfbTeamResearchPanels({
   const peerIndex = buildPeerMetricIndex(peerList);
   const coverage = {
     peerSnapshots: peerList.length,
-    nationalSampleRule: "≥20 observed FBS teams with the metric",
-    conferenceSampleRule: "≥4 observed conference peers with the metric",
+    nationalSampleRule: "≥20 same-period FBS observations; national label requires ≥85% active FBS coverage and verified week cutoff",
+    conferenceSampleRule: "≥4 same-period conference observations; full conference label requires ≥75% coverage and verified week cutoff",
+    expectedNationalCount,
+    expectedConferenceCount,
   };
 
   const metrics = resolvedTeamId
@@ -249,6 +253,8 @@ export function buildCfbTeamResearchPanels({
       asOf: featureState?.asOf || null,
       featureVersion: featureState?.featureVersion || null,
       coverage,
+      expectedNationalCount,
+      expectedConferenceCount,
     })
     : [];
 
