@@ -58,8 +58,8 @@ test("horizontal spread gap retains team logo and totals show directional OVER/U
 test("spread gap colors follow the compared team and preserve totals, unavailable and research labels",async()=>{
  const [card,css]=await Promise.all([load("CompactGameCard.jsx"),load("compactGameCardEnhancements.css")]);
  assert.match(card,/const referenceTeam = showReferenceGap && referenceLead\?\.kind === "spread"/);
- assert.match(card,/const gapTeam = showReferenceGap \? referenceTeam : !edge\.total \? edge\.team : null/);
- assert.match(card,/normalizeTeamColor\(gapTeam, null\)/);
+ assert.match(card,/const gapTeam = soccerPick \? soccerPickTeam : showReferenceGap \? referenceTeam : !edge\.total \? edge\.team : null/);
+ assert.match(card,/gapBrandColor\(gapTeam, rawGapTeam, sportId\)/);
  assert.match(card,/cgc-gap-team-branded/);
  assert.match(card,/--cgc-gap-brand/);
  assert.match(card,/cgc-gap-side-name/);
@@ -70,4 +70,20 @@ test("spread gap colors follow the compared team and preserve totals, unavailabl
  assert.match(css,/\.cgc-best-edge\.cgc-gap-total-under/);
  assert.match(css,/\.cgc-best-edge\.cgc-gap-total-over/);
  assert.match(css,/\.cgc-best-edge\.cgc-gap-neutral/);
+});
+
+test("non-tennis featured cards share the horizontal gap treatment across all scoreboard sports",async()=>{
+ const [card,css]=await Promise.all([load("PremiumGameCard.jsx"),load("universalPremiumCard.css")]);
+ assert.match(card,/const gapColor = gapBrandColor\(gapTeam, gapRawTeam, sportId\)/);
+ assert.match(card,/const comparison = bestEdge\(vm\)/);
+ assert.match(card,/className=\{`pgc-gap-strip/);
+ assert.match(card,/className="pgc-gap-logo"/);
+ assert.match(card,/gapSide==="over"\?"↑":"↓"/);
+ assert.match(card,/showReferenceGap \? "FBIS \/ PINNODDS GAP"/);
+ assert.match(card,/const gapUnit = \["mlb","npb","kbo"\]/);
+ assert.match(card,/sportId === "nhl" \? "GOALS" : "PTS"/);
+ assert.match(css,/\.pgc-gap-strip\.is-branded/);
+ assert.match(css,/\.pgc-gap-strip\.is-total\.is-over/);
+ assert.match(css,/\.pgc-gap-strip\.is-total\.is-under/);
+ assert.doesNotMatch(css,/\.fbis-shell-main\.route-board/);
 });
