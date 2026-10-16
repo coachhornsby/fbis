@@ -183,11 +183,6 @@ export default function CompactGameCard({ game, onOpen }) {
   const gapTeamLabel = gapTeam?.abbr && gapTeam.abbr !== "—" ? gapTeam.abbr : gapTeam?.name || null;
   const gapTotalSide = String(showReferenceGap ? referenceLead?.side : edge.detail || "").toLowerCase();
   const gapIsTotal = showReferenceGap ? referenceLead?.kind === "total" : edge.total;
-  const gapPresentationClass = !soccerPick && gapIsTotal
-    ? ` cgc-gap-total cgc-gap-total-${gapTotalSide === "over" || gapTotalSide === "under" ? gapTotalSide : "even"}`
-    : !soccerPick && gapTeam ? ` cgc-gap-team${gapTeamColor ? " cgc-gap-team-branded" : ""}`
-    : !soccerPick ? " cgc-gap-neutral" : "";
-  const gapPresentationStyle = !soccerPick && gapTeamColor ? { "--cgc-gap-brand": gapTeamColor } : undefined;
   const matchup = isNfl ? game?.nflGameMatchup : null;
   const isFinal = String(vm.status?.key || "").toUpperCase() === "FINAL" || Boolean(game?.status?.completed);
   const finalAway = game?.away?.score ?? away?.score ?? null;
@@ -198,6 +193,12 @@ export default function CompactGameCard({ game, onOpen }) {
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
   const soccerPickTeam = soccerPick?.side === "HOME" ? home : soccerPick?.side === "AWAY" ? away : null;
+  const gapPresentationClass = !soccerPick && gapIsTotal
+    ? ` cgc-gap-total cgc-gap-total-${gapTotalSide === "over" || gapTotalSide === "under" ? gapTotalSide : "even"}`
+    : !soccerPick && gapTeam ? ` cgc-gap-team${gapTeamColor ? " cgc-gap-team-branded" : ""}`
+    : !soccerPick ? " cgc-gap-neutral" : "";
+  const gapPresentationStyle = !soccerPick && gapTeamColor ? { "--cgc-gap-brand": gapTeamColor } : undefined;
+
 
 
   return (
