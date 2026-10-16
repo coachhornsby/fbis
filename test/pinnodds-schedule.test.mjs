@@ -37,7 +37,8 @@ test('status unavailable blocks paid launches before provider reservation',()=>{
 });
 test('paid PinnOdds workflow excludes pushes and defaults manual captures off',()=>{
  const wf=readFileSync(new URL('../.github/workflows/pinnodds-governed-capture.yml',import.meta.url),'utf8');
- assert.match(wf,/23 1,4,7,10,13,16,19,22/);
+ assert.doesNotMatch(wf,/cron:/);
+ assert.match(wf,/broad snapshots are paused/);
  assert.match(wf,/paid_capture:/);
  assert.match(wf,/default: false/);
  assert.match(wf,/if: github.event_name == 'schedule' \|\|/);
