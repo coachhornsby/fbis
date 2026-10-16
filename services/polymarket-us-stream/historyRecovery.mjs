@@ -79,7 +79,9 @@ export async function ensureHistoryLedgerSchema(db){
   }
   // Prefer one statement at a time — multi-statement exec is unreliable on D1.
   for(const sql of LEDGER_STATEMENTS){
-    await db.prepare(sql).run();
+    const st=db.prepare(sql);
+    if(typeof st.run==="function")await st.run();
+    else if(typeof st.bind==="function")await st.bind().run();
   }
   const columns=await tableColumns(db);
   if(!columns.includes("id"))return {ok:false,reason:"ledger-create-failed"};
