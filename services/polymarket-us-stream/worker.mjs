@@ -26,6 +26,7 @@ export class PolymarketMarketStream extends DurableObject {
     this.shadowPendingIds=[];this.shadowLoaded=false;this.shadowVerified=0;this.shadowWritten=0;
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
     this.persistenceStatus="UNVERIFIED";this.lastSpillKey=null;this.lastSpillAt=null;
+    this.historyLastError=null;
     this.codeVersion="dynamic-capacity-history-recovery-20261016";
   }
   capacityPlan(){
@@ -59,6 +60,7 @@ export class PolymarketMarketStream extends DurableObject {
       heartbeats:this.heartbeats,lastClose:this.lastClose,
       received:this.received,parsed:this.parsed,inserted:this.inserted,spilled:this.spilled,
       historyInserted:this.historyInserted,
+      historyLastError:this.historyLastError,
       lastSpillKey:this.lastSpillKey,lastSpillAt:this.lastSpillAt,
       shadow:{enabled:this.env.MARKET_HISTORY_SHADOW_WS==="enabled",
        loaded:this.shadowLoaded,pending:this.shadowPendingIds.length,
@@ -426,8 +428,15 @@ export class PolymarketMarketStream extends DurableObject {
         const hr=await persistStreamRecoveryBatch(this.env,offers,{
           collectedAt:new Date().toISOString(),
         });
-        if(hr.ok){this.historyInserted+=hr.inserted;historyOk=true;}
-      }catch{historyOk=false}
+        if(hr.ok){
+          this.historyInserted+=hr.inserted;historyOk=true;this.historyLastError=null;
+        }else{
+          this.historyLastError=hr.reason||"history-recovery-failed";
+        }
+      }catch(error){
+        historyOk=false;
+        this.historyLastError=String(error?.message||error||"history-recovery-exception").slice(0,240);
+      }
       try{spilledKey=await this.spillFailedFlush(ticks,offers)}
       catch{spilledKey=null}
       if(historyOk||spilledKey){
@@ -462,7 +471,7 @@ export default {
     // owns dynamic all-sport capacity (no competing collectors).
     // v2 cutover: long-lived WS pins prior DO isolates after deploy; a new
     // name forces one coordinated owner onto the latest Worker code.
-    const id=env.PM_STREAM.idFromName("active-sports-fbis-v2");
+    const id=env.PM_STREAM.idFromName("active-sports-fbis-v3");
     const stub=env.PM_STREAM.get(id);
     ctx.waitUntil(stub.fetch("https://internal/start",{method:"POST"}).then(async response=>{
       if(!response.ok) console.warn("POLYMARKET_MARKET_STREAM_RESTART_FAILED",response.status);

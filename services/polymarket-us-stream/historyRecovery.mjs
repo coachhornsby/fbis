@@ -5,7 +5,8 @@
  */
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
 
-const LEDGER_DDL=`CREATE TABLE IF NOT EXISTS normalized_market_observations (
+const LEDGER_STATEMENTS=[
+`CREATE TABLE IF NOT EXISTS normalized_market_observations (
   id TEXT PRIMARY KEY,
   observation_key TEXT NOT NULL UNIQUE,
   source TEXT NOT NULL,
@@ -56,41 +57,67 @@ const LEDGER_DDL=`CREATE TABLE IF NOT EXISTS normalized_market_observations (
   raw_payload_json TEXT,
   raw_payload_hash TEXT,
   created_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_norm_market_event_time ON normalized_market_observations(sport,canonical_event_id,collected_at);
-CREATE INDEX IF NOT EXISTS idx_norm_market_source ON normalized_market_observations(source,sport,market_family,collected_at);
-CREATE INDEX IF NOT EXISTS idx_norm_market_snapshot ON normalized_market_observations(snapshot_type,sport,collected_at);`;
+)`,
+`CREATE INDEX IF NOT EXISTS idx_norm_market_event_time ON normalized_market_observations(sport,canonical_event_id,collected_at)`,
+`CREATE INDEX IF NOT EXISTS idx_norm_market_source ON normalized_market_observations(source,sport,market_family,collected_at)`,
+`CREATE INDEX IF NOT EXISTS idx_norm_market_snapshot ON normalized_market_observations(snapshot_type,sport,collected_at)`,
+];
+
+async function tableColumns(db){
+  if(!db?.prepare)return [];
+  try{
+    const r=await db.prepare("PRAGMA table_info(normalized_market_observations)").all();
+    return (r?.results||[]).map(x=>x.name).filter(Boolean);
+  }catch{return []}
+}
 
 export async function ensureHistoryLedgerSchema(db){
-  if(!db?.exec&&!db?.prepare)return {ok:false,reason:"database-unavailable"};
-  if(typeof db.exec==="function"){
-    await db.exec(LEDGER_DDL);
-  }else{
-    for(const stmt of LEDGER_DDL.split(";").map(s=>s.trim()).filter(Boolean)){
-      await db.prepare(stmt).run();
-    }
+  if(!db?.prepare)return {ok:false,reason:"database-unavailable"};
+  const existing=await tableColumns(db);
+  if(existing.includes("id")&&existing.includes("source")&&existing.includes("collected_at")){
+    return {ok:true,skipped:true,columns:existing.length};
   }
-  return {ok:true};
+  // Prefer one statement at a time — multi-statement exec is unreliable on D1.
+  for(const sql of LEDGER_STATEMENTS){
+    await db.prepare(sql).run();
+  }
+  const columns=await tableColumns(db);
+  if(!columns.includes("id"))return {ok:false,reason:"ledger-create-failed"};
+  return {ok:true,skipped:false,columns:columns.length};
 }
 
 /** Persist WS offers to market-history when primary D1 cannot accept writes. */
 export async function persistStreamRecoveryBatch(env,offers,{collectedAt=null}={}){
   if(!env?.MARKET_HISTORY_DB?.prepare)return {attempted:0,inserted:0,ok:false,reason:"history-binding-missing"};
   if(!Array.isArray(offers)||!offers.length)return {attempted:0,inserted:0,ok:false,reason:"empty-offers"};
-  await ensureHistoryLedgerSchema(env.MARKET_HISTORY_DB);
-  const r=await persistNormalizedMarketBatch(env.MARKET_HISTORY_DB,offers,{
-    snapshotType:"CURRENT",
-    collectedAt:collectedAt||new Date().toISOString(),
-    modelProbability:null,
-  });
-  return {
-    attempted:r.attempted,
-    inserted:r.inserted,
-    ids:r.ids||[],
-    ok:r.inserted>0,
-    target:"MARKET_HISTORY_DB",
-    primaryIsAuthoritative:false,
-    recoveryOnly:true,
-    canAuthorizeWager:false,
-  };
+  try{
+    const schema=await ensureHistoryLedgerSchema(env.MARKET_HISTORY_DB);
+    if(!schema.ok)return {attempted:offers.length,inserted:0,ok:false,reason:schema.reason||"schema-unavailable"};
+    const r=await persistNormalizedMarketBatch(env.MARKET_HISTORY_DB,offers,{
+      snapshotType:"CURRENT",
+      collectedAt:collectedAt||new Date().toISOString(),
+      modelProbability:null,
+    });
+    return {
+      attempted:r.attempted,
+      inserted:r.inserted,
+      ids:r.ids||[],
+      ok:r.inserted>0,
+      reason:r.inserted>0?"history-insert-ok":"history-insert-zero",
+      target:"MARKET_HISTORY_DB",
+      primaryIsAuthoritative:false,
+      recoveryOnly:true,
+      canAuthorizeWager:false,
+      schema,
+    };
+  }catch(error){
+    return {
+      attempted:offers.length,
+      inserted:0,
+      ok:false,
+      reason:String(error?.message||error||"history-persist-failed").slice(0,240),
+      target:"MARKET_HISTORY_DB",
+      recoveryOnly:true,
+    };
+  }
 }
