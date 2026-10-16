@@ -3,6 +3,7 @@ import {loadSoccerMarketFixtures} from "./soccerMarketFixtures.js";
 import {normalizePinnoddsMarkets} from './pinnoddsMarkets.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
 import {loadVerifiedTennisCandidates} from './polymarketTennisIdentity.js';
+import {filterPinnoddsToFbisProjections} from './pinnoddsProjectionScope.js';
 const root='market-sources/pinnodds',valid=id=>/^[a-z0-9-]{1,180}$/i.test(id||''),batchSize=100;
 async function source(env,snapshotId){
  if(!valid(snapshotId))throw Error('INVALID_SNAPSHOT_ID');
@@ -35,6 +36,14 @@ async function normalizeFromArchivedRaw(env,receipt,{snapshotId,fixtureAsOf=null
   }
   result=normalizePinnoddsMarkets(body,{sportId:receipt.sportId,feed:receipt.feed,capturedAt:receipt.collectedAt,games,snapshotId,rawKey:receipt.rawKey});
   Object.assign(result,scopeDiagnostics);
+  if(receipt.projectionScope==='FBIS_MODELED_EVENTS_ONLY'){
+   // Whole-board REST fetches cost $0 and use request quota; D1 receives only
+   // game markets whose independent FBIS forecasts existed before capture.
+   // Source-wide raw evidence remains immutable in R2 for future reconciliation.
+   const filtered=await filterPinnoddsToFbisProjections(env.DB,result.rows,{capturedAt:receipt.collectedAt});
+   result={...result,...filtered,normalizedRows:filtered.rows.length,
+     matchedRows:filtered.rows.length,ingestionScope:filtered.ingestionScope};
+  }
   if(fixtureAsOf)for(const row of result.rows)Object.assign(row.raw,{postCaptureIdentityLink:true,identityLinkedAt:fixtureAsOf});
  }
  return result;
