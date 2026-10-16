@@ -17,7 +17,7 @@ export class PolymarketMarketStream extends DurableObject {
     this.lastSaved=new Map();this.connectedAt=0;this.reconnectCount=0;
     this.received=0;this.parsed=0;this.inserted=0;
     this.lastError=null;this.lastConnectAttempt=0;this.flushTimer=null;
-    this.running=false;this.lastMessageAt=0;this.lastHeartbeatAt=0;this.heartbeats=0;this.lastClose=null;
+    this.running=false;this.lastCandidateDiagnostics=null;this.lastMessageAt=0;this.lastHeartbeatAt=0;this.heartbeats=0;this.lastClose=null;
     this.shadowPendingIds=[];this.shadowLoaded=false;this.shadowVerified=0;this.shadowWritten=0;
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
   }
@@ -25,6 +25,7 @@ export class PolymarketMarketStream extends DurableObject {
     return {connected:this.socket?.readyState===WebSocket.OPEN,
       connectedAt:this.connectedAt?new Date(this.connectedAt).toISOString():null,
       subscriptions:this.subscribed.size,queued:this.queue.size,
+      candidateDiagnostics:this.lastCandidateDiagnostics,
       operational:!this.lastError&&streamIsHealthy({connected:this.socket?.readyState===WebSocket.OPEN,lastMessageAt:this.lastMessageAt}),
       lastMessageAt:this.lastMessageAt?new Date(this.lastMessageAt).toISOString():null,
       lastHeartbeatAt:this.lastHeartbeatAt?new Date(this.lastHeartbeatAt).toISOString():null,
@@ -109,7 +110,11 @@ export class PolymarketMarketStream extends DurableObject {
       ) SELECT * FROM balanced WHERE sport_rank<=6
        ORDER BY sport,sport_rank LIMIT 66`)
        .bind(rosterSince,from,until,freshSince).all();
-    return fairMarketSelection(q.results||[],{perSport:6,maxMarkets:MAX_MARKETS});
+    const selected=fairMarketSelection(q.results||[],{perSport:6,maxMarkets:MAX_MARKETS});
+    this.lastCandidateDiagnostics={at:new Date().toISOString(),selected:selected.length,
+      returnedRows:(q.results||[]).length,source:'primary-d1',
+      rosterSince,freshSince,reason:selected.length?'ELIGIBLE_CONTRACTS':'NO_ELIGIBLE_CONTRACTS'};
+    return selected;
   }
   async connect(){
     if(this.running)return;
