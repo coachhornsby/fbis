@@ -26,6 +26,17 @@ export async function captureFreeMirror(env,{fetchImpl=fetch,now=new Date()}={})
   await env.ARCHIVE.put(path(id)+'.json',raw,{httpMetadata:{contentType:'application/json'}});
   await env.ARCHIVE.put(path(id)+'-receipt.json',JSON.stringify(receipt),{httpMetadata:{contentType:'application/json'}});
  }
+ // Atomic discoverability for the read-only R2 fallback when D1 is full.
+ // An unchanged publisher payload must retain its original capture clock.
+ const pointerKey='market-sources/free-prizepicks/latest.json';
+ const previousPointer=await env.ARCHIVE.get(pointerKey);
+ const prior=previousPointer?await previousPointer.json():null;
+ if(!prior||Date.parse(prior.collectedAt||'')<=Date.parse(receipt.collectedAt)){
+   await env.ARCHIVE.put(pointerKey,JSON.stringify({
+     snapshotId:id,collectedAt:receipt.collectedAt,publishedAt:receipt.publishedAt,
+     sourceUrl:FREE_PROP_MIRROR_URL,researchOnly:true,canAuthorizeWager:false
+   }),{httpMetadata:{contentType:'application/json'}});
+ }
  return{ok:true,...receipt,researchOnly:true,canQualify:false,canAuthorizeWager:false};
 }
 export async function consumeFreeMirror(env,{snapshotId,batchIndex,now=new Date()}={}){
