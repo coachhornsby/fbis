@@ -2,6 +2,7 @@ import {DurableObject} from "cloudflare:workers";
 import {polymarketUsSubscribe,parsePolymarketUsLite}
   from "../../functions/lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
+import {mirrorPersistentStreamRows} from "./shadow.mjs";
 import {fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,fetchStreamUpgrade,streamContractRosterWindow} from "./core.mjs";
 
 const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
@@ -17,6 +18,8 @@ export class PolymarketMarketStream extends DurableObject {
     this.received=0;this.parsed=0;this.inserted=0;
     this.lastError=null;this.lastConnectAttempt=0;this.flushTimer=null;
     this.running=false;this.lastMessageAt=0;this.lastHeartbeatAt=0;this.heartbeats=0;this.lastClose=null;
+    this.shadowPendingIds=[];this.shadowLoaded=false;this.shadowVerified=0;this.shadowWritten=0;
+    this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
   }
   status(){
     return {connected:this.socket?.readyState===WebSocket.OPEN,
@@ -27,6 +30,11 @@ export class PolymarketMarketStream extends DurableObject {
       lastHeartbeatAt:this.lastHeartbeatAt?new Date(this.lastHeartbeatAt).toISOString():null,
       heartbeats:this.heartbeats,lastClose:this.lastClose,
       received:this.received,parsed:this.parsed,inserted:this.inserted,
+      shadow:{enabled:this.env.MARKET_HISTORY_SHADOW_WS==="enabled",
+       loaded:this.shadowLoaded,pending:this.shadowPendingIds.length,
+       verified:this.shadowVerified,written:this.shadowWritten,failed:this.shadowFailed,
+       gap:this.shadowGap,lastError:this.lastShadowError,
+       sourceIsAuthoritative:true},
       reconnects:this.reconnectCount,lastError:this.lastError,
       signerProxyConfigured:Boolean(this.env.FBIS_STREAM_PROXY_TOKEN),
       lastConnectAttemptAt:this.lastConnectAttempt?new Date(this.lastConnectAttempt).toISOString():null,
@@ -199,8 +207,51 @@ export class PolymarketMarketStream extends DurableObject {
       },FLUSH_MS);
     }
   }
+  async ensureShadowQueue(){
+    if(this.shadowLoaded)return;
+    const stored=await this.ctx.storage.get("marketShadowPendingIds");
+    this.shadowPendingIds=Array.isArray(stored)?stored:[];
+    this.shadowLoaded=true;
+  }
+  async drainShadow(){
+    if(this.env.MARKET_HISTORY_SHADOW_WS!=="enabled")return;
+    if(this.shadowDrainPromise)return this.shadowDrainPromise;
+    this.shadowDrainPromise=(async()=>{
+      await this.ensureShadowQueue();
+      // Four bounded 16-row chunks per invocation; alarm retries persisted backlog.
+      for(let n=0;n<4&&this.shadowPendingIds.length;n++){
+        const ids=this.shadowPendingIds.slice(0,16);
+        try{
+          const r=await mirrorPersistentStreamRows(this.env,ids);
+          if(r.verified!==ids.length||r.sourceRowsDeleted!==0)throw Error("incomplete-shadow-receipt");
+          this.shadowWritten+=r.written;this.shadowVerified+=r.verified;
+          // Persist removal only after exact source/destination verification.
+          this.shadowPendingIds=this.shadowPendingIds.slice(ids.length);
+          await this.ctx.storage.put("marketShadowPendingIds",this.shadowPendingIds);
+          this.lastShadowError=null;
+        }catch{
+          this.shadowFailed++;this.lastShadowError="shadow-reconciliation-failed";
+          break;
+        }
+      }
+    })();
+    try{await this.shadowDrainPromise}finally{this.shadowDrainPromise=null}
+  }
+  async queueCommittedShadow(ids){
+    if(this.env.MARKET_HISTORY_SHADOW_WS!=="enabled"||!ids?.length)return;
+    await this.ensureShadowQueue();
+    const unique=[...new Set([...this.shadowPendingIds,...ids])];
+    if(unique.length>4096){
+      this.shadowGap+=Math.max(0,unique.length-4096);
+      this.lastShadowError="shadow-backlog-limit-reached";
+      // Explicit unmirrored gap: independently backfill before read cutover.
+      this.shadowPendingIds=unique.slice(0,4096);
+    }else this.shadowPendingIds=unique;
+    await this.ctx.storage.put("marketShadowPendingIds",this.shadowPendingIds);
+    await this.drainShadow();
+  }
   async flush(){
-    if(!this.queue.size)return;
+    if(!this.queue.size){await this.drainShadow();return;}
     const ticks=[...this.queue.values()].slice(0,MAX_BATCH);
     for(const tick of ticks)this.queue.delete(tick.marketSlug);
     const offers=ticks.map(t=>liveBboOffer(t,this.subscribed.get(t.marketSlug))).filter(Boolean);
@@ -211,6 +262,9 @@ export class PolymarketMarketStream extends DurableObject {
       this.inserted+=r.inserted;
       if(this.lastError==="d1-bbo-persist-error")this.lastError=null;
       for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
+      // Canonical D1 committed first; mirror failure must not change its truth.
+      try{await this.queueCommittedShadow(r.ids)}
+      catch{this.shadowFailed++;this.lastShadowError="shadow-queue-unavailable";}
     }catch{
       this.lastError="d1-bbo-persist-error";
       // No fabrication and no optimistic D1 success count.
@@ -222,6 +276,7 @@ export class PolymarketMarketStream extends DurableObject {
   }
   async alarm(){
     await this.flush();
+    await this.drainShadow();
     // Rotate before Cloudflare outbound keep-alive's 15-minute instance limit.
     if(!this.socket||this.socket.readyState!==WebSocket.OPEN||
         Date.now()-this.connectedAt>=ROTATE_MS||
