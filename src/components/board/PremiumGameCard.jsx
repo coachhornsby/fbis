@@ -15,6 +15,8 @@ import NflInjuryIntegrityStrip from "./NflInjuryIntegrityStrip.jsx";
 
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
+import { bestEdge } from "../../lib/boardEvidence.js";
+import { gapBrandColor, gapDirection } from "../../lib/marketGapBrand.js";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
 import TennisMatchCard from "./TennisMatchCard.jsx";
 import "./premiumGameCard.css";
@@ -162,6 +164,22 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const showReferenceGap = !stored && !vm.decision?.evAvailable && referenceGap.available;
   const referenceTeam = showReferenceGap && referenceLead?.kind==="spread"
     ? referenceLead.side==="home" ? home : referenceLead.side==="away" ? away : null : null;
+  const comparison = bestEdge(vm);
+  const soccerPickTeam = soccerPick?.side==="HOME" ? home : soccerPick?.side==="AWAY" ? away : null;
+  const gapTeam = soccerPick ? soccerPickTeam : showReferenceGap ? referenceTeam : comparison.total ? null : comparison.team;
+  const gapRawTeam = gapTeam === home ? game?.home : gapTeam === away ? game?.away : null;
+  const gapColor = gapBrandColor(gapTeam, gapRawTeam, sportId);
+  const gapTotal = !soccerPick && (showReferenceGap ? referenceLead?.kind==="total" : comparison.total);
+  const gapSide = gapDirection(showReferenceGap ? referenceLead?.side : comparison.detail);
+  const gapKind = gapTotal ? `is-total is-${gapSide}` : gapTeam ? `is-team${gapColor?" is-branded":""}` : "is-neutral";
+  const gapUnit = ["mlb","npb","kbo"].includes(sportId) ? "RUNS" : sportId === "nhl" ? "GOALS" : "PTS";
+  const gapValue = stored ? "—" : soccerPick ? soccerPick.pick || "—" : showReferenceGap
+    ? `${referenceLead.delta > 0 ? "+" : ""}${referenceLead.delta} ${gapUnit}` : edge.delta;
+  const gapLabel = stored ? "MARKET UNAVAILABLE" : soccerPick ? "CONFIDENCE PICK"
+    : showReferenceGap ? "FBIS / PINNODDS GAP" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : "MODEL / MARKET GAP";
+  const gapDescription = stored ? "STORED PREGAME · NO VERIFIED ODDS" : soccerPick ? "1X2 · MODEL CONFIDENCE · NOT EV"
+    : showReferenceGap ? `${referenceLead.kind.toUpperCase()} · PROJECTION DIFF · NOT EV`
+    : `${edge.type} · MODEL / MARKET`;
   const isTennis = sportId === "tennis";
   if (isTennis) {
     return <TennisMatchCard game={game} open={open} onToggle={onToggle} renderDetail={renderDetail} />;
@@ -251,10 +269,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
 
         <div className="pgc-featured-center">
           <span className="pgc-vs">VS</span>
-          <small>{stored ? "Stored pregame context" : soccerPick ? "Confidence Pick" : vm.decision?.evAvailable ? "Calibrated edge" : showReferenceGap ? "FBIS / PinnOdds point gap" : "Model / market gap"}</small>
-          {referenceTeam ? <div className="pgc-market-gap-team"><TeamLogo team={referenceTeam} size={44} /> <span>{referenceTeam.abbr || referenceTeam.name} · projected spread tilt</span></div> : showReferenceGap && referenceLead?.kind==="total" ? <div className="pgc-market-gap-team is-total"><b>{String(referenceLead.side).toUpperCase()}</b><span>projected total tilt</span></div> : null}
-          <strong>{stored ? "NO VERIFIED EDGE" : soccerPick ? soccerPick.pick || "—" : isTennis ? tennisEdgeValue : showReferenceGap ? `${referenceLead.delta > 0 ? "+" : ""}${referenceLead.delta} PTS` : edge.value}</strong>
-          <span className="pgc-edge-delta">{stored ? "NO EXECUTABLE MARKET" : soccerPick ? `${stars}★ · 1X2` : isTennis ? tennisEdgeDelta : showReferenceGap ? `${referenceLead.kind.toUpperCase()} · PROJECTION DIFF · NOT EV` : `${edge.delta} ${edge.type}`}</span>
+          <small>FBIS MATCHUP INTELLIGENCE</small>
         </div>
 
         <div className="pgc-featured-team pgc-featured-team-home">
@@ -270,6 +285,23 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
             <small>{isTennis ? "WIN PROB." : "PROJ. SCORE"}</small>
           </div>
         </div>
+      </section>
+      <section
+        className={`pgc-gap-strip ${gapKind}`}
+        style={gapColor && !gapTotal ? {"--pgc-gap-brand":gapColor} : undefined}
+        aria-label={gapLabel}
+      >
+        <span className="pgc-gap-heading">{gapLabel}</span>
+        <div className="pgc-gap-identity">
+          {gapTeam ? <>
+            <TeamLogo team={gapTeam} size={64} className="pgc-gap-logo" />
+            <b>{gapTeam.abbr && gapTeam.abbr!=="—" ? gapTeam.abbr : gapTeam.name}</b>
+          </> : gapTotal && gapSide!=="even" ? (
+            <span className="pgc-gap-direction"><b aria-hidden="true">{gapSide==="over"?"↑":"↓"}</b><strong>{gapSide.toUpperCase()}</strong></span>
+          ) : <span className="pgc-gap-unavailable">—</span>}
+        </div>
+        <strong className="pgc-gap-value">{gapValue}</strong>
+        <span className="pgc-gap-description">{gapDescription}</span>
       </section>
 
       {["cfb","nfl","cbb","nba","wnba","nhl","mlb","npb","kbo","soccer","tennis"].includes(sportId) ? (
