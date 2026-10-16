@@ -1,1 +1,1 @@
-Run exactly one bounded authenticated public-market Polymarket WS capture; require exact post-commit 50-column market-history shadow receipt; zero trades, zero source deletes.
+2026-10-16 revision 2: scoped 72-hour future-event market identity seed fallback because primary Polymarket REST collector last captured 2026-10-15T16:51Z. Still require an actual new WebSocket BBO, source timestamp null, full 50-column D1 shadow verification, and zero trade authority.
