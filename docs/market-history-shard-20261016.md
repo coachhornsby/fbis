@@ -75,3 +75,14 @@ Production source-read audit at 17:43 UTC: `Polymarket US` normalized market RES
 - `STREAM_CONTRACT_ROSTER_MAX_AGE_MS` increases from 24h to **72h** as an outage bootstrap only. The full-market WebSocket must still negotiate and deliver a **new** bid/ask; REST `collected_at`, provider timestamp and stale price are never rolled forward or made current.
 - Candidate start window remains 4h behind / 48h ahead; pregame model/projection check, canonical matchup identity, long-contract flag and non-wager authority remain enforced. Contracts older than 72h still fail closed.
 - **Separate capacity warning:** primary D1 remains at the hard 10GB limit. A successful signed WebSocket subscription does not prove the system can persist new market ticks. Do not enable unbounded replication or retire original evidence until primary capacity is reclaimed safely and consumer reads validated.
+
+
+## WS continuous shadow activation — 2026-10-16
+
+The authenticated 8-row production pilot proved **eight new** insertions from previously unmirrored canonical rowids 463–470, followed by zero duplicate insertions on repeat, with full 50-column field and source-hash parity. SHA-256-verified permanent evidence is in private R2 at `research/storage-recovery/2026-10-16/market-history-shard/ws-one-shot-9d7f97482fc30eed74d6488d3cb5a57cf1130c0abf7fb67a0e9693bc488af172.json`.
+
+Enable only the existing post-commit **Polymarket US WebSocket** shadow under `wrangler.toml [vars].MARKET_HISTORY_SHADOW_WS="enabled"`. The source insert must still commit to primary D1 before the mirror. All other Polymarket, PinnOdds, settlement, CLV, game-card/model and archival writer/read paths remain unchanged. No primary deletion.
+
+`GET /api/market-history-ws-health` is a header-authenticated, no-store, **read-only** monitor comparing the latest eight primary WebSocket observations against 50 complete columns on shard. It detects missing or mismatched copies; reports the latest source observation timestamp but does not infer quote freshness. Status 503 if missing, corrupt, or unbound. Do not treat this parity result alone as proof new ingestion actually occurred. Reconciliation must follow new original source IDs after activation.
+
+Rollback: change `MARKET_HISTORY_SHADOW_WS` back to `"disabled"` in `wrangler.toml` and redeploy, retaining both D1s and all already-replicated rows. Any shadow write failure is reported as `shardShadow.state=FAIL_CLOSED` on the WS capture endpoint and must be investigated; primary source remains authoritative. Still no release for historical row retirements until all market consumers are migrated and independent recovery is proven.
