@@ -15,6 +15,9 @@ Venue latitude/longitude come from the stored provider observation. Preserve the
 ## Statistical state
 The page attempts a **read-only** lookup of the most recent `team_feature_snapshots` row. Production currently lacks this table, so the correct display state is `PERSISTENCE_UNAVAILABLE`; no zero-filled ratings, invented advanced statistics or reconstructed historical pregame features are shown. `team_form` is a separate stale legacy signal and is labelled accordingly, never presented as current model authority.
 
+### Research CORE / advanced / prop panels
+When snapshot fields from week-aware CORE + advanced plumbing are present (`core`, `ppaOff`, success rates, trenches, composite ratings), `/api/cfb-teams?team=…` includes a `researchPanels` object with bar-chart series, optional game sparklines from team-game evidence, and QB/RB/WR **shadow prop research input** cards. These are display-only (`canInfluenceProjection=false`, `canAuthorizeWager=false`). Full matchup `CFB-PLAYER-v1` projections still require a board game environment and remain unauthorized for wagers.
+
 Existing draft PR #927 proposes recovery of missing college tables as migration 0098. This page intentionally does not merge, embed or apply it. Data recovery, persistent incremental game observations, point-in-time state versioning and projection reader routing are **separate release gates**. Even after migration, empty tables do not confer populated state.
 
 ## Boundaries

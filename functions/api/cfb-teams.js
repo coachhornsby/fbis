@@ -1,6 +1,7 @@
 import { loadCfbPublicTeamFacts } from "../lib/cfbTeamPublicFacts.js";
 import { toFbsTeamList, toFbsTeamProfile, toTeamFeatureSummary, toLegacyFormSummary } from "../lib/cfbTeamProfiles.js";
 import {loadFbsTeamSeasonEvidence,validProfileSeason,validProfilePlayer} from "../lib/cfbTeamSeasonEvidence.js";
+import { buildCfbTeamResearchPanels } from "../lib/cfbTeamResearchPanels.js";
 
 const headers = { "content-type": "application/json; charset=utf-8",
   "cache-control": "public, max-age=180" };
@@ -52,8 +53,10 @@ export async function loadFbsTeamDirectory(db, requestedTeamId = null, options =
       ]);
       const publicFacts = await (options.publicFactsLoader || loadCfbPublicTeamFacts)(team.espnId, Number(season));
       evidence.schedule = publicFacts.schedule;
+      const researchPanels = buildCfbTeamResearchPanels({ featureState, evidence });
       return { status: 200, body: {
-        ok: true, team, featureState, legacyForm, evidence, apRanking:publicFacts.apRanking, modelAuthority: noModelAuthority,
+        ok: true, team, featureState, legacyForm, evidence, researchPanels,
+        apRanking:publicFacts.apRanking, modelAuthority: noModelAuthority,
         storage: "PERSISTENT_D1_READ_ONLY", externalProviderRequests: 2,
       } };
     }

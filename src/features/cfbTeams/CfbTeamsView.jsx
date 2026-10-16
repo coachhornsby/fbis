@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "./cfbTeams.css";
 import CfbCurrentSummary from './CfbCurrentSummary.jsx';
+import CfbResearchPanels from './CfbResearchPanels.jsx';
 
 function initialTeam() {
   return typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("team");
@@ -41,7 +42,7 @@ function MetricGroups({groups}) {
     </section>)}</div>;
 }
 function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,intelligenceError}) {
-  const {team,featureState,legacyForm,evidence={},apRanking} = detail, s=team.stadium;
+  const {team,featureState,legacyForm,evidence={},apRanking,researchPanels} = detail, s=team.stadium;
   const [positionFilter,setPositionFilter]=useState("ALL");
   const [playerSearch,setPlayerSearch]=useState("");
   const roster=evidence?.roster?.players||[];
@@ -70,6 +71,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
       </div>
     </header>
     <CfbCurrentSummary intelligence={intelligence} error={intelligenceError} teamId={team.teamId} season={evidence.season||2026}/>
+    <CfbResearchPanels researchPanels={researchPanels} accent={team.colors.primary || "#78c7f2"}/>
     <section className="ft-panel">
       <div className="ft-heading"><h3>Identity & team colors</h3><small>ESPN/SDV-sourced · school verification pending</small></div>
       <dl className="ft-facts">
