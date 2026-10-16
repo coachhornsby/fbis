@@ -293,9 +293,9 @@ export function readCandidateConfig(env) {
     circuitBreakerThreshold: Math.max(1, Number(e.ACTION_APIFY_CIRCUIT_BREAKER) || 5),
     maxRunDurationMs: Math.max(30_000, Number(e.ACTION_APIFY_MAX_RUN_MS) || 180_000),
     maxRetries: Math.min(3, Math.max(0, Number(e.ACTION_APIFY_MAX_RETRIES) || 2)),
-    perRunBudgetUsd: Number(e.ACTION_APIFY_PER_RUN_BUDGET_USD) > 0
+    perRunBudgetUsd: Math.min(0.70, Number(e.ACTION_APIFY_PER_RUN_BUDGET_USD) > 0
       ? Number(e.ACTION_APIFY_PER_RUN_BUDGET_USD)
-      : (plan === "free" ? 1.5 : 5),
+      : (plan === "free" ? 1.5 : 5)),
   };
 }
 
