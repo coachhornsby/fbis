@@ -108,13 +108,14 @@ export function toFbsTeamList(rows = []) {
 }
 
 export function toTeamFeatureSummary(row = null) {
-  if (!row) return { state: "NOT_POPULATED", asOf: null, featureVersion: null, features: null, missingness: null };
+  if (!row) return { state: "NOT_POPULATED", asOf: null, featureVersion: null, features: null, missingness: null, season: null };
   const parse = (raw) => {
     try { return raw ? JSON.parse(raw) : null; } catch { return null; }
   };
   return {
     state: "RESEARCH_SNAPSHOT",
     asOf: row.as_of || null, featureVersion: row.feature_version || null,
+    season: row.season != null && Number.isFinite(Number(row.season)) ? Number(row.season) : null,
     features: parse(row.features_json), missingness: parse(row.missingness_json),
     canInfluenceProjection: false,
   };
