@@ -1,11 +1,15 @@
-name: PinnOdds free-trial REST targeted-acquisition safeguards
+name: PinnOdds free-tier governed board snapshots
 on:
-  # $0 trial REST has request quotas, not dollar charges. Whole-sport pulls remain paused
-  # until exact modeled-event requests and identity checks are implemented.
+  schedule:
+    # Four complete $0 boards (15 quota requests each) and four drops-only
+    # windows (2 requests each): maximum 68 reserved requests per UTC day.
+    # Backup cron reuses the same durable reservation/snapshot receipt.
+    - cron: '23 0,3,6,9,12,15,18,21 * * *'
+    - cron: '23 1,4,7,10,13,16,19,22 * * *'
   workflow_dispatch:
     inputs:
       paid_capture:
-        description: 'Legacy broad capture disabled; targeted free-trial flow only'
+        description: 'Manually authorize free-tier quota-governed snapshot (default off)'
         required: false
         type: boolean
         default: false
@@ -32,7 +36,7 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: '22'
-      - run: node --test test/pinnodds-markets.test.js test/pinnodds-governed-capture.test.mjs test/pinnodds-ingestion.test.js test/pinnodds-player-props.test.js test/github-oidc.test.mjs test/pinnodds-schedule.test.mjs
+      - run: node --test test/pinnodds-markets.test.js test/pinnodds-governed-capture.test.mjs test/pinnodds-projection-scope.test.js test/pinnodds-ingestion.test.js test/pinnodds-player-props.test.js test/github-oidc.test.mjs test/pinnodds-schedule.test.mjs
       - name: Verify exact production release before writing
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.paid_capture == true)
         run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"

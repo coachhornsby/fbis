@@ -35,10 +35,11 @@ test('status unavailable blocks paid launches before provider reservation',()=>{
  assert.throws(()=>pinnoddsWindowComplete({ok:false},w),/PINNODDS_STATUS_REQUIRED/);
  assert.equal(pinnoddsWindowComplete(status(w),w,at('2026-10-14T04:23:00Z')),true);
 });
-test('paid PinnOdds workflow excludes pushes and defaults manual captures off',()=>{
+test('quota-bounded free PinnOdds schedule and backups reuse durable window identities',()=>{
  const wf=readFileSync(new URL('../.github/workflows/pinnodds-governed-capture.yml',import.meta.url),'utf8');
- assert.doesNotMatch(wf,/cron:/);
- assert.match(wf,/Whole-sport pulls remain paused/);
+ assert.match(wf,/23 0,3,6,9,12,15,18,21/);
+ assert.match(wf,/23 1,4,7,10,13,16,19,22/);
+ assert.match(wf,/maximum 68 reserved requests/);
  assert.match(wf,/paid_capture:/);
  assert.match(wf,/default: false/);
  assert.match(wf,/if: github.event_name == 'schedule' \|\|/);

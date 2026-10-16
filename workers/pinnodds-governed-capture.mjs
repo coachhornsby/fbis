@@ -5,9 +5,10 @@ export const PINNODDS_CAPTURE_REQUESTS=15;
 export const PINNODDS_TRIAL_REST_COST_USD=0;
 export const PINNODDS_TRIAL_DOCUMENTED_LIMITS=Object.freeze({perDay:100,perMinute:20});
 /**
- * Only individually scoped events with previously verified FBIS projections
- * may be acquired. Legacy whole-sport boards/drop buffers stay paused.
- * The caller must prove the event identity and model forecast before admission.
+ * Event-scoped retrieval is optional: the free trial supports whole-board reads.
+ * When using a whole board, retain the immutable raw snapshot in R2 and ingest
+ * only events with independently frozen FBIS projections. Request quotas, not
+ * per-game restrictions, govern provider access.
  */
 export function requireProjectedFreeScope({canonicalEventId=null,providerEventId=null,kind='board'}={}){
  if(!canonicalEventId||!/^[0-9]+$/.test(String(providerEventId||''))||!['prematch_event','live_event'].includes(kind))
@@ -30,8 +31,8 @@ const jsonOptions={httpMetadata:{contentType:'application/json'}};
 async function hash(value){const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return [...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join('');}
 export async function reservePinnoddsRun(env,{runId,scope='full',now=new Date(),fetchImpl=fetch}={}){
  if(!['full','drops'].includes(scope))throw Error('INVALID_RESERVATION_SCOPE');
- // Legacy full-sport/drop-buffer requests remain paused for projection-only scope, NOT for price.
- requireProjectedFreeScope({kind:scope});
+ // Whole-sport fetches are free. Reserve request quotas first; the ingestion
+ // layer filters normalized observations to already modeled FBIS matchups.
  const requests=scope==='drops'?2:PINNODDS_CAPTURE_REQUESTS;
  if(!valid(runId)||!env.R2_ARCHIVE?.get||!env.R2_ARCHIVE?.put)throw Error('INVALID_DURABLE_RESERVATION');
  const runKey=`${root}/runs/${runId}.json`,existing=await env.R2_ARCHIVE.get(runKey);if(existing)return await existing.json();
@@ -58,7 +59,6 @@ export async function reservePinnoddsRun(env,{runId,scope='full',now=new Date(),
  throw Error('RESERVATION_CONTENTION');
 }
 export async function capturePinnoddsSnapshot(env,{runId,kind,sportId=null,feed=null,fetchImpl=fetch,now=new Date()}={}){
- requireProjectedFreeScope({kind});
  if(!valid(runId)||!['board','drops','health'].includes(kind)||kind!=='health'&&!['live','prematch'].includes(feed)||kind==='board'&&![1,2,3,4,5,6].includes(sportId))throw Error('INVALID_CAPTURE_SCOPE');
  const runObject=await env.R2_ARCHIVE.get(`${root}/runs/${runId}.json`);if(!runObject)throw Error('QUOTA_RESERVATION_REQUIRED');
  const reservation=await runObject.json();if(reservation.scope==='drops'&&kind!=='drops')throw Error('RESERVATION_SCOPE_MISMATCH');if(reservation.day!==now.toISOString().slice(0,10))throw Error('RESERVATION_EXPIRED');
@@ -79,6 +79,6 @@ export async function capturePinnoddsSnapshot(env,{runId,kind,sportId=null,feed=
  const body=JSON.parse(raw);if(kind==='board'&&!Array.isArray(body.events))throw Error('PINNODDS_EVENTS_CONTRACT_CHANGED');
  const receipt={ok:true,snapshotId,runId,kind,sportId,feed,captureStartedAt:now.toISOString(),collectedAt:new Date().toISOString(),sourceUrl:url.toString(),rawHash,rawKey,
   providerStatus:response.headers.get('x-data-status')||null,providerDataAge:response.headers.get('x-data-age')||null,
-  providerCursor:body.last??null,dropBufferHours:kind==='drops'?3:null,dropResponseLimit:kind==='drops'?10000:null,dropBufferComplete:kind==='drops'?(Array.isArray(body.drops)&&body.drops.length<10000&&(body.total==null||Number(body.total)<=body.drops.length)):null,providerEventCount:body.events?.length??null,readOnly:true,canAuthorizeWager:false};
+  providerCursor:body.last??null,dropBufferHours:kind==='drops'?3:null,dropResponseLimit:kind==='drops'?10000:null,dropBufferComplete:kind==='drops'?(Array.isArray(body.drops)&&body.drops.length<10000&&(body.total==null||Number(body.total)<=body.drops.length)):null,providerEventCount:body.events?.length??null,projectionScope:'FBIS_MODELED_EVENTS_ONLY',providerCostUsd:0,readOnly:true,canAuthorizeWager:false};
  await env.R2_ARCHIVE.put(receiptKey,JSON.stringify(receipt),jsonOptions);return receipt;
 }
