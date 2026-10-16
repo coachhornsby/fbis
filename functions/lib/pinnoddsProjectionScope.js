@@ -28,10 +28,8 @@ export async function filterPinnoddsToFbisProjections(db, rows, {capturedAt}={})
      sql:`SELECT game_id AS event_id,MIN(frozen_at) AS model_at FROM prediction_snapshots
       WHERE sport=? AND game_id IN (${placeholders}) AND frozen_at<=?
       AND model_version IS NOT NULL AND TRIM(model_version)<>''
-      AND (projection_kind IS NULL OR UPPER(projection_kind) NOT IN
-           ('PINNACLE_IMPLIED','MARKET_IMPLIED','UNAVAILABLE','MISSING'))
-      AND (proj_total IS NOT NULL OR (proj_home IS NOT NULL AND proj_away IS NOT NULL)
-           OR p_home_final BETWEEN 0 AND 1)
+      AND UPPER(projection_kind) IN ('FBIS','PURE','RESEARCH')
+      AND (proj_total IS NOT NULL OR (proj_home IS NOT NULL AND proj_away IS NOT NULL))
       GROUP BY game_id`,
      binds:[sport,...chunk,capturedAt]
     },
