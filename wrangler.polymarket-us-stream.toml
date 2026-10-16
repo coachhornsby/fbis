@@ -19,3 +19,14 @@ new_sqlite_classes = ["PolymarketMarketStream"]
 binding = "DB"
 database_name = "fbis"
 database_id = "b50c724c-903b-4241-8ce1-48d931e7a44c"
+
+# Independent observation shadow target. Core market/projected-eligibility reads
+# continue to use the existing DB binding; no cross-D1 joins or source deletes.
+[[d1_databases]]
+binding = "MARKET_HISTORY_DB"
+database_name = "fbis-market-history"
+database_id = "c32ccf06-c896-4d24-bb89-3e87a7412899"
+
+# Deploy initially disabled; separate validated activation commit is required.
+[vars]
+MARKET_HISTORY_SHADOW_WS = "disabled"
