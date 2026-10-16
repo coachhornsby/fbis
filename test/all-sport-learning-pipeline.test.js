@@ -80,13 +80,13 @@ test("ACTION and other non-PinnOdds odds schedules are retired; learning exports
     assert.doesNotMatch(body,/^  schedule:/m);
     assert.doesNotMatch(body,/^  push:/m);
   }
-  // Polymarket exchange ingestion is approved and MUST stay scheduled.
+  // Only projected-event targeted pulls can resume; public full-league crawls are paused.
   const poly=await readFile(new URL("../.github/workflows/polymarket-us-market-collect.yml",import.meta.url),"utf8");
-  assert.match(poly,/cron:/);
-  assert.ok(poly.includes("/api/polymarket-ws-capture"));
+  assert.doesNotMatch(poly,/cron:/);
+  assert.match(poly,/projected-event-only/);
   const free=await readFile(new URL("../.github/workflows/free-prizepicks-mirror.yml",import.meta.url),"utf8");
-  assert.match(free,/cron:/);
-  assert.match(free,/api\/free-prizepicks-collect/);
+  assert.doesNotMatch(free,/cron:/);
+  assert.match(free,/Whole-publisher pulls paused/);
   const harvest=await readFile(new URL("../.github/workflows/harvest.yml",import.meta.url),"utf8");
   assert.match(harvest,/ACTION_RECOVERY_ENABLED="false"/);
 });
