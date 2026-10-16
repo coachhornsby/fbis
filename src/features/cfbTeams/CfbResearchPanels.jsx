@@ -3,13 +3,19 @@
  * National percentile bars + FBIS-computed ranks — never wager authority.
  */
 
+/** Performance-band colors for bars and strength-coded text. */
 const BAND_COLORS = {
   Elite: "#3ecf8e",
   Strong: "#5bb8e8",
-  "Above Average": "#c5d4e0",
+  "Above Average": "#b7c6a3",
   "Below Average": "#d4a35c",
   Poor: "#d66a6a",
 };
+const BAND_COLOR_FALLBACK = "#8aa3b5";
+
+function bandColor(band) {
+  return BAND_COLORS[band] || BAND_COLOR_FALLBACK;
+}
 
 function fmt(v, digits = 3) {
   if (v == null || !Number.isFinite(Number(v))) return "—";
@@ -31,7 +37,7 @@ function PercentileMetricList({ series = [] }) {
       {series.map((m) => {
         const pct = m.percentile;
         const band = m.performance;
-        const color = BAND_COLORS[band] || "#8aa3b5";
+        const color = bandColor(band);
         const barW = pct == null ? 0 : Math.max(2, Math.min(100, pct));
         const tip = [
           m.description,
@@ -44,20 +50,20 @@ function PercentileMetricList({ series = [] }) {
           m.asOf ? `As of: ${m.asOf}` : null,
         ].filter(Boolean).join(" · ");
         return (
-          <li className="ft-metric-rank" key={m.id} title={tip}>
+          <li className="ft-metric-rank" key={m.id} title={tip} style={{ borderLeftColor: color }}>
             <div className="ft-metric-rank-top">
               <div className="ft-metric-rank-label">
                 <strong>{m.label}</strong>
                 <span className="ft-metric-info" aria-label={tip}>i</span>
                 <em className="ft-polarity">{m.preferredDirection === "higher" ? "↑ better" : "↓ better"}</em>
               </div>
-              <div className="ft-metric-rank-value">{fmtMetric(m)}</div>
+              <div className="ft-metric-rank-value" style={{ color }}>{fmtMetric(m)}</div>
             </div>
             <div className="ft-percentile-track" aria-hidden={pct == null}>
               <div className="ft-percentile-fill" style={{ width: `${barW}%`, background: color }} />
             </div>
-            <div className="ft-metric-rank-meta">
-              {band ? <span className="ft-band" style={{ color }}>{band}</span> : <span className="ft-band ft-band-na">Unranked</span>}
+            <div className="ft-metric-rank-meta" style={{ color }}>
+              {band ? <span className="ft-band">{band}</span> : <span className="ft-band ft-band-na">Unranked</span>}
               <span>{pct != null ? `${fmt(pct, 1)}th %ile` : "percentile unavailable"}</span>
               <span>Nat {m.national?.display || "—"}</span>
               <span>Conf {m.conference?.display || "—"}{m.conference?.name ? ` (${m.conference.name})` : ""}</span>
