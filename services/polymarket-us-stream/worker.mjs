@@ -19,11 +19,12 @@ export class PolymarketMarketStream extends DurableObject {
     super(ctx,env);
     this.socket=null;this.subscribed=new Map();this.queue=new Map();
     this.lastSaved=new Map();this.connectedAt=0;this.reconnectCount=0;
-    this.received=0;this.parsed=0;this.inserted=0;
+    this.received=0;this.parsed=0;this.inserted=0;this.spilled=0;
     this.lastError=null;this.lastConnectAttempt=0;this.flushTimer=null;
     this.running=false;this.lastCandidateDiagnostics=null;this.lastMessageAt=0;this.lastHeartbeatAt=0;this.heartbeats=0;this.lastClose=null;
     this.shadowPendingIds=[];this.shadowLoaded=false;this.shadowVerified=0;this.shadowWritten=0;
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
+    this.persistenceStatus="UNVERIFIED";this.lastSpillKey=null;this.lastSpillAt=null;
   }
   capacityPlan(){
     return resolveStreamCapacity(this.env||{});
@@ -31,20 +32,31 @@ export class PolymarketMarketStream extends DurableObject {
   status(){
     const capacity=this.capacityPlan();
     const coverage=this.lastCandidateDiagnostics?.bySport||null;
-    return {connected:this.socket?.readyState===WebSocket.OPEN,
+    const connected=this.socket?.readyState===WebSocket.OPEN;
+    const streamHealthy=streamIsHealthy({connected,lastMessageAt:this.lastMessageAt});
+    // Primary D1 inserts only count as HEALTHY persistence. R2 spill is recovery
+    // evidence (DEGRADED), never silent success or a second write owner.
+    return {connected,
       connectedAt:this.connectedAt?new Date(this.connectedAt).toISOString():null,
       subscriptions:this.subscribed.size,queued:this.queue.size,
       candidateDiagnostics:this.lastCandidateDiagnostics,
       capacity,
       desiredConnections:this.lastCandidateDiagnostics?.capacity?.utilizedConnections||0,
-      activeConnections:this.socket?.readyState===WebSocket.OPEN?1:0,
+      activeConnections:connected?1:0,
       sportCoverage:coverage,
       uncoveredCount:Number(this.lastCandidateDiagnostics?.uncoveredCount||0),
-      operational:!this.lastError&&streamIsHealthy({connected:this.socket?.readyState===WebSocket.OPEN,lastMessageAt:this.lastMessageAt}),
+      streamHealthy,
+      persistenceStatus:this.persistenceStatus,
+      // Stream is operational when connected and fresh. Persistence DEGRADED/UNAVAILABLE
+      // (D1 full) must not be hidden — those states clear operational until inserts recover.
+      // UNVERIFIED means no flush yet (bootstrap heartbeat / subscribe) and is allowed.
+      operational:streamHealthy&&!this.lastError&&
+        (this.persistenceStatus==="HEALTHY"||this.persistenceStatus==="UNVERIFIED"),
       lastMessageAt:this.lastMessageAt?new Date(this.lastMessageAt).toISOString():null,
       lastHeartbeatAt:this.lastHeartbeatAt?new Date(this.lastHeartbeatAt).toISOString():null,
       heartbeats:this.heartbeats,lastClose:this.lastClose,
-      received:this.received,parsed:this.parsed,inserted:this.inserted,
+      received:this.received,parsed:this.parsed,inserted:this.inserted,spilled:this.spilled,
+      lastSpillKey:this.lastSpillKey,lastSpillAt:this.lastSpillAt,
       shadow:{enabled:this.env.MARKET_HISTORY_SHADOW_WS==="enabled",
        loaded:this.shadowLoaded,pending:this.shadowPendingIds.length,
        verified:this.shadowVerified,written:this.shadowWritten,failed:this.shadowFailed,
@@ -361,7 +373,7 @@ export class PolymarketMarketStream extends DurableObject {
     await this.drainShadow();
   }
   async spillFailedFlush(ticks,offers){
-    if(!this.env.ARCHIVE?.put||!ticks?.length)return;
+    if(!this.env.ARCHIVE?.put||!ticks?.length)return null;
     const at=new Date().toISOString();
     const key=`market-sources/polymarket-us/stream-spill/${at.slice(0,13)}/${Date.now()}.json`;
     await this.env.ARCHIVE.put(key,JSON.stringify({
@@ -369,12 +381,17 @@ export class PolymarketMarketStream extends DurableObject {
       capturedAt:at,tickCount:ticks.length,offerCount:offers.length,
       canAuthorizeWager:false,canQualify:false,
       reason:"primary-d1-persist-failed",
+      primaryWriteOwner:"DB",
+      recoveryOnly:true,
       ticks,offers,
     }),{httpMetadata:{contentType:"application/json"}});
+    this.spilled+=ticks.length;
+    this.lastSpillKey=key;this.lastSpillAt=at;
     this.lastCandidateDiagnostics={
       ...(this.lastCandidateDiagnostics||{}),
       lastSpillKey:key,lastSpillAt:at,lastSpillCount:ticks.length,
     };
+    return key;
   }
   async flush(){
     if(!this.queue.size){await this.drainShadow();return;}
@@ -386,6 +403,7 @@ export class PolymarketMarketStream extends DurableObject {
         snapshotType:"CURRENT",collectedAt:new Date().toISOString(),modelProbability:null
       });
       this.inserted+=r.inserted;
+      this.persistenceStatus="HEALTHY";
       if(this.lastError==="d1-bbo-persist-error")this.lastError=null;
       for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
       // Canonical D1 committed first; mirror failure must not change its truth.
@@ -394,10 +412,18 @@ export class PolymarketMarketStream extends DurableObject {
     }catch{
       this.lastError="d1-bbo-persist-error";
       // No fabrication and no optimistic D1 success count. Spill to R2 for recovery
-      // while primary D1 is at capacity — does not change write ownership/cutover.
-      try{await this.spillFailedFlush(ticks,offers)}
-      catch{/* spill best-effort; ticks re-queued below */}
-      for(const t of ticks)if(this.queue.size<MAX_QUEUE)this.queue.set(t.marketSlug,t);
+      // while primary D1 is at capacity — does not cut over write ownership.
+      let spilledKey=null;
+      try{spilledKey=await this.spillFailedFlush(ticks,offers)}
+      catch{spilledKey=null}
+      if(spilledKey){
+        this.persistenceStatus="DEGRADED";
+        // Preserve evidence in R2; avoid endless D1 retry storms for the same BBO.
+        for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
+      }else{
+        this.persistenceStatus="UNAVAILABLE";
+        for(const t of ticks)if(this.queue.size<MAX_QUEUE)this.queue.set(t.marketSlug,t);
+      }
     }
     if(this.queue.size&&!this.flushTimer){
       this.flushTimer=setTimeout(()=>{this.flushTimer=null;this.ctx.waitUntil(this.flush())},FLUSH_MS);
