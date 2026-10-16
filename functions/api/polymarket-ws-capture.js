@@ -5,8 +5,8 @@ import {mirrorVerifiedWsObservations} from "../lib/marketHistoryWsShadow.js";
 
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 const bounded=Number.isFinite;
-async function latestPublicMarkets(db,{limit=8}={}){
-  const q=await db.prepare(`WITH ranked AS (
+export async function latestPublicMarkets(db,{limit=8}={}){
+  const sql=`WITH ranked AS (
    SELECT sport,canonical_event_id,provider_event_id,event_start_time,league,
     home_team,away_team,market_family,side,line,source_market_id,source_outcome_id,collected_at,
     ROW_NUMBER() OVER(PARTITION BY source_market_id ORDER BY collected_at DESC) rn
@@ -14,10 +14,23 @@ async function latestPublicMarkets(db,{limit=8}={}){
    WHERE source='Polymarket US' AND source_market_id IS NOT NULL
     AND collected_at>=?1 AND event_start_time>=?2
   ) SELECT * FROM ranked WHERE rn=1 ORDER BY
-   CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END, collected_at DESC, sport LIMIT ?3`)
-  .bind(new Date(Date.now()-24*3600000).toISOString(),
-    new Date(Date.now()-6*3600000).toISOString(),limit).all();
-  return q.results||[];
+   CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END, collected_at DESC, sport LIMIT ?3`;
+  const now=Date.now();
+  // Selection metadata can be older than the subscribed quote. The WebSocket
+  // must still deliver a NEW quote, with its own capture time and unknown
+  // provider observation clock. A stored REST price is NEVER refreshed.
+  const recent=await db.prepare(sql).bind(
+    new Date(now-24*3600000).toISOString(),
+    new Date(now+30*60000).toISOString(),limit
+  ).all();
+  if(recent.results?.length)return recent.results;
+  // The core D1 is nearly full; if the REST market directory fell behind,
+  // reuse identities at most 72h old ONLY for future-starting markets.
+  const fallback=await db.prepare(sql).bind(
+    new Date(now-72*3600000).toISOString(),
+    new Date(now+30*60000).toISOString(),limit
+  ).all();
+  return fallback.results||[];
 }
 /**
  * Bounded, authenticated WebSocket observation. Intentionally NOT a perpetual
