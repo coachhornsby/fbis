@@ -3,6 +3,7 @@ import { productProjectionBoard } from "../lib/productProjection.js";
 import { buildTennisResearchSlate, boardDateCtForStart } from "../lib/todayBoard.js";
 import { authorizeProductTier, productResponsePolicy } from "../lib/productAccess.js";
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "../lib/polymarketBoard.js";
+import { loadPinnoddsBoardResearch } from "../lib/pinnoddsBoardResearch.js";
 
 const SPORTS = new Set(["mlb", "npb", "kbo", "cfb", "cbb", "nfl", "nba", "wnba", "nhl", "soccer", "tennis"]);
 
@@ -49,11 +50,22 @@ export async function onRequestGet(context) {
     // Market overlay is a separate, source-labeled read. Model calculations have
     // already finished; incomplete quote coverage cannot affect their authority.
     let overlay={byId:new Map(),available:false};
+    let pinnodds={byGame:{},rows:0,reason:"NO_PINNODDS_OBSERVATIONS"};
     if(context.env.DB?.prepare && board.games?.length){
       try{overlay=await loadPolymarketUsBoardOffers(context.env.DB,board.games,sport)}
       catch(_){/* stale/missing provider never breaks independent FBIS projections */}
+      try{pinnodds=await loadPinnoddsBoardResearch(context.env.DB,{sport,games:board.games})}
+      catch(_){/* missing PinnOdds may not break independent model calculations */}
     }
-    return json({...board,games:attachPolymarketBoardOffers(board.games,overlay),
+    const cards=attachPolymarketBoardOffers(board.games,overlay).map(game=>{
+      const observed=pinnodds.byGame?.[String(game.id)]||game.pinnoddsResearch||null;
+      return {...game,pinnoddsResearch:observed,
+        pinnoddsEvidenceState:observed?.status||pinnodds.reason||"NO_PINNODDS_OBSERVATIONS"};
+    });
+    return json({...board,games:cards,
+      pinnoddsResearchCoverage:{source:"PinnOdds",matchedGames:Object.keys(pinnodds.byGame||{}).length,
+        capturedRows:pinnodds.rows||0,reason:pinnodds.reason||null,readOnly:true,
+        providerQuoteClockVerified:false,canQualify:false,canAuthorizeWager:false},
       polymarketResearch:{source:"Polymarket US",available:[...overlay.byId.values()].some(offers => offers.some(o => o.source.startsWith("Polymarket US"))),
         qualified:false,executable:false}},200,{tier:access.tier});
   } catch (err) {
