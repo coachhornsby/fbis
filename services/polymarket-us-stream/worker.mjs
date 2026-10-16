@@ -24,7 +24,8 @@ export class PolymarketMarketStream extends DurableObject {
   status(){
     return {connected:this.socket?.readyState===WebSocket.OPEN,
       connectedAt:this.connectedAt?new Date(this.connectedAt).toISOString():null,
-      subscriptions:this.subscribed.size,queued:this.queue.size,\n      candidateDiagnostics:this.lastCandidateDiagnostics,
+      subscriptions:this.subscribed.size,queued:this.queue.size,
+      candidateDiagnostics:this.lastCandidateDiagnostics,
       operational:!this.lastError&&streamIsHealthy({connected:this.socket?.readyState===WebSocket.OPEN,lastMessageAt:this.lastMessageAt}),
       lastMessageAt:this.lastMessageAt?new Date(this.lastMessageAt).toISOString():null,
       lastHeartbeatAt:this.lastHeartbeatAt?new Date(this.lastHeartbeatAt).toISOString():null,
@@ -109,7 +110,11 @@ export class PolymarketMarketStream extends DurableObject {
       ) SELECT * FROM balanced WHERE sport_rank<=6
        ORDER BY sport,sport_rank LIMIT 66`)
        .bind(rosterSince,from,until,freshSince).all();
-    const selected=fairMarketSelection(q.results||[],{perSport:6,maxMarkets:MAX_MARKETS});\n    this.lastCandidateDiagnostics={at:new Date().toISOString(),selected:selected.length,\n      returnedRows:(q.results||[]).length,source:'primary-d1',\n      rosterSince,freshSince,reason:selected.length?'ELIGIBLE_CONTRACTS':'NO_ELIGIBLE_CONTRACTS'};\n    return selected;
+    const selected=fairMarketSelection(q.results||[],{perSport:6,maxMarkets:MAX_MARKETS});
+    this.lastCandidateDiagnostics={at:new Date().toISOString(),selected:selected.length,
+      returnedRows:(q.results||[]).length,source:'primary-d1',
+      rosterSince,freshSince,reason:selected.length?'ELIGIBLE_CONTRACTS':'NO_ELIGIBLE_CONTRACTS'};
+    return selected;
   }
   async connect(){
     if(this.running)return;
