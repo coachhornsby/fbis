@@ -6,6 +6,8 @@
 export const CFB_RESEARCH_RANK_AUTHORITY = "fbis_computed_research";
 export const MIN_NATIONAL_SAMPLE = 20;
 export const MIN_CONFERENCE_SAMPLE = 4;
+export const MIN_NATIONAL_COVERAGE = 0.85;
+export const MIN_CONFERENCE_COVERAGE = 0.75;
 
 /** @typedef {"higher_better"|"lower_better"} Polarity */
 
@@ -218,17 +220,20 @@ export function competitionRanks(rows, { valueKey = "value", polarity = "higher_
       return String(a[idKey]).localeCompare(String(b[idKey]));
     });
   const byId = new Map();
-  let previous = null;
-  let place = null;
-  eligible.forEach((row, i) => {
-    const v = num(row[valueKey]);
-    if (v !== previous) {
-      place = i + 1;
-      previous = v;
+  const midrankById = new Map();
+  for (let start = 0; start < eligible.length;) {
+    let end = start + 1;
+    while (end < eligible.length && num(eligible[end][valueKey]) === num(eligible[start][valueKey])) end++;
+    const competitionRank = start + 1;
+    const midrank = (start + 1 + end) / 2;
+    for (let i = start; i < end; i++) {
+      const id = String(eligible[i][idKey]);
+      byId.set(id, competitionRank);
+      midrankById.set(id, midrank);
     }
-    byId.set(String(row[idKey]), place);
-  });
-  return { byId, eligibleCount: eligible.length, ordered: eligible };
+    start = end;
+  }
+  return { byId, midrankById, eligibleCount: eligible.length, ordered: eligible };
 }
 
 /**
@@ -262,7 +267,30 @@ export function formatMetricValue(value, format) {
 }
 
 /**
- * Rank one metric across national FBS peers and conference peers.
+ * Only explicitly versioned statistical weeks prove comparable underlying cutoffs.
+ * Snapshot as_of is a COLLECTION time, not proof of a metric's underlying cutoff.
+ * Same-UTC-day fallback is shown as an OBSERVED sample, never a certified FBS rank.
+ */
+export function researchPeriodForMetric(metricId, flat = {}, asOf = null) {
+  const isCore = ["core", "coreOffense", "coreDefense"].includes(metricId);
+  const weekRaw = isCore
+    ? flat.coreThroughWeek
+    : flat[metricId + "ThroughWeek"] ?? flat.advancedThroughWeek ??
+      flat.sourceThroughWeek ?? flat.featureThroughWeek ?? flat.throughWeek;
+  const week = num(weekRaw);
+  const verified = Number.isInteger(week) && week >= 0 && week <= 20 &&
+    (isCore ? flat.coreWeekBounded === true : flat.sourceWeekBounded === true || flat.advancedWeekBounded === true);
+  if (verified) return { key: "week:" + week, verified: true, label: "through week " + week };
+  const date = typeof asOf === "string" && /^\d{4}-\d{2}-\d{2}T/.test(asOf) && Number.isFinite(Date.parse(asOf))
+    ? asOf.slice(0, 10) : null;
+  return date
+    ? { key: "observed:" + date, verified: false, label: "observed " + date + " · source cutoff unverified" }
+    : { key: null, verified: false, label: "cutoff unavailable" };
+}
+
+/**
+ * Rank one metric across time-aligned FBS peers. Small or unverified populations
+ * are explicitly OBSERVED RESEARCH SAMPLES, never authoritative national ranks.
  */
 export function rankMetricForTeam({
   metricId,
@@ -271,20 +299,32 @@ export function rankMetricForTeam({
   peerRows = [],
   minNational = MIN_NATIONAL_SAMPLE,
   minConference = MIN_CONFERENCE_SAMPLE,
+  periodKey = null,
+  periodVerified = false,
+  expectedNationalCount = null,
+  expectedConferenceCount = null,
 } = {}) {
   const meta = CFB_RESEARCH_METRIC_BY_ID[metricId];
   if (!meta) return null;
-  const national = competitionRanks(peerRows, { polarity: meta.polarity });
-  const confRows = peerRows.filter((r) => r.conference && conference && r.conference === conference);
+  const aligned = periodKey ? peerRows.filter(r => r.periodKey === periodKey) : peerRows;
+  const national = competitionRanks(aligned, { polarity: meta.polarity });
+  const confRows = aligned.filter((r) => r.conference && conference && r.conference === conference);
   const conferenceRank = competitionRanks(confRows, { polarity: meta.polarity });
 
-  const value = num(peerRows.find((r) => r.teamId === teamId)?.value);
+  const value = num(aligned.find((r) => r.teamId === teamId)?.value);
   const natRank = national.byId.get(String(teamId)) ?? null;
   const confPlace = conferenceRank.byId.get(String(teamId)) ?? null;
 
   const nationalOk = national.eligibleCount >= minNational && natRank != null;
   const conferenceOk = conferenceRank.eligibleCount >= minConference && confPlace != null;
-  const percentile = nationalOk ? performancePercentile(natRank, national.eligibleCount) : null;
+  const percentile = nationalOk ? performancePercentile(national.midrankById.get(String(teamId)), national.eligibleCount) : null;
+  const nationalRepresentative = nationalOk && periodVerified &&
+    Number.isInteger(expectedNationalCount) && expectedNationalCount >= 100 &&
+    national.eligibleCount >= Math.ceil(expectedNationalCount * MIN_NATIONAL_COVERAGE);
+  const confRepresentative = conferenceOk && periodVerified &&
+    Number.isInteger(expectedConferenceCount) && expectedConferenceCount >= 4 &&
+    conferenceRank.eligibleCount >= Math.ceil(expectedConferenceCount * MIN_CONFERENCE_COVERAGE);
+  const observedScope = nationalOk && !nationalRepresentative;
 
   return {
     id: metricId,
@@ -300,12 +340,21 @@ export function rankMetricForTeam({
     value: formatMetricValue(value, meta.format),
     rawValue: value,
     national: nationalOk
-      ? { rank: natRank, of: national.eligibleCount, display: `#${natRank} of ${national.eligibleCount}` }
-      : { rank: null, of: national.eligibleCount, display: null, reason: national.eligibleCount < minNational ? "insufficient_national_sample" : "unobserved" },
+      ? { rank: natRank, of: national.eligibleCount, expected: expectedNationalCount,
+          representative: nationalRepresentative, scope: nationalRepresentative ? "national_fbs" : "observed_fbs",
+          display: `#${natRank} of ${national.eligibleCount}${nationalRepresentative ? "" : " observed"}` }
+      : { rank: null, of: national.eligibleCount, expected: expectedNationalCount, representative: false,
+          display: null, reason: national.eligibleCount < minNational ? "insufficient_national_sample" : "unobserved" },
     conference: conferenceOk
-      ? { rank: confPlace, of: conferenceRank.eligibleCount, name: conference || null, display: `#${confPlace} of ${conferenceRank.eligibleCount}` }
-      : { rank: null, of: conferenceRank.eligibleCount, name: conference || null, display: null, reason: conferenceRank.eligibleCount < minConference ? "insufficient_conference_sample" : "unobserved" },
+      ? { rank: confPlace, of: conferenceRank.eligibleCount, expected: expectedConferenceCount, name: conference || null,
+          representative: confRepresentative, scope: confRepresentative ? "conference" : "observed_conference",
+          display: `#${confPlace} of ${conferenceRank.eligibleCount}${confRepresentative ? "" : " observed"}` }
+      : { rank: null, of: conferenceRank.eligibleCount, name: conference || null, representative: false,
+          display: null, reason: conferenceRank.eligibleCount < minConference ? "insufficient_conference_sample" : "unobserved" },
     percentile,
+    percentileScope: nationalRepresentative ? "national_fbs" : observedScope ? "observed_fbs" : null,
+    sourceCutoffVerified: periodVerified,
+    periodKey,
     performance: classifyPerformance(percentile),
   };
 }
@@ -328,6 +377,8 @@ export function buildPeerMetricIndex(peers = []) {
         conference: peer.conference || null,
         value,
         asOf: peer.asOf || null,
+        ...researchPeriodForMetric(metric.id, flat, peer.asOf),
+        periodKey: researchPeriodForMetric(metric.id, flat, peer.asOf).key,
       });
     }
   }
@@ -346,20 +397,27 @@ export function enrichMetricsWithRanks({
   asOf,
   featureVersion,
   coverage = null,
+  expectedNationalCount = null,
+  expectedConferenceCount = null,
 } = {}) {
   const flat = flatFeatures || {};
   const metrics = [];
   for (const meta of CFB_RESEARCH_METRICS) {
     const value = num(flat[meta.id]);
     if (value == null) continue;
-    const peers = peerIndex?.[meta.id] || [{ teamId, conference, value }];
+    const period = researchPeriodForMetric(meta.id, flat, asOf);
+    const peers = peerIndex?.[meta.id] || [{ teamId, conference, value, periodKey: period.key }];
     const ranked = rankMetricForTeam({
       metricId: meta.id,
       teamId,
       conference,
-      peerRows: peers.some((p) => p.teamId === teamId)
+      periodKey: period.key,
+      periodVerified: period.verified,
+      expectedNationalCount,
+      expectedConferenceCount,
+      peerRows: peers.some((p) => p.teamId === teamId && p.periodKey === period.key)
         ? peers
-        : [...peers, { teamId, conference, value }],
+        : [...peers, { teamId, conference, value, periodKey: period.key }],
     });
     if (!ranked) continue;
     metrics.push({
@@ -368,6 +426,7 @@ export function enrichMetricsWithRanks({
       asOf: asOf ?? null,
       featureVersion: featureVersion ?? null,
       sampleCoverage: coverage,
+      period: period.label,
     });
   }
   return metrics;
