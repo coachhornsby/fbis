@@ -65,3 +65,13 @@ The actual high-frequency Polymarket source is `services/polymarket-us-stream/wo
 - Exceeding 4096 pending IDs causes an **explicit gap counter** and blocks qualification of complete coverage. Those source IDs require separate range-based backfill and reconciliation before any reader cutover.
 - The latest reviewed primary WS observation was timestamped `2026-10-16T01:35:42Z`; provider health was **not proven** by the earlier static shard pilot. There is no basis to claim end-to-end continuous healthy new-quote delivery until the real Worker emits new, parity-verified rows.
 - Releasing historical production rows remains disallowed until (1) full cohort backup with independent recovery, (2) all market/CLV/grades/evidence consumers run against the combined correct source, (3) shadow gap is zero and backed up, and (4) measured production D1 file size actually decreases. Budget preference approximately $10/month; cannot assert billed cap without real billing reports.
+
+
+## 2026-10-16 provider directory outage finding
+
+Production source-read audit at 17:43 UTC: `Polymarket US` normalized market REST rows last captured at `2026-10-15T16:51:00Z` (no observations within the preceding 24 hours). The original stream's 24h roster selector consequently returned zero subscription candidates and the signed Durable Object reported `no-active-markets` despite its valid signer proxy.
+
+- Scoped read-only check under 72h identity-only scope: **8051 previously captured rows**, **7467 distinct contract IDs**, **58 distinct modeled upcoming games** passed the immutable source/contract/point-in-time projection gates. These are **candidate identities only**, not fresh or executable offers.
+- `STREAM_CONTRACT_ROSTER_MAX_AGE_MS` increases from 24h to **72h** as an outage bootstrap only. The full-market WebSocket must still negotiate and deliver a **new** bid/ask; REST `collected_at`, provider timestamp and stale price are never rolled forward or made current.
+- Candidate start window remains 4h behind / 48h ahead; pregame model/projection check, canonical matchup identity, long-contract flag and non-wager authority remain enforced. Contracts older than 72h still fail closed.
+- **Separate capacity warning:** primary D1 remains at the hard 10GB limit. A successful signed WebSocket subscription does not prove the system can persist new market ticks. Do not enable unbounded replication or retire original evidence until primary capacity is reclaimed safely and consumer reads validated.
