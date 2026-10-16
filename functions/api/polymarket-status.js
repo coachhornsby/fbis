@@ -17,6 +17,19 @@ export async function onRequestGet({env}){
       COUNT(DISTINCT source_market_id) contracts
       FROM normalized_market_observations
       WHERE source='Polymarket US WebSocket' AND collected_at>=?1`).bind(cutoff).first();
+  // When primary D1 is OVER_LIMIT, recovery WS writes land on MARKET_HISTORY_DB.
+  // Report that inventory separately — never as primary inserts.
+  let historyWs=null;
+  if(env.MARKET_HISTORY_DB?.prepare){
+   try{
+    historyWs=await env.MARKET_HISTORY_DB.prepare(`SELECT COUNT(*) n,MAX(collected_at) last_capture,
+        COUNT(DISTINCT canonical_event_id) matched_games,
+        COUNT(DISTINCT source_market_id) contracts,
+        COUNT(DISTINCT sport) sports
+        FROM normalized_market_observations
+        WHERE source='Polymarket US WebSocket' AND collected_at>=?1`).bind(cutoff).first();
+   }catch{historyWs=null}
+  }
   // Coverage must be evaluated by sport; a healthy multi-sport socket does
   // not imply any live ATP/WTA subscriptions or a verified tennis schedule.
   const tennisSources=await env.DB.prepare(`SELECT source,COUNT(*) observations,
@@ -90,6 +103,7 @@ export async function onRequestGet({env}){
       parsed:Number(stream?.parsed||0),
       inserted:Number(stream?.inserted||0),
       spilled:Number(stream?.spilled||0),
+      historyInserted:Number(stream?.historyInserted||0),
       reconnects:Number(stream?.reconnects||0),
       lastConnectAttemptAt:stream?.lastConnectAttemptAt||null,
       capacity:stream?.capacity||null,
@@ -102,6 +116,7 @@ export async function onRequestGet({env}){
       persistenceStatus:stream?.persistenceStatus||null,
       lastSpillKey:stream?.lastSpillKey||null,
       lastSpillAt:stream?.lastSpillAt||null,
+      codeVersion:stream?.codeVersion||null,
     },sports:states});
  }catch(error){return json({ok:false,error:"market-status-unavailable",detail:String(error?.message||error)},502)}
 }

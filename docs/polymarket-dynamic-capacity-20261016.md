@@ -24,11 +24,14 @@ Retired: fixed `MAX_MARKETS=48` and six-contract-per-sport hard selection as the
 | Status | Meaning |
 |---|---|
 | `HEALTHY` | Primary D1 insert succeeded (`inserted` incremented) |
-| `DEGRADED` | Primary D1 failed; identical ticks spilled to R2 `stream-spill/` (`spilled` incremented; `inserted` unchanged) |
-| `UNAVAILABLE` | Primary D1 failed and spill failed; ticks re-queued |
+| `DEGRADED_HISTORY` | Primary D1 failed; recovery write to existing `MARKET_HISTORY_DB` succeeded (`historyInserted`; `inserted` unchanged) |
+| `DEGRADED` | Primary D1 failed; R2 `stream-spill/` only (`spilled`; `inserted` unchanged) |
+| `UNAVAILABLE` | Primary D1 failed and both history + spill failed; ticks re-queued |
 | `UNVERIFIED` | No flush attempt yet |
 
-Spill is recovery evidence only. It does **not** cut over write ownership to `MARKET_HISTORY_DB`.
+When primary D1 is `OVER_LIMIT` (~10 GB), recovery writes use the existing empty-ish `fbis-market-history` shard. This is **not** a second collector and does **not** claim primary authority. Shadow mirroring remains default-off and still requires primary commits when enabled.
+
+Post-deploy `/start` always rotates the WebSocket so capacity + recovery code replaces any isolate pinned by a long-lived socket.
 
 ## Production verification (live, pre-merge of dynamic Worker)
 

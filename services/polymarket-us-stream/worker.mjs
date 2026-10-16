@@ -3,6 +3,7 @@ import {polymarketUsSubscribeBatches,parsePolymarketUsLite}
   from "../../functions/lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
 import {mirrorPersistentStreamRows} from "./shadow.mjs";
+import {persistStreamRecoveryBatch} from "./historyRecovery.mjs";
 import {
   manageSubscriptionCapacity,resolveStreamCapacity,STREAM_SPORTS,
   shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,
@@ -19,12 +20,13 @@ export class PolymarketMarketStream extends DurableObject {
     super(ctx,env);
     this.socket=null;this.subscribed=new Map();this.queue=new Map();
     this.lastSaved=new Map();this.connectedAt=0;this.reconnectCount=0;
-    this.received=0;this.parsed=0;this.inserted=0;this.spilled=0;
+    this.received=0;this.parsed=0;this.inserted=0;this.spilled=0;this.historyInserted=0;
     this.lastError=null;this.lastConnectAttempt=0;this.flushTimer=null;
     this.running=false;this.lastCandidateDiagnostics=null;this.lastMessageAt=0;this.lastHeartbeatAt=0;this.heartbeats=0;this.lastClose=null;
     this.shadowPendingIds=[];this.shadowLoaded=false;this.shadowVerified=0;this.shadowWritten=0;
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
     this.persistenceStatus="UNVERIFIED";this.lastSpillKey=null;this.lastSpillAt=null;
+    this.codeVersion="dynamic-capacity-history-recovery-20261016";
   }
   capacityPlan(){
     return resolveStreamCapacity(this.env||{});
@@ -56,6 +58,7 @@ export class PolymarketMarketStream extends DurableObject {
       lastHeartbeatAt:this.lastHeartbeatAt?new Date(this.lastHeartbeatAt).toISOString():null,
       heartbeats:this.heartbeats,lastClose:this.lastClose,
       received:this.received,parsed:this.parsed,inserted:this.inserted,spilled:this.spilled,
+      historyInserted:this.historyInserted,
       lastSpillKey:this.lastSpillKey,lastSpillAt:this.lastSpillAt,
       shadow:{enabled:this.env.MARKET_HISTORY_SHADOW_WS==="enabled",
        loaded:this.shadowLoaded,pending:this.shadowPendingIds.length,
@@ -67,6 +70,7 @@ export class PolymarketMarketStream extends DurableObject {
       lastConnectAttemptAt:this.lastConnectAttempt?new Date(this.lastConnectAttempt).toISOString():null,
       architecture:"single-do-dynamic-capacity",
       fixedCapRetired:true,
+      codeVersion:this.codeVersion,
       readOnly:true,canAuthorizeWager:false};
   }
   async fetch(req){
@@ -77,8 +81,11 @@ export class PolymarketMarketStream extends DurableObject {
       this.lastError="stream-signer-not-configured";
       return toJSON({ok:false,reason:this.lastError,...this.status()},503);
     }
-    if(!this.socket||this.socket.readyState!==WebSocket.OPEN)await this.connect();
-    else await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
+    // Always rotate the socket on /start so post-deploy code (capacity +
+    // recovery writes) replaces any WebSocket-pinned prior isolate.
+    try{this.socket?.close(1000,"operator-forced-restart")}catch{}
+    this.socket=null;
+    await this.connect();
     return toJSON({ok:!!this.socket, ...this.status()});
   }
   async archiveCandidates({rosterSince,from,until}){
@@ -411,14 +418,20 @@ export class PolymarketMarketStream extends DurableObject {
       catch{this.shadowFailed++;this.lastShadowError="shadow-queue-unavailable";}
     }catch{
       this.lastError="d1-bbo-persist-error";
-      // No fabrication and no optimistic D1 success count. Spill to R2 for recovery
-      // while primary D1 is at capacity — does not cut over write ownership.
-      let spilledKey=null;
+      // Primary remains the write owner when healthy. While it is OVER_LIMIT,
+      // recovery writes go to existing MARKET_HISTORY_DB + R2 spill — never
+      // counted as primary `inserted`, never a second collector.
+      let historyOk=false,spilledKey=null;
+      try{
+        const hr=await persistStreamRecoveryBatch(this.env,offers,{
+          collectedAt:new Date().toISOString(),
+        });
+        if(hr.ok){this.historyInserted+=hr.inserted;historyOk=true;}
+      }catch{historyOk=false}
       try{spilledKey=await this.spillFailedFlush(ticks,offers)}
       catch{spilledKey=null}
-      if(spilledKey){
-        this.persistenceStatus="DEGRADED";
-        // Preserve evidence in R2; avoid endless D1 retry storms for the same BBO.
+      if(historyOk||spilledKey){
+        this.persistenceStatus=historyOk?"DEGRADED_HISTORY":"DEGRADED";
         for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
       }else{
         this.persistenceStatus="UNAVAILABLE";
