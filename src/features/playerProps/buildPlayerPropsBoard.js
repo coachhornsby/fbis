@@ -590,6 +590,26 @@ function nflBoardVisible(row = {}) {
   return Number(row.confidenceStars || 0) >= 4;
 }
 
+/**
+ * Source-only mirror references remain visible when no independent FBIS player
+ * projection is available. They never enter the modeled selection list.
+ */
+export function selectFreeMirrorReferenceRows(rows = [], { sportFilter = "all", limit = 80 } = {}) {
+  const sport = String(sportFilter || "all").toLowerCase();
+  const max = Math.max(1, Math.min(250, Number(limit) || 80));
+  return rows.filter(row => row?.provider === "PRIZEPICKS_FREE_MIRROR" &&
+    (sport === "all" || String(row.sport || "").toLowerCase() === sport) &&
+    row.line != null && Number.isFinite(Number(row.line)) &&
+    row.playerName && (row.marketCanonical || row.market))
+    .sort((a,b) => Date.parse(b.sourceObservedAt || b.collectedAt || 0) -
+      Date.parse(a.sourceObservedAt || a.collectedAt || 0) ||
+      String(a.playerName).localeCompare(String(b.playerName)))
+    .slice(0,max)
+    .map(row => ({ ...row, displayMode:"MIRROR_REFERENCE_ONLY",
+      decisionEligible:false, canQualify:false, canAuthorizeWager:false,
+      recommendationEligible:false, modelAuthorized:false }));
+}
+
 export function buildPlayerPropsBoard(board = {}, opts = {}) {
   const sportFilter = opts.sportFilter || "all";
   const rawGames = Array.isArray(board?.games)

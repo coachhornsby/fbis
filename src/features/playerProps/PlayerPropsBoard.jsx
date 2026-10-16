@@ -8,6 +8,7 @@ import {
   formatMarketLabel,
   groupPlayerPropRows,
   sortPropsByConviction,
+  selectFreeMirrorReferenceRows,
 } from "./buildPlayerPropsBoard.js";
 import PlayerWorkspace from "./PlayerWorkspace.jsx";
 import TrackedPropCards from "./TrackedPropCards.jsx";
@@ -20,7 +21,7 @@ const TIER_LABELS = Object.freeze({
   NONE: "No FBIS read",
 });
 
-const PRO_SPORTS = new Set(["mlb", "nfl", "nba", "wnba", "nhl", "tennis"]);
+const PRO_SPORTS = new Set(["mlb", "cfb", "nfl", "nba", "wnba", "nhl", "tennis"]);
 
 function fmtProb(v) {
   if (v == null || v === "" || !Number.isFinite(Number(v))) return "—";
@@ -240,6 +241,10 @@ export default function PlayerPropsBoard({
     return FBIS_PLAYER_MARKETS.filter((id) => set.has(id));
   }, [propsBoard.allRows]);
 
+  const mirrorReferenceRows = useMemo(
+    () => selectFreeMirrorReferenceRows(durableRows, { sportFilter, limit: 80 }),
+    [durableRows, sportFilter],
+  );
   const players = useMemo(() => groupPlayerPropRows(filteredRows), [filteredRows]);
   const selected = players.find((p) => p.key === selectedKey) || null;
   const busy = loading || durableLoading;
@@ -259,7 +264,7 @@ export default function PlayerPropsBoard({
           <span>
             {busy
               ? "Loading…"
-              : `${filteredRows.length} prop${filteredRows.length === 1 ? "" : "s"}`}
+              : `${filteredRows.length} modeled · ${mirrorReferenceRows.length} mirror`}
           </span>
           {onRetry ? (
             <button type="button" className="header-btn" onClick={onRetry} disabled={busy}>
@@ -302,16 +307,52 @@ export default function PlayerPropsBoard({
         </label>
       </div>
 
+      {mirrorReferenceRows.length ? (
+        <section className="props-mirror-references" aria-label="PrizePicks mirror observed player prop lines">
+          <header className="props-hero-copy">
+            <h2>PrizePicks mirror · {mirrorReferenceRows.length} source lines</h2>
+            <p className="props-lede">
+              Public daily research mirror. Lines are observed references, not verified live PrizePicks
+              offers. An unavailable FBIS projection remains unavailable; these rows cannot authorize wagers.
+            </p>
+          </header>
+          <div className="props-card-grid" role="list">
+            {mirrorReferenceRows.map((row, index) => (
+              <article
+                key={`mirror:${row.fbisEventId}:${row.providerPlayerId || row.playerName}:${row.marketCanonical}:${index}`}
+                className="props-card"
+                role="listitem"
+              >
+                <div className="props-card-ribbon">DAILY MIRROR · RESEARCH ONLY</div>
+                <div className="props-card-identity">
+                  <h3 className="props-card-name">{row.playerName}</h3>
+                  <p className="props-card-matchup">{String(row.sport || "").toUpperCase()} · {row.team || "—"} vs {row.opponent || "—"}</p>
+                </div>
+                <div className="props-card-line-row">
+                  <strong className="props-card-line">{fmtPropLine(row.line)}</strong>
+                  <span className="props-card-market">{formatMarketLabel(row.marketCanonical || row.market)}</span>
+                </div>
+                <div className="props-fbis-panel">FBIS projection: {row.fbisProjection == null ? "Unavailable" : fmtNum(row.fbisProjection)}</div>
+                <p className="props-card-matchup">Publisher observed: {row.sourceObservedAt ? new Date(row.sourceObservedAt).toLocaleString("en-US",{timeZone:"America/Chicago"}) + " CT" : "Unverified"}</p>
+                <p className="props-card-matchup">Not a live offer · No qualification or wager authority</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {selected ? (
         <PlayerWorkspace player={selected} onClose={() => setSelectedKey(null)} />
       ) : null}
 
       {!filteredRows.length ? (
         <div className="props-empty">
-          <h2>Nothing on the board yet</h2>
+          <h2>{mirrorReferenceRows.length ? "No modeled player-prop picks" : "Nothing on the board yet"}</h2>
           <p>
             {busy
-              ? "Reading persisted ACTION player markets…"
+              ? "Reading persisted player markets…"
+              : mirrorReferenceRows.length
+                ? "Research mirror lines are displayed separately above; no FBIS model projection was invented."
               : diagnostics?.durableObservations > 0
                 ? `ACTION stored ${diagnostics.durableObservations} observations, but none match the current pro-market filters.`
                 : "No persisted ACTION player props are available for these games yet."}

@@ -82,7 +82,10 @@ export function selectPinnoddsBoardOffers(rows=[],{now=new Date().toISOString()}
 }
 export async function loadPinnoddsBoardResearch(db,{sport,games=[],now=new Date().toISOString()}={}){
  if(!db?.prepare||!validSport.has(sport))return {byGame:{},rows:0,source:"PinnOdds",reason:"NO_DB_OR_SPORT"};
- const ids=[...new Set(games.map(g=>String(g?.id||"")).filter(x=>/^\d{5,15}$/.test(x)))].slice(0,120);
+ // Canonical IDs can be opaque (soccer slugs and tennis official IDs), not just ESPN digits.
+ // Only IDs carried by the already-verified board games are queried via bound SQL parameters.
+ const ids=[...new Set(games.map(g=>String(g?.id||"").trim())
+  .filter(x=>x.length>0&&x.length<=180&&/^[a-zA-Z0-9:_-]+$/.test(x)))].slice(0,120);
  if(!ids.length)return {byGame:{},rows:0,source:"PinnOdds",reason:"NO_VERIFIED_EVENT_IDS"};
  const clock=Date.parse(String(now));
  if(!Number.isFinite(clock))return {byGame:{},rows:0,source:"PinnOdds",reason:"INVALID_TIME"};

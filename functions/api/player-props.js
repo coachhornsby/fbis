@@ -1,5 +1,5 @@
 import {loadPinnoddsPlayerProps} from "../lib/pinnoddsPlayerProps.js";
-import {FREE_PROP_MIRROR_SOURCE,FREE_PROP_MIRROR_SPORTS,loadFreeMirrorRows} from "../lib/freePrizePicksMirror.js";
+import {FREE_PROP_MIRROR_SOURCE,FREE_PROP_MIRROR_SPORTS,loadFreeMirrorRows,loadArchivedFreeMirrorRows} from "../lib/freePrizePicksMirror.js";
 import { fetchEspnTennisRankings, buildTennisResearchBoardRows } from "../lib/tennisPrizePicksResearch.js";
 import { marketTemporalStatus } from "../lib/marketTemporal.js";
 import {
@@ -359,9 +359,18 @@ export async function onRequestGet(context) {
       prizePicksRows = [];
       prizePicksError = String(error?.message || error);
     }
-    let freeMirrorRows = [], freeMirrorError = null;
+    let freeMirrorRows = [], freeMirrorError = null, freeMirrorArchiveFallbackRows=0, freeMirrorArchiveFallbackError=null;
     try { freeMirrorRows = await loadFreeMirrorRows(context.env.DB,eventIds,sportParam); }
     catch(error) { freeMirrorError=String(error?.message||error); }
+    // Research-only fallback: use immutable archived publisher data if D1 is full,
+    // matching only canonical games that already exist. Never refresh quote clocks.
+    if(!freeMirrorRows.length&&context.env.ARCHIVE?.get){
+      try{
+        const archived=await loadArchivedFreeMirrorRows(context.env,eventIds,sportParam);
+        freeMirrorRows=archived;
+        freeMirrorArchiveFallbackRows=archived.length;
+      }catch(error){freeMirrorArchiveFallbackError=String(error?.message||error);}
+    }
     let pinnoddsRows=[],pinnoddsError=null;
     try{pinnoddsRows=await loadPinnoddsPlayerProps(context.env.DB,eventIds,sportParam);}catch(error){pinnoddsError=String(error?.message||error);}
     const freeSupported=FREE_PROP_MIRROR_SPORTS.includes(sportParam);
@@ -370,7 +379,7 @@ export async function onRequestGet(context) {
     catch {}
     const checkedAt = new Date();
     const sourceStatus = await propSourceStatus(context.env.DB);
-    sourceStatus.push({source:"prizepicks_free_mirror",state:freeMirrorError?"ERROR":!freeSupported?"UNSUPPORTED":Number(mirrorCoverage?.n||0)>0?"CAPTURED":"NOT_COLLECTED",reason:freeMirrorError?"FREE_MIRROR_READ_FAILED":!freeSupported?"SPORT_NOT_PUBLISHED_BY_FREE_MIRROR":Number(mirrorCoverage?.n||0)>0?"DAILY_SNAPSHOT_NOT_LIVE_VERIFIED":"NO_DURABLE_FREE_MIRROR_CAPTURE",lastCollectedAt:mirrorCoverage?.collected_at||null,publisherCapturedAt:mirrorCoverage?.observed_at||null});
+    sourceStatus.push({source:"prizepicks_free_mirror",state:freeMirrorArchiveFallbackRows?"ARCHIVED_REFERENCE":freeMirrorError?"ERROR":!freeSupported?"UNSUPPORTED":Number(mirrorCoverage?.n||0)>0?"CAPTURED":"NOT_COLLECTED",reason:freeMirrorArchiveFallbackRows?"IMMUTABLE_R2_SNAPSHOT_NOT_LIVE_VERIFIED":freeMirrorError?"FREE_MIRROR_READ_FAILED":!freeSupported?"SPORT_NOT_PUBLISHED_BY_FREE_MIRROR":Number(mirrorCoverage?.n||0)>0?"DAILY_SNAPSHOT_NOT_LIVE_VERIFIED":"NO_DURABLE_FREE_MIRROR_CAPTURE",lastCollectedAt:mirrorCoverage?.collected_at||null,publisherCapturedAt:mirrorCoverage?.observed_at||null});
     sourceStatus.push({source:"pinnodds",state:pinnoddsError?"ERROR":pinnoddsRows.length?"CAPTURED":"NO_EVENT_PROPS",reason:pinnoddsError?"PINNODDS_PROP_READ_FAILED":"PROVIDER_QUOTE_CLOCK_UNKNOWN"});
     const rows = [...actionRows, ...prizePicksRows, ...freeMirrorRows,...pinnoddsRows].map(row => {
       const temporal=marketTemporalStatus({source:row.book,providerObservedAt:row.sourceObservedAt,
@@ -409,6 +418,7 @@ export async function onRequestGet(context) {
         prizePicksError,
         pinnoddsRows:pinnoddsRows.length,pinnoddsError,
         freeMirrorRows:freeMirrorRows.length,
+        freeMirrorArchiveFallbackRows,freeMirrorArchiveFallbackError,
         freeMirrorError,
         sourceStatus,
         absenceReason: rows.length ? null : freeSupported ? Number(mirrorCoverage?.n||0)>0 ? 'NO_FREE_MIRROR_PROPS_FOR_EVENTS' : 'NO_DURABLE_FREE_MIRROR_CAPTURE' : sourceStatus.some(s=>s.state==='BLOCKED') ? 'ACQUISITION_BLOCKED' : 'NO_OBSERVED_PROPS_FOR_EVENTS',

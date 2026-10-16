@@ -10,7 +10,26 @@ import {
   groupPlayerPropRows,
   normalizeBoardGame,
   propProjectionStars,
+  selectFreeMirrorReferenceRows,
 } from "../src/features/playerProps/buildPlayerPropsBoard.js";
+
+test("free mirror references remain visible without model projections", () => {
+  const rows = [{ provider:"PRIZEPICKS_FREE_MIRROR",sport:"cfb",fbisEventId:"12345",
+    playerName:"College QB",marketCanonical:"passing_yards",line:249.5,
+    fbisProjection:null,decisionEligible:true,canQualify:true,canAuthorizeWager:true },
+    { provider:"PRIZEPICKS_FREE_MIRROR",sport:"nfl",playerName:"NFL QB",marketCanonical:"passing_yards",line:250.5 },
+    { provider:"ACTION",sport:"cfb",playerName:"Other",marketCanonical:"passing_yards",line:150.5 }];
+  const college=selectFreeMirrorReferenceRows(rows,{sportFilter:"cfb"});
+  assert.equal(college.length,1);
+  assert.equal(college[0].fbisProjection,null);
+  assert.equal(college[0].displayMode,"MIRROR_REFERENCE_ONLY");
+  assert.equal(college[0].decisionEligible,false);
+  assert.equal(college[0].canQualify,false);
+  assert.equal(college[0].canAuthorizeWager,false);
+  assert.equal(college[0].recommendationEligible,false);
+  assert.equal(selectFreeMirrorReferenceRows(rows,{sportFilter:"all"}).length,2);
+  assert.equal(selectFreeMirrorReferenceRows(rows,{sportFilter:"nba"}).length,0);
+});
 
 test("supported FBIS player markets cover pro football and MLB core markets", () => {
   for (const id of [
