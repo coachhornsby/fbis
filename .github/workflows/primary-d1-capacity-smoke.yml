@@ -1,0 +1,65 @@
+name: Primary D1 storage-capacity verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ops/triggers/primary-d1-capacity-smoke"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-production-storage-capacity
+  cancel-in-progress: false
+
+jobs:
+  capacity:
+    name: Verify protected D1 physical-size monitor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Require operator credential
+        run: |
+          test -n "${HARVEST_SECRET}" || { echo "Operator credential missing"; exit 1; }
+      - name: Test access control and actual D1 file usage
+        run: |
+          set -euo pipefail
+          BASE="https://fbis-myz.pages.dev/api/storage-capacity"
+          mkdir -p artifacts
+          unauth="$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' "$BASE")"
+          test "$unauth" = "403" || { echo "Storage capacity route must reject anonymous queries"; exit 1; }
+          r="$(mktemp)"
+          status="000"
+          for attempt in 1 2 3 4 5; do
+            status="$(curl -sS --max-time 35 -H "x-harvest-secret: ${HARVEST_SECRET}" -o "$r" -w '%{http_code}' "$BASE" || true)"
+            if [ "$status" = "200" ]; then break; fi
+            sleep 6
+          done
+          test "$status" = "200" || { echo "D1 capacity monitor unavailable: http=$status"; exit 1; }
+          jq -e '.ok==true and (.primary.usedBytes|type=="number")
+            and (.historyShard.usedBytes|type=="number")
+            and .primary.hardLimitBytes==10000000000
+            and .historyShard.hardLimitBytes==10000000000
+            and .accountWideUsageMeasured==false
+            and .r2BillableBytesMeasured==false
+            and .invoiceEstimated==false
+            and .historicRowsDeletedByProbe==0
+            and .sourceOfTruth=="PRIMARY_D1"' "$r" >/dev/null
+          jq '{state,primary,historyShard,knownBoundD1Bytes,accountWideUsageMeasured,r2BillableBytesMeasured,invoiceEstimated,historicRowsDeletedByProbe}' "$r" > artifacts/primary-d1-capacity.json
+          cat artifacts/primary-d1-capacity.json
+          if jq -e '.primary.state=="OVER_LIMIT" or .primary.state=="EMERGENCY"' "$r" >/dev/null; then
+             echo "::warning::Primary D1 is at or beyond safe capacity; do not restart bulk writes or delete unqualified source history."
+          fi
+          echo "STORAGE_CAPACITY_READONLY_VERIFIED"
+      - name: Preserve sanitized, timestamped verification artifact
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: fbis-primary-storage-capacity-check
+          path: artifacts/primary-d1-capacity.json
+          if-no-files-found: ignore
+          retention-days: 14
