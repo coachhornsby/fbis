@@ -54,7 +54,7 @@ test("handshake deadline is cleared on upgrade and cannot abort a live connectio
  assert.equal(response.status,101);assert.equal(cleared,true);assert.equal(callback,null);assert.equal(signal.aborted,false);
 });
 
-test("bounded REST roster IDs bootstrap a WebSocket after an hourly collector misses",()=>{
+test("72h identity-only REST contract roster bootstraps WebSocket after a delayed source harvest",()=>{
  const now=Date.parse("2026-10-14T03:16:00Z");
  const window=streamContractRosterWindow(now);
  assert.equal(window.freshSince,"2026-10-14T02:41:00.000Z");
@@ -97,7 +97,7 @@ test("an outage-aged contract directory cannot refresh REST prices or supply a s
  const now=new Date('2026-10-15T16:30:00Z'),old='2026-10-15T07:19:00Z';
  const window=streamContractRosterWindow(now.getTime());
  assert.ok(Date.parse(old)>=Date.parse(window.since));
- assert.ok(Date.parse('2026-10-14T15:00:00Z')<Date.parse(window.since));
+ assert.ok(Date.parse('2026-10-11T15:00:00Z')<Date.parse(window.since));
  const base={sport:'soccer',canonical_event_id:'401884770',event_start_time:'2026-10-16T18:30:00Z',period:'full_game',collected_at:old,source_observed_at:old};
  const stale=marketTemporalStatus({source:'Polymarket US',eventId:base.canonical_event_id,collectedAt:old,providerObservedAt:old},{now});
  assert.equal(stale.currentDisplayEligible,false);
