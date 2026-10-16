@@ -27,6 +27,12 @@ binding = "MARKET_HISTORY_DB"
 database_name = "fbis-market-history"
 database_id = "c32ccf06-c896-4d24-bb89-3e87a7412899"
 
+# Existing Polymarket REST owner archives contract rosters here; no provider calls
+# are made by the stream to rediscover the same markets.
+[[r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "fbis-archive"
+
 # Deploy initially disabled; separate validated activation commit is required.
 [vars]
 MARKET_HISTORY_SHADOW_WS = "disabled"

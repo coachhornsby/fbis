@@ -13,7 +13,7 @@ test('all forty markets and both sides survive with explicit polarity and no fab
 test('page archive precedes writes, replay retains capture time and all offers reconcile',async()=>{
  const e=env();let calls=0;const fetchImpl=async url=>{calls++;assert.equal(url.searchParams.get('offset'),'20');return new Response(JSON.stringify({events:[event]}));};
  const receipt=await capturePolymarketPage(e,{receiptId:'run-123-mlb-20',kind:'events',slug:'mlb',sport:'mlb',offset:20,fetchImpl,now:at});
- assert.equal(receipt.expectedRows,80);assert.equal(receipt.nextOffset,null);assert.equal(e.rows.size,0);assert.equal(e.stored.size,2);
+ assert.equal(receipt.expectedRows,80);assert.equal(receipt.nextOffset,null);assert.equal(e.rows.size,0);assert.equal(e.stored.size,3);const roster=JSON.parse(e.stored.get('market-sources/polymarket-us/stream-roster/mlb-20.json'));assert.equal(roster.roster.length,40);assert.equal(roster.capturedAt,at.toISOString());
  const replay=await capturePolymarketPage(e,{receiptId:receipt.receiptId,kind:'events',slug:'mlb',sport:'mlb',offset:20,fetchImpl,now:new Date('2026-10-13T18:00:00Z')});assert.equal(calls,1);assert.equal(replay.capturedAt,receipt.capturedAt);
  const consumed=await consumePolymarketPage(e,{receiptId:receipt.receiptId,batchIndex:0});assert.equal(consumed.inserted,80);
  assert.equal((await consumePolymarketPage(e,{receiptId:receipt.receiptId,batchIndex:0})).inserted,0);
