@@ -5,7 +5,7 @@ import {mirrorVerifiedWsObservations} from "../lib/marketHistoryWsShadow.js";
 
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 const bounded=Number.isFinite;
-async function latestPublicMarkets(db,{limit=8}={}){
+export async function latestPublicMarkets(db,{limit=8}={}){
   const sql=`WITH ranked AS (
    SELECT sport,canonical_event_id,provider_event_id,event_start_time,league,
     home_team,away_team,market_family,side,line,source_market_id,source_outcome_id,collected_at,
