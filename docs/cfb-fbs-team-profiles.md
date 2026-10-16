@@ -16,7 +16,17 @@ Venue latitude/longitude come from the stored provider observation. Preserve the
 The page attempts a **read-only** lookup of the most recent `team_feature_snapshots` row. Production currently lacks this table, so the correct display state is `PERSISTENCE_UNAVAILABLE`; no zero-filled ratings, invented advanced statistics or reconstructed historical pregame features are shown. `team_form` is a separate stale legacy signal and is labelled accordingly, never presented as current model authority.
 
 ### Research CORE / advanced / prop panels
-When snapshot fields from week-aware CORE + advanced plumbing are present (`core`, `ppaOff`, success rates, trenches, composite ratings), `/api/cfb-teams?team=…` includes a `researchPanels` object with bar-chart series, optional game sparklines from team-game evidence, and QB/RB/WR **shadow prop research input** cards. These are display-only (`canInfluenceProjection=false`, `canAuthorizeWager=false`). Full matchup `CFB-PLAYER-v1` projections still require a board game environment and remain unauthorized for wagers.
+When snapshot fields from week-aware CORE + advanced plumbing are present (`core`, `ppaOff`, success rates, trenches, composite ratings), `/api/cfb-teams?team=…` includes a `researchPanels` object with:
+
+- **Raw values** plus units/formatting for each eligible metric
+- **FBIS-computed** national FBS rank (`#X of Y`), conference rank, and national performance percentile
+- Performance bands: Elite / Strong / Above Average / Below Average / Poor
+- Preferred direction (higher/lower better) with correct polarity — e.g. defensive success/PPA/explosiveness/line yards allowed are lower-better; defensive havoc created is higher-better; **offensive havoc is havoc allowed (lower-better)**
+- National **percentile bars** (not raw-value-relative scaling)
+- Provenance: source, season, as-of, sample coverage
+- Optional game sparklines and QB/RB/WR **shadow prop research input** cards
+
+CORE display is overall + offense + defense only (special teams excluded). Ranks are computed from persisted same-season/version FBS `team_feature_snapshots` — no CFBD calls on page render. Display-only (`canInfluenceProjection=false`, `canAuthorizeWager=false`). Full matchup `CFB-PLAYER-v1` projections still require a board game environment.
 
 Existing draft PR #927 proposes recovery of missing college tables as migration 0098. This page intentionally does not merge, embed or apply it. Data recovery, persistent incremental game observations, point-in-time state versioning and projection reader routing are **separate release gates**. Even after migration, empty tables do not confer populated state.
 

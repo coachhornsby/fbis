@@ -71,7 +71,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
       </div>
     </header>
     <CfbCurrentSummary intelligence={intelligence} error={intelligenceError} teamId={team.teamId} season={evidence.season||2026}/>
-    <CfbResearchPanels researchPanels={researchPanels} accent={team.colors.primary || "#78c7f2"}/>
+    <CfbResearchPanels researchPanels={researchPanels}/>
     <section className="ft-panel">
       <div className="ft-heading"><h3>Identity & team colors</h3><small>ESPN/SDV-sourced · school verification pending</small></div>
       <dl className="ft-facts">

@@ -1,42 +1,75 @@
 /**
  * Research-only CORE/advanced charts + player prop input cards for CFB team pages.
- * Display only — never implies projection or wager authority.
+ * National percentile bars + FBIS-computed ranks — never wager authority.
  */
+
+const BAND_COLORS = {
+  Elite: "#3ecf8e",
+  Strong: "#5bb8e8",
+  "Above Average": "#c5d4e0",
+  "Below Average": "#d4a35c",
+  Poor: "#d66a6a",
+};
 
 function fmt(v, digits = 3) {
   if (v == null || !Number.isFinite(Number(v))) return "—";
   return Number(v).toLocaleString("en-US", { maximumFractionDigits: digits });
 }
 
-function BarChart({ series = [], accent = "#78c7f2" }) {
+function fmtMetric(metric) {
+  if (metric?.value == null) return "—";
+  if (metric.format === "elo") return fmt(metric.value, 0);
+  if (metric.format === "ppa" || metric.format === "rate") return fmt(metric.value, 3);
+  if (metric.format === "yards") return fmt(metric.value, 2);
+  return fmt(metric.value, 2);
+}
+
+function PercentileMetricList({ series = [] }) {
   if (!series.length) return null;
-  const absMax = Math.max(...series.map((s) => Math.abs(Number(s.value) || 0)), 1e-9);
-  const w = 320;
-  const rowH = 28;
-  const h = series.length * rowH + 8;
-  const labelW = 118;
-  const barMax = w - labelW - 56;
   return (
-    <svg className="ft-chart" viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Research metric bars">
-      {series.map((s, i) => {
-        const y = i * rowH + 4;
-        const raw = Number(s.value) || 0;
-        const bw = Math.max(2, (Math.abs(raw) / absMax) * barMax);
-        const x0 = labelW + (raw < 0 ? barMax - bw : 0);
-        const fill = s.polarity === "lower_better" ? "#9eb6c8" : accent;
+    <ul className="ft-metric-rank-list">
+      {series.map((m) => {
+        const pct = m.percentile;
+        const band = m.performance;
+        const color = BAND_COLORS[band] || "#8aa3b5";
+        const barW = pct == null ? 0 : Math.max(2, Math.min(100, pct));
+        const tip = [
+          m.description,
+          `Units: ${m.units || "n/a"}`,
+          `Preferred direction: ${m.preferredDirection === "higher" ? "higher is better" : "lower is better"}`,
+          m.ratingKind === "source_published" ? "Value: source-published rating" : "Value: derived research statistic",
+          `Ranks: ${m.rankAuthority || "fbis_computed_research"}`,
+          m.source ? `Source: ${m.source}` : null,
+          m.season != null ? `Season: ${m.season}` : null,
+          m.asOf ? `As of: ${m.asOf}` : null,
+        ].filter(Boolean).join(" · ");
         return (
-          <g key={s.id || i}>
-            <text x={0} y={y + 16} className="ft-chart-label">{s.label}</text>
-            <rect x={x0} y={y + 6} width={bw} height={14} rx={3} fill={fill} opacity={0.92} />
-            <text x={labelW + barMax + 8} y={y + 16} className="ft-chart-value">{fmt(raw)}</text>
-          </g>
+          <li className="ft-metric-rank" key={m.id} title={tip}>
+            <div className="ft-metric-rank-top">
+              <div className="ft-metric-rank-label">
+                <strong>{m.label}</strong>
+                <span className="ft-metric-info" aria-label={tip}>i</span>
+                <em className="ft-polarity">{m.preferredDirection === "higher" ? "↑ better" : "↓ better"}</em>
+              </div>
+              <div className="ft-metric-rank-value">{fmtMetric(m)}</div>
+            </div>
+            <div className="ft-percentile-track" aria-hidden={pct == null}>
+              <div className="ft-percentile-fill" style={{ width: `${barW}%`, background: color }} />
+            </div>
+            <div className="ft-metric-rank-meta">
+              {band ? <span className="ft-band" style={{ color }}>{band}</span> : <span className="ft-band ft-band-na">Unranked</span>}
+              <span>{pct != null ? `${fmt(pct, 1)}th %ile` : "percentile unavailable"}</span>
+              <span>Nat {m.national?.display || "—"}</span>
+              <span>Conf {m.conference?.display || "—"}{m.conference?.name ? ` (${m.conference.name})` : ""}</span>
+            </div>
+          </li>
         );
       })}
-    </svg>
+    </ul>
   );
 }
 
-function Sparkline({ points = [], label, accent = "#78c7f2" }) {
+function Sparkline({ points = [], label }) {
   if (!points.length) return null;
   const w = 280;
   const h = 64;
@@ -45,6 +78,7 @@ function Sparkline({ points = [], label, accent = "#78c7f2" }) {
   const min = Math.min(...vals);
   const max = Math.max(...vals);
   const span = Math.max(max - min, 1e-9);
+  const accent = "#5bb8e8";
   const coords = points.map((p, i) => {
     const x = pad + (i / Math.max(points.length - 1, 1)) * (w - pad * 2);
     const y = h - pad - ((Number(p.value) - min) / span) * (h - pad * 2);
@@ -75,9 +109,21 @@ const GAME_SERIES_LABELS = {
   defensePpa: "Defense PPA",
 };
 
-export default function CfbResearchPanels({ researchPanels, accent }) {
+function BandLegend() {
+  return (
+    <div className="ft-band-legend" aria-label="Performance classification legend">
+      {Object.entries(BAND_COLORS).map(([name, color]) => (
+        <span key={name}><i style={{ background: color }} />{name}</span>
+      ))}
+    </div>
+  );
+}
+
+export default function CfbResearchPanels({ researchPanels }) {
   if (!researchPanels) return null;
-  const { panels = [], gameSeries = {}, propResearch, state, asOf, featureVersion, summary } = researchPanels;
+  const {
+    panels = [], gameSeries = {}, propResearch, state, asOf, featureVersion, summary, season, conference, coverage, rankAuthority,
+  } = researchPanels;
   const gameEntries = Object.entries(gameSeries);
   const empty = state === "NOT_POPULATED" || (!panels.length && !gameEntries.length && !(propResearch?.count > 0));
 
@@ -88,18 +134,22 @@ export default function CfbResearchPanels({ researchPanels, accent }) {
         <small>Research only · no wager authority</small>
       </div>
       <p className="ft-muted">
-        Graphs read persisted `team_feature_snapshots` and season evidence after CORE/advanced plumbing lands.
+        National percentile bars and ranks are FBIS-computed from persisted FBS snapshots ({rankAuthority || "fbis_computed_research"}).
+        Source rating values stay source-published where labeled.
         {" · "}State {state}
+        {season != null ? ` · season ${season}` : ""}
+        {conference ? ` · ${conference}` : ""}
         {featureVersion ? ` · ${featureVersion}` : ""}
         {asOf ? ` · as of ${new Date(asOf).toLocaleString("en-US", { month: "short", day: "numeric", timeZone: "America/Chicago" })}` : ""}
-        {summary ? ` · ${summary.panelCount} panels · ${summary.gameSeriesCount} game series · ${summary.propCardCount} prop cards` : ""}
+        {summary ? ` · ${summary.metricCount || 0} metrics · ${summary.rankedMetricCount || 0} nationally ranked · ${summary.peerSnapshots || coverage?.peerSnapshots || 0} peer snapshots` : ""}
       </p>
+      {!empty ? <BandLegend /> : null}
       {empty ? (
         <div className="ft-empty">
           <strong>Research graphs not populated yet.</strong>
           <p>
             After week-aware CORE + advanced refresh writes snapshot fields (CORE, PPA, success rate, trenches),
-            this panel renders bar charts and game sparklines automatically. No live CFBD calls happen here.
+            this panel renders national percentile bars and ranks automatically. No live CFBD calls happen here.
           </p>
         </div>
       ) : null}
@@ -111,7 +161,7 @@ export default function CfbResearchPanels({ researchPanels, accent }) {
               {panel.throughWeek != null ? (
                 <p className="ft-note">Through week {panel.throughWeek}{panel.weekBounded ? " · week-bounded" : ""}{panel.temporalClass ? ` · class ${panel.temporalClass}` : ""}</p>
               ) : null}
-              <BarChart series={panel.series} accent={accent || "#78c7f2"} />
+              <PercentileMetricList series={panel.series} />
               {panel.note ? <p className="ft-note">{panel.note}</p> : null}
             </article>
           ))}
@@ -122,7 +172,7 @@ export default function CfbResearchPanels({ researchPanels, accent }) {
           <h4>Game-to-game research series</h4>
           <div className="ft-spark-row">
             {gameEntries.map(([id, pts]) => (
-              <Sparkline key={id} points={pts} label={GAME_SERIES_LABELS[id] || id} accent={accent || "#78c7f2"} />
+              <Sparkline key={id} points={pts} label={GAME_SERIES_LABELS[id] || id} />
             ))}
           </div>
         </div>

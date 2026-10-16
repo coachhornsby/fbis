@@ -91,9 +91,21 @@
 .ft-research-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
 .ft-research-card{background:#0a1c2c;border:1px solid #304960;border-radius:10px;padding:12px}
 .ft-research-card h4{margin:0 0 8px;font-size:.82rem;color:#a5d2ee;letter-spacing:.04em}
-.ft-chart{width:100%;height:auto;display:block}
-.ft-chart-label{fill:#a8bfd0;font-size:11px}
-.ft-chart-value{fill:#e8f3fb;font-size:11px;font-variant-numeric:tabular-nums}
+.ft-band-legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin:8px 0 4px;font-size:.72rem;color:#a8bfd0}
+.ft-band-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.ft-metric-rank-list{list-style:none;margin:0;padding:0;display:grid;gap:11px}
+.ft-metric-rank{min-width:0}
+.ft-metric-rank-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ft-metric-rank-label{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
+.ft-metric-rank-label strong{font-size:.8rem;color:#eaf3fb}
+.ft-metric-info{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;border:1px solid #5a7388;color:#9eb6c8;font-size:.62rem;font-style:normal;cursor:help;flex-shrink:0}
+.ft-polarity{font-style:normal;font-size:.68rem;color:#849eb2}
+.ft-metric-rank-value{font-size:1.05rem;font-weight:700;font-variant-numeric:tabular-nums;color:#f4f8fc;white-space:nowrap}
+.ft-percentile-track{height:8px;border-radius:999px;background:#132638;border:1px solid #2c455a;margin:6px 0 5px;overflow:hidden}
+.ft-percentile-fill{height:100%;border-radius:999px;min-width:2px}
+.ft-metric-rank-meta{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.7rem;color:#9eb6c8;font-variant-numeric:tabular-nums}
+.ft-band{font-weight:700;letter-spacing:.02em}
+.ft-band-na{color:#849eb2;font-weight:600}
 .ft-spark-grid{margin-top:18px}
 .ft-spark-grid h4,.ft-prop-research h4{margin:0 0 10px;font-size:.88rem;color:#cfe6f5}
 .ft-spark-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}

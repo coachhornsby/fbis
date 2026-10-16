@@ -3,13 +3,23 @@
  * Never grants projection or wager authority. Zero network acquisition.
  */
 
-export const CFB_TEAM_RESEARCH_AUTHORITY = "research_only";
+import {
+  CFB_RESEARCH_METRICS,
+  CFB_RESEARCH_METRIC_BY_ID,
+  CFB_RESEARCH_RANK_AUTHORITY,
+  buildPeerMetricIndex,
+  enrichMetricsWithRanks,
+  flattenFeatures,
+  num,
+} from "./cfbTeamResearchRanking.js";
 
-function num(v) {
-  if (v == null || v === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
+export const CFB_TEAM_RESEARCH_AUTHORITY = "research_only";
+export {
+  CFB_RESEARCH_METRICS,
+  CFB_RESEARCH_METRIC_BY_ID,
+  CFB_RESEARCH_RANK_AUTHORITY,
+  flattenFeatures,
+} from "./cfbTeamResearchRanking.js";
 
 function pick(obj, keys) {
   const out = {};
@@ -20,128 +30,56 @@ function pick(obj, keys) {
   return out;
 }
 
-function barSeries(entries) {
-  return entries
-    .filter((e) => e.value != null)
-    .map((e) => ({
-      id: e.id,
-      label: e.label,
-      value: e.value,
-      polarity: e.polarity || "higher_better",
-    }));
-}
-
-/** Flatten nested offense/defense feature groups when present. */
-function flattenFeatures(features = {}) {
-  if (!features || typeof features !== "object") return {};
-  const flat = { ...features };
-  for (const group of ["offense", "defense", "passing", "rushing", "pace", "situational", "ratings", "roster"]) {
-    const nested = features[group];
-    if (nested && typeof nested === "object" && !Array.isArray(nested)) {
-      for (const [k, v] of Object.entries(nested)) {
-        if (flat[k] == null && typeof v !== "object") flat[k] = v;
-        const prefixed = `${group}_${k}`;
-        if (flat[prefixed] == null && typeof v !== "object") flat[prefixed] = v;
-      }
-    }
-  }
-  return flat;
-}
-
-function corePanel(flat) {
-  const series = barSeries([
-    { id: "core", label: "CORE", value: num(flat.core), polarity: "higher_better" },
-    { id: "coreOffense", label: "Offense", value: num(flat.coreOffense), polarity: "higher_better" },
-    { id: "coreDefense", label: "Defense", value: num(flat.coreDefense), polarity: "lower_better" },
-    { id: "coreSpecialTeams", label: "Special teams", value: num(flat.coreSpecialTeams), polarity: "higher_better" },
-  ]);
-  if (!series.length) return null;
-  return {
+const PANEL_META = {
+  core: {
     id: "core",
     title: "Week-bounded CORE rating",
-    kind: "bar",
-    series,
-    throughWeek: num(flat.coreThroughWeek),
-    seasonType: flat.coreThroughSeasonType || null,
-    temporalClass: flat.coreTemporalClass || null,
-    weekBounded: flat.coreWeekBounded === true,
-    note: "Research display from persisted CORE fields. Not a wager signal.",
-  };
-}
-
-function efficiencyPanel(flat) {
-  const series = barSeries([
-    { id: "offensiveSuccessRate", label: "Off success", value: num(flat.offensiveSuccessRate), polarity: "higher_better" },
-    { id: "defensiveSuccessRate", label: "Def success allowed", value: num(flat.defensiveSuccessRate), polarity: "lower_better" },
-    { id: "offensiveExplosiveness", label: "Off explosiveness", value: num(flat.offensiveExplosiveness), polarity: "higher_better" },
-    { id: "defensiveExplosiveness", label: "Def explosiveness allowed", value: num(flat.defensiveExplosiveness), polarity: "lower_better" },
-    { id: "offensivePointsPerOpportunity", label: "Off PPO", value: num(flat.offensivePointsPerOpportunity), polarity: "higher_better" },
-    { id: "defensivePointsPerOpportunity", label: "Def PPO allowed", value: num(flat.defensivePointsPerOpportunity), polarity: "lower_better" },
-  ]);
-  if (!series.length) return null;
-  return {
+    note: "CORE overall/offense/defense only — special teams excluded from CORE display. Ranks are FBIS-computed from persisted FBS snapshots.",
+  },
+  efficiency: {
     id: "efficiency",
     title: "Advanced efficiency",
-    kind: "bar",
-    series,
-    note: "Season advanced rates from persisted research snapshots.",
-  };
-}
-
-function ppaPanel(flat) {
-  const series = barSeries([
-    { id: "ppaOff", label: "Off PPA", value: num(flat.ppaOff), polarity: "higher_better" },
-    { id: "ppaDef", label: "Def PPA", value: num(flat.ppaDef), polarity: "lower_better" },
-    { id: "ppaPass", label: "Pass PPA", value: num(flat.ppaPass), polarity: "higher_better" },
-    { id: "ppaRush", label: "Rush PPA", value: num(flat.ppaRush), polarity: "higher_better" },
-    { id: "ppaPassAllowed", label: "Pass PPA allowed", value: num(flat.ppaPassAllowed), polarity: "lower_better" },
-    { id: "ppaRushAllowed", label: "Rush PPA allowed", value: num(flat.ppaRushAllowed), polarity: "lower_better" },
-  ]);
-  if (!series.length) return null;
-  return {
+    note: "Season advanced rates from persisted research snapshots. Percentile bars are national FBS performance (100 = best).",
+  },
+  ppa: {
     id: "ppa",
     title: "Team PPA splits",
-    kind: "bar",
-    series,
-    note: "PPA is not interchangeable with EPA; values keep CFBD units.",
-  };
-}
-
-function trenchesPanel(flat) {
-  const series = barSeries([
-    { id: "offensiveLineYards", label: "Off line yards", value: num(flat.offensiveLineYards), polarity: "higher_better" },
-    { id: "defensiveLineYards", label: "Def line yards", value: num(flat.defensiveLineYards), polarity: "lower_better" },
-    { id: "offensiveHavoc", label: "Off havoc", value: num(flat.offensiveHavoc), polarity: "higher_better" },
-    { id: "defensiveHavoc", label: "Def havoc", value: num(flat.defensiveHavoc), polarity: "higher_better" },
-    { id: "offensiveStuffRate", label: "Off stuff rate", value: num(flat.offensiveStuffRate), polarity: "lower_better" },
-    { id: "defensiveStuffRate", label: "Def stuff rate", value: num(flat.defensiveStuffRate), polarity: "higher_better" },
-  ]);
-  if (!series.length) return null;
-  return {
+    note: "PPA is not interchangeable with EPA; values keep CFBD units. Ranks are FBIS-computed.",
+  },
+  trenches: {
     id: "trenches",
     title: "Trenches & havoc",
-    kind: "bar",
-    series,
-    note: "Line and havoc research metrics for matchup context.",
-  };
-}
-
-function ratingsPanel(flat) {
-  const series = barSeries([
-    { id: "sp", label: "SP+", value: num(flat.sp), polarity: "higher_better" },
-    { id: "fpi", label: "FPI", value: num(flat.fpi), polarity: "higher_better" },
-    { id: "elo", label: "Elo", value: num(flat.elo), polarity: "higher_better" },
-    { id: "srs", label: "SRS", value: num(flat.srs), polarity: "higher_better" },
-    { id: "talent", label: "Talent", value: num(flat.talent), polarity: "higher_better" },
-  ]);
-  if (!series.length) return null;
-  return {
+    note: "Offensive havoc is havoc allowed (lower better). Defensive havoc is havoc created (higher better).",
+  },
+  ratings: {
     id: "ratings",
     title: "Composite ratings",
-    kind: "bar",
-    series,
-    note: "Cross-rating research view; not a blended champion model.",
-  };
+    note: "Source-published rating values; national/conference ranks and percentiles are FBIS-computed — not a blended champion model.",
+  },
+};
+
+function groupMetricsIntoPanels(metrics, flat) {
+  const byPanel = {};
+  for (const metric of metrics) {
+    const meta = CFB_RESEARCH_METRIC_BY_ID[metric.id];
+    if (!meta) continue;
+    (byPanel[meta.panel] ||= []).push(metric);
+  }
+  return Object.entries(PANEL_META)
+    .map(([panelId, info]) => {
+      const series = byPanel[panelId] || [];
+      if (!series.length) return null;
+      return {
+        ...info,
+        kind: "percentile_bar",
+        series,
+        throughWeek: panelId === "core" ? num(flat.coreThroughWeek) : null,
+        seasonType: panelId === "core" ? (flat.coreThroughSeasonType || null) : null,
+        temporalClass: panelId === "core" ? (flat.coreTemporalClass || null) : null,
+        weekBounded: panelId === "core" ? flat.coreWeekBounded === true : null,
+      };
+    })
+    .filter(Boolean);
 }
 
 /**
@@ -150,10 +88,10 @@ function ratingsPanel(flat) {
 export function buildGameMetricSeries(teamGameStatistics = null) {
   const games = teamGameStatistics?.games || [];
   const keys = [
-    { id: "offensiveSuccessRate", paths: [["offense", "successRate"], ["offensiveSuccessRate"], ["success_rate"]] },
-    { id: "defensiveSuccessRate", paths: [["defense", "successRate"], ["defensiveSuccessRate"]] },
-    { id: "offensePpa", paths: [["offense", "ppa"], ["ppaOff"], ["offensePpa"]] },
-    { id: "defensePpa", paths: [["defense", "ppa"], ["ppaDef"], ["defensePpa"]] },
+    { id: "offensiveSuccessRate", paths: [["offense", "successRate"], ["offensiveSuccessRate"], ["success_rate"]], polarity: "higher_better" },
+    { id: "defensiveSuccessRate", paths: [["defense", "successRate"], ["defensiveSuccessRate"]], polarity: "lower_better" },
+    { id: "offensePpa", paths: [["offense", "ppa"], ["ppaOff"], ["offensePpa"]], polarity: "higher_better" },
+    { id: "defensePpa", paths: [["defense", "ppa"], ["ppaDef"], ["defensePpa"]], polarity: "lower_better" },
   ];
   const series = {};
   for (const key of keys) series[key.id] = [];
@@ -161,7 +99,6 @@ export function buildGameMetricSeries(teamGameStatistics = null) {
   for (const game of games) {
     const groups = game?.stats?.groups || game?.groups || {};
     const flat = flattenFeatures(groups);
-    // Also flatten top-level numeric stats if present.
     const merged = { ...flat, ...(typeof game?.stats === "object" ? flattenFeatures(game.stats) : {}) };
     const label = game.gameAt || game.opponent || game.gameId || "game";
     for (const key of keys) {
@@ -181,6 +118,7 @@ export function buildGameMetricSeries(teamGameStatistics = null) {
           label: String(label),
           opponent: game.opponent || null,
           value,
+          polarity: key.polarity,
         });
       }
     }
@@ -213,7 +151,6 @@ export function buildPlayerPropResearchCards({ roster = [], playerStatistics = n
       "passing_touchdowns", "rushing_touchdowns", "receiving_touchdowns",
       "attempts", "carries", "targets", "ppa", "averagePPA", "usage",
     ]);
-    // Prefer friendly aliases when present.
     const projectionInputs = {
       position: pos,
       seasonPpa: num(groups.ppa ?? groups.averagePPA ?? groups.seasonPpa),
@@ -267,18 +204,55 @@ export function buildPlayerPropResearchCards({ roster = [], playerStatistics = n
 
 /**
  * Assemble research panels for a team profile response.
+ * @param {object} opts
+ * @param {object|null} opts.featureState
+ * @param {object|null} opts.evidence
+ * @param {string|null} opts.teamId
+ * @param {string|null} opts.conference
+ * @param {number|null} opts.season
+ * @param {Array<{teamId:string,conference?:string,features?:object,flat?:object,asOf?:string}>} opts.peers
+ *   Other FBS teams' latest persisted snapshots (same season/version). Used for ranks.
  */
-export function buildCfbTeamResearchPanels({ featureState = null, evidence = null } = {}) {
+export function buildCfbTeamResearchPanels({
+  featureState = null,
+  evidence = null,
+  teamId = null,
+  conference = null,
+  season = null,
+  peers = null,
+} = {}) {
   const features = featureState?.features || null;
   const flat = flattenFeatures(features || {});
-  const panels = [
-    corePanel(flat),
-    efficiencyPanel(flat),
-    ppaPanel(flat),
-    trenchesPanel(flat),
-    ratingsPanel(flat),
-  ].filter(Boolean);
+  const resolvedTeamId = teamId || evidence?.teamId || null;
+  const resolvedConference = conference || evidence?.conference || null;
+  const resolvedSeason = season ?? evidence?.season ?? null;
 
+  const peerList = Array.isArray(peers) && peers.length
+    ? peers
+    : (resolvedTeamId
+      ? [{ teamId: resolvedTeamId, conference: resolvedConference, flat, asOf: featureState?.asOf || null }]
+      : []);
+  const peerIndex = buildPeerMetricIndex(peerList);
+  const coverage = {
+    peerSnapshots: peerList.length,
+    nationalSampleRule: "≥20 observed FBS teams with the metric",
+    conferenceSampleRule: "≥4 observed conference peers with the metric",
+  };
+
+  const metrics = resolvedTeamId
+    ? enrichMetricsWithRanks({
+      teamId: resolvedTeamId,
+      conference: resolvedConference,
+      flatFeatures: flat,
+      peerIndex,
+      season: resolvedSeason,
+      asOf: featureState?.asOf || null,
+      featureVersion: featureState?.featureVersion || null,
+      coverage,
+    })
+    : [];
+
+  const panels = groupMetricsIntoPanels(metrics, flat);
   const gameSeries = buildGameMetricSeries(evidence?.teamGameStatistics);
   const propResearch = buildPlayerPropResearchCards({
     roster: evidence?.roster?.players || [],
@@ -289,20 +263,30 @@ export function buildCfbTeamResearchPanels({ featureState = null, evidence = nul
   const populated = panels.length > 0 || Object.keys(gameSeries).length > 0 || propResearch.count > 0;
 
   return {
-    state: populated ? "RESEARCH_AVAILABLE" : (featureState?.state === "RESEARCH_SNAPSHOT" ? "SNAPSHOT_WITHOUT_GRAPH_FIELDS" : "NOT_POPULATED"),
+    state: populated
+      ? "RESEARCH_AVAILABLE"
+      : (featureState?.state === "RESEARCH_SNAPSHOT" ? "SNAPSHOT_WITHOUT_GRAPH_FIELDS" : "NOT_POPULATED"),
     authority: CFB_TEAM_RESEARCH_AUTHORITY,
+    rankAuthority: CFB_RESEARCH_RANK_AUTHORITY,
     canInfluenceProjection: false,
     canQualify: false,
     canAuthorizeWager: false,
     featureVersion: featureState?.featureVersion || null,
     asOf: featureState?.asOf || null,
+    season: resolvedSeason,
+    conference: resolvedConference,
+    coverage,
     panels,
+    metrics,
     gameSeries,
     propResearch,
     summary: {
       panelCount: panels.length,
+      metricCount: metrics.length,
+      rankedMetricCount: metrics.filter((m) => m.national?.rank != null).length,
       gameSeriesCount: Object.keys(gameSeries).length,
       propCardCount: propResearch.count,
+      peerSnapshots: peerList.length,
     },
   };
 }
