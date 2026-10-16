@@ -20,6 +20,9 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: '22'
+      - run: npm ci --ignore-scripts
+      - name: Validate 5,000-row bounded migration budget
+        run: node --test test/storage-compaction-budget.test.mjs
       - name: Wait for validated production deployment
         env:
           VERIFY_MAX_ATTEMPTS: '150'
@@ -28,8 +31,12 @@ jobs:
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           COMPACTION_APPLY: 'true'
-          COMPACTION_MAX_ROWS: '500000'
-        run: node scripts/compact-polymarket-storage.mjs
+          COMPACTION_MAX_ROWS: '5000'
+          COMPACTION_START_ROWID: '509110'
+          COMPACTION_CUTOFF: '2026-10-15T19:00:00Z'
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/compact-polymarket-storage-runner.mjs
       - name: Publish bounded migration evidence
         if: always()
         uses: actions/upload-artifact@v4.6.2

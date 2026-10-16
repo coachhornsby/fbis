@@ -1,6 +1,9 @@
 import SoccerPinnOdds from "./SoccerPinnOdds.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
 import EventMarkets from "./EventMarkets.jsx";
+import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
+import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
+import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
 import { lineLabel, bestEdge } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlBettingIntelligence from "./NhlBettingIntelligence.jsx";
@@ -157,6 +160,11 @@ export default function CompactGameCard({ game, onOpen }) {
   const showAction = true; // Keep compact-card information architecture consistent across sports.
   const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
   const edge = bestEdge(vm);
+  const referenceGap = pinnoddsReferenceDifference(game,proj);
+  const referenceLead = referenceGap.leading;
+  const showReferenceGap = !stored && !vm.decision?.evAvailable && referenceGap.available;
+  const referenceTeam = showReferenceGap && referenceLead?.kind === "spread"
+    ? referenceLead.side === "home" ? home : referenceLead.side === "away" ? away : null : null;
   const matchup = isNfl ? game?.nflGameMatchup : null;
   const isFinal = String(vm.status?.key || "").toUpperCase() === "FINAL" || Boolean(game?.status?.completed);
   const finalAway = game?.away?.score ?? away?.score ?? null;
@@ -268,52 +276,47 @@ export default function CompactGameCard({ game, onOpen }) {
           </aside>
         ) : (
         <aside className={`cgc-best-edge${soccerPick ? " is-side" : edge.total ? " is-total" : " is-side"}`}>
-          <span>{soccerPick ? "CONFIDENCE PICK" : isNhl && !proj.available ? "NO PURE PROJECTION" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : isNhl && market.referenceOnly ? "MODEL / REFERENCE GAP" : "MODEL / MARKET GAP"}</span>
+          <span>{soccerPick ? "CONFIDENCE PICK" : showReferenceGap ? "FBIS / PINNODDS GAP" : isNhl && !proj.available ? "NO PURE PROJECTION" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : isNhl && market.referenceOnly ? "MODEL / REFERENCE GAP" : "MODEL / MARKET GAP"}</span>
           <div className="cgc-edge-identity">
             {soccerPick ? (
               soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={42} className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
+            ) : showReferenceGap ? (
+              referenceTeam ? <TeamLogo team={referenceTeam} size={46} className="cgc-edge-logo" />
+                : <div className="cgc-total-mark">{referenceLead?.kind==="total" ? String(referenceLead.side).toUpperCase() : "EVEN"}</div>
             ) : edge.team ? (
               <TeamLogo team={edge.team} size={42} className="cgc-edge-logo" />
             ) : edge.total ? (
               <div className="cgc-total-mark">TOTAL</div>
             ) : null}
           </div>
-          <strong>{soccerPick ? `${stars}★` : edge.value}</strong>
-          <b>{soccerPick ? soccerPick.pick || "—" : edge.detail}</b>
-          <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : isNhl ? `${edge.type} · RESEARCH ONLY` : edge.type}</small>
+          <strong>{soccerPick ? `${stars}★` : showReferenceGap ? `${referenceLead.delta > 0 ? "+" : ""}${referenceLead.delta} PTS` : edge.value}</strong>
+          <b>{soccerPick ? soccerPick.pick || "—" : showReferenceGap ? `${referenceLead.kind === "total" ? "GAME TOTAL" : "POINT SPREAD"} · PROJECTION DIFF` : edge.detail}</b>
+          <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : showReferenceGap ? "CAPTURED LINE · NOT EV" : isNhl ? `${edge.type} · RESEARCH ONLY` : edge.type}</small>
         </aside>
         )}
       </div>
 
       {!isFootball && !stored ? <VenueConditions context={vm.context} game={game} sportId={sportId} /> : null}
 
-      <div className="cgc-market-strip" aria-label="FBIS and market comparison">
-        <div className="cgc-market-item">
-          <span>{marketSideLabel}</span>
-          <strong>{market.spreadLabel || "—"}</strong>
-        </div>
-        <div className="cgc-market-divider" aria-hidden="true" />
-        <div className="cgc-market-item cgc-market-item-fbis">
-          <span>{stored ? "STORED FBIS TOTAL" : "FBIS TOTAL"}</span>
-          <strong>{proj.total ?? "—"}</strong>
-        </div>
-        <div className="cgc-market-divider" aria-hidden="true" />
-        <div className="cgc-market-item">
-          <span>MARKET TOTAL</span>
-          <strong>{market.total ?? "—"}</strong>
-        </div>
-      </div>
-
-      <SoccerPinnOdds game={game} className="cgc-status-note" />
-      {!isNhl && Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source) && (sportId !== "soccer" || (o.period === "full_game" && o.marketFamily === "moneyline"))) ? (
-        <div className="cgc-status-note" aria-label="Polymarket US research market data">
-          <strong>POLYMARKET US · MARKET RESEARCH</strong>
-          <span>{game.market.venueOffers.filter(o => ["Polymarket US", "Polymarket US WebSocket"].includes(o.source) && (sportId !== "soccer" || (o.period === "full_game" && o.marketFamily === "moneyline")) && o.contractPrice != null).slice(0,3).map(o =>
-            `${o.side} ${Math.round(o.contractPrice * 1000)/10}% (${o.marketFamily})`
-          ).join(" · ") || "Current price not available"}</span>
-          <small>Displayed probabilities only · NOT executable ask · FBIS bet authority unchanged</small>
-        </div>
-      ) : null}
+      {["cfb","nfl","cbb","nba","wnba","nhl","mlb","npb","kbo"].includes(sportId) ? (
+        <>
+          {["nhl","mlb","npb","kbo"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
+          <PinnoddsCardMarkets game={game} projection={proj} compact />
+          {["cfb","nfl","cbb","nba","wnba"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
+        </>
+      ) : (
+        <>
+          <div className="cgc-market-strip" aria-label="FBIS and market comparison">
+            <div className="cgc-market-item"><span>{marketSideLabel}</span><strong>{market.spreadLabel || "—"}</strong></div>
+            <div className="cgc-market-divider" aria-hidden="true" />
+            <div className="cgc-market-item cgc-market-item-fbis"><span>{stored ? "STORED FBIS TOTAL" : "FBIS TOTAL"}</span><strong>{proj.total ?? "—"}</strong></div>
+            <div className="cgc-market-divider" aria-hidden="true" />
+            <div className="cgc-market-item"><span>MARKET TOTAL</span><strong>{market.total ?? "—"}</strong></div>
+          </div>
+          <SoccerPinnOdds game={game} className="cgc-status-note" />
+          <MoneylinePriceComparison game={game} />
+        </>
+      )}
       {!stored && isNhl ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
 
       {showAction && !stored && !isNhl ? (
@@ -359,8 +362,8 @@ export default function CompactGameCard({ game, onOpen }) {
           <span>MODEL</span>
         </div>
         <div className="cgc-footer-metric">
-          <strong>{stored ? "UNVERIFIED" : vm.comparison?.hasDiff ? (vm.comparison?.sideDiffLabel || vm.comparison?.totalDiffLabel || "—") : "NOT EVALUATED"}</strong>
-          <span>{stored ? "SOURCE STATE" : "MODEL / MARKET GAP"}</span>
+          <strong>{stored ? "STORED" : showReferenceGap ? `${referenceLead.delta > 0 ? "+" : ""}${referenceLead.delta} PTS` : vm.comparison?.hasDiff ? (vm.comparison?.sideDiffLabel || vm.comparison?.totalDiffLabel || "—") : "NOT EVALUATED"}</strong>
+          <span>{stored ? "SOURCE STATE" : showReferenceGap ? "FBIS / PINNODDS GAP" : "MODEL / MARKET GAP"}</span>
         </div>
         <span className="cgc-view">VIEW <b>→</b></span>
       </footer>

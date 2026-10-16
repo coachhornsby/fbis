@@ -88,3 +88,46 @@ export async function loadFreeMirrorRows(db,eventIds=[],sport=null){
    reasonCodes:['FREE_DAILY_MIRROR_REFERENCE','NOT_LIVE_VERIFIED','NOT_DECISION_ELIGIBLE']};
  });
 }
+
+/**
+ * D1 may be at capacity while an independently archived, immutable publisher
+ * snapshot is still available in R2. This fallback is strictly display-only:
+ * matching happens against existing canonical events and never backdates prices,
+ * creates market authority, or makes any external provider requests.
+ */
+export async function loadArchivedFreeMirrorRows(env,eventIds=[],sport=null,{now=new Date()}={}){
+ if(!env?.ARCHIVE?.get||!env?.DB?.prepare||!eventIds.length)return [];
+ const alias=await env.ARCHIVE.get('market-sources/free-prizepicks/latest.json');
+ if(!alias)return [];
+ const pointer=await alias.json();
+ if(!/^[a-f0-9]{64}$/.test(pointer?.snapshotId||''))return [];
+ const captured=Date.parse(pointer?.collectedAt||''),clock=now.getTime();
+ if(!Number.isFinite(captured)||captured>clock||clock-captured>36*3600000)return [];
+ const document=await env.ARCHIVE.get('market-sources/free-prizepicks/'+pointer.snapshotId+'.json');
+ if(!document)return [];
+ const feed=await document.json();
+ const ids=[...new Set(eventIds.map(String).filter(Boolean))].slice(0,80);
+ const q=await env.DB.prepare(`SELECT id,sport,start,home_name,away_name,home_abbr,away_abbr
+   FROM games WHERE id IN (${ids.map(()=>'?').join(',')})`).bind(...ids).all();
+ const games=(q?.results||[]).filter(g=>Date.parse(g.start)>clock-2*3600000 &&
+   Date.parse(g.start)<clock+7*86400000);
+ const observations=normalizeMirrorProps(feed,{games,snapshotId:pointer.snapshotId,
+   collectedAt:pointer.collectedAt,now}).rows;
+ const selected=new Set(ids);
+ return observations.filter(r=>r.eventId&&selected.has(String(r.eventId))&&(!sport||r.sport===sport))
+   .slice(0,1000).map(r=>({
+     provider:'PRIZEPICKS_FREE_MIRROR',sport:r.sport,fbisEventId:r.eventId,
+     providerGameId:r.raw.providerEventId,providerPlayerId:r.raw.providerPlayerId,
+     fbisPlayerId:null,playerName:r.playerName,team:r.team,opponent:r.opponent,
+     market:r.statFamily||r.raw.marketRaw,marketCanonical:r.statFamily,
+     period:'unspecified',book:'PrizePicks · archived free mirror',line:r.line,
+     price:null,overOdds:null,underOdds:null,sourceObservedAt:r.sourceObservedAt,
+     collectedAt:pointer.collectedAt,publishedAt:r.raw.publishedAt,
+     providerTimeConfidence:'MIRROR_REPORTED_CAPTURE',
+     quoteKind:'ARCHIVED_DAILY_REFERENCE_NOT_LIVE_VERIFIED',
+     gameIdentityConfidence:r.raw.eventMatchStatus,
+     playerIdentityConfidence:'PROVIDER_ID_ONLY',marketComplete:true,
+     fbisProjection:null,decisionEligible:false,canQualify:false,canAuthorizeWager:false,
+     reasonCodes:['R2_ARCHIVE_ONLY','NOT_LIVE_VERIFIED','NOT_DECISION_ELIGIBLE']
+   }));
+}

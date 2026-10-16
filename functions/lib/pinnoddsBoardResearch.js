@@ -21,10 +21,11 @@ function asOffer(row){
   providerObservedAt:row.source_observed_at||null,
   eventStart:row.event_start_time,sourceMarketId:row.source_market_id,
   sourceOutcomeId:row.source_outcome_id,sourceType:"sportsbook",
+  standardOrAlt:row.standard_or_alt||"unknown",
   providerTimestampVerified:false,executionEligible:false,
   decisionEligible:false,canQualify:false,canAuthorizeWager:false};
 }
-const pairKey=o=>o.marketFamily==="moneyline"?"moneyline":Math.abs(o.line??0).toFixed(3);
+const pairKey=o=>o.sourceMarketId|| (o.marketFamily==="moneyline"?"moneyline":Math.abs(o.line??0).toFixed(3));
 export function selectPinnoddsBoardOffers(rows=[],{now=new Date().toISOString()}={}){
  const clock=Date.parse(String(now));const byGame={};
  for(const row of rows){
@@ -57,11 +58,19 @@ export function selectPinnoddsBoardOffers(rows=[],{now=new Date().toISOString()}
    const required=family==="total"?["over","under"]:["home","away"];
    const paired=[...buckets.values()].filter(m=>required.every(k=>m.has(k)))
      .map(m=>required.map(k=>m.get(k)))
+     .filter(pair=> {
+       const [a,b]=pair;
+       if(a?.line!=null&&b?.line!=null&&a.marketFamily==="spread"&&Math.abs(a.line+b.line)>0.00001)return false;
+       if(a?.line!=null&&b?.line!=null&&a.marketFamily==="total"&&Math.abs(a.line-b.line)>0.00001)return false;
+       if(Math.abs(Date.parse(a.capturedAt)-Date.parse(b.capturedAt))>60000)return false;
+       return true;
+     })
      .sort((a,b)=>{
       // No claim of official main-market status: prioritize price pairs nearest
       // to a balanced two-way market and most recent capture, deterministically.
       const score=x=>x.reduce((sum,v)=>sum+Math.abs(v.decimalOdds-1.91),0);
-      return score(a)-score(b)||String(b[0].capturedAt).localeCompare(String(a[0].capturedAt));
+      const main=x=>x.every(q=>q.standardOrAlt==="standard");
+      return Number(main(b))-Number(main(a))||score(a)-score(b)||String(b[0].capturedAt).localeCompare(String(a[0].capturedAt));
      });
    if(paired.length)selected.push(...paired[0]);
   }
@@ -73,7 +82,10 @@ export function selectPinnoddsBoardOffers(rows=[],{now=new Date().toISOString()}
 }
 export async function loadPinnoddsBoardResearch(db,{sport,games=[],now=new Date().toISOString()}={}){
  if(!db?.prepare||!validSport.has(sport))return {byGame:{},rows:0,source:"PinnOdds",reason:"NO_DB_OR_SPORT"};
- const ids=[...new Set(games.map(g=>String(g?.id||"")).filter(x=>/^\d{5,15}$/.test(x)))].slice(0,120);
+ // Canonical IDs can be opaque (soccer slugs and tennis official IDs), not just ESPN digits.
+ // Only IDs carried by the already-verified board games are queried via bound SQL parameters.
+ const ids=[...new Set(games.map(g=>String(g?.id||"").trim())
+  .filter(x=>x.length>0&&x.length<=180&&/^[a-zA-Z0-9:_-]+$/.test(x)))].slice(0,120);
  if(!ids.length)return {byGame:{},rows:0,source:"PinnOdds",reason:"NO_VERIFIED_EVENT_IDS"};
  const clock=Date.parse(String(now));
  if(!Number.isFinite(clock))return {byGame:{},rows:0,source:"PinnOdds",reason:"INVALID_TIME"};
@@ -81,7 +93,7 @@ export async function loadPinnoddsBoardResearch(db,{sport,games=[],now=new Date(
  try{
   const placeholders=ids.map(()=>"?").join(",");
   const q=await db.prepare(`SELECT source,canonical_event_id,market_family,period,side,line,decimal_odds,american_odds,
-   collected_at,source_observed_at,event_start_time,source_market_id,source_outcome_id
+   collected_at,source_observed_at,event_start_time,source_market_id,source_outcome_id,standard_or_alt
    FROM normalized_market_observations
    WHERE source='PinnOdds' AND sport=? AND canonical_event_id IN (${placeholders})
      AND period='full_game' AND market_family IN ('moneyline','spread','total')

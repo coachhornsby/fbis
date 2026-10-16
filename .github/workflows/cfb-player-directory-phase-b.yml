@@ -1,13 +1,8 @@
 name: CFB player directory Phase B
 
+# Historical bulk imports are manual. Deploys must never surprise-reload
+# 23 years of source data into a nearly full production D1.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/cfb-player-directory-build.py"
-      - "migrations/*cfb*player*"
-      - "migrations/*cfb*roster*"
-      - ".github/workflows/cfb-player-directory-phase-b.yml"
   workflow_dispatch:
     inputs:
       start_year:

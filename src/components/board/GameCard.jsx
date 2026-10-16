@@ -19,6 +19,8 @@ import {
   teamCardTitle,
 } from "../../lib/boardDecision.js";
 import { fmtAmerican, fmtNum } from "../../lib/format.js";
+import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
+import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import { venueAtmosphereClass } from "../../lib/venueAtmosphere.js";
 import { GameDetails } from "../../TodayView.jsx";
@@ -50,7 +52,7 @@ function starterLine(game, side) {
   return [sp.name || "TBD", record, eraTxt].filter(Boolean).join(" · ");
 }
 
-function MultiBookMarketTable({game}){const offers=Array.isArray(game?.market?.venueOffers)?game.market.venueOffers:[];if(!offers.length)return null;const by=new Map();for(const o of offers){const source=String(o.source||"").toUpperCase();if(!source)continue;if(!by.has(source))by.set(source,{source,ml:{},spread:{},total:{}});const r=by.get(source),m=String(o.marketFamily||"");if(m==="moneyline")r.ml[o.side]=o;if(m==="spread")r.spread[o.side]=o;if(m==="total")r.total[o.side]=o}const txt=o=>!o?"—":[o.line==null?null:formatSpreadLabel(o.line),o.americanOdds==null?null:fmtAmerican(o.americanOdds)].filter(Boolean).join(" ")||"—";return <section className="gc-reference" aria-label="Multi-book market"><div className="gc-section-label">MULTI-BOOK MARKET · OBSERVED</div><div className="gc-multibook-table">{[...by.values()].map(v=><div className="gc-multibook-row" key={v.source}><strong>{v.source}</strong><span>ML {txt(v.ml.away)} / {txt(v.ml.home)}</span><span>SPR {txt(v.spread.away)} / {txt(v.spread.home)}</span><span>TOT {txt(v.total.over)} / {txt(v.total.under)}</span></div>)}</div><div className="gc-action-footnote muted">Informational only · does not alter FBIS projection or wager authority</div></section>}
+function MultiBookMarketTable({game}){const offers=Array.isArray(game?.market?.venueOffers)?game.market.venueOffers:[];if(!offers.length)return null;const by=new Map();for(const o of offers){if(String(o.source||"").startsWith("Polymarket US"))continue;const source=String(o.source||"").toUpperCase();if(!source)continue;if(!by.has(source))by.set(source,{source,ml:{},spread:{},total:{}});const r=by.get(source),m=String(o.marketFamily||"");if(m==="moneyline")r.ml[o.side]=o;if(m==="spread")r.spread[o.side]=o;if(m==="total")r.total[o.side]=o}if(!by.size)return null;const txt=o=>!o?"—":[o.line==null?null:formatSpreadLabel(o.line),o.americanOdds==null?null:fmtAmerican(o.americanOdds)].filter(Boolean).join(" ")||"—";return <section className="gc-reference" aria-label="Multi-book market"><div className="gc-section-label">MULTI-BOOK MARKET · OBSERVED</div><div className="gc-multibook-table">{[...by.values()].map(v=><div className="gc-multibook-row" key={v.source}><strong>{v.source}</strong><span>ML {txt(v.ml.away)} / {txt(v.ml.home)}</span><span>SPR {txt(v.spread.away)} / {txt(v.spread.home)}</span><span>TOT {txt(v.total.over)} / {txt(v.total.under)}</span></div>)}</div><div className="gc-action-footnote muted">Informational only · does not alter FBIS projection or wager authority</div></section>}
 
 export default function GameCard({
   game,
@@ -248,17 +250,8 @@ export default function GameCard({
         </div>
       </section>
 
-      {Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.some(o => o.source === "Polymarket US") ? (
-        <section className="gc-reference" aria-label="Polymarket US reference probabilities">
-          <div className="gc-section-label">POLYMARKET US · DISPLAY-ONLY PROBABILITIES</div>
-          {game.market.venueOffers.filter(o=>o.source==="Polymarket US").slice(0,6).map((o,i)=>(
-            <div key={o.sourceMarketId+"-"+o.side+"-"+i}>
-              {o.marketFamily.toUpperCase()} · {o.side}: {o.contractPrice==null ? "NO PRICE" : `${Math.round(o.contractPrice*1000)/10}%`}
-            </div>
-          ))}
-          <div className="gc-action-footnote muted">Indicative display prices only · NOT verified asks · no FBIS wagering authority</div>
-        </section>
-      ) : null}
+      <MoneylinePriceComparison game={game} />
+      {game.pinnoddsResearch?.offers?.some(o=>o.marketFamily==="spread"||o.marketFamily==="total") ? <PinnoddsCardMarkets game={game} marketFamilies={["spread","total"]} /> : null}
       <MultiBookMarketTable game={game} />
 
       {game.market?.reference?.available && (mkt.referenceOnly || mkt.book === "Reference" || !game.market?.marketAvailable) ? (

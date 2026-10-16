@@ -1,0 +1,70 @@
+name: FBIS market-history WS one-shot recovery pilot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ops/triggers/market-history-ws-one-shot-pilot"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-market-history-ws-one-shot
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify 8-row source-preserving shadow mirror
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      VERIFY_MAX_ATTEMPTS: "24"
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Install read-only verification dependencies
+        run: npm ci --ignore-scripts
+      - name: Require verified exact production release
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Validate operator route is private, replay 8 stored rows, assert repeat idempotence
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "Operator secret missing"; exit 1; }
+          mkdir -p artifacts
+          BASE="https://fbis-myz.pages.dev/api/market-history-ws-shadow-pilot"
+          anon_code="$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -d '{"operation":"verifyExistingWsRows","limit":8}' "$BASE")"
+          test "$anon_code" = "403" || { echo "Operator route access control failed: $anon_code"; exit 1; }
+          : > artifacts/market-history-ws-pilot.jsonl
+          for iteration in 1 2; do
+            response="$(mktemp)"
+            code="$(curl -sS --retry 2 --max-time 70 -o "$response" -w '%{http_code}'               -X POST -H "x-harvest-secret: ${HARVEST_SECRET}"               -H 'content-type: application/json'               -d '{"operation":"verifyExistingWsRows","limit":8}' "$BASE")"
+            test "$code" = "200" || { echo "WS production pilot failed http=$code iteration=$iteration"; exit 1; }
+            jq -e '.ok==true and .state=="SOURCE_PRESERVING_PILOT_VERIFIED"
+              and .attempted==8 and .verified==8
+              and .primaryIsAuthoritative==true
+              and .sourceRowsDeleted==0
+              and .liveShadowFlagEnabled==false
+              and .liveReadsRerouted==false
+              and .liveWritesRerouted==false
+              and .canQualify==false
+              and .canAuthorizeWager==false' "$response" >/dev/null
+            expected_written=8
+            if [ "$iteration" = "2" ]; then expected_written=0; fi
+            jq -e --argjson expected "$expected_written" '.written == $expected' "$response" >/dev/null || { echo "Distinct-row first-write/idempotence evidence failed iteration=$iteration"; exit 1; }
+            jq -c '{state,batchSize,attempted,verified,written,primaryIsAuthoritative,sourceRowsDeleted,liveShadowFlagEnabled,liveReadsRerouted,liveWritesRerouted,canQualify,canAuthorizeWager}' "$response" >> artifacts/market-history-ws-pilot.jsonl
+          done
+          test "$(wc -l < artifacts/market-history-ws-pilot.jsonl)" = "2"
+          echo "Verified 8 canonical WebSocket records on D1 history shard. Second pass idempotent."
+      - name: Retain sanitized SHA-scoped copy evidence
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: market-history-ws-one-shot
+          path: artifacts/market-history-ws-pilot.jsonl
+          if-no-files-found: ignore
+          retention-days: 14

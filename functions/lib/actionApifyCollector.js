@@ -136,12 +136,9 @@ export function planCandidateCollection(env, opts) {
     maxItems = Math.max(1, slateCap);
   }
   // Fit under soft board/harvest budget unless caller disables (fitBudgetUsd=false).
-  const fitBudget =
-    opts.fitBudgetUsd === false
-      ? null
-      : Number(opts.fitBudgetUsd) > 0
-        ? Number(opts.fitBudgetUsd)
-        : ACTION_APIFY_BOARD_SOFT_CAP_USD;
+  // Caller may reduce the sampling budget, never disable the owner's hard USD cap.
+  const requestedFit=Number(opts.fitBudgetUsd)>0 ? Number(opts.fitBudgetUsd) : ACTION_APIFY_BOARD_SOFT_CAP_USD;
+  const fitBudget=Math.min(requestedFit,cfg.perRunBudgetUsd,0.70);
   if (fitBudget != null && !freePlan) {
     const fitted = fitMaxItemsToUsdBudget(
       {

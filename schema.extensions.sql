@@ -3563,10 +3563,9 @@ CREATE TABLE IF NOT EXISTS cfb_roster_observations (
   can_influence_projection INTEGER NOT NULL DEFAULT 0,
   UNIQUE(provider,provider_player_id,provider_team_id,season,content_hash)
 );
-CREATE INDEX IF NOT EXISTS idx_cfb_roster_obs_player_time
-  ON cfb_roster_observations(player_id,season,observed_at DESC);
-CREATE INDEX IF NOT EXISTS idx_cfb_roster_obs_team_time
-  ON cfb_roster_observations(team_id,season,observed_at DESC);
+-- Retrospective raw CFB observation record retrieval is R2-backed.
+-- No runtime SQL reader uses the player/time or team/time secondary indexes.
+-- Index-only retirement migration 0108 retains ALL observation and PIT rows.
 
 CREATE TABLE IF NOT EXISTS cfb_roster_source_coverage (
   season INTEGER NOT NULL,

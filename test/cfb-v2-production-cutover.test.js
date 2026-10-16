@@ -84,6 +84,8 @@ describe("CFB-FBIS-v2 fitted production cutover",()=>{
     assert.equal(games[0].projHomeScore,projection.home);
     assert.equal(games[0].projAwayScore,projection.away);
     assert.equal(games[0].modelVersion,CFB_FBIS_V2_ID);
+    assert.equal(games[0].model.pHomeFinal,projection.pHomeWin);
+    assert.ok(games[0].model.pHomeFinal>0 && games[0].model.pHomeFinal<1);
     assert.equal(games[0].qualificationBlocked,true);
     assert.equal(games[0].cfb.bettingAllowed,false);
     assert.equal(games[0].cfb.projectionState,"COMPLETE");

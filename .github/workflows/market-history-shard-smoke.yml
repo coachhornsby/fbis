@@ -1,0 +1,66 @@
+name: Market-history shard production parity smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ops/triggers/market-history-shard-smoke"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-market-history-shadow-smoke
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify protected source/shard parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Require existing private operator credential
+        run: |
+          test -n "${HARVEST_SECRET}" || { echo "Existing harvest credential is not configured"; exit 1; }
+      - name: Verify anonymous access blocked and exact full-row parity
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          BASE="https://fbis-myz.pages.dev/api/market-history-shard"
+          anon="$(curl -sS --retry 2 --max-time 30 -o /dev/null -w '%{http_code}' "$BASE?limit=1")"
+          test "$anon" = "403" || { echo "Unprotected shard access http=$anon"; exit 1; }
+          : > artifacts/market-history-shard-smoke.jsonl
+          for source in "Polymarket%20US" "Polymarket%20US%20WebSocket" "PinnOdds"; do
+            result="$(mktemp)"
+            code="000"
+            for attempt in 1 2 3 4 5; do
+              code="$(curl -sS --retry 2 --max-time 40 -H "x-harvest-secret: ${HARVEST_SECRET}" -o "$result" -w '%{http_code}' "$BASE?source=$source&limit=3" || true)"
+              if [ "$code" = "200" ]; then break; fi
+              sleep 5
+            done
+            test "$code" = "200" || { echo "Shard parity check failed HTTP $code for $source"; exit 1; }
+            jq -e '.ok == true
+              and .state == "SHADOW_COPY_VERIFIED"
+              and .verified == 3
+              and .columnsVerified == 50
+              and .readOnly == true
+              and .canQualify == false
+              and .canAuthorizeWager == false
+              and .liveReadsRerouted == false
+              and .liveWritesRerouted == false
+              and .productionRowsDeleted == 0' "$result" >/dev/null
+            jq -c '{state,verified,sources,columnsVerified,readOnly,canQualify,canAuthorizeWager,liveReadsRerouted,liveWritesRerouted,productionRowsDeleted}' "$result" >> artifacts/market-history-shard-smoke.jsonl
+          done
+          test "$(wc -l < artifacts/market-history-shard-smoke.jsonl)" = "3"
+          echo "All three provider samples passed authenticated production D1 parity."
+      - name: Save non-sensitive parity evidence
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: market-history-shard-smoke
+          path: artifacts/market-history-shard-smoke.jsonl
+          if-no-files-found: ignore
+          retention-days: 14

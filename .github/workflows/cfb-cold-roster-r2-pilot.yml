@@ -1,0 +1,58 @@
+name: CFB retrospective R2 archive pilot (non-destructive)
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Write and verify R2 objects (never delete D1 rows)"
+        required: true
+        type: boolean
+        default: false
+      season:
+        description: "Completed roster season 2004–2024"
+        required: true
+        type: string
+        default: "2004"
+      start_rowid:
+        description: "Exclusive D1 rowid cursor (default start)"
+        required: true
+        type: string
+        default: "0"
+      max_rows:
+        description: "Bounded maximum (1–2000)"
+        required: true
+        type: string
+        default: "500"
+permissions:
+  contents: read
+concurrency:
+  group: fbis-cfb-roster-archive-pilot
+  cancel-in-progress: false
+jobs:
+  archive:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Verify bounded source and archive contracts
+        run: node --test test/cfb-roster-cold-archive.test.mjs
+      - name: Read only D1 and optionally copy SHA256-verified evidence into private R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ARCHIVE_APPLY: ${{ inputs.apply }}
+          ARCHIVE_SEASON: ${{ inputs.season }}
+          ARCHIVE_START_ROWID: ${{ inputs.start_rowid }}
+          ARCHIVE_MAX_ROWS: ${{ inputs.max_rows }}
+          ARCHIVE_BATCH_ROWS: '100'
+        run: node scripts/cfb-roster-cold-archive-pilot.mjs
+      - name: Retain only metadata, not copied player records
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: cfb-roster-archive-pilot
+          path: /tmp/fbis-cfb-roster-archive-pilot.json
+          if-no-files-found: ignore

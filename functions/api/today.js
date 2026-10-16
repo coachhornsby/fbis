@@ -19,6 +19,7 @@ export function todayEnv(context) {
     KENPOM_API_KEY: context.env.KENPOM_API_KEY,
     caches: caches.default,
     DB: context.env.DB,
+    TIER3_DB: context.env.TIER3_DB,
     ARCHIVE: context.env.ARCHIVE,
   };
 }

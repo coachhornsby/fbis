@@ -1,3 +1,11 @@
-Resume lossless Polymarket compaction with streaming verification of large existing receipts.
-Pinned MIT parser; retain only requested offers, preserve exact hashes and bound memory.
-No new archive objects, schema, provider pulls or deleted observations. 2026-10-15.
+Run audited lossless archive compaction outside Pages CPU limits.
+
+Authorized bounded resume: 2026-10-15
+- Start after verified normalized observation rowid 509110 (run 38776633057)
+- At most 5,000 examined rows, at most 500 per scan
+- Source capture cutoff 2026-10-15T19:00:00Z
+- Every change requires existing R2 archived receipt original-hash parity
+- Compare-and-swap D1 JSON/hash update only; zero row deletes
+- Next cursor, paused/completed status, source restoration tests and index verification go to artifact
+- Do not claim physical savings without new D1 file size read
+- Trigger permitted after merge+CI of PR 1169 and PR 1170; no other concurrent historic source job should start

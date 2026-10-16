@@ -1,66 +1,17 @@
-name: Free PrizePicks mirror durable research ingestion
+# User directive 2026-10-16: do not ingest the free PrizePicks GitHub mirror.
+# Scheduled runs and merge/push-triggered ingestion are disabled.  A manual
+# workflow dispatch is a no-op until an explicitly reviewed reactivation.
+name: Free PrizePicks mirror — PAUSED
 on:
-  schedule:
-    - cron: '17 13,15 * * *'
   workflow_dispatch:
-  pull_request:
-    paths: ['functions/lib/freePrizePicksMirror.js','functions/api/free-prizepicks-collect.js','test/free-prizepicks-durable.test.js','.github/workflows/free-prizepicks-mirror.yml']
-  push:
-    branches: [main]
-    paths: ['functions/lib/freePrizePicksMirror.js','functions/api/free-prizepicks-collect.js','.github/workflows/free-prizepicks-mirror.yml']
 permissions:
   contents: read
-concurrency:
-  group: fbis-free-prizepicks-mirror
-  cancel-in-progress: false
 jobs:
-  collect:
+  paused:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      BASE: https://fbis-myz.pages.dev
-      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
     steps:
-      - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4.1.0
-        with:
-          node-version: '22'
-      - run: node --test test/free-prizepicks-durable.test.js
-      - name: Wait for exact production release
-        if: github.event_name == 'push'
-        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
-      - name: Capture public mirror and consume immutable bounded batches
-        if: github.event_name != 'pull_request'
-        shell: bash
+      - name: Confirm mirror ingestion is disabled
         run: |
-          set -euo pipefail
-          test -n "${HARVEST_SECRET:-}"
-          mkdir -p artifacts
-          curl --fail-with-body -sS --retry 4 --retry-all-errors --retry-delay 5 --max-time 75 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' --data '{"operation":"capture"}' "$BASE/api/free-prizepicks-collect" > artifacts/free-mirror-capture.json
-          jq -e '.ok==true and .researchOnly==true and .canAuthorizeWager==false' artifacts/free-mirror-capture.json >/dev/null
-          snapshot="$(jq -er '.snapshotId' artifacts/free-mirror-capture.json)"
-          pages="$(jq -er '.pages' artifacts/free-mirror-capture.json)"
-          # Explicit safety ceiling. A larger source remains archived and raises a visible failure.
-          test "$pages" -le 100
-          for ((index=0;index<pages;index++)); do
-            jq -nc --arg snapshotId "$snapshot" --argjson batchIndex "$index" '{operation:"consume",snapshotId:$snapshotId,batchIndex:$batchIndex}' > artifacts/request.json
-            curl --fail-with-body -sS --retry 2 --retry-delay 2 --max-time 150 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' --data-binary @artifacts/request.json "$BASE/api/free-prizepicks-collect" > "artifacts/free-mirror-batch-$index.json"
-            jq -e '.ok==true and .canAuthorizeWager==false' "artifacts/free-mirror-batch-$index.json" >/dev/null
-          done
-          jq -nc --arg snapshotId "$snapshot" '{operation:"complete",snapshotId:$snapshotId}' > artifacts/request.json
-          curl --fail-with-body -sS --retry 4 --retry-all-errors --retry-delay 5 --max-time 75 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' --data-binary @artifacts/request.json "$BASE/api/free-prizepicks-collect" > artifacts/free-mirror-complete.json
-          jq -e '.ok==true and .distinctProps==.expectedRows and .canAuthorizeWager==false' artifacts/free-mirror-complete.json >/dev/null
-          jq '{ok,publishedAt,collectedAt,expectedRows,persistedRows,matchedRows,sourceSports}' artifacts/free-mirror-complete.json
-          while IFS=$'\t' read -r sport event_id; do
-            test -n "$event_id" || continue
-            curl -fsS --max-time 45 "$BASE/api/player-props?sport=$sport&eventIds=$event_id" > "artifacts/free-mirror-readback-$sport-$event_id.json"
-            jq -e '.ok==true and .diagnostics.freeMirrorRows>0 and any(.rows[]; .provider=="PRIZEPICKS_FREE_MIRROR" and .decisionEligible==false and .canAuthorizeWager==false)' "artifacts/free-mirror-readback-$sport-$event_id.json" >/dev/null
-          done < <(jq -r '.sampleEvents[] | [.sport,.eventId] | @tsv' artifacts/free-mirror-complete.json)
-          echo '## Free PrizePicks mirror: archived, persisted and reconciled research data' >> "$GITHUB_STEP_SUMMARY"
-          jq -r '"- Observations: \(.persistedRows); matched: \(.matchedRows). No paid acquisition or wager authority."' artifacts/free-mirror-complete.json >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
-        if: always() && github.event_name != 'pull_request'
-        with:
-          name: free-prizepicks-mirror-${{ github.run_id }}
-          path: artifacts/free-mirror-*.json
-          retention-days: 14
+          echo "FREE_PRIZEPICKS_MIRROR_INGESTION_DISABLED"
+          echo "FBIS uses only separately authorized, budget-capped Zen Studio collection for FBIS-modeled props."
+          echo "No mirror HTTP fetch, D1 writes, Apify charges, or wager authorization."

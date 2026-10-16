@@ -1,0 +1,1 @@
+Verify production market-history shadow D1 binding, all three providers, all 50 columns, and header-only operator access. Zero writes or live rerouting.
