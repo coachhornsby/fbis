@@ -1,6 +1,7 @@
 import {authorizeHarvest} from "../lib/auth.js";
 import {signedPolymarketUsHeaders,polymarketUsSubscribe,parsePolymarketUsLite} from "../lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../lib/marketObservationLedger.js";
+import {mirrorVerifiedWsObservations} from "../lib/marketHistoryWsShadow.js";
 
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 const bounded=Number.isFinite;
@@ -89,11 +90,16 @@ export async function onRequestPost({request,env}){
           marketAccess:"READ_ONLY",accountDataCollected:false}};
     });
     let inserted=0;
+    let shadow={state:"OFF",attempted:0,verified:0};
     if(offers.length){
       const saved=await persistNormalizedMarketBatch(env.DB,offers,{
         snapshotType:"CURRENT",collectedAt:new Date().toISOString(),modelProbability:null
       });
       inserted=saved.inserted;
+      // Only after the canonical D1 commit: shadow can never replace original
+      // observational, grading, CLV, or decision evidence.
+      try { shadow=await mirrorVerifiedWsObservations(env,saved.ids); }
+      catch { shadow={state:"FAIL_CLOSED",attempted:saved.ids.length,verified:0}; }
     }
     return json({
       ok:true,source:"Polymarket US authenticated Market WebSocket",connected:true,
@@ -101,6 +107,7 @@ export async function onRequestPost({request,env}){
       canQualify:false,canAuthorizeWager:false,
       sampledMarketCount:symbols.length,marketMessages:received,parsedMarketMessages:parsed,
       subscriptionErrors:errors,validBbo:valid.length,inserted,
+      shardShadow:shadow,
       firstMarketQuoteAvailable:valid.length>0,
       elapsedMs:Date.now()-start,capturedAt
     });

@@ -54,6 +54,8 @@ jobs:
         run: node --test test/cfb-roster-index-retirement.test.mjs
       - name: Verify immutable market-history shard schema, full-row parity and auth
         run: node --test test/market-history-shard.test.mjs
+      - name: Validate source-preserving opt-in WS market shard mirroring
+        run: node --test test/market-history-ws-shadow.test.mjs
       - name: Syntax check Cloudflare Functions
         run: find functions -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Run test suite
