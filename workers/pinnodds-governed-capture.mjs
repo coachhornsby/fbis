@@ -1,11 +1,30 @@
 import {readPinnoddsAccountUsage} from './pinnodds-account-usage.mjs';
 export const PINNODDS_CAPTURE_REQUESTS=15;
+export const MAX_PINNODDS_USD_PER_PAID_PULL=0.70;
+/**
+ * Full-sport boards and drops are not scoped to one verified projected event.
+ * A provider quota balance is a request count, NOT a USD cost quote.
+ * Until targeted event requests and their charge are independently verified,
+ * do not make any chargeable odds request.
+ */
+export function requireProjectedPaidScope({canonicalEventId=null,providerEventId=null,costUsd=null,kind='board'}={}){
+ if(!canonicalEventId||!providerEventId||!['prematch_event','live_event'].includes(kind))
+   throw Error('PINNODDS_PROJECTION_ONLY_EVENT_SCOPE_REQUIRED');
+ if(typeof costUsd!=='number'||!Number.isFinite(costUsd)||costUsd<0)
+   throw Error('PINNODDS_PER_PULL_USD_COST_UNVERIFIED');
+ if(costUsd>MAX_PINNODDS_USD_PER_PAID_PULL+1e-9)
+   throw Error('PINNODDS_PER_PULL_OVER_70_CENTS');
+ return {allowed:true,canonicalEventId,providerEventId,costUsd};
+}
+
 const root='market-sources/pinnodds';
 const valid=id=>/^[a-z0-9-]{1,140}$/i.test(id||'');
 const jsonOptions={httpMetadata:{contentType:'application/json'}};
 async function hash(value){const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return [...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join('');}
 export async function reservePinnoddsRun(env,{runId,scope='full',now=new Date(),fetchImpl=fetch}={}){
  if(!['full','drops'].includes(scope))throw Error('INVALID_RESERVATION_SCOPE');
+ // Legacy reservations represent broad paid requests and cannot meet the owner's projected-event-only rule.
+ requireProjectedPaidScope({kind:scope});
  const requests=scope==='drops'?2:PINNODDS_CAPTURE_REQUESTS;
  if(!valid(runId)||!env.R2_ARCHIVE?.get||!env.R2_ARCHIVE?.put)throw Error('INVALID_DURABLE_RESERVATION');
  const runKey=`${root}/runs/${runId}.json`,existing=await env.R2_ARCHIVE.get(runKey);if(existing)return await existing.json();
@@ -31,6 +50,7 @@ export async function reservePinnoddsRun(env,{runId,scope='full',now=new Date(),
  throw Error('RESERVATION_CONTENTION');
 }
 export async function capturePinnoddsSnapshot(env,{runId,kind,sportId=null,feed=null,fetchImpl=fetch,now=new Date()}={}){
+ requireProjectedPaidScope({kind});
  if(!valid(runId)||!['board','drops','health'].includes(kind)||kind!=='health'&&!['live','prematch'].includes(feed)||kind==='board'&&![1,2,3,4,5,6].includes(sportId))throw Error('INVALID_CAPTURE_SCOPE');
  const runObject=await env.R2_ARCHIVE.get(`${root}/runs/${runId}.json`);if(!runObject)throw Error('QUOTA_RESERVATION_REQUIRED');
  const reservation=await runObject.json();if(reservation.scope==='drops'&&kind!=='drops')throw Error('RESERVATION_SCOPE_MISMATCH');if(reservation.day!==now.toISOString().slice(0,10))throw Error('RESERVATION_EXPIRED');

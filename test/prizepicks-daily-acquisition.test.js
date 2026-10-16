@@ -7,8 +7,9 @@ test("exactly one free PrizePicks mirror remains scheduled and paid acquisition 
  const free=fs.readFileSync(".github/workflows/free-prizepicks-mirror.yml","utf8");
  assert.match(paid,/RETIRED/);
  assert.doesNotMatch(paid,/^  schedule:/m);
- assert.equal((free.match(/cron:/g)||[]).length,1,"exactly one active free mirror schedule");
- assert.ok(free.includes("/api/free-prizepicks-collect"));
+ assert.equal((free.match(/cron:/g)||[]).length,0,"unscoped free mirror pulls are paused");
+ assert.match(free,/FREE_PRIZEPICKS_MIRROR_INGESTION_DISABLED/);
+ assert.ok(free.includes("No mirror HTTP fetch"));
  assert.doesNotMatch(free,/APIFY_TOKEN|api\/apify-acquire/);
 });
 test("PrizePicks API enforces durable daily acquisition reservation",()=>{
