@@ -54,3 +54,20 @@ test("horizontal spread gap retains team logo and totals show directional OVER/U
   assert.match(css, /cgc-total-direction\.is-over/);
   assert.match(css, /cgc-total-direction\.is-under/);
 });
+
+test("spread gap colors follow the compared team and preserve totals, unavailable and research labels",async()=>{
+ const [card,css]=await Promise.all([load("CompactGameCard.jsx"),load("compactGameCardEnhancements.css")]);
+ assert.match(card,/const referenceTeam = showReferenceGap && referenceLead\?\.kind === "spread"/);
+ assert.match(card,/const gapTeam = showReferenceGap \? referenceTeam : !edge\.total \? edge\.team : null/);
+ assert.match(card,/normalizeTeamColor\(gapTeam, null\)/);
+ assert.match(card,/cgc-gap-team-branded/);
+ assert.match(card,/--cgc-gap-brand/);
+ assert.match(card,/cgc-gap-side-name/);
+ assert.match(card,/size=\{64\} className="cgc-edge-logo"/);
+ assert.match(card,/CAPTURED LINE · NOT EV/);
+ assert.match(css,/\.cgc-best-edge\.cgc-gap-team-branded/);
+ assert.match(css,/--cgc-gap-accent/);
+ assert.match(css,/\.cgc-best-edge\.cgc-gap-total-under/);
+ assert.match(css,/\.cgc-best-edge\.cgc-gap-total-over/);
+ assert.match(css,/\.cgc-best-edge\.cgc-gap-neutral/);
+});
