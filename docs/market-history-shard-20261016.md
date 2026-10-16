@@ -29,3 +29,17 @@ A dedicated Cloudflare D1 database `fbis-market-history` (UUID `c32ccf06-c896-4d
 The schema source is `sql/shards/market-history-v1.sql`; it is intentionally **not** in the primary database migration list. Never apply it using `wrangler d1 migrations apply fbis`. It targets only `fbis-market-history`.
 
 A new shard-binding configuration or independent pilot recovery must not be confused with approval to migrate canonical source or change betting strategy/price authority.
+
+## Opt-in WebSocket-only live shadow replication
+
+`functions/lib/marketHistoryWsShadow.js` implements a source-preserving, **explicit-off-by-default** post-commit mirror. The only activation switch is the Pages plain-text environment variable `MARKET_HISTORY_SHADOW_WS=enabled`; any other value prevents all shadow reads and writes.
+
+Once separately enabled:
+- Only accepted `Polymarket US WebSocket` normalized observation IDs may be mirrored; maximum **16 IDs** per invocation, exact format `nmo_` + 28 lowercase hex chars.
+- The primary `env.DB` insert completes **before** a mirror request is attempted. Source rows are read from actual stored canonical D1 values and copied across all 50 columns without regenerating hashes, IDs, provider timestamps or odds.
+- After each shard insert, reread the entire target row and compare SHA-256 of all 50 fields. Record exact original primary rowid and source raw/full digests in `market_history_transfer_evidence`. Existing evidence with conflicting hashes causes a hard error.
+- Mirroring failures are reported as `shardShadow.state=FAIL_CLOSED` without rolling back or misreporting a successful **primary** market capture. Operators must address lag before any read or write cutover.
+- No cross-D1 JOIN or FK migration; `normalized_market_decision_links`, CLV and economic grading stay authoritative on primary D1.
+- Tests cover disabled-by-default behavior, parity, idempotence, malformed IDs, missing binding, tampering, and wager-authority rejection.
+
+**Operational status:** Do not enable the switch until the shadow copy is validated against actual WebSocket production capture records under a bounded session. This code alone never routes the live system away from primary D1, cannot shrink the primary database, and does not satisfy all historical cohort recovery requirements.
