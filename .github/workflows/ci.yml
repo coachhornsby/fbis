@@ -52,6 +52,8 @@ jobs:
           python3 -m unittest discover -s test -p 'test_cfb_roster_retention.py'
       - name: Validate reversible CFB raw roster index-retirement migration
         run: node --test test/cfb-roster-index-retirement.test.mjs
+      - name: Verify immutable market-history shard schema, full-row parity and auth
+        run: node --test test/market-history-shard.test.mjs
       - name: Syntax check Cloudflare Functions
         run: find functions -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Run test suite
@@ -524,6 +526,28 @@ jobs:
             and .productionD1Reads == 0
             and .productionD1Writes == 0' "$authenticated_file" > /dev/null
           echo "Verified header-only protected retrospective R2 readback: 3 rows; no D1 reads/writes or model authority."
+      - name: Verify protected market-history D1 shadow parity in production
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          BASE="https://fbis-myz.pages.dev/api/market-history-shard"
+          test -n "${HARVEST_SECRET}" || { echo "Shadow readback auth missing"; exit 1; }
+          anonymous_status="$(curl -sS --retry 2 --max-time 30 -o /dev/null -w '%{http_code}' "${BASE}?limit=1")"
+          test "$anonymous_status" = "403" || { echo "Market shadow must reject unauthenticated requests"; exit 1; }
+          answer="$(mktemp)"
+          code="$(curl -sS --retry 2 --max-time 45 -H "x-harvest-secret: ${HARVEST_SECRET}" -o "$answer" -w '%{http_code}' "${BASE}?source=PinnOdds&limit=3")"
+          test "$code" = "200" || { echo "Market shadow parity unavailable: http=$code"; exit 1; }
+          jq -e '.ok == true
+            and .state == "SHADOW_COPY_VERIFIED"
+            and .verified == 3
+            and .columnsVerified == 50
+            and .canQualify == false
+            and .canAuthorizeWager == false
+            and .liveReadsRerouted == false
+            and .liveWritesRerouted == false
+            and .productionRowsDeleted == 0' "$answer" >/dev/null
+          echo "MARKET_HISTORY_SHADOW_VERIFIED: three PinnOdds rows, all 50 columns, 0 production cutovers."
       - name: Upload college capability audit artifact
         if: always() && contains(github.event.head_commit.message, '[college-capability-audit]')
         uses: actions/upload-artifact@v4
