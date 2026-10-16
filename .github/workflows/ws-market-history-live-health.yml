@@ -1,0 +1,52 @@
+name: WS market-history continuous shadow health
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ops/triggers/ws-history-live-health"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-ws-market-history-live-health
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify production shadow enablement and exact last-eight parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Confirm operator route protected; verify exact production shadow state
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "Operator secret not configured"; exit 1; }
+          BASE="https://fbis-myz.pages.dev/api/market-history-ws-health"
+          anon="$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' "$BASE")"
+          test "$anon" = "403" || { echo "Shadow health endpoint not private"; exit 1; }
+          mkdir -p artifacts
+          result="$(mktemp)"
+          code="$(curl -sS --max-time 70 -o "$result" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "$BASE")"
+          test "$code" = "200" || { echo "Shadow not healthy HTTP $code"; cat "$result" | jq -c '{state,checked,verified,missing,mismatched}' || true; exit 1; }
+          jq -e '.ok==true and .state=="RECENT_WS_PARITY_VERIFIED"
+            and .checked==8 and .verified==8
+            and .missing==0 and .mismatched==0
+            and .continuousShadowEnabled==true
+            and .sourceOfTruth=="PRIMARY_D1"
+            and .productionRowsDeleted==0
+            and .canQualify==false and .canAuthorizeWager==false' "$result" >/dev/null
+          jq '{state,checked,verified,missing,mismatched,latestSourceCollectedAt,continuousShadowEnabled,sourceOfTruth,productionRowsDeleted,canQualify,canAuthorizeWager}' "$result" > artifacts/ws-history-shadow-health.json
+          echo "Protected continuous-shadow deployment flag and last-eight full parity verified."
+      - name: Store sanitized monitor report
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ws-market-history-live-health
+          path: artifacts/ws-history-shadow-health.json
+          if-no-files-found: ignore
+          retention-days: 14
