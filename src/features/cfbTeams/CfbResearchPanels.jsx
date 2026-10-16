@@ -3,13 +3,13 @@
  * National percentile bars + FBIS-computed ranks — never wager authority.
  */
 
-/** Performance-band colors for bars and strength-coded text. */
+/** Performance-band colors for bars and strength-coded text (readable on dark UI). */
 const BAND_COLORS = {
   Elite: "#3ecf8e",
   Strong: "#5bb8e8",
-  "Above Average": "#b7c6a3",
-  "Below Average": "#d4a35c",
-  Poor: "#d66a6a",
+  "Above Average": "#c5d67a",
+  "Below Average": "#e0a84a",
+  Poor: "#e07272",
 };
 const BAND_COLOR_FALLBACK = "#8aa3b5";
 
