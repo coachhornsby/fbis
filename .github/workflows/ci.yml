@@ -60,6 +60,8 @@ jobs:
         run: node --test test/market-history-ws-shadow-pilot.test.mjs
       - name: Verify persistent Polymarket WebSocket shadow routing and safety
         run: node --test test/polymarket-persistent-shadow-routing.test.mjs test/polymarket-shadow-durable-retry.test.mjs
+      - name: Verify continuous WS shadow release guard and parity monitoring
+        run: node --test test/market-history-ws-health.test.mjs
       - name: Syntax check Cloudflare Functions
         run: find functions -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Run test suite
