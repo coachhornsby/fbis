@@ -58,13 +58,13 @@ test("bounded REST roster IDs bootstrap a WebSocket after an hourly collector mi
  const now=Date.parse("2026-10-14T03:16:00Z");
  const window=streamContractRosterWindow(now);
  assert.equal(window.freshSince,"2026-10-14T02:41:00.000Z");
- assert.equal(window.since,"2026-10-13T03:16:00.000Z");
+ assert.equal(window.since,"2026-10-11T03:16:00.000Z");
  assert.ok(Date.parse("2026-10-14T00:54:00Z")>=Date.parse(window.since));
 });
 test("WebSocket discovery fallback never extends indefinitely",()=>{
  assert.throws(()=>streamContractRosterWindow(NaN),/invalid-roster-clock/);
  const {since,freshSince}=streamContractRosterWindow(Date.parse("2026-10-14T03:16:00Z"));
- assert.equal(Date.parse(freshSince)-Date.parse(since),(24*60-35)*60*1000);
+ assert.equal(Date.parse(freshSince)-Date.parse(since),(72*60-35)*60*1000);
 });
 
 test("SQL roster is balanced by sport before subscription cap",async()=>{
