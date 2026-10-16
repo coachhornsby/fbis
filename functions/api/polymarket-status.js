@@ -90,7 +90,13 @@ export async function onRequestGet({env}){
       parsed:Number(stream?.parsed||0),
       inserted:Number(stream?.inserted||0),
       reconnects:Number(stream?.reconnects||0),
-      lastConnectAttemptAt:stream?.lastConnectAttemptAt||null
+      lastConnectAttemptAt:stream?.lastConnectAttemptAt||null,
+      capacity:stream?.capacity||null,
+      uncoveredCount:Number(stream?.uncoveredCount||0),
+      sportCoverage:stream?.sportCoverage||null,
+      fixedCapRetired:stream?.fixedCapRetired===true,
+      architecture:stream?.architecture||null,
+      mode:stream?.mode||null,
     },sports:states});
  }catch(error){return json({ok:false,error:"market-status-unavailable",detail:String(error?.message||error)},502)}
 }

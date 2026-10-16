@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {STREAM_SPORTS,fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,fetchStreamUpgrade,streamContractRosterWindow} from "../services/polymarket-us-stream/core.mjs";
+import {
+  STREAM_SPORTS,fairMarketSelection,manageSubscriptionCapacity,resolveStreamCapacity,
+  shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,fetchStreamUpgrade,
+  streamContractRosterWindow,STREAM_SUBSCRIBE_BATCH_MAX,dedupeEligibleContracts,
+} from "../services/polymarket-us-stream/core.mjs";
+import {polymarketUsSubscribe,polymarketUsSubscribeBatches,POLYMARKET_US_SUBSCRIBE_BATCH_MAX} from "../functions/lib/polymarketUsSignedWs.js";
+
 test("persistent market selection distributes subscriptions over all supported sports",()=>{
  const rows=STREAM_SPORTS.flatMap(s=>Array.from({length:5},(_,i)=>({
    sport:s,source_market_id:s+"-"+i,canonical_event_id:s+"-game"
@@ -10,6 +16,82 @@ test("persistent market selection distributes subscriptions over all supported s
  assert.equal(new Set(selected.map(x=>x.sport)).size,11);
  assert.equal(new Set(selected.map(x=>x.source_market_id)).size,44);
 });
+
+test("dynamic capacity retires the fixed 48 bottleneck and keeps all 11 sports",()=>{
+  const rows=STREAM_SPORTS.flatMap(s=>Array.from({length:20},(_,i)=>({
+    sport:s,source_market_id:`${s}-m-${i}`,canonical_event_id:`${s}-g-${i}`,
+    market_family:i%3===0?"moneyline":i%3===1?"spread":"total",
+    event_start_time:`2026-10-18T${String(12+(i%6)).padStart(2,"0")}:00:00Z`,
+    collected_at:"2026-10-16T12:00:00Z",
+  })));
+  // Stress: 75 CFB + large CBB + other sports (synthetic inventory).
+  const stress=[
+    ...Array.from({length:75},(_,i)=>({sport:"cfb",source_market_id:`cfb-x-${i}`,canonical_event_id:`cfb-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-18T18:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+    ...Array.from({length:100},(_,i)=>({sport:"cbb",source_market_id:`cbb-x-${i}`,canonical_event_id:`cbb-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-18T19:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+    ...Array.from({length:20},(_,i)=>({sport:"nfl",source_market_id:`nfl-x-${i}`,canonical_event_id:`nfl-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-18T20:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+    ...Array.from({length:15},(_,i)=>({sport:"nba",source_market_id:`nba-x-${i}`,canonical_event_id:`nba-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-18T21:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+    ...Array.from({length:15},(_,i)=>({sport:"nhl",source_market_id:`nhl-x-${i}`,canonical_event_id:`nhl-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-18T22:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+    ...Array.from({length:20},(_,i)=>({sport:"mlb",source_market_id:`mlb-x-${i}`,canonical_event_id:`mlb-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-18T23:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+    ...Array.from({length:30},(_,i)=>({sport:"soccer",source_market_id:`soc-x-${i}`,canonical_event_id:`soc-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-19T01:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+    ...Array.from({length:40},(_,i)=>({sport:"tennis",source_market_id:`ten-x-${i}`,canonical_event_id:`ten-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-19T02:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+    ...Array.from({length:5},(_,i)=>({sport:"wnba",source_market_id:`wnba-x-${i}`,canonical_event_id:`wnba-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-19T03:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+    ...Array.from({length:5},(_,i)=>({sport:"npb",source_market_id:`npb-x-${i}`,canonical_event_id:`npb-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-19T04:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+    ...Array.from({length:5},(_,i)=>({sport:"kbo",source_market_id:`kbo-x-${i}`,canonical_event_id:`kbo-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-19T05:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+  ];
+  const plan=manageSubscriptionCapacity([...rows,...stress],{
+    maxContracts:500,maxPerConnection:50,maxConnections:10,minPerSport:1,
+  });
+  assert.ok(plan.assignedCount>48,"must exceed retired 48-cap when inventory allows");
+  assert.equal(plan.assignedCount,500);
+  assert.ok(plan.uncoveredCount>0);
+  assert.equal(plan.partitions.length,10);
+  assert.ok(plan.partitions.every(p=>p.size<=50));
+  for(const sport of STREAM_SPORTS){
+    assert.ok(plan.bySport[sport].assigned>=1,`${sport} starved under large CFB/CBB inventory`);
+    assert.notEqual(plan.bySport[sport].status,"UNAVAILABLE");
+  }
+  assert.equal(new Set(plan.assigned.map(r=>r.source_market_id)).size,plan.assignedCount);
+});
+
+test("capacity manager reports NO_VERIFIED_MARKETS for sports with empty inventory",()=>{
+  const plan=manageSubscriptionCapacity([
+    {sport:"nfl",source_market_id:"nfl-1",canonical_event_id:"g1",market_family:"moneyline",event_start_time:"2026-10-18T18:00:00Z"},
+  ],{maxContracts:50,minPerSport:1});
+  assert.equal(plan.bySport.nfl.assigned,1);
+  assert.equal(plan.bySport.cfb.status,"NO_VERIFIED_MARKETS");
+  assert.equal(plan.bySport.tennis.status,"NO_VERIFIED_MARKETS");
+});
+
+test("duplicate market slugs collapse to one active owner",()=>{
+  const rows=[
+    {sport:"nfl",source_market_id:"same",collected_at:"2026-10-16T10:00:00Z",canonical_event_id:"a"},
+    {sport:"nfl",source_market_id:"same",collected_at:"2026-10-16T12:00:00Z",canonical_event_id:"b"},
+  ];
+  const deduped=dedupeEligibleContracts(rows);
+  assert.equal(deduped.length,1);
+  assert.equal(deduped[0].canonical_event_id,"b");
+});
+
+test("subscribe helper batches at 50 and scales via multiple frames",()=>{
+  assert.equal(POLYMARKET_US_SUBSCRIBE_BATCH_MAX,STREAM_SUBSCRIBE_BATCH_MAX);
+  const slugs=Array.from({length:120},(_,i)=>`mkt-${i}`);
+  const one=polymarketUsSubscribe(slugs,"t");
+  assert.equal(one.subscribe.market_slugs.length,50);
+  const frames=polymarketUsSubscribeBatches(slugs,"t");
+  assert.equal(frames.length,3);
+  assert.equal(frames.reduce((n,f)=>n+f.subscribe.market_slugs.length,0),120);
+});
+
+test("resolveStreamCapacity reads soft env ceilings",()=>{
+  const c=resolveStreamCapacity({
+    STREAM_MAX_CONTRACTS:"300",STREAM_MAX_PER_CONNECTION:"50",STREAM_MAX_CONNECTIONS:"6",
+  });
+  assert.equal(c.maxContracts,300);
+  assert.equal(c.maxPerConnection,50);
+  assert.equal(c.maxConnections,6);
+  assert.match(c.note,/Soft operational/i);
+});
+
 test("stream avoids storms but captures meaningful price movements",()=>{
  const a={marketSlug:"nfl-buf",bestBid:0.55,bestAsk:0.56,timeMs:1000};
  assert.equal(shouldSaveBbo(a,null),true);
@@ -67,28 +149,30 @@ test("WebSocket discovery fallback never extends indefinitely",()=>{
  assert.equal(Date.parse(freshSince)-Date.parse(since),(72*60-35)*60*1000);
 });
 
-test("SQL roster is balanced by sport before subscription cap",async()=>{
+test("worker SQL returns large eligible inventory; capacity manager owns the cap",async()=>{
  const {readFileSync}=await import("node:fs");
  const worker=readFileSync(new URL("../services/polymarket-us-stream/worker.mjs",import.meta.url),"utf8");
  assert.match(worker,/PARTITION BY sport ORDER BY/);
- assert.match(worker,/WHERE sport_rank<=6/);
+ assert.match(worker,/WHERE sport_rank<=200/);
+ assert.match(worker,/LIMIT 2200/);
+ assert.match(worker,/manageSubscriptionCapacity/);
+ assert.match(worker,/polymarketUsSubscribeBatches/);
+ assert.match(worker,/fixedCapRetired:true/);
+ assert.doesNotMatch(worker,/MAX_MARKETS\s*=\s*48/);
+ assert.doesNotMatch(worker,/WHERE sport_rank<=6/);
  assert.doesNotMatch(worker,/collected_at DESC LIMIT 750/);
 });
 
-test("active tennis retains six WS slots inside 48 while other sport groups retain four",()=>{
+test("legacy fairMarketSelection adapter still returns unique assigned contracts",()=>{
  const rows=STREAM_SPORTS.flatMap(sport=>Array.from({length:6},(_,i)=>({
   sport,source_market_id:sport+"-contract-"+i,canonical_event_id:null
  })));
  const result=fairMarketSelection(rows,{perSport:6,maxMarkets:48});
  assert.equal(result.length,48);
- assert.equal(result.filter(r=>r.sport==="tennis").length,6);
- for(const sport of STREAM_SPORTS.filter(s=>s!=="tennis")){
-  assert.ok(result.filter(r=>r.sport===sport).length>=4,sport+" lost baseline coverage");
- }
  assert.equal(new Set(result.map(r=>r.source_market_id)).size,48);
- const withoutTennis=fairMarketSelection(rows.filter(r=>r.sport!=="tennis"),{perSport:6,maxMarkets:48});
- assert.equal(withoutTennis.length,48);
- assert.equal(withoutTennis.filter(r=>r.sport==="tennis").length,0);
+ for(const sport of STREAM_SPORTS){
+  assert.ok(result.filter(r=>r.sport===sport).length>=1,sport+" lost baseline coverage");
+ }
 });
 
 

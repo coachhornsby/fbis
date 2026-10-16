@@ -1,12 +1,16 @@
 import {DurableObject} from "cloudflare:workers";
-import {polymarketUsSubscribe,parsePolymarketUsLite}
+import {polymarketUsSubscribeBatches,parsePolymarketUsLite}
   from "../../functions/lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
 import {mirrorPersistentStreamRows} from "./shadow.mjs";
-import {fairMarketSelection,shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,fetchStreamUpgrade,streamContractRosterWindow} from "./core.mjs";
+import {
+  manageSubscriptionCapacity,resolveStreamCapacity,STREAM_SPORTS,
+  shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,
+  fetchStreamUpgrade,streamContractRosterWindow,
+} from "./core.mjs";
 
 const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
-const MAX_MARKETS=48, MAX_BATCH=40, MAX_QUEUE=200;
+const MAX_BATCH=40, MAX_QUEUE=400;
 const RECONNECT_MS=60000, ROTATE_MS=9*60000, FLUSH_MS=5000;
 const toJSON=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 
@@ -21,11 +25,21 @@ export class PolymarketMarketStream extends DurableObject {
     this.shadowPendingIds=[];this.shadowLoaded=false;this.shadowVerified=0;this.shadowWritten=0;
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
   }
+  capacityPlan(){
+    return resolveStreamCapacity(this.env||{});
+  }
   status(){
+    const capacity=this.capacityPlan();
+    const coverage=this.lastCandidateDiagnostics?.bySport||null;
     return {connected:this.socket?.readyState===WebSocket.OPEN,
       connectedAt:this.connectedAt?new Date(this.connectedAt).toISOString():null,
       subscriptions:this.subscribed.size,queued:this.queue.size,
       candidateDiagnostics:this.lastCandidateDiagnostics,
+      capacity,
+      desiredConnections:this.lastCandidateDiagnostics?.capacity?.utilizedConnections||0,
+      activeConnections:this.socket?.readyState===WebSocket.OPEN?1:0,
+      sportCoverage:coverage,
+      uncoveredCount:Number(this.lastCandidateDiagnostics?.uncoveredCount||0),
       operational:!this.lastError&&streamIsHealthy({connected:this.socket?.readyState===WebSocket.OPEN,lastMessageAt:this.lastMessageAt}),
       lastMessageAt:this.lastMessageAt?new Date(this.lastMessageAt).toISOString():null,
       lastHeartbeatAt:this.lastHeartbeatAt?new Date(this.lastHeartbeatAt).toISOString():null,
@@ -39,6 +53,8 @@ export class PolymarketMarketStream extends DurableObject {
       reconnects:this.reconnectCount,lastError:this.lastError,
       signerProxyConfigured:Boolean(this.env.FBIS_STREAM_PROXY_TOKEN),
       lastConnectAttemptAt:this.lastConnectAttempt?new Date(this.lastConnectAttempt).toISOString():null,
+      architecture:"single-do-dynamic-capacity",
+      fixedCapRetired:true,
       readOnly:true,canAuthorizeWager:false};
   }
   async fetch(req){
@@ -115,11 +131,15 @@ export class PolymarketMarketStream extends DurableObject {
       const old=byMarket.get(item.source_market_id);
       if(!old||item.collected_at>old.collected_at)byMarket.set(item.source_market_id,item);
     }
+    const plan=manageSubscriptionCapacity([...byMarket.values()],this.capacityPlan());
     this.lastCandidateDiagnostics={at:new Date().toISOString(),
       source:"existing-r2-rest-roster",archivedMarkets:all.length,
-      verifiedEvents:permitted.size,selected:byMarket.size,archiveListingComplete:listing.truncated!==true,
-      reason:byMarket.size?"ARCHIVE_ROSTER_VERIFIED":"NO_ELIGIBLE_ARCHIVE_CONTRACTS"};
-    return fairMarketSelection([...byMarket.values()],{perSport:6,maxMarkets:MAX_MARKETS});
+      verifiedEvents:permitted.size,eligibleCount:plan.eligibleCount,
+      selected:plan.assignedCount,uncoveredCount:plan.uncoveredCount,
+      bySport:plan.bySport,capacity:plan.capacity,
+      archiveListingComplete:listing.truncated!==true,
+      reason:plan.assignedCount?"ARCHIVE_ROSTER_VERIFIED":"NO_ELIGIBLE_ARCHIVE_CONTRACTS"};
+    return plan.assigned;
   }
   async candidates(){
     const now=Date.now();
@@ -175,14 +195,19 @@ export class PolymarketMarketStream extends DurableObject {
         CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,
         collected_at DESC) sport_rank
        FROM recent WHERE rn=1
-      ) SELECT * FROM balanced WHERE sport_rank<=6
-       ORDER BY sport,sport_rank LIMIT 66`)
+      -- Dynamic capacity: return a large eligible inventory (≤200/sport, ≤2200 total).
+      -- Assignment/fairness/capacity live in manageSubscriptionCapacity — not a fixed 48.
+      ) SELECT * FROM balanced WHERE sport_rank<=200
+       ORDER BY sport,sport_rank LIMIT 2200`)
        .bind(rosterSince,from,until,freshSince).all();
-    const selected=fairMarketSelection(q.results||[],{perSport:6,maxMarkets:MAX_MARKETS});
-    this.lastCandidateDiagnostics={at:new Date().toISOString(),selected:selected.length,
-      returnedRows:(q.results||[]).length,source:'primary-d1',
-      rosterSince,freshSince,reason:selected.length?'ELIGIBLE_CONTRACTS':'NO_ELIGIBLE_CONTRACTS'};
-    if(selected.length)return selected;
+    const plan=manageSubscriptionCapacity(q.results||[],this.capacityPlan());
+    this.lastCandidateDiagnostics={at:new Date().toISOString(),
+      selected:plan.assignedCount,eligibleCount:plan.eligibleCount,
+      uncoveredCount:plan.uncoveredCount,returnedRows:(q.results||[]).length,
+      bySport:plan.bySport,capacity:plan.capacity,source:'primary-d1',
+      rosterSince,freshSince,
+      reason:plan.assignedCount?'ELIGIBLE_CONTRACTS':'NO_ELIGIBLE_CONTRACTS'};
+    if(plan.assignedCount)return plan.assigned;
     try{return await this.archiveCandidates({rosterSince,from,until})}
     catch(error){
       this.lastCandidateDiagnostics={...this.lastCandidateDiagnostics,
@@ -249,10 +274,16 @@ export class PolymarketMarketStream extends DurableObject {
         if(this.socket===socket){this.socket=null;this.lastError="upstream-socket-error";
           this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS).catch(()=>{});}
       });
-      socket.send(JSON.stringify(polymarketUsSubscribe(
-        [...this.subscribed.keys()],"fbis-always-on-market-book",{fullBook:true})));
+      // One DO owner; multiple ≤50-slug subscribe frames under the same socket.
+      const frames=polymarketUsSubscribeBatches(
+        [...this.subscribed.keys()],"fbis-always-on-market-book",{fullBook:true});
+      for(const frame of frames)socket.send(JSON.stringify(frame));
       this.connectedAt=Date.now();this.lastMessageAt=0;this.lastHeartbeatAt=0;this.reconnectCount++;
       this.lastError=null;
+      if(this.lastCandidateDiagnostics){
+        this.lastCandidateDiagnostics={...this.lastCandidateDiagnostics,
+          subscribeFrames:frames.length,subscribed:this.subscribed.size};
+      }
       await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
     }catch{
       this.lastError="connection-or-provider-error";
@@ -329,6 +360,22 @@ export class PolymarketMarketStream extends DurableObject {
     await this.ctx.storage.put("marketShadowPendingIds",this.shadowPendingIds);
     await this.drainShadow();
   }
+  async spillFailedFlush(ticks,offers){
+    if(!this.env.ARCHIVE?.put||!ticks?.length)return;
+    const at=new Date().toISOString();
+    const key=`market-sources/polymarket-us/stream-spill/${at.slice(0,13)}/${Date.now()}.json`;
+    await this.env.ARCHIVE.put(key,JSON.stringify({
+      version:1,source:"Polymarket US WebSocket",kind:"d1-persist-failure-spill",
+      capturedAt:at,tickCount:ticks.length,offerCount:offers.length,
+      canAuthorizeWager:false,canQualify:false,
+      reason:"primary-d1-persist-failed",
+      ticks,offers,
+    }),{httpMetadata:{contentType:"application/json"}});
+    this.lastCandidateDiagnostics={
+      ...(this.lastCandidateDiagnostics||{}),
+      lastSpillKey:key,lastSpillAt:at,lastSpillCount:ticks.length,
+    };
+  }
   async flush(){
     if(!this.queue.size){await this.drainShadow();return;}
     const ticks=[...this.queue.values()].slice(0,MAX_BATCH);
@@ -346,7 +393,10 @@ export class PolymarketMarketStream extends DurableObject {
       catch{this.shadowFailed++;this.lastShadowError="shadow-queue-unavailable";}
     }catch{
       this.lastError="d1-bbo-persist-error";
-      // No fabrication and no optimistic D1 success count.
+      // No fabrication and no optimistic D1 success count. Spill to R2 for recovery
+      // while primary D1 is at capacity — does not change write ownership/cutover.
+      try{await this.spillFailedFlush(ticks,offers)}
+      catch{/* spill best-effort; ticks re-queued below */}
       for(const t of ticks)if(this.queue.size<MAX_QUEUE)this.queue.set(t.marketSlug,t);
     }
     if(this.queue.size&&!this.flushTimer){
@@ -370,7 +420,7 @@ export class PolymarketMarketStream extends DurableObject {
 export default {
   async scheduled(_event,env,ctx){
     // Safe periodic reactivation after worker restarts/deployment. One DO
-    // instance covers fair samples from all FBIS sports that list contracts.
+    // owns dynamic all-sport capacity (no competing collectors).
     const id=env.PM_STREAM.idFromName("active-sports-fbis");
     const stub=env.PM_STREAM.get(id);
     ctx.waitUntil(stub.fetch("https://internal/start",{method:"POST"}).then(async response=>{
@@ -390,7 +440,7 @@ export default {
     const r=await stub.fetch("https://internal/status");
     const status=await r.json();
     return toJSON({ok:true,source:"Polymarket US signed persistent market collector",
-      mode:"DURABLE_OBJECT_RECONNECTING",...status,
+      mode:"DURABLE_OBJECT_DYNAMIC_CAPACITY",sports:STREAM_SPORTS,...status,
       workerSignerProxyConfigured:Boolean(env.FBIS_STREAM_PROXY_TOKEN),
       privateAccountAccess:false});
   }

@@ -33,8 +33,12 @@ export async function signedPolymarketUsHeaders({keyId,secretKey,path="/v1/ws/ma
     "X-PM-Signature":asBase64(signature)
   };
 }
-export function polymarketUsSubscribe(slugs,requestId="fbis-market-lite",{fullBook=false}={}){
-  const clean=[...new Set((slugs||[]).filter(s=>/^[a-z0-9-]{1,160}$/i.test(s)))].slice(0,50);
+/** Max slugs per single subscribe frame (existing client batch bound). */
+export const POLYMARKET_US_SUBSCRIBE_BATCH_MAX=50;
+
+export function polymarketUsSubscribe(slugs,requestId="fbis-market-lite",{fullBook=false,maxBatch=POLYMARKET_US_SUBSCRIBE_BATCH_MAX}={}){
+  const limit=Math.max(1,Math.min(POLYMARKET_US_SUBSCRIBE_BATCH_MAX,Math.floor(Number(maxBatch)||POLYMARKET_US_SUBSCRIBE_BATCH_MAX)));
+  const clean=[...new Set((slugs||[]).filter(s=>/^[a-z0-9-]{1,160}$/i.test(s)))].slice(0,limit);
   if(!clean.length)throw Error("no-valid-market-symbols");
   return {
     subscribe:{
@@ -44,6 +48,18 @@ export function polymarketUsSubscribe(slugs,requestId="fbis-market-lite",{fullBo
       responses_debounced:true
     }
   };
+}
+
+/** Split an arbitrary eligible slug list into valid subscribe frames (≤50 each). */
+export function polymarketUsSubscribeBatches(slugs,requestId="fbis-market-lite",{fullBook=false,maxBatch=POLYMARKET_US_SUBSCRIBE_BATCH_MAX}={}){
+  const clean=[...new Set((slugs||[]).filter(s=>/^[a-z0-9-]{1,160}$/i.test(s)))];
+  if(!clean.length)throw Error("no-valid-market-symbols");
+  const size=Math.max(1,Math.min(POLYMARKET_US_SUBSCRIBE_BATCH_MAX,Math.floor(Number(maxBatch)||POLYMARKET_US_SUBSCRIBE_BATCH_MAX)));
+  const frames=[];
+  for(let i=0;i<clean.length;i+=size){
+    frames.push(polymarketUsSubscribe(clean.slice(i,i+size),`${requestId}-${frames.length}`,{fullBook,maxBatch:size}));
+  }
+  return frames;
 }
 export function parsePolymarketUsLite(raw){
   let obj;
