@@ -10,7 +10,7 @@ export const PINNODDS_TRIAL_DOCUMENTED_LIMITS=Object.freeze({perDay:100,perMinut
  * The caller must prove the event identity and model forecast before admission.
  */
 export function requireProjectedFreeScope({canonicalEventId=null,providerEventId=null,kind='board'}={}){
- if(!canonicalEventId||!/^\\d+$/.test(String(providerEventId||''))||!['prematch_event','live_event'].includes(kind))
+ if(!canonicalEventId||!/^[0-9]+$/.test(String(providerEventId||''))||!['prematch_event','live_event'].includes(kind))
    throw Error('PINNODDS_PROJECTION_ONLY_EVENT_SCOPE_REQUIRED');
  return {allowed:true,canonicalEventId,providerEventId:String(providerEventId),costUsd:PINNODDS_TRIAL_REST_COST_USD};
 }
