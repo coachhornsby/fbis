@@ -40,3 +40,17 @@ test('shared cards keep their layout on MARKET and BOARD without route-only sele
  assert.match(signals,/repeat\(2,minmax\(0,1fr\)\)/);
  assert.doesNotMatch(signals,/tmc|tennis/);
 });
+
+test("horizontal spread gap retains team logo and totals show directional OVER/UNDER identity", async () => {
+  const [card, css] = await Promise.all([load("CompactGameCard.jsx"), load("compactGameCardEnhancements.css")]);
+  assert.match(card, /referenceLead\?\.kind === "total"/);
+  assert.match(card, /<TotalGapDirection side=\{referenceLead\.side\} \/>/);
+  assert.match(card, /referenceTeam \? <TeamLogo team=\{referenceTeam\}/);
+  assert.match(card, /<TotalGapDirection side=\{edge\.detail\} \/>/);
+  assert.match(card, /direction === "over" \? "↑" : "↓"/);
+  assert.match(card, /CAPTURED LINE · NOT EV/);
+  assert.match(css, /cgc-total-direction-arrow/);
+  assert.match(css, /cgc-total-direction-label/);
+  assert.match(css, /cgc-total-direction\.is-over/);
+  assert.match(css, /cgc-total-direction\.is-under/);
+});

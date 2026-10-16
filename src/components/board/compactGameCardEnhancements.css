@@ -826,3 +826,53 @@
     font-size: 10px !important;
   }
 }
+
+
+/* Horizontal gap identity: preserve the school logo for spread gaps;
+   show a strong directional mark when the selected comparison is a total. */
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge .cgc-edge-logo .team-logo {
+  width: 42px !important;
+  height: 42px !important;
+}
+
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-total-direction {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-width: 0;
+  line-height: 1;
+  white-space: nowrap;
+  font-weight: 950;
+  text-shadow: 0 0 10px currentColor;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-total-direction.is-over {
+  color: #6bf1c3;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-total-direction.is-under {
+  color: #ffbc72;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-total-direction-arrow {
+  font-size: 38px;
+  font-weight: 950;
+  line-height: .9;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-total-direction-label {
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: .07em;
+  margin-top: 2px;
+}
+@media (max-width: 600px) {
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-total-direction-arrow {
+    font-size: 32px;
+  }
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-total-direction-label {
+    font-size: 10px;
+  }
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge .cgc-edge-logo .team-logo {
+    width: 36px !important;
+    height: 36px !important;
+  }
+}
