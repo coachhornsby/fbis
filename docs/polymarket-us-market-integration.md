@@ -95,10 +95,16 @@ challengers remain future phases. Never claim this short sampler is a persistent
 Durable Object coordinating a rotating, reconnecting outbound US Market WebSocket.
 Its every-five-minute Cloudflare Cron reactivates the object after deploys or outages.
 The object rotates every 9 minutes, refreshes the live contract subscription,
-uses a round-robin sport sample (up to 48 active contracts), deduplicates/throttles
-quotes, and batches up to 40 immutable source-labeled records per write cycle.
-This is a persistent, self-healing *bounded-scope stream*, not exhaustive
-exchange coverage. All 11 sports are eligible; some may be unlisted on the US exchange.
+uses a **dynamic capacity manager** (default soft ceiling 500 contracts; configurable
+via `STREAM_MAX_*` vars) with fair round-robin across all 11 sports, deduplicates
+slugs, partitions subscribe frames at ≤50 slugs each, throttles quotes, and batches
+up to 40 immutable source-labeled records per write cycle. The retired fixed
+`MAX_MARKETS=48` / six-per-sport sampler is no longer the selection architecture.
+Uncovered eligible contracts are reported with explicit reasons (`CAPACITY`,
+`CONNECTION_BUDGET`). This remains a persistent, self-healing stream under **one**
+Durable Object owner — not a second collector and not exhaustive exchange coverage.
+All 11 sports are eligible; some may be unlisted on the US exchange
+(`NO_VERIFIED_MARKETS` when inventory is empty).
 
 The Worker stores **no copy** of the operator's Polymarket US signing key.
 It holds one separately generated encrypted inter-service token,

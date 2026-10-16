@@ -33,6 +33,11 @@ database_id = "c32ccf06-c896-4d24-bb89-3e87a7412899"
 binding = "ARCHIVE"
 bucket_name = "fbis-archive"
 
-# Deploy initially disabled; separate validated activation commit is required.
+# Soft operational capacity — not a verified Polymarket hard quota.
+# Subscribe frames remain ≤50 slugs; total scales via multiple frames on one DO.
 [vars]
 MARKET_HISTORY_SHADOW_WS = "disabled"
+STREAM_MAX_CONTRACTS = "500"
+STREAM_MAX_PER_CONNECTION = "50"
+STREAM_MAX_CONNECTIONS = "10"
+STREAM_MIN_PER_SPORT = "1"

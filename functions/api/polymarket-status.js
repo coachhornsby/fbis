@@ -89,8 +89,19 @@ export async function onRequestGet({env}){
       received:Number(stream?.received||0),
       parsed:Number(stream?.parsed||0),
       inserted:Number(stream?.inserted||0),
+      spilled:Number(stream?.spilled||0),
       reconnects:Number(stream?.reconnects||0),
-      lastConnectAttemptAt:stream?.lastConnectAttemptAt||null
+      lastConnectAttemptAt:stream?.lastConnectAttemptAt||null,
+      capacity:stream?.capacity||null,
+      uncoveredCount:Number(stream?.uncoveredCount||0),
+      sportCoverage:stream?.sportCoverage||null,
+      fixedCapRetired:stream?.fixedCapRetired===true,
+      architecture:stream?.architecture||null,
+      mode:stream?.mode||null,
+      streamHealthy:stream?.streamHealthy===true,
+      persistenceStatus:stream?.persistenceStatus||null,
+      lastSpillKey:stream?.lastSpillKey||null,
+      lastSpillAt:stream?.lastSpillAt||null,
     },sports:states});
  }catch(error){return json({ok:false,error:"market-status-unavailable",detail:String(error?.message||error)},502)}
 }
