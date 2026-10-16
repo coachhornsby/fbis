@@ -1,8 +1,6 @@
 name: Polymarket US all-sport read-only market observations
 on:
-  schedule:
-    # Hourly; paginated public discovery, immutable archive and bounded ingestion.
-    - cron: "12 * * * *"
+  # Full-league hourly crawling is paused; projected-event-only collection required.
   workflow_dispatch:
     inputs:
       sport:
@@ -64,10 +62,10 @@ jobs:
         if: github.event_name == 'push'
         run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
       - name: Archive and reconcile all pages from listed supported public leagues
-        if: github.event_name != 'pull_request'
+        if: ${{ false }} # Full-league/source-wide pulls prohibited without projection targeting
         run: node scripts/collect-polymarket-pages.mjs
       - name: Read-only authenticated Polymarket US WebSocket BBO sampling
-        if: github.event_name != 'pull_request'
+        if: ${{ false }} # Full-league/source-wide pulls prohibited without projection targeting
         shell: bash
         run: |
           set -euo pipefail
