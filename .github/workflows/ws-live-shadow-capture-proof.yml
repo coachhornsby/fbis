@@ -1,0 +1,55 @@
+name: WS live-capture-to-history shard proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ops/triggers/ws-live-shadow-capture"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-market-live-shadow-capture-proof
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Authenticate one bounded WebSocket capture and verify shard shadow
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Verify capture requires private operator header
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "Missing operator credential"; exit 1; }
+          BASE="https://fbis-myz.pages.dev/api/polymarket-ws-capture"
+          anon="$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' -X POST "$BASE")"
+          test "$anon" = "403" || { echo "Protected WS capture guard missing"; exit 1; }
+      - name: Collect one existing eight-symbol public-data WS sample and verify post-commit shard
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          result="$(mktemp)"
+          code="$(curl -sS --max-time 85 -o "$result" -w '%{http_code}'             -X POST -H "x-harvest-secret: ${HARVEST_SECRET}"             "https://fbis-myz.pages.dev/api/polymarket-ws-capture")"
+          jq -c '{ok,reason,connected,subscribed,validBbo,inserted,shardShadow,canQualify,canAuthorizeWager}' "$result" > artifacts/live-ws-shard-proof.json
+          if [ "$code" != "200" ]; then
+            echo "The live capture was unavailable (HTTP $code), not proof of new shadow writes."
+            cat artifacts/live-ws-shard-proof.json
+            exit 1
+          fi
+          jq -e '.ok==true and .canQualify==false and .canAuthorizeWager==false
+            and .validBbo>0 and .shardShadow.state=="SHADOW_VERIFIED"
+            and .shardShadow.verified>0 and .shardShadow.sourceRowsDeleted==0' "$result" >/dev/null               || { echo "No complete live WS-to-shard copy proven"; cat artifacts/live-ws-shard-proof.json; exit 1; }
+          echo "Live new provider sample persisted on primary and reconciled to separate market-history D1."
+      - name: Retain sanitized operator evidence
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ws-live-shard-capture-proof
+          path: artifacts/live-ws-shard-proof.json
+          if-no-files-found: ignore
+          retention-days: 14
