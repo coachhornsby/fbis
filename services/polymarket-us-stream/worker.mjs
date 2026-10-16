@@ -460,7 +460,9 @@ export default {
   async scheduled(_event,env,ctx){
     // Safe periodic reactivation after worker restarts/deployment. One DO
     // owns dynamic all-sport capacity (no competing collectors).
-    const id=env.PM_STREAM.idFromName("active-sports-fbis");
+    // v2 cutover: long-lived WS pins prior DO isolates after deploy; a new
+    // name forces one coordinated owner onto the latest Worker code.
+    const id=env.PM_STREAM.idFromName("active-sports-fbis-v2");
     const stub=env.PM_STREAM.get(id);
     ctx.waitUntil(stub.fetch("https://internal/start",{method:"POST"}).then(async response=>{
       if(!response.ok) console.warn("POLYMARKET_MARKET_STREAM_RESTART_FAILED",response.status);
@@ -471,11 +473,11 @@ export default {
     if(u.pathname==="/start"){
       if(request.method!=="POST")return toJSON({ok:false,error:"method-not-allowed"},405);
       if(!env.FBIS_STREAM_PROXY_TOKEN||request.headers.get('x-fbis-stream-token')!==env.FBIS_STREAM_PROXY_TOKEN)return toJSON({ok:false,error:"unauthorized"},403);
-      const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis"));
+      const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis-v2"));
       return stub.fetch("https://internal/start",{method:"POST"});
     }
     if(u.pathname!=="/health")return toJSON({ok:false,error:"not-found"},404);
-    const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis"));
+    const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis-v2"));
     const r=await stub.fetch("https://internal/status");
     const status=await r.json();
     return toJSON({ok:true,source:"Polymarket US signed persistent market collector",

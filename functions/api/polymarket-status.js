@@ -117,6 +117,15 @@ export async function onRequestGet({env}){
       lastSpillKey:stream?.lastSpillKey||null,
       lastSpillAt:stream?.lastSpillAt||null,
       codeVersion:stream?.codeVersion||null,
+      historyRecovery:{
+        available:Boolean(env.MARKET_HISTORY_DB?.prepare),
+        bboRecordsLast24h:Number(historyWs?.n||0),
+        matchedEventsLast24h:Number(historyWs?.matched_games||0),
+        contractCountLast24h:Number(historyWs?.contracts||0),
+        sportCountLast24h:Number(historyWs?.sports||0),
+        lastBboCapture:historyWs?.last_capture||null,
+        note:"Recovery writes only while primary D1 cannot accept inserts; not primary authority.",
+      },
     },sports:states});
  }catch(error){return json({ok:false,error:"market-status-unavailable",detail:String(error?.message||error)},502)}
 }
