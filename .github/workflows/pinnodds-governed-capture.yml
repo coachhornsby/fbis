@@ -1,10 +1,11 @@
-name: PinnOdds governed complete REST snapshots
+name: PinnOdds free-trial REST targeted-acquisition safeguards
 on:
-  # Paid broad snapshots are paused until per-event projected scope and USD cost are verified.
+  # $0 trial REST has request quotas, not dollar charges. Whole-sport pulls remain paused
+  # until exact modeled-event requests and identity checks are implemented.
   workflow_dispatch:
     inputs:
       paid_capture:
-        description: 'Explicitly authorize governed provider collection'
+        description: 'Legacy broad capture disabled; targeted free-trial flow only'
         required: false
         type: boolean
         default: false
