@@ -29,6 +29,17 @@ function Stars({ value = 1 }) {
   );
 }
 
+function TotalGapDirection({ side }) {
+  const direction = String(side || "").toLowerCase();
+  if (direction !== "over" && direction !== "under") return <div className="cgc-total-mark">EVEN</div>;
+  return (
+    <span className={`cgc-total-direction is-${direction}`} role="img" aria-label={`${direction.toUpperCase()} projected game total compared with market`}>
+      <span className="cgc-total-direction-arrow" aria-hidden="true">{direction === "over" ? "↑" : "↓"}</span>
+      <span className="cgc-total-direction-label" aria-hidden="true">{direction.toUpperCase()}</span>
+    </span>
+  );
+}
+
 function VenueIcon({ indoor = false }) {
   return indoor ? (
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9.5C4 6.5 7.6 4 12 4s8 2.5 8 5.5V19h-2v-3H6v3H4Zm2-5h12V9.5C18 7.7 15.3 6 12 6S6 7.7 6 9.5V14Zm2-4h8v2H8v-2Z" /></svg>
@@ -275,18 +286,20 @@ export default function CompactGameCard({ game, onOpen }) {
             <small>STORED PREGAME · NO EDGE</small>
           </aside>
         ) : (
-        <aside className={`cgc-best-edge${soccerPick ? " is-side" : edge.total ? " is-total" : " is-side"}`}>
+        <aside className={`cgc-best-edge${soccerPick ? " is-side" : (showReferenceGap ? referenceLead?.kind === "total" : edge.total) ? " is-total" : " is-side"}`}>
           <span>{soccerPick ? "CONFIDENCE PICK" : showReferenceGap ? "FBIS / PINNODDS GAP" : isNhl && !proj.available ? "NO PURE PROJECTION" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : isNhl && market.referenceOnly ? "MODEL / REFERENCE GAP" : "MODEL / MARKET GAP"}</span>
           <div className="cgc-edge-identity">
             {soccerPick ? (
               soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={42} className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
             ) : showReferenceGap ? (
-              referenceTeam ? <TeamLogo team={referenceTeam} size={46} className="cgc-edge-logo" />
-                : <div className="cgc-total-mark">{referenceLead?.kind==="total" ? String(referenceLead.side).toUpperCase() : "EVEN"}</div>
+              referenceLead?.kind === "total"
+                ? <TotalGapDirection side={referenceLead.side} />
+                : referenceTeam ? <TeamLogo team={referenceTeam} size={46} className="cgc-edge-logo" />
+                : <div className="cgc-total-mark">EVEN</div>
             ) : edge.team ? (
               <TeamLogo team={edge.team} size={42} className="cgc-edge-logo" />
             ) : edge.total ? (
-              <div className="cgc-total-mark">TOTAL</div>
+              <TotalGapDirection side={edge.detail} />
             ) : null}
           </div>
           <strong>{soccerPick ? `${stars}★` : showReferenceGap ? `${referenceLead.delta > 0 ? "+" : ""}${referenceLead.delta} PTS` : edge.value}</strong>
