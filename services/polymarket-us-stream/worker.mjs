@@ -53,6 +53,74 @@ export class PolymarketMarketStream extends DurableObject {
     else await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
     return toJSON({ok:!!this.socket, ...this.status()});
   }
+  async archiveCandidates({rosterSince,from,until}){
+    if(!this.env.ARCHIVE?.list)return [];
+    const prefix="market-sources/polymarket-us/stream-roster/";
+    const listing=await this.env.ARCHIVE.list({prefix,limit:100});
+    const keys=(listing.objects||[]).map(x=>x.key).slice(0,100);
+    const all=[];
+    for(const key of keys){
+      const object=await this.env.ARCHIVE.get(key);
+      if(!object)continue;
+      const page=await object.json();
+      if(page.version!==1||page.source!=="Polymarket US"||
+        !Number.isFinite(Date.parse(page.capturedAt))||page.capturedAt<rosterSince||
+        !Array.isArray(page.roster))continue;
+      for(const item of page.roster){
+        if(!item?.canonical_event_id||!item?.source_market_id||
+          !/^[a-z0-9-]{1,160}$/i.test(item.source_market_id)||
+          !["moneyline","spread","total"].includes(item.market_family)||
+          typeof item.event_start_time!=="string"||
+          item.event_start_time<from||item.event_start_time>until)continue;
+        all.push(item);
+      }
+    }
+    if(!all.length)return [];
+    // Archived contract metadata is not evidence of an independent projection.
+    // Verify canonical event and pre-event model timing in primary D1 BEFORE WS subscription.
+    const events=[...new Map(all.map(x=>[x.sport+"|"+x.canonical_event_id,
+      {sport:x.sport,canonical_event_id:String(x.canonical_event_id),
+       event_start_time:x.event_start_time}])).values()].slice(0,300);
+    const query=`WITH roster AS (
+      SELECT json_extract(value,'$.sport') sport,
+        json_extract(value,'$.canonical_event_id') canonical_event_id,
+        json_extract(value,'$.event_start_time') event_start_time
+      FROM json_each(?1)
+    ) SELECT DISTINCT sport,canonical_event_id FROM roster r WHERE
+      EXISTS (SELECT 1 FROM prediction_snapshots ps
+        WHERE ps.game_id=r.canonical_event_id AND ps.sport=r.sport
+          AND ps.model_version IS NOT NULL
+          AND COALESCE(ps.projection_kind,'FBIS')<>'UNAVAILABLE'
+          AND (ps.proj_total IS NOT NULL OR
+            (ps.proj_home IS NOT NULL AND ps.proj_away IS NOT NULL)
+            OR ps.p_home_final BETWEEN 0 AND 1)
+          AND julianday(ps.frozen_at)<=julianday('now')
+          AND julianday(ps.frozen_at)<julianday(r.event_start_time))
+      OR EXISTS (SELECT 1 FROM tennis_v2_research_decisions td
+        WHERE r.sport='tennis' AND td.canonical_event_id=r.canonical_event_id
+          AND td.pure_p1 BETWEEN 0 AND 1
+          AND julianday(td.decision_timestamp)<=julianday('now')
+          AND julianday(td.decision_timestamp)<julianday(r.event_start_time))
+      OR EXISTS (SELECT 1 FROM published_projections pp
+        WHERE pp.game_id=r.canonical_event_id AND pp.sport=r.sport
+          AND julianday(pp.published_at)<=julianday('now')
+          AND julianday(pp.published_at)<julianday(r.event_start_time)
+          AND json_valid(pp.payload_json)
+          AND json_extract(pp.payload_json,'$.model.independent')=1)`;
+    const result=await this.env.DB.prepare(query).bind(JSON.stringify(events)).all();
+    const permitted=new Set((result.results||[]).map(x=>x.sport+"|"+x.canonical_event_id));
+    const byMarket=new Map();
+    for(const item of all){
+      if(!permitted.has(item.sport+"|"+item.canonical_event_id))continue;
+      const old=byMarket.get(item.source_market_id);
+      if(!old||item.collected_at>old.collected_at)byMarket.set(item.source_market_id,item);
+    }
+    this.lastCandidateDiagnostics={at:new Date().toISOString(),
+      source:"existing-r2-rest-roster",archivedMarkets:all.length,
+      verifiedEvents:permitted.size,selected:byMarket.size,archiveListingComplete:listing.truncated!==true,
+      reason:byMarket.size?"ARCHIVE_ROSTER_VERIFIED":"NO_ELIGIBLE_ARCHIVE_CONTRACTS"};
+    return fairMarketSelection([...byMarket.values()],{perSport:6,maxMarkets:MAX_MARKETS});
+  }
   async candidates(){
     const now=Date.now();
     const {since:rosterSince,freshSince}=streamContractRosterWindow(now);
@@ -114,7 +182,13 @@ export class PolymarketMarketStream extends DurableObject {
     this.lastCandidateDiagnostics={at:new Date().toISOString(),selected:selected.length,
       returnedRows:(q.results||[]).length,source:'primary-d1',
       rosterSince,freshSince,reason:selected.length?'ELIGIBLE_CONTRACTS':'NO_ELIGIBLE_CONTRACTS'};
-    return selected;
+    if(selected.length)return selected;
+    try{return await this.archiveCandidates({rosterSince,from,until})}
+    catch(error){
+      this.lastCandidateDiagnostics={...this.lastCandidateDiagnostics,
+        archiveFallbackError:"ARCHIVE_ROSTER_UNAVAILABLE"};
+      return [];
+    }
   }
   async connect(){
     if(this.running)return;
