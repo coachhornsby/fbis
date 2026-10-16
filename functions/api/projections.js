@@ -4,6 +4,7 @@ import { buildTennisResearchSlate, boardDateCtForStart } from "../lib/todayBoard
 import { authorizeProductTier, productResponsePolicy } from "../lib/productAccess.js";
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "../lib/polymarketBoard.js";
 import { loadPinnoddsBoardResearch } from "../lib/pinnoddsBoardResearch.js";
+import {loadPinnoddsR2BoardResearch,preferFreshPinnoddsArchive} from "../lib/pinnoddsArchiveBoard.js";
 
 const SPORTS = new Set(["mlb", "npb", "kbo", "cfb", "cbb", "nfl", "nba", "wnba", "nhl", "soccer", "tennis"]);
 
@@ -54,7 +55,11 @@ export async function onRequestGet(context) {
     if(context.env.DB?.prepare && board.games?.length){
       try{overlay=await loadPolymarketUsBoardOffers(context.env.DB,board.games,sport)}
       catch(_){/* stale/missing provider never breaks independent FBIS projections */}
-      try{pinnodds=await loadPinnoddsBoardResearch(context.env.DB,{sport,games:board.games})}
+      try{
+        const d1=await loadPinnoddsBoardResearch(context.env.DB,{sport,games:board.games});
+        const r2=await loadPinnoddsR2BoardResearch(context.env.ARCHIVE,{sport,games:board.games});
+        pinnodds=preferFreshPinnoddsArchive(d1,r2);
+      }
       catch(_){/* missing PinnOdds may not break independent model calculations */}
     }
     const cards=attachPolymarketBoardOffers(board.games,overlay).map(game=>{
