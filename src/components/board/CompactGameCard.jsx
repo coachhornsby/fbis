@@ -195,6 +195,7 @@ export default function CompactGameCard({ game, onOpen }) {
   const rawGapTeam = gapTeam === away ? game?.away : gapTeam === home ? game?.home : null;
   const gapTeamColor = gapBrandColor(gapTeam, rawGapTeam, sportId);
   const gapTeamLabel = gapTeam?.abbr && gapTeam.abbr !== "—" ? gapTeam.abbr : gapTeam?.name || null;
+  const gapUnit = ["mlb","npb","kbo"].includes(sportId) ? "RUNS" : sportId === "nhl" ? "GOALS" : "PTS";
 
   const gapPresentationClass = !soccerPick && gapIsTotal
     ? ` cgc-gap-total cgc-gap-total-${gapTotalSide === "over" || gapTotalSide === "under" ? gapTotalSide : "even"}`
@@ -318,7 +319,7 @@ export default function CompactGameCard({ game, onOpen }) {
               <TotalGapDirection side={edge.detail} />
             ) : null}
           </div>
-          <strong>{soccerPick ? `${stars}★` : showReferenceGap ? `${referenceLead.delta > 0 ? "+" : ""}${referenceLead.delta} PTS` : edge.value}</strong>
+          <strong>{soccerPick ? `${stars}★` : showReferenceGap ? `${referenceLead.delta > 0 ? "+" : ""}${referenceLead.delta} ${gapUnit}` : edge.value}</strong>
           <b>{soccerPick ? soccerPick.pick || "—" : showReferenceGap ? `${referenceLead.kind === "total" ? "GAME TOTAL" : "POINT SPREAD"} · PROJECTION DIFF` : edge.detail}</b>
           <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : showReferenceGap ? "CAPTURED LINE · NOT EV" : isNhl ? `${edge.type} · RESEARCH ONLY` : edge.type}</small>
         </aside>
