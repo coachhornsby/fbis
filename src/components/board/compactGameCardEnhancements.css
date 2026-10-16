@@ -739,7 +739,7 @@
   grid-column: 1 !important;
   grid-row: 2 !important;
   display: grid !important;
-  grid-template-columns: minmax(115px, 1.2fr) auto auto minmax(100px, 1fr) !important;
+  grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr) !important;
   grid-template-areas: "label identity delta detail" "note note note note";
   justify-content: stretch !important;
   justify-items: center !important;
