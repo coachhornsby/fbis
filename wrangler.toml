@@ -29,3 +29,8 @@ database_id = "c32ccf06-c896-4d24-bb89-3e87a7412899"
 [[r2_buckets]]
 binding = "ARCHIVE"
 bucket_name = "fbis-archive"
+
+# Separate D1 write copies only; authoritative reads, CLV, and qualification
+# remain on primary. Roll back by setting this to "disabled".
+[vars]
+MARKET_HISTORY_SHADOW_WS = "enabled"
