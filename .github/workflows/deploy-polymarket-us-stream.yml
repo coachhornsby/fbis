@@ -51,6 +51,20 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           npx wrangler deploy --config wrangler.polymarket-us-stream.toml
           echo "Published dedicated Polymarket US read-only stream; credentials provisioned separately as encrypted Worker secrets." >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify independent stream shadow status and default-off flag
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          file="$(mktemp)"
+          code="$(curl -sS --retry 3 --retry-all-errors --retry-delay 3 --max-time 30 -o "$file" -w '%{http_code}' "https://fbis-polymarket-us-stream.coachhornsby.workers.dev/status")"
+          test "$code" = "200" || { echo "Stream Worker status HTTP=$code"; exit 1; }
+          jq -e '.readOnly == true and .canAuthorizeWager == false
+            and .shadow.enabled == false
+            and .shadow.sourceIsAuthoritative == true
+            and .shadow.gap == 0' "$file" > /dev/null
+          jq -c '{connected,operational,subscriptions,inserted,lastError,
+            shadow:{enabled:.shadow.enabled,loaded:.shadow.loaded,pending:.shadow.pending,
+              verified:.shadow.verified,written:.shadow.written,failed:.shadow.failed,gap:.shadow.gap}}' "$file"
       - name: Activate collector after Pages and Worker are ready
         if: github.event_name != 'pull_request'
         env:
