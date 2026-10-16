@@ -28,7 +28,7 @@ test('simultaneous subscriber demand yields exactly one paid launch and pre-laun
  const {env,sql}=fixture(),calls=[];const fetchImpl=provider(calls);
  await Promise.all([startPaidAcquisition(env,{...request,fetchImpl}),startPaidAcquisition(env,{...request,component:'consumer-b',fetchImpl})]);
  assert.equal(calls.length,1);assert.equal(sql.prepare('SELECT count(*) n FROM external_acquisitions').get().n,1);
- assert.match(calls[0].url,/maxTotalChargeUsd=1.5/);
+ assert.match(calls[0].url,/maxTotalChargeUsd=0.7/);
  const reuse=await startPaidAcquisition(env,{...request,component:'consumer-b',fetchImpl});assert.equal((await reuse.json()).reused,true);assert.equal(calls.length,1);
  assert.equal(sql.prepare('SELECT count(*) n FROM external_acquisition_consumers').get().n,2);
 });
