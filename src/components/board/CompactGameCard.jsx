@@ -15,6 +15,7 @@ import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import MatchupSignals from "./MatchupSignals.jsx";
 import NhlMatchupSignals from "./NhlMatchupSignals.jsx";
 import { confidenceStars } from "../../lib/confidenceStars.js";
+import { gapBrandColor } from "../../lib/marketGapBrand.js";
 import "./compactGameCardEnhancements.css";
 import "./universalPremiumCard.css";
 
@@ -176,11 +177,6 @@ export default function CompactGameCard({ game, onOpen }) {
   const showReferenceGap = !stored && !vm.decision?.evAvailable && referenceGap.available;
   const referenceTeam = showReferenceGap && referenceLead?.kind === "spread"
     ? referenceLead.side === "home" ? home : referenceLead.side === "away" ? away : null : null;
-  // The highlighted side is the team with the spread-price disagreement, not necessarily the projected winner.
-  const gapTeam = showReferenceGap ? referenceTeam : !edge.total ? edge.team : null;
-  const rawGapTeam = gapTeam === away ? game?.away : gapTeam === home ? game?.home : null;
-  const gapTeamColor = normalizeTeamColor(gapTeam, null) || normalizeTeamColor(rawGapTeam, null);
-  const gapTeamLabel = gapTeam?.abbr && gapTeam.abbr !== "—" ? gapTeam.abbr : gapTeam?.name || null;
   const gapTotalSide = String(showReferenceGap ? referenceLead?.side : edge.detail || "").toLowerCase();
   const gapIsTotal = showReferenceGap ? referenceLead?.kind === "total" : edge.total;
   const matchup = isNfl ? game?.nflGameMatchup : null;
@@ -193,11 +189,18 @@ export default function CompactGameCard({ game, onOpen }) {
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
   const soccerPickTeam = soccerPick?.side === "HOME" ? home : soccerPick?.side === "AWAY" ? away : null;
+  // Never use the projected winner as a substitute for the verified spread-side gap.
+  // Soccer has 1X2 confidence picks rather than a modeled point-spread gap.
+  const gapTeam = soccerPick ? soccerPickTeam : showReferenceGap ? referenceTeam : !edge.total ? edge.team : null;
+  const rawGapTeam = gapTeam === away ? game?.away : gapTeam === home ? game?.home : null;
+  const gapTeamColor = gapBrandColor(gapTeam, rawGapTeam, sportId);
+  const gapTeamLabel = gapTeam?.abbr && gapTeam.abbr !== "—" ? gapTeam.abbr : gapTeam?.name || null;
+
   const gapPresentationClass = !soccerPick && gapIsTotal
     ? ` cgc-gap-total cgc-gap-total-${gapTotalSide === "over" || gapTotalSide === "under" ? gapTotalSide : "even"}`
-    : !soccerPick && gapTeam ? ` cgc-gap-team${gapTeamColor ? " cgc-gap-team-branded" : ""}`
+    : gapTeam ? ` cgc-gap-team${gapTeamColor ? " cgc-gap-team-branded" : ""}`
     : !soccerPick ? " cgc-gap-neutral" : "";
-  const gapPresentationStyle = !soccerPick && gapTeamColor ? { "--cgc-gap-brand": gapTeamColor } : undefined;
+  const gapPresentationStyle = gapTeamColor && !gapIsTotal ? { "--cgc-gap-brand": gapTeamColor } : undefined;
 
 
 
@@ -303,7 +306,7 @@ export default function CompactGameCard({ game, onOpen }) {
           <span>{soccerPick ? "CONFIDENCE PICK" : showReferenceGap ? "FBIS / PINNODDS GAP" : isNhl && !proj.available ? "NO PURE PROJECTION" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : isNhl && market.referenceOnly ? "MODEL / REFERENCE GAP" : "MODEL / MARKET GAP"}</span>
           <div className="cgc-edge-identity">
             {soccerPick ? (
-              soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={42} className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
+              soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={64} className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
             ) : showReferenceGap ? (
               referenceLead?.kind === "total"
                 ? <TotalGapDirection side={referenceLead.side} />
