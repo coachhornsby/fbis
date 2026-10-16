@@ -57,8 +57,35 @@ export class PolymarketMarketStream extends DurableObject {
         CASE WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%first_half%' THEN 'first_half' WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%second_half%' THEN 'second_half' WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time%' OR json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_game%' THEN 'full_game' ELSE period END period,
         source_market_id,source_outcome_id,collected_at,raw_payload_json,
         ROW_NUMBER() OVER(PARTITION BY source_market_id ORDER BY collected_at DESC,CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,id DESC) rn
-       FROM normalized_market_observations
+       FROM normalized_market_observations nmo
        WHERE source='Polymarket US' AND source_market_id IS NOT NULL
+       AND nmo.canonical_event_id IS NOT NULL
+       AND nmo.market_family IN ('moneyline','spread','total')
+       -- Do not subscribe to odds without a prior independent model forecast.
+       -- These immutable evidence clocks cannot use a later projection.
+       AND (
+         EXISTS (SELECT 1 FROM prediction_snapshots ps
+           WHERE ps.game_id=nmo.canonical_event_id AND ps.sport=nmo.sport
+           AND ps.model_version IS NOT NULL
+           AND COALESCE(ps.projection_kind,'FBIS')<>'UNAVAILABLE'
+           AND (ps.proj_total IS NOT NULL OR
+                (ps.proj_home IS NOT NULL AND ps.proj_away IS NOT NULL) OR
+                (ps.p_home_final>=0 AND ps.p_home_final<=1))
+           AND julianday(ps.frozen_at)<=julianday('now')
+           AND julianday(ps.frozen_at)<julianday(nmo.event_start_time))
+         OR EXISTS (SELECT 1 FROM tennis_v2_research_decisions td
+           WHERE nmo.sport='tennis'
+           AND td.canonical_event_id=nmo.canonical_event_id
+           AND td.pure_p1 BETWEEN 0 AND 1
+           AND julianday(td.decision_timestamp)<=julianday('now')
+           AND julianday(td.decision_timestamp)<julianday(nmo.event_start_time))
+         OR EXISTS (SELECT 1 FROM published_projections pp
+           WHERE pp.game_id=nmo.canonical_event_id AND pp.sport=nmo.sport
+           AND julianday(pp.published_at)<=julianday('now')
+           AND julianday(pp.published_at)<julianday(nmo.event_start_time)
+           AND json_valid(pp.payload_json)
+           AND json_extract(pp.payload_json,'$.model.independent')=1)
+       )
        AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.contractLong')=1
        AND collected_at>=?1 AND event_start_time BETWEEN ?2 AND ?3
       ), balanced AS (
