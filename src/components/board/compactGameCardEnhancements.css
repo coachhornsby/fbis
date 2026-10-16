@@ -876,3 +876,124 @@
     height: 36px !important;
   }
 }
+
+
+/* Directional team-color gap identity: branding follows the compared spread side,
+   never the predicted game winner. Existing market/EV authority is unchanged. */
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team-branded {
+  --cgc-gap-accent: color-mix(in srgb, var(--cgc-gap-brand) 65%, #ffffff);
+  position: relative;
+  isolation: isolate;
+  border: 2px solid var(--cgc-gap-accent) !important;
+  background: linear-gradient(100deg,
+    color-mix(in srgb, var(--cgc-gap-brand) 43%, #061221),
+    color-mix(in srgb, var(--cgc-gap-brand) 27%, #071523) 57%,
+    #081321) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.13),
+    0 0 22px color-mix(in srgb, var(--cgc-gap-brand) 31%, transparent) !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team-branded::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: var(--cgc-gap-accent);
+  box-shadow: 0 0 17px color-mix(in srgb, var(--cgc-gap-brand) 67%, transparent);
+  pointer-events: none;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team-branded > span:first-child {
+  color: var(--cgc-gap-accent) !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team-branded > strong {
+  color: #ffffff !important;
+  font-weight: 950 !important;
+  font-size: clamp(24px, 2.5vw, 34px) !important;
+  text-shadow: 0 2px 7px rgba(0,0,0,.62), 0 0 17px color-mix(in srgb, var(--cgc-gap-brand) 54%, transparent);
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team .cgc-edge-identity {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 8px !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team .cgc-edge-logo {
+  max-height: none !important;
+  max-width: none !important;
+  flex-shrink: 0;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team .cgc-edge-logo.team-logo-plate,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team .cgc-edge-logo.team-logo-fallback {
+  width: 64px !important;
+  height: 64px !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team .cgc-edge-logo .team-logo {
+  width: 53px !important;
+  height: 53px !important;
+  max-height: none !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge .cgc-gap-side-name {
+  font-size: 13px !important;
+  font-weight: 950;
+  letter-spacing: .055em;
+  color: #f6faff;
+  text-shadow: 0 1px 5px rgba(0,0,0,.6);
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over {
+  border: 2px solid rgba(83, 248, 183, .87) !important;
+  background: linear-gradient(105deg,rgba(6,112,77,.52),rgba(3,29,37,.83)) !important;
+  box-shadow: 0 0 18px rgba(37,214,145,.16) !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under {
+  border: 2px solid rgba(255, 184, 88, .91) !important;
+  background: linear-gradient(105deg,rgba(141,70,13,.46),rgba(31,22,23,.86)) !important;
+  box-shadow: 0 0 18px rgba(255,175,69,.12) !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > span:first-child,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > strong {
+  color: #ffcb8b !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > span:first-child,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > strong {
+  color: #8affcf !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-gap-total .cgc-total-direction-arrow {
+  font-size: 52px !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-gap-total .cgc-total-direction-label {
+  font-size: 14px !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-neutral,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-even {
+  border: 1px solid rgba(139, 163, 188, .40) !important;
+  background: linear-gradient(100deg,rgba(41,62,80,.35),rgba(5,18,31,.81)) !important;
+  box-shadow: none !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-neutral > span:first-child,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-even > span:first-child {
+  color: #bed1e2 !important;
+}
+@media (max-width: 600px) {
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team .cgc-edge-identity {
+    gap: 3px !important;
+  }
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team .cgc-edge-logo.team-logo-plate,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team .cgc-edge-logo.team-logo-fallback {
+    width: 45px !important;
+    height: 45px !important;
+  }
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team .cgc-edge-logo .team-logo {
+    width: 39px !important;
+    height: 39px !important;
+  }
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge .cgc-gap-side-name {
+    font-size: 10px !important;
+  }
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team-branded > strong {
+    font-size: 24px !important;
+  }
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-gap-total .cgc-total-direction-arrow {
+    font-size: 43px !important;
+  }
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-gap-total .cgc-total-direction-label {
+    font-size: 11px !important;
+  }
+}
