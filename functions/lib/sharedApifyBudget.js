@@ -4,6 +4,7 @@ import {billingWindow} from './externalAcquisition.js';
  * ACTION + PrizePicks combined: target <= $22/month, absolute stop at $25/month.
  */
 export const APIFY_SPORTS_TARGET_USD = 22;
+export const APIFY_PER_PULL_HARD_CAP_USD = 0.70;
 export const APIFY_SPORTS_HARD_CAP_USD = 25;
 export const APIFY_SPORTS_PRIORITY_ONLY_USD = 24;
 
@@ -18,7 +19,10 @@ export function readSharedApifyBudget(env = {}) {
 export function evaluateSharedApifySpend({ monthToDateUsd = 0, estimatedRunUsd = 0, priority = false, env = {} } = {}) {
   const { targetUsd, hardCapUsd } = readSharedApifyBudget(env);
   const mtd = Math.max(0, Number(monthToDateUsd) || 0);
-  const estimate = Math.max(0, Number(estimatedRunUsd) || 0);
+  const rawEstimate=Number(estimatedRunUsd);
+  if(!Number.isFinite(rawEstimate)||rawEstimate<=0)return {allowed:false,mode:"STOP",reason:"APIFY_PER_PULL_COST_UNVERIFIED"};
+  const estimate=rawEstimate;
+  if(estimate>APIFY_PER_PULL_HARD_CAP_USD+1e-9)return {allowed:false,mode:"STOP",reason:"APIFY_PER_PULL_OVER_70_CENTS",estimatedRunUsd:estimate,hardCapPerPullUsd:APIFY_PER_PULL_HARD_CAP_USD};
   const projected = mtd + estimate;
   if (projected > hardCapUsd + 1e-9) return { allowed:false, mode:"STOP", reason:"APIFY_SHARED_HARD_CAP", projectedUsd:projected, targetUsd, hardCapUsd };
   if (mtd >= APIFY_SPORTS_PRIORITY_ONLY_USD && !priority) return { allowed:false, mode:"PRIORITY_ONLY", reason:"APIFY_SHARED_PRIORITY_ONLY", projectedUsd:projected, targetUsd, hardCapUsd };
