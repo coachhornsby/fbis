@@ -1,10 +1,6 @@
 name: PinnOdds governed complete REST snapshots
 on:
-  schedule:
-    - cron: '23 0,3,6,9,12,15,18,21 * * *'
-    # One bounded backup attempt in each three-hour window. Same durable
-    # reservation key means no new paid launch if the primary already ran.
-    - cron: '23 1,4,7,10,13,16,19,22 * * *'
+  # Paid broad snapshots are paused until per-event projected scope and USD cost are verified.
   workflow_dispatch:
     inputs:
       paid_capture:
