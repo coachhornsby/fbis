@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeMirrorProps,matchMirrorEvent,FREE_PROP_MIRROR_URL,loadFreeMirrorRows} from '../functions/lib/freePrizePicksMirror.js';
+import {normalizeMirrorProps,matchMirrorEvent,FREE_PROP_MIRROR_URL,loadFreeMirrorRows,loadArchivedFreeMirrorRows} from '../functions/lib/freePrizePicksMirror.js';
 import {captureFreeMirror,consumeFreeMirror,onRequestPost} from '../functions/api/free-prizepicks-collect.js';
 const now=new Date('2026-10-13T16:00:00Z');
 const prop=(patch={})=>({projectionId:'p1',playerId:'player1',player:'Quarterback',sport:'NFL',stat:'Pass Yards',line:'220.5',Team:'Seattle Seahawks',Opponent:'Denver Broncos',teamCode:'SEA',opponentCode:'DEN',startTimeIso:'2026-10-15T20:15:00-04:00',providerFetchedAt:'2026-10-13T12:09:00Z',oddsType:'standard',status:'pre_game',gameId:'provider-game',...patch});
@@ -31,7 +31,14 @@ test('clock failures and failed publisher leagues cannot create usable normalize
 test('raw free capture precedes ingestion, replay keeps original capture clock and paid calls never occur',async()=>{
  const env={ARCHIVE:archive(),DB:database()};let calls=0;
  const fetchImpl=async url=>{assert.equal(url,FREE_PROP_MIRROR_URL);calls++;return new Response(JSON.stringify(feed([prop()])),{headers:{etag:'publisher-etag'}})};
- const first=await captureFreeMirror(env,{fetchImpl,now});assert.equal(first.pages,1);assert.equal(env.ARCHIVE.data.size,2);assert.equal(env.DB.writes.size,0);
+ const first=await captureFreeMirror(env,{fetchImpl,now});assert.equal(first.pages,1);assert.equal(env.ARCHIVE.data.size,3);assert.equal(env.DB.writes.size,0);
+ const pointer=JSON.parse(env.ARCHIVE.data.get('market-sources/free-prizepicks/latest.json'));
+ assert.equal(pointer.snapshotId,first.snapshotId);assert.equal(pointer.collectedAt,now.toISOString());
+ const references=await loadArchivedFreeMirrorRows(env,['canonical-game'],'nfl',{now});
+ assert.equal(references.length,1);assert.equal(references[0].provider,'PRIZEPICKS_FREE_MIRROR');
+ assert.equal(references[0].line,220.5);assert.equal(references[0].canAuthorizeWager,false);
+ assert.equal(references[0].quoteKind,'ARCHIVED_DAILY_REFERENCE_NOT_LIVE_VERIFIED');
+ assert.equal(env.DB.writes.size,0);
  const later=await captureFreeMirror(env,{fetchImpl,now:new Date('2026-10-13T17:00:00Z')});assert.equal(later.snapshotId,first.snapshotId);assert.equal(later.collectedAt,first.collectedAt);
  const consumed=await consumeFreeMirror(env,{snapshotId:first.snapshotId,batchIndex:0,now});assert.equal(consumed.inserted,1);assert.equal(consumed.matchedRows,1);
  assert.equal((await consumeFreeMirror(env,{snapshotId:first.snapshotId,batchIndex:0,now})).inserted,0);
