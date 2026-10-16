@@ -45,7 +45,7 @@ test("horizontal spread gap retains team logo and totals show directional OVER/U
   const [card, css] = await Promise.all([load("CompactGameCard.jsx"), load("compactGameCardEnhancements.css")]);
   assert.match(card, /referenceLead\?\.kind === "total"/);
   assert.match(card, /<TotalGapDirection side=\{referenceLead\.side\} \/>/);
-  assert.match(card, /referenceTeam \? <TeamLogo team=\{referenceTeam\}/);
+  assert.match(card, /referenceTeam \? <><TeamLogo team=\{referenceTeam\}/);
   assert.match(card, /<TotalGapDirection side=\{edge\.detail\} \/>/);
   assert.match(card, /direction === "over" \? "↑" : "↓"/);
   assert.match(card, /CAPTURED LINE · NOT EV/);
