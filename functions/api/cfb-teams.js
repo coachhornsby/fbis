@@ -11,13 +11,13 @@ const baseSql = "FROM cfb_canonical_teams WHERE active=1 AND upper(trim(subdivis
 const validId = (v) => /^cfb:espn:\d{1,12}$/.test(String(v || ""));
 const noModelAuthority = { canInfluenceProjection: false, canQualify: false, canAuthorizeWager: false };
 
-async function optionalTeamFeatures(db, teamId) {
+async function optionalTeamFeatures(db, teamId, season) {
   // PR #927 proposes restoring team_feature_snapshots. Until then, never
   // synthesize a state or trigger acquisition just to render a profile.
   try {
     const row = await db.prepare(
-      "SELECT as_of,feature_version,features_json,missingness_json,season FROM team_feature_snapshots WHERE sport='cfb' AND team_id=? ORDER BY as_of DESC LIMIT 1"
-    ).bind(teamId).first();
+      "SELECT as_of,feature_version,features_json,missingness_json,season FROM team_feature_snapshots WHERE sport='cfb' AND team_id=? AND season=? ORDER BY as_of DESC LIMIT 1"
+    ).bind(teamId, Number(season)).first();
     return toTeamFeatureSummary(row);
   } catch (error) {
     return { ...toTeamFeatureSummary(), state: "PERSISTENCE_UNAVAILABLE",
@@ -30,7 +30,7 @@ async function optionalTeamFeatures(db, teamId) {
  * Fail-closed: empty peers if table missing — never fabricates ranks or hits CFBD.
  */
 async function loadFbsResearchPeers(db, { season, featureVersion, conferenceByTeam = null } = {}) {
-  if (!db?.prepare || season == null || !featureVersion) return [];
+  if (!db?.prepare || season == null || !featureVersion) return { peers: [], totalFbs: null, conferenceCounts: {} };
   try {
     const result = await db.prepare(
       "SELECT team_id,as_of,feature_version,features_json,season FROM team_feature_snapshots WHERE sport='cfb' AND season=? AND feature_version=? ORDER BY as_of DESC LIMIT 500"
@@ -43,7 +43,11 @@ async function loadFbsResearchPeers(db, { season, featureVersion, conferenceByTe
       ).all();
       conferences = new Map((confRows?.results || []).map((r) => [r.team_id, r.current_conference || null]));
     }
-    return latest.map((row) => {
+    const conferenceCounts = {};
+    for (const conf of conferences.values()) {
+      if (conf) conferenceCounts[conf] = (conferenceCounts[conf] || 0) + 1;
+    }
+    const peers = latest.filter(row => conferences.has(row.team_id)).map((row) => {
       let features = null;
       try { features = row.features_json ? JSON.parse(row.features_json) : null; } catch { features = null; }
       return {
@@ -54,8 +58,9 @@ async function loadFbsResearchPeers(db, { season, featureVersion, conferenceByTe
         asOf: row.as_of || null,
       };
     }).filter((p) => p.teamId && p.flat && Object.keys(p.flat).length);
+    return { peers, totalFbs: conferences.size, conferenceCounts };
   } catch {
-    return [];
+    return { peers: [], totalFbs: null, conferenceCounts: {} };
   }
 }
 async function optionalTeamForm(db, espnId, season=2026) {
@@ -83,16 +88,16 @@ export async function loadFbsTeamDirectory(db, requestedTeamId = null, options =
       const playerId=options.playerId||null;
       if (playerId && !validProfilePlayer(playerId))return {status:400,body:{ok:false,error:"invalid-player-id"}};
       const [featureState, legacyForm, evidence] = await Promise.all([
-        optionalTeamFeatures(db, team.teamId), optionalTeamForm(db, team.espnId,season),
+        optionalTeamFeatures(db, team.teamId,season), optionalTeamForm(db, team.espnId,season),
         loadFbsTeamSeasonEvidence(db,team,season,playerId),
       ]);
       const snapshotSeason = featureState?.season != null ? Number(featureState.season) : Number(season);
-      const peers = featureState?.state === "RESEARCH_SNAPSHOT" && featureState.featureVersion
+      const peerPopulation = featureState?.state === "RESEARCH_SNAPSHOT" && featureState.featureVersion
         ? await loadFbsResearchPeers(db, {
           season: snapshotSeason,
           featureVersion: featureState.featureVersion,
         })
-        : [];
+        : { peers: [], totalFbs: null, conferenceCounts: {} };
       const publicFacts = await (options.publicFactsLoader || loadCfbPublicTeamFacts)(team.espnId, Number(season));
       evidence.schedule = publicFacts.schedule;
       const researchPanels = buildCfbTeamResearchPanels({
@@ -100,7 +105,9 @@ export async function loadFbsTeamDirectory(db, requestedTeamId = null, options =
         teamId: team.teamId,
         conference: team.conference,
         season: Number(season),
-        peers,
+        peers: peerPopulation.peers,
+        expectedNationalCount: peerPopulation.totalFbs,
+        expectedConferenceCount: peerPopulation.conferenceCounts[team.conference] ?? null,
       });
       return { status: 200, body: {
         ok: true, team, featureState, legacyForm, evidence, researchPanels,
