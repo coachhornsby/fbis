@@ -53,6 +53,9 @@ jobs:
               and .liveWritesRerouted==false
               and .canQualify==false
               and .canAuthorizeWager==false' "$response" >/dev/null
+            expected_written=8
+            if [ "$iteration" = "2" ]; then expected_written=0; fi
+            jq -e --argjson expected "$expected_written" '.written == $expected' "$response" >/dev/null || { echo "Distinct-row first-write/idempotence evidence failed iteration=$iteration"; exit 1; }
             jq -c '{state,batchSize,attempted,verified,written,primaryIsAuthoritative,sourceRowsDeleted,liveShadowFlagEnabled,liveReadsRerouted,liveWritesRerouted,canQualify,canAuthorizeWager}' "$response" >> artifacts/market-history-ws-pilot.jsonl
           done
           test "$(wc -l < artifacts/market-history-ws-pilot.jsonl)" = "2"

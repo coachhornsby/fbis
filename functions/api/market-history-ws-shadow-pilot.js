@@ -27,11 +27,11 @@ export async function onRequestPost(context){
     FROM normalized_market_observations
     WHERE source='Polymarket US WebSocket'
     AND can_qualify=0 AND can_authorize_wager=0
-    ORDER BY rowid DESC LIMIT 8`).all();
+    ORDER BY rowid ASC LIMIT 8`).all();
   const ids=result?.results?.map(x=>x.id)||[];
   if(ids.length!==8)return json({ok:false,error:"INSUFFICIENT_CANONICAL_WS_ROWS"},409);
   const mirror=context.mirrorExistingWsRows||mirrorVerifiedWsObservations;
-  // Per-request explicit verification only; never change Pages env vars.
+  // Oldest scope deliberately avoids the previous newest-row 30-record pilot.\n  // Per-request verification only; never change Pages env vars.
   const verified=await mirror({...context.env,MARKET_HISTORY_SHADOW_WS:"enabled"},ids);
   if(verified.state!=="SHADOW_VERIFIED"||verified.verified!==8||verified.sourceRowsDeleted!==0)
     return json({ok:false,error:"SHADOW_VERIFICATION_UNAVAILABLE"},503);
