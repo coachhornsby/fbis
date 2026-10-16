@@ -272,7 +272,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </div>
       </section>
 
-      {["cfb","nfl","cbb","nba","wnba","nhl","mlb","npb","kbo"].includes(sportId) ? (
+      {["cfb","nfl","cbb","nba","wnba","nhl","mlb","npb","kbo","soccer","tennis"].includes(sportId) ? (
         <>
           {["nhl","mlb","npb","kbo"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
           <PinnoddsCardMarkets game={game} projection={proj} />
