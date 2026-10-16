@@ -56,7 +56,7 @@ jobs:
         run: |
           set -euo pipefail
           file="$(mktemp)"
-          code="$(curl -sS --retry 3 --retry-all-errors --retry-delay 3 --max-time 30 -o "$file" -w '%{http_code}' "https://fbis-polymarket-us-stream.coachhornsby.workers.dev/status")"
+          code="$(curl -sS --retry 3 --retry-all-errors --retry-delay 3 --max-time 30 -o "$file" -w '%{http_code}' "https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health")"
           test "$code" = "200" || { echo "Stream Worker status HTTP=$code"; exit 1; }
           jq -e '.readOnly == true and .canAuthorizeWager == false
             and .shadow.enabled == false
