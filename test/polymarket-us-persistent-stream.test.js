@@ -248,3 +248,69 @@ test("R2 spill on D1 failure preserves ticks without claiming inserted success",
  assert.equal(worker.status().operational,false);
  assert.equal(worker.status().persistenceStatus,'DEGRADED');
 });
+
+test("history-shard recovery write on primary D1 failure does not claim primary inserts",async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const {DatabaseSync}=await import('node:sqlite');
+ const file=new URL('../services/polymarket-us-stream/worker.mjs',import.meta.url);
+ let source=await readFile(file,'utf8');
+ source=source.replace('import {DurableObject} from "cloudflare:workers";', 'class DurableObject { constructor(ctx,env){this.ctx=ctx;this.env=env;} }');
+ source=source.replace(/from\s+["'](\.[^"']+)["']/g,(_,path)=>'from '+JSON.stringify(new URL(path,file).href));
+ const {PolymarketMarketStream}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+ const sqlite=new DatabaseSync(':memory:');
+ const HISTORY={
+  async exec(sql){sqlite.exec(sql);},
+  prepare(sql){
+   const st=sqlite.prepare(sql);
+   return{
+    bind(...args){
+     return{
+      async run(){const r=st.run(...args);return{meta:{changes:r.changes||0}};},
+      async all(){return{results:st.all(...args)};},
+      async first(){return st.get(...args)||null;},
+     };
+    },
+   };
+  },
+ };
+ const puts=[];
+ const ARCHIVE={async put(key,body){puts.push(key);}};
+ const DB={prepare(){return{bind(){return{async run(){throw Error('D1 full')}}}}}};
+ const worker=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB,ARCHIVE,MARKET_HISTORY_DB:HISTORY});
+ worker.subscribed.set('nba-ml',{sport:'nba',canonical_event_id:'e2',event_start_time:'2026-10-17T00:00:00Z',market_family:'moneyline',period:'full_game',side:'Away'});
+ const tick={marketSlug:'nba-ml',bestAsk:0.61,bestBid:0.58,sourceObservedAt:'2026-10-16T20:10:00Z',at:'2026-10-16T20:10:01Z'};
+ worker.queue.set(tick.marketSlug,tick);
+ await worker.flush();
+ clearTimeout(worker.flushTimer);worker.flushTimer=null;
+ assert.equal(worker.inserted,0);
+ assert.ok(worker.historyInserted>=1);
+ assert.equal(worker.persistenceStatus,'DEGRADED_HISTORY');
+ assert.equal(worker.lastError,'d1-bbo-persist-error');
+ assert.equal(worker.queue.size,0);
+ assert.ok(puts.length>=1);
+ const row=sqlite.prepare("SELECT source,can_authorize_wager,contract_price FROM normalized_market_observations").get();
+ assert.equal(row.source,'Polymarket US WebSocket');
+ assert.equal(row.can_authorize_wager,0);
+ assert.equal(row.contract_price,0.61);
+ assert.equal(worker.status().fixedCapRetired,true);
+ assert.match(worker.status().codeVersion,/history-recovery/);
+});
+
+test("operator /start always forces socket rotation for post-deploy code pickup",async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const file=new URL('../services/polymarket-us-stream/worker.mjs',import.meta.url);
+ let source=await readFile(file,'utf8');
+ source=source.replace('import {DurableObject} from "cloudflare:workers";', 'class DurableObject { constructor(ctx,env){this.ctx=ctx;this.env=env;} }');
+ source=source.replace(/from\s+["'](\.[^"']+)["']/g,(_,path)=>'from '+JSON.stringify(new URL(path,file).href));
+ const {PolymarketMarketStream}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+ const closed=[];
+ const worker=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{FBIS_STREAM_PROXY_TOKEN:'t'});
+ worker.socket={readyState:1,close(code,reason){closed.push({code,reason});},send(){}};
+ worker.connect=async function(){this.socket={readyState:1,close(){},send(){}};this.connectedAt=Date.now();};
+ const res=await worker.fetch(new Request('https://internal/start',{method:'POST'}));
+ assert.equal(res.status,200);
+ assert.equal(closed.length,1);
+ assert.equal(closed[0].reason,'operator-forced-restart');
+ const body=await res.json();
+ assert.equal(body.fixedCapRetired,true);
+});
