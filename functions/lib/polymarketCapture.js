@@ -44,7 +44,6 @@ export async function capturePolymarketPage(env,{receiptId,kind,slug=null,sport=
   leagues:kind==='catalogue'?items.map(l=>({slug:l.slug,name:l.name,sport:classifyPolymarketUsLeague(l)})):undefined,
   offers,batches:Math.ceil(offers.length/BATCH),expectedRows:offers.length,
   providerSnapshotAtomic:false,readOnly:true,canAuthorizeWager:false};
- await env.ARCHIVE.put(key(receiptId),JSON.stringify(receipt),{httpMetadata:{contentType:'application/json'}});
  // Reuse this same provider capture as the stream's bounded, read-only roster.
  // Never request another REST page or manufacture a quote/observation timestamp.
  if(kind==='events'&&offers.length){
@@ -59,6 +58,7 @@ export async function capturePolymarketPage(env,{receiptId,kind,slug=null,sport=
   await env.ARCHIVE.put(rosterKey,JSON.stringify({version:1,source:'Polymarket US',
    capturedAt,receiptId,roster}),{httpMetadata:{contentType:'application/json'}});
  }
+ await env.ARCHIVE.put(key(receiptId),JSON.stringify(receipt),{httpMetadata:{contentType:'application/json'}});
  return publicReceipt(receipt);
 }
 function publicReceipt({offers,...receipt}){return{ok:true,...receipt};}
