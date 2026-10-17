@@ -26,7 +26,13 @@ binding = "MARKET_HISTORY_DB"
 database_name = "fbis-market-history"
 database_id = "c32ccf06-c896-4d24-bb89-3e87a7412899"
 
-# Separate operational D1 for new feature development. No existing reads or writes are redirected.\n[[d1_databases]]\nbinding = "OPERATIONS_DB"\ndatabase_name = "fbis-operations-20261017"\ndatabase_id = "2371df3a-17bf-44d6-abf0-d275cf2f331e"\n\n[[r2_buckets]]
+# Separate operational D1 for new feature development. No existing reads or writes are redirected.
+[[d1_databases]]
+binding = "OPERATIONS_DB"
+database_name = "fbis-operations-20261017"
+database_id = "2371df3a-17bf-44d6-abf0-d275cf2f331e"
+
+[[r2_buckets]]
 binding = "ARCHIVE"
 bucket_name = "fbis-archive"
 
