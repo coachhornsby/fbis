@@ -1,0 +1,14 @@
+{
+  "rootFolderId": "1UGipxCS-JIBvmVYFoDQqQpf0WBy7wBGV",
+  "folders": {
+    "01 — Database Backups": "1iaCABydLEtosKA074wXYw7mzVhKWEENW",
+    "02 — Historical Sports Data": "1c9vkUpWkyJmOLvW3WRmtaYiPC-S7WVH3",
+    "03 — Historical Market Odds": "1FblolnunIDlm4mPcvPz3smiYKDj81L_C",
+    "04 — Model Training Data": "1CjzqYLPVPZa0UGJabWt73aGCCeqkcr27",
+    "05 — Archive Manifests and Checksums": "1tZhvPG_4s6iu3fpXPdOqWmVtjI4Iw4KD",
+    "06 — Disaster Recovery": "1Mux_NwC7xqorCLqSMD2w_M06ZuaNhSsv",
+    "07 — Storage Audit Reports": "1wXNM2DVjDG05tQOBx0rH2CqPUwhT3_lH",
+    "08 — Restoration Tests": "1gx_q05vDm97HqE90mgpNXChpxpr7YywW"
+  },
+  "retentionReleaseAuthorized": false
+}
