@@ -94,6 +94,13 @@ export function enrichCatalogWithCoreProvenance(catalog, coreRows = [], opts = {
       "coreThroughWeek", "coreYear", "coreSourceAsOf", "coreThroughSeasonType", "coreSourceEndpoint",
       "coreTemporalClass", "coreWeekBounded", "coreTemporalNote",
     ]) delete clean[key];
+    // Explicit null is part of our published snapshot contract: absence is
+    // distinguishable from both zero and an old rating carried forward.
+    Object.assign(clean, {
+      core: null,coreOffense: null,coreDefense: null,coreSpecialTeams: null,
+      coreThroughWeek: null,coreYear: null,coreSourceEndpoint: null,
+      coreWeekBounded: false,
+    });
     byCanonicalId[id] = clean;
   }
   const srcCorePresence = new Map(Object.entries(catalog?.byCanonicalId || {})
