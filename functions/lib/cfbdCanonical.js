@@ -72,20 +72,22 @@ function schoolKey(v) {
 
 /**
  * Normalize CORE ratings row — prefer week-bounded throughWeek fields.
+ * Unlike generic numeric coercion, null CORE evidence stays genuinely null.
  */
+const coreNum = v => v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v);
 export function normalizeCoreRating(row = {}) {
   return {
     team: row.team || row.school || null,
     conference: row.conference || null,
-    season: num(row.year ?? row.season),
+    season: coreNum(row.year ?? row.season),
     // Missing throughWeek MUST remain missing: Number(null) equals zero, which
     // falsely makes an undated rating look like a valid week-zero observation.
-    throughWeek: row.throughWeek == null && row.week == null ? null : num(row.throughWeek ?? row.week),
+    throughWeek: coreNum(row.throughWeek ?? row.week),
     throughSeasonType: row.throughSeasonType || row.seasonType || null,
-    rating: num(row.rating ?? row.overall),
-    offense: num(row.offense?.rating ?? row.offense),
-    defense: num(row.defense?.rating ?? row.defense),
-    specialTeams: num(row.specialTeams?.rating ?? row.specialTeams),
+    rating: coreNum(row.rating ?? row.overall),
+    offense: coreNum(row.offense?.rating ?? row.offense),
+    defense: coreNum(row.defense?.rating ?? row.defense),
+    specialTeams: coreNum(row.specialTeams?.rating ?? row.specialTeams),
     temporalClass: TEMPORAL_CLASS.B,
     sourceEndpoint: "/ratings/core",
   };
