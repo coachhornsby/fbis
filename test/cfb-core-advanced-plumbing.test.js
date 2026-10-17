@@ -114,3 +114,44 @@ test("quota replenishment ack requires operator approval", async () => {
   assert.equal(writes.length, 1);
   assert.match(writes[0].sql, /last_remaining/);
 });
+
+test("undated and post-cutoff CORE never survives in canonical or ESPN catalog",()=>{
+  const base=indexCfbRatings({
+    "/ratings/core":[{team:"Ohio State",rating:24,offense:16,defense:-8,
+      throughWeek:9,throughSeasonType:"regular"}],
+    "/ppa/teams":[{team:"Ohio State",offense:{overall:.2}}],
+  });
+  const contaminated = Object.values(base.byCanonicalId)[0];
+  const id=contaminated.canonicalId;
+  assert.ok(base.byEspnId);
+  const empty=enrichCatalogWithCoreProvenance(base,[
+    {team:"Ohio State",rating:100,offense:75,defense:-25,
+      throughWeek:9,throughSeasonType:"regular"},
+    {team:"Ohio State",rating:40,offense:30,defense:-10,
+      throughSeasonType:"regular"},
+  ],{maxWeek:6,seasonType:"regular"});
+  const row=empty.byCanonicalId[id];
+  assert.equal(row.core,undefined);
+  assert.equal(row.coreOffense,undefined);
+  assert.equal(row.coreDefense,undefined);
+  assert.equal(row.coreWeekBounded,false);
+  assert.equal(row.coreTemporalNote,"no-eligible-week-bounded-core");
+  assert.equal(row.ppaOff,.2);
+  assert.ok(empty.coreScrubbed>=1);
+  for(const indexed of Object.values(empty.byEspnId))
+    assert.equal(indexed.core,undefined);
+  const valid=enrichCatalogWithCoreProvenance(base,[{
+    team:"Ohio State",rating:19,offense:13,defense:-6,
+    throughWeek:6,throughSeasonType:"regular",
+  }],{maxWeek:6,seasonType:"regular"});
+  assert.equal(valid.byCanonicalId[id].core,19);
+  assert.equal(valid.byCanonicalId[id].coreThroughWeek,6);
+  for(const indexed of Object.values(valid.byEspnId))
+    assert.equal(indexed.core,19);
+});
+
+test("undated CORE is not interpreted as completed week zero",async()=>{
+  const {normalizeCoreRating,indexCoreByTeam}=await import("../functions/lib/cfbdCanonical.js");
+  assert.equal(normalizeCoreRating({team:"Ohio State",rating:8}).throughWeek,null);
+  assert.equal(Object.keys(indexCoreByTeam([{team:"Ohio State",rating:8}],{maxWeek:6})).length,0);
+});
