@@ -1,12 +1,12 @@
 /**
- * Shared CFBD/CBBD monthly quota display. Operator confirmed Tier 3 = 75,000 calls.
+ * Shared CFBD/CBBD monthly quota ledger. Tier 3 = 75,000 calls across both sports.
  * Production design target is well under the cap. Alerts at 50/75/90/100%.
  * Never stores credentials. Failed sources stay unavailable — never zero-fill.
  */
 
 export const MONTHLY_QUOTA = 75000;
-export const QUOTA_DESIGN_TARGET = 8000;
-export const QUOTA_ALERTS = [0.5, 0.75, 0.9, 1];
+export const QUOTA_DESIGN_TARGET = 30000;
+export const QUOTA_ALERTS = [0.4, 0.6, 0.8, 0.9, 1];
 export const QUOTA_COST = { default: 1, cacheHit: 0 };
 
 export function utcMonthKey(now = new Date()) {
@@ -28,25 +28,25 @@ export function quotaAlerts(used, cap = MONTHLY_QUOTA, fired = []) {
   return out;
 }
 
-export function quotaHealth({ used = 0, cacheHits = 0, month = null, cap = MONTHLY_QUOTA } = {}) {
+export function quotaHealth({ used = 0, cacheHits = 0, month = null, cap = MONTHLY_QUOTA, configured = true } = {}) {
   const pct = quotaPct(used, cap);
-  let level = "ok";
-  if (pct >= 1) level = "exhausted";
-  else if (pct >= 0.9) level = "critical";
-  else if (pct >= 0.75) level = "high";
-  else if (pct >= 0.5) level = "watch";
+  let level = configured ? "ok" : "unavailable";
+  if (configured && pct >= 1) level = "exhausted";
+  else if (configured && pct >= 0.9) level = "critical";
+  else if (configured && pct >= 0.8) level = "high";
+  else if (configured && pct >= 0.4) level = "watch";
   return {
     month: month || utcMonthKey(),
     used: Number(used) || 0,
     cacheHits: Number(cacheHits) || 0,
     cap,
-    remaining: Math.max(0, cap - (Number(used) || 0)),
-    pct,
+    remaining: configured ? Math.max(0, cap - (Number(used) || 0)) : null,
+    pct: configured ? pct : null,
     level,
     designTarget: QUOTA_DESIGN_TARGET,
     overDesign: (Number(used) || 0) > QUOTA_DESIGN_TARGET,
-    alerts: quotaAlerts(used, cap).map((a) => `${Math.round(a.threshold * 100)}%`),
-    configured: true,
+    alerts: configured ? quotaAlerts(used, cap).map((a) => `${Math.round(a.threshold * 100)}%`) : [],
+    configured,
   };
 }
 
@@ -75,5 +75,34 @@ export function estimateMonthlyCalls({
     underDesign: daily + backfillOnce + cfbdAuditOnce < QUOTA_DESIGN_TARGET,
     underCap: daily + backfillOnce + cfbdAuditOnce < MONTHLY_QUOTA,
     note: "CFB-FBIS-v2 features are scheduled/background only — never from customer page loads",
+  };
+}
+
+/**
+ * Provider-call counters outside FBIS are not in D1 api_usage.
+ * A provider-confirmed zero from a current-month 429 supersedes any higher
+ * local estimate. Old-month headers never carry into a new billing month.
+ */
+export function reconcileSharedCollegeQuota(local = {}, provider = {}) {
+  const month = local.month || utcMonthKey();
+  const confirmedZero = provider?.bound === true &&
+    provider?.month === month &&
+    Number(provider?.providerRemaining) === 0 &&
+    provider?.providerRemaining != null &&
+    String(provider?.last429At || "").startsWith(month);
+  const localRemaining = local.configured === false ? null : local.remaining ?? null;
+  return {
+    ...local,
+    cap: MONTHLY_QUOTA,
+    estimatedLocalUsed: local.used ?? null,
+    estimatedLocalRemaining: localRemaining,
+    providerReportedRemaining: provider?.providerRemaining ?? null,
+    providerLast429At: provider?.last429At ?? null,
+    providerConfirmedZero: confirmedZero,
+    remaining: confirmedZero ? 0 : localRemaining,
+    level: confirmedZero ? "exhausted" : local.level || "unavailable",
+    sharedAcross: ["cfbd", "cbbd"],
+    balanceSource: confirmedZero ? "provider-confirmed-zero" : "local-estimate-only",
+    providerBalanceVerified: confirmedZero,
   };
 }
