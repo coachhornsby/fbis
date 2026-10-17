@@ -131,15 +131,15 @@ test("undated and post-cutoff CORE never survives in canonical or ESPN catalog",
       throughSeasonType:"regular"},
   ],{maxWeek:6,seasonType:"regular"});
   const row=empty.byCanonicalId[id];
-  assert.equal(row.core,undefined);
-  assert.equal(row.coreOffense,undefined);
-  assert.equal(row.coreDefense,undefined);
+  assert.equal(row.core,null);
+  assert.equal(row.coreOffense,null);
+  assert.equal(row.coreDefense,null);
   assert.equal(row.coreWeekBounded,false);
   assert.equal(row.coreTemporalNote,"no-eligible-week-bounded-core");
   assert.equal(row.ppaOff,.2);
   assert.ok(empty.coreScrubbed>=1);
   for(const indexed of Object.values(empty.byEspnId))
-    assert.equal(indexed.core,undefined);
+    assert.equal(indexed.core,null);
   const valid=enrichCatalogWithCoreProvenance(base,[{
     team:"Ohio State",rating:19,offense:13,defense:-6,
     throughWeek:6,throughSeasonType:"regular",
