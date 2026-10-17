@@ -63,7 +63,7 @@ test("spread gap colors follow the compared team and preserve totals, unavailabl
  assert.match(card,/cgc-gap-team-branded/);
  assert.match(card,/--cgc-gap-brand/);
  assert.match(card,/cgc-gap-side-name/);
- assert.match(card,/size=\{64\} className="cgc-edge-logo"/);
+ assert.match(card,/size=\{83\} className="cgc-edge-logo"/);
  assert.match(card,/CAPTURED LINE · NOT EV/);
  assert.match(css,/\.cgc-best-edge\.cgc-gap-team-branded/);
  assert.match(css,/--cgc-gap-accent/);
@@ -86,4 +86,21 @@ test("non-tennis featured cards share the horizontal gap treatment across all sc
  assert.match(css,/\.pgc-gap-strip\.is-total\.is-over/);
  assert.match(css,/\.pgc-gap-strip\.is-total\.is-under/);
  assert.doesNotMatch(css,/\.fbis-shell-main\.route-board/);
+});
+
+test("gap-bar team logos are 30 percent larger on compact and featured cards at desktop and mobile widths",async()=>{
+ const [compact,featured,compactCss,featuredCss]=await Promise.all([
+  load("CompactGameCard.jsx"),load("PremiumGameCard.jsx"),
+  load("compactGameCardEnhancements.css"),load("universalPremiumCard.css")
+ ]);
+ assert.match(compact,/size=\{83\} className="cgc-edge-logo"/);
+ assert.match(featured,/size=\{83\} className="pgc-gap-logo"/);
+ assert.match(compactCss,/\.cgc-edge-logo\.team-logo-fallback \{\s*width: 83px !important;\s*height: 83px !important;/);
+ assert.match(compactCss,/\.cgc-edge-logo \.team-logo \{\s*width: 69px !important;\s*height: 69px !important;/);
+ assert.match(compactCss,/\.cgc-edge-logo\.team-logo-fallback \{\s*width: 59px !important;\s*height: 59px !important;/);
+ assert.match(compactCss,/\.cgc-edge-logo \.team-logo \{\s*width: 51px !important;\s*height: 51px !important;/);
+ assert.match(featuredCss,/\.pgc-gap-logo\.team-logo-fallback \{\s*width:83px!important;\s*height:83px!important;/);
+ assert.match(featuredCss,/\.pgc-gap-logo \.team-logo \{\s*width:69px!important;\s*height:69px!important;/);
+ assert.match(featuredCss,/width:59px!important;height:59px!important;min-width:59px;/);
+ assert.match(featuredCss,/\.pgc-gap-logo \.team-logo \{width:49px!important;height:49px!important\}/);
 });
