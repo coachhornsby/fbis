@@ -5,6 +5,7 @@ import {
   ownerForTable,
   primaryGrowthAllowed,
   resolveOperationsDb,
+  resolveReadyOperationsDb,
   assertOperationalWriteTarget,
   ownershipManifest,
   DATABASE_OWNERS,
@@ -43,6 +44,30 @@ test("operations tables prefer OPERATIONS_DB when bound", () => {
   const fallback = resolveOperationsDb({ DB: ops });
   assert.equal(fallback.preferred, false);
   assert.equal(assertOperationalWriteTarget({ OPERATIONS_DB: ops }, "fbis_run_manifests").redirected, true);
+});
+
+test("ready operations db falls back to primary until operations schema exists", async () => {
+  const primary = { prepare() { return { async first() { return { ok: 1 }; } }; } };
+  const emptyOps = {
+    prepare(sql) {
+      assert.match(sql, /fbis_ops_health/);
+      return { async first() { return null; } };
+    },
+  };
+  const unboundReady = await resolveReadyOperationsDb({ OPERATIONS_DB: emptyOps, DB: primary });
+  assert.equal(unboundReady.preferred, false);
+  assert.equal(unboundReady.db, primary);
+  assert.equal(unboundReady.warning, "OPERATIONS_SCHEMA_UNAVAILABLE");
+
+  const readyOps = {
+    prepare() {
+      return { async first() { return { ok: 1 }; } };
+    },
+  };
+  const ready = await resolveReadyOperationsDb({ OPERATIONS_DB: readyOps, DB: primary });
+  assert.equal(ready.preferred, true);
+  assert.equal(ready.schemaReady, true);
+  assert.equal(ready.db, readyOps);
 });
 
 test("primary growth guard blocks historical market and archived roster seasons", () => {

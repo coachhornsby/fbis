@@ -5,7 +5,7 @@
 
 import { createHash } from "node:crypto";
 import { DATABASE_OWNERS } from "./databaseOwnership.js";
-import { resolveOperationsDb } from "./databaseOwnership.js";
+import { resolveReadyOperationsDb } from "./databaseOwnership.js";
 
 export const RETENTION_GATE_CONTRACT = "fbis-retention-release-gate-v1";
 
@@ -103,8 +103,8 @@ export function retentionGateRecord(proposal = {}, evaluation = null) {
 export async function persistRetentionGate(env, proposal) {
   const evaluation = evaluateRetentionRelease(proposal);
   const record = retentionGateRecord(proposal, evaluation);
-  const { db } = resolveOperationsDb(env);
-  if (!db?.prepare) return { ok: false, reason: "operations-db-unbound", evaluation, record };
+  const { db, warning } = await resolveReadyOperationsDb(env);
+  if (!db?.prepare) return { ok: false, reason: "operations-db-unbound", evaluation, record, warning };
 
   await db.prepare(
     `INSERT OR REPLACE INTO fbis_retention_release_gates (

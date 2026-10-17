@@ -4,7 +4,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { resolveOperationsDb } from "./databaseOwnership.js";
+import { resolveReadyOperationsDb } from "./databaseOwnership.js";
 
 export const PERFORMANCE_AUDIT_CONTRACT = "fbis-d1-performance-audit-v1";
 
@@ -114,8 +114,8 @@ export function runStaticPerformanceAudit({ now = new Date() } = {}) {
 }
 
 export async function persistPerformanceFindings(env, audit) {
-  const { db, preferred } = resolveOperationsDb(env);
-  if (!db?.prepare) return { ok: false, reason: "operations-db-unbound", persisted: 0 };
+  const { db, preferred, warning } = await resolveReadyOperationsDb(env);
+  if (!db?.prepare) return { ok: false, reason: "operations-db-unbound", persisted: 0, warning };
   let persisted = 0;
   for (const finding of audit.findings || []) {
     await db.prepare(

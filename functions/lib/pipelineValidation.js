@@ -4,7 +4,7 @@
  */
 
 import { BOARD_SPORTS } from "./slateEngineCore.js";
-import { resolveOperationsDb } from "./databaseOwnership.js";
+import { resolveReadyOperationsDb } from "./databaseOwnership.js";
 import { createHash } from "node:crypto";
 
 export const PIPELINE_VALIDATION_SPORTS = Object.freeze([
@@ -282,8 +282,8 @@ export async function validateAllSportPipelines(env, { sports = PIPELINE_VALIDAT
 }
 
 export async function persistPipelineValidation(env, report, { deploymentSha = null } = {}) {
-  const { db } = resolveOperationsDb(env);
-  if (!db?.prepare) return { ok: false, reason: "operations-db-unbound", persisted: 0 };
+  const { db, warning } = await resolveReadyOperationsDb(env);
+  if (!db?.prepare) return { ok: false, reason: "operations-db-unbound", persisted: 0, warning };
   let persisted = 0;
   for (const row of report.results || []) {
     const runId = `pipeline:${row.sport}:${sha16(row.validatedAt + row.sport + String(row.overallOk))}`;

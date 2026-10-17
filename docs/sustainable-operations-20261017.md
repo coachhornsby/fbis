@@ -33,11 +33,13 @@ Emergency recovery preserved product data at the primary D1 ceiling. With capaci
 
 ## Operator follow-up
 
-Apply `sql/shards/operations-v1.sql` to remote `fbis-operations-20261017` before relying on ops-preferred writes in production:
+Apply `sql/shards/operations-v1.sql` to remote `fbis-operations-20261017` so ops writes leave primary:
 
 ```bash
 npx wrangler d1 execute OPERATIONS_DB --remote --file=sql/shards/operations-v1.sql
 ```
+
+Until that schema is present, `resolveReadyOperationsDb()` keeps control-plane writers on primary (`OPERATIONS_SCHEMA_UNAVAILABLE`) so a bound-but-empty OPERATIONS_DB cannot break job telemetry.
 
 ## Explicit non-goals
 

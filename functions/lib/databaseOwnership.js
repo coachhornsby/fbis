@@ -150,7 +150,7 @@ export function ownerForTable(tableName) {
 
 /**
  * Prefer OPERATIONS_DB for operational workloads; fall back to primary only when unbound.
- * Never invent a binding.
+ * Never invent a binding. Synchronous: does not prove schema readiness.
  */
 export function resolveOperationsDb(env) {
   if (env?.OPERATIONS_DB?.prepare) {
@@ -160,6 +160,53 @@ export function resolveOperationsDb(env) {
     return { db: env.DB, owner: DATABASE_OWNERS.PRIMARY, preferred: false };
   }
   return { db: null, owner: null, preferred: false };
+}
+
+const OPS_SCHEMA_PROBE =
+  "SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name='fbis_ops_health' LIMIT 1";
+
+/**
+ * Prefer OPERATIONS_DB only when the operations shard schema is present.
+ * If the binding exists but sql/shards/operations-v1.sql has not been applied yet,
+ * fall back to primary so control-plane writers do not fail closed in production.
+ */
+export async function resolveReadyOperationsDb(env) {
+  if (env?.OPERATIONS_DB?.prepare) {
+    try {
+      const row = await env.OPERATIONS_DB.prepare(OPS_SCHEMA_PROBE).first();
+      if (row?.ok === 1 || row?.ok === true || Number(row?.ok) === 1) {
+        return {
+          db: env.OPERATIONS_DB,
+          owner: DATABASE_OWNERS.OPERATIONS,
+          preferred: true,
+          schemaReady: true,
+        };
+      }
+    } catch {
+      // Binding present but probe failed — treat as schema unavailable.
+    }
+    if (env?.DB?.prepare) {
+      return {
+        db: env.DB,
+        owner: DATABASE_OWNERS.PRIMARY,
+        preferred: false,
+        schemaReady: false,
+        warning: "OPERATIONS_SCHEMA_UNAVAILABLE",
+      };
+    }
+    return {
+      db: null,
+      owner: DATABASE_OWNERS.OPERATIONS,
+      preferred: true,
+      schemaReady: false,
+      warning: "OPERATIONS_SCHEMA_UNAVAILABLE",
+    };
+  }
+  return {
+    ...resolveOperationsDb(env),
+    schemaReady: false,
+    warning: env?.DB?.prepare ? "OPERATIONS_DB_UNBOUND" : "D1_UNBOUND",
+  };
 }
 
 /**

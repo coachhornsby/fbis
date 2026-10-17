@@ -4,7 +4,7 @@
 
 import { MODEL_VERSION } from "./weights.js";
 import { recordRunManifest, recordWatchdogMetric, upsertOpsHealth } from "./opsHealthLedger.js";
-import { resolveOperationsDb } from "./databaseOwnership.js";
+import { resolveReadyOperationsDb } from "./databaseOwnership.js";
 import { hasDb, persistJobRun, queryJobHealth, setMeta } from "./store.js";
 import {
   lastExpectedCollectUtc,
@@ -215,7 +215,8 @@ export async function recordJob(env, row) {
 }
 
 async function syncJobOpsTelemetry(env, payload, componentId) {
-  const { db: opsDb, preferred: operationsPreferred } = resolveOperationsDb(env);
+  const { db: opsDb, preferred: operationsPreferred, warning: operationsWarning } =
+    await resolveReadyOperationsDb(env);
   if (!opsDb?.prepare) return { ok: false, reason: "d1-unbound" };
 
   const completedAt = payload.completedAt || new Date().toISOString();
@@ -367,7 +368,13 @@ async function syncJobOpsTelemetry(env, payload, componentId) {
     updatedAt: completedAt,
   });
 
-  return { ok: true, componentId, incidentFingerprint, operationsDbPreferred: operationsPreferred };
+  return {
+    ok: true,
+    componentId,
+    incidentFingerprint,
+    operationsDbPreferred: operationsPreferred,
+    operationsWarning: operationsWarning || null,
+  };
 }
 
 function isScheduledTrigger(triggerType) {

@@ -1,4 +1,4 @@
-import { resolveOperationsDb } from "./databaseOwnership.js";
+import { resolveReadyOperationsDb } from "./databaseOwnership.js";
 
 const SEVERITIES = ["INFO", "WARN", "DEGRADED", "CRITICAL"];
 
@@ -6,9 +6,9 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-/** Prefer OPERATIONS_DB for control-plane rows; fall back to primary when unbound. */
-function opsDb(env) {
-  return resolveOperationsDb(env).db;
+/** Prefer OPERATIONS_DB when schema-ready; otherwise fall back to primary. */
+async function opsDb(env) {
+  return (await resolveReadyOperationsDb(env)).db;
 }
 
 function normalizeSeverity(value) {
@@ -50,7 +50,7 @@ export function deriveFreshnessState(component, health, now = Date.now()) {
 }
 
 export async function upsertOpsHealth(env, row) {
-  const db = opsDb(env);
+  const db = await opsDb(env);
   if (!db?.prepare || !row?.componentId) return { ok: false, reason: "d1-unbound-or-component-missing" };
   const at = row.updatedAt || nowIso();
   await db.prepare(
@@ -122,7 +122,7 @@ export async function upsertOpsHealth(env, row) {
 }
 
 export async function recordRunManifest(env, row) {
-  const db = opsDb(env);
+  const db = await opsDb(env);
   if (!db?.prepare || !row?.runId || !row?.componentId) {
     return { ok: false, reason: "d1-unbound-or-run-missing" };
   }
@@ -158,7 +158,7 @@ export async function recordRunManifest(env, row) {
 }
 
 export async function recordInvariantCheck(env, row) {
-  const db = opsDb(env);
+  const db = await opsDb(env);
   if (!db?.prepare || !row?.invariantKey) return { ok: false, reason: "d1-unbound-or-key-missing" };
   await db.prepare(
     `INSERT INTO fbis_ops_invariant_checks (
@@ -180,7 +180,7 @@ export async function recordInvariantCheck(env, row) {
 }
 
 export async function recordWatchdogMetric(env, row) {
-  const db = opsDb(env);
+  const db = await opsDb(env);
   if (!db?.prepare || !row?.incidentFingerprint) return { ok: false, reason: "d1-unbound-or-fingerprint-missing" };
   const detectedAt = row.detectedAt || nowIso();
   const repairedAt = row.repairedAt || null;
@@ -210,9 +210,18 @@ export async function recordWatchdogMetric(env, row) {
 }
 
 export async function loadOpsControlPlane(env) {
-  const resolved = resolveOperationsDb(env);
+  const resolved = await resolveReadyOperationsDb(env);
   const db = resolved.db;
-  if (!db?.prepare) return { bound: false, components: [], invariants: [], metrics: {}, operationsDbPreferred: false };
+  if (!db?.prepare) {
+    return {
+      bound: false,
+      components: [],
+      invariants: [],
+      metrics: {},
+      operationsDbPreferred: false,
+      operationsSchemaReady: false,
+    };
+  }
   const componentsRes = await db.prepare(
     `SELECT c.*, h.workflow_freshness_at, h.source_freshness_at, h.database_freshness_at,
             h.published_freshness_at, h.last_attempt_at, h.last_success_at, h.last_nonempty_at,
@@ -285,7 +294,9 @@ export async function loadOpsControlPlane(env) {
   return {
     bound: true,
     operationsDbPreferred: resolved.preferred,
+    operationsSchemaReady: resolved.schemaReady === true,
     operationsOwner: resolved.owner?.key || null,
+    operationsWarning: resolved.warning || null,
     components,
     incidents: incidentsRes?.results || [],
     invariants: [...manifestInvariants, ...(invRes?.results || [])].slice(0, 150),

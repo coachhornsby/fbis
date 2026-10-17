@@ -3,7 +3,7 @@ import {
   D1_HARD_LIMIT_BYTES,
   capacityAlertLevel,
   DATABASE_OWNERS,
-  resolveOperationsDb,
+  resolveReadyOperationsDb,
 } from "../lib/databaseOwnership.js";
 
 /** Accurate D1 storage telemetry from the binding query metadata.
@@ -93,8 +93,8 @@ async function probe(binding) {
 }
 
 async function persistCapacitySnapshot(env, summary) {
-  const { db } = resolveOperationsDb(env);
-  if (!db?.prepare) return { ok: false, reason: "operations-db-unbound" };
+  const { db, warning } = await resolveReadyOperationsDb(env);
+  if (!db?.prepare) return { ok: false, reason: "operations-db-unbound", warning };
   const measuredAt = new Date().toISOString();
   const rows = [
     ["PRIMARY", DATABASE_OWNERS.PRIMARY.databaseId, DATABASE_OWNERS.PRIMARY.databaseName, summary.primary],
