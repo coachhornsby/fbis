@@ -60,6 +60,8 @@ function envFrom(context) {
     DB: context.env.DB,
     ARCHIVE: context.env.ARCHIVE,
     CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
+    CFBD_DAILY_NETWORK_BUDGET: context.env.CFBD_DAILY_NETWORK_BUDGET,
+    CFBD_MONTHLY_NETWORK_BUDGET: context.env.CFBD_MONTHLY_NETWORK_BUDGET,
   };
 }
 
