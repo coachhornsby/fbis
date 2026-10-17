@@ -46,6 +46,11 @@ function num(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+function optionalNumber(v) {
+  if (v === null || v === undefined || v === "") return null;
+  return num(v);
+}
+
 function round1(n) {
   return Math.round(Number(n) * 10) / 10;
 }
@@ -116,15 +121,15 @@ export function deriveTeamEnvironment(game = {}, side = "home") {
     // challenger as diagnostic covariates. No uncalibrated CORE coefficient is
     // applied to the live projection or shadow prop means.
     core: {
-      year: num(feat.coreYear ?? feat.coreRow?.year),
-      throughWeek: num(feat.coreThroughWeek ?? feat.coreRow?.throughWeek),
-      rating: num(feat.coreRating ?? feat.coreRow?.rating),
-      offense: num(feat.coreOffense ?? feat.coreRow?.offense),
-      defense: num(feat.coreDefense ?? feat.coreRow?.defense),
+      year: optionalNumber(feat.coreYear ?? feat.coreRow?.year),
+      throughWeek: optionalNumber(feat.coreThroughWeek ?? feat.coreRow?.throughWeek),
+      rating: optionalNumber(feat.coreRating ?? feat.coreRow?.rating),
+      offense: optionalNumber(feat.coreOffense ?? feat.coreRow?.offense),
+      defense: optionalNumber(feat.coreDefense ?? feat.coreRow?.defense),
       eligiblePregame: game?.featureCutoffOk === true
-        && num(feat.coreThroughWeek ?? feat.coreRow?.throughWeek) != null
-        && num(feat.coreOffense ?? feat.coreRow?.offense) != null
-        && num(feat.coreDefense ?? feat.coreRow?.defense) != null,
+        && optionalNumber(feat.coreThroughWeek ?? feat.coreRow?.throughWeek) != null
+        && optionalNumber(feat.coreOffense ?? feat.coreRow?.offense) != null
+        && optionalNumber(feat.coreDefense ?? feat.coreRow?.defense) != null,
       appliedToPropMean: false,
     },
     successRate: num(feat.successRate),
