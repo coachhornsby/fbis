@@ -170,6 +170,9 @@ async function readPersistedCfbDeep(env,season,now) {
       seen.add(String(rec.team_id));
       const value={
         offensePpa:num(fields.ppaOff),defensePpa:num(fields.ppaDef),
+        passEpa:num(fields.ppaPass),rushEpa:num(fields.ppaRush),
+        passEpaAllowed:num(fields.ppaPassAllowed),
+        rushEpaAllowed:num(fields.ppaRushAllowed),
         successRate:num(fields.offensiveSuccessRate),
         successRateAllowed:num(fields.defensiveSuccessRate),
         explosiveRate:num(fields.offensiveExplosiveness),
@@ -177,7 +180,16 @@ async function readPersistedCfbDeep(env,season,now) {
         lineYards:num(fields.offensiveLineYards),
         lineYardsAllowed:num(fields.defensiveLineYards),
         havocRate:num(fields.defensiveHavoc),
-        havocAllowed:num(fields.offensiveHavoc)
+        havocAllowed:num(fields.offensiveHavoc),
+        pointsPerOpportunity:num(fields.offensivePointsPerOpportunity),
+        pointsPerOpportunityAllowed:num(fields.defensivePointsPerOpportunity),
+        core:num(fields.core),
+        coreOffense:num(fields.coreOffense),
+        coreDefense:num(fields.coreDefense),
+        coreThroughWeek:num(fields.coreThroughWeek),
+        coreWeekBounded:fields.coreWeekBounded===true,
+        talent:num(fields.talent),
+        returningPpa:num(fields.returningPpa),
       };
       put(index,school,value);
       if(!maxAsOf||String(rec.as_of)>maxAsOf)maxAsOf=String(rec.as_of);

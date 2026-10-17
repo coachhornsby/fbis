@@ -79,8 +79,11 @@ test("weekly CFBD advanced sources become point-in-time research team features",
   const catalog=indexCfbRatings({
     "/ratings/sp":[{team:"Ohio State",rating:23.5,offense:{rating:41},defense:{rating:15}}],
     "/ratings/fpi":[{team:"Ohio State",fpi:19.4}],
-    "/ppa/teams":[{team:"Ohio State",offense:{overall:0.34},defense:{overall:-0.12}}],
-    "/stats/season/advanced":[{team:"Ohio State",offense:{successRate:0.48},defense:{successRate:0.33}}],
+    "/ratings/core":[{team:"Ohio State",rating:21.2,throughWeek:6,throughSeasonType:"regular",
+      offense:{rating:17},defense:{rating:-3}}],
+    "/ppa/teams":[{team:"Ohio State",offense:{overall:0.34,passing:0.22},defense:{overall:-0.12}}],
+    "/stats/season/advanced":[{team:"Ohio State",offense:{successRate:0.48,pointsPerOpportunity:4.0},
+      defense:{successRate:0.33}}],
     "/talent":[{school:"Ohio State",talent:970}],
     "/player/returning":[{team:"Ohio State",percentPPA:0.65}],
   });
@@ -88,8 +91,12 @@ test("weekly CFBD advanced sources become point-in-time research team features",
   assert.ok(row,"canonical team must match");
   assert.equal(row.sp,23.5);
   assert.equal(row.fpi,19.4);
+  assert.equal(row.core,21.2);
+  assert.equal(row.coreThroughWeek,6);
   assert.equal(row.ppaOff,0.34);
+  assert.equal(row.ppaPass,0.22);
   assert.equal(row.defensiveSuccessRate,0.33);
+  assert.equal(row.offensivePointsPerOpportunity,4.0);
   assert.equal(row.talent,970);
   assert.equal(row.returningPpa,0.65);
   assert.equal(catalog.coverage["/ppa/teams"],1);

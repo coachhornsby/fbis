@@ -34,6 +34,10 @@ export function parseCollegeJobOptions(request) {
       url.searchParams.get("referenceModelId") ||
       undefined,
     operatorApproved: url.searchParams.get("operatorApproved") === "true",
+    remaining: url.searchParams.get("remaining")
+      ? Number(url.searchParams.get("remaining"))
+      : undefined,
+    includePlayers: url.searchParams.get("includePlayers") !== "false",
     n: url.searchParams.get("n") ? Number(url.searchParams.get("n")) : undefined,
     maeImproved: url.searchParams.get("maeImproved") === "true",
     leakageOk: url.searchParams.get("leakageOk") === "true",
@@ -85,7 +89,7 @@ export async function onRequestGet(context) {
       ["cfb-postgame-harvest","cfb-current-refresh"].includes(job);
     const manualOwner = options.trigger === "workflow_dispatch" && options.operatorApproved &&
       ["cfb-postgame-harvest","cfb-current-refresh","cfb-reference-backfill",
-       "cfb-qb-transfer-refresh","cfbd-endpoint-audit"].includes(job);
+       "cfb-qb-transfer-refresh","cfb-quota-replenish-ack","cfbd-endpoint-audit"].includes(job);
     runEnv.cfbdNetworkAuthorized = scheduledOwner || manualOwner;
     runEnv.cfbdCacheOnly = !runEnv.cfbdNetworkAuthorized;
     // Basketball draws on the same subscription. No unowned CBBD HTTP on

@@ -109,3 +109,40 @@ export async function cfbCfbdAcquisitionHealth(env, now=Date.now()) {
        new Date(Number(control.blocked_until_ms)).toISOString():null};
   }catch{return {bound:true,status:"receipt-read-error"};}
 }
+
+/**
+ * Operator-approved acknowledgement that the shared CFBD/CBBD subscription
+ * was replenished. Clears the stale last_remaining=0 pause so the governor
+ * can observe a fresh X-CallLimit-Remaining on the next owned request.
+ * Does not invent network calls or bypass daily/monthly receipt caps.
+ */
+export async function acknowledgeCfbdQuotaReplenishment(env, {
+  remaining = 75000,
+  operatorApproved = false,
+  now = Date.now(),
+} = {}) {
+  if (!operatorApproved) {
+    return { ok: false, reason: "OPERATOR_APPROVAL_REQUIRED", canAuthorizeWager: false };
+  }
+  const next = Number(remaining);
+  if (!Number.isInteger(next) || next < 0 || next > 200000) {
+    return { ok: false, reason: "INVALID_REMAINING", canAuthorizeWager: false };
+  }
+  if (!env.DB?.prepare) return { ok: false, reason: "CFBD_D1_REQUIRED", canAuthorizeWager: false };
+  try {
+    await env.DB.prepare(`
+      UPDATE cfb_cfbd_acquisition_control
+      SET last_remaining=?, blocked_until_ms=0
+      WHERE id=1
+    `).bind(next).run();
+    return {
+      ok: true,
+      providerRemaining: next,
+      acknowledgedAt: new Date(now).toISOString(),
+      note: "Stale exhaustion cleared; next owned CFBD call will refresh remaining from provider headers.",
+      canAuthorizeWager: false,
+    };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err), canAuthorizeWager: false };
+  }
+}

@@ -1,4 +1,4 @@
-import {cfbCfbdAcquisitionHealth} from "./cfbCfbdAcquisition.js";
+import {acknowledgeCfbdQuotaReplenishment,cfbCfbdAcquisitionHealth} from "./cfbCfbdAcquisition.js";
 /**
  * Authenticated college research jobs. Each job is a separate Worker invocation.
  * Shadow models never auto-promote. Training does not run in this Worker.
@@ -26,6 +26,15 @@ import { runCbbdEndpointAudit } from "./cbbdEndpointAudit.js";
 import { featureAvailabilityTable, markdownFeatureTable, FEATURE_CATALOG_VERSION } from "./cfbdFeatureCatalog.js";
 import { loadTorvikCbbCatalog, mergeCbbCatalogs } from "./torvikCbb.js";
 import { loadKenpomCbbCatalog, loadKenpomFanmatch } from "./kenpomCbb.js";
+import {
+  estimateCfbWeekFromDate,
+  coreThroughWeekBound,
+  enrichCatalogWithCoreProvenance,
+  indexAdvancedGameRows,
+  indexPpaGameRows,
+  indexPlayerSeasonRoles,
+  CFB_CORE_ADVANCED_AUTHORITY,
+} from "./cfbCoreAdvancedPlumbing.js";
 
 function todayCT(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -48,6 +57,7 @@ export const COLLEGE_JOBS = [
   "cfb-pregame-freeze",
   "cfb-postgame-harvest",
   "cfb-qb-transfer-refresh",
+  "cfb-quota-replenish-ack",
   "cfbd-endpoint-audit",
   "cbbd-endpoint-audit",
   "cbb-reference-backfill",
@@ -56,6 +66,12 @@ export const COLLEGE_JOBS = [
   "model-train-validate",
   "model-promote",
   "college-health",
+];
+
+/** Week-scoped reconstruction endpoints (budgeted; throughWeek = targetWeek-1). */
+const CFB_WEEKLY_RECONSTRUCTION = [
+  ["/ppa/games", (y, w) => ({ year: y, week: w, seasonType: "regular" })],
+  ["/stats/game/advanced", (y, w) => ({ year: y, week: w, seasonType: "regular" })],
 ];
 
 const CFB_REFRESH_ENDPOINTS = [
@@ -242,6 +258,58 @@ async function fetchEndpoints(source, specs, env, year, jobRunId, sport) {
   return { report, bundles };
 }
 
+/**
+ * Budgeted CORE/advanced reconstruction for the prior completed week.
+ * Soft-fails individual endpoints so season ratings still persist.
+ */
+async function fetchWeeklyCoreAdvanced(env, { season, targetWeek, jobRunId, includePlayers = true } = {}) {
+  const throughWeek = coreThroughWeekBound(targetWeek);
+  const report = [];
+  const bundles = {
+    throughWeek,
+    targetWeek,
+    ppaGames: [],
+    advGames: [],
+    qbPpa: [],
+    rbPpa: [],
+    wrPpa: [],
+    usage: [],
+  };
+  if (throughWeek == null || throughWeek < 1) {
+    return { report, bundles, skipped: "no-completed-week-yet" };
+  }
+  for (const [path, queryFn, key] of [
+    ...CFB_WEEKLY_RECONSTRUCTION.map(([p, q]) => [p, q, p === "/ppa/games" ? "ppaGames" : "advGames"]),
+    ...(includePlayers
+      ? [
+          ["/ppa/players/season", (y) => ({ year: y, position: "QB" }), "qbPpa"],
+          ["/ppa/players/season", (y) => ({ year: y, position: "RB" }), "rbPpa"],
+          ["/ppa/players/season", (y) => ({ year: y, position: "WR" }), "wrPpa"],
+          ["/player/usage", (y) => ({ year: y }), "usage"],
+        ]
+      : []),
+  ]) {
+    const query = path.startsWith("/ppa/games") || path.startsWith("/stats/game")
+      ? queryFn(season, throughWeek)
+      : queryFn(season);
+    const res = await cfbdGet(path, env, { query });
+    report.push(collegePublicResult(res));
+    bundles[key] = res.ok ? res.data || [] : [];
+    await persistObservation(env, {
+      source: "cfbd",
+      sport: "cfb",
+      endpoint: path,
+      season,
+      partition: `week-${throughWeek}:${key}`,
+      data: res.ok ? res.data : [],
+      jobRunId,
+      status: res.ok ? "ok" : "failed",
+      archiveFullPayload: res.ok,
+    });
+  }
+  return { report, bundles, skipped: null };
+}
+
 function indexCbbdAdjusted(rows) {
   const byCanonicalId = {};
   const byEspnId = {};
@@ -382,6 +450,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
   let gamesDiscovered = 0;
   let report = [];
   const cfbDailyArchives=[];
+  let coreAdvancedSummary = null;
 
   try {
     if (job === "cfb-pregame-freeze") {
@@ -670,9 +739,31 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
       return payload;
     }
 
+    if (job === "cfb-quota-replenish-ack") {
+      const ack = await acknowledgeCfbdQuotaReplenishment(env, {
+        remaining: opts.remaining ?? 75000,
+        operatorApproved: Boolean(opts.operatorApproved),
+      });
+      const cfbdAcquisition = await cfbCfbdAcquisitionHealth(env);
+      return jobPayload({
+        ok: ack.ok,
+        job,
+        status: ack.ok ? "success" : JOB_FAILED,
+        attemptedAt: started,
+        successfulAt: ack.ok ? new Date().toISOString() : null,
+        errors: ack.ok ? [] : [ack.reason || "quota-ack-failed"],
+        env,
+        writes,
+        d1: { bound: hasDb(env), ack, cfbdAcquisition },
+      });
+    }
+
     if (job === "cfb-reference-backfill" || job === "cfb-current-refresh") {
       const specs = job === "cfb-reference-backfill" ? [...CFB_REFRESH_ENDPOINTS, ...CFB_BACKFILL_EXTRA] : CFB_REFRESH_ENDPOINTS;
       const years = job === "cfb-reference-backfill" ? (opts.years || [yearCfb - 1, yearCfb]) : [yearCfb];
+      const targetWeek = Number.isInteger(Number(opts.week))
+        ? Number(opts.week)
+        : estimateCfbWeekFromDate(new Date(), yearCfb);
       for (const y of years) {
         const fetched = await fetchEndpoints("cfbd", specs, env, y, id, "cfb");
         report.push(...fetched.report);
@@ -681,7 +772,75 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
           const mapped = mapSourceTeam("cfb", t, y);
           if (mapped.ok) await upsertTeamSeasonIdentity(env, mapped);
         }
-        const catalog = indexCfbRatings(fetched.bundles);
+        let catalog = indexCfbRatings(fetched.bundles);
+        // Week-bound CORE provenance: prefer rows with throughWeek ≤ targetWeek-1.
+        catalog = enrichCatalogWithCoreProvenance(
+          catalog,
+          fetched.bundles["/ratings/core"] || [],
+          { maxWeek: coreThroughWeekBound(targetWeek), seasonType: "regular" }
+        );
+        let weeklyMeta = null;
+        if (job === "cfb-current-refresh" && y === yearCfb) {
+          const weekly = await fetchWeeklyCoreAdvanced(env, {
+            season: y,
+            targetWeek,
+            jobRunId: id,
+            includePlayers: opts.includePlayers !== false,
+          });
+          report.push(...weekly.report);
+          weeklyMeta = {
+            targetWeek,
+            throughWeek: weekly.bundles.throughWeek,
+            skipped: weekly.skipped,
+            ppaGames: weekly.bundles.ppaGames.length,
+            advGames: weekly.bundles.advGames.length,
+            players: indexPlayerSeasonRoles({
+              qbRows: weekly.bundles.qbPpa,
+              rbRows: weekly.bundles.rbPpa,
+              wrRows: weekly.bundles.wrPpa,
+              usageRows: weekly.bundles.usage,
+            }).n,
+            ppaGameIndex: indexPpaGameRows(weekly.bundles.ppaGames).n,
+            advGameIndex: indexAdvancedGameRows(weekly.bundles.advGames).n,
+            authority: CFB_CORE_ADVANCED_AUTHORITY,
+            canAuthorizeWager: false,
+          };
+          // Persist a compact research observation of player-season roles.
+          if (weeklyMeta.players > 0) {
+            await persistObservation(env, {
+              source: "cfbd",
+              sport: "cfb",
+              endpoint: "/research/player-season-roles",
+              season: y,
+              partition: `week-${weekly.bundles.throughWeek}`,
+              data: indexPlayerSeasonRoles({
+                qbRows: weekly.bundles.qbPpa,
+                rbRows: weekly.bundles.rbPpa,
+                wrRows: weekly.bundles.wrPpa,
+                usageRows: weekly.bundles.usage,
+              }),
+              jobRunId: id,
+              status: "ok",
+              archiveFullPayload: true,
+            });
+          }
+        }
+        catalog.coreRefreshWeek = targetWeek;
+        catalog.coreThroughWeekBound = coreThroughWeekBound(targetWeek);
+        catalog.weeklyReconstruction = weeklyMeta;
+        coreAdvancedSummary = {
+          season: y,
+          targetWeek,
+          throughWeek: coreThroughWeekBound(targetWeek),
+          teams: catalog.n,
+          coreEnriched: catalog.coreEnriched ?? null,
+          coreIndexed: catalog.coreIndexed ?? null,
+          coreScrubbed: catalog.coreScrubbed ?? null,
+          weekly: weeklyMeta,
+          authority: CFB_CORE_ADVANCED_AUTHORITY,
+          canAuthorizeWager: false,
+          canInfluenceProjection: false,
+        };
         gamesDiscovered += catalog.n;
         writes.writesSucceeded += await persistTeamFeatures(env, "cfb", y, catalog, id);
       }
@@ -958,6 +1117,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
     errors: errors.concat(report.filter((r) => r && !r.ok).map((r) => r.reason)).slice(0, 20),
     env,
     d1: {bound:hasDb(env),quota,endpoints:report,keyHealth:collegeKeyHealth(env),
+      ...(coreAdvancedSummary?{coreAdvanced:coreAdvancedSummary}:{}),
       ...(job==="cfb-postgame-harvest"?{
         cfbDailyArchive:{date:opts.date||shiftDateCT(todayCT(),-1),
           payloads:cfbDailyArchives,modelAuthority:false,wagerAuthority:false,
@@ -996,8 +1156,21 @@ export function indexCfbRatings(bundles) {
     ["/ratings/fpi",(r)=>({fpi:n(r.fpi??r.rating)})],
     ["/ratings/srs/expanded",(r)=>({srs:n(r.rating)})],
     ["/ratings/elo",(r)=>({elo:n(r.elo??r.rating)})],
-    ["/ratings/core",(r)=>({core:n(r.rating)})],
-    ["/ppa/teams",(r)=>({ppaOff:n(r.offense?.overall),ppaDef:n(r.defense?.overall)})],
+    ["/ratings/core",(r)=>({
+      core:n(r.rating??r.overall),
+      coreOffense:n(r.offense?.rating??r.offense),
+      coreDefense:n(r.defense?.rating??r.defense),
+      coreSpecialTeams:n(r.specialTeams?.rating??r.specialTeams),
+      coreThroughWeek:n(r.throughWeek??r.week),
+      coreThroughSeasonType:r.throughSeasonType||r.seasonType||null,
+      coreSourceEndpoint:"/ratings/core",
+      coreTemporalClass:"B",
+    })],
+    ["/ppa/teams",(r)=>({
+      ppaOff:n(r.offense?.overall),ppaDef:n(r.defense?.overall),
+      ppaPass:n(r.offense?.passing),ppaRush:n(r.offense?.rushing),
+      ppaPassAllowed:n(r.defense?.passing),ppaRushAllowed:n(r.defense?.rushing),
+    })],
     ["/stats/season/advanced",(r)=>({
       offensiveSuccessRate:n(r.offense?.successRate),
       defensiveSuccessRate:n(r.defense?.successRate),
@@ -1007,6 +1180,12 @@ export function indexCfbRatings(bundles) {
       defensiveLineYards:n(r.defense?.lineYards),
       offensiveHavoc:n(r.offense?.havoc?.total),
       defensiveHavoc:n(r.defense?.havoc?.total),
+      offensivePointsPerOpportunity:n(r.offense?.pointsPerOpportunity),
+      defensivePointsPerOpportunity:n(r.defense?.pointsPerOpportunity),
+      offensiveStuffRate:n(r.offense?.stuffRate),
+      defensiveStuffRate:n(r.defense?.stuffRate),
+      fieldPositionOffense:n(r.offense?.fieldPosition?.averageStart),
+      fieldPositionDefense:n(r.defense?.fieldPosition?.averageStart),
     })],
     ["/talent",(r)=>({talent:n(r.talent)})],
     ["/player/returning",(r)=>({

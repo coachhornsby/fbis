@@ -21,6 +21,7 @@ on:
           - cbb-postgame-harvest
           - cfb-reference-backfill
           - cbb-reference-backfill
+          - cfb-quota-replenish-ack
           - cfbd-endpoint-audit
           - cfb-feature-backfill
           - cfb-temporal-smoke
@@ -29,15 +30,20 @@ on:
           - college-health
         default: college-health
       operatorApproved:
-        description: Required true for model-promote (still must meet criteria)
+        description: Required true for model-promote / quota-replenish-ack / owned CFBD jobs
         type: boolean
         default: false
+      remaining:
+        description: Provider remaining calls for cfb-quota-replenish-ack (default 75000)
+        type: string
+        required: false
+        default: "75000"
       year:
         description: Optional season year override for audit/backfill jobs
         type: string
         required: false
       week:
-        description: Optional week for week-scoped CFBD audit probes
+        description: Optional week for week-scoped CFBD audit/refresh probes
         type: string
         required: false
       seasons:
@@ -129,6 +135,7 @@ jobs:
           OPERATOR: ${{ github.event.inputs.operatorApproved }}
           YEAR_INPUT: ${{ github.event.inputs.year }}
           WEEK_INPUT: ${{ github.event.inputs.week }}
+          REMAINING_INPUT: ${{ github.event.inputs.remaining }}
         run: |
           set -euo pipefail
           BASE="https://fbis-myz.pages.dev"
@@ -275,12 +282,18 @@ jobs:
           if [ -n "${WEEK_INPUT:-}" ]; then
             EXTRA="${EXTRA}&week=${WEEK_INPUT}"
           fi
+          if [ -n "${REMAINING_INPUT:-}" ]; then
+            EXTRA="${EXTRA}&remaining=${REMAINING_INPUT}"
+          fi
           if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
             EXTRA="${EXTRA}&operatorApproved=${OPERATOR:-false}"
           fi
 
           if [ "$JOB" = "model-promote" ]; then
             call model-promote "&operatorApproved=${OPERATOR:-false}${EXTRA}"
+          elif [ "$JOB" = "cfb-quota-replenish-ack" ]; then
+            # Clears stale last_remaining=0 after Tier 3 replenishment; no CFBD HTTP.
+            call cfb-quota-replenish-ack "&operatorApproved=${OPERATOR:-false}${EXTRA}"
           elif [ "$JOB" = "model-train-validate" ]; then
             call model-train-validate "${EXTRA}"
           elif [ "$EVENT_NAME" = "schedule" ]; then
