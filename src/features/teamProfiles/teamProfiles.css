@@ -28,3 +28,15 @@
 @media(max-width:900px){.stp-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.stp-section-grid{grid-template-columns:1fr}}
 @media(max-width:560px){.stp-page{padding:14px 8px 65px}.stp-toolbar{align-items:flex-start;flex-direction:column}.stp-filters{padding:12px}.stp-control{flex:1 1 100%}.stp-team-count{margin:0;padding:0}.stp-directory{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.stp-club-tile{padding:10px;gap:8px;min-height:110px;flex-direction:column;text-align:center}.stp-club-tile .stp-tile-arrow{display:none}.stp-club-tile strong{font-size:.82rem}.stp-hero{padding:16px;gap:13px}.stp-hero h2{font-size:1.65rem}.stp-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.stp-kpi{padding:12px}.stp-panel{padding:13px}.stp-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){.stp-club-tile{transition:none}.stp-club-tile:hover{transform:none}}
+
+/* Brand-led competition selector: native keyboard-accessible select remains functional. */
+.stp-competition-control{min-width:min(100%,310px)}
+.stp-competition-select{position:relative;display:flex;align-items:center;gap:12px;min-height:55px;padding:7px 41px 7px 12px;border:1px solid #52728b;border-radius:11px;background:linear-gradient(115deg,#102f44,#071b2b);color:#f3faff}
+.stp-competition-select>img{width:39px;height:39px;flex:0 0 39px;object-fit:contain;background:transparent;border:0}
+.stp-competition-name{font-size:.93rem;line-height:1.2;color:#fff;font-weight:850;min-width:0}
+.stp-league-placeholder{display:flex;align-items:center;justify-content:center;width:39px;height:39px;font-size:1.25rem;opacity:.7}
+.stp-competition-native{position:absolute;inset:0}
+.stp-competition-native select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0}
+.stp-competition-native:after{right:17px;z-index:0}
+.stp-competition-select:hover{border-color:#8bbddb}
+.stp-competition-select:focus-within{border-color:#86d6ff;box-shadow:0 0 0 3px #4db6ff40}
