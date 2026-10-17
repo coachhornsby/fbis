@@ -224,7 +224,7 @@ test("7: grandfathered duplicate prefixes remain supported by verifier", () => {
   assert.match(verifier, /0079_soccer_phase3f_research_routing\.sql/);
   const tip = readFileSync(join(root, "functions/lib/migrationTip.js"), "utf8");
   // Tip uses full identity, not numeric prefix alone.
-  assert.match(tip, /0109_cfb_tier3_schema_identity/);
+  assert.match(tip, /0110_cbb_team_profile_snapshots/);
   assert.doesNotMatch(tip, /EXPECTED_MIGRATION_ID\s*=\s*["']0098["']/);
   const run = spawnSync("node", ["scripts/verify-migrations.mjs"], {
     cwd: root,
