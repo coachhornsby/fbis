@@ -11,6 +11,7 @@ export const SAFE_RETIREMENT_CANDIDATES = Object.freeze([
     // Live CURRENT / prospective evidence stays on primary.
     predicate: "snapshot_type = 'RESEARCH' AND rowid <= 667201",
     protectLive: true,
+    expectedArchivedIds: 497624,
     notes: "Frozen RESEARCH only; never CURRENT or post-cutoff WS rows.",
   },
   {
@@ -18,6 +19,7 @@ export const SAFE_RETIREMENT_CANDIDATES = Object.freeze([
     table: "cfb_roster_observations",
     predicate: "season BETWEEN 2005 AND 2025",
     protectLive: true,
+    expectedArchivedIds: 430971,
     notes: "2004 remains separately gated unless package explicitly includes verified R2 season archive.",
   },
 ]);
@@ -45,4 +47,44 @@ export function assertApplyMode(env) {
     throw new Error("RELEASE_ID_REQUIRED_FOR_APPLY");
   }
   return { apply: true, mode: "APPLY", releaseId: String(env.STORAGE_RETIRE_RELEASE_ID) };
+}
+
+/** Refuse APPLY unless the release package is explicitly authorized for this releaseId. */
+export function assertRetentionPackageAllowsApply(pkg, releaseId) {
+  if (!pkg || pkg.contract !== "fbis-retention-release-package-v1") {
+    throw new Error("INVALID_RETENTION_PACKAGE_CONTRACT");
+  }
+  if (pkg.retentionReleaseAuthorized !== true) {
+    throw new Error("RETENTION_RELEASE_NOT_AUTHORIZED");
+  }
+  if (!pkg.releaseId || String(pkg.releaseId) !== String(releaseId)) {
+    throw new Error("RELEASE_ID_MISMATCH");
+  }
+  if (pkg.primaryDb && pkg.primaryDb !== PRIMARY_DB) {
+    throw new Error("PRIMARY_DB_MISMATCH");
+  }
+  return true;
+}
+
+function requireCandidate(id) {
+  const candidate = SAFE_RETIREMENT_CANDIDATES.find((c) => c.id === id);
+  if (!candidate) throw new Error("UNKNOWN_CANDIDATE_" + id);
+  return candidate;
+}
+
+export function countSql(candidateId) {
+  const c = requireCandidate(candidateId);
+  return `SELECT COUNT(*) AS n FROM ${c.table} WHERE ${c.predicate}`;
+}
+
+export function deleteBatchSql(candidateId, limit = 500) {
+  const c = requireCandidate(candidateId);
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 2000) throw new Error("INVALID_BATCH_LIMIT");
+  return `DELETE FROM ${c.table} WHERE rowid IN (SELECT rowid FROM ${c.table} WHERE ${c.predicate} ORDER BY rowid LIMIT ${limit})`;
+}
+
+export function protectedCountSql(protectedId) {
+  const p = PROTECTED_UNTIL_SEPARATE_RELEASE.find((x) => x.id === protectedId);
+  if (!p) throw new Error("UNKNOWN_PROTECTED_" + protectedId);
+  return `SELECT COUNT(*) AS n FROM ${p.table} WHERE ${p.predicate}`;
 }

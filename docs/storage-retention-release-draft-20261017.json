@@ -162,7 +162,11 @@
     "STORAGE_RETIRE_APPLY=true and STORAGE_RETIRE_RELEASE_ID matching releaseId",
     "Historical readers (#1220) merged with COLD_MARKET_ARCHIVE_READS still default-off until acceptance",
     "Exact ID lists generated from archive parts and attached before APPLY",
-    "Bounded DELETE batches with physical size remeasure after each; stop if size does not drop"
+    "Bounded DELETE batches with physical size remeasure after each; stop if size does not drop",
+    "Run workflow Storage gated retirement with apply=false first; inspect artifact counts vs expectedArchivedIds",
+    "Set retentionReleaseAuthorized:true and releaseId (>=8 chars) on this package in a follow-up commit",
+    "Re-run workflow with apply=true and release_id matching package.releaseId",
+    "Remeasure primary file_size after batches; stop if physicalBytesReclaimed<=0 after meaningful deletes"
   ],
   "primaryBytesBefore": 10007482368,
   "targetPrimaryBytes": 8000000000,
@@ -251,5 +255,7 @@
     "implication": "Live research ingestion cannot write; primary is at Cloudflare D1 hard cap. Archive+gates ready; DELETE still requires explicit retentionReleaseAuthorized=true + releaseId.",
     "retentionReleaseAuthorized": false,
     "sourceRowsDeleted": 0
-  }
+  },
+  "gatedRetireWorkflow": ".github/workflows/storage-retire-gated.yml",
+  "gatedRetireScript": "scripts/storage-retire-gated.mjs"
 }
