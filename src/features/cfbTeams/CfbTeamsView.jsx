@@ -241,6 +241,19 @@ export default function CfbTeamsView({refreshKey=0}) {
   const [playerId,setPlayerId]=useState(null);
   const [term,setTerm]=useState("");
   const [conference,setConference]=useState("ALL");
+  const [conferenceLogos,setConferenceLogos]=useState({});
+  useEffect(()=>{
+    fetch("https://site.api.espn.com/apis/site/v2/sports/football/college-football/groups")
+      .then(r=>r.ok?r.json():null).then(data=>{
+        const logos={};
+        for(const group of data?.groups||[]){
+          const src=group.logos?.[0]?.href;
+          if(src)for(const name of [group.name,group.abbreviation,group.shortName])
+            if(name)logos[name.toLowerCase()]=src;
+        }
+        setConferenceLogos(logos);
+      }).catch(()=>{});
+  },[]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
   useEffect(()=>{
@@ -296,9 +309,9 @@ export default function CfbTeamsView({refreshKey=0}) {
         <div className="ft-filters">
           <label>Search teams<input type="search" value={term} onChange={e=>setTerm(e.target.value)}
             placeholder="School, nickname, stadium…"/></label>
-          <label>Conference<select value={conference} onChange={e=>setConference(e.target.value)}>
+          <label>Conference<span className="ft-conference-picker">{conferenceLogos[conference.toLowerCase()]&&<img alt="" src={conferenceLogos[conference.toLowerCase()]}/>}<select value={conference} onChange={e=>setConference(e.target.value)}>
             {conferences.map(c=><option key={c} value={c}>{c==="ALL"?"All FBS conferences":c}</option>)}
-          </select></label>
+          </select></span></label>
         </div>
         <p className="ft-muted">{visible.length} matching teams · provider-sourced profile facts</p>
         {loading && !directory && <div className="ft-panel">Loading persistent FBS directory…</div>}
