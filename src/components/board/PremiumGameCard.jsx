@@ -294,7 +294,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <span className="pgc-gap-heading">{gapLabel}</span>
         <div className="pgc-gap-identity">
           {gapTeam ? <>
-            <TeamLogo team={gapTeam} size={64} className="pgc-gap-logo" />
+            <TeamLogo team={gapTeam} size={83} className="pgc-gap-logo" />
             <b>{gapTeam.abbr && gapTeam.abbr!=="—" ? gapTeam.abbr : gapTeam.name}</b>
           </> : gapTotal && gapSide!=="even" ? (
             <span className="pgc-gap-direction"><b aria-hidden="true">{gapSide==="over"?"↑":"↓"}</b><strong>{gapSide.toUpperCase()}</strong></span>
