@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: "22", cache: "npm" }
       - run: npm ci
       - run: node scripts/wnba-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl allowEmpty=1
@@ -45,7 +45,7 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: "22", cache: "npm" }
       - run: npm ci
       - uses: actions/download-artifact@v4

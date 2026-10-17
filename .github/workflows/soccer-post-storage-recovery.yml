@@ -19,7 +19,7 @@ jobs:
       SOCCER_PINN_SNAPSHOT_ID: pinnodds-20261015-12-full-board-1-prematch
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Replay existing soccer capture after database recovery
