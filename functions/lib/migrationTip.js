@@ -10,10 +10,10 @@
  */
 
 /** Latest migration filename (Wrangler d1_migrations.name form). */
-export const EXPECTED_MIGRATION_FILE = "0108_cfb_archived_roster_index_retirement.sql";
+export const EXPECTED_MIGRATION_FILE = "0109_cfb_tier3_schema_identity.sql";
 
 /** Latest migration id (schema_migrations.id form; no .sql suffix). */
-export const EXPECTED_MIGRATION_ID = "0108_cfb_archived_roster_index_retirement";
+export const EXPECTED_MIGRATION_ID = "0109_cfb_tier3_schema_identity";
 
 /** @deprecated Prefer EXPECTED_MIGRATION_ID — kept for response field naming. */
 export const EXPECTED_MIGRATION = EXPECTED_MIGRATION_ID;

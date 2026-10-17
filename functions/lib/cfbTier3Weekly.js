@@ -1,27 +1,83 @@
 import { parseCsv } from "./cfbSdvIntelligence.js";
+import { identityFailClosed, mapSourceTeam } from "./collegeIdentity.js";
+import {
+  assertCfbTier3Header,
+  CFB_TIER3_FEATURE_COLUMNS,
+  CFB_TIER3_META_COLUMNS,
+  CFB_TIER3_SCHEMA_VERSION,
+  CFB_TIER3_HEADER_SHA256,
+  CFB_TIER3_COLUMN_COUNT,
+} from "./cfbTier3FeatureRegistry.js";
 
 // Tier 3 subscriber CSV is proprietary. Keep it private, immutable, research-only.
 // Do not infer an as-of date from "week" or a timezone from start_date.
-const REQUIRED = ["id","start_date","season","season_type","week","neutral_site",
-  "home_team","home_conference","away_team","away_conference","spread"];
-const META = new Set(REQUIRED);
+const META = new Set(CFB_TIER3_META_COLUMNS);
 const FORBIDDEN_LABELS = new Set(["home_points","away_points","home_score","away_score",
   "home_win","away_win","winner","outcome","result","final_margin","closing_spread",
   "home_cover","away_cover","target"]);
 export const CFB_TIER3_AUTHORITY = "research_only";
+
 export async function sha256Hex(value) {
   const hash = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));
   return [...new Uint8Array(hash)].map(n=>n.toString(16).padStart(2,"0")).join("");
 }
+
+function reconcileTeam(name, conference, season) {
+  // Fail closed on ambiguous alone tokens (Miami/USC/State/Tech) before fuzzy resolve.
+  const gated = identityFailClosed("cfb", { name, school: name, displayName: name });
+  if (!gated.ok && gated.reason === "ambiguous-token") {
+    return {
+      ok: false,
+      sourceName: name,
+      conference: conference || null,
+      reason: "ambiguous-token",
+      canonicalId: null,
+    };
+  }
+  const mapped = mapSourceTeam("cfb", { school: name, team: name, name, conference }, season);
+  if (!mapped.ok) {
+    return {
+      ok: false,
+      sourceName: name,
+      conference: conference || null,
+      reason: mapped.reason || "unresolved",
+      canonicalId: null,
+    };
+  }
+  return {
+    ok: true,
+    sourceName: name,
+    conference: mapped.conference || conference || null,
+    reason: null,
+    canonicalId: mapped.canonicalId,
+    espnId: mapped.espnId || null,
+    school: mapped.school || name,
+  };
+}
+
+export function reconcileCfbTier3GameIdentity(game) {
+  const home = reconcileTeam(game.homeTeam, game.homeConference, game.season);
+  const away = reconcileTeam(game.awayTeam, game.awayConference, game.season);
+  let identityStatus = "matched";
+  if (!home.ok && !away.ok) identityStatus = "unresolved";
+  else if (!home.ok || !away.ok) identityStatus = "partial_match";
+  else if (home.canonicalId === away.canonicalId) identityStatus = "identity_conflict";
+  return {
+    ...game,
+    identityStatus,
+    homeCanonicalId: home.canonicalId,
+    awayCanonicalId: away.canonicalId,
+    identityDetail: { home, away },
+  };
+}
+
 export async function parseCfbTier3WeeklyCsv(raw, {receivedAt=new Date().toISOString(),filename="training_data.csv"}={}) {
   if(typeof raw!=="string"||!raw.trim()||new TextEncoder().encode(raw).length>2_000_000)
     throw Error("TIER3_CSV_INVALID_SIZE");
   const {columns,rows}=parseCsv(raw.replace(/^\uFEFF/,""));
-  for(const name of REQUIRED)if(!columns.includes(name))throw Error("TIER3_MISSING_COLUMN:"+name);
   for(const name of columns)if(FORBIDDEN_LABELS.has(name))throw Error("TIER3_TARGET_LEAKAGE:"+name);
+  const schema=assertCfbTier3Header(columns);
   if(rows.length<1||rows.length>200)throw Error("TIER3_INVALID_GAME_COUNT");
-  const featureColumns=columns.filter(name=>!META.has(name));
-  if(featureColumns.length<12)throw Error("TIER3_INSUFFICIENT_FEATURES");
   if(!Number.isFinite(Date.parse(receivedAt)))throw Error("TIER3_INVALID_RECEIVED_AT");
   const seasons=new Set(rows.map(r=>r.season));
   const weeks=new Set(rows.map(r=>r.week));
@@ -48,61 +104,82 @@ export async function parseCfbTier3WeeklyCsv(raw, {receivedAt=new Date().toISOSt
     const openingSpread=Number(row.spread);
     if(!Number.isFinite(openingSpread))throw Error("TIER3_SPREAD_INVALID");
     const features={};
-    for(const field of featureColumns){
+    for(const field of CFB_TIER3_FEATURE_COLUMNS){
       const v=row[field];
       if(v===""||v==null) {features[field]=null;continue;}
       const n=Number(v);
       if(!Number.isFinite(n))throw Error("TIER3_NON_NUMERIC_FEATURE:"+field);
       features[field]=n;
     }
-    games.push({
+    // Explicit empty-cell audit for all non-feature meta fields already validated;
+    // features must be finite numbers for this golden schema (Week 7 has zero empties).
+    const game=reconcileCfbTier3GameIdentity({
       snapshotId,gameId:id,season,week,kickoffLiteral:row.start_date,
       homeTeam:row.home_team,awayTeam:row.away_team,
       homeConference:row.home_conference,awayConference:row.away_conference,
       neutralSite:/^true$/i.test(row.neutral_site)?1:0,
       openingSpread,features,rowSha256:await sha256Hex(columns.map(c=>row[c]??"").join("\u001f")),
-      identityStatus:"pending_canonical_match",
       pointInTimeStatus:"source_feature_cutoff_unverified",
       authority:CFB_TIER3_AUTHORITY
     });
+    games.push(game);
   }
+  const identityCounts=games.reduce((acc,g)=>{
+    acc[g.identityStatus]=(acc[g.identityStatus]||0)+1;return acc;
+  },{});
   return {
     snapshotId,sourceSha256,season,week,receivedAt,
     filename:String(filename).split(/[\\/]/).pop().replace(/[^A-Za-z0-9_.-]/g,"_").slice(0,100),
-    featureColumns,columns,games,rowCount:games.length,featureCount:featureColumns.length,
+    schemaVersion:schema.schemaVersion,
+    headerSha256:schema.headerSha256,
+    featureColumns:[...CFB_TIER3_FEATURE_COLUMNS],
+    columns:[...columns],
+    games,rowCount:games.length,featureCount:CFB_TIER3_FEATURE_COLUMNS.length,
+    columnCount:CFB_TIER3_COLUMN_COUNT,
+    identityCounts,
     authority:CFB_TIER3_AUTHORITY,canAuthorizeWager:false,canInfluenceProjection:false,
-    sourceFeatureCutoffVerified:false,providerPublishedAt:null
+    sourceFeatureCutoffVerified:false,providerPublishedAt:null,
+    expectedHeaderSha256:CFB_TIER3_HEADER_SHA256,
+    expectedSchemaVersion:CFB_TIER3_SCHEMA_VERSION,
   };
 }
+
 export async function saveCfbTier3WeeklySnapshot(env,snapshot,raw) {
   if(!env?.TIER3_DB?.prepare||!env?.TIER3_DB?.batch||!env?.ARCHIVE?.put)
     return {ok:false,reason:"TIER3_PRIVATE_STORAGE_REQUIRED"};
   const key=`licensed/cfbd/tier3/${snapshot.season}/week-${String(snapshot.week).padStart(2,"0")}/${snapshot.sourceSha256}.csv`;
   // Private archive is written before D1 index; no public URL or raw payload in response.
   await env.ARCHIVE.put(key,raw,{httpMetadata:{contentType:"text/csv"},
-    customMetadata:{source:"cfbd-tier3-weekly",sha256:snapshot.sourceSha256}});
+    customMetadata:{source:"cfbd-tier3-weekly",sha256:snapshot.sourceSha256,schema:snapshot.schemaVersion}});
   const statements=[
     env.TIER3_DB.prepare(`INSERT OR IGNORE INTO cfb_tier3_training_snapshots
       (snapshot_id,source_sha256,season,week,source_filename,received_at,raw_r2_key,
-       row_count,feature_count,schema_columns_json)
-      VALUES(?,?,?,?,?,?,?,?,?,?)`)
+       row_count,feature_count,schema_columns_json,schema_version,header_sha256)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`)
       .bind(snapshot.snapshotId,snapshot.sourceSha256,snapshot.season,snapshot.week,
-        snapshot.filename,snapshot.receivedAt,key,snapshot.rowCount,snapshot.featureCount,JSON.stringify(snapshot.columns))
+        snapshot.filename,snapshot.receivedAt,key,snapshot.rowCount,snapshot.featureCount,
+        JSON.stringify(snapshot.columns),snapshot.schemaVersion,snapshot.headerSha256)
   ];
   for(const row of snapshot.games){
     statements.push(env.TIER3_DB.prepare(`INSERT OR IGNORE INTO cfb_tier3_training_games
       (snapshot_id,game_id,season,week,kickoff_literal,home_team_source,
        away_team_source,home_conference_source,away_conference_source,neutral_site,
-       opening_spread,features_json,row_sha256,identity_status,point_in_time_status,authority)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+       opening_spread,features_json,row_sha256,identity_status,point_in_time_status,authority,
+       home_canonical_id,away_canonical_id,identity_detail_json)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .bind(row.snapshotId,row.gameId,row.season,row.week,row.kickoffLiteral,
         row.homeTeam,row.awayTeam,row.homeConference,row.awayConference,row.neutralSite,
         row.openingSpread,JSON.stringify(row.features),row.rowSha256,
-        row.identityStatus,row.pointInTimeStatus,row.authority));
+        row.identityStatus,row.pointInTimeStatus,row.authority,
+        row.homeCanonicalId,row.awayCanonicalId,JSON.stringify(row.identityDetail||{})));
   }
   await env.TIER3_DB.batch(statements);
-  return {ok:true,snapshotId:snapshot.snapshotId,sourceSha256:snapshot.sourceSha256,
+  return {
+    ok:true,snapshotId:snapshot.snapshotId,sourceSha256:snapshot.sourceSha256,
     season:snapshot.season,week:snapshot.week,rows:snapshot.rowCount,
-    features:snapshot.featureCount,authority:CFB_TIER3_AUTHORITY,networkCalls:0,
-    canAuthorizeWager:false,canInfluenceProjection:false};
+    features:snapshot.featureCount,schemaVersion:snapshot.schemaVersion,
+    headerSha256:snapshot.headerSha256,identityCounts:snapshot.identityCounts||{},
+    authority:CFB_TIER3_AUTHORITY,networkCalls:0,
+    canAuthorizeWager:false,canInfluenceProjection:false
+  };
 }
