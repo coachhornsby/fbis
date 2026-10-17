@@ -68,7 +68,7 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4.2.2
-        if: ${{ github.event.inputs.job == 'model-train-validate' || github.event.inputs.job == 'cfbd-endpoint-audit' || github.event.inputs.job == 'cfb-feature-backfill' || github.event.inputs.job == 'cfb-temporal-smoke' }}
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.job == 'model-train-validate' || github.event.inputs.job == 'cfbd-endpoint-audit' || github.event.inputs.job == 'cfb-feature-backfill' || github.event.inputs.job == 'cfb-temporal-smoke' }}
       - name: Offline train/validate (Actions CPU, not Workers)
         if: ${{ github.event.inputs.job == 'model-train-validate' }}
         run: node scripts/college-train.mjs
@@ -284,21 +284,32 @@ jobs:
           elif [ "$JOB" = "model-train-validate" ]; then
             call model-train-validate "${EXTRA}"
           elif [ "$EVENT_NAME" = "schedule" ]; then
-            # Exactly ONE daily CFB acquisition job (07:30 CDT / 06:30 CST).
-            # Never call all six rating endpoints, pregame freeze and postgame
-            # as separate quota-consuming daily jobs.
-            call cfb-postgame-harvest "" true
-            # Once weekly, within the SAME acquisition owner/window, capture
-            # CFBD ratings, PPA, advanced team form, talent and returners.
-            if [ "$(TZ=America/Chicago date +%u)" = "1" ] && [ "${CFBD_RATE_LIMITED:-0}" != "1" ] && [ "${CFBD_QUOTA_PAUSED:-0}" != "1" ]; then
+            # One acquisition owner at 07:30 Central. Weekly season-level
+            # refreshes never replace DAILY settled-game collection.
+            # Calendar evaluation is Chicago-local and DST-safe.
+            # Skip all provider requests outside the sport's active season.
+            if node scripts/college-refresh-policy.mjs cfb-postgame-harvest; then
+              call cfb-postgame-harvest "" true
+            fi
+            if node scripts/college-refresh-policy.mjs cfb-current-refresh && [ "${CFBD_RATE_LIMITED:-0}" != "1" ] && [ "${CFBD_QUOTA_PAUSED:-0}" != "1" ]; then
               call cfb-current-refresh "" true
             fi
-            # Independent basketball/health tasks do not spend CFBD quota.
-            call cbb-current-refresh "" true
-            call cbb-postgame-harvest "" true
+            # CBBD draws from the same Tier 3 subscription. A CFBD 429 or
+            # provider-confirmed shared exhaustion stops both sports' paid
+            # acquisition; non-CFBD health reporting continues.
+            if [ "${CFBD_RATE_LIMITED:-0}" != "1" ] && [ "${CFBD_QUOTA_PAUSED:-0}" != "1" ]; then
+              if node scripts/college-refresh-policy.mjs cbb-postgame-harvest; then
+                call cbb-postgame-harvest "" true
+              fi
+              if node scripts/college-refresh-policy.mjs cbb-current-refresh; then
+                call cbb-current-refresh "" true
+              fi
+            else
+              echo "Skipping CBBD network acquisition after shared quota stop."
+            fi
             call college-health
             if [ "${CFBD_RATE_LIMITED:-0}" = "1" ]; then
-              echo "CFBD 429: morning CFB ingestion FAILED. Other college tasks ran independently; no retry was attempted."
+              echo "Shared provider 429: college acquisition degraded; no retries or cross-sport paid calls."
               exit 1
             fi
           else
