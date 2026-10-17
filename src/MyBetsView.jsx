@@ -221,7 +221,7 @@ export default function MyBetsView({
             {ATTR_FILTERS.map(([id, label]) => (
               <button key={id} className={attr === id ? "chip active" : "chip"} onClick={() => setAttr(id)}>{label}</button>
             ))}
-          </div></div>
+          </div></div>}
         </div>
       </section>
       <section className="panel bets-ledger-panel">
