@@ -1,0 +1,33 @@
+name: PR1225 live allowance and release diagnosis
+on:
+  push:
+    branches: [ops/pr1225-live-allowance]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Read deployed account metadata and endpoint status
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          mkdir -p artifacts
+          for route in health published-projections; do
+            status=$(curl --silent --show-error --max-time 40 --output "artifacts/$route.json" --write-out '%{http_code}' "https://fbis-myz.pages.dev/api/$route")
+            echo "$route http=$status"
+            jq -c '{ok,error,detail,source,lastError,d1,checks,state,db,schema}' "artifacts/$route.json" || true
+          done
+          status=$(curl --silent --show-error --max-time 45 --request POST --header "x-harvest-secret: $HARVEST_SECRET" --output artifacts/provider-allowance.json --write-out '%{http_code}' https://fbis-myz.pages.dev/api/college-provider-allowance)
+          cat artifacts/provider-allowance.json
+          test "$status" = 200
+          jq -e '.allowanceVerified == true and .collectionStarted == false and .quotaAcknowledged == false' artifacts/provider-allowance.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr1225-live-allowance-and-release
+          path: artifacts/
+          retention-days: 30
