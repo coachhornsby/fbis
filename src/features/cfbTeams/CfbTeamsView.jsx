@@ -243,16 +243,35 @@ export default function CfbTeamsView({refreshKey=0}) {
   const [conference,setConference]=useState("ALL");
   const [conferenceLogos,setConferenceLogos]=useState({});
   useEffect(()=>{
-    fetch("https://site.api.espn.com/apis/site/v2/sports/football/college-football/groups")
+    const controller=new AbortController();
+    fetch("https://site.web.api.espn.com/apis/site/v2/sports/football/college-football/groups",{signal:controller.signal})
       .then(r=>r.ok?r.json():null).then(data=>{
+        if(!data||controller.signal.aborted)return;
         const logos={};
-        for(const group of data?.groups||[]){
-          const src=group.logos?.[0]?.href;
-          if(src)for(const name of [group.name,group.abbreviation,group.shortName])
-            if(name)logos[name.toLowerCase()]=src;
-        }
+        const normalize=v=>String(v||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+        const aliases={
+          southeasternconference:"sec",southeastern:"sec",big10:"bigten",bigtenconference:"bigten",
+          big12conference:"big12",atlanticcoastconference:"acc",americanathleticconference:"american",
+          conferenceusa:"conferenceusa",midamericanconference:"mac",mountainwestconference:"mountainwest",
+          sunbeltconference:"sunbelt",pac12conference:"pac12"
+        };
+        const visit=g=>{
+          if(!g||typeof g!=="object")return;
+          const logo=g.logos?.[0]?.href||g.logo?.href||g.logo;
+          if(typeof logo==="string"&&logo.startsWith("https://")){
+            for(const n of [g.name,g.displayName,g.shortName,g.abbreviation,g.slug]){
+              if(!n)continue;
+              const key=normalize(n);
+              logos[key]=logo;
+              if(aliases[key])logos[aliases[key]]=logo;
+            }
+          }
+          for(const c of g.children||g.groups||[])visit(c);
+        };
+        for(const group of data.groups||data.leagues||[])visit(group);
         setConferenceLogos(logos);
       }).catch(()=>{});
+    return()=>controller.abort();
   },[]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
@@ -309,7 +328,7 @@ export default function CfbTeamsView({refreshKey=0}) {
         <div className="ft-filters">
           <label>Search teams<input type="search" value={term} onChange={e=>setTerm(e.target.value)}
             placeholder="School, nickname, stadium…"/></label>
-          <label>Conference<span className="ft-conference-picker">{conferenceLogos[conference.toLowerCase()]&&<img alt="" src={conferenceLogos[conference.toLowerCase()]}/>}<select value={conference} onChange={e=>setConference(e.target.value)}>
+          <label>Conference<span className="ft-conference-picker">{conferenceLogos[conference.toLowerCase().replace(/[^a-z0-9]/g,"")]&&<img alt="" src={conferenceLogos[conference.toLowerCase()]}/>}<select value={conference} onChange={e=>setConference(e.target.value)}>
             {conferences.map(c=><option key={c} value={c}>{c==="ALL"?"All FBS conferences":c}</option>)}
           </select></span></label>
         </div>
