@@ -1,0 +1,37 @@
+name: Full frozen historical storage copy and recovery
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [ops/triggers/storage-full-export]
+permissions:
+  contents: read
+concurrency:
+  group: fbis-full-storage-copy
+  cancel-in-progress: false
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - run: node --test test/storage-full-core.test.mjs
+      - name: Archive source, restore SQLite and isolated cold D1, preserve source dependencies
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: node scripts/storage-full-export.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: full-storage-copy-evidence
+          path: |
+            /tmp/fbis-full-storage/result.json
+            /tmp/fbis-full-storage/drive-blocks/
+          retention-days: 30
+          if-no-files-found: warn
