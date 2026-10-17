@@ -58,10 +58,10 @@ export default function TeamProfilesView({refreshKey=0}) {
  {error&&<p role="alert" className="stp-alert">{error}</p>}
  {!directory&&!error&&<p role="status">Loading club directory…</p>}
  <div className="stp-directory">{teams.map(t=><button type="button" className="stp-club-tile" key={t.id} onClick={()=>{setSelected(t.id);setPanel('overview');}} aria-pressed={selected===t.id} style={{'--stp-primary':t.color||'#284f7a','--stp-secondary':t.altColor||t.color||'#436f98'}}>
- <TeamLogo team={t} size={65} /><div><strong>{t.name}</strong><span>{t.abbr} · {t.league}</span></div><span className="stp-tile-arrow">↗</span></button>)}</div>
+ <TeamLogo team={t} size={65} /><div><strong>{t.name}</strong><span>{t.abbr} · {competitionName(t.league)}</span></div><span className="stp-tile-arrow">↗</span></button>)}</div>
  {selected&&!profile&&!error&&<p role="status">Loading club research profile…</p>}
  {profile&&<article className="stp-profile" style={{'--stp-primary':profile.team.color||'#284f7a','--stp-secondary':profile.team.altColor||profile.team.color||'#436f98'}}>
- <header className="stp-hero"><TeamLogo team={profile.team} size={112}/><div className="stp-hero-copy"><span className="stp-eyebrow">{profile.team.league||league} · CLUB PROFILE</span><h2>{profile.team.name}</h2><p>{profile.stats.scope} · {profile.stats.sampleSize} observed matches</p></div></header>
+ <header className="stp-hero"><TeamLogo team={profile.team} size={112}/><div className="stp-hero-copy"><span className="stp-eyebrow">{competitionName(profile.team.league||league)} · CLUB PROFILE</span><h2>{profile.team.name}</h2><p>{profile.stats.scope} · {profile.stats.sampleSize} observed matches</p></div></header>
  <div className="stp-kpis">
  {[
  ['FORM',profile.stats.wins+'–'+profile.stats.draws+'–'+profile.stats.losses,'Wins / draws / losses'],
