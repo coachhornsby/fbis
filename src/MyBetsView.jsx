@@ -5,6 +5,8 @@ import useIsCompact from "./hooks/useIsCompact.js";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 import "./myBets.css";
+import MyBetsIntelligence from "./MyBetsIntelligence.jsx";
+import projectionScorecard from "./data/fbisProjectionScorecard.js";
 
 const RESULT_FILTERS = [
   ["all", "All results"],
@@ -45,6 +47,7 @@ export default function MyBetsView({
   const [sport, setSport] = useState("all");
   const [query, setQuery] = useState("");
   const [advancedFilters, setAdvancedFilters] = useState(false);
+  const [showLedger, setShowLedger] = useState(false);
   const [manualScores, setManualScores] = useState({});
   const [manualSaving, setManualSaving] = useState("");
   const [manualMessage, setManualMessage] = useState("");
@@ -173,6 +176,7 @@ export default function MyBetsView({
 
   return (
     <div className="main-content bets-dashboard">
+      <MyBetsIntelligence bets={bets} unavailable={unavailable} projectionScorecard={projectionScorecard} onShowLedger={()=>setShowLedger(true)}/>
       {error && <div className="panel"><div className="error">{error}</div></div>}
       <section className="panel">
         <div className="panel-header">
@@ -224,7 +228,8 @@ export default function MyBetsView({
           </div></div>
         </div>
       </section>
-      <section className="panel bets-ledger-panel">
+      <div className="bets-ledger-toggle"><button type="button" aria-expanded={showLedger} onClick={()=>setShowLedger(v=>!v)}>{showLedger?"Hide ticket ledger":"Explore full ticket ledger"} · {shown.length} matching</button></div>
+      {showLedger&&      <section className="panel bets-ledger-panel">
         <div className="panel-body" style={{ padding: 0 }}>
           {!shown.length ? (
             <div className="empty">No imported bets in this filter.</div>
@@ -345,7 +350,7 @@ export default function MyBetsView({
             </div>
           )}
         </div>
-      </section>
+      </section>}
     </div>
   );
 }
