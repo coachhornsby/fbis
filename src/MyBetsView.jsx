@@ -5,7 +5,7 @@ import useIsCompact from "./hooks/useIsCompact.js";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 import "./myBets.css";
-import MyBetsIntelligence from "./MyBetsIntelligence.jsx";
+import MyBetsIntelligence, {betFamily} from "./MyBetsIntelligence.jsx";
 import projectionScorecard from "./data/fbisProjectionScorecard.js";
 
 const RESULT_FILTERS = [
@@ -45,6 +45,7 @@ export default function MyBetsView({
   const [result, setResult] = useState("all");
   const [attr, setAttr] = useState("all");
   const [sport, setSport] = useState("all");
+  const [ledgerFamily,setLedgerFamily]=useState("games");
   const [query, setQuery] = useState("");
   const [advancedFilters, setAdvancedFilters] = useState(false);
   const [showLedger, setShowLedger] = useState(false);
@@ -69,6 +70,7 @@ export default function MyBetsView({
   const bets = pack.bets || [];
   const shown = useMemo(() => {
     return bets.filter((b) => {
+      if (ledgerFamily !== "combined" && betFamily(b) !== ledgerFamily) return false;
       if (sport !== "all" && b.sport !== sport) return false;
       if (query.trim() && ![b.awayTeam,b.homeTeam,b.matchupText,b.selectedTeam,b.selectedSide,b.playerName,b.executionBook,b.externalTicketId,b.market,b.id].filter(Boolean).join(" ").toLowerCase().includes(query.trim().toLowerCase())) return false;
       if (result !== "all" && (b.result || "OPEN") !== result) return false;
@@ -81,7 +83,7 @@ export default function MyBetsView({
       if (timeOrder) return timeOrder;
       return String(a.externalTicketId || "").localeCompare(String(b.externalTicketId || ""));
     });
-  }, [bets, sport, result, attr, query]);
+  }, [bets, sport, result, attr, query, ledgerFamily]);
   const summary = pack.summary || emptySummary();
   const unavailable = Boolean(state === "UNAVAILABLE" || error || sourceOk === false || String(sourceD1 || "").toLowerCase() === "error");
   const stat = (v, fallback = "—") => valueOrUnavailable(unavailable, v, fallback);
@@ -208,6 +210,7 @@ export default function MyBetsView({
           </div>
           </details>
           <p className="muted" style={{ marginTop: 8 }}>{unavailable ? "Bets data unavailable right now. Retry after data source recovers." : (summary.message || (summary.settled ? null : "No settled Heritage bets yet."))}</p>
+          <div className="bets-family-filter" aria-label="Ticket category">{[["games","Game lines"],["props","Player props"],["combined","Combined"]].map(([key,label])=><button type="button" aria-pressed={ledgerFamily===key} key={key} className={ledgerFamily===key?"active":""} onClick={()=>setLedgerFamily(key)}>{label}</button>)}</div>
           <div className="bets-filter-heading"><div><h3>Wager history</h3><span>{shown.length} matching tickets</span></div><label className="bets-search"><span>Search tickets</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Team, player, sportsbook or ticket ID"/></label></div>
           <div className="filter-row bets-sport-filters" style={{ marginTop: 10 }}>
             <button className={sport === "all" ? "chip active" : "chip"} onClick={() => setSport("all")}>All sports</button>
