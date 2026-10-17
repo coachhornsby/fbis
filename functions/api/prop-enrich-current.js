@@ -107,6 +107,44 @@ async function soccerTeamContext(row){
   }
   soccerCache.set(k,null);return null;
 }
+
+function walkObjects(v,out=[]){
+  if(!v||typeof v!=="object")return out;
+  if(Array.isArray(v)){for(const x of v)walkObjects(x,out);return out}
+  out.push(v);for(const x of Object.values(v))walkObjects(x,out);return out;
+}
+async function soccerRosterAthleteId(ctx,playerName){
+  const roster=await getJson("https://site.api.espn.com/apis/site/v2/sports/soccer/"+ctx.league+"/teams/"+ctx.teamId+"/roster?limit=500",5000);
+  const wanted=clean(playerName);
+  const candidates=walkObjects(roster,[]).filter(o=>{
+    const name=clean(o?.displayName||o?.fullName||o?.name||"");
+    const id=o?.id||o?.uid;
+    return id&&name&&(name===wanted||name.includes(wanted)||wanted.includes(name));
+  });
+  if(!candidates.length)return null;
+  const exact=candidates.find(o=>clean(o?.displayName||o?.fullName||o?.name||"")===wanted)||candidates[0];
+  return String(exact.id||exact.uid||"").match(/(\d+)$/)?.[1]||null;
+}
+async function soccerSportsDataverseGamelogValues(row){
+  const ctx=await soccerTeamContext(row);
+  if(!ctx)return {values:[],reason:"event-team-not-found"};
+  const athleteId=await soccerRosterAthleteId(ctx,row.player_name);
+  if(!athleteId)return {values:[],reason:"team-roster-athlete-not-found",league:ctx.league};
+  const startYear=new Date(row.start_time).getUTCFullYear();
+  const seasons=[startYear,startYear-1];
+  for(const season of seasons){
+    const body=await getJson("https://site.web.api.espn.com/apis/common/v3/sports/soccer/"+ctx.league+"/athletes/"+athleteId+"/gamelog?season="+season,5500);
+    if(!body||!Array.isArray(body.events)||!body.events.length)continue;
+    const values=[];
+    for(const event of body.events){
+      const v=valueForEspnEvent(body,event,row.canonical_market,"soccer",row.player_name);
+      if(v!=null)values.push(v);
+      if(values.length>=5)break;
+    }
+    if(values.length)return {values,league:ctx.league,athleteId,source:"SPORTSDATAVERSE_ESPN_WEB_V3_GAMELOG"};
+  }
+  return {values:[],reason:"sdv-player-gamelog-stat-unavailable",league:ctx.league,athleteId};
+}
 async function soccerRecentPlayerValues(row){
   const ctx=await soccerTeamContext(row);
   if(!ctx)return {values:[],reason:"event-team-not-found"};
@@ -138,18 +176,24 @@ async function soccerRecentPlayerValues(row){
 }
 
 async function enrichSoccer(db,row){
-  let vals=[];
-  const direct=await soccerRecentPlayerValues(row);
-  vals=(direct.values||[]).filter(v=>finite(v)!=null);
+  let vals=[],source="SOCCER-SDV-WEB-V3-LAST5-v1";
+  const sdv=await soccerSportsDataverseGamelogValues(row);
+  vals=(sdv.values||[]).filter(v=>finite(v)!=null);
   if(!vals.length){
-    const h=await loadEspnLastFive({sport:"soccer",name:row.player_name,team:row.team,market:row.canonical_market,line:row.line});
-    vals=(h?.last5||[]).map(x=>x.value).filter(v=>finite(v)!=null);
-    if(!vals.length)return {ok:false,reason:direct.reason||h?.reason||"history-unavailable"};
+    const direct=await soccerRecentPlayerValues(row);
+    vals=(direct.values||[]).filter(v=>finite(v)!=null);
+    source="SOCCER-SDV-SUMMARY-LAST5-v1";
+    if(!vals.length){
+      const h=await loadEspnLastFive({sport:"soccer",name:row.player_name,team:row.team,market:row.canonical_market,line:row.line});
+      vals=(h?.last5||[]).map(x=>x.value).filter(v=>finite(v)!=null);
+      if(!vals.length)return {ok:false,reason:sdv.reason||direct.reason||h?.reason||"history-unavailable"};
+      source="SOCCER-ESPN-GAMELOG-FALLBACK-v1";
+    }
   }
   const projection=weightedRecent(vals),sigma=sd(vals);
   if(projection==null)return {ok:false,reason:"history-empty"};
-  const changed=await persistProjection(db,row,Math.round(projection*100)/100,sigma==null?null:Math.round(sigma*100)/100,"SOCCER-PLAYER-LAST5-BOXSCORE-v1");
-  return {ok:changed>0,changed,projection,market:row.canonical_market};
+  const changed=await persistProjection(db,row,Math.round(projection*100)/100,sigma==null?null:Math.round(sigma*100)/100,source);
+  return {ok:changed>0,changed,projection,market:row.canonical_market,source};
 }
 export async function onRequestPost(context){
   const auth=authorizeHarvest(context.request,context.env);
