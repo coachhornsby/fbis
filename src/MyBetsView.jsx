@@ -5,6 +5,8 @@ import useIsCompact from "./hooks/useIsCompact.js";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 import "./myBets.css";
+import MyBetsIntelligence from "./MyBetsIntelligence.jsx";
+import projectionScorecard from "./data/fbisProjectionScorecard.js";
 
 const RESULT_FILTERS = [
   ["all", "All results"],
@@ -45,6 +47,7 @@ export default function MyBetsView({
   const [sport, setSport] = useState("all");
   const [query, setQuery] = useState("");
   const [advancedFilters, setAdvancedFilters] = useState(false);
+  const [showLedger, setShowLedger] = useState(false);
   const [manualScores, setManualScores] = useState({});
   const [manualSaving, setManualSaving] = useState("");
   const [manualMessage, setManualMessage] = useState("");
@@ -173,6 +176,7 @@ export default function MyBetsView({
 
   return (
     <div className="main-content bets-dashboard">
+      <MyBetsIntelligence bets={bets} unavailable={unavailable} projectionScorecard={projectionScorecard} onShowLedger={()=>setShowLedger(true)}/>
       {error && <div className="panel"><div className="error">{error}</div></div>}
       <section className="panel">
         <div className="panel-header">
@@ -189,6 +193,7 @@ export default function MyBetsView({
             <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT BET SLIP</button>
             {onRefresh && <button className="header-btn" onClick={onRefresh}>Reload</button>}
           </div>
+          <details className="bets-source-details"><summary>Legacy ledger counters and reconciliation totals</summary>
           <div className="status-grid bets-stat-grid" style={{ marginTop: 12 }}>
             <Stat label="Bets" value={stat(summary.bets, 0)} />
             <Stat label="Open" value={stat(summary.open, 0)} />
@@ -201,6 +206,7 @@ export default function MyBetsView({
             <Stat label="CLV N" value={stat(summary.validClvN, 0)} />
             <Stat label="Avg CLV" value={stat(summary.avgClv == null ? "—" : fmtSigned(summary.avgClv, 3))} />
           </div>
+          </details>
           <p className="muted" style={{ marginTop: 8 }}>{unavailable ? "Bets data unavailable right now. Retry after data source recovers." : (summary.message || (summary.settled ? null : "No settled Heritage bets yet."))}</p>
           <div className="bets-filter-heading"><div><h3>Wager history</h3><span>{shown.length} matching tickets</span></div><label className="bets-search"><span>Search tickets</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Team, player, sportsbook or ticket ID"/></label></div>
           <div className="filter-row bets-sport-filters" style={{ marginTop: 10 }}>
@@ -221,10 +227,11 @@ export default function MyBetsView({
             {ATTR_FILTERS.map(([id, label]) => (
               <button key={id} className={attr === id ? "chip active" : "chip"} onClick={() => setAttr(id)}>{label}</button>
             ))}
-          </div></div>
+          </div></div>}
         </div>
       </section>
-      <section className="panel bets-ledger-panel">
+      <div className="bets-ledger-toggle"><button type="button" aria-expanded={showLedger} onClick={()=>setShowLedger(v=>!v)}>{showLedger?"Hide ticket ledger":"Explore full ticket ledger"} · {shown.length} matching</button></div>
+      {showLedger&&      <section className="panel bets-ledger-panel">
         <div className="panel-body" style={{ padding: 0 }}>
           {!shown.length ? (
             <div className="empty">No imported bets in this filter.</div>
@@ -345,7 +352,7 @@ export default function MyBetsView({
             </div>
           )}
         </div>
-      </section>
+      </section>}
     </div>
   );
 }
