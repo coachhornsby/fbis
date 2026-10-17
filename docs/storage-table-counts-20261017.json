@@ -1,0 +1,1966 @@
+{
+  "measuredAt": "2026-10-17T03:22:19.692Z",
+  "database": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "physicalBytes": 10007482368,
+  "tableCounts": [
+    {
+      "name": "accuracy_daily_summary",
+      "n": 64,
+      "success": true,
+      "rowsRead": 64,
+      "durationMs": 0.2247
+    },
+    {
+      "name": "action_event_identity_links",
+      "n": 59,
+      "success": true,
+      "rowsRead": 59,
+      "durationMs": 0.237
+    },
+    {
+      "name": "action_market_book_observations",
+      "n": 86888,
+      "success": true,
+      "rowsRead": 86888,
+      "durationMs": 29.6323
+    },
+    {
+      "name": "action_market_snapshot_pointers",
+      "n": 12269,
+      "success": true,
+      "rowsRead": 12269,
+      "durationMs": 8.6332
+    },
+    {
+      "name": "api_usage",
+      "n": 183,
+      "success": true,
+      "rowsRead": 183,
+      "durationMs": 0.225
+    },
+    {
+      "name": "apify_sports_cost_ledger",
+      "n": 10,
+      "success": true,
+      "rowsRead": 10,
+      "durationMs": 0.3381
+    },
+    {
+      "name": "asian_baseball_backfill_shards",
+      "n": 2,
+      "success": true,
+      "rowsRead": 2,
+      "durationMs": 0.2289
+    },
+    {
+      "name": "asian_baseball_enrichment_shards",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2158
+    },
+    {
+      "name": "asian_baseball_game_observations",
+      "n": 223,
+      "success": true,
+      "rowsRead": 223,
+      "durationMs": 0.6673
+    },
+    {
+      "name": "asian_baseball_game_provider_crosswalk",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.5195
+    },
+    {
+      "name": "asian_baseball_games",
+      "n": 223,
+      "success": true,
+      "rowsRead": 223,
+      "durationMs": 0.6262
+    },
+    {
+      "name": "asian_baseball_park_factors",
+      "n": 22,
+      "success": true,
+      "rowsRead": 22,
+      "durationMs": 0.2432
+    },
+    {
+      "name": "asian_baseball_player_game_observations",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.1549
+    },
+    {
+      "name": "asian_baseball_player_identities",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3478
+    },
+    {
+      "name": "asian_baseball_pregame_snapshots",
+      "n": 24,
+      "success": true,
+      "rowsRead": 24,
+      "durationMs": 0.2441
+    },
+    {
+      "name": "bayesian_learning_state",
+      "n": 2,
+      "success": true,
+      "rowsRead": 2,
+      "durationMs": 0.2207
+    },
+    {
+      "name": "canonical_dq_findings",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3531
+    },
+    {
+      "name": "canonical_feature_registry",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3518
+    },
+    {
+      "name": "canonical_governance_meta",
+      "n": 5,
+      "success": true,
+      "rowsRead": 5,
+      "durationMs": 0.2054
+    },
+    {
+      "name": "canonical_misprice_snapshots",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.19
+    },
+    {
+      "name": "canonical_model_registry",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.1958
+    },
+    {
+      "name": "canonical_probability_provenance",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2329
+    },
+    {
+      "name": "canonical_promotion_evidence",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2738
+    },
+    {
+      "name": "canonical_provider_health",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2311
+    },
+    {
+      "name": "canonical_publication_ledger",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2303
+    },
+    {
+      "name": "canonical_runtime_version",
+      "n": 7,
+      "success": true,
+      "rowsRead": 7,
+      "durationMs": 0.2687
+    },
+    {
+      "name": "canonical_source_registry",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.226
+    },
+    {
+      "name": "cbb_availability_observations",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3926
+    },
+    {
+      "name": "cbb_canonical_teams",
+      "n": 362,
+      "success": true,
+      "rowsRead": 362,
+      "durationMs": 0.6967
+    },
+    {
+      "name": "cbb_conference_membership",
+      "n": 361,
+      "success": true,
+      "rowsRead": 361,
+      "durationMs": 1.4067
+    },
+    {
+      "name": "cbb_directory_phase_b_runs",
+      "n": 4,
+      "success": true,
+      "rowsRead": 4,
+      "durationMs": 0.59
+    },
+    {
+      "name": "cbb_directory_population_runs",
+      "n": 1,
+      "success": true,
+      "rowsRead": 1,
+      "durationMs": 0.4049
+    },
+    {
+      "name": "cbb_game_state_snapshots",
+      "n": 1546,
+      "success": true,
+      "rowsRead": 1546,
+      "durationMs": 3.6059
+    },
+    {
+      "name": "cbb_player_aliases",
+      "n": 28024,
+      "success": true,
+      "rowsRead": 28024,
+      "durationMs": 20.0582
+    },
+    {
+      "name": "cbb_player_prop_signals",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3058
+    },
+    {
+      "name": "cbb_player_provider_ids",
+      "n": 4751,
+      "success": true,
+      "rowsRead": 4751,
+      "durationMs": 4.6066
+    },
+    {
+      "name": "cbb_player_state_snapshots",
+      "n": 53513,
+      "success": true,
+      "rowsRead": 53513,
+      "durationMs": 117.7854
+    },
+    {
+      "name": "cbb_players",
+      "n": 28019,
+      "success": true,
+      "rowsRead": 28019,
+      "durationMs": 22.8846
+    },
+    {
+      "name": "cbb_roster_membership",
+      "n": 44098,
+      "success": true,
+      "rowsRead": 44098,
+      "durationMs": 79.1095
+    },
+    {
+      "name": "cbb_roster_observations",
+      "n": 14253,
+      "success": true,
+      "rowsRead": 14253,
+      "durationMs": 18.9816
+    },
+    {
+      "name": "cbb_rotation_observations",
+      "n": 14166,
+      "success": true,
+      "rowsRead": 14166,
+      "durationMs": 62.9383
+    },
+    {
+      "name": "cbb_schedule_items",
+      "n": 87756,
+      "success": true,
+      "rowsRead": 87756,
+      "durationMs": 145.0703
+    },
+    {
+      "name": "cbb_shadow_challenger_definitions",
+      "n": 11,
+      "success": true,
+      "rowsRead": 11,
+      "durationMs": 0.3916
+    },
+    {
+      "name": "cbb_state_events",
+      "n": 117753,
+      "success": true,
+      "rowsRead": 117753,
+      "durationMs": 194.8471
+    },
+    {
+      "name": "cbb_state_overlay_governance",
+      "n": 7,
+      "success": true,
+      "rowsRead": 7,
+      "durationMs": 0.2506
+    },
+    {
+      "name": "cbb_team_aliases",
+      "n": 1049,
+      "success": true,
+      "rowsRead": 1049,
+      "durationMs": 2.6862
+    },
+    {
+      "name": "cbb_team_context_observations",
+      "n": 1086,
+      "success": true,
+      "rowsRead": 1086,
+      "durationMs": 1.8606
+    },
+    {
+      "name": "cbb_team_state_snapshots",
+      "n": 3785,
+      "success": true,
+      "rowsRead": 3785,
+      "durationMs": 7.8853
+    },
+    {
+      "name": "cfb_canonical_players",
+      "n": 152640,
+      "success": true,
+      "rowsRead": 152640,
+      "durationMs": 140.8735
+    },
+    {
+      "name": "cfb_canonical_teams",
+      "n": 901,
+      "success": true,
+      "rowsRead": 901,
+      "durationMs": 1.4926
+    },
+    {
+      "name": "cfb_cfbd_acquisition_control",
+      "n": 1,
+      "success": true,
+      "rowsRead": 1,
+      "durationMs": 0.5391
+    },
+    {
+      "name": "cfb_cfbd_acquisition_receipts",
+      "n": 1,
+      "success": true,
+      "rowsRead": 1,
+      "durationMs": 0.4293
+    },
+    {
+      "name": "cfb_conference_membership",
+      "n": 2861,
+      "success": true,
+      "rowsRead": 2861,
+      "durationMs": 5.0195
+    },
+    {
+      "name": "cfb_hfa_external",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2431
+    },
+    {
+      "name": "cfb_hfa_games",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.1999
+    },
+    {
+      "name": "cfb_hfa_ratings",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2089
+    },
+    {
+      "name": "cfb_player_aliases",
+      "n": 309630,
+      "success": true,
+      "rowsRead": 309630,
+      "durationMs": 499.2053
+    },
+    {
+      "name": "cfb_player_projections",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3833
+    },
+    {
+      "name": "cfb_player_prop_comparisons",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2979
+    },
+    {
+      "name": "cfb_player_prop_signals_v2",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.353
+    },
+    {
+      "name": "cfb_player_provider_ids",
+      "n": 152640,
+      "success": true,
+      "rowsRead": 152640,
+      "durationMs": 86.2271
+    },
+    {
+      "name": "cfb_player_role_snapshots",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2366
+    },
+    {
+      "name": "cfb_pregame_feature_vectors",
+      "n": 545,
+      "success": true,
+      "rowsRead": 545,
+      "durationMs": 0.6943
+    },
+    {
+      "name": "cfb_prop_market_lines",
+      "n": 8522,
+      "success": true,
+      "rowsRead": 8522,
+      "durationMs": 26.1581
+    },
+    {
+      "name": "cfb_roster_membership",
+      "n": 397958,
+      "success": true,
+      "rowsRead": 397958,
+      "durationMs": 662.7558
+    },
+    {
+      "name": "cfb_roster_observations",
+      "n": 470584,
+      "success": true,
+      "rowsRead": 470584,
+      "durationMs": 873.6514
+    },
+    {
+      "name": "cfb_roster_source_coverage",
+      "n": 23,
+      "success": true,
+      "rowsRead": 23,
+      "durationMs": 0.4565
+    },
+    {
+      "name": "cfb_state_overlay_governance",
+      "n": 4,
+      "success": true,
+      "rowsRead": 4,
+      "durationMs": 0.4786
+    },
+    {
+      "name": "cfb_team_aliases",
+      "n": 4307,
+      "success": true,
+      "rowsRead": 4307,
+      "durationMs": 9.3813
+    },
+    {
+      "name": "cfb_team_identity_observations",
+      "n": 901,
+      "success": true,
+      "rowsRead": 901,
+      "durationMs": 1.9339
+    },
+    {
+      "name": "cfb_team_provider_ids",
+      "n": 901,
+      "success": true,
+      "rowsRead": 901,
+      "durationMs": 1.2313
+    },
+    {
+      "name": "cfb_tier3_training_games",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3991
+    },
+    {
+      "name": "cfb_tier3_training_snapshots",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2523
+    },
+    {
+      "name": "cfbd_endpoint_audit",
+      "n": 131,
+      "success": true,
+      "rowsRead": 131,
+      "durationMs": 0.2702
+    },
+    {
+      "name": "challenger_evaluations",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2265
+    },
+    {
+      "name": "continuous_learning_meta",
+      "n": 7,
+      "success": true,
+      "rowsRead": 7,
+      "durationMs": 1.0118
+    },
+    {
+      "name": "d1_migrations",
+      "n": 123,
+      "success": true,
+      "rowsRead": 123,
+      "durationMs": 0.1803
+    },
+    {
+      "name": "daily_metrics",
+      "n": 92,
+      "success": true,
+      "rowsRead": 92,
+      "durationMs": 0.1798
+    },
+    {
+      "name": "daily_reports",
+      "n": 52,
+      "success": true,
+      "rowsRead": 52,
+      "durationMs": 0.1697
+    },
+    {
+      "name": "ev_audit_records",
+      "n": 385,
+      "success": true,
+      "rowsRead": 385,
+      "durationMs": 0.4717
+    },
+    {
+      "name": "executed_bet_audit",
+      "n": 8470,
+      "success": true,
+      "rowsRead": 8470,
+      "durationMs": 11.3339
+    },
+    {
+      "name": "executed_bets",
+      "n": 230,
+      "success": true,
+      "rowsRead": 230,
+      "durationMs": 0.1993
+    },
+    {
+      "name": "external_acquisition_account",
+      "n": 1,
+      "success": true,
+      "rowsRead": 1,
+      "durationMs": 0.2352
+    },
+    {
+      "name": "external_acquisition_batches",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.272
+    },
+    {
+      "name": "external_acquisition_consumers",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.1937
+    },
+    {
+      "name": "external_acquisition_policy",
+      "n": 2,
+      "success": true,
+      "rowsRead": 2,
+      "durationMs": 0.2465
+    },
+    {
+      "name": "external_acquisition_requests",
+      "n": 55,
+      "success": true,
+      "rowsRead": 55,
+      "durationMs": 0.2312
+    },
+    {
+      "name": "external_acquisitions",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2233
+    },
+    {
+      "name": "fbis_economic_cohort_metrics",
+      "n": 41,
+      "success": true,
+      "rowsRead": 41,
+      "durationMs": 0.1782
+    },
+    {
+      "name": "fbis_economic_grades",
+      "n": 2247,
+      "success": true,
+      "rowsRead": 2247,
+      "durationMs": 5.6338
+    },
+    {
+      "name": "fbis_ops_components",
+      "n": 9,
+      "success": true,
+      "rowsRead": 9,
+      "durationMs": 0.2251
+    },
+    {
+      "name": "fbis_ops_health",
+      "n": 2,
+      "success": true,
+      "rowsRead": 2,
+      "durationMs": 0.1865
+    },
+    {
+      "name": "fbis_ops_invariant_checks",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2003
+    },
+    {
+      "name": "fbis_prospective_evidence",
+      "n": 7689,
+      "success": true,
+      "rowsRead": 7689,
+      "durationMs": 24.4036
+    },
+    {
+      "name": "fbis_run_manifests",
+      "n": 4630,
+      "success": true,
+      "rowsRead": 4630,
+      "durationMs": 1.8185
+    },
+    {
+      "name": "fbis_state_observations",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3375
+    },
+    {
+      "name": "fbis_watchdog_metrics",
+      "n": 147,
+      "success": true,
+      "rowsRead": 147,
+      "durationMs": 0.2374
+    },
+    {
+      "name": "games",
+      "n": 2487,
+      "success": true,
+      "rowsRead": 2487,
+      "durationMs": 0.3639
+    },
+    {
+      "name": "harvest_retry_queue",
+      "n": 65,
+      "success": true,
+      "rowsRead": 65,
+      "durationMs": 0.2783
+    },
+    {
+      "name": "job_runs",
+      "n": 9874,
+      "success": true,
+      "rowsRead": 9874,
+      "durationMs": 2.8338
+    },
+    {
+      "name": "learning_monitor_runs",
+      "n": 2280,
+      "success": true,
+      "rowsRead": 2280,
+      "durationMs": 2.5901
+    },
+    {
+      "name": "manual_score_audit",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2476
+    },
+    {
+      "name": "mlb_bookmaker_quote_evidence",
+      "n": 22,
+      "success": true,
+      "rowsRead": 22,
+      "durationMs": 0.3474
+    },
+    {
+      "name": "mlb_hitter_profiles",
+      "n": 527,
+      "success": true,
+      "rowsRead": 527,
+      "durationMs": 0.6128
+    },
+    {
+      "name": "mlb_market_projections",
+      "n": 800525,
+      "success": true,
+      "rowsRead": 800525,
+      "durationMs": 1437.0708
+    },
+    {
+      "name": "mlb_pitcher_profiles",
+      "n": 600,
+      "success": true,
+      "rowsRead": 600,
+      "durationMs": 0.1833
+    },
+    {
+      "name": "mlb_player_state_profiles",
+      "n": 1362,
+      "success": true,
+      "rowsRead": 1362,
+      "durationMs": 1.2393
+    },
+    {
+      "name": "mlb_profile_refresh_state",
+      "n": 6,
+      "success": true,
+      "rowsRead": 6,
+      "durationMs": 0.3354
+    },
+    {
+      "name": "mlb_prop_evidence_rejections",
+      "n": 1,
+      "success": true,
+      "rowsRead": 1,
+      "durationMs": 0.3341
+    },
+    {
+      "name": "mlb_prop_evidence_runs",
+      "n": 530,
+      "success": true,
+      "rowsRead": 530,
+      "durationMs": 1.7307
+    },
+    {
+      "name": "mlb_prop_prospective_evidence",
+      "n": 7647,
+      "success": true,
+      "rowsRead": 7647,
+      "durationMs": 19.9346
+    },
+    {
+      "name": "mlb_team_profile_snapshots",
+      "n": 870,
+      "success": true,
+      "rowsRead": 870,
+      "durationMs": 1.7105
+    },
+    {
+      "name": "mlb_team_profiles",
+      "n": 30,
+      "success": true,
+      "rowsRead": 30,
+      "durationMs": 0.3509
+    },
+    {
+      "name": "mlb_team_schedule_items",
+      "n": 4953,
+      "success": true,
+      "rowsRead": 4953,
+      "durationMs": 3.8917
+    },
+    {
+      "name": "model_learning_findings",
+      "n": 16,
+      "success": true,
+      "rowsRead": 16,
+      "durationMs": 0.2131
+    },
+    {
+      "name": "model_promotion_decisions",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.252
+    },
+    {
+      "name": "model_validation_runs",
+      "n": 34,
+      "success": true,
+      "rowsRead": 34,
+      "durationMs": 0.2635
+    },
+    {
+      "name": "model_versions",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2483
+    },
+    {
+      "name": "nba_confidence_calibration",
+      "n": 17,
+      "success": true,
+      "rowsRead": 17,
+      "durationMs": 0.4615
+    },
+    {
+      "name": "nba_decision_validation_runs",
+      "n": 17,
+      "success": true,
+      "rowsRead": 17,
+      "durationMs": 0.4577
+    },
+    {
+      "name": "nba_deep_game_shadow",
+      "n": 84,
+      "success": true,
+      "rowsRead": 84,
+      "durationMs": 1.2836
+    },
+    {
+      "name": "nba_deep_validation_runs",
+      "n": 14,
+      "success": true,
+      "rowsRead": 14,
+      "durationMs": 0.5554
+    },
+    {
+      "name": "nba_game_features",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.1831
+    },
+    {
+      "name": "nba_game_market_evaluations",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.4244
+    },
+    {
+      "name": "nba_game_projections",
+      "n": 91,
+      "success": true,
+      "rowsRead": 91,
+      "durationMs": 0.4375
+    },
+    {
+      "name": "nba_lineup_observations",
+      "n": 1000,
+      "success": true,
+      "rowsRead": 1000,
+      "durationMs": 1.0259
+    },
+    {
+      "name": "nba_observation_health",
+      "n": 2,
+      "success": true,
+      "rowsRead": 2,
+      "durationMs": 0.3768
+    },
+    {
+      "name": "nba_official_availability_reports",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.411
+    },
+    {
+      "name": "nba_player_game_features",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.1936
+    },
+    {
+      "name": "nba_player_impact_benchmarks",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3661
+    },
+    {
+      "name": "nba_player_impact_snapshots",
+      "n": 24465,
+      "success": true,
+      "rowsRead": 24465,
+      "durationMs": 25.7953
+    },
+    {
+      "name": "nba_player_impact_validation",
+      "n": 125,
+      "success": true,
+      "rowsRead": 125,
+      "durationMs": 0.5276
+    },
+    {
+      "name": "nba_player_prop_impact_shadow",
+      "n": 130,
+      "success": true,
+      "rowsRead": 130,
+      "durationMs": 0.2317
+    },
+    {
+      "name": "nba_player_prop_projections",
+      "n": 130,
+      "success": true,
+      "rowsRead": 130,
+      "durationMs": 0.8344
+    },
+    {
+      "name": "nba_player_role_contexts",
+      "n": 24465,
+      "success": true,
+      "rowsRead": 24465,
+      "durationMs": 28.4641
+    },
+    {
+      "name": "nba_player_state_events",
+      "n": 1903,
+      "success": true,
+      "rowsRead": 1903,
+      "durationMs": 3.0417
+    },
+    {
+      "name": "nba_player_state_profiles",
+      "n": 650,
+      "success": true,
+      "rowsRead": 650,
+      "durationMs": 0.5426
+    },
+    {
+      "name": "nba_prop_comparisons",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.4708
+    },
+    {
+      "name": "nba_prop_market_evaluations",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3787
+    },
+    {
+      "name": "nba_prospective_exclusions",
+      "n": 1,
+      "success": true,
+      "rowsRead": 1,
+      "durationMs": 0.7635
+    },
+    {
+      "name": "nba_prospective_game_shadow",
+      "n": 317,
+      "success": true,
+      "rowsRead": 317,
+      "durationMs": 1.2509
+    },
+    {
+      "name": "nba_prospective_gate",
+      "n": 1,
+      "success": true,
+      "rowsRead": 1,
+      "durationMs": 0.3778
+    },
+    {
+      "name": "nba_prospective_market_links",
+      "n": 558,
+      "success": true,
+      "rowsRead": 558,
+      "durationMs": 1.5884
+    },
+    {
+      "name": "nba_qualification_state",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3329
+    },
+    {
+      "name": "nba_team_coach_history",
+      "n": 391,
+      "success": true,
+      "rowsRead": 391,
+      "durationMs": 1.2334
+    },
+    {
+      "name": "nba_team_profile_snapshots",
+      "n": 960,
+      "success": true,
+      "rowsRead": 960,
+      "durationMs": 1.6588
+    },
+    {
+      "name": "nba_team_profiles",
+      "n": 30,
+      "success": true,
+      "rowsRead": 30,
+      "durationMs": 0.3304
+    },
+    {
+      "name": "nba_team_schedule_items",
+      "n": 2533,
+      "success": true,
+      "rowsRead": 2533,
+      "durationMs": 2.229
+    },
+    {
+      "name": "nba_wager_decisions",
+      "n": 124,
+      "success": true,
+      "rowsRead": 124,
+      "durationMs": 0.9094
+    },
+    {
+      "name": "nfl_player_profiles",
+      "n": 3188,
+      "success": true,
+      "rowsRead": 3188,
+      "durationMs": 0.8456
+    },
+    {
+      "name": "nfl_player_state_events",
+      "n": 3228,
+      "success": true,
+      "rowsRead": 3228,
+      "durationMs": 6.6439
+    },
+    {
+      "name": "nfl_profile_sync_runs",
+      "n": 765,
+      "success": true,
+      "rowsRead": 765,
+      "durationMs": 0.581
+    },
+    {
+      "name": "nfl_prop_market_calibration_runs",
+      "n": 30,
+      "success": true,
+      "rowsRead": 30,
+      "durationMs": 0.3941
+    },
+    {
+      "name": "nfl_prop_state_snapshots",
+      "n": 2584,
+      "success": true,
+      "rowsRead": 2584,
+      "durationMs": 7.2976
+    },
+    {
+      "name": "nfl_qb_personnel_shadow_predictions",
+      "n": 44,
+      "success": true,
+      "rowsRead": 44,
+      "durationMs": 0.4186
+    },
+    {
+      "name": "nfl_team_coach_history",
+      "n": 32,
+      "success": true,
+      "rowsRead": 32,
+      "durationMs": 0.4678
+    },
+    {
+      "name": "nfl_team_profile_snapshots",
+      "n": 763,
+      "success": true,
+      "rowsRead": 763,
+      "durationMs": 2.3588
+    },
+    {
+      "name": "nfl_team_profiles",
+      "n": 32,
+      "success": true,
+      "rowsRead": 32,
+      "durationMs": 0.2713
+    },
+    {
+      "name": "nfl_team_schedule_profile",
+      "n": 544,
+      "success": true,
+      "rowsRead": 544,
+      "durationMs": 0.4801
+    },
+    {
+      "name": "nfl_wager_decisions",
+      "n": 5589,
+      "success": true,
+      "rowsRead": 5589,
+      "durationMs": 12.5667
+    },
+    {
+      "name": "nfl_wager_outcomes",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.4926
+    },
+    {
+      "name": "nhl_bookmaker_quote_evidence",
+      "n": 190,
+      "success": true,
+      "rowsRead": 190,
+      "durationMs": 0.5117
+    },
+    {
+      "name": "nhl_deployment_observations",
+      "n": 4102,
+      "success": true,
+      "rowsRead": 4102,
+      "durationMs": 4.9435
+    },
+    {
+      "name": "nhl_goalie_probability_shadow",
+      "n": 65,
+      "success": true,
+      "rowsRead": 65,
+      "durationMs": 0.5382
+    },
+    {
+      "name": "nhl_goalie_profiles",
+      "n": 77,
+      "success": true,
+      "rowsRead": 77,
+      "durationMs": 0.504
+    },
+    {
+      "name": "nhl_linemate_profiles",
+      "n": 15510,
+      "success": true,
+      "rowsRead": 15510,
+      "durationMs": 10.2457
+    },
+    {
+      "name": "nhl_player_profiles",
+      "n": 812,
+      "success": true,
+      "rowsRead": 812,
+      "durationMs": 0.7772
+    },
+    {
+      "name": "nhl_player_tracking_profiles",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.4482
+    },
+    {
+      "name": "nhl_profile_sync_runs",
+      "n": 1121,
+      "success": true,
+      "rowsRead": 1121,
+      "durationMs": 1.8852
+    },
+    {
+      "name": "nhl_replacement_observations",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3463
+    },
+    {
+      "name": "nhl_team_coach_history",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3417
+    },
+    {
+      "name": "nhl_team_profile_snapshots",
+      "n": 1076,
+      "success": true,
+      "rowsRead": 1076,
+      "durationMs": 1.565
+    },
+    {
+      "name": "nhl_team_profiles",
+      "n": 32,
+      "success": true,
+      "rowsRead": 32,
+      "durationMs": 0.1746
+    },
+    {
+      "name": "nhl_team_schedule_profile",
+      "n": 2818,
+      "success": true,
+      "rowsRead": 2818,
+      "durationMs": 1.0657
+    },
+    {
+      "name": "nhl_wager_confidence_runs",
+      "n": 407,
+      "success": true,
+      "rowsRead": 407,
+      "durationMs": 0.5711
+    },
+    {
+      "name": "nhl_wager_decisions",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.7294
+    },
+    {
+      "name": "nhl_wager_settlements",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.4203
+    },
+    {
+      "name": "normalized_market_decision_links",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.274
+    },
+    {
+      "name": "normalized_market_economic_grades",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2172
+    },
+    {
+      "name": "normalized_market_observations",
+      "n": 667201,
+      "success": true,
+      "rowsRead": 667201,
+      "durationMs": 540.4106
+    },
+    {
+      "name": "odds_snapshots",
+      "n": 94266,
+      "success": true,
+      "rowsRead": 94266,
+      "durationMs": 11.8689
+    },
+    {
+      "name": "online_learning_shadow",
+      "n": 2,
+      "success": true,
+      "rowsRead": 2,
+      "durationMs": 0.3342
+    },
+    {
+      "name": "pipeline_stage_runs",
+      "n": 76,
+      "success": true,
+      "rowsRead": 76,
+      "durationMs": 1.9867
+    },
+    {
+      "name": "player_availability_observations",
+      "n": 12368,
+      "success": true,
+      "rowsRead": 12368,
+      "durationMs": 10.6531
+    },
+    {
+      "name": "player_prop_cards",
+      "n": 2,
+      "success": true,
+      "rowsRead": 2,
+      "durationMs": 0.4133
+    },
+    {
+      "name": "player_prop_legs",
+      "n": 6,
+      "success": true,
+      "rowsRead": 6,
+      "durationMs": 0.7787
+    },
+    {
+      "name": "polymarket_us_private_activity",
+      "n": 15,
+      "success": true,
+      "rowsRead": 15,
+      "durationMs": 0.3646
+    },
+    {
+      "name": "polymarket_us_private_positions",
+      "n": 6,
+      "success": true,
+      "rowsRead": 6,
+      "durationMs": 0.4512
+    },
+    {
+      "name": "polymarket_us_private_sync_runs",
+      "n": 16,
+      "success": true,
+      "rowsRead": 16,
+      "durationMs": 0.4567
+    },
+    {
+      "name": "prediction_layers",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2108
+    },
+    {
+      "name": "prediction_snapshots",
+      "n": 15958,
+      "success": true,
+      "rowsRead": 15958,
+      "durationMs": 3.2095
+    },
+    {
+      "name": "predictions",
+      "n": 4867,
+      "success": true,
+      "rowsRead": 4867,
+      "durationMs": 2.2038
+    },
+    {
+      "name": "prizepicks_daily_acquisitions",
+      "n": 7,
+      "success": true,
+      "rowsRead": 7,
+      "durationMs": 0.2432
+    },
+    {
+      "name": "prizepicks_prop_lines",
+      "n": 89298,
+      "success": true,
+      "rowsRead": 89298,
+      "durationMs": 245.8833
+    },
+    {
+      "name": "prizepicks_prop_observations",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3768
+    },
+    {
+      "name": "published_projections",
+      "n": 32,
+      "success": true,
+      "rowsRead": 32,
+      "durationMs": 0.5808
+    },
+    {
+      "name": "recalibration_runs",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.4562
+    },
+    {
+      "name": "schema_migrations",
+      "n": 126,
+      "success": true,
+      "rowsRead": 126,
+      "durationMs": 0.5198
+    },
+    {
+      "name": "shadow_candidate_scheduler_state",
+      "n": 14,
+      "success": true,
+      "rowsRead": 14,
+      "durationMs": 0.4305
+    },
+    {
+      "name": "shadow_collection_runs",
+      "n": 168,
+      "success": true,
+      "rowsRead": 168,
+      "durationMs": 0.1999
+    },
+    {
+      "name": "shadow_cost_ledger",
+      "n": 124,
+      "success": true,
+      "rowsRead": 124,
+      "durationMs": 0.3036
+    },
+    {
+      "name": "shadow_dead_letters",
+      "n": 6,
+      "success": true,
+      "rowsRead": 6,
+      "durationMs": 0.2268
+    },
+    {
+      "name": "shadow_line_movement",
+      "n": 32961,
+      "success": true,
+      "rowsRead": 32961,
+      "durationMs": 10.8265
+    },
+    {
+      "name": "shadow_market_books",
+      "n": 27221,
+      "success": true,
+      "rowsRead": 27221,
+      "durationMs": 4.5453
+    },
+    {
+      "name": "shadow_market_observations",
+      "n": 2486,
+      "success": true,
+      "rowsRead": 2486,
+      "durationMs": 0.749
+    },
+    {
+      "name": "shadow_market_splits",
+      "n": 13782,
+      "success": true,
+      "rowsRead": 13782,
+      "durationMs": 3.2544
+    },
+    {
+      "name": "shadow_observation_keys",
+      "n": 1515,
+      "success": true,
+      "rowsRead": 1515,
+      "durationMs": 1.0852
+    },
+    {
+      "name": "shadow_promotion_metrics",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2165
+    },
+    {
+      "name": "shadow_provider_comparisons",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2457
+    },
+    {
+      "name": "shadow_provider_reliability",
+      "n": 108,
+      "success": true,
+      "rowsRead": 108,
+      "durationMs": 0.3022
+    },
+    {
+      "name": "shadow_provider_runs",
+      "n": 122,
+      "success": true,
+      "rowsRead": 122,
+      "durationMs": 0.2318
+    },
+    {
+      "name": "shadow_schema_fingerprints",
+      "n": 102,
+      "success": true,
+      "rowsRead": 102,
+      "durationMs": 0.2001
+    },
+    {
+      "name": "soccer_availability_observations",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.5524
+    },
+    {
+      "name": "soccer_competition_coverage",
+      "n": 174,
+      "success": true,
+      "rowsRead": 174,
+      "durationMs": 0.4651
+    },
+    {
+      "name": "soccer_competition_provider_map",
+      "n": 18,
+      "success": true,
+      "rowsRead": 18,
+      "durationMs": 0.4284
+    },
+    {
+      "name": "soccer_competition_validation",
+      "n": 28,
+      "success": true,
+      "rowsRead": 28,
+      "durationMs": 1.0274
+    },
+    {
+      "name": "soccer_matches",
+      "n": 3349,
+      "success": true,
+      "rowsRead": 3349,
+      "durationMs": 2.1716
+    },
+    {
+      "name": "soccer_pitchapi_backfill_queue",
+      "n": 3589,
+      "success": true,
+      "rowsRead": 3589,
+      "durationMs": 3.6175
+    },
+    {
+      "name": "soccer_pitchapi_discovery_runs",
+      "n": 1063,
+      "success": true,
+      "rowsRead": 1063,
+      "durationMs": 0.6586
+    },
+    {
+      "name": "soccer_pitchapi_lineup_observations",
+      "n": 24978,
+      "success": true,
+      "rowsRead": 24978,
+      "durationMs": 33.8423
+    },
+    {
+      "name": "soccer_pitchapi_match_features",
+      "n": 27153,
+      "success": true,
+      "rowsRead": 27153,
+      "durationMs": 13.9167
+    },
+    {
+      "name": "soccer_pitchapi_player_match",
+      "n": 5257,
+      "success": true,
+      "rowsRead": 5257,
+      "durationMs": 5.3793
+    },
+    {
+      "name": "soccer_pitchapi_sync_runs",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2105
+    },
+    {
+      "name": "soccer_player_state",
+      "n": 2063,
+      "success": true,
+      "rowsRead": 2063,
+      "durationMs": 1.3317
+    },
+    {
+      "name": "soccer_player_state_snapshots",
+      "n": 2064,
+      "success": true,
+      "rowsRead": 2064,
+      "durationMs": 1.8511
+    },
+    {
+      "name": "soccer_prospective_shadow",
+      "n": 743,
+      "success": true,
+      "rowsRead": 743,
+      "durationMs": 1.3203
+    },
+    {
+      "name": "soccer_research_routes",
+      "n": 50,
+      "success": true,
+      "rowsRead": 50,
+      "durationMs": 0.3872
+    },
+    {
+      "name": "soccer_team_state",
+      "n": 264,
+      "success": true,
+      "rowsRead": 264,
+      "durationMs": 0.6309
+    },
+    {
+      "name": "soccer_team_state_snapshots",
+      "n": 264,
+      "success": true,
+      "rowsRead": 264,
+      "durationMs": 0.7953
+    },
+    {
+      "name": "soccer_validation_evidence",
+      "n": 1358,
+      "success": true,
+      "rowsRead": 1358,
+      "durationMs": 3.363
+    },
+    {
+      "name": "source_observations",
+      "n": 56,
+      "success": true,
+      "rowsRead": 56,
+      "durationMs": 0.4318
+    },
+    {
+      "name": "store_meta",
+      "n": 146,
+      "success": true,
+      "rowsRead": 146,
+      "durationMs": 0.3304
+    },
+    {
+      "name": "strategies",
+      "n": 1,
+      "success": true,
+      "rowsRead": 1,
+      "durationMs": 0.251
+    },
+    {
+      "name": "strategy_qualification_attempts",
+      "n": 20,
+      "success": true,
+      "rowsRead": 20,
+      "durationMs": 0.2541
+    },
+    {
+      "name": "strategy_settlement_corrections",
+      "n": 4,
+      "success": true,
+      "rowsRead": 4,
+      "durationMs": 0.2313
+    },
+    {
+      "name": "strategy_ticket_probability_corrections",
+      "n": 179,
+      "success": true,
+      "rowsRead": 179,
+      "durationMs": 0.3627
+    },
+    {
+      "name": "strategy_tickets",
+      "n": 355,
+      "success": true,
+      "rowsRead": 355,
+      "durationMs": 0.2245
+    },
+    {
+      "name": "team_feature_snapshots",
+      "n": 2554,
+      "success": true,
+      "rowsRead": 2554,
+      "durationMs": 3.5398
+    },
+    {
+      "name": "team_form",
+      "n": 711,
+      "success": true,
+      "rowsRead": 711,
+      "durationMs": 0.4883
+    },
+    {
+      "name": "team_form_games",
+      "n": 8355,
+      "success": true,
+      "rowsRead": 8355,
+      "durationMs": 2.3426
+    },
+    {
+      "name": "tennis_availability_observations",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.4068
+    },
+    {
+      "name": "tennis_context_snapshots",
+      "n": 74,
+      "success": true,
+      "rowsRead": 74,
+      "durationMs": 0.4229
+    },
+    {
+      "name": "tennis_external_fixtures",
+      "n": 52,
+      "success": true,
+      "rowsRead": 52,
+      "durationMs": 0.5204
+    },
+    {
+      "name": "tennis_identity_review_queue",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2835
+    },
+    {
+      "name": "tennis_ingestion_state",
+      "n": 2,
+      "success": true,
+      "rowsRead": 2,
+      "durationMs": 0.4583
+    },
+    {
+      "name": "tennis_market_snapshots",
+      "n": 204,
+      "success": true,
+      "rowsRead": 204,
+      "durationMs": 0.4277
+    },
+    {
+      "name": "tennis_match_history",
+      "n": 14245,
+      "success": true,
+      "rowsRead": 14245,
+      "durationMs": 2.1588
+    },
+    {
+      "name": "tennis_match_identity_review_queue",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2267
+    },
+    {
+      "name": "tennis_official_match_observations",
+      "n": 230,
+      "success": true,
+      "rowsRead": 230,
+      "durationMs": 0.6354
+    },
+    {
+      "name": "tennis_official_matches",
+      "n": 99,
+      "success": true,
+      "rowsRead": 99,
+      "durationMs": 0.2637
+    },
+    {
+      "name": "tennis_performance_observations",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.3522
+    },
+    {
+      "name": "tennis_player_aliases",
+      "n": 5691,
+      "success": true,
+      "rowsRead": 5691,
+      "durationMs": 4.564
+    },
+    {
+      "name": "tennis_player_bank",
+      "n": 760,
+      "success": true,
+      "rowsRead": 760,
+      "durationMs": 0.5578
+    },
+    {
+      "name": "tennis_player_portraits",
+      "n": 17,
+      "success": true,
+      "rowsRead": 17,
+      "durationMs": 0.3781
+    },
+    {
+      "name": "tennis_player_profiles_current",
+      "n": 2280,
+      "success": true,
+      "rowsRead": 2280,
+      "durationMs": 0.4496
+    },
+    {
+      "name": "tennis_player_source_ids",
+      "n": 5691,
+      "success": true,
+      "rowsRead": 5691,
+      "durationMs": 6.452
+    },
+    {
+      "name": "tennis_players",
+      "n": 6082,
+      "success": true,
+      "rowsRead": 6082,
+      "durationMs": 8.0366
+    },
+    {
+      "name": "tennis_profile_observations",
+      "n": 8597,
+      "success": true,
+      "rowsRead": 8597,
+      "durationMs": 12.2544
+    },
+    {
+      "name": "tennis_ranking_observations",
+      "n": 3110,
+      "success": true,
+      "rowsRead": 3110,
+      "durationMs": 3.5557
+    },
+    {
+      "name": "tennis_source_audits",
+      "n": 35,
+      "success": true,
+      "rowsRead": 35,
+      "durationMs": 0.1611
+    },
+    {
+      "name": "tennis_tournament_speed_current",
+      "n": 51,
+      "success": true,
+      "rowsRead": 51,
+      "durationMs": 0.4933
+    },
+    {
+      "name": "tennis_v2_research_decisions",
+      "n": 81,
+      "success": true,
+      "rowsRead": 81,
+      "durationMs": 0.3595
+    },
+    {
+      "name": "tennis_wta_shards",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2564
+    },
+    {
+      "name": "wnba_game_impact_shadow",
+      "n": 60,
+      "success": true,
+      "rowsRead": 60,
+      "durationMs": 0.3257
+    },
+    {
+      "name": "wnba_game_possession_challenger_shadow",
+      "n": 177,
+      "success": true,
+      "rowsRead": 177,
+      "durationMs": 1.1214
+    },
+    {
+      "name": "wnba_game_possession_market_shadow",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.416
+    },
+    {
+      "name": "wnba_player_impact_snapshots",
+      "n": 9660,
+      "success": true,
+      "rowsRead": 9660,
+      "durationMs": 11.5321
+    },
+    {
+      "name": "wnba_player_impact_validation",
+      "n": 66,
+      "success": true,
+      "rowsRead": 66,
+      "durationMs": 0.4758
+    },
+    {
+      "name": "wnba_player_opportunity_shadow",
+      "n": 4390,
+      "success": true,
+      "rowsRead": 4390,
+      "durationMs": 12.8872
+    },
+    {
+      "name": "wnba_player_opportunity_validation",
+      "n": 32,
+      "success": true,
+      "rowsRead": 32,
+      "durationMs": 0.4851
+    },
+    {
+      "name": "wnba_player_prop_impact_shadow",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.48
+    },
+    {
+      "name": "wnba_player_role_contexts",
+      "n": 9660,
+      "success": true,
+      "rowsRead": 9660,
+      "durationMs": 11.6534
+    },
+    {
+      "name": "wnba_possession_challenger_coefficients",
+      "n": 5,
+      "success": true,
+      "rowsRead": 5,
+      "durationMs": 0.4509
+    },
+    {
+      "name": "wnba_possession_challenger_validation",
+      "n": 24,
+      "success": true,
+      "rowsRead": 24,
+      "durationMs": 0.3787
+    },
+    {
+      "name": "wnba_prop_validation",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.2447
+    },
+    {
+      "name": "wnba_team_possession_feature_snapshots",
+      "n": 550,
+      "success": true,
+      "rowsRead": 550,
+      "durationMs": 1.0388
+    },
+    {
+      "name": "wnba_wager_decisions",
+      "n": 6,
+      "success": true,
+      "rowsRead": 6,
+      "durationMs": 0.3495
+    },
+    {
+      "name": "wnba_wager_results",
+      "n": 0,
+      "success": true,
+      "rowsRead": 0,
+      "durationMs": 0.4511
+    },
+    {
+      "name": "write_conflicts",
+      "n": 38240,
+      "success": true,
+      "rowsRead": 38240,
+      "durationMs": 5.7
+    }
+  ],
+  "internalTablesExcluded": [
+    "_cf_KV",
+    "sqlite_sequence"
+  ],
+  "perTablePhysicalBytes": "NOT_AVAILABLE",
+  "retentionReleaseAuthorized": false
+}

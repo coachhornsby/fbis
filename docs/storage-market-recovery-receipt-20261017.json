@@ -1,0 +1,58 @@
+{
+  "contract": "fbis-market-archive-recovery-receipt-v1",
+  "sourceDatabase": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "sourceTable": "normalized_market_observations",
+  "archiveSha256": "abd8d59447376b9ddcf31a54fd15b51e94dd02b7250ff54d4765a4795a6ef2c7",
+  "archiveBytes": 461343,
+  "archiveRows": 2000,
+  "originalColumns": 50,
+  "sourceRowidRange": {
+    "first": 1052,
+    "last": 3733,
+    "sparse": true
+  },
+  "r2Key": "research/storage-recovery/market-research/market-research-abd8d59447376b9ddcf31a54fd15b51e94dd02b7250ff54d4765a4795a6ef2c7.json.gz",
+  "r2DownloadSha256Verified": true,
+  "driveFileId": "1dNCsV0zdctr2rgrrBhJFugmao6eW02ZF",
+  "driveFolderId": "1FblolnunIDlm4mPcvPz3smiYKDj81L_C",
+  "driveDownloadedBytes": 461343,
+  "driveDownloadSha256Verified": true,
+  "driveDownloadedArchiveLocalRestore": {
+    "rows": 2000,
+    "columns": 50,
+    "fullFieldParity": true
+  },
+  "remoteRehearsal": {
+    "database": "1142b60c-6e00-4286-87b8-4edff9de3129",
+    "table": "market_research_restore_20261017",
+    "input": "independently downloaded Google Drive archive",
+    "rows": 2000,
+    "fullFieldParity": true,
+    "originalRowidsPreserved": true,
+    "distinctIdentities": 2000,
+    "distinctObservationKeys": 2000,
+    "batches": 100
+  },
+  "primaryStartBytes": 10007482368,
+  "primaryEndBytes": 10007482368,
+  "physicalBytesReclaimed": 0,
+  "sourceRowsDeleted": 0,
+  "sourceDbMutations": 0,
+  "retentionReleaseAuthorized": false,
+  "historicalReaderParity": "NOT_QUALIFIED",
+  "retirementDecision": "BLOCKED",
+  "blockingGates": [
+    "complete dependency classification and historical reader parity",
+    "archive qualification for remaining source rows",
+    "separate explicit operator retention release"
+  ],
+  "githubPullRequest": "https://github.com/coachhornsby/fbis/pull/1216",
+  "githubWorkflowRun": "https://github.com/coachhornsby/fbis/actions/runs/38998355219",
+  "restoreProcedure": [
+    "Download the private Drive gzip file; verify the archive SHA-256 before parsing.",
+    "Use original schema and original rowids for an isolated SQLite restore and full-field comparison.",
+    "Use scripts/prepare-market-rehearsal.py with the pinned SHA to generate bounded isolated D1 replay batches.",
+    "Read back and compare every original field; reject identity collisions or missing rows.",
+    "No primary-source retirement or broad Time Travel rollback is authorized."
+  ]
+}

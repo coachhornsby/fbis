@@ -1,0 +1,35 @@
+name: Daily physical storage capacity and incident alert
+on:
+  schedule:
+    - cron: '17 11 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [ops/triggers/storage-capacity-daily]
+permissions:
+  contents: read
+concurrency:
+  group: fbis-daily-capacity-monitor
+  cancel-in-progress: false
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: node --test test/storage-capacity-daily.test.mjs
+      - name: Record actual bytes and flag critical capacity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/storage-capacity-daily.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: storage-capacity-measurement
+          path: /tmp/fbis-capacity/result.json
+          retention-days: 90
+          if-no-files-found: warn
