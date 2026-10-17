@@ -266,3 +266,11 @@
 @media(max-width:800px){.ft-headline-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.ft-headline-metrics{gap:8px}.ft-headline-card{padding:11px}.ft-headline-rank{font-size:1.7rem}.ft-page .ft-hero-info h2{font-size:1.6rem}.ft-page .ft-hero .ft-logo-hero{width:76px;height:76px}}
 @media(prefers-reduced-motion:reduce){.ft-headline-card{transition:none}.ft-headline-card:hover{transform:none}}
+
+
+/* Matching soccer's compact competition branding on the college conference filter. */
+.ft-conference-picker{display:flex;align-items:center;gap:9px;position:relative;border:1px solid #52728b;border-radius:11px;background:linear-gradient(110deg,#102d43,#071b2b);padding:0 10px;min-width:0}
+.ft-conference-picker img{width:24px!important;height:24px!important;max-width:24px;max-height:24px;object-fit:contain;flex:0 0 24px;background:transparent!important;border:none!important;border-radius:0!important}
+.ft-filters .ft-conference-picker select{background:transparent;border:0;border-radius:0;min-height:47px;padding:11px 24px 11px 2px;color:#f4faff;font-size:.9rem;font-weight:750;cursor:pointer;appearance:none;-webkit-appearance:none;outline:0}
+.ft-conference-picker:after{content:"";position:absolute;right:15px;top:calc(50% - 4px);width:8px;height:8px;border-right:2px solid #abdfff;border-bottom:2px solid #abdfff;transform:rotate(45deg);pointer-events:none}
+.ft-conference-picker:focus-within{border-color:#86d6ff;box-shadow:0 0 0 3px #4db6ff40}
