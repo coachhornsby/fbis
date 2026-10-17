@@ -198,7 +198,8 @@ export function cbbSeasonYear(date = new Date()) {
   }).format(date instanceof Date ? date : new Date(date));
   const y = Number(iso.slice(0, 4));
   const m = Number(iso.slice(5, 7));
-  return m >= 10 ? y : y - 1;
+  // CBBD uses the ending year: October 2026 begins season=2027 (2026-27).
+  return m >= 10 ? y + 1 : y;
 }
 
 /** Harmless authenticated discovery: one cheap endpoint, field names only. */
