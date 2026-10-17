@@ -54,7 +54,7 @@ jobs:
           jq -e '(.games|length)>0 and any(.games[].market.venueOffers[]?; .source=="PinnOdds") and any(.games[].market.venueOffers[]?; .source=="Polymarket US WebSocket")' artifacts/soccer-board.json
           curl -fsS --max-time 30 https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health > artifacts/stream-health.json
           jq -e '.ok and .operational and .connected' artifacts/stream-health.json
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: soccer-post-storage-${{ github.run_id }}

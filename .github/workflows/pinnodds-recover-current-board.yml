@@ -42,7 +42,7 @@ jobs:
           jq -e '.ready==true and .version=="pinnodds-governed-capture-v1"' /tmp/pinnodds-ready.json >/dev/null
       - name: Capture free boards, publish R2 evidence, attempt D1 reconciliation
         run: node scripts/collect-pinnodds-governed.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pinnodds-recovery-${{ github.run_id }}

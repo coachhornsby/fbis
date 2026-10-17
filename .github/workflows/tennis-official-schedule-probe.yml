@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: '22'
       - run: node scripts/tennis-official-schedule-probe.mjs
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: tennis-official-schedule-contract

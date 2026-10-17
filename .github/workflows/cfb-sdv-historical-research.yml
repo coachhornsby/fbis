@@ -47,7 +47,7 @@ jobs:
               print(year,detail)
               assert detail['paired_fbs_games'] > 0, 'No matched completed FBS games'
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cfb-sdv-historical-postgame-${{ github.run_id }}
           path: ${{ runner.temp }}/cfb-sdv-research-${{ github.run_id }}/

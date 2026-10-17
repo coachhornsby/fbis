@@ -74,7 +74,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           test "$status" = "200"
           jq -e '.ok == true and .inventoryVersion == "stat-taxonomy-v2" and .requestsMade == 2 and .requestedSpecials == true and .canAuthorizeWager == false and (.results | all(.leagues | all(.propStatKinds != null and .propUnits != null)))' artifacts/pinnodds-baseball-probe.json >/dev/null
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pinnodds-baseball-market-inventory-${{ github.run_id }}

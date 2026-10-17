@@ -36,7 +36,7 @@ jobs:
             curl -fsS --retry 4 --retry-all-errors --retry-delay 3 --max-time 120 -H "x-harvest-secret: $HARVEST_SECRET" "$BASE/api/soccer-prospective-shadow?mode=snapshot&competition=$league&date=$day" > "artifacts/shadow-$league.json"
             jq -e '.ok and .researchOnly and (.canQualify==false) and (.canAuthorize==false)' "artifacts/shadow-$league.json"
           done
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: soccer-pinn-recovery-${{ github.run_id }}

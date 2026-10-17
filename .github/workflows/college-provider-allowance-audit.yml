@@ -24,7 +24,7 @@ jobs:
           cat artifacts/provider-allowance.json
           test "$status" = 200
           jq -e '.allowanceVerified == true and .collectionStarted == false and .quotaAcknowledged == false' artifacts/provider-allowance.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: college-provider-allowance

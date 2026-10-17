@@ -38,7 +38,7 @@ jobs:
         run: node scripts/audit-cfb-storage-consumers.mjs
       - name: Preserve machine-readable storage consumer audit
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: fbis-cfb-capacity-consumer-audit
           path: artifacts/cfb-capacity-consumer-audit.json
@@ -404,7 +404,7 @@ jobs:
 
       - name: Upload CFBD audit artifact
         if: always() && (contains(github.event.head_commit.message, '[cfbd-audit]') || contains(github.event.head_commit.message, '[college-capability-audit]'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfbd-endpoint-audit-${{ env.DEPLOY_SHA }}
           path: artifacts/
@@ -564,7 +564,7 @@ jobs:
           echo "MARKET_HISTORY_SHADOW_VERIFIED: three PinnOdds rows, all 50 columns, 0 production cutovers."
       - name: Upload college capability audit artifact
         if: always() && contains(github.event.head_commit.message, '[college-capability-audit]')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: college-capability-audit-${{ env.DEPLOY_SHA }}
           path: |
@@ -607,7 +607,7 @@ jobs:
         run: node scripts/release-result.mjs
       - name: Upload machine-readable release result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-result-${{ github.sha }}
           path: artifacts/release-result.json

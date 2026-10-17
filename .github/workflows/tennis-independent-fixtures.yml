@@ -68,7 +68,7 @@ jobs:
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: node scripts/collect-tennis-external-fixtures.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always() && github.event_name != 'pull_request'
         with:
           name: tennis-independent-fixtures-${{ github.run_id }}
