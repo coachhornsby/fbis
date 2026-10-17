@@ -3,10 +3,20 @@ import CfbTeamsView from '../cfbTeams/CfbTeamsView.jsx';
 import TeamLogo from '../../components/TeamLogo.jsx';
 import './teamProfiles.css';
 
+const COMPETITION_NAMES = Object.freeze({
+ 'eng.1':'Premier League','eng.2':'EFL Championship','esp.1':'LaLiga',
+ 'ita.1':'Serie A','ger.1':'Bundesliga','fra.1':'Ligue 1',
+ 'uefa.champions':'UEFA Champions League','uefa.europa':'UEFA Europa League',
+ 'usa.1':'Major League Soccer','mex.1':'Liga MX',
+});
+const competitionName = id => COMPETITION_NAMES[id] || id;
+
+
 export default function TeamProfilesView({refreshKey=0}) {
  const [sport,setSport]=useState('soccer'),[directory,setDirectory]=useState(null),[league,setLeague]=useState('eng.1');
  const [search,setSearch]=useState(''),[selected,setSelected]=useState(null),[profile,setProfile]=useState(null),[error,setError]=useState(null);
  const [panel,setPanel]=useState('overview');
+ const [competitionLogo,setCompetitionLogo]=useState(null);
  const [leagueRankings,setLeagueRankings]=useState(null),[rankError,setRankError]=useState(null);
  useEffect(()=>{const ac=new AbortController();fetch('/api/soccer-team-profiles',{signal:ac.signal}).then(r=>r.json()).then(d=>{
   if(!d.ok)throw new Error(d.error);setDirectory(d);
@@ -20,14 +30,29 @@ export default function TeamProfilesView({refreshKey=0}) {
     .then(r=>r.json()).then(d=>{if(!d.ok)throw new Error(d.error);setLeagueRankings(d);})
     .catch(e=>{if(e.name!=='AbortError')setRankError(e.message);});return()=>ac.abort();
  },[sport,league,refreshKey]);
+ // ESPN's competition record provides the actual logo asset. Do not infer image IDs from league codes.
+ useEffect(()=>{
+   if(sport!=='soccer')return;
+   const ac=new AbortController();
+   setCompetitionLogo(null);
+   fetch('https://site.web.api.espn.com/apis/site/v2/sports/soccer/'+encodeURIComponent(league)+'/scoreboard',{signal:ac.signal})
+    .then(r=>r.ok?r.json():null)
+    .then(d=>{
+      if(ac.signal.aborted)return;
+      const candidate=d?.leagues?.find(l=>l?.id===league)||d?.leagues?.[0];
+      const url=candidate?.logos?.find(l=>l?.rel?.includes('dark'))?.href || candidate?.logos?.[0]?.href;
+      if(typeof url==='string' && /^https:\/\//.test(url))setCompetitionLogo(url);
+    }).catch(()=>{});
+   return()=>ac.abort();
+ },[sport,league]);
  const selectedRanking=leagueRankings?.teams?.find(t=>t.id===selected);
  const teams=(directory?.competitions.find(c=>c.league===league)?.teams||[]).filter(t=>t.name.toLowerCase().includes(search.toLowerCase()));
  const fmt=v=>v==null?'Unavailable':Number(v).toFixed(2);
  return <section className="stp-page"><div className="stp-toolbar"><div><span className="stp-eyebrow">FBIS CLUB INTELLIGENCE</span><h2>Team Profiles</h2><p>Club identity, verified match performance, source rankings, and player intelligence.</p></div>
  <label className="stp-control">Sport <span className="stp-select"><select value={sport} onChange={e=>setSport(e.target.value)}><option value="soccer">Soccer</option><option value="cfb">FBS football</option></select></span></label></div>
  {sport==='cfb'?<CfbTeamsView refreshKey={refreshKey}/>:<>
- <div className="stp-filters"><label className="stp-control">Competition <span className="stp-select"><select value={league} onChange={e=>{setLeague(e.target.value);setSelected(null);setProfile(null);setPanel('overview');}}>
- {(directory?.competitions||[]).map(c=><option key={c.league} value={c.league}>{c.league} · {c.teams.length} clubs</option>)}</select></span></label>
+ <div className="stp-filters"><label className="stp-control stp-competition-control">Competition <span className="stp-competition-select">{competitionLogo?<img src={competitionLogo} alt="" onError={()=>setCompetitionLogo(null)}/>:<span className="stp-league-placeholder" aria-hidden="true">⚽</span>}<span className="stp-competition-name">{competitionName(league)}</span><span className="stp-select stp-competition-native"><select aria-label="Competition" value={league} onChange={e=>{setLeague(e.target.value);setSelected(null);setProfile(null);setPanel('overview');}}>
+ {(directory?.competitions||[]).map(c=><option key={c.league} value={c.league}>{competitionName(c.league)} · {c.teams.length} clubs</option>)}</select></span></span></label>
  <label className="stp-control">Find club <input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clubs…"/></label>
  <span className="stp-team-count">{teams.length} clubs</span></div>
  {error&&<p role="alert" className="stp-alert">{error}</p>}
