@@ -3,6 +3,7 @@ import {loadSoccerMarketFixtures} from "./soccerMarketFixtures.js";
 /** Immutable paginated public discovery. Each page is archived before bounded ingestion. */
 import {POLY_US_API,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers} from './polymarketUs.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
+import {marketObservationDatabase} from './coldMarketHistory.js';
 import {loadVerifiedTennisCandidates} from './polymarketTennisIdentity.js';
 const PAGE=20,BATCH=100;
 const key=id=>`market-sources/polymarket-us/receipts/${id}.json`;
@@ -69,13 +70,13 @@ export async function consumePolymarketPage(env,{receiptId,batchIndex}={}){
  const originalOffers=receipt.offers.slice(batchIndex*BATCH,(batchIndex+1)*BATCH);
  const offers=[];
  for(const offer of originalOffers){const compact=await compactArchivedRaw(offer.raw,receipt);offers.push({...offer,raw:compact.raw});}
- const saved=await persistNormalizedMarketBatch(env.DB,offers,{snapshotType:'RESEARCH',collectedAt:receipt.capturedAt,modelProbability:null});
+ const saved=await persistNormalizedMarketBatch(await marketObservationDatabase(env,receipt.capturedAt),offers,{snapshotType:'RESEARCH',collectedAt:receipt.capturedAt,modelProbability:null});
  return{ok:true,receiptId,batchIndex,expectedRows:offers.length,inserted:saved.inserted,canAuthorizeWager:false};
 }
 export async function reconcilePolymarketPage(env,{receiptId}={}){
  if(!valid(receiptId))throw Error('INVALID_RECEIPT_ID');
  const stored=await env.ARCHIVE.get(key(receiptId));if(!stored)throw Error('RECEIPT_NOT_FOUND');const receipt=await stored.json();
- const result=await env.DB.prepare(`SELECT COUNT(*) n FROM normalized_market_observations WHERE source='Polymarket US' AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.receiptId')=?`).bind(receiptId).first();
+ const result=await (await marketObservationDatabase(env,receipt.capturedAt)).prepare(`SELECT COUNT(*) n FROM normalized_market_observations WHERE source='Polymarket US' AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.receiptId')=?`).bind(receiptId).first();
  const persistedRows=Number(result?.n||0),ok=persistedRows===receipt.expectedRows;
  const status={...publicReceipt(receipt),ok,persistedRows,reconciled:ok};
  await env.ARCHIVE.put(key(receiptId).replace('.json','-status.json'),JSON.stringify(status));return status;
