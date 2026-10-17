@@ -57,9 +57,13 @@ test('private cold-history readers reject anonymous access and exclude protected
 });
 test('cold gate rejects an unverified independent backup, and current writes remain primary',async()=>{
  const f=await fixture();try{
+  // Without MARKET_HISTORY_DB, post-cutoff RESEARCH still falls back to primary.
   assert.equal(await marketObservationDatabase(f.env,'2026-10-17T02:00:00Z'),f.env.DB);
   assert.equal(await marketObservationDatabase(f.env,'2026-10-15T02:00:00Z'),f.env.COLD_HISTORY_DB);
   assert.equal(await marketObservationDatabase(f.env,'2026-10-15T02:00:00Z','CURRENT'),f.env.DB);
+  const history={prepare(){return {};}};
+  assert.equal(await marketObservationDatabase({...f.env,MARKET_HISTORY_DB:history},'2026-10-17T02:00:00Z','RESEARCH'),history);
+  assert.equal(await marketObservationDatabase({...f.env,MARKET_HISTORY_DB:history},'2026-10-17T02:00:00Z','CURRENT'),f.env.DB);
   execute(f.cold,"UPDATE storage_archive_acceptance SET drive_verified=0");
   await assert.rejects(coldMarketPartitions(f.env),/NOT_QUALIFIED/);
   assert.equal((await coldMarketPartitions({DB:f.env.DB})).length,1);
