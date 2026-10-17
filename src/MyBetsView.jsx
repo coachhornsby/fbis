@@ -193,6 +193,7 @@ export default function MyBetsView({
             <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT BET SLIP</button>
             {onRefresh && <button className="header-btn" onClick={onRefresh}>Reload</button>}
           </div>
+          <details className="bets-source-details"><summary>Legacy ledger counters and reconciliation totals</summary>
           <div className="status-grid bets-stat-grid" style={{ marginTop: 12 }}>
             <Stat label="Bets" value={stat(summary.bets, 0)} />
             <Stat label="Open" value={stat(summary.open, 0)} />
@@ -205,6 +206,7 @@ export default function MyBetsView({
             <Stat label="CLV N" value={stat(summary.validClvN, 0)} />
             <Stat label="Avg CLV" value={stat(summary.avgClv == null ? "—" : fmtSigned(summary.avgClv, 3))} />
           </div>
+          </details>
           <p className="muted" style={{ marginTop: 8 }}>{unavailable ? "Bets data unavailable right now. Retry after data source recovers." : (summary.message || (summary.settled ? null : "No settled Heritage bets yet."))}</p>
           <div className="bets-filter-heading"><div><h3>Wager history</h3><span>{shown.length} matching tickets</span></div><label className="bets-search"><span>Search tickets</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Team, player, sportsbook or ticket ID"/></label></div>
           <div className="filter-row bets-sport-filters" style={{ marginTop: 10 }}>
