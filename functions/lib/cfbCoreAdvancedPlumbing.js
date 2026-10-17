@@ -80,8 +80,19 @@ export function enrichCatalogWithCoreProvenance(catalog, coreRows = [], opts = {
   const { bySchoolKey, n, maxWeek } = coreProvenancePatches(coreRows, opts);
   const byCanonicalId = {};
   for (const [id, src] of Object.entries(catalog?.byCanonicalId || {})) {
-    byCanonicalId[id] = { ...src };
+    // The season-index was built from the latest /ratings/core response and can
+    // already contain a future/undated rating. It is NOT a trusted PIT source.
+    // Always erase the unbounded values before overlaying eligible CORE rows.
+    const clean = { ...src };
+    for (const key of [
+      "core", "coreOffense", "coreDefense", "coreSpecialTeams",
+      "coreThroughWeek", "coreThroughSeasonType", "coreSourceEndpoint",
+      "coreTemporalClass", "coreWeekBounded", "coreTemporalNote",
+    ]) delete clean[key];
+    byCanonicalId[id] = clean;
   }
+  const srcCorePresence = new Map(Object.entries(catalog?.byCanonicalId || {})
+    .map(([id, row]) => [id, row?.core != null || row?.coreOffense != null || row?.coreDefense != null]));
   let enriched = 0;
   let scrubbed = 0;
   for (const row of Object.values(byCanonicalId)) {
@@ -91,15 +102,13 @@ export function enrichCatalogWithCoreProvenance(catalog, coreRows = [], opts = {
       enriched += 1;
       continue;
     }
-    // Fail closed: do not keep a throughWeek past the pregame bound.
-    if (maxWeek != null && row.coreThroughWeek != null && Number(row.coreThroughWeek) > maxWeek) {
-      row.coreThroughWeek = null;
-      row.coreWeekBounded = false;
-      scrubbed += 1;
-    } else if (maxWeek != null && row.core != null && row.coreThroughWeek == null) {
-      row.coreWeekBounded = false;
-      row.coreTemporalNote = "undated-same-season-core";
-    }
+    // No eligible dated, week-bounded record. Never promote current-season
+    // CORE into a frozen research vector by retaining untrusted catalog data.
+    row.coreWeekBounded = false;
+    row.coreTemporalNote = maxWeek != null
+      ? "no-eligible-week-bounded-core"
+      : "core-cutoff-not-proven";
+    if (srcCorePresence.get(row.canonicalId) === true) scrubbed += 1;
   }
   return {
     ...catalog,
