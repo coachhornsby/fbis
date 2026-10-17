@@ -5,6 +5,7 @@
  */
 
 import { pGreater } from "./metrics.js";
+import {projectCfbCoreShadow, CFB_CORE_SHADOW_ID} from "./cfbCoreChallenger.js";
 import { clamp, coverageSummary, finite, round1 } from "./deepModelCommon.js";
 
 export const CFB_MATCHUP_V2_ID = "CFB-MATCHUP-v2";
@@ -149,16 +150,31 @@ export function projectCfbMatchupV2(game = {}) {
   };
 }
 
-export function attachCfbMatchupV2(games = []) {
+export function attachCfbMatchupV2(games = [], { coreArtifact = null } = {}) {
   let available = 0;
   const next = (games || []).map((game) => {
     if (game.sport && game.sport !== "cfb") return game;
     const projection = projectCfbMatchupV2(game);
     if (projection.ok) available += 1;
+    // CORE is a separate, artifact-gated challenger. It must never mutate
+    // the production game.model / projectionKind or match-up v2 scores.
+    const coreShadow=projectCfbCoreShadow({
+      home:sideInput(game,"home"),away:sideInput(game,"away"),
+      season:game.season ?? game.year,
+      week:game.week,
+      kickoff:game.start ?? game.startDate ?? game.startTime,
+      baselineHome:game?.model?.projHome ?? game?.projHomeScore,
+      baselineAway:game?.model?.projAway ?? game?.projAwayScore,
+    },coreArtifact);
     return {
       ...game,
-      challengers: { ...(game.challengers || {}), [CFB_MATCHUP_V2_ID]: projection },
+      challengers: {
+        ...(game.challengers || {}),
+        [CFB_MATCHUP_V2_ID]: projection,
+        [CFB_CORE_SHADOW_ID]: coreShadow,
+      },
       cfbMatchupV2: projection,
+      cfbCoreShadow: coreShadow,
     };
   });
   return { games: next, meta: { modelId: CFB_MATCHUP_V2_ID, role: "shadow", games: next.length, available, qualificationAllowed: false } };
