@@ -17,8 +17,10 @@ test("CFB directional panels specify four offense-versus-defense categories",asy
 });
 test("CFB uses shared venue strip; tennis and other sports retain their routing",async()=>{
  const compact=await read("CompactGameCard.jsx");
+ const premium=await read("PremiumGameCard.jsx");
  const css=await read("nflDirectionalMatchups.css");
- assert.match(compact,/isCfb \? <CfbDirectionalMatchups/);
+ // SoftMatch: directional CFB tiles live on featured/premium; compact keeps shared venue strip.
+ assert.match(premium,/sportId === "cfb" \? <CfbDirectionalMatchups/);
  assert.match(compact,/import VenueConditions from/);
  assert.match(compact,/!stored \? <VenueConditions/);
  assert.match(css,/data-sport="cfb"/);
