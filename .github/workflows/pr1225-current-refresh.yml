@@ -21,7 +21,7 @@ jobs:
           test -n "$HARVEST_SECRET"
           mkdir -p artifacts
           curl --fail --silent --show-error --max-time 40 https://fbis-myz.pages.dev/api/health > artifacts/health.json
-          jq -e '.commitSha == "934f20af246027a40185bf01c7ef3269ed63e36e" and .d1.readOk == true' artifacts/health.json
+          jq -e '.deploymentCommit == "934f20af246027a40185bf01c7ef3269ed63e36e" and .d1.readOk == true' artifacts/health.json
           curl --fail --silent --show-error --max-time 45 --request POST --header "x-harvest-secret: $HARVEST_SECRET" https://fbis-myz.pages.dev/api/college-provider-allowance > artifacts/provider-before.json
           jq -e '.allowanceVerified == true and .remainingCalls > 1000' artifacts/provider-before.json
           cat artifacts/provider-before.json
