@@ -31,6 +31,12 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const mHome=n(ref?.noVig?.home),mAway=n(ref?.noVig?.away);
   const candidates=[{p:home,e:edgeHome},{p:away,e:edgeAway}].filter(x=>Number.isFinite(x.e)&&x.e>0);
   const best=candidates.sort((a,b)=>b.e-a.e)[0]||null;
+  const gapPlayer = display.valid && best ? best.p : null;
+  const gapPlayerCountry = gapPlayer ? country(gapPlayer, gapPlayer === home ? t?.playerBank?.players?.[0] : t?.playerBank?.players?.[1]) : null;
+  const gapPlayerNeutral = gapPlayer ? neutralTennisAthlete(gapPlayerCountry,gapPlayer) : false;
+  const gapPlayerFlag = gapPlayer && !gapPlayerNeutral ? flagUrl(gapPlayerCountry) : null;
+  const gapPlayerTint = gapPlayer && gapPlayerCountry && !gapPlayerNeutral ? countryColor(gapPlayerCountry) : null;
+
   const spread=ref?.spreadDetail||(typeof ref?.spread==="object"?ref.spread:{} )||{},total=ref?.totalDetail||(typeof ref?.total==="object"?ref.total:{} )||{},ml=ref?.moneyline||{};
   const venueOffers=Array.isArray(t.venueOffers)?t.venueOffers:Array.isArray(ref.venueOffers)?ref.venueOffers:[];
   const markets=Array.isArray(intel?.publicSplits?.markets)?intel.publicSplits.markets:[];
@@ -58,6 +64,17 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <div className="tmc-player-side" style={sideStyle(away,bp2)}><PlayerVisual key={away.canonicalId||away.fbisPlayerId||away.name} team={away} bp={bp2}/>{identity(away,bp2)}</div>
       <div className="tmc-vs">VS</div>
       <div className="tmc-player-side tmc-home" style={sideStyle(home,bp1)}><PlayerVisual key={home.canonicalId||home.fbisPlayerId||home.name} team={home} bp={bp1}/>{identity(home,bp1)}</div>
+    </section>
+    <section className={`tmc-market-gap ${gapPlayer?"is-player":"is-neutral"}`} style={gapPlayerTint?{"--tmc-market-gap-color":gapPlayerTint}:undefined} aria-label="Tennis model versus market comparison">
+      <span>FBIS / MARKET GAP</span>
+      <div className="tmc-market-gap-identity">
+        {gapPlayer ? <>
+          {gapPlayerFlag ? <img src={gapPlayerFlag} alt={`${gapPlayerCountry} flag`} loading="lazy" /> : <span className="tmc-gap-neutral-player">{gapPlayerCountry||"PLAYER"}</span>}
+          <b>{gapPlayer.fullName||gapPlayer.name||"PLAYER"}</b>
+        </> : <b>NO COMPARABLE PRICE</b>}
+      </div>
+      <strong>{gapPlayer ? `+${best.e.toFixed(1)} pp` : "—"}</strong>
+      <small>{gapPlayer?"MODEL VS NO-VIG · RESEARCH ONLY · NOT EV":"GAP NOT VERIFIED · NO WAGER AUTHORITY"}</small>
     </section>
     <section className="tmc-probability" aria-label="FBIS win probability comparison" aria-live="polite">
       <div><span>FBIS WIN PROBABILITY</span><strong>{pct(pAway)}</strong></div>

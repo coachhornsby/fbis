@@ -131,3 +131,55 @@
  .tmc-compact .tmc-nationality .tmc-primary-flag{width:39px;height:25px}
  .tmc-compact .tmc-neutral-mark{min-width:35px;min-height:24px;font-size:10px}
 }
+
+
+/* Tennis is a player matchup: country identity accompanies a no-vig probability
+   comparison. Never present the percentage-point difference as a spread or EV. */
+.fbis-shell-main .tmc .tmc-market-gap {
+  display:grid;
+  grid-template-columns:minmax(110px,1fr) minmax(0,1.5fr) auto minmax(130px,1fr);
+  align-items:center;
+  gap:10px;
+  margin:12px 14px 7px;
+  padding:10px 14px;
+  border:2px solid rgba(106,144,181,.44);
+  border-radius:12px;
+  background:linear-gradient(105deg,rgba(40,57,77,.60),rgba(5,18,34,.9));
+  color:#f4f9ff;
+}
+.fbis-shell-main .tmc .tmc-market-gap.is-player {
+  border-color:color-mix(in srgb,var(--tmc-market-gap-color,#7496b7) 55%,white);
+  background:linear-gradient(105deg,color-mix(in srgb,var(--tmc-market-gap-color,#7496b7) 44%,#071626),#061424 75%);
+  box-shadow:0 0 17px color-mix(in srgb,var(--tmc-market-gap-color,#7496b7) 25%,transparent);
+}
+.fbis-shell-main .tmc .tmc-market-gap > span {
+  font-size:11px;font-weight:950;letter-spacing:.07em;
+}
+.fbis-shell-main .tmc .tmc-market-gap-identity {
+  display:flex;align-items:center;justify-content:center;gap:9px;min-width:0;
+}
+.fbis-shell-main .tmc .tmc-market-gap-identity > img {
+  width:42px;height:28px;object-fit:cover;border-radius:4px;
+  box-shadow:0 2px 7px rgba(0,0,0,.52);
+}
+.fbis-shell-main .tmc .tmc-market-gap-identity > b {
+  font-size:13px;line-height:1.2;text-align:center;overflow-wrap:anywhere;
+}
+.fbis-shell-main .tmc .tmc-market-gap > strong {
+  font-size:clamp(20px,2vw,30px);font-weight:950;white-space:nowrap;
+  text-shadow:0 2px 7px rgba(0,0,0,.55);
+}
+.fbis-shell-main .tmc .tmc-market-gap > small {
+  font-size:9px;line-height:1.3;font-weight:850;text-align:center;color:#d5e3f2;
+}
+@media(max-width:700px) {
+  .fbis-shell-main .tmc .tmc-market-gap {
+    grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+    gap:7px;margin:9px 7px;padding:8px;
+  }
+  .fbis-shell-main .tmc .tmc-market-gap > small {grid-column:1/-1}
+  .fbis-shell-main .tmc .tmc-market-gap > span {font-size:9px}
+  .fbis-shell-main .tmc .tmc-market-gap > strong {font-size:20px}
+  .fbis-shell-main .tmc .tmc-market-gap-identity > img {width:31px;height:21px}
+  .fbis-shell-main .tmc .tmc-market-gap-identity > b {font-size:10px}
+}
