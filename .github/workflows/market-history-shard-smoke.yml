@@ -58,7 +58,7 @@ jobs:
           echo "All three provider samples passed authenticated production D1 parity."
       - name: Save non-sensitive parity evidence
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: market-history-shard-smoke
           path: artifacts/market-history-shard-smoke.jsonl

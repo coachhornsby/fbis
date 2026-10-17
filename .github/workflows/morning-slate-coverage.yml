@@ -137,7 +137,7 @@ jobs:
           set -euo pipefail
           test -s artifacts/slate-coverage.json
           jq -e '.ok == true and (.errors|length)==0' artifacts/slate-coverage.json >/dev/null
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always() && steps.gate.outputs.run == 'true'
         with:
           name: slate-coverage-${{ github.run_id }}

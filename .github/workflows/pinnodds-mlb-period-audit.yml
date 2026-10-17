@@ -82,7 +82,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           test "$code" = "200"
           jq -e '.ok == true and .version == "mlb-period-audit-v1" and .requestsMade <= 4 and .requestedEvents > 0 and .canAuthorizeWager == false' "$response" >/dev/null
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pinnodds-mlb-f5-f3-period-verification-${{ github.run_id }}
