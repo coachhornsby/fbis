@@ -78,7 +78,9 @@ export function normalizeCoreRating(row = {}) {
     team: row.team || row.school || null,
     conference: row.conference || null,
     season: num(row.year ?? row.season),
-    throughWeek: num(row.throughWeek ?? row.week),
+    // Missing throughWeek MUST remain missing: Number(null) equals zero, which
+    // falsely makes an undated rating look like a valid week-zero observation.
+    throughWeek: row.throughWeek == null && row.week == null ? null : num(row.throughWeek ?? row.week),
     throughSeasonType: row.throughSeasonType || row.seasonType || null,
     rating: num(row.rating ?? row.overall),
     offense: num(row.offense?.rating ?? row.offense),
