@@ -39,7 +39,9 @@ Apply `sql/shards/operations-v1.sql` to remote `fbis-operations-20261017` so ops
 npx wrangler d1 execute OPERATIONS_DB --remote --file=sql/shards/operations-v1.sql
 ```
 
-Until that schema is present, `resolveReadyOperationsDb()` keeps control-plane writers on primary (`OPERATIONS_SCHEMA_UNAVAILABLE`) so a bound-but-empty OPERATIONS_DB cannot break job telemetry.
+Until that schema is present, `withOperationsWrite()` / `resolveReadyOperationsDb()` keep control-plane writers on primary (`OPERATIONS_SCHEMA_UNAVAILABLE`), and retry primary if an ops write still hits `no such table`.
+
+**2026-10-17:** `sql/shards/operations-v1.sql` was applied to remote `fbis-operations-20261017` (9 control-plane tables + 9 seeded components). Verify after deploy with operator `GET /api/operations-routing?probeWrite=1` (harvest secret).
 
 ## Explicit non-goals
 
