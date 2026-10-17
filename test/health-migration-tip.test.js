@@ -73,8 +73,8 @@ function memoryDb({ tipPresent = true, watermarkOnly = false, includeWrangler = 
 test("canonical tip declaration matches sorted migrations directory tip", () => {
   assert.equal(EXPECTED_MIGRATION, EXPECTED_MIGRATION_ID);
   assert.equal(EXPECTED_MIGRATION_ID, EXPECTED_MIGRATION_FILE.replace(/\.sql$/, ""));
-  assert.equal(EXPECTED_MIGRATION_FILE, "0109_cfb_tier3_schema_identity.sql");
-  assert.equal(EXPECTED_MIGRATION_ID, "0109_cfb_tier3_schema_identity");
+  assert.equal(EXPECTED_MIGRATION_FILE, "0110_cbb_team_profile_snapshots.sql");
+  assert.equal(EXPECTED_MIGRATION_ID, "0110_cbb_team_profile_snapshots");
 });
 
 test("1: tip present → VERIFIED", async () => {
