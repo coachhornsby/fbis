@@ -209,6 +209,7 @@ export default function MyBetsView({
               <button key={id} className={sport === id ? "chip active" : "chip"} onClick={() => setSport(id)}>{id.toUpperCase()}</button>
             ))}
           </div>
+          {manualMessage ? <p className={manualMessage.startsWith("Could not") ? "error" : "muted"} style={{ marginTop: 10 }}>{manualMessage}</p> : null}
           <button type="button" className="bets-advanced-toggle" aria-expanded={advancedFilters} onClick={()=>setAdvancedFilters(v=>!v)}>{advancedFilters?"Hide advanced filters":"Advanced filters"} · {result==="all"&&attr==="all"?"None applied":"Active"} ▾</button>
           {advancedFilters&&<div className="bets-advanced-panel">
           <div className="filter-row">
@@ -216,7 +217,6 @@ export default function MyBetsView({
               <button key={id} className={result === id ? "chip active" : "chip"} onClick={() => setResult(id)}>{label}</button>
             ))}
           </div>
-          {manualMessage ? <p className={manualMessage.startsWith("Could not") ? "error" : "muted"} style={{ marginTop: 10 }}>{manualMessage}</p> : null}
           <div className="filter-row">
             {ATTR_FILTERS.map(([id, label]) => (
               <button key={id} className={attr === id ? "chip active" : "chip"} onClick={() => setAttr(id)}>{label}</button>
