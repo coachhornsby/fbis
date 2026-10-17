@@ -17,6 +17,7 @@ import MatchupSignals from "./MatchupSignals.jsx";
 import NhlMatchupSignals from "./NhlMatchupSignals.jsx";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import { gapBrandColor } from "../../lib/marketGapBrand.js";
+import { matchupSignalColors } from "../../lib/matchupTeamBrand.js";
 import "./compactGameCardEnhancements.css";
 import "./universalPremiumCard.css";
 
@@ -169,7 +170,8 @@ export default function CompactGameCard({ game, onOpen }) {
     ? ` cgc-gap-total cgc-gap-total-${gapTotalSide === "over" || gapTotalSide === "under" ? gapTotalSide : "even"}`
     : gapTeam ? ` cgc-gap-team${gapTeamColor ? " cgc-gap-team-branded" : ""}`
     : !soccerPick ? " cgc-gap-neutral" : "";
-  const gapPresentationStyle = gapTeamColor && !gapIsTotal ? { "--cgc-gap-brand": gapTeamColor } : undefined;
+  const gapPalette = gapTeam && !gapIsTotal ? matchupSignalColors(rawGapTeam || gapTeam, sportId) : null;
+  const gapPresentationStyle = gapTeamColor && !gapIsTotal ? { "--cgc-gap-brand": gapPalette?.primary || gapTeamColor, "--cgc-gap-secondary": gapPalette?.secondary || gapPalette?.primary || gapTeamColor } : undefined;
 
 
 
@@ -285,7 +287,7 @@ export default function CompactGameCard({ game, onOpen }) {
             ) : null}
           </div>
           <strong>{soccerPick ? `${stars}★` : showReferenceGap ? `${referenceLead.absDelta} ${gapUnit} DIFFERENCE` : edge.value}</strong>
-          <b>{soccerPick ? soccerPick.pick || "—" : showReferenceGap ? referenceLead.kind === "total" ? `Market ${referenceLead.offeredTotal} · FBIS ${referenceLead.modelTotal}` : `Market ${home.abbr} ${referenceLead.offeredHome > 0 ? "+" : ""}${referenceLead.offeredHome} · FBIS ${home.abbr} ${referenceLead.modelHome > 0 ? "+" : ""}${referenceLead.modelHome}` : edge.detail}</b>
+          <b>{soccerPick ? soccerPick.pick || "—" : showReferenceGap ? <span className="cgc-gap-quote-stack"><span>Market: {referenceLead.kind === "total" ? referenceLead.offeredTotal : `${home.abbr} ${referenceLead.offeredHome > 0 ? "+" : ""}${referenceLead.offeredHome}`}</span><span>FBIS: {referenceLead.kind === "total" ? referenceLead.modelTotal : `${home.abbr} ${referenceLead.modelHome > 0 ? "+" : ""}${referenceLead.modelHome}`}</span></span> : edge.detail}</b>
           <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : showReferenceGap ? "CAPTURED LINE · NOT EV" : isNhl ? `${edge.type} · RESEARCH ONLY` : edge.type}</small>
         </aside>
         )}
