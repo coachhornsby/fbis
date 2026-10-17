@@ -227,7 +227,7 @@ async function fetchOpenMeteoAt(lat, lon, startIso, caches) {
   const la = roundCoord(lat);
   const lo = roundCoord(lon);
   const hourKey = startIso ? String(startIso).slice(0, 13) : "now";
-  const key = `v1:open-meteo:${la}:${lo}:${hourKey}`;
+  const key = `v2:open-meteo-utc:${la}:${lo}:${hourKey}`;
   const cached = await readCache(key, caches, TTL_MS);
   if (cached) return cached;
 
@@ -237,30 +237,34 @@ async function fetchOpenMeteoAt(lat, lon, startIso, caches) {
   url.searchParams.set("hourly", "temperature_2m,precipitation_probability,wind_speed_10m,weather_code");
   url.searchParams.set("temperature_unit", "fahrenheit");
   url.searchParams.set("wind_speed_unit", "mph");
-  url.searchParams.set("timezone", "America/Chicago");
+  // UTC timestamps avoid comparing unzoned venue-local forecast hours with kickoff UTC.
+  url.searchParams.set("timezone", "UTC");
   url.searchParams.set("forecast_days", "3");
 
   const res = await fetch(String(url), { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`Open-Meteo ${res.status}`);
   const json = await res.json();
   const times = json.hourly?.time || [];
-  const target = Date.parse(startIso);
+  const target = startIso ? Date.parse(startIso) : NaN;
   let idx = 0;
   if (Number.isFinite(target) && times.length) {
     let best = Infinity;
     for (let i = 0; i < times.length; i++) {
-      const d = Math.abs(Date.parse(times[i]) - target);
-      if (d < best) {
+      const hour = Date.parse(`${String(times[i]).replace(/Z$/, "")}Z`);
+      const d = Math.abs(hour - target);
+      if (Number.isFinite(d) && d < best) {
         best = d;
         idx = i;
       }
     }
+    // A forecast outside the provider window must not masquerade as kickoff weather.
+    if (best > 90 * 60 * 1000) throw new Error("Kickoff outside weather forecast horizon");
   }
   const code = json.hourly?.weather_code?.[idx];
   const packed = {
     source: "open-meteo",
     asOf: new Date().toISOString(),
-    at: times[idx] || null,
+    at: times[idx] ? `${String(times[idx]).replace(/Z$/, "")}Z` : null,
     temperature: finite(json.hourly?.temperature_2m?.[idx]),
     precipProbability: finite(json.hourly?.precipitation_probability?.[idx]),
     windSpeed: finite(json.hourly?.wind_speed_10m?.[idx]),
