@@ -37,3 +37,11 @@
 .fbis-shell-main .cfb-directional-v2 .team-logo-plate{padding:0!important;box-shadow:none!important;background:transparent!important;border:0!important}
 .fbis-shell-main .cfb-directional-v2 .team-logo{object-fit:contain;max-width:100%}
 @container(max-width:610px){.fbis-shell-main .cfb-directional-v2 .cfb-directional-grid{grid-template-columns:1fr}.fbis-shell-main .cfb-directional-result-text>strong{font-size:15px!important}.fbis-shell-main .cfb-directional-metric strong{font-size:19px}.fbis-shell-main .cfb-directional-metric span{font-size:10px}.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair strong{font-size:11px!important}}
+
+
+/* Maintain readable single-line unit labels for home and away. */
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair{grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr);gap:3px}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair>div{grid-template-columns:clamp(18px,2.3cqi,25px) minmax(0,1fr);gap:3px}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair>div:last-child{grid-template-columns:minmax(0,1fr) clamp(18px,2.3cqi,25px)}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair strong{white-space:nowrap!important;overflow-wrap:normal;word-break:normal;font-size:clamp(8px,1.45cqi,12px)!important;letter-spacing:-.035em;line-height:1.15}
+.fbis-shell-main .cfb-directional-v2 .cfb-directional-pair .team-logo{max-width:100%;height:auto}
