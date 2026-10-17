@@ -25,7 +25,7 @@
 - Private authenticated reader: `GET /api/cbb-team-profiles?teamId=<canonical>&season=<ending-year>` using existing harvest auth. **0 external calls**.
 
 ## Deployment gates
-1. Verify current production database state and run the new `0106_cbb_team_profile_snapshots` migration through the normal database procedure. Do **not** improvise migration order while current storage repairs are pending.
+1. Verify current production database state and run the new `0110_cbb_team_profile_snapshots` migration through the normal database procedure. Do **not** improvise migration order while current storage repairs are pending.
 2. Run the offline quota, CBB profile, and college regression tests before merging.
 3. Confirm existing football acquisition still works; do not remove or weaken the cross-sport D1 reservation gate.
 4. Once merged and database-ready, use the preexisting operator-approved CBB backfill for historical `season=2026` (2025–26). Current `season=2027` will fill after game data exists.
