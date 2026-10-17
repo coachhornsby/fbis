@@ -22,7 +22,11 @@ beforeEach(() => {
   globalThis.fetch = async (input) => {
     const url = new URL(String(input));
     if (url.hostname === "geocoding-api.open-meteo.com") return Response.json({ results: [{ name: url.searchParams.get("name"), latitude: 47.6, longitude: -122.3, country_code: "US" }] });
-    if (url.hostname === "api.open-meteo.com") return Response.json({ hourly: { time: ["2026-09-10T00:00:00Z"], temperature_2m: [55], precipitation_probability: [60], wind_speed_10m: [18], weather_code: [3] } });
+    if (url.hostname === "api.open-meteo.com") {
+      assert.equal(url.searchParams.get("timezone"), "UTC");
+      const time = Array.from({length: 24 * 55}, (_, i) => new Date(Date.parse("2026-09-01T00:00:00Z") + i * 3600000).toISOString().slice(0, 19));
+      return Response.json({ hourly: { time, temperature_2m: time.map(() => 55), precipitation_probability: time.map(() => 60), wind_speed_10m: time.map(() => 18), weather_code: time.map(() => 3) } });
+    }
     throw new Error(`Unexpected test acquisition: ${url.hostname}`);
   };
 });
@@ -94,6 +98,18 @@ describe("Open-Meteo weather helpers", () => {
     assert.ok(games[0].weather?.temperature == null || Number.isFinite(games[0].weather.temperature));
     assert.ok(games[0].mlbContext?.weatherRunFactor);
     assert.ok(games[0].weatherImpact?.footballTotalFactor);
+  });
+
+  it("selects the correct UTC hour and preserves an unambiguous forecast timestamp", async () => {
+    resetCacheMem();
+    const [game] = await attachWeather([{
+      id: "kickoff-hour", sport: "cfb",
+      start: "2026-10-17T16:00:00Z",
+      venueLat: 39.16, venueLon: -86.52,
+      venue: "Memorial Stadium (Bloomington, IN)",
+    }], null);
+    assert.equal(game.weather.at, "2026-10-17T16:00:00Z");
+    assert.equal(new Date(game.weather.at).toLocaleTimeString("en-US", {timeZone: "America/Chicago", hour: "numeric", minute: "2-digit"}), "11:00 AM");
   });
 
   it("geocodes outdoor NFL venues from city when lat/lon missing", async () => {
