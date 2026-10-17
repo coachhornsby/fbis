@@ -47,4 +47,6 @@ database_id = "6fad1baf-126f-4ab8-9b80-a7d71637d6d4"
 # remain on primary. Roll back by setting this to "disabled".
 [vars]
 MARKET_HISTORY_SHADOW_WS = "enabled"
-COLD_MARKET_ARCHIVE_READS = "disabled"
+# Enabled 2026-10-17 after release-20261017-storage-a1: cold acceptance seeded,
+# RESEARCH retired from primary, R2+cold spot checks passed (#1220/#1221).
+COLD_MARKET_ARCHIVE_READS = "enabled"

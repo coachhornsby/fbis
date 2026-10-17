@@ -24,8 +24,8 @@
     "health": "HEALTHY",
     "d1WriteOk": true,
     "d1ReadOk": true,
-    "coldMarketArchiveReads": "disabled",
-    "notes": "Pages git integration + CI TEST/BUILD green. DEPLOY PRODUCTION job failed late on market-history-shard shadow parity HTTP 503; Pages SHA nevertheless matches #1227."
+    "coldMarketArchiveReads": "enabled",
+    "notes": "Pages SHA includes storage PRs. COLD_MARKET_ARCHIVE_READS enabled after acceptance seeding; market-history shard verify falls back to cold for retired RESEARCH ids."
   },
   "historicalRetrieval": {
     "primaryBytes": 6448775168,
@@ -51,6 +51,6 @@
   "pendingAuthenticatedApiVerify": [
     "POST /api/market-cold-history operation=verify (requires HARVEST_SECRET)",
     "GET /api/cfb-cold-history?season=2005 (requires HARVEST_SECRET)",
-    "GET /api/market-history-shard?source=PinnOdds&limit=3 (503 during deploy; needs diagnosis + HARVEST_SECRET)"
+    "GET /api/market-history-shard?source=PinnOdds&limit=3 after cutover deploy (requires HARVEST_SECRET)"
   ]
 }

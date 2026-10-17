@@ -46,8 +46,11 @@ export async function verifyMarketHistoryShard(env, {source = null, limit = 20} 
   const primaryRows = await query(primary,
     "SELECT * FROM normalized_market_observations WHERE id IN (" + placeholders + ")", ...ids);
   const byId = new Map(primaryRows.map(r => [r.id, r]));
-  if(byId.size!==samples.length&&coldHistoryEnabled(env)){
-    await coldMarketPartitions(env);
+  // After RESEARCH retirement, shadow samples may live only on cold. Prefer the
+  // dual-read gate when enabled; otherwise still consult a bound cold DB so
+  // operator parity probes do not 503 solely because primary deleted frozen rows.
+  if(byId.size!==samples.length&&env?.COLD_HISTORY_DB?.prepare){
+    if(coldHistoryEnabled(env)) await coldMarketPartitions(env);
     const missing=ids.filter(id=>!byId.has(id));
     const archived=await query(env.COLD_HISTORY_DB,"SELECT * FROM normalized_market_observations WHERE snapshot_type='RESEARCH' AND id IN ("+missing.map(()=>"?").join(',')+")",...missing);
     for(const row of archived)byId.set(row.id,row);
