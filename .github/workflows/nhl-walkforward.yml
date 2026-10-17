@@ -20,7 +20,7 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
-      - uses: actions/setup-node@v4.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Run point-in-time NHL walk-forward
