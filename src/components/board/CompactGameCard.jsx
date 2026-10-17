@@ -1,10 +1,11 @@
+import VenueConditions from "./VenueConditions.jsx";
 import SoccerPinnOdds from "./SoccerPinnOdds.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
 import EventMarkets from "./EventMarkets.jsx";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
-import { lineLabel, bestEdge } from "../../lib/boardEvidence.js";
+import { lineLabel, bestEdge, evidenceNumber } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlBettingIntelligence from "./NhlBettingIntelligence.jsx";
 import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
@@ -38,39 +39,6 @@ function TotalGapDirection({ side }) {
       <span className="cgc-total-direction-arrow" aria-hidden="true">{direction === "over" ? "↑" : "↓"}</span>
       <span className="cgc-total-direction-label" aria-hidden="true">{direction.toUpperCase()}</span>
     </span>
-  );
-}
-
-function VenueIcon({ indoor = false }) {
-  return indoor ? (
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9.5C4 6.5 7.6 4 12 4s8 2.5 8 5.5V19h-2v-3H6v3H4Zm2-5h12V9.5C18 7.7 15.3 6 12 6S6 7.7 6 9.5V14Zm2-4h8v2H8v-2Z" /></svg>
-  ) : (
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 6v2h18V6l-9-4ZM5 10v8H3v2h18v-2h-2v-8h-2v8h-3v-8h-4v8H7v-8H5Z" /></svg>
-  );
-}
-
-function WeatherIcon({ weather }) {
-  const text = String(weather?.description || "").toLowerCase();
-  if (/rain|shower|storm|thunder/.test(text)) return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.3 8.1 5 5 0 0 0 7 18Zm2 1-1 3h2l1-3H9Zm5 0-1 3h2l1-3h-2Z" /></svg>;
-  if (/snow|sleet|ice/.test(text)) return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m11 2 2 0v4l3-2 1 1-3 2 3 2 3-2 1 2-3 2 3 2-1 2-3-2-3 2 3 2-1 1-3-2v4h-2v-4l-3 2-1-1 3-2-3-2-3 2-1-2 3-2-3-2 1-2 3 2 3-2-3-2 1-1 3 2V2Z" /></svg>;
-  if (/cloud|overcast|fog|mist/.test(text)) return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.3 8.1 5 5 0 0 0 7 18Z" /></svg>;
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm0-3h1v2h-2V2h1Zm0 18h1v2h-2v-2h1ZM2 11h2v2H2v-2Zm18 0h2v2h-2v-2ZM4.2 5.6l1.4-1.4L7 5.6 5.6 7 4.2 5.6Zm12.8 12.8 1.4-1.4 1.4 1.4-1.4 1.4-1.4-1.4ZM17 5.6l1.4-1.4 1.4 1.4L18.4 7 17 5.6ZM4.2 18.4 5.6 17 7 18.4l-1.4 1.4-1.4-1.4Z" /></svg>;
-}
-
-function VenueConditions({ context, game, sportId }) {
-  const weather = context?.weather || null;
-  const roof = String(game?.roof || game?.venue?.roof || game?.roofType || "").toLowerCase();
-  const indoor = Boolean(weather?.indoor || game?.indoor || game?.venue?.indoor || /dome|indoor|closed/.test(roof));
-  const venue = context?.venueLabel || context?.venueName || null;
-  const indoorLabel = indoor ? (/closed/.test(roof) ? "ROOF CLOSED" : /dome/.test(roof) ? "DOME" : "INDOORS") : null;
-  const conditions = indoorLabel || context?.weatherLine || null;
-  if (!venue && !conditions) return null;
-  const arenaSport = ["nba", "cbb", "nhl"].includes(sportId);
-  return (
-    <div className="cgc-conditions" aria-label="Venue and game conditions">
-      {venue ? <div className="cgc-condition-item"><VenueIcon indoor={indoor || arenaSport} /><span>{venue}</span></div> : null}
-      {conditions ? <div className="cgc-condition-item cgc-condition-weather">{indoor ? <VenueIcon indoor /> : <WeatherIcon weather={weather} />}<strong>{conditions}</strong></div> : null}
-    </div>
   );
 }
 
@@ -122,8 +90,8 @@ function actionSplitLabel(split, away, home) {
 }
 
 function actionMoveLabel(action, away, home) {
-  const open = Number(action?.movement?.open);
-  const current = Number(action?.movement?.current);
+  const open = evidenceNumber(action?.movement?.open);
+  const current = evidenceNumber(action?.movement?.current);
   if (Number.isFinite(open) && Number.isFinite(current) && Math.abs(current - open) < 0.05) {
     const team = current < 0 ? home : away;
     const teamLine = current < 0 ? current : -current;
@@ -137,7 +105,7 @@ function actionMoveLabel(action, away, home) {
     const teamLine = s < 0 ? s : -s;
     return `CURRENT · ${lineLabel(team, teamLine)}`;
   }
-  return "NO MOVE YET";
+  return "Movement unavailable";
 }
 
 function normalizeTeamColor(team, fallback) {
@@ -274,10 +242,7 @@ export default function CompactGameCard({ game, onOpen }) {
             <span>{stored ? "STORED PREGAME" : isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
           </div>
 
-          {isFootball ? <div className="cgc-vs"><div className="nfl-hero-venue" aria-label="Stadium and weather">
-            {vm.context?.venueLabel||vm.context?.venueName?<div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v3H3zm2 5h14v9h-3v-4H8v4H5zm4 1v2h6v-2zM1 21h22v2H1z"/></svg><strong>{vm.context.venueLabel||vm.context.venueName}</strong></div>:null}
-            {vm.context?.weatherLine?<div><span aria-hidden="true">☀</span><strong>{vm.context.weatherLine}</strong></div>:null}
-          </div><span>VS</span></div> : <span className="cgc-vs">VS</span>}
+          <span className="cgc-vs">VS</span>
 
           <div className="cgc-team-block">
             <TeamLogo team={home} size={83} className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
@@ -319,19 +284,19 @@ export default function CompactGameCard({ game, onOpen }) {
               <TotalGapDirection side={edge.detail} />
             ) : null}
           </div>
-          <strong>{soccerPick ? `${stars}★` : showReferenceGap ? `${referenceLead.delta > 0 ? "+" : ""}${referenceLead.delta} ${gapUnit}` : edge.value}</strong>
-          <b>{soccerPick ? soccerPick.pick || "—" : showReferenceGap ? `${referenceLead.kind === "total" ? "GAME TOTAL" : "POINT SPREAD"} · PROJECTION DIFF` : edge.detail}</b>
+          <strong>{soccerPick ? `${stars}★` : showReferenceGap ? `${referenceLead.absDelta} ${gapUnit} DIFFERENCE` : edge.value}</strong>
+          <b>{soccerPick ? soccerPick.pick || "—" : showReferenceGap ? referenceLead.kind === "total" ? `Market ${referenceLead.offeredTotal} · FBIS ${referenceLead.modelTotal}` : `Market ${home.abbr} ${referenceLead.offeredHome > 0 ? "+" : ""}${referenceLead.offeredHome} · FBIS ${home.abbr} ${referenceLead.modelHome > 0 ? "+" : ""}${referenceLead.modelHome}` : edge.detail}</b>
           <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : showReferenceGap ? "CAPTURED LINE · NOT EV" : isNhl ? `${edge.type} · RESEARCH ONLY` : edge.type}</small>
         </aside>
         )}
       </div>
 
-      {!isFootball && !stored ? <VenueConditions context={vm.context} game={game} sportId={sportId} /> : null}
+      {!stored ? <VenueConditions context={vm.context} game={game} compact /> : null}
 
       {["cfb","nfl","cbb","nba","wnba","nhl","mlb","npb","kbo"].includes(sportId) ? (
         <>
           {["nhl","mlb","npb","kbo"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
-          <PinnoddsCardMarkets game={game} projection={proj} compact />
+          <PinnoddsCardMarkets game={game} projection={proj} marketFamilies={["spread","total"]} compact />
           {["cfb","nfl","cbb","nba","wnba"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
         </>
       ) : (
@@ -349,7 +314,7 @@ export default function CompactGameCard({ game, onOpen }) {
       )}
       {!stored && isNhl ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
 
-      {showAction && !stored && !isNhl ? (
+      {showAction && action.available && !stored && !isNhl ? (
         <div className={`cgc-action-strip${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="cgc-action-brand">
             <span>ACTION</span>

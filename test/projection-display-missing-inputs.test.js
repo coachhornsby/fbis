@@ -6,16 +6,14 @@ import { projectCfbMatchupV2 } from '../functions/lib/cfbMatchupV2.js';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import { pathToFileURL } from 'node:url';
-import { transformWithEsbuild } from 'vite';
-
+import Module from 'node:module';
+import { build } from 'esbuild';
 const componentPath = new URL('../src/components/board/MatchupFactors.jsx', import.meta.url);
-const transformed = await transformWithEsbuild(await readFile(componentPath, 'utf8'), componentPath.pathname, { loader: 'jsx', jsx: 'automatic' });
-const code = transformed.code
-  .replaceAll('"react/jsx-runtime"', JSON.stringify(pathToFileURL(createRequire(import.meta.url).resolve('react/jsx-runtime')).href))
-  .replaceAll('"../../lib/boardEvidence.js"', JSON.stringify(new URL('../src/lib/boardEvidence.js', import.meta.url).href));
-const { default: MatchupFactors } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+const compiled = await build({entryPoints:[componentPath.pathname],bundle:true,write:false,platform:'node',format:'cjs',packages:'external',jsx:'automatic',loader:{'.css':'empty'},logLevel:'silent'});
+const componentModule = new Module(componentPath.pathname);
+componentModule.paths = Module._nodeModulePaths(process.cwd());
+componentModule._compile(compiled.outputFiles[0].text,componentPath.pathname);
+const MatchupFactors = componentModule.exports.default;
 
 for (const margin of [null, undefined, '', ' ', false, 'bad', Infinity]) {
   test(`actual NFL aggregate summary rejects invalid margins: ${String(margin)}`, () => {

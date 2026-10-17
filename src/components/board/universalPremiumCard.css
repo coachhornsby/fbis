@@ -487,3 +487,16 @@
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-direction > b {font-size:38px}
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-direction > strong {font-size:11px}
 }
+
+/* Keep the compact card's team identity when opening its full matchup. */
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-team-atmosphere{
+ position:relative;isolation:isolate;overflow:hidden;border-radius:15px;
+ background:radial-gradient(ellipse 72% 118% at 8% 50%,color-mix(in srgb,var(--cgc-away-brand) 24%,transparent),transparent 69%),radial-gradient(ellipse 72% 118% at 92% 50%,color-mix(in srgb,var(--cgc-home-brand) 24%,transparent),transparent 69%),linear-gradient(90deg,color-mix(in srgb,var(--cgc-away-brand) 9%,#02060b) 0%,#02060b 46%,#02060b 54%,color-mix(in srgb,var(--cgc-home-brand) 9%,#02060b) 100%);
+}
+.fbis-shell-main .pgc-team-atmosphere::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(90deg,transparent 0 37%,#000b 49%,#000b 51%,transparent 63%)}
+.fbis-shell-main .pgc-team-atmosphere .pgc-featured-team,.fbis-shell-main .pgc-team-atmosphere .pgc-featured-center{position:relative;z-index:2}
+.fbis-shell-main .pgc-team-atmosphere .pgc-team-watermark{position:absolute;top:50%;width:clamp(150px,24vw,300px);height:clamp(150px,24vw,300px);object-fit:contain;transform:translateY(-50%);opacity:.075;filter:saturate(.82) contrast(1.12);pointer-events:none;user-select:none;z-index:1}
+.fbis-shell-main .pgc-team-watermark-away{left:-14px}.fbis-shell-main .pgc-team-watermark-home{right:-14px}
+.fbis-shell-main .pgc-team-atmosphere .pgc-featured-logo{filter:drop-shadow(0 6px 13px #0008)}
+.fbis-shell-main .pgc-team-atmosphere .pgc-featured-name{text-shadow:0 2px 13px #000a;color:#f8fbff}
+@media(max-width:560px){.fbis-shell-main .pgc-team-atmosphere .pgc-team-watermark{width:140px;height:140px;opacity:.065}}

@@ -1,3 +1,5 @@
+import {buildMoneylinePriceComparison} from "../../lib/marketPriceComparison.js";
+import VenueConditions from "./VenueConditions.jsx";
 import SoccerPinnOdds from "./SoccerPinnOdds.jsx";
 import MatchupSignals from "./MatchupSignals.jsx";
 import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
@@ -146,6 +148,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const away = vm.away || {};
   const home = vm.home || {};
   const proj = vm.projection || {};
+  const winProbabilities = buildMoneylinePriceComparison(game).rows;
   const cmp = vm.comparison || {};
   const action = vm.action || {};
   const ctx = vm.context || {};
@@ -174,11 +177,11 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const gapKind = gapTotal ? `is-total is-${gapSide}` : gapTeam ? `is-team${gapColor?" is-branded":""}` : "is-neutral";
   const gapUnit = ["mlb","npb","kbo"].includes(sportId) ? "RUNS" : sportId === "nhl" ? "GOALS" : "PTS";
   const gapValue = stored ? "—" : soccerPick ? soccerPick.pick || "—" : showReferenceGap
-    ? `${referenceLead.delta > 0 ? "+" : ""}${referenceLead.delta} ${gapUnit}` : edge.delta;
+    ? `${referenceLead.absDelta} ${gapUnit} DIFFERENCE` : edge.delta;
   const gapLabel = stored ? "MARKET UNAVAILABLE" : soccerPick ? "CONFIDENCE PICK"
     : showReferenceGap ? "FBIS / PINNODDS GAP" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : "MODEL / MARKET GAP";
   const gapDescription = stored ? "STORED PREGAME · NO VERIFIED ODDS" : soccerPick ? "1X2 · MODEL CONFIDENCE · NOT EV"
-    : showReferenceGap ? `${referenceLead.kind.toUpperCase()} · PROJECTION DIFF · NOT EV`
+    : showReferenceGap ? referenceLead.kind === "spread" ? `Market: ${home.abbr} ${signed(referenceLead.offeredHome)} · FBIS: ${home.abbr} ${signed(referenceLead.modelHome)} · RESEARCH ONLY` : `Market: ${referenceLead.offeredTotal} · FBIS: ${referenceLead.modelTotal} · RESEARCH ONLY`
     : `${edge.type} · MODEL / MARKET`;
   const isTennis = sportId === "tennis";
   if (isTennis) {
@@ -215,7 +218,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const tennisEdgeDelta = tennisProbEdge == null ? "NO MARKET EDGE" : "MODEL vs NO-VIG";
 
   return (
-    <article className={`pgc pgc-featured fbis-universal-premium status-${String(vm.status?.tone || "neutral").toLowerCase()}`} style={{"--fbis-away":teamColor(away)||"#217ac3","--fbis-home":teamColor(home)||"#ae3448"}}>
+    <article className={`pgc pgc-featured fbis-universal-premium status-${String(vm.status?.tone || "neutral").toLowerCase()}`} style={{"--fbis-away":teamColor(away)||"#0b5fa5","--fbis-home":teamColor(home)||"#7b1734","--cgc-away-brand":teamColor(away)||"#0b5fa5","--cgc-home-brand":teamColor(home)||"#7b1734"}}>
       <header className="pgc-featured-head">
         <div className="pgc-featured-title">
           <span aria-hidden="true">🏆</span>
@@ -227,10 +230,6 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           {stored ? null : sportId !== "nhl" || proj.available ? <span title={sportId === "nhl" ? "Model confidence rating, not wagering authority" : "Model confidence rating"}><SharpStars value={stars} /></span> : <span>NO MODEL RATING</span>}
         </div>
       </header>
-      {sportId === "cfb" && proj.available ? (
-        <div className="muted">{game.modelVersion || "CFB-FBIS-v2"} · {game.projectionState || game.cfb?.projectionState || "UNKNOWN"} · NO BETTING AUTHORITY</div>
-      ) : null}
-
       {isNfl ? <NflInjuryIntegrityStrip game={game} /> : null}
       {isNfl && game.nflInternationalContext?.international ? (
         <div className="pgc-status-note" role="status" aria-label="International-game risk">
@@ -252,18 +251,22 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       ) : null}
 
       <SoccerPinnOdds game={game} className="pgc-status-note" />
-      <section className="pgc-featured-matchup">
+      <section className="pgc-featured-matchup pgc-team-atmosphere">
+        {away.logoUrl ? <img className="pgc-team-watermark pgc-team-watermark-away" src={away.logoUrl} alt="" aria-hidden="true" /> : null}
+        {home.logoUrl ? <img className="pgc-team-watermark pgc-team-watermark-home" src={home.logoUrl} alt="" aria-hidden="true" /> : null}
         <div className="pgc-featured-team">
           <div className="pgc-team-visual">
             <TeamLogo team={away} size={103} className="pgc-featured-logo" />
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
           </div>
           <div>
+            <small>{game?.neutralSite ? "NEUTRAL SITE" : "AWAY"}</small>
             <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
             {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(away, tennisTour)}</span> : null}
             {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
             <b className="pgc-featured-score">{proj.available ? (isTennis ? `${num(proj.away)}%` : (proj.away ?? "—")) : "—"}</b>
             <small>{isTennis ? "WIN PROB." : "PROJ. SCORE"}</small>
+            {proj.available && !stored && winProbabilities.find(r=>r.side==="away")?.fbisProbability!=null ? <small>{(winProbabilities.find(r=>r.side==="away").fbisProbability*100).toFixed(1)}% MODEL WIN PROB.</small> : null}
           </div>
         </div>
 
@@ -278,14 +281,18 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
           </div>
           <div>
+            <small>{game?.neutralSite ? "NEUTRAL SITE" : "HOME"}</small>
             <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
             {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(home, tennisTour)}</span> : null}
             {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
             <b className="pgc-featured-score">{proj.available ? (isTennis ? `${num(proj.home)}%` : (proj.home ?? "—")) : "—"}</b>
             <small>{isTennis ? "WIN PROB." : "PROJ. SCORE"}</small>
+            {proj.available && !stored && winProbabilities.find(r=>r.side==="home")?.fbisProbability!=null ? <small>{(winProbabilities.find(r=>r.side==="home").fbisProbability*100).toFixed(1)}% MODEL WIN PROB.</small> : null}
           </div>
         </div>
       </section>
+      <VenueConditions context={ctx} game={game} />
+      <div className="pgc-qualification" role="status">{stored ? "STORED PREGAME · STATUS UNVERIFIED" : game?.canAuthorizeWager === true && vm.decision?.qualification === "QUALIFIED" ? "QUALIFIED" : `RESEARCH ONLY · ${String(game.projectionState || "NOT QUALIFIED").replaceAll("_"," ")} · NO WAGER AUTHORITY`}</div>
       <section
         className={`pgc-gap-strip ${gapKind}`}
         style={gapColor && !gapTotal ? {"--pgc-gap-brand":gapColor} : undefined}
@@ -307,8 +314,8 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       {["cfb","nfl","cbb","nba","wnba","nhl","mlb","npb","kbo","soccer","tennis"].includes(sportId) ? (
         <>
           {["nhl","mlb","npb","kbo"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
-          <PinnoddsCardMarkets game={game} projection={proj} />
-          {["cfb","nfl","cbb","nba","wnba"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
+          <PinnoddsCardMarkets game={game} projection={proj} marketFamilies={["spread","total"]} />
+          {["cfb","nfl","cbb","nba","wnba","soccer"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
         </>
       ) : (
         <>
@@ -324,25 +331,25 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       {!stored && sportId === "nhl" ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
       {!stored && sportId === "nhl" ? <NhlMatchupSignals game={game} away={away} home={home} /> : null}
       {!stored && sportId !== "nhl" ? sportId === "nfl" ? <NflDirectionalMatchups game={game} matchup={game.nflGameMatchup} away={away} home={home} /> : sportId === "cfb" ? <CfbDirectionalMatchups game={game} away={away} home={home} /> : <MatchupSignals game={game} away={away} home={home} sport={sportId} /> : null}
-      {!stored && sportId !== "nhl" ? (
+      {!stored && sportId !== "nhl" && action.available ? (
         <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="pgc-nfl-action-head"><strong>ACTION</strong><span>{action.headline?.label || (action.available ? "MARKET INTEL" : action.emptyLabel || "NO SNAPSHOT")}</span></div>
           <div><span>TICKETS</span><strong>{splitLabel(action.tickets, away, home)}</strong></div>
           <div><span>MONEY</span><strong>{splitLabel(action.money, away, home)}</strong></div>
-          <div><span>LINE MOVE</span><strong>{action.lineMove?.label || action.movement?.label || "NO MOVE"}</strong></div>
+          <div><span>LINE MOVE</span><strong>{action.lineMove?.label || action.movement?.label || "Movement unavailable"}</strong></div>
         </section>
       ) : null}
 
       {!stored ? <><EventMarkets game={game} /><EventPlayerProps game={game} /></> : null}
 
       <footer className="pgc-footer pgc-featured-footer">
-        <span>{vm.footer?.marketSourceLabel || "Market Source: —"}</span>
+        <span>{referenceGap.available ? (market.available ? "Captured PinnOdds reference · Execution market shown in details" : "Captured PinnOdds reference · Current execution quote unavailable") : vm.footer?.marketSourceLabel || "Market Source: —"}</span>
         {typeof onToggle === "function" ? (
           <button type="button" className="pgc-details-btn" onClick={() => onToggle(cardKey)}>
             {open ? "Hide Details" : "View Details"} →
           </button>
         ) : (
-          <span className="pgc-status-note">{vm.status?.label || "—"}</span>
+          <span className="pgc-status-note">{vm.status?.key === "BLOCKED" ? "NOT QUALIFIED" : vm.status?.label || "—"}</span>
         )}
       </footer>
 

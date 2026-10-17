@@ -1887,3 +1887,14 @@
 .db-cfb-source-strip>span.is-partial{border-color:rgba(246,180,70,.6);color:#ffdaa0;background:rgba(112,61,22,.31)}
 .db-cfb-source-strip>span.is-conflict{border-color:rgba(233,169,78,.56);color:#ffe0aa;background:rgba(110,67,18,.38)}
 @media(max-width:500px){.db-cfb-source-strip{gap:4px}.db-cfb-source-strip>span{font-size:9px;padding:5px 6px}.db-cfb-source-strip>span b{font-size:10px}}
+
+/* Source-backed analysis tiles retain the teams' identity and room for a synopsis. */
+.fbis-shell-main.route-board .db-game-page .matchup-factors-dynamic .matchup-factors-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:12px}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-dynamic .matchup-factor{--factor-team:#35536d;--factor-accent:#b7d4e9;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;text-align:left;gap:9px;min-height:170px;padding:16px;border:1px solid color-mix(in srgb,var(--factor-team) 75%,#7897af);border-top:4px solid var(--factor-team);background:linear-gradient(130deg,color-mix(in srgb,var(--factor-team) 32%,#0a1729),#071625 90%)}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-dynamic .matchup-factor-label{font-size:12px;color:#dbeaf6;line-height:1.4}
+.matchup-factor-identity{display:flex;align-items:center;gap:10px;min-width:0}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-dynamic .matchup-factor-edge{font-size:16px;color:#f5f9ff;overflow-wrap:anywhere}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-dynamic .matchup-factor-value{font-size:22px;color:#fff;font-weight:850}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-dynamic .matchup-factor-synopsis{font-size:13px;line-height:1.55;color:#dae7f2;margin:0}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-dynamic .matchup-factor-source{display:block;font-size:10px;margin-top:auto;color:#b9cbdc;opacity:1}
+.matchup-factor-kind{color:#e8c98b;font-size:9px;line-height:1.5}

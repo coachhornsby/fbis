@@ -8,9 +8,10 @@ export default function MatchupSignals({game,away,home,sport,slots=null}) {
   const factors=Array.isArray(game?.matchupFactors)?game.matchupFactors:[];
   const rows=slots ? slots.map(slot=>({...slot,factor:factors.find(f=>String(f.id||'').toLowerCase()===slot.id)||null}))
     : factors.filter(f=>f&&typeof f==='object').map((factor,i)=>({...splitMatchupVisual(factor.id,factor.label||factor.name),id:factor.id||`factor-${i}`,factor}));
+  const availableRows=rows.filter(({factor})=>factor && factor.available!==false && !/^(unavailable|unknown|unverified|not available)$/i.test(String(factor.edge||factor.advantage||"")));
   return <section className={`cgc-matchup-read${rows.length?'':' is-unavailable'}`} aria-label="FBIS matchup analysis">
-    <div className="cgc-matchup-read-head"><div><span>GAME MATCHUP</span><strong>{rows.length?'FBIS ANALYSIS':'NO ANALYTICS YET'}</strong></div><b>{rows.length?`${rows.length} SIGNALS`:'—'}</b></div>
-    <div className="cgc-matchup-pills">{rows.length?rows.map(({id,icon,label,factor})=>{
+    <div className="cgc-matchup-read-head"><div><span>GAME MATCHUP</span><strong>{rows.length?'FBIS ANALYSIS':'NO ANALYTICS YET'}</strong></div><b>{`${availableRows.length} of ${rows.length} factors available`}</b></div>
+    <div className="cgc-matchup-pills">{availableRows.length?availableRows.map(({id,icon,label,factor})=>{
       const available=factor&&factor.available!==false;
       const identified=available?matchupAdvantageTeam(factor,away,home):null;
       const team=identified?.team||null,colors=team?matchupSignalColors(team,sport):null;

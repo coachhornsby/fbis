@@ -80,12 +80,10 @@ export default function DecisionBoard({ games = [], renderDetail }) {
         {String(selected?.sport || "").toLowerCase() === "nfl" ? <TopGameProps game={selected} /> : null}
         <MatchupFactors game={selected} />
         {typeof renderDetail === "function" ? (
-          String(selected?.sport || "").toLowerCase() === "nfl" ? (
-            <details className="db-full-analysis db-full-analysis-collapsed">
-              <summary>Advanced data & legacy diagnostics</summary>
+          <details className="db-full-analysis db-full-analysis-collapsed">
+              <summary>Sources & model details</summary>
               <div className="db-full-analysis-body">{renderDetail(selected)}</div>
-            </details>
-          ) : <div className="db-full-analysis">{renderDetail(selected)}</div>
+          </details>
         ) : null}
       </div>
     );

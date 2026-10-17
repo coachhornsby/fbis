@@ -15,12 +15,12 @@ test("CFB directional panels specify four offense-versus-defense categories",asy
  assert.match(src,/altColor/);
  assert.match(src,/DIRECTIONAL DATA PENDING/);
 });
-test("CFB hero shares NFL location and weather; tennis and other sports retain their routing",async()=>{
+test("CFB uses shared venue strip; tennis and other sports retain their routing",async()=>{
  const compact=await read("CompactGameCard.jsx");
  const css=await read("nflDirectionalMatchups.css");
  assert.match(compact,/isCfb \? <CfbDirectionalMatchups/);
- assert.match(compact,/isFootball \? <div className="cgc-vs">/);
- assert.match(compact,/!isFootball && !stored \? <VenueConditions/);
+ assert.match(compact,/import VenueConditions from/);
+ assert.match(compact,/!stored \? <VenueConditions/);
  assert.match(css,/data-sport="cfb"/);
  assert.match(css,/cfb-unit-panel/);
  assert.match(css,/--unit-secondary/);

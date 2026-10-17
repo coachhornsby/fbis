@@ -3,6 +3,7 @@ import DecisionChip from "./DecisionChip.jsx";
 import { fmtLine, fmtPrice } from "./formatters.js";
 
 export default function TopPlayerProps({ rows = [] }) {
+  rows = rows.filter(row => row.playerName && !/^(?:[—?]|TBD|QB1|RB1|WR1|Unknown|Unidentified player)$/i.test(String(row.playerName).trim()));
   return (
     <section className="panel today-section" aria-labelledby="today-top-props">
       <div className="panel-header">

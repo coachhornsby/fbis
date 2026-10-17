@@ -669,7 +669,7 @@ function buildContext(game, sport, away, home) {
 
   const weatherLine = weather
     ? [
-        weather.temp != null ? `${weather.temp}°` : null,
+        weather.temp != null ? `${weather.temp}°F` : null,
         weather.description,
         weather.windLabel,
       ]

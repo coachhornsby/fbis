@@ -46,10 +46,10 @@ export default function PinnoddsCardMarkets({game,projection,marketFamilies,comp
      <div className="fbis-priced-model-value"><span>FBIS PROJECTED</span>
       <strong>{f==="spread"?`${team(game,"home")} ${sign(one(diff.modelHome))}`:one(diff.modelTotal)}</strong>
      </div>
-     <div className="fbis-priced-gap-value"><span>LINE DIFFERENCE</span><strong>{sign(one(diff.delta))}</strong>
-      <small>{f==="spread"?`Home-line basis · ${diff.side==="away"?team(game,"away"):diff.side==="home"?team(game,"home"):"EVEN"}`:diff.side.toUpperCase()}</small>
+     <div className="fbis-priced-gap-value"><span>LINE DIFFERENCE</span><strong>{one(diff.absDelta)}</strong>
+      <small>{f==="spread"?`Toward ${diff.side==="away"?team(game,"away"):diff.side==="home"?team(game,"home"):"EVEN"}`:diff.side.toUpperCase()}</small>
      </div>
-    </div>:projection?.available&&pair?<div className="fbis-priced-model-row"><span>FBIS comparison unavailable</span></div>:null}
+    </div>:f!=="moneyline"&&projection?.available&&pair?<div className="fbis-priced-model-row"><span>FBIS comparison unavailable</span></div>:null}
    </div>;
   })}</div>
   {!hasPaired?<p className="fbis-priced-empty">No verified paired PinnOdds moneyline, spread or total in this captured market. FBIS projections remain independent.</p>:null}
