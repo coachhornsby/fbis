@@ -30,7 +30,15 @@ database_id = "c32ccf06-c896-4d24-bb89-3e87a7412899"
 binding = "ARCHIVE"
 bucket_name = "fbis-archive"
 
+# Frozen historical research copy. Cutover stays disabled until the full
+# source/R2/Drive/cold-SQL recovery and historical consumer parity gates pass.
+[[d1_databases]]
+binding = "COLD_HISTORY_DB"
+database_name = "fbis-cold-history-20261017"
+database_id = "6fad1baf-126f-4ab8-9b80-a7d71637d6d4"
+
 # Separate D1 write copies only; authoritative reads, CLV, and qualification
 # remain on primary. Roll back by setting this to "disabled".
 [vars]
 MARKET_HISTORY_SHADOW_WS = "enabled"
+COLD_MARKET_ARCHIVE_READS = "disabled"

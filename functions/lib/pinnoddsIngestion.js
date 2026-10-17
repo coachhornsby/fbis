@@ -2,6 +2,7 @@ import {matchPolymarketUsEvent} from "./polymarketUs.js";
 import {loadSoccerMarketFixtures} from "./soccerMarketFixtures.js";
 import {normalizePinnoddsMarkets} from './pinnoddsMarkets.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
+import {marketObservationDatabase} from './coldMarketHistory.js';
 import {loadVerifiedTennisCandidates} from './polymarketTennisIdentity.js';
 import {filterPinnoddsToFbisProjections} from './pinnoddsProjectionScope.js';
 const root='market-sources/pinnodds',valid=id=>/^[a-z0-9-]{1,180}$/i.test(id||''),batchSize=100;
@@ -130,7 +131,7 @@ export async function finalizePinnoddsRematch(env,{snapshotId,inserted=null,batc
  const object=await env.ARCHIVE.get(`${root}/normalized/${snapshotId}.json`);
  if(!object)throw Error('SNAPSHOT_NOT_PREPARED');
  const prepared=await object.json();
- const counted=await env.DB.prepare(`SELECT COUNT(*) n FROM normalized_market_observations WHERE source='PinnOdds' AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.snapshotId')=?`).bind(snapshotId).first().catch(()=>({n:0}));
+ const counted=await (await marketObservationDatabase(env,prepared.collectedAt)).prepare(`SELECT COUNT(*) n FROM normalized_market_observations WHERE source='PinnOdds' AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.snapshotId')=?`).bind(snapshotId).first().catch(()=>({n:0}));
  const persistedRows=Number(counted?.n||0);
  const {rows,...receipt}=prepared;
  const status={...receipt,ok:true,persistedRows,reconciled:true,rematched:true,paidProviderCall:false,
@@ -156,12 +157,12 @@ export async function consumePinnoddsSnapshot(env,{snapshotId,batchIndex}={}){
  if(!valid(snapshotId)||!Number.isSafeInteger(batchIndex)||batchIndex<0)throw Error('INVALID_BATCH_IDENTITY');
  const object=await env.ARCHIVE.get(`${root}/normalized/${snapshotId}.json`);if(!object)throw Error('SNAPSHOT_NOT_PREPARED');const prepared=await object.json();
  if(batchIndex>=prepared.batches)throw Error('BATCH_OUT_OF_RANGE');
- const rows=prepared.rows.slice(batchIndex*batchSize,(batchIndex+1)*batchSize),saved=await persistNormalizedMarketBatch(env.DB,rows,{snapshotType:'RESEARCH',collectedAt:prepared.collectedAt,modelProbability:null});
+ const rows=prepared.rows.slice(batchIndex*batchSize,(batchIndex+1)*batchSize),saved=await persistNormalizedMarketBatch(await marketObservationDatabase(env,prepared.collectedAt),rows,{snapshotType:'RESEARCH',collectedAt:prepared.collectedAt,modelProbability:null});
  return{ok:true,snapshotId,batchIndex,expectedRows:rows.length,inserted:saved.inserted,canAuthorizeWager:false};
 }
 export async function reconcilePinnoddsSnapshot(env,{snapshotId}={}){
  if(!valid(snapshotId))throw Error('INVALID_SNAPSHOT_ID');const object=await env.ARCHIVE.get(`${root}/normalized/${snapshotId}.json`);if(!object)throw Error('SNAPSHOT_NOT_PREPARED');const {rows,...receipt}=await object.json();
- const result=await env.DB.prepare(`SELECT COUNT(*) n FROM normalized_market_observations WHERE source='PinnOdds' AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.snapshotId')=?`).bind(snapshotId).first();
+ const result=await (await marketObservationDatabase(env,receipt.collectedAt)).prepare(`SELECT COUNT(*) n FROM normalized_market_observations WHERE source='PinnOdds' AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.snapshotId')=?`).bind(snapshotId).first();
  const persistedRows=Number(result?.n||0),ok=persistedRows===receipt.normalizedRows,status={...receipt,ok,persistedRows,reconciled:ok};
  await env.ARCHIVE.put(`${root}/status/${snapshotId}.json`,JSON.stringify(status));
  if(ok)await env.ARCHIVE.put(`${root}/latest/${receipt.kind}-${receipt.sportId||'all'}-${receipt.feed||'all'}.json`,JSON.stringify(status));

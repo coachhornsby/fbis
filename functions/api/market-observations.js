@@ -1,15 +1,19 @@
 import {marketTemporalStatus,providerObservationTime} from '../lib/marketTemporal.js';
 import {FBIS_POLY_SPORTS} from '../lib/polymarketUs.js';
 import {marketDisplayAmerican,marketDisplayImplied} from '../../src/lib/marketQuoteDisplay.js';
+import {coldHistoryEnabled,readColdCompatibleEventObservations} from '../lib/coldMarketHistory.js';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 /** Public event research read. Latest immutable observation per exact source contract. */
 export async function onRequestGet({env,request}){
  const url=new URL(request.url),sport=url.searchParams.get('sport'),eventId=url.searchParams.get('eventId'),cursor=url.searchParams.get('cursor')||'0';
  if(!FBIS_POLY_SPORTS.includes(sport)||!eventId||eventId.length>160||!/^\d{1,7}$/.test(cursor))return json({ok:false,error:'INVALID_EVENT_QUERY'},400);
  if(!env.DB?.prepare)return json({ok:false,error:'DATABASE_UNAVAILABLE'},503);
- const offset=Number(cursor),pageSize=100,now=new Date();
- try{
-  const result=await env.DB.prepare(`WITH latest AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY source,source_market_id,source_outcome_id,period,side,line,player_name,stat_family ORDER BY collected_at DESC,id DESC) rn
+ try{return json(await marketObservationPage(env,{sport,eventId,offset:Number(cursor),pageSize:100,now:new Date()}));}
+ catch{return json({ok:false,error:'MARKET_READ_UNAVAILABLE'},502);}
+}
+/** Shared by the HTTP route and authenticated fixed-clock storage parity probe. */
+export async function marketObservationPage(env,{sport,eventId,offset=0,pageSize=100,now=new Date()}){
+  const result=coldHistoryEnabled(env)?await readColdCompatibleEventObservations(env,{sport,eventId,offset,pageSize}):await env.DB.prepare(`WITH latest AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY source,source_market_id,source_outcome_id,period,side,line,player_name,stat_family ORDER BY collected_at DESC,id DESC) rn
    FROM normalized_market_observations WHERE sport=? AND canonical_event_id=? AND source IN ('Polymarket US','Polymarket US WebSocket','PinnOdds','PrizePicks GitHub Mirror'))
    SELECT * FROM latest WHERE rn=1 ORDER BY source,market_family,period,source_market_id,source_outcome_id,id LIMIT ? OFFSET ?`).bind(sport,eventId,pageSize+1,offset).all();
   const found=result?.results||[],hasMore=found.length>pageSize;
@@ -24,6 +28,5 @@ export async function onRequestGet({env,request}){
     sourceMarketId:r.source_market_id,sourceOutcomeId:r.source_outcome_id,providerObservedAt,collectedAt:r.collected_at,temporal,
     quoteKind:raw.quoteKind||raw.priceKind||'OBSERVED_REFERENCE',canQualify:false,canAuthorizeWager:false};
   });
-  return json({ok:true,eventId,sport,rows,pageSize,cursor:String(offset),nextCursor:hasMore?String(offset+pageSize):null,readOnly:true,canAuthorizeWager:false});
- }catch{return json({ok:false,error:'MARKET_READ_UNAVAILABLE'},502);}
+  return {ok:true,eventId,sport,rows,pageSize,cursor:String(offset),nextCursor:hasMore?String(offset+pageSize):null,readOnly:true,canAuthorizeWager:false};
 }

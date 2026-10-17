@@ -2,7 +2,7 @@
  * Read-only platform market coverage audit.
  * GET /api/market-coverage-audit?lookbackHours=48
  */
-import { auditPlatformMarketCoverage } from "../lib/marketCoverageAudit.js";
+import { auditPartitionedMarketCoverage } from "../lib/marketCoverageAudit.js";
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
@@ -11,7 +11,7 @@ export async function onRequestGet(context) {
     return json({ ok: false, error: "DATABASE_UNAVAILABLE" }, 503);
   }
   try {
-    const report = await auditPlatformMarketCoverage(context.env.DB, { lookbackHours, now: new Date() });
+    const report = await auditPartitionedMarketCoverage(context.env, { lookbackHours, now: new Date() });
     return json(report);
   } catch (err) {
     return json({ ok: false, error: String(err?.message || err) }, 500);

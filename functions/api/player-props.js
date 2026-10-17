@@ -1,4 +1,5 @@
 import {loadPinnoddsPlayerProps} from "../lib/pinnoddsPlayerProps.js";
+import {coldHistoryEnabled,readPartitionedMirrorCoverage} from '../lib/coldMarketHistory.js';
 import {FREE_PROP_MIRROR_SOURCE,FREE_PROP_MIRROR_SPORTS,loadFreeMirrorRows,loadArchivedFreeMirrorRows} from "../lib/freePrizePicksMirror.js";
 import { fetchEspnTennisRankings, buildTennisResearchBoardRows } from "../lib/tennisPrizePicksResearch.js";
 import { marketTemporalStatus } from "../lib/marketTemporal.js";
@@ -375,7 +376,7 @@ export async function onRequestGet(context) {
     try{pinnoddsRows=await loadPinnoddsPlayerProps(context.env.DB,eventIds,sportParam);}catch(error){pinnoddsError=String(error?.message||error);}
     const freeSupported=FREE_PROP_MIRROR_SPORTS.includes(sportParam);
     let mirrorCoverage=null;
-    try { mirrorCoverage=await context.env.DB.prepare(`SELECT COUNT(*) n,MAX(collected_at) collected_at,MAX(source_observed_at) observed_at FROM normalized_market_observations WHERE source=? AND sport=?`).bind(FREE_PROP_MIRROR_SOURCE,sportParam).first(); }
+    try { mirrorCoverage=coldHistoryEnabled(context.env)?await readPartitionedMirrorCoverage(context.env,FREE_PROP_MIRROR_SOURCE,sportParam):await context.env.DB.prepare(`SELECT COUNT(*) n,MAX(collected_at) collected_at,MAX(source_observed_at) observed_at FROM normalized_market_observations WHERE source=? AND sport=?`).bind(FREE_PROP_MIRROR_SOURCE,sportParam).first(); }
     catch {}
     const checkedAt = new Date();
     const sourceStatus = await propSourceStatus(context.env.DB);
