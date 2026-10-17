@@ -782,7 +782,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         catalog = enrichCatalogWithCoreProvenance(
           catalog,
           fetched.bundles["/ratings/core"] || [],
-          { maxWeek: coreThroughWeekBound(targetWeek), seasonType: "regular" }
+          { maxWeek: coreThroughWeekBound(targetWeek), seasonType: "regular", season: y }
         );
         let weeklyMeta = null;
         if (job === "cfb-current-refresh" && y === yearCfb) {
