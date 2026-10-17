@@ -110,9 +110,25 @@ export function enrichCatalogWithCoreProvenance(catalog, coreRows = [], opts = {
       : "core-cutoff-not-proven";
     if (srcCorePresence.get(row.canonicalId) === true) scrubbed += 1;
   }
+  // Consumers that resolve by ESPN team ID must see exactly the same
+  // scrubbed, point-in-time CORE values as canonical-ID consumers.
+  const byEspnId = Object.fromEntries(
+    Object.entries(catalog?.byEspnId || {}).map(([espnId, row]) => [
+      espnId,
+      byCanonicalId[row?.canonicalId] || {
+        ...row,
+        core: null,
+        coreOffense: null,
+        coreDefense: null,
+        coreThroughWeek: null,
+        coreWeekBounded: false,
+      },
+    ])
+  );
   return {
     ...catalog,
     byCanonicalId,
+    byEspnId,
     coreEnriched: enriched,
     coreIndexed: n,
     coreMaxWeek: maxWeek,
