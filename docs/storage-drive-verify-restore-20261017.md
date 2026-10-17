@@ -40,3 +40,10 @@ Draft package: `docs/storage-retention-release-draft-20261017.json`
 3. Operator retention release authorization
 4. Optional: Drive binary media upload credential for 41-block mirror
 5. Measure primary ≤8 GB only after authorized bounded retirement
+
+## Exact ID manifests (draft release)
+
+- RESEARCH market observations: **497,624** distinct IDs (summary `docs/market-research-ids-20261017-summary.json`; full gzip in run artifacts / `/opt/cursor/artifacts/`)
+- CFB roster 2005–2025: **430,971** distinct IDs (summary `docs/cfb-roster-2005-2025-ids-20261017-summary.json`)
+- Season 2004 absent from archived CFB cohort (still separately protected)
+- `retentionReleaseAuthorized` remains **false**
