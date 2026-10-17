@@ -81,3 +81,23 @@ test("OOS-fitted artifact produces research-only, market-blind score decompositi
   assert.equal(a.canAuthorizeWager,false);
   assert.equal(a.pHomeWin,null);
 });
+
+test("existing CFB matchup attachment emits a separate pending CORE shadow without moving the champion", async()=>{
+  const {attachCfbMatchupV2}=await import("../functions/lib/cfbMatchupV2.js");
+  const before={
+    sport:"cfb",id:"event-123",season:2026,week:7,start:kickoff,
+    projectionKind:"FBIS",model:{projHome:27,projAway:24,projectionKind:"FBIS"},
+    cfbDeepInput:{home:row(12,-4),away:row(9,-2)},
+  };
+  const result=attachCfbMatchupV2([before]);
+  const after=result.games[0];
+  assert.deepEqual(after.model,before.model);
+  assert.equal(after.cfbCoreShadow.reason,"FITTED_RESEARCH_ARTIFACT_NOT_VERIFIED");
+  assert.equal(after.challengers[CFB_CORE_SHADOW_ID].canAuthorizeWager,false);
+  assert.equal(after.cfbCoreShadow.ok,false);
+  const projected=attachCfbMatchupV2([before],{coreArtifact:fitted()}).games[0];
+  assert.equal(projected.cfbCoreShadow.ok,true);
+  assert.equal(projected.cfbCoreShadow.canInfluenceProduction,false);
+  assert.deepEqual(projected.model,before.model);
+  assert.equal(projected.cfbMatchupV2.margin,after.cfbMatchupV2.margin);
+});
