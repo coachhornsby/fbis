@@ -48,8 +48,12 @@ export function coreThroughWeekBound(targetWeek) {
  * Map raw /ratings/core rows into team catalog patches with provenance.
  * When maxWeek is set, undated rows are rejected (temporal fail-closed).
  */
-export function coreProvenancePatches(coreRows = [], { maxWeek = null, seasonType = "regular" } = {}) {
-  const indexed = indexCoreByTeam(coreRows, { maxWeek, seasonType });
+export function coreProvenancePatches(coreRows = [], { maxWeek = null, seasonType = "regular", season = null } = {}) {
+  // Provider rows sometimes omit year even when /ratings/core?year=YYYY was
+  // explicitly queried. Accept that scoped year but reject contradictory rows.
+  const seasonRows = season == null ? coreRows : coreRows.filter(row =>
+    (row?.year ?? row?.season) == null || Number(row.year ?? row.season) === Number(season));
+  const indexed = indexCoreByTeam(seasonRows, { maxWeek, seasonType });
   const patches = {};
   for (const [key, row] of Object.entries(indexed)) {
     patches[key] = {
@@ -58,6 +62,7 @@ export function coreProvenancePatches(coreRows = [], { maxWeek = null, seasonTyp
       coreDefense: num(row.defense),
       coreSpecialTeams: num(row.specialTeams),
       coreThroughWeek: num(row.throughWeek),
+      coreYear: num(row.season) ?? num(season),
       coreThroughSeasonType: row.throughSeasonType || null,
       coreWeekBounded: maxWeek != null,
       coreTemporalClass: "B",
@@ -86,7 +91,7 @@ export function enrichCatalogWithCoreProvenance(catalog, coreRows = [], opts = {
     const clean = { ...src };
     for (const key of [
       "core", "coreOffense", "coreDefense", "coreSpecialTeams",
-      "coreThroughWeek", "coreThroughSeasonType", "coreSourceEndpoint",
+      "coreThroughWeek", "coreYear", "coreSourceAsOf", "coreThroughSeasonType", "coreSourceEndpoint",
       "coreTemporalClass", "coreWeekBounded", "coreTemporalNote",
     ]) delete clean[key];
     byCanonicalId[id] = clean;
