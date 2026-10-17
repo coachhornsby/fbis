@@ -307,14 +307,14 @@ export default function CompactGameCard({ game, onOpen }) {
           <span>{soccerPick ? "CONFIDENCE PICK" : showReferenceGap ? "FBIS / PINNODDS GAP" : isNhl && !proj.available ? "NO PURE PROJECTION" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : isNhl && market.referenceOnly ? "MODEL / REFERENCE GAP" : "MODEL / MARKET GAP"}</span>
           <div className="cgc-edge-identity">
             {soccerPick ? (
-              soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={64} className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
+              soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={83} className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
             ) : showReferenceGap ? (
               referenceLead?.kind === "total"
                 ? <TotalGapDirection side={referenceLead.side} />
-                : referenceTeam ? <><TeamLogo team={referenceTeam} size={64} className="cgc-edge-logo" /><span className="cgc-gap-side-name">{gapTeamLabel}</span></>
+                : referenceTeam ? <><TeamLogo team={referenceTeam} size={83} className="cgc-edge-logo" /><span className="cgc-gap-side-name">{gapTeamLabel}</span></>
                 : <div className="cgc-total-mark">EVEN</div>
             ) : edge.team ? (
-              <><TeamLogo team={edge.team} size={64} className="cgc-edge-logo" /><span className="cgc-gap-side-name">{gapTeamLabel}</span></>
+              <><TeamLogo team={edge.team} size={83} className="cgc-edge-logo" /><span className="cgc-gap-side-name">{gapTeamLabel}</span></>
             ) : edge.total ? (
               <TotalGapDirection side={edge.detail} />
             ) : null}
