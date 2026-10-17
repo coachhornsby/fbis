@@ -2,7 +2,7 @@ import {spawnSync} from 'node:child_process';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 const run=(args)=>{const r=spawnSync('npx',['wrangler',...args],{encoding:'utf8',maxBuffer:8e6});if(r.status!==0)throw new Error(`Wrangler failed: ${r.stderr}`);return r.stdout;};
-const query=(db,sql)=>JSON.parse(run(['d1','execute',db,'--remote','--json','--command',sql]));
+const query=(db,sql)=>JSON.parse(run(['d1','execute',db,'--remote','--json','--command='+sql]));
 const receipt={checkedAt:new Date().toISOString(),collectionStarted:false,targets:[]};
 mkdirSync('artifacts',{recursive:true});
 for(const db of ['fbis-cfb-tier3-research','fbis']) {
