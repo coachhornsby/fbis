@@ -227,7 +227,7 @@ export default function MyBetsView({
             {ATTR_FILTERS.map(([id, label]) => (
               <button key={id} className={attr === id ? "chip active" : "chip"} onClick={() => setAttr(id)}>{label}</button>
             ))}
-          </div></div>
+          </div></div>}
         </div>
       </section>
       <div className="bets-ledger-toggle"><button type="button" aria-expanded={showLedger} onClick={()=>setShowLedger(v=>!v)}>{showLedger?"Hide ticket ledger":"Explore full ticket ledger"} · {shown.length} matching</button></div>
