@@ -49,12 +49,13 @@ describe("secret non-exposure", () => {
 });
 
 describe("quota", () => {
-  it("alerts at 50/75/90/100 and designs under Tier 3 cap", () => {
+  it("uses a shared 75k Tier 3 ceiling and conservative 30k operating target", () => {
     assert.equal(MONTHLY_QUOTA, 75000);
-    assert.deepEqual(quotaAlerts(37500).map((a) => a.threshold), [0.5]);
+    assert.deepEqual(quotaAlerts(30000).map((a) => a.threshold), [0.4]);
     assert.ok(quotaAlerts(75000).some((a) => a.threshold === 1));
     const h = quotaHealth({ used: 67500 });
     assert.equal(h.level, "critical");
+    assert.equal(quotaHealth({ configured: false }).level, "unavailable");
     const est = estimateMonthlyCalls();
     assert.equal(est.underCap, true);
     assert.equal(est.underDesign, true);

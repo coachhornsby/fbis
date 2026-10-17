@@ -1,0 +1,32 @@
+name: College provider allowance audit
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  account-metadata:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_commit.message, '#1225'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check current shared allowance through production credential
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          mkdir -p artifacts
+          status=$(curl --silent --show-error --max-time 45 --request POST --header "x-harvest-secret: $HARVEST_SECRET" --output artifacts/provider-allowance.json --write-out '%{http_code}' https://fbis-myz.pages.dev/api/college-provider-allowance)
+          cat artifacts/provider-allowance.json
+          test "$status" = 200
+          jq -e '.allowanceVerified == true and .collectionStarted == false and .quotaAcknowledged == false' artifacts/provider-allowance.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: college-provider-allowance
+          path: artifacts/provider-allowance.json
+          retention-days: 30

@@ -240,7 +240,11 @@ async function main() {
       if (!kickoff) { bump("missing-kickoff"); continue; }
       const asOf = new Date(Date.parse(kickoff) - 60_000).toISOString();
       const maxCoreWeek = Math.max(0, Number(g.week) - 1);
-      const coreByTeam = indexCoreByTeam([], { maxWeek: maxCoreWeek, seasonType: "regular" });
+      // Week-bounded CORE only — undated/postseason rows fail closed to {}.
+      const coreByTeam = indexCoreByTeam(seasonBundle.endpoints?.core?.data || [], {
+        maxWeek: maxCoreWeek,
+        seasonType: "regular",
+      });
 
       const homeKey = schoolKey(g.homeTeam || g.home_team);
       const awayKey = schoolKey(g.awayTeam || g.away_team);

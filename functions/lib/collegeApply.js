@@ -70,8 +70,8 @@ export async function attachCbbChallengers(games, env = {}) {
   const season = cbbSeasonYear();
   const [catalog, torvikCatalog, kenpomCatalog, fbisCatalog] = await Promise.all([
     loadCbbdCatalog(env),
-    loadTorvikCbbCatalog(env, { cbbSeason: season }),
-    loadKenpomCbbCatalog(env, { cbbSeason: season }),
+    loadTorvikCbbCatalog(env, { cbbSeason: season - 1 }),
+    loadKenpomCbbCatalog(env, { cbbSeason: season - 1 }),
     loadFbisCbbCatalog(env, { season }),
   ]);
   return {

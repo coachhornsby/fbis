@@ -15,7 +15,9 @@ export async function cfbdRequestHash(url) {
   const u = new URL(url);
   // Preserve historical CFBD hashes while separating CBBD requests with the
   // same path/query (the two APIs share the subscription quota).
-  const sourcePrefix=u.hostname==="api.collegebasketballdata.com"?"cbbd:":"";
+  // GraphQL uses the same CFBD entitlement; a smaller response is NOT assumed cheaper.
+  const sourcePrefix=u.hostname==="api.collegebasketballdata.com"?"cbbd:"
+    :u.hostname==="graphql.collegefootballdata.com"?"cfbd-graphql:":"";
   const text = sourcePrefix + u.pathname + "?" + [...u.searchParams.entries()].sort(([a,av],[b,bv]) => a.localeCompare(b) || av.localeCompare(bv))
     .map(([k,v])=>encodeURIComponent(k)+"="+encodeURIComponent(v)).join("&");
   const bytes = new TextEncoder().encode(text);
@@ -25,7 +27,9 @@ export async function cfbdRequestHash(url) {
 export async function reserveCfbdRequest(env, url, now = Date.now()) {
   const hostname=new URL(url).hostname;
   const basketball=hostname==="api.collegebasketballdata.com";
-  if (!basketball && hostname!=="api.collegefootballdata.com") return {allowed:false,reason:"COLLEGE_UNKNOWN_HOST"};
+  const graphql=hostname==="graphql.collegefootballdata.com";
+  if (!basketball && !graphql && hostname!=="api.collegefootballdata.com") return {allowed:false,reason:"COLLEGE_UNKNOWN_HOST"};
+  // GraphQL shares the CFBD owner flag and the shared monthly budget with REST.
   if (basketball ?
       (env.cbbdCacheOnly || env.cbbdNetworkAuthorized !== true) :
       (env.cfbdCacheOnly || env.cfbdNetworkAuthorized !== true))
@@ -37,7 +41,7 @@ export async function reserveCfbdRequest(env, url, now = Date.now()) {
   const monthly=positive(env.CFBD_MONTHLY_NETWORK_BUDGET,1400);
   // Tier 3 provider allowance is 75k; retain 5k safety reserve.
   // This is not a substitute for the provider-confirmed remaining-call stop.
-  const providerSafe=positive(env.CFBD_SHARED_PROVIDER_SAFE_BUDGET,70000);
+  const providerSafe=Math.min(67500,positive(env.CFBD_SHARED_PROVIDER_SAFE_BUDGET,67500));
   try {
     // One statement: atomic D1 quota checks + idempotent reservation.
     const res=await env.DB.prepare(`
@@ -108,4 +112,41 @@ export async function cfbCfbdAcquisitionHealth(env, now=Date.now()) {
       blockedUntil:Number(control?.blocked_until_ms||0)>now?
        new Date(Number(control.blocked_until_ms)).toISOString():null};
   }catch{return {bound:true,status:"receipt-read-error"};}
+}
+
+/**
+ * Operator-approved acknowledgement that the shared CFBD/CBBD subscription
+ * was replenished. Clears the stale last_remaining=0 pause so the governor
+ * can observe a fresh X-CallLimit-Remaining on the next owned request.
+ * Does not invent network calls or bypass daily/monthly receipt caps.
+ */
+export async function acknowledgeCfbdQuotaReplenishment(env, {
+  remaining = 75000,
+  operatorApproved = false,
+  now = Date.now(),
+} = {}) {
+  if (!operatorApproved) {
+    return { ok: false, reason: "OPERATOR_APPROVAL_REQUIRED", canAuthorizeWager: false };
+  }
+  const next = Number(remaining);
+  if (!Number.isInteger(next) || next < 0 || next > 200000) {
+    return { ok: false, reason: "INVALID_REMAINING", canAuthorizeWager: false };
+  }
+  if (!env.DB?.prepare) return { ok: false, reason: "CFBD_D1_REQUIRED", canAuthorizeWager: false };
+  try {
+    await env.DB.prepare(`
+      UPDATE cfb_cfbd_acquisition_control
+      SET last_remaining=?, blocked_until_ms=0
+      WHERE id=1
+    `).bind(next).run();
+    return {
+      ok: true,
+      providerRemaining: next,
+      acknowledgedAt: new Date(now).toISOString(),
+      note: "Stale exhaustion cleared; next owned CFBD call will refresh remaining from provider headers.",
+      canAuthorizeWager: false,
+    };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err), canAuthorizeWager: false };
+  }
 }

@@ -1,0 +1,32 @@
+name: PR1225 guarded college migrations
+on:
+  push:
+    branches: [engineering/cfb-tier3-core-rebased-20261017]
+    paths: [scripts/pr1225-guarded-migrations.mjs, .github/workflows/pr1225-guarded-migrations.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-pages-production
+  cancel-in-progress: false
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Guard, privately back up, migrate, and verify exact database owners
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/pr1225-guarded-migrations.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr1225-migration-receipt
+          path: artifacts/pr1225-migration-receipt.json
+          retention-days: 90

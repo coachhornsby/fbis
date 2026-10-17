@@ -377,7 +377,11 @@ async function buildDesignRows() {
 
       const asOf = new Date(Date.parse(kickoff) - 60_000).toISOString();
       const maxCoreWeek = Math.max(0, Number(g.week) - 1);
-      const coreByTeam = indexCoreByTeam([], { maxWeek: maxCoreWeek, seasonType: "regular" });
+      // Week-bounded CORE only — undated/postseason rows fail closed to {}.
+      const coreByTeam = indexCoreByTeam(seasonBundle.endpoints?.core?.data || [], {
+        maxWeek: maxCoreWeek,
+        seasonType: "regular",
+      });
 
       const record = assembleGameFeatures({
         game: g,
