@@ -47,3 +47,7 @@ Draft package: `docs/storage-retention-release-draft-20261017.json`
 - CFB roster 2005–2025: **430,971** distinct IDs (summary `docs/cfb-roster-2005-2025-ids-20261017-summary.json`)
 - Season 2004 absent from archived CFB cohort (still separately protected)
 - `retentionReleaseAuthorized` remains **false**
+
+## Production urgency (CI)
+
+Scheduled research pipeline on `main` @ `a5b0c7d7` is failing with **`D1_ERROR: Exceeded maximum DB size`** (mlb/nhl/cfb/nfl/soccer write failures in runs [39008688437](https://github.com/coachhornsby/fbis/actions/runs/39008688437) / [39009924258](https://github.com/coachhornsby/fbis/actions/runs/39009924258)). Archive verification and exact-ID draft release are ready; **no DELETE** until operator sets `retentionReleaseAuthorized: true` with a release id on the draft package.

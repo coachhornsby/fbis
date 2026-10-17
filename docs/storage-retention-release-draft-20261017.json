@@ -2,7 +2,7 @@
   "contract": "fbis-retention-release-package-v1",
   "releaseId": null,
   "retentionReleaseAuthorized": false,
-  "status": "DRAFT_AWAITING_OPERATOR_RELEASE",
+  "status": "DRAFT_AWAITING_OPERATOR_RELEASE_PRODUCTION_WRITES_BLOCKED",
   "createdAt": "2026-10-17T06:40:29.543323Z",
   "primaryDb": "b50c724c-903b-4241-8ce1-48d931e7a44c",
   "coldDb": "6fad1baf-126f-4ab8-9b80-a7d71637d6d4",
@@ -225,5 +225,31 @@
       "manifestBytes": 22238531,
       "manifestName": "cfb-roster-2005-2025-ids-20261017.json.gz"
     }
+  },
+  "productionUrgency": {
+    "observedAt": "2026-10-17T06:45:34.540003Z",
+    "primarySymptom": "D1_ERROR: Exceeded maximum DB size",
+    "evidenceRuns": [
+      {
+        "run": "https://github.com/coachhornsby/fbis/actions/runs/39009924258",
+        "workflow": "FBIS research pipeline",
+        "notes": "mlb/cbb/nfl collect failures"
+      },
+      {
+        "run": "https://github.com/coachhornsby/fbis/actions/runs/39008688437",
+        "workflow": "FBIS research pipeline",
+        "notes": "HEALTH/CATCH-UP: mlb, nhl, cfb (157+ writes), nfl, soccer D1 max size"
+      }
+    ],
+    "sportsObservedFailingWrites": [
+      "mlb",
+      "nhl",
+      "cfb",
+      "nfl",
+      "soccer"
+    ],
+    "implication": "Live research ingestion cannot write; primary is at Cloudflare D1 hard cap. Archive+gates ready; DELETE still requires explicit retentionReleaseAuthorized=true + releaseId.",
+    "retentionReleaseAuthorized": false,
+    "sourceRowsDeleted": 0
   }
 }
