@@ -1,0 +1,53 @@
+name: Storage gated retirement (dry-run default)
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Set true ONLY after retentionReleaseAuthorized package + release id'
+        required: true
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+      release_id:
+        description: 'Must match authorized package releaseId when apply=true'
+        required: false
+        default: ''
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: fbis-storage-retire-gated
+  cancel-in-progress: false
+jobs:
+  retire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Gate unit tests
+        run: node --test test/storage-retire-gates.test.mjs
+      - name: Refuse apply without release id
+        if: ${{ inputs.apply == 'true' && inputs.release_id == '' }}
+        run: |
+          echo "APPLY requires release_id matching an authorized retention package"
+          exit 1
+      - name: Dry-run or gated apply
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STORAGE_RETIRE_APPLY: ${{ inputs.apply }}
+          STORAGE_RETIRE_RELEASE_ID: ${{ inputs.release_id }}
+          STORAGE_RETIRE_PACKAGE: docs/storage-retention-release-draft-20261017.json
+          STORAGE_RETIRE_BATCH: '500'
+          STORAGE_RETIRE_MAX_BATCHES: '40'
+        run: node scripts/storage-retire-gated.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: storage-retire-gated
+          path: /tmp/fbis-storage-retire/
+          retention-days: 30
+          if-no-files-found: error

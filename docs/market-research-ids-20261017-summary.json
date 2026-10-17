@@ -1,0 +1,15 @@
+{
+  "contract": "fbis-retention-exact-ids-v1",
+  "retentionReleaseAuthorized": false,
+  "cohortId": "market-research-frozen-20261017",
+  "table": "normalized_market_observations",
+  "predicate": "snapshot_type = 'RESEARCH' AND rowid <= 667201",
+  "exportRun": "https://github.com/coachhornsby/fbis/actions/runs/39000566511",
+  "count": 497624,
+  "distinctIds": 497624,
+  "rowidMin": 1052,
+  "rowidMax": 625243,
+  "manifestSha256": "0f12d5e3182a9a1594a4a9042138270bf9a62f6b89ff4690c92ea78854cc0256",
+  "manifestBytes": 28747777,
+  "manifestName": "market-research-ids-20261017.json.gz"
+}

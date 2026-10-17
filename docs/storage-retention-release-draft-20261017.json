@@ -1,0 +1,261 @@
+{
+  "contract": "fbis-retention-release-package-v1",
+  "releaseId": null,
+  "retentionReleaseAuthorized": false,
+  "status": "DRAFT_AWAITING_OPERATOR_RELEASE_PRODUCTION_WRITES_BLOCKED",
+  "createdAt": "2026-10-17T06:40:29.543323Z",
+  "primaryDb": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "coldDb": "6fad1baf-126f-4ab8-9b80-a7d71637d6d4",
+  "githubExportRun": "https://github.com/coachhornsby/fbis/actions/runs/39000566511",
+  "archiveEvidence": {
+    "r2Prefix": "research/storage-recovery/full-20261017/",
+    "coldPhysicalBytes": 3279081472,
+    "driveChecksumsFileId": "1Z0RqLJoMMDlCxmektKYzaYdl4HRPZ5fI",
+    "driveVerificationReceiptFileId": "1kQZI6QxD075au-EJQHDA16z01UvqP5_K",
+    "githubArtifactBlocks": 41,
+    "blockSha256AllMatched": true,
+    "independentSqliteIntegrity": "ok",
+    "restorationSpotChecks": "fullFieldParity true on 10 sampled parts (25k market + 25k cfb rows)"
+  },
+  "proposedCohorts": [
+    {
+      "id": "market-research-frozen-20261017",
+      "table": "normalized_market_observations",
+      "predicate": "snapshot_type = 'RESEARCH' AND rowid <= 667201",
+      "archivedSourceRows": 497624,
+      "notes": "Archive copied ALL snapshot types through rowid 667201; retirement proposal remains RESEARCH-only. CURRENT/live must stay on primary.",
+      "exactIdManifest": {
+        "contract": "fbis-retention-exact-ids-v1",
+        "retentionReleaseAuthorized": false,
+        "cohortId": "market-research-frozen-20261017",
+        "table": "normalized_market_observations",
+        "predicate": "snapshot_type = 'RESEARCH' AND rowid <= 667201",
+        "exportRun": "https://github.com/coachhornsby/fbis/actions/runs/39000566511",
+        "count": 497624,
+        "distinctIds": 497624,
+        "rowidMin": 1052,
+        "rowidMax": 625243,
+        "manifestSha256": "0f12d5e3182a9a1594a4a9042138270bf9a62f6b89ff4690c92ea78854cc0256",
+        "manifestBytes": 28747777,
+        "manifestName": "market-research-ids-20261017.json.gz"
+      },
+      "samplePartSha256": "f3f57748c070f22ce906316641e7dab1cf2558f2c99b3f024402433ca1c4c020",
+      "samplePartSnapshotTypes": {
+        "CURRENT": 2201
+      },
+      "samplePartRowidRange": {
+        "min": 665001,
+        "max": 667201,
+        "count": 2201
+      },
+      "sampleIds": [
+        "nmo_eb710646d3418adadcaa601eb803",
+        "nmo_3ec4442add8de7f7c4232ddd51e2",
+        "nmo_493606ac0225adc947b2d0dba3bc",
+        "nmo_f333c2ab49bbeca0ed266e1a9db4",
+        "nmo_ea939f873c4cc019c4026a8963e9",
+        "nmo_f0994508b5e0f035ecd2af30ab75",
+        "nmo_b8d3ea4aaeb60c0b2bc7736910c9",
+        "nmo_2f691a3b4e17ba6eb074949d164c",
+        "nmo_2725afe58f2427c498b22c46a63c",
+        "nmo_043a913865fdf1165926124fd2b7",
+        "nmo_9a95c1de1236a6b4e4ce8169d67e",
+        "nmo_8b3832aeb8dab095dd43afc78b72",
+        "nmo_530a55e8544636bdb939c4bf41cd",
+        "nmo_3a014690b0414efc21281dc689c6",
+        "nmo_ce6d89213f2a4800625cfc9a068e",
+        "nmo_8ab4125d35ac29fae4a356a43639",
+        "nmo_65e590cda032df45e5e8ada37573",
+        "nmo_66b5d0c5b0dd5930250935c86dd2",
+        "nmo_703bce6c5272262f128f5214a77a",
+        "nmo_ce23a2349e927c63c8fa5ec0db83"
+      ],
+      "sampleObservationKeys": [
+        "eb710646d3418adadcaa601eb8034e29ca87b8e4038aeca4ef0c8833a268aec7",
+        "3ec4442add8de7f7c4232ddd51e2e018ffdabf56dd4d9dff39472498cde1cc72",
+        "493606ac0225adc947b2d0dba3bcb750625d5d3da4eef8f1e5a25e60726b36b0",
+        "f333c2ab49bbeca0ed266e1a9db4ee3632ed1c9ef87cc9fa9813d2bb8219221c",
+        "ea939f873c4cc019c4026a8963e93fb884307d1aeebccefe36c9fd0f8bb0d545",
+        "f0994508b5e0f035ecd2af30ab75e870a9e8d49073e86c16c8d5c08aa95fa312",
+        "b8d3ea4aaeb60c0b2bc7736910c9a2a5e20069ba758de44e1630222d7dd637e3",
+        "2f691a3b4e17ba6eb074949d164c489cda511c71f054b7b4360006d0f8e10c52",
+        "2725afe58f2427c498b22c46a63c00c60547dcd81e6759764117634ca96029c7",
+        "043a913865fdf1165926124fd2b7accd32d8533d799f98737465af12d5974ea6",
+        "9a95c1de1236a6b4e4ce8169d67ec2ac84825d24dfd9cf83ba20fde77626509f",
+        "8b3832aeb8dab095dd43afc78b727855b965b50b1b94fb418099d376a18800c0",
+        "530a55e8544636bdb939c4bf41cd1eb0413713f47588928203f572ef3f3d6bf8",
+        "3a014690b0414efc21281dc689c6860dfaf93c3c3da0a4e1196b4c538cbd1ce7",
+        "ce6d89213f2a4800625cfc9a068e844be720566db6def0ffe83a8a2b4eeb4495",
+        "8ab4125d35ac29fae4a356a43639a392062278bb01edc9e5f89ef2bc1717f4e3",
+        "65e590cda032df45e5e8ada375737d8f40e782d1b2d2fc71e5c78b19a1146c53",
+        "66b5d0c5b0dd5930250935c86dd28b04ea6e0b9bb8897c68744b2c60c2fa972a",
+        "703bce6c5272262f128f5214a77a08c8ff6f8429e9479b181385851b4f806df6",
+        "ce23a2349e927c63c8fa5ec0db834bd7b32bad97797440a5c9436bf5aca68b16"
+      ]
+    },
+    {
+      "id": "cfb-roster-obs-2005-2025",
+      "table": "cfb_roster_observations",
+      "predicate": "season BETWEEN 2005 AND 2025",
+      "archivedSourceRows": 430971,
+      "notes": "2004 excluded and remains PROTECTED_UNTIL_SEPARATE_RELEASE.",
+      "exactIdManifest": {
+        "contract": "fbis-retention-exact-ids-v1",
+        "retentionReleaseAuthorized": false,
+        "cohortId": "cfb-roster-obs-2005-2025",
+        "table": "cfb_roster_observations",
+        "predicate": "season BETWEEN 2005 AND 2025",
+        "exportRun": "https://github.com/coachhornsby/fbis/actions/runs/39000566511",
+        "seasonCounts": {
+          "2005": 14608,
+          "2006": 15086,
+          "2007": 17476,
+          "2008": 18818,
+          "2009": 16512,
+          "2010": 16220,
+          "2011": 16312,
+          "2012": 16576,
+          "2013": 8836,
+          "2014": 22260,
+          "2015": 22762,
+          "2016": 23658,
+          "2017": 23140,
+          "2018": 24100,
+          "2019": 24224,
+          "2020": 16943,
+          "2021": 26846,
+          "2022": 26415,
+          "2023": 26375,
+          "2024": 27477,
+          "2025": 26327
+        },
+        "count": 430971,
+        "distinctIds": 430971,
+        "rowidMin": 6823,
+        "rowidMax": 444788,
+        "manifestSha256": "94339f777296cf81041594f6f864e35a3da3f2537312b7ec315d2c130dd2d5ea",
+        "manifestBytes": 22238531,
+        "manifestName": "cfb-roster-2005-2025-ids-20261017.json.gz"
+      }
+    }
+  ],
+  "explicitlyExcluded": [
+    {
+      "id": "cfb-roster-2004",
+      "reason": "Separate immutable manifest retentionReleaseAuthorized:false"
+    },
+    {
+      "id": "market-history-live-ws",
+      "db": "c32ccf06-c896-4d24-bb89-3e87a7412899",
+      "reason": "Live CURRENT WS recovery shard \u2014 never sole cold owner"
+    },
+    {
+      "id": "normalized-market-CURRENT",
+      "reason": "Live cards / prospective evidence remain on primary"
+    }
+  ],
+  "readerParity": "NOT_QUALIFIED",
+  "coldReadersPr": "https://github.com/coachhornsby/fbis/pull/1220",
+  "retireGatesPr": "https://github.com/coachhornsby/fbis/pull/1221",
+  "applyRequirements": [
+    "Operator sets retentionReleaseAuthorized:true on THIS package with a unique releaseId (>=8 chars)",
+    "STORAGE_RETIRE_APPLY=true and STORAGE_RETIRE_RELEASE_ID matching releaseId",
+    "Historical readers (#1220) merged with COLD_MARKET_ARCHIVE_READS still default-off until acceptance",
+    "Exact ID lists generated from archive parts and attached before APPLY",
+    "Bounded DELETE batches with physical size remeasure after each; stop if size does not drop",
+    "Run workflow Storage gated retirement with apply=false first; inspect artifact counts vs expectedArchivedIds",
+    "Set retentionReleaseAuthorized:true and releaseId (>=8 chars) on this package in a follow-up commit",
+    "Re-run workflow with apply=true and release_id matching package.releaseId",
+    "Remeasure primary file_size after batches; stop if physicalBytesReclaimed<=0 after meaningful deletes"
+  ],
+  "primaryBytesBefore": 10007482368,
+  "targetPrimaryBytes": 8000000000,
+  "gapBytes": 2007482368,
+  "expectedPhysicalReclaim": "UNKNOWN \u2014 row counts are not physical estimates; measure after each batch",
+  "sourceRowsDeleted": 0,
+  "sourceDbMutations": 0,
+  "exactIdManifestsLocal": {
+    "note": "Full gzip ID lists generated from GH artifact blocks; store as Actions/R2 artifacts, not necessarily in git",
+    "marketResearch": {
+      "contract": "fbis-retention-exact-ids-v1",
+      "retentionReleaseAuthorized": false,
+      "cohortId": "market-research-frozen-20261017",
+      "table": "normalized_market_observations",
+      "predicate": "snapshot_type = 'RESEARCH' AND rowid <= 667201",
+      "exportRun": "https://github.com/coachhornsby/fbis/actions/runs/39000566511",
+      "count": 497624,
+      "distinctIds": 497624,
+      "rowidMin": 1052,
+      "rowidMax": 625243,
+      "manifestSha256": "0f12d5e3182a9a1594a4a9042138270bf9a62f6b89ff4690c92ea78854cc0256",
+      "manifestBytes": 28747777,
+      "manifestName": "market-research-ids-20261017.json.gz"
+    },
+    "cfb2005_2025": {
+      "contract": "fbis-retention-exact-ids-v1",
+      "retentionReleaseAuthorized": false,
+      "cohortId": "cfb-roster-obs-2005-2025",
+      "table": "cfb_roster_observations",
+      "predicate": "season BETWEEN 2005 AND 2025",
+      "exportRun": "https://github.com/coachhornsby/fbis/actions/runs/39000566511",
+      "seasonCounts": {
+        "2005": 14608,
+        "2006": 15086,
+        "2007": 17476,
+        "2008": 18818,
+        "2009": 16512,
+        "2010": 16220,
+        "2011": 16312,
+        "2012": 16576,
+        "2013": 8836,
+        "2014": 22260,
+        "2015": 22762,
+        "2016": 23658,
+        "2017": 23140,
+        "2018": 24100,
+        "2019": 24224,
+        "2020": 16943,
+        "2021": 26846,
+        "2022": 26415,
+        "2023": 26375,
+        "2024": 27477,
+        "2025": 26327
+      },
+      "count": 430971,
+      "distinctIds": 430971,
+      "rowidMin": 6823,
+      "rowidMax": 444788,
+      "manifestSha256": "94339f777296cf81041594f6f864e35a3da3f2537312b7ec315d2c130dd2d5ea",
+      "manifestBytes": 22238531,
+      "manifestName": "cfb-roster-2005-2025-ids-20261017.json.gz"
+    }
+  },
+  "productionUrgency": {
+    "observedAt": "2026-10-17T06:45:34.540003Z",
+    "primarySymptom": "D1_ERROR: Exceeded maximum DB size",
+    "evidenceRuns": [
+      {
+        "run": "https://github.com/coachhornsby/fbis/actions/runs/39009924258",
+        "workflow": "FBIS research pipeline",
+        "notes": "mlb/cbb/nfl collect failures"
+      },
+      {
+        "run": "https://github.com/coachhornsby/fbis/actions/runs/39008688437",
+        "workflow": "FBIS research pipeline",
+        "notes": "HEALTH/CATCH-UP: mlb, nhl, cfb (157+ writes), nfl, soccer D1 max size"
+      }
+    ],
+    "sportsObservedFailingWrites": [
+      "mlb",
+      "nhl",
+      "cfb",
+      "nfl",
+      "soccer"
+    ],
+    "implication": "Live research ingestion cannot write; primary is at Cloudflare D1 hard cap. Archive+gates ready; DELETE still requires explicit retentionReleaseAuthorized=true + releaseId.",
+    "retentionReleaseAuthorized": false,
+    "sourceRowsDeleted": 0
+  },
+  "gatedRetireWorkflow": ".github/workflows/storage-retire-gated.yml",
+  "gatedRetireScript": "scripts/storage-retire-gated.mjs"
+}

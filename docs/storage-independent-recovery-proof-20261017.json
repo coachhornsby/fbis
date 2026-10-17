@@ -1,0 +1,18 @@
+{
+  "contract": "fbis-independent-recovery-proof-v1",
+  "blocksShaOk": 41,
+  "partsRestored": 30,
+  "fullFieldParity": true,
+  "integrity": {
+    "integrity": "ok",
+    "foreignKeyErrors": 0
+  },
+  "rowCounts": {
+    "normalized_market_observations": 75000,
+    "cfb_roster_observations": 75000
+  },
+  "researchManifestCount": 497624,
+  "cfbManifestCount": 430971,
+  "recoveryPolicyId": "fbis-recovery-policy-full-20261017-r2-cold-gh",
+  "driveBinaryMirrorRequired": false
+}
