@@ -1,0 +1,38 @@
+name: PR1225 governed current CFB refresh
+on:
+  push:
+    branches: [ops/pr1225-live-allowance]
+    paths: [.github/workflows/pr1225-current-refresh.yml]
+permissions:
+  contents: read
+concurrency:
+  group: fbis-college-research
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Require deployed release and provider-confirmed balance before collection
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          mkdir -p artifacts
+          curl --fail --silent --show-error --max-time 40 https://fbis-myz.pages.dev/api/health > artifacts/health.json
+          jq -e '.commitSha == "934f20af246027a40185bf01c7ef3269ed63e36e" and .d1.readOk == true' artifacts/health.json
+          curl --fail --silent --show-error --max-time 45 --request POST --header "x-harvest-secret: $HARVEST_SECRET" https://fbis-myz.pages.dev/api/college-provider-allowance > artifacts/provider-before.json
+          jq -e '.allowanceVerified == true and .remainingCalls > 1000' artifacts/provider-before.json
+          cat artifacts/provider-before.json
+          status=$(curl --silent --show-error --retry 0 --max-time 250 --header "x-harvest-secret: $HARVEST_SECRET" --output artifacts/current-refresh.json --write-out '%{http_code}' 'https://fbis-myz.pages.dev/api/college?job=cfb-current-refresh&trigger=workflow_dispatch&operatorApproved=true&year=2026&week=8&includePlayers=true')
+          echo "cfb-current-refresh http=$status"
+          jq -c '{ok,status,job,errors,gamesDiscovered,games_discovered,writes,d1:{coreAdvanced:.d1.coreAdvanced,endpoints:.d1.endpoints,quota:.d1.quota}}' artifacts/current-refresh.json
+          test "$status" = 200
+          jq -e '.ok == true' artifacts/current-refresh.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr1225-governed-cfb-current-refresh
+          path: artifacts/
+          retention-days: 90
