@@ -112,6 +112,21 @@ export function deriveTeamEnvironment(game = {}, side = "home") {
     expectedRushAttempts: round1(plays * rushRate),
     passEpa,
     rushEpa,
+    // Frozen, week-bounded CORE ratings are exposed to the player-prop
+    // challenger as diagnostic covariates. No uncalibrated CORE coefficient is
+    // applied to the live projection or shadow prop means.
+    core: {
+      year: num(feat.coreYear ?? feat.coreRow?.year),
+      throughWeek: num(feat.coreThroughWeek ?? feat.coreRow?.throughWeek),
+      rating: num(feat.coreRating ?? feat.coreRow?.rating),
+      offense: num(feat.coreOffense ?? feat.coreRow?.offense),
+      defense: num(feat.coreDefense ?? feat.coreRow?.defense),
+      eligiblePregame: game?.featureCutoffOk === true
+        && num(feat.coreThroughWeek ?? feat.coreRow?.throughWeek) != null
+        && num(feat.coreOffense ?? feat.coreRow?.offense) != null
+        && num(feat.coreDefense ?? feat.coreRow?.defense) != null,
+      appliedToPropMean: false,
+    },
     successRate: num(feat.successRate),
     lineYards: num(feat.lineYards),
     stuffRate: num(feat.stuffRate),
@@ -535,6 +550,8 @@ export function projectCfbPlayerV1(game = {}, opts = {}) {
       sourceVersion: CFB_PLAYER_V1_ARTIFACT.sourceVersion,
       championOverwritten: false,
       maxPlayers: 6,
+      coreStatus: "SHADOW_COVARIATE_ONLY",
+      coreAppliedToPropMean: false,
     },
   };
 
