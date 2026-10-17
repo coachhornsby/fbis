@@ -43,6 +43,7 @@ function MetricGroups({groups}) {
 }
 function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,intelligenceError}) {
   const {team,featureState,legacyForm,evidence={},apRanking,researchPanels} = detail, s=team.stadium;
+  const [activeTab,setActiveTab]=useState("overview");
   const [positionFilter,setPositionFilter]=useState("ALL");
   const [playerSearch,setPlayerSearch]=useState("");
   const roster=evidence?.roster?.players||[];
@@ -54,9 +55,9 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
     (!playerSearch.trim()||[r.name,r.position,r.jersey].filter(Boolean).some(v=>String(v).toLowerCase().includes(playerSearch.toLowerCase()))));
   const hasSnapshot = featureState?.state === "RESEARCH_SNAPSHOT";
   const features = featureState?.features || {};
-  return <div className="ft-profile">
+  return <div className="ft-profile" data-active-tab={activeTab}>
     <button type="button" className="ft-back" onClick={onBack}>← All FBS teams</button>
-    <header className="ft-hero" style={{"--ft-primary":team.colors.primary || "#27384d"}}>
+    <header className="ft-hero" style={{"--ft-primary":team.colors.primary || "#27384d","--ft-secondary":team.colors.secondary || team.colors.primary || "#4f83bd"}}>
       <TeamMark team={team} hero/>
       <div className="ft-hero-info">
         <div className="ft-kicker">{show(team.conference)} · FBS</div>
@@ -70,9 +71,19 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
         </div>
       </div>
     </header>
-    <CfbCurrentSummary intelligence={intelligence} error={intelligenceError} teamId={team.teamId} season={evidence.season||2026}/>
-    <CfbResearchPanels researchPanels={researchPanels}/>
-    <section className="ft-panel">
+    <div className="ft-rank-strip" aria-label="National ranking systems">
+      <div><span>AP TOP 25</span><strong>{apRanking?.state==="AVAILABLE"?(apRanking.rank?"#"+apRanking.rank:"Unranked"):"Unavailable"}</strong><small>{apRanking?.week?"Week "+apRanking.week:"Source not confirmed"}</small></div>
+      <div><span>CFP PLAYOFF RANK</span><strong>Not yet published</strong><small>2026 committee rankings; no fabricated rank</small></div>
+      <div><span>FBIS POWER RANK</span><strong>Unavailable</strong><small>Awaiting verified, model-derived national rank</small></div>
+    </div>
+    <nav className="ft-tabs" aria-label="Team profile sections">{[
+      ["overview","Overview"],["offense","Offense & Stats"],["defense","Defense & Games"],
+      ["players","Players"],["schedule","Schedule"],["data","Data Lab"]
+    ].map(([key,label])=><button type="button" key={key} className={activeTab===key?"is-active":""}
+      onClick={()=>setActiveTab(key)} aria-current={activeTab===key?"page":undefined}>{label}</button>)}</nav>
+    {activeTab==="overview"?<CfbCurrentSummary intelligence={intelligence} error={intelligenceError} teamId={team.teamId} season={evidence.season||2026}/>:null}
+    {activeTab==="overview"?<CfbResearchPanels researchPanels={researchPanels}/>:null}
+    <section className="ft-panel ft-tab-panel" data-section="data">
       <div className="ft-heading"><h3>Identity & team colors</h3><small>ESPN/SDV-sourced · school verification pending</small></div>
       <dl className="ft-facts">
         <Fact label="School" value={team.school}/>
@@ -87,7 +98,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
         <Fact label="Source observed" value={stamp(team.provenance.observedAt)}/>
       </dl>
     </section>
-    <section className="ft-panel">
+    <section className="ft-panel ft-tab-panel" data-section="data">
       <div className="ft-heading"><h3>Home stadium & geographic coordinates</h3>
         <small>Provider location · independently unverified</small></div>
       <div className="ft-venue-top"><div><h4>{show(s.name)}</h4>
@@ -107,7 +118,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
       <p className="ft-note">Coordinates are the stored provider venue location, not a verified street address or surveyed field-center.
         Stadium naming and precise pin placement remain subject to school/venue verification.</p>
     </section>
-    <section className="ft-panel">
+    <section className="ft-panel ft-tab-panel" data-section="data">
       <div className="ft-heading"><h3>Persistent team statistics</h3>
         <small>{hasSnapshot ? "Saved research snapshot" : "Not populated"}</small></div>
       {hasSnapshot ? <>
@@ -133,7 +144,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
         <small>Stored {stamp(legacyForm.updatedAt)} · May be stale</small>
       </div> : null}
     </section>
-    <section className="ft-panel">
+    <section className="ft-panel ft-tab-panel" data-section="offense">
       <div className="ft-heading"><h3>Season team statistics · All available fields</h3>
         <small>{evidence?.teamStatistics?.state === "SOURCE_OBSERVED" ? "Source observed" : "Not populated"}</small></div>
       <div className="ft-stats-summary">Selected season
@@ -149,7 +160,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
       </p> : <p className="ft-note">Source: {show(evidence.teamStatistics.source)} · Source as-of {stamp(evidence.teamStatistics.sourceAsOf)}
       {" · "}Collected {stamp(evidence.teamStatistics.asOf)} · Read-only, not an active model input.</p>}
     </section>
-    <section className="ft-panel">
+    <section className="ft-panel ft-tab-panel" data-section="defense">
       <div className="ft-heading"><h3>Individual game team statistics</h3>
         <small>{evidence?.teamGameStatistics?.count||0} source-observed team-game records</small></div>
       {(evidence?.teamGameStatistics?.games||[]).length
@@ -163,7 +174,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
           are stored for this season. The historical SDV team-game archive is a staging candidate,
           not live production state.</div>}
     </section>
-    <section className="ft-panel">
+    <section className="ft-panel ft-tab-panel" data-section="players">
       <div className="ft-heading"><h3>2026 and historical team rosters · All positions</h3>
         <small>{roster.length} distinct players · {show(evidence?.roster?.state)}</small></div>
       <p className="ft-note">Every listed player is a dated SportsDataverse/ESPN roster membership, not a confirmed starter,
@@ -200,7 +211,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
           : <p className="ft-note">No individually verified game box-score/statistical observations stored.</p>}
       </div> : null}
     </section>
-    <section className="ft-panel">
+    <section className="ft-panel ft-tab-panel" data-section="schedule">
       <div className="ft-heading"><h3>Season games and opponents</h3>
         <small>{evidence?.schedule?.count||0} ESPN team events · {show(evidence?.schedule?.state)}</small></div>
       <p className="ft-note">Team-specific ESPN fixtures. W/L and final scores appear only when the event status is officially final. AP ranking is separate from FBIS ratings.</p>
@@ -213,7 +224,7 @@ function TeamProfile({detail,onBack,onSeasonChange,onPlayerChange,intelligence,i
           <td>{g.result||"—"}</td>
         </tr>)}</tbody></table></div>
     </section>
-    <section className="ft-panel">
+    <section className="ft-panel ft-tab-panel" data-section="data">
       <h3>Planned weekly update lifecycle</h3>
       <p className="ft-muted">Completed-game source record → append team observations → new immutable team
         snapshot → frozen matchup inputs. This read-only profile does not rebuild weekly history,
