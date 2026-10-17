@@ -34,7 +34,7 @@ jobs:
         run: node --test test/nhl-goalie-prob-historical-expansion.test.js test/nhl-goalie-prob-shadow.test.js
 
       - name: Restore historical expansion cache
-        uses: actions/cache@v4.2.0
+        uses: actions/cache@v6.1.0
         with:
           path: .cache/nhl-goalie-historical-expansion
           key: nhl-goalie-historical-expansion-v1-${{ runner.os }}-${{ hashFiles('scripts/nhl-pro-v2-walkforward.mjs','scripts/nhl-goalie-prob-historical-expansion-v1.mjs') }}

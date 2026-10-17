@@ -32,7 +32,7 @@ jobs:
       - name: Focused governance tests
         run: node --test test/nhl-persistent-state-challenger.test.js test/nhl-persistent-profiles.test.js
       - name: Restore historical state cache
-        uses: actions/cache@v4.2.0
+        uses: actions/cache@v6.1.0
         with:
           path: .cache/nhl-persistent-state-v1
           key: nhl-persistent-state-v1-${{ runner.os }}-${{ hashFiles('scripts/nhl-persistent-state-walkforward.mjs') }}

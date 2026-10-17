@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: 24
       - name: Restore NHL PBP cache
-        uses: actions/cache@v4.2.0
+        uses: actions/cache@v6.1.0
         with:
           path: .cache/nhl-pro-v2
           key: nhl-pro-v2-pbp-v1-${{ runner.os }}-${{ hashFiles('scripts/nhl-pro-v2-walkforward.mjs', 'scripts/nhl-pro-v2-fit.mjs') }}
