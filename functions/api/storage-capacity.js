@@ -3,8 +3,8 @@ import {
   D1_HARD_LIMIT_BYTES,
   capacityAlertLevel,
   DATABASE_OWNERS,
-  resolveReadyOperationsDb,
 } from "../lib/databaseOwnership.js";
+import { withOperationsWrite } from "../lib/operationsDb.js";
 
 /** Accurate D1 storage telemetry from the binding query metadata.
  * SQLite dbstat/page_count is not authorized on production D1.
@@ -93,41 +93,41 @@ async function probe(binding) {
 }
 
 async function persistCapacitySnapshot(env, summary) {
-  const { db, warning } = await resolveReadyOperationsDb(env);
-  if (!db?.prepare) return { ok: false, reason: "operations-db-unbound", warning };
-  const measuredAt = new Date().toISOString();
-  const rows = [
-    ["PRIMARY", DATABASE_OWNERS.PRIMARY.databaseId, DATABASE_OWNERS.PRIMARY.databaseName, summary.primary],
-    ["MARKET_HISTORY", DATABASE_OWNERS.MARKET_HISTORY.databaseId, DATABASE_OWNERS.MARKET_HISTORY.databaseName, summary.historyShard],
-  ];
-  if (summary.operations) {
-    rows.push(["OPERATIONS", DATABASE_OWNERS.OPERATIONS.databaseId, DATABASE_OWNERS.OPERATIONS.databaseName, summary.operations]);
-  }
-  for (const [key, id, name, info] of rows) {
-    const measurementId = `${key}:${measuredAt}`;
-    await db.prepare(
-      `INSERT OR REPLACE INTO fbis_capacity_measurements (
-        measurement_id, measured_at, database_key, database_id, database_name,
-        used_bytes, hard_limit_bytes, percent_used, alert_level,
-        alert_80, alert_85, alert_90, metadata_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(
-      measurementId,
-      measuredAt,
-      key,
-      id,
-      name,
-      info.usedBytes,
-      info.hardLimitBytes,
-      info.percentUsed,
-      info.alertLevel,
-      info.percentUsed >= 80 ? 1 : 0,
-      info.percentUsed >= 85 ? 1 : 0,
-      info.percentUsed >= 90 ? 1 : 0,
-      JSON.stringify({ state: info.state, alerts: info.alerts })
-    ).run();
-  }
-  return { ok: true, measuredAt };
+  return withOperationsWrite(env, async (db) => {
+    const measuredAt = new Date().toISOString();
+    const rows = [
+      ["PRIMARY", DATABASE_OWNERS.PRIMARY.databaseId, DATABASE_OWNERS.PRIMARY.databaseName, summary.primary],
+      ["MARKET_HISTORY", DATABASE_OWNERS.MARKET_HISTORY.databaseId, DATABASE_OWNERS.MARKET_HISTORY.databaseName, summary.historyShard],
+    ];
+    if (summary.operations) {
+      rows.push(["OPERATIONS", DATABASE_OWNERS.OPERATIONS.databaseId, DATABASE_OWNERS.OPERATIONS.databaseName, summary.operations]);
+    }
+    for (const [key, id, name, info] of rows) {
+      const measurementId = `${key}:${measuredAt}`;
+      await db.prepare(
+        `INSERT OR REPLACE INTO fbis_capacity_measurements (
+          measurement_id, measured_at, database_key, database_id, database_name,
+          used_bytes, hard_limit_bytes, percent_used, alert_level,
+          alert_80, alert_85, alert_90, metadata_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        measurementId,
+        measuredAt,
+        key,
+        id,
+        name,
+        info.usedBytes,
+        info.hardLimitBytes,
+        info.percentUsed,
+        info.alertLevel,
+        info.percentUsed >= 80 ? 1 : 0,
+        info.percentUsed >= 85 ? 1 : 0,
+        info.percentUsed >= 90 ? 1 : 0,
+        JSON.stringify({ state: info.state, alerts: info.alerts })
+      ).run();
+    }
+    return { ok: true, measuredAt };
+  });
 }
 
 export async function onRequestGet({ env, request } = {}) {

@@ -4,7 +4,7 @@
 
 import { MODEL_VERSION } from "./weights.js";
 import { recordRunManifest, recordWatchdogMetric, upsertOpsHealth } from "./opsHealthLedger.js";
-import { resolveReadyOperationsDb } from "./databaseOwnership.js";
+import { resolveOperationsWriteTarget } from "./operationsDb.js";
 import { hasDb, persistJobRun, queryJobHealth, setMeta } from "./store.js";
 import {
   lastExpectedCollectUtc,
@@ -216,7 +216,7 @@ export async function recordJob(env, row) {
 
 async function syncJobOpsTelemetry(env, payload, componentId) {
   const { db: opsDb, preferred: operationsPreferred, warning: operationsWarning } =
-    await resolveReadyOperationsDb(env);
+    await resolveOperationsWriteTarget(env);
   if (!opsDb?.prepare) return { ok: false, reason: "d1-unbound" };
 
   const completedAt = payload.completedAt || new Date().toISOString();

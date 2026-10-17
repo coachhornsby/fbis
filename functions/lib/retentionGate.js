@@ -5,7 +5,7 @@
 
 import { createHash } from "node:crypto";
 import { DATABASE_OWNERS } from "./databaseOwnership.js";
-import { resolveReadyOperationsDb } from "./databaseOwnership.js";
+import { withOperationsWrite } from "./operationsDb.js";
 
 export const RETENTION_GATE_CONTRACT = "fbis-retention-release-gate-v1";
 
@@ -103,32 +103,30 @@ export function retentionGateRecord(proposal = {}, evaluation = null) {
 export async function persistRetentionGate(env, proposal) {
   const evaluation = evaluateRetentionRelease(proposal);
   const record = retentionGateRecord(proposal, evaluation);
-  const { db, warning } = await resolveReadyOperationsDb(env);
-  if (!db?.prepare) return { ok: false, reason: "operations-db-unbound", evaluation, record, warning };
-
-  await db.prepare(
-    `INSERT OR REPLACE INTO fbis_retention_release_gates (
-      release_id, cohort_key, source_database, proposed_at,
-      r2_archive_verified, r2_readback_sha256, independent_restore_verified,
-      independent_restore_evidence, drive_copy_verified, consumer_audit_complete,
-      retention_release_authorized, source_rows_deleted, blocked_reason, metadata_json, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
-  ).bind(
-    record.releaseId,
-    record.cohortKey,
-    record.sourceDatabase,
-    record.proposedAt,
-    record.r2ArchiveVerified,
-    record.r2ReadbackSha256,
-    record.independentRestoreVerified,
-    record.independentRestoreEvidence,
-    record.driveCopyVerified,
-    record.consumerAuditComplete,
-    record.retentionReleaseAuthorized,
-    record.sourceRowsDeleted,
-    record.blockedReason,
-    record.metadataJson
-  ).run();
-
-  return { ok: true, evaluation, record };
+  return withOperationsWrite(env, async (db) => {
+    await db.prepare(
+      `INSERT OR REPLACE INTO fbis_retention_release_gates (
+        release_id, cohort_key, source_database, proposed_at,
+        r2_archive_verified, r2_readback_sha256, independent_restore_verified,
+        independent_restore_evidence, drive_copy_verified, consumer_audit_complete,
+        retention_release_authorized, source_rows_deleted, blocked_reason, metadata_json, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+    ).bind(
+      record.releaseId,
+      record.cohortKey,
+      record.sourceDatabase,
+      record.proposedAt,
+      record.r2ArchiveVerified,
+      record.r2ReadbackSha256,
+      record.independentRestoreVerified,
+      record.independentRestoreEvidence,
+      record.driveCopyVerified,
+      record.consumerAuditComplete,
+      record.retentionReleaseAuthorized,
+      record.sourceRowsDeleted,
+      record.blockedReason,
+      record.metadataJson
+    ).run();
+    return { ok: true, evaluation, record };
+  });
 }

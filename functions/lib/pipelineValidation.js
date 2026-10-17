@@ -4,7 +4,7 @@
  */
 
 import { BOARD_SPORTS } from "./slateEngineCore.js";
-import { resolveReadyOperationsDb } from "./databaseOwnership.js";
+import { withOperationsWrite } from "./operationsDb.js";
 import { createHash } from "node:crypto";
 
 export const PIPELINE_VALIDATION_SPORTS = Object.freeze([
@@ -282,30 +282,30 @@ export async function validateAllSportPipelines(env, { sports = PIPELINE_VALIDAT
 }
 
 export async function persistPipelineValidation(env, report, { deploymentSha = null } = {}) {
-  const { db, warning } = await resolveReadyOperationsDb(env);
-  if (!db?.prepare) return { ok: false, reason: "operations-db-unbound", persisted: 0, warning };
-  let persisted = 0;
-  for (const row of report.results || []) {
-    const runId = `pipeline:${row.sport}:${sha16(row.validatedAt + row.sport + String(row.overallOk))}`;
-    await db.prepare(
-      `INSERT OR REPLACE INTO fbis_pipeline_validation_runs (
-        run_id, validated_at, sport, collection_ok, projections_ok, odds_ok,
-        model_updates_ok, player_props_ok, overall_ok, detail_json, deployment_sha
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(
-      runId,
-      row.validatedAt,
-      row.sport,
-      row.collectionOk ? 1 : 0,
-      row.projectionsOk ? 1 : 0,
-      row.oddsOk ? 1 : 0,
-      row.modelUpdatesOk ? 1 : 0,
-      row.playerPropsOk ? 1 : 0,
-      row.overallOk ? 1 : 0,
-      JSON.stringify(row.surfaces),
-      deploymentSha
-    ).run();
-    persisted += 1;
-  }
-  return { ok: true, persisted };
+  return withOperationsWrite(env, async (db) => {
+    let persisted = 0;
+    for (const row of report.results || []) {
+      const runId = `pipeline:${row.sport}:${sha16(row.validatedAt + row.sport + String(row.overallOk))}`;
+      await db.prepare(
+        `INSERT OR REPLACE INTO fbis_pipeline_validation_runs (
+          run_id, validated_at, sport, collection_ok, projections_ok, odds_ok,
+          model_updates_ok, player_props_ok, overall_ok, detail_json, deployment_sha
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        runId,
+        row.validatedAt,
+        row.sport,
+        row.collectionOk ? 1 : 0,
+        row.projectionsOk ? 1 : 0,
+        row.oddsOk ? 1 : 0,
+        row.modelUpdatesOk ? 1 : 0,
+        row.playerPropsOk ? 1 : 0,
+        row.overallOk ? 1 : 0,
+        JSON.stringify(row.surfaces),
+        deploymentSha
+      ).run();
+      persisted += 1;
+    }
+    return { ok: true, persisted };
+  });
 }

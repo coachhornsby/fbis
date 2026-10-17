@@ -4,7 +4,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { resolveReadyOperationsDb } from "./databaseOwnership.js";
+import { withOperationsWrite } from "./operationsDb.js";
 
 export const PERFORMANCE_AUDIT_CONTRACT = "fbis-d1-performance-audit-v1";
 
@@ -114,33 +114,33 @@ export function runStaticPerformanceAudit({ now = new Date() } = {}) {
 }
 
 export async function persistPerformanceFindings(env, audit) {
-  const { db, preferred, warning } = await resolveReadyOperationsDb(env);
-  if (!db?.prepare) return { ok: false, reason: "operations-db-unbound", persisted: 0, warning };
-  let persisted = 0;
-  for (const finding of audit.findings || []) {
-    await db.prepare(
-      `INSERT OR REPLACE INTO fbis_d1_performance_findings (
-        finding_id, recorded_at, finding_type, severity, table_name, index_name,
-        detail, recommendation, estimated_d1_impact, status, metadata_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(
-      finding.findingId,
-      finding.recordedAt || audit.recordedAt,
-      finding.findingType,
-      finding.severity,
-      finding.tableName,
-      finding.indexName,
-      finding.detail,
-      finding.recommendation,
-      finding.estimatedD1Impact,
-      finding.status || "OPEN",
-      JSON.stringify({
-        contract: PERFORMANCE_AUDIT_CONTRACT,
-        operationsPreferred: preferred,
-        evidenceSha256: createHash("sha256").update(finding.findingId + finding.detail).digest("hex"),
-      })
-    ).run();
-    persisted += 1;
-  }
-  return { ok: true, persisted, preferredOperationsDb: preferred };
+  return withOperationsWrite(env, async (db, target) => {
+    let persisted = 0;
+    for (const finding of audit.findings || []) {
+      await db.prepare(
+        `INSERT OR REPLACE INTO fbis_d1_performance_findings (
+          finding_id, recorded_at, finding_type, severity, table_name, index_name,
+          detail, recommendation, estimated_d1_impact, status, metadata_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        finding.findingId,
+        finding.recordedAt || audit.recordedAt,
+        finding.findingType,
+        finding.severity,
+        finding.tableName,
+        finding.indexName,
+        finding.detail,
+        finding.recommendation,
+        finding.estimatedD1Impact,
+        finding.status || "OPEN",
+        JSON.stringify({
+          contract: PERFORMANCE_AUDIT_CONTRACT,
+          operationsPreferred: target.preferred === true,
+          evidenceSha256: createHash("sha256").update(finding.findingId + finding.detail).digest("hex"),
+        })
+      ).run();
+      persisted += 1;
+    }
+    return { ok: true, persisted, preferredOperationsDb: target.preferred === true };
+  });
 }
