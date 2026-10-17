@@ -15,7 +15,9 @@ export async function cfbdRequestHash(url) {
   const u = new URL(url);
   // Preserve historical CFBD hashes while separating CBBD requests with the
   // same path/query (the two APIs share the subscription quota).
-  const sourcePrefix=u.hostname==="api.collegebasketballdata.com"?"cbbd:":"";
+  // GraphQL uses the same CFBD entitlement; a smaller response is NOT assumed cheaper.
+  const sourcePrefix=u.hostname==="api.collegebasketballdata.com"?"cbbd:"
+    :u.hostname==="graphql.collegefootballdata.com"?"cfbd-graphql:":"";
   const text = sourcePrefix + u.pathname + "?" + [...u.searchParams.entries()].sort(([a,av],[b,bv]) => a.localeCompare(b) || av.localeCompare(bv))
     .map(([k,v])=>encodeURIComponent(k)+"="+encodeURIComponent(v)).join("&");
   const bytes = new TextEncoder().encode(text);
@@ -25,7 +27,9 @@ export async function cfbdRequestHash(url) {
 export async function reserveCfbdRequest(env, url, now = Date.now()) {
   const hostname=new URL(url).hostname;
   const basketball=hostname==="api.collegebasketballdata.com";
-  if (!basketball && hostname!=="api.collegefootballdata.com") return {allowed:false,reason:"COLLEGE_UNKNOWN_HOST"};
+  const graphql=hostname==="graphql.collegefootballdata.com";
+  if (!basketball && !graphql && hostname!=="api.collegefootballdata.com") return {allowed:false,reason:"COLLEGE_UNKNOWN_HOST"};
+  // GraphQL shares the CFBD owner flag and the shared monthly budget with REST.
   if (basketball ?
       (env.cbbdCacheOnly || env.cbbdNetworkAuthorized !== true) :
       (env.cfbdCacheOnly || env.cfbdNetworkAuthorized !== true))
