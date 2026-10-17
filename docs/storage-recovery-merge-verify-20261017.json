@@ -1,0 +1,56 @@
+{
+  "contract": "fbis-storage-recovery-merge-verify-v1",
+  "verifiedAt": "2026-10-17T08:11:00.000Z",
+  "merged": {
+    "pr1220": {
+      "title": "cold historical readers",
+      "mergedAt": "2026-10-17T07:59:11Z",
+      "sha": "4f5f440ecdd2d8a74029050a8418509b0e199eb8"
+    },
+    "pr1221": {
+      "title": "verified primary D1 retirement under 8 GiB",
+      "mergedAt": "2026-10-17T08:00:05Z",
+      "sha": "cf49407d4af0fca2d12f02e3412a3a2e8d93b3b9"
+    },
+    "pr1227": {
+      "title": "SoftMatch card contract CI unblock",
+      "mergedAt": "2026-10-17T08:07:02Z",
+      "sha": "2255b597eec8db4cb6ff803975ee8f2cd6756723"
+    }
+  },
+  "production": {
+    "base": "https://fbis-myz.pages.dev",
+    "deploymentCommit": "2255b597eec8db4cb6ff803975ee8f2cd6756723",
+    "health": "HEALTHY",
+    "d1WriteOk": true,
+    "d1ReadOk": true,
+    "coldMarketArchiveReads": "disabled",
+    "notes": "Pages git integration + CI TEST/BUILD green. DEPLOY PRODUCTION job failed late on market-history-shard shadow parity HTTP 503; Pages SHA nevertheless matches #1227."
+  },
+  "historicalRetrieval": {
+    "primaryBytes": 6448775168,
+    "under8GiB": true,
+    "researchPrimaryRemaining": 0,
+    "researchCold": 497624,
+    "cfbCold2005_2025": 430971,
+    "cfb2004PrimaryProtected": 13644,
+    "retiredIdAbsentOnPrimary": true,
+    "retiredIdPresentOnCold": true,
+    "sampleRetiredId": "nmo_8db2d35ae8c5c66d700f8247b7f9",
+    "r2Prefix": "research/storage-recovery/full-20261017/",
+    "r2ObjectsListed": true,
+    "storageArchiveAcceptanceSeeded": {
+      "market-20261017": "COPY_VERIFIED",
+      "cfb-2005-2025": "COPY_VERIFIED"
+    }
+  },
+  "localRegression": {
+    "coldMarketHistoryAndStorageGates": "32 pass",
+    "softMatchCardContracts": "47 pass"
+  },
+  "pendingAuthenticatedApiVerify": [
+    "POST /api/market-cold-history operation=verify (requires HARVEST_SECRET)",
+    "GET /api/cfb-cold-history?season=2005 (requires HARVEST_SECRET)",
+    "GET /api/market-history-shard?source=PinnOdds&limit=3 (503 during deploy; needs diagnosis + HARVEST_SECRET)"
+  ]
+}
