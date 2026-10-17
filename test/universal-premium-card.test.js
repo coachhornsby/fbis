@@ -63,7 +63,7 @@ test("spread gap colors follow the compared team and preserve totals, unavailabl
  assert.match(card,/cgc-gap-team-branded/);
  assert.match(card,/--cgc-gap-brand/);
  assert.match(card,/cgc-gap-side-name/);
- assert.match(card,/size=\{64\} className="cgc-edge-logo"/);
+ assert.match(card,/size=\{83\} className="cgc-edge-logo"/);
  assert.match(card,/CAPTURED LINE · NOT EV/);
  assert.match(css,/\.cgc-best-edge\.cgc-gap-team-branded/);
  assert.match(css,/--cgc-gap-accent/);
