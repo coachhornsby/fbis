@@ -1,48 +1,29 @@
 name: College provider allowance audit
 on:
-  push:
-    branches: [engineering/cfb-tier3-core-rebased-20261017]
-    paths: [.github/workflows/college-provider-allowance-audit.yml]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   account-metadata:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_commit.message, '#1225'))
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Check current shared allowance without starting collection
+      - name: Check current shared allowance through production credential
         env:
-          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
-          node --input-type=module <<'JS'
-          import {mkdirSync, writeFileSync} from 'node:fs';
-          if (!process.env.CFBD_API_KEY) throw new Error('CFBD credential missing');
-          const response = await fetch('https://api.collegefootballdata.com/info', {
-            headers: {Authorization: 'Bearer ' + process.env.CFBD_API_KEY, Accept: 'application/json'},
-            signal: AbortSignal.timeout(30000)
-          });
-          let body = null;
-          try { body = await response.json(); } catch {}
-          const receipt = {
-            checkedAt: new Date().toISOString(), endpoint: '/info', httpStatus: response.status,
-            patronLevel: body?.patronLevel ?? null, tierName: body?.tierName ?? null,
-            monthlyLimit: body?.monthlyLimit ?? null, remainingCalls: body?.remainingCalls ?? null,
-            usedCalls: body?.usedCalls ?? null, resetAt: body?.resetAt ?? null,
-            sharedPool: body?.sharedPool ?? null, products: body?.products ?? null,
-            headerRemaining: response.headers.get('x-calllimit-remaining'),
-            collectionStarted: false, quotaAcknowledged: false
-          };
-          receipt.allowanceVerified = response.ok && Number.isFinite(receipt.remainingCalls);
-          receipt.collectionPermitted = receipt.allowanceVerified && receipt.remainingCalls > 100;
-          mkdirSync('artifacts', {recursive:true});
-          writeFileSync('artifacts/provider-allowance.json', JSON.stringify(receipt, null, 2));
-          console.log(JSON.stringify(receipt));
-          if (!receipt.allowanceVerified) process.exitCode = 1;
-          JS
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          mkdir -p artifacts
+          status=$(curl --silent --show-error --max-time 45 --request POST --header "x-harvest-secret: $HARVEST_SECRET" --output artifacts/provider-allowance.json --write-out '%{http_code}' https://fbis-myz.pages.dev/api/college-provider-allowance)
+          cat artifacts/provider-allowance.json
+          test "$status" = 200
+          jq -e '.allowanceVerified == true and .collectionStarted == false and .quotaAcknowledged == false' artifacts/provider-allowance.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
