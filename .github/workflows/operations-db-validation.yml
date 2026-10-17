@@ -1,0 +1,39 @@
+name: Operations D1 Validation
+on:
+  pull_request:
+    paths:
+      - "functions/api/operations-db-health.js"
+      - "migrations/operations/**"
+      - "test/operations-db-health.test.mjs"
+      - ".github/workflows/operations-db-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/operations-db-health.js"
+      - "migrations/operations/**"
+      - "test/operations-db-health.test.mjs"
+      - ".github/workflows/operations-db-validation.yml"
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify operations API behavior
+        run: node --test test/operations-db-health.test.mjs
+      - name: Verify independent SQLite schema and indexes
+        run: |
+          python3 - <<'PY'
+          import sqlite3, pathlib
+          db=sqlite3.connect(":memory:")
+          for file in sorted(pathlib.Path("migrations/operations").glob("*.sql")):
+              db.executescript(file.read_text())
+          db.execute("INSERT INTO operations_job_runs(id,job_type,idempotency_key,status) VALUES ('test-1','audit','sample-key','queued')")
+          assert db.execute("SELECT status FROM operations_job_runs WHERE id='test-1'").fetchone()[0] == "queued"
+          indexes={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+          assert "idx_operations_job_runs_type_status_updated" in indexes
+          assert "idx_operations_job_runs_updated" in indexes
+          print("operations migrations, indexes and isolated insert verified")
+          PY
