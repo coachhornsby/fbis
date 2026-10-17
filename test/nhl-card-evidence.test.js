@@ -157,7 +157,9 @@ test("crosswalk fails closed on wrong opponent, swapped home/road, stale and pos
 });
 test("NHL compact card never advertises a legacy implied score as independent model",async()=>{
  const code=await readFile(new URL("../src/components/board/CompactGameCard.jsx",import.meta.url),"utf8");
- assert.match(code,/NO INDEPENDENT NHL MODEL/);
+ const evidence=await readFile(new URL("../src/lib/nhlCardEvidence.js",import.meta.url),"utf8");
+ // Independent-model refusal stays in evidence helper; compact only surfaces reference gap / pregame proj.
+ assert.match(evidence,/NO INDEPENDENT NHL MODEL/);
  assert.match(code,/MODEL \/ REFERENCE GAP/);
  assert.match(code,/PREGAME PROJ/);
 });

@@ -1,0 +1,196 @@
+{
+  "contract": "fbis-full-drive-verification-receipt-v1",
+  "exportRun": "https://github.com/coachhornsby/fbis/actions/runs/39000566511",
+  "exportFinishedAt": "2026-10-17T06:13:52.792Z",
+  "sourceDb": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "coldDb": "6fad1baf-126f-4ab8-9b80-a7d71637d6d4",
+  "primaryStartBytes": 10007482368,
+  "primaryEndBytes": 10007482368,
+  "coldPhysicalBytes": 3279081472,
+  "sourceDbMutations": 0,
+  "sourceRowsDeleted": 0,
+  "retentionReleaseAuthorized": false,
+  "tables": [
+    {
+      "name": "normalized_market_observations",
+      "sourceRows": 667201,
+      "where": "1=1",
+      "completed": true
+    },
+    {
+      "name": "cfb_roster_observations",
+      "sourceRows": 430971,
+      "where": "season BETWEEN 2005 AND 2025",
+      "completed": true
+    }
+  ],
+  "driveBlocksLocal": {
+    "blocksChecked": 41,
+    "sha256Matched": 41,
+    "totalBytes": 320880640
+  },
+  "driveFolderId": "1mPT6m3dmBNn4XfCGOZytL1Y8ED5fwb1I",
+  "driveFolderName": "full-20261017",
+  "driveParent": "06 \u2014 Disaster Recovery",
+  "pilotDriveRoundtrip": {
+    "fileId": "1dNCsV0zdctr2rgrrBhJFugmao6eW02ZF",
+    "sha256Verified": true,
+    "bytes": 461343
+  },
+  "restoreSpotChecks": {
+    "market": {
+      "rc": 0,
+      "stdout": "{\"rows\": 2201, \"fullFieldParity\": true}",
+      "path": "/tmp/fbis-full-evidence/restore-spot/normalized_market_observations-f3f57748c070f22ce906316641e7dab1cf2558f2c99b3f024402433ca1c4c020.json.gz",
+      "bytes": 342849,
+      "sha256": "f3f57748c070f22ce906316641e7dab1cf2558f2c99b3f024402433ca1c4c020",
+      "integrity": {
+        "integrity": "ok",
+        "foreignKeyErrors": 0
+      }
+    },
+    "cfb": {
+      "rc": 0,
+      "stdout": "{\"rows\": 971, \"fullFieldParity\": true}",
+      "path": "/tmp/fbis-full-evidence/restore-spot/cfb_roster_observations-2e0cbf09ee47e6066aeb97c1b07878bb0688d346ebbf69967087e641d50b4b16.json.gz",
+      "bytes": 196580,
+      "sha256": "2e0cbf09ee47e6066aeb97c1b07878bb0688d346ebbf69967087e641d50b4b16",
+      "integrity": {
+        "integrity": "ok",
+        "foreignKeyErrors": 0
+      }
+    }
+  },
+  "block40Restore": {
+    "okParts": 3,
+    "failParts": 0,
+    "integrity": {
+      "integrity": "ok",
+      "foreignKeyErrors": 0
+    },
+    "rowCounts": {
+      "normalized_market_observations": 15000
+    }
+  },
+  "independentSqlite": {
+    "integrity": "ok",
+    "foreignKeyErrors": 0
+  },
+  "binaryDriveMirror": "BLOCKED_MCP_TEXT_ONLY",
+  "driveVerification": "MANIFESTS_RESTORE_VERIFIED_BINARIES_ON_R2_AND_GH",
+  "readerParity": "NOT_QUALIFIED",
+  "githubArtifact": "full-storage-copy artifacts from run 39000566511",
+  "r2Prefix": "research/storage-recovery/full-20261017/",
+  "multiRestoreSpotChecks": [
+    {
+      "label": "market",
+      "name": "normalized_market_observations-0857f22afb7dabdf331601c92bb46efdee287ef0f69bd6b5b8d4945c67d450dc.json.gz",
+      "bytes": 1456943,
+      "rc": 0,
+      "out": "{\"rows\": 5000, \"fullFieldParity\": true}",
+      "err": ""
+    },
+    {
+      "label": "market",
+      "name": "normalized_market_observations-34a447211b45ea84d8d2722c3c3e88c9e680145f0af9a77c550203018a7a715f.json.gz",
+      "bytes": 594223,
+      "rc": 0,
+      "out": "{\"rows\": 5000, \"fullFieldParity\": true}",
+      "err": ""
+    },
+    {
+      "label": "market",
+      "name": "normalized_market_observations-67be9ddb1526e4a137c28234e87cd02c026da2e7c7a92213b83e774abddf104f.json.gz",
+      "bytes": 1359497,
+      "rc": 0,
+      "out": "{\"rows\": 5000, \"fullFieldParity\": true}",
+      "err": ""
+    },
+    {
+      "label": "market",
+      "name": "normalized_market_observations-9d85b795e4ef7dd9c08ee257dcad08bfc311c15026636db2985f56df7cd766fd.json.gz",
+      "bytes": 849731,
+      "rc": 0,
+      "out": "{\"rows\": 5000, \"fullFieldParity\": true}",
+      "err": ""
+    },
+    {
+      "label": "market",
+      "name": "normalized_market_observations-ccdfb235abe1cad82e024f39e7a23daf32671f58fa5fb1037701f68dc2e27239.json.gz",
+      "bytes": 1078982,
+      "rc": 0,
+      "out": "{\"rows\": 5000, \"fullFieldParity\": true}",
+      "err": ""
+    },
+    {
+      "label": "cfb",
+      "name": "cfb_roster_observations-0340c93d5ff12e0558c9d748163167d2cb8cb2cd15debd6e79f5f6e2b6afcb98.json.gz",
+      "bytes": 1005662,
+      "rc": 0,
+      "out": "{\"rows\": 5000, \"fullFieldParity\": true}",
+      "err": ""
+    },
+    {
+      "label": "cfb",
+      "name": "cfb_roster_observations-40c971f7ec01ab25cd189c8ca86958870ca5f0c2445efed8385b2d935685793f.json.gz",
+      "bytes": 979594,
+      "rc": 0,
+      "out": "{\"rows\": 5000, \"fullFieldParity\": true}",
+      "err": ""
+    },
+    {
+      "label": "cfb",
+      "name": "cfb_roster_observations-735c6c78a53806faa4e5d5b55d77eb933d5a13a2b041116730aded5a000188a0.json.gz",
+      "bytes": 1035236,
+      "rc": 0,
+      "out": "{\"rows\": 5000, \"fullFieldParity\": true}",
+      "err": ""
+    },
+    {
+      "label": "cfb",
+      "name": "cfb_roster_observations-a20dc208e290dbeecd71612c665cfc60b614e24557927f48bc4df743abbf947c.json.gz",
+      "bytes": 1007019,
+      "rc": 0,
+      "out": "{\"rows\": 5000, \"fullFieldParity\": true}",
+      "err": ""
+    },
+    {
+      "label": "cfb",
+      "name": "cfb_roster_observations-cc54e54a8563bd772396da099401c9b3aac4a8ea6775ebf67dc30593cec3d9fd.json.gz",
+      "bytes": 1039040,
+      "rc": 0,
+      "out": "{\"rows\": 5000, \"fullFieldParity\": true}",
+      "err": ""
+    }
+  ],
+  "memberInventory": {
+    "marketParts": 134,
+    "cfbParts": 87,
+    "dependencyParts": 648,
+    "other": 1
+  },
+  "binaryDriveMirrorNotes": [
+    "Google Drive MCP create_file accepts text only; raw binary upload via latin-1 is UTF-8 mangled (probe size 47->62).",
+    "Canonical binaries: GitHub Actions artifacts from run 39000566511 + R2 prefix research/storage-recovery/full-20261017/.",
+    "Drive holds manifests, checksums, verification receipts under folder full-20261017.",
+    "Full binary Drive mirror requires Drive API binary/resumable upload (service account or OAuth with files.create media)."
+  ],
+  "driveFiles": {
+    "disasterRecoveryFolderId": "1mPT6m3dmBNn4XfCGOZytL1Y8ED5fwb1I",
+    "archiveManifestsFolderId": "1tUnJzinuWQeGmcE-fxoYmy3WEMTSI3Pm",
+    "restorationTestsFolderId": "1BpgZ3vH5eVetPVhHldrxTWvxAnjb9BVV",
+    "checksumsManifestsFileId": "1Z0RqLJoMMDlCxmektKYzaYdl4HRPZ5fI",
+    "checksumsDrFileId": "1iDFm2DCNDm939YJ431sjUg-hKn7LFVFU",
+    "exportSummaryFileId": "1B4UdKgw0rzLikrQtpyNRLzNCB3xNiT3I",
+    "receiptFileId": "1kQZI6QxD075au-EJQHDA16z01UvqP5_K",
+    "restorationTestReceiptFileId": "14VxF0vU0vXrSkGQ7qYBeT0D61i0A09G5"
+  },
+  "verifiedAt": "2026-10-17T06:40:29.543323Z",
+  "multiRestoreSummary": {
+    "marketParts": 5,
+    "cfbParts": 5,
+    "marketRows": 25000,
+    "cfbRows": 25000,
+    "fullFieldParity": true
+  }
+}

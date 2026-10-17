@@ -1,0 +1,44 @@
+{
+  "contract": "fbis-storage-retire-apply-v1",
+  "completed": true,
+  "pass": true,
+  "appliedAt": "2026-10-17T07:24:43.000Z",
+  "releaseId": "release-20261017-storage-a1",
+  "retentionReleaseAuthorized": true,
+  "recoveryPolicyId": "fbis-recovery-policy-full-20261017-r2-cold-gh",
+  "primaryDb": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "coldDb": "6fad1baf-126f-4ab8-9b80-a7d71637d6d4",
+  "primaryBytesBefore": 10007482368,
+  "primaryBytesAfter": 6446997504,
+  "physicalBytesReclaimed": 3560484864,
+  "under8GiB": true,
+  "cohorts": {
+    "market-research-frozen-20261017": {
+      "deleted": 497624,
+      "primaryRemaining": 0,
+      "coldCount": 497624
+    },
+    "cfb-roster-obs-2005-2025": {
+      "deleted": 430971,
+      "primaryRemaining": 0,
+      "coldCount": 430971
+    }
+  },
+  "protected": {
+    "currentBeforeDryRun": 169577,
+    "currentAfterApply": 173677,
+    "currentNeverDecreased": true,
+    "cfb2004": 13644,
+    "cfb2004Unchanged": true
+  },
+  "writeProbe": {
+    "ok": true,
+    "method": "CREATE/INSERT/SELECT/DROP _storage_retire_write_probe",
+    "ts": "2026-10-17 07:24:43"
+  },
+  "notes": [
+    "APPLY ran via Cloudflare MCP after dry-run PASS and authorized release package.",
+    "CURRENT count grew during APPLY from concurrent live writers; gate updated to refuse only CURRENT decreases.",
+    "CFB 2004 and live MARKET_HISTORY_DB were never targeted."
+  ]
+}

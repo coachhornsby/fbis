@@ -1,0 +1,37 @@
+.bets-dashboard{--bets-line:#38576f;--bets-muted:#b5ccdc;max-width:1600px;margin:auto}
+.bets-dashboard>.panel:first-of-type{background:linear-gradient(125deg,#142d43,#0a1c2d);border:1px solid #43647c;border-radius:17px;overflow:hidden}
+.bets-dashboard .panel-header{padding:20px 22px 10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.bets-dashboard .panel-header h2{font-size:clamp(1.5rem,2.4vw,2.25rem);font-weight:900;letter-spacing:-.035em}
+.bets-title-sub{display:inline-block;margin-left:10px;font-size:.78rem;font-weight:700;color:#a6c8dd;letter-spacing:0}
+.bets-dashboard .panel-header .last-updated{margin-left:auto;font-size:.8rem}
+.bets-dashboard>.panel:first-of-type>.panel-body{padding:10px 22px 22px}
+.bets-dashboard .bets-source-details{color:#a5bfd1;font-size:.8rem;margin:10px 0;border:1px solid #34536b;border-radius:10px;padding:9px 13px;background:#0c2133}
+.bets-source-details summary{cursor:pointer;font-weight:750;color:#bcdaec}
+.bets-source-details p{line-height:1.5}
+.bets-dashboard .bets-stat-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.bets-dashboard .bets-stat-grid>*{min-width:0;background:linear-gradient(145deg,#17334a,#0a2033);border:1px solid #45647b;border-radius:12px;padding:13px}
+.bets-dashboard .bets-stat-grid strong,.bets-dashboard .bets-stat-grid b{font-size:clamp(1.1rem,2vw,1.8rem);font-variant-numeric:tabular-nums}
+.bets-filter-heading{display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:22px 0 11px}
+.bets-filter-heading h3{margin:0;font-size:1.25rem;font-weight:850;color:#f2faff}
+.bets-filter-heading span{color:#a9c5d9;font-size:.78rem}
+.bets-search{display:flex;flex-direction:column;gap:6px;min-width:min(100%,320px)}
+.bets-search input{background:#071a2b!important;border:1px solid #55748c!important;border-radius:10px!important;color:#fff!important;padding:11px 13px!important;min-width:0;width:100%}
+.bets-search input:focus-visible{outline:2px solid #87d3ff;outline-offset:2px}
+.bets-sport-filters{gap:7px}
+.bets-dashboard .filter-row .chip{border-radius:9px;border:1px solid #49687e;background:#112e43;color:#cbe0f0;padding:9px 14px;font-weight:800}
+.bets-dashboard .filter-row .chip.active{border-color:#8acbec;background:linear-gradient(145deg,#236991,#164b72);color:white;box-shadow:0 0 0 1px #78bee53b}
+.bets-advanced-toggle{border:1px solid #4a6c82;border-radius:9px;background:#0c2639;color:#c4e8ff;cursor:pointer;margin:13px 0 0;padding:10px 13px;font-weight:750}
+.bets-advanced-panel{background:#0a2134;border:1px solid #37566d;border-radius:12px;padding:13px;margin:10px 0 0;display:grid;gap:10px}
+.bets-dashboard .bets-ledger-panel{margin-top:16px;border:1px solid #3c5c74;border-radius:14px;overflow:hidden}
+.bets-dashboard .bets-ledger-table{width:100%;border-collapse:separate;border-spacing:0;font-size:.82rem}
+.bets-dashboard .bets-ledger-table th{position:sticky;top:0;background:#19364b;color:#d4eafa;font-size:.72rem;letter-spacing:.045em;text-transform:uppercase;z-index:1;padding:13px 11px}
+.bets-dashboard .bets-ledger-table td{border-bottom:1px solid #30475a;padding:13px 11px;vertical-align:middle;color:#ebf5ff}
+.bets-dashboard .bets-ledger-table tbody tr:nth-child(2n){background:#0e2435}
+.bets-dashboard .bets-ledger-table tbody tr:hover{background:#1c3b51}
+.bets-dashboard .bets-ledger-table td:nth-child(9){font-weight:850;font-variant-numeric:tabular-nums}
+.bets-dashboard .bets-ledger-table .text-green{color:#71e2aa}
+.bets-dashboard .bets-ledger-table .text-red{color:#ff9999}
+.bets-dashboard .bets-ledger-table td .muted{font-size:.73rem;color:#9fb8cb;line-height:1.45}
+.bets-dashboard .bets-table-scroll{overflow:auto;max-height:min(75vh,1000px)}
+@media(max-width:1150px){.bets-dashboard .bets-stat-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:680px){.bets-dashboard .bets-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bets-dashboard .panel-header,.bets-dashboard>.panel:first-of-type>.panel-body{padding-left:12px;padding-right:12px}.bets-title-sub{display:block;margin-left:0}.bets-dashboard .bets-stat-grid>*{padding:10px}.bets-search{flex:1 1 100%}}

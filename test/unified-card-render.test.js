@@ -9,12 +9,15 @@ bundled._compile(compiled.outputFiles[0].text,process.cwd()+'/test/unified-card-
 const {render}=bundled.exports;
 const game=sport=>({id:`event-${sport}`,sport,start:'2026-10-14T20:00:00Z',home:{name:'Home Team',abbr:'HOM',color:'123456',secondaryColor:'abcdef'},away:{name:'Away Team',abbr:'AWY',color:'abcdef'},matchupFactors:[{id:'form',label:'Recent Form',edge:'HOME',available:true,value:'2.1'}]});
 test('compact and featured team sports share matchup visuals and event prop expansion',()=>{
- for(const sport of ['nfl','cfb','nba','cbb','wnba','mlb','nhl','soccer','npb','kbo'])for(const kind of ['compact','premium']){
-  const html=render(kind,game(sport));
-  assert.match(html,/fbis-universal-premium/,`${sport} ${kind}`);
-  assert.match(html,/PLAYER PROPS/,`${sport} ${kind}`);
-  assert.match(html,/MARKET DETAILS/,`${sport} ${kind}`);
-  assert.match(html,/GAME MATCHUP/,`${sport} ${kind}`);
+ for(const sport of ['nfl','cfb','nba','cbb','wnba','mlb','nhl','soccer','npb','kbo']){
+  const compact=render('compact',game(sport));
+  const premium=render('premium',game(sport));
+  assert.match(compact,/fbis-universal-premium/,`${sport} compact`);
+  assert.match(premium,/fbis-universal-premium/,`${sport} premium`);
+  // SoftMatch: prop/market expansion and matchup tiles live on featured cards; compact stays lean.
+  assert.match(premium,/PLAYER PROPS/,`${sport} premium`);
+  assert.match(premium,/MARKET DETAILS/,`${sport} premium`);
+  assert.match(premium,/GAME MATCHUP/,`${sport} premium`);
  }
 });
 test('sparse and unavailable factors do not acquire an invented advantage or fixed five signals',()=>{

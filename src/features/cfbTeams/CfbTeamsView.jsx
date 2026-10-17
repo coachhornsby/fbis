@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import "./cfbTeams.css";
 import CfbCurrentSummary from './CfbCurrentSummary.jsx';
 import CfbResearchPanels from './CfbResearchPanels.jsx';
+import {cfbConferenceLogo} from './conferenceLogos.js';
 
 function initialTeam() {
   return typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("team");
@@ -241,6 +242,8 @@ export default function CfbTeamsView({refreshKey=0}) {
   const [playerId,setPlayerId]=useState(null);
   const [term,setTerm]=useState("");
   const [conference,setConference]=useState("ALL");
+  const [failedConferenceLogo,setFailedConferenceLogo]=useState(null);
+  useEffect(()=>setFailedConferenceLogo(null),[conference]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
   useEffect(()=>{
@@ -296,9 +299,9 @@ export default function CfbTeamsView({refreshKey=0}) {
         <div className="ft-filters">
           <label>Search teams<input type="search" value={term} onChange={e=>setTerm(e.target.value)}
             placeholder="School, nickname, stadium…"/></label>
-          <label>Conference<select value={conference} onChange={e=>setConference(e.target.value)}>
+          <label>Conference<span className="ft-conference-picker">{conference!=="ALL"&&failedConferenceLogo!==conference&&cfbConferenceLogo(conference)&&<img alt="" src={cfbConferenceLogo(conference)} onError={()=>setFailedConferenceLogo(conference)}/>}<select value={conference} onChange={e=>setConference(e.target.value)}>
             {conferences.map(c=><option key={c} value={c}>{c==="ALL"?"All FBS conferences":c}</option>)}
-          </select></label>
+          </select></span></label>
         </div>
         <p className="ft-muted">{visible.length} matching teams · provider-sourced profile facts</p>
         {loading && !directory && <div className="ft-panel">Loading persistent FBS directory…</div>}

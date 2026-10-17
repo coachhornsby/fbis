@@ -1,0 +1,28 @@
+name: Cross-sport pipeline validation contract
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - functions/lib/pipelineValidation.js
+      - functions/lib/databaseOwnership.js
+      - test/database-ownership.test.js
+      - scripts/pipeline-validation.mjs
+      - ops/triggers/pipeline-validation
+permissions:
+  contents: read
+concurrency:
+  group: fbis-pipeline-validation-contract
+  cancel-in-progress: true
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: node --test test/database-ownership.test.js
+      - run: FBIS_PIPELINE_FIXTURE=1 node scripts/pipeline-validation.mjs
+      - run: node scripts/d1-performance-audit.mjs

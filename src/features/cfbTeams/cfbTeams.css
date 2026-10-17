@@ -232,3 +232,45 @@
 .ft-profile[data-active-tab="schedule"] .ft-tab-panel[data-section="schedule"],
 .ft-profile[data-active-tab="data"] .ft-tab-panel[data-section="data"]{display:block}
 @media(max-width:650px){.ft-rank-strip{grid-template-columns:1fr 1fr}.ft-rank-strip>div:last-child{grid-column:1/-1}.ft-rank-strip>div{padding:12px}.ft-profile .ft-logo-hero{width:83px;height:83px}.ft-tabs{top:0}}
+
+
+/* CFB reading hierarchy v2 — preserve original logo transparency, not white badges. */
+.ft-page .ft-logo,.ft-page .ft-logo-hero,.ft-page .ft-team-tile .ft-logo{
+ background:transparent!important;border:0!important;border-radius:0!important;
+ padding:0!important;box-shadow:none!important;object-fit:contain;
+}
+.ft-page .ft-hero .ft-logo-hero{filter:drop-shadow(0 6px 8px #0008);width:clamp(100px,12vw,142px);height:clamp(100px,12vw,142px)}
+.ft-page .ft-hero{padding:clamp(20px,3vw,32px)!important;gap:clamp(16px,3vw,30px)}
+.ft-page .ft-hero-info h2{font-size:clamp(2rem,3.8vw,3.5rem);font-weight:900;letter-spacing:-.035em;line-height:1.05}
+.ft-page .ft-hero-info p{font-size:.95rem;line-height:1.5}
+.ft-page .ft-rank-strip>div{border-top:3px solid var(--ft-primary);box-shadow:0 8px 20px #0004}
+.ft-page .ft-rank-strip strong{font-size:clamp(1.3rem,2.3vw,2rem);font-weight:900}
+.ft-page .ft-panel{background:linear-gradient(145deg,#132b40,#0a1d2d);border-color:#426079}
+.ft-page .ft-panel>h3,.ft-page .ft-heading h3{font-size:clamp(1.13rem,1.5vw,1.45rem);font-weight:850;letter-spacing:-.015em}
+.ft-page .ft-note{line-height:1.65;color:#b3c9db}
+.ft-headline-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}
+.ft-headline-card{min-width:0;padding:16px;border-radius:13px;border:1px solid color-mix(in srgb,var(--ft-primary,#456b8e) 50%,#43637b);background:linear-gradient(145deg,color-mix(in srgb,var(--ft-primary,#456b8e) 22%,#152a40),#081c2f);display:flex;flex-direction:column;gap:10px;transition:transform .18s ease,border-color .18s ease}
+.ft-headline-card:hover{transform:translateY(-2px);border-color:var(--ft-primary,#6799c1)}
+.ft-headline-card>span{font-size:.85rem;color:#d3e8f8;font-weight:700;min-height:2.3em}
+.ft-headline-rank{font-size:clamp(1.8rem,3vw,2.65rem);font-weight:900;color:#fff;line-height:1;font-variant-numeric:tabular-nums}
+.ft-headline-rank small{font-size:.78rem;color:#a7c5d9;font-weight:600}
+.ft-headline-track{width:100%;height:9px;border-radius:20px;background:#061522;overflow:hidden}
+.ft-headline-track i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,var(--ft-primary,#3b82f6),var(--ft-secondary,#99b6d8));}
+.ft-headline-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:.73rem;color:#afc5d8}
+.ft-headline-foot strong{color:#eef8ff;font-size:.92rem}
+.ft-details-table{margin:14px 0;padding:12px;border:1px solid #45657b;border-radius:10px;background:#0b2032}
+.ft-details-table summary{cursor:pointer;font-weight:800;color:#c5e6ff}
+.ft-details-table .ft-table-scroll{margin-top:13px}
+.ft-page .ft-table th{color:#d5e9fa}
+.ft-page .ft-table td{color:#f0f7fd}
+@media(max-width:800px){.ft-headline-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.ft-headline-metrics{gap:8px}.ft-headline-card{padding:11px}.ft-headline-rank{font-size:1.7rem}.ft-page .ft-hero-info h2{font-size:1.6rem}.ft-page .ft-hero .ft-logo-hero{width:76px;height:76px}}
+@media(prefers-reduced-motion:reduce){.ft-headline-card{transition:none}.ft-headline-card:hover{transform:none}}
+
+
+/* Matching soccer's compact competition branding on the college conference filter. */
+.ft-conference-picker{display:flex;align-items:center;gap:9px;position:relative;border:1px solid #52728b;border-radius:11px;background:linear-gradient(110deg,#102d43,#071b2b);padding:0 10px;min-width:0}
+.ft-conference-picker img{width:24px!important;height:24px!important;max-width:24px;max-height:24px;object-fit:contain;flex:0 0 24px;background:transparent!important;border:none!important;border-radius:0!important}
+.ft-filters .ft-conference-picker select{background:transparent;border:0;border-radius:0;min-height:47px;padding:11px 24px 11px 2px;color:#f4faff;font-size:.9rem;font-weight:750;cursor:pointer;appearance:none;-webkit-appearance:none;outline:0}
+.ft-conference-picker:after{content:"";position:absolute;right:15px;top:calc(50% - 4px);width:8px;height:8px;border-right:2px solid #abdfff;border-bottom:2px solid #abdfff;transform:rotate(45deg);pointer-events:none}
+.ft-conference-picker:focus-within{border-color:#86d6ff;box-shadow:0 0 0 3px #4db6ff40}

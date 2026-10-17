@@ -18,15 +18,17 @@ binding = "TIER3_DB"
 database_name = "fbis-cfb-tier3-research"
 database_id = "3dcddd30-8790-48f0-a6a3-cc3ad9b95295"
 
-# Independent 50-column market evidence shadow shard. Source-of-truth writes,
-# decision links, CLV, settlement, cards and models remain on primary DB.
-# No consumer cutover or retention release is authorized by this binding.
+# Market-history shard: shadow/recovery normalized market observations only.
+# Decision links, CLV, settlement, cards and models remain on primary DB.
+# See docs/database-ownership-v1.md. No retention release is authorized by this binding.
 [[d1_databases]]
 binding = "MARKET_HISTORY_DB"
 database_name = "fbis-market-history"
 database_id = "c32ccf06-c896-4d24-bb89-3e87a7412899"
 
-# Separate operational D1 for new feature development. No existing reads or writes are redirected.
+# Preferred home for ops control plane, capacity alerts, retention gates,
+# pipeline validation receipts, and D1 performance findings.
+# Product authority stays on primary. Schema: sql/shards/operations-v1.sql
 [[d1_databases]]
 binding = "OPERATIONS_DB"
 database_name = "fbis-operations-20261017"
@@ -36,7 +38,17 @@ database_id = "2371df3a-17bf-44d6-abf0-d275cf2f331e"
 binding = "ARCHIVE"
 bucket_name = "fbis-archive"
 
+# Frozen historical research copy. Cutover stays disabled until the full
+# source/R2/Drive/cold-SQL recovery and historical consumer parity gates pass.
+[[d1_databases]]
+binding = "COLD_HISTORY_DB"
+database_name = "fbis-cold-history-20261017"
+database_id = "6fad1baf-126f-4ab8-9b80-a7d71637d6d4"
+
 # Separate D1 write copies only; authoritative reads, CLV, and qualification
 # remain on primary. Roll back by setting this to "disabled".
 [vars]
 MARKET_HISTORY_SHADOW_WS = "enabled"
+# Enabled 2026-10-17 after release-20261017-storage-a1: cold acceptance seeded,
+# RESEARCH retired from primary, R2+cold spot checks passed (#1220/#1221).
+COLD_MARKET_ARCHIVE_READS = "enabled"

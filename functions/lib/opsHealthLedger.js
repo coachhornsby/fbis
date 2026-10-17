@@ -1,3 +1,5 @@
+import { resolveOperationsWriteTarget, withOperationsWrite } from "./operationsDb.js";
+
 const SEVERITIES = ["INFO", "WARN", "DEGRADED", "CRITICAL"];
 
 function nowIso() {
@@ -43,164 +45,183 @@ export function deriveFreshnessState(component, health, now = Date.now()) {
 }
 
 export async function upsertOpsHealth(env, row) {
-  if (!env?.DB?.prepare || !row?.componentId) return { ok: false, reason: "d1-unbound-or-component-missing" };
+  if (!row?.componentId) return { ok: false, reason: "d1-unbound-or-component-missing" };
   const at = row.updatedAt || nowIso();
-  await env.DB.prepare(
-    `INSERT INTO fbis_ops_health (
-      component_id, workflow_freshness_at, source_freshness_at, database_freshness_at,
-      published_freshness_at, last_attempt_at, last_success_at, last_nonempty_at,
-      last_persist_at, last_verified_at, source_rows, rows_written, rows_visible_downstream,
-      status, severity, incident_fingerprint, consecutive_failures, consecutive_empty_successes,
-      last_error_class, last_error, provider_run_id, workflow_run_id, deployment_sha,
-      data_date_or_range, cost_or_quota_state, metadata_json, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(component_id) DO UPDATE SET
-      workflow_freshness_at=COALESCE(excluded.workflow_freshness_at, workflow_freshness_at),
-      source_freshness_at=COALESCE(excluded.source_freshness_at, source_freshness_at),
-      database_freshness_at=COALESCE(excluded.database_freshness_at, database_freshness_at),
-      published_freshness_at=COALESCE(excluded.published_freshness_at, published_freshness_at),
-      last_attempt_at=COALESCE(excluded.last_attempt_at, last_attempt_at),
-      last_success_at=COALESCE(excluded.last_success_at, last_success_at),
-      last_nonempty_at=COALESCE(excluded.last_nonempty_at, last_nonempty_at),
-      last_persist_at=COALESCE(excluded.last_persist_at, last_persist_at),
-      last_verified_at=COALESCE(excluded.last_verified_at, last_verified_at),
-      source_rows=COALESCE(excluded.source_rows, source_rows),
-      rows_written=COALESCE(excluded.rows_written, rows_written),
-      rows_visible_downstream=COALESCE(excluded.rows_visible_downstream, rows_visible_downstream),
-      status=excluded.status,
-      severity=excluded.severity,
-      incident_fingerprint=excluded.incident_fingerprint,
-      consecutive_failures=excluded.consecutive_failures,
-      consecutive_empty_successes=excluded.consecutive_empty_successes,
-      last_error_class=excluded.last_error_class,
-      last_error=excluded.last_error,
-      provider_run_id=COALESCE(excluded.provider_run_id, provider_run_id),
-      workflow_run_id=COALESCE(excluded.workflow_run_id, workflow_run_id),
-      deployment_sha=COALESCE(excluded.deployment_sha, deployment_sha),
-      data_date_or_range=COALESCE(excluded.data_date_or_range, data_date_or_range),
-      cost_or_quota_state=COALESCE(excluded.cost_or_quota_state, cost_or_quota_state),
-      metadata_json=COALESCE(excluded.metadata_json, metadata_json),
-      updated_at=excluded.updated_at`
-  ).bind(
-    row.componentId,
-    row.workflowFreshnessAt || null,
-    row.sourceFreshnessAt || null,
-    row.databaseFreshnessAt || null,
-    row.publishedFreshnessAt || null,
-    row.lastAttemptAt || null,
-    row.lastSuccessAt || null,
-    row.lastNonemptyAt || null,
-    row.lastPersistAt || null,
-    row.lastVerifiedAt || null,
-    row.sourceRows ?? null,
-    row.rowsWritten ?? null,
-    row.rowsVisibleDownstream ?? null,
-    row.status || "UNKNOWN",
-    normalizeSeverity(row.severity),
-    row.incidentFingerprint || null,
-    Number(row.consecutiveFailures || 0),
-    Number(row.consecutiveEmptySuccesses || 0),
-    row.lastErrorClass || null,
-    row.lastError || null,
-    row.providerRunId || null,
-    row.workflowRunId || null,
-    row.deploymentSha || null,
-    row.dataDateOrRange || null,
-    row.costOrQuotaState || null,
-    row.metadata ? JSON.stringify(row.metadata) : null,
-    at
-  ).run();
-  return { ok: true };
+  return withOperationsWrite(env, async (db) => {
+    await db.prepare(
+      `INSERT INTO fbis_ops_health (
+        component_id, workflow_freshness_at, source_freshness_at, database_freshness_at,
+        published_freshness_at, last_attempt_at, last_success_at, last_nonempty_at,
+        last_persist_at, last_verified_at, source_rows, rows_written, rows_visible_downstream,
+        status, severity, incident_fingerprint, consecutive_failures, consecutive_empty_successes,
+        last_error_class, last_error, provider_run_id, workflow_run_id, deployment_sha,
+        data_date_or_range, cost_or_quota_state, metadata_json, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(component_id) DO UPDATE SET
+        workflow_freshness_at=COALESCE(excluded.workflow_freshness_at, workflow_freshness_at),
+        source_freshness_at=COALESCE(excluded.source_freshness_at, source_freshness_at),
+        database_freshness_at=COALESCE(excluded.database_freshness_at, database_freshness_at),
+        published_freshness_at=COALESCE(excluded.published_freshness_at, published_freshness_at),
+        last_attempt_at=COALESCE(excluded.last_attempt_at, last_attempt_at),
+        last_success_at=COALESCE(excluded.last_success_at, last_success_at),
+        last_nonempty_at=COALESCE(excluded.last_nonempty_at, last_nonempty_at),
+        last_persist_at=COALESCE(excluded.last_persist_at, last_persist_at),
+        last_verified_at=COALESCE(excluded.last_verified_at, last_verified_at),
+        source_rows=COALESCE(excluded.source_rows, source_rows),
+        rows_written=COALESCE(excluded.rows_written, rows_written),
+        rows_visible_downstream=COALESCE(excluded.rows_visible_downstream, rows_visible_downstream),
+        status=excluded.status,
+        severity=excluded.severity,
+        incident_fingerprint=excluded.incident_fingerprint,
+        consecutive_failures=excluded.consecutive_failures,
+        consecutive_empty_successes=excluded.consecutive_empty_successes,
+        last_error_class=excluded.last_error_class,
+        last_error=excluded.last_error,
+        provider_run_id=COALESCE(excluded.provider_run_id, provider_run_id),
+        workflow_run_id=COALESCE(excluded.workflow_run_id, workflow_run_id),
+        deployment_sha=COALESCE(excluded.deployment_sha, deployment_sha),
+        data_date_or_range=COALESCE(excluded.data_date_or_range, data_date_or_range),
+        cost_or_quota_state=COALESCE(excluded.cost_or_quota_state, cost_or_quota_state),
+        metadata_json=COALESCE(excluded.metadata_json, metadata_json),
+        updated_at=excluded.updated_at`
+    ).bind(
+      row.componentId,
+      row.workflowFreshnessAt || null,
+      row.sourceFreshnessAt || null,
+      row.databaseFreshnessAt || null,
+      row.publishedFreshnessAt || null,
+      row.lastAttemptAt || null,
+      row.lastSuccessAt || null,
+      row.lastNonemptyAt || null,
+      row.lastPersistAt || null,
+      row.lastVerifiedAt || null,
+      row.sourceRows ?? null,
+      row.rowsWritten ?? null,
+      row.rowsVisibleDownstream ?? null,
+      row.status || "UNKNOWN",
+      normalizeSeverity(row.severity),
+      row.incidentFingerprint || null,
+      Number(row.consecutiveFailures || 0),
+      Number(row.consecutiveEmptySuccesses || 0),
+      row.lastErrorClass || null,
+      row.lastError || null,
+      row.providerRunId || null,
+      row.workflowRunId || null,
+      row.deploymentSha || null,
+      row.dataDateOrRange || null,
+      row.costOrQuotaState || null,
+      row.metadata ? JSON.stringify(row.metadata) : null,
+      at
+    ).run();
+    return { ok: true };
+  });
 }
 
 export async function recordRunManifest(env, row) {
-  if (!env?.DB?.prepare || !row?.runId || !row?.componentId) {
+  if (!row?.runId || !row?.componentId) {
     return { ok: false, reason: "d1-unbound-or-run-missing" };
   }
-  await env.DB.prepare(
-    `INSERT OR REPLACE INTO fbis_run_manifests (
-      run_id, component_id, workflow_run_id, provider_run_id, trigger_type,
-      expected_range, expected_items, received_items, persisted_items, visible_items,
-      rejected_items, duplicate_items, started_at, finished_at, status, error_class,
-      error_summary, deployment_sha, metadata_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(
-    row.runId,
-    row.componentId,
-    row.workflowRunId || null,
-    row.providerRunId || null,
-    row.triggerType || null,
-    row.expectedRange || null,
-    row.expectedItems ?? null,
-    row.receivedItems ?? null,
-    row.persistedItems ?? null,
-    row.visibleItems ?? null,
-    row.rejectedItems ?? null,
-    row.duplicateItems ?? null,
-    row.startedAt || null,
-    row.finishedAt || null,
-    row.status || "unknown",
-    row.errorClass || null,
-    row.errorSummary || null,
-    row.deploymentSha || null,
-    row.metadata ? JSON.stringify(row.metadata) : null
-  ).run();
-  return { ok: true };
+  return withOperationsWrite(env, async (db) => {
+    await db.prepare(
+      `INSERT OR REPLACE INTO fbis_run_manifests (
+        run_id, component_id, workflow_run_id, provider_run_id, trigger_type,
+        expected_range, expected_items, received_items, persisted_items, visible_items,
+        rejected_items, duplicate_items, started_at, finished_at, status, error_class,
+        error_summary, deployment_sha, metadata_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      row.runId,
+      row.componentId,
+      row.workflowRunId || null,
+      row.providerRunId || null,
+      row.triggerType || null,
+      row.expectedRange || null,
+      row.expectedItems ?? null,
+      row.receivedItems ?? null,
+      row.persistedItems ?? null,
+      row.visibleItems ?? null,
+      row.rejectedItems ?? null,
+      row.duplicateItems ?? null,
+      row.startedAt || null,
+      row.finishedAt || null,
+      row.status || "unknown",
+      row.errorClass || null,
+      row.errorSummary || null,
+      row.deploymentSha || null,
+      row.metadata ? JSON.stringify(row.metadata) : null
+    ).run();
+    return { ok: true };
+  });
 }
 
 export async function recordInvariantCheck(env, row) {
-  if (!env?.DB?.prepare || !row?.invariantKey) return { ok: false, reason: "d1-unbound-or-key-missing" };
-  await env.DB.prepare(
-    `INSERT INTO fbis_ops_invariant_checks (
-      invariant_key, component_id, checked_at, status, expected_value, actual_value,
-      detail, incident_fingerprint, metadata_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(
-    row.invariantKey,
-    row.componentId || null,
-    row.checkedAt || nowIso(),
-    row.status || "UNKNOWN",
-    row.expectedValue == null ? null : String(row.expectedValue),
-    row.actualValue == null ? null : String(row.actualValue),
-    row.detail || null,
-    row.incidentFingerprint || null,
-    row.metadata ? JSON.stringify(row.metadata) : null
-  ).run();
-  return { ok: true };
+  if (!row?.invariantKey) return { ok: false, reason: "d1-unbound-or-key-missing" };
+  return withOperationsWrite(env, async (db) => {
+    await db.prepare(
+      `INSERT INTO fbis_ops_invariant_checks (
+        invariant_key, component_id, checked_at, status, expected_value, actual_value,
+        detail, incident_fingerprint, metadata_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      row.invariantKey,
+      row.componentId || null,
+      row.checkedAt || nowIso(),
+      row.status || "UNKNOWN",
+      row.expectedValue == null ? null : String(row.expectedValue),
+      row.actualValue == null ? null : String(row.actualValue),
+      row.detail || null,
+      row.incidentFingerprint || null,
+      row.metadata ? JSON.stringify(row.metadata) : null
+    ).run();
+    return { ok: true };
+  });
 }
 
 export async function recordWatchdogMetric(env, row) {
-  if (!env?.DB?.prepare || !row?.incidentFingerprint) return { ok: false, reason: "d1-unbound-or-fingerprint-missing" };
+  if (!row?.incidentFingerprint) return { ok: false, reason: "d1-unbound-or-fingerprint-missing" };
   const detectedAt = row.detectedAt || nowIso();
   const repairedAt = row.repairedAt || null;
   const mttrSeconds = repairedAt ? Math.max(0, Math.round((Date.parse(repairedAt) - Date.parse(detectedAt)) / 1000)) : null;
-  await env.DB.prepare(
-    `INSERT OR REPLACE INTO fbis_watchdog_metrics (
-      incident_fingerprint, component_id, failure_class, severity, detected_at,
-      repaired_at, verified_at, detection_source, autonomous_repair,
-      owner_action_required, repeat_count, mttr_seconds, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(
-    row.incidentFingerprint,
-    row.componentId || null,
-    row.failureClass || null,
-    normalizeSeverity(row.severity),
-    detectedAt,
-    repairedAt,
-    row.verifiedAt || null,
-    row.detectionSource || null,
-    row.autonomousRepair ? 1 : 0,
-    row.ownerActionRequired ? 1 : 0,
-    Number(row.repeatCount || 1),
-    mttrSeconds,
-    row.notes || null
-  ).run();
-  return { ok: true };
+  return withOperationsWrite(env, async (db) => {
+    await db.prepare(
+      `INSERT OR REPLACE INTO fbis_watchdog_metrics (
+        incident_fingerprint, component_id, failure_class, severity, detected_at,
+        repaired_at, verified_at, detection_source, autonomous_repair,
+        owner_action_required, repeat_count, mttr_seconds, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      row.incidentFingerprint,
+      row.componentId || null,
+      row.failureClass || null,
+      normalizeSeverity(row.severity),
+      detectedAt,
+      repairedAt,
+      row.verifiedAt || null,
+      row.detectionSource || null,
+      row.autonomousRepair ? 1 : 0,
+      row.ownerActionRequired ? 1 : 0,
+      Number(row.repeatCount || 1),
+      mttrSeconds,
+      row.notes || null
+    ).run();
+    return { ok: true };
+  });
 }
 
 export async function loadOpsControlPlane(env) {
-  if (!env?.DB?.prepare) return { bound: false, components: [], invariants: [], metrics: {} };
-  const componentsRes = await env.DB.prepare(
+  const resolved = await resolveOperationsWriteTarget(env, { bypassCache: true });
+  const db = resolved.db;
+  if (!db?.prepare) {
+    return {
+      bound: false,
+      components: [],
+      invariants: [],
+      metrics: {},
+      operationsDbPreferred: false,
+      operationsSchemaReady: false,
+    };
+  }
+  const componentsRes = await db.prepare(
     `SELECT c.*, h.workflow_freshness_at, h.source_freshness_at, h.database_freshness_at,
             h.published_freshness_at, h.last_attempt_at, h.last_success_at, h.last_nonempty_at,
             h.last_persist_at, h.last_verified_at, h.source_rows, h.rows_written,
@@ -218,7 +239,7 @@ export async function loadOpsControlPlane(env) {
     return { ...row, freshness };
   });
 
-  const invRes = await env.DB.prepare(
+  const invRes = await db.prepare(
     `SELECT invariant_key, component_id, checked_at, status, expected_value, actual_value, detail
        FROM fbis_ops_invariant_checks
       WHERE checked_at >= datetime('now', '-24 hours')
@@ -226,7 +247,7 @@ export async function loadOpsControlPlane(env) {
       LIMIT 100`
   ).all();
 
-  const manifestsRes = await env.DB.prepare(
+  const manifestsRes = await db.prepare(
     `SELECT run_id, component_id, expected_items, received_items, persisted_items,
             visible_items, rejected_items, duplicate_items, status, started_at, finished_at
        FROM fbis_run_manifests
@@ -249,7 +270,7 @@ export async function loadOpsControlPlane(env) {
     }
   }
 
-  const metric = await env.DB.prepare(
+  const metric = await db.prepare(
     `SELECT
        COUNT(*) AS incidents,
        SUM(CASE WHEN autonomous_repair = 1 THEN 1 ELSE 0 END) AS autonomous_repairs,
@@ -260,7 +281,7 @@ export async function loadOpsControlPlane(env) {
        WHERE detected_at >= datetime('now', '-30 days')`
   ).first();
 
-  const incidentsRes = await env.DB.prepare(
+  const incidentsRes = await db.prepare(
     `SELECT incident_fingerprint, component_id, failure_class, severity, detected_at,
             repaired_at, verified_at, detection_source, autonomous_repair,
             owner_action_required, repeat_count, mttr_seconds, notes
@@ -271,6 +292,10 @@ export async function loadOpsControlPlane(env) {
 
   return {
     bound: true,
+    operationsDbPreferred: resolved.preferred,
+    operationsSchemaReady: resolved.schemaReady === true,
+    operationsOwner: resolved.owner?.key || null,
+    operationsWarning: resolved.warning || null,
     components,
     incidents: incidentsRes?.results || [],
     invariants: [...manifestInvariants, ...(invRes?.results || [])].slice(0, 150),

@@ -1,0 +1,37 @@
+{
+  "contract": "fbis-storage-retire-dry-run-v1",
+  "completed": true,
+  "pass": true,
+  "verifiedAt": "2026-10-17T07:14:48.028706Z",
+  "releaseIdPending": "release-20261017-storage-a1",
+  "primaryBytes": 10007482368,
+  "coldBytes": 3279081472,
+  "cohortCounts": {
+    "research": 497624,
+    "cfb2005_2025": 430971,
+    "coldResearch": 497624,
+    "coldCfb": 430971
+  },
+  "exactIdSamples": {
+    "research": {
+      "matched": 200,
+      "missing": 0,
+      "wrongSnapshot": 0,
+      "sampleSize": 200
+    },
+    "cfb": {
+      "matched": 200,
+      "missing": 0,
+      "badSeason": 0,
+      "sampleSize": 200
+    }
+  },
+  "protected": {
+    "current": 169577,
+    "cfb2004": 13644
+  },
+  "independentRecoveryProof": "docs/storage-independent-recovery-proof-20261017.json",
+  "recoveryPolicyId": "fbis-recovery-policy-full-20261017-r2-cold-gh",
+  "driveBinaryMirrorRequired": false,
+  "notes": "One earlier sample miss was a transcription typo (nmo_96d99e vs nmo_96d99a); corrected ID present on primary+cold."
+}
