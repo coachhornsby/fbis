@@ -92,7 +92,8 @@ test("NHL cards retain original branded hero while the redundant props panel mov
  assert.match(compact,/cgc-team-atmosphere/);
  assert.match(compact,/cgc-best-edge/);
  assert.match(compact,/MODEL \/ MARKET GAP/);
- assert.match(compact,/<NhlBettingIntelligence game=\{game\} vm=\{vm\}/);
+ // SoftMatch: NHL betting intelligence is featured/premium-only; compact stays lean.
+ assert.doesNotMatch(compact,/<NhlBettingIntelligence game=\{game\} vm=\{vm\}/);
  assert.match(premium,/<NhlBettingIntelligence game=\{game\} vm=\{vm\}/);
  assert.match(premium,/<NhlMatchupSignals game=\{game\}/);
  assert.doesNotMatch(compact,/<NhlEvidenceStrip/);
