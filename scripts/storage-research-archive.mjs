@@ -46,7 +46,7 @@ try{
  const upper=(await query("SELECT MAX(rowid) upper FROM normalized_market_observations WHERE snapshot_type='RESEARCH'"))[0].upper;
  const rows=[];let cursor=start;
  while(rows.length<max){
-  const page=await query(`SELECT CAST(rowid AS TEXT) __source_rowid,* FROM normalized_market_observations WHERE rowid>${cursor} AND rowid<=${Number(upper)} AND snapshot_type='RESEARCH' ORDER BY rowid LIMIT ${Math.min(50,max-rows.length)}`);
+  const page=await query(`SELECT CAST(rowid AS TEXT) __source_rowid,* FROM normalized_market_observations NOT INDEXED WHERE rowid>${cursor} AND rowid<=${Number(upper)} AND snapshot_type='RESEARCH' ORDER BY rowid LIMIT ${Math.min(50,max-rows.length)}`);
   if(!page.length)break;
   for(const row of page){if(row.snapshot_type!=='RESEARCH'||row.can_qualify||row.can_authorize_wager||row.decision_eligible||row.settled_at!==null)throw Error('INELIGIBLE_RESEARCH_ROW');}
   rows.push(...page);cursor=Number(page.at(-1).__source_rowid);
