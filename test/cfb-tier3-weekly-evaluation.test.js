@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseCfbTier3WeeklyCsv } from "../functions/lib/cfbTier3Weekly.js";
+import { CFB_TIER3_COLUMNS } from "../functions/lib/cfbTier3FeatureRegistry.js";
 import {
   homeAtsResult,
   favoriteSide,
@@ -10,16 +11,10 @@ import {
   pearson,
 } from "../functions/lib/cfbTier3WeeklyEvaluation.js";
 
-const featurePads = Array.from({ length: 8 }, (_, i) => `pad_feature_${i}`);
-const cols = [
-  "id","start_date","season","season_type","week","neutral_site","home_team",
-  "home_conference","home_elo","home_talent","away_team","away_conference",
-  "away_talent","away_elo","spread",
-  "home_adjusted_epa","home_adjusted_epa_allowed","away_adjusted_epa","away_adjusted_epa_allowed",
-  ...featurePads,
-];
+// Use the frozen 83-column weekly provider schema, not synthetic pad columns.
+const cols = CFB_TIER3_COLUMNS.map(column => column.name);
 const row = (id, spread, extras = {}) => {
-  const pads = Object.fromEntries(featurePads.map((k) => [k, "0.1"]));
+  const pads = Object.fromEntries(CFB_TIER3_COLUMNS.filter(col => col.role === "feature").map(col => [col.name, "0.1"]));
   const base = {
     id, start_date: "2026-10-10 19:30:00", season: "2026", season_type: "regular", week: "6",
     neutral_site: "False", home_team: "Home U", home_conference: "X", home_elo: "1600",
