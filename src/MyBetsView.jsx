@@ -4,6 +4,7 @@ import { TicketMatchup } from "./components/TeamLogo.jsx";
 import useIsCompact from "./hooks/useIsCompact.js";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
+import "./myBets.css";
 
 const RESULT_FILTERS = [
   ["all", "All results"],
@@ -42,6 +43,8 @@ export default function MyBetsView({
   const [result, setResult] = useState("all");
   const [attr, setAttr] = useState("all");
   const [sport, setSport] = useState("all");
+  const [query, setQuery] = useState("");
+  const [advancedFilters, setAdvancedFilters] = useState(false);
   const [manualScores, setManualScores] = useState({});
   const [manualSaving, setManualSaving] = useState("");
   const [manualMessage, setManualMessage] = useState("");
@@ -64,6 +67,7 @@ export default function MyBetsView({
   const shown = useMemo(() => {
     return bets.filter((b) => {
       if (sport !== "all" && b.sport !== sport) return false;
+      if (query.trim() && ![b.awayTeam,b.homeTeam,b.matchupText,b.selectedTeam,b.selectedSide,b.playerName,b.executionBook,b.externalTicketId,b.market,b.id].filter(Boolean).join(" ").toLowerCase().includes(query.trim().toLowerCase())) return false;
       if (result !== "all" && (b.result || "OPEN") !== result) return false;
       if (attr !== "all" && (b.recommendationStatus || "") !== attr) return false;
       return true;
@@ -74,7 +78,7 @@ export default function MyBetsView({
       if (timeOrder) return timeOrder;
       return String(a.externalTicketId || "").localeCompare(String(b.externalTicketId || ""));
     });
-  }, [bets, sport, result, attr]);
+  }, [bets, sport, result, attr, query]);
   const summary = pack.summary || emptySummary();
   const unavailable = Boolean(state === "UNAVAILABLE" || error || sourceOk === false || String(sourceD1 || "").toLowerCase() === "error");
   const stat = (v, fallback = "—") => valueOrUnavailable(unavailable, v, fallback);
@@ -168,29 +172,24 @@ export default function MyBetsView({
   }
 
   return (
-    <div className="main-content">
+    <div className="main-content bets-dashboard">
       {error && <div className="panel"><div className="error">{error}</div></div>}
       <section className="panel">
         <div className="panel-header">
-          <h2>MY BETS · Unified execution ledger</h2>
+          <h2>My Bets <span className="bets-title-sub">Execution & performance</span></h2>
           <span className="last-updated">{loading ? "Loading…" : `${badgeLabel(state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${summary.bets || 0} imported`}`}</span>
         </div>
         <div className="panel-body">
-          <p className="muted">
-            Executed wagers are tracked across sportsbooks, exchanges, pick'em platforms, promotions, and reconciled historical records. Financial tracking is separate from calibration eligibility.
-          </p>
-          <p className="muted" style={{ marginTop: 8 }}>
-            Population: canonical D1 execution ledger. Calibration uses only records explicitly marked eligible with an immutable pregame model lock.
-          </p>
-          <p className="muted" style={{ marginTop: 8 }}>
-            {attemptAt ? `Current attempt ${fmtTs(attemptAt)}. ` : ""}
-            D1 binding: {sourceStatus?.binding || "unknown"} · read: {sourceStatus?.read || "unknown"} · write: {sourceStatus?.write || "unknown"}
-          </p>
+          <details className="bets-source-details"><summary>Data source & calibration details</summary>
+            <p>Executed wagers remain separate from model calibration eligibility. Calibration requires a verified, immutable pregame model lock.</p>
+            <p>{attemptAt ? `Current attempt ${fmtTs(attemptAt)}. ` : ""}D1 binding: {sourceStatus?.binding || "unknown"} · read: {sourceStatus?.read || "unknown"} · write: {sourceStatus?.write || "unknown"}</p>
+            <PopulationDescriptor descriptor={pack.population || null} title="Bets population descriptor" />
+          </details>
           <div className="today-controls" style={{ marginTop: 10 }}>
             <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT BET SLIP</button>
             {onRefresh && <button className="header-btn" onClick={onRefresh}>Reload</button>}
           </div>
-          <div className="status-grid" style={{ marginTop: 12 }}>
+          <div className="status-grid bets-stat-grid" style={{ marginTop: 12 }}>
             <Stat label="Bets" value={stat(summary.bets, 0)} />
             <Stat label="Open" value={stat(summary.open, 0)} />
             <Stat label="Settled" value={stat(summary.settled, 0)} />
@@ -203,13 +202,15 @@ export default function MyBetsView({
             <Stat label="Avg CLV" value={stat(summary.avgClv == null ? "—" : fmtSigned(summary.avgClv, 3))} />
           </div>
           <p className="muted" style={{ marginTop: 8 }}>{unavailable ? "Bets data unavailable right now. Retry after data source recovers." : (summary.message || (summary.settled ? null : "No settled Heritage bets yet."))}</p>
-          <PopulationDescriptor descriptor={pack.population || null} title="Bets population descriptor" />
-          <div className="filter-row" style={{ marginTop: 10 }}>
+          <div className="bets-filter-heading"><div><h3>Wager history</h3><span>{shown.length} matching tickets</span></div><label className="bets-search"><span>Search tickets</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Team, player, sportsbook or ticket ID"/></label></div>
+          <div className="filter-row bets-sport-filters" style={{ marginTop: 10 }}>
             <button className={sport === "all" ? "chip active" : "chip"} onClick={() => setSport("all")}>All sports</button>
             {["mlb", "nfl", "cfb", "nba", "cbb"].map((id) => (
               <button key={id} className={sport === id ? "chip active" : "chip"} onClick={() => setSport(id)}>{id.toUpperCase()}</button>
             ))}
           </div>
+          <button type="button" className="bets-advanced-toggle" aria-expanded={advancedFilters} onClick={()=>setAdvancedFilters(v=>!v)}>{advancedFilters?"Hide advanced filters":"Advanced filters"} · {result==="all"&&attr==="all"?"None applied":"Active"} ▾</button>
+          {advancedFilters&&<div className="bets-advanced-panel">
           <div className="filter-row">
             {RESULT_FILTERS.map(([id, label]) => (
               <button key={id} className={result === id ? "chip active" : "chip"} onClick={() => setResult(id)}>{label}</button>
@@ -220,10 +221,10 @@ export default function MyBetsView({
             {ATTR_FILTERS.map(([id, label]) => (
               <button key={id} className={attr === id ? "chip active" : "chip"} onClick={() => setAttr(id)}>{label}</button>
             ))}
-          </div>
+          </div></div>
         </div>
       </section>
-      <section className="panel">
+      <section className="panel bets-ledger-panel">
         <div className="panel-body" style={{ padding: 0 }}>
           {!shown.length ? (
             <div className="empty">No imported bets in this filter.</div>
@@ -272,8 +273,8 @@ export default function MyBetsView({
               ))}
             </div>
           ) : (
-            <div className="table-scroll">
-            <table className="fbis-table">
+            <div className="table-scroll bets-table-scroll">
+            <table className="fbis-table bets-ledger-table">
               <thead>
                 <tr>
                   <th>Ticket</th>
