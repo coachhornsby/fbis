@@ -4,6 +4,7 @@
 
 import { MODEL_VERSION } from "./weights.js";
 import { recordRunManifest, recordWatchdogMetric, upsertOpsHealth } from "./opsHealthLedger.js";
+import { resolveOperationsDb } from "./databaseOwnership.js";
 import { hasDb, persistJobRun, queryJobHealth, setMeta } from "./store.js";
 import {
   lastExpectedCollectUtc,
@@ -214,7 +215,8 @@ export async function recordJob(env, row) {
 }
 
 async function syncJobOpsTelemetry(env, payload, componentId) {
-  if (!env?.DB?.prepare) return { ok: false, reason: "d1-unbound" };
+  const { db: opsDb, preferred: operationsPreferred } = resolveOperationsDb(env);
+  if (!opsDb?.prepare) return { ok: false, reason: "d1-unbound" };
 
   const completedAt = payload.completedAt || new Date().toISOString();
   const success = payload.status === JOB_SUCCESS;
@@ -225,7 +227,7 @@ async function syncJobOpsTelemetry(env, payload, componentId) {
   const already = Math.max(0, Number(payload.writesAlready || 0));
   const persisted = written + already;
 
-  const previous = await env.DB.prepare(
+  const previous = await opsDb.prepare(
     `SELECT component_id, incident_fingerprint, consecutive_failures, consecutive_empty_successes
        FROM fbis_ops_health
       WHERE component_id = ?
@@ -233,7 +235,7 @@ async function syncJobOpsTelemetry(env, payload, componentId) {
   ).bind(componentId).first();
 
   if (!previous) {
-    const priorManifest = await env.DB.prepare(
+    const priorManifest = await opsDb.prepare(
       `SELECT COUNT(*) AS manifest_count,
               MIN(COALESCE(created_at, started_at)) AS detected_at
          FROM fbis_run_manifests
@@ -271,7 +273,7 @@ async function syncJobOpsTelemetry(env, payload, componentId) {
       .slice(0, 80) || failureClass;
     incidentFingerprint = previous?.incident_fingerprint || `${componentId}:${failureClass}:${normalizedError}`;
 
-    const openIncident = await env.DB.prepare(
+    const openIncident = await opsDb.prepare(
       `SELECT detected_at, repeat_count
          FROM fbis_watchdog_metrics
         WHERE component_id = ? AND incident_fingerprint = ? AND repaired_at IS NULL
@@ -297,7 +299,7 @@ async function syncJobOpsTelemetry(env, payload, componentId) {
       : 0;
 
     if (previous?.incident_fingerprint) {
-      const openIncident = await env.DB.prepare(
+      const openIncident = await opsDb.prepare(
         `SELECT detected_at, failure_class, severity, detection_source, repeat_count
            FROM fbis_watchdog_metrics
           WHERE component_id = ? AND incident_fingerprint = ? AND repaired_at IS NULL
@@ -365,7 +367,7 @@ async function syncJobOpsTelemetry(env, payload, componentId) {
     updatedAt: completedAt,
   });
 
-  return { ok: true, componentId, incidentFingerprint };
+  return { ok: true, componentId, incidentFingerprint, operationsDbPreferred: operationsPreferred };
 }
 
 function isScheduledTrigger(triggerType) {

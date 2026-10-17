@@ -17,10 +17,16 @@ export async function coldMarketPartitions(env){
 }
 /** Existing retrospective replays retain their original captured timestamp.
  * Route only those old RESEARCH writes after qualified storage cutover.
+ * New RESEARCH volume prefers MARKET_HISTORY_DB so primary does not re-accumulate.
+ * CURRENT quotes remain on primary.
  */
 export async function marketObservationDatabase(env,capturedAt,snapshotType='RESEARCH'){
- if(coldHistoryEnabled(env)&&snapshotType==='RESEARCH'&&Number.isFinite(Date.parse(capturedAt))&&Date.parse(capturedAt)<=Date.parse(COLD_MARKET_CAPTURE_CUTOFF)){
+ const snap=String(snapshotType||'RESEARCH').toUpperCase();
+ if(coldHistoryEnabled(env)&&snap==='RESEARCH'&&Number.isFinite(Date.parse(capturedAt))&&Date.parse(capturedAt)<=Date.parse(COLD_MARKET_CAPTURE_CUTOFF)){
   await coldMarketPartitions(env);return env.COLD_HISTORY_DB;
+ }
+ if(snap==='RESEARCH'||snap==='HISTORICAL'){
+  if(env?.MARKET_HISTORY_DB?.prepare)return env.MARKET_HISTORY_DB;
  }
  return env.DB;
 }

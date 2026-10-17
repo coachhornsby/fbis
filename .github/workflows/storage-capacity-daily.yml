@@ -1,11 +1,13 @@
 name: Daily physical storage capacity and incident alert
+# Measures primary, market-history, operations, and cold-history.
+# Alerts at 80% (WATCH), 85% (HIGH), 90% (CRITICAL). Critical exits nonzero after R2 evidence.
 on:
   schedule:
     - cron: '17 11 * * *'
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [ops/triggers/storage-capacity-daily]
+    paths: [ops/triggers/storage-capacity-daily, scripts/storage-capacity-daily.mjs, functions/lib/databaseOwnership.js]
 permissions:
   contents: read
 concurrency:

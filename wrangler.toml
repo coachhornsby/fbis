@@ -18,15 +18,17 @@ binding = "TIER3_DB"
 database_name = "fbis-cfb-tier3-research"
 database_id = "3dcddd30-8790-48f0-a6a3-cc3ad9b95295"
 
-# Independent 50-column market evidence shadow shard. Source-of-truth writes,
-# decision links, CLV, settlement, cards and models remain on primary DB.
-# No consumer cutover or retention release is authorized by this binding.
+# Market-history shard: shadow/recovery normalized market observations only.
+# Decision links, CLV, settlement, cards and models remain on primary DB.
+# See docs/database-ownership-v1.md. No retention release is authorized by this binding.
 [[d1_databases]]
 binding = "MARKET_HISTORY_DB"
 database_name = "fbis-market-history"
 database_id = "c32ccf06-c896-4d24-bb89-3e87a7412899"
 
-# Separate operational D1 for new feature development. No existing reads or writes are redirected.
+# Preferred home for ops control plane, capacity alerts, retention gates,
+# pipeline validation receipts, and D1 performance findings.
+# Product authority stays on primary. Schema: sql/shards/operations-v1.sql
 [[d1_databases]]
 binding = "OPERATIONS_DB"
 database_name = "fbis-operations-20261017"
