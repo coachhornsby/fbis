@@ -410,16 +410,16 @@
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo.team-logo-plate,
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo.team-logo-fallback {
-  width:64px!important;
-  height:64px!important;
-  min-width:64px;
+  width:83px!important;
+  height:83px!important;
+  min-width:83px;
   border:0!important;
   background:transparent!important;
   box-shadow:none!important;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo .team-logo {
-  width:53px!important;
-  height:53px!important;
+  width:69px!important;
+  height:69px!important;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity > b {
   font-size:13px;
@@ -481,9 +481,9 @@
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-value {font-size:21px}
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo.team-logo-plate,
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo.team-logo-fallback {
-    width:45px!important;height:45px!important;min-width:45px;
+    width:59px!important;height:59px!important;min-width:59px;
   }
-  .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo .team-logo {width:38px!important;height:38px!important}
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo .team-logo {width:49px!important;height:49px!important}
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-direction > b {font-size:38px}
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-direction > strong {font-size:11px}
 }
