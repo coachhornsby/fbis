@@ -68,3 +68,13 @@
 .fbis-priced-gap-value>strong{font-size:clamp(18px,4cqi,25px)}
 .fbis-priced-model-row small{overflow-wrap:anywhere;white-space:normal;text-align:center}
 @container(max-width:350px){.fbis-priced-selection{grid-template-columns:minmax(0,1fr) auto auto}.fbis-priced-team{grid-column:auto;font-size:10px}.fbis-priced-line{font-size:17px}.fbis-priced-odds{min-width:41px;font-size:13px}}
+
+
+/* Shared responsive team identity for spread lines and modeled home spreads. */
+.fbis-priced-team{display:flex;align-items:center;gap:6px;overflow-wrap:normal;min-width:0}
+.fbis-priced-team>span{min-width:0;font-size:clamp(9px,1.1cqi,12px);line-height:1.16;overflow-wrap:break-word}
+.fbis-priced-team-logo{flex:0 0 32px;width:32px!important;height:32px!important;object-fit:contain}
+.fbis-priced-projection-team{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;max-width:100%;font-size:clamp(12px,1.5cqi,20px)!important;line-height:1.12!important}
+.fbis-priced-projection-team>span{overflow-wrap:break-word;min-width:0}
+.fbis-priced-projection-logo{flex:0 0 36px;width:36px!important;height:36px!important;object-fit:contain}
+@container(max-width:390px){.fbis-priced-selection{grid-template-columns:minmax(0,1fr) auto auto}.fbis-priced-team-logo{flex-basis:26px;width:26px!important;height:26px!important}.fbis-priced-projection-logo{flex-basis:30px;width:30px!important;height:30px!important}}
