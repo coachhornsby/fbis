@@ -27,7 +27,7 @@ const account = process.env.CLOUDFLARE_ACCOUNT_ID;
 const out = process.env.RETIRE_OUTPUT || "/tmp/fbis-storage-retire";
 const packagePath =
   process.env.STORAGE_RETIRE_PACKAGE ||
-  resolve("docs/storage-retention-release-draft-20261017.json");
+  resolve("docs/storage-retention-release-authorized-20261017.json");
 const batchLimit = Number(process.env.STORAGE_RETIRE_BATCH || 500);
 const maxBatches = Number(process.env.STORAGE_RETIRE_MAX_BATCHES || 50);
 
@@ -165,9 +165,11 @@ try {
       PRIMARY_DB,
       "SELECT COUNT(*) AS n FROM normalized_market_observations WHERE snapshot_type = 'CURRENT'"
     );
-    if (currentAfter.results[0].n !== evidence.currentRowsOnPrimary) {
-      throw new Error("CURRENT_ROWS_CHANGED");
+    // Concurrent writers may insert CURRENT while APPLY runs; never allow CURRENT to shrink.
+    if (currentAfter.results[0].n < evidence.currentRowsOnPrimary) {
+      throw new Error("CURRENT_ROWS_DECREASED");
     }
+    evidence.currentRowsOnPrimaryAfter = currentAfter.results[0].n;
   }
 
   evidence.primaryEnd = await dbDetail(PRIMARY_DB);
