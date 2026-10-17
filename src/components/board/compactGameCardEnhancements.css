@@ -997,3 +997,21 @@
     font-size: 11px !important;
   }
 }
+
+
+/* Team gap bars: market reference and FBIS forecast each occupy their own row. */
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge .cgc-gap-quote-stack{
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+ gap:3px;max-width:100%;line-height:1.25;white-space:normal;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge .cgc-gap-quote-stack>span{
+ display:block;overflow-wrap:break-word;max-width:100%;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-team-branded{
+ --cgc-gap-accent:color-mix(in srgb,var(--cgc-gap-secondary) 70%,#ffffff);
+ border-color:var(--cgc-gap-accent)!important;
+ background:linear-gradient(105deg,
+  color-mix(in srgb,var(--cgc-gap-brand) 75%,#061221) 0%,
+  color-mix(in srgb,var(--cgc-gap-brand) 50%,var(--cgc-gap-secondary)) 48%,
+  color-mix(in srgb,var(--cgc-gap-secondary) 65%,#071523) 100%)!important;
+}
