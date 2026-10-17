@@ -748,11 +748,11 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         const cbbdCatalog = indexCbbdAdjusted(fetched.bundles["/ratings/adjusted"] || []);
         const [torvik, kenpom] = await Promise.all([
           loadTorvikCbbCatalog(env, {
-            cbbSeason: y,
+            cbbSeason: y - 1,
             fetchFn: opts.fetchFn || fetch,
           }),
           loadKenpomCbbCatalog(env, {
-            cbbSeason: y,
+            cbbSeason: y - 1,
             fetchFn: opts.fetchFn || fetch,
           }),
         ]);
