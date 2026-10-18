@@ -14,11 +14,37 @@
   min-width:0;
   height:100%;
 }
-.top-pp-card-grid .pp-card-visual{
-  min-height:168px;
+/* Match Player Props premium cards — do not override hero height */
+.top-pp-card-grid .pp-card.pp-premium-card .pp-card-visual{
+  height:188px !important;
+  min-height:188px !important;
+}
+.top-pp-card-grid .pp-card.pp-premium-card .pp-line-row.pp-premium-metrics strong{
+  font-size:16px !important;
+}
+.top-pp-card-grid .pp-card.pp-premium-card .pp-player-title h3{
+  font-size:16px !important;
+}
+.top-pp-card-grid .pp-card.pp-premium-card .pp-market-name.pp-premium-market-name{
+  font-size:15px !important;
+  min-height:28px !important;
+}
+.top-pp-card-grid .pp-card.pp-premium-card .pp-team-pill{
+  font-size:9px !important;
+  min-height:26px !important;
+  padding:0 10px !important;
+}
+.top-pp-card-grid .pp-card.pp-premium-card .pp-read.pp-premium-read .pp-read-side b{
+  font-size:13px !important;
+}
+.top-pp-card-grid .pp-card.pp-premium-card .pp-edge-value strong{
+  font-size:12px !important;
 }
 @media(max-width:1400px){
   .top-pp-card-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .top-pp-card-grid .pp-card.pp-premium-card .pp-line-row.pp-premium-metrics strong{
+    font-size:18px !important;
+  }
 }
 @media(max-width:900px){
   .top-pp-card-grid{grid-template-columns:repeat(2,minmax(0,1fr));}

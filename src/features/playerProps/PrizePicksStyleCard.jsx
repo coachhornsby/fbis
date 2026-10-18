@@ -237,6 +237,7 @@ export default function PrizePicksStyleCard({
   const projection = row.fbis_projection;
   const line = row.line;
   const delta = projection != null && line != null ? projection - line : null;
+  const side = delta == null ? "WATCH" : delta > 0 ? "MORE" : delta < 0 ? "LESS" : "WATCH";
   const tier = row.odds_tier || "standard";
   const theme = useTeamTheme(row.sport, row.team);
   const primary = theme.primary || "#172b50";
@@ -272,7 +273,7 @@ export default function PrizePicksStyleCard({
             style={{
               position: "absolute",
               left: "50%",
-              top: "42%",
+              top: "34%",
               width: "min(140%, 340px)",
               height: "min(140%, 340px)",
               transform: "translate(-50%, -50%)",
@@ -333,18 +334,33 @@ export default function PrizePicksStyleCard({
           </p>
         </div>
         <div className="pp-market-name pp-premium-market-name">{marketLabel(row)}</div>
-        <div className="pp-line-row pp-premium-metrics" aria-label="PrizePicks line versus FBIS projection">
-          <div className="pp-metric-cell">
-            <span>PP LINE</span>
-            <strong>{num(line)}</strong>
+        <div className="pp-variant-shell">
+          <div className="pp-tier-control-row">
+            <span className={"pp-active-tier pp-active-tier-" + tier}>{tier.toUpperCase()}</span>
           </div>
-          <div className="pp-metric-cell fbis-metric">
-            <span>FBIS</span>
-            <strong>{num(projection)}</strong>
+          <div className="pp-line-row pp-premium-metrics" aria-label="PrizePicks line versus FBIS projection">
+            <div className="pp-metric-cell">
+              <span>PP LINE</span>
+              <strong>{num(line)}</strong>
+            </div>
+            <div className="pp-metric-cell fbis-metric">
+              <span>FBIS</span>
+              <strong>{num(projection)}</strong>
+            </div>
+            <div className={"pp-metric-cell pp-metric-diff " + (delta == null ? "" : delta > 0 ? "is-over" : delta < 0 ? "is-under" : "is-push")}>
+              <span>DIFF</span>
+              <strong>{signed(delta)}</strong>
+            </div>
           </div>
-          <div className={"pp-metric-cell pp-metric-diff "+(delta==null?"":delta>0?"is-over":delta<0?"is-under":"is-push")}>
-            <span>DIFF</span>
-            <strong>{signed(delta)}</strong>
+          <div className={"pp-read pp-premium-read pp-read-" + String(side).toLowerCase()}>
+            <div className="pp-read-side">
+              <span className="pp-read-arrow" aria-hidden="true">{side === "LESS" ? "↓" : "↑"}</span>
+              <b>{side}</b>
+            </div>
+            <div className="pp-edge-value">
+              <span>EDGE</span>
+              <strong>{signed(delta)}</strong>
+            </div>
           </div>
         </div>
         <LastFiveBars row={row} />

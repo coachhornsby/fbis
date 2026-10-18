@@ -5,7 +5,10 @@
 .top-game-props-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .top-game-props-grid.top-game-pp-cards{align-items:stretch;gap:12px}
 .top-game-props-grid.top-game-pp-cards .pp-style-card{min-width:0;height:100%}
-.top-game-props-grid.top-game-pp-cards .pp-card-visual{min-height:168px}
+.top-game-props-grid.top-game-pp-cards .pp-card.pp-premium-card .pp-card-visual{
+  height:188px !important;
+  min-height:188px !important;
+}
 .pp-style-rank{
   position:absolute;z-index:7;top:10px;left:10px;
   min-width:34px;height:26px;padding:0 8px;border-radius:999px;

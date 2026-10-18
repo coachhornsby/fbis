@@ -135,7 +135,7 @@ function TeamWatermark({ logo }){
       style={{
         position:"absolute",
         left:"50%",
-        top:"42%",
+        top:"34%",
         width:"min(140%, 340px)",
         height:"min(140%, 340px)",
         transform:"translate(-50%, -50%)",

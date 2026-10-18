@@ -3030,7 +3030,7 @@
   position: absolute !important;
   inset: auto !important;
   left: 50% !important;
-  top: 42% !important;
+  top: 34% !important;
   right: auto !important;
   bottom: auto !important;
   width: min(140%, 340px) !important;
@@ -3101,7 +3101,7 @@
   .pp-card.pp-premium-card .pp-card-visual .pp-team-watermark {
     width: min(150%, 300px) !important;
     height: min(150%, 300px) !important;
-    top: 40% !important;
+    top: 32% !important;
     opacity: 0.26 !important;
   }
   .pp-card.pp-premium-card .pp-card-visual .pp-team-watermark img {
@@ -3123,9 +3123,9 @@
   height: 100% !important;
 }
 .pp-card.pp-premium-card .pp-card-visual .pp-team-pill {
-  bottom: -2px !important;
+  bottom: 10px !important;
   left: 50% !important;
-  transform: translate(-50%, 42%) !important;
+  transform: translateX(-50%) !important;
   z-index: 9 !important;
 }
 .pp-card.pp-premium-card .pp-card-body {
@@ -3182,6 +3182,14 @@
   gap: 8px !important;
   min-height: 30px !important;
   margin: 0 !important;
+}
+.pp-card.pp-premium-card.pp-style-card .pp-tier-control-row {
+  justify-content: flex-start !important;
+}
+.pp-card.pp-premium-card.pp-style-card .pp-active-tier {
+  font-size: 10px !important;
+  letter-spacing: 0.1em !important;
+  color: rgba(255,255,255,.72) !important;
 }
 .pp-card.pp-premium-card .pp-line-row.pp-premium-metrics {
   display: grid !important;
@@ -3308,8 +3316,8 @@
 }
 @media (max-width: 760px) {
   .pp-card.pp-premium-card .pp-card-visual .pp-team-pill {
-    bottom: -4px !important;
-    transform: translate(-50%, 40%) !important;
+    bottom: 8px !important;
+    transform: translateX(-50%) !important;
   }
   .pp-card.pp-premium-card .pp-line-row.pp-premium-metrics {
     height: 62px !important;
