@@ -1,0 +1,57 @@
+{
+  "contract": "fbis-retention-release-package-v1",
+  "releaseId": "release-20261018-current-ws-a1",
+  "retentionReleaseAuthorized": true,
+  "createdAt": "2026-10-18T14:40:00.000Z",
+  "authorizedAt": "2026-10-18T14:40:00.000Z",
+  "primaryDb": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "marketHistoryDb": "c32ccf06-c896-4d24-bb89-3e87a7412899",
+  "status": "AUTHORIZED_FOR_BOUNDED_APPLY",
+  "authorizationBasis": [
+    "Operator directive 2026-10-18: dig into D1 size relief after FREEZE/continuous-learning D1 max-size failures",
+    "Authorized RESEARCH/CFB cohorts already at 0 on primary after release-20261017-storage-a1; primary refilled with CURRENT Polymarket US WebSocket ticks",
+    "Cohort is observational only: can_qualify=0, can_authorize_wager=0, normalized_market_decision_links=0, normalized_market_economic_grades=0",
+    "Live board maxAge is 45 minutes; keep window retains CURRENT WS ticks newer than 2 hours on primary",
+    "MARKET_HISTORY_DB remains the recovery/shadow shard for new WS ticks when primary is at soft cap",
+    "Bounded DELETE batches with physical file_size remeasure; stop if keep window would be wiped unexpectedly"
+  ],
+  "cohort": {
+    "id": "current-ws-older-than-keep-window-20261018",
+    "table": "normalized_market_observations",
+    "source": "Polymarket US WebSocket",
+    "snapshot_type": "CURRENT",
+    "keepHours": 2,
+    "predicate": "snapshot_type = 'CURRENT' AND source = 'Polymarket US WebSocket' AND datetime(COALESCE(source_observed_at, collected_at)) < datetime('now', '-2 hours')",
+    "notes": "Excess observational WS ticks that refilled primary after RESEARCH/CFB retirement. Not wager-authoritative."
+  },
+  "explicitlyExcluded": [
+    {
+      "id": "current-ws-keep-window",
+      "reason": "Rows within keepHours remain on primary for live board / prospective evidence"
+    },
+    {
+      "id": "market-research-frozen",
+      "reason": "Already retired under release-20261017-storage-a1"
+    },
+    {
+      "id": "cfb-roster-2004",
+      "reason": "Protected until separate release"
+    }
+  ],
+  "applyLimits": {
+    "batchSize": 5000,
+    "maxBatchesPerRun": 40,
+    "keepHours": 2,
+    "remeasureEveryBatch": false,
+    "refuseIfDecisionLinksNonzero": true
+  },
+  "gatedReliefScript": "scripts/storage-current-ws-capacity-relief.mjs",
+  "recoveryPolicyId": "fbis-recovery-policy-current-ws-history-shard-20261018",
+  "productionUrgency": {
+    "primarySymptom": "D1_ERROR: Exceeded maximum DB size",
+    "evidence": [
+      "NFL QB personnel prospective shadow FREEZE +0D",
+      "continuous-learning / research pipeline write failures while primary file_size ≈ 10GB"
+    ]
+  }
+}

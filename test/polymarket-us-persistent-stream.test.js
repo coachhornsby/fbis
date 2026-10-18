@@ -249,6 +249,69 @@ test("R2 spill on D1 failure preserves ticks without claiming inserted success",
  assert.equal(worker.status().persistenceStatus,'DEGRADED');
 });
 
+test("known-full primary skips insert attempt and prefers MARKET_HISTORY",async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const {DatabaseSync}=await import('node:sqlite');
+ const file=new URL('../services/polymarket-us-stream/worker.mjs',import.meta.url);
+ let source=await readFile(file,'utf8');
+ source=source.replace('import {DurableObject} from "cloudflare:workers";', 'class DurableObject { constructor(ctx,env){this.ctx=ctx;this.env=env;} }');
+ source=source.replace(/from\s+["'](\.[^"']+)["']/g,(_,path)=>'from '+JSON.stringify(new URL(path,file).href));
+ const {PolymarketMarketStream}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+ const sqlite=new DatabaseSync(':memory:');
+ const HISTORY={
+  async exec(sql){sqlite.exec(sql);},
+  prepare(sql){
+   const st=sqlite.prepare(sql);
+   const run=async(...args)=>{const r=args.length?st.run(...args):st.run();return{meta:{changes:r.changes||0}};};
+   const all=async(...args)=>({results:args.length?st.all(...args):st.all()});
+   const first=async(...args)=>((args.length?st.get(...args):st.get())||null);
+   return{
+    async run(...args){return run(...args);},
+    async all(...args){return all(...args);},
+    async first(...args){return first(...args);},
+    bind(...args){
+     return{async run(){return run(...args);},async all(){return all(...args);},async first(){return first(...args);}};
+    },
+   };
+  },
+ };
+ let primaryInsertAttempts=0;
+ const fullMeta={results:[{healthy:1}],meta:{size_after:9_900_000_000}};
+ const DB={
+  prepare(sql){
+   if(String(sql).includes('SELECT 1')){
+    return{
+     async all(){return fullMeta;},
+     bind(){return{async all(){return fullMeta;}};}
+    };
+   }
+   return{
+    bind(){
+     return{
+      async run(){
+       primaryInsertAttempts++;
+       throw Error('should-not-insert-on-primary');
+      }
+     };
+    }
+   };
+  }
+ };
+ const puts=[];
+ const ARCHIVE={async put(key){puts.push(key);}};
+ const worker=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB,ARCHIVE,MARKET_HISTORY_DB:HISTORY});
+ worker.subscribed.set('nhl-ml',{sport:'nhl',canonical_event_id:'e3',event_start_time:'2026-10-18T00:00:00Z',market_family:'moneyline',period:'full_game',side:'Home'});
+ const tick={marketSlug:'nhl-ml',bestAsk:0.44,bestBid:0.41,sourceObservedAt:'2026-10-18T14:00:00Z',at:'2026-10-18T14:00:01Z'};
+ worker.queue.set(tick.marketSlug,tick);
+ await worker.flush();
+ clearTimeout(worker.flushTimer);worker.flushTimer=null;
+ assert.equal(primaryInsertAttempts,0);
+ assert.equal(worker.inserted,0);
+ assert.ok(worker.historyInserted>=1);
+ assert.equal(worker.persistenceStatus,'DEGRADED_HISTORY');
+ assert.match(worker.status().codeVersion,/capacity-prefer/);
+});
+
 test("history-shard recovery write on primary D1 failure does not claim primary inserts",async()=>{
  const {readFile}=await import('node:fs/promises');
  const {DatabaseSync}=await import('node:sqlite');
