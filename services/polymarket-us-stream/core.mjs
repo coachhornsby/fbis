@@ -253,7 +253,7 @@ export function liveBboOffer(tick,base){
       bidDepth:tick.bidDepth,askDepth:tick.askDepth,bids:tick.bids||[],offers:tick.offers||[],
       opposite:base.opposite||null,feeCoefficient:base.fee_coefficient??null,sharesTraded:tick.sharesTraded??null,openInterest:tick.openInterest??null,tradeCount:tick.tradeCount??null,tradeWindowStart:tick.tradeWindowStart??null,
       sourceObservedAt:tick.sourceObservedAt||null,quoteObservedAt:tick.sourceObservedAt||null,marketObservedAt:tick.sourceObservedAt||null,marketState:tick.marketState||null,
-      streamService:"fbis-polymarket-us-stream",streamMode:"RECONNECTING",
+      streamService:"fbis-polymarket-us-stream",streamOwnerId:tick.ownerId||null,streamMode:"RECONNECTING",
       canQualify:false,canAuthorizeWager:false,modelInfluence:"none"}};
 }
 

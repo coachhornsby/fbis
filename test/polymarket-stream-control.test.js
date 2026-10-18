@@ -15,3 +15,9 @@ test('actual collector answers heartbeat without creating quote rows and reports
  assert.equal(collector.status().operational,false);assert.equal(collector.status().connected,false);
  assert.equal(collector.lastError,'upstream-subscription-error');assert.equal(alarms.length,1);
 });
+
+test('legacy collector alarms retire without provider calls or deleting source evidence',async()=>{
+ let removed=0,closed=0;const collector=new PolymarketMarketStream({id:{toString:()=> 'legacy'},storage:{async deleteAlarm(){removed++;}},waitUntil(){}},{PM_STREAM:{idFromName:()=>({toString:()=> 'canonical'})},DB:{prepare(){throw Error('legacy must not query source inventory')}}});
+ collector.socket={close(){closed++;}};await collector.alarm();
+ assert.equal(removed,1);assert.equal(closed,1);assert.equal(collector.status().retiredOwner,true);assert.equal(collector.lastError,'LEGACY_OWNER_RETIRED');
+});

@@ -30,6 +30,15 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     this.historyLastError=null;
     this.codeVersion="rest-ws-history-recovery-complete-inventory-20261018";
   }
+  isCanonicalOwner(){
+    if(!this.ctx.id?.toString||!this.env.PM_STREAM?.idFromName)return true;
+    return this.ctx.id.toString()===this.env.PM_STREAM.idFromName('active-sports-fbis-v3').toString();
+  }
+  async retireLegacyOwner(){
+    try{this.socket?.close(1000,'legacy-owner-retired')}catch{}this.socket=null;
+    if(this.flushTimer)clearTimeout(this.flushTimer);this.flushTimer=null;
+    await this.ctx.storage.deleteAlarm();this.retiredOwner=true;this.lastError='LEGACY_OWNER_RETIRED';
+  }
   capacityPlan(){
     return {...resolveStreamCapacity(this.env||{}),coverAllEligible:this.env.STREAM_COVER_ALL_ELIGIBLE==='enabled'};
   }
@@ -40,7 +49,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     const streamHealthy=streamIsHealthy({connected,lastMessageAt:this.lastMessageAt});
     // Primary D1 inserts only count as HEALTHY persistence. R2 spill is recovery
     // evidence (DEGRADED), never silent success or a second write owner.
-    return {connected,initializing:this.running,diagnosticsVersion:2,lastSubscriptionError:this.lastSubscriptionError||null,
+    return {connected,retiredOwner:!this.isCanonicalOwner(),initializing:this.running,diagnosticsVersion:2,lastSubscriptionError:this.lastSubscriptionError||null,
       connectedAt:this.connectedAt?new Date(this.connectedAt).toISOString():null,
       subscriptions:this.subscribed.size,subscribedMarketIds:[...this.subscribed.keys()],queued:this.queue.size,
       candidateDiagnostics:this.lastCandidateDiagnostics,
@@ -246,6 +255,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     }
   }
   async connect(){
+    if(!this.isCanonicalOwner()){await this.retireLegacyOwner();return;}
     if(this.running)return;
     this.running=true;this.lastConnectAttempt=Date.now();
     try{
@@ -328,6 +338,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     }finally{this.running=false}
   }
   onMessage(evt){
+    if(!this.isCanonicalOwner()){this.ctx.waitUntil(this.retireLegacyOwner());return;}
     this.received++;this.lastMessageAt=Date.now();
     const control=parseStreamControl(evt.data);
     if(control?.type==="heartbeat"){
@@ -351,7 +362,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     const tick=parsePolymarketUsLite(evt.data);
     if(!tick||!this.subscribed.has(tick.marketSlug))return;
     this.parsed++;
-    const entry={...tick,tradeCount:this.tradeStats.get(tick.marketSlug)?.count||0,tradeWindowStart:this.tradeStats.get(tick.marketSlug)?.since||null,timeMs:Date.now(),at:new Date().toISOString()};
+    const entry={...tick,ownerId:this.ctx.id?.toString?.()||null,tradeCount:this.tradeStats.get(tick.marketSlug)?.count||0,tradeWindowStart:this.tradeStats.get(tick.marketSlug)?.since||null,timeMs:Date.now(),at:new Date().toISOString()};
     if(!shouldSaveBbo(entry,this.lastSaved.get(tick.marketSlug)))return;
     // Collapse high-frequency ticks by contract, not by first-come-wins.
     // One latest tick per subscribed contract bounds memory without evicting quiet markets.
@@ -483,6 +494,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     }
   }
   async alarm(){
+    if(!this.isCanonicalOwner()){await this.retireLegacyOwner();return;}
     await this.flush();
     await this.drainShadow();
     // Rotate before Cloudflare outbound keep-alive's 15-minute instance limit.
