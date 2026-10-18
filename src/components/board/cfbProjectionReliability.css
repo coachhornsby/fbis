@@ -1,0 +1,67 @@
+.cfb-proj-reliability {
+  margin: 0.55rem 0 0;
+  border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  padding-top: 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.cfb-proj-reliability-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.15rem 0;
+  text-align: left;
+}
+
+.cfb-proj-reliability-toggle strong {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cfb-proj-reliability-toggle .is-provisional {
+  color: #b45309;
+  font-weight: 600;
+  font-size: 0.68rem;
+}
+
+.cfb-proj-reliability-toggle .is-supported {
+  color: #047857;
+  font-weight: 600;
+  font-size: 0.68rem;
+}
+
+.cfb-proj-reliability-chevron {
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+.cfb-proj-reliability-body {
+  margin-top: 0.35rem;
+  opacity: 0.92;
+}
+
+.cfb-proj-reliability-body ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.cfb-proj-reliability-body li {
+  margin: 0.15rem 0;
+}
+
+.cfb-proj-reliability-status {
+  margin: 0;
+  font-weight: 600;
+}
+
+.cfb-proj-reliability-warn {
+  margin: 0.45rem 0 0;
+  color: #b45309;
+}

@@ -102,7 +102,9 @@ test("persisted D1 deep feed maps coreThroughWeek into gamesPlayed and drives bl
   });
   assert.equal(feed.meta.source, "cfbd-weekly-persisted-d1");
   assert.equal(feed.bySchool.oklahoma.gamesPlayed, 6);
-  assert.equal(feed.bySchool.oklahoma.gamesPlayedSource, "coreThroughWeek");
+  // coreThroughWeek is a flagged fallback proxy — never a silent verified count.
+  assert.equal(feed.bySchool.oklahoma.gamesPlayedSource, "coreThroughWeekFallback");
+  assert.equal(feed.bySchool.oklahoma.gamesPlayedUncertainty, true);
   assert.equal(feed.bySchool.oklahoma.offensePpa, -0.04);
   assert.equal(feed.byEspnId["201"].offensePpa, -0.04);
   // SP off must never be treated as current PPG on the deep feed.

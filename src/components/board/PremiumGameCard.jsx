@@ -5,6 +5,7 @@ import MatchupSignals from "./MatchupSignals.jsx";
 import NflDirectionalMatchups from "./NflDirectionalMatchups.jsx";
 import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
 import CfbSeasonStatStrip from "./CfbSeasonStatStrip.jsx";
+import CfbProjectionReliability from "./CfbProjectionReliability.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
@@ -328,6 +329,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </>
       )}
       {sportId === "cfb" ? <CfbSeasonStatStrip evidence={game.cfbSeasonEvidence} /> : null}
+      {sportId === "cfb" ? <CfbProjectionReliability reliability={game.cfbProjectionReliability} game={game} /> : null}
       {!stored && sportId === "nhl" ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
       {!stored && sportId === "nhl" ? <NhlMatchupSignals game={game} away={away} home={home} /> : null}
       {!stored && sportId !== "nhl" ? sportId === "nfl" ? <NflDirectionalMatchups game={game} matchup={game.nflGameMatchup} away={away} home={home} /> : sportId === "cfb" ? <CfbDirectionalMatchups game={game} away={away} home={home} /> : <MatchupSignals game={game} away={away} home={home} sport={sportId} /> : null}
