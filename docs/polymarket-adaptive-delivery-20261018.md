@@ -25,3 +25,11 @@ Pure FBIS probabilities remain independent. Net edge changes with price, depth, 
 ## Known scope
 
 Initial bootstrap targets independently forecast rows in `games`; the separately managed official tennis fixture path is not widened. Player props retain their separate identity, model and qualification requirements. Fee calculations are estimates before actual fill-level rounding and minimum trade checks, with no account rebates assumed. Unknown settlement rules stay VERIFY. Full cross-sport market-informed learning requires a later out-of-sample challenger study.
+
+## Complete inventory reconciliation
+
+The no-partial-coverage release removes the fixture count, catalogue-page, event-page, embedded-market and per-sport subscription cutoffs. Catalogue pages and event pages continue to exhaustion. Every independently matched provider game receives a separate paged `/v1/markets?gameId=...` traversal; all eligible moneyline/spread/total contracts enter book initialization. Provider league metadata supports name-based aliases consistently.
+
+Production `STREAM_COVER_ALL_ELIGIBLE=enabled` scales the subscription plan to every eligible contract using bounded 50-market frames. Actual subscribed market identities are compared to the collected inventory, not only subscription totals. Provider errors, identity ambiguity, absent games, unavailable books, and missing subscriptions keep the run in GAPS and fail its completion check. Unavailable provider inventory cannot be manufactured. The scope remains independently forecast team games in the next 48 hours; player props and the separate official tennis path retain their distinct model requirements.
+
+`GET /api/polymarket-bootstrap` exposes the last coverage report with exact missing events/books/subscriptions, source scope and check time. Reports older than 40 minutes cannot claim complete coverage. The scheduled job starts with IN_PROGRESS and only publishes COMPLETE after identity-level reconciliation. Per-request response-size, database-capacity, provider-rate and job-time safeguards remain; hitting a safeguard is an explicit failure, never an exhausted inventory.

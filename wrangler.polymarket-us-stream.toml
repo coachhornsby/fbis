@@ -37,6 +37,7 @@ bucket_name = "fbis-archive"
 # Subscribe frames remain ≤50 slugs; total scales via multiple frames on one DO.
 [vars]
 MARKET_HISTORY_SHADOW_WS = "disabled"
+STREAM_COVER_ALL_ELIGIBLE = "enabled"
 STREAM_MAX_CONTRACTS = "500"
 STREAM_MAX_PER_CONNECTION = "50"
 STREAM_MAX_CONNECTIONS = "10"

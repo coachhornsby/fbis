@@ -4,6 +4,7 @@ const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:
 export async function onRequestPost({request,env}){
  if(!authorizeHarvest(request,env).ok)return json(unauthorizedBody(),403);
  try{const body=await request.json();
+  if(body.operation==='report'){if(!body.report||JSON.stringify(body.report).length>1000000)return json({ok:false,error:'INVALID_REPORT'},400);await env.ARCHIVE.put('market-sources/polymarket-us/coverage/latest.json',JSON.stringify(body.report));return json({ok:true});}
   if(body.operation!=='catalogue'){
    const probe=await env.DB.prepare('SELECT 1 AS healthy').all();const bytes=Number(probe?.meta?.size_after);
    if(!Number.isFinite(bytes)||bytes<=0||bytes>=9_500_000_000)return json({ok:false,error:'REST_WRITE_CAPACITY_UNAVAILABLE',canAuthorizeWager:false},409);
@@ -11,4 +12,11 @@ export async function onRequestPost({request,env}){
   const result=await bootstrapPolymarket(env,body);return json(result,result.ok?200:409);
  }
  catch(e){const reason=/^[A-Z][A-Z0-9_]{1,100}$/.test(e.message||'')?e.message:'BOOTSTRAP_UNAVAILABLE';return json({ok:false,error:reason,canAuthorizeWager:false},reason.includes('HTTP_429')?429:503);}
+}
+
+export async function onRequestGet({env}){
+ const object=await env.ARCHIVE?.get('market-sources/polymarket-us/coverage/latest.json');
+ if(!object)return json({ok:false,status:'UNVERIFIED',coverageComplete:false},503);
+ const report=await object.json();const stale=!Number.isFinite(Date.parse(report.checkedAt))||Date.now()-Date.parse(report.checkedAt)>40*60000;
+ return json({...report,stale,coverageComplete:!stale&&report.coverageComplete===true});
 }
