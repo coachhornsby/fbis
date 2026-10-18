@@ -11,6 +11,8 @@ import {
 import { reconcileCollectionHealth } from "../lib/cfbCollectionAlerts.js";
 import { buildFeatureContractReport } from "../lib/cfbFeatureContract.js";
 import PRIOR_V1 from "../../data/cfb/prior-v1.js";
+import { buildSourceToModelAudit } from "../lib/cfbSourceToModelAudit.js";
+import { summarizeTier3Entitlements } from "../lib/cfbTier3Entitlements.js";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -129,15 +131,23 @@ export async function onRequestGet(context) {
     const awayFeatures = matchFeatures(index, g.away_name) || {};
     const homePrior = priorForTeam(g.home_name, homeFeatures.espnId);
     const awayPrior = priorForTeam(g.away_name, awayFeatures.espnId);
-    results.push(
-      evaluateGameReadiness({
-        game: { ...g, season, week },
-        homeFeatures,
-        awayFeatures,
-        homePrior,
-        awayPrior,
-      })
-    );
+    const readiness = evaluateGameReadiness({
+      game: { ...g, season, week },
+      homeFeatures: { ...homeFeatures, priorOff: homePrior.priorOff, priorDef: homePrior.priorDef },
+      awayFeatures: { ...awayFeatures, priorOff: awayPrior.priorOff, priorDef: awayPrior.priorDef },
+      homePrior,
+      awayPrior,
+    });
+    readiness.sourceToModelAudit = buildSourceToModelAudit({
+      game: { ...g, season, week, homeEspnId: homeFeatures.espnId, awayEspnId: awayFeatures.espnId },
+      homeFeatures: { ...homeFeatures, priorOff: homePrior.priorOff, priorDef: homePrior.priorDef },
+      awayFeatures: { ...awayFeatures, priorOff: awayPrior.priorOff, priorDef: awayPrior.priorDef },
+      projection: readiness.projection,
+      challengerIds: ["A", "B", "C", "D"],
+      coreResearchEligible: true,
+      archived: true,
+    });
+    results.push(readiness);
   }
 
   const summary = summarizeReadinessSlate(results);
@@ -192,6 +202,7 @@ export async function onRequestGet(context) {
       alerts: collection.alerts.slice(0, 20),
     },
     featureContract: buildFeatureContractReport(),
+    tier3Summary: summarizeTier3Entitlements(),
     disposition: summary.disposition,
   });
 }

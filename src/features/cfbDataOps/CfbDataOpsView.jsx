@@ -159,6 +159,7 @@ export default function CfbDataOpsView() {
               ["overview", "Overview"],
               ["sdv", "SDV Data"],
               ["cfbd", "CFBD Data"],
+              ["tier3", "Tier 3"],
               ["pipeline", "Pipeline Health"],
             ].map(([id, label]) => (
               <button
@@ -219,6 +220,39 @@ export default function CfbDataOpsView() {
               <DatasetTable rows={data.cfbd?.endpoints} />
             </div>
           )}
+
+          {(section === "overview" || section === "tier3") && data.tier3 ? (
+            <div className="cfb-ops-section">
+              <h3>CFBD Tier 3 utilization</h3>
+              <p className="muted small">{data.tier3.summary?.directive}</p>
+              <div className="cfb-ops-chip-row">
+                <span className="cfb-ops-chip">
+                  REST integrated {data.tier3.summary?.rest?.integrated ?? 0} · underutilized{" "}
+                  {data.tier3.summary?.rest?.underutilized ?? 0}
+                </span>
+                <span className="cfb-ops-chip">
+                  GraphQL ops {data.tier3.summary?.graphql?.n ?? 0} · production queries{" "}
+                  {data.tier3.summary?.graphql?.productionQueryDocuments ?? 0}
+                </span>
+                <span className="cfb-ops-chip">
+                  L1 {data.tier3.summary?.featureLevels?.L1 ?? 0} · L2{" "}
+                  {data.tier3.summary?.featureLevels?.L2 ?? 0} · L3{" "}
+                  {data.tier3.summary?.featureLevels?.L3 ?? 0}
+                </span>
+                <span className="cfb-ops-chip">
+                  Fitted nonzero {data.tier3.summary?.featureLevels?.fittedChampionNonzero ?? 0}
+                </span>
+              </div>
+              <p className="muted small">
+                Readiness + per-game source→model audit:{" "}
+                <code>{data.readinessApi || "/api/cfb-tuesday-readiness"}</code>
+              </p>
+              <p className="muted small">
+                GraphQL: {data.tier3.graphqlShadow?.status} — shadow beside REST before any
+                replacement. Live subscriptions are not a Tuesday prerequisite.
+              </p>
+            </div>
+          ) : null}
 
           {(section === "overview" || section === "pipeline") && (
             <>
