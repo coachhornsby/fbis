@@ -72,6 +72,16 @@ function sideFeatures(game, side) {
     ...fv,
     ...explicit,
   };
+  // Current-season primacy: never leave gamesPlayed at 0 when the deep feed
+  // already carries week-bounded CORE coverage or an explicit observation count.
+  const gp = num(merged.gamesPlayed);
+  if (!(gp > 0)) {
+    const weekBounded = merged.coreWeekBounded === true || explicit.coreWeekBounded === true;
+    const proxy =
+      num(explicit.gamesPlayed) ??
+      (weekBounded ? num(merged.coreThroughWeek ?? explicit.coreThroughWeek) : null);
+    if (proxy != null && proxy > 0) merged.gamesPlayed = proxy;
+  }
   return merged;
 }
 
@@ -394,7 +404,29 @@ export function projectCfbFbisV2(game = {}, { ablation = "K", coefficients = DEF
     weatherUncertainty: Math.abs(weather) > 0 ? 0.2 : 0,
   });
 
-  const provisional = homeFcs.provisional || awayFcs.provisional || unc.uncertainty_state === "HIGH";
+  const missingCurrentSignals = [];
+  if (homeCurrentOff == null) missingCurrentSignals.push("home_current_offense_missing");
+  if (awayCurrentOff == null) missingCurrentSignals.push("away_current_offense_missing");
+  if (!(homeGames > 0) && homeCurrentOff != null) missingCurrentSignals.push("home_games_played_unresolved");
+  if (!(awayGames > 0) && awayCurrentOff != null) missingCurrentSignals.push("away_games_played_unresolved");
+  if (!(homeGames > 0) && homeCurrentOff == null && num(homeIn.priorOff) != null) {
+    missingCurrentSignals.push("home_prior_only");
+  }
+  if (!(awayGames > 0) && awayCurrentOff == null && num(awayIn.priorOff) != null) {
+    missingCurrentSignals.push("away_prior_only");
+  }
+  // Silent prior substitution is forbidden: if current-season evidence is absent,
+  // mark provisional even when a tidy prior-only score can still be produced.
+  const priorOnlyProjection =
+    missingCurrentSignals.includes("home_prior_only") ||
+    missingCurrentSignals.includes("away_prior_only") ||
+    unc.prior_share >= 0.99;
+  const provisional =
+    homeFcs.provisional ||
+    awayFcs.provisional ||
+    unc.uncertainty_state === "HIGH" ||
+    priorOnlyProjection ||
+    missingCurrentSignals.some((f) => f.endsWith("_unresolved"));
   const decomposition = {
     BASE_POWER: rawComponents.base,
     BASE_TOTAL: round2(baseTotal),
@@ -467,6 +499,16 @@ export function projectCfbFbisV2(game = {}, { ablation = "K", coefficients = DEF
     uncertainty: unc,
     dataCompleteness: unc.data_completeness,
     provisional,
+    missingCurrentSignals,
+    priorDecay: {
+      shrinkK,
+      homeGames,
+      awayGames,
+      homeCurrentWeight: homeOff.weight,
+      awayCurrentWeight: awayOff.weight,
+      formula: "currentWeight = n/(n+shrinkK); blended = (1-w)*prior + w*current",
+      documentedDefaultK: 6,
+    },
     provenance: {
       marketUsed: false,
       marketIgnored,
@@ -477,6 +519,12 @@ export function projectCfbFbisV2(game = {}, { ablation = "K", coefficients = DEF
       sourceVersion: CFB_FBIS_V2_ARTIFACT.sourceVersion,
       reconcileOk,
       temporalCallerResponsible: true,
+      priorOnlyProjection,
+      missingCurrentSignals,
+      homeCurrentOff,
+      awayCurrentOff,
+      homeBlendedOff: homeOff.value,
+      awayBlendedOff: awayOff.value,
     },
     fcs: { home: homeFcs, away: awayFcs },
     qb: { home: homeQb, away: awayQb },

@@ -69,3 +69,46 @@ test("CFBD deep feed carries current form and matchup features into CFB-FBIS-v2"
   assert.equal(dump.includes(FAKE_KEY), false);
   assert.equal(dump.includes("Bearer"), false);
 });
+
+test("cache-only CFB loads persisted current-season features without a CFBD key", async () => {
+  resetCacheMem();
+  let networkCalls = 0;
+  const env = {
+    cfbdCacheOnly: true,
+    DB: {
+      prepare(sql) {
+        assert.match(sql, /team_feature_snapshots/);
+        return {
+          bind(season, cutoff) {
+            assert.equal(season, 2026);
+            assert.ok(cutoff.startsWith("2026-10-17"));
+            return {
+              async all() {
+                return { results: [
+                  { team_id: "201", as_of: "2026-10-15T17:00:00Z",
+                    features_json: JSON.stringify({ team: "Oklahoma", ppaOff: -0.022,
+                      ppaDef: -0.25, ppaRush: -0.194, offensiveSuccessRate: 0.401,
+                      coreOffense: 5, coreDefense: -10, coreYear: 2026,
+                      coreThroughWeek: 6, coreWeekBounded: true,
+                      coreSourceEndpoint: "/ratings/core" }) },
+                ] };
+              },
+            };
+          },
+        };
+      },
+    },
+  };
+  const feed = await loadCfbDeepFeatures(env, {
+    now: Date.parse("2026-10-17T18:00:00Z"),
+    fetchFn: async () => { networkCalls++; throw Error("must not call provider"); },
+  });
+  assert.equal(networkCalls, 0);
+  assert.equal(feed.meta.records, 1);
+  assert.equal(feed.bySchool.oklahoma.offensePpa, -0.022);
+  assert.equal(feed.bySchool.oklahoma.rushEpa, -0.194);
+  assert.equal(feed.bySchool.oklahoma.coreThroughWeek, 6);
+  assert.equal(feed.bySchool.oklahoma.gamesPlayed, 6);
+  assert.equal(feed.bySchool.oklahoma.gamesPlayedSource, "coreThroughWeek");
+  assert.equal(feed.byEspnId["201"].offensePpa, -0.022);
+});

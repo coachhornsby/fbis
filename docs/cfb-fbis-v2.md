@@ -49,6 +49,23 @@ CFB_CALIBRATE_SKIP_FETCH=1 node scripts/cfb-v2-calibrate.mjs
 Layers: prior → rolling `n/(n+k)` → matchup → QB residual → context (HFA 2.5) → score.
 Ablations A–K. Uncertainty LOW/MEDIUM/HIGH. Shadow `canQualify: false`.
 
+## Prior decay (production)
+
+Current-season primacy uses `blendPriorCurrent(prior, current, gamesPlayed, k=6)`:
+
+```
+w = n / (n + 6)
+blended = (1 - w) * prior + w * current
+```
+
+- `n` is completed-game count when available; otherwise week-bounded `coreThroughWeek` from persisted `team_feature_snapshots`.
+- By Week 7 (`n ≈ 6`), current weight is ≥ 50% — prior no longer dominates when current PPA/form exists.
+- SP `off`/`def` ratings inside snapshots are **not** current PPG and must not replace PPA-derived current strength.
+- If current-season inputs are genuinely missing, projections are marked provisional (`prior_only` / missing-current signals) rather than silently confident prior scores.
+- Alternate `k` values may be evaluated research-only (`functions/lib/cfbPriorDecay.js`); production `k=6` is not retuned from a single slate.
+
+Live deep feed order (daytime / cache-only): D1 `team_feature_snapshots` → warmed Workers cache → explicit miss. Never spend CFBD quota on a miss.
+
 ## Promotion
 
 Uses existing `PROMOTION_CRITERIA` exactly. No auto flip.
