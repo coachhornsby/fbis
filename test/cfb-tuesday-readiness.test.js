@@ -103,6 +103,46 @@ test("readiness Ready vs Blocked for missing PPA", () => {
   });
   assert.ok([READINESS.READY, READINESS.PROVISIONAL].includes(ready.status));
   assert.ok(ready.projection);
+  assert.equal(ready.checks.find((c) => c.name === "frozen_vector")?.ok, false);
+
+  const frozen = evaluateGameReadiness({
+    game: {
+      id: "g1",
+      home_name: "Marshall",
+      away_name: "South Alabama",
+      start: "2026-10-20T23:30:00.000Z",
+      homeEspnId: "276",
+      awayEspnId: "6",
+      season: 2026,
+      week: 9,
+    },
+    homeFeatures: {
+      team: "Marshall",
+      ppaOff: 0.1,
+      ppaDef: -0.05,
+      gamesPlayed: 6,
+      gamesPlayedSource: "schedule",
+      snapshotAsOf: "2026-10-18T12:00:00.000Z",
+      espnId: "276",
+    },
+    awayFeatures: {
+      team: "South Alabama",
+      ppaOff: 0.05,
+      ppaDef: 0.02,
+      gamesPlayed: 6,
+      gamesPlayedSource: "schedule",
+      snapshotAsOf: "2026-10-18T12:00:00.000Z",
+      espnId: "6",
+    },
+    homePrior: { priorOff: 28, priorDef: 24 },
+    awayPrior: { priorOff: 26, priorDef: 25 },
+    frozenVector: {
+      featureAsOf: "2026-10-17T16:32:50.000Z",
+      sourceVersion: "cfb-deep-pit-freeze-v1",
+      features: { home: { passEpa: 0.1 }, away: { passEpa: 0.2 } },
+    },
+  });
+  assert.equal(frozen.checks.find((c) => c.name === "frozen_vector")?.ok, true);
 
   const blocked = evaluateGameReadiness({
     game: {

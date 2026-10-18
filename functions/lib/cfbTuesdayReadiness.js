@@ -318,13 +318,22 @@ export function evaluateGameReadiness({
     detail: "CORE/challengers remain research_only",
   });
 
-  // frozen vector
+  // frozen vector — required before kickoff; soft until present so slate can stay Provisional
+  const freezeOk =
+    frozenVector != null &&
+    (frozenVector.featureAsOf || frozenVector.feature_as_of_timestamp || frozenVector.features);
   checks.push({
     id: 16,
     name: "frozen_vector",
-    ok: frozenVector != null ? true : false,
+    ok: Boolean(freezeOk),
     critical: false,
-    detail: frozenVector ? "present" : "not yet frozen — required before kickoff",
+    detail: freezeOk
+      ? {
+          present: true,
+          featureAsOf: frozenVector.featureAsOf || frozenVector.feature_as_of_timestamp || null,
+          sourceVersion: frozenVector.sourceVersion || frozenVector.source_version || null,
+        }
+      : "not yet frozen — required before kickoff",
   });
 
   const criticalFails = checks.filter((c) => c.critical && !c.ok);

@@ -125,6 +125,48 @@ export async function onRequestGet(context) {
     }
   }
 
+  // Load guarded pregame freeze vectors for this slate (immutable PIT rows).
+  const frozenByGameId = new Map();
+  if (env?.DB && games.length) {
+    try {
+      const ids = [...new Set(games.map((g) => String(g.id || "")).filter(Boolean))].slice(0, 100);
+      if (ids.length) {
+        const placeholders = ids.map(() => "?").join(",");
+        const rows =
+          (
+            await env.DB.prepare(
+              `SELECT game_id, feature_as_of_timestamp, kickoff_timestamp, features_json, source_version
+                 FROM cfb_pregame_feature_vectors
+                WHERE game_id IN (${placeholders})
+                ORDER BY feature_as_of_timestamp DESC
+                LIMIT 200`
+            )
+              .bind(...ids)
+              .all()
+          ).results || [];
+        for (const row of rows) {
+          const gid = String(row.game_id);
+          if (frozenByGameId.has(gid)) continue;
+          frozenByGameId.set(gid, {
+            gameId: gid,
+            featureAsOf: row.feature_as_of_timestamp,
+            kickoff: row.kickoff_timestamp,
+            sourceVersion: row.source_version,
+            features: (() => {
+              try {
+                return JSON.parse(row.features_json || "{}");
+              } catch {
+                return {};
+              }
+            })(),
+          });
+        }
+      }
+    } catch {
+      /* table may be absent pre-migration */
+    }
+  }
+
   const results = [];
   for (const g of games) {
     const homeFeatures = matchFeatures(index, g.home_name) || {};
@@ -137,6 +179,7 @@ export async function onRequestGet(context) {
       awayFeatures: { ...awayFeatures, priorOff: awayPrior.priorOff, priorDef: awayPrior.priorDef },
       homePrior,
       awayPrior,
+      frozenVector: frozenByGameId.get(String(g.id)) || null,
     });
     readiness.sourceToModelAudit = buildSourceToModelAudit({
       game: { ...g, season, week, homeEspnId: homeFeatures.espnId, awayEspnId: awayFeatures.espnId },
