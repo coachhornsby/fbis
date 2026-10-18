@@ -1,0 +1,1997 @@
+{
+  "schema": "nfl-phase-a-ablation-v1",
+  "title": "NFL Predictive Lift \u2014 Phase A",
+  "generatedAt": "2026-10-18T10:54:55.639200+00:00Z",
+  "governance": {
+    "productionChampion": "NFL-PRO-v1.1",
+    "challengersResearchOnly": true,
+    "automaticPromotion": false,
+    "canQualify": false,
+    "canAuthorizeWager": false,
+    "wageringGatesUnchanged": true,
+    "marketUsedAsBenchmarkOnly": true
+  },
+  "evaluation": {
+    "design": "chronological walk-forward ridge alpha=20 with nested blend selection; identical OOS index across configs",
+    "ridgeAlpha": 20.0,
+    "nestedBlendSelection": true,
+    "primarySampleN": 2176,
+    "startSeason": 2018,
+    "endSeason": 2026,
+    "identicalChronologicalWindows": true,
+    "pressureNote": "Training CSV pressure proxy is sack_rate (no def_qb_hits series in historical matrix)."
+  },
+  "families": {
+    "success": {
+      "margin": [
+        "diff_pregame_season_off_success_rate",
+        "diff_pregame_l5_off_success_rate"
+      ],
+      "total": [
+        "sum_pregame_season_off_success_rate",
+        "sum_pregame_l5_off_success_rate"
+      ]
+    },
+    "earlyDown": {
+      "margin": [
+        "diff_pregame_season_early_down_epa",
+        "diff_pregame_l5_early_down_epa"
+      ],
+      "total": []
+    },
+    "explosives": {
+      "margin": [
+        "diff_pregame_season_explosive_rate",
+        "diff_pregame_l5_explosive_rate"
+      ],
+      "total": [
+        "sum_pregame_season_explosive_rate",
+        "sum_pregame_l5_explosive_rate"
+      ]
+    },
+    "pressure": {
+      "margin": [
+        "diff_pregame_season_sack_rate",
+        "diff_pregame_l5_sack_rate"
+      ],
+      "total": []
+    },
+    "tracking": {
+      "margin": [
+        "diff_pregame_season_ngs_qb_cpoe",
+        "diff_pregame_l5_ngs_qb_cpoe",
+        "diff_pregame_season_ngs_time_to_throw",
+        "diff_pregame_l5_ngs_time_to_throw",
+        "diff_pregame_season_ngs_aggressiveness",
+        "diff_pregame_l5_ngs_aggressiveness",
+        "diff_pregame_season_ngs_ryoe_per_att",
+        "diff_pregame_l5_ngs_ryoe_per_att",
+        "diff_pregame_season_ngs_rush_efficiency",
+        "diff_pregame_l5_ngs_rush_efficiency",
+        "diff_pregame_season_ngs_separation",
+        "diff_pregame_l5_ngs_separation",
+        "diff_pregame_season_ngs_yac_oe",
+        "diff_pregame_l5_ngs_yac_oe"
+      ],
+      "total": [
+        "sum_pregame_season_ngs_qb_cpoe",
+        "sum_pregame_l5_ngs_qb_cpoe",
+        "sum_pregame_season_ngs_time_to_throw",
+        "sum_pregame_l5_ngs_time_to_throw",
+        "sum_pregame_season_ngs_aggressiveness",
+        "sum_pregame_l5_ngs_aggressiveness",
+        "sum_pregame_season_ngs_ryoe_per_att",
+        "sum_pregame_l5_ngs_ryoe_per_att",
+        "sum_pregame_season_ngs_rush_efficiency",
+        "sum_pregame_l5_ngs_rush_efficiency",
+        "sum_pregame_season_ngs_separation",
+        "sum_pregame_l5_ngs_separation",
+        "sum_pregame_season_ngs_yac_oe",
+        "sum_pregame_l5_ngs_yac_oe"
+      ],
+      "status": "NOT_EVALUABLE_IN_PINNED_CSV",
+      "reason": "Pinned training CSV nfl_game_training_2015_2026.csv (SHA 67646479\u2026ed07) contains zero NGS columns; core+tracking is identical to core. Rebuild with NGS required before tracking ablation is informative."
+    },
+    "context": {
+      "margin": [
+        "rest_diff"
+      ],
+      "total": [
+        "temp",
+        "wind"
+      ]
+    }
+  },
+  "configs": {
+    "core": {
+      "n": 2176,
+      "marginMae": 10.259997250272527,
+      "totalMae": 10.759061651734694,
+      "winnerAccuracy": 0.6300551470588235,
+      "nMarginFeatures": 9,
+      "nTotalFeatures": 10,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "positiveShare": 0.0
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": -0.060740153082744275,
+        "ci95": [
+          -0.09886683616085368,
+          -0.02076835790809207
+        ],
+        "positiveShare": 0.4572610294117647
+      },
+      "deltaMarginMaeVsMarket": 0.4056773973313508,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.561015062085563,
+          "totalMae": 10.991411598845914,
+          "winnerAccuracy": 0.6307692307692307
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.878801135664684,
+          "totalMae": 10.449214592762925,
+          "winnerAccuracy": 0.6343558282208589
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.252571421985415,
+          "totalMae": 10.79296011923102,
+          "winnerAccuracy": 0.616822429906542
+        }
+      },
+      "deltaMarginMaeVsCore": 0.0,
+      "deltaMarginMaeVsV11": 0.06074015308274383
+    },
+    "core+success": {
+      "n": 2176,
+      "marginMae": 10.203933000148503,
+      "totalMae": 10.770150363603094,
+      "winnerAccuracy": 0.6433823529411765,
+      "nMarginFeatures": 11,
+      "nTotalFeatures": 12,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": 0.05606425012402355,
+        "ci95": [
+          0.02447374102059583,
+          0.0835221780212202
+        ],
+        "positiveShare": 0.5381433823529411
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": -0.004675902958720729,
+        "ci95": [
+          -0.03023522984675659,
+          0.021590289436269942
+        ],
+        "positiveShare": 0.5
+      },
+      "deltaMarginMaeVsMarket": 0.34961314720732695,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.512792449494775,
+          "totalMae": 11.027245878542772,
+          "winnerAccuracy": 0.6432692307692308
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.8213478508528,
+          "totalMae": 10.434282236406567,
+          "winnerAccuracy": 0.6515337423312884
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.174627920260267,
+          "totalMae": 10.789942226929893,
+          "winnerAccuracy": 0.6230529595015576
+        }
+      },
+      "deltaMarginMaeVsCore": -0.05606425012402383,
+      "deltaMarginMaeVsV11": 0.004675902958720002
+    },
+    "core+earlyDown": {
+      "n": 2176,
+      "marginMae": 10.262079522790494,
+      "totalMae": 10.759061651734694,
+      "winnerAccuracy": 0.6318933823529411,
+      "nMarginFeatures": 11,
+      "nTotalFeatures": 10,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": -0.0020822725179661765,
+        "ci95": [
+          -0.006468600879789349,
+          0.002535536156229701
+        ],
+        "positiveShare": 0.4889705882352941
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": -0.06282242560071045,
+        "ci95": [
+          -0.10372975188506618,
+          -0.02330607392740549
+        ],
+        "positiveShare": 0.46369485294117646
+      },
+      "deltaMarginMaeVsMarket": 0.4077596698493178,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.563805238637062,
+          "totalMae": 10.991411598845914,
+          "winnerAccuracy": 0.6336538461538461
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.878835807053708,
+          "totalMae": 10.449214592762925,
+          "winnerAccuracy": 0.6355828220858896
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.257558911715877,
+          "totalMae": 10.79296011923102,
+          "winnerAccuracy": 0.616822429906542
+        }
+      },
+      "deltaMarginMaeVsCore": 0.0020822725179669987,
+      "deltaMarginMaeVsV11": 0.06282242560071083
+    },
+    "core+explosives": {
+      "n": 2176,
+      "marginMae": 10.258502235657208,
+      "totalMae": 10.74342885208625,
+      "winnerAccuracy": 0.6318933823529411,
+      "nMarginFeatures": 11,
+      "nTotalFeatures": 12,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": 0.0014950146153201826,
+        "ci95": [
+          -0.015068614634013721,
+          0.017230247528089847
+        ],
+        "positiveShare": 0.49172794117647056
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": -0.059245138467424095,
+        "ci95": [
+          -0.1005667518970074,
+          -0.020851478687477092
+        ],
+        "positiveShare": 0.4724264705882353
+      },
+      "deltaMarginMaeVsMarket": 0.4041823827160318,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.554617765519765,
+          "totalMae": 10.984649367496848,
+          "winnerAccuracy": 0.6317307692307692
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.883964372935642,
+          "totalMae": 10.416637317763389,
+          "winnerAccuracy": 0.6368098159509202
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.250054282576256,
+          "totalMae": 10.791608803631759,
+          "winnerAccuracy": 0.6199376947040498
+        }
+      },
+      "deltaMarginMaeVsCore": -0.0014950146153189792,
+      "deltaMarginMaeVsV11": 0.05924513846742485
+    },
+    "core+pressure": {
+      "n": 2176,
+      "marginMae": 10.249863543746411,
+      "totalMae": 10.779710170496001,
+      "winnerAccuracy": 0.6378676470588235,
+      "nMarginFeatures": 11,
+      "nTotalFeatures": 10,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": 0.010133706526115862,
+        "ci95": [
+          -0.01419414577018818,
+          0.03422363069179364
+        ],
+        "positiveShare": 0.5188419117647058
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": -0.050606446556628416,
+        "ci95": [
+          -0.0863172491017048,
+          -0.016008718275498816
+        ],
+        "positiveShare": 0.48483455882352944
+      },
+      "deltaMarginMaeVsMarket": 0.3955436908052352,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.540053925810529,
+          "totalMae": 11.022785672016264,
+          "winnerAccuracy": 0.6375
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.88863272919455,
+          "totalMae": 10.46430924396224,
+          "winnerAccuracy": 0.6417177914110429
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.226826523537955,
+          "totalMae": 10.79296011923102,
+          "winnerAccuracy": 0.6292834890965732
+        }
+      },
+      "deltaMarginMaeVsCore": -0.01013370652611556,
+      "deltaMarginMaeVsV11": 0.05060644655662827
+    },
+    "core+tracking": {
+      "n": 2176,
+      "marginMae": 10.259997250272527,
+      "totalMae": 10.759061651734694,
+      "winnerAccuracy": 0.6300551470588235,
+      "nMarginFeatures": 23,
+      "nTotalFeatures": 24,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "positiveShare": 0.0
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": -0.060740153082744275,
+        "ci95": [
+          -0.10240320383748963,
+          -0.021718202379276484
+        ],
+        "positiveShare": 0.4572610294117647
+      },
+      "deltaMarginMaeVsMarket": 0.4056773973313508,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.561015062085563,
+          "totalMae": 10.991411598845914,
+          "winnerAccuracy": 0.6307692307692307
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.878801135664684,
+          "totalMae": 10.449214592762925,
+          "winnerAccuracy": 0.6343558282208589
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.252571421985415,
+          "totalMae": 10.79296011923102,
+          "winnerAccuracy": 0.616822429906542
+        }
+      },
+      "deltaMarginMaeVsCore": 0.0,
+      "deltaMarginMaeVsV11": 0.06074015308274383,
+      "note": "Identical to core \u2014 NGS columns absent from pinned training matrix."
+    },
+    "core+context": {
+      "n": 2176,
+      "marginMae": 10.267591951314543,
+      "totalMae": 10.697608272970113,
+      "winnerAccuracy": 0.6314338235294118,
+      "nMarginFeatures": 10,
+      "nTotalFeatures": 12,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": -0.007594701042017469,
+        "ci95": [
+          -0.021789743007389978,
+          0.006068058599530482
+        ],
+        "positiveShare": 0.5124080882352942
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": -0.06833485412476173,
+        "ci95": [
+          -0.10611033936795282,
+          -0.03201354564860216
+        ],
+        "positiveShare": 0.46599264705882354
+      },
+      "deltaMarginMaeVsMarket": 0.4132720983733673,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.579029793763283,
+          "totalMae": 10.904056171628943,
+          "winnerAccuracy": 0.6346153846153846
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.878219123829458,
+          "totalMae": 10.429850628933558,
+          "winnerAccuracy": 0.6319018404907976
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.24716671222936,
+          "totalMae": 10.708563616535876,
+          "winnerAccuracy": 0.6199376947040498
+        }
+      },
+      "deltaMarginMaeVsCore": 0.007594701042016538,
+      "deltaMarginMaeVsV11": 0.06833485412476037
+    },
+    "core+efficiency": {
+      "n": 2176,
+      "marginMae": 10.214383922771063,
+      "totalMae": 10.734066085845456,
+      "winnerAccuracy": 0.6410845588235294,
+      "nMarginFeatures": 15,
+      "nTotalFeatures": 14,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": 0.045613327501466294,
+        "ci95": [
+          0.007717442254750468,
+          0.08025285080232868
+        ],
+        "positiveShare": 0.5335477941176471
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": -0.015126825581277974,
+        "ci95": [
+          -0.04220707787041407,
+          0.010214464762867631
+        ],
+        "positiveShare": 0.48575367647058826
+      },
+      "deltaMarginMaeVsMarket": 0.36006406982988715,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.531799486846547,
+          "totalMae": 10.965142608726383,
+          "winnerAccuracy": 0.6423076923076924
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.826072402756429,
+          "totalMae": 10.418052206686536,
+          "winnerAccuracy": 0.6441717791411042
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.171897013653986,
+          "totalMae": 10.787747480606683,
+          "winnerAccuracy": 0.6292834890965732
+        }
+      },
+      "deltaMarginMaeVsCore": -0.04561332750146363,
+      "deltaMarginMaeVsV11": 0.015126825581280201
+    },
+    "core+passRush": {
+      "n": 2176,
+      "marginMae": 10.249863543746411,
+      "totalMae": 10.779710170496001,
+      "winnerAccuracy": 0.6378676470588235,
+      "nMarginFeatures": 25,
+      "nTotalFeatures": 24,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": 0.010133706526115862,
+        "ci95": [
+          -0.013509857221202987,
+          0.033262816098380686
+        ],
+        "positiveShare": 0.5188419117647058
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": -0.050606446556628416,
+        "ci95": [
+          -0.08629707924615235,
+          -0.01613586943682002
+        ],
+        "positiveShare": 0.48483455882352944
+      },
+      "deltaMarginMaeVsMarket": 0.3955436908052352,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.540053925810529,
+          "totalMae": 11.022785672016264,
+          "winnerAccuracy": 0.6375
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.88863272919455,
+          "totalMae": 10.46430924396224,
+          "winnerAccuracy": 0.6417177914110429
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.226826523537955,
+          "totalMae": 10.79296011923102,
+          "winnerAccuracy": 0.6292834890965732
+        }
+      },
+      "deltaMarginMaeVsCore": -0.01013370652611556,
+      "deltaMarginMaeVsV11": 0.05060644655662827
+    },
+    "v11_reproduced": {
+      "n": 2176,
+      "marginMae": 10.198727674952229,
+      "totalMae": 10.692213578780107,
+      "winnerAccuracy": 0.6424632352941176,
+      "nMarginFeatures": 16,
+      "nTotalFeatures": 14,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": 0.06126957532029816,
+        "ci95": [
+          0.02113280745929176,
+          0.10171398434958807
+        ],
+        "positiveShare": 0.5431985294117647
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": 0.0005294222375538912,
+        "ci95": [
+          -0.008074766878979562,
+          0.008660619782988342
+        ],
+        "positiveShare": 0.3079044117647059
+      },
+      "deltaMarginMaeVsMarket": 0.34440782201105336,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.515971912630288,
+          "totalMae": 10.908160690701498,
+          "winnerAccuracy": 0.6423076923076924
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.816020884397144,
+          "totalMae": 10.410270924009302,
+          "winnerAccuracy": 0.649079754601227
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.142565765660063,
+          "totalMae": 10.70840755772079,
+          "winnerAccuracy": 0.6261682242990654
+        }
+      },
+      "deltaMarginMaeVsCore": -0.06126957532029742,
+      "deltaMarginMaeVsV11": -0.0005294222375535895
+    },
+    "v11+explosives_margin": {
+      "n": 2176,
+      "marginMae": 10.201725373703848,
+      "totalMae": 10.678971973623373,
+      "winnerAccuracy": 0.6447610294117647,
+      "nMarginFeatures": 18,
+      "nTotalFeatures": 16,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": 0.05827187656867885,
+        "ci95": [
+          0.01871363071661502,
+          0.09806395159857194
+        ],
+        "positiveShare": 0.5321691176470589
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": -0.0024682765140654336,
+        "ci95": [
+          -0.015201476465276396,
+          0.009515454957044143
+        ],
+        "positiveShare": 0.49080882352941174
+      },
+      "deltaMarginMaeVsMarket": 0.3474055207626723,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.520367720048363,
+          "totalMae": 10.894161542415976,
+          "winnerAccuracy": 0.6384615384615384
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.816087366009093,
+          "totalMae": 10.393682845229586,
+          "winnerAccuracy": 0.660122699386503
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.148475953370298,
+          "totalMae": 10.706116796354305,
+          "winnerAccuracy": 0.6261682242990654
+        }
+      },
+      "deltaMarginMaeVsCore": -0.05827187656867849,
+      "deltaMarginMaeVsV11": 0.0024682765140653373
+    },
+    "v12_like": {
+      "n": 2176,
+      "marginMae": 10.198727674952229,
+      "totalMae": 10.692213578780107,
+      "winnerAccuracy": 0.6424632352941176,
+      "nMarginFeatures": 30,
+      "nTotalFeatures": 28,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": 0.06126957532029816,
+        "ci95": [
+          0.021037398708069147,
+          0.09752027789588533
+        ],
+        "positiveShare": 0.5431985294117647
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": 0.0005294222375538912,
+        "ci95": [
+          -0.007232660432001398,
+          0.008769169439459365
+        ],
+        "positiveShare": 0.3079044117647059
+      },
+      "deltaMarginMaeVsMarket": 0.34440782201105336,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.515971912630288,
+          "totalMae": 10.908160690701498,
+          "winnerAccuracy": 0.6423076923076924
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.816020884397144,
+          "totalMae": 10.410270924009302,
+          "winnerAccuracy": 0.649079754601227
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.142565765660063,
+          "totalMae": 10.70840755772079,
+          "winnerAccuracy": 0.6261682242990654
+        }
+      },
+      "deltaMarginMaeVsCore": -0.06126957532029742,
+      "deltaMarginMaeVsV11": -0.0005294222375535895,
+      "note": "Equals v11_reproduced here because tracking features are all-missing in pinned CSV."
+    },
+    "full_phase_a": {
+      "n": 2176,
+      "marginMae": 10.201725373703848,
+      "totalMae": 10.678971973623373,
+      "winnerAccuracy": 0.6447610294117647,
+      "nMarginFeatures": 32,
+      "nTotalFeatures": 30,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": 0.05827187656867894,
+        "ci95": [
+          0.01953686581098418,
+          0.10091880123319676
+        ],
+        "positiveShare": 0.5321691176470589
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": -0.00246827651406534,
+        "ci95": [
+          -0.015196616964071466,
+          0.00959626982663334
+        ],
+        "positiveShare": 0.49080882352941174
+      },
+      "deltaMarginMaeVsMarket": 0.3474055207626723,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.520367720048363,
+          "totalMae": 10.894161542415976,
+          "winnerAccuracy": 0.6384615384615384
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.816087366009093,
+          "totalMae": 10.393682845229586,
+          "winnerAccuracy": 0.660122699386503
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.148475953370298,
+          "totalMae": 10.706116796354303,
+          "winnerAccuracy": 0.6261682242990654
+        }
+      },
+      "deltaMarginMaeVsCore": -0.05827187656867849,
+      "deltaMarginMaeVsV11": 0.0024682765140653373
+    },
+    "v11_exact": {
+      "n": 2176,
+      "marginMae": 10.199257097189783,
+      "totalMae": 10.677385527871696,
+      "winnerAccuracy": 0.6433823529411765,
+      "nMarginFeatures": 16,
+      "nTotalFeatures": 16,
+      "pairedMarginAbsErrorReductionVsCore": {
+        "mean": 0.060740153082744275,
+        "ci95": [
+          0.01997464127453718,
+          0.10136929917636124
+        ],
+        "positiveShare": 0.5427389705882353
+      },
+      "pairedMarginAbsErrorReductionVsV11": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "positiveShare": 0.0
+      },
+      "deltaMarginMaeVsMarket": 0.34493724424860694,
+      "seasons": {
+        "2018_2021": {
+          "n": 1040,
+          "marginMae": 10.520661827135369,
+          "totalMae": 10.890842209766317,
+          "winnerAccuracy": 0.6413461538461539
+        },
+        "2022_2024": {
+          "n": 815,
+          "marginMae": 9.81144973311326,
+          "totalMae": 10.393682845229586,
+          "winnerAccuracy": 0.652760736196319
+        },
+        "2025_2026": {
+          "n": 321,
+          "marginMae": 10.142565765660061,
+          "totalMae": 10.706116796354303,
+          "winnerAccuracy": 0.6261682242990654
+        }
+      },
+      "deltaMarginMaeVsCore": -0.06074015308274383,
+      "deltaMarginMaeVsV11": 0.0
+    }
+  },
+  "rankingByMarginMae": [
+    {
+      "config": "v11_reproduced",
+      "marginMae": 10.198727674952229,
+      "totalMae": 10.692213578780107,
+      "winnerAccuracy": 0.6424632352941176
+    },
+    {
+      "config": "v12_like",
+      "marginMae": 10.198727674952229,
+      "totalMae": 10.692213578780107,
+      "winnerAccuracy": 0.6424632352941176
+    },
+    {
+      "config": "v11_exact",
+      "marginMae": 10.199257097189783,
+      "totalMae": 10.677385527871696,
+      "winnerAccuracy": 0.6433823529411765
+    },
+    {
+      "config": "v11+explosives_margin",
+      "marginMae": 10.201725373703848,
+      "totalMae": 10.678971973623373,
+      "winnerAccuracy": 0.6447610294117647
+    },
+    {
+      "config": "full_phase_a",
+      "marginMae": 10.201725373703848,
+      "totalMae": 10.678971973623373,
+      "winnerAccuracy": 0.6447610294117647
+    },
+    {
+      "config": "core+success",
+      "marginMae": 10.203933000148503,
+      "totalMae": 10.770150363603094,
+      "winnerAccuracy": 0.6433823529411765
+    },
+    {
+      "config": "core+efficiency",
+      "marginMae": 10.214383922771063,
+      "totalMae": 10.734066085845456,
+      "winnerAccuracy": 0.6410845588235294
+    },
+    {
+      "config": "core+pressure",
+      "marginMae": 10.249863543746411,
+      "totalMae": 10.779710170496001,
+      "winnerAccuracy": 0.6378676470588235
+    },
+    {
+      "config": "core+passRush",
+      "marginMae": 10.249863543746411,
+      "totalMae": 10.779710170496001,
+      "winnerAccuracy": 0.6378676470588235
+    },
+    {
+      "config": "core+explosives",
+      "marginMae": 10.258502235657208,
+      "totalMae": 10.74342885208625,
+      "winnerAccuracy": 0.6318933823529411
+    },
+    {
+      "config": "core",
+      "marginMae": 10.259997250272527,
+      "totalMae": 10.759061651734694,
+      "winnerAccuracy": 0.6300551470588235
+    },
+    {
+      "config": "core+tracking",
+      "marginMae": 10.259997250272527,
+      "totalMae": 10.759061651734694,
+      "winnerAccuracy": 0.6300551470588235
+    },
+    {
+      "config": "core+earlyDown",
+      "marginMae": 10.262079522790494,
+      "totalMae": 10.759061651734694,
+      "winnerAccuracy": 0.6318933823529411
+    },
+    {
+      "config": "core+context",
+      "marginMae": 10.267591951314543,
+      "totalMae": 10.697608272970113,
+      "winnerAccuracy": 0.6314338235294118
+    }
+  ],
+  "market": {
+    "n": 2176,
+    "marginMae": 9.854319852941176,
+    "totalMae": 10.403492647058824,
+    "winnerAccuracy": 0.6640625
+  },
+  "errorOriginsVsCore": [
+    {
+      "config": "core+success",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": 0.05606425012402355,
+        "ci95": [
+          0.024960871158853558,
+          0.08575258422899816
+        ],
+        "positiveShare": 0.5381433823529411
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": 0.05117203719000781,
+          "ci95": [
+            -0.007112803130628555,
+            0.1136070332856171
+          ],
+          "positiveShare": 0.5404858299595142
+        },
+        "spread_3_7": {
+          "mean": 0.06249467064659411,
+          "ci95": [
+            0.018931679394381225,
+            0.10313393105592224
+          ],
+          "positiveShare": 0.5357483317445186
+        },
+        "spread_7_plus": {
+          "mean": 0.049225769967984466,
+          "ci95": [
+            -0.009128744994143735,
+            0.1065274394775611
+          ],
+          "positiveShare": 0.5402843601895735
+        },
+        "early_season": {
+          "mean": 0.07357268616516627,
+          "ci95": [
+            0.0071280109600907575,
+            0.1381603851307779
+          ],
+          "positiveShare": 0.5448028673835126
+        },
+        "mid_season": {
+          "mean": 0.04240156636967441,
+          "ci95": [
+            -0.002297258127865331,
+            0.08996175035504003
+          ],
+          "positiveShare": 0.5190839694656488
+        },
+        "late_season": {
+          "mean": 0.06000001858590733,
+          "ci95": [
+            0.017362783467687642,
+            0.10408573202982496
+          ],
+          "positiveShare": 0.557774607703281
+        }
+      }
+    },
+    {
+      "config": "core+earlyDown",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": -0.0020822725179661765,
+        "ci95": [
+          -0.00634991481425044,
+          0.002447389705867983
+        ],
+        "positiveShare": 0.4889705882352941
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": -0.0024151780780224943,
+          "ci95": [
+            -0.012167728061909954,
+            0.0070442295472910215
+          ],
+          "positiveShare": 0.4979757085020243
+        },
+        "spread_3_7": {
+          "mean": -0.0009213495884771626,
+          "ci95": [
+            -0.007390305283629066,
+            0.005971947187008707
+          ],
+          "positiveShare": 0.5004766444232602
+        },
+        "spread_7_plus": {
+          "mean": -0.003746336982999596,
+          "ci95": [
+            -0.012328837174669793,
+            0.004013649075542533
+          ],
+          "positiveShare": 0.4628751974723539
+        },
+        "early_season": {
+          "mean": 0.000765564081835382,
+          "ci95": [
+            -0.007530215082167947,
+            0.009777557128274435
+          ],
+          "positiveShare": 0.514336917562724
+        },
+        "mid_season": {
+          "mean": -0.006140615955439076,
+          "ci95": [
+            -0.013439059016126789,
+            0.0005185937021773106
+          ],
+          "positiveShare": 0.47001090512540894
+        },
+        "late_season": {
+          "mean": 0.0009596791360614678,
+          "ci95": [
+            -0.007229162741193068,
+            0.00859028469160308
+          ],
+          "positiveShare": 0.49358059914407987
+        }
+      }
+    },
+    {
+      "config": "core+explosives",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": 0.0014950146153201826,
+        "ci95": [
+          -0.01547337979185861,
+          0.01756779344667028
+        ],
+        "positiveShare": 0.49172794117647056
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": -0.01649810919495195,
+          "ci95": [
+            -0.05166844786923163,
+            0.020756030917259076
+          ],
+          "positiveShare": 0.4777327935222672
+        },
+        "spread_3_7": {
+          "mean": 0.01632835187877143,
+          "ci95": [
+            -0.007516579406031868,
+            0.03960380079603497
+          ],
+          "positiveShare": 0.4899904671115348
+        },
+        "spread_7_plus": {
+          "mean": -0.009044586691292648,
+          "ci95": [
+            -0.03800498762750285,
+            0.019725198526503035
+          ],
+          "positiveShare": 0.5055292259083728
+        },
+        "early_season": {
+          "mean": -0.006432267675471027,
+          "ci95": [
+            -0.04203031934366449,
+            0.03171376644420816
+          ],
+          "positiveShare": 0.4767025089605735
+        },
+        "mid_season": {
+          "mean": -0.0072399753160023485,
+          "ci95": [
+            -0.031920597348265835,
+            0.01912075189162598
+          ],
+          "positiveShare": 0.495092693565976
+        },
+        "late_season": {
+          "mean": 0.019231689772644375,
+          "ci95": [
+            -0.006401419950477009,
+            0.042864169851779134
+          ],
+          "positiveShare": 0.4992867332382311
+        }
+      }
+    },
+    {
+      "config": "core+pressure",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": 0.010133706526115862,
+        "ci95": [
+          -0.012410160441151698,
+          0.035065235810323586
+        ],
+        "positiveShare": 0.5188419117647058
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": 0.03840999368080619,
+          "ci95": [
+            -0.008137503635506435,
+            0.08818769493647798
+          ],
+          "positiveShare": 0.52834008097166
+        },
+        "spread_3_7": {
+          "mean": 0.005378464317338356,
+          "ci95": [
+            -0.0247003152989706,
+            0.037735688523628644
+          ],
+          "positiveShare": 0.5204957102001907
+        },
+        "spread_7_plus": {
+          "mean": -0.0040530814318768885,
+          "ci95": [
+            -0.04661419601683455,
+            0.04116642972649917
+          ],
+          "positiveShare": 0.5086887835703001
+        },
+        "early_season": {
+          "mean": 0.03452934511212584,
+          "ci95": [
+            -0.016833522077106294,
+            0.0832533260337737
+          ],
+          "positiveShare": 0.5232974910394266
+        },
+        "mid_season": {
+          "mean": -0.0010463904822350725,
+          "ci95": [
+            -0.03440161666287124,
+            0.03258363806239521
+          ],
+          "positiveShare": 0.5267175572519084
+        },
+        "late_season": {
+          "mean": 0.005339673181842309,
+          "ci95": [
+            -0.03623809632489446,
+            0.045773290036714244
+          ],
+          "positiveShare": 0.5049928673323824
+        }
+      }
+    },
+    {
+      "config": "core+tracking",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "positiveShare": 0.0
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "positiveShare": 0.0
+        },
+        "spread_3_7": {
+          "mean": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "positiveShare": 0.0
+        },
+        "spread_7_plus": {
+          "mean": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "positiveShare": 0.0
+        },
+        "early_season": {
+          "mean": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "positiveShare": 0.0
+        },
+        "mid_season": {
+          "mean": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "positiveShare": 0.0
+        },
+        "late_season": {
+          "mean": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "positiveShare": 0.0
+        }
+      }
+    },
+    {
+      "config": "core+context",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": -0.007594701042017469,
+        "ci95": [
+          -0.02127575148555417,
+          0.006344113683226058
+        ],
+        "positiveShare": 0.5124080882352942
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": -0.026033982221530774,
+          "ci95": [
+            -0.05591510371735362,
+            0.0040239907705594555
+          ],
+          "positiveShare": 0.4757085020242915
+        },
+        "spread_3_7": {
+          "mean": -0.012785499416060527,
+          "ci95": [
+            -0.03246540778747974,
+            0.007022288279262281
+          ],
+          "positiveShare": 0.5147759771210677
+        },
+        "spread_7_plus": {
+          "mean": 0.015397640817462376,
+          "ci95": [
+            -0.013302678879520902,
+            0.044261633932186704
+          ],
+          "positiveShare": 0.5371248025276462
+        },
+        "early_season": {
+          "mean": -0.024623832662151485,
+          "ci95": [
+            -0.047975535245907225,
+            0.00101193083393097
+          ],
+          "positiveShare": 0.46953405017921146
+        },
+        "mid_season": {
+          "mean": 0.005749466309742353,
+          "ci95": [
+            -0.019632616294131582,
+            0.029983809542782396
+          ],
+          "positiveShare": 0.5212649945474372
+        },
+        "late_season": {
+          "mean": -0.011495337300974635,
+          "ci95": [
+            -0.03221533900715746,
+            0.00926472353435623
+          ],
+          "positiveShare": 0.5349500713266762
+        }
+      }
+    },
+    {
+      "config": "core+efficiency",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": 0.045613327501466294,
+        "ci95": [
+          0.007985092727376068,
+          0.08226190764502707
+        ],
+        "positiveShare": 0.5335477941176471
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": 0.011126926649694965,
+          "ci95": [
+            -0.07008038420800308,
+            0.08703708449448916
+          ],
+          "positiveShare": 0.5040485829959515
+        },
+        "spread_3_7": {
+          "mean": 0.05552720761567779,
+          "ci95": [
+            0.007025166450533995,
+            0.10836576229270124
+          ],
+          "positiveShare": 0.5357483317445186
+        },
+        "spread_7_plus": {
+          "mean": 0.056097722100150633,
+          "ci95": [
+            -0.013954032555009314,
+            0.12284166564199363
+          ],
+          "positiveShare": 0.5529225908372828
+        },
+        "early_season": {
+          "mean": 0.046662257442343466,
+          "ci95": [
+            -0.028287305007792453,
+            0.12703898411132938
+          ],
+          "positiveShare": 0.514336917562724
+        },
+        "mid_season": {
+          "mean": 0.029686166906422513,
+          "ci95": [
+            -0.025860141269947786,
+            0.08813542553895476
+          ],
+          "positiveShare": 0.5267175572519084
+        },
+        "late_season": {
+          "mean": 0.06561318963933462,
+          "ci95": [
+            0.01250916131788456,
+            0.11884713952480784
+          ],
+          "positiveShare": 0.557774607703281
+        }
+      }
+    },
+    {
+      "config": "core+passRush",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": 0.010133706526115862,
+        "ci95": [
+          -0.011833899846815267,
+          0.03181336192085891
+        ],
+        "positiveShare": 0.5188419117647058
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": 0.03840999368080619,
+          "ci95": [
+            -0.01173583214520373,
+            0.08492487737505981
+          ],
+          "positiveShare": 0.52834008097166
+        },
+        "spread_3_7": {
+          "mean": 0.005378464317338356,
+          "ci95": [
+            -0.02640170486771134,
+            0.03757256846338015
+          ],
+          "positiveShare": 0.5204957102001907
+        },
+        "spread_7_plus": {
+          "mean": -0.0040530814318768885,
+          "ci95": [
+            -0.04967105671677457,
+            0.04253442694801812
+          ],
+          "positiveShare": 0.5086887835703001
+        },
+        "early_season": {
+          "mean": 0.03452934511212584,
+          "ci95": [
+            -0.014068562547289895,
+            0.08519607561478658
+          ],
+          "positiveShare": 0.5232974910394266
+        },
+        "mid_season": {
+          "mean": -0.0010463904822350725,
+          "ci95": [
+            -0.030832067058483785,
+            0.03225813433161166
+          ],
+          "positiveShare": 0.5267175572519084
+        },
+        "late_season": {
+          "mean": 0.005339673181842309,
+          "ci95": [
+            -0.03565951712980509,
+            0.04495733887590767
+          ],
+          "positiveShare": 0.5049928673323824
+        }
+      }
+    },
+    {
+      "config": "v11_reproduced",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": 0.06126957532029816,
+        "ci95": [
+          0.019206905676395155,
+          0.10180167638402024
+        ],
+        "positiveShare": 0.5431985294117647
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": 0.049301101917235364,
+          "ci95": [
+            -0.035455478554751695,
+            0.13063525325585015
+          ],
+          "positiveShare": 0.5404858299595142
+        },
+        "spread_3_7": {
+          "mean": 0.04956157912817902,
+          "ci95": [
+            -0.010342697043460103,
+            0.10927721262554459
+          ],
+          "positiveShare": 0.5319351763584366
+        },
+        "spread_7_plus": {
+          "mean": 0.090012251254968,
+          "ci95": [
+            0.010501604526976219,
+            0.16833923906594564
+          ],
+          "positiveShare": 0.5639810426540285
+        },
+        "early_season": {
+          "mean": 0.09074609237174244,
+          "ci95": [
+            0.004464490294522823,
+            0.17976732674287668
+          ],
+          "positiveShare": 0.5519713261648745
+        },
+        "mid_season": {
+          "mean": 0.05711059336063482,
+          "ci95": [
+            -0.0031448763282929896,
+            0.11936949273780355
+          ],
+          "positiveShare": 0.5419847328244275
+        },
+        "late_season": {
+          "mean": 0.04324659378293066,
+          "ci95": [
+            -0.017603813816950937,
+            0.10446351511508825
+          ],
+          "positiveShare": 0.5378031383737518
+        }
+      }
+    },
+    {
+      "config": "v11+explosives_margin",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": 0.05827187656867885,
+        "ci95": [
+          0.016490252003992362,
+          0.10016005611492597
+        ],
+        "positiveShare": 0.5321691176470589
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": 0.034914989993810146,
+          "ci95": [
+            -0.05613787278585815,
+            0.12110005617271952
+          ],
+          "positiveShare": 0.5020242914979757
+        },
+        "spread_3_7": {
+          "mean": 0.06062099929899411,
+          "ci95": [
+            0.0006365040583101887,
+            0.11513211958324437
+          ],
+          "positiveShare": 0.5386081982840801
+        },
+        "spread_7_plus": {
+          "mean": 0.07260690377860685,
+          "ci95": [
+            -0.003298774580552645,
+            0.1491126129458324
+          ],
+          "positiveShare": 0.5450236966824644
+        },
+        "early_season": {
+          "mean": 0.08533622436989013,
+          "ci95": [
+            -0.005456828921712529,
+            0.16768284293727476
+          ],
+          "positiveShare": 0.5304659498207885
+        },
+        "mid_season": {
+          "mean": 0.043874074219531156,
+          "ci95": [
+            -0.01651687246361303,
+            0.1116105926175947
+          ],
+          "positiveShare": 0.5256270447110142
+        },
+        "late_season": {
+          "mean": 0.05556271634199202,
+          "ci95": [
+            -0.0054520652736076685,
+            0.12322304921822376
+          ],
+          "positiveShare": 0.5420827389443652
+        }
+      }
+    },
+    {
+      "config": "v12_like",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": 0.06126957532029816,
+        "ci95": [
+          0.02114781628427047,
+          0.10058305370358926
+        ],
+        "positiveShare": 0.5431985294117647
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": 0.049301101917235364,
+          "ci95": [
+            -0.028710477164221315,
+            0.13522562314430442
+          ],
+          "positiveShare": 0.5404858299595142
+        },
+        "spread_3_7": {
+          "mean": 0.04956157912817902,
+          "ci95": [
+            -0.0014970744502431675,
+            0.10342017545117418
+          ],
+          "positiveShare": 0.5319351763584366
+        },
+        "spread_7_plus": {
+          "mean": 0.090012251254968,
+          "ci95": [
+            0.015799148424825965,
+            0.16506740233875616
+          ],
+          "positiveShare": 0.5639810426540285
+        },
+        "early_season": {
+          "mean": 0.09074609237174244,
+          "ci95": [
+            0.006146044957575836,
+            0.17650062916528356
+          ],
+          "positiveShare": 0.5519713261648745
+        },
+        "mid_season": {
+          "mean": 0.05711059336063482,
+          "ci95": [
+            -0.0025258422147836322,
+            0.12171909100825654
+          ],
+          "positiveShare": 0.5419847328244275
+        },
+        "late_season": {
+          "mean": 0.04324659378293066,
+          "ci95": [
+            -0.018417722946190207,
+            0.10008059974727355
+          ],
+          "positiveShare": 0.5378031383737518
+        }
+      }
+    },
+    {
+      "config": "full_phase_a",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": 0.05827187656867894,
+        "ci95": [
+          0.01881287856964597,
+          0.09812516821636005
+        ],
+        "positiveShare": 0.5321691176470589
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": 0.03491498999381035,
+          "ci95": [
+            -0.05492805864493549,
+            0.12229160874157662
+          ],
+          "positiveShare": 0.5020242914979757
+        },
+        "spread_3_7": {
+          "mean": 0.06062099929899409,
+          "ci95": [
+            0.0045718467189852195,
+            0.11513807625561046
+          ],
+          "positiveShare": 0.5386081982840801
+        },
+        "spread_7_plus": {
+          "mean": 0.07260690377860704,
+          "ci95": [
+            -0.006434339116029299,
+            0.15218794185481319
+          ],
+          "positiveShare": 0.5450236966824644
+        },
+        "early_season": {
+          "mean": 0.08533622436989034,
+          "ci95": [
+            -0.006570823976694591,
+            0.1694421404706765
+          ],
+          "positiveShare": 0.5304659498207885
+        },
+        "mid_season": {
+          "mean": 0.04387407421953119,
+          "ci95": [
+            -0.01740506183563886,
+            0.10696487373715112
+          ],
+          "positiveShare": 0.5256270447110142
+        },
+        "late_season": {
+          "mean": 0.055562716341992086,
+          "ci95": [
+            -0.004733466033169836,
+            0.11949599111191317
+          ],
+          "positiveShare": 0.5420827389443652
+        }
+      }
+    },
+    {
+      "config": "v11_exact",
+      "n": 2176,
+      "marginAbsErrorReductionVsCore": {
+        "mean": 0.060740153082744275,
+        "ci95": [
+          0.01862045890630694,
+          0.10267944704343109
+        ],
+        "positiveShare": 0.5427389705882353
+      },
+      "byCondition": {
+        "spread_0_3": {
+          "mean": 0.04725893855454914,
+          "ci95": [
+            -0.038014241702111415,
+            0.13625156170276304
+          ],
+          "positiveShare": 0.5303643724696356
+        },
+        "spread_3_7": {
+          "mean": 0.0499596196780051,
+          "ci95": [
+            -0.0035147125551250767,
+            0.10922526601197959
+          ],
+          "positiveShare": 0.5386081982840801
+        },
+        "spread_7_plus": {
+          "mean": 0.08912640824625108,
+          "ci95": [
+            0.007345240844534522,
+            0.1672647576332072
+          ],
+          "positiveShare": 0.5592417061611374
+        },
+        "early_season": {
+          "mean": 0.08742199660737243,
+          "ci95": [
+            0.0021790938701059482,
+            0.17200077651729134
+          ],
+          "positiveShare": 0.5519713261648745
+        },
+        "mid_season": {
+          "mean": 0.06079426766075684,
+          "ci95": [
+            0.0016879869162912961,
+            0.12320860639611544
+          ],
+          "positiveShare": 0.5441657579062159
+        },
+        "late_season": {
+          "mean": 0.03943046441686693,
+          "ci95": [
+            -0.019094411884957703,
+            0.09603726206632451
+          ],
+          "positiveShare": 0.5335235378031383
+        }
+      }
+    }
+  ],
+  "economicSeparateFromPredictive": {
+    "core": {
+      "config": "core",
+      "spreads": {
+        "n": 1648,
+        "wins": 827,
+        "losses": 778,
+        "pushes": 43,
+        "units": -26.181818181818244,
+        "roi": -0.016312659303313548,
+        "hitRate": 0.5152647975077882,
+        "thresholdAbsEdge": 1.0,
+        "pricing": "flat-110-research-only"
+      },
+      "totals": {
+        "n": 1541,
+        "wins": 761,
+        "losses": 765,
+        "pushes": 15,
+        "units": -73.18181818181824,
+        "roi": -0.04795663052543791,
+        "hitRate": 0.4986893840104849,
+        "thresholdAbsEdge": 1.0,
+        "pricing": "flat-110-research-only"
+      },
+      "clv": null,
+      "note": "Economic metrics are independent of MAE. No wager authority. CLV unavailable without open\u2192close series."
+    },
+    "v11_exact": {
+      "config": "v11_exact",
+      "spreads": {
+        "n": 1648,
+        "wins": 827,
+        "losses": 778,
+        "pushes": 43,
+        "units": -26.181818181818244,
+        "roi": -0.016312659303313548,
+        "hitRate": 0.5152647975077882,
+        "thresholdAbsEdge": 1.0,
+        "pricing": "flat-110-research-only"
+      },
+      "totals": {
+        "n": 1541,
+        "wins": 761,
+        "losses": 765,
+        "pushes": 15,
+        "units": -73.18181818181824,
+        "roi": -0.04795663052543791,
+        "hitRate": 0.4986893840104849,
+        "thresholdAbsEdge": 1.0,
+        "pricing": "flat-110-research-only"
+      },
+      "clv": null,
+      "note": "Economic metrics are independent of MAE. No wager authority. CLV unavailable without open\u2192close series."
+    },
+    "core+success": {
+      "config": "core+success",
+      "spreads": {
+        "n": 1648,
+        "wins": 827,
+        "losses": 778,
+        "pushes": 43,
+        "units": -26.181818181818244,
+        "roi": -0.016312659303313548,
+        "hitRate": 0.5152647975077882,
+        "thresholdAbsEdge": 1.0,
+        "pricing": "flat-110-research-only"
+      },
+      "totals": {
+        "n": 1541,
+        "wins": 761,
+        "losses": 765,
+        "pushes": 15,
+        "units": -73.18181818181824,
+        "roi": -0.04795663052543791,
+        "hitRate": 0.4986893840104849,
+        "thresholdAbsEdge": 1.0,
+        "pricing": "flat-110-research-only"
+      },
+      "clv": null,
+      "note": "Economic metrics are independent of MAE. No wager authority. CLV unavailable without open\u2192close series."
+    },
+    "core+tracking": {
+      "config": "core+tracking",
+      "spreads": {
+        "n": 1648,
+        "wins": 827,
+        "losses": 778,
+        "pushes": 43,
+        "units": -26.181818181818244,
+        "roi": -0.016312659303313548,
+        "hitRate": 0.5152647975077882,
+        "thresholdAbsEdge": 1.0,
+        "pricing": "flat-110-research-only"
+      },
+      "totals": {
+        "n": 1541,
+        "wins": 761,
+        "losses": 765,
+        "pushes": 15,
+        "units": -73.18181818181824,
+        "roi": -0.04795663052543791,
+        "hitRate": 0.4986893840104849,
+        "thresholdAbsEdge": 1.0,
+        "pricing": "flat-110-research-only"
+      },
+      "clv": null,
+      "note": "Economic metrics are independent of MAE. No wager authority. CLV unavailable without open\u2192close series."
+    },
+    "full_phase_a": {
+      "config": "full_phase_a",
+      "spreads": {
+        "n": 1648,
+        "wins": 827,
+        "losses": 778,
+        "pushes": 43,
+        "units": -26.181818181818244,
+        "roi": -0.016312659303313548,
+        "hitRate": 0.5152647975077882,
+        "thresholdAbsEdge": 1.0,
+        "pricing": "flat-110-research-only"
+      },
+      "totals": {
+        "n": 1541,
+        "wins": 761,
+        "losses": 765,
+        "pushes": 15,
+        "units": -73.18181818181824,
+        "roi": -0.04795663052543791,
+        "hitRate": 0.4986893840104849,
+        "thresholdAbsEdge": 1.0,
+        "pricing": "flat-110-research-only"
+      },
+      "clv": null,
+      "note": "Economic metrics are independent of MAE. No wager authority. CLV unavailable without open\u2192close series."
+    },
+    "v12_like": {
+      "config": "v12_like",
+      "spreads": {
+        "n": 1648,
+        "wins": 827,
+        "losses": 778,
+        "pushes": 43,
+        "units": -26.181818181818244,
+        "roi": -0.016312659303313548,
+        "hitRate": 0.5152647975077882,
+        "thresholdAbsEdge": 1.0,
+        "pricing": "flat-110-research-only"
+      },
+      "totals": {
+        "n": 1541,
+        "wins": 761,
+        "losses": 765,
+        "pushes": 15,
+        "units": -73.18181818181824,
+        "roi": -0.04795663052543791,
+        "hitRate": 0.4986893840104849,
+        "thresholdAbsEdge": 1.0,
+        "pricing": "flat-110-research-only"
+      },
+      "clv": null,
+      "note": "Economic metrics are independent of MAE. No wager authority. CLV unavailable without open\u2192close series."
+    }
+  },
+  "calibration": {
+    "v11_exact": {
+      "sigmaAssumed": 14.0,
+      "bins": [
+        {
+          "bin": "0.1-0.2",
+          "n": 5,
+          "avgPredicted": 0.1791776791564095,
+          "empRate": 0.2,
+          "gap": -0.02082232084359051
+        },
+        {
+          "bin": "0.2-0.3",
+          "n": 69,
+          "avgPredicted": 0.2675373975438119,
+          "empRate": 0.2608695652173913,
+          "gap": 0.006667832326420597
+        },
+        {
+          "bin": "0.3-0.4",
+          "n": 234,
+          "avgPredicted": 0.3602773223905332,
+          "empRate": 0.3418803418803419,
+          "gap": 0.018396980510191285
+        },
+        {
+          "bin": "0.4-0.5",
+          "n": 504,
+          "avgPredicted": 0.4532182120518263,
+          "empRate": 0.38492063492063494,
+          "gap": 0.06829757713119133
+        },
+        {
+          "bin": "0.5-0.6",
+          "n": 671,
+          "avgPredicted": 0.5508063176057818,
+          "empRate": 0.5305514157973175,
+          "gap": 0.020254901808464343
+        },
+        {
+          "bin": "0.6-0.7",
+          "n": 475,
+          "avgPredicted": 0.6459775865497328,
+          "empRate": 0.7326315789473684,
+          "gap": -0.0866539923976356
+        },
+        {
+          "bin": "0.7-0.8",
+          "n": 192,
+          "avgPredicted": 0.7395606882878352,
+          "empRate": 0.8020833333333334,
+          "gap": -0.0625226450454982
+        },
+        {
+          "bin": "0.8-0.9",
+          "n": 25,
+          "avgPredicted": 0.8297416403843195,
+          "empRate": 0.88,
+          "gap": -0.05025835961568048
+        },
+        {
+          "bin": "0.9-1.0",
+          "n": 1,
+          "avgPredicted": 0.9230551087729103,
+          "empRate": 1.0,
+          "gap": -0.0769448912270897
+        }
+      ],
+      "note": "Research calibration diagnostic only; not a production confidence claim."
+    },
+    "full_phase_a": {
+      "sigmaAssumed": 14.0,
+      "bins": [
+        {
+          "bin": "0.1-0.2",
+          "n": 5,
+          "avgPredicted": 0.18203993656892659,
+          "empRate": 0.2,
+          "gap": -0.017960063431073425
+        },
+        {
+          "bin": "0.2-0.3",
+          "n": 68,
+          "avgPredicted": 0.26704813364051455,
+          "empRate": 0.27941176470588236,
+          "gap": -0.012363631065367808
+        },
+        {
+          "bin": "0.3-0.4",
+          "n": 231,
+          "avgPredicted": 0.3594166564143778,
+          "empRate": 0.33766233766233766,
+          "gap": 0.021754318752040147
+        },
+        {
+          "bin": "0.4-0.5",
+          "n": 513,
+          "avgPredicted": 0.4531355587040593,
+          "empRate": 0.3820662768031189,
+          "gap": 0.07106928190094042
+        },
+        {
+          "bin": "0.5-0.6",
+          "n": 661,
+          "avgPredicted": 0.5505810144444477,
+          "empRate": 0.5416036308623298,
+          "gap": 0.00897738358211797
+        },
+        {
+          "bin": "0.6-0.7",
+          "n": 482,
+          "avgPredicted": 0.6450131797521447,
+          "empRate": 0.7157676348547718,
+          "gap": -0.07075445510262712
+        },
+        {
+          "bin": "0.7-0.8",
+          "n": 190,
+          "avgPredicted": 0.7398417076007521,
+          "empRate": 0.8105263157894737,
+          "gap": -0.07068460818872158
+        },
+        {
+          "bin": "0.8-0.9",
+          "n": 25,
+          "avgPredicted": 0.8279743235504694,
+          "empRate": 0.88,
+          "gap": -0.0520256764495306
+        },
+        {
+          "bin": "0.9-1.0",
+          "n": 1,
+          "avgPredicted": 0.923434877251472,
+          "empRate": 1.0,
+          "gap": -0.076565122748528
+        }
+      ],
+      "note": "Research calibration diagnostic only; not a production confidence claim."
+    }
+  },
+  "acceptance": {
+    "reproduciblePairedComparison": true,
+    "uncertaintyViaBootstrapCI": true,
+    "seasonSlicesReported": true,
+    "predictiveVsEconomicSeparated": true,
+    "promotionEvidencePass": false,
+    "note": "A lower MAE does not authorize wagers. Economic tables are diagnostic only."
+  },
+  "ariLarDiagnosis": {
+    "issue": "source-coverage / team-abbreviation join",
+    "detail": "nflverse PBP labels Rams as LA; snapshot key is LAR. Enricher now canon-maps LA\u2192LAR. Not a pipeline redesign."
+  },
+  "dataLimitations": {
+    "pinnedTrainingCsvSha256": "6764647923489c6ec91e7996a11c05d44baca9f8d018181c924518385785ed07",
+    "ngsColumnsPresent": false,
+    "pressureProxy": "sack_rate only",
+    "trackingAblation": "deferred until NGS-enriched training rebuild (separate from v1.1 hash pin)"
+  },
+  "headlineFindings": [
+    "Reproduced v1.1 margin MAE 10.1993 on n=2176 (pin matched).",
+    "Largest single-family lift vs CORE is success rate (~0.056 MAE); early-down / explosives / pressure / context alone do not beat CORE CI.",
+    "Closing market remains ahead (9.8543). No config closes the gap.",
+    "Flat \u2212110 ATS on |edge|\u22651 is not profitable for v1.1 despite MAE improvement vs CORE \u2014 predictive\u2260economic.",
+    "Tracking not measurable on pinned CSV (0 NGS columns).",
+    "promotionEvidencePass=false; champion unchanged."
+  ]
+}

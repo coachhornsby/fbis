@@ -23,6 +23,23 @@ import pandas as pd
 
 RELEASE = "https://github.com/nflverse/nflverse-data/releases/download"
 
+# nflverse PBP uses LA/SD/OAK/etc.; board snapshot keys use LAR/LAC/LV (nflVerseFeed.js).
+TEAM_CANON = {
+    "JAC": "JAX",
+    "LA": "LAR",
+    "STL": "LAR",
+    "SD": "LAC",
+    "OAK": "LV",
+    "WSH": "WAS",
+}
+
+
+def canon_team(v) -> str:
+    s = str(v or "").strip().upper()
+    if not s or s == "NAN":
+        return ""
+    return TEAM_CANON.get(s, s)
+
 
 def safe_mean(s):
     s = pd.to_numeric(s, errors="coerce")
@@ -34,6 +51,8 @@ def season_team_features(pbp: pd.DataFrame) -> dict:
     if pbp.empty:
         return {}
     pbp = pbp.copy()
+    pbp["posteam_c"] = pbp["posteam"].map(canon_team)
+    pbp["defteam_c"] = pbp["defteam"].map(canon_team)
     pbp["epa_num"] = pd.to_numeric(pbp.get("epa"), errors="coerce")
     pbp["success_num"] = pd.to_numeric(pbp.get("success"), errors="coerce")
     pbp["down_num"] = pd.to_numeric(pbp.get("down"), errors="coerce")
@@ -43,8 +62,8 @@ def season_team_features(pbp: pd.DataFrame) -> dict:
     )
     pbp["early_down"] = pbp["down_num"].isin([1, 2]).astype(int)
     out = {}
-    for team, g in pbp.groupby(pbp["posteam"].astype(str)):
-        if not team or team == "nan":
+    for team, g in pbp.groupby("posteam_c"):
+        if not team:
             continue
         early = g[g["early_down"] == 1]
         out[team] = {
@@ -54,9 +73,8 @@ def season_team_features(pbp: pd.DataFrame) -> dict:
             "pbpPlays": int(len(g)),
             "pbpSource": "nflverse-pbp",
         }
-    # Defense allowed: group by defteam
-    for team, g in pbp.groupby(pbp["defteam"].astype(str)):
-        if not team or team == "nan":
+    for team, g in pbp.groupby("defteam_c"):
+        if not team:
             continue
         early = g[g["early_down"] == 1]
         row = out.setdefault(team, {"pbpSource": "nflverse-pbp"})

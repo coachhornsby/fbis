@@ -90,12 +90,13 @@ export function buildFeatureImpactLayers(games = [], featureFamilies = null) {
       note: "When non-null, success/earlyDown/explosives enter NFL-PRO-v1@v1.2 matchup/team terms. That is wiring, not a validated accuracy improvement.",
     },
     accuracyEvidence: {
-      status: "NOT_MEASURED",
-      requiredDesign: "chronological OOS ablation of each family vs v1.1 baseline and closing market on identical windows (n pinned)",
+      status: "PHASE_A_MEASURED",
+      requiredDesign: "chronological OOS ablation of each family vs CORE/v1.1 and closing market on identical windows (n pinned)",
+      reportPath: "research/nfl/phase-a-ablation-20261018.json",
       ablationMarginMaeDelta: null,
-      sampleN: null,
+      sampleN: 2176,
       promotionEvidencePass: false,
-      note: "Data completeness is foundation only. Market margin MAE gap (v1.1 10.1993 vs close 9.8543, n=2176) is the scientific target.",
+      note: "Phase A measures paired OOS MAE deltas with bootstrap CIs. Predictive lift ≠ economic lift; champion remains v1.1.",
     },
   };
 }
