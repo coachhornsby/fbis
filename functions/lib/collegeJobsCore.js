@@ -37,6 +37,11 @@ import {
   indexPlayerSeasonRoles,
   CFB_CORE_ADVANCED_AUTHORITY,
 } from "./cfbCoreAdvancedPlumbing.js";
+import {
+  runCfbCoreShadowFreeze,
+  runCfbCoreShadowSettle,
+  runCfbCoreWeeklyEvaluation,
+} from "./cfbCoreShadowLedger.js";
 
 function todayCT(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -57,6 +62,9 @@ export const COLLEGE_JOBS = [
   "cfb-reference-backfill",
   "cfb-current-refresh",
   "cfb-pregame-freeze",
+  "cfb-core-shadow-freeze",
+  "cfb-core-shadow-settle",
+  "cfb-core-weekly-evaluation",
   "cfb-postgame-harvest",
   "cfb-qb-transfer-refresh",
   "cfb-quota-replenish-ack",
@@ -460,6 +468,61 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
     if (job === "cfb-pregame-freeze") {
       const result=await freezeCfbPregameFeatures(env,{now:started});
       return jobPayload({ok:result.ok,job,status:result.ok?"success":JOB_FAILED,attemptedAt:started,successfulAt:result.ok?new Date().toISOString():null,errors:result.ok?[]:[result.reason||"cfb-pregame-freeze-failed"],env,writes,d1:{bound:hasDb(env),cfbPregame:result}});
+    }
+    // CORE shadow jobs are cache-only: no CFBD network spend; research ledger only.
+    if (job === "cfb-core-shadow-freeze") {
+      const result = await runCfbCoreShadowFreeze(env, { now: started });
+      writes.writesSucceeded += result.inserted || 0;
+      return jobPayload({
+        ok: result.ok !== false,
+        job,
+        status: result.ok !== false ? "success" : JOB_FAILED,
+        attemptedAt: started,
+        successfulAt: result.ok !== false ? new Date().toISOString() : null,
+        errors: result.ok !== false ? [] : [result.reason || "cfb-core-shadow-freeze-failed"],
+        env,
+        writes,
+        d1: { bound: hasDb(env), cfbCoreShadow: result },
+      });
+    }
+    if (job === "cfb-core-shadow-settle") {
+      const result = await runCfbCoreShadowSettle(env, { now: started });
+      writes.writesSucceeded += result.settled || 0;
+      return jobPayload({
+        ok: result.ok !== false,
+        job,
+        status: result.ok !== false ? "success" : JOB_FAILED,
+        attemptedAt: started,
+        successfulAt: result.ok !== false ? new Date().toISOString() : null,
+        errors: result.ok !== false ? [] : [result.reason || "cfb-core-shadow-settle-failed"],
+        env,
+        writes,
+        d1: { bound: hasDb(env), cfbCoreShadowSettle: result },
+      });
+    }
+    if (job === "cfb-core-weekly-evaluation") {
+      const result = await runCfbCoreWeeklyEvaluation(env, {});
+      return jobPayload({
+        ok: result.ok !== false,
+        job,
+        status: result.ok !== false ? "success" : JOB_FAILED,
+        attemptedAt: started,
+        successfulAt: result.ok !== false ? new Date().toISOString() : null,
+        errors: result.ok !== false ? [] : [result.saved?.reason || "cfb-core-weekly-evaluation-failed"],
+        env,
+        writes,
+        d1: {
+          bound: hasDb(env),
+          cfbCoreWeekly: {
+            classification: result.report?.classification,
+            eligibleRows: result.report?.eligibleRows,
+            dataLimitations: result.report?.dataLimitations,
+            saved: result.saved,
+            authority: "research_only",
+            canAuthorizeWager: false,
+          },
+        },
+      });
     }
     if (job === "college-health") {
       const quota = await queryQuota(env);
