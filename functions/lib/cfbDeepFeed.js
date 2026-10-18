@@ -206,6 +206,46 @@ async function loadScheduleGamesPlayedBySchool(env, season, now) {
   }
 }
 
+
+/** Map persisted team_feature_snapshots.features_json into deep-feed row fields. */
+export function mapPersistedFeatureFields(fields = {}, { scheduleGamesPlayed = null } = {}) {
+  const gpResolved = resolveGamesPlayedWithSource(fields, { scheduleGamesPlayed });
+  return {
+    offensePpa: num(fields.ppaOff ?? fields.offensePpa),
+    defensePpa: num(fields.ppaDef ?? fields.defensePpa),
+    passEpa: num(fields.passEpa ?? fields.ppaPass ?? fields.passingPpa),
+    rushEpa: num(fields.rushEpa ?? fields.ppaRush ?? fields.rushingPpa),
+    passEpaAllowed: num(fields.passEpaAllowed ?? fields.ppaPassAllowed),
+    rushEpaAllowed: num(fields.rushEpaAllowed ?? fields.ppaRushAllowed),
+    successRate: num(fields.offensiveSuccessRate ?? fields.successRate),
+    successRateAllowed: num(fields.defensiveSuccessRate ?? fields.successRateAllowed),
+    explosiveRate: num(fields.offensiveExplosiveness ?? fields.explosiveRate),
+    explosiveRateAllowed: num(fields.defensiveExplosiveness ?? fields.explosiveRateAllowed),
+    lineYards: num(fields.offensiveLineYards ?? fields.lineYards),
+    lineYardsAllowed: num(fields.defensiveLineYards ?? fields.lineYardsAllowed),
+    havocRate: num(fields.defensiveHavoc ?? fields.havocRate),
+    havocAllowed: num(fields.offensiveHavoc ?? fields.havocAllowed),
+    pointsPerOpportunity: num(fields.offensivePointsPerOpportunity ?? fields.pointsPerOpportunity),
+    pointsPerOpportunityAllowed: num(fields.defensivePointsPerOpportunity ?? fields.pointsPerOpportunityAllowed),
+    currentPointsForPerGame: num(fields.currentPointsForPerGame ?? fields.pfPg ?? fields.pointsForPerGame),
+    currentPointsAgainstPerGame: num(fields.currentPointsAgainstPerGame ?? fields.paPg ?? fields.pointsAgainstPerGame),
+    gamesPlayed: gpResolved.gamesPlayed ?? 0,
+    gamesPlayedSource: gpResolved.source,
+    gamesPlayedUncertainty: gpResolved.uncertainty === true,
+    gamesPlayedNote: gpResolved.note,
+    core: fields.coreWeekBounded === true ? num(fields.core) : null,
+    coreOffense: fields.coreWeekBounded === true ? num(fields.coreOffense) : null,
+    coreDefense: fields.coreWeekBounded === true ? num(fields.coreDefense) : null,
+    coreYear: num(fields.coreYear),
+    coreThroughWeek: num(fields.coreThroughWeek),
+    coreThroughSeasonType: fields.coreThroughSeasonType ?? null,
+    coreSourceEndpoint: fields.coreSourceEndpoint ?? null,
+    coreWeekBounded: fields.coreWeekBounded === true,
+    talent: num(fields.talent),
+    returningPpa: num(fields.returningPpa),
+  };
+}
+
 // Prefer canonical weekly D1 state over any daytime provider request.
 // Research-only fields preserve source units and their as-of timestamps.
 async function readPersistedCfbDeep(env,season,now) {
@@ -233,51 +273,17 @@ async function readPersistedCfbDeep(env,season,now) {
       if(!school)continue;
       seen.add(String(rec.team_id));
       const scheduleGamesPlayed=scheduleBySchool.get(String(school).toLowerCase())||null;
-      const gpResolved=resolveGamesPlayedWithSource(fields,{scheduleGamesPlayed});
-      const gamesPlayed=gpResolved.gamesPlayed;
       const espnId=espnIdFromTeamKey(rec.team_id,fields);
       const value={
-        offensePpa:num(fields.ppaOff),defensePpa:num(fields.ppaDef),
-        passEpa:num(fields.ppaPass),rushEpa:num(fields.ppaRush),
-        passEpaAllowed:num(fields.ppaPassAllowed),
-        rushEpaAllowed:num(fields.ppaRushAllowed),
-        successRate:num(fields.offensiveSuccessRate),
-        successRateAllowed:num(fields.defensiveSuccessRate),
-        explosiveRate:num(fields.offensiveExplosiveness),
-        explosiveRateAllowed:num(fields.defensiveExplosiveness),
-        lineYards:num(fields.offensiveLineYards),
-        lineYardsAllowed:num(fields.defensiveLineYards),
-        havocRate:num(fields.defensiveHavoc),
-        havocAllowed:num(fields.offensiveHavoc),
-        pointsPerOpportunity:num(fields.offensivePointsPerOpportunity),
-        pointsPerOpportunityAllowed:num(fields.defensivePointsPerOpportunity),
-        // Explicit PPG only — never coerce SP `off`/`def` ratings into current form.
-        currentPointsForPerGame:num(fields.currentPointsForPerGame ?? fields.pfPg ?? fields.pointsForPerGame),
-        currentPointsAgainstPerGame:num(fields.currentPointsAgainstPerGame ?? fields.paPg ?? fields.pointsAgainstPerGame),
-        gamesPlayed:gamesPlayed??0,
-        gamesPlayedSource:gpResolved.source,
-        gamesPlayedUncertainty:gpResolved.uncertainty===true,
-        gamesPlayedNote:gpResolved.note,
-        // Snapshot collection time is not the CORE calculation window. The
-        // model must independently verify source week AND collection time.
-        core:fields.coreWeekBounded===true?num(fields.core):null,
-        coreOffense:fields.coreWeekBounded===true?num(fields.coreOffense):null,
-        coreDefense:fields.coreWeekBounded===true?num(fields.coreDefense):null,
-        coreYear:num(fields.coreYear),
-        coreThroughWeek:num(fields.coreThroughWeek),
-        coreThroughSeasonType:fields.coreThroughSeasonType??null,
-        coreSourceEndpoint:fields.coreSourceEndpoint??null,
+        ...mapPersistedFeatureFields(fields,{scheduleGamesPlayed}),
         coreSourceAsOf:rec.as_of,
         snapshotAsOf:rec.as_of,
-        coreWeekBounded:fields.coreWeekBounded===true,
-        talent:num(fields.talent),
-        returningPpa:num(fields.returningPpa),
         teamId:String(rec.team_id),
         espnId,
       };
-      if(gamesPlayed!=null&&gamesPlayed>0)withGamesPlayed+=1;
-      if(gpResolved.source===GAMES_PLAYED_SOURCES.SCHEDULE)withScheduleGames+=1;
-      if(gpResolved.source===GAMES_PLAYED_SOURCES.CORE_THROUGH_WEEK_FALLBACK)withCoreThroughWeekFallback+=1;
+      if(value.gamesPlayed!=null&&value.gamesPlayed>0)withGamesPlayed+=1;
+      if(value.gamesPlayedSource===GAMES_PLAYED_SOURCES.SCHEDULE)withScheduleGames+=1;
+      if(value.gamesPlayedSource===GAMES_PLAYED_SOURCES.CORE_THROUGH_WEEK_FALLBACK)withCoreThroughWeekFallback+=1;
       if(value.offensePpa!=null)withOffensePpa+=1;
       put(index,school,value);
       if(espnId&&!index.byEspnId[espnId])index.byEspnId[espnId]=index.bySchool[String(school).toLowerCase()]||value;

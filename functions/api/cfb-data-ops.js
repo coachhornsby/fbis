@@ -32,6 +32,7 @@ import {
   researchModelFeaturePlan,
   graphqlShadowPlan,
 } from "../lib/cfbAdvancedResearchFeatures.js";
+import { summarizeResearchModelFamilies } from "../lib/cfbResearchModelFamilies.js";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -258,6 +259,7 @@ export async function onRequestGet(context) {
       researchModels: researchModelFeaturePlan(),
       graphqlShadow: graphqlShadowPlan(),
     },
+    researchModelFamilies: summarizeResearchModelFamilies(),
   };
 
   if (section === "sdv") return json({ ok: true, sdv: payload.sdv, collection: payload.collection });

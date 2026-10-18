@@ -1,8 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { resetCacheMem } from "../functions/lib/cache.js";
-import { loadCfbDeepFeatures, attachCfbDeepFeatures } from "../functions/lib/cfbDeepFeed.js";
+import {
+  loadCfbDeepFeatures,
+  attachCfbDeepFeatures,
+  mapPersistedFeatureFields,
+} from "../functions/lib/cfbDeepFeed.js";
 import { projectCfbFbisV2 } from "../functions/lib/cfbFbisV2.js";
+import { GAMES_PLAYED_SOURCES } from "../functions/lib/cfbGamesPlayed.js";
 
 const FAKE_KEY = "test-cfbd-key-not-real";
 
@@ -109,6 +114,27 @@ test("cache-only CFB loads persisted current-season features without a CFBD key"
   assert.equal(feed.bySchool.oklahoma.rushEpa, -0.194);
   assert.equal(feed.bySchool.oklahoma.coreThroughWeek, 6);
   assert.equal(feed.bySchool.oklahoma.gamesPlayed, 6);
-  assert.equal(feed.bySchool.oklahoma.gamesPlayedSource, "coreThroughWeek");
+  assert.equal(feed.bySchool.oklahoma.gamesPlayedSource, GAMES_PLAYED_SOURCES.CORE_THROUGH_WEEK_FALLBACK);
   assert.equal(feed.byEspnId["201"].offensePpa, -0.022);
+});
+
+test("persisted feature mapper accepts passEpa aliases used in production D1", () => {
+  const row = mapPersistedFeatureFields({
+    school: "Florida International",
+    ppaOff: 0.03,
+    ppaDef: -0.03,
+    passEpa: 0.14,
+    rushEpa: -0.06,
+    passEpaAllowed: -0.02,
+    rushEpaAllowed: -0.01,
+    gamesPlayed: 6,
+    gamesPlayedSource: "schedule",
+  });
+  assert.equal(row.offensePpa, 0.03);
+  assert.equal(row.passEpa, 0.14);
+  assert.equal(row.rushEpa, -0.06);
+  assert.equal(row.passEpaAllowed, -0.02);
+  assert.equal(row.rushEpaAllowed, -0.01);
+  assert.equal(row.gamesPlayed, 6);
+  assert.equal(row.gamesPlayedSource, GAMES_PLAYED_SOURCES.EXPLICIT);
 });
