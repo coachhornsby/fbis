@@ -32,7 +32,9 @@ try{
   if(catalogue.nextOffset==null)break;if(catalogue.nextOffset<=offset)throw Error('NON_ADVANCING_CATALOGUE_CURSOR');offset=catalogue.nextOffset;
  }
  const expanded=new Set();
- for(const league of leagues.values()){
+ // Tennis first: sparse official inventory should not wait behind dense team-sport catalogues.
+ const orderedLeagues=[...leagues.values()].sort((a,b)=>(a.sport==='tennis'?0:1)-(b.sport==='tennis'?0:1)||String(a.slug).localeCompare(String(b.slug)));
+ for(const league of orderedLeagues){
   try{await traverse('page',league,`${run}-${league.slug}`,async page=>{
    for(const ref of page.matchedEventRefs||[]){const key=league.sport+'|'+ref.eventId;if(expanded.has(key))continue;
     try{await traverse('markets',{parentReceiptId:page.receiptId,eventIndex:ref.eventIndex},`${run}-markets-${ref.eventId}`,null);expanded.add(key);}
