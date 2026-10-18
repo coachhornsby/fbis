@@ -58,10 +58,21 @@ export default function TopGameProps({ game }) {
   }, [durable, date, sport, gameId]);
 
   const rows = topThreeGamePlayerProps(drilldown || game);
-  const paired = rows.filter((r) => r.line != null && r.fbisProjection != null);
+  const projected = rows.filter((r) => r.fbisProjection != null);
+  const paired = projected.filter((r) => r.line != null);
   const prizePicksPaired = paired.filter(isPrizePicksRow);
+  const prizePicksProjected = projected.filter(isPrizePicksRow);
+  // Same PrizePicks-style cards as NFL even when MLB (or any sport) has
+  // projection-only rows with no paired market line.
   const styleCardRows = useStyleCards
-    ? (prizePicksPaired.length ? prizePicksPaired : paired).slice(0, 3)
+    ? (prizePicksPaired.length
+      ? prizePicksPaired
+      : prizePicksProjected.length
+        ? prizePicksProjected
+        : paired.length
+          ? paired
+          : projected
+    ).slice(0, 3)
     : [];
 
   return (
@@ -128,7 +139,7 @@ export default function TopGameProps({ game }) {
             : durable && drilldownState !== "complete"
               ? "Game-specific player projections unavailable. No player prop is inferred from stored scores."
               : useStyleCards
-                ? "No game-matched lines with FBIS projections are available for this matchup yet."
+                ? "No game-matched FBIS projections are available for this matchup yet."
                 : "No game-matched, independent FBIS player projections available for this matchup."}
         </p>
       )}

@@ -47,6 +47,25 @@ describe("sport matchup factors", () => {
     assert.ok(rows.some(r=>r.id==="starter-home"));
   });
 
+  it("features Statcast pitching vs opponent hitting edge from lineup and arsenal profiles", () => {
+    const game={
+      sport:"mlb",home:{abbr:"CLE"},away:{abbr:"TB"},
+      homeSp:{name:"Parker Messick"},awaySp:{name:"Drew Rasmussen"},
+      mlbPitchMatchup:{
+        homeOffense:{runFactor:1.05,xwoba:.335,lineupKRate:.21,whiffPerSwing:.26,contactPerSwing:.74,hardHitRate:.40,barrelRate:.09,dynamicDifficulty:.4,projectedKs:5.0,batters:9,coverage:.8},
+        awayOffense:{runFactor:0.94,xwoba:.295,lineupKRate:.27,whiffPerSwing:.30,contactPerSwing:.70,hardHitRate:.34,barrelRate:.06,dynamicDifficulty:.9,projectedKs:6.8,batters:9,coverage:.85},
+      },
+      mlbDeepShadow:{ok:true,decomposition:{home:{},away:{}}},
+    };
+    const rows=buildMatchupFactors(game);
+    const edge=rows.find(r=>r.id==="pitch-hit-edge");
+    assert.ok(edge);
+    assert.equal(edge.edge,"CLE");
+    assert.match(String(edge.source),/Statcast/i);
+    assert.ok(rows.some(r=>r.id==="pitch-vs-hit-home" && r.label.includes("Drew Rasmussen")));
+    assert.ok(rows.some(r=>r.id==="pitch-vs-hit-away" && r.edge==="CLE"));
+  });
+
 
   it("prefers frozen NBA-FBIS-v1 decomposition for deep matchup factors", () => {
     const game={sport:"nba",home:{abbr:"HOU"},away:{abbr:"SAS"},

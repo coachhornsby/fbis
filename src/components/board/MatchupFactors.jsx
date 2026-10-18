@@ -44,9 +44,12 @@ const factorContext = {
   "free-throws":"Free-throw rate compares how frequently teams reach the line.",
   rest:"The rest component records the model's schedule adjustment.",
   availability:"Availability records the model's personnel adjustment.",
+  "pitch-hit-edge":"Compares each lineup's Statcast contact-zone profile against the opposing starter's pitch-shape arsenal to assign a run-environment edge.",
+  "pitch-vs-hit-home":"Home lineup hitting profile versus the away starter's arsenal, whiff, contact, and projected strikeout rates.",
+  "pitch-vs-hit-away":"Away lineup hitting profile versus the home starter's arsenal, whiff, contact, and projected strikeout rates.",
 };
 function titleForSport(sport) {
-  if (sport === "mlb") return "Pitcher & Lineup Matchups";
+  if (sport === "mlb") return "Pitching vs Opponent Hitting";
   if (sport === "nfl" || sport === "cfb") return "Offense vs Defense Matchups";
   if (sport === "nba" || sport === "cbb") return "Basketball Matchup Factors";
   return "Matchup Factors";
@@ -92,8 +95,12 @@ export default function MatchupFactors({ game }) {
   }) : [];
   const factors = sport === "nfl" ? [...gameSpecific, ...supplemental] : [...legacyFactors,...sourceFactors];
   const availableFactors = factors.filter(f => f.available !== false && !/^(unavailable|unknown|unverified|not available)$/i.test(String(f.edge || "")));
+  const mlbEdge = sport === "mlb" ? availableFactors.find((f) => String(f.id) === "pitch-hit-edge") : null;
+  const mlbSides = sport === "mlb"
+    ? availableFactors.filter((f) => /^pitch-vs-hit-/.test(String(f.id)))
+    : [];
   return (
-    <section className={`matchup-factors matchup-factors-dynamic${sport === "nfl" ? " matchup-factors-nfl" : ""}`} aria-label="Matchup factors">
+    <section className={`matchup-factors matchup-factors-dynamic${sport === "nfl" ? " matchup-factors-nfl" : ""}${sport === "mlb" ? " matchup-factors-mlb" : ""}`} aria-label="Matchup factors">
       <div className="matchup-factors-head">
         <div>
           <span className="matchup-factors-kicker">FBIS ANALYSIS</span>
@@ -108,6 +115,15 @@ export default function MatchupFactors({ game }) {
           <span>MATCHUP ADJ <strong>{summaryMargin(matchup.adjustment?.margin, true)}</strong></span>
           <i>→</i>
           <span>GAME READ <strong>{summaryMargin(matchup.final?.margin)}</strong></span>
+        </div>
+      ) : null}
+      {sport === "mlb" && (mlbEdge || mlbSides.length) ? (
+        <div className="matchup-factors-summary" aria-label="Pitching versus hitting edge">
+          <span>PITCH VS HIT <strong>{mlbEdge?.edge || "RESEARCH"}</strong></span>
+          <i>→</i>
+          <span>EDGE <strong>{mlbEdge?.value || "—"}</strong></span>
+          {mlbSides[0]?.value != null ? <><i>·</i><span>HOME SIDE <strong>{mlbSides[0].value}</strong></span></> : null}
+          {mlbSides[1]?.value != null ? <><i>·</i><span>AWAY SIDE <strong>{mlbSides[1].value}</strong></span></> : null}
         </div>
       ) : null}
       {sourceFactors.length ? <p className="matchup-factors-empty">Source matchup comparisons are shown alongside available model factors. Source statistics do not establish which inputs drove the active projection.</p> : null}

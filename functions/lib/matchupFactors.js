@@ -90,19 +90,103 @@ function footballFactors(game) {
   });
 }
 
+function mlbPitchHitEdge(runFactor, lineupTeam, pitcherTeam) {
+  const rf = finite(runFactor);
+  if (rf == null) return "EVEN";
+  if (rf >= 1.02) return lineupTeam;
+  if (rf <= 0.98) return pitcherTeam;
+  return "EVEN";
+}
+
+function mlbPitchHitDetail(matchup = {}) {
+  return [
+    finite(matchup.runFactor) == null ? null : `run factor ${round(matchup.runFactor, 3)}`,
+    finite(matchup.xwoba) == null ? null : `xwOBA ${round(matchup.xwoba, 3)}`,
+    finite(matchup.lineupKRate) == null ? null : `lineup K ${round(matchup.lineupKRate * 100, 1)}%`,
+    finite(matchup.whiffPerSwing) == null ? null : `whiff/swing ${round(matchup.whiffPerSwing * 100, 1)}%`,
+    finite(matchup.contactPerSwing) == null ? null : `contact/swing ${round(matchup.contactPerSwing * 100, 1)}%`,
+    finite(matchup.hardHitRate) == null ? null : `hard-hit ${round(matchup.hardHitRate * 100, 1)}%`,
+    finite(matchup.barrelRate) == null ? null : `barrel ${round(matchup.barrelRate * 100, 1)}%`,
+    finite(matchup.dynamicDifficulty) == null ? null : `arsenal difficulty ${round(matchup.dynamicDifficulty, 2)}`,
+    finite(matchup.projectedKs) == null ? null : `K proj ${round(matchup.projectedKs, 1)}`,
+    finite(matchup.batters) == null ? null : `${round(matchup.batters, 0)} batters profiled`,
+    finite(matchup.coverage) == null ? null : `coverage ${round(matchup.coverage * 100, 0)}%`,
+  ].filter(Boolean).join(" · ");
+}
+
 function mlbFactors(game) {
   const model = game?.mlbDeepShadow;
-  if (!model?.ok) return [];
-  const home = model.decomposition?.home || {};
-  const away = model.decomposition?.away || {};
+  const pitch = game?.mlbPitchMatchup || {};
   const bpp = game?.bpp || {};
+  const home = model?.decomposition?.home || {};
+  const away = model?.decomposition?.away || {};
   const out = [];
   const homeAbbr = abbr(game, "home");
   const awayAbbr = abbr(game, "away");
+  const awaySpName = game?.awaySp?.name || bpp?.matchup?.vsAwaySp?.pitcher || "away starter";
+  const homeSpName = game?.homeSp?.name || bpp?.matchup?.vsHomeSp?.pitcher || "home starter";
 
+  // Primary Game Matchup: Statcast pitching profile vs opponent lineup hitting profile.
+  // mlbPitchMatchup.homeOffense = home lineup vs away SP; awayOffense = away lineup vs home SP.
+  const homeOffense = pitch.homeOffense || null;
+  const awayOffense = pitch.awayOffense || null;
+  const homeRf = finite(homeOffense?.runFactor);
+  const awayRf = finite(awayOffense?.runFactor);
+  if (homeRf != null && awayRf != null) {
+    const delta = homeRf - awayRf;
+    out.push(factor(
+      "pitch-hit-edge",
+      "Lineup profile vs pitching profile edge",
+      Math.abs(delta) < 0.015 ? "EVEN" : delta > 0 ? homeAbbr : awayAbbr,
+      `${delta > 0 ? "+" : ""}${round(delta * 100, 1)}% run env`,
+      `${homeAbbr} vs ${awaySpName}: run factor ${round(homeRf, 3)}. ${awayAbbr} vs ${homeSpName}: run factor ${round(awayRf, 3)}. Statcast arsenal × contact-zone comparison of who holds the matchup edge.`,
+      "Statcast pitch-shape × hitter-zone matchup"
+    ));
+  }
+
+  const pitchHitSides = [
+    {
+      id: "pitch-vs-hit-home",
+      matchup: homeOffense,
+      pitcherName: awaySpName,
+      lineupTeam: homeAbbr,
+      pitcherTeam: awayAbbr,
+    },
+    {
+      id: "pitch-vs-hit-away",
+      matchup: awayOffense,
+      pitcherName: homeSpName,
+      lineupTeam: awayAbbr,
+      pitcherTeam: homeAbbr,
+    },
+  ];
+  for (const side of pitchHitSides) {
+    const m = side.matchup;
+    if (!m || (finite(m.runFactor) == null && finite(m.projectedKs) == null && finite(m.xwoba) == null)) continue;
+    const rf = finite(m.runFactor);
+    const edge = mlbPitchHitEdge(rf, side.lineupTeam, side.pitcherTeam);
+    const value = rf != null
+      ? `${rf >= 1 ? "+" : ""}${round((rf - 1) * 100, 1)}% run env`
+      : finite(m.projectedKs) != null
+        ? `${round(m.projectedKs, 1)} K proj`
+        : null;
+    const detail = mlbPitchHitDetail(m);
+    out.push(factor(
+      side.id,
+      `${side.pitcherName} vs ${side.lineupTeam} hitting`,
+      edge,
+      value,
+      detail
+        ? `Pitching profile vs opponent hitting: ${detail}. Edge favors ${edge === "EVEN" ? "neither side" : edge}.`
+        : `${side.pitcherName} arsenal vs ${side.lineupTeam} lineup contact zones.`,
+      "Statcast pitch-shape × hitter-zone matchup"
+    ));
+  }
+
+  // Supplemental Ballpark Pal RC/HR/K lineup evidence when Statcast packet is thin.
   const matchupRows = [
-    { side: "home", team: homeAbbr, pitcher: bpp?.matchup?.vsAwaySp?.pitcher || game?.awaySp?.name, row: bpp?.matchup?.vsAwaySp },
-    { side: "away", team: awayAbbr, pitcher: bpp?.matchup?.vsHomeSp?.pitcher || game?.homeSp?.name, row: bpp?.matchup?.vsHomeSp },
+    { side: "home", team: homeAbbr, pitcher: awaySpName, row: bpp?.matchup?.vsAwaySp },
+    { side: "away", team: awayAbbr, pitcher: homeSpName, row: bpp?.matchup?.vsHomeSp },
   ];
   for (const x of matchupRows) {
     if (!x.row || (finite(x.row.rcVs) == null && finite(x.row.hrVs) == null && finite(x.row.kVs) == null)) continue;
@@ -112,36 +196,39 @@ function mlbFactors(game) {
       finite(x.row.kVs) == null ? null : `K ${round(x.row.kVs, 0) > 0 ? "+" : ""}${round(x.row.kVs, 0)}%`,
       finite(x.row.n) == null ? null : `n=${round(x.row.n, 0)}`,
     ].filter(Boolean);
+    const rc = finite(x.row.rcVs);
     out.push(factor(
       `lineup-${x.side}`,
       `${x.team} lineup vs ${x.pitcher || "opposing starter"}`,
-      x.team,
-      finite(x.row.rcVs) == null ? null : `${round(x.row.rcVs, 0) > 0 ? "+" : ""}${round(x.row.rcVs, 0)}% RC`,
+      rc == null ? x.team : rc > 2 ? x.team : rc < -2 ? (x.side === "home" ? awayAbbr : homeAbbr) : "EVEN",
+      rc == null ? null : `${round(rc, 0) > 0 ? "+" : ""}${round(rc, 0)}% RC`,
       parts.join(" · "),
       "Ballpark Pal starter matchup"
     ));
   }
 
-  const starters = [
-    { side:"home", team:homeAbbr, name:game?.homeSp?.name, era:game?.savant?.homeSpEra, opp:awayAbbr, k:model?.pitcherKs?.home },
-    { side:"away", team:awayAbbr, name:game?.awaySp?.name, era:game?.savant?.awaySpEra, opp:homeAbbr, k:model?.pitcherKs?.away },
-  ];
-  for (const sp of starters) {
-    const era = finite(sp.era);
-    const kp = finite(sp.k?.projection);
-    if (era == null && kp == null) continue;
-    out.push(factor(
-      `starter-${sp.side}`,
-      `${sp.name || sp.team + " starter"} vs ${sp.opp} lineup`,
-      sp.team,
-      kp != null ? `${round(kp,1)} K proj` : `${round(era,2)} ERA`,
-      [era != null ? `ERA ${round(era,2)}` : null, kp != null ? `FBIS K projection ${round(kp,1)}` : null, finite(sp.k?.opponentKRate) != null ? `opponent K rate ${round(sp.k.opponentKRate * 100,1)}%` : null].filter(Boolean).join(" · "),
-      "MLB-FBIS-v2 starter inputs"
-    ));
+  if (model?.ok) {
+    const starters = [
+      { side: "home", team: homeAbbr, name: homeSpName, era: game?.savant?.homeSpEra, opp: awayAbbr, k: model?.pitcherKs?.home },
+      { side: "away", team: awayAbbr, name: awaySpName, era: game?.savant?.awaySpEra, opp: homeAbbr, k: model?.pitcherKs?.away },
+    ];
+    for (const sp of starters) {
+      const era = finite(sp.era);
+      const kp = finite(sp.k?.projection);
+      if (era == null && kp == null) continue;
+      out.push(factor(
+        `starter-${sp.side}`,
+        `${sp.name || sp.team + " starter"} vs ${sp.opp} lineup`,
+        sp.team,
+        kp != null ? `${round(kp, 1)} K proj` : `${round(era, 2)} ERA`,
+        [era != null ? `ERA ${round(era, 2)}` : null, kp != null ? `FBIS K projection ${round(kp, 1)}` : null, finite(sp.k?.opponentKRate) != null ? `opponent K rate ${round(sp.k.opponentKRate * 100, 1)}%` : null].filter(Boolean).join(" · "),
+        "MLB-FBIS-v2 starter inputs"
+      ));
+    }
   }
 
   const batters = Array.isArray(bpp.batterMatchups) ? bpp.batterMatchups : [];
-  for (const row of batters.slice(0, 8)) {
+  for (const row of batters.slice(0, 6)) {
     const rc = finite(row.rcVs);
     const hr = finite(row.hrVs);
     const k = finite(row.kVs);
@@ -151,15 +238,15 @@ function mlbFactors(game) {
       `batter-${row.batterId || row.batterName}-${row.pitcherId || row.pitcherName || ""}`,
       `${row.batterName} vs ${row.pitcherName || "starter"}`,
       team,
-      rc != null ? `${round(rc,0) > 0 ? "+" : ""}${round(rc,0)}% RC` : hr != null ? `${round(hr,0) > 0 ? "+" : ""}${round(hr,0)}% HR` : null,
-      [rc != null ? `runs created ${round(rc,0) > 0 ? "+" : ""}${round(rc,0)}% vs typical` : null, hr != null ? `HR ${round(hr,0) > 0 ? "+" : ""}${round(hr,0)}%` : null, k != null ? `K ${round(k,0) > 0 ? "+" : ""}${round(k,0)}%` : null].filter(Boolean).join(" · "),
+      rc != null ? `${round(rc, 0) > 0 ? "+" : ""}${round(rc, 0)}% RC` : hr != null ? `${round(hr, 0) > 0 ? "+" : ""}${round(hr, 0)}% HR` : null,
+      [rc != null ? `runs created ${round(rc, 0) > 0 ? "+" : ""}${round(rc, 0)}% vs typical` : null, hr != null ? `HR ${round(hr, 0) > 0 ? "+" : ""}${round(hr, 0)}%` : null, k != null ? `K ${round(k, 0) > 0 ? "+" : ""}${round(k, 0)}%` : null].filter(Boolean).join(" · "),
       "Ballpark Pal batter-vs-starter matchup"
     ));
   }
 
   const env = finite(home.environmentFactor ?? away.environmentFactor);
   if (env != null && Math.abs(env - 1) >= 0.005) {
-    out.push(factor("environment", "Park / weather / umpire environment", env > 1 ? "HITTERS" : "PITCHERS", `${round((env - 1) * 100,1) > 0 ? "+" : ""}${round((env - 1) * 100,1)}%`, "Combined run-environment factor used by MLB-FBIS-v2.", "MLB-FBIS-v2 environment"));
+    out.push(factor("environment", "Park / weather / umpire environment", env > 1 ? "HITTERS" : "PITCHERS", `${round((env - 1) * 100, 1) > 0 ? "+" : ""}${round((env - 1) * 100, 1)}%`, "Combined run-environment factor used by MLB-FBIS-v2.", "MLB-FBIS-v2 environment"));
   }
 
   return out;

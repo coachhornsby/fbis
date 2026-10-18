@@ -3020,11 +3020,10 @@
 .sport-mlb .pp-card.pp-premium-card .pp-card-visual,
 .sport-nhl .pp-card.pp-premium-card .pp-card-visual,
 .sport-tennis .pp-card.pp-premium-card .pp-card-visual {
+  /* Black field behind the logo; only a light team-primary wash around it. */
   background:
-    radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--pp-team-primary, #2a5cae) 42%, transparent), transparent 66%),
-    linear-gradient(180deg,
-      var(--pp-team-secondary, #0a1428) 0%,
-      color-mix(in srgb, var(--pp-team-secondary, #0a1428) 88%, #050b16) 100%) !important;
+    radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--pp-team-primary, #2a5cae) 18%, transparent), transparent 52%),
+    #000 !important;
 }
 .pp-card.pp-premium-card .pp-card-visual .pp-team-watermark {
   position: absolute !important;
