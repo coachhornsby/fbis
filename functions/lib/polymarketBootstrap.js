@@ -72,7 +72,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
    o.raw.opposite=no?{side:polymarketUsSideLabel(o.raw.providerMarket,no,o.sport),sourceOutcomeId:String(no.id||no.identifier||'')}:null;
   }
   const items=opts.operation==='markets'?sourcePage.markets:eventPage.events;
-  const receipt={ok:true,receiptId:opts.receiptId,slug:scope.slug,sport:scope.sport,capturedAt:now.toISOString(),itemCount:items.length,itemIds:items.map(e=>String(e.id||e.slug)),matchedEvents:events.length,contracts:contracts.length,
+  const receipt={ok:true,operation:opts.operation,receiptId:opts.receiptId,slug:scope.slug,sport:scope.sport,capturedAt:now.toISOString(),itemCount:items.length,itemIds:items.map(e=>String(e.id||e.slug)),matchedEvents:events.length,contracts:contracts.length,
    unmatchedEvents,inventory:contracts.map(o=>({market:o.sourceMarketId,eventId:String(o.eventId),sport:o.sport})),
    matchedEventRefs:events.map((e,eventIndex)=>({eventIndex,eventId:e.canonicalId,gameId:e.event.gameId??null})),
    bookBatches:Math.ceil(contracts.length/4),nextOffset:items.length===20?opts.offset+20:null,offers:contracts,events,canAuthorizeWager:false};
