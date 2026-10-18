@@ -337,10 +337,15 @@ async function persistWeeklyDatasetManifest(env, {
   const weeklyDatasetId = CFBD_PATH_TO_DATASET[path];
   if (!weeklyDatasetId || !CFB_WEEKLY_MANIFEST_PATHS.has(path)) return null;
   const rows = Array.isArray(res?.data) ? res.data : [];
+  // Game-level box endpoints: rowCount = games. Do NOT treat game count as
+  // FBS teamCoverage (that floor is for season team endpoints).
+  const gameLevel = path === "/games/teams" || path === "/games/players" ||
+    path === "/ppa/games" || path === "/stats/game/advanced";
   return persistCollectionManifest(
     env,
     buildManifestRow({
       season,
+      // Receipt week = target refresh week; through_week = statistical week archived.
       week: targetWeek,
       provider: "cfbd",
       datasetId: weeklyDatasetId,
@@ -348,13 +353,20 @@ async function persistWeeklyDatasetManifest(env, {
       httpOk: Boolean(res?.ok),
       httpStatus: res?.status,
       rowCount: rows.length,
-      teamCoverage: rows.length,
+      teamCoverage: gameLevel ? null : rows.length,
       throughWeek,
       contentHash: res?.ok ? `job:${jobRunId}:${path}:W${throughWeek}` : null,
       // Path suffix keeps teams vs players receipts distinct under one dataset id.
       ingestionBatchId: `${jobRunId}:${path}`,
       collectedAt: new Date().toISOString(),
-      evidence: { path, weeklyReconstruction: true, throughWeek, ...extraEvidence },
+      evidence: {
+        path,
+        weeklyReconstruction: true,
+        targetWeek,
+        throughWeek,
+        statisticalWeek: throughWeek,
+        ...extraEvidence,
+      },
     })
   );
 }
@@ -478,20 +490,25 @@ async function fetchWeeklyCoreAdvanced(env, { season, targetWeek, jobRunId, incl
 /**
  * If weekly archives already exist in R2 but manifests were never written,
  * persist evidence-backed receipts (does not invent historical HTTP success).
+ * Prefixes are scoped to throughWeek so targetWeek N never claims week N boxes.
  */
 async function reconcileWeeklyR2Receipts(env, { season, targetWeek, throughWeek } = {}) {
-  if (!r2Bound(env) || throughWeek == null) return { attempted: 0, succeeded: 0 };
+  if (!r2Bound(env) || throughWeek == null) return { attempted: 0, succeeded: 0, details: [] };
   const specs = [
-    { datasetId: "cfbd-ppa-games", prefix: `raw/cfbd/cfb/${season}/ppa_games/week-${throughWeek}` },
-    { datasetId: "cfbd-stats-game-advanced", prefix: `raw/cfbd/cfb/${season}/stats_game_advanced/week-${throughWeek}` },
-    { datasetId: "cfbd-games-teams-players", prefix: `raw/cfbd/cfb/${season}/games_teams/` },
-    { datasetId: "cfbd-games-teams-players", prefix: `raw/cfbd/cfb/${season}/games_players/` },
+    { datasetId: "cfbd-ppa-games", prefix: `raw/cfbd/cfb/${season}/ppa_games/week-${throughWeek}`, kind: "ppa_games" },
+    { datasetId: "cfbd-stats-game-advanced", prefix: `raw/cfbd/cfb/${season}/stats_game_advanced/week-${throughWeek}`, kind: "adv_games" },
+    { datasetId: "cfbd-games-teams-players", prefix: `raw/cfbd/cfb/${season}/games_teams/week-${throughWeek}`, kind: "games_teams" },
+    { datasetId: "cfbd-games-teams-players", prefix: `raw/cfbd/cfb/${season}/games_players/week-${throughWeek}`, kind: "games_players" },
   ];
   let attempted = 0;
   let succeeded = 0;
+  const details = [];
   for (const spec of specs) {
     const listed = await r2PrefixBytes(env, spec.prefix);
-    if (!listed.ok || !(listed.objects > 0)) continue;
+    if (!listed.ok || !(listed.objects > 0)) {
+      details.push({ ...spec, objects: listed.objects || 0, saved: false, reason: listed.ok ? "empty-prefix" : listed.reason });
+      continue;
+    }
     attempted += 1;
     const row = buildR2ArchiveManifestRow({
       season,
@@ -501,17 +518,26 @@ async function reconcileWeeklyR2Receipts(env, { season, targetWeek, throughWeek 
       objectBytes: listed.bytes,
       throughWeek,
       uploadedAt: new Date().toISOString(),
+      // Object count is storage evidence; prefer source_observations row counts when known.
+      rowCount: listed.objects,
+      ingestionBatchId: `r2-recon:${spec.kind}:W${throughWeek}`,
+      evidence: {
+        r2Objects: listed.objects,
+        r2Prefix: spec.prefix,
+        targetWeek,
+        statisticalWeek: throughWeek,
+        kind: spec.kind,
+      },
     });
-    if (!row) continue;
-    row.evidence_json = JSON.stringify({
-      ...JSON.parse(row.evidence_json || "{}"),
-      r2Objects: listed.objects,
-      r2Prefix: spec.prefix,
-    });
+    if (!row) {
+      details.push({ ...spec, objects: listed.objects, saved: false, reason: "row-build-failed" });
+      continue;
+    }
     const saved = await persistCollectionManifest(env, row);
     if (saved.ok) succeeded += 1;
+    details.push({ ...spec, objects: listed.objects, bytes: listed.bytes, saved: Boolean(saved.ok), reason: saved.reason || null, manifestId: saved.manifestId || row.manifest_id });
   }
-  return { attempted, succeeded };
+  return { attempted, succeeded, details, throughWeek, targetWeek };
 }
 
 function indexCbbdAdjusted(rows) {

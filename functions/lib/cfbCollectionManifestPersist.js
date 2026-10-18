@@ -29,11 +29,16 @@ export function buildManifestRow(input = {}) {
   const teamCoverage = input.teamCoverage == null ? null : Number(input.teamCoverage);
   let status = input.status || null;
   if (!status) {
-    if (input.allowanceBlocked) status = DATASET_STATUS.BLOCKED_BY_PROVIDER_ALLOWANCE;
+    // Keys must match DATASET_STATUS exports (COMPLETE_VERIFIED / PARTIAL / BLOCKED_ALLOWANCE).
+    // Wrong keys previously yielded status=undefined and silent D1 NOT NULL insert failures.
+    if (input.allowanceBlocked) status = DATASET_STATUS.BLOCKED_ALLOWANCE;
     else if (!httpOk) status = DATASET_STATUS.FAILED;
     else if (!(rowCount > 0)) status = DATASET_STATUS.FAILED;
-    else if (teamCoverage != null && teamCoverage < 100) status = DATASET_STATUS.PARTIAL_COVERAGE;
-    else status = DATASET_STATUS.COMPLETE_AND_VERIFIED;
+    else if (teamCoverage != null && teamCoverage < 100) status = DATASET_STATUS.PARTIAL;
+    else status = DATASET_STATUS.COMPLETE_VERIFIED;
+  }
+  if (status == null || status === "") {
+    status = DATASET_STATUS.FAILED;
   }
   const manifestId = [
     input.season,
@@ -155,6 +160,7 @@ export const CFBD_PATH_TO_DATASET = Object.freeze({
 /**
  * Build an evidence-backed receipt from a real R2 archive object.
  * Never invents row counts — only documents what is present in storage.
+ * Prefer explicit `rowCount` from source_observations / payload inspection when known.
  */
 export function buildR2ArchiveManifestRow({
   season,
@@ -165,9 +171,19 @@ export function buildR2ArchiveManifestRow({
   objectBytes = null,
   throughWeek = null,
   status = null,
+  rowCount = null,
+  teamCoverage = null,
+  ingestionBatchId = null,
+  evidence = null,
 } = {}) {
   if (!datasetId || !r2Key) return null;
   const collectedAt = uploadedAt || new Date().toISOString();
+  const resolvedRows =
+    rowCount != null && Number.isFinite(Number(rowCount))
+      ? Number(rowCount)
+      : objectBytes != null && objectBytes > 0
+        ? 1
+        : null;
   return buildManifestRow({
     season,
     week,
@@ -176,20 +192,43 @@ export function buildR2ArchiveManifestRow({
     required: true,
     httpOk: true,
     httpStatus: 200,
-    rowCount: objectBytes != null && objectBytes > 0 ? 1 : null,
-    teamCoverage: null,
+    rowCount: resolvedRows,
+    teamCoverage,
     throughWeek,
     schemaOk: null,
     contentHash: `r2:${r2Key}`,
-    ingestionBatchId: `r2-recon:${String(r2Key).slice(-24)}`,
+    ingestionBatchId: ingestionBatchId || `r2-recon:${String(r2Key).slice(-24)}`,
     collectedAt,
-    status: status || (objectBytes > 0 ? undefined : "failed"),
+    status: status || (resolvedRows > 0 ? undefined : DATASET_STATUS.FAILED),
     evidence: {
       source: "r2_archive_reconcile",
       r2Key,
       objectBytes,
       uploadedAt: collectedAt,
       note: "Receipt from verified ARCHIVE object — not a fabricated historical claim",
+      ...(evidence || {}),
     },
   });
+}
+
+/**
+ * Distinguish refresh target week from the completed statistical week archived.
+ * Weekly reconstruction always queries throughWeek = targetWeek − 1.
+ */
+export function describeWeeklyReconstructionWindow(targetWeek) {
+  const target = Number(targetWeek);
+  if (!Number.isInteger(target) || target < 1) {
+    return { ok: false, reason: "invalid-target-week" };
+  }
+  const throughWeek = Math.max(0, target - 1);
+  return {
+    ok: throughWeek >= 1,
+    targetWeek: target,
+    throughWeek,
+    statisticalWeek: throughWeek,
+    note:
+      throughWeek >= 1
+        ? `targetWeek=${target} archives completed statistical week ${throughWeek} (throughWeek=targetWeek-1)`
+        : "No completed statistical week yet for this target",
+  };
 }
