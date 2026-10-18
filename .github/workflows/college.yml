@@ -16,6 +16,9 @@ on:
         options:
           - cfb-current-refresh
           - cfb-pregame-freeze
+          - cfb-core-shadow-freeze
+          - cfb-core-shadow-settle
+          - cfb-core-weekly-evaluation
           - cbb-current-refresh
           - cfb-postgame-harvest
           - cbb-postgame-harvest
@@ -321,6 +324,11 @@ jobs:
               echo "Skipping CBBD network acquisition after shared quota stop."
             fi
             call college-health
+            # CORE research ledger: cache-only (no CFBD). Freeze challenger
+            # projections, settle completed games, then write weekly report.
+            call cfb-core-shadow-settle
+            call cfb-core-shadow-freeze
+            call cfb-core-weekly-evaluation
             if [ "${CFBD_RATE_LIMITED:-0}" = "1" ]; then
               echo "Shared provider 429: college acquisition degraded; no retries or cross-sport paid calls."
               exit 1

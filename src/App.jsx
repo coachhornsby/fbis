@@ -1,4 +1,5 @@
 import CfbIntelligence from "./features/cfbIntelligence/CfbIntelligence.jsx";
+import CfbCoreResearchView from "./features/cfbCoreResearch/CfbCoreResearchView.jsx";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, kickoff, formatMarketPeriod, formatClv } from "./lib/format.js";
@@ -632,6 +633,7 @@ export default function App() {
         ) : route === "model-lab" || route === "research" ? (
           <div className="canonical-research-stack">
             <ModelLabView sportFilter={sportFilter} />
+            {(sportFilter === "all" || sportFilter === "cfb") && <CfbCoreResearchView />}
             <MispricesView sportFilter={sportFilter} />
           </div>
         ) : tab === "sys" || route === "system" ? (
@@ -701,6 +703,7 @@ export default function App() {
             )}
 
             {sport === "cfb" && <CfbIntelligence />}
+            {sport === "cfb" && <CfbCoreResearchView />}
             <Panel
               title={`${String(SPORTS[sport]?.label || sport).toUpperCase()} Intelligence Board`}
               stamp={updated}
