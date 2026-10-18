@@ -5,15 +5,37 @@ const valid=s=>/^[a-z0-9-]{1,160}$/i.test(s||'');
 const prefix='market-sources/polymarket-us/bootstrap/';
 export async function projectedPolymarketFixtures(db,now=new Date()){
  if(!db?.prepare)throw Error('PRIMARY_DB_REQUIRED');
- const end=new Date(now.getTime()+48*3600000).toISOString();
- const r=await db.prepare(`SELECT g.id,g.sport,g.start,g.home_name,g.away_name,g.home_abbr,g.away_abbr FROM games g
- WHERE julianday(g.start)>julianday(?1) AND julianday(g.start)<=julianday(?2) AND EXISTS (
+ const asOf=now.toISOString(),end=new Date(now.getTime()+48*3600000).toISOString();
+ // Team sports stay on games+prediction_snapshots. Tennis uses the official
+ // ATP/WTA schedule plus an independent research decision that predates both
+ // capture and match start — never market prices as projection proof.
+ const games=await db.prepare(`SELECT g.id,g.sport,g.start,g.home_name,g.away_name,g.home_abbr,g.away_abbr,NULL AS tour FROM games g
+ WHERE julianday(g.start)>julianday(?) AND julianday(g.start)<=julianday(?) AND EXISTS (
  SELECT 1 FROM prediction_snapshots ps WHERE ps.game_id=g.id AND ps.sport=g.sport
  AND ps.model_version IS NOT NULL AND COALESCE(ps.projection_kind,'FBIS')<>'UNAVAILABLE'
  AND (ps.proj_total IS NOT NULL OR (ps.proj_home IS NOT NULL AND ps.proj_away IS NOT NULL) OR ps.p_home_final BETWEEN 0 AND 1)
- AND julianday(ps.frozen_at)<=julianday(?1) AND julianday(ps.frozen_at)<julianday(g.start))
- ORDER BY g.start,g.id`).bind(now.toISOString(),end).all();
- return r.results||[];
+ AND julianday(ps.frozen_at)<=julianday(?) AND julianday(ps.frozen_at)<julianday(g.start))
+ ORDER BY g.start,g.id`).bind(asOf,end,asOf).all();
+ let tennis={results:[]};
+ try{
+  tennis=await db.prepare(`SELECT m.match_id AS id,'tennis' AS sport,m.match_time AS start,
+   p2.canonical_name AS home_name,p1.canonical_name AS away_name,
+   NULL AS home_abbr,NULL AS away_abbr,lower(m.tour) AS tour
+  FROM tennis_official_matches m
+  JOIN tennis_players p1 ON m.player1_id=p1.fbis_player_id
+  JOIN tennis_players p2 ON m.player2_id=p2.fbis_player_id
+  WHERE m.source IN ('ATP_OFFICIAL','WTA_OFFICIAL')
+   AND julianday(m.match_time)>julianday(?) AND julianday(m.match_time)<=julianday(?)
+   AND m.player1_id IS NOT NULL AND m.player2_id IS NOT NULL AND m.player1_id<>m.player2_id
+   AND lower(m.tour)=lower(p1.tour) AND lower(m.tour)=lower(p2.tour)
+   AND EXISTS (
+    SELECT 1 FROM tennis_v2_research_decisions d
+    WHERE d.canonical_event_id=m.match_id AND d.pure_p1 BETWEEN 0 AND 1
+     AND julianday(d.decision_timestamp)<=julianday(?)
+     AND julianday(d.decision_timestamp)<julianday(m.match_time))
+  ORDER BY m.match_time,m.match_id`).bind(asOf,end,asOf).all();
+ }catch{/* tennis tables absent on older D1 snapshots */}
+ return [...(games.results||[]),...(tennis.results||[])].sort((a,b)=>String(a.start).localeCompare(String(b.start))||String(a.id).localeCompare(String(b.id)));
 }
 async function boundedJson(fetchImpl,url,maxBytes=4e6){
  const r=await fetchImpl(url,{headers:{accept:'application/json'},signal:AbortSignal.timeout(20000)});

@@ -6,6 +6,7 @@ import { canonicalizeProPlayerPropMarket, normalizeProPropSport } from "../lib/p
 import { sha256Hex } from "../lib/sha256Hex.js";
 import { buildCbbPlayerPropSignal } from "../lib/cbbPlayerPropMoney.js";
 import { buildCfbPropSignal } from "../lib/cfbPlayerPropMoney.js";
+import { persistTennisPrizePicksHeadshots } from "../lib/tennisPrizePicksHeadshots.js";
 
 const TARGET_MONTHLY_USD = 22;
 const HARD_MONTHLY_CAP_USD = 25;
@@ -513,9 +514,11 @@ export async function onRequestPost(context){
     const result=await context.env.DB.batch(nflStateStatements.slice(i,i+BATCH_SIZE));
     nflStateSnapshotsWritten+=result.reduce((sum,row)=>sum+Number(row?.meta?.changes||0),0);
   }
+  let tennisHeadshots={updated:0};
+  try{tennisHeadshots=await persistTennisPrizePicksHeadshots(context.env.DB,{runId});}catch{tennisHeadshots={updated:0,error:true};}
   if(capturedSource){
     await context.env.DB.prepare("INSERT OR IGNORE INTO external_acquisition_batches VALUES(?,'prizepicks-daily',?,?,?,?,?,?)").bind(capturedSource.id,batchKey,rows.length,written,Math.max(0,rows.length-malformed-written),malformed,new Date().toISOString()).run();
-    return json({ok:true,runId,written,matched,malformed,batchIndex:batchKey,acquisitionId:capturedSource.id});
+    return json({ok:true,runId,written,matched,malformed,batchIndex:batchKey,acquisitionId:capturedSource.id,tennisPlayerHeadshotsUpdated:Number(tennisHeadshots.updated||0)});
   }
   const costId="cost_"+runId;
   const acquisition=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE run_id=?").bind(runId).first();
@@ -567,5 +570,5 @@ export async function onRequestPost(context){
     RUN_START_USD,0,rows.length*PER_PROJECTION_USD,0,0,0,0,0,0,0,0,estimate,actual,actual==null?null:actual-estimate,
     rows.length,JSON.stringify({actor:"zen-studio/prizepicks-player-props",candidateCount:candidates.length,targeted:true}),collectedAt
   ).run();
-  return json({ok:true,runId,rowsReturned:rows.length,written,matched,malformed,cbbPlayerPropSignalsCreated:signalsCreated,cfbPlayerPropSignalsPrepared:cfbSignalsPrepared,nflStateSnapshotsPrepared,nflStateSnapshotsWritten,estimatedCostUsd:estimate,recordedCostUsd:total,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD,archiveKey});
+  return json({ok:true,runId,rowsReturned:rows.length,written,matched,malformed,cbbPlayerPropSignalsCreated:signalsCreated,cfbPlayerPropSignalsPrepared:cfbSignalsPrepared,nflStateSnapshotsPrepared,nflStateSnapshotsWritten,tennisPlayerHeadshotsUpdated:Number(tennisHeadshots.updated||0),estimatedCostUsd:estimate,recordedCostUsd:total,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD,archiveKey});
 }

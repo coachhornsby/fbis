@@ -4,11 +4,22 @@ import {DatabaseSync} from 'node:sqlite';
 import {bootstrapPolymarket,projectedPolymarketFixtures} from '../functions/lib/polymarketBootstrap.js';
 const now=new Date('2026-10-18T06:00:00Z'),start='2026-10-18T20:00:00Z';
 function environment(){
- const db=new DatabaseSync(':memory:');db.exec(`CREATE TABLE games(id TEXT,sport TEXT,start TEXT,home_name TEXT,away_name TEXT,home_abbr TEXT,away_abbr TEXT); CREATE TABLE prediction_snapshots(game_id TEXT,sport TEXT,model_version TEXT,projection_kind TEXT,proj_total REAL,proj_home REAL,proj_away REAL,p_home_final REAL,frozen_at TEXT);`);
+ const db=new DatabaseSync(':memory:');db.exec(`CREATE TABLE games(id TEXT,sport TEXT,start TEXT,home_name TEXT,away_name TEXT,home_abbr TEXT,away_abbr TEXT); CREATE TABLE prediction_snapshots(game_id TEXT,sport TEXT,model_version TEXT,projection_kind TEXT,proj_total REAL,proj_home REAL,proj_away REAL,p_home_final REAL,frozen_at TEXT);
+ CREATE TABLE tennis_official_matches(match_id TEXT PRIMARY KEY,tour TEXT,source TEXT,match_time TEXT,player1_id TEXT,player2_id TEXT,observed_at TEXT);
+ CREATE TABLE tennis_players(fbis_player_id TEXT PRIMARY KEY,tour TEXT,canonical_name TEXT);
+ CREATE TABLE tennis_v2_research_decisions(canonical_event_id TEXT,pure_p1 REAL,decision_timestamp TEXT);`);
  db.prepare('INSERT INTO games VALUES(?,?,?,?,?,?,?)').run('g1','nfl',start,'Denver Broncos','Seattle Seahawks','DEN','SEA');
  const stored=new Map(),writes=[];
- return {db,stored,writes,DB:{prepare(sql){if(sql.startsWith('INSERT'))return{bind(...args){return{async run(){writes.push(args);return{meta:{changes:1}};}}}};
+ return {db,stored,writes,DB:{prepare(sql){if(sql.startsWith('INSERT')||sql.startsWith('UPDATE'))return{bind(...args){return{async run(){writes.push(args);return{meta:{changes:1}};}}}};
  const stmt=db.prepare(sql);return{bind(...args){return{all:async()=>({results:stmt.all(...args)})}}};}},ARCHIVE:{get:async k=>stored.has(k)?{json:async()=>JSON.parse(stored.get(k))}:null,put:async(k,v)=>{stored.set(k,v)}}};
+}
+function tennisForecast(e,{decision='2026-10-18T05:00:00Z',matchStart=start}={}){
+ e.db.prepare(`INSERT OR IGNORE INTO tennis_players VALUES(?,?,?)`).run('tp1','wta','Sonay Kartal');
+ e.db.prepare(`INSERT OR IGNORE INTO tennis_players VALUES(?,?,?)`).run('tp2','wta','Magdalena Chwalinska');
+ e.db.prepare(`INSERT OR REPLACE INTO tennis_official_matches VALUES(?,?,?,?,?,?,?)`)
+  .run('wta_test_match','wta','WTA_OFFICIAL',matchStart,'tp1','tp2','2026-10-18T04:00:00Z');
+ e.db.prepare(`DELETE FROM tennis_v2_research_decisions WHERE canonical_event_id=?`).run('wta_test_match');
+ e.db.prepare(`INSERT INTO tennis_v2_research_decisions VALUES(?,?,?)`).run('wta_test_match',0.62,decision);
 }
 function forecast(e,time='2026-10-18T05:00:00Z'){e.db.prepare('INSERT INTO prediction_snapshots VALUES(?,?,?,?,?,?,?,?,?)').run('g1','nfl','model-v1','FBIS',44,null,null,.62,time);}
 test('REST does not acquire markets before an independent pregame forecast',async()=>{
@@ -79,4 +90,28 @@ test('resume reuses only recent incomplete runs, not completed available invento
  const resumed=await bootstrapPolymarket(e,{operation:'resume'},{now});assert.equal(resumed.run,report.run);
  e.stored.set(key,JSON.stringify({...report,errors:[],missingEvents:[{id:'unlisted'}]}));assert.equal((await bootstrapPolymarket(e,{operation:'resume'},{now})).run,null);
  e.stored.set(key,JSON.stringify({...report,runStartedAt:'2026-10-18T04:00:00Z'}));assert.equal((await bootstrapPolymarket(e,{operation:'resume'},{now})).run,null);
+});
+
+test('projected fixtures include official tennis matches with pregame research decisions',async()=>{
+ const e=environment();
+ assert.equal((await projectedPolymarketFixtures(e.DB,now)).length,0);
+ tennisForecast(e,{decision:'2026-10-18T21:00:00Z'});
+ assert.equal((await projectedPolymarketFixtures(e.DB,now)).length,0);
+ tennisForecast(e);
+ const fixtures=await projectedPolymarketFixtures(e.DB,now);
+ assert.equal(fixtures.length,1);
+ assert.equal(fixtures[0].id,'wta_test_match');
+ assert.equal(fixtures[0].sport,'tennis');
+ assert.equal(fixtures[0].tour,'wta');
+ const catalogue=await bootstrapPolymarket(e,{operation:'catalogue'},{now,fetchImpl:async u=>Response.json(u.pathname==='/v2/sports'
+  ?{sports:[{id:1,slug:'tennis'}]}:{leagues:[{slug:'wta',name:'WTA Tour',sportId:1},{slug:'nfl',name:'NFL',sportId:2}]})});
+ assert.deepEqual(catalogue.leagues.map(l=>l.slug),['wta']);
+ assert.equal(catalogue.projectedFixtures,1);
+ const event={id:'pm-wta',title:'Sonay Kartal vs. Magdalena Chwalinska',startTime:start,seriesSlug:'wta',
+  markets:[{slug:'wta-kartal-chwalinska',sportsMarketTypeV2:'SPORTS_MARKET_TYPE_MONEYLINE',
+   marketSides:[{id:'yes',long:true,description:'Sonay Kartal',price:'.58'},{id:'no',long:false,description:'Magdalena Chwalinska',price:'.42'}]}]};
+ const page=await bootstrapPolymarket(e,{operation:'page',sport:'tennis',slug:'wta',offset:0,receiptId:'tennis-page'},
+  {now,fetchImpl:async()=>Response.json({events:[event]})});
+ assert.equal(page.matchedEvents,1);assert.equal(page.contracts,1);
+ assert.ok([...e.stored.keys()].some(k=>k.includes('stream-roster/')&&k.includes('wta')));
 });
