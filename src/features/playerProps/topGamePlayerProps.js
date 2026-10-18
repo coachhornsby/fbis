@@ -60,7 +60,12 @@ export function topThreeGamePlayerProps(game={}) {
       displayStatus:line==null?"PROJECTION_ONLY":raw.propGate==="HOLD"?"RESEARCH_HOLD":"RESEARCH_ONLY",
     });
   }
-  const sorted=sortPropsByConviction(rows);
+  // NFL Top-3 on game cards should use Standard PrizePicks lines so the
+  // embedded cards match the main PrizePicks board (not Demon/Goblin alts).
+  const isStandard=(r)=>String(r.oddsTier||r.odds_tier||"standard").toLowerCase()==="standard";
+  const nflStandard=sport==="nfl"?rows.filter((r)=>isStandard(r)&&r.hasPairedLine):[];
+  const pool=sport==="nfl"&&nflStandard.length?nflStandard:rows;
+  const sorted=sortPropsByConviction(pool);
   const seen=new Set();
   return sorted.filter(row=>{
     const id=normalized(row.fbisPlayerId||row.providerPlayerId||row.playerName);

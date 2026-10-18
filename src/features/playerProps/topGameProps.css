@@ -3,6 +3,16 @@
 .top-game-props-heading h3{font-size:13px;letter-spacing:.075em;margin:0;font-weight:800}
 .top-game-props-heading>span,.top-game-props-disclaimer{font-size:11px;opacity:.75}
 .top-game-props-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.top-game-props-grid.top-game-pp-cards{align-items:stretch;gap:12px}
+.top-game-props-grid.top-game-pp-cards .pp-style-card{min-width:0;height:100%}
+.top-game-props-grid.top-game-pp-cards .pp-card-visual{min-height:168px}
+.pp-style-rank{
+  position:absolute;z-index:7;top:10px;left:10px;
+  min-width:34px;height:26px;padding:0 8px;border-radius:999px;
+  display:grid;place-items:center;
+  background:rgba(6,14,28,.78);border:1px solid rgba(255,255,255,.18);
+  color:#f4f8ff;font-size:11px;font-weight:900;letter-spacing:.04em;
+}
 .top-game-prop{display:flex;flex-direction:column;gap:7px;min-width:0;padding:12px;border:1px solid var(--line,rgba(148,163,184,.2));border-radius:10px;background:var(--card,rgba(127,127,127,.045))}
 .top-game-prop-order{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:10px;font-weight:800;letter-spacing:.07em;opacity:.75}
 .top-game-prop-player{font-size:14px;overflow-wrap:anywhere}

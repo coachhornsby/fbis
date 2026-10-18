@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {topThreeGamePlayerProps} from "../src/features/playerProps/topGamePlayerProps.js";
 
 const base=()=>({
@@ -75,4 +76,31 @@ test("frozen schedule fallback contains no invented player props or wagering imp
     playerMarkets:[{playerName:"QB",team:"BUF",market:"passing_yards",fbisProjection:280}]};
   assert.deepEqual(topThreeGamePlayerProps(g),[]);
   assert.deepEqual(topThreeGamePlayerProps({...base(),playerMarkets:[]}),[]);
+});
+
+test("NFL top three prefers Standard PrizePicks lines over Demon/Goblin alts",()=>{
+  const g=base();
+  g.playerMarkets=[
+    {playerName:"QB1",team:"BUF",marketCanonical:"passing_yards",line:320.5,fbisProjection:250,fbisSigma:30,oddsTier:"demon",book:"PrizePicks"},
+    {playerName:"QB1",team:"BUF",marketCanonical:"passing_yards",line:249.5,fbisProjection:250,fbisSigma:30,oddsTier:"standard",book:"PrizePicks"},
+    {playerName:"WR1",team:"KC",marketCanonical:"receiving_yards",line:95.5,fbisProjection:70,fbisSigma:18,oddsTier:"goblin",book:"PrizePicks"},
+    {playerName:"WR1",team:"KC",marketCanonical:"receiving_yards",line:65.5,fbisProjection:70,fbisSigma:18,oddsTier:"standard",book:"PrizePicks"},
+    {playerName:"RB1",team:"BUF",marketCanonical:"rushing_yards",line:58.5,fbisProjection:65.5,fbisSigma:12,oddsTier:"standard",book:"PrizePicks"},
+  ];
+  const rows=topThreeGamePlayerProps(g);
+  assert.equal(rows.length,3);
+  assert.ok(rows.every((r)=>String(r.oddsTier||"standard").toLowerCase()==="standard"));
+  assert.ok(rows.every((r)=>r.book==="PrizePicks"&&r.line!=null&&r.fbisProjection!=null));
+});
+
+test("TopGameProps NFL path renders PrizePicks-style cards",()=>{
+  const src=fs.readFileSync("src/features/playerProps/TopGameProps.jsx","utf8");
+  assert.match(src,/PrizePicksStyleCard/);
+  assert.match(src,/top-game-pp-cards/);
+  const card=fs.readFileSync("src/features/playerProps/PrizePicksStyleCard.jsx","utf8");
+  assert.match(card,/pp-team-watermark/);
+  assert.match(card,/PP LINE/);
+  assert.match(card,/FBIS/);
+  assert.match(card,/LastFiveBars|LAST 5/);
+  assert.match(card,/pp-premium-headshot/);
 });
