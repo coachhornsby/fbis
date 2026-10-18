@@ -69,9 +69,9 @@ function MlbStarterMini({ game, side }) {
   const image = sp.id ? `/api/mlb-headshot?id=${encodeURIComponent(sp.id)}` : null;
   return (
     <div className="cgc-mlb-starter" aria-label={[`Starter ${sp.name || "TBD"}`, record, era].filter(Boolean).join(", ")}>
-      <span className="cgc-starter-avatar" aria-hidden="true">
+      <span className="cgc-starter-avatar cgc-starter-bubble" aria-hidden="true">
         <span>{starterInitials(sp.name)}</span>
-        {image ? <img src={image} alt="" width="30" height="30" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : null}
+        {image ? <img src={image} alt="" width="44" height="44" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : null}
       </span>
       <span className="cgc-starter-copy">
         <strong title={sp.name || "TBD"}>{sp.name || "TBD"}</strong>
