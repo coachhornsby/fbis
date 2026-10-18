@@ -1,0 +1,564 @@
+{
+  "verifiedAt": "2026-10-18T10:04:10.303Z",
+  "productionSha": "9eddeba14a73dd47ae16ac6f05ec846ebac0177c",
+  "n": 12,
+  "coverageShare": 0.5833333333333334,
+  "familiesLive": [
+    "teamEpa",
+    "quarterback",
+    "passMatchup",
+    "rushMatchup",
+    "pressure",
+    "nextGenTracking",
+    "context"
+  ],
+  "familiesMissing": [
+    "success",
+    "earlyDown",
+    "explosives",
+    "trenches",
+    "specialTeams"
+  ],
+  "games": [
+    {
+      "eventId": "401872996",
+      "matchup": "HOU@JAX",
+      "coverageShare": 0.5833333333333334,
+      "available": [
+        "teamEpa",
+        "quarterback",
+        "passMatchup",
+        "rushMatchup",
+        "pressure",
+        "nextGenTracking",
+        "context"
+      ],
+      "missing": [
+        "success",
+        "earlyDown",
+        "explosives",
+        "trenches",
+        "specialTeams"
+      ],
+      "pressureRateAllowed": [
+        0.1631023609987381,
+        0.1390921069142929
+      ],
+      "restDays": [
+        6,
+        5.9
+      ],
+      "qbLifecycle": "SHADOW",
+      "qbOk": true,
+      "qbGate": {
+        "metric": "combined_qb_burden",
+        "threshold": 0.3,
+        "historicalValidationPassed": true,
+        "prospectiveValidationPassed": false,
+        "operatorApprovedForProduction": false,
+        "lifecycle": "SHADOW",
+        "fired": false,
+        "combinedQbBurden": 0,
+        "homeQbBurden": 0,
+        "awayQbBurden": 0
+      },
+      "auditOk": true,
+      "scoreReconciled": true
+    },
+    {
+      "eventId": "401872997",
+      "matchup": "BAL@CLE",
+      "coverageShare": 0.5833333333333334,
+      "available": [
+        "teamEpa",
+        "quarterback",
+        "passMatchup",
+        "rushMatchup",
+        "pressure",
+        "nextGenTracking",
+        "context"
+      ],
+      "missing": [
+        "success",
+        "earlyDown",
+        "explosives",
+        "trenches",
+        "specialTeams"
+      ],
+      "pressureRateAllowed": [
+        0.22186434255399773,
+        0.17437796881051698
+      ],
+      "restDays": [
+        6,
+        5.7
+      ],
+      "qbLifecycle": "SHADOW",
+      "qbOk": true,
+      "qbGate": {
+        "metric": "combined_qb_burden",
+        "threshold": 0.3,
+        "historicalValidationPassed": true,
+        "prospectiveValidationPassed": false,
+        "operatorApprovedForProduction": false,
+        "lifecycle": "SHADOW",
+        "fired": true,
+        "combinedQbBurden": 1.463154,
+        "homeQbBurden": 0.562,
+        "awayQbBurden": 0.901154
+      },
+      "auditOk": true,
+      "scoreReconciled": true
+    },
+    {
+      "eventId": "401872998",
+      "matchup": "CAR@PHI",
+      "coverageShare": 0.5833333333333334,
+      "available": [
+        "teamEpa",
+        "quarterback",
+        "passMatchup",
+        "rushMatchup",
+        "pressure",
+        "nextGenTracking",
+        "context"
+      ],
+      "missing": [
+        "success",
+        "earlyDown",
+        "explosives",
+        "trenches",
+        "specialTeams"
+      ],
+      "pressureRateAllowed": [
+        0.13582032003084635,
+        0.16832369942196534
+      ],
+      "restDays": [
+        6.1,
+        12.7
+      ],
+      "qbLifecycle": "SHADOW",
+      "qbOk": true,
+      "qbGate": {
+        "metric": "combined_qb_burden",
+        "threshold": 0.3,
+        "historicalValidationPassed": true,
+        "prospectiveValidationPassed": false,
+        "operatorApprovedForProduction": false,
+        "lifecycle": "SHADOW",
+        "fired": true,
+        "combinedQbBurden": 0.981176,
+        "homeQbBurden": 0.981176,
+        "awayQbBurden": 0
+      },
+      "auditOk": true,
+      "scoreReconciled": true
+    },
+    {
+      "eventId": "401872999",
+      "matchup": "CHI@ATL",
+      "coverageShare": 0.5833333333333334,
+      "available": [
+        "teamEpa",
+        "quarterback",
+        "passMatchup",
+        "rushMatchup",
+        "pressure",
+        "nextGenTracking",
+        "context"
+      ],
+      "missing": [
+        "success",
+        "earlyDown",
+        "explosives",
+        "trenches",
+        "specialTeams"
+      ],
+      "pressureRateAllowed": [
+        0.1274974798738311,
+        0.12878152057931652
+      ],
+      "restDays": [
+        5.7,
+        6
+      ],
+      "qbLifecycle": "SHADOW",
+      "qbOk": true,
+      "qbGate": {
+        "metric": "combined_qb_burden",
+        "threshold": 0.3,
+        "historicalValidationPassed": true,
+        "prospectiveValidationPassed": false,
+        "operatorApprovedForProduction": false,
+        "lifecycle": "SHADOW",
+        "fired": true,
+        "combinedQbBurden": 0.339868,
+        "homeQbBurden": 0,
+        "awayQbBurden": 0.339868
+      },
+      "auditOk": true,
+      "scoreReconciled": true
+    },
+    {
+      "eventId": "401873000",
+      "matchup": "NO@NYG",
+      "coverageShare": 0.5833333333333334,
+      "available": [
+        "teamEpa",
+        "quarterback",
+        "passMatchup",
+        "rushMatchup",
+        "pressure",
+        "nextGenTracking",
+        "context"
+      ],
+      "missing": [
+        "success",
+        "earlyDown",
+        "explosives",
+        "trenches",
+        "specialTeams"
+      ],
+      "pressureRateAllowed": [
+        0.19634228695408693,
+        0.14989414255469302
+      ],
+      "restDays": [
+        6,
+        6
+      ],
+      "qbLifecycle": "SHADOW",
+      "qbOk": true,
+      "qbGate": {
+        "metric": "combined_qb_burden",
+        "threshold": 0.3,
+        "historicalValidationPassed": true,
+        "prospectiveValidationPassed": false,
+        "operatorApprovedForProduction": false,
+        "lifecycle": "SHADOW",
+        "fired": false,
+        "combinedQbBurden": 0,
+        "homeQbBurden": 0,
+        "awayQbBurden": 0
+      },
+      "auditOk": true,
+      "scoreReconciled": true
+    },
+    {
+      "eventId": "401873001",
+      "matchup": "NYJ@NE",
+      "coverageShare": 0.5833333333333334,
+      "available": [
+        "teamEpa",
+        "quarterback",
+        "passMatchup",
+        "rushMatchup",
+        "pressure",
+        "nextGenTracking",
+        "context"
+      ],
+      "missing": [
+        "success",
+        "earlyDown",
+        "explosives",
+        "trenches",
+        "specialTeams"
+      ],
+      "pressureRateAllowed": [
+        0.16480186480186482,
+        0.22129844640973967
+      ],
+      "restDays": [
+        6,
+        6
+      ],
+      "qbLifecycle": "SHADOW",
+      "qbOk": true,
+      "qbGate": {
+        "metric": "combined_qb_burden",
+        "threshold": 0.3,
+        "historicalValidationPassed": true,
+        "prospectiveValidationPassed": false,
+        "operatorApprovedForProduction": false,
+        "lifecycle": "SHADOW",
+        "fired": false,
+        "combinedQbBurden": 0,
+        "homeQbBurden": 0,
+        "awayQbBurden": 0
+      },
+      "auditOk": true,
+      "scoreReconciled": true
+    },
+    {
+      "eventId": "401873002",
+      "matchup": "PIT@TB",
+      "coverageShare": 0.5833333333333334,
+      "available": [
+        "teamEpa",
+        "quarterback",
+        "passMatchup",
+        "rushMatchup",
+        "pressure",
+        "nextGenTracking",
+        "context"
+      ],
+      "missing": [
+        "success",
+        "earlyDown",
+        "explosives",
+        "trenches",
+        "specialTeams"
+      ],
+      "pressureRateAllowed": [
+        0.13395469184059788,
+        0.1323083542963061
+      ],
+      "restDays": [
+        8.7,
+        6
+      ],
+      "qbLifecycle": "SHADOW",
+      "qbOk": true,
+      "qbGate": {
+        "metric": "combined_qb_burden",
+        "threshold": 0.3,
+        "historicalValidationPassed": true,
+        "prospectiveValidationPassed": false,
+        "operatorApprovedForProduction": false,
+        "lifecycle": "SHADOW",
+        "fired": false,
+        "combinedQbBurden": 0,
+        "homeQbBurden": 0,
+        "awayQbBurden": 0
+      },
+      "auditOk": true,
+      "scoreReconciled": true
+    },
+    {
+      "eventId": "401873003",
+      "matchup": "TEN@IND",
+      "coverageShare": 0.5833333333333334,
+      "available": [
+        "teamEpa",
+        "quarterback",
+        "passMatchup",
+        "rushMatchup",
+        "pressure",
+        "nextGenTracking",
+        "context"
+      ],
+      "missing": [
+        "success",
+        "earlyDown",
+        "explosives",
+        "trenches",
+        "specialTeams"
+      ],
+      "pressureRateAllowed": [
+        0.14789789789789792,
+        0.16469685798759284
+      ],
+      "restDays": [
+        6,
+        6
+      ],
+      "qbLifecycle": "SHADOW",
+      "qbOk": true,
+      "qbGate": {
+        "metric": "combined_qb_burden",
+        "threshold": 0.3,
+        "historicalValidationPassed": true,
+        "prospectiveValidationPassed": false,
+        "operatorApprovedForProduction": false,
+        "lifecycle": "SHADOW",
+        "fired": false,
+        "combinedQbBurden": 0,
+        "homeQbBurden": 0,
+        "awayQbBurden": 0
+      },
+      "auditOk": true,
+      "scoreReconciled": true
+    },
+    {
+      "eventId": "401873004",
+      "matchup": "ARI@LAR",
+      "coverageShare": 0.5833333333333334,
+      "available": [
+        "teamEpa",
+        "quarterback",
+        "passMatchup",
+        "rushMatchup",
+        "pressure",
+        "nextGenTracking",
+        "context"
+      ],
+      "missing": [
+        "success",
+        "earlyDown",
+        "explosives",
+        "trenches",
+        "specialTeams"
+      ],
+      "pressureRateAllowed": [
+        0.1354372545215177,
+        0.1853357440981362
+      ],
+      "restDays": [
+        4.8,
+        6
+      ],
+      "qbLifecycle": "SHADOW",
+      "qbOk": true,
+      "qbGate": {
+        "metric": "combined_qb_burden",
+        "threshold": 0.3,
+        "historicalValidationPassed": true,
+        "prospectiveValidationPassed": false,
+        "operatorApprovedForProduction": false,
+        "lifecycle": "SHADOW",
+        "fired": false,
+        "combinedQbBurden": 0,
+        "homeQbBurden": 0,
+        "awayQbBurden": 0
+      },
+      "auditOk": true,
+      "scoreReconciled": true
+    },
+    {
+      "eventId": "401873005",
+      "matchup": "BUF@LV",
+      "coverageShare": 0.5833333333333334,
+      "available": [
+        "teamEpa",
+        "quarterback",
+        "passMatchup",
+        "rushMatchup",
+        "pressure",
+        "nextGenTracking",
+        "context"
+      ],
+      "missing": [
+        "success",
+        "earlyDown",
+        "explosives",
+        "trenches",
+        "specialTeams"
+      ],
+      "pressureRateAllowed": [
+        0.2065048096356662,
+        0.14863893368566267
+      ],
+      "restDays": [
+        6.1,
+        4.8
+      ],
+      "qbLifecycle": "SHADOW",
+      "qbOk": true,
+      "qbGate": {
+        "metric": "combined_qb_burden",
+        "threshold": 0.3,
+        "historicalValidationPassed": true,
+        "prospectiveValidationPassed": false,
+        "operatorApprovedForProduction": false,
+        "lifecycle": "SHADOW",
+        "fired": false,
+        "combinedQbBurden": 0,
+        "homeQbBurden": 0,
+        "awayQbBurden": 0
+      },
+      "auditOk": true,
+      "scoreReconciled": true
+    },
+    {
+      "eventId": "401873006",
+      "matchup": "LAC@KC",
+      "coverageShare": 0.5833333333333334,
+      "available": [
+        "teamEpa",
+        "quarterback",
+        "passMatchup",
+        "rushMatchup",
+        "pressure",
+        "nextGenTracking",
+        "context"
+      ],
+      "missing": [
+        "success",
+        "earlyDown",
+        "explosives",
+        "trenches",
+        "specialTeams"
+      ],
+      "pressureRateAllowed": [
+        0.19207449282904024,
+        0.2336184586823973
+      ],
+      "restDays": [
+        13,
+        6
+      ],
+      "qbLifecycle": "SHADOW",
+      "qbOk": true,
+      "qbGate": {
+        "metric": "combined_qb_burden",
+        "threshold": 0.3,
+        "historicalValidationPassed": true,
+        "prospectiveValidationPassed": false,
+        "operatorApprovedForProduction": false,
+        "lifecycle": "SHADOW",
+        "fired": true,
+        "combinedQbBurden": 0.30955,
+        "homeQbBurden": 0,
+        "awayQbBurden": 0.30955
+      },
+      "auditOk": true,
+      "scoreReconciled": true
+    },
+    {
+      "eventId": "401873007",
+      "matchup": "DAL@GB",
+      "coverageShare": 0.5833333333333334,
+      "available": [
+        "teamEpa",
+        "quarterback",
+        "passMatchup",
+        "rushMatchup",
+        "pressure",
+        "nextGenTracking",
+        "context"
+      ],
+      "missing": [
+        "success",
+        "earlyDown",
+        "explosives",
+        "trenches",
+        "specialTeams"
+      ],
+      "pressureRateAllowed": [
+        0.17633440710363787,
+        0.1570514303338731
+      ],
+      "restDays": [
+        6.3,
+        9
+      ],
+      "qbLifecycle": "SHADOW",
+      "qbOk": true,
+      "qbGate": {
+        "metric": "combined_qb_burden",
+        "threshold": 0.3,
+        "historicalValidationPassed": true,
+        "prospectiveValidationPassed": false,
+        "operatorApprovedForProduction": false,
+        "lifecycle": "SHADOW",
+        "fired": false,
+        "combinedQbBurden": 0,
+        "homeQbBurden": 0,
+        "awayQbBurden": 0
+      },
+      "auditOk": true,
+      "scoreReconciled": true
+    }
+  ]
+}
