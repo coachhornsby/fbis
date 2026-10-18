@@ -145,6 +145,32 @@ test('soccer prematch normalizes every market inside the verified fixture univer
 });
 
 
+test('NBA rematch rewrites R2 modeled board from slug schedule ids onto ESPN game ids',async()=>{
+ const snapshotId='nba-slug-to-espn-board-3-prematch',at='2026-10-18T20:20:45.315Z',start='2026-10-20T19:00:00Z';
+ const receipt={ok:true,snapshotId,sportId:3,feed:'prematch',kind:'board',collectedAt:at,rawKey:'raw-nba',
+  projectionScope:'FBIS_MODELED_EVENTS_ONLY',providerCostUsd:0};
+ const rawBody={events:[{event_id:77,league_name:'NBA',starts:start,home:'Detroit Pistons',away:'Boston Celtics',
+  periods:{num_0:{number:0,money_line:{home:1.9,away:1.95}}}}]};
+ const slug={id:'nba_celtics_pistons_2026-10-20_b2',sport:'nba',start,home_name:'Detroit Pistons',away_name:'Boston Celtics'};
+ const espn={id:'401909088',sport:'nba',start,home_name:'Detroit Pistons',away_name:'Boston Celtics'};
+ const env=archiveEnv({receipt,rawKey:receipt.rawKey,rawBody,games:[slug,espn]});
+ // Prior prepare linked the slug id (pre-opening-week ESPN collect).
+ env._values.set(`market-sources/pinnodds/normalized/${snapshotId}.json`,JSON.stringify({
+  ...receipt,rows:[{eventId:slug.id,sport:'nba'}],normalizedRows:1,matchedRows:1,batchSize:100,batches:1}));
+ env._values.set('market-sources/pinnodds/latest-modeled/board-3-prematch.json',JSON.stringify({
+  schemaVersion:1,source:'PinnOdds',sportId:3,feed:'prematch',snapshotId,collectedAt:at,
+  ingestionScope:'VERIFIED_CANONICAL_GAME_MARKET_INVENTORY_8_DAYS',rows:[{source:'PinnOdds',sport:'nba',eventId:slug.id}],
+  readOnly:true,canAuthorizeWager:false}));
+ const prepared=await rematchPinnoddsSnapshot(env,{snapshotId,phase:'prepare',postCaptureFixtures:true});
+ assert.equal(prepared.paidProviderCall,false);
+ assert.ok(prepared.matchedRows>=2);
+ const modeled=JSON.parse(env._values.get('market-sources/pinnodds/latest-modeled/board-3-prematch.json'));
+ assert.equal(modeled.sportId,3);
+ assert.equal(modeled.canAuthorizeWager,false);
+ assert.ok(modeled.rows.every(r=>r.eventId==='401909088'));
+ assert.equal(modeled.rows.some(r=>r.eventId===slug.id),false);
+});
+
 test('fresh full-board archive retains canonical lines independently of forecast readiness',async()=>{
  const snapshotId='free-board-projection-scope',at='2026-10-16T12:00:00Z',start='2026-10-17T00:00:00Z';
  const events=[

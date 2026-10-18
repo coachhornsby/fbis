@@ -1,0 +1,50 @@
+name: PinnOdds NBA archive rematch (no paid capture)
+on:
+  workflow_dispatch:
+  # Merge-trigger path: agents cannot workflow_dispatch (403). Touching this
+  # marker on main rematches sportId=3 boards (incl. already-matched slug IDs)
+  # against current ESPN games so opening-week board can read R2 modeled quotes.
+  push:
+    branches: [main]
+    paths:
+      - "ops/triggers/pinnodds-nba-archive-rematch"
+      - ".github/workflows/pinnodds-nba-archive-rematch.yml"
+permissions:
+  contents: read
+concurrency:
+  group: fbis-pinnodds-nba-archive-rematch
+  cancel-in-progress: false
+jobs:
+  rematch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Unit-test rematch ingestion + NBA fixture collapse
+        run: node --test test/pinnodds-ingestion.test.js test/pinnodds-markets.test.js
+      - name: Rematch NBA board archives onto ESPN game IDs
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          # Zero paid provider calls. Force rematch of latest sportId=3 boards
+          # even when slug-form canonical IDs already matched (opening-week
+          # board uses ESPN numeric IDs from games).
+          node scripts/rematch-pinnodds-archived.mjs \
+            --sport-id=3 \
+            --include-matched \
+            --post-capture-fixtures \
+            | tee artifacts/pinnodds-nba-archive-rematch.json
+          jq -e '.ok == true and .paidProviderCalls == 0' artifacts/pinnodds-nba-archive-rematch.json
+      - name: Publish rematch receipt
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: pinnodds-nba-archive-rematch-${{ github.run_id }}
+          path: artifacts/**
+          if-no-files-found: ignore
