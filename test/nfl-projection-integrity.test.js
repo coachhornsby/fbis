@@ -248,7 +248,9 @@ test("weekly research report never claims promotion authority", () => {
   assert.equal(report.qbShadow.prospectiveValidationPassed, false);
   assert.equal(report.predictivePerformance.marginMae, null);
   assert.ok(report.featureCoverage.stillMissing.includes("specialTeams"));
-  assert.equal(report.featureImpact.accuracyEvidence.status, "NOT_MEASURED");
+  assert.equal(report.featureImpact.accuracyEvidence.status, "PHASE_A_MEASURED");
+  assert.equal(report.featureImpact.accuracyEvidence.sampleN, 2176);
+  assert.equal(report.featureImpact.accuracyEvidence.promotionEvidencePass, false);
   assert.equal(report.featureImpact.scoreContribution.altersDisplayedResearchScoreWhenPresent, true);
   assert.equal(report.scoreAuditStandard.arithmeticReconciliation, "ARITHMETICALLY_RECONCILED_INPUTS_ATTACHED");
   assert.equal(report.challengerComparePinned.n, 2176);

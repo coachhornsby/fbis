@@ -10,6 +10,7 @@ on:
       - "functions/lib/nflVerseFeed.js"
       - "functions/api/nfl-feature-snapshot.js"
       - "scripts/nfl-build-feature-snapshot.mjs"
+      - "scripts/nfl-enrich-snapshot-pbp-families.py"
       - ".github/workflows/nfl-feature-snapshot.yml"
   workflow_dispatch:
 
