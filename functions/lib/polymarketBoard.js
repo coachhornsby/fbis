@@ -4,6 +4,15 @@ import {polymarketUsPeriod,polymarketUsMarketFamily,polymarketUsSideLabel,polyma
  * Never hydrate stale quotes as actionable execution prices or model inputs.
  */
 import { marketTemporalStatus, providerObservationTime } from "./marketTemporal.js";
+const eventIndexes=new WeakMap();
+async function eventIndex(db){
+ if(eventIndexes.has(db))return eventIndexes.get(db);
+ let name=null;
+ try{const rows=(await db.prepare('PRAGMA index_list(normalized_market_observations)').bind().all()).results||[];
+  const names=new Set(rows.map(r=>r.name));name=['idx_norm_market_event_time','idx_shard_market_event'].find(n=>names.has(n))||null;
+ }catch{}
+ const clause=name?' INDEXED BY '+name:'';eventIndexes.set(db,clause);return clause;
+}
 
 export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Date(),maxAgeMs=45*60*1000,historyDb=null,deliveryStore="PRIMARY_D1",moneylineOnly=false}={}){
  if(historyDb?.prepare){
@@ -20,6 +29,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
  const ids=[...new Set(games.map(g=>String(g.id||"")).filter(Boolean))];
  if(!db?.prepare||!ids.length)return {byId:new Map(),source:"Polymarket US",available:false};
  const end=now.toISOString(),cutoff=new Date(now.getTime()-(sport==="soccer"?7*3600000:maxAgeMs)).toISOString();
+ const indexClause=await eventIndex(db);
  const rows=[];
  for(let i=0;i<ids.length;i+=40){
  const chunk=ids.slice(i,i+40);
@@ -28,7 +38,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   SELECT id,canonical_event_id,sport,source,market_family,side,line,period,contract_price,decimal_odds,american_odds,source_market_id,source_outcome_id,event_start_time,
     collected_at,source_observed_at,raw_payload_json,execution_eligible,can_qualify,can_authorize_wager,
     ROW_NUMBER() OVER (PARTITION BY source,canonical_event_id,market_family,source_market_id,source_outcome_id,period,side,line ORDER BY collected_at DESC,id DESC) rn
-  FROM normalized_market_observations
+  FROM normalized_market_observations${indexClause}
   WHERE source IN (${sport === 'soccer' ? "'Polymarket US','Polymarket US WebSocket','PinnOdds'" : "'Polymarket US','Polymarket US WebSocket'"}) AND sport=? ${moneylineOnly?"AND market_family='moneyline'":""} AND canonical_event_id IN (${params})
     AND collected_at BETWEEN ? AND ?
     AND (event_start_time IS NULL OR event_start_time >= ?)

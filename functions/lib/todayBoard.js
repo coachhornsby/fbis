@@ -1150,18 +1150,13 @@ export async function buildTodayBoard(
       // Sole active odds source: read matched PinnOdds captures from D1.
       // Historical Parlay/soft/Pinnacle-through-Parlay snapshots remain
       // auditable in storage but cannot hydrate CURRENT board pricing.
-      let d1Pinnodds=await loadPinnoddsBoardResearch(env.DB,{
-        sport,games:selectedDateGames,now:new Date(now).toISOString(),includeStarted:true,
-      });
-      if(env.MARKET_HISTORY_DB?.prepare){
-        const historyPinnodds=await loadPinnoddsBoardResearch(env.MARKET_HISTORY_DB,{
-          sport,games:selectedDateGames,now:new Date(now).toISOString(),includeStarted:true,
-        });
-        d1Pinnodds=preferFreshPinnoddsArchive(d1Pinnodds,historyPinnodds);
-      }
-      const r2Pinnodds=await loadPinnoddsR2BoardResearch(env.ARCHIVE,{
-        sport,games:selectedDateGames,now:new Date(now).toISOString(),includeStarted:true,
-      });
+      const pinScope={sport,games:selectedDateGames,now:new Date(now).toISOString(),includeStarted:true};
+      const [primaryPinnodds,historyPinnodds,r2Pinnodds]=await Promise.all([
+        loadPinnoddsBoardResearch(env.DB,pinScope),
+        loadPinnoddsBoardResearch(env.MARKET_HISTORY_DB,pinScope),
+        loadPinnoddsR2BoardResearch(env.ARCHIVE,pinScope),
+      ]);
+      const d1Pinnodds=preferFreshPinnoddsArchive(primaryPinnodds,historyPinnodds);
       const pinnodds=preferFreshPinnoddsArchive(d1Pinnodds,r2Pinnodds);
       const hydratedGames=selectedDateGames.map(g=>{
         const clean=pinnoddsOnlySlateMarket(g);

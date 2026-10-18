@@ -90,12 +90,12 @@ test('verified soccer local names match only inside their competition and unique
 });
 test('PinnOdds French and renamed NWSL teams retain independent event identity',async()=>{
  const {matchPolymarketUsEvent}=await import('../functions/lib/polymarketUs.js');
- const cases=[['fra.1','Paris FC','Stade Rennais','Paris FC','Rennes'],['fra.1','Le Havre AC','AJ Auxerre','Le Havre','Auxerre'],['usa.nwsl','Chicago Stars FC','Seattle Reign FC','Chicago Red Stars','Seattle Reign']];
+ const cases=[['eng.1','Brighton & Hove Albion','Crystal Palace','Brighton','Crystal Palace'],['fra.1','Paris FC','Stade Rennais','Paris FC','Rennes'],['fra.1','Le Havre AC','AJ Auxerre','Le Havre','Auxerre'],['usa.nwsl','Chicago Stars FC','Seattle Reign FC','Chicago Red Stars','Seattle Reign']];
  for(const [league,home,away,sourceHome,sourceAway] of cases){
   const game={id:'exact',league,start:'2026-10-18T23:00:00Z',home_name:home,away_name:away};
   const event={startTime:game.start,homeTeam:{name:sourceHome},awayTeam:{name:sourceAway}};
   assert.equal(matchPolymarketUsEvent(event,[game],'soccer').id,'exact');
-  assert.equal(matchPolymarketUsEvent(event,[{...game,league:'eng.1'}],'soccer').id,null);
+  assert.equal(matchPolymarketUsEvent(event,[{...game,league:'ger.1'}],'soccer').id,null);
   assert.equal(matchPolymarketUsEvent({...event,startTime:'2026-10-19T23:00:00Z'},[game],'soccer').id,null);
  }
 });
