@@ -4,7 +4,13 @@
  * Research-only — does not promote models or authorize wagers.
  */
 
-import { projectModelA, projectModelB, projectModelC, projectModelD } from "./cfbCurrentSeasonChallengers.js";
+import {
+  projectModelA,
+  projectModelB,
+  projectModelC,
+  projectModelD,
+  projectModelE,
+} from "./cfbCurrentSeasonChallengers.js";
 import { scoreErrors } from "./cfbOct17Replay.js";
 
 function num(v) {
@@ -55,7 +61,8 @@ function projectById(id, game, opts = {}) {
   if (id === "A") return projectModelA(game);
   if (id === "B") return projectModelB(game, opts);
   if (id === "C") return projectModelC(game, opts);
-  if (id === "D") return projectModelD(game);
+  if (id === "D") return projectModelD(game, opts);
+  if (id === "E") return projectModelE(game, opts);
   return { ok: false, reason: "unknown-model" };
 }
 
@@ -64,7 +71,7 @@ function projectById(id, game, opts = {}) {
  * Does not refit ridge coefficients here — uses production fitted package + research shrinkK.
  * Documented: a full coefficient refit requires historical feature archives with PIT as_of.
  */
-export function evaluateFold(fold, { models = ["A", "B", "D"], coreArtifact = null } = {}) {
+export function evaluateFold(fold, { models = ["A", "B", "E"], coreArtifact = null } = {}) {
   const byModel = {};
   for (const id of models) {
     const rows = [];

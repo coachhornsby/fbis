@@ -1,0 +1,168 @@
+{
+  "generatedAt": "2026-10-18T07:46:23.550Z",
+  "authority": "research_only",
+  "productionChampion": {
+    "modelId": "CFB-FBIS-v2",
+    "Mstar": "A",
+    "Tstar": "A",
+    "maeMargin": 13.566,
+    "maeTotal": 13.4918,
+    "n": 4582
+  },
+  "core": {
+    "fitted": false,
+    "reason": "FITTED_CORE_ARTIFACT_UNAVAILABLE — no multi-season PIT CORE freeze corpus for walk-forward"
+  },
+  "sdv": {
+    "fitted": false,
+    "reason": "NO_VALIDATED_SDV_CHALLENGER_ARTIFACT — SDV never enters fitted champion path"
+  },
+  "validations": [
+    {
+      "familyId": "B",
+      "parentFamily": "B",
+      "modelId": "CFB-RESEARCH-B",
+      "ablation": "B",
+      "name": "Advanced passing/rushing efficiency",
+      "artifact": "data/models/cfb-research-b-fitted.js",
+      "method": "rolling-origin-folds-2023-2025-pooled",
+      "n": 4582,
+      "championMaeMargin": 13.566,
+      "challengerMaeMargin": 13.5682,
+      "deltaMaeMargin": 0.0022,
+      "championMaeTotal": 13.4918,
+      "challengerMaeTotal": 13.4726,
+      "deltaMaeTotal": -0.0191,
+      "practicalEps": {
+        "margin": 0.041,
+        "total": 0.04
+      },
+      "bootstrapMargin": {
+        "mean": 0.0011,
+        "ci95": [
+          -0.0208,
+          0.0247
+        ],
+        "signPositiveShare": 0.53
+      },
+      "bootstrapTotal": {
+        "mean": 0.019,
+        "ci95": [
+          -0.0308,
+          0.0793
+        ],
+        "signPositiveShare": 0.752
+      },
+      "improvesOverChampion": false,
+      "statisticallySupported": false,
+      "decision": "NO_OOS_IMPROVEMENT_VS_CHAMPION_A",
+      "rationale": "Matches final-select: prefer champion A/A when |ΔMAE| ≤ practical ε or bootstrap CI crosses 0",
+      "canPromote": false,
+      "canAuthorizeWager": false
+    },
+    {
+      "familyId": "E_DRIVE",
+      "parentFamily": "E",
+      "modelId": "CFB-RESEARCH-E-DRIVE",
+      "ablation": "C",
+      "name": "Drive efficiency (success rate)",
+      "artifact": "data/models/cfb-research-e_drive-fitted.js",
+      "method": "rolling-origin-folds-2023-2025-pooled",
+      "n": 4582,
+      "championMaeMargin": 13.566,
+      "challengerMaeMargin": 13.5662,
+      "deltaMaeMargin": 0.0002,
+      "championMaeTotal": 13.4918,
+      "challengerMaeTotal": 13.4892,
+      "deltaMaeTotal": -0.0025,
+      "practicalEps": {
+        "margin": 0.041,
+        "total": 0.04
+      },
+      "bootstrapMargin": null,
+      "bootstrapTotal": null,
+      "improvesOverChampion": false,
+      "statisticallySupported": false,
+      "decision": "NO_OOS_IMPROVEMENT_VS_CHAMPION_A",
+      "rationale": "Matches final-select: prefer champion A/A when |ΔMAE| ≤ practical ε or bootstrap CI crosses 0",
+      "canPromote": false,
+      "canAuthorizeWager": false
+    },
+    {
+      "familyId": "E_SIT",
+      "parentFamily": "E",
+      "modelId": "CFB-RESEARCH-E-SIT",
+      "ablation": "D",
+      "name": "Situational explosiveness",
+      "artifact": "data/models/cfb-research-e_sit-fitted.js",
+      "method": "rolling-origin-folds-2023-2025-pooled",
+      "n": 4582,
+      "championMaeMargin": 13.566,
+      "challengerMaeMargin": 13.5682,
+      "deltaMaeMargin": 0.0022,
+      "championMaeTotal": 13.4918,
+      "challengerMaeTotal": 13.4942,
+      "deltaMaeTotal": 0.0024,
+      "practicalEps": {
+        "margin": 0.041,
+        "total": 0.04
+      },
+      "bootstrapMargin": null,
+      "bootstrapTotal": null,
+      "improvesOverChampion": false,
+      "statisticallySupported": false,
+      "decision": "NO_OOS_IMPROVEMENT_VS_CHAMPION_A",
+      "rationale": "Matches final-select: prefer champion A/A when |ΔMAE| ≤ practical ε or bootstrap CI crosses 0",
+      "canPromote": false,
+      "canAuthorizeWager": false
+    },
+    {
+      "familyId": "E",
+      "parentFamily": "E",
+      "modelId": "CFB-RESEARCH-E",
+      "ablation": "F",
+      "name": "Optimized combined advanced CFBD",
+      "artifact": "data/models/cfb-research-e-fitted.js",
+      "method": "rolling-origin-folds-2023-2025-pooled",
+      "n": 4582,
+      "championMaeMargin": 13.566,
+      "challengerMaeMargin": 13.5658,
+      "deltaMaeMargin": -0.0002,
+      "championMaeTotal": 13.4918,
+      "challengerMaeTotal": 13.5283,
+      "deltaMaeTotal": 0.0366,
+      "practicalEps": {
+        "margin": 0.041,
+        "total": 0.04
+      },
+      "bootstrapMargin": {
+        "mean": -0.002,
+        "ci95": [
+          -0.0304,
+          0.0297
+        ],
+        "signPositiveShare": 0.45
+      },
+      "bootstrapTotal": null,
+      "improvesOverChampion": false,
+      "statisticallySupported": false,
+      "decision": "NO_OOS_IMPROVEMENT_VS_CHAMPION_A",
+      "rationale": "Matches final-select: prefer champion A/A when |ΔMAE| ≤ practical ε or bootstrap CI crosses 0",
+      "canPromote": false,
+      "canAuthorizeWager": false
+    }
+  ],
+  "anyImprovesOverChampion": false,
+  "promotionAuthorized": false,
+  "wagerAuthorized": false,
+  "written": [
+    "data/models/cfb-research-b-fitted.js",
+    "data/models/cfb-research-b-fitted.json",
+    "data/models/cfb-research-e_drive-fitted.js",
+    "data/models/cfb-research-e_drive-fitted.json",
+    "data/models/cfb-research-e_sit-fitted.js",
+    "data/models/cfb-research-e_sit-fitted.json",
+    "data/models/cfb-research-e-fitted.js",
+    "data/models/cfb-research-e-fitted.json"
+  ]
+}

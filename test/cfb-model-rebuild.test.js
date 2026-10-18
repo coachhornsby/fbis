@@ -15,7 +15,9 @@ import {
   projectModelB,
   projectModelC,
   projectModelD,
+  projectModelE,
 } from "../functions/lib/cfbCurrentSeasonChallengers.js";
+import { summarizeResearchModelFamilies } from "../functions/lib/cfbResearchModelFamilies.js";
 import {
   runOklahomaProjectionAudit,
   explainRepairedOklahomaInflation,
@@ -109,6 +111,8 @@ test("challengers are research-only and Model C fails closed without CORE artifa
         gamesPlayed: 6,
         offensePpa: -0.04,
         defensePpa: -0.16,
+        passEpa: 0.1,
+        rushEpa: 0.05,
       },
       away: {
         priorOff: 28.58,
@@ -116,6 +120,8 @@ test("challengers are research-only and Model C fails closed without CORE artifa
         gamesPlayed: 6,
         offensePpa: 0.21,
         defensePpa: 0.04,
+        passEpa: 0.15,
+        rushEpa: 0.08,
       },
     },
   };
@@ -123,14 +129,34 @@ test("challengers are research-only and Model C fails closed without CORE artifa
   const b = projectModelB(game);
   const c = projectModelC(game, { coreArtifact: null });
   const d = projectModelD(game);
+  const e = projectModelE(game);
   assert.equal(a.canAuthorizeWager, false);
   assert.equal(b.canAuthorizeWager, false);
-  assert.equal(b.researchShrinkK, 3);
+  assert.equal(b.canInfluenceProduction, false);
+  assert.equal(b.modelId, "CFB-RESEARCH-B");
   assert.equal(c.ok, false);
   assert.equal(c.reason, "FITTED_CORE_ARTIFACT_UNAVAILABLE");
-  assert.equal(d.ok, true);
-  assert.equal(d.canInfluenceProduction, false);
-  assert.ok(b.home < a.home || Math.abs(b.home - a.home) < 5);
+  assert.equal(d.ok, false);
+  assert.equal(d.reason, "FITTED_SDV_ARTIFACT_UNAVAILABLE");
+  assert.equal(e.canInfluenceProduction, false);
+  assert.equal(e.improvesOverChampion, false);
+  assert.ok(b.ok);
+  assert.ok(e.ok);
+});
+
+test("research families report fitted B/E without promotion or OOS improvement", () => {
+  const snap = summarizeResearchModelFamilies();
+  assert.equal(snap.promotionAuthorized, false);
+  assert.equal(snap.wagerAuthorized, false);
+  assert.equal(snap.advancedStatsImproveChampion, false);
+  const byId = Object.fromEntries(snap.families.map((f) => [f.id, f]));
+  assert.equal(byId.A.fitted, true);
+  assert.equal(byId.B.fitted, true);
+  assert.equal(byId.C.fitted, false);
+  assert.equal(byId.D.fitted, false);
+  assert.equal(byId.E.fitted, true);
+  assert.equal(byId.B.improvesOverChampion, false);
+  assert.equal(byId.E.improvesOverChampion, false);
 });
 
 test("projection reliability flags provisional and offense-exceedance", () => {
@@ -226,9 +252,10 @@ test("rolling-origin folds require training history before test week", () => {
   }
   const folds = buildRollingOriginFolds(games, { minTrainGames: 20 });
   assert.ok(folds.length >= 1);
-  const eval0 = evaluateFold(folds[0], { models: ["A", "B", "D"] });
+  const eval0 = evaluateFold(folds[0], { models: ["A", "B", "E"] });
   assert.ok(eval0.byModel.A.nGraded > 0);
   assert.ok(eval0.byModel.B.nGraded > 0);
+  assert.ok(eval0.byModel.E.nGraded > 0);
 });
 
 test("snapshot settlement gap finder refuses unbound env", async () => {

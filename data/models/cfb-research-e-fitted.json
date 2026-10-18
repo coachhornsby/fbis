@@ -1,0 +1,175 @@
+{
+  "id": "cfb-research-e-fitted",
+  "modelId": "CFB-RESEARCH-E",
+  "familyId": "E",
+  "parentFamily": "E",
+  "name": "Optimized combined advanced CFBD",
+  "version": "research-fold3-f-v1",
+  "role": "research-challenger",
+  "authority": "research_only",
+  "projectionEnabled": false,
+  "canQualify": false,
+  "canAuthorize": false,
+  "canAuthorizeWager": false,
+  "canInfluenceProduction": false,
+  "wagerAuthorization": false,
+  "promote": false,
+  "Mstar": "F",
+  "Tstar": "F",
+  "productionFold": "fold3",
+  "trainSeasons": [
+    2022,
+    2023,
+    2024
+  ],
+  "ablation": "F",
+  "featureContract": "ppa-derived-advanced-research-v1",
+  "consumedFields": [
+    "base",
+    "pass",
+    "rush",
+    "success",
+    "explosiveness",
+    "havoc",
+    "trenches"
+  ],
+  "hypothesis": "Combined pass/rush + drive + trenches/situational advanced CFBD improves OOS vs champion",
+  "sourceArtifacts": {
+    "fittedCoefficientsFinal": "data/cfbd/calibration/fitted-coefficients-final.json",
+    "fittedCoefficientsFinalSha256": "479cbc06e6408f2cd72e2850e631be7070848d518c68b78e488413f1a180239d",
+    "designRows": "data/cfbd/calibration/design-rows.jsonl",
+    "designRowsSha256": "b853ffa5d817d32811a5ac2744e80348e05e8956d4522f898cc65f2fa804aed5",
+    "finalSelectReport": "data/cfbd/calibration/final-select-report.json"
+  },
+  "notes": "Research-only ridge package from the same PIT 2022–2024 fold3 training window as production A/A. Never overwrites champion coefficients.",
+  "margin": {
+    "features": [
+      "base",
+      "pass",
+      "rush",
+      "success",
+      "explosiveness",
+      "havoc",
+      "trenches"
+    ],
+    "intercept": 5.881256656017041,
+    "beta": [
+      12.51851268174934,
+      0.3722107009631618,
+      -0.26580923749247043,
+      0.5814219388451249,
+      0.11732774677623767,
+      0,
+      -0.4192508095121809
+    ],
+    "means": [
+      2.250952946768063,
+      0.7222790253225033,
+      0.3367176301958917,
+      0.12625237642585563,
+      0.18492866407263303,
+      0,
+      0.0804705323193916
+    ],
+    "stds": [
+      12.480211693177752,
+      2.1912728379383277,
+      1.1783321985940145,
+      1.3763634615614204,
+      2.7324100029504623,
+      0,
+      0.9805858161618997
+    ],
+    "lambda": 0.3,
+    "sigma": 16.90797334993536,
+    "scalerN": [
+      4208,
+      2093,
+      2093,
+      4208,
+      3855,
+      4208,
+      4208
+    ]
+  },
+  "total": {
+    "features": [
+      "base_total",
+      "pass_total",
+      "rush_total",
+      "success_total",
+      "explosiveness_total",
+      "havoc_total",
+      "trenches_total"
+    ],
+    "intercept": 53.130990415335305,
+    "beta": [
+      2.801806118670001,
+      0.052813129844837756,
+      0.19203559395195163,
+      1.378824291038558,
+      -0.059941475668687655,
+      0,
+      -0.3793379203852534
+    ],
+    "means": [
+      49.680104763672524,
+      0.5841480689397167,
+      0.24570014204000415,
+      0.8264889830676739,
+      2.5172305161792536,
+      0,
+      5.870043644016464
+    ],
+    "stds": [
+      16.132506007467093,
+      0.30543300838283843,
+      0.20808092946953013,
+      0.12345612151736607,
+      0.2987901160084314,
+      0,
+      0.8829340085325419
+    ],
+    "lambda": 300,
+    "scalerN": [
+      3854,
+      2323,
+      2323,
+      3893,
+      3893,
+      0,
+      3893
+    ]
+  },
+  "trainN": 3756,
+  "testN": 1559,
+  "oosValidation": {
+    "method": "rolling-origin-folds-2023-2025-pooled",
+    "n": 4582,
+    "championMaeMargin": 13.566,
+    "challengerMaeMargin": 13.5658,
+    "deltaMaeMargin": -0.0002,
+    "championMaeTotal": 13.4918,
+    "challengerMaeTotal": 13.5283,
+    "deltaMaeTotal": 0.0366,
+    "practicalEps": {
+      "margin": 0.041,
+      "total": 0.04
+    },
+    "bootstrapMargin": {
+      "mean": -0.002,
+      "ci95": [
+        -0.0304,
+        0.0297
+      ],
+      "signPositiveShare": 0.45
+    },
+    "bootstrapTotal": null,
+    "improvesOverChampion": false,
+    "statisticallySupported": false,
+    "decision": "NO_OOS_IMPROVEMENT_VS_CHAMPION_A",
+    "rationale": "Matches final-select: prefer champion A/A when |ΔMAE| ≤ practical ε or bootstrap CI crosses 0",
+    "canPromote": false,
+    "canAuthorizeWager": false
+  }
+}
