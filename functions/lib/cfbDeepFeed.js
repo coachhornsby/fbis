@@ -211,20 +211,23 @@ async function readPersistedCfbDeep(env,season,now) {
 
 export async function loadCfbDeepFeatures(env = {}, { fetchFn = fetch, now = Date.now() } = {}) {
   const season = seasonYear(new Date(now));
-  const key = collegeApiKey(env, "cfbd");
-  if (!key) return { season, byEspnId: {}, bySchool: {}, meta: { configured: false, records: 0, error: "no-api-key" } };
-  const cacheKey = `cfb-deep-v2-${season}`;
-  const cached = await readCache(cacheKey, env.caches, TTL_MS);
-  if (cached?.meta) return cached;
-  if (env.cfbdCacheOnly || (env.DB?.prepare && env.cfbdNetworkAuthorized !== true)) {
-    const persisted=await readPersistedCfbDeep(env,season,now);
-    if(persisted)return persisted;
+  // A persisted, quota-free current-season snapshot does not require a provider API key.
+  // Prefer verified D1 state before reading an older in-memory source cache.
+  const cacheOnly = env.cfbdCacheOnly || (env.DB?.prepare && env.cfbdNetworkAuthorized !== true);
+  if (cacheOnly) {
+    const persisted = await readPersistedCfbDeep(env, season, now);
+    if (persisted) return persisted;
     return {
       season, byEspnId: {}, bySchool: {},
       meta: { configured: true, records: 0, cacheOnly: true, error: "persisted-feature-miss", networkCalls:0 },
     };
   }
 
+  const key = collegeApiKey(env, "cfbd");
+  if (!key) return { season, byEspnId: {}, bySchool: {}, meta: { configured: false, records: 0, error: "no-api-key" } };
+  const cacheKey = `cfb-deep-v2-${season}`;
+  const cached = await readCache(cacheKey, env.caches, TTL_MS);
+  if (cached?.meta) return cached;
   const [ppaPrimary, adv, games] = await Promise.all([
     fetchRows(key, "/ppa/teams", { year: season, seasonType: "regular" }, fetchFn, env),
     fetchRows(key, "/stats/season/advanced", { year: season, seasonType: "regular" }, fetchFn, env),
