@@ -339,8 +339,7 @@ export class PolymarketMarketStream extends DurableObject {
     const entry={...tick,tradeCount:this.tradeStats.get(tick.marketSlug)?.count||0,tradeWindowStart:this.tradeStats.get(tick.marketSlug)?.since||null,timeMs:Date.now(),at:new Date().toISOString()};
     if(!shouldSaveBbo(entry,this.lastSaved.get(tick.marketSlug)))return;
     // Collapse high-frequency ticks by contract, not by first-come-wins.
-    if(this.queue.size>=MAX_QUEUE&&!this.queue.has(tick.marketSlug))
-      this.queue.delete(this.queue.keys().next().value);
+    // One latest tick per subscribed contract bounds memory without evicting quiet markets.
     this.queue.set(tick.marketSlug,entry);
     if(!this.flushTimer){
       this.flushTimer=setTimeout(()=>{
@@ -460,7 +459,7 @@ export class PolymarketMarketStream extends DurableObject {
         for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
       }else{
         this.persistenceStatus="UNAVAILABLE";
-        for(const t of ticks)if(this.queue.size<MAX_QUEUE)this.queue.set(t.marketSlug,t);
+        for(const t of ticks)if(!this.queue.has(t.marketSlug))this.queue.set(t.marketSlug,t);
       }
     }
     if(this.queue.size&&!this.flushTimer){

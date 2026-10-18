@@ -60,8 +60,8 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
    for(const [k,v] of Object.entries({tagSlug:opts.slug,active:true,closed:false,startTimeMin:now.toISOString(),startTimeMax:new Date(now.getTime()+48*3600000).toISOString(),limit:20,offset:opts.offset,orderBy:'id',orderDirection:'asc'}))url.searchParams.set(k,String(v));
    sourcePage=eventPage=await boundedJson(fetchImpl,url);if(!Array.isArray(eventPage.events)||eventPage.events.length>20)throw Error('PROVIDER_PAGE_CHANGED');
   }
-  const candidates=fixtures.filter(g=>g.sport===scope.sport),offers=[],events=[];
-  for(const event of eventPage.events){const match=matchPolymarketUsEvent(event,candidates,scope.sport);if(!match.id)continue;
+  const candidates=fixtures.filter(g=>g.sport===scope.sport),offers=[],events=[],unmatchedEvents=[];
+  for(const event of eventPage.events){const match=matchPolymarketUsEvent(event,candidates,scope.sport);if(!match.id){unmatchedEvents.push({id:String(event.id),title:event.title||null,start:event.startTime||null,reason:match.reason});continue;}
    events.push({canonicalId:String(match.id),event});
    offers.push(...polymarketUsMarketOffers(event,scope.sport,{canonicalId:match.id,capturedAt:now.toISOString()})
     .filter(o=>valid(o.sourceMarketId)&&['moneyline','spread','total'].includes(o.marketFamily)&&o.raw?.contractLong===true&&o.raw.providerMarket?.closed!==true&&o.raw.providerMarket?.active!==false)
@@ -73,7 +73,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
   }
   const items=opts.operation==='markets'?sourcePage.markets:eventPage.events;
   const receipt={ok:true,receiptId:opts.receiptId,slug:scope.slug,sport:scope.sport,capturedAt:now.toISOString(),itemCount:items.length,itemIds:items.map(e=>String(e.id||e.slug)),matchedEvents:events.length,contracts:contracts.length,
-   inventory:contracts.map(o=>({market:o.sourceMarketId,eventId:String(o.eventId),sport:o.sport})),
+   unmatchedEvents,inventory:contracts.map(o=>({market:o.sourceMarketId,eventId:String(o.eventId),sport:o.sport})),
    matchedEventRefs:events.map((e,eventIndex)=>({eventIndex,eventId:e.canonicalId,gameId:e.event.gameId??null})),
    bookBatches:Math.ceil(contracts.length/4),nextOffset:items.length===20?opts.offset+20:null,offers:contracts,events,canAuthorizeWager:false};
   // Source page is private and immutable; normalized records are restricted to independently forecast games.

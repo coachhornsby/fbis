@@ -12,3 +12,9 @@ test('full-inventory mode covers more than 500 contracts while preserving bounde
  const result=manageSubscriptionCapacity(rows,{coverAllEligible:true,maxContracts:500,maxConnections:10});
  assert.equal(result.assignedCount,1201);assert.equal(result.uncoveredCount,0);assert.ok(result.partitions.every(p=>p.size<=50));
 });
+
+test('quote queue does not evict a quiet subscribed contract to fit a 400-contract cap',async()=>{
+ const {readFileSync}=await import('node:fs');const worker=readFileSync(new URL('../services/polymarket-us-stream/worker.mjs',import.meta.url),'utf8');
+ assert.doesNotMatch(worker,/this\.queue\.delete\(this\.queue\.keys\(\)\.next\(\)\.value\)/);
+ assert.doesNotMatch(worker,/if\(this\.queue\.size<MAX_QUEUE\)/);
+});
