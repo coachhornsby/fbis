@@ -11,14 +11,30 @@ const baseSql = "FROM cfb_canonical_teams WHERE active=1 AND upper(trim(subdivis
 const validId = (v) => /^cfb:espn:\d{1,12}$/.test(String(v || ""));
 const noModelAuthority = { canInfluenceProjection: false, canQualify: false, canAuthorizeWager: false };
 
+/** Canonical team page IDs are `cfb:espn:N`; snapshots may use `cfb-N` or bare N. */
+function teamFeatureIdCandidates(teamId) {
+  const raw = String(teamId || "");
+  const ids = new Set([raw]);
+  const espn = /^(?:cfb:espn:|cfb-)?(\d{1,12})$/.exec(raw);
+  if (espn) {
+    ids.add(espn[1]);
+    ids.add(`cfb-${espn[1]}`);
+    ids.add(`cfb:espn:${espn[1]}`);
+  }
+  return [...ids];
+}
+
 async function optionalTeamFeatures(db, teamId, season) {
-  // PR #927 proposes restoring team_feature_snapshots. Until then, never
-  // synthesize a state or trigger acquisition just to render a profile.
+  // Never synthesize a state or trigger acquisition just to render a profile.
+  // Try dual ID forms so page stats and the projection engine share one source.
   try {
-    const row = await db.prepare(
-      "SELECT as_of,feature_version,features_json,missingness_json,season FROM team_feature_snapshots WHERE sport='cfb' AND team_id=? AND season=? ORDER BY as_of DESC LIMIT 1"
-    ).bind(teamId, Number(season)).first();
-    return toTeamFeatureSummary(row);
+    for (const id of teamFeatureIdCandidates(teamId)) {
+      const row = await db.prepare(
+        "SELECT as_of,feature_version,features_json,missingness_json,season FROM team_feature_snapshots WHERE sport='cfb' AND team_id=? AND season=? ORDER BY as_of DESC LIMIT 1"
+      ).bind(id, Number(season)).first();
+      if (row) return toTeamFeatureSummary(row);
+    }
+    return toTeamFeatureSummary();
   } catch (error) {
     return { ...toTeamFeatureSummary(), state: "PERSISTENCE_UNAVAILABLE",
       reason: "team_feature_snapshots not readable" };
@@ -29,6 +45,11 @@ async function optionalTeamFeatures(db, teamId, season) {
  * Read latest same-season/version FBS snapshots for FBIS research ranks.
  * Fail-closed: empty peers if table missing — never fabricates ranks or hits CFBD.
  */
+function canonicalEspnTeamId(teamId) {
+  const espn = /^(?:cfb:espn:|cfb-)?(\d{1,12})$/.exec(String(teamId || ""));
+  return espn ? `cfb:espn:${espn[1]}` : String(teamId || "");
+}
+
 async function loadFbsResearchPeers(db, { season, featureVersion, conferenceByTeam = null } = {}) {
   if (!db?.prepare || season == null || !featureVersion) return { peers: [], totalFbs: null, conferenceCounts: {} };
   try {
@@ -47,17 +68,20 @@ async function loadFbsResearchPeers(db, { season, featureVersion, conferenceByTe
     for (const conf of conferences.values()) {
       if (conf) conferenceCounts[conf] = (conferenceCounts[conf] || 0) + 1;
     }
-    const peers = latest.filter(row => conferences.has(row.team_id)).map((row) => {
+    const peers = latest.map((row) => {
+      const canonicalId = canonicalEspnTeamId(row.team_id);
+      if (!conferences.has(canonicalId) && !conferences.has(row.team_id)) return null;
       let features = null;
       try { features = row.features_json ? JSON.parse(row.features_json) : null; } catch { features = null; }
       return {
-        teamId: row.team_id,
-        conference: conferences.get?.(row.team_id) ?? conferences[row.team_id] ?? null,
+        teamId: canonicalId,
+        sourceTeamId: row.team_id,
+        conference: conferences.get?.(canonicalId) ?? conferences.get?.(row.team_id) ?? conferences[canonicalId] ?? conferences[row.team_id] ?? null,
         features,
         flat: flattenFeatures(features || {}),
         asOf: row.as_of || null,
       };
-    }).filter((p) => p.teamId && p.flat && Object.keys(p.flat).length);
+    }).filter((p) => p && p.teamId && p.flat && Object.keys(p.flat).length);
     return { peers, totalFbs: conferences.size, conferenceCounts };
   } catch {
     return { peers: [], totalFbs: null, conferenceCounts: {} };

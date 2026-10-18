@@ -267,6 +267,14 @@ export function buildCfbTeamResearchPanels({
   });
 
   const populated = panels.length > 0 || Object.keys(gameSeries).length > 0 || propResearch.count > 0;
+  const throughWeek = num(flat.coreThroughWeek);
+  const criticalKeys = ["ppaOff", "ppaDef", "offensiveSuccessRate", "defensiveSuccessRate"];
+  const missingCritical = criticalKeys.filter((k) => num(flat[k]) == null);
+  const gamesIncluded = num(flat.gamesPlayed) ?? num(flat.games) ?? throughWeek;
+  const priorInfluence =
+    gamesIncluded == null || !(gamesIncluded > 0)
+      ? 1
+      : Math.max(0, 1 - gamesIncluded / (gamesIncluded + 6));
 
   return {
     state: populated
@@ -282,6 +290,24 @@ export function buildCfbTeamResearchPanels({
     season: resolvedSeason,
     conference: resolvedConference,
     coverage,
+    reliability: {
+      currentSeasonGamesIncluded: gamesIncluded,
+      fbsOpponentsIncluded: num(evidence?.fbsFinalGames ?? evidence?.fbsOpponents) ?? null,
+      throughWeek,
+      weekBounded: flat.coreWeekBounded === true,
+      lastVerifiedSourceUpdate: featureState?.asOf || null,
+      currentDataCompleteness: criticalKeys.length
+        ? (criticalKeys.length - missingCritical.length) / criticalKeys.length
+        : null,
+      historicalPriorInfluence: Math.round(priorInfluence * 1000) / 1000,
+      missingCriticalFeatures: missingCritical,
+      projectionVersion: "CFB-FBIS-v2",
+      provisional:
+        missingCritical.length > 0 ||
+        !(gamesIncluded > 0) ||
+        priorInfluence > 0.75,
+      note: "Reliability describes research snapshot readiness for projection inputs; it does not authorize wagers.",
+    },
     panels,
     metrics,
     gameSeries,

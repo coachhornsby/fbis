@@ -147,6 +147,29 @@ function buildCompletedForm(rows = [], now = Date.now()) {
   return bySchool;
 }
 
+/**
+ * Resolve in-season observation count for prior/current blending.
+ * Prefer explicit completed-game counts; fall back to week-bounded CORE
+ * through-week as an information-quality proxy (never invent games).
+ * Do NOT treat SP `off`/`def` ratings as current PPG.
+ */
+export function resolvePersistedGamesPlayed(fields = {}) {
+  const explicit = num(fields.gamesPlayed) ?? num(fields.games) ?? num(fields.nGames);
+  if (explicit != null && explicit > 0) return explicit;
+  const throughWeek = num(fields.coreThroughWeek);
+  if (fields.coreWeekBounded === true && throughWeek != null && throughWeek > 0) {
+    return throughWeek;
+  }
+  return null;
+}
+
+function espnIdFromTeamKey(teamId, fields = {}) {
+  if (fields.espnId != null && String(fields.espnId).trim()) return String(fields.espnId);
+  const raw = String(teamId || "");
+  const m = /^(?:cfb:espn:|cfb-)?(\d{1,12})$/.exec(raw);
+  return m ? m[1] : null;
+}
+
 // Prefer canonical weekly D1 state over any daytime provider request.
 // Research-only fields preserve source units and their as-of timestamps.
 async function readPersistedCfbDeep(env,season,now) {
@@ -161,6 +184,8 @@ async function readPersistedCfbDeep(env,season,now) {
     const index={byEspnId:{},bySchool:{}};
     const seen=new Set();
     let maxAsOf=null;
+    let withGamesPlayed=0;
+    let withOffensePpa=0;
     for(const rec of result?.results||[]){
       if(seen.has(String(rec.team_id)))continue;
       let fields;
@@ -168,6 +193,8 @@ async function readPersistedCfbDeep(env,season,now) {
       const school=fields.team||fields.school;
       if(!school)continue;
       seen.add(String(rec.team_id));
+      const gamesPlayed=resolvePersistedGamesPlayed(fields);
+      const espnId=espnIdFromTeamKey(rec.team_id,fields);
       const value={
         offensePpa:num(fields.ppaOff),defensePpa:num(fields.ppaDef),
         passEpa:num(fields.ppaPass),rushEpa:num(fields.ppaRush),
@@ -183,6 +210,11 @@ async function readPersistedCfbDeep(env,season,now) {
         havocAllowed:num(fields.offensiveHavoc),
         pointsPerOpportunity:num(fields.offensivePointsPerOpportunity),
         pointsPerOpportunityAllowed:num(fields.defensivePointsPerOpportunity),
+        // Explicit PPG only — never coerce SP `off`/`def` ratings into current form.
+        currentPointsForPerGame:num(fields.currentPointsForPerGame ?? fields.pfPg ?? fields.pointsForPerGame),
+        currentPointsAgainstPerGame:num(fields.currentPointsAgainstPerGame ?? fields.paPg ?? fields.pointsAgainstPerGame),
+        gamesPlayed:gamesPlayed??0,
+        gamesPlayedSource:gamesPlayed==null?null:(num(fields.gamesPlayed)??num(fields.games)??num(fields.nGames))!=null?"explicit":"coreThroughWeek",
         // Snapshot collection time is not the CORE calculation window. The
         // model must independently verify source week AND collection time.
         core:fields.coreWeekBounded===true?num(fields.core):null,
@@ -197,26 +229,58 @@ async function readPersistedCfbDeep(env,season,now) {
         coreWeekBounded:fields.coreWeekBounded===true,
         talent:num(fields.talent),
         returningPpa:num(fields.returningPpa),
+        teamId:String(rec.team_id),
+        espnId,
       };
+      if(gamesPlayed!=null&&gamesPlayed>0)withGamesPlayed+=1;
+      if(value.offensePpa!=null)withOffensePpa+=1;
       put(index,school,value);
+      if(espnId&&!index.byEspnId[espnId])index.byEspnId[espnId]=index.bySchool[String(school).toLowerCase()]||value;
       if(!maxAsOf||String(rec.as_of)>maxAsOf)maxAsOf=String(rec.as_of);
     }
     const records=Object.keys(index.bySchool).length;
     if(!records)return null;
     return {season,...index,meta:{configured:true,records,
       source:"cfbd-weekly-persisted-d1",asOf:maxAsOf,cacheOnly:true,
-      networkCalls:0,modelAuthority:false,wagerAuthority:false}};
+      networkCalls:0,modelAuthority:false,wagerAuthority:false,
+      withGamesPlayed,withOffensePpa,
+      priorDecay:"n/(n+6) via blendPriorCurrent; n from gamesPlayed or coreThroughWeek"}};
   }catch{return null;}
+}
+
+async function readWarmedCfbDeepCache(env, season) {
+  const cacheKey = `cfb-deep-v2-${season}`;
+  const cached = await readCache(cacheKey, env.caches, TTL_MS);
+  if (!cached) return null;
+  const records = Object.keys(cached.byEspnId || {}).length || Object.keys(cached.bySchool || {}).length;
+  if (!records && !cached.meta) return null;
+  return {
+    season: cached.season ?? season,
+    byEspnId: cached.byEspnId || {},
+    bySchool: cached.bySchool || {},
+    meta: {
+      ...(cached.meta || {}),
+      configured: true,
+      records: cached.meta?.records ?? records,
+      cacheOnly: true,
+      networkCalls: 0,
+      source: cached.meta?.source || "cfbd-warmed-cache",
+      warmedCacheFallback: true,
+    },
+  };
 }
 
 export async function loadCfbDeepFeatures(env = {}, { fetchFn = fetch, now = Date.now() } = {}) {
   const season = seasonYear(new Date(now));
   // A persisted, quota-free current-season snapshot does not require a provider API key.
-  // Prefer verified D1 state before reading an older in-memory source cache.
+  // Prefer verified D1 state; if D1 misses, fall back to a warmed Workers cache
+  // from the morning harvest — never invent empty features when either source has data.
   const cacheOnly = env.cfbdCacheOnly || (env.DB?.prepare && env.cfbdNetworkAuthorized !== true);
   if (cacheOnly) {
     const persisted = await readPersistedCfbDeep(env, season, now);
     if (persisted) return persisted;
+    const warmed = await readWarmedCfbDeepCache(env, season);
+    if (warmed) return warmed;
     return {
       season, byEspnId: {}, bySchool: {},
       meta: { configured: true, records: 0, cacheOnly: true, error: "persisted-feature-miss", networkCalls:0 },
@@ -224,10 +288,21 @@ export async function loadCfbDeepFeatures(env = {}, { fetchFn = fetch, now = Dat
   }
 
   const key = collegeApiKey(env, "cfbd");
-  if (!key) return { season, byEspnId: {}, bySchool: {}, meta: { configured: false, records: 0, error: "no-api-key" } };
+  if (!key) {
+    // No provider key: still serve D1 / warmed cache rather than silently empty.
+    const persisted = await readPersistedCfbDeep(env, season, now);
+    if (persisted) return persisted;
+    const warmed = await readWarmedCfbDeepCache(env, season);
+    if (warmed) return { ...warmed, meta: { ...warmed.meta, error: warmed.meta?.error || null, configured: true } };
+    return { season, byEspnId: {}, bySchool: {}, meta: { configured: false, records: 0, error: "no-api-key" } };
+  }
   const cacheKey = `cfb-deep-v2-${season}`;
+  // Prefer fresher D1 weekly snapshots over a stale in-memory cache when both exist.
+  const persistedFirst = await readPersistedCfbDeep(env, season, now);
+  if (persistedFirst?.meta?.withOffensePpa > 0) return persistedFirst;
   const cached = await readCache(cacheKey, env.caches, TTL_MS);
   if (cached?.meta) return cached;
+  if (persistedFirst) return persistedFirst;
   const [ppaPrimary, adv, games] = await Promise.all([
     fetchRows(key, "/ppa/teams", { year: season, seasonType: "regular" }, fetchFn, env),
     fetchRows(key, "/stats/season/advanced", { year: season, seasonType: "regular" }, fetchFn, env),

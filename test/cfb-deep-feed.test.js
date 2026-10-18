@@ -108,4 +108,7 @@ test("cache-only CFB loads persisted current-season features without a CFBD key"
   assert.equal(feed.bySchool.oklahoma.offensePpa, -0.022);
   assert.equal(feed.bySchool.oklahoma.rushEpa, -0.194);
   assert.equal(feed.bySchool.oklahoma.coreThroughWeek, 6);
+  assert.equal(feed.bySchool.oklahoma.gamesPlayed, 6);
+  assert.equal(feed.bySchool.oklahoma.gamesPlayedSource, "coreThroughWeek");
+  assert.equal(feed.byEspnId["201"].offensePpa, -0.022);
 });

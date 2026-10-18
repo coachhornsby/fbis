@@ -105,7 +105,14 @@ test('cache-only CFBD misses do not acquire data, and a cached deep feed stays i
  assert.deepEqual(calls,[]);
  const payload={byEspnId:{'204':{offensePpa:0.2}},bySchool:{},meta:{records:1,asOf:'2026-10-10T19:00:00Z'}};
  await writeCache('cfb-deep-v2-2026',payload,env.caches,7200000);
- assert.deepEqual(await loadCfbDeepFeatures(env,{fetchFn:reject,now:Date.now()}),payload);
+ // D1 miss → warmed Workers cache fallback (annotates meta; preserves team rows).
+ const feed=await loadCfbDeepFeatures(env,{fetchFn:reject,now:Date.now()});
+ assert.deepEqual(feed.byEspnId,payload.byEspnId);
+ assert.equal(feed.meta.records,1);
+ assert.equal(feed.meta.warmedCacheFallback,true);
+ assert.equal(feed.meta.cacheOnly,true);
+ assert.equal(feed.meta.networkCalls,0);
+ assert.deepEqual(calls,[]);
 }));
 
 test('empty schedule returns an explicit empty response, never a manufactured card',async()=>fixtureRun(async(env)=>{
