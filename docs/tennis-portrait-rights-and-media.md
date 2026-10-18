@@ -19,7 +19,7 @@ FBIS is publicly viewable during development. A personal-use intention **does no
 Revoke by setting `approval_status='REVOKED'` or `public_display_allowed=0` immediately and remove the R2 object when appropriate. This endpoint caches for at most 120 seconds; also purge affected edge caches when time-critical.
 
 ### Safety and correctness
-- No direct remote image URL or discovered ATP/WTA image URL can authorize a photo. Legacy `tennis_players.official_headshot_url` and `tennis_player_bank.headshot_url` are deliberately not displayed.
+- No direct remote image URL or discovered ATP/WTA image URL can authorize a photo into the rights-verified R2 registry. PrizePicks feed headshots collected with props may be copied onto the canonical player card (`tennis_players.official_headshot_url` with `official_headshot_source='PRIZEPICKS_FEED'`, and `tennis_player_bank.headshot_url`) and shown on match cards only when no approved R2 portrait exists — the same CDN URLs already used on PrizePicks prop cards. ATP/WTA official headshot sources are never overwritten by the feed.
 - Registry lookup is keyed on exact `fbis_player_id`, with strict path ownership and mime matching; SVG, arbitrary URLs, and data URLs are rejected.
 - Public reads must have nonempty rights evidence, an approval timestamp, `PUBLIC_WEB` scope, explicit public permission, a matching R2 path and a non-expired rights window.
 - Missing database migration, missing R2 assets, identity mismatches, bad or expired rights fall back to the approved no-portrait display.
