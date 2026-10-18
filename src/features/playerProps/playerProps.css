@@ -2275,6 +2275,13 @@
   color:#fff;
   font-size:16px;
 }
+.pp-card-last5 {
+  margin: 10px 0 4px;
+  padding: 10px 8px 8px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  background: rgba(4, 12, 24, .55);
+}
 .pp-history-bars {
   height:128px;
   display:grid;

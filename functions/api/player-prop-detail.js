@@ -43,11 +43,15 @@ async function recentNflGames(name,team,field){
   const y=new Date().getFullYear();
   const data=await Promise.all([fetchNflPlayerSeason(y),fetchNflPlayerSeason(y-1)]);
   const wanted=norm(name),t=canonNfl(team);
-  const rows=[...data[0],...data[1]].filter(r=>{
+  const all=[...data[0],...data[1]].filter(r=>{
     const nm=norm(r.player_display_name||r.player_name||r.player_name_short||"");
-    return nm===wanted&&(!t||canonNfl(r.team)===t)&&String(r.season_type||"REG").toUpperCase()==="REG";
+    return nm===wanted&&String(r.season_type||"REG").toUpperCase()==="REG";
   }).sort((x,y)=>(Number(y.season||0)-Number(x.season||0))||(Number(y.week||0)-Number(x.week||0)));
-  return rows.slice(0,5).map(r=>({season:n(r.season),week:n(r.week),date:r.gameday||r.game_date||r.date||null,opponent:canonNfl(r.opponent_team),value:n(r[field])??0}));
+  // Prefer same-team weeks, but fall back to name-only so trades / provider
+  // team mismatches still populate a last-5 bar graph.
+  const teamMatched=t?all.filter(r=>canonNfl(r.recent_team||r.team)===t):all;
+  const rows=(teamMatched.length>=3?teamMatched:all).slice(0,5);
+  return rows.map(r=>({season:n(r.season),week:n(r.week),date:r.gameday||r.game_date||r.date||null,opponent:canonNfl(r.opponent_team),value:n(r[field])??0}));
 }
 const NFL_MARKET_FIELD={
   completions:"completions",passing_attempts:"attempts",passing_yards:"passing_yards",
