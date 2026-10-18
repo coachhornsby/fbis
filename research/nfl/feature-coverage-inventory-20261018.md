@@ -38,12 +38,19 @@ After this PR (when snapshot + schedule rows exist): also `pressure` (when both 
 
 Still missing until authorized collectors exist: `success`, `earlyDown`, `explosives`, `trenches`, `specialTeams`.
 
+## 2026-10-18 follow-up
+
+- Pressure allowed + schedule context restored; live share ~58% before PBP enrich.
+- Snapshot workflow now enriches **success / early-down / explosive** from nflverse PBP (`scripts/nfl-enrich-snapshot-pbp-families.py`).
+- **Trenches** and **special teams** remain explicitly null (no authorized live source).
+- Coverage objective: verified pregame families present — not artificial 100%.
+
 ## Smallest safe next work
 
-1. Rebuild nflverse feature snapshot so `pressureRateAllowed` lands in R2/cache.
-2. Wire PBP success / early-down / explosive into snapshot without changing PRO weights; freeze via publications; ablate later.
-3. Decide authorized trenches / special-teams sources or keep explicit null.
-4. Keep QB overlay shadow-gated.
+1. Confirm post-enrich snapshot lifts `success` / `earlyDown` / `explosives` coverage flags in production.
+2. Decide authorized trenches / special-teams sources or keep explicit null.
+3. Keep QB overlay shadow-gated.
+4. Run challenger compare (`scripts/nfl-challenger-compare.mjs`) after each walk-forward refresh.
 
 ## Governance
 

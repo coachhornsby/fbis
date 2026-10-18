@@ -19,6 +19,56 @@ function finite(v) {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
+/**
+ * Distinguish arithmetic score agreement from independent raw-source replay.
+ * PASS requires immutable feature snapshot provenance + checksum + no critical
+ * missing scoring families that were claimed present.
+ */
+export function evaluateIndependentSourceReplay({
+  arithmeticOk = false,
+  hasInput = false,
+  featureSource = null,
+  builtAt = null,
+  snapshotKey = null,
+  inputChecksum = null,
+  r2EvidenceKey = null,
+  missingFeatures = [],
+  coverageShare = null,
+} = {}) {
+  const requirements = {
+    arithmeticAgreement: Boolean(arithmeticOk),
+    featureInputsAttached: Boolean(hasInput),
+    featureSourceIdentified: Boolean(featureSource),
+    featureObservationTime: Boolean(builtAt),
+    immutableSnapshotRef: Boolean(snapshotKey || r2EvidenceKey),
+    inputChecksumPresent: Boolean(inputChecksum),
+  };
+  const failed = Object.entries(requirements)
+    .filter(([, ok]) => !ok)
+    .map(([k]) => k);
+  const status = !arithmeticOk
+    ? "FAIL_ARITHMETIC"
+    : failed.length
+      ? "NOT_INDEPENDENTLY_REPLAYABLE"
+      : "INDEPENDENTLY_REPLAYABLE_FROM_IMMUTABLE_SOURCES";
+  return {
+    status,
+    passed: status === "INDEPENDENTLY_REPLAYABLE_FROM_IMMUTABLE_SOURCES",
+    requirements,
+    failedRequirements: failed,
+    evidence: {
+      featureSource: featureSource || null,
+      builtAt: builtAt || null,
+      snapshotKey: snapshotKey || null,
+      inputChecksum: inputChecksum || null,
+      r2EvidenceKey: r2EvidenceKey || null,
+      coverageShare,
+      missingFeatures: missingFeatures || [],
+    },
+    note: "ARITHMETICALLY_RECONCILED_INPUTS_ATTACHED proves score math only; independent replay requires immutable source refs.",
+  };
+}
+
 function contributionSide(row = {}, base = null) {
   const matchup = row.matchup || {};
   return {
@@ -98,24 +148,50 @@ export function buildNflFrozenAuditPacket(game = {}, slate = {}, opts = {}) {
   };
 
   const missingFeatures = shadow.coverage?.missing || [];
-  const reconstructability =
-    displayedScoreMatches && hasInput && replay.reconciled
-      ? "ARITHMETICALLY_RECONCILED_INPUTS_ATTACHED"
-      : !hasInput
-        ? "NOT_FULLY_RECONSTRUCTABLE"
-        : !displayedScoreMatches
-          ? "DISPLAY_MISMATCH"
-          : "PARTIAL";
+  const arithmeticOk = Boolean(displayedScoreMatches && hasInput && replay.reconciled);
+  const reconstructability = arithmeticOk
+    ? "ARITHMETICALLY_RECONCILED_INPUTS_ATTACHED"
+    : !hasInput
+      ? "NOT_FULLY_RECONSTRUCTABLE"
+      : !displayedScoreMatches
+        ? "DISPLAY_MISMATCH"
+        : "PARTIAL";
+
+  // Stronger standard than arithmetic agreement: every scoring input must be
+  // independently replayable from immutable raw/source artifacts with provenance.
+  const featureSource = pitInput?.home?.source || pitInput?.away?.source || null;
+  const builtAt = slate?.research?.nflVerse?.builtAt || slate?.research?.nflVerse?.asOf || null;
+  const snapshotKey = slate?.research?.nflVerse?.snapshotKey || pitInput?.home?.snapshotKey || null;
+  const inputChecksum = opts.inputChecksum || game?.nflFrozenAudit?.inputChecksum || null;
+  const r2EvidenceKey = opts.r2EvidenceKey || game?.publicationR2Key || null;
+  const independentSourceReplay = evaluateIndependentSourceReplay({
+    arithmeticOk,
+    hasInput,
+    featureSource,
+    builtAt,
+    snapshotKey,
+    inputChecksum,
+    r2EvidenceKey,
+    missingFeatures,
+    coverageShare: finite(shadow.coverage?.share),
+  });
 
   return {
-    schema: "nfl-frozen-score-audit-v1",
-    ok: Boolean(displayedScoreMatches && hasInput && replay.reconciled),
+    schema: "nfl-frozen-score-audit-v2",
+    ok: arithmeticOk,
     reason: !displayedScoreMatches
       ? "displayed-score-diverges-from-shadow"
       : !hasInput
         ? "frozen-feature-inputs-unavailable"
         : null,
     reconstructability,
+    /**
+     * reconstructability = arithmetic agreement with attached board inputs.
+     * independentSourceReplay.status = whether those inputs can be re-derived
+     * from immutable raw sources (R2 snapshot / checksums / observation times).
+     * Arithmetic OK does NOT imply independentSourceReplay PASS.
+     */
+    independentSourceReplay,
     gameId: game.id || null,
     teams: {
       away: game.away?.abbr || null,

@@ -34,6 +34,15 @@ jobs:
           node-version: "22"
       - name: Build NFL feature snapshot off request path
         run: node scripts/nfl-build-feature-snapshot.mjs
+
+      - name: Enrich success / early-down / explosive from PBP (trenches+ST stay null)
+        run: |
+          set -euo pipefail
+          python -m pip install -q pandas numpy pyarrow
+          python scripts/nfl-enrich-snapshot-pbp-families.py \
+            --snapshot artifacts/nfl-features/latest.json \
+            --out artifacts/nfl-features/latest.json
+
       - name: Wait for production API on main
         if: github.ref_name == 'main'
         run: |
