@@ -5,9 +5,9 @@ import {polymarketUsPeriod,polymarketUsMarketFamily,polymarketUsSideLabel} from 
  */
 import { marketTemporalStatus, providerObservationTime } from "./marketTemporal.js";
 
-export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Date(),maxAgeMs=45*60*1000,historyDb=null,deliveryStore="PRIMARY_D1"}={}){
+export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Date(),maxAgeMs=45*60*1000,historyDb=null,deliveryStore="PRIMARY_D1",moneylineOnly=false}={}){
  if(historyDb?.prepare){
-  const attempts=await Promise.allSettled([loadPolymarketUsBoardOffers(db,games,sport,{now,maxAgeMs}),loadPolymarketUsBoardOffers(historyDb,games,sport,{now,maxAgeMs,deliveryStore:"MARKET_HISTORY_RECOVERY"})]);
+  const attempts=await Promise.allSettled([loadPolymarketUsBoardOffers(db,games,sport,{now,maxAgeMs,moneylineOnly}),loadPolymarketUsBoardOffers(historyDb,games,sport,{now,maxAgeMs,deliveryStore:"MARKET_HISTORY_RECOVERY",moneylineOnly})]);
   const byId=new Map();
   for(const result of attempts){if(result.status!=="fulfilled")continue;for(const [id,offers] of result.value.byId){
    const merged=new Map((byId.get(id)||[]).map(o=>[[o.source,o.sourceMarketId,o.sourceOutcomeId,o.period,o.side,o.line].join("|"),o]));
@@ -29,7 +29,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
     collected_at,source_observed_at,raw_payload_json,execution_eligible,can_qualify,can_authorize_wager,
     ROW_NUMBER() OVER (PARTITION BY source,canonical_event_id,market_family,source_market_id,source_outcome_id,period,side,line ORDER BY collected_at DESC,id DESC) rn
   FROM normalized_market_observations INDEXED BY idx_norm_market_event_time
-  WHERE source IN (${sport === 'soccer' ? "'Polymarket US','Polymarket US WebSocket','PinnOdds'" : "'Polymarket US','Polymarket US WebSocket'"}) AND sport=? AND canonical_event_id IN (${params})
+  WHERE source IN (${sport === 'soccer' ? "'Polymarket US','Polymarket US WebSocket','PinnOdds'" : "'Polymarket US','Polymarket US WebSocket'"}) AND sport=? ${moneylineOnly?"AND market_family='moneyline'":""} AND canonical_event_id IN (${params})
     AND collected_at BETWEEN ? AND ?
     AND (event_start_time IS NULL OR event_start_time >= ?)
  ) SELECT * FROM fresh WHERE rn=1 ORDER BY canonical_event_id,CASE WHEN source='Polymarket US WebSocket' THEN 0 ELSE 1 END,market_family,source_market_id,id LIMIT ? OFFSET ?`;
