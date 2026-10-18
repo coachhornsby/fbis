@@ -23,6 +23,8 @@ test("ownership manifest covers primary, operations, market-history, and cold-hi
   assert.equal(DATABASE_OWNERS.COLD_HISTORY.databaseId, "6fad1baf-126f-4ab8-9b80-a7d71637d6d4");
   assert.ok(OPERATIONS_OWNED_TABLES.includes("fbis_ops_health"));
   assert.ok(OPERATIONS_OWNED_TABLES.includes("fbis_capacity_measurements"));
+  assert.ok(OPERATIONS_OWNED_TABLES.includes("learning_monitor_runs"));
+  assert.ok(OPERATIONS_OWNED_TABLES.includes("online_learning_shadow"));
 });
 
 test("capacity alerts trigger at 80, 85, and 90 percent", () => {

@@ -344,7 +344,11 @@ jobs:
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
             "${BASE}/api/continuous-learning?sport=nfl&recentN=50&_t=$(date +%s)")"
           echo "smoke /api/continuous-learning nfl http=${learning_code}"
-          test "$learning_code" = "200"
+          if [ "$learning_code" != "200" ]; then
+            echo "continuous-learning body:" 
+            jq -c '{ok,status,error,writeBinding,writeWarning,canonicalRows,modelCount:(.models|length),errors,capacityErrors,tier5:.tier5.status}' "$learning_tmp" || cat "$learning_tmp"
+            exit 1
+          fi
           jq -e '
             .ok == true and
             .governance.tier1 == "MONITOR_CONTINUOUSLY" and
@@ -356,7 +360,7 @@ jobs:
             .governance.autoWagerAuthority == false and
             .governance.productionOnlineLearning == false
           ' "$learning_tmp" >/dev/null
-          jq -c '{sport,canonicalRows,modelCount:(.models|length),tier5:.tier5.status,errors}' "$learning_tmp" || true
+          jq -c '{sport,canonicalRows,modelCount:(.models|length),tier5:.tier5.status,writeBinding,errors,capacityErrors}' "$learning_tmp" || true
 
           echo "Release gate smoke passed for ${DEPLOY_SHA}"
           echo "DEPLOY PRODUCTION complete — research catch-up runs in harvest.yml, not this gate."

@@ -18,6 +18,107 @@ import {
   toModelLabRow,
 } from "./snapshotLearning.js";
 
+const CAPACITY_WRITE_ERROR = /SQLITE_FULL|database or disk is full|max database size|storage limit|D1_ERROR.*full/i;
+const LEARNING_DDL = Object.freeze([
+  `CREATE TABLE IF NOT EXISTS learning_monitor_runs (
+    id TEXT PRIMARY KEY, sport TEXT NOT NULL, model_id TEXT NOT NULL,
+    observed_n INTEGER NOT NULL, recent_n INTEGER NOT NULL, metrics_json TEXT NOT NULL,
+    drift_json TEXT, alerts_json TEXT, created_at TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_learning_monitor_sport_model
+    ON learning_monitor_runs (sport, model_id, created_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS recalibration_runs (
+    id TEXT PRIMARY KEY, sport TEXT NOT NULL, model_id TEXT NOT NULL, method TEXT NOT NULL,
+    train_n INTEGER NOT NULL, holdout_n INTEGER NOT NULL, total_n INTEGER NOT NULL,
+    last_observed_at TEXT, params_json TEXT NOT NULL, metrics_json TEXT NOT NULL,
+    status TEXT NOT NULL, created_at TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_recalibration_sport_model
+    ON recalibration_runs (sport, model_id, created_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS challenger_evaluations (
+    id TEXT PRIMARY KEY, sport TEXT NOT NULL, champion_model_id TEXT NOT NULL,
+    challenger_id TEXT NOT NULL, paired_n INTEGER NOT NULL, gate_json TEXT NOT NULL,
+    metrics_json TEXT NOT NULL, eligible_for_manual_promotion INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_challenger_sport_model
+    ON challenger_evaluations (sport, champion_model_id, created_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS bayesian_learning_state (
+    sport TEXT NOT NULL, model_id TEXT NOT NULL, target TEXT NOT NULL, observed_n INTEGER NOT NULL,
+    posterior_mean REAL, posterior_sd REAL, prior_mean REAL, prior_sd REAL,
+    last_observed_at TEXT, metadata_json TEXT, updated_at TEXT NOT NULL,
+    PRIMARY KEY (sport, model_id, target))`,
+  `CREATE TABLE IF NOT EXISTS online_learning_shadow (
+    sport TEXT NOT NULL, model_id TEXT NOT NULL, weight REAL NOT NULL, score REAL,
+    observed_n INTEGER NOT NULL, production_enabled INTEGER NOT NULL DEFAULT 0,
+    metadata_json TEXT, updated_at TEXT NOT NULL, PRIMARY KEY (sport, model_id))`,
+  `CREATE TABLE IF NOT EXISTS continuous_learning_meta (
+    key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+]);
+
+let learningWriteCache = { binding: null, db: null, ensured: false, checkedAt: 0 };
+
+function safeId(v, max = 72) {
+  return String(v || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, max) || "unknown";
+}
+
+/** Stable per-model monitor id — never append a new row per smoke/governance run. */
+export function stableMonitorId(sport, modelId) {
+  return `monitor:${safeId(sport, 12)}:${safeId(modelId)}`;
+}
+
+export function isCapacityWriteError(err) {
+  return CAPACITY_WRITE_ERROR.test(String(err?.message || err || ""));
+}
+
+async function ensureLearningSchema(db) {
+  if (!db?.prepare) return false;
+  for (const sql of LEARNING_DDL) {
+    await db.prepare(sql).run();
+  }
+  return true;
+}
+
+/**
+ * Prefer OPERATIONS_DB for learning writes (primary is near the 10GB hard limit).
+ * Snapshot reads stay on primary via querySnapshots(env).
+ */
+export async function resolveLearningWriteDb(env) {
+  const now = Date.now();
+  if (learningWriteCache.db && now - learningWriteCache.checkedAt < 60_000) {
+    return learningWriteCache;
+  }
+  if (env?.OPERATIONS_DB?.prepare) {
+    try {
+      await ensureLearningSchema(env.OPERATIONS_DB);
+      learningWriteCache = {
+        binding: "OPERATIONS_DB",
+        db: env.OPERATIONS_DB,
+        ensured: true,
+        checkedAt: now,
+        preferred: true,
+      };
+      return learningWriteCache;
+    } catch (err) {
+      // Fall through to primary when ops DDL is unavailable.
+      learningWriteCache = { binding: null, db: null, ensured: false, checkedAt: 0, warning: String(err?.message || err).slice(0, 200) };
+    }
+  }
+  if (env?.DB?.prepare) {
+    learningWriteCache = {
+      binding: "DB",
+      db: env.DB,
+      ensured: true,
+      checkedAt: now,
+      preferred: false,
+      warning: env?.OPERATIONS_DB?.prepare ? "OPERATIONS_LEARNING_SCHEMA_FALLBACK" : "OPERATIONS_DB_UNBOUND",
+    };
+    return learningWriteCache;
+  }
+  return { binding: null, db: null, ensured: false, preferred: false, warning: "D1_UNBOUND" };
+}
+
+export function clearLearningWriteCache() {
+  learningWriteCache = { binding: null, db: null, ensured: false, checkedAt: 0 };
+}
+
 export const CONTINUOUS_LEARNING_POLICY = Object.freeze({
   minRecalibrationN: 160,
   minNewRowsForRecalibration: 50,
@@ -59,9 +160,6 @@ function mae(xs = []) {
 function logLoss(p, y) {
   const q = clampP(p);
   return -(y * Math.log(q) + (1 - y) * Math.log(1 - q));
-}
-function safeId(v, max = 72) {
-  return String(v || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, max) || "unknown";
 }
 function nowIso() { return new Date().toISOString(); }
 
@@ -364,28 +462,38 @@ export function shadowModelWeights(modelGroups = new Map(), { sport } = {}) {
   };
 }
 
-async function runDb(env, sql, binds = []) {
-  if (!env?.DB?.prepare) return { ok: false, reason: "d1-unbound" };
-  try { await env.DB.prepare(sql).bind(...binds).run(); return { ok: true }; }
-  catch (err) { return { ok: false, reason: String(err?.message || err) }; }
+async function runLearningDb(writeDb, sql, binds = []) {
+  if (!writeDb?.prepare) return { ok: false, reason: "d1-unbound" };
+  try {
+    await writeDb.prepare(sql).bind(...binds).run();
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      reason: String(err?.message || err),
+      capacity: isCapacityWriteError(err),
+    };
+  }
 }
-async function firstDb(env, sql, binds = []) {
-  if (!env?.DB?.prepare) return null;
-  try { return await env.DB.prepare(sql).bind(...binds).first(); } catch { return null; }
+async function firstLearningDb(writeDb, sql, binds = []) {
+  if (!writeDb?.prepare) return null;
+  try { return await writeDb.prepare(sql).bind(...binds).first(); } catch { return null; }
 }
 
-async function lastRecalibrationN(env, sport, modelId) {
-  const row = await firstDb(env,
+async function lastRecalibrationN(writeDb, sport, modelId) {
+  const row = await firstLearningDb(writeDb,
     "SELECT total_n FROM recalibration_runs WHERE sport=? AND model_id=? AND status='FIT' ORDER BY created_at DESC LIMIT 1",
     [sport, modelId]
   );
   return Number(row?.total_n || 0);
 }
 
-async function persistMonitoring(env, a) {
+async function persistMonitoring(writeDb, a) {
   const createdAt = nowIso();
-  const id = `monitor:${safeId(a.sport,12)}:${safeId(a.modelId)}:${createdAt}`;
-  return runDb(env,
+  // Stable id: upsert in place so near-full primary D1 does not need a new page
+  // for every release-gate smoke / daily governance pass.
+  const id = stableMonitorId(a.sport, a.modelId);
+  return runLearningDb(writeDb,
     `INSERT OR REPLACE INTO learning_monitor_runs
       (id,sport,model_id,observed_n,recent_n,metrics_json,drift_json,alerts_json,created_at)
       VALUES (?,?,?,?,?,?,?,?,?)`,
@@ -393,10 +501,10 @@ async function persistMonitoring(env, a) {
   );
 }
 
-async function persistRecalibration(env, a) {
+async function persistRecalibration(writeDb, a) {
   const createdAt = nowIso();
   const id = `recal:${safeId(a.sport,12)}:${safeId(a.modelId)}:${String(a.lastObservedAt||createdAt).slice(0,10)}:${a.totalN}`;
-  const r = await runDb(env,
+  const r = await runLearningDb(writeDb,
     `INSERT OR REPLACE INTO recalibration_runs
       (id,sport,model_id,method,train_n,holdout_n,total_n,last_observed_at,params_json,metrics_json,status,created_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -405,11 +513,11 @@ async function persistRecalibration(env, a) {
   return { ...r, id };
 }
 
-async function persistChallenger(env, a, recalibrationId) {
+async function persistChallenger(writeDb, a, recalibrationId) {
   const createdAt = nowIso();
   const id = `challenger:${safeId(a.sport,12)}:${safeId(a.modelId)}:${String(createdAt).slice(0,10)}:${a.totalN}`;
   const t3 = a.tier3;
-  const r = await runDb(env,
+  const r = await runLearningDb(writeDb,
     `INSERT OR REPLACE INTO challenger_evaluations
       (id,sport,champion_model_id,challenger_id,paired_n,gate_json,metrics_json,eligible_for_manual_promotion,created_at)
       VALUES (?,?,?,?,?,?,?,?,?)`,
@@ -418,11 +526,11 @@ async function persistChallenger(env, a, recalibrationId) {
   return { ...r, id };
 }
 
-async function persistBayesian(env, a, lastObservedAt) {
+async function persistBayesian(writeDb, a, lastObservedAt) {
   const out = [];
   for (const s of a.states) {
     if (s.status !== "UPDATED") continue;
-    out.push(await runDb(env,
+    out.push(await runLearningDb(writeDb,
       `INSERT OR REPLACE INTO bayesian_learning_state
         (sport,model_id,target,observed_n,posterior_mean,posterior_sd,prior_mean,prior_sd,last_observed_at,metadata_json,updated_at)
         VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
@@ -432,10 +540,10 @@ async function persistBayesian(env, a, lastObservedAt) {
   return out;
 }
 
-async function persistShadow(env, shadow) {
+async function persistShadow(writeDb, shadow) {
   const out = [];
   for (const w of shadow.weights || []) {
-    out.push(await runDb(env,
+    out.push(await runLearningDb(writeDb,
       `INSERT OR REPLACE INTO online_learning_shadow
         (sport,model_id,weight,score,observed_n,production_enabled,metadata_json,updated_at)
         VALUES (?,?,?,?,?,?,?,?)`,
@@ -445,10 +553,23 @@ async function persistShadow(env, shadow) {
   return out;
 }
 
+function noteWriteFailure(bucket, label, result) {
+  if (result?.ok) return;
+  const entry = `${label}:${result?.reason || "write-failed"}`;
+  if (result?.capacity) bucket.capacity.push(entry);
+  else bucket.hard.push(entry);
+}
+
 export async function runContinuousLearning(env, { sport, recentN = CONTINUOUS_LEARNING_POLICY.recentWindowN } = {}) {
   const id = String(sport || "").toLowerCase();
   const queried = await querySnapshots(env, { sport: id, since: "2000-01-01" });
   if (!queried.ok) return { ok:false, sport:id, error:queried.reason || "snapshot-query-failed" };
+
+  const writeTarget = await resolveLearningWriteDb(env);
+  const writeDb = writeTarget.db;
+  if (!writeDb?.prepare) {
+    return { ok:false, sport:id, error:"learning-write-db-unbound" };
+  }
 
   const selected = selectCanonicalLearningSnapshots(queried.rows || []);
   const byModel = new Map();
@@ -460,24 +581,23 @@ export async function runContinuousLearning(env, { sport, recentN = CONTINUOUS_L
   }
 
   const models = [];
-  const errors = [];
+  const failures = { hard: [], capacity: [] };
   for (const [modelId, rows] of byModel.entries()) {
     const monitoring = buildMonitoringArtifact(rows, { sport:id, modelId, recentN });
-    const pm = await persistMonitoring(env, monitoring);
-    if (!pm.ok) errors.push(`${modelId}:monitor:${pm.reason}`);
+    noteWriteFailure(failures, `${modelId}:monitor`, await persistMonitoring(writeDb, monitoring));
 
     let recalibration = { tier:2, status:"NOT_TRIGGERED" };
-    const previousN = await lastRecalibrationN(env, id, modelId);
+    const previousN = await lastRecalibrationN(writeDb, id, modelId);
     const binaryN = binaryRows(rows).length;
     const newRows = Math.max(0, binaryN - previousN);
     if (binaryN >= CONTINUOUS_LEARNING_POLICY.minRecalibrationN &&
         (previousN === 0 || newRows >= CONTINUOUS_LEARNING_POLICY.minNewRowsForRecalibration)) {
       recalibration = buildRecalibrationAndGate(rows, { sport:id, modelId });
       if (recalibration.status === "FIT") {
-        const pr = await persistRecalibration(env, recalibration);
-        if (!pr.ok) errors.push(`${modelId}:recalibration:${pr.reason}`);
-        const pc = await persistChallenger(env, recalibration, pr.id);
-        if (!pc.ok) errors.push(`${modelId}:challenger:${pc.reason}`);
+        const pr = await persistRecalibration(writeDb, recalibration);
+        noteWriteFailure(failures, `${modelId}:recalibration`, pr);
+        const pc = await persistChallenger(writeDb, recalibration, pr.id);
+        noteWriteFailure(failures, `${modelId}:challenger`, pc);
         recalibration.recalibrationId = pr.id;
         recalibration.challengerEvaluationId = pc.id;
       }
@@ -495,26 +615,33 @@ export async function runContinuousLearning(env, { sport, recentN = CONTINUOUS_L
 
     const bayesian = bayesianBiasState(rows, { sport:id, modelId });
     const lastObservedAt = rows.map((r)=>String(r.frozenAt||"")).sort().at(-1)||null;
-    const pb = await persistBayesian(env, bayesian, lastObservedAt);
-    if (pb.some((x)=>!x.ok)) errors.push(`${modelId}:bayesian-write-failed`);
+    const pb = await persistBayesian(writeDb, bayesian, lastObservedAt);
+    for (const r of pb) noteWriteFailure(failures, `${modelId}:bayesian`, r);
 
     models.push({ modelId, monitoring, recalibration, bayesian });
   }
 
   const shadow = shadowModelWeights(byModel, { sport:id });
-  const ps = await persistShadow(env, shadow);
-  if (ps.some((x)=>!x.ok)) errors.push("shadow-write-failed");
+  const ps = await persistShadow(writeDb, shadow);
+  for (const r of ps) noteWriteFailure(failures, "shadow", r);
 
+  // Capacity-blocked advisory writes must not fail the release gate: governance
+  // and in-memory artifacts are still valid. Hard write errors still fail closed.
+  const errors = [...failures.hard, ...failures.capacity];
+  const ok = failures.hard.length === 0;
   return {
-    ok: errors.length===0,
-    status: errors.length ? "degraded" : "success",
+    ok,
+    status: !ok ? "failed" : failures.capacity.length ? "degraded-capacity" : "success",
     sport:id,
     source:"prediction_snapshots",
+    writeBinding: writeTarget.binding,
+    writeWarning: writeTarget.warning || null,
     queriedRows:(queried.rows||[]).length,
     canonicalRows:selected.rows.length,
     models,
     tier5:shadow,
     errors,
+    capacityErrors: failures.capacity,
     governance:{
       tier1:"MONITOR_CONTINUOUSLY",
       tier2:"SAMPLE_COUNT_GATED_RECALIBRATION",
