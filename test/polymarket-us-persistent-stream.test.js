@@ -39,18 +39,41 @@ test("dynamic capacity retires the fixed 48 bottleneck and keeps all 11 sports",
     ...Array.from({length:5},(_,i)=>({sport:"kbo",source_market_id:`kbo-x-${i}`,canonical_event_id:`kbo-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-19T05:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
   ];
   const plan=manageSubscriptionCapacity([...rows,...stress],{
-    maxContracts:500,maxPerConnection:50,maxConnections:10,minPerSport:1,
+    maxContracts:500,maxPerConnection:50,maxConnections:20,minPerSport:1,
   });
   assert.ok(plan.assignedCount>48,"must exceed retired 48-cap when inventory allows");
   assert.equal(plan.assignedCount,500);
   assert.ok(plan.uncoveredCount>0);
-  assert.equal(plan.partitions.length,10);
+  assert.ok(plan.partitions.length<=20);
   assert.ok(plan.partitions.every(p=>p.size<=50));
+  assert.ok(plan.partitions.every(p=>p.sport&&p.contracts.every(c=>c.sport===p.sport)),
+    "each partition must be sport-homogeneous");
   for(const sport of STREAM_SPORTS){
     assert.ok(plan.bySport[sport].assigned>=1,`${sport} starved under large CFB/CBB inventory`);
     assert.notEqual(plan.bySport[sport].status,"UNAVAILABLE");
   }
   assert.equal(new Set(plan.assigned.map(r=>r.source_market_id)).size,plan.assignedCount);
+});
+
+test("connection partitions are sport-pinned; empty sports get no sockets",()=>{
+  const rows=[
+    ...Array.from({length:120},(_,i)=>({sport:"nfl",source_market_id:`nfl-${i}`,canonical_event_id:`nfl-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-18T18:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+    ...Array.from({length:30},(_,i)=>({sport:"soccer",source_market_id:`soc-${i}`,canonical_event_id:`soc-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-18T19:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+    ...Array.from({length:10},(_,i)=>({sport:"tennis",source_market_id:`ten-${i}`,canonical_event_id:`ten-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-18T20:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
+  ];
+  const plan=manageSubscriptionCapacity(rows,{
+    maxContracts:500,maxPerConnection:50,maxConnections:10,minPerSport:1,
+  });
+  assert.equal(plan.bySport.cfb.status,"NO_VERIFIED_MARKETS");
+  assert.equal(plan.bySport.nba.status,"NO_VERIFIED_MARKETS");
+  assert.ok(!plan.partitions.some(p=>p.sport==="cfb"||p.sport==="nba"));
+  assert.ok(plan.partitions.every(p=>p.size<=50));
+  assert.ok(plan.partitions.every(p=>new Set(p.contracts.map(c=>c.sport)).size===1));
+  const count=sport=>plan.partitions.filter(p=>p.sport===sport).length;
+  assert.ok(count("nfl")>=2,"busy NFL inventory gets multiple ≤50 sockets");
+  assert.ok(count("soccer")>=1);
+  assert.ok(count("tennis")>=1);
+  assert.equal(plan.partitions.reduce((n,p)=>n+p.size,0),plan.assignedCount);
 });
 
 test("capacity manager reports NO_VERIFIED_MARKETS for sports with empty inventory",()=>{
@@ -158,6 +181,9 @@ test("worker SQL returns large eligible inventory; capacity manager owns the cap
  assert.match(worker,/manageSubscriptionCapacity/);
  assert.match(worker,/polymarketUsSubscribeBatches/);
  assert.match(worker,/fixedCapRetired:true/);
+ assert.match(worker,/sport-pinned/);
+ assert.match(worker,/plan\.partitions|partitions\.length/);
+ assert.doesNotMatch(worker,/candidates\.length\/200|offset\+=200/);
  assert.doesNotMatch(worker,/MAX_MARKETS\s*=\s*48/);
  assert.doesNotMatch(worker,/WHERE sport_rank<=6/);
  assert.doesNotMatch(worker,/collected_at DESC LIMIT 750/);

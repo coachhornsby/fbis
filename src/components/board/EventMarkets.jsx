@@ -11,8 +11,8 @@ export default function EventMarkets({game}){
    if(signal?.aborted)return;setRows(previous=>next==='0'?body.rows:[...previous,...body.rows]);setCursor(body.nextCursor);
   }catch(e){if(e.name!=='AbortError')setError(e.message);}finally{if(!signal?.aborted)setLoading(false);}
  }
- useEffect(()=>{if(!open||!eventId||sport==='tennis')return;const controller=new AbortController();setRows([]);setCursor(null);load('0',controller.signal);return()=>controller.abort();},[open,eventId,sport]);
- if(!eventId||sport==='tennis')return null;
+ useEffect(()=>{if(!open||!eventId)return;const controller=new AbortController();setRows([]);setCursor(null);load('0',controller.signal);return()=>controller.abort();},[open,eventId,sport]);
+ if(!eventId)return null;
  return <details className="event-player-props event-markets" onClick={event=>event.stopPropagation()} onKeyDown={event=>event.stopPropagation()} onToggle={event=>setOpen(event.currentTarget.open)}>
   <summary>MARKET DETAILS <span>Books, periods and alternate lines</span></summary>
   {open?<div className="event-props-body"><p>Source prices converted to American equivalents; percentages are raw implied/buy-cost only. Research only · No wager authority</p>

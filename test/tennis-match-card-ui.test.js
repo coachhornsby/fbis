@@ -77,11 +77,18 @@ test("Tennis UI refinement does not introduce wager authorization or synthetic m
   assert.doesNotMatch(jsx,/#0|EVEN/);
 });
 
+test("Tennis card mounts shared Polymarket moneyline and market detail surfaces",()=>{
+  assert.match(jsx,/MoneylinePriceComparison/);
+  assert.match(jsx,/PinnoddsCardMarkets/);
+  assert.match(jsx,/EventMarkets/);
+  assert.match(jsx,/game\?\.market\?\.venueOffers/);
+});
+
 test("Tennis cards default to compact matchup with a native closed intelligence dropdown", async()=>{
   const server=await createServer({configFile:false,plugins:[react()],optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true},appType:"custom"});
   try {
     const {default:TennisMatchCard}=await server.ssrLoadModule("/src/components/board/TennisMatchCard.jsx");
-    const game={id:"compact-regression",sport:"tennis",tour:"WTA",home:{name:"Iva Jovic",countryCode:"US",rank:11},away:{name:"Maja Chwalinska",countryCode:"PL",rank:22},tennisProjection:{eventIntegrity:{valid:true},player1WinProb:.715,player2WinProb:.285,surface:"hard",tournament:"Wuhan Open"}};
+    const game={id:"compact-regression",sport:"tennis",tour:"WTA",home:{name:"Iva Jovic",countryCode:"US",rank:11},away:{name:"Maja Chwalinska",countryCode:"PL",rank:22},tennisProjection:{eventIntegrity:{valid:true},player1WinProb:.715,player2WinProb:.285,surface:"hard",tournament:"Wuhan Open"},market:{venueOffers:[{source:"Polymarket US",marketFamily:"moneyline",period:"full_game",side:"home",contractPrice:.58,collectedAt:"2026-10-15T18:00:00Z"},{source:"Polymarket US",marketFamily:"moneyline",period:"full_game",side:"away",contractPrice:.41,collectedAt:"2026-10-15T18:00:00Z"}]}};
     const rendered=renderToStaticMarkup(createElement(TennisMatchCard,{game}));
     assert.match(rendered,/class="tmc tmc-compact/);
     assert.match(rendered,/28\.5%/);
@@ -90,6 +97,9 @@ test("Tennis cards default to compact matchup with a native closed intelligence 
     assert.match(rendered,/FBIS PROJECTION/);
     assert.match(rendered,/MODEL VS MARKET/);
     assert.match(rendered,/RECENT FORM \(LAST 5\)/);
+    assert.match(rendered,/MONEYLINE PRICEBOARD|fbis-moneyline-comparison/);
+    assert.match(rendered,/MARKET DETAILS/);
+    assert.match(rendered,/POLYMARKET/);
     const match=rendered.match(/<details class="tmc-expand"[^>]*>/);
     assert.ok(match,"matchup intelligence native details must exist");
     assert.doesNotMatch(match[0],/\bopen(?:=|\s|>)/,"default closed");

@@ -1,5 +1,8 @@
 import { useState } from "react";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
+import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
+import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
+import EventMarkets from "./EventMarkets.jsx";
 import "./tennisMatchCard.css";
 import { tennisProjectionDisplay, splitTennisName, neutralTennisAthlete } from "../../lib/tennisCardPresentation.js";
 
@@ -38,7 +41,10 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const gapPlayerTint = gapPlayer && gapPlayerCountry && !gapPlayerNeutral ? countryColor(gapPlayerCountry) : null;
 
   const spread=ref?.spreadDetail||(typeof ref?.spread==="object"?ref.spread:{} )||{},total=ref?.totalDetail||(typeof ref?.total==="object"?ref.total:{} )||{},ml=ref?.moneyline||{};
-  const venueOffers=Array.isArray(t.venueOffers)?t.venueOffers:Array.isArray(ref.venueOffers)?ref.venueOffers:[];
+  const venueOffers=Array.isArray(game?.market?.venueOffers)&&game.market.venueOffers.length
+    ?game.market.venueOffers
+    :Array.isArray(t.venueOffers)?t.venueOffers
+    :Array.isArray(ref.venueOffers)?ref.venueOffers:[];
   const markets=Array.isArray(intel?.publicSplits?.markets)?intel.publicSplits.markets:[];
   const spIntel=markets.find(x=>String(x.market).toUpperCase()==="SPREAD");
   const totIntel=markets.find(x=>String(x.market).toUpperCase()==="TOTAL");
@@ -74,8 +80,10 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
         </> : <b>NO COMPARABLE PRICE</b>}
       </div>
       <strong>{gapPlayer ? `+${best.e.toFixed(1)} pp` : "—"}</strong>
-      <small>{gapPlayer?"MODEL VS NO-VIG · RESEARCH ONLY · NOT EV":"GAP NOT VERIFIED · NO WAGER AUTHORITY"}</small>
+      <small>{gapPlayer?`MODEL VS ${String(display.marketSource||"NO-VIG").toUpperCase()} · RESEARCH ONLY · NOT EV`:"GAP NOT VERIFIED · NO WAGER AUTHORITY"}</small>
     </section>
+    <MoneylinePriceComparison game={game} />
+    <PinnoddsCardMarkets game={game} marketFamilies={["spread","total"]} />
     <section className="tmc-probability" aria-label="FBIS win probability comparison" aria-live="polite">
       <div><span>FBIS WIN PROBABILITY</span><strong>{pct(pAway)}</strong></div>
       <div className="tmc-probability-center">{display.valid?<><div className="tmc-probability-track" role="img" aria-label={`${away.name} ${pct(pAway)}; ${home.name} ${pct(pHome)}`}><span style={{width:`${pAway*100}%`}}/><span style={{width:`${pHome*100}%`}}/></div><div className="tmc-bar-labels"><b>{pct(pAway)}</b><b>{pct(pHome)}</b></div></>:<p className="tmc-blocked">PROJECTION UNAVAILABLE · {display.reason}</p>}</div>
@@ -87,6 +95,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <span className="tmc-quick-fair">FAIR MONEYLINE · {fair(pAway)} / {fair(pHome)}</span>
       <span className="tmc-quick-status">{display.valid?(game.projectionMaturity||"RESEARCH"):"NO VERIFIED PROJECTION"}</span>
     </div>
+    <EventMarkets game={game} />
     {[away,home].some(p=>p.portraitSourceUrl&&p.portraitCredit)?<div className="tmc-photo-credits" aria-label="Player portrait credits">{[away,home].filter(p=>p.portraitSourceUrl&&p.portraitCredit).map(p=><span key={p.canonicalId||p.name}><a href={p.portraitSourceUrl} target="_blank" rel="noopener noreferrer" title={p.portraitCredit}>Photo: {p.fullName||p.name}</a>{p.portraitLicenseUrl?<a href={p.portraitLicenseUrl} target="_blank" rel="noopener noreferrer"> · License</a>:null}</span>)}</div>:null}
     <details className="tmc-expand">
       <summary className="tmc-expand-toggle"><span className="tmc-expand-title">MATCHUP INTELLIGENCE</span><span className="tmc-expand-hint">Full FBIS projection · Markets · Form · H2H · Surfaces</span><span className="tmc-expand-chevron" aria-hidden="true">⌄</span></summary>

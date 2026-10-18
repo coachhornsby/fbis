@@ -53,3 +53,21 @@ test("model probability 0 or missing does not make a false fair price",()=>{
  assert.equal(x.rows[0].fbisProbability,null);
  assert.equal(x.rows[0].fbisFairAmerican,null);
 });
+
+test("tennis reads FBIS win probs from tennisProjection and Polymarket from market.venueOffers",()=>{
+ const x=buildMoneylinePriceComparison({
+  sport:"tennis",
+  home:{name:"Player One",fullName:"Player One"},
+  away:{name:"Player Two",fullName:"Player Two"},
+  tennisProjection:{player1WinProb:0.61,player2WinProb:0.39},
+  market:{venueOffers:[
+   {source:"Polymarket US",marketFamily:"moneyline",period:"full_game",side:"home",contractPrice:0.55,collectedAt:"2026-10-15T18:00:00Z"},
+   {source:"Polymarket US",marketFamily:"moneyline",period:"full_game",side:"away",contractPrice:0.44,collectedAt:"2026-10-15T18:00:00Z"},
+  ]},
+ });
+ assert.equal(x.hasPrices,true);
+ assert.equal(x.rows[1].fbisProbability,0.61);
+ assert.equal(x.rows[0].fbisProbability,0.39);
+ assert.equal(x.rows[1].polymarketProbability,0.55);
+ assert.equal(x.rows[0].polymarketProbability,0.44);
+});
