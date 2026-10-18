@@ -1,0 +1,87 @@
+{
+  "schema": "nfl-economic-reconcile-v1",
+  "generatedAt": "2026-10-18T09:51:30.727Z",
+  "source": "unified_execution_ledger /api/bets",
+  "separateFrom": {
+    "nfl_wager_decisions": "PASS-only research decisions; not executed bets",
+    "playerProps": "Reported separately inside market breakdown"
+  },
+  "apiSummary": {
+    "bets": 44,
+    "open": 0,
+    "settled": 44,
+    "decided": 43,
+    "pushes": 1,
+    "voids": 0,
+    "manualReview": 0,
+    "unresolved": 0,
+    "record": "29-14",
+    "wins": 29,
+    "losses": 14,
+    "hitRate": 0.6744186046511628,
+    "risk": 135.78,
+    "profit": -1.89,
+    "roi": -0.013919575784357026,
+    "validClvN": 0,
+    "avgClv": null,
+    "positiveClvShare": null,
+    "message": null
+  },
+  "recomputed": {
+    "n": 44,
+    "record": "29-14-1P",
+    "wins": 29,
+    "losses": 14,
+    "pushes": 1,
+    "risk": 135.78,
+    "profit": -1.89,
+    "roi": -0.01392,
+    "missingRisk": 0,
+    "missingPrice": 8,
+    "syntheticReceiptClock": 33
+  },
+  "byMarket": {
+    "SPREAD": {
+      "n": 28,
+      "wins": 22,
+      "losses": 5,
+      "pushes": 1,
+      "risk": 67.18,
+      "profit": 34.52
+    },
+    "ML": {
+      "n": 1,
+      "wins": 1,
+      "losses": 0,
+      "pushes": 0,
+      "risk": 3,
+      "profit": 4.19
+    },
+    "TOTAL": {
+      "n": 9,
+      "wins": 6,
+      "losses": 3,
+      "pushes": 0,
+      "risk": 19.6,
+      "profit": 5.3999999999999995
+    },
+    "PLAYER_PROP": {
+      "n": 6,
+      "wins": 0,
+      "losses": 6,
+      "pushes": 0,
+      "risk": 46,
+      "profit": -46
+    }
+  },
+  "interpretation": [
+    "Reported 28-14 appears to be a stale/rounded recollection; live ledger is 29-14 with 1 push.",
+    "Negative dollars with a strong win rate is consistent with incomplete stake/price fields, player-prop losses (0-6), and variable risk.",
+    "These tickets are operator-reported tracker imports, not FBIS-authorized model wagers.",
+    "CLV is not calculable for the NFL cohort (validClvN=0)."
+  ],
+  "governance": {
+    "modelAuthorizedWagers": false,
+    "canExpandWagerAuthority": false
+  }
+}
