@@ -53,7 +53,7 @@ export async function onRequestGet(context) {
     let overlay={byId:new Map(),available:false};
     let pinnodds={byGame:{},rows:0,reason:"NO_PINNODDS_OBSERVATIONS"};
     if(context.env.DB?.prepare && board.games?.length){
-      try{overlay=await loadPolymarketUsBoardOffers(context.env.DB,board.games,sport)}
+      try{overlay=await loadPolymarketUsBoardOffers(context.env.DB,board.games,sport,{historyDb:context.env.MARKET_HISTORY_DB})}
       catch(_){/* stale/missing provider never breaks independent FBIS projections */}
       try{
         const d1=await loadPinnoddsBoardResearch(context.env.DB,{sport,games:board.games});

@@ -1,3 +1,4 @@
+import {assessPolymarketOffer} from './polymarketIntelligence.js';
 import {contractPriceToAmerican, marketDisplayAmerican, marketDisplayImplied} from "./marketQuoteDisplay.js";
 
 const TWO_WAY = new Set(["nfl","cfb","cbb","nba","wnba","nhl","mlb","npb","kbo","tennis"]);
@@ -23,7 +24,7 @@ function resolveSide(offer,game) {
 }
 const currentFirst = (a,b) => {
   const stream=x=>x?.source==="Polymarket US WebSocket"?1:0;
-  return stream(b)-stream(a) || Date.parse(b?.sourceObservedAt||b?.collectedAt||0)-Date.parse(a?.sourceObservedAt||a?.collectedAt||0);
+  return Date.parse(b?.sourceObservedAt||b?.collectedAt||0)-Date.parse(a?.sourceObservedAt||a?.collectedAt||0) || stream(b)-stream(a);
 };
 function modelProbabilities(game) {
   const sport=String(game?.sport||"").toLowerCase();
@@ -36,14 +37,14 @@ function modelProbabilities(game) {
   const home=probability(game?.pHome ?? game?.model?.pHomeFinal ?? game?.projection?.pHome);
   return {home,away:home==null?null:1-home};
 }
-export function buildMoneylinePriceComparison(game={}) {
+export function buildMoneylinePriceComparison(game={},options={}) {
   const sport=String(game.sport||"").toLowerCase();
   const sources=Array.isArray(game?.market?.venueOffers)?game.market.venueOffers:[];
   const pin=[...(game?.pinnoddsResearch?.offers||[]),...sources.filter(o=>o.source==="PinnOdds")]
     .filter(o=>o.marketFamily==="moneyline" && (o.period==="full_game" || o.period==="fg"));
   const poly=sources.filter(o=>(o.source==="Polymarket US"||o.source==="Polymarket US WebSocket") &&
     o.marketFamily==="moneyline" && (o.period==="full_game" || o.period==="fg") &&
-    marketDisplayImplied(o)!=null).sort(currentFirst);
+    (marketDisplayImplied(o)!=null||o.raw?.marketState)).sort(currentFirst);
   const probabilities=modelProbabilities(game);
   const sides=sport==="soccer"?["away","draw","home"]:["away","home"];
   const rows=sides.map(side=>{
@@ -60,6 +61,7 @@ export function buildMoneylinePriceComparison(game={}) {
       polymarketObservedAt:polyQuote?.sourceObservedAt||polyQuote?.observedAt||null,
       polymarketSource:polyQuote?.source||null,
       polymarketQuoteKind:polyQuote?.quoteKind||null,
+      polymarketIntelligence:assessPolymarketOffer(polyQuote,p,{...options,eventStart:game.start}),
       fbisProbability:p,
       fbisFairAmerican:p==null?null:contractPriceToAmerican(p),
     };

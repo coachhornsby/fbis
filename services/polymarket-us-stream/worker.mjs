@@ -1,12 +1,12 @@
 import {DurableObject} from "cloudflare:workers";
-import {polymarketUsSubscribeBatches,parsePolymarketUsLite}
+import {polymarketUsSubscribeBatches,parsePolymarketUsLite,parsePolymarketUsTrade}
   from "../../functions/lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
 import {mirrorPersistentStreamRows} from "./shadow.mjs";
 import {persistStreamRecoveryBatch} from "./historyRecovery.mjs";
 import {
   manageSubscriptionCapacity,resolveStreamCapacity,STREAM_SPORTS,
-  shouldSaveBbo,liveBboOffer,parseStreamControl,streamIsHealthy,
+  shouldSaveBbo,liveBboOffer,liveBboOffers,parseStreamControl,streamIsHealthy,
   fetchStreamUpgrade,streamContractRosterWindow,
 } from "./core.mjs";
 
@@ -19,6 +19,7 @@ export class PolymarketMarketStream extends DurableObject {
   constructor(ctx,env){
     super(ctx,env);
     this.socket=null;this.subscribed=new Map();this.queue=new Map();
+    this.tradeStats=new Map();this.tradeQueue=[];this.tradeArchiveFailures=0;this.tradeDropped=0;
     this.lastSaved=new Map();this.connectedAt=0;this.reconnectCount=0;
     this.received=0;this.parsed=0;this.inserted=0;this.spilled=0;this.historyInserted=0;
     this.lastError=null;this.lastConnectAttempt=0;this.flushTimer=null;
@@ -27,7 +28,7 @@ export class PolymarketMarketStream extends DurableObject {
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
     this.persistenceStatus="UNVERIFIED";this.lastSpillKey=null;this.lastSpillAt=null;
     this.historyLastError=null;
-    this.codeVersion="dynamic-capacity-history-recovery-20261016";
+    this.codeVersion="rest-ws-history-recovery-intelligence-20261018";
   }
   capacityPlan(){
     return resolveStreamCapacity(this.env||{});
@@ -58,7 +59,7 @@ export class PolymarketMarketStream extends DurableObject {
       lastMessageAt:this.lastMessageAt?new Date(this.lastMessageAt).toISOString():null,
       lastHeartbeatAt:this.lastHeartbeatAt?new Date(this.lastHeartbeatAt).toISOString():null,
       heartbeats:this.heartbeats,lastClose:this.lastClose,
-      received:this.received,parsed:this.parsed,inserted:this.inserted,spilled:this.spilled,
+      received:this.received,parsed:this.parsed,tradeContracts:this.tradeStats.size,tradeQueued:this.tradeQueue.length,tradeArchiveFailures:this.tradeArchiveFailures,tradeDropped:this.tradeDropped,inserted:this.inserted,spilled:this.spilled,
       historyInserted:this.historyInserted,
       historyLastError:this.historyLastError,
       lastSpillKey:this.lastSpillKey,lastSpillAt:this.lastSpillAt,
@@ -298,7 +299,9 @@ export class PolymarketMarketStream extends DurableObject {
       // One DO owner; multiple ≤50-slug subscribe frames under the same socket.
       const frames=polymarketUsSubscribeBatches(
         [...this.subscribed.keys()],"fbis-always-on-market-book",{fullBook:true});
-      for(const frame of frames)socket.send(JSON.stringify(frame));
+      for(const frame of frames){socket.send(JSON.stringify(frame));
+       socket.send(JSON.stringify({subscribe:{...frame.subscribe,request_id:frame.subscribe.request_id+'-trades',subscription_type:'SUBSCRIPTION_TYPE_TRADE'}}));}
+      this.tradeStats.clear();
       this.connectedAt=Date.now();this.lastMessageAt=0;this.lastHeartbeatAt=0;this.reconnectCount++;
       this.lastError=null;
       if(this.lastCandidateDiagnostics){
@@ -322,10 +325,18 @@ export class PolymarketMarketStream extends DurableObject {
     if(control?.type==="error"){this.lastError="upstream-subscription-error";
       try{this.socket?.close(1000,"subscription rejected")}catch{}
       this.socket=null;this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS).catch(()=>{});return;}
+    const trade=parsePolymarketUsTrade(evt.data);
+    if(trade&&this.subscribed.has(trade.marketSlug)){
+      const stat=this.tradeStats.get(trade.marketSlug)||{count:0,since:new Date().toISOString()};
+      stat.count++;this.tradeStats.set(trade.marketSlug,stat);
+      if(this.tradeQueue.length<500)this.tradeQueue.push({...trade,receivedAt:new Date().toISOString()});else this.tradeDropped++;
+      if(!this.flushTimer)this.flushTimer=setTimeout(()=>{this.flushTimer=null;this.ctx.waitUntil(this.flush())},FLUSH_MS);
+      return;
+    }
     const tick=parsePolymarketUsLite(evt.data);
     if(!tick||!this.subscribed.has(tick.marketSlug))return;
     this.parsed++;
-    const entry={...tick,timeMs:Date.now(),at:new Date().toISOString()};
+    const entry={...tick,tradeCount:this.tradeStats.get(tick.marketSlug)?.count||0,tradeWindowStart:this.tradeStats.get(tick.marketSlug)?.since||null,timeMs:Date.now(),at:new Date().toISOString()};
     if(!shouldSaveBbo(entry,this.lastSaved.get(tick.marketSlug)))return;
     // Collapse high-frequency ticks by contract, not by first-come-wins.
     if(this.queue.size>=MAX_QUEUE&&!this.queue.has(tick.marketSlug))
@@ -403,10 +414,15 @@ export class PolymarketMarketStream extends DurableObject {
     return key;
   }
   async flush(){
+    if(this.tradeQueue.length&&this.env.ARCHIVE?.put){
+      const prints=this.tradeQueue.splice(0,100);
+      try{await this.env.ARCHIVE.put(`market-sources/polymarket-us/trades/${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}.json`,JSON.stringify({source:'Polymarket US WebSocket',capturedAt:new Date().toISOString(),prints,canAuthorizeWager:false}),{httpMetadata:{contentType:'application/json'}});}
+      catch{this.tradeArchiveFailures++;this.tradeQueue.unshift(...prints);if(this.tradeQueue.length>500){this.tradeDropped+=this.tradeQueue.length-500;this.tradeQueue.length=500;}}
+    }
     if(!this.queue.size){await this.drainShadow();return;}
     const ticks=[...this.queue.values()].slice(0,MAX_BATCH);
     for(const tick of ticks)this.queue.delete(tick.marketSlug);
-    const offers=ticks.map(t=>liveBboOffer(t,this.subscribed.get(t.marketSlug))).filter(Boolean);
+    const offers=ticks.flatMap(t=>liveBboOffers(t,this.subscribed.get(t.marketSlug)));
     try{
       const r=await persistNormalizedMarketBatch(this.env.DB,offers,{
         snapshotType:"CURRENT",collectedAt:new Date().toISOString(),modelProbability:null

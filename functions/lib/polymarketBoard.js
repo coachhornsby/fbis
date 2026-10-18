@@ -5,7 +5,18 @@ import {polymarketUsPeriod,polymarketUsMarketFamily,polymarketUsSideLabel} from 
  */
 import { marketTemporalStatus, providerObservationTime } from "./marketTemporal.js";
 
-export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Date(),maxAgeMs=45*60*1000}={}){
+export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Date(),maxAgeMs=45*60*1000,historyDb=null,deliveryStore="PRIMARY_D1"}={}){
+ if(historyDb?.prepare){
+  const attempts=await Promise.allSettled([loadPolymarketUsBoardOffers(db,games,sport,{now,maxAgeMs}),loadPolymarketUsBoardOffers(historyDb,games,sport,{now,maxAgeMs,deliveryStore:"MARKET_HISTORY_RECOVERY"})]);
+  const byId=new Map();
+  for(const result of attempts){if(result.status!=="fulfilled")continue;for(const [id,offers] of result.value.byId){
+   const merged=new Map((byId.get(id)||[]).map(o=>[[o.source,o.sourceMarketId,o.sourceOutcomeId,o.period,o.side,o.line].join("|"),o]));
+   for(const o of offers){const key=[o.source,o.sourceMarketId,o.sourceOutcomeId,o.period,o.side,o.line].join("|");const old=merged.get(key);
+    if(!old||Date.parse(o.observedAt||o.collectedAt)>Date.parse(old.observedAt||old.collectedAt))merged.set(key,o);}
+   byId.set(id,[...merged.values()]);
+  }}
+  return {byId,source:"Polymarket US",available:[...byId.values()].some(x=>x.length),diagnostics:{primaryAvailable:attempts[0].status==="fulfilled",historyAvailable:attempts[1].status==="fulfilled",displayedOffers:[...byId.values()].reduce((n,x)=>n+x.length,0)}};
+ }
  const ids=[...new Set(games.map(g=>String(g.id||"")).filter(Boolean))];
  if(!db?.prepare||!ids.length)return {byId:new Map(),source:"Polymarket US",available:false};
  const end=now.toISOString(),cutoff=new Date(now.getTime()-(sport==="soccer"?7*3600000:maxAgeMs)).toISOString();
@@ -37,12 +48,15 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
 
   const display=Number(r.contract_price);
   let raw=null;
-  if(r.source==="Polymarket US WebSocket"){
+  if(r.source==="Polymarket US WebSocket"||r.source==="Polymarket US"){
     try{
       const parsed=JSON.parse(String(r.raw_payload_json||"null"));
       // Expose only numeric book fields; never forward private raw data to card JSON.
       const price=v=>v==null||v===""?null:Number.isFinite(Number(v))&&Number(v)>0&&Number(v)<1?Number(v):null;
+      const levels=xs=>Array.isArray(xs)?xs.slice(0,20).map(x=>({price:price(x.price??x.px?.value??x.px),quantity:Number(x.quantity??x.qty)})).filter(x=>x.price!=null&&Number.isFinite(x.quantity)&&x.quantity>0):[];
       raw={bestBid:price(parsed?.bestBid),bestAsk:price(parsed?.bestAsk),
+        bids:levels(parsed?.bids),offers:levels(parsed?.offers),marketState:typeof parsed?.marketState==="string"?parsed.marketState:null,
+        tradeCount:Number.isSafeInteger(parsed?.tradeCount)?parsed.tradeCount:null,feeCoefficient:parsed?.feeCoefficient==null?null:Number(parsed.feeCoefficient),
         settlementVerified:parsed?.settlementVerified===true,
         includesOvertimeAndShootout:parsed?.includesOvertimeAndShootout===true};
     }catch{raw=null}
@@ -63,7 +77,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   const historicalReference=sport==="soccer"&&r.source==="PinnOdds"&&!temporal.currentDisplayEligible&&temporal.researchEligible&&now.getTime()-Date.parse(r.collected_at)<=7*3600000;
   if(!temporal.currentDisplayEligible&&!historicalReference)continue;
   arr.push({
-    source:r.source,marketFamily:family,side,period,
+    source:r.source,marketFamily:family,side,period,deliveryStore,
     historicalReference,line:r.line,contractPrice:r.contract_price==null?null:Number.isFinite(display)?display:null,
     decimalOdds:r.decimal_odds==null?null:Number(r.decimal_odds),
     americanOdds:r.source==="PinnOdds"&&r.american_odds!=null?Number(r.american_odds):null,quoteKind:r.source==="PinnOdds"?"DECIMAL_BOOK_REFERENCE_NOT_EXECUTION_VERIFIED":r.source==="Polymarket US WebSocket"?"OBSERVED_BBO_NOT_GUARANTEED_FILL":"DISPLAY_REFERENCE_NOT_EXECUTABLE",
