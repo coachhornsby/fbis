@@ -79,14 +79,13 @@ export default function TopPlayerProps({
           </p>
         ) : null}
         {top.length ? (
-          <div className="top-pp-card-grid" aria-label="Top five PrizePicks research cards">
+          <div className="pp-card-grid pp-premium-grid top-pp-card-grid" aria-label="Top five PrizePicks research cards">
             {top.map((row, i) => (
               <PrizePicksStyleCard
                 key={row.id || `${prizePicksGroupKey(row)}-${i}`}
                 row={row}
                 sport={row.sport}
                 rank={i + 1}
-                compact
               />
             ))}
           </div>

@@ -69,14 +69,13 @@ export default function TopGameProps({ game }) {
       </div>
 
       {usePrizePicksCards && prizePicksRows.length ? (
-        <div className="top-game-props-grid top-game-pp-cards">
+        <div className="pp-card-grid pp-premium-grid top-game-props-grid top-game-pp-cards">
           {prizePicksRows.map((p, i) => (
             <PrizePicksStyleCard
               key={`${p.gameId}:${p.playerName}:${p.marketCanonical}:${p.line}:${i}`}
               row={p}
               sport="nfl"
               rank={i + 1}
-              compact
             />
           ))}
         </div>

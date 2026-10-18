@@ -38,5 +38,13 @@ test("Board TopPlayerProps renders PrizePicks cards not a props table", () => {
   assert.match(src, /PrizePicksStyleCard/);
   assert.match(src, /selectTopPrizePicksCards/);
   assert.match(src, /Demon\/Goblin/);
+  assert.match(src, /pp-card-grid pp-premium-grid/);
   assert.doesNotMatch(src, /fbis-table today-compact-table/);
+  assert.doesNotMatch(src, /\bcompact\b/);
+});
+
+test("Board command center drops watchlist beside Top PrizePicks", () => {
+  const src = fs.readFileSync("src/features/today/TodayCommandCenter.jsx", "utf8");
+  assert.match(src, /TopPlayerProps/);
+  assert.doesNotMatch(src, /WatchlistPanel/);
 });

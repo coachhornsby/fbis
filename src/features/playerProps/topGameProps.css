@@ -3,11 +3,19 @@
 .top-game-props-heading h3{font-size:13px;letter-spacing:.075em;margin:0;font-weight:800}
 .top-game-props-heading>span,.top-game-props-disclaimer{font-size:11px;opacity:.75}
 .top-game-props-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.top-game-props-grid.top-game-pp-cards{align-items:stretch;gap:12px}
-.top-game-props-grid.top-game-pp-cards .pp-style-card{min-width:0;height:100%}
-.top-game-props-grid.top-game-pp-cards .pp-card.pp-premium-card .pp-card-visual{
-  height:188px !important;
-  min-height:188px !important;
+.top-game-props-grid.top-game-pp-cards.pp-premium-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  align-items:stretch;
+  gap:14px;
+  padding:0;
+}
+.top-game-props-grid.top-game-pp-cards .pp-style-card,
+.top-game-props-grid.top-game-pp-cards .pp-premium-card{
+  min-width:0;
+  height:100%;
+}
+@media(max-width:860px){
+  .top-game-props-grid.top-game-pp-cards.pp-premium-grid{grid-template-columns:1fr}
 }
 .pp-style-rank{
   position:absolute;z-index:7;top:10px;left:10px;

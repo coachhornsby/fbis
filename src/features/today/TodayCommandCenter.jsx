@@ -4,7 +4,6 @@ import { normalizeBoardGame } from "../playerProps/buildPlayerPropsBoard.js";
 import TopGameOpportunities from "./TopGameOpportunities.jsx";
 import TopPlayerProps from "./TopPlayerProps.jsx";
 import MarketMovers from "./MarketMovers.jsx";
-import WatchlistPanel from "./WatchlistPanel.jsx";
 
 /**
  * Decision-first Today surfaces from the FBIS domain board.
@@ -47,10 +46,7 @@ export default function TodayCommandCenter({
         onSportFilter={onSportFilter}
         totalGames={totalGames}
       />
-      <div className="today-command-grid">
-        <TopPlayerProps sportFilter={sportFilter} limit={5} rows={domain.topPlayerProps || []} />
-        <WatchlistPanel events={domain.watchlist || []} />
-      </div>
+      <TopPlayerProps sportFilter={sportFilter} limit={5} rows={domain.topPlayerProps || []} />
       <MarketMovers events={domain.marketMovers || []} />
     </div>
   );
