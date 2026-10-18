@@ -1,0 +1,32 @@
+name: Verify Polymarket adaptive release
+on:
+  push:
+    branches: [ops/polymarket-adaptive-verify-20261018]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify canonical release
+        run: node scripts/verify-deployment-sha.mjs 'c023aa6998ac87536eea7f65efd0237839123b13'
+        env:
+          VERIFY_MAX_ATTEMPTS: '60'
+      - name: Inspect public stream and card delivery
+        run: |
+          node --input-type=module <<'JS'
+          for(let attempt=0;attempt<16;attempt++){
+            const r=await fetch('https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health',{signal:AbortSignal.timeout(25000)});
+            const s=await r.json();console.log(JSON.stringify(s));
+            const q=await fetch('https://fbis-myz.pages.dev/api/polymarket-quotes?sport=nfl&eventIds=401872996,401873000',{signal:AbortSignal.timeout(25000)});
+            const b=await q.json();console.log(JSON.stringify({http:q.status,...b}));
+            if(s.connected&&s.parsed>0&&s.codeVersion==='rest-ws-history-recovery-intelligence-20261018'&&b.ok&&Object.values(b.byEvent||{}).some(xs=>xs.length))process.exit(0);
+            await new Promise(r=>setTimeout(r,30000));
+          }
+          throw Error('LIVE_STREAM_AND_CARD_DELIVERY_NOT_VERIFIED');
+          JS
