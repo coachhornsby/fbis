@@ -10,5 +10,5 @@ export async function onRequestPost({request,env}){
   }
   const result=await bootstrapPolymarket(env,body);return json(result,result.ok?200:409);
  }
- catch{return json({ok:false,error:'BOOTSTRAP_UNAVAILABLE',canAuthorizeWager:false},503);}
+ catch(e){const reason=/^[A-Z][A-Z0-9_]{1,100}$/.test(e.message||'')?e.message:'BOOTSTRAP_UNAVAILABLE';return json({ok:false,error:reason,canAuthorizeWager:false},reason.includes('HTTP_429')?429:503);}
 }

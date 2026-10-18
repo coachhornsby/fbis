@@ -30,7 +30,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
   if(!fixtures.length)return {ok:true,leagues:[],projectedFixtures:0,reason:'NO_UPCOMING_INDEPENDENT_FORECASTS',canAuthorizeWager:false};
   const catalogue=await fetchPolymarketUsLeagues(fetchImpl,{maxPages:8});
   const sports=new Set(fixtures.map(g=>g.sport));
-  return {ok:true,leagues:catalogue.leagues.map(l=>({slug:l.slug,sport:classifyPolymarketUsLeague(l)})).filter(l=>sports.has(l.sport)),projectedFixtures:fixtures.length,catalogueComplete:catalogue.complete,canAuthorizeWager:false};
+  return {ok:true,leagues:catalogue.leagues.map(l=>({slug:l.slug,sport:classifyPolymarketUsLeague({slug:l.slug})})).filter(l=>sports.has(l.sport)),projectedFixtures:fixtures.length,catalogueComplete:catalogue.complete,canAuthorizeWager:false};
  }
  if(!valid(opts.receiptId))throw Error('INVALID_RECEIPT');
  const key=prefix+opts.receiptId+'.json';
