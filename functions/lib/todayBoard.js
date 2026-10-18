@@ -257,7 +257,10 @@ export function toBoardGame(game, sport, now = Date.now()) {
     quality: game.quality
       ? { ...game.quality, score: canonicalQualityScore, flags: qualityFlags, components: qualityComponents }
       : { flags: qualityFlags, components: qualityComponents, score: canonicalQualityScore },
-    market: { ...market, venueOffers: Array.isArray(game.tennisProjection?.venueOffers) ? game.tennisProjection.venueOffers : (market?.venueOffers || []) },
+    market: { ...market, venueOffers: [
+      ...(Array.isArray(game.tennisProjection?.venueOffers) ? game.tennisProjection.venueOffers : []),
+      ...(Array.isArray(market?.venueOffers) ? market.venueOffers : []),
+    ] },
     marketAvailable: marketAvail.marketAvailable,
     executionMarketAvailable: marketAvail.executionMarketAvailable,
     referenceMarketAvailable: marketAvail.referenceMarketAvailable,
@@ -674,20 +677,26 @@ function tennisRankProfile(name, rankings) {
   return rankings?.byName?.get(tennisNameKey(name)) || null;
 }
 
-async function tennisVenueOffers(db,row,now){
+async function tennisVenueOffers(db,row,now,historyDb=null){
   const fixture={id:row.canonical_event_id,start:row.event_start_time,home_name:row.player1,away_name:row.player2};
-  const direct=await tennisFixtureOffers(db,fixture,{now});
-  if(direct.length)return direct;
-  // Read an independently persisted offer only through a unique exact pair +
-  // instant match. Preserve the original fixture ID and every source clock.
-  const res=await db.prepare(`SELECT fixture_id,player1_name,player2_name,match_time FROM tennis_external_fixtures
+  const merge=async store=>{
+   if(!store?.prepare)return [];
+   const direct=await tennisFixtureOffers(store,fixture,{now});
+   if(direct.length)return direct;
+   // Read an independently persisted offer only through a unique exact pair +
+   // instant match. Preserve the original fixture ID and every source clock.
+   const res=await store.prepare(`SELECT fixture_id,player1_name,player2_name,match_time FROM tennis_external_fixtures
     WHERE tour=? AND source='ESPN_PUBLIC' AND julianday(fetched_at)>=julianday(?)
     AND ABS(julianday(match_time)-julianday(?))<0.000001 LIMIT 10`)
-    .bind(String(row.tour).toLowerCase(),new Date(+now-4*3600000).toISOString(),row.event_start_time).all();
-  const pair=[tennisNameKey(row.player1),tennisNameKey(row.player2)].sort().join("|");
-  const links=(res.results||[]).filter(f=>[tennisNameKey(f.player1_name),tennisNameKey(f.player2_name)].sort().join("|")===pair&&Date.parse(f.match_time)===Date.parse(row.event_start_time));
-  if(links.length!==1)return [];
-  return (await tennisFixtureOffers(db,{...fixture,id:links[0].fixture_id},{now})).map(o=>({...o,sourceFixtureId:links[0].fixture_id,displayFixtureId:row.canonical_event_id,fixtureLinkProof:"EXACT_TOUR_PLAYER_PAIR_START"}));
+    .bind(String(row.tour).toLowerCase(),new Date(+now-4*3600000).toISOString(),row.event_start_time).all().catch(()=>({results:[]}));
+   const pair=[tennisNameKey(row.player1),tennisNameKey(row.player2)].sort().join("|");
+   const links=(res.results||[]).filter(f=>[tennisNameKey(f.player1_name),tennisNameKey(f.player2_name)].sort().join("|")===pair&&Date.parse(f.match_time)===Date.parse(row.event_start_time));
+   if(links.length!==1)return [];
+   return (await tennisFixtureOffers(store,{...fixture,id:links[0].fixture_id},{now})).map(o=>({...o,sourceFixtureId:links[0].fixture_id,displayFixtureId:row.canonical_event_id,fixtureLinkProof:"EXACT_TOUR_PLAYER_PAIR_START"}));
+  };
+  const primary=await merge(db);
+  if(primary.length)return primary;
+  return merge(historyDb);
 }
 
 export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} = {}) {
@@ -767,7 +776,7 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
     row.court_speed_index=null;
     const [bankContext,venueOffers,portraitMap,feedHeadshots] = await Promise.all([
       tennisCardContext(env.DB,{tour:row.tour,player1:row.player1,player2:row.player2,surface:row.surface}).catch(()=>null),
-      tennisVenueOffers(env.DB,row,now).catch(()=>[]),
+      tennisVenueOffers(env.DB,row,now,env.MARKET_HISTORY_DB).catch(()=>[]),
       approvedTennisPortraits(env.DB,[integrity.p1.fbis_player_id,integrity.p2.fbis_player_id]),
       loadStoredTennisPrizePicksHeadshots(env.DB,[integrity.p1.fbis_player_id,integrity.p2.fbis_player_id]),
     ]);
