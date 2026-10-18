@@ -340,6 +340,9 @@ export function canonicalizeProPlayerPropMarket(sportRaw, marketRaw) {
     .replace(/^player_/, "");
   const aliases = ALIASES[sport] || {};
   if (aliases[token]) return aliases[token];
+  // Football specialty stats (e.g. quarters with 25+ pass yards) are distinct
+  // contracts, even when their names end with a supported full-game stat.
+  if (sport === "nfl" || sport === "cfb") return null;
 
   // Action labels can contain numeric/core prefixes. Match only distinctive suffixes.
   for (const [alias, canonical] of Object.entries(aliases)) {
