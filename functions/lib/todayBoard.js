@@ -1151,16 +1151,16 @@ export async function buildTodayBoard(
       // Historical Parlay/soft/Pinnacle-through-Parlay snapshots remain
       // auditable in storage but cannot hydrate CURRENT board pricing.
       let d1Pinnodds=await loadPinnoddsBoardResearch(env.DB,{
-        sport,games:selectedDateGames,now:new Date(now).toISOString(),
+        sport,games:selectedDateGames,now:new Date(now).toISOString(),includeStarted:true,
       });
       if(env.MARKET_HISTORY_DB?.prepare){
         const historyPinnodds=await loadPinnoddsBoardResearch(env.MARKET_HISTORY_DB,{
-          sport,games:selectedDateGames,now:new Date(now).toISOString(),
+          sport,games:selectedDateGames,now:new Date(now).toISOString(),includeStarted:true,
         });
         d1Pinnodds=preferFreshPinnoddsArchive(d1Pinnodds,historyPinnodds);
       }
       const r2Pinnodds=await loadPinnoddsR2BoardResearch(env.ARCHIVE,{
-        sport,games:selectedDateGames,now:new Date(now).toISOString(),
+        sport,games:selectedDateGames,now:new Date(now).toISOString(),includeStarted:true,
       });
       const pinnodds=preferFreshPinnoddsArchive(d1Pinnodds,r2Pinnodds);
       const hydratedGames=selectedDateGames.map(g=>{

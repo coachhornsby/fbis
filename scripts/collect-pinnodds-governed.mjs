@@ -1,5 +1,5 @@
 import {createGitHubOidcProvider} from './github-oidc.mjs';
-import {pinnoddsWindow,pinnoddsWindowComplete} from './lib/pinnoddsSchedule.mjs';
+import {pinnoddsWindow,pinnoddsWindowComplete,pinnoddsDueWindow} from './lib/pinnoddsSchedule.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 async function main(){
 const base=process.env.BASE||'https://fbis-myz.pages.dev',worker='https://fbis-orchestrator.coachhornsby.workers.dev';
@@ -9,14 +9,17 @@ if(!secret)throw Error('EXISTING_COLLECTION_AUTH_REQUIRED');
 const getOidcToken=createGitHubOidcProvider();
 // One-time recovery may pull the next *existing* full slot early. The regular
 // scheduled collector reuses the same durable runId, preventing double quota use.
-const window=process.env.PINNODDS_RESTORE_ONCE==='1'
+let window=process.env.PINNODDS_RESTORE_ONCE==='1'
  ? pinnoddsWindow(new Date('2026-10-16T18:23:00Z')) : pinnoddsWindow();
-const {scope,runId}=window;
 // Before reserving billable requests, read R2 receipts through the public
 // read-only status API. Failed status => fail closed, no provider call.
 const response=await fetch(base+'/api/pinnodds-status',{headers:{'cache-control':'no-store'},signal:AbortSignal.timeout(20000)});
 if(!response.ok)throw Error('PINNODDS_STATUS_HTTP_'+response.status);
 const status=await response.json();
+await mkdir('artifacts',{recursive:true});
+await writeFile('artifacts/pinnodds-before-capture.json',JSON.stringify(status));
+if(process.env.PINNODDS_RESTORE_ONCE!=='1')window=pinnoddsDueWindow(status);
+const {scope,runId}=window;
 if(pinnoddsWindowComplete(status,window)){
  console.log(JSON.stringify({ok:true,status:'already_collected_slot',scope,runId,paidProviderCalls:0}));
  return;

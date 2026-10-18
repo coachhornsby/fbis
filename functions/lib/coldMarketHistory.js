@@ -60,6 +60,9 @@ const projection=`id,source,sport,canonical_event_id,player_name,market_family,s
  CASE WHEN json_valid(raw_payload_json) THEN json_extract(raw_payload_json,'$.sourceObservedAt','$.quoteProvenance','$.quoteKind','$.priceKind') ELSE '[null,null,null,null]' END __raw_meta`;
 export async function readColdCompatibleEventObservations(env,{sport,eventId,offset=0,pageSize=100}){
  const partitions=await coldMarketPartitions(env),groups=[];
+ // Current recovery ticks and newer research captures live in the market shard,
+ // independently of the older immutable cold-archive cutover.
+ if(env.MARKET_HISTORY_DB?.prepare)partitions.push({db:env.MARKET_HISTORY_DB,where:'1=1',kind:'market-history'});
  for(const part of partitions){
   const result=await part.db.prepare(`WITH latest AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY source,source_market_id,source_outcome_id,period,side,line,player_name,stat_family ORDER BY collected_at DESC,id DESC) rn
     FROM normalized_market_observations WHERE sport=? AND canonical_event_id=? AND (${part.where}) AND source IN ('Polymarket US','Polymarket US WebSocket','PinnOdds','PrizePicks GitHub Mirror'))

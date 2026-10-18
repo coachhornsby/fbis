@@ -34,6 +34,7 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: '22'
+      - run: npm ci --ignore-scripts
       - run: node --test test/tennis-external-fixtures.test.mjs test/polymarket-tennis-identity.test.js test/polymarket-us-readonly.test.js
       - name: Inspect public ESPN fixture contract (no writes)
         if: github.event_name == 'pull_request'

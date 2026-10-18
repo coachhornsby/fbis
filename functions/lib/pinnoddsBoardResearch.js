@@ -34,7 +34,7 @@ export function selectPinnoddsBoardOffers(rows=[],{now=new Date().toISOString()}
    ||!["home","away","over","under"].includes(row.side)
    ||numeric(row.decimal_odds)<=1||!freshRecord(row,clock)
    ||row.source_observed_at)continue; // Current ledger receipts lack validated provider timestamp.
-  const id=String(row.canonical_event_id),o=asOffer(row);
+  const id=String(row.canonical_event_id),o={...asOffer(row),historicalReference:clock>=Date.parse(row.event_start_time)};
   const game=byGame[id]||{source:"PinnOdds",status:"CAPTURE_CLOCK_ONLY",
    providerTimestampVerified:false,canQualify:false,canAuthorizeWager:false,
    matchedCanonicalEventId:id,offers:[],latestCapturedAt:null};
@@ -78,10 +78,11 @@ export function selectPinnoddsBoardOffers(rows=[],{now=new Date().toISOString()}
   game.offers=selected;
   game.pairedMarkets=[...new Set(selected.map(o=>o.marketFamily))];
   game.status=selected.length?"RESEARCH_REFERENCE_ONLY":"NO_PAIRED_QUOTES";
+  game.pregameReferenceOnly=selected.some(o=>o.historicalReference);
  }
  return byGame;
 }
-export async function loadPinnoddsBoardResearch(db,{sport,games=[],now=new Date().toISOString()}={}){
+export async function loadPinnoddsBoardResearch(db,{sport,games=[],now=new Date().toISOString(),includeStarted=false}={}){
  if(!db?.prepare||!validSport.has(sport))return {byGame:{},rows:0,source:"PinnOdds",reason:"NO_DB_OR_SPORT"};
  // Canonical IDs can be opaque (soccer slugs and tennis official IDs), not just ESPN digits.
  // Only IDs carried by the already-verified board games are queried via bound SQL parameters.
@@ -101,7 +102,7 @@ export async function loadPinnoddsBoardResearch(db,{sport,games=[],now=new Date(
      AND collected_at BETWEEN ? AND ? AND event_start_time > ?
      AND decimal_odds>1
    ORDER BY collected_at DESC LIMIT 20000`)
-   .bind(sport,...ids,since,until,now).all();
+   .bind(sport,...ids,since,until,includeStarted?new Date(clock-12*3600000).toISOString():now).all();
   const rows=q?.results||[];
   return {byGame:selectPinnoddsBoardOffers(rows,{now}),rows:rows.length,
    source:"PinnOdds",reason:rows.length?"SOURCE_CAPTURE_PRESENT":"NO_PINNODDS_OBSERVATIONS",

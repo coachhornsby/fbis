@@ -1,9 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {pinnoddsWindow,pinnoddsWindowComplete} from '../scripts/lib/pinnoddsSchedule.mjs';
+import {pinnoddsWindow,pinnoddsWindowComplete,pinnoddsDueWindow} from '../scripts/lib/pinnoddsSchedule.mjs';
 
 const at=s=>new Date(s);
+test('a missed full-board hour is recovered before another football-only run',()=>{
+ const now=at('2026-10-18T20:23:00Z'),full=pinnoddsWindow(at('2026-10-18T18:23:00Z'));
+ assert.equal(pinnoddsDueWindow({ok:true,results:[]},now).runId,full.runId);
+ assert.equal(pinnoddsDueWindow(status(full),now).scope,'football');
+ assert.equal(pinnoddsDueWindow(status(full,{skip:3}),now).runId,full.runId);
+ const midnight=at('2026-10-19T00:23:00Z');
+ assert.match(pinnoddsDueWindow({ok:true,results:[]},midnight).runId,/20261019-00-full/);
+});
 const status=(w,{skip=null,old=false,unreconciled=false}={})=>{
  const created=old?'2026-10-13T10:00:00.000Z':new Date(Date.parse(w.windowStart)+10*60000).toISOString();
  const scopes=w.scope==='full'?Array.from({length:6},(_,i)=>['prematch','live'].map(feed=>({kind:'board',sportId:i+1,feed}))).flat():w.scope==='football'?[{kind:'board',sportId:5,feed:'prematch'}]:[{kind:'board',sportId:5,feed:'prematch'},...['prematch','live'].map(feed=>({kind:'drops',feed}))];

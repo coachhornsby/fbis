@@ -13,7 +13,7 @@ export async function onRequestGet({env,request}){
 }
 /** Shared by the HTTP route and authenticated fixed-clock storage parity probe. */
 export async function marketObservationPage(env,{sport,eventId,offset=0,pageSize=100,now=new Date()}){
-  const result=coldHistoryEnabled(env)?await readColdCompatibleEventObservations(env,{sport,eventId,offset,pageSize}):await env.DB.prepare(`WITH latest AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY source,source_market_id,source_outcome_id,period,side,line,player_name,stat_family ORDER BY collected_at DESC,id DESC) rn
+  const result=(coldHistoryEnabled(env)||env.MARKET_HISTORY_DB?.prepare)?await readColdCompatibleEventObservations(env,{sport,eventId,offset,pageSize}):await env.DB.prepare(`WITH latest AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY source,source_market_id,source_outcome_id,period,side,line,player_name,stat_family ORDER BY collected_at DESC,id DESC) rn
    FROM normalized_market_observations WHERE sport=? AND canonical_event_id=? AND source IN ('Polymarket US','Polymarket US WebSocket','PinnOdds','PrizePicks GitHub Mirror'))
    SELECT * FROM latest WHERE rn=1 ORDER BY source,market_family,period,source_market_id,source_outcome_id,id LIMIT ? OFFSET ?`).bind(sport,eventId,pageSize+1,offset).all();
   const found=result?.results||[],hasMore=found.length>pageSize;
