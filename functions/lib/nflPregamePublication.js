@@ -14,7 +14,7 @@ import {
 } from "./nflModelGovernance.js";
 import { sha256Hex } from "./publishedProjectionStore.js";
 
-export const NFL_FEATURE_CONTRACT_VERSION = "nfl-features-v3";
+export const NFL_FEATURE_CONTRACT_VERSION = "nfl-features-v4";
 export const NFL_PUBLICATION_SCHEMA = "nfl-research-publication-v1";
 
 /** Ordered checkpoints. Only the current eligible checkpoint is written. */
