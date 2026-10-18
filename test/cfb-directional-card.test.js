@@ -20,7 +20,8 @@ test("CFB uses shared venue strip; tennis and other sports retain their routing"
  const premium=await read("PremiumGameCard.jsx");
  const css=await read("nflDirectionalMatchups.css");
  // SoftMatch: directional CFB tiles live on featured/premium; compact keeps shared venue strip.
- assert.match(premium,/sportId === "cfb" \? <CfbDirectionalMatchups/);
+ assert.match(premium,/sportId === "cfb"\s*\?\s*<CfbDirectionalMatchups/);
+ assert.match(premium,/sportId !== "nhl" && sportId !== "mlb"/);
  assert.match(compact,/import VenueConditions from/);
  assert.match(compact,/!stored \? <VenueConditions/);
  assert.match(css,/data-sport="cfb"/);
