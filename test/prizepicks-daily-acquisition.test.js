@@ -2,11 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-test("exactly one free PrizePicks mirror remains scheduled and paid acquisition is retired",()=>{
+test("Zen PrizePicks uses the single budgeted acquisition owner and the free mirror stays paused",()=>{
  const paid=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
  const free=fs.readFileSync(".github/workflows/free-prizepicks-mirror.yml","utf8");
- assert.match(paid,/RETIRED/);
- assert.doesNotMatch(paid,/^  schedule:/m);
+ assert.match(paid,/restore-zen-prizepicks/);
+ assert.match(paid,/fbis-prizepicks-single-daily-acquisition/);
  assert.equal((free.match(/cron:/g)||[]).length,0,"unscoped free mirror pulls are paused");
  assert.match(free,/FREE_PRIZEPICKS_MIRROR_INGESTION_DISABLED/);
  assert.ok(free.includes("No mirror HTTP fetch"));
@@ -26,11 +26,11 @@ test("legacy paid collector is disabled",()=>{
   assert.doesNotMatch(s,/await runActor\(/);
 });
 
-test("historical PrizePicks schema remains readable but new acquisition is blocked",()=>{
+test("Zen ingestion requires immutable owned capture and retains historical schema",()=>{
  const workflow=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
  const api=fs.readFileSync("functions/api/prizepicks-props.js","utf8");
- assert.match(workflow,/RETIRED/);
- assert.match(api,/retiredOddsCollectorResponse\("PRIZEPICKS_APIFY"\)/);
+ assert.match(workflow,/restore-zen-prizepicks/);
+ assert.match(api,/immutable_capture_required/);
  assert.match(api,/prizepicks_daily_acquisitions/);
 });
 test("offline free NFL mirror audit accepts six standard markets but creates no authoritative evidence",async()=>{
@@ -148,8 +148,8 @@ test("free NFL board stays separate from paid acquisition and main model pipelin
   const panel=fs.readFileSync("src/features/playerProps/PrizePicksMarketPanel.jsx","utf8");
   const board=fs.readFileSync("src/features/playerProps/FreePrizePicksMirrorBoard.jsx","utf8");
   const normalize=fs.readFileSync("src/features/playerProps/freePrizePicksMirror.js","utf8");
-  assert.match(panel,/localSport==="nfl"\|\|localSport==="top25"/);
-  assert.match(panel,/<FreePrizePicksMirrorBoard\/>/);
+  assert.match(panel,/<ZenPrizePicksLines/);
+  assert.doesNotMatch(panel,/<FreePrizePicksMirrorBoard/);
   assert.match(board,/No FBIS pick, star rating, or wagering authority/);
   assert.match(board,/sourceUrl|FREE_NFL_MIRROR_SOURCE_URL/);
   assert.match(normalize,/MIRROR_NOT_TODAY/);

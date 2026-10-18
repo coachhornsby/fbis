@@ -298,6 +298,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
     // The slate engine builds these before TODAY normalization; dropping them here made the
     // UI falsely report \"Awaiting model factors\" even when NFL-PRO-v1 had produced them.
     matchupFactors: Array.isArray(game.matchupFactors) ? game.matchupFactors : [],
+    nflPersistentProfile: sport === "nfl" ? game.nflPersistentProfile || null : null,
+    nflFeatures: sport === "nfl" ? game.nflFeatures || null : null,
     nflProShadow: sport === "nfl" && game.nflProShadow ? game.nflProShadow : null,
     nflGameMatchup: sport === "nfl" && game.nflGameMatchup ? game.nflGameMatchup : null,
     cfbUnitAudit: sport === "cfb" ? (game.cfbUnitAudit || cfbUnitFeatureAudit(game)) : null,

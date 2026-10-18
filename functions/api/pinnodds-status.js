@@ -14,6 +14,6 @@ export async function onRequestGet({env}){
    return result;
   }catch{return{...scope,status:'STATUS_READ_ERROR'};}
  }));
- return json({ok:true,source:'PinnOdds',scope:'SIX_SUPPORTED_PROVIDER_SPORTS_ALL_RETURNED_MARKETS_AND_PERIODS',fullBoardCadenceHours:6,dropBufferCadenceHours:3,
+ return json({ok:true,source:'PinnOdds',scope:'SIX_SUPPORTED_PROVIDER_SPORTS_ALL_RETURNED_MARKETS_AND_PERIODS',fullBoardCadenceHours:6,footballPrematchCadenceHours:1,dropBufferCadenceHours:3,
   currentQuotesVerified:false,fullMarketCoverageVerified:false,results,readOnly:true,canAuthorizeWager:false});
 }

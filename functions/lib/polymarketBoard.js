@@ -1,4 +1,4 @@
-import {polymarketUsPeriod,polymarketUsMarketFamily,polymarketUsSideLabel} from "./polymarketUs.js";
+import {polymarketUsPeriod,polymarketUsMarketFamily,polymarketUsSideLabel,polymarketUsCanonicalSide} from "./polymarketUs.js";
 /**
  * Market display overlay only: read immutable Polymarket US and soccer PinnOdds observations.
  * Never hydrate stale quotes as actionable execution prices or model inputs.
@@ -40,6 +40,19 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
  if(page.length<500)break;
  }
  }
+ const spreadBindings=new Map();
+ for(const r of rows){
+  if(r.market_family!=='spread'||r.source!=='Polymarket US')continue;
+  let p;try{p=JSON.parse(r.raw_payload_json||'null')}catch{continue;}
+  const side=p?.providerMarket?.marketSides?.find(s=>String(s.id)===String(r.source_outcome_id))||
+    (String(p?.providerSide?.id)===String(r.source_outcome_id)?p.providerSide:null);
+  if(!side)continue;
+  const fixture=games.find(g=>String(g.id)===String(r.canonical_event_id));
+  const canonical=polymarketUsCanonicalSide({sport,marketFamily:'spread',side:side.description,raw:{providerSide:side}},fixture);
+  const signed=/^[+-]?\d+(?:\.\d+)?$/.test(side.description||'')?Number(side.description):null;
+  if(canonical&&signed!=null&&Math.abs(Math.abs(signed)-Math.abs(Number(r.line)))<.00001)
+   spreadBindings.set(r.source_market_id+'|'+r.source_outcome_id,{side:canonical,line:signed});
+ }
  const byId=new Map();
  for(const r of rows){
   const key=String(r.canonical_event_id);
@@ -66,7 +79,10 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   const soccerContract=sport==="soccer"&&payload?.providerMarket;
   const family=soccerContract?polymarketUsMarketFamily(payload.providerMarket):r.market_family;
   const period=soccerContract?polymarketUsPeriod(payload.providerMarket):r.period;
-  const side=family==='moneyline'&&['home','away','draw'].includes(payload?.canonicalSide)?payload.canonicalSide:soccerContract?polymarketUsSideLabel(payload.providerMarket,payload.providerSide,"soccer"):r.side;
+  const matchedGame=games.find(g=>String(g.id)===String(r.canonical_event_id));
+  const binding=spreadBindings.get(r.source_market_id+'|'+r.source_outcome_id);
+  const inferredSide=family==='spread'?(binding?.side||polymarketUsCanonicalSide({marketFamily:family,sport,side:r.side,raw:payload},matchedGame)):null;
+  const side=['moneyline','spread'].includes(family)&&['home','away','draw'].includes(payload?.canonicalSide)?payload.canonicalSide:inferredSide|| (soccerContract?polymarketUsSideLabel(payload.providerMarket,payload.providerSide,"soccer"):r.side);
   if(soccerContract&&family==="moneyline"&&payload.contractLong!==true)continue;
   if(sport==="soccer"&&r.source==="Polymarket US WebSocket"&&payload?.contractBindingVerified!==true)continue;
   const providerObservedAt=providerObservationTime({source:r.source,raw:payload,sourceObservedAt:
@@ -77,8 +93,8 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   const historicalReference=sport==="soccer"&&r.source==="PinnOdds"&&!temporal.currentDisplayEligible&&temporal.researchEligible&&now.getTime()-Date.parse(r.collected_at)<=7*3600000;
   if(!temporal.currentDisplayEligible&&!historicalReference)continue;
   arr.push({
-    source:r.source,marketFamily:family,side,period,deliveryStore,
-    historicalReference,line:r.line,contractPrice:r.contract_price==null?null:Number.isFinite(display)?display:null,
+    source:r.source,marketFamily:family,side:family==='total'&&/^(over|under)\b/i.test(side)?side.match(/^(over|under)/i)[1].toLowerCase():side,period,deliveryStore,
+    historicalReference,line:binding?.line!=null?binding.line:family==='spread'&&payload?.contractLong===false&&payload?.sideSpecificLine!==true&&r.line!=null?-Number(r.line):r.line,contractPrice:r.contract_price==null?null:Number.isFinite(display)?display:null,
     decimalOdds:r.decimal_odds==null?null:Number(r.decimal_odds),
     americanOdds:r.source==="PinnOdds"&&r.american_odds!=null?Number(r.american_odds):null,quoteKind:r.source==="PinnOdds"?"DECIMAL_BOOK_REFERENCE_NOT_EXECUTION_VERIFIED":r.source==="Polymarket US WebSocket"?"OBSERVED_BBO_NOT_GUARANTEED_FILL":"DISPLAY_REFERENCE_NOT_EXECUTABLE",
     sourceMarketId:r.source_market_id,sourceOutcomeId:r.source_outcome_id,observedAt:providerObservedAt,collectedAt:r.collected_at,

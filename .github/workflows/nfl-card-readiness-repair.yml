@@ -1,5 +1,7 @@
 name: Restore NFL PinnOdds cards from existing archive
 on:
+  schedule:
+    - cron: '11 0,6,12,18 * * *'
   push:
     branches: [main]
     paths: [scripts/repair-nfl-card-markets.mjs, .github/workflows/nfl-card-readiness-repair.yml]

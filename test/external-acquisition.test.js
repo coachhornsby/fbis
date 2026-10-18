@@ -92,8 +92,8 @@ test('old canonical consumption cannot bless a fresh capture with zero usable ob
 test('large canonical payload is rejected before archival, SQL writes or model enrichment',async()=>{
  const {env,sql,objects}=fixture();env.HARVEST_SECRET='secret';
  const response=await consumePrizePicks({env,request:new Request('https://example.test/api/prizepicks-props',{method:'POST',headers:{'x-harvest-secret':'secret','content-type':'application/json'},body:JSON.stringify({runId:'current-run',rows:Array.from({length:501},()=>({player_name:'Player'}))})})});
- assert.equal(response.status,410);
- assert.equal((await response.json()).error,'MARKET_INGESTOR_RETIRED_APPROVED_FEEDS_ONLY');
+ assert.equal(response.status,413);
+ assert.equal((await response.json()).error,'bounded_consumption_required');
  assert.equal(objects.size,0);assert.equal(sql.prepare('SELECT count(*) n FROM external_acquisition_batches').get().n,0);
 });
 test('live consumers exclude partial and stale captures while retaining historical rows',()=>{
@@ -118,5 +118,20 @@ test('provider reconciliation updates current usage, blocks exhaustion and never
    globalThis.fetch=async(url,init)=>{calls.push({url,method:init.method||'GET'});return new Response(JSON.stringify({data:{monthlyUsageCycle:{startAt:'2026-09-12T00:00:00.000Z',endAt:'2026-10-11T23:59:59.999Z'},current:{monthlyUsageUsd:35.2607},limits:{maxMonthlyUsageUsd:35}}}));};
    const response=await (await refreshAccount({env,request:request()})).json();assert.equal(response.account.state,'BLOCKED');assert.equal(response.account.provider_usage_usd,35.2607);assert.equal(response.account.period_end,'2026-10-12T00:00:00.000Z');assert.equal(response.automaticEnable,false);assert.equal(response.manualReauthorizationRequired,false);assert.equal(response.headroomUsd,0);
    assert.ok(calls.every(c=>c.method==='GET'&&c.url.endsWith('/users/me/limits')));
+ }finally{globalThis.fetch=original;}
+});
+
+test('operator PrizePicks reauthorization verifies provider headroom and never enables ACTION',async()=>{
+ const {onRequestPost}=await import('../functions/api/prizepicks-reauthorize.js');
+ const {env,sql}=fixture({active:false});env.HARVEST_SECRET='secret';const original=globalThis.fetch,calls=[];
+ const start=new Date(Date.now()-86400000).toISOString(),end=new Date(Date.now()+30*86400000).toISOString();
+ try{
+  globalThis.fetch=async(url,init)=>{calls.push({url,method:init?.method||'GET'});return new Response(JSON.stringify({data:{monthlyUsageCycle:{startAt:start,endAt:end},current:{monthlyUsageUsd:2.4},limits:{maxMonthlyUsageUsd:35}}}));};
+  const request=()=>new Request('https://example.test/api/prizepicks-reauthorize',{method:'POST',headers:{'x-harvest-secret':'secret','content-type':'application/json'},body:JSON.stringify({operation:'reauthorize_prizepicks'})});
+  const response=await onRequestPost({env,request:request()});assert.equal(response.status,200);
+  assert.equal(sql.prepare("SELECT state FROM external_acquisition_policy WHERE source='prizepicks'").get().state,'ACTIVE');
+  assert.equal(sql.prepare("SELECT state FROM external_acquisition_policy WHERE source='action'").get().state,'BLOCKED');
+  assert.equal(sql.prepare("SELECT per_run_cap_usd FROM external_acquisition_policy WHERE source='prizepicks'").get().per_run_cap_usd,.70);
+  assert.ok(calls.every(c=>c.method==='GET'&&c.url.endsWith('/users/me/limits')));
  }finally{globalThis.fetch=original;}
 });

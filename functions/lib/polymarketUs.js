@@ -223,10 +223,12 @@ export async function fetchPolymarketUsLeagueEvents(slug,fetchImpl=fetch,{limit=
 
 /** Resolve display orientation only after the event passed the independent two-team/time gate. */
 export function polymarketUsCanonicalSide(offer,game,league){
- if(offer.marketFamily!=='moneyline'||!game)return null;
+ if(!['moneyline','spread'].includes(offer.marketFamily)||!game)return null;
  if(offer.sport==='soccer'&&/^(draw|tie)$/i.test(offer.side))return 'draw';
- const name=offer.raw?.providerSide?.team?.name||offer.side;
+ const original=String(offer.raw?.providerSide?.team?.name||offer.side||'');
+ const negated=/^not /i.test(original);
+ const name=original.replace(/^not /i,'').replace(/\s+[+-]\d+(?:\.\d+)?\s*$/,'').trim();
  const match=(a,b,abbr)=>offer.sport==='soccer'?soccerMarketTeamMatches(a,b,abbr,league):teamMatches(a,b,abbr);
- const home=match(name,game.home_name,game.home_abbr),away=match(name,game.away_name,game.away_abbr);
- return home!==away?(home?'home':'away'):null;
+ const home=match(name,game.home_name||game.home?.name,game.home_abbr||game.home?.abbr),away=match(name,game.away_name||game.away?.name,game.away_abbr||game.away?.abbr);
+ return home!==away?(home!==negated?'home':'away'):null;
 }

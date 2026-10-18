@@ -33,3 +33,12 @@ test("NFL unit tiles use transparent logos and concise winning team identity",as
  assert.match(css,/background:transparent!important/);
  assert.match(css,/drop-shadow/);
 });
+
+test('current passing EPA fills unit comparisons without inventing Next Gen tracking inputs',async()=>{
+ const {analyzeNflGameMatchup}=await import('../functions/lib/nflGameMatchup.js');
+ const game={nflFeatures:{home:{passEpa:.12,passEpaAllowed:.01,rushEpa:.05,rushEpaAllowed:.02},away:{passEpa:.03,passEpaAllowed:.08,rushEpa:.02,rushEpaAllowed:.03}}};
+ const x=analyzeNflGameMatchup(game,{ok:true,home:24,away:21,margin:3,total:45});
+ assert.equal(x.unitMatchups.length,4);assert.ok(x.unitMatchups.every(v=>v.available));
+ assert.ok(x.unitMatchups.every(v=>v.metric==='EPA per play'&&v.synopsis.includes('EPA/play')));
+ assert.equal(x.signals.find(v=>v.id==='pressure').available,false);
+});

@@ -60,13 +60,13 @@ test('whole-board retrieval reserves quota and archives immutable raw, tagged fo
  assert.deepEqual(await capturePinnoddsSnapshot(env,config),receipt);
  assert.equal(requests,1);
 });
-test('68 requests daily budget prevents a fifth 15-request full board',async()=>{
+test('90-request durable budget retains ten provider requests in reserve',async()=>{
  const env={PINNODDS_API_KEY:'key',R2_ARCHIVE:archive()};
- for(let i=0;i<4;i++)await reservePinnoddsRun(env,{
+ for(let i=0;i<6;i++)await reservePinnoddsRun(env,{
   runId:'full-'+i,now:new Date(+now+i*3600000),fetchImpl:accountFetch()
  });
  await assert.rejects(reservePinnoddsRun(env,{
-  runId:'full-extra',now:new Date(+now+4*3600000),fetchImpl:accountFetch()
+  runId:'full-extra',now:new Date(+now+6*3600000),fetchImpl:accountFetch()
  }),/DAILY_CAPTURE_BUDGET_EXHAUSTED/);
 });
 test('per-minute budget, account exhaustion and inactive subscription fail closed',async()=>{

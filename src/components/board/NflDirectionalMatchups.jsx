@@ -26,7 +26,7 @@ export function nflDirectionalEvidence(game,matchup){
   const explicit=String(s?.winner||s?.edgeSide||"").toLowerCase();
   const winner=s?.available===true?(explicit==="home"||explicit==="away"?explicit:value!=null&&Math.abs(value)>=.15?(value>0?"home":"away"):null):null;
   const status=s?.available!==true?"UNAVAILABLE":winner==null?"EVEN":"EDGE";
-  return {...p,winner,status,value:s?.available===true?value:null};
+  return {...p,winner,status,value:s?.available===true?value:null,synopsis:s?.synopsis||null};
  });
 }
 export default function NflDirectionalMatchups({game,matchup,away,home}){
@@ -40,6 +40,7 @@ export default function NflDirectionalMatchups({game,matchup,away,home}){
    return <div className={`nfl-unit-tile ${winner?"has-edge":"is-neutral"}`} key={r.id} style={winner?{"--unit-primary":primary,"--unit-secondary":secondary}:undefined}>
     <div className="nfl-unit-line"><div><TeamLogo team={teams[r.a]} size={32}/><strong>{r.aUnit}</strong></div><span>VS</span><div><TeamLogo team={teams[r.b]} size={32}/><strong>{r.bUnit}</strong></div></div>
     <div className="nfl-unit-result">{winner?<><TeamLogo team={winner} size={46}/><span className="nfl-unit-winner"><small>ADVANTAGE</small><strong>{winner.fullName||winner.name||winner.abbr}</strong></span></>:<strong>{r.status}</strong>}</div>
+    {r.synopsis?<p className="nfl-unit-synopsis">{r.synopsis}</p>:null}
     {r.value!=null?<small>MODEL ADJUSTMENT {r.value>0?"+":""}{r.value.toFixed(2)}</small>:<small>{r.status==="UNAVAILABLE"?"DIRECTIONAL DATA PENDING":"NO MATERIAL EDGE"}</small>}
    </div>;
   })}</div>

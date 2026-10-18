@@ -1,3 +1,4 @@
+import {chicagoDayBounds} from '../lib/chicagoDayBounds.js';
 import {retiredOddsCollectorResponse} from "../lib/activeOddsPolicy.js";
 import {querySharedApifyMonthToDateUsd} from '../lib/sharedApifyBudget.js';
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
@@ -253,7 +254,8 @@ export async function onRequestGet(context){
   const eventId=s(url.searchParams.get("eventId"));
   const date=s(url.searchParams.get("date"))||todayCt();
   const limit=Math.max(1,Math.min(1000,Number(url.searchParams.get("limit")||300)));
-  const where=["substr(start_time,1,10)=?"],bind=[date];
+  const bounds=chicagoDayBounds(date);
+  const where=["julianday(start_time)>=julianday(?) AND julianday(start_time)<julianday(?)"],bind=[bounds.start,bounds.end];
   if(sport){where.push("sport=?");bind.push(sport)}
   if(eventId){where.push("fbis_event_id=?");bind.push(eventId)}
   const clause="WHERE "+where.join(" AND ");
@@ -274,7 +276,7 @@ export async function onRequestGet(context){
 export async function onRequestPost(context){
   const auth=authorizeHarvest(context.request,context.env);
   if(!auth.ok) return json(unauthorizedBody(),401);
-  return json(retiredOddsCollectorResponse("PRIZEPICKS_APIFY"),410);
+
   if(!context.env?.DB) return json({ok:false,error:"database unavailable"},503);
   let body={};try{body=await context.request.json()}catch{}
   const operation=String(body.operation||"").toLowerCase();
@@ -313,6 +315,7 @@ export async function onRequestPost(context){
   }
   const rows=Array.isArray(body.rows)?body.rows:[];
   if(rows.length>500)return json({ok:false,error:'bounded_consumption_required',maxRows:200},413);
+  if(!body.acquisitionId)return json({ok:false,error:'immutable_capture_required'},409);
   let capturedSource=null,batchKey=null;
   if(body.acquisitionId){
     capturedSource=await context.env.DB.prepare("SELECT * FROM external_acquisitions WHERE id=? AND source='prizepicks' AND state='CAPTURED'").bind(body.acquisitionId).first();
