@@ -60,3 +60,13 @@ test('PinnOdds tennis match prices link only to verified source-backed singles f
  const wrong=normalizePinnoddsMarkets({events:[source]},{...opts,games:[{...canonical,start:"2026-10-16T00:00:00Z"}]});
  assert.equal(wrong.matchedRows,0);
 });
+
+test('exact legacy NFL schedule duplicates resolve to one official event; conflicting official IDs remain ambiguous',()=>{
+ const event={event_id:999,league_name:'NFL',starts:'2026-10-18T13:30:00Z',home:'Jacksonville Jaguars',away:'Houston Texans',periods:{num_0:{money_line:{home:1.9,away:1.9}}}};
+ const official={id:'401872996',sport:'nfl',start:event.starts,home_name:event.home,away_name:event.away};
+ const opts={sportId:5,feed:'prematch',capturedAt:'2026-10-18T06:00:00Z',games:[official,{...official,id:'nfl_jaguars_texans_2026-10-18_b1'}]};
+ const matched=normalizePinnoddsMarkets({events:[event]},opts);
+ assert.ok(matched.rows.length>0);assert.ok(matched.rows.every(r=>r.eventId===official.id));
+ const ambiguous=normalizePinnoddsMarkets({events:[event]},{...opts,games:[official,{...official,id:'401872995'}]});
+ assert.ok(ambiguous.rows.every(r=>r.eventId===null));
+});

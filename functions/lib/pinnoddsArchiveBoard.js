@@ -26,7 +26,7 @@ export async function loadPinnoddsR2BoardResearch(archive,{sport,games=[],now=ne
   checked++;
   if(result?.source!=='PinnOdds'||result?.schemaVersion!==1||
      result?.readOnly!==true||result?.canAuthorizeWager!==false||
-     result?.ingestionScope!=='IMMUTABLE_FULL_BOARD_FETCH_FBISEXISTING_PROJECTIONS_GAME_MARKETS'||
+     !['IMMUTABLE_FULL_BOARD_FETCH_FBISEXISTING_PROJECTIONS_GAME_MARKETS','VERIFIED_CANONICAL_GAME_MARKET_INVENTORY_8_DAYS'].includes(result?.ingestionScope)||
      result?.sportId!==sportId||result?.feed!==feed||!Array.isArray(result.rows))continue;
   const at=parse(result.collectedAt);
   if(at===null||at>current||current-at>24*3600000)continue;

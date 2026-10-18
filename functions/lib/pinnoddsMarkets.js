@@ -12,8 +12,18 @@ export function pinnoddsSport(sportId,league=''){
  if(sportId===6){const scope=classifyBaseballLeague(league);return scope==='MLB'?'mlb':scope==='NPB'?'npb':scope==='KBO'?'kbo':null;}
  return null;
 }
+/** Collapse only exact duplicate schedule rows onto the single official ESPN ID.
+ * Multiple numeric IDs remain ambiguous; no fuzzy identity or date remapping.
+ */
+export function canonicalPinnoddsFixtures(games=[]){
+ const groups=new Map();
+ for(const g of games){const key=JSON.stringify([g.sport,Date.parse(g.start),String(g.home_name||'').trim().toLowerCase(),String(g.away_name||'').trim().toLowerCase()]);
+  const rows=groups.get(key)||[];rows.push(g);groups.set(key,rows);}
+ return [...groups.values()].flatMap(rows=>{const official=rows.filter(g=>/^\d{6,}$/.test(String(g.id)));return official.length===1?official:rows;});
+}
 export function normalizePinnoddsMarkets(body,{sportId,feed,capturedAt,games=[],snapshotId,rawKey}={}){
  if(!Array.isArray(body?.events))throw Error('PINNODDS_EVENTS_CONTRACT_CHANGED');
+ games=canonicalPinnoddsFixtures(games);
  // The vendor's nested specials mode returns one parent row per match.
  // Expand in memory after immutable source archival so every prop/alt/special
  // retains its own ID, price, parent linkage and provenance.

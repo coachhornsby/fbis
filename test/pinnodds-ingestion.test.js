@@ -145,7 +145,7 @@ test('soccer prematch normalizes every market inside the verified fixture univer
 });
 
 
-test('fresh $0 full-board archive ingests only games with FBIS model snapshots',async()=>{
+test('fresh full-board archive retains canonical lines independently of forecast readiness',async()=>{
  const snapshotId='free-board-projection-scope',at='2026-10-16T12:00:00Z',start='2026-10-17T00:00:00Z';
  const events=[
   {event_id:101,league_name:'MLB',starts:start,home:'Home',away:'Away',periods:{num_0:{money_line:{home:1.8,away:2.1}}}},
@@ -167,12 +167,12 @@ test('fresh $0 full-board archive ingests only games with FBIS model snapshots',
   return prepareOrig(sql);
  };
  const result=await preparePinnoddsSnapshot(env,{snapshotId});
- assert.equal(result.normalizedRows,2);
- assert.equal(result.projectedEventCount,1);
- assert.equal(result.rejectedNoCanonicalOrModel,2);
+ assert.equal(result.normalizedRows,4);
+ assert.equal(result.canonicalEventCount,2);
+ assert.equal(result.rejectedNoCanonicalOrModel,0);
  assert.equal(result.providerCostUsd,0);
- assert.equal(result.ingestionScope,'IMMUTABLE_FULL_BOARD_FETCH_FBISEXISTING_PROJECTIONS_GAME_MARKETS');
+ assert.equal(result.ingestionScope,'VERIFIED_CANONICAL_GAME_MARKET_INVENTORY_8_DAYS');
  assert.equal((await env.ARCHIVE.get(receipt.rawKey)).json instanceof Function,true);
- assert.equal((await consumePinnoddsSnapshot(env,{snapshotId,batchIndex:0})).inserted,2);
+ assert.equal((await consumePinnoddsSnapshot(env,{snapshotId,batchIndex:0})).inserted,4);
  assert.equal((await reconcilePinnoddsSnapshot(env,{snapshotId})).reconciled,true);
 });
