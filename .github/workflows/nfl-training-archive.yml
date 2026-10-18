@@ -49,19 +49,31 @@ jobs:
             exit 1
           fi
 
-      - name: Wait for production API (training archive route)
+      - name: Wait for production SHA + training-archive route
         env:
           BASE: https://fbis-myz.pages.dev
         run: |
           set -euo pipefail
-          for i in $(seq 1 36); do
-            code="$(curl -sS -o /tmp/h.json -w "%{http_code}" "$BASE/api/health?_t=$i" || true)"
-            if [ "$code" = "200" ]; then
-              echo "health ok"
+          expected="$(echo "${GITHUB_SHA}" | tr 'A-F' 'a-f')"
+          for i in $(seq 1 48); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)-$i" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null | tr 'A-F' 'a-f')"
+            # Route probe: 403 unauthorized JSON means Pages Functions have the handler
+            # (405 / HTML means SPA fallback — deploy not ready).
+            probe="$(mktemp)"
+            pcode="$(curl -sS --max-time 20 -o "$probe" -w "%{http_code}" \
+              -X PUT -H "content-type: text/plain" --data "ping" \
+              "$BASE/api/nfl-training-archive?kind=object&sha256=0000000000000000000000000000000000000000000000000000000000000000" || true)"
+            pct="$(file -b --mime-type "$probe" 2>/dev/null || true)"
+            if [ "$code" = "200" ] && [ "$live" = "$expected" ] && [ "$pcode" != "405" ] && ! grep -qi '<!DOCTYPE html>' "$probe"; then
+              echo "production ready: sha=$live archive_probe_http=$pcode"
               exit 0
             fi
-            sleep 5
+            echo "waiting attempt=$i health=$code live=${live:-none} expected=$expected archive_probe=$pcode mime=${pct:-?}"
+            sleep 10
           done
+          echo "production did not converge to $GITHUB_SHA with archive route ready"
           exit 1
 
       - name: Upload CSV + manifest to R2 and verify retrieval

@@ -235,9 +235,10 @@ test("weekly research report never claims promotion authority", () => {
       blockedCount: 0,
     },
   });
-  assert.equal(report.schema, "nfl-weekly-research-report-v2");
+  assert.equal(report.schema, "nfl-weekly-research-report-v3");
   assert.equal(report.governance.automaticPromotion, false);
   assert.equal(report.governance.wagerAuthorityChanged, false);
+  assert.equal(report.governance.unauthorizedPromotionForbidden, true);
   assert.equal(report.invariants.researchMayNotChangeChampion, true);
   assert.ok(Array.isArray(report.hypotheses));
   assert.equal(report.systemHealth.publishedCurrentCheckpoint, 12);
@@ -247,7 +248,13 @@ test("weekly research report never claims promotion authority", () => {
   assert.equal(report.qbShadow.prospectiveValidationPassed, false);
   assert.equal(report.predictivePerformance.marginMae, null);
   assert.ok(report.featureCoverage.stillMissing.includes("specialTeams"));
+  assert.equal(report.featureImpact.accuracyEvidence.status, "NOT_MEASURED");
+  assert.equal(report.featureImpact.scoreContribution.altersDisplayedResearchScoreWhenPresent, true);
+  assert.equal(report.scoreAuditStandard.arithmeticReconciliation, "ARITHMETICALLY_RECONCILED_INPUTS_ATTACHED");
+  assert.equal(report.challengerComparePinned.n, 2176);
+  assert.equal(report.challengerComparePinned.promotionEvidencePass, false);
   assert.ok(report.hypotheses.some((h) => h.id === "H-QB-AVAILABILITY-SHADOW" && h.status === "SHADOW_ATTACHED"));
+  assert.ok(report.hypotheses.some((h) => h.id === "H-FEATURE-ACCURACY-UNMEASURED"));
   assert.ok(!report.hypotheses.some((h) => h.id === "H-PUBLICATION-COVERAGE"));
 });
 

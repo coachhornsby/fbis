@@ -374,6 +374,51 @@ export async function recordNflPublicationEvent(env, row = {}) {
   return { ok: true };
 }
 
+/**
+ * Record MISSING for past checkpoint windows that have no SUCCESS freeze.
+ * Never invents projection rows — events only. Idempotent per run.
+ */
+export async function recordMissingPastCheckpoints(env, games = [], publications = [], opts = {}) {
+  const nowMs = opts.nowMs || Date.now();
+  const gameDate = opts.gameDate || null;
+  const codeSha = opts.codeSha || null;
+  const runId = opts.runId || `nfl-missing-${nowMs}`;
+  const byEvent = new Map();
+  for (const p of publications) {
+    const id = String(p.eventId || "");
+    if (!byEvent.has(id)) byEvent.set(id, new Set());
+    if (p.status === NFL_PUBLICATION_STATUS.SUCCESS || p.scoreReconciled != null || p.checkpoint) {
+      // Treat any stored publication row as evidence the window was frozen.
+      byEvent.get(id).add(p.checkpoint);
+    }
+  }
+  const recorded = [];
+  for (const game of games || []) {
+    if (game.sport && game.sport !== "nfl") continue;
+    const eventId = String(game.id || "");
+    const present = byEvent.get(eventId) || new Set();
+    const past = expectedPastCheckpoints(game.start, nowMs);
+    for (const checkpoint of past) {
+      if (present.has(checkpoint)) continue;
+      await recordNflPublicationEvent(env, {
+        eventId,
+        gameDate,
+        checkpoint,
+        status: NFL_PUBLICATION_STATUS.MISSING,
+        detail: JSON.stringify({
+          policy: "NEVER_RETROACTIVELY_INVENT",
+          reason: "past-window-elapsed-without-authentic-pregame-freeze",
+          hoursToStart: hoursToKickoff(game.start, nowMs),
+        }),
+        codeSha,
+        runId,
+      }).catch(() => {});
+      recorded.push({ eventId, checkpoint, status: NFL_PUBLICATION_STATUS.MISSING });
+    }
+  }
+  return { ok: true, recorded, count: recorded.length, policy: "NEVER_RETROACTIVELY_INVENT" };
+}
+
 export async function listNflResearchPublications(env, { date = null, eventId = null, limit = 200 } = {}) {
   if (!env?.DB?.prepare) return [];
   const safeLimit = Math.max(1, Math.min(500, Number(limit) || 200));
@@ -455,6 +500,11 @@ export function buildNflPublicationCoverageReport(games = [], publications = [],
         payloadHash: p.payloadHash,
       })),
       missingCheckpoints: missing,
+      missingCheckpointDetails: missing.map((cp) => ({
+        checkpoint: cp,
+        status: NFL_PUBLICATION_STATUS.MISSING,
+        policy: "NEVER_RETROACTIVELY_INVENT",
+      })),
       hasCurrentFreeze: current.ok ? present.has(current.checkpoint) : false,
       projectionOk: Boolean(g.nflProShadow?.ok),
     };
@@ -463,7 +513,7 @@ export function buildNflPublicationCoverageReport(games = [], publications = [],
   const eligible = rows.filter((r) => r.currentEligible);
   const frozenNow = eligible.filter((r) => r.hasCurrentFreeze);
   return {
-    schema: "nfl-publication-coverage-v1",
+    schema: "nfl-publication-coverage-v2",
     generatedAt: new Date(nowMs).toISOString(),
     games: rows.length,
     currentEligible: eligible.length,
@@ -471,6 +521,8 @@ export function buildNflPublicationCoverageReport(games = [], publications = [],
     currentCoverageShare: eligible.length ? frozenNow.length / eligible.length : null,
     missingCheckpointCount: rows.reduce((n, r) => n + r.missingCheckpoints.length, 0),
     blockedCount: rows.filter((r) => !r.projectionOk && hoursToKickoff(r.start, nowMs) >= 0.25).length,
+    missingPolicy: "NEVER_RETROACTIVELY_INVENT",
+    note: "missingCheckpoints are past windows without an authentic freeze; the scheduler publishes only the current eligible checkpoint.",
     rows,
   };
 }
@@ -564,6 +616,12 @@ export async function publishNflPregameSlate(env, slate = {}, opts = {}) {
   }
 
   const existing = await listNflResearchPublications(env, { date: gameDate, limit: 500 }).catch(() => []);
+  const missingLedger = await recordMissingPastCheckpoints(env, games, existing, {
+    nowMs: opts.nowMs || Date.now(),
+    gameDate,
+    codeSha,
+    runId,
+  }).catch(() => ({ ok: false, recorded: [], count: 0 }));
   const coverage = buildNflPublicationCoverageReport(games, existing, opts.nowMs || Date.now());
 
   return {
@@ -573,10 +631,12 @@ export async function publishNflPregameSlate(env, slate = {}, opts = {}) {
     codeSha,
     publishedBy,
     results,
+    missingLedger,
     summary: {
       attempted: results.length,
       success: results.filter((r) => r.status === NFL_PUBLICATION_STATUS.SUCCESS).length,
       already: results.filter((r) => r.status === NFL_PUBLICATION_STATUS.ALREADY).length,
+      missingRecorded: missingLedger?.count || 0,
       blocked: results.filter((r) => r.status === NFL_PUBLICATION_STATUS.BLOCKED).length,
       skippedStarted: results.filter((r) => r.status === NFL_PUBLICATION_STATUS.SKIPPED_STARTED).length,
       conflicts: results.filter((r) => r.status === NFL_PUBLICATION_STATUS.CONFLICT).length,
