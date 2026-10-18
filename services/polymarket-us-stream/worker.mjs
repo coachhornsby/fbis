@@ -247,12 +247,47 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
       ) SELECT * FROM balanced
        ORDER BY sport,sport_rank`)
        .bind(rosterSince,from,until,freshSince).all();
-    const roster=(q.results||[]).map(row=>{let opposite=row.opposite;try{opposite=JSON.parse(row.opposite_json||'null')||opposite;}catch{}return {...row,opposite};});
+    let roster=(q.results||[]).map(row=>{let opposite=row.opposite;try{opposite=JSON.parse(row.opposite_json||'null')||opposite;}catch{}return {...row,opposite};});
+    // Tennis REST inventory may live on MARKET_HISTORY_DB when primary is full.
+    // Merge verified tennis contracts so sport-pinned sockets can still open.
+    let historyTennis=0;
+    if(this.env.MARKET_HISTORY_DB?.prepare&&!roster.some(r=>r.sport==="tennis")){
+      try{
+        const hist=await this.env.MARKET_HISTORY_DB.prepare(`SELECT sport,league,canonical_event_id,provider_event_id,
+          event_start_time,home_team,away_team,market_family,side,line,period,source_market_id,source_outcome_id,collected_at,
+          json_extract(raw_payload_json,'$.opposite') opposite_json,
+          json_extract(raw_payload_json,'$.canonicalSide') canonical_side,
+          json_extract(raw_payload_json,'$.providerMarket.feeCoefficient') fee_coefficient,
+          json_object('marketState',json_extract(raw_payload_json,'$.marketState')) raw_payload_json
+          FROM normalized_market_observations
+          WHERE source='Polymarket US' AND sport='tennis' AND source_market_id IS NOT NULL
+            AND canonical_event_id IS NOT NULL AND market_family IN ('moneyline','spread','total')
+            AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.contractLong')=1
+            AND collected_at>=?1 AND event_start_time BETWEEN ?2 AND ?3
+          ORDER BY collected_at DESC LIMIT 500`)
+          .bind(rosterSince,from,until).all();
+        const ids=[...new Set((hist.results||[]).map(r=>r.canonical_event_id).filter(Boolean))];
+        if(ids.length){
+          const placeholders=ids.map(()=>"?").join(",");
+          const verified=await this.env.DB.prepare(`SELECT DISTINCT canonical_event_id FROM tennis_v2_research_decisions
+            WHERE canonical_event_id IN (${placeholders}) AND pure_p1 BETWEEN 0 AND 1
+              AND julianday(decision_timestamp)<=julianday('now')`).bind(...ids).all();
+          const ok=new Set((verified.results||[]).map(r=>r.canonical_event_id));
+          const extra=(hist.results||[]).filter(r=>ok.has(r.canonical_event_id)).map(row=>{
+            let opposite=row.opposite;try{opposite=JSON.parse(row.opposite_json||"null")||opposite;}catch{}
+            return {...row,opposite};
+          });
+          historyTennis=extra.length;
+          if(extra.length)roster=[...roster,...extra];
+        }
+      }catch{/* history unavailable must not block primary sports */}
+    }
     const plan=manageSubscriptionCapacity(roster,this.capacityPlan());
     this.lastCandidateDiagnostics={at:new Date().toISOString(),
       selected:plan.assignedCount,eligibleCount:plan.eligibleCount,
       uncoveredCount:plan.uncoveredCount,returnedRows:(q.results||[]).length,
-      bySport:plan.bySport,capacity:plan.capacity,source:'primary-d1',
+      historyTennisRows:historyTennis,
+      bySport:plan.bySport,capacity:plan.capacity,source:historyTennis?'primary-d1+history-tennis':'primary-d1',
       partitions:plan.partitions.map(p=>({id:p.id,sport:p.sport,size:p.size})),
       rosterSince,freshSince,
       reason:plan.assignedCount?'ELIGIBLE_CONTRACTS':'NO_ELIGIBLE_CONTRACTS'};

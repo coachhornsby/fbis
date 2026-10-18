@@ -28,6 +28,7 @@ import { tennisCardContext } from "./tennisPlayerBank.js";
 import { approvedTennisPortraits } from "./tennisPortraits.js";
 import { buildIndependentTennisCards, tennisFixtureOffers } from "./tennisIntelligenceBank.js";
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "./polymarketBoard.js";
+import { hydrateTennisBoardMarkets } from "./tennisBoardMarkets.js";
 import {
   resolveCanonicalMarket,
   marketAvailabilitySummary,
@@ -1138,9 +1139,16 @@ export async function buildTodayBoard(
       const hydratedGames=selectedDateGames.map(g=>{
         const clean=pinnoddsOnlySlateMarket(g);
         const evidence=pinnodds.byGame?.[String(g.id)]||null;
-        return {...clean,marketLineHistory:[],
+        let next={...clean,marketLineHistory:[],
           pinnoddsResearch:evidence,
           pinnoddsEvidenceState:evidence?.status||pinnodds.reason||"NO_PINNODDS_OBSERVATIONS"};
+        // Tennis research snapshots are not legacy soft-book odds. Preserve them,
+        // then overlay paired PinnOdds so the card can show books beside FBIS.
+        if(sport==="tennis"){
+          next={...next,market:g.market||null,tennisProjection:g.tennisProjection||null};
+          next=hydrateTennisBoardMarkets(next,evidence);
+        }
+        return next;
       });
       const recSlate = sport === "tennis"
         ? {
