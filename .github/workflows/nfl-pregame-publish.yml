@@ -1,4 +1,5 @@
 name: NFL pregame research publication
+# ops: checkpoint roll-forward republish
 
 on:
   schedule:
