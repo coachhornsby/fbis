@@ -296,6 +296,9 @@ export function toBoardGame(game, sport, now = Date.now()) {
     qualificationBlocked: Boolean(game.qualificationBlocked || (game.cfb && !game.cfb.bettingAllowed) || (game.sport === "nfl" && game.projectionKind !== "FBIS")),
     challengers: game.challengers || null,
     championModel: game.championModel || null,
+    displayedResearchModel: sport === "nfl" ? (game.displayedResearchModel || null) : null,
+    displayedResearchVersion: sport === "nfl" ? (game.displayedResearchVersion || null) : null,
+    productionChampionUnchanged: sport === "nfl" ? (game.productionChampionUnchanged ?? null) : null,
     // Preserve source-backed matchup evidence and NFL-PRO coverage on the public board DTO.
     // The slate engine builds these before TODAY normalization; dropping them here made the
     // UI falsely report \"Awaiting model factors\" even when NFL-PRO-v1 had produced them.
@@ -304,6 +307,10 @@ export function toBoardGame(game, sport, now = Date.now()) {
     nflFeatures: sport === "nfl" ? game.nflFeatures || null : null,
     nflProShadow: sport === "nfl" && game.nflProShadow ? game.nflProShadow : null,
     nflGameMatchup: sport === "nfl" && game.nflGameMatchup ? game.nflGameMatchup : null,
+    nflQbPersonnelShadow: sport === "nfl" && game.nflQbPersonnelShadow ? game.nflQbPersonnelShadow : null,
+    nflFrozenAudit: sport === "nfl" && game.nflFrozenAudit ? game.nflFrozenAudit : null,
+    scoreReconciled: sport === "nfl" ? Boolean(game.scoreReconciled) : null,
+    scoreReconstructability: sport === "nfl" ? (game.scoreReconstructability || null) : null,
     cfbUnitAudit: sport === "cfb" ? (game.cfbUnitAudit || cfbUnitFeatureAudit(game)) : null,
     nflWagerDecision: sport === "nfl" && game.nflWagerDecision ? game.nflWagerDecision : null,
     nhlProV2: sport === "nhl" && game.nhlProV2 ? game.nhlProV2 : null,

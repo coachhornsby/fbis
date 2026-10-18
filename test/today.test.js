@@ -174,6 +174,13 @@ describe("TODAY cache-only and MY BET markers", () => {
           projectionKind: "FBIS",
           projectionMaturity: "RESEARCH",
           nflProShadow: { ok: true, coverage: { share: 0.64 }, decomposition: { home: {}, away: {} } },
+          nflQbPersonnelShadow: { ok: true, modelId: "NFL-QB-PERSONNEL-OVERLAY-v1", gate: { fired: false }, canQualify: false },
+          nflFrozenAudit: { ok: true, schema: "nfl-frozen-score-audit-v1", productionChampion: "NFL-PRO-v1.1", canQualify: false },
+          scoreReconciled: true,
+          scoreReconstructability: "ARITHMETICALLY_RECONCILED_INPUTS_ATTACHED",
+          championModel: "NFL-PRO-v1.1",
+          displayedResearchModel: "NFL-PRO-v1",
+          displayedResearchVersion: "v1.2",
           matchupFactors: [{ id: "pass", label: "Pass offense vs pass defense", edge: "DAL", value: 1.2 }],
         }],
         parlay: { cached: true, skipped: true },
@@ -183,6 +190,11 @@ describe("TODAY cache-only and MY BET markers", () => {
     assert.equal(board.games[0].matchupFactors.length, 1);
     assert.equal(board.games[0].matchupFactors[0].id, "pass");
     assert.equal(board.games[0].nflProShadow.coverage.share, 0.64);
+    assert.equal(board.games[0].championModel, "NFL-PRO-v1.1");
+    assert.equal(board.games[0].displayedResearchVersion, "v1.2");
+    assert.equal(board.games[0].nflFrozenAudit.ok, true);
+    assert.equal(board.games[0].nflQbPersonnelShadow.ok, true);
+    assert.equal(board.games[0].scoreReconciled, true);
   });
 
   it("keeps TODAY population on the selected Chicago date even when provider returns a weekly slate", async () => {
