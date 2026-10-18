@@ -102,6 +102,14 @@ export function buildCfbProjectionReliability(game = {}, projection = null) {
           note: "Projection exceeds current-season PPA-implied offense by >5 points; prior and/or fitted intercept may dominate",
         }
       : null,
+    presentButUnusedByChampion: [
+      ...new Set([
+        ...(proj.provenance?.scoring?.home?.presentButUnusedByChampion || []),
+        ...(proj.provenance?.scoring?.away?.presentButUnusedByChampion || []),
+        ...(proj.featureContribution?.doNotRepresentAsInfluencing || []),
+      ]),
+    ],
+    fittedNonzeroFeatures: ["priorOff", "priorDef", "ppaOff", "ppaDef", "gamesPlayed", "hfa"],
     provisional,
   };
 }

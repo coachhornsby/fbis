@@ -303,11 +303,11 @@ test("weekly operating report and existing-vs-required schedule export", () => {
 });
 
 test("migration 0111 registers data-ops tables", async () => {
-  const sql = await readFile(new URL("../migrations/0111_cfb_data_ops.sql", import.meta.url), "utf8");
+  const sql = await readFile(new URL("../migrations/0112_cfb_data_ops.sql", import.meta.url), "utf8");
   assert.match(sql, /cfb_collection_manifests/);
   assert.match(sql, /cfb_core_weekly_archive/);
   assert.match(sql, /cfb_feature_lineage_receipts/);
-  assert.match(sql, /schema_migrations[\s\S]*0111_cfb_data_ops/);
+  assert.match(sql, /schema_migrations[\s\S]*0112_cfb_data_ops/);
   const ext = await readFile(new URL("../schema.extensions.sql", import.meta.url), "utf8");
   assert.match(ext, /cfb_core_weekly_archive/);
 });

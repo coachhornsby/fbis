@@ -14,6 +14,7 @@ import CFB_FBIS_V2_ARTIFACT from "../../data/models/cfb-fbis-v2.js";
 import CFB_FBIS_V2_FITTED_AA from "../../data/models/cfb-fbis-v2-fitted-aa.js";
 import { buildCfbProjectionReliability } from "./cfbProjectionReliability.js";
 import { buildScoringProvenance } from "./cfbSourceModelMatrix.js";
+import { instrumentProjectionContribution } from "./cfbFeatureContract.js";
 
 export const CFB_FBIS_V2_ID = "CFB-FBIS-v2";
 export const CFB_FBIS_V2_PRODUCTION = CFB_FBIS_V2_FITTED_AA;
@@ -564,6 +565,8 @@ export function projectCfbFbisV2(game = {}, { ablation = "K", coefficients = DEF
     fcs: { home: homeFcs, away: awayFcs },
     qb: { home: homeQb, away: awayQb },
   };
+
+  projection.featureContribution = instrumentProjectionContribution(projection, game);
 
   return {
     ...projection,

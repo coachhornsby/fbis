@@ -76,6 +76,15 @@ export default function CfbProjectionReliability({ reliability, game }) {
             <li>
               Model: {block.projectionModelVersion} · {block.modelConfidence}
             </li>
+            <li>
+              Champion influence: prior + overall PPA + games played + HFA only — advanced rates/CORE
+              on this card do not move fitted scores
+            </li>
+            {(block.presentButUnusedByChampion || []).length ? (
+              <li>
+                Present but unused by champion: {(block.presentButUnusedByChampion || []).slice(0, 6).join(", ")}
+              </li>
+            ) : null}
           </ul>
           {block.exceedsCurrentOffenseProfile ? (
             <p className="cfb-proj-reliability-warn" role="status">

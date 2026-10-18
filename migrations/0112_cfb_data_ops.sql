@@ -1,4 +1,4 @@
--- 0111: CFB SDV/CFBD data operations — collection manifests, CORE weekly PIT archive,
+-- 0112: CFB SDV/CFBD data operations — collection manifests, CORE weekly PIT archive,
 -- canonical feature lineage receipts. Research governance only; no champion coefficient changes.
 
 CREATE TABLE IF NOT EXISTS cfb_collection_manifests (
@@ -85,4 +85,4 @@ CREATE INDEX IF NOT EXISTS idx_cfb_lineage_team_season
   ON cfb_feature_lineage_receipts(team_id, season, week);
 
 INSERT OR IGNORE INTO schema_migrations (id, applied_at)
-VALUES ('0111_cfb_data_ops', datetime('now'));
+VALUES ('0112_cfb_data_ops', datetime('now'));

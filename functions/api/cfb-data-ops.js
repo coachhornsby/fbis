@@ -20,6 +20,18 @@ import {
 import { summarizeRetentionPolicy } from "../lib/cfbRetentionPolicy.js";
 import { evaluateCoreResearchReadiness, CORE_ARCHIVE_VERSION } from "../lib/cfbCoreArchive.js";
 import { LINEAGE_VERSION } from "../lib/cfbCanonicalLineage.js";
+import { reconcileCollectionHealth } from "../lib/cfbCollectionAlerts.js";
+import { buildFeatureContractReport } from "../lib/cfbFeatureContract.js";
+import { oct17UniverseStatus, reconcileWinnerAccuracyClaim } from "../lib/cfbOct17Reconciliation.js";
+import {
+  summarizeTier3Entitlements,
+  searchTier3Entitlements,
+  buildFeatureLevelCatalog,
+} from "../lib/cfbTier3Entitlements.js";
+import {
+  researchModelFeaturePlan,
+  graphqlShadowPlan,
+} from "../lib/cfbAdvancedResearchFeatures.js";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -175,6 +187,13 @@ export async function onRequestGet(context) {
   const matrix = q ? searchUtilizationMatrix(q) : buildSourceModelMatrix();
   const operatingReport = buildWeeklyOperatingReport({ season, week, manifest });
   const health = await pipelineHealth(env, season, week);
+  const alerts = reconcileCollectionHealth({
+    season,
+    week,
+    evidenceByDataset,
+    allowanceBlocked,
+    d1FeatureTeamCount: null,
+  });
 
   const payload = {
     ok: true,
@@ -214,19 +233,38 @@ export async function onRequestGet(context) {
       total: health.length,
     },
     weeklyOperatingReport: operatingReport,
+    collectionAlerts: alerts,
+    featureContract: buildFeatureContractReport(),
+    oct17: {
+      universe: oct17UniverseStatus({ closeSnapshots: 45, gradedFinals: 41 }),
+      winnerAccuracyExample: reconcileWinnerAccuracyClaim({
+        correctWinners: 24,
+        eligibleN: 42,
+        reportedPct: 57.1,
+      }),
+    },
     scoringProvenanceExample: buildScoringProvenance({
       homeFeatures: { ppaOff: null, ppaDef: null, gamesPlayed: null },
       awayFeatures: { ppaOff: null, ppaDef: null, gamesPlayed: null },
       season,
       throughWeek: Math.max(0, week - 1),
     }),
+    readinessApi: "/api/cfb-tuesday-readiness?date=2026-10-20",
+    tier3: {
+      summary: summarizeTier3Entitlements(),
+      entitlements: q ? searchTier3Entitlements(q) : searchTier3Entitlements(""),
+      featureLevels: buildFeatureLevelCatalog(),
+      researchModels: researchModelFeaturePlan(),
+      graphqlShadow: graphqlShadowPlan(),
+    },
   };
 
   if (section === "sdv") return json({ ok: true, sdv: payload.sdv, collection: payload.collection });
-  if (section === "cfbd") return json({ ok: true, cfbd: payload.cfbd, collection: payload.collection });
+  if (section === "cfbd") return json({ ok: true, cfbd: payload.cfbd, collection: payload.collection, tier3: payload.tier3 });
   if (section === "pipeline") return json({ ok: true, pipelineHealth: payload.pipelineHealth, core: payload.core });
   if (section === "matrix") return json({ ok: true, utilizationMatrix: payload.utilizationMatrix });
   if (section === "report") return json({ ok: true, weeklyOperatingReport: payload.weeklyOperatingReport });
+  if (section === "tier3") return json({ ok: true, tier3: payload.tier3 });
 
   return json(payload);
 }
