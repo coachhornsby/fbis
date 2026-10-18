@@ -1,0 +1,61 @@
+name: NFL pregame research publication
+
+on:
+  schedule:
+    # Roughly every 3 hours so T48/T24/T6/FINAL windows are hittable without inventing past freezes.
+    - cron: "20 */3 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Optional Chicago board date YYYY-MM-DD"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nflPregamePublication.js"
+      - "functions/api/nfl-pregame-publish.js"
+      - "scripts/nfl-pregame-publish-slate.mjs"
+      - "migrations/0114_nfl_research_publications.sql"
+      - ".github/workflows/nfl-pregame-publish.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  migrate-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Apply NFL research publication migration (idempotent)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler d1 execute fbis --remote --file=migrations/0114_nfl_research_publications.sql
+
+      - name: Publish current eligible NFL research checkpoints
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          NFL_PUBLISH_DATE: ${{ github.event.inputs.date || '' }}
+          GITHUB_SHA: ${{ github.sha }}
+          ARTIFACT_DIR: artifacts/nfl-pregame-publish
+        run: node scripts/nfl-pregame-publish-slate.mjs
+
+      - name: Upload publication evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-pregame-publish-${{ github.run_id }}
+          path: artifacts/nfl-pregame-publish
+          if-no-files-found: warn
+          retention-days: 14

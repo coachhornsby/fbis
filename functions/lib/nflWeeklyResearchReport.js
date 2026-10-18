@@ -22,6 +22,7 @@ export function buildNflWeeklyResearchReport({
   slate = null,
   researchStatus = null,
   publishedRows = [],
+  publicationCoverage = null,
   profileSummary = null,
   acquisitionHealth = null,
   economicSummary = null,
@@ -74,7 +75,22 @@ export function buildNflWeeklyResearchReport({
       autoPromote: false,
     });
   }
-  if ((publishedRows?.length || 0) < games.length) {
+  const currentCoverage = finite(publicationCoverage?.currentCoverageShare);
+  if (currentCoverage != null && currentCoverage < 1) {
+    hypotheses.push({
+      id: "H-PUBLICATION-COVERAGE",
+      claim: "Not every currently eligible NFL game has an immutable research publication for the active checkpoint.",
+      evidence: {
+        legacyPublishedProjections: publishedRows?.length || 0,
+        currentEligible: publicationCoverage?.currentEligible ?? null,
+        currentFrozen: publicationCoverage?.currentFrozen ?? null,
+        currentCoverageShare: currentCoverage,
+        missingCheckpointCount: publicationCoverage?.missingCheckpointCount ?? null,
+      },
+      status: "DEGRADED",
+      autoPromote: false,
+    });
+  } else if (!publicationCoverage && (publishedRows?.length || 0) < games.length) {
     hypotheses.push({
       id: "H-PUBLICATION-COVERAGE",
       claim: "Not every scheduled game has an immutable published_projections freeze for the current slate date.",
@@ -109,8 +125,17 @@ export function buildNflWeeklyResearchReport({
       missingFeatureCounts,
     },
     publication: {
-      immutableRows: publishedRows?.length || 0,
-      coverageShare: games.length ? (publishedRows?.length || 0) / games.length : null,
+      legacyPublishedProjections: publishedRows?.length || 0,
+      legacyCoverageShare: games.length ? (publishedRows?.length || 0) / games.length : null,
+      researchCheckpoints: publicationCoverage
+        ? {
+            currentEligible: publicationCoverage.currentEligible,
+            currentFrozen: publicationCoverage.currentFrozen,
+            currentCoverageShare: publicationCoverage.currentCoverageShare,
+            missingCheckpointCount: publicationCoverage.missingCheckpointCount,
+            blockedCount: publicationCoverage.blockedCount,
+          }
+        : null,
     },
     dataHealth: {
       profiles: profileSummary || null,

@@ -2,6 +2,10 @@ import { buildSlate, resolveSlateDate, todayCT } from "../lib/slateEngine.js";
 import { buildNflWeeklyResearchReport } from "../lib/nflWeeklyResearchReport.js";
 import { listPublishedProjections } from "../lib/publishedProjectionStore.js";
 import { summarizeHistoricalScoreCases } from "../lib/nflHistoricalScoreCases.js";
+import {
+  listNflResearchPublications,
+  buildNflPublicationCoverageReport,
+} from "../lib/nflPregamePublication.js";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -34,9 +38,21 @@ export async function onRequestGet(context) {
       limit: 100,
     }).catch(() => []);
 
+    let publicationCoverage = null;
+    try {
+      const researchPubs = await listNflResearchPublications(context.env, {
+        date: resolved.date,
+        limit: 500,
+      });
+      publicationCoverage = buildNflPublicationCoverageReport(slate.games || [], researchPubs);
+    } catch {
+      publicationCoverage = null;
+    }
+
     const report = buildNflWeeklyResearchReport({
       slate,
       publishedRows,
+      publicationCoverage,
       codeSha: context.env.CF_PAGES_COMMIT_SHA || null,
     });
 
