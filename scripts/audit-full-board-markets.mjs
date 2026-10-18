@@ -26,7 +26,7 @@ for(const source of status.results.filter(x=>x.kind==='board'&&x.feed==='prematc
  const x=await r.json();if(!r.ok||!x.ok)throw Error('ARCHIVE_INSPECTION_FAILED');
  await writeFile('artifacts/pinnodds-inventory-'+source.sportId+'.json',JSON.stringify(x,null,2));
  console.log(JSON.stringify({sportId:source.sportId,events:x.events.length,collectedAt:x.collectedAt,paidProviderCalls:0}));
- console.log(JSON.stringify({sportId:source.sportId,coverageTargets:x.events.filter(e=>/havre|auxer|rennais|paris|reign|chicago|joint|preston|stoiana|ishii|tagger|samsonova|kayla|jones/i.test(JSON.stringify(e))).slice(0,60)}));
+ console.log(JSON.stringify({sportId:source.sportId,coverageTargets:x.events.filter(e=>/havre|auxer|rennais|paris|reign|chicago|joint|preston|stoiana|ishii|tagger|samsonova|kayla|jones|mcnally|kraus/i.test(JSON.stringify(e))).slice(0,60)}));
 }
 const board=await get('/api/today');
 const coverage=board.games.map(g=>({id:g.id,sport:g.sport,start:g.start,away:g.away?.name,home:g.home?.name,pinnodds:g.pinnoddsResearch?.pairedMarkets||[],polymarket:(g.market?.venueOffers||[]).filter(o=>o.source?.startsWith('Polymarket')).map(o=>({family:o.marketFamily,side:o.side,period:o.period,collectedAt:o.collectedAt}))}));
