@@ -85,7 +85,7 @@ if (/^[0-9a-f]{40}$/.test(EXPECTED_SHA)) {
     },
   });
   fs.writeFileSync(path.join(OUT, "nfl-pregame-deploy-wait.json"), JSON.stringify(shaWait, null, 2));
-  if (shaWait?.outcome !== "MATCH") {
+  if (shaWait?.outcome !== "match") {
     console.log(JSON.stringify({ phase: "deploy-wait", outcome: shaWait?.outcome, reason: shaWait?.reason }));
   }
 }
