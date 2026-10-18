@@ -63,3 +63,20 @@ test('verified league aliases resolve into canonical card sides without crossing
  assert.equal(polymarketUsCanonicalSide(o,g,'ger.1'),'home');assert.equal(polymarketUsCanonicalSide(o,g,'esp.1'),null);
  assert.equal(polymarketUsCanonicalSide({...o,side:'Draw'},g,'ger.1'),'draw');
 });
+
+test('game-line counter remains authoritative when separately managed prop counters lag',async()=>{
+ const e=environment();forecast(e);const event={id:'ev',startTime:start,homeTeam:{name:'Denver Broncos'},awayTeam:{name:'Seattle Seahawks'},markets:[]};
+ await bootstrapPolymarket(e,{operation:'page',sport:'nfl',slug:'nfl',offset:0,receiptId:'scoped-parent'},{now,fetchImpl:async()=>Response.json({events:[event]})});
+ const response={event:{...event,marketCounts:{numMarkets:1,numSpreadsAndTotalsMarkets:1},markets:[{slug:'one-spread',sportsMarketTypeV2:'SPORTS_MARKET_TYPE_SPREAD',marketSides:[{id:'yes',long:true,description:'Denver Broncos',price:'.5'}]},{sportsMarketTypeV2:'SPORTS_MARKET_TYPE_PROP'}]}};
+ const page=await bootstrapPolymarket(e,{operation:'markets',parentReceiptId:'scoped-parent',eventIndex:0,offset:0,receiptId:'scoped-child'},{now,fetchImpl:async()=>Response.json(response)});assert.equal(page.contracts,1);
+ response.event.marketCounts.numSpreadsAndTotalsMarkets=2;e.stored.delete('market-sources/polymarket-us/bootstrap/scoped-parent-event-0-detail.json');
+ await assert.rejects(()=>bootstrapPolymarket(e,{operation:'markets',parentReceiptId:'scoped-parent',eventIndex:0,offset:0,receiptId:'scoped-child-2'},{now,fetchImpl:async()=>Response.json(response)}));
+});
+
+test('resume reuses only recent incomplete runs, not completed available inventory or old runs',async()=>{
+ const e=environment();forecast(e);const key='market-sources/polymarket-us/coverage/latest.json';
+ const report={run:'bootstrap-prior',status:'GAPS',checkedAt:'2026-10-18T05:55:00Z',errors:[{reason:'INTERRUPTED'}]};e.stored.set(key,JSON.stringify(report));
+ const resumed=await bootstrapPolymarket(e,{operation:'resume'},{now});assert.equal(resumed.run,report.run);
+ e.stored.set(key,JSON.stringify({...report,errors:[],missingEvents:[{id:'unlisted'}]}));assert.equal((await bootstrapPolymarket(e,{operation:'resume'},{now})).run,null);
+ e.stored.set(key,JSON.stringify({...report,runStartedAt:'2026-10-18T04:00:00Z'}));assert.equal((await bootstrapPolymarket(e,{operation:'resume'},{now})).run,null);
+});

@@ -125,7 +125,7 @@ test("stream health requires a connected socket and a recent message",()=>{
 });
 test("heartbeat and subscription errors remain control frames",()=>{
  assert.deepEqual(parseStreamControl('{"heartbeat":{}}'),{type:"heartbeat"});
- assert.deepEqual(parseStreamControl({error:"failure",request_id:"abc"}),{type:"error"});
+ assert.deepEqual(parseStreamControl({error:"failure",request_id:"abc"}),{type:"error",message:"failure",code:"",requestId:"abc"});
  assert.equal(parseStreamControl('{'),null);
  assert.equal(parseStreamControl({marketDataLite:{marketSlug:"nhl-home"}}),null);
 });
