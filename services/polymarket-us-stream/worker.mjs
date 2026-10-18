@@ -174,7 +174,10 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
         CASE WHEN sport='soccer' AND json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time_winner%' THEN 'moneyline' ELSE market_family END market_family,
         CASE WHEN sport='soccer' AND json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time_winner%' THEN COALESCE(json_extract(raw_payload_json,'$.providerSide.team.name'),REPLACE(json_extract(raw_payload_json,'$.providerMarket.title'),' (Reg. Time)','')) ELSE side END side,line,
         CASE WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%first_half%' THEN 'first_half' WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%second_half%' THEN 'second_half' WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time%' OR json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_game%' THEN 'full_game' ELSE period END period,
-        source_market_id,source_outcome_id,collected_at,raw_payload_json,
+        source_market_id,source_outcome_id,collected_at,
+        json_extract(raw_payload_json,'$.opposite') opposite_json,
+        json_extract(raw_payload_json,'$.providerMarket.feeCoefficient') fee_coefficient,
+        json_object('marketState',json_extract(raw_payload_json,'$.marketState')) raw_payload_json,
         ROW_NUMBER() OVER(PARTITION BY source_market_id ORDER BY collected_at DESC,CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,id DESC) rn
        FROM normalized_market_observations nmo
        WHERE source='Polymarket US' AND source_market_id IS NOT NULL
@@ -222,7 +225,8 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
       ) SELECT * FROM balanced
        ORDER BY sport,sport_rank`)
        .bind(rosterSince,from,until,freshSince).all();
-    const plan=manageSubscriptionCapacity(q.results||[],this.capacityPlan());
+    const roster=(q.results||[]).map(row=>{let opposite=row.opposite;try{opposite=JSON.parse(row.opposite_json||'null')||opposite;}catch{}return {...row,opposite};});
+    const plan=manageSubscriptionCapacity(roster,this.capacityPlan());
     this.lastCandidateDiagnostics={at:new Date().toISOString(),
       selected:plan.assignedCount,eligibleCount:plan.eligibleCount,
       uncoveredCount:plan.uncoveredCount,returnedRows:(q.results||[]).length,
