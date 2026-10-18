@@ -167,8 +167,25 @@ test("weekly research report never claims promotion authority", () => {
           home: { abbr: "JAX" },
           scoreReconciled: true,
           nflFrozenAudit: { ok: true },
-          nflQbPersonnelShadow: { ok: true, gate: { fired: false } },
-          nflProShadow: { coverage: { share: 0.42, missing: ["pressure", "trenches"] }, margin: 1.8, total: 49.2 },
+          nflQbPersonnelShadow: {
+            ok: true,
+            gate: {
+              fired: false,
+              historicalValidationPassed: true,
+              prospectiveValidationPassed: false,
+              operatorApprovedForProduction: false,
+            },
+          },
+          nflProShadow: {
+            ok: true,
+            coverage: {
+              share: 0.5833,
+              available: ["teamEpa", "quarterback", "passMatchup", "rushMatchup", "pressure", "nextGenTracking", "context"],
+              missing: ["success", "earlyDown", "explosives", "trenches", "specialTeams"],
+            },
+            margin: 1.8,
+            total: 49.2,
+          },
           modelDisagreement: { side: -0.7, total: 7.7 },
           projMargin: 1.8,
           projTotal: 49.2,
@@ -177,11 +194,28 @@ test("weekly research report never claims promotion authority", () => {
       research: { nflVerse: { teams: 32 } },
     },
     publishedRows: [{ game_id: "1" }],
+    publicationCoverage: {
+      currentEligible: 12,
+      currentFrozen: 12,
+      currentCoverageShare: 1,
+      missingCheckpointCount: 32,
+      blockedCount: 0,
+    },
   });
+  assert.equal(report.schema, "nfl-weekly-research-report-v2");
   assert.equal(report.governance.automaticPromotion, false);
   assert.equal(report.governance.wagerAuthorityChanged, false);
   assert.equal(report.invariants.researchMayNotChangeChampion, true);
   assert.ok(Array.isArray(report.hypotheses));
+  assert.equal(report.systemHealth.publishedCurrentCheckpoint, 12);
+  assert.equal(report.systemHealth.publicationCoverageShare, 1);
+  assert.equal(report.qbShadow.lifecycle, "SHADOW");
+  assert.equal(report.qbShadow.promotionEligible, false);
+  assert.equal(report.qbShadow.prospectiveValidationPassed, false);
+  assert.equal(report.predictivePerformance.marginMae, null);
+  assert.ok(report.featureCoverage.stillMissing.includes("specialTeams"));
+  assert.ok(report.hypotheses.some((h) => h.id === "H-QB-AVAILABILITY-SHADOW" && h.status === "SHADOW_ATTACHED"));
+  assert.ok(!report.hypotheses.some((h) => h.id === "H-PUBLICATION-COVERAGE"));
 });
 
 test("live-style decomposition still reconciles through replay helper", () => {
