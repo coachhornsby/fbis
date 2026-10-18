@@ -77,7 +77,9 @@ export default function DecisionBoard({ games = [], renderDetail }) {
       <div className="decision-board db-game-page">
         <button type="button" className="db-back-btn" onClick={() => setSelected(null)}>← Back to Board</button>
         <PremiumGameCard game={selected} />
-        {String(selected?.sport || "").toLowerCase() === "nfl" ? <TopGameProps game={selected} /> : null}
+        {["nfl","mlb","nba","nhl","cfb","cbb","wnba","soccer","npb","kbo"].includes(String(selected?.sport || "").toLowerCase())
+          ? <TopGameProps game={selected} />
+          : null}
         <MatchupFactors game={selected} />
         {typeof renderDetail === "function" ? (
           <details className="db-full-analysis db-full-analysis-collapsed">

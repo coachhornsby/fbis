@@ -60,11 +60,15 @@ export function topThreeGamePlayerProps(game={}) {
       displayStatus:line==null?"PROJECTION_ONLY":raw.propGate==="HOLD"?"RESEARCH_HOLD":"RESEARCH_ONLY",
     });
   }
-  // NFL Top-3 on game cards should use Standard PrizePicks lines so the
-  // embedded cards match the main PrizePicks board (not Demon/Goblin alts).
+  // Prefer Standard PrizePicks lines so embedded cards match Player Props / Board.
   const isStandard=(r)=>String(r.oddsTier||r.odds_tier||"standard").toLowerCase()==="standard";
-  const nflStandard=sport==="nfl"?rows.filter((r)=>isStandard(r)&&r.hasPairedLine):[];
-  const pool=sport==="nfl"&&nflStandard.length?nflStandard:rows;
+  const isPrizePicks=(r)=>{
+    const book=String(r.book||r.source||"").toLowerCase();
+    return book.includes("prizepicks")||book==="prizepicks_apify";
+  };
+  const standardPp=rows.filter((r)=>isPrizePicks(r)&&isStandard(r)&&r.hasPairedLine);
+  const paired=rows.filter((r)=>r.hasPairedLine);
+  const pool=standardPp.length?standardPp:paired.length?paired:rows;
   const sorted=sortPropsByConviction(pool);
   const seen=new Set();
   return sorted.filter(row=>{

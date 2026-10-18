@@ -677,13 +677,11 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
 
   const title=localSport==="top25"?"Top 25":localSport.toUpperCase();
   const subtitle=localSport==="top25"
-    ?"Best projected FBIS player-prop edges today"
-    :localSport==="nfl"
-      ?"PrizePicks-style cards: headshot, PP line, FBIS projection, and last-5 bar graph for each player/stat"
-      :"Every "+localSport.toUpperCase()+" prop with a valid FBIS projection";
+    ?"Best projected FBIS player-prop edges today · same PrizePicks-style cards across sports"
+    :"PrizePicks-style cards: headshot, PP line, FBIS projection, and last-5 for each "+localSport.toUpperCase()+" prop";
 
   return (
-    <section className="pp-market pp-premium-page" aria-label="FBIS player props" data-display-policy="nfl-prizepicks-cards-v4">
+    <section className="pp-market pp-premium-page" aria-label="FBIS player props" data-display-policy="prizepicks-cards-all-sports-v1">
 
       <nav className="pp-sport-strip pp-premium-tabs" aria-label="Player prop sport filter">
         {SPORTS.map(s=>(

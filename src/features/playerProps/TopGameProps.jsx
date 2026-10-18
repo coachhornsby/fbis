@@ -13,6 +13,9 @@ function isPrizePicksRow(row = {}) {
   return book.includes("prizepicks") || book === "prizepicks_apify";
 }
 
+/** Team sports share the same PrizePicks-style prop card as Player Props / Board. */
+const TEAM_SPORTS = new Set(["nfl", "mlb", "nba", "nhl", "cfb", "cbb", "wnba", "soccer", "npb", "kbo"]);
+
 export default function TopGameProps({ game }) {
   const durable = Boolean(game?.durableFallback);
   const [drilldown, setDrilldown] = useState(null);
@@ -20,7 +23,7 @@ export default function TopGameProps({ game }) {
   const date = game?.durableFallback?.boardDate;
   const sport = String(game?.sport || "").toLowerCase();
   const gameId = String(game?.id || "");
-  const usePrizePicksCards = sport === "nfl";
+  const useStyleCards = TEAM_SPORTS.has(sport);
 
   useEffect(() => {
     if (!durable || !date || !sport || !gameId || typeof fetch !== "function") {
@@ -53,8 +56,10 @@ export default function TopGameProps({ game }) {
   }, [durable, date, sport, gameId]);
 
   const rows = topThreeGamePlayerProps(drilldown || game);
-  const prizePicksRows = usePrizePicksCards
-    ? rows.filter((r) => isPrizePicksRow(r) && r.line != null && r.fbisProjection != null)
+  const paired = rows.filter((r) => r.line != null && r.fbisProjection != null);
+  const prizePicksPaired = paired.filter(isPrizePicksRow);
+  const styleCardRows = useStyleCards
+    ? (prizePicksPaired.length ? prizePicksPaired : paired).slice(0, 3)
     : [];
 
   return (
@@ -62,19 +67,19 @@ export default function TopGameProps({ game }) {
       <div className="top-game-props-heading">
         <h3>TOP 3 PLAYER PROPS</h3>
         <span>
-          {usePrizePicksCards
-            ? "PrizePicks cards · FBIS projection · last-5 · research only"
+          {useStyleCards
+            ? "PrizePicks-style cards · FBIS projection · last-5 · research only"
             : "FBIS model context · not betting picks"}
         </span>
       </div>
 
-      {usePrizePicksCards && prizePicksRows.length ? (
+      {styleCardRows.length ? (
         <div className="pp-card-grid pp-premium-grid top-game-props-grid top-game-pp-cards">
-          {prizePicksRows.map((p, i) => (
+          {styleCardRows.map((p, i) => (
             <PrizePicksStyleCard
               key={`${p.gameId}:${p.playerName}:${p.marketCanonical}:${p.line}:${i}`}
               row={p}
-              sport="nfl"
+              sport={sport}
               rank={i + 1}
             />
           ))}
@@ -120,8 +125,8 @@ export default function TopGameProps({ game }) {
             ? "Loading game-specific player projections from the focused sport feed…"
             : durable && drilldownState !== "complete"
               ? "Game-specific player projections unavailable. No player prop is inferred from stored scores."
-              : usePrizePicksCards
-                ? "No game-matched PrizePicks lines with FBIS projections are available for this matchup yet."
+              : useStyleCards
+                ? "No game-matched lines with FBIS projections are available for this matchup yet."
                 : "No game-matched, independent FBIS player projections available for this matchup."}
         </p>
       )}
