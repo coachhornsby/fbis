@@ -41,7 +41,17 @@ async function normalizeFromArchivedRaw(env,receipt,{snapshotId,fixtureAsOf=null
    // Whole-board REST fetches cost $0 and use request quota; D1 receives only
    // game markets whose independent FBIS forecasts existed before capture.
    // Source-wide raw evidence remains immutable in R2 for future reconciliation.
-   const filtered=await filterPinnoddsToFbisProjections(env.DB,result.rows,{capturedAt:receipt.collectedAt});
+   // Market inventory is independent of forecast readiness. Forecast/quote
+   // chronology remains a separate decision/backtest gate; these rows never qualify wagers.
+   const captureMs=Date.parse(receipt.collectedAt);
+   const selected=result.rows.filter(r=>r.eventId&&['moneyline','spread','total'].includes(r.marketFamily)
+     &&Number.isFinite(Date.parse(r.eventStart))&&Date.parse(r.eventStart)>=captureMs-4*3600000
+     &&Date.parse(r.eventStart)<=captureMs+8*86400000);
+   const filtered={rows:selected,projectedEventCount:0,
+     canonicalEventCount:new Set(selected.map(r=>r.sport+'|'+r.eventId)).size,
+     rejectedNoCanonicalOrModel:result.rows.length-selected.length,
+     ingestionScope:'VERIFIED_CANONICAL_GAME_MARKET_INVENTORY_8_DAYS',
+     modelClockPolicy:'INDEPENDENT_MARKET_INVENTORY_NO_WAGER_AUTHORITY'};
    result={...result,...filtered,normalizedRows:filtered.rows.length,
      matchedRows:filtered.rows.length,ingestionScope:filtered.ingestionScope};
   }

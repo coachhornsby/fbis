@@ -1106,9 +1106,15 @@ export async function buildTodayBoard(
       // Sole active odds source: read matched PinnOdds captures from D1.
       // Historical Parlay/soft/Pinnacle-through-Parlay snapshots remain
       // auditable in storage but cannot hydrate CURRENT board pricing.
-      const d1Pinnodds=await loadPinnoddsBoardResearch(env.DB,{
+      let d1Pinnodds=await loadPinnoddsBoardResearch(env.DB,{
         sport,games:selectedDateGames,now:new Date(now).toISOString(),
       });
+      if(env.MARKET_HISTORY_DB?.prepare){
+        const historyPinnodds=await loadPinnoddsBoardResearch(env.MARKET_HISTORY_DB,{
+          sport,games:selectedDateGames,now:new Date(now).toISOString(),
+        });
+        d1Pinnodds=preferFreshPinnoddsArchive(d1Pinnodds,historyPinnodds);
+      }
       const r2Pinnodds=await loadPinnoddsR2BoardResearch(env.ARCHIVE,{
         sport,games:selectedDateGames,now:new Date(now).toISOString(),
       });
@@ -1239,7 +1245,7 @@ export async function buildTodayBoard(
     for (const [sportKey, sportGames] of bySport) {
       let overlay = { byId: new Map(), available: false };
       try {
-        overlay = await loadPolymarketUsBoardOffers(env.DB, sportGames, sportKey, { now: new Date(now), historyDb: env.MARKET_HISTORY_DB });
+        overlay = await loadPolymarketUsBoardOffers(env.DB, sportGames, sportKey, { now: new Date(now), historyDb: env.MARKET_HISTORY_DB, moneylineOnly:true });
       } catch {
         /* missing/stale provider never breaks the independent FBIS slate */
       }

@@ -74,6 +74,7 @@ export function selectPinnoddsBoardOffers(rows=[],{now=new Date().toISOString()}
      });
    if(paired.length)selected.push(...paired[0]);
   }
+  game.alternativeOffers=game.offers.filter(o=>!selected.includes(o));
   game.offers=selected;
   game.pairedMarkets=[...new Set(selected.map(o=>o.marketFamily))];
   game.status=selected.length?"RESEARCH_REFERENCE_ONLY":"NO_PAIRED_QUOTES";
@@ -99,7 +100,7 @@ export async function loadPinnoddsBoardResearch(db,{sport,games=[],now=new Date(
      AND period='full_game' AND market_family IN ('moneyline','spread','total')
      AND collected_at BETWEEN ? AND ? AND event_start_time > ?
      AND decimal_odds>1
-   ORDER BY collected_at DESC LIMIT 2500`)
+   ORDER BY collected_at DESC LIMIT 20000`)
    .bind(sport,...ids,since,until,now).all();
   const rows=q?.results||[];
   return {byGame:selectPinnoddsBoardOffers(rows,{now}),rows:rows.length,
