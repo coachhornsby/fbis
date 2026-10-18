@@ -243,7 +243,92 @@ export function runOklahomaProjectionAudit({
         repairedMarginError: Math.abs(repairedFitted.margin - (OKLAHOMA_ORIGINAL_CLOSE.actualHome - OKLAHOMA_ORIGINAL_CLOSE.actualAway)),
       },
     },
+    remainingInflation30p4: explainRepairedOklahomaInflation({
+      ouFeatures,
+      ukFeatures,
+      ouBlend,
+      repairedFitted,
+    }),
     mode: "diagnostic-reconstruction",
     note: "Feature as_of is before kickoff in D1; treat as diagnostic unless an independent CFBD publication receipt is attached for strict historical replay.",
+  };
+}
+
+/**
+ * Why repaired OU still projects ~30.4 despite poor current-season offense ranks.
+ * Does not invent a scoring cap — documents each mathematical contribution.
+ */
+export function explainRepairedOklahomaInflation({
+  ouFeatures = OKLAHOMA_2026_PREGAME_FEATURES,
+  ukFeatures = KENTUCKY_2026_PREGAME_FEATURES,
+  ouBlend = null,
+  repairedFitted = null,
+} = {}) {
+  const ouCurrentOff = ppaToPoints(ouFeatures.ppaOff);
+  const ouCurrentDef = ppaToPoints(ouFeatures.ppaDef);
+  const ukCurrentOff = ppaToPoints(ukFeatures.ppaOff);
+  const ukCurrentDef = ppaToPoints(ukFeatures.ppaDef);
+  const n = ouFeatures.coreThroughWeek;
+  const w = n / (n + 6);
+  const blendOff = (1 - w) * OKLAHOMA_2025_PRIOR.priorOff + w * ouCurrentOff;
+  const currentOnlyGame = gameEnvelope(
+    {
+      priorOff: ouCurrentOff,
+      priorDef: ouCurrentDef,
+      gamesPlayed: 99,
+      offensePpa: ouFeatures.ppaOff,
+      defensePpa: ouFeatures.ppaDef,
+    },
+    {
+      priorOff: ukCurrentOff,
+      priorDef: ukCurrentDef,
+      gamesPlayed: 99,
+      offensePpa: ukFeatures.ppaOff,
+      defensePpa: ukFeatures.ppaDef,
+    }
+  );
+  const currentOnly = projectCfbFbisV2Production(currentOnlyGame);
+  return {
+    repairedHome: repairedFitted?.home ?? 30.4,
+    actualHome: 13,
+    residualError: Math.abs((repairedFitted?.home ?? 30.4) - 13),
+    factors: [
+      {
+        id: "prior-still-50pct",
+        evidence: `At n=${n}, k=6 → currentWeight=${w}. Blended OU offense = (1-${w})*${OKLAHOMA_2025_PRIOR.priorOff} + ${w}*${ouCurrentOff} ≈ ${blendOff.toFixed(2)}`,
+        classification: "model-calibration / prior-decay",
+      },
+      {
+        id: "champion-ignores-advanced-offense-limits",
+        evidence:
+          "Fitted M*=A/T*=A consumes only overall PPA base. Success rate, rush PPA, explosiveness, line yards, PPO, and third-down style limits are collected but have zero champion coefficient.",
+        classification: "model-calibration (deliberate unused features)",
+      },
+      {
+        id: "opponent-adjustment-limited-to-ppa",
+        evidence: `UK defense PPA ${ukFeatures.ppaDef} → ${ukCurrentDef} pts; OU offense still blended near ${blendOff.toFixed(1)} before UK defense adjustment.`,
+        classification: "model-calibration",
+      },
+      {
+        id: "fitted-intercept-lifts-home",
+        evidence:
+          "Margin ridge intercept ≈ +5.88 on standardized base; even a modest base margin is lifted toward larger home favorites.",
+        classification: "model-calibration",
+      },
+      {
+        id: "coreThroughWeek-as-n-proxy",
+        evidence:
+          "Observation count used coreThroughWeek=6 (flagged fallback). True completed-game count may differ; uncertainty must be shown.",
+        classification: "pipeline",
+      },
+    ],
+    currentOnlyProjection: {
+      home: currentOnly.home,
+      away: currentOnly.away,
+      note: "Diagnostic: force n→large so prior weight≈0 using same PPA and fitted A/A",
+    },
+    systematicHypothesis:
+      "Inefficient offenses remain inflated when 2025 priors are strong and advanced negative indicators never enter fitted A/A. Defense-oriented teams are not fully credited beyond overall PPA allowed.",
+    doNot: "Do not impose an arbitrary OU scoring cap or hand-tune coefficients from this single game.",
   };
 }
