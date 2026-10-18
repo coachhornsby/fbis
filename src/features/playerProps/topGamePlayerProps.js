@@ -60,7 +60,16 @@ export function topThreeGamePlayerProps(game={}) {
       displayStatus:line==null?"PROJECTION_ONLY":raw.propGate==="HOLD"?"RESEARCH_HOLD":"RESEARCH_ONLY",
     });
   }
-  const sorted=sortPropsByConviction(rows);
+  // Prefer Standard PrizePicks lines so embedded cards match Player Props / Board.
+  const isStandard=(r)=>String(r.oddsTier||r.odds_tier||"standard").toLowerCase()==="standard";
+  const isPrizePicks=(r)=>{
+    const book=String(r.book||r.source||"").toLowerCase();
+    return book.includes("prizepicks")||book==="prizepicks_apify";
+  };
+  const standardPp=rows.filter((r)=>isPrizePicks(r)&&isStandard(r)&&r.hasPairedLine);
+  const paired=rows.filter((r)=>r.hasPairedLine);
+  const pool=standardPp.length?standardPp:paired.length?paired:rows;
+  const sorted=sortPropsByConviction(pool);
   const seen=new Set();
   return sorted.filter(row=>{
     const id=normalized(row.fbisPlayerId||row.providerPlayerId||row.playerName);

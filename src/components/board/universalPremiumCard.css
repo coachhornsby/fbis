@@ -500,3 +500,31 @@
 .fbis-shell-main .pgc-team-atmosphere .pgc-featured-logo{filter:drop-shadow(0 6px 13px #0008)}
 .fbis-shell-main .pgc-team-atmosphere .pgc-featured-name{text-shadow:0 2px 13px #000a;color:#f8fbff}
 @media(max-width:560px){.fbis-shell-main .pgc-team-atmosphere .pgc-team-watermark{width:140px;height:140px;opacity:.065}}
+
+/* Team-sport board cards: same black body language as PrizePicks prop cards.
+   Tennis uses TennisMatchCard and never mounts fbis-universal-premium. */
+.fbis-shell-main .cgc.fbis-universal-premium,
+.fbis-shell-main .pgc.fbis-universal-premium{
+  background:#000 !important;
+  border-color:rgba(255,255,255,.12) !important;
+  box-shadow:0 0 0 1px rgba(255,255,255,.04),0 18px 40px rgba(0,0,0,.45) !important;
+}
+.fbis-shell-main .cgc.fbis-universal-premium .cgc-main,
+.fbis-shell-main .pgc.fbis-universal-premium .pgc-body{
+  background:#000 !important;
+}
+.fbis-shell-main .cgc.fbis-universal-premium .cgc-matchup{
+  background:
+    radial-gradient(ellipse 80% 120% at 12% 50%, color-mix(in srgb, var(--cgc-away-brand,#236eb5) 34%, transparent), transparent 70%),
+    radial-gradient(ellipse 80% 120% at 88% 50%, color-mix(in srgb, var(--cgc-home-brand,#a83c4a) 34%, transparent), transparent 70%),
+    linear-gradient(180deg, #0c0c0c 0%, #000 100%) !important;
+  border-radius:12px;
+}
+.fbis-shell-main .cgc.fbis-universal-premium .cgc-market-strip,
+.fbis-shell-main .cgc.fbis-universal-premium .cgc-action-strip,
+.fbis-shell-main .cgc.fbis-universal-premium .cgc-matchup-read,
+.fbis-shell-main .cgc.fbis-universal-premium .cgc-best-edge{
+  background:#0c0c0c !important;
+  border-color:rgba(255,255,255,.1) !important;
+  border-radius:10px !important;
+}

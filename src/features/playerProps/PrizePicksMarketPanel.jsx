@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { propProjectionStars } from "./buildPlayerPropsBoard.js";
 import TrackedPropCards from "./TrackedPropCards.jsx";
-import ZenPrizePicksLines from "./ZenPrizePicksLines.jsx";
 
 const SPORTS=["top25","nfl","mlb","cfb","cbb","tennis","nba","wnba","nhl","soccer"];
 const TIER_ORDER={standard:0,goblin:1,demon:2};
@@ -21,8 +20,20 @@ function isRealHeadshot(url=""){
   const u=String(url||"").trim();
   return /^https?:\/\//i.test(u) && !/\/images\/teams\//i.test(u);
 }
+function headshotFromRaw(row={}){
+  try{
+    const raw=typeof row.raw_json==="string"?JSON.parse(row.raw_json):(row.raw_json||{});
+    const candidates=[raw.player_image,raw.playerImage,raw.headshot,raw.image_url];
+    for(const c of candidates){
+      if(isRealHeadshot(c)) return String(c).trim();
+    }
+  }catch{/* ignore malformed provider payloads */}
+  return "";
+}
 function resolvedHeadshot(row={}){
   if(isRealHeadshot(row.player_headshot_url)) return row.player_headshot_url;
+  const fromRaw=headshotFromRaw(row);
+  if(fromRaw) return fromRaw;
   const q=new URLSearchParams({
     name:String(row.player_name||""),
     sport:String(row.sport||""),
@@ -45,25 +56,6 @@ function sideFor(row={}){
   const p=Number(row.fbis_projection), l=Number(row.line);
   if(!Number.isFinite(p)||!Number.isFinite(l)) return "WATCH";
   return p>l?"MORE":p<l?"LESS":"WATCH";
-}
-function normalCdf(x){
-  const sign=x<0?-1:1;
-  const a=Math.abs(x)/Math.sqrt(2);
-  const t=1/(1+0.3275911*a);
-  const erf=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-a*a);
-  return 0.5*(1+sign*erf);
-}
-function hitProbability(row={}){
-  const p=Number(row.fbis_projection), l=Number(row.line), s=Number(row.fbis_sigma);
-  if(!Number.isFinite(p)||!Number.isFinite(l)||!Number.isFinite(s)||s<=0) return null;
-  const z=(p-l)/s;
-  const side=sideFor(row);
-  const prob=side==="MORE"?normalCdf(z):side==="LESS"?normalCdf(-z):0.5;
-  return Math.max(0,Math.min(1,prob));
-}
-function formatHit(row={}){
-  const p=hitProbability(row);
-  return p==null?"—":Math.round(p*100)+"%";
 }
 function matchupLabel(r){
   const team=String(r.team||"").trim();
@@ -106,14 +98,22 @@ function PlayerPosition({ name, sport, team }){
   if(!position) return null;
   return <span className="pp-player-position"> · {position}</span>;
 }
-function TeamWatermark({ sport, team }){
-  const [logo,setLogo]=useState("");
+function useTeamTheme(sport, team){
+  const [theme,setTheme]=useState({logo:"",primary:"",secondary:""});
   useEffect(()=>{
     let cancelled=false;
     const s=String(sport||"").toLowerCase();
     const t=String(team||"").trim();
-    if(!s||!t||s==="tennis"){
-      setLogo("");
+    if(!s){
+      setTheme({logo:"",primary:"",secondary:""});
+      return ()=>{cancelled=true};
+    }
+    if(s==="tennis"){
+      setTheme({logo:"",primary:"#8b64ff",secondary:"#211548"});
+      return ()=>{cancelled=true};
+    }
+    if(!t){
+      setTheme({logo:"",primary:"",secondary:""});
       return ()=>{cancelled=true};
     }
     const q=new URLSearchParams({sport:s,name:t});
@@ -121,17 +121,56 @@ function TeamWatermark({ sport, team }){
       .then(r=>r.ok?r.json():null)
       .then(body=>{
         if(cancelled) return;
-        const u=body?.found?String(body?.team?.logo||""):"";
-        setLogo(/^https?:\/\//i.test(u)?u:"");
+        const info=body?.found?body.team:null;
+        const u=String(info?.logo||"");
+        setTheme({
+          logo:/^https?:\/\//i.test(u)?u:"",
+          primary:String(info?.primaryColor||"").trim(),
+          secondary:String(info?.secondaryColor||"").trim(),
+        });
       })
-      .catch(()=>{if(!cancelled)setLogo("")});
+      .catch(()=>{if(!cancelled)setTheme({logo:"",primary:"",secondary:""})});
     return()=>{cancelled=true};
   },[sport,team]);
-
+  return theme;
+}
+function TeamWatermark({ logo }){
   if(!logo) return null;
   return (
-    <div className="pp-team-watermark" aria-hidden="true">
-      <img src={logo} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer"/>
+    <div
+      className="pp-team-watermark"
+      aria-hidden="true"
+      style={{
+        position:"absolute",
+        left:"50%",
+        top:"34%",
+        width:"min(140%, 340px)",
+        height:"min(140%, 340px)",
+        transform:"translate(-50%, -50%)",
+        opacity:0.28,
+        zIndex:1,
+        display:"grid",
+        placeItems:"center",
+        pointerEvents:"none",
+        filter:"none",
+        inset:"auto",
+      }}
+    >
+      <img
+        src={logo}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        referrerPolicy="no-referrer"
+        style={{
+          width:"125%",
+          height:"125%",
+          maxWidth:"none",
+          maxHeight:"none",
+          objectFit:"contain",
+          filter:"saturate(0.95) drop-shadow(0 0 22px rgba(255,255,255,.08))",
+        }}
+      />
     </div>
   );
 }
@@ -180,12 +219,9 @@ function VariantMetrics({ group }){
   return (
     <div className="pp-variant-shell">
       <div className="pp-tier-control-row">
-        <span className={"pp-active-tier pp-active-tier-"+String(active.odds_tier||"standard").toLowerCase()}>
-          {tierLabel(active)}
-        </span>
         {hasAlternates ? (
           <label className="pp-tier-select-wrap">
-            <span>Line type</span>
+            <span>Line</span>
             <select
               className="pp-tier-select"
               value={String(active.odds_tier||"standard").toLowerCase()}
@@ -202,21 +238,25 @@ function VariantMetrics({ group }){
               ))}
             </select>
           </label>
-        ) : null}
+        ) : (
+          <span className={"pp-active-tier pp-active-tier-"+String(active.odds_tier||"standard").toLowerCase()}>
+            {tierLabel(active)}
+          </span>
+        )}
       </div>
 
-      <div className="pp-line-row pp-premium-metrics">
-        <div>
+      <div className="pp-line-row pp-premium-metrics" aria-label="PrizePicks line versus FBIS projection">
+        <div className="pp-metric-cell">
           <span>PP LINE</span>
-          <strong>{active.line??"—"}</strong>
+          <strong>{active.line==null?"—":num(active.line)}</strong>
         </div>
-        <div className="fbis-metric">
+        <div className="pp-metric-cell fbis-metric">
           <span>FBIS</span>
           <strong>{active.fbis_projection==null?"—":num(active.fbis_projection)}</strong>
         </div>
-        <div>
-          <span>HIT %</span>
-          <strong>{formatHit(active)}</strong>
+        <div className={"pp-metric-cell pp-metric-diff "+(Number.isFinite(Number(diff))?(Number(diff)>0?"is-over":Number(diff)<0?"is-under":"is-push"):"")}>
+          <span>DIFF</span>
+          <strong>{signed(diff)}</strong>
         </div>
       </div>
 
@@ -332,10 +372,10 @@ function advancedMetricRows(detail,row){
   return out.slice(0,6);
 }
 
-function PropAnalytics({ row, open, onToggle }){
+function usePlayerPropDetail(row, enabled=true){
   const [state,setState]=useState({loading:false,error:"",body:null});
   useEffect(()=>{
-    if(!open||state.body||state.loading) return;
+    if(!enabled) return;
     let cancelled=false;
     const q=new URLSearchParams({
       sport:String(row?.sport||""),
@@ -358,10 +398,62 @@ function PropAnalytics({ row, open, onToggle }){
       .then(body=>{clearTimeout(timer);if(!cancelled)setState({loading:false,error:"",body});})
       .catch(err=>{clearTimeout(timer);if(!cancelled)setState({loading:false,error:err?.name==="AbortError"?"History request timed out":String(err?.message||err),body:null});});
     return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
-  },[open,row]);
+  },[enabled,row?.sport,row?.player_name,row?.team,row?.opponent,row?.canonical_market,row?.stat_type,row?.line,row?.model_version]);
+  return state;
+}
 
-  const detail=state.body?.detail||null;
-  const calibration=state.body?.calibration||null;
+function LastFiveBars({ row, detail, loading, error }){
+  const games=Array.isArray(detail?.last5)?detail.last5.slice(0,5):[];
+  const line=Number(row.line);
+  return (
+    <div className="pp-history-block pp-card-last5" aria-label="Last five games for this player and stat">
+      <div className="pp-history-head">
+        <div>
+          <div className="pp-analytics-label">LAST 5</div>
+          <strong>{marketLabel(row)}</strong>
+        </div>
+        <div className="pp-history-summary">
+          <span>L5 AVG</span>
+          <b>{games.length?fmtStat(detail?.season?.recent5Average ?? (games.reduce((s,g)=>s+(Number(g.value)||0),0)/games.length)):"—"}</b>
+        </div>
+      </div>
+      {loading?<div className="pp-analytics-loading">Loading last 5…</div>:null}
+      {error&&!loading?<div className="pp-analytics-loading">Last-5 unavailable</div>:null}
+      {!loading&&!error&&!games.length?(
+        <div className="pp-analytics-unavailable">No verified last-5 logs for this player/stat yet.</div>
+      ):null}
+      {games.length?(
+        <>
+          <div className="pp-history-bars">
+            {games.map((g,i)=>{
+              const value=Number(g.value);
+              const max=Math.max(Number.isFinite(line)?line*1.55:1,...games.map(x=>Number(x.value)||0),1);
+              const height=Number.isFinite(value)?Math.max(8,Math.min(100,(value/max)*100)):8;
+              return (
+                <div className="pp-history-game" key={i}>
+                  <div className="pp-history-bar-wrap">
+                    {Number.isFinite(value)?(
+                      <div className={"pp-history-bar "+trendClass(value,line)} style={{height:height+"%"}}></div>
+                    ):null}
+                    {Number.isFinite(line)?(
+                      <div className="pp-history-line" style={{bottom:Math.min(95,(line/max)*100)+"%"}}></div>
+                    ):null}
+                  </div>
+                  <b>{fmtStat(value)}</b>
+                  <span>{g.opponent||("G"+(i+1))}</span>
+                  <small>{shortGameDate(g)}</small>
+                </div>
+              );
+            })}
+          </div>
+          <div className="pp-history-legend"><span></span> PrizePicks line {row.line??"—"}</div>
+        </>
+      ):null}
+    </div>
+  );
+}
+
+function PropAnalytics({ row, open, onToggle, detail, calibration, loading, error }){
   const reasons=modelReason(row,detail);
   return (
     <div className={"pp-analytics"+(open?" open":"")}>
@@ -371,45 +463,12 @@ function PropAnalytics({ row, open, onToggle }){
       </button>
       {open?(
         <div className="pp-analytics-body">
-          {state.loading?<div className="pp-analytics-loading">Loading player history…</div>:null}
-          {state.error?<div className="pp-analytics-loading">Analytics unavailable: {state.error}</div>:null}
+          {loading?<div className="pp-analytics-loading">Loading player history…</div>:null}
+          {error?<div className="pp-analytics-loading">Analytics unavailable: {error}</div>:null}
           {reasons.length?(
             <div className="pp-why-card">
               <div className="pp-analytics-label">FBIS READ</div>
               <ul>{reasons.map((x,i)=><li key={i}>{x}</li>)}</ul>
-            </div>
-          ):null}
-          {detail?.last5?.length?(
-            <div className="pp-history-block">
-              <div className="pp-history-head">
-                <div>
-                  <div className="pp-analytics-label">LAST 5</div>
-                  <strong>{marketLabel(row)}</strong>
-                </div>
-                <div className="pp-history-summary">
-                  <span>L5 AVG</span><b>{fmtStat(detail?.season?.recent5Average ?? (detail.last5.reduce((s,g)=>s+(Number(g.value)||0),0)/detail.last5.length))}</b>
-                </div>
-              </div>
-              <div className="pp-history-bars">
-                {detail.last5.map((g,i)=>{
-                  const value=Number(g.value);
-                  const line=Number(row.line);
-                  const max=Math.max(line*1.55,...detail.last5.map(x=>Number(x.value)||0),1);
-                  const height=Math.max(8,Math.min(100,(value/max)*100));
-                  return (
-                    <div className="pp-history-game" key={i}>
-                      <div className="pp-history-bar-wrap">
-                        <div className={"pp-history-bar "+trendClass(value,line)} style={{height:height+"%"}}></div>
-                        <div className="pp-history-line" style={{bottom:Math.min(95,(line/max)*100)+"%"}}></div>
-                      </div>
-                      <b>{fmtStat(value)}</b>
-                      <span>{g.opponent||("G"+(i+1))}</span>
-                      <small>{shortGameDate(g)}</small>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="pp-history-legend"><span></span> PrizePicks line {row.line}</div>
             </div>
           ):null}
           {detail?.season?(
@@ -455,19 +514,102 @@ function PropAnalytics({ row, open, onToggle }){
               <b>{Number(calibration.decisions||0)} decisions · {pct(calibration.hit_rate)} hit · MAE {fmtStat(calibration.mae)}</b>
             </div>
           ):null}
-          {!state.loading&&!state.error&&detail?.unavailable?(
-            <div className="pp-analytics-unavailable">
-              Player history unavailable in the current runtime snapshot. FBIS projection evidence remains shown above.
-            </div>
-          ):null}
-          {!state.loading&&!state.error&&!detail?(
-            <div className="pp-analytics-unavailable">
-              Last-5 game logs are not available for this sport/market yet. FBIS projection evidence remains shown above.
-            </div>
-          ):null}
         </div>
       ):null}
     </div>
+  );
+}
+
+function PrizePicksPropCard({ group, expanded, onToggleExpand }){
+  const r=group.primary;
+  const stars=rowStars(r);
+  const sport=String(r.sport||"").toLowerCase();
+  const team=String(r.team||"").trim();
+  const opponent=String(r.opponent||"").trim();
+  const time=gameTime(r);
+  const detailState=usePlayerPropDetail(r, true);
+  const detail=detailState.body?.detail||null;
+  const calibration=detailState.body?.calibration||null;
+  const theme=useTeamTheme(sport, team);
+  const primary=theme.primary||"#172b50";
+  const secondary=theme.secondary||"#0a1428";
+
+  return (
+    <article
+      className={"pp-card pp-premium-card sport-"+sport+(stars===5?" pp-five-star":"")+(expanded?" pp-expanded":"")}
+      data-pp-card="prizepicks"
+      style={{
+        "--pp-team-primary":primary,
+        "--pp-team-secondary":secondary,
+        borderColor:`color-mix(in srgb, ${primary} 55%, rgba(255,255,255,.18))`,
+      }}
+    >
+      <div
+        className="pp-card-visual pp-card-visual-team"
+        style={{
+          background:`radial-gradient(circle at 50% 38%, color-mix(in srgb, ${primary} 42%, transparent), transparent 66%), linear-gradient(180deg, ${secondary} 0%, color-mix(in srgb, ${secondary} 88%, #050b16) 100%)`,
+        }}
+      >
+        <TeamWatermark logo={theme.logo}/>
+        <StarRating stars={stars}/>
+
+        <div className="pp-premium-headshot">
+          <img
+            src={resolvedHeadshot(r)}
+            alt={r.player_name?String(r.player_name):"Player"}
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            onError={(e)=>{
+              e.currentTarget.style.display="none";
+              const fallback=e.currentTarget.nextElementSibling;
+              if(fallback) fallback.style.display="flex";
+            }}
+          />
+          <span style={{display:"none"}}>{initials(r.player_name)}</span>
+        </div>
+
+        <div className="pp-team-pill">
+          {String(r.sport||"").toUpperCase()}
+          {team?<><span>•</span>{team}</>:null}
+        </div>
+      </div>
+
+      <div className="pp-card-body">
+        <div className="pp-player-title">
+          <h3>{r.player_name||"Unknown player"}<PlayerPosition name={r.player_name} sport={sport} team={team}/></h3>
+          <p>
+            {team||sport.toUpperCase()}
+            {opponent?<><span> vs </span><b>{opponent}</b></>:null}
+            {time?<><em> · {time}</em></>:null}
+          </p>
+        </div>
+
+        <div className="pp-market-name pp-premium-market-name">{marketLabel(r)}</div>
+
+        <VariantMetrics group={group}/>
+
+        <LastFiveBars row={r} detail={detail} loading={detailState.loading} error={detailState.error}/>
+
+        {sport==="tennis"?<div className="pp-card-foot pp-premium-foot"><span>Underdog{group.underdog?.lineType==="unknown"?" [UNKNOWN TYPE]":""} {group.underdog?.line??"—"}{group.underdog&&Number.isFinite(Number(r.line))?` · Δ ${(Number(group.underdog.line)-Number(r.line)).toFixed(1)}`:""}</span><span>{group.underdog?.timestamp?new Date(group.underdog.timestamp).toLocaleTimeString("en-US",{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit"}):"source unavailable"}</span></div>:null}
+
+        <div className="pp-card-foot pp-premium-foot">
+          <span>{matchupLabel(r)}</span>
+          <span>{r.collected_at?new Date(r.collected_at).toLocaleString("en-US",{
+            timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"
+          }):"—"}</span>
+        </div>
+        <PropAnalytics
+          row={r}
+          open={expanded}
+          onToggle={onToggleExpand}
+          detail={detail}
+          calibration={calibration}
+          loading={detailState.loading}
+          error={detailState.error}
+        />
+      </div>
+    </article>
   );
 }
 
@@ -543,13 +685,11 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
 
   const title=localSport==="top25"?"Top 25":localSport.toUpperCase();
   const subtitle=localSport==="top25"
-    ?"Best projected FBIS player-prop edges today"
-    :localSport==="nfl"
-      ?"Only 4★+ NFL Standard-line edges, plus all 49ers QB1/RB1/WR1/WR2/TE1 projections"
-      :"Every "+localSport.toUpperCase()+" prop with a valid FBIS projection";
+    ?"Best projected FBIS player-prop edges today · same PrizePicks-style cards across sports"
+    :"PrizePicks-style cards: headshot, PP line, FBIS projection, and last-5 for each "+localSport.toUpperCase()+" prop";
 
   return (
-    <section className="pp-market pp-premium-page" aria-label="FBIS player props" data-display-policy="nfl-4star-tiers-v3">
+    <section className="pp-market pp-premium-page" aria-label="FBIS player props" data-display-policy="prizepicks-cards-all-sports-v1">
 
       <nav className="pp-sport-strip pp-premium-tabs" aria-label="Player prop sport filter">
         {SPORTS.map(s=>(
@@ -575,8 +715,6 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
         </div>
       </div>
 
-      {(localSport==="nfl"||localSport==="top25")?<ZenPrizePicksLines/>:null}
-
       {freshness?.stale?
         <div className="pp-empty error-text">Today's PrizePicks acquisition has not completed. Stale prior-day props are hidden.</div>
       :null}
@@ -586,73 +724,14 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
       :null}
 
       <div className="pp-card-grid pp-premium-grid">
-        {groups.map((group)=>{
-          const r=group.primary;
-          const stars=rowStars(r);
-          const sport=String(r.sport||"").toLowerCase();
-          const team=String(r.team||"").trim();
-          const opponent=String(r.opponent||"").trim();
-          const time=gameTime(r);
-
-          return (
-            <article className={"pp-card pp-premium-card sport-"+sport+(stars===5?" pp-five-star":"")+(expandedKey===group.key?" pp-expanded":"")} key={group.key}>
-              <div className="pp-card-visual">
-                <TeamWatermark sport={sport} team={team}/>
-                <StarRating stars={stars}/>
-
-                <div className="pp-premium-headshot">
-                  <img
-                    src={resolvedHeadshot(r)}
-                    alt={r.player_name?String(r.player_name):"Player"}
-                    loading="lazy"
-                    decoding="async"
-                    referrerPolicy="no-referrer"
-                    onError={(e)=>{
-                      e.currentTarget.style.display="none";
-                      const fallback=e.currentTarget.nextElementSibling;
-                      if(fallback) fallback.style.display="flex";
-                    }}
-                  />
-                  <span style={{display:"none"}}>{initials(r.player_name)}</span>
-                </div>
-
-                <div className="pp-team-pill">
-                  {String(r.sport||"").toUpperCase()}
-                  {team?<><span>•</span>{team}</>:null}
-                </div>
-              </div>
-
-              <div className="pp-card-body">
-                <div className="pp-player-title">
-                  <h3>{r.player_name||"Unknown player"}<PlayerPosition name={r.player_name} sport={sport} team={team}/></h3>
-                  <p>
-                    {team||sport.toUpperCase()}
-                    {opponent?<><span> vs </span><b>{opponent}</b></>:null}
-                    {time?<><em> · {time}</em></>:null}
-                  </p>
-                </div>
-
-                <div className="pp-market-name pp-premium-market-name">{marketLabel(r)}</div>
-
-                <VariantMetrics group={group}/>
-
-                {sport==="tennis"?<div className="pp-card-foot pp-premium-foot"><span>Underdog{group.underdog?.lineType==="unknown"?" [UNKNOWN TYPE]":""} {group.underdog?.line??"—"}{group.underdog&&Number.isFinite(Number(r.line))?` · Δ ${(Number(group.underdog.line)-Number(r.line)).toFixed(1)}`:""}</span><span>{group.underdog?.timestamp?new Date(group.underdog.timestamp).toLocaleTimeString("en-US",{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit"}):"source unavailable"}</span></div>:null}
-
-                <div className="pp-card-foot pp-premium-foot">
-                  <span>{matchupLabel(r)}</span>
-                  <span>{r.collected_at?new Date(r.collected_at).toLocaleString("en-US",{
-                    timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"
-                  }):"—"}</span>
-                </div>
-                <PropAnalytics
-                  row={r}
-                  open={expandedKey===group.key}
-                  onToggle={()=>setExpandedKey((k)=>k===group.key?"":group.key)}
-                />
-              </div>
-            </article>
-          );
-        })}
+        {groups.map((group)=>(
+          <PrizePicksPropCard
+            key={group.key}
+            group={group}
+            expanded={expandedKey===group.key}
+            onToggleExpand={()=>setExpandedKey((k)=>k===group.key?"":group.key)}
+          />
+        ))}
       </div>
     </section>
   );

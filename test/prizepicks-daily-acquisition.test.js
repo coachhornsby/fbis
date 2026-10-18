@@ -148,8 +148,11 @@ test("free NFL board stays separate from paid acquisition and main model pipelin
   const panel=fs.readFileSync("src/features/playerProps/PrizePicksMarketPanel.jsx","utf8");
   const board=fs.readFileSync("src/features/playerProps/FreePrizePicksMirrorBoard.jsx","utf8");
   const normalize=fs.readFileSync("src/features/playerProps/freePrizePicksMirror.js","utf8");
-  assert.match(panel,/<ZenPrizePicksLines/);
+  assert.match(panel,/data-pp-card=\"prizepicks\"|PrizePicksPropCard|pp-card-last5|LAST 5/);
+  assert.match(panel,/resolvedHeadshot|player-image|pp-premium-headshot/);
+  assert.match(panel,/PP LINE|fbis_projection|LastFiveBars/);
   assert.doesNotMatch(panel,/<FreePrizePicksMirrorBoard/);
+  assert.doesNotMatch(panel,/<ZenPrizePicksLines/);
   assert.match(board,/No FBIS pick, star rating, or wagering authority/);
   assert.match(board,/sourceUrl|FREE_NFL_MIRROR_SOURCE_URL/);
   assert.match(normalize,/MIRROR_NOT_TODAY/);

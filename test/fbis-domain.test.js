@@ -263,8 +263,23 @@ test("today domain board exposes movers, watchlist, and research-only props with
               position: "OF",
               marketCanonical: "total_bases",
               line: 1.5,
+              fbisProjection: 2.4,
+              fbisSigma: 1.1,
               overOdds: -115,
-              book: "FD",
+              book: "PrizePicks",
+              oddsTier: "standard",
+              source: "PRIZEPICKS_APIFY",
+            },
+            {
+              playerName: "Judge",
+              team: "NYY",
+              marketCanonical: "total_bases",
+              line: 3.5,
+              fbisProjection: 2.4,
+              fbisSigma: 1.1,
+              book: "PrizePicks",
+              oddsTier: "demon",
+              source: "PRIZEPICKS_APIFY",
             },
           ],
         },
@@ -280,6 +295,8 @@ test("today domain board exposes movers, watchlist, and research-only props with
   assert.ok(board.marketMovers.length >= 1);
   assert.ok(board.marketMovers[0].movement.movementMagnitude > 0);
   assert.equal(board.topPlayerProps.length, 1);
+  assert.equal(board.topPlayerProps[0].playerName, "Judge");
+  assert.equal(String(board.topPlayerProps[0].oddsTier || "standard").toLowerCase(), "standard");
   assert.equal(board.topPlayerProps[0].surfaceStatus, "RESEARCH");
   assert.equal(board.topPlayerProps[0].decisionEligible, false);
 

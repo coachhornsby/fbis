@@ -1,77 +1,97 @@
-import { formatMarketLabel } from "../playerProps/buildPlayerPropsBoard.js";
-import DecisionChip from "./DecisionChip.jsx";
-import { fmtLine, fmtPrice } from "./formatters.js";
+import { useEffect, useMemo, useState } from "react";
+import PrizePicksStyleCard from "../playerProps/PrizePicksStyleCard.jsx";
+import { prizePicksGroupKey, selectTopPrizePicksCards } from "./selectTopPrizePicksCards.js";
+import "../playerProps/playerProps.css";
+import "./topPlayerProps.css";
 
-export default function TopPlayerProps({ rows = [] }) {
-  rows = rows.filter(row => row.playerName && !/^(?:[—?]|TBD|QB1|RB1|WR1|Unknown|Unidentified player)$/i.test(String(row.playerName).trim()));
+function chicagoDate(d = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+export default function TopPlayerProps({
+  sportFilter = "all",
+  limit = 5,
+  /** Legacy domain rows kept for caller compatibility. */
+  rows: _legacyRows = [],
+}) {
+  const [state, setState] = useState({ loading: true, rows: [], error: "" });
+  const sport = String(sportFilter || "all").toLowerCase();
+
+  useEffect(() => {
+    let cancelled = false;
+    const date = chicagoDate();
+    const q = new URLSearchParams({ date, mode: "sport", sport: sport === "all" ? "all" : sport });
+    setState((s) => ({ ...s, loading: true, error: "" }));
+    fetch("/api/selective-props?" + q.toString(), { credentials: "same-origin" })
+      .then(async (res) => {
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || body?.ok === false) throw new Error(body?.error || ("HTTP " + res.status));
+        return body;
+      })
+      .then((body) => {
+        if (cancelled) return;
+        setState({
+          loading: false,
+          rows: Array.isArray(body.rows) ? body.rows : [],
+          error: "",
+          freshness: body.freshness || null,
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setState({ loading: false, rows: [], error: String(err?.message || err) });
+      });
+    return () => { cancelled = true; };
+  }, [sport]);
+
+  const top = useMemo(
+    () => selectTopPrizePicksCards(state.rows, { limit, sportFilter: sport }),
+    [state.rows, limit, sport]
+  );
+
+  const titleSport = sport === "all" ? "ALL SPORTS" : sport.toUpperCase();
+
   return (
-    <section className="panel today-section" aria-labelledby="today-top-props">
+    <section className="panel today-section top-pp-board" aria-labelledby="today-top-props">
       <div className="panel-header">
-        <h2 id="today-top-props">Top player props</h2>
-        <span className="last-updated">{rows.length ? `${rows.length} shown` : "None"}</span>
+        <div>
+          <h2 id="today-top-props">Top PrizePicks cards</h2>
+          <p className="top-pp-subtitle">
+            Best {limit} Standard lines · {titleSport} · ranked by FBIS win chance · no Demon/Goblin
+          </p>
+        </div>
+        <span className="last-updated">
+          {state.loading ? "Loading…" : top.length ? `${top.length} shown` : "None"}
+        </span>
       </div>
       <div className="panel-body">
-        {!rows.length ? (
+        {state.error ? (
+          <p className="today-empty error-text">PrizePicks cards unavailable: {state.error}</p>
+        ) : null}
+        {!state.loading && !state.error && !top.length ? (
           <p className="today-empty">
-            No normalized player props available for this slate. Action props remain shadow / research-only.
+            No Standard PrizePicks lines with FBIS projections for {titleSport} yet.
           </p>
-        ) : (
-          <div className="table-scroll">
-            <table className="fbis-table today-compact-table">
-              <thead>
-                <tr>
-                  <th>Player</th>
-                  <th>Market</th>
-                  <th>Line</th>
-                  <th>Best</th>
-                  <th>Matchup</th>
-                  <th>Confidence</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, i) => (
-                  <tr key={`${row.eventId}-${row.providerPlayerId || row.playerName}-${i}`}>
-                    <td>
-                      <div className="today-player-cell">
-                        <div className="today-player-avatar" aria-hidden="true">
-                          {(row.playerName || "?").slice(0, 1)}
-                        </div>
-                        <div>
-                          <strong>{row.playerName || "—"}</strong>
-                          <div className="muted">
-                            {[row.team, row.position].filter(Boolean).join(" · ") || "—"}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>{formatMarketLabel(row.marketCanonical || row.market)}</td>
-                    <td>{fmtLine(row.line)}</td>
-                    <td>
-                      {fmtPrice(row.overOdds ?? row.price)}
-                      {row.book ? <span className="muted"> · {row.book}</span> : null}
-                    </td>
-                    <td className="muted">
-                      {row.matchup?.away || "—"} @ {row.matchup?.home || "—"}
-                    </td>
-                    <td>
-                      <span className="today-prop-stars" title={(row.confidenceReasons || []).join(" · ")}>
-                        {"⭐".repeat(Math.max(1, Math.min(5, Number(row.confidenceStars) || 1)))}
-                        {row.confidenceSide ? <span className="muted"> · {row.confidenceSide}</span> : null}
-                      </span>
-                    </td>
-                    <td>
-                      <DecisionChip
-                        state={row.surfaceStatus || "RESEARCH"}
-                        reasonCodes={row.reasonCodes}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        ) : null}
+        {top.length ? (
+          <div className="pp-card-grid pp-premium-grid top-pp-card-grid" aria-label="Top five PrizePicks research cards">
+            {top.map((row, i) => (
+              <PrizePicksStyleCard
+                key={row.id || `${prizePicksGroupKey(row)}-${i}`}
+                row={row}
+                sport={row.sport}
+                rank={i + 1}
+              />
+            ))}
           </div>
-        )}
+        ) : state.loading ? (
+          <p className="today-empty">Loading Standard PrizePicks cards…</p>
+        ) : null}
       </div>
     </section>
   );

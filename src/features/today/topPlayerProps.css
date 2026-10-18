@@ -1,0 +1,33 @@
+.top-pp-board .top-pp-subtitle{
+  margin:4px 0 0;
+  font-size:11px;
+  line-height:1.35;
+  color:var(--muted,#9eb6d0);
+}
+/* Same PrizePicks premium cards as Player Props / game card — full width row */
+.top-pp-board .top-pp-card-grid.pp-premium-grid{
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:14px;
+  padding:0;
+  align-items:stretch;
+}
+.top-pp-board .top-pp-card-grid .pp-style-card,
+.top-pp-board .top-pp-card-grid .pp-premium-card{
+  min-width:0;
+  height:100%;
+}
+@media(max-width:1400px){
+  .top-pp-board .top-pp-card-grid.pp-premium-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+@media(max-width:900px){
+  .top-pp-board .top-pp-card-grid.pp-premium-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:560px){
+  .top-pp-board .top-pp-card-grid.pp-premium-grid{
+    grid-template-columns:1fr;
+  }
+}

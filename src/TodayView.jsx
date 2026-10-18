@@ -235,7 +235,7 @@ export default function TodayView({
             <div className="board-well decision-board-well">
               <DecisionBoard
                 games={shown.flatMap((group) => group.games)}
-                renderDetail={(g) => <GameDetails g={g} includeTopProps={String(g.sport || "").toLowerCase() !== "nfl"} />}
+                renderDetail={(g) => <GameDetails g={g} includeTopProps={false} />}
               />
             </div>
           )}

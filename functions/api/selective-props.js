@@ -43,11 +43,35 @@ function rawPayload(row = {}) {
   try { return row.raw_json ? JSON.parse(row.raw_json) : {}; }
   catch { return {}; }
 }
+function isPlayerHeadshotUrl(url = "") {
+  const u = String(url || "").trim();
+  if (!/^https?:\/\//i.test(u)) return false;
+  // PrizePicks often embeds team marks under /images/teams/; those are not headshots.
+  if (/\/images\/teams\//i.test(u)) return false;
+  if (/NFL_team_|team_logo|team-logo/i.test(u)) return false;
+  return true;
+}
+function resolvedPlayerHeadshot(row = {}, raw = {}) {
+  const candidates = [
+    row.player_headshot_url,
+    raw.player_image,
+    raw.playerImage,
+    raw.player_headshot_url,
+    raw.headshot,
+    raw.image_url,
+  ];
+  for (const c of candidates) {
+    if (isPlayerHeadshotUrl(c)) return String(c).trim();
+  }
+  return null;
+}
 function normalizedRows(rows = []) {
   return latestByCandidate(rows).map((row) => {
     const raw = rawPayload(row);
+    const headshot = resolvedPlayerHeadshot(row, raw);
     return ({
     ...row,
+    player_headshot_url: headshot || row.player_headshot_url || null,
     eventId: row.fbis_event_id || row.game_id,
     playerId: row.player_id,
     playerName: row.player_name,
@@ -84,33 +108,26 @@ function is49ersTargetRole(row = {}) {
   return (team === "SF" || team === "SFO") && ["QB1","RB1","WR1","WR2","TE1"].includes(role);
 }
 
-function nflDisplayGroupKey(row = {}) {
-  return [
-    String(row.sport || "").toLowerCase(),
-    String(row.playerName || row.player_name || "").toLowerCase(),
-    String(row.market || row.canonical_market || row.statType || row.stat_type || "").toLowerCase(),
-    String(row.duration || "full").toLowerCase(),
-  ].join("|");
-}
-
+/**
+ * NFL card board shows every projected PrizePicks line (Standard/Goblin/Demon),
+ * matching other sports. 4★+ remains a ranking signal for Top 25 / badges, not
+ * a hide-gate — otherwise unvalidated calibration (max 3★) empties the board.
+ * 49ers role rows stay explicitly marked for the UI exception badge.
+ */
 function applyNflDisplayPolicy(rows = []) {
-  const ranked = rankAllProjected(rows);
-  const groups = new Map();
-  for (const row of ranked) {
-    if (String(row.sport || "").toLowerCase() !== "nfl") continue;
-    const key = nflDisplayGroupKey(row);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(row);
-  }
-  const allowed = new Set();
-  for (const [key, variants] of groups.entries()) {
-    const standard = variants.find((r) => String(r.odds_tier || "standard").toLowerCase() === "standard");
-    const primary = standard || variants[0];
-    if (is49ersTargetRole(primary) || Number(primary?.confidenceStars || 0) >= 4) allowed.add(key);
-  }
-  return ranked.filter((row) => {
-    if (String(row.sport || "").toLowerCase() !== "nfl") return true;
-    return allowed.has(nflDisplayGroupKey(row));
+  return rankAllProjected(rows).map((row) => {
+    if (String(row.sport || "").toLowerCase() !== "nfl") return row;
+    const stars = Number(row.confidenceStars || 0);
+    const fortyNiners = is49ersTargetRole(row);
+    return {
+      ...row,
+      nflDisplayMode:
+        stars >= 4 ? "QUALIFIED_EDGE"
+          : fortyNiners ? "TEAM_PROJECTION"
+            : "PRIZEPICKS_CARD",
+      nflQualifiedEdge: stars >= 4,
+      nfl49ersRoleProjection: fortyNiners,
+    };
   });
 }
 
@@ -201,14 +218,14 @@ export async function onRequestGet(context) {
   if (mode === "sport") {
     selected = sport === "nfl" ? applyNflDisplayPolicy(candidates) : rankAllProjected(candidates);
     policy = {
-      view: sport === "nfl" ? "NFL_4STAR_PLUS_WITH_49ERS_EXCEPTION" : "SPORT_ALL_PROJECTED",
+      view: sport === "nfl" ? "NFL_PRIZEPICKS_CARDS_ALL_PROJECTED" : "SPORT_ALL_PROJECTED",
       cap: null,
-      minStars: sport === "nfl" ? 4 : 1,
+      minStars: 1,
       concentrationLimits: false,
       lineRole: "comparison-only",
       tiers: ["standard","goblin","demon"],
       note: sport === "nfl"
-        ? "NFL groups are listed only when the Standard line is 4-star or 5-star, except all 49ers QB1/RB1/WR1/WR2/TE1 projections remain visible. Alternate Goblin/Demon rows are returned only as variants for those visible groups."
+        ? "Every current NFL Standard, Goblin and Demon line with a valid FBIS projection is shown as a PrizePicks-style card (headshot, line, FBIS, last-5). 4★+ edges and 49ers role projections are badged, not used to hide cards."
         : "Every current Standard, Goblin and Demon line with a valid FBIS projection is shown for the selected sport, sorted by stars then edge strength.",
     };
   } else {
@@ -229,7 +246,7 @@ export async function onRequestGet(context) {
       concentrationLimits: false,
       lineRole: "comparison-only",
       tiers: ["standard","goblin","demon"],
-      note: "Top 25 player/market groups are ranked only by economically comparable tiers. Standard lines qualify normally; unpriced Goblin/Demon variants remain visible inside selected groups but cannot create or represent a Top-25 group.",
+      note: "Top 25 player/market groups are ranked by stars and edge. NFL cards remain visible below 4★ when they have a valid FBIS projection; unpriced Goblin/Demon variants cannot create a Top-25 group.",
     };
   }
 

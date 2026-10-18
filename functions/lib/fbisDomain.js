@@ -632,10 +632,46 @@ export function selectWatchlist(events = [], limit = 12) {
 /**
  * Player props surface — only real playerMarkets; default RESEARCH / not decision-eligible.
  */
-export function selectTopPlayerProps(events = [], limit = 8) {
+function finiteProp(v) {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function isStandardPrizePicksMarket(pm = {}) {
+  const book = String(pm.book || pm.source || "").toLowerCase();
+  const prizepicks = book.includes("prizepicks");
+  const tier = String(pm.oddsTier || pm.odds_tier || "standard").toLowerCase();
+  return prizepicks && tier === "standard";
+}
+
+function propWinChance(pm = {}) {
+  const projection = finiteProp(pm.fbisProjection ?? pm.fbis_projection);
+  const line = finiteProp(pm.line);
+  const sigma = finiteProp(pm.fbisSigma ?? pm.fbis_sigma);
+  if (projection == null || line == null || sigma == null || sigma <= 0) return null;
+  const z = Math.abs(projection - line) / sigma;
+  // Same 0.5–1 research hit estimate used elsewhere for Standard lines.
+  const erfApprox = (() => {
+    const x = z / Math.SQRT2;
+    const t = 1 / (1 + 0.3275911 * x);
+    return 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  })();
+  return Math.max(0.5, Math.min(0.999, 0.5 * (1 + erfApprox)));
+}
+
+/**
+ * Top Standard PrizePicks props only (no Demon/Goblin), ranked by FBIS win chance.
+ * Sport scope is applied by the caller via filtered events.
+ */
+export function selectTopPlayerProps(events = [], limit = 5) {
   const rows = [];
   for (const event of events || []) {
     for (const pm of event.playerMarkets || []) {
+      if (!isStandardPrizePicksMarket(pm)) continue;
+      if (finiteProp(pm.fbisProjection ?? pm.fbis_projection) == null) continue;
+      if (finiteProp(pm.line) == null) continue;
+      const winChance = propWinChance(pm);
       rows.push({
         ...pm,
         eventId: event.id,
@@ -644,12 +680,30 @@ export function selectTopPlayerProps(events = [], limit = 8) {
           away: event.teams?.away?.abbr || event.teams?.away?.name || null,
           home: event.teams?.home?.abbr || event.teams?.home?.name || null,
         },
+        winChance,
         // Product label until Phase 6 earns model authority.
         surfaceStatus: pm.decisionEligible ? "WATCHLIST" : "RESEARCH",
       });
     }
   }
-  return rows.slice(0, Math.max(0, limit));
+  const seen = new Set();
+  return rows
+    .sort((a, b) =>
+      (Number(b.winChance ?? -1) - Number(a.winChance ?? -1))
+      || (Math.abs(Number(b.fbisProjection ?? b.fbis_projection) - Number(b.line))
+        - Math.abs(Number(a.fbisProjection ?? a.fbis_projection) - Number(a.line)))
+    )
+    .filter((row) => {
+      const key = [
+        String(row.sport || "").toLowerCase(),
+        String(row.playerName || row.player_name || "").toLowerCase(),
+        String(row.marketCanonical || row.market || "").toLowerCase(),
+      ].join("|");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, Math.max(0, limit));
 }
 
 export function toDomainTodayBoard(board = {}, opts = {}) {
