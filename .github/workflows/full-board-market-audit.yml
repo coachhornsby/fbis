@@ -1,0 +1,27 @@
+name: Full board market source audit
+on:
+  push:
+    branches: [main]
+    paths: [scripts/audit-full-board-markets.mjs, .github/workflows/full-board-market-audit.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - run: node scripts/audit-full-board-markets.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-board-market-audit-${{ github.run_id }}
+          path: artifacts/*.json

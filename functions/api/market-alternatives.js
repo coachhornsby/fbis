@@ -22,7 +22,7 @@ export async function onRequestGet({request,env}){
   const meta=(await env.DB.prepare(`SELECT n.source_market_id,n.source_outcome_id,
     json_extract(s.value,'$.description') description,json_extract(s.value,'$.team.name') team_name,
     MAX(n.collected_at) metadata_captured_at
-    FROM normalized_market_observations n INDEXED BY idx_norm_market_event_time,
+    FROM normalized_market_observations n,
       json_each(n.raw_payload_json,'$.providerMarket.marketSides') s
     WHERE n.sport=? AND n.canonical_event_id=? AND n.source='Polymarket US'
       AND n.market_family='spread' AND n.period='full_game' AND n.collected_at>=?
