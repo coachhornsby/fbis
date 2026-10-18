@@ -37,6 +37,10 @@ import {
   indexPlayerSeasonRoles,
   CFB_CORE_ADVANCED_AUTHORITY,
 } from "./cfbCoreAdvancedPlumbing.js";
+import {
+  buildCoreWeeklyArchivePayload,
+  persistCoreWeeklyArchive,
+} from "./cfbCoreArchive.js";
 
 function todayCT(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -784,6 +788,34 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
           fetched.bundles["/ratings/core"] || [],
           { maxWeek: coreThroughWeekBound(targetWeek), seasonType: "regular", season: y }
         );
+        // Archive weekly PIT CORE for research replay (never promotes to champion).
+        if (job === "cfb-current-refresh" && y === yearCfb) {
+          try {
+            const corePayload = buildCoreWeeklyArchivePayload({
+              season: y,
+              targetWeek,
+              coreRows: fetched.bundles["/ratings/core"] || [],
+              collectionTime: new Date().toISOString(),
+              ingestionBatchId: id,
+              jobRunId: id,
+            });
+            const archived = await persistCoreWeeklyArchive(env, corePayload);
+            report.push({
+              endpoint: "/ratings/core#weekly-pit-archive",
+              ok: archived.ok,
+              written: archived.written,
+              researchOnly: true,
+              reason: archived.reason || null,
+            });
+          } catch (archiveErr) {
+            report.push({
+              endpoint: "/ratings/core#weekly-pit-archive",
+              ok: false,
+              researchOnly: true,
+              reason: String(archiveErr?.message || archiveErr),
+            });
+          }
+        }
         let weeklyMeta = null;
         if (job === "cfb-current-refresh" && y === yearCfb) {
           const weekly = await fetchWeeklyCoreAdvanced(env, {
