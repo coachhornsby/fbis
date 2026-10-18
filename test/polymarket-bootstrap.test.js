@@ -27,3 +27,9 @@ test('REST establishes matched contract roster, then actual book clocks and size
  const latest=e.writes.findLast(row=>row[28]==='yes');assert.equal(latest[29],'2026-10-18T05:59:55.000Z');assert.equal(latest[22],.58);
  await bootstrapPolymarket(e,opts,{now,fetchImpl});await bootstrapPolymarket(e,{operation:'quotes',receiptId:opts.receiptId,batchIndex:0},{now,fetchImpl});assert.equal(calls,2);
 });
+
+test('catalogue and page validation use the same independently classified slug scope',async()=>{
+ const e=environment();forecast(e);
+ const result=await bootstrapPolymarket(e,{operation:'catalogue'},{now,fetchImpl:async()=>Response.json({leagues:[{slug:'nfl',name:'National Football League'},{slug:'fnl',name:'National Football League'}]})});
+ assert.deepEqual(result.leagues,[{slug:'nfl',sport:'nfl'}]);
+});
