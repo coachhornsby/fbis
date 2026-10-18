@@ -15,7 +15,7 @@ const MAX_BATCH=40, MAX_QUEUE=400;
 const RECONNECT_MS=60000, ROTATE_MS=9*60000, FLUSH_MS=5000;
 const toJSON=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 
-export class PolymarketMarketStream extends DurableObject {
+export class PolymarketMarketStreamCoverage extends DurableObject {
   constructor(ctx,env){
     super(ctx,env);
     this.socket=null;this.subscribed=new Map();this.queue=new Map();
@@ -462,8 +462,9 @@ export class PolymarketMarketStream extends DurableObject {
         for(const t of ticks)if(!this.queue.has(t.marketSlug))this.queue.set(t.marketSlug,t);
       }
     }
-    if(this.queue.size&&!this.flushTimer){
-      this.flushTimer=setTimeout(()=>{this.flushTimer=null;this.ctx.waitUntil(this.flush())},FLUSH_MS);
+    if(this.queue.size){
+      if(this.flushTimer)clearTimeout(this.flushTimer);
+      this.flushTimer=setTimeout(()=>{this.flushTimer=null;this.ctx.waitUntil(this.flush())},this.queue.size>MAX_BATCH?100:FLUSH_MS);
     }
   }
   async alarm(){
@@ -479,6 +480,8 @@ export class PolymarketMarketStream extends DurableObject {
     }else await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
   }
 }
+
+export {PolymarketMarketStreamCoverage as PolymarketMarketStream};
 
 export default {
   async scheduled(_event,env,ctx){

@@ -12,6 +12,8 @@ const CLEAN = value => String(value??"").trim().toLowerCase().replace(/[^a-z0-9]
 const CODE_ALIASES = {tbr:"tb",tampa:"tb",sfg:"sf",sd:"sdp",wsn:"wsh",was:"wsh",kcr:"kc",az:"ari",chw:"cws"};
 const tidyCode = value => CODE_ALIASES[CLEAN(value).replace(/ /g,"")]||CLEAN(value).replace(/ /g,"");
 export function classifyPolymarketUsLeague(league={}) {
+  if(league.providerSport==='soccer')return 'soccer';
+  if(league.providerSport&& !['baseball','football','basketball','ice-hockey','tennis'].includes(league.providerSport))return null;
   const slug=CLEAN(league.slug).replace(/ /g,"-"), name=CLEAN(league.name);
   const listedAlias={itfm:'tennis',itfw:'tennis',atpcq:'tennis',wcbb:'cbb',fwc:'soccer',lal:'soccer',bun:'soccer',sea:'soccer',nb1:'soccer',flc:'soccer'};
   if(listedAlias[slug])return listedAlias[slug];
@@ -56,8 +58,8 @@ function teamMatches(a,b,abbr){
 // Verified against the independent ESPN fixtures and the provider's two-team
 // event titles at the same kickoff. Aliases never cross competition scope.
 const SOCCER_MARKET_NAME_ALIASES={
- 'ger.1':{'1 koln':'cologne','koln':'cologne'},
- 'esp.1':{'rc deportivo a coruna':'deportivo','deportivo la coruna':'deportivo'},
+ 'ger.1':{'1 koln':'cologne','koln':'cologne','bayer 04 leverkusen':'bayer leverkusen','tsg 1899 hoffenheim':'tsg hoffenheim'},
+ 'esp.1':{'rc deportivo a coruna':'deportivo','deportivo la coruna':'deportivo','rc celta de vigo':'celta vigo','real racing':'racing santander'},
 };
 function soccerMarketTeamMatches(a,b,abbr,league){
  const aliases=SOCCER_MARKET_NAME_ALIASES[league]||{},left=normName(a),right=normName(b);
