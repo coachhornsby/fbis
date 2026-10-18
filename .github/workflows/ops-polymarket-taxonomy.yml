@@ -7,21 +7,10 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - name: Inspect existing stream owners and remove temporary diagnostics
+      - name: Read stream ownership and compact moneyline delivery
         run: |
           node --input-type=module <<'JS'
-          const path='https://api.cloudflare.com/client/v4/accounts/'+process.env.CLOUDFLARE_ACCOUNT_ID+'/workers/scripts/fbis-polymarket-owner-audit';
-          const headers={authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN,'content-type':'application/json'};
-          try{
-            const r=await fetch(path+'/subdomain',{method:'PUT',headers,body:JSON.stringify({enabled:true})});console.log(JSON.stringify({enable:r.status}));
-            if(!r.ok)throw Error('AUDIT_ENDPOINT_UNAVAILABLE');
-            for(let i=0;i<6;i++){try{const s=await fetch('https://fbis-polymarket-owner-audit.coachhornsby.workers.dev',{signal:AbortSignal.timeout(20000)});if(s.ok){console.log(JSON.stringify({ownerAudit:await s.json()}));break;}}catch{}await new Promise(r=>setTimeout(r,5000));}
-          }finally{
-            const a=await fetch(path+'/schedules',{method:'PUT',headers,body:'[]'});console.log(JSON.stringify({cronRemoved:a.status}));
-            const d=await fetch(path,{method:'DELETE',headers});console.log(JSON.stringify({temporaryWorkerRemoved:d.status}));if(!d.ok)throw Error('AUDIT_CLEANUP_FAILED');
-          }
+          const r=await fetch('https://fbis-polymarket-owner-audit.coachhornsby.workers.dev',{signal:AbortSignal.timeout(45000)});console.log(JSON.stringify({ownerAudit:await r.json()}));
+          const start=Date.now(),q=await fetch('https://fbis-myz.pages.dev/api/polymarket-quotes?sport=nfl&eventIds=401872996',{signal:AbortSignal.timeout(90000)}),text=await q.text(),b=JSON.parse(text);console.log(JSON.stringify({quoteHttp:q.status,bytes:text.length,ms:Date.now()-start,scope:b.scope,offers:b.byEvent?.['401872996']?.length}));
           JS
