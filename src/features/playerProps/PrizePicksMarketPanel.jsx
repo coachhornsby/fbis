@@ -104,7 +104,15 @@ function useTeamTheme(sport, team){
     let cancelled=false;
     const s=String(sport||"").toLowerCase();
     const t=String(team||"").trim();
-    if(!s||!t||s==="tennis"){
+    if(!s){
+      setTheme({logo:"",primary:"",secondary:""});
+      return ()=>{cancelled=true};
+    }
+    if(s==="tennis"){
+      setTheme({logo:"",primary:"#8b64ff",secondary:"#211548"});
+      return ()=>{cancelled=true};
+    }
+    if(!t){
       setTheme({logo:"",primary:"",secondary:""});
       return ()=>{cancelled=true};
     }
