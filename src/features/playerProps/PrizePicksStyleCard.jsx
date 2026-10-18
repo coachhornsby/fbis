@@ -253,12 +253,53 @@ export default function PrizePicksStyleCard({
       style={{
         "--pp-team-primary": primary,
         "--pp-team-secondary": secondary,
+        borderColor: `color-mix(in srgb, ${primary} 55%, rgba(255,255,255,.18))`,
       }}
     >
-      <div className="pp-card-visual pp-card-visual-team">
+      <div
+        className="pp-card-visual pp-card-visual-team"
+        style={{
+          background: `
+            radial-gradient(circle at 50% 38%, color-mix(in srgb, ${primary} 42%, transparent), transparent 66%),
+            linear-gradient(180deg, ${secondary} 0%, color-mix(in srgb, ${secondary} 88%, #050b16) 100%)
+          `.replace(/\s+/g, " ").trim(),
+        }}
+      >
         {theme.logo ? (
-          <div className="pp-team-watermark" aria-hidden="true">
-            <img src={theme.logo} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
+          <div
+            className="pp-team-watermark"
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "38%",
+              width: "min(155%, 480px)",
+              height: "min(155%, 480px)",
+              transform: "translate(-50%, -50%)",
+              opacity: 0.28,
+              zIndex: 1,
+              display: "grid",
+              placeItems: "center",
+              pointerEvents: "none",
+              filter: "none",
+              inset: "auto",
+            }}
+          >
+            <img
+              src={theme.logo}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              style={{
+                width: "125%",
+                height: "125%",
+                maxWidth: "none",
+                maxHeight: "none",
+                objectFit: "contain",
+                filter: "saturate(0.95) drop-shadow(0 0 22px rgba(255,255,255,.08))",
+              }}
+            />
           </div>
         ) : null}
         {rank != null ? <div className="pp-style-rank" aria-label={"Rank " + rank}>#{rank}</div> : null}
@@ -293,15 +334,15 @@ export default function PrizePicksStyleCard({
         </div>
         <div className="pp-market-name pp-premium-market-name">{marketLabel(row)}</div>
         <div className="pp-line-row pp-premium-metrics" aria-label="PrizePicks line versus FBIS projection">
-          <div>
+          <div className="pp-metric-cell">
             <span>PP LINE</span>
             <strong>{num(line)}</strong>
           </div>
-          <div className="fbis-metric">
+          <div className="pp-metric-cell fbis-metric">
             <span>FBIS</span>
             <strong>{num(projection)}</strong>
           </div>
-          <div>
+          <div className={"pp-metric-cell pp-metric-diff "+(delta==null?"":delta>0?"is-over":delta<0?"is-under":"is-push")}>
             <span>DIFF</span>
             <strong>{signed(delta)}</strong>
           </div>

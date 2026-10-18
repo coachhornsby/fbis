@@ -57,25 +57,6 @@ function sideFor(row={}){
   if(!Number.isFinite(p)||!Number.isFinite(l)) return "WATCH";
   return p>l?"MORE":p<l?"LESS":"WATCH";
 }
-function normalCdf(x){
-  const sign=x<0?-1:1;
-  const a=Math.abs(x)/Math.sqrt(2);
-  const t=1/(1+0.3275911*a);
-  const erf=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-a*a);
-  return 0.5*(1+sign*erf);
-}
-function hitProbability(row={}){
-  const p=Number(row.fbis_projection), l=Number(row.line), s=Number(row.fbis_sigma);
-  if(!Number.isFinite(p)||!Number.isFinite(l)||!Number.isFinite(s)||s<=0) return null;
-  const z=(p-l)/s;
-  const side=sideFor(row);
-  const prob=side==="MORE"?normalCdf(z):side==="LESS"?normalCdf(-z):0.5;
-  return Math.max(0,Math.min(1,prob));
-}
-function formatHit(row={}){
-  const p=hitProbability(row);
-  return p==null?"—":Math.round(p*100)+"%";
-}
 function matchupLabel(r){
   const team=String(r.team||"").trim();
   const opponent=String(r.opponent||"").trim();
@@ -148,8 +129,40 @@ function useTeamTheme(sport, team){
 function TeamWatermark({ logo }){
   if(!logo) return null;
   return (
-    <div className="pp-team-watermark" aria-hidden="true">
-      <img src={logo} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer"/>
+    <div
+      className="pp-team-watermark"
+      aria-hidden="true"
+      style={{
+        position:"absolute",
+        left:"50%",
+        top:"38%",
+        width:"min(155%, 480px)",
+        height:"min(155%, 480px)",
+        transform:"translate(-50%, -50%)",
+        opacity:0.28,
+        zIndex:1,
+        display:"grid",
+        placeItems:"center",
+        pointerEvents:"none",
+        filter:"none",
+        inset:"auto",
+      }}
+    >
+      <img
+        src={logo}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        referrerPolicy="no-referrer"
+        style={{
+          width:"125%",
+          height:"125%",
+          maxWidth:"none",
+          maxHeight:"none",
+          objectFit:"contain",
+          filter:"saturate(0.95) drop-shadow(0 0 22px rgba(255,255,255,.08))",
+        }}
+      />
     </div>
   );
 }
@@ -198,12 +211,9 @@ function VariantMetrics({ group }){
   return (
     <div className="pp-variant-shell">
       <div className="pp-tier-control-row">
-        <span className={"pp-active-tier pp-active-tier-"+String(active.odds_tier||"standard").toLowerCase()}>
-          {tierLabel(active)}
-        </span>
         {hasAlternates ? (
           <label className="pp-tier-select-wrap">
-            <span>Line type</span>
+            <span>Line</span>
             <select
               className="pp-tier-select"
               value={String(active.odds_tier||"standard").toLowerCase()}
@@ -220,21 +230,25 @@ function VariantMetrics({ group }){
               ))}
             </select>
           </label>
-        ) : null}
+        ) : (
+          <span className={"pp-active-tier pp-active-tier-"+String(active.odds_tier||"standard").toLowerCase()}>
+            {tierLabel(active)}
+          </span>
+        )}
       </div>
 
-      <div className="pp-line-row pp-premium-metrics">
-        <div>
+      <div className="pp-line-row pp-premium-metrics" aria-label="PrizePicks line versus FBIS projection">
+        <div className="pp-metric-cell">
           <span>PP LINE</span>
-          <strong>{active.line??"—"}</strong>
+          <strong>{active.line==null?"—":num(active.line)}</strong>
         </div>
-        <div className="fbis-metric">
+        <div className="pp-metric-cell fbis-metric">
           <span>FBIS</span>
           <strong>{active.fbis_projection==null?"—":num(active.fbis_projection)}</strong>
         </div>
-        <div>
-          <span>HIT %</span>
-          <strong>{formatHit(active)}</strong>
+        <div className={"pp-metric-cell pp-metric-diff "+(Number.isFinite(Number(diff))?(Number(diff)>0?"is-over":Number(diff)<0?"is-under":"is-push"):"")}>
+          <span>DIFF</span>
+          <strong>{signed(diff)}</strong>
         </div>
       </div>
 
@@ -516,9 +530,18 @@ function PrizePicksPropCard({ group, expanded, onToggleExpand }){
     <article
       className={"pp-card pp-premium-card sport-"+sport+(stars===5?" pp-five-star":"")+(expanded?" pp-expanded":"")}
       data-pp-card="prizepicks"
-      style={{"--pp-team-primary":primary,"--pp-team-secondary":secondary}}
+      style={{
+        "--pp-team-primary":primary,
+        "--pp-team-secondary":secondary,
+        borderColor:`color-mix(in srgb, ${primary} 55%, rgba(255,255,255,.18))`,
+      }}
     >
-      <div className="pp-card-visual pp-card-visual-team">
+      <div
+        className="pp-card-visual pp-card-visual-team"
+        style={{
+          background:`radial-gradient(circle at 50% 38%, color-mix(in srgb, ${primary} 42%, transparent), transparent 66%), linear-gradient(180deg, ${secondary} 0%, color-mix(in srgb, ${secondary} 88%, #050b16) 100%)`,
+        }}
+      >
         <TeamWatermark logo={theme.logo}/>
         <StarRating stars={stars}/>
 
