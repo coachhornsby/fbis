@@ -2,6 +2,7 @@ import {DurableObject} from "cloudflare:workers";
 import {polymarketUsSubscribeBatches,parsePolymarketUsLite,parsePolymarketUsTrade}
   from "../../functions/lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
+import {probeStreamPreferHistory} from "../../functions/lib/primaryCapacityWriteTarget.js";
 import {mirrorPersistentStreamRows} from "./shadow.mjs";
 import {persistStreamRecoveryBatch} from "./historyRecovery.mjs";
 import {
@@ -28,7 +29,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
     this.persistenceStatus="UNVERIFIED";this.lastSpillKey=null;this.lastSpillAt=null;
     this.historyLastError=null;
-    this.codeVersion="rest-ws-history-recovery-complete-inventory-20261018";
+    this.codeVersion="rest-ws-history-recovery-capacity-prefer-20261018";
   }
   isCanonicalOwner(){
     if(!this.ctx.id?.toString||!this.env.PM_STREAM?.idFromName)return true;
@@ -438,7 +439,35 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     const ticks=[...this.queue.values()].slice(0,MAX_BATCH);
     for(const tick of ticks)this.queue.delete(tick.marketSlug);
     const offers=ticks.flatMap(t=>liveBboOffers(t,this.subscribed.get(t.marketSlug)));
-    try{
+    // When primary is at/near the soft cap, skip the primary attempt and land
+    // observational CURRENT ticks on MARKET_HISTORY so FREEZE/CL retain headroom.
+    const preferHistory=await probeStreamPreferHistory(this.env).catch(()=>false);
+    if(preferHistory){
+      this.lastError="d1-bbo-persist-error";
+      let historyOk=false,spilledKey=null;
+      try{
+        const hr=await persistStreamRecoveryBatch(this.env,offers,{
+          collectedAt:new Date().toISOString(),
+        });
+        if(hr.ok){
+          this.historyInserted+=hr.inserted;historyOk=true;this.historyLastError=null;
+        }else{
+          this.historyLastError=hr.reason||"history-recovery-failed";
+        }
+      }catch(error){
+        historyOk=false;
+        this.historyLastError=String(error?.message||error||"history-recovery-exception").slice(0,240);
+      }
+      try{spilledKey=await this.spillFailedFlush(ticks,offers)}
+      catch{spilledKey=null}
+      if(historyOk||spilledKey){
+        this.persistenceStatus=historyOk?"DEGRADED_HISTORY":"DEGRADED";
+        for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
+      }else{
+        this.persistenceStatus="UNAVAILABLE";
+        for(const t of ticks)if(!this.queue.has(t.marketSlug))this.queue.set(t.marketSlug,t);
+      }
+    }else try{
       const r=await persistNormalizedMarketBatch(this.env.DB,offers,{
         snapshotType:"CURRENT",collectedAt:new Date().toISOString(),modelProbability:null
       });
