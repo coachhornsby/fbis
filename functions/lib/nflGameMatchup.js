@@ -28,6 +28,7 @@ export function analyzeNflGameMatchup(game={},baseline=game.nflProShadow){
   const hSep=n(h,"receivingSeparation"),aSep=n(a,"receivingSeparation");
   const hYac=n(h,"receivingYacOe"),aYac=n(a,"receivingYacOe");
   const hPassDef=n(h,"passEpaAllowed","passDefEpa"),aPassDef=n(a,"passEpaAllowed","passDefEpa");
+  const hPassOff=n(h,"passEpa","passOffEpa"),aPassOff=n(a,"passEpa","passOffEpa");
   const hExp=n(h,"explosiveRate","explosivePassRate"),aExp=n(a,"explosiveRate","explosivePassRate");
   const hExpDef=n(h,"explosiveRateAllowed","explosivePassRateAllowed"),aExpDef=n(a,"explosiveRateAllowed","explosivePassRateAllowed");
   const hEarly=n(h,"earlyDownEpa","earlyDownOffEpa"),aEarly=n(a,"earlyDownEpa","earlyDownOffEpa");
@@ -51,9 +52,15 @@ export function analyzeNflGameMatchup(game={},baseline=game.nflProShadow){
   const unitMatchups=[
     unit("away-run-defense",hRush,aRushDef,"home"),
     unit("away-run-offense",aRush,hRushDef,"away"),
-    unit("away-pass-defense",passOff(hSep,hYac),aPassDef,"home"),
-    unit("away-pass-offense",passOff(aSep,aYac),hPassDef,"away")
+    unit("away-pass-defense",hPassOff??passOff(hSep,hYac),aPassDef,"home"),
+    unit("away-pass-offense",aPassOff??passOff(aSep,aYac),hPassDef,"away")
   ];
+  const statPairs=[[hRush,aRushDef],[aRush,hRushDef],[hPassOff,aPassDef],[aPassOff,hPassDef]];
+  unitMatchups.forEach((row,index)=>{const [off,def]=statPairs[index];
+    row.offenseEpa=off;row.defenseEpaAllowed=def;
+    row.metric=off!=null&&def!=null?'EPA per play':null;
+    row.synopsis=off!=null&&def!=null?`Offense ${off>=0?'+':''}${off.toFixed(2)} EPA/play; opposing defense allows ${def>=0?'+':''}${def.toFixed(2)}.`:'Source-backed unit efficiency data unavailable.';
+  });
   const signals=[
     signal("pressure","QB pressure × protection/pass rush",pressureHome,pressureAway,1,.8),
     signal("run","Run efficiency/YOE × run defense",runHome,runAway,1,.7),

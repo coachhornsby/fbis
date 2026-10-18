@@ -4,6 +4,10 @@ const headers={'content-type':'application/json','x-harvest-secret':process.env.
 if(!process.env.HARVEST_SECRET)throw Error('OPERATOR_AUTH_REQUIRED');
 await mkdir('artifacts',{recursive:true});
 async function call(body){const r=await fetch(base+'/api/pinnodds-ingest',{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(150000)});const x=await r.json();if(!r.ok||!x.ok)throw Error(JSON.stringify(x));return x;}
+for(const sport of ['nfl','cfb'])for(let dayOffset=0;dayOffset<=8;dayOffset++){
+ const r=await fetch(base+'/api/football-fixtures',{method:'POST',headers,body:JSON.stringify({sport,dayOffset}),signal:AbortSignal.timeout(60000)});
+ const x=await r.json();console.log(JSON.stringify(x));if(!r.ok||!x.ok)throw Error('FOOTBALL_SCHEDULE_INCOMPLETE');
+}
 const status=await(await fetch(base+'/api/pinnodds-status')).json();
 const sources=status.results.filter(x=>x.kind==='board'&&x.feed==='prematch'&&x.snapshotId&&[5].includes(x.sportId));
 for(const source of sources){

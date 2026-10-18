@@ -1,11 +1,14 @@
 name: Restore NFL PinnOdds cards from existing archive
 on:
+  schedule:
+    - cron: '11 0,6,12,18 * * *'
   push:
     branches: [main]
     paths: [scripts/repair-nfl-card-markets.mjs, .github/workflows/nfl-card-readiness-repair.yml]
   workflow_dispatch:
 permissions:
   contents: read
+  id-token: write
 concurrency:
   group: fbis-nfl-card-readiness-repair
   cancel-in-progress: false
@@ -23,6 +26,10 @@ jobs:
           node-version: '22'
       - run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
       - run: node scripts/repair-nfl-card-markets.mjs
+      - name: Wait for hourly football collector capability
+        run: node scripts/wait-pinnodds-hourly.mjs
+      - name: Refresh the existing current quota slot
+        run: node scripts/collect-pinnodds-governed.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

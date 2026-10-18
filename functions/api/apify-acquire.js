@@ -21,12 +21,30 @@ export async function onRequestPost({request,env}){
  }
  if(body.source!=='prizepicks')return json({ok:false,error:'SOURCE_ROUTE_REQUIRED'},400);
  // Explicit shared scope: a single query covers subscribers, no paid league discovery.
- return startPaidAcquisition(env,{source:'prizepicks',component:'prizepicks-daily',sport:'shared',input:{leagues:['MLB','NFL','NHL','NBA','College Basketball','CFB','Soccer','Tennis']}});
+ const now=new Date().toISOString(),until=new Date(Date.now()+8*86400000).toISOString();
+ const targets=(await env.DB.prepare(`SELECT g.id,g.home_abbr,g.away_abbr FROM games g
+ WHERE g.sport='nfl' AND g.id NOT LIKE 'nfl_%' AND julianday(g.start)>julianday(?) AND julianday(g.start)<=julianday(?)
+ AND EXISTS(SELECT 1 FROM prediction_snapshots p WHERE p.game_id=g.id AND p.sport='nfl'
+ AND p.model_version IS NOT NULL AND (p.proj_total IS NOT NULL OR (p.proj_home IS NOT NULL AND p.proj_away IS NOT NULL))
+ AND julianday(p.frozen_at)<=julianday(?) AND julianday(p.frozen_at)<julianday(g.start))`)
+ .bind(now,until,now).all()).results||[];
+ if(!targets.length)return json({ok:false,error:'NO_PROJECTED_NFL_EVENTS'},409);
+ return startPaidAcquisition(env,{source:'prizepicks',component:'prizepicks-daily',sport:'nfl',input:{leagues:['NFL'],
+ projectedEventIds:targets.map(g=>String(g.id)),teams:[...new Set(targets.flatMap(g=>[g.home_abbr,g.away_abbr]).filter(Boolean))].join(',')}});
 }
 
 export async function onRequestGet({request,env}){
  if(!authorizeHarvest(request,env).ok)return json(unauthorizedBody(),401);
  const source=await env.DB.prepare("SELECT * FROM external_acquisitions WHERE source='prizepicks' AND provider_run_id IS NOT NULL ORDER BY created_at DESC LIMIT 1").first();
+ const url=new URL(request.url);
+ if(url.searchParams.get('operation')==='rows'){
+   if(source?.state!=='CAPTURED'||!source.raw_key)return json({ok:false,error:'CAPTURE_REQUIRED'},409);
+   const offset=Number(url.searchParams.get('offset')||0);
+   if(!Number.isSafeInteger(offset)||offset<0||offset%200)return json({ok:false,error:'INVALID_OFFSET'},400);
+   const raw=await(await env.ARCHIVE.get(source.raw_key))?.json();
+   return json({ok:true,acquisitionId:source.id,runId:source.provider_run_id,rows:(raw?.rows||[]).slice(offset,offset+200),total:raw?.rows?.length||0});
+ }
+
  const day=v=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(v));
  if(!source||day(source.created_at)!==day(Date.now()))return json({ok:false,error:'NO_CURRENT_OWNED_CAPTURE'},409);
  return json({ok:true,acquisitionId:source.id,reused:true,data:{id:source.provider_run_id,status:source.provider_status,defaultDatasetId:source.dataset_id}});

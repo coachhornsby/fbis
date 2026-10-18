@@ -1,3 +1,4 @@
+import AlternateLines from './AlternateLines.jsx';
 import {buildMoneylinePriceComparison} from "../../lib/marketPriceComparison.js";
 import VenueConditions from "./VenueConditions.jsx";
 import SoccerPinnOdds from "./SoccerPinnOdds.jsx";
@@ -342,6 +343,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </section>
       ) : null}
 
+      {!stored ? <AlternateLines game={game} /> : null}
       {!stored ? <><EventMarkets game={game} /><EventPlayerProps game={game} /></> : null}
 
       <footer className="pgc-footer pgc-featured-footer">

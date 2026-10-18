@@ -1,13 +1,32 @@
-# RETIRED 2026-10-14: Sole active odds / price ingestor is PinnOdds.
-# Historical workflow available in Git history; no scheduled or manual
-# non-PinnOdds provider calls may run.
-name: PrizePicks legacy Apify acquisition — manual only — RETIRED (PinnOdds only)
+name: Zen PrizePicks modeled NFL props
 on:
+  schedule:
+    - cron: '55 11 * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [scripts/restore-zen-prizepicks.mjs, functions/api/prizepicks-reauthorize.js, .github/workflows/prizepicks-targeted-props.yml]
 permissions:
   contents: read
+concurrency:
+  group: fbis-prizepicks-single-daily-acquisition
+  cancel-in-progress: false
 jobs:
-  retired:
+  restore:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
     steps:
-      - run: echo "RETIRED_ODDS_INGESTOR_PINNODDS_ONLY; no provider calls, writes, or paid collection."
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - run: node scripts/restore-zen-prizepicks.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zen-prizepicks-restoration-${{ github.run_id }}
+          path: artifacts/zen-prizepicks-restoration.json

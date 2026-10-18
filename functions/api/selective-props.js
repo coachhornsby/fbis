@@ -1,3 +1,4 @@
+import {chicagoDayBounds} from '../lib/chicagoDayBounds.js';
 import { estimatedPropHitProbability, prizePicksTierEconomics, rankSelectiveProps, selectivePropStars } from "../lib/selectivePropEdge.js";
 
 function json(body, status = 200) {
@@ -176,11 +177,12 @@ export async function onRequestGet(context) {
 
   const where = [
     "run_id IN (SELECT run_id FROM prizepicks_daily_acquisitions WHERE state='COMPLETE') AND julianday(collected_at) BETWEEN julianday('now','-24 hours') AND julianday('now')",
-    "substr(start_time,1,10)=?",
+    "julianday(start_time)>=julianday(?) AND julianday(start_time)<julianday(?)",
     "fbis_projection IS NOT NULL",
     "line IS NOT NULL",
   ];
-  const bind = [date];
+  const bounds=chicagoDayBounds(date);
+  const bind = [bounds.start,bounds.end];
   if (sport && sport !== "all") { where.push("LOWER(sport)=?"); bind.push(sport); }
 
   const sql =

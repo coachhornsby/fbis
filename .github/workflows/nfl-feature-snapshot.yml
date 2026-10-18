@@ -72,3 +72,4 @@ jobs:
           name: nfl-feature-snapshot-${{ github.run_id }}
           path: artifacts/nfl-features/latest.json
           retention-days: 14
+# Operator 2026-10-18: refresh current NFL card matchup and player features.

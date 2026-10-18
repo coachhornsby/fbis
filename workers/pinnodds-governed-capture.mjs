@@ -30,10 +30,10 @@ const valid=id=>/^[a-z0-9-]{1,140}$/i.test(id||'');
 const jsonOptions={httpMetadata:{contentType:'application/json'}};
 async function hash(value){const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return [...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join('');}
 export async function reservePinnoddsRun(env,{runId,scope='full',now=new Date(),fetchImpl=fetch}={}){
- if(!['full','drops'].includes(scope))throw Error('INVALID_RESERVATION_SCOPE');
+ if(!['full','drops','football','football-drops'].includes(scope))throw Error('INVALID_RESERVATION_SCOPE');
  // Whole-sport fetches are free. Reserve request quotas first; the ingestion
  // layer filters normalized observations to already modeled FBIS matchups.
- const requests=scope==='drops'?2:PINNODDS_CAPTURE_REQUESTS;
+ const requests=scope==='football'?1:scope==='football-drops'?3:scope==='drops'?2:PINNODDS_CAPTURE_REQUESTS;
  if(!valid(runId)||!env.R2_ARCHIVE?.get||!env.R2_ARCHIVE?.put)throw Error('INVALID_DURABLE_RESERVATION');
  const runKey=`${root}/runs/${runId}.json`,existing=await env.R2_ARCHIVE.get(runKey);if(existing)return await existing.json();
  const account=await readPinnoddsAccountUsage({apiKey:env.PINNODDS_API_KEY,fetchImpl});
@@ -46,7 +46,7 @@ export async function reservePinnoddsRun(env,{runId,scope='full',now=new Date(),
   const object=await env.R2_ARCHIVE.get(budgetKey),budget=object?await object.json():{reservations:[]};
   const reservations=budget.reservations||[];
   if(!reservations.some(r=>r.runId===runId)){
-   if(reservations.reduce((sum,r)=>sum+r.requests,0)+requests>Math.min(70,daily-10))throw Error('FBIS_DAILY_CAPTURE_BUDGET_EXHAUSTED');
+   if(reservations.reduce((sum,r)=>sum+r.requests,0)+requests>Math.min(90,daily-10))throw Error('FBIS_DAILY_CAPTURE_BUDGET_EXHAUSTED');
    if(reservations.filter(r=>now.getTime()-Date.parse(r.at)<60000).reduce((sum,r)=>sum+r.requests,0)+requests>minute)throw Error('FBIS_MINUTE_BUDGET_EXHAUSTED');
    reservations.push({runId,requests,at:now.toISOString()});
    const written=await env.R2_ARCHIVE.put(budgetKey,JSON.stringify({day,reservations}),{...jsonOptions,onlyIf:object?{etagMatches:object.etag}:{etagDoesNotMatch:'*'}});
@@ -61,7 +61,7 @@ export async function reservePinnoddsRun(env,{runId,scope='full',now=new Date(),
 export async function capturePinnoddsSnapshot(env,{runId,kind,sportId=null,feed=null,fetchImpl=fetch,now=new Date()}={}){
  if(!valid(runId)||!['board','drops','health'].includes(kind)||kind!=='health'&&!['live','prematch'].includes(feed)||kind==='board'&&![1,2,3,4,5,6].includes(sportId))throw Error('INVALID_CAPTURE_SCOPE');
  const runObject=await env.R2_ARCHIVE.get(`${root}/runs/${runId}.json`);if(!runObject)throw Error('QUOTA_RESERVATION_REQUIRED');
- const reservation=await runObject.json();if(reservation.scope==='drops'&&kind!=='drops')throw Error('RESERVATION_SCOPE_MISMATCH');if(reservation.day!==now.toISOString().slice(0,10))throw Error('RESERVATION_EXPIRED');
+ const reservation=await runObject.json();if(reservation.scope==='drops'&&kind!=='drops')throw Error('RESERVATION_SCOPE_MISMATCH');if(reservation.scope==='football'&&!(kind==='board'&&sportId===5&&feed==='prematch'))throw Error('RESERVATION_SCOPE_MISMATCH');if(reservation.scope==='football-drops'&&!(kind==='drops'||kind==='board'&&sportId===5&&feed==='prematch'))throw Error('RESERVATION_SCOPE_MISMATCH');if(reservation.day!==now.toISOString().slice(0,10))throw Error('RESERVATION_EXPIRED');
  const snapshotId=`${runId}-${kind}-${sportId||'all'}-${feed||'all'}`,receiptKey=`${root}/receipts/${snapshotId}.json`;
  const prior=await env.R2_ARCHIVE.get(receiptKey);if(prior){const receipt=await prior.json();if(receipt.ok===true)return receipt;throw Error('PROVIDER_ATTEMPT_ALREADY_RESERVED_NO_AUTOMATIC_RECHARGE');}
  const claim=await env.R2_ARCHIVE.put(receiptKey,JSON.stringify({ok:false,snapshotId,state:'ATTEMPT_RESERVED',at:now.toISOString()}),{...jsonOptions,onlyIf:{etagDoesNotMatch:'*'}});
