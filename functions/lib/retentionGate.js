@@ -3,15 +3,11 @@
  * Existing immutable manifests with retentionReleaseAuthorized:false remain binding.
  */
 
-import { createHash } from "node:crypto";
 import { DATABASE_OWNERS } from "./databaseOwnership.js";
 import { withOperationsWrite } from "./operationsDb.js";
+import { sha256Hex } from "./sha256Hex.js";
 
 export const RETENTION_GATE_CONTRACT = "fbis-retention-release-gate-v1";
-
-function sha256Hex(text) {
-  return createHash("sha256").update(String(text)).digest("hex");
-}
 
 /**
  * Evaluate whether a proposed retention/deletion may proceed.
