@@ -15,7 +15,7 @@ const MAX_BATCH=40, MAX_QUEUE=400;
 const RECONNECT_MS=60000, ROTATE_MS=9*60000, FLUSH_MS=5000;
 const toJSON=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 
-export class PolymarketMarketStream extends DurableObject {
+export class PolymarketMarketStreamCoverage extends DurableObject {
   constructor(ctx,env){
     super(ctx,env);
     this.socket=null;this.subscribed=new Map();this.queue=new Map();
@@ -174,7 +174,11 @@ export class PolymarketMarketStream extends DurableObject {
         CASE WHEN sport='soccer' AND json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time_winner%' THEN 'moneyline' ELSE market_family END market_family,
         CASE WHEN sport='soccer' AND json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time_winner%' THEN COALESCE(json_extract(raw_payload_json,'$.providerSide.team.name'),REPLACE(json_extract(raw_payload_json,'$.providerMarket.title'),' (Reg. Time)','')) ELSE side END side,line,
         CASE WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%first_half%' THEN 'first_half' WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%second_half%' THEN 'second_half' WHEN json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_time%' OR json_extract(raw_payload_json,'$.providerMarket.sportsMarketType') LIKE '%full_game%' THEN 'full_game' ELSE period END period,
-        source_market_id,source_outcome_id,collected_at,raw_payload_json,
+        source_market_id,source_outcome_id,collected_at,
+        json_extract(raw_payload_json,'$.opposite') opposite_json,
+        json_extract(raw_payload_json,'$.canonicalSide') canonical_side,
+        json_extract(raw_payload_json,'$.providerMarket.feeCoefficient') fee_coefficient,
+        json_object('marketState',json_extract(raw_payload_json,'$.marketState')) raw_payload_json,
         ROW_NUMBER() OVER(PARTITION BY source_market_id ORDER BY collected_at DESC,CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END,id DESC) rn
        FROM normalized_market_observations nmo
        WHERE source='Polymarket US' AND source_market_id IS NOT NULL
@@ -222,7 +226,8 @@ export class PolymarketMarketStream extends DurableObject {
       ) SELECT * FROM balanced
        ORDER BY sport,sport_rank`)
        .bind(rosterSince,from,until,freshSince).all();
-    const plan=manageSubscriptionCapacity(q.results||[],this.capacityPlan());
+    const roster=(q.results||[]).map(row=>{let opposite=row.opposite;try{opposite=JSON.parse(row.opposite_json||'null')||opposite;}catch{}return {...row,opposite};});
+    const plan=manageSubscriptionCapacity(roster,this.capacityPlan());
     this.lastCandidateDiagnostics={at:new Date().toISOString(),
       selected:plan.assignedCount,eligibleCount:plan.eligibleCount,
       uncoveredCount:plan.uncoveredCount,returnedRows:(q.results||[]).length,
@@ -462,8 +467,9 @@ export class PolymarketMarketStream extends DurableObject {
         for(const t of ticks)if(!this.queue.has(t.marketSlug))this.queue.set(t.marketSlug,t);
       }
     }
-    if(this.queue.size&&!this.flushTimer){
-      this.flushTimer=setTimeout(()=>{this.flushTimer=null;this.ctx.waitUntil(this.flush())},FLUSH_MS);
+    if(this.queue.size){
+      if(this.flushTimer)clearTimeout(this.flushTimer);
+      this.flushTimer=setTimeout(()=>{this.flushTimer=null;this.ctx.waitUntil(this.flush())},this.queue.size>MAX_BATCH?100:FLUSH_MS);
     }
   }
   async alarm(){
@@ -479,6 +485,8 @@ export class PolymarketMarketStream extends DurableObject {
     }else await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
   }
 }
+
+export {PolymarketMarketStreamCoverage as PolymarketMarketStream};
 
 export default {
   async scheduled(_event,env,ctx){

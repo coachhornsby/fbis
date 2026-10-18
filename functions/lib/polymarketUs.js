@@ -12,6 +12,8 @@ const CLEAN = value => String(value??"").trim().toLowerCase().replace(/[^a-z0-9]
 const CODE_ALIASES = {tbr:"tb",tampa:"tb",sfg:"sf",sd:"sdp",wsn:"wsh",was:"wsh",kcr:"kc",az:"ari",chw:"cws"};
 const tidyCode = value => CODE_ALIASES[CLEAN(value).replace(/ /g,"")]||CLEAN(value).replace(/ /g,"");
 export function classifyPolymarketUsLeague(league={}) {
+  if(league.providerSport==='soccer')return 'soccer';
+  if(league.providerSport&& !['baseball','football','basketball','ice-hockey','tennis'].includes(league.providerSport))return null;
   const slug=CLEAN(league.slug).replace(/ /g,"-"), name=CLEAN(league.name);
   const listedAlias={itfm:'tennis',itfw:'tennis',atpcq:'tennis',wcbb:'cbb',fwc:'soccer',lal:'soccer',bun:'soccer',sea:'soccer',nb1:'soccer',flc:'soccer'};
   if(listedAlias[slug])return listedAlias[slug];
@@ -56,8 +58,8 @@ function teamMatches(a,b,abbr){
 // Verified against the independent ESPN fixtures and the provider's two-team
 // event titles at the same kickoff. Aliases never cross competition scope.
 const SOCCER_MARKET_NAME_ALIASES={
- 'ger.1':{'1 koln':'cologne','koln':'cologne'},
- 'esp.1':{'rc deportivo a coruna':'deportivo','deportivo la coruna':'deportivo'},
+ 'ger.1':{'1 koln':'cologne','koln':'cologne','bayer 04 leverkusen':'bayer leverkusen','tsg 1899 hoffenheim':'tsg hoffenheim'},
+ 'esp.1':{'rc deportivo a coruna':'deportivo','deportivo la coruna':'deportivo','rc celta de vigo':'celta vigo','real racing':'racing santander'},
 };
 function soccerMarketTeamMatches(a,b,abbr,league){
  const aliases=SOCCER_MARKET_NAME_ALIASES[league]||{},left=normName(a),right=normName(b);
@@ -217,4 +219,14 @@ export async function fetchPolymarketUsLeagueEvents(slug,fetchImpl=fetch,{limit=
   const data=await getJson(fetchImpl,"/v2/leagues/"+encodeURIComponent(slug)+"/events",{limit,offset:0});
   if(!Array.isArray(data?.events))throw Error("polymarket-us league events API contract changed: "+slug);
   return data.events;
+}
+
+/** Resolve display orientation only after the event passed the independent two-team/time gate. */
+export function polymarketUsCanonicalSide(offer,game,league){
+ if(offer.marketFamily!=='moneyline'||!game)return null;
+ if(offer.sport==='soccer'&&/^(draw|tie)$/i.test(offer.side))return 'draw';
+ const name=offer.raw?.providerSide?.team?.name||offer.side;
+ const match=(a,b,abbr)=>offer.sport==='soccer'?soccerMarketTeamMatches(a,b,abbr,league):teamMatches(a,b,abbr);
+ const home=match(name,game.home_name,game.home_abbr),away=match(name,game.away_name,game.away_abbr);
+ return home!==away?(home?'home':'away'):null;
 }

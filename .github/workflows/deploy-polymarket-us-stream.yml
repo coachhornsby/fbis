@@ -49,6 +49,22 @@ jobs:
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
+          # Alias-first rename preserves the existing namespace/data while moving
+          # WebSocket-pinned actors onto the current class implementation.
+          current_class="$(node --input-type=module <<'JS'
+          const r=await fetch('https://api.cloudflare.com/client/v4/accounts/'+process.env.CLOUDFLARE_ACCOUNT_ID+'/workers/scripts/fbis-polymarket-us-stream/settings',{headers:{authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN}});
+          if(!r.ok)throw Error('WORKER_SETTINGS_UNAVAILABLE');const b=await r.json();console.log(b.result.bindings.find(x=>x.name==='PM_STREAM')?.class_name||'');
+          JS
+          )"
+          if [ "$current_class" = "PolymarketMarketStream" ]; then
+            node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const source=readFileSync('wrangler.polymarket-us-stream.toml','utf8');
+          writeFileSync('wrangler.polymarket-alias-stage.toml',source.split('\n[[migrations]]\ntag = "v2-complete-coverage-rename"')[0].replace('class_name = "PolymarketMarketStreamCoverage"','class_name = "PolymarketMarketStream"'));
+          JS
+            npx wrangler deploy --config wrangler.polymarket-alias-stage.toml
+            rm wrangler.polymarket-alias-stage.toml
+          fi
           npx wrangler deploy --config wrangler.polymarket-us-stream.toml
           echo "Published dedicated Polymarket US read-only stream; credentials provisioned separately as encrypted Worker secrets." >> "$GITHUB_STEP_SUMMARY"
       - name: Verify independent stream shadow status and default-off flag
@@ -61,6 +77,8 @@ jobs:
             code="$(curl -sS --retry 2 --retry-all-errors --retry-delay 2 --max-time 30 -o "$file" -w '%{http_code}' "https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health" || true)"
             echo "stream-status attempt=$attempt http=$code"
             if [ "$code" = "200" ] && jq -e '.readOnly == true and .canAuthorizeWager == false
+              and .codeVersion == "rest-ws-history-recovery-complete-inventory-20261018"
+              and (.subscribedMarketIds | type) == "array"
               and .shadow.enabled == false
               and .shadow.sourceIsAuthoritative == true
               and .shadow.gap == 0' "$file" >/dev/null 2>&1; then

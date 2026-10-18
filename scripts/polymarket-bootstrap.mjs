@@ -13,6 +13,7 @@ await call({operation:'report',report:{run,status:'IN_PROGRESS',checkedAt:new Da
 async function collectPage(body){const page=await call(body);page.quotes=[];pages.push(page);
  for(let batchIndex=0;batchIndex<(page.bookBatches||0);batchIndex++){
   const quote=await call({operation:'quotes',receiptId:body.receiptId,batchIndex});page.quotes.push(quote);
+  await new Promise(r=>setTimeout(r,250));
   if(quote.errors?.some(e=>e.reason.includes('429')))throw Error('PROVIDER_RATE_LIMITED');
  }
  await writeFile('artifacts/polymarket-bootstrap.json',JSON.stringify({run,pages,coverageComplete:false},null,2));return page;}
