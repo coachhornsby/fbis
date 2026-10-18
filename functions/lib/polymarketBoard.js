@@ -28,11 +28,13 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   SELECT id,canonical_event_id,sport,source,market_family,side,line,period,contract_price,decimal_odds,american_odds,source_market_id,source_outcome_id,event_start_time,
     collected_at,source_observed_at,raw_payload_json,execution_eligible,can_qualify,can_authorize_wager,
     ROW_NUMBER() OVER (PARTITION BY source,canonical_event_id,market_family,source_market_id,source_outcome_id,period,side,line ORDER BY collected_at DESC,id DESC) rn
-  FROM normalized_market_observations INDEXED BY idx_norm_market_event_time
+  FROM normalized_market_observations
   WHERE source IN (${sport === 'soccer' ? "'Polymarket US','Polymarket US WebSocket','PinnOdds'" : "'Polymarket US','Polymarket US WebSocket'"}) AND sport=? ${moneylineOnly?"AND market_family='moneyline'":""} AND canonical_event_id IN (${params})
     AND collected_at BETWEEN ? AND ?
     AND (event_start_time IS NULL OR event_start_time >= ?)
  ) SELECT * FROM fresh WHERE rn=1 ORDER BY canonical_event_id,CASE WHEN source='Polymarket US WebSocket' THEN 0 ELSE 1 END,market_family,source_market_id,id LIMIT ? OFFSET ?`;
+  // No INDEXED BY: MARKET_HISTORY recovery may lack the primary-only index hint,
+  // and forced hints reject the whole tennis/soccer overlay when capacity routes writes there.
  for(let offset=0;;offset+=500){
  const page=(await db.prepare(query).bind(sport,...chunk,cutoff,end,
    new Date(now.getTime()-8*60*60*1000).toISOString(),500,offset).all())?.results||[];
@@ -104,11 +106,50 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
  }
  return {byId,source:"Polymarket US",available:[...byId.values()].some(x=>x.length>0),diagnostics:{requestedEvents:ids.length,loadedObservations:rows.length,displayedOffers:[...byId.values()].reduce((n,x)=>n+x.length,0)}};
 }
+function tennisNoVigFromPolymarket(card,offers){
+ const ref=card.market?.reference?.noVig;
+ if(ref?.home!=null&&ref?.away!=null)return null;
+ const key=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+ const homeKey=key(card.home?.fullName||card.home?.name||card.tennisProjection?.player1);
+ const awayKey=key(card.away?.fullName||card.away?.name||card.tennisProjection?.player2);
+ const mls=offers.filter(o=>o.marketFamily==="moneyline"&&o.contractPrice>0&&o.contractPrice<1
+  &&(!o.period||o.period==="full_game"||o.period==="match"));
+ let home=mls.find(o=>o.side==="home"||key(o.participantName||o.side)===homeKey);
+ let away=mls.find(o=>o.side==="away"||key(o.participantName||o.side)===awayKey);
+ if((!home||!away)&&mls.length===2&&homeKey&&awayKey){
+  home=mls.find(o=>key(o.participantName||o.side)===homeKey)||home;
+  away=mls.find(o=>key(o.participantName||o.side)===awayKey)||away;
+ }
+ if(!home||!away||home===away)return null;
+ const sum=home.contractPrice+away.contractPrice;if(!(sum>0))return null;
+ const observedAt=home.observedAt||away.observedAt||home.collectedAt||away.collectedAt||null;
+ return {home:home.contractPrice/sum,away:away.contractPrice/sum,observedAt,
+  provider:"Polymarket US",source:"POLYMARKET_MONEYLINE_NO_VIG_DISPLAY_ONLY"};
+}
 export function attachPolymarketBoardOffers(cards,loaded){
  return (cards||[]).map(card=>{
   const offers=loaded?.byId?.get(String(card.id||""))||[];
   if(!offers.length)return card;
-  return {...card,market:{...(card.market||{}),venueOffers:[
-    ...(card.market?.venueOffers||[]),...offers]}}
+  const venueOffers=[...(card.market?.venueOffers||[]),...offers];
+  // Tennis cards render tennisProjection.venueOffers first; keep Polymarket there too.
+  const tennisProjection=card.tennisProjection
+   ?{...card.tennisProjection,venueOffers:[...(card.tennisProjection.venueOffers||[]),...offers]}
+   :card.tennisProjection;
+  const derived=card.sport==="tennis"||card.tennisProjection?tennisNoVigFromPolymarket(card,offers):null;
+  let reference=card.market?.reference
+   ?{...card.market.reference,venueOffers:[...(card.market.reference.venueOffers||[]),...offers]}
+   :card.market?.reference;
+  if(derived&&reference){
+   reference={...reference,
+    noVig:{home:derived.home,away:derived.away},
+    moneyline:{...(reference.moneyline||{}),home:null,away:null},
+    available:true,provider:derived.provider,
+    observedAt:reference.observedAt||derived.observedAt,
+    polymarketNoVig:derived};
+   if(tennisProjection&&!tennisProjection.marketObservedAt){
+    Object.assign(tennisProjection,{marketObservedAt:derived.observedAt,marketProvider:derived.provider});
+   }
+  }
+  return {...card,tennisProjection,market:{...(card.market||{}),venueOffers,reference}}
  });
 }

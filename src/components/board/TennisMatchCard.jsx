@@ -38,7 +38,14 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const gapPlayerTint = gapPlayer && gapPlayerCountry && !gapPlayerNeutral ? countryColor(gapPlayerCountry) : null;
 
   const spread=ref?.spreadDetail||(typeof ref?.spread==="object"?ref.spread:{} )||{},total=ref?.totalDetail||(typeof ref?.total==="object"?ref.total:{} )||{},ml=ref?.moneyline||{};
-  const venueOffers=Array.isArray(t.venueOffers)?t.venueOffers:Array.isArray(ref.venueOffers)?ref.venueOffers:[];
+  const venueOffers=[
+    ...(Array.isArray(t.venueOffers)?t.venueOffers:[]),
+    ...(Array.isArray(game?.market?.venueOffers)?game.market.venueOffers:[]),
+    ...(Array.isArray(ref.venueOffers)?ref.venueOffers:[]),
+  ].filter((o,i,all)=>{
+    const key=o?.observationId||[o?.source,o?.sourceMarketId,o?.sourceOutcomeId,o?.side,o?.line].join("|");
+    return all.findIndex(x=>(x?.observationId||[x?.source,x?.sourceMarketId,x?.sourceOutcomeId,x?.side,x?.line].join("|"))===key)===i;
+  });
   const markets=Array.isArray(intel?.publicSplits?.markets)?intel.publicSplits.markets:[];
   const spIntel=markets.find(x=>String(x.market).toUpperCase()==="SPREAD");
   const totIntel=markets.find(x=>String(x.market).toUpperCase()==="TOTAL");

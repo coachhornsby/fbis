@@ -113,5 +113,23 @@ test('projected fixtures include official tennis matches with pregame research d
  const page=await bootstrapPolymarket(e,{operation:'page',sport:'tennis',slug:'wta',offset:0,receiptId:'tennis-page'},
   {now,fetchImpl:async()=>Response.json({events:[event]})});
  assert.equal(page.matchedEvents,1);assert.equal(page.contracts,1);
+ assert.equal(page.matchedEventRefs[0].eventId,'wta_test_match');
  assert.ok([...e.stored.keys()].some(k=>k.includes('stream-roster/')&&k.includes('wta')));
+ // Markets stems embed canonical ids (wta_*); underscores must not trip INVALID_RECEIPT.
+ const marketsReceipt=`bootstrap-run-markets-${page.matchedEventRefs[0].eventId}-0`;
+ const markets=await bootstrapPolymarket(e,{operation:'markets',parentReceiptId:'tennis-page',eventIndex:0,offset:0,receiptId:marketsReceipt},
+  {now,fetchImpl:async()=>Response.json({event:{...event,marketCounts:{numMarkets:1,numSpreadsAndTotalsMarkets:0},markets:event.markets}})});
+ assert.equal(markets.ok,true);assert.equal(markets.contracts,1);assert.equal(markets.receiptId,marketsReceipt);
+});
+
+test('underscore receipt stems stay valid for tennis and soccer canonical ids',async()=>{
+ const e=environment();forecast(e);
+ await assert.rejects(()=>bootstrapPolymarket(e,{operation:'page',sport:'nfl',slug:'nfl',offset:0,receiptId:'../escape'},{now,fetchImpl:async()=>Response.json({events:[]})}),/INVALID_RECEIPT/);
+ const tennisId='bootstrap-1-markets-wta_4be94b852840f31128a74c9e-0';
+ const soccerId='bootstrap-1-markets-m_1M7FX6-0';
+ // Reject path traversal / oversize; accept underscore event-id stems used in production.
+ for(const receiptId of [tennisId,soccerId]){
+  const page=await bootstrapPolymarket(e,{operation:'page',sport:'nfl',slug:'nfl',offset:0,receiptId},{now,fetchImpl:async()=>Response.json({events:[]})});
+  assert.equal(page.receiptId,receiptId);
+ }
 });

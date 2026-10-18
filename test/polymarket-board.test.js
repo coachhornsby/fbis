@@ -95,6 +95,23 @@ test('soccer overlay reads PinnOdds with decimal prices and preserves unknown pr
  assert.equal(o.projection.home,1);
 });
 
+test('tennis overlay fills display no-vig gap from paired Polymarket moneylines',()=>{
+ const loaded={byId:new Map([['wta_1',[
+  {source:'Polymarket US',marketFamily:'moneyline',period:'full_game',side:'home',participantName:'Bianca Andreescu',contractPrice:.58,collectedAt:'2026-10-18T11:00:00Z',observedAt:'2026-10-18T11:00:00Z'},
+  {source:'Polymarket US',marketFamily:'moneyline',period:'full_game',side:'away',participantName:'Dominika Salkova',contractPrice:.44,collectedAt:'2026-10-18T11:00:00Z',observedAt:'2026-10-18T11:00:00Z'},
+ ]]])};
+ const card=attachPolymarketBoardOffers([{
+  id:'wta_1',sport:'tennis',home:{name:'Bianca Andreescu'},away:{name:'Dominika Salkova'},
+  tennisProjection:{venueOffers:[],player1:'Bianca Andreescu',player2:'Dominika Salkova'},
+  market:{reference:{noVig:{home:null,away:null},venueOffers:[]}},
+ }],loaded)[0];
+ assert.equal(card.tennisProjection.venueOffers.length,2);
+ assert.ok(Math.abs(card.market.reference.noVig.home-0.58/1.02)<1e-9);
+ assert.ok(Math.abs(card.market.reference.noVig.away-0.44/1.02)<1e-9);
+ assert.equal(card.market.reference.polymarketNoVig.source,'POLYMARKET_MONEYLINE_NO_VIG_DISPLAY_ONLY');
+ assert.equal(card.market.reference.provider,'Polymarket US');
+});
+
 test('soccer last PinnOdds capture stays labeled historical without refreshing its clock',async()=>{
  const db={prepare(){return{bind(){return{all:async()=>({results:[{canonical_event_id:'g',source:'PinnOdds',market_family:'moneyline',period:'full_game',side:'home',decimal_odds:2.2,collected_at:'2026-10-15T00:39:00Z',source_observed_at:null}]})}}}}};
  const r=await loadPolymarketUsBoardOffers(db,[{id:'g'}],'soccer',{now:new Date('2026-10-15T06:05:00Z')});
