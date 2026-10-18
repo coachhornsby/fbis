@@ -119,29 +119,29 @@ function marketEdgeForFold(testRows, predMargins, predTotals, edgeThreshold) {
   for (let i = 0; i < testRows.length; i++) {
     const mkt = testRows[i].market;
     if (!mkt || mkt.spread == null) continue;
-    const modelSpread = -predMargins[i]; // home-centric fair spread
-    const edge = predMargins[i] - (-mkt.spread); // positive => home covers more than market
-    if (Math.abs(edge) < edgeThreshold) continue;
-    const sideHome = edge > 0;
-    const coverMargin = testRows[i].actualMargin + mkt.spread;
-    const covered = coverMargin === 0 ? null : (sideHome ? coverMargin > 0 : coverMargin < 0);
-    const price = sideHome ? (mkt.priceHome ?? -110) : (mkt.priceAway ?? -110);
-    const unit = covered == null ? 0 : americanToProfit(price, covered);
-    ats.push({
-      gameId: testRows[i].id, edge: ROUND(edge), side: sideHome ? "home" : "away",
-      covered, unit: ROUND(unit),
-      clv: mkt.closingSpread != null ? ROUND((sideHome ? 1 : -1) * (mkt.closingSpread - mkt.spread)) : null,
-    });
+    const edge = predMargins[i] + mkt.spread; // positive => home covers more than market
+    if (Math.abs(edge) >= edgeThreshold) {
+      const sideHome = edge > 0;
+      const coverMargin = testRows[i].actualMargin + mkt.spread;
+      const covered = coverMargin === 0 ? null : (sideHome ? coverMargin > 0 : coverMargin < 0);
+      const price = sideHome ? mkt.priceHome : mkt.priceAway;
+      const unit = covered == null ? (price == null ? null : 0) : americanToProfit(price, covered);
+      ats.push({
+        gameId: testRows[i].id, edge: ROUND(edge), side: sideHome ? "home" : "away",
+        covered, unit: ROUND(unit),
+        clv: mkt.closingSpread != null ? ROUND((sideHome ? 1 : -1) * (mkt.closingSpread - mkt.spread)) : null,
+      });
+    }
     if (mkt.total != null && Number.isFinite(predTotals[i])) {
       const totEdge = predTotals[i] - mkt.total;
       if (Math.abs(totEdge) >= edgeThreshold) {
         const over = totEdge > 0;
         const actualTot = testRows[i].actualTotal;
         const hit = actualTot === mkt.total ? null : (over ? actualTot > mkt.total : actualTot < mkt.total);
-        const tPrice = over ? (mkt.priceOver ?? -110) : (mkt.priceUnder ?? -110);
+        const tPrice = over ? mkt.priceOver : mkt.priceUnder;
         totals.push({
           gameId: testRows[i].id, edge: ROUND(totEdge), side: over ? "over" : "under",
-          hit, unit: ROUND(hit == null ? 0 : americanToProfit(tPrice, hit)),
+          hit, unit: ROUND(hit == null ? (tPrice == null ? null : 0) : americanToProfit(tPrice, hit)),
           clv: mkt.closingTotal != null ? ROUND((over ? 1 : -1) * (mkt.closingTotal - mkt.total)) : null,
         });
       }
@@ -176,7 +176,9 @@ function marketEdgeForFold(testRows, predMargins, predTotals, edgeThreshold) {
       unitRoi: units.length ? ROUND(units.reduce((a, b) => a + b, 0) / units.length) : null,
       totalUnits: units.length ? ROUND(units.reduce((a, b) => a + b, 0)) : null,
       meanClv: clvs.length ? ROUND(clvs.reduce((a, b) => a + b, 0) / clvs.length) : null,
-      note: "Uses recorded prices when present; -110 only when historical price missing on that ticket.",
+      pricedN: units.length,
+      missingPriceN: arr.length - units.length,
+      note: "ROI uses recorded ticket prices only; unpriced outcomes are excluded from ROI, not assigned synthetic odds.",
     };
   };
   return { ats: summarize(ats), totals: summarize(totals), moneyline: summarize(ml), sampleAts: ats.length, sampleTotals: totals.length };
