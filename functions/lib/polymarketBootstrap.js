@@ -101,8 +101,8 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
  if(now.getTime()-Date.parse(receipt.capturedAt)>30*60000||opts.batchIndex>=receipt.bookBatches)throw Error('EXPIRED_OR_INVALID_BATCH');
  const doneKey=prefix+opts.receiptId+'-quotes-'+opts.batchIndex+'.json';const done=await env.ARCHIVE.get(doneKey);if(done)return done.json();
  const permitted=new Set(fixtures.map(g=>String(g.id)));const offers=[],errors=[],marketResults=[];
- for(const offer of receipt.offers.slice(opts.batchIndex*4,opts.batchIndex*4+4)){
-  if(!permitted.has(String(offer.eventId))||Date.parse(offer.eventStart)<=now.getTime()){marketResults.push({market:offer.sourceMarketId,status:'FORECAST_EXPIRED'});continue;}
+ await Promise.all(receipt.offers.slice(opts.batchIndex*4,opts.batchIndex*4+4).map(async offer=>{
+  if(!permitted.has(String(offer.eventId))||Date.parse(offer.eventStart)<=now.getTime()){marketResults.push({market:offer.sourceMarketId,status:'FORECAST_EXPIRED'});return;}
   try{const body=await boundedJson(fetchImpl,new URL(`/v1/markets/${offer.sourceMarketId}/book`,POLY_US_API));const b=body.marketData;
    if(!b||b.marketSlug!==offer.sourceMarketId||!/^MARKET_STATE_[A-Z_]+$/.test(b.state||''))throw Error('BOOK_IDENTITY_OR_STATE_UNVERIFIED');
    const levels=xs=>(xs||[]).slice(0,20).map(l=>({price:Number(l.px?.value??l.px),quantity:Number(l.qty)})).filter(l=>l.price>0&&l.price<1&&l.quantity>0);
@@ -116,8 +116,8 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
       offers:bids.map(l=>({price:1-l.price,quantity:l.quantity})),bids:asks.map(l=>({price:1-l.price,quantity:l.quantity})),derivedFromVerifiedBinaryBook:true}});
    }
    marketResults.push({market:offer.sourceMarketId,status:'READY',marketState:b.state,buyAvailable:asks.length>0});
-  }catch(e){marketResults.push({market:offer.sourceMarketId,status:'UNAVAILABLE',reason:e.message});errors.push({market:offer.sourceMarketId,reason:e.message});if(e.message.includes('429'))break;}
- }
- const saved=offers.length?await persistNormalizedMarketBatch(env.DB,offers,{snapshotType:'CURRENT',collectedAt:now.toISOString(),modelProbability:null}):{inserted:0};
+  }catch(e){marketResults.push({market:offer.sourceMarketId,status:'UNAVAILABLE',reason:e.message});errors.push({market:offer.sourceMarketId,reason:e.message});}
+ }));
+ const saved=offers.length?await persistNormalizedMarketBatch(env.DB,offers,{snapshotType:'CURRENT',collectedAt:new Date().toISOString(),modelProbability:null}):{inserted:0};
  const result={ok:errors.length===0,inserted:saved.inserted,errors,marketResults,canAuthorizeWager:false};await env.ARCHIVE.put(doneKey,JSON.stringify(result));return result;
 }
