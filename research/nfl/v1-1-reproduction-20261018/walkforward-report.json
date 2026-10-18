@@ -1,0 +1,467 @@
+{
+  "modelId": "NFL-PRO-v2-research",
+  "design": "regularized EPA/QB + lagged NGS + conditional NGS x opponent-strength interactions + independent form prior",
+  "sample": {
+    "startSeason": 2018,
+    "endSeason": 2026,
+    "n": 2176
+  },
+  "featureCounts": {
+    "v2Margin": 35,
+    "v2Total": 35,
+    "conditional": 5
+  },
+  "ridgeAlpha": 20.0,
+  "nestedBlendSelection": true,
+  "v13": {
+    "n": 1408,
+    "marginMae": 10.150724662647635,
+    "totalMae": 10.677880577124581,
+    "winnerAccuracy": 0.6441761363636364
+  },
+  "v2": {
+    "n": 2176,
+    "marginMae": 10.199257097189783,
+    "totalMae": 10.677385527871696,
+    "winnerAccuracy": 0.6433823529411765
+  },
+  "v12": {
+    "n": 2176,
+    "marginMae": 10.199257097189783,
+    "totalMae": 10.677385527871696,
+    "winnerAccuracy": 0.6433823529411765
+  },
+  "v11": {
+    "n": 2176,
+    "marginMae": 10.199257097189783,
+    "totalMae": 10.677385527871696,
+    "winnerAccuracy": 0.6433823529411765
+  },
+  "baseline": {
+    "n": 2176,
+    "marginMae": 10.35486852477898,
+    "totalMae": 11.179057068743438,
+    "winnerAccuracy": 0.6364889705882353
+  },
+  "market": {
+    "n": 2176,
+    "marginMae": 9.854319852941176,
+    "totalMae": 10.403492647058824,
+    "winnerAccuracy": 0.6640625
+  },
+  "deltas": {
+    "marginMaeVsV11": 0.0,
+    "totalMaeVsV11": 0.0,
+    "winnerAccuracyVsV11": 0.0,
+    "marginMaeVsMarket": 0.34493724424860694,
+    "totalMaeVsMarket": 0.27389288081287155,
+    "winnerAccuracyVsMarket": -0.020680147058823484
+  },
+  "beatsV11": {
+    "marginMae": false,
+    "totalMae": false,
+    "winnerAccuracy": false
+  },
+  "beatsV12": {
+    "marginMae": false,
+    "totalMae": false,
+    "winnerAccuracy": false
+  },
+  "beatsMarket": {
+    "marginMae": false,
+    "totalMae": false,
+    "winnerAccuracy": false
+  },
+  "v13BeatsV11": {
+    "marginMae": true,
+    "totalMae": false,
+    "winnerAccuracy": true
+  },
+  "foldsV13": [
+    {
+      "season": 2021,
+      "n": 272,
+      "marginGate": 2.0408593670570725,
+      "totalGate": 1.1812112846804608,
+      "marginActivationRate": 0.38235294117647056,
+      "totalActivationRate": 0.43014705882352944,
+      "metrics": {
+        "n": 272,
+        "marginMae": 11.144568510084987,
+        "totalMae": 11.296804650046662,
+        "winnerAccuracy": 0.6507352941176471
+      }
+    },
+    {
+      "season": 2022,
+      "n": 271,
+      "marginGate": 1.935283597820754,
+      "totalGate": 1.1527809228301107,
+      "marginActivationRate": 0.36900369003690037,
+      "totalActivationRate": 0.3726937269372694,
+      "metrics": {
+        "n": 271,
+        "marginMae": 8.917652875430297,
+        "totalMae": 10.92166794771227,
+        "winnerAccuracy": 0.6457564575645757
+      }
+    },
+    {
+      "season": 2023,
+      "n": 272,
+      "marginGate": 1.7458360272107503,
+      "totalGate": 1.107583783455834,
+      "marginActivationRate": 0.44485294117647056,
+      "totalActivationRate": 0.3860294117647059,
+      "metrics": {
+        "n": 272,
+        "marginMae": 10.580637040529082,
+        "totalMae": 10.577521789191486,
+        "winnerAccuracy": 0.6102941176470589
+      }
+    },
+    {
+      "season": 2024,
+      "n": 272,
+      "marginGate": 1.3058432691189388,
+      "totalGate": 0.9108235726238967,
+      "marginActivationRate": 0.4411764705882353,
+      "totalActivationRate": 0.47794117647058826,
+      "metrics": {
+        "n": 272,
+        "marginMae": 9.959103100797208,
+        "totalMae": 9.820341586299879,
+        "winnerAccuracy": 0.6985294117647058
+      }
+    },
+    {
+      "season": 2025,
+      "n": 272,
+      "marginGate": 1.4197476151404695,
+      "totalGate": 0.8344890977459508,
+      "marginActivationRate": 0.44485294117647056,
+      "totalActivationRate": 0.39705882352941174,
+      "metrics": {
+        "n": 272,
+        "marginMae": 10.059414321424791,
+        "totalMae": 10.482115179017242,
+        "winnerAccuracy": 0.6213235294117647
+      }
+    },
+    {
+      "season": 2026,
+      "n": 49,
+      "marginGate": 1.3751898459358176,
+      "totalGate": 0.8220052332968713,
+      "marginActivationRate": 0.4489795918367347,
+      "totalActivationRate": 0.5918367346938775,
+      "metrics": {
+        "n": 49,
+        "marginMae": 10.637627492956108,
+        "totalMae": 12.297934839231658,
+        "winnerAccuracy": 0.6122448979591837
+      }
+    }
+  ],
+  "disagreementStudyV13": [
+    {
+      "market": "side",
+      "edgeBucket": "0-1",
+      "n": 316,
+      "meanRealizedEdge": -0.6439873417721519,
+      "positiveRate": 0.44936708860759494,
+      "pushRate": 0.02531645569620253
+    },
+    {
+      "market": "total",
+      "edgeBucket": "0-1",
+      "n": 379,
+      "meanRealizedEdge": -1.3113456464379947,
+      "positiveRate": 0.46965699208443273,
+      "pushRate": 0.005277044854881266
+    },
+    {
+      "market": "side",
+      "edgeBucket": "1-2",
+      "n": 275,
+      "meanRealizedEdge": 0.72,
+      "positiveRate": 0.5272727272727272,
+      "pushRate": 0.014545454545454545
+    },
+    {
+      "market": "total",
+      "edgeBucket": "1-2",
+      "n": 341,
+      "meanRealizedEdge": -0.36070381231671556,
+      "positiveRate": 0.5190615835777126,
+      "pushRate": 0.005865102639296188
+    },
+    {
+      "market": "side",
+      "edgeBucket": "2-3",
+      "n": 245,
+      "meanRealizedEdge": -0.9979591836734694,
+      "positiveRate": 0.4489795918367347,
+      "pushRate": 0.02857142857142857
+    },
+    {
+      "market": "total",
+      "edgeBucket": "2-3",
+      "n": 236,
+      "meanRealizedEdge": 0.0614406779661017,
+      "positiveRate": 0.4872881355932203,
+      "pushRate": 0.00847457627118644
+    },
+    {
+      "market": "side",
+      "edgeBucket": "3-4",
+      "n": 182,
+      "meanRealizedEdge": 0.03021978021978022,
+      "positiveRate": 0.510989010989011,
+      "pushRate": 0.027472527472527472
+    },
+    {
+      "market": "total",
+      "edgeBucket": "3-4",
+      "n": 186,
+      "meanRealizedEdge": 0.5645161290322581,
+      "positiveRate": 0.5376344086021505,
+      "pushRate": 0.005376344086021506
+    },
+    {
+      "market": "side",
+      "edgeBucket": "4-5",
+      "n": 142,
+      "meanRealizedEdge": 0.9577464788732394,
+      "positiveRate": 0.5704225352112676,
+      "pushRate": 0.035211267605633804
+    },
+    {
+      "market": "total",
+      "edgeBucket": "4-5",
+      "n": 106,
+      "meanRealizedEdge": 0.19811320754716982,
+      "positiveRate": 0.4716981132075472,
+      "pushRate": 0.0
+    },
+    {
+      "market": "side",
+      "edgeBucket": "5-7",
+      "n": 145,
+      "meanRealizedEdge": -0.3137931034482759,
+      "positiveRate": 0.5172413793103449,
+      "pushRate": 0.013793103448275862
+    },
+    {
+      "market": "total",
+      "edgeBucket": "5-7",
+      "n": 116,
+      "meanRealizedEdge": -1.375,
+      "positiveRate": 0.39655172413793105,
+      "pushRate": 0.02586206896551724
+    },
+    {
+      "market": "side",
+      "edgeBucket": "7-+",
+      "n": 103,
+      "meanRealizedEdge": 2.0776699029126213,
+      "positiveRate": 0.5145631067961165,
+      "pushRate": 0.04854368932038835
+    },
+    {
+      "market": "total",
+      "edgeBucket": "7-+",
+      "n": 44,
+      "meanRealizedEdge": 0.2840909090909091,
+      "positiveRate": 0.5227272727272727,
+      "pushRate": 0.022727272727272728
+    }
+  ],
+  "promotionEvidencePass": false,
+  "marketBeatAllThree": false,
+  "governance": "Research evidence only. Promotion requires all predeclared v1.1 comparisons plus prospective stability; market benchmark is never an input.",
+  "foldsV11": [
+    {
+      "season": 2018,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 256,
+        "marginMae": 10.100419163844013,
+        "totalMae": 10.851983298555611,
+        "winnerAccuracy": 0.6796875
+      }
+    },
+    {
+      "season": 2019,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 256,
+        "marginMae": 10.557291294455512,
+        "totalMae": 10.865161792917094,
+        "winnerAccuracy": 0.625
+      }
+    },
+    {
+      "season": 2020,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 256,
+        "marginMae": 10.157074713221265,
+        "totalMae": 10.700843181181813,
+        "winnerAccuracy": 0.63671875
+      }
+    },
+    {
+      "season": 2021,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 272,
+        "marginMae": 11.22390917761566,
+        "totalMae": 11.130407721902257,
+        "winnerAccuracy": 0.625
+      }
+    },
+    {
+      "season": 2022,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 271,
+        "marginMae": 8.90145269938692,
+        "totalMae": 10.882402177917418,
+        "winnerAccuracy": 0.6457564575645757
+      }
+    },
+    {
+      "season": 2023,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 272,
+        "marginMae": 10.44927569640125,
+        "totalMae": 10.468160558996734,
+        "winnerAccuracy": 0.6213235294117647
+      }
+    },
+    {
+      "season": 2024,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 272,
+        "marginMae": 10.080275226221731,
+        "totalMae": 9.832282561027137,
+        "winnerAccuracy": 0.6911764705882353
+      }
+    },
+    {
+      "season": 2025,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 272,
+        "marginMae": 10.018967844657785,
+        "totalMae": 10.464855976347895,
+        "winnerAccuracy": 0.6360294117647058
+      }
+    },
+    {
+      "season": 2026,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 49,
+        "marginMae": 10.828660347550235,
+        "totalMae": 12.045360531900087,
+        "winnerAccuracy": 0.5714285714285714
+      }
+    }
+  ],
+  "foldsV12": [
+    {
+      "season": 2018,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 256,
+        "marginMae": 10.100419163844013,
+        "totalMae": 10.851983298555611,
+        "winnerAccuracy": 0.6796875
+      }
+    },
+    {
+      "season": 2019,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 256,
+        "marginMae": 10.557291294455512,
+        "totalMae": 10.865161792917094,
+        "winnerAccuracy": 0.625
+      }
+    },
+    {
+      "season": 2020,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 256,
+        "marginMae": 10.157074713221265,
+        "totalMae": 10.700843181181813,
+        "winnerAccuracy": 0.63671875
+      }
+    },
+    {
+      "season": 2021,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 272,
+        "marginMae": 11.22390917761566,
+        "totalMae": 11.130407721902257,
+        "winnerAccuracy": 0.625
+      }
+    },
+    {
+      "season": 2022,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 271,
+        "marginMae": 8.90145269938692,
+        "totalMae": 10.882402177917418,
+        "winnerAccuracy": 0.6457564575645757
+      }
+    },
+    {
+      "season": 2023,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 272,
+        "marginMae": 10.44927569640125,
+        "totalMae": 10.468160558996734,
+        "winnerAccuracy": 0.6213235294117647
+      }
+    },
+    {
+      "season": 2024,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 272,
+        "marginMae": 10.080275226221731,
+        "totalMae": 9.832282561027137,
+        "winnerAccuracy": 0.6911764705882353
+      }
+    },
+    {
+      "season": 2025,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 272,
+        "marginMae": 10.018967844657785,
+        "totalMae": 10.464855976347895,
+        "winnerAccuracy": 0.6360294117647058
+      }
+    },
+    {
+      "season": 2026,
+      "selectedProWeight": 0.6,
+      "metrics": {
+        "n": 49,
+        "marginMae": 10.828660347550235,
+        "totalMae": 12.045360531900087,
+        "winnerAccuracy": 0.5714285714285714
+      }
+    }
+  ]
+}

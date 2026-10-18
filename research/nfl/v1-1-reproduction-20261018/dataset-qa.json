@@ -1,0 +1,96 @@
+{
+  "created_utc": "2026-10-02T05:28:51.742849+00:00",
+  "seasons_requested": [
+    2015,
+    2026
+  ],
+  "season_downloads": [
+    {
+      "season": 2015,
+      "rows": 48122,
+      "team_game_rows": 534,
+      "status": "ok"
+    },
+    {
+      "season": 2016,
+      "rows": 47651,
+      "team_game_rows": 534,
+      "status": "ok"
+    },
+    {
+      "season": 2017,
+      "rows": 47245,
+      "team_game_rows": 534,
+      "status": "ok"
+    },
+    {
+      "season": 2018,
+      "rows": 47109,
+      "team_game_rows": 534,
+      "status": "ok"
+    },
+    {
+      "season": 2019,
+      "rows": 47260,
+      "team_game_rows": 534,
+      "status": "ok"
+    },
+    {
+      "season": 2020,
+      "rows": 47705,
+      "team_game_rows": 538,
+      "status": "ok"
+    },
+    {
+      "season": 2021,
+      "rows": 49922,
+      "team_game_rows": 570,
+      "status": "ok"
+    },
+    {
+      "season": 2022,
+      "rows": 49434,
+      "team_game_rows": 568,
+      "status": "ok"
+    },
+    {
+      "season": 2023,
+      "rows": 49665,
+      "team_game_rows": 570,
+      "status": "ok"
+    },
+    {
+      "season": 2024,
+      "rows": 49492,
+      "team_game_rows": 570,
+      "status": "ok"
+    },
+    {
+      "season": 2025,
+      "rows": 48771,
+      "team_game_rows": 570,
+      "status": "ok"
+    },
+    {
+      "season": 2026,
+      "rows": 8497,
+      "team_game_rows": 98,
+      "status": "ok"
+    }
+  ],
+  "games_in_schedule_rows": 3300,
+  "final_training_games": 3077,
+  "duplicate_game_ids": 0,
+  "closing_spread_coverage_pct": 100.0,
+  "closing_total_coverage_pct": 100.0,
+  "spread_crosscheck_rows": 984,
+  "spread_crosscheck_mean_abs_diff": 0.11178861788617886,
+  "total_crosscheck_rows": 984,
+  "total_crosscheck_mean_abs_diff": 0.10721544715447154,
+  "pregame_feature_columns": 198,
+  "temporal_integrity": "All rolling/expanding team and QB features use shift(1); current-game results are not used in pregame features.",
+  "market_usage": "Canonical spread/total use nfldata games.csv for full-sample historical market coverage; nfldata closing_lines.csv is retained as an independent cross-check where available. Market fields are benchmark/labels only and are not used to construct football efficiency features.",
+  "pbp_source": "nflverse/nflverse-data release tag pbp (nflfastR)",
+  "games_source": "https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv",
+  "closing_lines_source": "https://raw.githubusercontent.com/nflverse/nfldata/master/data/closing_lines.csv"
+}

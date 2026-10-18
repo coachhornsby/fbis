@@ -1,0 +1,32 @@
+{
+  "reproducedAt": "2026-10-18T09:36:00Z",
+  "datasetSha256": "6764647923489c6ec91e7996a11c05d44baca9f8d018181c924518385785ed07",
+  "artifactRunId": "36968847766",
+  "artifactName": "nfl-game-training-2015-2026",
+  "qaCreatedUtc": "2026-10-02T05:28:51.742849+00:00",
+  "v11": {
+    "n": 2176,
+    "marginMae": 10.199257097189783,
+    "totalMae": 10.677385527871696,
+    "winnerAccuracy": 0.6433823529411765
+  },
+  "baseline": {
+    "n": 2176,
+    "marginMae": 10.35486852477898,
+    "totalMae": 11.179057068743438,
+    "winnerAccuracy": 0.6364889705882353
+  },
+  "market": {
+    "n": 2176,
+    "marginMae": 9.854319852941176,
+    "totalMae": 10.403492647058824,
+    "winnerAccuracy": 0.6640625
+  },
+  "matchArchivedReference": {
+    "marginMae": true,
+    "totalMae": true,
+    "winnerAccuracy": true,
+    "n": true
+  },
+  "governance": "research-only"
+}
