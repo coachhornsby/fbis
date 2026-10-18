@@ -722,23 +722,61 @@ function compactScheduleContext(rows=[],nowMs=Date.now()){
  return {upcoming,weakSpots};
 }
 
+/** Map authorized schedule-profile fields into NFL-PRO context feature keys. */
+export function scheduleContextFeatureFields(row=null){
+ if(!row||typeof row!=="object")return{};
+ const out={};
+ const rest=Number(row.daysRest ?? row.days_rest);
+ if(Number.isFinite(rest))out.restDays=rest;
+ const travel=Number(row.travelMiles ?? row.travel_miles);
+ if(Number.isFinite(travel))out.travelMiles=travel;
+ const tz=Number(row.timeZonesCrossed ?? row.time_zones_crossed);
+ if(Number.isFinite(tz))out.timeZonesCrossed=tz;
+ // altitudeFeet is observed but has no authorized conversion to altitudeAdjustment.
+ return out;
+}
+
+function scheduleRowForGame(rows=[],game={}){
+ const eid=String(game?.eventId||game?.id||"");
+ if(!eid)return null;
+ return (rows||[]).find((r)=>String(r.eventId||r.event_id||"")===eid)||null;
+}
+
 export function attachNflPersistentProfiles(games=[],profiles={},opts={}){
  const attachedBeforeScoring=Boolean(opts.attachedBeforeScoring);
  return (games||[]).map(game=>{
   const hk=teamKey(game?.home?.abbr),ak=teamKey(game?.away?.abbr);
   const home=profiles?.teams?.[hk]||null,away=profiles?.teams?.[ak]||null;
-  const hs=compactScheduleContext(profiles?.schedule?.[hk]||[]);
-  const as=compactScheduleContext(profiles?.schedule?.[ak]||[]);
+  const homeSchedRows=profiles?.schedule?.[hk]||[];
+  const awaySchedRows=profiles?.schedule?.[ak]||[];
+  const hs=compactScheduleContext(homeSchedRows);
+  const as=compactScheduleContext(awaySchedRows);
+  const homeSched=scheduleRowForGame(homeSchedRows,game);
+  const awaySched=scheduleRowForGame(awaySchedRows,game);
+  const homeCtx=scheduleContextFeatureFields(homeSched);
+  const awayCtx=scheduleContextFeatureFields(awaySched);
+  const contextAttached=Boolean(Object.keys(homeCtx).length||Object.keys(awayCtx).length);
+  const nextFeatures=contextAttached?{
+   ...(game.nflFeatures||{}),
+   home:{...(game.nflFeatures?.home||{}),...homeCtx},
+   away:{...(game.nflFeatures?.away||{}),...awayCtx},
+  }:game.nflFeatures;
   return{
    ...game,
+   ...(nextFeatures?{nflFeatures:nextFeatures}:{}),
    nflPersistentProfile:{
     version:NFL_PROFILE_VERSION,
     home:home?{...home,players:profiles?.players?.[hk]||[],schedule:hs}:null,
     away:away?{...away,players:profiles?.players?.[ak]||[],schedule:as}:null,
     configured:Boolean(home&&away),
+    // Composite scheduleStressScore remains research-only (not a PRO input).
     researchOnlyScheduleStress:true,
+    // Rest/travel/timezone from the matched schedule row feed PRO context().
+    scheduleContextAttachedToFeatures:contextAttached,
+    scheduleContextAffectsDisplayedProScore:contextAttached,
+    scheduleContextKeys:["restDays","travelMiles","timeZonesCrossed"],
     // Availability is attached before NFL-PRO scoring so authorized SHADOW
-    // challengers can consume it. Displayed NFL-PRO-v1.2 still ignores it.
+    // challengers can consume it. Displayed NFL-PRO-v1.2 still ignores injuries.
     attachedBeforeScoring,
     consumedByDisplayedScore:false,
    },

@@ -259,7 +259,10 @@ export async function buildSlate(sport, date, env = {}) {
           teams:Object.keys(persistentProfiles.teams||{}).length,
           players:Object.values(persistentProfiles.players||{}).reduce((n,x)=>n+x.length,0),
           scheduleStressResearchOnly:true,
+          scheduleContextKeys:["restDays","travelMiles","timeZonesCrossed"],
+          scheduleContextConsumedByDisplayedNflProScore:true,
           attachedBeforeScoring:true,
+          // Injury/availability still ignored by displayed NFL-PRO-v1.2.
           consumedByDisplayedNflProScore:false,
         },
         nflFrozenAudit: {
