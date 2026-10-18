@@ -6,7 +6,7 @@ await mkdir('artifacts',{recursive:true});
 async function api(path,body){const r=await fetch(base+path,{...(body?{method:'POST',body:JSON.stringify(body)}:{}),headers,signal:AbortSignal.timeout(180000)});const x=await r.json();if(!r.ok||x.ok===false||x.error)throw Error(JSON.stringify({path,http:r.status,...x}));return x;}
 const reauthorized=await api('/api/prizepicks-reauthorize',{operation:'reauthorize_prizepicks'});console.log(JSON.stringify(reauthorized));
 const today=await api('/api/prizepicks-props?mode=acquisition');
-if(today.acquisition?.state==='COMPLETE'){console.log(JSON.stringify({status:'EXISTING_COMPLETE_DAILY_CAPTURE',...today}));process.exit(0);}
+if(today.acquisition?.state==='COMPLETE'){console.log(JSON.stringify({status:'EXISTING_COMPLETE_DAILY_CAPTURE',...today}));console.log(JSON.stringify(await api('/api/nfl-prop-enrich?date='+today.ctDate,{})));process.exit(0);}
 const runId=today.acquisition?.run_id||'zen-pp-'+today.ctDate;
 if(!today.acquisition)await api('/api/prizepicks-props',{operation:'reserve',runId});
 // One durable acquisition owner starts at most one paid run. Never retry an ambiguous launch.
@@ -25,6 +25,9 @@ while(true){const page=await api('/api/apify-acquire?operation=rows&offset='+off
  offset+=200;if(offset>=total)break;
 }
 await api('/api/prizepicks-props',{operation:'complete_capture',runId,acquisitionId});
+// Enrichment must follow completion, so readers never pair an unfinished capture.
+const enrichment=await api('/api/nfl-prop-enrich?date='+today.ctDate,{});
+console.log(JSON.stringify({enrichment}));
 const health=await api('/api/prizepicks-props?mode=ingestion_health');
 await writeFile('artifacts/zen-prizepicks-restoration.json',JSON.stringify({runId,actorRunId,total,candidates:candidates.length,health},null,2));
 console.log(JSON.stringify({runId,actorRunId,total,candidates:candidates.length,health}));
