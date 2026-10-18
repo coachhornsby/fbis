@@ -1,5 +1,5 @@
 import {POLY_US_API,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers} from './polymarketUs.js';
-import {polymarketUsSideLabel} from './polymarketUs.js';
+import {polymarketUsSideLabel,polymarketUsCanonicalSide} from './polymarketUs.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
 const valid=s=>/^[a-z0-9-]{1,160}$/i.test(s||'');
 const prefix='market-sources/polymarket-us/bootstrap/';
@@ -75,7 +75,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
    events.push({canonicalId:String(match.id),event});
    offers.push(...polymarketUsMarketOffers(event,scope.sport,{canonicalId:match.id,capturedAt:now.toISOString()})
     .filter(o=>valid(o.sourceMarketId)&&['moneyline','spread','total'].includes(o.marketFamily)&&o.raw?.contractLong===true&&o.raw.providerMarket?.closed!==true&&o.raw.providerMarket?.active!==false)
-    .map(o=>({...o,raw:{...o.raw,sourceObservedAt:null,receiptId:opts.receiptId,contractBindingVerified:true}})));
+    .map(o=>({...o,raw:{...o.raw,canonicalSide:polymarketUsCanonicalSide(o,candidates.find(g=>String(g.id)===String(match.id)),({bun:'ger.1',lal:'esp.1'})[scope.slug]),sourceObservedAt:null,receiptId:opts.receiptId,contractBindingVerified:true}})));
   }
   const contracts=[...new Map(offers.map(o=>[o.sourceMarketId,o])).values()];
   for(const o of contracts){const no=o.sport!=='soccer'?o.raw.providerMarket?.marketSides?.find(s=>s.long===false):null;
@@ -90,7 +90,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
   await env.ARCHIVE.put(prefix+opts.receiptId+'-source.json',JSON.stringify(sourcePage));
   if(contracts.length){
    await persistNormalizedMarketBatch(env.DB,contracts,{snapshotType:'CURRENT',collectedAt:now.toISOString(),modelProbability:null});
-   const roster=contracts.map(o=>({sport:o.sport,league:o.league,canonical_event_id:o.eventId,provider_event_id:o.raw.providerEventId,event_start_time:o.eventStart,home_team:o.homeTeam,away_team:o.awayTeam,market_family:o.marketFamily,side:o.side,line:o.line,period:o.period,source_market_id:o.sourceMarketId,source_outcome_id:o.sourceOutcomeId,collected_at:now.toISOString(),opposite:o.raw.opposite,fee_coefficient:o.raw.providerMarket?.feeCoefficient??null}));
+   const roster=contracts.map(o=>({sport:o.sport,league:o.league,canonical_event_id:o.eventId,provider_event_id:o.raw.providerEventId,event_start_time:o.eventStart,home_team:o.homeTeam,away_team:o.awayTeam,market_family:o.marketFamily,side:o.side,canonical_side:o.raw.canonicalSide,line:o.line,period:o.period,source_market_id:o.sourceMarketId,source_outcome_id:o.sourceOutcomeId,collected_at:now.toISOString(),opposite:o.raw.opposite,fee_coefficient:o.raw.providerMarket?.feeCoefficient??null}));
    await env.ARCHIVE.put(`market-sources/polymarket-us/stream-roster/bootstrap-${scope.slug}-${opts.operation}-${opts.parentReceiptId||'events'}-${opts.eventIndex??0}-${opts.offset}.json`,JSON.stringify({version:1,source:'Polymarket US',capturedAt:now.toISOString(),roster}));
   }
   await env.ARCHIVE.put(key,JSON.stringify(receipt));
@@ -112,7 +112,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
    if(offer.sport!=='soccer'&&offer.raw.opposite?.side&&offer.raw.opposite?.sourceOutcomeId&&bids.length){
     const yes=offers.at(-1),no=offer.raw.opposite;
     offers.push({...yes,side:no.side,sourceOutcomeId:no.sourceOutcomeId,contractPrice:1-bids[0].price,
-     raw:{...yes.raw,contractLong:false,providerOutcomeId:no.sourceOutcomeId,bestAsk:1-bids[0].price,bestBid:asks.length?1-asks[0].price:null,
+     raw:{...yes.raw,contractLong:false,canonicalSide:yes.raw.canonicalSide==='home'?'away':yes.raw.canonicalSide==='away'?'home':null,providerOutcomeId:no.sourceOutcomeId,bestAsk:1-bids[0].price,bestBid:asks.length?1-asks[0].price:null,
       offers:bids.map(l=>({price:1-l.price,quantity:l.quantity})),bids:asks.map(l=>({price:1-l.price,quantity:l.quantity})),derivedFromVerifiedBinaryBook:true}});
    }
    marketResults.push({market:offer.sourceMarketId,status:'READY',marketState:b.state,buyAvailable:asks.length>0});

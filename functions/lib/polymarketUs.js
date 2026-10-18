@@ -220,3 +220,13 @@ export async function fetchPolymarketUsLeagueEvents(slug,fetchImpl=fetch,{limit=
   if(!Array.isArray(data?.events))throw Error("polymarket-us league events API contract changed: "+slug);
   return data.events;
 }
+
+/** Resolve display orientation only after the event passed the independent two-team/time gate. */
+export function polymarketUsCanonicalSide(offer,game,league){
+ if(offer.marketFamily!=='moneyline'||!game)return null;
+ if(offer.sport==='soccer'&&/^(draw|tie)$/i.test(offer.side))return 'draw';
+ const name=offer.raw?.providerSide?.team?.name||offer.side;
+ const match=(a,b,abbr)=>offer.sport==='soccer'?soccerMarketTeamMatches(a,b,abbr,league):teamMatches(a,b,abbr);
+ const home=match(name,game.home_name,game.home_abbr),away=match(name,game.away_name,game.away_abbr);
+ return home!==away?(home?'home':'away'):null;
+}

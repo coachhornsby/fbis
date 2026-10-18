@@ -66,7 +66,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   const soccerContract=sport==="soccer"&&payload?.providerMarket;
   const family=soccerContract?polymarketUsMarketFamily(payload.providerMarket):r.market_family;
   const period=soccerContract?polymarketUsPeriod(payload.providerMarket):r.period;
-  const side=soccerContract?polymarketUsSideLabel(payload.providerMarket,payload.providerSide,"soccer"):r.side;
+  const side=family==='moneyline'&&['home','away','draw'].includes(payload?.canonicalSide)?payload.canonicalSide:soccerContract?polymarketUsSideLabel(payload.providerMarket,payload.providerSide,"soccer"):r.side;
   if(soccerContract&&family==="moneyline"&&payload.contractLong!==true)continue;
   if(sport==="soccer"&&r.source==="Polymarket US WebSocket"&&payload?.contractBindingVerified!==true)continue;
   const providerObservedAt=providerObservationTime({source:r.source,raw:payload,sourceObservedAt:

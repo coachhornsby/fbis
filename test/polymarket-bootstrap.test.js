@@ -56,3 +56,10 @@ test('event detail cannot claim completeness when advertised and returned market
  await bootstrapPolymarket(e,{operation:'page',sport:'nfl',slug:'nfl',offset:0,receiptId:'count-parent'},{now,fetchImpl:async()=>Response.json({events:[event]})});
  await assert.rejects(()=>bootstrapPolymarket(e,{operation:'markets',parentReceiptId:'count-parent',eventIndex:0,offset:0,receiptId:'count-child'},{now,fetchImpl:async()=>Response.json({event:{...event,marketCounts:{numMarkets:2},markets:[]}})}),/MARKET_COUNT_MISMATCH/);
 });
+
+test('verified league aliases resolve into canonical card sides without crossing league scope',async()=>{
+ const {polymarketUsCanonicalSide}=await import('../functions/lib/polymarketUs.js');
+ const o={sport:'soccer',marketFamily:'moneyline',side:'Bayer 04 Leverkusen'},g={home_name:'Bayer Leverkusen',away_name:'SC Freiburg'};
+ assert.equal(polymarketUsCanonicalSide(o,g,'ger.1'),'home');assert.equal(polymarketUsCanonicalSide(o,g,'esp.1'),null);
+ assert.equal(polymarketUsCanonicalSide({...o,side:'Draw'},g,'ger.1'),'draw');
+});
