@@ -7,6 +7,7 @@ import {
   insertNflResearchPublication,
   buildNflPublicationCoverageReport,
   publishNflPregameSlate,
+  recordMissingPastCheckpoints,
   NFL_PUBLICATION_STATUS,
 } from "../functions/lib/nflPregamePublication.js";
 
@@ -224,4 +225,42 @@ test("coverage report distinguishes current freeze from missing historical windo
   assert.equal(coverage.currentFrozen, 1);
   assert.ok(coverage.rows[0].missingCheckpoints.includes("T24"));
   assert.equal(coverage.rows[0].hasCurrentFreeze, true);
+  assert.equal(coverage.missingPolicy, "NEVER_RETROACTIVELY_INVENT");
+  assert.equal(coverage.rows[0].missingCheckpointDetails[0].status, NFL_PUBLICATION_STATUS.MISSING);
+});
+
+test("missing past checkpoints are ledgered as MISSING events without inventing freezes", async () => {
+  const db = memoryDb();
+  const env = { DB: db };
+  const game = gameFixture();
+  const nowMs = Date.parse(kickoff) - 5 * 3600000;
+  const pubs = [{
+    eventId: "401873099",
+    checkpoint: "T6",
+    status: "SUCCESS",
+    scoreReconciled: true,
+  }];
+  const ledger = await recordMissingPastCheckpoints(env, [game], pubs, {
+    nowMs,
+    gameDate: "2026-10-19",
+    codeSha: "sha",
+    runId: "test-missing",
+  });
+  assert.ok(ledger.count >= 1);
+  assert.equal(ledger.policy, "NEVER_RETROACTIVELY_INVENT");
+  assert.ok(ledger.recorded.every((r) => r.status === NFL_PUBLICATION_STATUS.MISSING));
+  assert.ok(db.events.every((binds) => binds[3] === NFL_PUBLICATION_STATUS.MISSING));
+  // No fabricated SUCCESS publication rows for past windows
+  assert.equal(db.pubs.size, 0);
+});
+
+test("slate publisher records MISSING ledger for elapsed windows", async () => {
+  const db = memoryDb();
+  const env = { DB: db };
+  const g1 = gameFixture({ id: "g1" });
+  const nowMs = Date.parse(kickoff) - 5 * 3600000;
+  const report = await publishNflPregameSlate(env, { date: "2026-10-19", games: [g1] }, { nowMs, codeSha: "sha" });
+  assert.equal(report.summary.success, 1);
+  assert.ok(report.summary.missingRecorded >= 1);
+  assert.ok((report.missingLedger?.recorded || []).some((r) => r.checkpoint === "T24"));
 });

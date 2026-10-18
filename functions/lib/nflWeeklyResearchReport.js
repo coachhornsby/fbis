@@ -48,6 +48,58 @@ function aggregateFeatureFamilies(games = []) {
   };
 }
 
+/** Families wired into NFL-PRO score math when non-null (not an accuracy claim). */
+const SCORE_FUNCTION_FAMILIES = Object.freeze([
+  "teamEpa", "success", "earlyDown", "quarterback", "passMatchup", "rushMatchup",
+  "explosives", "pressure", "trenches", "specialTeams", "nextGenTracking", "context",
+]);
+
+/**
+ * Separate three claims that must not be conflated:
+ * 1) availability — snapshot field presence / coverage flags
+ * 2) scoreContribution — whether non-null values enter the displayed research score
+ * 3) accuracyEvidence — chronological OOS ablation (null until measured)
+ */
+export function buildFeatureImpactLayers(games = [], featureFamilies = null) {
+  const fam = featureFamilies || aggregateFeatureFamilies(games);
+  const consumedNonNull = {};
+  const shares = [];
+  for (const g of games) {
+    const cov = g.nflProShadow?.coverage || {};
+    const share = finite(cov.share);
+    if (share != null) shares.push(share);
+    for (const f of cov.available || []) {
+      consumedNonNull[f] = (consumedNonNull[f] || 0) + 1;
+    }
+  }
+  const newlyEnriched = ["success", "earlyDown", "explosives"];
+  return {
+    schema: "nfl-feature-impact-layers-v1",
+    availability: {
+      avgShare: shares.length ? shares.reduce((a, b) => a + b, 0) / shares.length : null,
+      nWithCoverage: shares.length,
+      families: fam.byFamily,
+      stillMissing: Object.keys(fam.missingCounts).sort(),
+      note: "Snapshot / coverage completeness only. Does not prove score impact or accuracy lift.",
+    },
+    scoreContribution: {
+      familiesInScoreFunction: SCORE_FUNCTION_FAMILIES,
+      currentlyNonNullAndConsumed: Object.keys(consumedNonNull).sort(),
+      newlyEnrichedFamiliesInScoreFunction: newlyEnriched,
+      altersDisplayedResearchScoreWhenPresent: true,
+      note: "When non-null, success/earlyDown/explosives enter NFL-PRO-v1@v1.2 matchup/team terms. That is wiring, not a validated accuracy improvement.",
+    },
+    accuracyEvidence: {
+      status: "NOT_MEASURED",
+      requiredDesign: "chronological OOS ablation of each family vs v1.1 baseline and closing market on identical windows (n pinned)",
+      ablationMarginMaeDelta: null,
+      sampleN: null,
+      promotionEvidencePass: false,
+      note: "Data completeness is foundation only. Market margin MAE gap (v1.1 10.1993 vs close 9.8543, n=2176) is the scientific target.",
+    },
+  };
+}
+
 function qbShadowSummary(games = []) {
   const ok = games.filter((g) => g.nflQbPersonnelShadow?.ok).length;
   const fired = games.filter((g) => g.nflQbPersonnelShadow?.gate?.fired).length;
@@ -108,20 +160,34 @@ export function buildNflWeeklyResearchReport({
     }))
     .filter((r) => r.side != null || r.total != null);
 
+  const featureImpact = buildFeatureImpactLayers(games, featureFamilies);
+
   const hypotheses = [];
-  if (avgCoverage != null && avgCoverage < 0.75) {
+  if (avgCoverage != null && avgCoverage < 1) {
     hypotheses.push({
-      id: "H-FEATURE-COVERAGE",
-      claim: "Missing success/early-down/explosives/trenches/special-teams features may still bias research scores; pressure+context restored but remaining families are null.",
+      id: "H-FEATURE-AVAILABILITY",
+      claim: "Some feature families remain null on the live slate (availability gap). Availability is not an accuracy claim.",
       evidence: {
         avgCoverage,
         missingFeatureCounts,
         presentFamilies: Object.keys(featureFamilies.availableCounts),
+        accuracyEvidenceStatus: featureImpact.accuracyEvidence.status,
       },
       status: "OPEN",
       autoPromote: false,
     });
   }
+  hypotheses.push({
+    id: "H-FEATURE-ACCURACY-UNMEASURED",
+    claim: "Enriched PBP families may enter the displayed research score when non-null, but chronological OOS ablation vs market has not established accuracy improvement.",
+    evidence: {
+      scoreContribution: featureImpact.scoreContribution,
+      accuracyEvidence: featureImpact.accuracyEvidence,
+      marketGap: { v11MarginMae: 10.1993, closingMarginMae: 9.8543, n: 2176 },
+    },
+    status: "OPEN",
+    autoPromote: false,
+  });
   if (withQbShadow > 0) {
     hypotheses.push({
       id: "H-QB-AVAILABILITY-SHADOW",
@@ -163,7 +229,7 @@ export function buildNflWeeklyResearchReport({
   }
 
   return {
-    schema: "nfl-weekly-research-report-v2",
+    schema: "nfl-weekly-research-report-v3",
     generatedAt,
     codeSha,
     governance: {
@@ -175,6 +241,7 @@ export function buildNflWeeklyResearchReport({
       wagerAuthorityChanged: false,
       coefficientsChanged: false,
       qualificationRulesChanged: false,
+      unauthorizedPromotionForbidden: true,
     },
     systemHealth: {
       date: slate?.date || null,
@@ -206,8 +273,9 @@ export function buildNflWeeklyResearchReport({
       nWithCoverage: coverageShares.length,
       families: featureFamilies.byFamily,
       stillMissing: Object.keys(missingFeatureCounts).sort(),
-      note: "Missing families remain null — not imputed.",
+      note: "Availability only. Missing families remain null — not imputed. See featureImpact for score vs accuracy layers.",
     },
+    featureImpact,
     publication: {
       legacyPublishedProjections: publishedRows?.length || 0,
       legacyCoverageShare: games.length ? (publishedRows?.length || 0) / games.length : null,
@@ -218,8 +286,14 @@ export function buildNflWeeklyResearchReport({
             currentCoverageShare: publicationCoverage.currentCoverageShare,
             missingCheckpointCount: publicationCoverage.missingCheckpointCount,
             blockedCount: publicationCoverage.blockedCount,
+            missingPolicy: publicationCoverage.missingPolicy || "NEVER_RETROACTIVELY_INVENT",
           }
         : null,
+    },
+    scoreAuditStandard: {
+      arithmeticReconciliation: "ARITHMETICALLY_RECONCILED_INPUTS_ATTACHED",
+      independentSourceReplay: "independentSourceReplay.status on nfl-frozen-score-audit-v2",
+      note: "Arithmetic OK does not imply independent raw-source replay PASS.",
     },
     predictivePerformance: {
       marginMae: null,
@@ -227,7 +301,15 @@ export function buildNflWeeklyResearchReport({
       winnerAccuracy: null,
       calibration: null,
       sample: null,
-      note: "Prospective metrics unavailable until graded research publications settle.",
+      note: "Prospective metrics unavailable until graded research publications settle. Challenger compare is separate (identical chronological windows).",
+    },
+    challengerComparePinned: {
+      path: "research/nfl/challenger-compare-20261018.json",
+      n: 2176,
+      identicalChronologicalWindows: true,
+      promotionEvidencePass: false,
+      v11MarginMae: 10.1993,
+      closingMarginMae: 9.8543,
     },
     dataHealth: {
       profiles: profileSummary || null,
