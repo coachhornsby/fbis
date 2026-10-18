@@ -60,7 +60,7 @@ jobs:
             node --input-type=module <<'JS'
           import {readFileSync,writeFileSync} from 'node:fs';
           const source=readFileSync('wrangler.polymarket-us-stream.toml','utf8');
-          writeFileSync('wrangler.polymarket-alias-stage.toml',source.split('\n[[migrations]]\ntag = "v2-complete-coverage-rename"')[0].replace('class_name = "PolymarketMarketStreamCoverage"','class_name = "PolymarketMarketStream"'));
+          writeFileSync('wrangler.polymarket-alias-stage.toml',source.split('\n[[migrations]]\ntag = "v2-complete-coverage-rename"')[0].replace('class_name = "PolymarketMarketStreamRecovered"','class_name = "PolymarketMarketStream"'));
           JS
             npx wrangler deploy --config wrangler.polymarket-alias-stage.toml
             rm wrangler.polymarket-alias-stage.toml
@@ -73,7 +73,7 @@ jobs:
           set -euo pipefail
           file="$(mktemp)"
           verified=0
-          for attempt in $(seq 1 24); do
+          for attempt in $(seq 1 84); do
             code="$(curl -sS --retry 2 --retry-all-errors --retry-delay 2 --max-time 30 -o "$file" -w '%{http_code}' "https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health" || true)"
             echo "stream-status attempt=$attempt http=$code"
             if [ "$code" = "200" ] && jq -e '.readOnly == true and .canAuthorizeWager == false

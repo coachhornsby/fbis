@@ -15,7 +15,7 @@ const MAX_BATCH=40, MAX_QUEUE=400;
 const RECONNECT_MS=60000, ROTATE_MS=9*60000, FLUSH_MS=5000;
 const toJSON=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 
-export class PolymarketMarketStreamCoverage extends DurableObject {
+export class PolymarketMarketStreamRecovered extends DurableObject {
   constructor(ctx,env){
     super(ctx,env);
     this.socket=null;this.sockets=new Map();this.expectedConnections=0;this.subscribed=new Map();this.queue=new Map();
@@ -515,7 +515,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
   }
 }
 
-export {PolymarketMarketStreamCoverage as PolymarketMarketStream};
+export {PolymarketMarketStreamRecovered as PolymarketMarketStreamCoverage,PolymarketMarketStreamRecovered as PolymarketMarketStream};
 
 export default {
   async scheduled(_event,env,ctx){

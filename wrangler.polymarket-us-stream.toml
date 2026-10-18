@@ -9,7 +9,7 @@ crons = ["*/5 * * * *"]
 
 [[durable_objects.bindings]]
 name = "PM_STREAM"
-class_name = "PolymarketMarketStreamCoverage"
+class_name = "PolymarketMarketStreamRecovered"
 
 [[migrations]]
 tag = "v1"
@@ -48,3 +48,7 @@ STREAM_MIN_PER_SPORT = "1"
 [[migrations]]
 tag = "v2-complete-coverage-rename"
 renamed_classes = [{ from = "PolymarketMarketStream", to = "PolymarketMarketStreamCoverage" }]
+
+[[migrations]]
+tag = "v3-capacity-routing-rename"
+renamed_classes = [{ from = "PolymarketMarketStreamCoverage", to = "PolymarketMarketStreamRecovered" }]
