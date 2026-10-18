@@ -7,13 +7,21 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - name: Verify live quote delivery and response size
+      - name: Inspect existing stream owners and remove temporary diagnostics
         run: |
           node --input-type=module <<'JS'
-          const h=await (await fetch('https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health')).json();console.log(JSON.stringify({health:{version:h.codeVersion,connected:h.connected,subscriptions:h.subscriptions,subscriptionIds:h.subscribedMarketIds?.length,uncovered:h.uncoveredCount,queued:h.queued,lastError:h.lastError,persistence:h.persistenceStatus}}));
-          for(const path of ['/api/polymarket-quotes?sport=nfl&eventIds=401872996','/api/projections?sport=nfl&date=2026-10-18']){
-            const start=Date.now(),r=await fetch('https://fbis-myz.pages.dev'+path,{signal:AbortSignal.timeout(90000)}),text=await r.text();let b;try{b=JSON.parse(text);}catch{}
-            console.log(JSON.stringify({path,http:r.status,bytes:text.length,ms:Date.now()-start,keys:Object.keys(b||{}),offers:b?.byEvent?.['401872996']?.length,moneyline:b?.byEvent?.['401872996']?.filter(x=>x.marketFamily==='moneyline').map(x=>({source:x.source,side:x.side,price:x.contractPrice,time:x.sourceObservedAt}))}));
+          const path='https://api.cloudflare.com/client/v4/accounts/'+process.env.CLOUDFLARE_ACCOUNT_ID+'/workers/scripts/fbis-polymarket-owner-audit';
+          const headers={authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN,'content-type':'application/json'};
+          try{
+            const r=await fetch(path+'/subdomain',{method:'PUT',headers,body:JSON.stringify({enabled:true})});console.log(JSON.stringify({enable:r.status}));
+            if(!r.ok)throw Error('AUDIT_ENDPOINT_UNAVAILABLE');
+            for(let i=0;i<6;i++){try{const s=await fetch('https://fbis-polymarket-owner-audit.coachhornsby.workers.dev',{signal:AbortSignal.timeout(20000)});if(s.ok){console.log(JSON.stringify({ownerAudit:await s.json()}));break;}}catch{}await new Promise(r=>setTimeout(r,5000));}
+          }finally{
+            const a=await fetch(path+'/schedules',{method:'PUT',headers,body:'[]'});console.log(JSON.stringify({cronRemoved:a.status}));
+            const d=await fetch(path,{method:'DELETE',headers});console.log(JSON.stringify({temporaryWorkerRemoved:d.status}));if(!d.ok)throw Error('AUDIT_CLEANUP_FAILED');
           }
           JS
