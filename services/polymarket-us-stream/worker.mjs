@@ -4,6 +4,7 @@ import {polymarketUsSubscribeBatches,parsePolymarketUsLite,parsePolymarketUsTrad
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
 import {mirrorPersistentStreamRows} from "./shadow.mjs";
 import {persistStreamRecoveryBatch} from "./historyRecovery.mjs";
+import {resolveWsPersistTarget} from "./wsPersistTarget.mjs";
 import {
   manageSubscriptionCapacity,resolveStreamCapacity,STREAM_SPORTS,
   shouldSaveBbo,liveBboOffer,liveBboOffers,parseStreamControl,streamIsHealthy,
@@ -14,6 +15,7 @@ const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
 const MAX_BATCH=40, MAX_QUEUE=400;
 const RECONNECT_MS=60000, ROTATE_MS=9*60000, FLUSH_MS=5000;
 const toJSON=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
+export {PRIMARY_WS_SOFT_CAP_BYTES,resolveWsPersistTarget} from "./wsPersistTarget.mjs";
 
 export class PolymarketMarketStreamRecovered extends DurableObject {
   constructor(ctx,env){
@@ -28,8 +30,8 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
     this.persistenceStatus="UNVERIFIED";this.lastSpillKey=null;this.lastSpillAt=null;
     this.historyLastError=null;
-    this.codeVersion="board-history-recovery-capacity-routing-20261018";
-    this.capacityProbeAt=0;this.primaryBytes=null;
+    this.codeVersion="board-ws-history-default-headroom-20261018";
+    this.capacityProbeAt=0;this.primaryBytes=null;this.wsPersistTarget=null;
   }
   isCanonicalOwner(){
     if(!this.ctx.id?.toString||!this.env.PM_STREAM?.idFromName)return true;
@@ -75,11 +77,14 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
       streamHealthy,
       persistenceStatus:this.persistenceStatus,
       primaryBytes:this.primaryBytes,
+      wsPersistTarget:this.wsPersistTarget||resolveWsPersistTarget(this.env,this.primaryBytes),
       // Stream is operational when connected and fresh. Persistence DEGRADED/UNAVAILABLE
       // (D1 full) must not be hidden — those states clear operational until inserts recover.
+      // HISTORY is intentional WS history-default success (not a primary outage).
+      // DEGRADED_HISTORY remains recovery-after-primary-failure / soft-cap fallback.
       // UNVERIFIED means no flush yet (bootstrap heartbeat / subscribe) and is allowed.
       operational:streamHealthy&&!this.lastError&&
-        (this.persistenceStatus==="HEALTHY"||this.persistenceStatus==="UNVERIFIED"),
+        (this.persistenceStatus==="HEALTHY"||this.persistenceStatus==="HISTORY"||this.persistenceStatus==="UNVERIFIED"),
       lastMessageAt:this.lastMessageAt?new Date(this.lastMessageAt).toISOString():null,
       lastHeartbeatAt:this.lastHeartbeatAt?new Date(this.lastHeartbeatAt).toISOString():null,
       heartbeats:this.heartbeats,lastClose:this.lastClose,
@@ -446,16 +451,46 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
     const ticks=[...this.queue.values()].slice(0,MAX_BATCH);
     for(const tick of ticks)this.queue.delete(tick.marketSlug);
     const offers=ticks.flatMap(t=>liveBboOffers(t,this.subscribed.get(t.marketSlug)));
-    try{
-      // Reserve primary headroom for scores, projections and app state. Cache
-      // the size probe so a full DB is not hit once per high-frequency batch.
-      if(this.env.MARKET_HISTORY_DB?.prepare&&Date.now()-this.capacityProbeAt>60000){
-        this.capacityProbeAt=Date.now();
-        try{const p=await this.env.DB.prepare('SELECT 1 AS healthy').all();
-          const bytes=Number(p?.meta?.size_after);this.primaryBytes=bytes>0?bytes:null;
-        }catch{}
+    // Cache primary size for status/soft-cap decisions (not required for history-default).
+    if(this.env.DB?.prepare&&Date.now()-this.capacityProbeAt>60000){
+      this.capacityProbeAt=Date.now();
+      try{const p=await this.env.DB.prepare('SELECT 1 AS healthy').all();
+        const bytes=Number(p?.meta?.size_after);this.primaryBytes=bytes>0?bytes:null;
+      }catch{}
+    }
+    const route=resolveWsPersistTarget(this.env,this.primaryBytes);
+    this.wsPersistTarget=route;
+    if(route.preferHistory){
+      // Default path: observational WS ticks land on MARKET_HISTORY (+ R2 spill).
+      // Never counted as primary `inserted`. Board readers already overlay history.
+      this.lastError=null;
+      let historyOk=false,spilledKey=null;
+      try{
+        const hr=await persistStreamRecoveryBatch(this.env,offers,{
+          collectedAt:new Date().toISOString(),
+        });
+        if(hr.ok){
+          this.historyInserted+=hr.inserted;historyOk=true;this.historyLastError=null;
+        }else{
+          this.historyLastError=hr.reason||"history-recovery-failed";
+        }
+      }catch(error){
+        historyOk=false;
+        this.historyLastError=String(error?.message||error||"history-recovery-exception").slice(0,240);
       }
-      if(this.primaryBytes>=9500000000&&this.env.MARKET_HISTORY_DB?.prepare)throw Error('PRIMARY_SOFT_CAP_HISTORY_ROUTE');
+      try{spilledKey=await this.spillFailedFlush(ticks,offers)}
+      catch{spilledKey=null}
+      if(historyOk||spilledKey){
+        // Intentional history-default is HISTORY; keep DEGRADED_HISTORY for failure recovery only.
+        this.persistenceStatus=historyOk?(route.reason==="WS_HISTORY_DEFAULT"?"HISTORY":"DEGRADED_HISTORY"):"DEGRADED";
+        for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
+      }else{
+        this.persistenceStatus="UNAVAILABLE";
+        this.lastError="d1-bbo-persist-error";
+        for(const t of ticks)if(!this.queue.has(t.marketSlug))this.queue.set(t.marketSlug,t);
+      }
+    }else try{
+      if(route.reason==="PRIMARY_SOFT_CAP_HISTORY_ROUTE")throw Error(route.reason);
       const r=await persistNormalizedMarketBatch(this.env.DB,offers,{
         snapshotType:"CURRENT",collectedAt:new Date().toISOString(),modelProbability:null
       });
@@ -468,9 +503,7 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
       catch{this.shadowFailed++;this.lastShadowError="shadow-queue-unavailable";}
     }catch{
       this.lastError="d1-bbo-persist-error";
-      // Primary remains the write owner when healthy. While it is OVER_LIMIT,
-      // recovery writes go to existing MARKET_HISTORY_DB + R2 spill — never
-      // counted as primary `inserted`, never a second collector.
+      // Opt-in primary-first path: on soft-cap or insert failure, recover to history.
       let historyOk=false,spilledKey=null;
       try{
         const hr=await persistStreamRecoveryBatch(this.env,offers,{
