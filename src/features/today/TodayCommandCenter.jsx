@@ -48,7 +48,7 @@ export default function TodayCommandCenter({
         totalGames={totalGames}
       />
       <div className="today-command-grid">
-        <TopPlayerProps rows={domain.topPlayerProps || []} />
+        <TopPlayerProps sportFilter={sportFilter} limit={5} rows={domain.topPlayerProps || []} />
         <WatchlistPanel events={domain.watchlist || []} />
       </div>
       <MarketMovers events={domain.marketMovers || []} />
