@@ -13,8 +13,10 @@ function isPrizePicksRow(row = {}) {
   return book.includes("prizepicks") || book === "prizepicks_apify";
 }
 
-/** Team sports share the same PrizePicks-style prop card as Player Props / Board. */
-const TEAM_SPORTS = new Set(["nfl", "mlb", "nba", "nhl", "cfb", "cbb", "wnba", "soccer", "npb", "kbo"]);
+/** All FBIS sports use the same PrizePicks-style prop card as Player Props / Board. */
+const STYLE_CARD_SPORTS = new Set([
+  "nfl", "mlb", "nba", "nhl", "cfb", "cbb", "wnba", "soccer", "npb", "kbo", "tennis",
+]);
 
 export default function TopGameProps({ game }) {
   const durable = Boolean(game?.durableFallback);
@@ -23,7 +25,7 @@ export default function TopGameProps({ game }) {
   const date = game?.durableFallback?.boardDate;
   const sport = String(game?.sport || "").toLowerCase();
   const gameId = String(game?.id || "");
-  const useStyleCards = TEAM_SPORTS.has(sport);
+  const useStyleCards = STYLE_CARD_SPORTS.has(sport);
 
   useEffect(() => {
     if (!durable || !date || !sport || !gameId || typeof fetch !== "function") {
