@@ -1,0 +1,135 @@
+{
+  "phase": "1-pregame-publication",
+  "acceptedAt": "2026-10-18T09:45:00Z",
+  "productionSha": "764a164620e5a5d5184791d051e4054b38ec6412",
+  "schemaTip": "0114_nfl_research_publications",
+  "currentEligible": 12,
+  "currentFrozen": 12,
+  "currentCoverageShare": 1,
+  "missingHistoricalCheckpoints": 32,
+  "blocked": 0,
+  "allScoreReconciled": true,
+  "allSuccess": true,
+  "checkpoints": [
+    "T24",
+    "T6"
+  ],
+  "models": [
+    "NFL-PRO-v1@v1.2"
+  ],
+  "r2KeysPresent": 12,
+  "publishSummary": {
+    "attempted": 12,
+    "success": 12,
+    "already": 0,
+    "blocked": 0,
+    "skippedStarted": 0,
+    "conflicts": 0
+  },
+  "matchups": [
+    {
+      "eventId": "401872996",
+      "matchup": "HOU@JAX",
+      "checkpoint": "T6",
+      "status": "SUCCESS",
+      "scoreReconciled": true,
+      "r2Key": "research/nfl/pregame-publications/2026-10-18/401872996/T6/f5730ba47c9175c7.json"
+    },
+    {
+      "eventId": "401872999",
+      "matchup": "CHI@ATL",
+      "checkpoint": "T6",
+      "status": "SUCCESS",
+      "scoreReconciled": true,
+      "r2Key": "research/nfl/pregame-publications/2026-10-18/401872999/T6/ad91e92be9a7cb9e.json"
+    },
+    {
+      "eventId": "401872997",
+      "matchup": "BAL@CLE",
+      "checkpoint": "T6",
+      "status": "SUCCESS",
+      "scoreReconciled": true,
+      "r2Key": "research/nfl/pregame-publications/2026-10-18/401872997/T6/15415711c8e21fdc.json"
+    },
+    {
+      "eventId": "401873003",
+      "matchup": "TEN@IND",
+      "checkpoint": "T6",
+      "status": "SUCCESS",
+      "scoreReconciled": true,
+      "r2Key": "research/nfl/pregame-publications/2026-10-18/401873003/T6/0692d79ade54f113.json"
+    },
+    {
+      "eventId": "401873001",
+      "matchup": "NYJ@NE",
+      "checkpoint": "T6",
+      "status": "SUCCESS",
+      "scoreReconciled": true,
+      "r2Key": "research/nfl/pregame-publications/2026-10-18/401873001/T6/76e5ddbe8b55506a.json"
+    },
+    {
+      "eventId": "401873000",
+      "matchup": "NO@NYG",
+      "checkpoint": "T6",
+      "status": "SUCCESS",
+      "scoreReconciled": true,
+      "r2Key": "research/nfl/pregame-publications/2026-10-18/401873000/T6/c18b3538c3af562b.json"
+    },
+    {
+      "eventId": "401872998",
+      "matchup": "CAR@PHI",
+      "checkpoint": "T6",
+      "status": "SUCCESS",
+      "scoreReconciled": true,
+      "r2Key": "research/nfl/pregame-publications/2026-10-18/401872998/T6/d6102a0805027224.json"
+    },
+    {
+      "eventId": "401873002",
+      "matchup": "PIT@TB",
+      "checkpoint": "T6",
+      "status": "SUCCESS",
+      "scoreReconciled": true,
+      "r2Key": "research/nfl/pregame-publications/2026-10-18/401873002/T6/f48464175f988d4e.json"
+    },
+    {
+      "eventId": "401873004",
+      "matchup": "ARI@LAR",
+      "checkpoint": "T24",
+      "status": "SUCCESS",
+      "scoreReconciled": true,
+      "r2Key": "research/nfl/pregame-publications/2026-10-18/401873004/T24/49f278ecd61ee073.json"
+    },
+    {
+      "eventId": "401873006",
+      "matchup": "LAC@KC",
+      "checkpoint": "T24",
+      "status": "SUCCESS",
+      "scoreReconciled": true,
+      "r2Key": "research/nfl/pregame-publications/2026-10-18/401873006/T24/0031b9aa1240157a.json"
+    },
+    {
+      "eventId": "401873005",
+      "matchup": "BUF@LV",
+      "checkpoint": "T24",
+      "status": "SUCCESS",
+      "scoreReconciled": true,
+      "r2Key": "research/nfl/pregame-publications/2026-10-18/401873005/T24/5e9a5a3eb6040843.json"
+    },
+    {
+      "eventId": "401873007",
+      "matchup": "DAL@GB",
+      "checkpoint": "T24",
+      "status": "SUCCESS",
+      "scoreReconciled": true,
+      "r2Key": "research/nfl/pregame-publications/2026-10-18/401873007/T24/3812cafc3749b7c4.json"
+    }
+  ],
+  "prs": [
+    "#1255",
+    "#1257"
+  ],
+  "governance": {
+    "canQualify": false,
+    "canAuthorizeWager": false
+  }
+}
