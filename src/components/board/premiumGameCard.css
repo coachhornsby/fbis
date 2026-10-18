@@ -1131,35 +1131,34 @@
   border-radius:999px;
   background:rgba(3,10,18,.72);
 }
-.pgc-mlb-starter-bubble{
+.pgc-mlb-starter-shot{
   position:relative;
   flex:0 0 72px;
   width:72px;
   height:72px;
-  border-radius:50%;
-  overflow:hidden;
-  background:#fff;
-  box-shadow:
-    0 0 0 3px #fff,
-    0 0 0 5px rgba(255,255,255,.22),
-    0 8px 18px rgba(0,0,0,.48);
+  overflow:visible;
+  background:transparent;
+  border:0;
+  box-shadow:none;
 }
-.pgc-mlb-starter-bubble img{
+.pgc-mlb-starter-shot img{
   width:100%;
   height:100%;
-  object-fit:cover;
-  object-position:center top;
+  object-fit:contain;
+  object-position:center bottom;
   display:block;
+  background:transparent;
+  filter:drop-shadow(0 6px 12px rgba(0,0,0,.45));
 }
-.pgc-mlb-starter-bubble em{
+.pgc-mlb-starter-shot em{
   display:grid;
   place-items:center;
   width:100%;
   height:100%;
   font-style:normal;
   font-weight:900;
-  color:#123;
-  background:#e8eef5;
+  color:#c5d7ea;
+  background:transparent;
 }
 .pgc-mlb-starter div{display:flex;flex-direction:column;min-width:0}
 .pgc-mlb-starter small{
@@ -1253,7 +1252,7 @@
 @media(max-width:700px){
   .pgc-team-visual{min-width:78px}
   .pgc-mlb-starter{max-width:180px;padding:5px 7px 5px 5px}
-  .pgc-mlb-starter-bubble{width:58px;height:58px;flex-basis:58px}
+  .pgc-mlb-starter-shot{width:58px;height:58px;flex-basis:58px}
   .pgc-mlb-starter strong{font-size:11px}
   .pgc-mlb-starter span{font-size:8px}
   .fbis-shell-main .pgc.pgc-mlb .pgc-featured-matchup{

@@ -66,7 +66,7 @@ test("MlbPitchHitMatchups renders professional pitch-vs-hit panel markup", () =>
     home,
   }));
   assert.match(html, /Pitching vs Opponent Hitting/);
-  assert.match(html, /mlb-pvh-bubble/);
+  assert.match(html, /mlb-pvh-shot/);
   assert.match(html, /RUN FACTOR/);
   assert.match(html, /xwOBA/);
   assert.match(html, /Drew Rasmussen/);
@@ -74,15 +74,16 @@ test("MlbPitchHitMatchups renders professional pitch-vs-hit panel markup", () =>
   assert.match(html, /STATCAST PITCH/);
 });
 
-test("PremiumGameCard MLB path uses pitch-hit panel and white-bubble starters", () => {
+test("PremiumGameCard MLB path uses pitch-hit panel and transparent starter shots", () => {
   const src = fs.readFileSync("src/components/board/PremiumGameCard.jsx", "utf8");
   assert.match(src, /MlbPitchHitMatchups/);
-  assert.match(src, /pgc-mlb-starter-bubble/);
+  assert.match(src, /pgc-mlb-starter-shot/);
   assert.match(src, /pgc-mlb/);
   assert.doesNotMatch(src, /sportId !== "nhl" \? sportId === "nfl"/);
   const css = fs.readFileSync("src/components/board/premiumGameCard.css", "utf8");
-  assert.match(css, /pgc-mlb-starter-bubble/);
-  assert.match(css, /0 0 0 3px #fff/);
+  assert.match(css, /pgc-mlb-starter-shot/);
+  assert.match(css, /background:transparent/);
+  assert.doesNotMatch(css, /pgc-mlb-starter-bubble/);
   const board = fs.readFileSync("src/components/board/DecisionBoard.jsx", "utf8");
   assert.match(board, /sport \|\| ""\)\.toLowerCase\(\) === "mlb"/);
 });

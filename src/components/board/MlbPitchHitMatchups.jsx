@@ -209,7 +209,7 @@ export default function MlbPitchHitMatchups({ game, away, home }) {
             >
               <div className="mlb-pvh-card-top">
                 <div className="mlb-pvh-sp">
-                  <span className="mlb-pvh-bubble">
+                  <span className="mlb-pvh-shot">
                     {side.sp.image
                       ? <img src={side.sp.image} alt="" loading="lazy" referrerPolicy="no-referrer" />
                       : <em>{(side.sp.name || "?").slice(0, 1)}</em>}

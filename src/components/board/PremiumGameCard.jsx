@@ -124,7 +124,7 @@ function MlbStarterMini({ game, side }) {
     : null;
   return (
     <div className="pgc-mlb-starter">
-      <span className="pgc-mlb-starter-bubble" aria-hidden="true">
+      <span className="pgc-mlb-starter-shot" aria-hidden="true">
         {image
           ? <img src={image} alt="" loading="lazy" referrerPolicy="no-referrer" />
           : <em>{(sp.name || "?").slice(0, 1)}</em>}

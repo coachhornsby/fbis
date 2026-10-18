@@ -115,37 +115,36 @@
   min-width: 0;
 }
 
-.mlb-pvh-bubble {
+.mlb-pvh-shot {
   position: relative;
   flex: 0 0 78px;
   width: 78px;
   height: 78px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: #fff;
-  box-shadow:
-    0 0 0 3px #fff,
-    0 0 0 5px rgba(255, 255, 255, .28),
-    0 10px 20px rgba(0, 0, 0, .48);
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
-.mlb-pvh-bubble img {
+.mlb-pvh-shot img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: center top;
+  object-fit: contain;
+  object-position: center bottom;
   display: block;
+  background: transparent;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .45));
 }
 
-.mlb-pvh-bubble em {
+.mlb-pvh-shot em {
   display: grid;
   place-items: center;
   width: 100%;
   height: 100%;
   font-style: normal;
   font-weight: 900;
-  color: #123;
-  background: #e8eef5;
+  color: #c5d7ea;
+  background: transparent;
 }
 
 .mlb-pvh-sp small {
@@ -284,7 +283,7 @@
   .mlb-pvh-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .mlb-pvh-bubble {
+  .mlb-pvh-shot {
     flex-basis: 56px;
     width: 56px;
     height: 56px;
