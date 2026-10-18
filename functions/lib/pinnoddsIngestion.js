@@ -147,7 +147,9 @@ export async function finalizePinnoddsRematch(env,{snapshotId,inserted=null,batc
  const status={...receipt,ok:true,persistedRows,reconciled:true,rematched:true,paidProviderCall:false,
   inserted:inserted==null?undefined:inserted,batches:batches==null?undefined:batches};
  await env.ARCHIVE.put(`${root}/status/${snapshotId}.json`,JSON.stringify(status));
- await env.ARCHIVE.put(`${root}/latest/${receipt.kind}-${receipt.sportId||'all'}-${receipt.feed||'all'}.json`,JSON.stringify(status));
+ const latestKey=`${root}/latest/${receipt.kind}-${receipt.sportId||'all'}-${receipt.feed||'all'}.json`;
+ const previousObject=await env.ARCHIVE.get(latestKey),previous=previousObject?await previousObject.json():null;
+ if(!previous?.collectedAt||Date.parse(previous.collectedAt)<=Date.parse(receipt.collectedAt))await env.ARCHIVE.put(latestKey,JSON.stringify(status));
  return{
   ok:true,
   operation:'rematch',

@@ -16,6 +16,8 @@ let window=process.env.PINNODDS_RESTORE_ONCE==='1'
 const response=await fetch(base+'/api/pinnodds-status',{headers:{'cache-control':'no-store'},signal:AbortSignal.timeout(20000)});
 if(!response.ok)throw Error('PINNODDS_STATUS_HTTP_'+response.status);
 const status=await response.json();
+await mkdir('artifacts',{recursive:true});
+await writeFile('artifacts/pinnodds-before-capture.json',JSON.stringify(status));
 if(process.env.PINNODDS_RESTORE_ONCE!=='1')window=pinnoddsDueWindow(status);
 const {scope,runId}=window;
 if(pinnoddsWindowComplete(status,window)){
