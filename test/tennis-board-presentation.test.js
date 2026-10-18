@@ -136,6 +136,7 @@ test("tennis TODAY cards carry verified canonical portraits, rankings, markets a
   assert.equal(board.away.rank, 123);
   assert.equal(board.home.logo, "/api/tennis-portrait?id=p1");
   assert.equal(board.tennisProjection.marketPriorP1, 0.742);
+  assert.equal(board.pHome, game.tennisProjection.player1WinProb);
   assert.equal(board.projTotal, null);
   assert.equal(board.projMargin, null);
   assert.equal(board.market.reference.available, true);

@@ -244,7 +244,9 @@ export function toBoardGame(game, sport, now = Date.now()) {
             : null,
     blockReason: game.cfb?.blockReason || null,
     marketLabels: game.marketLabels || null,
-    pHome: game.model?.pHomeFinal ?? null,
+    pHome: sport === "tennis"
+      ? (game.tennisProjection?.player1WinProb ?? game.model?.pHomeFinal ?? null)
+      : (game.model?.pHomeFinal ?? null),
     pinMlHome: game.odds?.pinHomeMl ?? null,
     pinMlAway: game.odds?.pinAwayMl ?? null,
     pinSpread,

@@ -108,7 +108,13 @@ export function attachPolymarketBoardOffers(cards,loaded){
  return (cards||[]).map(card=>{
   const offers=loaded?.byId?.get(String(card.id||""))||[];
   if(!offers.length)return card;
-  return {...card,market:{...(card.market||{}),venueOffers:[
-    ...(card.market?.venueOffers||[]),...offers]}}
+  const venueOffers=[...(card.market?.venueOffers||[]),...offers];
+  const next={...card,market:{...(card.market||{}),venueOffers}};
+  // Tennis readers historically preferred tennisProjection.venueOffers; keep both in sync.
+  if(String(card.sport||"").toLowerCase()==="tennis"&&card.tennisProjection){
+   next.tennisProjection={...card.tennisProjection,venueOffers:[
+     ...(card.tennisProjection.venueOffers||[]),...offers]};
+  }
+  return next;
  });
 }

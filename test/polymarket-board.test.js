@@ -27,6 +27,20 @@ test("board overlay adds display quote without authorizing wagers or changing mo
  assert.equal(o.market.venueOffers[0].quoteKind,"DISPLAY_REFERENCE_NOT_EXECUTABLE");
  assert.equal(attachPolymarketBoardOffers([{id:"unmatched"}],r)[0].market,undefined);
 });
+
+test("tennis overlay mirrors Polymarket offers onto tennisProjection.venueOffers",()=>{
+ const loaded={byId:new Map([["ten-1",[{source:"Polymarket US",marketFamily:"moneyline",period:"full_game",side:"home",contractPrice:0.52}]]])};
+ const card=attachPolymarketBoardOffers([{
+  id:"ten-1",sport:"tennis",
+  market:{venueOffers:[{source:"PinnOdds",marketFamily:"moneyline",period:"full_game",side:"home",decimalOdds:1.9}]},
+  tennisProjection:{player1WinProb:0.55,venueOffers:[{source:"PinnOdds",marketFamily:"moneyline",period:"full_game",side:"home",decimalOdds:1.9}]},
+ }],loaded)[0];
+ assert.equal(card.market.venueOffers.length,2);
+ assert.equal(card.market.venueOffers[1].source,"Polymarket US");
+ assert.equal(card.tennisProjection.venueOffers.at(-1).source,"Polymarket US");
+ assert.equal(card.tennisProjection.player1WinProb,0.55);
+});
+
 test("unsupported D1 or no canonical games is empty, never a fabricated quote",async()=>{
  const r=await loadPolymarketUsBoardOffers(null,[{id:"1"}],"mlb");
  assert.equal(r.available,false);

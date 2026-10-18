@@ -34,6 +34,11 @@ function modelProbabilities(game) {
     return {home:probability(one?.home),draw:probability(one?.draw),away:probability(one?.away)};
   }
   if(!TWO_WAY.has(sport))return {home:null,away:null};
+  if(sport==="tennis"){
+    const home=probability(game?.tennisProjection?.player1WinProb ?? game?.pHome ?? game?.model?.pHomeFinal ?? game?.projection?.pHome);
+    const away=probability(game?.tennisProjection?.player2WinProb);
+    return {home,away:away!=null?away:(home==null?null:1-home)};
+  }
   const home=probability(game?.pHome ?? game?.model?.pHomeFinal ?? game?.projection?.pHome);
   return {home,away:home==null?null:1-home};
 }

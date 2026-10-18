@@ -10,7 +10,9 @@ test('complete coverage requires exhausted discovery, actual books and matching 
 test('full-inventory mode covers more than 500 contracts while preserving bounded subscription frames',()=>{
  const rows=Array.from({length:1201},(_,i)=>({source_market_id:'market-'+i,sport:'nfl'}));
  const result=manageSubscriptionCapacity(rows,{coverAllEligible:true,maxContracts:500,maxConnections:10});
- assert.equal(result.assignedCount,1201);assert.equal(result.uncoveredCount,0);assert.ok(result.partitions.every(p=>p.size<=50));
+ assert.equal(result.assignedCount,1201);assert.equal(result.uncoveredCount,0);
+ assert.ok(result.partitions.every(p=>p.size<=50));
+ assert.ok(result.partitions.every(p=>p.sport==='nfl'));
 });
 
 test('quote queue does not evict a quiet subscribed contract to fit a 400-contract cap',async()=>{

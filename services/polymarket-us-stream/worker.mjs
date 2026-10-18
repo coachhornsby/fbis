@@ -28,7 +28,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
     this.persistenceStatus="UNVERIFIED";this.lastSpillKey=null;this.lastSpillAt=null;
     this.historyLastError=null;
-    this.codeVersion="rest-ws-history-recovery-complete-inventory-20261018";
+    this.codeVersion="sport-pinned-partitions-tennis-parity-history-recovery-20261018";
   }
   isCanonicalOwner(){
     if(!this.ctx.id?.toString||!this.env.PM_STREAM?.idFromName)return true;
@@ -62,7 +62,8 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
       capacity,
       desiredConnections:this.expectedConnections,
       activeConnections:active.length||(connected?1:0),
-      connectionLimitContracts:200,
+      connectionLimitContracts:50,
+      connectionPartitionMode:"sport-pinned",
       sportCoverage:coverage,
       uncoveredCount:Math.max(Number(this.lastCandidateDiagnostics?.uncoveredCount||0),Number(this.lastCandidateDiagnostics?.eligibleCount||0)-this.subscribed.size),
       streamHealthy,
@@ -110,7 +111,8 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     return toJSON({ok:this.status().connected===true, ...this.status()});
   }
   async archiveCandidates({rosterSince,from,until}){
-    if(!this.env.ARCHIVE?.list)return [];
+    const empty={assigned:[],partitions:[]};
+    if(!this.env.ARCHIVE?.list)return empty;
     const prefix="market-sources/polymarket-us/stream-roster/";
     let listing,cursor;const keys=[];
     do{listing=await this.env.ARCHIVE.list({prefix,limit:500,...(cursor?{cursor}:{})});keys.push(...(listing.objects||[]).map(x=>x.key));if(listing.truncated&&(!listing.cursor||listing.cursor===cursor))throw Error('ROSTER_CURSOR_INVALID');cursor=listing.cursor;}while(listing.truncated);
@@ -131,7 +133,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
         all.push(item);
       }
     }
-    if(!all.length)return [];
+    if(!all.length)return empty;
     // Archived contract metadata is not evidence of an independent projection.
     // Verify canonical event and pre-event model timing in primary D1 BEFORE WS subscription.
     const events=[...new Map(all.map(x=>[x.sport+"|"+x.canonical_event_id,
@@ -177,9 +179,10 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
       verifiedEvents:permitted.size,eligibleCount:plan.eligibleCount,
       selected:plan.assignedCount,uncoveredCount:plan.uncoveredCount,
       bySport:plan.bySport,capacity:plan.capacity,
+      partitions:plan.partitions.map(p=>({id:p.id,sport:p.sport,size:p.size})),
       archiveListingComplete:listing.truncated!==true,
       reason:plan.assignedCount?"ARCHIVE_ROSTER_VERIFIED":"NO_ELIGIBLE_ARCHIVE_CONTRACTS"};
-    return plan.assigned;
+    return {assigned:plan.assigned,partitions:plan.partitions};
   }
   async candidates(){
     const now=Date.now();
@@ -250,14 +253,15 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
       selected:plan.assignedCount,eligibleCount:plan.eligibleCount,
       uncoveredCount:plan.uncoveredCount,returnedRows:(q.results||[]).length,
       bySport:plan.bySport,capacity:plan.capacity,source:'primary-d1',
+      partitions:plan.partitions.map(p=>({id:p.id,sport:p.sport,size:p.size})),
       rosterSince,freshSince,
       reason:plan.assignedCount?'ELIGIBLE_CONTRACTS':'NO_ELIGIBLE_CONTRACTS'};
-    if(plan.assignedCount)return plan.assigned;
+    if(plan.assignedCount)return {assigned:plan.assigned,partitions:plan.partitions};
     try{return await this.archiveCandidates({rosterSince,from,until})}
     catch(error){
       this.lastCandidateDiagnostics={...this.lastCandidateDiagnostics,
         archiveFallbackError:"ARCHIVE_ROSTER_UNAVAILABLE"};
-      return [];
+      return {assigned:[],partitions:[]};
     }
   }
   async connect(){
@@ -265,22 +269,22 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     if(this.running)return;
     this.running=true;this.lastConnectAttempt=Date.now();
     try{
-      const candidates=await this.candidates();
-      if(!candidates.length){
+      const plan=await this.candidates();
+      const partitions=Array.isArray(plan?.partitions)?plan.partitions:[];
+      if(!partitions.length){
         this.lastError="no-active-markets";
         await this.ctx.storage.setAlarm(Date.now()+2*RECONNECT_MS);
         return;
       }
       this.closeSockets("refresh");
-      // The provider rejected the eleventh subscription on one connection.
-      // Four 50-contract book frames plus four trade frames stay below that
-      // observed bound. This partitions the inventory; it never truncates it.
-      this.expectedConnections=Math.ceil(candidates.length/200);
+      // One socket per sport-pinned partition (≤50 slugs). Empty sports get none.
+      // Single DO owner remains active-sports-fbis-v3.
+      this.expectedConnections=partitions.length;
       this.tradeStats.clear();this.lastSubscriptionError=null;this.lastError=null;
       this.connectedAt=Date.now();this.lastMessageAt=0;this.lastHeartbeatAt=0;this.reconnectCount++;
-      for(let offset=0;offset<candidates.length;offset+=200){
+      for(const partition of partitions){
         if(this.lastError)break;
-        const group=candidates.slice(offset,offset+200);
+        const group=partition.contracts||[];
         // Obtain a fresh signature for every sequential handshake.
         const brokerResponse=await fetch("https://fbis-myz.pages.dev/api/polymarket-stream-sign",{
           method:"POST",headers:{"x-fbis-stream-token":this.env.FBIS_STREAM_PROXY_TOKEN},
@@ -294,7 +298,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
         const r=await fetchStreamUpgrade(UPSTREAM,{headers:{...signed.headers,Upgrade:"websocket"}});
         if(r.status!==101||!r.webSocket)throw Error("upstream-handshake-"+r.status);
         const socket=r.webSocket;
-        const state={slugs:group.map(c=>c.source_market_id),lastMessageAt:Date.now()};
+        const state={sport:partition.sport,slugs:partition.marketSlugs||group.map(c=>c.source_market_id),lastMessageAt:Date.now()};
         this.sockets.set(socket,state);this.socket=socket;socket.accept();
         socket.addEventListener("message",e=>{if(this.sockets.has(socket)){state.lastMessageAt=Date.now();this.onMessage(e,socket)}});
         const lost=(reason,event)=>{
@@ -307,7 +311,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
         };
         socket.addEventListener("close",e=>lost("upstream-socket-closed-"+e.code,e));
         socket.addEventListener("error",()=>lost("upstream-socket-error"));
-        const frames=polymarketUsSubscribeBatches(state.slugs,"fbis-book-"+offset,{fullBook:true});
+        const frames=polymarketUsSubscribeBatches(state.slugs,"fbis-book-"+partition.sport+"-"+partition.id,{fullBook:true});
         for(const frame of frames){
           if(!this.sockets.has(socket)||socket.readyState!==WebSocket.OPEN||this.lastError)break;
           for(const slug of frame.subscribe.market_slugs)this.subscribed.set(slug,group.find(c=>c.source_market_id===slug));

@@ -78,7 +78,6 @@ export function manageSubscriptionCapacity(rows,{
   const eligible=dedupeEligibleContracts(rows);
   const capacity=coverAllEligible?eligible.length:Math.max(0,Math.floor(Number(maxContracts)||0));
   const perConn=Math.max(1,Math.min(STREAM_SUBSCRIBE_BATCH_MAX,Math.floor(Number(maxPerConnection)||STREAM_DEFAULT_MAX_PER_CONNECTION)));
-  const connCap=coverAllEligible?Math.max(1,Math.ceil(capacity/perConn)):Math.max(1,Math.floor(Number(maxConnections)||Math.ceil(Math.max(capacity,1)/perConn)));
 
   const groups=new Map(sports.map(s=>[s,[]]));
   for(const row of eligible){
@@ -147,31 +146,63 @@ export function manageSubscriptionCapacity(rows,{
     });
   }
 
-  // Partition assigned contracts across connections (each ≤ perConn / subscribe batch).
+  // Sport-pinned packing needs one socket per ≤perConn slice per sport with inventory.
+  // Default connection budget follows that natural count so sparse multi-sport slates
+  // are not collapsed into a single mixed flat chunk. Explicit maxConnections still caps.
+  const naturalPartitions=sports.reduce((n,sport)=>{
+    const count=bySport[sport]?.assigned||0;
+    return n+(count?Math.ceil(count/perConn):0);
+  },0);
+  const connCap=coverAllEligible
+    ?Math.max(1,naturalPartitions||Math.ceil(Math.max(capacity,1)/perConn))
+    :Math.max(1,Math.floor(Number(maxConnections)||naturalPartitions||Math.ceil(Math.max(capacity,1)/perConn)));
+
+  // Sport-pinned partitions: each connection holds one sport's ≤perConn slugs.
+  // Sports with no assigned inventory get zero sockets (no always-on empties).
+  // Connection slots are allocated round-robin across sports that still have rows,
+  // so a busy slate cannot monopolize the socket budget before others get one.
+  const bySportAssigned=new Map(sports.map(s=>[s,[]]));
+  for(const row of assigned){
+    const list=bySportAssigned.get(row.sport);
+    if(list)list.push(row);
+  }
+  const queues=sports
+    .map(sport=>({sport,rows:bySportAssigned.get(sport)||[],offset:0}))
+    .filter(q=>q.rows.length>0);
   const partitions=[];
-  for(let i=0;i<assigned.length;i+=perConn){
-    if(partitions.length>=connCap){
-      // Shift overflow back to uncovered — connection budget exhausted.
-      for(const row of assigned.splice(i)){
-        assignedSlugs.delete(row.source_market_id);
-        bySport[row.sport].assigned--;
-        bySport[row.sport].uncovered++;
-        uncovered.push({
-          source_market_id:row.source_market_id,
-          sport:row.sport,
-          canonical_event_id:row.canonical_event_id||null,
-          reason:"CONNECTION_BUDGET",
-        });
-      }
-      break;
-    }
-    const slice=assigned.slice(i,i+perConn);
-    partitions.push({
-      id:partitions.length,
-      marketSlugs:slice.map(r=>r.source_market_id),
-      contracts:slice,
-      size:slice.length,
+  const dropForBudget=(row)=>{
+    const idx=assigned.findIndex(r=>r.source_market_id===row.source_market_id);
+    if(idx>=0)assigned.splice(idx,1);
+    assignedSlugs.delete(row.source_market_id);
+    bySport[row.sport].assigned--;
+    bySport[row.sport].uncovered++;
+    uncovered.push({
+      source_market_id:row.source_market_id,
+      sport:row.sport,
+      canonical_event_id:row.canonical_event_id||null,
+      reason:"CONNECTION_BUDGET",
     });
+  };
+  let packed=true;
+  while(packed&&partitions.length<connCap){
+    packed=false;
+    for(const q of queues){
+      if(partitions.length>=connCap)break;
+      if(q.offset>=q.rows.length)continue;
+      const slice=q.rows.slice(q.offset,q.offset+perConn);
+      q.offset+=slice.length;
+      partitions.push({
+        id:partitions.length,
+        sport:q.sport,
+        marketSlugs:slice.map(r=>r.source_market_id),
+        contracts:slice,
+        size:slice.length,
+      });
+      packed=true;
+    }
+  }
+  for(const q of queues){
+    for(const row of q.rows.slice(q.offset))dropForBudget(row);
   }
 
   for(const sport of sports){
@@ -200,7 +231,7 @@ export function manageSubscriptionCapacity(rows,{
       subscribeBatchMax:STREAM_SUBSCRIBE_BATCH_MAX,
       utilizedConnections:partitions.length,
     },
-    fairness:"round-robin-all-sports-with-min-floor",
+    fairness:"round-robin-assign-sport-pinned-partitions",
     canAuthorizeWager:false,
   };
 }
