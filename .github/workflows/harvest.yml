@@ -345,6 +345,9 @@ jobs:
             BASE="$BASE" HARVEST_SECRET="$HARVEST_SECRET" ARTIFACT_DIR=artifacts \
               node scripts/nfl-publish-proof.mjs || true
             test -f artifacts/nfl-live-ops-summary.json || echo '{"ok":false,"reason":"summary-missing"}' > artifacts/nfl-live-ops-summary.json
+            # Full-slate current-checkpoint research freezes (idempotent; never invents past windows).
+            BASE="$BASE" HARVEST_SECRET="$HARVEST_SECRET" ARTIFACT_DIR=artifacts \
+              node scripts/nfl-pregame-publish-slate.mjs || true
             set -e
           fi
 
