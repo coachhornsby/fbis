@@ -21,9 +21,12 @@ export default function NflInjuryIntegrityStrip({game}){
         </div>
       ))}
       <p style={{fontSize:".82rem",margin:"6px 0 0"}}>
-        Injury state is ingested, but the displayed NFL-PRO-v1.2 score does not consume persistent
-        player status. A separate QB-personnel SHADOW may evaluate this state at its next valid
-        point-in-time checkpoint; it has no production or wager authority.
+        Verified availability is attached before scoring for the QB-personnel SHADOW challenger,
+        but the displayed NFL-PRO-v1.2 research score still does not consume persistent player
+        status. Production champion remains NFL-PRO-v1.1. No production or wager authority.
+        {evidence.qbPersonnelShadow?.gateFired
+          ? ` SHADOW gate fired (QB burden ${Number(evidence.qbPersonnelShadow.combinedQbBurden||0).toFixed(2)}); displayed board score unchanged.`
+          : ""}
         {" "}<a href="https://www.nfl.com/injuries/" target="_blank" rel="noreferrer">
           NFL official injury report
         </a>
