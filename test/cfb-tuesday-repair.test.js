@@ -6,7 +6,11 @@ import assert from "node:assert/strict";
 import { reconcileDueDatasets, DUE_CLASS } from "../functions/lib/cfbCollectionReconciliation.js";
 import { buildMatchedCohortComparison } from "../functions/lib/cfbOct17MatchedCohort.js";
 import { evaluateWeeklyAutomationSequence, WEEKLY_STEPS } from "../functions/lib/cfbWeeklyAutomationSequence.js";
-import { buildManifestRow } from "../functions/lib/cfbCollectionManifestPersist.js";
+import {
+  buildManifestRow,
+  buildR2ArchiveManifestRow,
+  CFBD_PATH_TO_DATASET,
+} from "../functions/lib/cfbCollectionManifestPersist.js";
 import { listRequiredDatasets } from "../functions/lib/cfbWeeklyCollection.js";
 
 test("collection reconciliation distinguishes persistence gap vs not due vs failure", () => {
@@ -100,4 +104,27 @@ test("manifest row builder never invents success without httpOk", () => {
   });
   assert.equal(row.http_ok, 0);
   assert.match(row.status, /failed|blocked/i);
+});
+
+test("CFBD path map covers weekly reconstruction and player boxes", () => {
+  assert.equal(CFBD_PATH_TO_DATASET["/ppa/games"], "cfbd-ppa-games");
+  assert.equal(CFBD_PATH_TO_DATASET["/stats/game/advanced"], "cfbd-stats-game-advanced");
+  assert.equal(CFBD_PATH_TO_DATASET["/games/teams"], "cfbd-games-teams-players");
+  assert.equal(CFBD_PATH_TO_DATASET["/games/players"], "cfbd-games-teams-players");
+});
+
+test("R2 archive receipt requires a real object key", () => {
+  assert.equal(buildR2ArchiveManifestRow({ datasetId: "cfbd-ppa-games" }), null);
+  const row = buildR2ArchiveManifestRow({
+    season: 2026,
+    week: 8,
+    datasetId: "cfbd-ppa-games",
+    r2Key: "raw/cfbd/cfb/2026/ppa_games/week-7:ppaGames/08e33188f1d9.json",
+    objectBytes: 7281,
+    throughWeek: 7,
+    uploadedAt: "2026-10-17T16:32:29.742Z",
+  });
+  assert.equal(row.http_ok, 1);
+  assert.match(row.content_hash, /^r2:/);
+  assert.match(row.evidence_json, /r2_archive_reconcile/);
 });

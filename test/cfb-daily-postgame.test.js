@@ -1,8 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {chicagoDate,cfbDailyFinals,cfbDailyWeeks,cfbDailyBoxRows}
- from "../functions/lib/cfbDailyPostgame.js";
+import {
+  chicagoDate,
+  cfbDailyFinals,
+  cfbDailyWeeks,
+  cfbDailyBoxRows,
+  CFB_PLAYER_BOX_CATEGORIES,
+  mergeGamesPlayersByCategory,
+} from "../functions/lib/cfbDailyPostgame.js";
 
 const game=(id,patch={})=>({
  id,season:2026,week:7,seasonType:"regular",
@@ -39,16 +45,35 @@ test("weekly boxscores use max two bounded batches, exact prior-day event IDs",(
  assert.deepEqual(cfbDailyBoxRows(rows,finals).map(r=>r.id),[100,102]);
  assert.deepEqual(cfbDailyWeeks([],2026),[]);
 });
-test("only one scheduled CFBD CFB job; general harvest never fires paid CFBD calls",()=>{
+test("player boxes accept one-or-more teams and merge CFBD categories",()=>{
+ assert.deepEqual(CFB_PLAYER_BOX_CATEGORIES,["passing","rushing","receiving"]);
+ const finals=[{id:100},{id:101}];
+ const pass=[{id:100,teams:[{team:"Home",categories:[{name:"passing",types:[]}]}]}];
+ const rush=[{id:100,teams:[{team:"Home",categories:[{name:"rushing",types:[]}]},{team:"Away",categories:[{name:"rushing",types:[]}]}]},
+             {id:101,teams:[{team:"A",categories:[{name:"rushing",types:[]}]}]}];
+ const merged=mergeGamesPlayersByCategory([
+  {category:"passing",rows:pass},
+  {category:"rushing",rows:rush},
+ ]);
+ assert.equal(merged.length,2);
+ const g100=merged.find(g=>String(g.id)==="100");
+ assert.ok(g100.teams.length>=2);
+ assert.ok(g100.teams.some(t=> (t.categories||[]).some(c=>String(c.name).toLowerCase()==="passing")));
+ assert.deepEqual(cfbDailyBoxRows(merged,finals,{minTeams:1}).map(r=>r.id),[100,101]);
+});
+test("scheduled CFBD owners are postgame + budgeted refresh; freeze stays manual",()=>{
  const college=readFileSync(new URL("../.github/workflows/college.yml",import.meta.url),"utf8");
  const schedule=college.slice(college.indexOf('elif [ "$EVENT_NAME" = "schedule" ]'),college.indexOf('else\n            call "$JOB"'));
  assert.equal((schedule.match(/call cfb-postgame-harvest/g)||[]).length,1);
- assert.doesNotMatch(schedule,/call cfb-current-refresh|call cfb-pregame-freeze/);
+ assert.equal((schedule.match(/call cfb-current-refresh/g)||[]).length,1);
+ assert.doesNotMatch(schedule,/call cfb-pregame-freeze/);
  const collector=readFileSync(new URL("../functions/lib/projLedger.js",import.meta.url),"utf8");
  assert.match(collector,/cfbdCacheOnly:true/);
  assert.match(collector,/preferCfbd: false/);
  const source=readFileSync(new URL("../functions/lib/collegeJobsCore.js",import.meta.url),"utf8");
  assert.match(source,/archiveFullPayload:true/);
  assert.match(source,/cfbDailyFinals\(res.data,date\)/);
- assert.match(source,/cfbDailyBoxRows\(box.data,finals\)/);
+ assert.match(source,/CFB_PLAYER_BOX_CATEGORIES/);
+ assert.match(source,/mergeGamesPlayersByCategory/);
+ assert.match(source,/\/games\/teams/);
 });

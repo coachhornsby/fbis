@@ -7,14 +7,20 @@ import {reconcileSharedCollegeQuota} from "./quota.js";
 
 import { collegeKeyHealth, assertNoSecretLeak } from "./collegeSecrets.js";
 import {freezeCfbPregameFeatures} from "./cfbPitFeatureDelivery.js";
-import {cfbDailyFinals,cfbDailyWeeks,cfbDailyBoxRows} from "./cfbDailyPostgame.js";
+import {
+  cfbDailyFinals,
+  cfbDailyWeeks,
+  cfbDailyBoxRows,
+  CFB_PLAYER_BOX_CATEGORIES,
+  mergeGamesPlayersByCategory,
+} from "./cfbDailyPostgame.js";
 import { cfbdGet, cbbdGet, cfbSeasonYear, cbbSeasonYear, summarizeSchema, collegePublicResult } from "./collegeApi.js";
 import { queryQuota, insertSourceObservation, insertTeamFeatureSnapshot, insertGameFeatureSnapshot, insertModelPrediction, gradeModelPrediction, upsertModelRegistry, insertModelArtifact, insertValidationRun, insertPromotionDecision, upsertTeamSeasonIdentity, queryModelPredictions, queryEndpointUsage, upsertQbTransferHistory, insertCfbdEndpointAudit } from "./collegeStore.js";
 import { COLLEGE_MODELS, evaluatePromotion, PROMOTION_CRITERIA } from "./collegeModels.js";
 import { projectCfbChallengers } from "./cfbRatings.js";
 import { projectCbbChallengers, lookupCbbdRating } from "./cbbRatings.js";
 import { mapSourceTeam, featureCutoffIso, cutoffViolated, hashPayload, collegeTeamCoverage } from "./collegeIdentity.js";
-import { putArchive, r2Bound, r2Key } from "./r2Archive.js";
+import { putArchive, r2Bound, r2Key, r2PrefixBytes } from "./r2Archive.js";
 import { storageBudget } from "./storageBudget.js";
 import { recordJob, newJobId, jobPayload, classifyJobStatus, emptyWriteCounts, JOB_FAILED } from "./jobs.js";
 import { hasDb } from "./store.js";
@@ -45,6 +51,7 @@ import { resolveGamesPlayedWithSource, GAMES_PLAYED_SOURCES, countCompletedGames
 import {
   buildManifestRow,
   persistCollectionManifest,
+  buildR2ArchiveManifestRow,
   CFBD_PATH_TO_DATASET,
 } from "./cfbCollectionManifestPersist.js";
 
@@ -87,7 +94,16 @@ export const COLLEGE_JOBS = [
 const CFB_WEEKLY_RECONSTRUCTION = [
   ["/ppa/games", (y, w) => ({ year: y, week: w, seasonType: "regular" })],
   ["/stats/game/advanced", (y, w) => ({ year: y, week: w, seasonType: "regular" })],
+  ["/games/teams", (y, w) => ({ year: y, week: w, seasonType: "regular", classification: "fbs" })],
 ];
+
+/** Dataset ids that receive weekly reconstruction manifests. */
+const CFB_WEEKLY_MANIFEST_PATHS = new Set([
+  "/ppa/games",
+  "/stats/game/advanced",
+  "/games/teams",
+  "/games/players",
+]);
 
 const CFB_REFRESH_ENDPOINTS = [
   ["/ratings/sp", (y) => ({ year: y })],
@@ -301,9 +317,52 @@ async function fetchEndpoints(source, specs, env, year, jobRunId, sport) {
   return { report, bundles };
 }
 
+function weeklyBundleKey(path) {
+  if (path === "/ppa/games") return "ppaGames";
+  if (path === "/stats/game/advanced") return "advGames";
+  if (path === "/games/teams") return "gamesTeams";
+  if (path === "/games/players") return "gamesPlayers";
+  return path;
+}
+
+async function persistWeeklyDatasetManifest(env, {
+  path,
+  res,
+  season,
+  targetWeek,
+  throughWeek,
+  jobRunId,
+  extraEvidence = {},
+} = {}) {
+  const weeklyDatasetId = CFBD_PATH_TO_DATASET[path];
+  if (!weeklyDatasetId || !CFB_WEEKLY_MANIFEST_PATHS.has(path)) return null;
+  const rows = Array.isArray(res?.data) ? res.data : [];
+  return persistCollectionManifest(
+    env,
+    buildManifestRow({
+      season,
+      week: targetWeek,
+      provider: "cfbd",
+      datasetId: weeklyDatasetId,
+      required: true,
+      httpOk: Boolean(res?.ok),
+      httpStatus: res?.status,
+      rowCount: rows.length,
+      teamCoverage: rows.length,
+      throughWeek,
+      contentHash: res?.ok ? `job:${jobRunId}:${path}:W${throughWeek}` : null,
+      // Path suffix keeps teams vs players receipts distinct under one dataset id.
+      ingestionBatchId: `${jobRunId}:${path}`,
+      collectedAt: new Date().toISOString(),
+      evidence: { path, weeklyReconstruction: true, throughWeek, ...extraEvidence },
+    })
+  );
+}
+
 /**
- * Budgeted CORE/advanced reconstruction for the prior completed week.
+ * Budgeted CORE/advanced + box reconstruction for the prior completed week.
  * Soft-fails individual endpoints so season ratings still persist.
+ * /games/players is fetched per CFBD category (passing|rushing|receiving).
  */
 async function fetchWeeklyCoreAdvanced(env, { season, targetWeek, jobRunId, includePlayers = true } = {}) {
   const throughWeek = coreThroughWeekBound(targetWeek);
@@ -313,6 +372,8 @@ async function fetchWeeklyCoreAdvanced(env, { season, targetWeek, jobRunId, incl
     targetWeek,
     ppaGames: [],
     advGames: [],
+    gamesTeams: [],
+    gamesPlayers: [],
     qbPpa: [],
     rbPpa: [],
     wrPpa: [],
@@ -322,7 +383,7 @@ async function fetchWeeklyCoreAdvanced(env, { season, targetWeek, jobRunId, incl
     return { report, bundles, skipped: "no-completed-week-yet" };
   }
   for (const [path, queryFn, key] of [
-    ...CFB_WEEKLY_RECONSTRUCTION.map(([p, q]) => [p, q, p === "/ppa/games" ? "ppaGames" : "advGames"]),
+    ...CFB_WEEKLY_RECONSTRUCTION.map(([p, q]) => [p, q, weeklyBundleKey(p)]),
     ...(includePlayers
       ? [
           ["/ppa/players/season", (y) => ({ year: y, position: "QB" }), "qbPpa"],
@@ -332,13 +393,16 @@ async function fetchWeeklyCoreAdvanced(env, { season, targetWeek, jobRunId, incl
         ]
       : []),
   ]) {
-    const query = path.startsWith("/ppa/games") || path.startsWith("/stats/game")
-      ? queryFn(season, throughWeek)
-      : queryFn(season);
+    const query =
+      path.startsWith("/ppa/games") ||
+      path.startsWith("/stats/game") ||
+      path.startsWith("/games/")
+        ? queryFn(season, throughWeek)
+        : queryFn(season);
     const res = await cfbdGet(path, env, { query });
     report.push(collegePublicResult(res));
     bundles[key] = res.ok ? res.data || [] : [];
-    await persistObservation(env, {
+    const persisted = await persistObservation(env, {
       source: "cfbd",
       sport: "cfb",
       endpoint: path,
@@ -349,31 +413,105 @@ async function fetchWeeklyCoreAdvanced(env, { season, targetWeek, jobRunId, incl
       status: res.ok ? "ok" : "failed",
       archiveFullPayload: res.ok,
     });
-    const weeklyDatasetId = CFBD_PATH_TO_DATASET[path];
-    if (weeklyDatasetId && (path === "/ppa/games" || path === "/stats/game/advanced")) {
-      const rows = Array.isArray(res.data) ? res.data : [];
-      await persistCollectionManifest(
-        env,
-        buildManifestRow({
-          season,
-          week: targetWeek,
-          provider: "cfbd",
-          datasetId: weeklyDatasetId,
-          required: true,
-          httpOk: Boolean(res.ok),
-          httpStatus: res.status,
-          rowCount: rows.length,
-          teamCoverage: rows.length,
-          throughWeek,
-          contentHash: res.ok ? `job:${jobRunId}:${path}:W${throughWeek}` : null,
-          ingestionBatchId: jobRunId,
-          collectedAt: new Date().toISOString(),
-          evidence: { path, weeklyReconstruction: true, throughWeek },
-        })
-      );
+    await persistWeeklyDatasetManifest(env, {
+      path,
+      res,
+      season,
+      targetWeek,
+      throughWeek,
+      jobRunId,
+      extraEvidence: persisted?.r2Key ? { r2Key: persisted.r2Key } : {},
+    });
+  }
+
+  // CFBD /games/players requires category — three budgeted week-scoped calls.
+  const playerCategoryBundles = [];
+  for (const category of CFB_PLAYER_BOX_CATEGORIES) {
+    const path = "/games/players";
+    const query = { year: season, week: throughWeek, seasonType: "regular", category };
+    const res = await cfbdGet(path, env, { query });
+    report.push({ ...collegePublicResult(res), category });
+    playerCategoryBundles.push({ category, rows: res.ok ? res.data || [] : [], ok: res.ok, status: res.status });
+    const persisted = await persistObservation(env, {
+      source: "cfbd",
+      sport: "cfb",
+      endpoint: path,
+      season,
+      partition: `week-${throughWeek}:gamesPlayers:${category}`,
+      data: res.ok ? res.data : [],
+      jobRunId,
+      status: res.ok ? "ok" : "failed",
+      archiveFullPayload: res.ok,
+    });
+    if (persisted?.r2Key) {
+      playerCategoryBundles[playerCategoryBundles.length - 1].r2Key = persisted.r2Key;
     }
   }
+  const mergedPlayers = mergeGamesPlayersByCategory(playerCategoryBundles);
+  bundles.gamesPlayers = mergedPlayers;
+  const anyPlayerOk = playerCategoryBundles.some((b) => b.ok && (b.rows?.length || 0) > 0);
+  await persistWeeklyDatasetManifest(env, {
+    path: "/games/players",
+    res: {
+      ok: anyPlayerOk,
+      status: anyPlayerOk ? 200 : playerCategoryBundles[0]?.status || 0,
+      data: mergedPlayers,
+    },
+    season,
+    targetWeek,
+    throughWeek,
+    jobRunId,
+    extraEvidence: {
+      categories: CFB_PLAYER_BOX_CATEGORIES,
+      categoryResults: playerCategoryBundles.map((b) => ({
+        category: b.category,
+        ok: b.ok,
+        rowCount: b.rows?.length || 0,
+        r2Key: b.r2Key || null,
+      })),
+    },
+  });
+
   return { report, bundles, skipped: null };
+}
+
+/**
+ * If weekly archives already exist in R2 but manifests were never written,
+ * persist evidence-backed receipts (does not invent historical HTTP success).
+ */
+async function reconcileWeeklyR2Receipts(env, { season, targetWeek, throughWeek } = {}) {
+  if (!r2Bound(env) || throughWeek == null) return { attempted: 0, succeeded: 0 };
+  const specs = [
+    { datasetId: "cfbd-ppa-games", prefix: `raw/cfbd/cfb/${season}/ppa_games/week-${throughWeek}` },
+    { datasetId: "cfbd-stats-game-advanced", prefix: `raw/cfbd/cfb/${season}/stats_game_advanced/week-${throughWeek}` },
+    { datasetId: "cfbd-games-teams-players", prefix: `raw/cfbd/cfb/${season}/games_teams/` },
+    { datasetId: "cfbd-games-teams-players", prefix: `raw/cfbd/cfb/${season}/games_players/` },
+  ];
+  let attempted = 0;
+  let succeeded = 0;
+  for (const spec of specs) {
+    const listed = await r2PrefixBytes(env, spec.prefix);
+    if (!listed.ok || !(listed.objects > 0)) continue;
+    attempted += 1;
+    const row = buildR2ArchiveManifestRow({
+      season,
+      week: targetWeek,
+      datasetId: spec.datasetId,
+      r2Key: `${spec.prefix}*`,
+      objectBytes: listed.bytes,
+      throughWeek,
+      uploadedAt: new Date().toISOString(),
+    });
+    if (!row) continue;
+    row.evidence_json = JSON.stringify({
+      ...JSON.parse(row.evidence_json || "{}"),
+      r2Objects: listed.objects,
+      r2Prefix: spec.prefix,
+    });
+    const saved = await persistCollectionManifest(env, row);
+    if (saved.ok) succeeded += 1;
+  }
+  return { attempted, succeeded };
 }
 
 function indexCbbdAdjusted(rows) {
@@ -987,12 +1125,20 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             includePlayers: opts.includePlayers !== false,
           });
           report.push(...weekly.report);
+          const r2Receipts = await reconcileWeeklyR2Receipts(env, {
+            season: y,
+            targetWeek,
+            throughWeek: weekly.bundles.throughWeek,
+          });
           weeklyMeta = {
             targetWeek,
             throughWeek: weekly.bundles.throughWeek,
             skipped: weekly.skipped,
             ppaGames: weekly.bundles.ppaGames.length,
             advGames: weekly.bundles.advGames.length,
+            gamesTeams: weekly.bundles.gamesTeams?.length || 0,
+            gamesPlayers: weekly.bundles.gamesPlayers?.length || 0,
+            r2ReceiptReconcile: r2Receipts,
             players: indexPlayerSeasonRoles({
               qbRows: weekly.bundles.qbPpa,
               rbRows: weekly.bundles.rbPpa,
@@ -1246,13 +1392,24 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         // A week request provides all box scores, not one HTTP call per team,
         // player or game. Strict partitioning only persists yesterday's IDs.
         for(const w of weeks){
-          for(const endpoint of ["/games/teams","/games/players"]){
+          const weekFinals=finals.filter(g=>Number(g.week)===w.week&&
+            String(g.seasonType||g.season_type||"regular")===w.seasonType);
+          const expected=weekFinals.length;
+
+          // Team box — single week-scoped call, then filter to prior-day finals.
+          {
+            const endpoint="/games/teams";
             const box=await cfbdGet(endpoint,env,{query:w,fetchFn:opts.fetchFn||fetch});
             report.push(collegePublicResult(box));
-            if(!box.ok)throw Error(box.reason||"CFBD_DAILY_BOX_FETCH_FAILED");
-            const selected=cfbDailyBoxRows(box.data,finals);
-            const expected=finals.filter(g=>Number(g.week)===w.week&&
-              String(g.seasonType||g.season_type||"regular")===w.seasonType).length;
+            if(!box.ok){
+              await persistCollectionManifest(env,buildManifestRow({
+                season:yearCfb,week:w.week,provider:"cfbd",datasetId:"cfbd-games-teams-players",
+                required:true,httpOk:false,httpStatus:box.status,rowCount:0,
+                ingestionBatchId:id,evidence:{path:endpoint,postgame:true,date,reason:box.reason},
+              }));
+              throw Error(box.reason||"CFBD_DAILY_BOX_FETCH_FAILED");
+            }
+            const selected=cfbDailyBoxRows(box.data,weekFinals,{minTeams:2});
             if(selected.length!==expected)throw Error("CFBD_DAILY_BOX_INCOMPLETE: "+endpoint+
               " matched="+selected.length+" expected="+expected);
             const persisted=await persistObservation(env,{
@@ -1262,6 +1419,59 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             if(!persisted?.ok)throw Error("CFBD_DAILY_D1_ARCHIVE_POINTER_FAILED: "+endpoint);
             if(persisted.r2Key)cfbDailyArchives.push({endpoint,week:w.week,seasonType:w.seasonType,r2Key:persisted.r2Key,storage:persisted.storage});
             writes.writesSucceeded+=persisted.inserted||0;
+            await persistCollectionManifest(env,buildManifestRow({
+              season:yearCfb,week:w.week,provider:"cfbd",datasetId:"cfbd-games-teams-players",
+              required:true,httpOk:true,httpStatus:box.status,rowCount:selected.length,
+              teamCoverage:selected.length,contentHash:`job:${id}:${endpoint}:${date}`,
+              ingestionBatchId:id+":"+endpoint,evidence:{path:endpoint,postgame:true,date,r2Key:persisted.r2Key||null},
+            }));
+          }
+
+          // Player box — CFBD requires category; merge passing|rushing|receiving.
+          {
+            const endpoint="/games/players";
+            const categoryBundles=[];
+            for(const category of CFB_PLAYER_BOX_CATEGORIES){
+              const box=await cfbdGet(endpoint,env,{
+                query:{...w,category},
+                fetchFn:opts.fetchFn||fetch,
+              });
+              report.push({...collegePublicResult(box),category});
+              if(!box.ok){
+                await persistCollectionManifest(env,buildManifestRow({
+                  season:yearCfb,week:w.week,provider:"cfbd",datasetId:"cfbd-games-teams-players",
+                  required:true,httpOk:false,httpStatus:box.status,rowCount:0,
+                  ingestionBatchId:id,
+                  evidence:{path:endpoint,category,postgame:true,date,reason:box.reason},
+                }));
+                throw Error(box.reason||"CFBD_DAILY_BOX_FETCH_FAILED");
+              }
+              categoryBundles.push({category,rows:box.data||[]});
+            }
+            const merged=mergeGamesPlayersByCategory(categoryBundles);
+            const selected=cfbDailyBoxRows(merged,weekFinals,{minTeams:1});
+            if(selected.length!==expected)throw Error("CFBD_DAILY_BOX_INCOMPLETE: "+endpoint+
+              " matched="+selected.length+" expected="+expected);
+            const persisted=await persistObservation(env,{
+              source:"cfbd",sport,endpoint,season:yearCfb,partition:`${date}:players`,
+              data:selected,jobRunId:id,archiveFullPayload:true,
+            });
+            if(!persisted?.ok)throw Error("CFBD_DAILY_D1_ARCHIVE_POINTER_FAILED: "+endpoint);
+            if(persisted.r2Key)cfbDailyArchives.push({
+              endpoint,week:w.week,seasonType:w.seasonType,r2Key:persisted.r2Key,
+              storage:persisted.storage,categories:[...CFB_PLAYER_BOX_CATEGORIES],
+            });
+            writes.writesSucceeded+=persisted.inserted||0;
+            await persistCollectionManifest(env,buildManifestRow({
+              season:yearCfb,week:w.week,provider:"cfbd",datasetId:"cfbd-games-teams-players",
+              required:true,httpOk:true,httpStatus:200,rowCount:selected.length,
+              teamCoverage:selected.length,contentHash:`job:${id}:${endpoint}:${date}`,
+              ingestionBatchId:id+":"+endpoint,
+              evidence:{
+                path:endpoint,postgame:true,date,r2Key:persisted.r2Key||null,
+                categories:[...CFB_PLAYER_BOX_CATEGORIES],
+              },
+            }));
           }
         }
       }
