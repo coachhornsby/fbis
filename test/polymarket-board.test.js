@@ -1,6 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {loadPolymarketUsBoardOffers,attachPolymarketBoardOffers} from "../functions/lib/polymarketBoard.js";
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
+
+test('board recovery executes against the actual history-shard index schema',async()=>{
+ const sqlite=new DatabaseSync(':memory:');
+ sqlite.exec(readFileSync(new URL('../sql/shards/market-history-v1.sql',import.meta.url),'utf8'));
+ sqlite.prepare(`INSERT INTO normalized_market_observations(id,observation_key,source,source_type,sport,canonical_event_id,market_family,period,side,contract_price,source_market_id,collected_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run('one','one','Polymarket US WebSocket','prediction_market','nfl','g','moneyline','full_game','home',.55,'m','2026-10-18T14:00:00Z','2026-10-18T14:00:00Z');
+ const history={prepare(sql){const st=sqlite.prepare(sql);return {bind(...args){return {all:async()=>({results:st.all(...args)})}}}}};
+ const primary={prepare(){return {bind(){return {all:async()=>({results:[]})}}}}};
+ const loaded=await loadPolymarketUsBoardOffers(primary,[{id:'g'}],'nfl',{now:new Date('2026-10-18T14:01:00Z'),historyDb:history});
+ assert.equal(loaded.diagnostics.historyAvailable,true);
+ assert.equal(loaded.byId.get('g')[0].contractPrice,.55);
+ assert.equal(loaded.byId.get('g')[0].deliveryStore,'MARKET_HISTORY_RECOVERY');
+ sqlite.close();
+});
 
 test("board overlay adds display quote without authorizing wagers or changing model",async()=>{
  const seen={sql:null,bindings:null};

@@ -28,7 +28,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
     this.persistenceStatus="UNVERIFIED";this.lastSpillKey=null;this.lastSpillAt=null;
     this.historyLastError=null;
-    this.codeVersion="rest-ws-history-recovery-complete-inventory-20261018";
+    this.codeVersion="board-history-recovery-transport-isolation-20261018";
   }
   isCanonicalOwner(){
     if(!this.ctx.id?.toString||!this.env.PM_STREAM?.idFromName)return true;
@@ -49,7 +49,13 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
   }
   status(){
     const capacity=this.lastCandidateDiagnostics?.capacity||this.capacityPlan();
-    const coverage=this.lastCandidateDiagnostics?.bySport||null;
+    const planned=this.lastCandidateDiagnostics?.bySport||{};
+    const coverage=Object.fromEntries(Object.entries(planned).map(([sport,p])=>{
+      const subscribed=[...this.subscribed.values()].filter(x=>x.sport===sport).length;
+      return [sport,{...p,plannedAssigned:p.assigned,assigned:subscribed,subscribed,
+        uncovered:Math.max(0,p.eligible-subscribed),coveragePct:p.eligible?100*subscribed/p.eligible:null,
+        status:!p.eligible?'NO_VERIFIED_MARKETS':subscribed===p.eligible?'HEALTHY':subscribed?'PARTIAL':'UNAVAILABLE'}];
+    }));
     const active=[...this.sockets.keys()].filter(s=>s.readyState===WebSocket.OPEN);
     const connected=this.expectedConnections>0?active.length===this.expectedConnections:this.socket?.readyState===WebSocket.OPEN;
     const streamHealthy=streamIsHealthy({connected,lastMessageAt:this.lastMessageAt});
@@ -279,7 +285,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
       this.tradeStats.clear();this.lastSubscriptionError=null;this.lastError=null;
       this.connectedAt=Date.now();this.lastMessageAt=0;this.lastHeartbeatAt=0;this.reconnectCount++;
       for(let offset=0;offset<candidates.length;offset+=200){
-        if(this.lastError)break;
+        if(this.lastError && this.lastError!=="d1-bbo-persist-error")break;
         const group=candidates.slice(offset,offset+200);
         // Obtain a fresh signature for every sequential handshake.
         const brokerResponse=await fetch("https://fbis-myz.pages.dev/api/polymarket-stream-sign",{
@@ -309,10 +315,10 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
         socket.addEventListener("error",()=>lost("upstream-socket-error"));
         const frames=polymarketUsSubscribeBatches(state.slugs,"fbis-book-"+offset,{fullBook:true});
         for(const frame of frames){
-          if(!this.sockets.has(socket)||socket.readyState!==WebSocket.OPEN||this.lastError)break;
+          if(!this.sockets.has(socket)||socket.readyState!==WebSocket.OPEN||(this.lastError && this.lastError!=="d1-bbo-persist-error"))break;
           for(const slug of frame.subscribe.market_slugs)this.subscribed.set(slug,group.find(c=>c.source_market_id===slug));
           socket.send(JSON.stringify(frame));await new Promise(r=>setTimeout(r,250));
-          if(!this.sockets.has(socket)||socket.readyState!==WebSocket.OPEN||this.lastError)break;
+          if(!this.sockets.has(socket)||socket.readyState!==WebSocket.OPEN||(this.lastError && this.lastError!=="d1-bbo-persist-error"))break;
           socket.send(JSON.stringify({subscribe:{...frame.subscribe,request_id:frame.subscribe.request_id+'-trades',subscription_type:'SUBSCRIPTION_TYPE_TRADE'}}));
           await new Promise(r=>setTimeout(r,250));
         }

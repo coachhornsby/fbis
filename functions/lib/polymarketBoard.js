@@ -28,7 +28,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   SELECT id,canonical_event_id,sport,source,market_family,side,line,period,contract_price,decimal_odds,american_odds,source_market_id,source_outcome_id,event_start_time,
     collected_at,source_observed_at,raw_payload_json,execution_eligible,can_qualify,can_authorize_wager,
     ROW_NUMBER() OVER (PARTITION BY source,canonical_event_id,market_family,source_market_id,source_outcome_id,period,side,line ORDER BY collected_at DESC,id DESC) rn
-  FROM normalized_market_observations INDEXED BY idx_norm_market_event_time
+  FROM normalized_market_observations
   WHERE source IN (${sport === 'soccer' ? "'Polymarket US','Polymarket US WebSocket','PinnOdds'" : "'Polymarket US','Polymarket US WebSocket'"}) AND sport=? ${moneylineOnly?"AND market_family='moneyline'":""} AND canonical_event_id IN (${params})
     AND collected_at BETWEEN ? AND ?
     AND (event_start_time IS NULL OR event_start_time >= ?)
