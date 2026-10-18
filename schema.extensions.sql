@@ -4827,3 +4827,6 @@ CREATE TABLE IF NOT EXISTS nfl_research_publication_events (
 CREATE INDEX IF NOT EXISTS idx_nfl_research_pub_events_date
   ON nfl_research_publication_events (game_date, observed_at);
 INSERT OR IGNORE INTO schema_migrations(id,applied_at) VALUES ('0114_nfl_research_publications',datetime('now'));
+
+-- Continuous learning ops-shard routing (0115)
+INSERT OR IGNORE INTO schema_migrations(id,applied_at) VALUES ('0115_continuous_learning_operations_shard',datetime('now'));

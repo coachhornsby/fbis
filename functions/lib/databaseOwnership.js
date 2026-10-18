@@ -104,6 +104,14 @@ export const OPERATIONS_OWNED_TABLES = Object.freeze([
   "fbis_retention_release_gates",
   "fbis_pipeline_validation_runs",
   "fbis_d1_performance_findings",
+  // Continuous-learning governance is advisory telemetry — keep it off primary.
+  "learning_monitor_runs",
+  "recalibration_runs",
+  "challenger_evaluations",
+  "bayesian_learning_state",
+  "online_learning_shadow",
+  "model_promotion_decisions",
+  "continuous_learning_meta",
 ]);
 
 /** High-volume tables that must not accumulate new historical volume on primary. */
