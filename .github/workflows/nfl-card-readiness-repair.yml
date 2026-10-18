@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  id-token: write
 concurrency:
   group: fbis-nfl-card-readiness-repair
   cancel-in-progress: false
@@ -25,6 +26,10 @@ jobs:
           node-version: '22'
       - run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
       - run: node scripts/repair-nfl-card-markets.mjs
+      - name: Wait for hourly football collector capability
+        run: node scripts/wait-pinnodds-hourly.mjs
+      - name: Refresh the existing current quota slot
+        run: node scripts/collect-pinnodds-governed.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

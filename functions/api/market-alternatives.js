@@ -1,3 +1,4 @@
+import {polymarketUsCanonicalSide} from '../lib/polymarketUs.js';
 import {loadPolymarketUsBoardOffers} from '../lib/polymarketBoard.js';
 import {loadPinnoddsBoardResearch} from '../lib/pinnoddsBoardResearch.js';
 import {loadPinnoddsR2BoardResearch,preferFreshPinnoddsArchive} from '../lib/pinnoddsArchiveBoard.js';
@@ -16,7 +17,26 @@ export async function onRequestGet({request,env}){
    loadPinnoddsR2BoardResearch(env.ARCHIVE,{sport,games,now:now.toISOString()}),
    loadPolymarketUsBoardOffers(env.DB,games,sport,{now,historyDb:env.MARKET_HISTORY_DB})]);
   const pin=preferFreshPinnoddsArchive(preferFreshPinnoddsArchive(primary,history),archive).byGame?.[id];
-  const offers=[...(pin?.offers||[]),...(pin?.alternativeOffers||[]),...(poly.byId.get(id)||[])].filter(o=>o.period==='full_game'&&['spread','total'].includes(o.marketFamily)&&!/-tt(?:-|[12]h-)/.test(o.sourceMarketId||''));
+  // Contract identity can outlive its original REST quote. Read old identity
+  // only; never copy its old price or clock onto a new WebSocket observation.
+  const meta=(await env.DB.prepare(`SELECT n.source_market_id,n.source_outcome_id,
+    json_extract(s.value,'$.description') description,json_extract(s.value,'$.team.name') team_name,
+    MAX(n.collected_at) metadata_captured_at
+    FROM normalized_market_observations n INDEXED BY idx_norm_market_event_time,
+      json_each(n.raw_payload_json,'$.providerMarket.marketSides') s
+    WHERE n.sport=? AND n.canonical_event_id=? AND n.source='Polymarket US'
+      AND n.market_family='spread' AND n.period='full_game' AND n.collected_at>=?
+      AND CAST(json_extract(s.value,'$.id') AS TEXT)=n.source_outcome_id
+    GROUP BY n.source_market_id,n.source_outcome_id`).bind(sport,id,new Date(+now-72*3600000).toISOString()).all()).results||[];
+  const bindings=new Map(meta.map(m=>{
+    const side=polymarketUsCanonicalSide({sport,marketFamily:'spread',raw:{providerSide:{team:{name:m.team_name}}}},fixture);
+    const line=/^[+-]?\d+(?:\.\d+)?$/.test(m.description||'')?Number(m.description):null;
+    return [m.source_market_id+'|'+m.source_outcome_id,{side,line}];
+  }));
+  const offers=[...(pin?.offers||[]),...(pin?.alternativeOffers||[]),...(poly.byId.get(id)||[])].filter(o=>o.period==='full_game'&&['spread','total'].includes(o.marketFamily)&&!/-tt(?:-|[12]h-)/.test(o.sourceMarketId||'')).map(o=>{
+    const binding=bindings.get(o.sourceMarketId+'|'+o.sourceOutcomeId);
+    return o.marketFamily==='spread'&&binding?.side&&binding.line!=null&&Math.abs(Math.abs(binding.line)-Math.abs(Number(o.line)))<.00001?{...o,side:binding.side,line:binding.line}:o;
+  });
   return json({ok:true,sport,eventId:id,checkedAt:now.toISOString(),offers,scope:'FULL_GAME_SPREAD_TOTAL_ONLY',canQualify:false,canAuthorizeWager:false});
  }catch{return json({ok:false,error:'ALTERNATIVE_MARKETS_UNAVAILABLE'},503);}
 }

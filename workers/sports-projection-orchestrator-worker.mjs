@@ -279,7 +279,7 @@ async function handleFetch(request, env) {
 
   try {
     if(url.pathname==="/api/pinnodds-capture"){
-      if(request.method==="GET")return json(405,{ready:true,version:"pinnodds-governed-capture-v1"});
+      if(request.method==="GET")return json(405,{ready:true,version:"pinnodds-governed-capture-v1",footballHourly:true});
       if(request.method==="POST"){
         const body=await request.json();
         if(body.operation==='reserve')return json(200,await reservePinnoddsRun(env,body));
