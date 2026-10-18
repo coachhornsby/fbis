@@ -8,13 +8,10 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect public market identity and live Worker version
+      - name: Inspect complete event resources
         run: |
           node --input-type=module <<'JS'
-          const h=await (await fetch('https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health')).json();console.log(JSON.stringify({health:h}));
-          for(const slug of ['nfl','nhl','bun','lal','nwsl']){
-            const b=await (await fetch('https://gateway.polymarket.us/v1/events?tagSlug='+slug+'&active=true&closed=false&startTimeMin=2026-10-18T06:00:00Z&startTimeMax=2026-10-20T06:00:00Z&limit=20&offset=0')).json();
-            console.log(JSON.stringify({slug,events:b.events?.map(e=>({id:e.id,gameId:e.gameId,title:e.title,start:e.startTime,home:e.homeTeam,away:e.awayTeam,markets:e.markets?.length,marketCounts:e.marketCounts}))}));
-            const e=b.events?.[0];if(e?.gameId!=null){const r=await fetch('https://gateway.polymarket.us/v1/markets?gameId='+encodeURIComponent(e.gameId)+'&active=true&closed=false&limit=20&offset=0');const m=await r.json();console.log(JSON.stringify({slug,gameId:e.gameId,http:r.status,marketCount:m.markets?.length,sample:m.markets?.slice(0,2)}));}
+          for(const id of ['141502','159680','152758']){
+            const r=await fetch('https://gateway.polymarket.us/v1/events/'+id);const b=await r.json(),e=b.event;console.log(JSON.stringify({id,http:r.status,keys:Object.keys(b),eventId:e?.id,gameId:e?.gameId,count:e?.markets?.length,marketCounts:e?.marketCounts,types:e?.markets?.reduce((a,m)=>(a[m.sportsMarketTypeV2]=(a[m.sportsMarketTypeV2]||0)+1,a),{}),sample:e?.markets?.slice(0,2)}));
           }
           JS
