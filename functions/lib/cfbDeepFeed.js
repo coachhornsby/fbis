@@ -8,6 +8,10 @@ import {fetchWithCfbBackoff} from "./cfbProviderBackoff.js";
 import { readCache, writeCache } from "./cache.js";
 import { collegeApiKey } from "./collegeSecrets.js";
 import { resolveTeamExact } from "./teams.js";
+import {
+  resolveGamesPlayedWithSource,
+  GAMES_PLAYED_SOURCES,
+} from "./cfbGamesPlayed.js";
 
 const TTL_MS = 2 * 60 * 60 * 1000;
 const ERR_TTL_MS = 15 * 60 * 1000;
@@ -149,19 +153,16 @@ function buildCompletedForm(rows = [], now = Date.now()) {
 
 /**
  * Resolve in-season observation count for prior/current blending.
- * Prefer explicit completed-game counts; fall back to week-bounded CORE
- * through-week as an information-quality proxy (never invent games).
- * Do NOT treat SP `off`/`def` ratings as current PPG.
+ * Prefer explicit / schedule counts; CORE throughWeek is a flagged last-resort
+ * proxy (never invent games). Do NOT treat SP `off`/`def` as current PPG.
+ *
+ * @returns {number|null} numeric n for blendPriorCurrent (compat)
  */
-export function resolvePersistedGamesPlayed(fields = {}) {
-  const explicit = num(fields.gamesPlayed) ?? num(fields.games) ?? num(fields.nGames);
-  if (explicit != null && explicit > 0) return explicit;
-  const throughWeek = num(fields.coreThroughWeek);
-  if (fields.coreWeekBounded === true && throughWeek != null && throughWeek > 0) {
-    return throughWeek;
-  }
-  return null;
+export function resolvePersistedGamesPlayed(fields = {}, opts = {}) {
+  return resolveGamesPlayedWithSource(fields, opts).gamesPlayed;
 }
+
+export { resolveGamesPlayedWithSource, GAMES_PLAYED_SOURCES };
 
 function espnIdFromTeamKey(teamId, fields = {}) {
   if (fields.espnId != null && String(fields.espnId).trim()) return String(fields.espnId);
@@ -170,11 +171,47 @@ function espnIdFromTeamKey(teamId, fields = {}) {
   return m ? m[1] : null;
 }
 
+/**
+ * Schedule-derived completed-game counts from durable D1 rows (no provider call).
+ * Counts graded finals with kickoff/start before `now` for the season year.
+ */
+async function loadScheduleGamesPlayedBySchool(env, season, now) {
+  if (!env.DB?.prepare) return new Map();
+  const cutoff = new Date(now).toISOString();
+  try {
+    const rows = await env.DB.prepare(`
+      SELECT g.home_name AS home_name, g.away_name AS away_name, g.start AS start,
+             p.actual_home AS actual_home, p.actual_away AS actual_away
+      FROM predictions p
+      LEFT JOIN games g ON g.id = p.game_id
+      WHERE p.sport='cfb' AND p.date >= ? AND p.date <= ?
+        AND p.actual_home IS NOT NULL AND p.actual_away IS NOT NULL
+        AND (g.start IS NULL OR g.start < ?)
+      LIMIT 4000
+    `).bind(`${season}-08-01`, `${season}-12-31`, cutoff).all();
+    const bySchool = new Map();
+    const bump = (name) => {
+      if (!name) return;
+      const hit = canonicalTeam(name);
+      const key = String(hit?.school || name).toLowerCase();
+      bySchool.set(key, (bySchool.get(key) || 0) + 1);
+    };
+    for (const r of rows?.results || []) {
+      bump(r.home_name);
+      bump(r.away_name);
+    }
+    return bySchool;
+  } catch {
+    return new Map();
+  }
+}
+
 // Prefer canonical weekly D1 state over any daytime provider request.
 // Research-only fields preserve source units and their as-of timestamps.
 async function readPersistedCfbDeep(env,season,now) {
   if(!env.DB?.prepare)return null;
   try {
+    const scheduleBySchool = await loadScheduleGamesPlayedBySchool(env, season, now);
     const result=await env.DB.prepare(`
       SELECT team_id,features_json,as_of FROM team_feature_snapshots
       WHERE sport='cfb' AND season=? AND feature_version='cfb-features-v1'
@@ -186,6 +223,8 @@ async function readPersistedCfbDeep(env,season,now) {
     let maxAsOf=null;
     let withGamesPlayed=0;
     let withOffensePpa=0;
+    let withScheduleGames=0;
+    let withCoreThroughWeekFallback=0;
     for(const rec of result?.results||[]){
       if(seen.has(String(rec.team_id)))continue;
       let fields;
@@ -193,7 +232,9 @@ async function readPersistedCfbDeep(env,season,now) {
       const school=fields.team||fields.school;
       if(!school)continue;
       seen.add(String(rec.team_id));
-      const gamesPlayed=resolvePersistedGamesPlayed(fields);
+      const scheduleGamesPlayed=scheduleBySchool.get(String(school).toLowerCase())||null;
+      const gpResolved=resolveGamesPlayedWithSource(fields,{scheduleGamesPlayed});
+      const gamesPlayed=gpResolved.gamesPlayed;
       const espnId=espnIdFromTeamKey(rec.team_id,fields);
       const value={
         offensePpa:num(fields.ppaOff),defensePpa:num(fields.ppaDef),
@@ -214,7 +255,9 @@ async function readPersistedCfbDeep(env,season,now) {
         currentPointsForPerGame:num(fields.currentPointsForPerGame ?? fields.pfPg ?? fields.pointsForPerGame),
         currentPointsAgainstPerGame:num(fields.currentPointsAgainstPerGame ?? fields.paPg ?? fields.pointsAgainstPerGame),
         gamesPlayed:gamesPlayed??0,
-        gamesPlayedSource:gamesPlayed==null?null:(num(fields.gamesPlayed)??num(fields.games)??num(fields.nGames))!=null?"explicit":"coreThroughWeek",
+        gamesPlayedSource:gpResolved.source,
+        gamesPlayedUncertainty:gpResolved.uncertainty===true,
+        gamesPlayedNote:gpResolved.note,
         // Snapshot collection time is not the CORE calculation window. The
         // model must independently verify source week AND collection time.
         core:fields.coreWeekBounded===true?num(fields.core):null,
@@ -233,6 +276,8 @@ async function readPersistedCfbDeep(env,season,now) {
         espnId,
       };
       if(gamesPlayed!=null&&gamesPlayed>0)withGamesPlayed+=1;
+      if(gpResolved.source===GAMES_PLAYED_SOURCES.SCHEDULE)withScheduleGames+=1;
+      if(gpResolved.source===GAMES_PLAYED_SOURCES.CORE_THROUGH_WEEK_FALLBACK)withCoreThroughWeekFallback+=1;
       if(value.offensePpa!=null)withOffensePpa+=1;
       put(index,school,value);
       if(espnId&&!index.byEspnId[espnId])index.byEspnId[espnId]=index.bySchool[String(school).toLowerCase()]||value;
@@ -243,8 +288,8 @@ async function readPersistedCfbDeep(env,season,now) {
     return {season,...index,meta:{configured:true,records,
       source:"cfbd-weekly-persisted-d1",asOf:maxAsOf,cacheOnly:true,
       networkCalls:0,modelAuthority:false,wagerAuthority:false,
-      withGamesPlayed,withOffensePpa,
-      priorDecay:"n/(n+6) via blendPriorCurrent; n from gamesPlayed or coreThroughWeek"}};
+      withGamesPlayed,withOffensePpa,withScheduleGames,withCoreThroughWeekFallback,
+      priorDecay:"n/(n+6) via blendPriorCurrent; n prefers explicit/schedule over coreThroughWeek fallback"}};
   }catch{return null;}
 }
 

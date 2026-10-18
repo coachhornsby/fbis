@@ -12,6 +12,7 @@ import { blendPriorCurrent, shrinkageWeight } from "./cfbFeatureStore.js";
 import { predictRidge, pHomeWinFromMargin } from "./cfbFbisV2Fit.js";
 import CFB_FBIS_V2_ARTIFACT from "../../data/models/cfb-fbis-v2.js";
 import CFB_FBIS_V2_FITTED_AA from "../../data/models/cfb-fbis-v2-fitted-aa.js";
+import { buildCfbProjectionReliability } from "./cfbProjectionReliability.js";
 
 export const CFB_FBIS_V2_ID = "CFB-FBIS-v2";
 export const CFB_FBIS_V2_PRODUCTION = CFB_FBIS_V2_FITTED_AA;
@@ -776,12 +777,14 @@ export function promoteCfbFbisV2ToBoard(games = []) {
       .some((value) => num(value) == null)) return game;
     const state = projection.projectionState || (projection.provisional ? "PROVISIONAL" : "COMPLETE");
     promoted += 1;
+    const reliability = buildCfbProjectionReliability(game, projection);
     return {
       ...game,
       projHomeScore: projection.home,
       projAwayScore: projection.away,
       modelVersion: CFB_FBIS_V2_ID,
       projectionKind: "FBIS",
+      cfbProjectionReliability: reliability,
       // Serializers and snapshot writers consume model first. Keep the approved
       // fitted scores in that same packet, rather than an earlier prior model.
       model: {
@@ -809,6 +812,7 @@ export function promoteCfbFbisV2ToBoard(games = []) {
         projectionState: state,
         dataQuality: projection.dataQuality ?? projection.dataCompleteness ?? null,
         uncertaintyState: projection.uncertainty?.uncertainty_state || projection.uncertaintyState || null,
+        projectionReliability: reliability,
         Mstar: projection.Mstar || "A",
         Tstar: projection.Tstar || "A",
         fittedApplied: true,
