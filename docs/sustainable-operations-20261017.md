@@ -30,6 +30,7 @@ Emergency recovery preserved product data at the primary D1 ceiling. With capaci
    - Schema bootstrap: `sql/shards/operations-v1.sql`
    - Product tables and qualification authority remain on primary
    - New RESEARCH market writes prefer `MARKET_HISTORY_DB`; pre-cutoff RESEARCH continues through the existing cold-history gate when enabled
+   - Polymarket US WebSocket CURRENT ticks prefer `MARKET_HISTORY_DB` when primary `size_after` is known ≥ 9.5 GB (`probeStreamPreferHistory`); authorized CURRENT WS keep-window relief: `docs/storage-current-ws-capacity-relief-authorized-20261018.json`
 
 ## Operator follow-up
 

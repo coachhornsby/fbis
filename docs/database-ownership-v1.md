@@ -20,6 +20,7 @@
 2. **New high-volume market history** that is not required for live qualification belongs on `MARKET_HISTORY_DB` (shadow/recovery) or cold history after verified archive — not primary.
 3. **Primary** remains authoritative for live product facts until a reviewed cutover says otherwise.
 4. **No automatic DELETE** from primary. Retention release requires a verified recovery copy (R2 readback + independent restore parity) and an explicit new release manifest with `retentionReleaseAuthorized: true`.
+5. **Polymarket US WebSocket CURRENT ticks** write to primary when healthy. When primary `size_after` is known and ≥ 9.5 GB soft limit, the stream Worker prefers `MARKET_HISTORY_DB` (+ R2 spill) so FREEZE / continuous-learning retain headroom. Excess CURRENT WS ticks older than the live keep window may be retired only under an authorized capacity-relief package (see `docs/storage-current-ws-capacity-relief-authorized-20261018.json`).
 
 ## Capacity safeguards
 

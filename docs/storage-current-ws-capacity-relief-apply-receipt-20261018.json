@@ -1,0 +1,63 @@
+{
+  "contract": "fbis-current-ws-capacity-relief-apply-v1",
+  "completed": true,
+  "pass": true,
+  "appliedAt": "2026-10-18T14:55:00.000Z",
+  "releaseId": "release-20261018-current-ws-a1",
+  "retentionReleaseAuthorized": true,
+  "recoveryPolicyId": "fbis-recovery-policy-current-ws-history-shard-20261018",
+  "primaryDb": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "marketHistoryDb": "c32ccf06-c896-4d24-bb89-3e87a7412899",
+  "keepHours": 2,
+  "predicate": "snapshot_type='CURRENT' AND source='Polymarket US WebSocket' AND datetime(COALESCE(source_observed_at, collected_at)) < datetime('now','-2 hours')",
+  "primaryBytesBefore": 9999998976,
+  "primaryBytesAfter": 7937470464,
+  "physicalBytesReclaimed": 2062528512,
+  "under8GiB": true,
+  "percentUsedAfter": 79.375,
+  "cohort": {
+    "id": "current-ws-older-than-keep-window-20261018",
+    "approxDeleted": 785684,
+    "method": "bounded DELETE batches of 5000 via Cloudflare D1 API (MCP execute), ORDER BY rowid",
+    "primaryCurrentBefore": 1244797,
+    "primaryCurrentAfter": 459113,
+    "olderThan2hRemaining": 390344,
+    "keepWindowRemaining": 54195,
+    "notes": "Approx deleted = currentBefore - currentAfter + keep-window growth during apply from concurrent live writers. Older-than-2h cohort not fully exhausted in this apply; remaining rows may be cleared by workflow re-runs."
+  },
+  "protected": {
+    "researchOnPrimary": 0,
+    "cfb2004": 13644,
+    "cfb2004Unchanged": true,
+    "decisionLinks": 0,
+    "economicGrades": 0,
+    "keepWindowNeverTargeted": true
+  },
+  "marketHistory": {
+    "fileSizeAfter": 2363822080,
+    "role": "recovery/shadow shard for new WS ticks when primary known-full; not sole cold archive for this apply"
+  },
+  "writeProbe": {
+    "ok": true,
+    "method": "CREATE/INSERT/SELECT/DROP _d1_capacity_probe_20261018",
+    "freezeLikeInsertOk": true
+  },
+  "sampleRemainingOlderIds": [
+    "nmo_8c04bf48ecd49636e5ba2dc2057a",
+    "nmo_b7577159f71bc153bcf01b089b59",
+    "nmo_34896d0f5288ffc876caad834835",
+    "nmo_7cd93496021fa5f3a90993f6b597",
+    "nmo_90f09fb29ced82ef27f8da94e968"
+  ],
+  "followUp": [
+    "Deploy polymarket-us-stream Worker with probeStreamPreferHistory so primary does not refill above 9.5GB soft limit",
+    "Optional: re-run scripts/storage-current-ws-capacity-relief.mjs APPLY to clear remaining older-than-2h rows",
+    "Verify FREEZE +0D / continuous-learning after Pages+Worker deploy"
+  ],
+  "notes": [
+    "APPLY authorized by operator directive 2026-10-18 (D1 size relief after FREEZE D1 max-size).",
+    "Cohort is observational CURRENT Polymarket US WebSocket only (can_qualify=0, can_authorize_wager=0).",
+    "Full row payloads for deleted ticks were not re-copied into MARKET_HISTORY during this emergency reclaim; IDs remain reconstructible only from prior history/recovery writes and R2 stream spills where present.",
+    "CFB 2004 and RESEARCH cohorts were not targeted."
+  ]
+}

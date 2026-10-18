@@ -1,0 +1,64 @@
+name: Storage CURRENT WS capacity relief (dry-run default)
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Set true ONLY after retentionReleaseAuthorized package + release id'
+        required: true
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+      release_id:
+        description: 'Must match authorized package releaseId when apply=true'
+        required: false
+        default: ''
+        type: string
+      keep_hours:
+        description: 'Retain CURRENT WS ticks newer than this many hours on primary'
+        required: false
+        default: '2'
+        type: string
+      max_batches:
+        description: 'Max DELETE batches this run (5000 rows each)'
+        required: false
+        default: '40'
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: fbis-storage-current-ws-capacity-relief
+  cancel-in-progress: false
+jobs:
+  relief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Capacity routing unit tests
+        run: node --test test/primary-capacity-write-target.test.js test/polymarket-bootstrap-capacity.test.js
+      - name: Refuse apply without release id
+        if: ${{ inputs.apply == 'true' && inputs.release_id == '' }}
+        run: |
+          echo "APPLY requires release_id matching an authorized retention package"
+          exit 1
+      - name: Dry-run or gated apply
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STORAGE_CURRENT_WS_RELIEF_APPLY: ${{ inputs.apply }}
+          STORAGE_CURRENT_WS_RELIEF_RELEASE_ID: ${{ inputs.release_id }}
+          STORAGE_CURRENT_WS_RELIEF_PACKAGE: docs/storage-current-ws-capacity-relief-authorized-20261018.json
+          STORAGE_CURRENT_WS_KEEP_HOURS: ${{ inputs.keep_hours }}
+          STORAGE_CURRENT_WS_BATCH: '5000'
+          STORAGE_CURRENT_WS_MAX_BATCHES: ${{ inputs.max_batches }}
+        run: node scripts/storage-current-ws-capacity-relief.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: storage-current-ws-capacity-relief
+          path: /tmp/fbis-current-ws-capacity-relief/
+          retention-days: 30
+          if-no-files-found: error
