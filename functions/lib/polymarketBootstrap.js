@@ -26,6 +26,12 @@ async function boundedJson(fetchImpl,url,maxBytes=4e6){
 export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new Date()}={}){
  if(!env.ARCHIVE?.get||!env.ARCHIVE?.put)throw Error('PRIVATE_ARCHIVE_REQUIRED');
  const fixtures=await projectedPolymarketFixtures(env.DB,now);
+ if(opts.operation==='resume'){
+  const object=await env.ARCHIVE.get('market-sources/polymarket-us/coverage/latest.json');if(!object)return {ok:true,run:null};const previous=await object.json();
+  const started=previous.runStartedAt||previous.checkedAt;
+  const gaps=previous.status==='IN_PROGRESS'||previous.errors?.length||previous.missingMarketEnumeration?.length||previous.missingBooks?.length||previous.missingSubscriptions?.length;
+  return {ok:true,run:gaps&&valid(previous.run)&&now.getTime()-Date.parse(started)<3600000?previous.run:null,runStartedAt:started};
+ }
  if(opts.operation==='catalogue'){
   const offset=opts.offset??0;if(!Number.isSafeInteger(offset)||offset<0||offset%50)throw Error('INVALID_CATALOGUE_OFFSET');
   if(!fixtures.length)return {ok:true,leagues:[],fixtures:[],projectedFixtures:0,nextOffset:null,canAuthorizeWager:false};
@@ -43,7 +49,9 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
  if(opts.operation==='page'||opts.operation==='markets'){
   if(!Number.isSafeInteger(opts.offset)||opts.offset<0||opts.offset%20)throw Error('INVALID_SCOPE');
   if(opts.operation==='page'&&(!valid(opts.slug)||classifyPolymarketUsLeague({slug:opts.slug,name:opts.name,providerSport:opts.providerSport})!==opts.sport))throw Error('INVALID_SCOPE');
-  const existing=await env.ARCHIVE.get(key);if(existing){const old=await existing.json();return {...old,offers:undefined,events:undefined};}
+  const existing=await env.ARCHIVE.get(key);if(existing){const old=await existing.json();
+   const cachedQuotes=await Promise.all(Array.from({length:old.bookBatches||0},async(_,i)=>{const b=await env.ARCHIVE.get(prefix+opts.receiptId+'-quotes-'+i+'.json');return b?b.json():null;}));
+   return {...old,offers:undefined,events:undefined,...(cachedQuotes.every(b=>b?.ok===true)?{cachedQuotes}: {})};}
   let scope=opts,eventPage,sourcePage,canonicalBinding=null;
   if(opts.operation==='markets'){
    if(!valid(opts.parentReceiptId)||!Number.isSafeInteger(opts.eventIndex)||opts.eventIndex<0)throw Error('INVALID_PARENT');
@@ -56,7 +64,14 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
     if(!/^[a-z0-9-]{1,160}$/i.test(String(entry.event.id)))throw Error('PROVIDER_EVENT_ID_UNVERIFIED');
     const response=await boundedJson(fetchImpl,new URL('/v1/events/'+entry.event.id,POLY_US_API),12e6);detail=response.event;
     if(!detail||String(detail.id)!==String(entry.event.id)||!Array.isArray(detail.markets))throw Error('PROVIDER_EVENT_DETAIL_UNVERIFIED');
-    if(!Number.isInteger(detail.marketCounts?.numMarkets)||detail.marketCounts.numMarkets!==detail.markets.length)throw Error('PROVIDER_EVENT_MARKET_COUNT_MISMATCH');
+    const gameLines=detail.markets.filter(m=>['SPORTS_MARKET_TYPE_SPREAD','SPORTS_MARKET_TYPE_TOTAL'].includes(m.sportsMarketTypeV2)).length;
+    const advertisedLines=detail.marketCounts?.numSpreadsAndTotalsMarkets;
+    const gameLineProof=Number.isInteger(advertisedLines)&&advertisedLines===gameLines;
+    const fullCountProof=Number.isInteger(detail.marketCounts?.numMarkets)&&detail.marketCounts.numMarkets===detail.markets.length;
+    if(Number.isInteger(advertisedLines)?!gameLineProof:!fullCountProof)throw Error('PROVIDER_EVENT_MARKET_COUNT_MISMATCH');
+    const mainIds=(entry.event.markets||[]).filter(m=>['SPORTS_MARKET_TYPE_MONEYLINE','SPORTS_MARKET_TYPE_DRAWABLE_OUTCOME'].includes(m.sportsMarketTypeV2)).map(m=>String(m.id||m.slug));
+    const ids=new Set(detail.markets.map(m=>String(m.id||m.slug)));if(mainIds.some(id=>!ids.has(id)))throw Error('PROVIDER_MAIN_MARKET_MISSING');
+    detail.enumerationProof={method:gameLineProof?'GAME_LINE_COUNTER_AND_MAIN_IDS':'FULL_MARKET_COUNTER',advertisedLines,gameLines,advertisedAll:detail.marketCounts?.numMarkets,returnedAll:detail.markets.length};
     await env.ARCHIVE.put(detailKey,JSON.stringify(detail));
    }
    scope={sport:parent.sport,slug:parent.slug};
@@ -98,8 +113,8 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
  }
  if(opts.operation!=='quotes'||!Number.isInteger(opts.batchIndex)||opts.batchIndex<0)throw Error('INVALID_OPERATION');
  const source=await env.ARCHIVE.get(key);if(!source)throw Error('UNKNOWN_RECEIPT');const receipt=await source.json();
+ const doneKey=prefix+opts.receiptId+'-quotes-'+opts.batchIndex+'.json';const done=await env.ARCHIVE.get(doneKey);if(done)return {...await done.json(),replayed:true};
  if(now.getTime()-Date.parse(receipt.capturedAt)>30*60000||opts.batchIndex>=receipt.bookBatches)throw Error('EXPIRED_OR_INVALID_BATCH');
- const doneKey=prefix+opts.receiptId+'-quotes-'+opts.batchIndex+'.json';const done=await env.ARCHIVE.get(doneKey);if(done)return done.json();
  const permitted=new Set(fixtures.map(g=>String(g.id)));const offers=[],errors=[],marketResults=[];
  await Promise.all(receipt.offers.slice(opts.batchIndex*4,opts.batchIndex*4+4).map(async offer=>{
   if(!permitted.has(String(offer.eventId))||Date.parse(offer.eventStart)<=now.getTime()){marketResults.push({market:offer.sourceMarketId,status:'FORECAST_EXPIRED'});return;}

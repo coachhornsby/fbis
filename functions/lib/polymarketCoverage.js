@@ -9,7 +9,7 @@ export function reconcilePolymarketCoverage({fixtures=[],pages=[],discoveryCompl
  const missingBooks=[...inventory.values()].filter(m=>!ready.has(m.market));
  const missingSubscriptions=[...inventory.values()].filter(m=>!subscribed.has(m.market));
  const inventoryComplete=discoveryComplete&&errors.length===0&&missingMarketEnumeration.length===0;
- const marketCoverageComplete=inventoryComplete&&missingBooks.length===0&&missingSubscriptions.length===0&&(!inventory.size||stream.connected===true)&&Number(stream.uncoveredCount||0)===0;
+ const marketCoverageComplete=inventoryComplete&&missingBooks.length===0&&missingSubscriptions.length===0&&(!inventory.size||stream.connected===true)&&Number(stream.uncoveredCount||0)===0&&stream.initializing!==true;
  return {scope:'INDEPENDENTLY_FORECAST_TEAM_GAMES_NEXT_48_HOURS_MONEYLINE_SPREAD_TOTAL_ALL_PERIODS',
   expectedEvents:fixtures.length,matchedEvents:fixtures.length-missingEvents.length,eligibleContracts:inventory.size,
   booksVerified:[...inventory.keys()].filter(k=>ready.has(k)).length,subscriptionsVerified:[...inventory.keys()].filter(k=>subscribed.has(k)).length,

@@ -261,7 +261,10 @@ export function liveBboOffer(tick,base){
 export function parseStreamControl(raw){
  let value;try{value=typeof raw==="string"?JSON.parse(raw):raw}catch{return null}
  if(!value||typeof value!=="object")return null;
- if(Object.hasOwn(value,"error"))return{type:"error"};
+ if(Object.hasOwn(value,"error")){
+  const error=value.error;const clean=v=>String(v||'').replace(/[A-Za-z0-9+/_=-]{48,}/g,'[redacted]').replace(/\b[0-9a-f]{8}-[0-9a-f-]{27,}\b/gi,'[redacted]').slice(0,512);
+  return {type:'error',message:clean(typeof error==='string'?error:error?.message||value.message),code:clean(error?.code||value.code),requestId:clean(value.requestId||value.request_id)};
+ }
  if(Object.hasOwn(value,"heartbeat"))return{type:"heartbeat"};
  return null;
 }
