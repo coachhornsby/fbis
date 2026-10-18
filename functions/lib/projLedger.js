@@ -88,6 +88,7 @@ import { storageBudget } from "./storageBudget.js";
 import { collegeKeyHealth } from "./collegeSecrets.js";
 import { putArchive, r2Key } from "./r2Archive.js";
 import { buildPropConvictions } from "./propConviction.js";
+import { promotePredictionFinalsToSnapshots } from "./cfbSnapshotSettlement.js";
 
 async function archiveHarvestReport(env, report) {
   const at = report.harvestedAt || report.generatedAt || new Date().toISOString();
@@ -2218,6 +2219,24 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     const snapshotFinalsFailed = snapshotGrading.reduce((n, row) => n + Number(row?.failed || 0), 0);
     const snapshotFinalsUnmatched = snapshotGrading.reduce((n, row) => n + Number(row?.unmatched || 0), 0);
 
+    const snapshotSettlement = [];
+    if (sport === "cfb") {
+      for (const date of dates) {
+        try {
+          snapshotSettlement.push(
+            await promotePredictionFinalsToSnapshots(env, {
+              sport,
+              date,
+              limit: 25,
+              gradedAt: new Date().toISOString(),
+            })
+          );
+        } catch (err) {
+          snapshotSettlement.push({ ok: false, date, error: String(err?.message || err) });
+        }
+      }
+    }
+
     // Settlement also revisits already-settled tickets for this final set so factual
     // score evidence can be backfilled without changing a correct prior result.
     // gradeResearch=1 also settles strategy tickets against the same live finals.
@@ -2256,6 +2275,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
       finalsFailed: snapshotFinalsFailed,
       snapshotFinalsUnmatched,
       snapshotGrading,
+      snapshotSettlement,
       jobCounts: emptyWriteCounts(),
       errors,
       executedBets,
@@ -2390,6 +2410,30 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   const snapshotFinalsUnmatched = snapshotGrading.reduce((n, row) => n + Number(row?.unmatched || 0), 0);
   const snapshotFinalsFailed = snapshotGrading.reduce((n, row) => n + Number(row?.failed || 0), 0);
 
+  // CFB settlement gap: harvest often grades `predictions` before CLOSE snapshots.
+  // Promote verified prediction finals onto snapshots without touching proj_*.
+  const snapshotSettlement = [];
+  if (sport === "cfb") {
+    for (const date of dates) {
+      try {
+        snapshotSettlement.push(
+          await promotePredictionFinalsToSnapshots(env, {
+            sport,
+            date,
+            limit: 25,
+            gradedAt: new Date().toISOString(),
+          })
+        );
+      } catch (err) {
+        snapshotSettlement.push({
+          ok: false,
+          date,
+          error: String(err?.message || err),
+        });
+      }
+    }
+  }
+
   // Always write team_form from completed scoreboard finals — even when the
   // game was never frozen (historical NFL circular dependency).
   const formStats = await applyScoreboardForm(env, sport, finals);
@@ -2455,6 +2499,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     snapshotFinalsUnmatched,
     snapshotFinalsFailed,
     snapshotGrading,
+    snapshotSettlement,
     jobCounts: counts,
     errors,
     executedBets,

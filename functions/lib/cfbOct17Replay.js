@@ -12,6 +12,12 @@
 
 import { projectCfbFbisV2Production } from "./cfbFbisV2.js";
 import { resolvePersistedGamesPlayed } from "./cfbDeepFeed.js";
+import {
+  projectModelA,
+  projectModelB,
+  projectModelC,
+  projectModelD,
+} from "./cfbCurrentSeasonChallengers.js";
 import PRIOR_V1 from "../../data/cfb/prior-v1.js";
 
 const NATIONAL = 26.5;
@@ -182,6 +188,10 @@ export function replayOneGame({
   };
 
   const rebuilt = projectCfbFbisV2Production(game);
+  const modelA = projectModelA(game);
+  const modelB = projectModelB(game);
+  const modelC = projectModelC(game, { coreArtifact: null });
+  const modelD = projectModelD(game);
   const original = {
     home: num(close?.proj_home ?? close?.projHome),
     away: num(close?.proj_away ?? close?.projAway),
@@ -193,6 +203,8 @@ export function replayOneGame({
 
   const originalErr = scoreErrors(original.home, original.away, actual.home, actual.away);
   const rebuiltErr = scoreErrors(rebuilt.home, rebuilt.away, actual.home, actual.away);
+  const errB = scoreErrors(modelB.home, modelB.away, actual.home, actual.away);
+  const errD = scoreErrors(modelD.home, modelD.away, actual.home, actual.away);
 
   return {
     gameId: game.id,
@@ -214,6 +226,28 @@ export function replayOneGame({
       priorDecay: rebuilt.priorDecay,
       missingCurrentSignals: rebuilt.missingCurrentSignals || [],
       marginFeatures: rebuilt.marginFeatures,
+    },
+    challengers: {
+      A: { home: modelA.home, away: modelA.away, ok: modelA.ok, error: rebuiltErr },
+      B: {
+        home: modelB.ok ? modelB.home : null,
+        away: modelB.ok ? modelB.away : null,
+        ok: modelB.ok,
+        researchShrinkK: modelB.researchShrinkK,
+        error: errB,
+      },
+      C: {
+        ok: modelC.ok,
+        reason: modelC.reason || null,
+        note: "CORE incremental value unproven without fitted OOS artifact",
+      },
+      D: {
+        home: modelD.ok ? modelD.home : null,
+        away: modelD.ok ? modelD.away : null,
+        ok: modelD.ok,
+        error: errD,
+        note: modelD.note || null,
+      },
     },
     actual,
     originalError: originalErr,

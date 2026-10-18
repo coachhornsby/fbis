@@ -1,0 +1,156 @@
+.cfb-data-ops {
+  margin-bottom: 1.5rem;
+}
+
+.cfb-ops-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.cfb-ops-search {
+  min-width: 12rem;
+  flex: 1;
+  max-width: 20rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  background: color-mix(in srgb, canvas 92%, transparent);
+  color: inherit;
+  border-radius: 2px;
+}
+
+.cfb-ops-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.cfb-ops-tabs button {
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  background: transparent;
+  color: inherit;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  border-radius: 2px;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.cfb-ops-tabs button.active {
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  font-weight: 600;
+}
+
+.cfb-ops-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.cfb-ops-chip {
+  display: inline-block;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.cfb-ops-chip.err {
+  border-color: color-mix(in srgb, #b33 50%, transparent);
+  color: #b33;
+}
+
+.cfb-ops-section {
+  margin-bottom: 1.35rem;
+}
+
+.cfb-ops-section h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+
+.cfb-ops-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.5rem;
+}
+
+.cfb-ops-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.cfb-ops-table th,
+.cfb-ops-table td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  vertical-align: top;
+}
+
+.cfb-ops-table th {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.cfb-ops-pill {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.cfb-ops-pill.ok {
+  border-color: color-mix(in srgb, #2a7 45%, transparent);
+}
+
+.cfb-ops-pill.warn {
+  border-color: color-mix(in srgb, #b80 45%, transparent);
+}
+
+.cfb-ops-pill.err {
+  border-color: color-mix(in srgb, #b33 45%, transparent);
+}
+
+.cfb-ops-pill.muted {
+  opacity: 0.7;
+}
+
+.cfb-ops-alerts {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.cfb-ops-alerts .error,
+.cfb-ops-alerts .err {
+  color: #b33;
+}
+
+.cfb-ops-alerts .warn,
+.cfb-ops-alerts .warning {
+  color: #a60;
+}
+
+.cfb-ops-matrix-list {
+  margin: 0.4rem 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}
+
+.cfb-ops-matrix-list li {
+  margin-bottom: 0.35rem;
+}
+
+@media (max-width: 720px) {
+  .cfb-ops-search {
+    max-width: none;
+    width: 100%;
+  }
+}

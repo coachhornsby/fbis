@@ -12,6 +12,9 @@ import { blendPriorCurrent, shrinkageWeight } from "./cfbFeatureStore.js";
 import { predictRidge, pHomeWinFromMargin } from "./cfbFbisV2Fit.js";
 import CFB_FBIS_V2_ARTIFACT from "../../data/models/cfb-fbis-v2.js";
 import CFB_FBIS_V2_FITTED_AA from "../../data/models/cfb-fbis-v2-fitted-aa.js";
+import { buildCfbProjectionReliability } from "./cfbProjectionReliability.js";
+import { buildScoringProvenance } from "./cfbSourceModelMatrix.js";
+import { instrumentProjectionContribution } from "./cfbFeatureContract.js";
 
 export const CFB_FBIS_V2_ID = "CFB-FBIS-v2";
 export const CFB_FBIS_V2_PRODUCTION = CFB_FBIS_V2_FITTED_AA;
@@ -525,10 +528,45 @@ export function projectCfbFbisV2(game = {}, { ablation = "K", coefficients = DEF
       awayCurrentOff,
       homeBlendedOff: homeOff.value,
       awayBlendedOff: awayOff.value,
+      scoring: buildScoringProvenance({
+        homeFeatures: {
+          ppaOff: num(homeIn.offensePpa ?? homeIn.ppaOff),
+          ppaDef: num(homeIn.defensePpa ?? homeIn.ppaDef),
+          priorOff: num(homeIn.priorOff ?? homeIn.spOffense),
+          priorDef: num(homeIn.priorDef ?? homeIn.spDefense),
+          gamesPlayed: homeGames,
+          gamesPlayedSource: homeIn.gamesPlayedSource || null,
+          offensiveSuccessRate: num(homeIn.offensiveSuccessRate ?? homeIn.successRate),
+          coreOffense: num(homeIn.coreOffense),
+          coreDefense: num(homeIn.coreDefense),
+          coreThroughWeek: num(homeIn.coreThroughWeek),
+        },
+        awayFeatures: {
+          ppaOff: num(awayIn.offensePpa ?? awayIn.ppaOff),
+          ppaDef: num(awayIn.defensePpa ?? awayIn.ppaDef),
+          priorOff: num(awayIn.priorOff ?? awayIn.spOffense),
+          priorDef: num(awayIn.priorDef ?? awayIn.spDefense),
+          gamesPlayed: awayGames,
+          gamesPlayedSource: awayIn.gamesPlayedSource || null,
+          offensiveSuccessRate: num(awayIn.offensiveSuccessRate ?? awayIn.successRate),
+          coreOffense: num(awayIn.coreOffense),
+          coreDefense: num(awayIn.coreDefense),
+          coreThroughWeek: num(awayIn.coreThroughWeek),
+        },
+        homeTeamId: game?.homeEspnId || game?.home?.espnId || game?.homeTeamId || null,
+        awayTeamId: game?.awayEspnId || game?.away?.espnId || game?.awayTeamId || null,
+        season: game?.season ?? null,
+        throughWeek: game?.throughWeek ?? game?.week ?? null,
+        collectionTime: game?.collectionTimestamp || game?.featureAsOfTimestamp || null,
+        ingestionBatchId: game?.ingestionBatchId || null,
+        modelId: CFB_FBIS_V2_ID,
+      }),
     },
     fcs: { home: homeFcs, away: awayFcs },
     qb: { home: homeQb, away: awayQb },
   };
+
+  projection.featureContribution = instrumentProjectionContribution(projection, game);
 
   return {
     ...projection,
@@ -776,12 +814,14 @@ export function promoteCfbFbisV2ToBoard(games = []) {
       .some((value) => num(value) == null)) return game;
     const state = projection.projectionState || (projection.provisional ? "PROVISIONAL" : "COMPLETE");
     promoted += 1;
+    const reliability = buildCfbProjectionReliability(game, projection);
     return {
       ...game,
       projHomeScore: projection.home,
       projAwayScore: projection.away,
       modelVersion: CFB_FBIS_V2_ID,
       projectionKind: "FBIS",
+      cfbProjectionReliability: reliability,
       // Serializers and snapshot writers consume model first. Keep the approved
       // fitted scores in that same packet, rather than an earlier prior model.
       model: {
@@ -809,6 +849,7 @@ export function promoteCfbFbisV2ToBoard(games = []) {
         projectionState: state,
         dataQuality: projection.dataQuality ?? projection.dataCompleteness ?? null,
         uncertaintyState: projection.uncertainty?.uncertainty_state || projection.uncertaintyState || null,
+        projectionReliability: reliability,
         Mstar: projection.Mstar || "A",
         Tstar: projection.Tstar || "A",
         fittedApplied: true,

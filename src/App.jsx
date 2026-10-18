@@ -23,6 +23,7 @@ import ModelLabView from "./features/modelLab/ModelLabView.jsx";
 import CurrentProjectionsView from "./features/models/CurrentProjectionsView.jsx";
 import TeamProfilesView from "./features/teamProfiles/TeamProfilesView.jsx";
 import DataHealthView from "./features/dataHealth/DataHealthView.jsx";
+import CfbDataOpsView from "./features/cfbDataOps/CfbDataOpsView.jsx";
 import MispricesView from "./features/misprices/MispricesView.jsx";
 import "./features/playerProps/playerProps.css";
 import "./features/today/today.css"; // DecisionChip / table tokens for props route without TodayView
@@ -637,6 +638,7 @@ export default function App() {
         ) : tab === "sys" || route === "system" ? (
           <>
             <DataHealthView />
+            <CfbDataOpsView />
             <TrackView
               report={track}
               error={trackError}
