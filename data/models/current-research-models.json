@@ -2,12 +2,18 @@
   "updatedAt": "2026-10-05",
   "sports": {
     "nfl": {
-      "currentResearchModel": "NFL-PRO-v1.1",
+      "productionChampion": "NFL-PRO-v1.1",
+      "currentResearchModel": "NFL-PRO-v1.2",
+      "displayedBoardModel": "NFL-PRO-v1@v1.2",
       "fitArtifact": "data/models/nfl-pro-v1-1-fit.json",
-      "status": "historical-evidence-pass-qualification-enabled",
+      "status": "champion-v1.1-board-research-v1.2-qb-shadow-early",
       "canQualify": true,
       "canAuthorizeWager": false,
-      "notes": "Compact EPA/QB challenger beat the calibrated form baseline on margin MAE, total MAE, and winner accuracy in true walk-forward validation. Strict executable-price, EV, probability-edge, availability and coverage gates may now qualify plays; staking authorization remains disabled pending prospective ROI/CLV/drawdown and confidence validation."
+      "shadowChallenger": "NFL-QB-PERSONNEL-OVERLAY-v1",
+      "shadowConsumesVerifiedAvailability": true,
+      "displayedScoreConsumesInjuries": false,
+      "playerPropModel": "NFL-PLAYER-PROJ-v3.1",
+      "notes": "Production champion remains NFL-PRO-v1.1. Board displays NFL-PRO-v1.2 research scores (EPA/QB/matchup/NGS). Verified QB/personnel availability is attached before scoring for the QB-personnel SHADOW only; it does not alter the displayed research score or champion. Player props remain separately evaluated. Staking authorization remains disabled."
     },
     "cfb": {
       "currentResearchModel": "CFB-FBIS-v3-research",

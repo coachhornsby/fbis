@@ -17,6 +17,8 @@ import { attachNflWagerDecisions } from "./nflWagerDecision.js";
 import { loadNflTeamProfiles, attachNflPersistentProfiles } from "./nflTeamProfiles.js";
 import { NFL_WAGER_CONFIDENCE_V1 } from "../../data/models/nfl-wager-confidence-v1.js";
 import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
+import { buildNflQbPersonnelShadow, NFL_QB_PERSONNEL_SHADOW_ID } from "./nflQbPersonnelShadow.js";
+import { attachNflFrozenAuditPackets } from "./nflFrozenPublicationAudit.js";
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
 import { attachBasketballFormResearch } from "./basketballFormModel.js";
 import { attachSoccerV2Research } from "./soccerFbisV2.js";
@@ -207,18 +209,34 @@ export async function buildSlate(sport, date, env = {}) {
       byTeam: {}, playersByTeam: {}, meta: { source: "nflverse", teams: 0, error: String(err?.message || err), marketInformed: false },
     }));
     const enriched = attachNflVerseFeatures(baseline.games, verse);
-    const pro = attachNflProShadow(enriched);
-    const gameMatchups = attachNflGameMatchups(pro.games);
+    // Load verified availability BEFORE scoring so authorized SHADOW challengers
+    // (QB personnel overlay) can consume it. Displayed NFL-PRO-v1.2 still ignores it.
+    const profileKeysEarly=[...new Set((enriched||[]).flatMap(g=>[g?.home?.abbr,g?.away?.abbr]).filter(Boolean).map(x=>String(x).toLowerCase()))];
+    const persistentProfiles=await loadNflTeamProfiles(env.DB||null,profileKeysEarly).catch(()=>({teams:{},players:{}}));
+    const withAvailability=attachNflPersistentProfiles(enriched,persistentProfiles,{attachedBeforeScoring:true});
+    const pro = attachNflProShadow(withAvailability);
+    const withQbShadow = (pro.games||[]).map((game)=>{
+      if(game.sport && game.sport!=="nfl") return game;
+      const shadow=buildNflQbPersonnelShadow(game);
+      return {
+        ...game,
+        nflQbPersonnelShadow:shadow,
+        challengers:{...(game.challengers||{}),[NFL_QB_PERSONNEL_SHADOW_ID]:shadow},
+      };
+    });
+    const gameMatchups = attachNflGameMatchups(withQbShadow);
     // Research board: independent form/pure scores are displayable + freezable,
-    // but never qualify or authorize.
+    // but never qualify or authorize. Board promotion uses nflProShadow, not QB overlay.
     const research = promoteNflResearchToBoard(gameMatchups.games);
     const playerResearch = attachNflPlayerProjectionResearch(research.games, { byTeam: verse.playersByTeam || {}, leaguePositionDefense: verse.leaguePositionDefense || {} });
-    const profileKeys=[...new Set(playerResearch.flatMap(g=>[g?.home?.abbr,g?.away?.abbr]).filter(Boolean).map(x=>String(x).toLowerCase()))];
-    const persistentProfiles=await loadNflTeamProfiles(env.DB||null,profileKeys).catch(()=>({teams:{},players:{}}));
-    const profiledGames=attachNflPersistentProfiles(playerResearch,persistentProfiles);
+    const audited = attachNflFrozenAuditPackets(playerResearch, {
+      ...slate,
+      research: { ...(slate.research || {}), nflVerse: verse.meta, nflPro: pro.meta },
+    });
+    const qbShadowAvailable = audited.filter((g)=>g?.nflQbPersonnelShadow?.ok).length;
     next = {
       ...slate,
-      games: profiledGames,
+      games: audited,
       nfl: baseline.meta,
       research: {
         ...(slate.research || {}),
@@ -227,11 +245,27 @@ export async function buildSlate(sport, date, env = {}) {
         nflPro: pro.meta,
         nflGameMatchup: gameMatchups.meta,
         nflResearchBoard: research.meta,
+        nflQbPersonnelShadow: {
+          modelId: NFL_QB_PERSONNEL_SHADOW_ID,
+          available: qbShadowAvailable,
+          lifecycle: "SHADOW",
+          consumesVerifiedAvailability: true,
+          altersDisplayedBoardScore: false,
+          canQualify: false,
+          canAuthorizeWager: false,
+        },
         nflPersistentProfiles: {
           version:"NFL-TEAM-PROFILE-v1",
           teams:Object.keys(persistentProfiles.teams||{}).length,
           players:Object.values(persistentProfiles.players||{}).reduce((n,x)=>n+x.length,0),
           scheduleStressResearchOnly:true,
+          attachedBeforeScoring:true,
+          consumedByDisplayedNflProScore:false,
+        },
+        nflFrozenAudit: {
+          schema:"nfl-frozen-score-audit-v1",
+          gamesWithReconciledScore: audited.filter((g)=>g.scoreReconciled).length,
+          games: audited.length,
         },
       },
     };

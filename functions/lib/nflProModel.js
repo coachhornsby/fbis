@@ -216,6 +216,9 @@ export function projectNflProV1(game = {}) {
       turnoverMarginUsedAsCoreInput: false,
       qbSeparatedFromTeamBaseline: true,
       missingFeaturesRemainMissing: true,
+      verifiedAvailabilityConsumed: false,
+      injuryStatusConsumed: false,
+      note: "Persistent injury/QB availability may be attached on the game for SHADOW challengers but is not an input to this research score.",
     },
   };
 }

@@ -18,6 +18,11 @@ import {
 } from "./cbbPureChallenger.js";
 import { NFL_SHADOW_ID } from "./nflModel.js";
 import { NFL_PRO_ID } from "./nflProModel.js";
+import {
+  NFL_PRODUCTION_CHAMPION,
+  NFL_DISPLAYED_RESEARCH,
+  nflGovernanceStamp,
+} from "./nflModelGovernance.js";
 import { MLB_DEEP_ID } from "./mlbDeepModel.js";
 import { NHL_RESEARCH_MODEL_ID, NHL_RESEARCH_MODEL_VERSION } from "./nhlResearchModel.js";
 import { NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
@@ -139,6 +144,24 @@ function stampResearchBoard(game, {
     oosSampleSize: null,
   });
 
+  const isNfl = String(game.sport || "").toLowerCase() === "nfl";
+  const nflStamp = isNfl
+    ? nflGovernanceStamp({
+        championModel: NFL_PRODUCTION_CHAMPION.modelId,
+        displayedResearchModel: modelId === NFL_PRO_ID ? NFL_DISPLAYED_RESEARCH.modelId : modelId,
+        displayedResearchVersion: modelVersion,
+      })
+    : {};
+  const researchGovernance = isNfl
+    ? {
+        productionChampion: NFL_PRODUCTION_CHAMPION.modelId,
+        displayedResearch: `${modelId}@${modelVersion}`,
+        researchNotChampion:
+          modelId !== NFL_PRODUCTION_CHAMPION.modelId ||
+          modelVersion !== NFL_PRODUCTION_CHAMPION.version,
+      }
+    : undefined;
+
   return {
     ...game,
     projHomeScore: scores.home,
@@ -187,6 +210,7 @@ function stampResearchBoard(game, {
     publicationStatus: "RESEARCH_PUBLISHABLE",
     bettingAuthority: "NOT_ELIGIBLE",
     modelDisagreement: disagreement,
+    ...nflStamp,
     researchProjection: {
       modelId,
       modelVersion,
@@ -197,6 +221,7 @@ function stampResearchBoard(game, {
       margin: scores.margin,
       total: scores.total,
       underlying,
+      ...(researchGovernance ? { governance: researchGovernance } : {}),
       note: researchNote,
       canQualify: false,
       canAuthorize: false,
@@ -253,7 +278,9 @@ export function promoteMlbResearchToBoard(games = []) {
   };
 }
 
-/** NFL research board — NFL-PRO-v1 primary when EPA/QB evidence is available; calibrated form fallback otherwise. */
+/** NFL research board — NFL-PRO-v1.2 primary when EPA/QB evidence is available; calibrated form fallback otherwise.
+ *  Production champion remains NFL-PRO-v1.1 until explicit operator-approved promotion.
+ */
 export function promoteNflResearchToBoard(games = []) {
   let promoted = 0;
   let proPrimary = 0;
@@ -267,14 +294,17 @@ export function promoteNflResearchToBoard(games = []) {
     if (pro?.ok && proScores) {
       promoted += 1;
       proPrimary += 1;
+      const version = pro.version || NFL_DISPLAYED_RESEARCH.version;
       return stampResearchBoard(game, {
         modelId: NFL_PRO_ID,
-        modelVersion: pro.version || "v1",
+        modelVersion: version,
         scores: proScores,
-        displayLabel: "FBIS NFL-PRO-v1 RESEARCH PROJECTION",
-        underlying: "opponent-adjusted EPA + QB + matchup + special teams + context",
+        displayLabel: version === "v1.2"
+          ? NFL_DISPLAYED_RESEARCH.displayLabel
+          : `FBIS NFL-PRO-${version} RESEARCH PROJECTION`,
+        underlying: "opponent-adjusted EPA + QB + matchup + Next Gen tracking + special teams + context",
         researchNote:
-          "NFL-PRO-v1 is the research-board primary when core EPA/QB evidence is available. Research only; wager qualification remains blocked pending true walk-forward validation.",
+          `NFL-PRO-${version} is the research-board primary when core EPA/QB evidence is available. Production champion remains ${NFL_PRODUCTION_CHAMPION.modelId}. Research only; does not consume verified injury/QB availability; wager qualification remains blocked pending true walk-forward validation.`,
       });
     }
 

@@ -722,7 +722,8 @@ function compactScheduleContext(rows=[],nowMs=Date.now()){
  return {upcoming,weakSpots};
 }
 
-export function attachNflPersistentProfiles(games=[],profiles={}){
+export function attachNflPersistentProfiles(games=[],profiles={},opts={}){
+ const attachedBeforeScoring=Boolean(opts.attachedBeforeScoring);
  return (games||[]).map(game=>{
   const hk=teamKey(game?.home?.abbr),ak=teamKey(game?.away?.abbr);
   const home=profiles?.teams?.[hk]||null,away=profiles?.teams?.[ak]||null;
@@ -736,6 +737,10 @@ export function attachNflPersistentProfiles(games=[],profiles={}){
     away:away?{...away,players:profiles?.players?.[ak]||[],schedule:as}:null,
     configured:Boolean(home&&away),
     researchOnlyScheduleStress:true,
+    // Availability is attached before NFL-PRO scoring so authorized SHADOW
+    // challengers can consume it. Displayed NFL-PRO-v1.2 still ignores it.
+    attachedBeforeScoring,
+    consumedByDisplayedScore:false,
    },
   };
  });
