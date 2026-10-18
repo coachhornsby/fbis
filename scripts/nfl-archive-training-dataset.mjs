@@ -68,7 +68,28 @@ const manifest = {
   },
 };
 
-const putObj = await fetch(
+const csvBytes = fs.readFileSync(CSV);
+const READY_ATTEMPTS = Math.max(1, Number(process.env.READY_ATTEMPTS || 12) || 12);
+
+async function putWithRetry(url, init, phase) {
+  let last = { http: 0, body: {} };
+  for (let attempt = 1; attempt <= READY_ATTEMPTS; attempt += 1) {
+    const res = await fetch(url, init);
+    const body = await res.json().catch(() => ({}));
+    last = { http: res.status, body, attempt };
+    // 405 / empty SPA body = Pages Functions not yet serving this route.
+    if (res.status === 405 || (res.ok === false && res.status === 200 && !body?.ok)) {
+      const delay = Math.min(15000, 1000 * attempt);
+      console.log(JSON.stringify({ phase: `${phase}-retry`, attempt, http: res.status, delayMs: delay }));
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+    return { ok: res.ok && body?.ok === true, http: res.status, body, attempt };
+  }
+  return { ok: false, ...last };
+}
+
+const putObj = await putWithRetry(
   `${BASE}/api/nfl-training-archive?kind=object&sha256=${actual}`,
   {
     method: "PUT",
@@ -76,30 +97,35 @@ const putObj = await fetch(
       "x-harvest-secret": SECRET,
       "content-type": "text/csv; charset=utf-8",
     },
-    body: fs.readFileSync(CSV),
-  }
-);
-const putObjBody = await putObj.json().catch(() => ({}));
-fs.writeFileSync(path.join(OUT, "upload-object.json"), JSON.stringify({ http: putObj.status, ...putObjBody }, null, 2));
-if (!putObj.ok || !putObjBody.ok) {
-  console.error(JSON.stringify({ ok: false, phase: "upload-object", http: putObj.status, body: putObjBody }));
-  process.exit(1);
-}
-
-const putMan = await fetch(`${BASE}/api/nfl-training-archive?kind=manifest`, {
-  method: "PUT",
-  headers: {
-    "x-harvest-secret": SECRET,
-    "content-type": "application/json",
+    body: csvBytes,
   },
-  body: JSON.stringify(manifest),
-});
-const putManBody = await putMan.json().catch(() => ({}));
-fs.writeFileSync(path.join(OUT, "upload-manifest.json"), JSON.stringify({ http: putMan.status, ...putManBody }, null, 2));
-if (!putMan.ok || !putManBody.ok) {
-  console.error(JSON.stringify({ ok: false, phase: "upload-manifest", http: putMan.status, body: putManBody }));
+  "upload-object"
+);
+fs.writeFileSync(path.join(OUT, "upload-object.json"), JSON.stringify(putObj, null, 2));
+if (!putObj.ok) {
+  console.error(JSON.stringify({ ok: false, phase: "upload-object", http: putObj.http, body: putObj.body }));
   process.exit(1);
 }
+const putObjBody = putObj.body;
+
+const putMan = await putWithRetry(
+  `${BASE}/api/nfl-training-archive?kind=manifest`,
+  {
+    method: "PUT",
+    headers: {
+      "x-harvest-secret": SECRET,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(manifest),
+  },
+  "upload-manifest"
+);
+fs.writeFileSync(path.join(OUT, "upload-manifest.json"), JSON.stringify(putMan, null, 2));
+if (!putMan.ok) {
+  console.error(JSON.stringify({ ok: false, phase: "upload-manifest", http: putMan.http, body: putMan.body }));
+  process.exit(1);
+}
+const putManBody = putMan.body;
 
 const getMan = await fetch(`${BASE}/api/nfl-training-archive?manifest=1`, {
   headers: { "x-harvest-secret": SECRET },

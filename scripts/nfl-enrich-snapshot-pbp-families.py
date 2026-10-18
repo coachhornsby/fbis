@@ -110,6 +110,12 @@ def main():
             "note": "trenches/specialTeams remain null — no authorized live source in this enricher",
         }
     meta = snap.setdefault("meta", {})
+    meta["snapshotSchema"] = "nflverse-features-v5"
+    families = list(meta.get("featureFamilies") or [])
+    for fam in ("success_rate", "early_down_epa", "explosive_rate"):
+        if fam not in families:
+            families.append(fam)
+    meta["featureFamilies"] = families
     meta["pbpFamilyEnrichment"] = {
         "season": season,
         "teamsWithPbp": len(feats),
