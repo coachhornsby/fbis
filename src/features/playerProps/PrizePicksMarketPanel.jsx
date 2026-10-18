@@ -547,7 +547,7 @@ function PrizePicksPropCard({ group, expanded, onToggleExpand }){
       <div
         className="pp-card-visual pp-card-visual-team"
         style={{
-          background:`radial-gradient(circle at 50% 38%, color-mix(in srgb, ${primary} 42%, transparent), transparent 66%), linear-gradient(180deg, ${secondary} 0%, color-mix(in srgb, ${secondary} 88%, #050b16) 100%)`,
+          background:`radial-gradient(circle at 50% 36%, color-mix(in srgb, ${primary} 18%, transparent), transparent 52%), #000`,
         }}
       >
         <TeamWatermark logo={theme.logo}/>

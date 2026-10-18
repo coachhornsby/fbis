@@ -6,6 +6,7 @@ const MATCHUP_SYMBOL_BY_ID = {
   "special-teams": "ST", "high-danger": "HD", rest: "RST", attack: "ATK",
   "expected-goals": "xG", btts: "BTTS", surface: "SUR", serve: "SRV", return: "RET", fitness: "FIT",
   efficiency: "EFF", efg: "eFG", turnovers: "TO", rebounding: "REB", "free-throws": "FT",
+  "pitch-hit-edge": "PvH", "pitch-vs-hit-home": "PvH", "pitch-vs-hit-away": "PvH",
 };
 
 const MATCHUP_SHORT_LABEL_BY_ID = {
@@ -16,6 +17,7 @@ const MATCHUP_SHORT_LABEL_BY_ID = {
   "special-teams": "SPECIAL TEAMS", "high-danger": "HIGH DANGER", rest: "REST", attack: "ATTACK",
   "expected-goals": "EXPECTED GOALS", btts: "BTTS", surface: "SURFACE", serve: "SERVE", return: "RETURN", fitness: "FITNESS",
   efficiency: "EFFICIENCY", efg: "eFG%", turnovers: "TURNOVERS", rebounding: "O-REBOUND", "free-throws": "FT RATE",
+  "pitch-hit-edge": "PITCH VS HIT EDGE", "pitch-vs-hit-home": "PITCH VS HIT", "pitch-vs-hit-away": "PITCH VS HIT",
 };
 
 function stripDecorativeEmoji(rawLabel) {
@@ -30,6 +32,7 @@ function matchupVisualKey(id) {
   if (/^lineup-/.test(key)) return "lineup";
   if (/^starter-/.test(key)) return "starter";
   if (/^batter-/.test(key)) return "batter";
+  if (/^pitch-vs-hit-/.test(key) || key === "pitch-hit-edge") return key;
   if (/bullpen/.test(key)) return "bullpen";
   if (/environment|park/.test(key)) return "environment";
   return key;

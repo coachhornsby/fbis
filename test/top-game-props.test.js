@@ -100,6 +100,8 @@ test("TopGameProps all-sport path renders PrizePicks-style cards including tenni
   assert.match(src,/STYLE_CARD_SPORTS/);
   assert.match(src,/useStyleCards/);
   assert.match(src,/"tennis"/);
+  assert.match(src,/prizePicksProjected/);
+  assert.match(src,/projection-only rows/);
   assert.doesNotMatch(src,/usePrizePicksCards = sport === "nfl"/);
   const card=fs.readFileSync("src/features/playerProps/PrizePicksStyleCard.jsx","utf8");
   assert.match(card,/pp-team-watermark/);
@@ -107,7 +109,12 @@ test("TopGameProps all-sport path renders PrizePicks-style cards including tenni
   assert.match(card,/FBIS/);
   assert.match(card,/LastFiveBars|LAST 5/);
   assert.match(card,/pp-premium-headshot/);
+  assert.match(card,/#000/);
+  assert.match(card,/18%/);
   const board=fs.readFileSync("src/components/board/DecisionBoard.jsx","utf8");
   assert.match(board,/TopGameProps/);
   assert.match(board,/tennis/);
+  const css=fs.readFileSync("src/features/playerProps/playerProps.css","utf8");
+  assert.match(css,/Black field behind the logo/);
+  assert.match(css,/#000 !important/);
 });
