@@ -1,5 +1,6 @@
 import {cfbUnitFeatureAudit} from "./cfbProspectiveAudit.js";
 import {chicagoMarketDay} from "./polymarketUs.js";
+import {canonicalizeProPlayerPropMarket} from "./proPlayerProps.js";
 import {loadCfbDirectionalBoardResearch} from "./cfbDirectionalBoardResearch.js";
 import { isFbsVsFbsGame } from "./cfbGameVisibility.js";
 import {pinnoddsOnlySlateMarket} from "./activeOddsPolicy.js";
@@ -619,6 +620,8 @@ export async function attachPrizePicksMarkets(games=[], sport, date, db){
     const seen=new Set(), playerMarkets=[];
     for(const row of rows){
       if(chicagoMarketDay(row.start_time)!==date) continue;
+      const canonical=canonicalizeProPlayerPropMarket(sport,row.stat_type);
+      if(!canonical) continue;
       const exact=row.fbis_event_id && String(row.fbis_event_id)===gid;
       const tennisMatch=sport==="tennis" && names.has(ppKey(row.player_name)) && names.has(ppKey(row.opponent)) && ppKey(row.player_name)!==ppKey(row.opponent) && Date.parse(row.start_time)===Date.parse(game.start);
       if(sport==="tennis" && !tennisMatch) continue;
@@ -629,7 +632,7 @@ export async function attachPrizePicksMarkets(games=[], sport, date, db){
       playerMarkets.push({
         source:"PRIZEPICKS_APIFY",book:"PrizePicks",playerId:row.player_id||null,playerName:row.player_name||null,
         playerHeadshotUrl:row.player_headshot_url||null,team:row.team||null,opponent:row.opponent||null,
-        market:row.stat_type||null,marketCanonical:row.canonical_market||null,line:row.line==null?null:Number(row.line),
+        market:row.stat_type||null,marketCanonical:canonical,line:row.line==null?null:Number(row.line),
         oddsTier:row.odds_tier||null,duration:row.duration||null,observedAt:row.observed_at||row.collected_at||null,
         decisionEligible:false,reasonCodes:["PRIZEPICKS_RESEARCH_ONLY"]
       });

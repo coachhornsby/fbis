@@ -71,7 +71,8 @@ export async function onRequest(context){
   const statements=[];
   let matched=0;
   for(const row of rows){
-    const market=canonicalizeProPlayerPropMarket("nfl",row.canonical_market||row.stat_type)||row.canonical_market||row.stat_type;
+    const market=canonicalizeProPlayerPropMarket("nfl",row.stat_type);
+    if(!market)continue;
     const c=candidates.get(key(row.player_name,market));
     if(!c||c.projection==null)continue;
     const line=finite(row.line);
