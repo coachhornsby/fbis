@@ -1,3 +1,5 @@
+import { resolveTeam } from "../lib/teams.js";
+
 const ESPN_TEAM_ENDPOINTS = {
   nfl: ["nfl"],
   mlb: ["mlb"],
@@ -12,6 +14,28 @@ const ESPN_TEAM_ENDPOINTS = {
   ],
   nhl: ["nhl"],
 };
+
+/** PrizePicks / board abbr aliases that must not fuzzy-match unrelated cities. */
+const ABBR_ALIASES = Object.freeze({
+  nfl: Object.freeze({
+    JAC: "JAX", JAX: "JAX", LA: "LAR", LAR: "LAR", STL: "LAR",
+    WSH: "WAS", WAS: "WAS", SFO: "SF", SF: "SF",
+    OAK: "LV", LV: "LV", SD: "LAC", LAC: "LAC", ARZ: "ARI", ARI: "ARI",
+  }),
+  nba: Object.freeze({
+    BRK: "BKN", BKN: "BKN", PHO: "PHX", PHX: "PHX",
+    GS: "GSW", GSW: "GSW", NO: "NOP", NOP: "NOP", SA: "SAS", SAS: "SAS",
+    NY: "NYK", NYK: "NYK", WSH: "WAS", WAS: "WAS",
+  }),
+  mlb: Object.freeze({
+    ANA: "LAA", LAA: "LAA", FLOR: "MIA", FLA: "MIA", TAM: "TB", TBA: "TB",
+    WAS: "WSH", WSH: "WSH", CHW: "CWS", CWS: "CWS",
+  }),
+  nhl: Object.freeze({
+    LA: "LAK", LAK: "LAK", NJ: "NJD", NJD: "NJD", TB: "TBL", TBL: "TBL",
+    WAS: "WSH", WSH: "WSH",
+  }),
+});
 
 const WIKI_TEAM_TITLES = {
   npb: {
@@ -48,7 +72,7 @@ function json(body,status=200){
   });
 }
 
-function norm(v){
+export function norm(v){
   return String(v||"")
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g,"")
@@ -59,6 +83,16 @@ function norm(v){
     .trim();
 }
 
+/** Map PrizePicks-style codes (LA→LAR) before fuzzy matching. */
+export function canonicalizeTeamQuery(sport, name){
+  const raw=String(name||"").trim();
+  if(!raw) return "";
+  const compact=raw.toUpperCase().replace(/[^A-Z0-9]/g,"");
+  const aliases=ABBR_ALIASES[String(sport||"").toLowerCase()]||{};
+  if(aliases[compact]) return aliases[compact];
+  return raw;
+}
+
 function namesFor(team={}){
   return [
     team.displayName,team.name,team.shortDisplayName,team.location,team.nickname,
@@ -66,20 +100,52 @@ function namesFor(team={}){
   ].filter(Boolean);
 }
 
-function scoreMatch(query,team={}){
+/**
+ * Score a query against an ESPN team row.
+ * Short codes (≤3 chars) never substring-match city names — that is how
+ * "LA" incorrectly beat Rams and matched Atlanta Falcons via "At**la**nta".
+ */
+export function scoreMatch(query,team={}){
   const q=norm(query);
   if(!q) return 0;
+  const abbr=norm(team.abbreviation);
+  if(abbr && abbr===q) return 100;
+
   let best=0;
+  const compact=q.replace(/\s+/g,"");
+  const shortCode=compact.length>0 && compact.length<=3 && !/\s/.test(q);
+
   for(const raw of namesFor(team)){
     const n=norm(raw);
     if(!n) continue;
     if(n===q) best=Math.max(best,100);
     else if(n.startsWith(q+" ")||q.startsWith(n+" ")) best=Math.max(best,90);
-    else if(n.includes(q)||q.includes(n)) best=Math.max(best,75);
+    else if(shortCode){
+      const tokens=n.split(/\s+/);
+      if(tokens.includes(q) || tokens.includes(compact)) best=Math.max(best,85);
+    }else if(n.includes(q)||q.includes(n)){
+      best=Math.max(best,75);
+    }
   }
   return best;
 }
 
+function fromLocalRegistry(sport, name){
+  const lookup=canonicalizeTeamQuery(sport, name);
+  const hit=resolveTeam(sport, { abbr: lookup, name: lookup });
+  if(!hit || hit.matchStatus === "unresolved") return null;
+  const color=String(hit.color||hit.primaryColor||"").replace(/^#/,"");
+  const alt=String(hit.altColor||hit.alternateColor||hit.secondaryColor||"").replace(/^#/,"");
+  return {
+    name: hit.displayName || hit.fullName || hit.name || name,
+    abbr: hit.abbr || null,
+    logo: hit.logo || null,
+    primaryColor: /^[0-9a-f]{6}$/i.test(color) ? "#"+color : null,
+    secondaryColor: /^[0-9a-f]{6}$/i.test(alt) ? "#"+alt : null,
+    espnId: hit.espnId || hit.sources?.espn?.id || null,
+    source: "local-registry",
+  };
+}
 
 async function wikipediaTeamLogo(sport,name){
   const map=WIKI_TEAM_TITLES[sport]||{};
@@ -122,12 +188,18 @@ export async function onRequestGet(context){
   }
   if(!ESPN_TEAM_ENDPOINTS[sport]) return json({ok:false,error:"unsupported team lookup"},400);
 
+  const local=fromLocalRegistry(sport, name);
+  if(local?.logo){
+    return json({ok:true,found:true,sport,league:sport,score:100,team:local});
+  }
+
+  const lookupName=canonicalizeTeamQuery(sport, name);
   let best=null,bestScore=0,bestLeague=null;
   for(const league of ESPN_TEAM_ENDPOINTS[sport]){
     try{
       const rows=await espnTeams(sport,league);
       for(const team of rows){
-        const score=scoreMatch(name,team);
+        const score=scoreMatch(lookupName,team);
         if(score>bestScore){
           best=team;bestScore=score;bestLeague=league;
           if(score>=100) break;
@@ -136,7 +208,7 @@ export async function onRequestGet(context){
       if(bestScore>=100) break;
     }catch{}
   }
-  if(!best||bestScore<75) return json({ok:true,found:false,sport,name});
+  if(!best||bestScore<75) return json({ok:true,found:false,sport,name,lookupName});
   const logo=best.logos?.find(x=>x?.href)?.href||best.logos?.[0]?.href||null;
   return json({
     ok:true,found:true,sport,league:bestLeague,score:bestScore,
