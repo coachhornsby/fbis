@@ -4660,7 +4660,7 @@ CREATE TABLE IF NOT EXISTS cbb_team_profile_snapshots (
 CREATE INDEX IF NOT EXISTS idx_cbb_profile_team_season_pit ON cbb_team_profile_snapshots(canonical_team_id,season,observed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_cbb_profile_season ON cbb_team_profile_snapshots(season,observed_at DESC);
 
--- 0111: CFB SDV/CFBD data operations — manifests, CORE PIT archive, lineage receipts.
+-- 0112: CFB SDV/CFBD data operations — manifests, CORE PIT archive, lineage receipts.
 CREATE TABLE IF NOT EXISTS cfb_collection_manifests (
   manifest_id TEXT PRIMARY KEY,
   season INTEGER NOT NULL,
@@ -4737,4 +4737,4 @@ CREATE TABLE IF NOT EXISTS cfb_feature_lineage_receipts (
 );
 CREATE INDEX IF NOT EXISTS idx_cfb_lineage_game ON cfb_feature_lineage_receipts(game_id, canonical_feature);
 CREATE INDEX IF NOT EXISTS idx_cfb_lineage_team_season ON cfb_feature_lineage_receipts(team_id, season, week);
-INSERT OR IGNORE INTO schema_migrations(id,applied_at) VALUES ('0111_cfb_data_ops',datetime('now'));
+INSERT OR IGNORE INTO schema_migrations(id,applied_at) VALUES ('0112_cfb_data_ops',datetime('now'));

@@ -20,6 +20,9 @@ import {
 import { summarizeRetentionPolicy } from "../lib/cfbRetentionPolicy.js";
 import { evaluateCoreResearchReadiness, CORE_ARCHIVE_VERSION } from "../lib/cfbCoreArchive.js";
 import { LINEAGE_VERSION } from "../lib/cfbCanonicalLineage.js";
+import { reconcileCollectionHealth } from "../lib/cfbCollectionAlerts.js";
+import { buildFeatureContractReport } from "../lib/cfbFeatureContract.js";
+import { oct17UniverseStatus, reconcileWinnerAccuracyClaim } from "../lib/cfbOct17Reconciliation.js";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -175,6 +178,13 @@ export async function onRequestGet(context) {
   const matrix = q ? searchUtilizationMatrix(q) : buildSourceModelMatrix();
   const operatingReport = buildWeeklyOperatingReport({ season, week, manifest });
   const health = await pipelineHealth(env, season, week);
+  const alerts = reconcileCollectionHealth({
+    season,
+    week,
+    evidenceByDataset,
+    allowanceBlocked,
+    d1FeatureTeamCount: null,
+  });
 
   const payload = {
     ok: true,
@@ -214,12 +224,23 @@ export async function onRequestGet(context) {
       total: health.length,
     },
     weeklyOperatingReport: operatingReport,
+    collectionAlerts: alerts,
+    featureContract: buildFeatureContractReport(),
+    oct17: {
+      universe: oct17UniverseStatus({ closeSnapshots: 45, gradedFinals: 41 }),
+      winnerAccuracyExample: reconcileWinnerAccuracyClaim({
+        correctWinners: 24,
+        eligibleN: 42,
+        reportedPct: 57.1,
+      }),
+    },
     scoringProvenanceExample: buildScoringProvenance({
       homeFeatures: { ppaOff: null, ppaDef: null, gamesPlayed: null },
       awayFeatures: { ppaOff: null, ppaDef: null, gamesPlayed: null },
       season,
       throughWeek: Math.max(0, week - 1),
     }),
+    readinessApi: "/api/cfb-tuesday-readiness?date=2026-10-20",
   };
 
   if (section === "sdv") return json({ ok: true, sdv: payload.sdv, collection: payload.collection });

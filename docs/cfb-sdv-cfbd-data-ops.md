@@ -38,7 +38,7 @@ Advanced rates, CORE ratings, SDV EPA, and pass/rush PPA splits are collected or
 - `GET /api/cfb-data-ops` — registries, matrix, collection manifest, CORE readiness, pipeline health, weekly operating report
 - System tab → **CFB Data Operations** (`CfbDataOpsView`) — SDV Data / CFBD Data / Pipeline Health
 
-## Storage (migration `0111_cfb_data_ops`)
+## Storage (migration `0112_cfb_data_ops`)
 
 - `cfb_collection_manifests` — per season/week dataset status + evidence
 - `cfb_core_weekly_archive` — weekly PIT CORE (research_only=1)
