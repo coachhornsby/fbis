@@ -48,6 +48,9 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           NFL_PUBLISH_DATE: ${{ github.event.inputs.date || '' }}
           GITHUB_SHA: ${{ github.sha }}
+          # Wait for Pages to serve this SHA (or propagate) before POST, avoiding 405/SPA races.
+          EXPECTED_SHA: ${{ github.sha }}
+          READY_ATTEMPTS: "30"
           ARTIFACT_DIR: artifacts/nfl-pregame-publish
         run: node scripts/nfl-pregame-publish-slate.mjs
 
