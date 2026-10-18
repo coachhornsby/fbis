@@ -1,0 +1,80 @@
+name: NFL training dataset R2 archive
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/nfl-archive-training-dataset.mjs"
+      - "functions/api/nfl-training-archive.js"
+      - "research/nfl/v1-1-reproduction-20261018/dataset-hashes.txt"
+      - ".github/workflows/nfl-training-archive.yml"
+      - ".github/workflows/nfl-training-dataset.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Restore training CSV (Actions artifact or rebuild)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/nfl
+          EXPECTED="$(awk '/nfl_game_training_2015_2026.csv/{print $1; exit}' research/nfl/v1-1-reproduction-20261018/dataset-hashes.txt)"
+          echo "expected_sha=$EXPECTED"
+          if gh run download 36968847766 -n nfl-game-training-2015-2026 -D artifacts/nfl 2>/tmp/dl.err; then
+            echo "downloaded artifact 36968847766"
+          else
+            cat /tmp/dl.err || true
+            echo "artifact download failed; rebuilding from nflverse"
+            python -m pip install -q pandas numpy pyarrow
+            python scripts/build-nfl-training-dataset.py
+          fi
+          test -f artifacts/nfl/nfl_game_training_2015_2026.csv
+          ACTUAL="$(sha256sum artifacts/nfl/nfl_game_training_2015_2026.csv | awk '{print $1}')"
+          echo "actual_sha=$ACTUAL"
+          if [ -n "$EXPECTED" ] && [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "SHA mismatch versus reproduction pin; refusing archive"
+            exit 1
+          fi
+
+      - name: Wait for production API (training archive route)
+        env:
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 36); do
+            code="$(curl -sS -o /tmp/h.json -w "%{http_code}" "$BASE/api/health?_t=$i" || true)"
+            if [ "$code" = "200" ]; then
+              echo "health ok"
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
+
+      - name: Upload CSV + manifest to R2 and verify retrieval
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          ARTIFACT_DIR: artifacts/nfl-training-archive
+        run: node scripts/nfl-archive-training-dataset.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nfl-training-archive-${{ github.run_id }}
+          path: artifacts/nfl-training-archive
+          if-no-files-found: warn
+          retention-days: 30

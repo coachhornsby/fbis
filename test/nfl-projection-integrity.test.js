@@ -6,7 +6,11 @@ import {
   NFL_PRODUCTION_CHAMPION,
   NFL_DISPLAYED_RESEARCH,
 } from "../functions/lib/nflModelGovernance.js";
-import { buildNflFrozenAuditPacket, attachNflFrozenAuditPackets } from "../functions/lib/nflFrozenPublicationAudit.js";
+import {
+  buildNflFrozenAuditPacket,
+  attachNflFrozenAuditPackets,
+  evaluateIndependentSourceReplay,
+} from "../functions/lib/nflFrozenPublicationAudit.js";
 import { replayNflProScore } from "../functions/lib/nflScoreReplayAudit.js";
 import { buildNflQbPersonnelShadow } from "../functions/lib/nflQbPersonnelShadow.js";
 import { attachNflPersistentProfiles } from "../functions/lib/nflTeamProfiles.js";
@@ -94,6 +98,35 @@ test("frozen audit packet includes contribution ledger and exact reconciliation"
   assert.equal(packet.personnelState.attachedBeforeScoring, true);
   assert.equal(packet.contributions.home.qbContribution, 0);
   assert.ok(packet.missingFeatureFlags.includes("pressure"));
+  assert.equal(packet.reconstructability, "ARITHMETICALLY_RECONCILED_INPUTS_ATTACHED");
+  // Arithmetic OK must not be confused with independent raw-source replay.
+  assert.equal(packet.independentSourceReplay.passed, false);
+  assert.equal(packet.independentSourceReplay.status, "NOT_INDEPENDENTLY_REPLAYABLE");
+  assert.ok(packet.independentSourceReplay.failedRequirements.includes("inputChecksumPresent"));
+});
+
+test("independent source replay requires immutable refs beyond arithmetic agreement", () => {
+  const fail = evaluateIndependentSourceReplay({
+    arithmeticOk: true,
+    hasInput: true,
+    featureSource: "nflverse-team-v2",
+    builtAt: "2026-10-18T09:55:03.678Z",
+  });
+  assert.equal(fail.passed, false);
+  assert.ok(fail.failedRequirements.includes("immutableSnapshotRef"));
+  assert.ok(fail.failedRequirements.includes("inputChecksumPresent"));
+
+  const pass = evaluateIndependentSourceReplay({
+    arithmeticOk: true,
+    hasInput: true,
+    featureSource: "nflverse-team-v2",
+    builtAt: "2026-10-18T09:55:03.678Z",
+    snapshotKey: "nfl/features/latest.json",
+    inputChecksum: "a".repeat(64),
+    r2EvidenceKey: "research/nfl/pregame-publications/x.json",
+  });
+  assert.equal(pass.passed, true);
+  assert.equal(pass.status, "INDEPENDENTLY_REPLAYABLE_FROM_IMMUTABLE_SOURCES");
 });
 
 test("availability attaches before scoring for QB shadow without changing displayed incumbent", () => {

@@ -1,16 +1,19 @@
 name: NFL pregame research publication
-# ops: checkpoint roll-forward republish
 
 on:
   schedule:
-    # Roughly every 3 hours so T48/T24/T6/FINAL windows are hittable without inventing past freezes.
-    - cron: "20 */3 * * *"
+    # Every 20 minutes: catch T48/T24/T6/FINAL roll-forwards without inventing past freezes.
+    - cron: "*/20 * * * *"
   workflow_dispatch:
     inputs:
       date:
         description: "Optional Chicago board date YYYY-MM-DD"
         required: false
         default: ""
+      strict:
+        description: "Fail job if current-checkpoint coverage < 100%"
+        required: false
+        default: "false"
   push:
     branches: [main]
     paths:
@@ -23,10 +26,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: nfl-pregame-publish
+  cancel-in-progress: false
+
 jobs:
   migrate-and-publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
@@ -43,17 +50,32 @@ jobs:
         run: |
           npx wrangler d1 execute fbis --remote --file=migrations/0114_nfl_research_publications.sql
 
-      - name: Publish current eligible NFL research checkpoints
+      - name: Publish + reconcile current eligible NFL checkpoints
         env:
           BASE: https://fbis-myz.pages.dev
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           NFL_PUBLISH_DATE: ${{ github.event.inputs.date || '' }}
           GITHUB_SHA: ${{ github.sha }}
-          # Wait for Pages to serve this SHA (or propagate) before POST, avoiding 405/SPA races.
-          EXPECTED_SHA: ${{ github.sha }}
-          READY_ATTEMPTS: "30"
+          # Cron/reconcile must not wait for Pages to show this workflow SHA
+          # (workflow-only pushes never update deploymentCommit).
+          REQUIRE_DEPLOY_SHA: ${{ github.event_name == 'push' && '1' || '0' }}
+          EXPECTED_SHA: ${{ github.event_name == 'push' && github.sha || '' }}
+          READY_ATTEMPTS: "24"
+          RECONCILE_ATTEMPTS: "6"
+          RECONCILE_DELAY_MS: "8000"
           ARTIFACT_DIR: artifacts/nfl-pregame-publish
-        run: node scripts/nfl-pregame-publish-slate.mjs
+        run: |
+          set -euo pipefail
+          STRICT_FLAG=""
+          if [ "${{ github.event.inputs.strict || 'false' }}" = "true" ]; then
+            STRICT_FLAG="--strict"
+          fi
+          # Scheduled runs fail the job if coverage remains incomplete after reconcile retries.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            STRICT_FLAG="--strict"
+          fi
+          # shellcheck disable=SC2086
+          node scripts/nfl-pregame-publish-slate.mjs $STRICT_FLAG
 
       - name: Upload publication evidence
         if: always()

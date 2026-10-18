@@ -1,0 +1,115 @@
+{
+  "schema": "nfl-challenger-compare-v1",
+  "generatedAt": "2026-10-18T10:19:32.354Z",
+  "sourceReport": "artifacts/nfl-pro-v1-2/report.json",
+  "evaluation": {
+    "design": "regularized EPA/QB + lagged NGS + conditional NGS x opponent-strength interactions + independent form prior",
+    "ridgeAlpha": 20,
+    "nestedBlendSelection": true,
+    "primaryModels": [
+      "v11",
+      "v12",
+      "v2"
+    ],
+    "identicalChronologicalWindows": true,
+    "primarySampleN": 2176,
+    "allSampleNs": [
+      2176,
+      1408
+    ],
+    "note": "v1.1 / v1.2 / v2 share the same OOS n from one walk-forward run (identical chronological windows)."
+  },
+  "models": {
+    "v11": {
+      "label": "NFL-PRO-v1.1",
+      "available": true,
+      "n": 2176,
+      "marginMae": 10.199257097189783,
+      "totalMae": 10.677385527871696,
+      "winnerAccuracy": 0.6433823529411765
+    },
+    "v12": {
+      "label": "NFL-PRO-v1.2",
+      "available": true,
+      "n": 2176,
+      "marginMae": 10.199257097189783,
+      "totalMae": 10.677385527871696,
+      "winnerAccuracy": 0.6433823529411765
+    },
+    "v2": {
+      "label": "NFL-PRO-v2-research",
+      "available": true,
+      "n": 2176,
+      "marginMae": 10.199257097189783,
+      "totalMae": 10.677385527871696,
+      "winnerAccuracy": 0.6433823529411765
+    },
+    "v13": {
+      "label": "NFL-PRO-v1.3-research",
+      "available": true,
+      "n": 1408,
+      "marginMae": 10.150724662647635,
+      "totalMae": 10.677880577124581,
+      "winnerAccuracy": 0.6441761363636364
+    },
+    "baseline": {
+      "label": "form-baseline",
+      "available": true,
+      "n": 2176,
+      "marginMae": 10.35486852477898,
+      "totalMae": 11.179057068743438,
+      "winnerAccuracy": 0.6364889705882353
+    },
+    "market": {
+      "label": "closing-market-benchmark",
+      "available": true,
+      "n": 2176,
+      "marginMae": 9.854319852941176,
+      "totalMae": 10.403492647058824,
+      "winnerAccuracy": 0.6640625
+    }
+  },
+  "deltasVsV11": {
+    "v12": {
+      "marginMae": 0,
+      "totalMae": 0,
+      "winnerAccuracy": 0
+    },
+    "v2": {
+      "marginMae": 0,
+      "totalMae": 0,
+      "winnerAccuracy": 0
+    }
+  },
+  "beatsV11": {
+    "marginMae": false,
+    "totalMae": false,
+    "winnerAccuracy": false
+  },
+  "beatsMarket": {
+    "marginMae": false,
+    "totalMae": false,
+    "winnerAccuracy": false
+  },
+  "promotionEvidencePass": false,
+  "economic": {
+    "available": false,
+    "note": "Walk-forward report does not include ATS/CLV economics; keep NULL until priced paired sample exists.",
+    "ats": null,
+    "totals": null,
+    "clv": null
+  },
+  "calibration": {
+    "available": false,
+    "brier": null,
+    "logLoss": null,
+    "note": "Probability calibration not in this walk-forward artifact; report NULL."
+  },
+  "governance": {
+    "researchOnly": true,
+    "automaticPromotion": false,
+    "canAuthorizeWager": false,
+    "productionChampionUnchanged": true,
+    "recommendation": "No promotion. Challengers remain shadow/research."
+  }
+}

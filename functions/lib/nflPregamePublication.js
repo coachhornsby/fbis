@@ -478,6 +478,8 @@ export function buildNflPublicationCoverageReport(games = [], publications = [],
 /**
  * Publish the currently eligible checkpoint for every slate game.
  * Idempotent. Does not invent past checkpoints.
+ * When a game already has an earlier checkpoint freeze and the window has
+ * rolled forward, inserting the new checkpoint is a CHECKPOINT_ROLL (new row).
  */
 export async function publishNflPregameSlate(env, slate = {}, opts = {}) {
   const games = slate.games || [];
@@ -486,9 +488,18 @@ export async function publishNflPregameSlate(env, slate = {}, opts = {}) {
   const publishedBy = opts.publishedBy || "nfl-pregame-publish";
   const runId = opts.runId || `nfl-pub-${Date.now()}`;
   const results = [];
+  const prior = await listNflResearchPublications(env, { date: gameDate, limit: 500 }).catch(() => []);
+  const priorByEvent = new Map();
+  for (const row of prior) {
+    const id = String(row.eventId || "");
+    if (!priorByEvent.has(id)) priorByEvent.set(id, []);
+    priorByEvent.get(id).push(row.checkpoint);
+  }
 
   for (const game of games) {
     if (game.sport && game.sport !== "nfl") continue;
+    const eventId = String(game.id || "");
+    const priorCheckpoints = priorByEvent.get(eventId) || [];
     const packet = await buildNflResearchPublicationPacket(game, slate, {
       publishedAt: new Date().toISOString(),
       codeSha,
@@ -497,7 +508,7 @@ export async function publishNflPregameSlate(env, slate = {}, opts = {}) {
     });
     if (!packet.ok) {
       await recordNflPublicationEvent(env, {
-        eventId: String(game.id || ""),
+        eventId,
         gameDate,
         checkpoint: packet.checkpoint,
         status: packet.status,
@@ -506,17 +517,36 @@ export async function publishNflPregameSlate(env, slate = {}, opts = {}) {
         runId,
       }).catch(() => {});
       results.push({
-        eventId: String(game.id || ""),
+        eventId,
         matchup: `${game.away?.abbr}@${game.home?.abbr}`,
         status: packet.status,
         reason: packet.reason,
         checkpoint: packet.checkpoint,
         hoursToStart: packet.hoursToStart,
+        priorCheckpoints,
       });
       continue;
     }
+    const isRoll = priorCheckpoints.length > 0 && !priorCheckpoints.includes(packet.checkpoint);
     packet.compact.gameDate = gameDate;
+    if (isRoll) {
+      packet.compact.checkpointRoll = {
+        from: priorCheckpoints,
+        to: packet.checkpoint,
+      };
+    }
     const saved = await insertNflResearchPublication(env, packet, { publishedBy });
+    if (saved.inserted && isRoll) {
+      await recordNflPublicationEvent(env, {
+        eventId,
+        gameDate,
+        checkpoint: packet.checkpoint,
+        status: "CHECKPOINT_ROLL",
+        detail: JSON.stringify({ from: priorCheckpoints, to: packet.checkpoint }),
+        codeSha,
+        runId,
+      }).catch(() => {});
+    }
     results.push({
       eventId: packet.eventId,
       matchup: `${game.away?.abbr}@${game.home?.abbr}`,
@@ -524,6 +554,8 @@ export async function publishNflPregameSlate(env, slate = {}, opts = {}) {
       checkpoint: packet.checkpoint,
       hoursToStart: packet.hoursToStart,
       inserted: saved.inserted || false,
+      checkpointRoll: isRoll,
+      priorCheckpoints,
       payloadHash: saved.payloadHash || packet.payloadHash,
       r2Key: saved.r2Key || null,
       scoreReconciled: packet.compact.scoreReconciled,
