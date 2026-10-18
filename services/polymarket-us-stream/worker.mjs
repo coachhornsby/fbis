@@ -28,13 +28,13 @@ export class PolymarketMarketStream extends DurableObject {
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
     this.persistenceStatus="UNVERIFIED";this.lastSpillKey=null;this.lastSpillAt=null;
     this.historyLastError=null;
-    this.codeVersion="rest-ws-history-recovery-intelligence-20261018";
+    this.codeVersion="rest-ws-history-recovery-complete-inventory-20261018";
   }
   capacityPlan(){
-    return resolveStreamCapacity(this.env||{});
+    return {...resolveStreamCapacity(this.env||{}),coverAllEligible:this.env.STREAM_COVER_ALL_ELIGIBLE==='enabled'};
   }
   status(){
-    const capacity=this.capacityPlan();
+    const capacity=this.lastCandidateDiagnostics?.capacity||this.capacityPlan();
     const coverage=this.lastCandidateDiagnostics?.bySport||null;
     const connected=this.socket?.readyState===WebSocket.OPEN;
     const streamHealthy=streamIsHealthy({connected,lastMessageAt:this.lastMessageAt});
@@ -42,7 +42,7 @@ export class PolymarketMarketStream extends DurableObject {
     // evidence (DEGRADED), never silent success or a second write owner.
     return {connected,
       connectedAt:this.connectedAt?new Date(this.connectedAt).toISOString():null,
-      subscriptions:this.subscribed.size,queued:this.queue.size,
+      subscriptions:this.subscribed.size,subscribedMarketIds:[...this.subscribed.keys()],queued:this.queue.size,
       candidateDiagnostics:this.lastCandidateDiagnostics,
       capacity,
       desiredConnections:this.lastCandidateDiagnostics?.capacity?.utilizedConnections||0,
@@ -94,8 +94,8 @@ export class PolymarketMarketStream extends DurableObject {
   async archiveCandidates({rosterSince,from,until}){
     if(!this.env.ARCHIVE?.list)return [];
     const prefix="market-sources/polymarket-us/stream-roster/";
-    const listing=await this.env.ARCHIVE.list({prefix,limit:100});
-    const keys=(listing.objects||[]).map(x=>x.key).slice(0,100);
+    let listing,cursor;const keys=[];
+    do{listing=await this.env.ARCHIVE.list({prefix,limit:500,...(cursor?{cursor}:{})});keys.push(...(listing.objects||[]).map(x=>x.key));if(listing.truncated&&(!listing.cursor||listing.cursor===cursor))throw Error('ROSTER_CURSOR_INVALID');cursor=listing.cursor;}while(listing.truncated);
     const all=[];
     for(const key of keys){
       const object=await this.env.ARCHIVE.get(key);
@@ -118,7 +118,7 @@ export class PolymarketMarketStream extends DurableObject {
     // Verify canonical event and pre-event model timing in primary D1 BEFORE WS subscription.
     const events=[...new Map(all.map(x=>[x.sport+"|"+x.canonical_event_id,
       {sport:x.sport,canonical_event_id:String(x.canonical_event_id),
-       event_start_time:x.event_start_time}])).values()].slice(0,300);
+       event_start_time:x.event_start_time}])).values()];
     const query=`WITH roster AS (
       SELECT json_extract(value,'$.sport') sport,
         json_extract(value,'$.canonical_event_id') canonical_event_id,
@@ -219,8 +219,8 @@ export class PolymarketMarketStream extends DurableObject {
        FROM recent WHERE rn=1
       -- Dynamic capacity: return a large eligible inventory (≤200/sport, ≤2200 total).
       -- Assignment/fairness/capacity live in manageSubscriptionCapacity — not a fixed 48.
-      ) SELECT * FROM balanced WHERE sport_rank<=200
-       ORDER BY sport,sport_rank LIMIT 2200`)
+      ) SELECT * FROM balanced
+       ORDER BY sport,sport_rank`)
        .bind(rosterSince,from,until,freshSince).all();
     const plan=manageSubscriptionCapacity(q.results||[],this.capacityPlan());
     this.lastCandidateDiagnostics={at:new Date().toISOString(),
@@ -339,8 +339,7 @@ export class PolymarketMarketStream extends DurableObject {
     const entry={...tick,tradeCount:this.tradeStats.get(tick.marketSlug)?.count||0,tradeWindowStart:this.tradeStats.get(tick.marketSlug)?.since||null,timeMs:Date.now(),at:new Date().toISOString()};
     if(!shouldSaveBbo(entry,this.lastSaved.get(tick.marketSlug)))return;
     // Collapse high-frequency ticks by contract, not by first-come-wins.
-    if(this.queue.size>=MAX_QUEUE&&!this.queue.has(tick.marketSlug))
-      this.queue.delete(this.queue.keys().next().value);
+    // One latest tick per subscribed contract bounds memory without evicting quiet markets.
     this.queue.set(tick.marketSlug,entry);
     if(!this.flushTimer){
       this.flushTimer=setTimeout(()=>{
@@ -460,7 +459,7 @@ export class PolymarketMarketStream extends DurableObject {
         for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
       }else{
         this.persistenceStatus="UNAVAILABLE";
-        for(const t of ticks)if(this.queue.size<MAX_QUEUE)this.queue.set(t.marketSlug,t);
+        for(const t of ticks)if(!this.queue.has(t.marketSlug))this.queue.set(t.marketSlug,t);
       }
     }
     if(this.queue.size&&!this.flushTimer){

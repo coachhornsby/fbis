@@ -14,7 +14,7 @@ concurrency:
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
       BASE: https://fbis-myz.pages.dev

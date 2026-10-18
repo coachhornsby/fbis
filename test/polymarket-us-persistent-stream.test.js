@@ -153,8 +153,8 @@ test("worker SQL returns large eligible inventory; capacity manager owns the cap
  const {readFileSync}=await import("node:fs");
  const worker=readFileSync(new URL("../services/polymarket-us-stream/worker.mjs",import.meta.url),"utf8");
  assert.match(worker,/PARTITION BY sport ORDER BY/);
- assert.match(worker,/WHERE sport_rank<=200/);
- assert.match(worker,/LIMIT 2200/);
+ assert.doesNotMatch(worker,/WHERE sport_rank<=200|LIMIT 2200/);
+ assert.match(worker,/coverAllEligible/);
  assert.match(worker,/manageSubscriptionCapacity/);
  assert.match(worker,/polymarketUsSubscribeBatches/);
  assert.match(worker,/fixedCapRetired:true/);

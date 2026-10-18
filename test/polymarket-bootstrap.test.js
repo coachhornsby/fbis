@@ -31,5 +31,17 @@ test('REST establishes matched contract roster, then actual book clocks and size
 test('catalogue and page validation use the same independently classified slug scope',async()=>{
  const e=environment();forecast(e);
  const result=await bootstrapPolymarket(e,{operation:'catalogue'},{now,fetchImpl:async()=>Response.json({leagues:[{slug:'nfl',name:'National Football League'},{slug:'fnl',name:'National Football League'}]})});
- assert.deepEqual(result.leagues,[{slug:'nfl',sport:'nfl'}]);
+ assert.deepEqual(result.leagues.map(l=>l.slug),['nfl','fnl']);
+ const page=await bootstrapPolymarket(e,{operation:'page',...result.leagues[1],offset:0,receiptId:'alias-page'},{now,fetchImpl:async()=>Response.json({events:[]})});assert.equal(page.itemCount,0);
+});
+
+test('catalogue continuation and event pagination have no historical 8-page or 60-event cutoff',async()=>{
+ const e=environment();forecast(e);const page=await bootstrapPolymarket(e,{operation:'catalogue',offset:450},{now,fetchImpl:async url=>{assert.equal(url.searchParams.get('offset'),'450');return Response.json({leagues:Array.from({length:50},(_,i)=>({slug:'league-'+i}))});}});assert.equal(page.nextOffset,500);
+ const events=await bootstrapPolymarket(e,{operation:'page',sport:'nfl',slug:'nfl',offset:200,receiptId:'deep-events'},{now,fetchImpl:async url=>{assert.equal(url.searchParams.get('offset'),'200');return Response.json({events:[]});}});assert.equal(events.nextOffset,null);
+});
+test('per-game market discovery reaches contracts beyond the first 40 embedded markets',async()=>{
+ const e=environment();forecast(e);const event={id:'ev',gameId:123,startTime:start,homeTeam:{name:'Denver Broncos'},awayTeam:{name:'Seattle Seahawks'},markets:[]};
+ await bootstrapPolymarket(e,{operation:'page',sport:'nfl',slug:'nfl',offset:0,receiptId:'market-parent'},{now,fetchImpl:async()=>Response.json({events:[event]})});
+ const result=await bootstrapPolymarket(e,{operation:'markets',parentReceiptId:'market-parent',eventIndex:0,offset:60,receiptId:'market-child'},{now,fetchImpl:async url=>{assert.equal(url.searchParams.get('gameId'),'123');assert.equal(url.searchParams.get('offset'),'60');return Response.json({markets:[{slug:'late-spread',sportsMarketTypeV2:'SPORTS_MARKET_TYPE_SPREAD',marketSides:[{id:'yes',long:true,description:'Denver Broncos',price:'.5'}]}]});}});
+ assert.equal(result.contracts,1);assert.equal(result.inventory[0].market,'late-spread');
 });

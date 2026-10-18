@@ -73,11 +73,12 @@ export function manageSubscriptionCapacity(rows,{
   maxConnections=null,
   minPerSport=STREAM_DEFAULT_MIN_PER_SPORT,
   sports=STREAM_SPORTS,
+  coverAllEligible=false,
 }={}){
   const eligible=dedupeEligibleContracts(rows);
-  const capacity=Math.max(0,Math.floor(Number(maxContracts)||0));
+  const capacity=coverAllEligible?eligible.length:Math.max(0,Math.floor(Number(maxContracts)||0));
   const perConn=Math.max(1,Math.min(STREAM_SUBSCRIBE_BATCH_MAX,Math.floor(Number(maxPerConnection)||STREAM_DEFAULT_MAX_PER_CONNECTION)));
-  const connCap=Math.max(1,Math.floor(Number(maxConnections)||Math.ceil(Math.max(capacity,1)/perConn)));
+  const connCap=coverAllEligible?Math.max(1,Math.ceil(capacity/perConn)):Math.max(1,Math.floor(Number(maxConnections)||Math.ceil(Math.max(capacity,1)/perConn)));
 
   const groups=new Map(sports.map(s=>[s,[]]));
   for(const row of eligible){
