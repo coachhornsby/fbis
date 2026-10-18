@@ -2,7 +2,9 @@ import {POLY_US_API,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarket
 import {polymarketUsSideLabel,polymarketUsCanonicalSide} from './polymarketUs.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
 // Capacity-aware bootstrap writes may land on MARKET_HISTORY_DB via the API gate.
-const valid=s=>/^[a-z0-9-]{1,160}$/i.test(s||'');
+// Underscores are required: tennis match ids (wta_*) and soccer game ids (m_*) are
+// embedded in markets receipt stems by the projected bootstrap crawler.
+const valid=s=>/^[a-z0-9_-]{1,160}$/i.test(s||'');
 const prefix='market-sources/polymarket-us/bootstrap/';
 export async function projectedPolymarketFixtures(db,now=new Date()){
  if(!db?.prepare)throw Error('PRIMARY_DB_REQUIRED');
@@ -86,7 +88,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
    const detailKey=prefix+opts.parentReceiptId+'-event-'+opts.eventIndex+'-detail.json';
    let object=await env.ARCHIVE.get(detailKey),detail;
    if(object)detail=await object.json();else{
-    if(!/^[a-z0-9-]{1,160}$/i.test(String(entry.event.id)))throw Error('PROVIDER_EVENT_ID_UNVERIFIED');
+    if(!/^[a-z0-9_-]{1,160}$/i.test(String(entry.event.id)))throw Error('PROVIDER_EVENT_ID_UNVERIFIED');
     const response=await boundedJson(fetchImpl,new URL('/v1/events/'+entry.event.id,POLY_US_API),12e6);detail=response.event;
     if(!detail||String(detail.id)!==String(entry.event.id)||!Array.isArray(detail.markets))throw Error('PROVIDER_EVENT_DETAIL_UNVERIFIED');
     const gameLines=detail.markets.filter(m=>['SPORTS_MARKET_TYPE_SPREAD','SPORTS_MARKET_TYPE_TOTAL'].includes(m.sportsMarketTypeV2)).length;
