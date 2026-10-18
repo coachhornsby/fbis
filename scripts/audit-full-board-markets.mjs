@@ -8,9 +8,15 @@ const status=await get('/api/pinnodds-status');
 // Apply verified name fixes to the immutable captures that originally missed
 // those fixtures. Keep their original price and collection clocks.
 let before=status;try{before=JSON.parse(await readFile('artifacts/pinnodds-before-capture.json','utf8'))}catch{}
+const archives=new Map();
 for(const source of (before.results||[]).filter(x=>x.kind==='board'&&x.feed==='prematch'&&[1,2].includes(x.sportId)&&x.snapshotId)){
+ archives.set(source.snapshotId,source);
+ const slot=source.snapshotId.match(/^pinnodds-(\d{8})-(\d{2})-full-board-(\d+)-prematch$/);
+ if(slot&&Number(slot[2])>=6){const snapshotId=`pinnodds-${slot[1]}-${String(Number(slot[2])-6).padStart(2,'0')}-full-board-${slot[3]}-prematch`;archives.set(snapshotId,{...source,snapshotId,optional:true});}
+}
+for(const source of archives.values()){
  const call=async body=>{const r=await fetch(base+'/api/pinnodds-ingest',{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(180000)});const x=await r.json();if(!r.ok||!x.ok)throw Error('ARCHIVE_REMATCH_FAILED:'+JSON.stringify(x));return x};
- const prepared=await call({operation:'rematch',phase:'prepare',snapshotId:source.snapshotId,postCaptureFixtures:true});
+ let prepared;try{prepared=await call({operation:'rematch',phase:'prepare',snapshotId:source.snapshotId,postCaptureFixtures:true})}catch(error){if(source.optional&&String(error).includes('PROVIDER_RECEIPT_NOT_FOUND')){console.log(JSON.stringify({unavailableArchive:source.snapshotId}));continue;}throw error;}
  for(let batchIndex=0;batchIndex<prepared.batches;batchIndex++)await call({operation:'rematch',phase:'consume',snapshotId:source.snapshotId,batchIndex});
  const result=await call({operation:'rematch',phase:'finalize',snapshotId:source.snapshotId});
  console.log(JSON.stringify({rematched:source.snapshotId,matchedRows:result.matchedRows,paidProviderCalls:0}));

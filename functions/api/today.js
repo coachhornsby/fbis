@@ -35,13 +35,13 @@ export async function onRequestGet(context) {
   }
   const env = todayEnv(context);
   try {
-    const board = await buildTodayBoard(resolved.date, env, { focusSport });
-    const ping = await pingDb(env);
-    const betsQ = ping.ok ? await queryExecutedBets(env, { date: resolved.date, includeRaw: false }) : { ok: false, rows: [] };
+    const [board,ping] = await Promise.all([buildTodayBoard(resolved.date, env, { focusSport }),pingDb(env)]);
+    const [betsQ,counts,durable,meta]=await Promise.all([
+      ping.ok ? queryExecutedBets(env, { date: resolved.date, includeRaw: false }) : { ok: false, rows: [] },
+      ping.ok ? countToday(env, resolved.date) : { predictions: null, graded: null, awaiting: null, failedWrites: null, failedHarvests: null },
+      durableHealth(env),ping.ok ? readMeta(env) : {},
+    ]);
     const withBets = attachMyBetsToBoard(board, betsQ.rows || []);
-    const counts = ping.ok ? await countToday(env, resolved.date) : { predictions: null, graded: null, awaiting: null, failedWrites: null, failedHarvests: null };
-    const durable = await durableHealth(env);
-    const meta = ping.ok ? await readMeta(env) : {};
     const sourceStatus = buildTodaySourceStatus(board);
     const schedule = scheduledHealth(durable, new Date());
     const writeVerification = writeVerificationState({

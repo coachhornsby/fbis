@@ -8,10 +8,12 @@ test('board recovery executes against the actual history-shard index schema',asy
  const sqlite=new DatabaseSync(':memory:');
  sqlite.exec(readFileSync(new URL('../sql/shards/market-history-v1.sql',import.meta.url),'utf8'));
  sqlite.prepare(`INSERT INTO normalized_market_observations(id,observation_key,source,source_type,sport,canonical_event_id,market_family,period,side,contract_price,source_market_id,collected_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run('one','one','Polymarket US WebSocket','prediction_market','nfl','g','moneyline','full_game','home',.55,'m','2026-10-18T14:00:00Z','2026-10-18T14:00:00Z');
- const history={prepare(sql){const st=sqlite.prepare(sql);return {bind(...args){return {all:async()=>({results:st.all(...args)})}}}}};
+ let historyQuery='';
+ const history={prepare(sql){if(!sql.startsWith('PRAGMA'))historyQuery=sql;const st=sqlite.prepare(sql);return {bind(...args){return {all:async()=>({results:st.all(...args)})}}}}};
  const primary={prepare(){return {bind(){return {all:async()=>({results:[]})}}}}};
  const loaded=await loadPolymarketUsBoardOffers(primary,[{id:'g'}],'nfl',{now:new Date('2026-10-18T14:01:00Z'),historyDb:history});
  assert.equal(loaded.diagnostics.historyAvailable,true);
+ assert.match(historyQuery,/INDEXED BY idx_shard_market_event/);
  assert.equal(loaded.byId.get('g')[0].contractPrice,.55);
  assert.equal(loaded.byId.get('g')[0].deliveryStore,'MARKET_HISTORY_RECOVERY');
  sqlite.close();
@@ -73,7 +75,7 @@ test("NHL board overlay passes only sanitized WebSocket BBO and never implies ex
 
 test('board reads all event batches and quote pages without 12-offer truncation',async()=>{
  const calls=[];
- const db={prepare(sql){return{bind(...args){calls.push({sql,args});return{async all(){
+ const db={prepare(sql){if(sql.startsWith('PRAGMA'))return{bind(){return{all:async()=>({results:[]})}}};return{bind(...args){calls.push({sql,args});return{async all(){
   const ids=args.slice(1,-5),offset=args.at(-1);
   const count=ids.includes('g0')?(offset===0?500:13):1;
   return{results:Array.from({length:count},(_,i)=>({id:`${offset+i}`,canonical_event_id:ids[0],source:'Polymarket US',market_family:'total',source_market_id:`m${offset+i}`,period:'full_game',side:'over',contract_price:.5,collected_at:'2026-10-13T15:59:00Z',source_observed_at:null}))};
