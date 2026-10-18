@@ -42,6 +42,7 @@ import {
   persistCoreWeeklyArchive,
 } from "./cfbCoreArchive.js";
 import { resolveGamesPlayedWithSource, GAMES_PLAYED_SOURCES, countCompletedGamesBySchool } from "./cfbGamesPlayed.js";
+const WEEKLY_VALIDATION_JOB_ID = "cfb-e2e-weekly-validation";
 
 function todayCT(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -66,6 +67,7 @@ export const COLLEGE_JOBS = [
   "cfb-qb-transfer-refresh",
   "cfb-quota-replenish-ack",
   "cfbd-endpoint-audit",
+  "cfb-e2e-weekly-validation",
   "cbbd-endpoint-audit",
   "cbb-reference-backfill",
   "cbb-current-refresh",
@@ -555,6 +557,101 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             r2Key: r2k,
             contentHash,
             note: "Safe diagnostics only. Empty responses are AVAILABLE-BUT-EMPTY, not unavailable. Champion unchanged.",
+          },
+        },
+      });
+      await recordJob(env, {
+        id,
+        jobType: job,
+        triggerType: opts.trigger || "http",
+        startedAt: started,
+        completedAt: payload.successful_at,
+        status: payload.status,
+        sport: "cfb",
+        writesAttempted: writes.writesSucceeded + writes.writesFailed,
+        writesSucceeded: writes.writesSucceeded,
+        writesFailed: writes.writesFailed,
+        env,
+      });
+      return payload;
+    }
+
+    // Post-collection / pre-freeze independent validation (does not trust collector self-success).
+    if (job === "cfb-e2e-weekly-validation" || job === WEEKLY_VALIDATION_JOB_ID) {
+      // Dynamic import keeps node:crypto (retentionGate) off the Vite client graph.
+      const {
+        executeWeeklyValidationJob,
+        persistWeeklyValidationReceipt,
+      } = await import("./cfbWeeklyValidationJob.js");
+      const week = Number(opts.week || estimateCfbWeekFromDate(new Date()) || 8);
+      const season = Number(opts.season || yearCfb);
+      const evidenceByDataset = {};
+      try {
+        if (hasDb(env)) {
+          const rows =
+            (
+              await env.DB.prepare(
+                `SELECT dataset_id, http_ok, row_count, team_coverage, through_week, content_hash, collected_at
+                   FROM cfb_collection_manifests WHERE season=? AND week=? ORDER BY collected_at DESC`
+              )
+                .bind(season, week)
+                .all()
+            ).results || [];
+          for (const r of rows) {
+            if (evidenceByDataset[r.dataset_id]) continue;
+            evidenceByDataset[r.dataset_id] = {
+              httpOk: Boolean(r.http_ok),
+              rowCount: r.row_count,
+              teamCoverage: r.team_coverage,
+              throughWeek: r.through_week,
+              contentHash: r.content_hash,
+              collectedAt: r.collected_at,
+              archived: Boolean(r.content_hash),
+            };
+          }
+        }
+      } catch {
+        /* pre-migration manifests */
+      }
+      let d1FeatureTeamCount = null;
+      try {
+        if (hasDb(env)) {
+          const row = await env.DB.prepare(
+            `SELECT COUNT(DISTINCT team_id) AS n FROM team_feature_snapshots
+              WHERE sport='cfb' AND season=? AND feature_version='cfb-features-v1'`
+          )
+            .bind(season)
+            .first();
+          d1FeatureTeamCount = Number(row?.n || 0);
+        }
+      } catch {
+        /* ignore */
+      }
+      const result = executeWeeklyValidationJob({
+        season,
+        week,
+        evidenceByDataset,
+        d1FeatureTeamCount,
+      });
+      const runId = await persistWeeklyValidationReceipt(env, result, { season, week });
+      if (runId) writes.writesSucceeded += 1;
+      const payload = jobPayload({
+        ok: true,
+        job,
+        status: result.pass ? "success" : "degraded",
+        attemptedAt: started,
+        successfulAt: new Date().toISOString(),
+        env,
+        writes,
+        d1: {
+          bound: hasDb(env),
+          validation: {
+            pass: result.pass,
+            runId,
+            essentials: result.essentials,
+            unresolvedCount: (result.unresolvedFindings || []).length,
+            scheduleConstraint: result.scheduleConstraint,
+            note: "Independent of collector self-report; run after collection and before pregame freeze.",
           },
         },
       });
