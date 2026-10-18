@@ -48,6 +48,8 @@ async function boundedJson(fetchImpl,url,maxBytes=4e6){
 }
 export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new Date()}={}){
  if(!env.ARCHIVE?.get||!env.ARCHIVE?.put)throw Error('PRIVATE_ARCHIVE_REQUIRED');
+ const writeDb=opts.observationDb||env.DB;
+ if(!writeDb?.prepare)throw Error('OBSERVATION_DB_REQUIRED');
  const fixtures=await projectedPolymarketFixtures(env.DB,now);
  if(opts.operation==='resume'){
   const object=await env.ARCHIVE.get('market-sources/polymarket-us/coverage/latest.json');if(!object)return {ok:true,run:null};const previous=await object.json();
@@ -127,7 +129,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
   // Source page is private and immutable; normalized records are restricted to independently forecast games.
   await env.ARCHIVE.put(prefix+opts.receiptId+'-source.json',JSON.stringify(sourcePage));
   if(contracts.length){
-   await persistNormalizedMarketBatch(env.DB,contracts,{snapshotType:'CURRENT',collectedAt:now.toISOString(),modelProbability:null});
+   await persistNormalizedMarketBatch(writeDb,contracts,{snapshotType:'CURRENT',collectedAt:now.toISOString(),modelProbability:null});
    const roster=contracts.map(o=>({sport:o.sport,league:o.league,canonical_event_id:o.eventId,provider_event_id:o.raw.providerEventId,event_start_time:o.eventStart,home_team:o.homeTeam,away_team:o.awayTeam,market_family:o.marketFamily,side:o.side,canonical_side:o.raw.canonicalSide,line:o.line,period:o.period,source_market_id:o.sourceMarketId,source_outcome_id:o.sourceOutcomeId,collected_at:now.toISOString(),opposite:o.raw.opposite,fee_coefficient:o.raw.providerMarket?.feeCoefficient??null}));
    await env.ARCHIVE.put(`market-sources/polymarket-us/stream-roster/bootstrap-${scope.slug}-${opts.operation}-${opts.parentReceiptId||'events'}-${opts.eventIndex??0}-${opts.offset}.json`,JSON.stringify({version:1,source:'Polymarket US',capturedAt:now.toISOString(),roster}));
   }
@@ -156,6 +158,6 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
    marketResults.push({market:offer.sourceMarketId,status:'READY',marketState:b.state,buyAvailable:asks.length>0});
   }catch(e){marketResults.push({market:offer.sourceMarketId,status:'UNAVAILABLE',reason:e.message});errors.push({market:offer.sourceMarketId,reason:e.message});}
  }));
- const saved=offers.length?await persistNormalizedMarketBatch(env.DB,offers,{snapshotType:'CURRENT',collectedAt:new Date().toISOString(),modelProbability:null}):{inserted:0};
+ const saved=offers.length?await persistNormalizedMarketBatch(writeDb,offers,{snapshotType:'CURRENT',collectedAt:new Date().toISOString(),modelProbability:null}):{inserted:0};
  const result={ok:errors.length===0,inserted:saved.inserted,errors,marketResults,canAuthorizeWager:false};await env.ARCHIVE.put(doneKey,JSON.stringify(result));return result;
 }
