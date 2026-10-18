@@ -117,14 +117,14 @@ function PlayerPosition({ name, sport, team }){
   if(!position) return null;
   return <span className="pp-player-position"> · {position}</span>;
 }
-function TeamWatermark({ sport, team }){
-  const [logo,setLogo]=useState("");
+function useTeamTheme(sport, team){
+  const [theme,setTheme]=useState({logo:"",primary:"",secondary:""});
   useEffect(()=>{
     let cancelled=false;
     const s=String(sport||"").toLowerCase();
     const t=String(team||"").trim();
     if(!s||!t||s==="tennis"){
-      setLogo("");
+      setTheme({logo:"",primary:"",secondary:""});
       return ()=>{cancelled=true};
     }
     const q=new URLSearchParams({sport:s,name:t});
@@ -132,13 +132,20 @@ function TeamWatermark({ sport, team }){
       .then(r=>r.ok?r.json():null)
       .then(body=>{
         if(cancelled) return;
-        const u=body?.found?String(body?.team?.logo||""):"";
-        setLogo(/^https?:\/\//i.test(u)?u:"");
+        const info=body?.found?body.team:null;
+        const u=String(info?.logo||"");
+        setTheme({
+          logo:/^https?:\/\//i.test(u)?u:"",
+          primary:String(info?.primaryColor||"").trim(),
+          secondary:String(info?.secondaryColor||"").trim(),
+        });
       })
-      .catch(()=>{if(!cancelled)setLogo("")});
+      .catch(()=>{if(!cancelled)setTheme({logo:"",primary:"",secondary:""})});
     return()=>{cancelled=true};
   },[sport,team]);
-
+  return theme;
+}
+function TeamWatermark({ logo }){
   if(!logo) return null;
   return (
     <div className="pp-team-watermark" aria-hidden="true">
@@ -501,11 +508,18 @@ function PrizePicksPropCard({ group, expanded, onToggleExpand }){
   const detailState=usePlayerPropDetail(r, true);
   const detail=detailState.body?.detail||null;
   const calibration=detailState.body?.calibration||null;
+  const theme=useTeamTheme(sport, team);
+  const primary=theme.primary||"#172b50";
+  const secondary=theme.secondary||"#0a1428";
 
   return (
-    <article className={"pp-card pp-premium-card sport-"+sport+(stars===5?" pp-five-star":"")+(expanded?" pp-expanded":"")} data-pp-card="prizepicks">
-      <div className="pp-card-visual">
-        <TeamWatermark sport={sport} team={team}/>
+    <article
+      className={"pp-card pp-premium-card sport-"+sport+(stars===5?" pp-five-star":"")+(expanded?" pp-expanded":"")}
+      data-pp-card="prizepicks"
+      style={{"--pp-team-primary":primary,"--pp-team-secondary":secondary}}
+    >
+      <div className="pp-card-visual pp-card-visual-team">
+        <TeamWatermark logo={theme.logo}/>
         <StarRating stars={stars}/>
 
         <div className="pp-premium-headshot">

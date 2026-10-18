@@ -74,14 +74,14 @@ function fmtStat(v) {
   return Math.abs(n) >= 100 ? String(Math.round(n)) : String(Number(n.toFixed(1)));
 }
 
-function TeamWatermark({ sport, team }) {
-  const [logo, setLogo] = useState("");
+function useTeamTheme(sport, team) {
+  const [theme, setTheme] = useState({ logo: "", primary: "", secondary: "" });
   useEffect(() => {
     let cancelled = false;
     const s = String(sport || "").toLowerCase();
     const t = String(team || "").trim();
     if (!s || !t || s === "tennis") {
-      setLogo("");
+      setTheme({ logo: "", primary: "", secondary: "" });
       return () => { cancelled = true; };
     }
     const q = new URLSearchParams({ sport: s, name: t });
@@ -89,18 +89,18 @@ function TeamWatermark({ sport, team }) {
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => {
         if (cancelled) return;
-        const u = body?.found ? String(body?.team?.logo || "") : "";
-        setLogo(/^https?:\/\//i.test(u) ? u : "");
+        const teamInfo = body?.found ? body.team : null;
+        const u = String(teamInfo?.logo || "");
+        setTheme({
+          logo: /^https?:\/\//i.test(u) ? u : "",
+          primary: String(teamInfo?.primaryColor || "").trim(),
+          secondary: String(teamInfo?.secondaryColor || "").trim(),
+        });
       })
-      .catch(() => { if (!cancelled) setLogo(""); });
+      .catch(() => { if (!cancelled) setTheme({ logo: "", primary: "", secondary: "" }); });
     return () => { cancelled = true; };
   }, [sport, team]);
-  if (!logo) return null;
-  return (
-    <div className="pp-team-watermark" aria-hidden="true">
-      <img src={logo} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
-    </div>
-  );
+  return theme;
 }
 
 function LastFiveBars({ row }) {
@@ -238,6 +238,9 @@ export default function PrizePicksStyleCard({
   const line = row.line;
   const delta = projection != null && line != null ? projection - line : null;
   const tier = row.odds_tier || "standard";
+  const theme = useTeamTheme(row.sport, row.team);
+  const primary = theme.primary || "#172b50";
+  const secondary = theme.secondary || "#0a1428";
 
   return (
     <article
@@ -247,9 +250,17 @@ export default function PrizePicksStyleCard({
         (compact ? " pp-style-card-compact" : "")
       }
       data-pp-card="prizepicks"
+      style={{
+        "--pp-team-primary": primary,
+        "--pp-team-secondary": secondary,
+      }}
     >
-      <div className="pp-card-visual">
-        <TeamWatermark sport={row.sport} team={row.team} />
+      <div className="pp-card-visual pp-card-visual-team">
+        {theme.logo ? (
+          <div className="pp-team-watermark" aria-hidden="true">
+            <img src={theme.logo} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
+          </div>
+        ) : null}
         {rank != null ? <div className="pp-style-rank" aria-label={"Rank " + rank}>#{rank}</div> : null}
         <div className="pp-premium-headshot">
           <img

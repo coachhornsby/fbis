@@ -2987,3 +2987,59 @@
     opacity: 0.16 !important;
   }
 }
+
+/* ============================================================
+   PrizePicks card: secondary team color + larger centered logo
+   ============================================================ */
+.pp-card.pp-premium-card[style*="--pp-team-secondary"] {
+  background:
+    radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--pp-team-primary) 38%, transparent), transparent 62%),
+    linear-gradient(165deg,
+      color-mix(in srgb, var(--pp-team-secondary) 88%, #050b16),
+      color-mix(in srgb, var(--pp-team-secondary) 72%, #07111f) 55%,
+      #071018) !important;
+  border-color: color-mix(in srgb, var(--pp-team-primary) 55%, rgba(255,255,255,.18)) !important;
+}
+.pp-card.pp-premium-card .pp-card-visual.pp-card-visual-team {
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--pp-team-primary, #2a5cae) 34%, transparent), transparent 68%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--pp-team-secondary, #0a1428) 70%, transparent),
+      transparent 78%) !important;
+}
+.pp-card.pp-premium-card .pp-card-visual .pp-team-watermark {
+  left: 50% !important;
+  top: 48% !important;
+  width: min(96%, 340px) !important;
+  height: min(96%, 340px) !important;
+  transform: translate(-50%, -50%) !important;
+  opacity: 0.22 !important;
+  z-index: 1 !important;
+}
+.pp-card.pp-premium-card .pp-card-visual .pp-team-watermark img {
+  width: 118% !important;
+  height: 118% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  filter: saturate(0.95) drop-shadow(0 0 22px rgba(255,255,255,.08)) !important;
+}
+.pp-card.pp-premium-card .pp-card-visual .pp-premium-headshot {
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 3 !important;
+}
+.pp-style-card .pp-card-visual {
+  min-height: 190px;
+}
+@media (max-width: 760px) {
+  .pp-card.pp-premium-card .pp-card-visual .pp-team-watermark {
+    width: min(98%, 260px) !important;
+    height: min(98%, 260px) !important;
+    opacity: 0.2 !important;
+  }
+  .pp-card.pp-premium-card .pp-card-visual .pp-team-watermark img {
+    width: 120% !important;
+    height: 120% !important;
+  }
+}
