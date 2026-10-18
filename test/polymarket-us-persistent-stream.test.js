@@ -286,8 +286,9 @@ test("history-shard recovery write on primary D1 failure does not claim primary 
  clearTimeout(worker.flushTimer);worker.flushTimer=null;
  assert.equal(worker.inserted,0);
  assert.ok(worker.historyInserted>=1);
- assert.equal(worker.persistenceStatus,'DEGRADED_HISTORY');
- assert.equal(worker.lastError,'d1-bbo-persist-error');
+ // With MARKET_HISTORY bound, WS history-default succeeds as HISTORY (not a primary outage).
+ assert.equal(worker.persistenceStatus,'HISTORY');
+ assert.equal(worker.lastError,null);
  assert.equal(worker.queue.size,0);
  assert.ok(puts.length>=1);
  const row=sqlite.prepare("SELECT source,can_authorize_wager,contract_price FROM normalized_market_observations").get();
@@ -295,16 +296,32 @@ test("history-shard recovery write on primary D1 failure does not claim primary 
  assert.equal(row.can_authorize_wager,0);
  assert.equal(row.contract_price,0.61);
  assert.equal(worker.status().fixedCapRetired,true);
- assert.match(worker.status().codeVersion,/history-recovery/);
+ assert.match(worker.status().codeVersion,/history-default|history-recovery/);
+ // Default: WS ticks prefer MARKET_HISTORY without attempting primary inserts.
  let primaryWrites=0;
- const full={prepare(sql){if(sql==='SELECT 1 AS healthy')return {all:async()=>({meta:{size_after:9999998976}})};
-   primaryWrites++;throw Error('capacity routing must skip primary insert');}};
- const routed=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB:full,ARCHIVE,MARKET_HISTORY_DB:HISTORY});
+ const healthyPrimary={prepare(sql){
+  if(sql==='SELECT 1 AS healthy')return {all:async()=>({meta:{size_after:7_000_000_000}})};
+  primaryWrites++;throw Error('history-default must skip primary insert');
+ }};
+ const byDefault=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB:healthyPrimary,ARCHIVE,MARKET_HISTORY_DB:HISTORY});
+ byDefault.subscribed.set('nba-ml',worker.subscribed.get('nba-ml'));
+ byDefault.queue.set('nba-ml',{...tick,bestAsk:.62});await byDefault.flush();
+ clearTimeout(byDefault.flushTimer);
+ assert.equal(primaryWrites,0);
+ assert.equal(byDefault.persistenceStatus,'HISTORY');
+ assert.equal(byDefault.wsPersistTarget?.reason,'WS_HISTORY_DEFAULT');
+ assert.ok(byDefault.historyInserted>0);
+ // Opt-in primary-first still soft-caps into history at 8GB.
+ primaryWrites=0;
+ const full={prepare(sql){if(sql==='SELECT 1 AS healthy')return {all:async()=>({meta:{size_after:8_500_000_000}})};
+   primaryWrites++;throw Error('soft-cap routing must skip primary insert');}};
+ const routed=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB:full,ARCHIVE,MARKET_HISTORY_DB:HISTORY,STREAM_WS_PERSIST_PRIMARY:'enabled'});
  routed.subscribed.set('nba-ml',worker.subscribed.get('nba-ml'));
  routed.queue.set('nba-ml',{...tick,bestAsk:.63});await routed.flush();
  clearTimeout(routed.flushTimer);
- assert.equal(primaryWrites,0);assert.equal(routed.primaryBytes,9999998976);
+ assert.equal(primaryWrites,0);assert.equal(routed.primaryBytes,8_500_000_000);
  assert.equal(routed.persistenceStatus,'DEGRADED_HISTORY');assert.ok(routed.historyInserted>0);
+ assert.equal(routed.wsPersistTarget?.reason,'PRIMARY_SOFT_CAP_HISTORY_ROUTE');
 });
 
 test("operator /start always forces socket rotation for post-deploy code pickup",async()=>{
