@@ -3,6 +3,8 @@
  * Consumes the frozen model result and its original pregame decomposition.
  * Never writes to projection, qualification, or wager authority.
  */
+import { applyResearchCorrectionsToScores } from "./nflProjectionImprovements.js";
+
 const finite = value => typeof value === "number" && Number.isFinite(value);
 const round1 = value => Math.round((value + Number.EPSILON) * 10) / 10;
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
@@ -43,11 +45,12 @@ export function replayNflProScore(projection, { tolerance = 0.11 } = {}) {
   if (!home.ok || !away.ok) {
     return { ok: false, reconciled: false, reason: home.reason || away.reason, home, away };
   }
-  const reconstructed = {
+  const baseReconstructed = {
     home: home.final, away: away.final,
     margin: round1(home.final - away.final),
     total: round1(home.final + away.final),
   };
+  const reconstructed = applyResearchCorrectionsToScores(baseReconstructed, projection);
   const differences = Object.fromEntries(
     Object.entries(reconstructed).map(([k, v]) =>
       [k, finite(projection[k]) ? round1(v - projection[k]) : null])
@@ -56,7 +59,9 @@ export function replayNflProScore(projection, { tolerance = 0.11 } = {}) {
   return {
     ok: true, reconciled, modelId: projection.modelId, version: projection.version,
     inputStatus: "provided-projection-only", sourcePITVerified: false,
-    home, away, reconstructed, differences,
+    home, away, baseReconstructed, reconstructed,
+    researchCorrectionsApplied: Boolean(projection?.researchCorrections?.applied),
+    differences,
     reason: reconciled ? null : "published-score-mismatch",
     note: "Arithmetic reconciliation is not proof of pregame input provenance; verify immutable PIT record separately.",
   };

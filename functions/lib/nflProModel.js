@@ -9,6 +9,11 @@
 
 import { pGreater } from "./metrics.js";
 import { clamp, coverageSummary, finite, round1, weightedPresent } from "./deepModelCommon.js";
+import {
+  applyResearchScoreCorrections,
+  featureFamilyAuthorized,
+  featureFamilyPolicyStamp,
+} from "./nflProjectionImprovements.js";
 
 export const NFL_PRO_ID = "NFL-PRO-v1";
 export const NFL_PRO_CONSTANTS = {
@@ -108,11 +113,16 @@ function matchup(off = {}, def = {}) {
   const rush = rushOff == null || rushDef == null ? null : clamp((rushOff - rushDef) * 4.5, -1.8, 1.8);
   const explosive = explosiveOff == null || explosiveDef == null ? null : clamp((explosiveOff - explosiveDef) * 14, -1.8, 1.8);
   const pressure = pressureDef == null || pressureAllowed == null ? null : clamp((pressureAllowed - pressureDef) * 7, -1.8, 1.8);
-  const trenches = lineOff == null || lineDef == null ? null : clamp((lineOff - lineDef) * 0.5, -1.5, 1.5);
+  // Trenches remain NULL until an authorized source stamps the offense features.
+  const trenches = !featureFamilyAuthorized(off, "trenches") || lineOff == null || lineDef == null
+    ? null
+    : clamp((lineOff - lineDef) * 0.5, -1.5, 1.5);
   return { pass, rush, explosive, pressure, trenches, total: [pass, rush, explosive, pressure, trenches].reduce((s, v) => s + (v ?? 0), 0) };
 }
 
 function specialTeams(f = {}) {
+  // Special teams remain NULL until an authorized source stamps the side features.
+  if (!featureFamilyAuthorized(f, "specialTeams")) return null;
   const epa = n(f, "specialTeamsEpa", "stEpa");
   const points = n(f, "specialTeamsPoints", "stPoints");
   if (points != null) return clamp(points, -2, 2);
@@ -218,17 +228,19 @@ export function projectNflProV1(game = {}) {
       missingFeaturesRemainMissing: true,
       verifiedAvailabilityConsumed: false,
       injuryStatusConsumed: false,
-      note: "Persistent injury/QB availability may be attached on the game for SHADOW challengers but is not an input to this research score.",
+      featureFamilyPolicy: featureFamilyPolicyStamp(),
+      note: "Persistent injury/QB availability may be attached on the game for SHADOW challengers but is not an input to this research score. Trenches/ST stay null until authorized sources.",
     },
   };
 }
 
 export function attachNflProShadow(games = []) {
   let available = 0;
+  let correctionsApplied = 0;
   const next = (games || []).map((game) => {
     if (game.sport && game.sport !== "nfl") return game;
     // Score scaling uses footballTotalFactor only (no weatherPoints in context) to avoid double-count.
-    const projection = projectNflProV1(game);
+    let projection = projectNflProV1(game);
     if (projection.ok) {
       available += 1;
       const factor = Number(game.weatherImpact?.footballTotalFactor);
@@ -239,6 +251,9 @@ export function attachNflProShadow(games = []) {
         projection.margin = round1(projection.home - projection.away);
         projection.weatherTotalFactor = factor;
       }
+      // Research-only residual + Platt corrections (champion / wager gates unchanged).
+      projection = applyResearchScoreCorrections(projection);
+      if (projection.researchCorrections?.applied) correctionsApplied += 1;
     }
     return {
       ...game,
@@ -252,9 +267,12 @@ export function attachNflProShadow(games = []) {
       modelId: NFL_PRO_ID,
       role: "shadow",
       available,
+      researchCorrectionsApplied: correctionsApplied,
       games: next.length,
       qualificationAllowed: true,
-      note: "NFL-PRO-v1.2 adds capped Next Gen passing/rushing/receiving signals. It remains research-only until leakage-safe walk-forward evidence beats the prior model and market benchmarks.",
+      canAuthorizeWager: false,
+      productionChampionUnchanged: true,
+      note: "NFL-PRO-v1.2 research scores include capped Next Gen signals plus fitted residual/Platt corrections. Research-only until leakage-safe walk-forward evidence beats the prior model and closing-market benchmarks with operator approval.",
     },
   };
 }
