@@ -8,9 +8,12 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
-      - name: Read stream ownership and compact moneyline delivery
+      - name: Reconcile provider game-line counts
         run: |
           node --input-type=module <<'JS'
-          const r=await fetch('https://fbis-polymarket-owner-audit.coachhornsby.workers.dev',{signal:AbortSignal.timeout(45000)});console.log(JSON.stringify({ownerAudit:await r.json()}));
-          const start=Date.now(),q=await fetch('https://fbis-myz.pages.dev/api/polymarket-quotes?sport=nfl&eventIds=401872996',{signal:AbortSignal.timeout(90000)}),text=await q.text(),b=JSON.parse(text);console.log(JSON.stringify({quoteHttp:q.status,bytes:text.length,ms:Date.now()-start,scope:b.scope,offers:b.byEvent?.['401872996']?.length}));
+          for(const id of ['141503','141504','141513','141515','143238']){
+            const r=await fetch('https://gateway.polymarket.us/v1/events/'+id),b=await r.json(),e=b.event,m=e?.markets||[];
+            console.log(JSON.stringify({id,http:r.status,slug:e?.slug,advertised:e?.marketCounts,returned:m.length,gameLines:m.filter(x=>['SPORTS_MARKET_TYPE_SPREAD','SPORTS_MARKET_TYPE_TOTAL'].includes(x.sportsMarketTypeV2)).length,moneylines:m.filter(x=>['SPORTS_MARKET_TYPE_MONEYLINE','SPORTS_MARKET_TYPE_DRAWABLE_OUTCOME'].includes(x.sportsMarketTypeV2)).length}));
+            if(id==='141503'){const q=await (await fetch('https://gateway.polymarket.us/v1/markets?gameId='+id+'&limit=20&offset=0')).json();console.log(JSON.stringify({eventIdFilterCount:q.markets?.length}));}
+          }
           JS
