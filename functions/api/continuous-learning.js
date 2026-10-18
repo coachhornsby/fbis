@@ -25,7 +25,7 @@ export async function onRequestGet(context){
 
   const recentN=Math.max(30,Math.min(250,Number(url.searchParams.get("recentN")||CONTINUOUS_LEARNING_POLICY.recentWindowN)));
   try{
-    const out=await runContinuousLearning({DB:context.env.DB},{sport,recentN});
+    const out=await runContinuousLearning(context.env,{sport,recentN});
     return json(out,out.ok?200:503);
   }catch(err){
     return json({ok:false,status:"failed",sport,error:String(err?.message||err)},502);
