@@ -9,7 +9,7 @@ crons = ["*/5 * * * *"]
 
 [[durable_objects.bindings]]
 name = "PM_STREAM"
-class_name = "PolymarketMarketStream"
+class_name = "PolymarketMarketStreamCoverage"
 
 [[migrations]]
 tag = "v1"
@@ -44,3 +44,7 @@ STREAM_MAX_CONNECTIONS = "10"
 STREAM_MIN_PER_SPORT = "1"
 
 # Reactivate DO after idle recycle (ops 20261016T210342Z)
+
+[[migrations]]
+tag = "v2-complete-coverage-rename"
+renamed_classes = [{ from = "PolymarketMarketStream", to = "PolymarketMarketStreamCoverage" }]

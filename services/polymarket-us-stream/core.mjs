@@ -248,7 +248,7 @@ export function liveBboOffer(tick,base){
     sourceOutcomeId:base.source_outcome_id,fetchedAt:tick.at,
     executionEligible:false,canQualify:false,canAuthorizeWager:false,
     raw:{providerEventId:base.provider_event_id,providerMarketId:tick.marketSlug,
-      providerOutcomeId:base.source_outcome_id,contractBindingVerified:true,contractLong:true,quoteKind:"WS_LIVE_BBO_UNVERIFIED_FILL",
+      providerOutcomeId:base.source_outcome_id,canonicalSide:base.canonical_side||null,contractBindingVerified:true,contractLong:true,quoteKind:"WS_LIVE_BBO_UNVERIFIED_FILL",
       bestBid:tick.bestBid,bestAsk:tick.bestAsk,lastTrade:tick.lastTrade,
       bidDepth:tick.bidDepth,askDepth:tick.askDepth,bids:tick.bids||[],offers:tick.offers||[],
       opposite:base.opposite||null,feeCoefficient:base.fee_coefficient??null,sharesTraded:tick.sharesTraded??null,openInterest:tick.openInterest??null,tradeCount:tick.tradeCount??null,tradeWindowStart:tick.tradeWindowStart??null,
@@ -284,6 +284,6 @@ export function liveBboOffers(tick,base){
  if(base.sport==='soccer'||!opposite?.side||!opposite.sourceOutcomeId)return [yes];
  const levels=xs=>(xs||[]).map(l=>({price:1-l.price,quantity:l.quantity}));
  return [yes,{...yes,side:opposite.side,sourceOutcomeId:opposite.sourceOutcomeId,contractPrice:tick.bestBid==null?null:1-tick.bestBid,
- raw:{...yes.raw,contractLong:false,providerOutcomeId:opposite.sourceOutcomeId,bestAsk:tick.bestBid==null?null:1-tick.bestBid,bestBid:tick.bestAsk==null?null:1-tick.bestAsk,
+ raw:{...yes.raw,contractLong:false,canonicalSide:yes.raw.canonicalSide==='home'?'away':yes.raw.canonicalSide==='away'?'home':null,providerOutcomeId:opposite.sourceOutcomeId,bestAsk:tick.bestBid==null?null:1-tick.bestBid,bestBid:tick.bestAsk==null?null:1-tick.bestAsk,
  offers:levels(tick.bids),bids:levels(tick.offers),derivedFromVerifiedBinaryBook:true}}];
 }
