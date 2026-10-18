@@ -1,4 +1,5 @@
 import {cfbUnitFeatureAudit} from "./cfbProspectiveAudit.js";
+import {chicagoMarketDay} from "./polymarketUs.js";
 import {loadCfbDirectionalBoardResearch} from "./cfbDirectionalBoardResearch.js";
 import { isFbsVsFbsGame } from "./cfbGameVisibility.js";
 import {pinnoddsOnlySlateMarket} from "./activeOddsPolicy.js";
@@ -603,13 +604,13 @@ function hydrateOddsFromMarketRows(game, pack) {
 
 function ppKey(v=""){return String(v||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();}
 
-async function attachPrizePicksMarkets(games=[], sport, date, db){
+export async function attachPrizePicksMarkets(games=[], sport, date, db){
   if(!db?.prepare || !games.length) return games;
   let rows=[];
   try{
     rows=(await db.prepare(`SELECT fbis_event_id,sport,player_id,player_name,player_headshot_url,team,opponent,game_id,start_time,stat_type,canonical_market,line,odds_tier,duration,observed_at,collected_at
       FROM prizepicks_prop_lines WHERE run_id IN (SELECT run_id FROM prizepicks_daily_acquisitions WHERE state='COMPLETE') AND julianday(collected_at) BETWEEN julianday('now','-24 hours') AND julianday('now') AND sport=? AND substr(start_time,1,10) BETWEEN date(?,'-1 day') AND date(?,'+1 day')
-      ORDER BY collected_at DESC LIMIT 3000`).bind(sport,date,date).all())?.results||[];
+      ORDER BY collected_at DESC LIMIT 14000`).bind(sport,date,date).all())?.results||[];
   }catch{return games;}
   return games.map(game=>{
     const gid=String(game.id||"");
@@ -617,6 +618,7 @@ async function attachPrizePicksMarkets(games=[], sport, date, db){
     const abbrs=new Set([ppKey(game.away?.abbr),ppKey(game.home?.abbr)].filter(Boolean));
     const seen=new Set(), playerMarkets=[];
     for(const row of rows){
+      if(chicagoMarketDay(row.start_time)!==date) continue;
       const exact=row.fbis_event_id && String(row.fbis_event_id)===gid;
       const tennisMatch=sport==="tennis" && names.has(ppKey(row.player_name)) && names.has(ppKey(row.opponent)) && ppKey(row.player_name)!==ppKey(row.opponent) && Date.parse(row.start_time)===Date.parse(game.start);
       if(sport==="tennis" && !tennisMatch) continue;
@@ -1156,7 +1158,8 @@ export async function buildTodayBoard(
       // ACTION market intelligence is archived only; no new/current overlays.
       if (sport === "nhl" && !durableOnly)
         slateGames = slateGames.map((g)=>g.durableFallback?g:({...g,nhlWagerV1:evaluateNhlGameWagers(g)}));
-      // Retired PrizePicks market lines are unavailable on CURRENT board.
+      // Only the explicitly restored, completed daily NFL capture is current.
+      if(sport === "nfl") slateGames = await attachPrizePicksMarkets(slateGames,sport,date,env.DB);
       const rows = slateGames.filter(isFbsVsFbsGame).map((g) => toBoardGame(g, sport, now));
       const tennisIntegrityBlocked = sport === "tennis" && (slate.research?.withheld > 0 || slate.research?.configured === false);
       feeds[sport] = {
