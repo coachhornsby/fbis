@@ -15,6 +15,7 @@ import EventMarkets from "./EventMarkets.jsx";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlBettingIntelligence from "./NhlBettingIntelligence.jsx";
 import NhlMatchupSignals from "./NhlMatchupSignals.jsx";
+import MlbPitchHitMatchups from "./MlbPitchHitMatchups.jsx";
 import NflInjuryIntegrityStrip from "./NflInjuryIntegrityStrip.jsx";
 
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
@@ -118,14 +119,23 @@ function MlbStarterMini({ game, side }) {
   if (!sp.name && sp.era == null) return null;
   const record = sp.wins != null && sp.losses != null ? `${sp.wins}-${sp.losses}` : null;
   const era = Number.isFinite(Number(sp.era)) ? `${Number(sp.era).toFixed(2)} ERA` : null;
-  const image = sp.id ? `https://img.mlbstatic.com/mlb-photos/image/upload/w_96,q_auto:best/v1/people/${sp.id}/headshot/67/current` : null;
-  return <div className="pgc-mlb-starter">
-    {image ? <img src={image} alt="" width="38" height="38" loading="lazy" referrerPolicy="no-referrer" /> : null}
-    <div>
-      <strong>{sp.name || "TBD"}</strong>
-      <span>{[record, era].filter(Boolean).join(" · ") || "Starter"}</span>
+  const image = sp.id
+    ? `https://img.mlbstatic.com/mlb-photos/image/upload/w_180,q_auto:best/v1/people/${sp.id}/headshot/67/current`
+    : null;
+  return (
+    <div className="pgc-mlb-starter">
+      <span className="pgc-mlb-starter-shot" aria-hidden="true">
+        {image
+          ? <img src={image} alt="" loading="lazy" referrerPolicy="no-referrer" />
+          : <em>{(sp.name || "?").slice(0, 1)}</em>}
+      </span>
+      <div>
+        <small>SP</small>
+        <strong>{sp.name || "TBD"}</strong>
+        <span>{[record, era].filter(Boolean).join(" · ") || "Starter"}</span>
+      </div>
     </div>
-  </div>;
+  );
 }
 
 function MarketCell({ title, value, model, market, edge }) {
@@ -220,7 +230,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const tennisEdgeDelta = tennisProbEdge == null ? "NO MARKET EDGE" : "MODEL vs NO-VIG";
 
   return (
-    <article className={`pgc pgc-featured fbis-universal-premium status-${String(vm.status?.tone || "neutral").toLowerCase()}`} style={{"--fbis-away":teamColor(away)||"#0b5fa5","--fbis-home":teamColor(home)||"#7b1734","--cgc-away-brand":teamColor(away)||"#0b5fa5","--cgc-home-brand":teamColor(home)||"#7b1734"}}>
+    <article className={`pgc pgc-featured fbis-universal-premium status-${String(vm.status?.tone || "neutral").toLowerCase()}${sportId === "mlb" ? " pgc-mlb" : ""}`} style={{"--fbis-away":teamColor(away)||"#0b5fa5","--fbis-home":teamColor(home)||"#7b1734","--cgc-away-brand":teamColor(away)||"#0b5fa5","--cgc-home-brand":teamColor(home)||"#7b1734"}}>
       <header className="pgc-featured-head">
         <div className="pgc-featured-title">
           <span aria-hidden="true">🏆</span>
@@ -256,41 +266,79 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       <section className="pgc-featured-matchup pgc-team-atmosphere">
         {away.logoUrl ? <img className="pgc-team-watermark pgc-team-watermark-away" src={away.logoUrl} alt="" aria-hidden="true" /> : null}
         {home.logoUrl ? <img className="pgc-team-watermark pgc-team-watermark-home" src={home.logoUrl} alt="" aria-hidden="true" /> : null}
-        <div className="pgc-featured-team">
-          <div className="pgc-team-visual">
-            <TeamLogo team={away} size={103} className="pgc-featured-logo" />
-            {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
-          </div>
-          <div>
-            <small>{game?.neutralSite ? "NEUTRAL SITE" : "AWAY"}</small>
-            <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
-            {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(away, tennisTour)}</span> : null}
-            {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
-            <b className="pgc-featured-score">{proj.available ? (isTennis ? `${num(proj.away)}%` : (proj.away ?? "—")) : "—"}</b>
-            <small>{isTennis ? "WIN PROB." : "PROJ. SCORE"}</small>
-            {proj.available && !stored && winProbabilities.find(r=>r.side==="away")?.fbisProbability!=null ? <small>{(winProbabilities.find(r=>r.side==="away").fbisProbability*100).toFixed(1)}% MODEL WIN PROB.</small> : null}
-          </div>
+        <div className={`pgc-featured-team${sportId === "mlb" ? " pgc-featured-team-mlb" : ""}`}>
+          {sportId === "mlb" ? (
+            <>
+              <MlbStarterMini game={game} side="away" />
+              <div className="pgc-mlb-team-copy">
+                <small>{game?.neutralSite ? "NEUTRAL SITE" : "AWAY"}</small>
+                <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
+                {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
+                <div className="pgc-mlb-score-inline">
+                  <b className="pgc-featured-score">{proj.available ? (proj.away ?? "—") : "—"}</b>
+                  <small>PROJ. SCORE</small>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="pgc-team-visual">
+                <TeamLogo team={away} size={103} className="pgc-featured-logo" />
+              </div>
+              <div>
+                <small>{game?.neutralSite ? "NEUTRAL SITE" : "AWAY"}</small>
+                <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
+                {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(away, tennisTour)}</span> : null}
+                {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
+                <b className="pgc-featured-score">{proj.available ? (isTennis ? `${num(proj.away)}%` : (proj.away ?? "—")) : "—"}</b>
+                <small>{isTennis ? "WIN PROB." : "PROJ. SCORE"}</small>
+                {proj.available && !stored && winProbabilities.find(r=>r.side==="away")?.fbisProbability!=null ? <small>{(winProbabilities.find(r=>r.side==="away").fbisProbability*100).toFixed(1)}% MODEL WIN PROB.</small> : null}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="pgc-featured-center">
           <span className="pgc-vs">VS</span>
-          <small>FBIS MATCHUP INTELLIGENCE</small>
+          <small>{sportId === "mlb" ? "PITCH · HIT" : "FBIS MATCHUP INTELLIGENCE"}</small>
+          {sportId === "mlb" ? (
+            <div className="pgc-mlb-center-logos" aria-hidden="true">
+              <TeamLogo team={away} size={36} />
+              <TeamLogo team={home} size={36} />
+            </div>
+          ) : null}
         </div>
 
-        <div className="pgc-featured-team pgc-featured-team-home">
-          <div className="pgc-team-visual">
-            <TeamLogo team={home} size={103} className="pgc-featured-logo" />
-            {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
-          </div>
-          <div>
-            <small>{game?.neutralSite ? "NEUTRAL SITE" : "HOME"}</small>
-            <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
-            {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(home, tennisTour)}</span> : null}
-            {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
-            <b className="pgc-featured-score">{proj.available ? (isTennis ? `${num(proj.home)}%` : (proj.home ?? "—")) : "—"}</b>
-            <small>{isTennis ? "WIN PROB." : "PROJ. SCORE"}</small>
-            {proj.available && !stored && winProbabilities.find(r=>r.side==="home")?.fbisProbability!=null ? <small>{(winProbabilities.find(r=>r.side==="home").fbisProbability*100).toFixed(1)}% MODEL WIN PROB.</small> : null}
-          </div>
+        <div className={`pgc-featured-team pgc-featured-team-home${sportId === "mlb" ? " pgc-featured-team-mlb" : ""}`}>
+          {sportId === "mlb" ? (
+            <>
+              <MlbStarterMini game={game} side="home" />
+              <div className="pgc-mlb-team-copy">
+                <small>{game?.neutralSite ? "NEUTRAL SITE" : "HOME"}</small>
+                <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
+                {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
+                <div className="pgc-mlb-score-inline">
+                  <b className="pgc-featured-score">{proj.available ? (proj.home ?? "—") : "—"}</b>
+                  <small>PROJ. SCORE</small>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="pgc-team-visual">
+                <TeamLogo team={home} size={103} className="pgc-featured-logo" />
+              </div>
+              <div>
+                <small>{game?.neutralSite ? "NEUTRAL SITE" : "HOME"}</small>
+                <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
+                {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(home, tennisTour)}</span> : null}
+                {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
+                <b className="pgc-featured-score">{proj.available ? (isTennis ? `${num(proj.home)}%` : (proj.home ?? "—")) : "—"}</b>
+                <small>{isTennis ? "WIN PROB." : "PROJ. SCORE"}</small>
+                {proj.available && !stored && winProbabilities.find(r=>r.side==="home")?.fbisProbability!=null ? <small>{(winProbabilities.find(r=>r.side==="home").fbisProbability*100).toFixed(1)}% MODEL WIN PROB.</small> : null}
+              </div>
+            </>
+          )}
         </div>
       </section>
       <VenueConditions context={ctx} game={game} />
@@ -333,7 +381,14 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       {sportId === "cfb" ? <CfbProjectionReliability reliability={game.cfbProjectionReliability} game={game} /> : null}
       {!stored && sportId === "nhl" ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
       {!stored && sportId === "nhl" ? <NhlMatchupSignals game={game} away={away} home={home} /> : null}
-      {!stored && sportId !== "nhl" ? sportId === "nfl" ? <NflDirectionalMatchups game={game} matchup={game.nflGameMatchup} away={away} home={home} /> : sportId === "cfb" ? <CfbDirectionalMatchups game={game} away={away} home={home} /> : <MatchupSignals game={game} away={away} home={home} sport={sportId} /> : null}
+      {!stored && sportId === "mlb" ? <MlbPitchHitMatchups game={game} away={away} home={home} /> : null}
+      {!stored && sportId !== "nhl" && sportId !== "mlb"
+        ? sportId === "nfl"
+          ? <NflDirectionalMatchups game={game} matchup={game.nflGameMatchup} away={away} home={home} />
+          : sportId === "cfb"
+            ? <CfbDirectionalMatchups game={game} away={away} home={home} />
+            : <MatchupSignals game={game} away={away} home={home} sport={sportId} />
+        : null}
       {!stored && sportId !== "nhl" && action.available ? (
         <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="pgc-nfl-action-head"><strong>ACTION</strong><span>{action.headline?.label || (action.available ? "MARKET INTEL" : action.emptyLabel || "NO SNAPSHOT")}</span></div>

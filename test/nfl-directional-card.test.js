@@ -15,7 +15,8 @@ test("NFL uses shared venue strip with sport-local four tile route",async()=>{
  const premium=await read("PremiumGameCard.jsx");
  const css=await read("nflDirectionalMatchups.css");
  // SoftMatch: four-tile NFL route is on featured/premium; compact keeps venue + injury strip.
- assert.match(premium,/sportId === "nfl" \? <NflDirectionalMatchups/);
+ assert.match(premium,/sportId === "nfl"\s*\?\s*<NflDirectionalMatchups/);
+ assert.match(premium,/sportId !== "nhl" && sportId !== "mlb"/);
  assert.match(compact,/isNfl \? <NflInjuryIntegrityStrip/);
  assert.match(compact,/import VenueConditions from/);
  assert.match(compact,/!stored \? <VenueConditions/);

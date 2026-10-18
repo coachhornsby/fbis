@@ -80,7 +80,9 @@ export default function DecisionBoard({ games = [], renderDetail }) {
         {["nfl","mlb","nba","nhl","cfb","cbb","wnba","soccer","npb","kbo","tennis"].includes(String(selected?.sport || "").toLowerCase())
           ? <TopGameProps game={selected} />
           : null}
-        <MatchupFactors game={selected} />
+        {String(selected?.sport || "").toLowerCase() === "mlb"
+          ? null
+          : <MatchupFactors game={selected} />}
         {typeof renderDetail === "function" ? (
           <details className="db-full-analysis db-full-analysis-collapsed">
               <summary>Sources & model details</summary>

@@ -335,6 +335,27 @@ export function toBoardGame(game, sport, now = Date.now()) {
     playerProjectionRows: Array.isArray(game.playerProjectionRows) ? game.playerProjectionRows : [],
     playerProjectionStatus: game.playerProjectionStatus || null,
     mlbPersistentState: sport === "mlb" ? (game.mlbPersistentState || null) : null,
+    mlbPitchMatchup: sport === "mlb" ? (game.mlbPitchMatchup || null) : null,
+    mlbDeepShadow: sport === "mlb" && game.mlbDeepShadow
+      ? {
+          ok: game.mlbDeepShadow.ok === true,
+          pitcherKs: game.mlbDeepShadow.pitcherKs || null,
+          f5: game.mlbDeepShadow.f5 || null,
+        }
+      : null,
+    bpp: sport === "mlb" && game.bpp
+      ? {
+          matchup: game.bpp.matchup || null,
+          batterMatchups: Array.isArray(game.bpp.batterMatchups)
+            ? game.bpp.batterMatchups.slice(0, 12)
+            : [],
+          lineupsOfficial: Boolean(game.bpp.lineupsOfficial),
+          park: game.bpp.park || null,
+          homeRuns: game.bpp.homeRuns ?? null,
+          awayRuns: game.bpp.awayRuns ?? null,
+          asOf: game.bpp.asOf ?? null,
+        }
+      : null,
     homeSp: sport === "mlb" ? (game.homeSp || null) : null,
     awaySp: sport === "mlb" ? (game.awaySp || null) : null,
     savant: sport === "mlb" ? (game.savant || null) : null,
