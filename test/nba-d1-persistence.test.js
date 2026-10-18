@@ -16,5 +16,12 @@ test("NBA generated remote-D1 SQL does not use explicit transaction wrappers",()
 test("NBA evaluator waits for shadow rows before exporting decision inputs",()=>{
   const s=fs.readFileSync(".github/workflows/nba-market-evaluator.yml","utf8");
   assert.match(s,/Wait for today's NBA shadow projection persistence/);
-  assert.match(s,/COUNT\(\*\) AS n FROM nba_game_projections/);
+  assert.match(s,/nba_prospective_game_shadow/);
+  assert.match(s,/degraded_r2_archive/);
+});
+
+test("NBA prospective shadow projects a forward CT window",()=>{
+  const s=fs.readFileSync(".github/workflows/nba-prospective-shadow.yml","utf8");
+  assert.match(s,/nba-forward-shadow-range\.mjs/);
+  assert.match(s,/throughDays=6/);
 });

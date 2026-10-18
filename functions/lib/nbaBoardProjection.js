@@ -7,6 +7,8 @@ function parseJson(value) {
   try { return typeof value === "string" ? JSON.parse(value) : value; } catch { return {}; }
 }
 
+const MISSING_V1 = "NBA_FBIS_V1_PROJECTION_MISSING";
+
 export async function attachNbaBoardProjection(games = [], db = null) {
   if (!db || !Array.isArray(games) || !games.length) {
     return { games, meta: { available: 0, requested: games?.length || 0, source: "nba_game_projections" } };
@@ -55,13 +57,106 @@ export async function attachNbaBoardProjection(games = [], db = null) {
       });
     }
     let available = 0;
+    const missing = [];
     const next = games.map((game) => {
-      const p = latest.get(String(game?.id || ""));
-      if (!p) return game;
+      const id = String(game?.id || "");
+      const p = latest.get(id);
+      if (!p) {
+        if (id) missing.push(id);
+        return {
+          ...game,
+          nbaProjectionBlocker: {
+            code: MISSING_V1,
+            reason: "No NBA-FBIS-v1 row in nba_game_projections for this event",
+            canAuthorize: false,
+            marketDerived: false,
+          },
+        };
+      }
       available += 1;
-      return { ...game, nbaFbisV1: p };
+      // Prefer calibrated NBA-FBIS-v1 for board scores when a temporally valid row
+      // exists. FORM remains under challengers. Wager authority stays false.
+      const formChallenger = game.researchProjection?.modelId === "NBA-FBIS-FORM-v1"
+        ? game.researchProjection
+        : null;
+      return {
+        ...game,
+        nbaFbisV1: p,
+        nbaProjectionBlocker: null,
+        projHomeScore: p.home,
+        projAwayScore: p.away,
+        projectionKind: "FBIS",
+        projectionEngine: p.modelId,
+        projectionMaturity: p.maturity || "VALIDATION",
+        projectionDisplayLabel: "NBA FBIS v1 RESEARCH PROJECTION",
+        pureProjectionAvailable: true,
+        qualificationBlocked: true,
+        canQualify: false,
+        canAuthorizeWager: false,
+        publicationStatus: "RESEARCH_PUBLISHABLE",
+        bettingAuthority: "NOT_ELIGIBLE",
+        modelVersion: p.modelVersion,
+        model: {
+          ...(game.model || {}),
+          projHome: p.home,
+          projAway: p.away,
+          projMargin: p.margin,
+          projTotal: p.total,
+          pHomeFinal: p.pHomeWin,
+          pHome: p.pHomeWin,
+          projectionKind: "FBIS",
+          maturity: p.maturity || "VALIDATION",
+          canQualify: false,
+          canAuthorize: false,
+          canShowCalibratedEv: false,
+          recipe: {
+            engine: p.modelId,
+            version: p.modelVersion,
+            family: "research",
+            steps: [
+              "independent possession/efficiency projection",
+              "frozen calibration",
+              "D1 nba_game_projections hydrate",
+              "Research only — no wager authority",
+            ],
+          },
+        },
+        researchProjection: {
+          modelId: p.modelId,
+          modelVersion: p.modelVersion,
+          maturity: p.maturity || "VALIDATION",
+          home: p.home,
+          away: p.away,
+          margin: p.margin,
+          total: p.total,
+          expectedPossessions: p.expectedPossessions,
+          pHomeWin: p.pHomeWin,
+          note: "Independent NBA-FBIS-v1 projection from nba_game_projections. Markets are evaluation-only.",
+          canQualify: false,
+          canAuthorize: false,
+          marketUsed: false,
+          featureCutoff: p.featureCutoff,
+          createdAt: p.createdAt,
+        },
+        challengers: {
+          ...(game.challengers || {}),
+          ...(formChallenger ? { "NBA-FBIS-FORM-v1": formChallenger } : {}),
+          [p.modelId]: p,
+        },
+      };
     });
-    return { games: next, meta: { available, requested: ids.length, source: "nba_game_projections", marketInformed: false } };
+    return {
+      games: next,
+      meta: {
+        available,
+        requested: ids.length,
+        missing: missing.length,
+        missingGameIds: missing.slice(0, 24),
+        source: "nba_game_projections",
+        marketInformed: false,
+        canAuthorizeWager: false,
+      },
+    };
   } catch (err) {
     return { games, meta: { available: 0, requested: ids.length, source: "nba_game_projections", error: String(err?.message || err) } };
   }
