@@ -1239,7 +1239,7 @@ export async function buildTodayBoard(
     for (const [sportKey, sportGames] of bySport) {
       let overlay = { byId: new Map(), available: false };
       try {
-        overlay = await loadPolymarketUsBoardOffers(env.DB, sportGames, sportKey, { now: new Date(now) });
+        overlay = await loadPolymarketUsBoardOffers(env.DB, sportGames, sportKey, { now: new Date(now), historyDb: env.MARKET_HISTORY_DB });
       } catch {
         /* missing/stale provider never breaks the independent FBIS slate */
       }

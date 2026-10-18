@@ -226,7 +226,9 @@ export function fairMarketSelection(rows,{perSport=6,maxMarkets=48}={}){
 }
 
 export function shouldSaveBbo(current,last,{minIntervalMs=10000,minDelta=0.0025}={}){
-  if(!current?.marketSlug||current.bestAsk==null&&current.bestBid==null)return false;
+  if(!current?.marketSlug)return false;
+  if(current.marketState&&current.marketState!==last?.marketState)return true;
+  if(current.bestAsk==null&&current.bestBid==null)return false;
   if(!last)return true;
   if(current.timeMs-last.timeMs>=minIntervalMs)return true;
   for(const key of ["bestBid","bestAsk"]){
@@ -247,7 +249,8 @@ export function liveBboOffer(tick,base){
     raw:{providerEventId:base.provider_event_id,providerMarketId:tick.marketSlug,
       providerOutcomeId:base.source_outcome_id,contractBindingVerified:true,contractLong:true,quoteKind:"WS_LIVE_BBO_UNVERIFIED_FILL",
       bestBid:tick.bestBid,bestAsk:tick.bestAsk,lastTrade:tick.lastTrade,
-      bidDepth:tick.bidDepth,askDepth:tick.askDepth,
+      bidDepth:tick.bidDepth,askDepth:tick.askDepth,bids:tick.bids||[],offers:tick.offers||[],
+      opposite:base.opposite||null,feeCoefficient:base.fee_coefficient??null,sharesTraded:tick.sharesTraded??null,openInterest:tick.openInterest??null,tradeCount:tick.tradeCount??null,tradeWindowStart:tick.tradeWindowStart??null,
       sourceObservedAt:tick.sourceObservedAt||null,quoteObservedAt:tick.sourceObservedAt||null,marketObservedAt:tick.sourceObservedAt||null,marketState:tick.marketState||null,
       streamService:"fbis-polymarket-us-stream",streamMode:"RECONNECTING",
       canQualify:false,canAuthorizeWager:false,modelInfluence:"none"}};
@@ -270,4 +273,16 @@ export async function fetchStreamUpgrade(url,options={}, {fetchImpl=fetch,timeou
  const timeout=timers.setTimeout(()=>controller.abort(),timeoutMs);
  try{return await fetchImpl(url,{...options,signal:controller.signal});}
  finally{timers.clearTimeout(timeout);}
+}
+
+/** NO-side prices are derived only for the provider's explicitly identified opposing side. */
+export function liveBboOffers(tick,base){
+ const yes=liveBboOffer(tick,base);if(!yes)return [];
+ let opposite=base.opposite;
+ if(!opposite&&base.sport!=='soccer')try{const m=JSON.parse(base.raw_payload_json||'null');const no=m?.providerMarket?.marketSides?.find(s=>s.long===false);if(no)opposite={side:no.description||no.team?.name,sourceOutcomeId:String(no.id||no.identifier||'')};}catch{}
+ if(base.sport==='soccer'||!opposite?.side||!opposite.sourceOutcomeId)return [yes];
+ const levels=xs=>(xs||[]).map(l=>({price:1-l.price,quantity:l.quantity}));
+ return [yes,{...yes,side:opposite.side,sourceOutcomeId:opposite.sourceOutcomeId,contractPrice:tick.bestBid==null?null:1-tick.bestBid,
+ raw:{...yes.raw,contractLong:false,providerOutcomeId:opposite.sourceOutcomeId,bestAsk:tick.bestBid==null?null:1-tick.bestBid,bestBid:tick.bestAsk==null?null:1-tick.bestAsk,
+ offers:levels(tick.bids),bids:levels(tick.offers),derivedFromVerifiedBinaryBook:true}}];
 }

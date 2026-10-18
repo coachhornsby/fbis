@@ -30,7 +30,7 @@ test("BBO decoder accepts snake_case and camelCase but ignores malformed and cro
  const first=parsePolymarketUsLite({market_data_lite:{
   market_slug:"nfl-buf-lar",best_bid:{value:"0.52"},best_ask:{value:"0.54"},
   last_trade_px:{value:"0.53"},bid_depth:5,ask_depth:4}});
- assert.deepEqual(first,{marketSlug:"nfl-buf-lar",bestBid:0.52,bestAsk:0.54,sourceObservedAt:null,marketState:null,lastTrade:0.53,current:null,bidDepth:5,askDepth:4});
+ assert.deepEqual(first,{marketSlug:"nfl-buf-lar",bestBid:0.52,bestAsk:0.54,sourceObservedAt:null,marketState:null,lastTrade:0.53,current:null,bids:[],offers:[],sharesTraded:null,openInterest:null,bidDepth:5,askDepth:4});
  assert.equal(parsePolymarketUsLite({heartbeat:{}}),null);
  assert.equal(parsePolymarketUsLite({error:"unauthorized"}),null);
  assert.equal(parsePolymarketUsLite({marketDataLite:{marketSlug:"ab",bestBid:0.9,bestAsk:0.2}}),null);

@@ -43,3 +43,7 @@
 .fbis-moneyline-venue strong{font-size:clamp(15px,3.4cqi,24px);max-width:100%;white-space:nowrap}
 .fbis-moneyline-venue b{font-size:clamp(14px,3.1cqi,21px);max-width:100%;white-space:nowrap}
 @container(max-width:420px){.fbis-moneyline-triplet{gap:4px}.fbis-moneyline-venue{padding:6px 1px}.fbis-moneyline-venue>span{font-size:8px}.fbis-moneyline-team h4{font-size:13px!important}.fbis-moneyline-venue small{font-size:8px}}
+
+.fbis-poly-intelligence{margin-top:9px;padding:9px;border:1px solid #9b78be65;border-radius:8px;background:#17162d;color:#d9d8ed}
+.fbis-poly-intelligence>strong{font-size:11px;color:#efc6ff}.fbis-poly-intelligence[data-state="CONSIDER"]>strong{color:#adffde}.fbis-poly-intelligence[data-state="PASS"]>strong{color:#ffa9b0}
+.fbis-poly-intelligence dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:9px 0}.fbis-poly-intelligence dt{font-size:8px;color:#abb7ce}.fbis-poly-intelligence dd{font-size:12px;font-weight:800;margin:3px 0;overflow-wrap:anywhere}.fbis-poly-intelligence p{font-size:10px;line-height:1.5;margin:6px 0}.fbis-poly-intelligence small{font-size:9px;color:#b7bad0}

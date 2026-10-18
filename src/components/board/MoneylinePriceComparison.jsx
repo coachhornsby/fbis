@@ -1,3 +1,4 @@
+import {usePolymarketQuotes} from '../../lib/usePolymarketQuotes.js';
 import React from "react";
 import {buildMoneylinePriceComparison} from "../../lib/marketPriceComparison.js";
 import {signedAmerican} from "../../lib/marketQuoteDisplay.js";
@@ -15,7 +16,8 @@ const gap=r=>{
 const stamp=v=>v&&Number.isFinite(Date.parse(v))?new Date(v).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"}):"Time unavailable";
 const pp=v=>v==null?"—":`${v>0?"+":""}${v.toFixed(1)} pp`;
 export default function MoneylinePriceComparison({game}){
- const {rows,hasPrices,researchOnly,projectionState}=buildMoneylinePriceComparison(game);
+ const live=usePolymarketQuotes(game);
+ const {rows,hasPrices,researchOnly,projectionState}=buildMoneylinePriceComparison(live.game);
  if(!hasPrices)return null;
  const hasPolymarket=rows.some(r=>r.polymarketProbability!=null);
  const priced=rows.map(r=>({...r,modelBookGap:gap(r)}));
@@ -25,6 +27,7 @@ export default function MoneylinePriceComparison({game}){
    <strong>◆ MONEYLINE PRICEBOARD</strong>
    <span><i>PINNODDS</i> / <i>POLYMARKET</i> / <i>FBIS FAIR</i></span>
   </header>
+  {live.updateError?<p className="fbis-moneyline-note" role="status">Market updates unavailable · check quote times before acting</p>:null}
   {best?<div className="fbis-moneyline-gap-banner">
     {game?.[best.side]?<TeamLogo team={game[best.side]} size={36}/>:null}
     <div><strong>{best.label}</strong><span>Largest positive FBIS vs PinnOdds implied-probability difference</span></div>
@@ -41,11 +44,22 @@ export default function MoneylinePriceComparison({game}){
       <span>PINNODDS</span><strong>{american(r.pinnoddsAmerican)}</strong><small>Captured reference · {stamp(r.pinnacleCapturedAt)}</small>
     </div>
     {hasPolymarket ? <div className="fbis-moneyline-venue fbis-moneyline-poly">
-      <span>POLYMARKET</span><strong>{percent(r.polymarketProbability)}</strong><b>{american(r.polymarketAmerican)}</b><small>Implied · American · {stamp(r.polymarketObservedAt)}</small>
+      <span>POLYMARKET</span><strong>{percent(r.polymarketProbability)}</strong><b>{american(r.polymarketAmerican)}</b><small>Implied American · before fees</small><small>{stamp(r.polymarketObservedAt)}</small>
     </div> : null}
     <div className="fbis-moneyline-venue fbis-moneyline-fbis">
       <span>FBIS MODEL</span><strong>{percent(r.fbisProbability)}</strong><b>{american(r.fbisFairAmerican)}</b><small>Win % · Fair odds</small>
     </div>
+   </div>
+   <div className="fbis-poly-intelligence" data-state={r.polymarketIntelligence.state}>
+    <strong>{r.polymarketIntelligence.state} · POLYMARKET</strong>
+    <dl>
+     <div><dt>BUY / SELL</dt><dd>{american(r.polymarketIntelligence.askAmerican)} / {american(r.polymarketIntelligence.bidAmerican)}</dd></div>
+     <div><dt>NET GAP · EST.</dt><dd>{pp(r.polymarketIntelligence.netEdge==null?null:r.polymarketIntelligence.netEdge*100)}</dd></div>
+     <div><dt>BREAK-EVEN · EST.</dt><dd>{r.polymarketIntelligence.maxEntry==null?"—":`${(r.polymarketIntelligence.maxEntry*100).toFixed(1)}¢`}</dd></div>
+     <div><dt>DEPTH AT $5</dt><dd>{r.polymarketIntelligence.averageEntry==null?"Unverified":`${(r.polymarketIntelligence.averageEntry*100).toFixed(1)}¢ avg.`}</dd></div>
+    </dl>
+    <p>{r.polymarketIntelligence.synopsis}</p>
+    <small>Manual review · standard taker fee estimate · no assumed rebate{r.polymarketIntelligence.delivery==='MARKET_HISTORY_RECOVERY'?" · recovery feed":""}</small>
    </div>
   </div>)}</div>
   {!hasPolymarket ? <p className="fbis-moneyline-note">Polymarket: no matched observed price for this event.</p> : null}

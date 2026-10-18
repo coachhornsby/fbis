@@ -1,0 +1,38 @@
+name: Polymarket projected REST bootstrap and WebSocket continuity
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [functions/lib/polymarketBootstrap.js, scripts/polymarket-bootstrap.mjs, .github/workflows/polymarket-projected-bootstrap.yml]
+permissions:
+  contents: read
+concurrency:
+  group: fbis-polymarket-projected-bootstrap
+  cancel-in-progress: false
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      BASE: https://fbis-myz.pages.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Wait for canonical Pages release on source changes
+        if: github.event_name == 'push'
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+        env:
+          VERIFY_MAX_ATTEMPTS: '60'
+      - name: Establish matched forecast markets via REST, then activate WebSocket updates
+        run: node scripts/polymarket-bootstrap.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: polymarket-projected-bootstrap-${{ github.run_id }}
+          path: artifacts/polymarket-*.json
+          retention-days: 14

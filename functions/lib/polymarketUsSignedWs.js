@@ -68,7 +68,7 @@ export function parsePolymarketUsLite(raw){
   const full=obj.market_data||obj.marketData;
   const data=full||obj.market_data_lite||obj.marketDataLite;
   if(!data?.market_slug&&!data?.marketSlug)return null;
-  if(full&&data.state!=="MARKET_STATE_OPEN")return null;
+  if(full&&!String(data.state||"").startsWith("MARKET_STATE_"))return null;
   const money=v=>{if(v==null||v==="")return null;const n=Number(v&&typeof v==="object"?v.value:v);return Number.isFinite(n)&&n>=0&&n<=1?n:null};
   const slug=String(data.market_slug||data.marketSlug);
   if(!/^[a-z0-9-]{1,160}$/i.test(slug))return null;
@@ -79,6 +79,10 @@ export function parsePolymarketUsLite(raw){
     sourceObservedAt:providerTime&&Number.isFinite(Date.parse(providerTime))?new Date(providerTime).toISOString():null,marketState:data.state||null,
     lastTrade:money(data.last_trade_px??data.lastTradePx),
     current:money(data.current_px??data.currentPx),
+    bids:full?data.bids?.slice(0,20).map(l=>({price:money(l.px),quantity:Number(l.qty)})).filter(l=>l.price!=null&&l.quantity>0):[],
+    offers:full?data.offers?.slice(0,20).map(l=>({price:money(l.px),quantity:Number(l.qty)})).filter(l=>l.price!=null&&l.quantity>0):[],
+    sharesTraded:Number(data.shares_traded??data.sharesTraded??data.stats?.sharesTraded)||null,
+    openInterest:Number(data.open_interest??data.openInterest??data.stats?.openInterest)||null,
     bidDepth:Number(data.bid_depth??data.bidDepth)||null,
     askDepth:Number(data.ask_depth??data.askDepth)||null};
 }
@@ -110,4 +114,16 @@ export async function signedPolymarketUsAccountGetHeaders({
       "X-PM-Signature":asBase64(sig)
     };
   }finally{input.fill(0);pkcs8.fill(0)}
+}
+
+/** Public trade prints only; private orders/account messages are never accepted. */
+export function parsePolymarketUsTrade(raw){
+ let value;try{value=typeof raw==='string'?JSON.parse(raw):raw;}catch{return null;}
+ const t=value?.trade;if(!t)return null;
+ const slug=t.marketSlug||t.market_slug,px=Number(t.price?.value??t.price),qty=Number(t.quantity?.value??t.quantity);
+ const time=t.tradeTime||t.trade_time;
+ if(!/^[a-z0-9-]{1,160}$/i.test(slug||'')||!(px>0&&px<1)||!(qty>0)||!Number.isFinite(qty)||!Number.isFinite(Date.parse(time)))return null;
+ return {marketSlug:slug,price:px,quantity:qty,quantityUnit:t.quantity?.currency||'PROVIDER_UNSPECIFIED',
+  tradeTime:new Date(time).toISOString(),makerSide:t.maker?.side||null,takerSide:t.taker?.side||null,
+  makerIntent:t.maker?.intent||null,takerIntent:t.taker?.intent||null};
 }

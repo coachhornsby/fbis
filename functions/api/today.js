@@ -20,6 +20,7 @@ export function todayEnv(context) {
     caches: caches.default,
     DB: context.env.DB,
     TIER3_DB: context.env.TIER3_DB,
+    MARKET_HISTORY_DB: context.env.MARKET_HISTORY_DB,
     ARCHIVE: context.env.ARCHIVE,
   };
 }

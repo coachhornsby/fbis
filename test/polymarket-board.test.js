@@ -100,3 +100,11 @@ test('soccer last PinnOdds capture stays labeled historical without refreshing i
  const r=await loadPolymarketUsBoardOffers(db,[{id:'g'}],'soccer',{now:new Date('2026-10-15T06:05:00Z')});
  const quote=r.byId.get('g')[0];assert.equal(quote.historicalReference,true);assert.equal(quote.collectedAt,'2026-10-15T00:39:00Z');assert.equal(quote.temporal.currentDisplayEligible,false);assert.equal(quote.temporal.prospectiveEvidenceEligible,false);
 });
+
+test('fresh history recovery reaches cards without retiming or overwriting newer primary evidence',async()=>{
+ const make=(at,price)=>({prepare(){return{bind(){return{all:async()=>({results:[{canonical_event_id:'g',source:'Polymarket US WebSocket',source_market_id:'same-market',source_outcome_id:'yes',side:'home',period:'full_game',market_family:'moneyline',contract_price:price,collected_at:at,source_observed_at:at,raw_payload_json:JSON.stringify({bestAsk:price,offers:[{price,quantity:20}],privateToken:'NEVER'})}]})}}}}});
+ const loaded=await loadPolymarketUsBoardOffers(make('2026-10-18T05:59:00Z',.6),[{id:'g'}],'nfl',{now:new Date('2026-10-18T06:00:00Z'),historyDb:make('2026-10-18T05:59:30Z',.58)});
+ const offers=loaded.byId.get('g');assert.equal(offers.length,1);assert.equal(offers[0].contractPrice,.58);assert.equal(offers[0].deliveryStore,'MARKET_HISTORY_RECOVERY');assert.equal(offers[0].observedAt,'2026-10-18T05:59:30Z');assert.equal(offers[0].raw.offers[0].quantity,20);assert.ok(!JSON.stringify(offers).includes('NEVER'));assert.equal(offers[0].canAuthorizeWager,false);
+ const failed={prepare(){throw Error('primary-unavailable')}};
+ assert.equal((await loadPolymarketUsBoardOffers(failed,[{id:'g'}],'nfl',{now:new Date('2026-10-18T06:00:00Z'),historyDb:make('2026-10-18T05:59:30Z',.58)})).available,true);
+});
