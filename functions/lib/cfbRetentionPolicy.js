@@ -4,8 +4,6 @@
  * Reuses retentionGate — never delete without verified archive + authorization.
  */
 
-import { evaluateRetentionRelease, retentionGateRecord } from "./retentionGate.js";
-
 export const RETENTION_POLICY_VERSION = "cfb-retention-policy-v1";
 
 /** Permanent retention classes — never expire. */
@@ -113,8 +111,9 @@ export const STORAGE_ARCHITECTURE = Object.freeze({
 
 /**
  * Propose deletion of an expireable class; fails closed via retentionGate.
+ * Async so retentionGate (and any crypto helpers) stay off sync client graphs.
  */
-export function proposeCfbRetentionRelease(proposal = {}) {
+export async function proposeCfbRetentionRelease(proposal = {}) {
   const classId = proposal.retentionClassId;
   const allowed = ALLOW_CONTROLLED_EXPIRATION.some((c) => c.id === classId);
   if (!allowed) {
@@ -135,6 +134,7 @@ export function proposeCfbRetentionRelease(proposal = {}) {
       retentionClassId: classId,
     };
   }
+  const { evaluateRetentionRelease, retentionGateRecord } = await import("./retentionGate.js");
   const evaluation = evaluateRetentionRelease(proposal);
   return {
     ...evaluation,

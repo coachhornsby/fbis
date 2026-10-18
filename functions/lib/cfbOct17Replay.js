@@ -52,27 +52,31 @@ function parseMatchup(matchup = "") {
 export function sideInputFromSnapshot(features = {}, prior = {}) {
   const gamesPlayed = resolvePersistedGamesPlayed(features) ?? 0;
   return {
-    priorOff: prior.priorOff,
-    priorDef: prior.priorDef,
+    priorOff: prior.priorOff ?? num(features.priorOff),
+    priorDef: prior.priorDef ?? num(features.priorDef),
     gamesPlayed,
+    gamesPlayedSource: features.gamesPlayedSource || null,
     coreThroughWeek: num(features.coreThroughWeek),
-    coreWeekBounded: features.coreWeekBounded === true,
-    offensePpa: num(features.ppaOff),
-    defensePpa: num(features.ppaDef),
-    passEpa: num(features.ppaPass),
-    rushEpa: num(features.ppaRush),
-    passEpaAllowed: num(features.ppaPassAllowed),
-    rushEpaAllowed: num(features.ppaRushAllowed),
-    successRate: num(features.offensiveSuccessRate),
-    successRateAllowed: num(features.defensiveSuccessRate),
-    explosiveRate: num(features.offensiveExplosiveness),
-    explosiveRateAllowed: num(features.defensiveExplosiveness),
-    lineYards: num(features.offensiveLineYards),
-    lineYardsAllowed: num(features.defensiveLineYards),
-    havocRate: num(features.defensiveHavoc),
-    havocAllowed: num(features.offensiveHavoc),
-    pointsPerOpportunity: num(features.offensivePointsPerOpportunity),
-    pointsPerOpportunityAllowed: num(features.defensivePointsPerOpportunity),
+    coreWeekBounded: features.coreWeekBounded === true || features.coreWeekBounded === "1",
+    // Accept both canonical ppaOff and deep-feed offensePpa aliases.
+    offensePpa: num(features.ppaOff ?? features.offensePpa),
+    defensePpa: num(features.ppaDef ?? features.defensePpa),
+    passEpa: num(features.ppaPass ?? features.passEpa),
+    rushEpa: num(features.ppaRush ?? features.rushEpa),
+    passEpaAllowed: num(features.ppaPassAllowed ?? features.passEpaAllowed),
+    rushEpaAllowed: num(features.ppaRushAllowed ?? features.rushEpaAllowed),
+    successRate: num(features.offensiveSuccessRate ?? features.successRate),
+    successRateAllowed: num(features.defensiveSuccessRate ?? features.successRateAllowed),
+    explosiveRate: num(features.offensiveExplosiveness ?? features.explosiveRate),
+    explosiveRateAllowed: num(features.defensiveExplosiveness ?? features.explosiveRateAllowed),
+    lineYards: num(features.offensiveLineYards ?? features.lineYards),
+    lineYardsAllowed: num(features.defensiveLineYards ?? features.lineYardsAllowed),
+    havocRate: num(features.defensiveHavoc ?? features.havocRate),
+    havocAllowed: num(features.offensiveHavoc ?? features.havocAllowed),
+    pointsPerOpportunity: num(features.offensivePointsPerOpportunity ?? features.pointsPerOpportunity),
+    pointsPerOpportunityAllowed: num(
+      features.defensivePointsPerOpportunity ?? features.pointsPerOpportunityAllowed
+    ),
   };
 }
 

@@ -194,11 +194,11 @@ test("idempotent retry guard skips duplicate hash writes", () => {
   assert.equal(dupBatch.allow, false);
 });
 
-test("retention policy blocks permanent class deletion", () => {
+test("retention policy blocks permanent class deletion", async () => {
   const policy = summarizeRetentionPolicy();
   assert.ok(policy.permanentCount >= 8);
   assert.ok(RETAIN_PERMANENTLY.some((c) => c.id === "core_weekly_pit"));
-  const blocked = proposeCfbRetentionRelease({
+  const blocked = await proposeCfbRetentionRelease({
     retentionClassId: "raw_source_versions",
     r2ArchiveVerified: true,
     r2ReadbackSha256: "a".repeat(64),

@@ -4738,3 +4738,25 @@ CREATE TABLE IF NOT EXISTS cfb_feature_lineage_receipts (
 CREATE INDEX IF NOT EXISTS idx_cfb_lineage_game ON cfb_feature_lineage_receipts(game_id, canonical_feature);
 CREATE INDEX IF NOT EXISTS idx_cfb_lineage_team_season ON cfb_feature_lineage_receipts(team_id, season, week);
 INSERT OR IGNORE INTO schema_migrations(id,applied_at) VALUES ('0112_cfb_data_ops',datetime('now'));
+
+CREATE TABLE IF NOT EXISTS cfb_e2e_validation_runs (
+  run_id TEXT PRIMARY KEY,
+  season INTEGER NOT NULL,
+  week INTEGER NOT NULL,
+  triggered_by TEXT NOT NULL DEFAULT 'weekly_regression',
+  overall_pass INTEGER NOT NULL DEFAULT 0,
+  five_essentials_json TEXT,
+  acquisition_pass INTEGER,
+  classification_pass INTEGER,
+  consumption_pass INTEGER,
+  impact_pass INTEGER,
+  accuracy_pass INTEGER,
+  cards_pass INTEGER,
+  weekly_pass INTEGER,
+  unresolved_json TEXT,
+  report_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cfb_e2e_validation_season_week
+  ON cfb_e2e_validation_runs(season, week, created_at DESC);
+INSERT OR IGNORE INTO schema_migrations(id,applied_at) VALUES ('0113_cfb_e2e_validation',datetime('now'));

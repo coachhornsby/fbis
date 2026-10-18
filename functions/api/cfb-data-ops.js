@@ -250,6 +250,7 @@ export async function onRequestGet(context) {
       throughWeek: Math.max(0, week - 1),
     }),
     readinessApi: "/api/cfb-tuesday-readiness?date=2026-10-20",
+    e2eValidationApi: "/api/cfb-e2e-validation",
     tier3: {
       summary: summarizeTier3Entitlements(),
       entitlements: q ? searchTier3Entitlements(q) : searchTier3Entitlements(""),

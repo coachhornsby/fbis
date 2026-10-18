@@ -248,6 +248,10 @@ export default function CfbDataOpsView() {
                 <code>{data.readinessApi || "/api/cfb-tuesday-readiness"}</code>
               </p>
               <p className="muted small">
+                End-to-end validation (acquisition → accuracy):{" "}
+                <code>/api/cfb-e2e-validation</code>
+              </p>
+              <p className="muted small">
                 GraphQL: {data.tier3.graphqlShadow?.status} — shadow beside REST before any
                 replacement. Live subscriptions are not a Tuesday prerequisite.
               </p>
