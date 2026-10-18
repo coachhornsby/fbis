@@ -162,3 +162,13 @@ test("capacity-only learning write failures keep ok true for release gate",async
   assert.equal(capacity.length,1);
   assert.equal(hard.length===0,true);
 });
+
+test('authenticated learning endpoint keeps primary reads and operations writes separate',async()=>{
+ const {onRequestGet}=await import('../functions/api/continuous-learning.js');
+ clearLearningWriteCache();let reads=0,writes=0;
+ const primary={prepare(sql){assert.match(sql,/^SELECT .*prediction_snapshots/);return{bind(){return{all:async()=>{reads++;return{results:[]}}}}}}};
+ const ops={prepare(){return{run:async()=>{writes++;return{success:true}},bind(){return{run:async()=>{writes++;return{success:true}},first:async()=>null}}}}};
+ const response=await onRequestGet({request:new Request('https://example.test/api/continuous-learning?sport=nfl',{headers:{'x-harvest-secret':'test-only'}}),env:{DB:primary,OPERATIONS_DB:ops,HARVEST_SECRET:'test-only'}});
+ assert.equal(response.status,200);assert.equal(reads,1);assert.ok(writes>0);
+ clearLearningWriteCache();
+});
