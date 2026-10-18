@@ -72,8 +72,10 @@ function soccerMarketTeamMatches(a,b,abbr,league){
  * start time. Never attach a sportsbook event using one surname, a market side,
  * an Action-only event id, or a synthetic source identity. */
 function tennisFullName(value){
- return String(value||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase()
+ const name=String(value||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase()
   .replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
+ // WTA player 325725: https://www.wtatennis.com/players/325725/catherine-mcnally
+ return name==="caty mcnally"?"catherine mcnally":name;
 }
 function tennisTitlePlayers(title){
  // Doubles and team pairings require a different canonical match contract.

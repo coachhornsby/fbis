@@ -52,3 +52,13 @@ test("provider quotes without an independent official fixture remain research on
  const raw=JSON.parse(records.get("market-sources/polymarket-us/receipts/tennis-test-unlinked.json"));
  assert.ok(raw.offers.every(o=>o.eventId===null&&o.raw.eventMatchStatus==="UNMATCHED_TENNIS_EVENT"&&!o.canAuthorizeWager));
 });
+
+test('WTA-verified Caty alias still requires both players, tour and start',async()=>{
+ const {matchPolymarketUsEvent}=await import('../functions/lib/polymarketUs.js');
+ const fixture={id:'osaka-verified',start:'2026-10-19T04:00:00Z',tour:'wta',away_name:'Catherine McNally',home_name:'Sinja Kraus'};
+ const source={title:'Caty Mcnally vs. Sinja Kraus',startTime:fixture.start,seriesSlug:'wta'};
+ assert.equal(matchPolymarketUsEvent(source,[fixture],'tennis').id,fixture.id);
+ assert.equal(matchPolymarketUsEvent(source,[{...fixture,home_name:'Other Player'}],'tennis').id,null);
+ assert.equal(matchPolymarketUsEvent(source,[{...fixture,tour:'atp'}],'tennis').id,null);
+ assert.equal(matchPolymarketUsEvent({...source,startTime:'2026-10-20T04:00:00Z'},[fixture],'tennis').id,null);
+});
