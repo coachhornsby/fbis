@@ -147,3 +147,23 @@ test("freeze is insert-or-ignore immutable; settlement updates scores only", asy
   assert.equal(settle.ok, true);
   assert.ok(writes.some(w => String(w.sql).includes("UPDATE") && String(w.sql).includes("actual_home")));
 });
+
+
+test("CORE market ROI never substitutes -110 for missing recorded prices", () => {
+  const rows = [2022, 2023, 2024].flatMap(y => Array.from({length: 70}, (_, i) => {
+    const r = row(y, i, {market: true});
+    delete r.spreadPriceHome;
+    delete r.spreadPriceAway;
+    return r;
+  }));
+  const report = evaluateCfbCoreResearch(rows, {minTrain: 50, minTest: 50, minFolds: 2});
+  assert.equal(report.folds.length, 2);
+  for (const fold of report.folds) {
+    for (const model of ["champion", "coreOnly", "combined"]) {
+      assert.equal(fold.market[model].ats.pricedN, 0);
+      assert.equal(fold.market[model].ats.unitRoi, null);
+      assert.equal(fold.market[model].totals.pricedN, 0);
+      assert.equal(fold.market[model].totals.unitRoi, null);
+    }
+  }
+});
