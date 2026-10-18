@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildScheduleProfile,
   attachNflPersistentProfiles,
+  scheduleContextFeatureFields,
   haversineMiles,
   injuryType,
   injurySeverityClass,
@@ -83,6 +84,33 @@ test("profile attachment is contextual and explicitly research-only for schedule
   assert.equal(out[0].nflPersistentProfile.configured,true);
   assert.equal(out[0].nflPersistentProfile.researchOnlyScheduleStress,true);
   assert.equal(out[0].nflPersistentProfile.home.players.length,1);
+  assert.equal(out[0].nflPersistentProfile.scheduleContextAttachedToFeatures,false);
+});
+
+test("matched schedule row rest/travel/timezone attach into nflFeatures for PRO context", () => {
+  assert.deepEqual(scheduleContextFeatureFields({daysRest:6,travelMiles:1200,timeZonesCrossed:2,altitudeFeet:5200}),{
+    restDays:6,travelMiles:1200,timeZonesCrossed:2,
+  });
+  assert.deepEqual(scheduleContextFeatureFields({days_rest:5,travel_miles:900,time_zones_crossed:1}),{
+    restDays:5,travelMiles:900,timeZonesCrossed:1,
+  });
+  const games=[{sport:"nfl",id:"evt-1",home:{abbr:"SF"},away:{abbr:"SEA"},nflFeatures:{home:{offenseEpa:0.1},away:{offenseEpa:0.05}}}];
+  const out=attachNflPersistentProfiles(games,{
+    teams:{sf:{team_key:"sf"},sea:{team_key:"sea"}},
+    schedule:{
+      // D1 SELECT * shape (snake_case) for the matched slate event.
+      sf:[{event_id:"evt-1",days_rest:6,travel_miles:0,time_zones_crossed:0,schedule_stress_score:0.1}],
+      sea:[{event_id:"evt-1",days_rest:3,travel_miles:1800,time_zones_crossed:3,schedule_stress_score:0.4}],
+    },
+  });
+  assert.equal(out[0].nflPersistentProfile.researchOnlyScheduleStress,true);
+  assert.equal(out[0].nflPersistentProfile.scheduleContextAttachedToFeatures,true);
+  assert.equal(out[0].nflPersistentProfile.scheduleContextAffectsDisplayedProScore,true);
+  assert.equal(out[0].nflFeatures.home.restDays,6);
+  assert.equal(out[0].nflFeatures.home.offenseEpa,0.1);
+  assert.equal(out[0].nflFeatures.away.restDays,3);
+  assert.equal(out[0].nflFeatures.away.travelMiles,1800);
+  assert.equal(out[0].nflFeatures.away.timeZonesCrossed,3);
 });
 
 test("haversine helper produces plausible cross-country distance", () => {

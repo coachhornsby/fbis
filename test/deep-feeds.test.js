@@ -40,6 +40,13 @@ test("nflverse CSV parser and team aggregator build offense and opponent-inverte
   assert.ok(agg.defense.BUF.passEpaAllowed > 0);
   assert.equal(agg.offense.BUF.games, 1);
   assert.equal(agg.defense.BUF.games, 1);
+  // BUF dropbacks=42; BAL def_qb_hits=4 → BUF pressure allowed = 4/42
+  assert.ok(Math.abs(agg.offense.BUF.pressureRateAllowed - (4 / 42)) < 1e-9);
+  // BAL dropbacks=33; BUF def_qb_hits=6 → BAL pressure allowed = 6/33
+  assert.ok(Math.abs(agg.offense.BAL.pressureRateAllowed - (6 / 33)) < 1e-9);
+  // Defense pressure generated mirrors the same hits / opponent dropbacks.
+  assert.ok(Math.abs(agg.defense.BAL.pressureRate - (4 / 42)) < 1e-9);
+  assert.ok(Math.abs(agg.defense.BUF.pressureRate - (6 / 33)) < 1e-9);
 });
 
 test("nflverse QB aggregator calculates EPA per dropback and weighted CPOE", () => {
