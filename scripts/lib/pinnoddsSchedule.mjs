@@ -22,3 +22,11 @@ export function pinnoddsWindowComplete(status,window,now=new Date()){
   window.scope==='football'?['board:5:prematch']:window.scope==='football-drops'?['board:5:prematch','drops:all:prematch','drops:all:live']:['drops:all:prematch','drops:all:live'];
  return expected.every(k=>keys.has(k));
 }
+
+/** Recover the latest scheduled full slot when GitHub skips its entire hour.
+ * The runId remains that scheduled slot, so late/backup attempts share quota.
+ */
+export function pinnoddsDueWindow(status,now=new Date()){
+ const current=pinnoddsWindow(now),full=pinnoddsWindow(new Date(Date.parse(current.windowStart)-current.hour%6*3600000));
+ return pinnoddsWindowComplete(status,full,now)?current:full;
+}

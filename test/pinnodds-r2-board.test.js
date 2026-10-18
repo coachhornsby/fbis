@@ -24,3 +24,13 @@ test('R2 malformed or unauthorized receipts never become a priced market',async(
  const malformed={async get(){return {json:async()=>({...payload,canAuthorizeWager:true})};}};
  assert.equal((await loadPinnoddsR2BoardResearch(malformed,{sport:'cfb',games:[{id:'cfb-game'}]})).rows,0);
 });
+test('a started game retains an explicitly historical pregame reference only when requested',async()=>{
+ const now=Date.now(),kick=new Date(now-3600000).toISOString();
+ const previous={...payload,collectedAt:new Date(now-7200000).toISOString(),rows:payload.rows.map(o=>({...o,eventStart:kick}))};
+ const archive={async get(key){return key.endsWith('prematch.json')?{json:async()=>previous}:null}};
+ assert.equal((await loadPinnoddsR2BoardResearch(archive,{sport:'cfb',games:[{id:'cfb-game'}]})).rows,0);
+ const loaded=await loadPinnoddsR2BoardResearch(archive,{sport:'cfb',games:[{id:'cfb-game'}],includeStarted:true});
+ assert.equal(loaded.byGame['cfb-game'].pregameReferenceOnly,true);
+ assert.equal(loaded.byGame['cfb-game'].offers[0].historicalReference,true);
+ assert.equal(loaded.byGame['cfb-game'].canAuthorizeWager,false);
+});

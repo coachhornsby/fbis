@@ -4438,7 +4438,7 @@ CREATE TABLE IF NOT EXISTS normalized_market_observations (
 CREATE INDEX IF NOT EXISTS idx_norm_market_event_time ON normalized_market_observations(sport,canonical_event_id,collected_at);
 CREATE INDEX IF NOT EXISTS idx_norm_market_player ON normalized_market_observations(sport,canonical_player_id,stat_family,collected_at);
 CREATE INDEX IF NOT EXISTS idx_norm_market_source ON normalized_market_observations(source,sport,market_family,collected_at);
-CREATE INDEX IF NOT EXISTS idx_norm_market_snapshot ON normalized_market_observations(snapshot_type,sport,collected_at);
+-- idx_norm_market_snapshot retired by 0116: retain event/source indexes and all rows.
 
 CREATE TABLE IF NOT EXISTS normalized_market_decision_links (
   id TEXT PRIMARY KEY,

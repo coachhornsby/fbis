@@ -296,6 +296,15 @@ test("history-shard recovery write on primary D1 failure does not claim primary 
  assert.equal(row.contract_price,0.61);
  assert.equal(worker.status().fixedCapRetired,true);
  assert.match(worker.status().codeVersion,/history-recovery/);
+ let primaryWrites=0;
+ const full={prepare(sql){if(sql==='SELECT 1 AS healthy')return {all:async()=>({meta:{size_after:9999998976}})};
+   primaryWrites++;throw Error('capacity routing must skip primary insert');}};
+ const routed=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB:full,ARCHIVE,MARKET_HISTORY_DB:HISTORY});
+ routed.subscribed.set('nba-ml',worker.subscribed.get('nba-ml'));
+ routed.queue.set('nba-ml',{...tick,bestAsk:.63});await routed.flush();
+ clearTimeout(routed.flushTimer);
+ assert.equal(primaryWrites,0);assert.equal(routed.primaryBytes,9999998976);
+ assert.equal(routed.persistenceStatus,'DEGRADED_HISTORY');assert.ok(routed.historyInserted>0);
 });
 
 test("operator /start always forces socket rotation for post-deploy code pickup",async()=>{

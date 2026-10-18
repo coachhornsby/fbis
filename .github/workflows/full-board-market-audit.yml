@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  id-token: write
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -19,6 +20,8 @@ jobs:
         with:
           node-version: '22'
       - run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Recover any missed existing collection slot within the governed allowance
+        run: node scripts/collect-pinnodds-governed.mjs
       - run: node scripts/audit-full-board-markets.mjs
       - uses: actions/upload-artifact@v4
         if: always()

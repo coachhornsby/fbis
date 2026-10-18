@@ -81,9 +81,9 @@ try{
   if(batches%25===0)console.log(JSON.stringify(result));
  }
  await query('CREATE INDEX IF NOT EXISTS idx_norm_market_player ON normalized_market_observations(sport,canonical_player_id,stat_family,collected_at) WHERE canonical_player_id IS NOT NULL');
- await query('CREATE INDEX IF NOT EXISTS idx_norm_market_snapshot ON normalized_market_observations(snapshot_type,sport,collected_at)');
- const indexes=(await query("SELECT name FROM sqlite_schema WHERE type='index' AND name IN ('idx_norm_market_player','idx_norm_market_snapshot')"))[0].results;
- if(indexes.length!==2)throw Error('INDEX_RESTORATION_INCOMPLETE');
+ // Snapshot-only index was retired by migration 0116 for primary headroom.
+ const indexes=(await query("SELECT name FROM sqlite_schema WHERE type='index' AND name='idx_norm_market_player'"))[0].results;
+ if(indexes.length!==1)throw Error('INDEX_RESTORATION_INCOMPLETE');
  result.indexesRestored=true;result.completed=!result.paused;
 }catch(e){result.error=String(e.message);throw e;}
 finally{await save();console.log(JSON.stringify(result));}

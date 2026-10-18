@@ -54,6 +54,6 @@ export default function PinnoddsCardMarkets({game,projection,marketFamilies,comp
    </div>;
   })}</div>
   {!hasPaired?<p className="fbis-priced-empty">No verified paired PinnOdds moneyline, spread or total in this captured market. FBIS projections remain independent.</p>:null}
-  <p className="fbis-priced-footnote"><b>PINNODDS LAST CAPTURE:</b> {stamp(selection.capturedAt)}. Matched line with its quoted American price. Projected point differences are not cover probability, EV, or an executable bet; quotes may change.</p>
+  <p className="fbis-priced-footnote"><b>{game.pinnoddsResearch?.pregameReferenceOnly?'PINNODDS PREGAME REFERENCE · GAME STARTED:':'PINNODDS LAST CAPTURE:'}</b> {stamp(selection.capturedAt)}. {game.pinnoddsResearch?.pregameReferenceOnly?'This is the captured pregame line; a live PinnOdds price is unavailable. ':''}Matched line with its quoted American price. Projected point differences are not cover probability, EV, or an executable bet; quotes may change.</p>
  </section>;
 }

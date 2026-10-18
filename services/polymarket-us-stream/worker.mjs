@@ -28,7 +28,8 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
     this.persistenceStatus="UNVERIFIED";this.lastSpillKey=null;this.lastSpillAt=null;
     this.historyLastError=null;
-    this.codeVersion="board-history-recovery-transport-isolation-20261018";
+    this.codeVersion="board-history-recovery-capacity-routing-20261018";
+    this.capacityProbeAt=0;this.primaryBytes=null;
   }
   isCanonicalOwner(){
     if(!this.ctx.id?.toString||!this.env.PM_STREAM?.idFromName)return true;
@@ -73,6 +74,7 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
       uncoveredCount:Math.max(Number(this.lastCandidateDiagnostics?.uncoveredCount||0),Number(this.lastCandidateDiagnostics?.eligibleCount||0)-this.subscribed.size),
       streamHealthy,
       persistenceStatus:this.persistenceStatus,
+      primaryBytes:this.primaryBytes,
       // Stream is operational when connected and fresh. Persistence DEGRADED/UNAVAILABLE
       // (D1 full) must not be hidden — those states clear operational until inserts recover.
       // UNVERIFIED means no flush yet (bootstrap heartbeat / subscribe) and is allowed.
@@ -445,6 +447,15 @@ export class PolymarketMarketStreamCoverage extends DurableObject {
     for(const tick of ticks)this.queue.delete(tick.marketSlug);
     const offers=ticks.flatMap(t=>liveBboOffers(t,this.subscribed.get(t.marketSlug)));
     try{
+      // Reserve primary headroom for scores, projections and app state. Cache
+      // the size probe so a full DB is not hit once per high-frequency batch.
+      if(this.env.MARKET_HISTORY_DB?.prepare&&Date.now()-this.capacityProbeAt>60000){
+        this.capacityProbeAt=Date.now();
+        try{const p=await this.env.DB.prepare('SELECT 1 AS healthy').all();
+          const bytes=Number(p?.meta?.size_after);this.primaryBytes=bytes>0?bytes:null;
+        }catch{}
+      }
+      if(this.primaryBytes>=9500000000&&this.env.MARKET_HISTORY_DB?.prepare)throw Error('PRIMARY_SOFT_CAP_HISTORY_ROUTE');
       const r=await persistNormalizedMarketBatch(this.env.DB,offers,{
         snapshotType:"CURRENT",collectedAt:new Date().toISOString(),modelProbability:null
       });

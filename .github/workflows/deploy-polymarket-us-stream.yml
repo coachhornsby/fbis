@@ -73,11 +73,11 @@ jobs:
           set -euo pipefail
           file="$(mktemp)"
           verified=0
-          for attempt in 1 2 3 4 5 6 7 8; do
+          for attempt in $(seq 1 24); do
             code="$(curl -sS --retry 2 --retry-all-errors --retry-delay 2 --max-time 30 -o "$file" -w '%{http_code}' "https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health" || true)"
             echo "stream-status attempt=$attempt http=$code"
             if [ "$code" = "200" ] && jq -e '.readOnly == true and .canAuthorizeWager == false
-              and .codeVersion == "board-history-recovery-transport-isolation-20261018"
+              and .codeVersion == "board-history-recovery-capacity-routing-20261018"
               and .diagnosticsVersion == 2
               and (.subscribedMarketIds | type) == "array"
               and .shadow.enabled == false

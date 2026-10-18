@@ -58,6 +58,8 @@ function teamMatches(a,b,abbr){
 // Verified against the independent ESPN fixtures and the provider's two-team
 // event titles at the same kickoff. Aliases never cross competition scope.
 const SOCCER_MARKET_NAME_ALIASES={
+ 'fra.1':{'aj auxerre':'auxerre','le havre ac':'le havre','stade rennais':'rennes'},
+ 'usa.nwsl':{'chicago stars':'chicago red stars'},
  'ger.1':{'1 koln':'cologne','koln':'cologne','bayer 04 leverkusen':'bayer leverkusen','tsg 1899 hoffenheim':'tsg hoffenheim'},
  'esp.1':{'rc deportivo a coruna':'deportivo','deportivo la coruna':'deportivo','rc celta de vigo':'celta vigo','real racing':'racing santander'},
 };

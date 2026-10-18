@@ -9,7 +9,7 @@ const PROVIDER_SPORT_IDS=Object.freeze({
 });
 const numeric=v=>v==null||v===''||!Number.isFinite(Number(v))?null:Number(v);
 const parse=v=>{const n=Date.parse(String(v||''));return Number.isFinite(n)?n:null;};
-export async function loadPinnoddsR2BoardResearch(archive,{sport,games=[],now=new Date().toISOString()}={}){
+export async function loadPinnoddsR2BoardResearch(archive,{sport,games=[],now=new Date().toISOString(),includeStarted=false}={}){
  const sportIds=PROVIDER_SPORT_IDS[sport]||[];
  if(!archive?.get||!sportIds.length)return {byGame:{},rows:0,reason:'ARCHIVE_UNAVAILABLE'};
  const current=parse(now);
@@ -33,7 +33,7 @@ export async function loadPinnoddsR2BoardResearch(archive,{sport,games=[],now=ne
   for(const o of result.rows){
    if(o?.source!=='PinnOdds'||o?.sport!==sport||!allowed.has(String(o.eventId||'')))continue;
    const kick=parse(o.eventStart);
-   if(kick===null||at>=kick||current>=kick)continue;
+   if(kick===null||at>=kick||(current>=kick&&(!includeStarted||current-kick>12*3600000)))continue;
    if(!['moneyline','spread','total'].includes(o.marketFamily)||o.period!=='full_game')continue;
    if(!['away','home','over','under'].includes(o.side)||numeric(o.decimalOdds)<=1)continue;
    if(o.sourceObservedAt!=null)continue; // provider clock is not independently verified
