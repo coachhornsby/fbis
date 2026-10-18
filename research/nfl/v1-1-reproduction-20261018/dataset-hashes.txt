@@ -1,0 +1,2 @@
+6764647923489c6ec91e7996a11c05d44baca9f8d018181c924518385785ed07  artifacts/nfl/nfl_game_training_2015_2026.csv
+3a87f5bfad2e9dc7508b9d0cde9ac543c29b4b8444d67fb8bf15f6996fef08a3  artifacts/nfl/nfl_game_training_2015_2026_qa.json
