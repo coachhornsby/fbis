@@ -8,7 +8,13 @@
  * Unfitted families report sensitivity deltas with predictiveEvidence: "unproven".
  */
 
-import { projectModelA, projectModelB, projectModelC, projectModelD } from "./cfbCurrentSeasonChallengers.js";
+import {
+  projectModelA,
+  projectModelB,
+  projectModelC,
+  projectModelD,
+  projectModelE,
+} from "./cfbCurrentSeasonChallengers.js";
 import { instrumentProjectionContribution } from "./cfbFeatureContract.js";
 
 export const FEATURE_IMPACT_VERSION = "cfb-feature-impact-v1";
@@ -257,14 +263,14 @@ export function runFeatureImpactAblation({ game = null } = {}) {
     );
   }
 
-  // Model B vs A (faster shrink) — numerical only
+  // Model B fitted pass/rush research package — numerical only
   const b = projectModelB(g);
   table.push(
-    deltaRow("Model B faster shrink (research)", baselineA, b, {
-      familyId: "model_b_shrink",
+    deltaRow("Model B pass/rush fitted (research)", baselineA, b, {
+      familyId: "model_b_pass_rush",
       fittedInChampion: false,
-      predictiveEvidence: "research_challenger_needs_walk_forward",
-      method: "alternate_shrinkK_same_features",
+      predictiveEvidence: b.oosDecision || "NO_OOS_IMPROVEMENT_VS_CHAMPION_A",
+      method: "fitted_research_ridge_ablation_B",
     })
   );
 
@@ -282,24 +288,27 @@ export function runFeatureImpactAblation({ game = null } = {}) {
   });
 
   const d = projectModelD(g);
-  table.push(
-    deltaRow("Model D equal-weight A/B blend", baselineA, d, {
-      familyId: "model_d",
-      fittedInChampion: false,
-      predictiveEvidence: "placeholder_blend_not_trained_ensemble",
-      method: "equal_weight_margin_total",
-    })
-  );
-
   table.push({
-    featureFamily: "Model E combined challenger",
+    featureFamily: "Model D + SDV",
     homePtsChange: null,
     awayPtsChange: null,
     marginChange: null,
     totalChange: null,
-    historicalAccuracyImpact: "unavailable_no_fitted_artifact",
-    familyId: "model_e",
+    historicalAccuracyImpact: "unproven_no_fitted_sdv_artifact",
+    familyId: "model_d",
+    ok: d.ok,
+    reason: d.reason,
   });
+
+  const e = projectModelE(g);
+  table.push(
+    deltaRow("Model E combined advanced fitted (research)", baselineA, e, {
+      familyId: "model_e",
+      fittedInChampion: false,
+      predictiveEvidence: e.oosDecision || "NO_OOS_IMPROVEMENT_VS_CHAMPION_A",
+      method: "fitted_research_ridge_ablation_F",
+    })
+  );
 
   const nonzeroFitted = table.filter(
     (r) =>
@@ -321,7 +330,8 @@ export function runFeatureImpactAblation({ game = null } = {}) {
     caveats: [
       "Ablating unfitted families under fixed coefficients does not prove predictive value.",
       "Claimed accuracy gains require leakage-safe refits + matched OOS evaluation.",
-      "Model C/E blocked until fitted artifacts exist.",
+      "Model C blocked until fitted CORE OOS artifact exists; Model D until SDV artifact.",
+      "Fitted B/E packages exist but do not beat champion A/A beyond practical ε — no promotion.",
     ],
   };
 }

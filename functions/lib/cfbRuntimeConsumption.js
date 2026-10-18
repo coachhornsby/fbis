@@ -4,7 +4,13 @@
  * not merely present in input JSON.
  */
 
-import { projectModelA, projectModelB, projectModelC, projectModelD } from "./cfbCurrentSeasonChallengers.js";
+import {
+  projectModelA,
+  projectModelB,
+  projectModelC,
+  projectModelD,
+  projectModelE,
+} from "./cfbCurrentSeasonChallengers.js";
 import { projectCfbFbisV2Production } from "./cfbFbisV2.js";
 import {
   CFB_CHAMPION_CONSUMED_FIELDS,
@@ -81,11 +87,7 @@ export function probeRuntimeConsumption({ modelId = "A", game = null } = {}) {
   } else if (modelId === "D") {
     proj = projectModelD(g);
   } else if (modelId === "E") {
-    proj = {
-      ok: false,
-      reason: "FITTED_COMBINED_ARTIFACT_UNAVAILABLE",
-      note: "Model E requires validated combined artifact — not inferred from equal-weight blend",
-    };
+    proj = projectModelE(g);
   } else {
     proj = projectCfbFbisV2Production(g);
     challengerId = "A";
@@ -146,17 +148,38 @@ export function probeRuntimeConsumption({ modelId = "A", game = null } = {}) {
       });
     }
   } else if (challengerId === "B") {
-    actuallyRead.push(...FITTED_NONZERO_FEATURES, "researchShrinkK");
-    fittedNonzero.push({ feature: "shrinkK", value: proj?.researchShrinkK ?? 3, note: "research-only faster decay" });
-    ignored.push(...CFB_COLLECTED_BUT_UNUSED_BY_CHAMPION);
-    researchOnly.push("faster_prior_decay");
+    actuallyRead.push(...FITTED_NONZERO_FEATURES, "pass", "rush", "pass_total", "rush_total");
+    fittedNonzero.push({
+      feature: "research_ablation_B",
+      artifactId: proj?.fittedArtifactId || null,
+      improvesOverChampion: proj?.improvesOverChampion === true,
+      note: "research-only pass/rush ridge",
+    });
+    ignored.push(...CFB_COLLECTED_BUT_UNUSED_BY_CHAMPION.filter((k) => !String(k).match(/pass|rush/i)));
+    researchOnly.push("pass_rush_efficiency");
   } else if (challengerId === "C") {
     actuallyRead.push("requires_fitted_core_artifact");
     ignored.push(...CFB_COLLECTED_BUT_UNUSED_BY_CHAMPION, "coreOffense", "coreDefense");
     researchOnly.push("CORE");
   } else if (challengerId === "D") {
-    actuallyRead.push("modelA_margin_total", "modelB_margin_total");
-    researchOnly.push("equal_weight_blend_placeholder");
+    actuallyRead.push("requires_fitted_sdv_artifact");
+    researchOnly.push("SDV");
+  } else if (challengerId === "E" || modelId === "E") {
+    actuallyRead.push(
+      ...FITTED_NONZERO_FEATURES,
+      "pass",
+      "rush",
+      "success",
+      "explosiveness",
+      "trenches"
+    );
+    fittedNonzero.push({
+      feature: "research_ablation_F",
+      artifactId: proj?.fittedArtifactId || null,
+      improvesOverChampion: proj?.improvesOverChampion === true,
+      note: "research-only combined advanced ridge",
+    });
+    researchOnly.push("combined_advanced_cfbd");
   }
 
   const declaredChampionKeys = new Set(CFB_CHAMPION_CONSUMED_FIELDS.map((f) => f.key).concat(["hfa"]));
@@ -211,6 +234,8 @@ export function probeRuntimeConsumption({ modelId = "A", game = null } = {}) {
       (criticalSilentOmissions2.length === 0 && !unjustifiedHistoricalFallback),
     criticalSilentOmissions: criticalSilentOmissions2,
     unjustifiedHistoricalFallback,
+    canInfluenceProduction: Boolean(proj?.canInfluenceProduction),
+    canAuthorizeWager: Boolean(proj?.canAuthorizeWager),
     note:
       challengerId === "A"
         ? "Fitted champion influence is prior+PPA+n+HFA only — page fields may still appear in input JSON"
