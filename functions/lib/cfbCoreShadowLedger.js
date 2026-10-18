@@ -6,6 +6,7 @@
 import {CFB_CORE_SHADOW_ID, projectCfbCoreShadow, buildCfbCoreMatchupVector} from "./cfbCoreChallenger.js";
 import {evaluateCfbCoreResearch} from "./cfbCoreEvaluation.js";
 import {CHAMPION_HFA} from "./collegeModels.js";
+import {estimateCfbWeekFromDate} from "./cfbCoreAdvancedPlumbing.js";
 
 const num = v => v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v);
 const str = v => (v == null || v === "") ? null : String(v);
@@ -518,9 +519,34 @@ export async function loadCfbCoreTeamIndex(env, season) {
   }
 }
 
+function normalizeTeamName(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function parseMatchup(matchup) {
+  const raw = String(matchup || "");
+  const m = raw.match(/^(.+?)\s+@\s+(.+)$/);
+  if (!m) return { awayTeam: null, homeTeam: null };
+  return { awayTeam: m[1].trim(), homeTeam: m[2].trim() };
+}
+
+function parsePalMeta(raw) {
+  try { return typeof raw === "string" ? JSON.parse(raw || "{}") : (raw || {}); }
+  catch { return {}; }
+}
+
+function findTeamFeat(teamIndex, name) {
+  if (!name || !teamIndex?.byName) return null;
+  return teamIndex.byName.get(normalizeTeamName(name)) || null;
+}
+
 /**
- * Cache-only freeze from existing champion predictions + CORE team snapshots.
- * Does not call CFBD.
+ * Cache-only freeze from prediction_snapshots / predictions + CORE team snapshots.
+ * Does not call CFBD. model_predictions is optional (often absent on primary).
  */
 export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = {}) {
   const generationAt = now || new Date().toISOString();
@@ -528,76 +554,115 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
   if (!env?.DB?.prepare) {
     return { ok: false, reason: "PRIMARY_DB_UNAVAILABLE", inserted: 0, noProviderCalls: true };
   }
+
+  const cap = Math.min(500, Math.max(1, limit));
   let preds = [];
+  let source = "prediction_snapshots";
   try {
     preds = (await env.DB.prepare(
-      `SELECT game_id,season,model_id,model_version,proj_home,proj_away,p_home_win,frozen_at,features_json
-       FROM model_predictions
-       WHERE sport='cfb' AND actual_home IS NULL
-       ORDER BY frozen_at DESC LIMIT ?`
-    ).bind(Math.min(500, Math.max(1, limit))).all())?.results || [];
-  } catch (err) {
-    return { ok: false, reason: String(err?.message || err), inserted: 0, noProviderCalls: true };
+      `SELECT game_id,date,matchup,model_version,proj_home,proj_away,p_home_final,frozen_at,
+              pin_home_ml,pin_away_ml,pal_json,projection_kind
+       FROM prediction_snapshots
+       WHERE sport='cfb' AND actual_home IS NULL AND date >= date('now','-1 day')
+       ORDER BY date ASC, frozen_at DESC LIMIT ?`
+    ).bind(cap).all())?.results || [];
+  } catch {
+    preds = [];
   }
-  const seasons = [...new Set(preds.map(p => Number(p.season)).filter(Number.isFinite))];
-  const season = seasons[0] || new Date().getUTCFullYear();
+  if (!preds.length) {
+    try {
+      preds = (await env.DB.prepare(
+        `SELECT game_id,date,matchup,model_version,proj_home,proj_away,p_home_final as p_home_final,
+                as_of as frozen_at, pin_home_ml, pin_away_ml, pal_json, projection_kind
+         FROM predictions
+         WHERE sport='cfb' AND actual_home IS NULL AND date >= date('now','-1 day')
+         ORDER BY date ASC, as_of DESC LIMIT ?`
+      ).bind(cap).all())?.results || [];
+      source = "predictions";
+    } catch (err) {
+      return { ok: false, reason: String(err?.message || err), inserted: 0, noProviderCalls: true };
+    }
+  }
+
+  const season = new Date().getUTCFullYear();
   const teamIndex = await loadCfbCoreTeamIndex(env, season);
+  // Name index for matchup parsing (canonical team_id map alone is insufficient).
+  teamIndex.byName = new Map();
+  for (const feat of teamIndex.byTeam.values()) {
+    const key = normalizeTeamName(feat.team || feat.school || feat.displayName);
+    if (key && !teamIndex.byName.has(key)) teamIndex.byName.set(key, feat);
+  }
+
   const records = [];
   const seen = new Set();
   for (const p of preds) {
     const gid = String(p.game_id);
     if (seen.has(gid)) continue;
     seen.add(gid);
-    let meta = {};
-    try { meta = JSON.parse(p.features_json || "{}"); } catch { meta = {}; }
-    const homeId = meta.homeTeamId || meta.home_canonical_id || meta.homeId;
-    const awayId = meta.awayTeamId || meta.away_canonical_id || meta.awayId;
-    const homeFeat = homeId ? teamIndex.byTeam.get(homeId) : null;
-    const awayFeat = awayId ? teamIndex.byTeam.get(awayId) : null;
-    const kickoff = meta.kickoff || meta.start || meta.startDate || p.frozen_at;
-    const week = num(meta.week);
-    // Skip if kickoff already passed by more than 15m (avoid late freezes as "pregame")
+    const pal = parsePalMeta(p.pal_json);
+    const parsed = parseMatchup(p.matchup);
+    const homeTeam = pal.homeName || parsed.homeTeam;
+    const awayTeam = pal.awayName || parsed.awayTeam;
+    const homeFeat = findTeamFeat(teamIndex, homeTeam);
+    const awayFeat = findTeamFeat(teamIndex, awayTeam);
+    const kickoff = pal.start || pal.kickoff || (p.date ? `${p.date}T19:00:00Z` : p.frozen_at);
+    const week = num(pal.week) ?? estimateCfbWeekFromDate(p.date || kickoff, season);
     const kickMs = Date.parse(String(kickoff || ""));
-    if (Number.isFinite(kickMs) && kickMs < Date.parse(generationAt) - 15 * 60 * 1000) continue;
+    // Ungraded snapshots remain freeze-eligible. CORE PIT still requires
+    // throughWeek < gameWeek and CORE observed before kickoff.
+    const frozenAfterKickoff = Number.isFinite(kickMs) && kickMs < Date.parse(generationAt);
 
-    records.push(buildCfbCoreShadowRecord({
+    const marketSpread = num(pal.pinSpread);
+    const marketTotal = num(pal.pinTotal);
+    const marketCapturedAt = (marketSpread != null || marketTotal != null)
+      ? (p.frozen_at || generationAt) : null;
+
+    const rec = buildCfbCoreShadowRecord({
       gameId: gid,
-      season: Number(p.season) || season,
+      season: num(pal.season) || season,
       week,
       kickoff,
-      homeTeamId: homeId,
-      awayTeamId: awayId,
-      homeTeam: meta.homeTeam || homeFeat?.team,
-      awayTeam: meta.awayTeam || awayFeat?.team,
-      homeConference: meta.homeConference || homeFeat?.conference,
-      awayConference: meta.awayConference || awayFeat?.conference,
-      neutralSite: meta.neutralSite || false,
-      championModelId: p.model_id,
+      homeTeamId: homeFeat?.teamId || homeFeat?.canonicalId || null,
+      awayTeamId: awayFeat?.teamId || awayFeat?.canonicalId || null,
+      homeTeam,
+      awayTeam,
+      homeConference: homeFeat?.conference || null,
+      awayConference: awayFeat?.conference || null,
+      neutralSite: false,
+      championModelId: p.projection_kind === "FBIS" ? "CFB-FBIS-v2" : (p.model_version || "CFB-CHAMPION"),
       championModelVersion: p.model_version,
       championHome: num(p.proj_home),
       championAway: num(p.proj_away),
-      championPHomeWin: num(p.p_home_win),
+      championPHomeWin: num(p.p_home_final),
       homeFeatures: homeFeat,
       awayFeatures: awayFeat,
       home: homeFeat,
       away: awayFeat,
     }, {
       artifact,
-      market: meta.marketSpread != null ? {
-        spread: meta.marketSpread,
-        total: meta.marketTotal,
-        mlHome: meta.marketMlHome,
-        mlAway: meta.marketMlAway,
-        capturedAt: meta.marketCapturedAt,
-        source: meta.marketSource || "PinnOdds",
-        observationId: meta.marketObservationId,
+      market: marketCapturedAt ? {
+        spread: marketSpread,
+        total: marketTotal,
+        mlHome: num(p.pin_home_ml),
+        mlAway: num(p.pin_away_ml),
+        capturedAt: marketCapturedAt,
+        source: "PinnOdds",
       } : null,
       now: generationAt,
-    }));
+    });
+    if (frozenAfterKickoff) {
+      rec.provenance = {
+        ...rec.provenance,
+        frozenAfterKickoff: true,
+        note: "Ungraded snapshot freeze; CORE still week-bounded and pre-kickoff observed.",
+      };
+    }
+    records.push(rec);
   }
   const freeze = await freezeCfbCoreShadowRecords(env, records);
   return {
     ...freeze,
+    source,
     candidates: records.length,
     eligibleProjected: records.filter(r => r.eligibility === "eligible_projected").length,
     flagged: records.filter(r => r.eligibility !== "eligible_projected").length,
@@ -618,12 +683,23 @@ export async function runCfbCoreShadowSettle(env, { now = null } = {}) {
   let graded = [];
   try {
     graded = (await env.DB.prepare(
-      `SELECT game_id,actual_home,actual_away FROM model_predictions
+      `SELECT game_id,actual_home,actual_away FROM prediction_snapshots
        WHERE sport='cfb' AND actual_home IS NOT NULL AND actual_away IS NOT NULL
-       ORDER BY frozen_at DESC LIMIT 300`
+       ORDER BY frozen_at DESC LIMIT 400`
     ).all())?.results || [];
-  } catch (err) {
-    return { ok: false, reason: String(err?.message || err), settled: 0 };
+  } catch {
+    graded = [];
+  }
+  if (!graded.length) {
+    try {
+      graded = (await env.DB.prepare(
+        `SELECT game_id,actual_home,actual_away FROM predictions
+         WHERE sport='cfb' AND actual_home IS NOT NULL AND actual_away IS NOT NULL
+         ORDER BY as_of DESC LIMIT 400`
+      ).all())?.results || [];
+    } catch (err) {
+      return { ok: false, reason: String(err?.message || err), settled: 0 };
+    }
   }
   const settlements = graded.map(g => ({
     gameId: g.game_id,
