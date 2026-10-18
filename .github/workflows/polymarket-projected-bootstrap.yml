@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [functions/lib/polymarketBootstrap.js, scripts/polymarket-bootstrap.mjs, .github/workflows/polymarket-projected-bootstrap.yml]
+    paths: [functions/lib/polymarketBootstrap.js, functions/api/polymarket-bootstrap.js, scripts/polymarket-bootstrap.mjs, .github/workflows/polymarket-projected-bootstrap.yml]
 permissions:
   contents: read
 concurrency:
