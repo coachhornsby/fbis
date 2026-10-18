@@ -23,6 +23,10 @@ import {
   NFL_DISPLAYED_RESEARCH,
   nflGovernanceStamp,
 } from "./nflModelGovernance.js";
+import {
+  isWeakResearchLaneQuarantined,
+  weakResearchQuarantineList,
+} from "./nflProjectionImprovements.js";
 import { MLB_DEEP_ID } from "./mlbDeepModel.js";
 import { NHL_RESEARCH_MODEL_ID, NHL_RESEARCH_MODEL_VERSION } from "./nhlResearchModel.js";
 import { NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
@@ -351,14 +355,30 @@ export function promoteNflResearchToBoard(games = []) {
 
     promoted += 1;
     formFallback += 1;
-    return stampResearchBoard(game, {
+    const quarantined = isWeakResearchLaneQuarantined(version);
+    const stamped = stampResearchBoard(game, {
       modelId: NFL_PURE_CHALLENGER_ID,
       modelVersion: version,
       scores,
-      displayLabel: "FBIS RESEARCH PROJECTION · FORM FALLBACK",
+      displayLabel: quarantined
+        ? "FBIS RESEARCH PROJECTION · FORM FALLBACK (QUARANTINED)"
+        : "FBIS RESEARCH PROJECTION · FORM FALLBACK",
       underlying,
-      researchNote: note,
+      researchNote: quarantined
+        ? `${note} Quarantined weak research lane — not promotion evidence.`
+        : note,
     });
+    if (quarantined) {
+      stamped.researchQuarantined = true;
+      stamped.researchQuarantineReason = "weak-research-lane";
+      stamped.researchQuarantineLane = version;
+      stamped.promotionEvidenceEligible = false;
+      if (stamped.researchProjection) {
+        stamped.researchProjection.quarantined = true;
+        stamped.researchProjection.quarantineReason = "weak-research-lane";
+      }
+    }
+    return stamped;
   });
   return {
     games: next,
@@ -373,6 +393,7 @@ export function promoteNflResearchToBoard(games = []) {
       publication: "RESEARCH_PUBLISHABLE",
       promotionState: "RESEARCH_BOARD_PRIMARY_WHEN_AVAILABLE",
       validationRequiredForWagerAuthority: true,
+      weakResearchQuarantine: weakResearchQuarantineList(),
     },
   };
 }
