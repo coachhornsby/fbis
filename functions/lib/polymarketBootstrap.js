@@ -1,6 +1,7 @@
 import {POLY_US_API,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers} from './polymarketUs.js';
 import {polymarketUsSideLabel,polymarketUsCanonicalSide} from './polymarketUs.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
+// Capacity-aware bootstrap writes may land on MARKET_HISTORY_DB via the API gate.
 const valid=s=>/^[a-z0-9-]{1,160}$/i.test(s||'');
 const prefix='market-sources/polymarket-us/bootstrap/';
 export async function projectedPolymarketFixtures(db,now=new Date()){
