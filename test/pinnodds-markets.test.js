@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {normalizePinnoddsMarkets,pinnoddsSport} from '../functions/lib/pinnoddsMarkets.js';
+import {normalizePinnoddsMarkets,pinnoddsSport,canonicalPinnoddsFixtures} from '../functions/lib/pinnoddsMarkets.js';
 const event={event_id:123,league_name:'MLB',home:'Home Team',away:'Away Team',starts:'2026-10-14T00:00:00Z',periods:{num_0:{number:0,money_line:{home:1.9,away:2.1},spreads:{'-1.5':{hdp:-1.5,home:2.2,away:1.8},'1.5':{hdp:1.5,home:1.4,away:3.2}},totals:{'7.5':{points:7.5,over:1.9,under:1.95}},team_totals:{home:{'3.5':{points:3.5,over:1.8,under:2.05},'4.5':{points:4.5,over:2.5,under:1.6}}}},num_1:{description:'1st 5 innings',totals:{'4.5':{points:4.5,over:2.1,under:1.8}}}}};
 const game={id:'canonical',sport:'mlb',start:event.starts,home_name:'Home Team',away_name:'Away Team'};
 const options={sportId:6,feed:'prematch',capturedAt:'2026-10-13T17:00:00Z',snapshotId:'snapshot',rawKey:'raw-key',games:[game]};
@@ -69,4 +69,18 @@ test('exact legacy NFL schedule duplicates resolve to one official event; confli
  assert.ok(matched.rows.length>0);assert.ok(matched.rows.every(r=>r.eventId===official.id));
  const ambiguous=normalizePinnoddsMarkets({events:[event]},{...opts,games:[official,{...official,id:'401872995'}]});
  assert.ok(ambiguous.rows.every(r=>r.eventId===null));
+});
+
+test('NBA opening-week slug fixtures collapse onto the ESPN game id for board hydration',()=>{
+ const start='2026-10-20T19:00:00Z';
+ const event={event_id:501,league_name:'NBA',starts:start,home:'Detroit Pistons',away:'Boston Celtics',
+  periods:{num_0:{number:0,money_line:{home:1.91,away:1.91},spreads:{'1.5':{hdp:1.5,home:1.9,away:1.9}}}}};
+ const espn={id:'401909088',sport:'nba',start,home_name:'Detroit Pistons',away_name:'Boston Celtics',home_abbr:'DET',away_abbr:'BOS'};
+ const slug={...espn,id:'nba_celtics_pistons_2026-10-20_b2'};
+ assert.deepEqual(canonicalPinnoddsFixtures([slug,espn]).map(g=>g.id),['401909088']);
+ const opts={sportId:3,feed:'prematch',capturedAt:'2026-10-18T20:20:45.315Z',snapshotId:'nba-board-3',rawKey:'raw-nba',games:[slug,espn]};
+ const matched=normalizePinnoddsMarkets({events:[event]},opts);
+ assert.ok(matched.matchedRows>=2);
+ assert.ok(matched.rows.every(r=>r.eventId==='401909088'));
+ assert.ok(matched.rows.every(r=>r.sport==='nba'&&!r.executionEligible&&r.raw.canAuthorizeWager===false));
 });

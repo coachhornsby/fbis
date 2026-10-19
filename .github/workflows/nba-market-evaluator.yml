@@ -91,7 +91,21 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          if [ -s artifacts/nba-prospective-market-links.sql ]; then node scripts/d1-batched-sql.mjs artifacts/nba-prospective-market-links.sql; fi
+          if [ ! -s artifacts/nba-prospective-market-links.sql ]; then
+            echo "No market-link SQL to persist"
+            exit 0
+          fi
+          if node scripts/d1-batched-sql.mjs artifacts/nba-prospective-market-links.sql; then
+            echo "NBA_MARKET_LINKS_D1=applied" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          status=$?
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          npx wrangler r2 object put "fbis-archive/evaluation/nba/market-links/${stamp}.sql" --file artifacts/nba-prospective-market-links.sql --remote
+          npx wrangler r2 object put "fbis-archive/evaluation/nba/market-links/${stamp}.json" --file artifacts/nba-prospective-market-links.json --remote || true
+          echo "NBA_MARKET_LINKS_D1=degraded_r2_archive" >> "$GITHUB_ENV"
+          echo "::warning::NBA market-link D1 persist failed (exit=$status); archived SQL to R2. Wager authority unchanged (still false)."
+          # Do not fail the evaluator on primary D1 size pressure: research continues via R2.
 
       - name: Export point-in-time NBA projections and markets
         env:

@@ -2592,6 +2592,14 @@ export function collectDatesForSport(sport, today, dayOffset) {
   if (dayOffset != null && dayOffset !== "" && Number.isFinite(Number(dayOffset))) {
     return [shiftDateCT(today, Number(dayOffset))];
   }
+  // NBA needs a bounded look-ahead so opening-week / multi-day slates enter
+  // `games` before tipoff day. Team schedule items alone do not publish games.
+  if (sport === "nba") {
+    // Lazy import avoided: keep this sync and mirror nbaForwardSlate defaults.
+    const dayList = [today, shiftDateCT(today, 1)];
+    for (let i = 2; i <= 4; i += 1) dayList.push(shiftDateCT(today, i));
+    return [...new Set(dayList)];
+  }
   const dayList = [today, shiftDateCT(today, 1)];
   if (sport === "cfb" || sport === "nfl") {
     dayList.unshift(shiftDateCT(today, -1));

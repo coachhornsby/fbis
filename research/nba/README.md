@@ -226,6 +226,15 @@ Current governance:
 - canQualify = true
 - wagerAuthorization = false
 
+## Opening-week / forward-slate operations
+
+`nba_team_schedule_items` holds the full season for rest/travel features. It does **not** publish the board `games` table.
+
+Board/freeze publication remains ESPN scoreboard → collect/`freezeSlate`. NBA collect now looks ahead Chicago today through +4 so opening-week fixtures enter `games` before tipoff day.
+
+Prospective shadow (`nba-prospective-shadow.yml`) projects Chicago today through +6 via `scripts/nba-forward-shadow-range.mjs` so `nba_game_projections` exists before tipoff. Readiness probe: `scripts/nba-opening-night-readiness.mjs`.
+
+If primary D1 rejects market-link writes (`Exceeded maximum DB size`), the market evaluator archives SQL to R2 and continues without granting wager authority.
 
 ## Game-level wagering architecture
 

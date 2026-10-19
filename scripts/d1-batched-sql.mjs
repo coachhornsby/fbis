@@ -42,8 +42,18 @@ for(let offset=0;offset<stmts.length;offset+=batchSize){
       const body=await r.json().catch(()=>null);
       const resultOk=r.ok&&body?.success===true&&(!Array.isArray(body?.result)||body.result.every(x=>x?.success!==false));
       if(resultOk){ok=true;break}
-      last=new Error(`D1 HTTP ${r.status}: ${JSON.stringify(body)?.slice(0,900)}`);
-    }catch(e){last=e}
+      const msg=JSON.stringify(body)?.slice(0,900)||"";
+      last=new Error(`D1 HTTP ${r.status}: ${msg}`);
+      // Max-size is not replayable by waiting; surface a stable code for workflows.
+      if(/Exceeded maximum DB size/i.test(msg)){
+        const err=new Error(`D1_MAX_SIZE_EXCEEDED batch=${batches+1}: ${msg}`);
+        err.code="D1_MAX_SIZE_EXCEEDED";
+        throw err;
+      }
+    }catch(e){
+      if(e?.code==="D1_MAX_SIZE_EXCEEDED")throw e;
+      last=e;
+    }
     const delay=Math.min(120,attempt*15);
     process.stderr.write(`D1 batch ${batches+1} attempt ${attempt}/${attempts} failed; retry in ${delay}s: ${last?.message||last}\n`);
     await new Promise(r=>setTimeout(r,delay*1000));

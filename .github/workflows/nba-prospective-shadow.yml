@@ -23,6 +23,8 @@ on:
       - "scripts/nba-deep-shadow-project.mjs"
       - "migrations/0052_nba_deep_game_model.sql"
       - "scripts/nba-shadow-project.mjs"
+      - "scripts/nba-forward-shadow-range.mjs"
+      - "functions/lib/nbaForwardSlate.js"
       - "scripts/nba-canonical-build.mjs"
       - "scripts/nba-merge-canonical.mjs"
       - ".github/workflows/nba-prospective-shadow.yml"
@@ -142,30 +144,20 @@ jobs:
         run: |
           node scripts/nba-player-impact-live.mjs             frozen=artifacts/frozen/nba-canonical.jsonl             current=artifacts/current/nba-canonical.jsonl             historicalImpact=artifacts/frozen/nba-player-impact-v1.json             availability=artifacts/nba-availability.json             coverage=artifacts/nba-availability-coverage.json             priorStates=artifacts/nba-player-states-prior.json             lineupEvidence=artifacts/nba-official-lineups.json             lineupEffects=artifacts/frozen/nba-lineup-effects.json             out=artifacts/nba-player-impact-live.json             sql=artifacts/nba-player-impact-live.sql
 
-      - name: Generate calibrated research shadow
+      - name: Generate forward-window calibrated research shadow (today..+6 CT)
         run: |
-          node scripts/nba-shadow-project.mjs date="$NBA_TODAY" checkpoint="$NBA_CHECKPOINT" prior=artifacts/frozen/nba-canonical.jsonl current=artifacts/current/nba-canonical.jsonl impact=artifacts/nba-player-impact-live.json
-
-      - name: Generate isolated NBA v1-PROFILE challenger and control freeze
-        run: |
-          node scripts/nba-profile-shadow-project.mjs date="$NBA_TODAY" checkpoint="$NBA_CHECKPOINT" codeSha="$GITHUB_SHA" prior=artifacts/frozen/nba-canonical.jsonl current=artifacts/current/nba-canonical.jsonl impact=artifacts/nba-player-impact-live.json stateSnapshots=artifacts/nba-latest-team-snapshots.json out=artifacts/nba-three-model-freeze.json sql=artifacts/nba-profile-prospective.sql
-
-      - name: Generate NBA deep-v2 game challenger
-        run: |
-          if [ -s artifacts/deep/nba-fbis-v2-deep-fit.json ]; then
-            node scripts/nba-deep-shadow-project.mjs               date="$NBA_TODAY" checkpoint="$NBA_CHECKPOINT"               prior=artifacts/frozen/nba-canonical.jsonl               current=artifacts/current/nba-canonical.jsonl               impact=artifacts/nba-player-impact-live.json               fit=artifacts/deep/nba-fbis-v2-deep-fit.json               out=artifacts/nba-deep-shadow.json               sql=artifacts/nba-deep-shadow.sql
-          else
-            echo '{"skipped":true,"reason":"deep_fit_not_available"}' > artifacts/nba-deep-shadow.json
-            : > artifacts/nba-deep-shadow.sql
-          fi
-
-      - name: Bridge deep-v2 into common prospective ledger
-        run: |
-          if [ -s artifacts/nba-deep-shadow.json ]; then
-            node scripts/nba-deep-prospective-ledger.mjs input=artifacts/nba-deep-shadow.json stateSnapshots=artifacts/nba-latest-team-snapshots.json codeSha="$GITHUB_SHA" sql=artifacts/nba-deep-prospective-ledger.sql
-          else
-            : > artifacts/nba-deep-prospective-ledger.sql
-          fi
+          set -euo pipefail
+          # Keep single-day artifact names for downstream consumers, then overwrite
+          # with the forward-window aggregate used for D1 persistence.
+          node scripts/nba-forward-shadow-range.mjs             date="$NBA_TODAY"             throughDays=6             checkpoint="$NBA_CHECKPOINT"             codeSha="$GITHUB_SHA"             prior=artifacts/frozen/nba-canonical.jsonl             current=artifacts/current/nba-canonical.jsonl             impact=artifacts/nba-player-impact-live.json             stateSnapshots=artifacts/nba-latest-team-snapshots.json             deepFit=artifacts/deep/nba-fbis-v2-deep-fit.json             outDir=artifacts/forward-shadow
+          cp artifacts/forward-shadow/"$NBA_TODAY"/nba-shadow.json artifacts/nba-shadow.json 2>/dev/null || echo '{"games":[]}' > artifacts/nba-shadow.json
+          cp artifacts/forward-shadow/"$NBA_TODAY"/nba-three-model-freeze.json artifacts/nba-three-model-freeze.json 2>/dev/null || echo '{"rows":[]}' > artifacts/nba-three-model-freeze.json
+          cp artifacts/forward-shadow/"$NBA_TODAY"/nba-deep-shadow.json artifacts/nba-deep-shadow.json 2>/dev/null || echo '{"skipped":true}' > artifacts/nba-deep-shadow.json
+          cp artifacts/forward-shadow/nba-forward-shadow.sql artifacts/nba-shadow.sql
+          cp artifacts/forward-shadow/nba-forward-profile.sql artifacts/nba-profile-prospective.sql
+          cp artifacts/forward-shadow/nba-forward-deep.sql artifacts/nba-deep-shadow.sql
+          cp artifacts/forward-shadow/nba-forward-deep-ledger.sql artifacts/nba-deep-prospective-ledger.sql
+          jq '{ok:true,mode:"forward-window",summary:.}' artifacts/forward-shadow/nba-forward-shadow-summary.json
 
       - name: Persist impact context and shadow projections to D1
         if: github.ref == 'refs/heads/main'
@@ -178,7 +170,7 @@ jobs:
           fi
           node scripts/d1-import-lock-retry.mjs migrations/0048_nba_player_impact.sql
           node scripts/d1-import-lock-retry.mjs artifacts/nba-player-impact-live.sql
-          node scripts/d1-import-lock-retry.mjs artifacts/nba-shadow.sql
+          if [ -s artifacts/nba-shadow.sql ]; then node scripts/d1-import-lock-retry.mjs artifacts/nba-shadow.sql; fi
           node scripts/d1-import-lock-retry.mjs migrations/0069_nba_prospective_profile_ablation.sql
           if [ -s artifacts/nba-profile-prospective.sql ]; then node scripts/d1-import-lock-retry.mjs artifacts/nba-profile-prospective.sql; fi
           node scripts/d1-import-lock-retry.mjs migrations/0052_nba_deep_game_model.sql
@@ -186,6 +178,21 @@ jobs:
             node scripts/d1-import-lock-retry.mjs artifacts/nba-deep-shadow.sql
           fi
           if [ -s artifacts/nba-deep-prospective-ledger.sql ]; then node scripts/d1-import-lock-retry.mjs artifacts/nba-deep-prospective-ledger.sql; fi
+
+      - name: Archive forward-shadow SQL to R2 when D1 is under pressure
+        if: github.ref == 'refs/heads/main' && always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          if [ -s artifacts/forward-shadow/nba-forward-shadow-summary.json ]; then
+            npx wrangler r2 object put "fbis-archive/evaluation/nba/forward-shadow/${stamp}/summary.json" --file artifacts/forward-shadow/nba-forward-shadow-summary.json --remote
+          fi
+          if [ -s artifacts/nba-shadow.sql ]; then
+            npx wrangler r2 object put "fbis-archive/evaluation/nba/forward-shadow/${stamp}/nba-shadow.sql" --file artifacts/nba-shadow.sql --remote
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
@@ -195,4 +202,5 @@ jobs:
             artifacts/nba-player-impact-live.json
             artifacts/nba-deep-shadow.json
             artifacts/nba-three-model-freeze.json
+            artifacts/forward-shadow/nba-forward-shadow-summary.json
           retention-days: 90
