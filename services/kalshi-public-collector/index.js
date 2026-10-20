@@ -137,14 +137,18 @@ export async function collectKalshiEvidenceOnce(env,{now=new Date(),fetchImpl=fe
  return result;
 }
 export default {
-  async scheduled(_event,env,ctx){
+  async scheduled(event,env,ctx){
+    // Spread auxiliary provider reads across scheduled windows. Concurrent
+    // multivariate / player-prop / tape fanout produced shared provider 429s.
+    // Market/tennis collectors keep their existing sport cadence.
+    const now=new Date(event?.scheduledTime||Date.now());
+    const aux=["player-props","player-props","multilegs","combo-tape",
+      "qualification-evidence"][Math.floor(now.getTime()/SLOT_MS)%5];
     ctx.waitUntil(Promise.all([
-      collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),collectKalshiExchangeStatusOnce(env),
-      collectKalshiSeriesCatalogOnce(env),
-      collectKalshiEvidenceOnce(env),
-      relaySignedPages(env,{scope:"player-props"}),
-      relaySignedPages(env,{scope:"multilegs"}),
-      relaySignedPages(env,{scope:"combo-tape"}),
+      collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),
+      collectKalshiExchangeStatusOnce(env),collectKalshiSeriesCatalogOnce(env),
+      aux==="qualification-evidence"?collectKalshiEvidenceOnce(env):
+        relaySignedPages(env,{scope:aux}),
     ]));
   },
   async fetch(request,env){
