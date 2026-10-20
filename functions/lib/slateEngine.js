@@ -32,6 +32,7 @@ import { attachCfbFbisV2, promoteCfbFbisV2ToBoard } from "./cfbFbisV2.js";
 import { attachCfbPlayerV1 } from "./cfbPlayerModel.js";
 import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
 import { promoteMlbResearchToBoard, promoteNflResearchToBoard, promoteCbbResearchToBoard, promoteNhlResearchToBoard } from "./researchBoardPromote.js";
+import { NHL_BETTING_PROMOTION_FROZEN } from "./nhlCalibrationWorkstream.js";
 import { loadNhlResearchPrior, attachNhlResearch } from "./nhlResearchModel.js";
 import { attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
 import { loadNhlProV2Context, attachNhlProV2, NHL_PRO_V2_ID, NHL_PRO_V2_VERSION } from "./nhlProV2.js";
@@ -310,7 +311,7 @@ export async function buildSlate(sport, date, env = {}) {
     const unifiedShadow = attachNhlUnifiedMoneylineShadow(goalieShadow.games);
     const research = promoteNhlResearchToBoard(unifiedShadow.games);
     const playerResearch = attachNhlPlayerProjectionResearch(research.games, {...v1Context, playerEdge:proContext.playerEdge||null, opportunity:proContext.opportunity||null, persistentProfiles:proContext.persistentProfiles||null});
-    const v2Promoted = Boolean(proV2.meta.historicalPromotionEligible && proV2.meta.projected > 0);
+    const v2Promoted = !NHL_BETTING_PROMOTION_FROZEN && Boolean(proV2.meta.historicalPromotionEligible && proV2.meta.projected > 0);
     next = {
       ...slate,
       games: playerResearch,

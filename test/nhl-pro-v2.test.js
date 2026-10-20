@@ -76,7 +76,9 @@ test("NHL-PRO-v2 emits independent score and probability layers",()=>{
   assert.equal(p.layers.tracking.source,"NHL_EDGE_EXPANDED_OPTIONAL");
   assert.equal(p.layers.tracking.expanded.activation,"RESEARCH_ADVISORY_ONLY");
   assert.equal(p.marketInformed,false);
-  assert.equal(p.canQualify,true);
+  assert.equal(p.canQualify,false);
+  assert.equal(p.promotionFrozen,true);
+  assert.equal(p.livePromotionEligible,false);
   assert.equal(p.canAuthorizeWager,false);
 });
 
@@ -97,15 +99,20 @@ test("v2 attaches as challenger but cannot displace v1 without historical gate",
   assert.equal(board.meta.v2Promoted,0);
 });
 
-test("v2 may become the research-board model only after strict historical promotion",()=>{
+test("historical eligibility stays on the challenger and does not promote it while the freeze is on",()=>{
   const baseGame={...game,nhlV1:{ok:true,modelId:"NHL-FBIS-v1",modelVersion:"v1",projHome:3.0,projAway:2.8,note:"v1"}};
-  const attached=attachNhlProV2([baseGame],ctx(true)).games;
-  const board=promoteNhlResearchToBoard(attached);
-  assert.equal(board.meta.modelId,NHL_PRO_V2_ID);
-  assert.equal(board.meta.v2Promoted,1);
-  assert.equal(board.games[0].projectionEngine,NHL_PRO_V2_ID);
-  assert.equal(board.games[0].researchProjection.modelId,NHL_PRO_V2_ID);
+  const attached=attachNhlProV2([baseGame],ctx(true));
+  assert.equal(attached.meta.historicalPromotionEligible,true);
+  assert.equal(attached.meta.livePromotionEligible,false);
+  assert.equal(attached.meta.canQualify,false);
+  assert.ok(Number.isFinite(attached.games[0].challengers[NHL_PRO_V2_ID].projHome));
+  const board=promoteNhlResearchToBoard(attached.games);
+  assert.equal(board.meta.promotionFrozen,true);
+  assert.equal(board.meta.modelId,"NHL-FBIS-v1");
+  assert.equal(board.meta.v2Promoted,0);
+  assert.equal(board.meta.historicalPromotionRecorded,1);
   assert.equal(board.games[0].canQualify,false);
+  assert.notEqual(board.games[0].projectionEngine,NHL_PRO_V2_ID);
 });
 
 test("NHL-PRO-v2 is registered as independent research with no wager authority",()=>{
