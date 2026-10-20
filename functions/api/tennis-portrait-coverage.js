@@ -33,7 +33,7 @@ export async function onRequestGet({request,env}) {
      p.current_rank AS rank,p.active_state AS activeState,
      CASE WHEN ${linked} THEN 'EXTERNAL_ONLY' ELSE 'MISSING' END AS imageStatus
      FROM tennis_players p LEFT JOIN tennis_player_portraits a ON a.fbis_player_id=p.fbis_player_id
-     WHERE COALESCE((${approved}),0)=0 ${${includeExternal?"":`AND COALESCE((${linked}),0)=0`} } ${filter}
+     WHERE COALESCE((${approved}),0)=0 ${includeExternal?"":`AND COALESCE((${linked}),0)=0`} ${filter}
      ORDER BY CASE WHEN p.active_state='RANKED_ACTIVE' THEN 0 ELSE 1 END,
        CASE WHEN p.current_rank IS NULL THEN 1 ELSE 0 END,p.current_rank,p.canonical_name LIMIT ?`;
    missing=(await env.DB.prepare(sql).bind(...(tour?[tour]:[]),limit).all()).results||[];
