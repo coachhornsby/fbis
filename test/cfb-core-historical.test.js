@@ -98,6 +98,9 @@ test("season policy: 2025 first weekly-training season; 2024 not assumed", () =>
   assert.equal(p.modelC.minSeasonsFixedRequirement, false);
   assert.equal(p.modelC.trainFoundationSeason, 2025);
   assert.equal(p.modelC.evaluateSeason, 2026);
+  assert.equal(p.modelC.freezeHoldout, true);
+  assert.equal(p.modelC.neverTuneOnEvaluateSeason, true);
+  assert.equal(p.modelC.neverRefitOnEvaluateSeason, true);
   assert.ok(p.seasons.some((s) => s.season === "2024_and_earlier" && s.weeklyTrainingDocuments === false));
 });
 

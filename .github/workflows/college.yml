@@ -28,6 +28,7 @@ on:
           - cfbd-endpoint-audit
           - cfb-feature-backfill
           - cfb-temporal-smoke
+          - cfb-core-2025-2026-holdout
           - model-train-validate
           - model-promote
           - college-health
@@ -77,7 +78,7 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4.2.2
-        if: ${{ github.event_name == 'schedule' || github.event.inputs.job == 'model-train-validate' || github.event.inputs.job == 'cfbd-endpoint-audit' || github.event.inputs.job == 'cfb-feature-backfill' || github.event.inputs.job == 'cfb-temporal-smoke' }}
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.job == 'model-train-validate' || github.event.inputs.job == 'cfbd-endpoint-audit' || github.event.inputs.job == 'cfb-feature-backfill' || github.event.inputs.job == 'cfb-temporal-smoke' || github.event.inputs.job == 'cfb-core-2025-2026-holdout' }}
       - name: Offline train/validate (Actions CPU, not Workers)
         if: ${{ github.event.inputs.job == 'model-train-validate' }}
         run: node scripts/college-train.mjs
@@ -129,8 +130,42 @@ jobs:
           path: artifacts/
           if-no-files-found: ignore
           retention-days: 14
+      - name: CFB CORE 2025 train / 2026 frozen holdout (research-only)
+        if: ${{ github.event.inputs.job == 'cfb-core-2025-2026-holdout' }}
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+          CFB_HOLDOUT_SEASONS: ${{ github.event.inputs.seasons || '2025,2026' }}
+          CFB_HOLDOUT_OUT: artifacts/cfb-core-2025-2026-holdout-report.json
+        run: |
+          set -euo pipefail
+          if [ -z "${CFBD_API_KEY:-}" ]; then
+            echo "CFBD_API_KEY GitHub secret missing — writing explicit Model C blocked report."
+            node scripts/cfb-core-2025-reconstruct-2026-holdout.mjs
+            exit 3
+          fi
+          # Optional champion A/A baselines artifact (gameId, baselineHome, baselineAway).
+          if [ -f artifacts/cfb-champion-aa-baselines.jsonl ]; then
+            export CFB_HOLDOUT_BASELINES=artifacts/cfb-champion-aa-baselines.jsonl
+          elif [ -f artifacts/cfb-champion-aa-baselines.json ]; then
+            export CFB_HOLDOUT_BASELINES=artifacts/cfb-champion-aa-baselines.json
+          fi
+          node scripts/cfb-core-2025-reconstruct-2026-holdout.mjs
+          {
+            echo "## CORE 2025→2026 frozen holdout"
+            echo ""
+            jq -r '"- status: \(.status)\n- blocked: \(.blocked)\n- train2025: \(.counts.train2025 // 0)\n- holdout2026: \(.counts.holdout2026 // 0)\n- classification: \(.classification // "n/a")\n- production A/A unchanged: \(.productionSafeguards.championAAUnchanged)"' \
+              artifacts/cfb-core-2025-2026-holdout-report.json || true
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload CORE holdout artifacts
+        if: ${{ github.event.inputs.job == 'cfb-core-2025-2026-holdout' && hashFiles('artifacts/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-core-2025-2026-holdout
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Dispatch college Worker job
-        if: ${{ github.event.inputs.job != 'cfb-feature-backfill' && github.event.inputs.job != 'cfb-temporal-smoke' && github.event.inputs.job != 'model-train-validate' }}
+        if: ${{ github.event.inputs.job != 'cfb-feature-backfill' && github.event.inputs.job != 'cfb-temporal-smoke' && github.event.inputs.job != 'model-train-validate' && github.event.inputs.job != 'cfb-core-2025-2026-holdout' }}
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           EVENT_NAME: ${{ github.event_name }}

@@ -85,6 +85,12 @@ export function describeFbisCoreResearchSeasonPolicy() {
       evaluateSeason: 2026,
       minSeasonsFixedRequirement: false,
       eligibility: "evidence_based",
+      /** Preferred design: never use 2026 for both tune and evaluate. */
+      freezeHoldout: true,
+      tuneRegularizationWithinTrainSeasonOnly: true,
+      neverRefitOnEvaluateSeason: true,
+      neverTuneOnEvaluateSeason: true,
+      holdoutModule: "cfbCoreHoldout.js",
     },
     researchOnly: true,
     canAuthorizeWager: false,
