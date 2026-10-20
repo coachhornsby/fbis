@@ -47,6 +47,7 @@ import {
   planCoreHistoricalReconstruction,
   assessModelCResearchReadiness,
   CORE_AUTHENTICITY,
+  buildHistoricalCoreArchivePayloads,
 } from "./cfbCoreHistorical.js";
 import { trackCorePublicationRelease } from "./cfbCoreContinuity.js";
 import {
@@ -54,6 +55,13 @@ import {
   runCfbCoreShadowSettle,
   runCfbCoreWeeklyEvaluation,
 } from "./cfbCoreShadowLedger.js";
+import {
+  runCore2025Train2026HoldoutReport,
+  CORE_HOLDOUT_TRAIN_SEASON,
+  CORE_HOLDOUT_EVAL_SEASON,
+} from "./cfbCoreHoldout.js";
+import { projectCfbFbisV2, CFB_FBIS_V2_ID } from "./cfbFbisV2.js";
+import { schoolKey } from "./cfbdCanonical.js";
 
 function todayCT(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -112,6 +120,7 @@ export const COLLEGE_JOBS = [
   "cfb-core-historical-reconstruct",
   "cfb-core-publication-track",
   "cfb-core-model-c-readiness",
+  "cfb-core-2025-2026-holdout",
   "cfb-postgame-harvest",
   "cfb-qb-transfer-refresh",
   "cfb-quota-replenish-ack",
@@ -758,6 +767,226 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             season,
             archivedThroughWeeks: weeks,
             ...track,
+          },
+        },
+      });
+    }
+    // Research-only: 2025 CORE reconstruct + frozen 2026 Model C holdout (Pages has CFBD key).
+    // Uses year-scoped CFBD fetches (not week loops) to stay within Worker subrequest/CPU budgets.
+    if (job === "cfb-core-2025-2026-holdout") {
+      const seasons = [CORE_HOLDOUT_TRAIN_SEASON, CORE_HOLDOUT_EVAL_SEASON];
+      const archiveRows = [];
+      const games = [];
+      const reconstruct = {};
+      const errors = [];
+      const persistArchives = opts.persistArchives !== false;
+      for (const season of seasons) {
+        try {
+          const coreRes = await cfbdGet("/ratings/core", env, {
+            query: { year: season },
+            fetchFn: opts.fetchFn || fetch,
+          });
+          if (!coreRes?.ok) throw new Error(coreRes?.reason || `core_${season}_failed`);
+          const built = buildHistoricalCoreArchivePayloads({
+            season,
+            yearRows: coreRes.data || [],
+            authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
+            collectionTime: new Date().toISOString(),
+            jobRunId: newJobId(),
+          });
+          for (const payload of built.payloads) {
+            if (persistArchives) {
+              const saved = await persistCoreWeeklyArchive(env, payload);
+              writes.writesSucceeded += saved?.written || 0;
+            }
+            for (const t of payload.teams || []) {
+              archiveRows.push({
+                season,
+                through_week: payload.throughWeek,
+                school_key: t.schoolKey,
+                core: t.core,
+                core_offense: t.coreOffense,
+                core_defense: t.coreDefense,
+                through_season_type: t.throughSeasonType || "regular",
+                collection_time: payload.collectionTime,
+              });
+            }
+          }
+          reconstruct[season] = {
+            throughWeeks: built.partitioned.throughWeeks,
+            payloads: built.payloads.length,
+            persisted: persistArchives,
+          };
+          // One CFBD /games call per season (regular); filter weeks 1–15 in-process.
+          const gRes = await cfbdGet("/games", env, {
+            query: { year: season, seasonType: "regular" },
+            fetchFn: opts.fetchFn || fetch,
+          });
+          if (!gRes?.ok) {
+            errors.push(`games_${season}:${gRes?.reason || "fail"}`);
+          } else {
+            for (const g of gRes.data || []) {
+              const week = Number(g.week);
+              if (!Number.isFinite(week) || week < 1 || week > 15) continue;
+              const actualHome = g.homePoints ?? g.home_points;
+              const actualAway = g.awayPoints ?? g.away_points;
+              games.push({
+                gameId: String(g.id),
+                season,
+                week,
+                kickoff: g.startDate || g.start_date,
+                homeTeam: g.homeTeam || g.home_team,
+                awayTeam: g.awayTeam || g.away_team,
+                homeConference: g.homeConference || g.home_conference,
+                awayConference: g.awayConference || g.away_conference,
+                neutralSite: Boolean(g.neutralSite || g.neutral_site),
+                actualHome: actualHome == null ? null : Number(actualHome),
+                actualAway: actualAway == null ? null : Number(actualAway),
+                finalVerified: actualHome != null && actualAway != null,
+                finalAt: g.startDate
+                  ? new Date(Date.parse(g.startDate) + 5 * 3600 * 1000).toISOString()
+                  : null,
+              });
+            }
+          }
+          // SP priors → CFB-FBIS-v2 baselines (fallback when live A/A overlay misses).
+          const spRes = await cfbdGet("/ratings/sp", env, {
+            query: { year: season },
+            fetchFn: opts.fetchFn || fetch,
+          });
+          const spByTeam = {};
+          if (spRes?.ok) {
+            for (const row of spRes.data || []) {
+              const key = schoolKey(row.team || row.school);
+              if (!key) continue;
+              spByTeam[key] = {
+                offense: Number(row.offense?.rating ?? row.offense),
+                defense: Number(row.defense?.rating ?? row.defense),
+              };
+            }
+          }
+          for (const g of games.filter((x) => x.season === season)) {
+            const home = spByTeam[schoolKey(g.homeTeam)];
+            const away = spByTeam[schoolKey(g.awayTeam)];
+            if (!home || !away) continue;
+            const proj = projectCfbFbisV2({
+              sport: "cfb",
+              home: { name: g.homeTeam },
+              away: { name: g.awayTeam },
+              neutralSite: Boolean(g.neutralSite),
+              featureCutoffOk: true,
+              cfbFbisV2Input: {
+                home: {
+                  priorOff: home.offense,
+                  priorDef: home.defense,
+                  spOffense: home.offense,
+                  spDefense: home.defense,
+                  gamesPlayed: Math.max(0, (g.week || 1) - 1),
+                },
+                away: {
+                  priorOff: away.offense,
+                  priorDef: away.defense,
+                  spOffense: away.offense,
+                  spDefense: away.defense,
+                  gamesPlayed: Math.max(0, (g.week || 1) - 1),
+                },
+                neutralSite: Boolean(g.neutralSite),
+              },
+            });
+            if (proj?.ok) {
+              g.baselineHome = proj.home;
+              g.baselineAway = proj.away;
+              g.baselineSource = "cfb_fbis_v2_sp_prior_retrospective";
+              g.championModelId = CFB_FBIS_V2_ID;
+            }
+          }
+        } catch (err) {
+          errors.push(String(err?.message || err));
+        }
+      }
+      // Overlay live 2026 A/A from prediction_snapshots when CFB_DB (or DB) is bound.
+      const sportDb = env?.CFB_DB || env?.DB || null;
+      let aaOverlay = { attempted: false, applied: 0, bound: Boolean(sportDb) };
+      if (sportDb) {
+        aaOverlay.attempted = true;
+        try {
+          const rs = await sportDb
+            .prepare(
+              `SELECT game_id AS gameId, model_version AS modelVersion,
+                      proj_home AS baselineHome, proj_away AS baselineAway,
+                      json_extract(json_extract(payload_json,'$.row.pal_json'),'$.homeName') AS homeTeam,
+                      json_extract(json_extract(payload_json,'$.row.pal_json'),'$.awayName') AS awayTeam
+               FROM prediction_snapshots
+               WHERE sport='cfb' AND proj_home IS NOT NULL AND proj_away IS NOT NULL
+                 AND model_version IN ('CFB-FBIS-v2','FBIS-v1.4','FBIS-v1.3')`
+            )
+            .all();
+          const byMatch = new Map();
+          for (const row of rs?.results || []) {
+            const score =
+              row.modelVersion === "CFB-FBIS-v2" ? 3 : row.modelVersion === "FBIS-v1.4" ? 2 : 1;
+            const key = `${schoolKey(row.homeTeam)}|${schoolKey(row.awayTeam)}`;
+            const prev = byMatch.get(key);
+            if (!prev || score > prev.score) byMatch.set(key, { ...row, score });
+          }
+          for (const g of games.filter((x) => x.season === CORE_HOLDOUT_EVAL_SEASON)) {
+            const hit = byMatch.get(`${schoolKey(g.homeTeam)}|${schoolKey(g.awayTeam)}`);
+            if (!hit) continue;
+            g.baselineHome = Number(hit.baselineHome);
+            g.baselineAway = Number(hit.baselineAway);
+            g.baselineSource = "prediction_snapshots_aa";
+            g.championModelId = hit.modelVersion;
+            aaOverlay.applied += 1;
+          }
+          aaOverlay.snapshotRows = (rs?.results || []).length;
+        } catch (err) {
+          aaOverlay.error = String(err?.message || err);
+        }
+      }
+      const report = runCore2025Train2026HoldoutReport({
+        games,
+        archiveRows,
+        cfbdAccess: true,
+      });
+      // Persist compact research evaluation report when table exists.
+      try {
+        const db = env?.DB || env?.TIER3_DB || null;
+        if (db && report) {
+          await db
+            .prepare(
+              `INSERT OR REPLACE INTO cfb_core_evaluation_reports
+               (report_id, report_type, generated_at, payload_json, authority, can_authorize_wager)
+               VALUES (?, 'frozen_holdout_2025_2026', ?, ?, 'research_only', 0)`
+            )
+            .bind(
+              `holdout:${Date.now()}`,
+              new Date().toISOString(),
+              JSON.stringify(report)
+            )
+            .run();
+        }
+      } catch (_) {}
+      return jobPayload({
+        ok: report.ok === true,
+        job,
+        status: report.ok ? "success" : "failed",
+        attemptedAt: started,
+        successfulAt: report.ok ? new Date().toISOString() : null,
+        errors: report.ok ? errors : [...errors, ...(report.blockers || []).map((b) => b.code || b)],
+        env,
+        writes,
+        d1: {
+          bound: hasDb(env),
+          cfbCoreHoldout: {
+            ...report,
+            reconstruction: reconstruct,
+            aaOverlay,
+            gamesFetched: games.length,
+            archiveRows: archiveRows.length,
+            authority: "research_only",
+            canAuthorizeWager: false,
+            canInfluenceProduction: false,
+            championUnchanged: true,
           },
         },
       });

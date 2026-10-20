@@ -36,16 +36,24 @@ jobs:
         with:
           node-version: "22"
       - name: Confirm CFBD_API_KEY repository secret
+        id: cfbd
         env:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
         run: |
           set -euo pipefail
+          mkdir -p artifacts
           if [ -z "${CFBD_API_KEY:-}" ]; then
-            echo "::error::CFBD_API_KEY GitHub Actions secret is missing or empty."
-            echo "Pages production already has CFBD_API_KEY; sync/add the same bearer as repository secret CFBD_API_KEY."
-            exit 2
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::CFBD_API_KEY GitHub Actions secret is missing or empty."
+            echo "Pages production has CFBD_API_KEY — will invoke the Pages college job instead of offline CFBD."
+            echo '{"githubActionsSecret":"missing","pagesProductionSecret":"present","routing":"pages_worker"}' \
+              > artifacts/cfbd-secret-status.json
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "CFBD_API_KEY repository secret is present (value not logged)."
+            echo '{"githubActionsSecret":"present","pagesProductionSecret":"present","routing":"offline_actions"}' \
+              > artifacts/cfbd-secret-status.json
           fi
-          echo "CFBD_API_KEY repository secret is present (value not logged)."
       - name: Export 2026 champion A/A baselines from D1 (optional)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -145,13 +153,15 @@ jobs:
           NODE
       - name: Unit tests (holdout + historical)
         run: node --test test/cfb-core-holdout.test.js test/cfb-core-historical.test.js
-      - name: Run 2025 CORE reconstruct + 2026 frozen holdout
+      - name: Run 2025 CORE reconstruct + 2026 frozen holdout (offline Actions)
+        if: ${{ steps.cfbd.outputs.present == 'true' }}
         env:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
           CFB_HOLDOUT_SEASONS: ${{ github.event.inputs.seasons || '2025,2026' }}
           CFB_HOLDOUT_OUT: artifacts/cfb-core-2025-2026-holdout-report.json
           CFB_HOLDOUT_BUILD_SP_BASELINES: "1"
           CFB_HOLDOUT_BASELINES: artifacts/cfb-champion-aa-baselines.json
+          CFB_HOLDOUT_TIER3_DIR: artifacts/tier3-csv
         run: |
           set -euo pipefail
           if [ ! -f artifacts/cfb-champion-aa-baselines.json ]; then
@@ -159,7 +169,7 @@ jobs:
           fi
           node scripts/cfb-core-2025-reconstruct-2026-holdout.mjs
           {
-            echo "## CORE 2025→2026 frozen holdout"
+            echo "## CORE 2025→2026 frozen holdout (offline)"
             echo ""
             jq -r '
               "- status: \(.status)",
@@ -167,12 +177,90 @@ jobs:
               "- train2025: \(.counts.train2025 // 0)",
               "- holdout2026: \(.counts.holdout2026 // 0)",
               "- classification: \(.classification // "n/a")",
-              "- 2025 throughWeeks: \((.preflight.featureCoverage2025.throughWeeks // []) | join(\",\"))",
-              "- 2026 A/A baselines: \(.preflight.aaBaselines2026.n // 0)",
               "- coeffs frozen: \(.coefficients.frozen // false)",
               "- production A/A unchanged: \(.productionSafeguards.championAAUnchanged)"
             ' artifacts/cfb-core-2025-2026-holdout-report.json || true
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Run via Pages Worker (CFBD_API_KEY on Pages production)
+        if: ${{ steps.cfbd.outputs.present != 'true' }}
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HARVEST_SECRET:-}" ]; then
+            echo "::error::HARVEST_SECRET missing — cannot invoke Pages college job."
+            exit 2
+          fi
+          mkdir -p artifacts
+          BASE="https://fbis-myz.pages.dev"
+          JOB="cfb-core-2025-2026-holdout"
+          EXTRA="&trigger=workflow_dispatch&operatorApproved=true"
+          tmp="$(mktemp)"
+          # Retry while Pages production rolls the deploy that registers this job.
+          http="000"
+          curl_ec=1
+          for attempt in 1 2 3 4 5 6; do
+            set +e
+            http=$(curl -sS --max-time 300 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              -o "$tmp" -w "%{http_code}" \
+              "${BASE}/api/college?job=${JOB}${EXTRA}")
+            curl_ec=$?
+            set -e
+            echo "pages_attempt=${attempt} http=${http:-000} curl_ec=${curl_ec}"
+            # Unknown job (pre-deploy) → wait and retry.
+            if [ "$curl_ec" -eq 0 ] && [ "${http:-000}" = "400" ] && jq -e '.error == "unknown-job"' "$tmp" >/dev/null 2>&1; then
+              echo "Pages deploy not yet serving holdout job; sleeping 45s"
+              sleep 45
+              continue
+            fi
+            # Transient upstream → retry.
+            if [ "$curl_ec" -ne 0 ] || [ "${http:-000}" = "502" ] || [ "${http:-000}" = "503" ] || [ "${http:-000}" = "524" ]; then
+              sleep $((attempt * 20))
+              continue
+            fi
+            break
+          done
+          cp "$tmp" artifacts/cfb-core-2025-2026-holdout-pages-raw.json || true
+          echo "pages_http=${http:-000} curl_ec=${curl_ec}"
+          if [ "$curl_ec" -ne 0 ] || [ "${http:-000}" != "200" ]; then
+            echo "::error::Pages holdout job failed http=${http:-000} curl_ec=${curl_ec}"
+            head -c 800 "$tmp" || true
+            exit 1
+          fi
+          # Prefer nested research report; fall back to full payload.
+          jq '
+            (.d1.cfbCoreHoldout // .) as $r
+            | $r
+            | .routing = "pages_worker"
+            | .pagesHttp = '"${http}"'
+          ' "$tmp" > artifacts/cfb-core-2025-2026-holdout-report.json
+          {
+            echo "## CORE 2025→2026 frozen holdout (Pages Worker)"
+            echo ""
+            echo "- routing: Pages production (CFBD_API_KEY present there; GH Actions secret empty)"
+            echo ""
+            jq -r '
+              "- status: \(.status // "n/a")",
+              "- blocked: \(.blocked // false)",
+              "- ok: \(.ok // false)",
+              "- train2025: \(.counts.train2025 // 0)",
+              "- holdout2026: \(.counts.holdout2026 // 0)",
+              "- gamesFetched: \(.gamesFetched // 0)",
+              "- archiveRows: \(.archiveRows // 0)",
+              "- aaOverlayApplied: \(.aaOverlay.applied // 0)",
+              "- classification: \(.classification // "n/a")",
+              "- production A/A unchanged: \(.productionSafeguards.championAAUnchanged // .championUnchanged // true)"
+            ' artifacts/cfb-core-2025-2026-holdout-report.json || true
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Fail the job if Model C remains blocked after Pages execution.
+          if ! jq -e '.ok == true and (.blocked != true)' artifacts/cfb-core-2025-2026-holdout-report.json >/dev/null; then
+            echo "::warning::Holdout completed via Pages but Model C report is blocked/failed — see artifact."
+            jq -c '{ok,blocked,status,blockers,counts,aaOverlay,reconstruction,errors:(.errors//[])}' \
+              artifacts/cfb-core-2025-2026-holdout-report.json || true
+            exit 1
+          fi
       - name: Upload holdout artifacts
         if: always() && hashFiles('artifacts/**') != ''
         uses: actions/upload-artifact@v4
