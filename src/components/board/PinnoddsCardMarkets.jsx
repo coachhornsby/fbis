@@ -12,9 +12,17 @@ const stamp=value=>value&&Number.isFinite(Date.parse(value))?new Date(value).toL
 }):"—";
 const labels={spread:"POINT SPREAD",total:"GAME TOTAL",moneyline:"MONEYLINE"};
 const icons={spread:"↗",total:"Σ",moneyline:"★"};
-const team=(game,side)=>game?.[side]?.fullName||game?.[side]?.name||game?.[side]?.school||game?.[side]?.shortName||game?.[side]?.abbr||side.toUpperCase();
+/** Never surface the bare words HOME/AWAY — prefer a real club name, else empty. */
+const team=(game,side)=>{
+  const t=game?.[side];
+  const abbr=t?.abbr&&t.abbr!=="—"?t.abbr:"";
+  return t?.fullName||t?.name||t?.school||t?.shortName||abbr||"";
+};
 const offered=(family,q)=>family==="spread"?sign(q.line):family==="total"?`${q.side==="over"?"O":"U"} ${q.line}`:"ML";
-const side=(game,family,q)=>family==="spread"||family==="moneyline"?team(game,q.side):q.side.toUpperCase();
+const side=(game,family,q)=>family==="spread"||family==="moneyline"?(team(game,q.side)||q.side.toUpperCase()):q.side.toUpperCase();
+const TeamMark=({game,side,sport,size=44,className=""})=>game?.[side]
+  ? <TeamLogo team={{...game[side],sport}} size={size} tone="light" className={className} />
+  : null;
 
 export default function PinnoddsCardMarkets({game,projection,marketFamilies,compact=false}){
  const selection=selectPinnoddsGameMarkets(game);
@@ -39,16 +47,24 @@ export default function PinnoddsCardMarkets({game,projection,marketFamilies,comp
     </div>
     {pair?<div className="fbis-priced-selections">{pair.quotes.map(q=>
      <div key={`${q.side}:${q.line}`} className={`fbis-priced-selection fbis-priced-${q.side}`}>
-      <span className="fbis-priced-team">{(f==="spread"||f==="moneyline")&&game?.[q.side]?<TeamLogo team={{...game[q.side],sport}} size={40} tone="light" className="fbis-priced-team-logo" />:null}<span>{side(game,f,q)}</span></span>
+      <span className="fbis-priced-team">{(f==="spread"||f==="moneyline")?<TeamMark game={game} side={q.side} sport={sport} size={40} className="fbis-priced-team-logo" />:null}<span>{side(game,f,q)}</span></span>
       <strong className="fbis-priced-line">{offered(f,q)}</strong>
       <span className="fbis-priced-odds">{signedAmerican(marketDisplayAmerican(q))}</span>
      </div>)}</div>:<p>Paired PinnOdds line not available</p>}
     {diff?<div className="fbis-priced-model-row">
      <div className="fbis-priced-model-value"><span>FBIS PROJECTED</span>
-      <strong className={f==="spread"?"fbis-priced-projection-team":""}>{f==="spread"?<>{game?.home?<TeamLogo team={{...game.home,sport}} size={44} tone="light" className="fbis-priced-projection-logo" />:null}<span>{team(game,"home")}</span><span>{sign(one(diff.modelHome))}</span></>:one(diff.modelTotal)}</strong>
+      <strong className={f==="spread"?"fbis-priced-projection-team":""}>{f==="spread"?<>
+        <TeamMark game={game} side="home" sport={sport} size={44} className="fbis-priced-projection-logo" />
+        {team(game,"home")?<span>{team(game,"home")}</span>:null}
+        <span>{sign(one(diff.modelHome))}</span>
+      </>:one(diff.modelTotal)}</strong>
      </div>
      <div className={`fbis-priced-gap-value${diff.side==="under"?" is-under":diff.side==="over"?" is-over":diff.side==="home"||diff.side==="away"?" is-side":""}`}><span>LINE DIFFERENCE</span><strong>{one(diff.absDelta)}</strong>
-      <small>{f==="spread"?`Toward ${diff.side==="away"?team(game,"away"):diff.side==="home"?team(game,"home"):"EVEN"}`:diff.side.toUpperCase()}</small>
+      <small className="fbis-priced-gap-toward">{f==="spread"
+        ? (diff.side==="home"||diff.side==="away"
+          ? <><TeamMark game={game} side={diff.side} sport={sport} size={28} className="fbis-priced-gap-logo" /><span>Toward {team(game,diff.side)||"club"}</span></>
+          : "EVEN")
+        : diff.side.toUpperCase()}</small>
      </div>
     </div>:f!=="moneyline"&&projection?.available&&pair?<div className="fbis-priced-model-row"><span>FBIS comparison unavailable</span></div>:null}
    </div>;

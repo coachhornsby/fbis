@@ -7,7 +7,11 @@ const load = (rel) => readFile(new URL(`../src/components/board/${rel}`, import.
 test("pinnodds line-difference tiles avoid green-on-green and mark under/over", async () => {
   const [jsx, css] = await Promise.all([load("PinnoddsCardMarkets.jsx"), load("pinnoddsCardMarkets.css")]);
   assert.match(jsx, /fbis-priced-gap-value\$\{diff\.side==="under"\?" is-under"/);
-  assert.match(jsx, /tone="light" className="fbis-priced-team-logo"/);
+  assert.match(jsx, /className="fbis-priced-team-logo"/);
+  assert.match(jsx, /side="home"/);
+  assert.match(jsx, /fbis-priced-projection-logo/);
+  assert.match(jsx, /fbis-priced-gap-logo/);
+  assert.doesNotMatch(jsx, /side\.toUpperCase\(\).*HOME/);
   assert.match(css, /\.fbis-priced-gap-value\.is-under/);
   assert.match(css, /\.fbis-priced-gap-value\.is-over/);
   assert.match(css, /#1a1020/);
