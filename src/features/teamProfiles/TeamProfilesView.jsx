@@ -15,7 +15,7 @@ const competitionName = id => COMPETITION_NAMES[id] || id;
 
 
 export default function TeamProfilesView({refreshKey=0}) {
- const [sport,setSport]=useState(()=>typeof window!=='undefined'&&new URLSearchParams(window.location.search).['soccer','cfb','tennis','nfl','nba','nhl'].includes(new URLSearchParams(window.location.search).get('directorySport'))?new URLSearchParams(window.location.search).get('directorySport'):'soccer'),[directory,setDirectory]=useState(null),[league,setLeague]=useState('eng.1');
+ const [sport,setSport]=useState(()=>{if(typeof window==='undefined')return 'soccer';const candidate=new URLSearchParams(window.location.search).get('directorySport')||'soccer';return ['soccer','cfb','tennis','nfl','nba','nhl'].includes(candidate)?candidate:'soccer';}),[directory,setDirectory]=useState(null),[league,setLeague]=useState('eng.1');
  const [search,setSearch]=useState(''),[selected,setSelected]=useState(null),[profile,setProfile]=useState(null),[error,setError]=useState(null);
  const [panel,setPanel]=useState('overview');
  const [competitionLogo,setCompetitionLogo]=useState(null);
