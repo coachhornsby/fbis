@@ -29,7 +29,7 @@ export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}
   if(typeof env?.FBIS_KALSHI_RELAY_TOKEN!=="string"
     ||env.FBIS_KALSHI_RELAY_TOKEN.length<40)
     return {ok:false,code:"SIGNED_RELAY_SECRET_MISSING"};
-  if(scope!=="markets"&&scope!=="exchange-status")
+  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog")
     return {ok:false,code:"SIGNED_RELAY_SCOPE_NOT_ALLOWED"};
   if(scope==="markets"&&!SPORTS.includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
@@ -87,10 +87,18 @@ export async function collectKalshiExchangeStatusOnce(env,{now=new Date(),fetchI
     return {ok:false,code:"KALSHI_STATUS_POLL_NOT_DUE",nextAllowedAt:last.nextAllowedAt};
   return relaySignedPages(env,{scope:"exchange-status",fetchImpl});
 }
+export async function collectKalshiSeriesCatalogOnce(env,{now=new Date(),fetchImpl=fetch}={}){
+  if(!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
+  const last=await readJson(env.ARCHIVE,"series-catalog-status.json");
+  if(ms(last?.nextAllowedAt)>now.getTime())
+    return {ok:false,code:"KALSHI_CATALOG_POLL_NOT_DUE",nextAllowedAt:last.nextAllowedAt};
+  return relaySignedPages(env,{scope:"series-catalog",fetchImpl});
+}
 export default {
   async scheduled(_event,env,ctx){
     ctx.waitUntil(Promise.all([
       collectKalshiPublicOnce(env),collectKalshiExchangeStatusOnce(env),
+      collectKalshiSeriesCatalogOnce(env),
     ]));
   },
   async fetch(request,env){
