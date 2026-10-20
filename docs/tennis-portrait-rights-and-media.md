@@ -55,3 +55,36 @@ The initial production transfer confirmed **10** rights-approved portrait record
 Before consulting Wikimedia API for a source already imported, `scripts/seed-tennis-commons.mjs` checks the live approved portrait endpoint and skips it when it returns verified JPEG media. All newly imported candidates still require live Commons title, photographer, license, trusted-domain and JPEG checks, and a SHA-256 verified upload. Wikimedia may return HTTP 429; failed sources remain silhouettes and must not be described as loaded.
 
 The default cards keep the matchup, flag background, ranking, FBIS win probabilities and dropdown for detailed intelligence. Missing market prices and the board's separate DEGRADED provider health remain outside the portrait pipeline.
+
+
+## Canonical player cards and ATP/WTA coverage — 2026-10-20
+
+- The permanent `/api/tennis-player-profile?id=...` uses the **exact**
+  `tennis_players.fbis_player_id`. An approved R2 portrait is used first;
+  otherwise a previously saved `PRIZEPICKS_FEED` external headshot URL is
+  displayed with an explicit external-source note. This fallback references
+  the original provider; it is **not** a locally stored image file and may
+  stop working if the provider withdraws the URL.
+- ATP supplemental canonical IDs legitimately contain spaces (example:
+  `tennis:atp:research:novak djokovic`). The profile and R2 validators
+  support URL-encoded space-bearing canonical IDs while rejecting unsafe
+  characters. Do not renumber or normalize these existing keys during media
+  imports.
+- Every compact Tennis matchup player identity links to its permanent
+  player profile even when Matchup Intelligence is collapsed.
+- `GET /api/tennis-portrait-coverage?tour=atp&limit=100` (or `tour=wta`)
+  separates *rights-approved R2 assets*, *retained external provider URLs*,
+  and *missing images*. The bounded missing-player queue prioritizes ranked
+  active athletes; it never guesses identity or assumes an image exists.
+- Four source-reviewed **ATP** Commons candidates are included alongside the
+  WTA seed: Novak Djokovic, Casper Ruud, Carlos Alcaraz and Jannik Sinner.
+  Each uses a specific Commons filename, author and CC BY-SA 4.0 attribution.
+  The authenticated import path still rechecks live Commons metadata and
+  downloads image bytes only if all validation gates pass.
+
+**Completion definition:** A player having an external image URL is not the
+same as that player having an archived, rights-reviewed headshot. Full ATP/WTA
+coverage requires verified photographs for all relevant canonical identities.
+PrizePicks/Zen produces photos only for players with available prop markets;
+it cannot, by itself, source the full player directory. No claim of universal
+coverage is warranted until the coverage endpoint verifies it.
