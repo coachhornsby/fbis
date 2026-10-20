@@ -1010,14 +1010,19 @@ export async function copySportPrefixTables(env, sport, {
     for (const table of wanted) {
       const primaryN = await count(primary, `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}`);
       const sportN = await count(sportDb, `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}`);
-      if (primaryN != null && sportN != null && primaryN === sportN) {
+      const replayKey = `copy_replay_active_prefix_${table}`;
+      const replayActive = resume && (await metaGet(sportDb, replayKey)) === "1";
+      if (primaryN != null && sportN != null && primaryN === sportN && !replayActive) {
         skipped.push({ table, primaryCount: primaryN, sportCount: sportN, status: "SKIPPED_CAUGHT_UP" });
         continue;
       }
-      // Count divergence with a mid-table resume cursor can skip interleaved missing
-      // keys (sport already holds later keys). Reset cursor so REPLACE rescan fills gaps.
-      if (resume && primaryN != null && sportN != null && sportN < primaryN) {
+      // A newly discovered missing row may sort behind a saved cursor.
+      // Start one full idempotent replay and record that it is in progress;
+      // otherwise large research tables would rewind at *every* bounded pass
+      // and never get beyond the first few pages.
+      if (resume && primaryN != null && sportN != null && sportN < primaryN && !replayActive) {
         await metaSet(sportDb, `copy_cursor_prefix_${table}`, "");
+        await metaSet(sportDb, replayKey, "1");
       }
       next.push(table);
     }
@@ -1034,6 +1039,10 @@ export async function copySportPrefixTables(env, sport, {
         afterKey,
       });
       if (copied.cursor) await metaSet(sportDb, `copy_cursor_prefix_${table}`, copied.cursor);
+      // Only stop replaying after the keyset scan reaches its end.
+      if (copied.exhausted === true && (await metaGet(sportDb, `copy_replay_active_prefix_${table}`)) === "1") {
+        await metaSet(sportDb, `copy_replay_active_prefix_${table}`, "0");
+      }
       results.push(copied);
     } catch (error) {
       results.push({
