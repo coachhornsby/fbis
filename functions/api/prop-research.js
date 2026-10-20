@@ -15,7 +15,12 @@ export async function onRequestGet({env,request}) {
  const game=context.games.find(g=>String(g.id)===eventId);
  if(!game)return json({ok:false,error:'Canonical event not found'},404);
  const [,provider,playerId]=id.split(':');
- let player=context.players.find(p=>String(p.player_id)===playerId&&[game.home_abbr,game.away_abbr].some(t=>t.toLowerCase()===String(p.team_key).toLowerCase()));
+ const fixtureTeams=[game.home_abbr,game.away_abbr];
+ // NBA public fixture abbreviations SA/NY map to verified SAS/NYK
+ // roster identities only after exact game lookup above.
+ const keys=[...fixtureTeams,...(sport==='nba'?fixtureTeams.map(t=>({SA:'SAS',NY:'NYK'}[String(t).toUpperCase()]||t)):[])];
+ const rosterMatches=context.players.filter(p=>String(p.player_id)===playerId&&keys.some(t=>String(t).toUpperCase()===String(p.team_key).toUpperCase()));
+ let player=rosterMatches.length===1?rosterMatches[0]:null;
  if(provider==='nflverse'&&sport==='nfl'){
   const feed=await loadNflVerseFeatures(env,{forceNetwork:false});const match=Object.values(feed.playersByTeam||{}).flat().find(p=>String(p.id)===playerId&&[game.home_abbr,game.away_abbr].includes(p.team));
   if(match)player={player_id:playerId,player_name:match.name,team_key:match.team,position:match.position};
@@ -28,7 +33,7 @@ export async function onRequestGet({env,request}) {
  // No request-provided projection, probability, price or threshold enters this estimate.
  let model=null,modelState='UNAVAILABLE';
  if(u.searchParams.get('historyOnly')!=='1')try {const slate=await buildSlate(sport,day,{...env,caches:typeof caches==='undefined'?null:caches.default,parlayCacheOnly:true,cfbdScheduleFallback:false});
-  model=independentPropRows(slate).find(p=>p.canonicalEventId===eventId&&p.canonicalPlayerId===id&&p.canonical_market===market)||null;
+  model=independentPropRows(slate).find(p=>p.canonicalEventId===eventId&&p.canonicalPlayerId===id&&(p.canonical_market===market||(p.canonical_market==='pra'&&market==='points_rebounds_assists')))||null;
   modelState=model?'RESEARCH_PROJECTION':(slate.games||[]).find(g=>String(g.id)===eventId)?.playerProjectionStatus?.state||'UNAVAILABLE';
  }catch{modelState='MODEL_DELIVERY_UNAVAILABLE';}
  const history=await loadCanonicalPropHistory(env,{sport,provider,playerId,market,line:contract?.line??null,asOf:new Date(Math.min(Date.now(),Date.parse(game.start))).toISOString()});
