@@ -58,6 +58,9 @@ function envFrom(context) {
     KENPOM_API_KEY: context.env.KENPOM_API_KEY,
     caches: caches.default,
     DB: context.env.DB,
+    TIER3_DB: context.env.TIER3_DB,
+    // Sport shard for prediction_snapshots A/A overlays (Model C holdout).
+    CFB_DB: context.env.CFB_DB,
     ARCHIVE: context.env.ARCHIVE,
     CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
     CFBD_DAILY_NETWORK_BUDGET: context.env.CFBD_DAILY_NETWORK_BUDGET,
@@ -92,8 +95,9 @@ export async function onRequestGet(context) {
     const manualOwner = options.trigger === "workflow_dispatch" && options.operatorApproved &&
       ["cfb-postgame-harvest","cfb-current-refresh","cfb-reference-backfill",
        "cfb-qb-transfer-refresh","cfb-quota-replenish-ack","cfbd-endpoint-audit",
-       // Research-only historical CORE reconstruct (authorized operator path).
-       "cfb-core-historical-reconstruct"].includes(job);
+       // Research-only historical CORE reconstruct + frozen holdout (authorized operator path).
+       "cfb-core-historical-reconstruct",
+       "cfb-core-2025-2026-holdout"].includes(job);
     runEnv.cfbdNetworkAuthorized = scheduledOwner || manualOwner;
     runEnv.cfbdCacheOnly = !runEnv.cfbdNetworkAuthorized;
     // Basketball draws on the same subscription. No unowned CBBD HTTP on
