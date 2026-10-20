@@ -47,7 +47,7 @@ export function matchPolymarketGlobalTennis(fixture,events=[],{now=new Date(),as
   if(!slug.startsWith(tour+"-"))continue;
   const title=String(e.title||"");
   if(!players.every(n=>matchesName(title,n)))continue;
-  const at=Date.parse(e.startDate||e.startTime||e.gameStartTime||"");
+  const at=Date.parse(e.gameStartTime||e.startTime||e.startDate||"");
   if(!Number.isFinite(at)||Math.abs(at-start)>2*3600000)continue;
   const markets=Array.isArray(e.markets)?e.markets:[];
   for(const m of markets){
