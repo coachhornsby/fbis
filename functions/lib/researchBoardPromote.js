@@ -27,6 +27,7 @@ import { MLB_DEEP_ID } from "./mlbDeepModel.js";
 import { NHL_RESEARCH_MODEL_ID, NHL_RESEARCH_MODEL_VERSION } from "./nhlResearchModel.js";
 import { NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
 import { NHL_PRO_V2_ID, NHL_PRO_V2_VERSION } from "./nhlProV2.js";
+import { NHL_BETTING_PROMOTION_FROZEN, NHL_CALIBRATION_PRIORITY, NHL_PROMOTION_FREEZE_REASON } from "./nhlCalibrationWorkstream.js";
 import { lookupCbbdRating } from "./cbbRatingsSafe.js";
 import {
   buildProbabilityProvenance,
@@ -483,10 +484,13 @@ export function promoteNhlResearchToBoard(games = []) {
   let promoted = 0;
   let skipped = 0;
   let v2Promoted = 0;
+  let historicalPromotionRecorded = 0;
   const next = (games || []).map((game) => {
     if (game.sport && game.sport !== "nhl") return game;
     const v2 = game.nhlProV2 || game.challengers?.[NHL_PRO_V2_ID] || null;
-    const v2Eligible = Boolean(v2?.ok && v2?.promotion?.historicalPromotionEligible);
+    const historicallyEligible = Boolean(v2?.ok && v2?.promotion?.historicalPromotionEligible);
+    if (historicallyEligible) historicalPromotionRecorded += 1;
+    const v2Eligible = historicallyEligible && !NHL_BETTING_PROMOTION_FROZEN;
     const proj = v2Eligible
       ? v2
       : game.nhlV1 || game.challengers?.[NHL_FBIS_V1_ID] || game.nhlResearch || game.challengers?.[NHL_RESEARCH_MODEL_ID];
@@ -527,6 +531,11 @@ export function promoteNhlResearchToBoard(games = []) {
       promoted,
       v2Promoted,
       skipped,
+      promotionFrozen: NHL_BETTING_PROMOTION_FROZEN,
+      livePromotionEligible: false,
+      historicalPromotionRecorded,
+      calibrationPriority: NHL_CALIBRATION_PRIORITY,
+      promotionFreezeReason: NHL_PROMOTION_FREEZE_REASON,
       canQualify: false,
       canAuthorize: false,
       publication: "RESEARCH_PUBLISHABLE",
