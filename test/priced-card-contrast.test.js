@@ -25,9 +25,9 @@ test("pinnodds line-difference tiles avoid green-on-green and mark under/over", 
   assert.match(css, /\.fbis-priced-model-value\.is-spread/);
   assert.match(css, /\.fbis-priced-model-value\.is-total/);
   assert.match(css, /\.fbis-priced-tile-mark/);
-  assert.match(css, /top:38%!important/);
-  assert.match(css, /height:117%!important/);
-  assert.match(css, /translate\(-50%,-50%\)/);
+  assert.match(css, /object-fit:cover!important/);
+  assert.match(css, /object-position:center 42%/);
+  assert.match(css, /min-width:100%!important/);
   assert.match(css, /--fbis-tile-brand/);
   assert.match(css, /-webkit-text-stroke/);
   assert.match(css, /@keyframes fbis-priced-value-pulse/);
