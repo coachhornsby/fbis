@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 /** Offline canonical evidence tools; do not import in Cloudflare Workers (Node crypto). */
 const keys=['canonicalEventId','canonicalPlayerId','canonical_market','period'];
 const string=x=>typeof x==='string'&&x.trim().length>0;
-const stable=x=>JSON.stringify(x,Object.keys(x).sort());
+const canonical=x=>Array.isArray(x)?x.map(canonical):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,canonical(x[k])])):x;
+const stable=x=>JSON.stringify(canonical(x));
 const hash=x=>createHash('sha256').update(stable(x)).digest('hex');
 export function freezePropEvidence({prediction,contract,observedAt}={}) {
  const problems=[];
