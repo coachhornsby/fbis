@@ -35,8 +35,16 @@ export async function captureNhlOfficialPlayerResults(env,{now=new Date(),fetchI
  catch{return {ok:false,reason:'MANIFEST_READ_FAILED'};}
  if(manifest?.version!==1||manifest.certified!==true||!Array.isArray(manifest.scopes))
   return {ok:false,reason:'CERTIFIED_MANIFEST_REQUIRED'};
+ const scopes=manifest.scopes||[];
+ const batchCount=Math.max(1,Math.ceil(scopes.length/8));
+ const batch=Math.floor(now.getTime()/(60*60*1000))%batchCount;
+ const selected=scopes.slice(batch*8,(batch+1)*8);
+ let index;
+ try{const prior=await env.ARCHIVE.get('player-props/official/v1/nhl-outcome-index.json');index=prior?await prior.json():{};}
+ catch{return {ok:false,reason:'OUTCOME_INDEX_UNAVAILABLE'};}
+ if(!index||typeof index!=='object'||Array.isArray(index))return {ok:false,reason:'OUTCOME_INDEX_INVALID'};
  const receipts=[];
- for(const scope of manifest.scopes.slice(0,8)){
+ for(const scope of selected){
   if(!scope?.identityVerified||!/^\d{10}$/.test(String(scope.gameId))||!/^\d{7}$/.test(String(scope.playerId))){
    receipts.push({ok:false,reason:'SCOPE_INVALID'});continue;
   }
@@ -46,10 +54,15 @@ export async function captureNhlOfficialPlayerResults(env,{now=new Date(),fetchI
    if(!response.ok){receipts.push({ok:false,reason:'SOURCE_HTTP_'+response.status});continue;}
    const parsed=parseNhlOfficialPlayerStat(await response.json(),scope,now.toISOString());
    if(!parsed.ok){receipts.push(parsed);continue;}
+   const fingerprint=[scope.canonicalEventId,scope.canonicalPlayerId,scope.stat].join('|');
+   if(index[fingerprint]?.actual===parsed.result.actual){
+    receipts.push({ok:true,existed:true,id:index[fingerprint].id||null,reason:null});continue;
+   }
    const record={schemaVersion:1,kind:'OFFICIAL_RESULT',observedAt:now.toISOString(),
     canonicalEventId:scope.canonicalEventId,canonicalPlayerId:scope.canonicalPlayerId,
     sourceId:'nhl:boxscore:'+scope.gameId,result:parsed.result};
    const saved=await persistPropEvidence(env,record,{webCrypto});
+   if(saved.ok)index[fingerprint]={actual:parsed.result.actual,id:saved.id,observedAt:now.toISOString()};
    receipts.push({ok:saved.ok,id:saved.id||null,reason:saved.reason||null,gameId:String(scope.gameId),playerId:String(scope.playerId),stat:scope.stat});
   }catch{receipts.push({ok:false,reason:'OFFICIAL_SOURCE_UNAVAILABLE'});}
  }
