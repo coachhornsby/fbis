@@ -7,6 +7,7 @@
  * (CFB predictions exceed a single LIMIT page).
  */
 import { resolveSportDb, SPORT_DATABASES, productSportDbHandle } from "./databaseTopology.js";
+// SPORT_PREFIX_TABLES keys must stay aligned with SPORT_DATABASES (all 11 sports).
 import {
   buildPredictionEvidenceEnvelope,
   evaluateSportPredictionFidelity,
@@ -73,6 +74,84 @@ export const SPORT_PREFIX_TABLES = Object.freeze({
     "nhl_wager_settlements",
     "nhl_wager_confidence_runs",
   ]),
+  nba: Object.freeze([
+    "nba_team_profiles",
+    "nba_team_profile_snapshots",
+    "nba_team_schedule_items",
+    "nba_team_coach_history",
+    "nba_player_state_profiles",
+    "nba_player_state_events",
+    "nba_player_role_contexts",
+    "nba_game_features",
+    "nba_game_projections",
+    "nba_lineup_observations",
+    "nba_official_availability_reports",
+    "nba_wager_decisions",
+    "nba_qualification_state",
+  ]),
+  mlb: Object.freeze([
+    "mlb_team_profiles",
+    "mlb_team_profile_snapshots",
+    "mlb_team_schedule_items",
+    "mlb_hitter_profiles",
+    "mlb_pitcher_profiles",
+    "mlb_player_state_profiles",
+    "mlb_profile_refresh_state",
+    "mlb_market_projections",
+    "mlb_bookmaker_quote_evidence",
+  ]),
+  cbb: Object.freeze([
+    "cbb_canonical_teams",
+    "cbb_conference_membership",
+    "cbb_team_aliases",
+    "cbb_players",
+    "cbb_player_aliases",
+    "cbb_player_provider_ids",
+    "cbb_roster_membership",
+    "cbb_roster_observations",
+    "cbb_schedule_items",
+    "cbb_team_profile_snapshots",
+    "cbb_team_state_snapshots",
+    "cbb_player_state_snapshots",
+    "cbb_game_state_snapshots",
+    "cbb_availability_observations",
+  ]),
+  wnba: Object.freeze([
+    "wnba_player_role_contexts",
+    "wnba_player_impact_snapshots",
+    "wnba_team_possession_feature_snapshots",
+    "wnba_wager_decisions",
+  ]),
+  soccer: Object.freeze([
+    "soccer_matches",
+    "soccer_competition_coverage",
+    "soccer_competition_provider_map",
+    "soccer_team_state",
+    "soccer_team_state_snapshots",
+    "soccer_player_state",
+    "soccer_player_state_snapshots",
+    "soccer_availability_observations",
+    "soccer_research_routes",
+    "soccer_prospective_shadow",
+  ]),
+  tennis: Object.freeze([
+    "tennis_players",
+    "tennis_player_aliases",
+    "tennis_player_source_ids",
+    "tennis_player_profiles_current",
+    "tennis_player_bank",
+    "tennis_official_matches",
+    "tennis_official_match_observations",
+    "tennis_external_fixtures",
+    "tennis_ranking_observations",
+    "tennis_match_history",
+    "tennis_context_snapshots",
+    "tennis_market_snapshots",
+    "tennis_availability_observations",
+  ]),
+  // Working-set only until sport-specific research tables are provisioned.
+  npb: Object.freeze([]),
+  kbo: Object.freeze([]),
 });
 
 const DEFAULT_PAGE_SIZE = 1000;
@@ -604,14 +683,24 @@ export async function backfillSportEvidenceEnvelopes(env, sport, {
 }
 
 /** Declared migration scope for a sport (working set + prefix tables). Props deferred. */
+/** All sports eligible for shadow working-set + optional prefix sync. */
+export const SPORT_SYNC_SPORTS = Object.freeze(Object.keys(SPORT_PREFIX_TABLES));
+
+export function isSportSyncEligible(sport) {
+  const key = String(sport || "").toLowerCase();
+  return Object.prototype.hasOwnProperty.call(SPORT_PREFIX_TABLES, key);
+}
+
 export function sportMigrationScope(sport) {
   const key = String(sport || "").toLowerCase();
   return {
     sport: key,
     workingTables: SPORT_WORKING_TABLES.map((t) => t.table),
     prefixTables: SPORT_PREFIX_TABLES[key] || [],
+    syncEligible: isSportSyncEligible(key),
     deferredPlayerProps: true,
     productAuthority: "PRIMARY_UNTIL_CUTOVER_RECEIPT",
+    cutoverAuthorized: false,
     canAuthorizeWager: false,
   };
 }

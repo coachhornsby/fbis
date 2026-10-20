@@ -6,7 +6,10 @@ import {
   copyPrefixedTablePaged,
   syncSportWorkingDelta,
   SPORT_PREFIX_TABLES,
+  SPORT_SYNC_SPORTS,
+  isSportSyncEligible,
 } from "../functions/lib/sportWorkingCopy.js";
+import { FBIS_SPORTS } from "../functions/lib/databaseTopology.js";
 
 function memoryDb(seed = {}) {
   const tables = new Map();
@@ -109,8 +112,25 @@ test("NFL migration scope lists prefix tables and defers player props", () => {
   assert.ok(scope.prefixTables.includes("nfl_team_profiles"));
   assert.ok(scope.prefixTables.includes("nfl_player_profiles"));
   assert.equal(scope.deferredPlayerProps, true);
+  assert.equal(scope.cutoverAuthorized, false);
   assert.ok(!scope.prefixTables.some((t) => t.includes("prop")));
   assert.equal(SPORT_PREFIX_TABLES.nfl.length, scope.prefixTables.length);
+});
+
+test("all 11 sports are sync-eligible with no prop tables in prefix sets", () => {
+  assert.equal(SPORT_SYNC_SPORTS.length, 11);
+  for (const sport of FBIS_SPORTS) {
+    assert.equal(isSportSyncEligible(sport), true, sport);
+    const scope = sportMigrationScope(sport);
+    assert.equal(scope.syncEligible, true, sport);
+    assert.equal(scope.cutoverAuthorized, false, sport);
+    assert.ok(!scope.prefixTables.some((t) => t.includes("prop")), sport);
+  }
+  assert.ok(SPORT_PREFIX_TABLES.nba.includes("nba_team_profiles"));
+  assert.ok(SPORT_PREFIX_TABLES.mlb.includes("mlb_team_profiles"));
+  assert.ok(SPORT_PREFIX_TABLES.tennis.includes("tennis_players"));
+  assert.equal(SPORT_PREFIX_TABLES.npb.length, 0);
+  assert.equal(SPORT_PREFIX_TABLES.kbo.length, 0);
 });
 
 test("ensureMirroredSportTable creates destination schema from PRIMARY pragma", async () => {

@@ -1,7 +1,8 @@
 name: Sport D1 shadow delta sync (recurring)
 
-# Continuous NHL/NFL/CFB working-set + prefix shadow sync. PRIMARY remains
-# authoritative. Agents cannot workflow_dispatch (403) — touch the ops trigger.
+# Continuous working-set + prefix shadow sync for all 11 sport D1s.
+# PRIMARY remains authoritative — cutover stays gated.
+# Agents cannot workflow_dispatch (403) — touch the ops trigger.
 on:
   schedule:
     # Every 20 minutes, offset from high-load boundaries.
@@ -29,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sport: [nhl, nfl, cfb]
+        sport: [nfl, cfb, nhl, nba, mlb, cbb, wnba, soccer, tennis, npb, kbo]
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
