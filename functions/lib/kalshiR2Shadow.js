@@ -32,7 +32,7 @@ export async function loadKalshiR2Shadow(env,sport,{now=new Date(),maxAgeMs=50*6
   // encoded by a later collector revision.
   const rows=snapshot.records.filter(r=>r?.sport===sport&&
     typeof r.ticker==="string"&&r.ticker.startsWith(KALSHI_SHADOW_SERIES[sport]+"-")
-  ).slice(0,80).map(r=>({...r,...kalshiShadowAuthority(),
+  ).slice(0,400).map(r=>({...r,...kalshiShadowAuthority(),
     matchStatus:"UNMATCHED",canonicalEventId:null,
     feesDollars:null,netCostDollars:null,impliedEdge:null}));
   return {
