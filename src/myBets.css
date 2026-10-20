@@ -22,7 +22,6 @@
 .bets-history-toolbar select{cursor:pointer}
 .bets-history-toolbar .bets-search{flex:2 1 235px;min-width:170px}
 .bets-clear-filters{border:1px solid #75b4d4;border-radius:9px;background:#174663;color:#fff;font-size:.8rem;font-weight:800;padding:12px;cursor:pointer}
-.bets-ticket-id{max-width:185px;overflow-wrap:anywhere;color:#cde9f8;font-size:.77rem}
 
 .bets-filter-heading h3{margin:0;font-size:1.25rem;font-weight:850;color:#f2faff}
 .bets-filter-heading span{color:#a9c5d9;font-size:.78rem}
@@ -40,7 +39,7 @@
 .bets-dashboard .bets-ledger-table td{border-bottom:1px solid #30475a;padding:13px 11px;vertical-align:middle;color:#ebf5ff}
 .bets-dashboard .bets-ledger-table tbody tr:nth-child(2n){background:#0e2435}
 .bets-dashboard .bets-ledger-table tbody tr:hover{background:#1c3b51}
-.bets-dashboard .bets-ledger-table td:nth-child(11){font-weight:850;font-variant-numeric:tabular-nums}
+.bets-dashboard .bets-ledger-table td:nth-child(10){font-weight:850;font-variant-numeric:tabular-nums}
 .bets-dashboard .bets-ledger-table .text-green{color:#71e2aa}
 .bets-dashboard .bets-ledger-table .text-red{color:#ff9999}
 .bets-dashboard .bets-ledger-table td .muted{font-size:.73rem;color:#9fb8cb;line-height:1.45}
@@ -225,7 +224,7 @@
   scrollbar-width:auto;
 }
 .bets-dashboard .bets-ledger-table{
-  min-width:2240px;
+  min-width:2200px;
   width:100%;
   table-layout:auto;
   border-spacing:0;
@@ -280,29 +279,23 @@
 .bets-dashboard .bets-ledger-table th:nth-child(2){
   z-index:4;
 }
-.bets-dashboard .bets-ledger-table :is(th,td):nth-child(4){min-width:250px}
-.bets-dashboard .bets-ledger-table :is(th,td):nth-child(7){min-width:250px}
-.bets-dashboard .bets-ledger-table :is(th,td):nth-child(13){min-width:220px}
-.bets-dashboard .bets-ledger-table .bets-ticket-id{
-  max-width:230px;
-  color:#f5f7fb;
-  font-size:15px;
-  line-height:1.5;
-}
-.bets-dashboard .bets-ledger-table td:nth-child(10){
+.bets-dashboard .bets-ledger-table :is(th,td):nth-child(3){min-width:250px}
+.bets-dashboard .bets-ledger-table :is(th,td):nth-child(6){min-width:460px}
+.bets-dashboard .bets-ledger-table :is(th,td):nth-child(12){min-width:220px}
+.bets-dashboard .bets-ledger-table td:nth-child(9){
   font-weight:950;
   letter-spacing:.035em;
 }
-.bets-dashboard .bets-ledger-table td:nth-child(11){
+.bets-dashboard .bets-ledger-table td:nth-child(10){
   color:#fff;
   font-size:18px;
   font-weight:950;
   font-variant-numeric:tabular-nums;
 }
 .bets-dashboard .bets-ledger-table .text-green,
-.bets-dashboard .bets-ledger-table tr.won-row td:nth-child(11){color:#93efb7}
+.bets-dashboard .bets-ledger-table tr.won-row td:nth-child(10){color:#93efb7}
 .bets-dashboard .bets-ledger-table .text-red,
-.bets-dashboard .bets-ledger-table tr.lost-row td:nth-child(11){color:#ff9c9f}
+.bets-dashboard .bets-ledger-table tr.lost-row td:nth-child(10){color:#ff9c9f}
 .bets-dashboard .bets-ledger-table tr.won-row td:first-child{border-left:4px solid #62dba6}
 .bets-dashboard .bets-ledger-table tr.lost-row td:first-child{border-left:4px solid #ff9297}
 .bets-dashboard .bets-ledger-table td label,
@@ -367,4 +360,132 @@
     padding-left:16px;
     padding-right:16px;
   }
+}
+
+
+/* Multi-market and player-prop combos: one clearly delineated card per
+   actual recorded selection. This is a display of journal data, not a grade. */
+.bets-dashboard .bets-ledger-table td.bets-combo-cell{
+  min-width:460px;
+  max-width:560px;
+  white-space:normal;
+}
+.bets-dashboard .bets-combo-play{
+  width:100%;
+  min-width:0;
+  display:grid;
+  gap:12px;
+  padding:14px;
+  background:linear-gradient(145deg,#182e40,#0a1d2e);
+  border:2px solid #9c8563;
+  border-left:5px solid #ffce78;
+  border-radius:14px;
+  box-shadow:0 8px 18px #01081033;
+}
+.bets-dashboard .bets-combo-topline{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.bets-dashboard .bets-combo-title{
+  display:inline-flex;
+  align-items:center;
+  min-height:32px;
+  padding:5px 12px;
+  border:1px solid #ffd78c;
+  border-radius:9px;
+  background:#47351e;
+  color:#ffe2ab;
+  font-size:16px;
+  font-weight:950;
+  letter-spacing:.05em;
+}
+.bets-dashboard .bets-combo-sport{
+  color:#f2f6f9;
+  font-size:15px;
+  font-weight:900;
+  letter-spacing:.055em;
+}
+.bets-dashboard .bets-combo-legs{
+  display:grid;
+  gap:9px;
+  min-width:0;
+}
+.bets-dashboard .bets-combo-leg{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  min-width:0;
+  padding:11px 12px;
+  background:#061726;
+  border:1px solid #607e94;
+  border-radius:11px;
+}
+.bets-dashboard .bets-combo-leg-num{
+  display:grid;
+  place-items:center;
+  flex:0 0 32px;
+  width:32px;
+  height:32px;
+  border-radius:9px;
+  background:#ffcc77;
+  color:#162335;
+  font-size:17px;
+  font-weight:950;
+}
+.bets-dashboard .bets-combo-leg-text{
+  display:flex;
+  align-items:flex-start;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+  flex:1;
+}
+.bets-dashboard .bets-combo-leg-player,
+.bets-dashboard .bets-combo-leg-raw{
+  color:#fff;
+  font-size:17px;
+  line-height:1.35;
+  font-weight:900;
+  overflow-wrap:anywhere;
+}
+.bets-dashboard .bets-combo-leg-stat{
+  color:#9af0c7;
+  font-size:17px;
+  font-weight:900;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+.bets-dashboard .bets-combo-participants{
+  display:grid;
+  gap:11px;
+  min-width:220px;
+}
+.bets-dashboard .bets-combo-participants-label{
+  color:#ffe1a3;
+  font-size:15px;
+  font-weight:900;
+  letter-spacing:.035em;
+}
+.bets-dashboard .bets-combo-participant{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  color:#fff;
+  font-size:16px;
+}
+.bets-dashboard .bets-combo-participants-fallback{
+  font-size:16px;
+  color:#edf3f8;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+.bets-dashboard .bets-ledger-table tr.won-row .bets-combo-play{border-left-color:#71e6ab}
+.bets-dashboard .bets-ledger-table tr.lost-row .bets-combo-play{border-left-color:#ff979b}
+@media(max-width:760px){
+  .bets-dashboard .bets-ledger-table td.bets-combo-cell{min-width:395px}
+  .bets-dashboard .bets-combo-play{padding:12px}
+  .bets-dashboard .bets-combo-leg{padding:10px}
 }
