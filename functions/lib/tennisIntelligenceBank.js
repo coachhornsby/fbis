@@ -37,33 +37,35 @@ export async function tennisFixtureOffers(db, fixture, { now = new Date() } = {}
 
 
 /**
- * Read-only official WTA metadata for an independently observed ESPN fixture.
+ * Read-only official ATP/WTA metadata for an independently observed ESPN fixture.
  * This does NOT verify the ESPN fixture, authorize its model, or match markets.
  * Fail closed when identity, kickoff, source or uniqueness are uncertain.
  */
 export async function lookupOfficialTennisDisplayMetadata(db, fixture, players, {now=new Date()}={}) {
-  if (String(fixture?.tour).toLowerCase()!=="wta" ||
+  const tour=String(fixture?.tour||"").toLowerCase();
+  if (!["atp","wta"].includes(tour) ||
       !Array.isArray(players) || players.length!==2 ||
       players.some(p=>!p?.fbisPlayerId || p?.officialIdentityVerified!==true) ||
       !Number.isFinite(Date.parse(fixture.start))) return null;
   const ids=players.map(p=>p.fbisPlayerId);
   if(ids[0]===ids[1])return null;
   try {
+    const officialSource=tour==='atp'?'ATP_OFFICIAL':'WTA_OFFICIAL';
     const q=await db.prepare(`SELECT match_id,tournament_name,tournament_level,round_code,
       match_time,surface,indoor_outdoor,venue,source,observed_at
       FROM tennis_official_matches
-      WHERE tour='wta' AND source='WTA_OFFICIAL'
+      WHERE tour=? AND source=?
         AND ((player1_id=? AND player2_id=?) OR (player1_id=? AND player2_id=?))
         AND ABS((julianday(match_time)-julianday(?))*24*60)<=120
         AND julianday(observed_at)<=julianday(?)
       ORDER BY ABS(julianday(match_time)-julianday(?)) LIMIT 2`)
-      .bind(ids[0],ids[1],ids[1],ids[0],fixture.start,now.toISOString(),fixture.start).all();
+      .bind(tour,officialSource,ids[0],ids[1],ids[1],ids[0],fixture.start,now.toISOString(),fixture.start).all();
     const rows=q?.results||[];
     if(rows.length!==1)return null;
     const r=rows[0];
     if(!r.match_id || Date.parse(r.observed_at)>+now ||
        Math.abs(Date.parse(r.match_time)-Date.parse(fixture.start))>120*60000)return null;
-    return {source:"WTA_OFFICIAL",sourceMatchId:r.match_id,observedAt:r.observed_at,
+    return {source:officialSource,sourceMatchId:r.match_id,observedAt:r.observed_at,
       tournament:r.tournament_name||null,tournamentLevel:r.tournament_level||null,
       round:r.round_code||null,surface:r.surface||null,
       indoor:r.indoor_outdoor==="INDOOR"?true:r.indoor_outdoor==="OUTDOOR"?false:null,
