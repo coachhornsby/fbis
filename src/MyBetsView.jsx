@@ -1,21 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { fmtAmerican, fmtPct, fmtSigned, formatMarketPeriod, formatClv } from "./lib/format.js";
 import { TicketMatchup } from "./components/TeamLogo.jsx";
-import useIsCompact from "./hooks/useIsCompact.js";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 import "./myBets.css";
 import MyBetsIntelligence, {betFamily} from "./MyBetsIntelligence.jsx";
 import projectionScorecard from "./data/fbisProjectionScorecard.js";
 
-const RESULT_FILTERS = [
-  ["all", "All results"],
-  ["OPEN", "OPEN"],
-  ["WON", "WON"],
-  ["LOST", "LOST"],
-  ["PUSH", "PUSH"],
-  ["VOID", "VOID"],
-];
 const ATTR_FILTERS = [
   ["all", "All attribution"],
   ["OPERATOR_ONLY", "OPERATOR ONLY"],
@@ -45,14 +36,15 @@ export default function MyBetsView({
   const [result, setResult] = useState("all");
   const [attr, setAttr] = useState("all");
   const [sport, setSport] = useState("all");
-  const [ledgerFamily,setLedgerFamily]=useState("games");
+  const [ledgerFamily,setLedgerFamily]=useState("combined");
+  const [book, setBook] = useState("all");
+  const [sortOrder, setSortOrder] = useState("newest");
   const [query, setQuery] = useState("");
   const [advancedFilters, setAdvancedFilters] = useState(false);
-  const [showLedger, setShowLedger] = useState(false);
+  const [showLedger, setShowLedger] = useState(true);
   const [manualScores, setManualScores] = useState({});
   const [manualSaving, setManualSaving] = useState("");
   const [manualMessage, setManualMessage] = useState("");
-  const compact = useIsCompact(760);
 
   useEffect(() => {
     if (external) {
@@ -71,19 +63,26 @@ export default function MyBetsView({
   const shown = useMemo(() => {
     return bets.filter((b) => {
       if (ledgerFamily !== "combined" && betFamily(b) !== ledgerFamily) return false;
-      if (sport !== "all" && b.sport !== sport) return false;
+      if (sport !== "all" && String(b.sport || "").toLowerCase() !== sport) return false;
+      if (book !== "all" && String(b.executionBook || "").toLowerCase() !== book) return false;
       if (query.trim() && ![b.awayTeam,b.homeTeam,b.matchupText,b.selectedTeam,b.selectedSide,b.playerName,b.executionBook,b.externalTicketId,b.market,b.id].filter(Boolean).join(" ").toLowerCase().includes(query.trim().toLowerCase())) return false;
       if (result !== "all" && (b.result || "OPEN") !== result) return false;
       if (attr !== "all" && (b.recommendationStatus || "") !== attr) return false;
       return true;
     }).sort((a, b) => {
-      const dateOrder = String(b.date || "").localeCompare(String(a.date || ""));
+      if (sortOrder === "profit") return Number(b.profit ?? -Infinity) - Number(a.profit ?? -Infinity) || String(b.date || "").localeCompare(String(a.date || ""));
+      if (sortOrder === "loss") return Number(a.profit ?? Infinity) - Number(b.profit ?? Infinity) || String(b.date || "").localeCompare(String(a.date || ""));
+      if (sortOrder === "risk") return Number(b.riskAmount || 0) - Number(a.riskAmount || 0) || String(b.date || "").localeCompare(String(a.date || ""));
+      const direction = sortOrder === "oldest" ? -1 : 1;
+      const dateOrder = direction * String(b.date || "").localeCompare(String(a.date || ""));
       if (dateOrder) return dateOrder;
-      const timeOrder = String(b.executedAt || b.importedAt || "").localeCompare(String(a.executedAt || a.importedAt || ""));
+      const timeOrder = direction * String(b.executedAt || b.importedAt || "").localeCompare(String(a.executedAt || a.importedAt || ""));
       if (timeOrder) return timeOrder;
       return String(a.externalTicketId || "").localeCompare(String(b.externalTicketId || ""));
     });
-  }, [bets, sport, result, attr, query, ledgerFamily]);
+  }, [bets, sport, book, result, attr, query, ledgerFamily, sortOrder]);
+  const filtersActive = ledgerFamily !== "combined" || sport !== "all" || book !== "all" || result !== "all" || attr !== "all" || Boolean(query.trim()) || sortOrder !== "newest";
+  const resetHistoryFilters = () => { setLedgerFamily("combined"); setSport("all"); setBook("all"); setResult("all"); setAttr("all"); setQuery(""); setSortOrder("newest"); };
   const summary = pack.summary || emptySummary();
   const unavailable = Boolean(state === "UNAVAILABLE" || error || sourceOk === false || String(sourceD1 || "").toLowerCase() === "error");
   const stat = (v, fallback = "—") => valueOrUnavailable(unavailable, v, fallback);
@@ -210,22 +209,55 @@ export default function MyBetsView({
           </div>
           </details>
           <p className="muted" style={{ marginTop: 8 }}>{unavailable ? "Bets data unavailable right now. Retry after data source recovers." : (summary.message || (summary.settled ? null : "No settled Heritage bets yet."))}</p>
-          <div className="bets-family-filter" aria-label="Ticket category">{[["games","Game lines"],["props","Player props"],["combined","Combined"]].map(([key,label])=><button type="button" aria-pressed={ledgerFamily===key} key={key} className={ledgerFamily===key?"active":""} onClick={()=>setLedgerFamily(key)}>{label}</button>)}</div>
-          <div className="bets-filter-heading"><div><h3>Wager history</h3><span>{shown.length} matching tickets</span></div><label className="bets-search"><span>Search tickets</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Team, player, sportsbook or ticket ID"/></label></div>
-          <div className="filter-row bets-sport-filters" style={{ marginTop: 10 }}>
-            <button className={sport === "all" ? "chip active" : "chip"} onClick={() => setSport("all")}>All sports</button>
-            {[...new Set(bets.map((b) => String(b.sport || "").toLowerCase()).filter(Boolean))].sort().map((id) => (
-              <button key={id} className={sport === id ? "chip active" : "chip"} onClick={() => setSport(id)}>{id.toUpperCase()}</button>
-            ))}
+          <div className="bets-filter-heading">
+            <div><h3>Wager history</h3><span>{shown.length} of {bets.length} wagers · all categories included by default</span></div>
+            <button type="button" className="bets-history-toggle" aria-controls="wager-history-table" aria-expanded={showLedger} onClick={() => setShowLedger((v) => !v)}>
+              {showLedger ? "▾ Collapse wager table" : "▸ Expand wager table"} <span>({shown.length})</span>
+            </button>
+          </div>
+          <div className="bets-history-toolbar" aria-label="Wager history filters">
+            <label>Category
+              <select value={ledgerFamily} onChange={(e) => setLedgerFamily(e.target.value)}>
+                <option value="combined">All wagers</option>
+                <option value="games">Game lines</option>
+                <option value="props">Player props / combos</option>
+              </select>
+            </label>
+            <label>Sport
+              <select value={sport} onChange={(e) => setSport(e.target.value)}>
+                <option value="all">All sports</option>
+                {[...new Set(bets.map((b) => String(b.sport || "").toLowerCase()).filter(Boolean))].sort().map((id) => <option key={id} value={id}>{id.toUpperCase()}</option>)}
+              </select>
+            </label>
+            <label>Sportsbook
+              <select value={book} onChange={(e) => setBook(e.target.value)}>
+                <option value="all">All books</option>
+                {[...new Set(bets.map((b) => String(b.executionBook || "").trim()).filter(Boolean))].sort().map((name) => <option key={name} value={name.toLowerCase()}>{name}</option>)}
+              </select>
+            </label>
+            <label>Result
+              <select value={result} onChange={(e) => setResult(e.target.value)}>
+                <option value="all">All results</option>
+                {["WON","LOST","OPEN","PUSH","VOID","MANUAL_REVIEW"].map((id) => <option key={id} value={id}>{id === "MANUAL_REVIEW" ? "Needs review" : id}</option>)}
+              </select>
+            </label>
+            <label>Sort
+              <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="profit">Highest profit</option>
+                <option value="loss">Largest loss</option>
+                <option value="risk">Largest stake</option>
+              </select>
+            </label>
+            <label className="bets-search">Search wagers
+              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Team, player, ticket, book…" />
+            </label>
+            {filtersActive ? <button type="button" className="bets-clear-filters" onClick={resetHistoryFilters}>Reset filters · Show all</button> : null}
           </div>
           {manualMessage ? <p className={manualMessage.startsWith("Could not") ? "error" : "muted"} style={{ marginTop: 10 }}>{manualMessage}</p> : null}
           <button type="button" className="bets-advanced-toggle" aria-expanded={advancedFilters} onClick={()=>setAdvancedFilters(v=>!v)}>{advancedFilters?"Hide advanced filters":"Advanced filters"} · {result==="all"&&attr==="all"?"None applied":"Active"} ▾</button>
           {advancedFilters&&<div className="bets-advanced-panel">
-          <div className="filter-row">
-            {RESULT_FILTERS.map(([id, label]) => (
-              <button key={id} className={result === id ? "chip active" : "chip"} onClick={() => setResult(id)}>{label}</button>
-            ))}
-          </div>
           <div className="filter-row">
             {ATTR_FILTERS.map(([id, label]) => (
               <button key={id} className={attr === id ? "chip active" : "chip"} onClick={() => setAttr(id)}>{label}</button>
@@ -233,60 +265,17 @@ export default function MyBetsView({
           </div></div>}
         </div>
       </section>
-      <div className="bets-ledger-toggle"><button type="button" aria-expanded={showLedger} onClick={()=>setShowLedger(v=>!v)}>{showLedger?"Hide ticket ledger":"Explore full ticket ledger"} · {shown.length} matching</button></div>
-      {showLedger&&      <section className="panel bets-ledger-panel">
+      {showLedger && <section id="wager-history-table" className="panel bets-ledger-panel" aria-label="Full wager history">
         <div className="panel-body" style={{ padding: 0 }}>
           {!shown.length ? (
-            <div className="empty">No imported bets in this filter.</div>
-          ) : compact ? (
-            <div className="mobile-card-list">
-              {shown.map((b) => (
-                <article key={b.id} className="mobile-card">
-                  <div className="mobile-card-head">
-                    <b>{displayTicketId(b)}</b>
-                    <span className={b.result === "WON" ? "text-green" : b.result === "LOST" ? "text-red" : "muted"}>{b.result || "OPEN"}</span>
-                  </div>
-                  <div className="muted">{b.date}</div>
-                  <div style={{ marginTop: 6 }}>
-                    {String(b.market || "").toUpperCase() === "PLAYER_PROP" ? (
-                      <PlayerPropParticipants bet={b} />
-                    ) : String(b.sport || "").toLowerCase() === "tennis" ? (
-                      <TennisParticipants bet={b} />
-                    ) : (
-                      <TicketMatchup
-                        awayIdentity={b.awayIdentity}
-                        homeIdentity={b.homeIdentity}
-                        awayTeam={b.awayTeam}
-                        homeTeam={b.homeTeam}
-                        matchupText={b.matchupText}
-                        sport={b.sport}
-                      />
-                    )}
-                  </div>
-                  <div className="mobile-kv-grid" style={{ marginTop: 8 }}>
-                    <div><small>Book</small><b>{b.executionBook || "—"}</b></div>
-                    <div><small>Market</small><b>{formatMarketPeriod(b.market, b.period)}</b></div>
-                    <div><small>Side</small><b>{betSelectionLabel(b)}</b></div>
-                    <div><small>Price</small><b>{fmtAmerican(b.executionPrice)}</b></div>
-                    <div><small>Risk</small><b>${Number(b.riskAmount || 0).toFixed(2)}</b></div>
-                    <div><small>P/L</small><b>{b.profit == null ? "—" : fmtSigned(b.profit, 2)}</b></div>
-                    <div><small>Actual</small><b>{actualOutcome(b)}</b></div>
-                    <div><small>CLV</small><b>{formatClv(b.clv, b.clvStatus)}</b></div>
-                  </div>
-                  <div className="muted" style={{ marginTop: 8 }}>
-                    {b.attributionLabel || "OPERATOR BET · NOT ATTRIBUTED TO FBIS"} · {b.matchStatus}
-                  </div>
-                  {(b.result || "OPEN") === "OPEN" ? (
-                    <ManualScoreEditor bet={b} scores={manualScores[b.id] || {}} setScore={setScore} saveFinal={saveFinal} saving={manualSaving === b.id} />
-                  ) : null}
-                </article>
-              ))}
-            </div>
+            <div className="empty">{bets.length ? "No wagers match the current filters. Select Reset filters · Show all." : loading ? "Loading wager history…" : unavailable ? "Wager data is unavailable. Try Reload." : "No wagers have been loaded from the ledger."}</div>
           ) : (
             <div className="table-scroll bets-table-scroll">
             <table className="fbis-table bets-ledger-table">
               <thead>
                 <tr>
+                  <th>Date</th>
+                  <th>Sport</th>
                   <th>Ticket</th>
                   <th>Matchup</th>
                   <th>Book</th>
@@ -296,6 +285,7 @@ export default function MyBetsView({
                   <th>Risk</th>
                   <th>Result</th>
                   <th>P/L</th>
+                  <th>Final / Actual</th>
                   <th>Attribution</th>
                   <th>CLV</th>
                   <th>Enter final score</th>
@@ -304,10 +294,9 @@ export default function MyBetsView({
               <tbody>
                 {shown.map((b) => (
                   <tr key={b.id} className={b.result === "WON" ? "won-row" : b.result === "LOST" ? "lost-row" : ""}>
-                    <td>
-                      <div>{displayTicketId(b)}</div>
-                      <div className="muted">{b.date}</div>
-                    </td>
+                    <td className="nowrap">{b.date || "—"}</td>
+                    <td className="nowrap">{String(b.sport || "—").toUpperCase()}</td>
+                    <td><div className="bets-ticket-id">{displayTicketId(b)}</div></td>
                     <td>
                       {String(b.market || "").toUpperCase() === "PLAYER_PROP" ? (
                         <PlayerPropParticipants bet={b} compact />
@@ -328,12 +317,12 @@ export default function MyBetsView({
                     <td className="nowrap">{formatMarketPeriod(b.market, b.period)}</td>
                     <td>{betSelectionLabel(b)}</td>
                     <td>{fmtAmerican(b.executionPrice)}</td>
-                    <td>${Number(b.riskAmount || 0).toFixed(2)}</td>
+                    <td className="nowrap">{b.riskAmount == null ? "—" : `${Number(b.riskAmount).toFixed(2)}`}</td>
                     <td className={b.result === "WON" ? "text-green" : b.result === "LOST" ? "text-red" : "muted"}>
                       {b.result || "OPEN"}
-                      {actualOutcome(b) !== "—" ? <div className="muted">{actualOutcome(b)}</div> : null}
                     </td>
-                    <td>{b.profit == null ? "—" : fmtSigned(b.profit, 2)}</td>
+                    <td className="nowrap">{b.profit == null ? "—" : fmtSigned(b.profit, 2)}</td>
+                    <td>{actualOutcome(b)}</td>
                     <td>
                       <div>{b.attributionLabel || "OPERATOR BET · NOT ATTRIBUTED TO FBIS"}</div>
                       <div className="muted">{b.matchStatus}</div>
