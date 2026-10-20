@@ -833,7 +833,7 @@ export function buildVenueComparisonRows(rows=[]) {
  const money=x=>x!=null&&x!==''&&Number.isFinite(Number(x))&&Number(x)>0&&Number(x)<1?Number(x):null;
  const venue=r=>({
   provider:r.provider,contractId:r.contractId||null,side:r.side||null,
-  price:money(r.purchaseAsk??r.observedAsk),priceKind:r.purchaseAsk!=null?'VERIFIED_PURCHASE_ASK':'OBSERVED_ASK',
+  price:money(r.purchaseAsk??r.observedAsk??r.observedReferencePrice),priceKind:r.priceKind==='DISPLAY_REFERENCE_NOT_ASK'?'DISPLAY_REFERENCE_NOT_ASK':r.purchaseAsk!=null?'VERIFIED_PURCHASE_ASK':'OBSERVED_ASK',
   depth:r.executableSize??r.observedDepth??null,observedAt:r.observedAt||null,
   collectedAt:r.collectedAt||null,sourceTimeVerified:r.fresh===true&&r.priceVerified===true,
   marketAvailable:r.marketAvailable===true,settlementTerms:r.settlementTerms||null,
@@ -875,6 +875,8 @@ export function buildVenueComparisonRows(rows=[]) {
    v.sourceTimeVerified&&v.priceKind==='VERIFIED_PURCHASE_ASK');
   const kalshi=offers.find(v=>v.provider==='Kalshi'),poly=offers.find(v=>v.provider==='Polymarket');
   const gap=pricingReady?Number((poly.price-kalshi.price).toFixed(4)):null;
+  // Reference-only spread is never wager EV or settlement parity.
+  const refGap=poly?.price!=null&&kalshi?.price!=null?Number((poly.price-kalshi.price).toFixed(4)):null;
   const primary=pair.find(r=>r.fbis_projection!=null)||pair[0];
   output.push({...primary,id:other?'compare:'+key+':'+i:base.id,
    venueComparison:{venues:offers,providerCount:offers.length,
@@ -882,7 +884,7 @@ export function buildVenueComparisonRows(rows=[]) {
     priceComparisonStatus:!other?'OTHER_PROVIDER_UNAVAILABLE':
      !exactRules?'SETTLEMENT_NOT_EQUIVALENT_OR_UNVERIFIED':
      !pricingReady?'QUOTE_CLOCK_OR_EXECUTION_UNVERIFIED':'COMPARABLE_CURRENT_QUOTES',
-    priceDifferenceDollars:gap,
+    priceDifferenceDollars:gap,referenceDifferenceDollars:refGap,
     cheaperProvider:gap==null||gap===0?null:gap>0?'Kalshi':'Polymarket',
     canAuthorizeWager:false}});
  }
@@ -939,7 +941,7 @@ export function groupExchangePlayerStatCards(rows=[]) {
    venues:[...Object.values(sides).flatMap(s=>s.venues||[])],
    providerCount:new Set(Object.values(sides).flatMap(s=>s.venues||[]).map(v=>v.provider)).size,
    // The overall card cannot imply one universal venue spread for both sides.
-   priceDifferenceDollars:null,cheaperProvider:null,
+   priceDifferenceDollars:null,referenceDifferenceDollars:null,cheaperProvider:null,
    canAuthorizeWager:false
   }};
  }).flat();
