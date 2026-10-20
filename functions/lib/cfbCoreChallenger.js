@@ -5,10 +5,19 @@
  * DIFFERENT from per-play PPA/EPA and cannot be treated as score-point deltas.
  * No coefficients live here: they must originate from temporal OOS research.
  * This module never reads market odds or authorizes qualification/wagers.
+ *
+ * Accepted CORE sources (point-in-time):
+ *   - CFBD `/ratings/core` (optional external overlay)
+ *   - FBIS weekly training documents (`fbis_weekly_training_document`)
  */
 export const CFB_CORE_SHADOW_ID = "CFB-CORE-SHADOW-v1";
 export const CFB_CORE_FEATURE_KEYS = Object.freeze([
   "baselineMargin", "baselineTotal", "coreCrossMargin", "coreCrossTotal",
+]);
+/** Endpoints that may supply PIT CORE offense/defense for Model C vectors. */
+export const CFB_CORE_ALLOWED_SOURCE_ENDPOINTS = Object.freeze([
+  "/ratings/core",
+  "fbis_weekly_training_document",
 ]);
 const num = v => v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v);
 const invalid = (reason, diagnostics = {}) => ({
@@ -46,29 +55,36 @@ export function buildCfbCoreMatchupVector({
   if (sides.some(x => x.year!==gameSeason || x.through==null ||
     !Number.isInteger(x.through) || x.through<1 || x.through>=gameWeek ||
     x.offense==null || x.defense==null || !x.weekBounded ||
-    x.endpoint!=="/ratings/core" || !Number.isFinite(x.observedMs) ||
-    x.observedMs>=startMs))
+    !CFB_CORE_ALLOWED_SOURCE_ENDPOINTS.includes(x.endpoint) ||
+    !Number.isFinite(x.observedMs) || x.observedMs>=startMs))
     return invalid("CORE_PIT_OR_COVERAGE_UNVERIFIED",{season:gameSeason,week:gameWeek,
       coreCoverage:sides.map(x=>({year:x.year,through:x.through,weekBounded:x.weekBounded,
         collectedAt:x.asOf,endpoint:x.endpoint}))});
   if (sides[0].through!==sides[1].through)
     return invalid("CORE_PERIOD_MISMATCH",{homeWeek:sides[0].through,awayWeek:sides[1].through});
+  if (sides[0].endpoint!==sides[1].endpoint)
+    return invalid("CORE_SOURCE_MISMATCH",{homeEndpoint:sides[0].endpoint,awayEndpoint:sides[1].endpoint});
   if (sides.some(x => x.seasonType && String(x.seasonType).toLowerCase()!=="regular"))
     return invalid("CORE_SEASON_TYPE_MISMATCH");
   const [h,a]=sides;
   const crossHome=h.offense-a.defense, crossAway=a.offense-h.defense;
+  const sourceLabel = h.endpoint === "fbis_weekly_training_document"
+    ? "FBIS weekly training documents (EPA→CORE)"
+    : "CFBD /ratings/core";
   return {
     ok:true,modelId:CFB_CORE_SHADOW_ID,
     season:gameSeason,week:gameWeek,throughWeek:h.through,kickoff,
     coreSourceAsOf:{home:h.asOf,away:a.asOf},
+    coreSourceEndpoint:h.endpoint,
     featureOrder:[...CFB_CORE_FEATURE_KEYS],
     features:{
       baselineMargin:hScore-aScore,baselineTotal:hScore+aScore,
       coreCrossMargin:crossHome-crossAway,
       coreCrossTotal:crossHome+crossAway,
     },
-    lineage:{source:"CFBD /ratings/core",cadence:"weekly",pointInTime:true,
-      seasonType:"regular",units:"CORE ratings per 100 plays, not PPA"},
+    lineage:{source:sourceLabel,cadence:"weekly",pointInTime:true,
+      seasonType:"regular",units:"CORE ratings per 100 plays, not PPA",
+      endpoint:h.endpoint},
     authority:"research_only",canQualify:false,canAuthorizeWager:false,
   };
 }

@@ -136,6 +136,21 @@ test("coverage audit blocks missing 2025 archives", () => {
   });
   assert.equal(a.ok, false);
   assert.ok(a.blockers.some((b) => b.code === "insufficient_2025_core_throughweeks"));
+  // CFBD key is optional when weekly-training archives can supply CORE; still
+  // blocked here because 2025 throughWeeks are missing.
+  assert.ok(!a.ok);
+});
+
+test("coverage audit flags missing CFBD only when no archives at all", () => {
+  const a = auditCoreHoldoutCoverage({
+    archiveRows: [],
+    cfbdAccess: false,
+    verifiedHistoricalCutoffs: false,
+    championBaselinesAvailable: false,
+    trainGameCount: 0,
+    evalGameCount: 0,
+  });
+  assert.equal(a.ok, false);
   assert.ok(a.blockers.some((b) => b.code === "cfbd_api_key_unavailable"));
 });
 

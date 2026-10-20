@@ -74,7 +74,8 @@ test("private fill reconciliation dedupes exact fill IDs but never infers wins o
 test("Market and Player Props research UI are wired but not to CORE or auto bets",()=>{
  assert.match(app,/import KalshiMarketResearch/);
  assert.match(app,/KalshiMarketResearch variant="market"/);
- assert.match(app,/KalshiMarketResearch variant="props"/);
+ assert.match(app,/<ExchangePlayerPropsPanel/);
+ assert.doesNotMatch(app,/KalshiMarketResearch variant="props"/);
  assert.match(ui,/SHADOW · NOT EXECUTABLE/);
  assert.match(ui,/No automatic upstream quote polling from this page/);
  assert.match(ui,/classifyKalshiSportContract/);

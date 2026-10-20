@@ -637,7 +637,6 @@ export default function App() {
           <AccountsView />
         ) : route === "player-props" ? (
           <div className="player-props-page">
-            <KalshiMarketResearch variant="props" />
             <ExchangePlayerPropsPanel
               board={todayBoard}
               sportFilter={playerPropsSport}

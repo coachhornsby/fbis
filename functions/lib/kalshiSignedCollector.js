@@ -46,7 +46,8 @@ export function kalshiSignedReadProxy(env,{fetchImpl=fetch,now=Date.now(),webCry
 const MAX_PAGES_PER_CYCLE=1;
 const MAX_TOTAL_PAGES=12;
 const MAX_TOTAL_RECORDS=4000;
-const PROGRESS_MAX_AGE_MS=4*60*60*1000;
+// Twelve alternating 30-minute sport windows span up to six hours.
+const PROGRESS_MAX_AGE_MS=8*60*60*1000;
 const PAGE_LIMIT=250;
 const progressKey=sport=>"sports/"+sport+"-progress.json";
 const receiptKey=sport=>"sports/"+sport+"-status.json";
@@ -65,12 +66,13 @@ export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date()
   if(!env.KALSHI_API_KEY_ID||!kalshiPrivateKeyPem(env))
     return {ok:false,code:"KALSHI_SIGNING_CREDENTIALS_NOT_CONFIGURED"};
   const previous=await readJson(env.ARCHIVE,"collector-status.json");
-  if(previous?.authenticationMode===SOURCE){
-    if(ms(previous.blockedUntil)>now.getTime())
-      return {ok:false,code:"KALSHI_SIGNED_COOLDOWN",blockedUntil:previous.blockedUntil};
-    if(ms(previous.attemptedAt)>now.getTime()-SPACING_MS)
-      return {ok:false,code:"KALSHI_SIGNED_POLL_NOT_DUE",lastAttemptAt:previous.attemptedAt};
-  }
+  const previousSport=await readJson(env.ARCHIVE,receiptKey(sport));
+  // Provider 429 cooldown is shared; routine poll spacing is per sport.
+  if(previous?.authenticationMode===SOURCE&&ms(previous.blockedUntil)>now.getTime())
+    return {ok:false,code:"KALSHI_SIGNED_COOLDOWN",blockedUntil:previous.blockedUntil};
+  if(previousSport?.authenticationMode===SOURCE
+    &&ms(previousSport.attemptedAt)>now.getTime()-SPACING_MS)
+    return {ok:false,code:"KALSHI_SIGNED_POLL_NOT_DUE",lastAttemptAt:previousSport.attemptedAt};
   const stored=await readJson(env.ARCHIVE,progressKey(sport));
   const active=stored?.version===1 && stored?.sport===sport
     &&Array.isArray(stored.records)

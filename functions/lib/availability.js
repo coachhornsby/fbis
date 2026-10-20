@@ -39,7 +39,7 @@ export const SPORT_AVAILABILITY_POLICY = Object.freeze({
     criticalRoles: ["G"],
   },
   nba: {
-    primary: "Rights-cleared official injury/availability feed required",
+    primary: "Official NBA injury PDF + ESPN lineup observations (research); wager auth gated separately",
     nativeChecks: ["official injury report","starter/rotation role"],
     numericalAdjustment: false,
     criticalRoles: ["STARTER"],
@@ -564,9 +564,12 @@ export function buildSportAvailabilityPreflight(game = {}, sport = "") {
     }
   }
 
+  // NBA: empty observations stay UNVERIFIED (not hard-blocked). Official PDF /
+  // lineup rows mark configured=true via attachAvailability; wager auth is gated
+  // separately by nbaProspectiveGate and never flips here.
   if (id === "nba" && !impact?.configured) {
-    state = "BLOCKED";
-    reasons.push("rights_cleared_injury_feed_required");
+    state = "UNVERIFIED";
+    reasons.push("official_injury_or_lineup_observations_missing");
   }
 
   return {

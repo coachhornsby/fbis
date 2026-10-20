@@ -1,6 +1,7 @@
 import { resolveTennisFixturePlayers } from "./tennisFixturePlayerLink.js";
 import { tennisCardContext, tennisKey } from "./tennisPlayerBank.js";
 import { approvedTennisPortraits } from "./tennisPortraits.js";
+import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
 const parse = value => { try { return JSON.parse(value); } catch { return null; } };
 const number = v => v == null || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null;
 
@@ -110,6 +111,25 @@ export async function buildTennisIntelligenceBank(db, { limit = 50, now = new Da
     fixturesWithLinkedMarkets: fixtures.filter(f => f.venueOffers.length).length, canQualify: false, canAuthorizeWager: false };
 }
 
+let tennisRankingDisplayCache = {expiresAt:0, value:null};
+async function loadTennisRankingDisplayCache() {
+  const now=Date.now();
+  if(tennisRankingDisplayCache.value && now<tennisRankingDisplayCache.expiresAt)
+    return tennisRankingDisplayCache.value;
+  // Ranking snapshots never authorize a fixture, prediction or wager. A bounded
+  // read prevents an external source outage from blocking the entire board.
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),3500);
+  try {
+    const value=await fetchEspnTennisRankings((url,init)=>fetch(url,{...init,signal:controller.signal}));
+    tennisRankingDisplayCache={value,expiresAt:Date.now()+15*60*1000};
+    return value;
+  } catch {
+    tennisRankingDisplayCache={value:{byName:new Map()},expiresAt:Date.now()+60*1000};
+    return tennisRankingDisplayCache.value;
+  } finally { clearTimeout(timeout); }
+}
+
 export async function buildIndependentTennisCards(db, date, { now = new Date() } = {}) {
   const bank = await buildTennisIntelligenceBank(db, { now, limit: 100 });
   const ctDay = start => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago",
@@ -121,14 +141,18 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
   const chunks=[];for(let i=0;i<ids.length;i+=20)chunks.push(ids.slice(i,i+20));
   const batches=await Promise.all(chunks.map(chunk=>approvedTennisPortraits(db,chunk)));
   const portraitMap=new Map(batches.flatMap(group=>[...group.entries()]));
+  // ESPN rankings are independent display context, never fixture or projection proof.
+  const rankingFeed = await loadTennisRankingDisplayCache();
   const games = [];
   for (const f of visibleFixtures) {
     // Existing card player1 is home, independent fixture player1 is away.
     const [p1, p2] = f.players;
     const team = p => {
       const approved=portraitMap.get(p.fbisPlayerId),url=approved?.url||p.headshotUrl||null;
+      const ranking=rankingFeed.byName?.get(tennisKey(p.fixtureName));
+      const externalRank=ranking?.tour===f.tour?ranking:null;
       return { name:p.fixtureName, fullName:p.fixtureName, abbr:p.fixtureName.split(" ").at(-1),
-        rank:p.rank??null, rankingPoints:p.rankingPoints??null, country:p.country??null,
+        rank:p.rank??externalRank?.rank??null, rankingPoints:p.rankingPoints??externalRank?.points??null, country:p.country??externalRank?.country??null,
         logo:url, headshotUrl:url, fbisPlayerId:p.fbisPlayerId??null,
         imageSource:approved?"RIGHTS_VERIFIED_TENNIS_PORTRAIT":p.headshotSource||null,
         portraitCredit:approved?.credit||null, portraitSourceUrl:approved?.sourceUrl||null,
@@ -139,6 +163,15 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
     const playerBank = { ...context, players: f.players.map((p, i) => ({ ...(context?.players?.[i] || {}),
       ...p, headshot: p.headshotUrl ?? null, recentForm: context?.players?.[i]?.recentForm || [] })) };
     const venueOffers = f.venueOffers.map(o => ({ ...o, side: o.side === "home" ? "away" : o.side === "away" ? "home" : o.side }));
+    const missingEvidence=[
+      !f.officialDisplay && "OFFICIAL_MATCH_CONTEXT",
+      f.players.some(p=>!p.matched) && "PLAYER_IDENTITY",
+      f.players.some(p=>p.rank==null && rankingFeed.byName?.get(tennisKey(p.fixtureName))?.rank==null) && "CURRENT_RANKING",
+      f.players.some(p=>!p.country && !rankingFeed.byName?.get(tennisKey(p.fixtureName))?.country) && "NATIONALITY",
+      f.players.some(p=>!p.headshotUrl && !portraitMap.get(p.fbisPlayerId)) && "HEADSHOT",
+      !f.venueOffers.length && "MATCHED_MARKET_QUOTES",
+      "INDEPENDENT_MODEL_PROJECTION"
+    ].filter(Boolean);
     games.push({ id: f.id, sport: "tennis", tour: f.tour, start: f.start, status: f.status,
       home: team(p1), away: team(p2), projectionKind: "UNAVAILABLE", pureProjectionAvailable: false, projectionUnavailable: true,
       publicationStatus: "RESEARCH_FIXTURE_ONLY", canQualify: false, canAuthorizeWager: false, qualificationBlocked: true,
@@ -146,7 +179,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
       quality: { state: "RESEARCH", flags: ["research_only", "independent_fixture", "projection_unavailable"] },
       market: { reference: { available: venueOffers.length > 0 }, venueOffers, executionActionable: false },
       tennisProjection: { researchFixture: { verified: true, source: f.source, fixtureId: f.id, officialDisplayEvidence: f.officialDisplay||null,
-        fetchedAt: f.fetched_at, rawHash: f.raw_hash, rawKey: f.raw_key },
+        fetchedAt: f.fetched_at, rawHash: f.raw_hash, rawKey: f.raw_key, missingEvidence },
         eventIntegrity: { valid: false, reason: "OFFICIAL_PROJECTION_UNAVAILABLE" },
         blockedReason: f.officialDisplay ? "OFFICIAL_METADATA_MATCHED_DISPLAY_ONLY: projection/event authority remains unverified for this ESPN fixture" : "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
         player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,

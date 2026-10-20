@@ -12,6 +12,7 @@ import {
   buildCfbCoreMatchupVector,
   CFB_CORE_FEATURE_KEYS,
   CFB_CORE_SHADOW_ID,
+  CFB_CORE_ALLOWED_SOURCE_ENDPOINTS,
 } from "./cfbCoreChallenger.js";
 import {
   assessModelCResearchReadiness,
@@ -20,7 +21,8 @@ import {
   FBIS_WEEKLY_TRAINING_FIRST_SEASON,
   verifyWeeklyReportCutoff,
 } from "./cfbCoreHistorical.js";
-import { schoolKey, normalizeCoreRating } from "./cfbdCanonical.js";
+import { FBIS_CORE_WEEKLY_SOURCE_ENDPOINT } from "./cfbCoreFromWeeklyReports.js";
+import { schoolKey } from "./cfbdCanonical.js";
 
 export const CORE_HOLDOUT_VERSION = "cfb-core-holdout-v1";
 export const CORE_HOLDOUT_TRAIN_SEASON = 2025;
@@ -78,7 +80,32 @@ export function describeCoreHoldoutEvalDesign() {
 }
 
 /**
+ * Resolve archive row source endpoint. Weekly training docs are first-class;
+ * CFBD `/ratings/core` remains the default when endpoint is omitted (legacy rows).
+ */
+function resolveCoreSourceEndpoint(raw = {}) {
+  const explicit =
+    raw.coreSourceEndpoint ||
+    raw.core_source_endpoint ||
+    raw.sourceEndpoint ||
+    raw.source_endpoint ||
+    null;
+  if (explicit && CFB_CORE_ALLOWED_SOURCE_ENDPOINTS.includes(explicit)) return explicit;
+  const auth = String(raw.authenticityClass || raw.authenticity_class || "");
+  const src = String(raw.dataSource || raw.data_source || "");
+  if (
+    auth === CORE_AUTHENTICITY.WEEKLY_TRAINING_DOCUMENT ||
+    src.includes("weekly_training") ||
+    explicit === FBIS_CORE_WEEKLY_SOURCE_ENDPOINT
+  ) {
+    return FBIS_CORE_WEEKLY_SOURCE_ENDPOINT;
+  }
+  return "/ratings/core";
+}
+
+/**
  * Index CORE archive rows: season → throughWeek → schoolKey → rating fields.
+ * Accepts CFBD CORE archives and FBIS weekly-training-document reconstructions.
  */
 export function indexCoreArchivesBySeasonWeek(archiveRows = []) {
   const bySeason = {};
@@ -87,32 +114,36 @@ export function indexCoreArchivesBySeasonWeek(archiveRows = []) {
     const season = n(raw.season ?? raw.year);
     const throughWeek = n(raw.through_week ?? raw.throughWeek);
     if (season == null || throughWeek == null || throughWeek < 1) continue;
-    const norm = normalizeCoreRating({
-      team: raw.school_key || raw.schoolKey || raw.team,
-      year: season,
-      throughWeek,
-      throughSeasonType: raw.through_season_type || raw.throughSeasonType || "regular",
-      overall: raw.core ?? raw.overall ?? raw.rating,
-      offense: raw.core_offense ?? raw.coreOffense ?? raw.offense,
-      defense: raw.core_defense ?? raw.coreDefense ?? raw.defense,
-    });
-    const key = schoolKey(norm.team);
-    if (!key || norm.offense == null || norm.defense == null) continue;
+    const endpoint = resolveCoreSourceEndpoint(raw);
+    const teamName = raw.school_key || raw.schoolKey || raw.team;
+    // Normalize numeric fields without forcing CFBD endpoint onto weekly-doc rows.
+    const offense = n(raw.core_offense ?? raw.coreOffense ?? raw.offense);
+    const defense = n(raw.core_defense ?? raw.coreDefense ?? raw.defense);
+    const rating = n(raw.core ?? raw.overall ?? raw.rating);
+    const key = schoolKey(teamName);
+    if (!key || offense == null || defense == null) continue;
     if (!bySeason[season]) bySeason[season] = {};
     if (!bySeason[season][throughWeek]) bySeason[season][throughWeek] = {};
     bySeason[season][throughWeek][key] = {
       schoolKey: key,
-      team: norm.team,
-      core: norm.rating,
-      coreOffense: norm.offense,
-      coreDefense: norm.defense,
+      team: teamName,
+      core: rating,
+      coreOffense: offense,
+      coreDefense: defense,
       coreYear: season,
       coreThroughWeek: throughWeek,
-      coreThroughSeasonType: norm.throughSeasonType || "regular",
-      coreSourceEndpoint: "/ratings/core",
+      coreThroughSeasonType:
+        raw.through_season_type || raw.throughSeasonType || "regular",
+      coreSourceEndpoint: endpoint,
       coreWeekBounded: true,
       coreSourceAsOf:
         raw.collection_time || raw.collectionTime || raw.coreSourceAsOf || raw.asOf || null,
+      authenticityClass:
+        raw.authenticityClass ||
+        raw.authenticity_class ||
+        (endpoint === FBIS_CORE_WEEKLY_SOURCE_ENDPOINT
+          ? CORE_AUTHENTICITY.WEEKLY_TRAINING_DOCUMENT
+          : CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED),
     };
     if (!teamKeysBySeasonWeek[season]) teamKeysBySeasonWeek[season] = {};
     if (!teamKeysBySeasonWeek[season][throughWeek]) teamKeysBySeasonWeek[season][throughWeek] = new Set();
@@ -169,10 +200,15 @@ export function auditCoreHoldoutCoverage({
   };
 
   const blockers = [];
-  if (cfbdAccess === false) {
+  // CFBD is optional when archive rows already supply weekly CORE (FBIS reports or prior CFBD).
+  const hasArchiveCoverage =
+    (trainCov.distinctThroughWeeks || 0) >= minTrainThroughWeeks &&
+    (evalCov.distinctThroughWeeks || 0) >= minEvalThroughWeeks;
+  if (cfbdAccess === false && !hasArchiveCoverage && (archiveRows || []).length === 0) {
     blockers.push({
       code: "cfbd_api_key_unavailable",
-      detail: "CFBD_API_KEY missing — cannot reconstruct 2025 weekly CORE or fetch scored games",
+      detail:
+        "CFBD_API_KEY missing and no weekly-training CORE archives provided — supply Tier3 weekly reports or CFBD CORE",
     });
   }
   if (trainCov.distinctThroughWeeks < minTrainThroughWeeks) {
@@ -353,6 +389,13 @@ export function buildEligibleCoreHoldoutRows({
       continue;
     }
 
+    const authenticityClass =
+      home.authenticityClass ||
+      away.authenticityClass ||
+      (home.coreSourceEndpoint === FBIS_CORE_WEEKLY_SOURCE_ENDPOINT
+        ? CORE_AUTHENTICITY.WEEKLY_TRAINING_DOCUMENT
+        : CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED);
+
     eligible.push({
       gameId: String(g.gameId || g.id),
       season,
@@ -372,7 +415,8 @@ export function buildEligibleCoreHoldoutRows({
       home,
       away,
       throughWeek,
-      authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
+      authenticityClass,
+      coreSourceEndpoint: home.coreSourceEndpoint,
       asOfSynthesized: home.asOfSynthesized || away.asOfSynthesized,
       vector,
       xChampion: CHAMPION_KEYS.map((k) => vector.features[k]),

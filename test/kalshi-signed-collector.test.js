@@ -66,15 +66,19 @@ test("signed 429 causes one-hour cooldown and no retried source calls",async()=>
  assert.equal(second.code,"KALSHI_SIGNED_COOLDOWN");
  assert.equal(calls,1);
 });
-test("recent signed market capture prevents repeated relay even across sports",async()=>{
+test("recent signed market capture allows the other sport while throttling the same sport",async()=>{
  const env=await config();let calls=0;
  await captureSignedKalshiMarkets(env,{sport:"nfl",now:at,webCrypto:webcrypto,
   fetchImpl:async()=>{calls++;return Response.json({markets:[],cursor:""});}});
  const next=await captureSignedKalshiMarkets(env,{sport:"cfb",webCrypto:webcrypto,
   now:new Date(at.getTime()+3*60000),
   fetchImpl:async()=>{calls++;return Response.json({markets:[],cursor:""});}});
- assert.equal(next.code,"KALSHI_SIGNED_POLL_NOT_DUE");
- assert.equal(calls,1);
+ assert.equal(next.status,"CAPTURED");
+ assert.equal(calls,2);
+ const repeat=await captureSignedKalshiMarkets(env,{sport:"cfb",webCrypto:webcrypto,
+  now:new Date(at.getTime()+4*60000),fetchImpl:async()=>{calls++;throw Error("NO_THIRD_FETCH");}});
+ assert.equal(repeat.code,"KALSHI_SIGNED_POLL_NOT_DUE");
+ assert.equal(calls,2);
 });
 test("Pages internal route rejects absent and wrong token before signing",async()=>{
  const env=await config(),url="https://fbis.test/api/kalshi-collector-internal?scope=markets&sport=nfl";

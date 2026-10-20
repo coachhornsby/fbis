@@ -84,6 +84,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <div><span>FBIS WIN PROBABILITY</span><strong>{pct(pHome)}</strong></div>
     </section>
     {t.researchFixture?<p className="tmc-fixture-note">Independent ESPN research fixture · {t.researchFixture.officialDisplayEvidence?`WTA official match metadata linked (display only, observed ${t.researchFixture.officialDisplayEvidence.observedAt}) · No verified projection`:"Official schedule metadata unverified · No verified projection"} · ESPN observed {t.researchFixture.fetchedAt}</p>:null}
+    {t.researchFixture?.missingEvidence?.length?<p className="tmc-fixture-note" role="status">MISSING VERIFIED DATA · {t.researchFixture.missingEvidence.join(" · ").replaceAll("_"," ")}</p>:null}
     <div className="tmc-quick-summary" aria-label="FBIS projection summary">
       <span className="tmc-quick-model">FBIS PROJECTION · {display.valid?winnerName:"BLOCKED"}</span>
       <span className="tmc-quick-fair">FAIR MONEYLINE · {fair(pAway)} / {fair(pHome)}</span>

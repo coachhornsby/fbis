@@ -49,7 +49,7 @@ export function mapKalshiPlayerContract(m,{games=[],players=[],capturedAt,series
   player_name:player.player_name,team,opponent:norm(team)===norm(game.home_abbr)?game.away_abbr:game.home_abbr,
   position:player.position||null,historyProvider,historyPlayerId:String(player.player_id),start_time:game.start,canonical_market:stat,
   line:number(m.floor_strike),trigger:Number(rule[2]),side:'yes',statSide:'over',period:'full_game',settlementTerms:terms,
-  settlementScope:'OFFICIAL_GAME_PER_PROVIDER_RULES',dnpSettlement:/fair price/i.test(m.rules_secondary||'')?'FAIR_PRICE':'UNVERIFIED',
+  settlementScope:'OFFICIAL_GAME_PER_PROVIDER_RULES',dnpSettlement:/last fair market price before game start/i.test(m.rules_secondary||'')?'ACTIVE_NO_APPEARANCE_LAST_FAIR_PRICE':/fair price/i.test(m.rules_secondary||'')?'FAIR_PRICE':'UNVERIFIED',
   identityVerified:true,priceVerified:false,observedAsk:number(m.yes_ask_dollars),observedBid:number(m.yes_bid_dollars),
   observedDepth:number(m.yes_ask_size_fp),contractStatus:m.status,observedAt:null,collectedAt:capturedAt,
   quoteClockStatus:'SOURCE_TIME_UNKNOWN',purchaseAsk:null,executableSize:null,fresh:false,marketAvailable:false,

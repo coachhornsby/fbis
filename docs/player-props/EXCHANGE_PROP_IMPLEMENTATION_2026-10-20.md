@@ -1,6 +1,6 @@
 # Exchange player props: implementation and remaining delivery gates
 
-Status: draft foundation; not a production-complete replacement.
+Status: rebuilt research system in release verification. The foundation notes below describe the initial revision; the follow-up section describes current delivery and retained evidence gates.
 Initial base: d33a7bcbb169f4991ab06ab93d8d80afe486d04d. Integrated concurrent main 58207e46a53ad42104c1ce82d72ad6f173f964a7 before final verification.
 
 ## Inspected current state
@@ -76,3 +76,5 @@ The workspace retrieves player availability/workload, actual history, provider c
 Local verification: combined npm test 2,042 passed, zero failed; production frontend build, Pages Functions build, Worker bundle dry-run and diff checks passed. The standalone screenshot browser was unavailable in this environment; preview browser acceptance is tracked separately before release.
 
 Remaining evidence-dependent limitations are product states, not permission to manufacture data: unoffered or unmapped provider markets, missing model feeds, NBA player-data policy, unknown source quote clocks, failed threshold calibration and official outcomes not yet joined. None may be promoted into qualified bets.
+
+Live preview acceptance: 51 NHL research cards returned from real Kalshi captures. Browser verified actual five-game values 1,0,1,0,0 (average 0.4), longer history, home/away splits, median/variation, native research dialog, exact YES/NO contract IDs/prices/depth and settlement rules. Source clock, fees and calibration remain explicit blockers. Final integrated regression: 2,066 passed. Responsive QA corrected inherited grid specificity and dialog centering.

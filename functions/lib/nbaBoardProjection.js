@@ -9,9 +9,10 @@ function parseJson(value) {
 
 const MISSING_V1 = "NBA_FBIS_V1_PROJECTION_MISSING";
 
-export async function attachNbaBoardProjection(games = [], db = null) {
+export async function attachNbaBoardProjection(games = [], db = null, opts = {}) {
+  const gateAllows = opts?.gate?.canAuthorize === true;
   if (!db || !Array.isArray(games) || !games.length) {
-    return { games, meta: { available: 0, requested: games?.length || 0, source: "nba_game_projections" } };
+    return { games, meta: { available: 0, requested: games?.length || 0, source: "nba_game_projections", gateAllows } };
   }
   const ids = [...new Set(games.map((g) => String(g?.id || "")).filter(Boolean))];
   if (!ids.length) return { games, meta: { available: 0, requested: 0, source: "nba_game_projections" } };
@@ -75,26 +76,28 @@ export async function attachNbaBoardProjection(games = [], db = null) {
       }
       available += 1;
       // Prefer calibrated NBA-FBIS-v1 for board scores when a temporally valid row
-      // exists. FORM remains under challengers. Wager authority stays false.
+      // exists. FORM remains under challengers. Wager authority requires prospective
+      // gate criteria + D1 operator cutover (gateAllows).
       const formChallenger = game.researchProjection?.modelId === "NBA-FBIS-FORM-v1"
         ? game.researchProjection
         : null;
+      const rowAllows = gateAllows && p.canAuthorize === true;
       return {
         ...game,
-        nbaFbisV1: p,
+        nbaFbisV1: { ...p, canAuthorize: rowAllows, canQualify: rowAllows },
         nbaProjectionBlocker: null,
         projHomeScore: p.home,
         projAwayScore: p.away,
         projectionKind: "FBIS",
         projectionEngine: p.modelId,
         projectionMaturity: p.maturity || "VALIDATION",
-        projectionDisplayLabel: "NBA FBIS v1 RESEARCH PROJECTION",
+        projectionDisplayLabel: rowAllows ? "NBA FBIS v1" : "NBA FBIS v1 RESEARCH PROJECTION",
         pureProjectionAvailable: true,
-        qualificationBlocked: true,
-        canQualify: false,
-        canAuthorizeWager: false,
-        publicationStatus: "RESEARCH_PUBLISHABLE",
-        bettingAuthority: "NOT_ELIGIBLE",
+        qualificationBlocked: !rowAllows,
+        canQualify: rowAllows,
+        canAuthorizeWager: rowAllows,
+        publicationStatus: rowAllows ? "PUBLISHABLE" : "RESEARCH_PUBLISHABLE",
+        bettingAuthority: rowAllows ? "ELIGIBLE" : "NOT_ELIGIBLE",
         modelVersion: p.modelVersion,
         model: {
           ...(game.model || {}),
@@ -106,18 +109,20 @@ export async function attachNbaBoardProjection(games = [], db = null) {
           pHome: p.pHomeWin,
           projectionKind: "FBIS",
           maturity: p.maturity || "VALIDATION",
-          canQualify: false,
-          canAuthorize: false,
-          canShowCalibratedEv: false,
+          canQualify: rowAllows,
+          canAuthorize: rowAllows,
+          canShowCalibratedEv: rowAllows,
           recipe: {
             engine: p.modelId,
             version: p.modelVersion,
-            family: "research",
+            family: rowAllows ? "production" : "research",
             steps: [
               "independent possession/efficiency projection",
               "frozen calibration",
               "D1 nba_game_projections hydrate",
-              "Research only — no wager authority",
+              rowAllows
+                ? "Prospective gate passed + operator cutover"
+                : "Research only — waiting on prospective gate criteria",
             ],
           },
         },
@@ -131,9 +136,11 @@ export async function attachNbaBoardProjection(games = [], db = null) {
           total: p.total,
           expectedPossessions: p.expectedPossessions,
           pHomeWin: p.pHomeWin,
-          note: "Independent NBA-FBIS-v1 projection from nba_game_projections. Markets are evaluation-only.",
-          canQualify: false,
-          canAuthorize: false,
+          note: rowAllows
+            ? "NBA-FBIS-v1 projection authorized under prospective gate."
+            : "Independent NBA-FBIS-v1 projection from nba_game_projections. Markets are evaluation-only.",
+          canQualify: rowAllows,
+          canAuthorize: rowAllows,
           marketUsed: false,
           featureCutoff: p.featureCutoff,
           createdAt: p.createdAt,
@@ -154,7 +161,8 @@ export async function attachNbaBoardProjection(games = [], db = null) {
         missingGameIds: missing.slice(0, 24),
         source: "nba_game_projections",
         marketInformed: false,
-        canAuthorizeWager: false,
+        canAuthorizeWager: gateAllows,
+        gateAllows,
       },
     };
   } catch (err) {

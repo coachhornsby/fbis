@@ -51,8 +51,10 @@ import { pinMarkets } from "./pricing.js";
 import { canonicalProjectionConfidence } from "./projectionConfidence.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
 import { attachMatchupFactors } from "./matchupFactors.js";
-import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachKboPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
+import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachKboPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked, loadNbaPlayerPropContext, attachNbaPlayerProjectionResearch } from "./proPlayerProjectionLayer.js";
 import { attachNbaBoardProjection } from "./nbaBoardProjection.js";
+import { resolveNbaProspectiveGate } from "./nbaProspectiveGate.js";
+import { loadNbaAvailabilityContext, attachNbaAvailabilityContext } from "./nbaAvailabilityContext.js";
 import { loadWnbaPlayerContext, attachWnbaPlayerProjectionResearch } from "./wnbaPlayerProjection.js";
 import { loadWnbaImpactContext, attachWnbaImpactShadows } from "./wnbaPlayerImpactShadow.js";
 import { loadWnbaPossessionChallengerContext, attachWnbaProspectiveGameChallengers, attachWnbaPlayerOpportunityShadows } from "./wnbaProspectiveChallenger.js";
@@ -501,15 +503,41 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   if (id === "nba" && Array.isArray(next.games)) {
-    const hydrated = await attachNbaBoardProjection(next.games, env.DB || null);
+    const db = env.DB || null;
+    const gate = await resolveNbaProspectiveGate(db).catch((err) => ({
+      status: "FROZEN_RESEARCH_GATE",
+      canAuthorize: false,
+      canQualify: false,
+      error: String(err?.message || err),
+      progress: { passed: 0, total: 0, ratio: 0 },
+      gaps: ["gate_resolve_failed"],
+    }));
+    const hydrated = await attachNbaBoardProjection(next.games, db, { gate });
+    const availCtx = await loadNbaAvailabilityContext(db, hydrated.games);
+    const withAvail = attachNbaAvailabilityContext(hydrated.games, availCtx);
+    const propCtx = await loadNbaPlayerPropContext(db, withAvail);
+    const props = propCtx.meta?.rows
+      ? attachNbaPlayerProjectionResearch(withAvail, propCtx)
+      : { games: attachNbaPlayerProjectionBlocked(withAvail), meta: { ...propCtx.meta, state: "PLAYER_DATA_UNAVAILABLE", fallback: "BLOCKED_UNTIL_SHADOW_ROWS" } };
     next = {
       ...next,
-      games: attachNbaPlayerProjectionBlocked(hydrated.games),
+      games: props.games,
       research: {
         ...(next.research || {}),
         nbaBoardProjection: hydrated.meta,
+        nbaProspectiveGate: {
+          status: gate.status,
+          progress: gate.progress,
+          gaps: gate.gaps,
+          criteriaReady: gate.criteriaReady,
+          awaitingOperator: gate.awaitingOperator,
+          canAuthorize: gate.canAuthorize,
+          boardPolicy: gate.boardPolicy,
+          evidence: gate.evidence,
+        },
+        nbaAvailability: availCtx.meta,
         nbaPlayerProjection: {
-          state: "BLOCKED_RIGHTS_CLEARED_PLAYER_FEED",
+          ...(props.meta || {}),
           canQualify: false,
           canAuthorize: false,
           marketInformed: false,
