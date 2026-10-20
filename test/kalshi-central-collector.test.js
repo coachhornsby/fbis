@@ -117,3 +117,28 @@ test("forged R2 rows cannot promote prices into cards",async()=>{
  assert.equal(d.records[0].canonicalEventId,null);
  assert.equal(d.records[0].feesDollars,null);
 });
+
+test("signed Pages relay timeout surfaces as a fresh ERROR receipt without deleting saved sport snapshot",async()=>{
+ const ARCHIVE=archive(),now=atSport("cfb");
+ const key="kalshi/public-shadow/v1/";
+ ARCHIVE.records.set(key+"sports/cfb.json",JSON.stringify({
+   ok:true,sport:"cfb",seriesTicker:"KXNCAAFGAME",
+   capturedAt:new Date(now.getTime()-10*60*1000).toISOString(),
+   paginationComplete:false,records:[market("cfb")],
+ }));
+ const response=await collectKalshiPublicOnce({
+   ARCHIVE,FBIS_KALSHI_RELAY_TOKEN:secret,
+ },{now,fetchImpl:async()=>{throw new DOMException("timeout","TimeoutError");}});
+ assert.equal(response.ok,false);
+ assert.equal(response.code,"PAGES_RELAY_UNAVAILABLE");
+ const last=JSON.parse(ARCHIVE.records.get(key+"collector-status.json"));
+ assert.equal(last.status,"RELAY_ERROR");
+ assert.equal(last.authenticationMode,"SIGNED_PAGES");
+ assert.equal(last.code,"PAGES_RELAY_UNAVAILABLE");
+ assert.equal(last.sport,"cfb");
+ assert.equal(last.attemptedAt,now.toISOString());
+ const old=JSON.parse(ARCHIVE.records.get(key+"sports/cfb.json"));
+ assert.equal(old.records.length,1);
+ assert.equal(old.ok,true);
+ assert.equal(last.canAuthorizeWager,false);
+});

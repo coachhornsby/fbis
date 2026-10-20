@@ -214,3 +214,98 @@ the first 24 with a visible count of the complete collected inventory.
 This remains a research-only inventory, not validated settlement, orderbook
 depth, fee-adjusted EV, or live cross-sport coverage. Expanding market scope
 beyond NFL and CFB requires separate series/contract qualification.
+
+## 15. Authenticated collection coverage and sport-series discovery
+On October 20, 2026 the operator's NEW NFL diagnostic returned
+anonymous HTTP **429** and signed HTTP **200**. This is expected:
+only the signed collector path is supported; repeated anonymous comparison
+does not measure live FBIS quote health.
+
+Independent live R2 acceptance recorded:
+- NFL: **56** signed `KXNFLGAME` markets at 2026-10-20T13:00:25Z,
+  `paginationComplete=true` for the *queried game-winner series*, not for
+  all NFL markets or props.
+- CFB: **80** signed `KXNCAAFGAME` markets at
+  2026-10-20T12:45:24Z, `paginationComplete=false`.
+- Both are public shadow only, never CORE/EV/fees/executable authority.
+
+Kalshi's official `GET /markets` documentation permits **up to 1000 records
+per page**. The Pages collector now requests 1000 (previously 100) and follows
+a bounded four-page cursor window, up to 4000 observed markets per sport
+attempt. Cursors still determine whether the provider's query was fully
+enumerated; no arbitrary 4000 cap may be described as complete. Existing
+stale rules, safe failure of later pages, matching, source timestamps,
+fees and execution guards remain in force. Large R2 snapshots can be read
+up to 4000 rows; the Market page still renders an initial research subset.
+
+For broader sport coverage, a separate signed daily
+`GET /series?category=Sports` discovery request is now scheduled and
+cached under `kalshi/public-shadow/v1/series-catalog.json` with a
+`series-catalog-status.json` receipt. Responses are sanitized: ticker,
+title, categories and tags only, up to 3000 candidates. Only signed GETs;
+no private data or URLs/settlement claims are ingested. On 429 or malformed
+responses the existing catalog is preserved and further discovery waits
+at least six hours; healthy catalog discovery is due every 24 hours.
+A Kalshi series returned by the catalog is **NOT** automatically mapped to
+an FBIS sport, enabled as a collector, assumed to have currently open markets,
+or eligible for pricing/execution. Explicit sport/league/contract settlement
+mapping and fixture-level verification must precede activation.
+
+The System page reports discovered series separately from verified
+NFL/CFB game market collection, and explains why an anonymous diagnostic
+429 is no longer a signed-source outage. Other Kalshi sports, markets,
+player props and combos remain unqualified until real catalog evidence
+and independent match/fee/orderbook validation are implemented.
+
+## 16. Retire the anonymous operator request
+The original operator A/B diagnostic established anonymous NFL market GET
+returns HTTP **429** and signed GET returns **200**. The production signed
+collector subsequently recorded valid, unqualified market snapshots for
+NFL and CFB. Running an additional anonymous provider request on every
+operator test is no longer useful and can aggravate provider-side rate
+limits.
+
+The operator diagnostic now sends exactly one signed GET to the fixed
+allowlisted market source, with the same existing private FBIS access-code
+gate and 15-minute global R2 cooldown. The former anonymous result is
+reported as `DISABLED_BY_POLICY` and never fetched. Historical receipts
+are normalized on read so a cached anonymous 429 can no longer appear
+as a new production failure. An HTTP 429 on the **signed** GET remains
+a real provider rate-limit blocker and is reported as
+`SIGNED_RATE_LIMITED` without auto retry. Only signed source health
+is considered operational; HTTP 200 alone still does not prove contract
+identity, fee-adjusted execution, or full-sport market coverage.
+
+## 17. Series catalog v2 completeness and signed relay failure receipts
+The first production `GET /series?category=Sports` returned **4,014**
+Sports series templates at 2026-10-20T13:15:24Z. The initial 3,000-row
+catalog cap was therefore incomplete. V2 increases the bounded research
+cap to 7,000 and forces one upgrade refresh even when the prior 24-hour
+cooldown has not expired, then restores the daily schedule. V2 records
+`version:2` in its operational receipt and never promotes new series
+to a validated sport, game, player prop, combo, fee or wagering input.
+
+The initial four-page/1,000-per-page market collector also exposed an
+observability gap: Pages relay transport errors were not persisted by
+the scheduler, allowing an older CAPTURED R2 health receipt to appear
+as though a new scheduled attempt succeeded. The scheduler now stores
+`RELAY_ERROR` with the fixed safe failure code and attempt timestamp
+when Pages transport, receipt validation or upstream relay HTTP fails.
+The last successful market snapshot is preserved but is governed by
+its own timestamp and freshness rules; errors do not fabricate a
+provider HTTP 429. Signed actual provider errors are still written by
+Pages and retain their own cooldown.
+
+## 18. Searchable provider Sports-series directory
+The System view now includes **Explore Available Market Series**, which
+reads from `GET /api/kalshi-series-catalog?q=&offset=&limit=` on R2
+only. It can list and search signed-discovered Kalshi Sports series by
+ticker, provider title, tag or category, with strict server pagination
+(max 50 series per response). The static directory does not trigger
+Kalshi requests from visitors and does not expose signing secrets,
+fee claims, raw account records or private positions.
+Series title/tag discovery is NOT a validated mapping to FBIS canonical
+leagues, fixtures, player stat markets or settlement terms; nothing
+in the explorer changes CORE, market authority, trading or My Bets.
+This enables evidence-based review of source coverage, rather than
+guessing provider tickers for 11 FBIS sport databases.

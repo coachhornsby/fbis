@@ -7,6 +7,8 @@ async function readObject(r2,key){
 }
 export async function kalshiIntegrationHealth(env,{now=new Date()}={}){
  const collector=await readObject(env?.ARCHIVE,"collector-status.json");
+ const catalogStatus=await readObject(env?.ARCHIVE,"series-catalog-status.json");
+ const catalog=await readObject(env?.ARCHIVE,"series-catalog.json");
  const exchangeReceipt=await readObject(env?.ARCHIVE,"exchange-status.json");
  const observedAt=Date.parse(exchangeReceipt?.observedAt||"");
  const exchangeAge=Number.isFinite(observedAt)?now.getTime()-observedAt:null;
@@ -61,6 +63,17 @@ export async function kalshiIntegrationHealth(env,{now=new Date()}={}){
     storage:"CENTRAL_R2_NO_D1_WRITES",
     triggerVerified:!!collector?.attemptedAt,
   },sports,exchangeStatus,
+  seriesCatalog:{
+    state:catalogStatus?.status||"NOT_STARTED",
+    observedAt:catalogStatus?.observedAt||null,
+    nextAllowedAt:catalogStatus?.nextAllowedAt||null,
+    providerSeriesCount:Number.isInteger(catalog?.reportedSeries)?catalog.reportedSeries:null,
+    storedSeriesCount:Number.isInteger(catalog?.storedSeries)?catalog.storedSeries:null,
+    catalogTruncated:catalog?.truncated===true,
+    categoryFilter:"Sports",
+    scope:"DISCOVERY_NOT_VALIDATED_CONTRACT_COVERAGE",
+    canQualify:false,
+  },
   stages:{
     publicCollector:sports.some(x=>x.status==="FRESH_SHADOW")?"PARTIALLY_CAPTURING":"UNVERIFIED",
     eventIdentity:"UNQUALIFIED",contractRules:"UNQUALIFIED",

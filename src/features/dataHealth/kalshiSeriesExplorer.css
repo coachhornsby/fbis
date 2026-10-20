@@ -1,0 +1,26 @@
+.kalshi-catalog{margin:18px 0;border:1px solid #236d70;border-left:4px solid #1b9cef;border-radius:14px;padding:18px;background:linear-gradient(145deg,#11263a,#132c30);color:#eaf9fe}
+.kalshi-catalog header{display:flex;align-items:start;justify-content:space-between;gap:15px;flex-wrap:wrap}
+.kalshi-catalog-label{font-size:10px;letter-spacing:.14em;color:#55c4f1;font-weight:900}
+.kalshi-catalog h3{margin:5px 0;font-size:20px;color:#f3fbff}
+.kalshi-catalog p{font-size:12px;color:#b5d2d9;line-height:1.5;margin:6px 0}
+.kalshi-catalog-research{font-size:10px;font-weight:800;border:1px solid #3179a3;border-radius:30px;padding:7px 11px;color:#89cdeb}
+.kalshi-catalog-form{display:flex;flex-direction:column;gap:8px;margin-top:15px}
+.kalshi-catalog-form label{color:#c1deeb;font-size:11px;font-weight:700}
+.kalshi-catalog-form>div{display:flex;gap:10px;flex-wrap:wrap}
+.kalshi-catalog-form input{background:#0c1c2c;color:#f1fcff;border:1px solid #3c6876;border-radius:8px;flex:1 1 270px;min-width:0;padding:10px}
+.kalshi-catalog button{background:#134a68;color:#e6f8ff;border:1px solid #468ca9;border-radius:7px;padding:9px 12px;cursor:pointer}
+.kalshi-catalog button:disabled{opacity:.42;cursor:default}
+.kalshi-catalog-shortcuts{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 15px}
+.kalshi-catalog-shortcuts button{font-size:11px;padding:6px 10px}
+.kalshi-catalog-counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:12px}
+.kalshi-catalog-counts span{font-size:11px;padding:10px;background:#102c3a;border:1px solid #355567;border-radius:8px}
+.kalshi-catalog-counts strong{display:block;font-size:19px;color:#5fd1fa}
+.kalshi-catalog-table{max-height:425px;overflow:auto}
+.kalshi-catalog table{border-collapse:collapse;min-width:730px;width:100%;font-size:11px}
+.kalshi-catalog th,.kalshi-catalog td{text-align:left;padding:10px 9px;border-bottom:1px solid #315268}
+.kalshi-catalog th{color:#a7d7e8;position:sticky;top:0;background:#122e42}
+.kalshi-catalog td strong{color:#d6f4ff;overflow-wrap:anywhere}
+.kalshi-catalog-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:11px;color:#a4c5d1;margin-top:12px}
+.kalshi-catalog-footer>div{display:flex;gap:7px}
+.kalshi-catalog-alert{background:#4c3230;color:#ffe5cb;padding:11px;border-radius:8px}
+@media(max-width:620px){.kalshi-catalog{padding:12px}.kalshi-catalog-counts{grid-template-columns:1fr}.kalshi-catalog-header{display:block}}

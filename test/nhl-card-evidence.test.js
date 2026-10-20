@@ -71,7 +71,8 @@ test("NHL compact and expanded cards share evidence contract and avoid unconditi
   const component=await readFile(new URL("../src/components/board/NhlBettingIntelligence.jsx",import.meta.url),"utf8");
   for(const code of [compact,premium]) {
     assert.match(code,/NhlBettingIntelligence/);
-    assert.match(code,/[Mm]odel \/ market gap|MODEL \/ MARKET GAP/);
+    assert.match(code,/bestValuePresentation\(game,\s*vm\)/);
+    assert.match(code,/valueChoice\.value/);
     assert.doesNotMatch(code,/<NhlEvidenceStrip/);
     assert.doesNotMatch(code,/<NhlPlayerProjectionStrip/);
   }
@@ -160,7 +161,8 @@ test("NHL compact card never advertises a legacy implied score as independent mo
  const evidence=await readFile(new URL("../src/lib/nhlCardEvidence.js",import.meta.url),"utf8");
  // Independent-model refusal stays in evidence helper; compact only surfaces reference gap / pregame proj.
  assert.match(evidence,/NO INDEPENDENT NHL MODEL/);
- assert.match(code,/MODEL \/ REFERENCE GAP/);
+ assert.match(code,/bestValuePresentation\(game,\s*vm\)/);
+ assert.doesNotMatch(code,/FBIS \/ PINNODDS GAP"\s*:/);
  assert.match(code,/PREGAME PROJ/);
 });
 

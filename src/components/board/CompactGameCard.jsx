@@ -1,4 +1,5 @@
 import VenueConditions from "./VenueConditions.jsx";
+import {bestValuePresentation} from "../../lib/bestValuePresentation.js";
 import SoccerPinnOdds from "./SoccerPinnOdds.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
 import EventMarkets from "./EventMarkets.jsx";
@@ -142,6 +143,7 @@ export default function CompactGameCard({ game, onOpen }) {
   const showStars = !isNhl || proj.available;
   const showAction = true; // Keep compact-card information architecture consistent across sports.
   const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
+  const valueChoice = bestValuePresentation(game,vm);
   const edge = bestEdge(vm);
   const referenceGap = pinnoddsReferenceDifference(game,proj);
   const referenceLead = referenceGap.leading;
@@ -272,25 +274,14 @@ export default function CompactGameCard({ game, onOpen }) {
             <small>STORED PREGAME · NO EDGE</small>
           </aside>
         ) : (
-        <aside className={`cgc-best-edge${soccerPick ? " is-side" : gapIsTotal ? " is-total" : " is-side"}${gapPresentationClass}`} style={gapPresentationStyle}>
-          <span>{soccerPick ? "CONFIDENCE PICK" : showReferenceGap ? "FBIS / PINNODDS GAP" : isNhl && !proj.available ? "NO PURE PROJECTION" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : isNhl && market.referenceOnly ? "MODEL / REFERENCE GAP" : "MODEL / MARKET GAP"}</span>
+        <aside className={`cgc-best-edge value-decision-${valueChoice.status}${valueChoice.teamSide ? " cgc-gap-team cgc-gap-team-branded" : valueChoice.totalDirection ? ` cgc-gap-total cgc-gap-total-${valueChoice.totalDirection}` : " cgc-gap-neutral"}`} style={valueChoice.teamSide ? {"--cgc-gap-brand":gapBrandColor(valueChoice.teamSide==="home"?home:away,valueChoice.teamSide==="home"?game.home:game.away,sportId)} : undefined} aria-label="Best price-supported betting decision">
+          <span>{valueChoice.heading}</span>
           <div className="cgc-edge-identity">
-            {soccerPick ? (
-              soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={100} tone="light" className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
-            ) : showReferenceGap ? (
-              referenceLead?.kind === "total"
-                ? <TotalGapDirection side={referenceLead.side} />
-                : referenceTeam ? <><TeamLogo team={referenceTeam} size={100} tone="light" className="cgc-edge-logo" /><span className="cgc-gap-side-name">{gapTeamLabel}</span></>
-                : <div className="cgc-total-mark">EVEN</div>
-            ) : edge.team ? (
-              <><TeamLogo team={edge.team} size={100} tone="light" className="cgc-edge-logo" /><span className="cgc-gap-side-name">{gapTeamLabel}</span></>
-            ) : edge.total ? (
-              <TotalGapDirection side={edge.detail} />
-            ) : null}
+            {valueChoice.teamSide ? <TeamLogo team={valueChoice.teamSide==="home"?home:away} size={100} tone="light" className="cgc-edge-logo" /> : valueChoice.totalDirection ? <TotalGapDirection side={valueChoice.totalDirection} /> : null}
           </div>
-          <strong>{soccerPick ? `${stars}★` : showReferenceGap ? `${referenceLead.absDelta} ${gapUnit} DIFFERENCE` : edge.value}</strong>
-          <b>{soccerPick ? soccerPick.pick || "—" : showReferenceGap ? <span className="cgc-gap-quote-stack"><span>Market: {referenceLead.kind === "total" ? referenceLead.offeredTotal : `${home.abbr} ${referenceLead.offeredHome > 0 ? "+" : ""}${referenceLead.offeredHome}`}</span><span>FBIS: {referenceLead.kind === "total" ? referenceLead.modelTotal : `${home.abbr} ${referenceLead.modelHome > 0 ? "+" : ""}${referenceLead.modelHome}`}</span></span> : edge.detail}</b>
-          <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : showReferenceGap ? "CAPTURED LINE · NOT EV" : isNhl ? `${edge.type} · RESEARCH ONLY` : edge.type}</small>
+          <strong>{valueChoice.value}</strong>
+          <b>{valueChoice.detail}</b>
+          <small>{valueChoice.secondary}</small>
         </aside>
         )}
       </div>
