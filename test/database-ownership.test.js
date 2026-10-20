@@ -23,6 +23,8 @@ test("ownership manifest covers primary, operations, market-history, cold, core,
   assert.equal(DATABASE_OWNERS.COLD_HISTORY.databaseId, "6fad1baf-126f-4ab8-9b80-a7d71637d6d4");
   assert.equal(DATABASE_OWNERS.CORE.databaseId, "a5b438fa-eb16-4f03-95d7-1fc58ac72f04");
   assert.equal(DATABASE_OWNERS.NHL.databaseId, "a0aa010c-40d3-4d2f-8109-eca4e74e2a73");
+  assert.equal(DATABASE_OWNERS.SOCCER.databaseId, "c275978c-fce9-49c9-a1ce-4e2fcbea6d23");
+  assert.equal(DATABASE_OWNERS.TENNIS.databaseId, "c491e479-f9f6-49a9-ace9-962aef68cc64");
   assert.equal(DATABASE_OWNERS.MARKET_HISTORY_2026Q4.databaseId, "e8b0b65d-90a6-4842-8ee7-0f85d75afb4c");
   assert.ok(OPERATIONS_OWNED_TABLES.includes("fbis_ops_health"));
   assert.ok(OPERATIONS_OWNED_TABLES.includes("fbis_capacity_measurements"));

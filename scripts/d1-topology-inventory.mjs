@@ -24,11 +24,12 @@ const report = {
   databases: rows.map(([binding, name, id]) => ({ binding, name, id })),
   migrationPhases: manifest.migrationPhases,
   nextActions: [
-    "Bind CORE_DB, NHL_DB, MARKET_HISTORY_2026Q4_DB on Pages (wrangler.toml updated).",
-    "Run POST /api/database-topology operation=nhl-copy then nhl-parity.",
-    "Keep NHL_SPORT_DB_MODE=shadow until parity OK.",
+    "Bind CORE_DB, NHL_DB, SOCCER_DB, TENNIS_DB, MARKET_HISTORY_2026Q4_DB on Pages (wrangler.toml updated).",
+    "NHL pilot copy/parity live: PARITY_OK — keep NHL_SPORT_DB_MODE=shadow until product cutover.",
+    "Soccer/tennis D1s schema-ready in shadow; seed + parity before SPORT_DB_MODE_*=sport.",
     "Route new WS/REST recovery writes to MARKET_HISTORY_2026Q4_DB (wired).",
-    "Archive market observations older than 7 days to R2 before any retention delete.",
+    "Run POST /api/database-topology operation=market-history-archive-scan (dry-run, then archiveWrites=true).",
+    "Retention-gate delete only after verified R2 recovery — never auto-delete.",
   ],
   canAuthorizeWager: false,
 };

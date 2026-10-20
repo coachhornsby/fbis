@@ -132,11 +132,11 @@ export async function copyNhlPilotTables(env, { limitPerTable = 5000 } = {}) {
         }
       } else if (spec.table === "prediction_snapshots") {
         const page = await primary.prepare(
-          `SELECT game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,p_home_final,frozen_at
+          `SELECT id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,p_home_final,frozen_at
            FROM prediction_snapshots WHERE sport='nhl' ORDER BY frozen_at DESC LIMIT ?`
         ).bind(limitPerTable).all();
         for (const row of page.results || []) {
-          const id = `${row.game_id}|${row.frozen_at}`;
+          const id = row.id || `${row.game_id}|${row.frozen_at}|${row.model_version || ""}|${row.projection_kind || ""}`;
           await sportDb.prepare(
             `INSERT OR REPLACE INTO prediction_snapshots(id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,p_home_final,frozen_at,payload_json)
              VALUES(?,?,?,?,?,?,?,?,?,?,NULL)`

@@ -131,6 +131,42 @@ export const DATABASE_OWNERS = Object.freeze({
       "ops_telemetry",
     ]),
   }),
+  SOCCER: Object.freeze({
+    key: "SOCCER",
+    binding: "SOCCER_DB",
+    databaseName: "fbis-soccer",
+    databaseId: "c275978c-fce9-49c9-a1ce-4e2fcbea6d23",
+    role: "soccer_sport_working_set",
+    accepts: Object.freeze([
+      "soccer_schedules",
+      "soccer_projections",
+      "soccer_research_decisions",
+      "soccer_settlements",
+    ]),
+    rejects: Object.freeze([
+      "unbounded_ws_ticks",
+      "cross_sport_authority",
+      "ops_telemetry",
+    ]),
+  }),
+  TENNIS: Object.freeze({
+    key: "TENNIS",
+    binding: "TENNIS_DB",
+    databaseName: "fbis-tennis",
+    databaseId: "c491e479-f9f6-49a9-ace9-962aef68cc64",
+    role: "tennis_sport_working_set",
+    accepts: Object.freeze([
+      "tennis_schedules",
+      "tennis_projections",
+      "tennis_research_decisions",
+      "tennis_settlements",
+    ]),
+    rejects: Object.freeze([
+      "unbounded_ws_ticks",
+      "cross_sport_authority",
+      "ops_telemetry",
+    ]),
+  }),
   COLD_HISTORY: Object.freeze({
     key: "COLD_HISTORY",
     binding: "COLD_HISTORY_DB",

@@ -19,7 +19,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
  if(extras.length){
   const attempts=await Promise.allSettled([
    loadPolymarketUsBoardOffers(db,games,sport,{now,maxAgeMs,moneylineOnly}),
-   ...extras.map((h,i)=>loadPolymarketUsBoardOffers(h,games,sport,{now,maxAgeMs,deliveryStore:`MARKET_HISTORY_RECOVERY_${i}`,moneylineOnly})),
+   ...extras.map((h,i)=>loadPolymarketUsBoardOffers(h,games,sport,{now,maxAgeMs,deliveryStore:i===0?"MARKET_HISTORY_RECOVERY":`MARKET_HISTORY_RECOVERY_${i}`,moneylineOnly})),
   ]);
   const byId=new Map();
   for(const result of attempts){if(result.status!=="fulfilled")continue;for(const [id,offers] of result.value.byId){

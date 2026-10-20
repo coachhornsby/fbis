@@ -24,7 +24,7 @@ export const SPORT_DATABASES = Object.freeze({
     binding: "NHL_DB",
     databaseName: "fbis-nhl",
     databaseId: "a0aa010c-40d3-4d2f-8109-eca4e74e2a73",
-    pilotStatus: "SCHEMA_READY",
+    pilotStatus: "PARITY_OK",
     accepts: Object.freeze([
       "schedules", "teams", "players", "stats", "projections",
       "research_decisions", "settlements", "calibration", "clv_links",
@@ -39,8 +39,34 @@ export const SPORT_DATABASES = Object.freeze({
   nba: Object.freeze({ sport: "nba", binding: "NBA_DB", databaseName: "fbis-nba", databaseId: null, pilotStatus: "PLANNED" }),
   wnba: Object.freeze({ sport: "wnba", binding: "WNBA_DB", databaseName: "fbis-wnba", databaseId: null, pilotStatus: "PLANNED" }),
   mlb: Object.freeze({ sport: "mlb", binding: "MLB_DB", databaseName: "fbis-mlb", databaseId: null, pilotStatus: "PLANNED" }),
-  soccer: Object.freeze({ sport: "soccer", binding: "SOCCER_DB", databaseName: "fbis-soccer", databaseId: null, pilotStatus: "PLANNED" }),
-  tennis: Object.freeze({ sport: "tennis", binding: "TENNIS_DB", databaseName: "fbis-tennis", databaseId: null, pilotStatus: "PLANNED" }),
+  soccer: Object.freeze({
+    sport: "soccer",
+    binding: "SOCCER_DB",
+    databaseName: "fbis-soccer",
+    databaseId: "c275978c-fce9-49c9-a1ce-4e2fcbea6d23",
+    pilotStatus: "SCHEMA_READY",
+    accepts: Object.freeze([
+      "schedules", "teams", "players", "stats", "projections",
+      "research_decisions", "settlements", "calibration", "clv_links",
+    ]),
+    rejects: Object.freeze([
+      "unbounded_ws_ticks", "cross_sport_joins", "ops_telemetry", "raw_provider_blobs",
+    ]),
+  }),
+  tennis: Object.freeze({
+    sport: "tennis",
+    binding: "TENNIS_DB",
+    databaseName: "fbis-tennis",
+    databaseId: "c491e479-f9f6-49a9-ace9-962aef68cc64",
+    pilotStatus: "SCHEMA_READY",
+    accepts: Object.freeze([
+      "schedules", "players", "stats", "projections",
+      "research_decisions", "settlements", "calibration", "clv_links",
+    ]),
+    rejects: Object.freeze([
+      "unbounded_ws_ticks", "cross_sport_joins", "ops_telemetry", "raw_provider_blobs",
+    ]),
+  }),
   npb: Object.freeze({ sport: "npb", binding: "NPB_DB", databaseName: "fbis-npb", databaseId: null, pilotStatus: "PLANNED" }),
   kbo: Object.freeze({ sport: "kbo", binding: "KBO_DB", databaseName: "fbis-kbo", databaseId: null, pilotStatus: "PLANNED" }),
 });
@@ -290,6 +316,8 @@ export async function probeTopologyCapacity(env) {
     ["OPERATIONS", env?.OPERATIONS_DB, DATABASE_OWNERS.OPERATIONS.databaseId],
     ["CORE", env?.CORE_DB, CORE_DATABASE.databaseId],
     ["NHL", env?.NHL_DB, SPORT_DATABASES.nhl.databaseId],
+    ["SOCCER", env?.SOCCER_DB, SPORT_DATABASES.soccer.databaseId],
+    ["TENNIS", env?.TENNIS_DB, SPORT_DATABASES.tennis.databaseId],
     ["MARKET_HISTORY", env?.MARKET_HISTORY_DB, DATABASE_OWNERS.MARKET_HISTORY.databaseId],
     ["MARKET_HISTORY_2026Q4", env?.MARKET_HISTORY_2026Q4_DB, MARKET_HISTORY_PARTITIONS[0].databaseId],
     ["COLD_HISTORY", env?.COLD_HISTORY_DB, DATABASE_OWNERS.COLD_HISTORY.databaseId],

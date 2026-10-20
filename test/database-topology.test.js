@@ -41,8 +41,16 @@ test("resolveSportDb keeps primary authority until mode=sport", () => {
   const active = resolveSportDb({ NHL_DB: nhl, DB: primary }, "nhl", { mode: "sport" });
   assert.equal(active.binding, "NHL_DB");
   assert.equal(active.preferred, true);
-  const planned = resolveSportDb({ DB: primary }, "soccer");
-  assert.equal(planned.reason, "SPORT_DB_UNBOUND");
+  const unbound = resolveSportDb({ DB: primary }, "nfl");
+  assert.equal(unbound.reason, "SPORT_DB_UNBOUND");
+  const soccer = { prepare() { return {}; } };
+  const soccerShadow = resolveSportDb(
+    { SOCCER_DB: soccer, DB: primary, SPORT_DB_MODE_SOCCER: "shadow" },
+    "soccer"
+  );
+  assert.equal(soccerShadow.reason, "SPORT_DB_SHADOW_PRIMARY_READS");
+  assert.equal(SPORT_DATABASES.soccer.databaseId, "c275978c-fce9-49c9-a1ce-4e2fcbea6d23");
+  assert.equal(SPORT_DATABASES.tennis.databaseId, "c491e479-f9f6-49a9-ace9-962aef68cc64");
 });
 
 test("market history write prefers 2026Q4 partition when ready and under WATCH", async () => {
@@ -112,6 +120,11 @@ test("NHL copy and parity succeed on in-memory fixtures", async () => {
     id: "nhl-1", sport: "nhl", start: "2026-10-20T23:00:00Z",
     home_name: "Home", away_name: "Away", home_abbr: "H", away_abbr: "A",
   }];
+  const primaryPreds = [{
+    id: "pred-1", game_id: "nhl-1", sport: "nhl", model_version: "v1",
+    projection_kind: "FBIS", proj_total: 6, proj_home: 3, proj_away: 3,
+    p_home_final: 0.5, frozen_at: "2026-10-20T12:00:00Z",
+  }];
   const sportStore = {
     games: new Map(),
     prediction_snapshots: new Map(),
@@ -125,7 +138,7 @@ test("NHL copy and parity succeed on in-memory fixtures", async () => {
         return { bind() { return { async all() { return { results: primaryGames }; }, async first() { return { n: primaryGames.length }; } }; } };
       }
       if (sql.includes("FROM prediction_snapshots")) {
-        return { bind() { return { async all() { return { results: [] }; }, async first() { return { n: 0 }; } }; } };
+        return { bind() { return { async all() { return { results: primaryPreds }; }, async first() { return { n: primaryPreds.length }; } }; } };
       }
       if (sql.includes("FROM published_projections")) {
         return { bind() { return { async all() { return { results: [] }; }, async first() { return { n: 0 }; } }; } };
@@ -147,7 +160,19 @@ test("NHL copy and parity succeed on in-memory fixtures", async () => {
           },
         };
       }
-      if (sql.startsWith("INSERT OR REPLACE INTO prediction_snapshots") || sql.startsWith("INSERT OR REPLACE INTO published_projections")) {
+      if (sql.startsWith("INSERT OR REPLACE INTO prediction_snapshots")) {
+        return {
+          bind(...args) {
+            return {
+              async run() {
+                sportStore.prediction_snapshots.set(args[0], args);
+                return { meta: { changes: 1 } };
+              },
+            };
+          },
+        };
+      }
+      if (sql.startsWith("INSERT OR REPLACE INTO published_projections")) {
         return { bind() { return { async run() { return { meta: { changes: 0 } }; } }; } };
       }
       if (sql.includes("fbis_sport_shard_meta")) {
@@ -159,7 +184,10 @@ test("NHL copy and parity succeed on in-memory fixtures", async () => {
       if (sql.includes("FROM games")) {
         return { bind() { return { async first() { return { n: sportStore.games.size }; } }; } };
       }
-      if (sql.includes("FROM prediction_snapshots") || sql.includes("FROM published_projections")) {
+      if (sql.includes("FROM prediction_snapshots")) {
+        return { bind() { return { async first() { return { n: sportStore.prediction_snapshots.size }; } }; } };
+      }
+      if (sql.includes("FROM published_projections")) {
         return { bind() { return { async first() { return { n: 0 }; } }; } };
       }
       return { bind() { return { async first() { return { n: 0 }; }, async run() { return { meta: { changes: 0 } }; } }; } };

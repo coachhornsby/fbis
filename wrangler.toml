@@ -45,6 +45,17 @@ binding = "NHL_DB"
 database_name = "fbis-nhl"
 database_id = "a0aa010c-40d3-4d2f-8109-eca4e74e2a73"
 
+# Soccer / tennis sport working sets (schema ready; primary authority until parity).
+[[d1_databases]]
+binding = "SOCCER_DB"
+database_name = "fbis-soccer"
+database_id = "c275978c-fce9-49c9-a1ce-4e2fcbea6d23"
+
+[[d1_databases]]
+binding = "TENNIS_DB"
+database_name = "fbis-tennis"
+database_id = "c491e479-f9f6-49a9-ace9-962aef68cc64"
+
 # Preferred home for ops control plane, capacity alerts, retention gates,
 # pipeline validation receipts, and D1 performance findings.
 # Product authority stays on primary. Schema: sql/shards/operations-v1.sql
@@ -83,3 +94,6 @@ MARKET_HISTORY_SHADOW_WS = "enabled"
 COLD_MARKET_ARCHIVE_READS = "enabled"
 # NHL sport D1 pilot: primary | shadow | sport. Keep primary until parity passes.
 NHL_SPORT_DB_MODE = "shadow"
+# Soccer / tennis sport D1s: keep primary authority until parity receipts pass.
+SPORT_DB_MODE_SOCCER = "shadow"
+SPORT_DB_MODE_TENNIS = "shadow"
