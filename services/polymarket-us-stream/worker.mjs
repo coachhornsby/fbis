@@ -623,7 +623,21 @@ export default {
           ok:result.ok, archived:result.archived, backlogBefore:result.backlogBefore,
           backlogAfter:result.backlogAfter, backlogFalling:result.backlogFalling,
           moreRemaining:result.moreRemaining, throughputRowsPerSec:result.throughputRowsPerSec,
+          lateArrivalsBehindCursor:result.lateArrivalsBehindCursor||null,
           canAuthorizeWager:false, deletion:result.deletion,
+        }));
+        // Late arrivals behind the monotonic cursor — archive without rewinding checkpoint.
+        const {archiveLateArrivalsBehindCursor}=await import("../../functions/lib/marketHistoryVerifiedArchive.js");
+        const late=await archiveLateArrivalsBehindCursor(env,{
+          archiveWrites:true,
+          verifyReadback:true,
+          limit:500,
+          eligibilityMs:60*60*1000,
+        });
+        console.log("MARKET_HISTORY_LATE_ARRIVAL_CATCHUP",JSON.stringify({
+          ok:late.ok, lateArchived:late.lateArchived,
+          lateCount:late.lateArrivalsBehindCursor?.count??null,
+          canAuthorizeWager:false, deletion:late.deletion||"NOT_PERFORMED",
         }));
       }catch(error){
         console.warn("MARKET_HISTORY_ARCHIVE_CATCHUP_FAILED",String(error?.message||error).slice(0,240));

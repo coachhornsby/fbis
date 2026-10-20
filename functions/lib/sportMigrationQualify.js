@@ -8,6 +8,7 @@ import {
   SPORT_PREFIX_TABLES,
   SPORT_SYNC_SPORTS,
   verifySportWorkingParity,
+  verifySportPrefixParity,
   copySportWorkingTables,
   copySportPrefixTables,
 } from "./sportWorkingCopy.js";
@@ -216,9 +217,10 @@ export async function qualifySportMigration(env, sport, {
       sync = {
         ...sync,
         prefix: await copySportPrefixTables(env, key, {
-          pageSize: 100,
-          maxPages: 4,
+          pageSize: 150,
+          maxPages: 12,
           resume: true,
+          skipCaughtUp: true,
         }),
       };
     }
@@ -226,6 +228,7 @@ export async function qualifySportMigration(env, sport, {
 
   const countParity = await verifySportWorkingParity(env, key, { now });
   const recordParity = await verifySportRecordLevelParity(env, key, { sampleSize, now });
+  const prefixParity = await verifySportPrefixParity(env, key, { now });
   const health = await buildSportSyncHealth(env, key, { now });
 
   let cutover = null;
@@ -240,6 +243,8 @@ export async function qualifySportMigration(env, sport, {
   const gates = {
     countParity: countParity.ok === true,
     recordParity: recordParity.ok === true,
+    // Working-set parity ≠ complete sport migration — prefix research must catch up too.
+    prefixParity: prefixParity.ok === true,
     syncLag: health.lagOk === true || health.lastCopyAt == null, // null = not yet synced; not a hard fail when just starting
     productStillPrimary: health.productStillPrimary === true,
     cutoverRehearsal: cutover ? cutover.ok === true : null,
@@ -249,6 +254,7 @@ export async function qualifySportMigration(env, sport, {
 
   const readyForCutoverReview = gates.countParity
     && gates.recordParity
+    && gates.prefixParity
     && gates.productStillPrimary
     && (cutover ? cutover.ok === true : false);
 
@@ -265,6 +271,7 @@ export async function qualifySportMigration(env, sport, {
     sync,
     countParity,
     recordParity,
+    prefixParity,
     health,
     cutoverRehearsal: cutover,
     rollbackPlan: {
@@ -272,8 +279,14 @@ export async function qualifySportMigration(env, sport, {
         "Keep SPORT_DB_MODE_* = shadow (or unset)",
         "Do not write SPORT_CUTOVER_RECEIPT_*",
         "Product reads remain on PRIMARY",
-        "Re-run sport-delta-sync + record parity after any failed rehearsal",
+        "Re-run sport-delta-sync + record/prefix parity after any failed rehearsal",
+        "Confirm model_version set and board fingerprint match baseline before approval",
       ],
+    },
+    migrationCompleteness: {
+      workingSetOnly: gates.countParity && gates.recordParity && !gates.prefixParity,
+      fullSportIncludingPrefix: gates.countParity && gates.recordParity && gates.prefixParity,
+      note: "Do not treat games/predictions parity as a complete sport migration",
     },
     canAuthorizeWager: false,
   };
@@ -283,6 +296,7 @@ export async function qualifySportMigration(env, sport, {
     gates,
     countParity: countParity.status,
     recordParity: recordParity.status,
+    prefixParity: prefixParity.status,
     lagMs: health.lagMs,
   }));
 

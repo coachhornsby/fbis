@@ -304,16 +304,39 @@ export async function rehearseSportCutover(env, sport, {
       || sportFp.projectionCount < baseline.projectionCount;
   }
 
-  // Rollback
+  const overrideRejected = productSportDbHandle(shadowEnv, key, { mode: "sport" });
+  const overrideBlocked = overrideRejected.productIoUsesSportDb === false
+    && overrideRejected.reason === "CALLER_MODE_OVERRIDE_REJECTED_ENV_AUTHORITY";
+
+  // Consumers / writes: capture BEFORE rollback clones mutate shared approval Map.
+  const consumerShadow = productSportDbHandle(shadowEnv, key);
+  const consumersStayPrimary = consumerShadow.productIoUsesSportDb === false
+    && consumerShadow.binding === "DB";
+  const writeShadow = productSportDbHandle(shadowEnv, key);
+  const writesStayPrimary = writeShadow.productIoUsesSportDb === false && writeShadow.binding === "DB";
+  const writeSportWithReceipt = productSportDbHandle(sportEnv, key);
+  const writesWouldMoveWithReceipt = injectMissingBinding
+    ? writeSportWithReceipt.productIoUsesSportDb === false
+    : writeSportWithReceipt.productIoUsesSportDb === true;
+
+  // Model preservation: distinct model_version sets must survive simulated sport switch.
+  const baselineModels = new Set(
+    (baseline.projections || []).map((p) => String(p.model_version || "")).filter(Boolean)
+  );
+  const sportModels = new Set(
+    (sportFp.projections || []).map((p) => String(p.model_version || "")).filter(Boolean)
+  );
+  const modelPreserved = injectMissingBinding || injectPartialSport
+    ? true
+    : (baselineModels.size === 0
+      || [...baselineModels].every((m) => sportModels.has(m)));
+
+  // Rollback last — clearing issueCutoverReceipt mutates the shared in-process approval Map.
   const rollbackEnv = buildRehearsalEnv(sportEnv, key, { mode: "shadow", issueCutoverReceipt: false });
   const rollbackFp = await captureBoardFingerprint(rollbackEnv, key, { label: "rollback_shadow", sampleSize });
   const rollbackOk = rollbackFp.productIoUsesSportDb === false
     && rollbackFp.binding === "DB"
     && fingerprintsMatchIds(baseline, rollbackFp);
-
-  const overrideRejected = productSportDbHandle(shadowEnv, key, { mode: "sport" });
-  const overrideBlocked = overrideRejected.productIoUsesSportDb === false
-    && overrideRejected.reason === "CALLER_MODE_OVERRIDE_REJECTED_ENV_AUTHORITY";
 
   const coreSports = {};
   for (const s of Object.keys(SPORT_DATABASES)) {
@@ -327,6 +350,9 @@ export async function rehearseSportCutover(env, sport, {
   const steps = [
     { step: "baseline_primary", ok: baseline.productIoUsesSportDb === false, fingerprint: summarizeFp(baseline) },
     { step: "shadow_stays_primary", ok: shadowStaysPrimary, fingerprint: summarizeFp(shadowFp) },
+    { step: "consumers_read_primary_until_cutover", ok: consumersStayPrimary, binding: consumerShadow.binding },
+    { step: "writes_stay_primary_until_receipt", ok: writesStayPrimary, binding: writeShadow.binding },
+    { step: "writes_move_only_with_receipt", ok: writesWouldMoveWithReceipt, binding: writeSportWithReceipt.binding },
     { step: "caller_mode_override_blocked", ok: overrideBlocked, reason: overrideRejected.reason },
     { step: "sport_mode_requires_cutover_receipt", ok: receiptRequired, fingerprint: summarizeFp(noReceiptFp) },
     {
@@ -339,6 +365,12 @@ export async function rehearseSportCutover(env, sport, {
       step: "baseline_vs_sport_output_compare",
       ok: injectPartialSport || injectMissingBinding ? true : outputCompare.ok === true,
       comparison: outputCompare,
+    },
+    {
+      step: "model_versions_preserved",
+      ok: modelPreserved,
+      baselineModels: [...baselineModels].slice(0, 20),
+      sportModels: [...sportModels].slice(0, 20),
     },
     {
       step: "partial_data_injection_detected",
@@ -366,9 +398,11 @@ export async function rehearseSportCutover(env, sport, {
       baselineVsRollback: fingerprintsMatchIds(baseline, rollbackFp),
       baselineVsSport: outputCompare,
       shadowUsesPrimary: shadowStaysPrimary,
+      modelPreserved,
     },
     liveCutoverAuthorized: false,
     productionCutoverBlocked: true,
+    authorityActivationRequested: false,
     note: "Rehearsal only — primary D1 remains authoritative; do not set SPORT_DB_MODE_*=sport.",
     canAuthorizeWager: false,
   };

@@ -130,6 +130,10 @@ test("qualify package never activates cutover or deletion", async () => {
   assert.equal(q.cutoverAuthorized, false);
   assert.equal(q.deletionAuthorized, false);
   assert.equal(q.canAuthorizeWager, false);
+  assert.ok(q.prefixParity);
+  assert.ok(q.migrationCompleteness);
+  // Working-set parity alone must not claim a complete sport migration.
+  assert.equal(typeof q.migrationCompleteness.fullSportIncludingPrefix, "boolean");
 });
 
 test("qualify workflow keeps deletion and cutover closed", () => {

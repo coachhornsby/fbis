@@ -4,6 +4,8 @@ import {
   sportMigrationScope,
   ensureMirroredSportTable,
   copyPrefixedTablePaged,
+  copySportPrefixTables,
+  verifySportPrefixParity,
   syncSportWorkingDelta,
   SPORT_PREFIX_TABLES,
   SPORT_SYNC_SPORTS,
@@ -37,12 +39,10 @@ function memoryDb(seed = {}) {
               if (s.startsWith("PRAGMA table_info")) {
                 return null;
               }
-              if (s.includes("SELECT COUNT(*)")) {
+              if (s.includes("SELECT COUNT(*)") || s.includes("COUNT(*)")) {
                 const sport = args[0];
-                const table = s.includes("prediction_snapshots") ? "prediction_snapshots"
-                  : s.includes("published_projections") ? "published_projections"
-                    : s.includes("FROM games") ? "games" : null;
-                const rows = (tables.get(table)?.rows || []).filter((r) => !sport || r.sport === sport);
+                const fromTable = s.match(/FROM\s+([a-zA-Z_][a-zA-Z0-9_]*)/i)?.[1] || null;
+                const rows = (tables.get(fromTable)?.rows || []).filter((r) => !sport || r.sport === sport);
                 return { n: rows.length };
               }
               return null;
@@ -201,6 +201,69 @@ test("copyPrefixedTablePaged mirrors rows idempotently", async () => {
   const second = await copyPrefixedTablePaged(primary, sport, "nfl_team_profiles", { pageSize: 10, maxPages: 2 });
   assert.equal(second.copied, 2); // INSERT OR REPLACE
   assert.equal(sport._tables.get("nfl_team_profiles").rows.length, 2);
+});
+
+test("verifySportPrefixParity distinguishes complete vs incomplete research copy", async () => {
+  const primary = memoryDb({
+    nfl_team_profiles: [
+      { team_key: "KC", team_name: "Chiefs" },
+      { team_key: "BUF", team_name: "Bills" },
+    ],
+    nfl_player_profiles: [
+      { player_key: "p1", name: "A" },
+      { player_key: "p2", name: "B" },
+      { player_key: "p3", name: "C" },
+    ],
+  });
+  const sport = memoryDb({
+    nfl_team_profiles: [
+      { team_key: "KC", team_name: "Chiefs" },
+      { team_key: "BUF", team_name: "Bills" },
+    ],
+    nfl_player_profiles: [
+      { player_key: "p1", name: "A" },
+    ],
+  });
+  // Seed remaining NFL prefix tables as empty on both sides so only player_profiles diverges.
+  for (const table of SPORT_PREFIX_TABLES.nfl) {
+    if (!primary._tables.has(table)) primary._tables.set(table, { cols: ["id"], rows: [] });
+    if (!sport._tables.has(table)) sport._tables.set(table, { cols: ["id"], rows: [] });
+  }
+  const env = { DB: primary, NFL_DB: sport };
+  const parity = await verifySportPrefixParity(env, "nfl");
+  assert.equal(parity.ok, false);
+  assert.equal(parity.status, "PREFIX_PARITY_INCOMPLETE");
+  const players = parity.tables.find((t) => t.table === "nfl_player_profiles");
+  assert.equal(players.status, "DIVERGED");
+  assert.equal(players.primaryCount, 3);
+  assert.equal(players.sportCount, 1);
+});
+
+test("copySportPrefixTables skipCaughtUp focuses budget on incomplete tables", async () => {
+  const primary = memoryDb({
+    nfl_team_profiles: [{ team_key: "KC", team_name: "Chiefs" }],
+    nfl_player_profiles: [
+      { player_key: "p1", name: "A" },
+      { player_key: "p2", name: "B" },
+    ],
+  });
+  const sport = memoryDb({
+    nfl_team_profiles: [{ team_key: "KC", team_name: "Chiefs" }],
+    nfl_player_profiles: [],
+  });
+  for (const table of SPORT_PREFIX_TABLES.nfl) {
+    if (!primary._tables.has(table)) primary._tables.set(table, { cols: ["id"], rows: [] });
+    if (!sport._tables.has(table)) sport._tables.set(table, { cols: ["id"], rows: [] });
+  }
+  const env = { DB: primary, NFL_DB: sport };
+  const result = await copySportPrefixTables(env, "nfl", {
+    pageSize: 10,
+    maxPages: 2,
+    skipCaughtUp: true,
+    tables: ["nfl_team_profiles", "nfl_player_profiles"],
+  });
+  assert.ok(result.skippedCaughtUp.some((s) => s.table === "nfl_team_profiles"));
+  assert.ok(result.results.some((r) => r.table === "nfl_player_profiles" && r.copied === 2));
 });
 
 test("syncSportWorkingDelta refuses while sport mode is active", async () => {

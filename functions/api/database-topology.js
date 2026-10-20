@@ -29,6 +29,7 @@ import {
   reconcileSportProjections,
   backfillSportEvidenceEnvelopes,
   copySportPrefixTables,
+  verifySportPrefixParity,
   syncSportWorkingDelta,
   sportMigrationScope,
   isSportSyncEligible,
@@ -227,7 +228,13 @@ export async function onRequestPost({ env, request } = {}) {
       maxPages: Math.min(100, Number(body.maxPages) || 25),
       resume: body.resume !== false,
       tables: Array.isArray(body.tables) ? body.tables : null,
+      skipCaughtUp: body.skipCaughtUp === true,
     }));
+  }
+  if (operation === "sport-prefix-parity") {
+    const gate = requireSyncSport(body.sport);
+    if (!gate.ok) return json(gate, 400);
+    return json(await verifySportPrefixParity(env, gate.sport));
   }
   if (operation === "sport-delta-sync") {
     const gate = requireSyncSport(body.sport);

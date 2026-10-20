@@ -12,34 +12,72 @@ const INCLUDE_PREFIX = process.env.INCLUDE_PREFIX === "true";
 const ROUNDS = Math.min(6, Number(process.env.SYNC_ROUNDS) || 3);
 const PAGE_SIZE = Math.min(500, Number(process.env.SYNC_PAGE_SIZE) || 250);
 const MAX_PAGES = Math.min(20, Number(process.env.SYNC_MAX_PAGES) || 8);
-const PREFIX_PAGE_SIZE = Math.min(200, Number(process.env.PREFIX_PAGE_SIZE) || 100);
-const PREFIX_MAX_PAGES = Math.min(10, Number(process.env.PREFIX_MAX_PAGES) || 4);
+const PREFIX_PAGE_SIZE = Math.min(250, Number(process.env.PREFIX_PAGE_SIZE) || 150);
+const PREFIX_MAX_PAGES = Math.min(20, Number(process.env.PREFIX_MAX_PAGES) || 12);
+const PREFIX_ROUNDS = Math.min(4, Number(process.env.PREFIX_ROUNDS) || 2);
 const REQUEST_TIMEOUT_MS = Math.min(540_000, Number(process.env.SYNC_TIMEOUT_MS) || 240_000);
 
-async function postTopology(operation, extra = {}) {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function postTopology(operation, extra = {}, {
+  retries = 3,
+  retryOn = [502, 503, 504, 520, 522, 524],
+} = {}) {
   if (!SECRET) throw new Error("HARVEST_SECRET_REQUIRED");
-  const response = await fetch(`${BASE}/api/database-topology`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-harvest-secret": SECRET,
-      "cache-control": "no-cache",
-    },
-    body: JSON.stringify({ operation, ...extra }),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-  const text = await response.text();
-  let body = null;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    throw new Error(`TOPOLOGY_${operation}_INVALID_JSON_HTTP_${response.status}`);
+  let lastError = null;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const response = await fetch(`${BASE}/api/database-topology`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-harvest-secret": SECRET,
+          "cache-control": "no-cache",
+        },
+        body: JSON.stringify({ operation, ...extra }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      const text = await response.text();
+      let body = null;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        const err = new Error(`TOPOLOGY_${operation}_INVALID_JSON_HTTP_${response.status}`);
+        // Pages overload often returns HTML/empty 503 bodies — retry then soft-fail prefix.
+        if (retryOn.includes(response.status) && attempt < retries) {
+          lastError = err;
+          await sleep(1500 * (attempt + 1));
+          continue;
+        }
+        throw err;
+      }
+      if (response.status === 403) throw new Error("TOPOLOGY_FORBIDDEN");
+      if (!response.ok) {
+        const err = new Error(
+          `TOPOLOGY_${operation}_HTTP_${response.status}_${body?.error || body?.reason || "ERROR"}`
+        );
+        if (retryOn.includes(response.status) && attempt < retries) {
+          lastError = err;
+          await sleep(1500 * (attempt + 1));
+          continue;
+        }
+        throw err;
+      }
+      return body;
+    } catch (error) {
+      lastError = error;
+      const msg = String(error?.message || error);
+      const retryable = /INVALID_JSON_HTTP_50[234]|HTTP_50[234]|HTTP_52[024]|AbortError|timeout/i.test(msg);
+      if (retryable && attempt < retries) {
+        await sleep(1500 * (attempt + 1));
+        continue;
+      }
+      throw error;
+    }
   }
-  if (response.status === 403) throw new Error("TOPOLOGY_FORBIDDEN");
-  if (!response.ok) {
-    throw new Error(`TOPOLOGY_${operation}_HTTP_${response.status}_${body?.error || body?.reason || "ERROR"}`);
-  }
-  return body;
+  throw lastError || new Error(`TOPOLOGY_${operation}_FAILED`);
 }
 
 // Working-set first (games / predictions / published_projections).
@@ -52,22 +90,57 @@ const sync = await postTopology("sport-delta-sync", {
 });
 
 let prefix = null;
+const prefixPasses = [];
+let prefixTransportError = null;
 if (INCLUDE_PREFIX) {
-  // Separate bounded prefix pass so a large research table cannot abort the working set.
-  prefix = await postTopology("sport-prefix-copy", {
-    sport: SPORT,
-    pageSize: PREFIX_PAGE_SIZE,
-    maxPages: PREFIX_MAX_PAGES,
-    resume: true,
-  });
+  // Separate bounded prefix passes focused on incomplete research/roster/model tables.
+  for (let i = 0; i < PREFIX_ROUNDS; i += 1) {
+    try {
+      const pass = await postTopology("sport-prefix-copy", {
+        sport: SPORT,
+        pageSize: PREFIX_PAGE_SIZE,
+        maxPages: PREFIX_MAX_PAGES,
+        resume: true,
+        skipCaughtUp: true,
+      });
+      prefixPasses.push(pass);
+      prefix = pass;
+      if (pass.moreRemaining !== true) break;
+    } catch (error) {
+      // Working-set sync already succeeded — do not fail the whole sport on prefix 503/timeout.
+      prefixTransportError = String(error?.message || error).slice(0, 240);
+      prefix = {
+        ok: false,
+        softFailed: true,
+        reason: "PREFIX_TRANSPORT_SOFT_FAIL",
+        error: prefixTransportError,
+        results: [],
+      };
+      prefixPasses.push(prefix);
+      break;
+    }
+  }
 }
 
 const parity = await postTopology("sport-parity", { sport: SPORT });
+let prefixParity = null;
+if (INCLUDE_PREFIX) {
+  try {
+    prefixParity = await postTopology("sport-prefix-parity", { sport: SPORT });
+  } catch (error) {
+    prefixParity = {
+      ok: false,
+      softFailed: true,
+      status: "PREFIX_PARITY_TRANSPORT_SOFT_FAIL",
+      error: String(error?.message || error).slice(0, 240),
+    };
+  }
+}
 
 const failures = [];
 if (sync.ok !== true) failures.push(sync.reason || "SYNC_NOT_OK");
 if (sync.productStillPrimary !== true) failures.push("PRODUCT_MUST_STAY_PRIMARY");
-if (INCLUDE_PREFIX && prefix && prefix.ok !== true) {
+if (INCLUDE_PREFIX && prefix && prefix.ok !== true && prefix.softFailed !== true) {
   // Prefix tables may be absent / mid-heal; soft-fail only hard transport errors.
   // Schema drift is healed additively on each pass (ALTER ADD COLUMN); incomplete
   // pages (moreRemaining) are expected until the research backfill catches up.
@@ -75,6 +148,7 @@ if (INCLUDE_PREFIX && prefix && prefix.ok !== true) {
     "SPORT_DB_UNBOUND",
     "SPORT_DB_NOT_PROVISIONED",
     "PRIMARY_TABLE_MISSING",
+    "PREFIX_TRANSPORT_SOFT_FAIL",
   ]);
   const results = Array.isArray(prefix.results) ? prefix.results : [];
   const hard = results.filter((r) => {
@@ -105,11 +179,15 @@ const out = {
     parity: sync.parity || null,
   },
   prefix,
+  prefixPasses: prefixPasses.length || undefined,
+  prefixParity,
   parity,
   productStillPrimary: true,
   includePrefix: INCLUDE_PREFIX,
   canAuthorizeWager: false,
   cutoverAuthorized: false,
+  // Explicit: working-set parity alone is not a complete sport migration.
+  fullSportMigration: prefixParity?.ok === true && parity?.ok === true,
 };
 
 console.log(JSON.stringify(out, null, 2));
@@ -124,6 +202,8 @@ if (process.env.GITHUB_STEP_SUMMARY) {
       `| caughtUp | ${out.sync.caughtUp} |`,
       `| moreRemaining | ${out.sync.moreRemaining} |`,
       `| prefixOk | ${prefix ? prefix.ok === true : "skipped"} |`,
+      `| prefixParity | ${prefixParity ? prefixParity.status : "skipped"} |`,
+      `| fullSportMigration | ${out.fullSportMigration === true} |`,
       `| productStillPrimary | true |`,
       `| cutoverAuthorized | false |`,
       `| canAuthorizeWager | false |`,

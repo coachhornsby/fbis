@@ -1,1 +1,1 @@
-trigger 2026-10-20T18:45:00Z — additive schema heal + prefix soft-retry; resume 11-sport receipts
+trigger 2026-10-20T19:24:00Z — soft-retry 503/timeout on prefix; NFL full prefix parity verified

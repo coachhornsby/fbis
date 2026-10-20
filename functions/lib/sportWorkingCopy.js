@@ -864,13 +864,84 @@ export async function copyPrefixedTablePaged(primary, sportDb, tableName, {
 }
 
 /**
+ * Count-level parity for declared sport-prefix research tables.
+ * Distinguishes complete sport migration from working-set-only parity.
+ */
+export async function verifySportPrefixParity(env, sport, { now = new Date() } = {}) {
+  const key = String(sport || "").toLowerCase();
+  const plan = SPORT_DATABASES[key];
+  const primary = env?.DB;
+  const sportDb = plan?.binding ? env?.[plan.binding] : null;
+  const tables = SPORT_PREFIX_TABLES[key] || [];
+  if (!primary?.prepare) return { ok: false, reason: "PRIMARY_UNBOUND", sport: key, canAuthorizeWager: false };
+  if (!sportDb?.prepare) return { ok: false, reason: "SPORT_DB_UNBOUND", sport: key, canAuthorizeWager: false };
+
+  const rows = [];
+  let matched = 0;
+  let incomplete = 0;
+  let missing = 0;
+  for (const table of tables) {
+    const primaryN = await count(primary, `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}`);
+    let sportN = null;
+    let reason = null;
+    try {
+      sportN = await count(sportDb, `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}`);
+    } catch (error) {
+      reason = String(error?.message || error).slice(0, 120);
+    }
+    if (primaryN == null) {
+      rows.push({ table, primaryCount: null, sportCount: sportN, status: "PRIMARY_TABLE_MISSING" });
+      missing += 1;
+      continue;
+    }
+    if (sportN == null) {
+      rows.push({ table, primaryCount: primaryN, sportCount: null, status: "SPORT_TABLE_MISSING", reason });
+      missing += 1;
+      continue;
+    }
+    const status = primaryN === sportN ? "PARITY" : "DIVERGED";
+    if (status === "PARITY") matched += 1;
+    else incomplete += 1;
+    rows.push({
+      table,
+      primaryCount: primaryN,
+      sportCount: sportN,
+      delta: primaryN - sportN,
+      status,
+    });
+  }
+
+  const status = tables.length === 0
+    ? "PREFIX_EMPTY_OK"
+    : (matched === tables.length ? "PREFIX_PARITY_OK" : "PREFIX_PARITY_INCOMPLETE");
+
+  return {
+    ok: status === "PREFIX_PARITY_OK" || status === "PREFIX_EMPTY_OK",
+    sport: key,
+    status,
+    checkedAt: now instanceof Date ? now.toISOString() : String(now),
+    tableCount: tables.length,
+    matchedTables: matched,
+    incompleteTables: incomplete,
+    missingTables: missing,
+    tables: rows,
+    productIoUsesSportDb: false,
+    cutoverAuthorized: false,
+    canAuthorizeWager: false,
+  };
+}
+
+/**
  * Shadow-copy declared prefix tables for a sport. Never activates authority.
+ * When skipCaughtUp is true, tables already at count parity are skipped so
+ * remaining budget focuses on incomplete research/roster/model tables.
  */
 export async function copySportPrefixTables(env, sport, {
   pageSize = 200,
   maxPages = 25,
   resume = true,
   tables = null,
+  skipCaughtUp = false,
 } = {}) {
   const key = String(sport || "").toLowerCase();
   const plan = SPORT_DATABASES[key];
@@ -891,9 +962,29 @@ export async function copySportPrefixTables(env, sport, {
   }
 
   const allowed = new Set(SPORT_PREFIX_TABLES[key] || []);
-  const wanted = (tables && Array.isArray(tables) ? tables : [...allowed])
+  let wanted = (tables && Array.isArray(tables) ? tables : [...allowed])
     .map((t) => String(t))
     .filter((t) => allowed.has(t));
+
+  const skipped = [];
+  if (skipCaughtUp && wanted.length) {
+    const next = [];
+    for (const table of wanted) {
+      const primaryN = await count(primary, `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}`);
+      const sportN = await count(sportDb, `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}`);
+      if (primaryN != null && sportN != null && primaryN === sportN) {
+        skipped.push({ table, primaryCount: primaryN, sportCount: sportN, status: "SKIPPED_CAUGHT_UP" });
+        continue;
+      }
+      // Count divergence with a mid-table resume cursor can skip interleaved missing
+      // keys (sport already holds later keys). Reset cursor so REPLACE rescan fills gaps.
+      if (resume && primaryN != null && sportN != null && sportN < primaryN) {
+        await metaSet(sportDb, `copy_cursor_prefix_${table}`, "");
+      }
+      next.push(table);
+    }
+    wanted = next;
+  }
 
   const results = [];
   for (const table of wanted) {
@@ -920,6 +1011,7 @@ export async function copySportPrefixTables(env, sport, {
     ok: results.every((r) => r.ok),
     sport: key,
     results,
+    skippedCaughtUp: skipped,
     moreRemaining: results.some((r) => r.ok && r.exhausted === false),
     productStillPrimary: true,
     canAuthorizeWager: false,
