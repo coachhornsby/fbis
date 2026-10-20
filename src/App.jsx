@@ -13,6 +13,7 @@ import TrackView from "./TrackView.jsx";
 import TodayView, { GameDetails } from "./TodayView.jsx";
 import HeritageImport from "./HeritageImport.jsx";
 import MyBetsView from "./MyBetsView.jsx";
+import AccountsView from "./features/accounts/AccountsView.jsx";
 import { todayCT } from "../functions/lib/slateEngine.js";
 import { openingBoardDate } from "./lib/boardOpeningDate.js";
 import { buildPropConvictions } from "../functions/lib/propConviction.js";
@@ -628,6 +629,8 @@ export default function App() {
           <div className="canonical-models-stack">
             <CurrentProjectionsView date={todayDate} sportFilter={sportFilter} />
           </div>
+        ) : route === "accounts" ? (
+          <AccountsView />
         ) : route === "player-props" ? (
           <div className="player-props-page">
             <PrizePicksMarketPanel
