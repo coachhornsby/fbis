@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PROP_SPORTS } from '../../../functions/lib/exchangePlayerProps.js';
 import { independentPropRows,joinIndependentPropModels } from '../../../functions/lib/propResearchData.js';
 import FBISPlayerPropCard from './FBISPlayerPropCard.jsx';
-import { orderExchangeResearchCards } from './buildPlayerPropsBoard.js';
+import { orderExchangeResearchCards, buildVenueComparisonRows } from './buildPlayerPropsBoard.js';
 import ExchangePlayerWorkspace from './ExchangePlayerWorkspace.jsx';
 
 function today() { return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); }
@@ -39,10 +39,11 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
     (coverageFilter==='all'||coverageFilter==='model'&&r.fbis_projection!=null||coverageFilter==='contract'&&r.contractId||coverageFilter==='qualified'&&r.canQualify===true)&&
     (freshness==='all'||freshness==='current'&&r.fresh===true||freshness==='unknown'&&!r.fresh)&&
     `${r.player_name} ${r.team}`.toLowerCase().includes(search.toLowerCase())),[allRows,provider,stat,side,search,coverageFilter,freshness]);
-  const rows=useMemo(()=>orderExchangeResearchCards(matchingRows,limit),[matchingRows,limit]);
+  const comparableRows=useMemo(()=>buildVenueComparisonRows(matchingRows),[matchingRows]);
+  const rows=useMemo(()=>orderExchangeResearchCards(comparableRows,limit),[comparableRows,limit]);
 
   return <section className="pp-premium-page exchange-props-panel" aria-label="FBIS Player Props">
-    <div className="pp-hero"><div><h1>{compact?'Top FBIS Player Props':'FBIS Player Props'}</h1><p>Kalshi + Polymarket · Verified contracts · Independent model research</p></div><span>{state.loading?'Loading…':`Showing ${rows.length} of ${matchingRows.length} research cards · ${rows.filter(r=>r.contractId).length} mapped contracts · ${rows.filter(r=>r.marketAvailable).length} verified quotes`}</span></div>
+    <div className="pp-hero"><div><h1>{compact?'Top FBIS Player Props':'FBIS Player Props'}</h1><p>Kalshi + Polymarket · Verified contracts · Independent model research</p></div><span>{state.loading?'Loading…':`Showing ${rows.length} of ${comparableRows.length} research cards · ${rows.filter(r=>r.venueComparison?.providerCount===2).length} paired markets · ${rows.filter(r=>r.venueComparison?.priceDifferenceDollars!=null).length} comparable price gaps`}</span></div>
     {!compact?<div className="exchange-prop-filters">
       <label>Sport <select value={sport==='top25'?'all':sport} onChange={e=>{setStat('all');(onSportFilterChange||setLocalSport)(e.target.value);}}><option value="all">All sports</option>{PROP_SPORTS.map(s=><option key={s} value={s}>{s.toUpperCase()}</option>)}</select></label>
       <label>Game date <input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>

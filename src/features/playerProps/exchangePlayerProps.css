@@ -23,3 +23,28 @@
 .prop-research-dialog.props-workspace { margin:auto !important;max-width:94vw; }
 .exchange-props-panel { min-width:0;max-width:100%;box-sizing:border-box; }
 .exchange-prop-grid .pp-card-foot { overflow-wrap:anywhere; }
+
+/* Research-only two-venue comparison: compact in five-column desktop cards. */
+.exchange-prop-grid .pp-venue-comparison {
+ margin:10px 0 12px;padding:10px;border:1px solid rgba(237,198,109,.52);
+ border-radius:11px;background:linear-gradient(155deg,rgba(14,30,55,.92),rgba(7,14,28,.96));
+ color:#e9f2fe;min-width:0;
+}
+.exchange-prop-grid .pp-venue-topline,.exchange-prop-grid .pp-venue-gap {
+ display:flex;align-items:center;justify-content:space-between;gap:6px;
+}
+.exchange-prop-grid .pp-venue-topline {font-size:10px;letter-spacing:.065em;color:#eacd78;}
+.exchange-prop-grid .pp-venue-quotes {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:9px 0;}
+.exchange-prop-grid .pp-venue-quote {
+ display:flex;flex-direction:column;gap:2px;min-width:0;padding:8px 7px;
+ background:rgba(22,40,68,.82);border:1px solid rgba(150,180,220,.32);
+ border-radius:8px;
+}
+.exchange-prop-grid .pp-venue-quote.has-contract {border-color:rgba(125,189,246,.58);}
+.exchange-prop-grid .pp-venue-name {font-size:11px;font-weight:800;letter-spacing:.025em;}
+.exchange-prop-grid .pp-venue-quote strong {font-size:clamp(16px,1.5vw,22px);font-variant-numeric:tabular-nums;}
+.exchange-prop-grid .pp-venue-quote small {font-size:10px;color:#b4c7dc;line-height:1.25;overflow-wrap:anywhere;}
+.exchange-prop-grid .pp-venue-gap {padding-top:7px;border-top:1px solid rgba(180,200,220,.27);font-size:11px;}
+.exchange-prop-grid .pp-venue-gap b {font-size:17px;font-variant-numeric:tabular-nums;color:#f0d482;}
+.exchange-prop-grid .pp-venue-caveat {font-size:10px;line-height:1.35;color:#c4d4e8;margin:7px 0 0;}
+@media(min-width:1600px){.exchange-prop-grid .pp-venue-quote {padding:6px 5px;}}
