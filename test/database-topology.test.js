@@ -111,6 +111,17 @@ test("bootstrap and WS persist targets prefer the 2026Q4 binding when present", 
   assert.equal(ws.preferHistory, true);
 });
 
+test("bootstrap and WS fail closed when Q4 unbound (no silent legacy fallback)", () => {
+  const legacy = { prepare() { return {}; } };
+  const boot = bootstrapWriteTarget({ MARKET_HISTORY_DB: legacy }, 9_600_000_000);
+  assert.equal(boot.db, null);
+  assert.equal(boot.blocked, "MARKET_HISTORY_2026Q4_UNBOUND_FAIL_CLOSED");
+  const ws = resolveWsPersistTarget({ MARKET_HISTORY_DB: legacy });
+  assert.equal(ws.store, null);
+  assert.equal(ws.blocked, true);
+  assert.match(ws.reason, /Q4_UNBOUND_FAIL_CLOSED/);
+});
+
 test("NHL parity reports unbound without inventing a binding", async () => {
   const report = await verifyNhlSportDbParity({ DB: { prepare() { return { async first() { return { n: 1 }; } }; } } });
   assert.equal(report.ok, false);

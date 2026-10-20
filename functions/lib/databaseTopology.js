@@ -266,6 +266,22 @@ export function productSportDbHandle(env, sport, _opts = {}) {
       canAuthorizeWager: false,
     };
   }
+  // Require an explicit cutover receipt env var before product IO may leave PRIMARY.
+  // Format: SPORT_CUTOVER_RECEIPT_<SPORT>=receipt-id (operator-issued after parity+schema gate).
+  const receiptKey = `SPORT_CUTOVER_RECEIPT_${String(resolved.sport || "").toUpperCase()}`;
+  const receipt = String(env?.[receiptKey] || "").trim();
+  if (!receipt) {
+    return {
+      db: primary,
+      binding: "DB",
+      mode: resolved.mode,
+      reason: "SPORT_CUTOVER_RECEIPT_REQUIRED_FALLBACK_PRIMARY",
+      sport: resolved.sport,
+      preferred: false,
+      productIoUsesSportDb: false,
+      canAuthorizeWager: false,
+    };
+  }
   return {
     db: resolved.db,
     binding: resolved.binding,
@@ -274,6 +290,7 @@ export function productSportDbHandle(env, sport, _opts = {}) {
     sport: resolved.sport,
     preferred: true,
     productIoUsesSportDb: true,
+    cutoverReceipt: receipt,
     canAuthorizeWager: false,
   };
 }

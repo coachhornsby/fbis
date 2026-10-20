@@ -167,10 +167,21 @@ function makeSportStore() {
               async first() {
                 const row = store.prediction_snapshots.get(id);
                 if (!row) return null;
+                // Bind order matches copyPredictionsPaged INSERT columns.
                 return {
-                  id: row[0], game_id: row[1], model_version: row[3], projection_kind: row[4],
-                  proj_total: row[5], proj_home: row[6], proj_away: row[7], p_home_final: row[8],
-                  frozen_at: row[9],
+                  id: row[0],
+                  game_id: row[1],
+                  sport: row[2],
+                  model_version: row[3],
+                  projection_kind: row[4],
+                  proj_total: row[5],
+                  proj_home: row[6],
+                  proj_away: row[7],
+                  proj_margin: row[8],
+                  p_home_final: row[9],
+                  p_market: row[10],
+                  frozen_at: row[11],
+                  payload_json: row[19],
                 };
               },
             };
@@ -238,6 +249,7 @@ test("sport copy refuses while sport mode is active", async () => {
     DB: makePrimary(),
     NFL_DB: sportDb,
     SPORT_DB_MODE_NFL: "sport",
+    SPORT_CUTOVER_RECEIPT_NFL: "nfl-receipt",
   };
   const result = await copySportWorkingTables(env, "nfl");
   assert.equal(result.ok, false);

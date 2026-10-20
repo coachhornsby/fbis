@@ -37,8 +37,18 @@ CREATE TABLE IF NOT EXISTS prediction_snapshots (
   proj_total REAL,
   proj_home REAL,
   proj_away REAL,
+  proj_margin REAL,
   p_home_final REAL,
+  p_market REAL,
   frozen_at TEXT,
+  weights_json TEXT,
+  layers_json TEXT,
+  projection_flags TEXT,
+  graded_at TEXT,
+  actual_home REAL,
+  actual_away REAL,
+  deployment_commit TEXT,
+  -- Full primary-row evidence envelope (fbis-canonical-evidence-v1).
   payload_json TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sport_pred_game ON prediction_snapshots(game_id, frozen_at);
@@ -47,7 +57,10 @@ CREATE TABLE IF NOT EXISTS published_projections (
   id TEXT PRIMARY KEY,
   game_id TEXT NOT NULL,
   sport TEXT NOT NULL,
+  model_version TEXT,
   published_at TEXT,
+  published_by TEXT,
+  payload_hash TEXT,
   payload_json TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sport_pub_game ON published_projections(game_id, published_at);

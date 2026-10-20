@@ -12,18 +12,38 @@
 
 Confirmed failure log: Vite build succeeds, then `wrangler deploy` warns it is a Pages project and fails with missing Worker entry-point.
 
-## 2. Deployment bindings
+## 2. Production binding + canonical-data integrity gate
 
-Pages **production and preview** project configs are patched to include:
+**Do not create additional databases. Do not activate sport authority.**
 
-- All sport D1 bindings + `CORE_DB` + `MARKET_HISTORY_2026Q4_DB`
-- All `SPORT_DB_MODE_*=shadow` and `NHL_SPORT_DB_MODE=shadow`
+### Binding wipe root cause
 
-A main deploy that only carried the legacy five D1 bindings can drop sport/CORE/Q4 from the live deployment until the next Pages deploy picks up the restored project config. Re-check after every production deploy.
+`origin/main` `wrangler.toml` still lists only the legacy five Pages D1 bindings
+(`DB`, `TIER3_DB`, `MARKET_HISTORY_DB`, `OPERATIONS_DB`, `COLD_HISTORY_DB`).
+Every main Pages deploy (`wrangler pages deploy`) overwrites project
+`deployment_configs` from that file and drops `CORE_DB` / sport D1s / Q4 /
+shadow modes from the live Functions surface.
 
-`fbis-polymarket-us-stream` is bound to `MARKET_HISTORY_2026Q4_DB` in addition to legacy `MARKET_HISTORY_DB`.
+**Durable fix:** merge this branch’s full `wrangler.toml` + stream Q4 binding
+to main. Dashboard/API restores alone are temporary until main carries the
+bindings.
 
-Operator check: `POST /api/database-topology` `{ "operation": "verify-bindings" }`.
+### Gate surfaces
+
+- `functions/lib/topologyBindingGate.js` — required Pages + stream D1s + shadow modes
+- Ops: `topology-binding-gate`, `verify-bindings`, restore plan in response
+- Pages project configs restored with CORE + all sport D1s + Q4 + `SPORT_DB_MODE_*=shadow`
+- Stream Worker bound to `MARKET_HISTORY_2026Q4_DB` (fail-closed WS/bootstrap writers)
+
+### Canonical evidence
+
+- Contract: `functions/lib/canonicalEvidenceContract.js` (`fbis-canonical-evidence-v1`)
+- Sport copy materializes typed board fields + `payload_json` evidence envelope
+- PRIMARY remains canonical for full prediction evidence until cutover receipt
+- SQL: `sql/shards/sport-working-v1-evidence.sql` (applied to NFL/CFB/NHL)
+
+Operator check: `POST /api/database-topology` `{ "operation": "verify-bindings" }`
+and `{ "operation": "canonical-evidence-contract" }`.
 
 ## 3. Shadow-mode hard guarantee
 
@@ -54,8 +74,10 @@ Product code must use `productSportDbHandle()` / `isSportDbAuthoritative()`.
 
 ## 7. Cross-sport board / CORE
 
-- `core-board-summary-publish` / `core-board-summary-read`
-- Missing sport entries fail closed (`complete:false`); boards must not fan-out to sport D1s
+- Freshness SLA: 15 minutes (`CORE_BOARD_SUMMARY_MAX_AGE_MS`)
+- `core-board-summary-publish` / `core-board-summary-read` / `core-board-summary-require-fresh`
+- Board consumer: `loadCoreBoardOverview` / op `core-board-overview` — CORE only, fail-closed
+- Missing or stale sport entries → unusable; boards must not fan-out to sport D1s
 
 ## 8. Cutover status
 

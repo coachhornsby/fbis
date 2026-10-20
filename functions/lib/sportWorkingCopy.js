@@ -7,6 +7,10 @@
  * (CFB predictions exceed a single LIMIT page).
  */
 import { resolveSportDb, SPORT_DATABASES, productSportDbHandle } from "./databaseTopology.js";
+import {
+  buildPredictionEvidenceEnvelope,
+  evaluateSportPredictionFidelity,
+} from "./canonicalEvidenceContract.js";
 
 export const SPORT_WORKING_TABLES = Object.freeze([
   Object.freeze({ table: "games" }),
@@ -117,21 +121,42 @@ async function copyPredictionsPaged(primary, sportDb, sport, { pageSize, maxPage
   let copied = 0;
   let pages = 0;
   let lastId = cursor;
+  let fidelityFailures = 0;
   for (; pages < maxPages; pages += 1) {
-    const page = await primary.prepare(
-      `SELECT id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,p_home_final,frozen_at
-       FROM prediction_snapshots
-       WHERE sport=? AND id>?
-       ORDER BY id ASC
-       LIMIT ?`
-    ).bind(sport, cursor, pageSize).all();
-    const rows = page?.results || [];
+    // Prefer rich SELECT; fall back to lean columns if older primary schema lacks fields.
+    let rows = [];
+    try {
+      const page = await primary.prepare(
+        `SELECT id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,proj_margin,
+                p_home_final,p_market,frozen_at,weights_json,layers_json,projection_flags,
+                graded_at,actual_home,actual_away,deployment_commit,
+                date,matchup,checkpoint,pal_home,pal_away,engine,projection_state
+         FROM prediction_snapshots
+         WHERE sport=? AND id>?
+         ORDER BY id ASC
+         LIMIT ?`
+      ).bind(sport, cursor, pageSize).all();
+      rows = page?.results || [];
+    } catch {
+      const page = await primary.prepare(
+        `SELECT id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,p_home_final,frozen_at
+         FROM prediction_snapshots
+         WHERE sport=? AND id>?
+         ORDER BY id ASC
+         LIMIT ?`
+      ).bind(sport, cursor, pageSize).all();
+      rows = page?.results || [];
+    }
     if (!rows.length) break;
     for (const row of rows) {
       const id = stablePredictionId(row);
+      const envelope = buildPredictionEvidenceEnvelope(row);
       await sportDb.prepare(
-        `INSERT INTO prediction_snapshots(id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,p_home_final,frozen_at,payload_json)
-         VALUES(?,?,?,?,?,?,?,?,?,?,NULL)
+        `INSERT INTO prediction_snapshots(
+           id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,proj_margin,
+           p_home_final,p_market,frozen_at,weights_json,layers_json,projection_flags,
+           graded_at,actual_home,actual_away,deployment_commit,payload_json
+         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
          ON CONFLICT(id) DO UPDATE SET
            game_id=excluded.game_id,
            sport=excluded.sport,
@@ -140,20 +165,43 @@ async function copyPredictionsPaged(primary, sportDb, sport, { pageSize, maxPage
            proj_total=excluded.proj_total,
            proj_home=excluded.proj_home,
            proj_away=excluded.proj_away,
+           proj_margin=excluded.proj_margin,
            p_home_final=excluded.p_home_final,
+           p_market=excluded.p_market,
            frozen_at=excluded.frozen_at,
-           payload_json=COALESCE(prediction_snapshots.payload_json, excluded.payload_json)`
+           weights_json=excluded.weights_json,
+           layers_json=excluded.layers_json,
+           projection_flags=excluded.projection_flags,
+           graded_at=excluded.graded_at,
+           actual_home=excluded.actual_home,
+           actual_away=excluded.actual_away,
+           deployment_commit=excluded.deployment_commit,
+           payload_json=excluded.payload_json`
       ).bind(
         id, row.game_id, row.sport, row.model_version, row.projection_kind,
-        row.proj_total, row.proj_home, row.proj_away, row.p_home_final, row.frozen_at
+        row.proj_total, row.proj_home, row.proj_away, row.proj_margin ?? null,
+        row.p_home_final, row.p_market ?? null, row.frozen_at,
+        row.weights_json ?? null, row.layers_json ?? null, row.projection_flags ?? null,
+        row.graded_at ?? null, row.actual_home ?? null, row.actual_away ?? null,
+        row.deployment_commit ?? null, envelope
       ).run();
+      const fidelity = evaluateSportPredictionFidelity({
+        ...row, id, payload_json: envelope,
+      });
+      if (!fidelity.ok) fidelityFailures += 1;
       copied += 1;
       lastId = id;
     }
     cursor = rows[rows.length - 1].id;
     if (rows.length < pageSize) break;
   }
-  return { copied, pages, cursor: lastId, exhausted: pages < maxPages || copied === 0 };
+  return {
+    copied,
+    pages,
+    cursor: lastId,
+    exhausted: pages < maxPages || copied === 0,
+    fidelityFailures,
+  };
 }
 
 async function copyPublishedPaged(primary, sportDb, sport, { pageSize, maxPages, afterKey = "" }) {
@@ -164,7 +212,7 @@ async function copyPublishedPaged(primary, sportDb, sport, { pageSize, maxPages,
   for (; pages < maxPages; pages += 1) {
     // Keyset on (published_at, game_id, model_version) — primary id is INTEGER autoincrement.
     const page = await primary.prepare(
-      `SELECT game_id,sport,model_version,published_at,payload_json,payload_hash
+      `SELECT game_id,sport,model_version,published_at,published_by,payload_json,payload_hash
        FROM published_projections
        WHERE sport=?
          AND (published_at||'|'||game_id||'|'||COALESCE(model_version,'')) > ?
@@ -176,14 +224,20 @@ async function copyPublishedPaged(primary, sportDb, sport, { pageSize, maxPages,
     for (const row of rows) {
       const id = stablePublishedId(row);
       await sportDb.prepare(
-        `INSERT INTO published_projections(id,game_id,sport,published_at,payload_json)
-         VALUES(?,?,?,?,?)
+        `INSERT INTO published_projections(id,game_id,sport,model_version,published_at,published_by,payload_hash,payload_json)
+         VALUES(?,?,?,?,?,?,?,?)
          ON CONFLICT(id) DO UPDATE SET
            game_id=excluded.game_id,
            sport=excluded.sport,
+           model_version=excluded.model_version,
            published_at=excluded.published_at,
+           published_by=excluded.published_by,
+           payload_hash=excluded.payload_hash,
            payload_json=excluded.payload_json`
-      ).bind(id, row.game_id, row.sport, row.published_at, row.payload_json).run();
+      ).bind(
+        id, row.game_id, row.sport, row.model_version || null, row.published_at,
+        row.published_by || null, row.payload_hash || null, row.payload_json
+      ).run();
       copied += 1;
       lastKey = `${row.published_at}|${row.game_id}|${row.model_version || ""}`;
     }
@@ -221,7 +275,8 @@ export async function copySportWorkingTables(env, sport, {
   }
 
   // Back-compat: limitPerTable ≈ pageSize * maxPages when callers pass the old knob.
-  const effectivePageSize = Math.min(2000, Math.max(50, Number(pageSize) || DEFAULT_PAGE_SIZE));
+  // Allow small pageSize for deterministic paging tests; production callers use defaults.
+  const effectivePageSize = Math.min(2000, Math.max(1, Number(pageSize) || DEFAULT_PAGE_SIZE));
   let effectiveMaxPages = Math.min(200, Math.max(1, Number(maxPages) || DEFAULT_MAX_PAGES));
   if (limitPerTable != null && Number.isFinite(Number(limitPerTable))) {
     effectiveMaxPages = Math.max(1, Math.ceil(Number(limitPerTable) / effectivePageSize));

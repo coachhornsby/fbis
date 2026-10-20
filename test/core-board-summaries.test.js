@@ -4,6 +4,8 @@ import {
   buildCrossSportBoardSummary,
   publishCrossSportBoardSummary,
   readCrossSportBoardSummary,
+  requireFreshCoreBoardSummary,
+  evaluateCoreSummaryFreshness,
   CORE_BOARD_SUMMARY_KEY,
 } from "../functions/lib/coreBoardSummaries.js";
 
@@ -82,8 +84,61 @@ test("publish and read CORE board summary without fan-out to sport DBs", async (
   assert.equal(published.coreBinding, "CORE_DB");
   assert.equal(writes.length, 1);
 
-  const read = await readCrossSportBoardSummary({ DB: primary, CORE_DB: core });
+  const read = await readCrossSportBoardSummary({ DB: primary, CORE_DB: core }, { requireFresh: false });
   assert.equal(read.ok, true);
   assert.equal(read.summary.complete, true);
   assert.ok(read.summary.sports.some((s) => s.sport === "nhl" && s.gameCount === 2));
+});
+
+test("CORE freshness gate fails closed on stale snapshots", () => {
+  const stale = evaluateCoreSummaryFreshness({
+    asOf: "2026-10-20T00:00:00.000Z",
+    now: new Date("2026-10-20T01:00:00.000Z"),
+    maxAgeMs: 15 * 60 * 1000,
+  });
+  assert.equal(stale.fresh, false);
+  assert.equal(stale.reason, "SUMMARY_STALE");
+
+  const fresh = evaluateCoreSummaryFreshness({
+    asOf: "2026-10-20T00:50:00.000Z",
+    now: new Date("2026-10-20T01:00:00.000Z"),
+    maxAgeMs: 15 * 60 * 1000,
+  });
+  assert.equal(fresh.fresh, true);
+});
+
+test("requireFreshCoreBoardSummary rejects stale CORE rows", async () => {
+  const coreStore = new Map();
+  const core = {
+    prepare(sql) {
+      if (sql.includes("FROM fbis_dashboard_summaries")) {
+        return {
+          bind() {
+            return {
+              async first() {
+                return {
+                  summary_key: CORE_BOARD_SUMMARY_KEY,
+                  as_of: "2026-10-19T00:00:00.000Z",
+                  payload_json: JSON.stringify({
+                    complete: true,
+                    sports: [],
+                    incompleteSports: [],
+                  }),
+                  source_binding: "CORE_DB",
+                };
+              },
+            };
+          },
+        };
+      }
+      return { bind() { return { async first() { return null; } }; } };
+    },
+  };
+  const required = await requireFreshCoreBoardSummary(
+    { CORE_DB: core },
+    { now: new Date("2026-10-20T12:00:00.000Z") }
+  );
+  assert.equal(required.ok, false);
+  assert.equal(required.usable, false);
+  assert.equal(required.reason, "SUMMARY_STALE");
 });

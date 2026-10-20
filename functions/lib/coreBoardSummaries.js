@@ -10,6 +10,25 @@ import { FBIS_SPORTS } from "./databaseTopology.js";
 
 export const CORE_BOARD_SUMMARY_KEY = "cross_sport_board_snapshot";
 
+/** Default freshness SLA for CORE board snapshots (15 minutes). */
+export const CORE_BOARD_SUMMARY_MAX_AGE_MS = 15 * 60 * 1000;
+
+export function evaluateCoreSummaryFreshness({
+  asOf,
+  now = new Date(),
+  maxAgeMs = CORE_BOARD_SUMMARY_MAX_AGE_MS,
+} = {}) {
+  const at = Date.parse(asOf);
+  if (!Number.isFinite(at)) {
+    return { fresh: false, reason: "AS_OF_UNPARSEABLE", ageMs: null, maxAgeMs };
+  }
+  const ageMs = Math.max(0, now.getTime() - at);
+  if (ageMs > maxAgeMs) {
+    return { fresh: false, reason: "SUMMARY_STALE", ageMs, maxAgeMs };
+  }
+  return { fresh: true, reason: "WITHIN_SLA", ageMs, maxAgeMs };
+}
+
 export function buildCrossSportBoardSummary({
   asOf = new Date().toISOString(),
   sports = {},
@@ -120,7 +139,11 @@ export async function publishCrossSportBoardSummary(env, { now = new Date() } = 
   };
 }
 
-export async function readCrossSportBoardSummary(env) {
+export async function readCrossSportBoardSummary(env, {
+  now = new Date(),
+  maxAgeMs = CORE_BOARD_SUMMARY_MAX_AGE_MS,
+  requireFresh = true,
+} = {}) {
   const core = resolveCoreDb(env);
   if (!core.db?.prepare) return { ok: false, reason: "CORE_UNBOUND", canAuthorizeWager: false };
   try {
@@ -143,14 +166,54 @@ export async function readCrossSportBoardSummary(env) {
         canAuthorizeWager: false,
       };
     }
+    const freshness = evaluateCoreSummaryFreshness({ asOf: row.as_of, now, maxAgeMs });
+    if (requireFresh && !freshness.fresh) {
+      return {
+        ok: false,
+        reason: freshness.reason,
+        asOf: row.as_of,
+        sourceBinding: row.source_binding,
+        summary: payload,
+        freshness,
+        canAuthorizeWager: false,
+      };
+    }
     return {
       ok: true,
       asOf: row.as_of,
       sourceBinding: row.source_binding,
       summary: payload,
+      freshness,
       canAuthorizeWager: false,
     };
   } catch (error) {
     return { ok: false, reason: String(error?.message || error).slice(0, 240), canAuthorizeWager: false };
   }
+}
+
+/**
+ * Board-consumer helper: require a fresh, complete CORE snapshot.
+ * Fail closed — never fan-out to sport D1s.
+ */
+export async function requireFreshCoreBoardSummary(env, opts = {}) {
+  const read = await readCrossSportBoardSummary(env, { ...opts, requireFresh: true });
+  if (!read.ok) {
+    return {
+      ok: false,
+      usable: false,
+      reason: read.reason,
+      asOf: read.asOf || null,
+      freshness: read.freshness || null,
+      canAuthorizeWager: false,
+    };
+  }
+  return {
+    ok: true,
+    usable: true,
+    asOf: read.asOf,
+    sourceBinding: read.sourceBinding,
+    summary: read.summary,
+    freshness: read.freshness,
+    canAuthorizeWager: false,
+  };
 }

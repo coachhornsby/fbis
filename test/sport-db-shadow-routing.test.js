@@ -52,10 +52,21 @@ test("shadow mode cannot be overridden into product sport IO by reading sportDb 
   assert.equal(product.shadowSportDbBound, true);
 });
 
-test("sport mode is the only mode that returns sport DB for product IO", () => {
+test("sport mode returns sport DB only with cutover receipt", () => {
   const primary = db("primary");
   const cfb = db("cfb");
-  const env = { DB: primary, CFB_DB: cfb, SPORT_DB_MODE_CFB: "sport" };
+  const envNoReceipt = { DB: primary, CFB_DB: cfb, SPORT_DB_MODE_CFB: "sport" };
+  const blocked = productSportDbHandle(envNoReceipt, "cfb");
+  assert.equal(blocked.db, primary);
+  assert.equal(blocked.productIoUsesSportDb, false);
+  assert.match(blocked.reason, /RECEIPT/);
+
+  const env = {
+    DB: primary,
+    CFB_DB: cfb,
+    SPORT_DB_MODE_CFB: "sport",
+    SPORT_CUTOVER_RECEIPT_CFB: "cfb-parity-receipt-test",
+  };
   const product = productSportDbHandle(env, "cfb");
   assert.equal(product.db, cfb);
   assert.equal(product.binding, "CFB_DB");

@@ -19,9 +19,19 @@ import {
   verifySportWorkingParity,
   reconcileSportProjections,
 } from "../lib/sportWorkingCopy.js";
-import { publishCrossSportBoardSummary, readCrossSportBoardSummary } from "../lib/coreBoardSummaries.js";
+import {
+  publishCrossSportBoardSummary,
+  readCrossSportBoardSummary,
+  requireFreshCoreBoardSummary,
+} from "../lib/coreBoardSummaries.js";
+import { loadCoreBoardOverview } from "../lib/coreBoardConsumer.js";
 import { rehearseSportCutover } from "../lib/sportCutoverRehearsal.js";
 import { evaluateRetentionRelease } from "../lib/retentionGate.js";
+import {
+  evaluateTopologyBindingGate,
+  topologyBindingRestorePlan,
+} from "../lib/topologyBindingGate.js";
+import { canonicalEvidenceManifest } from "../lib/canonicalEvidenceContract.js";
 
 const json = (value, status = 200) => new Response(JSON.stringify(value), {
   status,
@@ -78,19 +88,23 @@ export async function verifyDeploymentBindings(env) {
     };
   }
 
-  const required = ["DB", "CORE_DB", "NHL_DB", "NFL_DB", "CFB_DB", "MARKET_HISTORY_2026Q4_DB", "MARKET_HISTORY_DB"];
-  const missing = required.filter((k) => !checks[k]?.bound);
+  const gate = evaluateTopologyBindingGate(env, { surface: "pages", requireShadowModes: true });
+  const required = gate.present.concat(gate.missing);
+  const missing = gate.missing.filter((k) => !checks[k]?.bound);
   const unreachable = required.filter((k) => checks[k]?.bound && checks[k]?.reachable === false);
   const anySportAuthoritative = Object.values(productAuthority).some((s) => s.productIoUsesSportDb);
 
   return {
-    ok: missing.length === 0 && unreachable.length === 0 && !anySportAuthoritative,
-    missing,
+    ok: gate.ok && missing.length === 0 && unreachable.length === 0 && !anySportAuthoritative,
+    missing: [...new Set([...gate.missing, ...missing])],
     unreachable,
+    modeFailures: gate.modeFailures,
     checks,
     productAuthority,
     anySportAuthoritative,
-    note: "Bindings may be present while productIoUsesSportDb stays false under shadow mode.",
+    bindingGate: gate,
+    restorePlan: topologyBindingRestorePlan(),
+    note: "Bindings may be present while productIoUsesSportDb stays false under shadow mode. Cutover still blocked.",
     canAuthorizeWager: false,
   };
 }
@@ -210,7 +224,30 @@ export async function onRequestPost({ env, request } = {}) {
     return json(await publishCrossSportBoardSummary(env));
   }
   if (operation === "core-board-summary-read") {
-    return json(await readCrossSportBoardSummary(env));
+    return json(await readCrossSportBoardSummary(env, {
+      requireFresh: body.requireFresh !== false,
+      maxAgeMs: body.maxAgeMs != null ? Number(body.maxAgeMs) : undefined,
+    }));
+  }
+  if (operation === "core-board-summary-require-fresh") {
+    return json(await requireFreshCoreBoardSummary(env, {
+      maxAgeMs: body.maxAgeMs != null ? Number(body.maxAgeMs) : undefined,
+    }));
+  }
+  if (operation === "core-board-overview") {
+    return json(await loadCoreBoardOverview(env, {
+      maxAgeMs: body.maxAgeMs != null ? Number(body.maxAgeMs) : undefined,
+    }));
+  }
+  if (operation === "topology-binding-gate") {
+    return json({
+      pages: evaluateTopologyBindingGate(env, { surface: "pages" }),
+      restorePlan: topologyBindingRestorePlan(),
+      canAuthorizeWager: false,
+    });
+  }
+  if (operation === "canonical-evidence-contract") {
+    return json({ ...canonicalEvidenceManifest(), canAuthorizeWager: false });
   }
   if (operation === "market-history-write-target") {
     const target = await resolveMarketHistoryWriteDb(env, { now: body.now || new Date() });

@@ -460,7 +460,13 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
     }
     const route=resolveWsPersistTarget(this.env,this.primaryBytes);
     this.wsPersistTarget=route;
-    if(route.preferHistory){
+    if(route.blocked){
+      // Fail closed: Q4 unbound/unready — do not silently fill legacy or primary.
+      this.persistenceStatus="UNAVAILABLE";
+      this.lastError=route.reason||"MARKET_HISTORY_WRITE_BLOCKED";
+      this.historyLastError=route.reason||"MARKET_HISTORY_WRITE_BLOCKED";
+      for(const t of ticks)if(!this.queue.has(t.marketSlug))this.queue.set(t.marketSlug,t);
+    }else if(route.preferHistory){
       // Default path: observational WS ticks land on MARKET_HISTORY (+ R2 spill).
       // Never counted as primary `inserted`. Board readers already overlay history.
       this.lastError=null;
@@ -482,7 +488,9 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
       catch{spilledKey=null}
       if(historyOk||spilledKey){
         // Intentional history-default is HISTORY; keep DEGRADED_HISTORY for failure recovery only.
-        this.persistenceStatus=historyOk?(route.reason==="WS_HISTORY_DEFAULT"?"HISTORY":"DEGRADED_HISTORY"):"DEGRADED";
+        // WS_Q4_DEFAULT is the fail-closed partition path; keep WS_HISTORY_DEFAULT for older DO pins.
+        const historyDefault=route.reason==="WS_Q4_DEFAULT"||route.reason==="WS_HISTORY_DEFAULT";
+        this.persistenceStatus=historyOk?(historyDefault?"HISTORY":"DEGRADED_HISTORY"):"DEGRADED";
         for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
       }else{
         this.persistenceStatus="UNAVAILABLE";

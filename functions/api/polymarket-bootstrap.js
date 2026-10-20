@@ -2,20 +2,34 @@ import {authorizeHarvest,unauthorizedBody} from '../lib/auth.js';
 import {bootstrapPolymarket} from '../lib/polymarketBootstrap.js';
 const LIMIT=9_500_000_000;
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
-/** Prefer partitioned market history when primary is full/unknown so REST can
- * still archive stream rosters and land tennis/team contracts for the WS. */
+/**
+ * Unified with resolveMarketHistoryWriteDb / WS persist: prefer Q4.
+ * Legacy MARKET_HISTORY_DB only when MARKET_HISTORY_ALLOW_LEGACY_WRITE=enabled.
+ * Prefer partitioned market history when primary is full/unknown so REST can
+ * still archive stream rosters and land tennis/team contracts for the WS.
+ */
 export function bootstrapWriteTarget(env,sizeAfter){
  const bytes=Number(sizeAfter);
  const knownFull=Number.isFinite(bytes)&&bytes>0&&bytes>=LIMIT;
  const unknown=!Number.isFinite(bytes)||bytes<=0;
  const history=env.MARKET_HISTORY_2026Q4_DB?.prepare
   ?{db:env.MARKET_HISTORY_2026Q4_DB,store:'MARKET_HISTORY_2026Q4'}
-  :env.MARKET_HISTORY_DB?.prepare
+  :env.MARKET_HISTORY_ALLOW_LEGACY_WRITE==='enabled'&&env.MARKET_HISTORY_DB?.prepare
    ?{db:env.MARKET_HISTORY_DB,store:'MARKET_HISTORY'}
    :null;
  if((knownFull||unknown)&&history)return {...history,primaryBytes:Number.isFinite(bytes)?bytes:null};
- if(knownFull)return {db:null,store:null,primaryBytes:bytes,blocked:'REST_WRITE_CAPACITY_UNAVAILABLE'};
- if(unknown)return {db:null,store:null,primaryBytes:null,blocked:'REST_WRITE_CAPACITY_UNAVAILABLE'};
+ if(knownFull||unknown){
+  return {
+   db:null,
+   store:null,
+   primaryBytes:Number.isFinite(bytes)?bytes:null,
+   blocked:history? 'REST_WRITE_CAPACITY_UNAVAILABLE' : 'MARKET_HISTORY_2026Q4_UNBOUND_FAIL_CLOSED',
+  };
+ }
+ // Primary still has headroom — but observation writes still prefer Q4 when bound.
+ if(env.MARKET_HISTORY_2026Q4_DB?.prepare){
+  return {db:env.MARKET_HISTORY_2026Q4_DB,store:'MARKET_HISTORY_2026Q4',primaryBytes:bytes};
+ }
  return {db:env.DB,store:'PRIMARY',primaryBytes:bytes};
 }
 export async function onRequestPost({request,env}){
