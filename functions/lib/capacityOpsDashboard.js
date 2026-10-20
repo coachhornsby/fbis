@@ -15,6 +15,7 @@ import {
   NORMALIZED_MARKET_OBSERVATION_COLUMNS,
 } from "./marketHistoryVerifiedArchive.js";
 import { SPORT_WORKING_TABLES, SPORT_PREFIX_TABLES } from "./sportWorkingCopy.js";
+import { buildAllSportSyncHealth } from "./sportMigrationQualify.js";
 import { readCrossSportBoardSummary } from "./coreBoardSummaries.js";
 
 export const CAPACITY_OPS_DASHBOARD_CONTRACT = "fbis-capacity-ops-dashboard-v1";
@@ -149,6 +150,13 @@ export async function buildCapacityOpsDashboard(env, { now = new Date() } = {}) 
     core = { ok: false, reason: String(error?.message || error).slice(0, 200) };
   }
 
+  let sportSync = null;
+  try {
+    sportSync = await buildAllSportSyncHealth(env, { now });
+  } catch (error) {
+    sportSync = { ok: false, reason: String(error?.message || error).slice(0, 200) };
+  }
+
   const latestHour = hourly.length ? hourly[hourly.length - 1] : null;
   const ingestRowsPerHourApprox = latestHour
     ? Math.round((Number(latestHour.n) || 0) * (60 / Math.max(1, new Date(now).getUTCMinutes() || 60)))
@@ -186,7 +194,10 @@ export async function buildCapacityOpsDashboard(env, { now = new Date() } = {}) 
     },
     migration: {
       sports,
+      sportSync,
       authorityPolicy: "PRIMARY remains authoritative until per-sport cutover approval",
+      cutoverAuthorized: false,
+      deletionAuthorized: false,
     },
     reliability: {
       coreBoard: {
@@ -196,6 +207,7 @@ export async function buildCapacityOpsDashboard(env, { now = new Date() } = {}) 
         sportCount: Array.isArray(core?.summary?.sports) ? core.summary.sports.length : core?.sportCount ?? null,
         reason: core?.reason || core?.freshness?.reason || null,
       },
+      archiveDeletionAuthorized: false,
     },
   };
 }

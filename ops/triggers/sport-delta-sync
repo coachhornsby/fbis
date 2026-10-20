@@ -1,1 +1,1 @@
-trigger 2026-10-20T18:20:00Z — bounded sport-delta-sync requests; max-parallel 3; PRIMARY authoritative
+trigger 2026-10-20T18:45:00Z — additive schema heal + prefix soft-retry; resume 11-sport receipts

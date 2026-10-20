@@ -1,0 +1,91 @@
+{
+  "contract": "fbis-sport-migration-proof-v1",
+  "generatedAt": "2026-10-20T19:03:00.000Z",
+  "recheckedAt": "2026-10-20T19:03:00.000Z",
+  "canAuthorizeWager": false,
+  "cutoverAuthorized": false,
+  "deletionAuthorized": false,
+  "schedulerIndependence": {
+    "core": {
+      "mechanism": "fbis-polymarket-us-stream Worker cron */5",
+      "evidence": [
+        { "asOf": "2026-10-20T18:50:22.738Z" },
+        { "asOf": "2026-10-20T18:55:22.398Z" },
+        { "asOf": "2026-10-20T19:00:22.677Z" }
+      ],
+      "note": "Continues after last manual/mcp recovery; no merge trigger required",
+      "githubScheduleRequired": false
+    },
+    "r2Archive": {
+      "mechanism": "same Worker cron */5 → archiveAndVerifyColdMarketHistory",
+      "codeVersion": "board-ws-q4-archive-catchup-20261020",
+      "checkpointKey": "normalized_market_observations_v2",
+      "progress": {
+        "archivedTotal": 537525,
+        "lastBacklog": 89091,
+        "backlogFalling": true,
+        "lastBatchAt": "2026-10-20T19:00:22.416Z",
+        "note": "Worker */5 catch-up; GH archive schedule still absent"
+      },
+      "githubScheduleRequired": false,
+      "deletion": "NOT_PERFORMED"
+    }
+  },
+  "syncReceipts": {
+    "maxLagMs": 2700000,
+    "authority": "PRIMARY for all 11 sports",
+    "workingSetParity": {
+      "nfl": { "games": [313, 313], "predictions": [1814, 1814], "ok": true, "lagOk": true },
+      "cfb": { "games": [1182, 1182], "predictions": [10359, 10359], "ok": true, "lagOk": true },
+      "nhl": { "games": [166, 166], "predictions": [703, 703], "ok": true, "lagOk": true },
+      "nba": { "games": [161, 161], "predictions": [379, 379], "ok": true, "lagOk": true },
+      "mlb": { "games": [730, 730], "predictions": [2903, 2903], "ok": true, "lagOk": true },
+      "cbb": { "games": [0, 0], "predictions": [0, 0], "ok": true },
+      "wnba": { "games": [11, 11], "predictions": [48, 48], "ok": true, "lagOk": true },
+      "soccer": { "games": [167, 167], "predictions": [522, 522], "ok": true, "lagOk": true },
+      "tennis": { "games": [0, 0], "predictions": [0, 0], "ok": true },
+      "npb": { "games": [0, 0], "predictions": [0, 0], "ok": true },
+      "kbo": { "games": [0, 0], "predictions": [0, 0], "ok": true }
+    },
+    "prefixBackfill": {
+      "status": "in_progress_across_sports",
+      "heal": "ensureMirroredSportTable ALTER ADD COLUMN for schema drift",
+      "nhlResearchHealed": ["nhl_goalie_probability_shadow", "nhl_bookmaker_quote_evidence"],
+      "note": "Prefix tables resume via cursors; moreRemaining expected until exhausted"
+    },
+    "workflow": "sport-delta-sync-recurring.yml",
+    "concurrencyGroup": "fbis-sport-delta-sync-recurring-v2"
+  },
+  "storageRetirement": {
+    "rehearsalContract": "fbis-market-history-retention-rehearsal-v1",
+    "deletionAuthorized": false,
+    "archiveProvenanceColumns": 50,
+    "hotWindowMs": 84874363,
+    "hotWindowHours": 23.58,
+    "q4Bounds": { "min_at": "2026-10-20T06:12:37.143Z", "n": 684002 },
+    "eligibleNowOutsideHotWindow": 0,
+    "archivedBehindCheckpointPendingHotAgeOut": 368321,
+    "firstEligibleSampleWhenAged": [
+      { "id": "nmo_00399286aa44cd761f44e87f31c4", "collected_at": "2026-10-20T06:12:37.143Z" },
+      { "id": "nmo_005f1bb0aeb5012b529ba4f91f20", "collected_at": "2026-10-20T06:12:37.143Z" },
+      { "id": "nmo_006e15464faad1922ec2253050a3", "collected_at": "2026-10-20T06:12:37.143Z" }
+    ],
+    "note": "Deletion stays disabled until separately authorized."
+  },
+  "cutoverQualification": {
+    "order": ["nfl", "cfb", "nhl"],
+    "activationPerformed": false,
+    "independentApprovalRequired": true,
+    "rollbackEvidenceRequired": true,
+    "approvalsTableEmpty": true,
+    "rollbackPlan": [
+      "Keep SPORT_DB_MODE_* = shadow (or unset)",
+      "Do not write SPORT_CUTOVER_RECEIPT_*",
+      "Product reads remain on PRIMARY",
+      "Re-run sport-delta-sync + record parity after any failed rehearsal"
+    ],
+    "workflow": "sport-migration-qualify.yml",
+    "nflFirst": true,
+    "readyWhen": "countParity + recordParity + cutoverRehearsal ok; still requires independent human approval per sport"
+  }
+}
