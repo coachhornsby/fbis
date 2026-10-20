@@ -1,0 +1,49 @@
+.ptd-root{display:grid;gap:18px;min-width:0}
+.ptd-section-heading{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+.ptd-section-heading h3{font-size:1.5rem;letter-spacing:-.02em;margin:0}
+.ptd-section-heading p{margin:4px 0 0;color:#b1cbdf;font-size:.85rem}
+.ptd-props-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center;flex-shrink:0;text-decoration:none!important;color:#effaff!important;background:#145275;border:1px solid #69b6e6;border-radius:10px;padding:10px 13px;font-size:.83rem;font-weight:850}
+.ptd-props-link:hover,.ptd-player-card-info a:hover{background:#216d95}
+.ptd-team-picker{display:flex;align-items:end;gap:16px}
+.ptd-team-picker .stp-control{min-width:min(340px,100%)}
+.ptd-team-picker .stp-muted{padding-bottom:12px}
+.ptd-teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(198px,1fr));gap:9px}
+.ptd-team-button{display:flex;align-items:center;text-align:left;gap:11px;min-width:0;min-height:82px;color:#f5faff;cursor:pointer;border:1px solid #395e77;border-left:4px solid var(--ptd-team-color);background:linear-gradient(115deg,color-mix(in srgb,var(--ptd-team-color) 22%,#11283a),#0b1d2e);border-radius:11px;padding:10px;transition:border-color .15s,transform .15s}
+.ptd-team-button:hover,.ptd-team-button.is-active{border-color:#a9dffe;transform:translateY(-1px);box-shadow:0 8px 18px #0003}
+.ptd-team-button>span:last-child{display:grid;gap:5px;min-width:0}
+.ptd-team-button strong{font-size:.84rem;line-height:1.25}
+.ptd-team-button small{font-size:.7rem;color:#b1cce0}
+.ptd-team-button .team-logo-plate,.ptd-team-hero .team-logo-plate{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}
+.ptd-roster-section{display:grid;gap:15px;min-width:0;margin-top:8px}
+.ptd-team-hero{display:flex;gap:18px;align-items:center;padding:18px 22px;border:1px solid #4d7896;border-left:6px solid var(--ptd-team-color);border-radius:16px;background:linear-gradient(115deg,color-mix(in srgb,var(--ptd-team-color) 56%,#091e2d),#092138)}
+.ptd-team-hero>div{flex:1;min-width:0}
+.ptd-team-hero h2{font-size:clamp(1.65rem,3.4vw,2.8rem);margin:0;line-height:1.1}
+.ptd-team-hero p{font-size:.8rem;color:#d1e8f7;margin:7px 0 0}
+.ptd-roster-info{display:flex;flex-wrap:wrap;gap:9px}
+.ptd-roster-info>span{padding:10px 13px;background:#142c40;border:1px solid #3a607a;border-radius:9px;font-size:.76rem;color:#c6ddef}
+.ptd-roster-info b{color:#fff;font-size:1.03rem}
+.ptd-roster-info a{color:#bdeaff}
+.ptd-player-toolbar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;padding:14px;border:1px solid #395d76;border-radius:12px;background:#0c2031}
+.ptd-player-toolbar .stp-control{min-width:160px}
+.ptd-player-toolbar .stp-control:first-child{flex:1}
+.ptd-view-toggle{display:flex;gap:3px;border:1px solid #496c86;border-radius:9px;padding:3px}
+.ptd-view-toggle button{border:0;border-radius:6px;color:#bcd6e7;background:transparent;cursor:pointer;padding:10px 13px;font-size:.77rem;font-weight:800}
+.ptd-view-toggle button.active{background:#286286;color:#fff}
+.ptd-player-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.ptd-player-card{min-width:0;overflow:hidden;border:1px solid #41647d;border-top:3px solid var(--ptd-team-color);border-radius:13px;background:linear-gradient(140deg,color-mix(in srgb,var(--ptd-team-color) 20%,#152f43),#091e2f);display:flex;flex-direction:column}
+.ptd-portrait{display:flex;align-items:end;justify-content:center;overflow:hidden;aspect-ratio:1.12;background:radial-gradient(circle at 50% 72%,#3c69824d,transparent 72%);min-width:0}
+.ptd-portrait img{width:100%;height:100%;object-fit:contain;object-position:center bottom;display:block}
+.ptd-portrait>span{align-self:center;display:grid;place-items:center;width:64px;height:64px;border:1px solid #779ab1;border-radius:50%;font-weight:900;color:#dbefff;font-size:1.35rem}
+.ptd-player-card-info{display:grid;gap:6px;padding:12px 11px 13px;flex:1}
+.ptd-player-card-info strong{font-size:.87rem;line-height:1.22;overflow-wrap:anywhere}
+.ptd-player-card-info span{font-size:.75rem;color:#abc9df}
+.ptd-player-card-info a{font-size:.75rem;color:#bfeaff;text-decoration:none;margin-top:5px;font-weight:800}
+.ptd-player-table .ptd-portrait{width:50px;height:50px;aspect-ratio:1;border-radius:7px}
+.ptd-player-table .ptd-portrait>span{font-size:.8rem;width:38px;height:38px}
+.ptd-player-table td small{display:block;color:#89acc5;font-size:.67rem;margin-top:4px}
+.ptd-player-table a{color:#bfeaff;font-weight:700;white-space:nowrap}
+.ptd-provenance,.ptd-hint{padding:12px 14px;border:1px solid #3a5972;border-radius:10px;color:#a8c6db;font-size:.77rem;line-height:1.5}
+@media(max-width:1150px){.ptd-player-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:850px){.ptd-player-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.ptd-player-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.ptd-teams{grid-template-columns:repeat(2,minmax(0,1fr))}.ptd-team-button{padding:8px;gap:7px}.ptd-team-button strong{font-size:.74rem}.ptd-team-hero{padding:13px;gap:8px;flex-wrap:wrap}.ptd-team-hero .ptd-props-link{width:100%}.ptd-player-toolbar .stp-control{flex:1 1 100%}.ptd-team-picker .stp-control{min-width:0;flex:1}}
+@media(prefers-reduced-motion:reduce){.ptd-team-button{transition:none}.ptd-team-button:hover{transform:none}}

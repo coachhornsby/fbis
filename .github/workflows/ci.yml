@@ -76,6 +76,8 @@ jobs:
         run: npm run verify:cloudflare
       - name: Run NHL production qualification tests
         run: npm run test:nhl
+      - name: Validate NFL NBA NHL team directory, player identity and roster headshots
+        run: node --test test/pro-team-directory.test.js
       - name: Run test suite
         run: npm test
       - name: Verify CFB private cold archive readback and integrity gates
