@@ -1,3 +1,4 @@
+import {runApprovedPropReconciliation} from "../lib/propReconciliationSchedule.js";
 import {captureNhlOfficialPlayerResults} from "../lib/nhlOfficialPlayerResults.js";
 import {captureKalshiComboTape} from "../lib/kalshiComboTape.js";
 import {captureKalshiMultilegs} from "../lib/kalshiMultilegCollector.js";
@@ -35,6 +36,10 @@ export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypt
     return respond({ok:false,code:"INTERNAL_COLLECTOR_ACCESS_DENIED"},403);
   const u=new URL(request.url);
   const scope=u.searchParams.get("scope");
+  if(scope==="prop-reconciliation"){
+    try {const r=await runApprovedPropReconciliation(env,{webCrypto});return respond(r,r.ok?200:503);}
+    catch {return respond({ok:false,code:"PROP_RECONCILIATION_UNAVAILABLE"},503);}
+  }
   if(scope==="nhl-official-prop-results"){
     try {const r=await captureNhlOfficialPlayerResults(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503);}
     catch {return respond({ok:false,code:"NHL_OFFICIAL_PROP_RESULTS_UNAVAILABLE"},503);}

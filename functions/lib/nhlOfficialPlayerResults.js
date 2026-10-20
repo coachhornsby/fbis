@@ -3,10 +3,11 @@ import { persistPropEvidence } from './propEvidenceStore.js';
 export function parseNhlOfficialPlayerStat(box, scope, observedAt) {
  const allowed={shots_on_goal:'sog',goals:'goals',assists:'assists',points:'points',saves:'saves'};
  if(!scope?.identityVerified||!scope.canonicalEventId||!scope.canonicalPlayerId||
+    scope.canonicalPlayerId!=='nhl:nhl:'+String(scope.playerId)||
     !/^\d+$/.test(String(scope.gameId))||!/^\d+$/.test(String(scope.playerId))||
     scope.period!=='full_game'||!allowed[scope.stat])
   return {ok:false,reason:'VERIFIED_SCOPE_REQUIRED'};
- if(String(box?.id)!==String(scope.gameId)||box.gameState!=='OFF'||box.gameScheduleState!=='OK')
+ if(String(box?.id)!==String(scope.gameId)||box.gameState!=='OFF'||box.gameScheduleState!=='OK'||box.limitedScoring===true)
   return {ok:false,reason:'OFFICIAL_FINAL_GAME_REQUIRED'};
  const entries=[];
  for(const team of ['homeTeam','awayTeam'])
@@ -23,7 +24,7 @@ export function parseNhlOfficialPlayerStat(box, scope, observedAt) {
   canonicalEventId:scope.canonicalEventId,canonicalPlayerId:scope.canonicalPlayerId,
   canonical_market:scope.stat,period:'full_game',actual,official:true,
   source:'NHL_GAMECENTER_BOXSCORE',sourceRecordId:String(scope.gameId)+':'+String(scope.playerId)+':'+scope.stat,
-  finalizedAt:observedAt,status:'FINAL',playerStatus:'PLAYED',overtimeIncluded:true,correctionPending:false
+  finalizedAt:observedAt,finalizationClockBasis:'FIRST_OBSERVED_FINAL_NOT_LEAGUE_FINALIZED_TIME',status:'FINAL',playerStatus:'PLAYED',overtimeIncluded:true,correctionPending:false
  }};
 }
 
@@ -36,7 +37,7 @@ export async function captureNhlOfficialPlayerResults(env,{now=new Date(),fetchI
   return {ok:false,reason:'CERTIFIED_MANIFEST_REQUIRED'};
  const receipts=[];
  for(const scope of manifest.scopes.slice(0,8)){
-  if(!scope?.identityVerified||!/^\d+$/.test(String(scope.gameId))){
+  if(!scope?.identityVerified||!/^\d{10}$/.test(String(scope.gameId))||!/^\d{7}$/.test(String(scope.playerId))){
    receipts.push({ok:false,reason:'SCOPE_INVALID'});continue;
   }
   try {
@@ -49,7 +50,7 @@ export async function captureNhlOfficialPlayerResults(env,{now=new Date(),fetchI
     canonicalEventId:scope.canonicalEventId,canonicalPlayerId:scope.canonicalPlayerId,
     sourceId:'nhl:boxscore:'+scope.gameId,result:parsed.result};
    const saved=await persistPropEvidence(env,record,{webCrypto});
-   receipts.push({ok:saved.ok,id:saved.id||null,reason:saved.reason||null});
+   receipts.push({ok:saved.ok,id:saved.id||null,reason:saved.reason||null,gameId:String(scope.gameId),playerId:String(scope.playerId),stat:scope.stat});
   }catch{receipts.push({ok:false,reason:'OFFICIAL_SOURCE_UNAVAILABLE'});}
  }
  const summary={checkedAt:now.toISOString(),attempted:receipts.length,stored:receipts.filter(r=>r.ok).length,
