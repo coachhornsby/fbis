@@ -38,33 +38,69 @@ let prefix = null;
 const prefixPasses = [];
 let prefixTransportError = null;
 if (INCLUDE_PREFIX) {
-  // Separate bounded prefix passes focused on incomplete research/roster/model tables.
-  for (let i = 0; i < PREFIX_ROUNDS; i += 1) {
-    try {
-      const pass = await postTopology("sport-prefix-copy", {
-        sport: SPORT,
-        pageSize: PREFIX_PAGE_SIZE,
-        maxPages: PREFIX_MAX_PAGES,
-        resume: true,
-        skipCaughtUp: true,
-      });
-      prefixPasses.push(pass);
-      prefix = pass;
-      if (pass.moreRemaining !== true) break;
-    } catch (error) {
-      // Working-set sync already succeeded — do not fail the whole sport on prefix 503/timeout.
-      prefixTransportError = String(error?.message || error?.cause?.message || error).slice(0, 240);
-      prefix = {
-        ok: false,
-        softFailed: true,
-        reason: "PREFIX_TRANSPORT_SOFT_FAIL",
-        error: prefixTransportError,
-        results: [],
-      };
-      prefixPasses.push(prefix);
-      break;
+  // One large request for all tables frequently hits Pages' wall-clock/503
+  // limit on CFB, NHL, CBB and tennis. The endpoint already accepts tables[],
+  // so isolate each bounded table copy and keep a durable cursor per table.
+  const scope = await postTopology("sport-migration-scope", { sport: SPORT });
+  if (!Array.isArray(scope.prefixTables)) throw new Error("PREFIX_SCOPE_MISSING");
+  const declaredTables = scope.prefixTables;
+  const latest = new Map();
+  let remaining = [...declaredTables];
+  for (let round = 0; round < PREFIX_ROUNDS && remaining.length; round += 1) {
+    const next = [];
+    for (const table of remaining) {
+      try {
+        const pass = await postTopology("sport-prefix-copy", {
+          sport: SPORT,
+          tables: [table],
+          pageSize: PREFIX_PAGE_SIZE,
+          maxPages: PREFIX_MAX_PAGES,
+          resume: true,
+          skipCaughtUp: true,
+        }, { retries: 2 });
+        const row = (pass.results || []).find((r) => r.table === table);
+        const skipped = (pass.skippedCaughtUp || []).some((r) => r.table === table);
+        if (!row && !skipped) {
+          throw new Error(`PREFIX_NO_TABLE_RECEIPT:${table}`);
+        }
+        const receipt = {
+          table, round: round + 1,
+          ok: skipped || row?.ok === true,
+          copied: row?.copied || 0,
+          exhausted: skipped || row?.exhausted === true,
+          skipped,
+          reason: row?.reason || row?.error || null,
+        };
+        prefixPasses.push(receipt);
+        latest.set(table, receipt);
+        if (!receipt.exhausted || !receipt.ok) next.push(table);
+      } catch (error) {
+        prefixTransportError = String(error?.message || error?.cause?.message || error).slice(0, 240);
+        const receipt = {
+          table, round: round + 1, ok: false, softFailed: true,
+          reason: "PREFIX_TABLE_TRANSPORT_FAILED", error: prefixTransportError,
+        };
+        prefixPasses.push(receipt);
+        latest.set(table, receipt);
+        next.push(table);
+      }
     }
+    remaining = next;
   }
+  const results = [...latest.values()];
+  const hardFailures = results.filter((r) => !r.ok && !r.softFailed);
+  const softFailures = results.filter((r) => r.softFailed);
+  prefix = {
+    ok: hardFailures.length === 0 && softFailures.length === 0,
+    softFailed: hardFailures.length === 0 && softFailures.length > 0,
+    reason: hardFailures.length ? "PREFIX_TABLE_COPY_FAILED" :
+      softFailures.length ? "PREFIX_TRANSPORT_SOFT_FAIL" : null,
+    tableCount: declaredTables.length,
+    results,
+    moreRemaining: remaining.length > 0,
+    remainingTables: remaining,
+    transportErrors: softFailures.length,
+  };
 }
 
 const parity = await postTopology("sport-parity", { sport: SPORT });
@@ -125,6 +161,7 @@ const out = {
   },
   prefix,
   prefixPasses: prefixPasses.length || undefined,
+  prefixProgress: prefixPasses,
   prefixParity,
   parity,
   productStillPrimary: true,
