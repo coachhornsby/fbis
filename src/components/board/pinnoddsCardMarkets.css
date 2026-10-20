@@ -41,7 +41,7 @@
 /* FBIS projected + gap tiles share the same dynamic pale/neon language. */
 .fbis-priced-diamond{font-size:.88em;color:#6ff4ba}
 .fbis-priced-model-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin:3px 8px 9px}
-.fbis-priced-model-value,.fbis-priced-gap-value{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;padding:12px 6px;border-radius:10px;text-align:center;min-width:0;position:relative;overflow:hidden;isolation:isolate}
+.fbis-priced-model-value,.fbis-priced-gap-value{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;padding:14px 8px;border-radius:10px;text-align:center;min-width:0;min-height:132px;position:relative;overflow:hidden;isolation:isolate}
 @keyframes fbis-priced-model-pulse{
   0%,100%{box-shadow:0 0 12px rgba(46,200,255,.32),inset 0 0 0 1px rgba(46,200,255,.28)}
   50%{box-shadow:0 0 26px rgba(46,200,255,.65),0 0 40px rgba(46,200,255,.25),inset 0 0 0 1px rgba(140,230,255,.55)}
@@ -60,35 +60,73 @@
   background:linear-gradient(115deg,#f0d8ff 0%,#d19af0 45%,#9b5cc4 100%);
   box-shadow:0 0 16px rgba(210,120,255,.4);
 }
+/* Soft luminous scrim so overlay type stays readable on watermarks (not a logo box). */
+.fbis-priced-model-value::before,.fbis-priced-gap-value::before{
+  content:"";position:absolute;inset:8% 6%;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 65% at 50% 50%,rgba(255,255,255,.55) 0%,rgba(255,255,255,.18) 45%,transparent 72%);
+}
 .fbis-priced-model-value>span,.fbis-priced-model-value>small,
 .fbis-priced-model-value>strong{position:relative;z-index:1}
-.fbis-priced-model-value>span,.fbis-priced-model-value>small{color:#1a1020!important;text-shadow:none!important}
-.fbis-priced-model-value>span{font-size:12px;letter-spacing:.06em;font-weight:950}
-.fbis-priced-model-value>small{font-size:13px;font-weight:950;letter-spacing:.04em}
-.fbis-priced-model-value>strong,.fbis-priced-model-value .fbis-priced-projection-line{color:#ffffff!important;font-size:clamp(20px,3.2cqi,28px)!important;font-weight:950!important;text-shadow:0 1px 3px rgba(0,0,0,.55)!important;line-height:1!important}
+.fbis-priced-model-value>span,.fbis-priced-model-value>small{
+  color:#ffffff!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.7),0 0 10px rgba(0,0,0,.35)!important;
+}
+.fbis-priced-model-value>span{font-size:12px;letter-spacing:.16em;font-weight:950;text-transform:uppercase}
+.fbis-priced-model-value>small{font-size:15px;font-weight:950;letter-spacing:.02em}
+.fbis-priced-model-value>strong,.fbis-priced-model-value .fbis-priced-projection-line{
+  color:#ffffff!important;font-size:clamp(34px,6.4cqi,48px)!important;font-weight:950!important;line-height:.9!important;
+  letter-spacing:-.04em;font-variant-numeric:tabular-nums;
+  text-shadow:0 3px 6px rgba(0,0,0,.8),0 0 20px rgba(255,255,255,.55),0 0 36px rgba(46,200,255,.7)!important;
+}
+.fbis-priced-model-value.is-total>strong,.fbis-priced-model-value.is-total .fbis-priced-projection-line{
+  text-shadow:0 2px 4px rgba(0,0,0,.75),0 0 18px rgba(255,255,255,.4),0 0 28px rgba(210,120,255,.55)!important;
+}
 .fbis-priced-model-row strong{font-weight:950;line-height:1.05;white-space:nowrap}
 /* Gap tiles: pale fills + ink/white hierarchy — never green-on-green. */
 .fbis-priced-gap-value{border:2px solid #39ff14;background:linear-gradient(115deg,#d8ffe2 0%,#9de6b0 45%,#5fb873 100%);box-shadow:0 0 16px rgba(57,255,20,.35)}
 .fbis-priced-gap-value.is-under{border-color:#ff1a1a;background:linear-gradient(115deg,#ffd6d6 0%,#f0a0a8 45%,#d06670 100%);box-shadow:0 0 16px rgba(255,26,26,.4)}
 .fbis-priced-gap-value.is-over{border-color:#39ff14;background:linear-gradient(115deg,#d8ffe2 0%,#9de6b0 45%,#5fb873 100%);box-shadow:0 0 16px rgba(57,255,20,.4)}
 .fbis-priced-gap-value>span,.fbis-priced-gap-value>small,.fbis-priced-gap-value>strong{position:relative;z-index:1}
-.fbis-priced-gap-value span,.fbis-priced-gap-value small{color:#1a1020!important;text-shadow:none!important}
-.fbis-priced-gap-value strong{color:#ffffff!important;text-shadow:0 1px 3px rgba(0,0,0,.55)!important;font-size:clamp(20px,3.2cqi,28px)!important}
-.fbis-priced-gap-value span{font-size:12px!important;font-weight:950!important;letter-spacing:.06em}
-.fbis-priced-gap-value small{font-size:13px!important;font-weight:950!important}
-/* Full-tile watermark logos — no chip/box; fill the tile, semi-transparent. */
+.fbis-priced-gap-value>span,.fbis-priced-gap-value>small{
+  color:#ffffff!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.7),0 0 10px rgba(0,0,0,.35)!important;
+}
+.fbis-priced-gap-value strong{
+  color:#ffffff!important;font-size:clamp(34px,6.4cqi,48px)!important;font-weight:950!important;line-height:.9!important;
+  letter-spacing:-.04em;font-variant-numeric:tabular-nums;
+  text-shadow:0 3px 6px rgba(0,0,0,.8),0 0 20px rgba(255,255,255,.55),0 0 36px rgba(57,255,20,.7)!important;
+}
+.fbis-priced-gap-value.is-under strong{
+  text-shadow:0 3px 6px rgba(0,0,0,.8),0 0 20px rgba(255,255,255,.5),0 0 36px rgba(255,26,26,.7)!important;
+}
+.fbis-priced-gap-value span{font-size:12px!important;font-weight:950!important;letter-spacing:.16em;text-transform:uppercase}
+.fbis-priced-gap-value small{font-size:15px!important;font-weight:950!important}
+/* Centered full-tile watermark logos — no chip/box; square mark dead-center of the tile. */
 .fbis-priced-tile-mark,.fbis-priced-tile-mark.team-logo-wrap,.fbis-priced-tile-mark.team-logo-plate{
   position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;padding:0!important;
   display:grid!important;place-items:center!important;pointer-events:none;z-index:0;overflow:hidden!important;
-  background:transparent!important;border:0!important;box-shadow:none!important;border-radius:inherit!important;opacity:.34
+  background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;opacity:.3;transform:none!important
 }
 .fbis-priced-tile-mark .team-logo,.fbis-priced-tile-mark img{
-  width:118%!important;height:118%!important;max-width:none!important;max-height:none!important;
-  object-fit:contain!important;border-radius:0!important;opacity:1;filter:saturate(.95) contrast(1.05)
+  width:auto!important;height:78%!important;max-width:78%!important;max-height:78%!important;aspect-ratio:1;
+  object-fit:contain!important;object-position:center center!important;border-radius:0!important;opacity:1;
+  filter:saturate(1.08) contrast(1.1);display:block!important;margin:0!important;justify-self:center;align-self:center
+}
+@keyframes fbis-priced-value-pulse{
+  0%,100%{transform:scale(1);filter:brightness(1)}
+  50%{transform:scale(1.07);filter:brightness(1.15)}
+}
+@keyframes fbis-priced-mark-breathe{
+  0%,100%{opacity:.24}
+  50%{opacity:.38}
+}
+@keyframes fbis-priced-mark-scale{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.06)}
 }
 .fbis-priced-markets .fbis-priced-family{box-shadow:inset 0 1px rgba(255,255,255,.07),0 8px 19px rgba(0,0,0,.13)}
 .fbis-priced-markets .fbis-priced-heading>span:last-child{min-width:0}
-@media(max-width:520px){.fbis-priced-model-row{margin:2px 5px 7px;gap:4px}.fbis-priced-model-value,.fbis-priced-gap-value{padding:8px 2px;gap:3px}.fbis-priced-model-row span{font-size:10px}.fbis-priced-model-row strong{font-size:clamp(15px,4vw,20px)}.fbis-priced-model-row small{font-size:11px}.fbis-priced-gap-value span{font-size:11px!important}.fbis-priced-gap-value small{font-size:12px!important}}
+@media(max-width:520px){.fbis-priced-model-row{margin:2px 5px 7px;gap:4px}.fbis-priced-model-value,.fbis-priced-gap-value{padding:10px 4px;gap:4px;min-height:108px}.fbis-priced-model-row span{font-size:11px}.fbis-priced-model-value>strong,.fbis-priced-gap-value>strong{font-size:clamp(24px,7vw,34px)!important}.fbis-priced-model-row small{font-size:12px}.fbis-priced-gap-value span{font-size:11px!important}.fbis-priced-gap-value small{font-size:12px!important}}
 
 
 /* Give each spread/total tile its own width instead of clipping quotes. */
@@ -101,8 +139,7 @@
 .fbis-priced-team{max-width:100%;min-width:0}
 .fbis-priced-line{font-size:clamp(16px,3cqi,25px)}
 .fbis-priced-odds{font-size:clamp(13px,2.5cqi,17px)}
-.fbis-priced-model-value>strong{white-space:normal;text-align:center;overflow-wrap:anywhere;font-size:clamp(15px,3cqi,22px)}
-.fbis-priced-gap-value>strong{font-size:clamp(18px,4cqi,25px)}
+.fbis-priced-model-value>strong,.fbis-priced-gap-value>strong{white-space:nowrap;text-align:center;overflow-wrap:normal}
 .fbis-priced-model-row small{overflow-wrap:anywhere;white-space:normal;text-align:center}
 @container(max-width:350px){.fbis-priced-selection{grid-template-columns:minmax(0,1fr) auto auto}.fbis-priced-team{grid-column:auto;font-size:10px}.fbis-priced-line{font-size:17px}.fbis-priced-odds{min-width:41px;font-size:13px}}
 
@@ -114,11 +151,11 @@
 .fbis-priced-team-logo,.fbis-priced-team-logo.team-logo-plate,.fbis-priced-team-logo.team-logo-wrap{flex:0 0 40px;width:40px!important;height:40px!important;object-fit:contain;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important}
 .fbis-priced-team-logo .team-logo{width:40px!important;height:40px!important;border-radius:0!important}
 .fbis-priced-markets .fbis-priced-tile-mark,.fbis-priced-markets .fbis-priced-tile-mark.team-logo-wrap,.fbis-priced-markets .fbis-priced-tile-mark.team-logo-plate{
-  background:transparent!important;border:0!important;box-shadow:none!important;border-radius:inherit!important;padding:0!important;overflow:hidden!important;opacity:.34
+  background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;overflow:hidden!important;inset:0!important;transform:none!important
 }
 @container(max-width:390px){.fbis-priced-selection{grid-template-columns:minmax(0,1fr) auto auto}.fbis-priced-team-logo,.fbis-priced-team-logo.team-logo-plate,.fbis-priced-team-logo.team-logo-wrap{flex-basis:32px;width:32px!important;height:32px!important}.fbis-priced-team-logo .team-logo{width:32px!important;height:32px!important}}
 
-/* Readable selection rows + light motion on gap tiles. */
+/* Readable selection rows + motion on tiles, watermarks, and hero values. */
 .fbis-priced-team{color:#f7fbff!important;font-size:clamp(12px,1.35cqi,14px)!important}
 .fbis-priced-team>span{font-size:inherit!important;color:#f7fbff!important}
 .fbis-priced-family-head strong{font-size:13px!important}
@@ -138,7 +175,10 @@
   .fbis-priced-model-value.is-total{animation:fbis-priced-model-pulse-total 2.4s ease-in-out infinite}
   .fbis-priced-gap-value.is-over,.fbis-priced-gap-value.is-side{animation:fbis-priced-gap-pulse-over 2.4s ease-in-out infinite}
   .fbis-priced-gap-value.is-under{animation:fbis-priced-gap-pulse-under 2.4s ease-in-out infinite}
+  .fbis-priced-model-value>strong,.fbis-priced-gap-value>strong{animation:fbis-priced-value-pulse 2.4s ease-in-out infinite;display:inline-block}
+  .fbis-priced-tile-mark,.fbis-priced-tile-mark.team-logo-wrap{animation:fbis-priced-mark-breathe 3.2s ease-in-out infinite}
+  .fbis-priced-tile-mark .team-logo,.fbis-priced-tile-mark img{animation:fbis-priced-mark-scale 3.2s ease-in-out infinite}
 }
 @media(prefers-reduced-motion:reduce){
-  .fbis-priced-model-value,.fbis-priced-gap-value{animation:none!important}
+  .fbis-priced-model-value,.fbis-priced-gap-value,.fbis-priced-model-value>strong,.fbis-priced-gap-value>strong,.fbis-priced-tile-mark,.fbis-priced-tile-mark .team-logo{animation:none!important}
 }
