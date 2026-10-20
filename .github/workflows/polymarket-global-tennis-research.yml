@@ -31,5 +31,11 @@ jobs:
             -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
             -d '{}' > /tmp/tennis-gamma-receipt.json
           jq -e '.ok == true and .canAuthorizeWager == false and .source == "POLYMARKET_GLOBAL_GAMMA"' /tmp/tennis-gamma-receipt.json
+          # Reject misleading green runs that report an old capture clock.
+          captured_epoch="$(date -u -d "$(jq -r '.asOf' /tmp/tennis-gamma-receipt.json)" +%s)"
+          now_epoch="$(date -u +%s)"
+          test "$captured_epoch" -le "$((now_epoch+60))"
+          test "$captured_epoch" -ge "$((now_epoch-600))"
+
           echo "Polymarket.com ATP/WTA fixtures: $(jq -r '.fixtureCount' /tmp/tennis-gamma-receipt.json), matched events: $(jq -r '.matchedEvents' /tmp/tennis-gamma-receipt.json)" >> "$GITHUB_STEP_SUMMARY"
           echo "Source capture time: $(jq -r '.asOf' /tmp/tennis-gamma-receipt.json) · Search warnings: $(jq -r '.errors | length' /tmp/tennis-gamma-receipt.json)" >> "$GITHUB_STEP_SUMMARY"
