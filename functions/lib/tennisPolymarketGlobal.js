@@ -21,7 +21,7 @@ export async function discoverPolymarketGlobalTennis({fetchImpl=fetch,now=new Da
   u.searchParams.set("limit","100");u.searchParams.set("offset",String(page*100));
   u.searchParams.set("order","id");u.searchParams.set("ascending","false");
   let response;
-  try{response=await fetchImpl(u.toString(),{headers:{accept:"application/json"},signal:AbortSignal.timeout(4500),redirect:"error"});}
+  try{response=await fetchImpl(u.toString(),{headers:{accept:"application/json"},signal:AbortSignal.timeout(4500),redirect:"manual"});}
   catch{code="GAMMA_FETCH_FAILED";break}
   if(!response.ok){code="GAMMA_HTTP_"+response.status;break}
   let rows;try{rows=await response.json()}catch{code="GAMMA_SCHEMA_INVALID";break}
@@ -96,7 +96,7 @@ export async function collectPolymarketGlobalTennis(env,{now=new Date(),fetchImp
     uri.searchParams.set("q",term);uri.searchParams.set("events_status","active");
     uri.searchParams.set("limit_per_type","12");
     try{
-     const response=await fetchImpl(uri.toString(),{method:"GET",headers:{accept:"application/json"},redirect:"error",signal:AbortSignal.timeout(7000)});
+     const response=await fetchImpl(uri.toString(),{method:"GET",headers:{accept:"application/json"},redirect:"manual",signal:AbortSignal.timeout(7000)});
      if(!response.ok)throw Error("HTTP_"+response.status);
      const payload=await response.json();
      if(!Array.isArray(payload?.events))throw Error("SEARCH_SCHEMA_INVALID");
@@ -125,7 +125,7 @@ export async function collectPolymarketGlobalTennis(env,{now=new Date(),fetchImp
    for(const token of job.tokens){
     const url="https://clob.polymarket.com/book?token_id="+encodeURIComponent(token);
     try{
-     const response=await fetchImpl(url,{method:"GET",headers:{accept:"application/json"},redirect:"error",signal:AbortSignal.timeout(5000)});
+     const response=await fetchImpl(url,{method:"GET",headers:{accept:"application/json"},redirect:"manual",signal:AbortSignal.timeout(5000)});
      if(!response.ok)throw Error("CLOB_HTTP_"+response.status);
      const book=await response.json();
      const levels=values=>(Array.isArray(values)?values:[]).map(v=>({price:Number(v.price),size:Number(v.size)}))
