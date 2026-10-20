@@ -758,3 +758,21 @@ test('three-provider-side duplicates are not discarded or labeled qualified',()=
  assert.equal(cards.length,3);
  assert.ok(cards.every(c=>c.canAuthorizeWager!==true));
 });
+
+test('Global Gamma source reference spread is visible but never treated as qualified executable price gap',()=>{
+ const k={id:'k',provider:'Kalshi',contractId:'KXNBA-9',identityVerified:true,sport:'nba',
+  canonicalEventId:'401909088',canonicalPlayerId:'nba:espn:4684742',canonical_market:'points',
+  line:9.5,period:'full_game',statSide:'over',side:'yes',observedAsk:.55,
+  settlementTerms:'fair-market-value on inactive',settlementScope:'KALSHI_GAME',dnpSettlement:'FAIR_PRICE',
+  priceVerified:false,marketAvailable:false,canAuthorizeWager:false};
+ const p={...k,id:'p',provider:'Polymarket',contractId:'nba-bos-det-points-ausar-9pt5',
+  observedAsk:null,observedReferencePrice:.45,priceKind:'DISPLAY_REFERENCE_NOT_ASK',
+  settlementScope:'GAMMA_NBA_FULL_GAME_OT',dnpSettlement:'NO_IF_INACTIVE',settlementTerms:'Resolves No if DNP'};
+ const [r]=buildVenueComparisonRows([k,p]);
+ assert.equal(r.venueComparison.providerCount,2);
+ assert.equal(r.venueComparison.referenceDifferenceDollars,-.10);
+ assert.equal(r.venueComparison.priceDifferenceDollars,null);
+ assert.equal(r.venueComparison.settlementEquivalent,false);
+ assert.equal(r.venueComparison.venues.find(v=>v.provider==='Polymarket').priceKind,'DISPLAY_REFERENCE_NOT_ASK');
+ assert.equal(r.venueComparison.canAuthorizeWager,false);
+});
