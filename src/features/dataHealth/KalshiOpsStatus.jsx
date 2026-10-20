@@ -90,9 +90,16 @@ export default function KalshiOpsStatus(){
           {records.map(s=><article key={s.sport}>
             <span>{s.sport.toUpperCase()} · {s.series}</span>
             <strong>{statusText(s.status)}</strong>
-            <small>{s.records===null?"No qualified market inventory":s.records+" market records"} · {s.pageComplete===true?"Full first page":"Coverage not complete"}</small>
+            <small>{s.records===null?"No qualified market inventory":s.records+" market records"} · {s.pageComplete===true?"Query pagination complete":"Coverage not complete"}</small>
             <small>Snapshot: {when(s.capturedAt)}</small>
           </article>)}
+          <article>
+            <span>Sports series discovery · daily</span>
+            <strong>{statusText(result.seriesCatalog?.state)}</strong>
+            <small>{result.seriesCatalog?.storedSeriesCount==null?"Catalog not yet collected":result.seriesCatalog.storedSeriesCount+" discovered series candidates"}</small>
+            <small>Updated: {when(result.seriesCatalog?.observedAt)}</small>
+            <small>Discovery does not mean verified FBIS contract coverage.</small>
+          </article>
           <article>
             <span>Pricing and wager authority</span>
             <strong>Not qualified</strong>
@@ -122,7 +129,7 @@ export default function KalshiOpsStatus(){
             <div><strong>Signed market GET</strong><span>{probe.signed?.result||"Not completed"} · HTTP {probe.signed?.httpStatus??"—"}{probe.signed?.failureKind?" · "+probe.signed.failureKind.replaceAll("_"," "):""}</span></div>
             <p>Diagnosis: {String(probe.diagnosis||"INCONCLUSIVE").replaceAll("_"," ").toLowerCase()}.
               {probe.diagnosis==="ANONYMOUS_RATE_LIMIT_AUTHENTICATED_ACCEPTED"
-                ?" Signed Kalshi market access works; the separate public collector still requires a safely credentialed deployment and subsequent market validation."
+                ?" Signed market access works, and the scheduled collector is already configured for signed collection. The anonymous 429 is expected and does not block signed NFL/CFB snapshots."
                 :" This comparison does not authorize trading or prove quote freshness."}
             </p>
             <small>Next eligible test: {when(probe.nextAllowedAt)}</small>
