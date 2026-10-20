@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fetchEspnTennisRankings } from "../functions/lib/tennisPrizePicksResearch.js";
+import { fetchEspnTennisRankings, espnCountry } from "../functions/lib/tennisPrizePicksResearch.js";
 
 test("ESPN ATP rankings use working host and retain sourced citizenship and rank",async()=>{
  const calls=[];
@@ -21,3 +21,5 @@ test("unknown or absent citizenship never guesses a nationality",async()=>{
  const r=await fetchEspnTennisRankings(async()=>({ok:true,json:async()=>({rankings:[{ranks:[{current:1,points:100,athlete:{displayName:"Unknown Athlete",citizenshipCountry:"XYZ"}}]}]})}));
  assert.equal(r.byName.get("unknown athlete")?.country,null);
 });
+
+test("ESPN event flags use SER for Serbia alongside SRB",()=>{assert.equal(espnCountry({citizenshipCountry:"SER"}),"RS");assert.equal(espnCountry({citizenshipCountry:"SRB"}),"RS");});

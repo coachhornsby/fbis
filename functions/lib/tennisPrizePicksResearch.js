@@ -16,7 +16,7 @@ function defaults(tour){
 const ESPN_NATION_ISO2=Object.freeze({
  USA:"US",GBR:"GB",FRA:"FR",ESP:"ES",ITA:"IT",DEU:"DE",GER:"DE",AUS:"AU",
  CAN:"CA",KAZ:"KZ",HUN:"HU",RUS:"RU",CZE:"CZ",SVK:"SK",POL:"PL",ARG:"AR",
- BRA:"BR",NED:"NL",CHE:"CH",SUI:"CH",SRB:"RS",CHN:"CN",JPN:"JP",BEL:"BE",
+ BRA:"BR",NED:"NL",CHE:"CH",SUI:"CH",SRB:"RS",SER:"RS",CHN:"CN",JPN:"JP",BEL:"BE",
  AUT:"AT",CRO:"HR",HRV:"HR",GRE:"GR",GRC:"GR",BUL:"BG",BGR:"BG",ROU:"RO",
  UKR:"UA",BLR:"BY",LAT:"LV",LVA:"LV",LTU:"LT",EST:"EE",SLO:"SI",SVN:"SI",
  DEN:"DK",DNK:"DK",SWE:"SE",NOR:"NO",FIN:"FI",POR:"PT",PRT:"PT",IRL:"IE",
