@@ -300,7 +300,7 @@ test("history-shard recovery write on primary D1 failure does not claim primary 
  assert.equal(row.can_authorize_wager,0);
  assert.equal(row.contract_price,0.61);
  assert.equal(worker.status().fixedCapRetired,true);
- assert.match(worker.status().codeVersion,/history-default|history-recovery/);
+ assert.match(worker.status().codeVersion,/q4-default|history-default|history-recovery/);
  // Default: WS ticks prefer Q4 without attempting primary inserts.
  let primaryWrites=0;
  const healthyPrimary={prepare(sql){
