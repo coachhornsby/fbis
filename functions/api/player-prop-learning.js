@@ -109,13 +109,17 @@ function nflActual(summary, playerName, market) {
   return null;
 }
 
-async function readPack(db) {
+async function readPack(db, { date = null, sport = null } = {}) {
+  const filters = [], args = [];
+  if (date) { filters.push("date=?"); args.push(date); }
+  if (sport && sport !== "all") { filters.push("LOWER(sport)=?"); args.push(sport); }
+  const where = filters.length ? " WHERE " + filters.join(" AND ") : "";
   const cardsQ = await db.prepare(
-    "SELECT * FROM player_prop_cards ORDER BY date DESC, captured_at DESC"
-  ).all();
+    "SELECT * FROM player_prop_cards" + where + " ORDER BY date DESC, captured_at DESC"
+  ).bind(...args).all();
   const legsQ = await db.prepare(
-    "SELECT * FROM player_prop_legs ORDER BY date(created_at) DESC, card_id, leg_id"
-  ).all();
+    "SELECT * FROM player_prop_legs WHERE card_id IN (SELECT card_id FROM player_prop_cards" + where + ") ORDER BY date(created_at) DESC, card_id, leg_id"
+  ).bind(...args).all();
   let calibration = [];
   try {
     const c = await db.prepare(
@@ -243,7 +247,11 @@ async function autoSettleNfl(db) {
 export async function onRequestGet(context) {
   if (!context.env?.DB) return json({ ok: false, error: "database unavailable" }, 503);
   try {
-    return json(await readPack(context.env.DB));
+    const url = new URL(context.request.url);
+    const date = url.searchParams.get("date");
+    if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0,10) !== date)) return json({ ok: false, error: "invalid date" }, 400);
+    const sport = url.searchParams.get("sport")?.toLowerCase() || null;
+    return json(await readPack(context.env.DB, { date, sport }));
   } catch (error) {
     return json({ ok: false, error: String(error?.message || error) }, 500);
   }

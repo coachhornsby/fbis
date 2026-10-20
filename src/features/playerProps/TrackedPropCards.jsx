@@ -22,13 +22,16 @@ function statusClass(result) {
   return "";
 }
 
-export default function TrackedPropCards({ sportFilter = "all" }) {
+export default function TrackedPropCards({ sportFilter = "all", date = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()) }) {
   const [pack, setPack] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    const load = () => fetch(`/api/player-prop-learning?_t=${Date.now()}`)
+    setPack(null);
+    setError("");
+    const query = new URLSearchParams({ date, sport: sportFilter });
+    const load = () => fetch(`/api/player-prop-learning?${query}&_t=${Date.now()}`)
       .then(async (res) => {
         const body = await res.json().catch(() => ({}));
         if (!res.ok || body?.ok === false) throw new Error(body?.error || `HTTP ${res.status}`);
@@ -49,12 +52,12 @@ export default function TrackedPropCards({ sportFilter = "all" }) {
       cancelled = true;
       clearInterval(id);
     };
-  }, []);
+  }, [date, sportFilter]);
 
   const cards = useMemo(() => {
     const filter = String(sportFilter || "all").toLowerCase();
-    return (pack?.cards || []).filter((card) => filter === "all" || String(card.sport || "").toLowerCase() === filter);
-  }, [pack, sportFilter]);
+    return (pack?.cards || []).filter((card) => card.date === date && (filter === "all" || String(card.sport || "").toLowerCase() === filter));
+  }, [pack, sportFilter, date]);
 
   if (!cards.length && !error) return null;
 

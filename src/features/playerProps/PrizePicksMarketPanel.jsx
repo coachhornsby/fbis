@@ -541,7 +541,7 @@ function PrizePicksPropCard({ group, expanded, onToggleExpand }){
       style={{
         "--pp-team-primary":primary,
         "--pp-team-secondary":secondary,
-        borderColor:`color-mix(in srgb, ${primary} 55%, rgba(255,255,255,.18))`,
+        borderColor:`color-mix(in srgb, ${primary} 65%, #dbeafe)`,
       }}
     >
       <div
@@ -614,10 +614,12 @@ function PrizePicksPropCard({ group, expanded, onToggleExpand }){
 }
 
 export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilterChange }){
+  const date=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
   const [rows,setRows]=useState([]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
   const [freshness,setFreshness]=useState(null);
+  const [coverage,setCoverage]=useState(null);
   const [underdogRows,setUnderdogRows]=useState([]);
   const [expandedKey,setExpandedKey]=useState("");
   const [localSport,setLocalSport]=useState(
@@ -633,9 +635,10 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
     let cancelled=false;
     setLoading(true);
     setError("");
-    const date=new Intl.DateTimeFormat("en-CA",{
-      timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"
-    }).format(new Date());
+    setRows([]);
+    setFreshness(null);
+    setCoverage(null);
+    setUnderdogRows([]);
     const isTop=localSport==="top25";
     const q=new URLSearchParams({date,mode:isTop?"top25":"sport"});
     if(!isTop) q.set("sport",localSport);
@@ -652,6 +655,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
         if(cancelled) return;
         setRows(Array.isArray(j.rows)?j.rows:[]);
         setFreshness(j.freshness||null);
+        setCoverage(j.coverage||null);
         setUnderdogRows(Array.isArray(udBody?.lines)?udBody.lines:[]);
       })
       .catch(e=>{
@@ -662,7 +666,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
       })
       .finally(()=>{if(!cancelled)setLoading(false)});
     return()=>{cancelled=true};
-  },[localSport]);
+  },[localSport,date]);
 
   const groups=useMemo(
     ()=>groupLatest(rows).map(group=>{
@@ -703,7 +707,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
         ))}
       </nav>
 
-      <TrackedPropCards sportFilter={localSport === "top25" ? "all" : localSport} />
+      <TrackedPropCards date={date} sportFilter={localSport === "top25" ? "all" : localSport} />
 
       <div className="pp-premium-section-head">
         <div>
@@ -715,12 +719,15 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
         </div>
       </div>
 
+      {!loading&&coverage?.capturedSports?.length===1&&coverage.capturedSports[0]==="nfl"?
+        <div className="pp-empty" role="status">Today's PrizePicks capture contains NFL lines only. Other sports need source lines before their projected cards can appear.</div>
+      :null}
       {freshness?.stale?
         <div className="pp-empty error-text">Today's PrizePicks acquisition has not completed. Stale prior-day props are hidden.</div>
       :null}
       {error?<div className="pp-empty error-text">{error}</div>:null}
       {!loading&&!error&&!groups.length?
-        <div className="pp-empty pp-premium-empty">No projected props are available for this tab yet.</div>
+        <div className="pp-empty pp-premium-empty">{coverage?.capturedSports?.includes(localSport) ? "Source lines are captured, but FBIS projections are not available for this sport yet." : "No current PrizePicks lines have been captured for this sport."}</div>
       :null}
 
       <div className="pp-card-grid pp-premium-grid">

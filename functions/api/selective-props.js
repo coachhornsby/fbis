@@ -211,6 +211,9 @@ export async function onRequestGet(context) {
 
   const rows = (await context.env.DB.prepare(sql).bind(...bind).all())?.results || [];
   const candidates = normalizedRows(rows);
+  const coverageRows = (await context.env.DB.prepare(
+    "SELECT LOWER(sport) AS sport, COUNT(*) AS lines, SUM(fbis_projection IS NOT NULL) AS projected FROM prizepicks_prop_lines WHERE " + where.slice(0,2).join(" AND ") + " GROUP BY LOWER(sport)"
+  ).bind(bounds.start,bounds.end).all())?.results || [];
 
   let selected;
   let policy;
@@ -270,6 +273,7 @@ export async function onRequestGet(context) {
     rows: output,
     count: output.length,
     policy,
+    coverage: { capturedSports: coverageRows.map(row => row.sport), bySport: coverageRows },
     freshness: {
       current: acquisition?.state === "COMPLETE",
       acquisition: acquisition || null,
