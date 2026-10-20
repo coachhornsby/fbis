@@ -80,6 +80,8 @@ export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date()
     &&Number.isInteger(stored.pagesFetched)
     &&stored.pagesFetched>0&&stored.pagesFetched<MAX_TOTAL_PAGES
     &&typeof stored.cursor==="string"
+    &&Array.isArray(stored.seenCursors)
+    &&stored.seenCursors.length<=MAX_TOTAL_PAGES
     &&stored.cursor.length>0&&stored.cursor.length<=2048;
   const progress=active?stored:{
     version:1,sport,startedAt:iso(now),pagesFetched:0,
