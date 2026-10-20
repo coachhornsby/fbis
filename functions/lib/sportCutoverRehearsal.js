@@ -13,10 +13,69 @@ import {
 import { buildCrossSportBoardSummary } from "./coreBoardSummaries.js";
 import { evaluateSportPredictionFidelity } from "./canonicalEvidenceContract.js";
 
-export const CUTOVER_REHEARSAL_CONTRACT = "fbis-sport-cutover-rehearsal-v2";
+export const CUTOVER_REHEARSAL_CONTRACT = "fbis-sport-cutover-rehearsal-v3";
+
+/** Core identity / score fields always compared when present. */
+export const PROJECTION_COMPARE_CORE = Object.freeze([
+  "id", "game_id", "model_version", "projection_kind",
+  "proj_total", "proj_home", "proj_away", "proj_margin",
+  "p_home_final", "p_market", "frozen_at",
+]);
+
+/**
+ * Model-integrity fields — required on both sides for a passing compare.
+ * Must not be dropped by a lean fallback when the columns exist.
+ */
+export const PROJECTION_COMPARE_INTEGRITY = Object.freeze([
+  "weights_json", "layers_json", "deployment_commit",
+]);
+
+/** Optional enrichment — never required; omit from SELECT when absent. */
+export const PROJECTION_COMPARE_OPTIONAL = Object.freeze([
+  "projection_flags", "graded_at", "payload_json",
+]);
 
 function cloneEnv(env) {
   return { ...env };
+}
+
+async function listTableColumns(db, table) {
+  if (!db?.prepare) return [];
+  try {
+    const page = await db.prepare(`PRAGMA table_info(${table})`).all();
+    return (page?.results || []).map((c) => String(c.name));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Build a SELECT list from columns that exist on this DB.
+ * Prefer integrity fields; never force payload_json onto PRIMARY-lean schemas.
+ */
+export function buildPredictionSelectColumns(availableColumns) {
+  const have = new Set((availableColumns || []).map(String));
+  const selected = [];
+  for (const col of [...PROJECTION_COMPARE_CORE, ...PROJECTION_COMPARE_INTEGRITY, ...PROJECTION_COMPARE_OPTIONAL]) {
+    if (have.has(col)) selected.push(col);
+  }
+  // Minimal fallback if pragma unavailable / empty — still keep integrity fields.
+  if (!selected.length) {
+    return [
+      ...PROJECTION_COMPARE_CORE,
+      ...PROJECTION_COMPARE_INTEGRITY,
+      "projection_flags",
+      "graded_at",
+    ];
+  }
+  return selected;
+}
+
+function integrityColumnsReady(columns) {
+  const have = new Set(columns || []);
+  return PROJECTION_COMPARE_INTEGRITY.every((c) => have.has(c))
+    && have.has("model_version")
+    && have.has("id");
 }
 
 /**
@@ -118,6 +177,8 @@ export function buildRehearsalEnv(baseEnv, sport, {
 
 /**
  * Capture board-relevant fingerprint including projection field samples.
+ * Selects only columns present on this binding so PRIMARY (no payload_json)
+ * still loads weights_json / layers_json / deployment_commit for compare.
  */
 export async function captureBoardFingerprint(env, sport, {
   label = "primary",
@@ -128,6 +189,7 @@ export async function captureBoardFingerprint(env, sport, {
   const limit = Math.min(200, Math.max(5, Number(sampleSize) || 50));
   let games = [];
   let projections = [];
+  let selectColumns = [];
   if (db?.prepare) {
     try {
       const page = await db.prepare(
@@ -138,28 +200,37 @@ export async function captureBoardFingerprint(env, sport, {
     } catch {
       games = [];
     }
+    const available = await listTableColumns(db, "prediction_snapshots");
+    selectColumns = buildPredictionSelectColumns(available);
     try {
       const page = await db.prepare(
-        `SELECT id,game_id,model_version,projection_kind,proj_total,proj_home,proj_away,
-                proj_margin,p_home_final,p_market,frozen_at,weights_json,layers_json,
-                projection_flags,graded_at,deployment_commit,payload_json
+        `SELECT ${selectColumns.join(",")}
          FROM prediction_snapshots WHERE sport=? ORDER BY id ASC LIMIT ?`
       ).bind(sport, limit).all();
       projections = page?.results || [];
     } catch {
+      // Last-resort lean path — still keep integrity columns when possible.
+      const lean = buildPredictionSelectColumns([
+        ...PROJECTION_COMPARE_CORE,
+        ...PROJECTION_COMPARE_INTEGRITY,
+      ]);
+      selectColumns = lean;
       try {
         const page = await db.prepare(
-          `SELECT id,game_id,model_version,projection_kind,proj_total,proj_home,proj_away,p_home_final,frozen_at
+          `SELECT ${lean.join(",")}
            FROM prediction_snapshots WHERE sport=? ORDER BY id ASC LIMIT ?`
         ).bind(sport, limit).all();
         projections = page?.results || [];
       } catch {
         projections = [];
+        selectColumns = [];
       }
     }
   }
 
-  const fidelity = projections.map((p) => evaluateSportPredictionFidelity(p, { requireEnvelope: Boolean(p.payload_json) }));
+  const fidelity = projections.map((p) => evaluateSportPredictionFidelity(p, {
+    requireEnvelope: Boolean(p.payload_json),
+  }));
   const fidelityOk = fidelity.filter((f) => f.ok).length;
 
   return {
@@ -173,6 +244,8 @@ export async function captureBoardFingerprint(env, sport, {
     projectionIds: projections.map((p) => p.id),
     games,
     projections,
+    selectColumns,
+    integrityColumnsReady: integrityColumnsReady(selectColumns),
     gameCount: games.length,
     projectionCount: projections.length,
     fidelityOk,
@@ -204,6 +277,8 @@ function projectionFieldsMatch(a, b) {
 export function compareBoardFingerprints(baseline, candidate) {
   const gameIdMatch = baseline.gameIds.length === candidate.gameIds.length
     && baseline.gameIds.every((id, i) => id === candidate.gameIds[i]);
+  const integrityReady = baseline.integrityColumnsReady === true
+    && candidate.integrityColumnsReady === true;
   const byId = new Map(candidate.projections.map((p) => [p.id, p]));
   let matched = 0;
   const mismatches = [];
@@ -213,17 +288,24 @@ export function compareBoardFingerprints(baseline, candidate) {
     else mismatches.push({ id: p.id, status: c ? "DIVERGED" : "MISSING" });
   }
   const complete = gameIdMatch
+    && integrityReady
     && baseline.projections.length > 0
     && matched === baseline.projections.length
     && candidate.projectionCount === baseline.projectionCount;
   return {
     ok: complete,
     gameIdMatch,
+    integrityReady,
+    baselineSelectColumns: baseline.selectColumns || [],
+    candidateSelectColumns: candidate.selectColumns || [],
     projectionMatched: matched,
     projectionSampled: baseline.projections.length,
     mismatches: mismatches.slice(0, 20),
     candidateFidelityOk: candidate.fidelityOk,
     candidateFidelitySampled: candidate.fidelitySampled,
+    reason: !integrityReady
+      ? "INTEGRITY_COLUMNS_MISSING_ON_ONE_SIDE"
+      : (complete ? undefined : "PROJECTION_COMPARE_INCOMPLETE"),
   };
 }
 
