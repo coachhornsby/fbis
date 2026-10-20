@@ -1,0 +1,49 @@
+name: NBA SportsDataverse history research shadow
+on:
+  schedule:
+    # SDV releases update periodically; daily historical checks avoid scraping
+    - cron: "45 13 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/sdv-nba-last5-shadow.py"
+      - "functions/lib/nbaSdvHistoryShadow.js"
+      - "functions/api/nba-sdv-history-shadow.js"
+      - ".github/workflows/sdv-nba-last5-shadow.yml"
+permissions:
+  contents: read
+concurrency:
+  group: sdv-nba-last5-shadow
+  cancel-in-progress: false
+jobs:
+  nba_history_shadow:
+    if: github.repository == 'coachhornsby/fbis'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate NBA SDV time cuts and history normalization
+        run: python -m unittest discover -s test -p 'test_sdv_nba_last5_shadow.py'
+      - name: Install SportsDataverse
+        run: pip install --disable-pip-version-check sportsdataverse
+      - name: Compile frozen historical research snapshot
+        run: python scripts/sdv-nba-last5-shadow.py --seasons 2025,2026,2027
+      - name: Ingest canonical ESPN-id shadow snapshot into FBIS R2
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET" || { echo "HARVEST_SECRET_NOT_CONFIGURED"; exit 1; }
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 15 --max-time 120 \
+            -X POST "https://fbis-myz.pages.dev/api/nba-sdv-history-shadow" \
+            -H "x-harvest-secret: $HARVEST_SECRET" \
+            -H "content-type: application/json" \
+            --data-binary @artifacts/sdv-nba-last5-shadow.json >/tmp/sdv-nba-receipt.json
+          jq -e '.ok == true and .authority == "SHADOW_HISTORY_ONLY" and .canAuthorizeWager == false and .canQualify == false' /tmp/sdv-nba-receipt.json
+          echo "SDV research players matched to FBIS roster: $(jq -r '.players' /tmp/sdv-nba-receipt.json)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Verified historical game rows: $(jq -r '.gameLogs' /tmp/sdv-nba-receipt.json)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Rights and model promotion: BLOCKED (research shadow)" >> "$GITHUB_STEP_SUMMARY"
