@@ -1,3 +1,4 @@
+import { loadProTeamRoster, matchProRosterPlayer } from "../lib/proTeamDirectory.js";
 function json(body,status=200){
   return new Response(JSON.stringify(body),{
     status,
@@ -331,13 +332,28 @@ async function wikipediaPlayerImage(lookupName){
 }
 
 export async function onRequestGet(context){
-  if(!context.env?.DB) return json({ok:false,error:"database unavailable"},503);
   const url=new URL(context.request.url);
   const name=String(url.searchParams.get("name")||"").trim();
   const sport=String(url.searchParams.get("sport")||"").toLowerCase();
   const team=String(url.searchParams.get("team")||"").trim();
   const mode=String(url.searchParams.get("mode")||"json").toLowerCase();
   if(!name) return json({ok:false,error:"name required"},400);
+  // Exact team-roster match is authoritative for display identity.
+  // A historical PrizePicks/Zen photo is only a lower-priority image fallback;
+  // no PrizePicks line, quote or payout data is used.
+  if(["nfl","nba","nhl"].includes(sport) && team){
+    const roster=await loadProTeamRoster({sport,team}).catch(()=>null);
+    const athlete=roster?.ok ? matchProRosterPlayer(roster.players,name) : null;
+    if(athlete?.headshotUrl){
+      const official=await candidateResponse(athlete.headshotUrl,
+        {name:athlete.name,sport,team:roster.team.abbr,playerId:athlete.playerKey,
+         source:athlete.headshotSource,rosterSource:roster.source},mode);
+      if(official)return official;
+    }
+  }
+  if(!context.env?.DB?.prepare) return mode==="image"
+    ? new Response(null,{status:404,headers:{"cache-control":"no-store"}})
+    : json({ok:true,found:false,name,sport,reason:"image-catalog-unavailable"});
   const lookupName = sport==="tennis" ? canonicalTennisName(name) : name;
   let exact=await context.env.DB.prepare(
     `SELECT player_name,player_headshot_url,sport,collected_at
@@ -345,10 +361,11 @@ export async function onRequestGet(context){
       WHERE player_headshot_url IS NOT NULL AND player_headshot_url<>''
         AND LOWER(player_name)=LOWER(?)
         AND (?='' OR LOWER(sport)=?)
+        AND (?='' OR LOWER(COALESCE(team,''))=LOWER(?))
       ORDER BY collected_at DESC
       LIMIT 1`
-  ).bind(lookupName,sport,sport).first();
-  if(!exact){
+  ).bind(lookupName,sport,sport,["nfl","nba","nhl"].includes(sport)?team:"",["nfl","nba","nhl"].includes(sport)?team:"").first();
+  if(!exact && !["nfl","nba","nhl"].includes(sport)){
     const rows=(await context.env.DB.prepare(
       `SELECT player_name,player_headshot_url,sport,collected_at
          FROM prizepicks_prop_lines
