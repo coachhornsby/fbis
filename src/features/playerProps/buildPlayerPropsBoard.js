@@ -820,3 +820,71 @@ export function orderExchangeResearchCards(rows=[],limit=100) {
  }
  return out;
 }
+
+/**
+ * Pair source contracts by independent canonical identity: never player-name
+ * similarity, price proximity, or approximate threshold. Only one distinct
+ * Kalshi and Polymarket contract can occupy a card; extra contracts remain
+ * individually visible. Comparable prices require identical verified rules.
+ */
+export function buildVenueComparisonRows(rows=[]) {
+ const sideOf=r=>r.statSide==='over'||r.statSide==='under'?r.statSide:
+  r.side==='over'||r.side==='under'?r.side:null;
+ const money=x=>x!=null&&x!==''&&Number.isFinite(Number(x))&&Number(x)>0&&Number(x)<1?Number(x):null;
+ const venue=r=>({
+  provider:r.provider,contractId:r.contractId||null,side:r.side||null,
+  price:money(r.purchaseAsk??r.observedAsk),priceKind:r.purchaseAsk!=null?'VERIFIED_PURCHASE_ASK':'OBSERVED_ASK',
+  depth:r.executableSize??r.observedDepth??null,observedAt:r.observedAt||null,
+  collectedAt:r.collectedAt||null,sourceTimeVerified:r.fresh===true&&r.priceVerified===true,
+  marketAvailable:r.marketAvailable===true,settlementTerms:r.settlementTerms||null,
+  dnpSettlement:r.dnpSettlement||null,
+ });
+ const keyOf=r=>r.identityVerified===true&&r.contractId&&
+  ['Kalshi','Polymarket'].includes(r.provider)&&r.canonicalEventId&&r.canonicalPlayerId&&
+  r.canonical_market&&r.period&&r.line!=null&&Number.isFinite(Number(r.line))&&Number(r.line)>=0&&sideOf(r)?
+  [r.sport,r.canonicalEventId,r.canonicalPlayerId,r.canonical_market,r.period,
+   Number(r.line).toString(),sideOf(r)].join('|'):null;
+ const pools=new Map();
+ rows.forEach((r,i)=>{const key=keyOf(r);if(!key)return;
+  if(!pools.has(key))pools.set(key,[]);
+  pools.get(key).push(i);
+ });
+ const used=new Set(),output=[];
+ for(let i=0;i<rows.length;i++){
+  if(used.has(i))continue;
+  const base=rows[i],key=keyOf(base);let other=null,otherIndex=null;
+  if(key){
+   for(const j of pools.get(key)||[]){
+    const candidate=rows[j];
+    if(j!==i&&!used.has(j)&&candidate.provider!==base.provider){
+     other=candidate;otherIndex=j;break;
+    }
+   }
+  }
+  used.add(i);if(otherIndex!=null)used.add(otherIndex);
+  if(!base.contractId&&!other){output.push(base);continue;}
+  const pair=[base,...(other?[other]:[])].sort((a,b)=>
+   (a.provider==='Kalshi'?0:1)-(b.provider==='Kalshi'?0:1));
+  const offers=pair.map(venue);
+  const exactRules=Boolean(other&&base.identityVerified===true&&other.identityVerified===true&&
+   base.settlementTerms&&other.settlementTerms&&base.settlementTerms===other.settlementTerms&&
+   base.settlementScope&&base.settlementScope===other.settlementScope&&
+   base.dnpSettlement&&base.dnpSettlement===other.dnpSettlement&&
+   sideOf(base)===sideOf(other));
+  const pricingReady=exactRules&&offers.every(v=>v.price!=null&&v.marketAvailable&&
+   v.sourceTimeVerified&&v.priceKind==='VERIFIED_PURCHASE_ASK');
+  const kalshi=offers.find(v=>v.provider==='Kalshi'),poly=offers.find(v=>v.provider==='Polymarket');
+  const gap=pricingReady?Number((poly.price-kalshi.price).toFixed(4)):null;
+  const primary=pair.find(r=>r.fbis_projection!=null)||pair[0];
+  output.push({...primary,id:other?'compare:'+key+':'+i:base.id,
+   venueComparison:{venues:offers,providerCount:offers.length,
+    contractIdentityMatched:other!=null,settlementEquivalent:exactRules,
+    priceComparisonStatus:!other?'OTHER_PROVIDER_UNAVAILABLE':
+     !exactRules?'SETTLEMENT_NOT_EQUIVALENT_OR_UNVERIFIED':
+     !pricingReady?'QUOTE_CLOCK_OR_EXECUTION_UNVERIFIED':'COMPARABLE_CURRENT_QUOTES',
+    priceDifferenceDollars:gap,
+    cheaperProvider:gap==null||gap===0?null:gap>0?'Kalshi':'Polymarket',
+    canAuthorizeWager:false}});
+ }
+ return output;
+}
