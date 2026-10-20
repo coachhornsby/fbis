@@ -107,7 +107,7 @@ test("account signing allowlist permits GET /v1/orders/open but rejects trading"
   const account=env();
   const headers=await signedPolymarketUsAccountGetHeaders({
     keyId:account.POLYMARKET_US_KEY_ID,secretKey:account.POLYMARKET_US_SECRET_KEY,
-    path:"/v1/orders/open",webCrypto,
+    path:"/v1/orders/open",webCrypto: webcrypto,
   });
   assert.ok(headers["X-PM-Signature"]);
   await assert.rejects(()=>signedPolymarketUsAccountGetHeaders({
