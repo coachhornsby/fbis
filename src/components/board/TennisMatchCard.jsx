@@ -85,6 +85,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
     </section>
     {t.researchFixture?<p className="tmc-fixture-note">Independent ESPN research fixture · {t.researchFixture.officialDisplayEvidence?`WTA official match metadata linked (display only, observed ${t.researchFixture.officialDisplayEvidence.observedAt}) · No verified projection`:"Official schedule metadata unverified · No verified projection"} · ESPN observed {t.researchFixture.fetchedAt}</p>:null}
     {t.researchFixture?.missingEvidence?.length?<p className="tmc-fixture-note" role="status">MISSING VERIFIED DATA · {t.researchFixture.missingEvidence.join(" · ").replaceAll("_"," ")}</p>:null}
+    {t.researchEstimate?<section className="tmc-fixture-note" aria-label="Independent surface Elo research estimate"><strong>SURFACE ELO ESTIMATE · RESEARCH ONLY</strong> · {t.researchEstimate.surface.toUpperCase()} · {home.fullName||home.name}: {(t.researchEstimate.player1WinProb*100).toFixed(1)}% / {away.fullName||away.name}: {(t.researchEstimate.player2WinProb*100).toFixed(1)}% · Not an FBIS PURE projection or betting edge</section>:null}
     <div className="tmc-quick-summary" aria-label="FBIS projection summary">
       <span className="tmc-quick-model">FBIS PROJECTION · {display.valid?winnerName:"BLOCKED"}</span>
       <span className="tmc-quick-fair">FAIR MONEYLINE · {fair(pAway)} / {fair(pHome)}</span>
