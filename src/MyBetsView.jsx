@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fmtAmerican, fmtPct, fmtSigned, formatMarketPeriod, formatClv } from "./lib/format.js";
+import { wagerMarketDetail } from "./lib/wagerMarketDetail.js";
 import { TicketMatchup } from "./components/TeamLogo.jsx";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
@@ -319,7 +320,7 @@ export default function MyBetsView({
                       )}
                     </td>
                     <td className="nowrap">{b.executionBook || "—"}</td>
-                    <td className="nowrap">{formatMarketPeriod(b.market, b.period)}</td>
+                    <td className="bets-market-cell"><HistoricalMarket bet={b} combo={Boolean(combo)} /></td>
                     <td className={combo ? "bets-combo-cell" : undefined}>{combo ? <ComboSelection bet={b} combo={combo} /> : betSelectionLabel(b)}</td>
                     <td>{fmtAmerican(b.executionPrice)}</td>
                     <td className="nowrap">{b.riskAmount == null ? "—" : `${Number(b.riskAmount).toFixed(2)}`}</td>
@@ -504,6 +505,41 @@ function ManualScoreEditor({ bet, scores, setScore, saveFinal, saving }) {
 function propStatLabel(bet) {
   if (String(bet.propType || "").toUpperCase() === "PITCHER_STRIKEOUTS") return "strikeouts";
   return "stat";
+}
+
+
+/** Executed market context, using only the recorded bet line and final scores. */
+function HistoricalMarket({bet,combo=false}) {
+  const detail=wagerMarketDetail(bet,{combo});
+  return (
+    <div className="bets-market-display">
+      <strong className="bets-market-kind">{formatMarketPeriod(bet.market,bet.period)}</strong>
+      {detail.wager ? (
+        <div className="bets-market-bet">
+          <span className="bets-market-kicker">{detail.wager.label}</span>
+          <strong className="bets-market-line">{detail.wager.value}</strong>
+        </div>
+      ) : null}
+      {detail.periodScore ? (
+        <div className="bets-market-actual">
+          <span className="bets-market-kicker">F5 result</span>
+          <strong>{detail.periodScore}</strong>
+        </div>
+      ) : null}
+      {detail.score ? (
+        <div className="bets-market-actual">
+          <span className="bets-market-kicker">{detail.period==="F5"?"Game final":"Final score"}</span>
+          <strong>{detail.score}</strong>
+        </div>
+      ) : null}
+      {detail.actualTotal!=null ? (
+        <div className="bets-market-points">
+          <span className="bets-market-kicker">{detail.period==="F5"?"F5 total":"Actual total"}</span>
+          <strong>{detail.actualTotal}</strong>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function betSelectionLabel(bet) {
