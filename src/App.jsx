@@ -27,6 +27,7 @@ import CurrentProjectionsView from "./features/models/CurrentProjectionsView.jsx
 import TeamProfilesView from "./features/teamProfiles/TeamProfilesView.jsx";
 import DataHealthView from "./features/dataHealth/DataHealthView.jsx";
 import KalshiOpsStatus from "./features/dataHealth/KalshiOpsStatus.jsx";
+import KalshiSeriesExplorer from "./features/dataHealth/KalshiSeriesExplorer.jsx";
 import CfbDataOpsView from "./features/cfbDataOps/CfbDataOpsView.jsx";
 import MispricesView from "./features/misprices/MispricesView.jsx";
 import "./features/playerProps/playerProps.css";
@@ -670,6 +671,7 @@ export default function App() {
           <>
             <DataHealthView />
             <KalshiOpsStatus />
+            <KalshiSeriesExplorer />
             <CfbDataOpsView />
             <TrackView
               report={track}
