@@ -19,8 +19,8 @@ export async function onRequestGet({request,env}) {
   const where=tour?"WHERE p.tour=?":"";
   const query=`SELECT p.tour AS tour,COUNT(*) AS players,
     SUM(CASE WHEN ${approved} THEN 1 ELSE 0 END) AS archived_approved,
-    SUM(CASE WHEN NOT (${approved}) AND ${linked} THEN 1 ELSE 0 END) AS linked_external,
-    SUM(CASE WHEN NOT (${approved}) AND NOT (${linked}) THEN 1 ELSE 0 END) AS missing,
+    SUM(CASE WHEN COALESCE((${approved}),0)=0 AND ${linked} THEN 1 ELSE 0 END) AS linked_external,
+    SUM(CASE WHEN COALESCE((${approved}),0)=0 AND COALESCE((${linked}),0)=0 THEN 1 ELSE 0 END) AS missing,
     SUM(CASE WHEN p.active_state='RANKED_ACTIVE' THEN 1 ELSE 0 END) AS ranked_active
     FROM tennis_players p LEFT JOIN tennis_player_portraits a ON a.fbis_player_id=p.fbis_player_id
     ${where} GROUP BY p.tour ORDER BY p.tour`;
@@ -31,7 +31,7 @@ export async function onRequestGet({request,env}) {
    const sql=`SELECT p.fbis_player_id AS playerId,p.tour,p.canonical_name AS name,
      p.current_rank AS rank,p.active_state AS activeState
      FROM tennis_players p LEFT JOIN tennis_player_portraits a ON a.fbis_player_id=p.fbis_player_id
-     WHERE NOT (${approved}) AND NOT (${linked}) ${filter}
+     WHERE COALESCE((${approved}),0)=0 AND COALESCE((${linked}),0)=0 ${filter}
      ORDER BY CASE WHEN p.active_state='RANKED_ACTIVE' THEN 0 ELSE 1 END,
        CASE WHEN p.current_rank IS NULL THEN 1 ELSE 0 END,p.current_rank,p.canonical_name LIMIT ?`;
    missing=(await env.DB.prepare(sql).bind(...(tour?[tour]:[]),limit).all()).results||[];
