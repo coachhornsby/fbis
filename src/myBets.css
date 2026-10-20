@@ -489,3 +489,80 @@
   .bets-dashboard .bets-combo-play{padding:12px}
   .bets-dashboard .bets-combo-leg{padding:10px}
 }
+
+
+/* 2026-10-20: use the actual desktop viewport for My Bets. Older
+   1500px (global shell) and 1600px (bets) caps caused wide side gutters.
+   Keep the long ledger horizontally scrollable instead of shrinking text. */
+.fbis-shell-main.route-bets .main-content.bets-dashboard {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: clamp(12px, 1.15vw, 24px);
+}
+.fbis-shell-main.route-bets .bets-ledger-panel,
+.fbis-shell-main.route-bets .bets-table-scroll {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.fbis-shell-main.route-bets .bets-ledger-table {
+  width: 100%;
+  min-width: 2200px;
+}
+/* Logos from the wager table should be bare team marks, never white
+   circular contrast plates. Other FBIS routes retain their own branding. */
+.bets-dashboard .bets-ledger-table .team-logo-wrap {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  border-radius: 0;
+  padding: 0;
+}
+.bets-dashboard .bets-ledger-table .team-logo-wrap .team-logo {
+  background: transparent;
+  border-radius: 0;
+}
+.bets-dashboard .bets-ledger-table .team-logo-fallback {
+  background: #11273a !important;
+  color: #eef5fa !important;
+  border: 1px solid #506b83 !important;
+  box-shadow: none !important;
+  border-radius: 10px;
+}
+.bets-dashboard .bets-ledger-table .team-line-lg {
+  gap: 14px;
+}
+.bets-dashboard .bets-ledger-table .team-line-lg .team-name {
+  font-size: 17px;
+  font-weight: 850;
+}
+.bets-dashboard .bets-ledger-table .team-line-lg .team-abbr {
+  font-size: 15px;
+}
+.bets-dashboard .bets-ledger-table :is(th,td):nth-child(3) {
+  min-width: 330px;
+}
+/* Tennis and ordinary player-prop headshots grow 32->48px in compact
+   rows (44->66px in non-compact rows). Combo photos remain unchanged. */
+.bets-dashboard .bets-single-participants {
+  display: grid;
+  gap: 12px;
+}
+.bets-dashboard .bets-single-participant {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.bets-dashboard .bets-single-participant > span:last-child {
+  font-size: 17px;
+  font-weight: 850 !important;
+  color: #fff;
+}
+@media (max-width: 760px) {
+  .fbis-shell-main.route-bets .main-content.bets-dashboard {
+    padding: 8px;
+  }
+}
