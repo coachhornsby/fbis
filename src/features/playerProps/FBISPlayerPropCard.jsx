@@ -362,7 +362,7 @@ export default function FBISPlayerPropCard({
               <strong>{num(line)}</strong>
             </div>
             <div className="pp-metric-cell fbis-metric">
-              <span>FBIS</span>
+              <span>FBIS PROJECTION</span>
               <strong>{num(projection)}</strong>
             </div>
             <div className={"pp-metric-cell pp-metric-diff " + (delta == null ? "" : delta > 0 ? "is-over" : delta < 0 ? "is-under" : "is-push")}>
