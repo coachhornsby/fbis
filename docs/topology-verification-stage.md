@@ -14,11 +14,14 @@ Confirmed failure log: Vite build succeeds, then `wrangler deploy` warns it is a
 
 ## 2. Deployment bindings
 
-Pages **production** D1 bindings were missing CORE / sport / Q4 history DBs (preview already had them). Production was patched to match:
+Pages **production and preview** project configs are patched to include:
 
-- All sport D1 bindings bound
-- `MARKET_HISTORY_2026Q4_DB` bound
+- All sport D1 bindings + `CORE_DB` + `MARKET_HISTORY_2026Q4_DB`
 - All `SPORT_DB_MODE_*=shadow` and `NHL_SPORT_DB_MODE=shadow`
+
+A main deploy that only carried the legacy five D1 bindings can drop sport/CORE/Q4 from the live deployment until the next Pages deploy picks up the restored project config. Re-check after every production deploy.
+
+`fbis-polymarket-us-stream` is bound to `MARKET_HISTORY_2026Q4_DB` in addition to legacy `MARKET_HISTORY_DB`.
 
 Operator check: `POST /api/database-topology` `{ "operation": "verify-bindings" }`.
 
