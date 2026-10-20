@@ -139,6 +139,15 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
     const playerBank = { ...context, players: f.players.map((p, i) => ({ ...(context?.players?.[i] || {}),
       ...p, headshot: p.headshotUrl ?? null, recentForm: context?.players?.[i]?.recentForm || [] })) };
     const venueOffers = f.venueOffers.map(o => ({ ...o, side: o.side === "home" ? "away" : o.side === "away" ? "home" : o.side }));
+    const missingEvidence=[
+      !f.officialDisplay && "OFFICIAL_MATCH_CONTEXT",
+      f.players.some(p=>!p.matched) && "PLAYER_IDENTITY",
+      f.players.some(p=>p.rank==null) && "CURRENT_RANKING",
+      f.players.some(p=>!p.country) && "NATIONALITY",
+      f.players.some(p=>!p.headshotUrl && !portraitMap.get(p.fbisPlayerId)) && "HEADSHOT",
+      !f.venueOffers.length && "MATCHED_MARKET_QUOTES",
+      "INDEPENDENT_MODEL_PROJECTION"
+    ].filter(Boolean);
     games.push({ id: f.id, sport: "tennis", tour: f.tour, start: f.start, status: f.status,
       home: team(p1), away: team(p2), projectionKind: "UNAVAILABLE", pureProjectionAvailable: false, projectionUnavailable: true,
       publicationStatus: "RESEARCH_FIXTURE_ONLY", canQualify: false, canAuthorizeWager: false, qualificationBlocked: true,
@@ -146,7 +155,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
       quality: { state: "RESEARCH", flags: ["research_only", "independent_fixture", "projection_unavailable"] },
       market: { reference: { available: venueOffers.length > 0 }, venueOffers, executionActionable: false },
       tennisProjection: { researchFixture: { verified: true, source: f.source, fixtureId: f.id, officialDisplayEvidence: f.officialDisplay||null,
-        fetchedAt: f.fetched_at, rawHash: f.raw_hash, rawKey: f.raw_key },
+        fetchedAt: f.fetched_at, rawHash: f.raw_hash, rawKey: f.raw_key, missingEvidence },
         eventIntegrity: { valid: false, reason: "OFFICIAL_PROJECTION_UNAVAILABLE" },
         blockedReason: f.officialDisplay ? "OFFICIAL_METADATA_MATCHED_DISPLAY_ONLY: projection/event authority remains unverified for this ESPN fixture" : "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
         player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
