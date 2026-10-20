@@ -132,24 +132,47 @@ jobs:
           retention-days: 14
       - name: CFB CORE 2025 train / 2026 frozen holdout (research-only)
         if: ${{ github.event.inputs.job == 'cfb-core-2025-2026-holdout' }}
+        id: holdout_offline
         env:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           CFB_HOLDOUT_SEASONS: ${{ github.event.inputs.seasons || '2025,2026' }}
           CFB_HOLDOUT_OUT: artifacts/cfb-core-2025-2026-holdout-report.json
+          OPERATOR: ${{ github.event.inputs.operatorApproved }}
         run: |
           set -euo pipefail
-          if [ -z "${CFBD_API_KEY:-}" ]; then
-            echo "CFBD_API_KEY GitHub secret missing — writing explicit Model C blocked report."
+          mkdir -p artifacts
+          if [ -n "${CFBD_API_KEY:-}" ]; then
+            # Optional champion A/A baselines artifact (gameId, baselineHome, baselineAway).
+            if [ -f artifacts/cfb-champion-aa-baselines.jsonl ]; then
+              export CFB_HOLDOUT_BASELINES=artifacts/cfb-champion-aa-baselines.jsonl
+            elif [ -f artifacts/cfb-champion-aa-baselines.json ]; then
+              export CFB_HOLDOUT_BASELINES=artifacts/cfb-champion-aa-baselines.json
+            fi
             node scripts/cfb-core-2025-reconstruct-2026-holdout.mjs
-            exit 3
+          else
+            echo "CFBD_API_KEY GitHub secret missing — invoking Pages Worker (has CFBD_API_KEY)."
+            if [ -z "${HARVEST_SECRET:-}" ]; then
+              echo "HARVEST_SECRET also missing — writing blocked report."
+              node scripts/cfb-core-2025-reconstruct-2026-holdout.mjs
+              exit 3
+            fi
+            tmp="$(mktemp)"
+            http=$(curl -sS --max-time 300 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              -o "$tmp" -w "%{http_code}" \
+              "https://fbis-myz.pages.dev/api/college?job=cfb-core-2025-2026-holdout&trigger=workflow_dispatch&operatorApproved=${OPERATOR:-true}")
+            cp "$tmp" artifacts/cfb-core-2025-2026-holdout-pages-raw.json
+            jq '(.d1.cfbCoreHoldout // .) | .routing="pages_worker"' "$tmp" \
+              > artifacts/cfb-core-2025-2026-holdout-report.json
+            echo "pages_http=${http}"
+            if [ "$http" != "200" ]; then
+              echo "Pages holdout failed http=${http}"
+              head -c 600 "$tmp" || true
+              exit 1
+            fi
           fi
-          # Optional champion A/A baselines artifact (gameId, baselineHome, baselineAway).
-          if [ -f artifacts/cfb-champion-aa-baselines.jsonl ]; then
-            export CFB_HOLDOUT_BASELINES=artifacts/cfb-champion-aa-baselines.jsonl
-          elif [ -f artifacts/cfb-champion-aa-baselines.json ]; then
-            export CFB_HOLDOUT_BASELINES=artifacts/cfb-champion-aa-baselines.json
-          fi
-          node scripts/cfb-core-2025-reconstruct-2026-holdout.mjs
           {
             echo "## CORE 2025→2026 frozen holdout"
             echo ""
