@@ -13,6 +13,7 @@ on:
       - "test/kalshi-exchange-status.test.js"
       - "test/kalshi-signed-collector.test.js"
       - "test/kalshi-series-catalog.test.js"
+      - "test/kalshi-phase2-coverage.test.js"
   push:
     branches: [main]
     paths:
@@ -40,7 +41,7 @@ jobs:
           node-version: "22"
       - run: npm ci --ignore-scripts
       - name: Verify public collector safety contracts
-        run: node --test test/kalshi-market-shadow.test.js test/kalshi-market-collector.test.js test/kalshi-central-collector.test.js test/kalshi-exchange-status.test.js test/kalshi-signed-collector.test.js test/kalshi-series-catalog.test.js
+        run: node --test test/kalshi-market-shadow.test.js test/kalshi-market-collector.test.js test/kalshi-central-collector.test.js test/kalshi-exchange-status.test.js test/kalshi-signed-collector.test.js test/kalshi-series-catalog.test.js test/kalshi-phase2-coverage.test.js
       - name: Dry-run Worker bundle
         run: npx wrangler deploy --dry-run --config wrangler.kalshi-public-collector.toml --outdir /tmp/kalshi-collector
       - name: Publish single scheduled Kalshi collector
