@@ -1,3 +1,4 @@
+import {captureNhlOfficialPlayerResults} from '../lib/nhlOfficialPlayerResults.js';
 import {captureKalshiMultilegs} from "../lib/kalshiMultilegCollector.js";
 import {captureKalshiTargetedEvidence} from "../lib/kalshiTargetedEvidence.js";
 import { captureKalshiPlayerProps } from "../lib/kalshiPlayerPropCollector.js";
@@ -33,6 +34,10 @@ export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypt
     return respond({ok:false,code:"INTERNAL_COLLECTOR_ACCESS_DENIED"},403);
   const u=new URL(request.url);
   const scope=u.searchParams.get("scope");
+  if(scope==="nhl-official-prop-results"){
+    try {const r=await captureNhlOfficialPlayerResults(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503);}
+    catch {return respond({ok:false,code:"NHL_OFFICIAL_PROP_RESULTS_UNAVAILABLE"},503);}
+  }
   if(scope==="player-props"){
     try { const r=await captureKalshiPlayerProps(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503); }
     catch { return respond({ok:false,code:"PLAYER_PROP_COLLECTION_UNAVAILABLE"},503); }
