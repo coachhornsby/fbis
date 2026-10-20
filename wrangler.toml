@@ -18,13 +18,6 @@ binding = "TIER3_DB"
 database_name = "fbis-cfb-tier3-research"
 database_id = "3dcddd30-8790-48f0-a6a3-cc3ad9b95295"
 
-# CFB sport shard — prediction_snapshots (champion A/A baselines for research holdout).
-# Read-only for Model C eval overlays; never authorizes wagers from this binding alone.
-[[d1_databases]]
-binding = "CFB_DB"
-database_name = "fbis-cfb"
-database_id = "b589c91c-c53d-4f4a-9d32-99c4468e3033"
-
 # Market-history shard: shadow/recovery normalized market observations only.
 # Decision links, CLV, settlement, cards and models remain on primary DB.
 # See docs/database-ownership-v1.md / docs/database-topology-v2.md.
@@ -61,6 +54,9 @@ binding = "NFL_DB"
 database_name = "fbis-nfl"
 database_id = "0a49cad0-4bf9-4e01-88ce-be54123f712d"
 
+# CFB sport working-set + research holdout shard (champion A/A baselines /
+# Model C eval overlays). Primary remains authority until SPORT_DB_MODE_CFB=sport
+# or an approved CORE cutover. Never authorizes wagers from this binding alone.
 [[d1_databases]]
 binding = "CFB_DB"
 database_name = "fbis-cfb"
