@@ -6,7 +6,7 @@ test("non-tennis compact cards preserve full names, enlarged logos and a bounded
  const [card,css]=await Promise.all([load("CompactGameCard.jsx"),load("universalPremiumCard.css")]);
  assert.match(card,/fbis-universal-premium/);
  assert.match(card,/fbis-full-team-name/);
- assert.match(card,/size=\{100\}/);
+ assert.match(card,/size=\{118\}/);
  assert.doesNotMatch(card,/className="cgc-abbr"/);
  assert.match(card,/NflDirectionalMatchups/);
  assert.match(css,/cgc-best-edge>\*/);

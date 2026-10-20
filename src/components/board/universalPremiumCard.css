@@ -3,7 +3,7 @@
 .fbis-shell-main .fbis-universal-premium .cgc-main{min-width:0}
 .fbis-shell-main .fbis-universal-premium .cgc-matchup{min-width:0;overflow:hidden;grid-template-columns:minmax(0,1fr) 36px minmax(0,1fr)}
 .fbis-shell-main .fbis-universal-premium .cgc-team-block{min-width:0;gap:5px}
-.fbis-shell-main .fbis-universal-premium .cgc-logo .team-logo{width:78px!important;height:78px!important;max-width:100%}
+.fbis-shell-main .fbis-universal-premium .cgc-logo .team-logo{width:104px!important;height:104px!important;max-width:100%}
 .fbis-shell-main .fbis-universal-premium .cgc-team-name{font-size:clamp(13px,1.3vw,20px)!important;font-weight:950!important;line-height:1.12!important;letter-spacing:-.015em;max-width:100%!important;min-width:0;text-align:center;white-space:normal!important;overflow-wrap:break-word;color:#f8fbff!important;text-shadow:0 2px 13px rgba(0,0,0,.64)}
 .fbis-shell-main .fbis-universal-premium .cgc-best-edge{box-sizing:border-box;min-width:0;overflow:hidden!important;display:flex;flex-direction:column;align-items:center;justify-content:space-around;gap:5px;padding:12px 7px!important}
 .fbis-shell-main .fbis-universal-premium .cgc-best-edge>*{min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;word-break:normal;text-align:center;white-space:normal!important}
@@ -25,10 +25,10 @@
 .fbis-shell-main .fbis-universal-premium .nhl-evidence-block>strong,.fbis-shell-main .fbis-universal-premium .nhl-original-prop strong{font-size:clamp(12px,1.12vw,16px)!important}
 .fbis-shell-main .fbis-universal-premium .nhl-original-prop b{font-size:23px}
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-featured-name{font-size:clamp(17px,1.6vw,27px)!important;line-height:1.12!important;white-space:normal!important;overflow-wrap:break-word}
-.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-featured-logo .team-logo,.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-featured-logo{width:103px!important;height:103px!important;max-width:100%}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-featured-logo .team-logo,.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-featured-logo{width:120px!important;height:120px!important;max-width:100%}
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-nfl-market,.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-nfl-action{background:linear-gradient(110deg,rgba(20,56,89,.84),rgba(4,19,37,.95));border:1px solid rgba(94,173,221,.3)}
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-nfl-market strong,.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-nfl-action strong{font-size:clamp(13px,1.2vw,18px)!important;overflow-wrap:anywhere}
-@media(max-width:700px){.fbis-shell-main .fbis-universal-premium .cgc-logo .team-logo{width:70px!important;height:70px!important}.fbis-shell-main .fbis-universal-premium .cgc-best-edge{padding:9px 5px!important}.fbis-shell-main .fbis-universal-premium .cgc-matchup-pill{min-height:78px!important}.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-featured-logo{width:87px!important;height:87px!important}}
+@media(max-width:700px){.fbis-shell-main .fbis-universal-premium .cgc-logo .team-logo{width:88px!important;height:88px!important}.fbis-shell-main .fbis-universal-premium .cgc-best-edge{padding:9px 5px!important}.fbis-shell-main .fbis-universal-premium .cgc-matchup-pill{min-height:78px!important}.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-featured-logo{width:100px!important;height:100px!important}}
 @media(prefers-reduced-motion:reduce){.fbis-shell-main .fbis-universal-premium *{animation:none!important;transition:none!important}}
 
 
@@ -270,11 +270,15 @@
 }
 .fbis-shell-main .fbis-universal-premium.cgc .cgc-logo,
 .fbis-shell-main .fbis-universal-premium.cgc .cgc-logo .team-logo {
-  width: 104px !important;
-  height: 104px !important;
+  width: 118px !important;
+  height: 118px !important;
   max-width: 100% !important;
   max-height: none !important;
   object-fit: contain !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   filter: drop-shadow(0 5px 14px rgba(0,0,0,.55)) !important;
 }
 .fbis-shell-main .fbis-universal-premium.cgc .cgc-team-name {
@@ -345,7 +349,7 @@
 @media (max-width:600px) {
   .fbis-shell-main .fbis-universal-premium.cgc .cgc-matchup {min-height:240px!important;padding:16px 6px!important;}
   .fbis-shell-main .fbis-universal-premium.cgc .cgc-logo,
-  .fbis-shell-main .fbis-universal-premium.cgc .cgc-logo .team-logo {width:82px!important;height:82px!important;}
+  .fbis-shell-main .fbis-universal-premium.cgc .cgc-logo .team-logo {width:96px!important;height:96px!important;}
   .fbis-shell-main .fbis-universal-premium.cgc .cgc-team-name {font-size:19px!important;}
   .fbis-shell-main .fbis-universal-premium .cgc-matchup-pills {grid-template-columns:repeat(2,minmax(0,1fr))!important;}
 }
@@ -385,13 +389,13 @@
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over {
   border-color:#39ff14;
-  background:linear-gradient(105deg,rgba(170,255,190,.42),rgba(48,110,70,.55));
+  background:linear-gradient(105deg,rgba(198,255,210,.62),rgba(72,150,95,.48));
   box-shadow:0 0 18px rgba(57,255,20,.45),inset 0 0 0 1px rgba(57,255,20,.25);
   color:#ffffff;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under {
   border-color:#ff1a1a;
-  background:linear-gradient(105deg,rgba(255,170,170,.40),rgba(120,40,48,.55));
+  background:linear-gradient(105deg,rgba(255,186,186,.62),rgba(168,52,62,.48));
   box-shadow:0 0 18px rgba(255,26,26,.45),inset 0 0 0 1px rgba(255,60,60,.25);
   color:#ffffff;
 }

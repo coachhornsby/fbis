@@ -467,9 +467,10 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  border-radius: 50%;
+  border-radius: 0;
 }
 .team-logo-plate {
+  border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, rgba(255, 255, 255, 0.96), rgba(230, 236, 245, 0.9) 55%, rgba(200, 210, 224, 0.88));
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.35),

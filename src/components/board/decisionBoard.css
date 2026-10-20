@@ -1080,24 +1080,27 @@
   gap:3px;
 }
 .fbis-shell-main.route-board .team-logo-plate,
-.fbis-shell-main.route-board .team-logo-fallback.team-logo-plate {
+.fbis-shell-main.route-board .team-logo-fallback.team-logo-plate,
+.fbis-shell-main.route-board .team-logo-wrap {
   background:transparent !important;
   border:0 !important;
   border-color:transparent !important;
+  border-radius:0 !important;
   box-shadow:none !important;
 }
 .fbis-shell-main.route-board .cgc-logo.team-logo-plate,
 .fbis-shell-main.route-board .cgc-logo.team-logo-wrap,
 .fbis-shell-main.route-board .cgc-logo.team-logo-fallback {
-  width:100px !important;
-  height:100px !important;
+  width:118px !important;
+  height:118px !important;
   background:transparent !important;
   border:0 !important;
+  border-radius:0 !important;
   box-shadow:none !important;
 }
 .fbis-shell-main.route-board .cgc-logo .team-logo {
-  width:94px !important;
-  height:94px !important;
+  width:118px !important;
+  height:118px !important;
   object-fit:contain;
   filter:drop-shadow(0 8px 10px rgba(0,0,0,.48));
 }

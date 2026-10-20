@@ -231,7 +231,7 @@ export default function CompactGameCard({ game, onOpen }) {
           {away.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-away" src={away.logoUrl} alt="" aria-hidden="true" /> : null}
           {home.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-home" src={home.logoUrl} alt="" aria-hidden="true" /> : null}
           <div className="cgc-team-block">
-            <TeamLogo team={away} size={100} tone="light" className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
+            <TeamLogo team={away} size={118} tone="light" className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
             {sportId === "mlb" ? (
               <strong className="cgc-team-name cgc-team-name-mlb">{away.fullName || away.name || away.abbr || "—"}</strong>
             ) : (
@@ -247,7 +247,7 @@ export default function CompactGameCard({ game, onOpen }) {
           <span className="cgc-vs">VS</span>
 
           <div className="cgc-team-block">
-            <TeamLogo team={home} size={100} tone="light" className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
+            <TeamLogo team={home} size={118} tone="light" className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
             {sportId === "mlb" ? (
               <strong className="cgc-team-name cgc-team-name-mlb">{home.fullName || home.name || home.abbr || "—"}</strong>
             ) : (
