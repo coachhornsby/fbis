@@ -14,13 +14,23 @@
 - Fitted OOS artifacts (only when verified): `TIER3_DB.cfb_core_research_artifacts`
 - Large raw archives remain in private R2; migration `0111_cfb_core_shadow_research`
 
-## Jobs (cache-only; no CFBD spend)
+## Jobs
+
+Cache-only (no CFBD spend):
 
 1. `cfb-core-shadow-settle` — attach verified finals to frozen rows
 2. `cfb-core-shadow-freeze` — insert-or-ignore pregame champion + CORE side-by-side
 3. `cfb-core-weekly-evaluation` — walk-forward / limitation report
 
-Scheduled after college-health in `.github/workflows/college.yml`.
+Authorized research (CFBD year read; still research-only):
+
+4. `cfb-core-historical-reconstruct` — archive every distinct CFBD `throughWeek` for a season
+5. `cfb-core-publication-track` — compare new CORE release vs baseline (e.g. W8 vs W6)
+6. `cfb-core-model-c-readiness` — gate Model C chronological fit (never auto-promote)
+
+See `docs/cfb-core-historical-reconstruction.md`.
+
+Scheduled after college-health in `.github/workflows/college.yml` (shadow jobs). Historical reconstruct is on-demand / operator-authorized.
 
 ## Dashboard
 

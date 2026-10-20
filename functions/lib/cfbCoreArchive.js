@@ -80,6 +80,8 @@ export function buildCoreWeeklyArchivePayload({
     teamCount: n,
     maxWeek,
     teams,
+    authenticityClass: null,
+    historicalReconstruction: false,
     note:
       labelingLag
         ? `CFBD CORE published throughWeek=${actualThroughWeek}; budgeted throughWeek=${budgetedThroughWeek} not yet available — archive keyed to actual`

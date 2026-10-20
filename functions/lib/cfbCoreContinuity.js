@@ -215,6 +215,84 @@ export function assessCoreChallengerCorpus({
 }
 
 /**
+ * Publication tracking: compare a newly observed CORE throughWeek release against
+ * a baseline archive (e.g. Week 8 publish vs Week 6 baseline). Records genuine
+ * rating deltas and source timestamps. Does not invent publishes.
+ */
+export function trackCorePublicationRelease({
+  baseline = [],
+  current = [],
+  baselineThroughWeek = null,
+  currentThroughWeek = null,
+  baselineCollectionTime = null,
+  currentCollectionTime = null,
+  baselinePublicationTime = null,
+  currentPublicationTime = null,
+  epsilon = 0.001,
+} = {}) {
+  const movement = buildCoreWeeklyMovement({
+    earlier: baseline,
+    later: current,
+    earlierThroughWeek: baselineThroughWeek,
+    laterThroughWeek: currentThroughWeek,
+    epsilon,
+  });
+  const currentTw = num(currentThroughWeek);
+  const baselineTw = num(baselineThroughWeek);
+  const distinctPublish =
+    currentTw != null &&
+    baselineTw != null &&
+    currentTw !== baselineTw &&
+    movement.genuineMoves > 0;
+  const identicalRelabel =
+    currentTw != null &&
+    baselineTw != null &&
+    currentTw !== baselineTw &&
+    movement.genuineMoves === 0 &&
+    movement.identical > 0;
+
+  return {
+    version: CORE_CONTINUITY_VERSION,
+    kind: "core_publication_track",
+    baselineThroughWeek: baselineTw,
+    currentThroughWeek: currentTw,
+    timestamps: {
+      baselineCollectionTime: baselineCollectionTime || null,
+      currentCollectionTime: currentCollectionTime || null,
+      baselinePublicationTime: baselinePublicationTime || null,
+      currentPublicationTime: currentPublicationTime || null,
+    },
+    classification: distinctPublish
+      ? "distinct_publish_with_rating_changes"
+      : identicalRelabel
+        ? "label_advance_without_value_change"
+        : movement.teamCount === 0
+          ? "insufficient_snapshots"
+          : "compared",
+    genuineMoves: movement.genuineMoves,
+    identical: movement.identical,
+    missingEarlier: movement.missingEarlier,
+    missingLater: movement.missingLater,
+    teamCount: movement.teamCount,
+    topMoves: (movement.rows || [])
+      .filter((r) => r.classification === "genuine_performance_change")
+      .slice(0, 20)
+      .map((r) => ({
+        schoolKey: r.schoolKey,
+        deltaCore: r.delta?.core ?? null,
+        deltaOffense: r.delta?.offense ?? null,
+        deltaDefense: r.delta?.defense ?? null,
+        earlier: r.earlier,
+        later: r.later,
+      })),
+    summaryNote: movement.summaryNote,
+    researchOnly: true,
+    canAuthorizeWager: false,
+    canInfluenceProduction: false,
+  };
+}
+
+/**
  * Matchup advantages from Week 8 Tier3 slate + CORE throughWeek snapshot.
  * Uses existing cross: homeOff−awayDef / awayOff−homeDef. Does not invent scores.
  */
