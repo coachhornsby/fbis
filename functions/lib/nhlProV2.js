@@ -215,25 +215,30 @@ function goalieImpact(team,base,artifact,profiles=null,cutoff=null,gameStart=nul
     confirmationSource:confirmed?evidence.source:null};
 }
 function poisson(lambda,k){let p=Math.exp(-lambda);for(let i=1;i<=k;i++)p*=lambda/i;return p;}
-function bivariateDistribution(home,away,totalLine=null,homeSpread=null){
+export function bivariateDistribution(home,away,totalLine=null,homeSpread=null){
+  if (![home,away].every(v=>Number.isFinite(v)&&v>0&&v<=10)) return null;
   const shared=Math.min(0.32,0.10*Math.min(home,away)),lh=Math.max(0.05,home-shared),la=Math.max(0.05,away-shared);
-  let homeReg=0,awayReg=0,tie=0,over=0,under=0,push=0,homeCover=0,totalMass=0;
+  let homeReg=0,awayReg=0,tie=0,over=0,under=0,push=0,homeCover=0,awayCover=0,spreadPush=0,totalMass=0;
   const scoreMass=new Map();
-  for(let x=0;x<=11;x++)for(let y=0;y<=11;y++)for(let z=0;z<=5;z++){
+  for(let x=0;x<=18;x++)for(let y=0;y<=18;y++)for(let z=0;z<=10;z++){
     const p=poisson(lh,x)*poisson(la,y)*poisson(shared,z),h=x+z,a=y+z;totalMass+=p;
     scoreMass.set(`${h}-${a}`,(scoreMass.get(`${h}-${a}`)||0)+p);
     if(h>a)homeReg+=p;else if(a>h)awayReg+=p;else tie+=p;
     if(totalLine!=null){const t=h+a;if(t>totalLine)over+=p;else if(t<totalLine)under+=p;else push+=p;}
-    if(homeSpread!=null&&h+homeSpread>a)homeCover+=p;
+    if(homeSpread!=null){const d=h-a+homeSpread;if(d>0)homeCover+=p;else if(d<0)awayCover+=p;else spreadPush+=p;}
   }
   const norm=v=>totalMass?v/totalMass:v,otHome=1/(1+Math.exp(-(home-away)/0.65));
   const hw=norm(homeReg)+norm(tie)*otHome;
   const mode=[...scoreMass.entries()].sort((a,b)=>b[1]-a[1])[0]||["0-0",0];
   const [modeHome,modeAway]=mode[0].split("-").map(Number);
-  return {homeRegWin:round(norm(homeReg),4),awayRegWin:round(norm(awayReg),4),regulationTie:round(norm(tie),4),
+  return {marketScope:"REGULATION_APPROXIMATION",fullGameScoreMarketsValidated:false,
+    otAllocation:{method:"UNFITTED_LOGISTIC_GOAL_DIFFERENCE",homeConditionalWin:round(otHome,6),includesShootout:true},
+    scoringTreatment:{regulation:"ALL_SITUATION_RATE_PROXY_NOT_PURE_REGULATION_FIT",shootout:"WINNER_ALLOCATION_ONLY_NO_SHOOTOUT_ATTEMPTS_AS_GOALS",emptyNet:"IMPLICIT_IN_ALL_SITUATION_RATES_NOT_STATE_MODELED",goalieUncertainty:"STARTER_PROXY_UNLESS_PIT_CONFIRMED_NO_VALIDATED_MIXTURE"},
+    truncatedMass:1-totalMass,
+    homeRegWin:round(norm(homeReg),4),awayRegWin:round(norm(awayReg),4),regulationTie:round(norm(tie),4),
     homeWinIncludingOt:round(hw,4),awayWinIncludingOt:round(1-hw,4),
     over:totalLine==null?null:round(norm(over),4),under:totalLine==null?null:round(norm(under),4),push:totalLine==null?null:round(norm(push),4),
-    homeCover:homeSpread==null?null:round(norm(homeCover),4),sharedComponent:round(shared,3),
+    homeCover:homeSpread==null?null:round(norm(homeCover),4),awayCover:homeSpread==null?null:round(norm(awayCover),4),spreadPush:homeSpread==null?null:round(norm(spreadPush),4),sharedComponent:round(shared,3),
     mostLikelyScore:{home:modeHome,away:modeAway,probability:round(norm(mode[1]),4)}};
 }
 function baseTeamRate(team,artifact,key,fallback){
@@ -422,6 +427,7 @@ export function projectNhlProV2Game(game,ctx){
   const eloProb=1/(1+10**(-((homeFormElo-awayFormElo)+35)/400));
   const calibratedHomeWin=clamp(0.5+0.86*((0.78*rawScoreWin+0.22*eloProb)-0.5),0.04,0.96);
   probability.rawHomeWinIncludingOt=rawScoreWin;
+  probability.calibrationStatus="UNVALIDATED_HEURISTIC_SHRINK_NOT_EMPIRICAL_CALIBRATION";
   probability.eloHead=round(eloProb,4);
   probability.homeWinIncludingOt=round(calibratedHomeWin,4);
   probability.awayWinIncludingOt=round(1-calibratedHomeWin,4);
@@ -467,7 +473,7 @@ export function projectNhlProV2Game(game,ctx){
         researchOnly:true
       },
       situation:{homeRestDays:hRest,awayRestDays:aRest,eloGoalAdjustment:round(eloGoalAdj,3),winnerSituational:winnerHead?.situational||null},
-      distribution:{family:"BIVARIATE_POISSON",shared:probability.sharedComponent,winHead:"NHL-PRO-v2 calibrated probability + NHL-WIN-v1 directional pick",mostLikelyScore:probability.mostLikelyScore}
+      distribution:{family:"BIVARIATE_POISSON",treatment:probability.scoringTreatment,fullGameScoreMarketsValidated:false,shared:probability.sharedComponent,winHead:"NHL-PRO-v2 calibrated probability + NHL-WIN-v1 directional pick",mostLikelyScore:probability.mostLikelyScore}
     },
     dataLineage:ctx?.sourceLineage||null,marketInformed:false,independent:true,
     canQualify:true,canAuthorizeWager:false,

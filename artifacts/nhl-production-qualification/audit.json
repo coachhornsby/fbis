@@ -1,0 +1,218 @@
+{
+  "generatedAt": "2026-10-20T04:29:17.048Z",
+  "qualificationStatus": "SHADOW_ONLY_NOT_PRODUCTION_QUALIFIED",
+  "historical": {
+    "source": "data/models/nhl-pro-v2-validation.json",
+    "generatedAt": "2026-10-04T09:27:24.766Z",
+    "pointInTimeClaim": true,
+    "metrics": {
+      "n": 2624,
+      "probabilityN": 2624,
+      "scoreMae": 1.3852335937499982,
+      "totalMae": 1.8680321265243975,
+      "marginMae": 2.148187538109751,
+      "brier": 0.24117417055087687,
+      "logLoss": 0.6749965247182549,
+      "ece": 0.03428563643292704,
+      "probabilityBuckets": [
+        {
+          "min": 0,
+          "max": 0.1,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        },
+        {
+          "min": 0.1,
+          "max": 0.2,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        },
+        {
+          "min": 0.2,
+          "max": 0.3,
+          "n": 12,
+          "predicted": 0.2860816666666667,
+          "observed": 0
+        },
+        {
+          "min": 0.3,
+          "max": 0.4,
+          "n": 171,
+          "predicted": 0.3677888888888887,
+          "observed": 0.4093567251461988
+        },
+        {
+          "min": 0.4,
+          "max": 0.5,
+          "n": 786,
+          "predicted": 0.4584581933842243,
+          "observed": 0.494910941475827
+        },
+        {
+          "min": 0.5,
+          "max": 0.6,
+          "n": 1109,
+          "predicted": 0.5487271956717769,
+          "observed": 0.527502254283138
+        },
+        {
+          "min": 0.6,
+          "max": 0.7,
+          "n": 494,
+          "predicted": 0.6362172874493921,
+          "observed": 0.6842105263157895
+        },
+        {
+          "min": 0.7,
+          "max": 0.8,
+          "n": 52,
+          "predicted": 0.7206644230769228,
+          "observed": 0.7884615384615384
+        },
+        {
+          "min": 0.8,
+          "max": 0.9,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        },
+        {
+          "min": 0.9,
+          "max": 1,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        }
+      ]
+    },
+    "limitations": [
+      "Existing walk-forward artifact, not a rerun of the changed production kernel.",
+      "No independently verified market prices or canonical historical stars.",
+      "Heuristic probability shrink is not empirical calibration."
+    ]
+  },
+  "prospective": {
+    "source": "live primary D1 prediction_snapshots joined games",
+    "rawRows": 63,
+    "eligibleRows": 0,
+    "excluded": {
+      "GRADE_BEFORE_START_OR_MISSING": 62,
+      "NOT_FROZEN_BEFORE_START": 1
+    },
+    "metrics": {
+      "n": 0,
+      "probabilityN": 0,
+      "scoreMae": null,
+      "totalMae": null,
+      "marginMae": null,
+      "brier": null,
+      "logLoss": null,
+      "ece": null,
+      "probabilityBuckets": [
+        {
+          "min": 0,
+          "max": 0.1,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        },
+        {
+          "min": 0.1,
+          "max": 0.2,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        },
+        {
+          "min": 0.2,
+          "max": 0.3,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        },
+        {
+          "min": 0.3,
+          "max": 0.4,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        },
+        {
+          "min": 0.4,
+          "max": 0.5,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        },
+        {
+          "min": 0.5,
+          "max": 0.6,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        },
+        {
+          "min": 0.6,
+          "max": 0.7,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        },
+        {
+          "min": 0.7,
+          "max": 0.8,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        },
+        {
+          "min": 0.8,
+          "max": 0.9,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        },
+        {
+          "min": 0.9,
+          "max": 1,
+          "n": 0,
+          "predicted": null,
+          "observed": null
+        }
+      ]
+    }
+  },
+  "wagerLedger": {
+    "decisions": 0,
+    "settlements": 0,
+    "observedAt": "2026-10-20",
+    "backfilled": false
+  },
+  "fiveStar": {
+    "status": "NO_ELIGIBLE_SETTLED_PRICE_EVIDENCE",
+    "cohorts": [
+      {
+        "scope": "GAME",
+        "n": 0,
+        "winRate": null,
+        "roi": null,
+        "maxDrawdown": null,
+        "clvN": 0,
+        "meanClv": null
+      },
+      {
+        "scope": "PROP",
+        "n": 0,
+        "winRate": null,
+        "roi": null,
+        "maxDrawdown": null,
+        "clvN": 0,
+        "meanClv": null
+      }
+    ],
+    "profitabilityClaimPermitted": false
+  },
+  "authority": false
+}

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {ACTIVE_ODDS_PROVIDER,ACTIVE_MARKET_FEEDS,isActiveOddsProvider,allowNewMarketObservation,retiredOddsCollectorResponse,
+import {ACTIVE_ODDS_PROVIDER,ACTIVE_MARKET_FEEDS,ACTIVE_MARKET_SOURCES,isActiveOddsProvider,allowNewMarketObservation,retiredOddsCollectorResponse,
   pinnoddsOnlySlateMarket} from "../functions/lib/activeOddsPolicy.js";
 import {selectPinnoddsBoardOffers} from "../functions/lib/pinnoddsBoardResearch.js";
 test("sole active odds source is PinnOdds, no silent Parlay or soft bookmaker fallback",()=>{
@@ -34,7 +34,7 @@ const now="2026-10-14T23:00:00Z",collected_at="2026-10-14T22:30:00Z",event_start
 const row=(market_family,side,line,decimal_odds,source="PinnOdds")=>({
  source,canonical_event_id:"401866441",period:"full_game",market_family,side,line,
  decimal_odds,source_observed_at:null,collected_at,event_start_time,
- source_market_id:market_family+"-"+line,source_outcome_id:side,
+ source_market_id:market_family+"-"+(market_family==="spread"?Math.abs(line):line),source_outcome_id:side,
 });
 test("PinnOdds research supplies only paired capture-only full-game markets",()=>{
  const x=selectPinnoddsBoardOffers([

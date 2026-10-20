@@ -1,0 +1,36 @@
+{
+  "observedAt": "2026-10-20",
+  "accountId": "2fdc80b8d99070adcef12f7a785c3fc1",
+  "pages": {
+    "project": "fbis",
+    "previewCompatibilityDate": "2026-10-01",
+    "productionCompatibilityDate": "2026-10-01",
+    "d1R2BindingsPreserved": true,
+    "secretNamesPreserved": true
+  },
+  "workers": {
+    "fbis-orchestrator": {
+      "tracesEnabled": true,
+      "traceSampling": 0.1,
+      "credentialBindingsSecret": true,
+      "r2": "R2_ARCHIVE=fbis-archive"
+    },
+    "fbis-polymarket-us-stream": {
+      "tracesEnabled": true,
+      "traceSampling": 0.1,
+      "credentialBindingsSecret": true,
+      "durableObject": "PM_STREAM=PolymarketMarketStreamRecovered",
+      "d1R2MatchRepo": true
+    },
+    "fbis-soccer-pitchapi-backfill": {
+      "tracesEnabled": true,
+      "traceSampling": 0.1,
+      "convertedToSecrets": [
+        "SOCCER_CONTROL_TOKEN",
+        "SOCCER_WORKER_TOKEN"
+      ]
+    }
+  },
+  "retiredNhlStandaloneSchedulerNotDeployed": true,
+  "noCredentialValuesPersisted": true
+}

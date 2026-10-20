@@ -6,9 +6,9 @@ import {
 } from "../functions/lib/nhlWagerV1.js";
 
 const goodCalibration={validated:true,minEv:.02,minProbabilityEdge:.01,minConfidence:60,bins:[
-  {min:0,max:49,n:40,winRate:.45,roi:-.05,calibratedScore:42},
-  {min:50,max:69,n:40,winRate:.55,roi:.02,calibratedScore:62},
-  {min:70,max:100,n:40,winRate:.64,roi:.08,calibratedScore:82},
+  {min:0,max:49,n:100,winRate:.45,roi:-.05,calibratedScore:42},
+  {min:50,max:69,n:100,winRate:.55,roi:.02,calibratedScore:62},
+  {min:70,max:100,n:100,winRate:.64,roi:.08,calibratedScore:82},
 ]};
 function game(){
   return {id:"nhl-test",sport:"nhl",start:"2026-10-10T00:00:00Z",home:{abbr:"BOS"},away:{abbr:"NYR"},quality:{score:90},
@@ -65,12 +65,12 @@ test("market trajectory and disagreement never mutate projection",()=>{
   evaluateNhlGameWagers(g);
   assert.equal(JSON.stringify(g.nhlProV2),before);
 });
-test("NHL validated props can qualify before confidence staking calibration",()=>{
+test("NHL props cannot qualify before settled confidence calibration",()=>{
   const row={sport:"nhl",marketCanonical:"shots_on_goal",fbisProjection:4.5,line:3.5,probabilityOver:.68,probabilityUnder:.32,
     overOdds:-115,underOdds:-105,validationStatus:"PROMOTE_RESEARCH",lineValidationStatus:"PROMOTE_RESEARCH",
     propGate:"CLEAR",eligibleForCard:true,trackingAdvisory:{coverage:.7},roleConfidence:.9};
   const raw=evaluateNhlPropWagerV1(row);
-  assert.equal(raw.decision,"BET");assert.equal(raw.researchCandidate,true);assert.equal(raw.canQualify,true);assert.equal(raw.canAuthorizeWager,false);
+  assert.equal(raw.decision,"PASS");assert.equal(raw.researchCandidate,true);assert.equal(raw.canQualify,false);assert.equal(raw.canAuthorizeWager,false);
   const calibrated=evaluateNhlPropWagerV1(row,goodCalibration);
   assert.equal(calibrated.confidenceValidated,true);
   assert.equal(calibrated.stakingValidated,false);

@@ -130,6 +130,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     confidenceScore: confidence.score,
     confidenceVersion: confidence.version,
     confidenceSource: confidence.source,
+    ...(sport === "nhl" ? {confidenceCalibrationStatus: confidence.calibrationStatus, confidenceCalibrated: confidence.calibrated, confidenceEvidence: confidence.evidence, confidenceHeadVersion: confidence.headVersion} : {}),
     soccerLeague: sport === "soccer" ? game.soccerLeague || game.league || null : null,
     soccerFbisV2: sport === "soccer" ? game.soccerFbisV2 || null : null,
     soccerFbisV3: sport === "soccer" ? game.soccerFbisV3 || null : null,

@@ -41,3 +41,7 @@ TENNIS_RECOVERY_ENABLED = "true"
 [[r2_buckets]]
 binding = "R2_ARCHIVE"
 bucket_name = "fbis-archive"
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.1

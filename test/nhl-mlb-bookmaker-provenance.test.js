@@ -76,6 +76,8 @@ test("NHL free fallback uses configured SharpAPI without paid keys and retains p
   resetCacheMem();
   const previous=globalThis.fetch;
   const calls=[];
+  const previousNow=Date.now;
+  Date.now=()=>Date.parse("2026-10-11T18:36:00Z");
   globalThis.fetch=async(url,options)=>{
     calls.push(String(url));
     const u=new URL(url);
@@ -103,11 +105,11 @@ test("NHL free fallback uses configured SharpAPI without paid keys and retains p
     assert.equal(r.events[0].observedAt,"2026-10-11T18:35:00.000Z");
     assert.equal(calls.length,3);
     const cached=await fetchParlayOdds("nhl",null,null,{
-      cacheOnly:true,strictCacheOnly:true,sharpApiKey:"synthetic-key",
+      cacheOnly:true,strictCacheOnly:true,sharpApiKey:"synthetic-key",date:"2026-10-11",
     });
     assert.equal(cached.events.length,1);
     assert.equal(calls.length,3);
-  }finally{globalThis.fetch=previous;resetCacheMem();}
+  }finally{Date.now=previousNow;globalThis.fetch=previous;resetCacheMem();}
 });
 
 test("TheRundown soft NHL market conversion retains source quote",()=>{

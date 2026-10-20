@@ -5,3 +5,10 @@ workers_dev = false
 
 # Intentionally no routes, schedules, or bindings.
 # This is an archived probe, not an automatically deployed production service.
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.1
+
+[observability]
+enabled = true
