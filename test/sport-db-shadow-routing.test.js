@@ -91,6 +91,19 @@ test("sport mode returns sport DB only with receipt AND approved CORE record", (
   assert.equal(product.binding, "CFB_DB");
   assert.equal(product.productIoUsesSportDb, true);
   assert.equal(isSportDbAuthoritative(env, "cfb"), true);
+
+  // Expired approvals fail closed and are evicted from the hydrated cache.
+  approvals.set("cfb:cfb-parity-receipt-test", {
+    receipt_id: "cfb-parity-receipt-test",
+    sport: "cfb",
+    status: "APPROVED",
+    approved_at: "2026-10-01T00:00:00Z",
+    expires_at: "2026-10-02T00:00:00Z",
+  });
+  const expired = productSportDbHandle(env, "cfb");
+  assert.equal(expired.productIoUsesSportDb, false);
+  assert.match(expired.reason, /EXPIRED/);
+  assert.equal(approvals.has("cfb:cfb-parity-receipt-test"), false);
 });
 
 test("cutover guard falls back to primary when sport handle is inconsistent", () => {

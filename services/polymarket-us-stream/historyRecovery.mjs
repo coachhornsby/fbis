@@ -1,9 +1,59 @@
 /**
- * Primary-D1-unavailable recovery writes for Polymarket US WebSocket ticks.
- * Uses the existing MARKET_HISTORY_DB binding only — not a second collector.
- * Never claims primary insert success. Never enables wagering.
+ * Market-history writes for Polymarket US WebSocket ticks.
+ * Prefer MARKET_HISTORY_2026Q4_DB. Never enables wagering.
+ * Upserts compact latest_market_state on every tick; coalesces full ledger inserts.
  */
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
+import {
+  upsertLatestMarketStates,
+  coalesceOffersForLedger,
+  ensureLatestMarketStateSchema,
+} from "../../functions/lib/latestMarketState.js";
+import {
+  shouldBlockMarketHistoryWrite,
+} from "../../functions/lib/marketHistoryCapacity.js";
+import {capacityAlertLevel} from "../../functions/lib/databaseOwnership.js";
+
+/**
+ * Per-database coalesce memory (WeakMap). Same Q4 binding across flushes coalesces;
+ * new DB objects (tests) start clean. Worker may inject a durable Map via opts.coalesceMemory
+ * (loaded from DO storage) so restarts do not lose coalesce effectiveness.
+ */
+const coalesceByDb=new WeakMap();
+export function coalesceMemoryFor(db,injected=null){
+  if(injected instanceof Map)return injected;
+  if(!db||(typeof db!=="object"))return new Map();
+  let mem=coalesceByDb.get(db);
+  if(!mem){mem=new Map();coalesceByDb.set(db,mem);}
+  return mem;
+}
+
+/** Serialize coalesce map for DO storage (cap entries to bound memory). */
+export function serializeCoalesceMemory(mem,maxEntries=5000){
+  if(!(mem instanceof Map))return [];
+  const limit=Math.max(1,Number(maxEntries)||5000);
+  const entries=[...mem.entries()].slice(-limit);
+  return entries.map(([k,v])=>({k,p:v?.contract_price??v?.contractPrice??null,c:v?.collected_at??v?.collectedAt??null}));
+}
+
+export function hydrateCoalesceMemory(entries){
+  const mem=new Map();
+  if(!Array.isArray(entries))return mem;
+  for(const e of entries){
+    if(!e||e.k==null)continue;
+    mem.set(String(e.k),{contract_price:e.p,collected_at:e.c});
+  }
+  return mem;
+}
+
+async function probeHistoryBytes(db){
+  if(!db?.prepare)return null;
+  try{
+    const result=await db.prepare("SELECT 1 AS healthy").all();
+    const bytes=Number(result?.meta?.size_after);
+    return Number.isSafeInteger(bytes)&&bytes>0?bytes:null;
+  }catch{return null;}
+}
 
 const LEDGER_STATEMENTS=[
 `CREATE TABLE IF NOT EXISTS normalized_market_observations (
@@ -91,6 +141,7 @@ export async function ensureHistoryLedgerSchema(db){
 /**
  * Prefer Q4. Legacy MARKET_HISTORY_DB only with MARKET_HISTORY_ALLOW_LEGACY_WRITE=enabled.
  * No silent fallback — matches WS persist / bootstrap fail-closed routing.
+ * Synchronous binding check only; capacity gating uses resolveMarketHistoryWriteDb.
  */
 export function resolveRecoveryHistoryDb(env){
   if(env?.MARKET_HISTORY_2026Q4_DB?.prepare){
@@ -106,35 +157,81 @@ export function resolveRecoveryHistoryDb(env){
   };
 }
 
-/** Persist WS offers to market-history when primary D1 cannot accept writes. */
-export async function persistStreamRecoveryBatch(env,offers,{collectedAt=null}={}){
-  const history=resolveRecoveryHistoryDb(env);
-  if(!history.db){
+/** Persist WS offers to market-history (Q4 preferred) with coalesce + latest-state. */
+export async function persistStreamRecoveryBatch(env,offers,{collectedAt=null,now=new Date(),coalesceMemory=null}={}){
+  if(!Array.isArray(offers)||!offers.length)return {attempted:0,inserted:0,ok:false,reason:"empty-offers"};
+
+  // Binding first (create schema if needed), then capacity fail-closed from HIGH.
+  const binding=resolveRecoveryHistoryDb(env);
+  if(!binding.db){
     return {
-      attempted:0,
+      attempted:offers.length,
       inserted:0,
       ok:false,
-      reason:history.reason||"MARKET_HISTORY_2026Q4_UNBOUND_FAIL_CLOSED",
+      reason:binding.reason||"MARKET_HISTORY_2026Q4_UNBOUND_FAIL_CLOSED",
       blocked:true,
       canAuthorizeWager:false,
     };
   }
-  if(!Array.isArray(offers)||!offers.length)return {attempted:0,inserted:0,ok:false,reason:"empty-offers"};
+  const historyDb=binding.db;
+  const historyTarget=binding.target;
+
   try{
-    const schema=await ensureHistoryLedgerSchema(history.db);
+    const schema=await ensureHistoryLedgerSchema(historyDb);
     if(!schema.ok)return {attempted:offers.length,inserted:0,ok:false,reason:schema.reason||"schema-unavailable"};
-    const r=await persistNormalizedMarketBatch(history.db,offers,{
+    await ensureLatestMarketStateSchema(historyDb);
+
+    const bytes=await probeHistoryBytes(historyDb);
+    const capacity=bytes==null?null:capacityAlertLevel(bytes);
+    if(capacity){
+      const gate=shouldBlockMarketHistoryWrite(capacity);
+      if(gate.blocked){
+        return {
+          attempted:offers.length,
+          inserted:0,
+          ok:false,
+          reason:gate.reason,
+          blocked:true,
+          capacity,
+          target:historyTarget,
+          canAuthorizeWager:false,
+        };
+      }
+    }
+
+    const at=collectedAt||(now instanceof Date?now.toISOString():String(now));
+    const nowMs=now instanceof Date?now.getTime():Date.parse(String(now))||Date.now();
+    const mem=coalesceMemoryFor(historyDb,coalesceMemory);
+    const coalesced=coalesceOffersForLedger(offers,mem,{nowMs});
+
+    // Always refresh compact latest state (board/compare hot path).
+    const latest=await upsertLatestMarketStates(historyDb,offers,{
+      collectedAt:at,
       snapshotType:"CURRENT",
-      collectedAt:collectedAt||new Date().toISOString(),
-      modelProbability:null,
     });
+
+    let r={attempted:0,inserted:0,ids:[]};
+    if(coalesced.ledgerOffers.length){
+      r=await persistNormalizedMarketBatch(historyDb,coalesced.ledgerOffers,{
+        snapshotType:"CURRENT",
+        collectedAt:at,
+        modelProbability:null,
+      });
+    }
+    const ok=latest.ok||r.inserted>0||coalesced.skipped.length===offers.length;
     return {
-      attempted:r.attempted,
+      attempted:offers.length,
       inserted:r.inserted,
       ids:r.ids||[],
-      ok:r.inserted>0,
-      reason:r.inserted>0?"history-insert-ok":"history-insert-zero",
-      target:history.target,
+      latestUpserted:latest.upserted||0,
+      coalescedSkipped:coalesced.skipped.length,
+      ledgerAttempted:coalesced.ledgerOffers.length,
+      ok,
+      reason:r.inserted>0
+        ?"history-insert-ok"
+        :(latest.ok?"latest-state-only":"history-insert-zero"),
+      target:historyTarget,
+      capacity,
       primaryIsAuthoritative:false,
       recoveryOnly:true,
       canAuthorizeWager:false,
@@ -146,7 +243,7 @@ export async function persistStreamRecoveryBatch(env,offers,{collectedAt=null}={
       inserted:0,
       ok:false,
       reason:String(error?.message||error||"history-persist-failed").slice(0,240),
-      target:history.target,
+      target:historyTarget,
       recoveryOnly:true,
     };
   }

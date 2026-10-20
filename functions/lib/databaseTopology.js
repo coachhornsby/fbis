@@ -4,11 +4,32 @@
  * Sport isolation does not authorize unbounded WebSocket tick retention in any D1.
  */
 import { DATABASE_OWNERS, D1_HARD_LIMIT_BYTES, capacityAlertLevel } from "./databaseOwnership.js";
+import {
+  recommendHotWindowMs,
+  shouldBlockMarketHistoryWrite,
+  MARKET_HISTORY_HOT_WINDOW_MS_LEGACY_7D,
+  MEASURED_Q4_BASELINE,
+  rowsPerHourFromSeries,
+} from "./marketHistoryCapacity.js";
 
 export const TOPOLOGY_CONTRACT = "fbis-database-topology-v2";
 
-/** Working window for searchable market observations in D1. Older ticks → R2. */
-export const MARKET_HISTORY_HOT_WINDOW_MS = 7 * 24 * 3600 * 1000;
+/**
+ * Working window for searchable market observations in D1. Older ticks → R2.
+ * Sized from measured Q4 ingest (not a calendar week): 7-day full-resolution
+ * WS retention would require ~tens of GB and is explicitly rejected.
+ */
+const _measuredRates = rowsPerHourFromSeries(MEASURED_Q4_BASELINE.hourlyRows);
+const _recommendedHot = recommendHotWindowMs({
+  bytesPerObservation: MEASURED_Q4_BASELINE.bytesPerObservation,
+  // Coalesced median (~40% reduction) so the default matches the write path.
+  medianRowsPerHour: Math.round(
+    (_measuredRates.median || 100_000)
+      * (1 - (MEASURED_Q4_BASELINE.coalesceProbe?.reductionRatio || 0.4)),
+  ),
+});
+export const MARKET_HISTORY_HOT_WINDOW_MS = _recommendedHot.hotWindowMs;
+export { MARKET_HISTORY_HOT_WINDOW_MS_LEGACY_7D };
 
 export const FBIS_SPORTS = Object.freeze([
   "nfl", "cfb", "cbb", "nba", "wnba", "mlb", "nhl", "soccer", "tennis", "npb", "kbo",
@@ -314,7 +335,7 @@ export function productSportDbHandle(env, sport, _opts = {}) {
  * Sync cutover approval gate. Prefers hydrated CORE rows on env.__fbisCutoverApprovals.
  * Tests may inject the same Map. Never treats a bare receipt string as approval.
  */
-export function readApprovedCutoverReceiptSync(env, sport, receiptId) {
+export function readApprovedCutoverReceiptSync(env, sport, receiptId, { now = new Date() } = {}) {
   const sportKey = normalizeSport(sport);
   const receipt = String(receiptId || "").trim();
   if (!sportKey || !receipt) {
@@ -322,17 +343,36 @@ export function readApprovedCutoverReceiptSync(env, sport, receiptId) {
   }
   const cache = env?.__fbisCutoverApprovals;
   const cached = cache instanceof Map ? cache.get(`${sportKey}:${receipt}`) : null;
-  if (cached && String(cached.status || "").toUpperCase() === "APPROVED") {
-    return {
-      ok: true,
-      receiptId: receipt,
-      sport: sportKey,
-      status: "APPROVED",
-      approvedAt: cached.approved_at || cached.approvedAt || null,
-      source: "HYDRATED_CORE_OR_INJECTED",
-    };
+  if (!cached) {
+    return { ok: false, reason: "SPORT_CUTOVER_APPROVAL_RECORD_REQUIRED_FALLBACK_PRIMARY" };
   }
-  return { ok: false, reason: "SPORT_CUTOVER_APPROVAL_RECORD_REQUIRED_FALLBACK_PRIMARY" };
+  const status = String(cached.status || "").toUpperCase();
+  if (status === "REVOKED" || status === "EXPIRED") {
+    // Drop stale cache entry so a later hydrate cannot keep a revoked grant alive.
+    cache.delete(`${sportKey}:${receipt}`);
+    return { ok: false, reason: `SPORT_CUTOVER_APPROVAL_${status}_FALLBACK_PRIMARY` };
+  }
+  if (status !== "APPROVED") {
+    return { ok: false, reason: "SPORT_CUTOVER_APPROVAL_RECORD_REQUIRED_FALLBACK_PRIMARY" };
+  }
+  const expiresAt = cached.expires_at || cached.expiresAt || null;
+  if (expiresAt) {
+    const expMs = Date.parse(expiresAt);
+    const nowMs = now instanceof Date ? now.getTime() : Date.parse(String(now));
+    if (Number.isFinite(expMs) && Number.isFinite(nowMs) && expMs <= nowMs) {
+      cache.delete(`${sportKey}:${receipt}`);
+      return { ok: false, reason: "SPORT_CUTOVER_APPROVAL_EXPIRED_FALLBACK_PRIMARY" };
+    }
+  }
+  return {
+    ok: true,
+    receiptId: receipt,
+    sport: sportKey,
+    status: "APPROVED",
+    approvedAt: cached.approved_at || cached.approvedAt || null,
+    expiresAt,
+    source: "HYDRATED_CORE_OR_INJECTED",
+  };
 }
 
 /** Load APPROVED cutover receipts from CORE into env.__fbisCutoverApprovals. */
@@ -347,22 +387,55 @@ export async function hydrateCutoverApprovals(env, { sport = null } = {}) {
   }
   try {
     const key = sport ? normalizeSport(sport) : null;
-    const page = key
-      ? await core.db.prepare(
-        `SELECT receipt_id,sport,status,approved_at,approved_by
-         FROM fbis_sport_cutover_approvals
-         WHERE sport=? AND UPPER(status)='APPROVED'`
-      ).bind(key).all()
-      : await core.db.prepare(
-        `SELECT receipt_id,sport,status,approved_at,approved_by
-         FROM fbis_sport_cutover_approvals
-         WHERE UPPER(status)='APPROVED'`
-      ).all();
-    const rows = page?.results || [];
+    // Clear prior entries for the requested sport(s) so revoked/expired rows cannot linger.
+    if (key) {
+      for (const cacheKey of [...map.keys()]) {
+        if (cacheKey.startsWith(`${key}:`)) map.delete(cacheKey);
+      }
+    } else {
+      map.clear();
+    }
+    let rows = [];
+    try {
+      const page = key
+        ? await core.db.prepare(
+          `SELECT receipt_id,sport,status,approved_at,approved_by,expires_at,revoked_at
+           FROM fbis_sport_cutover_approvals
+           WHERE sport=? AND UPPER(status)='APPROVED'
+             AND (expires_at IS NULL OR expires_at > datetime('now'))
+             AND revoked_at IS NULL`
+        ).bind(key).all()
+        : await core.db.prepare(
+          `SELECT receipt_id,sport,status,approved_at,approved_by,expires_at,revoked_at
+           FROM fbis_sport_cutover_approvals
+           WHERE UPPER(status)='APPROVED'
+             AND (expires_at IS NULL OR expires_at > datetime('now'))
+             AND revoked_at IS NULL`
+        ).all();
+      rows = page?.results || [];
+    } catch {
+      // Pre-expiry schema: columns may be absent — still require APPROVED status.
+      const page = key
+        ? await core.db.prepare(
+          `SELECT receipt_id,sport,status,approved_at,approved_by
+           FROM fbis_sport_cutover_approvals
+           WHERE sport=? AND UPPER(status)='APPROVED'`
+        ).bind(key).all()
+        : await core.db.prepare(
+          `SELECT receipt_id,sport,status,approved_at,approved_by
+           FROM fbis_sport_cutover_approvals
+           WHERE UPPER(status)='APPROVED'`
+        ).all();
+      rows = page?.results || [];
+    }
+    const nowMs = Date.now();
     for (const row of rows) {
+      const exp = row.expires_at ? Date.parse(row.expires_at) : null;
+      if (Number.isFinite(exp) && exp <= nowMs) continue;
+      if (row.revoked_at) continue;
       map.set(`${String(row.sport).toLowerCase()}:${row.receipt_id}`, row);
     }
-    return { ok: true, loaded: rows.length, canAuthorizeWager: false };
+    return { ok: true, loaded: map.size, canAuthorizeWager: false };
   } catch (error) {
     return {
       ok: false,
@@ -443,8 +516,10 @@ export async function resolveMarketHistoryWriteDb(env, {
     const bytes = await probeSize(db);
     if (bytes != null) {
       const capacity = capacityAlertLevel(bytes);
-      if (capacity.level === "CRITICAL" || capacity.level === "OVER_LIMIT") {
-        rejected.push({ key: part.key, reason: `CAPACITY_${capacity.level}`, capacity });
+      // Fail closed from HIGH (85%) — leave headroom for archive/ops; do not wait for CRITICAL.
+      const gate = shouldBlockMarketHistoryWrite(capacity);
+      if (gate.blocked) {
+        rejected.push({ key: part.key, reason: gate.reason, capacity });
         continue;
       }
     }
@@ -454,6 +529,7 @@ export async function resolveMarketHistoryWriteDb(env, {
       binding: part.binding,
       store: part.key,
       capacity: bytes == null ? null : capacityAlertLevel(bytes),
+      hotWindowMs: MARKET_HISTORY_HOT_WINDOW_MS,
       rejected,
     };
   }
@@ -530,6 +606,9 @@ export function topologyManifest() {
     sports: Object.values(SPORT_DATABASES),
     marketHistoryPartitions: MARKET_HISTORY_PARTITIONS,
     marketHistoryHotWindowMs: MARKET_HISTORY_HOT_WINDOW_MS,
+    marketHistoryHotWindowHours: Number((MARKET_HISTORY_HOT_WINDOW_MS / 3600000).toFixed(2)),
+    marketHistoryHotWindowLegacy7dMs: MARKET_HISTORY_HOT_WINDOW_MS_LEGACY_7D,
+    marketHistoryHotWindowLegacy7dRejected: true,
     r2: {
       binding: "ARCHIVE",
       role: "raw_provider_responses_historical_archives_model_artifacts_recovery",
