@@ -129,6 +129,6 @@ test("System UI includes secured one-time button; no persisted browser secrets",
  assert.match(code,/type="password"/);
  assert.match(code,/x-fbis-account-token/);
  assert.match(code,/method:"POST"/);
- assert.match(code,/setAccessCode\("?"\)/);
+ assert.ok(code.includes('setAccessCode("")'));
  assert.doesNotMatch(code,/localStorage|sessionStorage/);
 });
