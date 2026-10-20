@@ -3,7 +3,7 @@ import { finitePropNumber as n } from './exchangePlayerProps.js';
 export async function loadPropFixturesAndPlayers(env,{start,end,sport='all'}={}) {
  const diagnostics=[],games=[],players=[];
  if(!env.DB?.prepare)return {games,players,diagnostics:['PRIMARY_UNBOUND']};
- try { games.push(...((await env.DB.prepare(`SELECT * FROM games WHERE julianday(start)>=julianday(?) AND julianday(start)<julianday(?) ${sport==='all'?'':'AND sport=?'} ORDER BY start LIMIT 500`).bind(start,end,...(sport==='all'?[]:[sport])).all()).results||[])); }catch{diagnostics.push('FIXTURE_READ_FAILED');}
+ try { games.push(...((await env.DB.prepare(`SELECT * FROM games WHERE julianday(start)>=julianday(?) AND julianday(start)<julianday(?) AND date=? ${sport==='all'?'':'AND sport=?'} ORDER BY start LIMIT 500`).bind(start,end,start.slice(0,10),...(sport==='all'?[]:[sport])).all()).results||[])); }catch{diagnostics.push('FIXTURE_READ_FAILED');}
  const tables={nba:['nba_player_state_profiles','as_of'],nfl:['nfl_player_profiles','updated_at'],nhl:['nhl_player_profiles','source_updated_at'],mlb:['mlb_player_state_profiles','updated_at']};
  for(const [s,[table,clock]]of Object.entries(tables)){
   if(sport!=='all'&&sport!==s)continue;

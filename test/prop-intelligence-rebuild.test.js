@@ -59,3 +59,9 @@ test('real NHL rule identifies its league and cannot be relabeled as NBA',()=>{
  assert.equal(mapped.canonicalPlayerId,'nhl:nhl:8482713');assert.equal(mapped.line,1.5);assert.equal(mapped.identityVerified,true);assert.equal(mapped.dnpSettlement,'ACTIVE_NO_APPEARANCE_LAST_FAIR_PRICE');
  assert.equal(map({...market,rules_primary:market.rules_primary.replace('Pro Basketball','NFL')}).reason,'LEAGUE_DEFINITION_MISMATCH');
 });
+test('current-slate fixture read excludes legacy synthetic rows from older board dates',async()=>{
+ const {loadPropFixturesAndPlayers}=await import('../functions/lib/propResearchData.js');
+ const calls=[];const db={prepare(sql){return{bind(...args){calls.push({sql,args});return {all:async()=>({results:[]})};},all:async()=>({results:[]})};}};
+ await loadPropFixturesAndPlayers({DB:db},{start:'2026-10-20T05:00:00Z',end:'2026-10-21T05:00:00Z',sport:'nba'});
+ const fixture=calls.find(c=>c.sql.includes('FROM games'));assert.match(fixture.sql,/AND date=\?/);assert.equal(fixture.args[2],'2026-10-20');
+});
