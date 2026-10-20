@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
 import {
   kalshiSignedHeaders, kalshiPrivateNotification, kalshiSubscribePrivate,
-  kalshiGet, kalshiPaged, readKalshiAccount, KALSHI_ACCOUNT_PATHS
+  kalshiGet, kalshiPaged, readKalshiAccount, KALSHI_ACCOUNT_PATHS, kalshiPrivateKeyPem
 } from "../functions/lib/kalshiAccount.js";
 import { onRequestGet, onRequestPost } from "../functions/api/kalshi-account.js";
 import { readAccountApiResponse } from "../src/features/accounts/accountFetchDiagnostics.js";
@@ -145,4 +145,31 @@ test("account response diagnosis distinguishes invalid JSON from missing content
   const missing = new Response("error", { status: 503 });
   const second = await readAccountApiResponse(missing);
   assert.match(second.error, /HTTP 503.*non-JSON/);
+});
+
+test("PEM1 replacement Cloudflare secret works when the original is absent", async () => {
+  const env = await envWithKey();
+  env.KALSHI_PRIVATE_KEY_PEM1 = env.KALSHI_PRIVATE_KEY_PEM;
+  delete env.KALSHI_PRIVATE_KEY_PEM;
+  assert.equal(kalshiPrivateKeyPem(env), env.KALSHI_PRIVATE_KEY_PEM1);
+  const snapshot = await readKalshiAccount(env, {
+    fetchImpl: async uri => Response.json(sample(new URL(uri).pathname)),
+  });
+  assert.equal(snapshot.ok, true);
+  assert.equal(snapshot.availableCashDollars, 55.25);
+  assert.ok(!JSON.stringify(snapshot).includes(env.KALSHI_PRIVATE_KEY_PEM1));
+});
+
+test("PEM1 replacement overrides a superseded legacy secret", async () => {
+  const env = await envWithKey();
+  env.KALSHI_PRIVATE_KEY_PEM1 = env.KALSHI_PRIVATE_KEY_PEM;
+  env.KALSHI_PRIVATE_KEY_PEM = "superseded-invalid-private-key";
+  assert.equal(kalshiPrivateKeyPem(env), env.KALSHI_PRIVATE_KEY_PEM1);
+  const headers = await kalshiSignedHeaders({
+    keyId: env.KALSHI_API_KEY_ID,
+    privateKeyPem: kalshiPrivateKeyPem(env),
+    path: KALSHI_ACCOUNT_PATHS.balance,
+    webCrypto: webcrypto,
+  });
+  assert.ok(headers["KALSHI-ACCESS-SIGNATURE"]);
 });
