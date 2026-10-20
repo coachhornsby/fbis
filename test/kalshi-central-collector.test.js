@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import collector,{selectedSport,collectKalshiPublicOnce,relaySignedPages} from "../services/kalshi-public-collector/index.js";
+import collector,{selectedSport,collectKalshiPublicOnce,collectKalshiEvidenceOnce,relaySignedPages} from "../services/kalshi-public-collector/index.js";
 import {loadKalshiR2Shadow} from "../functions/lib/kalshiR2Shadow.js";
 import {onRequestGet} from "../functions/api/kalshi-market-shadow.js";
 
@@ -141,4 +141,28 @@ test("signed Pages relay timeout surfaces as a fresh ERROR receipt without delet
  assert.equal(old.records.length,1);
  assert.equal(old.ok,true);
  assert.equal(last.canAuthorizeWager,false);
+});
+
+test("evidence relay transport errors create an R2 receipt without synthetic market evidence",async()=>{
+ const ARCHIVE=archive(),now=atSport("cfb");
+ const r=await collectKalshiEvidenceOnce({ARCHIVE,FBIS_KALSHI_RELAY_TOKEN:secret},
+  {now,fetchImpl:async()=>{throw Error("network unavailable")}});
+ assert.equal(r.code,"PAGES_RELAY_UNAVAILABLE");
+ const last=JSON.parse(ARCHIVE.records.get(key+"evidence-status.json"));
+ assert.equal(last.status,"RELAY_ERROR");
+ assert.equal(last.code,"PAGES_RELAY_UNAVAILABLE");
+ assert.equal(last.canQualify,false);
+ const health=await collector.fetch(new Request("https://kalshi.test/health"),{ARCHIVE});
+ const body=await health.json();
+ assert.equal(body.evidenceStatus,"RELAY_ERROR");
+ assert.equal(body.evidenceErrorCode,"PAGES_RELAY_UNAVAILABLE");
+ assert.equal(ARCHIVE.records.has(key+"evidence/nfl-latest.json"),false);
+});
+test("evidence relay observes 30-minute cooldown from R2 instead of sending extra HTTP calls",async()=>{
+ const ARCHIVE=archive(),now=atSport("cfb");
+ ARCHIVE.records.set(key+"evidence-status.json",JSON.stringify({attemptedAt:now.toISOString(),status:"BLOCKED"}));
+ let calls=0;
+ const r=await collectKalshiEvidenceOnce({ARCHIVE,FBIS_KALSHI_RELAY_TOKEN:secret},
+  {now:new Date(now.getTime()+1000),fetchImpl:async()=>{calls++;throw Error("unexpected")}});
+ assert.equal(r.status,"NOT_DUE");assert.equal(calls,0);
 });
