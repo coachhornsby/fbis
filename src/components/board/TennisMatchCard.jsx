@@ -86,6 +86,19 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
     {t.researchFixture?<p className="tmc-fixture-note">Independent ESPN research fixture · {t.researchFixture.fixtureFreshness==="STALE"?"STATUS STALE · ":null}{t.researchFixture.officialDisplayEvidence?`WTA official match metadata linked (display only, observed ${t.researchFixture.officialDisplayEvidence.observedAt}) · No verified projection`:"Official schedule metadata unverified · No verified projection"} · ESPN observed {t.researchFixture.fetchedAt}</p>:null}
     {t.researchFixture?.missingEvidence?.length?<p className="tmc-fixture-note" role="status">MISSING VERIFIED DATA · {t.researchFixture.missingEvidence.join(" · ").replaceAll("_"," ")}</p>:null}
     {t.researchEstimate?<section className="tmc-fixture-note" aria-label="Independent surface Elo research estimate"><strong>SURFACE ELO ESTIMATE · RESEARCH ONLY</strong> · {t.researchEstimate.surface.toUpperCase()} · {home.fullName||home.name}: {(t.researchEstimate.player1WinProb*100).toFixed(1)}% / {away.fullName||away.name}: {(t.researchEstimate.player2WinProb*100).toFixed(1)}% · Not an FBIS PURE projection or betting edge</section>:null}
+    {t.researchFixture?<section className="tmc-fixture-note" aria-label="Tennis market and tournament context">
+      <strong>EVENT CONTEXT</strong> · {t.tournament||t.polymarketGlobalOffers?.[0]?.question?.split(":")[0]||"Official event not linked"} · {t.surface||"Surface unverified"} · {t.round||"Round unverified"}
+      {t.polymarketGlobalOffers?.length&&!t.tournament?<span> · Polymarket event label (research only)</span>:null}
+    </section>:null}
+    {t.researchFixture?<section className="tmc-fixture-note" aria-label="Independent Tennis exchange market research">
+      <strong>MARKETS · POLYMARKET.COM {t.polymarketGlobalOffers?.length||0} · KALSHI {t.kalshiResearchOffers?.length||0}</strong>
+      {t.exchangeResearch?.comparisons?.length?<>
+        {t.exchangeResearch.comparisons.map(c=><div key={c.kalshiTicker+"-"+c.player}>
+          {c.player}: Kalshi ask ${c.kalshiAsk.toFixed(3)} · Polymarket CLOB ask ${c.polymarketAsk.toFixed(3)} · Captures {c.observedKalshiAt||"time unknown"} / {c.observedPolymarketAt||"time unknown"}
+        </div>)}
+        <small>Indicative research comparison · contract fees, fillability, and wager eligibility unverified</small>
+      </>:<div>No source-verified same-outcome cross-exchange pair. Expand for individual market observations.</div>}
+    </section>:null}
     <div className="tmc-quick-summary" aria-label="FBIS projection summary">
       <span className="tmc-quick-model">FBIS PROJECTION · {display.valid?winnerName:"BLOCKED"}</span>
       <span className="tmc-quick-fair">FAIR MONEYLINE · {fair(pAway)} / {fair(pHome)}</span>
