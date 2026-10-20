@@ -2,13 +2,18 @@ import {authorizeHarvest,unauthorizedBody} from '../lib/auth.js';
 import {bootstrapPolymarket} from '../lib/polymarketBootstrap.js';
 const LIMIT=9_500_000_000;
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
-/** Prefer MARKET_HISTORY when primary is full/unknown so REST can still
- * archive stream rosters and land tennis/team contracts for the WS. */
+/** Prefer partitioned market history when primary is full/unknown so REST can
+ * still archive stream rosters and land tennis/team contracts for the WS. */
 export function bootstrapWriteTarget(env,sizeAfter){
  const bytes=Number(sizeAfter);
  const knownFull=Number.isFinite(bytes)&&bytes>0&&bytes>=LIMIT;
  const unknown=!Number.isFinite(bytes)||bytes<=0;
- if((knownFull||unknown)&&env.MARKET_HISTORY_DB?.prepare)return {db:env.MARKET_HISTORY_DB,store:'MARKET_HISTORY',primaryBytes:Number.isFinite(bytes)?bytes:null};
+ const history=env.MARKET_HISTORY_2026Q4_DB?.prepare
+  ?{db:env.MARKET_HISTORY_2026Q4_DB,store:'MARKET_HISTORY_2026Q4'}
+  :env.MARKET_HISTORY_DB?.prepare
+   ?{db:env.MARKET_HISTORY_DB,store:'MARKET_HISTORY'}
+   :null;
+ if((knownFull||unknown)&&history)return {...history,primaryBytes:Number.isFinite(bytes)?bytes:null};
  if(knownFull)return {db:null,store:null,primaryBytes:bytes,blocked:'REST_WRITE_CAPACITY_UNAVAILABLE'};
  if(unknown)return {db:null,store:null,primaryBytes:null,blocked:'REST_WRITE_CAPACITY_UNAVAILABLE'};
  return {db:env.DB,store:'PRIMARY',primaryBytes:bytes};

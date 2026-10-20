@@ -1,0 +1,36 @@
+#!/usr/bin/env node
+/**
+ * Inventory D1 bindings for topology v2: sizes, owners, and next migration actions.
+ * Read-only against Cloudflare when CF credentials are present; otherwise prints the contract.
+ */
+import { topologyManifest, MARKET_HISTORY_HOT_WINDOW_MS } from "../functions/lib/databaseTopology.js";
+import { D1_HARD_LIMIT_BYTES } from "../functions/lib/databaseOwnership.js";
+
+const manifest = topologyManifest();
+const rows = [
+  ["PRIMARY", manifest.primary.databaseName, manifest.primary.databaseId],
+  ["OPERATIONS", manifest.operations.databaseName, manifest.operations.databaseId],
+  ["CORE", manifest.core.databaseName, manifest.core.databaseId],
+  ...manifest.sports.map((s) => [s.binding, s.databaseName, s.databaseId || "PLANNED"]),
+  ...manifest.marketHistoryPartitions.map((p) => [p.binding, p.databaseName, p.databaseId]),
+  ["COLD_HISTORY", manifest.coldHistory.databaseName, manifest.coldHistory.databaseId],
+];
+
+const report = {
+  contract: manifest.contract,
+  generatedAt: new Date().toISOString(),
+  hardLimitBytes: D1_HARD_LIMIT_BYTES,
+  marketHistoryHotWindowHours: MARKET_HISTORY_HOT_WINDOW_MS / 3600000,
+  databases: rows.map(([binding, name, id]) => ({ binding, name, id })),
+  migrationPhases: manifest.migrationPhases,
+  nextActions: [
+    "Bind CORE_DB, NHL_DB, MARKET_HISTORY_2026Q4_DB on Pages (wrangler.toml updated).",
+    "Run POST /api/database-topology operation=nhl-copy then nhl-parity.",
+    "Keep NHL_SPORT_DB_MODE=shadow until parity OK.",
+    "Route new WS/REST recovery writes to MARKET_HISTORY_2026Q4_DB (wired).",
+    "Archive market observations older than 7 days to R2 before any retention delete.",
+  ],
+  canAuthorizeWager: false,
+};
+
+console.log(JSON.stringify(report, null, 2));

@@ -88,14 +88,26 @@ export async function ensureHistoryLedgerSchema(db){
   return {ok:true,skipped:false,columns:columns.length};
 }
 
+/** Prefer newest under-capacity partition; fall back to legacy MARKET_HISTORY_DB. */
+function resolveRecoveryHistoryDb(env){
+  if(env?.MARKET_HISTORY_2026Q4_DB?.prepare){
+    return {db:env.MARKET_HISTORY_2026Q4_DB,target:"MARKET_HISTORY_2026Q4_DB"};
+  }
+  if(env?.MARKET_HISTORY_DB?.prepare){
+    return {db:env.MARKET_HISTORY_DB,target:"MARKET_HISTORY_DB"};
+  }
+  return {db:null,target:null};
+}
+
 /** Persist WS offers to market-history when primary D1 cannot accept writes. */
 export async function persistStreamRecoveryBatch(env,offers,{collectedAt=null}={}){
-  if(!env?.MARKET_HISTORY_DB?.prepare)return {attempted:0,inserted:0,ok:false,reason:"history-binding-missing"};
+  const history=resolveRecoveryHistoryDb(env);
+  if(!history.db)return {attempted:0,inserted:0,ok:false,reason:"history-binding-missing"};
   if(!Array.isArray(offers)||!offers.length)return {attempted:0,inserted:0,ok:false,reason:"empty-offers"};
   try{
-    const schema=await ensureHistoryLedgerSchema(env.MARKET_HISTORY_DB);
+    const schema=await ensureHistoryLedgerSchema(history.db);
     if(!schema.ok)return {attempted:offers.length,inserted:0,ok:false,reason:schema.reason||"schema-unavailable"};
-    const r=await persistNormalizedMarketBatch(env.MARKET_HISTORY_DB,offers,{
+    const r=await persistNormalizedMarketBatch(history.db,offers,{
       snapshotType:"CURRENT",
       collectedAt:collectedAt||new Date().toISOString(),
       modelProbability:null,
@@ -106,7 +118,7 @@ export async function persistStreamRecoveryBatch(env,offers,{collectedAt=null}={
       ids:r.ids||[],
       ok:r.inserted>0,
       reason:r.inserted>0?"history-insert-ok":"history-insert-zero",
-      target:"MARKET_HISTORY_DB",
+      target:history.target,
       primaryIsAuthoritative:false,
       recoveryOnly:true,
       canAuthorizeWager:false,
@@ -118,7 +130,7 @@ export async function persistStreamRecoveryBatch(env,offers,{collectedAt=null}={
       inserted:0,
       ok:false,
       reason:String(error?.message||error||"history-persist-failed").slice(0,240),
-      target:"MARKET_HISTORY_DB",
+      target:history.target,
       recoveryOnly:true,
     };
   }

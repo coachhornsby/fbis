@@ -1,6 +1,7 @@
 /** Storage partition only. Current rows stay on primary; frozen RESEARCH rows
  * come from the verified cold copy. No prices, clocks or authority are altered.
  */
+import { listMarketHistoryReadDbs, resolveMarketHistoryWriteDb } from "./databaseTopology.js";
 export const COLD_MARKET_SOURCE_UPPER=667201;
 export const COLD_MARKET_CAPTURE_CUTOFF='2026-10-16T01:35:42.412Z';
 export const coldHistoryEnabled=env=>env?.COLD_MARKET_ARCHIVE_READS==='enabled';
@@ -17,7 +18,8 @@ export async function coldMarketPartitions(env){
 }
 /** Existing retrospective replays retain their original captured timestamp.
  * Route only those old RESEARCH writes after qualified storage cutover.
- * New RESEARCH volume prefers MARKET_HISTORY_DB so primary does not re-accumulate.
+ * New RESEARCH/HISTORICAL volume prefers the newest under-capacity market-history
+ * partition (2026Q4 when bound); legacy MARKET_HISTORY_DB remains a read source.
  * CURRENT quotes remain on primary.
  */
 export async function marketObservationDatabase(env,capturedAt,snapshotType='RESEARCH'){
@@ -26,6 +28,8 @@ export async function marketObservationDatabase(env,capturedAt,snapshotType='RES
   await coldMarketPartitions(env);return env.COLD_HISTORY_DB;
  }
  if(snap==='RESEARCH'||snap==='HISTORICAL'){
+  const target=await resolveMarketHistoryWriteDb(env,{now:capturedAt||new Date()});
+  if(target.db)return target.db;
   if(env?.MARKET_HISTORY_DB?.prepare)return env.MARKET_HISTORY_DB;
  }
  return env.DB;
@@ -62,7 +66,7 @@ export async function readColdCompatibleEventObservations(env,{sport,eventId,off
  const partitions=await coldMarketPartitions(env),groups=[];
  // Current recovery ticks and newer research captures live in the market shard,
  // independently of the older immutable cold-archive cutover.
- if(env.MARKET_HISTORY_DB?.prepare)partitions.push({db:env.MARKET_HISTORY_DB,where:'1=1',kind:'market-history'});
+ for(const hist of listMarketHistoryReadDbs(env))partitions.push({db:hist.db,where:'1=1',kind:hist.binding});
  for(const part of partitions){
   const result=await part.db.prepare(`WITH latest AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY source,source_market_id,source_outcome_id,period,side,line,player_name,stat_family ORDER BY collected_at DESC,id DESC) rn
     FROM normalized_market_observations WHERE sport=? AND canonical_event_id=? AND (${part.where}) AND source IN ('Polymarket US','Polymarket US WebSocket','PinnOdds','PrizePicks GitHub Mirror'))

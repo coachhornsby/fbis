@@ -1,6 +1,8 @@
 /**
  * Canonical FBIS D1 ownership registry.
  * Prevents new high-volume operational / historical growth from landing on primary.
+ * Topology v2 (CORE + per-sport + partitioned market history) lives in databaseTopology.js;
+ * this module remains the capacity / ops ownership contract consumed by existing monitors.
  */
 
 export const D1_HARD_LIMIT_BYTES = 10_000_000_000;
@@ -72,6 +74,61 @@ export const DATABASE_OWNERS = Object.freeze({
       "decision_links",
       "clv_settlement",
       "live_card_reads_until_cutover",
+      "unbounded_ws_ticks_without_retention",
+    ]),
+  }),
+  MARKET_HISTORY_2026Q4: Object.freeze({
+    key: "MARKET_HISTORY_2026Q4",
+    binding: "MARKET_HISTORY_2026Q4_DB",
+    databaseName: "fbis-market-history-2026q4",
+    databaseId: "e8b0b65d-90a6-4842-8ee7-0f85d75afb4c",
+    role: "active_market_history_partition",
+    accepts: Object.freeze([
+      "normalized_market_observation_hot_window",
+      "primary_over_limit_recovery_writes",
+      "ws_tick_hot_window",
+    ]),
+    rejects: Object.freeze([
+      "decision_links",
+      "clv_settlement",
+      "indefinite_tick_retention",
+    ]),
+  }),
+  CORE: Object.freeze({
+    key: "CORE",
+    binding: "CORE_DB",
+    databaseName: "fbis-core",
+    databaseId: "a5b438fa-eb16-4f03-95d7-1fc58ac72f04",
+    role: "shared_identity_and_dashboard_core",
+    accepts: Object.freeze([
+      "shared_settings",
+      "model_registry",
+      "executed_bet_index",
+      "dashboard_summaries",
+    ]),
+    rejects: Object.freeze([
+      "sport_working_sets",
+      "unbounded_market_ticks",
+      "ops_telemetry_growth",
+    ]),
+  }),
+  NHL: Object.freeze({
+    key: "NHL",
+    binding: "NHL_DB",
+    databaseName: "fbis-nhl",
+    databaseId: "a0aa010c-40d3-4d2f-8109-eca4e74e2a73",
+    role: "nhl_sport_working_set_pilot",
+    accepts: Object.freeze([
+      "nhl_schedules",
+      "nhl_projections",
+      "nhl_research_decisions",
+      "nhl_settlements",
+      "nhl_calibration_clv",
+    ]),
+    rejects: Object.freeze([
+      "unbounded_ws_ticks",
+      "cross_sport_authority",
+      "ops_telemetry",
     ]),
   }),
   COLD_HISTORY: Object.freeze({
@@ -273,11 +330,12 @@ export function primaryGrowthAllowed(tableName, { snapshotType, season, forcePri
 
 export function ownershipManifest() {
   return {
-    contract: "fbis-database-ownership-v1",
+    contract: "fbis-database-ownership-v2",
     hardLimitBytes: D1_HARD_LIMIT_BYTES,
     capacityAlertThresholds: CAPACITY_ALERT_THRESHOLDS,
     databases: Object.values(DATABASE_OWNERS),
     operationsOwnedTables: OPERATIONS_OWNED_TABLES,
     primaryHighVolumeGrowthTables: PRIMARY_HIGH_VOLUME_GROWTH_TABLES,
+    topology: "see databaseTopology.js /docs/database-topology-v2.md",
   };
 }

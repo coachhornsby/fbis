@@ -1309,7 +1309,12 @@ export async function buildTodayBoard(
     for (const [sportKey, sportGames] of bySport) {
       let overlay = { byId: new Map(), available: false };
       try {
-        overlay = await loadPolymarketUsBoardOffers(env.DB, sportGames, sportKey, { now: new Date(now), historyDb: env.MARKET_HISTORY_DB, moneylineOnly:true });
+        overlay = await loadPolymarketUsBoardOffers(env.DB, sportGames, sportKey, {
+          now: new Date(now),
+          historyDb: env.MARKET_HISTORY_DB,
+          historyDbs: [env.MARKET_HISTORY_2026Q4_DB, env.MARKET_HISTORY_DB].filter((d) => d?.prepare),
+          moneylineOnly:true,
+        });
       } catch {
         /* missing/stale provider never breaks the independent FBIS slate */
       }
