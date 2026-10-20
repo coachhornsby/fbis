@@ -7,12 +7,20 @@ on:
       - "functions/lib/polymarketUsSignedWs.js"
       - "functions/lib/marketObservationLedger.js"
       - "functions/lib/marketTemporal.js"
+      - "functions/lib/marketHistoryVerifiedArchive.js"
+      - "functions/lib/databaseTopology.js"
+      - "functions/lib/r2Archive.js"
+      - "functions/lib/sha256Hex.js"
       - ".github/workflows/deploy-polymarket-us-stream.yml"
   push:
     branches: [main]
     paths:
       - "functions/lib/marketObservationLedger.js"
       - "functions/lib/marketTemporal.js"
+      - "functions/lib/marketHistoryVerifiedArchive.js"
+      - "functions/lib/databaseTopology.js"
+      - "functions/lib/r2Archive.js"
+      - "functions/lib/sha256Hex.js"
       - "services/polymarket-us-stream/**"
       - "wrangler.polymarket-us-stream.toml"
       - "functions/lib/polymarketUsSignedWs.js"
