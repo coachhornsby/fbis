@@ -9,7 +9,7 @@ import "./decisionBoard.css";
 
 export function BoardSummaryStrip({ games = [] }) {
   const stats = useMemo(() => {
-    let research = 0, watch = 0, qualified = 0, blocked = 0, live = 0, final = 0, withMarket = 0, pinnodds = 0;
+    let research = 0, watch = 0, qualified = 0, blocked = 0, live = 0, final = 0, withMarket = 0, pinnodds = 0, exchange = 0;
     let cfbGames = 0, cfbdGames = 0, sdvGames = 0, sourceConflicts = 0, cfbWeek = null;
     for (const g of games || []) {
       const vm = buildBoardGameViewModel(g);
@@ -21,6 +21,7 @@ export function BoardSummaryStrip({ games = [] }) {
       if (vm.decision?.dqState || vm.quality?.marketUnresolved) blocked += 1;
       if (vm.market?.available) withMarket += 1;
       if (Array.isArray(g?.pinnoddsResearch?.offers) && g.pinnoddsResearch.offers.length > 0) pinnodds += 1;
+      if (Array.isArray(g?.market?.venueOffers) && g.market.venueOffers.length > 0) exchange += 1;
       if (String(g?.sport).toLowerCase() === "cfb") {
         cfbGames += 1;
         const source = g?.cfbDirectionalResearch;
@@ -32,7 +33,7 @@ export function BoardSummaryStrip({ games = [] }) {
         sourceConflicts += Number(source?.disagreements || 0);
       }
     }
-    return { n: games.length, research, watch, qualified, blocked, live, final, withMarket, pinnodds,
+    return { n: games.length, research, watch, qualified, blocked, live, final, withMarket, pinnodds, exchange,
       cfbGames, cfbdGames, sdvGames, sourceConflicts, cfbWeek };
   }, [games]);
 
@@ -48,6 +49,7 @@ export function BoardSummaryStrip({ games = [] }) {
         {stats.live > 0 ? <div className="db-sum-tile db-sum-live"><strong>{stats.live}</strong><span>LIVE</span></div> : null}
         {stats.final > 0 ? <div className="db-sum-tile db-sum-final"><strong>{stats.final}</strong><span>FINAL</span></div> : null}
         <div className="db-sum-tile db-sum-mkt"><strong>{stats.pinnodds}</strong><span>PIN CAPTURES</span></div>
+        <div className="db-sum-tile db-sum-mkt"><strong>{stats.exchange}</strong><span>EXCH OFFERS</span></div>
         <div className="db-sum-tile db-sum-mkt"><strong>{stats.withMarket}</strong><span>EXEC MKT</span></div>
       </div>
       {stats.cfbGames ? <div className="db-cfb-source-strip" aria-label="College football data coverage">

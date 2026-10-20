@@ -76,14 +76,16 @@ export async function collectKalshiPublicOnce(env,{now=new Date(),fetchImpl=fetc
     // Previously only missing credentials were recorded; timeouts left an
     // older CAPTURED receipt misleadingly presented as current. Keep the
     // earlier sport snapshot intact but surface this attempt's real outcome.
-    await writeJson(env.ARCHIVE,"collector-status.json",{
+    const receipt={
       source:"Kalshi",collector:"SCHEDULED_WORKER_R2",
       authenticationMode:configurationFailure?"SIGNED_RELAY_UNCONFIGURED":"SIGNED_PAGES",
       attemptedAt:now.toISOString(),sport,
       status:configurationFailure?"CONFIGURATION_REQUIRED":"RELAY_ERROR",
       code:result.code,httpStatus:result.httpStatus||null,blockedUntil:null,
       canQualify:false,canAuthorizeWager:false,canWriteMarketHistory:false,
-    });
+    };
+    await writeJson(env.ARCHIVE,"sports/"+sport+"-status.json",receipt);
+    await writeJson(env.ARCHIVE,"collector-status.json",receipt);
   }
   // Pages remains the sole writer of CAPTURED/provider RATE_LIMITED
   // receipts; a Worker transport failure cannot fabricate provider 429.

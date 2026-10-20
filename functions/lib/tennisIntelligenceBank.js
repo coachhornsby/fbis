@@ -34,6 +34,42 @@ export async function tennisFixtureOffers(db, fixture, { now = new Date() } = {}
   });
 }
 
+
+/**
+ * Read-only official WTA metadata for an independently observed ESPN fixture.
+ * This does NOT verify the ESPN fixture, authorize its model, or match markets.
+ * Fail closed when identity, kickoff, source or uniqueness are uncertain.
+ */
+export async function lookupOfficialTennisDisplayMetadata(db, fixture, players, {now=new Date()}={}) {
+  if (String(fixture?.tour).toLowerCase()!=="wta" ||
+      !Array.isArray(players) || players.length!==2 ||
+      players.some(p=>!p?.fbisPlayerId || p?.officialIdentityVerified!==true) ||
+      !Number.isFinite(Date.parse(fixture.start))) return null;
+  const ids=players.map(p=>p.fbisPlayerId);
+  if(ids[0]===ids[1])return null;
+  try {
+    const q=await db.prepare(`SELECT match_id,tournament_name,tournament_level,round_code,
+      match_time,surface,indoor_outdoor,venue,source,observed_at
+      FROM tennis_official_matches
+      WHERE tour='wta' AND source='WTA_OFFICIAL'
+        AND ((player1_id=? AND player2_id=?) OR (player1_id=? AND player2_id=?))
+        AND ABS((julianday(match_time)-julianday(?))*24*60)<=120
+        AND julianday(observed_at)<=julianday(?)
+      ORDER BY ABS(julianday(match_time)-julianday(?)) LIMIT 2`)
+      .bind(ids[0],ids[1],ids[1],ids[0],fixture.start,now.toISOString(),fixture.start).all();
+    const rows=q?.results||[];
+    if(rows.length!==1)return null;
+    const r=rows[0];
+    if(!r.match_id || Date.parse(r.observed_at)>+now ||
+       Math.abs(Date.parse(r.match_time)-Date.parse(fixture.start))>120*60000)return null;
+    return {source:"WTA_OFFICIAL",sourceMatchId:r.match_id,observedAt:r.observed_at,
+      tournament:r.tournament_name||null,tournamentLevel:r.tournament_level||null,
+      round:r.round_code||null,surface:r.surface||null,
+      indoor:r.indoor_outdoor==="INDOOR"?true:r.indoor_outdoor==="OUTDOOR"?false:null,
+      venue:r.venue||null, displayOnly:true, canQualify:false,canAuthorizeWager:false};
+  } catch {return null;}
+}
+
 export async function buildTennisIntelligenceBank(db, { limit = 50, now = new Date() } = {}) {
   // Independent fixtures refresh every three hours. Do not retain disappeared
   // scheduled fixtures for eighteen hours after their last source observation.
@@ -62,8 +98,9 @@ export async function buildTennisIntelligenceBank(db, { limit = 50, now = new Da
         profile: parse(p.profile_json), lastMatchDate: p.last_match_date, source: p.source, license: p.source_license,
         sourceAsOf: p.source_as_of, retrievedAt: p.updated_at, productionDependency: Boolean(p.production_dependency) })) });
     }
+    const officialDisplay = await lookupOfficialTennisDisplayMetadata(db,fixture,players,{now});
     const venueOffers = await tennisFixtureOffers(db, fixture, { now });
-    fixtures.push({ ...fixture, players, playerIdentityVerified: identity.verified, venueOffers,
+    fixtures.push({ ...fixture, players, officialDisplay, playerIdentityVerified: identity.verified, venueOffers,
       linkedMarkets: [...new Set(venueOffers.map(o => o.source))].map(source => ({ source,
         observations: venueOffers.filter(o => o.source === source).length })),
       officialSourceVerified: false, researchOnly: true, canQualify: false, canAuthorizeWager: false });
@@ -98,7 +135,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
         portraitLicenseUrl:approved?.licenseUrl||null };
     };
     const context = await tennisCardContext(db, { tour: f.tour, player1: p1.fixtureName,
-      player2: p2.fixtureName, surface: null }).catch(() => null);
+      player2: p2.fixtureName, surface: f.officialDisplay?.surface||null }).catch(() => null);
     const playerBank = { ...context, players: f.players.map((p, i) => ({ ...(context?.players?.[i] || {}),
       ...p, headshot: p.headshotUrl ?? null, recentForm: context?.players?.[i]?.recentForm || [] })) };
     const venueOffers = f.venueOffers.map(o => ({ ...o, side: o.side === "home" ? "away" : o.side === "away" ? "home" : o.side }));
@@ -108,12 +145,14 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
       qualificationBlockReason: "INDEPENDENT_FIXTURE_NO_PIT_PROJECTION", rec: null, lean: null, authorized: false,
       quality: { state: "RESEARCH", flags: ["research_only", "independent_fixture", "projection_unavailable"] },
       market: { reference: { available: venueOffers.length > 0 }, venueOffers, executionActionable: false },
-      tennisProjection: { researchFixture: { verified: true, source: f.source, fixtureId: f.id,
+      tennisProjection: { researchFixture: { verified: true, source: f.source, fixtureId: f.id, officialDisplayEvidence: f.officialDisplay||null,
         fetchedAt: f.fetched_at, rawHash: f.raw_hash, rawKey: f.raw_key },
         eventIntegrity: { valid: false, reason: "OFFICIAL_PROJECTION_UNAVAILABLE" },
-        blockedReason: "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
+        blockedReason: f.officialDisplay ? "OFFICIAL_METADATA_MATCHED_DISPLAY_ONLY: projection/event authority remains unverified for this ESPN fixture" : "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
         player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
-        surface: null, tournament: null, playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
+        surface: f.officialDisplay?.surface||null, indoor:f.officialDisplay?.indoor??null,
+        tournament:f.officialDisplay?.tournament||null, round:f.officialDisplay?.round||null,
+        venue:f.officialDisplay?.venue||null, playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
     });
   }
   return { games, coverage: { fixtures: games.length, playerIdentityComplete: bank.playerIdentityComplete,

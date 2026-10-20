@@ -30,15 +30,28 @@ export async function loadKalshiR2Shadow(env,sport,{now=new Date(),maxAgeMs=50*6
   }
   // No R2 payload may elevate authority even if it is forged or accidentally
   // encoded by a later collector revision.
-  const rows=snapshot.records.filter(r=>r?.sport===sport&&
-    typeof r.ticker==="string"&&r.ticker.startsWith(KALSHI_SHADOW_SERIES[sport]+"-")
-  ).slice(0,4000).map(r=>({...r,...kalshiShadowAuthority(),
+  const rows=snapshot.records.filter(r=>{
+    if(r?.sport!==sport||typeof r.ticker!=="string"
+      ||!r.ticker.startsWith(KALSHI_SHADOW_SERIES[sport]+"-"))return false;
+    // A late final page cannot make earlier paginated market quotes fresh.
+    const fetched=Date.parse(r.fetchedAt||snapshot.capturedAt||"");
+    const age=now.getTime()-fetched;
+    return Number.isFinite(fetched)&&age>=0&&age<=maxAgeMs;
+  }).slice(0,4000).map(r=>({...r,...kalshiShadowAuthority(),
     matchStatus:"UNMATCHED",canonicalEventId:null,
     feesDollars:null,netCostDollars:null,impliedEdge:null}));
+  if(!rows.length&&snapshot.records.length)
+    return {ok:false,code:"KALSHI_SNAPSHOT_STALE",
+      collector:"SCHEDULED_WORKER_R2",capturedAt,
+      governance:kalshiShadowAuthority()};
+  const completeFresh=rows.length===snapshot.records.length
+    &&snapshot.paginationComplete===true;
   return {
     ok:true,provider:"Kalshi",sport,seriesTicker:KALSHI_SHADOW_SERIES[sport],
     capturedAt,snapshotAgeSeconds:Math.floor(age/1000),records:rows,
-    paginationComplete:snapshot.paginationComplete===true,
+    paginationComplete:completeFresh,
+    rowsDiscardedForStaleness:snapshot.records.length-rows.length,
+    sourceQueryComplete:snapshot.paginationComplete===true,
     collector:"SCHEDULED_WORKER_R2",cacheScope:"CENTRAL_R2_READ_ONLY",
     marketTypeScope:"GAMES_ONLY",governance:kalshiShadowAuthority(),
   };

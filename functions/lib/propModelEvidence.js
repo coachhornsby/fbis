@@ -1,7 +1,4 @@
-import nfl from '../../data/models/nfl-player-props-v3-validation.json' with {type:'json'};
-import nflCal from '../../data/models/nfl-prop-market-calibration-v2.json' with {type:'json'};
-import nhl from '../../data/models/nhl-player-pro-v2-validation.json' with {type:'json'};
-import nba from '../../data/models/nba-player-prop-v1-validation.json' with {type:'json'};
+import { NFL_PROP_VALIDATION as nfl,NFL_PROP_CALIBRATION as nflCal,NHL_PROP_VALIDATION as nhl,NBA_PROP_VALIDATION as nba } from "../../data/models/prop-research-evidence.js";
 export function propModelEvidence(sport,market) {
  if(sport==='nfl')return {modelId:nfl.modelId,validatedAt:nfl.validatedAt,design:nfl.design,sample:nfl.sample,
   projection:nfl.marketCalibration[market]||null,globalMetrics:nfl.bestGlobal,

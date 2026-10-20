@@ -1,0 +1,26 @@
+.kalshi-coverage{margin:16px 0;padding:18px;border:1px solid #356b79;border-left:4px solid #54b8e7;border-radius:14px;background:linear-gradient(140deg,#122637,#102f2d);color:#edfbff}
+.kalshi-coverage-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.kalshi-coverage-head small{font-size:10px;color:#6ecdec;letter-spacing:.15em;font-weight:800}
+.kalshi-coverage h3{color:#f0fcff;font-size:20px;margin:5px 0}
+.kalshi-coverage p{font-size:12px;color:#b8cdd3;line-height:1.5;margin:8px 0}
+.kalshi-coverage button{padding:9px 13px;border:1px solid #4ab3db;background:#123e51;color:#e4f9ff;border-radius:8px;cursor:pointer}
+.kalshi-coverage button:disabled{opacity:.5}
+.kalshi-coverage-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.kalshi-coverage-grid article{min-width:0;background:#142e39;border:1px solid #3b6470;border-radius:10px;padding:14px}
+.kalshi-coverage-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.kalshi-coverage-top>strong{font-size:19px}
+.kalshi-coverage-top>span{color:#d6ac80;font-size:11px;text-transform:capitalize}
+.kalshi-coverage-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:13px 0}
+.kalshi-coverage-stats div{padding:8px;background:#11323c;border-radius:7px}
+.kalshi-coverage-stats strong{display:block;font-size:18px;color:#93d9f4}
+.kalshi-coverage-stats small{font-size:10px;color:#b2cfd4}
+.kalshi-coverage-reasons{margin:10px 0;background:#10242f;padding:11px;border-radius:8px}
+.kalshi-coverage-reasons>strong{font-size:12px;color:#d5e8eb}
+.kalshi-coverage-reasons>div{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:10px}
+.kalshi-coverage-reasons span{color:#b9cfd3;text-transform:capitalize}
+.kalshi-coverage-reasons b{color:#e3b9a2}
+.kalshi-coverage-progress{color:#90e7cf!important}
+.kalshi-coverage-limit,.kalshi-coverage-disclaimer{color:#a8c3c8!important}
+.kalshi-coverage-error{padding:10px;background:#572e2e;color:#fee6dc!important}
+@media(max-width:850px){.kalshi-coverage-grid{grid-template-columns:1fr}}
+@media(max-width:480px){.kalshi-coverage{padding:12px}.kalshi-coverage-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}

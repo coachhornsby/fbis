@@ -146,15 +146,19 @@ export default function TodayView({
             <Stat label="Sports" value={d((health.sportsLoaded || []).join(" ") || "—")} />
             <Stat label="Games" value={d(health.gamesLoaded ?? counts.games ?? 0)} />
             <Stat label="Projections" value={d(health.projectionsAvailable ?? "—")} />
-            <Stat label="Markets" value={d(health.marketsAvailable ?? "—")} />
+            <Stat label="Exec markets" value={d(health.marketsAvailable ?? "—")} />
+            <Stat label="Research mkts" value={d(health.researchMarketsAvailable ?? "—")} />
+            <Stat label="Pin captures" value={d(health.pinnoddsCaptures ?? "—")} />
+            <Stat label="Exchange offers" value={d(health.exchangeOffers ?? "—")} />
             <Stat label="Qualified" value={qualificationValue} />
           </div>
           {coverage ? (
             <p className="muted" style={{ marginTop: 8 }}>
-              Coverage: {coverage.numerator} of {coverage.denominator} sports authoritative.
+              Coverage: {coverage.numerator} of {coverage.denominator} sports delivering schedule/projections/markets
+              (research-only counts as delivered; qualification is separate).
               {coverage.allSportsAuthoritative
-                ? " All-sports qualification counts are authoritative."
-                : " All-sports qualification is incomplete; unavailable sports are excluded from authoritative totals."}
+                ? " All listed sports are delivering without feed errors."
+                : " Some sports are incomplete or errored; qualification totals exclude those failures."}
             </p>
           ) : null}
           {Object.keys(sourceStatus).length ? (
@@ -163,7 +167,7 @@ export default function TodayView({
                 <Stat
                   key={sportId}
                   label={`${String(sportId).toUpperCase()} source`}
-                  value={`${s.schedule}/${s.projections}/${s.markets} · ${s.source}${s.error ? ` · ${s.error}` : ""}`}
+                  value={`${s.schedule}/${s.projections}/${s.markets} · exec ${s.usableMarkets ?? 0} · research ${s.researchMarkets ?? 0} · ${s.source}${s.error ? ` · ${s.error}` : ""}`}
                 />
               ))}
             </div>

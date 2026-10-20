@@ -36,19 +36,43 @@ export async function kalshiIntegrationHealth(env,{now=new Date()}={}){
  };
  const upstreamBlocked=Boolean(collector?.blockedUntil&&Date.parse(collector.blockedUntil)>now.getTime());
  const sports=await Promise.all(SPORTS.map(async sport=>{
-   const snap=await readObject(env?.ARCHIVE,"sports/"+sport+".json");
+   const [snap,attempt,progress]=await Promise.all([
+     readObject(env?.ARCHIVE,"sports/"+sport+".json"),
+     readObject(env?.ARCHIVE,"sports/"+sport+"-status.json"),
+     readObject(env?.ARCHIVE,"sports/"+sport+"-progress.json"),
+   ]);
    const stamp=typeof snap?.capturedAt==="string"?Date.parse(snap.capturedAt):NaN;
    const age=Number.isFinite(stamp)?now.getTime()-stamp:null;
    const valid=!!snap?.ok && snap?.sport===sport && snap?.seriesTicker===KALSHI_SHADOW_SERIES[sport]
      && Array.isArray(snap?.records) && age!==null && age>=0 && age<=50*60*1000;
-   return {sport,series:KALSHI_SHADOW_SERIES[sport],status:valid?"FRESH_SHADOW":
-     age!==null&&age>50*60*1000?"STALE_SHADOW":"NO_VERIFIED_SNAPSHOT",
+   const rows=valid?snap.records:null;
+   const maxRowAge=Array.isArray(rows)?rows.reduce((max,r)=>{
+     const source=Date.parse(r?.fetchedAt||snap.capturedAt||"");
+     if(!Number.isFinite(source))return Number.POSITIVE_INFINITY;
+     return Math.max(max,now.getTime()-source);
+   },0):null;
+   const allRowsRecent=valid&&maxRowAge>=0&&maxRowAge<=50*60*1000;
+   const paginationComplete=valid&&snap.paginationComplete===true&&allRowsRecent;
+   return {
+     sport,series:KALSHI_SHADOW_SERIES[sport],
+     status:valid?(allRowsRecent?"FRESH_SHADOW":"PARTIALLY_STALE_SHADOW"):
+       age!==null&&age>50*60*1000?"STALE_SHADOW":"NO_VERIFIED_SNAPSHOT",
      capturedAt:typeof snap?.capturedAt==="string"?snap.capturedAt:null,
      ageSeconds:age!==null&&age>=0?Math.floor(age/1000):null,
      records:valid?snap.records.length:null,
-     pageComplete:valid?snap.paginationComplete===true:null,
-     // A fresh market page alone does not prove event/side matching.
-     verifiedFixtureMatches:0,executionEligible:false,canQualify:false};
+     pageComplete:paginationComplete,
+     inventoryPages:snap?.pagesFetched??null,
+     attemptedAt:attempt?.attemptedAt||null,
+     lastAttemptState:attempt?.status||"NOT_OBSERVED",
+     lastAttemptCode:attempt?.code||null,
+     pagesFetchedInProgress:progress?.cursor?progress.pagesFetched||0:0,
+     recordsInProgress:progress?.cursor?progress.records?.length||0:0,
+     continuationPending:typeof progress?.cursor==="string"&&progress.cursor.length>0,
+     allRecordsFresh:valid?allRowsRecent:false,
+     oldestRecordAgeSeconds:valid&&maxRowAge>=0?Math.round(maxRowAge/1000):null,
+     // A verified provider list alone never grants executable price authority.
+     verifiedFixtureMatches:0,executionEligible:false,canQualify:false,
+   };
  }));
  return {
   ok:true,provider:"Kalshi",observedAt:now.toISOString(),
