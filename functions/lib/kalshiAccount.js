@@ -43,7 +43,10 @@ function pemBytes(pem) {
 export async function kalshiSignedHeaders({ keyId, privateKeyPem, method = "GET", path, timestamp = Date.now(), webCrypto = crypto } = {}) {
   if (!Object.values(KALSHI_ACCOUNT_PATHS).includes(path)
     && !Object.values(KALSHI_DIAGNOSTIC_PATHS).includes(path)
-    && path !== "/trade-api/ws/v2") {
+    && path !== "/trade-api/ws/v2"
+    // Bounded public market evidence paths only; no portfolio or write routes.
+    && !/^\/trade-api\/v2\/events\/[A-Z0-9_.-]{4,160}$/.test(path)
+    && !/^\/trade-api\/v2\/markets\/[A-Z0-9_.-]{4,160}\/orderbook$/.test(path)) {
     throw new Error("kalshi-read-path-not-allowed");
   }
   if (method !== "GET" || !Number.isSafeInteger(timestamp) || timestamp <= 0) {

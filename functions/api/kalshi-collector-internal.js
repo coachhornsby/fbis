@@ -1,3 +1,4 @@
+import {captureKalshiTargetedEvidence} from "../lib/kalshiTargetedEvidence.js";
 import { captureKalshiPlayerProps } from "../lib/kalshiPlayerPropCollector.js";
 import {
   captureSignedKalshiMarkets,captureSignedKalshiExchangeStatus,
@@ -45,6 +46,10 @@ export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypt
     }catch{
       return respond({ok:false,code:"SIGNED_COLLECTION_UNAVAILABLE"},503);
     }
+  }
+  if(scope==="qualification-evidence"){
+    try{const r=await captureKalshiTargetedEvidence(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503)}
+    catch{return respond({ok:false,code:"EVIDENCE_COLLECTION_UNAVAILABLE"},503)}
   }
   if(scope==="exchange-status"){
     try{
