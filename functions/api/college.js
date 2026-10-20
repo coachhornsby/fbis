@@ -91,7 +91,9 @@ export async function onRequestGet(context) {
       ["cfb-postgame-harvest","cfb-current-refresh"].includes(job);
     const manualOwner = options.trigger === "workflow_dispatch" && options.operatorApproved &&
       ["cfb-postgame-harvest","cfb-current-refresh","cfb-reference-backfill",
-       "cfb-qb-transfer-refresh","cfb-quota-replenish-ack","cfbd-endpoint-audit"].includes(job);
+       "cfb-qb-transfer-refresh","cfb-quota-replenish-ack","cfbd-endpoint-audit",
+       // Research-only historical CORE reconstruct (authorized operator path).
+       "cfb-core-historical-reconstruct"].includes(job);
     runEnv.cfbdNetworkAuthorized = scheduledOwner || manualOwner;
     runEnv.cfbdCacheOnly = !runEnv.cfbdNetworkAuthorized;
     // Basketball draws on the same subscription. No unowned CBBD HTTP on

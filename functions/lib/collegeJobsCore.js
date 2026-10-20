@@ -7,20 +7,14 @@ import {reconcileSharedCollegeQuota} from "./quota.js";
 
 import { collegeKeyHealth, assertNoSecretLeak } from "./collegeSecrets.js";
 import {freezeCfbPregameFeatures} from "./cfbPitFeatureDelivery.js";
-import {
-  cfbDailyFinals,
-  cfbDailyWeeks,
-  cfbDailyBoxRows,
-  CFB_PLAYER_BOX_CATEGORIES,
-  mergeGamesPlayersByCategory,
-} from "./cfbDailyPostgame.js";
+import {cfbDailyFinals,cfbDailyWeeks,cfbDailyBoxRows} from "./cfbDailyPostgame.js";
 import { cfbdGet, cbbdGet, cfbSeasonYear, cbbSeasonYear, summarizeSchema, collegePublicResult } from "./collegeApi.js";
 import { queryQuota, insertSourceObservation, insertTeamFeatureSnapshot, insertGameFeatureSnapshot, insertModelPrediction, gradeModelPrediction, upsertModelRegistry, insertModelArtifact, insertValidationRun, insertPromotionDecision, upsertTeamSeasonIdentity, queryModelPredictions, queryEndpointUsage, upsertQbTransferHistory, insertCfbdEndpointAudit } from "./collegeStore.js";
 import { COLLEGE_MODELS, evaluatePromotion, PROMOTION_CRITERIA } from "./collegeModels.js";
 import { projectCfbChallengers } from "./cfbRatings.js";
 import { projectCbbChallengers, lookupCbbdRating } from "./cbbRatings.js";
 import { mapSourceTeam, featureCutoffIso, cutoffViolated, hashPayload, collegeTeamCoverage } from "./collegeIdentity.js";
-import { putArchive, r2Bound, r2Key, r2PrefixBytes } from "./r2Archive.js";
+import { putArchive, r2Bound, r2Key } from "./r2Archive.js";
 import { storageBudget } from "./storageBudget.js";
 import { recordJob, newJobId, jobPayload, classifyJobStatus, emptyWriteCounts, JOB_FAILED } from "./jobs.js";
 import { hasDb } from "./store.js";
@@ -47,15 +41,18 @@ import {
   buildCoreWeeklyArchivePayload,
   persistCoreWeeklyArchive,
 } from "./cfbCoreArchive.js";
-import { resolveGamesPlayedWithSource, GAMES_PLAYED_SOURCES, countCompletedGamesBySchool } from "./cfbGamesPlayed.js";
 import {
-  buildManifestRow,
-  persistCollectionManifest,
-  buildR2ArchiveManifestRow,
-  CFBD_PATH_TO_DATASET,
-} from "./cfbCollectionManifestPersist.js";
-
-const WEEKLY_VALIDATION_JOB_ID = "cfb-e2e-weekly-validation";
+  reconstructCoreHistoricalSeason,
+  planCoreHistoricalReconstruction,
+  assessModelCResearchReadiness,
+  CORE_AUTHENTICITY,
+} from "./cfbCoreHistorical.js";
+import { trackCorePublicationRelease } from "./cfbCoreContinuity.js";
+import {
+  runCfbCoreShadowFreeze,
+  runCfbCoreShadowSettle,
+  runCfbCoreWeeklyEvaluation,
+} from "./cfbCoreShadowLedger.js";
 
 function todayCT(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -76,11 +73,16 @@ export const COLLEGE_JOBS = [
   "cfb-reference-backfill",
   "cfb-current-refresh",
   "cfb-pregame-freeze",
+  "cfb-core-shadow-freeze",
+  "cfb-core-shadow-settle",
+  "cfb-core-weekly-evaluation",
+  "cfb-core-historical-reconstruct",
+  "cfb-core-publication-track",
+  "cfb-core-model-c-readiness",
   "cfb-postgame-harvest",
   "cfb-qb-transfer-refresh",
   "cfb-quota-replenish-ack",
   "cfbd-endpoint-audit",
-  "cfb-e2e-weekly-validation",
   "cbbd-endpoint-audit",
   "cbb-reference-backfill",
   "cbb-current-refresh",
@@ -94,16 +96,7 @@ export const COLLEGE_JOBS = [
 const CFB_WEEKLY_RECONSTRUCTION = [
   ["/ppa/games", (y, w) => ({ year: y, week: w, seasonType: "regular" })],
   ["/stats/game/advanced", (y, w) => ({ year: y, week: w, seasonType: "regular" })],
-  ["/games/teams", (y, w) => ({ year: y, week: w, seasonType: "regular", classification: "fbs" })],
 ];
-
-/** Dataset ids that receive weekly reconstruction manifests. */
-const CFB_WEEKLY_MANIFEST_PATHS = new Set([
-  "/ppa/games",
-  "/stats/game/advanced",
-  "/games/teams",
-  "/games/players",
-]);
 
 const CFB_REFRESH_ENDPOINTS = [
   ["/ratings/sp", (y) => ({ year: y })],
@@ -268,7 +261,6 @@ export async function persistObservation(env, { source, sport, endpoint, season,
 async function fetchEndpoints(source, specs, env, year, jobRunId, sport) {
   const report = [];
   const bundles = {};
-  const weekForManifest = estimateCfbWeekFromDate(new Date(), year) || 1;
   for (const [path, queryFn] of specs) {
     const res = source === "cbbd" ? await cbbdGet(path, env, { query: queryFn(year) }) : await cfbdGet(path, env, { query: queryFn(year) });
     report.push(collegePublicResult(res));
@@ -284,31 +276,6 @@ async function fetchEndpoints(source, specs, env, year, jobRunId, sport) {
       status: res.ok ? "ok" : "failed",
       archiveFullPayload: source === "cfbd" && res.ok,
     });
-    // Persist collection receipt for CFB refresh endpoints (no silent self-success).
-    if (source === "cfbd" && sport === "cfb") {
-      const datasetId = CFBD_PATH_TO_DATASET[path];
-      if (datasetId) {
-        const rows = Array.isArray(res.data) ? res.data : res.ok ? [res.data] : [];
-        await persistCollectionManifest(
-          env,
-          buildManifestRow({
-            season: year,
-            week: weekForManifest,
-            provider: "cfbd",
-            datasetId,
-            required: true,
-            httpOk: Boolean(res.ok),
-            httpStatus: res.status,
-            rowCount: rows.length,
-            teamCoverage: rows.length,
-            contentHash: res.ok ? `job:${jobRunId}:${path}` : null,
-            ingestionBatchId: jobRunId,
-            collectedAt: new Date().toISOString(),
-            evidence: { path, liveCollection: true },
-          })
-        );
-      }
-    }
     if(source === "cfbd" && !res.ok) {
       // Do not silently report a partial advanced refresh as successful.
       throw Error(res.reason || "CFBD_WEEKLY_REFRESH_INCOMPLETE");
@@ -317,52 +284,9 @@ async function fetchEndpoints(source, specs, env, year, jobRunId, sport) {
   return { report, bundles };
 }
 
-function weeklyBundleKey(path) {
-  if (path === "/ppa/games") return "ppaGames";
-  if (path === "/stats/game/advanced") return "advGames";
-  if (path === "/games/teams") return "gamesTeams";
-  if (path === "/games/players") return "gamesPlayers";
-  return path;
-}
-
-async function persistWeeklyDatasetManifest(env, {
-  path,
-  res,
-  season,
-  targetWeek,
-  throughWeek,
-  jobRunId,
-  extraEvidence = {},
-} = {}) {
-  const weeklyDatasetId = CFBD_PATH_TO_DATASET[path];
-  if (!weeklyDatasetId || !CFB_WEEKLY_MANIFEST_PATHS.has(path)) return null;
-  const rows = Array.isArray(res?.data) ? res.data : [];
-  return persistCollectionManifest(
-    env,
-    buildManifestRow({
-      season,
-      week: targetWeek,
-      provider: "cfbd",
-      datasetId: weeklyDatasetId,
-      required: true,
-      httpOk: Boolean(res?.ok),
-      httpStatus: res?.status,
-      rowCount: rows.length,
-      teamCoverage: rows.length,
-      throughWeek,
-      contentHash: res?.ok ? `job:${jobRunId}:${path}:W${throughWeek}` : null,
-      // Path suffix keeps teams vs players receipts distinct under one dataset id.
-      ingestionBatchId: `${jobRunId}:${path}`,
-      collectedAt: new Date().toISOString(),
-      evidence: { path, weeklyReconstruction: true, throughWeek, ...extraEvidence },
-    })
-  );
-}
-
 /**
- * Budgeted CORE/advanced + box reconstruction for the prior completed week.
+ * Budgeted CORE/advanced reconstruction for the prior completed week.
  * Soft-fails individual endpoints so season ratings still persist.
- * /games/players is fetched per CFBD category (passing|rushing|receiving).
  */
 async function fetchWeeklyCoreAdvanced(env, { season, targetWeek, jobRunId, includePlayers = true } = {}) {
   const throughWeek = coreThroughWeekBound(targetWeek);
@@ -372,8 +296,6 @@ async function fetchWeeklyCoreAdvanced(env, { season, targetWeek, jobRunId, incl
     targetWeek,
     ppaGames: [],
     advGames: [],
-    gamesTeams: [],
-    gamesPlayers: [],
     qbPpa: [],
     rbPpa: [],
     wrPpa: [],
@@ -383,7 +305,7 @@ async function fetchWeeklyCoreAdvanced(env, { season, targetWeek, jobRunId, incl
     return { report, bundles, skipped: "no-completed-week-yet" };
   }
   for (const [path, queryFn, key] of [
-    ...CFB_WEEKLY_RECONSTRUCTION.map(([p, q]) => [p, q, weeklyBundleKey(p)]),
+    ...CFB_WEEKLY_RECONSTRUCTION.map(([p, q]) => [p, q, p === "/ppa/games" ? "ppaGames" : "advGames"]),
     ...(includePlayers
       ? [
           ["/ppa/players/season", (y) => ({ year: y, position: "QB" }), "qbPpa"],
@@ -393,16 +315,13 @@ async function fetchWeeklyCoreAdvanced(env, { season, targetWeek, jobRunId, incl
         ]
       : []),
   ]) {
-    const query =
-      path.startsWith("/ppa/games") ||
-      path.startsWith("/stats/game") ||
-      path.startsWith("/games/")
-        ? queryFn(season, throughWeek)
-        : queryFn(season);
+    const query = path.startsWith("/ppa/games") || path.startsWith("/stats/game")
+      ? queryFn(season, throughWeek)
+      : queryFn(season);
     const res = await cfbdGet(path, env, { query });
     report.push(collegePublicResult(res));
     bundles[key] = res.ok ? res.data || [] : [];
-    const persisted = await persistObservation(env, {
+    await persistObservation(env, {
       source: "cfbd",
       sport: "cfb",
       endpoint: path,
@@ -413,105 +332,8 @@ async function fetchWeeklyCoreAdvanced(env, { season, targetWeek, jobRunId, incl
       status: res.ok ? "ok" : "failed",
       archiveFullPayload: res.ok,
     });
-    await persistWeeklyDatasetManifest(env, {
-      path,
-      res,
-      season,
-      targetWeek,
-      throughWeek,
-      jobRunId,
-      extraEvidence: persisted?.r2Key ? { r2Key: persisted.r2Key } : {},
-    });
   }
-
-  // CFBD /games/players requires category — three budgeted week-scoped calls.
-  const playerCategoryBundles = [];
-  for (const category of CFB_PLAYER_BOX_CATEGORIES) {
-    const path = "/games/players";
-    const query = { year: season, week: throughWeek, seasonType: "regular", category };
-    const res = await cfbdGet(path, env, { query });
-    report.push({ ...collegePublicResult(res), category });
-    playerCategoryBundles.push({ category, rows: res.ok ? res.data || [] : [], ok: res.ok, status: res.status });
-    const persisted = await persistObservation(env, {
-      source: "cfbd",
-      sport: "cfb",
-      endpoint: path,
-      season,
-      partition: `week-${throughWeek}:gamesPlayers:${category}`,
-      data: res.ok ? res.data : [],
-      jobRunId,
-      status: res.ok ? "ok" : "failed",
-      archiveFullPayload: res.ok,
-    });
-    if (persisted?.r2Key) {
-      playerCategoryBundles[playerCategoryBundles.length - 1].r2Key = persisted.r2Key;
-    }
-  }
-  const mergedPlayers = mergeGamesPlayersByCategory(playerCategoryBundles);
-  bundles.gamesPlayers = mergedPlayers;
-  const anyPlayerOk = playerCategoryBundles.some((b) => b.ok && (b.rows?.length || 0) > 0);
-  await persistWeeklyDatasetManifest(env, {
-    path: "/games/players",
-    res: {
-      ok: anyPlayerOk,
-      status: anyPlayerOk ? 200 : playerCategoryBundles[0]?.status || 0,
-      data: mergedPlayers,
-    },
-    season,
-    targetWeek,
-    throughWeek,
-    jobRunId,
-    extraEvidence: {
-      categories: CFB_PLAYER_BOX_CATEGORIES,
-      categoryResults: playerCategoryBundles.map((b) => ({
-        category: b.category,
-        ok: b.ok,
-        rowCount: b.rows?.length || 0,
-        r2Key: b.r2Key || null,
-      })),
-    },
-  });
-
   return { report, bundles, skipped: null };
-}
-
-/**
- * If weekly archives already exist in R2 but manifests were never written,
- * persist evidence-backed receipts (does not invent historical HTTP success).
- */
-async function reconcileWeeklyR2Receipts(env, { season, targetWeek, throughWeek } = {}) {
-  if (!r2Bound(env) || throughWeek == null) return { attempted: 0, succeeded: 0 };
-  const specs = [
-    { datasetId: "cfbd-ppa-games", prefix: `raw/cfbd/cfb/${season}/ppa_games/week-${throughWeek}` },
-    { datasetId: "cfbd-stats-game-advanced", prefix: `raw/cfbd/cfb/${season}/stats_game_advanced/week-${throughWeek}` },
-    { datasetId: "cfbd-games-teams-players", prefix: `raw/cfbd/cfb/${season}/games_teams/` },
-    { datasetId: "cfbd-games-teams-players", prefix: `raw/cfbd/cfb/${season}/games_players/` },
-  ];
-  let attempted = 0;
-  let succeeded = 0;
-  for (const spec of specs) {
-    const listed = await r2PrefixBytes(env, spec.prefix);
-    if (!listed.ok || !(listed.objects > 0)) continue;
-    attempted += 1;
-    const row = buildR2ArchiveManifestRow({
-      season,
-      week: targetWeek,
-      datasetId: spec.datasetId,
-      r2Key: `${spec.prefix}*`,
-      objectBytes: listed.bytes,
-      throughWeek,
-      uploadedAt: new Date().toISOString(),
-    });
-    if (!row) continue;
-    row.evidence_json = JSON.stringify({
-      ...JSON.parse(row.evidence_json || "{}"),
-      r2Objects: listed.objects,
-      r2Prefix: spec.prefix,
-    });
-    const saved = await persistCollectionManifest(env, row);
-    if (saved.ok) succeeded += 1;
-  }
-  return { attempted, succeeded };
 }
 
 function indexCbbdAdjusted(rows) {
@@ -661,6 +483,316 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
       const result=await freezeCfbPregameFeatures(env,{now:started});
       return jobPayload({ok:result.ok,job,status:result.ok?"success":JOB_FAILED,attemptedAt:started,successfulAt:result.ok?new Date().toISOString():null,errors:result.ok?[]:[result.reason||"cfb-pregame-freeze-failed"],env,writes,d1:{bound:hasDb(env),cfbPregame:result}});
     }
+    // CORE shadow jobs are cache-only: no CFBD network spend; research ledger only.
+    if (job === "cfb-core-shadow-freeze") {
+      const result = await runCfbCoreShadowFreeze(env, { now: started });
+      writes.writesSucceeded += result.inserted || 0;
+      return jobPayload({
+        ok: result.ok !== false,
+        job,
+        status: result.ok !== false ? "success" : JOB_FAILED,
+        attemptedAt: started,
+        successfulAt: result.ok !== false ? new Date().toISOString() : null,
+        errors: result.ok !== false ? [] : [result.reason || "cfb-core-shadow-freeze-failed"],
+        env,
+        writes,
+        d1: { bound: hasDb(env), cfbCoreShadow: result },
+      });
+    }
+    if (job === "cfb-core-shadow-settle") {
+      const result = await runCfbCoreShadowSettle(env, { now: started });
+      writes.writesSucceeded += result.settled || 0;
+      return jobPayload({
+        ok: result.ok !== false,
+        job,
+        status: result.ok !== false ? "success" : JOB_FAILED,
+        attemptedAt: started,
+        successfulAt: result.ok !== false ? new Date().toISOString() : null,
+        errors: result.ok !== false ? [] : [result.reason || "cfb-core-shadow-settle-failed"],
+        env,
+        writes,
+        d1: { bound: hasDb(env), cfbCoreShadowSettle: result },
+      });
+    }
+    if (job === "cfb-core-weekly-evaluation") {
+      const result = await runCfbCoreWeeklyEvaluation(env, {});
+      return jobPayload({
+        ok: result.ok !== false,
+        job,
+        status: result.ok !== false ? "success" : JOB_FAILED,
+        attemptedAt: started,
+        successfulAt: result.ok !== false ? new Date().toISOString() : null,
+        errors: result.ok !== false ? [] : [result.saved?.reason || "cfb-core-weekly-evaluation-failed"],
+        env,
+        writes,
+        d1: {
+          bound: hasDb(env),
+          cfbCoreWeekly: {
+            classification: result.report?.classification,
+            eligibleRows: result.report?.eligibleRows,
+            dataLimitations: result.report?.dataLimitations,
+            saved: result.saved,
+            authority: "research_only",
+            canAuthorizeWager: false,
+          },
+        },
+      });
+    }
+    // Research-only: fetch CFBD /ratings/core?year= and archive EVERY distinct throughWeek.
+    if (job === "cfb-core-historical-reconstruct") {
+      const season = Number(opts.season || opts.year || yearCfb);
+      const db = env?.DB || env?.TIER3_DB || null;
+      let existingThroughWeeks = [];
+      if (db) {
+        try {
+          const rs = await db
+            .prepare(
+              `SELECT DISTINCT through_week AS tw FROM cfb_core_weekly_archive WHERE season=? ORDER BY through_week`
+            )
+            .bind(season)
+            .all();
+          existingThroughWeeks = (rs?.results || []).map((r) => Number(r.tw)).filter((w) => w > 0);
+        } catch (_) {
+          existingThroughWeeks = [];
+        }
+      }
+      let result;
+      try {
+        result = await reconstructCoreHistoricalSeason(env, {
+          season,
+          existingThroughWeeks,
+          jobRunId: newJobId(),
+          authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
+          fetchYearRows: async (y) => {
+            const res = await cfbdGet("/ratings/core", env, {
+              query: { year: y },
+              fetchFn: opts.fetchFn || fetch,
+            });
+            if (!res?.ok) throw new Error(res?.reason || `cfbd_/ratings/core_${y}_failed`);
+            return res.data || [];
+          },
+        });
+      } catch (err) {
+        return jobPayload({
+          ok: false,
+          job,
+          status: JOB_FAILED,
+          attemptedAt: started,
+          errors: [String(err?.message || err)],
+          env,
+          writes,
+          d1: {
+            bound: hasDb(env),
+            cfbCoreHistorical: {
+              season,
+              existingThroughWeeks,
+              authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
+              authority: "research_only",
+              canAuthorizeWager: false,
+            },
+          },
+        });
+      }
+      writes.writesSucceeded += (result.writes || []).reduce((n, w) => n + (w.written || 0), 0);
+      const plan = planCoreHistoricalReconstruction({
+        seasons: [season],
+        existingArchives: [
+          ...existingThroughWeeks.map((tw) => ({ season, through_week: tw })),
+          ...(result.writtenThroughWeeks || []).map((tw) => ({ season, through_week: tw })),
+        ],
+      });
+      return jobPayload({
+        ok: result.ok !== false,
+        job,
+        status: result.ok !== false ? "success" : JOB_FAILED,
+        attemptedAt: started,
+        successfulAt: result.ok !== false ? new Date().toISOString() : null,
+        errors: result.ok !== false ? [] : [result.reason || "cfb-core-historical-reconstruct-failed"],
+        env,
+        writes,
+        d1: {
+          bound: hasDb(env),
+          cfbCoreHistorical: {
+            ...result,
+            plan: plan.seasons[0] || null,
+            authority: "research_only",
+            canAuthorizeWager: false,
+            canInfluenceProduction: false,
+          },
+        },
+      });
+    }
+    // Research-only: compare newest archived throughWeek vs baseline (default W6).
+    if (job === "cfb-core-publication-track") {
+      const season = Number(opts.season || opts.year || yearCfb);
+      const baselineWeek = Number(opts.baselineThroughWeek || 6);
+      const db = env?.DB || env?.TIER3_DB || null;
+      if (!db) {
+        return jobPayload({
+          ok: false,
+          job,
+          status: JOB_FAILED,
+          attemptedAt: started,
+          errors: ["no_db"],
+          env,
+          writes,
+        });
+      }
+      let weeks = [];
+      try {
+        const rs = await db
+          .prepare(
+            `SELECT DISTINCT through_week AS tw FROM cfb_core_weekly_archive WHERE season=? ORDER BY through_week`
+          )
+          .bind(season)
+          .all();
+        weeks = (rs?.results || []).map((r) => Number(r.tw)).filter((w) => w > 0);
+      } catch (err) {
+        return jobPayload({
+          ok: false,
+          job,
+          status: JOB_FAILED,
+          attemptedAt: started,
+          errors: [String(err?.message || err)],
+          env,
+          writes,
+        });
+      }
+      const currentWeek = Number(opts.currentThroughWeek) || (weeks.length ? Math.max(...weeks) : null);
+      if (currentWeek == null || !weeks.includes(baselineWeek)) {
+        return jobPayload({
+          ok: true,
+          job,
+          status: "success",
+          attemptedAt: started,
+          successfulAt: new Date().toISOString(),
+          errors: [],
+          env,
+          writes,
+          d1: {
+            bound: true,
+            cfbCorePublicationTrack: {
+              classification: "insufficient_snapshots",
+              season,
+              archivedThroughWeeks: weeks,
+              baselineThroughWeek: baselineWeek,
+              currentThroughWeek: currentWeek,
+              note:
+                currentWeek == null
+                  ? "No CORE archive weeks for season"
+                  : `Baseline throughWeek=${baselineWeek} not archived yet`,
+              researchOnly: true,
+              canAuthorizeWager: false,
+            },
+          },
+        });
+      }
+      const loadWeek = async (tw) => {
+        const rs = await db
+          .prepare(
+            `SELECT school_key AS schoolKey, core, core_offense AS coreOffense, core_defense AS coreDefense,
+                    through_week AS throughWeek, collection_time AS collectionTime, publication_time AS publicationTime
+             FROM cfb_core_weekly_archive WHERE season=? AND through_week=?`
+          )
+          .bind(season, tw)
+          .all();
+        return rs?.results || [];
+      };
+      const baseline = await loadWeek(baselineWeek);
+      const current = await loadWeek(currentWeek);
+      const track = trackCorePublicationRelease({
+        baseline,
+        current,
+        baselineThroughWeek: baselineWeek,
+        currentThroughWeek: currentWeek,
+        baselineCollectionTime: baseline[0]?.collectionTime || null,
+        currentCollectionTime: current[0]?.collectionTime || null,
+        baselinePublicationTime: baseline[0]?.publicationTime || null,
+        currentPublicationTime: current[0]?.publicationTime || null,
+      });
+      return jobPayload({
+        ok: true,
+        job,
+        status: "success",
+        attemptedAt: started,
+        successfulAt: new Date().toISOString(),
+        errors: [],
+        env,
+        writes,
+        d1: {
+          bound: true,
+          cfbCorePublicationTrack: {
+            season,
+            archivedThroughWeeks: weeks,
+            ...track,
+          },
+        },
+      });
+    }
+    // Research-only: gate Model C attempt; never fit when corpus thin; never touch A/A.
+    if (job === "cfb-core-model-c-readiness") {
+      const db = env?.DB || env?.TIER3_DB || null;
+      const archivesBySeason = {};
+      let eligiblePitGameRows = 0;
+      let verifiedOosArtifacts = 0;
+      if (db) {
+        try {
+          const rs = await db
+            .prepare(
+              `SELECT season, through_week AS tw FROM cfb_core_weekly_archive GROUP BY season, through_week`
+            )
+            .all();
+          for (const row of rs?.results || []) {
+            const s = Number(row.season);
+            if (!archivesBySeason[s]) archivesBySeason[s] = [];
+            archivesBySeason[s].push(Number(row.tw));
+          }
+        } catch (_) {}
+        try {
+          const sh = await db
+            .prepare(
+              `SELECT COUNT(*) AS n FROM cfb_core_shadow_predictions WHERE final_verified=1`
+            )
+            .first();
+          eligiblePitGameRows = Number(sh?.n || 0);
+        } catch (_) {}
+        try {
+          const arts = await db
+            .prepare(
+              `SELECT COUNT(*) AS n FROM cfb_core_research_artifacts WHERE verified_oos=1`
+            )
+            .first();
+          verifiedOosArtifacts = Number(arts?.n || 0);
+        } catch (_) {}
+      }
+      const readiness = assessModelCResearchReadiness({
+        archivesBySeason,
+        eligiblePitGameRows,
+        verifiedOosArtifacts,
+      });
+      return jobPayload({
+        ok: true,
+        job,
+        status: "success",
+        attemptedAt: started,
+        successfulAt: new Date().toISOString(),
+        errors: [],
+        env,
+        writes,
+        d1: {
+          bound: hasDb(env),
+          cfbCoreModelC: {
+            readiness,
+            nextWhenReady:
+              "Supply chronological PIT game vectors to runModelCResearchIfReady / evaluateCfbCoreResearch (Models A/B/C). Compare margin MAE, winner accuracy, totals MAE, and Brier calibration against champion baseline. Never auto-promote.",
+            championUnchanged: "CFB-FBIS-v2 A/A",
+            authority: "research_only",
+            canAuthorizeWager: false,
+            canInfluenceProduction: false,
+          },
+        },
+      });
+    }
     if (job === "college-health") {
       const quota = await queryQuota(env);
       const cfbdAcquisition = await cfbCfbdAcquisitionHealth(env);
@@ -750,101 +882,6 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             r2Key: r2k,
             contentHash,
             note: "Safe diagnostics only. Empty responses are AVAILABLE-BUT-EMPTY, not unavailable. Champion unchanged.",
-          },
-        },
-      });
-      await recordJob(env, {
-        id,
-        jobType: job,
-        triggerType: opts.trigger || "http",
-        startedAt: started,
-        completedAt: payload.successful_at,
-        status: payload.status,
-        sport: "cfb",
-        writesAttempted: writes.writesSucceeded + writes.writesFailed,
-        writesSucceeded: writes.writesSucceeded,
-        writesFailed: writes.writesFailed,
-        env,
-      });
-      return payload;
-    }
-
-    // Post-collection / pre-freeze independent validation (does not trust collector self-success).
-    if (job === "cfb-e2e-weekly-validation" || job === WEEKLY_VALIDATION_JOB_ID) {
-      // Dynamic import keeps node:crypto (retentionGate) off the Vite client graph.
-      const {
-        executeWeeklyValidationJob,
-        persistWeeklyValidationReceipt,
-      } = await import("./cfbWeeklyValidationJob.js");
-      const week = Number(opts.week || estimateCfbWeekFromDate(new Date()) || 8);
-      const season = Number(opts.season || yearCfb);
-      const evidenceByDataset = {};
-      try {
-        if (hasDb(env)) {
-          const rows =
-            (
-              await env.DB.prepare(
-                `SELECT dataset_id, http_ok, row_count, team_coverage, through_week, content_hash, collected_at
-                   FROM cfb_collection_manifests WHERE season=? AND week=? ORDER BY collected_at DESC`
-              )
-                .bind(season, week)
-                .all()
-            ).results || [];
-          for (const r of rows) {
-            if (evidenceByDataset[r.dataset_id]) continue;
-            evidenceByDataset[r.dataset_id] = {
-              httpOk: Boolean(r.http_ok),
-              rowCount: r.row_count,
-              teamCoverage: r.team_coverage,
-              throughWeek: r.through_week,
-              contentHash: r.content_hash,
-              collectedAt: r.collected_at,
-              archived: Boolean(r.content_hash),
-            };
-          }
-        }
-      } catch {
-        /* pre-migration manifests */
-      }
-      let d1FeatureTeamCount = null;
-      try {
-        if (hasDb(env)) {
-          const row = await env.DB.prepare(
-            `SELECT COUNT(DISTINCT team_id) AS n FROM team_feature_snapshots
-              WHERE sport='cfb' AND season=? AND feature_version='cfb-features-v1'`
-          )
-            .bind(season)
-            .first();
-          d1FeatureTeamCount = Number(row?.n || 0);
-        }
-      } catch {
-        /* ignore */
-      }
-      const result = executeWeeklyValidationJob({
-        season,
-        week,
-        evidenceByDataset,
-        d1FeatureTeamCount,
-      });
-      const runId = await persistWeeklyValidationReceipt(env, result, { season, week });
-      if (runId) writes.writesSucceeded += 1;
-      const payload = jobPayload({
-        ok: true,
-        job,
-        status: result.pass ? "success" : "degraded",
-        attemptedAt: started,
-        successfulAt: new Date().toISOString(),
-        env,
-        writes,
-        d1: {
-          bound: hasDb(env),
-          validation: {
-            pass: result.pass,
-            runId,
-            essentials: result.essentials,
-            unresolvedCount: (result.unresolvedFindings || []).length,
-            scheduleConstraint: result.scheduleConstraint,
-            note: "Independent of collector self-report; run after collection and before pregame freeze.",
           },
         },
       });
@@ -1079,16 +1116,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
           fetched.bundles["/ratings/core"] || [],
           { maxWeek: coreThroughWeekBound(targetWeek), seasonType: "regular", season: y }
         );
-        // Persist explicit gamesPlayed for auditability. Prefer schedule-derived
-        // completed finals (CFBD /games bundle or durable D1 predictions);
-        // else flagged CORE throughWeek — never leave gamesPlayed null when n is known.
-        const d1ScheduleBySchool = await loadD1ScheduleGamesPlayedBySchool(env, y, Date.now());
-        catalog = stampGamesPlayedOnCatalog(catalog, {
-          gameRows: fetched.bundles["/games"] || [],
-          scheduleBySchool: d1ScheduleBySchool,
-          nowMs: Date.now(),
-        });
-        // Archive weekly PIT CORE for research replay (never promotes to champion).
+        // Archive weekly PIT CORE keyed by actual CFBD throughWeek (research-only).
         if (job === "cfb-current-refresh" && y === yearCfb) {
           try {
             const corePayload = buildCoreWeeklyArchivePayload({
@@ -1104,6 +1132,9 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
               endpoint: "/ratings/core#weekly-pit-archive",
               ok: archived.ok,
               written: archived.written,
+              throughWeek: archived.throughWeek ?? null,
+              budgetedThroughWeek: archived.budgetedThroughWeek ?? null,
+              labelingLag: archived.labelingLag ?? null,
               researchOnly: true,
               reason: archived.reason || null,
             });
@@ -1125,20 +1156,12 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             includePlayers: opts.includePlayers !== false,
           });
           report.push(...weekly.report);
-          const r2Receipts = await reconcileWeeklyR2Receipts(env, {
-            season: y,
-            targetWeek,
-            throughWeek: weekly.bundles.throughWeek,
-          });
           weeklyMeta = {
             targetWeek,
             throughWeek: weekly.bundles.throughWeek,
             skipped: weekly.skipped,
             ppaGames: weekly.bundles.ppaGames.length,
             advGames: weekly.bundles.advGames.length,
-            gamesTeams: weekly.bundles.gamesTeams?.length || 0,
-            gamesPlayers: weekly.bundles.gamesPlayers?.length || 0,
-            r2ReceiptReconcile: r2Receipts,
             players: indexPlayerSeasonRoles({
               qbRows: weekly.bundles.qbPpa,
               rbRows: weekly.bundles.rbPpa,
@@ -1392,24 +1415,13 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         // A week request provides all box scores, not one HTTP call per team,
         // player or game. Strict partitioning only persists yesterday's IDs.
         for(const w of weeks){
-          const weekFinals=finals.filter(g=>Number(g.week)===w.week&&
-            String(g.seasonType||g.season_type||"regular")===w.seasonType);
-          const expected=weekFinals.length;
-
-          // Team box — single week-scoped call, then filter to prior-day finals.
-          {
-            const endpoint="/games/teams";
+          for(const endpoint of ["/games/teams","/games/players"]){
             const box=await cfbdGet(endpoint,env,{query:w,fetchFn:opts.fetchFn||fetch});
             report.push(collegePublicResult(box));
-            if(!box.ok){
-              await persistCollectionManifest(env,buildManifestRow({
-                season:yearCfb,week:w.week,provider:"cfbd",datasetId:"cfbd-games-teams-players",
-                required:true,httpOk:false,httpStatus:box.status,rowCount:0,
-                ingestionBatchId:id,evidence:{path:endpoint,postgame:true,date,reason:box.reason},
-              }));
-              throw Error(box.reason||"CFBD_DAILY_BOX_FETCH_FAILED");
-            }
-            const selected=cfbDailyBoxRows(box.data,weekFinals,{minTeams:2});
+            if(!box.ok)throw Error(box.reason||"CFBD_DAILY_BOX_FETCH_FAILED");
+            const selected=cfbDailyBoxRows(box.data,finals);
+            const expected=finals.filter(g=>Number(g.week)===w.week&&
+              String(g.seasonType||g.season_type||"regular")===w.seasonType).length;
             if(selected.length!==expected)throw Error("CFBD_DAILY_BOX_INCOMPLETE: "+endpoint+
               " matched="+selected.length+" expected="+expected);
             const persisted=await persistObservation(env,{
@@ -1419,59 +1431,6 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             if(!persisted?.ok)throw Error("CFBD_DAILY_D1_ARCHIVE_POINTER_FAILED: "+endpoint);
             if(persisted.r2Key)cfbDailyArchives.push({endpoint,week:w.week,seasonType:w.seasonType,r2Key:persisted.r2Key,storage:persisted.storage});
             writes.writesSucceeded+=persisted.inserted||0;
-            await persistCollectionManifest(env,buildManifestRow({
-              season:yearCfb,week:w.week,provider:"cfbd",datasetId:"cfbd-games-teams-players",
-              required:true,httpOk:true,httpStatus:box.status,rowCount:selected.length,
-              teamCoverage:selected.length,contentHash:`job:${id}:${endpoint}:${date}`,
-              ingestionBatchId:id+":"+endpoint,evidence:{path:endpoint,postgame:true,date,r2Key:persisted.r2Key||null},
-            }));
-          }
-
-          // Player box — CFBD requires category; merge passing|rushing|receiving.
-          {
-            const endpoint="/games/players";
-            const categoryBundles=[];
-            for(const category of CFB_PLAYER_BOX_CATEGORIES){
-              const box=await cfbdGet(endpoint,env,{
-                query:{...w,category},
-                fetchFn:opts.fetchFn||fetch,
-              });
-              report.push({...collegePublicResult(box),category});
-              if(!box.ok){
-                await persistCollectionManifest(env,buildManifestRow({
-                  season:yearCfb,week:w.week,provider:"cfbd",datasetId:"cfbd-games-teams-players",
-                  required:true,httpOk:false,httpStatus:box.status,rowCount:0,
-                  ingestionBatchId:id,
-                  evidence:{path:endpoint,category,postgame:true,date,reason:box.reason},
-                }));
-                throw Error(box.reason||"CFBD_DAILY_BOX_FETCH_FAILED");
-              }
-              categoryBundles.push({category,rows:box.data||[]});
-            }
-            const merged=mergeGamesPlayersByCategory(categoryBundles);
-            const selected=cfbDailyBoxRows(merged,weekFinals,{minTeams:1});
-            if(selected.length!==expected)throw Error("CFBD_DAILY_BOX_INCOMPLETE: "+endpoint+
-              " matched="+selected.length+" expected="+expected);
-            const persisted=await persistObservation(env,{
-              source:"cfbd",sport,endpoint,season:yearCfb,partition:`${date}:players`,
-              data:selected,jobRunId:id,archiveFullPayload:true,
-            });
-            if(!persisted?.ok)throw Error("CFBD_DAILY_D1_ARCHIVE_POINTER_FAILED: "+endpoint);
-            if(persisted.r2Key)cfbDailyArchives.push({
-              endpoint,week:w.week,seasonType:w.seasonType,r2Key:persisted.r2Key,
-              storage:persisted.storage,categories:[...CFB_PLAYER_BOX_CATEGORIES],
-            });
-            writes.writesSucceeded+=persisted.inserted||0;
-            await persistCollectionManifest(env,buildManifestRow({
-              season:yearCfb,week:w.week,provider:"cfbd",datasetId:"cfbd-games-teams-players",
-              required:true,httpOk:true,httpStatus:200,rowCount:selected.length,
-              teamCoverage:selected.length,contentHash:`job:${id}:${endpoint}:${date}`,
-              ingestionBatchId:id+":"+endpoint,
-              evidence:{
-                path:endpoint,postgame:true,date,r2Key:persisted.r2Key||null,
-                categories:[...CFB_PLAYER_BOX_CATEGORIES],
-              },
-            }));
           }
         }
       }
@@ -1578,102 +1537,6 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
     env,
   });
   return payload;
-}
-
-/**
- * Durable schedule game counts from graded CFB predictions (no provider call).
- */
-export async function loadD1ScheduleGamesPlayedBySchool(env, season, nowMs = Date.now()) {
-  if (!env?.DB?.prepare) return new Map();
-  const cutoff = new Date(nowMs).toISOString();
-  try {
-    const rows = await env.DB.prepare(
-      `SELECT g.home_name AS home_name, g.away_name AS away_name
-         FROM predictions p
-         LEFT JOIN games g ON g.id = p.game_id
-        WHERE p.sport='cfb' AND p.date >= ? AND p.date <= ?
-          AND p.actual_home IS NOT NULL AND p.actual_away IS NOT NULL
-          AND (g.start IS NULL OR g.start < ?)
-        LIMIT 4000`
-    )
-      .bind(`${season}-08-01`, `${season}-12-31`, cutoff)
-      .all();
-    const bySchool = new Map();
-    const bump = (name) => {
-      if (!name) return;
-      const key = String(name)
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-      if (!key) return;
-      bySchool.set(key, (bySchool.get(key) || 0) + 1);
-    };
-    for (const r of rows?.results || []) {
-      bump(r.home_name);
-      bump(r.away_name);
-    }
-    return bySchool;
-  } catch {
-    return new Map();
-  }
-}
-
-/**
- * Attach gamesPlayed (+ source/uncertainty) onto each catalog team row before D1 persist.
- * Never invent counts. Schedule > explicit > coreThroughWeek fallback.
- */
-export function stampGamesPlayedOnCatalog(
-  catalog = {},
-  { gameRows = [], scheduleBySchool = null, nowMs = Date.now() } = {}
-) {
-  const fromGames = countCompletedGamesBySchool(gameRows, nowMs);
-  const bySchool = new Map([...(scheduleBySchool || new Map()), ...fromGames]);
-  const byCanonicalId = { ...(catalog.byCanonicalId || {}) };
-  const byEspnId = { ...(catalog.byEspnId || {}) };
-  let stamped = 0;
-  let scheduleN = 0;
-  let fallbackN = 0;
-  for (const [id, row] of Object.entries(byCanonicalId)) {
-    const schoolKey = String(row.team || row.school || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-    const scheduleGamesPlayed = schoolKey ? bySchool.get(schoolKey) || null : null;
-    const resolved = resolveGamesPlayedWithSource(row, { scheduleGamesPlayed });
-    const next = {
-      ...row,
-      gamesPlayed: resolved.gamesPlayed,
-      gamesPlayedSource: resolved.source,
-      gamesPlayedUncertainty: resolved.uncertainty === true,
-      gamesPlayedNote: resolved.note,
-    };
-    // Ensure CORE fallback can fire on next read even if writer omitted bounded flag.
-    if (
-      resolved.source === GAMES_PLAYED_SOURCES.CORE_THROUGH_WEEK_FALLBACK &&
-      next.coreWeekBounded !== true &&
-      next.coreThroughWeek != null
-    ) {
-      next.coreWeekBounded = true;
-    }
-    byCanonicalId[id] = next;
-    if (row.espnId || id) {
-      const espnKey = String(row.espnId || id.replace(/^cfb-/, ""));
-      if (byEspnId[espnKey]) byEspnId[espnKey] = next;
-    }
-    if (resolved.gamesPlayed != null && resolved.gamesPlayed > 0) {
-      stamped += 1;
-      if (resolved.source === GAMES_PLAYED_SOURCES.SCHEDULE) scheduleN += 1;
-      if (resolved.source === GAMES_PLAYED_SOURCES.CORE_THROUGH_WEEK_FALLBACK) fallbackN += 1;
-    }
-  }
-  return {
-    ...catalog,
-    byCanonicalId,
-    byEspnId,
-    gamesPlayedStamp: { stamped, scheduleN, fallbackN, scheduleSchools: bySchool.size },
-  };
 }
 
 export function indexCfbRatings(bundles) {

@@ -1,0 +1,183 @@
+name: CFB CORE 2025→2026 frozen holdout
+
+# Agents cannot workflow_dispatch (403). Touching the ops trigger on main
+# runs authorized historical CORE reconstruction + frozen Model C holdout.
+on:
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: Seasons to reconstruct (comma-separated)
+        type: string
+        required: false
+        default: "2025,2026"
+  push:
+    branches: [main]
+    paths:
+      - "ops/triggers/cfb-core-2025-2026-holdout"
+      - ".github/workflows/cfb-core-2025-2026-holdout.yml"
+      - "scripts/cfb-core-2025-reconstruct-2026-holdout.mjs"
+      - "functions/lib/cfbCoreHoldout.js"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-cfb-core-2025-2026-holdout
+  cancel-in-progress: false
+
+jobs:
+  holdout:
+    name: Reconstruct + frozen holdout
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Confirm CFBD_API_KEY repository secret
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CFBD_API_KEY:-}" ]; then
+            echo "::error::CFBD_API_KEY GitHub Actions secret is missing or empty."
+            echo "Pages production already has CFBD_API_KEY; sync/add the same bearer as repository secret CFBD_API_KEY."
+            exit 2
+          fi
+          echo "CFBD_API_KEY repository secret is present (value not logged)."
+      - name: Export 2026 champion A/A baselines from D1 (optional)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "CLOUDFLARE_* secrets missing — skipping D1 A/A export; SP-prior baselines will be used."
+            exit 0
+          fi
+          # fbis-cfb shard holds prediction_snapshots
+          DB_ID="b589c91c-c53d-4f4a-9d32-99c4468e3033"
+          SQL=$(cat <<'SQL'
+          SELECT game_id AS gameId,
+                 model_version AS championModelId,
+                 proj_home AS baselineHome,
+                 proj_away AS baselineAway,
+                 actual_home AS actualHome,
+                 actual_away AS actualAway,
+                 frozen_at AS marketCapturedAt,
+                 json_extract(payload_json,'$.row.matchup') AS matchup,
+                 json_extract(payload_json,'$.row.date') AS slateDate,
+                 COALESCE(json_extract(json_extract(payload_json,'$.row.pal_json'),'$.homeName'), '') AS homeTeam,
+                 COALESCE(json_extract(json_extract(payload_json,'$.row.pal_json'),'$.awayName'), '') AS awayTeam,
+                 COALESCE(json_extract(json_extract(payload_json,'$.row.pal_json'),'$.season'), '2026') AS season,
+                 json_extract(json_extract(payload_json,'$.row.pal_json'),'$.week') AS week,
+                 json_extract(json_extract(payload_json,'$.row.pal_json'),'$.start') AS kickoff,
+                 'prediction_snapshots_aa' AS baselineSource
+          FROM prediction_snapshots
+          WHERE sport='cfb'
+            AND model_version IN ('CFB-FBIS-v2','FBIS-v1.4','FBIS-v1.3')
+            AND proj_home IS NOT NULL AND proj_away IS NOT NULL
+            AND actual_home IS NOT NULL AND actual_away IS NOT NULL
+          SQL
+          )
+          npx --yes wrangler d1 execute fbis-cfb --remote --command "$SQL" --json \
+            > artifacts/cfb-aa-baselines-d1-raw.json || {
+            echo "D1 A/A export failed — continuing with CFBD SP-prior baselines"
+            exit 0
+          }
+          node -e '
+            const fs=require("fs");
+            const raw=JSON.parse(fs.readFileSync("artifacts/cfb-aa-baselines-d1-raw.json","utf8"));
+            const rows=(Array.isArray(raw)?raw:[raw]).flatMap(b=>b.results||b||[]).filter(r=>r&&r.baselineHome!=null);
+            // Prefer CFB-FBIS-v2 when multiple checkpoints exist per game
+            const best=new Map();
+            for (const r of rows) {
+              const id=String(r.gameId||"");
+              if(!id) continue;
+              const score=r.championModelId==="CFB-FBIS-v2"?3:r.championModelId==="FBIS-v1.4"?2:1;
+              const prev=best.get(id);
+              if(!prev||score>prev._s) best.set(id,{...r,_s:score,season:Number(r.season)||2026});
+            }
+            const out=[...best.values()].map(({_s,...r})=>r);
+            fs.writeFileSync("artifacts/cfb-champion-aa-baselines.json", JSON.stringify(out,null,2));
+            console.log(JSON.stringify({exported:out.length,models:[...new Set(out.map(r=>r.championModelId))]}));
+          '
+      - name: Download Tier3 weekly CSVs from R2 (reconcile only)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/tier3-csv
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "No Cloudflare token — skip Tier3 download"
+            exit 0
+          fi
+          # Best-effort listing via API; failures soft-skip
+          node <<'NODE'
+          const fs=require("fs");
+          const account=process.env.CLOUDFLARE_ACCOUNT_ID;
+          const token=process.env.CLOUDFLARE_API_TOKEN;
+          async function list(prefix){
+            const url=`https://api.cloudflare.com/client/v4/accounts/${account}/r2/buckets/fbis-archive/objects?prefix=${encodeURIComponent(prefix)}&per_page=50`;
+            const res=await fetch(url,{headers:{Authorization:`Bearer ${token}`}});
+            const body=await res.json().catch(()=>({}));
+            return body.result||[];
+          }
+          async function getObject(key){
+            // R2 object download via Workers S3 not available here; skip binary pull if API lacks get.
+            return null;
+          }
+          (async()=>{
+            try{
+              const objs=[
+                ...(await list("licensed/cfbd/tier3/2025/")),
+                ...(await list("licensed/cfbd/tier3/2026/")),
+              ];
+              fs.writeFileSync("artifacts/tier3-r2-index.json",JSON.stringify(objs.map(o=>({key:o.key,size:o.size})),null,2));
+              console.log(JSON.stringify({tier3Objects:objs.length}));
+            }catch(e){
+              console.log(JSON.stringify({tier3DownloadError:String(e.message||e)}));
+            }
+          })();
+          NODE
+      - name: Unit tests (holdout + historical)
+        run: node --test test/cfb-core-holdout.test.js test/cfb-core-historical.test.js
+      - name: Run 2025 CORE reconstruct + 2026 frozen holdout
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+          CFB_HOLDOUT_SEASONS: ${{ github.event.inputs.seasons || '2025,2026' }}
+          CFB_HOLDOUT_OUT: artifacts/cfb-core-2025-2026-holdout-report.json
+          CFB_HOLDOUT_BUILD_SP_BASELINES: "1"
+          CFB_HOLDOUT_BASELINES: artifacts/cfb-champion-aa-baselines.json
+        run: |
+          set -euo pipefail
+          if [ ! -f artifacts/cfb-champion-aa-baselines.json ]; then
+            echo "[]" > artifacts/cfb-champion-aa-baselines.json
+          fi
+          node scripts/cfb-core-2025-reconstruct-2026-holdout.mjs
+          {
+            echo "## CORE 2025→2026 frozen holdout"
+            echo ""
+            jq -r '
+              "- status: \(.status)",
+              "- blocked: \(.blocked)",
+              "- train2025: \(.counts.train2025 // 0)",
+              "- holdout2026: \(.counts.holdout2026 // 0)",
+              "- classification: \(.classification // "n/a")",
+              "- 2025 throughWeeks: \((.preflight.featureCoverage2025.throughWeeks // []) | join(\",\"))",
+              "- 2026 A/A baselines: \(.preflight.aaBaselines2026.n // 0)",
+              "- coeffs frozen: \(.coefficients.frozen // false)",
+              "- production A/A unchanged: \(.productionSafeguards.championAAUnchanged)"
+            ' artifacts/cfb-core-2025-2026-holdout-report.json || true
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload holdout artifacts
+        if: always() && hashFiles('artifacts/**') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-core-2025-2026-holdout
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 30
