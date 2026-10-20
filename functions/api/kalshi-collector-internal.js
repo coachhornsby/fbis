@@ -1,3 +1,6 @@
+import {captureProspectivePropResearch} from '../lib/propProspectiveCapture.js';
+import {independentPropRows} from '../lib/propResearchData.js';
+import {buildSlate} from '../lib/slateEngine.js';
 import {captureNhlProspectiveJob} from "../lib/nhlProspectiveCaptureJob.js";
 import {discoverNhlSourceVerifiedScopes} from "../lib/nhlOfficialScopeDiscovery.js";
 import {runApprovedPropReconciliation} from "../lib/propReconciliationSchedule.js";
@@ -53,6 +56,15 @@ export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypt
   if(scope==="nhl-official-prop-results"){
     try {const r=await captureNhlOfficialPlayerResults(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503);}
     catch {return respond({ok:false,code:"NHL_OFFICIAL_PROP_RESULTS_UNAVAILABLE"},503);}
+  }
+  if(scope==="prop-model-freeze"){
+    try {
+      const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+      const board=await buildSlate('nhl',date,{...env,caches:null,parlayCacheOnly:true,cfbdScheduleFallback:false});
+      const rows=independentPropRows(board);
+      const r=await captureProspectivePropResearch(env,rows,{webCrypto});
+      return respond(r,r.ok?200:503);
+    }catch{return respond({ok:false,code:"PROSPECTIVE_MODEL_CAPTURE_UNAVAILABLE"},503);}
   }
   if(scope==="player-props"){
     try { const r=await captureKalshiPlayerProps(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503); }
