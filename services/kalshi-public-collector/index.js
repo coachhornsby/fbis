@@ -7,6 +7,7 @@
  */
 const PREFIX="kalshi/public-shadow/v1/";
 const SPORTS=["nfl","cfb"];
+const TENNIS_RESEARCH=["atp","wta"];
 const SLOT_MS=15*60*1000;
 const PAGES_ROUTE="https://fbis-myz.pages.dev/api/kalshi-collector-internal";
 const ms=v=>Number.isFinite(Date.parse(v||""))?Date.parse(v):0;
@@ -91,6 +92,17 @@ export async function collectKalshiPublicOnce(env,{now=new Date(),fetchImpl=fetc
   // receipts; a Worker transport failure cannot fabricate provider 429.
   return result;
 }
+/** Add an isolated Tennis shadow rotation every 30 minutes, without
+ * reducing existing NFL/CFB polls. No public card or execution authority.
+ */
+export async function collectKalshiTennisShadowOnce(env,{now=new Date(),fetchImpl=fetch}={}){
+  if(!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
+  const sport=TENNIS_RESEARCH[Math.floor(now.getTime()/(30*60*1000))%2];
+  const previous=await readJson(env.ARCHIVE,"sports/"+sport+"-status.json");
+  if(ms(previous?.attemptedAt)>now.getTime()-60*60*1000)
+    return {ok:false,code:"TENNIS_SHADOW_POLL_NOT_DUE",sport};
+  return relaySignedPages(env,{scope:"markets",sport,fetchImpl});
+}
 export async function collectKalshiExchangeStatusOnce(env,{now=new Date(),fetchImpl=fetch}={}){
   if(!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
   const last=await readJson(env.ARCHIVE,"exchange-status.json");
@@ -109,7 +121,7 @@ export async function collectKalshiSeriesCatalogOnce(env,{now=new Date(),fetchIm
 export default {
   async scheduled(_event,env,ctx){
     ctx.waitUntil(Promise.all([
-      collectKalshiPublicOnce(env),collectKalshiExchangeStatusOnce(env),
+      collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),collectKalshiExchangeStatusOnce(env),
       collectKalshiSeriesCatalogOnce(env),
       relaySignedPages(env,{scope:"qualification-evidence"}),
       relaySignedPages(env,{scope:"player-props"}),
