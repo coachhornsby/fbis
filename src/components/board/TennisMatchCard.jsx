@@ -103,6 +103,14 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <strong>TOURNAMENT CONTEXT</strong> · {t.tournament||t.polymarketGlobalOffers?.[0]?.question?.split(":")[0]||"Official event not linked"} · {t.surface||"Surface unverified"} · {t.round||"Round unverified"}
       {t.polymarketGlobalOffers?.length&&!t.tournament?<span> · Polymarket event label (research only)</span>:null}
     </section>:null}
+    {t.currentServeResearch?.some(Boolean)?<section className="tmc-fixture-note" aria-label="Current-year tennis serve and return match research">
+      <strong>2026 HARD-COURT FORM · SOURCE-DATED RESEARCH</strong>
+      {t.currentServeResearch.filter(Boolean).map(p=><div key={p.sourcePlayerId}>
+        {p.player} · {p.hardCourtMatches} hard matches · Serve points won {pct(p.hardServePointsWon)} · Return points won {pct(p.hardReturnPointsWon)}
+        {p.last10?` · Last 10: ${p.last10.wins}–${p.last10.played-p.last10.wins}`:""} · Results through {p.asOfMatchDate}
+      </div>)}
+      <small>Source: TennisMyLife canonical R2 refresh. Only matches dated before this fixture; unavailable players are omitted. Research metrics do not alter FBIS model probabilities or authorize bets.</small>
+    </section>:null}
     {t.researchFixture?<section className="tmc-fixture-note" aria-label="Independent Tennis exchange market research">
       <strong>MARKETS · POLYMARKET.COM {t.polymarketGlobalOffers?.length||0} · KALSHI {t.kalshiResearchOffers?.length||0}</strong>
       {t.exchangeResearch?.comparisons?.length?<>
