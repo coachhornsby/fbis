@@ -3,6 +3,7 @@ import { tennisCardContext, tennisKey } from "./tennisPlayerBank.js";
 import { approvedTennisPortraits } from "./tennisPortraits.js";
 import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
 import {loadKalshiTennisResearch,matchKalshiTennisResearch} from "./tennisKalshiResearch.js";
+import {compareTennisExchangeResearch} from "./tennisExchangeCompare.js";
 import {loadPolymarketGlobalTennisSnapshot,matchPolymarketGlobalTennis} from "./tennisPolymarketGlobal.js";
 const parse = value => { try { return JSON.parse(value); } catch { return null; } };
 const number = v => v == null || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null;
@@ -197,6 +198,8 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
     const exchangeResearch={polymarket:[],kalshi:kalshiResearchOffers,comparisonStatus:"NOT_COMPARABLE"};
     const polymarketGlobalOffers=matchPolymarketGlobalTennis(f,polymarketGlobal.events||[],{now,asOf:polymarketGlobal.asOf||now.toISOString()});
     exchangeResearch.polymarket=polymarketGlobalOffers;
+    exchangeResearch.comparisons=compareTennisExchangeResearch([f.players[0].fixtureName,f.players[1].fixtureName],kalshiResearchOffers,polymarketGlobalOffers);
+    exchangeResearch.comparisonStatus=exchangeResearch.comparisons.length?"RESEARCH_PRICE_PAIR":"NO_MATCHED_SAME_OUTCOME_PAIR";
     const playerBank = { ...context, players: f.players.map((p, i) => ({ ...(context?.players?.[i] || {}),
       ...p, headshot: p.headshotUrl ?? null, recentForm: context?.players?.[i]?.recentForm || [] })) };
     const venueOffers = f.venueOffers.map(o => ({ ...o, side: o.side === "home" ? "away" : o.side === "away" ? "home" : o.side }));
