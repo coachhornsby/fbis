@@ -15,3 +15,27 @@ test('quote endpoint rejects oversized event batches before reading storage',asy
  const res=await onRequestGet({request:new Request('https://example.test/api/polymarket-quotes?sport=nfl&eventIds='+Array.from({length:41},(_,i)=>'g'+i).join(',')),env:{DB:{prepare(){throw Error('should not query')}}}});
  assert.equal(res.status,400);
 });
+
+test('expanded Polymarket quotes endpoint reads current-quarter D1, not just capped legacy history',async()=>{
+ const {onRequestGet}=await import('../functions/api/polymarket-quotes.js');
+ const at=new Date(Date.now()-1000).toISOString();
+ const empty={prepare(){return {bind(){return {all:async()=>({results:[]})}}}}};
+ const quarter={prepare(sql){return {bind(){return {all:async()=>({results:[
+  {id:'q1',canonical_event_id:'401892539',sport:'nhl',source:'Polymarket US WebSocket',
+   market_family:'moneyline',period:'full_game',side:'canadiens',source_market_id:'nhl-mtl',
+   source_outcome_id:'home',contract_price:.66,collected_at:at,source_observed_at:at,
+   raw_payload_json:JSON.stringify({canonicalSide:'home',contractBindingVerified:true,sourceObservedAt:at,bestAsk:.66,marketState:'MARKET_STATE_OPEN'})},
+  {id:'q2',canonical_event_id:'401892539',sport:'nhl',source:'Polymarket US WebSocket',
+   market_family:'moneyline',period:'full_game',side:'sharks',source_market_id:'nhl-mtl',
+   source_outcome_id:'away',contract_price:.35,collected_at:at,source_observed_at:at,
+   raw_payload_json:JSON.stringify({canonicalSide:'away',contractBindingVerified:true,sourceObservedAt:at,bestAsk:.35,marketState:'MARKET_STATE_OPEN'})}
+ ]})}}}}};
+ const response=await onRequestGet({request:new Request('https://example.test/api/polymarket-quotes?sport=nhl&eventIds=401892539'),
+  env:{DB:empty,MARKET_HISTORY_DB:empty,MARKET_HISTORY_2026Q4_DB:quarter}});
+ const body=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(body.byEvent['401892539'].length,2);
+ assert.equal(body.byEvent['401892539'][0].canAuthorizeWager,false);
+ assert.equal(body.byEvent['401892539'][0].deliveryStore,'MARKET_HISTORY_RECOVERY');
+ assert.equal(body.canQualify,false);
+});
