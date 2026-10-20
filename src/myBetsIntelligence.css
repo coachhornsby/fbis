@@ -6,3 +6,334 @@
 .mbi-family-nav button.active,.bets-family-filter button.active{background:linear-gradient(130deg,#2078a7,#174c6c);border-color:#83c9ed;color:#fff;box-shadow:0 3px 9px #0004}
 .mbi-context{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:#102b40;border-left:4px solid #4fc4fa;padding:10px 14px;color:#bbd7e8;font-size:.82rem}
 .mbi-context b{color:#f0fbff;letter-spacing:.08em}
+
+
+/* My Bets legibility pass (2026-10-20)
+   Minimum 15–16px metadata, solid contrast, and more visual hierarchy.
+   Scope all overrides to My Bets so other FBIS boards are unchanged. */
+.bets-dashboard .mbi-dashboard{
+  --mbi-white:#f8fafc;
+  --mbi-copy:#e2e8f0;
+  --mbi-gold:#ffd47e;
+  --mbi-surface:#0b1929;
+  --mbi-surface-raised:#102337;
+  --mbi-outline:#708397;
+  color:var(--mbi-white);
+  font-size:16px;
+  line-height:1.5;
+  gap:22px;
+}
+.bets-dashboard .mbi-top{
+  padding:27px 30px;
+  align-items:center;
+  border:2px solid #667b8e;
+  border-radius:19px;
+  background:linear-gradient(115deg,#152b40 0%,#081626 65%,#0e2738 100%);
+  box-shadow:0 16px 32px #02070c50;
+}
+.bets-dashboard .mbi-top h2{
+  font-size:clamp(32px,3vw,46px);
+  line-height:1.13;
+  color:#fff;
+}
+.bets-dashboard .mbi-top p,
+.bets-dashboard .mbi-card p{
+  color:var(--mbi-copy);
+  font-size:17px;
+  line-height:1.55;
+}
+.bets-dashboard .mbi-overline,
+.bets-dashboard .mbi-tag{
+  font-size:15px;
+  font-weight:900;
+  letter-spacing:.07em;
+  color:var(--mbi-gold);
+}
+.bets-dashboard .mbi-controls{gap:15px}
+.bets-dashboard .mbi-controls label{
+  font-size:15px;
+  font-weight:850;
+  color:var(--mbi-white);
+  gap:8px;
+}
+.bets-dashboard .mbi-controls select{
+  min-height:46px;
+  padding:11px 14px;
+  font-size:16px;
+  font-weight:700;
+  color:#fff;
+  background:#06131f;
+  border:2px solid #7b8e9e;
+}
+.bets-dashboard .mbi-family-nav,
+.bets-dashboard .bets-family-filter{
+  padding:7px;
+  gap:9px;
+  background:#081726;
+  border:2px solid #667b8e;
+}
+.bets-dashboard .mbi-family-nav button,
+.bets-dashboard .bets-family-filter button{
+  padding:13px 20px;
+  font-size:16px;
+  font-weight:850;
+  color:#e5edf5;
+  border:2px solid transparent;
+}
+.bets-dashboard .mbi-family-nav button.active,
+.bets-dashboard .bets-family-filter button.active{
+  color:#fff;
+  border-color:#ffcf79;
+  background:#205071;
+  box-shadow:inset 0 -3px 0 #ffcf79;
+}
+.bets-dashboard .mbi-context{
+  padding:16px 20px;
+  background:#0b1e2f;
+  color:var(--mbi-copy);
+  border-left:5px solid #ffca6c;
+  border-radius:0 11px 11px 0;
+  font-size:16px;
+  line-height:1.55;
+}
+.bets-dashboard .mbi-context b{
+  color:#fff;
+  font-size:17px;
+  letter-spacing:.035em;
+}
+.bets-dashboard .mbi-kpis{gap:15px}
+.bets-dashboard .mbi-kpi{
+  position:relative;
+  overflow:hidden;
+  gap:12px;
+  padding:22px;
+  border:2px solid #64798c;
+  border-radius:17px;
+  background:linear-gradient(150deg,#152d42 0%,#091725 100%);
+  box-shadow:0 9px 18px #00000030;
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.bets-dashboard .mbi-kpi:before{
+  content:"";
+  position:absolute;
+  top:0;left:0;right:0;height:4px;
+  background:#ffcc77;
+}
+.bets-dashboard .mbi-kpi:nth-child(2):before{background:#71dbad}
+.bets-dashboard .mbi-kpi:nth-child(3):before{background:#a5b9ff}
+.bets-dashboard .mbi-kpi:nth-child(4):before{background:#f6a18d}
+.bets-dashboard .mbi-kpi small{
+  color:var(--mbi-white);
+  font-size:16px;
+  font-weight:900;
+  letter-spacing:.045em;
+}
+.bets-dashboard .mbi-kpi strong{
+  font-size:clamp(30px,2.65vw,44px);
+  color:#fff;
+  line-height:1.07;
+  overflow-wrap:anywhere;
+}
+.bets-dashboard .mbi-kpi span{
+  font-size:16px;
+  color:var(--mbi-copy);
+  line-height:1.5;
+}
+.bets-dashboard .mbi-kpi strong.is-profit{color:#8ff0bf}
+.bets-dashboard .mbi-kpi strong.is-loss{color:#ff9c9f}
+.bets-dashboard .mbi-warning{
+  padding:16px 20px;
+  border:2px solid #c28e55;
+  border-radius:13px;
+  background:#302416;
+  color:#fff0d8;
+  font-size:16px;
+  line-height:1.55;
+}
+.bets-dashboard .mbi-warning button{
+  color:#fff;
+  font-size:16px;
+  font-weight:900;
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
+.bets-dashboard .mbi-chart-grid{gap:16px}
+.bets-dashboard .mbi-card{
+  padding:22px;
+  color:var(--mbi-white);
+  background:linear-gradient(155deg,#10273a 0%,#081723 100%);
+  border:2px solid #5b7185;
+  border-radius:17px;
+  box-shadow:0 10px 24px #02070c25;
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.bets-dashboard .mbi-card h3{
+  color:#fff;
+  font-size:clamp(20px,1.6vw,25px);
+  line-height:1.25;
+  font-weight:900;
+}
+.bets-dashboard .mbi-card header>span,
+.bets-dashboard .mbi-card header div>span{
+  color:#f1d29c;
+  font-size:15px;
+  line-height:1.4;
+}
+.bets-dashboard .mbi-card header{gap:12px;margin-bottom:20px}
+.bets-dashboard .mbi-curve svg{height:250px}
+.bets-dashboard .mbi-meta{
+  color:var(--mbi-copy);
+  font-size:16px;
+  line-height:1.55;
+}
+.bets-dashboard .mbi-bars{gap:17px}
+.bets-dashboard .mbi-bar-head{
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:9px;
+  font-size:17px;
+  line-height:1.4;
+}
+.bets-dashboard .mbi-bar-head span{
+  color:#f4f7fa;
+  font-weight:750;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.bets-dashboard .mbi-bar-head b{
+  color:#fff;
+  font-size:18px;
+  font-weight:900;
+}
+.bets-dashboard .mbi-bar-track{
+  height:14px;
+  background:#030d17;
+  border:1px solid #41576a;
+}
+.bets-dashboard .mbi-bar-track i{
+  background:linear-gradient(90deg,#288bba,#69e1b0);
+}
+.bets-dashboard .mbi-bar-track i.negative{
+  background:linear-gradient(90deg,#c54469,#ff9a92);
+}
+.bets-dashboard .mbi-bar small{
+  display:block;
+  font-size:15px;
+  font-weight:650;
+  margin-top:7px;
+  color:var(--mbi-copy);
+}
+.bets-dashboard .mbi-section-title h3{
+  font-size:clamp(23px,2vw,30px);
+  color:#fff;
+}
+.bets-dashboard .mbi-section-title{gap:16px}
+.bets-dashboard .mbi-switch{
+  gap:5px;
+  border:2px solid #6d8499;
+  border-radius:12px;
+  background:#091827;
+  padding:5px;
+}
+.bets-dashboard .mbi-switch button{
+  padding:11px 17px;
+  color:#e8eef5;
+  font-size:16px;
+  font-weight:800;
+}
+.bets-dashboard .mbi-switch button.active{
+  background:#285a78;
+  box-shadow:inset 0 -3px 0 #ffce77;
+  color:#fff;
+}
+.bets-dashboard .mbi-insights{gap:16px}
+.bets-dashboard .mbi-insights .mbi-card{min-height:220px}
+.bets-dashboard .mbi-insights .mbi-card:nth-child(2){border-top:4px solid #91d5c2}
+.bets-dashboard .mbi-insights .mbi-card:nth-child(3){border-top:4px solid #f6c773}
+.bets-dashboard .mbi-insights .mbi-card:nth-child(4){border-top:4px solid #acb2ff}
+.bets-dashboard .mbi-insights .mbi-card:nth-child(5){border-top:4px solid #e6a7be}
+.bets-dashboard .mbi-model-grid{
+  grid-template-columns:repeat(auto-fit,minmax(245px,1fr));
+  gap:14px;
+}
+.bets-dashboard .mbi-model{
+  padding:18px;
+  gap:11px;
+  border:2px solid #5d7185;
+  border-radius:13px;
+  background:#0a1c2e;
+}
+.bets-dashboard .mbi-model small{
+  font-size:16px;
+  font-weight:800;
+  color:#f0f5fa;
+}
+.bets-dashboard .mbi-model strong{color:#91f0c0;font-size:clamp(28px,2.3vw,38px)}
+.bets-dashboard .mbi-model span{
+  color:var(--mbi-copy);
+  font-size:16px;
+  line-height:1.45;
+}
+@media (hover:hover){
+  .bets-dashboard .mbi-kpi:hover,
+  .bets-dashboard .mbi-card:hover{
+    transform:translateY(-2px);
+    border-color:#a1b2c2;
+    box-shadow:0 16px 30px #02070c55;
+  }
+}
+@media (max-width:1050px){
+  .bets-dashboard .mbi-chart-grid{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .bets-dashboard .mbi-top{padding:20px}
+  .bets-dashboard .mbi-kpi{padding:18px}
+  .bets-dashboard .mbi-card{padding:18px}
+  .bets-dashboard .mbi-curve svg{height:210px}
+}
+@media (max-width:400px){
+  .bets-dashboard .mbi-kpis{grid-template-columns:1fr}
+  .bets-dashboard .mbi-controls,
+  .bets-dashboard .mbi-controls label,
+  .bets-dashboard .mbi-controls select{width:100%}
+}
+@media (prefers-reduced-motion:reduce){
+  .bets-dashboard .mbi-card,
+  .bets-dashboard .mbi-kpi{transition:none;transform:none!important}
+}
+
+
+/* Profit chart readouts stay legible on small screens rather than shrinking. */
+.bets-dashboard .mbi-curve{
+  overflow-x:auto;
+  padding:6px 0 2px;
+  scrollbar-color:#8ea3b8 #081522;
+}
+.bets-dashboard .mbi-curve svg{
+  min-width:640px;
+  height:250px;
+}
+.bets-dashboard .mbi-curve-facts{
+  display:flex;
+  justify-content:space-between;
+  gap:13px;
+  flex-wrap:wrap;
+  margin:12px 0;
+}
+.bets-dashboard .mbi-curve-facts span{
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:9px;
+  color:#ecf1f7;
+  font-size:16px;
+  font-weight:750;
+}
+.bets-dashboard .mbi-curve-facts b{
+  color:#fff;
+  font-size:20px;
+  font-weight:950;
+  font-variant-numeric:tabular-nums;
+}
+.bets-dashboard .mbi-curve-facts .is-profit{color:#92f0bc}
+.bets-dashboard .mbi-curve-facts .is-loss{color:#ff9c9f}
