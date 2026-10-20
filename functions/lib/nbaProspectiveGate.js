@@ -5,9 +5,48 @@
  * Integrity rules:
  * - Graded-game counts are DISTINCT game_id (models × game do not inflate n).
  * - Missing subgroup regression evidence fails (never treated as pass/zero).
- * - Economic/CLV criteria use only prospective wager-decision ledger rows —
+ * - Economic/CLV criteria use only prospective wager-decision ledger rows with
+ *   point-in-time provenance (feature cutoff ≤ decision ≤ tipoff ≤ grade) —
  *   research validation / deep holdout runs are informational, never substitutes.
  */
+
+/** SQL predicate fragment: wager decision joined to projection with PIT provenance. */
+export const NBA_PROSPECTIVE_PIT_JOIN = `
+  FROM nba_wager_decisions d
+  INNER JOIN nba_game_projections p ON p.id = d.projection_id
+  WHERE d.graded_at IS NOT NULL
+    AND d.decision_timestamp IS NOT NULL
+    AND p.tipoff_timestamp IS NOT NULL
+    AND p.feature_cutoff_timestamp IS NOT NULL
+    AND datetime(p.feature_cutoff_timestamp) <= datetime(d.decision_timestamp)
+    AND datetime(d.decision_timestamp) <= datetime(p.tipoff_timestamp)
+    AND datetime(d.decision_timestamp) <= datetime(d.graded_at)
+`;
+
+/**
+ * Pure PIT provenance check for a wager decision + linked projection.
+ * Used by collectors and unit tests — missing tipoff/cutoff fails closed.
+ */
+export function isProspectivePitWagerEvidence(decision = {}, projection = {}) {
+  const decisionTs = Date.parse(String(decision.decision_timestamp || decision.decisionTimestamp || ""));
+  const gradedAt = Date.parse(String(decision.graded_at || decision.gradedAt || ""));
+  const tipoff = Date.parse(String(projection.tipoff_timestamp || projection.tipoffTimestamp || ""));
+  const cutoff = Date.parse(String(projection.feature_cutoff_timestamp || projection.featureCutoffTimestamp || ""));
+  if (![decisionTs, gradedAt, tipoff, cutoff].every(Number.isFinite)) {
+    return {
+      ok: false,
+      reason: "missing_pit_timestamps",
+      decisionTs: Number.isFinite(decisionTs) ? decisionTs : null,
+      gradedAt: Number.isFinite(gradedAt) ? gradedAt : null,
+      tipoff: Number.isFinite(tipoff) ? tipoff : null,
+      featureCutoff: Number.isFinite(cutoff) ? cutoff : null,
+    };
+  }
+  if (cutoff > decisionTs) return { ok: false, reason: "feature_cutoff_after_decision", decisionTs, gradedAt, tipoff, featureCutoff: cutoff };
+  if (decisionTs > tipoff) return { ok: false, reason: "decision_after_tipoff", decisionTs, gradedAt, tipoff, featureCutoff: cutoff };
+  if (decisionTs > gradedAt) return { ok: false, reason: "decision_after_grade", decisionTs, gradedAt, tipoff, featureCutoff: cutoff };
+  return { ok: true, reason: null, decisionTs, gradedAt, tipoff, featureCutoff: cutoff };
+}
 
 export const NBA_PROSPECTIVE_GATE_VERSION = "NBA-PROSPECTIVE-GATE-v1";
 
@@ -91,7 +130,8 @@ export function evaluateNbaProspectiveGate(evidence = {}, rulesInput = null) {
   const scheduleReg = finite(evidence.scheduleCatastrophicRegression);
   const operatorApproved = evidence.operatorApproved === true;
   const econSource = String(evidence.economicsSource || "");
-  const econIsProspective = econSource === "nba_wager_decisions.prospective";
+  const pitOk = evidence.economicsProvenance?.ok === true;
+  const econIsProspective = econSource === "nba_wager_decisions.prospective_pit" && pitOk;
 
   const criteria = [
     criterion(
@@ -109,12 +149,20 @@ export function evaluateNbaProspectiveGate(evidence = {}, rulesInput = null) {
     criterion("log_loss", "Log-loss non-inferiority vs v1", logLossDelta != null && logLossDelta <= rules.logLossNonInferiority, logLossDelta, `<=${rules.logLossNonInferiority}`),
     criterion("ece", "Calibration ECE max", ece != null && ece <= rules.eceMax, ece, `<=${rules.eceMax}`),
     criterion(
+      "econ_pit_provenance",
+      "Prospective PIT provenance verified",
+      econIsProspective,
+      pitOk ? evidence.economicsProvenance?.pitVerifiedN ?? 0 : 0,
+      "feature_cutoff<=decision<=tipoff<=grade",
+      pitOk ? null : (evidence.economicsProvenance?.reason || "UNVERIFIED_PIT_PROVENANCE")
+    ),
+    criterion(
       "clv_n",
       "Prospective CLV evaluated bets",
       econIsProspective && clvN >= rules.clv.minimumEvaluatedBets,
       clvN,
       rules.clv.minimumEvaluatedBets,
-      econIsProspective ? null : "requires prospective wager-decision ledger"
+      econIsProspective ? null : "requires PIT-verified prospective wager-decision ledger"
     ),
     criterion(
       "clv_rate",
@@ -234,6 +282,7 @@ export async function collectNbaGateEvidence(db) {
     roiUnits: null,
     maxDrawdownUnits: null,
     economicsSource: null,
+    economicsProvenance: { ok: false, reason: "UNVERIFIED_PIT_PROVENANCE", pitVerifiedN: 0 },
     injurySubgroupN: 0,
     scheduleStressSubgroupN: 0,
     marginImprovement: null,
@@ -276,58 +325,92 @@ export async function collectNbaGateEvidence(db) {
   let roiUnits = null;
   let maxDrawdownUnits = null;
   let economicsSource = null;
+  let economicsProvenance = { ok: false, reason: "UNVERIFIED_PIT_PROVENANCE", pitVerifiedN: 0 };
 
-  // Prospective economics: only the point-in-time wager decision ledger.
+  // Prospective economics: PIT-verified wager decisions only
+  // (feature_cutoff ≤ decision ≤ tipoff ≤ grade via projection join).
   // Research validation runs / deep holdouts are never substituted here.
+  try {
+    const pitAudit = await db.prepare(
+      `SELECT
+         SUM(CASE WHEN p.id IS NOT NULL
+                   AND d.decision_timestamp IS NOT NULL
+                   AND p.tipoff_timestamp IS NOT NULL
+                   AND p.feature_cutoff_timestamp IS NOT NULL
+                   AND datetime(p.feature_cutoff_timestamp) <= datetime(d.decision_timestamp)
+                   AND datetime(d.decision_timestamp) <= datetime(p.tipoff_timestamp)
+                   AND datetime(d.decision_timestamp) <= datetime(d.graded_at)
+              THEN 1 ELSE 0 END) AS pit_ok,
+         SUM(CASE WHEN p.id IS NULL THEN 1 ELSE 0 END) AS missing_projection,
+         SUM(CASE WHEN p.id IS NOT NULL AND (p.tipoff_timestamp IS NULL OR p.feature_cutoff_timestamp IS NULL) THEN 1 ELSE 0 END) AS missing_tipoff_or_cutoff,
+         SUM(CASE WHEN p.id IS NOT NULL AND p.tipoff_timestamp IS NOT NULL AND datetime(d.decision_timestamp) > datetime(p.tipoff_timestamp) THEN 1 ELSE 0 END) AS decision_after_tipoff,
+         SUM(CASE WHEN p.id IS NOT NULL AND p.feature_cutoff_timestamp IS NOT NULL AND datetime(p.feature_cutoff_timestamp) > datetime(d.decision_timestamp) THEN 1 ELSE 0 END) AS cutoff_after_decision,
+         COUNT(*) AS graded_with_decision_ts
+       FROM nba_wager_decisions d
+       LEFT JOIN nba_game_projections p ON p.id = d.projection_id
+       WHERE d.graded_at IS NOT NULL AND d.decision_timestamp IS NOT NULL`
+    ).first();
+    const pitVerifiedN = finite(pitAudit?.pit_ok) ?? 0;
+    economicsProvenance = {
+      ok: pitVerifiedN > 0,
+      reason: pitVerifiedN > 0 ? null : "UNVERIFIED_PIT_PROVENANCE",
+      pitVerifiedN,
+      gradedWithDecisionTs: finite(pitAudit?.graded_with_decision_ts) ?? 0,
+      rejectedMissingProjection: finite(pitAudit?.missing_projection) ?? 0,
+      rejectedMissingTipoffOrCutoff: finite(pitAudit?.missing_tipoff_or_cutoff) ?? 0,
+      rejectedDecisionAfterTipoff: finite(pitAudit?.decision_after_tipoff) ?? 0,
+      rejectedCutoffAfterDecision: finite(pitAudit?.cutoff_after_decision) ?? 0,
+      rule: "feature_cutoff<=decision<=tipoff AND decision<=graded_at",
+    };
+    sources.push("nba_wager_decisions.pit_provenance_audit");
+  } catch {
+    economicsProvenance = { ok: false, reason: "UNVERIFIED_PIT_PROVENANCE", pitVerifiedN: 0 };
+  }
+
   try {
     const clv = await db.prepare(
       `SELECT COUNT(*) AS n,
-              AVG(CASE WHEN clv_probability > 0 THEN 1.0 ELSE 0.0 END) AS pos_rate,
-              AVG(clv_probability) AS mean_clv
-       FROM nba_wager_decisions
-       WHERE graded_at IS NOT NULL
-         AND clv_probability IS NOT NULL
-         AND decision_timestamp IS NOT NULL
-         AND datetime(decision_timestamp) <= datetime(COALESCE(graded_at, decision_timestamp))`
+              AVG(CASE WHEN d.clv_probability > 0 THEN 1.0 ELSE 0.0 END) AS pos_rate,
+              AVG(d.clv_probability) AS mean_clv
+       ${NBA_PROSPECTIVE_PIT_JOIN}
+         AND d.clv_probability IS NOT NULL`
     ).first();
     clvEvaluatedBets = finite(clv?.n) ?? 0;
     positiveClvRate = finite(clv?.pos_rate);
     meanProbabilityClv = finite(clv?.mean_clv);
-    if (clvEvaluatedBets > 0) {
-      economicsSource = "nba_wager_decisions.prospective";
-      sources.push("nba_wager_decisions.clv.prospective");
+    if (clvEvaluatedBets > 0 && economicsProvenance.ok) {
+      economicsSource = "nba_wager_decisions.prospective_pit";
+      sources.push("nba_wager_decisions.clv.prospective_pit");
     }
   } catch { /* table may not have rows/columns yet */ }
 
   try {
     const eco = await db.prepare(
-      `SELECT COUNT(*) AS n, SUM(profit_units) AS units,
-              CASE WHEN SUM(ABS(COALESCE(stake_units,0))) > 0
-                   THEN SUM(profit_units) / SUM(ABS(stake_units))
+      `SELECT COUNT(*) AS n, SUM(d.profit_units) AS units,
+              CASE WHEN SUM(ABS(COALESCE(d.stake_units,0))) > 0
+                   THEN SUM(d.profit_units) / SUM(ABS(d.stake_units))
                    ELSE NULL END AS roi
-       FROM nba_wager_decisions
-       WHERE graded_at IS NOT NULL
-         AND profit_units IS NOT NULL
-         AND decision_timestamp IS NOT NULL`
+       ${NBA_PROSPECTIVE_PIT_JOIN}
+         AND d.profit_units IS NOT NULL`
     ).first();
     settledBets = finite(eco?.n) ?? 0;
     roiUnits = finite(eco?.units);
     roiPct = finite(eco?.roi) == null ? null : finite(eco.roi) * 100;
-    if (settledBets > 0) {
-      economicsSource = "nba_wager_decisions.prospective";
-      sources.push("nba_wager_decisions.economics.prospective");
+    if (settledBets > 0 && economicsProvenance.ok) {
+      economicsSource = "nba_wager_decisions.prospective_pit";
+      sources.push("nba_wager_decisions.economics.prospective_pit");
     }
   } catch { /* optional */ }
 
-  // Running max drawdown from prospective settled profit path (ledger only).
+  // Running max drawdown from PIT-verified settled path only.
   try {
     const dd = await db.prepare(
       `SELECT MAX(running_dd) AS dd FROM (
          SELECT ABS(MIN(0,
-           SUM(profit_units) OVER (ORDER BY graded_at, id ROWS UNBOUNDED PRECEDING)
+           SUM(d.profit_units) OVER (ORDER BY d.graded_at, d.id ROWS UNBOUNDED PRECEDING)
          )) AS running_dd
-         FROM nba_wager_decisions
-         WHERE graded_at IS NOT NULL AND profit_units IS NOT NULL AND decision_timestamp IS NOT NULL
+         ${NBA_PROSPECTIVE_PIT_JOIN}
+           AND d.profit_units IS NOT NULL
        )`
     ).first();
     maxDrawdownUnits = finite(dd?.dd);
@@ -484,6 +567,7 @@ export async function collectNbaGateEvidence(db) {
     roiUnits,
     maxDrawdownUnits,
     economicsSource,
+    economicsProvenance,
     injurySubgroupN,
     scheduleStressSubgroupN,
     marginImprovement,
@@ -535,6 +619,7 @@ export async function resolveNbaProspectiveGate(db) {
       roiUnits: evidence.roiUnits,
       maxDrawdownUnits: evidence.maxDrawdownUnits,
       economicsSource: evidence.economicsSource,
+      economicsProvenance: evidence.economicsProvenance,
       marginImprovement: evidence.marginImprovement,
       totalImprovement: evidence.totalImprovement,
       winnerAccuracyDeltaVsV1: evidence.winnerAccuracyDeltaVsV1,

@@ -5,6 +5,7 @@ import {
   evaluateNbaProspectiveGate,
   resolveNbaProspectiveGate,
   collectNbaGateEvidence,
+  isProspectivePitWagerEvidence,
   NBA_PROSPECTIVE_GATE_DEFAULT_RULES,
 } from "../functions/lib/nbaProspectiveGate.js";
 import {
@@ -36,7 +37,8 @@ function passingEvidence(overrides = {}) {
     roiPct: 4.2,
     roiUnits: 3.1,
     maxDrawdownUnits: 8,
-    economicsSource: "nba_wager_decisions.prospective",
+    economicsSource: "nba_wager_decisions.prospective_pit",
+    economicsProvenance: { ok: true, pitVerifiedN: 60, reason: null },
     injurySubgroupN: 25,
     scheduleStressSubgroupN: 25,
     injuryCatastrophicRegression: 0.01,
@@ -71,10 +73,36 @@ test("missing subgroup regression fails (never treated as pass)", () => {
 test("research validation economics cannot satisfy gate CLV/ROI criteria", () => {
   const fromResearchOnly = evaluateNbaProspectiveGate(passingEvidence({
     economicsSource: "nba_decision_validation_runs",
+    economicsProvenance: { ok: false, pitVerifiedN: 0, reason: "UNVERIFIED_PIT_PROVENANCE" },
   }));
   assert.equal(fromResearchOnly.criteriaPassed, false);
+  assert.ok(fromResearchOnly.gaps.includes("econ_pit_provenance"));
   assert.ok(fromResearchOnly.gaps.includes("clv_n"));
   assert.ok(fromResearchOnly.gaps.includes("roi"));
+});
+
+test("timestamp-only wager rows without tipoff/cutoff fail PIT provenance", () => {
+  assert.equal(
+    isProspectivePitWagerEvidence(
+      { decision_timestamp: "2026-10-20T18:00:00Z", graded_at: "2026-10-21T04:00:00Z" },
+      { tipoff_timestamp: null, feature_cutoff_timestamp: "2026-10-20T12:00:00Z" }
+    ).ok,
+    false
+  );
+  assert.equal(
+    isProspectivePitWagerEvidence(
+      { decision_timestamp: "2026-10-20T23:30:00Z", graded_at: "2026-10-21T04:00:00Z" },
+      { tipoff_timestamp: "2026-10-20T23:00:00Z", feature_cutoff_timestamp: "2026-10-20T12:00:00Z" }
+    ).reason,
+    "decision_after_tipoff"
+  );
+  assert.equal(
+    isProspectivePitWagerEvidence(
+      { decision_timestamp: "2026-10-20T18:00:00Z", graded_at: "2026-10-21T04:00:00Z" },
+      { tipoff_timestamp: "2026-10-20T23:00:00Z", feature_cutoff_timestamp: "2026-10-20T12:00:00Z" }
+    ).ok,
+    true
+  );
 });
 
 test("evaluateNbaProspectiveGate becomes PROMOTION_ELIGIBLE then AUTHORIZED with operator", () => {
@@ -126,7 +154,6 @@ test("collectNbaGateEvidence counts distinct graded games and does not fill econ
         bind() { return this; },
         async first() {
           if (text.includes("COUNT(DISTINCT game_id)") && text.includes("nba_prospective_game_shadow") && text.includes("graded_at")) {
-            // Would be inflated to 3 if counting model rows; distinct games = 1
             return { n: 1 };
           }
           if (text.includes("nba_decision_validation_runs")) {
@@ -141,6 +168,16 @@ test("collectNbaGateEvidence counts distinct graded games and does not fill econ
               created_at: "2026-10-01T00:00:00Z",
             };
           }
+          if (text.includes("pit_ok") || text.includes("missing_projection")) {
+            return {
+              pit_ok: 0,
+              missing_projection: 5,
+              missing_tipoff_or_cutoff: 0,
+              decision_after_tipoff: 0,
+              cutoff_after_decision: 0,
+              graded_with_decision_ts: 5,
+            };
+          }
           if (text.includes("nba_wager_decisions")) return { n: 0 };
           if (text.includes("nba_prospective_gate")) return null;
           return { n: 0 };
@@ -152,9 +189,50 @@ test("collectNbaGateEvidence counts distinct graded games and does not fill econ
   const evidence = await collectNbaGateEvidence(db);
   assert.equal(evidence.gradedGames, 1);
   assert.equal(evidence.economicsSource, null);
+  assert.equal(evidence.economicsProvenance.ok, false);
+  assert.equal(evidence.economicsProvenance.rejectedMissingProjection, 5);
   assert.equal(evidence.settledBets, 0);
   assert.ok(evidence.researchContext?.betN === 999 || evidence.researchContext?.kind);
   assert.equal(evidence.injuryCatastrophicRegression, null, "must not zero-fill unmeasured regression");
+});
+
+test("collectNbaGateEvidence only counts PIT-verified wager rows for economics", async () => {
+  const db = {
+    prepare(sql) {
+      const text = String(sql);
+      return {
+        bind() { return this; },
+        async first() {
+          if (text.includes("pit_ok") || text.includes("missing_projection")) {
+            return {
+              pit_ok: 2,
+              missing_projection: 3,
+              missing_tipoff_or_cutoff: 1,
+              decision_after_tipoff: 1,
+              cutoff_after_decision: 0,
+              graded_with_decision_ts: 7,
+            };
+          }
+          if (text.includes("clv_probability") && text.includes("nba_game_projections")) {
+            return { n: 2, pos_rate: 0.6, mean_clv: 0.02 };
+          }
+          if (text.includes("profit_units") && text.includes("nba_game_projections") && text.includes("COUNT(*)")) {
+            return { n: 2, units: 1.5, roi: 0.05 };
+          }
+          if (text.includes("COUNT(DISTINCT")) return { n: 0 };
+          if (text.includes("nba_prospective_gate")) return null;
+          return { n: 0 };
+        },
+        async all() { return { results: [] }; },
+      };
+    },
+  };
+  const evidence = await collectNbaGateEvidence(db);
+  assert.equal(evidence.economicsProvenance.ok, true);
+  assert.equal(evidence.economicsProvenance.pitVerifiedN, 2);
+  assert.equal(evidence.economicsSource, "nba_wager_decisions.prospective_pit");
+  assert.equal(evidence.clvEvaluatedBets, 2);
+  assert.equal(evidence.settledBets, 2);
 });
 
 test("injuryAppliesToTipoff rejects post-tip and stale observations", () => {
@@ -254,7 +332,20 @@ test("attachNbaAvailabilityContext requires tipoff match and confirmed starters 
   assert.equal(g.nbaLineups.confirmed, false, "one-side starter is not confirmation");
   assert.equal(g.nbaAvailability.canAuthorize, false);
 
-  // Both sides starters → confirmed
+  // Bare STARTER without confirmedStarter must not satisfy game-level confirmed
+  const bareStarters = attachNbaAvailabilityContext(games, {
+    ...ctx,
+    lineupsByGame: {
+      "401809123": {
+        home: [{ playerName: "H1", starter: true, confirmedStarter: false }],
+        away: [{ playerName: "A1", starter: true, confirmedStarter: false }],
+        source: "ESPN_ROSTER",
+      },
+    },
+  });
+  assert.equal(bareStarters[0].nbaLineups.confirmed, false, "STARTER alone is not confirmed");
+
+  // Independently verified confirmed starters both sides → confirmed
   const withBoth = attachNbaAvailabilityContext(games, {
     ...ctx,
     lineupsByGame: {

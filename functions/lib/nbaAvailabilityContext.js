@@ -5,8 +5,9 @@
  * Matching integrity:
  * - Injury rows must be applicable at each game's pre-tip checkpoint
  *   (observed_at <= tipoff, and within a freshness window before tip).
- * - Lineup `confirmed` is true only when confirmed STARTER observations exist
- *   for both sides — not merely because any lineup row exists.
+ * - Lineup `confirmed` is true only when independently verified confirmed-starter
+ *   observations exist for both sides (`confirmedStarter`). A bare STARTER
+ *   status without a confirming source does not satisfy the game-level flag.
  */
 
 function clean(v) {
@@ -193,9 +194,12 @@ export function attachNbaAvailabilityContext(games = [], ctx = {}) {
     const home = matched.home || [];
     const away = matched.away || [];
     const lineup = lineupsByGame[gid] || null;
-    const homeStarters = (lineup?.home || []).filter((p) => p.starter || p.confirmedStarter);
-    const awayStarters = (lineup?.away || []).filter((p) => p.starter || p.confirmedStarter);
-    const confirmed = homeStarters.length > 0 && awayStarters.length > 0;
+    const homeStarters = (lineup?.home || []).filter((p) => p.starter === true);
+    const awayStarters = (lineup?.away || []).filter((p) => p.starter === true);
+    const homeConfirmedStarters = (lineup?.home || []).filter((p) => p.confirmedStarter === true);
+    const awayConfirmedStarters = (lineup?.away || []).filter((p) => p.confirmedStarter === true);
+    // Game-level confirmed requires independently verified confirmation both sides.
+    const confirmed = homeConfirmedStarters.length > 0 && awayConfirmedStarters.length > 0;
     const outCount = [...home, ...away].filter((p) => /OUT|SUSPENDED|INACTIVE/i.test(String(p.status || ""))).length;
     const doubtful = [...home, ...away].filter((p) => /DOUBT|QUESTION/i.test(String(p.status || ""))).length;
     return {
@@ -219,6 +223,8 @@ export function attachNbaAvailabilityContext(games = [], ctx = {}) {
             away: lineup.away || [],
             homeStarters,
             awayStarters,
+            homeConfirmedStarters,
+            awayConfirmedStarters,
             source: lineup.source || null,
             confirmed,
             researchOnly: true,
@@ -229,6 +235,8 @@ export function attachNbaAvailabilityContext(games = [], ctx = {}) {
             away: [],
             homeStarters: [],
             awayStarters: [],
+            homeConfirmedStarters: [],
+            awayConfirmedStarters: [],
             confirmed: false,
             source: null,
             researchOnly: true,
