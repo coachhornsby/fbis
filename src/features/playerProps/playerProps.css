@@ -3340,8 +3340,7 @@
   gap: 14px !important;
 }
 .pp-premium-page .pp-card.pp-premium-card {
-  border-width: 2px !important;
-  border-style: solid;
+  border: 2px solid color-mix(in srgb, var(--pp-team-primary, #172b50) 65%, #dbeafe) !important;
 }
 .pp-premium-page .tracked-prop-card { border-width: 2px; }
 @media (max-width: 1199px) {
