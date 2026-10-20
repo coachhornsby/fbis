@@ -111,6 +111,25 @@ export async function buildTennisIntelligenceBank(db, { limit = 50, now = new Da
     fixturesWithLinkedMarkets: fixtures.filter(f => f.venueOffers.length).length, canQualify: false, canAuthorizeWager: false };
 }
 
+let tennisRankingDisplayCache = {expiresAt:0, value:null};
+async function loadTennisRankingDisplayCache() {
+  const now=Date.now();
+  if(tennisRankingDisplayCache.value && now<tennisRankingDisplayCache.expiresAt)
+    return tennisRankingDisplayCache.value;
+  // Ranking snapshots never authorize a fixture, prediction or wager. A bounded
+  // read prevents an external source outage from blocking the entire board.
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),3500);
+  try {
+    const value=await fetchEspnTennisRankings((url,init)=>fetch(url,{...init,signal:controller.signal}));
+    tennisRankingDisplayCache={value,expiresAt:Date.now()+15*60*1000};
+    return value;
+  } catch {
+    tennisRankingDisplayCache={value:{byName:new Map()},expiresAt:Date.now()+60*1000};
+    return tennisRankingDisplayCache.value;
+  } finally { clearTimeout(timeout); }
+}
+
 export async function buildIndependentTennisCards(db, date, { now = new Date() } = {}) {
   const bank = await buildTennisIntelligenceBank(db, { now, limit: 100 });
   const ctDay = start => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago",
@@ -123,7 +142,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
   const batches=await Promise.all(chunks.map(chunk=>approvedTennisPortraits(db,chunk)));
   const portraitMap=new Map(batches.flatMap(group=>[...group.entries()]));
   // ESPN rankings are independent display context, never fixture or projection proof.
-  const rankingFeed = await fetchEspnTennisRankings().catch(()=>({byName:new Map()}));
+  const rankingFeed = await loadTennisRankingDisplayCache();
   const games = [];
   for (const f of visibleFixtures) {
     // Existing card player1 is home, independent fixture player1 is away.
