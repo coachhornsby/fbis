@@ -42,8 +42,14 @@ export function normalizeExchangeProp(row, { now = Date.now(), maxAgeMs = 5 * 60
     player_name: row.player_name, team: row.team, opponent: row.opponent,
     start_time: row.event_start_time, canonical_market: row.stat_family,
     line, side: row.side, period: row.period,
+    // Only provider identity evidence may define statistical direction or
+    // settlement scope. Never infer YES from an arbitrary market title.
+    statSide: identityVerified && ['over','under'].includes(proof?.statSide) ? proof.statSide : null,
+    settlementScope: identityVerified && typeof proof?.settlementScope==='string' ? proof.settlementScope : null,
+    dnpSettlement: identityVerified && typeof proof?.dnpSettlement==='string' ? proof.dnpSettlement : null,
     settlementTerms: identityVerified ? proof.settlementTerms : null,
     identityVerified, priceVerified, fresh,
+    observedAsk: priceVerified ? ask : null, observedDepth: priceVerified ? size : null,
     purchaseAsk: priceVerified && fresh ? ask : null, executableSize: priceVerified && fresh ? size : null,
     observedAt: row.source_observed_at, collectedAt: row.collected_at,
     // Projection joins require frozen, independent model evidence; market payloads are not models.
