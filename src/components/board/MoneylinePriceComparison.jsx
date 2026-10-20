@@ -29,13 +29,13 @@ export default function MoneylinePriceComparison({game}){
   </header>
   {live.updateError?<p className="fbis-moneyline-note" role="status">Market updates unavailable · check quote times before acting</p>:null}
   {best?<div className="fbis-moneyline-gap-banner">
-    {game?.[best.side]?<TeamLogo team={game[best.side]} size={36}/>:null}
+    {game?.[best.side]?<TeamLogo team={game[best.side]} size={40} tone="light"/>:null}
     <div><strong>{best.label}</strong><span>Largest positive FBIS vs PinnOdds implied-probability difference</span></div>
     <b>{pp(best.modelBookGap)}</b>
    </div>:null}
   <div className="fbis-moneyline-cards">{priced.map(r=><div key={r.side} className={`fbis-moneyline-side fbis-moneyline-${r.side}`}>
    <div className="fbis-moneyline-team">
-    {game?.[r.side]?<TeamLogo team={game[r.side]} size={38}/>:null}
+    {game?.[r.side]?<TeamLogo team={game[r.side]} size={42} tone="light"/>:null}
     <h4>{r.label}</h4>
     {r.modelBookGap!=null?<span className={`fbis-moneyline-gap-pill${r.modelBookGap>0?" is-positive":""}`}>FBIS − RAW IMPLIED {pp(r.modelBookGap)}</span>:null}
    </div>
