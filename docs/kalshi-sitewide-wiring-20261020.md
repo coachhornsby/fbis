@@ -295,3 +295,17 @@ The last successful market snapshot is preserved but is governed by
 its own timestamp and freshness rules; errors do not fabricate a
 provider HTTP 429. Signed actual provider errors are still written by
 Pages and retain their own cooldown.
+
+## 18. Searchable provider Sports-series directory
+The System view now includes **Explore Available Market Series**, which
+reads from `GET /api/kalshi-series-catalog?q=&offset=&limit=` on R2
+only. It can list and search signed-discovered Kalshi Sports series by
+ticker, provider title, tag or category, with strict server pagination
+(max 50 series per response). The static directory does not trigger
+Kalshi requests from visitors and does not expose signing secrets,
+fee claims, raw account records or private positions.
+Series title/tag discovery is NOT a validated mapping to FBIS canonical
+leagues, fixtures, player stat markets or settlement terms; nothing
+in the explorer changes CORE, market authority, trading or My Bets.
+This enables evidence-based review of source coverage, rather than
+guessing provider tickers for 11 FBIS sport databases.
