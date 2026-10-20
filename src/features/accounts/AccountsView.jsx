@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import "./accounts.css";
+import { readAccountApiResponse } from "./accountFetchDiagnostics.js";
 
 const money = value => Number.isFinite(value) ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value) : "—";
 const stamp = iso => {
@@ -33,8 +34,13 @@ export default function AccountsView() {
         cache: "no-store",
         signal,
       });
-      const data = await res.json();
-      if (signal?.aborted) return;
+      const { data, error: responseError } = await readAccountApiResponse(res);
+      if (signal?.aborted) return false;
+      if (responseError) {
+        setError(responseError);
+        setSnapshot(null);
+        return false;
+      }
       if (!res.ok || !data?.ok) {
         const failures = data?.failures && typeof data.failures === "object" ? data.failures : {};
         const codes = Object.entries(failures).filter(([, failure]) => failure && Number.isInteger(failure.status))
@@ -43,7 +49,8 @@ export default function AccountsView() {
         const failureMessage = authRejected
           ? "Kalshi rejected the API Key ID, signature, or account permissions (401/403). Confirm that the Key ID matches the private key."
           : prettyError(data?.code || "PORTFOLIO_READ_UNAVAILABLE");
-        setError(failureMessage + (codes.length ? " [" + codes.join(", ") + "]" : ""));
+        const responseStatus = Number.isInteger(res.status) && res.status >= 400 ? " (FBIS HTTP " + res.status + ")" : "";
+        setError(failureMessage + responseStatus + (codes.length ? " [" + codes.join(", ") + "]" : ""));
         setSnapshot(null);
         return false;
       }
@@ -52,7 +59,11 @@ export default function AccountsView() {
       return true;
     } catch (err) {
       if (signal?.aborted) return false;
-      setError(prettyError(err.message));
+      // Fetch failures and response decoding failures must not silently become
+      // an unknown provider error, or expose the raw response or request token.
+      setError(err instanceof TypeError
+        ? "Network error reaching the FBIS account API. Check Cloudflare availability and retry."
+        : "FBIS account request failed before completing. Reload the page and retry.");
       setSnapshot(null); // Never show stale money figures as fresh.
       return false;
     } finally {
