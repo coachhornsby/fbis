@@ -347,9 +347,11 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       </section>
       <VenueConditions context={ctx} game={game} />
       <div className="pgc-qualification" role="status">{stored ? "STORED PREGAME · STATUS UNVERIFIED" : game?.canAuthorizeWager === true && vm.decision?.qualification === "QUALIFIED" ? "QUALIFIED" : `RESEARCH ONLY · ${String(game.projectionState || "NOT QUALIFIED").replaceAll("_"," ")} · NO WAGER AUTHORITY`}</div>
-      <section className={`pgc-gap-strip is-neutral value-decision-${valueChoice.status}`} aria-label="Best price-supported betting decision">
+      <section className={`pgc-gap-strip value-decision-${valueChoice.status}${valueChoice.teamSide ? " is-team is-branded" : valueChoice.totalDirection ? ` is-total is-${valueChoice.totalDirection}` : " is-neutral"}`} style={valueChoice.teamSide ? {"--pgc-gap-brand":gapBrandColor(valueChoice.teamSide==="home"?home:away,valueChoice.teamSide==="home"?game.home:game.away,sportId)} : undefined} aria-label="Best price-supported betting decision">
         <span className="pgc-gap-heading">{valueChoice.heading}</span>
-        <div className="pgc-gap-identity" aria-hidden="true" />
+        <div className="pgc-gap-identity">
+          {valueChoice.teamSide ? <TeamLogo team={valueChoice.teamSide==="home"?home:away} size={100} tone="light" className="pgc-gap-logo" /> : valueChoice.totalDirection ? <span className="pgc-gap-direction"><b aria-hidden="true">{valueChoice.totalDirection==="over"?"↑":"↓"}</b><strong>{valueChoice.totalDirection.toUpperCase()}</strong></span> : null}
+        </div>
         <strong className="pgc-gap-value">{valueChoice.value}</strong>
         <span className="pgc-gap-description">{valueChoice.detail} · {valueChoice.secondary}</span>
       </section>

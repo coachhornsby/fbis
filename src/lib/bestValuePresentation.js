@@ -13,7 +13,10 @@ export function bestValuePresentation(game={},vm={}){
   !!game?.rec?.pick&&!!game?.rec?.market&&finite(vm.decision.ev)>0;
  if(eligible){
   const roi=finite(vm.decision.ev);
-  return {status:"qualified",heading:"PRICE-SUPPORTED VALUE",value:String(game.rec.pick),
+  const side=String(game.rec.side||game.rec.selection||"").toLowerCase();
+  const teamSide=side==="home"||side==="away"?side:null;
+  const totalDirection=side==="over"||side==="under"?side:null;
+  return {status:"qualified",teamSide,totalDirection,heading:"PRICE-SUPPORTED VALUE",value:String(game.rec.pick),
    detail:`${marketLabel(game.rec.market)} · EST. EV +${roi.toFixed(1)}% · VERIFIED EXECUTION INPUT`,
    secondary:"See market details and confirm price before placing a bet"};
  }

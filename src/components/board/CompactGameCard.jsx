@@ -274,9 +274,11 @@ export default function CompactGameCard({ game, onOpen }) {
             <small>STORED PREGAME · NO EDGE</small>
           </aside>
         ) : (
-        <aside className={`cgc-best-edge cgc-gap-neutral value-decision-${valueChoice.status}`} aria-label="Best price-supported betting decision">
+        <aside className={`cgc-best-edge value-decision-${valueChoice.status}${valueChoice.teamSide ? " cgc-gap-team cgc-gap-team-branded" : valueChoice.totalDirection ? ` cgc-gap-total cgc-gap-total-${valueChoice.totalDirection}` : " cgc-gap-neutral"}`} style={valueChoice.teamSide ? {"--cgc-gap-brand":gapBrandColor(valueChoice.teamSide==="home"?home:away,valueChoice.teamSide==="home"?game.home:game.away,sportId)} : undefined} aria-label="Best price-supported betting decision">
           <span>{valueChoice.heading}</span>
-          <div className="cgc-edge-identity" aria-hidden="true" />
+          <div className="cgc-edge-identity">
+            {valueChoice.teamSide ? <TeamLogo team={valueChoice.teamSide==="home"?home:away} size={100} tone="light" className="cgc-edge-logo" /> : valueChoice.totalDirection ? <TotalGapDirection side={valueChoice.totalDirection} /> : null}
+          </div>
           <strong>{valueChoice.value}</strong>
           <b>{valueChoice.detail}</b>
           <small>{valueChoice.secondary}</small>
