@@ -101,10 +101,12 @@ export function auditKalshiMarketRecords(sport,records=[],{
 export async function kalshiCoverageReport(env,{now=new Date(),sport=null}={}){
  const sports=SPORTS.filter(s=>!sport||s===sport);
  const result=await Promise.all(sports.map(async s=>{
-  const [snapshot,receipt,checkpoint]=await Promise.all([
+  const [snapshot,receipt,checkpoint,evidence,evidenceStatus]=await Promise.all([
    read(env?.ARCHIVE,"sports/"+s+".json"),
    read(env?.ARCHIVE,"sports/"+s+"-status.json"),
    read(env?.ARCHIVE,"sports/"+s+"-progress.json"),
+   read(env?.ARCHIVE,"evidence/"+s+"-latest.json"),
+   read(env?.ARCHIVE,"evidence-status.json"),
   ]);
   const good=snapshot?.ok===true&&snapshot?.sport===s
    &&snapshot?.seriesTicker===KALSHI_SHADOW_SERIES[s]
@@ -138,7 +140,13 @@ export async function kalshiCoverageReport(env,{now=new Date(),sport=null}={}){
    pagesInProgress:cursorPresent?checkpoint.pagesFetched||0:0,
    continuationPending:cursorPresent,
    // No independent fixture/event evidence is present in the public R2 feed.
-   providerEventMetadataCollected:false,
+   targetedEvidenceTicker:evidence?.ticker||null,
+   targetedEvidenceObservedAt:dateStr(evidence?.observedAt),
+   targetedEvidenceState:evidence?.ticker?"PROVIDER_EVENT_AND_BOOK_OBSERVED":
+     evidenceStatus?.sport===s?evidenceStatus.status||"NOT_OBSERVED":"NOT_OBSERVED",
+   targetedEvidenceLatestCode:evidenceStatus?.sport===s?evidenceStatus.code||null:null,
+   // Provider metadata is not independent fixture or verified settlement evidence.
+   providerEventMetadataCollected:Boolean(evidence?.event?.event_ticker),
    canonicalFixtureFeedJoined:false,
    outcomeSidesVerified:false,feesVerified:false,liquidityVerified:false,
    canQualify:false,canAuthorizeWager:false,
