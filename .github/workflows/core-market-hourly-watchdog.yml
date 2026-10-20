@@ -40,9 +40,8 @@ jobs:
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: node scripts/core-market-pulse.mjs
-      - name: Publish CORE board snapshot (schedule backup for 15m SLA)
+      - name: Publish CORE board snapshot (15m SLA — fail closed)
         id: core_snapshot
-        continue-on-error: true
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           FBIS_BASE_URL: https://fbis-myz.pages.dev
@@ -66,19 +65,25 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PULSE_RESULT: ${{ steps.pulse.outcome }}
+          CORE_RESULT: ${{ steps.core_snapshot.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
           title="FBIS core-market heartbeat degraded"
           issue="$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n1)"
+          # CORE publish is the 15m SLA; pulse degradation is secondary alerting.
+          if [ "$CORE_RESULT" != "success" ]; then
+            echo "CORE board snapshot publish FAILED (15m SLA breach): $RUN_URL"
+            exit 1
+          fi
           if [ "$PULSE_RESULT" != "success" ]; then
             if [ -z "$issue" ]; then
               gh issue create --title "$title" --body "Core PinnOdds/Polymarket heartbeat failed. Automatic recovery is limited to one signed Polymarket WebSocket reconnect; paid PinnOdds or Action collections are NEVER launched by this watchdog. See $RUN_URL and its core-market-pulse artifact for causes and current state."
             fi
-            echo "Core market infrastructure DEGRADED: $RUN_URL"
+            echo "Core market infrastructure DEGRADED (pulse): $RUN_URL — CORE publish still ok"
             exit 1
           fi
           if [ -n "$issue" ]; then
-            gh issue close "$issue" --comment "Hourly heartbeat has recovered at $RUN_URL. Closed automatically after a successful read-only verification."
+            gh issue close "$issue" --comment "Heartbeat recovered at $RUN_URL. Closed automatically after successful CORE publish + read-only verification."
           fi
-          echo "Core market infrastructure HEALTHY: $RUN_URL"
+          echo "CORE snapshot + market infrastructure HEALTHY: $RUN_URL"
