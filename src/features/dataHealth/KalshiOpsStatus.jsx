@@ -117,8 +117,8 @@ export default function KalshiOpsStatus(){
           {probe&&<div className="kalshi-ops-probe" role="status">
             <div><strong>{probe.cached?"Previous diagnostic result":"New diagnostic result"}</strong>
               <span>{probe.testedSport?.toUpperCase()} · {when(probe.checkedAt)}</span></div>
-            <div><strong>Anonymous market GET</strong><span>{probe.guest?.result||"Not completed"} · HTTP {probe.guest?.httpStatus??"—"}</span></div>
-            <div><strong>Signed market GET</strong><span>{probe.signed?.result||"Not completed"} · HTTP {probe.signed?.httpStatus??"—"}</span></div>
+            <div><strong>Anonymous market GET</strong><span>{probe.guest?.result||"Not completed"} · HTTP {probe.guest?.httpStatus??"—"}{probe.guest?.failureKind?" · "+probe.guest.failureKind.replaceAll("_"," "):""}</span></div>
+            <div><strong>Signed market GET</strong><span>{probe.signed?.result||"Not completed"} · HTTP {probe.signed?.httpStatus??"—"}{probe.signed?.failureKind?" · "+probe.signed.failureKind.replaceAll("_"," "):""}</span></div>
             <p>Diagnosis: {String(probe.diagnosis||"INCONCLUSIVE").replaceAll("_"," ").toLowerCase()}.
               {probe.diagnosis==="ANONYMOUS_RATE_LIMIT_AUTHENTICATED_ACCEPTED"
                 ?" Signed Kalshi market access works; the separate public collector still requires a safely credentialed deployment and subsequent market validation."
