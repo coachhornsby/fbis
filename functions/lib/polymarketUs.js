@@ -1,3 +1,4 @@
+import {canonicalizeProPlayerPropMarket} from "./proPlayerProps.js";
 /**
  * Polymarket US read-only research adapter.
  * US gateway is a different exchange from Polymarket International Gamma/CLOB.
@@ -140,6 +141,7 @@ export function parsePolymarketUsPrice(value){
 }
 export function polymarketUsMarketFamily(m={}){
   const type=String(m.sportsMarketTypeV2||m.sportsMarketType||m.marketType||"").toUpperCase();
+  if(type.includes("PLAYER")||type.includes("PROP"))return "player_prop";
   if(type.includes("MONEYLINE")||type==="ML"||String(m.sportsMarketType||"").includes("soccer_team_full_time_winner"))return "moneyline";
   if(type.includes("SPREAD")||type.includes("HANDICAP"))return "spread";
   if(type.includes("TOTAL")||type.includes("OVER_UNDER"))return "total";
@@ -147,6 +149,9 @@ export function polymarketUsMarketFamily(m={}){
   return "unclassified";
 }
 export function polymarketUsPeriod(m={}) {
+ const explicit=String(m.period||m.gamePeriod||m.sportsPeriod||"").toLowerCase();
+ if(["full","full_game","full_time"].includes(explicit))return "full_game";
+ if(["first_half","second_half","first_quarter","first_period"].includes(explicit))return explicit;
  const type=String(m.sportsMarketType||"").toLowerCase();
  if(type.includes("first_half"))return "first_half";
  if(type.includes("second_half"))return "second_half";
@@ -181,7 +186,7 @@ export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=ne
         source:"Polymarket US",sourceType:"exchange",sport,league:String(e.seriesSlug||sport),
         eventId:canonicalId,eventStart:start,
         homeTeam:e.homeTeam?.name||null,awayTeam:e.awayTeam?.name||null,
-        marketFamily:family,statFamily:null,side:label,line:m.line,
+        marketFamily:family,playerName:family==="player_prop"?(m.playerName||m.player?.name||side.player?.name||null):null,statFamily:family==="player_prop"?canonicalizeProPlayerPropMarket(sport,m.statFamily||m.statType||m.playerPropType||m.sportsMarketTypeV2||m.sportsMarketType):null,side:family==="player_prop"&&/^(over|under)\b/i.test(label)?label.split(/\s/)[0].toLowerCase():label,line:m.line,
         contractPrice:price,americanOdds:null,executionEligible:false,
         standardOrAlt:"unknown",period:polymarketUsPeriod(m),sourceMarketId:slug,
         sourceOutcomeId:String(side.id||side.identifier||label),fetchedAt:capturedAt,

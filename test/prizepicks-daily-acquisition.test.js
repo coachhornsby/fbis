@@ -5,8 +5,9 @@ import fs from "node:fs";
 test("Zen PrizePicks uses the single budgeted acquisition owner and the free mirror stays paused",()=>{
  const paid=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
  const free=fs.readFileSync(".github/workflows/free-prizepicks-mirror.yml","utf8");
- assert.match(paid,/restore-zen-prizepicks/);
- assert.match(paid,/fbis-prizepicks-single-daily-acquisition/);
+ assert.match(paid,/PRIZEPICKS_COLLECTOR_RETIRED/);
+ assert.doesNotMatch(paid,/cron:/);
+
  assert.equal((free.match(/cron:/g)||[]).length,0,"unscoped free mirror pulls are paused");
  assert.match(free,/FREE_PRIZEPICKS_MIRROR_INGESTION_DISABLED/);
  assert.ok(free.includes("No mirror HTTP fetch"));
@@ -29,7 +30,7 @@ test("legacy paid collector is disabled",()=>{
 test("Zen ingestion requires immutable owned capture and retains historical schema",()=>{
  const workflow=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
  const api=fs.readFileSync("functions/api/prizepicks-props.js","utf8");
- assert.match(workflow,/restore-zen-prizepicks/);
+ assert.match(workflow,/PRIZEPICKS_COLLECTOR_RETIRED/);
  assert.match(api,/immutable_capture_required/);
  assert.match(api,/prizepicks_daily_acquisitions/);
 });

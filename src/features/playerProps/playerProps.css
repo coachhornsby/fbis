@@ -3352,3 +3352,6 @@
 @media (max-width: 440px) {
   .pp-premium-page > .pp-card-grid.pp-premium-grid { grid-template-columns: minmax(0, 1fr) !important; }
 }
+
+.pp-prop-date { display:flex; align-items:center; gap:10px; color:#dbeafe; font-size:12px; margin:12px 4px; }
+.pp-prop-date input { color-scheme:dark; background:#09192b; color:#e8f3ff; border:1px solid #59728d; border-radius:8px; padding:7px 10px; }

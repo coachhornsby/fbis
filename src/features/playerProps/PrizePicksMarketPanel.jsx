@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PRIZEPICKS_FBIS_SPORTS } from "../../../functions/lib/propMarketPolicy.js";
 import { propProjectionStars } from "./buildPlayerPropsBoard.js";
-import TrackedPropCards from "./TrackedPropCards.jsx";
+
 
 const SPORTS=["top25","nfl","mlb","cfb","cbb","tennis","nba","wnba","nhl","soccer", ...PRIZEPICKS_FBIS_SPORTS.filter(s=>["kbo","npb"].includes(s))];
 const TIER_ORDER={standard:0,goblin:1,demon:2};
@@ -180,8 +180,8 @@ function groupLatest(rows=[]){
   const newest=new Map();
   for(const r of rows){
     if(rowStars(r)==null) continue;
-    const tier=String(r.odds_tier||"standard").toLowerCase();
-    const key=[r.sport,r.player_name,r.canonical_market||r.stat_type,r.duration||"full"].join("|");
+    const tier=r.executionVenue?[r.executionVenue,r.sourceMarketId,r.contractSide,r.line].join("|"):String(r.odds_tier||"standard").toLowerCase();
+    const key=[r.sport,r.player_name,r.canonical_market||r.stat_type,r.duration||"full",r.executionVenue?r.fbis_event_id:"",r.executionVenue?tier:""].join("|");
     if(!newest.has(key)) newest.set(key,{key,variants:new Map()});
     const g=newest.get(key);
     if(!g.variants.has(tier)) g.variants.set(tier,r);
@@ -198,6 +198,7 @@ function groupLatest(rows=[]){
 }
 
 function tierLabel(row={}){
+  if(row.executionVenue)return row.executionVenue+" · "+row.contractSide;
   const tier=String(row.odds_tier||"standard").toLowerCase();
   if(tier==="goblin") return "GOBLIN";
   if(tier==="demon") return "DEMON";
@@ -227,7 +228,7 @@ function VariantMetrics({ group }){
               className="pp-tier-select"
               value={String(active.odds_tier||"standard").toLowerCase()}
               onChange={(e)=>setTier(e.target.value)}
-              aria-label="PrizePicks line type"
+              aria-label="Contract threshold"
             >
               {variants.map((v)=>(
                 <option
@@ -246,9 +247,9 @@ function VariantMetrics({ group }){
         )}
       </div>
 
-      <div className="pp-line-row pp-premium-metrics" aria-label="PrizePicks line versus FBIS projection">
+      <div className="pp-line-row pp-premium-metrics" aria-label="Contract threshold versus FBIS projection">
         <div className="pp-metric-cell">
-          <span>PP LINE</span>
+          <span>CONTRACT LINE</span>
           <strong>{active.line==null?"—":num(active.line)}</strong>
         </div>
         <div className="pp-metric-cell fbis-metric">
@@ -447,7 +448,7 @@ function LastFiveBars({ row, detail, loading, error }){
               );
             })}
           </div>
-          <div className="pp-history-legend"><span></span> PrizePicks line {row.line??"—"}</div>
+          <div className="pp-history-legend"><span></span> Contract threshold {row.line??"—"}</div>
         </>
       ):null}
     </div>
@@ -478,7 +479,7 @@ function PropAnalytics({ row, open, onToggle, detail, calibration, loading, erro
               <div><span>SEASON AVG</span><b>{fmtStat(detail.season.average)}</b></div>
               <div><span>GAMES</span><b>{fmtStat(detail.season.games)}</b></div>
               <div><span>FBIS PROJ</span><b>{fmtStat(row.fbis_projection)}</b></div>
-              <div><span>PP LINE</span><b>{fmtStat(row.line)}</b></div>
+              <div><span>CONTRACT LINE</span><b>{fmtStat(row.line)}</b></div>
             </div>
           ):null}
           {detail?.matchup?.opponentAllowed!=null?(
@@ -591,9 +592,11 @@ function PrizePicksPropCard({ group, expanded, onToggleExpand }){
 
         <VariantMetrics group={group}/>
 
+        {r.contractEconomics?<div className="pp-card-foot pp-premium-foot"><span>{r.venue} · {r.contractSide}</span><span>{r.contractEconomics.ask==null?"Price unavailable":(100*r.contractEconomics.ask).toFixed(1)+"¢ ask"} · {r.contractEconomics.feePerContract==null?"Fee unverified":(100*r.contractEconomics.feePerContract).toFixed(2)+"¢ fee / contract"}</span></div>:null}
+        {r.contractEconomics?<div className="pp-card-foot pp-premium-foot"><span>Depth {r.contractEconomics.depth??"unverified"}</span><span>{r.contractEconomics.status.replaceAll("_"," ")}</span></div>:null}
         <LastFiveBars row={r} detail={detail} loading={detailState.loading} error={detailState.error}/>
 
-        {sport==="tennis"?<div className="pp-card-foot pp-premium-foot"><span>Underdog{group.underdog?.lineType==="unknown"?" [UNKNOWN TYPE]":""} {group.underdog?.line??"—"}{group.underdog&&Number.isFinite(Number(r.line))?` · Δ ${(Number(group.underdog.line)-Number(r.line)).toFixed(1)}`:""}</span><span>{group.underdog?.timestamp?new Date(group.underdog.timestamp).toLocaleTimeString("en-US",{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit"}):"source unavailable"}</span></div>:null}
+
 
         <div className="pp-card-foot pp-premium-foot">
           <span>{matchupLabel(r)}</span>
@@ -615,8 +618,9 @@ function PrizePicksPropCard({ group, expanded, onToggleExpand }){
   );
 }
 
-export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilterChange }){
-  const date=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilterChange, date: selectedDate, onDateChange }){
+  const [boardDate,setBoardDate]=useState(()=>new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()));
+  const date=selectedDate||boardDate;
   const [rows,setRows]=useState([]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
@@ -644,10 +648,9 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
     const isTop=localSport==="top25";
     const q=new URLSearchParams({date,mode:isTop?"top25":"sport"});
     if(!isTop) q.set("sport",localSport);
-    const primary=fetch("/api/selective-props?"+q.toString(),{credentials:"same-origin"});
-    const ud=localSport==="tennis"
-      ? fetch("/api/lines/underdog?sport=tennis&date="+encodeURIComponent(date),{credentials:"same-origin"}).then(r=>r.ok?r.json():null).catch(()=>null)
-      : Promise.resolve(null);
+    const load=()=>{
+    const primary=fetch("/api/exchange-player-props?"+q.toString(),{credentials:"same-origin"});
+    const ud=Promise.resolve(null);
     Promise.all([primary,ud]).then(async ([res,udBody])=>{
         const j=await res.json().catch(()=>({}));
         if(!res.ok||j?.ok===false) throw new Error(j?.error||("HTTP "+res.status));
@@ -667,7 +670,10 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
         setError(String(e?.message||e));
       })
       .finally(()=>{if(!cancelled)setLoading(false)});
-    return()=>{cancelled=true};
+    };
+    load();
+    const refresh=setInterval(load,30000);
+    return()=>{cancelled=true;clearInterval(refresh)};
   },[localSport,date]);
 
   const groups=useMemo(
@@ -691,11 +697,11 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
 
   const title=localSport==="top25"?"Top 25":localSport.toUpperCase();
   const subtitle=localSport==="top25"
-    ?"Best projected FBIS player-prop edges today · same PrizePicks-style cards across sports"
-    :"PrizePicks-style cards: headshot, PP line, FBIS projection, and last-5 for each "+localSport.toUpperCase()+" prop";
+    ?"Independent FBIS projections · Kalshi and Polymarket contract pricing"
+    :"FBIS player projections, exchange contract thresholds, prices and last-5 for "+localSport.toUpperCase();
 
   return (
-    <section className="pp-market pp-premium-page" aria-label="FBIS player props" data-display-policy="prizepicks-cards-all-sports-v1">
+    <section className="pp-market pp-premium-page" aria-label="FBIS player props" data-display-policy="exchange-player-props-v1">
 
       <nav className="pp-sport-strip pp-premium-tabs" aria-label="Player prop sport filter">
         {SPORTS.map(s=>(
@@ -709,8 +715,9 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
         ))}
       </nav>
 
-      <TrackedPropCards date={date} sportFilter={localSport === "top25" ? "all" : localSport} />
 
+
+      <label className="pp-prop-date">Game date <input aria-label="Prop game date" type="date" value={date} onChange={e=>{setBoardDate(e.target.value);onDateChange?.(e.target.value)}} /></label>
       <div className="pp-premium-section-head">
         <div>
           <h2>{title}</h2>
@@ -721,16 +728,12 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
         </div>
       </div>
 
-      {!loading&&coverage?.capturedSports?.length===1&&coverage.capturedSports[0]==="nfl"?
-        <div className="pp-empty" role="status">Today's PrizePicks capture contains NFL lines only. Other sports need source lines before their projected cards can appear.</div>
-      :null}
-      {freshness?.stale?
-        <div className="pp-empty error-text">Today's PrizePicks acquisition has not completed. Stale prior-day props are hidden.</div>
-      :null}
+      {!loading&&coverage?.models?.games>0&&coverage.models.withModels===0?<div className="pp-empty">FBIS player projections are unavailable for these games. Exchange prices cannot replace an independent player model.</div>:null}
+      {!loading&&coverage?.polymarket?.status==="PLAYER_PROP_DELIVERY_NOT_VERIFIED"?<div className="pp-empty" role="status">Polymarket player-prop delivery is not verified. Game odds are not player-prop prices.</div>:null}
+      {coverage?.kalshi?.error?<div className="pp-empty error-text">Kalshi: {coverage.kalshi.error}</div>:null}
+      {coverage?.kalshi?.truncated?<div className="pp-empty">Kalshi discovery is partial. Unchecked contracts are not counted as missing offers.</div>:null}
       {error?<div className="pp-empty error-text">{error}</div>:null}
-      {!loading&&!error&&!groups.length?
-        <div className="pp-empty pp-premium-empty">{coverage?.capturedSports?.includes(localSport) ? "Source lines are captured, but FBIS projections are not available for this sport yet." : "No current PrizePicks lines have been captured for this sport."}</div>
-      :null}
+      {!loading&&!error&&!groups.length?<div className="pp-empty pp-premium-empty">No exchange player props with a verified event and matching FBIS projection are available for this date and sport.</div>:null}
 
       <div className="pp-card-grid pp-premium-grid">
         {groups.map((group)=>(
@@ -745,3 +748,5 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
     </section>
   );
 }
+
+export { PrizePicksPropCard as ExchangePlayerPropCard };

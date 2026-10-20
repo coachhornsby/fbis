@@ -100,6 +100,7 @@ function explicitBreakEvenProbability(row = {}) {
 }
 
 export function prizePicksTierEconomics(row = {}, hitProbability = null) {
+  if (/kalshi|polymarket/i.test(String(row.executionVenue||row.venue||row.source||""))) return {tier:"exchange",alternate:false,rankingEligible:true,maxStars:5,status:"EXCHANGE_CONTRACT_PRICE",payoutAdjusted:false,payoutPriced:false,comparableToStandard:false};
   const tier = prizePicksTier(row);
   const alternate = tier === "demon" || tier === "goblin";
   if (!alternate) {
@@ -339,9 +340,9 @@ export function selectivePropRating(row = {}) {
     if (stars >= 5 && (role == null || role < 0.80 || !feature.nextGen || !feature.opponentMatchup)) cap(4,"elite_evidence_missing","Five stars require stronger role, tracking and matchup evidence.");
 
     const z = sigma != null && sigma > 0 ? delta / sigma : null;
-    const calibration = nflCalibrationState(row, z);
-    if (!calibration?.allowed) cap(calibration?.maxStars ?? 2,calibration?.reason||"role_market_unvalidated",calibration?.reason==="calibration_role_floor"?"Role confidence is below the historical threshold for this NFL stat and direction.":calibration?.reason==="calibration_edge_floor"?"The projection gap is below the historical threshold for this NFL role and stat.":"This NFL role, stat and direction have no validated historical segment.");
-    else cap(calibration.maxStars,"historical_segment_limit","Historical results limit confidence for this NFL role, stat and direction.");
+    const calibration = /kalshi|polymarket/i.test(String(row.executionVenue||row.venue||row.source||"")) ? null : nflCalibrationState(row, z);
+    if (calibration && !calibration.allowed) cap(calibration?.maxStars ?? 2,calibration?.reason||"role_market_unvalidated",calibration?.reason==="calibration_role_floor"?"Role confidence is below the historical threshold for this NFL stat and direction.":calibration?.reason==="calibration_edge_floor"?"The projection gap is below the historical threshold for this NFL role and stat.":"This NFL role, stat and direction have no validated historical segment.");
+    else if(calibration) cap(calibration.maxStars,"historical_segment_limit","Historical results limit confidence for this NFL role, stat and direction.");
 
   }
 
