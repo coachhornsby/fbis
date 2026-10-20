@@ -161,6 +161,31 @@ export function surfaceEloResearchEstimate(players, officialDisplay) {
     canQualify:false,canAuthorizeWager:false,marketInformed:false};
 }
 
+/** When surface cannot be verified, expose a DISTINCT all-surface Elo research
+ * estimate from sufficient observed match samples. Never claim a surface
+ * projection, full FBIS model, or wager permission.
+ */
+export function allSurfaceEloResearchEstimate(players) {
+ if(!Array.isArray(players)||players.length!==2)return null;
+ const obs=players.map(player=>{
+  const usable=(player?.profiles||[]).map(row=>{
+   const p=row.profile||{},surface=String(row.surface||"").toLowerCase();
+   const games=Number(p.surfaceMatches),elo=Number(p.surfaceElo?.[surface]);
+   return {games,elo,date:row.lastMatchDate,source:row.source};
+  }).filter(r=>Number.isFinite(r.games)&&r.games>0&&Number.isFinite(r.elo)&&r.elo>=1000&&r.elo<=2400&&r.date);
+  const matches=usable.reduce((a,b)=>a+b.games,0);
+  if(matches<10)return null;
+  return {elo:usable.reduce((sum,r)=>sum+r.elo*r.games,0)/matches,
+   matches,lastMatchDate:usable.map(r=>r.date).sort().at(-1),source:"HISTORICAL_SURFACE_PROFILES"};
+ });
+ if(obs.some(x=>!x))return null;
+ const p=1/(1+Math.pow(10,(obs[1].elo-obs[0].elo)/400));
+ return {player1WinProb:Math.round(p*1000)/1000,player2WinProb:Math.round((1-p)*1000)/1000,
+  source:"ALL_SURFACE_ELO_RESEARCH_ONLY",surface:null,observations:obs,
+  uncertainty:"SURFACE_UNVERIFIED; HISTORICAL_MATCH_DATA_MAY_BE_STALE",
+  canQualify:false,canAuthorizeWager:false,marketInformed:false};
+}
+
 export async function buildIndependentTennisCards(db, date, { now = new Date(), archive = null } = {}) {
   const bank = await buildTennisIntelligenceBank(db, { now, limit: 100 });
   const kalshi=await loadKalshiTennisResearch({ARCHIVE:archive},now);
@@ -193,7 +218,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
     };
     const context = await tennisCardContext(db, { tour: f.tour, player1: p1.fixtureName,
       player2: p2.fixtureName, surface: f.officialDisplay?.surface||null }).catch(() => null);
-    const researchEstimate=surfaceEloResearchEstimate(f.players,f.officialDisplay);
+    const researchEstimate=surfaceEloResearchEstimate(f.players,f.officialDisplay)||allSurfaceEloResearchEstimate(f.players);
     const kalshiResearchOffers=matchKalshiTennisResearch(f,kalshi[f.tour]||[],now);
     const exchangeResearch={polymarket:[],kalshi:kalshiResearchOffers,comparisonStatus:"NOT_COMPARABLE"};
     const polymarketGlobalOffers=matchPolymarketGlobalTennis(f,polymarketGlobal.events||[],{now,asOf:polymarketGlobal.asOf||now.toISOString()});
