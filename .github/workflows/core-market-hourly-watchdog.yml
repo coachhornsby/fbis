@@ -78,10 +78,11 @@ jobs:
           fi
           if [ "$PULSE_RESULT" != "success" ]; then
             if [ -z "$issue" ]; then
-              gh issue create --title "$title" --body "Core PinnOdds/Polymarket heartbeat failed. Automatic recovery is limited to one signed Polymarket WebSocket reconnect; paid PinnOdds or Action collections are NEVER launched by this watchdog. See $RUN_URL and its core-market-pulse artifact for causes and current state."
+              gh issue create --title "$title" --body "Core PinnOdds/Polymarket heartbeat failed. Automatic recovery is limited to one signed Polymarket WebSocket reconnect; paid PinnOdds or Action collections are NEVER launched by this watchdog. See $RUN_URL and its core-market-pulse artifact for causes and current state. CORE board snapshot publish succeeded for this run."
             fi
-            echo "Core market infrastructure DEGRADED (pulse): $RUN_URL — CORE publish still ok"
-            exit 1
+            # Pulse degradation opens/keeps an issue but does not fail the CORE 15m SLA.
+            echo "Core market pulse DEGRADED: $RUN_URL — CORE publish ok (SLA held)"
+            exit 0
           fi
           if [ -n "$issue" ]; then
             gh issue close "$issue" --comment "Heartbeat recovered at $RUN_URL. Closed automatically after successful CORE publish + read-only verification."
