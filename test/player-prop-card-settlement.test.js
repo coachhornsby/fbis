@@ -17,3 +17,21 @@ test('date, stake and unfinished-leg conflicts fail closed',async()=>{
 test('card identity uses explicit identity or bounded tracker note',()=>{
  assert.equal(executedCardId({external_ticket_id:'PP-20261004-A'}),'PP-20261004-A');assert.equal(executedCardId({tracker_metadata_json:'{invalid'}),null);assert.equal(executedCardId({tracker_metadata_json:JSON.stringify({notes:'Card PP-20261004-A2 · details'})}),'PP-20261004-A2');
 });
+
+// The current board requests a bounded ledger; historical readers retain the full ledger.
+import {onRequestGet as readLedger} from '../functions/api/player-prop-learning.js';
+test('current prop ledger filters cards, legs and totals together without deleting history',async()=>{
+ const cards=[{card_id:'old',date:'2026-10-04',sport:'nfl'},{card_id:'today',date:'2026-10-19',sport:'nfl'},{card_id:'mlb',date:'2026-10-19',sport:'mlb'}];
+ const legs=cards.map(c=>({card_id:c.card_id,actual:1,result:'WON',hit:1,absolute_error:2,projection_error:2}));
+ const calls=[];
+ const db={prepare(sql){calls.push(sql);return {args:[],bind(...args){this.args=args;return this},async all(){
+   if(sql.includes('player_prop_calibration'))return {results:[]};
+   const selected=cards.filter(c=>(!sql.includes('date=?')||c.date===this.args[0])&&(!sql.includes('LOWER(sport)=?')||c.sport===this.args.at(-1)));
+   return {results:sql.startsWith('SELECT * FROM player_prop_legs')?legs.filter(l=>selected.some(c=>c.card_id===l.card_id)):selected};
+ }}}};
+ const current=await (await readLedger({env:{DB:db},request:new Request('https://example.test/api/player-prop-learning?date=2026-10-19&sport=nfl')})).json();
+ assert.deepEqual(current.cards.map(c=>c.card_id),['today']);assert.equal(current.summary.cards,1);assert.equal(current.summary.gradedLegs,1);assert.equal(current.summary.hitRate,1);
+ const history=await (await readLedger({env:{DB:db},request:new Request('https://example.test/api/player-prop-learning')})).json();
+ assert.equal(history.cards.length,3);assert.equal(history.summary.gradedLegs,3);assert.ok(calls.every(sql=>sql.startsWith('SELECT')));
+ for(const date of ['2026-02-30','not-a-date'])assert.equal((await readLedger({env:{DB:db},request:new Request('https://example.test/?date='+date)})).status,400);
+});

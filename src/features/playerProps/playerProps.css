@@ -3333,3 +3333,23 @@
     font-size: 18px !important;
   }
 }
+
+/* Player Props page: five cards across on desktop, with readable narrow layouts. */
+.pp-premium-page > .pp-card-grid.pp-premium-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+}
+.pp-premium-page .pp-card.pp-premium-card {
+  border-width: 2px !important;
+  border-style: solid;
+}
+.pp-premium-page .tracked-prop-card { border-width: 2px; }
+@media (max-width: 1199px) {
+  .pp-premium-page > .pp-card-grid.pp-premium-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 760px) {
+  .pp-premium-page > .pp-card-grid.pp-premium-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 440px) {
+  .pp-premium-page > .pp-card-grid.pp-premium-grid { grid-template-columns: minmax(0, 1fr) !important; }
+}

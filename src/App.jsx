@@ -347,8 +347,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    writeUrlState({ tab, date: todayDate, sport, route, sportFilter });
-  }, [tab, todayDate, sport, route, sportFilter]);
+    writeUrlState({ tab, date: todayDate, sport, route, sportFilter: route === "player-props" ? playerPropsSport : sportFilter });
+  }, [tab, todayDate, sport, route, sportFilter, playerPropsSport]);
 
   const onBoardDateChange = useCallback((nextDate) => {
     if (!nextDate) return;
