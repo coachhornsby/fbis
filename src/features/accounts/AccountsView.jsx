@@ -10,7 +10,10 @@ const prettyError = code => ({
   PORTFOLIO_ACCESS_NOT_CONFIGURED: "FBIS account access is not configured in Cloudflare.",
   PORTFOLIO_ACCESS_DENIED: "Account access code was not accepted.",
   KALSHI_NOT_CONFIGURED: "Kalshi API credentials are not configured in Cloudflare.",
-  KALSHI_UPSTREAM_FAILED: "Kalshi could not return a complete account snapshot. Try again.",
+  KALSHI_PRIVATE_KEY_FORMAT_INVALID: "Kalshi private key could not be parsed. In Cloudflare, the secret must contain the entire PRIVATE KEY PEM file, including BEGIN and END lines.",
+  KALSHI_SIGNING_FAILED: "Cloudflare could not sign a Kalshi request with the configured private key. Check that the Key ID and private key are a matched Kalshi credential pair.",
+  KALSHI_CONNECTION_FAILED: "Cloudflare could not reach Kalshi. The request may have timed out or the provider connection failed.",
+  KALSHI_UPSTREAM_FAILED: "Kalshi rejected or failed one or more account requests.",
   KALSHI_BALANCE_SCHEMA_CHANGED: "Kalshi balance format changed. Review the adapter.",
   PORTFOLIO_READ_UNAVAILABLE: "Private account feed is temporarily unavailable.",
 }[code] || "Could not load the account. Try again.");
@@ -32,7 +35,18 @@ export default function AccountsView() {
       });
       const data = await res.json();
       if (signal?.aborted) return;
-      if (!res.ok || !data?.ok) throw new Error(data?.code || "PORTFOLIO_READ_UNAVAILABLE");
+      if (!res.ok || !data?.ok) {
+        const failures = data?.failures && typeof data.failures === "object" ? data.failures : {};
+        const codes = Object.entries(failures).filter(([, failure]) => failure && Number.isInteger(failure.status))
+          .map(([resource, failure]) => resource + " HTTP " + failure.status);
+        const authRejected = Object.values(failures).some(failure => failure && [401, 403].includes(failure.status));
+        const failureMessage = authRejected
+          ? "Kalshi rejected the API Key ID, signature, or account permissions (401/403). Confirm that the Key ID matches the private key."
+          : prettyError(data?.code || "PORTFOLIO_READ_UNAVAILABLE");
+        setError(failureMessage + (codes.length ? " [" + codes.join(", ") + "]" : ""));
+        setSnapshot(null);
+        return false;
+      }
       setError("");
       setSnapshot(data);
       return true;
