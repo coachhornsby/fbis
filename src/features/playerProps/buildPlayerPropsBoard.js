@@ -841,7 +841,7 @@ export function buildVenueComparisonRows(rows=[]) {
  });
  const keyOf=r=>r.identityVerified===true&&r.contractId&&
   ['Kalshi','Polymarket'].includes(r.provider)&&r.canonicalEventId&&r.canonicalPlayerId&&
-  r.canonical_market&&r.period&&money(r.line)!=null&&sideOf(r)?
+  r.canonical_market&&r.period&&r.line!=null&&Number.isFinite(Number(r.line))&&Number(r.line)>=0&&sideOf(r)?
   [r.sport,r.canonicalEventId,r.canonicalPlayerId,r.canonical_market,r.period,
    Number(r.line).toString(),sideOf(r)].join('|'):null;
  const pools=new Map();
