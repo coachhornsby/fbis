@@ -10,6 +10,7 @@ import {
   groupPlayerPropRows,
   orderExchangeResearchCards,
   buildVenueComparisonRows,
+  groupExchangePlayerStatCards,
   normalizeBoardGame,
   propProjectionStars,
   selectFreeMirrorReferenceRows,
@@ -719,4 +720,41 @@ test("model-only props keep their projection with no fabricated exchange quote",
  const model={id:'model',sport:'nba',canonicalEventId:'e',canonicalPlayerId:'p',canonical_market:'points',fbis_projection:22};
  const result=buildVenueComparisonRows([model]);
  assert.equal(result.length,1);assert.equal(result[0],model);assert.equal(result[0].venueComparison,undefined);
+});
+
+test('unified market cards collapse exact over/under Kalshi legs without losing asks',()=>{
+ const common={sport:'nba',canonicalEventId:'game-1',canonicalPlayerId:'nba:espn:123',
+  canonical_market:'points',line:24.5,period:'full_game',identityVerified:true,
+  provider:'Kalshi',fbis_projection:27.8,canAuthorizeWager:false};
+ const over={...common,id:'K-YES',contractId:'K-Y',statSide:'over',side:'yes',observedAsk:.55,observedDepth:18};
+ const under={...common,id:'K-NO',contractId:'K-N',statSide:'under',side:'no',observedAsk:.48,observedDepth:11};
+ const paired=buildVenueComparisonRows([over,under]);
+ const cards=groupExchangePlayerStatCards(paired);
+ assert.equal(cards.length,1);
+ assert.equal(cards[0].fbis_projection,27.8);
+ assert.equal(cards[0].line,24.5);
+ assert.equal(cards[0].venueComparison.groupedContractSides,2);
+ assert.equal(cards[0].venueComparison.marketSides.over.venues[0].price,.55);
+ assert.equal(cards[0].venueComparison.marketSides.under.venues[0].price,.48);
+ assert.equal(cards[0].venueComparison.marketSides.over.priceDifferenceDollars,null);
+ assert.equal(cards[0].canAuthorizeWager,false);
+});
+test('different thresholds, events and players stay on separate stat cards',()=>{
+ const base={provider:'Kalshi',sport:'nba',canonicalEventId:'g',canonicalPlayerId:'nba:espn:9',
+  canonical_market:'rebounds',period:'full_game',line:8.5,identityVerified:true,statSide:'over',
+  contractId:'k-over',side:'yes',observedAsk:.3};
+ const variants=[{...base,id:'1'},{...base,id:'2',contractId:'b',statSide:'under',side:'no',line:9.5},
+  {...base,id:'3',contractId:'c',statSide:'under',side:'no',canonicalEventId:'g2'},
+  {...base,id:'4',contractId:'d',statSide:'under',side:'no',canonicalPlayerId:'nba:espn:10'}];
+ assert.equal(groupExchangePlayerStatCards(buildVenueComparisonRows(variants)).length,4);
+});
+test('three-provider-side duplicates are not discarded or labeled qualified',()=>{
+ const k={id:'k',provider:'Kalshi',sport:'nfl',canonicalEventId:'e',canonicalPlayerId:'nfl:nflverse:1',
+  canonical_market:'receptions',period:'full_game',line:4.5,identityVerified:true,statSide:'over',
+  side:'yes',contractId:'k1',observedAsk:.48};
+ const k2={...k,id:'k2',contractId:'k2',observedAsk:.51};
+ const n={...k,id:'n',contractId:'n',statSide:'under',side:'no'};
+ const cards=groupExchangePlayerStatCards(buildVenueComparisonRows([k,k2,n]));
+ assert.equal(cards.length,3);
+ assert.ok(cards.every(c=>c.canAuthorizeWager!==true));
 });
