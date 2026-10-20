@@ -30,7 +30,7 @@ export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}
   if(typeof env?.FBIS_KALSHI_RELAY_TOKEN!=="string"
     ||env.FBIS_KALSHI_RELAY_TOKEN.length<40)
     return {ok:false,code:"SIGNED_RELAY_SECRET_MISSING"};
-  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs"&&scope!=="combo-tape"&&scope!=="nhl-official-prop-results")
+  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs"&&scope!=="combo-tape"&&scope!=="nhl-official-prop-results"&&scope!=="prop-reconciliation")
     return {ok:false,code:"SIGNED_RELAY_SCOPE_NOT_ALLOWED"};
   if(scope==="markets"&&!SPORTS.includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
@@ -150,6 +150,19 @@ export async function collectNhlOfficialResultsOnce(env,{now=new Date(),fetchImp
  if(ms(receipt?.checkedAt)>now.getTime()-60*60*1000)return {ok:true,status:"NOT_DUE"};
  return relaySignedPages(env,{scope:"nhl-official-prop-results",fetchImpl});
 }
+export async function collectReviewedPropGradesOnce(env,{now=new Date(),fetchImpl=fetch}={}){
+ if(!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
+ let index;
+ try{const o=await env.ARCHIVE.get("player-props/reconcile/v1/approved-index.json");index=o?await o.json():null;}
+ catch{return {ok:false,code:"RECONCILIATION_INDEX_READ_FAILED"};}
+ if(index?.version!==1||index.approved!==true||!Array.isArray(index.entries)||!index.entries.length)
+  return {ok:true,status:"NOT_CONFIGURED"};
+ let receipt;
+ try{const o=await env.ARCHIVE.get("player-props/reconcile/v1/latest-receipt.json");receipt=o?await o.json():null;}
+ catch{return {ok:false,code:"RECONCILIATION_RECEIPT_READ_FAILED"};}
+ if(ms(receipt?.at)>now.getTime()-60*60*1000)return {ok:true,status:"NOT_DUE"};
+ return relaySignedPages(env,{scope:"prop-reconciliation",fetchImpl});
+}
 export default {
   async scheduled(event,env,ctx){
     // Spread auxiliary provider reads across scheduled windows. Concurrent
@@ -161,7 +174,7 @@ export default {
     ctx.waitUntil(Promise.all([
       collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),
       collectKalshiExchangeStatusOnce(env),collectKalshiSeriesCatalogOnce(env),
-      collectNhlOfficialResultsOnce(env,{now}),
+      collectNhlOfficialResultsOnce(env,{now}),collectReviewedPropGradesOnce(env,{now}),
       aux==="qualification-evidence"?collectKalshiEvidenceOnce(env):
         relaySignedPages(env,{scope:aux}),
     ]));
