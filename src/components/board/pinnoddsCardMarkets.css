@@ -138,11 +138,11 @@
   display:block!important;pointer-events:none;z-index:0;overflow:hidden!important;
   background:transparent!important;border:0!important;box-shadow:none!important;border-radius:inherit!important;opacity:.34;transform:none!important
 }
-/* ~109% width cancels typical ESPN transparent side padding (~8%) so painted L/R rims meet the tile. */
+/* ~110% width cancels ESPN transparent side padding (~8%) so painted L/R rims meet the tile. */
 .fbis-priced-tile-mark .team-logo,.fbis-priced-tile-mark img{
   position:absolute!important;left:50%!important;right:auto!important;top:46%!important;bottom:auto!important;
-  width:109%!important;height:auto!important;aspect-ratio:1;max-width:none!important;max-height:none!important;
-  min-width:109%!important;min-height:0!important;
+  width:110%!important;height:auto!important;aspect-ratio:1;max-width:none!important;max-height:none!important;
+  min-width:110%!important;min-height:0!important;
   object-fit:contain!important;object-position:center center!important;border-radius:0!important;opacity:1;
   filter:saturate(1.08) contrast(1.1);display:block!important;margin:0!important;
   transform:translate(-50%,-50%);transform-origin:center center
