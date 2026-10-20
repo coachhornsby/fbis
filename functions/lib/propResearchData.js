@@ -36,7 +36,8 @@ export function independentPropRows(board,{now=Date.now()}={}) {
 }
 export function joinIndependentPropModels(markets,models) {
  const used=new Set();
- const rows=markets.map(m=>{const matches=models.filter(p=>p.canonicalEventId===m.canonicalEventId&&p.canonicalPlayerId===m.canonicalPlayerId&&p.canonical_market===m.canonical_market&&p.period===m.period);
+ const stat=v=>v==='pra'?'points_rebounds_assists':v;
+ const rows=markets.map(m=>{const matches=models.filter(p=>p.canonicalEventId===m.canonicalEventId&&p.canonicalPlayerId===m.canonicalPlayerId&&stat(p.canonical_market)===stat(m.canonical_market)&&p.period===m.period&&p.independent!==false);
   if(matches.length!==1)return m;
   const p=matches[0];used.add(p.id);
   return {...m,fbis_projection:p.fbis_projection,sigma:p.sigma,modelId:p.modelId,modelVersion:p.modelVersion,modelAsOf:p.modelAsOf,
