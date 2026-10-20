@@ -81,6 +81,21 @@ export const NBA_BUILDABLE = Object.freeze([
     module: "scripts/nba-shadow-project.mjs + scripts/nba-game-decision-evaluate.mjs",
   },
   {
+    requirement: "prospective_gate_unfreeze_criteria",
+    status: "IMPLEMENTED",
+    module: "functions/lib/nbaProspectiveGate.js + /api/nba-prospective-gate",
+  },
+  {
+    requirement: "official_injury_lineup_board_hydration",
+    status: "IMPLEMENTED",
+    module: "functions/lib/nbaAvailabilityContext.js + official injury/lineup collectors",
+  },
+  {
+    requirement: "player_prop_research_shadow_path",
+    status: "IMPLEMENTED",
+    module: "functions/lib/proPlayerProjectionLayer.js (D1 nba_player_prop_projections; blocked fallback)",
+  },
+  {
     requirement: "identity_publication_contracts",
     status: "IMPLEMENTED_SCAFFOLD",
     module: "canonical lineage + publication ledger (shared)",
@@ -112,7 +127,7 @@ export const NBA_PROVIDER_STATUS = Object.freeze({
   availabilityStates: NBA_AVAILABILITY_STATUS,
   expectedMinutesFirstClass: true,
   combinationPropsCovarianceAware: true,
-  note: "Independent game projections and game-level wager decisions are qualification-eligible. Player-prop qualification still requires a rights-cleared verified availability state. ACTION remains market intelligence only and cannot directly qualify or authorize.",
+  note: "Game board publishes independent NBA-FBIS-v1 research projections. Wager authority stays false until prospective gate criteria pass and D1 operator cutover (can_authorize=1). Injury/lineup hydrate from official PDF + ESPN lineup observations. Player props attach from D1 shadow rows when present; otherwise blocked. ACTION remains market intelligence only.",
 });
 
 export function nbaComponentAudit() {
