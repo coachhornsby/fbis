@@ -100,6 +100,122 @@ export async function verifyNhlSportDbParity(env, { now = new Date() } = {}) {
 }
 
 /**
+ * Record-level NHL shadow validation beyond row counts.
+ * Samples games (id/start/names) and prediction snapshots
+ * (id/frozen_at/projection fields) for exact match vs primary.
+ */
+export async function verifyNhlRecordLevelParity(env, {
+  sampleSize = 40,
+  now = new Date(),
+} = {}) {
+  const primary = env?.DB;
+  const sportDb = env?.NHL_DB;
+  if (!primary?.prepare) return { ok: false, reason: "PRIMARY_UNBOUND", canAuthorizeWager: false };
+  if (!sportDb?.prepare) return { ok: false, reason: "NHL_DB_UNBOUND", canAuthorizeWager: false };
+
+  const limit = Math.min(200, Math.max(5, Number(sampleSize) || 40));
+  const gameChecks = [];
+  const predChecks = [];
+  let gameMatched = 0;
+  let predMatched = 0;
+
+  const primaryGames = (await primary.prepare(
+    `SELECT id,start,home_name,away_name,home_abbr,away_abbr
+     FROM games WHERE sport='nhl' ORDER BY start DESC LIMIT ?`
+  ).bind(limit).all())?.results || [];
+
+  for (const g of primaryGames) {
+    const s = await sportDb.prepare(
+      `SELECT id,start,home_name,away_name,home_abbr,away_abbr FROM games WHERE id=? LIMIT 1`
+    ).bind(g.id).first();
+    const equal = Boolean(s)
+      && String(s.start || "") === String(g.start || "")
+      && String(s.home_name || "") === String(g.home_name || "")
+      && String(s.away_name || "") === String(g.away_name || "")
+      && String(s.home_abbr || "") === String(g.home_abbr || "")
+      && String(s.away_abbr || "") === String(g.away_abbr || "");
+    if (equal) gameMatched += 1;
+    gameChecks.push({
+      id: g.id,
+      status: !s ? "MISSING" : equal ? "MATCH" : "DIVERGED",
+      primaryStart: g.start || null,
+      sportStart: s?.start || null,
+    });
+  }
+
+  const primaryPreds = (await primary.prepare(
+    `SELECT id,game_id,model_version,projection_kind,proj_total,proj_home,proj_away,p_home_final,frozen_at
+     FROM prediction_snapshots WHERE sport='nhl' ORDER BY frozen_at DESC LIMIT ?`
+  ).bind(limit).all())?.results || [];
+
+  for (const p of primaryPreds) {
+    const s = await sportDb.prepare(
+      `SELECT id,game_id,model_version,projection_kind,proj_total,proj_home,proj_away,p_home_final,frozen_at
+       FROM prediction_snapshots WHERE id=? LIMIT 1`
+    ).bind(p.id).first();
+    const numEq = (a, b) => {
+      if (a == null && b == null) return true;
+      const x = Number(a); const y = Number(b);
+      return Number.isFinite(x) && Number.isFinite(y) && Math.abs(x - y) < 1e-9;
+    };
+    const equal = Boolean(s)
+      && String(s.game_id || "") === String(p.game_id || "")
+      && String(s.frozen_at || "") === String(p.frozen_at || "")
+      && String(s.model_version || "") === String(p.model_version || "")
+      && String(s.projection_kind || "") === String(p.projection_kind || "")
+      && numEq(s.proj_total, p.proj_total)
+      && numEq(s.proj_home, p.proj_home)
+      && numEq(s.proj_away, p.proj_away)
+      && numEq(s.p_home_final, p.p_home_final);
+    if (equal) predMatched += 1;
+    predChecks.push({
+      id: p.id,
+      status: !s ? "MISSING" : equal ? "MATCH" : "DIVERGED",
+      primaryFrozenAt: p.frozen_at || null,
+      sportFrozenAt: s?.frozen_at || null,
+      primaryPHome: p.p_home_final ?? null,
+      sportPHome: s?.p_home_final ?? null,
+    });
+  }
+
+  const gamesOk = gameChecks.length > 0 && gameMatched === gameChecks.length;
+  const predsOk = predChecks.length === 0 || predMatched === predChecks.length;
+  const status = gamesOk && predsOk ? "RECORD_PARITY_OK" : "RECORD_PARITY_INCOMPLETE";
+  const receipt = {
+    receiptId: `nhl-record-parity-${now.toISOString().replace(/[:.]/g, "-")}`,
+    checkedAt: now.toISOString(),
+    status,
+    sampleSize: limit,
+    games: { sampled: gameChecks.length, matched: gameMatched, status: gamesOk ? "PARITY" : "DIVERGED" },
+    predictions: { sampled: predChecks.length, matched: predMatched, status: predsOk ? "PARITY" : "DIVERGED" },
+    gameSample: gameChecks.filter((c) => c.status !== "MATCH").slice(0, 10),
+    predictionSample: predChecks.filter((c) => c.status !== "MATCH").slice(0, 10),
+    productIoUsesSportDb: false,
+    canAuthorizeWager: false,
+  };
+
+  try {
+    await sportDb.prepare(
+      `INSERT OR REPLACE INTO nhl_parity_receipts(receipt_id,checked_at,table_name,primary_count,sport_count,matched,status,detail_json)
+       VALUES(?,?,?,?,?,?,?,?)`
+    ).bind(
+      receipt.receiptId,
+      receipt.checkedAt,
+      "RECORD_LEVEL_SAMPLE",
+      gameChecks.length + predChecks.length,
+      gameMatched + predMatched,
+      gameMatched + predMatched,
+      status,
+      JSON.stringify({ games: receipt.games, predictions: receipt.predictions })
+    ).run();
+  } catch {
+    receipt.receiptPersist = "NHL_RECORD_PARITY_RECEIPT_WRITE_FAILED";
+  }
+
+  return { ok: status === "RECORD_PARITY_OK", ...receipt };
+}
+
+/**
  * Copy NHL working rows from primary into NHL_DB.
  * Uses SELECT from primary then INSERT on sport DB (no cross-D1 SQL).
  * Callers must harvest-authorize; this never deletes primary rows.

@@ -31,10 +31,13 @@ Policy:
 
 1. Inventory table sizes, readers, writers (`scripts/d1-topology-inventory.mjs`).
 2. Reuse existing `OPERATIONS_DB` (already live).
-3. **Pilot NHL:** live parity receipt `PARITY_OK` (games 164/164, prediction_snapshots 649/649). Ops: `nhl-copy` / `nhl-parity` / `nhl-shadow-compare`. Keep `NHL_SPORT_DB_MODE=shadow` until product cutover.
-4. **All sport D1s** provisioned + `sport-working-v1` schema applied; remain in `SPORT_DB_MODE_*=shadow` until per-sport copy + parity.
-5. **Market-history R2 archive scan** (`market-history-archive-scan`) archives cold ticks to R2; deletion still requires a retention gate.
-6. Retire old primary copies only after recovery and consistency checks pass.
+3. **Pilot NHL (shadow):** count + record-level parity OK. Keep `NHL_SPORT_DB_MODE=shadow` — **no product cutover**.
+4. **All sport D1s** provisioned + schema; shadow only. Next controlled copies: **NFL then CFB**.
+5. **Market-history protection:** Q4 write routing + R2 archive scan + retention gate before any legacy delete.
+6. **CORE board summaries** must stay complete before any sport becomes authoritative.
+7. Retire old primary copies only after recovery and consistency checks pass.
+
+See `docs/topology-verification-stage.md` for Worker Builds triage, binding verification, and shadow-routing guarantees.
 
 ## Routing
 
@@ -49,7 +52,9 @@ Cross-sport dashboards must read **prepared summaries on CORE_DB**, not fan-out 
 ## Operator API
 
 `GET /api/database-topology` (harvest secret) — live capacity + routing snapshot.  
-`POST /api/database-topology` — `nhl-copy`, `nhl-parity`, `nhl-shadow-compare`, `market-history-write-target`, `market-history-archive-scan`.
+`POST /api/database-topology` — `verify-bindings`, `nhl-copy`, `nhl-parity`, `nhl-record-parity`, `nhl-shadow-compare`, `sport-copy` / `sport-parity` (nfl|cfb), `core-board-summary-publish` / `core-board-summary-read`, `market-history-write-target`, `market-history-archive-scan`, `retention-gate-evaluate`.
+
+Product IO must use `productSportDbHandle()` — shadow mode never returns a sport D1 for reads/writes.
 
 ## Provisioned sport D1s
 

@@ -113,6 +113,10 @@ export function resolveCoreDb(env) {
  * Resolve the working database for a sport.
  * Until a sport D1 is bound and schema-ready, reads/writes stay on PRIMARY.
  * mode: primary | shadow | sport (env NHL_SPORT_DB_MODE / SPORT_DB_MODE_<SPORT>)
+ *
+ * CRITICAL: product code must use `authoritativeSportDb()` / `productSportDbHandle()`.
+ * `resolveSportDb().sportDb` is for shadow telemetry / copy / parity ONLY.
+ * Shadow and primary modes always return `db` = PRIMARY and `preferred` = false.
  */
 export function resolveSportDb(env, sport, { mode } = {}) {
   const key = normalizeSport(sport);
@@ -136,11 +140,22 @@ export function resolveSportDb(env, sport, { mode } = {}) {
       preferred: false,
       mode: effectiveMode,
       reason: sportDb?.prepare ? "SPORT_DB_NOT_PROVISIONED" : "SPORT_DB_UNBOUND",
+      productIoUsesSportDb: false,
     };
   }
 
   if (effectiveMode === "sport") {
-    return { db: sportDb, sport: key, plan, binding: bindingName, preferred: true, mode: effectiveMode, reason: "SPORT_DB_ACTIVE" };
+    return {
+      db: sportDb,
+      sportDb,
+      sport: key,
+      plan,
+      binding: bindingName,
+      preferred: true,
+      mode: effectiveMode,
+      reason: "SPORT_DB_ACTIVE",
+      productIoUsesSportDb: true,
+    };
   }
   if (effectiveMode === "shadow") {
     return {
@@ -152,6 +167,7 @@ export function resolveSportDb(env, sport, { mode } = {}) {
       preferred: false,
       mode: effectiveMode,
       reason: "SPORT_DB_SHADOW_PRIMARY_READS",
+      productIoUsesSportDb: false,
     };
   }
   return {
@@ -163,7 +179,65 @@ export function resolveSportDb(env, sport, { mode } = {}) {
     preferred: false,
     mode: effectiveMode,
     reason: "SPORT_DB_BOUND_PRIMARY_AUTHORITY",
+    productIoUsesSportDb: false,
   };
+}
+
+/**
+ * Product read/write handle for a sport. Never returns a partial sport D1 unless
+ * mode is explicitly `sport` AND the resolved binding is the sport plan binding.
+ * Shadow / primary / unbound always fall back to PRIMARY `DB`.
+ */
+export function productSportDbHandle(env, sport, opts = {}) {
+  const resolved = resolveSportDb(env, sport, opts);
+  const primary = env?.DB || null;
+  if (!resolved.productIoUsesSportDb) {
+    return {
+      db: primary,
+      binding: "DB",
+      mode: resolved.mode,
+      reason: resolved.reason || "PRIMARY_AUTHORITY",
+      sport: resolved.sport,
+      preferred: false,
+      productIoUsesSportDb: false,
+      shadowSportDbBound: Boolean(resolved.sportDb?.prepare),
+      canAuthorizeWager: false,
+    };
+  }
+  // Defense in depth: refuse sport IO unless binding, handle, and plan all agree.
+  const expected = env?.[resolved.plan?.binding];
+  if (
+    resolved.binding !== resolved.plan?.binding
+    || !resolved.db?.prepare
+    || resolved.db !== expected
+    || resolved.db === primary
+  ) {
+    return {
+      db: primary,
+      binding: "DB",
+      mode: resolved.mode,
+      reason: "SPORT_CUTOVER_GUARD_FAILED_FALLBACK_PRIMARY",
+      sport: resolved.sport,
+      preferred: false,
+      productIoUsesSportDb: false,
+      canAuthorizeWager: false,
+    };
+  }
+  return {
+    db: resolved.db,
+    binding: resolved.binding,
+    mode: resolved.mode,
+    reason: resolved.reason,
+    sport: resolved.sport,
+    preferred: true,
+    productIoUsesSportDb: true,
+    canAuthorizeWager: false,
+  };
+}
+
+/** True only when product IO is intentionally cut over to the sport D1. */
+export function isSportDbAuthoritative(env, sport, opts = {}) {
+  return productSportDbHandle(env, sport, opts).productIoUsesSportDb === true;
 }
 
 async function probeSize(db) {
