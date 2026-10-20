@@ -238,6 +238,195 @@ export function LastFiveStatChart({ row }) {
   );
 }
 
+function VenueComparison({row}) {
+  const comparison=row.venueComparison;
+  if(!comparison)return null;
+  const offers=comparison.venues||[];
+  const format=v=>v==null?'—':'
+export default function FBISPlayerPropCard({
+  row: rawRow = {},
+  sport = "",
+  rank = null,
+  compact = false,
+  onResearch,
+}) {
+  const row = normalizeRow(rawRow, sport);
+  const projection = row.fbis_projection;
+  const line = row.line;
+  const delta = projection != null && line != null ? projection - line : null;
+  const side = delta == null ? "WATCH" : delta > 0 ? "OVER" : delta < 0 ? "UNDER" : "WATCH";
+  const tier = "research";
+  const theme = useTeamTheme(row.sport, row.team);
+  const primary = theme.primary || "#172b50";
+  const secondary = theme.secondary || "#0a1428";
+
+  return (
+    <article
+      className={
+        "pp-card pp-premium-card pp-style-card sport-" +
+        (row.sport || "nfl") +
+        (compact ? " pp-style-card-compact" : "")
+      }
+      data-pp-card="fbis"
+      style={{
+        "--pp-team-primary": primary,
+        "--pp-team-secondary": secondary,
+        borderColor: `color-mix(in srgb, ${primary} 55%, rgba(255,255,255,.18))`,
+      }}
+    >
+      <div
+        className="pp-card-visual pp-card-visual-team"
+        style={{
+          background: `
+            radial-gradient(circle at 50% 36%, color-mix(in srgb, ${primary} 18%, transparent), transparent 52%),
+            #000
+          `.replace(/\s+/g, " ").trim(),
+        }}
+      >
+        {theme.logo ? (
+          <div
+            className="pp-team-watermark"
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "34%",
+              width: "min(140%, 340px)",
+              height: "min(140%, 340px)",
+              transform: "translate(-50%, -50%)",
+              opacity: 0.28,
+              zIndex: 1,
+              display: "grid",
+              placeItems: "center",
+              pointerEvents: "none",
+              filter: "none",
+              inset: "auto",
+            }}
+          >
+            <img
+              src={theme.logo}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              style={{
+                width: "125%",
+                height: "125%",
+                maxWidth: "none",
+                maxHeight: "none",
+                objectFit: "contain",
+                filter: "saturate(0.95) drop-shadow(0 0 22px rgba(255,255,255,.08))",
+              }}
+            />
+          </div>
+        ) : null}
+        {rank != null ? <div className="pp-style-rank" aria-label={"Rank " + rank}>#{rank}</div> : null}
+        <div className="pp-premium-headshot">
+          <img
+            src={resolvedHeadshot(row)}
+            alt={row.player_name || "Player"}
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+              const fallback = e.currentTarget.nextElementSibling;
+              if (fallback) fallback.style.display = "flex";
+            }}
+          />
+          <span style={{ display: "none" }}>{initials(row.player_name)}</span>
+        </div>
+        <div className="pp-team-pill">
+          {(row.sport || "NFL").toUpperCase()}
+          {row.team ? <><span>•</span>{row.team}</> : null}
+          {tier !== "standard" ? <><span>•</span>{tier.toUpperCase()}</> : null}
+        </div>
+      </div>
+      <div className="pp-card-body">
+        <div className="pp-player-title">
+          <h3>{row.player_name || "Unknown player"}</h3>
+          <p>
+            {row.team || (row.sport || "").toUpperCase()}
+            {row.opponent ? <><span> vs </span><b>{row.opponent}</b></> : null}
+          </p>
+        </div>
+        {row.start_time ? <p className="pp-quote-status">{new Date(row.start_time).toLocaleString("en-US", {timeZone:"America/Chicago"})} CT</p> : null}
+        <div className="pp-market-name pp-premium-market-name">{marketLabel(row)}</div>
+        <div className="pp-variant-shell">
+          <div className="pp-tier-control-row">
+            <span className={"pp-active-tier pp-active-tier-" + tier}>{tier.toUpperCase()}</span>
+          </div>
+          <div className="pp-line-row pp-premium-metrics" aria-label="Market threshold versus FBIS projection">
+            <div className="pp-metric-cell">
+              <span>{row.provider || "MARKET"} THRESHOLD</span>
+              <strong>{num(line)}</strong>
+            </div>
+            <div className="pp-metric-cell fbis-metric">
+              <span>FBIS</span>
+              <strong>{num(projection)}</strong>
+            </div>
+            <div className={"pp-metric-cell pp-metric-diff " + (delta == null ? "" : delta > 0 ? "is-over" : delta < 0 ? "is-under" : "is-push")}>
+              <span>DIFF</span>
+              <strong>{signed(delta)}</strong>
+            </div>
+          </div>
+          <div className={"pp-read pp-premium-read pp-read-" + String(side).toLowerCase()}>
+            <div className="pp-read-side">
+              <span className="pp-read-arrow" aria-hidden="true">{side === "WATCH" ? "·" : side === "UNDER" ? "↓" : "↑"}</span>
+              <b>{side}</b>
+            </div>
+            <div className="pp-edge-value">
+              <span>STAT DIFF</span>
+              <strong>{signed(delta)}</strong>
+            </div>
+          </div>
+        </div>
+        <VenueComparison row={row} />
+        <LastFiveStatChart row={row} />
+        <div className="pp-contract-status"><b>{row.identityVerified && row.contractId ? "Contract mapped" : "Projection only"}</b><span>{row.marketAvailable ? "Verified purchase quote" : row.provider ? "Research · quote not executable" : "Market unavailable"}</span></div>
+        <p className="pp-quote-status">{row.observedAsk != null ? `Observed ${String(row.side||"yes").toUpperCase()} ask $${Number(row.observedAsk).toFixed(2)} · depth ${row.observedDepth ?? "unknown"}` : row.purchaseAsk != null ? `Buy ask $${Number(row.purchaseAsk).toFixed(2)}` : "Purchase ask unavailable"}</p>
+        <p className="pp-quote-status">{row.observedAt ? `Source: ${row.observedAt}` : "Source quote time unknown"}{row.collectedAt ? ` · Captured ${row.collectedAt}` : ""}</p>
+        <p className="pp-quote-status">{row.modelVersion || "Model unavailable"} · {row.calibratedProbability == null ? "Probability not calibrated" : `${Math.round(row.calibratedProbability*100)}% calibrated`}</p>
+        {onResearch ? <button type="button" className="header-btn" onClick={() => onResearch(rawRow)}>Open player research</button> : null}
+        <div className="pp-card-foot pp-premium-foot">
+          <span>{row.provider || "Market unavailable"} · {row.modelStatus || "Research only"}</span>
+          <span>Not a wager authorization</span>
+        </div>
+      </div>
+    </article>
+  );
+}
++Number(v).toFixed(3);
+  const get=provider=>offers.find(v=>v.provider===provider);
+  const status=comparison.priceComparisonStatus;
+  const messages={
+    OTHER_PROVIDER_UNAVAILABLE:'Other exchange: no verified matching contract observed',
+    SETTLEMENT_NOT_EQUIVALENT_OR_UNVERIFIED:'Exact settlement equivalence not verified; price comparison withheld',
+    QUOTE_CLOCK_OR_EXECUTION_UNVERIFIED:'Matching settlement terms; live executable quote times not verified',
+    COMPARABLE_CURRENT_QUOTES:'Verified same-contract scope, current ask prices before fees',
+  };
+  return <div className="pp-venue-comparison" aria-label="Kalshi and Polymarket price comparison">
+    <div className="pp-venue-topline"><b>EXCHANGE PRICE COMPARISON</b><span>{String(row.statSide||row.side||'').toUpperCase()}</span></div>
+    <div className="pp-venue-quotes">
+      {['Kalshi','Polymarket'].map(provider=>{
+        const v=get(provider);
+        return <div key={provider} className={'pp-venue-quote '+(v?'has-contract':'no-contract')}>
+          <span className="pp-venue-name">{provider}</span>
+          <strong>{format(v?.price)}</strong>
+          <small>{!v?'Not captured':v.priceKind==='VERIFIED_PURCHASE_ASK'?'Verified purchase ask':'Observed ask only'}</small>
+          {v?.depth!=null?<small>Depth {Number(v.depth).toLocaleString('en-US',{maximumFractionDigits:1})}</small>:null}
+        </div>;
+      })}
+    </div>
+    <div className="pp-venue-gap">
+      <span>PRICE GAP</span>
+      <b>{comparison.priceDifferenceDollars==null?'—':format(Math.abs(comparison.priceDifferenceDollars))}</b>
+      {comparison.cheaperProvider?<span>Lower: {comparison.cheaperProvider}</span>:null}
+    </div>
+    <p className="pp-venue-caveat">{messages[status]||'Price comparison unavailable'}. Prices exclude unverified fees.</p>
+  </div>;
+}
+
 /**
  * Provider-neutral premium card with verified history and selected contract threshold.
  */
