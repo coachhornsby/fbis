@@ -6,6 +6,7 @@ import {readEspnFixtureResearchContext} from "./tennisEspnFixtureContext.js";
 import {atp2026TournamentSurface,wta2026TournamentSurface} from "./tennisAtp2026TournamentSurface.js";
 import {loadKalshiTennisResearch,matchKalshiTennisResearch} from "./tennisKalshiResearch.js";
 import {compareTennisExchangeResearch} from "./tennisExchangeCompare.js";
+import {loadTennisServeResearchIndex,selectTennisServeResearchPlayer} from "./tennisServeResearchCard.js";
 import {loadPolymarketGlobalTennisSnapshot,matchPolymarketGlobalTennis} from "./tennisPolymarketGlobal.js";
 const parse = value => { try { return JSON.parse(value); } catch { return null; } };
 const number = v => v == null || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null;
@@ -210,6 +211,7 @@ export function rankPriorTennisResearchEstimate(players) {
 export async function buildIndependentTennisCards(db, date, { now = new Date(), archive = null } = {}) {
   const bank = await buildTennisIntelligenceBank(db, { now, limit: 100 });
   const kalshi=await loadKalshiTennisResearch({ARCHIVE:archive},now);
+  const currentServeIndex=await loadTennisServeResearchIndex(archive,{now:+now});
   const polymarketGlobal=await loadPolymarketGlobalTennisSnapshot(archive,{now});
   const ctDay = start => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago",
     year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(start));
@@ -246,6 +248,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
     const context = await tennisCardContext(db, { tour: f.tour, player1: p1.fixtureName,
       player2: p2.fixtureName, surface: verifiedSurface }).catch(() => null);
     const researchEstimate=surfaceEloResearchEstimate(f.players,verifiedSurface?{surface:verifiedSurface}:null)||allSurfaceEloResearchEstimate(f.players)||rankPriorTennisResearchEstimate(f.players);
+    const currentServeResearch=f.tour==="atp"?f.players.map(p=>selectTennisServeResearchPlayer(currentServeIndex,p.fixtureName,f.start)):[];
     const kalshiResearchOffers=matchKalshiTennisResearch(f,kalshi[f.tour]||[],now);
     const exchangeResearch={polymarket:[],kalshi:kalshiResearchOffers,comparisonStatus:"NOT_COMPARABLE"};
     const polymarketGlobalOffers=matchPolymarketGlobalTennis(f,polymarketGlobal.events||[],{now,asOf:polymarketGlobal.asOf||now.toISOString()});
@@ -275,7 +278,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
         fetchedAt: f.fetched_at, fixtureFreshness:f.fixtureFreshness, rawHash: f.raw_hash, rawKey: f.raw_key, espnEventEvidence:espnEvidence,atpTournamentSurfaceEvidence:atpSurface,wtaTournamentSurfaceEvidence:wtaSurface, missingEvidence },
         eventIntegrity: { valid: false, reason: "OFFICIAL_PROJECTION_UNAVAILABLE" },
         blockedReason: f.officialDisplay ? "OFFICIAL_METADATA_MATCHED_DISPLAY_ONLY: projection/event authority remains unverified for this ESPN fixture" : "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
-        researchEstimate, kalshiResearchOffers, polymarketGlobalOffers, exchangeResearch, polymarketGlobalStatus:polymarketGlobal.ok?(polymarketGlobal.partial?"PARTIAL_SNAPSHOT":"FRESH_SNAPSHOT"):polymarketGlobal.code, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
+        researchEstimate, currentServeResearch, kalshiResearchOffers, polymarketGlobalOffers, exchangeResearch, polymarketGlobalStatus:polymarketGlobal.ok?(polymarketGlobal.partial?"PARTIAL_SNAPSHOT":"FRESH_SNAPSHOT"):polymarketGlobal.code, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
         surface:verifiedSurface,indoor:f.officialDisplay?.indoor??tourSurface?.indoor??null,
         surfaceSource:f.officialDisplay?.surface?"ATP_WTA_OFFICIAL":tourSurface?.source||null,
         tournament:f.officialDisplay?.tournament||espnEvidence?.tournament||null,
