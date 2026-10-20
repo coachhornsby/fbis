@@ -9,6 +9,12 @@ import { DATABASE_OWNERS } from "./databaseOwnership.js";
 export const TOPOLOGY_BINDING_GATE_CONTRACT = "fbis-topology-binding-gate-v1";
 
 /** Required D1 bindings for Pages Functions (product surface). */
+/** Tier-3 research shard (declared in wrangler.toml; preserved across restores). */
+const TIER3_DATABASE = Object.freeze({
+  binding: "TIER3_DB",
+  databaseId: "3dcddd30-8790-48f0-a6a3-cc3ad9b95295",
+});
+
 export const REQUIRED_PAGES_D1_BINDINGS = Object.freeze([
   Object.freeze({ binding: "DB", databaseId: DATABASE_OWNERS.PRIMARY.databaseId, role: "primary_authority" }),
   Object.freeze({ binding: CORE_DATABASE.binding, databaseId: CORE_DATABASE.databaseId, role: "core" }),
@@ -20,6 +26,7 @@ export const REQUIRED_PAGES_D1_BINDINGS = Object.freeze([
     role: "market_history_active_partition",
   }),
   Object.freeze({ binding: "COLD_HISTORY_DB", databaseId: DATABASE_OWNERS.COLD_HISTORY.databaseId, role: "cold_history" }),
+  Object.freeze({ binding: TIER3_DATABASE.binding, databaseId: TIER3_DATABASE.databaseId, role: "tier3_research" }),
   ...Object.values(SPORT_DATABASES).map((plan) => Object.freeze({
     binding: plan.binding,
     databaseId: plan.databaseId,

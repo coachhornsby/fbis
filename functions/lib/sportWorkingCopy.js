@@ -413,9 +413,52 @@ export async function reconcileSportProjections(env, sport, { sampleSize = 40 } 
     else mismatches.push({ id, status: s ? "DIVERGED" : "MISSING" });
   }
 
+  // Evidence coverage: envelopes + weights beyond count parity.
+  let withEnvelope = null;
+  let withWeights = null;
+  let fidelitySampled = 0;
+  let fidelityOk = 0;
+  try {
+    withEnvelope = await count(
+      sportDb,
+      `SELECT COUNT(*) n FROM prediction_snapshots
+       WHERE sport=? AND payload_json IS NOT NULL AND payload_json LIKE '%fbis-canonical-evidence-v1%'`,
+      key
+    );
+    withWeights = await count(
+      sportDb,
+      `SELECT COUNT(*) n FROM prediction_snapshots
+       WHERE sport=? AND weights_json IS NOT NULL AND TRIM(weights_json) != ''`,
+      key
+    );
+    for (const p of primaryPreds.slice(0, Math.min(20, primaryPreds.length))) {
+      const id = stablePredictionId(p);
+      const s = await sportDb.prepare(
+        `SELECT id,weights_json,layers_json,payload_json FROM prediction_snapshots WHERE id=? LIMIT 1`
+      ).bind(id).first();
+      fidelitySampled += 1;
+      const fidelity = evaluateSportPredictionFidelity({
+        ...p,
+        id,
+        sport: key,
+        weights_json: s?.weights_json ?? null,
+        layers_json: s?.layers_json ?? null,
+        payload_json: s?.payload_json ?? null,
+      });
+      if (fidelity.ok) fidelityOk += 1;
+      else mismatches.push({ id, status: "EVIDENCE_INCOMPLETE", missing: fidelity.missing.slice(0, 5) });
+    }
+  } catch {
+    /* evidence probes are additive */
+  }
+
   const countsOk = predPrimary === predSport && pubPrimary === pubSport;
   const sampleOk = primaryPreds.length === 0 || matched === primaryPreds.length;
-  const status = countsOk && sampleOk ? "PROJECTION_RECONCILE_OK" : "PROJECTION_RECONCILE_INCOMPLETE";
+  const evidenceOk = predSport == null
+    || (withEnvelope != null && withEnvelope === predSport && fidelitySampled === fidelityOk);
+  const status = countsOk && sampleOk && evidenceOk
+    ? "PROJECTION_RECONCILE_OK"
+    : "PROJECTION_RECONCILE_INCOMPLETE";
 
   return {
     ok: status === "PROJECTION_RECONCILE_OK",
@@ -424,6 +467,13 @@ export async function reconcileSportProjections(env, sport, { sampleSize = 40 } 
     counts: {
       prediction_snapshots: { primary: predPrimary, sport: predSport, status: predPrimary === predSport ? "PARITY" : "DIVERGED" },
       published_projections: { primary: pubPrimary, sport: pubSport, status: pubPrimary === pubSport ? "PARITY" : "DIVERGED" },
+    },
+    evidence: {
+      withEnvelope,
+      withWeights,
+      coverageOk: evidenceOk,
+      fidelitySampled,
+      fidelityOk,
     },
     sample: { sampled: primaryPreds.length, matched, mismatches: mismatches.slice(0, 10) },
     productIoUsesSportDb: false,

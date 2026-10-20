@@ -209,6 +209,8 @@ test("paged sport copy reaches older prediction rows across pages", async () => 
     proj_away: 20,
     p_home_final: 0.5,
     frozen_at: `2026-10-0${i + 1}T00:00:00Z`,
+    weights_json: "{\"w\":1}",
+    layers_json: "{\"l\":1}",
   }));
   const games = preds.map((p, i) => ({
     id: `g${i}`, sport: "nfl", start: p.frozen_at,

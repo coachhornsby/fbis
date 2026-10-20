@@ -88,21 +88,37 @@ export async function ensureHistoryLedgerSchema(db){
   return {ok:true,skipped:false,columns:columns.length};
 }
 
-/** Prefer newest under-capacity partition; fall back to legacy MARKET_HISTORY_DB. */
-function resolveRecoveryHistoryDb(env){
+/**
+ * Prefer Q4. Legacy MARKET_HISTORY_DB only with MARKET_HISTORY_ALLOW_LEGACY_WRITE=enabled.
+ * No silent fallback — matches WS persist / bootstrap fail-closed routing.
+ */
+export function resolveRecoveryHistoryDb(env){
   if(env?.MARKET_HISTORY_2026Q4_DB?.prepare){
     return {db:env.MARKET_HISTORY_2026Q4_DB,target:"MARKET_HISTORY_2026Q4_DB"};
   }
-  if(env?.MARKET_HISTORY_DB?.prepare){
+  if(env?.MARKET_HISTORY_ALLOW_LEGACY_WRITE==="enabled"&&env?.MARKET_HISTORY_DB?.prepare){
     return {db:env.MARKET_HISTORY_DB,target:"MARKET_HISTORY_DB"};
   }
-  return {db:null,target:null};
+  return {
+    db:null,
+    target:null,
+    reason:"MARKET_HISTORY_2026Q4_UNBOUND_FAIL_CLOSED",
+  };
 }
 
 /** Persist WS offers to market-history when primary D1 cannot accept writes. */
 export async function persistStreamRecoveryBatch(env,offers,{collectedAt=null}={}){
   const history=resolveRecoveryHistoryDb(env);
-  if(!history.db)return {attempted:0,inserted:0,ok:false,reason:"history-binding-missing"};
+  if(!history.db){
+    return {
+      attempted:0,
+      inserted:0,
+      ok:false,
+      reason:history.reason||"MARKET_HISTORY_2026Q4_UNBOUND_FAIL_CLOSED",
+      blocked:true,
+      canAuthorizeWager:false,
+    };
+  }
   if(!Array.isArray(offers)||!offers.length)return {attempted:0,inserted:0,ok:false,reason:"empty-offers"};
   try{
     const schema=await ensureHistoryLedgerSchema(history.db);

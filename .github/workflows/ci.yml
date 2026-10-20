@@ -66,6 +66,8 @@ jobs:
         run: node --test test/storage-capacity-production.test.mjs
       - name: Verify OPERATIONS_DB ownership, schema-ready fallback, and routing
         run: node --test test/database-ownership.test.js test/operations-db-fallback.test.js
+      - name: Gate multi-D1 topology bindings in wrangler.toml (prevent Pages wipe)
+        run: node --test test/wrangler-topology-bindings.test.js test/topology-binding-gate.test.js test/ws-persist-target.test.js test/history-recovery-q4.test.js
       - name: Verify cold historical readers and original source storage contracts
         run: node --test test/cold-market-history.test.mjs test/storage-full-core.test.mjs test/storage-research-archive.test.mjs test/storage-capacity-daily.test.mjs
       - name: Syntax check Cloudflare Functions
@@ -248,6 +250,13 @@ jobs:
           put_secret ACTION_APIFY_ENABLED "${ACTION_APIFY_ENABLED}"
           put_secret ACTION_APIFY_PLAN "${ACTION_APIFY_PLAN}"
           put_secret ACTION_APIFY_MONTHLY_BUDGET_USD "${ACTION_APIFY_MONTHLY_BUDGET_USD}"
+
+      - name: Require full topology bindings before Pages deploy
+        run: |
+          set -euo pipefail
+          # Fail the production deploy job if wrangler.toml regressed to the
+          # legacy five-D1 surface (that wipe drops CORE/sport/Q4 on every main deploy).
+          node --test test/wrangler-topology-bindings.test.js
 
       - name: Deploy canonical Pages
         env:

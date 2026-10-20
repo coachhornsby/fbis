@@ -58,8 +58,10 @@ test("stream binding gate requires Q4", () => {
 
 test("restore plan lists all required pages D1 ids and shadow modes", () => {
   const plan = topologyBindingRestorePlan();
+  assert.equal(REQUIRED_PAGES_D1_BINDINGS.length, 18);
   assert.ok(plan.pages.deployment_configs.production.d1_databases.CORE_DB);
   assert.ok(plan.pages.deployment_configs.production.d1_databases.NFL_DB);
+  assert.ok(plan.pages.deployment_configs.production.d1_databases.TIER3_DB);
   assert.ok(plan.pages.deployment_configs.production.d1_databases.MARKET_HISTORY_2026Q4_DB);
   assert.equal(plan.pages.deployment_configs.production.env_vars.SPORT_DB_MODE_NFL.value, "shadow");
   assert.ok(plan.stream.d1_databases.MARKET_HISTORY_2026Q4_DB);
