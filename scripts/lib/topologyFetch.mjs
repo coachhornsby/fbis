@@ -1,9 +1,18 @@
 /**
  * Shared topology POST helper for ops scripts.
- * Raises undici headers/body timeouts above AbortSignal so CFB-sized
- * Pages Function calls are not killed by the default 300s headersTimeout.
+ * Prefers undici Agent (headers/body timeouts above AbortSignal) when the
+ * package is installed; otherwise falls back to global fetch with a sub-300s
+ * AbortSignal so Node's default headersTimeout cannot win first.
  */
-import { Agent, fetch as undiciFetch } from "undici";
+const DEFAULT_HEADERS_CAP_MS = 280_000;
+
+async function loadUndici() {
+  try {
+    return await import("undici");
+  } catch {
+    return null;
+  }
+}
 
 export function createTopologyClient({
   base = process.env.FBIS_BASE_URL || "https://fbis-myz.pages.dev",
@@ -11,13 +20,31 @@ export function createTopologyClient({
   timeoutMs = 360_000,
   retries = 3,
 } = {}) {
-  const requestTimeoutMs = Math.min(540_000, Math.max(30_000, Number(timeoutMs) || 360_000));
-  const dispatcher = new Agent({
-    connectTimeout: 30_000,
-    headersTimeout: requestTimeoutMs + 15_000,
-    bodyTimeout: requestTimeoutMs + 15_000,
-    keepAliveTimeout: 10_000,
-  });
+  const requestedTimeoutMs = Math.min(540_000, Math.max(30_000, Number(timeoutMs) || 360_000));
+  let dispatcher = null;
+  let fetchImpl = globalThis.fetch.bind(globalThis);
+  let requestTimeoutMs = Math.min(requestedTimeoutMs, DEFAULT_HEADERS_CAP_MS);
+  let ready = null;
+
+  async function ensureTransport() {
+    if (ready) return ready;
+    const undici = await loadUndici();
+    if (undici?.Agent && undici?.fetch) {
+      requestTimeoutMs = requestedTimeoutMs;
+      dispatcher = new undici.Agent({
+        connectTimeout: 30_000,
+        headersTimeout: requestTimeoutMs + 15_000,
+        bodyTimeout: requestTimeoutMs + 15_000,
+        keepAliveTimeout: 10_000,
+      });
+      fetchImpl = undici.fetch;
+      ready = { mode: "undici", requestTimeoutMs };
+    } else {
+      requestTimeoutMs = Math.min(requestedTimeoutMs, DEFAULT_HEADERS_CAP_MS);
+      ready = { mode: "global-fetch", requestTimeoutMs };
+    }
+    return ready;
+  }
 
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -36,10 +63,11 @@ export function createTopologyClient({
 
   async function postTopology(operation, extra = {}, { retries: opRetries = retries } = {}) {
     if (!secret) throw new Error("HARVEST_SECRET_REQUIRED");
+    await ensureTransport();
     let lastError = null;
     for (let attempt = 0; attempt <= opRetries; attempt += 1) {
       try {
-        const response = await undiciFetch(`${base}/api/database-topology`, {
+        const response = await fetchImpl(`${base}/api/database-topology`, {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -48,7 +76,7 @@ export function createTopologyClient({
           },
           body: JSON.stringify({ operation, ...extra }),
           signal: AbortSignal.timeout(requestTimeoutMs),
-          dispatcher,
+          ...(dispatcher ? { dispatcher } : {}),
         });
         const text = await response.text();
         let body = null;
@@ -88,5 +116,9 @@ export function createTopologyClient({
     throw lastError || new Error(`TOPOLOGY_${operation}_FAILED`);
   }
 
-  return { postTopology, requestTimeoutMs };
+  return {
+    postTopology,
+    get requestTimeoutMs() { return requestTimeoutMs; },
+    ensureTransport,
+  };
 }

@@ -1,1 +1,1 @@
-trigger 2026-10-20T20:05:00Z — undici headersTimeout fix + happy-path NFL cutover qualify
+trigger 2026-10-20T20:15:00Z — install undici in sync/qualify CI; topologyFetch fallback
