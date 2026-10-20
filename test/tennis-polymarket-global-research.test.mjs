@@ -20,7 +20,7 @@ test("paired surnames, timestamp and tour produce only research metadata",()=>{
 });
 test("reject different players, missing clocks, ambiguous events, stale evidence",()=>{
  assert.equal(matchPolymarketGlobalTennis({...fixture,home_name:"Tallon Griekspoor"},[event],{now}).length,0);
- assert.equal(matchPolymarketGlobalTennis(fixture,[{...event,gameStartTime:null}],{now}).length,0);
+ assert.equal(matchPolymarketGlobalTennis(fixture,[{...event,slug:"atp-undated",gameStartTime:null}],{now}).length,0);
  assert.equal(matchPolymarketGlobalTennis(fixture,[event,{...event,id:"gamma-other"}],{now}).length,0);
  assert.equal(matchPolymarketGlobalTennis(fixture,[{...event,markets:[{...event.markets[0],outcomePrices:'["1.25","-0.25"]'}]}],{now}).length,0);
 });
@@ -64,4 +64,18 @@ test("collector captures CLOB best available asks without manufacturing quote-so
  assert.equal(clob.sides[0].bestAsk.size,4);
  assert.equal(clob.sides[0].sourceQuoteTime,null);
  assert.equal(clob.canAuthorizeWager,false);
+});
+
+test("rescheduled ATP pairing remains research visible but explicitly schedule-unverified",()=>{
+ const postponed={...event,slug:"atp-marozsa-skatov-2026-10-19",
+   gameStartTime:"2026-10-19T06:00:00Z",title:"T. Skatov vs. F. Marozsan",
+   markets:[{...event.markets[0],outcomes:'["F. Marozsan","T. Skatov"]'}]};
+ const r=matchPolymarketGlobalTennis(fixture,[postponed],{now});
+ assert.equal(r.length,1);
+ assert.equal(r[0].scheduleStatus,"PROVIDER_START_DIFFERS");
+ assert.equal(r[0].canAuthorizeWager,false);
+ assert.equal(r[0].executionEligible,false);
+ const dayOnly=matchPolymarketGlobalTennis(fixture,[{...postponed,gameStartTime:null}],{now});
+ assert.equal(dayOnly.length,1);
+ assert.equal(dayOnly[0].scheduleStatus,"DAY_ONLY_UNVERIFIED");
 });
