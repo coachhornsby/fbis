@@ -11,6 +11,8 @@ const SECRET = process.env.HARVEST_SECRET || "";
 const SPORT = String(process.env.SPORT || "nfl").toLowerCase();
 const RUN_DELTA = process.env.RUN_DELTA_SYNC === "true";
 const RUN_CUTOVER = process.env.RUN_CUTOVER_REHEARSAL === "true";
+const REQUIRE_CUTOVER_READY = process.env.REQUIRE_CUTOVER_READY === "true"
+  || RUN_CUTOVER;
 const SAMPLE = Math.min(200, Number(process.env.SAMPLE_SIZE) || 40);
 const REQUEST_TIMEOUT_MS = Math.min(540_000, Number(process.env.QUALIFY_TIMEOUT_MS) || 480_000);
 
@@ -39,12 +41,19 @@ if (qualify.cutoverAuthorized === true || qualify.activationPerformed === true) 
 }
 if (qualify.deletionAuthorized === true) failures.push("DELETION_MUST_STAY_CLOSED");
 if (qualify.canAuthorizeWager === true) failures.push("WAGER_AUTHORITY_MUST_STAY_FALSE");
+// When cutover rehearsal is requested, green CI requires a true cutover-ready gate.
+if (REQUIRE_CUTOVER_READY) {
+  if (qualify.readyForCutoverReview !== true) failures.push("READY_FOR_CUTOVER_REVIEW_REQUIRED");
+  if (qualify.gates?.cutoverRehearsal !== true) failures.push("CUTOVER_REHEARSAL_MUST_PASS");
+  if (qualify.cutoverRehearsal?.ok !== true) failures.push("CUTOVER_REHEARSAL_NOT_OK");
+}
 
 const out = {
   ok: failures.length === 0,
   failures,
   sport: SPORT,
   readyForCutoverReview: qualify.readyForCutoverReview === true,
+  requireCutoverReady: REQUIRE_CUTOVER_READY,
   gates: qualify.gates || null,
   countParity: qualify.countParity?.status || null,
   recordParity: qualify.recordParity?.status || null,

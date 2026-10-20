@@ -156,13 +156,30 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts
           node scripts/sport-migration-qualify-ops.mjs | tee "artifacts/sport-qualify-${SPORT}.json"
-          jq -e '
-            .ok==true
-            and .cutoverAuthorized==false
-            and .deletionAuthorized==false
-            and .activationPerformed==false
-            and .canAuthorizeWager==false
-          ' "artifacts/sport-qualify-${SPORT}.json" >/dev/null
+          # When cutover rehearsal is on, readyForCutoverReview + rehearsal must pass.
+          # When cutover is off, require working/prefix gates without claiming cutover-ready.
+          if [ "${RUN_CUTOVER_REHEARSAL}" = "true" ]; then
+            jq -e '
+              .ok==true
+              and .readyForCutoverReview==true
+              and .gates.cutoverRehearsal==true
+              and .cutoverAuthorized==false
+              and .deletionAuthorized==false
+              and .activationPerformed==false
+              and .canAuthorizeWager==false
+            ' "artifacts/sport-qualify-${SPORT}.json" >/dev/null
+          else
+            jq -e '
+              .ok==true
+              and .gates.countParity==true
+              and .gates.recordParity==true
+              and .gates.productStillPrimary==true
+              and .cutoverAuthorized==false
+              and .deletionAuthorized==false
+              and .activationPerformed==false
+              and .canAuthorizeWager==false
+            ' "artifacts/sport-qualify-${SPORT}.json" >/dev/null
+          fi
       - uses: actions/upload-artifact@v4.6.2
         if: always() && github.event_name != 'pull_request'
         with:

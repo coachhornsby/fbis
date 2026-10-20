@@ -143,4 +143,8 @@ test("qualify workflow keeps deletion and cutover closed", () => {
   assert.match(wf, /deletionAuthorized==false/);
   assert.match(wf, /activationPerformed==false/);
   assert.match(wf, /sport: nfl/);
+  // Cutover sports must fail CI when readyForCutoverReview is false.
+  assert.match(wf, /readyForCutoverReview==true/);
+  assert.match(wf, /gates\.cutoverRehearsal==true/);
+  assert.match(wf, /RUN_CUTOVER_REHEARSAL/);
 });
