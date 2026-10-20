@@ -12,16 +12,24 @@ const numericStatus=v=>Number.isInteger(v)&&v>=100&&v<=599?v:null;
 async function doGet(url,headers,fetchImpl){
   try{
     const response=await fetchImpl(url,{
-      method:"GET",headers,redirect:"error",cache:"no-store",
-      signal:AbortSignal.timeout(11000),
+      // Do not follow redirects, which could forward signed credentials to
+      // another origin; return the original 3xx status instead of throwing.
+      // Keep other fetch options identical to the scheduled market collector.
+      method:"GET",headers,redirect:"manual",
+      signal:AbortSignal.timeout(12000),
     });
     // Provider bodies, cookies, account details, request signatures, and
     // response headers are intentionally never returned or stored.
     return {httpStatus:numericStatus(response.status),
       result:response.ok?"HTTP_OK":response.status===429?"RATE_LIMITED":
-        response.status===401||response.status===403?"ACCESS_DENIED":"HTTP_ERROR"};
-  }catch{
-    return {httpStatus:null,result:"CONNECTION_FAILED"};
+        response.status===401||response.status===403?"ACCESS_DENIED":
+        response.status>=300&&response.status<400?"REDIRECT_NOT_FOLLOWED":"HTTP_ERROR"};
+  }catch(error){
+    const name=String(error?.name||"");
+    // Codes only: never expose thrown messages, URLs, header values, secrets.
+    const failureKind=name==="TimeoutError"||name==="AbortError"?"TIMEOUT":
+      name==="TypeError"?"FETCH_TYPE_ERROR":"UNCLASSIFIED_FETCH_ERROR";
+    return {httpStatus:null,result:"CONNECTION_FAILED",failureKind};
   }
 }
 async function load(bucket,key){
