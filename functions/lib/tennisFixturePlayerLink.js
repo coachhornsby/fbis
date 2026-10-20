@@ -20,7 +20,7 @@ export async function resolveTennisFixturePlayers(db, fixture) {
   for (const name of names) {
     const key = normalize(name);
     const official = await db.prepare(
-      "SELECT fbis_player_id AS player_id,canonical_name AS player_name,current_rank,ranking_points,country_code,official_source,official_headshot_url AS headshot_url,career_wins,career_losses,official_observed_at AS source_as_of FROM tennis_players WHERE tour=? AND normalized_name=? LIMIT 2"
+      "SELECT fbis_player_id AS player_id,canonical_name AS player_name,current_rank,ranking_points,country_code,official_source,official_headshot_source AS headshot_source,official_headshot_url AS headshot_url,career_wins,career_losses,official_observed_at AS source_as_of FROM tennis_players WHERE tour=? AND normalized_name=? LIMIT 2"
     ).bind(tour, key).all();
     const canonical = single(official?.results, key);
     const ambiguousOfficial = (official?.results || []).length > 1;
@@ -52,6 +52,7 @@ export async function resolveTennisFixturePlayers(db, fixture) {
       rankingPoints: canonical?.ranking_points ?? null,
       country: canonical?.country_code ?? null,
       headshotUrl: canonical?.headshot_url || supplement?.headshot_url || null,
+      headshotSource: canonical?.headshot_source || null,
       careerWins: canonical?.career_wins ?? null,
       careerLosses: canonical?.career_losses ?? null,
       sourceAsOf: canonical?.source_as_of || supplement?.source_as_of || null
