@@ -136,6 +136,20 @@ export async function collectKalshiEvidenceOnce(env,{now=new Date(),fetchImpl=fe
  }
  return result;
 }
+/** NHL outcome shadow poll, only when a separately certified R2 scope manifest exists. */
+export async function collectNhlOfficialResultsOnce(env,{now=new Date(),fetchImpl=fetch}={}){
+ if(!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
+ let manifest;
+ try {const obj=await env.ARCHIVE.get("player-props/official/v1/nhl-scopes.json");manifest=obj?await obj.json():null;}
+ catch{return {ok:false,code:"OFFICIAL_SCOPE_READ_FAILED"};}
+ if(manifest?.version!==1||manifest.certified!==true||!Array.isArray(manifest.scopes)||!manifest.scopes.length)
+  return {ok:true,status:"NOT_CONFIGURED"};
+ let receipt;
+ try {const obj=await env.ARCHIVE.get("player-props/official/v1/nhl-last-receipt.json");receipt=obj?await obj.json():null;}
+ catch{return {ok:false,code:"OFFICIAL_RECEIPT_READ_FAILED"};}
+ if(ms(receipt?.checkedAt)>now.getTime()-60*60*1000)return {ok:true,status:"NOT_DUE"};
+ return relaySignedPages(env,{scope:"nhl-official-prop-results",fetchImpl});
+}
 export default {
   async scheduled(_event,env,ctx){
     ctx.waitUntil(Promise.all([
