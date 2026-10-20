@@ -43,3 +43,25 @@ test("scheduled discovery archives and read path expires without spoofed quote c
  const stale=await loadPolymarketGlobalTennisSnapshot(archive,{now:new Date(+now+31*60000)});
  assert.equal(stale.ok,false);
 });
+
+test("collector captures CLOB best available asks without manufacturing quote-source clocks",async()=>{
+ let snapshot=null;
+ const db={prepare:()=>({bind:()=>({all:async()=>({results:[{fixture_id:fixture.id,...fixture}]})})})};
+ const archive={put:async(key,value)=>{if(key.endsWith("research-snapshot-v1.json"))snapshot=JSON.parse(value)}};
+ const market={...event.markets[0],clobTokenIds:JSON.stringify(["123456789012345678901","223456789012345678901"])};
+ let reads=0;
+ const fetchImpl=async url=>{
+  reads++;
+  if(url.includes("public-search"))return {ok:true,json:async()=>({events:[{...event,markets:[market]}]})};
+  assert.match(url,/clob\.polymarket\.com\/book\?token_id=/);
+  return {ok:true,json:async()=>({asks:[{price:"0.52",size:"9"},{price:"0.51",size:"4"}],bids:[{price:"0.49",size:"8"}]})};
+ };
+ const r=await collectPolymarketGlobalTennis({DB:db,ARCHIVE:archive},{now,fetchImpl});
+ assert.equal(r.matchedEvents,1);
+ assert.equal(reads,3);
+ const clob=snapshot.events[0].markets[0].researchClob;
+ assert.equal(clob.sides[0].bestAsk.price,.51);
+ assert.equal(clob.sides[0].bestAsk.size,4);
+ assert.equal(clob.sides[0].sourceQuoteTime,null);
+ assert.equal(clob.canAuthorizeWager,false);
+});
