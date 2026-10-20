@@ -118,12 +118,30 @@ export async function collectKalshiSeriesCatalogOnce(env,{now=new Date(),fetchIm
     return {ok:false,code:"KALSHI_CATALOG_POLL_NOT_DUE",nextAllowedAt:last.nextAllowedAt};
   return relaySignedPages(env,{scope:"series-catalog",fetchImpl});
 }
+export async function collectKalshiEvidenceOnce(env,{now=new Date(),fetchImpl=fetch}={}){
+ if(!env?.ARCHIVE?.get||!env?.ARCHIVE?.put)
+  return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
+ const prior=await readJson(env.ARCHIVE,"evidence-status.json");
+ if(ms(prior?.attemptedAt)>now.getTime()-30*60*1000)
+  return {ok:true,status:"NOT_DUE"};
+ const result=await relaySignedPages(env,{scope:"qualification-evidence",fetchImpl});
+ if(!result.ok){
+  // A failed Worker -> Pages relay must be observable even if Pages never ran.
+  // Never fabricate provider HTTP 429 from a generic transport failure.
+  await writeJson(env.ARCHIVE,"evidence-status.json",{
+   status:"RELAY_ERROR",code:result.code||"RELAY_UNAVAILABLE",
+   httpStatus:result.httpStatus||null,attemptedAt:now.toISOString(),
+   sport:null,canQualify:false,canAuthorizeWager:false,
+  });
+ }
+ return result;
+}
 export default {
   async scheduled(_event,env,ctx){
     ctx.waitUntil(Promise.all([
       collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),collectKalshiExchangeStatusOnce(env),
       collectKalshiSeriesCatalogOnce(env),
-      relaySignedPages(env,{scope:"qualification-evidence"}),
+      collectKalshiEvidenceOnce(env),
       relaySignedPages(env,{scope:"player-props"}),
     ]));
   },
@@ -132,7 +150,10 @@ export default {
     if(request.method!=="GET"||url.pathname!=="/health")
       return Response.json({ok:false,code:"READ_ONLY_HEALTH_ONLY"},{
         status:404,headers:{"cache-control":"no-store"}});
-    const status=await readJson(env.ARCHIVE,"collector-status.json");
+    const [status,evidenceStatus]=await Promise.all([
+      readJson(env.ARCHIVE,"collector-status.json"),
+      readJson(env.ARCHIVE,"evidence-status.json"),
+    ]);
     return Response.json({
       ok:true,readOnly:true,snapshotSource:"R2",
       status:status?.status||"NOT_STARTED",
@@ -141,6 +162,9 @@ export default {
         &&env.FBIS_KALSHI_RELAY_TOKEN.length>=40,
       sport:status?.sport||null,lastAttemptAt:status?.attemptedAt||null,
       blockedUntil:status?.blockedUntil||null,
+      evidenceStatus:evidenceStatus?.status||"NOT_STARTED",
+      evidenceAttemptAt:evidenceStatus?.attemptedAt||null,
+      evidenceErrorCode:evidenceStatus?.code||null,
       canQualify:false,canAuthorizeWager:false,
     },{headers:{"cache-control":"no-store"}});
   },
