@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import "./accounts.css";
 import { readAccountApiResponse } from "./accountFetchDiagnostics.js";
+import PolymarketAccountPanel from "./PolymarketAccountPanel.jsx";
 
 const money = value => Number.isFinite(value) ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value) : "—";
 const stamp = iso => {
@@ -102,7 +103,7 @@ export default function AccountsView() {
       {!token ? (
         <form className="accounts-access" onSubmit={unlock}>
           <h3>Private account access</h3>
-          <p>Enter your FBIS portfolio access code, not your Kalshi private key. The code stays in this page's memory and clears when you leave or reload.</p>
+          <p>Enter your FBIS portfolio access code, not an exchange API private key. The code stays in this page's memory and clears when you leave or reload.</p>
           <div className="accounts-access-row"><input type="password" autoComplete="off" value={entry} onChange={e => setEntry(e.target.value)} placeholder="FBIS portfolio access code" aria-label="FBIS portfolio access code" /><button type="submit" disabled={busy || !entry.trim()}>{busy ? "Connecting…" : "Open portfolio"}</button></div>
           {error && <p role="alert" className="accounts-alert">{error}</p>}
         </form>
@@ -140,7 +141,12 @@ export default function AccountsView() {
           ) : !error ? <p className="accounts-wait">Loading private Kalshi account snapshot…</p> : null}
         </>
       )}
-      <article className="accounts-panel accounts-other"><div className="accounts-panel-head"><h3>Polymarket US</h3><span>Private account dashboard not connected</span></div><p>FBIS's existing public Polymarket pricing and private synchronization work is separate from a verified, user-visible cash balance. Do not combine totals until private account permissions, reconciliation, and live account coverage are verified.</p></article>
+      {token ? <PolymarketAccountPanel token={token} /> : (
+        <article className="accounts-panel accounts-other">
+          <div className="accounts-panel-head"><h3>Polymarket US</h3><span>Private account locked</span></div>
+          <p>Unlock with your FBIS portfolio access code above to load both exchange accounts. Polymarket US cash, positions, orders and trades remain private and are not combined with Kalshi until account-value reconciliation is verified.</p>
+        </article>
+      )}
       <p className="accounts-fine">FBIS cannot send orders from this screen. Private account figures never appear on public game cards. Market quotes can be integrated into cards separately with bid, ask, depth, fees, timestamps and contract matching.</p>
     </section>
   );

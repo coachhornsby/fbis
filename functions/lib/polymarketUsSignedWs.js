@@ -91,7 +91,8 @@ export function parsePolymarketUsLite(raw){
 export const POLY_US_ACCOUNT_READ_PATHS=Object.freeze([
   "/v1/portfolio/positions",
   "/v1/portfolio/activities",
-  "/v1/account/balances"
+  "/v1/account/balances",
+  "/v1/orders/open"
 ]);
 export async function signedPolymarketUsAccountGetHeaders({
   keyId,secretKey,path,timestamp=Date.now(),webCrypto=crypto
