@@ -1,1 +1,1 @@
-trigger 2026-10-20T15:35:00Z — promote heartbeat to 15m CORE publish SLA path
+trigger 2026-10-20T16:14:00Z — schedule gap after 15:40Z; force 15m CORE SLA path until CF heartbeat is live

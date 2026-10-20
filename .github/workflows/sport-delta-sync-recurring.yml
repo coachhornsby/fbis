@@ -1,0 +1,63 @@
+name: Sport D1 shadow delta sync (recurring)
+
+# Continuous NHL/NFL/CFB working-set + prefix shadow sync. PRIMARY remains
+# authoritative. Agents cannot workflow_dispatch (403) — touch the ops trigger.
+on:
+  schedule:
+    # Every 20 minutes, offset from high-load boundaries.
+    - cron: "5,25,45 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "ops/triggers/sport-delta-sync"
+      - ".github/workflows/sport-delta-sync-recurring.yml"
+      - "scripts/sport-delta-sync-ops.mjs"
+      - "functions/lib/sportWorkingCopy.js"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-sport-delta-sync-recurring
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        sport: [nhl, nfl, cfb]
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Wait for production Pages deployment
+        if: github.event_name != 'pull_request'
+        env:
+          VERIFY_MAX_ATTEMPTS: "40"
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Delta-sync ${{ matrix.sport }} shadow working set
+        if: github.event_name != 'pull_request'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+          SPORT: ${{ matrix.sport }}
+          INCLUDE_PREFIX: "true"
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET not configured"; exit 1; }
+          mkdir -p artifacts
+          node scripts/sport-delta-sync-ops.mjs | tee "artifacts/sport-delta-sync-${SPORT}.json"
+          jq -e '.ok==true and .productStillPrimary==true and .canAuthorizeWager==false' \
+            "artifacts/sport-delta-sync-${SPORT}.json" >/dev/null
+      - uses: actions/upload-artifact@v4.6.2
+        if: always() && github.event_name != 'pull_request'
+        with:
+          name: sport-delta-sync-${{ matrix.sport }}
+          path: artifacts/sport-delta-sync-${{ matrix.sport }}.json
+          if-no-files-found: ignore
+          retention-days: 14

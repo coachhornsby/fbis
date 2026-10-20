@@ -1,14 +1,12 @@
 name: Market-history verified archive (recurring)
 
-# Checkpointed full-row Q4 archive with SHA-256 readback + column restore proof.
-# Destructive D1 deletion is never performed — retention gate stays closed.
-# Agents cannot workflow_dispatch (403). Touch ops/triggers/market-history-archive
-# on main to force a run.
+# High-throughput checkpointed full-row Q4 archive. Catch-up loops until backlog
+# falls or the time budget expires. Destructive D1 deletion never performed.
+# Agents cannot workflow_dispatch (403). Touch ops/triggers/market-history-archive.
 on:
   schedule:
-    # Every 15 minutes, offset from hourly high-load boundaries.
-    # Target capacity: ~1000×20 rows per run × 4 runs/hour ≈ 80k rows/hour.
-    - cron: "8,23,38,53 * * * *"
+    # Every 5 minutes — target ≥150k rows/hour catch-up capacity vs ~85k ingest.
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -28,7 +26,7 @@ concurrency:
 jobs:
   archive-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
@@ -39,40 +37,104 @@ jobs:
           node --test test/market-history-verified-archive.test.js
           node --test test/market-history-archive-ops.test.js
           node --test test/market-history-capacity.test.js
+          node --test test/market-history-retention-rehearsal.test.js
       - name: Wait for production Pages deployment
         if: github.event_name != 'pull_request'
         env:
           VERIFY_MAX_ATTEMPTS: "60"
         run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
-      - name: Archive eligible cohort (checkpointed, full 50 columns)
+      - name: Catch-up archive until backlog falls or budget exhausted
         if: github.event_name != 'pull_request'
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           FBIS_BASE_URL: https://fbis-myz.pages.dev
           ARCHIVE_WRITES: "true"
           VERIFY_READBACK: "true"
-          ARCHIVE_LIMIT: "1000"
-          ARCHIVE_MAX_ROUNDS: "20"
-          # Durable R2 copy after 1h; D1 deletion still requires 24h + retention gate.
+          ARCHIVE_LIMIT: "2000"
+          ARCHIVE_MAX_ROUNDS: "40"
+          ARCHIVE_CATCHUP_LOOPS: "3"
           ARCHIVE_ELIGIBILITY_MS: "3600000"
           ARCHIVE_PARTITION: MARKET_HISTORY_2026Q4_DB
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET not configured"; exit 1; }
           mkdir -p artifacts
-          node scripts/market-history-archive-ops.mjs | tee artifacts/market-history-archive-ops.json
-          jq -e '
-            .ok==true
-            and .retentionGate.authorized==false
-            and (.archive.deletion|test("NOT_PERFORMED"))
-            and .archive.columnCount==50
-            and .canAuthorizeWager==false
-          ' artifacts/market-history-archive-ops.json >/dev/null
-      - name: Store archive ops receipt
+          loops="${ARCHIVE_CATCHUP_LOOPS}"
+          final=""
+          for i in $(seq 1 "$loops"); do
+            echo "=== archive catch-up loop $i/$loops ==="
+            node scripts/market-history-archive-ops.mjs | tee "artifacts/market-history-archive-ops-loop-${i}.json"
+            final="artifacts/market-history-archive-ops-loop-${i}.json"
+            jq -e '
+              .ok==true
+              and .retentionGate.authorized==false
+              and (.archive.deletion|test("NOT_PERFORMED"))
+              and .archive.columnCount==50
+              and .canAuthorizeWager==false
+            ' "$final" >/dev/null
+            more="$(jq -r '.archive.moreRemaining // false' "$final")"
+            backlog_after="$(jq -r '.archive.backlogAfter // 0' "$final")"
+            if [ "$more" != "true" ] || [ "${backlog_after}" -lt 50000 ]; then
+              echo "Catch-up complete or backlog under threshold (more=$more backlog=$backlog_after)"
+              break
+            fi
+          done
+          cp "$final" artifacts/market-history-archive-ops.json
+          # Late-arrival pass (does not move primary cursor backward)
+          node -e '
+            const fs=require("fs");
+            const secret=process.env.HARVEST_SECRET;
+            const base=process.env.FBIS_BASE_URL;
+            (async()=>{
+              const r=await fetch(base+"/api/database-topology",{
+                method:"POST",
+                headers:{"content-type":"application/json","x-harvest-secret":secret},
+                body:JSON.stringify({
+                  operation:"market-history-archive-late-arrivals",
+                  archiveWrites:true, verifyReadback:true, limit:500
+                })
+              });
+              const j=await r.json();
+              fs.writeFileSync("artifacts/market-history-late-arrivals.json", JSON.stringify(j,null,2));
+              console.log(JSON.stringify({ok:j.ok, lateArchived:j.lateArchived, count:j.lateArrivalsBehindCursor?.count},null,2));
+              if(j.ok!==true) process.exit(1);
+            })().catch(e=>{console.error(e); process.exit(1);});
+          '
+      - name: Retention retirement rehearsal (no delete)
+        if: github.event_name != 'pull_request'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          node -e '
+            const fs=require("fs");
+            const secret=process.env.HARVEST_SECRET;
+            const base=process.env.FBIS_BASE_URL;
+            (async()=>{
+              const r=await fetch(base+"/api/database-topology",{
+                method:"POST",
+                headers:{"content-type":"application/json","x-harvest-secret":secret},
+                body:JSON.stringify({operation:"market-history-retention-rehearsal", limit:100})
+              });
+              const j=await r.json();
+              fs.writeFileSync("artifacts/market-history-retention-rehearsal.json", JSON.stringify(j,null,2));
+              console.log(JSON.stringify({
+                ok:j.ok, eligible:j.eligibleForRetirementConsideration,
+                gateAuthorized:j.gate?.authorized, deletion:j.deletion
+              },null,2));
+              if(j.ok!==true || j.gate?.authorized===true) process.exit(1);
+            })().catch(e=>{console.error(e); process.exit(1);});
+          '
+      - name: Store archive ops receipts
         if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4.6.2
         with:
           name: market-history-archive-ops
-          path: artifacts/market-history-archive-ops.json
+          path: |
+            artifacts/market-history-archive-ops.json
+            artifacts/market-history-archive-ops-loop-*.json
+            artifacts/market-history-late-arrivals.json
+            artifacts/market-history-retention-rehearsal.json
           if-no-files-found: ignore
           retention-days: 30

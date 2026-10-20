@@ -17,7 +17,12 @@ import { buildVerifiedCapacityPlan } from "../lib/marketHistoryCapacity.js";
 import { copyNhlPilotTables, verifyNhlSportDbParity, verifyNhlRecordLevelParity } from "../lib/nhlSportDb.js";
 import { shadowCompareNhlSportDb } from "../lib/sportDbShadow.js";
 import { archiveColdMarketHistoryObservations } from "../lib/marketHistoryArchive.js";
-import { archiveAndVerifyColdMarketHistory } from "../lib/marketHistoryVerifiedArchive.js";
+import {
+  archiveAndVerifyColdMarketHistory,
+  archiveLateArrivalsBehindCursor,
+} from "../lib/marketHistoryVerifiedArchive.js";
+import { rehearseMarketHistoryRetirement } from "../lib/marketHistoryRetentionRehearsal.js";
+import { buildCapacityOpsDashboard } from "../lib/capacityOpsDashboard.js";
 import {
   copySportWorkingTables,
   verifySportWorkingParity,
@@ -322,9 +327,9 @@ export async function onRequestPost({ env, request } = {}) {
   }
   if (operation === "market-history-archive-verify") {
     return json(await archiveAndVerifyColdMarketHistory(env, {
-      // Sustain ingest: up to 2000 rows × 25 rounds per invocation (~50k rows).
-      limit: Math.min(2000, Number(body.limit) || 1000),
-      maxRounds: Math.min(50, Number(body.maxRounds) || 10),
+      // Catch-up capacity: up to 2000 × 80 ≈ 160k rows per invocation.
+      limit: Math.min(2000, Number(body.limit) || 2000),
+      maxRounds: Math.min(80, Number(body.maxRounds) || 40),
       partitionBinding: body.partitionBinding || "MARKET_HISTORY_2026Q4_DB",
       archiveWrites: body.archiveWrites === true,
       verifyReadback: body.verifyReadback === true,
@@ -336,6 +341,30 @@ export async function onRequestPost({ env, request } = {}) {
       resetCheckpoint: body.resetCheckpoint === true,
       now: body.now ? new Date(body.now) : new Date(),
     }));
+  }
+  if (operation === "market-history-archive-late-arrivals") {
+    return json(await archiveLateArrivalsBehindCursor(env, {
+      limit: Math.min(2000, Number(body.limit) || 500),
+      partitionBinding: body.partitionBinding || "MARKET_HISTORY_2026Q4_DB",
+      archiveWrites: body.archiveWrites === true,
+      verifyReadback: body.verifyReadback === true,
+      eligibilityMs: body.eligibilityMs != null ? Number(body.eligibilityMs) : undefined,
+      now: body.now ? new Date(body.now) : new Date(),
+    }));
+  }
+  if (operation === "market-history-retention-rehearsal") {
+    return json(await rehearseMarketHistoryRetirement(env, {
+      limit: Math.min(500, Number(body.limit) || 100),
+      partitionBinding: body.partitionBinding || "MARKET_HISTORY_2026Q4_DB",
+      requireDecisionProtection: body.requireDecisionProtection !== false,
+      now: body.now ? new Date(body.now) : new Date(),
+    }));
+  }
+  if (operation === "capacity-ops-dashboard") {
+    return json({
+      ok: true,
+      ...(await buildCapacityOpsDashboard(env)),
+    });
   }
   if (operation === "market-history-capacity-plan") {
     let liveBytes = null;

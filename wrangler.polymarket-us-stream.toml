@@ -47,6 +47,8 @@ STREAM_MAX_CONTRACTS = "500"
 STREAM_MAX_PER_CONNECTION = "50"
 STREAM_MAX_CONNECTIONS = "10"
 STREAM_MIN_PER_SPORT = "1"
+# Used by scheduled CORE heartbeat (HARVEST_SECRET remains a Worker secret).
+FBIS_BASE_URL = "https://fbis-myz.pages.dev"
 
 # Reactivate DO after idle recycle (ops 20261016T210342Z)
 

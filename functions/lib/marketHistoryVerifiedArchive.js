@@ -12,10 +12,14 @@ import {
   marketHistoryRetentionDecision,
 } from "./databaseTopology.js";
 
-export const VERIFIED_ARCHIVE_CONTRACT = "fbis-market-history-verified-archive-v2";
+export const VERIFIED_ARCHIVE_CONTRACT = "fbis-market-history-verified-archive-v3";
 export const VERIFIED_ARCHIVE_PREFIX = "market-history/verified-batches";
 export const ARCHIVE_CHECKPOINT_TABLE = "fbis_market_history_archive_checkpoint";
 export const ARCHIVE_CHECKPOINT_KEY = "normalized_market_observations_v2";
+export const ARCHIVE_LATE_ARRIVAL_KEY = "normalized_market_observations_late_v1";
+/** Soft lease so Worker cron + GitHub Actions do not double-write the same cursor window. */
+export const ARCHIVE_LEASE_KEY = "normalized_market_observations_lease_v1";
+export const ARCHIVE_LEASE_TTL_MS = 12 * 60 * 1000;
 
 /** Full Q4 `normalized_market_observations` column set (50). Archives must preserve every column. */
 export const NORMALIZED_MARKET_OBSERVATION_COLUMNS = Object.freeze([
@@ -99,9 +103,8 @@ export function projectObservationForArchive(row) {
   for (const col of NORMALIZED_MARKET_OBSERVATION_COLUMNS) {
     out[col] = Object.prototype.hasOwnProperty.call(row, col) ? row[col] : null;
   }
-  // Evidence archives never carry wager authority.
-  out.can_qualify = 0;
-  out.can_authorize_wager = 0;
+  // Preserve original source authority flags as immutable evidence.
+  // Package-level canAuthorizeWager remains false; retention/wager gates are separate.
   return out;
 }
 
@@ -121,8 +124,8 @@ export function assertFullColumnCoverage(row) {
 }
 
 /**
- * Compare archived observation to live D1 row for every required column.
- * Authority flags may be forced to 0 in archive; all other values must match.
+ * Compare archived observation to live D1 row for every required column,
+ * including original can_qualify / can_authorize_wager source values.
  */
 export function verifyFullRecordRestore(sourceRow, archivedRow) {
   const coverage = assertFullColumnCoverage(archivedRow);
@@ -131,12 +134,6 @@ export function verifyFullRecordRestore(sourceRow, archivedRow) {
   }
   const mismatches = [];
   for (const col of NORMALIZED_MARKET_OBSERVATION_COLUMNS) {
-    if (col === "can_qualify" || col === "can_authorize_wager") {
-      if (Number(archivedRow[col]) !== 0) {
-        mismatches.push({ column: col, expected: 0, actual: archivedRow[col] });
-      }
-      continue;
-    }
     const a = sourceRow?.[col] ?? null;
     const b = archivedRow?.[col] ?? null;
     const equal = a === b
@@ -152,6 +149,7 @@ export function verifyFullRecordRestore(sourceRow, archivedRow) {
     present: coverage.present,
     missing: [],
     mismatches: mismatches.slice(0, 20),
+    sourceAuthorityPreserved: true,
   };
 }
 
@@ -169,6 +167,83 @@ async function ensureCheckpointTable(db) {
       updated_at TEXT NOT NULL
     )`
   ).run();
+}
+
+/**
+ * Acquire a TTL lease before archive writes. Idempotent checkpoint advances remain safe
+ * if two writers race, but the lease avoids duplicate R2 puts and API cost spikes.
+ */
+export async function tryAcquireArchiveLease(db, {
+  owner = "archive",
+  now = new Date(),
+  ttlMs = ARCHIVE_LEASE_TTL_MS,
+} = {}) {
+  if (!db?.prepare) return { acquired: false, reason: "DB_UNBOUND" };
+  await ensureCheckpointTable(db);
+  const nowIso = now instanceof Date ? now.toISOString() : String(now);
+  const nowMs = now instanceof Date ? now.getTime() : Date.parse(String(now));
+  try {
+    const existing = await db.prepare(
+      `SELECT last_collected_at, last_id, last_batch_at, updated_at
+       FROM ${ARCHIVE_CHECKPOINT_TABLE} WHERE checkpoint_key=? LIMIT 1`
+    ).bind(ARCHIVE_LEASE_KEY).first();
+    if (existing?.last_batch_at) {
+      const expiresAt = Date.parse(String(existing.last_batch_at));
+      if (Number.isFinite(expiresAt) && expiresAt > nowMs) {
+        return {
+          acquired: false,
+          reason: "ARCHIVE_LEASE_HELD",
+          holder: existing.last_id || null,
+          expiresAt: existing.last_batch_at,
+        };
+      }
+    }
+    const expiresAt = new Date(nowMs + Math.max(60_000, Number(ttlMs) || ARCHIVE_LEASE_TTL_MS)).toISOString();
+    await db.prepare(
+      `INSERT INTO ${ARCHIVE_CHECKPOINT_TABLE}(
+         checkpoint_key, last_collected_at, last_id, archived_total,
+         last_batch_at, last_object_key, last_content_sha256, last_backlog, updated_at
+       ) VALUES(?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(checkpoint_key) DO UPDATE SET
+         last_collected_at=excluded.last_collected_at,
+         last_id=excluded.last_id,
+         last_batch_at=excluded.last_batch_at,
+         updated_at=excluded.updated_at`
+    ).bind(
+      ARCHIVE_LEASE_KEY,
+      nowIso,
+      String(owner).slice(0, 120),
+      0,
+      expiresAt,
+      null,
+      null,
+      null,
+      nowIso
+    ).run();
+    return { acquired: true, owner: String(owner).slice(0, 120), expiresAt };
+  } catch (error) {
+    return { acquired: false, reason: String(error?.message || error).slice(0, 200) };
+  }
+}
+
+export async function releaseArchiveLease(db, { owner = "archive" } = {}) {
+  if (!db?.prepare) return { released: false };
+  try {
+    const row = await db.prepare(
+      `SELECT last_id FROM ${ARCHIVE_CHECKPOINT_TABLE} WHERE checkpoint_key=? LIMIT 1`
+    ).bind(ARCHIVE_LEASE_KEY).first();
+    if (row?.last_id && row.last_id !== String(owner).slice(0, 120)) {
+      return { released: false, reason: "NOT_HOLDER" };
+    }
+    await db.prepare(
+      `UPDATE ${ARCHIVE_CHECKPOINT_TABLE}
+       SET last_batch_at=?, updated_at=?
+       WHERE checkpoint_key=?`
+    ).bind("1970-01-01T00:00:00.000Z", new Date().toISOString(), ARCHIVE_LEASE_KEY).run();
+    return { released: true };
+  } catch (error) {
+    return { released: false, reason: String(error?.message || error).slice(0, 200) };
+  }
 }
 
 async function readCheckpoint(db) {
@@ -303,9 +378,31 @@ export async function archiveAndVerifyColdMarketHistory(env, {
   const part = partitions[0];
   const table = safeTableIdent("normalized_market_observations");
   const pageSize = Math.min(2000, Math.max(1, Number(limit) || 1000));
-  const roundsN = Math.min(50, Math.max(1, Number(maxRounds) || 10));
+  // Catch-up capacity: up to 80 rounds × 2000 ≈ 160k rows per invocation.
+  const roundsN = Math.min(80, Math.max(1, Number(maxRounds) || 10));
   const columnSql = NORMALIZED_MARKET_OBSERVATION_COLUMNS.join(", ");
+  const leaseOwner = `archive-${Date.now().toString(36)}`;
+  let lease = { acquired: !archiveWrites, reason: archiveWrites ? null : "DRY_RUN_NO_LEASE" };
+  if (archiveWrites) {
+    lease = await tryAcquireArchiveLease(part.db, { owner: leaseOwner, now });
+    if (!lease.acquired) {
+      return {
+        contract: VERIFIED_ARCHIVE_CONTRACT,
+        ok: true,
+        dryRun: false,
+        reason: lease.reason || "ARCHIVE_LEASE_HELD",
+        lease,
+        archived: 0,
+        scanned: 0,
+        moreRemaining: true,
+        backlogFalling: false,
+        deletion: "NOT_PERFORMED_REQUIRES_RETENTION_GATE",
+        canAuthorizeWager: false,
+      };
+    }
+  }
 
+  try {
   let checkpoint = resume ? await readCheckpoint(part.db) : {
     lastCollectedAt: "",
     lastId: "",
@@ -418,7 +515,7 @@ export async function archiveAndVerifyColdMarketHistory(env, {
     const batchId = `batch_${coldRows[0].id}_${coldRows.length}_r${round + 1}`;
     const partitionKey = part.partition?.key || part.binding;
     const body = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       contract: VERIFIED_ARCHIVE_CONTRACT,
       archiveKind: "market_history_observation_batch_full_row",
       partition: partitionKey,
@@ -432,6 +529,8 @@ export async function archiveAndVerifyColdMarketHistory(env, {
       columns: NORMALIZED_MARKET_OBSERVATION_COLUMNS.slice(),
       rowCount: coldRows.length,
       observations: coldRows,
+      sourceAuthorityPreserved: true,
+      authorityNote: "Original can_qualify/can_authorize_wager preserved as immutable evidence; package does not authorize wagers",
       canAuthorizeWager: false,
     };
     const bodyText = JSON.stringify(body);
@@ -456,6 +555,7 @@ export async function archiveAndVerifyColdMarketHistory(env, {
         collected_at: coldRows[coldRows.length - 1].collected_at,
         id: coldRows[coldRows.length - 1].id,
       },
+      sourceAuthorityPreserved: true,
       retentionReleaseAuthorized: false,
       sourceRowsDeleted: 0,
       canAuthorizeWager: false,
@@ -552,8 +652,15 @@ export async function archiveAndVerifyColdMarketHistory(env, {
   }
 
   const backlogAfter = await countBacklog(part.db, table, eligibilityCutoff, cursorAt, cursorId);
+  const lateArrivals = await countLateArrivalsBehindCursor(part.db, table, {
+    eligibilityCutoff,
+    cursorAt,
+    cursorId,
+    sinceCreatedAt: checkpoint.lastBatchAt || "1970-01-01T00:00:00.000Z",
+  });
   const elapsedMs = Math.max(1, Date.now() - startedMs);
   const throughputRowsPerSec = archived / (elapsedMs / 1000);
+  const backlogFalling = backlogBefore != null && backlogAfter != null && backlogAfter < backlogBefore;
 
   return {
     contract: VERIFIED_ARCHIVE_CONTRACT,
@@ -573,6 +680,8 @@ export async function archiveAndVerifyColdMarketHistory(env, {
     moreRemaining,
     backlogBefore,
     backlogAfter,
+    backlogFalling,
+    lateArrivalsBehindCursor: lateArrivals,
     throughputRowsPerSec: Math.round(throughputRowsPerSec * 100) / 100,
     elapsedMs,
     objectKey: lastObjectKey,
@@ -581,6 +690,7 @@ export async function archiveAndVerifyColdMarketHistory(env, {
       ? batches.every((b) => b.readbackVerified === true)
       : null,
     fullColumnRestore: lastRestoreProof,
+    sourceAuthorityPreserved: true,
     checkpoint: {
       lastCollectedAt: cursorAt,
       lastId: cursorId,
@@ -591,6 +701,226 @@ export async function archiveAndVerifyColdMarketHistory(env, {
     retentionReleaseAuthorized: false,
     deletion: "NOT_PERFORMED_REQUIRES_RETENTION_GATE",
     canAuthorizeWager: false,
+    lease: archiveWrites ? { acquired: true, owner: leaseOwner } : undefined,
     reason: archived === 0 ? "NO_ELIGIBLE_ROWS_PAST_CHECKPOINT" : undefined,
+  };
+  } finally {
+    if (archiveWrites && lease.acquired) {
+      await releaseArchiveLease(part.db, { owner: leaseOwner });
+    }
+  }
+}
+
+/**
+ * Rows created after the checkpoint advanced but whose collected_at is still
+ * behind the monotonic cursor — must not be permanently skipped.
+ */
+export async function countLateArrivalsBehindCursor(db, table, {
+  eligibilityCutoff,
+  cursorAt,
+  cursorId,
+  sinceCreatedAt,
+} = {}) {
+  if (!db?.prepare || !cursorAt) return { count: 0, sampleIds: [] };
+  try {
+    const countRow = await db.prepare(
+      `SELECT COUNT(*) AS n FROM ${table}
+       WHERE collected_at < ?
+         AND created_at > ?
+         AND NOT (
+           collected_at > ?
+           OR (collected_at = ? AND id > ?)
+           OR (? = '' AND ? = '')
+         )`
+    ).bind(
+      eligibilityCutoff,
+      sinceCreatedAt || "1970-01-01T00:00:00.000Z",
+      cursorAt,
+      cursorAt,
+      cursorId || "",
+      cursorAt,
+      cursorId || ""
+    ).first();
+    const sample = await db.prepare(
+      `SELECT id, collected_at, created_at FROM ${table}
+       WHERE collected_at < ?
+         AND created_at > ?
+         AND NOT (
+           collected_at > ?
+           OR (collected_at = ? AND id > ?)
+           OR (? = '' AND ? = '')
+         )
+       ORDER BY created_at ASC LIMIT 10`
+    ).bind(
+      eligibilityCutoff,
+      sinceCreatedAt || "1970-01-01T00:00:00.000Z",
+      cursorAt,
+      cursorAt,
+      cursorId || "",
+      cursorAt,
+      cursorId || ""
+    ).all();
+    return {
+      count: Number(countRow?.n) || 0,
+      sampleIds: (sample?.results || []).map((r) => r.id),
+      note: "Monotonic collected_at cursor cannot see these; use late-arrival catch-up pass",
+    };
+  } catch (error) {
+    return { count: null, error: String(error?.message || error).slice(0, 200), sampleIds: [] };
+  }
+}
+
+/**
+ * Archive late-arriving rows behind the primary cursor without moving that cursor backward.
+ */
+export async function archiveLateArrivalsBehindCursor(env, {
+  now = new Date(),
+  limit = 500,
+  partitionBinding = "MARKET_HISTORY_2026Q4_DB",
+  archiveWrites = false,
+  verifyReadback = false,
+  eligibilityMs = ARCHIVE_ELIGIBILITY_MS_DEFAULT,
+} = {}) {
+  const result = await archiveAndVerifyColdMarketHistory(env, {
+    now,
+    limit,
+    maxRounds: 1,
+    partitionBinding,
+    archiveWrites: false,
+    verifyReadback: false,
+    eligibilityMs,
+    resume: true,
+  });
+  // Reuse diagnostics; dedicated late-arrival writes go through a side key.
+  const partitions = listMarketHistoryReadDbs(env).filter((p) =>
+    !partitionBinding || p.binding === partitionBinding
+  );
+  if (!partitions.length) {
+    return { ...result, ok: false, reason: "MARKET_HISTORY_UNBOUND", lateArchived: 0 };
+  }
+  const part = partitions[0];
+  const table = safeTableIdent("normalized_market_observations");
+  const eligibilityCutoff = archiveEligibilityCutoff(now, eligibilityMs);
+  const cp = await readCheckpoint(part.db);
+  const late = await countLateArrivalsBehindCursor(part.db, table, {
+    eligibilityCutoff,
+    cursorAt: cp.lastCollectedAt,
+    cursorId: cp.lastId,
+    sinceCreatedAt: cp.lastBatchAt || "1970-01-01T00:00:00.000Z",
+  });
+  if (!late.count) {
+    return {
+      ok: true,
+      lateArchived: 0,
+      lateArrivalsBehindCursor: late,
+      deletion: "NOT_PERFORMED_REQUIRES_RETENTION_GATE",
+      canAuthorizeWager: false,
+      dryRun: !archiveWrites,
+    };
+  }
+
+  const columnSql = NORMALIZED_MARKET_OBSERVATION_COLUMNS.join(", ");
+  const page = await part.db.prepare(
+    `SELECT ${columnSql} FROM ${table}
+     WHERE collected_at < ?
+       AND created_at > ?
+       AND NOT (
+         collected_at > ?
+         OR (collected_at = ? AND id > ?)
+         OR (? = '' AND ? = '')
+       )
+     ORDER BY created_at ASC, id ASC
+     LIMIT ?`
+  ).bind(
+    eligibilityCutoff,
+    cp.lastBatchAt || "1970-01-01T00:00:00.000Z",
+    cp.lastCollectedAt,
+    cp.lastCollectedAt,
+    cp.lastId,
+    cp.lastCollectedAt,
+    cp.lastId,
+    Math.min(2000, Math.max(1, Number(limit) || 500))
+  ).all();
+  const rows = page?.results || [];
+  if (!rows.length) {
+    return {
+      ok: true,
+      lateArchived: 0,
+      lateArrivalsBehindCursor: late,
+      deletion: "NOT_PERFORMED_REQUIRES_RETENTION_GATE",
+      canAuthorizeWager: false,
+    };
+  }
+
+  const observations = rows.map((row) => projectObservationForArchive(row));
+  const partitionKey = part.partition?.key || part.binding;
+  const archivedAt = now instanceof Date ? now.toISOString() : String(now);
+  const batchId = `late_${observations[0].id}_${observations.length}`;
+  const body = {
+    schemaVersion: 3,
+    contract: VERIFIED_ARCHIVE_CONTRACT,
+    archiveKind: "market_history_late_arrival_batch",
+    partition: partitionKey,
+    binding: part.binding,
+    archivedAt,
+    columnCount: NORMALIZED_MARKET_OBSERVATION_COLUMNS.length,
+    columns: NORMALIZED_MARKET_OBSERVATION_COLUMNS.slice(),
+    rowCount: observations.length,
+    observations,
+    primaryCursorUnchanged: {
+      lastCollectedAt: cp.lastCollectedAt,
+      lastId: cp.lastId,
+    },
+    sourceAuthorityPreserved: true,
+    canAuthorizeWager: false,
+  };
+  const bodyText = JSON.stringify(body);
+  const contentSha256 = sha256Hex(bodyText);
+  const objectKey = verifiedArchiveBatchKey({ partitionKey, batchId });
+  const manifestKey = verifiedArchiveManifestKey({ partitionKey, batchId });
+  let putOk = !archiveWrites;
+  let readbackVerified = !archiveWrites;
+  if (archiveWrites) {
+    if (!r2Bound(env)) {
+      return { ok: false, reason: "ARCHIVE_R2_UNBOUND", lateArchived: 0, canAuthorizeWager: false };
+    }
+    const put = await putArchive(env, objectKey, bodyText);
+    const putMan = await putArchive(env, manifestKey, {
+      contract: VERIFIED_ARCHIVE_CONTRACT,
+      objectKey,
+      contentSha256,
+      rowCount: observations.length,
+      columnCount: NORMALIZED_MARKET_OBSERVATION_COLUMNS.length,
+      lateArrival: true,
+      primaryCursorUnchanged: body.primaryCursorUnchanged,
+      retentionReleaseAuthorized: false,
+      sourceRowsDeleted: 0,
+      canAuthorizeWager: false,
+    });
+    putOk = Boolean(put.ok && putMan.ok);
+    if (putOk && verifyReadback && env.ARCHIVE?.get) {
+      try {
+        const obj = await env.ARCHIVE.get(objectKey);
+        const text = obj && typeof obj.text === "function" ? await obj.text() : null;
+        readbackVerified = text != null && sha256Hex(text) === contentSha256;
+      } catch {
+        readbackVerified = false;
+      }
+    }
+  }
+  const restore = verifyFullRecordRestore(rows[0], observations[0]);
+  return {
+    ok: putOk && (!archiveWrites || !verifyReadback || readbackVerified) && restore.ok,
+    dryRun: !archiveWrites,
+    lateArchived: observations.length,
+    lateArrivalsBehindCursor: late,
+    objectKey,
+    contentSha256,
+    readbackVerified: archiveWrites && verifyReadback ? readbackVerified : null,
+    fullColumnRestore: restore,
+    primaryCursorUnchanged: body.primaryCursorUnchanged,
+    sourceAuthorityPreserved: true,
+    deletion: "NOT_PERFORMED_REQUIRES_RETENTION_GATE",
+    canAuthorizeWager: false,
   };
 }

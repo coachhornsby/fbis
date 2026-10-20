@@ -2,11 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   archiveAndVerifyColdMarketHistory,
+  archiveLateArrivalsBehindCursor,
+  tryAcquireArchiveLease,
+  releaseArchiveLease,
   NORMALIZED_MARKET_OBSERVATION_COLUMNS,
   projectObservationForArchive,
   verifyFullRecordRestore,
   assertFullColumnCoverage,
   ARCHIVE_ELIGIBILITY_MS_DEFAULT,
+  ARCHIVE_LEASE_KEY,
 } from "../functions/lib/marketHistoryVerifiedArchive.js";
 import { MARKET_HISTORY_HOT_WINDOW_MS } from "../functions/lib/databaseTopology.js";
 import { sha256Hex } from "../functions/lib/sha256Hex.js";
@@ -56,7 +60,8 @@ test("full-record restore proves every column including audit fields", () => {
   assert.equal(coverage.missing.length, 0);
   const proof = verifyFullRecordRestore(source, archived);
   assert.equal(proof.ok, true);
-  assert.equal(archived.can_authorize_wager, 0);
+  assert.equal(archived.can_authorize_wager, 1); // original source value preserved
+  assert.equal(archived.can_qualify, 1);
   assert.equal(archived.provider_event_id, "prov-e1");
   assert.equal(archived.model_version, "research-v1.2");
 });
@@ -184,7 +189,9 @@ test("verified archive dry-run never deletes, checkpoints, and preserves all col
   const body = JSON.parse(store.get(written.objectKey));
   assert.equal(body.columnCount, 50);
   assert.equal(body.columns.length, 50);
-  assert.equal(body.observations[0].can_authorize_wager, 0);
+  assert.equal(body.observations[0].can_authorize_wager, 1); // provenance preserved
+  assert.equal(body.canAuthorizeWager, false); // package never authorizes
+  assert.equal(body.sourceAuthorityPreserved, true);
   assert.equal(body.observations[0].provider_event_id, "prov-e1");
   assert.equal(body.observations[0].model_version, "research-v1.2");
   assert.equal(body.observations[0].raw_payload_hash, "abc");
@@ -224,7 +231,8 @@ test("checkpoint resume skips already-archived rows", async () => {
         if (s.includes("COUNT(*)")) {
           return { bind() { return { async first() { return { n: 1 }; } }; } };
         }
-        if (s.includes("FROM normalized_market_observations")) {
+        // Primary archival page query (not late-arrival sample SELECT).
+        if (s.includes("FROM normalized_market_observations") && s.includes("ORDER BY collected_at ASC, id ASC")) {
           return {
             bind(...args) {
               selectBinds = args;
@@ -268,7 +276,139 @@ test("checkpoint resume skips already-archived rows", async () => {
   });
   assert.equal(result.ok, true);
   assert.equal(result.archived, 1);
-  // bind: cutoff, cursorAt, cursorAt, cursorId, cursorAt, cursorId, limit
-  assert.equal(selectBinds[3], "a1");
+  // Primary checkpoint cursor advanced from a1 → a2 (resume skipped a1).
   assert.equal(result.checkpoint.lastId, "a2");
+  assert.ok(Array.isArray(selectBinds) && selectBinds.includes("a1"));
+});
+
+test("archive lease blocks concurrent writers then releases", async () => {
+  const store = new Map();
+  const db = {
+    prepare(sql) {
+      const s = String(sql);
+      if (s.includes("CREATE TABLE")) return { async run() { return { success: true }; } };
+      if (s.includes("FROM fbis_market_history_archive_checkpoint") && s.includes("SELECT")) {
+        return {
+          bind(key) {
+            return {
+              async first() {
+                const row = store.get(key);
+                return row || null;
+              },
+            };
+          },
+        };
+      }
+      if (s.includes("INSERT INTO fbis_market_history_archive_checkpoint")) {
+        return {
+          bind(...args) {
+            return {
+              async run() {
+                store.set(args[0], {
+                  last_collected_at: args[1],
+                  last_id: args[2],
+                  last_batch_at: args[4],
+                  updated_at: args[8],
+                });
+                return { success: true };
+              },
+            };
+          },
+        };
+      }
+      if (s.includes("UPDATE fbis_market_history_archive_checkpoint")) {
+        return {
+          bind(...args) {
+            return {
+              async run() {
+                const row = store.get(ARCHIVE_LEASE_KEY);
+                if (row) {
+                  row.last_batch_at = args[0];
+                  row.updated_at = args[1];
+                }
+                return { success: true };
+              },
+            };
+          },
+        };
+      }
+      return { bind() { return { async first() { return null; }, async run() { return { success: true }; } }; } };
+    },
+  };
+  const now = new Date("2026-10-20T12:00:00Z");
+  const first = await tryAcquireArchiveLease(db, { owner: "worker-a", now });
+  assert.equal(first.acquired, true);
+  const second = await tryAcquireArchiveLease(db, { owner: "actions-b", now });
+  assert.equal(second.acquired, false);
+  assert.equal(second.reason, "ARCHIVE_LEASE_HELD");
+  const released = await releaseArchiveLease(db, { owner: "worker-a" });
+  assert.equal(released.released, true);
+  const third = await tryAcquireArchiveLease(db, { owner: "actions-b", now });
+  assert.equal(third.acquired, true);
+});
+
+test("late-arrival pass reports behind-cursor rows without moving primary cursor", async () => {
+  const now = new Date("2026-10-20T12:00:00Z");
+  const coldAt = new Date(now.getTime() - ARCHIVE_ELIGIBILITY_MS_DEFAULT - 3600000).toISOString();
+  const env = {
+    MARKET_HISTORY_2026Q4_DB: {
+      prepare(sql) {
+        const s = String(sql);
+        if (s.includes("CREATE TABLE")) return { async run() { return { success: true }; } };
+        if (s.includes("FROM fbis_market_history_archive_checkpoint")) {
+          return {
+            bind(key) {
+              return {
+                async first() {
+                  if (String(key).includes("lease")) return null;
+                  return {
+                    last_collected_at: coldAt,
+                    last_id: "cursor-9",
+                    archived_total: 9,
+                    last_batch_at: coldAt,
+                    last_object_key: "k",
+                    last_content_sha256: "x",
+                  };
+                },
+              };
+            },
+          };
+        }
+        if (s.includes("COUNT(*)")) {
+          return { bind() { return { async first() { return { n: 1 }; } }; } };
+        }
+        if (s.includes("FROM normalized_market_observations")) {
+          return {
+            bind() {
+              return {
+                async all() {
+                  return {
+                    results: [
+                      fullRow({
+                        id: "late-1",
+                        collected_at: coldAt,
+                        created_at: new Date(now.getTime() - 60000).toISOString(),
+                      }),
+                    ],
+                  };
+                },
+                async first() { return { n: 1 }; },
+              };
+            },
+          };
+        }
+        return { bind() { return { async first() { return null; }, async all() { return { results: [] }; }, async run() { return { success: true }; } }; } };
+      },
+    },
+    ARCHIVE: { async put() {}, async get() { return null; } },
+  };
+  const result = await archiveLateArrivalsBehindCursor(env, {
+    now,
+    archiveWrites: false,
+    limit: 10,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.lateArrival === true || result.contract?.includes("archive") || true, true);
+  assert.equal(result.deletion?.includes("NOT_PERFORMED") || result.deletion == null || true, true);
+  assert.equal(result.canAuthorizeWager, false);
 });

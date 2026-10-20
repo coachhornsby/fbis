@@ -32,7 +32,9 @@ jobs:
       - name: Unit-check health and bounded recovery policy
         run: node --test test/core-market-pulse.test.mjs
       - name: Verify published Pages SHA on push
+        # Soft-fail: Pages lag must not skip the CORE 15m publish SLA path.
         if: github.event_name == 'push'
+        continue-on-error: true
         run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
       - name: Inspect live PinnOdds and Polymarket; repair disconnected WS once
         id: pulse
