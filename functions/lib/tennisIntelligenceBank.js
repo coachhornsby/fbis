@@ -3,7 +3,7 @@ import { tennisCardContext, tennisKey } from "./tennisPlayerBank.js";
 import { approvedTennisPortraits } from "./tennisPortraits.js";
 import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
 import {loadKalshiTennisResearch,matchKalshiTennisResearch} from "./tennisKalshiResearch.js";
-import {discoverPolymarketGlobalTennis,matchPolymarketGlobalTennis} from "./tennisPolymarketGlobal.js";
+import {loadPolymarketGlobalTennisSnapshot,matchPolymarketGlobalTennis} from "./tennisPolymarketGlobal.js";
 const parse = value => { try { return JSON.parse(value); } catch { return null; } };
 const number = v => v == null || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null;
 
@@ -163,7 +163,7 @@ export function surfaceEloResearchEstimate(players, officialDisplay) {
 export async function buildIndependentTennisCards(db, date, { now = new Date(), archive = null } = {}) {
   const bank = await buildTennisIntelligenceBank(db, { now, limit: 100 });
   const kalshi=await loadKalshiTennisResearch({ARCHIVE:archive},now);
-  const polymarketGlobal=await discoverPolymarketGlobalTennis({now}).catch(()=>({events:[],code:"SOURCE_UNAVAILABLE"}));
+  const polymarketGlobal=await loadPolymarketGlobalTennisSnapshot(archive,{now});
   const ctDay = start => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago",
     year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(start));
   // One bounded rights lookup for the slate. Approved R2 portraits take priority
