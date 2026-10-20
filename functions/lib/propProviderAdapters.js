@@ -12,7 +12,7 @@ export const KALSHI_PROP_SERIES=Object.freeze({
  KXWNBAPTS:['wnba','points'],KXWNBAREB:['wnba','rebounds'],KXWNBAAST:['wnba','assists'],
 });
 export const norm=v=>String(v||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-const ctDate=v=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(v));
+const ctDate=v=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(v)).map(p=>[p.type,p.value]));return `${parts.year}-${parts.month}-${parts.day}`;};
 function teamMatch(label,abbr,name,sport) {
  const teams=registries[sport]||[];const t=teams.find(t=>String(t.abbr).toUpperCase()===String(abbr).toUpperCase());
  const location=t?.nickname&&t?.displayName?.endsWith(' '+t.nickname)?t.displayName.slice(0,-t.nickname.length).trim():null;
