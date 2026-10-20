@@ -1,0 +1,115 @@
+name: Sport migration qualify (shadow + NFL cutover rehearsal)
+
+# Produces parity/lag/cutover-rehearsal receipts. Never activates sport authority.
+# Never deletes source rows. Agents cannot workflow_dispatch (403) — touch trigger.
+on:
+  schedule:
+    - cron: "15,45 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "ops/triggers/sport-migration-qualify"
+      - ".github/workflows/sport-migration-qualify.yml"
+      - "scripts/sport-migration-qualify-ops.mjs"
+      - "scripts/sport-sync-health-ops.mjs"
+      - "functions/lib/sportMigrationQualify.js"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-sport-migration-qualify-v1
+  cancel-in-progress: false
+
+jobs:
+  health-all:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Unit-test migration qualify contracts
+        run: node --test test/sport-migration-qualify.test.js
+      - name: Wait for production Pages deployment
+        if: github.event_name != 'pull_request'
+        env:
+          VERIFY_MAX_ATTEMPTS: "40"
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: All-sport sync health rollup
+        if: github.event_name != 'pull_request'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          node scripts/sport-sync-health-ops.mjs | tee artifacts/sport-sync-health-all.json
+          jq -e '.ok==true and .allProductPrimary==true and .cutoverAuthorized==false' \
+            artifacts/sport-sync-health-all.json >/dev/null
+      - uses: actions/upload-artifact@v4.6.2
+        if: always() && github.event_name != 'pull_request'
+        with:
+          name: sport-sync-health-all
+          path: artifacts/sport-sync-health-all.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  qualify-wave1:
+    needs: health-all
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - sport: nfl
+            cutover: "true"
+          - sport: cfb
+            cutover: "true"
+          - sport: nhl
+            cutover: "true"
+          - sport: nba
+            cutover: "false"
+          - sport: mlb
+            cutover: "false"
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Wait for production Pages deployment
+        if: github.event_name != 'pull_request'
+        env:
+          VERIFY_MAX_ATTEMPTS: "40"
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Qualify ${{ matrix.sport }} (shadow; cutover rehearsal gated)
+        if: github.event_name != 'pull_request'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+          SPORT: ${{ matrix.sport }}
+          RUN_DELTA_SYNC: "true"
+          RUN_CUTOVER_REHEARSAL: ${{ matrix.cutover }}
+          SAMPLE_SIZE: "40"
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          node scripts/sport-migration-qualify-ops.mjs | tee "artifacts/sport-qualify-${SPORT}.json"
+          jq -e '
+            .ok==true
+            and .cutoverAuthorized==false
+            and .deletionAuthorized==false
+            and .activationPerformed==false
+            and .canAuthorizeWager==false
+          ' "artifacts/sport-qualify-${SPORT}.json" >/dev/null
+      - uses: actions/upload-artifact@v4.6.2
+        if: always() && github.event_name != 'pull_request'
+        with:
+          name: sport-qualify-${{ matrix.sport }}
+          path: artifacts/sport-qualify-${{ matrix.sport }}.json
+          if-no-files-found: ignore
+          retention-days: 30

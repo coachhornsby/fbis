@@ -20,7 +20,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: fbis-sport-delta-sync-recurring
+  # v2 group unblocks a stuck v1 queue that never started after #1417.
+  group: fbis-sport-delta-sync-recurring-v2
   cancel-in-progress: false
 
 jobs:

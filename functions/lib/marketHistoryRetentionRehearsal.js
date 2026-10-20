@@ -155,11 +155,34 @@ export async function rehearseMarketHistoryRetirement(env, {
     newReleaseManifest: true,
   });
 
+  // Exact eligible ID list for the bounded sample (authorization still required for any delete).
+  let eligibleCountEstimate = null;
+  try {
+    const countRow = await part.db.prepare(
+      `SELECT COUNT(*) AS n FROM normalized_market_observations
+       WHERE collected_at < ?
+         AND (
+           collected_at < ?
+           OR (collected_at = ? AND id <= ?)
+         )`
+    ).bind(
+      hotCutoff,
+      checkpoint.last_collected_at,
+      checkpoint.last_collected_at,
+      checkpoint.last_id
+    ).first();
+    eligibleCountEstimate = Number(countRow?.n) || 0;
+  } catch {
+    eligibleCountEstimate = null;
+  }
+
   return {
     contract: RETENTION_REHEARSAL_CONTRACT,
     ok: true,
     dryRun: true,
     cohort: cohortManifest,
+    eligibleObservationIds: cohort.map((r) => r.id),
+    eligibleCountEstimate,
     gate: {
       authorized: gate.authorized,
       canDeleteSourceRows: gate.canDeleteSourceRows,
@@ -171,6 +194,7 @@ export async function rehearseMarketHistoryRetirement(env, {
     eligibleForRetirementConsideration: cohort.length,
     protectedSkipped: protectedRows.length,
     deletion: "NOT_PERFORMED_REQUIRES_EXPLICIT_AUTHORIZATION",
+    retentionReleaseAuthorized: false,
     canAuthorizeWager: false,
     nextOperatorStep: gate.authorized
       ? "UNEXPECTED_GATE_OPEN — investigate before any delete"

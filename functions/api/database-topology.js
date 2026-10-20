@@ -48,6 +48,12 @@ import {
 } from "../lib/coreBoardSummaries.js";
 import { loadCoreBoardOverview } from "../lib/coreBoardConsumer.js";
 import { rehearseSportCutover } from "../lib/sportCutoverRehearsal.js";
+import {
+  verifySportRecordLevelParity,
+  buildSportSyncHealth,
+  qualifySportMigration,
+  buildAllSportSyncHealth,
+} from "../lib/sportMigrationQualify.js";
 import { evaluateRetentionRelease } from "../lib/retentionGate.js";
 import {
   evaluateTopologyBindingGate,
@@ -276,6 +282,34 @@ export async function onRequestPost({ env, request } = {}) {
       injectMissingBinding: body.injectMissingBinding === true,
       injectPartialSport: body.injectPartialSport === true,
       injectStaleCore: body.injectStaleCore === true,
+    }));
+  }
+  if (operation === "sport-record-parity") {
+    const gate = requireSyncSport(body.sport);
+    if (!gate.ok) return json(gate, 400);
+    return json(await verifySportRecordLevelParity(env, gate.sport, {
+      sampleSize: Math.min(200, Number(body.sampleSize) || 40),
+    }));
+  }
+  if (operation === "sport-sync-health") {
+    const gate = requireSyncSport(body.sport);
+    if (!gate.ok) return json(gate, 400);
+    return json(await buildSportSyncHealth(env, gate.sport, {
+      maxLagMs: body.maxLagMs != null ? Number(body.maxLagMs) : undefined,
+    }));
+  }
+  if (operation === "sport-sync-health-all") {
+    return json(await buildAllSportSyncHealth(env));
+  }
+  if (operation === "sport-migration-qualify") {
+    const gate = requireSyncSport(body.sport);
+    if (!gate.ok) return json(gate, 400);
+    return json(await qualifySportMigration(env, gate.sport, {
+      sampleSize: Math.min(200, Number(body.sampleSize) || 40),
+      runDeltaSync: body.runDeltaSync === true,
+      includePrefix: body.includePrefix !== false,
+      // Cutover rehearsal allowed for NFL/CFB/NHL only; never activates authority.
+      runCutoverRehearsal: body.runCutoverRehearsal === true,
     }));
   }
   if (operation === "core-board-summary-publish") {
