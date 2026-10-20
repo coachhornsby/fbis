@@ -242,41 +242,41 @@ export function LastFiveStatChart({ row }) {
   );
 }
 
+
 function VenueComparison({row}) {
  const comparison=row.venueComparison;
  if(!comparison)return null;
- const offers=comparison.venues||[];
  const price=v=>v==null?'—':(Number(v)*100).toFixed(1)+'¢';
- const reason={
-  OTHER_PROVIDER_UNAVAILABLE:'Other venue not captured for this exact contract',
-  SETTLEMENT_NOT_EQUIVALENT_OR_UNVERIFIED:'Settlement equivalence unverified; no price gap',
-  QUOTE_CLOCK_OR_EXECUTION_UNVERIFIED:'Quote clock or executable purchase ask unverified',
-  COMPARABLE_CURRENT_QUOTES:'Same terms and current asks; excludes fees'
- }[comparison.priceComparisonStatus]||'Not comparable';
+ const rows=comparison.marketSides||{
+  [row.statSide==='under'?'under':'over']:comparison
+ };
+ const status={
+  OTHER_PROVIDER_UNAVAILABLE:'One venue only',
+  SETTLEMENT_NOT_EQUIVALENT_OR_UNVERIFIED:'Different or unverified settlement',
+  QUOTE_CLOCK_OR_EXECUTION_UNVERIFIED:'Quote clock or ask unverified',
+  COMPARABLE_CURRENT_QUOTES:'Comparable current purchase asks (fees excluded)'
+ };
  return <div className="pp-venue-comparison" aria-label="Kalshi and Polymarket price comparison">
-  <div className="pp-venue-topline"><b>EXCHANGE PRICES</b><span>{String(row.statSide||row.side||'').toUpperCase()}</span></div>
-  <div className="pp-venue-quotes">
-   {['Kalshi','Polymarket'].map(provider=>{
-    const offer=offers.find(x=>x.provider===provider);
-    return <div key={provider} className={'pp-venue-quote '+(offer?'has-contract':'no-contract')}>
-     <span className="pp-venue-name">{provider}</span>
-     <strong>{price(offer?.price)}</strong>
-     <small>{!offer?'No exact contract':offer.priceKind==='VERIFIED_PURCHASE_ASK'?'Verified ask':'Observed ask only'}</small>
-     {offer?.depth!=null?<small>Depth {Number(offer.depth).toLocaleString('en-US',{maximumFractionDigits:1})}</small>:null}
+  <div className="pp-venue-topline"><b>KALSHI VS POLYMARKET</b><span>Same player · stat · threshold</span></div>
+  <div className="pp-venue-matrix" role="table" aria-label="Price and exchange difference by Over and Under">
+   <div className="pp-venue-matrix-head" role="row"><b>Side</b><b>Kalshi</b><b>Polymarket</b><b>Gap</b></div>
+   {['over','under'].map(side=>{
+    const item=rows[side],offers=item?.venues||[];
+    const k=offers.find(v=>v.provider==='Kalshi'),p=offers.find(v=>v.provider==='Polymarket');
+    return <div key={side} className="pp-venue-matrix-row" role="row" data-stat-side={side}>
+     <b className={'pp-side-label pp-side-'+side}>{side==='over'?'↑ OVER':'↓ UNDER'}</b>
+     <div><strong>{price(k?.price)}</strong><small>{k?.priceKind==='VERIFIED_PURCHASE_ASK'?'Live ask':k?'Observed':'Unavailable'}</small></div>
+     <div><strong>{price(p?.price)}</strong><small>{p?.priceKind==='VERIFIED_PURCHASE_ASK'?'Live ask':p?'Observed':'Unavailable'}</small></div>
+     <div><strong>{price(item?.priceDifferenceDollars==null?null:Math.abs(item.priceDifferenceDollars))}</strong>
+      <small>{item?.cheaperProvider?'Lower '+item.cheaperProvider:item?status[item.priceComparisonStatus]||'Unverified':'No contract'}</small>
+     </div>
     </div>;
    })}
   </div>
-  <div className="pp-venue-gap"><span>PRICE GAP</span>
-   <b>{comparison.priceDifferenceDollars==null?'—':price(Math.abs(comparison.priceDifferenceDollars))}</b>
-   {comparison.cheaperProvider?<span>Lower: {comparison.cheaperProvider}</span>:null}
-  </div>
-  <p className="pp-venue-caveat">{reason}. Research only, not a wager instruction.</p>
+  <p className="pp-venue-caveat">Observed prices are research snapshots, not guaranteed executable. Differences require verified contract equivalence, quote times, and asks. Fees not included.</p>
  </div>;
 }
 
-/**
- * Provider-neutral premium card with verified history and selected contract threshold.
- */
 /**
  * Provider-neutral premium card with verified history and selected contract threshold.
  */
