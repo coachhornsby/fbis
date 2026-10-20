@@ -46,7 +46,10 @@ function normalizeRow(row = {}, sport = "") {
   };
 }
 function resolvedHeadshot(row = {}) {
-  if (isRealHeadshot(row.player_headshot_url)) return row.player_headshot_url;
+  const proRosterTeam = ["nfl","nba","nhl"].includes(String(row.sport || "").toLowerCase()) && Boolean(String(row.team || "").trim());
+  // Pro cards resolve authoritative team-roster portraits before any legacy
+  // odds-provider image. Other sports retain the existing image contract.
+  if (!proRosterTeam && isRealHeadshot(row.player_headshot_url)) return row.player_headshot_url;
   const q = new URLSearchParams({
     name: String(row.player_name || ""),
     sport: String(row.sport || ""),
