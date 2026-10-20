@@ -12,8 +12,9 @@ const INCLUDE_PREFIX = process.env.INCLUDE_PREFIX === "true";
 const ROUNDS = Math.min(6, Number(process.env.SYNC_ROUNDS) || 3);
 const PAGE_SIZE = Math.min(500, Number(process.env.SYNC_PAGE_SIZE) || 250);
 const MAX_PAGES = Math.min(20, Number(process.env.SYNC_MAX_PAGES) || 8);
-const PREFIX_PAGE_SIZE = Math.min(200, Number(process.env.PREFIX_PAGE_SIZE) || 100);
-const PREFIX_MAX_PAGES = Math.min(10, Number(process.env.PREFIX_MAX_PAGES) || 4);
+const PREFIX_PAGE_SIZE = Math.min(250, Number(process.env.PREFIX_PAGE_SIZE) || 150);
+const PREFIX_MAX_PAGES = Math.min(20, Number(process.env.PREFIX_MAX_PAGES) || 12);
+const PREFIX_ROUNDS = Math.min(4, Number(process.env.PREFIX_ROUNDS) || 2);
 const REQUEST_TIMEOUT_MS = Math.min(540_000, Number(process.env.SYNC_TIMEOUT_MS) || 240_000);
 
 async function postTopology(operation, extra = {}) {
@@ -52,17 +53,28 @@ const sync = await postTopology("sport-delta-sync", {
 });
 
 let prefix = null;
+const prefixPasses = [];
 if (INCLUDE_PREFIX) {
-  // Separate bounded prefix pass so a large research table cannot abort the working set.
-  prefix = await postTopology("sport-prefix-copy", {
-    sport: SPORT,
-    pageSize: PREFIX_PAGE_SIZE,
-    maxPages: PREFIX_MAX_PAGES,
-    resume: true,
-  });
+  // Separate bounded prefix passes focused on incomplete research/roster/model tables.
+  for (let i = 0; i < PREFIX_ROUNDS; i += 1) {
+    const pass = await postTopology("sport-prefix-copy", {
+      sport: SPORT,
+      pageSize: PREFIX_PAGE_SIZE,
+      maxPages: PREFIX_MAX_PAGES,
+      resume: true,
+      skipCaughtUp: true,
+    });
+    prefixPasses.push(pass);
+    prefix = pass;
+    if (pass.moreRemaining !== true) break;
+  }
 }
 
 const parity = await postTopology("sport-parity", { sport: SPORT });
+let prefixParity = null;
+if (INCLUDE_PREFIX) {
+  prefixParity = await postTopology("sport-prefix-parity", { sport: SPORT });
+}
 
 const failures = [];
 if (sync.ok !== true) failures.push(sync.reason || "SYNC_NOT_OK");
@@ -105,11 +117,15 @@ const out = {
     parity: sync.parity || null,
   },
   prefix,
+  prefixPasses: prefixPasses.length || undefined,
+  prefixParity,
   parity,
   productStillPrimary: true,
   includePrefix: INCLUDE_PREFIX,
   canAuthorizeWager: false,
   cutoverAuthorized: false,
+  // Explicit: working-set parity alone is not a complete sport migration.
+  fullSportMigration: prefixParity?.ok === true && parity?.ok === true,
 };
 
 console.log(JSON.stringify(out, null, 2));
@@ -124,6 +140,8 @@ if (process.env.GITHUB_STEP_SUMMARY) {
       `| caughtUp | ${out.sync.caughtUp} |`,
       `| moreRemaining | ${out.sync.moreRemaining} |`,
       `| prefixOk | ${prefix ? prefix.ok === true : "skipped"} |`,
+      `| prefixParity | ${prefixParity ? prefixParity.status : "skipped"} |`,
+      `| fullSportMigration | ${out.fullSportMigration === true} |`,
       `| productStillPrimary | true |`,
       `| cutoverAuthorized | false |`,
       `| canAuthorizeWager | false |`,

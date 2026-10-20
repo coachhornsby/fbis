@@ -105,6 +105,16 @@ test("rehearsal simulated sport switch activates only in-process with receipt", 
   assert.equal(receiptStep.ok, true);
   const compareStep = report.steps.find((s) => s.step === "baseline_vs_sport_output_compare");
   assert.equal(compareStep.ok, true);
+  const consumers = report.steps.find((s) => s.step === "consumers_read_primary_until_cutover");
+  assert.equal(consumers.ok, true);
+  const writes = report.steps.find((s) => s.step === "writes_stay_primary_until_receipt");
+  assert.equal(writes.ok, true);
+  const models = report.steps.find((s) => s.step === "model_versions_preserved");
+  assert.equal(models.ok, true);
+  const rollback = report.steps.find((s) => s.step === "rollback_to_shadow");
+  assert.equal(rollback.ok, true);
+  assert.equal(report.authorityActivationRequested, false);
+  assert.equal(report.liveCutoverAuthorized, false);
   // Live env untouched
   assert.equal(productSportDbHandle(env, "nfl").productIoUsesSportDb, false);
   assert.equal(env.SPORT_DB_MODE_NFL, "shadow");

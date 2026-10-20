@@ -1,0 +1,40 @@
+{
+  "contract": "fbis-storage-reclamation-readiness-v1",
+  "generatedAt": "2026-10-20T19:15:00.000Z",
+  "canAuthorizeWager": false,
+  "deletionAuthorized": false,
+  "retentionReleaseAuthorized": false,
+  "distinction": {
+    "archivedIsNotReclaimed": true,
+    "note": "R2 verified archive progress does not reduce PRIMARY or legacy market-history D1 bytes until an authorized retention delete runs."
+  },
+  "observedSizesBytes": {
+    "fbis_PRIMARY": 8129888256,
+    "fbis_PRIMARY_approxGiB": 7.57,
+    "fbis_market_history_legacy": 9999998976,
+    "fbis_market_history_legacy_approxGiB": 9.31,
+    "fbis_market_history_2026q4": 2579030016,
+    "fbis_nfl": 121499648
+  },
+  "reclamationStatus": {
+    "primaryBytesReclaimed": 0,
+    "legacyMarketHistoryBytesReclaimed": 0,
+    "q4BytesReclaimed": 0,
+    "reason": "Archive catch-up in progress; hot-window + retention gate keep source rows"
+  },
+  "controlledReclaimPrerequisites": [
+    "Verified archive checkpoint advancing with backlog falling",
+    "Late-arrival catch-up pass running on Worker cron",
+    "Retention rehearsal enumerates eligible IDs with full restore evidence",
+    "Consumer audit proves no live board/read path depends on eligible rows",
+    "Explicit retentionReleaseAuthorized + operator approval (separate from this package)",
+    "Delete remains disabled until that approval"
+  ],
+  "eligibleNowOutsideHotWindow": 0,
+  "archivedBehindCheckpointPendingHotAgeOut": "see retention rehearsal op",
+  "nextActions": [
+    "Continue Worker archive until Q4 backlog near zero",
+    "Run market-history-retention-rehearsal for exact eligible ID package",
+    "Do not delete; prepare PRIMARY reclaim plan only after sport cutovers reduce working-set pressure"
+  ]
+}

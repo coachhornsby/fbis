@@ -54,8 +54,10 @@ jobs:
           SYNC_ROUNDS: "3"
           SYNC_PAGE_SIZE: "250"
           SYNC_MAX_PAGES: "8"
-          PREFIX_PAGE_SIZE: "100"
-          PREFIX_MAX_PAGES: "4"
+          # Incomplete-first prefix catch-up (profiles/rosters/research/models).
+          PREFIX_PAGE_SIZE: "150"
+          PREFIX_MAX_PAGES: "12"
+          PREFIX_ROUNDS: "2"
           SYNC_TIMEOUT_MS: "240000"
         run: |
           set -euo pipefail
