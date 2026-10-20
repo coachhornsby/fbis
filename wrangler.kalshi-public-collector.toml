@@ -12,3 +12,6 @@ crons = ["*/15 * * * *"]
 [[r2_buckets]]
 binding = "ARCHIVE"
 bucket_name = "fbis-archive"
+
+[observability]
+enabled = true
