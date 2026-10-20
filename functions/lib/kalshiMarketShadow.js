@@ -8,7 +8,7 @@
  */
 export const KALSHI_PUBLIC_BASE = "https://external-api.kalshi.com/trade-api/v2";
 export const KALSHI_SHADOW_SERIES = Object.freeze({
-  nfl: "KXNFLGAME", cfb: "KXNCAAFGAME", mlb: "KXMLBGAME", nba: "KXNBAGAME",
+  nfl: "KXNFLGAME", cfb: "KXNCAAFGAME", mlb: "KXMLBGAME", nba: "KXNBAGAME", atp: "KXATPMATCH", wta: "KXWTAMATCH",
 });
 export const KALSHI_SHADOW_AUTHORITY = "SHADOW_ONLY";
 const TICKER = /^[A-Z0-9_.-]{4,160}$/;
@@ -171,7 +171,7 @@ export async function getKalshiShadowMarketsPaged(sport,{
   fetchImpl=fetch,now=new Date(),pageLimit=1000,maxPages=4,
 }={}){
   const series=KALSHI_SHADOW_SERIES[sport];
-  if(!series||!["nfl","cfb"].includes(sport))
+  if(!series||!["nfl","cfb","atp","wta"].includes(sport))
     return {ok:false,code:"KALSHI_SERIES_NOT_QUALIFIED"};
   const perPage=Math.min(1000,Math.max(1,Math.floor(Number(pageLimit)||1000)));
   const budget=Math.min(6,Math.max(1,Math.floor(Number(maxPages)||4)));
@@ -224,7 +224,7 @@ export async function getKalshiShadowMarketsPage(sport,{
   cursor="",fetchImpl=fetch,now=new Date(),limit=250,
 }={}){
   const series=KALSHI_SHADOW_SERIES[sport];
-  if(!["nfl","cfb"].includes(sport)||!series)
+  if(!["nfl","cfb","atp","wta"].includes(sport)||!series)
     return {ok:false,code:"KALSHI_SERIES_NOT_QUALIFIED"};
   if(typeof cursor!=="string"||cursor.length>2048)
     return {ok:false,code:"KALSHI_PUBLIC_CURSOR_INVALID"};

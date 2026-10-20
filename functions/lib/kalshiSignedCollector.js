@@ -59,7 +59,7 @@ const receiptKey=sport=>"sports/"+sport+"-status.json";
  */
 export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date(),
   fetchImpl=fetch,webCrypto=crypto}={}){
-  if(!["nfl","cfb"].includes(sport))
+  if(!["nfl","cfb","atp","wta"].includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
   if(!env?.ARCHIVE?.get||!env?.ARCHIVE?.put)
     return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
