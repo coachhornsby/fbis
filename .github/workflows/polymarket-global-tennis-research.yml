@@ -1,7 +1,8 @@
 name: Polymarket Global ATP WTA research collection
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    # Avoid the top-of-hour Actions scheduler contention, retain 15-minute cadence.
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -31,3 +32,4 @@ jobs:
             -d '{}' > /tmp/tennis-gamma-receipt.json
           jq -e '.ok == true and .canAuthorizeWager == false and .source == "POLYMARKET_GLOBAL_GAMMA"' /tmp/tennis-gamma-receipt.json
           echo "Polymarket.com ATP/WTA fixtures: $(jq -r '.fixtureCount' /tmp/tennis-gamma-receipt.json), matched events: $(jq -r '.matchedEvents' /tmp/tennis-gamma-receipt.json)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source capture time: $(jq -r '.asOf' /tmp/tennis-gamma-receipt.json) · Search warnings: $(jq -r '.errors | length' /tmp/tennis-gamma-receipt.json)" >> "$GITHUB_STEP_SUMMARY"
