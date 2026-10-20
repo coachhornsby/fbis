@@ -92,7 +92,11 @@ export async function onRequestGet(context) {
       durableFallbackGames: Number(board?.counts?.durableFallbackGames || 0),
       boardDeliveryMode: board?.parlay?.durableReadOnly ? "D1_UNVERIFIED_MATCHUPS" : "RESEARCH_FEEDS",
       projectionsAvailable: board.games.filter((g) => !g.projectionUnavailable).length,
+      // Execution/consensus operational markets only (legacy field name preserved).
       marketsAvailable: board.games.filter((g) => !g.marketUnavailable).length,
+      researchMarketsAvailable: board.games.filter((g) => gameHasResearchMarketDelivery(g)).length,
+      pinnoddsCaptures: board.games.filter((g) => Array.isArray(g?.pinnoddsResearch?.offers) && g.pinnoddsResearch.offers.length > 0).length,
+      exchangeOffers: board.games.filter((g) => Array.isArray(g?.market?.venueOffers) && g.market.venueOffers.length > 0).length,
       qualifiedTickets: board.counts.qualified,
       openFailures: Object.entries(board.feeds)
         .filter(([, f]) => f?.error)
@@ -133,7 +137,8 @@ export async function onRequestGet(context) {
       .filter(([, s]) =>
         ["ok", "no-games"].includes(s.schedule) &&
         ["ok", "no-games"].includes(s.projections) &&
-        ["ok", "no-games"].includes(s.markets)
+        // research-only means delivery succeeded; qualification is separate.
+        ["ok", "research-only", "no-games"].includes(s.markets)
       )
       .map(([k]) => k);
     const failedSports = Object.entries(sourceStatus.statuses)
@@ -244,21 +249,39 @@ function upstreamSourceState(raw) {
   };
 }
 
-function buildTodaySourceStatus(board) {
+/** Research delivery: PinnOdds reference captures and/or exchange overlays on the card. */
+export function gameHasResearchMarketDelivery(game) {
+  const pinOffers = Array.isArray(game?.pinnoddsResearch?.offers) ? game.pinnoddsResearch.offers.length : 0;
+  const venueOffers = Array.isArray(game?.market?.venueOffers) ? game.market.venueOffers.length : 0;
+  return pinOffers > 0 || venueOffers > 0;
+}
+
+export function buildTodaySourceStatus(board) {
   const feeds = board?.feeds || {};
   const statuses = {};
   const requiredChecks = [];
   for (const [sport, feed] of Object.entries(feeds)) {
     const games = (board?.games || []).filter((game) => game?.sport === sport);
     const usableMarkets = games.filter((game) => !game?.marketUnavailable).length;
+    const researchMarkets = games.filter((game) => gameHasResearchMarketDelivery(game)).length;
+    const pinnoddsCaptures = games.filter((game) => Array.isArray(game?.pinnoddsResearch?.offers) && game.pinnoddsResearch.offers.length > 0).length;
+    const exchangeOffers = games.filter((game) => Array.isArray(game?.market?.venueOffers) && game.market.venueOffers.length > 0).length;
     const projectedGames = games.filter((game) => !game?.projectionUnavailable).length;
     const scheduleOk = feed?.ok !== false && !feed?.error;
     // Empty slate (no games) is healthy. A sport with games needs real projections —
     // schedule transport success alone is not projection coverage.
     const projectionOk = games.length === 0 ? scheduleOk : projectedGames > 0;
-    // Successful transport is not usable market coverage. A sport with games
-    // needs at least one paired executable market; an empty slate is healthy.
-    const marketOk = !feed?.error && (games.length === 0 || usableMarkets > 0);
+    // Delivery health ≠ execution/qualification. Research overlays (PinnOdds /
+    // Polymarket/Kalshi) count as successful market delivery; zero EXEC MKT or
+    // zero QUALIFIED tickets must not alone mark the sport market check failed.
+    const marketDeliveryOk = !feed?.error && (games.length === 0 || usableMarkets > 0 || researchMarkets > 0);
+    const marketsState = games.length === 0
+      ? "no-games"
+      : usableMarkets > 0
+        ? "ok"
+        : researchMarkets > 0
+          ? "research-only"
+          : "unavailable";
     const source = feed?.cachedParlay ? "cache" : "live";
     const upstream = Object.fromEntries(
       Object.entries(feed?.sources || {}).map(([name, meta]) => [name, upstreamSourceState(meta)])
@@ -266,10 +289,13 @@ function buildTodaySourceStatus(board) {
     statuses[sport] = {
       schedule: scheduleOk ? (games.length === 0 ? "no-games" : "ok") : "failed",
       projections: games.length === 0 ? "no-games" : projectionOk ? "ok" : "unavailable",
-      markets: games.length === 0 ? "no-games" : marketOk ? "ok" : "unavailable",
+      markets: marketsState,
       games: games.length,
       projectedGames,
       usableMarkets,
+      researchMarkets,
+      pinnoddsCaptures,
+      exchangeOffers,
       source,
       upstream,
       upstreamProblems: Object.entries(upstream)
@@ -291,9 +317,11 @@ function buildTodaySourceStatus(board) {
     });
     requiredChecks.push({
       name: `${sport}-market`,
-      ok: marketOk,
+      ok: marketDeliveryOk,
       source,
-      detail: feed?.error || (games.length === 0 ? "no-games" : `usable=${usableMarkets}/${games.length}`),
+      detail: feed?.error || (games.length === 0
+        ? "no-games"
+        : `exec=${usableMarkets} research=${researchMarkets} pin=${pinnoddsCaptures} exchange=${exchangeOffers} /${games.length}`),
     });
   }
   return { statuses, requiredChecks };
