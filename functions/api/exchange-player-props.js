@@ -1,3 +1,4 @@
+import { buildNhlOfficialScopeCandidates } from '../lib/nhlPropScopeCandidates.js';
 import { loadPropFixturesAndPlayers } from '../lib/propResearchData.js';
 import { loadCapturedKalshiProps } from '../lib/kalshiPlayerPropCollector.js';
 import { listMarketHistoryReadDbs } from '../lib/databaseTopology.js';
@@ -27,6 +28,7 @@ export async function onRequestGet({env,request}) {
   const captured=await loadCapturedKalshiProps(env,{...context,sport});
   const candidates = latestExchangeProps(rows);
   const props = [...candidates.filter(p=>p.identityVerified),...captured.rows];
+  const officialScopeCandidates = buildNhlOfficialScopeCandidates(captured.rows,{capturedAt:new Date().toISOString()});
 
   const degraded = !stores.length || diagnostics.some(d=>d.status==='READ_FAILED' || d.truncated);
   const coverage = PROP_SPORTS.filter(s=>sport==='all'||s===sport).flatMap(s=>['Kalshi','Polymarket'].map(provider=>({
@@ -35,6 +37,6 @@ export async function onRequestGet({env,request}) {
     verifiedContracts:props.filter(p=>p.sport===s&&p.provider===provider&&p.identityVerified).length,
     observations:candidates.filter(p=>p.sport===s&&p.provider===provider).length,modelStatus:'INDEPENDENT_MODEL_JOIN_REQUIRED',
   })));
-  return respond({ok:true,date,rows:props,coverage,diagnostics,degraded,collectorCoverage:captured.coverage,identityDiagnostics:context.diagnostics,identityCoverage:{fixtures:context.games.length,rosterPlayers:context.players.length,contractRejections:captured.rejected.reduce((a,r)=>(a[r.reason]=(a[r.reason]||0)+1,a),{})},rejected:candidates.filter(p=>!p.marketAvailable).map(p=>({id:p.id,provider:p.provider,sport:p.sport,reasons:p.reasons})),
+  return respond({ok:true,date,rows:props,coverage,diagnostics,degraded,collectorCoverage:captured.coverage,officialScopeResearch:{status:'UNCERTIFIED_CANDIDATES_ONLY',candidateCount:officialScopeCandidates.scopes.length,rejectedCount:officialScopeCandidates.rejected.length,canActivateCollector:false},identityDiagnostics:context.diagnostics,identityCoverage:{fixtures:context.games.length,rosterPlayers:context.players.length,contractRejections:captured.rejected.reduce((a,r)=>(a[r.reason]=(a[r.reason]||0)+1,a),{})},rejected:candidates.filter(p=>!p.marketAvailable).map(p=>({id:p.id,provider:p.provider,sport:p.sport,reasons:p.reasons})),
     canQualify:false,canAuthorizeWager:false});
 }
