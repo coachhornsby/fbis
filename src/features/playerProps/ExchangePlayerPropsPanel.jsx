@@ -10,7 +10,7 @@ function today() { return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chi
 export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',onSportFilterChange,compact=false,limit=100}) {
   const [localSport,setLocalSport]=useState(sportFilter),[date,setDate]=useState(today),[provider,setProvider]=useState('all');
   const [modelRows,setModelRows]=useState([]),[modelError,setModelError]=useState(''),[coverageFilter,setCoverageFilter]=useState('all'),[freshness,setFreshness]=useState('all');
-  const [search,setSearch]=useState(''),[stat,setStat]=useState('all'),[side,setSide]=useState('all'),[selected,setSelected]=useState(null);
+  const [search,setSearch]=useState(()=>typeof window==='undefined'?'':new URLSearchParams(window.location.search).get('propPlayer')||''),[stat,setStat]=useState('all'),[side,setSide]=useState('all'),[selected,setSelected]=useState(null);
   const [state,setState]=useState({loading:true,rows:[],coverage:[],error:''});
   const sport=onSportFilterChange?sportFilter:localSport;
   useEffect(()=>{ if(!onSportFilterChange) setLocalSport(sportFilter); },[sportFilter,onSportFilterChange]);
