@@ -36,6 +36,7 @@ test('expanded Polymarket quotes endpoint reads current-quarter D1, not just cap
  assert.equal(response.status,200);
  assert.equal(body.byEvent['401892539'].length,2);
  assert.equal(body.byEvent['401892539'][0].canAuthorizeWager,false);
- assert.equal(body.byEvent['401892539'][0].deliveryStore,'MARKET_HISTORY_RECOVERY');
+ assert.equal(body.byEvent['401892539'][0].deliveryStore,'MARKET_HISTORY_2026Q4_DB');
+ assert.deepEqual(body.diagnostics.historyBindings,['MARKET_HISTORY_2026Q4_DB','MARKET_HISTORY_DB']);
  assert.equal(body.canQualify,false);
 });

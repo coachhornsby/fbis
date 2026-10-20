@@ -84,18 +84,23 @@ describe("TODAY cache-only and MY BET markers", () => {
     const previousCaches = globalThis.caches;
     globalThis.caches = { default: { name: "test-cache" } };
     try {
+      const q4 = { prepare() {} };
       const env = todayEnv({
         env: {
           CFBD_API_KEY: "cfbd-key",
           CBBD_API_KEY: "cbbd-key",
           BALLPARK_PAL_API_KEY: "pal-key",
           DB: { name: "db" },
+          MARKET_HISTORY_DB: { prepare() {} },
+          MARKET_HISTORY_2026Q4_DB: q4,
         },
       });
       assert.equal(env.CFBD_API_KEY, "cfbd-key");
       assert.equal(env.CBBD_API_KEY, "cbbd-key");
       assert.equal(env.BALLPARK_PAL_API_KEY, "pal-key");
       assert.equal(env.caches.name, "test-cache");
+      assert.equal(env.MARKET_HISTORY_2026Q4_DB, q4);
+      assert.ok(env.MARKET_HISTORY_DB?.prepare);
     } finally {
       if (previousCaches === undefined) delete globalThis.caches;
       else globalThis.caches = previousCaches;
