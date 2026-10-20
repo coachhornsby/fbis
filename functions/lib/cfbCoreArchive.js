@@ -2,6 +2,11 @@
  * Weekly point-in-time CORE archive for research shadow systems.
  * CORE remains research-only until explicitly promoted.
  * Never convert CORE per-100-play ratings into scoreboard points without validated transforms.
+ *
+ * Archive rows are keyed by the **actual** CFBD `throughWeek` present on rating
+ * rows after week-bounding — never by the budgeted `targetWeek − 1` alone.
+ * Budgeted throughWeek may exceed what CFBD has published; claiming that week
+ * would fabricate a newer statistical snapshot.
  */
 
 import { coreProvenancePatches, CFB_CORE_ADVANCED_AUTHORITY, coreThroughWeekBound } from "./cfbCoreAdvancedPlumbing.js";
@@ -11,6 +16,7 @@ export const CORE_RESEARCH_ONLY = true;
 
 /**
  * Normalize a weekly CORE release for durable archive.
+ * `throughWeek` on the payload = max actual CFBD throughWeek among eligible rows.
  */
 export function buildCoreWeeklyArchivePayload({
   season,
@@ -22,10 +28,10 @@ export function buildCoreWeeklyArchivePayload({
   sourceEndpoint = "/ratings/core",
   jobRunId = null,
 } = {}) {
-  const throughWeek = coreThroughWeekBound(targetWeek);
+  const budgetedThroughWeek = coreThroughWeekBound(targetWeek);
   const collected = collectionTime || new Date().toISOString();
   const { bySchoolKey, n, maxWeek } = coreProvenancePatches(coreRows, {
-    maxWeek: throughWeek,
+    maxWeek: budgetedThroughWeek,
     seasonType: "regular",
     season,
   });
@@ -37,10 +43,20 @@ export function buildCoreWeeklyArchivePayload({
     coreDefense: patch.coreDefense,
     coreSpecialTeams: patch.coreSpecialTeams ?? null,
     year: patch.coreYear ?? Number(season),
-    throughWeek: patch.coreThroughWeek ?? throughWeek,
+    throughWeek: patch.coreThroughWeek,
     throughSeasonType: patch.coreThroughSeasonType || "regular",
     coreWeekBounded: patch.coreWeekBounded === true,
   }));
+
+  const actualWeeks = teams
+    .map((t) => t.throughWeek)
+    .filter((w) => Number.isFinite(Number(w)))
+    .map(Number);
+  const actualThroughWeek = actualWeeks.length ? Math.max(...actualWeeks) : null;
+  const labelingLag =
+    budgetedThroughWeek != null &&
+    actualThroughWeek != null &&
+    actualThroughWeek < budgetedThroughWeek;
 
   return {
     version: CORE_ARCHIVE_VERSION,
@@ -50,30 +66,49 @@ export function buildCoreWeeklyArchivePayload({
     canAuthorizeWager: false,
     season: Number(season),
     targetWeek: Number(targetWeek),
-    throughWeek,
+    /** Actual CFBD statistical throughWeek — archive key. */
+    throughWeek: actualThroughWeek,
+    budgetedThroughWeek,
+    labelingLag: Boolean(labelingLag),
     sourceEndpoint,
     publicationTime: publicationTime || null,
     collectionTime: collected,
-    ingestionBatchId: ingestionBatchId || `core:${season}:w${throughWeek}:${collected}`,
+    ingestionBatchId:
+      ingestionBatchId ||
+      `core:${season}:w${actualThroughWeek ?? "na"}:${collected}`,
     jobRunId: jobRunId || null,
     teamCount: n,
     maxWeek,
     teams,
-    note: "CORE units are efficiency per ~100 plays — not interchangeable with PPA→points or SP+",
+    authenticityClass: null,
+    historicalReconstruction: false,
+    note:
+      labelingLag
+        ? `CFBD CORE published throughWeek=${actualThroughWeek}; budgeted throughWeek=${budgetedThroughWeek} not yet available — archive keyed to actual`
+        : "CORE units are efficiency per ~100 plays — not interchangeable with PPA→points or SP+",
   };
 }
 
 /**
- * D1 row shape for cfb_core_weekly_archive (one row per team per throughWeek).
+ * D1 row shape for cfb_core_weekly_archive (one row per team per actual throughWeek).
+ * Skips teams lacking an actual CFBD throughWeek (fail closed).
  */
 export function coreArchiveRowsFromPayload(payload) {
   const rows = [];
   const p = payload || {};
+  const archiveThroughWeek = p.throughWeek;
+  if (archiveThroughWeek == null || !Number.isFinite(Number(archiveThroughWeek))) {
+    return rows;
+  }
   for (const t of p.teams || []) {
+    const teamTw = t.throughWeek;
+    if (teamTw == null || !Number.isFinite(Number(teamTw))) continue;
+    // Only archive teams whose CFBD throughWeek matches the snapshot week.
+    if (Number(teamTw) !== Number(archiveThroughWeek)) continue;
     rows.push({
-      archive_id: `${p.season}:${p.throughWeek}:${t.schoolKey}`,
+      archive_id: `${p.season}:${archiveThroughWeek}:${t.schoolKey}`,
       season: p.season,
-      through_week: p.throughWeek,
+      through_week: Number(archiveThroughWeek),
       target_week: p.targetWeek,
       school_key: t.schoolKey,
       core: t.core,
@@ -103,7 +138,26 @@ export async function persistCoreWeeklyArchive(env, payload) {
   if (!db) {
     return { ok: false, reason: "no_db", written: 0 };
   }
+  if (payload?.throughWeek == null) {
+    return {
+      ok: false,
+      reason: "no_actual_cfbd_through_week",
+      written: 0,
+      budgetedThroughWeek: payload?.budgetedThroughWeek ?? null,
+      labelingLag: payload?.labelingLag ?? null,
+      researchOnly: true,
+    };
+  }
   const rows = coreArchiveRowsFromPayload(payload);
+  if (!rows.length) {
+    return {
+      ok: false,
+      reason: "no_archive_rows",
+      written: 0,
+      throughWeek: payload.throughWeek,
+      researchOnly: true,
+    };
+  }
   let written = 0;
   const sql = `INSERT INTO cfb_core_weekly_archive (
     archive_id, season, through_week, target_week, school_key,
@@ -159,8 +213,10 @@ export async function persistCoreWeeklyArchive(env, payload) {
   return {
     ok: true,
     written,
-    teamCount: payload?.teamCount ?? written,
+    teamCount: written,
     throughWeek: payload?.throughWeek ?? null,
+    budgetedThroughWeek: payload?.budgetedThroughWeek ?? null,
+    labelingLag: payload?.labelingLag ?? false,
     researchOnly: true,
     authority: CFB_CORE_ADVANCED_AUTHORITY,
   };
