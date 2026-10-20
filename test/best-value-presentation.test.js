@@ -1,31 +1,56 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {bestValuePresentation} from "../src/lib/bestValuePresentation.js";
-test("NHL model favorite never converts puck line delta into best wager",()=>{
- const g={sport:"nhl",home:{abbr:"MTL"},away:{abbr:"SJ"},canQualify:false,canAuthorizeWager:false,
- nhlProV2:{ok:true,independent:true,marketInformed:false,probability:{homeWinIncludingOt:.6552}}};
- const vm={sport:"nhl",home:{abbr:"MTL"},away:{abbr:"SJ"},comparison:{sideDiff:.8},
- decision:{evAvailable:false}};
- const v=bestValuePresentation(g,vm);
- assert.equal(v.value,"NO VERIFIED BET");
- assert.match(v.secondary,/MTL ML.*NOT A BET/);
+import {bestValuePresentation,rankResearchMoneylines} from "../src/lib/bestValuePresentation.js";
+const now=new Date("2026-10-20T13:00:00Z");
+const basic={sport:"nhl",start:"2026-10-20T23:00:00Z",
+ home:{abbr:"MTL",name:"Montreal Canadiens"},away:{abbr:"SJ",name:"San Jose Sharks"},
+ canQualify:false,canAuthorizeWager:false,
+ nhlProV2:{ok:true,independent:true,marketInformed:false,home:"MTL",away:"SJ",
+  probability:{homeWinIncludingOt:.6552,awayWinIncludingOt:.3448}},
+ pinnoddsResearch:{offers:[
+ {source:"PinnOdds",marketFamily:"moneyline",period:"full_game",side:"home",sourceMarketId:"ml",
+ americanOdds:-140,standardOrAlt:"main",capturedAt:"2026-10-20T12:55:00Z"},
+ {source:"PinnOdds",marketFamily:"moneyline",period:"full_game",side:"away",sourceMarketId:"ml",
+ americanOdds:130,standardOrAlt:"main",capturedAt:"2026-10-20T12:55:00Z"}]}};
+test("positive unqualified research value appears without granting wagering authority",()=>{
+ const v=bestValuePresentation(basic,{sport:"nhl",home:basic.home,away:basic.away,comparison:{sideDiff:.8},
+ decision:{evAvailable:false}},{now});
+ assert.equal(v.status,"research");
+ assert.match(v.value,/MTL ML -140/);
+ assert.match(v.detail,/EST. ROI \+12\.3%/);
+ assert.match(v.secondary,/NOT EXECUTABLE/);
+ assert.equal(v.research.qualified,false);
  assert.doesNotMatch(JSON.stringify(v),/0\.8 GOALS DIFFERENCE/);
 });
-test("even a positive research ROI without qualification cannot produce a betting pick",()=>{
- const g={sport:"nhl",canQualify:false,canAuthorizeWager:false,rec:{pick:"MTL ML",market:"moneyline"}};
- const v=bestValuePresentation(g,{sport:"nhl",decision:{evAvailable:true,ev:8,executionActionable:true,qualification:"QUALIFIED"}});
+test("negative moneyline research ROI is not converted to a recommendation",()=>{
+ const g={...basic,pinnoddsResearch:{offers:basic.pinnoddsResearch.offers.map(q=>({...q,americanOdds:q.side==="home"?-205:+179}))}};
+ const v=bestValuePresentation(g,{sport:"nhl",home:g.home,away:g.away},{now});
  assert.equal(v.status,"pass");
+ assert.equal(v.value,"NO POSITIVE PRICED VALUE");
 });
-test("qualified price-supported selection requires explicit wagering and execution authority",()=>{
- const g={sport:"nfl",canQualify:true,canAuthorizeWager:true,rec:{pick:"SEA ML",market:"moneyline"}};
- const d={sport:"nfl",decision:{evAvailable:true,ev:6.2,executionActionable:true,qualification:"QUALIFIED"}};
- const v=bestValuePresentation(g,d);
+test("missing stale quotes cannot generate research expected returns",()=>{
+ const g={...basic,pinnoddsResearch:{offers:basic.pinnoddsResearch.offers.map(q=>({...q,capturedAt:"2026-10-20T10:00:00Z"}))}};
+ const v=bestValuePresentation(g,{sport:"nhl",home:g.home,away:g.away},{now});
+ assert.equal(v.status,"unpriced");
+ assert.doesNotMatch(JSON.stringify(v),/EST. ROI/);
+});
+test("model, event identity, and paired source clock mismatches all fail closed",()=>{
+ const mismatch={...basic,nhlProV2:{...basic.nhlProV2,home:"SJ"}};
+ assert.equal(rankResearchMoneylines(mismatch,{},now).candidates.length,0);
+ const marketInformed={...basic,nhlProV2:{...basic.nhlProV2,marketInformed:true}};
+ assert.equal(rankResearchMoneylines(marketInformed,{},now).candidates.length,0);
+ const badPair={...basic,pinnoddsResearch:{offers:basic.pinnoddsResearch.offers.slice(0,1)}};
+ assert.equal(rankResearchMoneylines(badPair,{},now).candidates.length,0);
+});
+test("qualified picks still use validated execution decision, independent of research evidence",()=>{
+ const g={sport:"nfl",canQualify:true,canAuthorizeWager:true,rec:{pick:"SEA ML",market:"moneyline",side:"home"}};
+ const v=bestValuePresentation(g,{sport:"nfl",decision:{evAvailable:true,ev:6.2,executionActionable:true,qualification:"QUALIFIED"}},{now});
+ assert.equal(v.status,"qualified");
  assert.equal(v.value,"SEA ML");
  assert.match(v.detail,/6\.2%/);
- assert.equal(v.status,"qualified");
- assert.equal(bestValuePresentation({...g,canAuthorizeWager:false},d).status,"pass");
+ assert.equal(bestValuePresentation({...g,canAuthorizeWager:false},{sport:"nfl",decision:{evAvailable:true,ev:6.2,executionActionable:true,qualification:"QUALIFIED"}},{now}).status,"unpriced");
 });
-test("non-qualified line gaps never identify a best puck line or total",()=>{
- const v=bestValuePresentation({sport:"nba",market:{spread:5}}, {sport:"nba",comparison:{sideDiff:10,totalDiff:12}});
- assert.equal(v.value,"NO VERIFIED BET");
+test("spread and total deltas never become research EV without outcome probability",()=>{
+ const v=bestValuePresentation({sport:"nba",market:{spread:5}}, {sport:"nba",comparison:{sideDiff:10,totalDiff:12}},{now});
+ assert.equal(v.status,"unpriced");
 });
