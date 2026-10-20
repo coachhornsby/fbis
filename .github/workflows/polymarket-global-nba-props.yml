@@ -1,0 +1,34 @@
+name: Polymarket Global NBA prop research
+on:
+  schedule:
+    - cron: "12,42 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/polymarket-global-nba-collect.js"
+      - "functions/lib/polymarketGlobalNbaProps.js"
+      - ".github/workflows/polymarket-global-nba-props.yml"
+permissions:
+  contents: read
+concurrency:
+  group: polymarket-global-nba-props
+  cancel-in-progress: false
+jobs:
+  capture:
+    if: github.repository == 'coachhornsby/fbis'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Capture independently matched Polymarket Global NBA markets
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          test -n "$HARVEST_SECRET" || { echo "HARVEST_SECRET_UNAVAILABLE"; exit 1; }
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 12 --max-time 190 \
+            -X POST "https://fbis-myz.pages.dev/api/polymarket-global-nba-collect" \
+            -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
+            -d '{}' > /tmp/global-nba-props.json
+          jq -e '.ok == true and .source == "POLYMARKET_GLOBAL_GAMMA" and .canAuthorizeWager == false' /tmp/global-nba-props.json
+          echo "Matched stat sides: $(jq -r '.contracts' /tmp/global-nba-props.json)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Fixture count: $(jq -r '.fixtures' /tmp/global-nba-props.json), errors: $(jq -r '.errors | length' /tmp/global-nba-props.json)" >> "$GITHUB_STEP_SUMMARY"
