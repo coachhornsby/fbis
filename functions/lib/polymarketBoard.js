@@ -17,9 +17,11 @@ async function eventIndex(db){
 export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Date(),maxAgeMs=45*60*1000,historyDb=null,historyDbs=null,historyLabels=null,deliveryStore="PRIMARY_D1",moneylineOnly=false}={}){
  const extras=[...(Array.isArray(historyDbs)?historyDbs:[]),...(historyDb?.prepare?[historyDb]:[])].filter((d,i,all)=>d?.prepare&&all.indexOf(d)===i);
  if(extras.length){
+  // Explicit topology labels (binding names) win. Unlabeled historyDb callers
+  // keep the legacy MARKET_HISTORY_RECOVERY provenance token for card UI.
   const labels=Array.isArray(historyLabels)&&historyLabels.length===extras.length
     ? historyLabels
-    : extras.map((_,i)=>`MARKET_HISTORY_PARTITION_${i}`);
+    : extras.map((_,i)=>i===0?"MARKET_HISTORY_RECOVERY":`MARKET_HISTORY_RECOVERY_${i}`);
   const attempts=await Promise.allSettled([
    loadPolymarketUsBoardOffers(db,games,sport,{now,maxAgeMs,moneylineOnly}),
    ...extras.map((h,i)=>loadPolymarketUsBoardOffers(h,games,sport,{now,maxAgeMs,deliveryStore:labels[i],moneylineOnly})),
