@@ -1,6 +1,7 @@
 import { resolveTennisFixturePlayers } from "./tennisFixturePlayerLink.js";
 import { tennisCardContext, tennisKey } from "./tennisPlayerBank.js";
 import { approvedTennisPortraits } from "./tennisPortraits.js";
+import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
 const parse = value => { try { return JSON.parse(value); } catch { return null; } };
 const number = v => v == null || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null;
 
@@ -121,14 +122,18 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
   const chunks=[];for(let i=0;i<ids.length;i+=20)chunks.push(ids.slice(i,i+20));
   const batches=await Promise.all(chunks.map(chunk=>approvedTennisPortraits(db,chunk)));
   const portraitMap=new Map(batches.flatMap(group=>[...group.entries()]));
+  // ESPN rankings are independent display context, never fixture or projection proof.
+  const rankingFeed = await fetchEspnTennisRankings().catch(()=>({byName:new Map()}));
   const games = [];
   for (const f of visibleFixtures) {
     // Existing card player1 is home, independent fixture player1 is away.
     const [p1, p2] = f.players;
     const team = p => {
       const approved=portraitMap.get(p.fbisPlayerId),url=approved?.url||p.headshotUrl||null;
+      const ranking=rankingFeed.byName?.get(tennisKey(p.fixtureName));
+      const externalRank=ranking?.tour===f.tour?ranking:null;
       return { name:p.fixtureName, fullName:p.fixtureName, abbr:p.fixtureName.split(" ").at(-1),
-        rank:p.rank??null, rankingPoints:p.rankingPoints??null, country:p.country??null,
+        rank:p.rank??externalRank?.rank??null, rankingPoints:p.rankingPoints??externalRank?.points??null, country:p.country??externalRank?.country??null,
         logo:url, headshotUrl:url, fbisPlayerId:p.fbisPlayerId??null,
         imageSource:approved?"RIGHTS_VERIFIED_TENNIS_PORTRAIT":p.headshotSource||null,
         portraitCredit:approved?.credit||null, portraitSourceUrl:approved?.sourceUrl||null,
@@ -142,8 +147,8 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
     const missingEvidence=[
       !f.officialDisplay && "OFFICIAL_MATCH_CONTEXT",
       f.players.some(p=>!p.matched) && "PLAYER_IDENTITY",
-      f.players.some(p=>p.rank==null) && "CURRENT_RANKING",
-      f.players.some(p=>!p.country) && "NATIONALITY",
+      f.players.some(p=>p.rank==null && rankingFeed.byName?.get(tennisKey(p.fixtureName))?.rank==null) && "CURRENT_RANKING",
+      f.players.some(p=>!p.country && !rankingFeed.byName?.get(tennisKey(p.fixtureName))?.country) && "NATIONALITY",
       f.players.some(p=>!p.headshotUrl && !portraitMap.get(p.fbisPlayerId)) && "HEADSHOT",
       !f.venueOffers.length && "MATCHED_MARKET_QUOTES",
       "INDEPENDENT_MODEL_PROJECTION"
