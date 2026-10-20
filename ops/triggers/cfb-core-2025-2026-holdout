@@ -1,1 +1,1 @@
-trigger 2026-10-20T12:00:00Z — CORE year partition diagnostics + partial HTTP for blocked reports
+trigger 2026-10-20T12:10:00Z — retry CFBD 503 inside holdout; re-run after diagnose deploy
