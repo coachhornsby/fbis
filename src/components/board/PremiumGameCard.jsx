@@ -1,4 +1,5 @@
 import AlternateLines from './AlternateLines.jsx';
+import {bestValuePresentation} from '../../lib/bestValuePresentation.js';
 import {buildMoneylinePriceComparison} from "../../lib/marketPriceComparison.js";
 import VenueConditions from "./VenueConditions.jsx";
 import SoccerPinnOdds from "./SoccerPinnOdds.jsx";
@@ -164,6 +165,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const winProbabilities = buildMoneylinePriceComparison(game).rows;
   const cmp = vm.comparison || {};
   const action = vm.action || {};
+  const valueChoice = bestValuePresentation(game,vm);
   const ctx = vm.context || {};
   const market = vm.market || {};
   const edge = modelEdge(vm);
@@ -345,22 +347,11 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       </section>
       <VenueConditions context={ctx} game={game} />
       <div className="pgc-qualification" role="status">{stored ? "STORED PREGAME · STATUS UNVERIFIED" : game?.canAuthorizeWager === true && vm.decision?.qualification === "QUALIFIED" ? "QUALIFIED" : `RESEARCH ONLY · ${String(game.projectionState || "NOT QUALIFIED").replaceAll("_"," ")} · NO WAGER AUTHORITY`}</div>
-      <section
-        className={`pgc-gap-strip ${gapKind}`}
-        style={gapColor && !gapTotal ? {"--pgc-gap-brand":gapColor} : undefined}
-        aria-label={gapLabel}
-      >
-        <span className="pgc-gap-heading">{gapLabel}</span>
-        <div className="pgc-gap-identity">
-          {gapTeam ? <>
-            <TeamLogo team={gapTeam} size={100} tone="light" className="pgc-gap-logo" />
-            <b>{gapTeam.abbr && gapTeam.abbr!=="—" ? gapTeam.abbr : gapTeam.name}</b>
-          </> : gapTotal && gapSide!=="even" ? (
-            <span className="pgc-gap-direction"><b aria-hidden="true">{gapSide==="over"?"↑":"↓"}</b><strong>{gapSide.toUpperCase()}</strong></span>
-          ) : <span className="pgc-gap-unavailable">—</span>}
-        </div>
-        <strong className="pgc-gap-value">{gapValue}</strong>
-        <span className="pgc-gap-description">{gapDescription}</span>
+      <section className={`pgc-gap-strip is-neutral value-decision-${valueChoice.status}`} aria-label="Best price-supported betting decision">
+        <span className="pgc-gap-heading">{valueChoice.heading}</span>
+        <div className="pgc-gap-identity" aria-hidden="true" />
+        <strong className="pgc-gap-value">{valueChoice.value}</strong>
+        <span className="pgc-gap-description">{valueChoice.detail} · {valueChoice.secondary}</span>
       </section>
 
       {["cfb","nfl","cbb","nba","wnba","nhl","mlb","npb","kbo","soccer","tennis"].includes(sportId) ? (
