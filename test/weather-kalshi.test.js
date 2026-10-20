@@ -283,7 +283,7 @@ describe("Kalshi direct sentiment", () => {
     assert.equal(KALSHI_SERIES.cfb, "KXNCAAFGAME");
   });
 
-  it("matches open MLB markets onto a slate game without a Parlay key", async () => {
+  it("does not invent unverified MLB sentiment from legacy cached team names", async () => {
     resetCacheMem();
     // Deterministic existing cache contract; never acquire provider data in CI.
     await writeCache("v1:kalshi-direct:KXMLBGAME", { markets: [
@@ -303,15 +303,11 @@ describe("Kalshi direct sentiment", () => {
       "mlb",
       null
     );
-    assert.equal(meta.enabled, true);
-    assert.equal(meta.provider, "kalshi-direct");
-    assert.equal(meta.matched, 1);
-    if (meta.matched > 0) {
-      assert.ok(games[0].sentiment?.home != null || games[0].sentiment?.away != null);
-      assert.equal(games[0].sentiment.source, "Kalshi");
-      assert.equal(games[0].sentiment.provider, "kalshi-direct");
-    } else {
-      assert.equal(games[0].sentiment, undefined);
-    }
+    assert.equal(meta.enabled, false);
+    assert.equal(meta.provider, "kalshi-legacy-disabled");
+    assert.equal(meta.matched, 0);
+    assert.equal(meta.canQualify, false);
+    assert.equal(meta.reason, "UNVERIFIED_EVENT_SIDE_AND_UNIT_MAPPING");
+    assert.equal(games[0].sentiment, undefined);
   });
 });
