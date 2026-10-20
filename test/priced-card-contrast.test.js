@@ -14,6 +14,8 @@ test("pinnodds line-difference tiles avoid green-on-green and mark under/over", 
   assert.match(jsx, /FBIS TOTAL/);
   assert.match(jsx, /GAP VS MARKET/);
   assert.match(jsx, /fbis-priced-projection-line/);
+  assert.match(jsx, /is-side is-home/);
+  assert.match(jsx, /is-side is-away/);
   assert.doesNotMatch(jsx, /FBIS PROJECTED/);
   assert.doesNotMatch(jsx, /fbis-priced-gap-logo/);
   assert.doesNotMatch(jsx, /fbis-priced-projection-logo/);
@@ -25,6 +27,8 @@ test("pinnodds line-difference tiles avoid green-on-green and mark under/over", 
   assert.match(css, /\.fbis-priced-tile-mark/);
   assert.match(css, /place-items:center/);
   assert.match(css, /height:117%!important/);
+  assert.match(css, /translateY\(-16%\)/);
+  assert.match(css, /--fbis-tile-brand/);
   assert.match(css, /-webkit-text-stroke/);
   assert.match(css, /@keyframes fbis-priced-value-pulse/);
   assert.match(css, /@keyframes fbis-priced-mark-breathe/);

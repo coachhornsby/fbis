@@ -58,7 +58,7 @@ export default function PinnoddsCardMarkets({game,projection,marketFamilies,comp
       <strong className="fbis-priced-projection-line">{f==="spread"?sign(one(diff.modelHome)):one(diff.modelTotal)}</strong>
       <small>{f==="spread"?(team(game,"home")||"Home"):"Modeled game total"}</small>
      </div>
-     <div className={`fbis-priced-gap-value${diff.side==="under"?" is-under":diff.side==="over"?" is-over":diff.side==="home"||diff.side==="away"?" is-side":""}`}>
+     <div className={`fbis-priced-gap-value${diff.side==="under"?" is-under":diff.side==="over"?" is-over":diff.side==="home"?" is-side is-home":diff.side==="away"?" is-side is-away":""}`}>
       {f==="spread"&&(diff.side==="home"||diff.side==="away")
         ? <TeamMark game={game} side={diff.side} sport={sport} size={120} className="fbis-priced-tile-mark" />
         : null}
