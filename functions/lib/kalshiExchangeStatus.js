@@ -34,7 +34,7 @@ export function normalizeKalshiExchangeStatus(body, {observedAt = new Date().toI
     estimatedResumeAt: isoOrNull(body.exchange_estimated_resume_time),
     exchangeIndices,
     indexCoverage: Array.isArray(body.exchange_index_statuses)
-      ? "PROVIDER_LIST_TRUNCATED_AT_24" : "NOT_PROVIDED",
+      ? body.exchange_index_statuses.length > 24 ? "TRUNCATED_TO_24" : "PROVIDER_REPORTED" : "NOT_PROVIDED",
     observedAt,
     informationOnly: true,
     canAuthorizeWager: false,
