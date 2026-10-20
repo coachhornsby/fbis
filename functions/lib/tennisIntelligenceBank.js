@@ -3,6 +3,7 @@ import { tennisCardContext, tennisKey } from "./tennisPlayerBank.js";
 import { approvedTennisPortraits } from "./tennisPortraits.js";
 import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
 import {loadKalshiTennisResearch,matchKalshiTennisResearch} from "./tennisKalshiResearch.js";
+import {loadPolymarketGlobalTennisSnapshot,matchPolymarketGlobalTennis} from "./tennisPolymarketGlobal.js";
 const parse = value => { try { return JSON.parse(value); } catch { return null; } };
 const number = v => v == null || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null;
 
@@ -162,6 +163,7 @@ export function surfaceEloResearchEstimate(players, officialDisplay) {
 export async function buildIndependentTennisCards(db, date, { now = new Date(), archive = null } = {}) {
   const bank = await buildTennisIntelligenceBank(db, { now, limit: 100 });
   const kalshi=await loadKalshiTennisResearch({ARCHIVE:archive},now);
+  const polymarketGlobal=await loadPolymarketGlobalTennisSnapshot(archive,{now});
   const ctDay = start => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago",
     year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(start));
   // One bounded rights lookup for the slate. Approved R2 portraits take priority
@@ -192,6 +194,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
       player2: p2.fixtureName, surface: f.officialDisplay?.surface||null }).catch(() => null);
     const researchEstimate=surfaceEloResearchEstimate(f.players,f.officialDisplay);
     const kalshiResearchOffers=matchKalshiTennisResearch(f,kalshi[f.tour]||[],now);
+    const polymarketGlobalOffers=matchPolymarketGlobalTennis(f,polymarketGlobal.events||[],{now,asOf:polymarketGlobal.asOf||now.toISOString()});
     const playerBank = { ...context, players: f.players.map((p, i) => ({ ...(context?.players?.[i] || {}),
       ...p, headshot: p.headshotUrl ?? null, recentForm: context?.players?.[i]?.recentForm || [] })) };
     const venueOffers = f.venueOffers.map(o => ({ ...o, side: o.side === "home" ? "away" : o.side === "away" ? "home" : o.side }));
@@ -215,7 +218,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
         fetchedAt: f.fetched_at, fixtureFreshness:f.fixtureFreshness, rawHash: f.raw_hash, rawKey: f.raw_key, missingEvidence },
         eventIntegrity: { valid: false, reason: "OFFICIAL_PROJECTION_UNAVAILABLE" },
         blockedReason: f.officialDisplay ? "OFFICIAL_METADATA_MATCHED_DISPLAY_ONLY: projection/event authority remains unverified for this ESPN fixture" : "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
-        researchEstimate, kalshiResearchOffers, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
+        researchEstimate, kalshiResearchOffers, polymarketGlobalOffers, polymarketGlobalStatus:polymarketGlobal.ok?"FRESH_SNAPSHOT":polymarketGlobal.code, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
         surface: f.officialDisplay?.surface||null, indoor:f.officialDisplay?.indoor??null,
         tournament:f.officialDisplay?.tournament||null, round:f.officialDisplay?.round||null,
         venue:f.officialDisplay?.venue||null, playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
