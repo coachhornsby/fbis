@@ -254,10 +254,10 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
         researchEstimate, kalshiResearchOffers, polymarketGlobalOffers, exchangeResearch, polymarketGlobalStatus:polymarketGlobal.ok?(polymarketGlobal.partial?"PARTIAL_SNAPSHOT":"FRESH_SNAPSHOT"):polymarketGlobal.code, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
         surface: f.officialDisplay?.surface||null, indoor:f.officialDisplay?.indoor??null,
         tournament:f.officialDisplay?.tournament||espnEvidence?.tournament||null,
-        tournamentSource:f.officialDisplay?.tournament?"ATP_WTA_OFFICIAL":"ESPN_PUBLIC_RESEARCH",
+        tournamentSource:f.officialDisplay?.tournament?"ATP_WTA_OFFICIAL":espnEvidence?.tournament?"ESPN_PUBLIC_RESEARCH":null,
         venue:f.officialDisplay?.venue||espnEvidence?.venue||null, court:espnEvidence?.court||null,
         round:f.officialDisplay?.round||espnEvidence?.round||null,
-        venue:f.officialDisplay?.venue||null, playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
+        playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
     });
   }
   return { games, coverage: { fixtures: games.length, playerIdentityComplete: bank.playerIdentityComplete,
