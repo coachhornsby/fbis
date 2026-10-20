@@ -63,7 +63,7 @@ export default function TeamLogo({
   if (!url) {
     return (
       <span
-        className={`team-logo-fallback team-logo-plate${className ? ` ${className}` : ""}`}
+        className={`team-logo-fallback${plate ? " team-logo-plate" : ""}${className ? ` ${className}` : ""}`}
         style={{ width: px, height: px, fontSize: Math.max(9, px * 0.34) }}
         title={title || name}
         aria-label={title || name}
@@ -122,7 +122,7 @@ export function TeamIdentity({ team, score, size = 22, compact = false, tone = "
   );
 }
 
-export function TicketMatchup({ awayIdentity, homeIdentity, awayTeam, homeTeam, matchupText, sport }) {
+export function TicketMatchup({ awayIdentity, homeIdentity, awayTeam, homeTeam, matchupText, sport, logoSize = 36, logoTone = "dark" }) {
   let awayName = awayTeam;
   let homeName = homeTeam;
   if ((!awayName || !homeName) && matchupText) {
@@ -140,8 +140,8 @@ export function TicketMatchup({ awayIdentity, homeIdentity, awayTeam, homeTeam, 
   const named = teamDisplayName(away) !== "—" && teamDisplayName(home) !== "—";
   return (
     <div className="team-block">
-      <TeamIdentity team={away} size={36} tone="dark" />
-      <TeamIdentity team={home} size={36} tone="dark" />
+      <TeamIdentity team={away} size={logoSize} tone={logoTone} />
+      <TeamIdentity team={home} size={logoSize} tone={logoTone} />
       {!named && matchupText ? <div className="muted">{matchupText}</div> : null}
     </div>
   );
