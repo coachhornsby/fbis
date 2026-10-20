@@ -34,10 +34,13 @@ test("missing credentials and forged wagering-capable receipt fail closed",async
   now,request:async()=>({ok:true,json:async()=>({ok:true,source:"POLYMARKET_GLOBAL_GAMMA",asOf:"2026-10-20T19:00:00Z",canAuthorizeWager:true})})
  }),/RECEIPT_INVALID/);
 });
-test("orchestrator preserves its existing cron and routes ten-minute heartbeat to independent collector",()=>{
+test("Polymarket refresh runs from actual RECOVERY_CRON branch, not a shadowed duplicate cron",()=>{
  const src=readFileSync(new URL("../workers/sports-projection-orchestrator-worker.mjs",import.meta.url),"utf8");
- assert.match(src,/cron === "\*\/10 \* \* \* \*"/);
- assert.match(src,/scheduledCycleWithTennisResearch\(env\)/);
- assert.match(src,/runTennisPolymarketResearchCron\(env\)/);
- assert.match(src,/cron === TENNIS_RECOVERY_CRON/);
+ const recovery=readFileSync(new URL("../workers/prospective-pipeline-recovery.mjs",import.meta.url),"utf8");
+ assert.ok(recovery.includes('RECOVERY_CRON = "*/10 * * * *"'));
+ assert.ok(src.includes("cron === RECOVERY_CRON"));
+ assert.ok(src.includes("runRecoveryWithTennisResearch(env, controller)"));
+ assert.ok(src.includes("recoverCurrentPipeline(env,controller),runTennisPolymarketResearchCron(env)"));
+ assert.ok(!src.includes('cron === "*/10 * * * *"'));
+ assert.ok(src.includes("cron === TENNIS_RECOVERY_CRON"));
 });
