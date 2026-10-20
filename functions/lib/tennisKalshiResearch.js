@@ -45,7 +45,7 @@ export function matchKalshiTennisResearch(fixture,rows=[],now=new Date()){
   const r=values[0],diff=Math.abs(r.scheduled-start);
   return {provider:"Kalshi",eventTicker:r.eventTicker,ticker:r.ticker,
    title:r.title,yesLabel:r.yesLabel,yesAskDollars:r.yesAskDollars??null,
-   yesBidDollars:r.yesBidDollars??null,volumeContracts:r.volumeContracts??null,
+   yesBidDollars:r.yesBidDollars??null,yesAskSize:r.yesAskSize??null,yesBidSize:r.yesBidSize??null,volumeContracts:r.volumeContracts??null,
    fetchedAt:r.fetchedAt,quoteSourceTime:null,source:"SIGNED_R2_RESEARCH",
    providerScheduledAt:new Date(r.scheduled).toISOString(),
    fixtureScheduledAt:new Date(start).toISOString(),
