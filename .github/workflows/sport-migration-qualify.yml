@@ -33,6 +33,9 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
+      - name: Install undici for long topology fetches
+        if: github.event_name != 'pull_request'
+        run: npm install --no-save --no-package-lock undici@7.29.0
       - name: Unit-test migration qualify contracts
         run: node --test test/sport-migration-qualify.test.js
       - name: Wait until production contains this qualify change
@@ -111,6 +114,9 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
+      - name: Install undici for long topology fetches
+        if: github.event_name != 'pull_request'
+        run: npm install --no-save --no-package-lock undici@7.29.0
       - name: Wait until production contains this qualify change
         if: github.event_name != 'pull_request'
         env:

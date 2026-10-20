@@ -1,1 +1,1 @@
-trigger 2026-10-20T20:05:00Z — qualify without heavy delta; 480s timeout; dual cutover rehearsal
+trigger 2026-10-20T20:15:00Z — install undici in qualify CI; topologyFetch fallback
