@@ -386,6 +386,32 @@ test("large prefix backfill makes forward progress instead of replaying the firs
   assert.equal(sport._metadata.get("copy_cursor_prefix_nfl_team_profiles"), "team-0");
 });
 
+test("Cloudflare D1 atomic batch path copies large prefix pages in groups of forty", async () => {
+  const source = Array.from({ length: 85 }, (_, i) => ({
+    team_key: `nba-team-${String(i).padStart(3, "0")}`,
+    team_name: `Team ${i}`,
+  }));
+  const primary = memoryDb({ nba_team_profiles: source });
+  const sport = memoryDb({});
+  const sizes = [];
+  sport.batch = async (stmts) => {
+    sizes.push(stmts.length);
+    for (const stmt of stmts) await stmt.run();
+    return stmts.map(() => ({ success: true }));
+  };
+  const first = await copyPrefixedTablePaged(primary, sport, "nba_team_profiles", {
+    pageSize: 85, maxPages: 1,
+  });
+  assert.equal(first.copied, 85);
+  assert.deepEqual(sizes, [40, 40, 5]);
+  assert.equal(sport._tables.get("nba_team_profiles").rows.length, 85);
+  const again = await copyPrefixedTablePaged(primary, sport, "nba_team_profiles", {
+    pageSize: 85, maxPages: 1,
+  });
+  assert.equal(again.copied, 85);
+  assert.equal(sport._tables.get("nba_team_profiles").rows.length, 85);
+});
+
 test("verifySportPrefixParity distinguishes complete vs incomplete research copy", async () => {
   const primary = memoryDb({
     nfl_team_profiles: [
