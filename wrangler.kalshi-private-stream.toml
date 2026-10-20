@@ -1,0 +1,27 @@
+name = "fbis-kalshi-private-stream"
+main = "services/kalshi-private-stream/index.js"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+# FAIL CLOSED BY DEFAULT. The user must add separate Worker encrypted secrets:
+# KALSHI_API_KEY_ID and KALSHI_PRIVATE_KEY_PEM1, then opt in to enabling stream.
+[vars]
+KALSHI_PRIVATE_STREAM_MODE = "disabled"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[[durable_objects.bindings]]
+name = "ACCOUNT_SESSION"
+class_name = "KalshiPrivateAccountSession"
+
+[[migrations]]
+tag = "v1-kalshi-private-account-session"
+new_sqlite_classes = ["KalshiPrivateAccountSession"]
+
+[observability]
+enabled = true
+
+[observability.traces]
+enabled = true
