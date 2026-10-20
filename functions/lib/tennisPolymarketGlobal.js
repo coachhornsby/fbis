@@ -6,6 +6,10 @@
 const API="https://gamma-api.polymarket.com";
 const normalize=s=>" "+String(s||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()+" ";
 const matchesName=(str,name)=>normalize(str).includes(normalize(name));
+const lastToken=name=>normalize(name).trim().split(/\\s+/).at(-1)||"";
+const matchesPair=(text,names)=>names.every(n=>matchesName(text,n))||
+ (names.every(n=>lastToken(n).length>=5)&&new Set(names.map(lastToken)).size===2&&
+  names.every(n=>normalize(text).includes(" "+lastToken(n)+" ")));
 const decode=v=>{try{return Array.isArray(v)?v:JSON.parse(v)}catch{return []}};
 let cache={until:0,events:[],code:"NOT_FETCHED"};
 export async function discoverPolymarketGlobalTennis({fetchImpl=fetch,now=new Date(),pages=5}={}){
@@ -46,14 +50,14 @@ export function matchPolymarketGlobalTennis(fixture,events=[],{now=new Date(),as
   const slug=String(e.slug||"").toLowerCase();
   if(!slug.startsWith(tour+"-"))continue;
   const title=String(e.title||"");
-  if(!players.every(n=>matchesName(title,n)))continue;
-  const at=Date.parse(e.gameStartTime||e.startTime||e.startDate||"");
+  if(!matchesPair(title,players))continue;
+  const at=Date.parse(e.gameStartTime||e.startTime||e.markets?.[0]?.gameStartTime||"");
   if(!Number.isFinite(at)||Math.abs(at-start)>2*3600000)continue;
   const markets=Array.isArray(e.markets)?e.markets:[];
   for(const m of markets){
    if(m.closed||m.active===false)continue;
    const names=decode(m.outcomes),prices=decode(m.outcomePrices);
-   if(names.length!==2||prices.length!==2||!names.every(x=>players.some(p=>matchesName(x,p)||matchesName(p,x))))continue;
+   if(names.length!==2||prices.length!==2||!names.every(x=>players.some(p=>matchesName(x,p)||matchesName(p,x)||lastToken(p)===normalize(x).trim())))continue;
    const values=prices.map(Number);
    if(values.some(v=>!Number.isFinite(v)||v<=0||v>=1))continue;
    matched.push({provider:"Polymarket.com",marketId:String(m.id),eventId:String(e.id),
