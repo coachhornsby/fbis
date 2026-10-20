@@ -194,7 +194,9 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
       player2: p2.fixtureName, surface: f.officialDisplay?.surface||null }).catch(() => null);
     const researchEstimate=surfaceEloResearchEstimate(f.players,f.officialDisplay);
     const kalshiResearchOffers=matchKalshiTennisResearch(f,kalshi[f.tour]||[],now);
+    const exchangeResearch={polymarket:[],kalshi:kalshiResearchOffers,comparisonStatus:"NOT_COMPARABLE"};
     const polymarketGlobalOffers=matchPolymarketGlobalTennis(f,polymarketGlobal.events||[],{now,asOf:polymarketGlobal.asOf||now.toISOString()});
+    exchangeResearch.polymarket=polymarketGlobalOffers;
     const playerBank = { ...context, players: f.players.map((p, i) => ({ ...(context?.players?.[i] || {}),
       ...p, headshot: p.headshotUrl ?? null, recentForm: context?.players?.[i]?.recentForm || [] })) };
     const venueOffers = f.venueOffers.map(o => ({ ...o, side: o.side === "home" ? "away" : o.side === "away" ? "home" : o.side }));
@@ -218,7 +220,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
         fetchedAt: f.fetched_at, fixtureFreshness:f.fixtureFreshness, rawHash: f.raw_hash, rawKey: f.raw_key, missingEvidence },
         eventIntegrity: { valid: false, reason: "OFFICIAL_PROJECTION_UNAVAILABLE" },
         blockedReason: f.officialDisplay ? "OFFICIAL_METADATA_MATCHED_DISPLAY_ONLY: projection/event authority remains unverified for this ESPN fixture" : "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
-        researchEstimate, kalshiResearchOffers, polymarketGlobalOffers, polymarketGlobalStatus:polymarketGlobal.ok?(polymarketGlobal.partial?"PARTIAL_SNAPSHOT":"FRESH_SNAPSHOT"):polymarketGlobal.code, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
+        researchEstimate, kalshiResearchOffers, polymarketGlobalOffers, exchangeResearch, polymarketGlobalStatus:polymarketGlobal.ok?(polymarketGlobal.partial?"PARTIAL_SNAPSHOT":"FRESH_SNAPSHOT"):polymarketGlobal.code, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
         surface: f.officialDisplay?.surface||null, indoor:f.officialDisplay?.indoor??null,
         tournament:f.officialDisplay?.tournament||null, round:f.officialDisplay?.round||null,
         venue:f.officialDisplay?.venue||null, playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
