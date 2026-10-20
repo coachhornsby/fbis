@@ -38,8 +38,8 @@ const fbis=()=>{
   return {saved,DB,ARCHIVE,get writes(){return writes;}};
 };
 test("curated manifest never duplicates player IDs or permits unreviewed external URL inputs",()=>{
-  assert.equal(TENNIS_COMMONS_PORTRAIT_BATCH.length,28);
-  assert.equal(new Set(TENNIS_COMMONS_PORTRAIT_BATCH.map(c=>c.playerId)).size,28);
+  assert.equal(TENNIS_COMMONS_PORTRAIT_BATCH.length,48);
+  assert.equal(new Set(TENNIS_COMMONS_PORTRAIT_BATCH.map(c=>c.playerId)).size,48);
   for (const c of TENNIS_COMMONS_PORTRAIT_BATCH){
     assert.match(c.playerId,/^tennis:(?:wta:\d+|atp:research:[a-z ]+)$/);
     assert.match(c.sourceUrl,/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
@@ -154,4 +154,22 @@ test("curated ATP headshot candidates match exact permanent ATP research IDs and
   assert.equal(photo.license,"CC BY-SA 4.0");
   assert.match(photo.sourceUrl,/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
  }
+});
+
+test("next 20 exact-ID Commons candidates preserve Rebecca Sramkova and ATP fixture identities",()=>{
+  for(const [id,name,author,license] of [
+    ["tennis:wta:320228","Rebecca Sramkova","Hameltion","CC BY-SA 4.0"],
+    ["tennis:wta:324166","Elena Rybakina","Hameltion","CC BY-SA 4.0"],
+    ["tennis:wta:332285","Iva Jovic","QWisps","CC BY-SA 4.0"],
+    ["tennis:atp:research:stefanos tsitsipas","Stefanos Tsitsipas","Pahcal123","CC BY 4.0"],
+    ["tennis:atp:research:rinky hijikata","Rinky Hijikata","Hameltion","CC BY-SA 4.0"],
+    ["tennis:atp:research:ugo humbert","Ugo Humbert","Kuberzog","CC BY-SA 4.0"]
+  ]) {
+    const found=TENNIS_COMMONS_PORTRAIT_BATCH.filter(p=>p.playerId===id);
+    assert.equal(found.length,1);
+    assert.equal(found[0].playerName,name);
+    assert.equal(found[0].author,author);
+    assert.equal(found[0].license,license);
+    assert.match(found[0].sourceUrl,/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+  }
 });
