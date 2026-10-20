@@ -21,13 +21,16 @@ test("archive ops script requires 50 columns and keeps deletion gated", () => {
 });
 
 test("recurring archive workflow is high-throughput and checkpointed", () => {
-  assert.match(workflow, /ARCHIVE_LIMIT:\s*"1000"/);
-  assert.match(workflow, /ARCHIVE_MAX_ROUNDS:\s*"20"/);
+  assert.match(workflow, /ARCHIVE_LIMIT:\s*"2000"/);
+  assert.match(workflow, /ARCHIVE_MAX_ROUNDS:\s*"40"/);
+  assert.match(workflow, /ARCHIVE_CATCHUP_LOOPS:\s*"3"/);
   assert.match(workflow, /ARCHIVE_ELIGIBILITY_MS:\s*"3600000"/);
   assert.match(workflow, /columnCount==50/);
   assert.match(workflow, /retentionGate\.authorized==false/);
   assert.match(workflow, /NOT_PERFORMED/);
-  assert.match(workflow, /cron:\s*"8,23,38,53 \* \* \* \*"/);
+  assert.match(workflow, /market-history-archive-late-arrivals/);
+  assert.match(workflow, /market-history-retention-rehearsal/);
+  assert.match(workflow, /2,7,12,17,22,27,32,37,42,47,52,57/);
 });
 
 test("verified archive library selects full column set and checkpoint table", () => {
@@ -39,4 +42,7 @@ test("verified archive library selects full column set and checkpoint table", ()
   assert.match(lib, /raw_payload_hash/);
   assert.match(lib, /moreRemaining/);
   assert.match(lib, /backlogBefore/);
+  assert.match(lib, /tryAcquireArchiveLease/);
+  assert.match(lib, /ARCHIVE_LATE_ARRIVAL_KEY/);
+  assert.match(lib, /sourceAuthorityPreserved:\s*true/);
 });

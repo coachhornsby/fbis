@@ -10,8 +10,8 @@ const BASE = process.env.FBIS_BASE_URL || "https://fbis-myz.pages.dev";
 const SECRET = process.env.HARVEST_SECRET || "";
 const ARCHIVE_WRITES = process.env.ARCHIVE_WRITES === "true";
 const VERIFY_READBACK = process.env.VERIFY_READBACK !== "false";
-const LIMIT = Math.min(2000, Number(process.env.ARCHIVE_LIMIT) || 1000);
-const MAX_ROUNDS = Math.min(50, Number(process.env.ARCHIVE_MAX_ROUNDS) || 20);
+const LIMIT = Math.min(2000, Number(process.env.ARCHIVE_LIMIT) || 2000);
+const MAX_ROUNDS = Math.min(80, Number(process.env.ARCHIVE_MAX_ROUNDS) || 40);
 const ELIGIBILITY_MS = Number(process.env.ARCHIVE_ELIGIBILITY_MS) || (60 * 60 * 1000);
 const PARTITION = process.env.ARCHIVE_PARTITION || "MARKET_HISTORY_2026Q4_DB";
 const EXPECTED_COLUMNS = 50;
@@ -96,6 +96,9 @@ const out = {
     moreRemaining: archive.moreRemaining === true,
     backlogBefore: archive.backlogBefore ?? null,
     backlogAfter: archive.backlogAfter ?? null,
+    backlogFalling: archive.backlogFalling === true,
+    lateArrivalsBehindCursor: archive.lateArrivalsBehindCursor ?? null,
+    sourceAuthorityPreserved: archive.sourceAuthorityPreserved === true,
     throughputRowsPerSec: archive.throughputRowsPerSec ?? null,
     elapsedMs: archive.elapsedMs ?? null,
     columnCount: archive.columnCount ?? null,

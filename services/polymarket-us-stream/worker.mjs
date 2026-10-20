@@ -19,7 +19,7 @@ const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
 const MAX_BATCH=40, MAX_QUEUE=400;
 const RECONNECT_MS=60000, ROTATE_MS=9*60000, FLUSH_MS=5000;
 /** Module-level so post-deploy health reflects the new Worker pin without waiting for DO constructor. */
-export const STREAM_CODE_VERSION="board-ws-q4-coalesce-durable-20261020";
+export const STREAM_CODE_VERSION="board-ws-q4-archive-catchup-20261020";
 const COALESCE_STORAGE_KEY="wsTickCoalesceMemoryV1";
 const toJSON=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 export {PRIMARY_WS_SOFT_CAP_BYTES,resolveWsPersistTarget} from "./wsPersistTarget.mjs";
@@ -605,6 +605,51 @@ export default {
     ctx.waitUntil(stub.fetch("https://internal/start",{method:"POST"}).then(async response=>{
       if(!response.ok) console.warn("POLYMARKET_MARKET_STREAM_RESTART_FAILED",response.status);
     }).catch(()=>console.warn("POLYMARKET_MARKET_STREAM_RESTART_UNREACHABLE")));
+
+    // Cloudflare-native archive catch-up (*/5 cron). Uses Q4 + ARCHIVE bindings
+    // already on this Worker — no D1 deletes; retention gate stays closed.
+    ctx.waitUntil((async()=>{
+      try{
+        const {archiveAndVerifyColdMarketHistory}=await import("../../functions/lib/marketHistoryVerifiedArchive.js");
+        const result=await archiveAndVerifyColdMarketHistory(env,{
+          archiveWrites:true,
+          verifyReadback:true,
+          limit:2000,
+          maxRounds:15,
+          eligibilityMs:60*60*1000,
+          resume:true,
+        });
+        console.log("MARKET_HISTORY_ARCHIVE_CATCHUP",JSON.stringify({
+          ok:result.ok, archived:result.archived, backlogBefore:result.backlogBefore,
+          backlogAfter:result.backlogAfter, backlogFalling:result.backlogFalling,
+          moreRemaining:result.moreRemaining, throughputRowsPerSec:result.throughputRowsPerSec,
+          canAuthorizeWager:false, deletion:result.deletion,
+        }));
+      }catch(error){
+        console.warn("MARKET_HISTORY_ARCHIVE_CATCHUP_FAILED",String(error?.message||error).slice(0,240));
+      }
+    })());
+
+    // Cloudflare-native CORE board publish when HARVEST_SECRET + base URL are bound.
+    if(env.HARVEST_SECRET&&env.FBIS_BASE_URL){
+      ctx.waitUntil((async()=>{
+        try{
+          const base=String(env.FBIS_BASE_URL).replace(/\/$/,"");
+          const headers={"content-type":"application/json","x-harvest-secret":env.HARVEST_SECRET,"cache-control":"no-cache"};
+          const publish=await fetch(`${base}/api/database-topology`,{
+            method:"POST",headers,body:JSON.stringify({operation:"core-board-summary-publish"}),
+          });
+          const fresh=await fetch(`${base}/api/database-topology`,{
+            method:"POST",headers,body:JSON.stringify({operation:"core-board-summary-require-fresh",maxAgeMs:900000}),
+          });
+          console.log("CORE_CF_HEARTBEAT",JSON.stringify({
+            publishStatus:publish.status, freshStatus:fresh.status,
+          }));
+        }catch(error){
+          console.warn("CORE_CF_HEARTBEAT_FAILED",String(error?.message||error).slice(0,200));
+        }
+      })());
+    }
   },
   async fetch(request,env){
     const u=new URL(request.url);
