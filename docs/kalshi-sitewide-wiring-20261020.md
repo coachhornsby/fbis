@@ -130,3 +130,12 @@ This release implements a **separate scheduled public collector**, not an author
 5. Crosswalk actual Kalshi fills and settlement by immutable exchange IDs into a dedicated verified ledger after sport D1 / R2 retention safety and independent profit reconciliation are approved. The current private UI only exposes a diagnostic receipt; it never writes/changes My Bets.
 
 Rollback: Disable the Kalshi Worker schedule and/or remove the Kalshi Market Research component; the R2-only public route returns an explicit not-ready status while the existing FBIS model/market/account operations remain unchanged.
+
+## 9. Private account WebSocket Worker — staged, deliberately disabled
+- Worker: `fbis-kalshi-private-stream`, config `wrangler.kalshi-private-stream.toml`, DO `KalshiPrivateAccountSession`, `*/5 * * * *` wake cadence.
+- **Default: `KALSHI_PRIVATE_STREAM_MODE=disabled`**. No private account streams start and no signed API requests are made in this state. The public `/health` route reveals only connection state, not trade identifiers, fill counts, positions or balances.
+- When expressly enabled and separately credentialed, the DO connects to the existing allowlisted Kalshi `fill`, `market_positions` and `user_orders` read-only channels; notifications only mark the account dirty and queue REST reconciliation, with a two-minute minimum reconciliation spacing. Reconnect alarms cannot replace a missed-event REST backfill.
+- No D1/R2 history writes, order placement, cancellations or fund transfer endpoints; the WebSocket is **not** settlement or journal authority.
+- After initial deployment, encrypted Worker Secrets must be independently configured under Workers & Pages → Workers → `fbis-kalshi-private-stream`: `KALSHI_API_KEY_ID`, `KALSHI_PRIVATE_KEY_PEM1`. These values are held as Cloudflare Pages secrets today; the Worker cannot read those encrypted values from the Pages project's configuration.
+- Only after credential provisioning, confirm a safe authenticated WS handshake and REST snapshot parity, then opt into `KALSHI_PRIVATE_STREAM_MODE=enabled` in the isolated Worker. Default-disabled releases/rollbacks must never overwrite a manually enabled state silently. Any future enabling workflow must preserve the credentials.
+- **Not yet production connected:** The staging deployment proves isolation and health, not a live WS connection, complete event history, profit reconciliation or automatic My Bets settlement.
