@@ -1,13 +1,14 @@
 name: Market-history verified archive (recurring)
 
-# Recurring Q4 cold-tick archive with SHA-256 readback verification.
-# Destructive D1 deletion is never performed here — retention gate stays closed.
+# Checkpointed full-row Q4 archive with SHA-256 readback + column restore proof.
+# Destructive D1 deletion is never performed — retention gate stays closed.
 # Agents cannot workflow_dispatch (403). Touch ops/triggers/market-history-archive
 # on main to force a run.
 on:
   schedule:
-    # Every 2 hours, offset from hourly high-load boundaries.
-    - cron: "11 */2 * * *"
+    # Every 15 minutes, offset from hourly high-load boundaries.
+    # Target capacity: ~1000×20 rows per run × 4 runs/hour ≈ 80k rows/hour.
+    - cron: "8,23,38,53 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -27,7 +28,7 @@ concurrency:
 jobs:
   archive-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
@@ -36,28 +37,37 @@ jobs:
       - name: Unit-test verified archive + retention gate contracts
         run: |
           node --test test/market-history-verified-archive.test.js
+          node --test test/market-history-archive-ops.test.js
           node --test test/market-history-capacity.test.js
       - name: Wait for production Pages deployment
         if: github.event_name != 'pull_request'
         env:
-          VERIFY_MAX_ATTEMPTS: "40"
+          VERIFY_MAX_ATTEMPTS: "60"
         run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
-      - name: Archive cold cohort, verify SHA-256 readback, keep deletion gated
+      - name: Archive eligible cohort (checkpointed, full 50 columns)
         if: github.event_name != 'pull_request'
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           FBIS_BASE_URL: https://fbis-myz.pages.dev
           ARCHIVE_WRITES: "true"
           VERIFY_READBACK: "true"
-          ARCHIVE_LIMIT: "100"
+          ARCHIVE_LIMIT: "1000"
+          ARCHIVE_MAX_ROUNDS: "20"
+          # Durable R2 copy after 1h; D1 deletion still requires 24h + retention gate.
+          ARCHIVE_ELIGIBILITY_MS: "3600000"
           ARCHIVE_PARTITION: MARKET_HISTORY_2026Q4_DB
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET not configured"; exit 1; }
           mkdir -p artifacts
           node scripts/market-history-archive-ops.mjs | tee artifacts/market-history-archive-ops.json
-          jq -e '.ok==true and .retentionGate.authorized==false and (.archive.deletion|test("NOT_PERFORMED")) and .canAuthorizeWager==false' \
-            artifacts/market-history-archive-ops.json >/dev/null
+          jq -e '
+            .ok==true
+            and .retentionGate.authorized==false
+            and (.archive.deletion|test("NOT_PERFORMED"))
+            and .archive.columnCount==50
+            and .canAuthorizeWager==false
+          ' artifacts/market-history-archive-ops.json >/dev/null
       - name: Store archive ops receipt
         if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4.6.2

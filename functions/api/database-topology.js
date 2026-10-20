@@ -322,10 +322,18 @@ export async function onRequestPost({ env, request } = {}) {
   }
   if (operation === "market-history-archive-verify") {
     return json(await archiveAndVerifyColdMarketHistory(env, {
-      limit: Math.min(500, Number(body.limit) || 100),
+      // Sustain ingest: up to 2000 rows × 25 rounds per invocation (~50k rows).
+      limit: Math.min(2000, Number(body.limit) || 1000),
+      maxRounds: Math.min(50, Number(body.maxRounds) || 10),
       partitionBinding: body.partitionBinding || "MARKET_HISTORY_2026Q4_DB",
       archiveWrites: body.archiveWrites === true,
       verifyReadback: body.verifyReadback === true,
+      // R2 durable-copy eligibility (default 1h). D1 deletion still requires 24h + retention gate.
+      eligibilityMs: body.eligibilityMs != null
+        ? Number(body.eligibilityMs)
+        : undefined,
+      resume: body.resume !== false,
+      resetCheckpoint: body.resetCheckpoint === true,
       now: body.now ? new Date(body.now) : new Date(),
     }));
   }

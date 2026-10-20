@@ -1,0 +1,45 @@
+{
+  "contract": "fbis-archive-full-checkpoint-proof-v1",
+  "generatedAt": "2026-10-20T15:35:00.000Z",
+  "canAuthorizeWager": false,
+  "addresses": [
+    "recurring archive batch too small / no cursor",
+    "R2 archive omitted source columns (21 of 50)"
+  ],
+  "implementation": {
+    "contract": "fbis-market-history-verified-archive-v2",
+    "columnCount": 50,
+    "checkpointTable": "fbis_market_history_archive_checkpoint",
+    "checkpointKey": "normalized_market_observations_v2",
+    "pageSize": 1000,
+    "maxRoundsPerRun": 20,
+    "nominalCapacityRowsPerHour": 80000,
+    "scheduleCron": "8,23,38,53 * * * *",
+    "r2EligibilityMs": 3600000,
+    "d1HotWindowMs": 86400000,
+    "deletion": "NOT_PERFORMED_REQUIRES_RETENTION_GATE"
+  },
+  "liveProof": {
+    "ok": true,
+    "measuredAt": "2026-10-20T15:35:00.000Z",
+    "rowCount": 25,
+    "columnCount": 50,
+    "missingColumns": [],
+    "fullColumnRestoreOk": true,
+    "contentSha256": "de004c7a07e9ee70c3c08636e94eba653d69b502095764e9c7b3c0645f3099f2",
+    "objectKey": "market-history/verified-batches/MARKET_HISTORY_2026Q4_DB/2026-10-20/fullcol_nmo_72367583931556b43dcb01f0af2b_25.json",
+    "backlogBefore1hEligibility": 305226,
+    "d1RowsStillPresent": 25,
+    "checkpointAdvances": true,
+    "nextPageExcludesArchivedIds": true,
+    "retentionReleaseAuthorized": false
+  },
+  "coreSchedule": {
+    "priorIssue": "dedicated core-board-snapshot workflow recorded zero schedule-event runs",
+    "fix": "Promote core-market heartbeat (historically reliable schedule deliveries) to 15m cron 3,18,33,48 with CORE publish step; keep dedicated workflow as secondary"
+  },
+  "storageReclamation": {
+    "authorized": false,
+    "note": "R2 durable copy + full-column restore are prerequisites. D1 delete remains gated until retentionReleaseAuthorized=true after independent restore audit."
+  }
+}
