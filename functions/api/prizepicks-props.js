@@ -113,9 +113,11 @@ function first(obj,paths){
   }
   return null;
 }
-function sportOf(row){
+export function sportOf(row){
   const raw=first(row,["sport","league","leagueName","league.name","competition"]);
   const token=String(raw||"").toLowerCase();
+  if(token.includes("npb")||token.includes("nippon")||token.includes("japanese baseball")) return "npb";
+  if(token.includes("kbo")||token.includes("korean baseball")) return "kbo";
   if(token.includes("mlb")||token.includes("baseball")) return "mlb";
   if(token.includes("nfl")||token==="football") return "nfl";
   if(token.includes("nhl")||token.includes("hockey")) return "nhl";
@@ -185,6 +187,11 @@ function marketFor(sport,stat){
 function candidateKey(c){
   return [String(c.sport||"").toLowerCase(),norm(c.playerName),String(c.market||"").toLowerCase()].join("|");
 }
+export function candidateMatchesProp(candidate, raw) {
+  const a=isoMs(candidate?.start), b=isoMs(startOf(raw));
+  // Player + market alone can attach today's model to next week's line.
+  return a!=null && b!=null && Math.abs(a-b)<=90*60*1000;
+}
 export function candidateOpponent(cand, rawTeam){
   if(!cand) return null;
   const team=norm(rawTeam || cand.team);
@@ -208,7 +215,9 @@ export async function onRequestGet(context){
     const row=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE ct_date=?").bind(day).first();
     let coverage=[];
     if(row?.run_id){ coverage=(await context.env.DB.prepare("SELECT sport,COUNT(*) rows FROM prizepicks_prop_lines WHERE run_id=? GROUP BY sport ORDER BY sport").bind(row.run_id).all())?.results||[]; }
-    return json({ok:true,ctDate:day,acquisition:row||null,alreadyStarted:!!row,coverage});
+    const latestSource=await context.env.DB.prepare("SELECT scope_json,captured_at,created_at FROM external_acquisitions WHERE source='prizepicks' AND state='CAPTURED' ORDER BY created_at DESC LIMIT 1").first();
+    const capturedScope=latestSource&&ctDate(latestSource.captured_at)===day?parseJson(latestSource.scope_json,{}):null;
+    return json({ok:true,ctDate:day,acquisition:row||null,alreadyStarted:!!row,coverage,capturedScope});
   }
   if(mode==="ingestion_health"){
     const auth=authorizeHarvest(context.request,context.env);
@@ -377,7 +386,8 @@ export async function onRequestPost(context){
     const sport=sportOf(raw),playerName=playerNameOf(raw),stat=statOf(raw),line=lineOf(raw);
     if(!sport||!playerName||!stat||line==null){malformed++;continue}
     const market=marketFor(sport,stat);
-    const cand=cmap.get([sport,norm(playerName),String(market||"").toLowerCase()].join("|"))||null;
+    const possible=cmap.get([sport,norm(playerName),String(market||"").toLowerCase()].join("|"))||null;
+    const cand=candidateMatchesProp(possible,raw)?possible:null;
     if(cand) matched++;
     const fbisProjection=n(cand?.fbisProjection),fbisSigma=n(cand?.fbisSigma);
     const delta=fbisProjection==null?null:fbisProjection-line;
@@ -391,14 +401,14 @@ export async function onRequestPost(context){
       `INSERT OR REPLACE INTO prizepicks_prop_lines(
         id,run_id,projection_id,fbis_event_id,sport,league,player_id,player_name,player_headshot_url,team,opponent,game_id,start_time,
         stat_type,canonical_market,line,odds_tier,duration,fbis_projection,fbis_sigma,delta_fbis_minus_line,candidate_side,
-        observed_at,collected_at,raw_json,model_source,model_version
-      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+        observed_at,collected_at,raw_json,model_source,model_version,role_confidence,snap_share,prop_gate,eligible_for_card,feature_evidence_json
+      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).bind(
       id,runId,projectionId,s(cand?.eventId),sport,s(first(raw,["league","leagueName","league.name"])),
       playerIdOf(raw),playerName,headshotOf(raw),s(teamOf(raw)||cand?.team),s(opponentOf(raw)||candidateOpponent(cand,teamOf(raw))),gameIdOf(raw),s(startOf(raw)||cand?.start),
       stat,market,line,tierOf(raw),durationOf(raw),fbisProjection,fbisSigma,delta,side,
       sourceObservedAt,collectedAt,JSON.stringify(raw),
-      s(cand?.modelSource),s(cand?.modelVersion)
+      s(cand?.modelSource),s(cand?.modelVersion),n(cand?.roleConfidence),n(cand?.snapShare),s(cand?.propGate),cand?.eligibleForCard==null?null:Number(cand.eligibleForCard===true),cand?.featureEvidence?JSON.stringify(cand.featureEvidence):null
     ));
     if(sport==="nfl"){
       const exactGameKey=nflCanonicalGameKey({

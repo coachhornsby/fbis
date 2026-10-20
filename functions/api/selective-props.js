@@ -1,5 +1,5 @@
 import {chicagoDayBounds} from '../lib/chicagoDayBounds.js';
-import { estimatedPropHitProbability, prizePicksTierEconomics, rankSelectiveProps, selectivePropStars } from "../lib/selectivePropEdge.js";
+import { estimatedPropHitProbability, prizePicksTierEconomics, rankSelectiveProps, selectivePropStars, selectivePropRating } from "../lib/selectivePropEdge.js";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -256,6 +256,7 @@ export async function onRequestGet(context) {
   const output = selected.map((row) => ({
     ...row,
     confidence_stars: row.confidenceStars,
+    ratingExplanation: selectivePropRating(row),
     standardized_edge: row.standardizedEdge,
     selection_score: row.selectionScore,
     candidate_side: row.candidateSide,

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { PRIZEPICKS_FBIS_SPORTS } from "../../../functions/lib/propMarketPolicy.js";
 import { propProjectionStars } from "./buildPlayerPropsBoard.js";
 import TrackedPropCards from "./TrackedPropCards.jsx";
 
-const SPORTS=["top25","nfl","mlb","cfb","cbb","tennis","nba","wnba","nhl","soccer"];
+const SPORTS=["top25","nfl","mlb","cfb","cbb","tennis","nba","wnba","nhl","soccer", ...PRIZEPICKS_FBIS_SPORTS.filter(s=>["kbo","npb"].includes(s))];
 const TIER_ORDER={standard:0,goblin:1,demon:2};
 
 function num(v){
@@ -458,11 +459,12 @@ function PropAnalytics({ row, open, onToggle, detail, calibration, loading, erro
   return (
     <div className={"pp-analytics"+(open?" open":"")}>
       <button type="button" className="pp-analytics-toggle" onClick={onToggle} aria-expanded={open}>
-        <span>{open?"Hide analytics":"Why FBIS likes it"}</span>
+        <span>{open?"Hide analytics":"Rating & player analysis"}</span>
         <span aria-hidden="true">{open?"⌃":"⌄"}</span>
       </button>
       {open?(
         <div className="pp-analytics-body">
+          {row.ratingExplanation? <div className="pp-why-card"><div className="pp-analytics-label">WHY THIS RATING</div><p>{row.ratingExplanation.stars}★ projection confidence · {row.ratingExplanation.baseStars}★ before evidence limits</p><ul>{row.ratingExplanation.limits.map((limit,i)=><li key={i}>{limit.maxStars}★ maximum: {limit.text}</li>)}</ul><p>Stars describe projection confidence. They do not authorize a wager or prove a profitable payout.</p></div>:null}
           {loading?<div className="pp-analytics-loading">Loading player history…</div>:null}
           {error?<div className="pp-analytics-loading">Analytics unavailable: {error}</div>:null}
           {reasons.length?(

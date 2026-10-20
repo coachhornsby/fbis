@@ -83,3 +83,12 @@ test("NFL prop state evidence fails closed for missing event or post-freeze stat
     "canonical_event_missing","state_source_after_freeze","player_profile_after_freeze"
   ]);
 });
+
+test('rating explanations identify payout, model hold and historical caps without promoting stars',async()=>{
+ const {selectivePropRating,selectivePropStars}=await import('../functions/lib/selectivePropEdge.js');
+ const base={sport:'nfl',market:'passing_yards',targetRole:'QB1',fbisProjection:280,line:250,fbisSigma:80,roleConfidence:1,featureEvidence:{targetRole:true,targetRoleName:'QB1',recent5:true,snapShare:true,positionDefense:true,nextGen:true,opponentMatchup:true}};
+ const rated=selectivePropRating(base);assert.equal(rated.stars,2);assert.equal(rated.baseStars,2);assert.equal(rated.calibrationValidated,false);assert.ok(rated.limits.some(l=>l.code==='probability_calibration_unvalidated'));
+ const alt=selectivePropRating({...base,fbisProjection:500,odds_tier:'goblin'});assert.ok(alt.stars<=2);assert.ok(alt.limits.some(l=>l.code==='ALTERNATE_TIER_PAYOUT_UNPRICED'));
+ const hold=selectivePropRating({...base,propGate:'HOLD'});assert.equal(hold.stars,1);assert.match(hold.summary,/hold/);
+ for(const row of [base,{...base,odds_tier:'demon'},{...base,propGate:'HOLD'}])assert.equal(selectivePropRating(row).stars,selectivePropStars(row));
+});

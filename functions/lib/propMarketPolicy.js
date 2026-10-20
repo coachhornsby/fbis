@@ -12,6 +12,8 @@ export const PROP_MARKET_STATUS = Object.freeze({
 });
 
 export const CURATED_PROP_POLICY = Object.freeze({
+  kbo: Object.freeze({ league: "KBO", markets: Object.freeze({ "Pitcher Strikeouts": PROP_MARKET_STATUS.RESEARCH }) }),
+  npb: Object.freeze({ league: "NPB", markets: Object.freeze({ "Pitcher Strikeouts": PROP_MARKET_STATUS.RESEARCH }) }),
   mlb: Object.freeze({
     league: "MLB",
     markets: Object.freeze({
@@ -118,4 +120,18 @@ export function buildCuratedPrizePicksScope(sports = [], opts = {}) {
     }))
     .filter((x) => x.league && x.markets.length);
   return rows;
+}
+
+// One shared daily capture covers every FBIS sport. NPB is a named optional
+// provider league; zero offered lines remain an explicit coverage gap.
+export const PRIZEPICKS_FBIS_SPORTS = Object.freeze(Object.keys(CURATED_PROP_POLICY));
+export function sharedPrizePicksInput(projectedEventIds = []) {
+  const scopes = buildCuratedPrizePicksScope(PRIZEPICKS_FBIS_SPORTS);
+  return {
+    leagues: scopes.filter(s => s.sport !== "npb").map(s => s.league),
+    extraLeagues: "NPB",
+    statTypes: [...new Set(scopes.flatMap(s => s.markets).concat(["Pass Attempts", "Pass Completions", "Rush Attempts", "Receptions", "Shots On Goal", "Shots On Target"]))].join(", "),
+    oddsTiers: ["standard", "goblin", "demon"],
+    projectedEventIds: [...new Set(projectedEventIds.map(String))],
+  };
 }
