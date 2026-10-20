@@ -32,7 +32,11 @@ export default function TeamLogo({
   const sport = String(team?.sport || "").toLowerCase();
   const baseUrl = resolved.url;
   const url = remote?.logo || (!failed ? baseUrl : null);
-  const plate = tone === "dark" || tone === "auto";
+  // Washington's navy lettering disappears against FBIS navy surfaces.
+  // Outline the logo pixels, not the container; preserve the no-white-disk treatment.
+  const isCapitals = (sport === "nhl" || String(team?.canonicalId || "").toLowerCase().startsWith("nhl-")) &&
+    (abbr === "WSH" || /\bWashington Capitals\b/i.test(name));
+  const plate = (tone === "dark" || tone === "auto") && !isCapitals;
 
   useEffect(() => {
     setFailed(false);
@@ -83,7 +87,7 @@ export default function TeamLogo({
 
   return (
     <span
-      className={`team-logo-wrap${plate ? " team-logo-plate" : ""}${className ? ` ${className}` : ""}`}
+      className={`team-logo-wrap${plate ? " team-logo-plate" : ""}${isCapitals ? " team-logo-capitals" : ""}${className ? ` ${className}` : ""}`}
       style={{ width: px, height: px }}
       title={title || name}
     >
