@@ -11,12 +11,24 @@ test("pinnodds line-difference tiles avoid green-on-green and mark under/over", 
   assert.match(jsx, /side="home"/);
   assert.match(jsx, /fbis-priced-projection-logo/);
   assert.match(jsx, /fbis-priced-gap-logo/);
+  assert.match(jsx, /FBIS HOME LINE/);
+  assert.match(jsx, /FBIS TOTAL/);
+  assert.match(jsx, /GAP VS MARKET/);
+  assert.match(jsx, /fbis-priced-projection-toward/);
+  assert.match(jsx, /fbis-priced-projection-line/);
+  assert.doesNotMatch(jsx, /FBIS PROJECTED/);
   assert.doesNotMatch(jsx, /side\.toUpperCase\(\).*HOME/);
   assert.match(css, /\.fbis-priced-gap-value\.is-under/);
   assert.match(css, /\.fbis-priced-gap-value\.is-over/);
+  assert.match(css, /\.fbis-priced-model-value\.is-spread/);
+  assert.match(css, /\.fbis-priced-model-value\.is-total/);
+  assert.match(css, /\.fbis-priced-projection-toward/);
   assert.match(css, /#1a1020/);
   assert.match(css, /border-radius:0!important/);
   assert.match(css, /@keyframes fbis-priced-gap-pulse-under/);
+  assert.match(css, /@keyframes fbis-priced-model-pulse/);
+  assert.match(css, /@keyframes fbis-priced-model-pulse-total/);
+  assert.match(css, /linear-gradient\(115deg,#d4f4ff/);
 });
 
 test("moneyline priceboard logos drop plates and poly copy stays high contrast", async () => {
