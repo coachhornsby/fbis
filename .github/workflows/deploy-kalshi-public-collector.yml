@@ -5,14 +5,17 @@ on:
       - "services/kalshi-public-collector/**"
       - "wrangler.kalshi-public-collector.toml"
       - "functions/lib/kalshiMarketShadow.js"
+      - "functions/lib/kalshiExchangeStatus.js"
       - ".github/workflows/deploy-kalshi-public-collector.yml"
       - "test/kalshi-central-collector.test.js"
+      - "test/kalshi-exchange-status.test.js"
   push:
     branches: [main]
     paths:
       - "services/kalshi-public-collector/**"
       - "wrangler.kalshi-public-collector.toml"
       - "functions/lib/kalshiMarketShadow.js"
+      - "functions/lib/kalshiExchangeStatus.js"
       - ".github/workflows/deploy-kalshi-public-collector.yml"
   workflow_dispatch:
 permissions:
@@ -31,7 +34,7 @@ jobs:
           node-version: "22"
       - run: npm ci --ignore-scripts
       - name: Verify public collector safety contracts
-        run: node --test test/kalshi-market-shadow.test.js test/kalshi-market-collector.test.js test/kalshi-central-collector.test.js
+        run: node --test test/kalshi-market-shadow.test.js test/kalshi-market-collector.test.js test/kalshi-central-collector.test.js test/kalshi-exchange-status.test.js
       - name: Dry-run Worker bundle
         run: npx wrangler deploy --dry-run --config wrangler.kalshi-public-collector.toml --outdir /tmp/kalshi-collector
       - name: Publish single scheduled Kalshi collector
