@@ -183,3 +183,10 @@
   .fbis-shell-main .tmc .tmc-market-gap-identity > img {width:31px;height:21px}
   .fbis-shell-main .tmc .tmc-market-gap-identity > b {font-size:10px}
 }
+
+
+/* Permanent canonical player profile links are visible even with detail panel collapsed. */
+.tmc-compact .tmc-player-copy .tmc-profile-link{display:inline-block;align-self:flex-start;margin-top:4px;color:#79d9ff;font-size:10px;font-weight:850;letter-spacing:.04em;text-decoration:underline;text-underline-offset:2px}
+.tmc-compact .tmc-home .tmc-player-copy .tmc-profile-link{align-self:flex-end}
+.tmc-compact .tmc-player-copy .tmc-profile-link:hover,.tmc-compact .tmc-player-copy .tmc-profile-link:focus-visible{color:#fff}
+@container(max-width:425px){.tmc-compact .tmc-player-copy .tmc-profile-link,.tmc-compact .tmc-home .tmc-player-copy .tmc-profile-link{align-self:center;font-size:9px}}
