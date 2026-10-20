@@ -12,7 +12,7 @@ function isRealHeadshot(url){
   const u=String(url||"").trim();
   if(!u) return false;
   // Reject known team/league/generic art; cards should show a real player or initials.
-  if(/\/images\/teams\//i.test(u)) return false;
+  if(/\/(?:images\/teams|v2\/team|team-logo|team_logo)\//i.test(u)) return false;
   if(/(?:nfl|nba|mlb|nhl)[-_ ]?(?:logo|shield)|\/logos?\//i.test(u)) return false;
   return /^https?:\/\//i.test(u);
 }

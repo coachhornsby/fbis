@@ -32,6 +32,7 @@ function db(){
 test('PrizePicks tennis headshots persist onto canonical player cards without overwriting official sources',async()=>{
  assert.equal(isPrizePicksTennisHeadshot('https://cdn.prizepicks.com/player.png'),true);
  assert.equal(isPrizePicksTennisHeadshot('https://cdn.example/images/teams/x.png'),false);
+ assert.equal(isPrizePicksTennisHeadshot('https://img0.aiscore.com/v2/team/not-a-player.png!w80'),false);
  const {sql,DB}=db();
  sql.prepare(`INSERT INTO tennis_players VALUES(?,?,?,?,?,?,?)`)
   .run('tennis:wta:1','wta','Sonay Kartal','sonay kartal',null,null,null);

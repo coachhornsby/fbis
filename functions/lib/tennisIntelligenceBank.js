@@ -1,5 +1,6 @@
 import { resolveTennisFixturePlayers } from "./tennisFixturePlayerLink.js";
 import { tennisCardContext, tennisKey } from "./tennisPlayerBank.js";
+import { approvedTennisPortraits } from "./tennisPortraits.js";
 const parse = value => { try { return JSON.parse(value); } catch { return null; } };
 const number = v => v == null || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null;
 
@@ -76,13 +77,26 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
   const bank = await buildTennisIntelligenceBank(db, { now, limit: 100 });
   const ctDay = start => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago",
     year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(start));
+  // One bounded rights lookup for the slate. Approved R2 portraits take priority
+  // over provider-feed URLs, including independently sourced research fixtures.
+  const visibleFixtures=bank.fixtures.filter(f => ctDay(f.start) === date);
+  const ids=[...new Set(visibleFixtures.flatMap(f => f.players.map(p => p.fbisPlayerId).filter(Boolean)))];
+  const chunks=[];for(let i=0;i<ids.length;i+=20)chunks.push(ids.slice(i,i+20));
+  const batches=await Promise.all(chunks.map(chunk=>approvedTennisPortraits(db,chunk)));
+  const portraitMap=new Map(batches.flatMap(group=>[...group.entries()]));
   const games = [];
-  for (const f of bank.fixtures.filter(f => ctDay(f.start) === date)) {
+  for (const f of visibleFixtures) {
     // Existing card player1 is home, independent fixture player1 is away.
     const [p1, p2] = f.players;
-    const team = p => ({ name: p.fixtureName, fullName: p.fixtureName, abbr: p.fixtureName.split(" ").at(-1),
-      rank: p.rank ?? null, rankingPoints: p.rankingPoints ?? null, country: p.country ?? null,
-      logo: p.headshotUrl ?? null, headshotUrl: p.headshotUrl ?? null, fbisPlayerId: p.fbisPlayerId ?? null });
+    const team = p => {
+      const approved=portraitMap.get(p.fbisPlayerId),url=approved?.url||p.headshotUrl||null;
+      return { name:p.fixtureName, fullName:p.fixtureName, abbr:p.fixtureName.split(" ").at(-1),
+        rank:p.rank??null, rankingPoints:p.rankingPoints??null, country:p.country??null,
+        logo:url, headshotUrl:url, fbisPlayerId:p.fbisPlayerId??null,
+        imageSource:approved?"RIGHTS_VERIFIED_TENNIS_PORTRAIT":p.headshotSource||null,
+        portraitCredit:approved?.credit||null, portraitSourceUrl:approved?.sourceUrl||null,
+        portraitLicenseUrl:approved?.licenseUrl||null };
+    };
     const context = await tennisCardContext(db, { tour: f.tour, player1: p1.fixtureName,
       player2: p2.fixtureName, surface: null }).catch(() => null);
     const playerBank = { ...context, players: f.players.map((p, i) => ({ ...(context?.players?.[i] || {}),
