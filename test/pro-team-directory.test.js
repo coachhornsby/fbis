@@ -67,3 +67,25 @@ test("directory API surfaces 30 NBA teams and rejects unsupported leagues",async
   const bad=await onRequestGet({request:new Request("https://fbis.test/api/pro-team-directory?sport=other")});
   assert.equal(bad.status,400);
 });
+
+
+test("NBA market aliases select the correct team roster instead of an unverified portrait",async()=>{
+  const codes={
+    SAS:"SA",NYK:"NY",GSW:"GS",NOP:"NO",BRK:"BKN",PHO:"PHX",UTA:"UTAH",WSH:"WAS",
+  };
+  for (const [market,canonical] of Object.entries(codes)) {
+    assert.equal(resolveProTeam("nba",market)?.abbr,canonical,market);
+  }
+  assert.equal(resolveProTeam("nba","San Antonio Spurs")?.abbr,"SA");
+  assert.equal(resolveProTeam("nba","Los Angeles"),null,"ambiguous cities must not pick a random franchise");
+  const result=await loadProTeamRoster({sport:"nba",team:"SAS",fetcher:async url=>{
+    assert.match(url,/\/basketball\/nba\/teams\/24\/roster$/);
+    return {ok:true,json:async()=>({athletes:[{id:"4066259",displayName:"De'Aaron Fox",position:{abbreviation:"G"},
+      headshot:{href:"https://a.espncdn.com/i/headshots/nba/players/full/4066259.png"}}]})};
+  }});
+  assert.equal(result.ok,true);
+  assert.equal(result.team.abbr,"SA");
+  const fox=matchProRosterPlayer(result.players,"De’Aaron Fox");
+  assert.equal(fox?.id,"4066259");
+  assert.equal(fox?.headshotSource,"ESPN_ROSTER");
+});

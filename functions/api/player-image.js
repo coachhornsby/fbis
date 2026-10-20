@@ -382,6 +382,15 @@ export async function onRequestGet(context){
     if(out) return out;
   }
 
+  // A named NBA team must never silently fall through to an outdated
+  // encyclopedia portrait after the authoritative roster lookup fails.
+  // Approved team-matched legacy imagery above remains a supplementary
+  // fallback; otherwise display initials rather than a misleading photo.
+  if(sport==="nba" && team){
+    if(mode==="image") return new Response(null,{status:404,headers:{"cache-control":"no-store"}});
+    return json({ok:true,found:false,name,sport,team,reason:"team-roster-portrait-unavailable"});
+  }
+
   if(String(sport||"").toLowerCase()==="mlb"){
     const mlbImage=await mlbPlayerHeadshot(name).catch(()=>null);
     if(mlbImage){

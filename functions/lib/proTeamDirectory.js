@@ -2,6 +2,7 @@ import nflTeams from "../../data/teams/nfl.js";
 import nbaTeams from "../../data/teams/nba.js";
 import nhlTeams from "../../data/teams/nhl.js";
 import { nhlModelTeamCode } from "./nhlTeamCodes.js";
+import { resolveBasketballPropTeam } from "./basketballPropTeam.js";
 
 const ROSTER_CACHE = new Map();
 const ROSTER_CACHE_MS = 15 * 60 * 1000;
@@ -43,7 +44,18 @@ export function resolveProTeam(sport, teamValue) {
   const official = sport === "nhl" ? normalize(nhlModelTeamCode(teamValue)) : query;
   const result = list.filter(t => [normalize(t.id), normalize(t.abbr), normalize(t.name), normalize(t.espnId), sport === "nhl" ? normalize(nhlModelTeamCode(t.abbr)) : ""].includes(query) ||
     (sport === "nhl" && normalize(nhlModelTeamCode(t.abbr)) === official));
-  return result.length === 1 ? result[0] : null;
+  if (result.length === 1) return result[0];
+  // Kalshi/Polymarket and other feeds use NBA codes such as SAS, NYK, GSW
+  // while the ESPN directory uses SA, NY, GS. Reuse the *same* canonical
+  // basketball identity as the prop-card team watermark, before roster lookup.
+  // Never fuzzy-match an opponent or an ambiguous team city.
+  if (sport === "nba") {
+    const canonical = resolveBasketballPropTeam({ sport, team: teamValue });
+    if (canonical.status === "resolved") {
+      return list.find(t => t.id === canonical.canonicalId) || null;
+    }
+  }
+  return null;
 }
 
 function parseEspnRoster(payload, sport) {

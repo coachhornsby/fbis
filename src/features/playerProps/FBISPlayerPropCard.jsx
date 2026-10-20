@@ -56,6 +56,9 @@ function resolvedHeadshot(row = {}) {
     sport: String(row.sport || ""),
     team: String(row.team || ""),
     mode: "image",
+    // Change the URL when team-code/portrait policy changes so a previously
+    // cached legacy image cannot persist on active player-prop cards.
+    ...(proRosterTeam ? { portraitVersion: "canonical-roster-2" } : {}),
   });
   return "/api/player-image?" + q.toString();
 }
