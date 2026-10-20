@@ -9,10 +9,9 @@
     "core": {
       "mechanism": "fbis-polymarket-us-stream Worker cron */5",
       "evidence": [
-        { "asOf": "2026-10-20T18:33:25.798Z" },
-        { "asOf": "2026-10-20T18:35:22.539Z" },
-        { "asOf": "2026-10-20T18:40:22.672Z" },
-        { "asOf": "2026-10-20T18:45:22.424Z" }
+        { "asOf": "2026-10-20T18:50:22.738Z" },
+        { "asOf": "2026-10-20T18:55:22.398Z" },
+        { "asOf": "2026-10-20T19:00:22.677Z" }
       ],
       "note": "Continues after last manual/mcp recovery; no merge trigger required",
       "githubScheduleRequired": false
@@ -22,12 +21,11 @@
       "codeVersion": "board-ws-q4-archive-catchup-20261020",
       "checkpointKey": "normalized_market_observations_v2",
       "progress": {
-        "archivedTotal": 435525,
-        "lastBacklog": 172206,
+        "archivedTotal": 537525,
+        "lastBacklog": 89091,
         "backlogFalling": true,
-        "lastBatchAt": "2026-10-20T18:45:22.163Z",
-        "lastObjectKey": "market-history/verified-batches/MARKET_HISTORY_2026Q4/2026-10-20/batch_nmo_68eb0a93acb1c79441bbb43cd72d_2000_r9.json",
-        "lastContentSha256": "168c9fa664ea8ce16f233d6b521767a21f89c83251ead870745edf47b29b5afa"
+        "lastBatchAt": "2026-10-20T19:00:22.416Z",
+        "note": "Worker */5 catch-up; GH archive schedule still absent"
       },
       "githubScheduleRequired": false,
       "deletion": "NOT_PERFORMED"
