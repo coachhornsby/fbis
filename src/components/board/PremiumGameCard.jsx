@@ -283,7 +283,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           ) : (
             <>
               <div className="pgc-team-visual">
-                <TeamLogo team={away} size={103} className="pgc-featured-logo" />
+                <TeamLogo team={away} size={120} tone="light" className="pgc-featured-logo" />
               </div>
               <div>
                 <small>{game?.neutralSite ? "NEUTRAL SITE" : "AWAY"}</small>
@@ -303,8 +303,8 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <small>{sportId === "mlb" ? "PITCH · HIT" : "FBIS MATCHUP INTELLIGENCE"}</small>
           {sportId === "mlb" ? (
             <div className="pgc-mlb-center-logos" aria-hidden="true">
-              <TeamLogo team={away} size={36} />
-              <TeamLogo team={home} size={36} />
+              <TeamLogo team={away} size={44} tone="light" />
+              <TeamLogo team={home} size={44} tone="light" />
             </div>
           ) : null}
         </div>
@@ -326,7 +326,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           ) : (
             <>
               <div className="pgc-team-visual">
-                <TeamLogo team={home} size={103} className="pgc-featured-logo" />
+                <TeamLogo team={home} size={120} tone="light" className="pgc-featured-logo" />
               </div>
               <div>
                 <small>{game?.neutralSite ? "NEUTRAL SITE" : "HOME"}</small>
@@ -351,7 +351,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <span className="pgc-gap-heading">{gapLabel}</span>
         <div className="pgc-gap-identity">
           {gapTeam ? <>
-            <TeamLogo team={gapTeam} size={83} className="pgc-gap-logo" />
+            <TeamLogo team={gapTeam} size={100} tone="light" className="pgc-gap-logo" />
             <b>{gapTeam.abbr && gapTeam.abbr!=="—" ? gapTeam.abbr : gapTeam.name}</b>
           </> : gapTotal && gapSide!=="even" ? (
             <span className="pgc-gap-direction"><b aria-hidden="true">{gapSide==="over"?"↑":"↓"}</b><strong>{gapSide.toUpperCase()}</strong></span>

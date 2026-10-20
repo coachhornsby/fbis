@@ -1079,14 +1079,28 @@
   min-width:0;
   gap:3px;
 }
-.fbis-shell-main.route-board .cgc-logo.team-logo-plate {
-  background:transparent;
-  border-color:transparent;
-  box-shadow:none;
+.fbis-shell-main.route-board .team-logo-plate,
+.fbis-shell-main.route-board .team-logo-fallback.team-logo-plate,
+.fbis-shell-main.route-board .team-logo-wrap {
+  background:transparent !important;
+  border:0 !important;
+  border-color:transparent !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+}
+.fbis-shell-main.route-board .cgc-logo.team-logo-plate,
+.fbis-shell-main.route-board .cgc-logo.team-logo-wrap,
+.fbis-shell-main.route-board .cgc-logo.team-logo-fallback {
+  width:118px !important;
+  height:118px !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
 }
 .fbis-shell-main.route-board .cgc-logo .team-logo {
-  width:56px !important;
-  height:56px !important;
+  width:118px !important;
+  height:118px !important;
   object-fit:contain;
   filter:drop-shadow(0 8px 10px rgba(0,0,0,.48));
 }
@@ -1226,14 +1240,15 @@
   min-height:44px;
   margin:1px 0 2px;
 }
-.fbis-shell-main.route-board .cgc-edge-logo.team-logo-plate {
-  background:transparent;
-  border-color:transparent;
-  box-shadow:none;
+.fbis-shell-main.route-board .cgc-edge-logo.team-logo-plate,
+.fbis-shell-main.route-board .cgc-edge-logo.team-logo-wrap {
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
 }
 .fbis-shell-main.route-board .cgc-edge-logo .team-logo {
-  width:38px !important;
-  height:38px !important;
+  width:94px !important;
+  height:94px !important;
   object-fit:contain;
   filter:drop-shadow(0 6px 9px rgba(0,0,0,.42));
 }

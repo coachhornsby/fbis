@@ -874,14 +874,18 @@
   text-align:right;
 }
 .fbis-shell-main .pgc-featured-team-home > .pgc-featured-logo { order:2; }
-.fbis-shell-main .pgc-featured-logo.team-logo-plate {
-  background:transparent;
-  border-color:transparent;
-  box-shadow:none;
+.fbis-shell-main .pgc-featured-logo.team-logo-plate,
+.fbis-shell-main .pgc-featured-logo.team-logo-wrap,
+.fbis-shell-main .pgc-featured-logo.team-logo-fallback {
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  width:120px !important;
+  height:120px !important;
 }
 .fbis-shell-main .pgc-featured-logo .team-logo {
-  width:74px !important;
-  height:74px !important;
+  width:112px !important;
+  height:112px !important;
   object-fit:contain;
   filter:drop-shadow(0 8px 11px rgba(0,0,0,.48));
 }
