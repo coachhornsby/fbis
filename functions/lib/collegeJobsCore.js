@@ -38,6 +38,17 @@ import {
   CFB_CORE_ADVANCED_AUTHORITY,
 } from "./cfbCoreAdvancedPlumbing.js";
 import {
+  buildCoreWeeklyArchivePayload,
+  persistCoreWeeklyArchive,
+} from "./cfbCoreArchive.js";
+import {
+  reconstructCoreHistoricalSeason,
+  planCoreHistoricalReconstruction,
+  assessModelCResearchReadiness,
+  CORE_AUTHENTICITY,
+} from "./cfbCoreHistorical.js";
+import { trackCorePublicationRelease } from "./cfbCoreContinuity.js";
+import {
   runCfbCoreShadowFreeze,
   runCfbCoreShadowSettle,
   runCfbCoreWeeklyEvaluation,
@@ -65,6 +76,9 @@ export const COLLEGE_JOBS = [
   "cfb-core-shadow-freeze",
   "cfb-core-shadow-settle",
   "cfb-core-weekly-evaluation",
+  "cfb-core-historical-reconstruct",
+  "cfb-core-publication-track",
+  "cfb-core-model-c-readiness",
   "cfb-postgame-harvest",
   "cfb-qb-transfer-refresh",
   "cfb-quota-replenish-ack",
@@ -524,6 +538,261 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         },
       });
     }
+    // Research-only: fetch CFBD /ratings/core?year= and archive EVERY distinct throughWeek.
+    if (job === "cfb-core-historical-reconstruct") {
+      const season = Number(opts.season || opts.year || yearCfb);
+      const db = env?.DB || env?.TIER3_DB || null;
+      let existingThroughWeeks = [];
+      if (db) {
+        try {
+          const rs = await db
+            .prepare(
+              `SELECT DISTINCT through_week AS tw FROM cfb_core_weekly_archive WHERE season=? ORDER BY through_week`
+            )
+            .bind(season)
+            .all();
+          existingThroughWeeks = (rs?.results || []).map((r) => Number(r.tw)).filter((w) => w > 0);
+        } catch (_) {
+          existingThroughWeeks = [];
+        }
+      }
+      let result;
+      try {
+        result = await reconstructCoreHistoricalSeason(env, {
+          season,
+          existingThroughWeeks,
+          jobRunId: newJobId(),
+          authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
+          fetchYearRows: async (y) => {
+            const res = await cfbdGet("/ratings/core", env, {
+              query: { year: y },
+              fetchFn: opts.fetchFn || fetch,
+            });
+            if (!res?.ok) throw new Error(res?.reason || `cfbd_/ratings/core_${y}_failed`);
+            return res.data || [];
+          },
+        });
+      } catch (err) {
+        return jobPayload({
+          ok: false,
+          job,
+          status: JOB_FAILED,
+          attemptedAt: started,
+          errors: [String(err?.message || err)],
+          env,
+          writes,
+          d1: {
+            bound: hasDb(env),
+            cfbCoreHistorical: {
+              season,
+              existingThroughWeeks,
+              authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
+              authority: "research_only",
+              canAuthorizeWager: false,
+            },
+          },
+        });
+      }
+      writes.writesSucceeded += (result.writes || []).reduce((n, w) => n + (w.written || 0), 0);
+      const plan = planCoreHistoricalReconstruction({
+        seasons: [season],
+        existingArchives: [
+          ...existingThroughWeeks.map((tw) => ({ season, through_week: tw })),
+          ...(result.writtenThroughWeeks || []).map((tw) => ({ season, through_week: tw })),
+        ],
+      });
+      return jobPayload({
+        ok: result.ok !== false,
+        job,
+        status: result.ok !== false ? "success" : JOB_FAILED,
+        attemptedAt: started,
+        successfulAt: result.ok !== false ? new Date().toISOString() : null,
+        errors: result.ok !== false ? [] : [result.reason || "cfb-core-historical-reconstruct-failed"],
+        env,
+        writes,
+        d1: {
+          bound: hasDb(env),
+          cfbCoreHistorical: {
+            ...result,
+            plan: plan.seasons[0] || null,
+            authority: "research_only",
+            canAuthorizeWager: false,
+            canInfluenceProduction: false,
+          },
+        },
+      });
+    }
+    // Research-only: compare newest archived throughWeek vs baseline (default W6).
+    if (job === "cfb-core-publication-track") {
+      const season = Number(opts.season || opts.year || yearCfb);
+      const baselineWeek = Number(opts.baselineThroughWeek || 6);
+      const db = env?.DB || env?.TIER3_DB || null;
+      if (!db) {
+        return jobPayload({
+          ok: false,
+          job,
+          status: JOB_FAILED,
+          attemptedAt: started,
+          errors: ["no_db"],
+          env,
+          writes,
+        });
+      }
+      let weeks = [];
+      try {
+        const rs = await db
+          .prepare(
+            `SELECT DISTINCT through_week AS tw FROM cfb_core_weekly_archive WHERE season=? ORDER BY through_week`
+          )
+          .bind(season)
+          .all();
+        weeks = (rs?.results || []).map((r) => Number(r.tw)).filter((w) => w > 0);
+      } catch (err) {
+        return jobPayload({
+          ok: false,
+          job,
+          status: JOB_FAILED,
+          attemptedAt: started,
+          errors: [String(err?.message || err)],
+          env,
+          writes,
+        });
+      }
+      const currentWeek = Number(opts.currentThroughWeek) || (weeks.length ? Math.max(...weeks) : null);
+      if (currentWeek == null || !weeks.includes(baselineWeek)) {
+        return jobPayload({
+          ok: true,
+          job,
+          status: "success",
+          attemptedAt: started,
+          successfulAt: new Date().toISOString(),
+          errors: [],
+          env,
+          writes,
+          d1: {
+            bound: true,
+            cfbCorePublicationTrack: {
+              classification: "insufficient_snapshots",
+              season,
+              archivedThroughWeeks: weeks,
+              baselineThroughWeek: baselineWeek,
+              currentThroughWeek: currentWeek,
+              note:
+                currentWeek == null
+                  ? "No CORE archive weeks for season"
+                  : `Baseline throughWeek=${baselineWeek} not archived yet`,
+              researchOnly: true,
+              canAuthorizeWager: false,
+            },
+          },
+        });
+      }
+      const loadWeek = async (tw) => {
+        const rs = await db
+          .prepare(
+            `SELECT school_key AS schoolKey, core, core_offense AS coreOffense, core_defense AS coreDefense,
+                    through_week AS throughWeek, collection_time AS collectionTime, publication_time AS publicationTime
+             FROM cfb_core_weekly_archive WHERE season=? AND through_week=?`
+          )
+          .bind(season, tw)
+          .all();
+        return rs?.results || [];
+      };
+      const baseline = await loadWeek(baselineWeek);
+      const current = await loadWeek(currentWeek);
+      const track = trackCorePublicationRelease({
+        baseline,
+        current,
+        baselineThroughWeek: baselineWeek,
+        currentThroughWeek: currentWeek,
+        baselineCollectionTime: baseline[0]?.collectionTime || null,
+        currentCollectionTime: current[0]?.collectionTime || null,
+        baselinePublicationTime: baseline[0]?.publicationTime || null,
+        currentPublicationTime: current[0]?.publicationTime || null,
+      });
+      return jobPayload({
+        ok: true,
+        job,
+        status: "success",
+        attemptedAt: started,
+        successfulAt: new Date().toISOString(),
+        errors: [],
+        env,
+        writes,
+        d1: {
+          bound: true,
+          cfbCorePublicationTrack: {
+            season,
+            archivedThroughWeeks: weeks,
+            ...track,
+          },
+        },
+      });
+    }
+    // Research-only: gate Model C attempt; never fit when corpus thin; never touch A/A.
+    if (job === "cfb-core-model-c-readiness") {
+      const db = env?.DB || env?.TIER3_DB || null;
+      const archivesBySeason = {};
+      let eligiblePitGameRows = 0;
+      let verifiedOosArtifacts = 0;
+      if (db) {
+        try {
+          const rs = await db
+            .prepare(
+              `SELECT season, through_week AS tw FROM cfb_core_weekly_archive GROUP BY season, through_week`
+            )
+            .all();
+          for (const row of rs?.results || []) {
+            const s = Number(row.season);
+            if (!archivesBySeason[s]) archivesBySeason[s] = [];
+            archivesBySeason[s].push(Number(row.tw));
+          }
+        } catch (_) {}
+        try {
+          const sh = await db
+            .prepare(
+              `SELECT COUNT(*) AS n FROM cfb_core_shadow_predictions WHERE final_verified=1`
+            )
+            .first();
+          eligiblePitGameRows = Number(sh?.n || 0);
+        } catch (_) {}
+        try {
+          const arts = await db
+            .prepare(
+              `SELECT COUNT(*) AS n FROM cfb_core_research_artifacts WHERE verified_oos=1`
+            )
+            .first();
+          verifiedOosArtifacts = Number(arts?.n || 0);
+        } catch (_) {}
+      }
+      const readiness = assessModelCResearchReadiness({
+        archivesBySeason,
+        eligiblePitGameRows,
+        verifiedOosArtifacts,
+      });
+      return jobPayload({
+        ok: true,
+        job,
+        status: "success",
+        attemptedAt: started,
+        successfulAt: new Date().toISOString(),
+        errors: [],
+        env,
+        writes,
+        d1: {
+          bound: hasDb(env),
+          cfbCoreModelC: {
+            readiness,
+            nextWhenReady:
+              "Supply chronological PIT game vectors to runModelCResearchIfReady / evaluateCfbCoreResearch (Models A/B/C). Compare margin MAE, winner accuracy, totals MAE, and Brier calibration against champion baseline. Never auto-promote.",
+            championUnchanged: "CFB-FBIS-v2 A/A",
+            authority: "research_only",
+            canAuthorizeWager: false,
+            canInfluenceProduction: false,
+          },
+        },
+      });
+    }
     if (job === "college-health") {
       const quota = await queryQuota(env);
       const cfbdAcquisition = await cfbCfbdAcquisitionHealth(env);
@@ -847,6 +1116,37 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
           fetched.bundles["/ratings/core"] || [],
           { maxWeek: coreThroughWeekBound(targetWeek), seasonType: "regular", season: y }
         );
+        // Archive weekly PIT CORE keyed by actual CFBD throughWeek (research-only).
+        if (job === "cfb-current-refresh" && y === yearCfb) {
+          try {
+            const corePayload = buildCoreWeeklyArchivePayload({
+              season: y,
+              targetWeek,
+              coreRows: fetched.bundles["/ratings/core"] || [],
+              collectionTime: new Date().toISOString(),
+              ingestionBatchId: id,
+              jobRunId: id,
+            });
+            const archived = await persistCoreWeeklyArchive(env, corePayload);
+            report.push({
+              endpoint: "/ratings/core#weekly-pit-archive",
+              ok: archived.ok,
+              written: archived.written,
+              throughWeek: archived.throughWeek ?? null,
+              budgetedThroughWeek: archived.budgetedThroughWeek ?? null,
+              labelingLag: archived.labelingLag ?? null,
+              researchOnly: true,
+              reason: archived.reason || null,
+            });
+          } catch (archiveErr) {
+            report.push({
+              endpoint: "/ratings/core#weekly-pit-archive",
+              ok: false,
+              researchOnly: true,
+              reason: String(archiveErr?.message || archiveErr),
+            });
+          }
+        }
         let weeklyMeta = null;
         if (job === "cfb-current-refresh" && y === yearCfb) {
           const weekly = await fetchWeeklyCoreAdvanced(env, {
