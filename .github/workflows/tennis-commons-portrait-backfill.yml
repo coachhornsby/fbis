@@ -1,0 +1,64 @@
+name: Tennis Commons Portrait Backfill
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tennis-commons-portrait-backfill.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tennis-commons-portrait-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    name: VERIFY / LICENSED PORTRAIT IMPORT / READBACK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.sha }}
+      - name: Node 22
+        uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Verify live canonical image pipeline and initial coverage
+        run: |
+          node --input-type=module <<'NODE'
+          const origin="https://fbis-myz.pages.dev";
+          const [profile,coverage]=await Promise.all([
+            fetch(origin+"/api/tennis-player-profile?id=tennis%3Awta%3A320228",{signal:AbortSignal.timeout(25000)}),
+            fetch(origin+"/api/tennis-portrait-coverage",{signal:AbortSignal.timeout(25000)})
+          ]);
+          if(!profile.ok||!coverage.ok)throw Error("TENNIS_MEDIA_SERVICE_UNAVAILABLE");
+          const html=await profile.text(),data=await coverage.json();
+          if(!html.includes("class=\"portrait-frame\"")||!html.includes("object-fit:cover")||data.ok!==true)
+            throw Error("CANONICAL_PORTRAIT_PIPELINE_NOT_DEPLOYED");
+          console.log("BEFORE_PORTRAIT_COVERAGE",JSON.stringify(data.total));
+          NODE
+      - name: Import individually verified Commons portraits into permanent R2 library
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "Missing HARVEST_SECRET"; exit 1; }
+          node scripts/seed-tennis-commons.mjs
+      - name: Verify archived asset coverage after import
+        run: |
+          node --input-type=module <<'NODE'
+          const res=await fetch("https://fbis-myz.pages.dev/api/tennis-portrait-coverage",{signal:AbortSignal.timeout(25000)});
+          if(!res.ok)throw Error("MEDIA_COVERAGE_UNAVAILABLE");
+          const data=await res.json();
+          if(data.ok!==true)throw Error("MEDIA_COVERAGE_INVALID");
+          console.log("AFTER_PORTRAIT_COVERAGE",JSON.stringify(data.total));
+          // 28 approved archived images existed before this release. Fail
+          // rather than claim a successful expansion if zero new images passed.
+          if(Number(data.total?.archivedApproved||0)<29)
+            throw Error("NO_NEW_APPROVED_ARCHIVED_PORTRAITS");
+          NODE
