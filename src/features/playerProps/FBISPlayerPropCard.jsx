@@ -155,7 +155,7 @@ export function LastFiveStatChart({ row }) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort("player-prop-detail-timeout"), 18000);
     const request = row.canonicalPlayerId
-      ? fetchPropResearch(row, {historyOnly:true}).then(body => ({canonicalPlayerId:body.canonicalPlayerId,detail:{last5:body.history?.last5||[]}}))
+      ? fetchPropResearch(row, {historyOnly:true}).then(body => ({canonicalPlayerId:body.canonicalPlayerId,detail:{last5:body.history?.last5||[],historyReason:body.history?.reason||null}}))
       : fetch("/api/player-prop-detail?" + q.toString(), { credentials: "same-origin", signal: controller.signal }).then(async res => {
         const body=await res.json();if(!res.ok||body.ok===false)throw Error(body.error||`HTTP ${res.status}`);return body;
       });
@@ -170,6 +170,7 @@ export function LastFiveStatChart({ row }) {
           error: "",
           games,
           avg: null,
+          unavailableReason:body?.detail?.historyReason||null,
         });
       })
       .catch((err) => {
@@ -207,7 +208,7 @@ export function LastFiveStatChart({ row }) {
       {state.loading ? <div className="pp-analytics-loading">Loading last 5…</div> : null}
       {state.error && !state.loading ? <div className="pp-analytics-loading">Last-5 unavailable</div> : null}
       {!state.loading && !state.error && !games.length ? (
-        <div className="pp-analytics-unavailable">No verified last-5 logs for this player/stat yet.</div>
+        <div className="pp-analytics-unavailable">{state.unavailableReason==='NBA_RIGHTS_CLEARED_PLAYER_FEED_REQUIRED'?'NBA last five requires a rights-cleared player-stat feed.':'No verified last-5 logs for this player/stat yet.'}</div>
       ) : null}
       {games.length ? (
         <>
@@ -241,6 +242,41 @@ export function LastFiveStatChart({ row }) {
   );
 }
 
+function VenueComparison({row}) {
+ const comparison=row.venueComparison;
+ if(!comparison)return null;
+ const offers=comparison.venues||[];
+ const price=v=>v==null?'—':(Number(v)*100).toFixed(1)+'¢';
+ const reason={
+  OTHER_PROVIDER_UNAVAILABLE:'Other venue not captured for this exact contract',
+  SETTLEMENT_NOT_EQUIVALENT_OR_UNVERIFIED:'Settlement equivalence unverified; no price gap',
+  QUOTE_CLOCK_OR_EXECUTION_UNVERIFIED:'Quote clock or executable purchase ask unverified',
+  COMPARABLE_CURRENT_QUOTES:'Same terms and current asks; excludes fees'
+ }[comparison.priceComparisonStatus]||'Not comparable';
+ return <div className="pp-venue-comparison" aria-label="Kalshi and Polymarket price comparison">
+  <div className="pp-venue-topline"><b>EXCHANGE PRICES</b><span>{String(row.statSide||row.side||'').toUpperCase()}</span></div>
+  <div className="pp-venue-quotes">
+   {['Kalshi','Polymarket'].map(provider=>{
+    const offer=offers.find(x=>x.provider===provider);
+    return <div key={provider} className={'pp-venue-quote '+(offer?'has-contract':'no-contract')}>
+     <span className="pp-venue-name">{provider}</span>
+     <strong>{price(offer?.price)}</strong>
+     <small>{!offer?'No exact contract':offer.priceKind==='VERIFIED_PURCHASE_ASK'?'Verified ask':'Observed ask only'}</small>
+     {offer?.depth!=null?<small>Depth {Number(offer.depth).toLocaleString('en-US',{maximumFractionDigits:1})}</small>:null}
+    </div>;
+   })}
+  </div>
+  <div className="pp-venue-gap"><span>PRICE GAP</span>
+   <b>{comparison.priceDifferenceDollars==null?'—':price(Math.abs(comparison.priceDifferenceDollars))}</b>
+   {comparison.cheaperProvider?<span>Lower: {comparison.cheaperProvider}</span>:null}
+  </div>
+  <p className="pp-venue-caveat">{reason}. Research only, not a wager instruction.</p>
+ </div>;
+}
+
+/**
+ * Provider-neutral premium card with verified history and selected contract threshold.
+ */
 /**
  * Provider-neutral premium card with verified history and selected contract threshold.
  */
@@ -363,7 +399,7 @@ export default function FBISPlayerPropCard({
               <strong>{num(line)}</strong>
             </div>
             <div className="pp-metric-cell fbis-metric">
-              <span>FBIS</span>
+              <span>FBIS PROJECTION</span>
               <strong>{num(projection)}</strong>
             </div>
             <div className={"pp-metric-cell pp-metric-diff " + (delta == null ? "" : delta > 0 ? "is-over" : delta < 0 ? "is-under" : "is-push")}>
@@ -382,6 +418,7 @@ export default function FBISPlayerPropCard({
             </div>
           </div>
         </div>
+        <VenueComparison row={row} />
         <LastFiveStatChart row={row} />
         <div className="pp-contract-status"><b>{row.identityVerified && row.contractId ? "Contract mapped" : "Projection only"}</b><span>{row.marketAvailable ? "Verified purchase quote" : row.provider ? "Research · quote not executable" : "Market unavailable"}</span></div>
         <p className="pp-quote-status">{row.observedAsk != null ? `Observed ${String(row.side||"yes").toUpperCase()} ask $${Number(row.observedAsk).toFixed(2)} · depth ${row.observedDepth ?? "unknown"}` : row.purchaseAsk != null ? `Buy ask $${Number(row.purchaseAsk).toFixed(2)}` : "Purchase ask unavailable"}</p>
