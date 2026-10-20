@@ -14,6 +14,7 @@ import TodayView, { GameDetails } from "./TodayView.jsx";
 import HeritageImport from "./HeritageImport.jsx";
 import MyBetsView from "./MyBetsView.jsx";
 import AccountsView from "./features/accounts/AccountsView.jsx";
+import KalshiMarketResearch from "./features/market/KalshiMarketResearch.jsx";
 import { todayCT } from "../functions/lib/slateEngine.js";
 import { openingBoardDate } from "./lib/boardOpeningDate.js";
 import { buildPropConvictions } from "../functions/lib/propConviction.js";
@@ -633,6 +634,7 @@ export default function App() {
           <AccountsView />
         ) : route === "player-props" ? (
           <div className="player-props-page">
+            <KalshiMarketResearch variant="props" />
             <PrizePicksMarketPanel
               sportFilter={playerPropsSport}
               onSportFilterChange={setPlayerPropsSport}
@@ -724,6 +726,7 @@ export default function App() {
         ) : (
 
           <div className="main-content">
+            <KalshiMarketResearch variant="market" initialSport={sport} />
             {error && (
               <div className="panel">
                 <div className="error">{error}</div>
