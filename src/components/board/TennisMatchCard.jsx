@@ -92,6 +92,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <span className="tmc-quick-status">{display.valid?(game.projectionMaturity||"RESEARCH"):"NO VERIFIED PROJECTION"}</span>
     </div>
     {[away,home].some(p=>p.portraitSourceUrl&&p.portraitCredit)?<div className="tmc-photo-credits" aria-label="Player portrait credits">{[away,home].filter(p=>p.portraitSourceUrl&&p.portraitCredit).map(p=><span key={p.canonicalId||p.name}><a href={p.portraitSourceUrl} target="_blank" rel="noopener noreferrer" title={p.portraitCredit}>Photo: {p.fullName||p.name}</a>{p.portraitLicenseUrl?<a href={p.portraitLicenseUrl} target="_blank" rel="noopener noreferrer"> · License</a>:null}</span>)}</div>:null}
+    {t.polymarketGlobalOffers?.length?<div className="tmc-fixture-note"><strong>POLYMARKET.COM · {t.polymarketGlobalOffers.length} SOURCE-MATCHED RESEARCH MARKET{t.polymarketGlobalOffers.length===1?"":"S"}</strong> · Expand Matchup Intelligence for prices, CLOB depth, and schedule verification.</div>:null}
     <details className="tmc-expand">
       <summary className="tmc-expand-toggle"><span className="tmc-expand-title">MATCHUP INTELLIGENCE</span><span className="tmc-expand-hint">{researchOnly?"Research fixture · Unverified event details · Form · Surfaces":"FBIS projection · Markets · Form · H2H · Surfaces"}</span><span className="tmc-expand-chevron" aria-hidden="true">⌄</span></summary>
       <div className="tmc-expanded-body">
