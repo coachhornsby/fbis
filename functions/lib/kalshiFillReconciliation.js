@@ -3,7 +3,8 @@
  * A provider fill is not automatically one wager: orders can produce multiple
  * partial fills; settlements and deposits require separate accounting.
  */
-export function auditKalshiFillReconciliation(fills=[],trackedBets=[]) {
+export function auditKalshiFillReconciliation(fills=[],trackedBets=null) {
+ const journalCompared=Array.isArray(trackedBets);
  const unique=new Map(),invalid=[];
  for(const f of Array.isArray(fills)?fills:[]){
   const id=typeof f?.id==="string"?f.id.trim():"";
@@ -21,8 +22,10 @@ export function auditKalshiFillReconciliation(fills=[],trackedBets=[]) {
  return {
   source:"KALSHI_PRIVATE_FILLS_ONLY",readOnly:true,
   recentUniqueFills:unique.size,invalidFillRows:invalid.length,
-  reconciledByExactFillId:recognized,
-  notMatchedToFbisBets:unique.size-recognized,
+  reconciledByExactFillId:journalCompared?recognized:null,
+  notMatchedToFbisBets:journalCompared?unique.size-recognized:null,
+  journalCompared,
+  journalComparisonStatus:journalCompared?"EXACT_FILL_ID_COMPARISON_ONLY":"JOURNAL_NOT_LOADED",
   matchRule:"EXACT_EXCHANGE_FILL_ID_AND_VENUE_ONLY",
   fillHistoryComplete:false,
   // No bankroll/performance math from partial fills, unmatched trades, or cash changes.
