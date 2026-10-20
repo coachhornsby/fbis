@@ -30,7 +30,7 @@ export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}
   if(typeof env?.FBIS_KALSHI_RELAY_TOKEN!=="string"
     ||env.FBIS_KALSHI_RELAY_TOKEN.length<40)
     return {ok:false,code:"SIGNED_RELAY_SECRET_MISSING"};
-  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs"&&scope!=="combo-tape"&&scope!=="nhl-official-prop-results"&&scope!=="prop-reconciliation")
+  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs"&&scope!=="combo-tape"&&scope!=="nhl-official-prop-results"&&scope!=="prop-reconciliation"&&scope!=="nhl-official-scope-discovery")
     return {ok:false,code:"SIGNED_RELAY_SCOPE_NOT_ALLOWED"};
   if(scope==="markets"&&!SPORTS.includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
@@ -163,6 +163,15 @@ export async function collectReviewedPropGradesOnce(env,{now=new Date(),fetchImp
  if(ms(receipt?.at)>now.getTime()-60*60*1000)return {ok:true,status:"NOT_DUE"};
  return relaySignedPages(env,{scope:"prop-reconciliation",fetchImpl});
 }
+export async function collectNhlSourceDiscoveryOnce(env,{now=new Date(),fetchImpl=fetch}={}){
+ if(!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
+ let status;
+ try{const r=await env.ARCHIVE.get("player-props/official/v1/nhl-scopes.json");status=r?await r.json():null;}
+ catch{return {ok:false,code:"NHL_SOURCE_MANIFEST_READ_FAILED"};}
+ if(status?.generatedBy==="FBIS_NHL_OFFICIAL_SOURCE_VERIFIER"&&
+    ms(status.verifiedAt)>now.getTime()-60*60*1000)return {ok:true,status:"NOT_DUE"};
+ return relaySignedPages(env,{scope:"nhl-official-scope-discovery",fetchImpl});
+}
 export default {
   async scheduled(event,env,ctx){
     // Spread auxiliary provider reads across scheduled windows. Concurrent
@@ -175,6 +184,7 @@ export default {
       collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),
       collectKalshiExchangeStatusOnce(env),collectKalshiSeriesCatalogOnce(env),
       collectNhlOfficialResultsOnce(env,{now}),collectReviewedPropGradesOnce(env,{now}),
+      collectNhlSourceDiscoveryOnce(env,{now}),
       aux==="qualification-evidence"?collectKalshiEvidenceOnce(env):
         relaySignedPages(env,{scope:aux}),
     ]));

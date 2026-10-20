@@ -1,3 +1,4 @@
+import {discoverNhlSourceVerifiedScopes} from "../lib/nhlOfficialScopeDiscovery.js";
 import {runApprovedPropReconciliation} from "../lib/propReconciliationSchedule.js";
 import {captureNhlOfficialPlayerResults} from "../lib/nhlOfficialPlayerResults.js";
 import {captureKalshiComboTape} from "../lib/kalshiComboTape.js";
@@ -39,6 +40,10 @@ export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypt
   if(scope==="prop-reconciliation"){
     try {const r=await runApprovedPropReconciliation(env,{webCrypto});return respond(r,r.ok?200:503);}
     catch {return respond({ok:false,code:"PROP_RECONCILIATION_UNAVAILABLE"},503);}
+  }
+  if(scope==="nhl-official-scope-discovery"){
+    try {const r=await discoverNhlSourceVerifiedScopes(env,{fetchImpl});return respond(r,r.ok?200:503);}
+    catch {return respond({ok:false,code:"NHL_SCOPE_DISCOVERY_UNAVAILABLE"},503);}
   }
   if(scope==="nhl-official-prop-results"){
     try {const r=await captureNhlOfficialPlayerResults(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503);}
