@@ -968,14 +968,14 @@
 }
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over {
   border: 2px solid #39ff14 !important;
-  background: linear-gradient(105deg,rgba(198,255,210,.62),rgba(72,150,95,.48)) !important;
-  box-shadow: 0 0 18px rgba(57,255,20,.45), inset 0 0 0 1px rgba(57,255,20,.25) !important;
+  background: linear-gradient(105deg,#c8ffd4 0%,#6fbf84 100%) !important;
+  box-shadow: 0 0 18px rgba(57,255,20,.55), inset 0 0 0 1px rgba(57,255,20,.35) !important;
   color: #ffffff !important;
 }
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under {
   border: 2px solid #ff1a1a !important;
-  background: linear-gradient(105deg,rgba(255,186,186,.62),rgba(168,52,62,.48)) !important;
-  box-shadow: 0 0 18px rgba(255,26,26,.45), inset 0 0 0 1px rgba(255,60,60,.25) !important;
+  background: linear-gradient(105deg,#ffc8c8 0%,#d06670 100%) !important;
+  box-shadow: 0 0 18px rgba(255,26,26,.55), inset 0 0 0 1px rgba(255,60,60,.35) !important;
   color: #ffffff !important;
 }
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > span,

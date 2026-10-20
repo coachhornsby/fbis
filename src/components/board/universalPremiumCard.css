@@ -389,14 +389,14 @@
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over {
   border-color:#39ff14;
-  background:linear-gradient(105deg,rgba(198,255,210,.62),rgba(72,150,95,.48));
-  box-shadow:0 0 18px rgba(57,255,20,.45),inset 0 0 0 1px rgba(57,255,20,.25);
+  background:linear-gradient(105deg,#c8ffd4 0%,#6fbf84 100%);
+  box-shadow:0 0 18px rgba(57,255,20,.55),inset 0 0 0 1px rgba(57,255,20,.35);
   color:#ffffff;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under {
   border-color:#ff1a1a;
-  background:linear-gradient(105deg,rgba(255,186,186,.62),rgba(168,52,62,.48));
-  box-shadow:0 0 18px rgba(255,26,26,.45),inset 0 0 0 1px rgba(255,60,60,.25);
+  background:linear-gradient(105deg,#ffc8c8 0%,#d06670 100%);
+  box-shadow:0 0 18px rgba(255,26,26,.55),inset 0 0 0 1px rgba(255,60,60,.35);
   color:#ffffff;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-heading,
