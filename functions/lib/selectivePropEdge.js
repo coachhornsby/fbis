@@ -280,10 +280,12 @@ function evidenceState(row = {}) {
   };
 }
 
-export function selectivePropStars(row = {}) {
+export function selectivePropRating(row = {}) {
+  const limits=[];
+  const cap=(value,code,text)=>{limits.push({maxStars:value,code,text});stars=Math.min(stars,value);};
   const projection = finite(row.fbisProjection ?? row.projection);
   const line = finite(row.line ?? row.marketLine);
-  if (projection == null || line == null) return null;
+  if (projection == null || line == null) return {stars:null,limits:[],summary:"Projection or source line is missing."};
 
   const sigma = finite(row.fbisSigma ?? row.sigma);
   const qRaw = finite(row.dataQuality ?? row.data_quality);
@@ -312,33 +314,34 @@ export function selectivePropStars(row = {}) {
         : adjusted >= 0.30 ? 2
           : 1;
 
+  const baseStars=stars;
   const evidence = evidenceState(row);
-  if (quality < 0.55) stars = Math.min(stars, 2);
-  if (role != null && role < 0.60) stars = Math.min(stars, 2);
-  if (uncertainty === "HIGH") stars = Math.min(stars, 2);
-  if (["BLOCKED","HOLD"].includes(evidence.gate) || evidence.eligible === false) stars = Math.min(stars, 1);
+  if (quality < 0.55) cap(2,"data_quality","Player data quality is below the confidence threshold.");
+  if (role != null && role < 0.60) cap(2,"role_uncertain","The player role is uncertain.");
+  if (uncertainty === "HIGH") cap(2,"high_uncertainty","Projection uncertainty is high.");
+  if (["BLOCKED","HOLD"].includes(evidence.gate) || evidence.eligible === false) cap(1,"model_hold","The independent player model has a hold or availability restriction.");
 
   // High-confidence ratings require an empirical dispersion estimate when the
   // model family supports one. Raw point gaps alone are not conviction.
   if (RELIABLE_SIGMA_SPORTS.has(evidence.sport) && !evidence.sigmaReady) {
-    stars = Math.min(stars, 2);
+    cap(2,"dispersion_missing","An empirical player-variation estimate is missing.");
   }
 
   // NFL v3 is fail-closed around role + recent-form + matchup evidence,
   // then capped by market/role/direction behavior observed against historical
   // PrizePicks lines.
   if (evidence.sport === "nfl") {
-    if (role == null) stars = Math.min(stars, 2);
-    if (!feature.targetRole) stars = Math.min(stars, 1);
-    if (!feature.recent5) stars = Math.min(stars, 2);
-    if (!feature.positionDefense) stars = Math.min(stars, 3);
-    if (!feature.snapShare) stars = Math.min(stars, 3);
-    if (stars >= 5 && (role == null || role < 0.80 || !feature.nextGen || !feature.opponentMatchup)) stars = 4;
+    if (role == null) cap(2,"role_missing","Verified player-role confidence is missing.");
+    if (!feature.targetRole) cap(1,"target_role_missing","The player is outside the validated target roles.");
+    if (!feature.recent5) cap(2,"recent_form_missing","Recent player-form evidence is missing.");
+    if (!feature.positionDefense) cap(3,"position_defense_missing","Position-specific opponent evidence is missing.");
+    if (!feature.snapShare) cap(3,"snap_share_missing","Player snap-share evidence is missing.");
+    if (stars >= 5 && (role == null || role < 0.80 || !feature.nextGen || !feature.opponentMatchup)) cap(4,"elite_evidence_missing","Five stars require stronger role, tracking and matchup evidence.");
 
     const z = sigma != null && sigma > 0 ? delta / sigma : null;
     const calibration = nflCalibrationState(row, z);
-    if (!calibration?.allowed) stars = Math.min(stars, calibration?.maxStars ?? 2);
-    else stars = Math.min(stars, calibration.maxStars);
+    if (!calibration?.allowed) cap(calibration?.maxStars ?? 2,calibration?.reason||"role_market_unvalidated",calibration?.reason==="calibration_role_floor"?"Role confidence is below the historical threshold for this NFL stat and direction.":calibration?.reason==="calibration_edge_floor"?"The projection gap is below the historical threshold for this NFL role and stat.":"This NFL role, stat and direction have no validated historical segment.");
+    else cap(calibration.maxStars,"historical_segment_limit","Historical results limit confidence for this NFL role, stat and direction.");
 
   }
 
@@ -347,11 +350,14 @@ export function selectivePropStars(row = {}) {
   // confidence from line distance alone in ANY sport.
   const hitProbability = estimatedPropHitProbability(row);
   const tierEconomics = prizePicksTierEconomics(row, hitProbability);
-  stars = Math.min(stars, tierEconomics.maxStars);
-  stars = applyPropCalibrationCeiling(row, stars);
+  if(tierEconomics.maxStars<5) cap(tierEconomics.maxStars,tierEconomics.status,tierEconomics.payoutPriced?"Alternate-line payout evidence limits confidence.":"Goblin/Demon payout break-even is missing; confidence is capped at two stars.");
+  if(!propCalibrationValidated(row)) cap(3,"probability_calibration_unvalidated","Market-specific probability calibration has not earned four or five stars.");
 
-  return stars;
+  const binding=limits.find(limit=>limit.maxStars===stars && limit.maxStars<=baseStars);
+  return {stars,baseStars,standardizedEdge:sigma>0?delta/sigma:null,limits,summary:binding?.text||(baseStars<=2?"The projected edge is small relative to normal player variation.":"The projection gap supports this rating before evidence limits."),calibrationValidated:propCalibrationValidated(row)};
 }
+
+export function selectivePropStars(row = {}) { return selectivePropRating(row).stars; }
 
 export function rankSelectiveProps(rows = [], opts = {}) {
   const maxRows = clamp(Number(opts.maxRows ?? 20), 1, 50);

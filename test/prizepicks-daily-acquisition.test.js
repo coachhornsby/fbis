@@ -161,3 +161,44 @@ test("free NFL board stays separate from paid acquisition and main model pipelin
   assert.doesNotMatch(normalize,/\bfetch\s*\(|\bPOST\b|\bINSERT\b|\.prepare\s*\(/);
   assert.doesNotMatch(board,/api\/prizepicks-props|api\/apify-acquire/);
 });
+
+test('shared PrizePicks scope covers every FBIS sport without an NFL team filter',async()=>{
+ const {PRIZEPICKS_FBIS_SPORTS,sharedPrizePicksInput}=await import('../functions/lib/propMarketPolicy.js');
+ const {SPORTS}=await import('../functions/lib/slateEngineCore.js');
+ assert.deepEqual([...PRIZEPICKS_FBIS_SPORTS].sort(),Object.keys(SPORTS).sort());
+ const input=sharedPrizePicksInput(['event-1','event-1']);
+ assert.equal(input.leagues.length,10);assert.equal(input.extraLeagues,'NPB');
+ for(const league of ['NFL','CFB','NBA','WNBA','College Basketball','MLB','NHL','Tennis','Soccer','KBO'])assert.ok(input.leagues.includes(league),league);
+ assert.equal(input.teams,undefined);assert.ok(!input.leagues.includes('All'));
+ assert.ok(input.statTypes.includes('Pass Completions'));assert.ok(input.statTypes.includes('Pitcher Strikeouts'));
+ assert.deepEqual(input.projectedEventIds,['event-1']);assert.deepEqual(input.oddsTiers,['standard','goblin','demon']);
+});
+test('daily consumption loads each sport model and isolates a failed model',async()=>{
+ const {loadPrizePicksCandidates}=await import('../scripts/restore-zen-prizepicks.mjs');
+ const called=[];const out=await loadPrizePicksCandidates(async(sport,date)=>{called.push(sport);assert.equal(date,'2026-10-20');if(sport==='nba')throw Error('model unavailable');return {games:[{id:sport+'1',start:'2026-10-21T00:00:00Z',playerProjectionRows:[{playerName:'Player',market:'points',fbisProjection:3},{playerName:'Missing',fbisProjection:null}]}]};},'2026-10-20');
+ assert.equal(called.length,11);assert.equal(new Set(called).size,11);assert.equal(out.candidates.length,10);assert.equal(out.failures[0].sport,'nba');assert.ok(out.candidates.some(c=>c.sport==='nhl'&&c.eventId==='nhl1'));assert.ok(out.candidates.every(c=>c.start));
+});
+test('all-sports ingestion retains Asian baseball identity and rejects wrong-event projection matches',async()=>{
+ const {sportOf,candidateMatchesProp}=await import('../functions/api/prizepicks-props.js');
+ assert.equal(sportOf({league:'KBO'}),'kbo');assert.equal(sportOf({league:'Nippon Professional Baseball'}),'npb');assert.equal(sportOf({league:'College Basketball'}),'cbb');assert.equal(sportOf({league:'WNBA'}),'wnba');
+ const candidate={start:'2026-10-21T00:00:00Z'};
+ assert.equal(candidateMatchesProp(candidate,{start_time:'2026-10-20T20:00:00-04:00'}),true);
+ assert.equal(candidateMatchesProp(candidate,{start_time:'2026-10-28T00:00:00Z'}),false);
+ assert.equal(candidateMatchesProp(candidate,{}),false);
+});
+
+test('immutable mixed-sport consumption preserves model holds and leaves later games unprojected',async()=>{
+ const {DatabaseSync}=await import('node:sqlite');
+ const {onRequestPost}=await import('../functions/api/prizepicks-props.js');
+ const db=new DatabaseSync(':memory:');
+ const columns=['id','run_id','projection_id','fbis_event_id','sport','league','player_id','player_name','player_headshot_url','team','opponent','game_id','start_time','stat_type','canonical_market','line','odds_tier','duration','fbis_projection','fbis_sigma','delta_fbis_minus_line','candidate_side','observed_at','collected_at','raw_json','model_source','model_version','role_confidence','snap_share','prop_gate','eligible_for_card','feature_evidence_json'];
+ db.exec('CREATE TABLE prizepicks_prop_lines('+columns.join(',')+')');
+ const start=new Date(Date.now()+3600000).toISOString();
+ const rows=[{league:'MLB',player_name:'Pitcher',stat:'Pitcher Strikeouts',line:4.5,start_time:start},{league:'NHL',player_name:'Skater',stat:'Shots On Goal',line:2.5,start_time:new Date(Date.now()+8*86400000).toISOString()}];
+ const source={id:'owned',raw_key:'raw',captured_at:new Date().toISOString()};
+ const DB={prepare(sql){const statement={args:[],bind(...args){this.args=args;return this},async first(){return sql.includes('external_acquisitions')?source:null},async all(){return {results:[]}},async run(){return {meta:{changes:1}}},sql};return statement},async batch(statements){return statements.map(s=>({meta:{changes:Number(db.prepare(s.sql).run(...s.args).changes)}}))}};
+ const response=await onRequestPost({env:{DB,HARVEST_SECRET:'test',ARCHIVE:{get:async()=>({json:async()=>({rows})})}},request:new Request('https://test/api/prizepicks-props',{method:'POST',headers:{'x-harvest-secret':'test','content-type':'application/json'},body:JSON.stringify({runId:'shared',acquisitionId:'owned',batchIndex:0,rows,candidates:[{sport:'mlb',playerName:'Pitcher',market:'strikeouts',start,fbisProjection:6,fbisSigma:2,propGate:'HOLD',eligibleForCard:false,featureEvidence:{starterConfirmed:false}},{sport:'nhl',playerName:'Skater',market:'shots',start,fbisProjection:4}]})})});
+ assert.equal(response.status,200);const result=await response.json();assert.equal(result.written,2);assert.equal(result.matched,1);
+ const pitcher=db.prepare("SELECT * FROM prizepicks_prop_lines WHERE sport='mlb'").get();assert.equal(pitcher.fbis_projection,6);assert.equal(pitcher.eligible_for_card,0);assert.equal(pitcher.prop_gate,'HOLD');assert.deepEqual(JSON.parse(pitcher.feature_evidence_json),{starterConfirmed:false});
+ assert.equal(db.prepare("SELECT fbis_projection FROM prizepicks_prop_lines WHERE sport='nhl'").get().fbis_projection,null);db.close();
+});

@@ -1,11 +1,11 @@
-name: Zen PrizePicks modeled NFL props
+name: Zen PrizePicks all FBIS sports
 on:
   schedule:
-    - cron: '55 11 * * *'
+    - cron: '55 11,19 * * *'
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [scripts/restore-zen-prizepicks.mjs, functions/api/prizepicks-reauthorize.js, .github/workflows/prizepicks-targeted-props.yml]
+    paths: [scripts/restore-zen-prizepicks.mjs, functions/api/apify-acquire.js, functions/lib/propMarketPolicy.js, functions/api/prizepicks-reauthorize.js, .github/workflows/prizepicks-targeted-props.yml]
 permissions:
   contents: read
 concurrency:
