@@ -266,14 +266,14 @@ function VenueComparison({row}) {
     return <div key={side} className="pp-venue-matrix-row" role="row" data-stat-side={side}>
      <b className={'pp-side-label pp-side-'+side}>{side==='over'?'↑ OVER':'↓ UNDER'}</b>
      <div><strong>{price(k?.price)}</strong><small>{k?.priceKind==='VERIFIED_PURCHASE_ASK'?'Live ask':k?'Observed':'Unavailable'}</small></div>
-     <div><strong>{price(p?.price)}</strong><small>{p?.priceKind==='VERIFIED_PURCHASE_ASK'?'Live ask':p?'Observed':'Unavailable'}</small></div>
-     <div><strong>{price(item?.priceDifferenceDollars==null?null:Math.abs(item.priceDifferenceDollars))}</strong>
-      <small>{item?.cheaperProvider?'Lower '+item.cheaperProvider:item?status[item.priceComparisonStatus]||'Unverified':'No contract'}</small>
+     <div><strong>{price(p?.price)}</strong><small>{p?.priceKind==='VERIFIED_PURCHASE_ASK'?'Verified ask':p?.priceKind==='DISPLAY_REFERENCE_NOT_ASK'?'Global ref · not ask':p?'Observed':'Unavailable'}</small></div>
+     <div><strong>{price(item?.priceDifferenceDollars!=null?Math.abs(item.priceDifferenceDollars):item?.referenceDifferenceDollars!=null?Math.abs(item.referenceDifferenceDollars):null)}</strong>
+      <small>{item?.priceDifferenceDollars!=null?'Verified price gap':item?.referenceDifferenceDollars!=null?'Reference Δ · not comparable':item?.cheaperProvider?'Lower '+item.cheaperProvider:item?status[item.priceComparisonStatus]||'Unverified':'No contract'}</small>
      </div>
     </div>;
    })}
   </div>
-  <p className="pp-venue-caveat">Observed prices are research snapshots, not guaranteed executable. Differences require verified contract equivalence, quote times, and asks. Fees not included.</p>
+  <p className="pp-venue-caveat">Reference Δ is a display-price difference, NOT a betting edge. Polymarket Global and Kalshi can settle inactive players differently; executable comparisons require equivalent rules, current order books, and fees.</p>
  </div>;
 }
 
