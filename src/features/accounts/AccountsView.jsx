@@ -130,8 +130,8 @@ export default function AccountsView() {
                   </tbody></table></div>
                 </article>
                 <article className="accounts-panel"><div className="accounts-panel-head"><h3>Operations</h3><span>Kalshi Pro inspired</span></div>
-                  <dl className="accounts-facts"><div><dt>Reported realized P&amp;L (unsettled positions)</dt><dd>{money(reportedRealized)}</dd></div><div><dt>Resting orders</dt><dd>{orders.length}</dd></div><div><dt>Recent fills in snapshot</dt><dd>{fills.length}</dd></div><div><dt>Balance last changed</dt><dd>{stamp(snapshot.balanceUpdatedAt)}</dd></div><div><dt>Account stream</dt><dd>REST reconciliation</dd></div></dl>
-                  <p className="accounts-fine">Reported P&amp;L is not your lifetime realized profit. Fee-adjusted account returns require settled history and cash-flow reconciliation.</p>
+                  <dl className="accounts-facts"><div><dt>Reported realized P&amp;L (unsettled positions)</dt><dd>{money(reportedRealized)}</dd></div><div><dt>Resting orders</dt><dd>{orders.length}</dd></div><div><dt>Recent fills in snapshot</dt><dd>{fills.length}</dd></div><div><dt>Unique exchange fills (recent)</dt><dd>{snapshot.fillReconciliation?.recentUniqueFills ?? "—"}</dd></div><div><dt>Fills unmatched to FBIS journal</dt><dd>{snapshot.fillReconciliation?.notMatchedToFbisBets ?? "—"}</dd></div><div><dt>Balance last changed</dt><dd>{stamp(snapshot.balanceUpdatedAt)}</dd></div><div><dt>Account stream</dt><dd>REST reconciliation</dd></div></dl>
+                  <p className="accounts-fine">Reported P&amp;L is not lifetime profit. Unmatched exchange fills are reconciliation candidates, not automatically FBIS bets. Account returns require full settlement, fees and cash-flow reconciliation.</p>
                 </article>
               </div>
               <article className="accounts-panel accounts-fills"><div className="accounts-panel-head"><h3>Recent Kalshi fills</h3><span>{snapshot.complete?.recentFills ? "Available live-history pages" : "History truncated — not lifetime"}</span></div>
