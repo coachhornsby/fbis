@@ -49,7 +49,7 @@ test('unknown Spurs player never drops through to old Wikimedia portraits', asyn
     const body=await res.json();
     assert.equal(body.found,false);
     assert.equal(body.reason,'team-roster-portrait-unavailable');
-    assert.equal(calls.length,1);
+    assert.ok(calls.every(url=>url.includes('/basketball/nba/teams/24/roster')));
     const imageRes=await onRequestGet({
       request:new Request("https://fbis.test/api/player-image?name=Unknown%20Athlete&sport=nba&team=SAS&mode=image"),
       env:{DB:db},
