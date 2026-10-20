@@ -1,4 +1,5 @@
 import { getKalshiShadowMarkets } from "../../functions/lib/kalshiMarketShadow.js";
+import { fetchKalshiExchangeStatus } from "../../functions/lib/kalshiExchangeStatus.js";
 
 /**
  * Public Kalshi collector. Single scheduled Worker; R2 public observations only.
@@ -23,6 +24,36 @@ async function writeJson(bucket,key,body){
 export function selectedSport(time){
   return SPORTS[Math.floor(time.getTime()/SLOT_MS)%SPORTS.length];
 }
+/**
+ * One Kalshi status read at most hourly, independently budgeted from the
+ * sports-series polling loop. This stores exactly one bounded R2 JSON object.
+ * A status-API 429 backs off; no Cloudflare visitor requests hit Kalshi.
+ */
+export async function collectKalshiExchangeStatusOnce(env,{now=new Date(),fetchImpl=fetch}={}){
+  if(!env?.ARCHIVE?.put||!env?.ARCHIVE?.get)
+    return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
+  const previous=await readJson(env.ARCHIVE,"exchange-status.json");
+  const nextAllowed=parsedTime(previous?.nextAllowedAt);
+  if(nextAllowed>now.getTime()){
+    return {ok:false,code:"KALSHI_STATUS_POLL_NOT_DUE",nextAllowedAt:previous.nextAllowedAt};
+  }
+  const result=await fetchKalshiExchangeStatus({fetchImpl,now});
+  const retry=Math.max(3600,Number(result.retryAfterSeconds)||0);
+  const nextAllowedAt=new Date(now.getTime()+
+    (result.rateLimited?Math.min(retry,14400):3600)*1000).toISOString();
+  const receipt={
+    source:"Kalshi",endpoint:"/exchange/status",observedAt:now.toISOString(),
+    state:result.ok?"VERIFIED":result.rateLimited?"RATE_LIMITED":"UNAVAILABLE",
+    code:result.ok?null:result.code,
+    httpStatus:result.httpStatus||null,
+    exchange:result.ok?result.status:null,
+    nextAllowedAt,
+    canAuthorizeWager:false,canQualify:false,
+  };
+  await writeJson(env.ARCHIVE,"exchange-status.json",receipt);
+  return {...receipt,ok:result.ok};
+}
+
 export async function collectKalshiPublicOnce(env,{now=new Date(),fetchImpl=fetch}={}){
   if(!env?.ARCHIVE?.put||!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
   const last=await readJson(env.ARCHIVE,"collector-status.json");
@@ -60,7 +91,7 @@ export async function collectKalshiPublicOnce(env,{now=new Date(),fetchImpl=fetc
 }
 export default {
   async scheduled(_event,env,ctx){
-    ctx.waitUntil(collectKalshiPublicOnce(env));
+    ctx.waitUntil(Promise.all([collectKalshiPublicOnce(env),collectKalshiExchangeStatusOnce(env)]));
   },
   async fetch(request,env){
     const url=new URL(request.url);

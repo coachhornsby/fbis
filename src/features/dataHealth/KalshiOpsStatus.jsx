@@ -23,6 +23,8 @@ export default function KalshiOpsStatus(){
   }
   useEffect(()=>{const c=new AbortController();read(c.signal);return()=>c.abort();},[]);
   const records=result?.sports||[];
+  const exchange=result?.exchangeStatus;
+  const statusFlag=v=>v===true?"Last reported active":v===false?"Last reported inactive":"Not verified";
   return (
     <section className="kalshi-ops panel" aria-label="Kalshi integration readiness">
       <header className="kalshi-ops-head">
@@ -41,6 +43,17 @@ export default function KalshiOpsStatus(){
             <span>Scheduled collector</span>
             <strong>{statusText(result.collector?.state)}</strong>
             <small>Last attempt: {when(result.collector?.lastAttemptAt)}</small>
+          </article>
+          <article>
+            <span>Kalshi exchange · hourly snapshot</span>
+            <strong>{statusText(exchange?.state)}</strong>
+            <small>Trading: {statusFlag(exchange?.tradingActive)}</small>
+            <small>Exchange: {statusFlag(exchange?.exchangeActive)}</small>
+            <small>Transfers: {statusFlag(exchange?.transfersActive)}</small>
+            <small>Last checked: {when(exchange?.lastObservedAt)}</small>
+            {exchange?.estimatedResumeAt&&<small>Estimated resume (not guaranteed): {when(exchange.estimatedResumeAt)}</small>}
+            {exchange?.exchangeIndexCount!=null&&<small>Provider index statuses: {exchange.exchangeIndexCount}</small>}
+            <small>Exchange status does not verify sports API access or authorize trades.</small>
           </article>
           {records.map(s=><article key={s.sport}>
             <span>{s.sport.toUpperCase()} · {s.series}</span>
