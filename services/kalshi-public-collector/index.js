@@ -192,6 +192,17 @@ export function selectedAuxScope(now){
   ["multilegs","combo-tape","qualification-evidence"][Math.floor(slot/4)%3]:
   "player-props";
 }
+/** Reconciliation is dormant unless a reviewed immutable-ID queue exists in R2. */
+export async function collectPropReconciliationOnce(env,{now=new Date(),fetchImpl=fetch}={}){
+ if(!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
+ let queue;
+ try {const o=await env.ARCHIVE.get("player-props/evidence/v1/reconciliation-queue.json");queue=o?await o.json():null;}
+ catch{return {ok:false,code:"RECONCILIATION_QUEUE_READ_FAILED"};}
+ if(queue?.version!==1||queue.approved!==true||!Array.isArray(queue.jobs)||!queue.jobs.length)
+  return {ok:true,status:"NOT_CONFIGURED"};
+ if(Math.floor(now.getTime()/SLOT_MS)%16!==1)return {ok:true,status:"NOT_DUE"};
+ return relaySignedPages(env,{scope:"prop-grade-reconcile",fetchImpl});
+}
 export default {
   async scheduled(event,env,ctx){
     // Spread auxiliary provider reads across scheduled windows. Concurrent
@@ -203,6 +214,7 @@ export default {
       collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),
       collectKalshiExchangeStatusOnce(env),collectKalshiSeriesCatalogOnce(env),
       collectNhlOfficialResultsOnce(env,{now}),
+      collectPropReconciliationOnce(env,{now}),
       Math.floor(now.getTime()/SLOT_MS)%16===0 ? relaySignedPages(env,{scope:"prop-model-freeze"}) : Promise.resolve({ok:true,status:"NOT_DUE"}),collectReviewedPropGradesOnce(env,{now}),
       collectNhlSourceDiscoveryOnce(env,{now}),collectNhlProspectiveOnce(env,{now}),
       aux==="qualification-evidence"?collectKalshiEvidenceOnce(env):
