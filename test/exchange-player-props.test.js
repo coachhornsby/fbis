@@ -8,7 +8,12 @@ const player={playerName:'Drake Maye',market:'passing_yards',fbisProjection:280,
 const series={ticker:'KXNFLPASSYDS',title:'Pro Football Passing Yards',fee_type:'quadratic',fee_multiplier:1};
 const market={ticker:'contract',event_ticker:'KXNFLPASSYDS-26OCT22NECHI',market_type:'binary',status:'active',strike_type:'greater',floor_strike:249.5,title:'Drake Maye: 250+ passing yards',yes_sub_title:'Drake Maye: 250+',yes_ask_dollars:'0.52',yes_ask_size_fp:'20'};
 test('Kalshi binary props use the actual strike, current ask, depth and series fee',()=>{
- const now=new Date().toISOString();const rows=binaryKalshiRows(market,series,[player],game,'2026-10-22',now);assert.equal(rows.length,1);const row=rows[0];assert.equal(row.line,249.5);assert.equal(row.venue,'Kalshi');assert.equal(row.contractSide,'YES');assert.equal(row.contractEconomics.priceReady,true);assert.ok(row.contractEconomics.feePerContract>0);assert.equal(row.contractEconomics.profitQualified,false);assert.equal(row.canAuthorizeWager,false);assert.ok(!row.ratingExplanation.limits.some(l=>/payout|historical_segment/.test(l.code)));
+ const now=new Date().toISOString();const rows=binaryKalshiRows(market,series,[player],game,'2026-10-22',now);assert.equal(rows.length,1);const row=rows[0];assert.equal(row.line,249.5);assert.equal(row.venue,'Kalshi');assert.equal(row.contractSide,'YES');assert.equal(row.contractEconomics.priceReady,true);assert.equal(row.contractEconomics.feePerContract,0.02);assert.equal(row.contractEconomics.profitQualified,false);assert.equal(row.canAuthorizeWager,false);assert.ok(!row.ratingExplanation.limits.some(l=>/payout|historical_segment/.test(l.code)));
+});
+test('Kalshi taker-fee math also covers maker-fee-enabled quadratic series',()=>{
+ const rows=binaryKalshiRows(market,{...series,fee_type:'quadratic_with_maker_fees'},[player],game,'2026-10-22',new Date().toISOString());
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].contractEconomics.feePerContract,0.02);
 });
 test('scalar, protected, team, season, wrong-player and wrong-event contracts cannot inherit binary pricing',()=>{
  for(const changed of [{custom_strike:{scalar_payout_type:'capped_centicent'}},{title:'Drake Maye receiving yards ladder'},{event_ticker:'KXNFLPASSYDS-26OCT25NECHI'},{title:'Other Player: 250+',yes_sub_title:'Other Player'},{strike_type:'custom'}])assert.equal(binaryKalshiRows({...market,...changed},series,[player],game,'2026-10-22',new Date().toISOString()).length,0);
