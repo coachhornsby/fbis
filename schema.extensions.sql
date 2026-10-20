@@ -4666,6 +4666,7 @@ CREATE TABLE IF NOT EXISTS cbb_team_profile_snapshots (
 CREATE INDEX IF NOT EXISTS idx_cbb_profile_team_season_pit ON cbb_team_profile_snapshots(canonical_team_id,season,observed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_cbb_profile_season ON cbb_team_profile_snapshots(season,observed_at DESC);
 
+-- 0111 shadow-research schema mirror (non-authoritative, promotion veto stays frozen).
 -- 0111: CFB CORE prospective shadow research ledger (TIER3_DB / research storage).
 -- Research-only. Never authorizes wagers or mutates the CFB champion.
 -- Immutable pregame rows: INSERT OR IGNORE only; settlement updates score columns only.
