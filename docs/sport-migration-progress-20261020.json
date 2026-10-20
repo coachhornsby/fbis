@@ -1,7 +1,7 @@
 {
   "contract": "fbis-sport-migration-progress-v1",
-  "generatedAt": "2026-10-20T14:50:00.000Z",
-  "revisedFor": "post-assessment next milestone — Q4 verified archive + NFL prefix/delta sync code (shadow only, not production-activated)",
+  "generatedAt": "2026-10-20T15:12:30.000Z",
+  "revisedFor": "post-#1366 production shadow sync — NHL 26-pred delta closed; NFL/CFB working-set parity",
   "canAuthorizeWager": false,
   "authorityPolicy": "PRIMARY remains authoritative for all sports; sport D1s stay in shadow until per-sport CORE cutover receipts",
   "sports": [
@@ -10,10 +10,10 @@
       "destinationD1": "fbis-nfl",
       "schema": "complete",
       "historicalBackfill": { "games": 313, "prediction_snapshots": 1813, "published_projections": 36, "percentageWorkingSet": 100 },
-      "liveSynchronization": "shadow_copy_available_delta_pending",
+      "liveSynchronization": "shadow_working_set_parity",
       "projectionParity": "PASS_WORKING_SET",
       "publishedProjections": "matched",
-      "apiCoverage": "prefix_copy_ops_ready_not_yet_run_in_prod",
+      "apiCoverage": "working_set_synced_prefix_tables_pending_full_copy",
       "cutoverReadiness": "BLOCKED",
       "authority": "PRIMARY",
       "opsAvailable": ["sport-copy", "sport-prefix-copy", "sport-delta-sync", "sport-parity", "sport-cutover-rehearsal"],
@@ -23,11 +23,11 @@
       "sport": "CFB",
       "destinationD1": "fbis-cfb",
       "schema": "complete",
-      "historicalBackfill": { "games": 1180, "prediction_snapshots": 10356, "published_projections": 0, "percentageWorkingSet": 100, "note": "PRIMARY also has 0 published_projections for CFB — not a copy gap" },
-      "liveSynchronization": "shadow_delta_sync_ops_ready",
+      "historicalBackfill": { "games": 1182, "prediction_snapshots": 10356, "published_projections": 0, "percentageWorkingSet": 100, "note": "delta synced +2 games after PRIMARY advanced; published_projections remain 0 on both sides" },
+      "liveSynchronization": "shadow_working_set_parity",
       "projectionParity": "PASS_WORKING_SET",
       "publishedProjections": "matched_zero",
-      "apiCoverage": "prefix_copy_ops_ready_not_yet_run_in_prod",
+      "apiCoverage": "working_set_synced_prefix_tables_pending_full_copy",
       "cutoverReadiness": "BLOCKED",
       "authority": "PRIMARY",
       "storageImpact": { "bytesCopied": 192278528, "bytesReclaimedFromPrimary": 0 }
@@ -36,11 +36,11 @@
       "sport": "NHL",
       "destinationD1": "fbis-nhl",
       "schema": "complete",
-      "historicalBackfill": { "games": 166, "prediction_snapshots": 664, "published_projections": 0, "percentageWorkingSet": "partial", "note": "PRIMARY=690 sport=664; all 26 missing IDs are 2026-10-20T13:51Z research-v1.2 snapshots — delta-sync gap, not corruption" },
-      "liveSynchronization": "delta_sync_ops_ready_to_close_26_gap",
-      "projectionParity": "FAIL_UNTIL_DELTA_SYNC",
+      "historicalBackfill": { "games": 166, "prediction_snapshots": 690, "published_projections": 0, "percentageWorkingSet": 100, "note": "26 missing 2026-10-20T13:51Z research-v1.2 snapshots delta-synced to parity" },
+      "liveSynchronization": "shadow_working_set_parity",
+      "projectionParity": "PASS_WORKING_SET",
       "publishedProjections": "matched_zero",
-      "apiCoverage": "incomplete",
+      "apiCoverage": "working_set_complete",
       "cutoverReadiness": "BLOCKED",
       "authority": "PRIMARY",
       "storageImpact": { "bytesCopied": 8380416, "bytesReclaimedFromPrimary": 0 }
@@ -96,86 +96,12 @@
       "cutoverReadiness": "BLOCKED",
       "authority": "PRIMARY",
       "storageImpact": { "bytesCopied": 77824, "bytesReclaimedFromPrimary": 0 }
-    },
-    {
-      "sport": "Soccer",
-      "destinationD1": "fbis-soccer",
-      "schema": "complete",
-      "historicalBackfill": { "games": 0, "prediction_snapshots": 0, "published_projections": 0, "primaryGames": 167, "primaryPredictions": 520 },
-      "liveSynchronization": "not_started",
-      "projectionParity": "FAIL",
-      "publishedProjections": "missing",
-      "apiCoverage": "incomplete",
-      "cutoverReadiness": "BLOCKED",
-      "authority": "PRIMARY",
-      "storageImpact": { "bytesCopied": 73728, "bytesReclaimedFromPrimary": 0 }
-    },
-    {
-      "sport": "Tennis",
-      "destinationD1": "fbis-tennis",
-      "schema": "complete",
-      "historicalBackfill": { "games": 0, "prediction_snapshots": 0, "published_projections": 0 },
-      "liveSynchronization": "not_started",
-      "projectionParity": "FAIL",
-      "publishedProjections": "missing",
-      "apiCoverage": "incomplete",
-      "cutoverReadiness": "BLOCKED",
-      "authority": "PRIMARY",
-      "storageImpact": { "bytesCopied": 73728, "bytesReclaimedFromPrimary": 0 }
-    },
-    {
-      "sport": "NPB",
-      "destinationD1": "fbis-npb",
-      "schema": "complete",
-      "historicalBackfill": { "games": 0, "prediction_snapshots": 0, "published_projections": 0 },
-      "liveSynchronization": "not_started",
-      "projectionParity": "FAIL",
-      "publishedProjections": "missing",
-      "apiCoverage": "incomplete",
-      "cutoverReadiness": "BLOCKED",
-      "authority": "PRIMARY",
-      "storageImpact": { "bytesCopied": 77824, "bytesReclaimedFromPrimary": 0 }
-    },
-    {
-      "sport": "KBO",
-      "destinationD1": "fbis-kbo",
-      "schema": "complete",
-      "historicalBackfill": { "games": 0, "prediction_snapshots": 0, "published_projections": 0 },
-      "liveSynchronization": "not_started",
-      "projectionParity": "FAIL",
-      "publishedProjections": "missing",
-      "apiCoverage": "incomplete",
-      "cutoverReadiness": "BLOCKED",
-      "authority": "PRIMARY",
-      "storageImpact": { "bytesCopied": 77824, "bytesReclaimedFromPrimary": 0 }
     }
   ],
-  "capacityAndRecovery": {
-    "primaryBytes": 8114094080,
-    "legacyMarketHistoryBytes": 9999998976,
-    "q4Bytes": 1166274560,
-    "q4Growth": {
-      "bytesPerObservation": 3437,
-      "medianRowsPerHour": 91944,
-      "peakRowsPerHour": 137806,
-      "hoursToCapacityMedian": 28.6,
-      "hoursToCapacityPeak": 19.1,
-      "preDeployDeltaBytesSinceBaseline": 205279232,
-      "mitigationsDeployedToProduction": false
-    },
-    "coldHistoryBytes": 3290492928,
-    "r2ArchiveCoverage": "verified_batch_archive_with_sha256_readback_ops_ready",
-    "recoveryReadiness": "archive_verify_ops_ready_no_source_delete",
-    "retentionApprovals": false,
-    "actualStorageReclaimed": 0,
-    "sevenDayHotWindowRejected": true,
-    "deployedHotWindowHours": 23.58,
-    "writeFailClosedFrom": "HIGH",
-    "coalesceState": "durable_in_DO_storage_after_stream_redeploy"
-  },
-  "playerPropsCoordination": {
-    "ownership": "separate_workstream",
-    "tablesDeferred": ["player_prop_cards", "player_prop_legs", "prizepicks_*", "nba_player_prop_*", "cfb_player_prop_*"],
-    "apiContractChanges": "none_in_this_track"
-  }
+  "next": [
+    "Merge #1378 to activate CORE schedule backup + recurring archive cron",
+    "Continue measuring Q4 bytes/hour for ≥1 full post-coalesce hour",
+    "Prefix-table shadow copies for NFL/CFB when schema apply budget allows",
+    "Do not authorize D1 deletion until retention gate + independent restore pass"
+  ]
 }
