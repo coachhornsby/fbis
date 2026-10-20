@@ -282,7 +282,7 @@
 .bets-dashboard .bets-ledger-table :is(th,td):nth-child(3){min-width:250px}
 .bets-dashboard .bets-ledger-table :is(th,td):nth-child(6){min-width:460px}
 .bets-dashboard .bets-ledger-table :is(th,td):nth-child(12){min-width:220px}
-.bets-dashboard .bets-ledger-table .bets-dashboard .bets-ledger-table td:nth-child(9){
+.bets-dashboard .bets-ledger-table td:nth-child(9){
   font-weight:950;
   letter-spacing:.035em;
 }
