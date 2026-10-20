@@ -27,3 +27,27 @@ export function atp2026TournamentSurface(fixture,espnEvidence){
   sourceEventId:String(fixture.source_event_id),canQualify:false,canAuthorizeWager:false,
   officialMatchVerified:false};
 }
+
+/** Independently published WTA tournament-level surface evidence.
+ * Never upgrades an ESPN fixture to official match or wagering authority.
+ */
+const WTA_2026_EVENTS=Object.freeze({
+ "963-2026":{name:"BNB Ningbo Open",city:"Ningbo, China",surface:"hard",indoor:false,
+  sourceUrl:"https://www.wtatennis.com/tournaments/2092/ningbo/2026"},
+ "345-2026":{name:"Kinoshita Group Japan Open",city:"Osaka, Japan",surface:"hard",indoor:false,
+  sourceUrl:"https://www.wtatennis.com/tournaments/405/osaka/2026"}
+});
+export function wta2026TournamentSurface(fixture,espnEvidence){
+ if(String(fixture?.tour).toLowerCase()!=="wta"||!espnEvidence||
+   espnEvidence.source!=="ESPN_PUBLIC_RESEARCH")return null;
+ const r=WTA_2026_EVENTS[String(fixture.source_event_id||"")];
+ if(!r||normalize(r.name)!==normalize(espnEvidence.tournament))return null;
+ const start=Date.parse(fixture.start||"");
+ if(!Number.isFinite(start)||start<Date.parse("2026-10-19T00:00:00Z")||
+  start>=Date.parse("2026-10-26T12:00:00Z"))return null;
+ return {source:"WTA_TOUR_2026_CALENDAR",sourceUrl:r.sourceUrl,
+  tournamentName:r.name,location:r.city,surface:r.surface,indoor:r.indoor,
+  category:"TOURNAMENT_SURFACE_METADATA_ONLY",
+  sourceEventId:String(fixture.source_event_id),canQualify:false,canAuthorizeWager:false,
+  officialMatchVerified:false};
+}
