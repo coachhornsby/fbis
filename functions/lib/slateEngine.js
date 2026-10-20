@@ -644,12 +644,23 @@ export async function buildSlate(sport, date, env = {}) {
     ...next,
     games: (next?.games || []).map((game) => {
       const confidence = canonicalProjectionConfidence({ ...game, sport: id });
+      // Emit the same confidence surface as the TODAY board. These two paths feed the
+      // same card components, so a field present on one and absent on the other makes
+      // the same game render a different rating depending on which tab opened it.
       return {
         ...game,
         confidenceStars: confidence.stars,
+        confidenceStarsMax: confidence.starsMax,
+        confidenceFiveStarEligible: confidence.fiveStarEligible,
         confidenceScore: confidence.score,
         confidenceVersion: confidence.version,
         confidenceSource: confidence.source,
+        ...(id === "nhl" ? {
+          confidenceCalibrationStatus: confidence.calibrationStatus,
+          confidenceCalibrated: confidence.calibrated,
+          confidenceEvidence: confidence.evidence,
+          confidenceHeadVersion: confidence.headVersion,
+        } : {}),
       };
     }),
   };

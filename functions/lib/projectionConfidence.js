@@ -38,7 +38,9 @@ function clamp100(v) {
   return Math.max(0, Math.min(100, Number(v) || 0));
 }
 
-function starsFromScore(score) {
+export const CONFIDENCE_STARS_MAX = 5;
+
+export function starsFromScore(score) {
   const s = clamp100(score);
   if (s >= 84) return 5;
   if (s >= 70) return 4;
@@ -214,11 +216,20 @@ export function canonicalProjectionConfidence(game = {}) {
 
   const resolved = sportSpecific || genericScore(game);
   const score = clamp100(resolved.score);
+  // A head that cannot reach the top of the 0-100 scale cannot reach the top of the
+  // star scale either. Derive the display ceiling from the head's own score ceiling
+  // so the two can never disagree, and let the presentation layer show a 3-point
+  // scale rather than three filled stars out of five.
+  const starsMax = Number.isFinite(resolved.scoreCeiling)
+    ? starsFromScore(resolved.scoreCeiling)
+    : CONFIDENCE_STARS_MAX;
   return {
     ...resolved,
     version: CONFIDENCE_VERSION,
     score: Math.round(score * 10) / 10,
     stars: starsFromScore(score),
+    starsMax,
+    fiveStarEligible: resolved.fiveStarEligible ?? starsMax >= CONFIDENCE_STARS_MAX,
     source: resolved.source,
   };
 }
