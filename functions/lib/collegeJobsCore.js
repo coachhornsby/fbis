@@ -38,6 +38,10 @@ import {
   CFB_CORE_ADVANCED_AUTHORITY,
 } from "./cfbCoreAdvancedPlumbing.js";
 import {
+  buildCoreWeeklyArchivePayload,
+  persistCoreWeeklyArchive,
+} from "./cfbCoreArchive.js";
+import {
   runCfbCoreShadowFreeze,
   runCfbCoreShadowSettle,
   runCfbCoreWeeklyEvaluation,
@@ -847,6 +851,37 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
           fetched.bundles["/ratings/core"] || [],
           { maxWeek: coreThroughWeekBound(targetWeek), seasonType: "regular", season: y }
         );
+        // Archive weekly PIT CORE keyed by actual CFBD throughWeek (research-only).
+        if (job === "cfb-current-refresh" && y === yearCfb) {
+          try {
+            const corePayload = buildCoreWeeklyArchivePayload({
+              season: y,
+              targetWeek,
+              coreRows: fetched.bundles["/ratings/core"] || [],
+              collectionTime: new Date().toISOString(),
+              ingestionBatchId: id,
+              jobRunId: id,
+            });
+            const archived = await persistCoreWeeklyArchive(env, corePayload);
+            report.push({
+              endpoint: "/ratings/core#weekly-pit-archive",
+              ok: archived.ok,
+              written: archived.written,
+              throughWeek: archived.throughWeek ?? null,
+              budgetedThroughWeek: archived.budgetedThroughWeek ?? null,
+              labelingLag: archived.labelingLag ?? null,
+              researchOnly: true,
+              reason: archived.reason || null,
+            });
+          } catch (archiveErr) {
+            report.push({
+              endpoint: "/ratings/core#weekly-pit-archive",
+              ok: false,
+              researchOnly: true,
+              reason: String(archiveErr?.message || archiveErr),
+            });
+          }
+        }
         let weeklyMeta = null;
         if (job === "cfb-current-refresh" && y === yearCfb) {
           const weekly = await fetchWeeklyCoreAdvanced(env, {
