@@ -51,6 +51,8 @@ export default function KalshiOpsStatus(){
             <small>Exchange: {statusFlag(exchange?.exchangeActive)}</small>
             <small>Transfers: {statusFlag(exchange?.transfersActive)}</small>
             <small>Last checked: {when(exchange?.lastObservedAt)}</small>
+            {exchange?.estimatedResumeAt&&<small>Estimated resume (not guaranteed): {when(exchange.estimatedResumeAt)}</small>}
+            {exchange?.exchangeIndexCount!=null&&<small>Provider index statuses: {exchange.exchangeIndexCount}</small>}
             <small>Exchange status does not verify sports API access or authorize trades.</small>
           </article>
           {records.map(s=><article key={s.sport}>
