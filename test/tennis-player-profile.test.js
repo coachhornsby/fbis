@@ -12,3 +12,33 @@ test('unknown or malformed canonical IDs and missing databases fail closed',asyn
  assert.equal((await onRequestGet({request:req('tennis:wta:1'),env:{}})).status,503);
  assert.equal((await onRequestGet({request:req('tennis:wta:999'),env:{DB:db(null)}})).status,404);
 });
+
+test('canonical ATP/WTA profile displays its own saved feed image when no licensed R2 image exists',async()=>{
+ const athlete={...player,fbis_player_id:'tennis:atp:41',tour:'atp',canonical_name:'Example ATP Player',normalized_name:'example atp player',official_headshot_url:'https://static.prizepicks.com/images/manual/example.png',official_headshot_source:'PRIZEPICKS_FEED'};
+ const DB={prepare(sql){return{bind(...args){return{
+  async first(){return sql.includes('FROM tennis_players')?athlete:null},
+  async all(){if(sql.includes('FROM tennis_players WHERE fbis_player_id IN'))return{results:[athlete]};
+   return{results:[]}}
+ }}}}};
+ const response=await onRequestGet({request:req(athlete.fbis_player_id),env:{DB}});
+ const html=await response.text();
+ assert.equal(response.status,200);
+ assert.match(html,/Example ATP Player feed player portrait/);
+ assert.match(html,/https:\/\/static.prizepicks.com\/images\/manual\/example.png/);
+ assert.match(html,/Stored on canonical player profile/);
+ assert.match(response.headers.get('content-security-policy'),/img-src 'self' https:\/\/static.prizepicks.com/);
+ assert.doesNotMatch(html,/approved player portrait/);
+});
+
+test('player page refuses wrong-player or invalid feed images, preserving silhouette fallback',async()=>{
+ const athlete={...player,fbis_player_id:'tennis:atp:41',tour:'atp',canonical_name:'Example ATP Player'};
+ const DB={prepare(sql){return{bind(){return{
+  async first(){return sql.includes('FROM tennis_players')?athlete:null},
+  async all(){if(sql.includes('FROM tennis_players WHERE fbis_player_id IN'))
+    return{results:[{fbis_player_id:'tennis:atp:other',official_headshot_url:'https://static.prizepicks.com/wrong.png',official_headshot_source:'PRIZEPICKS_FEED'}]};
+    return{results:[]};}
+ }}}}};
+ const html=await (await onRequestGet({request:req(athlete.fbis_player_id),env:{DB}})).text();
+ assert.match(html,/Player portrait unavailable/);
+ assert.doesNotMatch(html,/<img/);
+});
