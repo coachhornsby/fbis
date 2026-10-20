@@ -63,6 +63,7 @@ export function matchPolymarketGlobalTennis(fixture,events=[],{now=new Date(),as
    matched.push({provider:"Polymarket.com",marketId:String(m.id),eventId:String(e.id),
      eventSlug:slug,question:m.question||title,outcomes:names,indicativePrices:values,
      capturedAt:asOf,quoteSourceTime:null,priceKind:"GAMMA_METADATA_INDICATIVE_NOT_ORDERBOOK",
+     researchClob:m.researchClob||null,
      canQualify:false,canAuthorizeWager:false,executionEligible:false});
   }
  }
@@ -102,6 +103,37 @@ export async function collectPolymarketGlobalTennis(env,{now=new Date(),fetchImp
   }
  };
  await Promise.all(Array.from({length:Math.min(4,fixtures.length)},()=>worker()));
+ // CLOB is the independent order-book provider. Read only the tokens of
+ // uniquely linked match-winner markets; no Gamma midpoint is a fillable ask.
+ const clobJobs=[];
+ for(const e of events.values())for(const market of e.markets||[]){
+  const tokens=decode(market.clobTokenIds);
+  if(tokens.length===2&&tokens.every(t=>/^[0-9]{20,120}$/.test(String(t))))
+   clobJobs.push({market,tokens});
+ }
+ const selected=clobJobs.slice(0,12);
+ let bookIndex=0;
+ const bookWorker=async()=>{
+  while(bookIndex<selected.length){
+   const job=selected[bookIndex++],sides=[];
+   for(const token of job.tokens){
+    const url="https://clob.polymarket.com/book?token_id="+encodeURIComponent(token);
+    try{
+     const response=await fetchImpl(url,{method:"GET",headers:{accept:"application/json"},redirect:"error",signal:AbortSignal.timeout(5000)});
+     if(!response.ok)throw Error("CLOB_HTTP_"+response.status);
+     const book=await response.json();
+     const levels=values=>(Array.isArray(values)?values:[]).map(v=>({price:Number(v.price),size:Number(v.size)}))
+      .filter(v=>Number.isFinite(v.price)&&v.price>0&&v.price<1&&Number.isFinite(v.size)&&v.size>0);
+     const asks=levels(book.asks).sort((a,b)=>a.price-b.price);
+     const bids=levels(book.bids).sort((a,b)=>b.price-a.price);
+     sides.push({tokenId:String(token),bestAsk:asks[0]||null,bestBid:bids[0]||null,capturedAt:at,sourceQuoteTime:null});
+    }catch(e){sides.push({tokenId:String(token),bestAsk:null,bestBid:null,capturedAt:at,sourceQuoteTime:null,error:String(e.message||e).slice(0,60)})}
+   }
+   job.market.researchClob={sides,observedAt:at,source:"POLYMARKET_GLOBAL_CLOB",executionEligible:false,canAuthorizeWager:false};
+  }
+ };
+ await Promise.all(Array.from({length:Math.min(3,selected.length)},()=>bookWorker()));
+
  const snapshot={version:1,source:"POLYMARKET_GLOBAL_GAMMA",asOf:at,
   fixtureCount:fixtures.length,searchCount:searches.length,eventCount:events.size,
   errors,searches,events:[...events.values()],quoteSourceTime:null,
