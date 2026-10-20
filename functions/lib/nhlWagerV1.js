@@ -336,6 +336,20 @@ export function evaluateNhlGameWagers(game={},calibration=NHL_WAGER_CONFIDENCE_V
   };
 }
 
+export function verifyNhlPropQuote(row={},now=Date.now()){
+  const q=row.quoteProvenance||{},start=Date.parse(row.eventStart||""),at=Date.parse(q.observedAt||"");
+  const playerId=String(row.fbisPlayerId||row.providerPlayerId||row.playerId||"");
+  const market=String(row.marketCanonical||row.market||"");
+  return Boolean(q.executionVerified===true&&q.availableForExecution===true&&q.book&&
+    q.marketScope==="FULL_GAME_INCLUDING_OT_EXCLUDING_SHOOTOUT"&&
+    Number.isFinite(start)&&now<start&&Number.isFinite(at)&&at<=now&&now-at<=300000&&
+    String(q.eventId||"")===String(row.eventId||"")&&row.eventId&&
+    playerId&&String(q.playerId||"")===playerId&&q.market===market&&
+    finite(row.line)!=null&&finite(q.line)===finite(row.line)&&
+    finite(q.overPrice)===finite(row.overOdds??row.overPrice)&&
+    finite(q.underPrice)===finite(row.underOdds??row.underPrice));
+}
+
 export function evaluateNhlPropWagerV1(row={},calibration=NHL_WAGER_CONFIDENCE_V1.prop){
   if(String(row.sport||"").toLowerCase()!=="nhl")return null;
   const pOver=finite(row.probabilityOver),pUnder=finite(row.probabilityUnder);
@@ -343,6 +357,12 @@ export function evaluateNhlPropWagerV1(row={},calibration=NHL_WAGER_CONFIDENCE_V
   if(pOver==null||pUnder==null||pOver<0||pOver>1||pUnder<0||pUnder>1||Math.abs(pOver+pUnder-1)>.001||over==null||under==null||Math.abs(over)<100||Math.abs(under)<100)return {
     modelId:"NHL-WAGER-PROP-v1",decision:"PASS",decisionStatus:"RESEARCH_ONLY",reason:"complete_two_way_price_or_probability_missing",
     confidence:0,confidenceStatus:"PROVISIONAL_UNCALIBRATED",researchCandidate:false,qualificationEligible:false,suggestedUnits:0,canQualify:false,canAuthorizeWager:false
+  };
+  if(!verifyNhlPropQuote(row))return {
+    modelId:"NHL-WAGER-PROP-v1",decision:"PASS",decisionStatus:"RESEARCH_ONLY",
+    reason:"fresh_exact_executable_prop_quote_unverified",confidence:0,confidenceValidated:false,
+    confidenceStatus:"UNVERIFIED_PRICE_FAIL_CLOSED",researchCandidate:false,qualificationEligible:false,
+    suggestedUnits:0,canQualify:false,canAuthorizeWager:false
   };
   const side=pOver>=pUnder?"OVER":"UNDER",p=side==="OVER"?pOver:pUnder,price=side==="OVER"?over:under,opp=side==="OVER"?under:over;
   const tw=twoWayMarket(price,opp),noVig=tw.complete?tw.noVigA:null;

@@ -32,7 +32,7 @@ Empty-net scoring is implicit in all-situation inputs and historical `empty_net`
 
 PinnOdds remains reference-only with unknown provider quote time, even when receipt time is fresh. Unpriced outcomes are dropped. Missing/stale/unverified prices cannot yield actionable game decisions. Only matching executable paired quotes, explicit full-game settlement scope, independently supported probability calibration and starter evidence can form moneyline economic research. GAME wagers always remain PASS/no qualification/no authorization, including forged caller approvals.
 
-Props require complete valid American prices and complementary probabilities. Missing/invalid prices return explicit false candidate/qualification/authorization flags. A research prop cannot qualify without validated settled confidence support (minimum 250 settled observations and populated bins); GAME confidence needs at least 150. Calibration audits also require populated bins, monotonicity, positive ROI, drawdown limits and GAME CLV coverage. Qualification never grants staking authority.
+Props require complete valid American prices and complementary probabilities, plus a fresh executable quote matching the exact event, player, market, line and both prices. Full-game player-stat scope includes overtime and excludes shootout attempts. Unverified numeric prices cannot become economic research or qualify. Missing/invalid prices return explicit false candidate/qualification/authorization flags. A research prop cannot qualify without validated settled confidence support (minimum 250 settled observations and populated bins); GAME confidence needs at least 150. Calibration audits also require populated bins, monotonicity, positive ROI, drawdown limits and GAME CLV coverage. Qualification never grants staking authority.
 
 Recorded live confidence audit `nhlc_production_audit_20261020` in `nhl_wager_confidence_runs`: GAME and PROP both NOT_VALIDATED with zero settled observations.
 
@@ -46,8 +46,10 @@ Enabled persisted traces at 10% sampling on the live orchestrator, Polymarket st
 
 ## Release checks and remaining promotion work
 
-Validation: 212 focused NHL/PinnOdds tests passed. The full npm suite passed, as did the app build, Pages Functions bundle, migration verification and Cloudflare static checks.
+Validation: 213 focused NHL/PinnOdds tests passed. The full npm suite passed, as did the app build, Pages Functions bundle, migration verification and Cloudflare static checks.
 
 Run `npm run test:nhl`, `npm run verify:cloudflare`, `npm test`, `npm run build`, and the Pages Functions build. CI now runs the NHL and Cloudflare guard suites.
 
 Run `npm run audit:nhl` to reproduce the report from frozen audit inputs. For a new live audit, export a fresh read-only D1 snapshot and ledger inventory first; the committed input is explicitly dated, not a live feed. Refit/revalidate the exact deployed kernel with PIT-safe regulation goals, goalie uncertainty and OT/SO/empty-net labels; collect genuine prospective frozen predictions and paired contemporaneous market evidence; settle final results; then evaluate confidence and economic cohorts. A separate explicit operator promotion is still required for GAME wagering. No production qualification or profitability claim is authorized by this release.
+
+Full historical model and prop revalidation also passed in GitHub Actions run 39370393722. This reruns the existing historical fitting script; the runtime-kernel limitations above still apply.

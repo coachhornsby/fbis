@@ -69,6 +69,12 @@ test("NHL props cannot qualify before settled confidence calibration",()=>{
   const row={sport:"nhl",marketCanonical:"shots_on_goal",fbisProjection:4.5,line:3.5,probabilityOver:.68,probabilityUnder:.32,
     overOdds:-115,underOdds:-105,validationStatus:"PROMOTE_RESEARCH",lineValidationStatus:"PROMOTE_RESEARCH",
     propGate:"CLEAR",eligibleForCard:true,trackingAdvisory:{coverage:.7},roleConfidence:.9};
+  const now=Date.now();
+  row.eventId="nhl-prop-verified";row.providerPlayerId="player-1";
+  row.eventStart=new Date(now+3600000).toISOString();
+  row.quoteProvenance={eventId:row.eventId,playerId:row.providerPlayerId,market:row.marketCanonical,
+    line:row.line,overPrice:-115,underPrice:-105,book:"verified-book",observedAt:new Date(now-1000).toISOString(),
+    executionVerified:true,availableForExecution:true,marketScope:"FULL_GAME_INCLUDING_OT_EXCLUDING_SHOOTOUT"};
   const raw=evaluateNhlPropWagerV1(row);
   assert.equal(raw.decision,"PASS");assert.equal(raw.researchCandidate,true);assert.equal(raw.canQualify,false);assert.equal(raw.canAuthorizeWager,false);
   const calibrated=evaluateNhlPropWagerV1(row,goodCalibration);

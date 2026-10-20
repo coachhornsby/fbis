@@ -86,3 +86,12 @@ test('stale NHL PinnOdds records cannot become board offers',async()=>{
  const pair=['home','away'].map(side=>({source:'PinnOdds',sport:'nhl',canonical_event_id:'nhl-stale',period:'full_game',market_family:'moneyline',side,decimal_odds:1.91,collected_at:'2026-10-17T10:00:00Z',event_start_time:'2026-10-21T00:00:00Z'}));
  assert.deepEqual(selectPinnoddsBoardOffers(pair,{now:'2026-10-20T12:00:00Z'}),{});
 });
+
+
+test('numeric NHL prop prices without fresh matched execution evidence never qualify',()=>{
+ const r={sport:'nhl',marketCanonical:'saves',line:25.5,probabilityOver:.8,probabilityUnder:.2,overOdds:-110,underOdds:-110,propGate:'CLEAR',validationStatus:'PROMOTE_RESEARCH'};
+ for(const q of [undefined,{executionVerified:true},{executionVerified:true,availableForExecution:true,book:'PinnOdds',observedAt:'2026-01-01T00:00:00Z'}]){
+  const a=evaluateNhlPropWagerV1({...r,quoteProvenance:q});
+  assert.equal(a.decision,'PASS');assert.equal(a.researchCandidate,false);assert.equal(a.canQualify,false);assert.equal(a.canAuthorizeWager,false);
+ }
+});
