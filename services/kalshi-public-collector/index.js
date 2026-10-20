@@ -172,14 +172,26 @@ export async function collectNhlSourceDiscoveryOnce(env,{now=new Date(),fetchImp
     ms(status.verifiedAt)>now.getTime()-60*60*1000)return {ok:true,status:"NOT_DUE"};
  return relaySignedPages(env,{scope:"nhl-official-scope-discovery",fetchImpl});
 }
+/**
+ * Prop inventory must cycle through its discovered series inside the
+ * two-hour read window. Three of every four 15m slots are allotted to props;
+ * the fourth rotates slower research scopes to avoid burst fanout.
+ * Four prop series per allotted slot can traverse 18-20 series in roughly
+ * 90-105 minutes under successful provider responses.
+ */
+export function selectedAuxScope(now) {
+  const slot=Math.floor(now.getTime()/SLOT_MS);
+  return slot%4===3?
+    ["multilegs","combo-tape","qualification-evidence"][Math.floor(slot/4)%3]:
+    "player-props";
+}
 export default {
   async scheduled(event,env,ctx){
     // Spread auxiliary provider reads across scheduled windows. Concurrent
     // multivariate / player-prop / tape fanout produced shared provider 429s.
     // Market/tennis collectors keep their existing sport cadence.
     const now=new Date(event?.scheduledTime||Date.now());
-    const aux=["player-props","player-props","multilegs","combo-tape",
-      "qualification-evidence"][Math.floor(now.getTime()/SLOT_MS)%5];
+    const aux=selectedAuxScope(now);
     ctx.waitUntil(Promise.all([
       collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),
       collectKalshiExchangeStatusOnce(env),collectKalshiSeriesCatalogOnce(env),
