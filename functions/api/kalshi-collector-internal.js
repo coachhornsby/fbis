@@ -38,7 +38,7 @@ export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypt
   }
   if(scope==="markets"){
     const sport=u.searchParams.get("sport");
-    if(!["nfl","cfb"].includes(sport))
+    if(!["nfl","cfb","atp","wta"].includes(sport))
       return respond({ok:false,code:"KALSHI_SPORT_NOT_ENABLED"},400);
     try{
       const result=await captureSignedKalshiMarkets(env,{sport,fetchImpl,webCrypto});
