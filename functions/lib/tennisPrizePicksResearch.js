@@ -25,6 +25,12 @@ function rankingRows(payload,tour){
         rank:finite(row.current),
         points:finite(row.points),
         espnId:a.id?String(a.id):null,
+        country:(()=>{
+          const raw=a.flag?.alt||a.country?.abbreviation||a.country?.code||a.countryCode||a.citizenship||null;
+          const country=String(raw||"").trim().toUpperCase();
+          const iso3={USA:"US",GBR:"GB",FRA:"FR",ESP:"ES",ITA:"IT",DEU:"DE",AUS:"AU",CAN:"CA",KAZ:"KZ",HUN:"HU",RUS:"RU",CZE:"CZ",SVK:"SK",POL:"PL",ARG:"AR",BRA:"BR",NED:"NL",CHE:"CH",SUI:"CH",SRB:"RS",CHN:"CN",JPN:"JP"};
+          return /^[A-Z]{2}$/.test(country)?country:iso3[country]||null;
+        })(),
         headshot:validImage(a.headshot)?a.headshot:null,
       });
     }
