@@ -38,10 +38,10 @@ const fbis=()=>{
   return {saved,DB,ARCHIVE,get writes(){return writes;}};
 };
 test("curated manifest never duplicates player IDs or permits unreviewed external URL inputs",()=>{
-  assert.equal(TENNIS_COMMONS_PORTRAIT_BATCH.length,17);
-  assert.equal(new Set(TENNIS_COMMONS_PORTRAIT_BATCH.map(c=>c.playerId)).size,17);
+  assert.equal(TENNIS_COMMONS_PORTRAIT_BATCH.length,21);
+  assert.equal(new Set(TENNIS_COMMONS_PORTRAIT_BATCH.map(c=>c.playerId)).size,21);
   for (const c of TENNIS_COMMONS_PORTRAIT_BATCH){
-    assert.match(c.playerId,/^tennis:wta:\d+$/);
+    assert.match(c.playerId,/^tennis:(?:wta:\d+|atp:research:[a-z ]+)$/);
     assert.match(c.sourceUrl,/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
     assert.match(c.licenseUrl,/^https:\/\/creativecommons\.org\//);
   }
@@ -139,4 +139,19 @@ test("authenticated GitHub-side Commons transfer enforces exact manifest, SHA-25
   assert.equal((await res.json()).status,"IMPORTED");
   assert.equal(env.saved.key,`tennis/portraits/${choice.playerId}/commons-curated-20261015.jpg`);
   assert.equal(env.writes,1);
+});
+
+test("curated ATP headshot candidates match exact permanent ATP research IDs and CC licenses",()=>{
+ for(const [id,name] of [
+  ["tennis:atp:research:novak djokovic","Novak Djokovic"],
+  ["tennis:atp:research:casper ruud","Casper Ruud"],
+  ["tennis:atp:research:carlos alcaraz","Carlos Alcaraz"],
+  ["tennis:atp:research:jannik sinner","Jannik Sinner"]
+ ]){
+  const photo=TENNIS_COMMONS_PORTRAIT_BATCH.find(p=>p.playerId===id);
+  assert.ok(photo);
+  assert.equal(photo.playerName,name);
+  assert.equal(photo.license,"CC BY-SA 4.0");
+  assert.match(photo.sourceUrl,/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+ }
 });
