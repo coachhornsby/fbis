@@ -107,9 +107,10 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <strong>MARKETS · POLYMARKET.COM {t.polymarketGlobalOffers?.length||0} · KALSHI {t.kalshiResearchOffers?.length||0}</strong>
       {t.exchangeResearch?.comparisons?.length?<>
         {t.exchangeResearch.comparisons.map(c=><div key={c.kalshiTicker+"-"+c.player}>
-          {c.player}: Kalshi ask ${c.kalshiAsk.toFixed(3)} · Polymarket CLOB ask ${c.polymarketAsk.toFixed(3)} · Captures {c.observedKalshiAt||"time unknown"} / {c.observedPolymarketAt||"time unknown"}
+          {c.player}: Kalshi ask ${c.kalshiAsk.toFixed(3)}{c.kalshiAskSize!=null?` · size ${c.kalshiAskSize}`:""} · Polymarket CLOB ask ${c.polymarketAsk.toFixed(3)}{c.polymarketAskSize!=null?` · size ${c.polymarketAskSize}`:""} · Captured {c.observedKalshiAt||"time unknown"} / {c.observedPolymarketAt||"time unknown"}
+          {c.integrityWarnings?.length?<small role="status">⚠ RESEARCH PRICE WARNINGS · {c.integrityWarnings.join(" · ").replaceAll("_"," ")}{c.captureSkewMinutes!=null?` · ${c.captureSkewMinutes} MIN CAPTURE GAP`:""}</small>:null}
         </div>)}
-        <small>Indicative research comparison · contract fees, fillability, and wager eligibility unverified</small>
+        <small>INDICATIVE RESEARCH ONLY · Snapshot prices and sizes are not verified executable quotes, arbitrage or EV. Fees, settlement comparability and fillability are unverified. Not a betting recommendation.</small>
       </>:<div>No source-verified same-outcome cross-exchange pair. Expand for individual market observations.</div>}
     </section>:null}
     <div className="tmc-quick-summary" aria-label="FBIS projection summary">
