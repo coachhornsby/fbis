@@ -10,6 +10,7 @@ export const CUSTOMER_NAV = Object.freeze([
   { id: "player-props", label: "PLAYER PROPS", description: "Curated PrizePicks lines + FBIS player projections" },
   { id: "teams", label: "TEAMS", description: "FBIS club and school profiles, branding, rosters and acquired team history" },
   { id: "bets", label: "MY BETS", description: "Manual wager journal and performance" },
+  { id: "accounts", label: "ACCOUNTS", description: "Private Kalshi balances, positions, fills, and orders" },
   { id: "models", label: "MODELS", description: "Model health, status, coverage, and readiness — no betting picks" },
   { id: "model-lab", label: "MODEL LAB", description: "Validation, version comparison, prospective evidence" },
   { id: "market", label: "MARKET", description: "Advanced market intelligence and price comparison" },
@@ -75,6 +76,7 @@ export function routeToLegacy(route, sportFilter = "all") {
         tab: "board",
         sport: sportFilter === "all" ? "mlb" : sportFilter,
       };
+    case "accounts":
     case "models":
     case "model-lab":
     case "player-props":
