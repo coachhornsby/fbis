@@ -40,21 +40,13 @@ async function save(bucket,key,data){
     httpMetadata:{contentType:"application/json",cacheControl:"private, max-age=0"},
   });
 }
-export function diagnoseConnectivityStatuses(guest,signed){
-  if(guest?.httpStatus===429&&signed?.result==="HTTP_OK")
-    return "ANONYMOUS_RATE_LIMIT_AUTHENTICATED_ACCEPTED";
-  if(guest?.httpStatus===403&&signed?.result==="HTTP_OK")
-    return "ANONYMOUS_FORBIDDEN_AUTHENTICATED_ACCEPTED";
-  if(guest?.result==="HTTP_OK"&&signed?.result==="HTTP_OK")
-    return "BOTH_ACCEPTED";
-  if(guest?.httpStatus===429&&signed?.httpStatus===429)
-    return "BOTH_RATE_LIMITED";
-  if(guest?.httpStatus===403&&signed?.httpStatus===403)
-    return "BOTH_FORBIDDEN";
+export function diagnoseConnectivityStatuses(_unusedAnonymous,signed){
+  if(signed?.result==="HTTP_OK")return "SIGNED_MARKET_ACCESS_VERIFIED";
+  if(signed?.httpStatus===429)return "SIGNED_RATE_LIMITED";
   if(signed?.httpStatus===401||signed?.httpStatus===403)
     return "SIGNED_AUTHENTICATION_OR_PERMISSION_REJECTED";
-  if(guest?.result==="HTTP_OK"&&signed?.result!=="HTTP_OK")
-    return "ANONYMOUS_ACCEPTED_SIGNED_UNAVAILABLE";
+  if(signed?.result==="REDIRECT_NOT_FOLLOWED")return "SIGNED_REDIRECT_REJECTED";
+  if(signed?.result==="CONNECTION_FAILED")return "SIGNED_TRANSPORT_UNAVAILABLE";
   return "INCONCLUSIVE";
 }
 
@@ -66,15 +58,16 @@ export async function runKalshiConnectivityDiagnostic(env,{
   if(!env?.ARCHIVE?.get||!env?.ARCHIVE?.put)
     return {ok:false,code:"DIAGNOSTIC_RATE_LIMIT_STORE_MISSING"};
   const old=await load(env.ARCHIVE,"global.json");
+  const guest={result:"DISABLED_BY_POLICY",httpStatus:null};
   const earliest=Date.parse(old?.nextAllowedAt||"");
   if(Number.isFinite(earliest)&&earliest>now.getTime()){
     return {
       ok:true,cached:true,rateLimitProtected:true,
       nextAllowedAt:old.nextAllowedAt,
-      diagnosis:old.diagnosis||"PREVIOUS_RESULT_UNAVAILABLE",
+      diagnosis:diagnoseConnectivityStatuses(guest,old?.signed),
       testedSport:old.testedSport||null,
       checkedAt:old.checkedAt||null,
-      guest:old.guest||null,signed:old.signed||null,
+      guest,signed:old.signed||null,
       // Cached results are historical and never grant authority.
       canPublish:false,canQualify:false,canAuthorizeWager:false,
     };
@@ -104,7 +97,8 @@ export async function runKalshiConnectivityDiagnostic(env,{
   await save(env.ARCHIVE,"global.json",{
     checkedAt,nextAllowedAt,testedSport:sport,diagnosis:"CHECK_IN_PROGRESS",
   });
-  const guest=await doGet(url.toString(),{accept:"application/json"},fetchImpl);
+  // Anonymous GET /markets was verified to return 429 while signed succeeds.
+  // Never call the unused anonymous endpoint in operational checks.
   const signed=await doGet(url.toString(),{
     accept:"application/json",...signedHeaders,
   },fetchImpl);
