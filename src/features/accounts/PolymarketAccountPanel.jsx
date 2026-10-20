@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { readAccountApiResponse } from "./accountFetchDiagnostics.js";
+import ExchangeBrandHeader from "./ExchangeBrandHeader.jsx";
 
 const currencyMoney = (n, currency = "USD") => {
   if (!Number.isFinite(n)) return "—";
@@ -76,11 +77,8 @@ export default function PolymarketAccountPanel({ token }) {
   const orders = snapshot?.openOrders || [];
   const trades = snapshot?.recentTrades || [];
   return (
-    <div className="accounts-polymarket" aria-label="Private Polymarket US account">
-      <div className="accounts-toolbar">
-        <div><strong>Polymarket US</strong> <span className="accounts-subtle">Private REST snapshot · {localTime(snapshot?.capturedAt)}</span></div>
-        <button type="button" disabled={busy} onClick={() => load()}>{busy ? "Updating…" : "↻ Refresh Polymarket"}</button>
-      </div>
+    <section className="accounts-exchange-shell accounts-exchange-shell--polymarket accounts-polymarket" aria-label="Private Polymarket US account">
+      <ExchangeBrandHeader provider="polymarket" updatedAt={localTime(snapshot?.capturedAt)} refreshing={busy} onRefresh={() => load()} />
       {error && <p className="accounts-alert" role="alert">{error}</p>}
       {!snapshot && !error && <p className="accounts-wait">Loading private Polymarket US account…</p>}
       {snapshot && (
@@ -130,6 +128,6 @@ export default function PolymarketAccountPanel({ token }) {
           </article>
         </>
       )}
-    </div>
+    </section>
   );
 }
