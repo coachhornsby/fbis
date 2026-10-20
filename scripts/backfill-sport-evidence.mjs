@@ -25,7 +25,7 @@ function arg(name, fallback = null) {
   return fallback;
 }
 
-async function q(dbId, sql, params) {
+async function d1(dbId, body) {
   const res = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/d1/database/${dbId}/query`,
     {
@@ -34,14 +34,25 @@ async function q(dbId, sql, params) {
         authorization: `Bearer ${TOKEN}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify(params ? { sql, params } : { sql }),
+      body: JSON.stringify(body),
     }
   );
-  const body = await res.json();
-  if (!res.ok || body.success === false) {
-    throw new Error(JSON.stringify(body.errors || body).slice(0, 400));
+  const json = await res.json();
+  if (!res.ok || json.success === false) {
+    throw new Error(JSON.stringify(json.errors || json).slice(0, 400));
   }
-  return body.result?.[0]?.results || [];
+  return json.result || [];
+}
+
+async function q(dbId, sql, params) {
+  const result = await d1(dbId, params ? { sql, params } : { sql });
+  return result?.[0]?.results || [];
+}
+
+/** Prefer D1 batch writes — one round-trip per page instead of N. */
+async function qBatch(dbId, statements) {
+  if (!statements.length) return [];
+  return d1(dbId, { batch: statements });
 }
 
 const UPSERT = `INSERT INTO prediction_snapshots(
@@ -91,19 +102,23 @@ async function main() {
       [sport, afterId, pageSize]
     );
     if (!rows.length) break;
-    for (const row of rows) {
+    const batch = rows.map((row) => {
       const envelope = buildPredictionEvidenceEnvelope(row);
-      await q(sportId, UPSERT, [
-        row.id, row.game_id, row.sport, row.model_version ?? null, row.projection_kind ?? null,
-        row.proj_total ?? null, row.proj_home ?? null, row.proj_away ?? null, row.proj_margin ?? null,
-        row.p_home_final ?? null, row.p_market ?? null, row.frozen_at ?? null,
-        row.weights_json ?? null, row.layers_json ?? null, row.projection_flags ?? null,
-        row.graded_at ?? null, row.actual_home ?? null, row.actual_away ?? null,
-        row.deployment_commit ?? null, envelope,
-      ]);
-      updated += 1;
       afterId = row.id;
-    }
+      updated += 1;
+      return {
+        sql: UPSERT,
+        params: [
+          row.id, row.game_id, row.sport, row.model_version ?? null, row.projection_kind ?? null,
+          row.proj_total ?? null, row.proj_home ?? null, row.proj_away ?? null, row.proj_margin ?? null,
+          row.p_home_final ?? null, row.p_market ?? null, row.frozen_at ?? null,
+          row.weights_json ?? null, row.layers_json ?? null, row.projection_flags ?? null,
+          row.graded_at ?? null, row.actual_home ?? null, row.actual_away ?? null,
+          row.deployment_commit ?? null, envelope,
+        ],
+      };
+    });
+    await qBatch(sportId, batch);
     const [envCount, total] = await Promise.all([
       q(sportId, `SELECT COUNT(*) n FROM prediction_snapshots WHERE sport=? AND payload_json LIKE '%fbis-canonical-evidence-v1%'`, [sport]),
       q(sportId, `SELECT COUNT(*) n FROM prediction_snapshots WHERE sport=?`, [sport]),
