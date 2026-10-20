@@ -1,0 +1,14 @@
+name = "fbis-kalshi-public-collector"
+main = "services/kalshi-public-collector/index.js"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+# Single centrally scheduled poll: one NFL or CFB series per fifteen minutes.
+# No account credentials. No D1, no betting decisions or venue execution.
+[triggers]
+crons = ["*/15 * * * *"]
+
+[[r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "fbis-archive"
