@@ -9,6 +9,7 @@ import {
   sortPropsByConviction,
   groupPlayerPropRows,
   orderExchangeResearchCards,
+  buildVenueComparisonRows,
   normalizeBoardGame,
   propProjectionStars,
   selectFreeMirrorReferenceRows,
@@ -681,4 +682,41 @@ test("exchange order never upgrades an unqualified contract into a verified mark
  assert.equal(orderExchangeResearchCards([onlyModel,r],1)[0],r);
  const fakeContract={id:'fake',provider:'Kalshi',contractId:'KX',identityVerified:false};
  assert.equal(orderExchangeResearchCards([fakeContract,onlyModel],2)[0],onlyModel);
+});
+
+test("paired exchange card uses exact event, player, stat, line, period and stat side",()=>{
+ const base={id:'k',provider:'Kalshi',contractId:'KXNBA',identityVerified:true,sport:'nba',
+ canonicalEventId:'event-1',canonicalPlayerId:'nba:espn:123',canonical_market:'points',
+ line:24.5,period:'full_game',statSide:'over',side:'yes',
+ settlementTerms:'identical contract rules',settlementScope:'full game',dnpSettlement:'FAIR_PRICE',
+ observedAsk:.48,priceVerified:false,marketAvailable:false,canAuthorizeWager:false};
+ const other={...base,id:'p',provider:'Polymarket',contractId:'US-PROP',observedAsk:.56};
+ const combined=buildVenueComparisonRows([base,other]);
+ assert.equal(combined.length,1);
+ assert.equal(combined[0].venueComparison.providerCount,2);
+ assert.equal(combined[0].venueComparison.priceComparisonStatus,'QUOTE_CLOCK_OR_EXECUTION_UNVERIFIED');
+ assert.equal(combined[0].venueComparison.priceDifferenceDollars,null);
+ assert.equal(combined[0].canAuthorizeWager,false);
+ assert.equal(combined[0].venueComparison.venues.find(v=>v.provider==='Polymarket').price,.56);
+});
+test("difference is published only with identical settlement and verified current executable asks",()=>{
+ const k={id:'k',provider:'Kalshi',contractId:'K',identityVerified:true,sport:'nba',
+ canonicalEventId:'event-1',canonicalPlayerId:'nba:espn:123',canonical_market:'rebounds',
+ line:7.5,period:'full_game',statSide:'under',side:'no',
+ settlementTerms:'exact equal terms',settlementScope:'full game',dnpSettlement:'VOID',
+ purchaseAsk:.41,priceVerified:true,fresh:true,marketAvailable:true};
+ const p={...k,id:'p',provider:'Polymarket',contractId:'P',purchaseAsk:.49};
+ const good=buildVenueComparisonRows([k,p]);
+ assert.equal(good.length,1);assert.equal(good[0].venueComparison.priceDifferenceDollars,.08);
+ assert.equal(good[0].venueComparison.cheaperProvider,'Kalshi');
+ for(const variant of [{...p,settlementTerms:'Different terms'}, {...p,dnpSettlement:'FAIR_PRICE'},
+  {...p,line:8.5}, {...p,canonicalEventId:'other game'}, {...p,statSide:'over'}]){
+  const result=buildVenueComparisonRows([k,variant]);
+  assert.equal(result.some(r=>r.venueComparison?.priceDifferenceDollars!=null),false);
+ }
+});
+test("model-only props keep their projection with no fabricated exchange quote",()=>{
+ const model={id:'model',sport:'nba',canonicalEventId:'e',canonicalPlayerId:'p',canonical_market:'points',fbis_projection:22};
+ const result=buildVenueComparisonRows([model]);
+ assert.equal(result.length,1);assert.equal(result[0],model);assert.equal(result[0].venueComparison,undefined);
 });
