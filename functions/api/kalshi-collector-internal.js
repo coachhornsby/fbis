@@ -1,3 +1,4 @@
+import {captureKalshiComboTape} from "../lib/kalshiComboTape.js";
 import {captureKalshiMultilegs} from "../lib/kalshiMultilegCollector.js";
 import {captureKalshiTargetedEvidence} from "../lib/kalshiTargetedEvidence.js";
 import { captureKalshiPlayerProps } from "../lib/kalshiPlayerPropCollector.js";
@@ -51,6 +52,10 @@ export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypt
   if(scope==="qualification-evidence"){
     try{const r=await captureKalshiTargetedEvidence(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503)}
     catch{return respond({ok:false,code:"EVIDENCE_COLLECTION_UNAVAILABLE"},503)}
+  }
+  if(scope==="combo-tape"){
+    try{const r=await captureKalshiComboTape(env,{fetchImpl});return respond(r,r.ok?200:503)}
+    catch{return respond({ok:false,code:"COMBO_TAPE_UNAVAILABLE"},503)}
   }
   if(scope==="multilegs"){
     try{const r=await captureKalshiMultilegs(env,{fetchImpl});return respond(r,r.ok?200:503)}

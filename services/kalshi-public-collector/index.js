@@ -30,7 +30,7 @@ export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}
   if(typeof env?.FBIS_KALSHI_RELAY_TOKEN!=="string"
     ||env.FBIS_KALSHI_RELAY_TOKEN.length<40)
     return {ok:false,code:"SIGNED_RELAY_SECRET_MISSING"};
-  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs")
+  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs"&&scope!=="combo-tape")
     return {ok:false,code:"SIGNED_RELAY_SCOPE_NOT_ALLOWED"};
   if(scope==="markets"&&!SPORTS.includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
@@ -137,13 +137,18 @@ export async function collectKalshiEvidenceOnce(env,{now=new Date(),fetchImpl=fe
  return result;
 }
 export default {
-  async scheduled(_event,env,ctx){
+  async scheduled(event,env,ctx){
+    // Spread auxiliary provider reads across scheduled windows. Concurrent
+    // multivariate / player-prop / tape fanout produced shared provider 429s.
+    // Market/tennis collectors keep their existing sport cadence.
+    const now=new Date(event?.scheduledTime||Date.now());
+    const aux=["player-props","player-props","multilegs","combo-tape",
+      "qualification-evidence"][Math.floor(now.getTime()/SLOT_MS)%5];
     ctx.waitUntil(Promise.all([
-      collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),collectKalshiExchangeStatusOnce(env),
-      collectKalshiSeriesCatalogOnce(env),
-      collectKalshiEvidenceOnce(env),
-      relaySignedPages(env,{scope:"player-props"}),
-      relaySignedPages(env,{scope:"multilegs"}),
+      collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),
+      collectKalshiExchangeStatusOnce(env),collectKalshiSeriesCatalogOnce(env),
+      aux==="qualification-evidence"?collectKalshiEvidenceOnce(env):
+        relaySignedPages(env,{scope:aux}),
     ]));
   },
   async fetch(request,env){
