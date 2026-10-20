@@ -70,6 +70,10 @@ jobs:
         run: node --test test/cold-market-history.test.mjs test/storage-full-core.test.mjs test/storage-research-archive.test.mjs test/storage-capacity-daily.test.mjs
       - name: Syntax check Cloudflare Functions
         run: find functions -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Verify Cloudflare traces and credential configuration
+        run: npm run verify:cloudflare
+      - name: Run NHL production qualification tests
+        run: npm run test:nhl
       - name: Run test suite
         run: npm test
       - name: Verify CFB private cold archive readback and integrity gates

@@ -40,6 +40,7 @@ export function auditConfidenceRows(rows=[],scope="GAME"){
   if(!monotonic)failures.push("confidence-not-monotonic");
   if(metrics.roi==null||metrics.roi<=gates.minRoi)failures.push("roi-not-positive");
   if(metrics.maxDrawdown>gates.maxDrawdown)failures.push("drawdown-gate");
+  if(scope==="GAME"&&metrics.clvCoverage<gates.minClvCoverage)failures.push("clv-coverage-insufficient");
   if(scope==="GAME"&&metrics.clvCoverage>=gates.minClvCoverage&&metrics.avgClvProbabilityPp<gates.minAvgClv)failures.push("clv-negative");
   return {scope,status:failures.length?"NOT_VALIDATED":"VALIDATED",validated:failures.length===0,failures,gates,metrics};
 }
@@ -53,6 +54,8 @@ export async function loadNhlCalibrationRows(db){
       ) rn
     FROM nhl_wager_decisions d JOIN nhl_wager_settlements s ON s.decision_id=d.id
     WHERE d.research_candidate=1 AND d.game_type=2
+      AND d.snapshot_at < d.event_start AND abs(d.american_price)>=100
+      AND d.calibrated_probability BETWEEN 0 AND 1
   )
   SELECT * FROM ranked WHERE rn=1 ORDER BY settled_at,event_id,market,selection`).all();
   return q.results||[];

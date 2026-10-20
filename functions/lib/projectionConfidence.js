@@ -1,3 +1,4 @@
+import { nhlGameConfidence } from "./nhlGameConfidence.js";
 export const CONFIDENCE_VERSION = "FBIS-CONFIDENCE-v2";
 
 const HARD_DQ_STATES = new Set(["DQ", "BLOCKED", "INVALID", "FAILED", "REJECTED", "CORRUPT"]);
@@ -198,7 +199,7 @@ function nflScore(game = {}) {
 }
 
 export function canonicalProjectionConfidence(game = {}) {
-  if (!hasProjection(game)) {
+  if (String(game?.sport||"").toLowerCase()!=="nhl" && !hasProjection(game)) {
     return { version: CONFIDENCE_VERSION, score: 20, stars: 1, source: "NO_PROJECTION" };
   }
   if (hardDq(game)) {
@@ -206,6 +207,7 @@ export function canonicalProjectionConfidence(game = {}) {
   }
 
   const sportSpecific =
+    nhlGameConfidence(game) ||
     nflScore(game) ||
     cfbScore(game) ||
     soccerScore(game);
@@ -213,6 +215,7 @@ export function canonicalProjectionConfidence(game = {}) {
   const resolved = sportSpecific || genericScore(game);
   const score = clamp100(resolved.score);
   return {
+    ...resolved,
     version: CONFIDENCE_VERSION,
     score: Math.round(score * 10) / 10,
     stars: starsFromScore(score),

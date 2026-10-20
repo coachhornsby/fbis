@@ -8,6 +8,7 @@
  * until prospective calibration/ROI evidence clears governance.
  */
 
+import { bivariateDistribution } from "./nhlProV2.js";
 import { americanToImplied, expectedRoi, twoWayMarket } from "./pricing.js";
 import { NHL_WAGER_CONFIDENCE_V1 } from "../../data/models/nhl-wager-confidence-v1.js";
 import { auditNhlMoneylineProbability } from "./nhlUnifiedMoneylineShadow.js";
@@ -21,38 +22,14 @@ function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
 function round(v,n=4){if(v==null||!Number.isFinite(Number(v)))return null;const p=10**n;return Math.round(Number(v)*p)/p;}
 function logit(p){const q=clamp(Number(p),1e-6,1-1e-6);return Math.log(q/(1-q));}
 function sigmoid(z){return z>=0?1/(1+Math.exp(-z)):Math.exp(z)/(1+Math.exp(z));}
-function poisson(lambda,k){let p=Math.exp(-lambda);for(let i=1;i<=k;i++)p*=lambda/i;return p;}
 
 export function nhlMarketDistribution(homeGoals,awayGoals,{totalLine=null,homeSpread=null}={}){
-  const h=finite(homeGoals),a=finite(awayGoals);
-  if(h==null||a==null)return null;
-  const shared=Math.min(.32,.10*Math.min(h,a)),lh=Math.max(.05,h-shared),la=Math.max(.05,a-shared);
-  let homeReg=0,awayReg=0,tie=0,over=0,under=0,pushTotal=0,homeCover=0,awayCover=0,pushSpread=0,mass=0;
-  for(let x=0;x<=12;x++)for(let y=0;y<=12;y++)for(let z=0;z<=5;z++){
-    const p=poisson(lh,x)*poisson(la,y)*poisson(shared,z),hg=x+z,ag=y+z;mass+=p;
-    if(hg>ag)homeReg+=p;else if(ag>hg)awayReg+=p;else tie+=p;
-    if(totalLine!=null){
-      const t=hg+ag;if(t>totalLine)over+=p;else if(t<totalLine)under+=p;else pushTotal+=p;
-    }
-    if(homeSpread!=null){
-      const d=hg+homeSpread-ag;if(d>0)homeCover+=p;else if(d<0)awayCover+=p;else pushSpread+=p;
-    }
-  }
-  const norm=v=>mass?clamp(v/mass,0,1):0;
-  const otHome=1/(1+Math.exp(-(h-a)/.65));
-  const homeWin=norm(homeReg)+norm(tie)*otHome;
-  const renormNoPush=(x,y)=>{const s=x+y;return s>0?x/s:null;};
-  const hc=norm(homeCover),ac=norm(awayCover),ov=norm(over),un=norm(under);
-  return {
-    homeWinIncludingOt:round(homeWin),awayWinIncludingOt:round(1-homeWin),
-    homeCover:homeSpread==null?null:round(renormNoPush(hc,ac)),
-    awayCover:homeSpread==null?null:round(renormNoPush(ac,hc)),
-    over:totalLine==null?null:round(renormNoPush(ov,un)),
-    under:totalLine==null?null:round(renormNoPush(un,ov)),
-    spreadPush:homeSpread==null?null:round(norm(pushSpread)),
-    totalPush:totalLine==null?null:round(norm(pushTotal)),
-    sharedComponent:round(shared,3),
-  };
+  const d=bivariateDistribution(finite(homeGoals),finite(awayGoals),finite(totalLine),finite(homeSpread));
+  if(!d)return null;
+  const conditional=(x,y)=>x+y>0?round(x/(x+y)):null;
+  return {...d,homeCover:homeSpread==null?null:conditional(d.homeCover,d.awayCover),
+    awayCover:homeSpread==null?null:conditional(d.awayCover,d.homeCover),
+    over:totalLine==null?null:conditional(d.over,d.under),under:totalLine==null?null:conditional(d.under,d.over),totalPush:d.push};
 }
 
 function oddsPack(game={}){
@@ -76,7 +53,7 @@ export function verifyNhlFullGameMoneylineQuote(game={},odds={},now=Date.now()){
   const start=Date.parse(game.start||"");
   const lines=game.marketLineHistory||[];
   const scope=String(game.odds?.moneylineMarketScope||game.marketRules?.moneyline||"").toUpperCase();
-  if(scope!=="FULL_GAME_INCLUDING_OT_SHOOTOUT"||!Number.isFinite(start))
+  if(scope!=="FULL_GAME_INCLUDING_OT_SHOOTOUT"||!Number.isFinite(start)||!Number.isFinite(now)||now>=start)
     return {ok:false,reason:"MONEYLINE_SETTLEMENT_SCOPE_UNVERIFIED"};
   const valid=lines.filter(r=>{
     const t=Date.parse(r.collectedAt||"");
@@ -214,13 +191,14 @@ function reliabilityForGame(game={},trajectory=null){
     dataQuality:round(qualityNorm),marketTrajectory:marketFresh,contextOk
   };
 }
-export function validateNhlConfidenceCalibration(calibration={}) {
+export function validateNhlConfidenceCalibration(calibration={},minSettled=150) {
   const bins=(calibration?.bins||[]).slice().sort((a,b)=>Number(a.min)-Number(b.min));
   if(!calibration?.validated||bins.length<3)return {ok:false,reason:"confidence-calibration-not-validated"};
+  if(bins.reduce((s,b)=>s+(finite(b.n)??0),0)<minSettled)return {ok:false,reason:"confidence-settled-sample-insufficient"};
   let prevWin=-Infinity,prevRoi=-Infinity;
   for(const b of bins){
     const n=finite(b.n),win=finite(b.winRate),roi=finite(b.roi);
-    if(n==null||n<25||win==null)return {ok:false,reason:"confidence-bin-insufficient"};
+    if(n==null||!Number.isInteger(n)||n<25||win==null||win<0||win>1)return {ok:false,reason:"confidence-bin-insufficient"};
     if(win+1e-9<prevWin)return {ok:false,reason:"confidence-not-monotonic"};
     if(roi!=null&&prevRoi!==-Infinity&&roi+1e-9<prevRoi)return {ok:false,reason:"confidence-roi-not-monotonic"};
     prevWin=win;if(roi!=null)prevRoi=roi;
@@ -318,7 +296,7 @@ function offerRow({market,selection,line,price,oppositePrice,modelProbability,ga
 export function evaluateNhlGameWagers(game={},calibration=NHL_WAGER_CONFIDENCE_V1.game){
   const p=game.nhlProV2||game.challengers?.["NHL-PRO-v2"];
   const ph=finite(p?.projHome),pa=finite(p?.projAway);
-  if(ph==null||pa==null)return {ok:false,reason:"independent_projection_missing",offers:[],canQualify:false,canAuthorizeWager:false};
+  if(ph==null||pa==null||ph<=0||pa<=0||ph>10||pa>10)return {ok:false,reason:"independent_projection_missing",offers:[],canQualify:false,canAuthorizeWager:false};
   const o=oddsPack(game),dist=nhlMarketDistribution(ph,pa,{totalLine:o.total,homeSpread:o.homeSpread});
   const home=String(game.home?.abbr||p.home||"HOME"),away=String(game.away?.abbr||p.away||"AWAY");
   const integrity=auditNhlMoneylineProbability(game);
@@ -362,9 +340,9 @@ export function evaluateNhlPropWagerV1(row={},calibration=NHL_WAGER_CONFIDENCE_V
   if(String(row.sport||"").toLowerCase()!=="nhl")return null;
   const pOver=finite(row.probabilityOver),pUnder=finite(row.probabilityUnder);
   const over=finite(row.overOdds??row.overPrice),under=finite(row.underOdds??row.underPrice);
-  if(pOver==null||pUnder==null||over==null||under==null)return {
+  if(pOver==null||pUnder==null||pOver<0||pOver>1||pUnder<0||pUnder>1||Math.abs(pOver+pUnder-1)>.001||over==null||under==null||Math.abs(over)<100||Math.abs(under)<100)return {
     modelId:"NHL-WAGER-PROP-v1",decision:"PASS",decisionStatus:"RESEARCH_ONLY",reason:"complete_two_way_price_or_probability_missing",
-    confidence:0,confidenceStatus:"PROVISIONAL_UNCALIBRATED",suggestedUnits:0,canQualify:false,canAuthorizeWager:false
+    confidence:0,confidenceStatus:"PROVISIONAL_UNCALIBRATED",researchCandidate:false,qualificationEligible:false,suggestedUnits:0,canQualify:false,canAuthorizeWager:false
   };
   const side=pOver>=pUnder?"OVER":"UNDER",p=side==="OVER"?pOver:pUnder,price=side==="OVER"?over:under,opp=side==="OVER"?under:over;
   const tw=twoWayMarket(price,opp),noVig=tw.complete?tw.noVigA:null;
@@ -376,11 +354,11 @@ export function evaluateNhlPropWagerV1(row={},calibration=NHL_WAGER_CONFIDENCE_V
   const ev=expectedRoi(calibrated,price),edge=noVig==null?null:calibrated-noVig;
   const reliability={score:round(reliabilityScore),validatedMarket:validated,availabilityClear:gate,trackingCoverage:round(track)};
   const rawConfidence=provisionalConfidence({ev,probEdge:edge,reliability,trajectory:null,marketComplete:tw.complete});
-  const calibrationState=validateNhlConfidenceCalibration(calibration);
+  const calibrationState=validateNhlConfidenceCalibration(calibration,250);
   const bin=calibrationState.ok?calibrationBin(rawConfidence,calibration):null;
   const confidence=calibrationState.ok?clamp(Math.round(finite(bin?.calibratedScore)??rawConfidence),0,100):rawConfidence;
   const researchCandidate=Boolean(validated&&gate&&tw.complete&&ev!=null&&edge!=null&&ev>=Number(calibration?.minEv??.035)&&edge>=Number(calibration?.minProbabilityEdge??.025));
-  const qualificationEligible=researchCandidate;
+  const qualificationEligible=researchCandidate&&calibrationState.ok&&confidence>=Number(calibration?.minConfidence??70);
   const bet=qualificationEligible;
   return {
     modelId:"NHL-WAGER-PROP-v1",version:"research-v1.0-price-aware",

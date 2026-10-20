@@ -14,3 +14,7 @@ crons = ["*/15 * * * *"]
 binding = "DB"
 database_name = "fbis"
 database_id = "b50c724c-903b-4241-8ce1-48d931e7a44c"
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.1

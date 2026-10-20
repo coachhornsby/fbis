@@ -27,7 +27,7 @@ export function nhlWagerGameRows(board,snapshotAt){
       // Persist only evidence-backed full-game economic research. Keep raw
       // regulation distributions, stale/non-executable quotes and uncalibrated
       // model probabilities in the independent diagnostics, not the wager log.
-      if(o.market!=="moneyline"||o.marketProbabilityUsePermitted!==true||
+      if(!(Date.parse(snapshotAt)<Date.parse(game.start))||o.market!=="moneyline"||o.marketProbabilityUsePermitted!==true||
         o.americanPrice==null||o.calibratedProbability==null)continue;
       rows.push({
         eventId:String(game.id),eventStart:game.start||null,gameType:finite(game?.nhlProV2?.layers?.opportunity?.gameType??game?.gameType),wagerScope:"GAME",
@@ -58,6 +58,7 @@ function propRows(board,snapshotAt){
   for(const r of pb.rows||[]){
     const w=r.nhlWagerV1;if(!w||w.americanPrice==null||w.calibratedProbability==null)continue;
     const game=(board.games||[]).find(g=>String(g.id)===String(r.eventId));
+    if(!(Date.parse(snapshotAt)<Date.parse(game?.start)))continue;
     rows.push({
       eventId:String(r.eventId),eventStart:game?.start||null,gameType:finite(game?.nhlProV2?.layers?.opportunity?.gameType??game?.gameType),wagerScope:"PROP",
       playerId:r.fbisPlayerId||r.providerPlayerId||null,playerName:r.playerName||null,team:r.team||null,
@@ -109,6 +110,10 @@ function profitFor(result,price){
   if(result==="PUSH"||result==="VOID")return 0;if(result==="LOSS")return-1;
   return americanProfit(price,1)??0;
 }
+export function nhlFinalEvidence(game){
+  return game?.status?.type?.completed===true || game?.status?.completed===true ||
+    ["FINAL","OFF","COMPLETED"].includes(String(game?.gameState||game?.status?.type?.name||game?.status||"").toUpperCase());
+}
 async function fetchBox(eventId){
   const r=await fetch(`https://api-web.nhle.com/v1/gamecenter/${encodeURIComponent(eventId)}/boxscore`,{headers:{accept:"application/json","user-agent":"FBIS-NHL-WAGER-v1/1.0"},signal:AbortSignal.timeout(5000)});
   if(!r.ok)return null;return r.json();
@@ -138,14 +143,16 @@ function resultProp(row,actual){
 }
 async function closeQuote(db,row){
   if(row.wager_scope!=="GAME")return null;
-  const market=String(row.market||"").toUpperCase()==="MONEYLINE"?"ML":String(row.market||"").toUpperCase();
-  const side=String(row.selection||"").toUpperCase();
+  let trajectory;try{trajectory=JSON.parse(row.trajectory_json||'null');}catch{return null;}
+  const q=trajectory?.quoteProvenance;
+  if(!q?.book||q.marketScope!=="FULL_GAME_INCLUDING_OT_SHOOTOUT")return null;
   return db.prepare(`SELECT line,price,no_vig,captured_at FROM odds_snapshots
-    WHERE game_id=? AND upper(market)=? AND upper(side)=? AND rejected_post_start=0
-      AND captured_at <= COALESCE(?,captured_at)
-    ORDER BY captured_at DESC LIMIT 1`).bind(row.event_id,market,side,row.event_start).first();
+    WHERE game_id=? AND upper(market)='ML' AND lower(side)=? AND book=?
+      AND rejected_post_start=0 AND paired=1 AND period IN ('fg','full_game')
+      AND captured_at < ? AND captured_at >= ?
+    ORDER BY captured_at DESC LIMIT 1`).bind(row.event_id,String(row.selection).toLowerCase(),q.book,row.event_start,row.snapshot_at).first();
 }
-async function settle(db,date,board){
+export async function settle(db,date,board){
   const decisions=(await db.prepare(`SELECT d.* FROM nhl_wager_decisions d
     LEFT JOIN nhl_wager_settlements s ON s.decision_id=d.id
     WHERE s.decision_id IS NULL AND substr(d.event_start,1,10) BETWEEN ? AND ?`)
@@ -153,14 +160,17 @@ async function settle(db,date,board){
   const games=new Map((board.games||[]).map(g=>[String(g.id),g])),boxes=new Map();
   let settled=0,voided=0;
   for(const d of decisions){
+    if(!(Date.parse(d.snapshot_at)<Date.parse(d.event_start))||finite(d.american_price)==null||Math.abs(Number(d.american_price))<100)continue;
     let result="VOID",actualHome=null,actualAway=null,actualPlayer=null;
     const g=games.get(String(d.event_id));
     if(d.wager_scope==="GAME"){
+      if(!nhlFinalEvidence(g))continue;
       actualHome=finite(g?.home?.score),actualAway=finite(g?.away?.score);
       if(actualHome==null||actualAway==null)continue;
       result=resultGame(d,actualHome,actualAway);
     }else{
       if(!boxes.has(d.event_id))boxes.set(d.event_id,await fetchBox(d.event_id).catch(()=>null));
+      if(!nhlFinalEvidence(boxes.get(d.event_id)))continue;
       actualPlayer=actualProp(boxes.get(d.event_id),d);
       if(actualPlayer==null)continue;
       result=resultProp(d,actualPlayer);

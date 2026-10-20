@@ -52,3 +52,10 @@ renamed_classes = [{ from = "PolymarketMarketStream", to = "PolymarketMarketStre
 [[migrations]]
 tag = "v3-capacity-routing-rename"
 renamed_classes = [{ from = "PolymarketMarketStreamCoverage", to = "PolymarketMarketStreamRecovered" }]
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.1
+
+[observability]
+enabled = true

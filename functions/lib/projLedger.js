@@ -1,3 +1,4 @@
+import { canonicalProjectionConfidence } from "./projectionConfidence.js";
 /**
  * Frozen projection ledger. Snapshot pregame scores, then grade vs finals.
  * Harvest uses scoreboards only — never Parlay — so nightly grading is free.
@@ -309,6 +310,9 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
       ...(model.layers || {}),
       ...(isNhl ? {
         score:pScore,
+        canonicalProjectionConfidence:canonicalProjectionConfidence(game),
+        scoringDistributionTreatment:pro?.probability?.scoringTreatment||null,
+        goalieStarterEvidence:pro?.layers?.goalie||null,
         probabilitySource:nhlProbabilityEligible?"NHL-PRO-v2:FULL_GAME_INCLUDING_OT_SHOOTOUT":"UNAVAILABLE_FAIL_CLOSED",
         probabilitySourceEventId:nhlProbabilityEligible?nhlAudit.eventId:null,
         probabilityHomeTeam:nhlProbabilityEligible?nhlAudit.home:null,
