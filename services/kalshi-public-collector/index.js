@@ -181,14 +181,24 @@ export async function collectNhlProspectiveOnce(env,{now=new Date(),fetchImpl=fe
  if(ms(receipt?.attemptedAt)>now.getTime()-60*60*1000)return {ok:true,status:"NOT_DUE"};
  return relaySignedPages(env,{scope:"nhl-prospective-capture",fetchImpl});
 }
+/**
+ * Refresh 4 player-prop series in three of every four quarter-hour slots.
+ * This keeps an ~18-series inventory within the two-hour read window when
+ * provider responses succeed. The fourth slot rotates research-only scopes.
+ */
+export function selectedAuxScope(now){
+ const slot=Math.floor(now.getTime()/SLOT_MS);
+ return slot%4===3?
+  ["multilegs","combo-tape","qualification-evidence"][Math.floor(slot/4)%3]:
+  "player-props";
+}
 export default {
   async scheduled(event,env,ctx){
     // Spread auxiliary provider reads across scheduled windows. Concurrent
     // multivariate / player-prop / tape fanout produced shared provider 429s.
     // Market/tennis collectors keep their existing sport cadence.
     const now=new Date(event?.scheduledTime||Date.now());
-    const aux=["player-props","player-props","multilegs","combo-tape",
-      "qualification-evidence"][Math.floor(now.getTime()/SLOT_MS)%5];
+    const aux=selectedAuxScope(now);
     ctx.waitUntil(Promise.all([
       collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),
       collectKalshiExchangeStatusOnce(env),collectKalshiSeriesCatalogOnce(env),

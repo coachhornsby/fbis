@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import collector,{selectedSport,collectKalshiPublicOnce,collectKalshiEvidenceOnce,relaySignedPages} from "../services/kalshi-public-collector/index.js";
+import collector,{selectedSport,selectedAuxScope,collectKalshiPublicOnce,collectKalshiEvidenceOnce,relaySignedPages} from "../services/kalshi-public-collector/index.js";
 import {loadKalshiR2Shadow} from "../functions/lib/kalshiR2Shadow.js";
 import {onRequestGet} from "../functions/api/kalshi-market-shadow.js";
 
@@ -165,4 +165,12 @@ test("evidence relay observes 30-minute cooldown from R2 instead of sending extr
  const r=await collectKalshiEvidenceOnce({ARCHIVE,FBIS_KALSHI_RELAY_TOKEN:secret},
   {now:new Date(now.getTime()+1000),fetchImpl:async()=>{calls++;throw Error("unexpected")}});
  assert.equal(r.status,"NOT_DUE");assert.equal(calls,0);
+});
+
+test("scheduled collector assigns three of four 15-minute windows to prop inventory",()=>{
+ const start=Date.parse("2026-10-20T00:00:00Z");
+ const slots=Array.from({length:12},(_,i)=>selectedAuxScope(new Date(start+i*15*60000)));
+ assert.equal(slots.filter(s=>s==="player-props").length,9);
+ assert.deepEqual(slots.filter(s=>s!=="player-props"),["multilegs","combo-tape","qualification-evidence"]);
+ assert.equal(selectedAuxScope(new Date(start+12*15*60000)),"player-props");
 });
