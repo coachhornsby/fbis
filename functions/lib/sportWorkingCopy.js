@@ -209,6 +209,58 @@ function stablePublishedId(row) {
   return `${row.sport}|${row.game_id}|${row.model_version || ""}|${row.published_at || ""}`;
 }
 
+/**
+ * IDs can sort before a saved high-water mark when PRIMARY receives late writes.
+ * A high-water cursor by itself cannot detect those omissions. When the source
+ * has more rows, start an idempotent full keyset replay; persist an in-progress
+ * marker so bounded runs for CFB/large sports continue instead of restarting.
+ * No source records are deleted, and this never changes sport authority.
+ */
+export function planSportShadowCursorRecovery({
+  primaryCount, sportCount, resumeCursor = "", replayActive = false,
+} = {}) {
+  const countsValid = Number.isInteger(primaryCount) && Number.isInteger(sportCount);
+  const missing = countsValid && primaryCount > sportCount;
+  const startReplay = missing && !replayActive;
+  return {
+    cursor: startReplay ? "" : String(resumeCursor || ""),
+    replayActive: replayActive || startReplay,
+    startReplay,
+    missingCount: missing ? primaryCount - sportCount : 0,
+  };
+}
+
+async function beginSportWorkingCopy(primary, sportDb, sport, table, resume) {
+  if (!resume) return { cursor: "", replayActive: false, startReplay: false };
+  const cursorKey = `copy_cursor_${table}`;
+  const replayKey = `copy_replay_active_${table}`;
+  const resumeCursor = (await metaGet(sportDb, cursorKey)) || "";
+  const replayActive = (await metaGet(sportDb, replayKey)) === "1";
+  const sql = `SELECT COUNT(*) n FROM ${table} WHERE sport=?`;
+  const [primaryCount, sportCount] = await Promise.all([
+    count(primary, sql, sport), count(sportDb, sql, sport),
+  ]);
+  const plan = planSportShadowCursorRecovery({
+    primaryCount, sportCount, resumeCursor, replayActive,
+  });
+  if (plan.startReplay) {
+    // Persist both markers before D1 copying, so interrupted retries resume
+    // from the beginning rather than skipping earlier missing IDs.
+    await metaSet(sportDb, cursorKey, "");
+    await metaSet(sportDb, replayKey, "1");
+  }
+  return plan;
+}
+
+async function finishSportWorkingCopy(sportDb, table, plan, pass) {
+  if (pass.cursor) await metaSet(sportDb, `copy_cursor_${table}`, pass.cursor);
+  // Only clear after an exhausted scan. A new count discrepancy on a future
+  // cycle will start another replay, catching late backfills below the cursor.
+  if (plan.replayActive && pass.exhausted) {
+    await metaSet(sportDb, `copy_replay_active_${table}`, "0");
+  }
+}
+
 async function copyGamesPaged(primary, sportDb, sport, { pageSize, maxPages, afterId = "" }) {
   let cursor = afterId;
   let copied = 0;
@@ -456,13 +508,13 @@ export async function copySportWorkingTables(env, sport, {
   }
 
   try {
-    const afterGames = resume ? (await metaGet(sportDb, `copy_cursor_games`) || "") : "";
+    const gamesPlan = await beginSportWorkingCopy(primary, sportDb, key, "games", resume);
     const games = await copyGamesPaged(primary, sportDb, key, {
       pageSize: effectivePageSize,
       maxPages: effectiveMaxPages,
-      afterId: afterGames,
+      afterId: gamesPlan.cursor,
     });
-    if (games.cursor) await metaSet(sportDb, "copy_cursor_games", games.cursor);
+    await finishSportWorkingCopy(sportDb, "games", gamesPlan, games);
     checkpoints.games = games.cursor;
     results.push({ table: "games", ok: true, ...games });
   } catch (error) {
@@ -470,27 +522,13 @@ export async function copySportWorkingTables(env, sport, {
   }
 
   try {
-    let afterPreds = resume ? (await metaGet(sportDb, `copy_cursor_prediction_snapshots`) || "") : "";
-    // If sport shard is empty but PRIMARY has rows, a stale high-water cursor would
-    // report exhausted-with-zero forever — reset once to resume the backfill.
-    if (afterPreds) {
-      try {
-        const sportN = await count(sportDb, "SELECT COUNT(*) n FROM prediction_snapshots WHERE sport=?", key);
-        const primaryN = await count(primary, "SELECT COUNT(*) n FROM prediction_snapshots WHERE sport=?", key);
-        if (sportN === 0 && primaryN > 0) {
-          afterPreds = "";
-          await metaSet(sportDb, "copy_cursor_prediction_snapshots", "");
-        }
-      } catch {
-        /* count probes are best-effort */
-      }
-    }
+    const predsPlan = await beginSportWorkingCopy(primary, sportDb, key, "prediction_snapshots", resume);
     const preds = await copyPredictionsPaged(primary, sportDb, key, {
       pageSize: effectivePageSize,
       maxPages: effectiveMaxPages,
-      afterId: afterPreds,
+      afterId: predsPlan.cursor,
     });
-    if (preds.cursor) await metaSet(sportDb, "copy_cursor_prediction_snapshots", preds.cursor);
+    await finishSportWorkingCopy(sportDb, "prediction_snapshots", predsPlan, preds);
     checkpoints.prediction_snapshots = preds.cursor;
     results.push({ table: "prediction_snapshots", ok: true, ...preds });
   } catch (error) {
@@ -503,13 +541,13 @@ export async function copySportWorkingTables(env, sport, {
   }
 
   try {
-    const afterPub = resume ? (await metaGet(sportDb, `copy_cursor_published_projections`) || "") : "";
+    const publishedPlan = await beginSportWorkingCopy(primary, sportDb, key, "published_projections", resume);
     const pubs = await copyPublishedPaged(primary, sportDb, key, {
       pageSize: effectivePageSize,
       maxPages: effectiveMaxPages,
-      afterKey: afterPub,
+      afterKey: publishedPlan.cursor,
     });
-    if (pubs.cursor) await metaSet(sportDb, "copy_cursor_published_projections", pubs.cursor);
+    await finishSportWorkingCopy(sportDb, "published_projections", publishedPlan, pubs);
     checkpoints.published_projections = pubs.cursor;
     results.push({ table: "published_projections", ok: true, ...pubs });
   } catch (error) {
@@ -1050,12 +1088,13 @@ export async function syncSportWorkingDelta(env, sport, {
       })),
       reason: pass.reason || null,
     });
-    if (!pass.ok && pass.reason) {
+    if (!pass.ok) {
       return {
         ok: false,
         sport: key,
         passes,
-        reason: pass.reason,
+        caughtUp: false,
+        reason: pass.reason || `WORKING_SET_COPY_FAILED:${(pass.results || []).filter(r => !r.ok).map(r => r.table).join(",")}`,
         productStillPrimary: true,
         canAuthorizeWager: false,
       };
@@ -1073,8 +1112,9 @@ export async function syncSportWorkingDelta(env, sport, {
     ok: parity.ok && (!prefix || prefix.ok),
     sport: key,
     passes,
-    caughtUp: !moreRemaining,
-    moreRemaining,
+    // Exhausted cursors do not mean caught up when source rows remain missing.
+    caughtUp: !moreRemaining && parity.ok === true,
+    moreRemaining: moreRemaining || parity.ok !== true,
     prefix,
     parity,
     productStillPrimary: true,

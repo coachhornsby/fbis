@@ -7,6 +7,7 @@ import {
   copySportPrefixTables,
   verifySportPrefixParity,
   syncSportWorkingDelta,
+  planSportShadowCursorRecovery,
   SPORT_PREFIX_TABLES,
   SPORT_SYNC_SPORTS,
   isSportSyncEligible,
@@ -127,6 +128,49 @@ function memoryDb(seed = {}) {
     _tables: tables,
   };
 }
+
+test("late prediction IDs below the saved high-water mark force a bounded replay", () => {
+  // Production incident: PRIMARY gained two NFL predictions behind the
+  // already exhausted high-water cursor; shadow remained 1814 versus 1816.
+  const rewind = planSportShadowCursorRecovery({
+    primaryCount: 1816,
+    sportCount: 1814,
+    resumeCursor: "zz-high-water-id",
+    replayActive: false,
+  });
+  assert.equal(rewind.cursor, "");
+  assert.equal(rewind.startReplay, true);
+  assert.equal(rewind.replayActive, true);
+  assert.equal(rewind.missingCount, 2);
+
+  // A bounded CFB replay must progress across runs, not reset every call.
+  const nextPage = planSportShadowCursorRecovery({
+    primaryCount: 10359,
+    sportCount: 6000,
+    resumeCursor: "cfb-mid-page",
+    replayActive: true,
+  });
+  assert.equal(nextPage.cursor, "cfb-mid-page");
+  assert.equal(nextPage.startReplay, false);
+  assert.equal(nextPage.replayActive, true);
+
+  const caughtUp = planSportShadowCursorRecovery({
+    primaryCount: 1816,
+    sportCount: 1816,
+    resumeCursor: "zz-high-water-id",
+    replayActive: false,
+  });
+  assert.equal(caughtUp.cursor, "zz-high-water-id");
+  assert.equal(caughtUp.startReplay, false);
+
+  const unavailableCounts = planSportShadowCursorRecovery({
+    primaryCount: null,
+    sportCount: 1814,
+    resumeCursor: "z",
+    replayActive: false,
+  });
+  assert.equal(unavailableCounts.startReplay, false);
+});
 
 test("NFL migration scope lists prefix tables and defers player props", () => {
   const scope = sportMigrationScope("nfl");
