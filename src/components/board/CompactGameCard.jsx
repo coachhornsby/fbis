@@ -15,18 +15,19 @@ import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import MatchupSignals from "./MatchupSignals.jsx";
 import NhlMatchupSignals from "./NhlMatchupSignals.jsx";
-import { confidenceStars } from "../../lib/confidenceStars.js";
+import { confidenceStarPresentation } from "../../lib/confidenceStars.js";
 import { gapBrandColor } from "../../lib/marketGapBrand.js";
 import { matchupSignalColors } from "../../lib/matchupTeamBrand.js";
 import "./compactGameCardEnhancements.css";
 import "./universalPremiumCard.css";
 
-function Stars({ value = 1 }) {
-  const safe = Math.max(1, Math.min(5, Number(value) || 1));
+function Stars({ value = 1, max = 5 }) {
+  const ceiling = Math.max(1, Math.min(5, Number(max) || 5));
+  const safe = Math.max(1, Math.min(ceiling, Number(value) || 1));
   return (
-    <span className="cgc-star-row" aria-label={`${safe} of 5 confidence stars`}>
-      {Array.from({ length: 5 }, (_, i) => (
-        i < safe ? <svg key={i} className="filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg> : null
+    <span className="cgc-star-row" aria-label={`${safe} of ${ceiling} confidence stars`}>
+      {Array.from({ length: ceiling }, (_, i) => (
+        <svg key={i} className={i < safe ? "filled" : "empty"} viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg>
       ))}
     </span>
   );
@@ -120,7 +121,8 @@ function normalizeTeamColor(team, fallback) {
 export default function CompactGameCard({ game, onOpen }) {
   const vm = buildGameCardViewModel(game);
   const stored = game?.durableFallback?.statusUnverified === true;
-  const stars = stored ? null : confidenceStars(game);
+  const rating = stored ? null : confidenceStarPresentation(game);
+  const stars = rating?.stars ?? null;
   const away = vm.away || {};
   const home = vm.home || {};
   const awayBrand = normalizeTeamColor(away, "#0b5fa5");
@@ -177,7 +179,7 @@ export default function CompactGameCard({ game, onOpen }) {
 
   return (
     <article
-      className={"cgc pgc fbis-universal-premium"+(stars===5&&showStars&&!stored?" cgc-five-star":"")+(stored?" cgc-stored":"")}
+      className={"cgc pgc fbis-universal-premium"+(rating?.fiveStarEligible&&stars===5&&showStars&&!stored?" cgc-five-star":"")+(stored?" cgc-stored":"")}
       data-game-id={vm.id || game?.id || ""}
       data-sport={vm.sport || ""}
       tabIndex={0}
@@ -197,7 +199,7 @@ export default function CompactGameCard({ game, onOpen }) {
           <span className="cgc-time">{vm.timing?.timeLine || "—"}</span>
         </div>
         <div className="cgc-head-right">
-          {stored ? null : showStars ? <span title={isNhl ? "Model confidence rating, not a qualified betting signal" : "Model confidence rating"}><Stars value={stars} /></span> : <span className="cgc-rating-unavailable">NO MODEL RATING</span>}
+          {stored ? null : showStars ? <span title={isNhl ? "NHL evidence rating, not a qualified betting signal" : "Model confidence rating"}><Stars value={stars} max={rating.max} /></span> : <span className="cgc-rating-unavailable">NO MODEL RATING</span>}
           <span className={`cgc-status cgc-status-${String(vm.status?.tone || "neutral").toLowerCase()}`}>
             {vm.status?.label || "FBIS"}
           </span>

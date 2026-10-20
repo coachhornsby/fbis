@@ -19,7 +19,7 @@ import MlbPitchHitMatchups from "./MlbPitchHitMatchups.jsx";
 import NflInjuryIntegrityStrip from "./NflInjuryIntegrityStrip.jsx";
 
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
-import { confidenceStars } from "../../lib/confidenceStars.js";
+import { confidenceStarPresentation } from "../../lib/confidenceStars.js";
 import { bestEdge } from "../../lib/boardEvidence.js";
 import { gapBrandColor, gapDirection } from "../../lib/marketGapBrand.js";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
@@ -89,10 +89,11 @@ function modelEdge(vm) {
   return { value: "—", delta: "—", type: "EDGE" };
 }
 
-function SharpStars({ value = 1 }) {
-  const safe = Math.max(1, Math.min(5, Number(value) || 1));
-  return <span className="pgc-sharp-stars" aria-label={`${safe} of 5 confidence stars`}>
-    {Array.from({ length: 5 }, (_, i) => <svg key={i} className={i < safe ? "filled" : "empty"} viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg>)}
+function SharpStars({ value = 1, max = 5 }) {
+  const ceiling = Math.max(1, Math.min(5, Number(max) || 5));
+  const safe = Math.max(1, Math.min(ceiling, Number(value) || 1));
+  return <span className="pgc-sharp-stars" aria-label={`${safe} of ${ceiling} confidence stars`}>
+    {Array.from({ length: ceiling }, (_, i) => <svg key={i} className={i < safe ? "filled" : "empty"} viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg>)}
   </span>;
 }
 function splitLabel(split, away, home) {
@@ -166,7 +167,8 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const ctx = vm.context || {};
   const market = vm.market || {};
   const edge = modelEdge(vm);
-  const stars = stored ? null : confidenceStars(game);
+  const rating = stored ? null : confidenceStarPresentation(game);
+  const stars = rating?.stars ?? null;
   const teamColor = team => { const v=String(team?.color||team?.primaryColor||team?.primary_color||"").trim();return /^#?[a-f0-9]{3}(?:[a-f0-9]{3})?$/i.test(v)?(v.startsWith("#")?v:`#${v}`):null; };
   const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
@@ -239,7 +241,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <div className="pgc-featured-meta">
           <span>{[vm.timing?.dateLine, vm.timing?.timeLine].filter(Boolean).join(" · ") || "—"}</span>
           <span className="pgc-sport-pill">{String(vm.sport || "").toUpperCase()}</span>
-          {stored ? null : sportId !== "nhl" || proj.available ? <span title={sportId === "nhl" ? "Model confidence rating, not wagering authority" : "Model confidence rating"}><SharpStars value={stars} /></span> : <span>NO MODEL RATING</span>}
+          {stored ? null : sportId !== "nhl" || proj.available ? <span title={sportId === "nhl" ? "NHL evidence rating, not wagering authority" : "Model confidence rating"}><SharpStars value={stars} max={rating.max} /></span> : <span>NO MODEL RATING</span>}
         </div>
       </header>
       {isNfl ? <NflInjuryIntegrityStrip game={game} /> : null}

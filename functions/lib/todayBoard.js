@@ -127,6 +127,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
     id: String(game.id),
     sport,
     confidenceStars: confidence.stars,
+    confidenceStarsMax: confidence.starsMax,
+    confidenceFiveStarEligible: confidence.fiveStarEligible,
     confidenceScore: confidence.score,
     confidenceVersion: confidence.version,
     confidenceSource: confidence.source,
