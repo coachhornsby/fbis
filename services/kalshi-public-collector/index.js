@@ -67,16 +67,26 @@ export async function collectKalshiPublicOnce(env,{now=new Date(),fetchImpl=fetc
     &&ms(last.blockedUntil)>now.getTime())
     return {ok:false,code:"KALSHI_SIGNED_COOLDOWN",blockedUntil:last.blockedUntil};
   const result=await relaySignedPages(env,{scope:"markets",sport,fetchImpl});
-  if(result.code==="SIGNED_RELAY_SECRET_MISSING"||result.code==="PAGES_RELAY_DENIED"){
+  const configurationFailure=result.code==="SIGNED_RELAY_SECRET_MISSING"
+    ||result.code==="PAGES_RELAY_DENIED";
+  const relayTransportFailure=result.code==="PAGES_RELAY_UNAVAILABLE"
+    ||result.code==="PAGES_RELAY_HTTP_ERROR"
+    ||result.code==="PAGES_RELAY_INVALID_RECEIPT";
+  if(configurationFailure||relayTransportFailure){
+    // Previously only missing credentials were recorded; timeouts left an
+    // older CAPTURED receipt misleadingly presented as current. Keep the
+    // earlier sport snapshot intact but surface this attempt's real outcome.
     await writeJson(env.ARCHIVE,"collector-status.json",{
       source:"Kalshi",collector:"SCHEDULED_WORKER_R2",
-      authenticationMode:"SIGNED_RELAY_UNCONFIGURED",
-      attemptedAt:now.toISOString(),sport,status:"CONFIGURATION_REQUIRED",
-      code:result.code,httpStatus:null,blockedUntil:null,
+      authenticationMode:configurationFailure?"SIGNED_RELAY_UNCONFIGURED":"SIGNED_PAGES",
+      attemptedAt:now.toISOString(),sport,
+      status:configurationFailure?"CONFIGURATION_REQUIRED":"RELAY_ERROR",
+      code:result.code,httpStatus:result.httpStatus||null,blockedUntil:null,
       canQualify:false,canAuthorizeWager:false,canWriteMarketHistory:false,
     });
   }
-  // Pages is the sole writer of CAPTURED/RATE_LIMITED market receipts.
+  // Pages remains the sole writer of CAPTURED/provider RATE_LIMITED
+  // receipts; a Worker transport failure cannot fabricate provider 429.
   return result;
 }
 export async function collectKalshiExchangeStatusOnce(env,{now=new Date(),fetchImpl=fetch}={}){
@@ -90,7 +100,7 @@ export async function collectKalshiExchangeStatusOnce(env,{now=new Date(),fetchI
 export async function collectKalshiSeriesCatalogOnce(env,{now=new Date(),fetchImpl=fetch}={}){
   if(!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
   const last=await readJson(env.ARCHIVE,"series-catalog-status.json");
-  if(ms(last?.nextAllowedAt)>now.getTime())
+  if(last?.version===2&&ms(last?.nextAllowedAt)>now.getTime())
     return {ok:false,code:"KALSHI_CATALOG_POLL_NOT_DUE",nextAllowedAt:last.nextAllowedAt};
   return relaySignedPages(env,{scope:"series-catalog",fetchImpl});
 }
