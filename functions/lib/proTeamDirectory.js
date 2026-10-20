@@ -3,6 +3,8 @@ import nbaTeams from "../../data/teams/nba.js";
 import nhlTeams from "../../data/teams/nhl.js";
 import { nhlModelTeamCode } from "./nhlTeamCodes.js";
 
+const ROSTER_CACHE = new Map();
+const ROSTER_CACHE_MS = 15 * 60 * 1000;
 const REGISTRIES = Object.freeze({ nfl: nflTeams, nba: nbaTeams, nhl: nhlTeams });
 const ESPN_SPORT = Object.freeze({ nfl: "football", nba: "basketball" });
 const normalize = value => String(value ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -110,6 +112,10 @@ export async function loadProTeamRoster({ sport, team, fetcher = fetch }) {
   const league = safeText(sport).toLowerCase();
   const selected = resolveProTeam(league, team);
   if (!selected) return { ok: false, error: "unknown-team-or-sport", status: 400 };
+  const key = league + ":" + selected.abbr;
+  const useCache = fetcher === fetch;
+  const hit = useCache ? ROSTER_CACHE.get(key) : null;
+  if (hit && Date.now() - hit.time < ROSTER_CACHE_MS) return hit.result;
   const sourceUrl = league === "nhl"
     ? "https://api-web.nhle.com/v1/roster/" + encodeURIComponent(nhlModelTeamCode(selected.abbr)) + "/current"
     : "https://site.api.espn.com/apis/site/v2/sports/" + ESPN_SPORT[league] + "/" + league + "/teams/" + encodeURIComponent(selected.espnId) + "/roster";
@@ -121,11 +127,13 @@ export async function loadProTeamRoster({ sport, team, fetcher = fetch }) {
     const payload = await response.json();
     const players = parseProRoster(league, payload);
     if (!players.length) return { ok: false, error: "upstream-roster-empty", status: 502, team: selected };
-    return {
+    const result = {
       ok: true, sport: league, team: selected, players,
       source: league === "nhl" ? "NHL_OFFICIAL_CURRENT_ROSTER" : "ESPN_TEAM_ROSTER",
       sourceUrl, fetchedAt: new Date().toISOString(), rosterCount: players.length
     };
+    if (useCache) ROSTER_CACHE.set(key, { time: Date.now(), result });
+    return result;
   } catch {
     return { ok: false, error: "upstream-roster-unavailable", status: 502, team: selected };
   } finally { clearTimeout(timeout); }
