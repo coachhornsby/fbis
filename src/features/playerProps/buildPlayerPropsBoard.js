@@ -888,3 +888,59 @@ export function buildVenueComparisonRows(rows=[]) {
  }
  return output;
 }
+
+
+/**
+ * A player/stat/threshold is one research card, not two YES/NO side cards.
+ * Inputs are already exact-side paired by buildVenueComparisonRows. Only
+ * canonical player, event, period, stat and numeric threshold may be grouped.
+ * Unmatched or ambiguous source identities remain separate.
+ */
+export function groupExchangePlayerStatCards(rows=[]) {
+ const groups=new Map(),order=[];
+ const sideOf=r=>['over','under'].includes(r?.statSide)?r.statSide:
+  ['over','under'].includes(r?.side)?r.side:null;
+ const keyOf=r=>r.identityVerified===true&&r.contractId&&r.canonicalEventId&&r.canonicalPlayerId&&
+  r.canonical_market&&r.period&&r.line!=null&&Number.isFinite(Number(r.line))&&
+  Number(r.line)>=0&&sideOf(r)?
+  [r.sport,r.canonicalEventId,r.canonicalPlayerId,r.canonical_market,r.period,Number(r.line)].join('|'):null;
+ for(let i=0;i<rows.length;i++){
+  const r=rows[i],key=keyOf(r);
+  if(!key){order.push({key:null,rows:[r]});continue;}
+  if(!groups.has(key)){const g={key,rows:[]};groups.set(key,g);order.push(g);}
+  groups.get(key).rows.push(r);
+ }
+ return order.map(g=>{
+  if(!g.key||g.rows.length===1){
+   const r=g.rows[0],side=sideOf(r);
+   return r.venueComparison&&side?{...r,venueComparison:{
+    ...r.venueComparison,marketSides:{[side]:r.venueComparison},
+    displayedStatSides:1,groupedContractSides:1
+   }}:r;
+  }
+  const seen=new Set(),sides={};
+  // Duplicate venue/side contract sources are not silently merged.
+  for(const r of g.rows){
+   const side=sideOf(r),venues=r.venueComparison?.venues||[];
+   if(!side||sides[side])return g.rows;
+   for(const v of venues){const token=v.provider+':'+side;
+    if(seen.has(token))return g.rows;
+    seen.add(token);
+   }
+   sides[side]=r.venueComparison||{venues:[],providerCount:0,
+    priceComparisonStatus:'OTHER_PROVIDER_UNAVAILABLE',
+    priceDifferenceDollars:null,cheaperProvider:null};
+  }
+  const primary=g.rows.find(r=>r.fbis_projection!=null)||g.rows.find(r=>sideOf(r)==='over')||g.rows[0];
+  return {...primary,id:'stat:'+g.key,venueComparison:{
+   ...primary.venueComparison,marketSides:sides,
+   displayedStatSides:Object.keys(sides).length,
+   groupedContractSides:g.rows.length,
+   venues:[...Object.values(sides).flatMap(s=>s.venues||[])],
+   providerCount:new Set(Object.values(sides).flatMap(s=>s.venues||[]).map(v=>v.provider)).size,
+   // The overall card cannot imply one universal venue spread for both sides.
+   priceDifferenceDollars:null,cheaperProvider:null,
+   canAuthorizeWager:false
+  }};
+ }).flat();
+}
