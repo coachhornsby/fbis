@@ -45,7 +45,13 @@ export function binaryKalshiRows(m,series,candidates,game,date,capturedAt){
  const more=projection>line;const yesIsMore=m.strike_type==='greater';const side=more===yesIsMore?'yes':'no';
  const ask=number(m[side+'_ask_dollars']),depth=number(m[side+'_ask_size_fp']??(side==='no'?m.yes_bid_size_fp:null));
  // Unknown series fee schedules remain unknown; do not apply a guessed flat fee.
- const fee=series.fee_type==='quadratic'&&number(series.fee_multiplier)!=null&&ask>0&&ask<1?Math.ceil((ask+.07*Number(series.fee_multiplier)*ask*(1-ask))*10000-1e-9)/10000-ask:null;
+ // Best-ask scenario is a one-contract taker fill. Kalshi rounds the
+ // quadratic fee for the entire order UP to the next cent, not to 1/10,000 dollar.
+ // Other fee schedules and unknown multipliers remain unpriced.
+ const takerQuadratic=['quadratic','quadratic_with_maker_fees'].includes(series.fee_type);
+ const fee=takerQuadratic&&number(series.fee_multiplier)!=null&&ask>0&&ask<1
+  ? Math.ceil((.07*Number(series.fee_multiplier)*ask*(1-ask))*100-1e-9)/100
+  : null;
  const row={...p,sport:game.sport,eventId:String(game.id),fbis_event_id:String(game.id),player_name:p.playerName||p.player_name,canonical_market:market,market,line,
   fbisProjection:projection,fbis_projection:projection,fbisSigma:sigma,fbis_sigma:sigma,featureEvidence:p.featureEvidence||{},
   executionVenue:'Kalshi',venue:'Kalshi',odds_tier:'standard',duration:'full',candidate_side:more?'MORE':'LESS',
