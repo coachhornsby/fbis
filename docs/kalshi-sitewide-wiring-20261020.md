@@ -256,3 +256,22 @@ NFL/CFB game market collection, and explains why an anonymous diagnostic
 429 is no longer a signed-source outage. Other Kalshi sports, markets,
 player props and combos remain unqualified until real catalog evidence
 and independent match/fee/orderbook validation are implemented.
+
+## 16. Retire the anonymous operator request
+The original operator A/B diagnostic established anonymous NFL market GET
+returns HTTP **429** and signed GET returns **200**. The production signed
+collector subsequently recorded valid, unqualified market snapshots for
+NFL and CFB. Running an additional anonymous provider request on every
+operator test is no longer useful and can aggravate provider-side rate
+limits.
+
+The operator diagnostic now sends exactly one signed GET to the fixed
+allowlisted market source, with the same existing private FBIS access-code
+gate and 15-minute global R2 cooldown. The former anonymous result is
+reported as `DISABLED_BY_POLICY` and never fetched. Historical receipts
+are normalized on read so a cached anonymous 429 can no longer appear
+as a new production failure. An HTTP 429 on the **signed** GET remains
+a real provider rate-limit blocker and is reported as
+`SIGNED_RATE_LIMITED` without auto retry. Only signed source health
+is considered operational; HTTP 200 alone still does not prove contract
+identity, fee-adjusted execution, or full-sport market coverage.
