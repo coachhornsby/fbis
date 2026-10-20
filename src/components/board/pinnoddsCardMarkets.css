@@ -38,31 +38,130 @@
 .fbis-priced-total .fbis-priced-under{border-left:3px solid #c281ff}
 .fbis-priced-market-missing{font-size:12px;font-weight:750}
 
-/* FBIS projected spread and total as primary visible card data */
+/* FBIS projected + gap tiles share the same dynamic pale/neon language. */
 .fbis-priced-diamond{font-size:.88em;color:#6ff4ba}
 .fbis-priced-model-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin:3px 8px 9px}
-.fbis-priced-model-value,.fbis-priced-gap-value{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;padding:10px 5px;border:1px solid rgba(64,191,245,.45);border-radius:8px;text-align:center;background:linear-gradient(145deg,rgba(15,82,129,.56),rgba(5,28,53,.9));min-width:0;position:relative;overflow:hidden;isolation:isolate}
-.fbis-priced-total .fbis-priced-model-value{border-color:rgba(238,135,255,.4);background:linear-gradient(145deg,rgba(105,32,136,.53),rgba(42,20,61,.91))}
-.fbis-priced-model-row span{font-size:11px;letter-spacing:.06em;font-weight:900;color:#f4f9ff}
-.fbis-priced-model-row strong{font-weight:950;line-height:1.05;white-space:nowrap;font-size:clamp(16px,2vw,24px);color:#ffffff;text-shadow:0 1px 3px rgba(0,0,0,.55)}
-.fbis-priced-model-row small{font-size:12px;font-weight:900;color:#ffffff;letter-spacing:.04em}
-/* Line-difference tiles: pale fills + ink/white hierarchy — never green-on-green. */
+.fbis-priced-model-value,.fbis-priced-gap-value{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;padding:14px 8px;border-radius:10px;text-align:center;min-width:0;min-height:132px;position:relative;overflow:hidden;isolation:isolate}
+@keyframes fbis-priced-model-pulse{
+  0%,100%{box-shadow:0 0 12px rgba(46,200,255,.32),inset 0 0 0 1px rgba(46,200,255,.28)}
+  50%{box-shadow:0 0 26px rgba(46,200,255,.65),0 0 40px rgba(46,200,255,.25),inset 0 0 0 1px rgba(140,230,255,.55)}
+}
+@keyframes fbis-priced-model-pulse-total{
+  0%,100%{box-shadow:0 0 12px rgba(210,120,255,.32),inset 0 0 0 1px rgba(210,120,255,.28)}
+  50%{box-shadow:0 0 26px rgba(210,120,255,.65),0 0 40px rgba(210,120,255,.25),inset 0 0 0 1px rgba(230,180,255,.55)}
+}
+.fbis-priced-model-value{
+  border:2px solid #2ec8ff;
+  background:linear-gradient(115deg,#d4f4ff 0%,#8fd4f5 45%,#3aa8d8 100%);
+  box-shadow:0 0 16px rgba(46,200,255,.4);
+}
+.fbis-priced-model-value.is-total{
+  border-color:#d278ff;
+  background:linear-gradient(115deg,#f0d8ff 0%,#d19af0 45%,#9b5cc4 100%);
+  box-shadow:0 0 16px rgba(210,120,255,.4);
+}
+/* Brand hue around type: home line uses home club; gap uses toward-side club. */
+.fbis-priced-model-value.is-spread{--fbis-tile-brand:var(--fbis-home,var(--cgc-home-brand,#c8102e))}
+.fbis-priced-model-value.is-total{--fbis-tile-brand:#d278ff}
+.fbis-priced-gap-value.is-home{--fbis-tile-brand:var(--fbis-home,var(--cgc-home-brand,#c8102e))}
+.fbis-priced-gap-value.is-away{--fbis-tile-brand:var(--fbis-away,var(--cgc-away-brand,#007a33))}
+.fbis-priced-gap-value.is-over{--fbis-tile-brand:#39ff14}
+.fbis-priced-gap-value.is-under{--fbis-tile-brand:#ff1a1a}
+/* Dark lift + team-color aura so white type pops off the watermark. */
+.fbis-priced-model-value::before,.fbis-priced-gap-value::before{
+  content:"";position:absolute;inset:8% 6%;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 78% 62% at 50% 48%,color-mix(in srgb,var(--fbis-tile-brand,#2ec8ff) 42%,transparent) 0%,color-mix(in srgb,var(--fbis-tile-brand,#2ec8ff) 14%,transparent) 46%,transparent 74%),
+    radial-gradient(ellipse 64% 50% at 50% 50%,rgba(6,12,22,.58) 0%,rgba(6,12,22,.22) 48%,transparent 76%);
+}
+.fbis-priced-model-value>span,.fbis-priced-model-value>small,
+.fbis-priced-model-value>strong{position:relative;z-index:1}
+.fbis-priced-model-value>span,.fbis-priced-model-value>small{
+  color:#ffffff!important;
+  -webkit-text-stroke:.35px rgba(0,0,0,.4);
+  text-shadow:
+    0 1px 0 rgba(0,0,0,.9),
+    0 2px 4px rgba(0,0,0,.8),
+    0 6px 14px rgba(0,0,0,.55),
+    0 0 14px color-mix(in srgb,var(--fbis-tile-brand,#2ec8ff) 70%,transparent)!important;
+}
+.fbis-priced-model-value>span{font-size:12px;letter-spacing:.16em;font-weight:950;text-transform:uppercase}
+.fbis-priced-model-value>small{font-size:15px;font-weight:950;letter-spacing:.02em}
+.fbis-priced-model-value>strong,.fbis-priced-model-value .fbis-priced-projection-line{
+  color:#ffffff!important;font-size:clamp(36px,6.8cqi,52px)!important;font-weight:950!important;line-height:.88!important;
+  letter-spacing:-.04em;font-variant-numeric:tabular-nums;
+  -webkit-text-stroke:.45px rgba(0,0,0,.45);
+  text-shadow:
+    0 1px 0 rgba(0,0,0,.95),
+    0 3px 0 rgba(0,0,0,.5),
+    0 8px 18px rgba(0,0,0,.75),
+    0 0 18px rgba(255,255,255,.75),
+    0 0 28px color-mix(in srgb,var(--fbis-tile-brand,#2ec8ff) 85%,#fff),
+    0 0 52px color-mix(in srgb,var(--fbis-tile-brand,#2ec8ff) 75%,transparent)!important;
+}
+.fbis-priced-model-row strong{font-weight:950;line-height:1.05;white-space:nowrap}
+/* Gap tiles: pale fills + ink/white hierarchy — never green-on-green. */
 .fbis-priced-gap-value{border:2px solid #39ff14;background:linear-gradient(115deg,#d8ffe2 0%,#9de6b0 45%,#5fb873 100%);box-shadow:0 0 16px rgba(57,255,20,.35)}
 .fbis-priced-gap-value.is-under{border-color:#ff1a1a;background:linear-gradient(115deg,#ffd6d6 0%,#f0a0a8 45%,#d06670 100%);box-shadow:0 0 16px rgba(255,26,26,.4)}
 .fbis-priced-gap-value.is-over{border-color:#39ff14;background:linear-gradient(115deg,#d8ffe2 0%,#9de6b0 45%,#5fb873 100%);box-shadow:0 0 16px rgba(57,255,20,.4)}
-.fbis-priced-gap-value span,.fbis-priced-gap-value small{color:#1a1020!important;text-shadow:none!important}
-.fbis-priced-gap-value strong{color:#ffffff!important;text-shadow:0 1px 3px rgba(0,0,0,.55)!important}
-.fbis-priced-gap-value span{font-size:12px!important}
-.fbis-priced-gap-value small{font-size:13px!important;font-weight:950!important}
-.fbis-priced-gap-toward{display:inline-flex!important;align-items:center;justify-content:center;gap:6px;max-width:100%}
-.fbis-priced-gap-logo,.fbis-priced-gap-logo.team-logo-wrap,.fbis-priced-gap-logo.team-logo-plate{
-  flex:0 0 28px;width:28px!important;height:28px!important;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important
+.fbis-priced-gap-value.is-home,.fbis-priced-gap-value.is-away{
+  border-color:color-mix(in srgb,var(--fbis-tile-brand,#39ff14) 80%,#fff);
+  box-shadow:0 0 18px color-mix(in srgb,var(--fbis-tile-brand,#39ff14) 55%,transparent);
 }
-.fbis-priced-gap-logo .team-logo{width:28px!important;height:28px!important;border-radius:0!important}
-.fbis-priced-projection-team{gap:8px!important}
+.fbis-priced-gap-value>span,.fbis-priced-gap-value>small,.fbis-priced-gap-value>strong{position:relative;z-index:1}
+.fbis-priced-gap-value>span,.fbis-priced-gap-value>small{
+  color:#ffffff!important;
+  -webkit-text-stroke:.35px rgba(0,0,0,.4);
+  text-shadow:
+    0 1px 0 rgba(0,0,0,.9),
+    0 2px 4px rgba(0,0,0,.8),
+    0 6px 14px rgba(0,0,0,.55),
+    0 0 14px color-mix(in srgb,var(--fbis-tile-brand,#39ff14) 70%,transparent)!important;
+}
+.fbis-priced-gap-value strong{
+  color:#ffffff!important;font-size:clamp(36px,6.8cqi,52px)!important;font-weight:950!important;line-height:.88!important;
+  letter-spacing:-.04em;font-variant-numeric:tabular-nums;
+  -webkit-text-stroke:.45px rgba(0,0,0,.45);
+  text-shadow:
+    0 1px 0 rgba(0,0,0,.95),
+    0 3px 0 rgba(0,0,0,.5),
+    0 8px 18px rgba(0,0,0,.75),
+    0 0 18px rgba(255,255,255,.75),
+    0 0 28px color-mix(in srgb,var(--fbis-tile-brand,#39ff14) 85%,#fff),
+    0 0 52px color-mix(in srgb,var(--fbis-tile-brand,#39ff14) 75%,transparent)!important;
+}
+.fbis-priced-gap-value span{font-size:12px!important;font-weight:950!important;letter-spacing:.16em;text-transform:uppercase}
+.fbis-priced-gap-value small{font-size:15px!important;font-weight:950!important}
+/* Watermarks: full tile width — logo L/R edges meet the tile L/R edges. */
+.fbis-priced-tile-mark,.fbis-priced-tile-mark.team-logo-wrap,.fbis-priced-tile-mark.team-logo-plate{
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;padding:0!important;
+  display:block!important;pointer-events:none;z-index:0;overflow:hidden!important;
+  background:transparent!important;border:0!important;box-shadow:none!important;border-radius:inherit!important;opacity:.34;transform:none!important
+}
+/* ~110% width cancels ESPN transparent side padding (~8%) so painted L/R rims meet the tile. */
+.fbis-priced-tile-mark .team-logo,.fbis-priced-tile-mark img{
+  position:absolute!important;left:50%!important;right:auto!important;top:46%!important;bottom:auto!important;
+  width:110%!important;height:auto!important;aspect-ratio:1;max-width:none!important;max-height:none!important;
+  min-width:110%!important;min-height:0!important;
+  object-fit:contain!important;object-position:center center!important;border-radius:0!important;opacity:1;
+  filter:saturate(1.08) contrast(1.1);display:block!important;margin:0!important;
+  transform:translate(-50%,-50%);transform-origin:center center
+}
+@keyframes fbis-priced-value-pulse{
+  0%,100%{transform:scale(1);filter:brightness(1)}
+  50%{transform:scale(1.07);filter:brightness(1.15)}
+}
+@keyframes fbis-priced-mark-breathe{
+  0%,100%{opacity:.26}
+  50%{opacity:.4}
+}
+@keyframes fbis-priced-mark-scale{
+  0%,100%{transform:translate(-50%,-50%) scale(1)}
+  50%{transform:translate(-50%,-50%) scale(1.02)}
+}
 .fbis-priced-markets .fbis-priced-family{box-shadow:inset 0 1px rgba(255,255,255,.07),0 8px 19px rgba(0,0,0,.13)}
 .fbis-priced-markets .fbis-priced-heading>span:last-child{min-width:0}
-@media(max-width:520px){.fbis-priced-model-row{margin:2px 5px 7px;gap:4px}.fbis-priced-model-value,.fbis-priced-gap-value{padding:8px 2px;gap:3px}.fbis-priced-model-row span{font-size:10px}.fbis-priced-model-row strong{font-size:clamp(15px,4vw,20px)}.fbis-priced-model-row small{font-size:11px}.fbis-priced-gap-value span{font-size:11px!important}.fbis-priced-gap-value small{font-size:12px!important}}
+@media(max-width:520px){.fbis-priced-model-row{margin:2px 5px 7px;gap:4px}.fbis-priced-model-value,.fbis-priced-gap-value{padding:10px 4px;gap:4px;min-height:108px}.fbis-priced-model-row span{font-size:11px}.fbis-priced-model-value>strong,.fbis-priced-gap-value>strong{font-size:clamp(24px,7vw,34px)!important}.fbis-priced-model-row small{font-size:12px}.fbis-priced-gap-value span{font-size:11px!important}.fbis-priced-gap-value small{font-size:12px!important}}
 
 
 /* Give each spread/total tile its own width instead of clipping quotes. */
@@ -75,8 +174,7 @@
 .fbis-priced-team{max-width:100%;min-width:0}
 .fbis-priced-line{font-size:clamp(16px,3cqi,25px)}
 .fbis-priced-odds{font-size:clamp(13px,2.5cqi,17px)}
-.fbis-priced-model-value>strong{white-space:normal;text-align:center;overflow-wrap:anywhere;font-size:clamp(15px,3cqi,22px)}
-.fbis-priced-gap-value>strong{font-size:clamp(18px,4cqi,25px)}
+.fbis-priced-model-value>strong,.fbis-priced-gap-value>strong{white-space:nowrap;text-align:center;overflow-wrap:normal}
 .fbis-priced-model-row small{overflow-wrap:anywhere;white-space:normal;text-align:center}
 @container(max-width:350px){.fbis-priced-selection{grid-template-columns:minmax(0,1fr) auto auto}.fbis-priced-team{grid-column:auto;font-size:10px}.fbis-priced-line{font-size:17px}.fbis-priced-odds{min-width:41px;font-size:13px}}
 
@@ -87,18 +185,18 @@
 .fbis-priced-markets .team-logo-plate,.fbis-priced-markets .team-logo-wrap,.fbis-priced-markets .team-logo-fallback{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important}
 .fbis-priced-team-logo,.fbis-priced-team-logo.team-logo-plate,.fbis-priced-team-logo.team-logo-wrap{flex:0 0 40px;width:40px!important;height:40px!important;object-fit:contain;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important}
 .fbis-priced-team-logo .team-logo{width:40px!important;height:40px!important;border-radius:0!important}
-.fbis-priced-projection-team{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;max-width:100%;font-size:clamp(12px,1.5cqi,20px)!important;line-height:1.12!important}
-.fbis-priced-projection-team>span{overflow-wrap:break-word;min-width:0}
-.fbis-priced-projection-logo,.fbis-priced-projection-logo.team-logo-plate,.fbis-priced-projection-logo.team-logo-wrap{flex:0 0 44px;width:44px!important;height:44px!important;object-fit:contain;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important}
-.fbis-priced-projection-logo .team-logo{width:44px!important;height:44px!important;border-radius:0!important}
-@container(max-width:390px){.fbis-priced-selection{grid-template-columns:minmax(0,1fr) auto auto}.fbis-priced-team-logo,.fbis-priced-team-logo.team-logo-plate,.fbis-priced-team-logo.team-logo-wrap{flex-basis:32px;width:32px!important;height:32px!important}.fbis-priced-team-logo .team-logo{width:32px!important;height:32px!important}.fbis-priced-projection-logo,.fbis-priced-projection-logo.team-logo-plate,.fbis-priced-projection-logo.team-logo-wrap{flex-basis:36px;width:36px!important;height:36px!important}.fbis-priced-projection-logo .team-logo{width:36px!important;height:36px!important}}
+.fbis-priced-markets .fbis-priced-tile-mark,.fbis-priced-markets .fbis-priced-tile-mark.team-logo-wrap,.fbis-priced-markets .fbis-priced-tile-mark.team-logo-plate{
+  background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;overflow:hidden!important;inset:0!important;transform:none!important
+}
+@container(max-width:390px){.fbis-priced-selection{grid-template-columns:minmax(0,1fr) auto auto}.fbis-priced-team-logo,.fbis-priced-team-logo.team-logo-plate,.fbis-priced-team-logo.team-logo-wrap{flex-basis:32px;width:32px!important;height:32px!important}.fbis-priced-team-logo .team-logo{width:32px!important;height:32px!important}}
 
-/* Readable selection rows + light motion on gap tiles. */
+/* Readable selection rows + motion on tiles, watermarks, and hero values. */
 .fbis-priced-team{color:#f7fbff!important;font-size:clamp(12px,1.35cqi,14px)!important}
 .fbis-priced-team>span{font-size:inherit!important;color:#f7fbff!important}
 .fbis-priced-family-head strong{font-size:13px!important}
 .fbis-priced-heading small{font-size:11px!important;color:#e8f6ff!important}
-.fbis-priced-footnote{font-size:12px!important;color:#e8f2ff!important}
+.fbis-priced-footnote{font-size:12px!important;color:#eef5ff!important}
+.fbis-priced-footnote b{color:#ffffff!important}
 @keyframes fbis-priced-gap-pulse-over{
   0%,100%{box-shadow:0 0 10px rgba(57,255,20,.28)}
   50%{box-shadow:0 0 22px rgba(57,255,20,.55)}
@@ -108,6 +206,14 @@
   50%{box-shadow:0 0 22px rgba(255,26,26,.55)}
 }
 @media(prefers-reduced-motion:no-preference){
+  .fbis-priced-model-value.is-spread{animation:fbis-priced-model-pulse 2.4s ease-in-out infinite}
+  .fbis-priced-model-value.is-total{animation:fbis-priced-model-pulse-total 2.4s ease-in-out infinite}
   .fbis-priced-gap-value.is-over,.fbis-priced-gap-value.is-side{animation:fbis-priced-gap-pulse-over 2.4s ease-in-out infinite}
   .fbis-priced-gap-value.is-under{animation:fbis-priced-gap-pulse-under 2.4s ease-in-out infinite}
+  .fbis-priced-model-value>strong,.fbis-priced-gap-value>strong{animation:fbis-priced-value-pulse 2.4s ease-in-out infinite;display:inline-block}
+  .fbis-priced-tile-mark,.fbis-priced-tile-mark.team-logo-wrap{animation:fbis-priced-mark-breathe 3.2s ease-in-out infinite}
+  .fbis-priced-tile-mark .team-logo,.fbis-priced-tile-mark img{animation:fbis-priced-mark-scale 3.2s ease-in-out infinite}
+}
+@media(prefers-reduced-motion:reduce){
+  .fbis-priced-model-value,.fbis-priced-gap-value,.fbis-priced-model-value>strong,.fbis-priced-gap-value>strong,.fbis-priced-tile-mark,.fbis-priced-tile-mark .team-logo{animation:none!important}
 }

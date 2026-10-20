@@ -52,18 +52,20 @@ export default function PinnoddsCardMarkets({game,projection,marketFamilies,comp
       <span className="fbis-priced-odds">{signedAmerican(marketDisplayAmerican(q))}</span>
      </div>)}</div>:<p>Paired PinnOdds line not available</p>}
     {diff?<div className="fbis-priced-model-row">
-     <div className="fbis-priced-model-value"><span>FBIS PROJECTED</span>
-      <strong className={f==="spread"?"fbis-priced-projection-team":""}>{f==="spread"?<>
-        <TeamMark game={game} side="home" sport={sport} size={44} className="fbis-priced-projection-logo" />
-        {team(game,"home")?<span>{team(game,"home")}</span>:null}
-        <span>{sign(one(diff.modelHome))}</span>
-      </>:one(diff.modelTotal)}</strong>
+     <div className={`fbis-priced-model-value${f==="total"?" is-total":" is-spread"}`}>
+      {f==="spread"?<TeamMark game={game} side="home" sport={sport} size={120} className="fbis-priced-tile-mark" />:null}
+      <span>{f==="spread"?"FBIS HOME LINE":"FBIS TOTAL"}</span>
+      <strong className="fbis-priced-projection-line">{f==="spread"?sign(one(diff.modelHome)):one(diff.modelTotal)}</strong>
+      <small>{f==="spread"?(team(game,"home")||"Home"):"Modeled game total"}</small>
      </div>
-     <div className={`fbis-priced-gap-value${diff.side==="under"?" is-under":diff.side==="over"?" is-over":diff.side==="home"||diff.side==="away"?" is-side":""}`}><span>LINE DIFFERENCE</span><strong>{one(diff.absDelta)}</strong>
-      <small className="fbis-priced-gap-toward">{f==="spread"
-        ? (diff.side==="home"||diff.side==="away"
-          ? <><TeamMark game={game} side={diff.side} sport={sport} size={28} className="fbis-priced-gap-logo" /><span>Toward {team(game,diff.side)||"club"}</span></>
-          : "EVEN")
+     <div className={`fbis-priced-gap-value${diff.side==="under"?" is-under":diff.side==="over"?" is-over":diff.side==="home"?" is-side is-home":diff.side==="away"?" is-side is-away":""}`}>
+      {f==="spread"&&(diff.side==="home"||diff.side==="away")
+        ? <TeamMark game={game} side={diff.side} sport={sport} size={120} className="fbis-priced-tile-mark" />
+        : null}
+      <span>{f==="spread"?"GAP VS MARKET":"LINE DIFFERENCE"}</span>
+      <strong>{one(diff.absDelta)}</strong>
+      <small>{f==="spread"
+        ? (diff.side==="home"||diff.side==="away" ? `Toward ${team(game,diff.side)||"club"}` : "EVEN")
         : diff.side.toUpperCase()}</small>
      </div>
     </div>:f!=="moneyline"&&projection?.available&&pair?<div className="fbis-priced-model-row"><span>FBIS comparison unavailable</span></div>:null}
