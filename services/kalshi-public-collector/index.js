@@ -32,7 +32,7 @@ export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}
     return {ok:false,code:"SIGNED_RELAY_SECRET_MISSING"};
   if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs"&&scope!=="combo-tape"&&scope!=="nhl-official-prop-results"&&scope!=="prop-reconciliation")
     return {ok:false,code:"SIGNED_RELAY_SCOPE_NOT_ALLOWED"};
-  if(scope==="markets"&&!SPORTS.includes(sport))
+  if(scope==="markets"&&![...SPORTS,...TENNIS_RESEARCH].includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
   const url=new URL(PAGES_ROUTE);
   url.searchParams.set("scope",scope);
