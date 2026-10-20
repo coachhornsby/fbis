@@ -28,6 +28,16 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   if(t.eventIntegrity?.valid!==true && !(t.researchFixture?.verified===true && t.researchFixture?.source==="ESPN_PUBLIC" && t.researchFixture?.fixtureId===game?.id))return <article className="tmc" role="status">Tennis card withheld: event identity or projection provenance is unverified.</article>;
   const tour=String(game?.tour||t?.tour||"TENNIS").toUpperCase();
   const display=tennisProjectionDisplay(game),{pAway,pHome,edgeHome,edgeAway}=display;
+  // Research estimates are visually useful but remain separate from the
+  // independently governed full FBIS projection and market-edge calculation.
+  const research=t.researchFixture&&!display.valid?t.researchEstimate:null;
+  const researchOk=research&&Number.isFinite(research.player1WinProb)&&
+    Number.isFinite(research.player2WinProb)&&research.player1WinProb>0&&
+    research.player2WinProb>0&&
+    Math.abs(research.player1WinProb+research.player2WinProb-1)<0.002;
+  const shownHome=display.valid?pHome:researchOk?research.player1WinProb:null;
+  const shownAway=display.valid?pAway:researchOk?research.player2WinProb:null;
+  const shownLabel=display.valid?"FBIS WIN PROBABILITY":researchOk?"HISTORICAL ELO ESTIMATE":"WIN PROBABILITY UNAVAILABLE";
   const mHome=n(ref?.noVig?.home),mAway=n(ref?.noVig?.away);
   const candidates=[{p:home,e:edgeHome},{p:away,e:edgeAway}].filter(x=>Number.isFinite(x.e)&&x.e>0);
   const best=candidates.sort((a,b)=>b.e-a.e)[0]||null;
@@ -78,10 +88,10 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <strong>{gapPlayer ? `+${best.e.toFixed(1)} pp` : "—"}</strong>
       <small>{gapPlayer?"MODEL VS NO-VIG · RESEARCH ONLY · NOT EV":"GAP NOT VERIFIED · NO WAGER AUTHORITY"}</small>
     </section>
-    <section className="tmc-probability" aria-label="FBIS win probability comparison" aria-live="polite">
-      <div><span>FBIS WIN PROBABILITY</span><strong>{pct(pAway)}</strong></div>
-      <div className="tmc-probability-center">{display.valid?<><div className="tmc-probability-track" role="img" aria-label={`${away.name} ${pct(pAway)}; ${home.name} ${pct(pHome)}`}><span style={{width:`${pAway*100}%`}}/><span style={{width:`${pHome*100}%`}}/></div><div className="tmc-bar-labels"><b>{pct(pAway)}</b><b>{pct(pHome)}</b></div></>:<p className="tmc-blocked">PROJECTION UNAVAILABLE · {display.reason}</p>}</div>
-      <div><span>FBIS WIN PROBABILITY</span><strong>{pct(pHome)}</strong></div>
+    <section className="tmc-probability" aria-label={display.valid?"Verified FBIS model win probability":"Independent historical tennis research estimate"} aria-live="polite">
+      <div><span>{shownLabel}</span><strong>{pct(shownAway)}</strong></div>
+      <div className="tmc-probability-center">{shownHome!=null&&shownAway!=null?<><div className="tmc-probability-track" role="img" aria-label={`${away.name} ${pct(shownAway)}; ${home.name} ${pct(shownHome)}`}><span style={{width:`${shownAway*100}%`}}/><span style={{width:`${shownHome*100}%`}}/></div><div className="tmc-bar-labels"><b>{pct(shownAway)}</b><b>{pct(shownHome)}</b></div>{researchOk&&!display.valid?<small>RESEARCH ONLY · {research.surface?research.surface.toUpperCase()+" COURT":"SURFACE UNVERIFIED"} · Historical sample through {research.observations?.map(o=>o.lastMatchDate).filter(Boolean).sort().at(-1)||"date unavailable"} · Not the validated FBIS model or a betting edge</small>:null}</>:<p className="tmc-blocked">PROJECTION UNAVAILABLE · INSUFFICIENT HISTORICAL INPUTS · {display.reason}</p>}</div>
+      <div><span>{shownLabel}</span><strong>{pct(shownHome)}</strong></div>
     </section>
     {t.researchFixture?<p className="tmc-fixture-note">Independent ESPN research fixture · {t.researchFixture.fixtureFreshness==="STALE"?"STATUS STALE · ":null}{t.researchFixture.officialDisplayEvidence?`WTA official match metadata linked (display only, observed ${t.researchFixture.officialDisplayEvidence.observedAt}) · No verified projection`:"Official schedule metadata unverified · No verified projection"} · ESPN observed {t.researchFixture.fetchedAt}</p>:null}
     {t.researchFixture?.missingEvidence?.length?<p className="tmc-fixture-note" role="status">MISSING VERIFIED DATA · {t.researchFixture.missingEvidence.join(" · ").replaceAll("_"," ")}</p>:null}

@@ -13,6 +13,24 @@ function defaults(tour){
     ? {servePointWinPct:.59,returnPointWinPct:.41,aceRate:.045,doubleFaultRate:.045}
     : {servePointWinPct:.635,returnPointWinPct:.365,aceRate:.075,doubleFaultRate:.035};
 }
+const ESPN_NATION_ISO2=Object.freeze({
+ USA:"US",GBR:"GB",FRA:"FR",ESP:"ES",ITA:"IT",DEU:"DE",GER:"DE",AUS:"AU",
+ CAN:"CA",KAZ:"KZ",HUN:"HU",RUS:"RU",CZE:"CZ",SVK:"SK",POL:"PL",ARG:"AR",
+ BRA:"BR",NED:"NL",CHE:"CH",SUI:"CH",SRB:"RS",CHN:"CN",JPN:"JP",BEL:"BE",
+ AUT:"AT",CRO:"HR",HRV:"HR",GRE:"GR",GRC:"GR",BUL:"BG",BGR:"BG",ROU:"RO",
+ UKR:"UA",BLR:"BY",LAT:"LV",LVA:"LV",LTU:"LT",EST:"EE",SLO:"SI",SVN:"SI",
+ DEN:"DK",DNK:"DK",SWE:"SE",NOR:"NO",FIN:"FI",POR:"PT",PRT:"PT",IRL:"IE",
+ CHI:"CL",CHL:"CL",COL:"CO",ECU:"EC",MEX:"MX",PER:"PE",URU:"UY",VEN:"VE",
+ BOL:"BO",DOM:"DO",RSA:"ZA",ZAF:"ZA",NZL:"NZ",ISR:"IL",TUR:"TR",KOR:"KR",
+ TWN:"TW",TPE:"TW",IND:"IN",PAK:"PK",UZB:"UZ",GEO:"GE",ARM:"AM",MDA:"MD",
+ EGY:"EG",MAR:"MA",TUN:"TN",THA:"TH",INA:"ID",IDN:"ID",PHI:"PH",PHL:"PH",
+ CYP:"CY",LUX:"LU",MON:"MC",MNE:"ME",BIH:"BA",ALB:"AL",SRL:"LK",
+});
+function espnCountry(a){
+ const code=String(a?.citizenshipCountry||a?.country?.abbreviation||a?.country?.code||a?.countryCode||a?.citizenship||"").toUpperCase().trim();
+ if(/^[A-Z]{2}$/.test(code))return code;
+ return ESPN_NATION_ISO2[code]||null;
+}
 function rankingRows(payload,tour){
   const out=[];
   for(const block of payload?.rankings||[]){
@@ -25,12 +43,7 @@ function rankingRows(payload,tour){
         rank:finite(row.current),
         points:finite(row.points),
         espnId:a.id?String(a.id):null,
-        country:(()=>{
-          const raw=a.flag?.alt||a.country?.abbreviation||a.country?.code||a.countryCode||a.citizenship||null;
-          const country=String(raw||"").trim().toUpperCase();
-          const iso3={USA:"US",GBR:"GB",FRA:"FR",ESP:"ES",ITA:"IT",DEU:"DE",AUS:"AU",CAN:"CA",KAZ:"KZ",HUN:"HU",RUS:"RU",CZE:"CZ",SVK:"SK",POL:"PL",ARG:"AR",BRA:"BR",NED:"NL",CHE:"CH",SUI:"CH",SRB:"RS",CHN:"CN",JPN:"JP"};
-          return /^[A-Z]{2}$/.test(country)?country:iso3[country]||null;
-        })(),
+        country:espnCountry(a),
         headshot:validImage(a.headshot)?a.headshot:null,
       });
     }
@@ -40,8 +53,8 @@ function rankingRows(payload,tour){
 
 export async function fetchEspnTennisRankings(fetchImpl=fetch){
   const urls={
-    atp:"https://site.web.api.espn.com/apis/site/v2/sports/tennis/atp/rankings?region=us&lang=en",
-    wta:"https://site.web.api.espn.com/apis/site/v2/sports/tennis/wta/rankings?region=us&lang=en",
+    atp:"https://site.api.espn.com/apis/site/v2/sports/tennis/atp/rankings?region=us&lang=en",
+    wta:"https://site.api.espn.com/apis/site/v2/sports/tennis/wta/rankings?region=us&lang=en",
   };
   const rows=[];
   for(const [tour,url] of Object.entries(urls)){
