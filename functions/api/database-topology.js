@@ -11,7 +11,9 @@ import {
   marketHistoryRetentionDecision,
   hydrateCutoverApprovals,
   SPORT_DATABASES,
+  MARKET_HISTORY_HOT_WINDOW_MS,
 } from "../lib/databaseTopology.js";
+import { buildVerifiedCapacityPlan } from "../lib/marketHistoryCapacity.js";
 import { copyNhlPilotTables, verifyNhlSportDbParity, verifyNhlRecordLevelParity } from "../lib/nhlSportDb.js";
 import { shadowCompareNhlSportDb } from "../lib/sportDbShadow.js";
 import { archiveColdMarketHistoryObservations } from "../lib/marketHistoryArchive.js";
@@ -285,6 +287,23 @@ export async function onRequestPost({ env, request } = {}) {
       archiveWrites: body.archiveWrites === true,
       now: body.now ? new Date(body.now) : new Date(),
     }));
+  }
+  if (operation === "market-history-capacity-plan") {
+    let liveBytes = null;
+    if (env?.MARKET_HISTORY_2026Q4_DB?.prepare) {
+      try {
+        const probe = await env.MARKET_HISTORY_2026Q4_DB.prepare("SELECT 1 AS healthy").all();
+        const n = Number(probe?.meta?.size_after);
+        if (Number.isSafeInteger(n) && n > 0) liveBytes = n;
+      } catch { /* keep baseline */ }
+    }
+    const plan = buildVerifiedCapacityPlan(liveBytes != null ? { usedBytes: liveBytes } : {});
+    return json({
+      ...plan,
+      deployedHotWindowMs: MARKET_HISTORY_HOT_WINDOW_MS,
+      liveQ4Bytes: liveBytes,
+      canAuthorizeWager: false,
+    });
   }
   if (operation === "retention-gate-evaluate") {
     return json({

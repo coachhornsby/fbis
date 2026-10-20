@@ -47,6 +47,14 @@ test("market write fails closed when Q4 is full/unready (no legacy fallback)", a
   assert.equal(full.db, null);
   assert.equal(full.warning, "MARKET_HISTORY_WRITE_UNAVAILABLE_FAIL_CLOSED");
 
+  // Fail closed from HIGH (85%), not only CRITICAL — preserve archive headroom.
+  const high = await resolveMarketHistoryWriteDb({
+    MARKET_HISTORY_2026Q4_DB: historyDb(8_500_000_000),
+    MARKET_HISTORY_DB: historyDb(9_200_000_000),
+  }, { now: new Date("2026-10-20T12:00:00Z") });
+  assert.equal(high.db, null);
+  assert.ok((high.rejected || []).some((r) => r.reason === "CAPACITY_HIGH"));
+
   const unready = await resolveMarketHistoryWriteDb({
     MARKET_HISTORY_2026Q4_DB: historyDb(100_000, false),
     MARKET_HISTORY_DB: historyDb(100_000),

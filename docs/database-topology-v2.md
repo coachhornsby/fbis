@@ -23,9 +23,11 @@ Cloudflare D1 has a **hard 10 GB ceiling per database**. FBIS therefore scales a
 
 Policy:
 
-1. Hot window in D1: **7 days** of searchable market observations (`MARKET_HISTORY_HOT_WINDOW_MS`).
-2. Older observations: archive to R2, then retention-gate delete only with verified recovery.
-3. New recovery/WS writes prefer `MARKET_HISTORY_2026Q4_DB` when bound (legacy history is near capacity).
+1. Hot window in D1: **bounded hours** of searchable ticks (`MARKET_HISTORY_HOT_WINDOW_MS`), sized from measured ingest — **not** a calendar week. A 7-day full-resolution WS window is rejected as unsustainable at current rates (~tens of GB).
+2. Compact `latest_market_state` holds current quotes for board/compare; ledger inserts are coalesced (60s / material price move).
+3. Older observations: archive to R2, then retention-gate delete only with verified recovery.
+4. New recovery/WS writes prefer `MARKET_HISTORY_2026Q4_DB` when bound; fail closed from HIGH (85%). Legacy history is near capacity and must not receive live writes.
+5. Do not create another unbounded quarterly D1 to repeat the 10 GB fill pattern.
 
 ## Migration phases
 

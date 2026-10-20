@@ -479,7 +479,9 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
           collectedAt:new Date().toISOString(),
         });
         if(hr.ok){
-          this.historyInserted+=hr.inserted;historyOk=true;this.historyLastError=null;
+          // Count ledger inserts and latest-state upserts (coalesce may skip redundant ticks).
+          this.historyInserted+=Math.max(Number(hr.inserted)||0,Number(hr.latestUpserted)||0);
+          historyOk=true;this.historyLastError=null;
         }else{
           this.historyLastError=hr.reason||"history-recovery-failed";
         }
@@ -521,7 +523,9 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
           collectedAt:new Date().toISOString(),
         });
         if(hr.ok){
-          this.historyInserted+=hr.inserted;historyOk=true;this.historyLastError=null;
+          // Count ledger inserts and latest-state upserts (coalesce may skip redundant ticks).
+          this.historyInserted+=Math.max(Number(hr.inserted)||0,Number(hr.latestUpserted)||0);
+          historyOk=true;this.historyLastError=null;
         }else{
           this.historyLastError=hr.reason||"history-recovery-failed";
         }

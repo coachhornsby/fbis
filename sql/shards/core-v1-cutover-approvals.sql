@@ -8,11 +8,17 @@ CREATE TABLE IF NOT EXISTS fbis_sport_cutover_approvals (
   status TEXT NOT NULL DEFAULT 'PENDING',
   approved_at TEXT,
   approved_by TEXT,
+  expires_at TEXT,
+  revoked_at TEXT,
   detail_json TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (receipt_id, sport)
 );
+
+-- Additive columns for databases created before expiry/revocation support.
+-- SQLite ignores duplicate-column errors when applied carefully via migration runner;
+-- D1 apply uses IF NOT EXISTS table + separate ALTERs in core-v1-cutover-approvals-expiry.sql.
 
 CREATE INDEX IF NOT EXISTS idx_sport_cutover_approvals_sport_status
   ON fbis_sport_cutover_approvals(sport, status);

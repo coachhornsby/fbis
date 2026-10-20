@@ -18,6 +18,46 @@ export const SPORT_WORKING_TABLES = Object.freeze([
   Object.freeze({ table: "published_projections" }),
 ]);
 
+/**
+ * Sport-prefixed research tables to copy in shadow (Wave 1–2).
+ * Player-prop tables are intentionally omitted (separate Props workstream).
+ */
+export const SPORT_PREFIX_TABLES = Object.freeze({
+  nfl: Object.freeze([
+    "nfl_team_profiles",
+    "nfl_team_profile_snapshots",
+    "nfl_team_schedule_profile",
+    "nfl_player_profiles",
+    "nfl_player_state_events",
+    "nfl_research_publications",
+    "nfl_research_publication_events",
+    "nfl_wager_decisions",
+    "nfl_wager_outcomes",
+  ]),
+  cfb: Object.freeze([
+    "cfb_canonical_teams",
+    "cfb_canonical_players",
+    "cfb_conference_membership",
+    "cfb_team_aliases",
+    "cfb_player_aliases",
+    "cfb_roster_membership",
+    "cfb_roster_observations",
+    "cfb_pregame_feature_vectors",
+    "cfb_core_weekly_archive",
+    "cfb_hfa_ratings",
+    "cfb_hfa_games",
+  ]),
+  nhl: Object.freeze([
+    "nhl_team_profiles",
+    "nhl_team_profile_snapshots",
+    "nhl_team_schedule_profile",
+    "nhl_player_profiles",
+    "nhl_goalie_profiles",
+    "nhl_wager_decisions",
+    "nhl_wager_settlements",
+  ]),
+});
+
 const DEFAULT_PAGE_SIZE = 1000;
 const DEFAULT_MAX_PAGES = 50;
 
@@ -542,6 +582,19 @@ export async function backfillSportEvidenceEnvelopes(env, sport, {
     evidence: { withEnvelope, withWeights },
     moreRemaining: result.exhausted === false,
     productStillPrimary: true,
+    canAuthorizeWager: false,
+  };
+}
+
+/** Declared migration scope for a sport (working set + prefix tables). Props deferred. */
+export function sportMigrationScope(sport) {
+  const key = String(sport || "").toLowerCase();
+  return {
+    sport: key,
+    workingTables: SPORT_WORKING_TABLES.map((t) => t.table),
+    prefixTables: SPORT_PREFIX_TABLES[key] || [],
+    deferredPlayerProps: true,
+    productAuthority: "PRIMARY_UNTIL_CUTOVER_RECEIPT",
     canAuthorizeWager: false,
   };
 }

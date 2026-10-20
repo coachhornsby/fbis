@@ -5,6 +5,13 @@ import {
   DATABASE_OWNERS,
 } from "../lib/databaseOwnership.js";
 import { withOperationsWrite } from "../lib/operationsDb.js";
+import {
+  buildVerifiedCapacityPlan,
+  MEASURED_Q4_BASELINE,
+  forecastCapacityExhaustion,
+  rowsPerHourFromSeries,
+} from "../lib/marketHistoryCapacity.js";
+import { MARKET_HISTORY_HOT_WINDOW_MS } from "../lib/databaseTopology.js";
 
 /** Accurate D1 storage telemetry from the binding query metadata.
  * SQLite dbstat/page_count is not authorized on production D1.
@@ -45,7 +52,7 @@ function summarizeOne(bytes, databaseKey) {
   };
 }
 
-export function summarizeD1Storage(primaryBytes, shardBytes, operationsBytes = null) {
+export function summarizeD1Storage(primaryBytes, shardBytes, operationsBytes = null, q4Bytes = null) {
   const safe = (n) => Number.isSafeInteger(n) && n > 0;
   if (!safe(primaryBytes) || !safe(shardBytes)) throw Error("STORAGE_SIZE_UNAVAILABLE");
   const primary = summarizeOne(primaryBytes, "PRIMARY");
@@ -54,6 +61,11 @@ export function summarizeD1Storage(primaryBytes, shardBytes, operationsBytes = n
     ? null
     : safe(operationsBytes)
       ? summarizeOne(operationsBytes, "OPERATIONS")
+      : (() => { throw Error("STORAGE_SIZE_UNAVAILABLE"); })();
+  const marketHistoryQ4 = q4Bytes == null
+    ? null
+    : safe(q4Bytes)
+      ? summarizeOne(q4Bytes, "MARKET_HISTORY_2026Q4")
       : (() => { throw Error("STORAGE_SIZE_UNAVAILABLE"); })();
 
   const primaryState = primaryBytes >= D1_DATABASE_MAX_BYTES
@@ -64,10 +76,20 @@ export function summarizeD1Storage(primaryBytes, shardBytes, operationsBytes = n
         ? "PRIMARY_WATCH"
         : "PRIMARY_WITH_HEADROOM";
 
+  const rates = rowsPerHourFromSeries(MEASURED_Q4_BASELINE.hourlyRows);
+  const q4Forecast = marketHistoryQ4
+    ? forecastCapacityExhaustion({
+      usedBytes: marketHistoryQ4.usedBytes,
+      bytesPerObservation: MEASURED_Q4_BASELINE.bytesPerObservation,
+      rowsPerHour: rates,
+    })
+    : null;
+
   return {
     state: primaryState,
     primary,
     historyShard,
+    marketHistoryQ4,
     operations,
     coldHistory: {
       databaseKey: "COLD_HISTORY",
@@ -76,7 +98,7 @@ export function summarizeD1Storage(primaryBytes, shardBytes, operationsBytes = n
       bound: false,
       note: "Pages may bind COLD_HISTORY_DB for qualified archive reads; daily monitor always measures physical bytes.",
     },
-    knownBoundD1Bytes: primaryBytes + shardBytes + (operationsBytes || 0),
+    knownBoundD1Bytes: primaryBytes + shardBytes + (operationsBytes || 0) + (q4Bytes || 0),
     accountWideUsageMeasured: false,
     r2BillableBytesMeasured: false,
     invoiceEstimated: false,
@@ -84,6 +106,9 @@ export function summarizeD1Storage(primaryBytes, shardBytes, operationsBytes = n
     sourceOfTruth: "PRIMARY_D1",
     operationsDbPreferred: true,
     capacityAlertThresholds: [80, 85, 90],
+    marketHistoryHotWindowMs: MARKET_HISTORY_HOT_WINDOW_MS,
+    marketHistoryWriteFailClosedFrom: "HIGH",
+    q4Forecast,
   };
 }
 
@@ -143,9 +168,10 @@ export async function onRequestGet({ env, request } = {}) {
       probe(env.MARKET_HISTORY_DB),
       env.OPERATIONS_DB?.prepare ? probe(env.OPERATIONS_DB) : Promise.resolve(null),
       env.COLD_HISTORY_DB?.prepare ? probe(env.COLD_HISTORY_DB) : Promise.resolve(null),
+      env.MARKET_HISTORY_2026Q4_DB?.prepare ? probe(env.MARKET_HISTORY_2026Q4_DB) : Promise.resolve(null),
     ];
     const sizes = await Promise.all(probes);
-    const result = summarizeD1Storage(sizes[0], sizes[1], sizes[2]);
+    const result = summarizeD1Storage(sizes[0], sizes[1], sizes[2], sizes[4]);
     if (sizes[3] != null && Number.isSafeInteger(sizes[3]) && sizes[3] > 0) {
       result.coldHistory = {
         ...summarizeD1Storage(sizes[3], 1).primary,
@@ -155,6 +181,9 @@ export async function onRequestGet({ env, request } = {}) {
         bound: true,
       };
       result.knownBoundD1Bytes += sizes[3];
+    }
+    if (sizes[4] != null && Number.isSafeInteger(sizes[4]) && sizes[4] > 0) {
+      result.capacityPlan = buildVerifiedCapacityPlan({ usedBytes: sizes[4] });
     }
     let persisted = { ok: false, reason: "not-requested" };
     const url = request?.url ? new URL(request.url) : null;
