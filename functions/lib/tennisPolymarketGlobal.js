@@ -82,7 +82,7 @@ const lastName=name=>String(name||"").trim().split(/\s+/).at(-1)||"";
 export async function collectPolymarketGlobalTennis(env,{now=new Date(),fetchImpl=fetch,limit=24}={}){
  if(!env?.DB?.prepare||!env?.ARCHIVE?.put)throw Error("TENNIS_COLLECTION_BINDING_MISSING");
  const at=now.toISOString();
- const q=await env.DB.prepare("SELECT fixture_id AS id,tour,player1_name AS away_name,player2_name AS home_name,match_time AS start,status,fetched_at FROM tennis_external_fixtures WHERE source='ESPN_PUBLIC' AND tour IN ('atp','wta') AND status IN ('SCHEDULED','IN_PROGRESS') AND fetched_at>=? AND match_time BETWEEN ? AND ? ORDER BY ABS(julianday(match_time)-julianday(?)) ASC LIMIT ?")
+ const q=await env.DB.prepare("SELECT fixture_id AS id,tour,player1_name AS away_name,player2_name AS home_name,match_time AS start,status,fetched_at FROM tennis_external_fixtures WHERE source='ESPN_PUBLIC' AND tour IN ('atp','wta') AND status IN ('SCHEDULED','IN_PROGRESS') AND fetched_at>=? AND match_time BETWEEN ? AND ? ORDER BY CASE WHEN status='IN_PROGRESS' THEN 0 ELSE 1 END, ABS(julianday(match_time)-julianday(?)) ASC LIMIT ?")
  .bind(new Date(+now-18*3600000).toISOString(),new Date(+now-8*3600000).toISOString(),new Date(+now+36*3600000).toISOString(),at,Math.min(40,Math.max(1,limit))).all();
  const fixtures=(q?.results||[]).filter(f=>f.id?.startsWith("tennis:espn:"));
  const events=new Map(),errors=[],searches=[];let next=0;
