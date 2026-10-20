@@ -1,5 +1,6 @@
 import {
   captureSignedKalshiMarkets,captureSignedKalshiExchangeStatus,
+  captureKalshiSportsSeriesCatalog,
 } from "../lib/kalshiSignedCollector.js";
 const respond=(obj,status=200)=>Response.json(obj,{
   status,headers:{"cache-control":"private, no-store","pragma":"no-cache",
@@ -46,6 +47,14 @@ export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypt
       return respond(result,result.ok?200:503);
     }catch{
       return respond({ok:false,code:"SIGNED_STATUS_UNAVAILABLE"},503);
+    }
+  }
+  if(scope==="series-catalog"){
+    try{
+      const result=await captureKalshiSportsSeriesCatalog(env,{fetchImpl,webCrypto});
+      return respond(result,result.ok?200:result.code==="KALSHI_CATALOG_POLL_NOT_DUE"?200:503);
+    }catch{
+      return respond({ok:false,code:"KALSHI_CATALOG_UNAVAILABLE"},503);
     }
   }
   return respond({ok:false,code:"COLLECTION_SCOPE_NOT_ALLOWED"},400);
