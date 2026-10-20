@@ -17,8 +17,9 @@ export function buildNhlOfficialScopeCandidates(contracts=[],{capturedAt}={}){
   if(!validGameId(eventId)||!validPlayerId(playerId)||suffix!=='nhl:nhl:'+playerId)reasons.push('EXACT_NHL_SOURCE_IDS_REQUIRED');
   if(!stats.has(c.canonical_market)||c.period!=='full_game')reasons.push('STAT_SCOPE_UNSUPPORTED');
   if(!c.contractId||!c.providerEventId||!c.providerPlayerId)reasons.push('PROVIDER_REFERENCE_MISSING');
+  const observedAt=c.collectedAt||capturedAt;
   const started=Date.parse(c.start_time);
-  if(!Number.isFinite(started)||Date.parse(capturedAt)>=started)reasons.push('PROSPECTIVE_CONTRACT_REQUIRED');
+  if(!Number.isFinite(started)||!Number.isFinite(Date.parse(observedAt))||Date.parse(observedAt)>=started)reasons.push('PROSPECTIVE_CONTRACT_REQUIRED');
   if(reasons.length){rejected.push({contractId:c.contractId||null,reasons});continue;}
   const key=[eventId,playerId,c.canonical_market].join(':');
   if(seen.has(key))continue;seen.add(key);
@@ -27,7 +28,7 @@ export function buildNhlOfficialScopeCandidates(contracts=[],{capturedAt}={}){
    stat:c.canonical_market,period:'full_game',identityVerified:false,
    candidateIdentityMatched:true,reviewRequired:true,
    evidence:{provider:c.provider,contractId:c.contractId,providerEventId:c.providerEventId,
-    providerPlayerId:c.providerPlayerId,sourceCapturedAt:capturedAt}
+    providerPlayerId:c.providerPlayerId,sourceCapturedAt:observedAt}
   });
  }
  return {ok:true,version:1,certified:false,scopes,rejected,
