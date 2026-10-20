@@ -132,17 +132,18 @@
 }
 .fbis-priced-gap-value span{font-size:12px!important;font-weight:950!important;letter-spacing:.16em;text-transform:uppercase}
 .fbis-priced-gap-value small{font-size:15px!important;font-weight:950!important}
-/* Watermarks: large, centered higher in the tile (bias toward the upper third). */
+/* Watermarks: large, anchored high (visual center ~38% from top). */
 .fbis-priced-tile-mark,.fbis-priced-tile-mark.team-logo-wrap,.fbis-priced-tile-mark.team-logo-plate{
   position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;padding:0!important;
-  display:grid!important;place-items:center!important;pointer-events:none;z-index:0;overflow:hidden!important;
+  display:block!important;pointer-events:none;z-index:0;overflow:hidden!important;
   background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;opacity:.32;transform:none!important
 }
 .fbis-priced-tile-mark .team-logo,.fbis-priced-tile-mark img{
+  position:absolute!important;left:50%!important;top:38%!important;right:auto!important;bottom:auto!important;
   width:auto!important;height:117%!important;max-width:117%!important;max-height:117%!important;aspect-ratio:1;
   object-fit:contain!important;object-position:center center!important;border-radius:0!important;opacity:1;
-  filter:saturate(1.08) contrast(1.1);display:block!important;margin:0!important;justify-self:center;align-self:center;
-  transform:translateY(-16%)
+  filter:saturate(1.08) contrast(1.1);display:block!important;margin:0!important;
+  transform:translate(-50%,-50%)
 }
 @keyframes fbis-priced-value-pulse{
   0%,100%{transform:scale(1);filter:brightness(1)}
@@ -153,8 +154,8 @@
   50%{opacity:.38}
 }
 @keyframes fbis-priced-mark-scale{
-  0%,100%{transform:translateY(-16%) scale(1)}
-  50%{transform:translateY(-16%) scale(1.06)}
+  0%,100%{transform:translate(-50%,-50%) scale(1)}
+  50%{transform:translate(-50%,-50%) scale(1.06)}
 }
 .fbis-priced-markets .fbis-priced-family{box-shadow:inset 0 1px rgba(255,255,255,.07),0 8px 19px rgba(0,0,0,.13)}
 .fbis-priced-markets .fbis-priced-heading>span:last-child{min-width:0}
