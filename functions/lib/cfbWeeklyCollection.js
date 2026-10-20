@@ -49,12 +49,31 @@ export const WEEKLY_COLLECTION_SCHEDULE = Object.freeze([
   {
     id: "cfbd-weekly-reconstruction",
     provider: "cfbd",
-    datasets: ["cfbd-ppa-games", "cfbd-stats-game-advanced"],
-    chicagoWindow: "Mon 09:00–12:00 (budgeted week = targetWeek−1)",
-    afterPublication: "Prior completed week game-level stats",
-    retries: ["Tue if blocked_by_provider_allowance"],
+    datasets: [
+      "cfbd-ppa-games",
+      "cfbd-stats-game-advanced",
+      "cfbd-games-teams-players",
+    ],
+    chicagoWindow: "Mon–Fri with cfb-current-refresh (budgeted week = targetWeek−1)",
+    afterPublication:
+      "Prior completed statistical week (throughWeek) game-level PPA/advanced/box archives; targetWeek N never means week-N boxes",
+    retries: ["Tue if blocked_by_provider_allowance", "operator-approved refresh"],
     quotaWeight: "medium",
     required: true,
+    monitor: {
+      r2Prefixes: [
+        "raw/cfbd/cfb/{season}/ppa_games/week-{throughWeek}",
+        "raw/cfbd/cfb/{season}/stats_game_advanced/week-{throughWeek}",
+        "raw/cfbd/cfb/{season}/games_teams/week-{throughWeek}",
+        "raw/cfbd/cfb/{season}/games_players/week-{throughWeek}",
+      ],
+      d1DatasetIds: [
+        "cfbd-ppa-games",
+        "cfbd-stats-game-advanced",
+        "cfbd-games-teams-players",
+      ],
+      alertWhen: "R2 objects present but cfb_collection_manifests missing/failed for same throughWeek",
+    },
   },
   {
     id: "cfbd-lines-eval",

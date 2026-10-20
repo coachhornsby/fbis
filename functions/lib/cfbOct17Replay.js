@@ -17,6 +17,7 @@ import {
   projectModelB,
   projectModelC,
   projectModelD,
+  projectModelE,
 } from "./cfbCurrentSeasonChallengers.js";
 import PRIOR_V1 from "../../data/cfb/prior-v1.js";
 
@@ -196,6 +197,7 @@ export function replayOneGame({
   const modelB = projectModelB(game);
   const modelC = projectModelC(game, { coreArtifact: null });
   const modelD = projectModelD(game);
+  const modelE = projectModelE(game);
   const original = {
     home: num(close?.proj_home ?? close?.projHome),
     away: num(close?.proj_away ?? close?.projAway),
@@ -208,7 +210,7 @@ export function replayOneGame({
   const originalErr = scoreErrors(original.home, original.away, actual.home, actual.away);
   const rebuiltErr = scoreErrors(rebuilt.home, rebuilt.away, actual.home, actual.away);
   const errB = scoreErrors(modelB.home, modelB.away, actual.home, actual.away);
-  const errD = scoreErrors(modelD.home, modelD.away, actual.home, actual.away);
+  const errE = scoreErrors(modelE.home, modelE.away, actual.home, actual.away);
 
   return {
     gameId: game.id,
@@ -237,7 +239,8 @@ export function replayOneGame({
         home: modelB.ok ? modelB.home : null,
         away: modelB.ok ? modelB.away : null,
         ok: modelB.ok,
-        researchShrinkK: modelB.researchShrinkK,
+        fittedArtifactId: modelB.fittedArtifactId || null,
+        oosDecision: modelB.oosDecision || null,
         error: errB,
       },
       C: {
@@ -246,11 +249,17 @@ export function replayOneGame({
         note: "CORE incremental value unproven without fitted OOS artifact",
       },
       D: {
-        home: modelD.ok ? modelD.home : null,
-        away: modelD.ok ? modelD.away : null,
         ok: modelD.ok,
-        error: errD,
-        note: modelD.note || null,
+        reason: modelD.reason || null,
+        note: modelD.note || "SDV challenger fails closed without fitted artifact",
+      },
+      E: {
+        home: modelE.ok ? modelE.home : null,
+        away: modelE.ok ? modelE.away : null,
+        ok: modelE.ok,
+        fittedArtifactId: modelE.fittedArtifactId || null,
+        oosDecision: modelE.oosDecision || null,
+        error: errE,
       },
     },
     actual,

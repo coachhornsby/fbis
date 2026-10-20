@@ -81,7 +81,9 @@ test("runtime consumption: Model A reads fitted fields; advanced unused", () => 
   assert.equal(c.projectionOk, false);
   assert.match(String(c.reason), /CORE|ARTIFACT/i);
   const e = probeRuntimeConsumption({ modelId: "E" });
-  assert.equal(e.projectionOk, false);
+  assert.equal(e.projectionOk, true);
+  assert.equal(e.canInfluenceProduction, false);
+  assert.ok(e.researchOnly.includes("combined_advanced_cfbd") || e.challengerId === "E");
 });
 
 test("feature impact: fitted PPA ablation moves scores; unfitted families near-zero", () => {

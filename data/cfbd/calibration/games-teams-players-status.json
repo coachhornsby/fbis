@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-10-18T07:49:20.509Z",
+  "datasetId": "cfbd-games-teams-players",
+  "season": 2026,
+  "week": 8,
+  "authority": "quota-governed-cfb-current-refresh-only",
+  "requiredPrefixes": [
+    "raw/cfbd/cfb/2026/games_teams/",
+    "raw/cfbd/cfb/2026/games_players/"
+  ],
+  "operatorRecipe": {
+    "workflow": "FBIS college research (college.yml)",
+    "inputs": {
+      "job": "cfb-current-refresh",
+      "operatorApproved": "true",
+      "year": "2026",
+      "week": "8"
+    },
+    "note": "Must use workflow_dispatch + operatorApproved so cfbdNetworkAuthorized=true. Do not call api.collegefootballdata.com outside the Worker governor."
+  },
+  "live": {
+    "r2GamesTeamsObjects": 0,
+    "r2GamesPlayersObjects": 0,
+    "manifestStatus": "failed",
+    "quota": {
+      "last_remaining": 74984,
+      "blocked_until_ms": 0
+    },
+    "probedAt": "2026-10-18T07:49:13.700Z"
+  },
+  "complete": false
+}
