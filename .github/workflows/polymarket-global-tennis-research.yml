@@ -25,7 +25,7 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           test -n "$HARVEST_SECRET" || { echo "HARVEST_SECRET_NOT_CONFIGURED"; exit 1; }
-          curl --fail-with-body --silent --show-error --retry 4 --retry-delay 15 --max-time 260 \
+          curl --fail-with-body --silent --show-error --retry 4 --retry-all-errors --retry-delay 15 --max-time 260 \
             -X POST "https://fbis-myz.pages.dev/api/polymarket-global-tennis-collect" \
             -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
             -d '{}' > /tmp/tennis-gamma-receipt.json
