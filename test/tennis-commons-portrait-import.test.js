@@ -38,8 +38,8 @@ const fbis=()=>{
   return {saved,DB,ARCHIVE,get writes(){return writes;}};
 };
 test("curated manifest never duplicates player IDs or permits unreviewed external URL inputs",()=>{
-  assert.equal(TENNIS_COMMONS_PORTRAIT_BATCH.length,21);
-  assert.equal(new Set(TENNIS_COMMONS_PORTRAIT_BATCH.map(c=>c.playerId)).size,21);
+  assert.equal(TENNIS_COMMONS_PORTRAIT_BATCH.length,28);
+  assert.equal(new Set(TENNIS_COMMONS_PORTRAIT_BATCH.map(c=>c.playerId)).size,28);
   for (const c of TENNIS_COMMONS_PORTRAIT_BATCH){
     assert.match(c.playerId,/^tennis:(?:wta:\d+|atp:research:[a-z ]+)$/);
     assert.match(c.sourceUrl,/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);

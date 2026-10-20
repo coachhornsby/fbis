@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import CfbTeamsView from '../cfbTeams/CfbTeamsView.jsx';
 import TeamLogo from '../../components/TeamLogo.jsx';
+import TennisPlayersView from './TennisPlayersView.jsx';
 import './teamProfiles.css';
 
 const COMPETITION_NAMES = Object.freeze({
@@ -13,18 +14,18 @@ const competitionName = id => COMPETITION_NAMES[id] || id;
 
 
 export default function TeamProfilesView({refreshKey=0}) {
- const [sport,setSport]=useState('soccer'),[directory,setDirectory]=useState(null),[league,setLeague]=useState('eng.1');
+ const [sport,setSport]=useState(()=>typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('directorySport')==='tennis'?'tennis':'soccer'),[directory,setDirectory]=useState(null),[league,setLeague]=useState('eng.1');
  const [search,setSearch]=useState(''),[selected,setSelected]=useState(null),[profile,setProfile]=useState(null),[error,setError]=useState(null);
  const [panel,setPanel]=useState('overview');
  const [competitionLogo,setCompetitionLogo]=useState(null);
  const [leagueRankings,setLeagueRankings]=useState(null),[rankError,setRankError]=useState(null);
- useEffect(()=>{const ac=new AbortController();fetch('/api/soccer-team-profiles',{signal:ac.signal}).then(r=>r.json()).then(d=>{
+ useEffect(()=>{if(sport!=='soccer')return;const ac=new AbortController();fetch('/api/soccer-team-profiles',{signal:ac.signal}).then(r=>r.json()).then(d=>{
   if(!d.ok)throw new Error(d.error);setDirectory(d);
- }).catch(e=>{if(e.name!=='AbortError')setError(e.message);});return()=>ac.abort();},[refreshKey]);
- useEffect(()=>{if(!selected)return;const ac=new AbortController();setProfile(null);setError(null);
+ }).catch(e=>{if(e.name!=='AbortError')setError(e.message);});return()=>ac.abort();},[sport,refreshKey]);
+ useEffect(()=>{if(sport!=='soccer'||!selected)return;const ac=new AbortController();setProfile(null);setError(null);
   fetch(`/api/soccer-team-profiles?team=${encodeURIComponent(selected)}&league=${encodeURIComponent(league)}`,{signal:ac.signal})
    .then(r=>r.json()).then(d=>{if(!d.ok)throw new Error(d.error);setProfile(d);})
-   .catch(e=>{if(e.name!=='AbortError')setError(e.message);});return()=>ac.abort();},[selected,league,refreshKey]);
+   .catch(e=>{if(e.name!=='AbortError')setError(e.message);});return()=>ac.abort();},[sport,selected,league,refreshKey]);
  useEffect(()=>{if(sport!=='soccer')return;const ac=new AbortController();setLeagueRankings(null);setRankError(null);
    fetch(`/api/soccer-team-rankings?league=${encodeURIComponent(league)}`,{signal:ac.signal})
     .then(r=>r.json()).then(d=>{if(!d.ok)throw new Error(d.error);setLeagueRankings(d);})
@@ -48,9 +49,9 @@ export default function TeamProfilesView({refreshKey=0}) {
  const selectedRanking=leagueRankings?.teams?.find(t=>t.id===selected);
  const teams=(directory?.competitions.find(c=>c.league===league)?.teams||[]).filter(t=>t.name.toLowerCase().includes(search.toLowerCase()));
  const fmt=v=>v==null?'Unavailable':Number(v).toFixed(2);
- return <section className="stp-page"><div className="stp-toolbar"><div><span className="stp-eyebrow">FBIS CLUB INTELLIGENCE</span><h2>Team Profiles</h2><p>Club identity, verified match performance, source rankings, and player intelligence.</p></div>
- <label className="stp-control">Sport <span className="stp-select"><select value={sport} onChange={e=>setSport(e.target.value)}><option value="soccer">Soccer</option><option value="cfb">FBS football</option></select></span></label></div>
- {sport==='cfb'?<CfbTeamsView refreshKey={refreshKey}/>:<>
+ return <section className="stp-page"><div className="stp-toolbar"><div><span className="stp-eyebrow">FBIS TEAM & PLAYER INTELLIGENCE</span><h2>Team Profiles</h2><p>Club identity, verified match performance, source rankings, and player intelligence.</p></div>
+ <label className="stp-control">Sport <span className="stp-select"><select aria-label="Team profile sport" value={sport} onChange={e=>{const next=e.target.value;setSport(next);setSelected(null);setError(null);if(typeof window!=='undefined'){const url=new URL(window.location.href);if(next==='tennis')url.searchParams.set('directorySport','tennis');else url.searchParams.delete('directorySport');window.history.replaceState({},'',url);}}}><option value="soccer">Soccer</option><option value="cfb">FBS football</option><option value="tennis">Tennis — ATP / WTA</option></select></span></label></div>
+ {sport==='tennis'?<TennisPlayersView refreshKey={refreshKey}/>:sport==='cfb'?<CfbTeamsView refreshKey={refreshKey}/>:<>
  <div className="stp-filters"><label className="stp-control stp-competition-control">Competition <span className="stp-competition-select">{competitionLogo?<img src={competitionLogo} alt="" onError={()=>setCompetitionLogo(null)}/>:<span className="stp-league-placeholder" aria-hidden="true">⚽</span>}<span className="stp-competition-name">{competitionName(league)}</span><span className="stp-select stp-competition-native"><select aria-label="Competition" value={league} onChange={e=>{setLeague(e.target.value);setSelected(null);setProfile(null);setPanel('overview');}}>
  {(directory?.competitions||[]).map(c=><option key={c.league} value={c.league}>{competitionName(c.league)} · {c.teams.length} clubs</option>)}</select></span></span></label>
  <label className="stp-control">Find club <input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clubs…"/></label>

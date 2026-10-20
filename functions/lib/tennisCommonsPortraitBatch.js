@@ -190,6 +190,69 @@ export const TENNIS_COMMONS_PORTRAIT_BATCH = Object.freeze([
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jannik_Sinner_2024_US_Open_4_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:alexander zverev",
+    "playerName": "Alexander Zverev",
+    "fileTitle": "Alexander Zverev 2026 Roland Garros (198) (cropped).jpg",
+    "author": "Like tears in rain",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Alexander_Zverev_2026_Roland_Garros_(198)_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:daniil medvedev",
+    "playerName": "Daniil Medvedev",
+    "fileTitle": "Daniil Medvedev (2025 DC Open) 05 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Daniil_Medvedev_(2025_DC_Open)_05_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:ben shelton",
+    "playerName": "Ben Shelton",
+    "fileTitle": "Ben Shelton (2023 DC Open) 01.jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ben_Shelton_(2023_DC_Open)_01.jpg"
+  },
+  {
+    "playerId": "tennis:wta:320760",
+    "playerName": "Aryna Sabalenka",
+    "fileTitle": "Aryna Sabalenka (2024 DC Open) 05 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Aryna_Sabalenka_(2024_DC_Open)_05_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:wta:328560",
+    "playerName": "Coco Gauff",
+    "fileTitle": "Coco Gauff (2023 French Open) 02 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Coco_Gauff_(2023_French_Open)_02_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:wta:316956",
+    "playerName": "Jessica Pegula",
+    "fileTitle": "Jessica Pegula (2025 DC Open) 05 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jessica_Pegula_(2025_DC_Open)_05_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:wta:331809",
+    "playerName": "Mirra Andreeva",
+    "fileTitle": "Mirra Andreeva (2023 US Open) 10 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mirra_Andreeva_(2023_US_Open)_10_(cropped).jpg"
   }
 ]);
 export const tennisCommonsPortraitCandidate = id => TENNIS_COMMONS_PORTRAIT_BATCH.find(x=>x.playerId===id)||null;
