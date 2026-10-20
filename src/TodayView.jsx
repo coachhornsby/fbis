@@ -8,6 +8,7 @@ import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 import { Fragment, useState } from "react";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 import TodayCommandCenter from "./features/today/TodayCommandCenter.jsx";
+import { todayCT } from "../functions/lib/slateEngine.js";
 import "./features/today/today.css";
 import GameWorkspace from "./features/game/GameWorkspace.jsx";
 import { buildGameWorkspaceView } from "./features/game/buildGameWorkspaceView.js";
@@ -103,7 +104,7 @@ export default function TodayView({
             <button className="header-btn" onClick={() => onDate(shift(date, -1))} aria-label="Previous day">← Prev</button>
             <input type="date" value={date} onChange={(e) => onDate(e.target.value)} />
             <button className="header-btn" onClick={() => onDate(shift(date, 1))} aria-label="Next day">Next →</button>
-            <button className="header-btn" onClick={() => onDate(board?.health?.todayCt || date)}>Today</button>
+            <button className="header-btn" onClick={() => onDate(todayCT())}>Today</button>
             {onImport && (
               <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT BET SLIP</button>
             )}
