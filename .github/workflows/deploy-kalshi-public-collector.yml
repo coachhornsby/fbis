@@ -7,6 +7,8 @@ on:
       - "functions/lib/kalshiMarketShadow.js"
       - "functions/lib/kalshiExchangeStatus.js"
       - "functions/lib/kalshiSignedCollector.js"
+      - "functions/lib/propProviderAdapters.js"
+      - "test/kalshi-nba-prop-matching.test.js"
       - "functions/api/kalshi-collector-internal.js"
       - "functions/lib/kalshiComboTape.js"
       - "test/kalshi-combo-tape.test.js"
@@ -30,6 +32,8 @@ on:
       - "functions/lib/kalshiMarketShadow.js"
       - "functions/lib/kalshiExchangeStatus.js"
       - "functions/lib/kalshiSignedCollector.js"
+      - "functions/lib/propProviderAdapters.js"
+      - "test/kalshi-nba-prop-matching.test.js"
       - "functions/api/kalshi-collector-internal.js"
       - ".github/workflows/deploy-kalshi-public-collector.yml"
   workflow_dispatch:
@@ -49,7 +53,7 @@ jobs:
           node-version: "22"
       - run: npm ci --ignore-scripts
       - name: Verify public collector safety contracts
-        run: node --test test/kalshi-market-shadow.test.js test/kalshi-market-collector.test.js test/kalshi-central-collector.test.js test/kalshi-exchange-status.test.js test/kalshi-signed-collector.test.js test/kalshi-series-catalog.test.js test/kalshi-phase2-coverage.test.js test/kalshi-market-qualification.test.js test/kalshi-targeted-evidence.test.js test/kalshi-multileg-collector.test.js test/kalshi-combo-tape.test.js
+        run: node --test test/kalshi-market-shadow.test.js test/kalshi-market-collector.test.js test/kalshi-central-collector.test.js test/kalshi-exchange-status.test.js test/kalshi-signed-collector.test.js test/kalshi-series-catalog.test.js test/kalshi-phase2-coverage.test.js test/kalshi-market-qualification.test.js test/kalshi-targeted-evidence.test.js test/kalshi-multileg-collector.test.js test/kalshi-combo-tape.test.js test/kalshi-nba-prop-matching.test.js
       - name: Dry-run Worker bundle
         run: npx wrangler deploy --dry-run --config wrangler.kalshi-public-collector.toml --outdir /tmp/kalshi-collector
       - name: Publish single scheduled Kalshi collector
