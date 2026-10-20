@@ -51,6 +51,14 @@ test("resolveSportDb keeps primary authority until mode=sport", () => {
   assert.equal(soccerShadow.reason, "SPORT_DB_SHADOW_PRIMARY_READS");
   assert.equal(SPORT_DATABASES.soccer.databaseId, "c275978c-fce9-49c9-a1ce-4e2fcbea6d23");
   assert.equal(SPORT_DATABASES.tennis.databaseId, "c491e479-f9f6-49a9-ace9-962aef68cc64");
+  assert.equal(SPORT_DATABASES.nfl.databaseId, "0a49cad0-4bf9-4e01-88ce-be54123f712d");
+  assert.equal(SPORT_DATABASES.cfb.databaseId, "b589c91c-c53d-4f4a-9d32-99c4468e3033");
+  assert.equal(SPORT_DATABASES.mlb.databaseId, "b188629e-cdf7-49e6-b693-dead80777377");
+  assert.equal(SPORT_DATABASES.kbo.pilotStatus, "SCHEMA_READY");
+  for (const plan of Object.values(SPORT_DATABASES)) {
+    assert.ok(plan.databaseId, `${plan.sport} should be provisioned`);
+    assert.notEqual(plan.pilotStatus, "PLANNED");
+  }
 });
 
 test("market history write prefers 2026Q4 partition when ready and under WATCH", async () => {

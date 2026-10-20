@@ -45,7 +45,37 @@ binding = "NHL_DB"
 database_name = "fbis-nhl"
 database_id = "a0aa010c-40d3-4d2f-8109-eca4e74e2a73"
 
-# Soccer / tennis sport working sets (schema ready; primary authority until parity).
+# Sport working sets (schema ready; primary authority until parity).
+[[d1_databases]]
+binding = "NFL_DB"
+database_name = "fbis-nfl"
+database_id = "0a49cad0-4bf9-4e01-88ce-be54123f712d"
+
+[[d1_databases]]
+binding = "CFB_DB"
+database_name = "fbis-cfb"
+database_id = "b589c91c-c53d-4f4a-9d32-99c4468e3033"
+
+[[d1_databases]]
+binding = "CBB_DB"
+database_name = "fbis-cbb"
+database_id = "f00af21e-72b5-4e7c-bb10-b08f2c59dace"
+
+[[d1_databases]]
+binding = "NBA_DB"
+database_name = "fbis-nba"
+database_id = "ed992525-d2ed-4b1d-8a12-feeb2efa152c"
+
+[[d1_databases]]
+binding = "WNBA_DB"
+database_name = "fbis-wnba"
+database_id = "94e40293-d433-493e-af9e-0564ea1b6fcb"
+
+[[d1_databases]]
+binding = "MLB_DB"
+database_name = "fbis-mlb"
+database_id = "b188629e-cdf7-49e6-b693-dead80777377"
+
 [[d1_databases]]
 binding = "SOCCER_DB"
 database_name = "fbis-soccer"
@@ -55,6 +85,16 @@ database_id = "c275978c-fce9-49c9-a1ce-4e2fcbea6d23"
 binding = "TENNIS_DB"
 database_name = "fbis-tennis"
 database_id = "c491e479-f9f6-49a9-ace9-962aef68cc64"
+
+[[d1_databases]]
+binding = "NPB_DB"
+database_name = "fbis-npb"
+database_id = "010ef83f-a472-4ab2-b9af-589541895e8e"
+
+[[d1_databases]]
+binding = "KBO_DB"
+database_name = "fbis-kbo"
+database_id = "77a8e7bc-c022-490f-98df-3adb479d1e52"
 
 # Preferred home for ops control plane, capacity alerts, retention gates,
 # pipeline validation receipts, and D1 performance findings.
@@ -92,8 +132,15 @@ MARKET_HISTORY_SHADOW_WS = "enabled"
 # Enabled 2026-10-17 after release-20261017-storage-a1: cold acceptance seeded,
 # RESEARCH retired from primary, R2+cold spot checks passed (#1220/#1221).
 COLD_MARKET_ARCHIVE_READS = "enabled"
-# NHL sport D1 pilot: primary | shadow | sport. Keep primary until parity passes.
+# Sport D1 modes: primary | shadow | sport. Keep primary until parity + cutover.
 NHL_SPORT_DB_MODE = "shadow"
-# Soccer / tennis sport D1s: keep primary authority until parity receipts pass.
+SPORT_DB_MODE_NFL = "shadow"
+SPORT_DB_MODE_CFB = "shadow"
+SPORT_DB_MODE_CBB = "shadow"
+SPORT_DB_MODE_NBA = "shadow"
+SPORT_DB_MODE_WNBA = "shadow"
+SPORT_DB_MODE_MLB = "shadow"
 SPORT_DB_MODE_SOCCER = "shadow"
 SPORT_DB_MODE_TENNIS = "shadow"
+SPORT_DB_MODE_NPB = "shadow"
+SPORT_DB_MODE_KBO = "shadow"

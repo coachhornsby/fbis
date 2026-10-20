@@ -12,16 +12,14 @@ Cloudflare D1 has a **hard 10 GB ceiling per database**. FBIS therefore scales a
 | **CORE_DB** | `CORE_DB` / `fbis-core` | Shared settings, model registry, executed-bet index, dashboard summaries |
 | **OPERATIONS_DB** | `OPERATIONS_DB` | Job status, errors, capacity, alerts, collection receipts (existing) |
 | **PRIMARY** | `DB` / `fbis` | Temporary authority during migration; shared identities until CORE cutover |
-| **NHL_DB** (pilot) | `NHL_DB` / `fbis-nhl` | NHL schedules, projections, research, settlements, calibration/CLV |
-| **SOCCER_DB / TENNIS_DB** | `SOCCER_DB` / `TENNIS_DB` | Schema-ready sport working sets (primary authority until parity) |
-| **Other sport DBs** | `NFL_DB`, `CFB_DB`, … | Planned — same contract as NHL once provisioned |
+| **Sport working DBs** | `NHL_DB`, `NFL_DB`, `CFB_DB`, `CBB_DB`, `NBA_DB`, `WNBA_DB`, `MLB_DB`, `SOCCER_DB`, `TENNIS_DB`, `NPB_DB`, `KBO_DB` | Per-sport schedules, projections, research, settlements (primary authority until parity cutover) |
 | **Market history partitions** | `MARKET_HISTORY_DB`, `MARKET_HISTORY_2026Q4_DB` | Searchable odds in bounded windows |
 | **COLD_HISTORY_DB** | `COLD_HISTORY_DB` | Verified offline historical copies |
 | **R2 `ARCHIVE`** | `ARCHIVE` | Raw provider responses, archives, model artifacts, recovery copies |
 
 ## Critical catch
 
-**Splitting by sport alone does not stop market-history growth.** An NHL database can still fill if every WebSocket tick is retained indefinitely.
+**Splitting by sport alone does not stop market-history growth.** A sport database can still fill if every WebSocket tick is retained indefinitely.
 
 Policy:
 
@@ -34,7 +32,7 @@ Policy:
 1. Inventory table sizes, readers, writers (`scripts/d1-topology-inventory.mjs`).
 2. Reuse existing `OPERATIONS_DB` (already live).
 3. **Pilot NHL:** live parity receipt `PARITY_OK` (games 164/164, prediction_snapshots 649/649). Ops: `nhl-copy` / `nhl-parity` / `nhl-shadow-compare`. Keep `NHL_SPORT_DB_MODE=shadow` until product cutover.
-4. **Soccer / tennis D1s** provisioned + schema applied; remain in `SPORT_DB_MODE_*=shadow` until parity receipts pass.
+4. **All sport D1s** provisioned + `sport-working-v1` schema applied; remain in `SPORT_DB_MODE_*=shadow` until per-sport copy + parity.
 5. **Market-history R2 archive scan** (`market-history-archive-scan`) archives cold ticks to R2; deletion still requires a retention gate.
 6. Retire old primary copies only after recovery and consistency checks pass.
 
@@ -53,12 +51,20 @@ Cross-sport dashboards must read **prepared summaries on CORE_DB**, not fan-out 
 `GET /api/database-topology` (harvest secret) — live capacity + routing snapshot.  
 `POST /api/database-topology` — `nhl-copy`, `nhl-parity`, `nhl-shadow-compare`, `market-history-write-target`, `market-history-archive-scan`.
 
-## Provisioned in this release
+## Provisioned sport D1s
 
-| Database | UUID |
-|---|---|
-| `fbis-core` | `a5b438fa-eb16-4f03-95d7-1fc58ac72f04` |
-| `fbis-nhl` | `a0aa010c-40d3-4d2f-8109-eca4e74e2a73` |
-| `fbis-soccer` | `c275978c-fce9-49c9-a1ce-4e2fcbea6d23` |
-| `fbis-tennis` | `c491e479-f9f6-49a9-ace9-962aef68cc64` |
-| `fbis-market-history-2026q4` | `e8b0b65d-90a6-4842-8ee7-0f85d75afb4c` |
+| Database | Binding | UUID | Status |
+|---|---|---|---|
+| `fbis-core` | `CORE_DB` | `a5b438fa-eb16-4f03-95d7-1fc58ac72f04` | ready |
+| `fbis-nhl` | `NHL_DB` | `a0aa010c-40d3-4d2f-8109-eca4e74e2a73` | `PARITY_OK` (shadow) |
+| `fbis-nfl` | `NFL_DB` | `0a49cad0-4bf9-4e01-88ce-be54123f712d` | `SCHEMA_READY` |
+| `fbis-cfb` | `CFB_DB` | `b589c91c-c53d-4f4a-9d32-99c4468e3033` | `SCHEMA_READY` |
+| `fbis-cbb` | `CBB_DB` | `f00af21e-72b5-4e7c-bb10-b08f2c59dace` | `SCHEMA_READY` |
+| `fbis-nba` | `NBA_DB` | `ed992525-d2ed-4b1d-8a12-feeb2efa152c` | `SCHEMA_READY` |
+| `fbis-wnba` | `WNBA_DB` | `94e40293-d433-493e-af9e-0564ea1b6fcb` | `SCHEMA_READY` |
+| `fbis-mlb` | `MLB_DB` | `b188629e-cdf7-49e6-b693-dead80777377` | `SCHEMA_READY` |
+| `fbis-soccer` | `SOCCER_DB` | `c275978c-fce9-49c9-a1ce-4e2fcbea6d23` | `SCHEMA_READY` |
+| `fbis-tennis` | `TENNIS_DB` | `c491e479-f9f6-49a9-ace9-962aef68cc64` | `SCHEMA_READY` |
+| `fbis-npb` | `NPB_DB` | `010ef83f-a472-4ab2-b9af-589541895e8e` | `SCHEMA_READY` |
+| `fbis-kbo` | `KBO_DB` | `77a8e7bc-c022-490f-98df-3adb479d1e52` | `SCHEMA_READY` |
+| `fbis-market-history-2026q4` | `MARKET_HISTORY_2026Q4_DB` | `e8b0b65d-90a6-4842-8ee7-0f85d75afb4c` | active partition |

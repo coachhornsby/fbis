@@ -25,6 +25,14 @@ test("ownership manifest covers primary, operations, market-history, cold, core,
   assert.equal(DATABASE_OWNERS.NHL.databaseId, "a0aa010c-40d3-4d2f-8109-eca4e74e2a73");
   assert.equal(DATABASE_OWNERS.SOCCER.databaseId, "c275978c-fce9-49c9-a1ce-4e2fcbea6d23");
   assert.equal(DATABASE_OWNERS.TENNIS.databaseId, "c491e479-f9f6-49a9-ace9-962aef68cc64");
+  assert.equal(DATABASE_OWNERS.NFL.databaseId, "0a49cad0-4bf9-4e01-88ce-be54123f712d");
+  assert.equal(DATABASE_OWNERS.CFB.databaseId, "b589c91c-c53d-4f4a-9d32-99c4468e3033");
+  assert.equal(DATABASE_OWNERS.CBB.databaseId, "f00af21e-72b5-4e7c-bb10-b08f2c59dace");
+  assert.equal(DATABASE_OWNERS.NBA.databaseId, "ed992525-d2ed-4b1d-8a12-feeb2efa152c");
+  assert.equal(DATABASE_OWNERS.WNBA.databaseId, "94e40293-d433-493e-af9e-0564ea1b6fcb");
+  assert.equal(DATABASE_OWNERS.MLB.databaseId, "b188629e-cdf7-49e6-b693-dead80777377");
+  assert.equal(DATABASE_OWNERS.NPB.databaseId, "010ef83f-a472-4ab2-b9af-589541895e8e");
+  assert.equal(DATABASE_OWNERS.KBO.databaseId, "77a8e7bc-c022-490f-98df-3adb479d1e52");
   assert.equal(DATABASE_OWNERS.MARKET_HISTORY_2026Q4.databaseId, "e8b0b65d-90a6-4842-8ee7-0f85d75afb4c");
   assert.ok(OPERATIONS_OWNED_TABLES.includes("fbis_ops_health"));
   assert.ok(OPERATIONS_OWNED_TABLES.includes("fbis_capacity_measurements"));

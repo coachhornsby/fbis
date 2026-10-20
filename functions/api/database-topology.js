@@ -33,20 +33,28 @@ export async function onRequestGet({ env, request } = {}) {
   const liveCapacity = await probeTopologyCapacity(env);
   const writeTarget = await resolveMarketHistoryWriteDb(env);
   const core = resolveCoreDb(env);
-  const nhl = resolveSportDb(env, "nhl");
+  const sports = {};
+  for (const plan of manifest.sports) {
+    const resolved = resolveSportDb(env, plan.sport);
+    sports[plan.sport] = {
+      binding: resolved.binding,
+      preferred: resolved.preferred,
+      mode: resolved.mode,
+      reason: resolved.reason,
+      planBinding: plan.binding,
+      pilotStatus: plan.pilotStatus,
+      databaseId: plan.databaseId,
+      sportDbBound: Boolean(resolved.sportDb?.prepare || (resolved.preferred && resolved.binding === plan.binding)),
+    };
+  }
   return json({
     ok: true,
     ...manifest,
     liveCapacity,
     routing: {
       core: { binding: core.binding, preferred: core.preferred, warning: core.warning || null },
-      nhl: {
-        binding: nhl.binding,
-        preferred: nhl.preferred,
-        mode: nhl.mode,
-        reason: nhl.reason,
-        sportDbBound: Boolean(nhl.sportDb?.prepare || (nhl.preferred && nhl.binding === "NHL_DB")),
-      },
+      sports,
+      nhl: sports.nhl || null,
       marketHistoryWrite: {
         binding: writeTarget.binding,
         store: writeTarget.store,

@@ -14,61 +14,43 @@ export const FBIS_SPORTS = Object.freeze([
   "nfl", "cfb", "cbb", "nba", "wnba", "mlb", "nhl", "soccer", "tennis", "npb", "kbo",
 ]);
 
+const SPORT_ACCEPTS = Object.freeze([
+  "schedules", "teams", "players", "stats", "projections",
+  "research_decisions", "settlements", "calibration", "clv_links",
+]);
+const SPORT_REJECTS = Object.freeze([
+  "unbounded_ws_ticks", "cross_sport_joins", "ops_telemetry", "raw_provider_blobs",
+]);
+
+function sportPlan(sport, binding, databaseName, databaseId, pilotStatus = "SCHEMA_READY") {
+  return Object.freeze({
+    sport,
+    binding,
+    databaseName,
+    databaseId,
+    pilotStatus,
+    accepts: SPORT_ACCEPTS,
+    rejects: SPORT_REJECTS,
+  });
+}
+
 /**
- * Planned sport working databases. Only NHL is provisioned in this release (pilot).
- * Other sports remain on PRIMARY until their D1 is created and parity-verified.
+ * Sport working databases. All FBIS sports are provisioned with schema ready.
+ * Primary remains authority until SPORT_DB_MODE_<SPORT>=sport (or NHL_SPORT_DB_MODE)
+ * after copy + parity receipts pass. NHL pilot already at PARITY_OK.
  */
 export const SPORT_DATABASES = Object.freeze({
-  nhl: Object.freeze({
-    sport: "nhl",
-    binding: "NHL_DB",
-    databaseName: "fbis-nhl",
-    databaseId: "a0aa010c-40d3-4d2f-8109-eca4e74e2a73",
-    pilotStatus: "PARITY_OK",
-    accepts: Object.freeze([
-      "schedules", "teams", "players", "stats", "projections",
-      "research_decisions", "settlements", "calibration", "clv_links",
-    ]),
-    rejects: Object.freeze([
-      "unbounded_ws_ticks", "cross_sport_joins", "ops_telemetry", "raw_provider_blobs",
-    ]),
-  }),
-  nfl: Object.freeze({ sport: "nfl", binding: "NFL_DB", databaseName: "fbis-nfl", databaseId: null, pilotStatus: "PLANNED" }),
-  cfb: Object.freeze({ sport: "cfb", binding: "CFB_DB", databaseName: "fbis-cfb", databaseId: null, pilotStatus: "PLANNED" }),
-  cbb: Object.freeze({ sport: "cbb", binding: "CBB_DB", databaseName: "fbis-cbb", databaseId: null, pilotStatus: "PLANNED" }),
-  nba: Object.freeze({ sport: "nba", binding: "NBA_DB", databaseName: "fbis-nba", databaseId: null, pilotStatus: "PLANNED" }),
-  wnba: Object.freeze({ sport: "wnba", binding: "WNBA_DB", databaseName: "fbis-wnba", databaseId: null, pilotStatus: "PLANNED" }),
-  mlb: Object.freeze({ sport: "mlb", binding: "MLB_DB", databaseName: "fbis-mlb", databaseId: null, pilotStatus: "PLANNED" }),
-  soccer: Object.freeze({
-    sport: "soccer",
-    binding: "SOCCER_DB",
-    databaseName: "fbis-soccer",
-    databaseId: "c275978c-fce9-49c9-a1ce-4e2fcbea6d23",
-    pilotStatus: "SCHEMA_READY",
-    accepts: Object.freeze([
-      "schedules", "teams", "players", "stats", "projections",
-      "research_decisions", "settlements", "calibration", "clv_links",
-    ]),
-    rejects: Object.freeze([
-      "unbounded_ws_ticks", "cross_sport_joins", "ops_telemetry", "raw_provider_blobs",
-    ]),
-  }),
-  tennis: Object.freeze({
-    sport: "tennis",
-    binding: "TENNIS_DB",
-    databaseName: "fbis-tennis",
-    databaseId: "c491e479-f9f6-49a9-ace9-962aef68cc64",
-    pilotStatus: "SCHEMA_READY",
-    accepts: Object.freeze([
-      "schedules", "players", "stats", "projections",
-      "research_decisions", "settlements", "calibration", "clv_links",
-    ]),
-    rejects: Object.freeze([
-      "unbounded_ws_ticks", "cross_sport_joins", "ops_telemetry", "raw_provider_blobs",
-    ]),
-  }),
-  npb: Object.freeze({ sport: "npb", binding: "NPB_DB", databaseName: "fbis-npb", databaseId: null, pilotStatus: "PLANNED" }),
-  kbo: Object.freeze({ sport: "kbo", binding: "KBO_DB", databaseName: "fbis-kbo", databaseId: null, pilotStatus: "PLANNED" }),
+  nhl: sportPlan("nhl", "NHL_DB", "fbis-nhl", "a0aa010c-40d3-4d2f-8109-eca4e74e2a73", "PARITY_OK"),
+  nfl: sportPlan("nfl", "NFL_DB", "fbis-nfl", "0a49cad0-4bf9-4e01-88ce-be54123f712d"),
+  cfb: sportPlan("cfb", "CFB_DB", "fbis-cfb", "b589c91c-c53d-4f4a-9d32-99c4468e3033"),
+  cbb: sportPlan("cbb", "CBB_DB", "fbis-cbb", "f00af21e-72b5-4e7c-bb10-b08f2c59dace"),
+  nba: sportPlan("nba", "NBA_DB", "fbis-nba", "ed992525-d2ed-4b1d-8a12-feeb2efa152c"),
+  wnba: sportPlan("wnba", "WNBA_DB", "fbis-wnba", "94e40293-d433-493e-af9e-0564ea1b6fcb"),
+  mlb: sportPlan("mlb", "MLB_DB", "fbis-mlb", "b188629e-cdf7-49e6-b693-dead80777377"),
+  soccer: sportPlan("soccer", "SOCCER_DB", "fbis-soccer", "c275978c-fce9-49c9-a1ce-4e2fcbea6d23"),
+  tennis: sportPlan("tennis", "TENNIS_DB", "fbis-tennis", "c491e479-f9f6-49a9-ace9-962aef68cc64"),
+  npb: sportPlan("npb", "NPB_DB", "fbis-npb", "010ef83f-a472-4ab2-b9af-589541895e8e"),
+  kbo: sportPlan("kbo", "KBO_DB", "fbis-kbo", "77a8e7bc-c022-490f-98df-3adb479d1e52"),
 });
 
 export const CORE_DATABASE = Object.freeze({
@@ -316,8 +298,16 @@ export async function probeTopologyCapacity(env) {
     ["OPERATIONS", env?.OPERATIONS_DB, DATABASE_OWNERS.OPERATIONS.databaseId],
     ["CORE", env?.CORE_DB, CORE_DATABASE.databaseId],
     ["NHL", env?.NHL_DB, SPORT_DATABASES.nhl.databaseId],
+    ["NFL", env?.NFL_DB, SPORT_DATABASES.nfl.databaseId],
+    ["CFB", env?.CFB_DB, SPORT_DATABASES.cfb.databaseId],
+    ["CBB", env?.CBB_DB, SPORT_DATABASES.cbb.databaseId],
+    ["NBA", env?.NBA_DB, SPORT_DATABASES.nba.databaseId],
+    ["WNBA", env?.WNBA_DB, SPORT_DATABASES.wnba.databaseId],
+    ["MLB", env?.MLB_DB, SPORT_DATABASES.mlb.databaseId],
     ["SOCCER", env?.SOCCER_DB, SPORT_DATABASES.soccer.databaseId],
     ["TENNIS", env?.TENNIS_DB, SPORT_DATABASES.tennis.databaseId],
+    ["NPB", env?.NPB_DB, SPORT_DATABASES.npb.databaseId],
+    ["KBO", env?.KBO_DB, SPORT_DATABASES.kbo.databaseId],
     ["MARKET_HISTORY", env?.MARKET_HISTORY_DB, DATABASE_OWNERS.MARKET_HISTORY.databaseId],
     ["MARKET_HISTORY_2026Q4", env?.MARKET_HISTORY_2026Q4_DB, MARKET_HISTORY_PARTITIONS[0].databaseId],
     ["COLD_HISTORY", env?.COLD_HISTORY_DB, DATABASE_OWNERS.COLD_HISTORY.databaseId],
