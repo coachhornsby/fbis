@@ -862,6 +862,7 @@ export function buildVenueComparisonRows(rows=[]) {
    }
   }
   used.add(i);if(otherIndex!=null)used.add(otherIndex);
+  if(!base.contractId&&!other){output.push(base);continue;}
   const pair=[base,...(other?[other]:[])].sort((a,b)=>
    (a.provider==='Kalshi'?0:1)-(b.provider==='Kalshi'?0:1));
   const offers=pair.map(venue);
