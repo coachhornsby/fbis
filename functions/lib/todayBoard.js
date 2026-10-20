@@ -1057,7 +1057,7 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
         quality:{state:"RESEARCH",flags:["research_only","projection_unavailable"]}});
     }
   } catch { projectionCoverage={status:"UNAVAILABLE",reason:"COVERAGE_EVIDENCE_UNAVAILABLE"}; }
-  const independent = await buildIndependentTennisCards(env.DB, date, {now});
+  const independent = await buildIndependentTennisCards(env.DB, date, {now,archive:env.ARCHIVE});
   // Official projection cards take precedence for the same tour/player pair/start.
   const key = g => [String(g.tour).toLowerCase(), [tennisNameKey(g.home?.name),tennisNameKey(g.away?.name)].sort().join("|"),Date.parse(g.start)].join(":");
   const seen = new Set(games.map(key));
