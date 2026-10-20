@@ -168,12 +168,12 @@ export async function getKalshiShadowMarkets(sport,{fetchImpl=fetch,now=new Date
  * and never describe capped pages as complete sport-wide coverage.
  */
 export async function getKalshiShadowMarketsPaged(sport,{
-  fetchImpl=fetch,now=new Date(),pageLimit=100,maxPages=4,
+  fetchImpl=fetch,now=new Date(),pageLimit=1000,maxPages=4,
 }={}){
   const series=KALSHI_SHADOW_SERIES[sport];
   if(!series||!["nfl","cfb"].includes(sport))
     return {ok:false,code:"KALSHI_SERIES_NOT_QUALIFIED"};
-  const perPage=Math.min(100,Math.max(1,Math.floor(Number(pageLimit)||100)));
+  const perPage=Math.min(1000,Math.max(1,Math.floor(Number(pageLimit)||1000)));
   const budget=Math.min(6,Math.max(1,Math.floor(Number(maxPages)||4)));
   const rows=[],seenTickers=new Set(),seenCursors=new Set();
   const fetchedAt=now.toISOString();let cursor="",pagesFetched=0,invalidRows=0;
@@ -206,6 +206,7 @@ export async function getKalshiShadowMarketsPaged(sport,{
     ok:true,provider:"Kalshi",sport,seriesTicker:series,
     fetchedAt,quoteSourceTime:null,records:rows,
     pagesFetched,invalidRows,
+    pageSizeRequested:perPage,
     paginationComplete:cursor==="",
     nextCursorAvailable:cursor!=="",
     coverage:"CURRENT_OPEN_SERIES_BOUNDED_PAGES",
