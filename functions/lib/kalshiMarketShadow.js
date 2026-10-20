@@ -8,7 +8,7 @@
  */
 export const KALSHI_PUBLIC_BASE = "https://external-api.kalshi.com/trade-api/v2";
 export const KALSHI_SHADOW_SERIES = Object.freeze({
-  nfl: "KXNFLGAME", cfb: "KXNCAAFGAME", mlb: "KXMLBGAME", nba: "KXNBAGAME",
+  nfl: "KXNFLGAME", cfb: "KXNCAAFGAME", mlb: "KXMLBGAME", nba: "KXNBAGAME", atp: "KXATPMATCH", wta: "KXWTAMATCH",
 });
 export const KALSHI_SHADOW_AUTHORITY = "SHADOW_ONLY";
 const TICKER = /^[A-Z0-9_.-]{4,160}$/;
