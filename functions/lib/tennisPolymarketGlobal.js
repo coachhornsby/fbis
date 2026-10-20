@@ -51,18 +51,24 @@ export function matchPolymarketGlobalTennis(fixture,events=[],{now=new Date(),as
   if(!slug.startsWith(tour+"-"))continue;
   const title=String(e.title||"");
   if(!matchesPair(title,players))continue;
-  const at=Date.parse(e.gameStartTime||e.startTime||e.markets?.[0]?.gameStartTime||"");
-  if(!Number.isFinite(at)||Math.abs(at-start)>2*3600000)continue;
+  const providerStart=e.gameStartTime||e.startTime||e.markets?.[0]?.gameStartTime||null;
+  const at=Date.parse(providerStart||"");
+  const slugDate=/(20\\d{2}-\\d{2}-\\d{2})$/.exec(slug)?.[1]||null;
+  const dateOnly=slugDate?Date.parse(slugDate+"T12:00:00Z"):NaN;
+  const candidate=Number.isFinite(at)?at:dateOnly;
+  if(!Number.isFinite(candidate)||Math.abs(candidate-start)>48*3600000)continue;
+  const scheduleStatus=!Number.isFinite(at)?"DAY_ONLY_UNVERIFIED":Math.abs(at-start)>2*3600000?"PROVIDER_START_DIFFERS":"START_WITHIN_TWO_HOURS";
   const markets=Array.isArray(e.markets)?e.markets:[];
   for(const m of markets){
    if(m.closed||m.active===false)continue;
    const names=decode(m.outcomes),prices=decode(m.outcomePrices);
-   if(names.length!==2||prices.length!==2||!names.every(x=>players.some(p=>matchesName(x,p)||matchesName(p,x)||lastToken(p)===normalize(x).trim())))continue;
+   if(names.length!==2||prices.length!==2||!names.every(x=>players.some(p=>matchesName(x,p)||matchesName(p,x)||(lastToken(p).length>=5&&lastToken(p)===lastToken(x)))))continue;
    const values=prices.map(Number);
    if(values.some(v=>!Number.isFinite(v)||v<=0||v>=1))continue;
    matched.push({provider:"Polymarket.com",marketId:String(m.id),eventId:String(e.id),
      eventSlug:slug,question:m.question||title,outcomes:names,indicativePrices:values,
-     capturedAt:asOf,quoteSourceTime:null,priceKind:"GAMMA_METADATA_INDICATIVE_NOT_ORDERBOOK",
+     capturedAt:asOf,quoteSourceTime:null,providerScheduledStart:Number.isFinite(at)?new Date(at).toISOString():null,
+     scheduleStatus,priceKind:"GAMMA_METADATA_INDICATIVE_NOT_ORDERBOOK",
      researchClob:m.researchClob||null,
      canQualify:false,canAuthorizeWager:false,executionEligible:false});
   }
