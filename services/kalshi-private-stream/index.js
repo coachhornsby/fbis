@@ -110,8 +110,14 @@ export default {
     const id=env.ACCOUNT_SESSION.idFromName("kalshi-single-account");
     const result=await env.ACCOUNT_SESSION.get(id).fetch("https://kalshi.private.internal/health");
     const status=await result.json();
-    return Response.json({...status,enabled:env?.KALSHI_PRIVATE_STREAM_MODE==="enabled",
-      mode:env?.KALSHI_PRIVATE_STREAM_MODE||"disabled"},{
+    // Public health never exposes private event counts, event times,
+    // reconciliation records, market identities or account activity.
+    return Response.json({
+      readOnly:true,canAuthorizeWager:false,privateDataStored:false,
+      connected:status.connected===true,enabled:env?.KALSHI_PRIVATE_STREAM_MODE==="enabled",
+      mode:env?.KALSHI_PRIVATE_STREAM_MODE||"disabled",
+      operational:status.connected===true&&env?.KALSHI_PRIVATE_STREAM_MODE==="enabled",
+    },{
       headers:{"cache-control":"no-store","x-robots-tag":"noindex"}
     });
   },
