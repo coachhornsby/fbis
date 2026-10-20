@@ -29,7 +29,7 @@ test("scheduled discovery archives and read path expires without spoofed quote c
  const db={prepare:()=>({bind:()=>({all:async()=>({results:[{fixture_id:fixture.id,...fixture}]})})})};
  const archive={put:async(k,v)=>{assert.match(k,/research-snapshot/);snapshot=JSON.parse(v)},
   get:async()=>({json:async()=>snapshot})};
- const fetchImpl=async uri=>{called++;assert.match(uri,/gamma-api\.polymarket\.com\/public-search/);
+ const fetchImpl=async (uri,options)=>{assert.equal(options.redirect,"manual");called++;assert.match(uri,/gamma-api\.polymarket\.com\/public-search/);
   return {ok:true,json:async()=>({events:[event]})};};
  const result=await collectPolymarketGlobalTennis({DB:db,ARCHIVE:archive},{now,fetchImpl});
  assert.equal(result.ok,true);
@@ -50,7 +50,8 @@ test("collector captures CLOB best available asks without manufacturing quote-so
  const archive={put:async(key,value)=>{if(key.endsWith("research-snapshot-v1.json"))snapshot=JSON.parse(value)}};
  const market={...event.markets[0],clobTokenIds:JSON.stringify(["123456789012345678901","223456789012345678901"])};
  let reads=0;
- const fetchImpl=async url=>{
+ const fetchImpl=async (url,options)=>{
+  assert.equal(options.redirect,"manual");
   reads++;
   if(url.includes("public-search"))return {ok:true,json:async()=>({events:[{...event,markets:[market]}]})};
   assert.match(url,/clob\.polymarket\.com\/book\?token_id=/);
