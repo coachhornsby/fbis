@@ -430,7 +430,7 @@ function ManualScoreEditor({ bet, scores, setScore, saveFinal, saving }) {
   const isF5 = String(bet.period || bet.market || "").toUpperCase().includes("F5");
   const isPlayerProp = String(bet.market || "").toUpperCase() === "PLAYER_PROP";
   const input = (field, label) => (
-    <label style={{ display: "grid", gap: 3, fontSize: 10 }}>
+    <label className="bets-score-entry" style={{ display: "grid", gap: 7 }}>
       <span className="muted">{label}</span>
       <input
         aria-label={label}
@@ -439,7 +439,7 @@ function ManualScoreEditor({ bet, scores, setScore, saveFinal, saving }) {
         inputMode="numeric"
         min="0"
         type="number"
-        style={{ width: 72, background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 7px", fontSize: 12 }}
+        style={{ width: 96 }}
       />
     </label>
   );
@@ -449,7 +449,7 @@ function ManualScoreEditor({ bet, scores, setScore, saveFinal, saving }) {
       {isPlayerProp ? null : input("home", `${home} final`)}
       {!isPlayerProp && isF5 ? input("f5Away", `${away} F5`) : null}
       {!isPlayerProp && isF5 ? input("f5Home", `${home} F5`) : null}
-      <button className="header-btn header-btn-refresh" onClick={() => saveFinal(bet)} disabled={saving} style={{ padding: "7px 9px", fontSize: 11 }}>
+      <button className="header-btn header-btn-refresh" onClick={() => saveFinal(bet)} disabled={saving} style={{ padding: "11px 15px" }}>
         {saving ? "Saving…" : isPlayerProp ? "Grade prop" : "Save final"}
       </button>
     </div>
