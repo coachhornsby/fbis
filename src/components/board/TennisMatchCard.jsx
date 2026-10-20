@@ -119,7 +119,12 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
           {c.integrityWarnings?.length?<small role="status">⚠ RESEARCH PRICE WARNINGS · {c.integrityWarnings.join(" · ").replaceAll("_"," ")}{c.captureSkewMinutes!=null?` · ${c.captureSkewMinutes} MIN CAPTURE GAP`:""}</small>:null}
         </div>)}
         <small>INDICATIVE RESEARCH ONLY · Snapshot prices and sizes are not verified executable quotes, arbitrage or EV. Fees, settlement comparability and fillability are unverified. Not a betting recommendation.</small>
-      </>:<div>No source-verified same-outcome cross-exchange pair. Expand for individual market observations.</div>}
+      </>:<div className="tmc-exchange-offers">
+          {t.kalshiResearchOffers?.length?<div><strong>KALSHI OBSERVED CONTRACTS</strong>{t.kalshiResearchOffers.slice(0,4).map(o=><div key={o.ticker}>{o.yesLabel} · YES ASK {o.yesAskDollars==null?"unavailable":`${Number(o.yesAskDollars).toFixed(2)}`} · {o.scheduleStatus==="PROVIDER_START_DIFFERS"?"⚠ SCHEDULE MISMATCH":"Schedule matched"} · Captured {o.fetchedAt||"unknown"}</div>)}</div>:null}
+          {t.polymarketGlobalOffers?.length?<div><strong>POLYMARKET.COM OBSERVED MARKETS</strong>{t.polymarketGlobalOffers.slice(0,2).map(o=><div key={o.marketId}>{o.outcomes.join(" / ")} · Indicative {o.indicativePrices.map(p=>(Number(p)*100).toFixed(1)+"%").join(" / ")} · {o.scheduleStatus==="START_WITHIN_TWO_HOURS"?"Schedule matched":"⚠ SCHEDULE UNVERIFIED"}</div>)}</div>:null}
+          {!t.kalshiResearchOffers?.length&&!t.polymarketGlobalOffers?.length?<span>No current source-matched Tennis markets. Kalshi and Polymarket offers are never fabricated.</span>:null}
+          <small>Captured research prices, not independently verified executable quotes. Full contracts, depth, and source notes below in Matchup Intelligence.</small>
+        </div>}
     </section>:null}
     <div className="tmc-quick-summary" aria-label="FBIS projection summary">
       <span className="tmc-quick-model">FBIS PROJECTION · {display.valid?winnerName:"BLOCKED"}</span>
