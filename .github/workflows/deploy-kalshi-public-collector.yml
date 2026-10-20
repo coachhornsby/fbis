@@ -1,0 +1,53 @@
+name: Deploy Kalshi central public collector
+on:
+  pull_request:
+    paths:
+      - "services/kalshi-public-collector/**"
+      - "wrangler.kalshi-public-collector.toml"
+      - "functions/lib/kalshiMarketShadow.js"
+      - ".github/workflows/deploy-kalshi-public-collector.yml"
+      - "test/kalshi-central-collector.test.js"
+  push:
+    branches: [main]
+    paths:
+      - "services/kalshi-public-collector/**"
+      - "wrangler.kalshi-public-collector.toml"
+      - "functions/lib/kalshiMarketShadow.js"
+      - ".github/workflows/deploy-kalshi-public-collector.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fbis-kalshi-public-collector-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - run: npm ci --ignore-scripts
+      - name: Verify public collector safety contracts
+        run: node --test test/kalshi-market-shadow.test.js test/kalshi-market-collector.test.js test/kalshi-central-collector.test.js
+      - name: Dry-run Worker bundle
+        run: npx wrangler deploy --dry-run --config wrangler.kalshi-public-collector.toml --outdir /tmp/kalshi-collector
+      - name: Publish single scheduled Kalshi collector
+        if: github.event_name != 'pull_request'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npx wrangler deploy --config wrangler.kalshi-public-collector.toml
+      - name: Verify read-only health route
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          curl --fail --retry 5 --retry-all-errors --retry-delay 5 -sS \
+            https://fbis-kalshi-public-collector.coachhornsby.workers.dev/health \
+            | jq -e '.ok == true and .readOnly == true and .canAuthorizeWager == false and .snapshotSource == "R2"'
