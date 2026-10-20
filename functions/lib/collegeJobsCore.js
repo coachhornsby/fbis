@@ -78,6 +78,20 @@ function shiftDateCT(date, days) {
   return dt.toISOString().slice(0, 10);
 }
 
+/** Retry CFBD GETs on transient 503/429 — holdout reconstruct must not fail closed on one blip. */
+async function cfbdGetWithRetry(path, env, opts = {}, { attempts = 4, baseDelayMs = 1500 } = {}) {
+  let last = null;
+  for (let i = 1; i <= attempts; i += 1) {
+    last = await cfbdGet(path, env, opts);
+    if (last?.ok) return last;
+    const reason = String(last?.reason || "");
+    const transient = /503|429|rate.?limit|temporar|timeout|fetch failed/i.test(reason);
+    if (!transient || i >= attempts) return last;
+    await new Promise((r) => setTimeout(r, baseDelayMs * i));
+  }
+  return last;
+}
+
 /** Restore the tested, source-labeled catalog observation count contract.
  *  Schedule results take precedence over CORE fallback when no explicit count
  *  exists. CORE throughWeek is only a flagged coverage proxy, not a verified
@@ -782,10 +796,12 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
       const persistArchives = opts.persistArchives !== false;
       for (const season of seasons) {
         try {
-          const coreRes = await cfbdGet("/ratings/core", env, {
-            query: { year: season },
-            fetchFn: opts.fetchFn || fetch,
-          });
+          const coreRes = await cfbdGetWithRetry(
+            "/ratings/core",
+            env,
+            { query: { year: season }, fetchFn: opts.fetchFn || fetch },
+            { attempts: 5, baseDelayMs: 2000 }
+          );
           if (!coreRes?.ok) throw new Error(coreRes?.reason || `core_${season}_failed`);
           const yearRows = coreRes.data || [];
           // Diagnose CFBD year payload shape (completed seasons often return only
@@ -856,10 +872,12 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             partitioned: built.partitioned,
           };
           // One CFBD /games call per season (regular); filter weeks 1–15 in-process.
-          const gRes = await cfbdGet("/games", env, {
-            query: { year: season, seasonType: "regular" },
-            fetchFn: opts.fetchFn || fetch,
-          });
+          const gRes = await cfbdGetWithRetry(
+            "/games",
+            env,
+            { query: { year: season, seasonType: "regular" }, fetchFn: opts.fetchFn || fetch },
+            { attempts: 5, baseDelayMs: 2000 }
+          );
           if (!gRes?.ok) {
             errors.push(`games_${season}:${gRes?.reason || "fail"}`);
           } else {
@@ -888,10 +906,12 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             }
           }
           // SP priors → CFB-FBIS-v2 baselines (fallback when live A/A overlay misses).
-          const spRes = await cfbdGet("/ratings/sp", env, {
-            query: { year: season },
-            fetchFn: opts.fetchFn || fetch,
-          });
+          const spRes = await cfbdGetWithRetry(
+            "/ratings/sp",
+            env,
+            { query: { year: season }, fetchFn: opts.fetchFn || fetch },
+            { attempts: 4, baseDelayMs: 1500 }
+          );
           const spByTeam = {};
           if (spRes?.ok) {
             for (const row of spRes.data || []) {
