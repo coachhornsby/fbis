@@ -6,6 +6,7 @@ import {
   kalshiGet, kalshiPaged, readKalshiAccount, KALSHI_ACCOUNT_PATHS
 } from "../functions/lib/kalshiAccount.js";
 import { onRequestGet, onRequestPost } from "../functions/api/kalshi-account.js";
+import { readAccountApiResponse } from "../src/features/accounts/accountFetchDiagnostics.js";
 
 async function envWithKey() {
   const pair = await webcrypto.subtle.generateKey({ name:"Ed25519" }, true, ["sign","verify"]);
@@ -118,4 +119,30 @@ test("Kalshi transport exceptions produce a stable safe failure code", async () 
   assert.equal(snapshot.ok, false);
   assert.equal(snapshot.code, "KALSHI_CONNECTION_FAILED");
   assert.ok(!JSON.stringify(snapshot).includes("provider details"));
+});
+
+test("account response diagnosis distinguishes Cloudflare HTML instead of generic error", async () => {
+  const response = new Response("<html>Cloudflare 1101</html>", {
+    status: 502, headers: { "content-type": "text/html" },
+  });
+  const result = await readAccountApiResponse(response);
+  assert.equal(result.data, null);
+  assert.match(result.error, /HTTP 502.*HTML.*not JSON/);
+  assert.ok(!result.error.includes("Cloudflare 1101"));
+});
+
+test("account response diagnosis supports valid JSON API errors", async () => {
+  const response = Response.json({ok: false, code: "KALSHI_UPSTREAM_FAILED"}, {status:503});
+  const result = await readAccountApiResponse(response);
+  assert.equal(result.error, null);
+  assert.equal(result.data.code, "KALSHI_UPSTREAM_FAILED");
+});
+
+test("account response diagnosis distinguishes invalid JSON from missing content type", async () => {
+  const malformed = new Response('{"broken"', { status: 503, headers: { "content-type": "application/json" } });
+  const first = await readAccountApiResponse(malformed);
+  assert.match(first.error, /unreadable JSON.*HTTP 503/);
+  const missing = new Response("error", { status: 503 });
+  const second = await readAccountApiResponse(missing);
+  assert.match(second.error, /HTTP 503.*non-JSON/);
 });
