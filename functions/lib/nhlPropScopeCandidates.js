@@ -14,7 +14,7 @@ export function buildNhlOfficialScopeCandidates(contracts=[],{capturedAt}={}){
   const suffix=String(c.canonicalPlayerId||'');
   const reasons=[];
   if(c.provider!=='Kalshi'||c.identityVerified!==true)reasons.push('CONTRACT_IDENTITY_UNVERIFIED');
-  if(!digits(eventId)||!digits(playerId)||suffix!=='nhl:nhl:'+playerId)reasons.push('EXACT_NHL_SOURCE_IDS_REQUIRED');
+  if(!validGameId(eventId)||!validPlayerId(playerId)||suffix!=='nhl:nhl:'+playerId)reasons.push('EXACT_NHL_SOURCE_IDS_REQUIRED');
   if(!stats.has(c.canonical_market)||c.period!=='full_game')reasons.push('STAT_SCOPE_UNSUPPORTED');
   if(!c.contractId||!c.providerEventId||!c.providerPlayerId)reasons.push('PROVIDER_REFERENCE_MISSING');
   const started=Date.parse(c.start_time);
