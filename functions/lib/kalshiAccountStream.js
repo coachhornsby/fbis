@@ -6,7 +6,7 @@ import { kalshiSignedHeaders, kalshiPrivateNotification, kalshiSubscribePrivate 
  * browser UI or expose a private WebSocket upgrade to unauthenticated visitors.
  * A stream notification is a dirty marker; REST remains the balance authority.
  */
-export const KALSHI_WS_URL = "https://external-api.kalshi.com/trade-api/ws/v2";
+export const KALSHI_WS_URL = "https://external-api-ws.kalshi.com/trade-api/ws/v2";
 export async function connectKalshiPrivateStream(env, { fetchImpl = fetch, onDirty = () => {}, now = Date.now() } = {}) {
   if (!env?.KALSHI_API_KEY_ID || !env?.KALSHI_PRIVATE_KEY_PEM) throw new Error("kalshi-stream-not-configured");
   const headers = await kalshiSignedHeaders({
