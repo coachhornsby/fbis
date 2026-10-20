@@ -1,0 +1,35 @@
+name: Tennis ATP ranking research refresh
+on:
+  schedule:
+    - cron: "30 12 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/tennisAtpRankingsRefresh.js"
+      - "functions/lib/tennisPrizePicksResearch.js"
+      - "functions/api/tennis-atp-rankings-refresh.js"
+      - ".github/workflows/tennis-atp-rankings-refresh.yml"
+permissions:
+  contents: read
+concurrency:
+  group: tennis-atp-rankings-refresh
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.repository == 'coachhornsby/fbis'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Read current ATP list and update verified canonical records
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET" || { echo "HARVEST_SECRET_NOT_CONFIGURED"; exit 1; }
+          curl --fail-with-body --silent --show-error --retry 6 --retry-all-errors --retry-delay 15 --max-time 240 \
+            -X POST "https://fbis-myz.pages.dev/api/tennis-atp-rankings-refresh" \
+            -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
+            -d '{}' > /tmp/atp-rankings-receipt.json
+          jq -e '.ok == true and .feedCount >= 20 and .canonicalUpdated > 0 and .officialSourcePromoted == false' /tmp/atp-rankings-receipt.json
+          jq -r '"ATP ranking rows: "+(.feedCount|tostring)+", canonical updated: "+(.canonicalUpdated|tostring)' /tmp/atp-rankings-receipt.json >> "$GITHUB_STEP_SUMMARY"
