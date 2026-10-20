@@ -65,3 +65,15 @@ test('current-slate fixture read excludes legacy synthetic rows from older board
  await loadPropFixturesAndPlayers({DB:db},{start:'2026-10-20T05:00:00Z',end:'2026-10-21T05:00:00Z',sport:'nba'});
  const fixture=calls.find(c=>c.sql.includes('FROM games'));assert.match(fixture.sql,/AND date=\?/);assert.equal(fixture.args[2],'2026-10-20');
 });
+
+test('PRA model alias joins only exact independent player, event and period',()=>{
+ const c={id:'k',canonicalEventId:'g-1',canonicalPlayerId:'nba:espn:12',canonical_market:'points_rebounds_assists',period:'full_game',line:39.5,reasons:['MODEL_UNAVAILABLE']};
+ const p={id:'m',canonicalEventId:'g-1',canonicalPlayerId:'nba:espn:12',canonical_market:'pra',period:'full_game',fbis_projection:34,independent:true,modelStatus:'RESEARCH_PROJECTION'};
+ const good=joinIndependentPropModels([c],[p]);
+ assert.equal(good.length,1);assert.equal(good[0].fbis_projection,34);
+ assert.equal(good[0].projectionDelta,-5.5);
+ for(const changed of [{canonicalPlayerId:'nba:espn:13'},{canonicalEventId:'g-2'},{period:'first_half'},{independent:false}]){
+  const out=joinIndependentPropModels([c],[{...p,...changed}]);
+  assert.equal(out[0].fbis_projection,undefined);
+ }
+});
