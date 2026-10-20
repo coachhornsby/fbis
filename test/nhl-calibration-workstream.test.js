@@ -8,6 +8,7 @@ import {
   challengerReport,
   orderChallengerReports,
   clusterGameSamples,
+  scheduleEvidenceLedger,
 } from "../functions/lib/nhlCalibrationWorkstream.js";
 
 test("NHL betting-model promotion stays frozen", () => {
@@ -83,6 +84,45 @@ test("verified closing prices report CLV, and returns stay withheld short of 100
   assert.equal(card.clv.games, 2);
   assert.equal(card.economicReturns.status, "INSUFFICIENT_EVIDENCE");
   assert.equal(card.economicReturns.units, null);
+});
+
+test("every scheduled game stays in the prospective sample, including games with no quote or starter", () => {
+  const games = [{ id: "full" }, { id: "no-quote" }, { id: "no-starter" }, { id: "empty" }];
+  const ledger = scheduleEvidenceLedger(games, {
+    markets: [
+      { gameId: "full", evidenceClass: "POSITIVE" },
+      { gameId: "no-starter", evidenceClass: "NEGATIVE" },
+    ],
+    goalies: [
+      { gameId: "full", home: "POSITIVE", away: "POSITIVE" },
+      { gameId: "no-quote", home: "MISSING", away: "MISSING" },
+      { gameId: "no-starter", home: "POSITIVE", away: "MISSING" },
+    ],
+  });
+  assert.equal(ledger.scheduled, 4);
+  assert.equal(ledger.retained, 4);
+  assert.equal(ledger.dropped, 0);
+  assert.equal(ledger.fullyObserved, 1);
+  assert.equal(ledger.missingMarket, 2);
+  assert.equal(ledger.negativeMarket, 1);
+  assert.equal(ledger.missingStarter, 3);
+  assert.equal(ledger.rows.find((row) => row.gameId === "empty").marketEvidence, "MISSING");
+  assert.equal(ledger.rows.find((row) => row.gameId === "empty").goalieHome, "MISSING");
+  assert.equal(ledger.canQualify, false);
+  const card = challengerReport({
+    family: "totals",
+    challenger: "NHL-PRO-v2",
+    schedule: ledger,
+    rows: [
+      { gameId: "full", probability: 0.48, outcome: 0, marketProbability: 0.45, evidenceClass: "POSITIVE" },
+      { gameId: "extra-scored", probability: 0.52, outcome: 1, marketProbability: 0.5, evidenceClass: "POSITIVE" },
+    ],
+  });
+  assert.equal(card.schedule.scheduled, 4);
+  assert.equal(card.schedule.dropped, 0);
+  assert.equal(card.schedule.scoredGames, 2);
+  assert.equal(card.schedule.scheduledGamesAbsentFromScore, 3);
+  assert.deepEqual(card.schedule.absentGameIds, ["no-quote", "no-starter", "empty"]);
 });
 
 test("totals are reported before goalie contribution and moneyline", () => {

@@ -30,9 +30,53 @@ export function nhlCalibrationWorkstream() {
     livePromotionEligible: nhlLivePromotionAllowed(),
     priority: NHL_CALIBRATION_PRIORITY,
     prospectiveGameTarget: NHL_PROSPECTIVE_GAME_TARGET,
+    sampleRule: "EVERY_SCHEDULED_GAME_RETAINED",
     canQualify: false,
     canAuthorizeWager: false,
     modelChanges: "BLOCKED_UNTIL_PROSPECTIVE_EVIDENCE",
+  };
+}
+
+/**
+ * One row for every scheduled game. A game with no quote or no starter
+ * announcement stays in the prospective sample. Skill computed only on the
+ * fully observed subset is conditional and must be read next to these counts.
+ */
+export function scheduleEvidenceLedger(games = [], { markets = [], goalies = [] } = {}) {
+  const marketById = new Map((markets || []).map((row) => [String(row.gameId), row]));
+  const goalieById = new Map((goalies || []).map((row) => [String(row.gameId), row]));
+  const rows = (games || []).map((game) => {
+    const gameId = String(game.id);
+    const market = marketById.get(gameId) || null;
+    const goalie = goalieById.get(gameId) || null;
+    const marketEvidence = market?.evidenceClass || "MISSING";
+    const goalieHome = goalie?.home || "MISSING";
+    const goalieAway = goalie?.away || "MISSING";
+    const starterAnnounced = goalieHome === "POSITIVE" && goalieAway === "POSITIVE";
+    const marketQuotePresent = marketEvidence === "POSITIVE";
+    return {
+      gameId,
+      scheduled: true,
+      retainedInProspectiveSample: true,
+      marketEvidence,
+      goalieHome,
+      goalieAway,
+      starterAnnounced,
+      marketQuotePresent,
+      fullyObserved: starterAnnounced && marketQuotePresent,
+    };
+  });
+  return {
+    scheduled: rows.length,
+    fullyObserved: rows.filter((row) => row.fullyObserved).length,
+    missingMarket: rows.filter((row) => row.marketEvidence === "MISSING").length,
+    negativeMarket: rows.filter((row) => row.marketEvidence === "NEGATIVE").length,
+    missingStarter: rows.filter((row) => !row.starterAnnounced).length,
+    retained: rows.length,
+    dropped: 0,
+    rows,
+    canQualify: false,
+    canAuthorizeWager: false,
   };
 }
 
@@ -106,7 +150,7 @@ function economicReport(rows) {
  * pregame de-vigged price. Games without that price stay in the model sample
  * and are counted as missing or negative evidence, never as a market probability.
  */
-export function challengerReport({ family, challenger, rows = [] } = {}) {
+export function challengerReport({ family, challenger, rows = [], schedule = null } = {}) {
   const games = rows.length ? clusterGameSamples(rows) : [];
   const n = games.length;
   const probabilities = games.map((game) => game.probability);
@@ -140,8 +184,28 @@ export function challengerReport({ family, challenger, rows = [] } = {}) {
     negativeMarketGames: games.filter((game) => game.marketEvidence === "NEGATIVE").length,
     clv: clvReport(rows),
     economicReturns: economicReport(rows),
+    schedule: scheduleCompleteness(schedule, games),
     canQualify: false,
     canAuthorizeWager: false,
+  };
+}
+
+function scheduleCompleteness(schedule, scoredGames) {
+  if (!schedule) return null;
+  const scored = new Set(scoredGames.map((game) => game.gameId));
+  const absent = (schedule.rows || []).filter((row) => !scored.has(row.gameId));
+  return {
+    scheduled: schedule.scheduled,
+    fullyObserved: schedule.fullyObserved,
+    missingMarket: schedule.missingMarket,
+    negativeMarket: schedule.negativeMarket,
+    missingStarter: schedule.missingStarter,
+    retained: schedule.retained,
+    dropped: schedule.dropped,
+    scoredGames: scoredGames.length,
+    scheduledGamesAbsentFromScore: absent.length,
+    absentGameIds: absent.map((row) => row.gameId),
+    note: "Every scheduled game stays in the ledger. A score that omits games with no quote or no starter announcement is conditional on the observed subset.",
   };
 }
 
