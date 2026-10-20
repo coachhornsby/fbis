@@ -55,3 +55,33 @@ test("intelligence endpoint denies unauthenticated requests",async()=>{
  const response=await onRequestGet({request:new Request("https://example.com/api/tennis-intelligence-bank"),env:{HARVEST_SECRET:"test-secret",DB:db()}});
  assert.equal(response.status,403);
 });
+
+test("independent Tennis cards prefer approved rights-gated portrait over feed headshot",async()=>{
+ const base=db();
+ const verified={fbis_player_id:"tennis:wta:5678",asset_key:"tennis/portraits/tennis:wta:5678/approved.webp",
+   content_type:"image/webp",approval_status:"APPROVED",public_display_allowed:1,
+   display_scope:"PUBLIC_WEB",rights_evidence_ref:"licensed-test-source",
+   approved_at:"2026-10-01T00:00:00Z",source_reference:"https://commons.wikimedia.org/wiki/File:Player.webp",
+   attribution_text:"Approved licensed image"};
+ const wrapped={prepare(sql){
+   if(sql.includes("FROM tennis_player_portraits"))return {bind(...ids){return{async all(){
+     return{results:ids.includes("tennis:wta:5678")?[verified]:[]};
+   }}}};
+   if(sql.includes("FROM tennis_players"))return {bind(tour,key){return{async all(){
+     return{results:[{player_id:key==="jessica pegula"?"tennis:wta:1234":"tennis:wta:5678",
+       player_name:key==="jessica pegula"?"Jessica Pegula":"Jelena Ostapenko",
+       headshot_url:"https://static.prizepicks.com/images/manual/test.png",
+       headshot_source:"PRIZEPICKS_FEED",official_source:"WTA_OFFICIAL"}]};
+   }}}};
+   return base.prepare(sql);
+ }};
+ const {games}=await buildIndependentTennisCards(wrapped,"2026-10-14",{now});
+ assert.equal(games.length,1);
+ assert.equal(games[0].away.headshotUrl,"/api/tennis-portrait?id=tennis%3Awta%3A5678");
+ assert.equal(games[0].away.imageSource,"RIGHTS_VERIFIED_TENNIS_PORTRAIT");
+ assert.equal(games[0].away.portraitCredit,"Approved licensed image");
+ assert.equal(games[0].home.imageSource,"PRIZEPICKS_FEED");
+ assert.equal(games[0].home.headshotUrl,"https://static.prizepicks.com/images/manual/test.png");
+ assert.equal(games[0].tennisProjection.player1WinProb,null);
+ assert.equal(games[0].canAuthorizeWager,false);
+});
