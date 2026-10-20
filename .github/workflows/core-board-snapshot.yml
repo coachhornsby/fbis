@@ -1,0 +1,59 @@
+name: CORE board snapshot publish and freshness
+# Publishes the cross-sport CORE dashboard snapshot and fails closed when it is
+# missing, incomplete, or older than 15 minutes. GitHub Actions failure is the
+# operator alert surface (same pattern as primary market-data heartbeat).
+on:
+  schedule:
+    # Every 15 minutes UTC
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/core-board-snapshot.yml"
+      - "scripts/core-board-snapshot-ops.mjs"
+      - "scripts/lib/coreBoardSnapshotOps.mjs"
+      - "test/core-board-snapshot-ops.test.js"
+      - "functions/lib/coreBoardSummaries.js"
+  pull_request:
+    paths:
+      - ".github/workflows/core-board-snapshot.yml"
+      - "scripts/core-board-snapshot-ops.mjs"
+      - "scripts/lib/coreBoardSnapshotOps.mjs"
+      - "test/core-board-snapshot-ops.test.js"
+      - "functions/lib/coreBoardSummaries.js"
+permissions:
+  contents: read
+concurrency:
+  group: fbis-core-board-snapshot
+  cancel-in-progress: false
+jobs:
+  publish-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Unit-test CORE snapshot ops classification
+        run: node --test test/core-board-snapshot-ops.test.js
+      - name: Publish CORE snapshot and require freshness ≤15m
+        if: github.event_name != 'pull_request'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET not configured"; exit 1; }
+          mkdir -p artifacts
+          node scripts/core-board-snapshot-ops.mjs | tee artifacts/core-board-snapshot-ops.json
+          jq -e '.ok==true and .canAuthorizeWager==false and (.failures|length)==0' artifacts/core-board-snapshot-ops.json >/dev/null
+      - name: Store sanitized CORE snapshot ops report
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: core-board-snapshot-ops
+          path: artifacts/core-board-snapshot-ops.json
+          if-no-files-found: ignore
+          retention-days: 14

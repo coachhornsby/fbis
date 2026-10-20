@@ -29,6 +29,7 @@ import { approvedTennisPortraits } from "./tennisPortraits.js";
 import { loadStoredTennisPrizePicksHeadshots } from "./tennisPrizePicksHeadshots.js";
 import { buildIndependentTennisCards, tennisFixtureOffers } from "./tennisIntelligenceBank.js";
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "./polymarketBoard.js";
+import { listMarketHistoryReadDbs } from "./databaseTopology.js";
 import {
   resolveCanonicalMarket,
   marketAvailabilitySummary,
@@ -1175,12 +1176,17 @@ export async function buildTodayBoard(
       // Historical Parlay/soft/Pinnacle-through-Parlay snapshots remain
       // auditable in storage but cannot hydrate CURRENT board pricing.
       const pinScope={sport,games:selectedDateGames,now:new Date(now).toISOString(),includeStarted:true};
-      const [primaryPinnodds,historyPinnodds,r2Pinnodds]=await Promise.all([
+      const historyPartitions=listMarketHistoryReadDbs(env);
+      const pinnoddsReads=await Promise.all([
         loadPinnoddsBoardResearch(env.DB,pinScope),
-        loadPinnoddsBoardResearch(env.MARKET_HISTORY_DB,pinScope),
+        ...historyPartitions.map((part)=>loadPinnoddsBoardResearch(part.db,pinScope)),
         loadPinnoddsR2BoardResearch(env.ARCHIVE,pinScope),
       ]);
-      const d1Pinnodds=preferFreshPinnoddsArchive(primaryPinnodds,historyPinnodds);
+      const primaryPinnodds=pinnoddsReads[0];
+      const r2Pinnodds=pinnoddsReads[pinnoddsReads.length-1];
+      const historyPinnoddsParts=pinnoddsReads.slice(1,-1);
+      let d1Pinnodds=primaryPinnodds;
+      for (const part of historyPinnoddsParts) d1Pinnodds=preferFreshPinnoddsArchive(d1Pinnodds,part);
       const pinnodds=preferFreshPinnoddsArchive(d1Pinnodds,r2Pinnodds);
       const hydratedGames=selectedDateGames.map(g=>{
         const clean=pinnoddsOnlySlateMarket(g);
@@ -1220,13 +1226,25 @@ export async function buildTodayBoard(
       // Only the explicitly restored, completed daily NFL capture is current.
       if(sport === "nfl") slateGames = await attachPrizePicksMarkets(slateGames,sport,date,env.DB);
       const rows = slateGames.filter(isFbsVsFbsGame).map((g) => toBoardGame(g, sport, now));
-      const tennisIntegrityBlocked = sport === "tennis" && (slate.research?.withheld > 0 || slate.research?.configured === false);
+      // Withheld tennis snapshots are omitted from rows already. Only fail the
+      // tennis feed closed when configuration is missing or every card was blocked.
+      const tennisConfigured = slate.research?.configured !== false;
+      const tennisIntegrityBlocked = sport === "tennis" && (
+        !tennisConfigured ||
+        (rows.length === 0 && Number(slate.research?.withheld || 0) > 0)
+      );
       feeds[sport] = {
         ok: !tennisIntegrityBlocked,
         n: rows.length,
         durableFallbackGames:durableFallbackCount,
         source:durableOnly?"D1_SCHEDULE_PRESTART_SNAPSHOT":"RESEARCH_SLATE_WITH_DURABLE_RECOVERY",
-        error: tennisIntegrityBlocked ? `TENNIS_EVENT_INTEGRITY_BLOCKED: ${slate.research?.withheld || 0} snapshots withheld; official event/projection evidence unavailable` : null,
+        error: tennisIntegrityBlocked
+          ? `TENNIS_EVENT_INTEGRITY_BLOCKED: ${slate.research?.withheld || 0} snapshots withheld; official event/projection evidence unavailable`
+          : null,
+        tennisWithheld: sport === "tennis" ? Number(slate.research?.withheld || 0) : undefined,
+        tennisWithheldReasons: sport === "tennis"
+          ? (slate.research?.blockedEvents || []).slice(0, 12)
+          : undefined,
         liveFocus: false,
         focused,
         pal: slate.pal || null,
@@ -1309,12 +1327,19 @@ export async function buildTodayBoard(
     for (const [sportKey, sportGames] of bySport) {
       let overlay = { byId: new Map(), available: false };
       try {
+        const historyParts = listMarketHistoryReadDbs(env);
         overlay = await loadPolymarketUsBoardOffers(env.DB, sportGames, sportKey, {
           now: new Date(now),
-          historyDb: env.MARKET_HISTORY_DB,
-          historyDbs: [env.MARKET_HISTORY_2026Q4_DB, env.MARKET_HISTORY_DB].filter((d) => d?.prepare),
-          moneylineOnly:true,
+          historyDbs: historyParts.map((p) => p.db),
+          historyLabels: historyParts.map((p) => p.binding),
+          moneylineOnly: true,
         });
+        overlay.diagnostics = {
+          ...(overlay.diagnostics || {}),
+          historyBindings: historyParts.map((p) => p.binding),
+          q4Bound: Boolean(env.MARKET_HISTORY_2026Q4_DB && typeof env.MARKET_HISTORY_2026Q4_DB.prepare === "function"),
+          legacyHistoryBound: Boolean(env.MARKET_HISTORY_DB && typeof env.MARKET_HISTORY_DB.prepare === "function"),
+        };
       } catch {
         /* missing/stale provider never breaks the independent FBIS slate */
       }

@@ -14,12 +14,15 @@ async function eventIndex(db){
  const clause=name?' INDEXED BY '+name:'';eventIndexes.set(db,clause);return clause;
 }
 
-export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Date(),maxAgeMs=45*60*1000,historyDb=null,historyDbs=null,deliveryStore="PRIMARY_D1",moneylineOnly=false}={}){
+export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Date(),maxAgeMs=45*60*1000,historyDb=null,historyDbs=null,historyLabels=null,deliveryStore="PRIMARY_D1",moneylineOnly=false}={}){
  const extras=[...(Array.isArray(historyDbs)?historyDbs:[]),...(historyDb?.prepare?[historyDb]:[])].filter((d,i,all)=>d?.prepare&&all.indexOf(d)===i);
  if(extras.length){
+  const labels=Array.isArray(historyLabels)&&historyLabels.length===extras.length
+    ? historyLabels
+    : extras.map((_,i)=>`MARKET_HISTORY_PARTITION_${i}`);
   const attempts=await Promise.allSettled([
    loadPolymarketUsBoardOffers(db,games,sport,{now,maxAgeMs,moneylineOnly}),
-   ...extras.map((h,i)=>loadPolymarketUsBoardOffers(h,games,sport,{now,maxAgeMs,deliveryStore:i===0?"MARKET_HISTORY_RECOVERY":`MARKET_HISTORY_RECOVERY_${i}`,moneylineOnly})),
+   ...extras.map((h,i)=>loadPolymarketUsBoardOffers(h,games,sport,{now,maxAgeMs,deliveryStore:labels[i],moneylineOnly})),
   ]);
   const byId=new Map();
   for(const result of attempts){if(result.status!=="fulfilled")continue;for(const [id,offers] of result.value.byId){
@@ -28,7 +31,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
     if(!old||Date.parse(o.observedAt||o.collectedAt)>Date.parse(old.observedAt||old.collectedAt))merged.set(key,o);}
    byId.set(id,[...merged.values()]);
   }}
-  return {byId,source:"Polymarket US",available:[...byId.values()].some(x=>x.length),diagnostics:{primaryAvailable:attempts[0].status==="fulfilled",historyAvailable:attempts.slice(1).some(a=>a.status==="fulfilled"),historyStores:extras.length,displayedOffers:[...byId.values()].reduce((n,x)=>n+x.length,0)}};
+  return {byId,source:"Polymarket US",available:[...byId.values()].some(x=>x.length),diagnostics:{primaryAvailable:attempts[0].status==="fulfilled",historyAvailable:attempts.slice(1).some(a=>a.status==="fulfilled"),historyStores:extras.length,historyLabels:labels,historyAttemptStatus:attempts.slice(1).map(a=>a.status),displayedOffers:[...byId.values()].reduce((n,x)=>n+x.length,0)}};
  }
  const ids=[...new Set(games.map(g=>String(g.id||"")).filter(Boolean))];
  if(!db?.prepare||!ids.length)return {byId:new Map(),source:"Polymarket US",available:false};
