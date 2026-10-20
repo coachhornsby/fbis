@@ -28,6 +28,7 @@ function resolveTeam(label,abbr,name,sport) {
  if(!t||(byAbbr[0]&&byName[0]&&byAbbr[0]!==byName[0]))return null;
  const location=t.nickname&&t.displayName?.endsWith(' '+t.nickname)?t.displayName.slice(0,-t.nickname.length).trim():null;
  const names=[abbr,name,t.displayName,t.school,t.city,location,
+   (sport==='nhl'&&t.abbr==='DET'?'Detroit':null),
    ...(t.aliases||[]),...(t.sources?.kalshi?.names||[]),...(t.sources?.heritage?.names||[])];
  return names.some(x=>x&&norm(x)===norm(label))?t.abbr:null;
 }
@@ -59,11 +60,15 @@ export function mapKalshiPlayerContract(m,{games=[],players=[],capturedAt,series
  if(!canonicalTeams)return {rejected:true,reason:'REGISTERED_TEAM_IDENTITY_UNRESOLVED',id:m.ticker,sport};
  const athleteField={nba:'basketball_player',wnba:'basketball_player',nfl:'football_player',nhl:'hockey_player',mlb:'baseball_player'}[sport];
  const providerPlayerId=m.custom_strike?.[athleteField];
- const roster=players.filter(p=>p.sport===sport&&norm(p.player_name)===norm(rule[1])&&canonicalTeams.some(a=>norm(a)===norm(p.team_key)));
+ const roster=players.filter(p=>p.sport===sport&&norm(p.player_name)===norm(rule[1])&&
+  [canonicalTeams[0],canonicalTeams[1],game.away_abbr,game.home_abbr].some(a=>norm(a)===norm(p.team_key)));
  const unique=[...new Map(roster.map(p=>[String(p.player_id),p])).values()];
  // Roster team plus unique fixture plus full rule name plus provider athlete ID; never name-only.
  if(!providerPlayerId||unique.length!==1)return {rejected:true,reason:'PLAYER_ROSTER_IDENTITY_UNRESOLVED',id:m.ticker,sport};
- const player=unique[0],team=String(player.team_key).toUpperCase(),terms=[m.rules_primary,m.rules_secondary].filter(Boolean).join('\n');
+ const player=unique[0],rosterKey=norm(player.team_key);
+ const rosterIndex=[0,1].find(i=>[canonicalTeams[i],i===0?game.away_abbr:game.home_abbr].some(a=>norm(a)===rosterKey));
+ if(rosterIndex===undefined)return {rejected:true,reason:'PLAYER_ROSTER_TEAM_UNRESOLVED',id:m.ticker,sport};
+ const team=canonicalTeams[rosterIndex],terms=[m.rules_primary,m.rules_secondary].filter(Boolean).join('\\n');
  const historyProvider=sport==='nhl'?'nhl':sport==='mlb'?'mlb':'espn';
  return {id:`kalshi:${m.ticker}:yes`,provider:'Kalshi',source:'Kalshi REST',sport,canonicalEventId:String(game.id),
   canonicalPlayerId:canonicalPlayerId(sport,historyProvider,player.player_id),providerPlayerId:String(providerPlayerId),providerEventId:m.event_ticker,contractId:m.ticker,
