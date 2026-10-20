@@ -60,7 +60,7 @@ export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date()
       return {ok:false,code:"KALSHI_SIGNED_POLL_NOT_DUE",lastAttemptAt:previous.attemptedAt};
   }
   const proxy=kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});
-  const data=await getKalshiShadowMarketsPaged(sport,{fetchImpl:proxy,now,pageLimit:100,maxPages:4});
+  const data=await getKalshiShadowMarketsPaged(sport,{fetchImpl:proxy,now,pageLimit:1000,maxPages:4});
   let blockedUntil=null;
   if(data.rateLimited){
     blockedUntil=iso(new Date(now.getTime()+60*60*1000));
@@ -75,6 +75,7 @@ export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date()
     rateLimited:!!data.rateLimited,records:data.ok?data.records.length:0,
     paginationComplete:data.ok?data.paginationComplete:false,
     pagesFetched:data.pagesFetched||0,
+    pageSizeRequested:data.pageSizeRequested||0,
     invalidRows:data.ok?data.invalidRows:0,
     blockedUntil,
     canQualify:false,canAuthorizeWager:false,canWriteMarketHistory:false,
