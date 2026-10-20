@@ -197,3 +197,20 @@ remain shadow-only (no CORE, quote-qualification, bets, history or settlement
 authority), including when the source returns HTTP 200. Production acceptance
 requires successful signed 80-row NFL and CFB captures, normalization, freshness
 and coverage checks. A successful mock CI job alone is insufficient.
+
+## 14. Bounded signed multi-page collection
+The signed Pages-to-Kalshi relay recovered its first authenticated CFB market
+snapshot at 2026-10-20T12:45:24Z: 80 normalized market rows in R2, with
+`paginationComplete=false`. This proves source connectivity and R2
+persistence, **not** an exhaustive CFB inventory.
+The collector now follows cursor pages sequentially, up to **4 pages × 100
+markets** in each scheduled sport capture. It deduplicates exact Kalshi market
+tickers, validates cursor shape and repeated cursors, reports pages fetched
+and invalid market rows, and never publishes partial rows if a later source
+request returns 429, malformed JSON or an invalid cursor. A successful capped
+capture with a remaining cursor is explicitly marked `paginationComplete=false`.
+The R2 research reader accepts at most 400 rows; the website currently displays
+the first 24 with a visible count of the complete collected inventory.
+This remains a research-only inventory, not validated settlement, orderbook
+depth, fee-adjusted EV, or live cross-sport coverage. Expanding market scope
+beyond NFL and CFB requires separate series/contract qualification.

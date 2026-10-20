@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   KALSHI_SHADOW_AUTHORITY,kalshiShadowAuthority,normalizeKalshiShadowMarket,
-  normalizeKalshiShadowOrderbook,getKalshiShadowMarkets,getKalshiShadowBook,
+  normalizeKalshiShadowOrderbook,getKalshiShadowMarkets,getKalshiShadowMarketsPaged,getKalshiShadowBook,
 } from "../functions/lib/kalshiMarketShadow.js";
 import { onRequestGet,onRequestPost } from "../functions/api/kalshi-market-shadow.js";
 
@@ -170,4 +170,59 @@ test("live provider HTTP 429 is a first-class operational blocker, not a quote",
   assert.equal(list.retryAfterSeconds,120);
   assert.equal(calls,1); // No speculative exponential retry loop on HTTP request.
   assert.equal(list.records,undefined); // Fail closed: no stale or invented quote.
+});
+
+test("bounded signed sports pagination aggregates unique markets across provider cursors",async()=>{
+ let calls=0;
+ const pages={
+  "":{markets:[market,{...market,ticker:"KXNFLGAME-26OCT25-PHI"}],cursor:"next"},
+  next:{markets:[{...market,ticker:"KXNFLGAME-26OCT26-NYG"},market],cursor:""},
+ };
+ const feed=async(url)=>{
+  calls++;
+  const u=new URL(url);
+  assert.equal(u.searchParams.get("status"),"open");
+  assert.equal(u.searchParams.get("series_ticker"),"KXNFLGAME");
+  assert.equal(u.searchParams.get("limit"),"100");
+  return Response.json(pages[u.searchParams.get("cursor")||""]);
+ };
+ const r=await getKalshiShadowMarketsPaged("nfl",{fetchImpl:feed,now,maxPages:4});
+ assert.equal(r.ok,true);
+ assert.equal(r.pagesFetched,2);
+ assert.equal(r.records.length,3);
+ assert.equal(r.paginationComplete,true);
+ assert.equal(r.nextCursorAvailable,false);
+ assert.equal(r.sourceMethod,"SIGNED_REST_PAGES");
+ assert.equal(r.records[0].canQualify,false);
+ assert.equal(calls,2);
+});
+test("bounded paged collector does not invent complete sport coverage at request cap",async()=>{
+ let calls=0;
+ const r=await getKalshiShadowMarketsPaged("cfb",{now,maxPages:2,fetchImpl:async()=>{
+  calls++;return Response.json({markets:[{...market,
+    ticker:"KXNCAAFGAME-26OCT25-DAL"}],cursor:"page-"+calls});
+ }});
+ assert.equal(calls,2);
+ assert.equal(r.ok,true);
+ assert.equal(r.paginationComplete,false);
+ assert.equal(r.nextCursorAvailable,true);
+ assert.equal(r.pagesFetched,2);
+ assert.equal(r.records.length,1);
+ assert.equal(r.governance.canChangeProjection,false);
+});
+test("later page failure refuses partial results; malformed cursor fails closed",async()=>{
+ const fail=await getKalshiShadowMarketsPaged("nfl",{now,maxPages:4,fetchImpl:async(url)=>{
+  const cursor=new URL(url).searchParams.get("cursor");
+  if(cursor)return new Response("",{status:429});
+  return Response.json({markets:[market],cursor:"part-two"});
+ }});
+ assert.equal(fail.ok,false);
+ assert.equal(fail.code,"KALSHI_PUBLIC_RATE_LIMITED");
+ assert.equal(fail.pagesFetched,1);
+ assert.equal(fail.discardedPartialRecords,1);
+ assert.equal(fail.records,undefined);
+ const invalid=await getKalshiShadowMarketsPaged("nfl",{now,maxPages:4,
+  fetchImpl:async()=>Response.json({markets:[market],cursor:"repeat"})});
+ assert.equal(invalid.code,"KALSHI_PUBLIC_CURSOR_INVALID");
+ assert.equal(invalid.ok,false);
 });

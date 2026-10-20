@@ -163,6 +163,59 @@ export async function getKalshiShadowMarkets(sport,{fetchImpl=fetch,now=new Date
 }
 
 /**
+ * Bounded multi-page enumeration for the central signed research collector.
+ * Never publish a partial mid-pagination result when an upstream page errors,
+ * and never describe capped pages as complete sport-wide coverage.
+ */
+export async function getKalshiShadowMarketsPaged(sport,{
+  fetchImpl=fetch,now=new Date(),pageLimit=100,maxPages=4,
+}={}){
+  const series=KALSHI_SHADOW_SERIES[sport];
+  if(!series||!["nfl","cfb"].includes(sport))
+    return {ok:false,code:"KALSHI_SERIES_NOT_QUALIFIED"};
+  const perPage=Math.min(100,Math.max(1,Math.floor(Number(pageLimit)||100)));
+  const budget=Math.min(6,Math.max(1,Math.floor(Number(maxPages)||4)));
+  const rows=[],seenTickers=new Set(),seenCursors=new Set();
+  const fetchedAt=now.toISOString();let cursor="",pagesFetched=0,invalidRows=0;
+  for(let i=0;i<budget;i++){
+    const data=await publicGet("/markets",{
+      series_ticker:series,status:"open",limit:perPage,mve_filter:"exclude",
+      cursor:cursor||null,
+    },fetchImpl);
+    if(!data.ok)return {...data,pagesFetched,discardedPartialRecords:rows.length};
+    if(!Array.isArray(data.body.markets))
+      return {ok:false,code:"KALSHI_PUBLIC_SCHEMA_UNAVAILABLE",pagesFetched};
+    for(const original of data.body.markets){
+      const normalized=normalizeKalshiShadowMarket(original,{sport,fetchedAt});
+      if(!normalized){invalidRows++;continue;}
+      if(seenTickers.has(normalized.ticker))continue;
+      seenTickers.add(normalized.ticker);
+      rows.push(normalized);
+    }
+    pagesFetched++;
+    const next=data.body.cursor;
+    if(next==null||next===""){
+      cursor="";
+      break;
+    }
+    if(typeof next!=="string"||next.length>2048||seenCursors.has(next))
+      return {ok:false,code:"KALSHI_PUBLIC_CURSOR_INVALID",pagesFetched};
+    seenCursors.add(next);cursor=next;
+  }
+  return {
+    ok:true,provider:"Kalshi",sport,seriesTicker:series,
+    fetchedAt,quoteSourceTime:null,records:rows,
+    pagesFetched,invalidRows,
+    paginationComplete:cursor==="",
+    nextCursorAvailable:cursor!=="",
+    coverage:"CURRENT_OPEN_SERIES_BOUNDED_PAGES",
+    marketTypeScope:"GAMES_ONLY",
+    sourceMethod:"SIGNED_REST_PAGES",
+    governance:kalshiShadowAuthority(),
+  };
+}
+
+/**
  * Book detail may be inspected by validated series-market ticker; it cannot
  * be joined to a fixture or assigned execution/model authority at this stage.
  */

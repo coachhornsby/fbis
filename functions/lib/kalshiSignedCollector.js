@@ -5,7 +5,7 @@
  * No private account fields, signing headers, order methods, or credentials
  * are written to R2 or returned to the scheduled Worker.
  */
-import { getKalshiShadowMarkets, KALSHI_SHADOW_SERIES } from "./kalshiMarketShadow.js";
+import { getKalshiShadowMarketsPaged, KALSHI_SHADOW_SERIES } from "./kalshiMarketShadow.js";
 import { fetchKalshiExchangeStatus } from "./kalshiExchangeStatus.js";
 import {
   kalshiSignedHeaders, kalshiPrivateKeyPem, KALSHI_BASE,
@@ -60,7 +60,7 @@ export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date()
       return {ok:false,code:"KALSHI_SIGNED_POLL_NOT_DUE",lastAttemptAt:previous.attemptedAt};
   }
   const proxy=kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});
-  const data=await getKalshiShadowMarkets(sport,{fetchImpl:proxy,now,limit:80});
+  const data=await getKalshiShadowMarketsPaged(sport,{fetchImpl:proxy,now,pageLimit:100,maxPages:4});
   let blockedUntil=null;
   if(data.rateLimited){
     blockedUntil=iso(new Date(now.getTime()+60*60*1000));
@@ -74,6 +74,8 @@ export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date()
     code:data.ok?null:data.code,httpStatus:data.httpStatus||null,
     rateLimited:!!data.rateLimited,records:data.ok?data.records.length:0,
     paginationComplete:data.ok?data.paginationComplete:false,
+    pagesFetched:data.pagesFetched||0,
+    invalidRows:data.ok?data.invalidRows:0,
     blockedUntil,
     canQualify:false,canAuthorizeWager:false,canWriteMarketHistory:false,
   };
