@@ -1,3 +1,4 @@
+import {reconcileQueuedPropEvidence} from '../lib/propReconciliationQueue.js';
 import {captureProspectivePropResearch} from '../lib/propProspectiveCapture.js';
 import {independentPropRows} from '../lib/propResearchData.js';
 import {buildSlate} from '../lib/slateEngine.js';
@@ -56,6 +57,10 @@ export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypt
   if(scope==="nhl-official-prop-results"){
     try {const r=await captureNhlOfficialPlayerResults(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503);}
     catch {return respond({ok:false,code:"NHL_OFFICIAL_PROP_RESULTS_UNAVAILABLE"},503);}
+  }
+  if(scope==="prop-grade-reconcile"){
+    try{const r=await reconcileQueuedPropEvidence(env,{webCrypto});return respond(r,r.ok?200:503);}
+    catch{return respond({ok:false,code:"PROP_RECONCILIATION_UNAVAILABLE"},503);}
   }
   if(scope==="prop-model-freeze"){
     try {
