@@ -5,7 +5,7 @@
  * No private account fields, signing headers, order methods, or credentials
  * are written to R2 or returned to the scheduled Worker.
  */
-import { getKalshiShadowMarketsPaged, KALSHI_SHADOW_SERIES } from "./kalshiMarketShadow.js";
+import { getKalshiShadowMarketsPage, kalshiShadowAuthority, KALSHI_SHADOW_SERIES } from "./kalshiMarketShadow.js";
 import { fetchKalshiExchangeStatus } from "./kalshiExchangeStatus.js";
 import {
   kalshiSignedHeaders, kalshiPrivateKeyPem, KALSHI_BASE,
@@ -43,10 +43,22 @@ export function kalshiSignedReadProxy(env,{fetchImpl=fetch,now=Date.now(),webCry
     });
   };
 }
+const MAX_PAGES_PER_CYCLE=1;
+const MAX_TOTAL_PAGES=12;
+const MAX_TOTAL_RECORDS=4000;
+const PROGRESS_MAX_AGE_MS=4*60*60*1000;
+const PAGE_LIMIT=250;
+const progressKey=sport=>"sports/"+sport+"-progress.json";
+const receiptKey=sport=>"sports/"+sport+"-status.json";
+/**
+ * A CFB 1,000-row response may exceed the Pages↔Worker relay budget.
+ * Checkpoint one 250-row page per 30-minute sport window in R2, then resume.
+ * Publish a completed snapshot ONLY after the provider returns an empty cursor.
+ * Previously captured records preserve their individual fetchedAt timestamps.
+ */
 export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date(),
   fetchImpl=fetch,webCrypto=crypto}={}){
-  if(!Object.prototype.hasOwnProperty.call(KALSHI_SHADOW_SERIES,sport)
-    ||!["nfl","cfb"].includes(sport))
+  if(!["nfl","cfb"].includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
   if(!env?.ARCHIVE?.get||!env?.ARCHIVE?.put)
     return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
@@ -59,36 +71,105 @@ export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date()
     if(ms(previous.attemptedAt)>now.getTime()-SPACING_MS)
       return {ok:false,code:"KALSHI_SIGNED_POLL_NOT_DUE",lastAttemptAt:previous.attemptedAt};
   }
-  const proxy=kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});
-  const data=await getKalshiShadowMarketsPaged(sport,{fetchImpl:proxy,now,pageLimit:1000,maxPages:4});
-  let blockedUntil=null;
-  if(data.rateLimited){
-    blockedUntil=iso(new Date(now.getTime()+60*60*1000));
-  }else if(!data.ok){
-    blockedUntil=iso(new Date(now.getTime()+15*60*1000));
-  }
-  const status={
-    source:"Kalshi",collector:"SCHEDULED_WORKER_R2",authenticationMode:SOURCE,
-    sport,attemptedAt:iso(now),
-    status:data.ok?"CAPTURED":data.rateLimited?"RATE_LIMITED":"ERROR",
-    code:data.ok?null:data.code,httpStatus:data.httpStatus||null,
-    rateLimited:!!data.rateLimited,records:data.ok?data.records.length:0,
-    paginationComplete:data.ok?data.paginationComplete:false,
-    pagesFetched:data.pagesFetched||0,
-    pageSizeRequested:data.pageSizeRequested||0,
-    invalidRows:data.ok?data.invalidRows:0,
-    blockedUntil,
-    canQualify:false,canAuthorizeWager:false,canWriteMarketHistory:false,
+  const stored=await readJson(env.ARCHIVE,progressKey(sport));
+  const active=stored?.version===1 && stored?.sport===sport
+    &&Array.isArray(stored.records)
+    &&stored.records.length<=MAX_TOTAL_RECORDS
+    &&ms(stored.startedAt)>now.getTime()-PROGRESS_MAX_AGE_MS
+    &&ms(stored.startedAt)<=now.getTime()
+    &&Number.isInteger(stored.pagesFetched)
+    &&stored.pagesFetched>0&&stored.pagesFetched<MAX_TOTAL_PAGES
+    &&typeof stored.cursor==="string"
+    &&stored.cursor.length>0&&stored.cursor.length<=2048;
+  const progress=active?stored:{
+    version:1,sport,startedAt:iso(now),pagesFetched:0,
+    cursor:"",seenCursors:[],records:[],invalidRows:0,duplicateRows:0,
   };
-  await writeJson(env.ARCHIVE,"collector-status.json",status);
-  if(data.ok){
-    await writeJson(env.ARCHIVE,"sports/"+sport+".json",{
-      ...data,collector:"SCHEDULED_WORKER_R2",authenticationMode:SOURCE,
-      capturedAt:iso(now),cacheScope:"CENTRAL_R2_READ_ONLY",
-      canQualify:false,canAuthorizeWager:false,
+  const proxy=kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});
+  let result=null;
+  for(let page=0;page<MAX_PAGES_PER_CYCLE;page++){
+    result=await getKalshiShadowMarketsPage(sport,{
+      cursor:progress.cursor,fetchImpl:proxy,now,limit:PAGE_LIMIT,
     });
+    if(!result.ok)break;
+    if(result.nextCursor&&(result.nextCursor===progress.cursor||
+      progress.seenCursors.includes(result.nextCursor))){
+      result={ok:false,code:"KALSHI_PUBLIC_CURSOR_INVALID"};break;
+    }
+    const tickers=new Set(progress.records.map(r=>r.ticker));
+    for(const record of result.records){
+      if(tickers.has(record.ticker)){progress.duplicateRows++;continue;}
+      if(progress.records.length>=MAX_TOTAL_RECORDS){
+        result={ok:false,code:"KALSHI_TOTAL_RECORD_LIMIT"};break;
+      }
+      progress.records.push(record);tickers.add(record.ticker);
+    }
+    if(!result.ok)break;
+    progress.pagesFetched++;
+    progress.invalidRows+=result.invalidRows;
+    progress.duplicateRows+=result.duplicateRows;
+    if(result.nextCursor){
+      progress.seenCursors.push(result.nextCursor);
+      progress.cursor=result.nextCursor;
+    }else{
+      progress.cursor="";
+    }
   }
-  return {ok:data.ok,...status};
+  let blockedUntil=null;
+  if(result?.rateLimited){
+    blockedUntil=iso(new Date(now.getTime()+60*60*1000));
+  }else if(!result?.ok){
+    blockedUntil=iso(new Date(now.getTime()+SPACING_MS));
+  }
+  const complete=!!result?.ok&&progress.cursor==="";
+  const state=result?.ok?(complete?"CAPTURED":"PAGINATING"):
+    result?.rateLimited?"RATE_LIMITED":"ERROR";
+  const receipt={
+    source:"Kalshi",collector:"SCHEDULED_WORKER_R2",authenticationMode:SOURCE,
+    sport,attemptedAt:iso(now),status:state,
+    code:result?.ok?null:result?.code||"KALSHI_PAGE_UNAVAILABLE",
+    httpStatus:result?.httpStatus||null,
+    rateLimited:!!result?.rateLimited,
+    records:progress.records.length,pagesFetched:progress.pagesFetched,
+    pageSizeRequested:PAGE_LIMIT,invalidRows:progress.invalidRows,
+    duplicateRows:progress.duplicateRows,
+    paginationComplete:complete,
+    // Source operation health is not an executable price guarantee.
+    coverageStartedAt:progress.startedAt,
+    blockedUntil,canQualify:false,canAuthorizeWager:false,
+    canWriteMarketHistory:false,
+  };
+  if(result?.ok){
+    if(complete){
+      const rows=progress.records;
+      const oldest=rows.reduce((minimum,r)=>!minimum||ms(r.fetchedAt)<ms(minimum)
+        ?r.fetchedAt:minimum,null);
+      await writeJson(env.ARCHIVE,"sports/"+sport+".json",{
+        ok:true,provider:"Kalshi",sport,seriesTicker:KALSHI_SHADOW_SERIES[sport],
+        records:rows,pagesFetched:progress.pagesFetched,
+        invalidRows:progress.invalidRows,duplicateRows:progress.duplicateRows,
+        paginationComplete:true,coverage:"CURRENT_OPEN_SERIES_PAGED",
+        capturedAt:iso(now),oldestMarketFetchedAt:oldest,
+        startedAt:progress.startedAt,sourceMethod:"SIGNED_REST_PAGES",
+        collector:"SCHEDULED_WORKER_R2",authenticationMode:SOURCE,
+        cacheScope:"CENTRAL_R2_READ_ONLY",governance:kalshiShadowAuthority(),
+        canQualify:false,canAuthorizeWager:false,
+      });
+      // A finished traversal must not be resumed with a stale cursor.
+      await writeJson(env.ARCHIVE,progressKey(sport),{
+        version:1,sport,startedAt:iso(now),pagesFetched:0,cursor:"",
+        seenCursors:[],records:[],completedAt:iso(now),
+      });
+    }else{
+      await writeJson(env.ARCHIVE,progressKey(sport),progress);
+    }
+  }else if(active){
+    // Preserve valid existing progress after provider timeout or 429.
+    await writeJson(env.ARCHIVE,progressKey(sport),progress);
+  }
+  await writeJson(env.ARCHIVE,receiptKey(sport),receipt);
+  await writeJson(env.ARCHIVE,"collector-status.json",receipt);
+  return {ok:!!result?.ok,...receipt};
 }
 export async function captureSignedKalshiExchangeStatus(env,{now=new Date(),
   fetchImpl=fetch,webCrypto=crypto}={}){
