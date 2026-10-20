@@ -156,7 +156,9 @@ export async function collectPolymarketGlobalTennis(env,{now=new Date(),fetchImp
  const historicalKey="tennis/polymarket-global/archive/"+at.slice(0,10)+"/"+at.replace(/[:.]/g,"-")+".json";
  await env.ARCHIVE.put(historicalKey,JSON.stringify(snapshot),{httpMetadata:{contentType:"application/json",cacheControl:"private,max-age=0"}});
  await env.ARCHIVE.put(SNAPSHOT_KEY,JSON.stringify({...snapshot,rawArtifactKey:historicalKey}),{httpMetadata:{contentType:"application/json",cacheControl:"private,max-age=0"}});
- return {ok:errors.length===0,asOf:at,fixtureCount:fixtures.length,matchedEvents:events.size,
+ const collectionUsable=fixtures.length===0||(searches.length>0&&errors.length<=Math.max(2,Math.floor(fixtures.length*0.15)));
+ return {ok:collectionUsable,coverageComplete:errors.length===0,partial:errors.length>0,
+  asOf:at,fixtureCount:fixtures.length,matchedEvents:events.size,
   searchCount:searches.length,errors,source:snapshot.source,canQualify:false,canAuthorizeWager:false};
 }
 export async function loadPolymarketGlobalTennisSnapshot(archive,{now=new Date()}={}){
@@ -167,7 +169,7 @@ export async function loadPolymarketGlobalTennisSnapshot(archive,{now=new Date()
   if(data?.version!==1||data.source!=="POLYMARKET_GLOBAL_GAMMA"||!Array.isArray(data.events)||
     !Number.isFinite(age)||age<0||age>30*60000)
    return {ok:false,code:"SNAPSHOT_STALE_OR_INVALID",events:[]};
-  return {ok:true,events:data.events,asOf:data.asOf,source:data.source,
+  return {ok:true,events:data.events,asOf:data.asOf,source:data.source,partial:Boolean(data.errors?.length),
    marketKind:"RESEARCH_ONLY",canQualify:false,canAuthorizeWager:false};
  }catch{return {ok:false,code:"SNAPSHOT_READ_FAILED",events:[]}}
 }
