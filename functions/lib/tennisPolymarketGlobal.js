@@ -6,7 +6,7 @@
 const API="https://gamma-api.polymarket.com";
 const normalize=s=>" "+String(s||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()+" ";
 const matchesName=(str,name)=>normalize(str).includes(normalize(name));
-const lastToken=name=>normalize(name).trim().split(/\\s+/).at(-1)||"";
+const lastToken=name=>normalize(name).trim().split(/\s+/).at(-1)||"";
 const matchesPair=(text,names)=>names.every(n=>matchesName(text,n))||
  (names.every(n=>lastToken(n).length>=5)&&new Set(names.map(lastToken)).size===2&&
   names.every(n=>normalize(text).includes(" "+lastToken(n)+" ")));
