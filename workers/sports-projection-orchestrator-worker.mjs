@@ -6,6 +6,7 @@ import { auditPinnoddsMlbPeriods } from "./pinnodds-mlb-period-audit.mjs";
 import { RECOVERY_CRON, recoverCurrentPipeline } from "./prospective-pipeline-recovery.mjs";
 import { TENNIS_HEALTH_CRON, checkTennisRefreshHealth, runTennisHealthCron } from "./tennis-refresh-health.mjs";
 import { TENNIS_RECOVERY_CRON, runTennisRecoveryCron } from "./tennis-refresh-recovery.mjs";
+import { runTennisPolymarketResearchCron } from "./tennis-polymarket-research-cron.mjs";
 import {
   CFG,
   configureRuntime,
@@ -250,6 +251,19 @@ async function scheduledCycle(env) {
   };
 }
 
+async function scheduledCycleWithTennisResearch(env){
+ const [market,core]=await Promise.allSettled([
+  runTennisPolymarketResearchCron(env),scheduledCycle(env)
+ ]);
+ if(core.status==="rejected"){
+  console.error(JSON.stringify({event:"orchestrator_core_cycle_failed",
+   error:String(core.reason?.message||core.reason)}));
+ }
+ if(market.status==="rejected")throw market.reason;
+ return {status:"TEN_MINUTE_CYCLE",research:market.value,
+  core:core.status==="fulfilled"?core.value:{status:"FAILED",canQualify:false}};
+}
+
 async function handleFetch(request, env) {
   configureRuntime(env);
   const url = new URL(request.url);
@@ -386,6 +400,8 @@ export default {
       ? recoverCurrentPipeline(env, controller)
       : cron === "17 * * * *"
       ? runScheduledNhlGoalieShadow(env)
+      : cron === "*/10 * * * *"
+      ? scheduledCycleWithTennisResearch(env)
       : scheduledCycle(env);
     ctx.waitUntil(
       task
@@ -399,7 +415,7 @@ export default {
           // Health/recovery watchdog failures must be visible as cron failures,
           // not swallowed after logging. This does NOT trigger data collectors.
           if (cron === RECOVERY_CRON || cron === TENNIS_HEALTH_CRON ||
-              cron === TENNIS_RECOVERY_CRON) throw error;
+              cron === TENNIS_RECOVERY_CRON || cron === "*/10 * * * *") throw error;
         })
     );
   },

@@ -10,6 +10,7 @@ on:
       - "workers/pinnodds-mlb-period-audit.mjs"
       - "workers/tennis-refresh-health.mjs"
       - "workers/tennis-refresh-recovery.mjs"
+      - "workers/tennis-polymarket-research-cron.mjs"
       - "workers/prospective-pipeline-recovery.mjs"
       - "services/sports-projection-orchestrator/orchestrator.mjs"
       - "wrangler.orchestrator.toml"
