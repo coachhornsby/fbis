@@ -6,7 +6,7 @@
 const KEY=v=>String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 export function isPrizePicksTennisHeadshot(url){
  const u=String(url||"").trim();
- return /^https:\/\//i.test(u)&&!/\/images\/teams\//i.test(u);
+ return /^https:\/\//i.test(u)&&!/\/(?:images\/teams|v2\/team|team-logo|team_logo)\//i.test(u);
 }
 function tourOf(league,raw={}){
  const token=String(league||raw.league||raw.leagueName||"").toLowerCase();
