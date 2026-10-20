@@ -42,7 +42,7 @@ export async function collectKalshiPublicOnce(env,{now=new Date(),fetchImpl=fetc
   let blockedUntil=null;
   if(data.rateLimited){
     const seconds=Math.max(3600,Number(data.retryAfterSeconds)||0);
-    blockedUntil=new Date(now.getTime()+Math.min(14400,seconds*1000)).toISOString();
+    blockedUntil=new Date(now.getTime()+Math.min(14400,seconds)*1000).toISOString();
   } else if(!data.ok) {
     blockedUntil=new Date(now.getTime()+BASE_BACKOFF_MS).toISOString();
   }
