@@ -183,7 +183,7 @@ test("bounded signed sports pagination aggregates unique markets across provider
   const u=new URL(url);
   assert.equal(u.searchParams.get("status"),"open");
   assert.equal(u.searchParams.get("series_ticker"),"KXNFLGAME");
-  assert.equal(u.searchParams.get("limit"),"100");
+  assert.equal(u.searchParams.get("limit"),"1000");
   return Response.json(pages[u.searchParams.get("cursor")||""]);
  };
  const r=await getKalshiShadowMarketsPaged("nfl",{fetchImpl:feed,now,maxPages:4});
@@ -225,4 +225,22 @@ test("later page failure refuses partial results; malformed cursor fails closed"
   fetchImpl:async()=>Response.json({markets:[market],cursor:"repeat"})});
  assert.equal(invalid.code,"KALSHI_PUBLIC_CURSOR_INVALID");
  assert.equal(invalid.ok,false);
+});
+
+test("official 1000-record per-page bound is applied to research collection",async()=>{
+ let seenLimit=null;
+ const records=Array.from({length:1000},(_,i)=>({
+  ...market,ticker:"KXNFLGAME-26OCT25-"+String(i).padStart(4,"0"),
+ }));
+ const r=await getKalshiShadowMarketsPaged("nfl",{now,pageLimit:1000,maxPages:4,
+  fetchImpl:async url=>{
+   seenLimit=new URL(url).searchParams.get("limit");
+   return Response.json({markets:records,cursor:""});
+  }});
+ assert.equal(seenLimit,"1000");
+ assert.equal(r.records.length,1000);
+ assert.equal(r.pagesFetched,1);
+ assert.equal(r.pageSizeRequested,1000);
+ assert.equal(r.paginationComplete,true);
+ assert.equal(r.governance.canAuthorizeWager,false);
 });
