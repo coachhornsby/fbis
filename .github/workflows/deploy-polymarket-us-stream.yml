@@ -75,6 +75,18 @@ jobs:
           fi
           npx wrangler deploy --config wrangler.polymarket-us-stream.toml
           echo "Published dedicated Polymarket US read-only stream; credentials provisioned separately as encrypted Worker secrets." >> "$GITHUB_STEP_SUMMARY"
+      - name: Sync HARVEST_SECRET for Cloudflare-native CORE heartbeat
+        if: github.event_name != 'pull_request'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET not configured"; exit 1; }
+          printf '%s' "${HARVEST_SECRET}" | npx wrangler secret put HARVEST_SECRET --config wrangler.polymarket-us-stream.toml
+          echo "Synced HARVEST_SECRET onto fbis-polymarket-us-stream for CORE cron heartbeat" >> "$GITHUB_STEP_SUMMARY"
       - name: Verify independent stream shadow status and default-off flag
         if: github.event_name != 'pull_request'
         run: |
