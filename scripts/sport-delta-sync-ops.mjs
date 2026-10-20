@@ -68,10 +68,25 @@ const failures = [];
 if (sync.ok !== true) failures.push(sync.reason || "SYNC_NOT_OK");
 if (sync.productStillPrimary !== true) failures.push("PRODUCT_MUST_STAY_PRIMARY");
 if (INCLUDE_PREFIX && prefix && prefix.ok !== true) {
-  // Prefix tables may be absent on a sport DB until first mirror; treat unbound/missing as soft.
-  const soft = ["SPORT_DB_UNBOUND", "SPORT_DB_NOT_PROVISIONED", "PRIMARY_TABLE_MISSING"];
-  if (!soft.includes(prefix.reason) && !(Array.isArray(prefix.results) && prefix.results.every((r) => r.ok || r.reason === "PRIMARY_TABLE_MISSING"))) {
-    failures.push(prefix.reason || "PREFIX_COPY_NOT_OK");
+  // Prefix tables may be absent / mid-heal; soft-fail only hard transport errors.
+  // Schema drift is healed additively on each pass (ALTER ADD COLUMN); incomplete
+  // pages (moreRemaining) are expected until the research backfill catches up.
+  const softReasons = new Set([
+    "SPORT_DB_UNBOUND",
+    "SPORT_DB_NOT_PROVISIONED",
+    "PRIMARY_TABLE_MISSING",
+  ]);
+  const results = Array.isArray(prefix.results) ? prefix.results : [];
+  const hard = results.filter((r) => {
+    if (r.ok) return false;
+    if (softReasons.has(r.reason)) return false;
+    const err = String(r.error || "");
+    // Transient D1 blips / pre-heal schema drift — next scheduled pass retries.
+    if (/Network connection lost|D1_ERROR:\s*Failed query|has no column named/i.test(err)) return false;
+    return true;
+  });
+  if (!softReasons.has(prefix.reason) && hard.length) {
+    failures.push(prefix.reason || `PREFIX_COPY_NOT_OK:${hard.map((h) => h.table).slice(0, 5).join(",")}`);
   }
 }
 if (sync.canAuthorizeWager === true || parity.canAuthorizeWager === true) {

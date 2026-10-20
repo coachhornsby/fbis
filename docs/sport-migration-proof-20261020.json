@@ -1,0 +1,106 @@
+{
+  "contract": "fbis-sport-migration-proof-v1",
+  "generatedAt": "2026-10-20T18:45:00.000Z",
+  "canAuthorizeWager": false,
+  "cutoverAuthorized": false,
+  "deletionAuthorized": false,
+  "schedulerIndependence": {
+    "core": {
+      "mechanism": "fbis-polymarket-us-stream Worker cron */5",
+      "evidence": [
+        { "asOf": "2026-10-20T18:10:22.428Z", "source": "fbis_dashboard_summaries.cross_sport_board_snapshot" },
+        { "asOf": "2026-10-20T18:15:22.607Z", "source": "fbis_dashboard_summaries.cross_sport_board_snapshot" },
+        { "asOf": "2026-10-20T18:20:22.504Z", "source": "fbis_dashboard_summaries.cross_sport_board_snapshot" },
+        { "asOf": "2026-10-20T18:25:22.817Z", "source": "fbis_dashboard_summaries.cross_sport_board_snapshot" },
+        { "asOf": "2026-10-20T18:30:22.503Z", "source": "fbis_dashboard_summaries.cross_sport_board_snapshot" }
+      ],
+      "note": "Cadence continues after last manual/mcp recovery note at 18:09; no merge trigger required",
+      "githubScheduleRequired": false
+    },
+    "r2Archive": {
+      "mechanism": "same Worker cron */5 → archiveAndVerifyColdMarketHistory",
+      "codeVersion": "board-ws-q4-archive-catchup-20261020",
+      "checkpointKey": "normalized_market_observations_v2",
+      "progress": {
+        "archivedTotalAt18:31": 339525,
+        "archivedTotalAt18:31b": 349525,
+        "backlogAt18:31": 249036,
+        "backlogAt18:31b": 239036,
+        "backlogFalling": true,
+        "lastBatchAt": "2026-10-20T18:30:22.239Z",
+        "lastObjectKey": "market-history/verified-batches/MARKET_HISTORY_2026Q4/2026-10-20/batch_nmo_4d827a316326ddd29521933922a7_2000_r6.json"
+      },
+      "githubScheduleRequired": false,
+      "deletion": "NOT_PERFORMED"
+    }
+  },
+  "syncReceipts": {
+    "workflow": "sport-delta-sync-recurring.yml",
+    "concurrencyGroup": "fbis-sport-delta-sync-recurring-v2",
+    "maxParallel": 3,
+    "includePrefix": true,
+    "observed": {
+      "nfl": {
+        "ok": true,
+        "workingParity": "PARITY_OK",
+        "games": { "primary": 313, "sport": 313 },
+        "prediction_snapshots": { "primary": 1814, "sport": 1814 },
+        "published_projections": { "primary": 36, "sport": 36 },
+        "prefix": "in_progress_moreRemaining",
+        "run": 39473916235
+      },
+      "nhl": {
+        "workingParity": "PARITY_OK",
+        "games": { "primary": 166, "sport": 166 },
+        "prediction_snapshots": { "primary": 703, "sport": 703 },
+        "prefixFailureBeforeHeal": "schema_drift_missing_columns",
+        "heal": "ensureMirroredSportTable ALTER ADD COLUMN"
+      },
+      "nba": {
+        "games": { "primary": 161, "sport": 161 },
+        "prediction_snapshots": { "primary": 378, "sport": 0 },
+        "rootCause": "lean sport prediction_snapshots missing evidence columns",
+        "heal": "working-set schema heal before copyPredictionsPaged"
+      }
+    },
+    "maxLagMs": 2700000,
+    "authority": "PRIMARY for all 11 sports"
+  },
+  "storageRetirement": {
+    "rehearsalContract": "fbis-market-history-retention-rehearsal-v1",
+    "deletionAuthorized": false,
+    "archiveProvenanceColumns": 50,
+    "hotWindowMs": 84874363,
+    "hotWindowHours": 23.58,
+    "q4Bounds": { "min_at": "2026-10-20T06:12:37.143Z", "max_at": "2026-10-20T18:33:47.258Z", "n": 684002 },
+    "checkpointCursor": {
+      "last_collected_at": "2026-10-20T14:50:51.808Z",
+      "last_id": "nmo_81da30eb37ecad9b994dcd23fb25",
+      "archived_total": 357525,
+      "last_backlog": 231036
+    },
+    "eligibleNowOutsideHotWindow": 0,
+    "archivedBehindCheckpointPendingHotAgeOut": 368321,
+    "eligibleSourcePolicy": "collected_at < hotCutoff AND behind verified archive checkpoint cursor",
+    "firstEligibleSampleWhenAged": [
+      { "id": "nmo_00399286aa44cd761f44e87f31c4", "collected_at": "2026-10-20T06:12:37.143Z" },
+      { "id": "nmo_005f1bb0aeb5012b529ba4f91f20", "collected_at": "2026-10-20T06:12:37.143Z" },
+      { "id": "nmo_006e15464faad1922ec2253050a3", "collected_at": "2026-10-20T06:12:37.143Z" }
+    ],
+    "note": "Deletion stays disabled. Cohort IDs are identified; they become retirement-eligible only after hot-window age-out + retention rehearsal gate."
+  },
+  "cutoverQualification": {
+    "order": ["nfl", "cfb", "nhl"],
+    "activationPerformed": false,
+    "independentApprovalRequired": true,
+    "rollbackEvidenceRequired": true,
+    "rollbackPlan": [
+      "Keep SPORT_DB_MODE_* = shadow (or unset)",
+      "Do not write SPORT_CUTOVER_RECEIPT_*",
+      "Product reads remain on PRIMARY",
+      "Re-run sport-delta-sync + record parity after any failed rehearsal"
+    ],
+    "workflow": "sport-migration-qualify.yml",
+    "nflFirst": true
+  }
+}

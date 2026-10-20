@@ -439,6 +439,21 @@ export async function copySportWorkingTables(env, sport, {
 
   const results = [];
   const checkpoints = {};
+  const schemaHeals = [];
+
+  // Heal lean sport-side working tables before INSERT (NBA/MLB stubs lack evidence cols).
+  for (const table of ["games", "prediction_snapshots", "published_projections"]) {
+    try {
+      const heal = await ensureMirroredSportTable(primary, sportDb, table);
+      if (heal.healed) schemaHeals.push({ table, addedColumns: heal.addedColumns || [] });
+    } catch (error) {
+      schemaHeals.push({
+        table,
+        ok: false,
+        error: String(error?.message || error).slice(0, 240),
+      });
+    }
+  }
 
   try {
     const afterGames = resume ? (await metaGet(sportDb, `copy_cursor_games`) || "") : "";
@@ -455,7 +470,21 @@ export async function copySportWorkingTables(env, sport, {
   }
 
   try {
-    const afterPreds = resume ? (await metaGet(sportDb, `copy_cursor_prediction_snapshots`) || "") : "";
+    let afterPreds = resume ? (await metaGet(sportDb, `copy_cursor_prediction_snapshots`) || "") : "";
+    // If sport shard is empty but PRIMARY has rows, a stale high-water cursor would
+    // report exhausted-with-zero forever — reset once to resume the backfill.
+    if (afterPreds) {
+      try {
+        const sportN = await count(sportDb, "SELECT COUNT(*) n FROM prediction_snapshots WHERE sport=?", key);
+        const primaryN = await count(primary, "SELECT COUNT(*) n FROM prediction_snapshots WHERE sport=?", key);
+        if (sportN === 0 && primaryN > 0) {
+          afterPreds = "";
+          await metaSet(sportDb, "copy_cursor_prediction_snapshots", "");
+        }
+      } catch {
+        /* count probes are best-effort */
+      }
+    }
     const preds = await copyPredictionsPaged(primary, sportDb, key, {
       pageSize: effectivePageSize,
       maxPages: effectiveMaxPages,
@@ -500,6 +529,7 @@ export async function copySportWorkingTables(env, sport, {
     sport: key,
     results,
     checkpoints,
+    schemaHeals,
     moreRemaining,
     plan,
     productStillPrimary: true,
@@ -725,8 +755,9 @@ function sqliteType(type) {
 }
 
 /**
- * Mirror a PRIMARY table's schema onto the sport DB (CREATE IF NOT EXISTS only).
- * Additive — never drops or alters existing sport-side columns.
+ * Mirror a PRIMARY table's schema onto the sport DB.
+ * Additive only — CREATE IF NOT EXISTS, then ALTER TABLE ADD COLUMN for drift.
+ * Never drops, renames, or rewrites existing sport-side columns.
  */
 export async function ensureMirroredSportTable(primary, sportDb, tableName) {
   const table = assertSafeIdent(tableName);
@@ -736,21 +767,43 @@ export async function ensureMirroredSportTable(primary, sportDb, tableName) {
   const existing = await sportDb.prepare(
     "SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=? LIMIT 1"
   ).bind(table).first();
-  if (existing?.ok === 1 || existing?.ok === true || Number(existing?.ok) === 1) {
-    return { ok: true, skipped: true, table, columns: cols.length };
+  const tableExists = existing?.ok === 1 || existing?.ok === true || Number(existing?.ok) === 1;
+  if (!tableExists) {
+    const pkCols = cols.filter((c) => Number(c.pk) > 0).sort((a, b) => Number(a.pk) - Number(b.pk));
+    const colSql = cols.map((c) => {
+      const name = assertSafeIdent(c.name);
+      const typ = sqliteType(c.type);
+      // New tables may honor NOT NULL; additive ALTER columns must stay nullable.
+      const notnull = Number(c.notnull) === 1 ? " NOT NULL" : "";
+      return `${name} ${typ}${notnull}`;
+    }).join(", ");
+    const pkSql = pkCols.length
+      ? `, PRIMARY KEY (${pkCols.map((c) => assertSafeIdent(c.name)).join(", ")})`
+      : "";
+    await sportDb.prepare(`CREATE TABLE IF NOT EXISTS ${table} (${colSql}${pkSql})`).run();
+    return { ok: true, skipped: false, table, columns: cols.length, pk: pkCols.map((c) => c.name), addedColumns: [] };
   }
-  const pkCols = cols.filter((c) => Number(c.pk) > 0).sort((a, b) => Number(a.pk) - Number(b.pk));
-  const colSql = cols.map((c) => {
+
+  const sportInfo = await sportDb.prepare(`PRAGMA table_info(${table})`).all();
+  const sportCols = new Set((sportInfo?.results || []).map((c) => String(c.name)));
+  const addedColumns = [];
+  for (const c of cols) {
     const name = assertSafeIdent(c.name);
+    if (sportCols.has(name)) continue;
+    // Additive columns cannot carry NOT NULL without a default on existing rows.
     const typ = sqliteType(c.type);
-    const notnull = Number(c.notnull) === 1 ? " NOT NULL" : "";
-    return `${name} ${typ}${notnull}`;
-  }).join(", ");
-  const pkSql = pkCols.length
-    ? `, PRIMARY KEY (${pkCols.map((c) => assertSafeIdent(c.name)).join(", ")})`
-    : "";
-  await sportDb.prepare(`CREATE TABLE IF NOT EXISTS ${table} (${colSql}${pkSql})`).run();
-  return { ok: true, skipped: false, table, columns: cols.length, pk: pkCols.map((c) => c.name) };
+    await sportDb.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${typ}`).run();
+    addedColumns.push(name);
+    sportCols.add(name);
+  }
+  return {
+    ok: true,
+    skipped: addedColumns.length === 0,
+    healed: addedColumns.length > 0,
+    table,
+    columns: cols.length,
+    addedColumns,
+  };
 }
 
 /**
