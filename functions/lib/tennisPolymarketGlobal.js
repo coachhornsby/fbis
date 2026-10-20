@@ -112,12 +112,19 @@ export async function collectPolymarketGlobalTennis(env,{now=new Date(),fetchImp
  // CLOB is the independent order-book provider. Read only the tokens of
  // uniquely linked match-winner markets; no Gamma midpoint is a fillable ask.
  const clobJobs=[];
- for(const e of events.values())for(const market of e.markets||[]){
-  const tokens=decode(market.clobTokenIds);
-  if(tokens.length===2&&tokens.every(t=>/^[0-9]{20,120}$/.test(String(t))))
-   clobJobs.push({market,tokens});
+ // Guarantee breadth: fetch one verified head-to-head contract book per
+ // provider event before spending budget on derivative sets/spreads.
+ for(const e of events.values()){
+  const candidates=(e.markets||[]).map(m=>({market:m,tokens:decode(m.clobTokenIds),
+    outcomes:decode(m.outcomes)})).filter(x=>
+      x.tokens.length===2&&x.tokens.every(t=>/^[0-9]{20,120}$/.test(String(t)))&&
+      x.outcomes.length===2&&x.outcomes.every(o=>!["yes","no","over","under"].includes(String(o).toLowerCase())&&
+        lastToken(o).length>=5&&normalize(e.title).includes(" "+lastToken(o)+" ")));
+  candidates.sort((a,b)=>Number(/match|moneyline|winner/i.test(b.market.sportsMarketType||b.market.question||""))-
+    Number(/match|moneyline|winner/i.test(a.market.sportsMarketType||a.market.question||"")));
+  if(candidates.length)clobJobs.push(candidates[0]);
  }
- const selected=clobJobs.slice(0,12);
+ const selected=clobJobs.slice(0,24);
  let bookIndex=0;
  const bookWorker=async()=>{
   while(bookIndex<selected.length){
