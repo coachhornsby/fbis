@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { topThreeGamePlayerProps } from "./topGamePlayerProps.js";
-import PrizePicksStyleCard from "./PrizePicksStyleCard.jsx";
+import FBISPlayerPropCard from "./FBISPlayerPropCard.jsx";
 import "./topGameProps.css";
 
 const fmt = (v, decimals = 1) => v == null || v === "" || !Number.isFinite(Number(v))
@@ -13,7 +13,7 @@ function isPrizePicksRow(row = {}) {
   return book.includes("prizepicks") || book === "prizepicks_apify";
 }
 
-/** All FBIS sports use the same PrizePicks-style prop card as Player Props / Board. */
+/** All FBIS sports use the same premium prop card as Player Props / Board. */
 const STYLE_CARD_SPORTS = new Set([
   "nfl", "mlb", "nba", "nhl", "cfb", "cbb", "wnba", "soccer", "npb", "kbo", "tennis",
 ]);
@@ -59,21 +59,12 @@ export default function TopGameProps({ game }) {
 
   const rows = topThreeGamePlayerProps(drilldown || game);
   const projected = rows.filter((r) => r.fbisProjection != null);
-  const paired = projected.filter((r) => r.line != null);
-  const prizePicksPaired = paired.filter(isPrizePicksRow);
-  const prizePicksProjected = projected.filter(isPrizePicksRow);
-  // Same PrizePicks-style cards as NFL even when MLB (or any sport) has
-  // projection-only rows with no paired market line.
-  const styleCardRows = useStyleCards
-    ? (prizePicksPaired.length
-      ? prizePicksPaired
-      : prizePicksProjected.length
-        ? prizePicksProjected
-        : paired.length
-          ? paired
-          : projected
-    ).slice(0, 3)
-    : [];
+  // Independent projection-only rows remain useful without a current exchange contract.
+  // Legacy provider lines never become active market thresholds.
+  const styleCardRows = useStyleCards ? projected.filter(r => !isPrizePicksRow(r)).map(r => ({
+    ...r, line: null, provider: null, purchaseAsk: null,
+    probabilityOver: null, probabilityUnder: null, modelStatus: "RESEARCH_ONLY",
+  })).slice(0,3) : [];
 
   return (
     <section className="top-game-props" aria-label="Top three game player props">
@@ -81,7 +72,7 @@ export default function TopGameProps({ game }) {
         <h3>TOP 3 PLAYER PROPS</h3>
         <span>
           {useStyleCards
-            ? "PrizePicks-style cards · FBIS projection · last-5 · research only"
+            ? "FBIS projections · last-5 · research only"
             : "FBIS model context · not betting picks"}
         </span>
       </div>
@@ -89,7 +80,7 @@ export default function TopGameProps({ game }) {
       {styleCardRows.length ? (
         <div className="pp-card-grid pp-premium-grid top-game-props-grid top-game-pp-cards">
           {styleCardRows.map((p, i) => (
-            <PrizePicksStyleCard
+            <FBISPlayerPropCard
               key={`${p.gameId}:${p.playerName}:${p.marketCanonical}:${p.line}:${i}`}
               row={p}
               sport={sport}

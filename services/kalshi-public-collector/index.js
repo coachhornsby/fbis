@@ -29,7 +29,7 @@ export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}
   if(typeof env?.FBIS_KALSHI_RELAY_TOKEN!=="string"
     ||env.FBIS_KALSHI_RELAY_TOKEN.length<40)
     return {ok:false,code:"SIGNED_RELAY_SECRET_MISSING"};
-  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog")
+  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="player-props")
     return {ok:false,code:"SIGNED_RELAY_SCOPE_NOT_ALLOWED"};
   if(scope==="markets"&&!SPORTS.includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
@@ -111,6 +111,7 @@ export default {
     ctx.waitUntil(Promise.all([
       collectKalshiPublicOnce(env),collectKalshiExchangeStatusOnce(env),
       collectKalshiSeriesCatalogOnce(env),
+      relaySignedPages(env,{scope:"player-props"}),
     ]));
   },
   async fetch(request,env){

@@ -1,0 +1,25 @@
+/* Exchange cards retain the premium visuals and readable five-game history. */
+.exchange-props-panel.pp-premium-page > .exchange-prop-grid.pp-card-grid.pp-premium-grid { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)) !important; }
+.exchange-prop-grid .pp-card { border-width:2px;min-width:0; }
+.exchange-prop-filters,.exchange-prop-tabs { display:flex;flex-wrap:wrap;gap:12px;padding:16px 0; }
+.exchange-prop-filters label { display:grid;gap:6px;font-size:12px; }
+.exchange-prop-filters input,.exchange-prop-filters select,.exchange-prop-tabs button { color:inherit;background:#101f31;border:1px solid #63768e;border-radius:6px;padding:8px; }
+.exchange-prop-tabs button[aria-pressed="true"] { border-color:#eacb6e; }
+.exchange-prop-coverage { width:100%;border-collapse:collapse; }
+.exchange-prop-coverage th,.exchange-prop-coverage td { padding:8px;text-align:left;border-bottom:1px solid #344860; }
+.exchange-props-panel { overflow-x:auto; }
+.pp-quote-status { font-size:11px;overflow-wrap:anywhere; }
+@media(min-width:1600px) { .exchange-props-panel.pp-premium-page > .exchange-prop-grid.pp-card-grid.pp-premium-grid { grid-template-columns:repeat(5,minmax(0,1fr)) !important; } }
+@media(max-width:640px) { .exchange-props-panel.pp-premium-page > .exchange-prop-grid.pp-card-grid.pp-premium-grid { grid-template-columns:minmax(0,1fr) !important; } }
+
+.prop-research-dialog { width:min(1120px,94vw);max-height:90vh;overflow:auto;color:#e9f0fa;background:#0c1728;border:2px solid #6883a8;border-radius:16px;padding:22px; }
+.prop-research-dialog::backdrop { background:rgba(0,0,0,.78); }
+.prop-research-facts {display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+.prop-research-facts>div {padding:12px;border:1px solid #354c6a;border-radius:8px;}
+.prop-research-facts dt {font-size:12px;color:#b7c7da;}.prop-research-facts dd {margin:8px 0 0;font-weight:700;overflow-wrap:anywhere;}
+.prop-settlement-terms {white-space:pre-wrap;line-height:1.6;}.pp-contract-status {display:grid;gap:4px;margin:12px 0;font-size:12px;}
+.prop-research-dialog pre {white-space:pre-wrap;overflow-wrap:anywhere;}
+
+.prop-research-dialog.props-workspace { margin:auto !important;max-width:94vw; }
+.exchange-props-panel { min-width:0;max-width:100%;box-sizing:border-box; }
+.exchange-prop-grid .pp-card-foot { overflow-wrap:anywhere; }

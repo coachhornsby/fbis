@@ -21,7 +21,7 @@ import { buildPropConvictions } from "../functions/lib/propConviction.js";
 import { badgeLabel, badgeTone, deriveGlobalState, deriveViewState } from "./lib/healthState.js";
 import AppShell, { FeaturePlaceholder } from "./app/AppShell.jsx";
 import { legacyToRoute, normalizeRoute, routeToLegacy } from "./app/navigation.js";
-import PrizePicksMarketPanel from "./features/playerProps/PrizePicksMarketPanel.jsx";
+import ExchangePlayerPropsPanel from "./features/playerProps/ExchangePlayerPropsPanel.jsx";
 import ModelLabView from "./features/modelLab/ModelLabView.jsx";
 import CurrentProjectionsView from "./features/models/CurrentProjectionsView.jsx";
 import TeamProfilesView from "./features/teamProfiles/TeamProfilesView.jsx";
@@ -637,8 +637,8 @@ export default function App() {
           <AccountsView />
         ) : route === "player-props" ? (
           <div className="player-props-page">
-            <KalshiMarketResearch variant="props" />
-            <PrizePicksMarketPanel
+            <ExchangePlayerPropsPanel
+              board={todayBoard}
               sportFilter={playerPropsSport}
               onSportFilterChange={setPlayerPropsSport}
             />

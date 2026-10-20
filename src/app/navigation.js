@@ -7,7 +7,7 @@
 
 export const CUSTOMER_NAV = Object.freeze([
   { id: "board", label: "BOARD", description: "Decision workstation — FBIS → Market → Diff → Decision" },
-  { id: "player-props", label: "PLAYER PROPS", description: "Curated PrizePicks lines + FBIS player projections" },
+  { id: "player-props", label: "PLAYER PROPS", description: "Kalshi / Polymarket contracts + independent FBIS player research" },
   { id: "teams", label: "TEAMS", description: "FBIS club and school profiles, branding, rosters and acquired team history" },
   { id: "bets", label: "MY BETS", description: "Manual wager journal and performance" },
   { id: "accounts", label: "ACCOUNTS", description: "Private Kalshi and Polymarket US balances, positions, orders, and activity" },
