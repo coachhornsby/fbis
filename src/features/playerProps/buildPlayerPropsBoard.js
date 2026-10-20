@@ -794,14 +794,17 @@ export function groupPlayerPropRows(rows = []) {
  */
 export function orderExchangeResearchCards(rows=[],limit=100) {
  const max=Number.isInteger(limit)?Math.max(0,Math.min(limit,2000)):100;
- const out=[],rank=r=>r.marketAvailable===true?0:
-  r.contractId&&r.identityVerified===true&&r.provider?1:
-  r.fbis_projection!=null?2:3;
+ const out=[],hasTwoVenues=r=>r.venueComparison?.providerCount===2||
+  Object.values(r.venueComparison?.marketSides||{}).some(x=>x.providerCount===2);
+ const rank=r=>r.marketAvailable===true?0:
+  hasTwoVenues(r)?1:
+  r.contractId&&r.identityVerified===true&&r.provider?2:
+  r.fbis_projection!=null?3:4;
  const cmp=(a,b)=>String(a.start_time||'').localeCompare(String(b.start_time||''))||
   String(a.player_name||'').localeCompare(String(b.player_name||''))||
   String(a.canonical_market||'').localeCompare(String(b.canonical_market||''))||
   String(a.contractId||'').localeCompare(String(b.contractId||''));
- for(let tier=0;tier<=3&&out.length<max;tier++){
+ for(let tier=0;tier<=4&&out.length<max;tier++){
   const buckets=new Map();
   for(const row of rows)if(rank(row)===tier){
    const key=String(row.canonicalEventId||row.start_time||'UNMATCHED');
