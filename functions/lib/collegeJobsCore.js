@@ -42,6 +42,7 @@ import {
   buildCoreWeeklyArchivePayload,
   persistCoreWeeklyArchive,
 } from "./cfbCoreArchive.js";
+import { resolveGamesPlayedWithSource, GAMES_PLAYED_SOURCES, countCompletedGamesBySchool } from "./cfbGamesPlayed.js";
 import {
   reconstructCoreHistoricalSeason,
   planCoreHistoricalReconstruction,
@@ -1439,6 +1440,15 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
           fetched.bundles["/ratings/core"] || [],
           { maxWeek: coreThroughWeekBound(targetWeek), seasonType: "regular", season: y }
         );
+        // Persist explicit gamesPlayed for auditability. Prefer schedule-derived
+        // completed finals (CFBD /games bundle or durable D1 predictions);
+        // else flagged CORE throughWeek — never leave gamesPlayed null when n is known.
+        const d1ScheduleBySchool = await loadD1ScheduleGamesPlayedBySchool(env, y, Date.now());
+        catalog = stampGamesPlayedOnCatalog(catalog, {
+          gameRows: fetched.bundles["/games"] || [],
+          scheduleBySchool: d1ScheduleBySchool,
+          nowMs: Date.now(),
+        });
         // Archive weekly PIT CORE keyed by actual CFBD throughWeek (research-only).
         if (job === "cfb-current-refresh" && y === yearCfb) {
           try {
@@ -1930,6 +1940,98 @@ export function indexCfbRatings(bundles) {
     }
   }
   return {byCanonicalId,byEspnId,n:Object.keys(byCanonicalId).length,coverage};
+}
+
+/**
+ * Attach gamesPlayed (+ source/uncertainty) onto each catalog team row before D1 persist.
+ */
+export function stampGamesPlayedOnCatalog(
+  catalog = {},
+  { gameRows = [], scheduleBySchool = null, nowMs = Date.now() } = {}
+) {
+  const fromGames = countCompletedGamesBySchool(gameRows, nowMs);
+  const bySchool = new Map([...(scheduleBySchool || new Map()), ...fromGames]);
+  const byCanonicalId = { ...(catalog.byCanonicalId || {}) };
+  const byEspnId = { ...(catalog.byEspnId || {}) };
+  let stamped = 0;
+  let scheduleN = 0;
+  let fallbackN = 0;
+  for (const [id, row] of Object.entries(byCanonicalId)) {
+    const schoolKey = String(row.team || row.school || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const scheduleGamesPlayed = schoolKey ? bySchool.get(schoolKey) || null : null;
+    const resolved = resolveGamesPlayedWithSource(row, { scheduleGamesPlayed });
+    const next = {
+      ...row,
+      gamesPlayed: resolved.gamesPlayed,
+      gamesPlayedSource: resolved.source,
+      gamesPlayedUncertainty: resolved.uncertainty === true,
+      gamesPlayedNote: resolved.note,
+    };
+    // Ensure CORE fallback can fire on next read even if writer omitted bounded flag.
+    if (
+      resolved.source === GAMES_PLAYED_SOURCES.CORE_THROUGH_WEEK_FALLBACK &&
+      next.coreWeekBounded !== true &&
+      next.coreThroughWeek != null
+    ) {
+      next.coreWeekBounded = true;
+    }
+    byCanonicalId[id] = next;
+    if (row.espnId || id) {
+      const espnKey = String(row.espnId || id.replace(/^cfb-/, ""));
+      if (byEspnId[espnKey]) byEspnId[espnKey] = next;
+    }
+    if (resolved.gamesPlayed != null && resolved.gamesPlayed > 0) {
+      stamped += 1;
+      if (resolved.source === GAMES_PLAYED_SOURCES.SCHEDULE) scheduleN += 1;
+      if (resolved.source === GAMES_PLAYED_SOURCES.CORE_THROUGH_WEEK_FALLBACK) fallbackN += 1;
+    }
+  }
+  return {
+    ...catalog,
+    byCanonicalId,
+    byEspnId,
+    gamesPlayedStamp: { stamped, scheduleN, fallbackN, scheduleSchools: bySchool.size },
+  };
+}
+
+export async function loadD1ScheduleGamesPlayedBySchool(env, season, nowMs = Date.now()) {
+  if (!env?.DB?.prepare) return new Map();
+  const cutoff = new Date(nowMs).toISOString();
+  try {
+    const rows = await env.DB.prepare(
+      `SELECT g.home_name AS home_name, g.away_name AS away_name
+         FROM predictions p
+         LEFT JOIN games g ON g.id = p.game_id
+        WHERE p.sport='cfb' AND p.date >= ? AND p.date <= ?
+          AND p.actual_home IS NOT NULL AND p.actual_away IS NOT NULL
+          AND (g.start IS NULL OR g.start < ?)
+        LIMIT 4000`
+    )
+      .bind(`${season}-08-01`, `${season}-12-31`, cutoff)
+      .all();
+    const bySchool = new Map();
+    const bump = (name) => {
+      if (!name) return;
+      const key = String(name)
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!key) return;
+      bySchool.set(key, (bySchool.get(key) || 0) + 1);
+    };
+    for (const r of rows?.results || []) {
+      bump(r.home_name);
+      bump(r.away_name);
+    }
+    return bySchool;
+  } catch {
+    return new Map();
+  }
 }
 
 export function gradeScores(pred, actualHome, actualAway) {
