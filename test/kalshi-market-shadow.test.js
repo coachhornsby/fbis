@@ -153,3 +153,21 @@ test("failed sources do not fabricate a quote, stale state or authority",async()
   }});
   assert.equal(malformed.code,"KALSHI_MARKET_IDENTITY_MISMATCH");
 });
+
+test("live provider HTTP 429 is a first-class operational blocker, not a quote",async()=>{
+  let calls=0;
+  const limited=async()=>{
+    calls++;
+    return new Response("rate limited",{
+      status:429,headers:{"retry-after":"120"},
+    });
+  };
+  const list=await getKalshiShadowMarkets("nfl",{fetchImpl:limited});
+  assert.equal(list.ok,false);
+  assert.equal(list.code,"KALSHI_PUBLIC_RATE_LIMITED");
+  assert.equal(list.httpStatus,429);
+  assert.equal(list.rateLimited,true);
+  assert.equal(list.retryAfterSeconds,120);
+  assert.equal(calls,1); // No speculative exponential retry loop on HTTP request.
+  assert.equal(list.records,undefined); // Fail closed: no stale or invented quote.
+});

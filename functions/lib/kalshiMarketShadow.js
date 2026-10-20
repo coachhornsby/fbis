@@ -117,7 +117,20 @@ async function publicGet(path, params, fetchImpl) {
   } catch {
     return {ok:false,code:"KALSHI_PUBLIC_CONNECTION_UNAVAILABLE"};
   }
-  if (!response.ok) return {ok:false,code:"KALSHI_PUBLIC_HTTP_ERROR",httpStatus:response.status};
+  if (!response.ok) {
+    if (response.status === 429) {
+      // Do not retry or schedule another upstream request from a user-facing
+      // HTTP handler: Kalshi's provider limit must be honored centrally.
+      const raw = Number(response.headers?.get?.("retry-after"));
+      const retryAfterSeconds = Number.isFinite(raw) && raw >= 0
+        ? Math.min(3600, Math.ceil(raw)) : null;
+      return {
+        ok:false,code:"KALSHI_PUBLIC_RATE_LIMITED",httpStatus:429,
+        rateLimited:true,retryAfterSeconds,
+      };
+    }
+    return {ok:false,code:"KALSHI_PUBLIC_HTTP_ERROR",httpStatus:response.status};
+  }
   try {
     const body = await response.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) throw Error("invalid");
