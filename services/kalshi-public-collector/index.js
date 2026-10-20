@@ -202,7 +202,8 @@ export default {
     ctx.waitUntil(Promise.all([
       collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),
       collectKalshiExchangeStatusOnce(env),collectKalshiSeriesCatalogOnce(env),
-      collectNhlOfficialResultsOnce(env,{now}),collectReviewedPropGradesOnce(env,{now}),
+      collectNhlOfficialResultsOnce(env,{now}),
+      Math.floor(now.getTime()/SLOT_MS)%16===0 ? relaySignedPages(env,{scope:"prop-model-freeze"}) : Promise.resolve({ok:true,status:"NOT_DUE"}),collectReviewedPropGradesOnce(env,{now}),
       collectNhlSourceDiscoveryOnce(env,{now}),collectNhlProspectiveOnce(env,{now}),
       aux==="qualification-evidence"?collectKalshiEvidenceOnce(env):
         relaySignedPages(env,{scope:aux}),
