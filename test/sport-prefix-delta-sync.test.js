@@ -4,6 +4,7 @@ import {
   sportMigrationScope,
   ensureMirroredSportTable,
   copyPrefixedTablePaged,
+  prefixCompositeCursorPlan,
   copySportPrefixTables,
   verifySportPrefixParity,
   syncSportWorkingDelta,
@@ -205,6 +206,89 @@ test("all 11 sports are sync-eligible with no prop tables in prefix sets", () =>
   assert.ok(SPORT_PREFIX_TABLES.tennis.includes("tennis_players"));
   assert.equal(SPORT_PREFIX_TABLES.npb.length, 0);
   assert.equal(SPORT_PREFIX_TABLES.kbo.length, 0);
+});
+
+test("composite primary-key cursor resumes within repeated first-key groups", () => {
+  const p = prefixCompositeCursorPlan(["season", "source"], "");
+  assert.equal(p.orderBy, "season, source");
+  assert.equal(p.where, "");
+  const token = p.encode({ season: 2026, source: "ESPN" });
+  assert.equal(token, 'pkv2:[2026,"ESPN"]');
+  const next = prefixCompositeCursorPlan(["season", "source"], token);
+  assert.equal(next.where, "WHERE (season, source) > (?, ?)");
+  assert.deepEqual(next.values, [2026, "ESPN"]);
+  assert.equal(next.legacyReset, false);
+  const legacy = prefixCompositeCursorPlan(["season", "source"], "2026");
+  assert.equal(legacy.legacyReset, true);
+  assert.deepEqual(legacy.values, []);
+  const scalar = prefixCompositeCursorPlan(["id"], "already-copied");
+  assert.equal(scalar.where, "WHERE id>?");
+  assert.deepEqual(scalar.values, ["already-copied"]);
+});
+
+test("composite keyset copy does not skip two rows sharing the first primary-key column", async () => {
+  const source = [
+    { season: 2026, source: "A", value: "first" },
+    { season: 2026, source: "B", value: "second" },
+    { season: 2026, source: "C", value: "third" },
+    { season: 2026, source: "D", value: "fourth" },
+    { season: 2027, source: "A", value: "fifth" },
+  ];
+  const columns = [
+    { name: "season", type: "INTEGER", pk: 1 },
+    { name: "source", type: "TEXT", pk: 2 },
+    { name: "value", type: "TEXT", pk: 0 },
+  ];
+  const targetRows = new Map();
+  const executed = [];
+  const primary = {
+    prepare(sql) {
+      if (sql.startsWith("PRAGMA")) return { all: async () => ({ results: columns }) };
+      return {
+        bind(...args) {
+          return {
+            async all() {
+              executed.push({ sql, args });
+              const start = sql.includes("WHERE (season, source)") ? args.slice(0, 2) : null;
+              const limit = args[args.length - 1];
+              const rows = source.filter(r => !start || r.season > start[0] || (r.season === start[0] && r.source > start[1]));
+              return { results: rows.slice(0, limit) };
+            },
+          };
+        },
+      };
+    },
+  };
+  let exists = false;
+  const sport = {
+    prepare(sql) {
+      if (sql.startsWith("PRAGMA")) return { all: async () => ({ results: columns }) };
+      if (sql.includes("sqlite_master")) return { bind: () => ({ first: async () => exists ? { ok: 1 } : null }) };
+      if (sql.startsWith("CREATE TABLE")) return { run: async () => { exists = true; return {}; } };
+      if (sql.startsWith("INSERT OR REPLACE")) return {
+        bind(...args) {
+          return {
+            async run() {
+              targetRows.set(`${args[0]}|${args[1]}`, { season: args[0], source: args[1], value: args[2] });
+              return {};
+            },
+          };
+        },
+      };
+      throw new Error("Unexpected SQL " + sql);
+    },
+  };
+  let cursor = "";
+  for (let round = 0; round < 4; round++) {
+    const pass = await copyPrefixedTablePaged(primary, sport, "cfb_roster_source_coverage", {
+      pageSize: 2, maxPages: 1, afterKey: cursor,
+    });
+    cursor = pass.cursor;
+  }
+  assert.equal(targetRows.size, 5);
+  assert.equal(targetRows.get("2026|C").value, "third");
+  assert.equal(targetRows.get("2026|D").value, "fourth");
+  assert.ok(executed.some(p => p.sql.includes("WHERE (season, source) > (?, ?)")));
 });
 
 test("ensureMirroredSportTable creates destination schema from PRIMARY pragma", async () => {
