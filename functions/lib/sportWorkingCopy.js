@@ -909,23 +909,30 @@ export async function copyPrefixedTablePaged(primary, sportDb, tableName, {
     if (!rows.length) break;
     const colList = cols.join(",");
     const placeholders = cols.map(() => "?").join(",");
-    for (const row of rows) {
+    const insertSql = hasPrimaryKey
+      ? `INSERT OR REPLACE INTO ${table} (${colList}) VALUES (${placeholders})`
+      : `INSERT OR REPLACE INTO ${table} (rowid,${colList}) VALUES (?,${placeholders})`;
+    const statement = sportDb.prepare(insertSql);
+    const bound = rows.map(row => {
       const values = cols.map(c => row[c] ?? null);
-      if (hasPrimaryKey) {
-        await sportDb.prepare(
-          `INSERT OR REPLACE INTO ${table} (${colList}) VALUES (${placeholders})`
-        ).bind(...values).run();
-      } else {
-        // With no declared PK, REPLACE alone only appends duplicates on
-        // retry. Preserve PRIMARY rowid as the stable local copy identity.
-        await sportDb.prepare(
-          `INSERT OR REPLACE INTO ${table} (rowid,${colList}) VALUES (?,${placeholders})`
-        ).bind(row.__key, ...values).run();
+      // Tables without a declared PK use source rowid as the stable identity.
+      return hasPrimaryKey ? statement.bind(...values) : statement.bind(row.__key, ...values);
+    });
+    if (typeof sportDb.batch === "function") {
+      // Cloudflare D1 executes each batch atomically. Forty statements per
+      // call avoid thousands of sequential D1 round trips for NBA/NHL/CFB
+      // research backfills while keeping write transactions bounded.
+      for (let offset = 0; offset < bound.length; offset += 40) {
+        await sportDb.batch(bound.slice(offset, offset + 40));
       }
-      copied += 1;
-      const cursorRow = hasPrimaryKey ? row : { rowid: row.__key };
-      lastKey = plan.encode(cursorRow);
+    } else {
+      // Explicit fallback for injected/testing database implementations.
+      for (const stmt of bound) await stmt.run();
     }
+    // Never persist cursor progress before the whole page succeeds.
+    copied += rows.length;
+    const final = rows[rows.length - 1];
+    lastKey = plan.encode(hasPrimaryKey ? final : { rowid: final.__key });
     cursor = lastKey;
     if (rows.length < pageSize) break;
   }
