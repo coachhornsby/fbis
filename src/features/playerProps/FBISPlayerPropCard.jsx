@@ -239,11 +239,39 @@ export function LastFiveStatChart({ row }) {
   );
 }
 
+
 function VenueComparison({row}) {
-  const comparison=row.venueComparison;
-  if(!comparison)return null;
-  const offers=comparison.venues||[];
-  const format=v=>v==null?'—':'
+ const comparison=row.venueComparison;
+ if(!comparison)return null;
+ const offers=comparison.venues||[];
+ const price=v=>v==null?'—':(Number(v)*100).toFixed(1)+'¢';
+ const reason={
+  OTHER_PROVIDER_UNAVAILABLE:'Other venue not captured for this exact contract',
+  SETTLEMENT_NOT_EQUIVALENT_OR_UNVERIFIED:'Settlement equivalence unverified; no price gap',
+  QUOTE_CLOCK_OR_EXECUTION_UNVERIFIED:'Quote clock or executable purchase ask unverified',
+  COMPARABLE_CURRENT_QUOTES:'Same terms and current asks; excludes fees'
+ }[comparison.priceComparisonStatus]||'Not comparable';
+ return <div className="pp-venue-comparison" aria-label="Kalshi and Polymarket price comparison">
+  <div className="pp-venue-topline"><b>EXCHANGE PRICES</b><span>{String(row.statSide||row.side||'').toUpperCase()}</span></div>
+  <div className="pp-venue-quotes">
+   {['Kalshi','Polymarket'].map(provider=>{
+    const offer=offers.find(x=>x.provider===provider);
+    return <div key={provider} className={'pp-venue-quote '+(offer?'has-contract':'no-contract')}>
+     <span className="pp-venue-name">{provider}</span>
+     <strong>{price(offer?.price)}</strong>
+     <small>{!offer?'No exact contract':offer.priceKind==='VERIFIED_PURCHASE_ASK'?'Verified ask':'Observed ask only'}</small>
+     {offer?.depth!=null?<small>Depth {Number(offer.depth).toLocaleString('en-US',{maximumFractionDigits:1})}</small>:null}
+    </div>;
+   })}
+  </div>
+  <div className="pp-venue-gap"><span>PRICE GAP</span>
+   <b>{comparison.priceDifferenceDollars==null?'—':price(Math.abs(comparison.priceDifferenceDollars))}</b>
+   {comparison.cheaperProvider?<span>Lower: {comparison.cheaperProvider}</span>:null}
+  </div>
+  <p className="pp-venue-caveat">{reason}. Research only, not a wager instruction.</p>
+ </div>;
+}
+
 export default function FBISPlayerPropCard({
   row: rawRow = {},
   sport = "",
