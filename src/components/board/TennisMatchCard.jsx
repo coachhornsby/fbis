@@ -77,6 +77,20 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <div className="tmc-vs">VS</div>
       <div className="tmc-player-side tmc-home" style={sideStyle(home,bp1)}><PlayerVisual key={home.canonicalId||home.fbisPlayerId||home.name} team={home} bp={bp1}/>{identity(home,bp1)}</div>
     </section>
+    <section className="tmc-exchange-strip" aria-label="Tennis exchange prices" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:8,padding:"10px 12px",borderBottom:"1px solid #185478",background:"#061b2d"}}>
+      {[
+        {name:"KALSHI",offers:t.kalshiResearchOffers,sourceStatus:t.kalshiResearchStatus||"NO MATCHED CONTRACT",kind:"kalshi"},
+        {name:"POLYMARKET",offers:t.polymarketGlobalOffers,sourceStatus:t.polymarketGlobalStatus||"NO MATCHED CONTRACT",kind:"poly"}
+      ].map(exchange=><div key={exchange.name} style={{border:"1px solid #286080",borderRadius:7,padding:"9px 11px",minWidth:0}}>
+        <strong style={{color:"#5cc5ff",letterSpacing:".04em"}}>{exchange.name}</strong>
+        {Array.isArray(exchange.offers)&&exchange.offers.length?exchange.offers.slice(0,4).map((offer,i)=><div key={offer.ticker||offer.marketId||i} style={{marginTop:5,fontSize:12}}>
+          {exchange.kind==="kalshi"?<><b>{offer.yesLabel||"Unidentified outcome"}</b> · ASK {offer.yesAskDollars==null?"UNAVAILABLE":(100*Number(offer.yesAskDollars)).toFixed(1)+"¢"}{offer.yesBidDollars!=null?" · BID "+(100*Number(offer.yesBidDollars)).toFixed(1)+"¢":""}</>:<><b>{offer.outcomes?.join(" / ")||"Unidentified outcomes"}</b> · {offer.researchClob?.sides?.some(x=>x.bestAsk)?offer.researchClob.sides.map(x=>x.bestAsk?(100*Number(x.bestAsk.price)).toFixed(1)+"¢ ASK":"NO ASK").join(" / "):"INDICATIVE "+(offer.indicativePrices||[]).map(x=>(100*Number(x)).toFixed(1)+"%").join(" / ")}</>}
+          <small style={{display:"block",color:"#b1c5db"}}>Captured {stamp(exchange.kind==="kalshi"?offer.fetchedAt:offer.researchClob?.observedAt||offer.capturedAt)} · Research only</small>
+          {offer.scheduleStatus&&offer.scheduleStatus!=="START_WITHIN_TWO_HOURS"?<small style={{display:"block",color:"#ffba65"}}>⚠ {offer.scheduleStatus.replaceAll("_"," ")}</small>:null}
+        </div>):<p style={{margin:"6px 0 0",fontSize:12,color:"#bdcde0"}}>No matched price · {exchange.sourceStatus}</p>}
+      </div>)}
+      <small style={{gridColumn:"1 / -1",color:"#93aac5"}}>Independent exchange observations. No comparable price or betting edge is inferred without validated event, timestamp, market and execution terms. PinnOdds optional.</small>
+    </section>
     <section className={`tmc-market-gap ${gapPlayer?"is-player":"is-neutral"}`} style={gapPlayerTint?{"--tmc-market-gap-color":gapPlayerTint}:undefined} aria-label="Tennis model versus market comparison">
       <span>FBIS / MARKET GAP</span>
       <div className="tmc-market-gap-identity">
