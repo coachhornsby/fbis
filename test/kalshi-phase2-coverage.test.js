@@ -190,3 +190,28 @@ test("System UI exposes market coverage with no order or wager actions",()=>{
  assert.match(src,/api\/kalshi-coverage-report/);
  assert.doesNotMatch(src,/placeOrder|setBet|authorizeWager|setProjection/);
 });
+
+test("alternating NFL and CFB windows do not block each other with global receipt",async()=>{
+ const e=await env();
+ const fetchImpl=async()=>Response.json({markets:[m()],cursor:""});
+ const nfl=await captureSignedKalshiMarkets(e,{sport:"nfl",now:begin,webCrypto:webcrypto,fetchImpl:async()=>Response.json({markets:[],cursor:""})});
+ assert.equal(nfl.status,"CAPTURED");
+ const cfb=await captureSignedKalshiMarkets(e,{sport:"cfb",now:new Date(begin.getTime()+15*60000),webCrypto:webcrypto,fetchImpl});
+ assert.equal(cfb.status,"CAPTURED");
+ assert.equal(JSON.parse(e.ARCHIVE.items.get(BASE+"sports/cfb-status.json")).status,"CAPTURED");
+});
+test("CFB checkpoint survives beyond four hours within twelve-page alternating crawl",async()=>{
+ const e=await env();let cursorExpected=null;
+ for(let page=0;page<10;page++){
+  const now=new Date(begin.getTime()+page*30*60000);
+  const r=await captureSignedKalshiMarkets(e,{sport:"cfb",now,webCrypto:webcrypto,fetchImpl:async(url)=>{
+   assert.equal(new URL(url).searchParams.get("cursor"),cursorExpected);
+   return Response.json({markets:[m("KXNCAAFGAME-26OCT25-P"+page,"Team "+page+" wins")],cursor:page===9?"":"PAGE"+page});
+  }});
+  assert.equal(r.status,page===9?"CAPTURED":"PAGINATING");
+  cursorExpected=page===9?null:"PAGE"+page;
+ }
+ const snap=JSON.parse(e.ARCHIVE.items.get(BASE+"sports/cfb.json"));
+ assert.equal(snap.pagesFetched,10);
+ assert.equal(snap.records.length,10);
+});
