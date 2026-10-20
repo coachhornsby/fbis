@@ -251,17 +251,17 @@ async function scheduledCycle(env) {
   };
 }
 
-async function scheduledCycleWithTennisResearch(env){
- const [market,core]=await Promise.allSettled([
-  runTennisPolymarketResearchCron(env),scheduledCycle(env)
+/** RECOVERY_CRON is the existing ten-minute schedule. Execute the Tennis
+ * Gamma research collector alongside recovery, rather than adding an
+ * unreachable second equality check for the same cron string.
+ */
+async function runRecoveryWithTennisResearch(env,controller){
+ const [recovery,research]=await Promise.allSettled([
+  recoverCurrentPipeline(env,controller),runTennisPolymarketResearchCron(env)
  ]);
- if(core.status==="rejected"){
-  console.error(JSON.stringify({event:"orchestrator_core_cycle_failed",
-   error:String(core.reason?.message||core.reason)}));
- }
- if(market.status==="rejected")throw market.reason;
- return {status:"TEN_MINUTE_CYCLE",research:market.value,
-  core:core.status==="fulfilled"?core.value:{status:"FAILED",canQualify:false}};
+ if(recovery.status==="rejected")throw recovery.reason;
+ if(research.status==="rejected")throw research.reason;
+ return {...recovery.value,tennisPolymarketResearch:research.value};
 }
 
 async function handleFetch(request, env) {
@@ -397,11 +397,9 @@ export default {
       : cron === TENNIS_HEALTH_CRON
       ? runTennisHealthCron(env)
       : cron === RECOVERY_CRON
-      ? recoverCurrentPipeline(env, controller)
+      ? runRecoveryWithTennisResearch(env, controller)
       : cron === "17 * * * *"
       ? runScheduledNhlGoalieShadow(env)
-      : cron === "*/10 * * * *"
-      ? scheduledCycleWithTennisResearch(env)
       : scheduledCycle(env);
     ctx.waitUntil(
       task
@@ -415,7 +413,7 @@ export default {
           // Health/recovery watchdog failures must be visible as cron failures,
           // not swallowed after logging. This does NOT trigger data collectors.
           if (cron === RECOVERY_CRON || cron === TENNIS_HEALTH_CRON ||
-              cron === TENNIS_RECOVERY_CRON || cron === "*/10 * * * *") throw error;
+              cron === TENNIS_RECOVERY_CRON) throw error;
         })
     );
   },
