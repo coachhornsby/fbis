@@ -87,7 +87,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
     {t.researchFixture?.missingEvidence?.length?<p className="tmc-fixture-note" role="status">MISSING VERIFIED DATA · {t.researchFixture.missingEvidence.join(" · ").replaceAll("_"," ")}</p>:null}
     {t.researchEstimate?<section className="tmc-fixture-note" aria-label="Independent surface Elo research estimate"><strong>SURFACE ELO ESTIMATE · RESEARCH ONLY</strong> · {t.researchEstimate.surface.toUpperCase()} · {home.fullName||home.name}: {(t.researchEstimate.player1WinProb*100).toFixed(1)}% / {away.fullName||away.name}: {(t.researchEstimate.player2WinProb*100).toFixed(1)}% · Not an FBIS PURE projection or betting edge</section>:null}
     {t.researchFixture?<section className="tmc-fixture-note" aria-label="Tennis market and tournament context">
-      <strong>EVENT CONTEXT</strong> · {t.tournament||t.polymarketGlobalOffers?.[0]?.question?.split(":")[0]||"Official event not linked"} · {t.surface||"Surface unverified"} · {t.round||"Round unverified"}
+      <strong>TOURNAMENT CONTEXT</strong> · {t.tournament||t.polymarketGlobalOffers?.[0]?.question?.split(":")[0]||"Official event not linked"} · {t.surface||"Surface unverified"} · {t.round||"Round unverified"}
       {t.polymarketGlobalOffers?.length&&!t.tournament?<span> · Polymarket event label (research only)</span>:null}
     </section>:null}
     {t.researchFixture?<section className="tmc-fixture-note" aria-label="Independent Tennis exchange market research">
