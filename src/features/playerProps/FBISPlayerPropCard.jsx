@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "./playerProps.css";
 import { fetchPropResearch } from "./propResearchClient.js";
 import { verifiedLastFive } from "./verifiedHistory.js";
+import { resolveBasketballPropTeam } from "../../../functions/lib/basketballPropTeam.js";
 
 function finite(v) {
   if (v == null || v === "") return null;
@@ -293,7 +294,12 @@ export default function FBISPlayerPropCard({
   const delta = projection != null && line != null ? projection - line : null;
   const side = delta == null ? "WATCH" : delta > 0 ? "OVER" : delta < 0 ? "UNDER" : "WATCH";
   const tier = "research";
-  const theme = useTeamTheme(row.sport, row.team);
+  // Basketball logos are derived from canonical player-team identity, not an
+  // async fuzzy team-name endpoint. Missing/conflicting identity has no logo.
+  const basketballTeam = resolveBasketballPropTeam(row);
+  const isBasketball = basketballTeam.status !== "not_basketball";
+  const remoteTheme = useTeamTheme(isBasketball ? "" : row.sport, isBasketball ? "" : row.team);
+  const theme = isBasketball ? basketballTeam : remoteTheme;
   const primary = theme.primary || "#172b50";
   const secondary = theme.secondary || "#0a1428";
 
@@ -305,6 +311,9 @@ export default function FBISPlayerPropCard({
         (compact ? " pp-style-card-compact" : "")
       }
       data-pp-card="fbis"
+      data-team-watermark-status={isBasketball ? basketballTeam.status : (theme.logo ? "resolved" : "unresolved")}
+      data-team-watermark-team={isBasketball ? basketballTeam.teamAbbr : row.team}
+      data-team-watermark-id={isBasketball ? basketballTeam.canonicalId || "" : ""}
       style={{
         "--pp-team-primary": primary,
         "--pp-team-secondary": secondary,
