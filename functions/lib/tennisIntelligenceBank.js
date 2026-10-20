@@ -2,6 +2,8 @@ import { resolveTennisFixturePlayers } from "./tennisFixturePlayerLink.js";
 import { tennisCardContext, tennisKey } from "./tennisPlayerBank.js";
 import { approvedTennisPortraits } from "./tennisPortraits.js";
 import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
+import {readEspnFixtureResearchContext} from "./tennisEspnFixtureContext.js";
+import {atp2026TournamentSurface} from "./tennisAtp2026TournamentSurface.js";
 import {loadKalshiTennisResearch,matchKalshiTennisResearch} from "./tennisKalshiResearch.js";
 import {compareTennisExchangeResearch} from "./tennisExchangeCompare.js";
 import {loadPolymarketGlobalTennisSnapshot,matchPolymarketGlobalTennis} from "./tennisPolymarketGlobal.js";
@@ -81,7 +83,7 @@ export async function buildTennisIntelligenceBank(db, { limit = 50, now = new Da
   // source window for live/pregame continuity during collector interruptions.
   // Staleness is explicitly reported, never interpreted as live verification.
   const until = now.toISOString(), since = new Date(+now - 12 * 3600000).toISOString();
-  const q = await db.prepare(`SELECT fixture_id AS id,tour,player1_name AS away_name,
+  const q = await db.prepare(`SELECT fixture_id AS id,source_event_id,source_competition_id,tour,player1_name AS away_name,
     player2_name AS home_name,match_time AS start,status,source,fetched_at,raw_hash,raw_key
     FROM tennis_external_fixtures WHERE source='ESPN_PUBLIC' AND status IN ('SCHEDULED','IN_PROGRESS')
     AND julianday(fetched_at) BETWEEN julianday(?) AND julianday(?)
@@ -202,7 +204,11 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
   // ESPN rankings are independent display context, never fixture or projection proof.
   const rankingFeed = await loadTennisRankingDisplayCache();
   const games = [];
+  const espnSnapshotCache=new Map();
   for (const f of visibleFixtures) {
+    const espnEvidence=await readEspnFixtureResearchContext(archive,f,{cache:espnSnapshotCache});
+    const atpSurface=atp2026TournamentSurface(f,espnEvidence);
+    const verifiedSurface=f.officialDisplay?.surface||atpSurface?.surface||null;
     // Existing card player1 is home, independent fixture player1 is away.
     const [p1, p2] = f.players;
     const team = p => {
@@ -210,15 +216,15 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
       const ranking=rankingFeed.byName?.get(tennisKey(p.fixtureName));
       const externalRank=ranking?.tour===f.tour?ranking:null;
       return { name:p.fixtureName, fullName:p.fixtureName, abbr:p.fixtureName.split(" ").at(-1),
-        rank:p.rank??externalRank?.rank??null, rankingPoints:p.rankingPoints??externalRank?.points??null, country:p.country??externalRank?.country??null,
+        rank:p.rank??externalRank?.rank??null, rankingPoints:p.rankingPoints??externalRank?.points??null, country:p.country??externalRank?.country??espnEvidence?.countryByName?.[tennisKey(p.fixtureName)]??null,
         logo:url, headshotUrl:url, fbisPlayerId:p.fbisPlayerId??null,
         imageSource:approved?"RIGHTS_VERIFIED_TENNIS_PORTRAIT":p.headshotSource||null,
         portraitCredit:approved?.credit||null, portraitSourceUrl:approved?.sourceUrl||null,
         portraitLicenseUrl:approved?.licenseUrl||null };
     };
     const context = await tennisCardContext(db, { tour: f.tour, player1: p1.fixtureName,
-      player2: p2.fixtureName, surface: f.officialDisplay?.surface||null }).catch(() => null);
-    const researchEstimate=surfaceEloResearchEstimate(f.players,f.officialDisplay)||allSurfaceEloResearchEstimate(f.players);
+      player2: p2.fixtureName, surface: verifiedSurface }).catch(() => null);
+    const researchEstimate=surfaceEloResearchEstimate(f.players,verifiedSurface?{surface:verifiedSurface}:null)||allSurfaceEloResearchEstimate(f.players);
     const kalshiResearchOffers=matchKalshiTennisResearch(f,kalshi[f.tour]||[],now);
     const exchangeResearch={polymarket:[],kalshi:kalshiResearchOffers,comparisonStatus:"NOT_COMPARABLE"};
     const polymarketGlobalOffers=matchPolymarketGlobalTennis(f,polymarketGlobal.events||[],{now,asOf:polymarketGlobal.asOf||now.toISOString()});
@@ -233,7 +239,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
       !f.officialDisplay && "OFFICIAL_MATCH_CONTEXT",
       f.players.some(p=>!p.matched) && "PLAYER_IDENTITY",
       f.players.some(p=>p.rank==null && rankingFeed.byName?.get(tennisKey(p.fixtureName))?.rank==null) && "CURRENT_RANKING",
-      f.players.some(p=>!p.country && !rankingFeed.byName?.get(tennisKey(p.fixtureName))?.country) && "NATIONALITY",
+      f.players.some(p=>!p.country && !rankingFeed.byName?.get(tennisKey(p.fixtureName))?.country && !espnEvidence?.countryByName?.[tennisKey(p.fixtureName)]) && "NATIONALITY",
       f.players.some(p=>!p.headshotUrl && !portraitMap.get(p.fbisPlayerId)) && "HEADSHOT",
       !f.venueOffers.length && "MATCHED_MARKET_QUOTES",
       "INDEPENDENT_MODEL_PROJECTION"
@@ -245,13 +251,17 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
       quality: { state: "RESEARCH", flags: ["research_only", "independent_fixture", "projection_unavailable"] },
       market: { reference: { available: venueOffers.length > 0 }, venueOffers, executionActionable: false },
       tennisProjection: { researchFixture: { verified: true, source: f.source, fixtureId: f.id, officialDisplayEvidence: f.officialDisplay||null,
-        fetchedAt: f.fetched_at, fixtureFreshness:f.fixtureFreshness, rawHash: f.raw_hash, rawKey: f.raw_key, missingEvidence },
+        fetchedAt: f.fetched_at, fixtureFreshness:f.fixtureFreshness, rawHash: f.raw_hash, rawKey: f.raw_key, espnEventEvidence:espnEvidence,atpTournamentSurfaceEvidence:atpSurface, missingEvidence },
         eventIntegrity: { valid: false, reason: "OFFICIAL_PROJECTION_UNAVAILABLE" },
         blockedReason: f.officialDisplay ? "OFFICIAL_METADATA_MATCHED_DISPLAY_ONLY: projection/event authority remains unverified for this ESPN fixture" : "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
         researchEstimate, kalshiResearchOffers, polymarketGlobalOffers, exchangeResearch, polymarketGlobalStatus:polymarketGlobal.ok?(polymarketGlobal.partial?"PARTIAL_SNAPSHOT":"FRESH_SNAPSHOT"):polymarketGlobal.code, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
-        surface: f.officialDisplay?.surface||null, indoor:f.officialDisplay?.indoor??null,
-        tournament:f.officialDisplay?.tournament||null, round:f.officialDisplay?.round||null,
-        venue:f.officialDisplay?.venue||null, playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
+        surface:verifiedSurface,indoor:f.officialDisplay?.indoor??atpSurface?.indoor??null,
+        surfaceSource:f.officialDisplay?.surface?"ATP_WTA_OFFICIAL":atpSurface?.source||null,
+        tournament:f.officialDisplay?.tournament||espnEvidence?.tournament||null,
+        tournamentSource:f.officialDisplay?.tournament?"ATP_WTA_OFFICIAL":espnEvidence?.tournament?"ESPN_PUBLIC_RESEARCH":null,
+        venue:f.officialDisplay?.venue||espnEvidence?.venue||null, court:espnEvidence?.court||null,
+        round:f.officialDisplay?.round||espnEvidence?.round||null,
+        playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
     });
   }
   return { games, coverage: { fixtures: games.length, playerIdentityComplete: bank.playerIdentityComplete,

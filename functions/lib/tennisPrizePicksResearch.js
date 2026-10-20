@@ -26,7 +26,7 @@ const ESPN_NATION_ISO2=Object.freeze({
  EGY:"EG",MAR:"MA",TUN:"TN",THA:"TH",INA:"ID",IDN:"ID",PHI:"PH",PHL:"PH",
  CYP:"CY",LUX:"LU",MON:"MC",MNE:"ME",BIH:"BA",ALB:"AL",SRL:"LK",
 });
-function espnCountry(a){
+export function espnCountry(a){
  const code=String(a?.citizenshipCountry||a?.country?.abbreviation||a?.country?.code||a?.countryCode||a?.citizenship||"").toUpperCase().trim();
  if(/^[A-Z]{2}$/.test(code))return code;
  return ESPN_NATION_ISO2[code]||null;
