@@ -1,1 +1,1 @@
-trigger 2026-10-20T16:30:00Z — recurring NHL/NFL/CFB shadow delta sync with expanded prefix tables
+trigger 2026-10-20T18:10:00Z — expand shadow delta sync to all 11 sport D1s; PRIMARY remains authoritative

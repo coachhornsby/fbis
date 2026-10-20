@@ -31,7 +31,16 @@ import {
   copySportPrefixTables,
   syncSportWorkingDelta,
   sportMigrationScope,
+  isSportSyncEligible,
 } from "../lib/sportWorkingCopy.js";
+
+function requireSyncSport(sport) {
+  const key = String(sport || "").toLowerCase();
+  if (!isSportSyncEligible(key) || !SPORT_DATABASES[key]) {
+    return { ok: false, error: "SPORT_NOT_PROVISIONED_FOR_SHADOW_SYNC", sport: key, canAuthorizeWager: false };
+  }
+  return { ok: true, sport: key };
+}
 import {
   publishCrossSportBoardSummary,
   readCrossSportBoardSummary,
@@ -193,11 +202,9 @@ export async function onRequestPost({ env, request } = {}) {
     return json(await shadowCompareNhlSportDb(env));
   }
   if (operation === "sport-copy") {
-    const sport = String(body.sport || "").toLowerCase();
-    if (!["nfl", "cfb", "nhl"].includes(sport)) {
-      return json({ ok: false, error: "SPORT_COPY_LIMITED_TO_NFL_CFB_NHL", canAuthorizeWager: false }, 400);
-    }
-    return json(await copySportWorkingTables(env, sport, {
+    const gate = requireSyncSport(body.sport);
+    if (!gate.ok) return json(gate, 400);
+    return json(await copySportWorkingTables(env, gate.sport, {
       pageSize: Math.min(2000, Number(body.pageSize) || 1000),
       maxPages: Math.min(200, Number(body.maxPages) || 50),
       limitPerTable: body.limitPerTable != null
@@ -207,11 +214,9 @@ export async function onRequestPost({ env, request } = {}) {
     }));
   }
   if (operation === "sport-prefix-copy") {
-    const sport = String(body.sport || "").toLowerCase();
-    if (!["nfl", "cfb", "nhl"].includes(sport)) {
-      return json({ ok: false, error: "SPORT_PREFIX_COPY_LIMITED_TO_NFL_CFB_NHL", canAuthorizeWager: false }, 400);
-    }
-    return json(await copySportPrefixTables(env, sport, {
+    const gate = requireSyncSport(body.sport);
+    if (!gate.ok) return json(gate, 400);
+    return json(await copySportPrefixTables(env, gate.sport, {
       pageSize: Math.min(500, Number(body.pageSize) || 200),
       maxPages: Math.min(100, Number(body.maxPages) || 25),
       resume: body.resume !== false,
@@ -219,11 +224,9 @@ export async function onRequestPost({ env, request } = {}) {
     }));
   }
   if (operation === "sport-delta-sync") {
-    const sport = String(body.sport || "").toLowerCase();
-    if (!["nfl", "cfb", "nhl"].includes(sport)) {
-      return json({ ok: false, error: "SPORT_DELTA_SYNC_LIMITED_TO_NFL_CFB_NHL", canAuthorizeWager: false }, 400);
-    }
-    return json(await syncSportWorkingDelta(env, sport, {
+    const gate = requireSyncSport(body.sport);
+    if (!gate.ok) return json(gate, 400);
+    return json(await syncSportWorkingDelta(env, gate.sport, {
       rounds: Math.min(20, Number(body.rounds) || 5),
       pageSize: Math.min(2000, Number(body.pageSize) || 1000),
       maxPages: Math.min(200, Number(body.maxPages) || 50),
@@ -232,30 +235,28 @@ export async function onRequestPost({ env, request } = {}) {
   }
   if (operation === "sport-migration-scope") {
     const sport = String(body.sport || "").toLowerCase();
-    return json({ ...sportMigrationScope(sport), plan: SPORT_DATABASES[sport] || null });
+    return json({
+      ...sportMigrationScope(sport),
+      plan: SPORT_DATABASES[sport] || null,
+      allSyncSports: Object.keys(SPORT_DATABASES),
+    });
   }
   if (operation === "sport-parity") {
-    const sport = String(body.sport || "").toLowerCase();
-    if (!["nfl", "cfb", "nhl"].includes(sport)) {
-      return json({ ok: false, error: "SPORT_PARITY_LIMITED_TO_NFL_CFB_NHL", canAuthorizeWager: false }, 400);
-    }
-    return json(await verifySportWorkingParity(env, sport));
+    const gate = requireSyncSport(body.sport);
+    if (!gate.ok) return json(gate, 400);
+    return json(await verifySportWorkingParity(env, gate.sport));
   }
   if (operation === "sport-projection-reconcile") {
-    const sport = String(body.sport || "").toLowerCase();
-    if (!["nfl", "cfb", "nhl"].includes(sport)) {
-      return json({ ok: false, error: "SPORT_RECONCILE_LIMITED_TO_NFL_CFB_NHL", canAuthorizeWager: false }, 400);
-    }
-    return json(await reconcileSportProjections(env, sport, {
+    const gate = requireSyncSport(body.sport);
+    if (!gate.ok) return json(gate, 400);
+    return json(await reconcileSportProjections(env, gate.sport, {
       sampleSize: Math.min(200, Number(body.sampleSize) || 40),
     }));
   }
   if (operation === "sport-evidence-backfill") {
-    const sport = String(body.sport || "").toLowerCase();
-    if (!["nfl", "cfb", "nhl"].includes(sport)) {
-      return json({ ok: false, error: "EVIDENCE_BACKFILL_LIMITED_TO_NFL_CFB_NHL", canAuthorizeWager: false }, 400);
-    }
-    return json(await backfillSportEvidenceEnvelopes(env, sport, {
+    const gate = requireSyncSport(body.sport);
+    if (!gate.ok) return json(gate, 400);
+    return json(await backfillSportEvidenceEnvelopes(env, gate.sport, {
       pageSize: Math.min(500, Number(body.pageSize) || 200),
       maxPages: Math.min(500, Number(body.maxPages) || 100),
       resume: body.resume !== false,
