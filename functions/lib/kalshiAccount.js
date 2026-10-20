@@ -19,6 +19,7 @@ export const KALSHI_PRIVATE_CHANNELS = Object.freeze(["fill", "market_positions"
 export const KALSHI_DIAGNOSTIC_PATHS = Object.freeze({
   markets: "/trade-api/v2/markets",
   status: "/trade-api/v2/exchange/status",
+  series: "/trade-api/v2/series",
 });
 
 /**
