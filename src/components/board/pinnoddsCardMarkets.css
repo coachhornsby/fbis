@@ -139,7 +139,7 @@
   background:transparent!important;border:0!important;box-shadow:none!important;border-radius:inherit!important;opacity:.34;transform:none!important
 }
 .fbis-priced-tile-mark .team-logo,.fbis-priced-tile-mark img{
-  position:absolute!important;left:50%!important;top:42%!important;right:auto!important;bottom:auto!important;inset:auto!important;
+  position:absolute!important;left:50%!important;top:42%!important;right:auto!important;bottom:auto!important;
   width:170%!important;height:170%!important;max-width:none!important;max-height:none!important;min-width:170%!important;min-height:170%!important;
   object-fit:cover!important;object-position:center center!important;border-radius:0!important;opacity:1;
   filter:saturate(1.08) contrast(1.1);display:block!important;margin:0!important;
