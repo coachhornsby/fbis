@@ -214,7 +214,7 @@ export default function MyBetsView({
           <div className="bets-filter-heading"><div><h3>Wager history</h3><span>{shown.length} matching tickets</span></div><label className="bets-search"><span>Search tickets</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Team, player, sportsbook or ticket ID"/></label></div>
           <div className="filter-row bets-sport-filters" style={{ marginTop: 10 }}>
             <button className={sport === "all" ? "chip active" : "chip"} onClick={() => setSport("all")}>All sports</button>
-            {["mlb", "nfl", "cfb", "nba", "cbb"].map((id) => (
+            {[...new Set(bets.map((b) => String(b.sport || "").toLowerCase()).filter(Boolean))].sort().map((id) => (
               <button key={id} className={sport === id ? "chip active" : "chip"} onClick={() => setSport(id)}>{id.toUpperCase()}</button>
             ))}
           </div>
