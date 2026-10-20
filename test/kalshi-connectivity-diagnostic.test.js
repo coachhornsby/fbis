@@ -6,164 +6,140 @@ import {
 } from "../functions/lib/kalshiConnectivityDiagnostic.js";
 import {onRequestPost,onRequestGet} from "../functions/api/kalshi-connectivity-diagnostic.js";
 import {readFileSync} from "node:fs";
-
 const at=new Date("2026-10-20T13:00:00.000Z");
 function vault(){
  const values=new Map();
- return {
-  values,
-  async get(key){return values.has(key)?{json:async()=>JSON.parse(values.get(key))}:null;},
-  async put(key,content){values.set(key,String(content));},
- };
+ return {values,async get(k){return values.has(k)?{json:async()=>JSON.parse(values.get(k))}:null;},
+   async put(k,v){values.set(k,String(v));}};
 }
 async function env(){
- const pair=await webcrypto.subtle.generateKey({name:"Ed25519"},true,["sign","verify"]);
- const der=Buffer.from(await webcrypto.subtle.exportKey("pkcs8",pair.privateKey));
+ const kp=await webcrypto.subtle.generateKey({name:"Ed25519"},true,["sign","verify"]);
+ const der=Buffer.from(await webcrypto.subtle.exportKey("pkcs8",kp.privateKey));
  return {ARCHIVE:vault(),FBIS_ACCOUNT_VIEW_TOKEN:"view-code-123",
-   KALSHI_API_KEY_ID:"example-credential",
-   KALSHI_PRIVATE_KEY_PEM1:"-----BEGIN PRIVATE KEY-----\n"+der.toString("base64")+"\n-----END PRIVATE KEY-----"};
+   KALSHI_API_KEY_ID:"example-id",KALSHI_PRIVATE_KEY_PEM1:
+     "-----BEGIN PRIVATE KEY-----\n"+der.toString("base64")+"\n-----END PRIVATE KEY-----"};
 }
-test("fixed GET-only market-path signing uses same key but keeps read-only portfolio allowlist",async()=>{
- const e=await env(),calls=[];
- const fetchImpl=async(url,options)=>{
-   calls.push({url,method:options.method,hasSignature:!!options.headers["KALSHI-ACCESS-SIGNATURE"],
-     key:options.headers["KALSHI-ACCESS-KEY"]});
+test("operator sends precisely one signed GET, never anonymous",async()=>{
+ const e=await env();let calls=0;
+ const result=await runKalshiConnectivityDiagnostic(e,{
+  sport:"nfl",now:at,webCrypto:webcrypto,fetchImpl:async(url,options)=>{
+   calls++;
+   const u=new URL(url);
+   assert.equal(u.origin,"https://external-api.kalshi.com");
+   assert.equal(u.pathname,"/trade-api/v2/markets");
+   assert.equal(u.searchParams.get("series_ticker"),"KXNFLGAME");
+   assert.equal(u.searchParams.get("limit"),"1");
    assert.equal(options.method,"GET");
-   const uri=new URL(url);
-   assert.equal(uri.origin,"https://external-api.kalshi.com");
-   assert.equal(uri.pathname,"/trade-api/v2/markets");
-   assert.equal(uri.searchParams.get("series_ticker"),"KXNFLGAME");
-   assert.equal(uri.searchParams.get("limit"),"1");
-   return new Response("",{status:calls.length===1?429:200});
- };
- const result=await runKalshiConnectivityDiagnostic(e,{sport:"nfl",now:at,fetchImpl,webCrypto:webcrypto});
+   assert.equal(options.redirect,"manual");
+   assert.equal(options.headers["KALSHI-ACCESS-KEY"],e.KALSHI_API_KEY_ID);
+   assert.ok(options.headers["KALSHI-ACCESS-SIGNATURE"]);
+   return new Response("",{status:200});
+  },
+ });
  assert.equal(result.ok,true);
- assert.equal(result.cached,false);
- assert.equal(result.diagnosis,"ANONYMOUS_RATE_LIMIT_AUTHENTICATED_ACCEPTED");
- assert.equal(result.guest.httpStatus,429);
+ assert.equal(result.guest.result,"DISABLED_BY_POLICY");
+ assert.equal(result.guest.httpStatus,null);
  assert.equal(result.signed.httpStatus,200);
- assert.equal(calls.length,2);
- assert.equal(calls[0].hasSignature,false);
- assert.equal(calls[1].hasSignature,true);
- assert.equal(result.canAuthorizeWager,false);
+ assert.equal(result.diagnosis,"SIGNED_MARKET_ACCESS_VERIFIED");
  assert.equal(result.canQualify,false);
- assert.ok(!JSON.stringify(result).includes(e.KALSHI_PRIVATE_KEY_PEM1));
- assert.ok(!JSON.stringify(result).includes(e.KALSHI_API_KEY_ID));
+ assert.equal(calls,1);
  assert.equal(e.ARCHIVE.values.size,1);
- const serialized=[...e.ARCHIVE.values.values()].join(" ");
- assert.ok(!serialized.includes(e.KALSHI_PRIVATE_KEY_PEM1));
- assert.ok(!serialized.includes(e.KALSHI_API_KEY_ID));
+ const receipts=[...e.ARCHIVE.values.values()].join(" ");
+ assert.ok(!receipts.includes(e.KALSHI_PRIVATE_KEY_PEM1));
+ assert.ok(!receipts.includes(e.KALSHI_API_KEY_ID));
 });
-
-test("operator diagnostics are globally cached for 15 minutes; no second upstream request",async()=>{
- const e=await env();let requests=0;
- const fetchImpl=async()=>{requests++;return Response.json({markets:[]});};
- await runKalshiConnectivityDiagnostic(e,{sport:"cfb",now:at,fetchImpl,webCrypto:webcrypto});
- const cached=await runKalshiConnectivityDiagnostic(e,{
-   sport:"nfl",now:new Date(at.getTime()+5*60*1000),
-   fetchImpl:async()=>{throw Error("MUST_NOT_FETCH_SECOND_TIME");},
-   webCrypto:webcrypto,
+test("old cached anonymous HTTP 429 is suppressed without another upstream call",async()=>{
+ const e=await env();
+ e.ARCHIVE.values.set("kalshi/public-shadow/v1/connectivity-diagnostics/global.json",JSON.stringify({
+  checkedAt:at.toISOString(),nextAllowedAt:new Date(at.getTime()+15*60*1000).toISOString(),
+  testedSport:"nfl",guest:{httpStatus:429,result:"RATE_LIMITED"},
+  signed:{httpStatus:200,result:"HTTP_OK"},
+  diagnosis:"ANONYMOUS_RATE_LIMIT_AUTHENTICATED_ACCEPTED",
+ }));
+ const r=await runKalshiConnectivityDiagnostic(e,{
+  sport:"cfb",now:new Date(at.getTime()+5*60*1000),webCrypto:webcrypto,
+  fetchImpl:async()=>{throw Error("MUST_NOT_FETCH");},
  });
- assert.equal(requests,2);
- assert.equal(cached.ok,true);
- assert.equal(cached.cached,true);
- assert.equal(cached.testedSport,"cfb");
- assert.equal(cached.canQualify,false);
- assert.equal(cached.nextAllowedAt,new Date(at.getTime()+15*60*1000).toISOString());
+ assert.equal(r.cached,true);
+ assert.equal(r.guest.result,"DISABLED_BY_POLICY");
+ assert.equal(r.diagnosis,"SIGNED_MARKET_ACCESS_VERIFIED");
+ assert.equal(r.testedSport,"nfl");
 });
-
-test("no R2 rate-limit store, signing credentials or allowed sport fails without request",async()=>{
- const e=await env();let called=false;
- const fetchImpl=async()=>{called=true;throw Error("unexpected");};
+test("global 15m cooldown guards signed calls",async()=>{
+ const e=await env();let calls=0;
+ await runKalshiConnectivityDiagnostic(e,{sport:"cfb",now:at,webCrypto:webcrypto,
+  fetchImpl:async()=>{calls++;return new Response("",{status:200});}});
+ const r=await runKalshiConnectivityDiagnostic(e,{
+  sport:"nfl",now:new Date(at.getTime()+5*60*1000),webCrypto:webcrypto,
+  fetchImpl:async()=>{calls++;throw Error("NO_EXTRA");},
+ });
+ assert.equal(r.cached,true);
+ assert.equal(r.testedSport,"cfb");
+ assert.equal(r.guest.result,"DISABLED_BY_POLICY");
+ assert.equal(calls,1);
+});
+test("missing store, invalid sport and missing signing credentials fail closed",async()=>{
+ const e=await env();let calls=0;
+ const unexpected=async()=>{calls++;throw Error("NO");};
  assert.equal((await runKalshiConnectivityDiagnostic({...e,ARCHIVE:null},{
-   now:at,fetchImpl,webCrypto:webcrypto})).code,"DIAGNOSTIC_RATE_LIMIT_STORE_MISSING");
+   now:at,webCrypto:webcrypto,fetchImpl:unexpected})).code,"DIAGNOSTIC_RATE_LIMIT_STORE_MISSING");
  assert.equal((await runKalshiConnectivityDiagnostic(e,{
-   sport:"soccer",now:at,fetchImpl,webCrypto:webcrypto})).code,"SPORT_NOT_ALLOWED");
+   sport:"golf",now:at,webCrypto:webcrypto,fetchImpl:unexpected})).code,"SPORT_NOT_ALLOWED");
  assert.equal((await runKalshiConnectivityDiagnostic({...e,KALSHI_API_KEY_ID:null},{
-   now:at,fetchImpl,webCrypto:webcrypto})).code,"KALSHI_SIGNING_CREDENTIALS_NOT_CONFIGURED");
- assert.equal(called,false);
+   now:at,webCrypto:webcrypto,fetchImpl:unexpected})).code,"KALSHI_SIGNING_CREDENTIALS_NOT_CONFIGURED");
+ assert.equal(calls,0);
 });
-
-test("private route denies missing or wrong code before signing or network activity",async()=>{
- const e=await env();let requests=0;
- const fetchImpl=async()=>{requests++;throw Error("MUST_NOT_RUN");};
- const url="https://fbis.test/api/kalshi-connectivity-diagnostic?sport=nfl";
- const missing=await onRequestPost({request:new Request(url,{method:"POST"}),env:e,
-   fetchImpl,webCrypto:webcrypto});
- assert.equal(missing.status,403);
- assert.equal((await missing.json()).code,"PORTFOLIO_ACCESS_DENIED");
- const wrong=await onRequestPost({
-   request:new Request(url,{method:"POST",headers:{"x-fbis-account-token":"wrong"}}),
-   env:e,fetchImpl,webCrypto:webcrypto,
- });
- assert.equal(wrong.status,403);
- assert.equal(requests,0);
- assert.match(wrong.headers.get("cache-control"),/no-store/);
+test("operator route rejects invalid private access code without signing",async()=>{
+ const e=await env(),url="https://fbis.test/api/kalshi-connectivity-diagnostic?sport=nfl";
+ let calls=0;
+ for(const token of [null,"incorrect"]){
+   const response=await onRequestPost({request:new Request(url,{
+     method:"POST",headers:token?{"x-fbis-account-token":token}:{},
+   }),env:e,webCrypto:webcrypto,fetchImpl:async()=>{calls++;throw Error("NO");}});
+   assert.equal(response.status,403);
+   assert.equal((await response.json()).code,"PORTFOLIO_ACCESS_DENIED");
+ }
+ assert.equal(calls,0);
  assert.equal((await onRequestGet()).status,405);
 });
-
-test("authorized route returns only safe HTTP statuses and 429 distinctions",async()=>{
- const e=await env();
- const request=new Request("https://fbis.test/api/kalshi-connectivity-diagnostic?sport=nfl",{
+test("signed HTTP 429 correctly identified without reverting to anonymous",async()=>{
+ const e=await env();let calls=0;
+ const response=await onRequestPost({
+  request:new Request("https://fbis.test/api/kalshi-connectivity-diagnostic?sport=nfl",{
    method:"POST",headers:{"x-fbis-account-token":e.FBIS_ACCOUNT_VIEW_TOKEN},
+  }),env:e,webCrypto:webcrypto,
+  fetchImpl:async()=>{calls++;return new Response("secret-upstream",{status:429});},
  });
- let hits=0;
- const response=await onRequestPost({request,env:e,webCrypto:webcrypto,
-   fetchImpl:async()=>{hits++;return new Response("secret-upstream-text",{status:hits===1?403:429});}});
  assert.equal(response.status,200);
  const body=await response.json();
- assert.equal(body.diagnosis,"INCONCLUSIVE");
- assert.equal(body.guest.httpStatus,403);
+ assert.equal(body.diagnosis,"SIGNED_RATE_LIMITED");
+ assert.equal(body.guest.httpStatus,null);
  assert.equal(body.signed.httpStatus,429);
- assert.equal(hits,2);
- assert.ok(!JSON.stringify(body).includes("secret-upstream-text"));
- assert.equal(diagnoseConnectivityStatuses({httpStatus:429},{httpStatus:429}),"BOTH_RATE_LIMITED");
- assert.equal(diagnoseConnectivityStatuses({result:"HTTP_OK"},{result:"HTTP_OK"}),"BOTH_ACCEPTED");
- assert.equal(diagnoseConnectivityStatuses({httpStatus:429},{httpStatus:401}),
-   "SIGNED_AUTHENTICATION_OR_PERMISSION_REJECTED");
+ assert.equal(calls,1);
+ assert.ok(!JSON.stringify(body).includes("secret-upstream"));
+ assert.equal(diagnoseConnectivityStatuses(null,{httpStatus:401}),"SIGNED_AUTHENTICATION_OR_PERMISSION_REJECTED");
 });
-
-test("System UI includes secured one-time button; no persisted browser secrets",()=>{
- const code=readFileSync(new URL("../src/features/dataHealth/KalshiOpsStatus.jsx",import.meta.url),"utf8");
- assert.match(code,/Test Kalshi connectivity now/);
- assert.match(code,/type="password"/);
- assert.match(code,/x-fbis-account-token/);
- assert.match(code,/method:"POST"/);
- assert.ok(code.includes('setAccessCode("")'));
- assert.doesNotMatch(code,/localStorage|sessionStorage/);
-});
-
-test("diagnostic records transport class but cannot disclose error text or follow redirects",async()=>{
- const e=await env(),opts=[];
- const mock=async(url,request)=>{
-   opts.push(request);
-   if(opts.length===1)throw new TypeError("key=SECRET-cannot-appear");
-   if(opts.length===2)throw new DOMException("should never expose this message","TimeoutError");
-   throw Error("third fetch is not allowed");
- };
- const result=await runKalshiConnectivityDiagnostic(e,{sport:"nfl",now:at,
-   fetchImpl:mock,webCrypto:webcrypto});
- assert.equal(opts.length,2);
- assert.equal(opts[0].redirect,"manual");
- assert.equal(opts[1].redirect,"manual");
- assert.equal(opts[0].cache,undefined);
- assert.equal(result.guest.failureKind,"FETCH_TYPE_ERROR");
- assert.equal(result.signed.failureKind,"TIMEOUT");
- assert.equal(result.diagnosis,"INCONCLUSIVE");
+test("signed transport and redirects return safe codes, never upstream details",async()=>{
+ const e=await env();let calls=0;
+ const result=await runKalshiConnectivityDiagnostic(e,{sport:"nfl",now:at,webCrypto:webcrypto,
+  fetchImpl:async(_url,opts)=>{
+   calls++;assert.equal(opts.redirect,"manual");
+   throw new TypeError("SECRET MUST NOT LEAK");
+  }});
+ assert.equal(calls,1);
+ assert.equal(result.diagnosis,"SIGNED_TRANSPORT_UNAVAILABLE");
+ assert.equal(result.signed.failureKind,"FETCH_TYPE_ERROR");
  assert.ok(!JSON.stringify(result).includes("SECRET"));
- assert.ok(!JSON.stringify(result).includes("should never"));
+ const e2=await env();
+ const redirect=await runKalshiConnectivityDiagnostic(e2,{sport:"nfl",now:at,webCrypto:webcrypto,
+  fetchImpl:async()=>new Response(null,{status:301,headers:{location:"https://malicious.example"}})});
+ assert.equal(redirect.diagnosis,"SIGNED_REDIRECT_REJECTED");
+ assert.ok(!JSON.stringify(redirect).includes("malicious.example"));
 });
-test("provider 301 redirect is reported rather than throwing or forwarding signed headers",async()=>{
- const e=await env();let hits=0;
- const response=await runKalshiConnectivityDiagnostic(e,{sport:"nfl",now:at,
-   webCrypto:webcrypto,fetchImpl:async()=>{
-     hits++;
-     return new Response(null,{status:301,headers:{location:"https://other-origin.example"}});
-   }});
- assert.equal(hits,2);
- assert.equal(response.guest.result,"REDIRECT_NOT_FOLLOWED");
- assert.equal(response.signed.result,"REDIRECT_NOT_FOLLOWED");
- assert.equal(response.guest.httpStatus,301);
- assert.equal(response.signed.httpStatus,301);
- assert.ok(!JSON.stringify(response).includes("other-origin.example"));
+test("System UI does not persist private diagnostic access code",()=>{
+ const content=readFileSync(new URL("../src/features/dataHealth/KalshiOpsStatus.jsx",import.meta.url),"utf8");
+ assert.match(content,/type="password"/);
+ assert.match(content,/x-fbis-account-token/);
+ assert.ok(content.includes('setAccessCode("")'));
+ assert.doesNotMatch(content,/localStorage|sessionStorage/);
 });

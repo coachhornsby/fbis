@@ -109,8 +109,8 @@ export default function KalshiOpsStatus(){
         {result.collector?.blockedUntil&&<p className="kalshi-ops-alert" role="status">Kalshi rate-limit / source cooldown until {when(result.collector.blockedUntil)}. No automatic retries from website visitors.</p>}
         <section className="kalshi-ops-diagnostic" aria-label="Operator-only Kalshi connectivity check">
           <div>
-            <strong>Test Kalshi connectivity now</strong>
-            <p>One controlled comparison of anonymous versus signed market GET requests. Uses your existing FBIS portfolio access code and the configured Kalshi API key. This does not place an order, bypass provider limits, or make research prices executable.</p>
+            <strong>Check signed Kalshi access</strong>
+            <p>One signed, read-only market request using the working Kalshi API credentials. Anonymous requests are intentionally disabled after producing repeat HTTP 429s. This does not place an order, bypass provider limits, or make research prices executable.</p>
           </div>
           <form onSubmit={checkNow} className="kalshi-ops-diagnostic-form">
             <label>Sport <select value={diagnosticSport} disabled={checking} onChange={e=>setDiagnosticSport(e.target.value)}>
@@ -125,12 +125,12 @@ export default function KalshiOpsStatus(){
           {probe&&<div className="kalshi-ops-probe" role="status">
             <div><strong>{probe.cached?"Previous diagnostic result":"New diagnostic result"}</strong>
               <span>{probe.testedSport?.toUpperCase()} · {when(probe.checkedAt)}</span></div>
-            <div><strong>Anonymous market GET</strong><span>{probe.guest?.result||"Not completed"} · HTTP {probe.guest?.httpStatus??"—"}{probe.guest?.failureKind?" · "+probe.guest.failureKind.replaceAll("_"," "):""}</span></div>
+            <div><strong>Anonymous GET</strong><span>Disabled — signed-only collection</span></div>
             <div><strong>Signed market GET</strong><span>{probe.signed?.result||"Not completed"} · HTTP {probe.signed?.httpStatus??"—"}{probe.signed?.failureKind?" · "+probe.signed.failureKind.replaceAll("_"," "):""}</span></div>
             <p>Diagnosis: {String(probe.diagnosis||"INCONCLUSIVE").replaceAll("_"," ").toLowerCase()}.
-              {probe.diagnosis==="ANONYMOUS_RATE_LIMIT_AUTHENTICATED_ACCEPTED"
-                ?" Signed market access works, and the scheduled collector is already configured for signed collection. The anonymous 429 is expected and does not block signed NFL/CFB snapshots."
-                :" This comparison does not authorize trading or prove quote freshness."}
+              {probe.diagnosis==="SIGNED_MARKET_ACCESS_VERIFIED"
+                ?" Signed market access works. The scheduled collector is already configured to use signed reads. This does not establish completeness or executable pricing."
+                :" This signed check does not authorize trading or prove quote freshness."}
             </p>
             <small>Next eligible test: {when(probe.nextAllowedAt)}</small>
           </div>}
