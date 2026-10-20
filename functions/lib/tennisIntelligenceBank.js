@@ -188,6 +188,25 @@ export function allSurfaceEloResearchEstimate(players) {
   canQualify:false,canAuthorizeWager:false,marketInformed:false};
 }
 
+/** Research-only low-information prior. Used ONLY if surface/history Elo is
+ * insufficient for either player. Ranking is real source evidence, but this is
+ * not a calibrated model and cannot be used for odds gaps, bets or EV.
+ */
+export function rankPriorTennisResearchEstimate(players) {
+ if(!Array.isArray(players)||players.length!==2)return null;
+ const ranks=players.map(p=>Number(p?.rank));
+ if(ranks.some(r=>!Number.isInteger(r)||r<1||r>3000))return null;
+ // Derive a weak, symmetric ranking prior, shrunk aggressively toward .50.
+ const rating=r=>Math.max(1350,Math.min(2100,2050-125*Math.log(r)));
+ const a=rating(ranks[0]),b=rating(ranks[1]);
+ const raw=1/(1+Math.pow(10,(b-a)/400));
+ const first=Math.round((.5+(raw-.5)*.5)*1000)/1000;
+ return {player1WinProb:first,player2WinProb:Math.round((1-first)*1000)/1000,
+  source:"RANK_PRIOR_RESEARCH_ONLY",surface:null,ranks,confidence:"VERY_LOW",
+  uncertainty:"RANKINGS_ONLY; NO_VALIDATED_SURFACE_OR_FORM_MODEL",
+  observations:[],canQualify:false,canAuthorizeWager:false,marketInformed:false};
+}
+
 export async function buildIndependentTennisCards(db, date, { now = new Date(), archive = null } = {}) {
   const bank = await buildTennisIntelligenceBank(db, { now, limit: 100 });
   const kalshi=await loadKalshiTennisResearch({ARCHIVE:archive},now);
@@ -224,7 +243,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
     };
     const context = await tennisCardContext(db, { tour: f.tour, player1: p1.fixtureName,
       player2: p2.fixtureName, surface: verifiedSurface }).catch(() => null);
-    const researchEstimate=surfaceEloResearchEstimate(f.players,verifiedSurface?{surface:verifiedSurface}:null)||allSurfaceEloResearchEstimate(f.players);
+    const researchEstimate=surfaceEloResearchEstimate(f.players,verifiedSurface?{surface:verifiedSurface}:null)||allSurfaceEloResearchEstimate(f.players)||rankPriorTennisResearchEstimate(f.players);
     const kalshiResearchOffers=matchKalshiTennisResearch(f,kalshi[f.tour]||[],now);
     const exchangeResearch={polymarket:[],kalshi:kalshiResearchOffers,comparisonStatus:"NOT_COMPARABLE"};
     const polymarketGlobalOffers=matchPolymarketGlobalTennis(f,polymarketGlobal.events||[],{now,asOf:polymarketGlobal.asOf||now.toISOString()});
