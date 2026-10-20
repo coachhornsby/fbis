@@ -15,6 +15,7 @@ export async function onRequestGet({request,env}) {
  const params=new URL(request.url).searchParams,tour=String(params.get("tour")||"").toLowerCase();
  if(tour&&!isTour(tour))return json({ok:false,error:"INVALID_TOUR"},400);
  const limit=Math.max(0,Math.min(100,Math.floor(Number(params.get("limit")||0)||0)));
+ const includeExternal=params.get("includeExternal")==="1";
  try{
   const where=tour?"WHERE p.tour=?":"";
   const query=`SELECT p.tour AS tour,COUNT(*) AS players,
@@ -29,9 +30,10 @@ export async function onRequestGet({request,env}) {
   if(limit){
    const filter=tour?"AND p.tour=?":"";
    const sql=`SELECT p.fbis_player_id AS playerId,p.tour,p.canonical_name AS name,
-     p.current_rank AS rank,p.active_state AS activeState
+     p.current_rank AS rank,p.active_state AS activeState,
+     CASE WHEN ${linked} THEN 'EXTERNAL_ONLY' ELSE 'MISSING' END AS imageStatus
      FROM tennis_players p LEFT JOIN tennis_player_portraits a ON a.fbis_player_id=p.fbis_player_id
-     WHERE COALESCE((${approved}),0)=0 AND COALESCE((${linked}),0)=0 ${filter}
+     WHERE COALESCE((${approved}),0)=0 ${${includeExternal?"":`AND COALESCE((${linked}),0)=0`} } ${filter}
      ORDER BY CASE WHEN p.active_state='RANKED_ACTIVE' THEN 0 ELSE 1 END,
        CASE WHEN p.current_rank IS NULL THEN 1 ELSE 0 END,p.current_rank,p.canonical_name LIMIT ?`;
    missing=(await env.DB.prepare(sql).bind(...(tour?[tour]:[]),limit).all()).results||[];
@@ -41,6 +43,6 @@ export async function onRequestGet({request,env}) {
       archivedApproved:a.archivedApproved+Number(x.archived_approved||0),
       linkedExternal:a.linkedExternal+Number(x.linked_external||0),
       missing:a.missing+Number(x.missing||0)}),{players:0,archivedApproved:0,linkedExternal:0,missing:0}),
-    missingPlayers:missing,policy:{archivedApproved:"rights-reviewed R2 image bytes",linkedExternal:"saved URL only; not an archived asset",missing:"no usable saved image"}});
+    missingPlayers:missing,includeExternal,policy:{archivedApproved:"rights-reviewed R2 image bytes",linkedExternal:"saved URL only; not an archived asset",missing:"no usable saved image"}});
  }catch{return json({ok:false,error:"PORTRAIT_COVERAGE_UNAVAILABLE"},503)}
 }
