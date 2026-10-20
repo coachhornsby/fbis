@@ -30,7 +30,7 @@ export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}
   if(typeof env?.FBIS_KALSHI_RELAY_TOKEN!=="string"
     ||env.FBIS_KALSHI_RELAY_TOKEN.length<40)
     return {ok:false,code:"SIGNED_RELAY_SECRET_MISSING"};
-  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs"&&scope!=="combo-tape")
+  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs"&&scope!=="combo-tape"&&scope!=="nhl-official-prop-results")
     return {ok:false,code:"SIGNED_RELAY_SCOPE_NOT_ALLOWED"};
   if(scope==="markets"&&!SPORTS.includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
@@ -136,6 +136,20 @@ export async function collectKalshiEvidenceOnce(env,{now=new Date(),fetchImpl=fe
  }
  return result;
 }
+/** Collect NHL official results only from independently certified R2 scopes. */
+export async function collectNhlOfficialResultsOnce(env,{now=new Date(),fetchImpl=fetch}={}){
+ if(!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
+ let manifest;
+ try {const obj=await env.ARCHIVE.get("player-props/official/v1/nhl-scopes.json");manifest=obj?await obj.json():null;}
+ catch{return {ok:false,code:"OFFICIAL_SCOPE_READ_FAILED"};}
+ if(manifest?.version!==1||manifest.certified!==true||!Array.isArray(manifest.scopes)||!manifest.scopes.length)
+  return {ok:true,status:"NOT_CONFIGURED"};
+ let receipt;
+ try {const obj=await env.ARCHIVE.get("player-props/official/v1/nhl-last-receipt.json");receipt=obj?await obj.json():null;}
+ catch{return {ok:false,code:"OFFICIAL_RECEIPT_READ_FAILED"};}
+ if(ms(receipt?.checkedAt)>now.getTime()-60*60*1000)return {ok:true,status:"NOT_DUE"};
+ return relaySignedPages(env,{scope:"nhl-official-prop-results",fetchImpl});
+}
 export default {
   async scheduled(event,env,ctx){
     // Spread auxiliary provider reads across scheduled windows. Concurrent
@@ -147,6 +161,7 @@ export default {
     ctx.waitUntil(Promise.all([
       collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),
       collectKalshiExchangeStatusOnce(env),collectKalshiSeriesCatalogOnce(env),
+      collectNhlOfficialResultsOnce(env,{now}),
       aux==="qualification-evidence"?collectKalshiEvidenceOnce(env):
         relaySignedPages(env,{scope:aux}),
     ]));
