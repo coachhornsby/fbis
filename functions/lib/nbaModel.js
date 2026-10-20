@@ -143,8 +143,17 @@ export function calibrateNbaProjection(raw, fit = {}) {
   const ms = finite(marginCfg.slope) ?? 1;
   const ti = finite(totalCfg.intercept) ?? 0;
   const ts = finite(totalCfg.slope) ?? 1;
-  const margin = mi + ms * Number(raw.margin);
-  const total = ti + ts * Number(raw.total);
+  // projectNbaGame already applies NBA_CALIBRATION and retains its
+  // pre-calibration rawMargin/rawTotal. Fit must be applied to those RAW
+  // features, not to already calibrated predictions (double calibration).
+  // When no external fit coefficients are supplied, preserve the existing
+  // calibrated input rather than reverting to an uncalibrated estimate.
+  const hasMarginFit = finite(marginCfg.intercept) != null || finite(marginCfg.slope) != null;
+  const hasTotalFit = finite(totalCfg.intercept) != null || finite(totalCfg.slope) != null;
+  const marginInput = hasMarginFit ? (finite(raw.rawMargin) ?? Number(raw.margin)) : Number(raw.margin);
+  const totalInput = hasTotalFit ? (finite(raw.rawTotal) ?? Number(raw.total)) : Number(raw.total);
+  const margin = mi + ms * marginInput;
+  const total = ti + ts * totalInput;
   const home = (total + margin) / 2;
   const away = (total - margin) / 2;
   const sigmaMargin = finite(marginCfg.sigma) ?? raw.sigmaMargin;
@@ -163,6 +172,7 @@ export function calibrateNbaProjection(raw, fit = {}) {
       source: fit?.id || fit?.modelId || "NBA-FBIS-v1-fit",
       trainingCutoff: fit?.trainingCutoff || null,
       marketUsed: false,
+      inputKind: (hasMarginFit || hasTotalFit) && (finite(raw.rawMargin) != null || finite(raw.rawTotal) != null) ? "raw_pregame_features" : "existing_projection",
     },
   };
 }

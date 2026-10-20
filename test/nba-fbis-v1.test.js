@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { projectNbaGame, estimatePossessions, calibrateNbaProjection } from "../functions/lib/nbaModel.js";
+import { projectNbaGame, estimatePossessions, calibrateNbaProjection, NBA_CALIBRATION } from "../functions/lib/nbaModel.js";
 import { projectNbaPlayer, compareNbaProp } from "../functions/lib/nbaPlayerPropModel.js";
 
 const hist=(pf,pa)=>Array.from({length:12},(_,i)=>({date:`2026-01-${String(i+1).padStart(2,"0")}`,pointsFor:pf+i%4,pointsAgainst:pa+i%3,fga:88,orb:10,tov:13,fta:22}));
@@ -36,4 +36,36 @@ test("NBA calibration preserves independence and reconstructs team scores",()=>{
   assert.ok(Math.abs((p.home+p.away)-p.total)<=0.11);
   assert.ok(Math.abs((p.home-p.away)-p.margin)<=0.11);
   assert.equal(p.calibration.marketUsed,false);
+});
+
+test("NBA fit is applied once to original raw game features, not twice to calibrated output",()=>{
+  const base=projectNbaGame({id:"regression-opening-night"},{
+    homeHistory:hist(110,111),awayHistory:hist(111,110)
+  });
+  assert.equal(base.ok,true);
+  const fit={id:"frozen-NBA-FBIS-v1",version:"research-v1.1-calibrated",
+    calibration:{margin: NBA_CALIBRATION.margin,total: NBA_CALIBRATION.total}};
+  const one=calibrateNbaProjection(base,fit);
+  // The base engine has already used exactly these coefficients.
+  assert.ok(Math.abs(one.margin-base.margin)<=0.1,JSON.stringify({one:one.margin,base:base.margin}));
+  assert.ok(Math.abs(one.total-base.total)<=0.1,JSON.stringify({one:one.total,base:base.total}));
+  // Repeating the same fit must not compound the calibration.
+  const twice=calibrateNbaProjection(one,fit);
+  assert.equal(twice.margin,one.margin);
+  assert.equal(twice.total,one.total);
+  assert.equal(one.calibration.inputKind,"raw_pregame_features");
+});
+test("Boston-Detroit October 20 pregame provenance cannot flip near-even raw game to Boston by seven through duplicate calibration",()=>{
+  const base={ok:true,margin:-2.1,total:219.3,rawMargin:0.1,rawTotal:223.3,
+    sigmaMargin:14.5,sigmaTotal:18.5,marketInformed:false};
+  const fit={version:"research-v1.1-calibrated",
+    calibration:{margin:NBA_CALIBRATION.margin,total:NBA_CALIBRATION.total}};
+  const result=calibrateNbaProjection(base,fit);
+  assert.ok(Math.abs(result.margin-(-2.15))<0.1);
+  assert.ok(Math.abs(result.total-219.35)<0.1);
+  assert.ok(Math.abs(result.margin-(-6.7))>4);
+  assert.equal(result.marketInformed,false);
+  const defaultFit=calibrateNbaProjection(base,{});
+  assert.equal(defaultFit.margin,base.margin);
+  assert.equal(defaultFit.total,base.total);
 });
