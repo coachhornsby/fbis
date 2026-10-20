@@ -41,3 +41,15 @@ test('API reads Q4 and primary, rejects invalid dates, and distinguishes store e
  const missing=await (await onRequestGet({env:{},request:new Request('https://fbis.test/api/exchange-player-props?date=2026-10-20')})).json();assert.equal(missing.degraded,true);assert.ok(missing.coverage.every(c=>c.status==='COVERAGE_UNKNOWN'));
  assert.equal((await onRequestGet({env:{},request:new Request('https://fbis.test/api/exchange-player-props?date=2026-02-30')})).status,400);
 });
+
+test('Polymarket research adapter exposes only verified direction and settlement proof',()=>{
+ const r=fixture();r.source='Polymarket US';
+ const good=changeRaw(r,p=>{p.playerPropIdentity.statSide='over';p.playerPropIdentity.dnpSettlement='VOID';p.playerPropIdentity.settlementScope='full_game';});
+ const observed=normalizeExchangeProp(good,{now});
+ assert.equal(observed.provider,'Polymarket');assert.equal(observed.statSide,'over');
+ assert.equal(observed.dnpSettlement,'VOID');assert.equal(observed.settlementScope,'full_game');
+ assert.equal(observed.observedAsk,.45);assert.equal(observed.observedDepth,12);
+ assert.equal(observed.canAuthorizeWager,false);
+ const unverified=normalizeExchangeProp(changeRaw(fixture(),p=>{p.playerPropIdentity.statSide='yes';p.playerPropIdentity.settlementScope=null;}),{now});
+ assert.equal(unverified.statSide,null);assert.equal(unverified.settlementScope,null);
+});
