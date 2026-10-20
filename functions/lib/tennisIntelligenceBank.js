@@ -218,7 +218,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
         fetchedAt: f.fetched_at, fixtureFreshness:f.fixtureFreshness, rawHash: f.raw_hash, rawKey: f.raw_key, missingEvidence },
         eventIntegrity: { valid: false, reason: "OFFICIAL_PROJECTION_UNAVAILABLE" },
         blockedReason: f.officialDisplay ? "OFFICIAL_METADATA_MATCHED_DISPLAY_ONLY: projection/event authority remains unverified for this ESPN fixture" : "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
-        researchEstimate, kalshiResearchOffers, polymarketGlobalOffers, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
+        researchEstimate, kalshiResearchOffers, polymarketGlobalOffers, polymarketGlobalStatus:polymarketGlobal.ok?"FRESH_SNAPSHOT":polymarketGlobal.code, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
         surface: f.officialDisplay?.surface||null, indoor:f.officialDisplay?.indoor??null,
         tournament:f.officialDisplay?.tournament||null, round:f.officialDisplay?.round||null,
         venue:f.officialDisplay?.venue||null, playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
