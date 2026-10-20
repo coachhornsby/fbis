@@ -48,3 +48,19 @@
 .exchange-prop-grid .pp-venue-gap b {font-size:17px;font-variant-numeric:tabular-nums;color:#f0d482;}
 .exchange-prop-grid .pp-venue-caveat {font-size:10px;line-height:1.35;color:#c4d4e8;margin:7px 0 0;}
 @media(min-width:1600px){.exchange-prop-grid .pp-venue-quote {padding:6px 5px;}}
+
+/* Venue matrix: a single player/threshold card now contains both contract sides. */
+.exchange-prop-grid .pp-venue-matrix{width:100%;margin-top:9px;min-width:0;}
+.exchange-prop-grid .pp-venue-matrix-head,.exchange-prop-grid .pp-venue-matrix-row{
+ display:grid;grid-template-columns:.8fr 1fr 1fr 1.15fr;align-items:center;gap:3px;
+ padding:6px 2px;min-width:0;
+}
+.exchange-prop-grid .pp-venue-matrix-head{color:#c4d5eb;font-size:9px;letter-spacing:.025em;border-bottom:1px solid rgba(215,230,250,.24);}
+.exchange-prop-grid .pp-venue-matrix-row{border-bottom:1px solid rgba(130,154,180,.19);font-variant-numeric:tabular-nums;}
+.exchange-prop-grid .pp-venue-matrix-row strong{font-size:13px;color:#f7fbff;white-space:nowrap;}
+.exchange-prop-grid .pp-venue-matrix-row small{display:block;color:#a9bfd7;font-size:9px;line-height:1.3;overflow-wrap:anywhere;}
+.exchange-prop-grid .pp-side-label{font-size:10px;white-space:nowrap;}
+.exchange-prop-grid .pp-side-over{color:#8fd9ad;}
+.exchange-prop-grid .pp-side-under{color:#efb6b6;}
+.exchange-prop-grid .pp-venue-matrix-row>div{min-width:0;}
+@media(min-width:1600px){.exchange-prop-grid .pp-venue-matrix-row strong{font-size:12px;}}
