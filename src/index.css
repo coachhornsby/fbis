@@ -2030,3 +2030,24 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   .fbis-shell-main.route-board .decision-board-well{width:100%;min-width:0}
   .fbis-shell-main.route-board .db-grid{gap:18px}
 }
+
+
+/* Washington Capitals: dark navy lettering needs a thin bright edge on
+   navy betting cards. Outline the actual transparent mark; never a white disk.
+   Scoped to the canonical NHL Capitals identity in TeamLogo. */
+.team-logo-wrap.team-logo-capitals{
+  background:transparent !important;
+  box-shadow:none !important;
+  border:0 !important;
+  border-radius:0;
+  overflow:visible;
+}
+.team-logo-wrap.team-logo-capitals .team-logo{
+  width:100% !important;
+  height:100% !important;
+  object-fit:contain;
+  filter:
+    drop-shadow(0 0 1px rgba(255,255,255,.98))
+    drop-shadow(0 0 2px rgba(250,253,255,.72))
+    drop-shadow(0 2px 3px rgba(0,0,0,.52)) !important;
+}

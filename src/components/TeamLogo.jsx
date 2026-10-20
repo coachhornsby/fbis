@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { resolveTeamLogo } from "../lib/resolveTeamLogo.js";
+import { isWashingtonCapitalsLogo } from "../lib/teamLogoPresentation.js";
 import { displayTeamIdentity, teamDisplayName, identityForSport } from "../../functions/lib/teams.js";
 
 /** Named sizes for board / card hierarchy. */
@@ -32,7 +33,10 @@ export default function TeamLogo({
   const sport = String(team?.sport || "").toLowerCase();
   const baseUrl = resolved.url;
   const url = remote?.logo || (!failed ? baseUrl : null);
-  const plate = tone === "dark" || tone === "auto";
+  // Washington's navy lettering disappears against FBIS navy surfaces.
+  // Outline the logo pixels, not the container; preserve the no-white-disk treatment.
+  const isCapitals = isWashingtonCapitalsLogo(team, {abbr, name});
+  const plate = (tone === "dark" || tone === "auto") && !isCapitals;
 
   useEffect(() => {
     setFailed(false);
@@ -83,7 +87,7 @@ export default function TeamLogo({
 
   return (
     <span
-      className={`team-logo-wrap${plate ? " team-logo-plate" : ""}${className ? ` ${className}` : ""}`}
+      className={`team-logo-wrap${plate ? " team-logo-plate" : ""}${isCapitals ? " team-logo-capitals" : ""}${className ? ` ${className}` : ""}`}
       style={{ width: px, height: px }}
       title={title || name}
     >
