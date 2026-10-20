@@ -1,9 +1,9 @@
 {
   "contract": "fbis-q4-capacity-before-after-v1",
-  "generatedAt": "2026-10-20T14:50:00.000Z",
+  "generatedAt": "2026-10-20T15:12:00.000Z",
   "canAuthorizeWager": false,
-  "productionDeployed": false,
-  "note": "Code landed in PR #1366; coalesce/latest_market_state/verified-archive are NOT yet live on production Workers until merge+stream redeploy. Growth below is still unmitigated ingest.",
+  "productionDeployed": true,
+  "streamCodeVersion": "board-ws-q4-coalesce-durable-20261020",
   "before": {
     "measuredAt": "2026-10-20T14:21:30.862Z",
     "q4Bytes": 960995328,
@@ -25,12 +25,19 @@
     "latestMarketStateTablePresentInQ4": false,
     "growthStillUnbounded": true
   },
-  "nextProductionProofRequired": [
-    "Merge PR #1366 and redeploy polymarket-us-stream Worker (STREAM_CODE_VERSION coalesce-durable)",
-    "Confirm latest_market_state table appears on Q4",
-    "Run market-history-archive-verify with archiveWrites=true verifyReadback=true",
-    "Re-measure Q4 bytes/hour for 2+ hours and compare to before.impliedRowsPerHour",
-    "Do not authorize D1 deletion until retention gate + independent restore pass"
-  ],
-  "storageReclaimedBytes": 0
+  "afterCoalesceDurableDeploy": {
+    "measuredAt": "2026-10-20T15:11:51.409Z",
+    "q4Bytes": 1449140224,
+    "q4Rows": 406150,
+    "latestMarketStateRows": 3126,
+    "latestMarketStateTablePresentInQ4": true,
+    "hour15PartialRows": 23652,
+    "hour15ProjectedRowsPerHour": 119688,
+    "reductionVsHour14PeakPct": 21.6,
+    "rawEvidencePreserved": true,
+    "growthStillUnbounded": false,
+    "note": "Growth rate decreased under coalesce+latest_market_state; absolute bytes still rise until cold archive+retention reclaim. Deletion remains gated."
+  },
+  "storageReclaimedBytes": 0,
+  "deletionAuthorized": false
 }

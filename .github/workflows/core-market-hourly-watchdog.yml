@@ -33,11 +33,25 @@ jobs:
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: node scripts/core-market-pulse.mjs
+      - name: Publish CORE board snapshot (schedule backup for 15m SLA)
+        id: core_snapshot
+        continue-on-error: true
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          node scripts/core-board-snapshot-ops.mjs | tee artifacts/core-board-snapshot-ops-hourly.json
+          jq -e '.ok==true and .canAuthorizeWager==false and (.failures|length)==0' \
+            artifacts/core-board-snapshot-ops-hourly.json >/dev/null
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: core-market-pulse-${{ github.run_id }}
-          path: artifacts/core-market-pulse.json
+          path: |
+            artifacts/core-market-pulse.json
+            artifacts/core-board-snapshot-ops-hourly.json
           retention-days: 14
           if-no-files-found: ignore
       - name: Reconcile persistent infrastructure incident
