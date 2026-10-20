@@ -18,7 +18,7 @@ const json=(body,status=200)=>new Response(JSON.stringify(body),{
 const utcDay=(value,offset)=>new Date(Date.parse(value+"T12:00:00Z")+offset*86400000).toISOString().slice(0,10);
 const num=(x)=>Number.isFinite(Number(x))?Number(x):null;
 export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(),
-  maxLeaguesPerSport=3,maxEventsPerSport=6,maxMarketsPerEvent=8,maxOffers=150,maxOffersPerSport=14
+  maxLeaguesPerSport=3,maxEventsPerSport=6,maxMarketsPerEvent=8,maxOffers=300,maxOffersPerSport=14
 }={}){
  if(!db?.prepare)throw Error("d1-unavailable");
  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||"")))throw Error("valid-CT-date-required");
@@ -39,14 +39,16 @@ export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(
   executeTrade:false,modifiesChampion:false,coverageComplete:false};
  const offers=[];
  const startMs=now.getTime();
- for(const sport of FBIS_POLY_SPORTS){
+ for(const sport of ['tennis',...FBIS_POLY_SPORTS.filter(s=>s!=='tennis')]){
   const leagues=leagueBySport.get(sport)||[];
   const sportGames=sport==="tennis"?tennisGames:(games.results||[]).filter(g=>String(g.sport).toLowerCase()===sport);
-  const selected=leagues.slice(0,maxLeaguesPerSport);
+  const selected=leagues.slice(0,sport==='tennis'?Math.max(maxLeaguesPerSport,12):maxLeaguesPerSport);
   let nEvents=0,matched=0,unmatched=0,unpriced=0,sourceErrors=[];
   let truncated=leagues.length>selected.length;
   const providerIds=new Set();
   const offersBefore=offers.length;
+  const sportEventLimit=sport==='tennis'?Math.max(maxEventsPerSport,30):maxEventsPerSport;
+  const sportOfferLimit=sport==='tennis'?Math.max(maxOffersPerSport,100):maxOffersPerSport;
   // Don't assume an unsupported league has no sport schedule or no market.
   for(const slug of selected){
    if(offers.length>=maxOffers){truncated=true;break}
@@ -54,14 +56,14 @@ export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(
    try{events=await fetchPolymarketUsLeagueEvents(slug,fetchImpl,{limit:70})}
    catch(error){sourceErrors.push(slug+":"+String(error?.message||error));continue}
    let sampled=0;
-   for(const event of events){
+   for(const event of sport==='tennis'?[...events].sort((a,b)=>Number(Boolean(matchPolymarketUsEvent(b,sportGames,sport).id))-Number(Boolean(matchPolymarketUsEvent(a,sportGames,sport).id))):events){
     if(!event?.id||providerIds.has(String(event.id)))continue;
     const eventStart=marketEventStart(event);
     const eventMs=Date.parse(eventStart||"");
     if(!Number.isFinite(eventMs)||chicagoMarketDay(eventStart)!==date)continue;
     // Skip long-completed games. Later RESULT evidence is separate.
     if(eventMs < startMs-8*60*60*1000)continue;
-    if(sampled>=maxEventsPerSport||offers.length>=maxOffers||offers.length-offersBefore>=maxOffersPerSport){truncated=true;break}
+    if(sampled>=sportEventLimit||offers.length>=maxOffers||offers.length-offersBefore>=sportOfferLimit){truncated=true;break}
     providerIds.add(String(event.id));sampled++;nEvents++;
     const identity=matchPolymarketUsEvent(event,sportGames,sport);
     if(Array.isArray(event.markets)&&event.markets.length>maxMarketsPerEvent)truncated=true;
@@ -69,7 +71,7 @@ export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(
       canonicalId:identity.id,capturedAt,maxMarkets:maxMarketsPerEvent
     });
     for(const offer of marketOffers){
-      if(offers.length>=maxOffers||offers.length-offersBefore>=maxOffersPerSport){truncated=true;break}
+      if(offers.length>=maxOffers||offers.length-offersBefore>=sportOfferLimit){truncated=true;break}
       if(offer.contractPrice===null)unpriced++;
       offers.push({...offer,raw:{...offer.raw,providerLeagueSlug:slug,
         eventMatchStatus:identity.reason,providerPlatform:"POLYMARKET_US",
