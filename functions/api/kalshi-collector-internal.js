@@ -1,3 +1,4 @@
+import {computeNhlProspectiveLearning} from "../lib/nhlProspectiveLearning.js";
 import {captureNhlProspectiveJob} from "../lib/nhlProspectiveCaptureJob.js";
 import {discoverNhlSourceVerifiedScopes} from "../lib/nhlOfficialScopeDiscovery.js";
 import {runApprovedPropReconciliation} from "../lib/propReconciliationSchedule.js";
@@ -41,6 +42,10 @@ export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypt
   if(scope==="prop-reconciliation"){
     try {const r=await runApprovedPropReconciliation(env,{webCrypto});return respond(r,r.ok?200:503);}
     catch {return respond({ok:false,code:"PROP_RECONCILIATION_UNAVAILABLE"},503);}
+  }
+  if(scope==="nhl-projection-learning"){
+    try {const r=await computeNhlProspectiveLearning(env,{webCrypto});return respond(r,r.ok?200:503);}
+    catch {return respond({ok:false,code:"NHL_PROJECTION_LEARNING_UNAVAILABLE"},503);}
   }
   if(scope==="nhl-prospective-capture"){
     try {const r=await captureNhlProspectiveJob(env,{webCrypto});return respond(r,r.ok?200:503);}

@@ -11,6 +11,7 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
   const [modelRows,setModelRows]=useState([]),[modelError,setModelError]=useState(''),[coverageFilter,setCoverageFilter]=useState('all'),[freshness,setFreshness]=useState('all');
   const [search,setSearch]=useState(''),[stat,setStat]=useState('all'),[side,setSide]=useState('all'),[selected,setSelected]=useState(null);
   const [state,setState]=useState({loading:true,rows:[],coverage:[],error:''});
+  const [learning,setLearning]=useState(null);
   const sport=onSportFilterChange?sportFilter:localSport;
   useEffect(()=>{ if(!onSportFilterChange) setLocalSport(sportFilter); },[sportFilter,onSportFilterChange]);
   useEffect(()=>{
@@ -33,6 +34,15 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
     fetch(`/api/prop-projections?${new URLSearchParams({sport,date})}`,{signal:controller.signal}).then(async r=>{const b=await r.json();if(!r.ok||!b.ok)throw Error(b.error||'Model unavailable');return b;}).then(b=>{if(!controller.signal.aborted)setModelRows(b.rows||[]);}).catch(e=>{if(!controller.signal.aborted)setModelError(e.message);});
     return()=>controller.abort();
   },[sport,date,board]);
+  useEffect(()=>{
+    if(compact||!['all','nhl','top25'].includes(sport)){setLearning(null);return undefined;}
+    const controller=new AbortController();
+    fetch('/api/nhl-projection-learning',{signal:controller.signal,credentials:'same-origin'})
+      .then(async r=>{const x=await r.json();if(!r.ok||!x.ok)throw Error('Unavailable');return x;})
+      .then(x=>{if(!controller.signal.aborted)setLearning(x);})
+      .catch(()=>{if(!controller.signal.aborted)setLearning({status:'COVERAGE_UNKNOWN',cohorts:[],verifiedPairs:0});});
+    return ()=>controller.abort();
+  },[sport,compact]);
   const allRows=useMemo(()=>joinIndependentPropModels(state.rows,modelRows),[state.rows,modelRows]);
   const rows=useMemo(()=>allRows.filter(r=>(provider==='all'||r.provider===provider)&&(stat==='all'||r.canonical_market===stat)&&(side==='all'||r.side===side||r.statSide===side)&&
     (coverageFilter==='all'||coverageFilter==='model'&&r.fbis_projection!=null||coverageFilter==='contract'&&r.contractId||coverageFilter==='qualified'&&r.canQualify===true)&&
@@ -56,6 +66,10 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
     {state.error?<p role="alert">Player prop delivery failed: {state.error}</p>:null}
     {modelError?<p role="status">Model delivery: {modelError}</p>:null}
     {state.degraded?<p role="status">Coverage unknown: one or more observation stores could not be read completely.</p>:null}
+    {!compact&&learning?<details className="pp-learning-receipt"><summary>NHL official projection learning · {learning.verifiedPairs||0} verified comparisons · {learning.cohorts?.length||0} cohorts</summary>
+      <p>Research-only accuracy measured against final NHL player statistics. This does not represent betting returns or exchange settlement.</p>
+      {learning.cohorts?.length?<table className="exchange-prop-coverage"><thead><tr><th>Model</th><th>Stat</th><th>Games</th><th>MAE</th><th>RMSE</th><th>Bias</th></tr></thead><tbody>{learning.cohorts.map((x,i)=><tr key={i}><td>{x.modelVersion}</td><td>{x.market}</td><td>{x.n}</td><td>{Number(x.mae).toFixed(2)}</td><td>{Number(x.rmse).toFixed(2)}</td><td>{Number(x.meanError).toFixed(2)}</td></tr>)}</tbody></table>:<p>{learning.status==='NOT_YET_OBSERVED'?'Awaiting verified pregame snapshots and official results.':'No verified model/result pairs available yet.'}</p>}
+    </details>:null}
     {!state.loading&&!state.error&&!rows.length?<p className="pp-empty">Market unavailable for these filters. No mapped contract or independent projection is available. Select a sport to load its model research.</p>:null}
     <div className="pp-card-grid pp-premium-grid exchange-prop-grid">{rows.map(r=><FBISPlayerPropCard key={r.id} row={r} onResearch={setSelected}/>)}</div>
     {selected?<ExchangePlayerWorkspace row={selected} onClose={()=>setSelected(null)}/>:null}
