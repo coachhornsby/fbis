@@ -8,7 +8,7 @@ const pct = v => v == null || v === '' || !Number.isFinite(Number(v)) ? 'Unavail
 const json = (body,status) => new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 export async function onRequestGet({request,env}) {
  const id=new URL(request.url).searchParams.get('id')||'';
- if(!/^[a-zA-Z0-9:_-]{1,160}$/.test(id))return json({ok:false,reason:'CANONICAL_PLAYER_ID_REQUIRED'},400);
+ if(!/^[a-zA-Z0-9:_ -]{1,160}$/.test(id))return json({ok:false,reason:'CANONICAL_PLAYER_ID_REQUIRED'},400);
  if(!env.DB?.prepare)return json({ok:false,reason:'DB_REQUIRED'},503);
  try {
   const player=await env.DB.prepare('SELECT * FROM tennis_players WHERE fbis_player_id=?').bind(id).first();
