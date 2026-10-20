@@ -1,0 +1,26 @@
+name: Polymarket Global ATP WTA research collection
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: polymarket-global-tennis-research
+  cancel-in-progress: false
+jobs:
+  gamma_research:
+    if: github.repository == 'coachhornsby/fbis'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Capture bounded Gamma tennis market discovery into R2
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          test -n "$HARVEST_SECRET" || { echo "HARVEST_SECRET_NOT_CONFIGURED"; exit 1; }
+          curl --fail-with-body --silent --show-error --max-time 260 \
+            -X POST "https://fbis-myz.pages.dev/api/polymarket-global-tennis-collect" \
+            -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
+            -d '{}' > /tmp/tennis-gamma-receipt.json
+          jq -e '.ok == true and .canAuthorizeWager == false and .source == "POLYMARKET_GLOBAL_GAMMA"' /tmp/tennis-gamma-receipt.json
