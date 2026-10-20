@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "./playerProps.css";
+import { fetchPropResearch } from "./propResearchClient.js";
 import { verifiedLastFive } from "./verifiedHistory.js";
 
 function finite(v) {
@@ -150,12 +151,12 @@ export function LastFiveStatChart({ row }) {
     setState({ loading: true, error: "", games: [], avg: null });
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort("player-prop-detail-timeout"), 18000);
-    fetch("/api/player-prop-detail?" + q.toString(), { credentials: "same-origin", signal: controller.signal })
-      .then(async (res) => {
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok || body?.ok === false) throw new Error(body?.error || ("HTTP " + res.status));
-        return body;
-      })
+    const request = row.canonicalPlayerId
+      ? fetchPropResearch(row, {historyOnly:true}).then(body => ({canonicalPlayerId:body.canonicalPlayerId,detail:{last5:body.history?.last5||[]}}))
+      : fetch("/api/player-prop-detail?" + q.toString(), { credentials: "same-origin", signal: controller.signal }).then(async res => {
+        const body=await res.json();if(!res.ok||body.ok===false)throw Error(body.error||`HTTP ${res.status}`);return body;
+      });
+    request
       .then((body) => {
         clearTimeout(timer);
         if (cancelled) return;
@@ -184,7 +185,7 @@ export function LastFiveStatChart({ row }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [visible, row.sport, row.player_name, row.team, row.opponent, row.canonical_market, row.line, row.model_version, row.canonicalPlayerId]);
+  }, [visible, row.sport, row.player_name, row.team, row.opponent, row.canonical_market, row.line, row.model_version, row.canonicalPlayerId, row.canonicalEventId, row.contractId]);
 
   const line = finite(row.line);
   const games = state.games;
@@ -251,7 +252,7 @@ export default function FBISPlayerPropCard({
   const projection = row.fbis_projection;
   const line = row.line;
   const delta = projection != null && line != null ? projection - line : null;
-  const side = delta == null ? "WATCH" : delta > 0 ? "MORE" : delta < 0 ? "LESS" : "WATCH";
+  const side = delta == null ? "WATCH" : delta > 0 ? "OVER" : delta < 0 ? "UNDER" : "WATCH";
   const tier = "research";
   const theme = useTeamTheme(row.sport, row.team);
   const primary = theme.primary || "#172b50";
@@ -355,7 +356,7 @@ export default function FBISPlayerPropCard({
           </div>
           <div className="pp-line-row pp-premium-metrics" aria-label="Market threshold versus FBIS projection">
             <div className="pp-metric-cell">
-              <span>{row.provider || "MARKET"} LINE</span>
+              <span>{row.provider || "MARKET"} THRESHOLD</span>
               <strong>{num(line)}</strong>
             </div>
             <div className="pp-metric-cell fbis-metric">
@@ -369,7 +370,7 @@ export default function FBISPlayerPropCard({
           </div>
           <div className={"pp-read pp-premium-read pp-read-" + String(side).toLowerCase()}>
             <div className="pp-read-side">
-              <span className="pp-read-arrow" aria-hidden="true">{side === "WATCH" ? "·" : side === "LESS" ? "↓" : "↑"}</span>
+              <span className="pp-read-arrow" aria-hidden="true">{side === "WATCH" ? "·" : side === "UNDER" ? "↓" : "↑"}</span>
               <b>{side}</b>
             </div>
             <div className="pp-edge-value">
@@ -379,7 +380,10 @@ export default function FBISPlayerPropCard({
           </div>
         </div>
         <LastFiveStatChart row={row} />
-        <p className="pp-quote-status">Ask {row.purchaseAsk == null ? "unavailable" : `$${row.purchaseAsk.toFixed(2)}`} · {row.observedAt || "Quote clock unavailable"}</p>
+        <div className="pp-contract-status"><b>{row.identityVerified && row.contractId ? "Contract mapped" : "Projection only"}</b><span>{row.marketAvailable ? "Verified purchase quote" : row.provider ? "Research · quote not executable" : "Market unavailable"}</span></div>
+        <p className="pp-quote-status">{row.observedAsk != null ? `Observed ${String(row.side||"yes").toUpperCase()} ask $${Number(row.observedAsk).toFixed(2)} · depth ${row.observedDepth ?? "unknown"}` : row.purchaseAsk != null ? `Buy ask $${Number(row.purchaseAsk).toFixed(2)}` : "Purchase ask unavailable"}</p>
+        <p className="pp-quote-status">{row.observedAt ? `Source: ${row.observedAt}` : "Source quote time unknown"}{row.collectedAt ? ` · Captured ${row.collectedAt}` : ""}</p>
+        <p className="pp-quote-status">{row.modelVersion || "Model unavailable"} · {row.calibratedProbability == null ? "Probability not calibrated" : `${Math.round(row.calibratedProbability*100)}% calibrated`}</p>
         {onResearch ? <button type="button" className="header-btn" onClick={() => onResearch(rawRow)}>Open player research</button> : null}
         <div className="pp-card-foot pp-premium-foot">
           <span>{row.provider || "Market unavailable"} · {row.modelStatus || "Research only"}</span>

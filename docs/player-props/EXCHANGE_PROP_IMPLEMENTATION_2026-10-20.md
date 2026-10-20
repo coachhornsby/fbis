@@ -62,3 +62,17 @@ This is a new adapter interface, not a claim that existing collectors emit these
 7. Complete CI, preview UI, full regression and production acceptance before replacing the current experience.
 
 Remaining multi-sport models, expanded research, settlement/learning and confidence ranking are unfinished. This branch must not be described as the requested end-to-end system.
+
+## Follow-up rebuild implementation
+
+The next revision replaces the foundation-only API with an R2-backed signed Kalshi prop capture on the existing single scheduler. It discovers only catalog-listed series, bounds each poll to four series/1,000 contracts each, records partial pagination and respects a rate-limit cooldown. It changes no D1 binding or sport authority.
+
+Exact provider rules, threshold, two registry teams, scheduled date, unique canonical fixture, roster identity/team and provider athlete ID establish a contract match. A real Oct 20 NBA capture tests Victor Wembanyama 35+ points against the provider's 34.5 strike. DNP/fair-price and postponement rules stay attached. REST capture timestamps never become provider quote timestamps. YES/NO indicative asks remain research-only when source clocks, calibration or fees are unavailable.
+
+New projection/history/research endpoints reuse existing sport models and policy gates. Model joins require canonical event/player/stat/period identity. Research-only projections can display without market contracts. Canonical history adapters use source IDs, exclude missing/DNP/future results, compute recent averages/median/variation/splits and label current-threshold analysis as retrospective. NFL's five-game feature history is labeled partial instead of claiming a full season. NBA history and projections preserve the existing rights-cleared-player-feed block.
+
+The workspace retrieves player availability/workload, actual history, provider contracts/rules and existing NFL/NHL/NBA validation artifacts. It uses a native dialog with keyboard dismissal. Fee/expected-return arithmetic requires exact settlement-specific calibration, verified purchase asks and verified fees. Grading arithmetic requires official actuals and frozen pregame evidence and never creates personal wagers or profit. Missing live official-outcome joins remain explicitly unavailable.
+
+Local verification: combined npm test 2,042 passed, zero failed; production frontend build, Pages Functions build, Worker bundle dry-run and diff checks passed. The standalone screenshot browser was unavailable in this environment; preview browser acceptance is tracked separately before release.
+
+Remaining evidence-dependent limitations are product states, not permission to manufacture data: unoffered or unmapped provider markets, missing model feeds, NBA player-data policy, unknown source quote clocks, failed threshold calibration and official outcomes not yet joined. None may be promoted into qualified bets.

@@ -2,6 +2,7 @@ import {polymarketUsCanonicalSide} from '../lib/polymarketUs.js';
 import {loadPolymarketUsBoardOffers} from '../lib/polymarketBoard.js';
 import {loadPinnoddsBoardResearch} from '../lib/pinnoddsBoardResearch.js';
 import {loadPinnoddsR2BoardResearch,preferFreshPinnoddsArchive} from '../lib/pinnoddsArchiveBoard.js';
+import {listMarketHistoryReadDbs} from '../lib/databaseTopology.js';
 const json=(x,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{'content-type':'application/json','cache-control':'public, max-age=5'}});
 export async function onRequestGet({request,env}){
  const u=new URL(request.url),sport=u.searchParams.get('sport'),id=u.searchParams.get('eventId');
@@ -11,12 +12,23 @@ export async function onRequestGet({request,env}){
  if(!fixture)return json({ok:false,error:'CANONICAL_EVENT_UNAVAILABLE'},404);
  const games=[fixture];
  try{
-  const [primary,history,archive,poly]=await Promise.all([
-   loadPinnoddsBoardResearch(env.DB,{sport,games,now:now.toISOString()}),
-   loadPinnoddsBoardResearch(env.MARKET_HISTORY_DB,{sport,games,now:now.toISOString()}),
-   loadPinnoddsR2BoardResearch(env.ARCHIVE,{sport,games,now:now.toISOString()}),
-   loadPolymarketUsBoardOffers(env.DB,games,sport,{now,historyDb:env.MARKET_HISTORY_DB})]);
-  const pin=preferFreshPinnoddsArchive(preferFreshPinnoddsArchive(primary,history),archive).byGame?.[id];
+  const historyParts=listMarketHistoryReadDbs(env);
+  const pinScope={sport,games,now:now.toISOString()};
+  const [primary,...rest]=await Promise.all([
+   loadPinnoddsBoardResearch(env.DB,pinScope),
+   ...historyParts.map((part)=>loadPinnoddsBoardResearch(part.db,pinScope)),
+   loadPinnoddsR2BoardResearch(env.ARCHIVE,pinScope),
+   loadPolymarketUsBoardOffers(env.DB,games,sport,{
+    now,
+    historyDbs:historyParts.map((p)=>p.db),
+    historyLabels:historyParts.map((p)=>p.binding),
+   })]);
+  const poly=rest[rest.length-1];
+  const archive=rest[rest.length-2];
+  const historyPins=rest.slice(0,-2);
+  let merged=primary;
+  for(const part of historyPins) merged=preferFreshPinnoddsArchive(merged,part);
+  const pin=preferFreshPinnoddsArchive(merged,archive).byGame?.[id];
   // Contract identity can outlive its original REST quote. Read old identity
   // only; never copy its old price or clock onto a new WebSocket observation.
   const meta=(await env.DB.prepare(`SELECT n.source_market_id,n.source_outcome_id,

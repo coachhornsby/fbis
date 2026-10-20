@@ -35,9 +35,9 @@ test('last five omit null/DNP/canceled values, preserve real zero and pushes, de
  assert.deepEqual(verifiedLastFive(games).map(g=>g.value),[2,3,4,5,0]);
 });
 test('API reads Q4 and primary, rejects invalid dates, and distinguishes store errors',async()=>{
- const queries=[];const db={prepare(sql){queries.push(sql);return{bind(...params){assert.equal(params[0],'2026-10-20T05:00:00.000Z');assert.equal(params[1],'2026-10-21T05:00:00.000Z');return{async all(){return{results:[]};}};}};}};
+ const queries=[];const db={prepare(sql){queries.push(sql);return{async all(){return{results:[]};},bind(...params){if(sql.includes('normalized_market_observations')){assert.equal(params[0],'2026-10-20T05:00:00.000Z');assert.equal(params[1],'2026-10-21T05:00:00.000Z');}return{async all(){return{results:[]};}};}};}};
  const result=await onRequestGet({env:{DB:db,MARKET_HISTORY_2026Q4_DB:db},request:new Request('https://fbis.test/api/exchange-player-props?date=2026-10-20')});
- const body=await result.json();assert.equal(body.ok,true);assert.equal(queries.length,1);assert.equal(body.coverage.length,22);assert.ok(body.coverage.every(c=>c.status==='MARKET_UNAVAILABLE'));
+ const body=await result.json();assert.equal(body.ok,true);assert.equal(queries.filter(q=>q.includes('normalized_market_observations')).length,1);assert.equal(body.coverage.length,22);assert.ok(body.coverage.every(c=>c.status==='MARKET_UNAVAILABLE'));
  const missing=await (await onRequestGet({env:{},request:new Request('https://fbis.test/api/exchange-player-props?date=2026-10-20')})).json();assert.equal(missing.degraded,true);assert.ok(missing.coverage.every(c=>c.status==='COVERAGE_UNKNOWN'));
  assert.equal((await onRequestGet({env:{},request:new Request('https://fbis.test/api/exchange-player-props?date=2026-02-30')})).status,400);
 });

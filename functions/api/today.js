@@ -21,6 +21,8 @@ export function todayEnv(context) {
     DB: context.env.DB,
     TIER3_DB: context.env.TIER3_DB,
     MARKET_HISTORY_DB: context.env.MARKET_HISTORY_DB,
+    // Required for Q4 Polymarket/PinnOdds board overlays (listMarketHistoryReadDbs).
+    MARKET_HISTORY_2026Q4_DB: context.env.MARKET_HISTORY_2026Q4_DB,
     ARCHIVE: context.env.ARCHIVE,
   };
 }

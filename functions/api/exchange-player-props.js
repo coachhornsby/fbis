@@ -1,3 +1,5 @@
+import { loadPropFixturesAndPlayers } from '../lib/propResearchData.js';
+import { loadCapturedKalshiProps } from '../lib/kalshiPlayerPropCollector.js';
 import { listMarketHistoryReadDbs } from '../lib/databaseTopology.js';
 import { PROP_SPORTS, latestExchangeProps } from '../lib/exchangePlayerProps.js';
 import { chicagoDayBounds } from '../lib/chicagoDayBounds.js';
@@ -10,23 +12,29 @@ export async function onRequestGet({env,request}) {
   const stores = listMarketHistoryReadDbs(env);
   if (env.DB?.prepare && !stores.some(s=>s.db===env.DB)) stores.push({db:env.DB,binding:'PRIMARY_D1'});
   const diagnostics = [], rows = [];
+  const queriedSports=sport==='all'?PROP_SPORTS:[sport];
   for (const store of stores) {
     try {
       const result = await store.db.prepare(`SELECT * FROM normalized_market_observations
         WHERE source IN ('Kalshi','Kalshi REST','Kalshi WebSocket','Polymarket','Polymarket US','Polymarket US WebSocket')
         AND market_family='player_prop' AND event_start_time >= ? AND event_start_time < ?
-        ${sport === 'all' ? '' : 'AND sport=?'}
-        ORDER BY collected_at DESC LIMIT 500`).bind(bounds.start,bounds.end,...(sport==='all'?[]:[sport])).all();
+        AND sport IN (${queriedSports.map(()=>'?').join(',')})
+        ORDER BY collected_at DESC LIMIT 500`).bind(bounds.start,bounds.end,...queriedSports).all();
       rows.push(...(result.results || [])); diagnostics.push({store:store.binding,status:'READ',observations:result.results?.length || 0,truncated:result.results?.length===500});
     } catch { diagnostics.push({store:store.binding,status:'READ_FAILED'}); }
   }
-  const candidates = latestExchangeProps(rows), props = candidates.filter(p=>p.marketAvailable);
+  const context=await loadPropFixturesAndPlayers(env,{start:bounds.start,end:bounds.end,sport});
+  const captured=await loadCapturedKalshiProps(env,{...context,sport});
+  const candidates = latestExchangeProps(rows);
+  const props = [...candidates.filter(p=>p.identityVerified),...captured.rows];
+
   const degraded = !stores.length || diagnostics.some(d=>d.status==='READ_FAILED' || d.truncated);
   const coverage = PROP_SPORTS.filter(s=>sport==='all'||s===sport).flatMap(s=>['Kalshi','Polymarket'].map(provider=>({
-    sport:s,provider,status:props.some(p=>p.sport===s&&p.provider===provider)?'VERIFIED_MARKET':degraded?'COVERAGE_UNKNOWN':'MARKET_UNAVAILABLE',
-    verifiedMarkets:props.filter(p=>p.sport===s&&p.provider===provider).length,
+    sport:s,provider,status:props.some(p=>p.sport===s&&p.provider===provider&&p.marketAvailable)?'VERIFIED_MARKET':props.some(p=>p.sport===s&&p.provider===provider)?'CONTRACTS_RESEARCH_ONLY':degraded?'COVERAGE_UNKNOWN':'MARKET_UNAVAILABLE',
+    verifiedMarkets:props.filter(p=>p.sport===s&&p.provider===provider&&p.marketAvailable).length,
+    verifiedContracts:props.filter(p=>p.sport===s&&p.provider===provider&&p.identityVerified).length,
     observations:candidates.filter(p=>p.sport===s&&p.provider===provider).length,modelStatus:'INDEPENDENT_MODEL_JOIN_REQUIRED',
   })));
-  return respond({ok:true,date,rows:props,coverage,diagnostics,degraded,rejected:candidates.filter(p=>!p.marketAvailable).map(p=>({id:p.id,provider:p.provider,sport:p.sport,reasons:p.reasons})),
+  return respond({ok:true,date,rows:props,coverage,diagnostics,degraded,collectorCoverage:captured.coverage,identityDiagnostics:context.diagnostics,rejected:candidates.filter(p=>!p.marketAvailable).map(p=>({id:p.id,provider:p.provider,sport:p.sport,reasons:p.reasons})),
     canQualify:false,canAuthorizeWager:false});
 }

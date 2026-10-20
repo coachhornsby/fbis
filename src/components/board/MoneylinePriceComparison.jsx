@@ -59,7 +59,7 @@ export default function MoneylinePriceComparison({game}){
      <div><dt>DEPTH AT $5</dt><dd>{r.polymarketIntelligence.averageEntry==null?"Unverified":`${(r.polymarketIntelligence.averageEntry*100).toFixed(1)}¢ avg.`}</dd></div>
     </dl>
     <p>{r.polymarketIntelligence.synopsis}</p>
-    <small>Manual review · standard taker fee estimate · no assumed rebate{r.polymarketIntelligence.delivery==='MARKET_HISTORY_RECOVERY'?" · recovery feed":""}</small>
+    <small>Manual review · standard taker fee estimate · no assumed rebate{/MARKET_HISTORY_(?:RECOVERY|2026Q4)/.test(String(r.polymarketIntelligence.delivery||""))?" · recovery feed":""}</small>
    </div>
   </div>)}</div>
   {!hasPolymarket ? <p className="fbis-moneyline-note">Polymarket: no matched observed price for this event.</p> : null}

@@ -638,6 +638,7 @@ export default function App() {
           <div className="player-props-page">
             <KalshiMarketResearch variant="props" />
             <ExchangePlayerPropsPanel
+              board={todayBoard}
               sportFilter={playerPropsSport}
               onSportFilterChange={setPlayerPropsSport}
             />

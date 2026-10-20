@@ -140,10 +140,10 @@ export function parsePolymarketUsPrice(value){
 }
 export function polymarketUsMarketFamily(m={}){
   const type=String(m.sportsMarketTypeV2||m.sportsMarketType||m.marketType||"").toUpperCase();
+  if(type.includes("PLAYER")||type.includes("PROP"))return "player_prop";
   if(type.includes("MONEYLINE")||type==="ML"||String(m.sportsMarketType||"").includes("soccer_team_full_time_winner"))return "moneyline";
   if(type.includes("SPREAD")||type.includes("HANDICAP"))return "spread";
   if(type.includes("TOTAL")||type.includes("OVER_UNDER"))return "total";
-  if(type.includes("PLAYER")||type.includes("PROP"))return "player_prop";
   return "unclassified";
 }
 export function polymarketUsPeriod(m={}) {

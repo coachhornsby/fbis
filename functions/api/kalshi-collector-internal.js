@@ -1,3 +1,4 @@
+import { captureKalshiPlayerProps } from "../lib/kalshiPlayerPropCollector.js";
 import {
   captureSignedKalshiMarkets,captureSignedKalshiExchangeStatus,
   captureKalshiSportsSeriesCatalog,
@@ -30,6 +31,10 @@ export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypt
     return respond({ok:false,code:"INTERNAL_COLLECTOR_ACCESS_DENIED"},403);
   const u=new URL(request.url);
   const scope=u.searchParams.get("scope");
+  if(scope==="player-props"){
+    try { const r=await captureKalshiPlayerProps(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503); }
+    catch { return respond({ok:false,code:"PLAYER_PROP_COLLECTION_UNAVAILABLE"},503); }
+  }
   if(scope==="markets"){
     const sport=u.searchParams.get("sport");
     if(!["nfl","cfb"].includes(sport))

@@ -5,6 +5,7 @@ import { authorizeProductTier, productResponsePolicy } from "../lib/productAcces
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "../lib/polymarketBoard.js";
 import { loadPinnoddsBoardResearch } from "../lib/pinnoddsBoardResearch.js";
 import {loadPinnoddsR2BoardResearch,preferFreshPinnoddsArchive} from "../lib/pinnoddsArchiveBoard.js";
+import { listMarketHistoryReadDbs } from "../lib/databaseTopology.js";
 
 const SPORTS = new Set(["mlb", "npb", "kbo", "cfb", "cbb", "nfl", "nba", "wnba", "nhl", "soccer", "tennis"]);
 
@@ -53,12 +54,24 @@ export async function onRequestGet(context) {
     let overlay={byId:new Map(),available:false};
     let pinnodds={byGame:{},rows:0,reason:"NO_PINNODDS_OBSERVATIONS"};
     if(context.env.DB?.prepare && board.games?.length){
-      try{overlay=await loadPolymarketUsBoardOffers(context.env.DB,board.games,sport,{historyDb:context.env.MARKET_HISTORY_DB})}
+      const historyParts=listMarketHistoryReadDbs(context.env);
+      try{
+        overlay=await loadPolymarketUsBoardOffers(context.env.DB,board.games,sport,{
+          historyDbs:historyParts.map((p)=>p.db),
+          historyLabels:historyParts.map((p)=>p.binding),
+        });
+      }
       catch(_){/* stale/missing provider never breaks independent FBIS projections */}
       try{
-        const d1=await loadPinnoddsBoardResearch(context.env.DB,{sport,games:board.games});
-        const r2=await loadPinnoddsR2BoardResearch(context.env.ARCHIVE,{sport,games:board.games});
-        pinnodds=preferFreshPinnoddsArchive(d1,r2);
+        const pinScope={sport,games:board.games};
+        const pinReads=await Promise.all([
+          loadPinnoddsBoardResearch(context.env.DB,pinScope),
+          ...historyParts.map((part)=>loadPinnoddsBoardResearch(part.db,pinScope)),
+          loadPinnoddsR2BoardResearch(context.env.ARCHIVE,pinScope),
+        ]);
+        let d1=pinReads[0];
+        for(const part of pinReads.slice(1,-1)) d1=preferFreshPinnoddsArchive(d1,part);
+        pinnodds=preferFreshPinnoddsArchive(d1,pinReads[pinReads.length-1]);
       }
       catch(_){/* missing PinnOdds may not break independent model calculations */}
     }
