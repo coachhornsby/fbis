@@ -16,10 +16,12 @@
 .fbis-moneyline-venue b{font-weight:950;font-size:16px;line-height:1.1;color:#ffffff}
 .fbis-moneyline-venue small{font-size:11px;color:#e8f0ff;line-height:1.25;font-weight:750}
 .fbis-moneyline-pin{border-color:rgba(96,190,255,.55);background:linear-gradient(155deg,rgba(18,72,128,.72),rgba(8,24,52,.95))}
+.fbis-moneyline-pin strong,.fbis-moneyline-pin b,.fbis-moneyline-pin>span,.fbis-moneyline-pin small{color:#ffffff!important}
 .fbis-moneyline-poly{border-color:rgba(210,150,255,.55);background:linear-gradient(155deg,rgba(96,42,150,.72),rgba(28,18,62,.95))}
-.fbis-moneyline-poly strong,.fbis-moneyline-poly b{color:#ffffff}
+.fbis-moneyline-poly strong,.fbis-moneyline-poly b,.fbis-moneyline-poly>span,.fbis-moneyline-poly small{color:#ffffff!important}
 .fbis-moneyline-fbis{border-color:rgba(90,255,180,.55);background:linear-gradient(145deg,rgba(14,120,86,.55),rgba(8,48,42,.95))}
-.fbis-moneyline-fbis strong,.fbis-moneyline-fbis b{color:#ffffff}
+.fbis-moneyline-fbis strong,.fbis-moneyline-fbis b,.fbis-moneyline-fbis>span,.fbis-moneyline-fbis small{color:#ffffff!important}
+.fbis-moneyline-venue strong{color:#ffffff!important}
 .fbis-moneyline-note{color:#e8f2ff;font-size:12px!important;line-height:1.5!important;margin:9px 0 0!important}
 @media(max-width:850px){.fbis-moneyline-cards{grid-template-columns:1fr}.fbis-moneyline-venue{min-height:73px}.fbis-moneyline-venue strong{font-size:clamp(18px,4vw,23px)}}
 @media(max-width:350px){.fbis-moneyline-venue>span{font-size:10px}.fbis-moneyline-venue b{font-size:14px}.fbis-moneyline-side{padding:6px}}
