@@ -1,6 +1,7 @@
 {
   "contract": "fbis-sport-migration-proof-v1",
-  "generatedAt": "2026-10-20T18:46:30.000Z",
+  "generatedAt": "2026-10-20T19:03:00.000Z",
+  "recheckedAt": "2026-10-20T19:03:00.000Z",
   "canAuthorizeWager": false,
   "cutoverAuthorized": false,
   "deletionAuthorized": false,
