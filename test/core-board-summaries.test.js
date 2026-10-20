@@ -18,6 +18,20 @@ test("cross-sport summary is incomplete when any sport lacks stats", () => {
   assert.ok(summary.incompleteSports.includes("nfl"));
 });
 
+test("missing sport entries fail closed as incomplete", () => {
+  const summary = buildCrossSportBoardSummary({
+    sports: {
+      nhl: { gameCount: 1, projectionCount: 1, complete: true },
+    },
+  });
+  assert.equal(summary.complete, false);
+  assert.ok(summary.incompleteSports.includes("nfl"));
+  assert.ok(summary.incompleteSports.includes("cfb"));
+  const missing = summary.sports.find((s) => s.sport === "nfl");
+  assert.equal(missing.complete, false);
+  assert.equal(missing.reason, "SPORT_ENTRY_MISSING");
+});
+
 test("publish and read CORE board summary without fan-out to sport DBs", async () => {
   const writes = [];
   const primary = {

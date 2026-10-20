@@ -101,3 +101,19 @@ test("all configured shadow sports keep product IO on primary", () => {
     assert.equal(isSportDbAuthoritative(env, sport), false, sport);
   }
 });
+
+test("caller mode=sport cannot bypass deployed shadow on productSportDbHandle", () => {
+  const primary = db("primary");
+  const nfl = db("nfl");
+  const env = { DB: primary, NFL_DB: nfl, SPORT_DB_MODE_NFL: "shadow" };
+  const product = productSportDbHandle(env, "nfl", { mode: "sport" });
+  assert.equal(product.db, primary);
+  assert.equal(product.productIoUsesSportDb, false);
+  assert.equal(product.reason, "CALLER_MODE_OVERRIDE_REJECTED_ENV_AUTHORITY");
+  assert.equal(isSportDbAuthoritative(env, "nfl", { mode: "sport" }), false);
+
+  const resolved = resolveSportDb(env, "nfl", { mode: "sport" });
+  assert.equal(resolved.mode, "shadow");
+  assert.equal(resolved.productIoUsesSportDb, false);
+  assert.equal(resolved.db, primary);
+});

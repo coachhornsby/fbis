@@ -52,9 +52,9 @@ Cross-sport dashboards must read **prepared summaries on CORE_DB**, not fan-out 
 ## Operator API
 
 `GET /api/database-topology` (harvest secret) — live capacity + routing snapshot.  
-`POST /api/database-topology` — `verify-bindings`, `nhl-copy`, `nhl-parity`, `nhl-record-parity`, `nhl-shadow-compare`, `sport-copy` / `sport-parity` (nfl|cfb), `core-board-summary-publish` / `core-board-summary-read`, `market-history-write-target`, `market-history-archive-scan`, `retention-gate-evaluate`.
+`POST /api/database-topology` — `verify-bindings`, `nhl-copy`, `nhl-parity`, `nhl-record-parity`, `nhl-shadow-compare`, `sport-copy` / `sport-parity` / `sport-projection-reconcile` (nfl|cfb), `sport-cutover-rehearsal`, `core-board-summary-publish` / `core-board-summary-read`, `market-history-write-target`, `market-history-archive-scan`, `retention-gate-evaluate`.
 
-Product IO must use `productSportDbHandle()` — shadow mode never returns a sport D1 for reads/writes.
+Product IO must use `productSportDbHandle()` — shadow mode never returns a sport D1 for reads/writes. Caller `{mode:'sport'}` cannot bypass deployed env shadow. **Production sport cutover remains blocked; primary stays authoritative.**
 
 ## Provisioned sport D1s
 

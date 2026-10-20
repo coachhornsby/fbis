@@ -14,8 +14,13 @@ import {
 import { copyNhlPilotTables, verifyNhlSportDbParity, verifyNhlRecordLevelParity } from "../lib/nhlSportDb.js";
 import { shadowCompareNhlSportDb } from "../lib/sportDbShadow.js";
 import { archiveColdMarketHistoryObservations } from "../lib/marketHistoryArchive.js";
-import { copySportWorkingTables, verifySportWorkingParity } from "../lib/sportWorkingCopy.js";
+import {
+  copySportWorkingTables,
+  verifySportWorkingParity,
+  reconcileSportProjections,
+} from "../lib/sportWorkingCopy.js";
 import { publishCrossSportBoardSummary, readCrossSportBoardSummary } from "../lib/coreBoardSummaries.js";
+import { rehearseSportCutover } from "../lib/sportCutoverRehearsal.js";
 import { evaluateRetentionRelease } from "../lib/retentionGate.js";
 
 const json = (value, status = 200) => new Response(JSON.stringify(value), {
@@ -166,7 +171,12 @@ export async function onRequestPost({ env, request } = {}) {
       return json({ ok: false, error: "SPORT_COPY_LIMITED_TO_NFL_CFB", canAuthorizeWager: false }, 400);
     }
     return json(await copySportWorkingTables(env, sport, {
-      limitPerTable: Math.min(20000, Number(body.limitPerTable) || 5000),
+      pageSize: Math.min(2000, Number(body.pageSize) || 1000),
+      maxPages: Math.min(200, Number(body.maxPages) || 50),
+      limitPerTable: body.limitPerTable != null
+        ? Math.min(50000, Number(body.limitPerTable))
+        : null,
+      resume: body.resume !== false,
     }));
   }
   if (operation === "sport-parity") {
@@ -175,6 +185,26 @@ export async function onRequestPost({ env, request } = {}) {
       return json({ ok: false, error: "SPORT_PARITY_LIMITED_TO_NFL_CFB", canAuthorizeWager: false }, 400);
     }
     return json(await verifySportWorkingParity(env, sport));
+  }
+  if (operation === "sport-projection-reconcile") {
+    const sport = String(body.sport || "").toLowerCase();
+    if (!["nfl", "cfb", "nhl"].includes(sport)) {
+      return json({ ok: false, error: "SPORT_RECONCILE_LIMITED_TO_NFL_CFB_NHL", canAuthorizeWager: false }, 400);
+    }
+    return json(await reconcileSportProjections(env, sport, {
+      sampleSize: Math.min(200, Number(body.sampleSize) || 40),
+    }));
+  }
+  if (operation === "sport-cutover-rehearsal") {
+    const sport = String(body.sport || "nhl").toLowerCase();
+    if (!["nhl", "nfl", "cfb"].includes(sport)) {
+      return json({ ok: false, error: "REHEARSAL_LIMITED_TO_NHL_NFL_CFB", canAuthorizeWager: false }, 400);
+    }
+    return json(await rehearseSportCutover(env, sport, {
+      injectMissingBinding: body.injectMissingBinding === true,
+      injectPartialSport: body.injectPartialSport === true,
+      injectStaleCore: body.injectStaleCore === true,
+    }));
   }
   if (operation === "core-board-summary-publish") {
     return json(await publishCrossSportBoardSummary(env));

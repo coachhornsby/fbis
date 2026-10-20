@@ -2,6 +2,8 @@
  * CORE dashboard summaries for cross-sport boards.
  * When sport D1s become authoritative, boards must still read complete summaries
  * from CORE_DB (falling back to primary) — never fan-out query every sport DB.
+ *
+ * Fail-closed: missing sport entries are incomplete (never default complete:true).
  */
 import { resolveCoreDb } from "./databaseTopology.js";
 import { FBIS_SPORTS } from "./databaseTopology.js";
@@ -15,7 +17,20 @@ export function buildCrossSportBoardSummary({
 } = {}) {
   const rows = [];
   for (const sport of FBIS_SPORTS) {
-    const entry = sports[sport] || {};
+    const entry = sports[sport];
+    if (!entry || typeof entry !== "object") {
+      rows.push({
+        sport,
+        gameCount: 0,
+        projectionCount: 0,
+        freshestStart: null,
+        freshestFrozenAt: null,
+        authority: "UNKNOWN",
+        complete: false,
+        reason: "SPORT_ENTRY_MISSING",
+      });
+      continue;
+    }
     rows.push({
       sport,
       gameCount: Number(entry.gameCount) || 0,
@@ -23,7 +38,9 @@ export function buildCrossSportBoardSummary({
       freshestStart: entry.freshestStart || null,
       freshestFrozenAt: entry.freshestFrozenAt || null,
       authority: entry.authority || "PRIMARY",
-      complete: entry.complete !== false,
+      // Fail-closed: require explicit complete:true (missing/false → incomplete).
+      complete: entry.complete === true,
+      reason: entry.complete === true ? null : (entry.reason || "SPORT_INCOMPLETE"),
     });
   }
   const incomplete = rows.filter((r) => !r.complete).map((r) => r.sport);
@@ -78,6 +95,7 @@ export async function publishCrossSportBoardSummary(env, { now = new Date() } = 
     sourceBinding: core.binding,
   });
 
+  // Refuse to publish an incomplete snapshot as "ok" — still persist for diagnosis.
   try {
     await core.db.prepare(
       `INSERT OR REPLACE INTO fbis_dashboard_summaries(summary_key,as_of,sport,payload_json,source_binding,created_at)
@@ -93,7 +111,13 @@ export async function publishCrossSportBoardSummary(env, { now = new Date() } = 
     };
   }
 
-  return { ok: summary.complete, summary, coreBinding: core.binding, canAuthorizeWager: false };
+  return {
+    ok: summary.complete === true,
+    summary,
+    coreBinding: core.binding,
+    incompleteSports: summary.incompleteSports,
+    canAuthorizeWager: false,
+  };
 }
 
 export async function readCrossSportBoardSummary(env) {
@@ -108,8 +132,19 @@ export async function readCrossSportBoardSummary(env) {
     ).bind(CORE_BOARD_SUMMARY_KEY).first();
     if (!row) return { ok: false, reason: "SUMMARY_MISSING", canAuthorizeWager: false };
     const payload = JSON.parse(row.payload_json || "null");
+    if (!payload || payload.complete !== true) {
+      return {
+        ok: false,
+        reason: "SUMMARY_INCOMPLETE",
+        asOf: row.as_of,
+        sourceBinding: row.source_binding,
+        summary: payload,
+        incompleteSports: payload?.incompleteSports || [],
+        canAuthorizeWager: false,
+      };
+    }
     return {
-      ok: Boolean(payload?.complete),
+      ok: true,
       asOf: row.as_of,
       sourceBinding: row.source_binding,
       summary: payload,

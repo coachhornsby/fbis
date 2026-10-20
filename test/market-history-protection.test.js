@@ -34,9 +34,32 @@ test("Q4 partition is preferred for new writes when under capacity", async () =>
   const target = await resolveMarketHistoryWriteDb({
     MARKET_HISTORY_2026Q4_DB: historyDb(100_000),
     MARKET_HISTORY_DB: historyDb(9_200_000_000),
-  });
+  }, { now: new Date("2026-10-20T12:00:00Z") });
   assert.equal(target.store, "MARKET_HISTORY_2026Q4");
   assert.equal(target.binding, "MARKET_HISTORY_2026Q4_DB");
+});
+
+test("market write fails closed when Q4 is full/unready (no legacy fallback)", async () => {
+  const full = await resolveMarketHistoryWriteDb({
+    MARKET_HISTORY_2026Q4_DB: historyDb(9_900_000_000),
+    MARKET_HISTORY_DB: historyDb(9_200_000_000),
+  }, { now: new Date("2026-10-20T12:00:00Z") });
+  assert.equal(full.db, null);
+  assert.equal(full.warning, "MARKET_HISTORY_WRITE_UNAVAILABLE_FAIL_CLOSED");
+
+  const unready = await resolveMarketHistoryWriteDb({
+    MARKET_HISTORY_2026Q4_DB: historyDb(100_000, false),
+    MARKET_HISTORY_DB: historyDb(100_000),
+  }, { now: new Date("2026-10-20T12:00:00Z") });
+  assert.equal(unready.db, null);
+  assert.match(unready.warning, /FAIL_CLOSED|UNBOUND/);
+
+  const future = await resolveMarketHistoryWriteDb({
+    MARKET_HISTORY_2026Q4_DB: historyDb(100_000),
+    MARKET_HISTORY_DB: historyDb(100_000),
+  }, { now: new Date("2027-02-01T00:00:00Z") });
+  assert.equal(future.db, null);
+  assert.ok((future.rejected || []).some((r) => r.key === "MARKET_HISTORY_2026Q4" && r.reason === "AFTER_WINDOW_END"));
 });
 
 test("archive scan never deletes and retention gate blocks deletion without verified R2", async () => {

@@ -110,12 +110,27 @@ export function resolveCoreDb(env) {
 }
 
 /**
+ * Deployed sport-DB mode from env only. Caller overrides are intentionally ignored.
+ * Production authorization must never come from request/helper opts.
+ */
+export function deployedSportDbMode(env, sport) {
+  const key = normalizeSport(sport);
+  if (!key) return "primary";
+  return String(
+    env?.[`SPORT_DB_MODE_${key.toUpperCase()}`]
+    || (key === "nhl" ? env?.NHL_SPORT_DB_MODE : null)
+    || "primary"
+  ).toLowerCase();
+}
+
+/**
  * Resolve the working database for a sport.
  * Until a sport D1 is bound and schema-ready, reads/writes stay on PRIMARY.
  * mode: primary | shadow | sport (env NHL_SPORT_DB_MODE / SPORT_DB_MODE_<SPORT>)
  *
- * CRITICAL: product code must use `authoritativeSportDb()` / `productSportDbHandle()`.
+ * CRITICAL: product code must use `productSportDbHandle()` — it ignores caller mode.
  * `resolveSportDb().sportDb` is for shadow telemetry / copy / parity ONLY.
+ * Optional `{ mode }` is allowed only for non-product tooling (explicit shadow probes).
  * Shadow and primary modes always return `db` = PRIMARY and `preferred` = false.
  */
 export function resolveSportDb(env, sport, { mode } = {}) {
@@ -124,12 +139,22 @@ export function resolveSportDb(env, sport, { mode } = {}) {
   const plan = SPORT_DATABASES[key];
   const bindingName = plan?.binding;
   const sportDb = bindingName ? env?.[bindingName] : null;
-  const effectiveMode = String(
-    mode
-    || env?.[`SPORT_DB_MODE_${key.toUpperCase()}`]
-    || (key === "nhl" ? env?.NHL_SPORT_DB_MODE : null)
-    || "primary"
-  ).toLowerCase();
+  const envMode = deployedSportDbMode(env, key);
+  // Tooling may pass an explicit probe mode (e.g. force shadow for copy/parity).
+  // Caller `{mode:'sport'}` cannot bypass a deployed `shadow` mode.
+  let effectiveMode = envMode;
+  if (mode) {
+    const requested = String(mode).toLowerCase();
+    if (requested === "shadow" || requested === "primary") {
+      effectiveMode = requested;
+    } else if (requested === "sport") {
+      if (envMode === "shadow") {
+        effectiveMode = "shadow";
+      } else {
+        effectiveMode = "sport";
+      }
+    }
+  }
 
   if (!sportDb?.prepare || plan?.pilotStatus === "PLANNED" || !plan?.databaseId) {
     return {
@@ -184,13 +209,31 @@ export function resolveSportDb(env, sport, { mode } = {}) {
 }
 
 /**
- * Product read/write handle for a sport. Never returns a partial sport D1 unless
- * mode is explicitly `sport` AND the resolved binding is the sport plan binding.
+ * Product read/write handle for a sport.
+ * Mode is derived ONLY from deployed env (`SPORT_DB_MODE_*` / `NHL_SPORT_DB_MODE`).
+ * Caller `opts.mode` is ignored — `{mode:'sport'}` cannot bypass shadow.
  * Shadow / primary / unbound always fall back to PRIMARY `DB`.
  */
-export function productSportDbHandle(env, sport, opts = {}) {
-  const resolved = resolveSportDb(env, sport, opts);
+export function productSportDbHandle(env, sport, _opts = {}) {
+  // Ignore caller mode overrides entirely for product IO.
+  const resolved = resolveSportDb(env, sport);
   const primary = env?.DB || null;
+  if (_opts && Object.prototype.hasOwnProperty.call(_opts, "mode") && _opts.mode != null) {
+    // Surface that the override was rejected when env is not already sport.
+    if (deployedSportDbMode(env, sport) !== "sport" && String(_opts.mode).toLowerCase() === "sport") {
+      return {
+        db: primary,
+        binding: "DB",
+        mode: resolved.mode,
+        reason: "CALLER_MODE_OVERRIDE_REJECTED_ENV_AUTHORITY",
+        sport: resolved.sport,
+        preferred: false,
+        productIoUsesSportDb: false,
+        shadowSportDbBound: Boolean(resolved.sportDb?.prepare),
+        canAuthorizeWager: false,
+      };
+    }
+  }
   if (!resolved.productIoUsesSportDb) {
     return {
       db: primary,
@@ -235,9 +278,9 @@ export function productSportDbHandle(env, sport, opts = {}) {
   };
 }
 
-/** True only when product IO is intentionally cut over to the sport D1. */
-export function isSportDbAuthoritative(env, sport, opts = {}) {
-  return productSportDbHandle(env, sport, opts).productIoUsesSportDb === true;
+/** True only when product IO is intentionally cut over to the sport D1 via deployed env. */
+export function isSportDbAuthoritative(env, sport, _opts = {}) {
+  return productSportDbHandle(env, sport).productIoUsesSportDb === true;
 }
 
 async function probeSize(db) {
@@ -264,21 +307,42 @@ async function schemaReady(db, tableName) {
 }
 
 /**
- * Prefer the newest market-history partition that is bound, schema-ready, and under WATCH.
- * Legacy MARKET_HISTORY_DB remains readable; near-full partitions stop accepting new writes.
+ * Prefer the newest market-history partition that is bound, schema-ready, in-window, and under WATCH.
+ * Fail-closed: do not fall back to near-full legacy when the active partition is unready.
+ * Legacy MARKET_HISTORY_DB remains readable via listMarketHistoryReadDbs.
  */
-export async function resolveMarketHistoryWriteDb(env, { now = new Date() } = {}) {
+export async function resolveMarketHistoryWriteDb(env, {
+  now = new Date(),
+  allowLegacyFallback = false,
+} = {}) {
   const at = now instanceof Date ? now.toISOString() : String(now);
+  const rejected = [];
   for (const part of MARKET_HISTORY_PARTITIONS) {
     const db = env?.[part.binding];
-    if (!db?.prepare) continue;
-    if (!(await schemaReady(db, "normalized_market_observations"))) continue;
-    if (part.window?.start && at < part.window.start) continue;
-    if (part.window?.end && at >= part.window.end && part.key !== "MARKET_HISTORY_2026Q4") continue;
+    if (!db?.prepare) {
+      rejected.push({ key: part.key, reason: "UNBOUND" });
+      continue;
+    }
+    if (!(await schemaReady(db, "normalized_market_observations"))) {
+      rejected.push({ key: part.key, reason: "SCHEMA_UNREADY" });
+      continue;
+    }
+    if (part.window?.start && at < part.window.start) {
+      rejected.push({ key: part.key, reason: "BEFORE_WINDOW_START" });
+      continue;
+    }
+    // Enforce partition end for all partitions, including Q4 — no post-window writes.
+    if (part.window?.end && at >= part.window.end) {
+      rejected.push({ key: part.key, reason: "AFTER_WINDOW_END" });
+      continue;
+    }
     const bytes = await probeSize(db);
     if (bytes != null) {
       const capacity = capacityAlertLevel(bytes);
-      if (capacity.level === "CRITICAL" || capacity.level === "OVER_LIMIT") continue;
+      if (capacity.level === "CRITICAL" || capacity.level === "OVER_LIMIT") {
+        rejected.push({ key: part.key, reason: `CAPACITY_${capacity.level}`, capacity });
+        continue;
+      }
     }
     return {
       db,
@@ -286,18 +350,29 @@ export async function resolveMarketHistoryWriteDb(env, { now = new Date() } = {}
       binding: part.binding,
       store: part.key,
       capacity: bytes == null ? null : capacityAlertLevel(bytes),
+      rejected,
     };
   }
-  if (env?.MARKET_HISTORY_DB?.prepare) {
+  if (allowLegacyFallback && env?.MARKET_HISTORY_DB?.prepare) {
     return {
       db: env.MARKET_HISTORY_DB,
       partition: MARKET_HISTORY_PARTITIONS.find((p) => p.binding === "MARKET_HISTORY_DB"),
       binding: "MARKET_HISTORY_DB",
       store: "MARKET_HISTORY",
       warning: "ALL_PARTITIONS_FULL_OR_UNREADY_FALLBACK_LEGACY",
+      rejected,
     };
   }
-  return { db: null, partition: null, binding: null, store: null, warning: "MARKET_HISTORY_UNBOUND" };
+  return {
+    db: null,
+    partition: null,
+    binding: null,
+    store: null,
+    warning: env?.MARKET_HISTORY_DB?.prepare || env?.MARKET_HISTORY_2026Q4_DB?.prepare
+      ? "MARKET_HISTORY_WRITE_UNAVAILABLE_FAIL_CLOSED"
+      : "MARKET_HISTORY_UNBOUND",
+    rejected,
+  };
 }
 
 /** All bound market-history databases for merged reads (newest first). */
