@@ -29,8 +29,24 @@ export function compareTennisExchangeResearch(players,kalshi=[],polymarket=[]){
    const price=Number(pm.researchClob.sides[polyIndex]?.bestAsk?.price);
    const kalshiAsk=Number(k.yesAskDollars);
    if(!(price>0&&price<1&&kalshiAsk>0&&kalshiAsk<1))continue;
+   const kalshiCaptureAt=k.fetchedAt||null,polyCaptureAt=pm.researchClob.observedAt||pm.capturedAt||null;
+   const times=[Date.parse(kalshiCaptureAt||""),Date.parse(polyCaptureAt||"")];
+   const captureSkewMinutes=times.every(Number.isFinite)?Math.round(Math.abs(times[0]-times[1])/60000):null;
+   const scheduleConflict=[k.scheduleStatus,pm.scheduleStatus].some(z=>z&&z!=="START_WITHIN_TWO_HOURS");
+   const extreme=kalshiAsk<=.01||kalshiAsk>=.99||price<=.01||price>=.99;
+   const integrityWarnings=[
+    ...(scheduleConflict?["SCHEDULE_DISCREPANCY"]:[]),
+    ...(extreme?["EXTREME_INDICATIVE_PRICE"]:[]),
+    ...(captureSkewMinutes==null||captureSkewMinutes>15?["CAPTURE_TIMES_DIFFER_OR_UNKNOWN"]:[]),
+    "SOURCE_QUOTE_CLOCK_UNVERIFIED","FEES_AND_FILLABILITY_UNVERIFIED"
+   ];
+   const kalshiSize=Number(k.yesAskSize),polySize=Number(pm.researchClob.sides[polyIndex]?.bestAsk?.size);
    matches.push({player:players[index],kalshiAsk,polymarketAsk:price,
-    observedKalshiAt:k.fetchedAt||null,observedPolymarketAt:pm.researchClob.observedAt||pm.capturedAt||null,
+    kalshiAskSize:Number.isFinite(kalshiSize)&&kalshiSize>0?kalshiSize:null,
+    polymarketAskSize:Number.isFinite(polySize)&&polySize>0?polySize:null,
+    observedKalshiAt:kalshiCaptureAt,observedPolymarketAt:polyCaptureAt,
+    captureSkewMinutes,kalshiScheduleStatus:k.scheduleStatus||"UNKNOWN",
+    polymarketScheduleStatus:pm.scheduleStatus||"UNKNOWN",integrityWarnings,
     kalshiTicker:k.ticker,polymarketEvent:pm.eventSlug,
     source:"DUAL_EXCHANGE_RESEARCH_ONLY",canQualify:false,canAuthorizeWager:false,
     feesKnown:false,fillable:false,edgeCalculated:false});
