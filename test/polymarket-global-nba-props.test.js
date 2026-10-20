@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeGlobalNbaProp,verifyGlobalNbaFixture,capturePolymarketGlobalNba,loadPolymarketGlobalNba} from '../functions/lib/polymarketGlobalNbaProps.js';
+import {normalizeGlobalNbaProp,verifyGlobalNbaFixture,capturePolymarketGlobalNba,loadPolymarketGlobalNba,listGlobalNbaFixtureSlugs} from '../functions/lib/polymarketGlobalNbaProps.js';
 const game={id:'401909088',sport:'nba',date:'2026-10-20',start:'2026-10-20T19:00:00Z',away_abbr:'BOS',home_abbr:'DET'};
 const event={id:'1185700',slug:'nba-bos-det-2026-10-20',teams:[{ordering:'away',abbreviation:'bos'},{ordering:'home',abbreviation:'det'}]};
 const market={id:'5798017',slug:'nba-bos-det-2026-10-20-points-ausar-thompson-9pt5',
@@ -47,4 +47,21 @@ test('bounded Gamma collection stores independently verified snapshot and enforc
  const current=await loadPolymarketGlobalNba({ARCHIVE},{day:'2026-10-20',now:now.getTime()+20_000});
  assert.equal(current.rows.length,2);assert.equal(current.status,'RESEARCH_CAPTURED');
  assert.equal((await loadPolymarketGlobalNba({ARCHIVE},{day:'2026-10-20',now:now.getTime()+3*3600_000})).status,'STALE');
+});
+
+test('GitHub raw Gamma handoff revalidates independently verified fixture and roster without Pages egress',async()=>{
+ const now=new Date('2026-10-20T17:00:00Z');
+ const plan=await listGlobalNbaFixtureSlugs({DB:dbMock()},{now});
+ assert.deepEqual(plan.slugs,['nba-bos-det-2026-10-20']);
+ const entries=new Map(),ARCHIVE={put:async(k,v)=>entries.set(k,JSON.parse(v)),get:async k=>entries.has(k)?{json:async()=>entries.get(k)}:null};
+ const r=await capturePolymarketGlobalNba({DB:dbMock(),ARCHIVE},{
+  now,providedEvents:[{...event,markets:[market]}],
+  fetchImpl:async()=>{throw Error('No Pages upstream request should occur')}
+ });
+ assert.equal(r.contracts,2);assert.equal(r.errors.length,0);
+ const bad=await capturePolymarketGlobalNba({DB:dbMock(),ARCHIVE},{
+  now,providedEvents:[{...event,teams:[{ordering:'away',abbreviation:'phi'},{ordering:'home',abbreviation:'det'}],markets:[market]}],
+  fetchImpl:async()=>{throw Error('Unexpected provider fetch')}
+ });
+ assert.equal(bad.contracts,0);assert.equal(bad.errors[0].code,'EVENT_IDENTITY_UNRESOLVED');
 });
