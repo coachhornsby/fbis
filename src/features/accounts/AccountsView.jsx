@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import "./accounts.css";
 import { readAccountApiResponse } from "./accountFetchDiagnostics.js";
 import PolymarketAccountPanel from "./PolymarketAccountPanel.jsx";
+import ExchangeBrandHeader from "./ExchangeBrandHeader.jsx";
 
 const money = value => Number.isFinite(value) ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value) : "—";
 const stamp = iso => {
@@ -97,7 +98,7 @@ export default function AccountsView() {
   return (
     <section className="fbis-accounts" aria-label="Exchange account balances">
       <div className="accounts-top">
-        <div><div className="accounts-eyebrow">FBIS / CAPITAL OPERATIONS</div><h2>Accounts &amp; Portfolio</h2><p>Real exchange balances, positions, orders, and fills. No simulated account values.</p></div>
+        <div><div className="accounts-eyebrow">FBIS / CAPITAL OPERATIONS</div><h2>Accounts &amp; Portfolio</h2><p>Private exchange balances, positions, orders and activity · Independent provider snapshots</p></div>
         <div className="accounts-top-actions"><span className="accounts-status">READ ONLY</span>{token && <button type="button" onClick={lock}>Lock account</button>}</div>
       </div>
       {!token ? (
@@ -107,9 +108,11 @@ export default function AccountsView() {
           <div className="accounts-access-row"><input type="password" autoComplete="off" value={entry} onChange={e => setEntry(e.target.value)} placeholder="FBIS portfolio access code" aria-label="FBIS portfolio access code" /><button type="submit" disabled={busy || !entry.trim()}>{busy ? "Connecting…" : "Open portfolio"}</button></div>
           {error && <p role="alert" className="accounts-alert">{error}</p>}
         </form>
-      ) : (
-        <>
-          <div className="accounts-toolbar"><div><strong>Kalshi</strong> <span className="accounts-subtle">REST snapshot · {stamp(snapshot?.capturedAt)}</span></div><button type="button" disabled={busy} onClick={() => load(token)}>{busy ? "Updating…" : "↻ Refresh balances"}</button></div>
+      ) : null}
+      {token ? (
+        <div className="accounts-exchange-grid" aria-label="Private exchange comparison">
+          <section className="accounts-exchange-shell accounts-exchange-shell--kalshi" aria-label="Kalshi account">
+            <ExchangeBrandHeader provider="kalshi" updatedAt={stamp(snapshot?.capturedAt)} refreshing={busy} onRefresh={() => load(token)} />
           {error && <p role="alert" className="accounts-alert">{error}</p>}
           {snapshot ? (
             <>
@@ -139,15 +142,16 @@ export default function AccountsView() {
               </article>
             </>
           ) : !error ? <p className="accounts-wait">Loading private Kalshi account snapshot…</p> : null}
-        </>
+          </section>
+          <PolymarketAccountPanel token={token} />
+        </div>
+      ) : (
+        <div className="accounts-locked-exchanges" aria-label="Exchange accounts locked">
+          <span>Kalshi <strong>Locked</strong></span>
+          <span>Polymarket US <strong>Locked</strong></span>
+        </div>
       )}
-      {token ? <PolymarketAccountPanel token={token} /> : (
-        <article className="accounts-panel accounts-other">
-          <div className="accounts-panel-head"><h3>Polymarket US</h3><span>Private account locked</span></div>
-          <p>Unlock with your FBIS portfolio access code above to load both exchange accounts. Polymarket US cash, positions, orders and trades remain private and are not combined with Kalshi until account-value reconciliation is verified.</p>
-        </article>
-      )}
-      <p className="accounts-fine">FBIS cannot send orders from this screen. Private account figures never appear on public game cards. Market quotes can be integrated into cards separately with bid, ask, depth, fees, timestamps and contract matching.</p>
+      <p className="accounts-fine accounts-global-note">Read-only, private account snapshots. No order submission or funds transfers. Kalshi and Polymarket amounts are not added together without verified cross-exchange accounting. Private account figures never appear on public game cards.</p>
     </section>
   );
 }
