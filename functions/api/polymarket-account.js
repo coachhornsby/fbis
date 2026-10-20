@@ -23,14 +23,14 @@ async function sameToken(expected, supplied, subtle = crypto.subtle) {
   return mismatch === 0;
 }
 
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet({ request, env, fetchImpl = fetch }) {
   if (!env?.FBIS_ACCOUNT_VIEW_TOKEN) return reply({ ok: false, code: "PORTFOLIO_ACCESS_NOT_CONFIGURED" }, 503);
   const supplied = request.headers.get("x-fbis-account-token");
   if (!await sameToken(env.FBIS_ACCOUNT_VIEW_TOKEN, supplied)) {
     return reply({ ok: false, code: "PORTFOLIO_ACCESS_DENIED" }, 403);
   }
   try {
-    const result = await readPolymarketUsAccount(env);
+    const result = await readPolymarketUsAccount(env, { fetchImpl });
     return reply(result, result.ok ? 200 : 503);
   } catch {
     return reply({ ok: false, code: "POLYMARKET_READ_UNAVAILABLE" }, 503);
