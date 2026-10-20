@@ -53,7 +53,7 @@ export function matchPolymarketGlobalTennis(fixture,events=[],{now=new Date(),as
   if(!matchesPair(title,players))continue;
   const providerStart=e.gameStartTime||e.startTime||e.markets?.[0]?.gameStartTime||null;
   const at=Date.parse(providerStart||"");
-  const slugDate=/(20\\d{2}-\\d{2}-\\d{2})$/.exec(slug)?.[1]||null;
+  const slugDate=/(20\d{2}-\d{2}-\d{2})$/.exec(slug)?.[1]||null;
   const dateOnly=slugDate?Date.parse(slugDate+"T12:00:00Z"):NaN;
   const candidate=Number.isFinite(at)?at:dateOnly;
   if(!Number.isFinite(candidate)||Math.abs(candidate-start)>48*3600000)continue;
