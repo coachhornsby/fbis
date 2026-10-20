@@ -522,7 +522,135 @@ export function attachNbaPlayerProjectionBlocked(games = []) {
       independent: true,
       marketInformed: false,
       canQualify: false,
+      canAuthorize: false,
       reason: "NBA production player-stat ingestion remains provider/license blocked. Market lines may display but are never substituted for a projection.",
     },
   }));
+}
+
+/**
+ * Research-only NBA player props from D1 shadow table (ESPN/box-derived).
+ * Never authorizes wagers; never uses NBA Stats quarantined feeds.
+ */
+export async function loadNbaPlayerPropContext(db, games = []) {
+  const ids = [...new Set((games || []).map((g) => String(g?.id || "")).filter(Boolean))];
+  if (!db?.prepare || !ids.length) {
+    return { byGame: {}, meta: { rows: 0, source: null, state: "PLAYER_DATA_UNAVAILABLE" } };
+  }
+  try {
+    const placeholders = ids.map(() => "?").join(",");
+    const res = await db.prepare(
+      `SELECT game_id, player_id, player_name, team, market_type, projection, sigma,
+              projected_minutes, availability_status, availability_verified,
+              model_id, model_version, feature_cutoff_timestamp, can_qualify
+       FROM nba_player_prop_projections
+       WHERE game_id IN (${placeholders})
+       ORDER BY feature_cutoff_timestamp DESC
+       LIMIT 5000`
+    ).bind(...ids).all();
+    const byGame = {};
+    const seen = new Set();
+    for (const row of res?.results || []) {
+      const gid = String(row.game_id || "");
+      const key = `${gid}|${row.player_id || row.player_name}|${row.market_type}`;
+      if (!gid || seen.has(key)) continue;
+      seen.add(key);
+      if (!byGame[gid]) byGame[gid] = [];
+      byGame[gid].push({
+        sport: "nba",
+        eventId: gid,
+        team: row.team || null,
+        playerId: row.player_id || null,
+        playerName: row.player_name || null,
+        market: row.market_type,
+        fbisProjection: row.projection == null ? null : Number(row.projection),
+        fbisSigma: row.sigma == null ? null : Number(row.sigma),
+        projectedMinutes: row.projected_minutes == null ? null : Number(row.projected_minutes),
+        availabilityStatus: row.availability_status || "UNKNOWN",
+        availabilityVerified: Number(row.availability_verified) === 1,
+        source: "NBA_PLAYER_PROP_PROJECTIONS_D1",
+        maturity: "RESEARCH",
+        independent: true,
+        marketInformed: false,
+        canQualify: Number(row.can_qualify) === 1,
+        canAuthorizeWager: false,
+        decisionEligible: false,
+        eligibleForCard: Number(row.availability_verified) === 1 && Number(row.can_qualify) === 1,
+        propGate: Number(row.availability_verified) === 1 ? "CLEAR" : "HOLD",
+        gateReason: Number(row.availability_verified) === 1 ? null : "availability_unverified",
+        modelId: row.model_id || "NBA-PLAYER-PROP-v1",
+        modelVersion: row.model_version || null,
+        featureCutoff: row.feature_cutoff_timestamp || null,
+        notes: "Research shadow projection from approved ESPN/box inputs. Markets are evaluation-only; wager authority remains gated.",
+      });
+    }
+    const rows = Object.values(byGame).reduce((n, xs) => n + xs.length, 0);
+    return {
+      byGame,
+      meta: {
+        rows,
+        gamesWithRows: Object.keys(byGame).length,
+        source: "nba_player_prop_projections",
+        state: rows ? "ACTIVE_RESEARCH" : "PLAYER_DATA_UNAVAILABLE",
+        independent: true,
+        marketInformed: false,
+        canQualify: false,
+        canAuthorize: false,
+      },
+    };
+  } catch (err) {
+    return {
+      byGame: {},
+      meta: {
+        rows: 0,
+        source: "nba_player_prop_projections",
+        state: "PLAYER_DATA_UNAVAILABLE",
+        error: String(err?.message || err),
+        canQualify: false,
+        canAuthorize: false,
+      },
+    };
+  }
+}
+
+export function attachNbaPlayerProjectionResearch(games = [], ctx = {}) {
+  const byGame = ctx.byGame || {};
+  let projected = 0;
+  const next = (games || []).map((game) => {
+    const rows = byGame[String(game.id)] || [];
+    projected += rows.length;
+    const cardRows = rows.filter((r) => r.eligibleForCard);
+    return {
+      ...game,
+      playerProjectionRows: rows,
+      playerProjectionStatus: {
+        sport: "nba",
+        state: cardRows.length
+          ? "ACTIVE_RESEARCH"
+          : rows.length
+            ? "HOLD_AVAILABILITY"
+            : "PLAYER_DATA_UNAVAILABLE",
+        model: rows[0]?.modelId || "NBA-PLAYER-PROP-v1",
+        version: rows[0]?.modelVersion || PRO_PLAYER_PROJECTION_VERSION,
+        independent: true,
+        marketInformed: false,
+        canQualify: false,
+        canAuthorize: false,
+        reason: rows.length
+          ? "Research props from D1 shadow (ESPN/box-derived). Wager authority remains under NBA prospective gate."
+          : "No nba_player_prop_projections rows for this event yet.",
+      },
+    };
+  });
+  return {
+    games: next,
+    meta: {
+      ...(ctx.meta || {}),
+      projected,
+      state: projected ? (ctx.meta?.state || "ACTIVE_RESEARCH") : "PLAYER_DATA_UNAVAILABLE",
+      canQualify: false,
+      canAuthorize: false,
+      marketInformed: false,
+    },
+  };
 }

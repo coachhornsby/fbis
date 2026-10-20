@@ -148,10 +148,10 @@ test("sport-specific availability preflight holds unresolved MLB starters and NH
   assert.ok(nhl.reasons.includes("starting_goalie_not_confirmed"));
 });
 
-test("NBA preflight fails closed when availability feed is not configured", () => {
+test("NBA preflight stays UNVERIFIED (not BLOCKED) when injury/lineup observations are missing", () => {
   const p = buildSportAvailabilityPreflight({sport:"nba",home:{},away:{}},"nba");
-  assert.equal(p.state,"BLOCKED");
-  assert.ok(p.reasons.includes("rights_cleared_injury_feed_required"));
+  assert.equal(p.state,"UNVERIFIED");
+  assert.ok(p.reasons.includes("official_injury_or_lineup_observations_missing"));
 });
 
 
