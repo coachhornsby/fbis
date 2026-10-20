@@ -1,40 +1,49 @@
 {
   "contract": "fbis-storage-reclamation-readiness-v1",
   "generatedAt": "2026-10-20T19:15:00.000Z",
+  "recheckedAt": "2026-10-20T19:23:00.000Z",
   "canAuthorizeWager": false,
   "deletionAuthorized": false,
   "retentionReleaseAuthorized": false,
   "distinction": {
     "archivedIsNotReclaimed": true,
-    "note": "R2 verified archive progress does not reduce PRIMARY or legacy market-history D1 bytes until an authorized retention delete runs."
+    "note": "R2 verified archive progress (archived_total=654679, last_backlog=0) does not reduce PRIMARY or legacy market-history D1 bytes until an authorized retention delete runs."
   },
   "observedSizesBytes": {
     "fbis_PRIMARY": 8129888256,
     "fbis_PRIMARY_approxGiB": 7.57,
+    "fbis_PRIMARY_approxGB": 8.13,
     "fbis_market_history_legacy": 9999998976,
     "fbis_market_history_legacy_approxGiB": 9.31,
     "fbis_market_history_2026q4": 2579030016,
-    "fbis_nfl": 121499648
+    "fbis_nfl": 137887744,
+    "note": "PRIMARY and legacy MH unchanged since archive catch-up; NFL sport DB grew with prefix catch-up"
   },
   "reclamationStatus": {
     "primaryBytesReclaimed": 0,
     "legacyMarketHistoryBytesReclaimed": 0,
     "q4BytesReclaimed": 0,
-    "reason": "Archive catch-up in progress; hot-window + retention gate keep source rows"
+    "reason": "Retention delete gated; archive provenance complete enough for rehearsal but not authorized for delete"
+  },
+  "archiveGate": {
+    "checkpointKey": "normalized_market_observations_v2",
+    "archivedTotal": 654679,
+    "lastBacklog": 0,
+    "lastBatchAt": "2026-10-20T19:20:22.236Z",
+    "lateArrivalCatchup": "Worker cron invokes archiveLateArrivalsBehindCursor after main catch-up; primary cursor unchanged"
   },
   "controlledReclaimPrerequisites": [
-    "Verified archive checkpoint advancing with backlog falling",
-    "Late-arrival catch-up pass running on Worker cron",
+    "Verified archive checkpoint advancing with backlog falling (met: last_backlog=0)",
+    "Late-arrival catch-up pass running on Worker cron (code landed; deploy with this PR)",
     "Retention rehearsal enumerates eligible IDs with full restore evidence",
     "Consumer audit proves no live board/read path depends on eligible rows",
     "Explicit retentionReleaseAuthorized + operator approval (separate from this package)",
     "Delete remains disabled until that approval"
   ],
   "eligibleNowOutsideHotWindow": 0,
-  "archivedBehindCheckpointPendingHotAgeOut": "see retention rehearsal op",
   "nextActions": [
-    "Continue Worker archive until Q4 backlog near zero",
-    "Run market-history-retention-rehearsal for exact eligible ID package",
-    "Do not delete; prepare PRIMARY reclaim plan only after sport cutovers reduce working-set pressure"
+    "Keep Worker archive + late-arrival catch-up on */5",
+    "Run market-history-retention-rehearsal for exact eligible ID package (no delete)",
+    "Do not delete; PRIMARY reclaim only after sport cutovers reduce working-set pressure and retention gate opens"
   ]
 }

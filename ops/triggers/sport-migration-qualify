@@ -1,1 +1,1 @@
-trigger 2026-10-20T19:15:00Z — prefix parity gate + NFL cutover consumers/writes/model/rollback rehearsal
+trigger 2026-10-20T19:24:00Z — NFL full prefix+working-set parity; qualify receipt + cutover rehearsal (no activation)

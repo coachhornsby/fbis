@@ -1,91 +1,101 @@
 {
-  "contract": "fbis-sport-migration-proof-v1",
+  "contract": "fbis-sport-migration-proof-v2",
   "generatedAt": "2026-10-20T19:03:00.000Z",
-  "recheckedAt": "2026-10-20T19:03:00.000Z",
+  "recheckedAt": "2026-10-20T19:23:00.000Z",
   "canAuthorizeWager": false,
   "cutoverAuthorized": false,
   "deletionAuthorized": false,
+  "pr1419": {
+    "merged": true,
+    "mergeCommit": "72b03d5e274d95d5fce0781a539b39e8c58147be",
+    "mergedAt": "2026-10-20T19:10:47Z"
+  },
+  "distinction": {
+    "workingSetParityIsNotFullMigration": true,
+    "archivedIsNotReclaimed": true,
+    "note": "Games/predictions parity alone does not qualify a sport; prefix profiles/rosters/research/models must reach prefixParity. R2 archive progress does not reduce PRIMARY/legacy MH bytes."
+  },
   "schedulerIndependence": {
     "core": {
       "mechanism": "fbis-polymarket-us-stream Worker cron */5",
-      "evidence": [
-        { "asOf": "2026-10-20T18:50:22.738Z" },
-        { "asOf": "2026-10-20T18:55:22.398Z" },
-        { "asOf": "2026-10-20T19:00:22.677Z" }
-      ],
-      "note": "Continues after last manual/mcp recovery; no merge trigger required",
       "githubScheduleRequired": false
     },
     "r2Archive": {
-      "mechanism": "same Worker cron */5 → archiveAndVerifyColdMarketHistory",
-      "codeVersion": "board-ws-q4-archive-catchup-20261020",
+      "mechanism": "same Worker cron */5 → archiveAndVerifyColdMarketHistory + archiveLateArrivalsBehindCursor",
       "checkpointKey": "normalized_market_observations_v2",
       "progress": {
-        "archivedTotal": 537525,
-        "lastBacklog": 89091,
+        "archivedTotal": 654679,
+        "lastBacklog": 0,
         "backlogFalling": true,
-        "lastBatchAt": "2026-10-20T19:00:22.416Z",
-        "note": "Worker */5 catch-up; GH archive schedule still absent"
+        "lastBatchAt": "2026-10-20T19:20:22.236Z",
+        "lastCollectedAt": "2026-10-20T18:20:22.099Z",
+        "note": "Checkpoint backlog reached 0; Worker continues for late arrivals and new ingest"
       },
       "githubScheduleRequired": false,
       "deletion": "NOT_PERFORMED"
     }
   },
+  "nflFullMigration": {
+    "status": "PREFIX_AND_WORKING_SET_PARITY_OK",
+    "verifiedAt": "2026-10-20T19:23:00.000Z",
+    "source": "Cloudflare D1 direct count compare PRIMARY vs fbis-nfl",
+    "workingSet": {
+      "games": [313, 313],
+      "prediction_snapshots": [1814, 1814],
+      "published_projections": [36, 36],
+      "ok": true
+    },
+    "prefix": {
+      "nfl_team_profiles": [32, 32],
+      "nfl_team_profile_snapshots": [1083, 1083],
+      "nfl_team_schedule_profile": [544, 544],
+      "nfl_team_coach_history": [32, 32],
+      "nfl_profile_sync_runs": [1085, 1085],
+      "nfl_player_profiles": [3199, 3199],
+      "nfl_player_state_events": [3277, 3277],
+      "nfl_research_publications": [26, 26],
+      "nfl_research_publication_events": [888, 888],
+      "nfl_qb_personnel_shadow_predictions": [60, 60],
+      "nfl_wager_decisions": [5589, 5589],
+      "nfl_wager_outcomes": [0, 0],
+      "ok": true,
+      "matchedTables": 12,
+      "tableCount": 12
+    },
+    "fullSportIncludingPrefix": true,
+    "readyForCutoverReview": "pending_qualify_workflow_receipt",
+    "authorityActivationRequested": false,
+    "liveCutoverAuthorized": false
+  },
   "syncReceipts": {
-    "maxLagMs": 2700000,
+    "postMergeRun": "https://github.com/coachhornsby/fbis/actions/runs/39481224940",
+    "nflWorkingSet": {
+      "ok": true,
+      "caughtUp": true,
+      "receiptId": "nfl-parity-2026-10-20T19-13-03-252Z",
+      "productStillPrimary": true
+    },
+    "knownFailuresPreSoftRetry": {
+      "nhl": "TOPOLOGY_sport-prefix-copy_INVALID_JSON_HTTP_503",
+      "cfb": "AbortError timeout 240s on topology request",
+      "mitigation": "sport-delta-sync-ops retries 502/503/504 and soft-fails prefix transport so working-set receipts still complete"
+    },
     "authority": "PRIMARY for all 11 sports",
-    "workingSetParity": {
-      "nfl": { "games": [313, 313], "predictions": [1814, 1814], "ok": true, "lagOk": true },
-      "cfb": { "games": [1182, 1182], "predictions": [10359, 10359], "ok": true, "lagOk": true },
-      "nhl": { "games": [166, 166], "predictions": [703, 703], "ok": true, "lagOk": true },
-      "nba": { "games": [161, 161], "predictions": [379, 379], "ok": true, "lagOk": true },
-      "mlb": { "games": [730, 730], "predictions": [2903, 2903], "ok": true, "lagOk": true },
-      "cbb": { "games": [0, 0], "predictions": [0, 0], "ok": true },
-      "wnba": { "games": [11, 11], "predictions": [48, 48], "ok": true, "lagOk": true },
-      "soccer": { "games": [167, 167], "predictions": [522, 522], "ok": true, "lagOk": true },
-      "tennis": { "games": [0, 0], "predictions": [0, 0], "ok": true },
-      "npb": { "games": [0, 0], "predictions": [0, 0], "ok": true },
-      "kbo": { "games": [0, 0], "predictions": [0, 0], "ok": true }
-    },
-    "prefixBackfill": {
-      "status": "in_progress_across_sports",
-      "heal": "ensureMirroredSportTable ALTER ADD COLUMN for schema drift",
-      "nhlResearchHealed": ["nhl_goalie_probability_shadow", "nhl_bookmaker_quote_evidence"],
-      "note": "Prefix tables resume via cursors; moreRemaining expected until exhausted"
-    },
     "workflow": "sport-delta-sync-recurring.yml",
     "concurrencyGroup": "fbis-sport-delta-sync-recurring-v2"
+  },
+  "cutoverRehearsal": {
+    "contract": "fbis-sport-cutover-rehearsal-v2",
+    "unitTests": "15/15 pass including consumers/writes/model_versions_preserved/rollback",
+    "liveActivation": false,
+    "note": "Rehearsal proves consumers stay on PRIMARY, writes move only with receipt, model versions preserved, rollback restores shadow — no SPORT_DB_MODE_*=sport"
   },
   "storageRetirement": {
     "rehearsalContract": "fbis-market-history-retention-rehearsal-v1",
     "deletionAuthorized": false,
-    "archiveProvenanceColumns": 50,
-    "hotWindowMs": 84874363,
-    "hotWindowHours": 23.58,
-    "q4Bounds": { "min_at": "2026-10-20T06:12:37.143Z", "n": 684002 },
-    "eligibleNowOutsideHotWindow": 0,
-    "archivedBehindCheckpointPendingHotAgeOut": 368321,
-    "firstEligibleSampleWhenAged": [
-      { "id": "nmo_00399286aa44cd761f44e87f31c4", "collected_at": "2026-10-20T06:12:37.143Z" },
-      { "id": "nmo_005f1bb0aeb5012b529ba4f91f20", "collected_at": "2026-10-20T06:12:37.143Z" },
-      { "id": "nmo_006e15464faad1922ec2253050a3", "collected_at": "2026-10-20T06:12:37.143Z" }
-    ],
-    "note": "Deletion stays disabled until separately authorized."
-  },
-  "cutoverQualification": {
-    "order": ["nfl", "cfb", "nhl"],
-    "activationPerformed": false,
-    "independentApprovalRequired": true,
-    "rollbackEvidenceRequired": true,
-    "approvalsTableEmpty": true,
-    "rollbackPlan": [
-      "Keep SPORT_DB_MODE_* = shadow (or unset)",
-      "Do not write SPORT_CUTOVER_RECEIPT_*",
-      "Product reads remain on PRIMARY",
-      "Re-run sport-delta-sync + record parity after any failed rehearsal"
-    ],
-    "workflow": "sport-migration-qualify.yml",
-    "nflFirst": true,
-    "readyWhen": "countParity + recordParity + cutoverRehearsal ok; still requires independent human approval per sport"
+    "primaryBytes": 8129888256,
+    "legacyMarketHistoryBytes": 9999998976,
+    "bytesReclaimed": 0,
+    "note": "Archive backlog cleared does not equal storage reclaimed"
   }
 }

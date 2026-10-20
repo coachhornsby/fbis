@@ -976,6 +976,11 @@ export async function copySportPrefixTables(env, sport, {
         skipped.push({ table, primaryCount: primaryN, sportCount: sportN, status: "SKIPPED_CAUGHT_UP" });
         continue;
       }
+      // Count divergence with a mid-table resume cursor can skip interleaved missing
+      // keys (sport already holds later keys). Reset cursor so REPLACE rescan fills gaps.
+      if (resume && primaryN != null && sportN != null && sportN < primaryN) {
+        await metaSet(sportDb, `copy_cursor_prefix_${table}`, "");
+      }
       next.push(table);
     }
     wanted = next;
