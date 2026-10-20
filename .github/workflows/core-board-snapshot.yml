@@ -4,8 +4,10 @@ name: CORE board snapshot publish and freshness
 # operator alert surface (same pattern as primary market-data heartbeat).
 on:
   schedule:
-    # Every 15 minutes UTC
-    - cron: "*/15 * * * *"
+    # Every 15 minutes UTC, offset from :00/:15/:30/:45.
+    # GitHub may delay or skip schedules that land on hourly high-load boundaries;
+    # offset minutes keep the CORE 15m freshness SLA observable automatically.
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
