@@ -8,6 +8,7 @@ import {
   rankPropConviction,
   sortPropsByConviction,
   groupPlayerPropRows,
+  orderExchangeResearchCards,
   normalizeBoardGame,
   propProjectionStars,
   selectFreeMirrorReferenceRows,
@@ -648,4 +649,36 @@ test("MLB model-only prop rows remain visible before a market line posts", () =>
   assert.equal(board.rows[0].recommendationEligible,false);
   assert.equal(board.counts.visibleMlbProjectionOnly,1);
   assert.equal(board.policy.mlbProjectionOnlyRowsVisible,true);
+});
+
+test("exchange cards show actual mapped contracts before unpaired NBA research",()=>{
+ const model=Array.from({length:150},(_,i)=>({id:'model-'+i,provider:null,fbis_projection:15,
+  canonicalEventId:'G1',start_time:'2026-10-20T19:00Z'}));
+ const markets=[
+  ...Array.from({length:70},(_,i)=>({id:'b-'+i,provider:'Kalshi',contractId:'KXB'+i,identityVerified:true,
+   canonicalEventId:'BOS-DET',start_time:'2026-10-20T19:00Z',player_name:'Boston-'+i,marketAvailable:false})),
+  ...Array.from({length:70},(_,i)=>({id:'n-'+i,provider:'Kalshi',contractId:'KXN'+i,identityVerified:true,
+   canonicalEventId:'NY-PHI',start_time:'2026-10-20T23:00Z',player_name:'NY-'+i,marketAvailable:false})),
+  ...Array.from({length:70},(_,i)=>({id:'s-'+i,provider:'Kalshi',contractId:'KXS'+i,identityVerified:true,
+   canonicalEventId:'SA-OKC',start_time:'2026-10-21T01:30Z',player_name:'SAS-'+i,marketAvailable:false})),
+ ];
+ const shown=orderExchangeResearchCards([...model,...markets],100);
+ assert.equal(shown.length,100);
+ assert.ok(shown.every(r=>r.contractId&&r.identityVerified===true));
+ assert.deepEqual(new Set(shown.map(r=>r.canonicalEventId)),new Set(['BOS-DET','NY-PHI','SA-OKC']));
+ assert.ok(shown.filter(r=>r.canonicalEventId==='BOS-DET').length>=30);
+ assert.ok(shown.filter(r=>r.canonicalEventId==='NY-PHI').length>=30);
+ assert.ok(shown.filter(r=>r.canonicalEventId==='SA-OKC').length>=30);
+ assert.equal(orderExchangeResearchCards([...model,...markets],0).length,0);
+});
+test("exchange order never upgrades an unqualified contract into a verified market",()=>{
+ const r={id:'one',contractId:'KXNBA',provider:'Kalshi',identityVerified:true,
+  marketAvailable:false,priceVerified:false,canQualify:false,canAuthorizeWager:false};
+ const a=orderExchangeResearchCards([r],100);
+ assert.equal(a.length,1);assert.equal(a[0],r);assert.equal(a[0].marketAvailable,false);
+ assert.equal(a[0].canAuthorizeWager,false);
+ const onlyModel={id:'model',provider:null,fbis_projection:10};
+ assert.equal(orderExchangeResearchCards([onlyModel,r],1)[0],r);
+ const fakeContract={id:'fake',provider:'Kalshi',contractId:'KX',identityVerified:false};
+ assert.equal(orderExchangeResearchCards([fakeContract,onlyModel],2)[0],onlyModel);
 });
