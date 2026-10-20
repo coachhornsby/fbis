@@ -599,6 +599,233 @@ export function sportMigrationScope(sport) {
   };
 }
 
+function assertSafeIdent(name) {
+  const n = String(name || "");
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(n)) throw new Error(`UNSAFE_IDENT:${n}`);
+  return n;
+}
+
+function sqliteType(type) {
+  const t = String(type || "TEXT").toUpperCase();
+  if (t.includes("INT")) return "INTEGER";
+  if (t.includes("REAL") || t.includes("FLOA") || t.includes("DOUB")) return "REAL";
+  if (t.includes("BLOB")) return "BLOB";
+  return "TEXT";
+}
+
+/**
+ * Mirror a PRIMARY table's schema onto the sport DB (CREATE IF NOT EXISTS only).
+ * Additive — never drops or alters existing sport-side columns.
+ */
+export async function ensureMirroredSportTable(primary, sportDb, tableName) {
+  const table = assertSafeIdent(tableName);
+  const info = await primary.prepare(`PRAGMA table_info(${table})`).all();
+  const cols = info?.results || [];
+  if (!cols.length) return { ok: false, reason: "PRIMARY_TABLE_MISSING", table };
+  const existing = await sportDb.prepare(
+    "SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=? LIMIT 1"
+  ).bind(table).first();
+  if (existing?.ok === 1 || existing?.ok === true || Number(existing?.ok) === 1) {
+    return { ok: true, skipped: true, table, columns: cols.length };
+  }
+  const pkCols = cols.filter((c) => Number(c.pk) > 0).sort((a, b) => Number(a.pk) - Number(b.pk));
+  const colSql = cols.map((c) => {
+    const name = assertSafeIdent(c.name);
+    const typ = sqliteType(c.type);
+    const notnull = Number(c.notnull) === 1 ? " NOT NULL" : "";
+    return `${name} ${typ}${notnull}`;
+  }).join(", ");
+  const pkSql = pkCols.length
+    ? `, PRIMARY KEY (${pkCols.map((c) => assertSafeIdent(c.name)).join(", ")})`
+    : "";
+  await sportDb.prepare(`CREATE TABLE IF NOT EXISTS ${table} (${colSql}${pkSql})`).run();
+  return { ok: true, skipped: false, table, columns: cols.length, pk: pkCols.map((c) => c.name) };
+}
+
+/**
+ * Copy rows for one prefix table using keyset on the first PK column (or rowid).
+ */
+export async function copyPrefixedTablePaged(primary, sportDb, tableName, {
+  pageSize = 200,
+  maxPages = 25,
+  afterKey = "",
+} = {}) {
+  const table = assertSafeIdent(tableName);
+  const mirror = await ensureMirroredSportTable(primary, sportDb, table);
+  if (!mirror.ok) return { table, ok: false, copied: 0, ...mirror };
+
+  const info = await primary.prepare(`PRAGMA table_info(${table})`).all();
+  const cols = (info?.results || []).map((c) => assertSafeIdent(c.name));
+  const pkCols = (info?.results || []).filter((c) => Number(c.pk) > 0).sort((a, b) => Number(a.pk) - Number(b.pk));
+  const keyCol = pkCols[0] ? assertSafeIdent(pkCols[0].name) : "rowid";
+  const selectCols = keyCol === "rowid" ? ["rowid AS __key", ...cols] : cols;
+  const orderCol = keyCol === "rowid" ? "rowid" : keyCol;
+
+  let cursor = afterKey;
+  let copied = 0;
+  let pages = 0;
+  let lastKey = cursor;
+  for (; pages < maxPages; pages += 1) {
+    const page = cursor
+      ? await primary.prepare(
+        `SELECT ${selectCols.join(",")} FROM ${table} WHERE ${orderCol}>? ORDER BY ${orderCol} ASC LIMIT ?`
+      ).bind(cursor, pageSize).all()
+      : await primary.prepare(
+        `SELECT ${selectCols.join(",")} FROM ${table} ORDER BY ${orderCol} ASC LIMIT ?`
+      ).bind(pageSize).all();
+    const rows = page?.results || [];
+    if (!rows.length) break;
+    const placeholders = cols.map(() => "?").join(",");
+    const colList = cols.join(",");
+    for (const row of rows) {
+      const values = cols.map((c) => row[c] ?? null);
+      await sportDb.prepare(
+        `INSERT OR REPLACE INTO ${table} (${colList}) VALUES (${placeholders})`
+      ).bind(...values).run();
+      copied += 1;
+      lastKey = keyCol === "rowid" ? String(row.__key) : String(row[keyCol] ?? "");
+    }
+    cursor = lastKey;
+    if (rows.length < pageSize) break;
+  }
+  return {
+    table,
+    ok: true,
+    copied,
+    pages,
+    cursor: lastKey,
+    exhausted: pages < maxPages || copied === 0,
+    mirror,
+  };
+}
+
+/**
+ * Shadow-copy declared prefix tables for a sport. Never activates authority.
+ */
+export async function copySportPrefixTables(env, sport, {
+  pageSize = 200,
+  maxPages = 25,
+  resume = true,
+  tables = null,
+} = {}) {
+  const key = String(sport || "").toLowerCase();
+  const plan = SPORT_DATABASES[key];
+  const primary = env?.DB;
+  const sportDb = plan?.binding ? env?.[plan.binding] : null;
+  if (!plan?.databaseId) return { ok: false, reason: "SPORT_DB_NOT_PROVISIONED", sport: key, canAuthorizeWager: false };
+  if (!primary?.prepare) return { ok: false, reason: "PRIMARY_UNBOUND", sport: key, canAuthorizeWager: false };
+  if (!sportDb?.prepare) return { ok: false, reason: "SPORT_DB_UNBOUND", sport: key, canAuthorizeWager: false };
+
+  const product = productSportDbHandle(env, key);
+  if (product.productIoUsesSportDb) {
+    return {
+      ok: false,
+      reason: "REFUSED_WHILE_SPORT_MODE_ACTIVE",
+      sport: key,
+      canAuthorizeWager: false,
+    };
+  }
+
+  const allowed = new Set(SPORT_PREFIX_TABLES[key] || []);
+  const wanted = (tables && Array.isArray(tables) ? tables : [...allowed])
+    .map((t) => String(t))
+    .filter((t) => allowed.has(t));
+
+  const results = [];
+  for (const table of wanted) {
+    try {
+      const afterKey = resume ? (await metaGet(sportDb, `copy_cursor_prefix_${table}`) || "") : "";
+      const copied = await copyPrefixedTablePaged(primary, sportDb, table, {
+        pageSize: Math.min(500, Math.max(1, Number(pageSize) || 200)),
+        maxPages: Math.min(100, Math.max(1, Number(maxPages) || 25)),
+        afterKey,
+      });
+      if (copied.cursor) await metaSet(sportDb, `copy_cursor_prefix_${table}`, copied.cursor);
+      results.push(copied);
+    } catch (error) {
+      results.push({
+        table,
+        ok: false,
+        copied: 0,
+        error: String(error?.message || error).slice(0, 240),
+      });
+    }
+  }
+  await metaSet(sportDb, "last_prefix_copy_at", new Date().toISOString());
+  return {
+    ok: results.every((r) => r.ok),
+    sport: key,
+    results,
+    moreRemaining: results.some((r) => r.ok && r.exhausted === false),
+    productStillPrimary: true,
+    canAuthorizeWager: false,
+  };
+}
+
+/**
+ * Continuous shadow sync: repeat working-set copy until exhausted (bounded rounds).
+ * Also optionally runs one prefix-table pass. Never activates sport authority.
+ */
+export async function syncSportWorkingDelta(env, sport, {
+  rounds = 5,
+  pageSize = 1000,
+  maxPages = 50,
+  includePrefix = false,
+} = {}) {
+  const key = String(sport || "").toLowerCase();
+  const roundsN = Math.min(20, Math.max(1, Number(rounds) || 5));
+  const passes = [];
+  let moreRemaining = true;
+  for (let i = 0; i < roundsN && moreRemaining; i += 1) {
+    const pass = await copySportWorkingTables(env, key, {
+      pageSize,
+      maxPages,
+      resume: true,
+    });
+    passes.push({
+      round: i + 1,
+      ok: pass.ok,
+      moreRemaining: pass.moreRemaining,
+      results: (pass.results || []).map((r) => ({
+        table: r.table,
+        copied: r.copied,
+        exhausted: r.exhausted,
+        ok: r.ok,
+      })),
+      reason: pass.reason || null,
+    });
+    if (!pass.ok && pass.reason) {
+      return {
+        ok: false,
+        sport: key,
+        passes,
+        reason: pass.reason,
+        productStillPrimary: true,
+        canAuthorizeWager: false,
+      };
+    }
+    moreRemaining = Boolean(pass.moreRemaining);
+  }
+
+  let prefix = null;
+  if (includePrefix) {
+    prefix = await copySportPrefixTables(env, key, { resume: true, pageSize: 200, maxPages: 25 });
+  }
+
+  const parity = await verifySportWorkingParity(env, key);
+  return {
+    ok: parity.ok && (!prefix || prefix.ok),
+    sport: key,
+    passes,
+    caughtUp: !moreRemaining,
+    moreRemaining,
+    prefix,
+    parity,
+    productStillPrimary: true,
+    canAuthorizeWager: false,
+  };
+}
+
 export async function verifySportWorkingParity(env, sport, { now = new Date() } = {}) {
   const key = String(sport || "").toLowerCase();
   const resolved = resolveSportDb(env, key, { mode: "shadow" });

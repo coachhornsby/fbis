@@ -1,6 +1,7 @@
 {
   "contract": "fbis-sport-migration-progress-v1",
-  "generatedAt": "2026-10-20T14:30:00.000Z",
+  "generatedAt": "2026-10-20T14:50:00.000Z",
+  "revisedFor": "post-assessment next milestone — Q4 verified archive + NFL prefix/delta sync code (shadow only, not production-activated)",
   "canAuthorizeWager": false,
   "authorityPolicy": "PRIMARY remains authoritative for all sports; sport D1s stay in shadow until per-sport CORE cutover receipts",
   "sports": [
@@ -12,9 +13,10 @@
       "liveSynchronization": "shadow_copy_available_delta_pending",
       "projectionParity": "PASS_WORKING_SET",
       "publishedProjections": "matched",
-      "apiCoverage": "incomplete_sport_specific_tables",
+      "apiCoverage": "prefix_copy_ops_ready_not_yet_run_in_prod",
       "cutoverReadiness": "BLOCKED",
       "authority": "PRIMARY",
+      "opsAvailable": ["sport-copy", "sport-prefix-copy", "sport-delta-sync", "sport-parity", "sport-cutover-rehearsal"],
       "storageImpact": { "bytesCopied": 22798336, "bytesReclaimedFromPrimary": 0 }
     },
     {
@@ -22,10 +24,10 @@
       "destinationD1": "fbis-cfb",
       "schema": "complete",
       "historicalBackfill": { "games": 1180, "prediction_snapshots": 10356, "published_projections": 0, "percentageWorkingSet": 100, "note": "PRIMARY also has 0 published_projections for CFB — not a copy gap" },
-      "liveSynchronization": "shadow_copy_available_delta_pending",
+      "liveSynchronization": "shadow_delta_sync_ops_ready",
       "projectionParity": "PASS_WORKING_SET",
       "publishedProjections": "matched_zero",
-      "apiCoverage": "incomplete_cfb_specific_tables",
+      "apiCoverage": "prefix_copy_ops_ready_not_yet_run_in_prod",
       "cutoverReadiness": "BLOCKED",
       "authority": "PRIMARY",
       "storageImpact": { "bytesCopied": 192278528, "bytesReclaimedFromPrimary": 0 }
@@ -34,9 +36,9 @@
       "sport": "NHL",
       "destinationD1": "fbis-nhl",
       "schema": "complete",
-      "historicalBackfill": { "games": 166, "prediction_snapshots": 664, "published_projections": 0, "percentageWorkingSet": "partial", "note": "PRIMARY prediction_snapshots=690 vs sport=664 — residual gap" },
-      "liveSynchronization": "shadow_parity_ok_product_shadow",
-      "projectionParity": "PASS_WITH_RESIDUAL_GAP",
+      "historicalBackfill": { "games": 166, "prediction_snapshots": 664, "published_projections": 0, "percentageWorkingSet": "partial", "note": "PRIMARY=690 sport=664; all 26 missing IDs are 2026-10-20T13:51Z research-v1.2 snapshots — delta-sync gap, not corruption" },
+      "liveSynchronization": "delta_sync_ops_ready_to_close_26_gap",
+      "projectionParity": "FAIL_UNTIL_DELTA_SYNC",
       "publishedProjections": "matched_zero",
       "apiCoverage": "incomplete",
       "cutoverReadiness": "BLOCKED",
@@ -149,24 +151,27 @@
     }
   ],
   "capacityAndRecovery": {
-    "primaryBytes": 8113790976,
+    "primaryBytes": 8114094080,
     "legacyMarketHistoryBytes": 9999998976,
-    "q4Bytes": 960995328,
+    "q4Bytes": 1166274560,
     "q4Growth": {
       "bytesPerObservation": 3437,
       "medianRowsPerHour": 91944,
       "peakRowsPerHour": 137806,
       "hoursToCapacityMedian": 28.6,
-      "hoursToCapacityPeak": 19.1
+      "hoursToCapacityPeak": 19.1,
+      "preDeployDeltaBytesSinceBaseline": 205279232,
+      "mitigationsDeployedToProduction": false
     },
     "coldHistoryBytes": 3290492928,
-    "r2ArchiveCoverage": "spill_and_archive_scan_available_retention_delete_blocked",
-    "recoveryReadiness": "archive_scan_dry_run_ready_no_source_delete",
+    "r2ArchiveCoverage": "verified_batch_archive_with_sha256_readback_ops_ready",
+    "recoveryReadiness": "archive_verify_ops_ready_no_source_delete",
     "retentionApprovals": false,
     "actualStorageReclaimed": 0,
     "sevenDayHotWindowRejected": true,
     "deployedHotWindowHours": 23.58,
-    "writeFailClosedFrom": "HIGH"
+    "writeFailClosedFrom": "HIGH",
+    "coalesceState": "durable_in_DO_storage_after_stream_redeploy"
   },
   "playerPropsCoordination": {
     "ownership": "separate_workstream",

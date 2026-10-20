@@ -16,13 +16,33 @@ import {capacityAlertLevel} from "../../functions/lib/databaseOwnership.js";
 
 /**
  * Per-database coalesce memory (WeakMap). Same Q4 binding across flushes coalesces;
- * new DB objects (tests) start clean. Resets on isolate restart.
+ * new DB objects (tests) start clean. Worker may inject a durable Map via opts.coalesceMemory
+ * (loaded from DO storage) so restarts do not lose coalesce effectiveness.
  */
 const coalesceByDb=new WeakMap();
-function coalesceMemoryFor(db){
+export function coalesceMemoryFor(db,injected=null){
+  if(injected instanceof Map)return injected;
   if(!db||(typeof db!=="object"))return new Map();
   let mem=coalesceByDb.get(db);
   if(!mem){mem=new Map();coalesceByDb.set(db,mem);}
+  return mem;
+}
+
+/** Serialize coalesce map for DO storage (cap entries to bound memory). */
+export function serializeCoalesceMemory(mem,maxEntries=5000){
+  if(!(mem instanceof Map))return [];
+  const limit=Math.max(1,Number(maxEntries)||5000);
+  const entries=[...mem.entries()].slice(-limit);
+  return entries.map(([k,v])=>({k,p:v?.contract_price??v?.contractPrice??null,c:v?.collected_at??v?.collectedAt??null}));
+}
+
+export function hydrateCoalesceMemory(entries){
+  const mem=new Map();
+  if(!Array.isArray(entries))return mem;
+  for(const e of entries){
+    if(!e||e.k==null)continue;
+    mem.set(String(e.k),{contract_price:e.p,collected_at:e.c});
+  }
   return mem;
 }
 
@@ -138,7 +158,7 @@ export function resolveRecoveryHistoryDb(env){
 }
 
 /** Persist WS offers to market-history (Q4 preferred) with coalesce + latest-state. */
-export async function persistStreamRecoveryBatch(env,offers,{collectedAt=null,now=new Date()}={}){
+export async function persistStreamRecoveryBatch(env,offers,{collectedAt=null,now=new Date(),coalesceMemory=null}={}){
   if(!Array.isArray(offers)||!offers.length)return {attempted:0,inserted:0,ok:false,reason:"empty-offers"};
 
   // Binding first (create schema if needed), then capacity fail-closed from HIGH.
@@ -181,7 +201,8 @@ export async function persistStreamRecoveryBatch(env,offers,{collectedAt=null,no
 
     const at=collectedAt||(now instanceof Date?now.toISOString():String(now));
     const nowMs=now instanceof Date?now.getTime():Date.parse(String(now))||Date.now();
-    const coalesced=coalesceOffersForLedger(offers,coalesceMemoryFor(historyDb),{nowMs});
+    const mem=coalesceMemoryFor(historyDb,coalesceMemory);
+    const coalesced=coalesceOffersForLedger(offers,mem,{nowMs});
 
     // Always refresh compact latest state (board/compare hot path).
     const latest=await upsertLatestMarketStates(historyDb,offers,{

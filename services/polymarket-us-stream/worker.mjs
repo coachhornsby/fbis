@@ -3,7 +3,11 @@ import {polymarketUsSubscribeBatches,parsePolymarketUsLite,parsePolymarketUsTrad
   from "../../functions/lib/polymarketUsSignedWs.js";
 import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";
 import {mirrorPersistentStreamRows} from "./shadow.mjs";
-import {persistStreamRecoveryBatch} from "./historyRecovery.mjs";
+import {
+  persistStreamRecoveryBatch,
+  hydrateCoalesceMemory,
+  serializeCoalesceMemory,
+} from "./historyRecovery.mjs";
 import {resolveWsPersistTarget} from "./wsPersistTarget.mjs";
 import {
   manageSubscriptionCapacity,resolveStreamCapacity,STREAM_SPORTS,
@@ -15,7 +19,8 @@ const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
 const MAX_BATCH=40, MAX_QUEUE=400;
 const RECONNECT_MS=60000, ROTATE_MS=9*60000, FLUSH_MS=5000;
 /** Module-level so post-deploy health reflects the new Worker pin without waiting for DO constructor. */
-export const STREAM_CODE_VERSION="board-ws-q4-default-headroom-20261020";
+export const STREAM_CODE_VERSION="board-ws-q4-coalesce-durable-20261020";
+const COALESCE_STORAGE_KEY="wsTickCoalesceMemoryV1";
 const toJSON=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 export {PRIMARY_WS_SOFT_CAP_BYTES,resolveWsPersistTarget} from "./wsPersistTarget.mjs";
 
@@ -34,6 +39,24 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
     this.historyLastError=null;
     this.codeVersion=STREAM_CODE_VERSION;
     this.capacityProbeAt=0;this.primaryBytes=null;this.wsPersistTarget=null;
+    this.coalesceMemory=new Map();this.coalesceLoaded=false;this.coalescePersistedAt=0;
+  }
+  async loadCoalesceMemory(){
+    if(this.coalesceLoaded)return this.coalesceMemory;
+    try{
+      const stored=await this.ctx.storage.get(COALESCE_STORAGE_KEY);
+      this.coalesceMemory=hydrateCoalesceMemory(stored);
+    }catch{this.coalesceMemory=new Map();}
+    this.coalesceLoaded=true;
+    return this.coalesceMemory;
+  }
+  async persistCoalesceMemory(force=false){
+    if(!this.coalesceLoaded)return;
+    if(!force&&Date.now()-this.coalescePersistedAt<30000)return;
+    try{
+      await this.ctx.storage.put(COALESCE_STORAGE_KEY,serializeCoalesceMemory(this.coalesceMemory));
+      this.coalescePersistedAt=Date.now();
+    }catch{/* best-effort durability */}
   }
   isCanonicalOwner(){
     if(!this.ctx.id?.toString||!this.env.PM_STREAM?.idFromName)return true;
@@ -475,13 +498,16 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
       this.lastError=null;
       let historyOk=false,spilledKey=null;
       try{
+        await this.loadCoalesceMemory();
         const hr=await persistStreamRecoveryBatch(this.env,offers,{
           collectedAt:new Date().toISOString(),
+          coalesceMemory:this.coalesceMemory,
         });
         if(hr.ok){
           // Count ledger inserts and latest-state upserts (coalesce may skip redundant ticks).
           this.historyInserted+=Math.max(Number(hr.inserted)||0,Number(hr.latestUpserted)||0);
           historyOk=true;this.historyLastError=null;
+          await this.persistCoalesceMemory(false);
         }else{
           this.historyLastError=hr.reason||"history-recovery-failed";
         }
@@ -519,13 +545,16 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
       // Opt-in primary-first path: on soft-cap or insert failure, recover to history.
       let historyOk=false,spilledKey=null;
       try{
+        await this.loadCoalesceMemory();
         const hr=await persistStreamRecoveryBatch(this.env,offers,{
           collectedAt:new Date().toISOString(),
+          coalesceMemory:this.coalesceMemory,
         });
         if(hr.ok){
           // Count ledger inserts and latest-state upserts (coalesce may skip redundant ticks).
           this.historyInserted+=Math.max(Number(hr.inserted)||0,Number(hr.latestUpserted)||0);
           historyOk=true;this.historyLastError=null;
+          await this.persistCoalesceMemory(false);
         }else{
           this.historyLastError=hr.reason||"history-recovery-failed";
         }

@@ -1,0 +1,36 @@
+{
+  "contract": "fbis-q4-capacity-before-after-v1",
+  "generatedAt": "2026-10-20T14:50:00.000Z",
+  "canAuthorizeWager": false,
+  "productionDeployed": false,
+  "note": "Code landed in PR #1366; coalesce/latest_market_state/verified-archive are NOT yet live on production Workers until merge+stream redeploy. Growth below is still unmitigated ingest.",
+  "before": {
+    "measuredAt": "2026-10-20T14:21:30.862Z",
+    "q4Bytes": 960995328,
+    "q4Rows": 279606,
+    "bytesPerObservation": 3437,
+    "medianRowsPerHour": 91944,
+    "peakRowsPerHour": 137806,
+    "hoursToCapacityMedian": 28.6,
+    "hoursToCapacityPeak": 19.1
+  },
+  "afterCodeLandedStillPreDeploy": {
+    "measuredAt": "2026-10-20T14:47:41.564Z",
+    "q4Bytes": 1166274560,
+    "q4Rows": 349338,
+    "deltaBytes": 205279232,
+    "deltaRows": 69732,
+    "elapsedMinutesApprox": 26,
+    "impliedRowsPerHour": 160920,
+    "latestMarketStateTablePresentInQ4": false,
+    "growthStillUnbounded": true
+  },
+  "nextProductionProofRequired": [
+    "Merge PR #1366 and redeploy polymarket-us-stream Worker (STREAM_CODE_VERSION coalesce-durable)",
+    "Confirm latest_market_state table appears on Q4",
+    "Run market-history-archive-verify with archiveWrites=true verifyReadback=true",
+    "Re-measure Q4 bytes/hour for 2+ hours and compare to before.impliedRowsPerHour",
+    "Do not authorize D1 deletion until retention gate + independent restore pass"
+  ],
+  "storageReclaimedBytes": 0
+}

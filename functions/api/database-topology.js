@@ -17,11 +17,15 @@ import { buildVerifiedCapacityPlan } from "../lib/marketHistoryCapacity.js";
 import { copyNhlPilotTables, verifyNhlSportDbParity, verifyNhlRecordLevelParity } from "../lib/nhlSportDb.js";
 import { shadowCompareNhlSportDb } from "../lib/sportDbShadow.js";
 import { archiveColdMarketHistoryObservations } from "../lib/marketHistoryArchive.js";
+import { archiveAndVerifyColdMarketHistory } from "../lib/marketHistoryVerifiedArchive.js";
 import {
   copySportWorkingTables,
   verifySportWorkingParity,
   reconcileSportProjections,
   backfillSportEvidenceEnvelopes,
+  copySportPrefixTables,
+  syncSportWorkingDelta,
+  sportMigrationScope,
 } from "../lib/sportWorkingCopy.js";
 import {
   publishCrossSportBoardSummary,
@@ -185,8 +189,8 @@ export async function onRequestPost({ env, request } = {}) {
   }
   if (operation === "sport-copy") {
     const sport = String(body.sport || "").toLowerCase();
-    if (!["nfl", "cfb"].includes(sport)) {
-      return json({ ok: false, error: "SPORT_COPY_LIMITED_TO_NFL_CFB", canAuthorizeWager: false }, 400);
+    if (!["nfl", "cfb", "nhl"].includes(sport)) {
+      return json({ ok: false, error: "SPORT_COPY_LIMITED_TO_NFL_CFB_NHL", canAuthorizeWager: false }, 400);
     }
     return json(await copySportWorkingTables(env, sport, {
       pageSize: Math.min(2000, Number(body.pageSize) || 1000),
@@ -197,10 +201,38 @@ export async function onRequestPost({ env, request } = {}) {
       resume: body.resume !== false,
     }));
   }
+  if (operation === "sport-prefix-copy") {
+    const sport = String(body.sport || "").toLowerCase();
+    if (!["nfl", "cfb", "nhl"].includes(sport)) {
+      return json({ ok: false, error: "SPORT_PREFIX_COPY_LIMITED_TO_NFL_CFB_NHL", canAuthorizeWager: false }, 400);
+    }
+    return json(await copySportPrefixTables(env, sport, {
+      pageSize: Math.min(500, Number(body.pageSize) || 200),
+      maxPages: Math.min(100, Number(body.maxPages) || 25),
+      resume: body.resume !== false,
+      tables: Array.isArray(body.tables) ? body.tables : null,
+    }));
+  }
+  if (operation === "sport-delta-sync") {
+    const sport = String(body.sport || "").toLowerCase();
+    if (!["nfl", "cfb", "nhl"].includes(sport)) {
+      return json({ ok: false, error: "SPORT_DELTA_SYNC_LIMITED_TO_NFL_CFB_NHL", canAuthorizeWager: false }, 400);
+    }
+    return json(await syncSportWorkingDelta(env, sport, {
+      rounds: Math.min(20, Number(body.rounds) || 5),
+      pageSize: Math.min(2000, Number(body.pageSize) || 1000),
+      maxPages: Math.min(200, Number(body.maxPages) || 50),
+      includePrefix: body.includePrefix === true,
+    }));
+  }
+  if (operation === "sport-migration-scope") {
+    const sport = String(body.sport || "").toLowerCase();
+    return json({ ...sportMigrationScope(sport), plan: SPORT_DATABASES[sport] || null });
+  }
   if (operation === "sport-parity") {
     const sport = String(body.sport || "").toLowerCase();
-    if (!["nfl", "cfb"].includes(sport)) {
-      return json({ ok: false, error: "SPORT_PARITY_LIMITED_TO_NFL_CFB", canAuthorizeWager: false }, 400);
+    if (!["nfl", "cfb", "nhl"].includes(sport)) {
+      return json({ ok: false, error: "SPORT_PARITY_LIMITED_TO_NFL_CFB_NHL", canAuthorizeWager: false }, 400);
     }
     return json(await verifySportWorkingParity(env, sport));
   }
@@ -285,6 +317,15 @@ export async function onRequestPost({ env, request } = {}) {
       limit: Math.min(500, Number(body.limit) || 100),
       partitionBinding: body.partitionBinding || null,
       archiveWrites: body.archiveWrites === true,
+      now: body.now ? new Date(body.now) : new Date(),
+    }));
+  }
+  if (operation === "market-history-archive-verify") {
+    return json(await archiveAndVerifyColdMarketHistory(env, {
+      limit: Math.min(500, Number(body.limit) || 100),
+      partitionBinding: body.partitionBinding || "MARKET_HISTORY_2026Q4_DB",
+      archiveWrites: body.archiveWrites === true,
+      verifyReadback: body.verifyReadback === true,
       now: body.now ? new Date(body.now) : new Date(),
     }));
   }
