@@ -130,6 +130,30 @@ async function loadTennisRankingDisplayCache() {
   } finally { clearTimeout(timeout); }
 }
 
+
+/** Surface-Elo-only *research estimate*. Not the FBIS PURE projection and
+ * never eligible for market-edge, qualification, or wager decisions.
+ * No neutral/hard default when event surface has not been verified.
+ */
+export function surfaceEloResearchEstimate(players, officialDisplay) {
+  const surface=String(officialDisplay?.surface||"").toLowerCase();
+  if(!["hard","clay","grass"].includes(surface)||!Array.isArray(players)||players.length!==2)return null;
+  const observations=players.map(player=>{
+    const row=player?.profiles?.find(x=>String(x.surface).toLowerCase()===surface);
+    const p=row?.profile||{};
+    const matches=Number(p.surfaceMatches);
+    const elo=Number(p.surfaceElo?.[surface]);
+    if(!Number.isFinite(matches)||matches<5||!Number.isFinite(elo)||elo<1000||elo>2400||!row.lastMatchDate)return null;
+    return {elo,matches,lastMatchDate:row.lastMatchDate,source:row.source};
+  });
+  if(observations.some(x=>!x))return null;
+  const probability=1/(1+Math.pow(10,(observations[1].elo-observations[0].elo)/400));
+  return {player1WinProb:Math.round(probability*1000)/1000,
+    player2WinProb:Math.round((1-probability)*1000)/1000,
+    source:"SURFACE_ELO_RESEARCH_ONLY",surface,observations,
+    canQualify:false,canAuthorizeWager:false,marketInformed:false};
+}
+
 export async function buildIndependentTennisCards(db, date, { now = new Date() } = {}) {
   const bank = await buildTennisIntelligenceBank(db, { now, limit: 100 });
   const ctDay = start => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago",
@@ -160,6 +184,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
     };
     const context = await tennisCardContext(db, { tour: f.tour, player1: p1.fixtureName,
       player2: p2.fixtureName, surface: f.officialDisplay?.surface||null }).catch(() => null);
+    const researchEstimate=surfaceEloResearchEstimate(f.players,f.officialDisplay);
     const playerBank = { ...context, players: f.players.map((p, i) => ({ ...(context?.players?.[i] || {}),
       ...p, headshot: p.headshotUrl ?? null, recentForm: context?.players?.[i]?.recentForm || [] })) };
     const venueOffers = f.venueOffers.map(o => ({ ...o, side: o.side === "home" ? "away" : o.side === "away" ? "home" : o.side }));
@@ -182,7 +207,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
         fetchedAt: f.fetched_at, rawHash: f.raw_hash, rawKey: f.raw_key, missingEvidence },
         eventIntegrity: { valid: false, reason: "OFFICIAL_PROJECTION_UNAVAILABLE" },
         blockedReason: f.officialDisplay ? "OFFICIAL_METADATA_MATCHED_DISPLAY_ONLY: projection/event authority remains unverified for this ESPN fixture" : "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
-        player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
+        researchEstimate, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
         surface: f.officialDisplay?.surface||null, indoor:f.officialDisplay?.indoor??null,
         tournament:f.officialDisplay?.tournament||null, round:f.officialDisplay?.round||null,
         venue:f.officialDisplay?.venue||null, playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
