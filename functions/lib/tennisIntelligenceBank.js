@@ -74,9 +74,10 @@ export async function lookupOfficialTennisDisplayMetadata(db, fixture, players, 
 }
 
 export async function buildTennisIntelligenceBank(db, { limit = 50, now = new Date() } = {}) {
-  // Independent fixtures refresh every three hours. Do not retain disappeared
-  // scheduled fixtures for eighteen hours after their last source observation.
-  const until = now.toISOString(), since = new Date(+now - 4 * 3600000).toISOString();
+  // Independent ESPN fixtures are display-only; retain a bounded 12-hour
+  // source window for live/pregame continuity during collector interruptions.
+  // Staleness is explicitly reported, never interpreted as live verification.
+  const until = now.toISOString(), since = new Date(+now - 12 * 3600000).toISOString();
   const q = await db.prepare(`SELECT fixture_id AS id,tour,player1_name AS away_name,
     player2_name AS home_name,match_time AS start,status,source,fetched_at,raw_hash,raw_key
     FROM tennis_external_fixtures WHERE source='ESPN_PUBLIC' AND status IN ('SCHEDULED','IN_PROGRESS')
@@ -103,7 +104,8 @@ export async function buildTennisIntelligenceBank(db, { limit = 50, now = new Da
     }
     const officialDisplay = await lookupOfficialTennisDisplayMetadata(db,fixture,players,{now});
     const venueOffers = await tennisFixtureOffers(db, fixture, { now });
-    fixtures.push({ ...fixture, players, officialDisplay, playerIdentityVerified: identity.verified, venueOffers,
+    const fixtureAgeMs=+now-Date.parse(fixture.fetched_at);
+    fixtures.push({ ...fixture, fixtureFreshness:fixtureAgeMs<=3*3600000?"CURRENT":"STALE", players, officialDisplay, playerIdentityVerified: identity.verified, venueOffers,
       linkedMarkets: [...new Set(venueOffers.map(o => o.source))].map(source => ({ source,
         observations: venueOffers.filter(o => o.source === source).length })),
       officialSourceVerified: false, researchOnly: true, canQualify: false, canAuthorizeWager: false });
@@ -191,6 +193,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
       ...p, headshot: p.headshotUrl ?? null, recentForm: context?.players?.[i]?.recentForm || [] })) };
     const venueOffers = f.venueOffers.map(o => ({ ...o, side: o.side === "home" ? "away" : o.side === "away" ? "home" : o.side }));
     const missingEvidence=[
+      f.fixtureFreshness==="STALE" && "STALE_FIXTURE_STATUS",
       !f.officialDisplay && "OFFICIAL_MATCH_CONTEXT",
       f.players.some(p=>!p.matched) && "PLAYER_IDENTITY",
       f.players.some(p=>p.rank==null && rankingFeed.byName?.get(tennisKey(p.fixtureName))?.rank==null) && "CURRENT_RANKING",
@@ -206,7 +209,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date() }
       quality: { state: "RESEARCH", flags: ["research_only", "independent_fixture", "projection_unavailable"] },
       market: { reference: { available: venueOffers.length > 0 }, venueOffers, executionActionable: false },
       tennisProjection: { researchFixture: { verified: true, source: f.source, fixtureId: f.id, officialDisplayEvidence: f.officialDisplay||null,
-        fetchedAt: f.fetched_at, rawHash: f.raw_hash, rawKey: f.raw_key, missingEvidence },
+        fetchedAt: f.fetched_at, fixtureFreshness:f.fixtureFreshness, rawHash: f.raw_hash, rawKey: f.raw_key, missingEvidence },
         eventIntegrity: { valid: false, reason: "OFFICIAL_PROJECTION_UNAVAILABLE" },
         blockedReason: f.officialDisplay ? "OFFICIAL_METADATA_MATCHED_DISPLAY_ONLY: projection/event authority remains unverified for this ESPN fixture" : "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
         researchEstimate, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
