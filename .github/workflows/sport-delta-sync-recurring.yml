@@ -26,9 +26,11 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
     strategy:
       fail-fast: false
+      # Bound concurrency so 11 sports do not stampede PRIMARY/Pages at once.
+      max-parallel: 3
       matrix:
         sport: [nfl, cfb, nhl, nba, mlb, cbb, wnba, soccer, tennis, npb, kbo]
     steps:
@@ -48,12 +50,18 @@ jobs:
           FBIS_BASE_URL: https://fbis-myz.pages.dev
           SPORT: ${{ matrix.sport }}
           INCLUDE_PREFIX: "true"
+          SYNC_ROUNDS: "3"
+          SYNC_PAGE_SIZE: "250"
+          SYNC_MAX_PAGES: "8"
+          PREFIX_PAGE_SIZE: "100"
+          PREFIX_MAX_PAGES: "4"
+          SYNC_TIMEOUT_MS: "240000"
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET not configured"; exit 1; }
           mkdir -p artifacts
           node scripts/sport-delta-sync-ops.mjs | tee "artifacts/sport-delta-sync-${SPORT}.json"
-          jq -e '.ok==true and .productStillPrimary==true and .canAuthorizeWager==false' \
+          jq -e '.ok==true and .productStillPrimary==true and .canAuthorizeWager==false and .cutoverAuthorized==false' \
             "artifacts/sport-delta-sync-${SPORT}.json" >/dev/null
       - uses: actions/upload-artifact@v4.6.2
         if: always() && github.event_name != 'pull_request'
@@ -62,3 +70,4 @@ jobs:
           path: artifacts/sport-delta-sync-${{ matrix.sport }}.json
           if-no-files-found: ignore
           retention-days: 14
+
