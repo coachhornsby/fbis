@@ -93,19 +93,21 @@ test("NFL top three prefers Standard PrizePicks lines over Demon/Goblin alts",()
   assert.ok(rows.every((r)=>r.book==="PrizePicks"&&r.line!=null&&r.fbisProjection!=null));
 });
 
-test("TopGameProps all-sport path renders PrizePicks-style cards including tennis",()=>{
+test("TopGameProps all-sport path renders neutral premium cards including tennis",()=>{
   const src=fs.readFileSync("src/features/playerProps/TopGameProps.jsx","utf8");
-  assert.match(src,/PrizePicksStyleCard/);
+  assert.match(src,/FBISPlayerPropCard/);
   assert.match(src,/top-game-pp-cards/);
   assert.match(src,/STYLE_CARD_SPORTS/);
   assert.match(src,/useStyleCards/);
   assert.match(src,/"tennis"/);
-  assert.match(src,/prizePicksProjected/);
+  assert.match(src,/!isPrizePicksRow/);
+  assert.match(src,/line: null/);
   assert.match(src,/projection-only rows/);
   assert.doesNotMatch(src,/usePrizePicksCards = sport === "nfl"/);
-  const card=fs.readFileSync("src/features/playerProps/PrizePicksStyleCard.jsx","utf8");
+  const card=fs.readFileSync("src/features/playerProps/FBISPlayerPropCard.jsx","utf8");
   assert.match(card,/pp-team-watermark/);
-  assert.match(card,/PP LINE/);
+  assert.match(card,/MARKET/);
+  assert.doesNotMatch(card,/PrizePicks line|PP LINE/);
   assert.match(card,/FBIS/);
   assert.match(card,/LastFiveBars|LAST 5/);
   assert.match(card,/pp-premium-headshot/);

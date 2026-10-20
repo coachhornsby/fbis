@@ -51,7 +51,7 @@ async function recentNflGames(name,team,field){
   // team mismatches still populate a last-5 bar graph.
   const teamMatched=t?all.filter(r=>canonNfl(r.recent_team||r.team)===t):all;
   const rows=(teamMatched.length>=3?teamMatched:all).slice(0,5);
-  return rows.map(r=>({season:n(r.season),week:n(r.week),date:r.gameday||r.game_date||r.date||null,opponent:canonNfl(r.opponent_team),value:n(r[field])??0}));
+  return rows.map(r=>({season:n(r.season),week:n(r.week),date:r.gameday||r.game_date||r.date||null,opponent:canonNfl(r.opponent_team),value:n(r[field])})).filter(g=>g.value!=null);
 }
 const NFL_MARKET_FIELD={
   completions:"completions",passing_attempts:"attempts",passing_yards:"passing_yards",

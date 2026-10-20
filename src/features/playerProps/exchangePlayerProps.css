@@ -1,0 +1,13 @@
+/* Exchange cards retain the premium visuals and readable five-game history. */
+.exchange-prop-grid.pp-card-grid.pp-premium-grid { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)) !important; }
+.exchange-prop-grid .pp-card { border-width:2px; }
+.exchange-prop-filters,.exchange-prop-tabs { display:flex;flex-wrap:wrap;gap:12px;padding:16px 0; }
+.exchange-prop-filters label { display:grid;gap:6px;font-size:12px; }
+.exchange-prop-filters input,.exchange-prop-filters select,.exchange-prop-tabs button { color:inherit;background:#101f31;border:1px solid #63768e;border-radius:6px;padding:8px; }
+.exchange-prop-tabs button[aria-pressed="true"] { border-color:#eacb6e; }
+.exchange-prop-coverage { width:100%;border-collapse:collapse; }
+.exchange-prop-coverage th,.exchange-prop-coverage td { padding:8px;text-align:left;border-bottom:1px solid #344860; }
+.exchange-props-panel { overflow-x:auto; }
+.pp-quote-status { font-size:11px;overflow-wrap:anywhere; }
+@media(min-width:1600px) { .exchange-prop-grid.pp-card-grid.pp-premium-grid { grid-template-columns:repeat(5,minmax(0,1fr)) !important; } }
+@media(max-width:640px) { .exchange-prop-grid.pp-card-grid.pp-premium-grid { grid-template-columns:minmax(0,1fr) !important; } }
