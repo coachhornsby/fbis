@@ -132,3 +132,38 @@ test("System UI includes secured one-time button; no persisted browser secrets",
  assert.ok(code.includes('setAccessCode("")'));
  assert.doesNotMatch(code,/localStorage|sessionStorage/);
 });
+
+test("diagnostic records transport class but cannot disclose error text or follow redirects",async()=>{
+ const e=await env(),opts=[];
+ const mock=async(url,request)=>{
+   opts.push(request);
+   if(opts.length===1)throw new TypeError("key=SECRET-cannot-appear");
+   if(opts.length===2)throw new DOMException("should never expose this message","TimeoutError");
+   throw Error("third fetch is not allowed");
+ };
+ const result=await runKalshiConnectivityDiagnostic(e,{sport:"nfl",now:at,
+   fetchImpl:mock,webCrypto:webcrypto});
+ assert.equal(opts.length,2);
+ assert.equal(opts[0].redirect,"manual");
+ assert.equal(opts[1].redirect,"manual");
+ assert.equal(opts[0].cache,undefined);
+ assert.equal(result.guest.failureKind,"FETCH_TYPE_ERROR");
+ assert.equal(result.signed.failureKind,"TIMEOUT");
+ assert.equal(result.diagnosis,"INCONCLUSIVE");
+ assert.ok(!JSON.stringify(result).includes("SECRET"));
+ assert.ok(!JSON.stringify(result).includes("should never"));
+});
+test("provider 301 redirect is reported rather than throwing or forwarding signed headers",async()=>{
+ const e=await env();let hits=0;
+ const response=await runKalshiConnectivityDiagnostic(e,{sport:"nfl",now:at,
+   webCrypto:webcrypto,fetchImpl:async()=>{
+     hits++;
+     return new Response(null,{status:301,headers:{location:"https://other-origin.example"}});
+   }});
+ assert.equal(hits,2);
+ assert.equal(response.guest.result,"REDIRECT_NOT_FOLLOWED");
+ assert.equal(response.signed.result,"REDIRECT_NOT_FOLLOWED");
+ assert.equal(response.guest.httpStatus,301);
+ assert.equal(response.signed.httpStatus,301);
+ assert.ok(!JSON.stringify(response).includes("other-origin.example"));
+});
