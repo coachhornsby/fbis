@@ -266,8 +266,8 @@ export function productSportDbHandle(env, sport, _opts = {}) {
       canAuthorizeWager: false,
     };
   }
-  // Require an explicit cutover receipt env var before product IO may leave PRIMARY.
-  // Format: SPORT_CUTOVER_RECEIPT_<SPORT>=receipt-id (operator-issued after parity+schema gate).
+  // Require env receipt AND a matching APPROVED CORE (or injected) migration record.
+  // A non-empty SPORT_CUTOVER_RECEIPT_* string alone never authorizes sport IO.
   const receiptKey = `SPORT_CUTOVER_RECEIPT_${String(resolved.sport || "").toUpperCase()}`;
   const receipt = String(env?.[receiptKey] || "").trim();
   if (!receipt) {
@@ -282,6 +282,20 @@ export function productSportDbHandle(env, sport, _opts = {}) {
       canAuthorizeWager: false,
     };
   }
+  const approval = readApprovedCutoverReceiptSync(env, resolved.sport, receipt);
+  if (!approval.ok) {
+    return {
+      db: primary,
+      binding: "DB",
+      mode: resolved.mode,
+      reason: approval.reason,
+      sport: resolved.sport,
+      preferred: false,
+      productIoUsesSportDb: false,
+      cutoverReceipt: receipt,
+      canAuthorizeWager: false,
+    };
+  }
   return {
     db: resolved.db,
     binding: resolved.binding,
@@ -291,11 +305,84 @@ export function productSportDbHandle(env, sport, _opts = {}) {
     preferred: true,
     productIoUsesSportDb: true,
     cutoverReceipt: receipt,
+    cutoverApproval: approval,
     canAuthorizeWager: false,
   };
 }
 
-/** True only when product IO is intentionally cut over to the sport D1 via deployed env. */
+/**
+ * Sync cutover approval gate. Prefers hydrated CORE rows on env.__fbisCutoverApprovals.
+ * Tests may inject the same Map. Never treats a bare receipt string as approval.
+ */
+export function readApprovedCutoverReceiptSync(env, sport, receiptId) {
+  const sportKey = normalizeSport(sport);
+  const receipt = String(receiptId || "").trim();
+  if (!sportKey || !receipt) {
+    return { ok: false, reason: "SPORT_CUTOVER_APPROVAL_RECORD_REQUIRED_FALLBACK_PRIMARY" };
+  }
+  const cache = env?.__fbisCutoverApprovals;
+  const cached = cache instanceof Map ? cache.get(`${sportKey}:${receipt}`) : null;
+  if (cached && String(cached.status || "").toUpperCase() === "APPROVED") {
+    return {
+      ok: true,
+      receiptId: receipt,
+      sport: sportKey,
+      status: "APPROVED",
+      approvedAt: cached.approved_at || cached.approvedAt || null,
+      source: "HYDRATED_CORE_OR_INJECTED",
+    };
+  }
+  return { ok: false, reason: "SPORT_CUTOVER_APPROVAL_RECORD_REQUIRED_FALLBACK_PRIMARY" };
+}
+
+/** Load APPROVED cutover receipts from CORE into env.__fbisCutoverApprovals. */
+export async function hydrateCutoverApprovals(env, { sport = null } = {}) {
+  const core = resolveCoreDb(env);
+  const map = env.__fbisCutoverApprovals instanceof Map
+    ? env.__fbisCutoverApprovals
+    : new Map();
+  env.__fbisCutoverApprovals = map;
+  if (!core.db?.prepare) {
+    return { ok: false, reason: "CORE_UNBOUND", loaded: 0, canAuthorizeWager: false };
+  }
+  try {
+    const key = sport ? normalizeSport(sport) : null;
+    const page = key
+      ? await core.db.prepare(
+        `SELECT receipt_id,sport,status,approved_at,approved_by
+         FROM fbis_sport_cutover_approvals
+         WHERE sport=? AND UPPER(status)='APPROVED'`
+      ).bind(key).all()
+      : await core.db.prepare(
+        `SELECT receipt_id,sport,status,approved_at,approved_by
+         FROM fbis_sport_cutover_approvals
+         WHERE UPPER(status)='APPROVED'`
+      ).all();
+    const rows = page?.results || [];
+    for (const row of rows) {
+      map.set(`${String(row.sport).toLowerCase()}:${row.receipt_id}`, row);
+    }
+    return { ok: true, loaded: rows.length, canAuthorizeWager: false };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: "CUTOVER_APPROVAL_QUERY_FAILED",
+      error: String(error?.message || error).slice(0, 200),
+      loaded: 0,
+      canAuthorizeWager: false,
+    };
+  }
+}
+
+/** Async verification against CORE (or hydrated cache). */
+export async function verifyApprovedCutoverReceipt(env, sport, receiptId) {
+  const sync = readApprovedCutoverReceiptSync(env, sport, receiptId);
+  if (sync.ok) return sync;
+  await hydrateCutoverApprovals(env, { sport });
+  return readApprovedCutoverReceiptSync(env, sport, receiptId);
+}
+
+/** True only when product IO is intentionally cut over to the sport D1 via deployed env + approval. */
 export function isSportDbAuthoritative(env, sport, _opts = {}) {
   return productSportDbHandle(env, sport).productIoUsesSportDb === true;
 }

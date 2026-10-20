@@ -78,7 +78,8 @@ jobs:
             echo "stream-status attempt=$attempt http=$code"
             if [ "$code" = "200" ] && jq -e '.readOnly == true and .canAuthorizeWager == false
               and .codeVersion == "board-ws-history-default-headroom-20261018"
-              and (.wsPersistTarget.reason == "WS_Q4_DEFAULT" or .wsPersistTarget.reason == "WS_HISTORY_DEFAULT")
+              and .wsPersistTarget.reason == "WS_Q4_DEFAULT"
+              and .wsPersistTarget.store == "MARKET_HISTORY_2026Q4"
               and .wsPersistTarget.blocked != true
               and .diagnosticsVersion == 2
               and (.subscribedMarketIds | type) == "array"

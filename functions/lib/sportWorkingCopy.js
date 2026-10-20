@@ -123,29 +123,43 @@ async function copyPredictionsPaged(primary, sportDb, sport, { pageSize, maxPage
   let lastId = cursor;
   let fidelityFailures = 0;
   for (; pages < maxPages; pages += 1) {
-    // Prefer rich SELECT; fall back to lean columns if older primary schema lacks fields.
+    // Prefer complete PRIMARY row (SELECT *) so the evidence envelope is full-fidelity.
+    // Fall back to rich then lean column lists on older schemas.
     let rows = [];
     try {
       const page = await primary.prepare(
-        `SELECT id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,proj_margin,
-                p_home_final,p_market,frozen_at,weights_json,layers_json,projection_flags,
-                graded_at,actual_home,actual_away,deployment_commit,
-                date,matchup,checkpoint,pal_home,pal_away,engine,projection_state
-         FROM prediction_snapshots
+        `SELECT * FROM prediction_snapshots
          WHERE sport=? AND id>?
          ORDER BY id ASC
          LIMIT ?`
       ).bind(sport, cursor, pageSize).all();
       rows = page?.results || [];
     } catch {
-      const page = await primary.prepare(
-        `SELECT id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,p_home_final,frozen_at
-         FROM prediction_snapshots
-         WHERE sport=? AND id>?
-         ORDER BY id ASC
-         LIMIT ?`
-      ).bind(sport, cursor, pageSize).all();
-      rows = page?.results || [];
+      try {
+        const page = await primary.prepare(
+          `SELECT id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,proj_margin,
+                  p_home_final,p_market,frozen_at,weights_json,layers_json,projection_flags,
+                  graded_at,actual_home,actual_away,deployment_commit,
+                  date,matchup,checkpoint,pal_home,pal_away,pal_f5_home,pal_f5_away,pal_p_home,
+                  pal_as_of,pal_request_id,pal_json,lineups_official,
+                  p_espn,p_score,p_form,p_pal,data_quality,pin_home_ml,pin_away_ml,pin_vig,
+                  engine,f5_actual_home,f5_actual_away,projection_state
+           FROM prediction_snapshots
+           WHERE sport=? AND id>?
+           ORDER BY id ASC
+           LIMIT ?`
+        ).bind(sport, cursor, pageSize).all();
+        rows = page?.results || [];
+      } catch {
+        const page = await primary.prepare(
+          `SELECT id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,p_home_final,frozen_at
+           FROM prediction_snapshots
+           WHERE sport=? AND id>?
+           ORDER BY id ASC
+           LIMIT ?`
+        ).bind(sport, cursor, pageSize).all();
+        rows = page?.results || [];
+      }
     }
     if (!rows.length) break;
     for (const row of rows) {
@@ -413,6 +427,71 @@ export async function reconcileSportProjections(env, sport, { sampleSize = 40 } 
     },
     sample: { sampled: primaryPreds.length, matched, mismatches: mismatches.slice(0, 10) },
     productIoUsesSportDb: false,
+    canAuthorizeWager: false,
+  };
+}
+
+/**
+ * Backfill evidence envelopes + typed evidence columns on an existing sport shard
+ * from PRIMARY without changing product authority. Resumes via meta cursor.
+ */
+export async function backfillSportEvidenceEnvelopes(env, sport, {
+  pageSize = 200,
+  maxPages = 100,
+  resume = true,
+} = {}) {
+  const key = String(sport || "").toLowerCase();
+  const plan = SPORT_DATABASES[key];
+  const primary = env?.DB;
+  const sportDb = plan?.binding ? env?.[plan.binding] : null;
+  if (!plan?.databaseId) return { ok: false, reason: "SPORT_DB_NOT_PROVISIONED", sport: key, canAuthorizeWager: false };
+  if (!primary?.prepare) return { ok: false, reason: "PRIMARY_UNBOUND", sport: key, canAuthorizeWager: false };
+  if (!sportDb?.prepare) return { ok: false, reason: "SPORT_DB_UNBOUND", sport: key, canAuthorizeWager: false };
+
+  const product = productSportDbHandle(env, key);
+  if (product.productIoUsesSportDb) {
+    return {
+      ok: false,
+      reason: "REFUSED_WHILE_SPORT_MODE_ACTIVE",
+      sport: key,
+      canAuthorizeWager: false,
+    };
+  }
+
+  const afterId = resume ? (await metaGet(sportDb, "evidence_backfill_cursor") || "") : "";
+  const result = await copyPredictionsPaged(primary, sportDb, key, {
+    pageSize: Math.min(500, Math.max(1, Number(pageSize) || 200)),
+    maxPages: Math.min(500, Math.max(1, Number(maxPages) || 100)),
+    afterId,
+  });
+  if (result.cursor) await metaSet(sportDb, "evidence_backfill_cursor", result.cursor);
+  await metaSet(sportDb, "evidence_backfill_at", new Date().toISOString());
+
+  let withEnvelope = null;
+  let withWeights = null;
+  try {
+    withEnvelope = await count(
+      sportDb,
+      `SELECT COUNT(*) n FROM prediction_snapshots
+       WHERE sport=? AND payload_json IS NOT NULL AND payload_json LIKE '%fbis-canonical-evidence-v1%'`
+      , key
+    );
+    withWeights = await count(
+      sportDb,
+      `SELECT COUNT(*) n FROM prediction_snapshots WHERE sport=? AND weights_json IS NOT NULL AND weights_json != ''`,
+      key
+    );
+  } catch {
+    /* optional probes */
+  }
+
+  return {
+    ok: result.copied >= 0 && !result.error,
+    sport: key,
+    ...result,
+    evidence: { withEnvelope, withWeights },
+    moreRemaining: result.exhausted === false,
+    productStillPrimary: true,
     canAuthorizeWager: false,
   };
 }

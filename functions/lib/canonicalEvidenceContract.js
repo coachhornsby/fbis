@@ -60,13 +60,26 @@ export function canonicalEvidenceManifest() {
 
 /**
  * Build the sport-side evidence envelope from a primary prediction row.
- * Stores the full primary row JSON so missing typed columns remain recoverable.
+ * `row` must be the complete PRIMARY source record (or the fullest SELECT available).
+ * Fields listed in PRIMARY_CANONICAL_ONLY_PRED_FIELDS remain PRIMARY-owned even when
+ * present in the envelope — sport shards must not treat them as cutover authority.
  */
 export function buildPredictionEvidenceEnvelope(row = {}) {
+  const sourceKeys = Object.keys(row || {});
+  const retainedOnPrimary = PRIMARY_CANONICAL_ONLY_PRED_FIELDS.filter((f) => sourceKeys.includes(f));
+  const missingFromSource = PRIMARY_CANONICAL_ONLY_PRED_FIELDS.filter((f) => !sourceKeys.includes(f));
   return JSON.stringify({
     contract: CANONICAL_EVIDENCE_CONTRACT,
     source: "PRIMARY",
     capturedAt: new Date().toISOString(),
+    ownership: {
+      productAuthority: "PRIMARY",
+      materializedOnSport: SPORT_MATERIALIZATION_PRED_FIELDS,
+      remainPrimaryCanonical: PRIMARY_CANONICAL_ONLY_PRED_FIELDS,
+      retainedOnPrimaryInEnvelope: retainedOnPrimary,
+      primaryCanonicalAbsentFromSourceSelect: missingFromSource,
+      note: "PRIMARY remains canonical for remainPrimaryCanonical fields until an approved cutover receipt",
+    },
     row,
   });
 }

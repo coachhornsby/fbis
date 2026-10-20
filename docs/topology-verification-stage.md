@@ -38,12 +38,22 @@ bindings.
 ### Canonical evidence
 
 - Contract: `functions/lib/canonicalEvidenceContract.js` (`fbis-canonical-evidence-v1`)
-- Sport copy materializes typed board fields + `payload_json` evidence envelope
-- PRIMARY remains canonical for full prediction evidence until cutover receipt
-- SQL: `sql/shards/sport-working-v1-evidence.sql` (applied to NFL/CFB/NHL)
+- Envelope stores the **complete PRIMARY source row** (`SELECT *`) plus an explicit
+  `ownership` block: `materializedOnSport` vs `remainPrimaryCanonical`
+- PRIMARY remains canonical for `remainPrimaryCanonical` fields until an **approved**
+  cutover receipt row exists in CORE (`fbis_sport_cutover_approvals`)
+- A non-empty `SPORT_CUTOVER_RECEIPT_*` env var alone never authorizes sport IO
+- SQL: `sql/shards/sport-working-v1-evidence.sql`, `sql/shards/core-v1-cutover-approvals.sql`
+- Backfill: `sport-evidence-backfill` op or `node scripts/backfill-sport-evidence.mjs --sport nfl`
 
 Operator check: `POST /api/database-topology` `{ "operation": "verify-bindings" }`
 and `{ "operation": "canonical-evidence-contract" }`.
+
+### Market-history writers
+
+- Bootstrap + WS observation writes prefer Q4 only; no PRIMARY observation fallback
+- Legacy history requires `MARKET_HISTORY_ALLOW_LEGACY_WRITE=enabled`
+- Stream deploy health requires `wsPersistTarget.reason == "WS_Q4_DEFAULT"`
 
 ## 3. Shadow-mode hard guarantee
 

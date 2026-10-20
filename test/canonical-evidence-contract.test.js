@@ -16,12 +16,18 @@ test("canonical evidence contract keeps primary as product authority", () => {
   assert.ok(m.predictionSnapshots.remainPrimaryCanonical.includes("pal_json"));
 });
 
-test("evidence envelope round-trips primary row", () => {
-  const row = { id: "p1", weights_json: "{}", layers_json: "{}", graded_at: null };
+test("evidence envelope round-trips primary row with ownership contract", () => {
+  const row = {
+    id: "p1", weights_json: "{}", layers_json: "{}", graded_at: null,
+    pal_json: "{\"x\":1}", engine: "v2",
+  };
   const json = buildPredictionEvidenceEnvelope(row);
   const parsed = parsePredictionEvidenceEnvelope(json);
   assert.equal(parsed.ok, true);
   assert.equal(parsed.envelope.row.id, "p1");
+  assert.equal(parsed.envelope.ownership.productAuthority, "PRIMARY");
+  assert.ok(parsed.envelope.ownership.retainedOnPrimaryInEnvelope.includes("pal_json"));
+  assert.ok(parsed.envelope.ownership.remainPrimaryCanonical.includes("pal_json"));
 });
 
 test("sport prediction fidelity fails without evidence fields", () => {

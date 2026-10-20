@@ -52,7 +52,7 @@ test("shadow mode cannot be overridden into product sport IO by reading sportDb 
   assert.equal(product.shadowSportDbBound, true);
 });
 
-test("sport mode returns sport DB only with cutover receipt", () => {
+test("sport mode returns sport DB only with receipt AND approved CORE record", () => {
   const primary = db("primary");
   const cfb = db("cfb");
   const envNoReceipt = { DB: primary, CFB_DB: cfb, SPORT_DB_MODE_CFB: "sport" };
@@ -61,11 +61,30 @@ test("sport mode returns sport DB only with cutover receipt", () => {
   assert.equal(blocked.productIoUsesSportDb, false);
   assert.match(blocked.reason, /RECEIPT/);
 
+  const receiptOnly = {
+    DB: primary,
+    CFB_DB: cfb,
+    SPORT_DB_MODE_CFB: "sport",
+    SPORT_CUTOVER_RECEIPT_CFB: "cfb-parity-receipt-test",
+  };
+  const stillBlocked = productSportDbHandle(receiptOnly, "cfb");
+  assert.equal(stillBlocked.productIoUsesSportDb, false);
+  assert.match(stillBlocked.reason, /APPROVAL_RECORD/);
+
+  const approvals = new Map([
+    ["cfb:cfb-parity-receipt-test", {
+      receipt_id: "cfb-parity-receipt-test",
+      sport: "cfb",
+      status: "APPROVED",
+      approved_at: "2026-10-20T00:00:00Z",
+    }],
+  ]);
   const env = {
     DB: primary,
     CFB_DB: cfb,
     SPORT_DB_MODE_CFB: "sport",
     SPORT_CUTOVER_RECEIPT_CFB: "cfb-parity-receipt-test",
+    __fbisCutoverApprovals: approvals,
   };
   const product = productSportDbHandle(env, "cfb");
   assert.equal(product.db, cfb);

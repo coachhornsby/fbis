@@ -44,9 +44,27 @@ export function buildRehearsalEnv(baseEnv, sport, {
     delete env.CORE_DB;
   }
   if (issueCutoverReceipt) {
-    env[`SPORT_CUTOVER_RECEIPT_${key.toUpperCase()}`] = `rehearsal-${key}-receipt`;
+    const receiptId = `rehearsal-${key}-receipt`;
+    env[`SPORT_CUTOVER_RECEIPT_${key.toUpperCase()}`] = receiptId;
+    // Receipt env alone is insufficient — inject an APPROVED CORE-style record.
+    const approvals = env.__fbisCutoverApprovals instanceof Map
+      ? env.__fbisCutoverApprovals
+      : new Map();
+    approvals.set(`${key}:${receiptId}`, {
+      receipt_id: receiptId,
+      sport: key,
+      status: "APPROVED",
+      approved_at: new Date().toISOString(),
+      approved_by: "rehearsal",
+    });
+    env.__fbisCutoverApprovals = approvals;
   } else {
     delete env[`SPORT_CUTOVER_RECEIPT_${key.toUpperCase()}`];
+    if (env.__fbisCutoverApprovals instanceof Map) {
+      for (const mapKey of [...env.__fbisCutoverApprovals.keys()]) {
+        if (mapKey.startsWith(`${key}:`)) env.__fbisCutoverApprovals.delete(mapKey);
+      }
+    }
   }
   if (partialSportData && plan?.binding && env[plan.binding]) {
     env.__rehearsalPartialSport = true;

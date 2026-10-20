@@ -134,6 +134,7 @@ MARKET_HISTORY_SHADOW_WS = "enabled"
 COLD_MARKET_ARCHIVE_READS = "enabled"
 # Sport D1 modes: primary | shadow | sport. Keep primary until parity + cutover.
 NHL_SPORT_DB_MODE = "shadow"
+SPORT_DB_MODE_NHL = "shadow"
 SPORT_DB_MODE_NFL = "shadow"
 SPORT_DB_MODE_CFB = "shadow"
 SPORT_DB_MODE_CBB = "shadow"

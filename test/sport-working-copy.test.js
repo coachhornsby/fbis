@@ -250,6 +250,9 @@ test("sport copy refuses while sport mode is active", async () => {
     NFL_DB: sportDb,
     SPORT_DB_MODE_NFL: "sport",
     SPORT_CUTOVER_RECEIPT_NFL: "nfl-receipt",
+    __fbisCutoverApprovals: new Map([
+      ["nfl:nfl-receipt", { receipt_id: "nfl-receipt", sport: "nfl", status: "APPROVED" }],
+    ]),
   };
   const result = await copySportWorkingTables(env, "nfl");
   assert.equal(result.ok, false);

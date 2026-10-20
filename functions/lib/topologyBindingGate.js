@@ -118,6 +118,8 @@ export function topologyBindingRestorePlan() {
   for (const spec of requiredSportModeVars()) {
     env_vars[spec.key] = { type: "plain_text", value: spec.expected };
   }
+  // Keep legacy NHL alias alongside SPORT_DB_MODE_NHL for older deploys.
+  env_vars.NHL_SPORT_DB_MODE = { type: "plain_text", value: "shadow" };
   const streamD1 = {};
   for (const spec of REQUIRED_STREAM_D1_BINDINGS) {
     streamD1[spec.binding] = { id: spec.databaseId };

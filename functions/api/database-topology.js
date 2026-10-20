@@ -9,6 +9,7 @@ import {
   resolveMarketHistoryWriteDb,
   listMarketHistoryReadDbs,
   marketHistoryRetentionDecision,
+  hydrateCutoverApprovals,
   SPORT_DATABASES,
 } from "../lib/databaseTopology.js";
 import { copyNhlPilotTables, verifyNhlSportDbParity, verifyNhlRecordLevelParity } from "../lib/nhlSportDb.js";
@@ -18,6 +19,7 @@ import {
   copySportWorkingTables,
   verifySportWorkingParity,
   reconcileSportProjections,
+  backfillSportEvidenceEnvelopes,
 } from "../lib/sportWorkingCopy.js";
 import {
   publishCrossSportBoardSummary,
@@ -207,6 +209,22 @@ export async function onRequestPost({ env, request } = {}) {
     }
     return json(await reconcileSportProjections(env, sport, {
       sampleSize: Math.min(200, Number(body.sampleSize) || 40),
+    }));
+  }
+  if (operation === "sport-evidence-backfill") {
+    const sport = String(body.sport || "").toLowerCase();
+    if (!["nfl", "cfb", "nhl"].includes(sport)) {
+      return json({ ok: false, error: "EVIDENCE_BACKFILL_LIMITED_TO_NFL_CFB_NHL", canAuthorizeWager: false }, 400);
+    }
+    return json(await backfillSportEvidenceEnvelopes(env, sport, {
+      pageSize: Math.min(500, Number(body.pageSize) || 200),
+      maxPages: Math.min(500, Number(body.maxPages) || 100),
+      resume: body.resume !== false,
+    }));
+  }
+  if (operation === "hydrate-cutover-approvals") {
+    return json(await hydrateCutoverApprovals(env, {
+      sport: body.sport ? String(body.sport).toLowerCase() : null,
     }));
   }
   if (operation === "sport-cutover-rehearsal") {
