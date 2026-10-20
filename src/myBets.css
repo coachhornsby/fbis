@@ -342,3 +342,29 @@
   .bets-dashboard .bets-history-toolbar label{flex:1 1 100%}
   .bets-dashboard .bets-stat-grid{grid-template-columns:1fr 1fr}
 }
+
+
+/* Target the main execution panel explicitly: the intelligence section is the
+   first <section> sibling and makes :first-of-type unreliable. */
+.bets-dashboard > section.panel:not(.bets-ledger-panel){
+  background:linear-gradient(145deg,#10263a,#071623);
+  border:2px solid #718397;
+  border-radius:18px;
+}
+.bets-dashboard > section.panel:not(.bets-ledger-panel) > .panel-body{
+  padding:14px 26px 26px;
+}
+.bets-dashboard .bets-stat-grid small{
+  display:block;
+  margin-bottom:8px;
+  color:#eef3f8;
+  font-size:16px;
+  line-height:1.4;
+  font-weight:850;
+}
+@media(max-width:750px){
+  .bets-dashboard > section.panel:not(.bets-ledger-panel) > .panel-body{
+    padding-left:16px;
+    padding-right:16px;
+  }
+}
