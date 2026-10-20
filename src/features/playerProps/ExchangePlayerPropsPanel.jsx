@@ -5,6 +5,7 @@ import { independentPropRows,joinIndependentPropModels } from '../../../function
 import FBISPlayerPropCard from './FBISPlayerPropCard.jsx';
 import { orderExchangeResearchCards, buildVenueComparisonRows, groupExchangePlayerStatCards } from './buildPlayerPropsBoard.js';
 import ExchangePlayerWorkspace from './ExchangePlayerWorkspace.jsx';
+import { basketballPropWatermarkCoverage } from '../../../functions/lib/basketballPropTeam.js';
 
 function today() { return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); }
 export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',onSportFilterChange,compact=false,limit=100}) {
@@ -42,6 +43,7 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
   const comparableRows=useMemo(()=>buildVenueComparisonRows(matchingRows),[matchingRows]);
   const statCards=useMemo(()=>groupExchangePlayerStatCards(comparableRows),[comparableRows]);
   const rows=useMemo(()=>orderExchangeResearchCards(statCards,limit),[statCards,limit]);
+  const basketballWatermarks=useMemo(()=>basketballPropWatermarkCoverage(rows),[rows]);
 
   return <section className="pp-premium-page exchange-props-panel" aria-label="FBIS Player Props">
     <div className="pp-hero"><div><h1>{compact?'Top FBIS Player Props':'FBIS Player Props'}</h1><p>Kalshi + Polymarket · Verified contracts · Independent model research</p></div><span>{state.loading?'Loading…':`Showing ${rows.length} of ${statCards.length} player/stat cards · ${rows.filter(r=>r.venueComparison?.groupedContractSides>1).length} with both Over/Under · ${rows.filter(r=>Object.values(r.venueComparison?.marketSides||{}).some(s=>s.providerCount===2)).length} paired exchanges`}</span></div>
@@ -59,6 +61,14 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
     {modelError?<p role="status">Model delivery: {modelError}</p>:null}
     {state.degraded?<p role="status">Coverage unknown: one or more observation stores could not be read completely.</p>:null}
     {!state.loading&&!state.error&&!rows.length?<p className="pp-empty">Market unavailable for these filters. No mapped contract or independent projection is available. Select a sport to load its model research.</p>:null}
+    {!compact&&basketballWatermarks.total>0?<details className="pp-basketball-watermark-audit">
+      <summary>Basketball team watermarks: {basketballWatermarks.resolved}/{basketballWatermarks.total} resolved
+        {basketballWatermarks.unresolved ? ` · ${basketballWatermarks.unresolved} need team identity` : ' · all verified'}
+      </summary>
+      <p>NBA {basketballWatermarks.bySport.nba} · WNBA {basketballWatermarks.bySport.wnba} · CBB {basketballWatermarks.bySport.cbb} displayed cards. Logos use canonical player teams, never opponents.</p>
+      {basketballWatermarks.unresolvedRows.length?<ul>{basketballWatermarks.unresolvedRows.slice(0,30).map((x,i)=>
+        <li key={i}>{x.sport.toUpperCase()} · {x.player||'Unknown player'} · team {x.team||'missing'} · {x.status.replaceAll('_',' ')}</li>)}</ul>:null}
+    </details>:null}
     <div className="pp-card-grid pp-premium-grid exchange-prop-grid">{rows.map(r=><FBISPlayerPropCard key={r.id} row={r} onResearch={setSelected}/>)}</div>
     {selected?<ExchangePlayerWorkspace row={selected} onClose={()=>setSelected(null)}/>:null}
     {!compact&&state.collectorCoverage?.length?<details><summary>Collector evidence and mapping</summary><p>Kalshi contracts captured: {state.collectorCoverage.reduce((n,c)=>n+(c.records||0),0)}. Only exact player/event/stat matches appear as cards.</p><table className="exchange-prop-coverage"><thead><tr><th>Series</th><th>Sport</th><th>Status</th><th>Captured</th></tr></thead><tbody>{state.collectorCoverage.map(c=><tr key={c.series}><td>{c.series}</td><td>{c.sport}</td><td>{c.status}</td><td>{c.capturedAt||'—'}</td></tr>)}</tbody></table></details>:null}
