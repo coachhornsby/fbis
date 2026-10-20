@@ -53,3 +53,9 @@ test('collector fails closed without archive and limits discovery to actual cata
  const files=new Map([['kalshi/public-shadow/v1/series-catalog.json',{ok:true,records:[]}]]);const env={ARCHIVE:{get:async k=>files.has(k)?{json:async()=>files.get(k)}:null,put:async(k,v)=>files.set(k,JSON.parse(v))}};
  let fetched=false;const r=await captureKalshiPlayerProps(env,{fetchImpl:()=>{fetched=true;}});assert.equal(fetched,false);assert.equal(r.discoveredSeries,0);
 });
+test('real NHL rule identifies its league and cannot be relabeled as NBA',()=>{
+ const m=JSON.parse(fs.readFileSync('test/fixtures/props/kalshi-nhl-live-capture-20261020.json')).markets[0];
+ const mapped=mapKalshiPlayerContract(m,{seriesTicker:'KXNHLPTS',capturedAt:'2026-10-20T14:00:00Z',games:[{id:'nhl-1',sport:'nhl',away_abbr:'DET',home_abbr:'SEA',away_name:'Detroit Red Wings',home_name:'Seattle Kraken',start:'2026-10-21T02:00:00Z'}],players:[{sport:'nhl',player_name:'Mackie Samoskevich',player_id:'8482713',team_key:'sea'}]});
+ assert.equal(mapped.canonicalPlayerId,'nhl:nhl:8482713');assert.equal(mapped.line,1.5);assert.equal(mapped.identityVerified,true);
+ assert.equal(map({...market,rules_primary:market.rules_primary.replace('Pro Basketball','NFL')}).reason,'LEAGUE_DEFINITION_MISMATCH');
+});
