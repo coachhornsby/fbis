@@ -309,3 +309,50 @@ leagues, fixtures, player stat markets or settlement terms; nothing
 in the explorer changes CORE, market authority, trading or My Bets.
 This enables evidence-based review of source coverage, rather than
 guessing provider tickers for 11 FBIS sport databases.
+
+## 19. Kalshi Phase 2: resumable sport pagination and contract qualification receipts
+**Production baseline:** signed NFL `KXNFLGAME` returned 56 markets with a completed
+provider cursor, while signed CFB `KXNCAAFGAME` had an 80-market stale snapshot
+after later attempts did not complete. The shared global collector receipt alone
+could conceal a failed CFB window.
+
+**Resumable capture:** one signed `GET /markets` page (limit 250) per scheduled
+sport slot, with a `sports/<sport>-progress.json` checkpoint (cursor,
+seen cursors, exact ticker-deduped records and per-row original `fetchedAt`).
+Checkpoints survive provider timeout/429 without replacing the last completed
+snapshot. The process caps at 12 pages, 4,000 records and 4 hours before an
+expired traversal resets. Upon the final empty cursor, Pages publishes a
+completed `sports/<sport>.json` snapshot and clears progress. Every attempted
+sport slot independently writes `sports/<sport>-status.json`; Worker-to-Pages
+transport failure also writes the sport receipt. Global status remains for
+operational compatibility, but no longer substitutes for per-sport health.
+These caps and a fixed 15-minute cross-sport provider guard prevent a multi-page
+crawl from monopolizing the 25-second relay budget.
+
+**Timestamp protection:** a final-page timestamp never replaces the per-row
+`fetchedAt`. The public R2 reader filters any quote observations older than
+50 minutes and refuses to label a mixed-age feed fully complete/fresh.
+Long-running pagination establishes a research *inventory*, not a synchronized
+executable book.
+
+**Qualification report:** `GET /api/kalshi-coverage-report?sport=nfl|cfb`
+and System → **Verified Market Coverage Audit** expose per-sport attempts,
+checkpoint progress, provider events, paired-outcome *candidates*, row ages,
+and deterministic reasons contracts cannot qualify. The audit rejects missing
+independent canonical fixture and provider-event start evidence, outcome/side
+mapping, unverified settlement rules, quote time, orderbook depth and fee
+schedule. The separately supplied pure fixture-matcher demands non-empty
+canonical fixture ID, exact full team names, matching provider event ticker
+and kickoff within 15 minutes; even a successful match cannot authorize
+wagers. Public Kalshi data contains neither independently verified canonical
+fixtures nor settlement parity, so no automated event or quote authority is
+inferred. No D1 writes, CORE alterations, PinnOdds changes, private account
+access, or settlement imports occur in this stage.
+
+**Remaining acceptance for authoritative price comparisons:** observe
+two consecutive completed fresh NFL and CFB traversals, correlate to
+independent canonical ESPN/sports fixtures and independently fetched
+Kalshi event kickoffs, verify outcome/side and settlement terms, collect
+fresh orderbook sizes and the matching fee schedule, and prove net EV
+independently before any market source promotion. Do not treat a provider
+`paginationComplete=true` as proof of full-sport or player-prop coverage.

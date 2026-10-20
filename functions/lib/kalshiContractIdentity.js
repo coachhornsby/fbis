@@ -30,6 +30,7 @@ export function classifyKalshiSportContract(m={}) {
  };
 }
 export function verifyKalshiEventIdentity({fixture,event,market}={}){
+ const fixtureId=typeof fixture?.id==="string"||typeof fixture?.id==="number"?String(fixture.id):"";
  const fixtureStart=at(fixture?.startTime || fixture?.start_time || fixture?.event_start_time);
  const providerStart=at(event?.kickoffTime||event?.verifiedGameStartTime);
  const a=clean(fixture?.away_name||fixture?.awayName);
@@ -39,9 +40,10 @@ export function verifyKalshiEventIdentity({fixture,event,market}={}){
    [a+" vs "+h,h+" vs "+a,a+" at "+h,h+" at "+a].some(t=>clean(t)===title);
  const validMarket=market?.event_ticker && event?.event_ticker
    &&market.event_ticker===event.event_ticker;
- if(!fixtureStart||!providerStart||!teamsExact||!validMarket||
-   Math.abs(fixtureStart-providerStart)>2*60*60*1000){
+ if(!fixtureId||!fixtureStart||!providerStart||!teamsExact||!validMarket||
+   Math.abs(fixtureStart-providerStart)>15*60*1000){
    return {matched:false,canonicalEventId:null,reason:
+     !fixtureId?"CANONICAL_FIXTURE_ID_MISSING":
      !fixtureStart?"CANONICAL_START_MISSING":
      !providerStart?"PROVIDER_KICKOFF_NOT_VERIFIED":
      !teamsExact?"TWO_TEAM_IDENTITY_UNVERIFIED":

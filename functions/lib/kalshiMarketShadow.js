@@ -217,6 +217,46 @@ export async function getKalshiShadowMarketsPaged(sport,{
 }
 
 /**
+ * One bounded provider page for resumable discovery. A separate checkpoint
+ * tracks progress so Pages never holds a 4-page/48-second upstream request.
+ */
+export async function getKalshiShadowMarketsPage(sport,{
+  cursor="",fetchImpl=fetch,now=new Date(),limit=250,
+}={}){
+  const series=KALSHI_SHADOW_SERIES[sport];
+  if(!["nfl","cfb"].includes(sport)||!series)
+    return {ok:false,code:"KALSHI_SERIES_NOT_QUALIFIED"};
+  if(typeof cursor!=="string"||cursor.length>2048)
+    return {ok:false,code:"KALSHI_PUBLIC_CURSOR_INVALID"};
+  const bounded=Math.min(500,Math.max(1,Math.floor(Number(limit)||250)));
+  const response=await publicGet("/markets",{
+    series_ticker:series,status:"open",limit:bounded,mve_filter:"exclude",
+    cursor:cursor||null,
+  },fetchImpl);
+  if(!response.ok)return response;
+  if(!Array.isArray(response.body?.markets))
+    return {ok:false,code:"KALSHI_PUBLIC_SCHEMA_UNAVAILABLE"};
+  const next=response.body.cursor;
+  if(next!=null&&(typeof next!=="string"||next.length>2048))
+    return {ok:false,code:"KALSHI_PUBLIC_CURSOR_INVALID"};
+  const fetchedAt=now.toISOString(),records=[],seen=new Set();
+  let invalidRows=0,duplicateRows=0;
+  for(const original of response.body.markets){
+    const record=normalizeKalshiShadowMarket(original,{sport,fetchedAt});
+    if(!record){invalidRows++;continue;}
+    if(seen.has(record.ticker)){duplicateRows++;continue;}
+    seen.add(record.ticker);records.push(record);
+  }
+  return {ok:true,records,nextCursor:next||"",
+    fetchedAt,pageSizeRequested:bounded,
+    invalidRows,duplicateRows,paginationComplete:!next,
+    // Not a certified full-event book or executable quote.
+    sourceMethod:"SIGNED_REST_PAGE",
+    governance:kalshiShadowAuthority(),
+  };
+}
+
+/**
  * Book detail may be inspected by validated series-market ticker; it cannot
  * be joined to a fixture or assigned execution/model authority at this stage.
  */
