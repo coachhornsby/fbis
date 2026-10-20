@@ -44,6 +44,8 @@ test("unverified, future or week-zero CORE never creates predictions",()=>{
     game({home:row(12,-4,{coreWeekBounded:false})}),
     game({away:row(9,-2,{coreSourceAsOf:"2026-10-17T21:00:00Z"})}),
     game({away:row(9,-2,{coreSourceEndpoint:"/ratings/sp"})}),
+    game({home:row(12,-4,{coreSourceEndpoint:"fbis_weekly_training_document"}),
+      away:row(9,-2,{coreSourceEndpoint:"/ratings/core"})}),
     game({away:row(9,-2,{coreThroughSeasonType:"postseason"})}),
     game({away:row(9,-2,{coreThroughWeek:5})}),
     game({baselineHome:null}),
