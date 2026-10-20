@@ -845,7 +845,40 @@ export async function ensureMirroredSportTable(primary, sportDb, tableName) {
 }
 
 /**
- * Copy rows for one prefix table using keyset on the first PK column (or rowid).
+ * Build a stable keyset across every PRIMARY-key component, not just the first.
+ * Single-column cursors retain their existing representation; composite
+ * cursors are versioned JSON arrays so the next bounded run can resume within
+ * a repeated first-key group. Legacy unversioned composite cursors restart at
+ * the beginning once and are safely re-applied by the destination upsert.
+ */
+export function prefixCompositeCursorPlan(pkNames, afterKey = "") {
+  const keys = (pkNames || []).map((x) => assertSafeIdent(x));
+  if (!keys.length) throw new Error("PREFIX_KEYSET_REQUIRES_KEY");
+  const composite = keys.length > 1;
+  const raw = String(afterKey || "");
+  let values = [];
+  if (raw && composite && raw.startsWith("pkv2:")) {
+    try {
+      const parsed = JSON.parse(raw.slice(5));
+      if (Array.isArray(parsed) && parsed.length === keys.length && parsed.every(v => v !== null && v !== undefined)) {
+        values = parsed;
+      }
+    } catch { /* malformed cursor is replayed from start, never trusted */ }
+  } else if (raw && !composite) {
+    values = [raw];
+  }
+  const orderBy = keys.join(", ");
+  const where = !values.length ? "" : composite
+    ? `WHERE (${keys.join(", ")}) > (${keys.map(() => "?").join(", ")})`
+    : `WHERE ${keys[0]}>?`;
+  const encode = (row) => composite
+    ? `pkv2:${JSON.stringify(keys.map(k => row[k]))}`
+    : String(row[keys[0]] ?? "");
+  return { keys, composite, values, orderBy, where, encode, legacyReset: composite && raw.length > 0 && !values.length };
+}
+
+/**
+ * Copy rows for one prefix table using keyset on the full PRIMARY-key tuple (or rowid).
  */
 export async function copyPrefixedTablePaged(primary, sportDb, tableName, {
   pageSize = 200,
@@ -859,33 +892,39 @@ export async function copyPrefixedTablePaged(primary, sportDb, tableName, {
   const info = await primary.prepare(`PRAGMA table_info(${table})`).all();
   const cols = (info?.results || []).map((c) => assertSafeIdent(c.name));
   const pkCols = (info?.results || []).filter((c) => Number(c.pk) > 0).sort((a, b) => Number(a.pk) - Number(b.pk));
-  const keyCol = pkCols[0] ? assertSafeIdent(pkCols[0].name) : "rowid";
-  const selectCols = keyCol === "rowid" ? ["rowid AS __key", ...cols] : cols;
-  const orderCol = keyCol === "rowid" ? "rowid" : keyCol;
-
-  let cursor = afterKey;
+  const hasPrimaryKey = pkCols.length > 0;
+  const keyNames = hasPrimaryKey ? pkCols.map(c => c.name) : ["rowid"];
+  const selectCols = hasPrimaryKey ? cols : ["rowid AS __key", ...cols];
+  // Legacy scalar cursor on a composite PK is not safe: rescan once.
+  let cursor = prefixCompositeCursorPlan(keyNames, afterKey).legacyReset ? "" : afterKey;
   let copied = 0;
   let pages = 0;
   let lastKey = cursor;
   for (; pages < maxPages; pages += 1) {
-    const page = cursor
-      ? await primary.prepare(
-        `SELECT ${selectCols.join(",")} FROM ${table} WHERE ${orderCol}>? ORDER BY ${orderCol} ASC LIMIT ?`
-      ).bind(cursor, pageSize).all()
-      : await primary.prepare(
-        `SELECT ${selectCols.join(",")} FROM ${table} ORDER BY ${orderCol} ASC LIMIT ?`
-      ).bind(pageSize).all();
+    const plan = prefixCompositeCursorPlan(keyNames, cursor);
+    const page = await primary.prepare(
+      `SELECT ${selectCols.join(",")} FROM ${table} ${plan.where} ORDER BY ${plan.orderBy} ASC LIMIT ?`
+    ).bind(...plan.values, pageSize).all();
     const rows = page?.results || [];
     if (!rows.length) break;
-    const placeholders = cols.map(() => "?").join(",");
     const colList = cols.join(",");
+    const placeholders = cols.map(() => "?").join(",");
     for (const row of rows) {
-      const values = cols.map((c) => row[c] ?? null);
-      await sportDb.prepare(
-        `INSERT OR REPLACE INTO ${table} (${colList}) VALUES (${placeholders})`
-      ).bind(...values).run();
+      const values = cols.map(c => row[c] ?? null);
+      if (hasPrimaryKey) {
+        await sportDb.prepare(
+          `INSERT OR REPLACE INTO ${table} (${colList}) VALUES (${placeholders})`
+        ).bind(...values).run();
+      } else {
+        // With no declared PK, REPLACE alone only appends duplicates on
+        // retry. Preserve PRIMARY rowid as the stable local copy identity.
+        await sportDb.prepare(
+          `INSERT OR REPLACE INTO ${table} (rowid,${colList}) VALUES (?,${placeholders})`
+        ).bind(row.__key, ...values).run();
+      }
       copied += 1;
-      lastKey = keyCol === "rowid" ? String(row.__key) : String(row[keyCol] ?? "");
+      const cursorRow = hasPrimaryKey ? row : { rowid: row.__key };
+      lastKey = plan.encode(cursorRow);
     }
     cursor = lastKey;
     if (rows.length < pageSize) break;
