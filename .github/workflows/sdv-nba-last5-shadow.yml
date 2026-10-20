@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Validate NBA SDV time cuts and history normalization
+        run: python -m unittest discover -s test -p 'test_sdv_nba_last5_shadow.py'
       - name: Install SportsDataverse
         run: pip install --disable-pip-version-check sportsdataverse
       - name: Compile frozen historical research snapshot
