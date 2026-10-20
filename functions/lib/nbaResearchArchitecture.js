@@ -127,7 +127,7 @@ export const NBA_PROVIDER_STATUS = Object.freeze({
   availabilityStates: NBA_AVAILABILITY_STATUS,
   expectedMinutesFirstClass: true,
   combinationPropsCovarianceAware: true,
-  note: "Game board publishes independent NBA-FBIS-v1 research projections. Wager authority stays false until prospective gate criteria pass and D1 operator cutover (can_authorize=1). Injury/lineup hydrate from official PDF + ESPN lineup observations. Player props attach from D1 shadow rows when present; otherwise blocked. ACTION remains market intelligence only.",
+  note: "Game board may display independent NBA-FBIS-v1 research projections, tipoff-matched injuries/lineups, and research player props without wager authority. Unfreeze requires distinct graded games, measured subgroup safety, prospective PIT economics (not research validation substitutes), and operator approval after criteria — D1 can_authorize alone is not a launch procedure.",
 });
 
 export function nbaComponentAudit() {

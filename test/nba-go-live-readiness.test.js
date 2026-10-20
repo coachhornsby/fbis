@@ -4,11 +4,13 @@ import assert from "node:assert/strict";
 import {
   evaluateNbaProspectiveGate,
   resolveNbaProspectiveGate,
+  collectNbaGateEvidence,
   NBA_PROSPECTIVE_GATE_DEFAULT_RULES,
 } from "../functions/lib/nbaProspectiveGate.js";
 import {
   attachNbaAvailabilityContext,
   loadNbaAvailabilityContext,
+  injuryAppliesToTipoff,
 } from "../functions/lib/nbaAvailabilityContext.js";
 import {
   attachNbaPlayerProjectionResearch,
@@ -34,6 +36,7 @@ function passingEvidence(overrides = {}) {
     roiPct: 4.2,
     roiUnits: 3.1,
     maxDrawdownUnits: 8,
+    economicsSource: "nba_wager_decisions.prospective",
     injurySubgroupN: 25,
     scheduleStressSubgroupN: 25,
     injuryCatastrophicRegression: 0.01,
@@ -49,7 +52,29 @@ test("evaluateNbaProspectiveGate stays frozen until all criteria pass", () => {
   assert.equal(frozen.canAuthorize, false);
   assert.equal(frozen.promotionEligible, false);
   assert.ok(frozen.gaps.includes("graded_games"));
+  assert.ok(frozen.gaps.includes("injury_regression"), "missing subgroup regression is a gap");
   assert.ok(frozen.progress.total >= 18);
+});
+
+test("missing subgroup regression fails (never treated as pass)", () => {
+  const missing = evaluateNbaProspectiveGate(passingEvidence({
+    injuryCatastrophicRegression: null,
+    scheduleCatastrophicRegression: null,
+  }));
+  assert.equal(missing.criteriaPassed, false);
+  assert.ok(missing.gaps.includes("injury_regression"));
+  assert.ok(missing.gaps.includes("schedule_regression"));
+  const injury = missing.criteria.find((c) => c.id === "injury_regression");
+  assert.equal(injury.detail, "UNVERIFIED_MISSING_MEASUREMENT");
+});
+
+test("research validation economics cannot satisfy gate CLV/ROI criteria", () => {
+  const fromResearchOnly = evaluateNbaProspectiveGate(passingEvidence({
+    economicsSource: "nba_decision_validation_runs",
+  }));
+  assert.equal(fromResearchOnly.criteriaPassed, false);
+  assert.ok(fromResearchOnly.gaps.includes("clv_n"));
+  assert.ok(fromResearchOnly.gaps.includes("roi"));
 });
 
 test("evaluateNbaProspectiveGate becomes PROMOTION_ELIGIBLE then AUTHORIZED with operator", () => {
@@ -64,37 +89,7 @@ test("evaluateNbaProspectiveGate becomes PROMOTION_ELIGIBLE then AUTHORIZED with
   assert.equal(authorized.status, "AUTHORIZED");
 });
 
-test("resolveNbaProspectiveGate requires D1 can_authorize cutover after criteria", async () => {
-  const evidenceReady = passingEvidence({ operatorApproved: false });
-  // Simulate DB that returns gate row + empty collectors → inject via evaluate path
-  const dbFrozen = {
-    prepare(sql) {
-      const text = String(sql);
-      return {
-        bind() { return this; },
-        async first() {
-          if (text.includes("nba_prospective_gate")) {
-            return {
-              gate_version: "NBA-PROSPECTIVE-GATE-v1",
-              frozen_at: "2026-10-01T00:00:00Z",
-              rules_json: JSON.stringify(NBA_PROSPECTIVE_GATE_DEFAULT_RULES),
-              auto_promote: 0,
-              can_qualify: 0,
-              can_authorize: 0,
-              status: "FROZEN_RESEARCH_GATE",
-            };
-          }
-          return { n: 0 };
-        },
-        async all() { return { results: [] }; },
-      };
-    },
-  };
-  const frozen = await resolveNbaProspectiveGate(dbFrozen);
-  assert.equal(frozen.canAuthorize, false);
-  assert.ok(["FROZEN_RESEARCH_GATE", "AWAITING_OPERATOR_APPROVAL"].includes(frozen.status) || frozen.boardPolicy === "RESEARCH_ONLY_UNTIL_GATE_AND_OPERATOR");
-
-  // Force criteria via evaluate unit already covered; cutover path:
+test("resolveNbaProspectiveGate requires criteria + D1 cutover; flag alone never authorizes", async () => {
   const dbArmed = {
     prepare(sql) {
       const text = String(sql);
@@ -110,8 +105,7 @@ test("resolveNbaProspectiveGate requires D1 can_authorize cutover after criteria
               status: "AUTHORIZED",
             };
           }
-          // Return counts that still fail criteria → canAuthorize must stay false
-          if (text.includes("COUNT(*)")) return { n: 0 };
+          if (text.includes("COUNT(DISTINCT") || text.includes("COUNT(*)")) return { n: 0 };
           return null;
         },
         async all() { return { results: [] }; },
@@ -121,12 +115,68 @@ test("resolveNbaProspectiveGate requires D1 can_authorize cutover after criteria
   const armedButNoEvidence = await resolveNbaProspectiveGate(dbArmed);
   assert.equal(armedButNoEvidence.d1CanAuthorize, true);
   assert.equal(armedButNoEvidence.canAuthorize, false, "D1 switch alone must not authorize without criteria");
-  void evidenceReady;
+  assert.equal(armedButNoEvidence.boardPolicy, "RESEARCH_DISPLAY_ONLY_NO_WAGER_AUTHORITY");
 });
 
-test("attachNbaAvailabilityContext hydrates injury + lineup from observations", async () => {
+test("collectNbaGateEvidence counts distinct graded games and does not fill economics from validation runs", async () => {
+  const db = {
+    prepare(sql) {
+      const text = String(sql);
+      return {
+        bind() { return this; },
+        async first() {
+          if (text.includes("COUNT(DISTINCT game_id)") && text.includes("nba_prospective_game_shadow") && text.includes("graded_at")) {
+            // Would be inflated to 3 if counting model rows; distinct games = 1
+            return { n: 1 };
+          }
+          if (text.includes("nba_decision_validation_runs")) {
+            return {
+              bet_n: 999,
+              units: 50,
+              roi_pct: 12,
+              max_drawdown_units: 2,
+              positive_clv_rate: 0.9,
+              graded_n: 999,
+              status: "SIMULATED",
+              created_at: "2026-10-01T00:00:00Z",
+            };
+          }
+          if (text.includes("nba_wager_decisions")) return { n: 0 };
+          if (text.includes("nba_prospective_gate")) return null;
+          return { n: 0 };
+        },
+        async all() { return { results: [] }; },
+      };
+    },
+  };
+  const evidence = await collectNbaGateEvidence(db);
+  assert.equal(evidence.gradedGames, 1);
+  assert.equal(evidence.economicsSource, null);
+  assert.equal(evidence.settledBets, 0);
+  assert.ok(evidence.researchContext?.betN === 999 || evidence.researchContext?.kind);
+  assert.equal(evidence.injuryCatastrophicRegression, null, "must not zero-fill unmeasured regression");
+});
+
+test("injuryAppliesToTipoff rejects post-tip and stale observations", () => {
+  const tip = Date.parse("2026-10-21T00:00:00Z");
+  assert.equal(
+    injuryAppliesToTipoff({ observed_at: "2026-10-20T20:00:00Z", report_date: "2026-10-20" }, tip),
+    true
+  );
+  assert.equal(
+    injuryAppliesToTipoff({ observed_at: "2026-10-21T01:00:00Z", report_date: "2026-10-21" }, tip),
+    false
+  );
+  assert.equal(
+    injuryAppliesToTipoff({ observed_at: "2026-10-10T12:00:00Z", report_date: "2026-10-10" }, tip),
+    false
+  );
+});
+
+test("attachNbaAvailabilityContext requires tipoff match and confirmed starters both sides", async () => {
   const games = [{
     id: "401809123",
+    start: "2026-10-21T00:00:00Z",
     home: { abbr: "OKC", name: "Thunder" },
     away: { abbr: "HOU", name: "Rockets" },
   }];
@@ -138,30 +188,56 @@ test("attachNbaAvailabilityContext hydrates injury + lineup from observations", 
         async all() {
           if (text.includes("player_availability_observations")) {
             return {
-              results: [{
-                player_id: "p1",
-                player_name: "Star Guard",
-                team_key: "okc",
-                team_name: "Thunder",
-                status: "OUT",
-                source: "NBA_OFFICIAL_INJURY_REPORT",
-                observed_at: "2026-10-20T12:00:00Z",
-                report_date: "2026-10-20",
-                notes: null,
-              }],
+              results: [
+                {
+                  player_id: "p1",
+                  player_name: "Star Guard",
+                  team_key: "okc",
+                  team_name: "Thunder",
+                  status: "OUT",
+                  source: "NBA_OFFICIAL_INJURY_REPORT",
+                  observed_at: "2026-10-20T12:00:00Z",
+                  report_date: "2026-10-20",
+                  notes: null,
+                  game_id: null,
+                },
+                {
+                  // Post-tip — must not attach
+                  player_id: "p-late",
+                  player_name: "Late Report",
+                  team_key: "okc",
+                  status: "OUT",
+                  source: "NBA_OFFICIAL_INJURY_REPORT",
+                  observed_at: "2026-10-21T02:00:00Z",
+                  report_date: "2026-10-21",
+                  game_id: null,
+                },
+              ],
             };
           }
           if (text.includes("nba_lineup_observations")) {
             return {
-              results: [{
-                game_id: "401809123",
-                team_key: "hou",
-                player_id: "p2",
-                player_name: "Starter One",
-                lineup_status: "STARTER",
-                observed_at: "2026-10-20T16:00:00Z",
-                source: "ESPN_CONFIRMED_STARTER",
-              }],
+              results: [
+                {
+                  game_id: "401809123",
+                  team_key: "hou",
+                  player_id: "p2",
+                  player_name: "Starter One",
+                  lineup_status: "STARTER",
+                  observed_at: "2026-10-20T16:00:00Z",
+                  source: "ESPN_CONFIRMED_STARTER",
+                },
+                {
+                  // Non-starter observation — must not mark confirmed alone
+                  game_id: "401809123",
+                  team_key: "okc",
+                  player_id: "p3",
+                  player_name: "Bench",
+                  lineup_status: "BENCH",
+                  observed_at: "2026-10-20T16:00:00Z",
+                  source: "ESPN_ROSTER",
+                },
+              ],
             };
           }
           return { results: [] };
@@ -170,13 +246,26 @@ test("attachNbaAvailabilityContext hydrates injury + lineup from observations", 
     },
   };
   const ctx = await loadNbaAvailabilityContext(db, games);
-  assert.equal(ctx.meta.configured, true);
-  assert.ok(ctx.meta.officialInjuryRows >= 1);
+  assert.equal(ctx.meta.matchedInjuryRows, 1);
   const [g] = attachNbaAvailabilityContext(games, ctx);
   assert.equal(g.nbaAvailability.outCount, 1);
   assert.equal(g.nbaAvailability.home[0].playerName, "Star Guard");
-  assert.equal(g.nbaLineups.away[0].starter, true);
+  assert.equal(g.nbaAvailability.home.some((p) => p.playerName === "Late Report"), false);
+  assert.equal(g.nbaLineups.confirmed, false, "one-side starter is not confirmation");
   assert.equal(g.nbaAvailability.canAuthorize, false);
+
+  // Both sides starters → confirmed
+  const withBoth = attachNbaAvailabilityContext(games, {
+    ...ctx,
+    lineupsByGame: {
+      "401809123": {
+        home: [{ playerName: "H1", starter: true, confirmedStarter: true }],
+        away: [{ playerName: "A1", starter: true, confirmedStarter: true }],
+        source: "ESPN_CONFIRMED_STARTER",
+      },
+    },
+  });
+  assert.equal(withBoth[0].nbaLineups.confirmed, true);
 });
 
 test("NBA props research path attaches D1 shadow rows and keeps wager auth false", async () => {
@@ -220,7 +309,7 @@ test("NBA props research path attaches D1 shadow rows and keeps wager auth false
   assert.equal(blocked[0].playerProjectionStatus.state, "BLOCKED_RIGHTS_CLEARED_PLAYER_FEED");
 });
 
-test("attachNbaBoardProjection only authorizes when gate.canAuthorize and row allows", async () => {
+test("board may display projections without wager authority; gate wire stays fail-closed", async () => {
   const row = {
     game_id: "g1",
     model_id: "NBA-FBIS-v1",
@@ -249,12 +338,14 @@ test("attachNbaBoardProjection only authorizes when gate.canAuthorize and row al
     },
   };
   const frozen = await attachNbaBoardProjection([{ id: "g1" }], db, { gate: { canAuthorize: false } });
+  assert.equal(frozen.games[0].projHomeScore, 115.8, "research display allowed");
   assert.equal(frozen.games[0].canAuthorizeWager, false);
+  assert.equal(frozen.games[0].publicationStatus, "RESEARCH_PUBLISHABLE");
   assert.equal(frozen.meta.gateAllows, false);
 
+  // Mechanical cutover path exists, but production must not use it without prospective criteria.
   const open = await attachNbaBoardProjection([{ id: "g1" }], db, { gate: { canAuthorize: true } });
   assert.equal(open.games[0].canAuthorizeWager, true);
-  assert.equal(open.games[0].bettingAuthority, "ELIGIBLE");
 });
 
 test("nbaComponentAudit lists gate, injury/lineup, and props path as implemented", () => {

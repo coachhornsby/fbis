@@ -31,8 +31,8 @@ export async function onRequestGet({ env }) {
       nextStep: gate.canAuthorize
         ? "Gate authorized — board may set canAuthorizeWager when projection rows allow."
         : gate.criteriaReady
-          ? "Criteria met — set nba_prospective_gate.can_authorize=1 / status after operator approval."
-          : `Frozen — ${gate.gaps?.length || 0} criteria remaining (see gaps).`,
+          ? "Criteria met with prospective evidence — operator may set can_authorize=1. Flag alone never launches."
+          : `Frozen — ${gate.gaps?.length || 0} criteria remaining. Displaying research projections/injuries/props does not require unfreeze.`,
     });
   } catch (err) {
     return json({ ok: false, error: String(err?.message || err), gate: null }, 500);
