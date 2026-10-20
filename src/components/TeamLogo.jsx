@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { resolveTeamLogo } from "../lib/resolveTeamLogo.js";
+import { isWashingtonCapitalsLogo } from "../lib/teamLogoPresentation.js";
 import { displayTeamIdentity, teamDisplayName, identityForSport } from "../../functions/lib/teams.js";
 
 /** Named sizes for board / card hierarchy. */
@@ -34,8 +35,7 @@ export default function TeamLogo({
   const url = remote?.logo || (!failed ? baseUrl : null);
   // Washington's navy lettering disappears against FBIS navy surfaces.
   // Outline the logo pixels, not the container; preserve the no-white-disk treatment.
-  const isCapitals = (sport === "nhl" || String(team?.canonicalId || "").toLowerCase().startsWith("nhl-")) &&
-    (abbr === "WSH" || /\bWashington Capitals\b/i.test(name));
+  const isCapitals = isWashingtonCapitalsLogo(team, {abbr, name});
   const plate = (tone === "dark" || tone === "auto") && !isCapitals;
 
   useEffect(() => {
