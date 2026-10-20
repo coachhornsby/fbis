@@ -16,6 +16,7 @@ import { FBIS_SPORTS } from "../functions/lib/databaseTopology.js";
 
 function memoryDb(seed = {}) {
   const tables = new Map();
+  const metadata = new Map();
   for (const [name, rows] of Object.entries(seed)) {
     const sample = rows[0] || {};
     tables.set(name, { cols: Object.keys(sample), rows: [...rows] });
@@ -33,6 +34,9 @@ function memoryDb(seed = {}) {
         _run(args) {
           return {
             async first() {
+              if (s.includes("SELECT value_text FROM fbis_sport_shard_meta")) {
+                return metadata.has(args[0]) ? { value_text: metadata.get(args[0]) } : null;
+              }
               if (s.includes("sqlite_master")) {
                 const name = args[0];
                 return tables.has(name) ? { ok: 1 } : null;
@@ -80,6 +84,10 @@ function memoryDb(seed = {}) {
               return { results: [] };
             },
             async run() {
+              if (s.includes("INSERT OR REPLACE INTO fbis_sport_shard_meta")) {
+                metadata.set(args[0], String(args[1]));
+                return { meta: { changes: 1 } };
+              }
               if (s.startsWith("CREATE TABLE")) {
                 const table = s.match(/CREATE TABLE IF NOT EXISTS (\w+)/)?.[1];
                 if (table && !tables.has(table)) {
@@ -126,6 +134,7 @@ function memoryDb(seed = {}) {
       };
     },
     _tables: tables,
+    _metadata: metadata,
   };
 }
 
@@ -245,6 +254,52 @@ test("copyPrefixedTablePaged mirrors rows idempotently", async () => {
   const second = await copyPrefixedTablePaged(primary, sport, "nfl_team_profiles", { pageSize: 10, maxPages: 2 });
   assert.equal(second.copied, 2); // INSERT OR REPLACE
   assert.equal(sport._tables.get("nfl_team_profiles").rows.length, 2);
+});
+
+test("large prefix backfill makes forward progress instead of replaying the first page forever", async () => {
+  const source = Array.from({ length: 7 }, (_, i) => ({
+    team_key: `team-${i}`, team_name: `Team ${i}`,
+  }));
+  const primary = memoryDb({ nfl_team_profiles: source });
+  const sport = memoryDb({ nfl_team_profiles: [] });
+  const env = { DB: primary, NFL_DB: sport };
+  // Only one 2-row page per invocation, modeling a bounded Pages request.
+  const snapshots = [];
+  for (let i = 0; i < 6; i += 1) {
+    const pass = await copySportPrefixTables(env, "nfl", {
+      tables: ["nfl_team_profiles"],
+      pageSize: 2,
+      maxPages: 1,
+      resume: true,
+      skipCaughtUp: true,
+    });
+    snapshots.push(sport._tables.get("nfl_team_profiles").rows.length);
+    assert.equal(pass.ok, true);
+  }
+  assert.deepEqual(snapshots.slice(0, 4), [2, 4, 6, 7]);
+  assert.equal(sport._metadata.get("copy_replay_active_prefix_nfl_team_profiles"), "0");
+  const subsequent = await copySportPrefixTables(env, "nfl", {
+    tables: ["nfl_team_profiles"],
+    pageSize: 2,
+    maxPages: 1,
+    resume: true,
+    skipCaughtUp: true,
+  });
+  assert.equal(subsequent.skippedCaughtUp.length, 1);
+  // If new older-keyed record is inserted, catch it in the next bounded scan.
+  primary._tables.get("nfl_team_profiles").rows.unshift({
+    team_key: "team--1", team_name: "Late backfill",
+  });
+  const recovery = await copySportPrefixTables(env, "nfl", {
+    tables: ["nfl_team_profiles"],
+    pageSize: 2,
+    maxPages: 1,
+    resume: true,
+    skipCaughtUp: true,
+  });
+  assert.equal(recovery.ok, true);
+  assert.equal(sport._metadata.get("copy_replay_active_prefix_nfl_team_profiles"), "1");
+  assert.equal(sport._metadata.get("copy_cursor_prefix_nfl_team_profiles"), "team-0");
 });
 
 test("verifySportPrefixParity distinguishes complete vs incomplete research copy", async () => {
