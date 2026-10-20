@@ -253,6 +253,186 @@ export const TENNIS_COMMONS_PORTRAIT_BATCH = Object.freeze([
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mirra_Andreeva_(2023_US_Open)_10_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:wta:320228",
+    "playerName": "Rebecca Sramkova",
+    "fileTitle": "Rebecca Šramková (2023 US Open) 10 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rebecca_%C5%A0ramkov%C3%A1_(2023_US_Open)_10_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:wta:324166",
+    "playerName": "Elena Rybakina",
+    "fileTitle": "Elena Rybakina (2023 US Open) 01.jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Elena_Rybakina_(2023_US_Open)_01.jpg"
+  },
+  {
+    "playerId": "tennis:wta:316738",
+    "playerName": "Elina Svitolina",
+    "fileTitle": "Elina Svitolina (2023 DC Open) 34.jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Elina_Svitolina_(2023_DC_Open)_34.jpg"
+  },
+  {
+    "playerId": "tennis:wta:326482",
+    "playerName": "Marta Kostyuk",
+    "fileTitle": "Marta Kostyuk (2023 US Open) 20 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Marta_Kostyuk_(2023_US_Open)_20_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:wta:319001",
+    "playerName": "Belinda Bencic",
+    "fileTitle": "Belinda Bencic (2023 US Open) 02.jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Belinda_Bencic_(2023_US_Open)_02.jpg"
+  },
+  {
+    "playerId": "tennis:wta:320942",
+    "playerName": "Sofia Kenin",
+    "fileTitle": "Sofia Kenin (2023 US Open) 60.jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sofia_Kenin_(2023_US_Open)_60.jpg"
+  },
+  {
+    "playerId": "tennis:wta:322191",
+    "playerName": "Karolina Muchova",
+    "fileTitle": "Karolína Muchová (2023 US Open) 25 (cropped2).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Karol%C3%ADna_Muchov%C3%A1_(2023_US_Open)_25_(cropped2).jpg"
+  },
+  {
+    "playerId": "tennis:wta:329668",
+    "playerName": "Linda Noskova",
+    "fileTitle": "Linda Nosková (2023 US Open) 01 (cropped2).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Linda_Noskov%C3%A1_(2023_US_Open)_01_(cropped2).jpg"
+  },
+  {
+    "playerId": "tennis:wta:319280",
+    "playerName": "Jasmine Paolini",
+    "fileTitle": "Jasmine Paolini (2023 US Open) 01.jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jasmine_Paolini_(2023_US_Open)_01.jpg"
+  },
+  {
+    "playerId": "tennis:wta:319998",
+    "playerName": "Naomi Osaka",
+    "fileTitle": "Naomi Osaka 2018 US Open.jpg",
+    "author": "Azilko",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Naomi_Osaka_2018_US_Open.jpg"
+  },
+  {
+    "playerId": "tennis:wta:325410",
+    "playerName": "Emma Navarro",
+    "fileTitle": "EmmaNavarro (cropped).jpg",
+    "author": "SaidSimmons",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:EmmaNavarro_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:wta:326384",
+    "playerName": "Amanda Anisimova",
+    "fileTitle": "Amanda Anisimova (45985221405).jpg",
+    "author": "Carine06",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Amanda_Anisimova_(45985221405).jpg"
+  },
+  {
+    "playerId": "tennis:wta:332285",
+    "playerName": "Iva Jovic",
+    "fileTitle": "Jovic AO26 R1 (cropped).jpg",
+    "author": "QWisps",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jovic_AO26_R1_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:wta:319125",
+    "playerName": "Katie Boulter",
+    "fileTitle": "2017 US Open Tennis - Qualifying Rounds - Katie Boulter (GBR) def. Danka Kovinic (MNE) (3) (37088878435).jpg",
+    "author": "Steven Pisano",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:2017_US_Open_Tennis_-_Qualifying_Rounds_-_Katie_Boulter_(GBR)_def._Danka_Kovinic_(MNE)_(3)_(37088878435).jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:stefanos tsitsipas",
+    "playerName": "Stefanos Tsitsipas",
+    "fileTitle": "Stefanos Tsitsipas 2022.jpg",
+    "author": "Pahcal123",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Stefanos_Tsitsipas_2022.jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:matteo berrettini",
+    "playerName": "Matteo Berrettini",
+    "fileTitle": "Matteo Berrettini at 2025 Miami Open 01 (cropped).jpg",
+    "author": "Vbrunophotog",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Matteo_Berrettini_at_2025_Miami_Open_01_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:ugo humbert",
+    "playerName": "Ugo Humbert",
+    "fileTitle": "Ugo Humbert - 2024 Olympics (portrait) (cropped).jpg",
+    "author": "Kuberzog",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ugo_Humbert_-_2024_Olympics_(portrait)_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:cameron norrie",
+    "playerName": "Cameron Norrie",
+    "fileTitle": "Cameron Norrie (45115038752).jpg",
+    "author": "Carine06",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Cameron_Norrie_(45115038752).jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:karen khachanov",
+    "playerName": "Karen Khachanov",
+    "fileTitle": "Karen Khachanov (39989359413) (cropped).jpg",
+    "author": "Carine06",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Karen_Khachanov_(39989359413)_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:rinky hijikata",
+    "playerName": "Rinky Hijikata",
+    "fileTitle": "Rinky Hijikata (2023 Cary) 01a (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rinky_Hijikata_(2023_Cary)_01a_(cropped).jpg"
   }
 ]);
 export const tennisCommonsPortraitCandidate = id => TENNIS_COMMONS_PORTRAIT_BATCH.find(x=>x.playerId===id)||null;

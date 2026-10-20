@@ -42,3 +42,20 @@ test('player page refuses wrong-player or invalid feed images, preserving silhou
  assert.match(html,/Player portrait unavailable/);
  assert.doesNotMatch(html,/<img/);
 });
+
+test('all player profile headshots fill a defined frame with cover positioning',async()=>{
+ const athlete={...player,fbis_player_id:'tennis:wta:320228',tour:'wta',canonical_name:'Rebecca Sramkova',
+   official_headshot_url:'https://static.prizepicks.com/player/rebecca.png',official_headshot_source:'PRIZEPICKS_FEED'};
+ const DB={prepare(sql){return{bind(){return{
+  async first(){return sql.includes('FROM tennis_players')?athlete:null},
+  async all(){return {results:sql.includes('FROM tennis_players WHERE fbis_player_id IN')?[athlete]:[]}}
+ }}}}};
+ const response=await onRequestGet({request:req(athlete.fbis_player_id),env:{DB}});
+ const html=await response.text();
+ assert.equal(response.status,200);
+ assert.match(html,/class="portrait-frame"><img[^>]+alt="Rebecca Sramkova feed player portrait"/);
+ assert.match(html,/\.portrait-frame\{width:100%;height:245px;overflow:hidden/);
+ assert.match(html,/\.portrait-frame img\{width:100%;height:100%;display:block;object-fit:cover;object-position:center 18%/);
+ assert.doesNotMatch(html,/object-fit:contain/);
+ assert.match(html,/External provider image reference/);
+});
