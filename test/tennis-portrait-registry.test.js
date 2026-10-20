@@ -67,3 +67,22 @@ test("canonical player research shares the licensed portrait endpoint without re
   const denied=await profileGet({request:new Request("https://fbis.test/api/tennis-player-profile?id="+encodeURIComponent(id)),env:{DB:db({...photo,public_display_allowed:0})}});
   assert.doesNotMatch(await denied.text(),/<img/);
 });
+
+test("ATP canonical research IDs with spaces have stable safe profile and R2 portrait routes",async()=>{
+  const atp="tennis:atp:research:novak djokovic";
+  const url=tennisPortraitUrl(atp);
+  assert.equal(url,"/api/tennis-portrait?id=tennis%3Aatp%3Aresearch%3Anovak%20djokovic");
+  const row={...photo,fbis_player_id:atp,asset_key:`tennis/portraits/${atp}/licensed.webp`};
+  assert.equal(verifiedTennisPortrait(row)?.url,url);
+  const seen=[];
+  const DB={prepare(sql){return{bind(...args){return{
+    async first(){return sql.includes("FROM tennis_players")?{...player,fbis_player_id:atp,tour:"atp",canonical_name:"Novak Djokovic",normalized_name:"novak djokovic"}:null},
+    async all(){seen.push(sql);return{results:sql.includes("FROM tennis_player_portraits")?[row]:[]}}
+  }}}}};
+  const image=await portraitGet({request:new Request("https://fbis.test"+url),env:{DB,ARCHIVE:{get:async()=>({body:new Uint8Array([255,216,255]),size:3,httpMetadata:{contentType:"image/webp"}})}}});
+  assert.equal(image.status,200);
+  const profile=await profileGet({request:new Request("https://fbis.test/api/tennis-player-profile?id="+encodeURIComponent(atp)),env:{DB}});
+  assert.equal(profile.status,200);
+  assert.match(await profile.text(),/Novak Djokovic/);
+  assert.equal(tennisPortraitUrl("tennis:atp:research:<script>"),null);
+});
