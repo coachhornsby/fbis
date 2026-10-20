@@ -75,11 +75,24 @@ export async function kalshiGet(key, env, { params = {}, fetchImpl = fetch, now 
   if (!path) throw new Error("kalshi-read-path-not-allowed");
   const url = new URL(KALSHI_BASE + path);
   for (const [k, v] of Object.entries(params)) if (v != null && v !== "") url.searchParams.set(k, String(v));
-  const headers = await kalshiSignedHeaders({ keyId: env.KALSHI_API_KEY_ID, privateKeyPem: env.KALSHI_PRIVATE_KEY_PEM, path, timestamp: now });
-  const r = await fetchImpl(url.toString(), { method: "GET", headers, signal: AbortSignal.timeout(15000) });
-  if (!r.ok) return { ok: false, status: r.status };
-  const body = await r.json();
-  if (!body || typeof body !== "object") return { ok: false, status: 502 };
+  let headers;
+  try {
+    headers = await kalshiSignedHeaders({ keyId: env.KALSHI_API_KEY_ID, privateKeyPem: env.KALSHI_PRIVATE_KEY_PEM, path, timestamp: now });
+  } catch (error) {
+    // Only expose fixed error codes; never echo provider headers, signing inputs or PEM.
+    const keyFormatError = /^kalshi-(ed25519-pkcs8-secret-unconfigured|invalid-private-key)$/.test(String(error?.message || ""));
+    return { ok: false, code: keyFormatError ? "KALSHI_PRIVATE_KEY_FORMAT_INVALID" : "KALSHI_SIGNING_FAILED" };
+  }
+  let r;
+  try {
+    r = await fetchImpl(url.toString(), { method: "GET", headers, signal: AbortSignal.timeout(15000) });
+  } catch {
+    return { ok: false, code: "KALSHI_CONNECTION_FAILED" };
+  }
+  if (!r.ok) return { ok: false, code: "KALSHI_HTTP_ERROR", status: r.status };
+  let body;
+  try { body = await r.json(); } catch { return { ok: false, code: "KALSHI_BAD_RESPONSE" }; }
+  if (!body || typeof body !== "object") return { ok: false, code: "KALSHI_BAD_RESPONSE" };
   return { ok: true, body };
 }
 
@@ -88,8 +101,8 @@ export async function kalshiPaged(key, arrayKey, env, { fetchImpl = fetch, maxPa
   const items = [], seen = new Set();
   for (let i = 0; i < maxPages; i++) {
     const r = await kalshiGet(key, env, { fetchImpl, params: { ...params, limit: 200, ...(cursor ? { cursor } : {}) } });
-    if (!r.ok) return { ok: false, status: r.status };
-    if (!Array.isArray(r.body[arrayKey])) return { ok: false, status: 502 };
+    if (!r.ok) return { ok: false, code: r.code, status: r.status };
+    if (!Array.isArray(r.body[arrayKey])) return { ok: false, code: "KALSHI_BAD_RESPONSE" };
     items.push(...r.body[arrayKey]);
     cursor = String(r.body.cursor || "");
     if (!cursor) { complete = true; break; }
@@ -160,7 +173,20 @@ export async function readKalshiAccount(env, { fetchImpl = fetch } = {}) {
     kalshiPaged("fills", "fills", env, { fetchImpl }),
   ]);
   if (![balance, positions, orders, fills].every(x => x.ok)) {
-    return { ok: false, code: "KALSHI_UPSTREAM_FAILED", httpStatuses: [balance,positions,orders,fills].map(x=>x.status||null) };
+    const results = [balance, positions, orders, fills];
+    const failure = results.find(x => x.code === "KALSHI_PRIVATE_KEY_FORMAT_INVALID")
+      || results.find(x => x.code === "KALSHI_SIGNING_FAILED")
+      || results.find(x => x.code === "KALSHI_CONNECTION_FAILED");
+    return {
+      ok: false,
+      code: failure?.code || "KALSHI_UPSTREAM_FAILED",
+      // Only fixed codes and numeric status codes; no account data or response bodies.
+      failures: Object.fromEntries(
+        ["balance", "positions", "orders", "fills"].map((name, index) => [
+          name, results[index].ok ? null : { code: results[index].code || "KALSHI_UNKNOWN_ERROR", status: results[index].status || null },
+        ])
+      ),
+    };
   }
   const bd = balance.body;
   // Use only documented money fields. portfolio_value is cents; balance_dollars is a dollar string.
