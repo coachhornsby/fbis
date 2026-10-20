@@ -82,3 +82,40 @@ test("WS account notifications require a REST reconciliation and exclude user id
   assert.ok(!JSON.stringify(result).includes("private-user"));
   assert.equal(kalshiPrivateNotification({type:"error",msg:{}}),null);
 });
+
+test("malformed configured signing secret returns a safe actionable error", async () => {
+  const env = await envWithKey();
+  env.KALSHI_PRIVATE_KEY_PEM = "a non-PEM Cloudflare variable value";
+  const snapshot = await readKalshiAccount(env);
+  assert.equal(snapshot.ok, false);
+  assert.equal(snapshot.code, "KALSHI_PRIVATE_KEY_FORMAT_INVALID");
+  assert.equal(snapshot.failures.balance.code, "KALSHI_PRIVATE_KEY_FORMAT_INVALID");
+  assert.ok(!JSON.stringify(snapshot).includes(env.KALSHI_PRIVATE_KEY_PEM));
+  const response = await onRequestGet({
+    env, request: new Request("https://fbis.example/api/kalshi-account", {
+      headers: { "x-fbis-account-token": env.FBIS_ACCOUNT_VIEW_TOKEN },
+    }),
+  });
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, "KALSHI_PRIVATE_KEY_FORMAT_INVALID");
+});
+test("Kalshi HTTP authorization errors remain status-only and no provider body escapes", async () => {
+  const env = await envWithKey();
+  const snapshot = await readKalshiAccount(env, {
+    fetchImpl: async () => new Response('{"private":"should-not-escape"}', { status: 401 }),
+  });
+  assert.equal(snapshot.ok, false);
+  assert.equal(snapshot.code, "KALSHI_UPSTREAM_FAILED");
+  assert.equal(snapshot.failures.balance.status, 401);
+  assert.equal(snapshot.failures.positions.status, 401);
+  assert.ok(!JSON.stringify(snapshot).includes("should-not-escape"));
+});
+test("Kalshi transport exceptions produce a stable safe failure code", async () => {
+  const env = await envWithKey();
+  const snapshot = await readKalshiAccount(env, {
+    fetchImpl: async () => { throw new TypeError("provider details must stay private"); },
+  });
+  assert.equal(snapshot.ok, false);
+  assert.equal(snapshot.code, "KALSHI_CONNECTION_FAILED");
+  assert.ok(!JSON.stringify(snapshot).includes("provider details"));
+});
