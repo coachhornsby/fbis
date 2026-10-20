@@ -15,7 +15,7 @@ const json=(payload,status=200)=>new Response(JSON.stringify(payload),{
  * FBIS game cards, tracked bets or a settlement/qualification pipeline.
  * The query cannot enable production authority, trading or persistence.
  */
-export async function onRequestGet({request,fetchImpl=fetch,context=null}) {
+export async function onRequestGet({request,fetchImpl=fetch,context=null,env=null}) {
   const url=new URL(request.url);
   const sport=(url.searchParams.get("sport")||"").toLowerCase();
   if (!Object.prototype.hasOwnProperty.call(KALSHI_SHADOW_SERIES,sport)) {
@@ -25,10 +25,11 @@ export async function onRequestGet({request,fetchImpl=fetch,context=null}) {
   // Production with R2 always reads the single scheduled collector's public
   // snapshot. Never fan out API requests through Board visitors, including
   // ticker inspection. Explicitly mark uncollected detail unavailable.
-  const data=context?.env?.ARCHIVE?.get
+  const productionEnv=env||context?.env;
+  const data=productionEnv?.ARCHIVE?.get
     ? ticker
       ? {ok:false,code:"KALSHI_ORDERBOOK_NOT_COLLECTED",collector:"SCHEDULED_WORKER_R2"}
-      : await loadKalshiR2Shadow(context.env,sport)
+      : await loadKalshiR2Shadow(productionEnv,sport)
     : await cachedKalshiShadow({
       sport,ticker,fetchImpl,
       cache:context?.cache ?? (typeof caches!=="undefined" ? caches.default : null),
