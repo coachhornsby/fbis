@@ -60,7 +60,7 @@ export async function collectKalshiPublicOnce(env,{now=new Date(),fetchImpl=fetc
 }
 export default {
   async scheduled(_event,env,ctx){
-    ctx.waitUntil(collectKalshiPublicOnce(env).catch(()=>undefined));
+    ctx.waitUntil(collectKalshiPublicOnce(env));
   },
   async fetch(request,env){
     const url=new URL(request.url);
