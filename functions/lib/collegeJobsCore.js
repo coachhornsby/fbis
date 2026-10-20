@@ -7,6 +7,7 @@ import {reconcileSharedCollegeQuota} from "./quota.js";
 
 import { collegeKeyHealth, assertNoSecretLeak } from "./collegeSecrets.js";
 import {freezeCfbPregameFeatures} from "./cfbPitFeatureDelivery.js";
+import { resolveGamesPlayedWithSource } from "./cfbGamesPlayed.js";
 import {cfbDailyFinals,cfbDailyWeeks,cfbDailyBoxRows} from "./cfbDailyPostgame.js";
 import { cfbdGet, cbbdGet, cfbSeasonYear, cbbSeasonYear, summarizeSchema, collegePublicResult } from "./collegeApi.js";
 import { queryQuota, insertSourceObservation, insertTeamFeatureSnapshot, insertGameFeatureSnapshot, insertModelPrediction, gradeModelPrediction, upsertModelRegistry, insertModelArtifact, insertValidationRun, insertPromotionDecision, upsertTeamSeasonIdentity, queryModelPredictions, queryEndpointUsage, upsertQbTransferHistory, insertCfbdEndpointAudit } from "./collegeStore.js";
@@ -75,6 +76,38 @@ function shiftDateCT(date, days) {
   const [y, m, d] = String(date).split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + Number(days)));
   return dt.toISOString().slice(0, 10);
+}
+
+/** Restore the tested, source-labeled catalog observation count contract.
+ *  Schedule results take precedence over CORE fallback when no explicit count
+ *  exists. CORE throughWeek is only a flagged coverage proxy, not a verified
+ *  games-played observation. This does not promote any shadow model.
+ */
+export function stampGamesPlayedOnCatalog(catalog = {}, { scheduleBySchool = new Map() } = {}) {
+  const stamped = new WeakMap();
+  const apply = (row) => {
+    if (!row || typeof row !== "object") return row;
+    if (stamped.has(row)) return stamped.get(row);
+    const key = String(row.team ?? row.school ?? row.name ?? "").trim().toLowerCase();
+    const scheduleGamesPlayed = scheduleBySchool instanceof Map
+      ? scheduleBySchool.get(key)
+      : scheduleBySchool?.[key];
+    const evidence = resolveGamesPlayedWithSource(row, { scheduleGamesPlayed });
+    const next = {
+      ...row,
+      gamesPlayed: evidence.gamesPlayed,
+      gamesPlayedSource: evidence.source,
+      gamesPlayedUncertainty: evidence.uncertainty,
+      gamesPlayedNote: evidence.note,
+    };
+    stamped.set(row, next);
+    return next;
+  };
+  return {
+    ...catalog,
+    byCanonicalId: Object.fromEntries(Object.entries(catalog.byCanonicalId || {}).map(([id, row]) => [id, apply(row)])),
+    byEspnId: Object.fromEntries(Object.entries(catalog.byEspnId || {}).map(([id, row]) => [id, apply(row)])),
+  };
 }
 
 export const COLLEGE_JOBS = [
