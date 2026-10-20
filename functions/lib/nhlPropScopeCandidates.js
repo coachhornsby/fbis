@@ -4,7 +4,8 @@
  * the production official collector without separate source review.
  */
 const stats=new Set(['shots_on_goal','goals','assists','points','saves']);
-const digits=x=>typeof x==='string'&&/^\d{8,10}$/.test(x);
+const validGameId=x=>typeof x==='string'&&/^\d{10}$/.test(x);
+const validPlayerId=x=>typeof x==='string'&&/^\d{7}$/.test(x);
 export function buildNhlOfficialScopeCandidates(contracts=[],{capturedAt}={}){
  const seen=new Set(),scopes=[],rejected=[];
  if(!Number.isFinite(Date.parse(capturedAt)))return {ok:false,reason:'CAPTURE_TIMESTAMP_MISSING',scopes,rejected,certified:false};
