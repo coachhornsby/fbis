@@ -776,3 +776,20 @@ test('Global Gamma source reference spread is visible but never treated as quali
  assert.equal(r.venueComparison.venues.find(v=>v.provider==='Polymarket').priceKind,'DISPLAY_REFERENCE_NOT_ASK');
  assert.equal(r.venueComparison.canAuthorizeWager,false);
 });
+
+test('verified dual-exchange research is displayed before single-venue rows at 100-card cap',()=>{
+ const models=Array.from({length:160},(_,i)=>({id:'solo-'+i,provider:'Kalshi',contractId:'K'+i,identityVerified:true,
+  canonicalEventId:'event-'+i%3,player_name:'Solo '+i,canonical_market:'points',start_time:'2026-10-20T18:00Z'}));
+ const paired=Array.from({length:30},(_,i)=>({id:'pair-'+i,provider:'Kalshi',contractId:'PAIR'+i,
+  identityVerified:true,canonicalEventId:'event-'+i%3,player_name:'Matched '+i,
+  canonical_market:'points',start_time:'2026-10-20T18:00Z',venueComparison:{
+   providerCount:2,marketSides:{over:{providerCount:2,priceComparisonStatus:'SETTLEMENT_NOT_EQUIVALENT_OR_UNVERIFIED',
+    referenceDifferenceDollars:.05,priceDifferenceDollars:null}}}}));
+ const shown=orderExchangeResearchCards([...models,...paired],100);
+ assert.equal(shown.length,100);
+ assert.equal(shown.filter(r=>r.venueComparison?.providerCount===2).length,30);
+ assert.ok(shown.every(r=>r.canAuthorizeWager!==true));
+ const first30=shown.slice(0,30);
+ assert.ok(first30.every(r=>r.venueComparison?.providerCount===2));
+ assert.equal(new Set(first30.map(r=>r.canonicalEventId)).size,3);
+});
