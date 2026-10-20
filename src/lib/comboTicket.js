@@ -15,7 +15,7 @@ export function parseComboLeg(value) {
 
 export function parseComboTicket(bet) {
   if (!bet || typeof bet!=="object") return null;
-  const candidates=[bet.selectedSide,bet.selectedTeam,bet.matchupText]
+  const candidates=[bet.selectedSide,bet.selectedTeam,bet.playerName,bet.matchupText]
     .map(value=>String(value || "").trim()).filter(Boolean);
   const market=String(bet.market || "");
   if (![market,...candidates].some(value=>COMBO_MARKER.test(value))) return null;
