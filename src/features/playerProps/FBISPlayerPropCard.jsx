@@ -152,7 +152,7 @@ export function LastFiveStatChart({ row }) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort("player-prop-detail-timeout"), 18000);
     const request = row.canonicalPlayerId
-      ? fetchPropResearch(row, {historyOnly:true}).then(body => ({canonicalPlayerId:body.canonicalPlayerId,detail:{last5:body.history?.last5||[]}}))
+      ? fetchPropResearch(row, {historyOnly:true}).then(body => ({canonicalPlayerId:body.canonicalPlayerId,detail:{last5:body.history?.last5||[],historyReason:body.history?.reason||null}}))
       : fetch("/api/player-prop-detail?" + q.toString(), { credentials: "same-origin", signal: controller.signal }).then(async res => {
         const body=await res.json();if(!res.ok||body.ok===false)throw Error(body.error||`HTTP ${res.status}`);return body;
       });
@@ -167,6 +167,7 @@ export function LastFiveStatChart({ row }) {
           error: "",
           games,
           avg: null,
+          unavailableReason:body?.detail?.historyReason||null,
         });
       })
       .catch((err) => {
@@ -204,7 +205,7 @@ export function LastFiveStatChart({ row }) {
       {state.loading ? <div className="pp-analytics-loading">Loading last 5…</div> : null}
       {state.error && !state.loading ? <div className="pp-analytics-loading">Last-5 unavailable</div> : null}
       {!state.loading && !state.error && !games.length ? (
-        <div className="pp-analytics-unavailable">No verified last-5 logs for this player/stat yet.</div>
+        <div className="pp-analytics-unavailable">{state.unavailableReason==='NBA_RIGHTS_CLEARED_PLAYER_FEED_REQUIRED'?'NBA last five requires a rights-cleared player-stat feed.':'No verified last-5 logs for this player/stat yet.'}</div>
       ) : null}
       {games.length ? (
         <>
