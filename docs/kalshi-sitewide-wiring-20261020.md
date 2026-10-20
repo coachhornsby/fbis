@@ -275,3 +275,23 @@ a real provider rate-limit blocker and is reported as
 `SIGNED_RATE_LIMITED` without auto retry. Only signed source health
 is considered operational; HTTP 200 alone still does not prove contract
 identity, fee-adjusted execution, or full-sport market coverage.
+
+## 17. Series catalog v2 completeness and signed relay failure receipts
+The first production `GET /series?category=Sports` returned **4,014**
+Sports series templates at 2026-10-20T13:15:24Z. The initial 3,000-row
+catalog cap was therefore incomplete. V2 increases the bounded research
+cap to 7,000 and forces one upgrade refresh even when the prior 24-hour
+cooldown has not expired, then restores the daily schedule. V2 records
+`version:2` in its operational receipt and never promotes new series
+to a validated sport, game, player prop, combo, fee or wagering input.
+
+The initial four-page/1,000-per-page market collector also exposed an
+observability gap: Pages relay transport errors were not persisted by
+the scheduler, allowing an older CAPTURED R2 health receipt to appear
+as though a new scheduled attempt succeeded. The scheduler now stores
+`RELAY_ERROR` with the fixed safe failure code and attempt timestamp
+when Pages transport, receipt validation or upstream relay HTTP fails.
+The last successful market snapshot is preserved but is governed by
+its own timestamp and freshness rules; errors do not fabricate a
+provider HTTP 429. Signed actual provider errors are still written by
+Pages and retain their own cooldown.

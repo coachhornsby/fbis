@@ -129,7 +129,7 @@ export async function captureKalshiSportsSeriesCatalog(env,{now=new Date(),
   if(!env.KALSHI_API_KEY_ID||!kalshiPrivateKeyPem(env))
     return {ok:false,code:"KALSHI_SIGNING_CREDENTIALS_NOT_CONFIGURED"};
   const previous=await readJson(env.ARCHIVE,"series-catalog-status.json");
-  if(ms(previous?.nextAllowedAt)>now.getTime())
+  if(previous?.version===2&&ms(previous?.nextAllowedAt)>now.getTime())
     return {ok:false,code:"KALSHI_CATALOG_POLL_NOT_DUE",nextAllowedAt:previous.nextAllowedAt};
   const proxy=kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});
   let result={ok:false,code:"KALSHI_CATALOG_HTTP_UNAVAILABLE"};
@@ -152,7 +152,7 @@ export async function captureKalshiSportsSeriesCatalog(env,{now=new Date(),
           const ticker=String(value?.ticker||"");
           if(!/^[A-Z0-9_.-]{4,120}$/.test(ticker)||seen.has(ticker))continue;
           seen.add(ticker);
-          if(records.length>=3000)continue;
+          if(records.length>=7000)continue;
           records.push({
             ticker,title:String(value.title||"").slice(0,180),
             category:String(value.category||"").slice(0,100),
@@ -181,6 +181,7 @@ export async function captureKalshiSportsSeriesCatalog(env,{now=new Date(),
     result={ok:false,code:"KALSHI_CATALOG_CONNECTION_FAILED"};
   }
   await writeJson(env.ARCHIVE,"series-catalog-status.json",{
+    version:2,
     status:result.ok?"DISCOVERED":result.httpStatus===429?"RATE_LIMITED":"UNAVAILABLE",
     observedAt:iso(now),code:result.ok?null:result.code,
     httpStatus:result.httpStatus||null,

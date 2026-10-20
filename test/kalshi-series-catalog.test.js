@@ -86,7 +86,7 @@ test("worker catalog discovery requests Pages only when daily R2 guard allows",a
  assert.equal(first.ok,true);
  assert.equal(calls,1);
  ARCHIVE.rows.set(PREFIX+"series-catalog-status.json",JSON.stringify({
-  status:"DISCOVERED",nextAllowedAt:new Date(NOW.getTime()+24*60*60*1000).toISOString(),
+  version:2,status:"DISCOVERED",nextAllowedAt:new Date(NOW.getTime()+24*60*60*1000).toISOString(),
  }));
  const skip=await collectKalshiSeriesCatalogOnce(env,{
   now:new Date(NOW.getTime()+20*60*60*1000),
@@ -109,4 +109,29 @@ test("internal catalog route denies unknown token and accepts scoped signed requ
  assert.equal(good.status,200);
  assert.equal(calls,1);
  assert.equal((await good.json()).storedSeries,1);
+});
+
+test("catalog v2 migration retains over 4,000 series without daily wait",async()=>{
+ const env=await pagesEnv();
+ env.ARCHIVE.rows.set(PREFIX+"series-catalog-status.json",JSON.stringify({
+  status:"DISCOVERED",nextAllowedAt:new Date(NOW.getTime()+24*3600000).toISOString(),
+  storedSeries:3000,
+ }));
+ const items=Array.from({length:4014},(_,i)=>({
+  ticker:"KXSPORT"+String(i).padStart(5,"0"),
+  title:"Sports series "+i,category:"Sports",
+ }));
+ let calls=0;
+ const r=await captureKalshiSportsSeriesCatalog(env,{now:NOW,webCrypto:webcrypto,
+  fetchImpl:async()=>{calls++;return Response.json({series:items});},
+ });
+ assert.equal(r.ok,true);
+ assert.equal(r.storedSeries,4014);
+ assert.equal(r.truncated,false);
+ assert.equal(calls,1);
+ const receipt=JSON.parse(env.ARCHIVE.rows.get(PREFIX+"series-catalog-status.json"));
+ assert.equal(receipt.version,2);
+ const saved=JSON.parse(env.ARCHIVE.rows.get(PREFIX+"series-catalog.json"));
+ assert.equal(saved.records.length,4014);
+ assert.equal(saved.truncated,false);
 });
