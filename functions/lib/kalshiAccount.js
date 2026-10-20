@@ -4,6 +4,7 @@
  * Kalshi API keys: https://docs.kalshi.com/getting_started/api_keys
  * This implementation intentionally accepts the recommended PKCS#8 Ed25519 keys.
  */
+import { auditKalshiFillReconciliation } from "./kalshiFillReconciliation.js";
 export const KALSHI_BASE = "https://external-api.kalshi.com";
 export const KALSHI_REST_PREFIX = "/trade-api/v2";
 export const KALSHI_ACCOUNT_PATHS = Object.freeze({
@@ -207,6 +208,9 @@ export async function readKalshiAccount(env, { fetchImpl = fetch } = {}) {
     positions: positions.items.map(kalshiPosition).filter(p => p.ticker && p.contracts !== 0),
     openOrders: orders.items.map(kalshiOrder).filter(o => o.id),
     recentFills: fills.items.map(kalshiFill).filter(f => f.id).slice(0, 100),
+    fillReconciliation: auditKalshiFillReconciliation(
+      fills.items.map(kalshiFill).filter(f => f.id).slice(0, 100)
+    ),
     complete: { positions: positions.complete, openOrders: orders.complete, recentFills: fills.complete },
     historyCoverage: "RECENT_ONLY", verifiedReturnsAvailable: false, websocketState: "NOT_CONNECTED",
   };

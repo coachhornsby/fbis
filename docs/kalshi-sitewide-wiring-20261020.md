@@ -102,3 +102,31 @@ After the Phase 1 production deployment, an unauthenticated, read-only NFL marke
 - User-facing requests must not initiate retry storms. Do not place the route in board-wide fanout or player-prop rendering.
 - Next operational acceptance: inspect provider rate limit tier and current request volume; implement one controlled shared collector/scheduler with cache TTL and jitter, request budget and per-sport coverage; consider public WS subscriptions with verified sequence/reconnect for exchange clock. Measure sustained 200 responses, valid market counts and independent fixture identity before enabling display.
 - A green unit test proves fail-closed contract behavior, not real provider quota resolution.
+
+## 8. Stage-2 wiring implementation (2026-10-20)
+This release implements a **separate scheduled public collector**, not an authoritative Kalshi pricing feed.
+
+### Scheduled capture
+- Dedicated Worker `fbis-kalshi-public-collector`, config `wrangler.kalshi-public-collector.toml`, `*/15 * * * *` UTC.
+- One fetch per cron attempt, alternating NFL and CFB existing research series. 429 forces at least one hour without new provider requests. Other upstream errors also trigger a bounded cooldown.
+- Non-sensitive, sanitized public snapshots and collector health live in existing R2 `fbis-archive` under `kalshi/public-shadow/v1/`. **No primary or sport D1 writes.**
+- `GET /api/kalshi-market-shadow?sport=nfl|cfb` now reads R2 in production; it must not make a new Kalshi request on a website page view. Full market list is bounded to one API page (80 records); incomplete pagination must be labeled. Stale/absent snapshots return explicit errors, not prices.
+- `ticker=` top-of-book direct research remains blocked in R2 production mode until dedicated book capture is scheduled; no silent direct fetch fallback.
+- Legacy market sentiment calls elsewhere remain outside the new collector's control. Those routes must be audited and consolidated before requesting an increased provider budget or advertising complete coverage.
+- Cloudflare Dashboard / Worker deployment verifies build and public health only; a 429 can persist after a technically successful release.
+
+### Site surfaces
+- Market page has a separately user-invoked **Kalshi Market Research** module that displays source price/unit provenance and non-executable flags from collector snapshots.
+- Player Props page has a **discovery gate** for Kalshi player markets and MVE/RFQ combos. It does not invent props, payouts, executable liquidity, EV or model confidence from unverified Kalshi markets.
+- Deterministic fixture/market helper requires both named opponents, event ticker and independent provider kickoff time matching canonical start. It returns `sideVerified=false` even on accepted event identity, until exact payout/settlement/market terms are separately checked.
+- Accounts returns an exact-fill-ID reconciliation audit for recent private fills; the unmatched count is not betting profit, not a tracked wager and not a verified lifetime ledger.
+- None of the above changes the independently generated CORE projection, PinnOdds comparison, confidence stars, My Bets performance, private funds access, sportsbook execution flags or authorization.
+
+### Incomplete operational acceptance
+1. Verify the Worker cron actually runs in Cloudflare and can write its scoped R2 prefix.
+2. Achieve healthy snapshots for NFL and CFB over multiple windows, with accurate market identity and temporal coverage; a prior provider HTTP 429 blocks this.
+3. Build a complete, replayable contract-identity registry for the approved markets, then collect orderbook depth + verified fees/settlement before any executable comparison.
+4. Provision a separate authenticated Durable Object private-stream runtime and copy API credentials securely as **Worker encrypted secrets**. Existing Pages encrypted secrets cannot be automatically read/transferred to a Worker. Until a stream is deployed and credentialed, the 60-second private REST snapshot remains authority.
+5. Crosswalk actual Kalshi fills and settlement by immutable exchange IDs into a dedicated verified ledger after sport D1 / R2 retention safety and independent profit reconciliation are approved. The current private UI only exposes a diagnostic receipt; it never writes/changes My Bets.
+
+Rollback: Disable the Kalshi Worker schedule and/or remove the Kalshi Market Research component; the R2-only public route returns an explicit not-ready status while the existing FBIS model/market/account operations remain unchanged.

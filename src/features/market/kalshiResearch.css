@@ -1,0 +1,24 @@
+.kalshi-research{margin:15px 0 22px;padding:20px;border:1px solid #14885d;border-left:4px solid #00dd94;border-radius:14px;color:#eaf5f7;background:linear-gradient(155deg,#132b29,#101b2d 80%);box-shadow:0 6px 24px #0002}
+.kalshi-research-top{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;flex-wrap:wrap}
+.kalshi-research-kicker{font-size:10px;letter-spacing:.15em;font-weight:900;color:#67dcae}
+.kalshi-research h3{font-size:20px;margin:4px 0 5px;color:#effdf5}
+.kalshi-research p{font-size:12px;color:#c0d4d2;line-height:1.55;margin:8px 0}
+.kalshi-research-pill,.kalshi-research-top>span{padding:6px 10px;color:#00dd94;border:1px solid #278c69;border-radius:18px;font-size:10px;letter-spacing:.07em;font-weight:900}
+.kalshi-research-actions{display:flex;align-items:center;flex-wrap:wrap;gap:13px;margin:14px 0}
+.kalshi-research-actions label{font-size:12px;font-weight:700}
+.kalshi-research-actions select{margin-left:7px;padding:8px;border-radius:7px;background:#102438;color:#eefaff;border:1px solid #3e6b6a}
+.kalshi-research-actions button{background:#063d2e;border:1px solid #00dd94;color:#ecfff5;border-radius:8px;padding:9px 13px;font-weight:800;cursor:pointer}
+.kalshi-research-actions button:disabled{opacity:.45;cursor:wait}
+.kalshi-research-actions>span,.kalshi-research-proof{font-size:11px;color:#9bb3bb}
+.kalshi-research-alert{padding:12px;color:#ffd3c3!important;background:#482a2c;border-left:3px solid #eeaa77;border-radius:5px}
+.kalshi-research-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}
+.kalshi-research-metrics span{padding:10px;background:#17312f;border:1px solid #365952;border-radius:8px;font-size:11px}
+.kalshi-research-metrics strong{display:block;font-size:20px;color:#00dd94}
+.kalshi-research-scroll{max-height:360px;overflow:auto}
+.kalshi-research table{min-width:710px;width:100%;border-collapse:collapse;font-size:11px;text-align:left}
+.kalshi-research th,.kalshi-research td{border-bottom:1px solid #254546;padding:9px}
+.kalshi-research th{color:#94c7b5;position:sticky;top:0;background:#16302e}
+.kalshi-research td small{display:block;font-size:10px;color:#92a9b5;overflow-wrap:anywhere}
+.kalshi-research-disclaimer{font-size:11px!important}
+.kalshi-research--props{border-style:solid;border-color:#236c56}
+@media(max-width:760px){.kalshi-research{padding:13px}.kalshi-research-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
