@@ -80,3 +80,29 @@ test("rescheduled ATP pairing remains research visible but explicitly schedule-u
  assert.equal(dayOnly.length,1);
  assert.equal(dayOnly[0].scheduleStatus,"DAY_ONLY_UNVERIFIED");
 });
+
+test("CLOB book budget is distributed across distinct match events",async()=>{
+ let snapshot=null,books=0;
+ const otherFixture={id:"tennis:espn:atp:440-2026:185059",tour:"atp",away_name:"Toby Samuel",
+  home_name:"Zizou Bergs",start:"2026-10-20T14:10:00Z"};
+ const otherEvent={...event,id:"gamma-2",slug:"atp-samuel-bergs-2026-10-20",
+  title:"European Open: Toby Samuel vs Zizou Bergs",gameStartTime:otherFixture.start,
+  markets:[{...event.markets[0],id:"market-2",outcomes:'["Toby Samuel","Zizou Bergs"]',
+   clobTokenIds:'["323456789012345678901","423456789012345678901"]'}]};
+ const first={...event,markets:[{...event.markets[0],clobTokenIds:'["123456789012345678901","223456789012345678901"]'}]};
+ const db={prepare:()=>({bind:()=>({all:async()=>({results:[
+  {fixture_id:fixture.id,...fixture},{fixture_id:otherFixture.id,...otherFixture}]})})})};
+ const archive={put:async(k,v)=>{if(k.endsWith("research-snapshot-v1.json"))snapshot=JSON.parse(v)}};
+ const fetchImpl=async url=>{
+  if(url.includes("public-search")){
+    const query=new URL(url).searchParams.get("q")||"";
+    return {ok:true,json:async()=>({events:/samuel|bergs/i.test(query)?[otherEvent]:[first]})};
+  }
+  books++;
+  return {ok:true,json:async()=>({asks:[{price:"0.54",size:"15"}],bids:[{price:"0.45",size:"12"}]})};
+ };
+ const result=await collectPolymarketGlobalTennis({DB:db,ARCHIVE:archive},{now,fetchImpl});
+ assert.equal(result.matchedEvents,2);
+ assert.equal(books,4);
+ assert.equal(snapshot.events.filter(e=>e.markets.some(m=>m.researchClob?.sides?.[0]?.bestAsk)).length,2);
+});
