@@ -68,7 +68,7 @@ export function mapKalshiPlayerContract(m,{games=[],players=[],capturedAt,series
  const player=unique[0],rosterKey=norm(player.team_key);
  const rosterIndex=[0,1].find(i=>[canonicalTeams[i],i===0?game.away_abbr:game.home_abbr].some(a=>norm(a)===rosterKey));
  if(rosterIndex===undefined)return {rejected:true,reason:'PLAYER_ROSTER_TEAM_UNRESOLVED',id:m.ticker,sport};
- const team=canonicalTeams[rosterIndex],terms=[m.rules_primary,m.rules_secondary].filter(Boolean).join('\\n');
+ const team=canonicalTeams[rosterIndex],terms=[m.rules_primary,m.rules_secondary].filter(Boolean).join('\n');
  const historyProvider=sport==='nhl'?'nhl':sport==='mlb'?'mlb':'espn';
  return {id:`kalshi:${m.ticker}:yes`,provider:'Kalshi',source:'Kalshi REST',sport,canonicalEventId:String(game.id),
   canonicalPlayerId:canonicalPlayerId(sport,historyProvider,player.player_id),providerPlayerId:String(providerPlayerId),providerEventId:m.event_ticker,contractId:m.ticker,
