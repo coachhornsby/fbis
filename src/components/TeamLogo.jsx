@@ -60,10 +60,12 @@ export default function TeamLogo({
     promise.then((value) => value && setRemote(value)).catch(() => {});
   }, [baseUrl, failed, name, sport]);
 
+  const markSize = plate ? px * 0.78 : px;
+
   if (!url) {
     return (
       <span
-        className={`team-logo-fallback team-logo-plate${className ? ` ${className}` : ""}`}
+        className={`team-logo-fallback${plate ? " team-logo-plate" : ""}${className ? ` ${className}` : ""}`}
         style={{ width: px, height: px, fontSize: Math.max(9, px * 0.34) }}
         title={title || name}
         aria-label={title || name}
@@ -91,7 +93,7 @@ export default function TeamLogo({
         alt={`${name} logo`}
         width={px}
         height={px}
-        style={{ width: px * 0.78, height: px * 0.78 }}
+        style={{ width: markSize, height: markSize }}
         loading="lazy"
         decoding="async"
         onError={() => setFailed(true)}

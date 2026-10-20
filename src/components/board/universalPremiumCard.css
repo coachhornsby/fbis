@@ -384,12 +384,29 @@
   box-shadow:0 0 21px color-mix(in srgb,var(--pgc-gap-brand) 26%,transparent);
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over {
-  border-color:#57f1b4;
-  background:linear-gradient(105deg,rgba(4,115,72,.57),rgba(4,27,37,.88));
+  border-color:#39ff14;
+  background:linear-gradient(105deg,rgba(170,255,190,.42),rgba(48,110,70,.55));
+  box-shadow:0 0 18px rgba(57,255,20,.45),inset 0 0 0 1px rgba(57,255,20,.25);
+  color:#ffffff;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under {
-  border-color:#ffc077;
-  background:linear-gradient(105deg,rgba(137,68,13,.53),rgba(30,23,28,.87));
+  border-color:#ff1a1a;
+  background:linear-gradient(105deg,rgba(255,170,170,.40),rgba(120,40,48,.55));
+  box-shadow:0 0 18px rgba(255,26,26,.45),inset 0 0 0 1px rgba(255,60,60,.25);
+  color:#ffffff;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-heading,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-value,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-description,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-direction,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-identity > b,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-heading,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-value,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-description,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-direction,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-identity > b {
+  color:#ffffff !important;
+  text-shadow:0 1px 3px rgba(0,0,0,.45);
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-heading {
   grid-area:heading;
@@ -409,17 +426,18 @@
   font-weight:950;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo.team-logo-plate,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo.team-logo-wrap,
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo.team-logo-fallback {
-  width:83px!important;
-  height:83px!important;
-  min-width:83px;
+  width:100px!important;
+  height:100px!important;
+  min-width:100px;
   border:0!important;
   background:transparent!important;
   box-shadow:none!important;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo .team-logo {
-  width:69px!important;
-  height:69px!important;
+  width:94px!important;
+  height:94px!important;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity > b {
   font-size:13px;
@@ -459,10 +477,10 @@
   letter-spacing:.08em;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-over .pgc-gap-direction {
-  color:#80ffd0;
+  color:#ffffff;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-under .pgc-gap-direction {
-  color:#ffcf92;
+  color:#ffffff;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-neutral .pgc-gap-value,
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-even .pgc-gap-value {
@@ -480,10 +498,11 @@
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-heading {font-size:10px}
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-value {font-size:21px}
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo.team-logo-plate,
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo.team-logo-wrap,
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo.team-logo-fallback {
-    width:59px!important;height:59px!important;min-width:59px;
+    width:72px!important;height:72px!important;min-width:72px;
   }
-  .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo .team-logo {width:49px!important;height:49px!important}
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-identity .pgc-gap-logo .team-logo {width:68px!important;height:68px!important}
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-direction > b {font-size:38px}
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-direction > strong {font-size:11px}
 }

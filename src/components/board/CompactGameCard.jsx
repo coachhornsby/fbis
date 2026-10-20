@@ -231,7 +231,7 @@ export default function CompactGameCard({ game, onOpen }) {
           {away.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-away" src={away.logoUrl} alt="" aria-hidden="true" /> : null}
           {home.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-home" src={home.logoUrl} alt="" aria-hidden="true" /> : null}
           <div className="cgc-team-block">
-            <TeamLogo team={away} size={83} className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
+            <TeamLogo team={away} size={100} tone="light" className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
             {sportId === "mlb" ? (
               <strong className="cgc-team-name cgc-team-name-mlb">{away.fullName || away.name || away.abbr || "—"}</strong>
             ) : (
@@ -247,7 +247,7 @@ export default function CompactGameCard({ game, onOpen }) {
           <span className="cgc-vs">VS</span>
 
           <div className="cgc-team-block">
-            <TeamLogo team={home} size={83} className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
+            <TeamLogo team={home} size={100} tone="light" className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
             {sportId === "mlb" ? (
               <strong className="cgc-team-name cgc-team-name-mlb">{home.fullName || home.name || home.abbr || "—"}</strong>
             ) : (
@@ -274,14 +274,14 @@ export default function CompactGameCard({ game, onOpen }) {
           <span>{soccerPick ? "CONFIDENCE PICK" : showReferenceGap ? "FBIS / PINNODDS GAP" : isNhl && !proj.available ? "NO PURE PROJECTION" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : isNhl && market.referenceOnly ? "MODEL / REFERENCE GAP" : "MODEL / MARKET GAP"}</span>
           <div className="cgc-edge-identity">
             {soccerPick ? (
-              soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={83} className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
+              soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={100} tone="light" className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
             ) : showReferenceGap ? (
               referenceLead?.kind === "total"
                 ? <TotalGapDirection side={referenceLead.side} />
-                : referenceTeam ? <><TeamLogo team={referenceTeam} size={83} className="cgc-edge-logo" /><span className="cgc-gap-side-name">{gapTeamLabel}</span></>
+                : referenceTeam ? <><TeamLogo team={referenceTeam} size={100} tone="light" className="cgc-edge-logo" /><span className="cgc-gap-side-name">{gapTeamLabel}</span></>
                 : <div className="cgc-total-mark">EVEN</div>
             ) : edge.team ? (
-              <><TeamLogo team={edge.team} size={83} className="cgc-edge-logo" /><span className="cgc-gap-side-name">{gapTeamLabel}</span></>
+              <><TeamLogo team={edge.team} size={100} tone="light" className="cgc-edge-logo" /><span className="cgc-gap-side-name">{gapTeamLabel}</span></>
             ) : edge.total ? (
               <TotalGapDirection side={edge.detail} />
             ) : null}
