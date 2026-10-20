@@ -4,6 +4,12 @@
  * Settlement may update score/closing columns only after kickoff.
  */
 import {CFB_CORE_SHADOW_ID, projectCfbCoreShadow, buildCfbCoreMatchupVector} from "./cfbCoreChallenger.js";
+import {
+  CFB_CORE_MARGIN_HYBRID_ID,
+  CFB_CORE_MARGIN_HYBRID_VARIANT_LEADING,
+  CFB_CORE_MARGIN_HYBRID_VARIANT_RESIDUAL,
+  projectCfbCoreMarginHybrid,
+} from "./cfbCoreMarginHybrid.js";
 import {evaluateCfbCoreResearch} from "./cfbCoreEvaluation.js";
 import {CHAMPION_HFA} from "./collegeModels.js";
 import {estimateCfbWeekFromDate} from "./cfbCoreAdvancedPlumbing.js";
@@ -22,22 +28,57 @@ function parseFeatures(raw) {
   try { return JSON.parse(raw); } catch { return null; }
 }
 
-/** Load latest verified research artifact; never falls back to invented weights. */
+/** Load latest verified research artifact; never falls back to invented weights.
+ * Prefers margin-hybrid artifacts when present (leading research candidate).
+ */
 export async function loadCfbCoreResearchArtifact(env) {
   const db = tier3(env);
   if (!db?.prepare) return null;
   try {
-    const row = await db.prepare(
+    // Prefer margin-only hybrid, then fall back to full CORE shadow artifact.
+    let row = await db.prepare(
       `SELECT artifact_id,model_id,version,verified_oos,last_training_season,
         features_json,margin_json,total_json,authority,can_influence_production,can_authorize_wager
        FROM cfb_core_research_artifacts
        WHERE model_id=? AND verified_oos=1 AND authority='research_only'
        ORDER BY frozen_at DESC LIMIT 1`
-    ).bind(CFB_CORE_SHADOW_ID).first();
+    ).bind(CFB_CORE_MARGIN_HYBRID_ID).first();
+    if (!row) {
+      row = await db.prepare(
+        `SELECT artifact_id,model_id,version,verified_oos,last_training_season,
+          features_json,margin_json,total_json,authority,can_influence_production,can_authorize_wager
+         FROM cfb_core_research_artifacts
+         WHERE model_id=? AND verified_oos=1 AND authority='research_only'
+         ORDER BY frozen_at DESC LIMIT 1`
+      ).bind(CFB_CORE_SHADOW_ID).first();
+    }
     if (!row || !row.verified_oos) return null;
     const features = JSON.parse(row.features_json || "[]");
     const margin = JSON.parse(row.margin_json || "null");
     const total = JSON.parse(row.total_json || "null");
+    const isHybrid =
+      row.model_id === CFB_CORE_MARGIN_HYBRID_ID ||
+      margin?.variant === CFB_CORE_MARGIN_HYBRID_VARIANT_LEADING ||
+      margin?.variant === CFB_CORE_MARGIN_HYBRID_VARIANT_RESIDUAL;
+    if (isHybrid) {
+      const variant = margin?.variant || CFB_CORE_MARGIN_HYBRID_VARIANT_LEADING;
+      return {
+        ok: true,
+        modelId: CFB_CORE_MARGIN_HYBRID_ID,
+        variant,
+        version: row.version,
+        artifactId: row.artifact_id,
+        verifiedOos: true,
+        lastTrainingSeason: Number(row.last_training_season),
+        features,
+        margin: margin?.margin || (variant === CFB_CORE_MARGIN_HYBRID_VARIANT_LEADING ? margin : null),
+        residual: margin?.residual || (variant === CFB_CORE_MARGIN_HYBRID_VARIANT_RESIDUAL ? margin : null),
+        total,
+        authority: "research_only",
+        canInfluenceProduction: false,
+        canAuthorizeWager: false,
+      };
+    }
     return {
       modelId: row.model_id,
       version: row.version,
@@ -59,6 +100,13 @@ export async function saveCfbCoreResearchArtifact(env, artifact, reportId = null
   if (!db?.prepare || !artifact?.verifiedOos) return { ok: false, reason: "artifact-or-db-unavailable" };
   const id = artifact.artifactId || `core-art-${Date.now()}`;
   const now = new Date().toISOString();
+  const modelId = artifact.modelId || CFB_CORE_SHADOW_ID;
+  const marginPayload =
+    artifact.variant === CFB_CORE_MARGIN_HYBRID_VARIANT_LEADING
+      ? { variant: CFB_CORE_MARGIN_HYBRID_VARIANT_LEADING, margin: artifact.margin }
+      : artifact.variant === CFB_CORE_MARGIN_HYBRID_VARIANT_RESIDUAL
+        ? { variant: CFB_CORE_MARGIN_HYBRID_VARIANT_RESIDUAL, residual: artifact.residual }
+        : artifact.margin;
   try {
     await db.prepare(
       `INSERT OR IGNORE INTO cfb_core_research_artifacts
@@ -66,9 +114,9 @@ export async function saveCfbCoreResearchArtifact(env, artifact, reportId = null
        evaluation_report_id,authority,can_influence_production,can_authorize_wager,created_at,frozen_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,0,0,?,?)`
     ).bind(
-      id, CFB_CORE_SHADOW_ID, artifact.version || "research-v1", 1,
+      id, modelId, artifact.version || "research-v1", 1,
       artifact.lastTrainingSeason ?? null,
-      j(artifact.features), j(artifact.margin), j(artifact.total),
+      j(artifact.features), j(marginPayload), j(artifact.total),
       reportId, "research_only", now, now
     ).run();
     return { ok: true, artifactId: id };
@@ -124,10 +172,35 @@ export function buildCfbCoreShadowRecord(game = {}, { artifact = null, market = 
     home: homeCore, away: awayCore, season, week, kickoff,
     baselineHome: championHome, baselineAway: championAway,
   });
-  const coreProj = projectCfbCoreShadow({
-    home: homeCore, away: awayCore, season, week, kickoff,
-    baselineHome: championHome, baselineAway: championAway,
-  }, artifact);
+  // Prefer frozen margin-only hybrid artifact when present (leading research candidate).
+  const useMarginHybrid =
+    artifact?.modelId === CFB_CORE_MARGIN_HYBRID_ID ||
+    artifact?.variant === CFB_CORE_MARGIN_HYBRID_VARIANT_LEADING ||
+    artifact?.variant === CFB_CORE_MARGIN_HYBRID_VARIANT_RESIDUAL;
+  const coreProj = useMarginHybrid
+    ? projectCfbCoreMarginHybrid(
+        {
+          season,
+          week,
+          baselineHome: championHome,
+          baselineAway: championAway,
+          vector,
+          xCombined: vector.ok
+            ? [
+                vector.features.baselineMargin,
+                vector.features.baselineTotal,
+                vector.features.coreCrossMargin,
+                vector.features.coreCrossTotal,
+              ]
+            : null,
+        },
+        artifact,
+        { aaHome: championHome, aaAway: championAway }
+      )
+    : projectCfbCoreShadow({
+        home: homeCore, away: awayCore, season, week, kickoff,
+        baselineHome: championHome, baselineAway: championAway,
+      }, artifact);
 
   const eligibility = !vector.ok ? "ineligible" :
     (!coreProj.ok ? "vector_ok_artifact_unverified" : "eligible_projected");
@@ -170,7 +243,7 @@ export function buildCfbCoreShadowRecord(game = {}, { artifact = null, market = 
     championModelVersion: str(game.championModelVersion || game.model?.version || null),
     championSpread, championTotal, championHome, championAway,
     championPHomeWin: num(game.championPHomeWin ?? game.model?.pHomeWin),
-    coreModelId: CFB_CORE_SHADOW_ID,
+    coreModelId: useMarginHybrid ? CFB_CORE_MARGIN_HYBRID_ID : CFB_CORE_SHADOW_ID,
     coreModelVersion: coreProj.ok ? (coreProj.version || null) : null,
     coreArtifactId: coreProj.ok ? (coreProj.sourceArtifact || artifact?.artifactId || null) : null,
     coreSpread, coreTotal,

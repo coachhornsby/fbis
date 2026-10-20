@@ -11,6 +11,15 @@
 
 import { fitRidge, predictRidge, mae } from "./cfbFbisV2Fit.js";
 import { CFB_CORE_FEATURE_KEYS } from "./cfbCoreChallenger.js";
+import {
+  fitMarginResidualArtifact,
+  fitModelCMarginAaTotalArtifact,
+  marginHybridPredictionsForRows,
+  describeCfbCoreMarginHybrid,
+  evaluateMarginHybridPromotion,
+  CFB_CORE_MARGIN_HYBRID_VARIANT_LEADING,
+  CFB_CORE_MARGIN_HYBRID_VARIANT_RESIDUAL,
+} from "./cfbCoreMarginHybrid.js";
 
 const CHAMPION_KEYS = Object.freeze(["baselineMargin", "baselineTotal"]);
 const ROUND = (x, d = 4) => (Number.isFinite(x) ? Number(x.toFixed(d)) : null);
@@ -76,9 +85,40 @@ export function metricsAgainstActuals(rows, preds) {
   };
 }
 
+function summarizeBootDeltas(deltas, { alpha, nBoot, method, nClusters = null }) {
+  const summarize = (arr) => {
+    const sorted = [...arr].filter(Number.isFinite).sort((a, b) => a - b);
+    if (!sorted.length) return null;
+    const lo = sorted[Math.floor((alpha / 2) * sorted.length)];
+    const hi = sorted[Math.min(sorted.length - 1, Math.floor((1 - alpha / 2) * sorted.length))];
+    const mean = sorted.reduce((s, x) => s + x, 0) / sorted.length;
+    const excludesZero =
+      Number.isFinite(lo) && Number.isFinite(hi) && ((lo > 0 && hi > 0) || (lo < 0 && hi < 0));
+    return {
+      mean: ROUND(mean),
+      ciLow: ROUND(lo),
+      ciHigh: ROUND(hi),
+      alpha,
+      nBoot,
+      method,
+      nClusters,
+      ciExcludesZero: excludesZero,
+    };
+  };
+  return {
+    spreadMaeDelta: summarize(deltas.spreadMae),
+    totalMaeDelta: summarize(deltas.totalMae),
+    winnerAccuracyDelta: summarize(deltas.winnerAccuracy),
+    homeMaeDelta: summarize(deltas.homeMae),
+    awayMaeDelta: summarize(deltas.awayMae),
+    note: "Delta = challenger − champion. For MAE, negative favors challenger. For winnerAccuracy, positive favors challenger.",
+  };
+}
+
 /**
- * Paired bootstrap CIs for metric deltas (challenger − champion).
- * Negative MAE delta favors challenger; positive winnerAccuracy delta favors challenger.
+ * Paired IID bootstrap CIs for metric deltas (challenger − champion).
+ * Resamples games independently with replacement. May understate variance
+ * when within-week outcomes are correlated — prefer weekClustered as well.
  */
 export function bootstrapPairedMetricDeltas(
   rows,
@@ -109,28 +149,77 @@ export function bootstrapPairedMetricDeltas(
     deltas.awayMae.push(mC.awayMae - mA.awayMae);
   }
 
-  const summarize = (arr) => {
-    const sorted = [...arr].filter(Number.isFinite).sort((a, b) => a - b);
-    if (!sorted.length) return null;
-    const lo = sorted[Math.floor((alpha / 2) * sorted.length)];
-    const hi = sorted[Math.min(sorted.length - 1, Math.floor((1 - alpha / 2) * sorted.length))];
-    const mean = sorted.reduce((s, x) => s + x, 0) / sorted.length;
-    return {
-      mean: ROUND(mean),
-      ciLow: ROUND(lo),
-      ciHigh: ROUND(hi),
-      alpha,
-      nBoot,
-    };
-  };
+  return summarizeBootDeltas(deltas, { alpha, nBoot, method: "paired_iid_games" });
+}
 
+/**
+ * Week-clustered bootstrap: resample entire schedule weeks with replacement.
+ * Accounts for within-week correlation (same slate / weather / common shocks).
+ */
+export function bootstrapWeekClusteredMetricDeltas(
+  rows,
+  challengerPreds,
+  championPreds,
+  {
+    nBoot = 2000,
+    seed = 42,
+    alpha = 0.05,
+  } = {}
+) {
+  const rng = mulberry32(seed);
+  const byWeek = new Map();
+  for (let i = 0; i < rows.length; i++) {
+    const w = rows[i].week;
+    if (!byWeek.has(w)) byWeek.set(w, []);
+    byWeek.get(w).push(i);
+  }
+  const weeks = [...byWeek.keys()];
+  const deltas = { spreadMae: [], totalMae: [], winnerAccuracy: [], homeMae: [], awayMae: [] };
+
+  for (let b = 0; b < nBoot; b++) {
+    const idx = [];
+    for (let k = 0; k < weeks.length; k++) {
+      const w = weeks[Math.floor(rng() * weeks.length)];
+      idx.push(...byWeek.get(w));
+    }
+    if (!idx.length) continue;
+    const sampleRows = idx.map((i) => rows[i]);
+    const sampleC = idx.map((i) => challengerPreds[i]);
+    const sampleA = idx.map((i) => championPreds[i]);
+    const mC = metricsAgainstActuals(sampleRows, sampleC);
+    const mA = metricsAgainstActuals(sampleRows, sampleA);
+    deltas.spreadMae.push(mC.spreadMae - mA.spreadMae);
+    deltas.totalMae.push(mC.totalMae - mA.totalMae);
+    deltas.winnerAccuracy.push(mC.winnerAccuracy - mA.winnerAccuracy);
+    deltas.homeMae.push(mC.homeMae - mA.homeMae);
+    deltas.awayMae.push(mC.awayMae - mA.awayMae);
+  }
+
+  return summarizeBootDeltas(deltas, {
+    alpha,
+    nBoot,
+    method: "week_clustered",
+    nClusters: weeks.length,
+  });
+}
+
+/**
+ * Independent recomputation of one bootstrap replicate for audit/tests.
+ * Returns the same delta object metricsAgainstActuals would produce for a
+ * given index draw — used to validate the CI machinery without trusting
+ * a single opaque path.
+ */
+export function bootstrapReplicateDelta(rows, challengerPreds, championPreds, indices) {
+  const sampleRows = indices.map((i) => rows[i]);
+  const sampleC = indices.map((i) => challengerPreds[i]);
+  const sampleA = indices.map((i) => championPreds[i]);
+  const mC = metricsAgainstActuals(sampleRows, sampleC);
+  const mA = metricsAgainstActuals(sampleRows, sampleA);
   return {
-    spreadMaeDelta: summarize(deltas.spreadMae),
-    totalMaeDelta: summarize(deltas.totalMae),
-    winnerAccuracyDelta: summarize(deltas.winnerAccuracy),
-    homeMaeDelta: summarize(deltas.homeMae),
-    awayMaeDelta: summarize(deltas.awayMae),
-    note: "Delta = challenger − champion. For MAE, negative favors challenger. For winnerAccuracy, positive favors challenger.",
+    spreadMae: ROUND(mC.spreadMae - mA.spreadMae),
+    totalMae: ROUND(mC.totalMae - mA.totalMae),
+    winnerAccuracy: ROUND(mC.winnerAccuracy - mA.winnerAccuracy),
+    n: sampleRows.length,
   };
 }
 
@@ -292,18 +381,50 @@ export function answerDeepEvalQuestions({
   holdoutRows,
   lambdaChampion = 1,
   lambdaCombined = 1,
+  lambdaResidual = 1,
   nBoot = 2000,
   seed = 42,
 } = {}) {
   const fitted = fitHoldoutModels(trainRows, holdoutRows, { lambdaChampion, lambdaCombined });
   const { modelA, modelC, rawProductionAA, marginOnlyHybrid } = fitted.predictions;
 
+  // Leading candidate: Model C margin + A/A total (empirical best on historical holdout)
+  const leadingArtifact = fitModelCMarginAaTotalArtifact(trainRows, {
+    lambda: lambdaCombined,
+    lastTrainingSeason: 2025,
+  });
+  const leadingHybrid = leadingArtifact.ok
+    ? marginHybridPredictionsForRows(holdoutRows, leadingArtifact)
+    : marginOnlyHybrid;
+
+  // Sensitivity: CORE-only residual (mismatch-robust, historically weaker)
+  const residualArtifact = fitMarginResidualArtifact(trainRows, {
+    lambda: lambdaResidual,
+    lastTrainingSeason: 2025,
+  });
+  const residualHybrid = residualArtifact.ok
+    ? marginHybridPredictionsForRows(holdoutRows, residualArtifact)
+    : null;
+
   const metrics = {
     rawProductionAA: metricsAgainstActuals(holdoutRows, rawProductionAA),
     modelA_fittedOnChampionFeatures: metricsAgainstActuals(holdoutRows, modelA),
     modelC_combined: metricsAgainstActuals(holdoutRows, modelC),
-    marginOnlyHybrid_coreMargin_aaTotal: metricsAgainstActuals(holdoutRows, marginOnlyHybrid),
+    marginOnlyHybrid_modelCMargin_aaTotal: metricsAgainstActuals(holdoutRows, leadingHybrid),
+    marginResidualHybrid_sensitivity:
+      residualHybrid && residualHybrid.every((p) => p.ok)
+        ? metricsAgainstActuals(holdoutRows, residualHybrid)
+        : null,
   };
+
+  const bootIidC = bootstrapPairedMetricDeltas(holdoutRows, modelC, rawProductionAA, {
+    nBoot,
+    seed,
+  });
+  const bootWeekC = bootstrapWeekClusteredMetricDeltas(holdoutRows, modelC, rawProductionAA, {
+    nBoot,
+    seed: seed + 11,
+  });
 
   const q1 = {
     question:
@@ -314,6 +435,8 @@ export function answerDeepEvalQuestions({
       rawProductionAA: metrics.rawProductionAA,
       modelC: metrics.modelC_combined,
       modelA_researchFitted: metrics.modelA_fittedOnChampionFeatures,
+      marginHybridLeading: metrics.marginOnlyHybrid_modelCMargin_aaTotal,
+      marginResidualSensitivity: metrics.marginResidualHybrid_sensitivity,
     },
     deltasVsRawAA: {
       modelC: {
@@ -337,64 +460,148 @@ export function answerDeepEvalQuestions({
             metrics.rawProductionAA.winnerAccuracy
         ),
       },
+      marginHybridLeading: {
+        spreadMae: ROUND(
+          metrics.marginOnlyHybrid_modelCMargin_aaTotal.spreadMae - metrics.rawProductionAA.spreadMae
+        ),
+        totalMae: ROUND(
+          metrics.marginOnlyHybrid_modelCMargin_aaTotal.totalMae - metrics.rawProductionAA.totalMae
+        ),
+        winnerAccuracy: ROUND(
+          metrics.marginOnlyHybrid_modelCMargin_aaTotal.winnerAccuracy -
+            metrics.rawProductionAA.winnerAccuracy
+        ),
+      },
+      marginResidualSensitivity: metrics.marginResidualHybrid_sensitivity
+        ? {
+            spreadMae: ROUND(
+              metrics.marginResidualHybrid_sensitivity.spreadMae - metrics.rawProductionAA.spreadMae
+            ),
+            totalMae: ROUND(
+              metrics.marginResidualHybrid_sensitivity.totalMae - metrics.rawProductionAA.totalMae
+            ),
+            winnerAccuracy: ROUND(
+              metrics.marginResidualHybrid_sensitivity.winnerAccuracy -
+                metrics.rawProductionAA.winnerAccuracy
+            ),
+          }
+        : null,
     },
-    bootstrapCI_modelC_minus_rawAA: bootstrapPairedMetricDeltas(
-      holdoutRows,
-      modelC,
-      rawProductionAA,
-      { nBoot, seed }
-    ),
+    bootstrapCI_modelC_minus_rawAA: {
+      pairedIid: bootIidC,
+      weekClustered: bootWeekC,
+      caution:
+        "IID paired bootstrap resamples games independently and can understate SE if within-week outcomes correlate. Week-clustered resamples whole weeks.",
+    },
     interpretationNote:
-      "Primary comparison is Model C vs rawProductionAA (deployed frozen forecasts). Model A is a separately fitted research ridge on baseline features — not identical to raw A/A.",
+      "Primary comparison is vs rawProductionAA (deployed frozen forecasts). Model A is a separately fitted research ridge — not identical to raw A/A. Leading candidate is marginResidualHybrid.",
   };
+
+  const bootIidH = bootstrapPairedMetricDeltas(holdoutRows, leadingHybrid, rawProductionAA, {
+    nBoot,
+    seed: seed + 1,
+  });
+  const bootWeekH = bootstrapWeekClusteredMetricDeltas(holdoutRows, leadingHybrid, rawProductionAA, {
+    nBoot,
+    seed: seed + 2,
+  });
+  const bootWeekR = residualHybrid
+    ? bootstrapWeekClusteredMetricDeltas(holdoutRows, residualHybrid, rawProductionAA, {
+        nBoot,
+        seed: seed + 3,
+      })
+    : null;
 
   const q2 = {
     question:
       "Can CORE improve margin forecasting without damaging total forecasting (margin-only hybrid)?",
+    leadingCandidate: describeCfbCoreMarginHybrid(),
     design: {
-      marginSource: "model_c_ridge_on_combined_core_features",
-      totalSource: "raw_production_aa_frozen_total",
-      scoreReconstruction: "home=(total+margin)/2, away=(total-margin)/2",
+      leading: {
+        variant: CFB_CORE_MARGIN_HYBRID_VARIANT_LEADING,
+        train: "Model C margin ridge on combined features (2025; baseline slots may be Elo)",
+        apply:
+          "hybridMargin = ModelC(A/A baseline features + CORE); hybridTotal = productionAaTotal",
+        mismatchNote:
+          "Apply-time baseline feature slots use production A/A, not Elo. Covariate shift remains on those two slots.",
+      },
+      residualSensitivity: {
+        variant: CFB_CORE_MARGIN_HYBRID_VARIANT_RESIDUAL,
+        train: "residual = actualMargin - trainBaselineMargin ~ ridge(CORE crosses)",
+        apply: "hybridMargin = A/A margin + residual(CORE); total = A/A total",
+        mismatchNote: "CORE-only residual; Elo never enters apply-time scoring.",
+      },
     },
     metrics: {
       rawProductionAA: metrics.rawProductionAA,
       modelC_full: metrics.modelC_combined,
-      marginOnlyHybrid: metrics.marginOnlyHybrid_coreMargin_aaTotal,
+      leading_modelCMargin_aaTotal: metrics.marginOnlyHybrid_modelCMargin_aaTotal,
+      residualSensitivity: metrics.marginResidualHybrid_sensitivity,
     },
-    deltasVsRawAA: {
+    deltasVsRawAA_leading: {
       spreadMae: ROUND(
-        metrics.marginOnlyHybrid_coreMargin_aaTotal.spreadMae - metrics.rawProductionAA.spreadMae
+        metrics.marginOnlyHybrid_modelCMargin_aaTotal.spreadMae - metrics.rawProductionAA.spreadMae
       ),
       totalMae: ROUND(
-        metrics.marginOnlyHybrid_coreMargin_aaTotal.totalMae - metrics.rawProductionAA.totalMae
+        metrics.marginOnlyHybrid_modelCMargin_aaTotal.totalMae - metrics.rawProductionAA.totalMae
       ),
       winnerAccuracy: ROUND(
-        metrics.marginOnlyHybrid_coreMargin_aaTotal.winnerAccuracy -
+        metrics.marginOnlyHybrid_modelCMargin_aaTotal.winnerAccuracy -
           metrics.rawProductionAA.winnerAccuracy
       ),
-      homeMae: ROUND(
-        metrics.marginOnlyHybrid_coreMargin_aaTotal.homeMae - metrics.rawProductionAA.homeMae
-      ),
-      awayMae: ROUND(
-        metrics.marginOnlyHybrid_coreMargin_aaTotal.awayMae - metrics.rawProductionAA.awayMae
-      ),
     },
-    bootstrapCI_hybrid_minus_rawAA: bootstrapPairedMetricDeltas(
-      holdoutRows,
-      marginOnlyHybrid,
-      rawProductionAA,
-      { nBoot, seed: seed + 1 }
-    ),
+    deltasVsRawAA_residualSensitivity: metrics.marginResidualHybrid_sensitivity
+      ? {
+          spreadMae: ROUND(
+            metrics.marginResidualHybrid_sensitivity.spreadMae - metrics.rawProductionAA.spreadMae
+          ),
+          totalMae: ROUND(
+            metrics.marginResidualHybrid_sensitivity.totalMae - metrics.rawProductionAA.totalMae
+          ),
+          winnerAccuracy: ROUND(
+            metrics.marginResidualHybrid_sensitivity.winnerAccuracy -
+              metrics.rawProductionAA.winnerAccuracy
+          ),
+        }
+      : null,
+    bootstrapCI_leading_minus_rawAA: {
+      pairedIid: bootIidH,
+      weekClustered: bootWeekH,
+    },
+    bootstrapCI_residual_minus_rawAA: { weekClustered: bootWeekR },
     consistencyCheck: {
-      totalExactlyMatchesRawAA: marginOnlyHybrid.every(
+      residualTotalExactlyMatchesRawAA: residualHybrid
+        ? residualHybrid.every((p, i) => Math.abs(p.total - rawProductionAA[i].total) < 1e-9)
+        : false,
+      legacyTotalExactlyMatchesRawAA: leadingHybrid.every(
         (p, i) => Math.abs(p.total - rawProductionAA[i].total) < 1e-9
       ),
-      marginMatchesModelC: marginOnlyHybrid.every(
-        (p, i) => Math.abs(p.margin - modelC[i].margin) < 1e-9
-      ),
+      caution:
+        "Unchanged total MAE is guaranteed by construction for both hybrids — it is not evidence of an improved totals model. The meaningful claim is the margin MAE reduction.",
     },
+    leadingArtifact: leadingArtifact.ok
+      ? {
+          ok: true,
+          variant: leadingArtifact.variant,
+          trainN: leadingArtifact.trainN,
+          lambda: leadingArtifact.margin.lambda,
+          features: leadingArtifact.features,
+          lastTrainingSeason: leadingArtifact.lastTrainingSeason,
+        }
+      : leadingArtifact,
+    residualArtifact: residualArtifact.ok
+      ? {
+          ok: true,
+          variant: residualArtifact.variant,
+          trainN: residualArtifact.trainN,
+          lambda: residualArtifact.residual.lambda,
+          features: residualArtifact.features,
+          lastTrainingSeason: residualArtifact.lastTrainingSeason,
+        }
+      : residualArtifact,
   };
 
+  const leadingPreds = leadingHybrid;
   const q3 = {
     question: "Are margin improvements stable across slices?",
     vsRawAA: {
@@ -409,12 +616,22 @@ export function answerDeepEvalQuestions({
         by: "matchup_type",
       }),
     },
-    vsRawAA_marginOnlyHybrid: {
-      byWeek: sliceHoldoutMetrics(holdoutRows, marginOnlyHybrid, rawProductionAA, { by: "week" }),
-      byMatchupType: sliceHoldoutMetrics(holdoutRows, marginOnlyHybrid, rawProductionAA, {
+    vsRawAA_leadingHybrid: {
+      byWeek: sliceHoldoutMetrics(holdoutRows, leadingPreds, rawProductionAA, { by: "week" }),
+      byMatchupType: sliceHoldoutMetrics(holdoutRows, leadingPreds, rawProductionAA, {
         by: "matchup_type",
       }),
-      byFavoriteUnderdog: sliceHoldoutMetrics(holdoutRows, marginOnlyHybrid, rawProductionAA, {
+      byFavoriteUnderdog: sliceHoldoutMetrics(holdoutRows, leadingPreds, rawProductionAA, {
+        by: "favorite_underdog",
+      }),
+    },
+    // Keep prior key for script compatibility
+    vsRawAA_marginOnlyHybrid: {
+      byWeek: sliceHoldoutMetrics(holdoutRows, leadingPreds, rawProductionAA, { by: "week" }),
+      byMatchupType: sliceHoldoutMetrics(holdoutRows, leadingPreds, rawProductionAA, {
+        by: "matchup_type",
+      }),
+      byFavoriteUnderdog: sliceHoldoutMetrics(holdoutRows, leadingPreds, rawProductionAA, {
         by: "favorite_underdog",
       }),
     },
@@ -426,21 +643,47 @@ export function answerDeepEvalQuestions({
     ),
     concentration_hybrid_vs_rawAA: marginImprovementConcentration(
       holdoutRows,
-      marginOnlyHybrid,
+      leadingPreds,
       rawProductionAA,
       { topN: 10 }
     ),
   };
+
+  const promotionProbe = evaluateMarginHybridPromotion({
+    historicalHoldoutN: holdoutRows.length,
+    prospectiveOosN: 0, // not yet accumulated
+    marginMaeImprovement:
+      metrics.rawProductionAA.spreadMae - metrics.marginOnlyHybrid_modelCMargin_aaTotal.spreadMae,
+    totalMaeRegression:
+      metrics.marginOnlyHybrid_modelCMargin_aaTotal.totalMae - metrics.rawProductionAA.totalMae,
+    winnerAccuracyRegression:
+      metrics.rawProductionAA.winnerAccuracy -
+      metrics.marginOnlyHybrid_modelCMargin_aaTotal.winnerAccuracy,
+    marginBiasAbs: null,
+    marginMaeCiExcludesZero: bootWeekH?.spreadMaeDelta?.ciExcludesZero === true,
+    weekClusteredBootstrap: true,
+    prospectiveFrozenNoRetune: false,
+    trainEvalBaselineMismatchDocumented: true,
+    noHoldoutRetune: true,
+    operatorApproved: false,
+  });
 
   return {
     researchOnly: true,
     canAuthorizeWager: false,
     canInfluenceProduction: false,
     counts: { train2025: trainRows.length, holdout2026: holdoutRows.length },
-    lambdas: fitted.lambdas,
+    lambdas: { ...fitted.lambdas, lambdaResidual },
     metrics,
     q1_vs_raw_production_aa: q1,
     q2_margin_only_hybrid: q2,
     q3_stability_slices: q3,
+    promotionGateProbe: promotionProbe,
+    bootstrapValidation: {
+      iidResamplesGamesIndependently: true,
+      weekClusteredResamplesEntireWeeks: true,
+      withinWeekCorrelationAccountedIn: "week_clustered",
+      recommendation: "Prefer week-clustered CI for promotion decisions; report both.",
+    },
   };
 }

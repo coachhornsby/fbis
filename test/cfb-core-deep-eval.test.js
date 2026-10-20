@@ -129,9 +129,10 @@ test("answerDeepEvalQuestions distinguishes raw AA from model A/C", () => {
   });
   assert.equal(report.counts.holdout2026, 40);
   assert.ok(report.q1_vs_raw_production_aa.benchmarks.rawProductionAA);
-  assert.ok(report.q1_vs_raw_production_aa.bootstrapCI_modelC_minus_rawAA.spreadMaeDelta);
-  assert.equal(report.q2_margin_only_hybrid.consistencyCheck.totalExactlyMatchesRawAA, true);
-  assert.equal(report.q2_margin_only_hybrid.consistencyCheck.marginMatchesModelC, true);
+  assert.ok(report.q1_vs_raw_production_aa.bootstrapCI_modelC_minus_rawAA.pairedIid.spreadMaeDelta);
+  assert.ok(report.q1_vs_raw_production_aa.bootstrapCI_modelC_minus_rawAA.weekClustered.spreadMaeDelta);
+  assert.equal(report.q2_margin_only_hybrid.consistencyCheck.legacyTotalExactlyMatchesRawAA, true);
   assert.ok(report.q3_stability_slices.vsRawAA.byWeek.length >= 1);
   assert.equal(report.canInfluenceProduction, false);
+  assert.equal(report.promotionGateProbe.promote, false);
 });

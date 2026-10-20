@@ -175,31 +175,33 @@ function main() {
     ...deep,
   };
 
-  // Compact operator summary
+  // Compact operator summary — leading candidate is residual margin hybrid
   const q1 = report.q1_vs_raw_production_aa;
   const q2 = report.q2_margin_only_hybrid;
   const conc = report.q3_stability_slices.concentration_hybrid_vs_rawAA;
+  const leadD = q2.deltasVsRawAA_leading;
+  const leadBoot = q2.bootstrapCI_leading_minus_rawAA;
   report.operatorSummary = {
-    q1_beats_raw_aa: {
+    leadingCandidate: q2.leadingCandidate,
+    q1_full_modelC_vs_raw_aa: {
       spreadMaeDelta: q1.deltasVsRawAA.modelC.spreadMae,
       totalMaeDelta: q1.deltasVsRawAA.modelC.totalMae,
       winnerAccuracyDelta: q1.deltasVsRawAA.modelC.winnerAccuracy,
-      spreadMaeCI: q1.bootstrapCI_modelC_minus_rawAA.spreadMaeDelta,
-      totalMaeCI: q1.bootstrapCI_modelC_minus_rawAA.totalMaeDelta,
-      winnerAccuracyCI: q1.bootstrapCI_modelC_minus_rawAA.winnerAccuracyDelta,
+      spreadMaeCI_iid: q1.bootstrapCI_modelC_minus_rawAA.pairedIid?.spreadMaeDelta,
+      spreadMaeCI_weekClustered: q1.bootstrapCI_modelC_minus_rawAA.weekClustered?.spreadMaeDelta,
       clearsDualMaeBar:
         q1.deltasVsRawAA.modelC.spreadMae < 0 && q1.deltasVsRawAA.modelC.totalMae < 0,
     },
-    q2_margin_only_hybrid: {
-      spreadMaeDelta: q2.deltasVsRawAA.spreadMae,
-      totalMaeDelta: q2.deltasVsRawAA.totalMae,
-      winnerAccuracyDelta: q2.deltasVsRawAA.winnerAccuracy,
-      spreadMaeCI: q2.bootstrapCI_hybrid_minus_rawAA.spreadMaeDelta,
-      totalMaeCI: q2.bootstrapCI_hybrid_minus_rawAA.totalMaeDelta,
-      winnerAccuracyCI: q2.bootstrapCI_hybrid_minus_rawAA.winnerAccuracyDelta,
-      totalUnchangedVsRawAA: q2.consistencyCheck.totalExactlyMatchesRawAA,
+    q2_margin_residual_hybrid_leading: {
+      spreadMaeDelta: leadD?.spreadMae ?? null,
+      totalMaeDelta: leadD?.totalMae ?? null,
+      winnerAccuracyDelta: leadD?.winnerAccuracy ?? null,
+      spreadMaeCI_iid: leadBoot?.pairedIid?.spreadMaeDelta ?? null,
+      spreadMaeCI_weekClustered: leadBoot?.weekClustered?.spreadMaeDelta ?? null,
+      totalUnchangedVsRawAA: q2.consistencyCheck.residualTotalExactlyMatchesRawAA,
       improvesMarginWithoutWorseningTotal:
-        q2.deltasVsRawAA.spreadMae < 0 && q2.deltasVsRawAA.totalMae <= 0,
+        leadD && leadD.spreadMae < 0 && leadD.totalMae <= 0,
+      caution: q2.consistencyCheck.caution,
     },
     q3_stability: {
       nImproved: conc.nImproved,
@@ -212,6 +214,8 @@ function main() {
         winnerAccuracyDelta: s.delta.winnerAccuracy,
       })),
     },
+    promotionGateProbe: report.promotionGateProbe,
+    bootstrapValidation: report.bootstrapValidation,
   };
 
   mkdirSync(dirname(outPath), { recursive: true });
