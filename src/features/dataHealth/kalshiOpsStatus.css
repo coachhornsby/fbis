@@ -17,3 +17,20 @@
 .kalshi-ops-alert,.kalshi-ops-error{background:#4b2f2b;color:#ffd9c2;padding:12px;border-radius:8px;font-size:12px}
 @media(max-width:1090px){.kalshi-ops-cards,.kalshi-ops-gates{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:500px){.kalshi-ops{padding:12px}.kalshi-ops-cards,.kalshi-ops-gates{grid-template-columns:1fr}}
+
+.kalshi-ops-diagnostic{padding:16px;margin:17px 0;border-radius:11px;background:rgba(13,46,45,.9);border:1px solid #40866f}
+.kalshi-ops-diagnostic>div>strong{display:block;color:#d9fdf1;font-size:16px}
+.kalshi-ops-diagnostic p{margin:7px 0 12px;color:#b0d0c7;font-size:12px;line-height:1.5}
+.kalshi-ops-diagnostic-form{display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px;margin:10px 0}
+.kalshi-ops-diagnostic-form label{display:flex;flex-direction:column;gap:5px;color:#c8e3dc;font-size:11px;min-width:125px}
+.kalshi-ops-diagnostic-form input,.kalshi-ops-diagnostic-form select{min-height:38px;max-width:290px;border-radius:7px;background:#0d202d;border:1px solid #457968;padding:8px;color:#f0fff9}
+.kalshi-ops-diagnostic-form input{width:100%;min-width:170px}
+.kalshi-ops-diagnostic-form button{border:1px solid #00dd94;background:#035c40;color:white;border-radius:7px;padding:10px 13px;cursor:pointer;min-height:38px}
+.kalshi-ops-diagnostic-form button:disabled{opacity:.52;cursor:not-allowed}
+.kalshi-ops-diagnostic small{color:#9abaae;font-size:10px}
+.kalshi-ops-probe{margin-top:15px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.kalshi-ops-probe>div{display:flex;flex-direction:column;gap:6px;min-width:0;padding:10px;background:#102a30;border:1px solid #376b5b;border-radius:7px}
+.kalshi-ops-probe strong{font-size:12px;color:#e4fdf0}
+.kalshi-ops-probe span{font-size:11px;overflow-wrap:anywhere}
+.kalshi-ops-probe p,.kalshi-ops-probe small{grid-column:1/-1}
+@media(max-width:650px){.kalshi-ops-probe{grid-template-columns:1fr}.kalshi-ops-diagnostic-form input{min-width:0}.kalshi-ops-diagnostic-form label{flex:1 1 150px}}

@@ -220,14 +220,30 @@ jobs:
               sleep $((attempt * 20))
               continue
             fi
+            # CFBD provider 503 inside a completed Worker payload → wait and retry.
+            if jq -e '[.errors[]? | tostring] | any(test("CFBD 503|/ratings/core"; "i"))' "$tmp" >/dev/null 2>&1; then
+              echo "CFBD provider error in Pages payload; sleeping $((attempt * 30))s"
+              sleep $((attempt * 30))
+              continue
+            fi
             break
           done
           cp "$tmp" artifacts/cfb-core-2025-2026-holdout-pages-raw.json || true
           echo "pages_http=${http:-000} curl_ec=${curl_ec}"
-          if [ "$curl_ec" -ne 0 ] || [ "${http:-000}" != "200" ]; then
-            echo "::error::Pages holdout job failed http=${http:-000} curl_ec=${curl_ec}"
-            head -c 800 "$tmp" || true
+          # 200 = success, 207 = completed research with block/partial — both are usable JSON.
+          # Also accept 500 when the Worker still returned a holdout research payload.
+          if [ "$curl_ec" -ne 0 ]; then
+            echo "::error::Pages holdout transport failed curl_ec=${curl_ec}"
+            head -c 1200 "$tmp" || true
             exit 1
+          fi
+          if [ "${http:-000}" != "200" ] && [ "${http:-000}" != "207" ]; then
+            if ! jq -e '.d1.cfbCoreHoldout != null' "$tmp" >/dev/null 2>&1; then
+              echo "::error::Pages holdout job failed http=${http:-000}"
+              head -c 1200 "$tmp" || true
+              exit 1
+            fi
+            echo "::warning::Pages returned http=${http} with holdout payload — persisting research artifact."
           fi
           # Prefer nested research report; fall back to full payload.
           jq '
@@ -250,6 +266,9 @@ jobs:
               "- gamesFetched: \(.gamesFetched // 0)",
               "- archiveRows: \(.archiveRows // 0)",
               "- aaOverlayApplied: \(.aaOverlay.applied // 0)",
+              "- 2025 CORE weeks: \((.reconstruction[\"2025\"].throughWeeks // []) | join(\",\"))",
+              "- 2025 CFBD rows: \(.reconstruction[\"2025\"].cfbdYearRows // 0)",
+              "- 2025 seasonType buckets: \(.reconstruction[\"2025\"].cfbdThroughSeasonTypeCounts // {} | tostring)",
               "- classification: \(.classification // "n/a")",
               "- production A/A unchanged: \(.productionSafeguards.championAAUnchanged // .championUnchanged // true)"
             ' artifacts/cfb-core-2025-2026-holdout-report.json || true

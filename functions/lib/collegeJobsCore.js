@@ -17,7 +17,7 @@ import { projectCbbChallengers, lookupCbbdRating } from "./cbbRatings.js";
 import { mapSourceTeam, featureCutoffIso, cutoffViolated, hashPayload, collegeTeamCoverage } from "./collegeIdentity.js";
 import { putArchive, r2Bound, r2Key } from "./r2Archive.js";
 import { storageBudget } from "./storageBudget.js";
-import { recordJob, newJobId, jobPayload, classifyJobStatus, emptyWriteCounts, JOB_FAILED } from "./jobs.js";
+import { recordJob, newJobId, jobPayload, classifyJobStatus, emptyWriteCounts, JOB_FAILED, JOB_SUCCESS, JOB_PARTIAL } from "./jobs.js";
 import { hasDb } from "./store.js";
 import { resolveTeamExact, listTeams } from "./teams.js";
 import CFB_REG from "../../data/models/cfb-cfbd-reg-v1.js";
@@ -76,6 +76,20 @@ function shiftDateCT(date, days) {
   const [y, m, d] = String(date).split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + Number(days)));
   return dt.toISOString().slice(0, 10);
+}
+
+/** Retry CFBD GETs on transient 503/429 — holdout reconstruct must not fail closed on one blip. */
+async function cfbdGetWithRetry(path, env, opts = {}, { attempts = 4, baseDelayMs = 1500 } = {}) {
+  let last = null;
+  for (let i = 1; i <= attempts; i += 1) {
+    last = await cfbdGet(path, env, opts);
+    if (last?.ok) return last;
+    const reason = String(last?.reason || "");
+    const transient = /503|429|rate.?limit|temporar|timeout|fetch failed/i.test(reason);
+    if (!transient || i >= attempts) return last;
+    await new Promise((r) => setTimeout(r, baseDelayMs * i));
+  }
+  return last;
 }
 
 /** Restore the tested, source-labeled catalog observation count contract.
@@ -782,18 +796,52 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
       const persistArchives = opts.persistArchives !== false;
       for (const season of seasons) {
         try {
-          const coreRes = await cfbdGet("/ratings/core", env, {
-            query: { year: season },
-            fetchFn: opts.fetchFn || fetch,
-          });
+          const coreRes = await cfbdGetWithRetry(
+            "/ratings/core",
+            env,
+            { query: { year: season }, fetchFn: opts.fetchFn || fetch },
+            { attempts: 5, baseDelayMs: 2000 }
+          );
           if (!coreRes?.ok) throw new Error(coreRes?.reason || `core_${season}_failed`);
-          const built = buildHistoricalCoreArchivePayloads({
+          const yearRows = coreRes.data || [];
+          // Diagnose CFBD year payload shape (completed seasons often return only
+          // postseason/undated finals — regular weekly throughWeeks may be absent).
+          const typeCounts = {};
+          const twCounts = {};
+          let nullTw = 0;
+          for (const raw of yearRows) {
+            const tw = raw?.throughWeek ?? raw?.week;
+            const st = String(raw?.throughSeasonType || raw?.seasonType || "missing");
+            typeCounts[st] = (typeCounts[st] || 0) + 1;
+            if (tw == null || tw === "") {
+              nullTw += 1;
+            } else {
+              const key = `${st}:w${tw}`;
+              twCounts[key] = (twCounts[key] || 0) + 1;
+            }
+          }
+          // Prefer regular-season weekly buckets; if none exist, fall back to all
+          // season types so we surface whatever CFBD actually stored for the year.
+          let built = buildHistoricalCoreArchivePayloads({
             season,
-            yearRows: coreRes.data || [],
+            yearRows,
+            seasonType: "regular",
             authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
             collectionTime: new Date().toISOString(),
             jobRunId: newJobId(),
           });
+          let usedSeasonType = "regular";
+          if ((built.partitioned?.distinctThroughWeekCount || 0) === 0) {
+            built = buildHistoricalCoreArchivePayloads({
+              season,
+              yearRows,
+              seasonType: null,
+              authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
+              collectionTime: new Date().toISOString(),
+              jobRunId: newJobId(),
+            });
+            usedSeasonType = "all";
+          }
           for (const payload of built.payloads) {
             if (persistArchives) {
               const saved = await persistCoreWeeklyArchive(env, payload);
@@ -816,12 +864,20 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             throughWeeks: built.partitioned.throughWeeks,
             payloads: built.payloads.length,
             persisted: persistArchives,
+            usedSeasonType,
+            cfbdYearRows: yearRows.length,
+            cfbdNullThroughWeek: nullTw,
+            cfbdThroughSeasonTypeCounts: typeCounts,
+            cfbdThroughWeekBuckets: twCounts,
+            partitioned: built.partitioned,
           };
           // One CFBD /games call per season (regular); filter weeks 1–15 in-process.
-          const gRes = await cfbdGet("/games", env, {
-            query: { year: season, seasonType: "regular" },
-            fetchFn: opts.fetchFn || fetch,
-          });
+          const gRes = await cfbdGetWithRetry(
+            "/games",
+            env,
+            { query: { year: season, seasonType: "regular" }, fetchFn: opts.fetchFn || fetch },
+            { attempts: 5, baseDelayMs: 2000 }
+          );
           if (!gRes?.ok) {
             errors.push(`games_${season}:${gRes?.reason || "fail"}`);
           } else {
@@ -850,10 +906,12 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             }
           }
           // SP priors → CFB-FBIS-v2 baselines (fallback when live A/A overlay misses).
-          const spRes = await cfbdGet("/ratings/sp", env, {
-            query: { year: season },
-            fetchFn: opts.fetchFn || fetch,
-          });
+          const spRes = await cfbdGetWithRetry(
+            "/ratings/sp",
+            env,
+            { query: { year: season }, fetchFn: opts.fetchFn || fetch },
+            { attempts: 4, baseDelayMs: 1500 }
+          );
           const spByTeam = {};
           if (spRes?.ok) {
             for (const row of spRes.data || []) {
@@ -966,12 +1024,15 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             .run();
         }
       } catch (_) {}
+      // Completed-but-blocked research reports use partial (HTTP 207) so Actions
+      // can persist the artifact without treating Worker evaluation as transport failure.
+      const jobStatus = report.ok ? JOB_SUCCESS : report.blocked ? JOB_PARTIAL : JOB_FAILED;
       return jobPayload({
         ok: report.ok === true,
         job,
-        status: report.ok ? "success" : "failed",
+        status: jobStatus,
         attemptedAt: started,
-        successfulAt: report.ok ? new Date().toISOString() : null,
+        successfulAt: report.ok || report.blocked ? new Date().toISOString() : null,
         errors: report.ok ? errors : [...errors, ...(report.blockers || []).map((b) => b.code || b)],
         env,
         writes,

@@ -14,6 +14,12 @@ export const KALSHI_ACCOUNT_PATHS = Object.freeze({
   fills: "/trade-api/v2/portfolio/fills",
 });
 export const KALSHI_PRIVATE_CHANNELS = Object.freeze(["fill", "market_positions", "user_orders"]);
+// Operator diagnostics permit signing ONLY these two fixed public GET paths.
+// Portfolio routing remains strictly limited to KALSHI_ACCOUNT_PATHS.
+export const KALSHI_DIAGNOSTIC_PATHS = Object.freeze({
+  markets: "/trade-api/v2/markets",
+  status: "/trade-api/v2/exchange/status",
+});
 
 /**
  * Deployment alias for the replacement encrypted Kalshi PEM binding.
@@ -34,7 +40,9 @@ function pemBytes(pem) {
 }
 
 export async function kalshiSignedHeaders({ keyId, privateKeyPem, method = "GET", path, timestamp = Date.now(), webCrypto = crypto } = {}) {
-  if (!Object.values(KALSHI_ACCOUNT_PATHS).includes(path) && path !== "/trade-api/ws/v2") {
+  if (!Object.values(KALSHI_ACCOUNT_PATHS).includes(path)
+    && !Object.values(KALSHI_DIAGNOSTIC_PATHS).includes(path)
+    && path !== "/trade-api/ws/v2") {
     throw new Error("kalshi-read-path-not-allowed");
   }
   if (method !== "GET" || !Number.isSafeInteger(timestamp) || timestamp <= 0) {

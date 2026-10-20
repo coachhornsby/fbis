@@ -1,1 +1,1 @@
-trigger 2026-10-20T08:25:00Z — Pages Worker path when GH CFBD_API_KEY empty; CFB_DB A/A overlay
+trigger 2026-10-20T12:10:00Z — retry CFBD 503 inside holdout; re-run after diagnose deploy
