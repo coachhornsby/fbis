@@ -978,29 +978,47 @@
   box-shadow: 0 0 18px rgba(255,26,26,.55), inset 0 0 0 1px rgba(255,60,60,.35) !important;
   color: #ffffff !important;
 }
-.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > span,
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > strong,
-.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > b,
-.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > small,
-.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under .cgc-total-direction,
-.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under .cgc-gap-quote-stack {
-  color: #ffffff !important;
-  text-shadow: 0 1px 3px rgba(0,0,0,.45);
-}
-.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > span,
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > strong,
-.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > b,
-.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > small,
-.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over .cgc-total-direction,
-.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over .cgc-gap-quote-stack {
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under .cgc-total-direction,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over .cgc-total-direction {
   color: #ffffff !important;
-  text-shadow: 0 1px 3px rgba(0,0,0,.45);
+  text-shadow: 0 1px 3px rgba(0,0,0,.55);
+}
+/* Secondary copy on pale fills: larger + deep ink for contrast vs washed white. */
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > span:first-child,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > span:first-child {
+  color: #1a1020 !important;
+  font-size: 15px !important;
+  letter-spacing: .06em !important;
+  text-shadow: none !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > b,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > b,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under .cgc-gap-quote-stack,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over .cgc-gap-quote-stack,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under .cgc-gap-quote-stack > span,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over .cgc-gap-quote-stack > span {
+  color: #1a1020 !important;
+  font-size: 15px !important;
+  line-height: 1.3 !important;
+  font-weight: 900 !important;
+  text-shadow: none !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > small,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > small {
+  color: #2a1830 !important;
+  font-size: 13px !important;
+  letter-spacing: .07em !important;
+  font-weight: 900 !important;
+  text-shadow: none !important;
 }
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-gap-total .cgc-total-direction-arrow {
   font-size: 52px !important;
 }
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-gap-total .cgc-total-direction-label {
-  font-size: 14px !important;
+  font-size: 16px !important;
+  letter-spacing: .08em !important;
 }
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-neutral,
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-even {
@@ -1036,7 +1054,21 @@
     font-size: 43px !important;
   }
   .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-gap-total .cgc-total-direction-label {
-    font-size: 11px !important;
+    font-size: 13px !important;
+  }
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > span:first-child,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > span:first-child {
+    font-size: 13px !important;
+  }
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > b,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > b,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under .cgc-gap-quote-stack > span,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over .cgc-gap-quote-stack > span {
+    font-size: 13px !important;
+  }
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > small,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > small {
+    font-size: 12px !important;
   }
 }
 

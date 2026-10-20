@@ -399,18 +399,35 @@
   box-shadow:0 0 18px rgba(255,26,26,.55),inset 0 0 0 1px rgba(255,60,60,.35);
   color:#ffffff;
 }
-.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-heading,
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-value,
-.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-description,
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-direction,
-.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-identity > b,
-.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-heading,
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-value,
-.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-description,
-.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-direction,
-.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-identity > b {
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-direction {
   color:#ffffff !important;
-  text-shadow:0 1px 3px rgba(0,0,0,.45);
+  text-shadow:0 1px 3px rgba(0,0,0,.55);
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-heading,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-heading {
+  color:#1a1020 !important;
+  font-size:clamp(14px,1.25vw,17px) !important;
+  text-shadow:none !important;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-description,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-description {
+  color:#2a1830 !important;
+  font-size:13px !important;
+  font-weight:900 !important;
+  letter-spacing:.06em !important;
+  text-shadow:none !important;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-over .pgc-gap-identity > b,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total.is-under .pgc-gap-identity > b {
+  color:#1a1020 !important;
+  font-size:15px !important;
+  text-shadow:none !important;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.is-total .pgc-gap-direction > strong {
+  font-size:16px !important;
 }
 .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-heading {
   grid-area:heading;

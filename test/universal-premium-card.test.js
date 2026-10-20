@@ -107,4 +107,8 @@ test("gap-bar team logos are enlarged without white plates on compact and featur
  assert.match(compactCss,/#ff1a1a/);
  assert.match(featuredCss,/#39ff14/);
  assert.match(featuredCss,/#ff1a1a/);
+ assert.match(compactCss,/#1a1020/);
+ assert.match(featuredCss,/#1a1020/);
+ assert.match(compactCss,/cgc-gap-total-under > small/);
+ assert.match(featuredCss,/pgc-gap-description/);
 });
