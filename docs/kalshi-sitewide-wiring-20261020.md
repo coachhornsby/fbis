@@ -154,3 +154,17 @@ The official Kalshi public `GET /trade-api/v2/exchange/status` reports `exchange
 - The System dashboard presents the last-reported exchange and trading states beside **separate** 429 collector status. An active exchange does **not** clear collector cooldown or elevate a single contract's order book or FBIS wager permission.
 - No new signing secrets, D1 persistence, account exposure, model changes, order handling, or automatic trading.
 - Next verification: after Worker deploy, wait for the next scheduled poll and confirm `exchangeStatus.state` is recent, rate-limited, or unavailable. A successful deployment and mocked regression tests alone do not establish the live status response.
+
+## 12. Immediate operator diagnostics for 429
+Observed in production October 20, 2026: scheduled Kalshi NFL market GET returned HTTP 429, as did independent exchange-status GET; browser-rendering egress additionally returned HTTP 403 for exchange status. The collector clock, R2 writes and scheduler are healthy. This suggests access may be dependent on origin/authentication, but the exact limiting rule is still not proven.
+
+To test **without waiting for the next cron**, use System → Exchange Integration Readiness → **Test Kalshi connectivity now**. Enter the existing FBIS private portfolio access code (not an API key) and choose NFL or CFB. The endpoint `POST /api/kalshi-connectivity-diagnostic?sport=nfl|cfb` is available only after comparing that access code in constant time. It makes exactly two bounded public-market GETs at the same fixed URL: the first anonymous, the second properly signed with the private Kalshi API key that is already configured in Pages. No response bodies, signatures, key values, account data or raw upstream headers are logged or returned. Results contain only HTTP status, fixed result code and interpretation.
+
+Safety gates: an existing R2 receipt is returned during the next 15 minutes (best-effort global limit; R2 is not an atomic lock); when R2 is unavailable the probe fails closed. The probe **never** changes the ordinary collector's cooldown, market authority, CORE probabilities, PinnOdds gap, journal, or wagering permissions. A 200 only verifies the provider returned HTTP success for that fixed request; it does not prove that the JSON shape or markets are usable or that bid/ask prices are executable.
+
+Interpretation:
+- Anonymous 429 + signed 200: access differs with API authentication. Safely provision credentials for a separately scoped scheduled market collector and rerun source/coverage and identity tests. Do not automatically promote prices.
+- Both 429: shared read-bucket, origin/IP, or policy limiting remains possible; inspect Kalshi account tier, cost and support diagnostics before further retries.
+- Anonymous 403 + signed 200: edge or anonymous access restriction; authenticated scheduled collector may be viable after explicit credentials scoping.
+- Signed 401/403: reject key/signature/entitlement for market GET despite portfolio balance access.
+- Both 200: collection query works from Pages execution; investigate differences between scheduled Worker and Pages egress, connector coverage and downstream data parsing.
