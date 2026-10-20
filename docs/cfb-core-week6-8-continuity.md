@@ -64,8 +64,9 @@ Archive write path fixed: keys by **actual** CFBD `throughWeek`, not budgeted `t
 
 | Requirement | Status |
 |-------------|--------|
-| ≥3 distinct in-season CORE throughWeeks | **Missing** (have actual: `{6}`) |
-| ≥3 seasons PIT CORE | **Missing** (1 season archived) |
+| Distinct in-season CORE throughWeeks | Actual `{6}` (+ week-7 label duplicate) |
+| Weekly training docs first season | **2025** (do not assume 2024-and-earlier parity) |
+| Model C seasons | Evidence-based **2025 train → 2026 eval** (not a fixed 3-season wait) |
 | Verified OOS artifact | **0** |
 | Prospective shadow rows | 41 (Week 7; scores unverified without artifact) |
 

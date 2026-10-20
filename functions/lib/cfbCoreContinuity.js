@@ -152,7 +152,8 @@ export function assessCoreChallengerCorpus({
   shadowPredictionCount = 0,
   verifiedOosArtifacts = 0,
   minThroughWeeks = 3,
-  minSeasons = 3,
+  /** Evidence-based default: 2025 foundation + 2026 eval — not a fixed three-season wait. */
+  minSeasons = 2,
   seasonsCovered = 1,
 } = {}) {
   const weeks = [...new Set((archivedThroughWeeks || []).map(Number).filter((w) => w > 0))].sort(
@@ -163,14 +164,14 @@ export function assessCoreChallengerCorpus({
     missing.push({
       code: "insufficient_pit_through_weeks",
       have: weeks,
-      need: `≥${minThroughWeeks} distinct CFBD throughWeek archives in-season`,
+      need: `≥${minThroughWeeks} distinct weekly CORE feature states in-season`,
     });
   }
   if (seasonsCovered < minSeasons) {
     missing.push({
       code: "insufficient_multi_season_coverage",
       have: seasonsCovered,
-      need: `≥${minSeasons} seasons of week-bounded CORE observed before kickoff`,
+      need: `≥${minSeasons} seasons with preserved weekly states (2025 foundation → 2026 eval; not a fixed 3-season rule)`,
     });
   }
   if (!(verifiedOosArtifacts > 0)) {
@@ -191,6 +192,8 @@ export function assessCoreChallengerCorpus({
   return {
     version: CORE_CONTINUITY_VERSION,
     sufficientToFitAndEvaluate: missing.length === 0,
+    eligibilityMode: "evidence_based",
+    fixedThreeSeasonRequirement: false,
     archivedThroughWeeks: weeks,
     seasonsCovered,
     shadowPredictionCount,
@@ -199,11 +202,11 @@ export function assessCoreChallengerCorpus({
     backfillPlan: missing.length
       ? {
           steps: [
-            "After each completed statistical week, run authorized cfb-current-refresh with targetWeek=N+1",
-            "Persist cfb_core_weekly_archive keyed by actual CFBD throughWeek (not budgeted week)",
-            "Freeze cfb-core-shadow-freeze for upcoming slate using throughWeek < gameWeek",
-            "Accumulate multi-season PIT CORE+market rows before walk-forward fit",
-            "Never backfill using season-final unbounded CORE for earlier kickoffs (leakage)",
+            "Reconstruct 2025 weekly training/CORE feature sequence (first preserved season)",
+            "Continue 2026 weekly snapshots + prospective shadow freezes",
+            "Persist archives keyed by actual throughWeek; keep CFBD API vs weekly docs distinct",
+            "Verify cutoffs (throughWeek < gameWeek) before chronological Model C fit",
+            "Never invent 2024-and-earlier weekly training document parity",
           ],
           leakageRule: "coreSourceAsOf < kickoff AND throughWeek < gameWeek AND same season",
         }

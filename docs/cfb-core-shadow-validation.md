@@ -26,9 +26,9 @@ Authorized research (CFBD year read; still research-only):
 
 4. `cfb-core-historical-reconstruct` — archive every distinct CFBD `throughWeek` for a season
 5. `cfb-core-publication-track` — compare new CORE release vs baseline (e.g. W8 vs W6)
-6. `cfb-core-model-c-readiness` — gate Model C chronological fit (never auto-promote)
+6. `cfb-core-model-c-readiness` — evidence-based Model C gate (2025→2026; never auto-promote)
 
-See `docs/cfb-core-historical-reconstruction.md`.
+See `docs/cfb-core-historical-reconstruction.md`. Weekly training documents (2025+) and CFBD `/ratings/core` remain distinct sources.
 
 Scheduled after college-health in `.github/workflows/college.yml` (shadow jobs). Historical reconstruct is on-demand / operator-authorized.
 
