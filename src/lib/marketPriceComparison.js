@@ -34,7 +34,15 @@ function modelProbabilities(game) {
     return {home:probability(one?.home),draw:probability(one?.draw),away:probability(one?.away)};
   }
   if(!TWO_WAY.has(sport))return {home:null,away:null};
-  const home=probability(game?.pHome ?? game?.model?.pHomeFinal ?? game?.projection?.pHome);
+  // The NHL research card can carry an independent full-game probability even
+  // when the canonical board pHome is deliberately absent (promotion frozen).
+  // Expose that probability as research ONLY; never infer it from projected
+  // goals, PinnOdds or Polymarket. Other sports retain their canonical fields.
+  const canonical=probability(game?.pHome ?? game?.model?.pHomeFinal ?? game?.projection?.pHome);
+  const nhlResearch= sport==="nhl" && game?.nhlProV2?.ok === true &&
+    game.nhlProV2.independent === true && game.nhlProV2.marketInformed === false
+    ? probability(game.nhlProV2?.probability?.homeWinIncludingOt) : null;
+  const home=canonical ?? nhlResearch;
   return {home,away:home==null?null:1-home};
 }
 export function buildMoneylinePriceComparison(game={},options={}) {

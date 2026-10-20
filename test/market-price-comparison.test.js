@@ -53,3 +53,23 @@ test("model probability 0 or missing does not make a false fair price",()=>{
  assert.equal(x.rows[0].fbisProbability,null);
  assert.equal(x.rows[0].fbisFairAmerican,null);
 });
+
+test("NHL priceboard displays independently projected win chance without granting wagering authority",()=>{
+ const game={sport:"nhl",home:{name:"Montreal Canadiens",abbr:"MTL"},away:{name:"San Jose Sharks",abbr:"SJ"},
+  canQualify:false,canAuthorizeWager:false,
+  nhlProV2:{ok:true,independent:true,marketInformed:false,
+   probability:{homeWinIncludingOt:0.655}},
+  market:{venueOffers:[]}};
+ const card=buildMoneylinePriceComparison(game);
+ assert.equal(card.rows.find(x=>x.side==="home").fbisProbability,0.655);
+ assert.equal(card.rows.find(x=>x.side==="away").fbisProbability,0.345);
+ assert.equal(card.researchOnly,true);
+ assert.equal(card.rows.find(x=>x.side==="home").polymarketProbability,null);
+});
+test("NHL market-derived or unverified research cannot supply the fair moneyline",()=>{
+ const base={sport:"nhl",home:{name:"Montreal Canadiens"},away:{name:"San Jose Sharks"},market:{venueOffers:[]}};
+ for(const model of [{ok:true,independent:false,marketInformed:false},{ok:true,independent:true,marketInformed:true},{ok:false,independent:true,marketInformed:false}]){
+  const x=buildMoneylinePriceComparison({...base,nhlProV2:{...model,probability:{homeWinIncludingOt:0.7}}});
+  assert.equal(x.rows[1].fbisProbability,null);
+ }
+});
