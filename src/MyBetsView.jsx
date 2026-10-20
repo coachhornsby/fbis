@@ -313,6 +313,8 @@ export default function MyBetsView({
                           homeTeam={b.homeTeam}
                           matchupText={b.matchupText}
                           sport={b.sport}
+                          logoSize={54}
+                          logoTone="none"
                         />
                       )}
                     </td>
@@ -402,10 +404,10 @@ function TennisParticipants({ bet, compact = false }) {
   const names = [a,b].filter(Boolean);
   if (!names.length) return <div className="muted">{bet?.matchupText || "Tennis"}</div>;
   return (
-    <div style={{display:"grid",gap:6}}>
+    <div className="bets-single-participants">
       {names.map((name) => (
-        <div key={name} style={{display:"flex",alignItems:"center",gap:9}}>
-          <PlayerHeadshot name={name} sport="tennis" size={compact ? 32 : 44} />
+        <div className="bets-single-participant" key={name}>
+          <PlayerHeadshot name={name} sport="tennis" size={compact ? 48 : 66} />
           <span style={{fontWeight:700}}>{name}</span>
         </div>
       ))}
@@ -417,10 +419,10 @@ function PlayerPropParticipants({ bet, compact = false }) {
   const names = propPlayerNames(bet);
   if (!names.length) return <div className="muted">{bet.matchupText || "Player prop"}</div>;
   return (
-    <div style={{display:"grid",gap:6}}>
+    <div className="bets-single-participants">
       {names.map((name) => (
-        <div key={name} style={{display:"flex",alignItems:"center",gap:9}}>
-          <PlayerHeadshot name={name} sport={bet.sport} size={compact ? 32 : 44} />
+        <div className="bets-single-participant" key={name}>
+          <PlayerHeadshot name={name} sport={bet.sport} size={compact ? 48 : 66} />
           <span style={{fontWeight:700}}>{name}</span>
         </div>
       ))}
