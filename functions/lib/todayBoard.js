@@ -150,7 +150,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
       fullName: game.away?.fullName,
       abbr: game.away?.abbr,
       logo: game.away?.logo,
-      canonicalId: game.away?.canonicalId,
+      canonicalId: game.away?.canonicalId || (sport === "tennis" ? game.away?.fbisPlayerId || null : null),
       // Preserve provider identity through the second FBS-only board filter.
       // A name or mascot must never stand in for a verified FBS ID.
       espnId: sport === "cfb" ? game.away?.espnId ?? null : null,
@@ -158,7 +158,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
       classification: sport === "cfb" ? game.away?.classification ?? null : null,
       providerClassification: sport === "cfb" ? game.away?.providerClassification ?? null : null,
       classificationSource: sport === "cfb" ? game.away?.classificationSource ?? null : null,
-      countryCode: game.away?.countryCode || null,
+      countryCode: game.away?.countryCode || (sport === "tennis" ? game.away?.country || null : null),
       headshotUrl: game.away?.headshotUrl || null,
       rankingAsOf: game.away?.rankingAsOf || null,
       rankingSource: game.away?.rankingSource || null,
@@ -177,7 +177,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
       fullName: game.home?.fullName,
       abbr: game.home?.abbr,
       logo: game.home?.logo,
-      canonicalId: game.home?.canonicalId,
+      canonicalId: game.home?.canonicalId || (sport === "tennis" ? game.home?.fbisPlayerId || null : null),
       // Preserve provider identity through the second FBS-only board filter.
       // A name or mascot must never stand in for a verified FBS ID.
       espnId: sport === "cfb" ? game.home?.espnId ?? null : null,
@@ -185,7 +185,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
       classification: sport === "cfb" ? game.home?.classification ?? null : null,
       providerClassification: sport === "cfb" ? game.home?.providerClassification ?? null : null,
       classificationSource: sport === "cfb" ? game.home?.classificationSource ?? null : null,
-      countryCode: game.home?.countryCode || null,
+      countryCode: game.home?.countryCode || (sport === "tennis" ? game.home?.country || null : null),
       headshotUrl: game.home?.headshotUrl || null,
       rankingAsOf: game.home?.rankingAsOf || null,
       rankingSource: game.home?.rankingSource || null,
