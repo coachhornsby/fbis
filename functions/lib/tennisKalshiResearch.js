@@ -1,6 +1,6 @@
 import {loadKalshiR2Shadow} from "./kalshiR2Shadow.js";
 const key = s => " "+String(s||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()+" ";
-const clean=s=>String(s||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+const clean=s=>key(s).trim();
 const surname=name=>clean(name).split(" ").at(-1)||"";
 const same=(a,b)=>clean(a)===clean(b);
 const hasSurname=(text,name)=>surname(name).length>=4&&key(text).includes(key(surname(name)));
