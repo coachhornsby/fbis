@@ -7,6 +7,31 @@ async function readObject(r2,key){
 }
 export async function kalshiIntegrationHealth(env,{now=new Date()}={}){
  const collector=await readObject(env?.ARCHIVE,"collector-status.json");
+ const exchangeReceipt=await readObject(env?.ARCHIVE,"exchange-status.json");
+ const observedAt=Date.parse(exchangeReceipt?.observedAt||"");
+ const exchangeAge=Number.isFinite(observedAt)?now.getTime()-observedAt:null;
+ const exchangeFresh=exchangeAge!==null&&exchangeAge>=0&&exchangeAge<=75*60*1000
+   &&exchangeReceipt?.state==="VERIFIED"
+   &&typeof exchangeReceipt?.exchange?.exchangeActive==="boolean"
+   &&typeof exchangeReceipt?.exchange?.tradingActive==="boolean";
+ const exchangeStatus={
+   state:!exchangeReceipt?"NOT_OBSERVED":exchangeFresh?"RECENT_PROVIDER_REPORT":
+     exchangeReceipt.state==="VERIFIED"?"STALE_PROVIDER_REPORT":
+     exchangeReceipt.state==="RATE_LIMITED"?"RATE_LIMITED":"UNAVAILABLE",
+   lastObservedAt:typeof exchangeReceipt?.observedAt==="string"?exchangeReceipt.observedAt:null,
+   ageSeconds:exchangeAge!==null&&exchangeAge>=0?Math.floor(exchangeAge/1000):null,
+   nextAllowedAt:typeof exchangeReceipt?.nextAllowedAt==="string"?exchangeReceipt.nextAllowedAt:null,
+   upstreamHttpStatus:Number.isInteger(exchangeReceipt?.httpStatus)?exchangeReceipt.httpStatus:null,
+   exchangeActive:exchangeFresh?exchangeReceipt.exchange.exchangeActive:null,
+   tradingActive:exchangeFresh?exchangeReceipt.exchange.tradingActive:null,
+   transfersActive:exchangeFresh&&typeof exchangeReceipt.exchange.transfersActive==="boolean"
+     ?exchangeReceipt.exchange.transfersActive:null,
+   estimatedResumeAt:exchangeFresh?exchangeReceipt.exchange.estimatedResumeAt||null:null,
+   exchangeIndexCount:exchangeFresh&&Array.isArray(exchangeReceipt.exchange.exchangeIndices)
+     ?exchangeReceipt.exchange.exchangeIndices.length:null,
+   statusScope:"LAST_PUBLIC_PROVIDER_REPORT_NOT_EXECUTION_AUTHORIZATION",
+   canQualify:false,canAuthorizeWager:false,
+ };
  const upstreamBlocked=Boolean(collector?.blockedUntil&&Date.parse(collector.blockedUntil)>now.getTime());
  const sports=await Promise.all(SPORTS.map(async sport=>{
    const snap=await readObject(env?.ARCHIVE,"sports/"+sport+".json");
@@ -34,7 +59,7 @@ export async function kalshiIntegrationHealth(env,{now=new Date()}={}){
     schedule:"EVERY_15_MINUTES_ALTERNATING_NFL_CFB",
     storage:"CENTRAL_R2_NO_D1_WRITES",
     triggerVerified:!!collector?.attemptedAt,
-  },sports,
+  },sports,exchangeStatus,
   stages:{
     publicCollector:sports.some(x=>x.status==="FRESH_SHADOW")?"PARTIALLY_CAPTURING":"UNVERIFIED",
     eventIdentity:"UNQUALIFIED",contractRules:"UNQUALIFIED",
