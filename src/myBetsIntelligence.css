@@ -301,3 +301,39 @@
   .bets-dashboard .mbi-card,
   .bets-dashboard .mbi-kpi{transition:none;transform:none!important}
 }
+
+
+/* Profit chart readouts stay legible on small screens rather than shrinking. */
+.bets-dashboard .mbi-curve{
+  overflow-x:auto;
+  padding:6px 0 2px;
+  scrollbar-color:#8ea3b8 #081522;
+}
+.bets-dashboard .mbi-curve svg{
+  min-width:640px;
+  height:250px;
+}
+.bets-dashboard .mbi-curve-facts{
+  display:flex;
+  justify-content:space-between;
+  gap:13px;
+  flex-wrap:wrap;
+  margin:12px 0;
+}
+.bets-dashboard .mbi-curve-facts span{
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:9px;
+  color:#ecf1f7;
+  font-size:16px;
+  font-weight:750;
+}
+.bets-dashboard .mbi-curve-facts b{
+  color:#fff;
+  font-size:20px;
+  font-weight:950;
+  font-variant-numeric:tabular-nums;
+}
+.bets-dashboard .mbi-curve-facts .is-profit{color:#92f0bc}
+.bets-dashboard .mbi-curve-facts .is-loss{color:#ff9c9f}
