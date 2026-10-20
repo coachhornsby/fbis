@@ -82,22 +82,28 @@ jobs:
   qualify-wave1:
     needs: health-all
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       max-parallel: 3
       matrix:
         include:
+          # Delta sync runs in sport-delta-sync-recurring; qualify verifies + rehearses.
           - sport: nfl
             cutover: "true"
+            run_delta: "false"
           - sport: cfb
             cutover: "true"
+            run_delta: "false"
           - sport: nhl
             cutover: "true"
+            run_delta: "false"
           - sport: nba
             cutover: "false"
+            run_delta: "false"
           - sport: mlb
             cutover: "false"
+            run_delta: "false"
     steps:
       - uses: actions/checkout@v4.2.2
         with:
@@ -136,9 +142,10 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           FBIS_BASE_URL: https://fbis-myz.pages.dev
           SPORT: ${{ matrix.sport }}
-          RUN_DELTA_SYNC: "true"
+          RUN_DELTA_SYNC: ${{ matrix.run_delta }}
           RUN_CUTOVER_REHEARSAL: ${{ matrix.cutover }}
           SAMPLE_SIZE: "40"
+          QUALIFY_TIMEOUT_MS: "480000"
         run: |
           set -euo pipefail
           mkdir -p artifacts

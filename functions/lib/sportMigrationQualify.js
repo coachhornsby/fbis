@@ -233,11 +233,27 @@ export async function qualifySportMigration(env, sport, {
 
   let cutover = null;
   if (runCutoverRehearsal && ["nfl", "cfb", "nhl"].includes(key)) {
+    // Happy-path rehearsal first: proves consumers/writes/model preservation/rollback
+    // with an in-process receipt (never mutates live SPORT_DB_MODE_*).
     cutover = await rehearseSportCutover(env, key, {
+      injectMissingBinding: false,
+      injectPartialSport: false,
+      injectStaleCore: false,
+    });
+    // Fail-closed probes: missing binding + partial sport data must not look healthy.
+    const failClosed = await rehearseSportCutover(env, key, {
       injectMissingBinding: true,
       injectPartialSport: true,
       injectStaleCore: false,
     });
+    cutover = {
+      ...cutover,
+      failClosedProbes: {
+        ok: failClosed.ok === true,
+        steps: (failClosed.steps || []).map((s) => ({ step: s.step, ok: s.ok })),
+      },
+      ok: cutover.ok === true && failClosed.ok === true,
+    };
   }
 
   const gates = {
