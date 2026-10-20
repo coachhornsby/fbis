@@ -13,6 +13,13 @@ export const KALSHI_ACCOUNT_PATHS = Object.freeze({
   fills: "/trade-api/v2/portfolio/fills",
 });
 export const KALSHI_PRIVATE_CHANNELS = Object.freeze(["fill", "market_positions", "user_orders"]);
+
+/**
+ * Deployment alias for the replacement encrypted Kalshi PEM binding.
+ * Prefer PEM1 when present so a superseded key cannot silently take precedence.
+ * Never serialize the private key into API responses or logs.
+ */
+export const kalshiPrivateKeyPem = env => env?.KALSHI_PRIVATE_KEY_PEM1 || env?.KALSHI_PRIVATE_KEY_PEM || "";
 const decoder = new TextEncoder();
 
 function pemBytes(pem) {
@@ -77,7 +84,7 @@ export async function kalshiGet(key, env, { params = {}, fetchImpl = fetch, now 
   for (const [k, v] of Object.entries(params)) if (v != null && v !== "") url.searchParams.set(k, String(v));
   let headers;
   try {
-    headers = await kalshiSignedHeaders({ keyId: env.KALSHI_API_KEY_ID, privateKeyPem: env.KALSHI_PRIVATE_KEY_PEM, path, timestamp: now });
+    headers = await kalshiSignedHeaders({ keyId: env.KALSHI_API_KEY_ID, privateKeyPem: kalshiPrivateKeyPem(env), path, timestamp: now });
   } catch (error) {
     // Only expose fixed error codes; never echo provider headers, signing inputs or PEM.
     const keyFormatError = /^kalshi-(ed25519-pkcs8-secret-unconfigured|invalid-private-key)$/.test(String(error?.message || ""));
@@ -162,7 +169,7 @@ export function kalshiSubscribePrivate(id = 1) {
 }
 
 export async function readKalshiAccount(env, { fetchImpl = fetch } = {}) {
-  if (!env?.KALSHI_API_KEY_ID || !env?.KALSHI_PRIVATE_KEY_PEM) {
+  if (!env?.KALSHI_API_KEY_ID || !kalshiPrivateKeyPem(env)) {
     return { ok: false, code: "KALSHI_NOT_CONFIGURED" };
   }
   // A failed collection is never presented as a complete or zero-balance account.
