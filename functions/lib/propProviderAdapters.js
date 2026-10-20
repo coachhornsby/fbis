@@ -11,6 +11,9 @@ export const KALSHI_PROP_SERIES=Object.freeze({
  KXMLBHIT:['mlb','hits'],KXMLBHR:['mlb','home_runs'],KXMLBOUTS:['mlb','pitcher_outs'],KXMLBSO:['mlb','strikeouts'],
  KXWNBAPTS:['wnba','points'],KXWNBAREB:['wnba','rebounds'],KXWNBAAST:['wnba','assists'],
 });
+// ESPN game registry uses SA/NY; verified NBA roster states use SAS/NYK.
+// Exact fixture and canonical team identity remain mandatory before applying this crosswalk.
+const NBA_ROSTER_ABBR=Object.freeze({SA:'SAS',NY:'NYK'});
 export const norm=v=>String(v||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const ctDate=v=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(v)).map(p=>[p.type,p.value]));return `${parts.year}-${parts.month}-${parts.day}`;};
 /**
@@ -60,19 +63,26 @@ export function mapKalshiPlayerContract(m,{games=[],players=[],capturedAt,series
  if(!canonicalTeams)return {rejected:true,reason:'REGISTERED_TEAM_IDENTITY_UNRESOLVED',id:m.ticker,sport};
  const athleteField={nba:'basketball_player',wnba:'basketball_player',nfl:'football_player',nhl:'hockey_player',mlb:'baseball_player'}[sport];
  const providerPlayerId=m.custom_strike?.[athleteField];
+ const keys=canonicalTeams.map((abbr,i)=>new Set([
+  abbr,i===0?game.away_abbr:game.home_abbr,
+  sport==='nba'?NBA_ROSTER_ABBR[abbr]:null,
+ ].filter(Boolean).map(norm)));
  const roster=players.filter(p=>p.sport===sport&&norm(p.player_name)===norm(rule[1])&&
-  [canonicalTeams[0],canonicalTeams[1],game.away_abbr,game.home_abbr].some(a=>norm(a)===norm(p.team_key)));
+  keys.some(set=>set.has(norm(p.team_key))));
  const unique=[...new Map(roster.map(p=>[String(p.player_id),p])).values()];
  // Roster team plus unique fixture plus full rule name plus provider athlete ID; never name-only.
  if(!providerPlayerId||unique.length!==1)return {rejected:true,reason:'PLAYER_ROSTER_IDENTITY_UNRESOLVED',id:m.ticker,sport};
  const player=unique[0],rosterKey=norm(player.team_key);
- const rosterIndex=[0,1].find(i=>[canonicalTeams[i],i===0?game.away_abbr:game.home_abbr].some(a=>norm(a)===rosterKey));
- if(rosterIndex===undefined)return {rejected:true,reason:'PLAYER_ROSTER_TEAM_UNRESOLVED',id:m.ticker,sport};
- const team=canonicalTeams[rosterIndex],terms=[m.rules_primary,m.rules_secondary].filter(Boolean).join('\n');
+ const indices=keys.flatMap((set,i)=>set.has(rosterKey)?[i]:[]);
+ if(indices.length!==1)return {rejected:true,reason:'PLAYER_ROSTER_TEAM_UNRESOLVED',id:m.ticker,sport};
+ const rosterIndex=indices[0];
+ const canonicalRosterTeam=i=>sport==='nba'?(NBA_ROSTER_ABBR[canonicalTeams[i]]||canonicalTeams[i]):canonicalTeams[i];
+ const team=canonicalRosterTeam(rosterIndex),opponent=canonicalRosterTeam(1-rosterIndex);
+ const terms=[m.rules_primary,m.rules_secondary].filter(Boolean).join('\n');
  const historyProvider=sport==='nhl'?'nhl':sport==='mlb'?'mlb':'espn';
  return {id:`kalshi:${m.ticker}:yes`,provider:'Kalshi',source:'Kalshi REST',sport,canonicalEventId:String(game.id),
   canonicalPlayerId:canonicalPlayerId(sport,historyProvider,player.player_id),providerPlayerId:String(providerPlayerId),providerEventId:m.event_ticker,contractId:m.ticker,
-  player_name:player.player_name,home_abbr:String(game.home_abbr).toUpperCase(),away_abbr:String(game.away_abbr).toUpperCase(),team,opponent:team===canonicalTeams[1]?canonicalTeams[0]:canonicalTeams[1],
+  player_name:player.player_name,home_abbr:String(game.home_abbr).toUpperCase(),away_abbr:String(game.away_abbr).toUpperCase(),team,opponent,
   position:player.position||null,historyProvider,historyPlayerId:String(player.player_id),start_time:game.start,canonical_market:stat,
   line:number(m.floor_strike),trigger:Number(rule[2]),side:'yes',statSide:'over',period:'full_game',settlementTerms:terms,
   settlementScope:'OFFICIAL_GAME_PER_PROVIDER_RULES',dnpSettlement:/last fair market price before game start/i.test(m.rules_secondary||'')?'ACTIVE_NO_APPEARANCE_LAST_FAIR_PRICE':/fair price/i.test(m.rules_secondary||'')?'FAIR_PRICE':'UNVERIFIED',
