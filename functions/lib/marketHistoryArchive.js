@@ -49,16 +49,15 @@ export async function archiveColdMarketHistoryObservations(env, {
   for (const part of partitions) {
     let rows = [];
     try {
+      // Prefer full-row verified archive path for production; this scan keeps
+      // SELECT * so operator dry-runs never drop schema columns.
       const page = await part.db.prepare(
-        `SELECT id, observation_key, source, sport, canonical_event_id, market_family, side, line, period,
-                contract_price, decimal_odds, american_odds, source_market_id, source_outcome_id,
-                source_observed_at, collected_at, snapshot_type, raw_payload_json,
-                execution_eligible, can_qualify, can_authorize_wager
+        `SELECT *
          FROM normalized_market_observations
          WHERE collected_at < ?
          ORDER BY collected_at ASC, id ASC
          LIMIT ?`
-      ).bind(cutoff, Math.min(500, Math.max(1, Number(limit) || 100))).all();
+      ).bind(cutoff, Math.min(2000, Math.max(1, Number(limit) || 100))).all();
       rows = page?.results || [];
     } catch (error) {
       results.push({

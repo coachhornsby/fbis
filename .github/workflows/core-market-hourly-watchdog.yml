@@ -1,12 +1,19 @@
-name: FBIS core-market hourly heartbeat
+name: FBIS core-market heartbeat and CORE snapshot
+# Primary CORE 15m publish path. This workflow historically receives GitHub
+# schedule deliveries reliably; the dedicated core-board-snapshot workflow is
+# retained as a secondary path + merge trigger.
 on:
   schedule:
-    - cron: '15 * * * *'
+    # Every 15 minutes, offset from :00/:15/:30/:45 high-load slots.
+    - cron: '3,18,33,48 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
     paths:
       - '.github/workflows/core-market-hourly-watchdog.yml'
+      - 'ops/triggers/core-market-heartbeat'
+      - 'scripts/core-board-snapshot-ops.mjs'
+      - 'scripts/core-market-pulse.mjs'
 permissions:
   contents: read
   issues: write
@@ -16,7 +23,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0

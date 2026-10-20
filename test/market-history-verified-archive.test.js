@@ -1,52 +1,140 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { archiveAndVerifyColdMarketHistory } from "../functions/lib/marketHistoryVerifiedArchive.js";
+import {
+  archiveAndVerifyColdMarketHistory,
+  NORMALIZED_MARKET_OBSERVATION_COLUMNS,
+  projectObservationForArchive,
+  verifyFullRecordRestore,
+  assertFullColumnCoverage,
+  ARCHIVE_ELIGIBILITY_MS_DEFAULT,
+} from "../functions/lib/marketHistoryVerifiedArchive.js";
 import { MARKET_HISTORY_HOT_WINDOW_MS } from "../functions/lib/databaseTopology.js";
 import { sha256Hex } from "../functions/lib/sha256Hex.js";
 
-test("verified archive dry-run never deletes and produces content hash plan", async () => {
+function fullRow(overrides = {}) {
+  const row = {};
+  for (const col of NORMALIZED_MARKET_OBSERVATION_COLUMNS) row[col] = null;
+  Object.assign(row, {
+    id: "cold-1",
+    observation_key: "k1",
+    source: "Polymarket US WebSocket",
+    source_type: "websocket",
+    sport: "nhl",
+    league: "NHL",
+    canonical_event_id: "e1",
+    provider_event_id: "prov-e1",
+    market_family: "moneyline",
+    side: "home",
+    contract_price: 0.55,
+    snapshot_type: "CURRENT",
+    decision_eligible: 0,
+    can_qualify: 1,
+    can_authorize_wager: 1,
+    raw_payload_json: "{\"x\":1}",
+    raw_payload_hash: "abc",
+    created_at: "2026-10-19T10:00:00.000Z",
+    model_id: "research-v1",
+    model_version: "research-v1.2",
+    ...overrides,
+  });
+  return row;
+}
+
+test("schema exports exactly 50 observation columns", () => {
+  assert.equal(NORMALIZED_MARKET_OBSERVATION_COLUMNS.length, 50);
+  assert.ok(NORMALIZED_MARKET_OBSERVATION_COLUMNS.includes("provider_event_id"));
+  assert.ok(NORMALIZED_MARKET_OBSERVATION_COLUMNS.includes("model_version"));
+  assert.ok(NORMALIZED_MARKET_OBSERVATION_COLUMNS.includes("raw_payload_hash"));
+  assert.ok(NORMALIZED_MARKET_OBSERVATION_COLUMNS.includes("created_at"));
+});
+
+test("full-record restore proves every column including audit fields", () => {
+  const source = fullRow({ collected_at: "2026-10-19T10:00:00.000Z" });
+  const archived = projectObservationForArchive(source);
+  const coverage = assertFullColumnCoverage(archived);
+  assert.equal(coverage.ok, true);
+  assert.equal(coverage.missing.length, 0);
+  const proof = verifyFullRecordRestore(source, archived);
+  assert.equal(proof.ok, true);
+  assert.equal(archived.can_authorize_wager, 0);
+  assert.equal(archived.provider_event_id, "prov-e1");
+  assert.equal(archived.model_version, "research-v1.2");
+});
+
+test("verified archive dry-run never deletes, checkpoints, and preserves all columns", async () => {
   const now = new Date("2026-10-20T12:00:00Z");
-  const coldAt = new Date(now.getTime() - MARKET_HISTORY_HOT_WINDOW_MS - 3600000).toISOString();
+  const coldAt = new Date(now.getTime() - ARCHIVE_ELIGIBILITY_MS_DEFAULT - 3600000).toISOString();
   const store = new Map();
+  const checkpoint = { writes: [] };
+  const rowsPage1 = [
+    fullRow({ id: "a1", collected_at: coldAt, created_at: coldAt }),
+    fullRow({ id: "a2", collected_at: coldAt, created_at: coldAt, provider_event_id: "prov-e2" }),
+  ];
+
   const env = {
     MARKET_HISTORY_2026Q4_DB: {
       prepare(sql) {
-        if (String(sql).includes("FROM normalized_market_observations")) {
+        const s = String(sql);
+        if (s.includes("CREATE TABLE IF NOT EXISTS fbis_market_history_archive_checkpoint")) {
+          return { async run() { return { success: true }; } };
+        }
+        if (s.includes("FROM fbis_market_history_archive_checkpoint")) {
           return {
             bind() {
               return {
-                async all() {
-                  return {
-                    results: [{
-                      id: "cold-1",
-                      observation_key: "k1",
-                      source: "Polymarket US WebSocket",
-                      sport: "nhl",
-                      canonical_event_id: "e1",
-                      market_family: "moneyline",
-                      side: "home",
-                      line: null,
-                      period: "full_game",
-                      contract_price: 0.55,
-                      decimal_odds: null,
-                      american_odds: null,
-                      source_market_id: "m",
-                      source_outcome_id: "o",
-                      source_observed_at: coldAt,
-                      collected_at: coldAt,
-                      snapshot_type: "CURRENT",
-                      raw_payload_json: "{}",
-                      execution_eligible: 0,
-                      can_qualify: 0,
-                      can_authorize_wager: 0,
-                    }],
-                  };
+                async first() {
+                  return null;
                 },
               };
             },
           };
         }
-        return { async all() { return { results: [] }; } };
+        if (s.includes("INSERT INTO fbis_market_history_archive_checkpoint")) {
+          return {
+            bind(...args) {
+              return {
+                async run() {
+                  checkpoint.writes.push(args);
+                  return { success: true };
+                },
+              };
+            },
+          };
+        }
+        if (s.includes("COUNT(*)")) {
+          return {
+            bind() {
+              return {
+                async first() {
+                  return { n: 2 };
+                },
+              };
+            },
+          };
+        }
+        if (s.includes("FROM normalized_market_observations")) {
+          return {
+            bind() {
+              return {
+                async all() {
+                  return { results: rowsPage1 };
+                },
+              };
+            },
+          };
+        }
+        return {
+          async all() { return { results: [] }; },
+          async run() { return { success: true }; },
+          async first() { return null; },
+          bind() {
+            return {
+              async all() { return { results: [] }; },
+              async run() { return { success: true }; },
+              async first() { return null; },
+            };
+          },
+        };
       },
     },
     ARCHIVE: {
@@ -59,26 +147,128 @@ test("verified archive dry-run never deletes and produces content hash plan", as
     },
   };
 
-  const dry = await archiveAndVerifyColdMarketHistory(env, { now, archiveWrites: false });
+  const dry = await archiveAndVerifyColdMarketHistory(env, {
+    now,
+    archiveWrites: false,
+    limit: 100,
+    maxRounds: 1,
+    eligibilityMs: ARCHIVE_ELIGIBILITY_MS_DEFAULT,
+  });
   assert.equal(dry.ok, true);
   assert.equal(dry.dryRun, true);
-  assert.equal(dry.archived, 1);
+  assert.equal(dry.archived, 2);
+  assert.equal(dry.columnCount, 50);
   assert.equal(dry.deletion, "NOT_PERFORMED_REQUIRES_RETENTION_GATE");
   assert.equal(dry.retentionReleaseAuthorized, false);
+  assert.equal(dry.fullColumnRestore.ok, true);
   assert.equal(store.size, 0);
+  assert.ok(dry.hotWindowMs === MARKET_HISTORY_HOT_WINDOW_MS);
 
   const written = await archiveAndVerifyColdMarketHistory(env, {
     now,
     archiveWrites: true,
     verifyReadback: true,
+    limit: 100,
+    maxRounds: 1,
+    eligibilityMs: ARCHIVE_ELIGIBILITY_MS_DEFAULT,
   });
   assert.equal(written.ok, true);
   assert.equal(written.readbackVerified, true);
-  assert.equal(written.contentSha256, written.readbackSha256);
+  assert.equal(written.contentSha256, written.batches[0].contentSha256);
   assert.equal(written.contentSha256.length, 64);
   assert.ok(store.has(written.objectKey));
-  assert.ok(store.has(written.manifestKey));
+  assert.equal(written.fullColumnRestore.ok, true);
+  assert.equal(written.checkpoint.lastId, "a2");
+  assert.ok(checkpoint.writes.length >= 1);
+
   const body = JSON.parse(store.get(written.objectKey));
+  assert.equal(body.columnCount, 50);
+  assert.equal(body.columns.length, 50);
   assert.equal(body.observations[0].can_authorize_wager, 0);
+  assert.equal(body.observations[0].provider_event_id, "prov-e1");
+  assert.equal(body.observations[0].model_version, "research-v1.2");
+  assert.equal(body.observations[0].raw_payload_hash, "abc");
   assert.equal(sha256Hex(store.get(written.objectKey)), written.contentSha256);
+});
+
+test("checkpoint resume skips already-archived rows", async () => {
+  const now = new Date("2026-10-20T12:00:00Z");
+  const coldAt = new Date(now.getTime() - ARCHIVE_ELIGIBILITY_MS_DEFAULT - 3600000).toISOString();
+  let selectBinds = [];
+  const env = {
+    MARKET_HISTORY_2026Q4_DB: {
+      prepare(sql) {
+        const s = String(sql);
+        if (s.includes("CREATE TABLE IF NOT EXISTS fbis_market_history_archive_checkpoint")) {
+          return { async run() { return { success: true }; } };
+        }
+        if (s.includes("FROM fbis_market_history_archive_checkpoint")) {
+          return {
+            bind() {
+              return {
+                async first() {
+                  return {
+                    last_collected_at: coldAt,
+                    last_id: "a1",
+                    archived_total: 1,
+                    last_batch_at: coldAt,
+                    last_object_key: "k",
+                    last_content_sha256: "x",
+                    last_backlog: 1,
+                  };
+                },
+              };
+            },
+          };
+        }
+        if (s.includes("COUNT(*)")) {
+          return { bind() { return { async first() { return { n: 1 }; } }; } };
+        }
+        if (s.includes("FROM normalized_market_observations")) {
+          return {
+            bind(...args) {
+              selectBinds = args;
+              return {
+                async all() {
+                  // Only return rows after cursor a1
+                  return {
+                    results: [fullRow({ id: "a2", collected_at: coldAt, created_at: coldAt })],
+                  };
+                },
+              };
+            },
+          };
+        }
+        if (s.includes("INSERT INTO fbis_market_history_archive_checkpoint")) {
+          return { bind() { return { async run() { return { success: true }; } }; } };
+        }
+        return {
+          bind() {
+            return {
+              async all() { return { results: [] }; },
+              async run() { return { success: true }; },
+              async first() { return null; },
+            };
+          },
+        };
+      },
+    },
+    ARCHIVE: {
+      async put() { return; },
+      async get() { return null; },
+    },
+  };
+
+  const result = await archiveAndVerifyColdMarketHistory(env, {
+    now,
+    archiveWrites: false,
+    resume: true,
+    limit: 10,
+    maxRounds: 1,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.archived, 1);
+  // bind: cutoff, cursorAt, cursorAt, cursorId, cursorAt, cursorId, limit
+  assert.equal(selectBinds[3], "a1");
+  assert.equal(result.checkpoint.lastId, "a2");
 });
