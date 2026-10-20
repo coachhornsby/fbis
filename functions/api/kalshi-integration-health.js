@@ -52,6 +52,7 @@ export async function kalshiIntegrationHealth(env,{now=new Date()}={}){
   ok:true,provider:"Kalshi",observedAt:now.toISOString(),
   collector:{
     state:collector?.status||"NOT_STARTED",
+    authenticationMode:collector?.authenticationMode||"UNVERIFIED",
     lastAttemptAt:collector?.attemptedAt||null,
     lastSport:collector?.sport||null,lastCode:collector?.code||null,
     upstreamHttpStatus:collector?.httpStatus||null,

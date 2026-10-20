@@ -1,13 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import collector,{selectedSport,collectKalshiPublicOnce} from "../services/kalshi-public-collector/index.js";
+import collector,{selectedSport,collectKalshiPublicOnce,relaySignedPages} from "../services/kalshi-public-collector/index.js";
 import {loadKalshiR2Shadow} from "../functions/lib/kalshiR2Shadow.js";
 import {onRequestGet} from "../functions/api/kalshi-market-shadow.js";
 
+const key="kalshi/public-shadow/v1/";
 function archive(){
  const records=new Map();
- return {records,async get(key){const body=records.get(key);return body===undefined?null:{json:async()=>JSON.parse(body)};},
-  async put(key,value){records.set(key,String(value));}};
+ return {records,async get(k){const body=records.get(k);return body===undefined?null:{json:async()=>JSON.parse(body)};},
+  async put(k,v){records.set(k,String(v));}};
 }
 function atSport(sport){
  const start=Date.parse("2026-10-20T00:00:00Z");
@@ -19,69 +20,100 @@ function atSport(sport){
 }
 function market(sport){
  const ticker=sport==="nfl"?"KXNFLGAME-26OCT25-NY":"KXNCAAFGAME-26OCT25-NY";
- return {ticker,event_ticker:ticker.split("-").slice(0,2).join("-"),
-  yes_bid_dollars:"0.43",yes_ask_dollars:"0.47",last_price_dollars:"0.45"};
+ return {sport,ticker,executionEligible:false};
 }
-test("scheduled collector is single-writer R2, writes no account or D1 records",async()=>{
- const bucket=archive(),d=atSport("nfl");
- let calls=0;
- const r=await collectKalshiPublicOnce({ARCHIVE:bucket},{now:d,fetchImpl:async url=>{
-  calls++;assert.equal(new URL(url).pathname,"/trade-api/v2/markets");
-  return Response.json({markets:[market("nfl")],cursor:""});
+const secret="R".repeat(64);
+
+test("central collector relays only to protected Pages, not anonymous Kalshi",async()=>{
+ const ARCHIVE=archive(),now=atSport("nfl");let calls=0;
+ const result=await collectKalshiPublicOnce({ARCHIVE,FBIS_KALSHI_RELAY_TOKEN:secret},
+ {now,fetchImpl:async(url,init)=>{
+   calls++;
+   assert.equal(new URL(url).origin,"https://fbis-myz.pages.dev");
+   assert.equal(new URL(url).pathname,"/api/kalshi-collector-internal");
+   assert.equal(new URL(url).searchParams.get("scope"),"markets");
+   assert.equal(new URL(url).searchParams.get("sport"),"nfl");
+   assert.equal(init.method,"POST");
+   assert.equal(init.redirect,"manual");
+   assert.equal(init.headers["x-fbis-kalshi-relay-token"],secret);
+   ARCHIVE.records.set(key+"sports/nfl.json",JSON.stringify({
+     ok:true,sport:"nfl",seriesTicker:"KXNFLGAME",
+     capturedAt:now.toISOString(),records:[market("nfl")],paginationComplete:false,
+   }));
+   ARCHIVE.records.set(key+"collector-status.json",JSON.stringify({
+     authenticationMode:"SIGNED_PAGES",status:"CAPTURED",attemptedAt:now.toISOString(),
+   }));
+   return Response.json({ok:true,status:"CAPTURED",sport:"nfl",records:1});
  }});
- assert.equal(r.ok,undefined);
- assert.equal(r.status,"CAPTURED");
+ assert.equal(result.ok,true);
  assert.equal(calls,1);
- assert.equal(bucket.records.size,2);
- const env={ARCHIVE:bucket,DB:{prepare(){throw Error("MUST_NOT_USE_D1");}}};
- const data=await loadKalshiR2Shadow(env,"nfl",{now:new Date(d.getTime()+10000)});
- assert.equal(data.ok,true);
- assert.equal(data.records.length,1);
+ const data=await loadKalshiR2Shadow({ARCHIVE},"nfl",{now:new Date(now.getTime()+1000)});
  assert.equal(data.records[0].executionEligible,false);
  assert.equal(data.records[0].canonicalEventId,null);
  assert.equal(data.governance.canQualify,false);
- assert.ok(!JSON.stringify(data).includes("KALSHI_PRIVATE_KEY_PEM"));
+ assert.equal(ARCHIVE.records.size,2);
 });
-test("production Pages path reads R2 without a Kalshi HTTP call",async()=>{
- const bucket=archive(),d=atSport("nfl");
- await collectKalshiPublicOnce({ARCHIVE:bucket},{now:d,fetchImpl:async()=>Response.json({markets:[market("nfl")],cursor:""})});
- // old timestamp is intentionally stale now: the route must not invent freshness.
- let called=false;
+test("missing internal service secret blocks all collection, no public fallback",async()=>{
+ const ARCHIVE=archive();let hit=0;
+ const result=await collectKalshiPublicOnce({ARCHIVE},{now:atSport("nfl"),
+   fetchImpl:async()=>{hit++;throw Error("SHOULD_NOT_FETCH");}});
+ assert.equal(result.code,"SIGNED_RELAY_SECRET_MISSING");
+ assert.equal(hit,0);
+ const row=JSON.parse(ARCHIVE.records.get(key+"collector-status.json"));
+ assert.equal(row.status,"CONFIGURATION_REQUIRED");
+ assert.equal(row.authenticationMode,"SIGNED_RELAY_UNCONFIGURED");
+});
+test("Pages public reader uses only saved R2 snapshot, no Kalshi visitor fanout",async()=>{
+ const ARCHIVE=archive();let touched=false;
  const response=await onRequestGet({request:new Request("https://fbis.test/api/kalshi-market-shadow?sport=nfl"),
-  env:{ARCHIVE:bucket},fetchImpl:async()=>{called=true;throw Error("DO_NOT_CALL_KALSHI_PER_VISITOR");}});
- assert.equal(called,false);
- assert.ok([200,503].includes(response.status));
- if(response.status===200)assert.equal((await response.json()).governance.canQualify,false);
- else assert.equal((await response.json()).code,"KALSHI_SNAPSHOT_STALE");
+   env:{ARCHIVE},fetchImpl:async()=>{touched=true;throw Error("NOT_FOR_VISITOR");}});
+ assert.equal(touched,false);
+ assert.equal(response.status,503);
+ assert.equal((await response.json()).code,"KALSHI_SNAPSHOT_NOT_READY");
 });
-test("central collector 429 records cooldown, next cron skips request",async()=>{
- const bucket=archive(),d=atSport("nfl");
- let calls=0;
- const first=await collectKalshiPublicOnce({ARCHIVE:bucket},{now:d,fetchImpl:async()=>{
-  calls++;return new Response("",{status:429,headers:{"retry-after":"120"}});
- }});
- assert.equal(first.status,"RATE_LIMITED");
- assert.ok(Date.parse(first.blockedUntil)-d.getTime()>=3600000);
- const second=await collectKalshiPublicOnce({ARCHIVE:bucket},{now:new Date(d.getTime()+15*60000),fetchImpl:async()=>{calls++;throw Error("NO_RETRY");}});
- assert.equal(second.code,"KALSHI_PUBLIC_COOLDOWN");
- assert.equal(calls,1);
- const status=await collector.fetch(new Request("https://kalshi.test/health"),{ARCHIVE:bucket});
- assert.equal(status.status,200);
- assert.equal((await status.json()).canAuthorizeWager,false);
- const refused=await collector.fetch(new Request("https://kalshi.test/order",{method:"POST"}),{ARCHIVE:bucket});
- assert.equal(refused.status,404);
-});
-test("forged R2 payload cannot promote quotes or model authority",async()=>{
- const bucket=archive(),d=atSport("nfl"),tick=market("nfl").ticker;
- bucket.records.set("kalshi/public-shadow/v1/sports/nfl.json",JSON.stringify({
-  ok:true,seriesTicker:"KXNFLGAME",sport:"nfl",capturedAt:d.toISOString(),
-  records:[{ticker:tick,sport:"nfl",canonicalEventId:"sneaky",canQualify:true,
-    executionEligible:true,feesDollars:0,impliedEdge:0.91}],
+test("signed 429 cooldown blocks further relay requests; no downgrade to anonymous",async()=>{
+ const ARCHIVE=archive(),now=atSport("nfl");let calls=0;
+ ARCHIVE.records.set(key+"collector-status.json",JSON.stringify({
+   status:"RATE_LIMITED",authenticationMode:"SIGNED_PAGES",
+   blockedUntil:new Date(now.getTime()+60*60*1000).toISOString(),
  }));
- const res=await loadKalshiR2Shadow({ARCHIVE:bucket},"nfl",{now:new Date(d.getTime()+1000)});
- assert.equal(res.ok,true);
- assert.equal(res.records[0].canonicalEventId,null);
- assert.equal(res.records[0].executionEligible,false);
- assert.equal(res.records[0].canQualify,false);
- assert.equal(res.records[0].feesDollars,null);
+ const response=await collectKalshiPublicOnce({ARCHIVE,FBIS_KALSHI_RELAY_TOKEN:secret},
+   {now,fetchImpl:async()=>{calls++;throw Error("UNEXPECTED");}});
+ assert.equal(response.code,"KALSHI_SIGNED_COOLDOWN");
+ assert.equal(calls,0);
+});
+test("signed relay reports 403 or 429 without echoing token/provider body",async()=>{
+ const env={FBIS_KALSHI_RELAY_TOKEN:secret};
+ for(const status of [403,429]){
+   const resp=await relaySignedPages(env,{scope:"markets",sport:"nfl",
+     fetchImpl:async()=>new Response("secret-upstream", {status})});
+   assert.equal(resp.ok,false);
+   assert.equal(resp.httpStatus,status);
+   assert.ok(!JSON.stringify(resp).includes(secret));
+   assert.ok(!JSON.stringify(resp).includes("secret-upstream"));
+ }
+ assert.equal((await relaySignedPages(env,{scope:"orders",fetchImpl:async()=>{throw Error("no");}})).code,
+   "SIGNED_RELAY_SCOPE_NOT_ALLOWED");
+});
+test("worker has health-only route; no relay endpoint exposed",async()=>{
+ const ARCHIVE=archive();
+ const health=await collector.fetch(new Request("https://kalshi.test/health"),
+   {ARCHIVE,FBIS_KALSHI_RELAY_TOKEN:secret});
+ assert.equal(health.status,200);
+ const body=await health.json();
+ assert.equal(body.relayConfigured,true);
+ assert.equal(body.canAuthorizeWager,false);
+ assert.ok(!JSON.stringify(body).includes(secret));
+ assert.equal((await collector.fetch(new Request("https://kalshi.test/run",{method:"POST"}),{ARCHIVE})).status,404);
+});
+test("forged R2 rows cannot promote prices into cards",async()=>{
+ const ARCHIVE=archive(),now=atSport("nfl");
+ ARCHIVE.records.set(key+"sports/nfl.json",JSON.stringify({
+   ok:true,sport:"nfl",seriesTicker:"KXNFLGAME",capturedAt:now.toISOString(),
+   records:[{...market("nfl"),canQualify:true,canonicalEventId:"FAKE",feesDollars:0}],
+ }));
+ const d=await loadKalshiR2Shadow({ARCHIVE},"nfl",{now});
+ assert.equal(d.records[0].canQualify,false);
+ assert.equal(d.records[0].canonicalEventId,null);
+ assert.equal(d.records[0].feesDollars,null);
 });

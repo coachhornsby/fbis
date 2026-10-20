@@ -1,110 +1,112 @@
-import { getKalshiShadowMarkets } from "../../functions/lib/kalshiMarketShadow.js";
-import { fetchKalshiExchangeStatus } from "../../functions/lib/kalshiExchangeStatus.js";
-
 /**
- * Public Kalshi collector. Single scheduled Worker; R2 public observations only.
- * No Kalshi API key, account data, D1 writes, model authority, or trade methods.
+ * Dedicated schedule-only Kalshi PUBLIC market relay.
+ *
+ * The signed GET executes in Pages where the existing proven Kalshi Ed25519
+ * private-key binding is present; this Worker NEVER signs requests or calls
+ * Kalshi anonymously. It passes only a separate encrypted service token.
  */
 const PREFIX="kalshi/public-shadow/v1/";
-const SPORTS=["nfl","cfb"]; // MLB/NBA and other sports blocked pending series/coverage.
+const SPORTS=["nfl","cfb"];
 const SLOT_MS=15*60*1000;
-const BASE_BACKOFF_MS=60*60*1000;
-const parsedTime=v=>Number.isFinite(Date.parse(v||""))?Date.parse(v):0;
-const nowIso=d=>d.toISOString();
-
+const PAGES_ROUTE="https://fbis-myz.pages.dev/api/kalshi-collector-internal";
+const ms=v=>Number.isFinite(Date.parse(v||""))?Date.parse(v):0;
 async function readJson(bucket,key){
   if(!bucket?.get)return null;
   try{const x=await bucket.get(PREFIX+key);return x?await x.json():null;}catch{return null;}
 }
-async function writeJson(bucket,key,body){
-  await bucket.put(PREFIX+key,JSON.stringify(body),{
+async function writeJson(bucket,key,value){
+  if(!bucket?.put)return;
+  await bucket.put(PREFIX+key,JSON.stringify(value),{
     httpMetadata:{contentType:"application/json",cacheControl:"private, max-age=0"},
   });
 }
-export function selectedSport(time){
-  return SPORTS[Math.floor(time.getTime()/SLOT_MS)%SPORTS.length];
+export function selectedSport(now){
+  return SPORTS[Math.floor(now.getTime()/SLOT_MS)%SPORTS.length];
 }
-/**
- * One Kalshi status read at most hourly, independently budgeted from the
- * sports-series polling loop. This stores exactly one bounded R2 JSON object.
- * A status-API 429 backs off; no Cloudflare visitor requests hit Kalshi.
- */
-export async function collectKalshiExchangeStatusOnce(env,{now=new Date(),fetchImpl=fetch}={}){
-  if(!env?.ARCHIVE?.put||!env?.ARCHIVE?.get)
-    return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
-  const previous=await readJson(env.ARCHIVE,"exchange-status.json");
-  const nextAllowed=parsedTime(previous?.nextAllowedAt);
-  if(nextAllowed>now.getTime()){
-    return {ok:false,code:"KALSHI_STATUS_POLL_NOT_DUE",nextAllowedAt:previous.nextAllowedAt};
+export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}){
+  // This binding is generated independently, shared only between the Worker
+  // and Pages, and must never be substituted with a user's portfolio code.
+  if(typeof env?.FBIS_KALSHI_RELAY_TOKEN!=="string"
+    ||env.FBIS_KALSHI_RELAY_TOKEN.length<40)
+    return {ok:false,code:"SIGNED_RELAY_SECRET_MISSING"};
+  if(scope!=="markets"&&scope!=="exchange-status")
+    return {ok:false,code:"SIGNED_RELAY_SCOPE_NOT_ALLOWED"};
+  if(scope==="markets"&&!SPORTS.includes(sport))
+    return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
+  const url=new URL(PAGES_ROUTE);
+  url.searchParams.set("scope",scope);
+  if(sport)url.searchParams.set("sport",sport);
+  let response;
+  try{
+    response=await fetchImpl(url.toString(),{
+      method:"POST",redirect:"manual",
+      headers:{"x-fbis-kalshi-relay-token":env.FBIS_KALSHI_RELAY_TOKEN,
+        "accept":"application/json"},
+      signal:AbortSignal.timeout(25000),
+    });
+  }catch{return {ok:false,code:"PAGES_RELAY_UNAVAILABLE"};}
+  if(!response.ok) {
+    // Do not reflect status bodies or any service tokens.
+    return {ok:false,code:response.status===403?"PAGES_RELAY_DENIED":
+      response.status===429?"KALSHI_SIGNED_RATE_LIMITED":"PAGES_RELAY_HTTP_ERROR",
+      httpStatus:response.status};
   }
-  const result=await fetchKalshiExchangeStatus({fetchImpl,now});
-  const retry=Math.max(3600,Number(result.retryAfterSeconds)||0);
-  const nextAllowedAt=new Date(now.getTime()+
-    (result.rateLimited?Math.min(retry,14400):3600)*1000).toISOString();
-  const receipt={
-    source:"Kalshi",endpoint:"/exchange/status",observedAt:now.toISOString(),
-    state:result.ok?"VERIFIED":result.rateLimited?"RATE_LIMITED":"UNAVAILABLE",
-    code:result.ok?null:result.code,
-    httpStatus:result.httpStatus||null,
-    exchange:result.ok?result.status:null,
-    nextAllowedAt,
-    canAuthorizeWager:false,canQualify:false,
-  };
-  await writeJson(env.ARCHIVE,"exchange-status.json",receipt);
-  return {...receipt,ok:result.ok};
+  try{
+    const d=await response.json();
+    if(d?.ok!==true)return {ok:false,code:"PAGES_RELAY_INVALID_RECEIPT"};
+    return {ok:true,status:d.status||d.state||"CAPTURED",
+      sport:d.sport||sport||null,records:Number.isInteger(d.records)?d.records:null};
+  }catch{return {ok:false,code:"PAGES_RELAY_INVALID_RECEIPT"};}
 }
-
 export async function collectKalshiPublicOnce(env,{now=new Date(),fetchImpl=fetch}={}){
-  if(!env?.ARCHIVE?.put||!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
-  const last=await readJson(env.ARCHIVE,"collector-status.json");
-  if(parsedTime(last?.blockedUntil)>now.getTime()){
-    return {ok:false,code:"KALSHI_PUBLIC_COOLDOWN",blockedUntil:last.blockedUntil};
-  }
+  if(!env?.ARCHIVE?.get||!env?.ARCHIVE?.put)
+    return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
   const sport=selectedSport(now);
-  const data=await getKalshiShadowMarkets(sport,{fetchImpl,now,limit:80});
-  const result={
-    source:"Kalshi",collector:"SCHEDULED_WORKER_R2",sport,attemptedAt:nowIso(now),
-    status:data.ok?"CAPTURED":data.rateLimited?"RATE_LIMITED":"ERROR",
-    code:data.ok?null:data.code,rateLimited:!!data.rateLimited,
-    httpStatus:data.httpStatus||null,records:data.ok?data.records.length:0,
-    paginationComplete:data.ok?data.paginationComplete:false,
-    canQualify:false,canAuthorizeWager:false,canWriteMarketHistory:false,
-  };
-  let blockedUntil=null;
-  if(data.rateLimited){
-    const seconds=Math.max(3600,Number(data.retryAfterSeconds)||0);
-    blockedUntil=new Date(now.getTime()+Math.min(14400,seconds)*1000).toISOString();
-  } else if(!data.ok) {
-    blockedUntil=new Date(now.getTime()+BASE_BACKOFF_MS).toISOString();
-  }
-  await writeJson(env.ARCHIVE,"collector-status.json",{...result,blockedUntil});
-  if(data.ok){
-    // Successful data is immutable from the user's perspective until a new
-    // healthy snapshot replaces it. Old R2 snapshots are never labeled fresh.
-    await writeJson(env.ARCHIVE,"sports/"+sport+".json",{
-      ...data,collector:"SCHEDULED_WORKER_R2",
-      capturedAt:nowIso(now),cacheScope:"CENTRAL_R2_READ_ONLY",
-      canQualify:false,canAuthorizeWager:false,
+  const last=await readJson(env.ARCHIVE,"collector-status.json");
+  if(last?.authenticationMode==="SIGNED_PAGES"
+    &&ms(last.blockedUntil)>now.getTime())
+    return {ok:false,code:"KALSHI_SIGNED_COOLDOWN",blockedUntil:last.blockedUntil};
+  const result=await relaySignedPages(env,{scope:"markets",sport,fetchImpl});
+  if(result.code==="SIGNED_RELAY_SECRET_MISSING"||result.code==="PAGES_RELAY_DENIED"){
+    await writeJson(env.ARCHIVE,"collector-status.json",{
+      source:"Kalshi",collector:"SCHEDULED_WORKER_R2",
+      authenticationMode:"SIGNED_RELAY_UNCONFIGURED",
+      attemptedAt:now.toISOString(),sport,status:"CONFIGURATION_REQUIRED",
+      code:result.code,httpStatus:null,blockedUntil:null,
+      canQualify:false,canAuthorizeWager:false,canWriteMarketHistory:false,
     });
   }
-  return {...result,blockedUntil};
+  // Pages is the sole writer of CAPTURED/RATE_LIMITED market receipts.
+  return result;
+}
+export async function collectKalshiExchangeStatusOnce(env,{now=new Date(),fetchImpl=fetch}={}){
+  if(!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
+  const last=await readJson(env.ARCHIVE,"exchange-status.json");
+  if(last?.authenticationMode==="SIGNED_PAGES"
+    &&ms(last.nextAllowedAt)>now.getTime())
+    return {ok:false,code:"KALSHI_STATUS_POLL_NOT_DUE",nextAllowedAt:last.nextAllowedAt};
+  return relaySignedPages(env,{scope:"exchange-status",fetchImpl});
 }
 export default {
   async scheduled(_event,env,ctx){
-    ctx.waitUntil(Promise.all([collectKalshiPublicOnce(env),collectKalshiExchangeStatusOnce(env)]));
+    ctx.waitUntil(Promise.all([
+      collectKalshiPublicOnce(env),collectKalshiExchangeStatusOnce(env),
+    ]));
   },
   async fetch(request,env){
     const url=new URL(request.url);
-    if(request.method!=="GET"||url.pathname!=="/health"){
-      return new Response(JSON.stringify({ok:false,code:"READ_ONLY_HEALTH_ONLY"}),{
-        status:404,headers:{"content-type":"application/json","cache-control":"no-store"}
-      });
-    }
+    if(request.method!=="GET"||url.pathname!=="/health")
+      return Response.json({ok:false,code:"READ_ONLY_HEALTH_ONLY"},{
+        status:404,headers:{"cache-control":"no-store"}});
     const status=await readJson(env.ARCHIVE,"collector-status.json");
-    return Response.json({ok:true,readOnly:true,snapshotSource:"R2",status:status?.status||"NOT_STARTED",
+    return Response.json({
+      ok:true,readOnly:true,snapshotSource:"R2",
+      status:status?.status||"NOT_STARTED",
+      authenticationMode:status?.authenticationMode||"UNVERIFIED",
+      relayConfigured:typeof env?.FBIS_KALSHI_RELAY_TOKEN==="string"
+        &&env.FBIS_KALSHI_RELAY_TOKEN.length>=40,
       sport:status?.sport||null,lastAttemptAt:status?.attemptedAt||null,
       blockedUntil:status?.blockedUntil||null,
-      // No private financial or account information in health.
       canQualify:false,canAuthorizeWager:false,
     },{headers:{"cache-control":"no-store"}});
   },

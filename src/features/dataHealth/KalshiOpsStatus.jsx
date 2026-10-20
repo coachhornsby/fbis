@@ -74,6 +74,7 @@ export default function KalshiOpsStatus(){
             <span>Scheduled collector</span>
             <strong>{statusText(result.collector?.state)}</strong>
             <small>Last attempt: {when(result.collector?.lastAttemptAt)}</small>
+            <small>Market access: {statusText(result.collector?.authenticationMode||"UNVERIFIED")}</small>
           </article>
           <article>
             <span>Kalshi exchange · hourly snapshot</span>

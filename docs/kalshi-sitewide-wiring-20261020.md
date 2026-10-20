@@ -168,3 +168,32 @@ Interpretation:
 - Anonymous 403 + signed 200: edge or anonymous access restriction; authenticated scheduled collector may be viable after explicit credentials scoping.
 - Signed 401/403: reject key/signature/entitlement for market GET despite portfolio balance access.
 - Both 200: collection query works from Pages execution; investigate differences between scheduled Worker and Pages egress, connector coverage and downstream data parsing.
+
+## 13. Authenticated market-data relay — signed Pages, Worker scheduler
+The operator's production diagnostic at 07:29 CT, October 20, 2026, established that
+`GET /trade-api/v2/markets?series_ticker=KXNFLGAME&status=open&limit=1&mve_filter=exclude`
+returns **429 anonymously** and **200 with the existing signed Pages credentials**.
+The HTTP 200 confirms connectivity, not correctness of prices or full market coverage.
+
+Architecture: the public scheduled Worker sends a POST to one protected Pages endpoint,
+`/api/kalshi-collector-internal?scope=markets&sport=nfl|cfb`, using a unique
+randomly provisioned `FBIS_KALSHI_RELAY_TOKEN` service secret. Pages already holds
+`KALSHI_API_KEY_ID` and `KALSHI_PRIVATE_KEY_PEM1`; only Pages signs the allowlisted
+`GET /markets` and `GET /exchange/status` requests. Signing uses the path without
+query parameters. The response is normalized to the existing shadow schema, and
+Pages writes ONLY public market observations and safe operational receipts to
+R2. The scheduler does not receive Kalshi headers, secrets or account information.
+No credentials are moved out of Pages.
+
+The signed market collector keeps a 15-minute global guard, applies an hourly
+backoff to signed HTTP 429 and preserves the existing NFL/CFB alternating
+15-minute schedule. Signed exchange status is sampled hourly, with its own
+rate budget. The Worker has no anonymous fallback; absent/mismatched service
+token is shown as `CONFIGURATION_REQUIRED` or relay denial, never as a
+provider quote. Neither path issues private portfolio calls or any trading POST.
+The internal route is POST-only, refuses unauthorized callers, strictly gates
+scope and sport, and cannot be used for arbitrary URLs. R2 market snapshots
+remain shadow-only (no CORE, quote-qualification, bets, history or settlement
+authority), including when the source returns HTTP 200. Production acceptance
+requires successful signed 80-row NFL and CFB captures, normalization, freshness
+and coverage checks. A successful mock CI job alone is insufficient.
