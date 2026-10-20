@@ -48,11 +48,17 @@ for(const slot of slots){
   const capture=await call('/api/pinnodds-capture',{operation:'capture',runId,...slot},{upstream:true});
   await writeFile(`artifacts/pinnodds-capture-${capture.snapshotId}.json`,JSON.stringify(capture,null,2));
   const prepared=await call('/api/pinnodds-ingest',{operation:'prepare',snapshotId:capture.snapshotId});
-  for(let batchIndex=0;batchIndex<prepared.batches;batchIndex++)await call('/api/pinnodds-ingest',{operation:'consume',snapshotId:capture.snapshotId,batchIndex});
+  let d1CapacityDegraded=false;
+  for(let batchIndex=0;batchIndex<prepared.batches;batchIndex++){
+   const consumed=await call('/api/pinnodds-ingest',{operation:'consume',snapshotId:capture.snapshotId,batchIndex});
+   if(consumed.d1CapacityDegraded)d1CapacityDegraded=true;
+  }
   const reconciled=await call('/api/pinnodds-ingest',{operation:'reconcile',snapshotId:capture.snapshotId});
-  await writeFile(`artifacts/pinnodds-result-${capture.snapshotId}.json`,JSON.stringify(reconciled,null,2));
+  await writeFile(`artifacts/pinnodds-result-${capture.snapshotId}.json`,JSON.stringify({...reconciled,d1CapacityDegraded:d1CapacityDegraded||reconciled.d1CapacityDegraded===true},null,2));
   if(slot.kind==='drops'&&capture.dropBufferComplete!==true)throw Error('PROVIDER_DROP_BUFFER_COMPLETENESS_UNVERIFIED');
-  results.push(reconciled);
+  // Board slots may reconcile via R2 modeled prices when MARKET_HISTORY_DB is full.
+  if(reconciled.ok!==true&&reconciled.reconciled!==true)throw Error(reconciled.error||'RECONCILIATION_FAILED');
+  results.push({...reconciled,d1CapacityDegraded:d1CapacityDegraded||reconciled.d1CapacityDegraded===true});
  }catch(error){errors.push({...slot,error:error.message});}
 }
 const summary={ok:errors.length===0,runId,scope,requestsReserved:reservation.requestsReserved,results,errors,
