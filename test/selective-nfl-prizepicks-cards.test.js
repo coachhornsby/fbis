@@ -18,7 +18,7 @@ test("PrizePicks market panel always shows headshot, PP/FBIS metrics, and last-5
   assert.match(panel, /function LastFiveBars/);
   assert.match(panel, /pp-card-last5/);
   assert.match(panel, /pp-premium-headshot/);
-  assert.match(panel, /PP LINE/);
+  assert.match(panel, /CONTRACT LINE/);
   assert.match(panel, /FBIS/);
   assert.match(panel, /usePlayerPropDetail\(r, true\)/);
   assert.doesNotMatch(panel, /<ZenPrizePicksLines/);

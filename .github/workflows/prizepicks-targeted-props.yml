@@ -1,32 +1,10 @@
-name: Zen PrizePicks all FBIS sports
+name: PrizePicks collector retired — exchange props only
 on:
-  schedule:
-    - cron: '55 11,19 * * *'
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: [scripts/restore-zen-prizepicks.mjs, functions/api/apify-acquire.js, functions/lib/propMarketPolicy.js, functions/api/prizepicks-reauthorize.js, .github/workflows/prizepicks-targeted-props.yml]
 permissions:
   contents: read
-concurrency:
-  group: fbis-prizepicks-single-daily-acquisition
-  cancel-in-progress: false
 jobs:
-  restore:
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      BASE: https://fbis-myz.pages.dev
-      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
-      - run: node scripts/restore-zen-prizepicks.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: zen-prizepicks-restoration-${{ github.run_id }}
-          path: artifacts/zen-prizepicks-restoration.json
+      - run: echo "PRIZEPICKS_COLLECTOR_RETIRED — player props use Kalshi and Polymarket. No paid launch."

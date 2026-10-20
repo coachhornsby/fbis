@@ -102,6 +102,6 @@ test("PrizePicks persistence retains separate prop model source and version line
   const workflow=fs.readFileSync(new URL("../.github/workflows/prizepicks-targeted-props.yml",import.meta.url),"utf8");
   assert.match(api,/raw_json,model_source,model_version/);
   assert.match(api,/s\(cand\?\.modelSource\),s\(cand\?\.modelVersion\)/);
-  assert.match(workflow,/restore-zen-prizepicks/);
-  assert.match(workflow,/fbis-prizepicks-single-daily-acquisition/);
+  assert.match(workflow,/PRIZEPICKS_COLLECTOR_RETIRED/);
+  assert.doesNotMatch(workflow,/cron:/);
 });

@@ -632,6 +632,8 @@ export default function App() {
           <div className="player-props-page">
             <PrizePicksMarketPanel
               sportFilter={playerPropsSport}
+              date={todayDate}
+              onDateChange={setTodayDate}
               onSportFilterChange={setPlayerPropsSport}
             />
           </div>

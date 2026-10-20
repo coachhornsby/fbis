@@ -121,17 +121,17 @@ test('provider reconciliation updates current usage, blocks exhaustion and never
  }finally{globalThis.fetch=original;}
 });
 
-test('operator PrizePicks reauthorization verifies provider headroom and never enables ACTION',async()=>{
+test('retired PrizePicks reauthorization never reads provider usage or changes policy',async()=>{
  const {onRequestPost}=await import('../functions/api/prizepicks-reauthorize.js');
  const {env,sql}=fixture({active:false});env.HARVEST_SECRET='secret';const original=globalThis.fetch,calls=[];
  const start=new Date(Date.now()-86400000).toISOString(),end=new Date(Date.now()+30*86400000).toISOString();
  try{
   globalThis.fetch=async(url,init)=>{calls.push({url,method:init?.method||'GET'});return new Response(JSON.stringify({data:{monthlyUsageCycle:{startAt:start,endAt:end},current:{monthlyUsageUsd:2.4},limits:{maxMonthlyUsageUsd:35}}}));};
   const request=()=>new Request('https://example.test/api/prizepicks-reauthorize',{method:'POST',headers:{'x-harvest-secret':'secret','content-type':'application/json'},body:JSON.stringify({operation:'reauthorize_prizepicks'})});
-  const response=await onRequestPost({env,request:request()});assert.equal(response.status,200);
+  const response=await onRequestPost({env,request:request()});assert.equal(response.status,410);
   assert.equal(sql.prepare("SELECT state FROM external_acquisition_policy WHERE source='prizepicks'").get().state,'ACTIVE');
-  assert.equal(sql.prepare("SELECT state FROM external_acquisition_policy WHERE source='action'").get().state,'BLOCKED');
-  assert.equal(sql.prepare("SELECT per_run_cap_usd FROM external_acquisition_policy WHERE source='prizepicks'").get().per_run_cap_usd,.70);
+  assert.equal(calls.length,0);
+  assert.equal(sql.prepare("SELECT per_run_cap_usd FROM external_acquisition_policy WHERE source='prizepicks'").get().per_run_cap_usd,2);
   assert.ok(calls.every(c=>c.method==='GET'&&c.url.endsWith('/users/me/limits')));
  }finally{globalThis.fetch=original;}
 });

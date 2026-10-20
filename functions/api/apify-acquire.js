@@ -1,4 +1,3 @@
-import { PRIZEPICKS_FBIS_SPORTS, sharedPrizePicksInput } from '../lib/propMarketPolicy.js';
 import { authorizeHarvest,unauthorizedBody } from '../lib/auth.js';
 import { startPaidAcquisition,captureAcquisitionRaw } from '../lib/externalAcquisition.js';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
@@ -20,21 +19,9 @@ export async function onRequestPost({request,env}){
    const rows=await d.json();
    try{return json({ok:true,...await captureAcquisitionRaw(env,{run,rows})});}catch{return json({ok:false,error:'RAW_CAPTURE_FAILED'},503);}
  }
+ if(body.source==='prizepicks')return json({ok:false,error:'PRIZEPICKS_EXECUTION_RETIRED_USE_EXCHANGE_PROPS'},410);
  if(body.source!=='prizepicks')return json({ok:false,error:'SOURCE_ROUTE_REQUIRED'},400);
- // Explicit shared scope: a single query covers subscribers, no paid league discovery.
- const now=new Date().toISOString(),until=new Date(Date.now()+8*86400000).toISOString();
- const placeholders=PRIZEPICKS_FBIS_SPORTS.map(()=>'?').join(',');
- const targets=(await env.DB.prepare(`SELECT g.id,g.sport FROM games g
- WHERE g.sport IN (${placeholders}) AND julianday(g.start)>julianday(?) AND julianday(g.start)<=julianday(?)
- AND EXISTS(SELECT 1 FROM prediction_snapshots p WHERE p.game_id=g.id AND p.sport=g.sport
- AND p.model_version IS NOT NULL AND (p.proj_total IS NOT NULL OR (p.proj_home IS NOT NULL AND p.proj_away IS NOT NULL))
- AND julianday(p.frozen_at)<=julianday(?) AND julianday(p.frozen_at)<julianday(g.start))`)
- .bind(...PRIZEPICKS_FBIS_SPORTS,now,until,now).all()).results||[];
- if(!targets.length)return json({ok:false,error:'NO_PROJECTED_FBIS_EVENTS'},409);
- // Team filters combine with AND in the provider: carrying NFL teams here
- // silently removes all other sports. League + modeled stat filters are shared.
- return startPaidAcquisition(env,{source:'prizepicks',component:'prizepicks-daily',sport:'all',
- input:sharedPrizePicksInput(targets.map(g=>String(g.id)))});
+
 }
 
 export async function onRequestGet({request,env}){

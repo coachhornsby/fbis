@@ -35,9 +35,9 @@ test("win chance is null without projection/line/sigma", () => {
 
 test("Board TopPlayerProps renders PrizePicks cards not a props table", () => {
   const src = fs.readFileSync("src/features/today/TopPlayerProps.jsx", "utf8");
-  assert.match(src, /PrizePicksStyleCard/);
-  assert.match(src, /selectTopPrizePicksCards/);
-  assert.match(src, /Demon\/Goblin/);
+  assert.match(src, /ExchangePlayerPropCard/);
+  assert.match(src, /exchange-player-props/);
+  assert.doesNotMatch(src, /Demon\/Goblin/);
   assert.match(src, /pp-card-grid pp-premium-grid/);
   assert.doesNotMatch(src, /fbis-table today-compact-table/);
   assert.doesNotMatch(src, /\bcompact\b/);
