@@ -14,6 +14,7 @@ import TodayView, { GameDetails } from "./TodayView.jsx";
 import HeritageImport from "./HeritageImport.jsx";
 import MyBetsView from "./MyBetsView.jsx";
 import { todayCT } from "../functions/lib/slateEngine.js";
+import { openingBoardDate } from "./lib/boardOpeningDate.js";
 import { buildPropConvictions } from "../functions/lib/propConviction.js";
 import { badgeLabel, badgeTone, deriveGlobalState, deriveViewState } from "./lib/healthState.js";
 import AppShell, { FeaturePlaceholder } from "./app/AppShell.jsx";
@@ -46,7 +47,7 @@ function readUrlState() {
   const resolvedTab = routeParam ? routeToLegacy(normalizedRoute, filter).tab : tab;
   return {
     tab: resolvedTab,
-    date: u.searchParams.get("date") || todayCT(),
+    date: openingBoardDate({ route: normalizedRoute, urlDate: u.searchParams.get("date"), currentDate: todayCT() }),
     sport,
     route: normalizedRoute,
     sportFilter: filter,
@@ -62,7 +63,8 @@ function writeUrlState({ tab, date, sport, route, sportFilter }) {
   if (boardSport) u.searchParams.set("sport", boardSport);
   if (route) u.searchParams.set("route", route);
   if (sportFilter) u.searchParams.set("sportFilter", sportFilter);
-  if (tab === "today" && date) u.searchParams.set("date", date);
+  // BOARD dates are ephemeral: bookmarked/old ?date= must not reopen October 5.
+  if (tab === "today" && route !== "board" && date) u.searchParams.set("date", date);
   else u.searchParams.delete("date");
   // Preserve visual QA fixture flag across tab/sport navigation.
   if (u.searchParams.get("boardQa") !== "1") u.searchParams.delete("boardQa");
@@ -150,6 +152,7 @@ export default function App() {
   const [cfbTeamsRefresh, setCfbTeamsRefresh] = useState(0);
   const boardRequestId = useRef(0);
   const todayRequestId = useRef(0);
+  const followBoardToday = useRef(true);
   const focusedTodayCache = useRef({ date: "", at: 0, results: [] });
   const trackRequestId = useRef(0);
 
@@ -347,9 +350,20 @@ export default function App() {
     writeUrlState({ tab, date: todayDate, sport, route, sportFilter });
   }, [tab, todayDate, sport, route, sportFilter]);
 
+  const onBoardDateChange = useCallback((nextDate) => {
+    if (!nextDate) return;
+    followBoardToday.current = nextDate === todayCT();
+    setTodayDate(nextDate);
+  }, []);
+
   const onRouteChange = useCallback((nextRoute) => {
     const normalized = normalizeRoute(nextRoute);
     setRoute(normalized);
+    if (normalized === "board") {
+      // Every new BOARD visit starts on Chicago today, regardless of the prior selection.
+      followBoardToday.current = true;
+      setTodayDate(todayCT());
+    }
     const legacy = routeToLegacy(normalized, sportFilter);
     setTab(legacy.tab);
     if (legacy.tab === "board") setSport(legacy.sport);
@@ -394,6 +408,17 @@ export default function App() {
             : "MY BETS");
     document.title = `FBIS · ${part}`;
   }, [route, tab, sport]);
+
+  useEffect(() => {
+    if (tab !== "today" || route !== "board") return undefined;
+    // Advance automatically across Chicago midnight only while viewing live today.
+    const id = setInterval(() => {
+      if (!followBoardToday.current) return;
+      const current = todayCT();
+      setTodayDate((prev) => prev === current ? prev : current);
+    }, 30_000);
+    return () => clearInterval(id);
+  }, [tab, route]);
 
   useEffect(() => {
     if (tab !== "board") return undefined;
@@ -667,7 +692,7 @@ export default function App() {
             attemptAt={todayLastAttemptAt}
             state={todayState}
             date={todayDate}
-            onDate={setTodayDate}
+            onDate={onBoardDateChange}
             sportFilter={sportFilter === "all" ? todaySport : sportFilter}
             onSportFilter={(next) => {
               setTodaySport(next);
