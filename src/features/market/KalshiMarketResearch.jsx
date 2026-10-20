@@ -63,6 +63,7 @@ export default function KalshiMarketResearch({variant="market",initialSport="nfl
      <span><strong>{data.snapshotAgeSeconds!=null?Math.round(data.snapshotAgeSeconds/60)+"m":"—"}</strong> snapshot age</span>
      <span><strong>0</strong> contracts approved for FBIS wagers</span>
     </div>
+    <p>Displaying {Math.min(24,records.length)} of {records.length} collected research contracts. {data.paginationComplete?"Provider pagination complete for this query.":"Additional pages may exist; this is not complete market coverage."}</p>
     <div className="kalshi-research-scroll"><table><thead><tr>
      <th>Contract</th><th>YES bid</th><th>YES ask</th><th>NO bid</th><th>Ask size</th><th>Contract classification</th>
     </tr></thead><tbody>
