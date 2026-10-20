@@ -95,3 +95,10 @@
 - Kalshi WS Orderbook Updates: https://docs.kalshi.com/websockets/orderbook-updates
 - FBIS market role policy: `docs/market-roles.md`
 - Existing account plan: `docs/kalshi-pro-account-build-20261020.md`
+
+## 7. 2026-10-20 live Cloudflare observation — rate-limit blocker
+After the Phase 1 production deployment, an unauthenticated, read-only NFL market-list request through FBIS returned provider HTTP **429**. This confirms route deployment, **not** live public-quote readiness. Cause (existing public sentiment pulls, provider-wide limit, Cloudflare egress, or other clients) is not yet proven.
+- The public shadow adapter now returns explicit `KALSHI_PUBLIC_RATE_LIMITED`, `httpStatus=429`, optional bounded `retryAfterSeconds`, and **no fabricated or cached price**.
+- User-facing requests must not initiate retry storms. Do not place the route in board-wide fanout or player-prop rendering.
+- Next operational acceptance: inspect provider rate limit tier and current request volume; implement one controlled shared collector/scheduler with cache TTL and jitter, request budget and per-sport coverage; consider public WS subscriptions with verified sequence/reconnect for exchange clock. Measure sustained 200 responses, valid market counts and independent fixture identity before enabling display.
+- A green unit test proves fail-closed contract behavior, not real provider quota resolution.
