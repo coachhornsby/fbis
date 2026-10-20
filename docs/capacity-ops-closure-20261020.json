@@ -1,0 +1,109 @@
+{
+  "contract": "fbis-capacity-ops-closure-v1",
+  "generatedAt": "2026-10-20T15:10:00.000Z",
+  "canAuthorizeWager": false,
+  "pr1366": {
+    "merged": true,
+    "mergeCommit": "a8a30767b09d2f808927f34fc3b77f59ae24d6f3",
+    "hotfix1373": {
+      "merged": true,
+      "mergeCommit": "7ad6d10182b86fd855afd5b57ac18993a4c67c62",
+      "purpose": "expect coalesce-durable stream codeVersion after #1366"
+    }
+  },
+  "streamWorker": {
+    "script": "fbis-polymarket-us-stream",
+    "codeVersion": "board-ws-q4-coalesce-durable-20261020",
+    "wsPersistTarget": "MARKET_HISTORY_2026Q4",
+    "connected": true,
+    "deployedAt": "2026-10-20T15:02:15.500776Z",
+    "note": "Activate step in deploy workflow failed on Pages SHA lag (expected 7ad6d101, Pages still on prior main); Worker binary and /health already report coalesce-durable and CONNECTED"
+  },
+  "q4Growth": {
+    "beforeBytes": 960995328,
+    "beforeMeasuredAt": "2026-10-20T14:21:30.862Z",
+    "preDeployBytes": 1166274560,
+    "preDeployMeasuredAt": "2026-10-20T14:47:41.564Z",
+    "postDeployBytes": 1449140224,
+    "postDeployMeasuredAt": "2026-10-20T15:11:51.409Z",
+    "hourlyRows": {
+      "2026-10-20T12": 91944,
+      "2026-10-20T13": 137806,
+      "2026-10-20T14": 152748,
+      "2026-10-20T15_partial_11_9m": 23652
+    },
+    "hour15ProjectedRows": 119688,
+    "projectedReductionVsHour14Pct": 21.6,
+    "postCoalesceMinuteRows": {
+      "15:05": 1409,
+      "15:06": 2149,
+      "15:07": 1686,
+      "15:08": 1104,
+      "15:09": 1348,
+      "15:10": 1770,
+      "15:11": 1489,
+      "note": "Pre-coalesce hour-14 minutes commonly 2000–3500 rows/min; post-deploy cluster ~1100–1800"
+    },
+    "latestMarketStateRows": 3126,
+    "latestMarketStatePresent": true,
+    "rawEvidenceTable": "normalized_market_observations",
+    "rawEvidenceRowCount": 406150,
+    "rawEvidencePreserved": true,
+    "growthAssessment": "Coalesce-durable live; latest_market_state upserting (stable count with fresh updated_at); projected hour-15 row rate ~22% below hour-14 peak. Raw observation rows remain in Q4 — no destructive delete.",
+    "storageReclaimedBytes": 0,
+    "deletionAuthorized": false
+  },
+  "r2ArchiveDemo": {
+    "ok": true,
+    "bucket": "fbis-archive",
+    "objectKey": "market-history/verified-batches/MARKET_HISTORY_2026Q4_DB/2026-10-20/demo_nmo_72367583931556b43dcb01f0af2b_50.json",
+    "manifestKey": "market-history/verified-batches/MARKET_HISTORY_2026Q4_DB/2026-10-20/demo_nmo_72367583931556b43dcb01f0af2b_50.manifest.json",
+    "recoveryKey": "market-history/recovery-proofs/MARKET_HISTORY_2026Q4_DB/2026-10-20/demo_nmo_72367583931556b43dcb01f0af2b_50.recovery.json",
+    "contentSha256": "592afd014d3b09a00aabdb81ec571923fcc860b94cc53602f6e14b7be8e78c0e",
+    "readbackSha256": "592afd014d3b09a00aabdb81ec571923fcc860b94cc53602f6e14b7be8e78c0e",
+    "shaMatch": true,
+    "rowCount": 50,
+    "d1RowsStillPresent": 50,
+    "recoveredRowCount": 50,
+    "deletion": "NOT_PERFORMED_REQUIRES_RETENTION_GATE",
+    "retentionReleaseAuthorized": false
+  },
+  "sportShadowSync": {
+    "nhl": {
+      "missingBefore": 26,
+      "inserted": 26,
+      "prediction_snapshots": { "primary": 690, "sport": 690, "parity": true },
+      "note": "All 26 were 2026-10-20T13:51Z research-v1.2 FIRST_AVAILABLE snapshots"
+    },
+    "nfl": {
+      "games": { "primary": 313, "sport": 313, "parity": true },
+      "prediction_snapshots": { "primary": 1813, "sport": 1813, "parity": true },
+      "published_projections": { "primary": 36, "sport": 36, "parity": true },
+      "workingSetParity": true
+    },
+    "cfb": {
+      "games": { "primary": 1182, "sport": 1182, "parity": true },
+      "prediction_snapshots": { "primary": 10356, "sport": 10356, "parity": true },
+      "published_projections": { "primary": 0, "sport": 0, "parity": true },
+      "gamesDeltaInserted": 2,
+      "workingSetParity": true
+    },
+    "productStillPrimary": true,
+    "authority": "PRIMARY"
+  },
+  "coreSchedule": {
+    "priorFailure": "workflow active since 2026-10-20T13:02Z but zero schedule-event runs; push publish succeeded",
+    "fix": [
+      "ops/triggers/core-board-snapshot merge-trigger for agent-forced publish",
+      "dual offset cron (7/22/37/52 and 12/27/42/57) to recover missed deliveries",
+      "hourly core-market watchdog now also publishes CORE snapshot as SLA backup"
+    ]
+  },
+  "recurringArchive": {
+    "workflow": ".github/workflows/market-history-archive-recurring.yml",
+    "schedule": "11 */2 * * *",
+    "archiveWrites": true,
+    "verifyReadback": true,
+    "deletion": "gated via retention-gate-evaluate; authorized must remain false"
+  }
+}

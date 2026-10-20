@@ -2,16 +2,21 @@ name: CORE board snapshot publish and freshness
 # Publishes the cross-sport CORE dashboard snapshot and fails closed when it is
 # missing, incomplete, or older than 15 minutes. GitHub Actions failure is the
 # operator alert surface (same pattern as primary market-data heartbeat).
+# Agents cannot workflow_dispatch (403). Touch ops/triggers/core-board-snapshot
+# on main to force publish+freshness when GitHub drops schedule deliveries.
 on:
   schedule:
     # Every 15 minutes UTC, offset from :00/:15/:30/:45.
     # GitHub may delay or skip schedules that land on hourly high-load boundaries;
     # offset minutes keep the CORE 15m freshness SLA observable automatically.
+    # Dual cron entries make missed deliveries recoverable without waiting a full hour.
     - cron: "7,22,37,52 * * * *"
+    - cron: "12,27,42,57 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
     paths:
+      - "ops/triggers/core-board-snapshot"
       - ".github/workflows/core-board-snapshot.yml"
       - "scripts/core-board-snapshot-ops.mjs"
       - "scripts/lib/coreBoardSnapshotOps.mjs"
