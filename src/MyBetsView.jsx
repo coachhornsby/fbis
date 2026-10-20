@@ -4,6 +4,7 @@ import { TicketMatchup } from "./components/TeamLogo.jsx";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 import "./myBets.css";
+import { parseComboTicket } from "./lib/comboTicket.js";
 import MyBetsIntelligence, {betFamily} from "./MyBetsIntelligence.jsx";
 import projectionScorecard from "./data/fbisProjectionScorecard.js";
 
@@ -276,7 +277,6 @@ export default function MyBetsView({
                 <tr>
                   <th>Date</th>
                   <th>Sport</th>
-                  <th>Ticket</th>
                   <th>Matchup</th>
                   <th>Book</th>
                   <th>Market</th>
@@ -292,15 +292,18 @@ export default function MyBetsView({
                 </tr>
               </thead>
               <tbody>
-                {shown.map((b) => (
+                {shown.map((b) => {
+                  const combo = parseComboTicket(b);
+                  return (
                   <tr key={b.id} className={b.result === "WON" ? "won-row" : b.result === "LOST" ? "lost-row" : ""}>
                     <td className="nowrap">{b.date || "—"}</td>
                     <td className="nowrap">{String(b.sport || "—").toUpperCase()}</td>
-                    <td><div className="bets-ticket-id">{displayTicketId(b)}</div></td>
                     <td>
-                      {String(b.market || "").toUpperCase() === "PLAYER_PROP" ? (
+                      {combo && !(b.awayTeam && b.homeTeam) ? (
+                        <ComboParticipants bet={b} combo={combo} />
+                      ) : !combo && String(b.market || "").toUpperCase() === "PLAYER_PROP" ? (
                         <PlayerPropParticipants bet={b} compact />
-                      ) : String(b.sport || "").toLowerCase() === "tennis" ? (
+                      ) : String(b.sport || "").toLowerCase() === "tennis" && !combo ? (
                         <TennisParticipants bet={b} compact />
                       ) : (
                         <TicketMatchup
@@ -315,7 +318,7 @@ export default function MyBetsView({
                     </td>
                     <td className="nowrap">{b.executionBook || "—"}</td>
                     <td className="nowrap">{formatMarketPeriod(b.market, b.period)}</td>
-                    <td>{betSelectionLabel(b)}</td>
+                    <td className={combo ? "bets-combo-cell" : undefined}>{combo ? <ComboSelection bet={b} combo={combo} /> : betSelectionLabel(b)}</td>
                     <td>{fmtAmerican(b.executionPrice)}</td>
                     <td className="nowrap">{b.riskAmount == null ? "—" : `${Number(b.riskAmount).toFixed(2)}`}</td>
                     <td className={b.result === "WON" ? "text-green" : b.result === "LOST" ? "text-red" : "muted"}>
@@ -338,7 +341,8 @@ export default function MyBetsView({
                       ) : <span className="muted">—</span>}
                     </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
             </div>
@@ -424,6 +428,45 @@ function PlayerPropParticipants({ bet, compact = false }) {
   );
 }
 
+
+function ComboParticipants({ bet, combo }) {
+  const names=[...new Set(combo.legs.map(leg=>leg.player).filter(Boolean))].slice(0,3);
+  return (
+    <div className="bets-combo-participants">
+      <span className="bets-combo-participants-label">{String(bet.sport || "Sports").toUpperCase()} · MULTI-SELECTION</span>
+      {names.length ? names.map(name=>(
+        <div className="bets-combo-participant" key={name}>
+          <PlayerHeadshot name={name} sport={bet.sport} size={38} />
+          <strong>{name}</strong>
+        </div>
+      )) : <span className="bets-combo-participants-fallback">{bet.matchupText || combo.description}</span>}
+    </div>
+  );
+}
+
+function ComboSelection({ bet, combo }) {
+  return (
+    <div className="bets-combo-play" aria-label={combo.title+" selections"}>
+      <div className="bets-combo-topline">
+        <span className="bets-combo-title">{combo.title}</span>
+        <span className="bets-combo-sport">{String(bet.sport || "SPORT").toUpperCase()}</span>
+      </div>
+      <div className="bets-combo-legs">
+        {combo.legs.map((leg,i)=>(
+          <div className="bets-combo-leg" key={i}>
+            <span className="bets-combo-leg-num" aria-label={"Selection "+(i+1)}>{i+1}</span>
+            {leg.player ? <PlayerHeadshot name={leg.player} sport={bet.sport} size={38} /> : null}
+            <div className="bets-combo-leg-text">
+              {leg.player ? <strong className="bets-combo-leg-player">{leg.player}</strong> : <strong className="bets-combo-leg-raw">{leg.text}</strong>}
+              {leg.selection ? <span className="bets-combo-leg-stat">{leg.selection}</span> : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ManualScoreEditor({ bet, scores, setScore, saveFinal, saving }) {
   const away = bet.awayIdentity?.abbr || bet.awayTeam || "Away";
   const home = bet.homeIdentity?.abbr || bet.homeTeam || "Home";
@@ -477,10 +520,6 @@ function betSelectionLabel(bet) {
   const normalizedBase = base.replace(/\s+/g, " ");
   if (new RegExp(`(?:^|\\s)${signed.replace(".", "\\.")}$`).test(normalizedBase)) return base;
   return `${base} ${line}`;
-}
-
-function displayTicketId(bet) {
-  return bet?.trackerMetadata?.heritageTicketId || bet?.externalTicketId || "—";
 }
 
 function actualOutcome(bet) {
