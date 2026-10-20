@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { confidenceStars, sortByConfidence } from "../src/lib/confidenceStars.js";
+import { confidenceStars, confidenceStarPresentation, sortByConfidence } from "../src/lib/confidenceStars.js";
 import {
   canonicalConfidenceStars,
   canonicalProjectionConfidence,
@@ -90,6 +90,52 @@ describe("FBIS-CONFIDENCE-v2", () => {
     assert.equal(confidenceStars(boardShape), canonical.stars);
     assert.equal(confidenceStars(marketShape), canonical.stars);
     assert.equal(confidenceStars(boardShape), confidenceStars(marketShape));
+  });
+
+  it("draws an NHL rating on its own ceiling and refuses a five-star payload", () => {
+    const nhl = canonicalProjectionConfidence({
+      sport: "nhl",
+      model: { projHome: 3.2, projAway: 2.8 },
+    });
+    assert.equal(nhl.starsMax, 3);
+    assert.equal(nhl.fiveStarEligible, false);
+    const shown = confidenceStarPresentation({
+      sport: "nhl",
+      confidenceStars: nhl.stars,
+      confidenceStarsMax: nhl.starsMax,
+      confidenceFiveStarEligible: nhl.fiveStarEligible,
+    });
+    assert.equal(shown.label, `${nhl.stars} of 3 confidence stars`);
+    assert.equal(shown.fiveStarEligible, false);
+
+    const injected = confidenceStarPresentation({
+      sport: "nhl",
+      confidenceStars: 5,
+      confidenceStarsMax: 3,
+      confidenceFiveStarEligible: false,
+    });
+    assert.equal(injected.stars, 3);
+    assert.equal(injected.max, 3);
+    assert.equal(injected.fiveStarEligible, false);
+
+    const undeclared = confidenceStarPresentation({
+      sport: "nhl",
+      confidenceStars: 5,
+      confidenceFiveStarEligible: false,
+    });
+    assert.ok(undeclared.stars < 5);
+    assert.equal(undeclared.fiveStarEligible, false);
+  });
+
+  it("keeps a five-star sport on a five-star scale", () => {
+    const shown = confidenceStarPresentation({
+      sport: "mlb",
+      confidenceStars: 5,
+      confidenceStarsMax: 5,
+      confidenceFiveStarEligible: true,
+    });
+    assert.equal(shown.label, "5 of 5 confidence stars");
+    assert.equal(shown.fiveStarEligible, true);
   });
 
   it("sorts by canonical stars then canonical score", () => {

@@ -158,6 +158,35 @@ function statRows(payload){return Array.isArray(payload?.data)?payload.data:[];}
 function statByPlayer(payload){
  const m=new Map();for(const r of statRows(payload)){const id=String(r.playerId||"");if(id)m.set(id,r);}return m;
 }
+export const NHL_PREGAME_CONFIRMATION_SOURCE="NHL_PREGAME_GAMECENTER_BOXSCORE";
+export const NHL_PREGAME_SCRATCH_SOURCE="NHL_PREGAME_GAMECENTER_SCRATCH";
+
+/**
+ * Announced starting goalies for a game that has not been played.
+ * goalieStarterIds ranks by time on ice, which exists only after puck drop.
+ * An absent announcement returns nothing.
+ */
+export function pregameStartingGoalieIds(box={}){
+ const out=new Set();
+ const root=box?.boxscore??box??{};
+ for(const side of ["homeTeam","awayTeam"]){
+  for(const row of root?.playerByGameStats?.[side]?.goalies||[]){
+   if(row?.starter===true&&row?.playerId!=null)out.add(String(row.playerId));
+  }
+  const announced=root?.gameInfo?.[side]?.startingGoalie??root?.summary?.gameInfo?.[side]?.startingGoalie;
+  const id=announced?.playerId??announced?.id??(typeof announced==="number"||typeof announced==="string"?announced:null);
+  if(id!=null&&String(id).trim()!=="")out.add(String(id));
+ }
+ return out;
+}
+
+/** Positive is an announcement. Negative is an explicit scratch. Anything else is missing. */
+export function classifyGoaliePregameEvidence({announced=false,ruledOut=false}={}){
+ if(ruledOut)return {evidenceClass:"NEGATIVE",reason:"EXPLICIT_SCRATCH"};
+ if(announced)return {evidenceClass:"POSITIVE",reason:"PREGAME_ANNOUNCEMENT"};
+ return {evidenceClass:"MISSING",reason:"NO_PREGAME_ANNOUNCEMENT"};
+}
+
 export function scratchIds(box={}){
  const out=new Set(),root=box?.boxscore?.scratches??box?.scratches??{};
  const scan=v=>{if(!v)return;if(Array.isArray(v)){for(const x of v)scan(x);return;}if(typeof v!=="object")return;const id=v.playerId??v.id;if(id!=null)out.add(String(id));for(const x of Object.values(v))if(x&&typeof x==="object")scan(x);};
@@ -256,6 +285,7 @@ function parseCoach(payload={}){
 }
 async function queryRows(db,sql,...binds){if(!db?.prepare)return[];try{return (await db.prepare(sql).bind(...binds).all())?.results||[];}catch{return[];}}
 async function existingPlayers(db,tkey){return queryRows(db,"SELECT * FROM nhl_player_profiles WHERE team_key=?",tkey);}
+async function existingGoalies(db,tkey){return queryRows(db,"SELECT * FROM nhl_goalie_profiles WHERE team_key=?",tkey);}
 async function availabilityRows(db,tkey){
  return queryRows(db,`SELECT * FROM player_availability_observations WHERE sport='nhl' AND team_key=? AND observed_at>=? ORDER BY observed_at DESC LIMIT 150`,tkey,new Date(Date.now()-21*86400000).toISOString());
 }
@@ -332,7 +362,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
   const rosterIdSet=new Set(roster.map(p=>p.id));
   const shiftSets=(sources.detail||[]).map(d=>({gameId:d.game.id,rows:parseShiftRows(d.shifts?.data||{},team,rosterIdSet)}));
   const deploy=deploymentFromShifts(roster,shiftSets),units=ppPkUnits(roster,timeById);
-  const [existing,availRows]=await Promise.all([existingPlayers(DB,tkey),availabilityRows(DB,tkey)]);
+  const [existing,availRows,existingGoalieRows]=await Promise.all([existingPlayers(DB,tkey),availabilityRows(DB,tkey),existingGoalies(DB,tkey)]);
   const priorById=new Map(existing.map(x=>[String(x.player_id),x])),availability=latestAvailability(availRows);
   const players=roster.map(p=>{
    const stat=summaryById.get(p.id)||{},toi=timeById.get(p.id)||{},role=deploy.lines.get(p.id)||{},unit=units.get(p.id)||{},prior=priorById.get(p.id)||null;
@@ -379,14 +409,31 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
   goalieRoster.sort((a,b)=>anyGoalieStarts
     ? (finite(b.g.gamesStarted)||0)-(finite(a.g.gamesStarted)||0)
     : a.idx-b.idx);
-  const goalies=goalieRoster.map(({p,g},i)=>({
+  const pregameEligibleUpcoming=sources.pregameBox?.ok&&sources.upcoming?.id!=null?sources.upcoming:null;
+  const pregameStarters=pregameEligibleUpcoming?pregameStartingGoalieIds(sources.pregameBox?.data||{}):new Set();
+  const priorGoalieById=new Map((existingGoalieRows||[]).map(x=>[String(x.player_id),x]));
+  const goalies=goalieRoster.map(({p,g},i)=>{
+   const prior=priorGoalieById.get(String(p.id))||null;
+   const announced=pregameStarters.has(String(p.id))&&pregameEligibleUpcoming?.id!=null;
+   const ruledOut=Boolean(pregameEligibleUpcoming)&&currentScratches.has(String(p.id));
+   const evidence=classifyGoaliePregameEvidence({announced,ruledOut});
+   const eventBound=evidence.evidenceClass==="POSITIVE"||evidence.evidenceClass==="NEGATIVE";
+   const carried=prior&&eventBound&&String(prior.confirmation_game_id||"")===String(pregameEligibleUpcoming.id)
+     ?prior.confirmation_observed_at||null:null;
+   return {
    playerId:p.id,playerName:g.goalieFullName||g.playerName||p.name||null,teamKey:tkey,
-   hierarchyRank:i+1,goalieState:starterIds.has(p.id)?"LAST_CONFIRMED_STARTER":i===0?"EXPECTED_G1":"DEPTH",
-   expectedStartProbability:i===0 ? .68 : i===1 ? .27 : .05,games:finite(g.gamesPlayed)||0,starts:finite(g.gamesStarted)||0,savePct:finite(g.savePct),gaa:finite(g.goalsAgainstAverage),
+   hierarchyRank:i+1,
+   goalieState:evidence.evidenceClass==="POSITIVE"?"CONFIRMED_STARTER":evidence.evidenceClass==="NEGATIVE"?"RULED_OUT":starterIds.has(p.id)?"LAST_CONFIRMED_STARTER":i===0?"EXPECTED_G1":"DEPTH",
+   evidenceClass:evidence.evidenceClass,
+   confirmationGameId:eventBound?String(pregameEligibleUpcoming.id):null,
+   confirmationObservedAt:eventBound?(carried||now.toISOString()):null,
+   confirmationSource:evidence.evidenceClass==="POSITIVE"?NHL_PREGAME_CONFIRMATION_SOURCE:evidence.evidenceClass==="NEGATIVE"?NHL_PREGAME_SCRATCH_SOURCE:null,
+   expectedStartProbability:evidence.evidenceClass==="POSITIVE"?1:evidence.evidenceClass==="NEGATIVE"?0:i===0 ? .68 : i===1 ? .27 : .05,games:finite(g.gamesPlayed)||0,starts:finite(g.gamesStarted)||0,savePct:finite(g.savePct),gaa:finite(g.goalsAgainstAverage),
    lastGameId:starterIds.has(p.id)?latest?.game?.id:null,lastGameAt:starterIds.has(p.id)?latest?.game?.start:null,
    rollingShotsFaced:finite(g.shotsAgainstPerGame),rollingSaves:finite(g.savesPerGame),restDays:null,
-   stateConfidence:anyGoalieStarts?(i<2 ? .82 : .68):(i<2 ? .68 : .55),raw:{roster:p.raw,stats:g}
-  })).filter(g=>g.playerId);
+   stateConfidence:evidence.evidenceClass==="POSITIVE"?0.97:anyGoalieStarts?(i<2 ? .82 : .68):(i<2 ? .68 : .55),raw:{roster:p.raw,stats:g,evidenceReason:evidence.reason}
+   };
+  }).filter(g=>g.playerId);
 
   const linemates=[...deploy.pairs.values()].flatMap(x=>[
    {id:`nhl:mate:${tkey}:${x.a}:${x.b}`,teamKey:tkey,playerId:x.a,teammateId:x.b,...x},
@@ -409,7 +456,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    roadTripGameNumber:next?.roadTripGameNumber||0,travelMiles:next?.travelMiles??null,timeZonesCrossed:next?.timeZonesCrossed??0,
    scheduleStressScore:next?.scheduleStressScore??0,scheduleFlags:next?.stressFlags||[],
    deployment:{latestGameId:latest?.game?.id||null,shiftGames:shiftSets.filter(x=>x.rows.length).length,linesObserved:[...deploy.lines.entries()].map(([playerId,v])=>({playerId,...v}))},
-   goalie:{hierarchy:goalies.slice(0,3).map(g=>({playerId:g.playerId,name:g.playerName,rank:g.hierarchyRank,state:g.goalieState,expectedStartProbability:g.expectedStartProbability}))},
+   goalie:{hierarchy:goalies.slice(0,3).map(g=>({playerId:g.playerId,name:g.playerName,rank:g.hierarchyRank,state:g.goalieState,evidenceClass:g.evidenceClass,expectedStartProbability:g.expectedStartProbability}))},
    coach,style:{source:"NHL_PRO_V2_EXISTING_TEAM_IDENTITY",researchOnly:true},
    stateConfidence:round(clamp((roster.length?0.45:0)+(scheduleRows.length?0.20:0)+(shiftSets.some(x=>x.rows.length)?0.20:0)+(goalies.length?0.10:0)+(coach.headCoach?0.05:0),0,1)),
    sourceUpdatedAt:now.toISOString(),updatedAt:now.toISOString()
@@ -436,15 +483,26 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
 
   await upsertRows(DB,`INSERT INTO nhl_goalie_profiles (
    player_id,player_name,team_key,hierarchy_rank,goalie_state,expected_start_probability,games,starts,save_pct,gaa,last_game_id,last_game_at,
-   rolling_shots_faced,rolling_saves,rest_days,state_confidence,source_updated_at,raw_json,updated_at
-  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+   rolling_shots_faced,rolling_saves,rest_days,state_confidence,source_updated_at,
+   confirmation_observed_at,confirmation_game_id,confirmation_source,evidence_class,raw_json,updated_at
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   ON CONFLICT(player_id) DO UPDATE SET player_name=excluded.player_name,team_key=excluded.team_key,hierarchy_rank=excluded.hierarchy_rank,
    goalie_state=excluded.goalie_state,expected_start_probability=excluded.expected_start_probability,games=excluded.games,starts=excluded.starts,
    save_pct=excluded.save_pct,gaa=excluded.gaa,last_game_id=excluded.last_game_id,last_game_at=excluded.last_game_at,
    rolling_shots_faced=excluded.rolling_shots_faced,rolling_saves=excluded.rolling_saves,rest_days=excluded.rest_days,state_confidence=excluded.state_confidence,
-   source_updated_at=excluded.source_updated_at,raw_json=excluded.raw_json,updated_at=excluded.updated_at`,goalies,g=>[
+   source_updated_at=excluded.source_updated_at,
+   confirmation_game_id=excluded.confirmation_game_id,
+   confirmation_source=excluded.confirmation_source,
+   evidence_class=excluded.evidence_class,
+   confirmation_observed_at=CASE
+     WHEN excluded.confirmation_game_id IS NULL THEN NULL
+     WHEN nhl_goalie_profiles.confirmation_game_id IS excluded.confirmation_game_id
+       THEN COALESCE(nhl_goalie_profiles.confirmation_observed_at,excluded.confirmation_observed_at)
+     ELSE excluded.confirmation_observed_at END,
+   raw_json=excluded.raw_json,updated_at=excluded.updated_at`,goalies,g=>[
     g.playerId,g.playerName||"Unknown",g.teamKey,g.hierarchyRank,g.goalieState,g.expectedStartProbability,g.games,g.starts,g.savePct,g.gaa,g.lastGameId,g.lastGameAt,
-    g.rollingShotsFaced,g.rollingSaves,g.restDays,g.stateConfidence,now.toISOString(),JSON.stringify(g.raw),now.toISOString()
+    g.rollingShotsFaced,g.rollingSaves,g.restDays,g.stateConfidence,now.toISOString(),
+    g.confirmationObservedAt??null,g.confirmationGameId??null,g.confirmationSource??null,g.evidenceClass||"MISSING",JSON.stringify(g.raw),now.toISOString()
   ]);
 
   await upsertRows(DB,`INSERT INTO nhl_linemate_profiles (

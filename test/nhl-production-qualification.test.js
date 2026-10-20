@@ -9,7 +9,7 @@ import {nhlFinalEvidence} from '../functions/api/nhl-wager-research.js';
 test('NHL generic quality, conviction, caller calibration and missing model cannot create five stars',()=>{
  for(const extra of [{},{quality:{score:100},rec:{tag:'CONVICTION'}},{nhlGameConfidence:{score:100,validated:true}}]){
   const c=canonicalProjectionConfidence({sport:'nhl',model:{projHome:4,projAway:2},...extra});
-  assert.equal(c.source,'NHL_INDEPENDENT_EVIDENCE');assert.equal(c.stars,1);assert.equal(c.calibrated,false);
+  assert.equal(c.source,'NHL_INDEPENDENT_EVIDENCE');assert.equal(c.stars,1);assert.equal(c.starsMax,3);assert.equal(c.fiveStarEligible,false);assert.equal(c.calibrated,false);
  }
 });
 test('regulation and full-game outcomes conserve probability but differ on ties',()=>{
@@ -74,7 +74,7 @@ test('independent NHL evidence remains capped and ignores price and quality chan
    probability:{homeRegWin:.5,awayRegWin:.3,regulationTie:.2,rawHomeWinIncludingOt:.62,eloHead:.6,homeWinIncludingOt:.6,awayWinIncludingOt:.4},
    layers:{goalie:{home:{selectionState:'PIT_CONFIRMED_STARTER'},away:{selectionState:'PIT_CONFIRMED_STARTER'}}}}};
  const a=canonicalProjectionConfidence(g),b=canonicalProjectionConfidence({...g,quality:{score:100},odds:{spread:-.5,homeMl:500},rec:{tag:'CONVICTION'}});
- assert.equal(a.stars,3);assert.equal(a.score,b.score);assert.equal(a.calibrated,false);assert.equal(a.fiveStarEligible,false);assert.equal(a.canAuthorizeWager,false);
+ assert.equal(a.stars,3);assert.equal(a.starsMax,3);assert.equal(a.score,b.score);assert.equal(a.calibrated,false);assert.equal(a.fiveStarEligible,false);assert.equal(a.canAuthorizeWager,false);
 });
 test('missing CLV coverage cannot validate a game confidence cohort',async()=>{
  const {auditConfidenceRows}=await import('../functions/lib/nhlWagerCalibration.js');

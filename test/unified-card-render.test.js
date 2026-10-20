@@ -25,6 +25,31 @@ test('sparse and unavailable factors do not acquire an invented advantage or fix
  const html=render('signals',g);assert.match(html,/0 of 1 factors available/);assert.match(html,/AWAITING MATCHUP DATA/);assert.doesNotMatch(html,/is-team-branded|>15<|5 SIGNALS/);
  assert.match(render('signals',{...g,matchupFactors:[]}),/AWAITING MATCHUP DATA/);
 });
+test('NHL cards render the evidence ceiling and never a five-star scale',()=>{
+ const nhl={id:'nhl-1',sport:'nhl',start:'2026-10-20T23:00:00Z',projectionKind:'FBIS',
+  home:{name:'Boston Bruins',abbr:'BOS',color:'123456'},away:{name:'New York Rangers',abbr:'NYR',color:'abcdef'},
+  model:{projHome:3.4,projAway:2.8,projTotal:6.2},
+  confidenceStars:3,confidenceStarsMax:3,confidenceFiveStarEligible:false};
+ for(const kind of ['compact','premium']){
+  const html=render(kind,nhl);
+  assert.match(html,/3 of 3 confidence stars/,kind);
+  assert.doesNotMatch(html,/of 5 confidence stars/,kind);
+  assert.doesNotMatch(html,/cgc-five-star/,kind);
+ }
+ const injected=render('compact',{...nhl,confidenceStars:5});
+ assert.match(injected,/3 of 3 confidence stars/);
+ assert.doesNotMatch(injected,/cgc-five-star/);
+ const nfl=render('compact',{id:'nfl-1',sport:'nfl',start:'2026-10-20T17:00:00Z',projectionKind:'FBIS',
+  home:{name:'Home',abbr:'HOM'},away:{name:'Away',abbr:'AWY'},
+  model:{projHome:27,projAway:20},
+  nflProShadow:{ok:true,independent:true,marketInformed:false,home:27,away:20},
+  confidenceStars:5,confidenceStarsMax:5,confidenceFiveStarEligible:true});
+ assert.match(nfl,/5 of 5 confidence stars/);
+ assert.match(nfl,/cgc-five-star/);
+ const bare=render('compact',{id:'nhl-2',sport:'nhl',start:'2026-10-20T23:00:00Z',home:{abbr:'BOS'},away:{abbr:'NYR'},confidenceStars:3,confidenceStarsMax:3,confidenceFiveStarEligible:false});
+ assert.match(bare,/NO MODEL RATING/);
+ assert.doesNotMatch(bare,/confidence stars/);
+});
 test('tennis featured card keeps its specialized interface without the new prop panel',()=>{
  const html=render('premium',game('tennis'));assert.doesNotMatch(html,/event-player-props/);
 });

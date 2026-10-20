@@ -93,12 +93,8 @@ export function toDurableBoardGame(row, {date,now=Date.now()}={}) {
  * fetch odds, mutate D1, read post-start model data or promote model heads.
  * LIMIT is a safety cap, not a prediction qualifier.
  */
-export async function loadDurableTodayGames(env={},date,sport="all",{now=Date.now()}={}) {
-  if(!env.DB?.prepare || !/^\d{4}-\d{2}-\d{2}$/.test(String(date||"")))
-    return {ok:false,reason:"D1_OR_DATE_UNAVAILABLE",games:[]};
-  if(!Number.isFinite(Number(now)))return {ok:false,reason:"INVALID_CUTOFF",games:[]};
-  try{
-    const sql=`
+async function queryDurable(db,date,sport,now){
+  const sql=`
       WITH chosen AS (
         SELECT g.id,g.sport,g.date,g.start,g.home_name,g.away_name,g.home_abbr,
                g.away_abbr,g.updated_at,
@@ -118,9 +114,29 @@ export async function loadDurableTodayGames(env={},date,sport="all",{now=Date.no
       )
       SELECT * FROM chosen WHERE rn=1 ORDER BY start,id LIMIT 700
     `;
-    const r=await env.DB.prepare(sql).bind(new Date(now).toISOString(),date,sport,sport).all();
-    const games=(r.results||[]).map(row=>toDurableBoardGame(row,{date,now})).filter(Boolean);
-    return {ok:true,games,source:"D1_SCHEDULE_PRESTART_SNAPSHOT",rowsRead:r.results?.length||0};
+  const r=await db.prepare(sql).bind(new Date(now).toISOString(),date,sport,sport).all();
+  const games=(r.results||[]).map(row=>toDurableBoardGame(row,{date,now})).filter(Boolean);
+  return {ok:true,games,source:"D1_SCHEDULE_PRESTART_SNAPSHOT",rowsRead:r.results?.length||0,canQualify:false,canAuthorizeWager:false};
+}
+
+export async function loadDurableTodayGames(env={},date,sport="all",{now=Date.now()}={}) {
+  if(!env.DB?.prepare || !/^\d{4}-\d{2}-\d{2}$/.test(String(date||"")))
+    return {ok:false,reason:"D1_OR_DATE_UNAVAILABLE",games:[]};
+  if(!Number.isFinite(Number(now)))return {ok:false,reason:"INVALID_CUTOFF",games:[]};
+  // NHL-only requests may read the sport shard once projection parity is receipted.
+  // The all-sports board stays on primary, and a shard failure falls back to it.
+  if(String(sport).toLowerCase()==="nhl"){
+    try{
+      const {nhlDurableDatabase}=await import("./nhlSportShard.js");
+      const routed=await nhlDurableDatabase(env);
+      if(routed.database==="NHL_DB" && routed.db?.prepare){
+        const out=await queryDurable(routed.db,date,sport,now);
+        return {...out,source:"NHL_DB_DURABLE_CUTOVER",cutover:routed.reason,canQualify:false,canAuthorizeWager:false};
+      }
+    }catch{ /* primary below */ }
+  }
+  try{
+    return await queryDurable(env.DB,date,sport,now);
   }catch(error){
     return {ok:false,reason:String(error?.message||error),games:[]};
   }

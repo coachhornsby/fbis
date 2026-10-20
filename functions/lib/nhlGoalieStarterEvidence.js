@@ -34,10 +34,19 @@ export function resolveNhlGoalieStarterEvidence(
   const rows=profiles?.goalies?.[key]||[];
   const teamProfile=profiles?.teams?.[key]||{};
   const start=observedAt(gameStart),asOf=observedAt(cutoff);
+  const ruledOut=rows.some(row=>{
+    const posted=observedAt(row.confirmation_observed_at);
+    return String(row.goalie_state||"").toUpperCase()==="RULED_OUT" &&
+      sameId(row.player_id,projectionGoalieId) &&
+      sameId(row.confirmation_game_id,eventId) &&
+      String(row.confirmation_source||"").trim().length>0 &&
+      posted!=null && asOf!=null && start!=null && asOf<start && posted<=asOf && posted<start;
+  });
   const fallback=(reason="NO_EVENT_BOUND_STARTER_EVIDENCE")=>({
     state:"HISTORICAL_PROXY_UNVERIFIED",playerId:projectionGoalieId==null?null:String(projectionGoalieId),
     eventId:null,expectedStartProbability:null,evidenceAt:null,source:null,
     lineupMatched:null,reason,
+    evidenceClass:ruledOut?"NEGATIVE":"MISSING",
   });
   if(!eventId||!key||start==null||asOf==null||asOf>=start)
     return fallback("GAME_ID_OR_PIT_WINDOW_INVALID");
@@ -58,7 +67,7 @@ export function resolveNhlGoalieStarterEvidence(
     expectedStartProbability:1,evidenceAt:confirmed.confirmation_observed_at,
     source:confirmed.confirmation_source,
     lineupMatched:projectionGoalieId==null?null:sameId(projectionGoalieId,confirmed.player_id),
-    reason:null,
+    reason:null,evidenceClass:"POSITIVE",
   };
   if(!sameId(teamProfile.next_game_id,event))
     return fallback("TEAM_NEXT_GAME_NOT_MATCHED");
@@ -79,6 +88,6 @@ export function resolveNhlGoalieStarterEvidence(
     expectedStartProbability:Number(projected.expected_start_probability),
     evidenceAt:projected.source_updated_at,source:"EVENT_BOUND_EXPECTED_G1_PROFILE",
     lineupMatched:projectionGoalieId==null?null:sameId(projectionGoalieId,projected.player_id),
-    reason:null,
+    reason:null,evidenceClass:ruledOut?"NEGATIVE":"MISSING",
   };
 }

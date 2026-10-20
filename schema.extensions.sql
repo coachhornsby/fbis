@@ -2353,11 +2353,17 @@ CREATE TABLE IF NOT EXISTS nhl_goalie_profiles (
   rest_days REAL,
   state_confidence REAL,
   source_updated_at TEXT,
+  confirmation_observed_at TEXT,
+  confirmation_game_id TEXT,
+  confirmation_source TEXT,
+  evidence_class TEXT,
   raw_json TEXT,
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_nhl_goalie_profiles_team
   ON nhl_goalie_profiles(team_key,hierarchy_rank);
+CREATE INDEX IF NOT EXISTS idx_nhl_goalie_profiles_confirmation
+  ON nhl_goalie_profiles(confirmation_game_id, confirmation_observed_at);
 
 CREATE TABLE IF NOT EXISTS nhl_linemate_profiles (
   id TEXT PRIMARY KEY,

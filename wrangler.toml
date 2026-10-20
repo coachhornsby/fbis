@@ -45,6 +45,16 @@ binding = "COLD_HISTORY_DB"
 database_name = "fbis-cold-history-20261017"
 database_id = "6fad1baf-126f-4ab8-9b80-a7d71637d6d4"
 
+# NHL read replica. Live card generation stays on primary. The only read that
+# moves is the NHL-only durable TODAY fallback, and only while the latest
+# DURABLE_READ_COLUMNS receipt on this database says CUTOVER_READY. A missing
+# receipt or a shard error falls back to primary. This binding grants no
+# qualification and no wager authority.
+[[d1_databases]]
+binding = "NHL_DB"
+database_name = "fbis-nhl"
+database_id = "a0aa010c-40d3-4d2f-8109-eca4e74e2a73"
+
 # Separate D1 write copies only; authoritative reads, CLV, and qualification
 # remain on primary. Roll back by setting this to "disabled".
 [vars]

@@ -476,7 +476,8 @@ export function projectNhlProV2Game(game,ctx){
       distribution:{family:"BIVARIATE_POISSON",treatment:probability.scoringTreatment,fullGameScoreMarketsValidated:false,shared:probability.sharedComponent,winHead:"NHL-PRO-v2 calibrated probability + NHL-WIN-v1 directional pick",mostLikelyScore:probability.mostLikelyScore}
     },
     dataLineage:ctx?.sourceLineage||null,marketInformed:false,independent:true,
-    canQualify:true,canAuthorizeWager:false,
+    canQualify:false,canAuthorizeWager:false,
+    promotionFrozen:true,livePromotionEligible:false,
     promotion:artifact?.promotion||null,
     note:"NHL-PRO-v2 independent research challenger: event-chain boosted xG, shooter finishing, goalie GSAx, special teams, timeout-safe NHL EDGE zone-time plus expanded speed/distance/shot tracking advisory, and bivariate scoring."
   };
@@ -491,7 +492,8 @@ export function attachNhlProV2(games=[],ctx=null){
   return {games:next,meta:{modelId:NHL_PRO_V2_ID,modelVersion:NHL_PRO_V2_VERSION,projected,missing,
     artifactVersion:ctx?.artifact?.artifactVersion||null,trained:Boolean(ctx?.artifact?.trained),
     historicalPromotionEligible:Boolean(ctx?.artifact?.promotion?.historicalPromotionEligible),
+    livePromotionEligible:false,promotionFrozen:true,
     persistentProfilesLoaded:Object.keys(ctx?.persistentProfiles?.teams||{}).length,
     persistentProfilesTimedOut:Boolean(ctx?.persistentProfiles?.__timeout),
-    canQualify:true,canAuthorize:false,marketInformed:false}};
+    canQualify:false,canAuthorize:false,marketInformed:false}};
 }
