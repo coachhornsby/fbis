@@ -625,12 +625,12 @@ export default function App() {
           <Ticker items={slate?.ticker || []} logged={loggedOpen} />
         ) : null}
 
-        {route === "accounts" ? (
-          <AccountsView />
-        ) : route === "models" || route === "publish" ? (
+        {route === "models" || route === "publish" ? (
           <div className="canonical-models-stack">
             <CurrentProjectionsView date={todayDate} sportFilter={sportFilter} />
           </div>
+        ) : route === "accounts" ? (
+          <AccountsView />
         ) : route === "player-props" ? (
           <div className="player-props-page">
             <PrizePicksMarketPanel
