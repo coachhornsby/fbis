@@ -56,7 +56,15 @@ export function normalizeGlobalNbaProp(m,e,g,players,{capturedAt}={}){
    'MODEL_UNAVAILABLE','FEES_UNVERIFIED'],canQualify:false,executionEligible:false,canAuthorizeWager:false
  }));
 }
-export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=fetch}={}){
+export async function listGlobalNbaFixtureSlugs(env,{now=new Date()}={}){
+ if(!env?.DB?.prepare)return {ok:false,code:'PRIMARY_D1_UNBOUND'};
+ const today=day(now);
+ const games=(await env.DB.prepare("SELECT id,date,start,home_abbr,away_abbr FROM games WHERE sport='nba' AND date=? ORDER BY start LIMIT 8").bind(today).all()).results||[];
+ return {ok:true,day:today,slugs:games.filter(g=>Number.isFinite(Date.parse(g.start))&&
+   Date.parse(g.start)>=now.getTime()-3*3600000&&Date.parse(g.start)<=now.getTime()+48*3600000).map(tag),
+  canAuthorizeWager:false};
+}
+export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=fetch,providedEvents=null}={}){
  if(!env?.ARCHIVE?.put||!env?.DB?.prepare)return {ok:false,code:'STORAGE_UNBOUND'};
  const today=day(now),capturedAt=now.toISOString();
  const games=(await env.DB.prepare("SELECT id,date,start,home_abbr,away_abbr FROM games WHERE sport='nba' AND date=? ORDER BY start LIMIT 8").bind(today).all()).results||[];
@@ -68,14 +76,22 @@ export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=f
   const slug=tag(g);
   try{
    const url='https://gamma-api.polymarket.com/events?slug='+encodeURIComponent(slug)+'&limit=1';
-   const response=await fetchImpl(url,{method:'GET',headers:{accept:'application/json'},redirect:'error',signal:AbortSignal.timeout(16000)});
-   if(!response.ok){errors.push({slug,code:'PROVIDER_HTTP_'+response.status});continue}
-   const data=await response.json(),event=Array.isArray(data)&&data.length===1?data[0]:null;
+   let event=null;
+   if(Array.isArray(providedEvents)){
+    // Signed GitHub Actions sends raw public Gamma event payloads, not prequalified rows.
+    // Identity, settlement and canonical player rules are still validated here.
+    if(providedEvents.length>8){errors.push({slug,code:'BATCH_TOO_LARGE'});continue}
+    event=providedEvents.find(x=>x?.slug===slug)||null;
+   }else{
+    const response=await fetchImpl(url,{method:'GET',headers:{accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(16000)});
+    if(!response.ok){errors.push({slug,code:'PROVIDER_HTTP_'+response.status});continue}
+    const data=await response.json();event=Array.isArray(data)&&data.length===1?data[0]:null;
+   }
    if(!verifyGlobalNbaFixture(event,g)){errors.push({slug,code:'EVENT_IDENTITY_UNRESOLVED'});continue}
    let count=0;
    for(const market of event.markets||[]){const found=normalizeGlobalNbaProp(market,event,g,players,{capturedAt});rows.push(...found);count+=found.length;}
    fixtures.push({slug,canonicalEventId:String(g.id),providerEventId:String(event.id),providerMarkets:event.markets?.length||0,statSides:count});
-  }catch{errors.push({slug,code:'PROVIDER_OR_SCHEMA_UNAVAILABLE'})}
+  }catch(err){errors.push({slug,code:'PROVIDER_'+String(err?.name||'FETCH_FAILURE').toUpperCase().replace(/[^A-Z_]/g,'_')})}
  }
  const result={ok:true,source:'POLYMARKET_GLOBAL_GAMMA',day:today,capturedAt,rows,fixtures,errors,
   prices:'GAMMA_DISPLAY_REFERENCE_NOT_ORDERBOOK_ASK',canQualify:false,canAuthorizeWager:false};

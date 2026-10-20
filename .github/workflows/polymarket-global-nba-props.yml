@@ -20,15 +20,32 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Capture independently matched Polymarket Global NBA markets
+      - name: Retrieve Gamma events and send authenticated raw batch for FBIS verification
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
+          set -euo pipefail
           test -n "$HARVEST_SECRET" || { echo "HARVEST_SECRET_UNAVAILABLE"; exit 1; }
-          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 12 --max-time 190 \
-            -X POST "https://fbis-myz.pages.dev/api/polymarket-global-nba-collect" \
-            -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
-            -d '{}' > /tmp/global-nba-props.json
-          jq -e '.ok == true and .source == "POLYMARKET_GLOBAL_GAMMA" and .canAuthorizeWager == false' /tmp/global-nba-props.json
-          echo "Matched stat sides: $(jq -r '.contracts' /tmp/global-nba-props.json)" >> "$GITHUB_STEP_SUMMARY"
-          echo "Fixture count: $(jq -r '.fixtures' /tmp/global-nba-props.json), errors: $(jq -r '.errors | length' /tmp/global-nba-props.json)" >> "$GITHUB_STEP_SUMMARY"
+          BASE="https://fbis-myz.pages.dev/api/polymarket-global-nba-collect"
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 8 --max-time 45 \
+            -X POST "$BASE" -H "x-harvest-secret: $HARVEST_SECRET" \
+            -H "content-type: application/json" -d '{"mode":"fixtures"}' >/tmp/nba-prop-fixtures.json
+          jq -e '.ok == true and (.slugs | type == "array") and .canAuthorizeWager == false' /tmp/nba-prop-fixtures.json
+          : >/tmp/nba-gamma-event-lines.jsonl
+          while IFS= read -r slug; do
+            test -n "$slug" || continue
+            curl --fail-with-body --silent --show-error --retry 3 --retry-delay 8 --max-time 35 \
+              --get "https://gamma-api.polymarket.com/events" \
+              --data-urlencode "slug=$slug" --data-urlencode "limit=1" >/tmp/nba-gamma-one.json
+            jq -e --arg slug "$slug" 'type=="array" and length==1 and .[0].slug==$slug and (.[0].markets | type=="array")' /tmp/nba-gamma-one.json
+            jq -c '.[0]' /tmp/nba-gamma-one.json >>/tmp/nba-gamma-event-lines.jsonl
+          done < <(jq -r '.slugs[]' /tmp/nba-prop-fixtures.json)
+          jq -sc '{mode:"ingest",events:.}' /tmp/nba-gamma-event-lines.jsonl >/tmp/nba-gamma-ingest.json
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 8 --max-time 65 \
+            -X POST "$BASE" -H "x-harvest-secret: $HARVEST_SECRET" \
+            -H "content-type: application/json" \
+            --data-binary @/tmp/nba-gamma-ingest.json >/tmp/nba-gamma-receipt.json
+          jq -e '.ok == true and .source == "POLYMARKET_GLOBAL_GAMMA" and .canAuthorizeWager == false' /tmp/nba-gamma-receipt.json
+          echo "Verified Gamma player-prop sides: $(jq -r '.contracts' /tmp/nba-gamma-receipt.json)" >>"$GITHUB_STEP_SUMMARY"
+          echo "Canonical fixtures: $(jq -r '.fixtures' /tmp/nba-gamma-receipt.json)" >>"$GITHUB_STEP_SUMMARY"
+          echo "Rejected event/venue fetches: $(jq -r '.errors | length' /tmp/nba-gamma-receipt.json)" >>"$GITHUB_STEP_SUMMARY"
