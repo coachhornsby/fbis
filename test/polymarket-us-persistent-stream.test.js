@@ -204,7 +204,9 @@ test("a successful retried socket flush clears only its recovered database error
  const {PolymarketMarketStream}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
  let fail=true;
  const DB={prepare(){return{bind(){return{async run(){if(fail)throw Error('D1 unavailable');return{meta:{changes:1}}}}}}}};
- const worker=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB});
+ const q4Fail={prepare(){return{bind(){return{async run(){throw Error('q4 unavailable')},async all(){return{results:[]}},async first(){return null}}}}}};
+ // Q4 bound + primary-first: exercises primary retry while topology gate stays fail-closed.
+ const worker=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB,MARKET_HISTORY_2026Q4_DB:q4Fail,STREAM_WS_PERSIST_PRIMARY:'enabled'});
  worker.subscribed.set('soccer-draw',{sport:'soccer',canonical_event_id:'game',event_start_time:'2026-10-17T14:00:00Z',market_family:'moneyline',period:'full_game',side:'Draw'});
  const tick={marketSlug:'soccer-draw',bestAsk:0.27,sourceObservedAt:'2026-10-15T16:44:00Z',at:'2026-10-15T16:44:01Z'};
  worker.queue.set(tick.marketSlug,tick);
@@ -229,7 +231,9 @@ test("R2 spill on D1 failure preserves ticks without claiming inserted success",
  const puts=[];
  const ARCHIVE={async put(key,body){puts.push({key,body:JSON.parse(body)});}};
  const DB={prepare(){return{bind(){return{async run(){throw Error('D1 full')}}}}}};
- const worker=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB,ARCHIVE});
+ const q4Fail={prepare(){return{bind(){return{async run(){throw Error('q4 full')},async all(){return{results:[]}},async first(){return null}}}}}};
+ // Q4 bound + primary-first: primary fails, Q4 recovery fails → R2 spill (no legacy write).
+ const worker=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB,ARCHIVE,MARKET_HISTORY_2026Q4_DB:q4Fail,STREAM_WS_PERSIST_PRIMARY:'enabled'});
  worker.subscribed.set('nfl-ml',{sport:'nfl',canonical_event_id:'e1',event_start_time:'2026-10-19T17:00:00Z',market_family:'moneyline',period:'full_game',side:'Home'});
  const tick={marketSlug:'nfl-ml',bestAsk:0.55,bestBid:0.52,sourceObservedAt:'2026-10-16T20:00:00Z',at:'2026-10-16T20:00:01Z'};
  worker.queue.set(tick.marketSlug,tick);
@@ -278,7 +282,7 @@ test("history-shard recovery write on primary D1 failure does not claim primary 
  const puts=[];
  const ARCHIVE={async put(key,body){puts.push(key);}};
  const DB={prepare(){return{bind(){return{async run(){throw Error('D1 full')}}}}}};
- const worker=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB,ARCHIVE,MARKET_HISTORY_DB:HISTORY});
+ const worker=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB,ARCHIVE,MARKET_HISTORY_DB:HISTORY,MARKET_HISTORY_2026Q4_DB:HISTORY});
  worker.subscribed.set('nba-ml',{sport:'nba',canonical_event_id:'e2',event_start_time:'2026-10-17T00:00:00Z',market_family:'moneyline',period:'full_game',side:'Away'});
  const tick={marketSlug:'nba-ml',bestAsk:0.61,bestBid:0.58,sourceObservedAt:'2026-10-16T20:10:00Z',at:'2026-10-16T20:10:01Z'};
  worker.queue.set(tick.marketSlug,tick);
@@ -286,7 +290,7 @@ test("history-shard recovery write on primary D1 failure does not claim primary 
  clearTimeout(worker.flushTimer);worker.flushTimer=null;
  assert.equal(worker.inserted,0);
  assert.ok(worker.historyInserted>=1);
- // With MARKET_HISTORY bound, WS history-default succeeds as HISTORY (not a primary outage).
+ // With Q4 bound, WS Q4-default succeeds as HISTORY (not a primary outage).
  assert.equal(worker.persistenceStatus,'HISTORY');
  assert.equal(worker.lastError,null);
  assert.equal(worker.queue.size,0);
@@ -297,25 +301,25 @@ test("history-shard recovery write on primary D1 failure does not claim primary 
  assert.equal(row.contract_price,0.61);
  assert.equal(worker.status().fixedCapRetired,true);
  assert.match(worker.status().codeVersion,/history-default|history-recovery/);
- // Default: WS ticks prefer MARKET_HISTORY without attempting primary inserts.
+ // Default: WS ticks prefer Q4 without attempting primary inserts.
  let primaryWrites=0;
  const healthyPrimary={prepare(sql){
   if(sql==='SELECT 1 AS healthy')return {all:async()=>({meta:{size_after:7_000_000_000}})};
   primaryWrites++;throw Error('history-default must skip primary insert');
  }};
- const byDefault=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB:healthyPrimary,ARCHIVE,MARKET_HISTORY_DB:HISTORY});
+ const byDefault=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB:healthyPrimary,ARCHIVE,MARKET_HISTORY_DB:HISTORY,MARKET_HISTORY_2026Q4_DB:HISTORY});
  byDefault.subscribed.set('nba-ml',worker.subscribed.get('nba-ml'));
  byDefault.queue.set('nba-ml',{...tick,bestAsk:.62});await byDefault.flush();
  clearTimeout(byDefault.flushTimer);
  assert.equal(primaryWrites,0);
  assert.equal(byDefault.persistenceStatus,'HISTORY');
- assert.equal(byDefault.wsPersistTarget?.reason,'WS_HISTORY_DEFAULT');
+ assert.equal(byDefault.wsPersistTarget?.reason,'WS_Q4_DEFAULT');
  assert.ok(byDefault.historyInserted>0);
- // Opt-in primary-first still soft-caps into history at 8GB.
+ // Opt-in primary-first still soft-caps into Q4 at 8GB.
  primaryWrites=0;
  const full={prepare(sql){if(sql==='SELECT 1 AS healthy')return {all:async()=>({meta:{size_after:8_500_000_000}})};
    primaryWrites++;throw Error('soft-cap routing must skip primary insert');}};
- const routed=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB:full,ARCHIVE,MARKET_HISTORY_DB:HISTORY,STREAM_WS_PERSIST_PRIMARY:'enabled'});
+ const routed=new PolymarketMarketStream({waitUntil(){},storage:{async setAlarm(){}}},{DB:full,ARCHIVE,MARKET_HISTORY_DB:HISTORY,MARKET_HISTORY_2026Q4_DB:HISTORY,STREAM_WS_PERSIST_PRIMARY:'enabled'});
  routed.subscribed.set('nba-ml',worker.subscribed.get('nba-ml'));
  routed.queue.set('nba-ml',{...tick,bestAsk:.63});await routed.flush();
  clearTimeout(routed.flushTimer);

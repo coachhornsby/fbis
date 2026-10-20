@@ -29,11 +29,20 @@ export async function onRequestGet({ env, request } = {}) {
   try {
     const primaryBytes = await probeBytes(env?.DB);
     const historyBytes = await probeBytes(env?.MARKET_HISTORY_DB);
+    const historyQ4Bytes = await probeBytes(env?.MARKET_HISTORY_2026Q4_DB);
     const operationsBytes = await probeBytes(env?.OPERATIONS_DB);
+    const coreBytes = await probeBytes(env?.CORE_DB);
+    const nhlBytes = await probeBytes(env?.NHL_DB);
     const coldBytes = await probeBytes(env?.COLD_HISTORY_DB);
     if (primaryBytes != null) live.PRIMARY = capacityAlertLevel(primaryBytes);
     if (historyBytes != null) live.MARKET_HISTORY = capacityAlertLevel(historyBytes);
+    if (historyQ4Bytes != null) live.MARKET_HISTORY_2026Q4 = capacityAlertLevel(historyQ4Bytes);
+    else live.MARKET_HISTORY_2026Q4 = { bound: Boolean(env?.MARKET_HISTORY_2026Q4_DB?.prepare), databaseId: DATABASE_OWNERS.MARKET_HISTORY_2026Q4?.databaseId };
     if (operationsBytes != null) live.OPERATIONS = capacityAlertLevel(operationsBytes);
+    if (coreBytes != null) live.CORE = capacityAlertLevel(coreBytes);
+    else live.CORE = { bound: Boolean(env?.CORE_DB?.prepare), databaseId: DATABASE_OWNERS.CORE?.databaseId };
+    if (nhlBytes != null) live.NHL = capacityAlertLevel(nhlBytes);
+    else live.NHL = { bound: Boolean(env?.NHL_DB?.prepare), databaseId: DATABASE_OWNERS.NHL?.databaseId };
     if (coldBytes != null) live.COLD_HISTORY = capacityAlertLevel(coldBytes);
     else {
       live.COLD_HISTORY = {

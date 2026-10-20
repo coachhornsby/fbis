@@ -1,7 +1,11 @@
-# FBIS database ownership contract v1
+# FBIS database ownership contract v1 → v2
 
-**Status:** Production governance  
+**Status:** Production governance (extended by topology v2)  
 **Purpose:** Keep primary D1 under sustainable headroom by assigning explicit ownership and refusing new high-volume growth on the wrong database.
+
+> Topology v2 (CORE_DB, per-sport DBs, partitioned market history) is documented in
+> [`docs/database-topology-v2.md`](./database-topology-v2.md). This file remains the
+> capacity / ops ownership contract for existing monitors.
 
 ## Databases
 
