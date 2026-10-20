@@ -1,7 +1,7 @@
 # Exchange player props: implementation and remaining delivery gates
 
 Status: draft foundation; not a production-complete replacement.
-Base: d33a7bcbb169f4991ab06ab93d8d80afe486d04d.
+Initial base: d33a7bcbb169f4991ab06ab93d8d80afe486d04d. Integrated concurrent main 58207e46a53ad42104c1ce82d72ad6f173f964a7 before final verification.
 
 ## Inspected current state
 
@@ -45,7 +45,7 @@ This is a new adapter interface, not a claim that existing collectors emit these
 
 ## Verification
 
-- Existing npm test chain: 2,011 passed, zero failed.
+- Combined npm test after integrating newer main: 2,033 passed, zero failed (including 18 new tests).
 - New exchange contract/history/API tests: 18 passed, zero failed; included in npm test.
 - Vite production build passed.
 - git diff --check passed.
