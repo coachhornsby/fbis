@@ -60,6 +60,10 @@ import {
   CORE_HOLDOUT_TRAIN_SEASON,
   CORE_HOLDOUT_EVAL_SEASON,
 } from "./cfbCoreHoldout.js";
+import {
+  reconstructFbisCoreFromWeeklyReports,
+  FBIS_CORE_WEEKLY_SOURCE_ENDPOINT,
+} from "./cfbCoreFromWeeklyReports.js";
 import { projectCfbFbisV2, CFB_FBIS_V2_ID } from "./cfbFbisV2.js";
 import { schoolKey } from "./cfbdCanonical.js";
 
@@ -785,93 +789,157 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         },
       });
     }
-    // Research-only: 2025 CORE reconstruct + frozen 2026 Model C holdout (Pages has CFBD key).
-    // Uses year-scoped CFBD fetches (not week loops) to stay within Worker subrequest/CPU budgets.
+    // Research-only: 2025 train / frozen 2026 Model C holdout.
+    // Primary CORE source = FBIS weekly training reports (TIER3_DB).
+    // CFBD /ratings/core remains an optional overlay when weekly docs are thin.
     if (job === "cfb-core-2025-2026-holdout") {
       const seasons = [CORE_HOLDOUT_TRAIN_SEASON, CORE_HOLDOUT_EVAL_SEASON];
-      const archiveRows = [];
+      let archiveRows = [];
       const games = [];
-      const reconstruct = {};
+      const reconstruct = {
+        primarySource: FBIS_CORE_WEEKLY_SOURCE_ENDPOINT,
+        cfbdCoreOptional: true,
+      };
       const errors = [];
       const persistArchives = opts.persistArchives !== false;
+
+      // --- Primary: reconstruct FBIS CORE from TIER3 weekly training games ---
+      let weeklyCore = { ok: false, archiveRows: [], coverage: [], errors: [] };
+      try {
+        const tier3Db = env?.TIER3_DB || env?.DB || null;
+        if (tier3Db) {
+          const rs = await tier3Db
+            .prepare(
+              `SELECT season, week, kickoff_literal, home_team_source, away_team_source,
+                      features_json
+               FROM cfb_tier3_training_games
+               WHERE season IN (?, ?)
+               ORDER BY season, week`
+            )
+            .bind(CORE_HOLDOUT_TRAIN_SEASON, CORE_HOLDOUT_EVAL_SEASON)
+            .all();
+          const bySeasonWeek = new Map();
+          for (const row of rs?.results || []) {
+            const season = Number(row.season);
+            const week = Number(row.week);
+            if (!Number.isFinite(season) || !Number.isFinite(week)) continue;
+            const key = `${season}:${week}`;
+            if (!bySeasonWeek.has(key)) {
+              bySeasonWeek.set(key, { season, week, rows: [] });
+            }
+            let features = {};
+            try {
+              features = JSON.parse(row.features_json || "{}");
+            } catch (_) {
+              features = {};
+            }
+            bySeasonWeek.get(key).rows.push({
+              season,
+              week,
+              kickoff: row.kickoff_literal,
+              homeTeam: row.home_team_source,
+              awayTeam: row.away_team_source,
+              homeAdjustedEpa: features.home_adjusted_epa,
+              homeAdjustedEpaAllowed: features.home_adjusted_epa_allowed,
+              awayAdjustedEpa: features.away_adjusted_epa,
+              awayAdjustedEpaAllowed: features.away_adjusted_epa_allowed,
+            });
+          }
+          weeklyCore = reconstructFbisCoreFromWeeklyReports([...bySeasonWeek.values()]);
+          if (weeklyCore.ok) {
+            archiveRows = weeklyCore.archiveRows;
+            reconstruct.weeklyTraining = {
+              ok: true,
+              coverage: weeklyCore.coverage,
+              archiveRowCount: archiveRows.length,
+              authenticityClass: CORE_AUTHENTICITY.WEEKLY_TRAINING_DOCUMENT,
+            };
+          } else {
+            reconstruct.weeklyTraining = {
+              ok: false,
+              errors: weeklyCore.errors,
+              reason: "tier3_weekly_reconstruct_empty",
+            };
+          }
+        } else {
+          reconstruct.weeklyTraining = { ok: false, reason: "tier3_db_unbound" };
+        }
+      } catch (err) {
+        reconstruct.weeklyTraining = {
+          ok: false,
+          reason: String(err?.message || err),
+        };
+        errors.push(`weekly_core:${err?.message || err}`);
+      }
+
       for (const season of seasons) {
         try {
-          const coreRes = await cfbdGetWithRetry(
-            "/ratings/core",
-            env,
-            { query: { year: season }, fetchFn: opts.fetchFn || fetch },
-            { attempts: 5, baseDelayMs: 2000 }
+          // Optional CFBD CORE overlay — only when weekly archives lack this season.
+          const weeklySeasonOk = (weeklyCore.coverage || []).some(
+            (c) => c.season === season && (c.distinctThroughWeeks || 0) >= 1
           );
-          if (!coreRes?.ok) throw new Error(coreRes?.reason || `core_${season}_failed`);
-          const yearRows = coreRes.data || [];
-          // Diagnose CFBD year payload shape (completed seasons often return only
-          // postseason/undated finals — regular weekly throughWeeks may be absent).
-          const typeCounts = {};
-          const twCounts = {};
-          let nullTw = 0;
-          for (const raw of yearRows) {
-            const tw = raw?.throughWeek ?? raw?.week;
-            const st = String(raw?.throughSeasonType || raw?.seasonType || "missing");
-            typeCounts[st] = (typeCounts[st] || 0) + 1;
-            if (tw == null || tw === "") {
-              nullTw += 1;
+          if (!weeklySeasonOk) {
+            const coreRes = await cfbdGetWithRetry(
+              "/ratings/core",
+              env,
+              { query: { year: season }, fetchFn: opts.fetchFn || fetch },
+              { attempts: 5, baseDelayMs: 2000 }
+            );
+            if (!coreRes?.ok) {
+              errors.push(`optional_core_${season}:${coreRes?.reason || "fail"}`);
             } else {
-              const key = `${st}:w${tw}`;
-              twCounts[key] = (twCounts[key] || 0) + 1;
-            }
-          }
-          // Prefer regular-season weekly buckets; if none exist, fall back to all
-          // season types so we surface whatever CFBD actually stored for the year.
-          let built = buildHistoricalCoreArchivePayloads({
-            season,
-            yearRows,
-            seasonType: "regular",
-            authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
-            collectionTime: new Date().toISOString(),
-            jobRunId: newJobId(),
-          });
-          let usedSeasonType = "regular";
-          if ((built.partitioned?.distinctThroughWeekCount || 0) === 0) {
-            built = buildHistoricalCoreArchivePayloads({
-              season,
-              yearRows,
-              seasonType: null,
-              authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
-              collectionTime: new Date().toISOString(),
-              jobRunId: newJobId(),
-            });
-            usedSeasonType = "all";
-          }
-          for (const payload of built.payloads) {
-            if (persistArchives) {
-              const saved = await persistCoreWeeklyArchive(env, payload);
-              writes.writesSucceeded += saved?.written || 0;
-            }
-            for (const t of payload.teams || []) {
-              archiveRows.push({
+              const yearRows = coreRes.data || [];
+              let built = buildHistoricalCoreArchivePayloads({
                 season,
-                through_week: payload.throughWeek,
-                school_key: t.schoolKey,
-                core: t.core,
-                core_offense: t.coreOffense,
-                core_defense: t.coreDefense,
-                through_season_type: t.throughSeasonType || "regular",
-                collection_time: payload.collectionTime,
+                yearRows,
+                seasonType: "regular",
+                authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
+                collectionTime: new Date().toISOString(),
+                jobRunId: newJobId(),
               });
+              if ((built.partitioned?.distinctThroughWeekCount || 0) === 0) {
+                built = buildHistoricalCoreArchivePayloads({
+                  season,
+                  yearRows,
+                  seasonType: null,
+                  authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
+                  collectionTime: new Date().toISOString(),
+                  jobRunId: newJobId(),
+                });
+              }
+              for (const payload of built.payloads) {
+                if (persistArchives) {
+                  const saved = await persistCoreWeeklyArchive(env, payload);
+                  writes.writesSucceeded += saved?.written || 0;
+                }
+                for (const t of payload.teams || []) {
+                  archiveRows.push({
+                    season,
+                    through_week: payload.throughWeek,
+                    school_key: t.schoolKey,
+                    core: t.core,
+                    core_offense: t.coreOffense,
+                    core_defense: t.coreDefense,
+                    through_season_type: t.throughSeasonType || "regular",
+                    collection_time: payload.collectionTime,
+                    authenticityClass: CORE_AUTHENTICITY.RETROSPECTIVE_CFBD_STORED,
+                    coreSourceEndpoint: "/ratings/core",
+                  });
+                }
+              }
+              reconstruct[season] = {
+                source: "cfbd_ratings_core_optional_fallback",
+                throughWeeks: built.partitioned.throughWeeks,
+                payloads: built.payloads.length,
+              };
             }
+          } else {
+            reconstruct[season] = {
+              source: FBIS_CORE_WEEKLY_SOURCE_ENDPOINT,
+              skippedCfbdCore: true,
+            };
           }
-          reconstruct[season] = {
-            throughWeeks: built.partitioned.throughWeeks,
-            payloads: built.payloads.length,
-            persisted: persistArchives,
-            usedSeasonType,
-            cfbdYearRows: yearRows.length,
-            cfbdNullThroughWeek: nullTw,
-            cfbdThroughSeasonTypeCounts: typeCounts,
-            cfbdThroughWeekBuckets: twCounts,
-            partitioned: built.partitioned,
-          };
-          // One CFBD /games call per season (regular); filter weeks 1–15 in-process.
+          // CFBD /games for finals (still needed — weekly reports lack scores).
           const gRes = await cfbdGetWithRetry(
             "/games",
             env,
@@ -1004,8 +1072,16 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
       const report = runCore2025Train2026HoldoutReport({
         games,
         archiveRows,
-        cfbdAccess: true,
+        // Weekly archives or CFBD key both count as access for the audit gate.
+        cfbdAccess: archiveRows.length > 0,
       });
+      report.coreSource = {
+        primary: FBIS_CORE_WEEKLY_SOURCE_ENDPOINT,
+        weeklyTraining: reconstruct.weeklyTraining || null,
+        cfbdCoreUsedAsFallback: Object.values(reconstruct).some(
+          (v) => v && v.source === "cfbd_ratings_core_optional_fallback"
+        ),
+      };
       // Persist compact research evaluation report when table exists.
       try {
         const db = env?.DB || env?.TIER3_DB || null;

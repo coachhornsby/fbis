@@ -28,10 +28,31 @@ Code: `functions/lib/cfbCoreHoldout.js` (`runCore2025Train2026HoldoutReport`, `e
 
 | Source | Role |
 |--------|------|
-| FBIS weekly training documents (2025+) | Preserved weekly feature reports; first complete FBIS historical season is **2025** |
-| CFBD `GET /ratings/core` | Stored weekly `throughWeek` rows (API coverage from 2016); **retrospective** recalculations |
+| FBIS weekly training documents (2025+) | **Primary** FBIS CORE research input — preserved weekly O/D EPA reports; first complete FBIS historical season is **2025** |
+| CFBD `GET /ratings/core` | **Optional** external overlay — stored weekly `throughWeek` rows (API coverage from 2016); **retrospective** recalculations |
 
 Do **not** assume they share the same publication history. Label archives by source (`weekly_training_document` vs `retrospective_cfbd_stored`).
+
+### FBIS CORE from weekly reports (preferred research path)
+
+A successful CFBD `/ratings/core` HTTP response alone does **not** define FBIS CORE methodology. Reconstruct team-strength features from weekly training CSVs:
+
+| Report field | FBIS CORE mapping |
+|--------------|-------------------|
+| `adjusted_epa` | offense × 100 (per-100-play scale) |
+| `adjusted_epa_allowed` | defense = −(allowed × 100) (CFBD-like sign) |
+| schedule week `W` | archive `throughWeek = W − 1` |
+
+Code: `functions/lib/cfbCoreFromWeeklyReports.js`. Offline runner:
+
+```bash
+CFB_HOLDOUT_TIER3_2025=/path/to/2025/csvs \
+CFB_HOLDOUT_TIER3_2026=/path/to/2026/csvs \
+CFB_HOLDOUT_GAMES=/path/to/scored-games.json \
+node scripts/cfb-core-fbis-from-weekly-reports-holdout.mjs
+```
+
+CFBD is optional for CORE features; scored games + A/A (or SP→FBIS-v2) baselines are still required for the frozen holdout.
 
 ## Model C — evidence-based eligibility
 
@@ -88,9 +109,9 @@ Every holdout report includes:
 
 | Item | Status |
 |------|--------|
-| 2025 CORE weekly archive in primary D1 | **Missing** — reconstruct via CFBD / Actions |
-| 2026 CORE archive | throughWeek 6–7 only (~138 teams) |
-| Champion A/A historical baselines for 2025/2026 | Required input for H2H; not fabricated |
-| Model C | **Blocked** until 2025 reconstruct + cutoffs + baselines + frozen 2026 eval complete |
+| 2025/2026 weekly training reports | Available (Tier3 CSVs / `TIER3_DB`) — **primary CORE input** |
+| CFBD `/ratings/core` year reconstruct | Optional overlay; often incomplete for 2025 weekly throughWeeks |
+| Champion A/A historical baselines | Prefer `prediction_snapshots`; SP→FBIS-v2 fallback for research |
+| Model C research path | Fit 2025 / frozen 2026 holdout from weekly-report CORE (research-only) |
 
 Do not force CORE into production.
