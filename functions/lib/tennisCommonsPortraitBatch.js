@@ -154,6 +154,42 @@ export const TENNIS_COMMONS_PORTRAIT_BATCH = Object.freeze([
     "license": "CC BY-SA 2.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Boskovic_WMQ22_(2)_(52191665080).jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:novak djokovic",
+    "playerName": "Novak Djokovic",
+    "fileTitle": "Novak Djokovic Paris 2024 Olympic Games (cropped).jpg",
+    "author": "Andymiah",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Novak_Djokovic_Paris_2024_Olympic_Games_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:casper ruud",
+    "playerName": "Casper Ruud",
+    "fileTitle": "Casper Ruud, Norwegian professional tennis player, ATP 500 Basel 2025 (cropped).jpg",
+    "author": "Skyscraper2010",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Casper_Ruud%2C_Norwegian_professional_tennis_player%2C_ATP_500_Basel_2025_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:carlos alcaraz",
+    "playerName": "Carlos Alcaraz",
+    "fileTitle": "Carlos Alcaraz Roland Garros 2025 (cropped).jpg",
+    "author": "Like tears in rain",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Carlos_Alcaraz_Roland_Garros_2025_(cropped).jpg"
+  },
+  {
+    "playerId": "tennis:atp:research:jannik sinner",
+    "playerName": "Jannik Sinner",
+    "fileTitle": "Jannik Sinner 2024 US Open 4 (cropped).jpg",
+    "author": "Hameltion",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jannik_Sinner_2024_US_Open_4_(cropped).jpg"
   }
 ]);
 export const tennisCommonsPortraitCandidate = id => TENNIS_COMMONS_PORTRAIT_BATCH.find(x=>x.playerId===id)||null;
