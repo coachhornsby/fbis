@@ -966,17 +966,81 @@
   color: #f6faff;
   text-shadow: 0 1px 5px rgba(0,0,0,.6);
 }
+@keyframes cgc-gap-neon-over {
+  0%, 100% { box-shadow: 0 0 12px rgba(57,255,20,.35), inset 0 0 0 1px rgba(57,255,20,.28); border-color: #2fe00f; }
+  50% { box-shadow: 0 0 28px rgba(57,255,20,.75), 0 0 48px rgba(57,255,20,.28), inset 0 0 0 1px rgba(120,255,90,.55); border-color: #6dff45; }
+}
+@keyframes cgc-gap-neon-under {
+  0%, 100% { box-shadow: 0 0 12px rgba(255,26,26,.35), inset 0 0 0 1px rgba(255,60,60,.28); border-color: #e01010; }
+  50% { box-shadow: 0 0 28px rgba(255,26,26,.75), 0 0 48px rgba(255,80,80,.28), inset 0 0 0 1px rgba(255,120,120,.55); border-color: #ff4d4d; }
+}
+@keyframes cgc-gap-sheen {
+  0% { transform: translateX(-130%) skewX(-18deg); opacity: 0; }
+  18% { opacity: .55; }
+  42% { opacity: .2; }
+  100% { transform: translateX(220%) skewX(-18deg); opacity: 0; }
+}
+@keyframes cgc-gap-arrow-over {
+  0%, 100% { transform: translateY(3px); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes cgc-gap-arrow-under {
+  0%, 100% { transform: translateY(-3px); }
+  50% { transform: translateY(5px); }
+}
+@keyframes cgc-gap-value-pulse {
+  0%, 100% { transform: scale(1); text-shadow: 0 1px 3px rgba(0,0,0,.55); }
+  50% { transform: scale(1.035); text-shadow: 0 2px 10px rgba(0,0,0,.45), 0 0 18px rgba(255,255,255,.35); }
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under {
+  position: relative !important;
+  overflow: hidden !important;
+  isolation: isolate;
+  background-size: 160% 160% !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over::after,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under::after {
+  content: "";
+  position: absolute;
+  inset: -20% auto -20% 0;
+  width: 42%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.42), transparent);
+  pointer-events: none;
+  z-index: 1;
+  animation: cgc-gap-sheen 3.6s ease-in-out infinite;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > *,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > * {
+  position: relative;
+  z-index: 2;
+}
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over {
   border: 2px solid #39ff14 !important;
-  background: linear-gradient(105deg,#c8ffd4 0%,#6fbf84 100%) !important;
+  background: linear-gradient(115deg,#d8ffe2 0%,#9de6b0 42%,#5fb873 100%) !important;
   box-shadow: 0 0 18px rgba(57,255,20,.55), inset 0 0 0 1px rgba(57,255,20,.35) !important;
   color: #ffffff !important;
+  animation: cgc-gap-neon-over 2.4s ease-in-out infinite;
 }
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under {
   border: 2px solid #ff1a1a !important;
-  background: linear-gradient(105deg,#ffc8c8 0%,#d06670 100%) !important;
+  background: linear-gradient(115deg,#ffd6d6 0%,#f0a0a8 42%,#d06670 100%) !important;
   box-shadow: 0 0 18px rgba(255,26,26,.55), inset 0 0 0 1px rgba(255,60,60,.35) !important;
   color: #ffffff !important;
+  animation: cgc-gap-neon-under 2.4s ease-in-out infinite;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > strong,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > strong {
+  animation: cgc-gap-value-pulse 2.4s ease-in-out infinite;
+  transform-origin: center;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over .cgc-total-direction-arrow {
+  display: inline-block;
+  animation: cgc-gap-arrow-over 1.35s ease-in-out infinite;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under .cgc-total-direction-arrow {
+  display: inline-block;
+  animation: cgc-gap-arrow-under 1.35s ease-in-out infinite;
 }
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > strong,
 .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > strong,
@@ -1069,6 +1133,18 @@
   .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > small,
   .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > small {
     font-size: 12px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over::after,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under::after,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over > strong,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under > strong,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-over .cgc-total-direction-arrow,
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.cgc-gap-total-under .cgc-total-direction-arrow {
+    animation: none !important;
   }
 }
 
