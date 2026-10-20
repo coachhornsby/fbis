@@ -14,6 +14,8 @@ import {
 const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
 const MAX_BATCH=40, MAX_QUEUE=400;
 const RECONNECT_MS=60000, ROTATE_MS=9*60000, FLUSH_MS=5000;
+/** Module-level so post-deploy health reflects the new Worker pin without waiting for DO constructor. */
+export const STREAM_CODE_VERSION="board-ws-q4-default-headroom-20261020";
 const toJSON=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 export {PRIMARY_WS_SOFT_CAP_BYTES,resolveWsPersistTarget} from "./wsPersistTarget.mjs";
 
@@ -30,7 +32,7 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
     this.persistenceStatus="UNVERIFIED";this.lastSpillKey=null;this.lastSpillAt=null;
     this.historyLastError=null;
-    this.codeVersion="board-ws-history-default-headroom-20261018";
+    this.codeVersion=STREAM_CODE_VERSION;
     this.capacityProbeAt=0;this.primaryBytes=null;this.wsPersistTarget=null;
   }
   isCanonicalOwner(){
@@ -77,7 +79,8 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
       streamHealthy,
       persistenceStatus:this.persistenceStatus,
       primaryBytes:this.primaryBytes,
-      wsPersistTarget:this.wsPersistTarget||resolveWsPersistTarget(this.env,this.primaryBytes),
+      // Always recompute: DO in-memory route can lag a Worker pin that already binds Q4.
+      wsPersistTarget:resolveWsPersistTarget(this.env,this.primaryBytes),
       // Stream is operational when connected and fresh. Persistence DEGRADED/UNAVAILABLE
       // (D1 full) must not be hidden — those states clear operational until inserts recover.
       // HISTORY is intentional WS history-default success (not a primary outage).
@@ -102,7 +105,7 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
       lastConnectAttemptAt:this.lastConnectAttempt?new Date(this.lastConnectAttempt).toISOString():null,
       architecture:"single-do-dynamic-capacity",
       fixedCapRetired:true,
-      codeVersion:this.codeVersion,
+      codeVersion:STREAM_CODE_VERSION,
       readOnly:true,canAuthorizeWager:false};
   }
   async fetch(req){

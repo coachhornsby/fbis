@@ -304,17 +304,33 @@ jobs:
             fi
           done
 
-          # NHL release smoke: the deployed slate must expose the v2 challenger.
-          nhl_tmp="$(mktemp)"
-          nhl_code="$(curl -sS --connect-timeout 5 --max-time 20 --retry 1 --retry-delay 2 -o "$nhl_tmp" -w "%{http_code}" "${BASE}/api/projections?sport=nhl&_t=$(date +%s)")"
-          echo "smoke NHL-PRO-v2 http=${nhl_code}"
-          test "$nhl_code" = "200"
+          # NHL release smoke: research primary is NHL-FBIS-v1; NHL-PRO-v2 remains
+          # the attached challenger on the live board (not model.engine on /api/projections).
+          nhl_proj_tmp="$(mktemp)"
+          nhl_proj_code="$(curl -sS --connect-timeout 5 --max-time 20 --retry 1 --retry-delay 2 -o "$nhl_proj_tmp" -w "%{http_code}" "${BASE}/api/projections?sport=nhl&_t=$(date +%s)")"
+          echo "smoke NHL-FBIS-v1 projections http=${nhl_proj_code}"
+          test "$nhl_proj_code" = "200"
           jq -e '
             (.games // []) as $games |
             if ($games | length) == 0 then true
-            else [$games[] | select(.model.engine == "NHL-PRO-v2")] | length > 0
+            else [$games[] | select(.model.engine == "NHL-FBIS-v1")] | length > 0
             end
-          ' "$nhl_tmp" >/dev/null
+          ' "$nhl_proj_tmp" >/dev/null
+          nhl_today_tmp="$(mktemp)"
+          nhl_today_code="$(curl -sS --connect-timeout 5 --max-time 25 --retry 1 --retry-delay 2 -o "$nhl_today_tmp" -w "%{http_code}" "${BASE}/api/today?sport=nhl&_t=$(date +%s)")"
+          echo "smoke NHL-PRO-v2 challenger http=${nhl_today_code}"
+          test "$nhl_today_code" = "200"
+          jq -e '
+            (.games // []) as $games |
+            if ($games | length) == 0 then true
+            else
+              [$games[] | select(
+                (.nhlProV2.ok == true) or
+                (.challengers["NHL-PRO-v2"] != null) or
+                ((.challengers | keys // []) | index("NHL-PRO-v2") != null)
+              )] | length > 0
+            end
+          ' "$nhl_today_tmp" >/dev/null
 
           # Provider-ingestion release gate. This is read-only and proves the
           # deployed Worker sees the advanced-data credentials that the model
