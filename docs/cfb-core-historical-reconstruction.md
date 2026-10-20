@@ -54,12 +54,14 @@ Model **C** = Combined champion baseline + CORE cross terms.
 CFBD_API_KEY=… node scripts/cfb-core-2025-reconstruct-2026-holdout.mjs
 ```
 
-GitHub Actions (`college.yml` workflow_dispatch):
+GitHub Actions (`college.yml` / `cfb-core-2025-2026-holdout.yml`):
 
 - Job: `cfb-core-2025-2026-holdout`
-- Secret: `CFBD_API_KEY`
+- Prefer repository secret `CFBD_API_KEY` for offline Actions CPU
+- If that secret is empty: invoke Pages Worker `GET /api/college?job=cfb-core-2025-2026-holdout&trigger=workflow_dispatch&operatorApproved=true` (Pages production already has `CFBD_API_KEY` + `HARVEST_SECRET`)
 - Optional artifact: `artifacts/cfb-champion-aa-baselines.json(l)` with `{gameId,baselineHome,baselineAway}`
 - Uploads: `cfb-core-2025-2026-holdout` (report + archive snapshot)
+- Pages binding `CFB_DB` (`fbis-cfb`) overlays live `prediction_snapshots` A/A when present
 
 ## Jobs (research Worker)
 
@@ -68,6 +70,7 @@ GitHub Actions (`college.yml` workflow_dispatch):
 | `cfb-core-historical-reconstruct` | Optional CFBD year fetch → archive each distinct throughWeek (labeled retrospective) |
 | `cfb-core-publication-track` | Compare archived current throughWeek vs baseline (default 6); deltas + timestamps |
 | `cfb-core-model-c-readiness` | Evidence-based Model C gate (2025→2026); never auto-promote |
+| `cfb-core-2025-2026-holdout` | Reconstruct 2025+2026 CORE, fit Model C on 2025, frozen 2026 holdout vs A/A (research-only) |
 
 ## Report fields
 
