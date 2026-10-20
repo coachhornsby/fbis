@@ -106,7 +106,11 @@ export async function collectPolymarketGlobalTennis(env,{now=new Date(),fetchImp
   fixtureCount:fixtures.length,searchCount:searches.length,eventCount:events.size,
   errors,searches,events:[...events.values()],quoteSourceTime:null,
   marketKind:"GAMMA_METADATA_RESEARCH_ONLY",canQualify:false,canAuthorizeWager:false,executionEligible:false};
- await env.ARCHIVE.put(SNAPSHOT_KEY,JSON.stringify(snapshot),{httpMetadata:{contentType:"application/json",cacheControl:"private,max-age=0"}});
+ // Immutable run artifact plus a separate latest pointer. This never rewrites
+ // historical market-history D1 and cannot backdate a provider clock.
+ const historicalKey="tennis/polymarket-global/archive/"+at.slice(0,10)+"/"+at.replace(/[:.]/g,"-")+".json";
+ await env.ARCHIVE.put(historicalKey,JSON.stringify(snapshot),{httpMetadata:{contentType:"application/json",cacheControl:"private,max-age=0"}});
+ await env.ARCHIVE.put(SNAPSHOT_KEY,JSON.stringify({...snapshot,rawArtifactKey:historicalKey}),{httpMetadata:{contentType:"application/json",cacheControl:"private,max-age=0"}});
  return {ok:errors.length===0,asOf:at,fixtureCount:fixtures.length,matchedEvents:events.size,
   searchCount:searches.length,errors,source:snapshot.source,canQualify:false,canAuthorizeWager:false};
 }
