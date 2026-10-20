@@ -11,7 +11,19 @@
 .bets-dashboard .bets-stat-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .bets-dashboard .bets-stat-grid>*{min-width:0;background:linear-gradient(145deg,#17334a,#0a2033);border:1px solid #45647b;border-radius:12px;padding:13px}
 .bets-dashboard .bets-stat-grid strong,.bets-dashboard .bets-stat-grid b{font-size:clamp(1.1rem,2vw,1.8rem);font-variant-numeric:tabular-nums}
-.bets-filter-heading{display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:22px 0 11px}
+.bets-filter-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:22px 0 11px}
+.bets-history-toggle{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(125deg,#27698d,#153c61);border:1px solid #79bada;color:#fff;border-radius:10px;padding:12px 16px;font-size:.88rem;font-weight:850;cursor:pointer}
+.bets-history-toggle:hover{background:#287ca4}
+.bets-history-toggle:focus-visible,.bets-history-toolbar select:focus-visible,.bets-clear-filters:focus-visible{outline:2px solid #a5e2ff;outline-offset:3px}
+.bets-history-toggle span{font-weight:700;color:#cae5f6}
+.bets-history-toolbar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;padding:14px;background:#0a2133;border:1px solid #3c6078;border-radius:12px}
+.bets-history-toolbar label{display:grid;gap:6px;flex:1 1 145px;min-width:125px;color:#b8d7e8;font-size:.76rem;font-weight:750}
+.bets-history-toolbar select,.bets-history-toolbar input{background:#071a2b!important;border:1px solid #55748c!important;border-radius:9px!important;color:#fff!important;padding:10px 12px!important;width:100%;min-width:0;font:inherit;font-size:.85rem!important}
+.bets-history-toolbar select{cursor:pointer}
+.bets-history-toolbar .bets-search{flex:2 1 235px;min-width:170px}
+.bets-clear-filters{border:1px solid #75b4d4;border-radius:9px;background:#174663;color:#fff;font-size:.8rem;font-weight:800;padding:12px;cursor:pointer}
+.bets-ticket-id{max-width:185px;overflow-wrap:anywhere;color:#cde9f8;font-size:.77rem}
+
 .bets-filter-heading h3{margin:0;font-size:1.25rem;font-weight:850;color:#f2faff}
 .bets-filter-heading span{color:#a9c5d9;font-size:.78rem}
 .bets-search{display:flex;flex-direction:column;gap:6px;min-width:min(100%,320px)}
@@ -23,15 +35,17 @@
 .bets-advanced-toggle{border:1px solid #4a6c82;border-radius:9px;background:#0c2639;color:#c4e8ff;cursor:pointer;margin:13px 0 0;padding:10px 13px;font-weight:750}
 .bets-advanced-panel{background:#0a2134;border:1px solid #37566d;border-radius:12px;padding:13px;margin:10px 0 0;display:grid;gap:10px}
 .bets-dashboard .bets-ledger-panel{margin-top:16px;border:1px solid #3c5c74;border-radius:14px;overflow:hidden}
-.bets-dashboard .bets-ledger-table{width:100%;border-collapse:separate;border-spacing:0;font-size:.82rem}
+.bets-dashboard .bets-ledger-table{min-width:1220px;width:100%;border-collapse:separate;border-spacing:0;font-size:.82rem}
 .bets-dashboard .bets-ledger-table th{position:sticky;top:0;background:#19364b;color:#d4eafa;font-size:.72rem;letter-spacing:.045em;text-transform:uppercase;z-index:1;padding:13px 11px}
 .bets-dashboard .bets-ledger-table td{border-bottom:1px solid #30475a;padding:13px 11px;vertical-align:middle;color:#ebf5ff}
 .bets-dashboard .bets-ledger-table tbody tr:nth-child(2n){background:#0e2435}
 .bets-dashboard .bets-ledger-table tbody tr:hover{background:#1c3b51}
-.bets-dashboard .bets-ledger-table td:nth-child(9){font-weight:850;font-variant-numeric:tabular-nums}
+.bets-dashboard .bets-ledger-table td:nth-child(11){font-weight:850;font-variant-numeric:tabular-nums}
 .bets-dashboard .bets-ledger-table .text-green{color:#71e2aa}
 .bets-dashboard .bets-ledger-table .text-red{color:#ff9999}
 .bets-dashboard .bets-ledger-table td .muted{font-size:.73rem;color:#9fb8cb;line-height:1.45}
-.bets-dashboard .bets-table-scroll{overflow:auto;max-height:min(75vh,1000px)}
+.bets-dashboard .bets-table-scroll{overflow:auto;max-height:min(75vh,1000px);scrollbar-color:#58809b #0b2131}
 @media(max-width:1150px){.bets-dashboard .bets-stat-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:680px){.bets-dashboard .bets-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bets-dashboard .panel-header,.bets-dashboard>.panel:first-of-type>.panel-body{padding-left:12px;padding-right:12px}.bets-title-sub{display:block;margin-left:0}.bets-dashboard .bets-stat-grid>*{padding:10px}.bets-search{flex:1 1 100%}}
+
+@media(max-width:720px){.bets-history-toolbar{gap:8px;padding:10px}.bets-history-toolbar label{flex:1 1 calc(50% - 8px);min-width:115px}.bets-history-toolbar .bets-search{flex:1 1 100%}.bets-history-toggle{width:100%;justify-content:center}}
