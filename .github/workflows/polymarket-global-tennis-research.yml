@@ -30,3 +30,4 @@ jobs:
             -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
             -d '{}' > /tmp/tennis-gamma-receipt.json
           jq -e '.ok == true and .canAuthorizeWager == false and .source == "POLYMARKET_GLOBAL_GAMMA"' /tmp/tennis-gamma-receipt.json
+          echo "Polymarket.com ATP/WTA fixtures: $(jq -r '.fixtureCount' /tmp/tennis-gamma-receipt.json), matched events: $(jq -r '.matchedEvents' /tmp/tennis-gamma-receipt.json)" >> "$GITHUB_STEP_SUMMARY"
