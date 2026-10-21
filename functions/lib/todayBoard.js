@@ -30,6 +30,7 @@ import { attachOfficialTennisExchangeResearch } from "./tennisOfficialExchangeRe
 import {loadPolymarketUsTennisInventory,mergePolymarketUsTennisCards} from "./tennisExchangeInventory.js";
 import {loadKalshiTennisResearch} from "./tennisKalshiResearch.js";
 import {mergeKalshiTennisCards} from "./tennisKalshiInventory.js";
+import {enrichTennisExchangeHistoricalCards} from "./tennisExchangeHistoricalResearch.js";
 import {loadPolymarketGlobalTennisSnapshot} from "./tennisPolymarketGlobal.js";
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "./polymarketBoard.js";
 import { listMarketHistoryReadDbs } from "./databaseTopology.js";
@@ -765,7 +766,8 @@ async function buildTennisModelResearchSlate(date, env = {}, {now=new Date()} = 
                  ORDER BY decision_timestamp DESC, created_at DESC
                ) AS rn
         FROM tennis_v2_research_decisions
-        WHERE event_start_time IS NOT NULL
+        WHERE snapshot_type='PURE_FIXTURE' AND pure_model_id='TENNIS-FBIS-v2-CONTEXT'
+          AND event_start_time IS NOT NULL
           AND event_start_time >= datetime(?, '-1 day')
           AND event_start_time < datetime(?, '+2 day')
       ),
@@ -1100,6 +1102,17 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
     date,now,kalshi,polymarketGlobal});
   const union=mergeKalshiTennisCards(market.games,kalshi,{date,now});
   attachOfficialTennisExchangeResearch(union.games,{kalshi,polymarket:polymarketGlobal,now});
+  // Exchange-only market cards can still have independent Sackmann history.
+  // Research estimates do NOT become PURE projections or wagering edges.
+  if(env.DB?.prepare){
+    try{await enrichTennisExchangeHistoricalCards(env.DB,union.games,{now});}
+    catch(error){
+      for(const game of union.games){
+        if(game.tennisProjection?.researchFixture && game.tennisProjection?.eventIntegrity?.valid!==true)
+          game.tennisProjection.historicalCoverageError='HISTORICAL_PROFILE_LOOKUP_UNAVAILABLE';
+      }
+    }
+  }
   return {
     sport:"tennis",date,games:union.games,
     parlay:{cached:true,skipped:true},
