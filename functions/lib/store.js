@@ -810,8 +810,12 @@ export async function persistGame(env, game, date) {
   if (!hasDb(env) || !game?.id) return { ok: false, reason: "unbound" };
   try {
     await env.DB.prepare(
-      `INSERT OR REPLACE INTO games (id, sport, date, start, home_name, away_name, home_abbr, away_abbr, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO games (id, sport, date, start, home_name, away_name, home_abbr, away_abbr, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET sport=excluded.sport, date=excluded.date,
+         start=excluded.start, home_name=excluded.home_name,
+         away_name=excluded.away_name, home_abbr=excluded.home_abbr,
+         away_abbr=excluded.away_abbr, updated_at=excluded.updated_at`
     )
       .bind(
         String(game.id),
