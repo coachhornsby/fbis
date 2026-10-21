@@ -18,7 +18,7 @@ function parseTomlBindings(toml) {
   return { bindingNames, counts };
 }
 
-test("pages wrangler declares complete binding sets separately for base and NFL production", () => {
+test("pages wrangler declares complete binding sets separately for base and independently approved NFL/CFB production", () => {
   const toml=readFileSync(new URL("../wrangler.toml",import.meta.url),"utf8");
   const [base,production=""]=toml.split("[env.production.vars]");
   assert.ok(production.length>0,"missing explicit production block");
@@ -35,11 +35,14 @@ test("pages wrangler declares complete binding sets separately for base and NFL 
   }
   for (const spec of requiredSportModeVars()) {
     assert.ok(base.includes(spec.key + ' = "' + spec.expected + '"'),"shadow base "+spec.key);
-    const expected=spec.key==="SPORT_DB_MODE_NFL"?"sport":"shadow";
+    const expected=["SPORT_DB_MODE_NFL","SPORT_DB_MODE_CFB"].includes(spec.key)?"sport":"shadow";
     assert.ok(production.includes(spec.key + ' = "' + expected + '"'),"production "+spec.key);
   }
   assert.ok(production.includes('SPORT_DB_STRICT_NFL = "true"'));
   assert.ok(production.includes('SPORT_CUTOVER_RECEIPT_NFL = "nfl-20261021-production-v1"'));
+  assert.ok(production.includes('SPORT_DB_STRICT_CFB = "true"'));
+  assert.ok(production.includes('SPORT_DB_LEDGER_READY_CFB = "true"'));
+  assert.ok(production.includes('SPORT_CUTOVER_RECEIPT_CFB = "cfb-20261021-production-v1"'));
 });
 
 test("stream wrangler declares Q4 market-history binding", () => {
