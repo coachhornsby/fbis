@@ -1,3 +1,4 @@
+import {productSportDbHandle} from "../lib/databaseTopology.js";
 import {authorizeHarvest,unauthorizedBody} from "../lib/auth.js";
 import {gradeCfbFrozenRows,cfbErrorSegments} from "../lib/cfbProspectiveAudit.js";
 import {resolveTeamExact} from "../lib/teams.js";
@@ -38,13 +39,14 @@ export function auditCfbFrozenDatabaseRows(rows=[],features=[]){
 }
 export async function onRequestGet(context){
  const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return response(unauthorizedBody(auth.reason),403);
- if(!context.env?.DB?.prepare)return response({ok:false,error:"d1-unavailable"},503);
+ const db=productSportDbHandle(context.env,"cfb").db;
+ if(!db?.prepare)return response({ok:false,error:"cfb-d1-authority-unavailable"},503);
  const date=new URL(context.request.url).searchParams.get("date");
  if(!/^20\d{2}-\d{2}-\d{2}$/.test(String(date||"")))return response({ok:false,error:"date-required-YYYY-MM-DD"},400);
  try{
- const snapshots=(await context.env.DB.prepare(`SELECT p.game_id,p.frozen_at,p.graded_at,p.proj_home,p.proj_away,p.actual_home,p.actual_away,g.start,g.home_name,g.away_name
+ const snapshots=(await db.prepare(`SELECT p.game_id,p.frozen_at,p.graded_at,p.proj_home,p.proj_away,p.actual_home,p.actual_away,g.start,g.home_name,g.away_name
  FROM prediction_snapshots p JOIN games g ON g.id=p.game_id WHERE p.sport='cfb' AND p.date=? AND p.model_version='CFB-FBIS-v2' ORDER BY p.game_id,p.frozen_at LIMIT 5000`).bind(date).all()).results||[];
- const features=(await context.env.DB.prepare("SELECT game_id,kickoff_timestamp,feature_as_of_timestamp FROM cfb_pregame_feature_vectors WHERE season=? LIMIT 5000").bind(Number(date.slice(0,4))).all()).results||[];
+ const features=(await db.prepare("SELECT game_id,kickoff_timestamp,feature_as_of_timestamp FROM cfb_pregame_feature_vectors WHERE season=? LIMIT 5000").bind(Number(date.slice(0,4))).all()).results||[];
  return response({ok:true,date,report:auditCfbFrozenDatabaseRows(snapshots,features)});
  }catch(err){return response({ok:false,error:"cfb-pit-scoreboard-query-failed",detail:String(err?.message||err)},503);}
 }
