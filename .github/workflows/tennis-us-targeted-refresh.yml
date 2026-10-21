@@ -28,6 +28,8 @@ jobs:
       - name: Wait for production Pages on code push
         if: github.event_name == 'push'
         run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Validate targeted collector syntax
+        run: node --check scripts/tennis-us-targeted-refresh.mjs
       - name: Refresh only independently verified and projected Tennis events
         run: node scripts/tennis-us-targeted-refresh.mjs
       - uses: actions/upload-artifact@v4
