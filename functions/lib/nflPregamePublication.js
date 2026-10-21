@@ -13,8 +13,10 @@ import {
   NFL_DISPLAYED_RESEARCH,
 } from "./nflModelGovernance.js";
 import { sha256Hex } from "./publishedProjectionStore.js";
+import { researchCorrectionsPublicationStamp } from "./nflProjectionImprovements.js";
 
-export const NFL_FEATURE_CONTRACT_VERSION = "nfl-features-v4";
+/** v5: research residual/Platt corrections + trenches/ST auth policy + PIT correction stamp. */
+export const NFL_FEATURE_CONTRACT_VERSION = "nfl-features-v5";
 export const NFL_PUBLICATION_SCHEMA = "nfl-research-publication-v1";
 
 /** Ordered checkpoints. Only the current eligible checkpoint is written. */
@@ -136,9 +138,21 @@ export async function buildNflResearchPublicationPacket(game = {}, slate = {}, o
   const audit = buildNflFrozenAuditPacket(game, slate, { publishedAt, codeSha });
   const featureHome = slimFeatures(game.nflFeatures?.home || {});
   const featureAway = slimFeatures(game.nflFeatures?.away || {});
-  const inputChecksum = await sha256Hex(JSON.stringify({ home: featureHome, away: featureAway }));
+  const correctionsStamp = researchCorrectionsPublicationStamp(shadow);
+  const inputChecksum = await sha256Hex(JSON.stringify({
+    home: featureHome,
+    away: featureAway,
+    featureContractVersion: NFL_FEATURE_CONTRACT_VERSION,
+    researchCorrections: {
+      fittedAt: correctionsStamp.researchCorrectionsFittedAt || null,
+      marginResidual: correctionsStamp.marginResidual ?? null,
+      totalResidual: correctionsStamp.totalResidual ?? null,
+      schema: correctionsStamp.researchCorrectionsSchema || null,
+    },
+  }));
   const outputChecksum = await sha256Hex(JSON.stringify({
     home: shadow.home, away: shadow.away, margin: shadow.margin, total: shadow.total, pHomeWin: shadow.pHomeWin,
+    pHomeWinRaw: shadow.pHomeWinRaw ?? null,
   }));
 
   const fullEvidence = {
@@ -195,10 +209,12 @@ export async function buildNflResearchPublicationPacket(game = {}, slate = {}, o
       total: game.odds?.pinTotal ?? game.odds?.total ?? null,
       observedAt: game.odds?.observedAt || game.odds?.asOf || null,
     },
+    researchCorrections: correctionsStamp,
     governance: {
       canQualify: false,
       canAuthorizeWager: false,
       researchNotChampion: true,
+      productionChampionUnchanged: true,
     },
   };
 
@@ -230,6 +246,8 @@ export async function buildNflResearchPublicationPacket(game = {}, slate = {}, o
     inputChecksum,
     outputChecksum,
     payloadHash,
+    pitFeatureHash: inputChecksum,
+    researchCorrectionsApplied: Boolean(correctionsStamp.researchCorrectionsApplied),
     reconstructability: audit.reconstructability || null,
     scoreReconciled: Boolean(audit.ok && audit.replay?.reconciled),
     canQualify: false,

@@ -12,6 +12,7 @@ import {
   NFL_DISPLAYED_RESEARCH,
   NFL_QB_PERSONNEL_CHALLENGER,
   NFL_PLAYER_PROP_RESEARCH,
+  NFL_MARKET_PROMOTION_GATE,
 } from "./nflModelGovernance.js";
 
 function finite(v) {
@@ -118,10 +119,13 @@ function qbShadowSummary(games = []) {
     historicalValidationPassed: historicalPassed,
     prospectiveValidationPassed: prospectivePassed,
     operatorApprovedForProduction: operatorApproved,
+    minTotalGradedGames: NFL_QB_PERSONNEL_CHALLENGER.minTotalGradedGames,
+    minGateFiredGames: NFL_QB_PERSONNEL_CHALLENGER.minGateFiredGames,
     altersDisplayedBoardScore: false,
     canQualify: false,
     canAuthorizeWager: false,
     promotionEligible: false,
+    heldInShadowUntilProspectiveGates: true,
   };
 }
 
@@ -309,8 +313,17 @@ export function buildNflWeeklyResearchReport({
       n: 2176,
       identicalChronologicalWindows: true,
       promotionEvidencePass: false,
+      researchGatePassed: false,
+      marketPromotionGate: {
+        requireBeatsClosingOnIdenticalWindows: NFL_MARKET_PROMOTION_GATE.requireBeatsClosingOnIdenticalWindows,
+        requireClvEconomics: NFL_MARKET_PROMOTION_GATE.requireClvEconomics,
+        automaticPromotion: false,
+        operatorApprovalRequired: true,
+        championFrozen: NFL_MARKET_PROMOTION_GATE.championFrozen,
+      },
       v11MarginMae: 10.1993,
       closingMarginMae: 9.8543,
+      note: "v1.1 still trails close on OOS margin MAE; no promotion.",
     },
     dataHealth: {
       profiles: profileSummary || null,
@@ -327,7 +340,7 @@ export function buildNflWeeklyResearchReport({
     qbShadow: qbSummary,
     qbProspective: researchStatus?.promotionGate || researchStatus?.qbShadow || null,
     economic: economicSummary || {
-      note: "Pass economicSummary from tracker reconcile; null fields mean unavailable, not zero.",
+      note: "Pass economicSummary from tracker reconcile; null fields mean unavailable, not zero. CLV required for market promotion gate.",
       modelAuthorizedWagers: false,
       spreads: null,
       totals: null,
@@ -335,6 +348,8 @@ export function buildNflWeeklyResearchReport({
       playerProps: null,
       roi: null,
       clv: null,
+      validClvN: 0,
+      clvRequiredForPromotion: true,
     },
     hypotheses,
     challengerProposals: [

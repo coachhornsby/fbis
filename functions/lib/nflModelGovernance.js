@@ -20,16 +20,33 @@ export const NFL_DISPLAYED_RESEARCH = Object.freeze({
   canQualify: false,
   canAuthorizeWager: false,
   displayLabel: "FBIS NFL-PRO-v1.2 RESEARCH PROJECTION",
-  note: "Displayed board research score. Not the production champion. Not injury-aware. Not bet-eligible.",
+  researchCorrectionsEnabled: true,
+  note: "Displayed board research score with fitted residual/Platt corrections. Not the production champion. Not injury-aware. Not bet-eligible.",
+});
+
+export const NFL_MARKET_PROMOTION_GATE = Object.freeze({
+  requireBeatsClosingOnIdenticalWindows: true,
+  metrics: Object.freeze(["marginMae", "totalMae", "winnerAccuracy"]),
+  requireClvEconomics: true,
+  automaticPromotion: false,
+  operatorApprovalRequired: true,
+  canAuthorizeWager: false,
+  championFrozen: "NFL-PRO-v1.1",
+  note: "Research promotion evidence only. Beating close on identical windows is necessary but not sufficient; CLV + operator approval still required. Never auto-promotes.",
 });
 
 export const NFL_QB_PERSONNEL_CHALLENGER = Object.freeze({
   modelId: "NFL-QB-PERSONNEL-OVERLAY-v1",
   role: "shadow-challenger",
+  lifecycle: "SHADOW",
   canQualify: false,
   canAuthorizeWager: false,
   consumesVerifiedAvailability: true,
-  note: "Authorized to consume verified QB/personnel availability in SHADOW only. Does not alter the displayed v1.2 research score or champion.",
+  minTotalGradedGames: 160,
+  minGateFiredGames: 50,
+  prospectiveValidationPassed: false,
+  operatorApprovedForProduction: false,
+  note: "Authorized to consume verified QB/personnel availability in SHADOW only until 160 graded / 50 gated prospective thresholds pass. Does not alter the displayed v1.2 research score or champion.",
 });
 
 export const NFL_PLAYER_PROP_RESEARCH = Object.freeze({
