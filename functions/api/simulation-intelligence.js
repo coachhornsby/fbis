@@ -43,6 +43,7 @@ export async function onRequestGet(context) {
     // Large windows should be shortened rather than silently truncated.
     if(result.rows.length>12000)return json({ok:false,error:"snapshot-volume-limit",degraded:true,
       hint:"Reduce days or select a sport"},413);
+    if(result.failedSports.length===SPORT_SIM_SPORTS.length)return json({ok:false,error:"all-sport-snapshot-read-failed",degraded:true,failedSports:result.failedSports},503);
     const report=buildSportAccountabilityReport(result.rows,{
       sport, windowDays:days, generatedAt:date.toISOString(),
     });
