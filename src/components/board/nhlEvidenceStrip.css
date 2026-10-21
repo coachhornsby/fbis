@@ -41,3 +41,25 @@
 .fbis-shell-main.route-board .fbis-universal-premium .nhl-goalie-side small{font-size:10px;color:#b8d4e2}
 .fbis-shell-main.route-board .fbis-universal-premium .nhl-goalie-side.is-unverified{border-left-color:#71869a}
 @media(max-width:640px){.fbis-shell-main.route-board .fbis-universal-premium .nhl-goalie-pair{grid-template-columns:1fr}}
+
+
+/* V2: visibly redesigned NHL lower section, not minor spacing tweaks. */
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence{padding:16px!important;gap:14px!important;border-radius:16px!important;background:linear-gradient(135deg,#0d3151,#041527 85%)!important;border:1px solid rgba(82,193,243,.60)!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-head{padding:2px 3px 12px;border-bottom:1px solid rgba(112,188,229,.35)}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-head strong{font-size:16px!important;color:#8cdeff!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-block{min-height:104px;display:flex!important;flex-direction:column;align-items:flex-start;justify-content:center;gap:9px!important;border-radius:12px!important;padding:16px!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-model{background:linear-gradient(125deg,rgba(14,131,142,.36),rgba(5,42,64,.95))!important;border:1px solid rgba(63,220,201,.62)!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-market{background:linear-gradient(125deg,rgba(49,92,154,.44),rgba(10,30,66,.97))!important;border:1px solid rgba(104,164,252,.55)!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-goalies{grid-column:1/-1;min-height:0;background:linear-gradient(125deg,rgba(22,67,102,.82),rgba(5,24,44,.97))!important;border:1px solid rgba(92,179,221,.48)!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-block>span{font-size:12px!important;font-weight:950!important;color:#b2dcfc!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-block>strong{font-size:clamp(17px,1.7vw,24px)!important;font-weight:950!important;line-height:1.16!important;overflow-wrap:normal!important;word-break:normal!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-goalie-pair{width:100%;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-goalie-side{padding:12px!important;border-radius:10px!important;border-left-width:5px!important;background:rgba(2,15,29,.7)!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-goalie-side>span{font-size:11px;font-weight:950;color:#7ad7ff}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-goalie-side strong{font-size:clamp(15px,1.4vw,20px)!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-goalie-side small{font-size:12px!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-note{font-size:11px!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-coverage{padding:8px 0;gap:8px!important}
+.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-coverage>span{font-size:11px!important;font-weight:850;padding:6px 9px!important}
+@media(max-width:580px){.fbis-shell-main.route-board .fbis-universal-premium .nhl-evidence-grid{grid-template-columns:1fr!important}.fbis-shell-main.route-board .fbis-universal-premium .nhl-goalie-pair{grid-template-columns:1fr!important}}

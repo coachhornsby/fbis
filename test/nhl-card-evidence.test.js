@@ -176,3 +176,14 @@ test("NHL goalie context presents independently labeled sides and responsive sou
  assert.match(css,/auto-fit,minmax/);
  assert.match(css,/nhl-goalie-side/);
 });
+
+test("NHL dashboard reserves a full-width goalie panel below separate model and market tiles",async()=>{
+ const {readFile}=await import("node:fs/promises");
+ const jsx=await readFile(new URL("../src/components/board/NhlEvidenceStrip.jsx",import.meta.url),"utf8");
+ const css=await readFile(new URL("../src/components/board/nhlEvidenceStrip.css",import.meta.url),"utf8");
+ assert.match(jsx,/nhl-evidence-goalies/);
+ assert.match(jsx,/nhl-evidence-model/);
+ assert.match(jsx,/nhl-evidence-market/);
+ assert.match(css,/grid-column:1\/-1/);
+ assert.match(css,/nhl-evidence-goalies/);
+});
