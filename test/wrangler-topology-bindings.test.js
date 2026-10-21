@@ -34,12 +34,12 @@ test("pages wrangler declares complete binding sets separately for base and NFL 
     assert.equal(counts.ARCHIVE,1,surface+" ARCHIVE missing");
   }
   for (const spec of requiredSportModeVars()) {
-    assert.match(base,new RegExp(spec.key+"\\\\s*=\\\\s*\""+spec.expected+"\""),"shadow base "+spec.key);
+    assert.ok(base.includes(spec.key + ' = "' + spec.expected + '"'),"shadow base "+spec.key);
     const expected=spec.key==="SPORT_DB_MODE_NFL"?"sport":"shadow";
-    assert.match(production,new RegExp(spec.key+"\\\\s*=\\\\s*\""+expected+"\""),"production "+spec.key);
+    assert.ok(production.includes(spec.key + ' = "' + expected + '"'),"production "+spec.key);
   }
-  assert.match(production,/SPORT_DB_STRICT_NFL\\s*=\\s*"true"/);
-  assert.match(production,/SPORT_CUTOVER_RECEIPT_NFL\\s*=\\s*"nfl-20261021-production-v1"/);
+  assert.ok(production.includes('SPORT_DB_STRICT_NFL = "true"'));
+  assert.ok(production.includes('SPORT_CUTOVER_RECEIPT_NFL = "nfl-20261021-production-v1"'));
 });
 
 test("stream wrangler declares Q4 market-history binding", () => {
