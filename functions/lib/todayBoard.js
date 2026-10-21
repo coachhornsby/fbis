@@ -29,6 +29,7 @@ import { approvedTennisPortraits } from "./tennisPortraits.js";
 import { loadStoredTennisPrizePicksHeadshots } from "./tennisPrizePicksHeadshots.js";
 import { buildIndependentTennisCards, tennisFixtureOffers } from "./tennisIntelligenceBank.js";
 import { attachOfficialTennisExchangeResearch } from "./tennisOfficialExchangeResearch.js";
+import {loadPolymarketUsTennisInventory,mergePolymarketUsTennisCards} from "./tennisExchangeInventory.js";
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "./polymarketBoard.js";
 import { listMarketHistoryReadDbs } from "./databaseTopology.js";
 import {
@@ -1063,6 +1064,14 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
   const key = g => [String(g.tour).toLowerCase(), [tennisNameKey(g.home?.name),tennisNameKey(g.away?.name)].sort().join("|"),Date.parse(g.start)].join(":");
   const seen = new Set(games.map(key));
   games.push(...independent.games.filter(g=>!seen.has(key(g))));
+  // Market inventory originates from the exchange, independent of ESPN.
+  // Only cached R2 observations are consumed by this public read path.
+  let exchangeInventory={ok:false,code:"EXCHANGE_INVENTORY_UNAVAILABLE",events:[]};
+  try{exchangeInventory=await loadPolymarketUsTennisInventory(env.ARCHIVE,{now})}catch{}
+  const marketBoard=mergePolymarketUsTennisCards(games,exchangeInventory,{
+    date,now,kalshi:independent.exchangeSources?.kalshi,
+    polymarketGlobal:independent.exchangeSources?.polymarketGlobal});
+  games.splice(0,games.length,...marketBoard.games);
   attachOfficialTennisExchangeResearch(games,{kalshi:independent.exchangeSources?.kalshi,
     polymarket:independent.exchangeSources?.polymarketGlobal,now});
   return {
