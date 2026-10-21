@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {buildTennisResearchSlate} from "../functions/lib/todayBoard.js";
 import {matchKalshiTennisResearch} from "../functions/lib/tennisKalshiResearch.js";
 import {
  collectPolymarketUsTennisInventory,loadPolymarketUsTennisInventory,
@@ -97,4 +98,18 @@ test("birth-year disambiguator from Polymarket does not block two-party Kalshi m
  const matched=matchKalshiTennisResearch(fixture,rows,now);
  assert.equal(matched.length,2);
  assert.ok(matched.every(x=>x.canAuthorizeWager===false));
+});
+
+test("Polymarket US matches publish without model D1 or ESPN fixture database",async()=>{
+ const source=normalizePolymarketUsTennisEvent(event(),"atp",now);
+ const snapshot={version:1,source:"POLYMARKET_US_PUBLIC",
+  complete:true,capturedAt:now.toISOString(),events:[source]};
+ const env={ARCHIVE:{get:async key=>key===TENNIS_EXCHANGE_INVENTORY_KEY?
+  {json:async()=>snapshot}:null}};
+ const slate=await buildTennisResearchSlate("2026-10-21",env,{now});
+ assert.equal(slate.games.length,1);
+ assert.equal(slate.games[0].tennisProjection.researchFixture.source,"POLYMARKET_US_PUBLIC");
+ assert.equal(slate.games[0].tennisProjection.player1WinProb,null);
+ assert.equal(slate.research.modelStatus,"MODEL_DATABASE_UNAVAILABLE");
+ assert.equal(slate.games[0].canAuthorizeWager,false);
 });
