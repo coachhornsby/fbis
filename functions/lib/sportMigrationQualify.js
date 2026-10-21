@@ -268,7 +268,7 @@ export async function qualifySportMigration(env, sport, {
     recordParity: recordParity.ok === true,
     sourceCoverage: hasSourceData && hasDeclaredResearchScope,
     // Working-set parity ≠ complete sport migration — prefix research must catch up too.
-    prefixParity: prefixParity.ok === true && hasDeclaredResearchScope,
+    prefixParity: prefixParity.ok === true && hasDeclaredResearchScope && hasSourceData,
     // An absent sync timestamp does not qualify a never-synced database.
     syncLag: health.lagOk === true && health.lastCopyAt != null,
     productStillPrimary: health.productStillPrimary === true,
