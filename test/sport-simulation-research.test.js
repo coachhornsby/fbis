@@ -91,7 +91,7 @@ test("two player subjects in the same event must remain separate valid forecasts
 });
 
 test("missing canonical snapshot or official settlement reference is rejected", () => {
-  const row = { ...evidence, kind: "binary", probability: .5, actual: 1 };
+  const row = { ...evidence, sport: "nfl", kind: "binary", probability: .5, actual: 1 };
   const graded = gradeSportSimulationResearch([{ ...row, snapshotId: null }, { ...row, eventId: "g2", settlementId: null }]);
   assert.equal(graded.accepted, 0);
   assert.equal(graded.errors.MISSING_IDENTITY, 2);
