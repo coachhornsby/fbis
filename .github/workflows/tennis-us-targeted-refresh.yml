@@ -25,9 +25,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Wait for production Pages on code push
+      - name: Verify running production Pages before harvesting
         if: github.event_name == 'push'
-        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+        env:
+          VERIFY_MODE: resolve-live
+        run: node scripts/verify-deployment-sha.mjs
       - name: Validate targeted collector syntax
         run: node --check scripts/tennis-us-targeted-refresh.mjs
       - name: Refresh only independently verified and projected Tennis events
