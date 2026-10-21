@@ -21,7 +21,7 @@ export function attachOfficialTennisExchangeResearch(games, {kalshi={},polymarke
   const comparisons=compareTennisExchangeResearch(
    [fixture.away_name,fixture.home_name],kalshiResearchOffers,polymarketGlobalOffers);
   game.tennisProjection={...t,kalshiResearchOffers,polymarketGlobalOffers,
-   kalshiResearchStatus:kalshi.status||"NO_FRESH_SNAPSHOT",
+   kalshiResearchStatus:kalshi[fixture.tour+"Status"]||kalshi.status||"NO_FRESH_SNAPSHOT",
    polymarketGlobalStatus:polymarket.ok?(polymarket.partial?"PARTIAL_SNAPSHOT":"FRESH_SNAPSHOT"):(polymarket.code||"SNAPSHOT_UNAVAILABLE"),
    exchangeResearch:{kalshi:kalshiResearchOffers,polymarket:polymarketGlobalOffers,
     comparisons,comparisonStatus:comparisons.length?"RESEARCH_PRICE_PAIR":"NO_MATCHED_SAME_OUTCOME_PAIR"}};
