@@ -23,6 +23,7 @@ import AppShell, { FeaturePlaceholder } from "./app/AppShell.jsx";
 import { legacyToRoute, normalizeRoute, routeToLegacy } from "./app/navigation.js";
 import ExchangePlayerPropsPanel from "./features/playerProps/ExchangePlayerPropsPanel.jsx";
 import ModelLabView from "./features/modelLab/ModelLabView.jsx";
+import SportAccountabilityPanel from "./features/modelLab/SportAccountabilityPanel.jsx";
 import CurrentProjectionsView from "./features/models/CurrentProjectionsView.jsx";
 import TeamProfilesView from "./features/teamProfiles/TeamProfilesView.jsx";
 import DataHealthView from "./features/dataHealth/DataHealthView.jsx";
@@ -666,6 +667,7 @@ export default function App() {
         ) : route === "model-lab" || route === "research" ? (
           <div className="canonical-research-stack">
             <ModelLabView sportFilter={sportFilter} />
+            <SportAccountabilityPanel sportFilter={sportFilter} />
             <MispricesView sportFilter={sportFilter} />
           </div>
         ) : tab === "sys" || route === "system" ? (
