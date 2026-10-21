@@ -3,6 +3,9 @@ import {polymarketUsSideLabel,polymarketUsCanonicalSide} from './polymarketUs.js
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
 // Capacity-aware bootstrap writes may land on MARKET_HISTORY_DB via the API gate.
 const valid=s=>/^[a-z0-9-]{1,160}$/i.test(s||'');
+// Exchange tennis event identifiers contain underscores (e.g. wta_abc).
+// Receipt IDs are internal evidence keys, not provider league or market slugs.
+const validReceipt=s=>typeof s==='string'&&/^[a-z0-9_-]{1,180}$/i.test(s);
 const prefix='market-sources/polymarket-us/bootstrap/';
 export async function projectedPolymarketFixtures(db,now=new Date()){
  if(!db?.prepare)throw Error('PRIMARY_DB_REQUIRED');
@@ -69,7 +72,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
    catalogueIds:catalogue.leagues.map(l=>String(l.slug)),nextOffset:catalogue.leagues.length===50?offset+50:null,
    fixtures:fixtures.map(g=>({id:String(g.id),sport:g.sport,start:g.start,home:g.home_name,away:g.away_name})),projectedFixtures:fixtures.length,canAuthorizeWager:false};
  }
- if(!valid(opts.receiptId))throw Error('INVALID_RECEIPT');
+ if(!validReceipt(opts.receiptId))throw Error('INVALID_RECEIPT');
  const key=prefix+opts.receiptId+'.json';
  if(opts.operation==='page'||opts.operation==='markets'){
   if(!Number.isSafeInteger(opts.offset)||opts.offset<0||opts.offset%20)throw Error('INVALID_SCOPE');
@@ -79,7 +82,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
    return {...old,offers:undefined,events:undefined,...(cachedQuotes.every(b=>b?.ok===true)?{cachedQuotes}: {})};}
   let scope=opts,eventPage,sourcePage,canonicalBinding=null;
   if(opts.operation==='markets'){
-   if(!valid(opts.parentReceiptId)||!Number.isSafeInteger(opts.eventIndex)||opts.eventIndex<0)throw Error('INVALID_PARENT');
+   if(!validReceipt(opts.parentReceiptId)||!Number.isSafeInteger(opts.eventIndex)||opts.eventIndex<0)throw Error('INVALID_PARENT');
    const parentObject=await env.ARCHIVE.get(prefix+opts.parentReceiptId+'.json');if(!parentObject)throw Error('UNKNOWN_PARENT');
    const parent=await parentObject.json(),entry=parent.events?.[opts.eventIndex];if(!entry)throw Error('INVALID_EVENT_INDEX');
    if(!fixtures.some(g=>String(g.id)===entry.canonicalId&&g.sport===parent.sport))throw Error('FORECAST_EXPIRED');
