@@ -5,7 +5,7 @@
  *
  * Fail-closed: missing sport entries are incomplete (never default complete:true).
  */
-import { resolveCoreDb } from "./databaseTopology.js";
+import { resolveCoreDb, deployedSportDbMode, productSportDbHandle } from "./databaseTopology.js";
 import { FBIS_SPORTS } from "./databaseTopology.js";
 
 export const CORE_BOARD_SUMMARY_KEY = "cross_sport_board_snapshot";
@@ -99,13 +99,44 @@ export async function collectPrimarySportBoardStats(env, sport) {
   }
 }
 
+/**
+ * Use the approved sport authority for CORE aggregation after a cutover.
+ * Never pretend PRIMARY is fresh if sport mode is deployed but approval cannot
+ * be hydrated, and never fan out during CORE board *reads*.
+ */
+export async function collectAuthoritySportBoardStats(env, sport) {
+  if (deployedSportDbMode(env, sport) !== "sport") {
+    return collectPrimarySportBoardStats(env, sport);
+  }
+  const routed = productSportDbHandle(env, sport);
+  if (!routed.productIoUsesSportDb || !routed.db?.prepare) {
+    return { sport, complete: false, reason: "SPORT_AUTHORITY_UNVERIFIED" };
+  }
+  try {
+    const [games, preds] = await Promise.all([
+      routed.db.prepare("SELECT COUNT(*) n, MAX(start) freshest FROM games WHERE sport=?").bind(sport).first(),
+      routed.db.prepare("SELECT COUNT(*) n, MAX(frozen_at) freshest FROM prediction_snapshots WHERE sport=?").bind(sport).first(),
+    ]);
+    return {
+      sport, gameCount: Number(games?.n) || 0,
+      projectionCount: Number(preds?.n) || 0,
+      freshestStart: games?.freshest || null,
+      freshestFrozenAt: preds?.freshest || null,
+      authority: "SPORT_DB",
+      complete: true,
+    };
+  } catch (error) {
+    return { sport, complete: false, reason: String(error?.message || error).slice(0,160) };
+  }
+}
+
 export async function publishCrossSportBoardSummary(env, { now = new Date() } = {}) {
   const core = resolveCoreDb(env);
   if (!core.db?.prepare) return { ok: false, reason: "CORE_UNBOUND", canAuthorizeWager: false };
 
   const sports = {};
   for (const sport of FBIS_SPORTS) {
-    sports[sport] = await collectPrimarySportBoardStats(env, sport);
+    sports[sport] = await collectAuthoritySportBoardStats(env, sport);
   }
   const asOf = now.toISOString();
   const summary = buildCrossSportBoardSummary({
