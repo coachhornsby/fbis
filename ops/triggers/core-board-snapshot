@@ -1,1 +1,1 @@
-trigger 2026-10-20T16:14:00Z — GitHub schedule missed ≥2 windows; force CORE publish + keep CF Worker heartbeat backup
+trigger 2026-10-21 — publish CORE after independently approved CFB production sport D1 cutover; verify 11-sport continuity with NFL and CFB SPORT_DB
