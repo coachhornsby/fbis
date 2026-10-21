@@ -15,6 +15,7 @@ import { attachNflProShadow } from "./nflProModel.js";
 import { attachNflGameMatchups } from "./nflGameMatchup.js";
 import { attachNflWagerDecisions } from "./nflWagerDecision.js";
 import { productSportDbHandle } from "./databaseTopology.js";
+import { productSportDbHandle } from "./databaseTopology.js";
 import { loadNflTeamProfiles, attachNflPersistentProfiles } from "./nflTeamProfiles.js";
 import { NFL_WAGER_CONFIDENCE_V1 } from "../../data/models/nfl-wager-confidence-v1.js";
 import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
@@ -216,7 +217,7 @@ export async function buildSlate(sport, date, env = {}) {
     // Load verified availability BEFORE scoring so authorized SHADOW challengers
     // (QB personnel overlay) can consume it. Displayed NFL-PRO-v1.2 still ignores it.
     const profileKeysEarly=[...new Set((enriched||[]).flatMap(g=>[g?.home?.abbr,g?.away?.abbr]).filter(Boolean).map(x=>String(x).toLowerCase()))];
-    const persistentProfiles=await loadNflTeamProfiles(env.DB||null,profileKeysEarly).catch(()=>({teams:{},players:{}}));
+    const persistentProfiles=await loadNflTeamProfiles(productSportDbHandle(env,"nfl").db,profileKeysEarly).catch(()=>({teams:{},players:{}}));
     const withAvailability=attachNflPersistentProfiles(enriched,persistentProfiles,{attachedBeforeScoring:true});
     const pro = attachNflProShadow(withAvailability);
     const withQbShadow = (pro.games||[]).map((game)=>{
