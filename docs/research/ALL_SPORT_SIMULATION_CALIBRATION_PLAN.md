@@ -15,7 +15,7 @@ Install one auditable simulation/evaluation interface for all 11 FBIS sports, wh
 - Existing `sportDbShadow` / qualification logic — **do not change database authority**.
 
 ## Stage 1 deliverable
-- `functions/lib/sportSimulationResearch.js`: all 11 registered sport units and risk cautions; reproducible seed-based generic simulation harness that **requires a caller-supplied sport-specific generator**; numerical 5/10/50/90/95 percentile distributions; strict interval and binary probability grading by sport + market + stat + version.
+- `functions/lib/sportSimulationResearch.js`: all 11 registered sport units and risk cautions; reproducible seed-based generic simulation harness that **requires a caller-supplied sport-specific generator**; numerical 5/10/25/50/75/90/95 percentile distributions; strict interval and binary probability grading by sport + market + stat + version.
 - Tests for all sports, reproducibility, pregame freezes, missing models, inconsistent statistics, official settlement, upper-tail miss frequency, binary calibration and cohort boundaries.
 - Research-only flags; no database writes, no price reconstruction, no production forecast replacement, no wagers.
 
@@ -49,7 +49,7 @@ All individual market families must be demonstrated to have actual supported sou
 
 ## Non-negotiable gates
 - No post-start forecasts or retroactively manufactured prospective records.
-- No duplicate event/model/market/stat records; caller must choose canonical pregame snapshot.
+- No duplicate event/subject/model/market/stat records; require snapshot and settlement evidence identifiers, and caller must choose canonical pregame snapshot.
 - No "simulated ROI" substituted for executed price/fee evidence.
 - Reject missing official settlement/identity; preserve nulls for unsupported metrics.
 - Per-sport metrics cannot be pooled for promotion; small correlated samples remain descriptive.
