@@ -1,3 +1,4 @@
+import {reconcileTennisCards} from './lib/reconcile-tennis-cards.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 
 const base=process.env.FBIS_BASE||'https://fbis-myz.pages.dev';
@@ -11,6 +12,7 @@ async function get(path,auth=false){
  return body;
 }
 const report={at:now.toISOString(),ctDate,checks:{},alerts:[],passed:false};
+let rawBoardGames=[],rawOfficialFixtures=[];
 async function check(name,fn){
  try{report.checks[name]={status:'OK',data:await fn()};}
  catch(error){report.checks[name]={status:'ERROR',error:String(error.message||error)};report.alerts.push(name+':UNAVAILABLE');}
@@ -18,7 +20,8 @@ async function check(name,fn){
 await Promise.all([
  check('officialProjectionCoverage',async()=>{
   const c=await get('/api/tennis-projection-coverage');
-  const missed=(c.fixtures||[]).filter(x=>!x.available);
+  rawOfficialFixtures=c.fixtures||[];
+  const missed=rawOfficialFixtures.filter(x=>!x.available);
   const details=missed.map(f=>({eventId:f.eventId,players:[f.player1,f.player2],start:f.start,reason:f.blockedReason}));
   return {scheduledCandidates:c.scheduledCandidates,verifiedFixtures:c.verifiedFixtures,successfulProjections:c.successfulProjections,missingOutputs:c.missingOutputs,blockedReasons:c.blockedReasons,details};
  }),
@@ -29,6 +32,7 @@ await Promise.all([
  check('tennisBoard',async()=>{
   const c=await get('/api/today?sport=tennis&date='+encodeURIComponent(ctDate));
   const games=Array.isArray(c.games)?c.games:[];
+  rawBoardGames=games;
   return {gameCount:games.length,gameIds:games.map(g=>String(g.id||'')).filter(Boolean),responseKeys:Object.keys(c)};
  }),
  check('prizePicksAcquisition',async()=>{
@@ -37,6 +41,13 @@ await Promise.all([
   return {date:a.ctDate,state:a.acquisition?.state||'NOT_STARTED',runId:a.acquisition?.run_id||null,coverage:a.coverage,sourceCapturedAt:a.capturedScope?.captured_at||null};
  })
 ]);
+if(report.checks.tennisBoard?.status==='OK' && report.checks.officialProjectionCoverage?.status==='OK'){
+ report.checks.boardReconciliation={status:'OK',data:reconcileTennisCards(rawBoardGames,rawOfficialFixtures)};
+ const rc=report.checks.boardReconciliation.data;
+ if(rc.byStatus.NO_MATCHING_OFFICIAL_FIXTURE)report.alerts.push('EXCHANGE_CARDS_WITHOUT_OFFICIAL_FIXTURE:'+rc.byStatus.NO_MATCHING_OFFICIAL_FIXTURE);
+ if(rc.byStatus.AMBIGUOUS_OFFICIAL_MATCH)report.alerts.push('AMBIGUOUS_OFFICIAL_MATCH:'+rc.byStatus.AMBIGUOUS_OFFICIAL_MATCH);
+ if(rc.byStatus.BOARD_IDENTITY_OR_TIME_INCOMPLETE)report.alerts.push('BOARD_IDENTITY_OR_TIME_INCOMPLETE:'+rc.byStatus.BOARD_IDENTITY_OR_TIME_INCOMPLETE);
+}
 const pc=report.checks.officialProjectionCoverage?.data;
 if(pc){
  if(pc.missingOutputs>0)report.alerts.push('OFFICIAL_FIXTURES_WITHOUT_PROJECTIONS:'+pc.missingOutputs);
