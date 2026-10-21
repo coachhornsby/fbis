@@ -78,7 +78,7 @@ jobs:
           FBIS_BASE_URL: https://fbis-myz.pages.dev
           SPORT: ${{ matrix.sport }}
           INCLUDE_PREFIX: "true"
-          SYNC_ROUNDS: "3"
+          SYNC_ROUNDS: "8"
           SYNC_PAGE_SIZE: "250"
           SYNC_MAX_PAGES: "8"
           # Incomplete-first prefix catch-up; each Pages request handles only one table,\n          # limiting D1 import contention and avoiding 300s backend timeouts.\n          # Forty-row atomic D1 batches enable higher 1,000-row per-table request budgets.
