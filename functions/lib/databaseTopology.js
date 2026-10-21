@@ -235,6 +235,17 @@ export function resolveSportDb(env, sport, { mode } = {}) {
  * Caller `opts.mode` is ignored — `{mode:'sport'}` cannot bypass shadow.
  * Shadow / primary / unbound always fall back to PRIMARY `DB`.
  */
+/**
+ * Once NFL has a real sport cutover, never fall back to a potentially stale
+ * PRIMARY ledger merely because CORE approval hydration temporarily failed.
+ * This opt-in must be enabled alongside the live production sport mode.
+ */
+function strictNflCutoverActive(env, sport) {
+  return String(sport || "").toLowerCase() === "nfl"
+    && deployedSportDbMode(env, "nfl") === "sport"
+    && ["1", "true", "yes"].includes(String(env?.SPORT_DB_STRICT_NFL || "").toLowerCase());
+}
+
 export function productSportDbHandle(env, sport, _opts = {}) {
   // Ignore caller mode overrides entirely for product IO.
   const resolved = resolveSportDb(env, sport);
@@ -243,8 +254,8 @@ export function productSportDbHandle(env, sport, _opts = {}) {
     // Surface that the override was rejected when env is not already sport.
     if (deployedSportDbMode(env, sport) !== "sport" && String(_opts.mode).toLowerCase() === "sport") {
       return {
-        db: primary,
-        binding: "DB",
+        db: strictNflCutoverActive(env, sport) ? null : primary,
+        binding: strictNflCutoverActive(env, sport) ? "UNAVAILABLE" : "DB",
         mode: resolved.mode,
         reason: "CALLER_MODE_OVERRIDE_REJECTED_ENV_AUTHORITY",
         sport: resolved.sport,
@@ -257,8 +268,8 @@ export function productSportDbHandle(env, sport, _opts = {}) {
   }
   if (!resolved.productIoUsesSportDb) {
     return {
-      db: primary,
-      binding: "DB",
+      db: strictNflCutoverActive(env, sport) ? null : primary,
+      binding: strictNflCutoverActive(env, sport) ? "UNAVAILABLE" : "DB",
       mode: resolved.mode,
       reason: resolved.reason || "PRIMARY_AUTHORITY",
       sport: resolved.sport,
@@ -277,8 +288,8 @@ export function productSportDbHandle(env, sport, _opts = {}) {
     || resolved.db === primary
   ) {
     return {
-      db: primary,
-      binding: "DB",
+      db: strictNflCutoverActive(env, sport) ? null : primary,
+      binding: strictNflCutoverActive(env, sport) ? "UNAVAILABLE" : "DB",
       mode: resolved.mode,
       reason: "SPORT_CUTOVER_GUARD_FAILED_FALLBACK_PRIMARY",
       sport: resolved.sport,
@@ -293,8 +304,8 @@ export function productSportDbHandle(env, sport, _opts = {}) {
   const receipt = String(env?.[receiptKey] || "").trim();
   if (!receipt) {
     return {
-      db: primary,
-      binding: "DB",
+      db: strictNflCutoverActive(env, sport) ? null : primary,
+      binding: strictNflCutoverActive(env, sport) ? "UNAVAILABLE" : "DB",
       mode: resolved.mode,
       reason: "SPORT_CUTOVER_RECEIPT_REQUIRED_FALLBACK_PRIMARY",
       sport: resolved.sport,
@@ -306,8 +317,8 @@ export function productSportDbHandle(env, sport, _opts = {}) {
   const approval = readApprovedCutoverReceiptSync(env, resolved.sport, receipt);
   if (!approval.ok) {
     return {
-      db: primary,
-      binding: "DB",
+      db: strictNflCutoverActive(env, sport) ? null : primary,
+      binding: strictNflCutoverActive(env, sport) ? "UNAVAILABLE" : "DB",
       mode: resolved.mode,
       reason: approval.reason,
       sport: resolved.sport,
