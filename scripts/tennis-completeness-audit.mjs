@@ -18,6 +18,10 @@ async function check(name,fn){
  catch(error){report.checks[name]={status:'ERROR',error:String(error.message||error)};report.alerts.push(name+':UNAVAILABLE');}
 }
 await Promise.all([
+ check('sourceCoverage',async()=>{
+  const c=await get('/api/tennis-source-coverage');
+  return {officialFixtures:c.officialFixtures,portraits:c.portraits,latestPrizePicksAcquisition:c.latestPrizePicksAcquisition,recentPrizePicksTennisImages:c.recentPrizePicksTennisImages};
+ }),
  check('officialProjectionCoverage',async()=>{
   const c=await get('/api/tennis-projection-coverage');
   rawOfficialFixtures=c.fixtures||[];
@@ -47,6 +51,13 @@ if(report.checks.tennisBoard?.status==='OK' && report.checks.officialProjectionC
  if(rc.byStatus.NO_MATCHING_OFFICIAL_FIXTURE)report.alerts.push('EXCHANGE_CARDS_WITHOUT_OFFICIAL_FIXTURE:'+rc.byStatus.NO_MATCHING_OFFICIAL_FIXTURE);
  if(rc.byStatus.AMBIGUOUS_OFFICIAL_MATCH)report.alerts.push('AMBIGUOUS_OFFICIAL_MATCH:'+rc.byStatus.AMBIGUOUS_OFFICIAL_MATCH);
  if(rc.byStatus.BOARD_IDENTITY_OR_TIME_INCOMPLETE)report.alerts.push('BOARD_IDENTITY_OR_TIME_INCOMPLETE:'+rc.byStatus.BOARD_IDENTITY_OR_TIME_INCOMPLETE);
+}
+const sc=report.checks.sourceCoverage?.data;
+if(sc){
+ const candidates=Number(sc.recentPrizePicksTennisImages?.candidate_players||0);
+ if(!candidates)report.alerts.push('NO_RECENT_TENNIS_IMAGE_CANDIDATES');
+ const date=sc.latestPrizePicksAcquisition?.ct_date;
+ if(date!==ctDate)report.alerts.push('PRIZEPICKS_NO_CAPTURE_FOR_CT_DATE');
 }
 const pc=report.checks.officialProjectionCoverage?.data;
 if(pc){
