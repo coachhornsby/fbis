@@ -42,6 +42,8 @@ jobs:
           set -euo pipefail
           test -n "${CLOUDFLARE_API_TOKEN}" || { echo "Missing CLOUDFLARE_API_TOKEN"; exit 1; }
           test -n "${CLOUDFLARE_ACCOUNT_ID}" || { echo "Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+      - name: Block legacy PRIMARY imports after CFB authority transfer
+        run: python3 scripts/guard-cfb-legacy-primary-import.py wrangler.toml
       - name: Build bounded Phase B SQL shards
         run: python scripts/cfb-player-directory-build.py
       - name: Apply season shards to production D1
