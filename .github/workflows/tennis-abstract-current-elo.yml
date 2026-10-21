@@ -52,7 +52,7 @@ jobs:
           jq '{ok,receipts,errors,researchOnly,canAuthorizeWager}' /tmp/elo-receipt.json
           test "$status" = 200
           jq -e '.ok == true and (.receipts | length) == 2 and
-            all(.receipts[]; .players >= 100) and
+            all(.receipts[]; .players >= 100 and .shadowPlayers == .players) and
             .researchOnly == true and .canAuthorizeWager == false' /tmp/elo-receipt.json
       - name: Verify persisted source-date and player-count receipts
         shell: bash
@@ -60,5 +60,5 @@ jobs:
           set -euo pipefail
           body="$(curl -fsS --max-time 15 'https://fbis-myz.pages.dev/api/tennis-abstract-elo-refresh')"
           jq -e '.ok == true and (.snapshots | length) == 2 and
-            all(.snapshots[]; .player_count >= 100)' <<<"$body"
+            all(.snapshots[]; .player_count >= 100) and .shadowParity == true' <<<"$body"
           echo "$body" | jq -c '.snapshots' >> "$GITHUB_STEP_SUMMARY"
