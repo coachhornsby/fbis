@@ -1,0 +1,27 @@
+name: Tennis daily projection and portrait completeness
+on:
+  schedule:
+    - cron: '25 14 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Audit live Tennis board, official projections, portraits and PrizePicks
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: node scripts/tennis-completeness-audit.mjs
+      - name: Preserve exact gaps even when audit fails
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: tennis-completeness-report
+          path: artifacts/tennis-completeness-audit.json
+          retention-days: 30
