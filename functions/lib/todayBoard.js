@@ -1109,6 +1109,7 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
       source:"POLYMARKET_AND_KALSHI_EXCHANGE_FIRST_R2",
       records:union.games.length,
       withheld:model.research?.withheld||0,
+      blockedEvents:model.research?.blockedEvents||[],
       modelStatus:model.research?.status||
         ((model.games||[]).length?"INDEPENDENT_FBIS_MODEL_AVAILABLE":"MODEL_NOT_PUBLISHED"),
       modelGameCount:(model.games||[]).length,
