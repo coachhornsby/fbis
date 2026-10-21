@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {matchKalshiTennisResearch} from "../functions/lib/tennisKalshiResearch.js";
 import {
  collectPolymarketUsTennisInventory,loadPolymarketUsTennisInventory,
  mergePolymarketUsTennisCards,normalizePolymarketUsTennisEvent,
@@ -79,4 +80,19 @@ test("uncertain doubles, duplicate match identity and mismatched day never autho
  const out=mergePolymarketUsTennisCards([],
   {ok:true,code:"SOURCE_COMPLETE",events:[e]}, {date:"2026-10-22",now});
  assert.equal(out.games.length,0);
+});
+
+test("birth-year disambiguator from Polymarket does not block two-party Kalshi match",()=>{
+ const fixture={tour:"atp",start:"2026-10-21T17:00:00Z",
+  home_name:"Kenta (2004) Miyoshi",away_name:"Patrick Maloney"};
+ const base={sport:"atp",status:"active",eventTicker:"KXATPMATCH-26OCT21MIYMAL",
+  expectedExpirationAt:"2026-10-21T17:00:00Z",
+  fetchedAt:"2026-10-21T13:50:00Z",
+  rulesPrimary:"This professional tennis match features Patrick Maloney and Kenta Miyoshi."};
+ const rows=[
+  {...base,yesLabel:"Patrick Maloney",ticker:base.eventTicker+"-MAL",yesAskDollars:.44},
+  {...base,yesLabel:"Kenta Miyoshi",ticker:base.eventTicker+"-MIY",yesAskDollars:.57}];
+ const matched=matchKalshiTennisResearch(fixture,rows,now);
+ assert.equal(matched.length,2);
+ assert.ok(matched.every(x=>x.canAuthorizeWager===false));
 });
