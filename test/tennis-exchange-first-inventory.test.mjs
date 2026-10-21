@@ -162,10 +162,10 @@ test("focused TODAY board preserves Polymarket cards and avoids historical D1 ov
  const item=normalizePolymarketUsTennisEvent(event(),"atp",now);
  const data={version:1,source:"POLYMARKET_US_PUBLIC",capturedAt:now.toISOString(),
   complete:true,events:[item]};
- let modelCalls=0;
+ const dbSql=[];
  const env={ARCHIVE:{get:async key=>key===TENNIS_EXCHANGE_INVENTORY_KEY?
   {json:async()=>data}:null},
-  DB:{prepare:()=>{modelCalls++;throw Error("OPTIONAL_MODEL_DB_UNAVAILABLE");}}};
+  DB:{prepare:sql=>{dbSql.push(sql);throw Error("OPTIONAL_MODEL_DB_UNAVAILABLE");}}};
  const board=await buildTodayBoard("2026-10-21",env,{
   now:+now,focusSport:"tennis"});
  const tennis=board.games.filter(x=>x.sport==="tennis");
@@ -174,5 +174,7 @@ test("focused TODAY board preserves Polymarket cards and avoids historical D1 ov
  assert.equal(offers.length,2);
  assert.equal(board.polymarketResearch.bySport.tennis.available,true);
  assert.equal(board.polymarketResearch.bySport.tennis.diagnostics.d1HistoricalLedgerSkipped,true);
- assert.equal(modelCalls,1,"never use historical ledger after optional D1 fails");
+ assert.ok(dbSql.some(sql=>sql.includes("FROM tennis_v2_research_decisions")));
+ assert.ok(dbSql.every(sql=>!sql.includes("FROM normalized_market_observations")),
+  "never perform a historical Polymarket ledger read for Tennis");
 });
