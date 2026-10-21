@@ -4,6 +4,7 @@
  * Only prematch Sackmann history feeds this *separate*, non-wagerable Elo estimate.
  */
 import {tennisKey} from './tennisPlayerBank.js';
+import {loadValidatedCurrentTennisElo,loadCurrentTennisEloPlayers,currentTennisEloEstimate} from './tennisCurrentEloResearch.js';
 
 const source='SACKMANN_TENNIS_ABSTRACT_RESEARCH';
 const acceptedTours=new Set(['atp','wta']);
@@ -52,6 +53,18 @@ export async function enrichTennisExchangeHistoricalCards(db,games,{now=new Date
     g.tennisProjection?.eventIntegrity?.valid!==true&&
     g.tennisProjection?.researchEstimate==null&&
     g.tennisProjection?.player1WinProb==null);
+  // Live source is the PRIMARY rating input. Archived matches are research fallback.
+  const keysByTour=new Map();
+  for(const tour of ['atp','wta']){
+    keysByTour.set(tour,[...new Set(candidates.filter(g=>String(g.tour).toLowerCase()===tour)
+      .flatMap(g=>[tennisKey(g.home?.fullName||g.home?.name),
+                   tennisKey(g.away?.fullName||g.away?.name)]).filter(Boolean))]);
+  }
+  let current=null,currentFailure=null;
+  try{
+    current=await loadValidatedCurrentTennisElo(db,{now});
+    if(current.ok)await loadCurrentTennisEloPlayers(db,current,keysByTour);
+  }catch{current=null;currentFailure='LIVE_ELO_LOOKUP_UNAVAILABLE';}
   const rows=new Map();
   for(const tour of ['atp','wta']){
     const keys=[...new Set(candidates.filter(g=>g.tour===tour)
@@ -71,7 +84,7 @@ export async function enrichTennisExchangeHistoricalCards(db,games,{now=new Date
       }
     }
   }
-  let enriched=0;
+  let enriched=0,currentPrimary=0,historicalFallback=0;
   for(const game of candidates){
     const t=game.tennisProjection;
     const start=game.start;
@@ -85,9 +98,29 @@ export async function enrichTennisExchangeHistoricalCards(db,games,{now=new Date
       players:historyPlayers.map((p,i)=>({name:names[i],matches:p.matches,
         surfaces:p.surfaces,lastMatchDate:p.lastMatchDate})),
       matchTimeVerified:verifiedClock,marketFree:true};
-    const estimate=verifiedClock?exchangeHistoricalEstimate(...historyPlayers):null;
-    if(estimate){t.researchEstimate=estimate;enriched++;}
+    const sourceRows=names.map(name=>current?.players?.get(game.tour+'|'+tennisKey(name))||null);
+    // An exchange listing cannot establish the playing surface by itself.
+    const context=t.researchFixture?.officialDisplayEvidence;
+    const surface=context && /^(ATP|WTA|ITF)_OFFICIAL$/.test(String(context.source||''))
+      ? context.surface : null;
+    const primary=verifiedClock?currentTennisEloEstimate(...sourceRows,{start,now,surface}):null;
+    t.currentEloCoverage={
+      source:'TENNIS_ABSTRACT_LIVE_ELO_RESEARCH',
+      status:primary?'VALIDATED_PRIMARY_RATING_RESEARCH':
+        !verifiedClock?'MATCH_START_UNVERIFIED':
+        !current?.snapshots?.has(game.tour)?'SOURCE_UNAVAILABLE':
+        sourceRows.some(p=>!p)?'PLAYER_NOT_IN_CURRENT_ELO_COHORT':'SOURCE_CUTOFF_OR_RATING_INVALID',
+      reportDate:current?.snapshots?.get(game.tour)?.report_date||null,
+      matchedPlayers:sourceRows.filter(Boolean).length,requiredPlayers:2,
+      receiptCountVerified:current?.snapshots?.has(game.tour)||false,
+      lookupError:currentFailure,modelAuthorityChanged:false,canAuthorizeWager:false
+    };
+    const estimate=primary||(verifiedClock?exchangeHistoricalEstimate(...historyPlayers):null);
+    if(estimate){t.researchEstimate=estimate;enriched++;
+      if(primary)currentPrimary++;else historicalFallback++;
+    }
   }
-  return {enriched,reviewed:candidates.length,source,modelAuthorityChanged:false,
-    canAuthorizeWager:false};
+  return {enriched,currentPrimary,historicalFallback,reviewed:candidates.length,
+    source:'TENNIS_ABSTRACT_LIVE_ELO_PRIMARY_SACKMANN_ARCHIVE_FALLBACK',
+    modelAuthorityChanged:false,canAuthorizeWager:false};
 }
