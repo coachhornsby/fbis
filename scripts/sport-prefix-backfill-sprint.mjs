@@ -29,7 +29,7 @@ if (scope.cutoverAuthorized === true || scope.canAuthorizeWager === true) {
   throw new Error("UNEXPECTED_AUTHORITY_ON_MIGRATION_SCOPE");
 }
 
-const maxPasses = Math.min(180, Math.max(1, Number(process.env.MAX_PASSES) || 110));
+const maxPasses = Math.min(850, Math.max(1, Number(process.env.MAX_PASSES) || 110));
 const deadline = Date.now() + Math.min(23 * 60 * 1000, Math.max(60000, Number(process.env.BUDGET_MS) || 21 * 60 * 1000));
 const pageSize = Math.min(250, Math.max(50, Number(process.env.PAGE_SIZE) || 200));
 const maxPages = Math.min(10, Math.max(1, Number(process.env.MAX_PAGES) || 5));
