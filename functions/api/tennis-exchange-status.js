@@ -31,13 +31,14 @@ export async function onRequestGet({env}){
    matchedEvents:matches.length,quotedSides:matches.reduce((n,x)=>n+
     x.offers.filter(o=>o.yesAskDollars!=null).length,0)}];
  }));
- const polyOk=Boolean(polymarket.ok);
+ const polyOk=Boolean(polymarket.ok&&polymarket.fresh!==false);
  const kalshiOk=pairs.length>0;
  const ok=polyOk||kalshiOk;
  return respond({ok,source:"POLYMARKET_AND_KALSHI",
   status:polyOk&&kalshiOk?"BOTH_EXCHANGES_PRESENT":ok?"SINGLE_EXCHANGE_PRESENT":"NO_FRESH_EXCHANGE_INVENTORY",
   sources:{
-   polymarketUs:{available:polyOk,status:polymarket.code,
+   polymarketUs:{available:polyOk,listingAvailable:polymarket.ok===true,
+    quotesFresh:polyOk,status:polymarket.code,
     capturedAt:polymarket.capturedAt||null,complete:polymarket.complete===true,
     events:polymarket.events?.length||0,sources:polymarket.sources||[]},
    kalshi:{available:kalshiOk,status:kalshi.status,

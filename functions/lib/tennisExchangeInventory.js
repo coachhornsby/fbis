@@ -117,9 +117,16 @@ export async function loadPolymarketUsTennisInventory(archive,{now=new Date(),ma
   const snapshot=await object.json(),at=Date.parse(snapshot?.capturedAt||"");
   if(snapshot?.version!==1||snapshot?.source!=="POLYMARKET_US_PUBLIC"||
    !Array.isArray(snapshot.events)||!Number.isFinite(at)||at>+now||
-   +now-at>maxAgeMs)return {ok:false,code:"STALE_OR_INVALID_EXCHANGE_INVENTORY",events:[]};
-  return {ok:true,code:snapshot.complete?"SOURCE_COMPLETE":"SOURCE_PARTIAL",
-   complete:snapshot.complete,events:snapshot.events,
+   +now-at>24*3600000)return {ok:false,code:"STALE_OR_INVALID_EXCHANGE_INVENTORY",events:[]};
+  // A late collector may remove quote freshness, but must not erase the
+  // provider-native event catalogue from the board. Old quotes are stripped
+  // entirely; they must never be presented as active market prices.
+  const fresh=+now-at<=maxAgeMs;
+  const events=fresh?snapshot.events:snapshot.events.map(e=>({
+    ...e,offers:[],quoteStatus:"STALE_QUOTE_REMOVED",marketCount:e.marketCount}));
+  return {ok:true,fresh,code:!fresh?"STALE_LISTINGS_NO_QUOTES":
+    snapshot.complete?"SOURCE_COMPLETE":"SOURCE_PARTIAL",
+   complete:fresh&&snapshot.complete,events,
    sources:snapshot.sources,capturedAt:snapshot.capturedAt};
  }catch{return {ok:false,code:"EXCHANGE_INVENTORY_READ_FAILED",events:[]};}
 }

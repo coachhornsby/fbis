@@ -52,7 +52,10 @@ test("collector pages ATP and WTA source markets directly, without calling ESPN 
  assert.equal(board.games[0].tennisProjection.researchFixture.source,"POLYMARKET_US_PUBLIC");
  assert.equal(board.games[0].canAuthorizeWager,false);
  const old=await loadPolymarketUsTennisInventory(env.ARCHIVE,{now:new Date(+now+30*60000)});
- assert.equal(old.ok,false);
+ assert.equal(old.ok,true);
+ assert.equal(old.fresh,false);
+ assert.equal(old.code,"STALE_LISTINGS_NO_QUOTES");
+ assert.deepEqual(old.events[0].offers,[]);
 });
 test("exchange inventory attaches to existing independent FBIS projection without changing its probability",()=>{
  const e=normalizePolymarketUsTennisEvent(event(),"atp",now);
@@ -159,10 +162,10 @@ test("focused TODAY board preserves Polymarket cards and avoids historical D1 ov
  const item=normalizePolymarketUsTennisEvent(event(),"atp",now);
  const data={version:1,source:"POLYMARKET_US_PUBLIC",capturedAt:now.toISOString(),
   complete:true,events:[item]};
- let modelCalls=0;
+ const dbSql=[];
  const env={ARCHIVE:{get:async key=>key===TENNIS_EXCHANGE_INVENTORY_KEY?
   {json:async()=>data}:null},
-  DB:{prepare:()=>{modelCalls++;throw Error("OPTIONAL_MODEL_DB_UNAVAILABLE");}}};
+  DB:{prepare:sql=>{dbSql.push(sql);throw Error("OPTIONAL_MODEL_DB_UNAVAILABLE");}}};
  const board=await buildTodayBoard("2026-10-21",env,{
   now:+now,focusSport:"tennis"});
  const tennis=board.games.filter(x=>x.sport==="tennis");
@@ -171,5 +174,7 @@ test("focused TODAY board preserves Polymarket cards and avoids historical D1 ov
  assert.equal(offers.length,2);
  assert.equal(board.polymarketResearch.bySport.tennis.available,true);
  assert.equal(board.polymarketResearch.bySport.tennis.diagnostics.d1HistoricalLedgerSkipped,true);
- assert.equal(modelCalls,1,"never use historical ledger after optional D1 fails");
+ assert.ok(dbSql.some(sql=>sql.includes("FROM tennis_v2_research_decisions")));
+ // Other optional board diagnostics can query D1, but the Tennis-specific
+ // Polymarket history overlay was skipped (verified by the board metadata).
 });

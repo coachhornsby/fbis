@@ -1,0 +1,19 @@
+name = "fbis-polymarket-tennis-collector"
+main = "services/polymarket-tennis-collector/index.js"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+# Independent source collection: do not depend on GitHub Actions schedule.
+[triggers]
+crons = ["*/5 * * * *"]
+
+[[r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "fbis-archive"
+
+[observability]
+enabled = true
+
+[observability.traces]
+enabled = true
