@@ -1,0 +1,91 @@
+name: SportsData MCP read-only audit
+on:
+  pull_request:
+    paths:
+      - .github/workflows/sportsdata-mcp-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  provider-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned MCP package in isolated runner
+        run: python -m pip install 'sportsdata-mcp==0.33.0'
+      - name: Package inventory and offline lint
+        continue-on-error: true
+        run: |
+          mkdir -p audit-output
+          sportsdata-mcp version > audit-output/version.txt 2>&1
+          sportsdata-mcp list-groups > audit-output/groups.txt 2>&1
+          sportsdata-mcp lint > audit-output/lint.txt 2>&1
+      - name: Bounded, unauthenticated provider connectivity probe
+        continue-on-error: true
+        timeout-minutes: 7
+        env:
+          SPORTSDATA_MCP_GROUPS: espn.scores,espn.site,ncaa.college,nhl.schedule,nhl.game,mlb.schedule,mlb.game,nba.public.cdn,wta.tennis,pinnacle.sports,fanduel.sportsbook,kalshi.markets,polymarket.gamma,footballdatauk.history
+        run: timeout 360s sportsdata-mcp doctor > audit-output/doctor.txt 2>&1
+      - name: Actual MCP tool discovery and sample calls
+        continue-on-error: true
+        timeout-minutes: 6
+        env:
+          SPORTSDATA_MCP_GROUPS: espn.scores,ncaa.college,nhl.schedule,nhl.game,mlb.schedule,nba.public.cdn,wta.tennis,pinnacle.sports,kalshi.markets,polymarket.gamma,footballdatauk.history
+        run: |
+          python - <<'PY'
+          import asyncio, json, os, datetime
+          from mcp import ClientSession, StdioServerParameters
+          from mcp.client.stdio import stdio_client
+          targets = {
+            "espn_scoreboard": {"sport":"football","league":"college-football"},
+            "nhl_scoreboard": {},
+            "mlb_schedule": {"date":datetime.date.today().isoformat()},
+            "kalshi_markets": {},
+            "polymarket_events": {},
+            "pinnacle_sports": {},
+            "nba_scoreboard": {},
+            "ncaa_scoreboard": {},
+            "wta_rankings": {},
+          }
+          async def main():
+            output={"timestamp_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"tools":[],"samples":[]}
+            server=StdioServerParameters(command="sportsdata-mcp",args=["serve"],env=dict(os.environ))
+            try:
+              async with stdio_client(server) as (read,write):
+                async with ClientSession(read,write) as session:
+                  await asyncio.wait_for(session.initialize(),30)
+                  listing=await asyncio.wait_for(session.list_tools(),30)
+                  tools=listing.tools
+                  output["tools"]=[{"name":t.name,"required":t.inputSchema.get("required",[])} for t in tools]
+                  byname={t.name:t for t in tools}
+                  for name,params in targets.items():
+                    item={"name":name}
+                    if name not in byname:
+                      item["status"]="not_found"
+                    elif any(k not in params for k in byname[name].inputSchema.get("required",[])):
+                      item["status"]="skipped_required_parameters"
+                      item["required"]=byname[name].inputSchema.get("required",[])
+                    else:
+                      try:
+                        response=await asyncio.wait_for(session.call_tool(name,params),25)
+                        preview=str(response.content)[:350]
+                        item.update(status="tool_error" if response.isError else "returned",preview=preview)
+                      except Exception as e:
+                        item.update(status="exception",error=str(e)[:300])
+                    output["samples"].append(item)
+            except Exception as e:
+              output["fatal"]=str(e)
+            with open("audit-output/mcp-probe.json","w") as f:
+              json.dump(output,f,indent=2)
+            print(json.dumps({"tool_count":len(output["tools"]),"samples":output["samples"],"fatal":output.get("fatal")},indent=2))
+          asyncio.run(main())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sportsdata-mcp-readonly-audit
+          path: audit-output/
+          retention-days: 7
