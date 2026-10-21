@@ -837,6 +837,7 @@ export async function gradeSnapshotPopulationAgainstFinals(
     const actualHome = Number(final.home?.score ?? final.actualHome);
     const actualAway = Number(final.away?.score ?? final.actualAway);
     const res = await gradeSnapshotsForGame(env, {
+      sport: id,
       gameId,
       actualHome,
       actualAway,
@@ -2302,6 +2303,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     // retries overlap the still-running Worker. Only settlement consumers need
     // to be rechecked against the cached finals.
     const durableFinalWrites = (cached.finals || []).map((g) => gradeSnapshotsForGame(env, {
+      sport: g.sport || sport,
       gameId: g.id,
       actualHome: g.home?.score ?? g.actualHome,
       actualAway: g.away?.score ?? g.actualAway,
@@ -2360,6 +2362,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
           if (next.actualHome != null) {
             finalsGraded += 1;
             writes.push(gradeSnapshotsForGame(env, {
+              sport: next.sport || sport,
               gameId: next.id,
               actualHome: next.actualHome,
               actualAway: next.actualAway,
