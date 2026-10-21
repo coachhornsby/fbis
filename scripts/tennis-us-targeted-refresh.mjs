@@ -88,6 +88,31 @@ try{
  }
  report.status=report.errors.length?"PARTIAL":"COLLECTED";
 }catch(error){report.status="ERROR";report.errors.push({code:String(error.message||error).slice(0,180)});}
+// Read the published Tennis board after collector writes, without starting a
+// second provider collection. Distinguish successful source harvest from
+// an offer that actually survived canonical ID / temporal / card serialization.
+try{
+ const ct=value=>new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",
+  year:"numeric",month:"2-digit",day:"2-digit"}).format(value);
+ const now=new Date(),days=[0,1,2].map(n=>ct(new Date(+now+n*86400000)));
+ const summaries=[];
+ for(const date of [...new Set(days)]){
+  const url=new URL("/api/today",base);url.searchParams.set("sport","tennis");
+  url.searchParams.set("date",date);url.searchParams.set("receipt",run);
+  const response=await fetch(url,{headers:{accept:"application/json"},
+   signal:AbortSignal.timeout(40000),cache:"no-store"});
+  if(!response.ok){summaries.push({date,error:"BOARD_HTTP_"+response.status});continue;}
+  const body=await response.json(),games=(body.games||[]).filter(g=>g.sport==="tennis");
+  summaries.push({date,games:games.length,fbisProjections:games.filter(g=>g.tennisProjection?.player1WinProb!=null).length,
+   polymarketUsPrices:games.reduce((n,g)=>n+(g.market?.venueOffers||[]).filter(o=>String(o.source||"").startsWith("Polymarket US")&&o.contractPrice!=null).length,0),
+   kalshiResearchPrices:games.reduce((n,g)=>n+(g.tennisProjection?.kalshiResearchOffers||[]).filter(o=>o.yesAskDollars!=null).length,0),
+   polymarketGlobalPrices:games.reduce((n,g)=>n+(g.tennisProjection?.polymarketGlobalOffers||[]).filter(o=>o.indicativePrices?.length).length,0)});
+ }
+ report.board=summaries;
+ if(report.quotesInserted>0&&summaries.reduce((n,x)=>n+(x.polymarketUsPrices||0),0)===0)
+  report.errors.push({code:"TENNIS_MARKET_WRITTEN_BUT_NOT_DISPLAYED"});
+}catch(error){report.board={status:"UNAVAILABLE",reason:String(error.message||error).slice(0,100)};}
+report.status=report.errors.length?"GAPS":report.status;
 report.finishedAt=new Date().toISOString();
 delete report.tennisLeagues;
 await writeFile("artifacts/tennis-us-market-refresh.json",JSON.stringify(report,null,2));
