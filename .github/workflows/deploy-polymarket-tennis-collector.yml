@@ -51,6 +51,17 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config wrangler.polymarket-tennis-collector.toml
+      - name: Prime live ATP/WTA exchange inventory after deployment
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          test -n "$HARVEST_SECRET"
+          curl --fail --retry 4 --retry-all-errors --retry-delay 5 -sS \
+            -X POST https://fbis-myz.pages.dev/api/polymarket-bootstrap \
+            -H 'content-type: application/json' \
+            -H "x-harvest-secret: $HARVEST_SECRET" \
+            -d '{"operation":"tennis-inventory"}' \
+            | jq -e '.ok == true and .events > 0'
       - name: Confirm read-only cron Worker health endpoint
         run: |
           curl --fail --retry 8 --retry-all-errors --retry-delay 5 -sS \
