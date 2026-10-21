@@ -152,3 +152,22 @@ test("independent Kalshi ITF singles and doubles retain their own match categori
    assert.equal(observed[0].canAuthorizeWager,false);
  }
 });
+
+test("two-letter Kalshi surname Lu matches only with two full named YES outcomes and shared rules",()=>{
+ const ticker="KXITFWMATCH-26OCT21LUXWON";
+ const names=["Yichen Lu","Hong Yi Cody Wong"];
+ const records=names.map((player,index)=>({
+  sport:"itf_women",status:"active",eventTicker:ticker,
+  ticker:ticker+"-"+index,yesLabel:player,
+  fetchedAt:"2026-10-21T13:58:00Z",
+  occurrenceAt:"2026-10-21T19:45:00Z",
+  expectedExpirationAt:"2026-10-21T19:45:00Z",
+  rulesPrimary:"If "+player+" wins the Lu vs Wong professional tennis match in ITF W15 Singapore, then Yes."
+ }));
+ const matched=kalshiTennisContractPairs({itf_women:records},now);
+ assert.equal(matched.length,1);
+ assert.equal(matched[0].offers.length,2);
+ assert.equal(matched[0].canAuthorizeWager,false);
+ assert.deepEqual(kalshiTennisContractPairs({itf_women:records.map(r=>({
+  ...r,rulesPrimary:"Unrelated tennis match between different participants."}))},now),[]);
+});
