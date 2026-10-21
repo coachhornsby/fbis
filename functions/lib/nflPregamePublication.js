@@ -7,6 +7,7 @@
  */
 
 import { putArchive, r2Bound } from "./r2Archive.js";
+import { productSportDbHandle } from "./databaseTopology.js";
 import { buildNflFrozenAuditPacket } from "./nflFrozenPublicationAudit.js";
 import {
   NFL_PRODUCTION_CHAMPION,
@@ -257,7 +258,7 @@ export async function buildNflResearchPublicationPacket(game = {}, slate = {}, o
 }
 
 export async function insertNflResearchPublication(env, packet, { publishedBy = "nfl-pregame-publish" } = {}) {
-  if (!env?.DB?.prepare) return { ok: false, reason: "d1-unavailable" };
+  if (!productSportDbHandle(env, "nfl").db?.prepare) return { ok: false, reason: "d1-unavailable" };
   if (!packet?.ok) {
     return {
       ok: false,
@@ -269,7 +270,7 @@ export async function insertNflResearchPublication(env, packet, { publishedBy = 
   }
 
   const c = packet.compact;
-  const existing = await env.DB.prepare(
+  const existing = await productSportDbHandle(env, "nfl").db.prepare(
     `SELECT id, payload_hash, published_at, r2_key, status
        FROM nfl_research_publications
       WHERE event_id = ?1 AND model_id = ?2 AND model_version = ?3 AND checkpoint = ?4
@@ -314,7 +315,7 @@ export async function insertNflResearchPublication(env, packet, { publishedBy = 
     if (!archived.ok) r2Key = null; // D1 compact row still written; R2 failure is degraded not blocking
   }
 
-  const result = await env.DB.prepare(
+  const result = await productSportDbHandle(env, "nfl").db.prepare(
     `INSERT INTO nfl_research_publications (
       event_id, season, week, game_type, game_date, start_time, home_team, away_team, venue, neutral_site,
       checkpoint, model_id, model_version, feature_contract_version, code_sha, model_artifact_hash,
@@ -356,8 +357,8 @@ export async function insertNflResearchPublication(env, packet, { publishedBy = 
 }
 
 export async function recordNflPublicationEvent(env, row = {}) {
-  if (!env?.DB?.prepare) return { ok: false };
-  await env.DB.prepare(
+  if (!productSportDbHandle(env, "nfl").db?.prepare) return { ok: false };
+  await productSportDbHandle(env, "nfl").db.prepare(
     `INSERT INTO nfl_research_publication_events
       (event_id, game_date, checkpoint, status, detail, observed_at, code_sha, run_id)
      VALUES (?1,?2,?3,?4,?5,?6,?7,?8)`
@@ -420,7 +421,7 @@ export async function recordMissingPastCheckpoints(env, games = [], publications
 }
 
 export async function listNflResearchPublications(env, { date = null, eventId = null, limit = 200 } = {}) {
-  if (!env?.DB?.prepare) return [];
+  if (!productSportDbHandle(env, "nfl").db?.prepare) return [];
   const safeLimit = Math.max(1, Math.min(500, Number(limit) || 200));
   const clauses = [];
   const binds = [];
@@ -435,7 +436,7 @@ export async function listNflResearchPublications(env, { date = null, eventId = 
                  FROM nfl_research_publications ${where}
                 ORDER BY published_at DESC
                 LIMIT ${safeLimit}`;
-  const stmt = env.DB.prepare(sql);
+  const stmt = productSportDbHandle(env, "nfl").db.prepare(sql);
   const result = binds.length ? await stmt.bind(...binds).all() : await stmt.all();
   return (result?.results || []).map((row) => ({
     eventId: row.event_id,
