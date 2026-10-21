@@ -30,6 +30,37 @@ const health = {
   failedHarvests: 0,
 };
 
+/**
+ * Unscoped cross-sport reads must include the new NFL authoritative shard
+ * rather than returning a stale NFL slice from PRIMARY. This is never used
+ * during shadow mode, and fails closed if the cutover grant disappears.
+ */
+async function maybeMergeNflLedgerRead(env, sport, reader, options, { sort = "date", ascending = false } = {}) {
+  if (sport && String(sport).toLowerCase() !== "all") return null;
+  let db;
+  try {
+    db = nflLedgerFanoutDb(env);
+  } catch (error) {
+    return { ok: false, reason: String(error?.message || error), rows: [] };
+  }
+  if (!db) return null;
+  const shadowBase = { ...env, SPORT_DB_MODE_NFL: "shadow" };
+  const [primary, nfl] = await Promise.all([
+    reader(shadowBase, options),
+    reader({ ...shadowBase, DB: db }, { ...options, sport: "nfl" }),
+  ]);
+  if (!primary?.ok || !nfl?.ok) {
+    return { ok: false, reason: primary?.reason || nfl?.reason || "NFL_LEDGER_FANOUT_FAILED", rows: [] };
+  }
+  const merged = [
+    ...(primary.rows || []).filter(row => String(row.sport || "").toLowerCase() !== "nfl"),
+    ...(nfl.rows || []),
+  ];
+  merged.sort((a, b) => (ascending ? 1 : -1) *
+    String(a[sort] || "").localeCompare(String(b[sort] || "")));
+  return { ok: true, rows: merged };
+}
+
 export function hasDb(env) {
   return Boolean(env?.DB?.prepare);
 }
@@ -645,6 +676,8 @@ export async function persistOddsSnapshot(env, snap) {
 
 export async function queryOddsSnapshots(env, { gameId, sport, since, until } = {}) {
   env = nflLedgerEnv(env, sport);
+  const fanout = await maybeMergeNflLedgerRead(env, sport, queryOddsSnapshots, { gameId, sport, since, until }, { sort: "capturedAt", ascending: true });
+  if (fanout) return fanout;
   markBound(env);
   if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
   try {
@@ -802,6 +835,8 @@ export async function persistGame(env, game, date) {
 
 export async function queryGames(env, { sport, date, since } = {}) {
   env = nflLedgerEnv(env, sport);
+  const fanout = await maybeMergeNflLedgerRead(env, sport, queryGames, { sport, date, since }, { sort: "start", ascending: true });
+  if (fanout) return fanout;
   markBound(env);
   if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
   try {
@@ -1084,6 +1119,8 @@ function mapHeritageSnapshotRow(r) {
 
 export async function queryFinalSnapshotCandidates(env, { sport, since, until } = {}) {
   env = nflLedgerEnv(env, sport);
+  const fanout = await maybeMergeNflLedgerRead(env, sport, queryFinalSnapshotCandidates, { sport, since, until }, {});
+  if (fanout) return fanout;
   markBound(env);
   if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
   try {
@@ -1112,6 +1149,8 @@ export async function queryFinalSnapshotCandidates(env, { sport, since, until } 
 
 export async function querySnapshots(env, { sport, since, until, version, checkpoint, lite = false } = {}) {
   env = nflLedgerEnv(env, sport);
+  const fanout = await maybeMergeNflLedgerRead(env, sport, querySnapshots, { sport, since, until, version, checkpoint, lite }, {});
+  if (fanout) return fanout;
   markBound(env);
   if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
   try {
@@ -1147,6 +1186,8 @@ export async function querySnapshots(env, { sport, since, until, version, checkp
 
 export async function queryPredictions(env, { sport, since, until, version } = {}) {
   env = nflLedgerEnv(env, sport);
+  const fanout = await maybeMergeNflLedgerRead(env, sport, queryPredictions, { sport, since, until, version }, {});
+  if (fanout) return fanout;
   markBound(env);
   if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
   try {
