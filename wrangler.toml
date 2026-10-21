@@ -141,3 +141,117 @@ SPORT_DB_MODE_SOCCER = "shadow"
 SPORT_DB_MODE_TENNIS = "shadow"
 SPORT_DB_MODE_NPB = "shadow"
 SPORT_DB_MODE_KBO = "shadow"
+
+# NFL-only production D1 authority. All previews continue using top-level shadow vars.
+# Revert SPORT_DB_MODE_NFL to shadow only after reverse-replaying post-cutover NFL writes.
+[env.production.vars]
+MARKET_HISTORY_SHADOW_WS = "enabled"
+COLD_MARKET_ARCHIVE_READS = "enabled"
+NHL_SPORT_DB_MODE = "shadow"
+SPORT_DB_MODE_NHL = "shadow"
+SPORT_DB_MODE_NFL = "sport"
+SPORT_DB_MODE_CFB = "shadow"
+SPORT_DB_MODE_CBB = "shadow"
+SPORT_DB_MODE_NBA = "shadow"
+SPORT_DB_MODE_WNBA = "shadow"
+SPORT_DB_MODE_MLB = "shadow"
+SPORT_DB_MODE_SOCCER = "shadow"
+SPORT_DB_MODE_TENNIS = "shadow"
+SPORT_DB_MODE_NPB = "shadow"
+SPORT_DB_MODE_KBO = "shadow"
+SPORT_DB_STRICT_NFL = "true"
+SPORT_CUTOVER_RECEIPT_NFL = "nfl-20261021-production-v1"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "fbis"
+database_id = "b50c724c-903b-4241-8ce1-48d931e7a44c"
+
+[[env.production.d1_databases]]
+binding = "TIER3_DB"
+database_name = "fbis-cfb-tier3-research"
+database_id = "3dcddd30-8790-48f0-a6a3-cc3ad9b95295"
+
+[[env.production.d1_databases]]
+binding = "MARKET_HISTORY_DB"
+database_name = "fbis-market-history"
+database_id = "c32ccf06-c896-4d24-bb89-3e87a7412899"
+
+[[env.production.d1_databases]]
+binding = "MARKET_HISTORY_2026Q4_DB"
+database_name = "fbis-market-history-2026q4"
+database_id = "e8b0b65d-90a6-4842-8ee7-0f85d75afb4c"
+
+[[env.production.d1_databases]]
+binding = "CORE_DB"
+database_name = "fbis-core"
+database_id = "a5b438fa-eb16-4f03-95d7-1fc58ac72f04"
+
+[[env.production.d1_databases]]
+binding = "NHL_DB"
+database_name = "fbis-nhl"
+database_id = "a0aa010c-40d3-4d2f-8109-eca4e74e2a73"
+
+[[env.production.d1_databases]]
+binding = "NFL_DB"
+database_name = "fbis-nfl"
+database_id = "0a49cad0-4bf9-4e01-88ce-be54123f712d"
+
+[[env.production.d1_databases]]
+binding = "CFB_DB"
+database_name = "fbis-cfb"
+database_id = "b589c91c-c53d-4f4a-9d32-99c4468e3033"
+
+[[env.production.d1_databases]]
+binding = "CBB_DB"
+database_name = "fbis-cbb"
+database_id = "f00af21e-72b5-4e7c-bb10-b08f2c59dace"
+
+[[env.production.d1_databases]]
+binding = "NBA_DB"
+database_name = "fbis-nba"
+database_id = "ed992525-d2ed-4b1d-8a12-feeb2efa152c"
+
+[[env.production.d1_databases]]
+binding = "WNBA_DB"
+database_name = "fbis-wnba"
+database_id = "94e40293-d433-493e-af9e-0564ea1b6fcb"
+
+[[env.production.d1_databases]]
+binding = "MLB_DB"
+database_name = "fbis-mlb"
+database_id = "b188629e-cdf7-49e6-b693-dead80777377"
+
+[[env.production.d1_databases]]
+binding = "SOCCER_DB"
+database_name = "fbis-soccer"
+database_id = "c275978c-fce9-49c9-a1ce-4e2fcbea6d23"
+
+[[env.production.d1_databases]]
+binding = "TENNIS_DB"
+database_name = "fbis-tennis"
+database_id = "c491e479-f9f6-49a9-ace9-962aef68cc64"
+
+[[env.production.d1_databases]]
+binding = "NPB_DB"
+database_name = "fbis-npb"
+database_id = "010ef83f-a472-4ab2-b9af-589541895e8e"
+
+[[env.production.d1_databases]]
+binding = "KBO_DB"
+database_name = "fbis-kbo"
+database_id = "77a8e7bc-c022-490f-98df-3adb479d1e52"
+
+[[env.production.d1_databases]]
+binding = "OPERATIONS_DB"
+database_name = "fbis-operations-20261017"
+database_id = "2371df3a-17bf-44d6-abf0-d275cf2f331e"
+
+[[env.production.d1_databases]]
+binding = "COLD_HISTORY_DB"
+database_name = "fbis-cold-history-20261017"
+database_id = "6fad1baf-126f-4ab8-9b80-a7d71637d6d4"
+
+[[env.production.r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "fbis-archive"
