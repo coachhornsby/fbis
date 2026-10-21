@@ -14,7 +14,7 @@ import {
   readCanonicalProbability,
 } from "./probability.js";
 import { expectedRoi, validAmericanOdds } from "./pricing.js";
-import { nflLedgerEnv, nflLedgerFanoutDb } from "./nflLedgerRouting.js";
+import { sportLedgerEnv, sportLedgerFanoutDbs } from "./sportLedgerRouting.js";
 
 let soccerHistoryLastError = null;
 
@@ -37,24 +37,30 @@ const health = {
  */
 async function maybeMergeNflLedgerRead(env, sport, reader, options, { sort = "date", ascending = false } = {}) {
   if (sport && String(sport).toLowerCase() !== "all") return null;
-  let db;
+  let authorities;
   try {
-    db = nflLedgerFanoutDb(env);
+    authorities = sportLedgerFanoutDbs(env);
   } catch (error) {
     return { ok: false, reason: String(error?.message || error), rows: [] };
   }
-  if (!db) return null;
-  const shadowBase = { ...env, SPORT_DB_MODE_NFL: "shadow" };
-  const [primary, nfl] = await Promise.all([
-    reader(shadowBase, options),
-    reader({ ...shadowBase, DB: db }, { ...options, sport: "nfl" }),
-  ]);
-  if (!primary?.ok || !nfl?.ok) {
-    return { ok: false, reason: primary?.reason || nfl?.reason || "NFL_LEDGER_FANOUT_FAILED", rows: [] };
+  if (!authorities.length) return null;
+  const shadowBase = { ...env };
+  for (const { sport: key } of authorities) {
+    shadowBase[`SPORT_DB_MODE_${key.toUpperCase()}`] = "shadow";
   }
+  const [primary, ...sportReads] = await Promise.all([
+    reader(shadowBase, options),
+    ...authorities.map(({ sport: key, db }) =>
+      reader({ ...shadowBase, DB: db }, { ...options, sport: key })),
+  ]);
+  if (!primary?.ok || sportReads.some(r => !r?.ok)) {
+    return { ok: false, reason: primary?.reason ||
+      sportReads.find(r => !r?.ok)?.reason || "SPORT_LEDGER_FANOUT_FAILED", rows: [] };
+  }
+  const moved = new Set(authorities.map(a => a.sport));
   const merged = [
-    ...(primary.rows || []).filter(row => String(row.sport || "").toLowerCase() !== "nfl"),
-    ...(nfl.rows || []),
+    ...(primary.rows || []).filter(row => !moved.has(String(row.sport || "").toLowerCase())),
+    ...sportReads.flatMap(r => r.rows || []),
   ];
   merged.sort((a, b) => (ascending ? 1 : -1) *
     String(a[sort] || "").localeCompare(String(b[sort] || "")));
@@ -191,7 +197,7 @@ function n(v) {
 }
 
 export async function persistPrediction(env, row) {
-  env = nflLedgerEnv(env, row?.sport);
+  env = sportLedgerEnv(env, row?.sport);
   markBound(env);
   if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
   try {
@@ -353,7 +359,7 @@ function layersWithSnap(row) {
 }
 
 export async function persistSnapshot(env, row) {
-  env = nflLedgerEnv(env, row?.sport);
+  env = sportLedgerEnv(env, row?.sport);
   markBound(env);
   if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound", inserted: 0, already: 0, failed: 1, conflict: false };
   try {
@@ -591,7 +597,7 @@ async function cfbGradingTimeGuard(env,gameId,gradedAt,explicitSport=null){
 }
 
 export async function gradeSnapshot(env, row) {
-  env = nflLedgerEnv(env, row?.sport);
+  env = sportLedgerEnv(env, row?.sport);
   markBound(env);
   if (!hasDb(env) || !row?.id) return { ok: false, reason: "unbound" };
   if (isOpenSnapshot(row) || (row.actualHome == null && !row.gameStatus)) return { ok: false, reason: "no-final" };
@@ -615,7 +621,7 @@ export async function gradeSnapshot(env, row) {
 }
 
 export async function persistOddsSnapshot(env, snap) {
-  env = nflLedgerEnv(env, snap?.sport);
+  env = sportLedgerEnv(env, snap?.sport);
   markBound(env);
   if (!hasDb(env) || !snap?.gameId) return { ok: false, reason: "unbound" };
   const capturedAt = snap.capturedAt || new Date().toISOString();
@@ -675,7 +681,7 @@ export async function persistOddsSnapshot(env, snap) {
 }
 
 export async function queryOddsSnapshots(env, { gameId, sport, since, until } = {}) {
-  env = nflLedgerEnv(env, sport);
+  env = sportLedgerEnv(env, sport);
   const fanout = await maybeMergeNflLedgerRead(env, sport, queryOddsSnapshots, { gameId, sport, since, until }, { sort: "capturedAt", ascending: true });
   if (fanout) return fanout;
   markBound(env);
@@ -731,7 +737,7 @@ export async function queryOddsSnapshots(env, { gameId, sport, since, until } = 
 }
 
 export async function gradeSnapshotsForGame(env, { gameId, sport = null, actualHome, actualAway, f5ActualHome = null, f5ActualAway = null, gradedAt, forceCorrect = false }) {
-  env = nflLedgerEnv(env, sport);
+  env = sportLedgerEnv(env, sport);
   markBound(env);
   if (!hasDb(env) || !gameId) return { ok: false, reason: "unbound" };
   if (actualHome == null) return { ok: false, reason: "no-final" };
@@ -805,7 +811,7 @@ export async function excludeSnapshotsForGame(env, { gameId, reason = "INVALID_H
 }
 
 export async function persistGame(env, game, date) {
-  env = nflLedgerEnv(env, game?.sport);
+  env = sportLedgerEnv(env, game?.sport);
   markBound(env);
   if (!hasDb(env) || !game?.id) return { ok: false, reason: "unbound" };
   try {
@@ -838,7 +844,7 @@ export async function persistGame(env, game, date) {
 }
 
 export async function queryGames(env, { sport, date, since } = {}) {
-  env = nflLedgerEnv(env, sport);
+  env = sportLedgerEnv(env, sport);
   const fanout = await maybeMergeNflLedgerRead(env, sport, queryGames, { sport, date, since }, { sort: "start", ascending: true });
   if (fanout) return fanout;
   markBound(env);
@@ -1122,7 +1128,7 @@ function mapHeritageSnapshotRow(r) {
 }
 
 export async function queryFinalSnapshotCandidates(env, { sport, since, until } = {}) {
-  env = nflLedgerEnv(env, sport);
+  env = sportLedgerEnv(env, sport);
   const fanout = await maybeMergeNflLedgerRead(env, sport, queryFinalSnapshotCandidates, { sport, since, until }, {});
   if (fanout) return fanout;
   markBound(env);
@@ -1152,7 +1158,7 @@ export async function queryFinalSnapshotCandidates(env, { sport, since, until } 
 }
 
 export async function querySnapshots(env, { sport, since, until, version, checkpoint, lite = false } = {}) {
-  env = nflLedgerEnv(env, sport);
+  env = sportLedgerEnv(env, sport);
   const fanout = await maybeMergeNflLedgerRead(env, sport, querySnapshots, { sport, since, until, version, checkpoint, lite }, {});
   if (fanout) return fanout;
   markBound(env);
@@ -1189,7 +1195,7 @@ export async function querySnapshots(env, { sport, since, until, version, checkp
 }
 
 export async function queryPredictions(env, { sport, since, until, version } = {}) {
-  env = nflLedgerEnv(env, sport);
+  env = sportLedgerEnv(env, sport);
   const fanout = await maybeMergeNflLedgerRead(env, sport, queryPredictions, { sport, since, until, version }, {});
   if (fanout) return fanout;
   markBound(env);
@@ -1319,7 +1325,7 @@ function formKey(team) {
 }
 
 export async function loadTeamForm(env, sport, season) {
-  env = nflLedgerEnv(env, sport);
+  env = sportLedgerEnv(env, sport);
   const map = new Map();
   markBound(env);
   if (!hasDb(env)) return map;
@@ -1345,7 +1351,7 @@ export async function loadTeamForm(env, sport, season) {
 }
 
 export async function upsertTeamForm(env, { sport, season, team, pointsFor, pointsAgainst }) {
-  env = nflLedgerEnv(env, sport);
+  env = sportLedgerEnv(env, sport);
   markBound(env);
   if (!hasDb(env) || !team) return { ok: false, reason: "unbound" };
   const key = formKey(team);
@@ -1370,7 +1376,7 @@ export async function upsertTeamForm(env, { sport, season, team, pointsFor, poin
 }
 
 export async function applyFinalToForm(env, { sport, season, gameId, date, home, away, homeScore, awayScore }) {
-  env = nflLedgerEnv(env, sport);
+  env = sportLedgerEnv(env, sport);
   markBound(env);
   if (!hasDb(env) || !gameId) return { ok: false, reason: "unbound" };
   if (homeScore == null || awayScore == null) return { ok: false, reason: "no-score" };
