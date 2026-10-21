@@ -41,6 +41,14 @@ let lastError = null;
 let lastSource = null;
 let lastTarget = null;
 let consecutiveIdle = 0;
+let transientFailures = 0;
+let totalTransientFailures = 0;
+const isTransient = error => /D1_ERROR.*Network connection lost|Network connection lost|INVALID_JSON_HTTP_50[234]|HTTP_50[234]|HTTP_52[024]|TimeoutError|AbortError|UND_ERR_HEADERS_TIMEOUT|fetch failed/i.test(
+  String(error?.message || error)
+);
+async function sleep(ms) {
+  await new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function inspect() {
   const p = await postTopology("sport-prefix-parity", { sport: SPORT });
@@ -53,7 +61,19 @@ async function inspect() {
   return row;
 }
 
-let current = await inspect();
+async function inspectWithRetry() {
+  let err = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try { return await inspect(); }
+    catch (error) {
+      err = error;
+      if (!isTransient(error) || Date.now() >= deadline) throw error;
+      await sleep(1200 * (attempt + 1));
+    }
+  }
+  throw err;
+}
+let current = await inspectWithRetry();
 if (current.status === "PARITY") status = "PARITY";
 for (let passNo = 1; passNo <= maxPasses && status !== "PARITY" && Date.now() < deadline; passNo++) {
   try {
@@ -69,12 +89,14 @@ for (let passNo = 1; passNo <= maxPasses && status !== "PARITY" && Date.now() < 
     }
     const added = Number(row?.copied || 0);
     copied += added;
+    transientFailures = 0;
+    lastError = null;
     history.push({ pass: passNo, copied: added, exhausted: Boolean(row?.exhausted), skipped });
     // One full prefix parity query checks every declared research table.
     // Avoid issuing that expensive multi-table probe on every 1k-row page.
     let checked = null;
     if (row?.exhausted || skipped || added === 0 || passNo % 8 === 0) {
-      checked = await inspect();
+      checked = await inspectWithRetry();
     }
     console.log(JSON.stringify({
       sport: SPORT, table: TABLE, pass: passNo, copied: added,
@@ -91,6 +113,18 @@ for (let passNo = 1; passNo <= maxPasses && status !== "PARITY" && Date.now() < 
     }
   } catch (error) {
     lastError = String(error?.message || error).slice(0, 300);
+    if (isTransient(error) && totalTransientFailures < 12 && Date.now() + 20000 < deadline) {
+      transientFailures += 1;
+      totalTransientFailures += 1;
+      const backoffMs = Math.min(22000, 2000 * transientFailures);
+      console.log(JSON.stringify({ sport: SPORT, table: TABLE,
+        status: "TRANSIENT_RETRY", error: lastError, backoffMs }));
+      await sleep(backoffMs);
+      // The D1 operation may have committed some rows before a transport loss.
+      // Durable cursor replay + INSERT OR REPLACE are idempotent; never advance
+      // checkpoint state from a failed request.
+      continue;
+    }
     status = "FAILED";
     break;
   }
@@ -98,7 +132,7 @@ for (let passNo = 1; passNo <= maxPasses && status !== "PARITY" && Date.now() < 
 // Capture authoritative final count parity, even on a bounded continuation.
 if (status !== "FAILED") {
   try {
-    const final = await inspect();
+    const final = await inspectWithRetry();
     if (final.status === "PARITY") status = "PARITY";
   } catch (error) {
     lastError = String(error?.message || error).slice(0, 300);
@@ -109,7 +143,7 @@ const receipt = {
   ok: status === "PARITY" || status === "PROGRESSING",
   status, sport: SPORT, table: TABLE, startedAt,
   endedAt: new Date().toISOString(), passes: history.length,
-  rowsApplied: copied, primaryCount: lastSource, shadowCount: lastTarget,
+  rowsApplied: copied, transientFailures: totalTransientFailures, primaryCount: lastSource, shadowCount: lastTarget,
   remaining: lastSource == null || lastTarget == null ? null : lastSource - lastTarget,
   lastError, productStillPrimary: true, cutoverAuthorized: false,
   canAuthorizeWager: false,

@@ -27,27 +27,27 @@ jobs:
     timeout-minutes: 32
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 2
       matrix:
         include:
-          - { sport: cfb, table: cfb_canonical_players }
           - { sport: cfb, table: cfb_player_aliases }
-          - { sport: cfb, table: cfb_player_provider_ids }
-          - { sport: cfb, table: cfb_roster_membership }
-          - { sport: cfb, table: cfb_roster_observations }
-          - { sport: nhl, table: nhl_linemate_profiles }
-          - { sport: nhl, table: nhl_goalie_probability_shadow }
-          - { sport: nba, table: nba_player_role_contexts }
-          - { sport: nba, table: nba_player_impact_snapshots }
           - { sport: mlb, table: mlb_market_projections }
-          - { sport: cbb, table: cbb_players }
-          - { sport: cbb, table: cbb_player_aliases }
-          - { sport: cbb, table: cbb_roster_membership }
-          - { sport: cbb, table: cbb_roster_observations }
+          - { sport: cfb, table: cfb_roster_membership }
+          - { sport: nhl, table: nhl_linemate_profiles }
+          - { sport: cfb, table: cfb_canonical_players }
+          - { sport: nba, table: nba_player_role_contexts }
+          - { sport: cfb, table: cfb_player_provider_ids }
           - { sport: cbb, table: cbb_schedule_items }
-          - { sport: cbb, table: cbb_player_state_snapshots }
-          - { sport: wnba, table: wnba_player_impact_snapshots }
+          - { sport: cfb, table: cfb_roster_observations }
+          - { sport: nba, table: nba_player_impact_snapshots }
+          - { sport: cbb, table: cbb_roster_membership }
           - { sport: tennis, table: tennis_match_history }
+          - { sport: cbb, table: cbb_players }
+          - { sport: wnba, table: wnba_player_impact_snapshots }
+          - { sport: cbb, table: cbb_player_state_snapshots }
+          - { sport: nhl, table: nhl_goalie_probability_shadow }
+          - { sport: cbb, table: cbb_player_aliases }
+          - { sport: cbb, table: cbb_roster_observations }
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
