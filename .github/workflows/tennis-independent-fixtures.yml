@@ -1,78 +1,13 @@
-name: FBIS independent tennis fixtures
+name: Tennis ESPN fixture collector (retired)
 on:
-  schedule:
-    - cron: '31 */3 * * *'
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'functions/lib/tennisExternalSchedule.js'
-      - 'functions/lib/polymarketTennisIdentity.js'
-      - 'functions/lib/pinnoddsIngestion.js'
-      - 'functions/lib/pinnoddsMarkets.js'
-      - 'functions/api/tennis-external-fixtures.js'
-      - 'scripts/collect-tennis-external-fixtures.mjs'
-      - 'scripts/probe-tennis-fixtures.mjs'
-      - 'test/tennis-external-fixtures.test.mjs'
-      - '.github/workflows/tennis-independent-fixtures.yml'
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/tennis-independent-fixtures.yml'
-      - 'functions/lib/tennisExternalSchedule.js'
-      - 'functions/api/tennis-external-fixtures.js'
 permissions:
   contents: read
-concurrency:
-  group: fbis-tennis-independent-fixtures
-  cancel-in-progress: false
 jobs:
-  capture:
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4.1.0
-        with:
-          node-version: '22'
-      - run: npm ci --ignore-scripts
-      - run: node --test test/tennis-external-fixtures.test.mjs test/polymarket-tennis-identity.test.js test/polymarket-us-readonly.test.js
-      - name: Inspect public ESPN fixture contract (no writes)
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
-        run: node scripts/probe-tennis-fixtures.mjs
-      - name: Verify exact production release before collecting
-        if: github.event_name != 'pull_request'
-        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
-      - name: Gate fixture collection on deployed D1 schema
-        if: github.event_name != 'pull_request'
-        shell: bash
+      - name: ESPN is not an approved Tennis data source
         run: |
-          set -euo pipefail
-          # New Pages SHA can activate before its additive D1 migration finishes.
-          # Never query the provider until the read-only status route proves both.
-          for attempt in $(seq 1 36); do
-            payload="$(curl -fsS --connect-timeout 5 --max-time 12 \
-              'https://fbis-myz.pages.dev/api/polymarket-status' || true)"
-            if jq -e '.ok == true and (.tennisCoverage.independentResearchUpcomingFixtures | type == "number")' \
-                <<<"$payload" >/dev/null 2>&1; then
-              echo "Tennis research fixture D1 schema is live."
-              break
-            fi
-            if [ "$attempt" = 36 ]; then
-              echo "TENNIS_RESEARCH_SCHEMA_NOT_READY: no source requests launched."
-              exit 1
-            fi
-            sleep 8
-          done
-      - name: Gather bounded public tennis fixture schedules
-        if: github.event_name != 'pull_request'
-        env:
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-        run: node scripts/collect-tennis-external-fixtures.mjs
-      - uses: actions/upload-artifact@v4
-        if: always() && github.event_name != 'pull_request'
-        with:
-          name: tennis-independent-fixtures-${{ github.run_id }}
-          path: artifacts/tennis-external-fixtures.json
-          retention-days: 14
-          if-no-files-found: ignore
+          echo 'RETIRED: Tennis sources are Kalshi, Polymarket, ATP, WTA and ITF only.'
+          echo 'This workflow performs no collection or data writes.'
