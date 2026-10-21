@@ -166,4 +166,13 @@ test("qualify workflow keeps deletion and cutover closed", () => {
   assert.match(wf, /readyForCutoverReview==true/);
   assert.match(wf, /gates\.cutoverRehearsal==true/);
   assert.match(wf, /RUN_CUTOVER_REHEARSAL/);
+  // Require research, roster, historical-source and live-sync evidence across
+  // all eleven sports, including the previously omitted six wave-2 leagues.
+  assert.match(wf, /qualify-wave2:/);
+  for (const sport of ["cbb", "wnba", "soccer", "tennis", "npb", "kbo"]) {
+    assert.match(wf, new RegExp(`\\b${sport}\\b`));
+  }
+  assert.match(wf, /gates\.sourceCoverage == true/);
+  assert.match(wf, /gates\.prefixParity == true/);
+  assert.match(wf, /gates\.syncLag == true/);
 });
