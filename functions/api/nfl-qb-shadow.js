@@ -1,3 +1,4 @@
+import { nflSportDbContext } from "../lib/nflSportDbContext.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
 import { buildNflQbPersonnelShadow, executableNflMarketSnapshot, NFL_QB_PERSONNEL_GATE } from "../lib/nflQbPersonnelShadow.js";
@@ -122,7 +123,7 @@ async function snapshot(context,date){
   const env={
     PARLAY_API_KEY:context.env.PARLAY_API_KEY,THEODDS_API_KEY:context.env.THEODDS_API_KEY,
     SHARPAPI_API_KEY:context.env.SHARPAPI_API_KEY,THERUNDOWN_API_KEY:context.env.THERUNDOWN_API_KEY,
-    DB:context.env.DB,ARCHIVE:context.env.ARCHIVE,caches:caches.default,parlayCacheOnly:true,cfbdScheduleFallback:false,
+    ...nflSportDbContext(context.env), DB:context.env.DB,ARCHIVE:context.env.ARCHIVE,caches:caches.default,parlayCacheOnly:true,cfbdScheduleFallback:false,
   };
   const slate=await buildSlate("nfl",resolved.date,env);
   const frozenAt=new Date().toISOString();let inserted=0,eligible=0,gated=0,skipped=0,canonicalWritten=0,canonicalExisting=0,canonicalTemporalFailures=0;

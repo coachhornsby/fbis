@@ -1,3 +1,4 @@
+import { nflSportDbContext } from "../lib/nflSportDbContext.js";
 import {loadCfbPublicWeek} from "../lib/cfbPublicSchedule.js";
 import { isFbsVsFbsGame } from "../lib/cfbGameVisibility.js";
 import { buildSlate, resolveSlateDate, findNextCfbdGameDate, fetchCfbdGamesForWeek } from "../lib/slateEngine.js";
@@ -20,7 +21,7 @@ export async function onRequestGet(context) {
     BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
     CFBD_API_KEY: context.env.CFBD_API_KEY,
     caches: caches.default,
-    DB: context.env.DB,
+    ...nflSportDbContext(context.env), DB: context.env.DB,
   };
   let publicWeek = null;
   let publicScheduleError = null;

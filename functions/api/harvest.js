@@ -1,3 +1,4 @@
+import { nflSportDbContext } from "../lib/nflSportDbContext.js";
 import { harvestAll, backfillNflFormViaHarvest } from "../lib/projLedger.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { httpStatusForJob, parseJobTrigger } from "../lib/jobs.js";
@@ -41,7 +42,7 @@ export async function onRequestGet(context) {
       const payload = await backfillNflFormViaHarvest(
         {
           caches: caches.default,
-          DB: context.env.DB,
+          ...nflSportDbContext(context.env), DB: context.env.DB,
           ARCHIVE: context.env.ARCHIVE,
           CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
         },
@@ -63,7 +64,7 @@ export async function onRequestGet(context) {
       days,
       {
         caches: caches.default,
-        DB: context.env.DB,
+        ...nflSportDbContext(context.env), DB: context.env.DB,
         ARCHIVE: context.env.ARCHIVE,
         CFBD_API_KEY: context.env.CFBD_API_KEY,
         CBBD_API_KEY: context.env.CBBD_API_KEY,
