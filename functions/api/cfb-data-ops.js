@@ -1,3 +1,4 @@
+import {productSportDbHandle,deployedSportDbMode} from "../lib/databaseTopology.js";
 /**
  * CFB Data Operations API — SDV / CFBD registries, collection health, matrix, pipeline health.
  * Read-only. Never mutates champions or wager gates.
@@ -106,7 +107,7 @@ async function loadManifestEvidence(env, season, week) {
   }
   try {
     const throughWeek = Math.max(0, Number(week) - 1);
-    const row = await env.DB.prepare(
+    const row = await productSportDbHandle(env,"cfb").db.prepare(
       `SELECT COUNT(*) AS n FROM cfb_core_weekly_archive
         WHERE season = ? AND through_week = ?`
     )
@@ -126,7 +127,7 @@ async function pipelineHealth(env, season, week) {
     try {
       matchups =
         (
-          await env.DB.prepare(
+          await productSportDbHandle(env,"cfb").db.prepare(
             `SELECT game_id, home_team, away_team, kickoff_timestamp, season, week
                FROM cfb_pregame_feature_vectors
               WHERE season = ? AND week >= ?
@@ -162,6 +163,10 @@ async function pipelineHealth(env, season, week) {
 
 export async function onRequestGet(context) {
   const env = context.env;
+  if (deployedSportDbMode(env,"cfb")==="sport" &&
+      !productSportDbHandle(env,"cfb").db?.prepare) {
+    return json({ok:false,error:"CFB_D1_AUTHORITY_UNAVAILABLE"},503);
+  }
   const url = new URL(context.request.url);
   const q = url.searchParams.get("q") || "";
   const section = url.searchParams.get("section") || "all";
