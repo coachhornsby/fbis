@@ -1,3 +1,4 @@
+import { productSportDbHandle } from "../lib/databaseTopology.js";
 import { nflSportDbContext } from "../lib/nflSportDbContext.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
@@ -152,7 +153,7 @@ async function snapshot(context,date){
       governanceId:criteria.governanceId,
       codeSha,
     };
-    const result=await context.env.DB.prepare(`
+    const result=await productSportDbHandle(context.env, 'nfl').db.prepare(`
       INSERT OR IGNORE INTO nfl_qb_personnel_shadow_predictions(
         id,event_id,season,week,start_time,checkpoint,frozen_at,champion_governance_id,incumbent_model_id,incumbent_model_version,
         incumbent_home,incumbent_away,incumbent_margin,incumbent_win_probability,incumbent_total,
@@ -196,7 +197,7 @@ async function snapshot(context,date){
 }
 async function grade(context,date){
   const finals=await espnFinal(date);
-  const rows=(await context.env.DB.prepare(`
+  const rows=(await productSportDbHandle(context.env, 'nfl').db.prepare(`
     SELECT * FROM nfl_qb_personnel_shadow_predictions
     WHERE substr(start_time,1,10)=? AND graded_at IS NULL
   `).bind(date).all())?.results||[];
@@ -215,7 +216,7 @@ async function grade(context,date){
       return side==="home"?homeValue:-homeValue;
     };
     const gradedAt=new Date().toISOString();
-    await context.env.DB.prepare(`
+    await productSportDbHandle(context.env, 'nfl').db.prepare(`
       UPDATE nfl_qb_personnel_shadow_predictions SET
         actual_home=?,actual_away=?,actual_margin=?,actual_total=?,closing_market_json=?,
         incumbent_margin_abs_error=?,challenger_margin_abs_error=?,incumbent_winner_correct=?,challenger_winner_correct=?,
@@ -263,8 +264,8 @@ async function grade(context,date){
   }
   return{ok:true,date,candidates:rows.length,finals:finals.size,graded};
 }
-async function summary(db){
-  const allRows=(await db.prepare("SELECT * FROM nfl_qb_personnel_shadow_predictions ORDER BY start_time").all())?.results||[];
+async function summary(db, nflDb=db){
+  const allRows=(await nflDb.prepare("SELECT * FROM nfl_qb_personnel_shadow_predictions ORDER BY start_time").all())?.results||[];
   const rows=allRows.filter(r=>r.graded_at && String(r.provenance_json||"").includes(nflQbProspectiveCriteria().gateId));
   const group=(arr)=>{
     if(!arr.length)return{n:0};
@@ -361,7 +362,7 @@ export async function onRequest(context){
   try{
     if(mode==="snapshot")return json(await snapshot(context,date));
     if(mode==="grade")return json(await grade(context,date));
-    if(mode==="summary")return json(await summary(context.env.DB));
+    if(mode==="summary")return json(await summary(context.env.DB,productSportDbHandle(context.env,'nfl').db));
     return json({ok:false,error:"unsupported-mode"},400);
   }catch(err){
     return json({ok:false,error:"nfl-qb-shadow-failed",detail:String(err?.message||err)},500);
