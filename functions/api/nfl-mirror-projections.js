@@ -1,3 +1,4 @@
+import { nflSportDbContext } from "../lib/nflSportDbContext.js";
 import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
 import { canonicalizeProPlayerPropMarket } from "../lib/proPlayerProps.js";
 import {loadNflVerseFeatures} from "../lib/nflVerseFeed.js";
@@ -58,7 +59,7 @@ export async function onRequestGet(context){
   THEODDS_API_KEY:context.env.THEODDS_API_KEY,
   SHARPAPI_API_KEY:context.env.SHARPAPI_API_KEY,
   THERUNDOWN_API_KEY:context.env.THERUNDOWN_API_KEY,
-  DB:context.env.DB,ARCHIVE:context.env.ARCHIVE,
+  ...nflSportDbContext(context.env), DB:context.env.DB,ARCHIVE:context.env.ARCHIVE,
   caches:caches.default,parlayCacheOnly:true,cfbdScheduleFallback:false,
  };
  try{
