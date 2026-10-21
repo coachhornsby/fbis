@@ -1365,6 +1365,21 @@ export async function buildTodayBoard(
     }
     const overlaid = [];
     for (const [sportKey, sportGames] of bySport) {
+      if(sportKey==="tennis"){
+        // Tennis now carries provider-native Polymarket US and Kalshi quotes
+        // from independently refreshed R2. Re-querying the giant historical D1
+        // market ledger for every match blocked the entire focused board.
+        // Never strip or overwrite the already verified source observations.
+        const prices=sportGames.reduce((n,g)=>n+
+          (g.tennisProjection?.venueOffers||g.market?.venueOffers||[])
+            .filter(o=>/^Polymarket/i.test(String(o.source||""))&&o.contractPrice!=null).length,0);
+        polymarketResearch.bySport.tennis={available:prices>0,
+          diagnostics:{source:"R2_TENNIS_EXCHANGE_INVENTORY",observations:prices,
+            researchOnly:true,d1HistoricalLedgerSkipped:true}};
+        if(prices>0)polymarketResearch.available=true;
+        overlaid.push(...sportGames);
+        continue;
+      }
       let overlay = { byId: new Map(), available: false };
       try {
         const historyParts = listMarketHistoryReadDbs(env);
