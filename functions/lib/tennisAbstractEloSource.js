@@ -75,7 +75,9 @@ export async function fetchTennisAbstractElo(tour,{fetchImpl=fetch,now=new Date(
   acquisitionTransport='APIFY_WEB_FETCH_RELAY';
  }else throw Error('ELO_PROVIDER_HTTP_'+response.status);
  const parsed=parseTennisAbstractElo(html,tour,{now});
- return {...parsed,sourceHash:await hash(html),retrievedAt:now.toISOString(),acquisitionTransport};
+ const validatedRecords=parsed.players.map(p=>[p.playerKey,p.eloRank,p.overallElo,p.hardElo,p.clayElo,p.grassElo,p.officialRank]);
+ const sourceHash=await hash(JSON.stringify([tour,parsed.reportDate,validatedRecords]));
+ return {...parsed,sourceHash,retrievedAt:now.toISOString(),acquisitionTransport};
 }
 export async function persistTennisAbstractElo(db,record){
  if(!db?.prepare||!record?.players?.length||!record?.sourceHash)throw Error('ELO_STORAGE_INPUT_INVALID');
