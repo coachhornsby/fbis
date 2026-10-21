@@ -115,3 +115,16 @@ test('projected fixtures include official tennis matches with pregame research d
  assert.equal(page.matchedEvents,1);assert.equal(page.contracts,1);
  assert.ok([...e.stored.keys()].some(k=>k.includes('stream-roster/')&&k.includes('wta')));
 });
+
+test('WTA underscore receipt identities persist without relaxing provider slug validation',async()=>{
+ const e=environment();
+ forecast(e);
+ const receiptId='bootstrap-39527694106-markets-wta_2c913761b13aa933e504a552-0';
+ const page=await bootstrapPolymarket(e,{operation:'page',sport:'nfl',slug:'nfl',offset:0,receiptId},
+  {now,fetchImpl:async()=>Response.json({events:[]})});
+ assert.equal(page.ok,true);
+ assert.equal(page.receiptId,receiptId);
+ assert.ok(e.stored.has('market-sources/polymarket-us/bootstrap/'+receiptId+'.json'));
+ await assert.rejects(()=>bootstrapPolymarket(e,{operation:'page',sport:'nfl',slug:'invalid_slug',offset:0,receiptId:'bad-slug'},
+  {now,fetchImpl:async()=>Response.json({events:[]})}),/INVALID_SCOPE/);
+});
