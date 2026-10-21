@@ -31,6 +31,7 @@ import { buildIndependentTennisCards, tennisFixtureOffers } from "./tennisIntell
 import { attachOfficialTennisExchangeResearch } from "./tennisOfficialExchangeResearch.js";
 import {loadPolymarketUsTennisInventory,mergePolymarketUsTennisCards} from "./tennisExchangeInventory.js";
 import {loadKalshiTennisResearch} from "./tennisKalshiResearch.js";
+import {mergeKalshiTennisCards} from "./tennisKalshiInventory.js";
 import {loadPolymarketGlobalTennisSnapshot} from "./tennisPolymarketGlobal.js";
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "./polymarketBoard.js";
 import { listMarketHistoryReadDbs } from "./databaseTopology.js";
@@ -751,9 +752,10 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
     ]);
     const exchange=mergePolymarketUsTennisCards([],inventory,{
       date,now,kalshi,polymarketGlobal});
-    return {sport:"tennis",date,games:exchange.games,
-      research:{configured:inventory.ok,source:"EXCHANGE_LISTINGS_R2",
-       modelStatus:"MODEL_DATABASE_UNAVAILABLE",records:exchange.games.length,
+    const union=mergeKalshiTennisCards(exchange.games,kalshi,{date,now});
+    return {sport:"tennis",date,games:union.games,
+      research:{configured:inventory.ok||union.added.length>0,source:"EXCHANGE_LISTINGS_R2",
+       modelStatus:"MODEL_DATABASE_UNAVAILABLE",records:union.games.length,
        withheld:0,exchangeInventoryStatus:exchange.status}};
   }
   const [query] = await Promise.all([
@@ -1095,7 +1097,9 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
   const marketBoard=mergePolymarketUsTennisCards(games,exchangeInventory,{
     date,now,kalshi:independent.exchangeSources?.kalshi,
     polymarketGlobal:independent.exchangeSources?.polymarketGlobal});
-  games.splice(0,games.length,...marketBoard.games);
+  const kalshiBoard=mergeKalshiTennisCards(marketBoard.games,
+    independent.exchangeSources?.kalshi||{}, {date,now});
+  games.splice(0,games.length,...kalshiBoard.games);
   attachOfficialTennisExchangeResearch(games,{kalshi:independent.exchangeSources?.kalshi,
     polymarket:independent.exchangeSources?.polymarketGlobal,now});
   return {
