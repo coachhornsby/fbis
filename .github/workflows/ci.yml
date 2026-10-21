@@ -34,6 +34,16 @@ jobs:
         run: npm ci
       - name: Verify schema/migrations
         run: npm run verify:migrations
+      - name: Inventory remaining sport D1 consumers before cutover
+        run: node scripts/sport-cutover-owner-inventory.mjs
+      - name: Preserve remaining sport cutover consumer inventory
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: fbis-sport-cutover-owner-inventory
+          path: artifacts/sport-cutover-owner-inventory.json
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Inventory D1 production consumers before historical storage reclamation
         run: node scripts/audit-cfb-storage-consumers.mjs
       - name: Preserve machine-readable storage consumer audit
