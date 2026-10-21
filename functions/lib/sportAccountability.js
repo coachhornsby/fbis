@@ -113,7 +113,7 @@ export function buildSportAccountabilityReport(rows = [], { sport = "all", gener
     }));
   return {
     ok:true, version:"fbis-accountability-v1", generatedAt, sport, windowDays,
-    source:"immutable_prediction_snapshots", sourceStatus:"READ_ONLY_PRIMARY",
+    source:"immutable_prediction_snapshots", sourceStatus:"CANONICAL_SPORT_READ_ROUTING",
     sports:sport==="all"?allSports:allSports.filter(s=>s.sport===sport),
     cohorts, receipts, rejectionCounts:rejected,
     eligibleEvents:new Set(selected.map(r=>[r.sport,r.gameId].join("|"))).size,
