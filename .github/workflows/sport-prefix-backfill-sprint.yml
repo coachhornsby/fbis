@@ -64,7 +64,7 @@ jobs:
           BUDGET_MS: "1260000"
           PAGE_SIZE: "200"
           MAX_PAGES: "5"
-          MAX_PASSES: "110"
+          MAX_PASSES: "850"
         run: |
           set -euo pipefail
           test -n "$HARVEST_SECRET" || { echo "HARVEST_SECRET missing"; exit 1; }
