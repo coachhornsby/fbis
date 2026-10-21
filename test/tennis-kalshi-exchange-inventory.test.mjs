@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {onRequestGet as exchangeStatus} from "../functions/api/tennis-exchange-status.js";
 import {kalshiTennisContractPairs,mergeKalshiTennisCards}
  from "../functions/lib/tennisKalshiInventory.js";
 const now=new Date("2026-10-21T14:00:00Z");
@@ -65,4 +66,23 @@ test("one-sided, stale, mismatched rules, and provider-expired Kalshi offers do 
 test("Kalshi-only expirations are included only in their explicitly labeled date bucket",()=>{
  const result=mergeKalshiTennisCards([],kalshi,{date:"2026-10-22",now});
  assert.equal(result.added.length,0);
+});
+
+test("exchange health reports Kalshi as available without any Polymarket snapshot",async()=>{
+ const at=new Date(),recent=new Date(+at-60000).toISOString(),
+  expires=new Date(+at+6*3600000).toISOString();
+ const source=rows.map(r=>({...r,fetchedAt:recent,expectedExpirationAt:expires}));
+ const progress={version:1,sport:"atp",startedAt:recent,
+  pagesFetched:1,cursor:"next",records:source};
+ const env={ARCHIVE:{get:async key=>
+   key==="kalshi/public-shadow/v1/sports/atp-progress.json"
+   ?{json:async()=>progress}:null}};
+ const response=await exchangeStatus({env});
+ const data=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(data.status,"SINGLE_EXCHANGE_PRESENT");
+ assert.equal(data.sources.kalshi.available,true);
+ assert.equal(data.sources.polymarketUs.available,false);
+ assert.equal(data.byTour.atp.kalshiContractEvents,1);
+ assert.equal(data.canAuthorizeWager,false);
 });
