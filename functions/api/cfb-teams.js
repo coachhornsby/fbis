@@ -1,3 +1,4 @@
+import { productSportDbHandle } from "../lib/databaseTopology.js";
 import { loadCfbPublicTeamFacts } from "../lib/cfbTeamPublicFacts.js";
 import { toFbsTeamList, toFbsTeamProfile, toTeamFeatureSummary, toLegacyFormSummary } from "../lib/cfbTeamProfiles.js";
 import {loadFbsTeamSeasonEvidence,validProfileSeason,validProfilePlayer} from "../lib/cfbTeamSeasonEvidence.js";
@@ -50,7 +51,7 @@ function canonicalEspnTeamId(teamId) {
   return espn ? `cfb:espn:${espn[1]}` : String(teamId || "");
 }
 
-async function loadFbsResearchPeers(db, { season, featureVersion, conferenceByTeam = null } = {}) {
+async function loadFbsResearchPeers(db, { season, featureVersion, conferenceByTeam = null, sportDb = db } = {}) {
   if (!db?.prepare || season == null || !featureVersion) return { peers: [], totalFbs: null, conferenceCounts: {} };
   try {
     const result = await db.prepare(
@@ -59,7 +60,7 @@ async function loadFbsResearchPeers(db, { season, featureVersion, conferenceByTe
     const latest = latestSnapshotPerTeam(result?.results || []);
     let conferences = conferenceByTeam;
     if (!conferences) {
-      const confRows = await db.prepare(
+      const confRows = await sportDb.prepare(
         "SELECT team_id,current_conference " + baseSql
       ).all();
       conferences = new Map((confRows?.results || []).map((r) => [r.team_id, r.current_conference || null]));
@@ -97,13 +98,14 @@ async function optionalTeamForm(db, espnId, season=2026) {
   } catch { return null; }
 }
 export async function loadFbsTeamDirectory(db, requestedTeamId = null, options = {}) {
-  if (!db?.prepare) return { status: 503, body: { ok: false, error: "database-unavailable" } };
+  const sportDb = options.sportDb || db;
+  if (!db?.prepare || !sportDb?.prepare) return { status: 503, body: { ok: false, error: "database-unavailable" } };
   try {
     if (requestedTeamId != null) {
       if (!validId(requestedTeamId)) {
         return { status: 400, body: { ok: false, error: "invalid-canonical-team-id" } };
       }
-      const row = await db.prepare("SELECT * " + baseSql + " AND team_id=? LIMIT 1")
+      const row = await sportDb.prepare("SELECT * " + baseSql + " AND team_id=? LIMIT 1")
         .bind(requestedTeamId).first();
       const team = toFbsTeamProfile(row);
       if (!team) return { status: 404, body: { ok: false, error: "fbs-team-not-found" } };
@@ -112,14 +114,15 @@ export async function loadFbsTeamDirectory(db, requestedTeamId = null, options =
       const playerId=options.playerId||null;
       if (playerId && !validProfilePlayer(playerId))return {status:400,body:{ok:false,error:"invalid-player-id"}};
       const [featureState, legacyForm, evidence] = await Promise.all([
-        optionalTeamFeatures(db, team.teamId,season), optionalTeamForm(db, team.espnId,season),
-        loadFbsTeamSeasonEvidence(db,team,season,playerId),
+        optionalTeamFeatures(db, team.teamId,season), optionalTeamForm(sportDb, team.espnId,season),
+        loadFbsTeamSeasonEvidence(db,team,season,playerId,{sportDb}),
       ]);
       const snapshotSeason = featureState?.season != null ? Number(featureState.season) : Number(season);
       const peerPopulation = featureState?.state === "RESEARCH_SNAPSHOT" && featureState.featureVersion
         ? await loadFbsResearchPeers(db, {
           season: snapshotSeason,
           featureVersion: featureState.featureVersion,
+           sportDb,
         })
         : { peers: [], totalFbs: null, conferenceCounts: {} };
       const publicFacts = await (options.publicFactsLoader || loadCfbPublicTeamFacts)(team.espnId, Number(season));
@@ -139,7 +142,7 @@ export async function loadFbsTeamDirectory(db, requestedTeamId = null, options =
         storage: "PERSISTENT_D1_READ_ONLY", externalProviderRequests: 2,
       } };
     }
-    const results = await db.prepare("SELECT * " + baseSql + " ORDER BY school_name ASC LIMIT 180").all();
+    const results = await sportDb.prepare("SELECT * " + baseSql + " ORDER BY school_name ASC LIMIT 180").all();
     const teams = toFbsTeamList(results?.results || []);
     return { status: 200, body: {
       ok: true, season: 2026, subdivision: "FBS", teams, count: teams.length,
@@ -154,6 +157,7 @@ export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const teamId = url.searchParams.get("team");
   const result = await loadFbsTeamDirectory(context.env?.DB, teamId, {
+    sportDb: productSportDbHandle(context.env,"cfb").db,
     season: url.searchParams.get("season") || 2026,
     playerId: url.searchParams.get("player") || null,
     publicFactsLoader: context.publicFactsLoader,
