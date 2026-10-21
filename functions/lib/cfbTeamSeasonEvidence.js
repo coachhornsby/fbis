@@ -16,19 +16,19 @@ async function optionally(db,sql,bindings=[],transform=x=>x){
    :{state:"READ_ERROR",reason:"SAVED_STATISTICAL_DATA_UNAVAILABLE",rows:[]};
  }
 }
-export async function loadFbsTeamSeasonEvidence(db,team,season=2026,playerId=null){
+export async function loadFbsTeamSeasonEvidence(db,team,season=2026,playerId=null,{sportDb=db}={}){
  const teamId=team.teamId;
  const [rosterResult,seasonsResult,scheduleResult,teamStatsResult,playerStatsResult,teamGamesResult]=await Promise.all([
-  optionally(db,"SELECT m.player_id,m.position,m.position_abbreviation,m.jersey,m.class_year, "+
+  optionally(sportDb,"SELECT m.player_id,m.position,m.position_abbreviation,m.jersey,m.class_year, "+
     "m.height,m.weight,m.season,m.first_game_at,m.last_game_at,m.games_rostered,"+
     "m.observed_at,m.source,p.canonical_name,p.current_position,p.identity_status "+
     "FROM cfb_roster_membership m LEFT JOIN cfb_canonical_players p ON p.player_id=m.player_id "+
     "WHERE m.team_id=? AND m.season=? ORDER BY m.position_abbreviation,m.jersey,m.player_id LIMIT 350",
     [teamId,season],toRosterProfiles),
-  optionally(db,"SELECT DISTINCT season FROM cfb_roster_membership WHERE team_id=? "+
+  optionally(sportDb,"SELECT DISTINCT season FROM cfb_roster_membership WHERE team_id=? "+
     "AND season BETWEEN 2004 AND 2026 ORDER BY season DESC LIMIT 30",[teamId],
     rows=>rows.map(r=>Number(r.season)).filter(Number.isFinite)),
-  optionally(db,"SELECT id,date,start,home_name,away_name,home_abbr,away_abbr "+
+  optionally(sportDb,"SELECT id,date,start,home_name,away_name,home_abbr,away_abbr "+
     "FROM games WHERE sport='cfb' AND date >= ? AND date < ? "+
     "AND (home_name IN (?,?) OR away_name IN (?,?)) "+
     "ORDER BY date DESC, start DESC LIMIT 32",
