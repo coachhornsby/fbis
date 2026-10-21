@@ -7,7 +7,7 @@ const key = s => " "+String(s||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,
 const clean=s=>key(String(s||"").replace(/\((?:19|20)\d{2}\)/g,"")).trim();
 const surname=name=>clean(name).split(" ").at(-1)||"";
 const same=(a,b)=>clean(a)===clean(b);
-const hasSurname=(text,name)=>surname(name).length>=4&&key(text).includes(key(surname(name)));
+const hasSurname=(text,name)=>surname(name).length>=2&&key(text).includes(key(surname(name)));
 /** Two separately named YES outcomes, identical event ticker, explicit rules
  * with BOTH distinct player surnames, scheduled within three days. Kalshi
  * settlement administrative closeAt is NOT the scheduled match time.
