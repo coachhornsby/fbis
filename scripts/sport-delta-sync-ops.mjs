@@ -169,7 +169,14 @@ const out = {
   canAuthorizeWager: false,
   cutoverAuthorized: false,
   // Explicit: working-set parity alone is not a complete sport migration.
-  fullSportMigration: prefixParity?.ok === true && parity?.ok === true,
+  // PREFIX_EMPTY_OK (NPB/KBO) or 0=0 working-set parity is not migration.
+  fullSportMigration: prefixParity?.ok === true
+    && Number(prefixParity.tableCount) > 0
+    && parity?.ok === true
+    && [
+      ...(parity?.tables || []),
+      ...(prefixParity?.tables || []),
+    ].some(row => Number(row.primaryCount) > 0),
 };
 
 console.log(JSON.stringify(out, null, 2));

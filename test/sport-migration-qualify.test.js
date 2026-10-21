@@ -136,6 +136,25 @@ test("qualify package never activates cutover or deletion", async () => {
   assert.equal(typeof q.migrationCompleteness.fullSportIncludingPrefix, "boolean");
 });
 
+test("empty NPB/KBO shards cannot satisfy real-source cutover qualification", async () => {
+  for (const sport of ["npb", "kbo"]) {
+    const db = memoryDb({
+      games: [], prediction_snapshots: [], published_projections: [],
+    });
+    const env = { DB: db, [sport.toUpperCase() + "_DB"]: db };
+    const q = await qualifySportMigration(env, sport, {
+      runDeltaSync: false,
+      runCutoverRehearsal: false,
+      sampleSize: 10,
+    });
+    assert.equal(q.gates.sourceCoverage, false, sport);
+    assert.equal(q.gates.prefixParity, false, sport);
+    assert.equal(q.readyForCutoverReview, false, sport);
+    assert.equal(q.migrationCompleteness.fullSportIncludingPrefix, false, sport);
+    assert.equal(q.cutoverAuthorized, false, sport);
+  }
+});
+
 test("qualify workflow keeps deletion and cutover closed", () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const wf = readFileSync(join(root, ".github/workflows/sport-migration-qualify.yml"), "utf8");
