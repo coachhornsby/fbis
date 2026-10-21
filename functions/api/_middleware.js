@@ -1,5 +1,6 @@
 import { authorizeOperatorWrite, authorizeExecutedBetWrite, unauthorizedBody } from "../lib/auth.js";
 import { evaluateActionSpendGuard } from "../lib/actionCostPolicy.js";
+import { hydrateCutoverApprovals } from "../lib/databaseTopology.js";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -172,6 +173,20 @@ export async function onRequest(context) {
   const request = context.request;
   const url = new URL(request.url);
   const method = String(request.method || "GET").toUpperCase();
+
+  // Product database routing is synchronous, but CORE cutover approvals live
+  // in D1. Load the grant into THIS request's env before any route executes.
+  // An unavailable/revoked receipt must fail closed; do not cache authority
+  // across requests or permit request query/body overrides.
+  if (String(context.env?.SPORT_DB_MODE_NFL || "").toLowerCase() === "sport") {
+    context.env.__fbisCutoverApprovals = new Map();
+    try {
+      const state = await hydrateCutoverApprovals(context.env, { sport: "nfl" });
+      if (!state.ok) context.env.__fbisCutoverApprovals.clear();
+    } catch {
+      context.env.__fbisCutoverApprovals.clear();
+    }
+  }
 
   const actionGuardResponse = await guardActionCollection(context, request, url);
   if (actionGuardResponse) return actionGuardResponse;
