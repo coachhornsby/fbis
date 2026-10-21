@@ -288,6 +288,6 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
         playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
     });
   }
-  return { games, coverage: { fixtures: games.length, playerIdentityComplete: bank.playerIdentityComplete,
+  return { games, exchangeSources:{kalshi,polymarketGlobal}, coverage: { fixtures: games.length, playerIdentityComplete: bank.playerIdentityComplete,
     fixturesWithLinkedMarkets: bank.fixturesWithLinkedMarkets, asOf: bank.asOf } };
 }
