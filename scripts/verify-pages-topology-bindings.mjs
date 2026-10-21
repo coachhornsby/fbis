@@ -49,7 +49,11 @@ async function main() {
     const modeFailures = [];
     for (const key of modeKeys) {
       const value = String(envVars[key]?.value ?? envVars[key] ?? "").toLowerCase();
-      if (value !== "shadow") modeFailures.push({ key, actual: value || null });
+      const strictNfl = name === "production" && key === "SPORT_DB_MODE_NFL" && value === "sport" &&
+        String(envVars.SPORT_DB_STRICT_NFL?.value || "").toLowerCase() === "true" &&
+        Boolean(String(envVars.SPORT_CUTOVER_RECEIPT_NFL?.value || "").trim());
+      // Runtime CORE approval is verified separately through productSportDbHandle.
+      if (value !== "shadow" && !strictNfl) modeFailures.push({ key, actual: value || null });
     }
     const legacyNhl = String(envVars.NHL_SPORT_DB_MODE?.value ?? envVars.NHL_SPORT_DB_MODE ?? "").toLowerCase();
     if (legacyNhl && legacyNhl !== "shadow") {
