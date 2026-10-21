@@ -1,3 +1,4 @@
+import { productSportDbHandle } from "./databaseTopology.js";
 /**
  * Compact D1 persistence for college research. Immutable inserts.
  * Outcomes may attach later without rewriting frozen inputs.
@@ -620,6 +621,7 @@ export async function insertCfbdEndpointAudit(env, row) {
 }
 
 export async function insertCfbPregameFeatureVector(env, row) {
+  env = { ...env, DB: productSportDbHandle(env, "cfb").db };
   if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
   try {
     const res = await env.DB.prepare(
@@ -659,6 +661,7 @@ export async function insertCfbPregameFeatureVector(env, row) {
 }
 
 export async function insertCfbPlayerRoleSnapshot(env, row) {
+  env = { ...env, DB: productSportDbHandle(env, "cfb").db };
   if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
   try {
     const res = await env.DB.prepare(
