@@ -216,7 +216,7 @@ export async function buildSlate(sport, date, env = {}) {
     // Load verified availability BEFORE scoring so authorized SHADOW challengers
     // (QB personnel overlay) can consume it. Displayed NFL-PRO-v1.2 still ignores it.
     const profileKeysEarly=[...new Set((enriched||[]).flatMap(g=>[g?.home?.abbr,g?.away?.abbr]).filter(Boolean).map(x=>String(x).toLowerCase()))];
-    const persistentProfiles=await loadNflTeamProfiles(env.DB||null,profileKeysEarly).catch(()=>({teams:{},players:{}}));
+    const persistentProfiles=await loadNflTeamProfiles(productSportDbHandle(env,"nfl").db,profileKeysEarly).catch(()=>({teams:{},players:{}}));
     const withAvailability=attachNflPersistentProfiles(enriched,persistentProfiles,{attachedBeforeScoring:true});
     const pro = attachNflProShadow(withAvailability);
     const withQbShadow = (pro.games||[]).map((game)=>{
