@@ -279,169 +279,71 @@ async function finishSportWorkingCopy(sportDb, table, plan, pass) {
   }
 }
 
+
+export function fullFidelitySportUpsertSql(table, fields, { preserveNullable = [] } = {}) {
+  const target = assertSafeIdent(table);
+  const columns = [...new Set(fields.map(assertSafeIdent))];
+  if (!columns.includes("id")) throw new Error("FULL_FIDELITY_ID_REQUIRED");
+  const keep = new Set(preserveNullable);
+  const updates = columns.filter(c => c !== "id").map(c =>
+    keep.has(c) ? `${c}=COALESCE(excluded.${c},${target}.${c})` :
+      `${c}=excluded.${c}`);
+  return `INSERT INTO ${target}(${columns.join(",")}) VALUES(${columns.map(() => "?").join(",")})
+    ON CONFLICT(id) DO UPDATE SET ${updates.join(",")}`;
+}
+
 async function copyGamesPaged(primary, sportDb, sport, { pageSize, maxPages, afterId = "" }) {
-  let cursor = afterId;
-  let copied = 0;
-  let pages = 0;
-  let lastId = cursor;
+  let cursor = afterId, copied = 0, pages = 0, lastId = cursor;
   for (; pages < maxPages; pages += 1) {
     const page = await primary.prepare(
-      `SELECT id,sport,start,home_name,away_name,home_abbr,away_abbr,updated_at
-       FROM games
-       WHERE sport=? AND id>?
-       ORDER BY id ASC
-       LIMIT ?`
+      "SELECT * FROM games WHERE sport=? AND id>? ORDER BY id ASC LIMIT ?"
     ).bind(sport, cursor, pageSize).all();
     const rows = page?.results || [];
     if (!rows.length) break;
     for (const row of rows) {
-      // Preserve any richer aux fields already on the sport shard (do not NULL-clobber).
-      await sportDb.prepare(
-        `INSERT INTO games(id,sport,start,status,home_name,away_name,home_abbr,away_abbr,home_id,away_id,season,week,venue,payload_json,updated_at)
-         VALUES(?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL,NULL,?)
-         ON CONFLICT(id) DO UPDATE SET
-           sport=excluded.sport,
-           start=excluded.start,
-           home_name=excluded.home_name,
-           away_name=excluded.away_name,
-           home_abbr=excluded.home_abbr,
-           away_abbr=excluded.away_abbr,
-           updated_at=excluded.updated_at,
-           status=COALESCE(games.status, excluded.status),
-           home_id=COALESCE(games.home_id, excluded.home_id),
-           away_id=COALESCE(games.away_id, excluded.away_id),
-           season=COALESCE(games.season, excluded.season),
-           week=COALESCE(games.week, excluded.week),
-           venue=COALESCE(games.venue, excluded.venue),
-           payload_json=COALESCE(games.payload_json, excluded.payload_json)`
-      ).bind(
-        row.id, sport, row.start, null, row.home_name, row.away_name, row.home_abbr, row.away_abbr,
-        row.updated_at || new Date().toISOString()
-      ).run();
-      copied += 1;
-      lastId = row.id;
+      const cols = Object.keys(row).map(assertSafeIdent);
+      const sql = fullFidelitySportUpsertSql("games", cols, {
+        preserveNullable: ["status","home_id","away_id","season","week","venue","payload_json"],
+      });
+      await sportDb.prepare(sql).bind(...cols.map(c => row[c] ?? null)).run();
+      copied++;
     }
-    cursor = rows[rows.length - 1].id;
+    lastId = rows[rows.length - 1].id;
+    cursor = lastId;
     if (rows.length < pageSize) break;
   }
   return { copied, pages, cursor: lastId, exhausted: pages < maxPages || copied === 0 };
 }
 
 async function copyPredictionsPaged(primary, sportDb, sport, { pageSize, maxPages, afterId = "" }) {
-  let cursor = afterId;
-  let copied = 0;
-  let pages = 0;
-  let lastId = cursor;
-  let fidelityFailures = 0;
+  let cursor = afterId, copied = 0, pages = 0, lastId = cursor, fidelityFailures = 0;
   for (; pages < maxPages; pages += 1) {
-    // Prefer complete PRIMARY row (SELECT *) so the evidence envelope is full-fidelity.
-    // Fall back to rich then lean column lists on older schemas.
-    let rows = [];
-    try {
-      const page = await primary.prepare(
-        `SELECT * FROM prediction_snapshots
-         WHERE sport=? AND id>?
-         ORDER BY id ASC
-         LIMIT ?`
-      ).bind(sport, cursor, pageSize).all();
-      rows = page?.results || [];
-    } catch {
-      try {
-        const page = await primary.prepare(
-          `SELECT id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,proj_margin,
-                  p_home_final,p_market,frozen_at,weights_json,layers_json,projection_flags,
-                  graded_at,actual_home,actual_away,deployment_commit,
-                  date,matchup,checkpoint,pal_home,pal_away,pal_f5_home,pal_f5_away,pal_p_home,
-                  pal_as_of,pal_request_id,pal_json,lineups_official,
-                  p_espn,p_score,p_form,p_pal,data_quality,pin_home_ml,pin_away_ml,pin_vig,
-                  engine,f5_actual_home,f5_actual_away,projection_state
-           FROM prediction_snapshots
-           WHERE sport=? AND id>?
-           ORDER BY id ASC
-           LIMIT ?`
-        ).bind(sport, cursor, pageSize).all();
-        rows = page?.results || [];
-      } catch {
-        const page = await primary.prepare(
-          `SELECT id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,p_home_final,frozen_at
-           FROM prediction_snapshots
-           WHERE sport=? AND id>?
-           ORDER BY id ASC
-           LIMIT ?`
-        ).bind(sport, cursor, pageSize).all();
-        rows = page?.results || [];
-      }
-    }
+    const page = await primary.prepare(
+      "SELECT * FROM prediction_snapshots WHERE sport=? AND id>? ORDER BY id ASC LIMIT ?"
+    ).bind(sport, cursor, pageSize).all();
+    const rows = page?.results || [];
     if (!rows.length) break;
-    // Collect bounded upserts; one remote D1 transaction per 40 rows rather
-    // than thousands of sequential statements per CFB prediction replay.
     const bound = [];
     for (const row of rows) {
       const id = stablePredictionId(row);
       const envelope = buildPredictionEvidenceEnvelope(row);
-      const insert = sportDb.prepare(
-        `INSERT INTO prediction_snapshots(
-           id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,proj_margin,
-           p_home_final,p_market,frozen_at,weights_json,layers_json,projection_flags,
-           graded_at,actual_home,actual_away,deployment_commit,payload_json
-         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-         ON CONFLICT(id) DO UPDATE SET
-           game_id=excluded.game_id,
-           sport=excluded.sport,
-           game_date=excluded.game_date,
-           start_time=excluded.start_time,
-           model_version=excluded.model_version,
-           projection_kind=excluded.projection_kind,
-           proj_total=excluded.proj_total,
-           proj_home=excluded.proj_home,
-           proj_away=excluded.proj_away,
-           proj_margin=excluded.proj_margin,
-           p_home_final=excluded.p_home_final,
-           p_market=excluded.p_market,
-           frozen_at=excluded.frozen_at,
-           weights_json=excluded.weights_json,
-           layers_json=excluded.layers_json,
-           projection_flags=excluded.projection_flags,
-           graded_at=excluded.graded_at,
-           actual_home=excluded.actual_home,
-           actual_away=excluded.actual_away,
-           deployment_commit=excluded.deployment_commit,
-           payload_json=excluded.payload_json`
-      ).bind(
-        id, row.game_id, row.sport, row.model_version, row.projection_kind,
-        row.proj_total, row.proj_home, row.proj_away, row.proj_margin ?? null,
-        row.p_home_final, row.p_market ?? null, row.frozen_at,
-        row.weights_json ?? null, row.layers_json ?? null, row.projection_flags ?? null,
-        row.graded_at ?? null, row.actual_home ?? null, row.actual_away ?? null,
-        row.deployment_commit ?? null, envelope
-      );
-      bound.push(insert);
-      const fidelity = evaluateSportPredictionFidelity({
-        ...row, id, payload_json: envelope,
-      });
-      if (!fidelity.ok) fidelityFailures += 1;
+      const data = { ...row, id, payload_json: envelope };
+      const cols = Object.keys(data).map(assertSafeIdent);
+      bound.push(sportDb.prepare(fullFidelitySportUpsertSql("prediction_snapshots", cols))
+        .bind(...cols.map(c => data[c] ?? null)));
+      if (!evaluateSportPredictionFidelity(data).ok) fidelityFailures++;
     }
     if (typeof sportDb.batch === "function") {
-      for (let offset = 0; offset < bound.length; offset += 40) {
-        await sportDb.batch(bound.slice(offset, offset + 40));
-      }
+      for (let i = 0; i < bound.length; i += 40) await sportDb.batch(bound.slice(i, i + 40));
     } else {
-      for (const statement of bound) await statement.run();
+      for (const stmt of bound) await stmt.run();
     }
-    // Page progress is only published after all upserts commit; a transient
-    // network loss replays the last page idempotently rather than losing rows.
     copied += rows.length;
     lastId = stablePredictionId(rows[rows.length - 1]);
     cursor = rows[rows.length - 1].id;
     if (rows.length < pageSize) break;
   }
-  return {
-    copied,
-    pages,
-    cursor: lastId,
-    exhausted: pages < maxPages || copied === 0,
-    fidelityFailures,
-  };
+  return { copied, pages, cursor: lastId, exhausted: pages < maxPages || copied === 0, fidelityFailures };
 }
 
 async function copyPublishedPaged(primary, sportDb, sport, { pageSize, maxPages, afterKey = "" }) {
@@ -469,6 +371,8 @@ async function copyPublishedPaged(primary, sportDb, sport, { pageSize, maxPages,
          ON CONFLICT(id) DO UPDATE SET
            game_id=excluded.game_id,
            sport=excluded.sport,
+           game_date=excluded.game_date,
+           start_time=excluded.start_time,
            model_version=excluded.model_version,
            published_at=excluded.published_at,
            published_by=excluded.published_by,
