@@ -24,6 +24,7 @@ test("NHL shadow grader requires official final state",async()=>{
   assert.match(src,/if\(!isOfficialFinal\(box\)\)return null/);
   assert.match(src,/function frozenOfficialGameId/);
   assert.match(src,/next_game_id/);
+  assert.match(src,/String\(home\)===String\(away\)/);
   assert.match(src,/fetchBox\(r\.event_id,officialEventId\)/);
 });
 
