@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {buildTennisResearchSlate} from "../functions/lib/todayBoard.js";
+import {buildTennisResearchSlate,buildTodayBoard} from "../functions/lib/todayBoard.js";
 import {matchKalshiTennisResearch} from "../functions/lib/tennisKalshiResearch.js";
 import {
  collectPolymarketUsTennisInventory,loadPolymarketUsTennisInventory,
@@ -121,4 +121,55 @@ test("prior-day Polymarket match still active remains discoverable without chang
  assert.ok(discovered);
  assert.equal(discovered.start,"2026-10-20T14:45:00.000Z");
  assert.equal(normalizePolymarketUsTennisEvent({...live,startTime:"2026-10-18T02:00:00Z"},"atp",now),null);
+});
+
+test("D1 query failure cannot suppress independently collected Polymarket market cards",async()=>{
+ const record=normalizePolymarketUsTennisEvent(event(),"atp",now);
+ const snapshot={version:1,source:"POLYMARKET_US_PUBLIC",
+  capturedAt:now.toISOString(),complete:true,events:[record]};
+ const calls=[];
+ const env={DB:{prepare:sql=>{calls.push(sql);throw Error("SIMULATED_D1_FAILURE");}},
+  ARCHIVE:{get:async key=>key===TENNIS_EXCHANGE_INVENTORY_KEY?
+   {json:async()=>snapshot}:null}};
+ const board=await buildTennisResearchSlate("2026-10-21",env,{now});
+ assert.equal(board.research.modelStatus,"MODEL_D1_READ_FAILED");
+ assert.equal(board.games.length,1);
+ assert.equal(board.games[0].tennisProjection.venueOffers.length,2);
+ assert.equal(board.games[0].canAuthorizeWager,false);
+ assert.equal(calls.length,1);
+ // Date/identity checks still govern which source events appear.
+ assert.equal(board.games[0].tennisProjection.researchFixture.source,"POLYMARKET_US_PUBLIC");
+});
+test("market-first model query restricts historical market/context ranking to selected fixture IDs",async()=>{
+ const snapshot={version:1,source:"POLYMARKET_US_PUBLIC",
+  capturedAt:now.toISOString(),complete:true,
+  events:[normalizePolymarketUsTennisEvent(event(),"atp",now)]};
+ const sql=[];
+ const env={DB:{prepare:q=>{sql.push(q);return{bind:()=>({
+  all:async()=>({results:[]})})}}},ARCHIVE:{get:async key=>
+  key===TENNIS_EXCHANGE_INVENTORY_KEY?{json:async()=>snapshot}:null}};
+ const board=await buildTennisResearchSlate("2026-10-21",env,{now});
+ assert.equal(board.games.length,1);
+ assert.ok(sql[0].includes("FROM tennis_market_snapshots\n        WHERE canonical_event_id IN"));
+ assert.ok(sql[0].includes("FROM tennis_context_snapshots\n        WHERE canonical_event_id IN"));
+ assert.equal(board.research.modelGameCount,0);
+});
+
+test("focused TODAY board preserves Polymarket cards and avoids historical D1 overlay",async()=>{
+ const item=normalizePolymarketUsTennisEvent(event(),"atp",now);
+ const data={version:1,source:"POLYMARKET_US_PUBLIC",capturedAt:now.toISOString(),
+  complete:true,events:[item]};
+ let modelCalls=0;
+ const env={ARCHIVE:{get:async key=>key===TENNIS_EXCHANGE_INVENTORY_KEY?
+  {json:async()=>data}:null},
+  DB:{prepare:()=>{modelCalls++;throw Error("OPTIONAL_MODEL_DB_UNAVAILABLE");}}};
+ const board=await buildTodayBoard("2026-10-21",env,{
+  now:+now,focusSport:"tennis"});
+ const tennis=board.games.filter(x=>x.sport==="tennis");
+ assert.equal(tennis.length,1);
+ const offers=tennis[0].tennisProjection?.venueOffers||tennis[0].market?.venueOffers||[];
+ assert.equal(offers.length,2);
+ assert.equal(board.polymarketResearch.bySport.tennis.available,true);
+ assert.equal(board.polymarketResearch.bySport.tennis.diagnostics.d1HistoricalLedgerSkipped,true);
+ assert.equal(modelCalls,1,"never use historical ledger after optional D1 fails");
 });
