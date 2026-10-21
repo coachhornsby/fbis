@@ -256,12 +256,21 @@ export async function qualifySportMigration(env, sport, {
     };
   }
 
+  // Empty=empty equality is useful for sync diagnostics but is NOT evidence
+  // that a league has any production data, especially NPB and KBO.
+  const hasSourceData = [
+    ...(countParity.tables || []),
+    ...(prefixParity.tables || []),
+  ].some(row => Number(row.primaryCount) > 0);
+  const hasDeclaredResearchScope = Number(prefixParity.tableCount) > 0;
   const gates = {
     countParity: countParity.ok === true,
     recordParity: recordParity.ok === true,
+    sourceCoverage: hasSourceData && hasDeclaredResearchScope,
     // Working-set parity ≠ complete sport migration — prefix research must catch up too.
-    prefixParity: prefixParity.ok === true,
-    syncLag: health.lagOk === true || health.lastCopyAt == null, // null = not yet synced; not a hard fail when just starting
+    prefixParity: prefixParity.ok === true && hasDeclaredResearchScope,
+    // An absent sync timestamp does not qualify a never-synced database.
+    syncLag: health.lagOk === true && health.lastCopyAt != null,
     productStillPrimary: health.productStillPrimary === true,
     cutoverRehearsal: cutover ? cutover.ok === true : null,
     cutoverAuthorized: false,
@@ -270,7 +279,9 @@ export async function qualifySportMigration(env, sport, {
 
   const readyForCutoverReview = gates.countParity
     && gates.recordParity
+    && gates.sourceCoverage
     && gates.prefixParity
+    && gates.syncLag
     && gates.productStillPrimary
     && (cutover ? cutover.ok === true : false);
 
@@ -301,7 +312,7 @@ export async function qualifySportMigration(env, sport, {
     },
     migrationCompleteness: {
       workingSetOnly: gates.countParity && gates.recordParity && !gates.prefixParity,
-      fullSportIncludingPrefix: gates.countParity && gates.recordParity && gates.prefixParity,
+      fullSportIncludingPrefix: gates.countParity && gates.recordParity && gates.sourceCoverage && gates.prefixParity && gates.syncLag,
       note: "Do not treat games/predictions parity as a complete sport migration",
     },
     canAuthorizeWager: false,
