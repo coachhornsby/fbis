@@ -21,7 +21,9 @@ on:
       - "migrations/0053_tennis_player_bank.sql"
       - ".github/workflows/tennis-v2-profile-refresh.yml"
   schedule:
-    - cron: "30 11,12 * * *"
+    # Two local refresh opportunities (06:30 and 18:30 CT), with DST-safe UTC slots.
+    # The local schedule gate applies only at 06/18 CT to avoid duplicate D1 writes.
+    - cron: "30 0,11,12,23 * * *"
   workflow_dispatch:
 
 permissions:
@@ -63,7 +65,7 @@ jobs:
           hour="$(TZ=America/Chicago date +%H)"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "apply=0" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$hour" = "06" ]; then
+          elif [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$hour" = "06" ] || [ "$hour" = "18" ]; then
             echo "apply=1" >> "$GITHUB_OUTPUT"
           else
             echo "apply=0" >> "$GITHUB_OUTPUT"
