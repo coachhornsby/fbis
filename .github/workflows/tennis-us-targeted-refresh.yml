@@ -11,7 +11,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: fbis-tennis-us-market-targeted
+  group: fbis-tennis-us-market-targeted-v2
   cancel-in-progress: false
 jobs:
   tennis_refresh:
