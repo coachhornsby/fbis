@@ -38,6 +38,19 @@ jobs:
         run: npm install --no-save --no-package-lock undici@7.29.0
       - name: Unit-test migration and 11-sport product-routing fail-closed contracts
         run: node --test test/sport-migration-qualify.test.js test/sport-db-shadow-routing.test.js test/sport-cutover-all11-routing-gate.test.js
+      - name: Inventory NFL consumers and test cutover gate
+        run: |
+          mkdir -p artifacts
+          node --test test/nfl-cutover-consumer-inventory.test.js
+          node scripts/nfl-cutover-consumer-inventory.mjs artifacts/nfl-cutover-consumers.json >/dev/null
+          jq -e '.readyForLiveCutover == false and .authorityActivationPerformed == false and .canAuthorizeWager == false and .directPrimaryCandidateFiles > 0' artifacts/nfl-cutover-consumers.json >/dev/null
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: nfl-cutover-consumer-inventory
+          path: artifacts/nfl-cutover-consumers.json
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Wait until production contains this qualify change
         if: github.event_name != 'pull_request'
         env:
