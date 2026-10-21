@@ -20,7 +20,7 @@ async function check(name,fn){
 await Promise.all([
  check('sourceCoverage',async()=>{
   const c=await get('/api/tennis-source-coverage');
-  return {officialFixtures:c.officialFixtures,portraits:c.portraits,latestPrizePicksAcquisition:c.latestPrizePicksAcquisition,recentPrizePicksTennisImages:c.recentPrizePicksTennisImages};
+  return {officialFixtures:c.officialFixtures,externalResearchFixtures:c.externalResearchFixtures,profileCoverage:c.profileCoverage,portraits:c.portraits,latestPrizePicksAcquisition:c.latestPrizePicksAcquisition,recentPrizePicksTennisImages:c.recentPrizePicksTennisImages};
  }),
  check('officialProjectionCoverage',async()=>{
   const c=await get('/api/tennis-projection-coverage');
@@ -54,6 +54,9 @@ if(report.checks.tennisBoard?.status==='OK' && report.checks.officialProjectionC
 }
 const sc=report.checks.sourceCoverage?.data;
 if(sc){
+ const observed=(sc.externalResearchFixtures||[]).reduce((sum,r)=>sum+Number(r.upcoming||0),0);
+ const official=(sc.officialFixtures||[]).reduce((sum,r)=>sum+Number(r.upcoming||0),0);
+ if(observed>official)report.alerts.push('EXTERNAL_FIXTURE_VOLUME_EXCEEDS_OFFICIAL:'+observed+':'+official);
  const candidates=Number(sc.recentPrizePicksTennisImages?.candidate_players||0);
  if(!candidates)report.alerts.push('NO_RECENT_TENNIS_IMAGE_CANDIDATES');
  const date=sc.latestPrizePicksAcquisition?.ct_date;
