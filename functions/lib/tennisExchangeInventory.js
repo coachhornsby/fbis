@@ -29,8 +29,8 @@ export function tennisExchangePlayers(title){
  return parts;
 }
 const validMoneyline=(o,players)=>{
- if(o.marketFamily!=="moneyline"||o.raw?.contractLong!==true||
-  !(Number(o.contractPrice)>0&&Number(o.contractPrice)<1))return false;
+ if(o.marketFamily!=="moneyline"||typeof o.raw?.contractLong!=="boolean"||
+  !(Number(o.contractPrice)>=0&&Number(o.contractPrice)<=1)||o.contractPrice==null)return false;
  return players.some(p=>norm(p)===norm(o.side));
 };
 export function normalizePolymarketUsTennisEvent(e,tour,now=new Date()){
