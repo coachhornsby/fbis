@@ -278,7 +278,7 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
         fetchedAt: f.fetched_at, fixtureFreshness:f.fixtureFreshness, rawHash: f.raw_hash, rawKey: f.raw_key, espnEventEvidence:espnEvidence,atpTournamentSurfaceEvidence:atpSurface,wtaTournamentSurfaceEvidence:wtaSurface, missingEvidence },
         eventIntegrity: { valid: false, reason: "OFFICIAL_PROJECTION_UNAVAILABLE" },
         blockedReason: f.officialDisplay ? "OFFICIAL_METADATA_MATCHED_DISPLAY_ONLY: projection/event authority remains unverified for this ESPN fixture" : "OFFICIAL_EVENT_MISSING: independent ESPN fixture has no official schedule proof; surface and match format unverified",
-        researchEstimate, currentServeResearch, kalshiResearchOffers, polymarketGlobalOffers, exchangeResearch, polymarketGlobalStatus:polymarketGlobal.ok?(polymarketGlobal.partial?"PARTIAL_SNAPSHOT":"FRESH_SNAPSHOT"):polymarketGlobal.code, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
+        researchEstimate, currentServeResearch, kalshiResearchOffers, kalshiResearchStatus:kalshi[f.tour+"Status"]||kalshi.status, polymarketGlobalOffers, exchangeResearch, polymarketGlobalStatus:polymarketGlobal.ok?(polymarketGlobal.partial?"PARTIAL_SNAPSHOT":"FRESH_SNAPSHOT"):polymarketGlobal.code, player1: p1.fixtureName, player2: p2.fixtureName, player1WinProb: null, player2WinProb: null,
         surface:verifiedSurface,indoor:f.officialDisplay?.indoor??tourSurface?.indoor??null,
         surfaceSource:f.officialDisplay?.surface?"ATP_WTA_OFFICIAL":tourSurface?.source||null,
         tournament:f.officialDisplay?.tournament||espnEvidence?.tournament||null,
@@ -288,6 +288,6 @@ export async function buildIndependentTennisCards(db, date, { now = new Date(), 
         playerBank, venueOffers, canQualify: false, canAuthorizeWager: false }
     });
   }
-  return { games, coverage: { fixtures: games.length, playerIdentityComplete: bank.playerIdentityComplete,
+  return { games, exchangeSources:{kalshi,polymarketGlobal}, coverage: { fixtures: games.length, playerIdentityComplete: bank.playerIdentityComplete,
     fixturesWithLinkedMarkets: bank.fixturesWithLinkedMarkets, asOf: bank.asOf } };
 }

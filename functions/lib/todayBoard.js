@@ -28,6 +28,7 @@ import { tennisCardContext } from "./tennisPlayerBank.js";
 import { approvedTennisPortraits } from "./tennisPortraits.js";
 import { loadStoredTennisPrizePicksHeadshots } from "./tennisPrizePicksHeadshots.js";
 import { buildIndependentTennisCards, tennisFixtureOffers } from "./tennisIntelligenceBank.js";
+import { attachOfficialTennisExchangeResearch } from "./tennisOfficialExchangeResearch.js";
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "./polymarketBoard.js";
 import { listMarketHistoryReadDbs } from "./databaseTopology.js";
 import {
@@ -1062,6 +1063,8 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
   const key = g => [String(g.tour).toLowerCase(), [tennisNameKey(g.home?.name),tennisNameKey(g.away?.name)].sort().join("|"),Date.parse(g.start)].join(":");
   const seen = new Set(games.map(key));
   games.push(...independent.games.filter(g=>!seen.has(key(g))));
+  attachOfficialTennisExchangeResearch(games,{kalshi:independent.exchangeSources?.kalshi,
+    polymarket:independent.exchangeSources?.polymarketGlobal,now});
   return {
     sport: "tennis",
     date,
