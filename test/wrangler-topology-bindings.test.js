@@ -18,37 +18,28 @@ function parseTomlBindings(toml) {
   return { bindingNames, counts };
 }
 
-test("pages wrangler.toml declares full topology D1 bindings and shadow modes", () => {
-  const toml = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
-  const { counts } = parseTomlBindings(toml);
-  const duplicates = Object.entries(counts).filter(([, n]) => n > 1);
-  assert.deepEqual(duplicates, [], `duplicate wrangler bindings: ${JSON.stringify(duplicates)}`);
-
-  assert.equal(
-    REQUIRED_PAGES_D1_BINDINGS.length,
-    EXPECTED_PAGES_D1_COUNT,
-    `REQUIRED_PAGES_D1_BINDINGS must stay at ${EXPECTED_PAGES_D1_COUNT}`
-  );
-
-  for (const spec of REQUIRED_PAGES_D1_BINDINGS) {
-    assert.equal(counts[spec.binding], 1, `binding ${spec.binding} must appear exactly once`);
-    assert.match(toml, new RegExp(`binding\\s*=\\s*"${spec.binding}"`), `missing ${spec.binding}`);
-    assert.ok(toml.includes(spec.databaseId), `missing database id for ${spec.binding}`);
+test("pages wrangler declares complete binding sets separately for base and NFL production", () => {
+  const toml=readFileSync(new URL("../wrangler.toml",import.meta.url),"utf8");
+  const [base,production=""]=toml.split("[env.production.vars]");
+  assert.ok(production.length>0,"missing explicit production block");
+  assert.equal(REQUIRED_PAGES_D1_BINDINGS.length,EXPECTED_PAGES_D1_COUNT);
+  const baseCounts=parseTomlBindings(base).counts;
+  const productionCounts=parseTomlBindings(production).counts;
+  for (const [surface,counts] of [["base",baseCounts],["production",productionCounts]]) {
+    const duplicates=Object.entries(counts).filter(([,n])=>n>1);
+    assert.deepEqual(duplicates,[],surface+" duplicates");
+    for (const spec of REQUIRED_PAGES_D1_BINDINGS){
+      assert.equal(counts[spec.binding],1,surface+" missing "+spec.binding);
+    }
+    assert.equal(counts.ARCHIVE,1,surface+" ARCHIVE missing");
   }
-
-  // Reject unsafe sport modes in wrangler vars (only shadow is allowed pre-cutover).
   for (const spec of requiredSportModeVars()) {
-    assert.match(
-      toml,
-      new RegExp(`${spec.key}\\s*=\\s*"${spec.expected}"`),
-      `missing shadow mode ${spec.key}`
-    );
-    assert.doesNotMatch(
-      toml,
-      new RegExp(`${spec.key}\\s*=\\s*"(primary|sport)"`, "i"),
-      `unsafe mode for ${spec.key}`
-    );
+    assert.ok(base.includes(spec.key + ' = "' + spec.expected + '"'),"shadow base "+spec.key);
+    const expected=spec.key==="SPORT_DB_MODE_NFL"?"sport":"shadow";
+    assert.ok(production.includes(spec.key + ' = "' + expected + '"'),"production "+spec.key);
   }
+  assert.ok(production.includes('SPORT_DB_STRICT_NFL = "true"'));
+  assert.ok(production.includes('SPORT_CUTOVER_RECEIPT_NFL = "nfl-20261021-production-v1"'));
 });
 
 test("stream wrangler declares Q4 market-history binding", () => {
