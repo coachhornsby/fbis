@@ -1,7 +1,8 @@
 import {KALSHI_SHADOW_SERIES,kalshiShadowAuthority} from "./kalshiMarketShadow.js";
 
 const PREFIX="kalshi/public-shadow/v1/";
-const VALID=new Set(["nfl","cfb","atp","wta"]); // Scheduled single-writer sports only.
+const VALID=new Set(["nfl","cfb","atp","wta","atp_challenger","itf_men","itf_women",
+ "atp_doubles","wta_doubles","itf_doubles","itf_women_doubles"]); // Scheduled single-writer sports only.
 async function readJson(bucket,key){
   if(!bucket?.get)return null;
   try{const x=await bucket.get(PREFIX+key);return x?await x.json():null;}catch{return null;}
