@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {onRequestGet as exchangeStatus} from "../functions/api/tennis-exchange-status.js";
+import {buildTennisResearchSlate} from "../functions/lib/todayBoard.js";
 import {kalshiTennisContractPairs,mergeKalshiTennisCards}
  from "../functions/lib/tennisKalshiInventory.js";
 const now=new Date("2026-10-21T14:00:00Z");
@@ -85,4 +86,19 @@ test("exchange health reports Kalshi as available without any Polymarket snapsho
  assert.equal(data.sources.polymarketUs.available,false);
  assert.equal(data.byTour.atp.kalshiContractEvents,1);
  assert.equal(data.canAuthorizeWager,false);
+});
+
+test("official TODAY Tennis board retains Kalshi-only match without ESPN, model DB, or Polymarket",async()=>{
+ const source={version:1,sport:"atp",startedAt:"2026-10-21T13:30:00Z",
+  pagesFetched:1,cursor:"continuation",records:rows};
+ const env={ARCHIVE:{get:async key=>
+  key==="kalshi/public-shadow/v1/sports/atp-progress.json"
+  ?{json:async()=>source}:null}};
+ const board=await buildTennisResearchSlate("2026-10-21",env,{now});
+ assert.equal(board.games.length,1);
+ assert.equal(board.games[0].tennisProjection.researchFixture.source,"KALSHI_PUBLIC_SHADOW");
+ assert.equal(board.games[0].tennisProjection.player1WinProb,null);
+ assert.equal(board.games[0].tennisProjection.kalshiResearchOffers.length,2);
+ assert.equal(board.games[0].canAuthorizeWager,false);
+ assert.equal(board.research.configured,true);
 });
