@@ -741,7 +741,7 @@ async function tennisVenueOffers(db,row,now){
   return (await tennisFixtureOffers(db,{...fixture,id:links[0].fixture_id},{now})).map(o=>({...o,sourceFixtureId:links[0].fixture_id,displayFixtureId:row.canonical_event_id,fixtureLinkProof:"EXACT_TOUR_PLAYER_PAIR_START"}));
 }
 
-export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} = {}) {
+async function buildTennisModelResearchSlate(date, env = {}, {now=new Date()} = {}) {
   if (!env.DB?.prepare) {
     // The EXCHANGE board must not disappear merely because model D1 or ESPN
     // is unavailable. Degraded cards have no inferred FBIS win probability.
@@ -778,6 +778,7 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
                  ORDER BY observed_at DESC, collected_at DESC, created_at DESC
                ) AS rn
         FROM tennis_market_snapshots
+        WHERE canonical_event_id IN (SELECT canonical_event_id FROM ranked WHERE rn=1)
       ),
       latest_context AS (
         SELECT *,
@@ -786,6 +787,7 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
                  ORDER BY feature_cutoff_timestamp DESC, collected_at DESC, created_at DESC
                ) AS rn
         FROM tennis_context_snapshots
+        WHERE canonical_event_id IN (SELECT canonical_event_id FROM ranked WHERE rn=1)
       )
       SELECT d.canonical_event_id,d.tour,d.player1,d.player2,d.pure_model_id,d.pure_p1,
              d.market_prior_p1,d.market_v2_p1,d.model_edge,d.market_json,d.action_json,
@@ -1040,80 +1042,10 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
       authorized: false,
     };
   }))).filter(Boolean);
-  let projectionCoverage;
-  try {
-    const coverage = await inspectTennisProjectionCoverage(env.DB, {now});
-    projectionCoverage = publicTennisCoverage(coverage);
-    for (const f of coverage.fixtures) {
-      if (!f.proof.valid || boardDateCtForStart(f.match_time) !== date || games.some(g => g.id === f.match_id)) continue;
-      const [playerBank,portraitMap,feedHeadshots] = await Promise.all([
-        tennisCardContext(env.DB,{tour:f.tour,player1:f.player1,player2:f.player2,surface:f.surface}).catch(()=>null),
-        approvedTennisPortraits(env.DB,[f.proof.p1.fbis_player_id,f.proof.p2.fbis_player_id]),
-        loadStoredTennisPrizePicksHeadshots(env.DB,[f.proof.p1.fbis_player_id,f.proof.p2.fbis_player_id]),
-      ]);
-      const team = p => {
-        const approved=portraitMap.get(p.fbis_player_id);
-        const feed=approved?null:feedHeadshots.get(p.fbis_player_id)||null;
-        return {name:p.display_name,fullName:p.display_name,canonicalId:p.fbis_player_id,
-        countryCode:p.country,rank:p.rank??null,rankingPoints:p.points??null,
-        headshotUrl:approved?.url||feed?.url||null,logo:approved?.url||feed?.url||null,
-        imageSource:approved?"RIGHTS_VERIFIED_TENNIS_PORTRAIT":(feed?.imageSource||null),
-        portraitCredit:approved?.credit||null,
-        portraitSourceUrl:approved?.sourceUrl||null,
-        portraitLicenseUrl:approved?.licenseUrl||null};
-      };
-      games.push({id:f.match_id,sport:"tennis",tour:f.tour.toUpperCase(),start:f.match_time,status:{detail:"Scheduled"},
-        home:team(f.proof.p1),away:team(f.proof.p2),projectionKind:"UNAVAILABLE",pureProjectionAvailable:false,
-        projectionUnavailable:true,publicationStatus:"RESEARCH_PUBLISHABLE",projectionMaturity:"RESEARCH",
-        modelId:"TENNIS-FBIS-v2-CONTEXT",canQualify:false,canAuthorizeWager:false,authorized:false,rec:null,lean:null,
-        qualificationBlocked:true,qualificationBlockReason:f.blockedReason,
-        tennisProjection:{eventIntegrity:{valid:true,...f.proof.proof},player1:f.player1,player2:f.player2,
-          player1WinProb:null,player2WinProb:null,blockedReason:f.blockedReason,
-          tournament:f.tournament_name,tournamentLevel:f.tournament_level,round:f.round_code,venue:f.venue,
-          surface:f.surface,indoor:f.indoor_outdoor==="INDOOR"?true:f.indoor_outdoor==="OUTDOOR"?false:null,playerBank},
-        market:{marketAvailable:false,executionActionable:false,reference:{available:false}},
-        quality:{state:"RESEARCH",flags:["research_only","projection_unavailable"]}});
-    }
-  } catch { projectionCoverage={status:"UNAVAILABLE",reason:"COVERAGE_EVIDENCE_UNAVAILABLE"}; }
-  let independent={games:[],exchangeSources:null,coverage:{source:"ESPN_ENRICHMENT_NOT_AVAILABLE"}};
-  try{independent=await buildIndependentTennisCards(env.DB,date,{now,archive:env.ARCHIVE})}
-  catch{
-    // Historical ESPN research is optional. Exchange market inventory and
-    // official FBIS projections remain available when that feed fails.
-    const [kalshi,polymarketGlobal]=await Promise.all([
-      loadKalshiTennisResearch(env,now).catch(()=>({atp:[],wta:[]})),
-      loadPolymarketGlobalTennisSnapshot(env.ARCHIVE,{now}).catch(()=>({events:[]})),
-    ]);
-    independent.exchangeSources={kalshi,polymarketGlobal};
-  }
-  // Official projection cards take precedence for the same tour/player pair/start.
-  const key = g => [String(g.tour).toLowerCase(), [tennisNameKey(g.home?.name),tennisNameKey(g.away?.name)].sort().join("|"),Date.parse(g.start)].join(":");
-  const seen = new Set(games.map(key));
-  // ESPN fixture observations may enrich an exchange listing, but do not
-  // create stand-alone empty market cards. True market inventory comes from
-  // Kalshi and Polymarket, while separate FBIS decisions remain intact.
-  const hasExchangePrice=g=>{
-    const t=g.tennisProjection||{};
-    return (t.kalshiResearchOffers||[]).some(o=>o.yesAskDollars!=null||o.yesBidDollars!=null)
-     ||(t.polymarketGlobalOffers||[]).some(o=>
-       (o.indicativePrices||[]).some(p=>Number.isFinite(Number(p)))||
-       (o.researchClob?.sides||[]).some(side=>side.bestAsk?.price!=null))
-     ||(t.venueOffers||[]).some(o=>o.contractPrice!=null&&
-       /^(Polymarket|Kalshi)/i.test(String(o.source||"")));
-  };
-  games.push(...independent.games.filter(g=>!seen.has(key(g))&&hasExchangePrice(g)));
-  // Market inventory originates from the exchange, independent of ESPN.
-  // Only cached R2 observations are consumed by this public read path.
-  let exchangeInventory={ok:false,code:"EXCHANGE_INVENTORY_UNAVAILABLE",events:[]};
-  try{exchangeInventory=await loadPolymarketUsTennisInventory(env.ARCHIVE,{now})}catch{}
-  const marketBoard=mergePolymarketUsTennisCards(games,exchangeInventory,{
-    date,now,kalshi:independent.exchangeSources?.kalshi,
-    polymarketGlobal:independent.exchangeSources?.polymarketGlobal});
-  const kalshiBoard=mergeKalshiTennisCards(marketBoard.games,
-    independent.exchangeSources?.kalshi||{}, {date,now});
-  games.splice(0,games.length,...kalshiBoard.games);
-  attachOfficialTennisExchangeResearch(games,{kalshi:independent.exchangeSources?.kalshi,
-    polymarket:independent.exchangeSources?.polymarketGlobal,now});
+  // Model research returns ONLY independently validated FBIS decisions.
+  // Provider listings are assembled separately from Polymarket/Kalshi R2.
+  const projectionCoverage={status:"NOT_REQUESTED_EXCHANGE_FIRST"};
+  const independent={coverage:{status:"DISABLED_ESPN_NOT_A_MARKET_GATE"}};
   return {
     sport: "tennis",
     date,
@@ -1131,6 +1063,64 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
       maturity: "RESEARCH",
       canQualify: false,
       canAuthorizeWager: false,
+    },
+  };
+}
+
+
+/**
+ * Market-first Tennis board. Both exchanges are independent, required only
+ * for their own market observations. ESPN is never called. Models are a
+ * bounded optional enrichment; D1 degradation cannot hide exchange cards.
+ */
+export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} = {}) {
+  const [inventory,kalshi,polymarketGlobal]=await Promise.all([
+    loadPolymarketUsTennisInventory(env.ARCHIVE,{now})
+      .catch(()=>({ok:false,code:"POLYMARKET_INVENTORY_READ_FAILED",events:[]})),
+    loadKalshiTennisResearch(env,now)
+      .catch(()=>({atp:[],wta:[],status:"KALSHI_READ_FAILED"})),
+    loadPolymarketGlobalTennisSnapshot(env.ARCHIVE,{now})
+      .catch(()=>({events:[],ok:false,code:"GLOBAL_POLYMARKET_READ_FAILED"})),
+  ]);
+  let model={games:[],research:{status:"MODEL_DATABASE_UNAVAILABLE"}};
+  if(env.DB?.prepare){
+    let timer;
+    try {
+      model=await Promise.race([
+        buildTennisModelResearchSlate(date,env,{now}),
+        new Promise((_,reject)=>{
+          timer=setTimeout(()=>reject(new Error("MODEL_D1_READ_BUDGET_EXCEEDED")),5000);
+        }),
+      ]);
+    }catch(error){
+      model={games:[],research:{status:
+        String(error?.message)==="MODEL_D1_READ_BUDGET_EXCEEDED"
+          ?"MODEL_D1_READ_BUDGET_EXCEEDED":"MODEL_D1_READ_FAILED"}};
+    }finally{if(timer)clearTimeout(timer);}
+  }
+  const market=mergePolymarketUsTennisCards(model.games||[],inventory,{
+    date,now,kalshi,polymarketGlobal});
+  const union=mergeKalshiTennisCards(market.games,kalshi,{date,now});
+  attachOfficialTennisExchangeResearch(union.games,{kalshi,polymarket:polymarketGlobal,now});
+  return {
+    sport:"tennis",date,games:union.games,
+    parlay:{cached:true,skipped:true},
+    research:{
+      configured:inventory.ok===true||union.kalshiEvents>0||
+        (model.games||[]).length>0,
+      source:"POLYMARKET_AND_KALSHI_EXCHANGE_FIRST_R2",
+      records:union.games.length,
+      withheld:model.research?.withheld||0,
+      modelStatus:model.research?.status||
+        ((model.games||[]).length?"INDEPENDENT_FBIS_MODEL_AVAILABLE":"MODEL_NOT_PUBLISHED"),
+      modelGameCount:(model.games||[]).length,
+      kalshiEvents:union.kalshiEvents,
+      polymarketEvents:inventory.events?.length||0,
+      sourceFreshness:{
+        polymarket:inventory.code||"NO_INVENTORY",
+        kalshi:kalshi.status||"NO_INVENTORY",
+      },
+      canQualify:false,canAuthorizeWager:false,
     },
   };
 }
