@@ -27,6 +27,18 @@ test("scan-first market selection shows only MATCH winner and exactly two source
  assert.equal(x.comparable,false);
  assert.equal(x.researchOnly,true);
 });
+test("separate Polymarket US moneyline snapshots remain visible if Gamma has no matched winner",()=>{
+ const p=tennisMarketSnapshot({},[
+  {source:"Polymarket US",marketFamily:"moneyline",participantName:"Kayla Day",contractPrice:.49,collectedAt:"2026-10-21T15:01:00Z"},
+  {source:"Polymarket US",marketFamily:"moneyline",participantName:"Antonia Ruzic",contractPrice:.52,collectedAt:"2026-10-21T15:01:00Z"},
+  {source:"Polymarket US",marketFamily:"set_winner",participantName:"Kayla Day",contractPrice:.75}
+ ]);
+ assert.equal(p.polymarket.sourceName,"POLYMARKET US");
+ assert.equal(p.polymarket.kind,"OBSERVED · SOURCE QUOTE CLOCK UNVERIFIED");
+ assert.deepEqual(p.polymarket.sides.map(o=>o.observed),[.49,.52]);
+ assert.equal(p.polymarket.sides[0].ask,null);
+ assert.equal(p.comparable,false);
+});
 test("CLOB ask is not confused with Gamma probability and invalid offers do not turn into 0 cent quotes",()=>{
  const x=tennisMarketSnapshot({
   kalshiResearchOffers:[{yesLabel:"Kayla Day",yesAskDollars:null},{yesLabel:"Antonia Ruzic",yesAskDollars:1.6}],
