@@ -54,11 +54,42 @@ export function matchKalshiTennisResearch(fixture,rows=[],now=new Date()){
    canQualify:false,canAuthorizeWager:false,executionEligible:false};
  });
 }
+// A one-page-per-cycle collector can have fresh, still-paginating market rows.
+// Accept those rows ONLY as incomplete research observations, with every
+// original source capture clock intact. Never mark sourceQueryComplete or wagers.
+async function readKalshiTennisProgress(archive,sport,now){
+ try{
+  const object=await archive.get("kalshi/public-shadow/v1/sports/"+sport+"-progress.json");
+  if(!object)return [];
+  const p=await object.json();
+  if(p?.version!==1||p.sport!==sport||!Array.isArray(p.records)||
+    p.records.length>4000||!Number.isInteger(p.pagesFetched)||
+    p.pagesFetched<1||p.pagesFetched>12||typeof p.cursor!=="string"||!p.cursor)return [];
+  const started=Date.parse(p.startedAt||"");
+  if(!Number.isFinite(started)||started>+now||+now-started>8*3600000)return [];
+  const series=sport==="atp"?"KXATPMATCH-":"KXWTAMATCH-";
+  return p.records.filter(r=>{
+   const fetched=Date.parse(r?.fetchedAt||"");
+   return r?.sport===sport&&typeof r?.ticker==="string"&&
+     r.ticker.startsWith(series)&&Number.isFinite(fetched)&&
+     +now-fetched>=0&&+now-fetched<=90*60000;
+  }).map(r=>({...r,sourceQueryComplete:false,canQualify:false,
+    canAuthorizeWager:false,executionEligible:false}));
+ }catch{return [];}
+}
 export async function loadKalshiTennisResearch(env,now=new Date()){
- if(!env?.ARCHIVE?.get)return {atp:[],wta:[],status:"R2_UNAVAILABLE"};
- const [a,b]=await Promise.all(["atp","wta"].map(tour=>
-  loadKalshiR2Shadow(env,tour,{now,maxAgeMs:90*60000}).catch(()=>null)));
- return {atp:a?.ok&&a.sourceQueryComplete?a.records:[],
-  wta:b?.ok&&b.sourceQueryComplete?b.records:[],
-  status:a?.ok||b?.ok?"RESEARCH_SNAPSHOT":"NO_FRESH_SNAPSHOT"};
+ if(!env?.ARCHIVE?.get)return {atp:[],wta:[],status:"R2_UNAVAILABLE",
+  atpStatus:"R2_UNAVAILABLE",wtaStatus:"R2_UNAVAILABLE"};
+ const results=await Promise.all(["atp","wta"].map(async sport=>{
+  const complete=await loadKalshiR2Shadow(env,sport,{now,maxAgeMs:90*60000}).catch(()=>null);
+  if(complete?.ok&&complete.sourceQueryComplete)return {
+   rows:complete.records,status:"COMPLETE_RESEARCH_SNAPSHOT"};
+  const rows=await readKalshiTennisProgress(env.ARCHIVE,sport,now);
+  return {rows,status:rows.length?"PARTIAL_PAGINATING_RESEARCH_ONLY":
+    complete?.code||"NO_FRESH_SNAPSHOT"};
+ }));
+ return {atp:results[0].rows,wta:results[1].rows,
+  atpStatus:results[0].status,wtaStatus:results[1].status,
+  status:results.some(r=>r.status==="COMPLETE_RESEARCH_SNAPSHOT")?"RESEARCH_SNAPSHOT":
+   results.some(r=>r.rows.length)?"PARTIAL_RESEARCH_SNAPSHOT":"NO_FRESH_SNAPSHOT"};
 }
