@@ -119,6 +119,7 @@ export function buildSportAccountabilityReport(rows = [], { sport = "all", gener
     eligibleEvents:new Set(selected.map(r=>[r.sport,r.gameId].join("|"))).size,
     eligibleForecasts:selected.length,
     notes:[
+      "Recorded final-score grading does not independently verify the upstream official result source.",
       "Observed score metrics are not simulation-range calibration.",
       "Prediction interval coverage requires archived prospective simulation quantiles.",
       "Economic metrics require a separate priced/settled execution ledger.",
