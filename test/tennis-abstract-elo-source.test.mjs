@@ -55,3 +55,27 @@ test('receipt is written after complete player-row parity, with research flags o
  assert.equal(calls.at(-1),'receipt');
  assert.equal(calls.filter(v=>v==='players').length,3);
 });
+
+test('source 403 activates authenticated Apify relay and preserves original source evidence',async()=>{
+ let requests=[];
+ const record=await fetchTennisAbstractElo('atp',{now,apifyToken:'dummy-test-token',
+  fetchImpl:async(url,opts)=>{
+   requests.push({url,opts});
+   if(requests.length===1)return new Response('Forbidden',{status:403});
+   const input=JSON.parse(opts.body);
+   assert.equal(input.url,'https://www.tennisabstract.com/reports/atp_elo_ratings.html');
+   assert.deepEqual(input.formats,['raw']);
+   assert.equal(opts.headers.authorization,'Bearer dummy-test-token');
+   return Response.json([{raw:fixture(),fetch:{httpStatusCode:200,loadedUrl:input.url}}]);
+  }});
+ assert.equal(requests.length,2);
+ assert.equal(record.acquisitionTransport,'APIFY_WEB_FETCH_RELAY');
+ assert.equal(record.players.length,105);
+ assert.equal(record.canAuthorizeWager,false);
+});
+test('Apify relay never accepts a redirected or malformed source',async()=>{
+ await assert.rejects(()=>fetchTennisAbstractElo('atp',{now,apifyToken:'dummy',
+  fetchImpl:async(url,opts)=>opts?.method?
+   Response.json([{raw:fixture(),fetch:{httpStatusCode:200,loadedUrl:'https://untrusted.example/test'}}]):
+   new Response('',{status:403})}),/ELO_RELAY_SOURCE_EVIDENCE_INVALID/);
+});
