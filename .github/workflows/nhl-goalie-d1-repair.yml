@@ -1,0 +1,52 @@
+name: NHL goalie D1 single-row repair
+
+# Targeted recovery of the last missing NHL goalie probability snapshots.
+# One row per D1 write request isolates the recurring HTTP 503 bulk-copy fault.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/nhl-goalie-d1-repair.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-nhl-goalie-single-row-repair
+  cancel-in-progress: false
+
+jobs:
+  goalie-copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - run: npm install --no-save --no-package-lock undici@7.29.0
+      - name: Single-row idempotent NHL copy into SHADOW D1
+        env:
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          SPORT: nhl
+          TABLE: nhl_goalie_probability_shadow
+          PAGE_SIZE: "1"
+          MAX_PAGES: "1"
+          MAX_PASSES: "160"
+          BUDGET_MS: "900000"
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          node scripts/sport-prefix-backfill-sprint.mjs
+          jq -e '.status=="PARITY" and .remaining==0 and .cutoverAuthorized==false and .canAuthorizeWager==false' \
+            artifacts/sprint-nhl-nhl_goalie_probability_shadow.json
+      - name: Publish actual record-level count receipt
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nhl-goalie-d1-single-row-repair
+          path: artifacts/sprint-nhl-nhl_goalie_probability_shadow.json
+          if-no-files-found: ignore
+          retention-days: 30
