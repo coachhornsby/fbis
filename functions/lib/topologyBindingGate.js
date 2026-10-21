@@ -81,10 +81,13 @@ export function evaluateTopologyBindingGate(env, {
   if (requireShadowModes && surface === "pages") {
     for (const spec of requiredSportModeVars()) {
       const value = String(env?.[spec.key] || "").toLowerCase();
-      if (spec.key === "SPORT_DB_MODE_NFL" && value === "sport" &&
-          ["true","1","yes"].includes(String(env?.SPORT_DB_STRICT_NFL || "").toLowerCase()) &&
-          productSportDbHandle(env, "nfl").productIoUsesSportDb === true) {
-        approvedLive.push("nfl");
+      const sportKey = spec.key.startsWith("SPORT_DB_MODE_")
+        ? spec.key.slice("SPORT_DB_MODE_".length).toLowerCase() : null;
+      const strictKey = sportKey ? `SPORT_DB_STRICT_${sportKey.toUpperCase()}` : null;
+      if (sportKey && value === "sport" &&
+          ["true","1","yes"].includes(String(env?.[strictKey] || "").toLowerCase()) &&
+          productSportDbHandle(env, sportKey).productIoUsesSportDb === true) {
+        approvedLive.push(sportKey);
         modeOk.push(spec.key);
       } else if (value !== spec.expected) {
         modeFailures.push({ key: spec.key, expected: spec.expected, actual: value || null });
