@@ -373,10 +373,13 @@ async function copyPredictionsPaged(primary, sportDb, sport, { pageSize, maxPage
       }
     }
     if (!rows.length) break;
+    // Collect bounded upserts; one remote D1 transaction per 40 rows rather
+    // than thousands of sequential statements per CFB prediction replay.
+    const bound = [];
     for (const row of rows) {
       const id = stablePredictionId(row);
       const envelope = buildPredictionEvidenceEnvelope(row);
-      await sportDb.prepare(
+      const insert = sportDb.prepare(
         `INSERT INTO prediction_snapshots(
            id,game_id,sport,model_version,projection_kind,proj_total,proj_home,proj_away,proj_margin,
            p_home_final,p_market,frozen_at,weights_json,layers_json,projection_flags,
@@ -409,14 +412,24 @@ async function copyPredictionsPaged(primary, sportDb, sport, { pageSize, maxPage
         row.weights_json ?? null, row.layers_json ?? null, row.projection_flags ?? null,
         row.graded_at ?? null, row.actual_home ?? null, row.actual_away ?? null,
         row.deployment_commit ?? null, envelope
-      ).run();
+      );
+      bound.push(insert);
       const fidelity = evaluateSportPredictionFidelity({
         ...row, id, payload_json: envelope,
       });
       if (!fidelity.ok) fidelityFailures += 1;
-      copied += 1;
-      lastId = id;
     }
+    if (typeof sportDb.batch === "function") {
+      for (let offset = 0; offset < bound.length; offset += 40) {
+        await sportDb.batch(bound.slice(offset, offset + 40));
+      }
+    } else {
+      for (const statement of bound) await statement.run();
+    }
+    // Page progress is only published after all upserts commit; a transient
+    // network loss replays the last page idempotently rather than losing rows.
+    copied += rows.length;
+    lastId = stablePredictionId(rows[rows.length - 1]);
     cursor = rows[rows.length - 1].id;
     if (rows.length < pageSize) break;
   }
