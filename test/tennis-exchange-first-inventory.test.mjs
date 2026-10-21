@@ -13,7 +13,7 @@ const event=(title="Oriol Roca Batalla vs. Dimitris Sakellaridis",id="atp-123")=
  marketCounts:{numMarkets:19},
  markets:[{id:"m1",slug:"m1",sportsMarketTypeV2:"SPORTS_MARKET_TYPE_MONEYLINE",
   marketSides:[{id:"a",long:true,description:"Oriol Roca Batalla",price:{value:".81"}},
-   {id:"b",long:true,description:"Dimitris Sakellaridis",price:{value:".20"}}]}]
+   {id:"b",long:false,description:"Dimitris Sakellaridis",price:{value:".20"}}]}]
 });
 test("source event creates market identity without any ESPN fixture, score or model",()=>{
  const x=normalizePolymarketUsTennisEvent(event(),"atp",now);
