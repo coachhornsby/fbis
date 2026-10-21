@@ -933,7 +933,7 @@ export async function copyPrefixedTablePaged(primary, sportDb, tableName, {
       filterArgs.push(league);
     }
     if (plan.where) {
-      filterTerms.push(plan.where.replace(/^WHERE\\s+/i, ""));
+      filterTerms.push(plan.where.slice(6));
       filterArgs.push(...plan.values);
     }
     const where = filterTerms.length ? `WHERE ${filterTerms.join(" AND ")}` : "";
