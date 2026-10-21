@@ -1089,7 +1089,19 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
   // Official projection cards take precedence for the same tour/player pair/start.
   const key = g => [String(g.tour).toLowerCase(), [tennisNameKey(g.home?.name),tennisNameKey(g.away?.name)].sort().join("|"),Date.parse(g.start)].join(":");
   const seen = new Set(games.map(key));
-  games.push(...independent.games.filter(g=>!seen.has(key(g))));
+  // ESPN fixture observations may enrich an exchange listing, but do not
+  // create stand-alone empty market cards. True market inventory comes from
+  // Kalshi and Polymarket, while separate FBIS decisions remain intact.
+  const hasExchangePrice=g=>{
+    const t=g.tennisProjection||{};
+    return (t.kalshiResearchOffers||[]).some(o=>o.yesAskDollars!=null||o.yesBidDollars!=null)
+     ||(t.polymarketGlobalOffers||[]).some(o=>
+       (o.indicativePrices||[]).some(p=>Number.isFinite(Number(p)))||
+       (o.researchClob?.sides||[]).some(side=>side.bestAsk?.price!=null))
+     ||(t.venueOffers||[]).some(o=>o.contractPrice!=null&&
+       /^(Polymarket|Kalshi)/i.test(String(o.source||"")));
+  };
+  games.push(...independent.games.filter(g=>!seen.has(key(g))&&hasExchangePrice(g)));
   // Market inventory originates from the exchange, independent of ESPN.
   // Only cached R2 observations are consumed by this public read path.
   let exchangeInventory={ok:false,code:"EXCHANGE_INVENTORY_UNAVAILABLE",events:[]};
