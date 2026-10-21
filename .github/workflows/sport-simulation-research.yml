@@ -4,6 +4,11 @@ on:
     paths:
       - 'functions/lib/sportSimulationResearch.js'
       - 'test/sport-simulation-research.test.js'
+      - 'test/sport-accountability.test.js'
+      - 'functions/lib/sportAccountability.js'
+      - 'functions/api/simulation-intelligence.js'
+      - 'src/features/modelLab/**'
+      - 'src/App.jsx'
       - '.github/workflows/sport-simulation-research.yml'
   workflow_dispatch:
 permissions:
@@ -18,4 +23,4 @@ jobs:
         with:
           node-version: '22'
       - name: Research contract tests (no secrets or production bindings)
-        run: node --test test/sport-simulation-research.test.js
+        run: node --test test/sport-simulation-research.test.js test/sport-accountability.test.js
