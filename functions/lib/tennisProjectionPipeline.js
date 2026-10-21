@@ -32,7 +32,7 @@ export async function inspectTennisProjectionCoverage(db, { now = new Date(), li
     LEFT JOIN tennis_players p1 ON p1.fbis_player_id=m.player1_id
     LEFT JOIN tennis_players p2 ON p2.fbis_player_id=m.player2_id
     LEFT JOIN tennis_v2_research_decisions d ON d.id=(SELECT id FROM tennis_v2_research_decisions
-      WHERE canonical_event_id=m.match_id ORDER BY decision_timestamp DESC,created_at DESC LIMIT 1)
+      WHERE canonical_event_id=m.match_id AND snapshot_type='PURE_FIXTURE' ORDER BY decision_timestamp DESC,created_at DESC LIMIT 1)
     WHERE julianday(m.match_time)>julianday(?) AND julianday(m.match_time)<=julianday(?)
     AND m.source IN ('ATP_OFFICIAL','WTA_OFFICIAL')
     AND m.completion_state IN ('SCHEDULED','NOT_STARTED','UPCOMING')
@@ -53,9 +53,9 @@ export async function inspectTennisProjectionCoverage(db, { now = new Date(), li
       if(!reason && !verifiedFormat(f)) reason="MATCH_FORMAT_UNVERIFIED";
     }
     const persisted = f.pure_p1 != null ? await proveTennisEvent(db, f, { projection: true }) : null;
-    const available = persisted?.valid === true;
+    const available = persisted?.valid === true && f.pure_model_id === 'TENNIS-FBIS-v2-CONTEXT';
     fixtures.push({ ...f, proof, profiles, available, inferenceReady: !reason,
-      blockedReason: available ? null : reason || persisted?.reason || 'PERSISTED_PROJECTION_MISSING',
+      blockedReason: available ? null : reason || (persisted?.valid === true ? 'PURE_MODEL_PROVENANCE_MISMATCH' : persisted?.reason) || 'PERSISTED_PURE_PROJECTION_MISSING',
       freshness: available ? age(f.decision_timestamp, now) > 6 ? 'STALE' : 'CURRENT' : 'BLOCKED' });
   }
   const blockedReasons = {};
