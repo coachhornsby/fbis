@@ -1,16 +1,28 @@
+import { SPORT_DATABASES } from "./databaseTopology.js";
+
 /**
- * Preserve approval-controlled NFL sport bindings through the legacy
- * request-specific slate/harvest environment builders.
- * Does not grant authority: productSportDbHandle independently checks
- * deployed mode, binding identity, receipt, and hydrated CORE approval.
+ * Preserve independently approved sport DB bindings and CORE receipts through
+ * request-local slate/harvest environments. No mode/receipt is synthesized.
+ * All actual sport authority remains gated by productSportDbHandle().
  */
-export function nflSportDbContext(env = {}) {
-  return {
-    NFL_DB: env.NFL_DB,
+export function sportDbContext(env = {}) {
+  const context = {
     CORE_DB: env.CORE_DB,
-    SPORT_DB_MODE_NFL: env.SPORT_DB_MODE_NFL,
-    SPORT_DB_STRICT_NFL: env.SPORT_DB_STRICT_NFL,
-    SPORT_CUTOVER_RECEIPT_NFL: env.SPORT_CUTOVER_RECEIPT_NFL,
     __fbisCutoverApprovals: env.__fbisCutoverApprovals,
   };
+  for (const [sport, plan] of Object.entries(SPORT_DATABASES)) {
+    const upper = sport.toUpperCase();
+    context[plan.binding] = env[plan.binding];
+    context[`SPORT_DB_MODE_${upper}`] = env[`SPORT_DB_MODE_${upper}`];
+    context[`SPORT_DB_STRICT_${upper}`] = env[`SPORT_DB_STRICT_${upper}`];
+    context[`SPORT_CUTOVER_RECEIPT_${upper}`] = env[`SPORT_CUTOVER_RECEIPT_${upper}`];
+    context[`SPORT_DB_LEDGER_READY_${upper}`] = env[`SPORT_DB_LEDGER_READY_${upper}`];
+  }
+  context.NHL_SPORT_DB_MODE = env.NHL_SPORT_DB_MODE;
+  return context;
+}
+
+/** Backward-compatible entrypoint already used across Pages API routes. */
+export function nflSportDbContext(env = {}) {
+  return sportDbContext(env);
 }
