@@ -24,17 +24,17 @@ export async function onRequestPost({request,env}){
 export async function onRequestGet({env}){
  if(!env?.DB?.prepare)return json({ok:false,error:'D1_BINDING_UNAVAILABLE'},503);
  try{
-  const rows=(await env.DB.prepare(`SELECT tour,report_date,player_count,retrieved_at,source_label,
+  const rows=(await env.DB.prepare(`SELECT tour,report_date,source_hash,player_count,retrieved_at,source_label,
    'TENNIS_ABSTRACT_LIVE_ELO_RESEARCH' AS source FROM (
    SELECT *,ROW_NUMBER() OVER(PARTITION BY tour ORDER BY report_date DESC,retrieved_at DESC) rn
    FROM tennis_abstract_elo_runs) WHERE rn=1 ORDER BY tour`).all()).results||[];
   const shadowRows=env.TENNIS_DB?.prepare?
-    (await env.TENNIS_DB.prepare(`SELECT tour,report_date,player_count,retrieved_at,source_label
+    (await env.TENNIS_DB.prepare(`SELECT tour,report_date,source_hash,player_count,retrieved_at,source_label
       FROM (SELECT *,ROW_NUMBER() OVER(PARTITION BY tour ORDER BY report_date DESC,retrieved_at DESC) rn
       FROM tennis_abstract_elo_runs) WHERE rn=1 ORDER BY tour`).all()).results||[]:[];
   const shadowParity=rows.length===2&&shadowRows.length===2&&rows.every(p=>
     shadowRows.some(s=>s.tour===p.tour&&s.report_date===p.report_date&&
-      Number(s.player_count)===Number(p.player_count)));
+      Number(s.player_count)===Number(p.player_count)&&s.source_hash===p.source_hash));
   return json({ok:true,snapshots:rows,shadowSnapshots:shadowRows,shadowParity,
     researchOnly:true,matchHistoryBackfilled:false,canAuthorizeWager:false});
  }catch{return json({ok:false,error:'ELO_SCHEMA_OR_DATA_UNAVAILABLE'},503);}

@@ -79,3 +79,16 @@ test('Apify relay never accepts a redirected or malformed source',async()=>{
    Response.json([{raw:fixture(),fetch:{httpStatusCode:200,loadedUrl:'https://untrusted.example/test'}}]):
    new Response('',{status:403})}),/ELO_RELAY_SOURCE_EVIDENCE_INVALID/);
 });
+
+test('normalized Elo fingerprint ignores volatile HTML markup but detects changed rating',async()=>{
+ const html=fixture();
+ const fetchOne=async()=>new Response(html,{status:200});
+ const fetchTwo=async()=>new Response(html+'<!-- volatile footer 2026-10-21 -->',{status:200});
+ const modified=html.replace('<td>2299</td>','<td>2288</td>');
+ const fetchChanged=async()=>new Response(modified,{status:200});
+ const a=await fetchTennisAbstractElo('atp',{now,fetchImpl:fetchOne});
+ const b=await fetchTennisAbstractElo('atp',{now,fetchImpl:fetchTwo});
+ const c=await fetchTennisAbstractElo('atp',{now,fetchImpl:fetchChanged});
+ assert.equal(a.sourceHash,b.sourceHash,'same parsed report should have the same fingerprint');
+ assert.notEqual(a.sourceHash,c.sourceHash,'changed Elo must change fingerprint');
+});
