@@ -6,7 +6,7 @@
  * Pagination is deterministic keyset-by-id so repeated runs reach older rows
  * (CFB predictions exceed a single LIMIT page).
  */
-import { resolveSportDb, SPORT_DATABASES, productSportDbHandle } from "./databaseTopology.js";
+import { resolveSportDb, SPORT_DATABASES, productSportDbHandle, deployedSportDbMode } from "./databaseTopology.js";
 // SPORT_PREFIX_TABLES keys must stay aligned with SPORT_DATABASES (all 11 sports).
 import {
   buildPredictionEvidenceEnvelope,
@@ -1201,6 +1201,12 @@ export async function syncSportWorkingDelta(env, sport, {
   includePrefix = false,
 } = {}) {
   const key = String(sport || "").toLowerCase();
+  // A primary-to-sport copy must never run once a sport has been configured
+  // as authoritative, regardless of receipt hydration or cache state.
+  if (deployedSportDbMode(env, key) === "sport") {
+    return { ok: false, sport: key, reason: "SHADOW_SYNC_REFUSED_SPORT_MODE",
+      productStillPrimary: false, caughtUp: false, canAuthorizeWager: false };
+  }
   const roundsN = Math.min(20, Math.max(1, Number(rounds) || 5));
   const passes = [];
   let moreRemaining = true;
