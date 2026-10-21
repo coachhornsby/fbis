@@ -53,7 +53,7 @@ export function kalshiTennisContractPairs(kalshi={},now=new Date()){
   const sides=[...byPlayer.values()].sort((a,b)=>a.normalizedName.localeCompare(b.normalizedName));
   if(sides[0].ticker===sides[1].ticker||
      Math.abs(sides[0].marketTimeMs-sides[1].marketTimeMs)>2*3600000||
-     !sides.every(r=>sides.every(p=>surname(p.yesLabel).length>=4&&
+     !sides.every(r=>sides.every(p=>surname(p.yesLabel).length>=2&&
       r.rulesText.split(" ").includes(surname(p.yesLabel)))))continue;
   const expiry=sides[0].expectedExpirationAt;
   const occurred=sides.every(r=>r.occurrenceAt&&
