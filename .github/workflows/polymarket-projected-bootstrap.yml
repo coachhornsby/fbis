@@ -23,11 +23,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Wait for canonical Pages release on source changes
+      - name: Verify running production Pages before harvesting
         if: github.event_name == 'push'
-        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
         env:
-          VERIFY_MAX_ATTEMPTS: '60'
+          VERIFY_MODE: resolve-live
+          VERIFY_MAX_ATTEMPTS: '20'
+        run: node scripts/verify-deployment-sha.mjs
       - name: Establish matched forecast markets via REST, then activate WebSocket updates
         run: node scripts/polymarket-bootstrap.mjs
       - uses: actions/upload-artifact@v4
