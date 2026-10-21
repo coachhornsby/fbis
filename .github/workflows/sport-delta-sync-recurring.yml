@@ -92,7 +92,7 @@ jobs:
           test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET not configured"; exit 1; }
           mkdir -p artifacts
           node scripts/sport-delta-sync-ops.mjs | tee "artifacts/sport-delta-sync-${SPORT}.json"
-          jq -e '.ok==true and .productStillPrimary==true and .canAuthorizeWager==false and .cutoverAuthorized==false' \
+          jq -e '.ok==true and .canAuthorizeWager==false and ((.productStillPrimary==true and .cutoverAuthorized==false) or (.status=="SKIPPED_SPORT_AUTHORITATIVE" and .authoritySkip==true and .productStillPrimary==false and .cutoverAuthorized==true))' \
             "artifacts/sport-delta-sync-${SPORT}.json" >/dev/null
       - uses: actions/upload-artifact@v4.6.2
         if: always() && github.event_name != 'pull_request'
