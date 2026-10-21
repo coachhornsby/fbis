@@ -1,3 +1,4 @@
+import { nflSportDbContext } from "../lib/nflSportDbContext.js";
 import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
 import { productProjectionBoard } from "../lib/productProjection.js";
 import { buildTennisResearchSlate, boardDateCtForStart } from "../lib/todayBoard.js";
@@ -33,7 +34,7 @@ export async function onRequestGet(context) {
     CFBD_API_KEY: context.env.CFBD_API_KEY,
     CBBD_API_KEY: context.env.CBBD_API_KEY,
     KENPOM_API_KEY: context.env.KENPOM_API_KEY,
-    DB: context.env.DB,
+    ...nflSportDbContext(context.env), DB: context.env.DB,
     ARCHIVE: context.env.ARCHIVE,
     caches: caches.default,
     parlayCacheOnly: true,
