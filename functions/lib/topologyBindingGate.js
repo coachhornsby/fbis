@@ -3,7 +3,7 @@
  * Declares the D1/env surface that must persist across Pages and stream deploys.
  * Does not authorize sport cutover.
  */
-import { SPORT_DATABASES, CORE_DATABASE, MARKET_HISTORY_PARTITIONS } from "./databaseTopology.js";
+import { SPORT_DATABASES, CORE_DATABASE, MARKET_HISTORY_PARTITIONS, productSportDbHandle } from "./databaseTopology.js";
 import { DATABASE_OWNERS } from "./databaseOwnership.js";
 
 export const TOPOLOGY_BINDING_GATE_CONTRACT = "fbis-topology-binding-gate-v1";
@@ -77,10 +77,16 @@ export function evaluateTopologyBindingGate(env, {
 
   const modeFailures = [];
   const modeOk = [];
+  const approvedLive = [];
   if (requireShadowModes && surface === "pages") {
     for (const spec of requiredSportModeVars()) {
       const value = String(env?.[spec.key] || "").toLowerCase();
-      if (value !== spec.expected) {
+      if (spec.key === "SPORT_DB_MODE_NFL" && value === "sport" &&
+          ["true","1","yes"].includes(String(env?.SPORT_DB_STRICT_NFL || "").toLowerCase()) &&
+          productSportDbHandle(env, "nfl").productIoUsesSportDb === true) {
+        approvedLive.push("nfl");
+        modeOk.push(spec.key);
+      } else if (value !== spec.expected) {
         modeFailures.push({ key: spec.key, expected: spec.expected, actual: value || null });
       } else {
         modeOk.push(spec.key);
@@ -97,7 +103,10 @@ export function evaluateTopologyBindingGate(env, {
     return mode === "sport";
   });
 
-  const ok = missing.length === 0 && modeFailures.length === 0 && !anySportAuthoritative;
+  const unexpectedAuthority = Object.keys(SPORT_DATABASES).filter(sport =>
+    String(env?.[`SPORT_DB_MODE_${sport.toUpperCase()}`] || "").toLowerCase() === "sport" &&
+    !approvedLive.includes(sport));
+  const ok = missing.length === 0 && modeFailures.length === 0 && unexpectedAuthority.length === 0;
   return {
     contract: TOPOLOGY_BINDING_GATE_CONTRACT,
     ok,
@@ -107,7 +116,9 @@ export function evaluateTopologyBindingGate(env, {
     modeFailures,
     modeOk,
     anySportAuthoritative,
-    productionCutoverBlocked: true,
+    approvedLive,
+    unexpectedAuthority,
+    productionCutoverBlocked: unexpectedAuthority.length > 0,
     canAuthorizeWager: false,
     note: ok
       ? "Topology bindings and shadow modes present."
