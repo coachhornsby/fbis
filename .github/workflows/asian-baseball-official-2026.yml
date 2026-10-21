@@ -1,0 +1,54 @@
+name: FBIS NPB/KBO official 2026 completed-month history
+
+# One-time, bounded 2026 August/September official-source catch-up.
+# PRIMARY remains authoritative; resulting research can be copied into
+# the two sport D1s by sport-delta-sync-recurring (PR #1447).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/asian-baseball-official-2026.yml"
+      - "scripts/asian-baseball-official-2026-ops.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-asian-official-2026-history
+  cancel-in-progress: false
+
+jobs:
+  source-history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - { league: NPB, season: 2026, month: 8 }
+          - { league: NPB, season: 2026, month: 9 }
+          - { league: KBO, season: 2026, month: 8 }
+          - { league: KBO, season: 2026, month: 9 }
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Ingest bounded official historical source
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+          LEAGUE: ${{ matrix.league }}
+          SEASON: ${{ matrix.season }}
+          MONTH: ${{ matrix.month }}
+        run: node scripts/asian-baseball-official-2026-ops.mjs
+      - name: Save source verification receipts
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: official-history-${{ matrix.league }}-${{ matrix.season }}-${{ matrix.month }}
+          path: artifacts/asian-history-*.json
+          if-no-files-found: ignore
+          retention-days: 30
