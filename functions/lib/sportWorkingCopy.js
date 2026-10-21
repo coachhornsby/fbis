@@ -388,6 +388,8 @@ async function copyPredictionsPaged(primary, sportDb, sport, { pageSize, maxPage
          ON CONFLICT(id) DO UPDATE SET
            game_id=excluded.game_id,
            sport=excluded.sport,
+           game_date=excluded.game_date,
+           start_time=excluded.start_time,
            model_version=excluded.model_version,
            projection_kind=excluded.projection_kind,
            proj_total=excluded.proj_total,
@@ -450,7 +452,7 @@ async function copyPublishedPaged(primary, sportDb, sport, { pageSize, maxPages,
   for (; pages < maxPages; pages += 1) {
     // Keyset on (published_at, game_id, model_version) — primary id is INTEGER autoincrement.
     const page = await primary.prepare(
-      `SELECT game_id,sport,model_version,published_at,published_by,payload_json,payload_hash
+      `SELECT game_id,sport,game_date,start_time,model_version,published_at,published_by,payload_json,payload_hash
        FROM published_projections
        WHERE sport=?
          AND (published_at||'|'||game_id||'|'||COALESCE(model_version,'')) > ?
@@ -462,8 +464,8 @@ async function copyPublishedPaged(primary, sportDb, sport, { pageSize, maxPages,
     for (const row of rows) {
       const id = stablePublishedId(row);
       await sportDb.prepare(
-        `INSERT INTO published_projections(id,game_id,sport,model_version,published_at,published_by,payload_hash,payload_json)
-         VALUES(?,?,?,?,?,?,?,?)
+        `INSERT INTO published_projections(id,game_id,sport,game_date,start_time,model_version,published_at,published_by,payload_hash,payload_json)
+         VALUES(?,?,?,?,?,?,?,?,?,?)
          ON CONFLICT(id) DO UPDATE SET
            game_id=excluded.game_id,
            sport=excluded.sport,
@@ -473,7 +475,7 @@ async function copyPublishedPaged(primary, sportDb, sport, { pageSize, maxPages,
            payload_hash=excluded.payload_hash,
            payload_json=excluded.payload_json`
       ).bind(
-        id, row.game_id, row.sport, row.model_version || null, row.published_at,
+        id, row.game_id, row.sport, row.game_date, row.start_time || null, row.model_version || null, row.published_at,
         row.published_by || null, row.payload_hash || null, row.payload_json
       ).run();
       copied += 1;
