@@ -1,0 +1,79 @@
+name: FBIS sport D1 heavy-table backfill sprint
+
+# Accelerate incomplete sport-specific research migrations without touching
+# source authority. Not a cutover, not a retention/deletion workflow.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/sport-prefix-backfill-sprint.yml"
+      - "scripts/sport-prefix-backfill-sprint.mjs"
+      - "ops/triggers/sport-prefix-backfill-sprint"
+  schedule:
+    - cron: "12 */2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-sport-prefix-heavy-sprint-v1
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 32
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - { sport: cfb, table: cfb_canonical_players }
+          - { sport: cfb, table: cfb_player_aliases }
+          - { sport: cfb, table: cfb_player_provider_ids }
+          - { sport: cfb, table: cfb_roster_membership }
+          - { sport: cfb, table: cfb_roster_observations }
+          - { sport: nhl, table: nhl_linemate_profiles }
+          - { sport: nhl, table: nhl_goalie_probability_shadow }
+          - { sport: nba, table: nba_player_role_contexts }
+          - { sport: nba, table: nba_player_impact_snapshots }
+          - { sport: mlb, table: mlb_market_projections }
+          - { sport: cbb, table: cbb_players }
+          - { sport: cbb, table: cbb_player_aliases }
+          - { sport: cbb, table: cbb_roster_membership }
+          - { sport: cbb, table: cbb_roster_observations }
+          - { sport: cbb, table: cbb_schedule_items }
+          - { sport: cbb, table: cbb_player_state_snapshots }
+          - { sport: wnba, table: wnba_player_impact_snapshots }
+          - { sport: tennis, table: tennis_match_history }
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Install request transport
+        run: npm install --no-save --no-package-lock undici@7.29.0
+      - name: Copy one declared research table into SHADOW D1
+        env:
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          SPORT: ${{ matrix.sport }}
+          TABLE: ${{ matrix.table }}
+          BUDGET_MS: "1260000"
+          PAGE_SIZE: "200"
+          MAX_PAGES: "5"
+          MAX_PASSES: "110"
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET" || { echo "HARVEST_SECRET missing"; exit 1; }
+          node scripts/sport-prefix-backfill-sprint.mjs
+      - name: Upload durable per-table receipt
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: backfill-${{ matrix.sport }}-${{ matrix.table }}
+          path: artifacts/sprint-${{ matrix.sport }}-${{ matrix.table }}.json
+          if-no-files-found: ignore
+          retention-days: 14
