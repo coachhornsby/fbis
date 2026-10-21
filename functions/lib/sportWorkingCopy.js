@@ -495,6 +495,10 @@ export async function copySportWorkingTables(env, sport, {
   resume = true,
 } = {}) {
   const key = String(sport || "").toLowerCase();
+  if (deployedSportDbMode(env, key) === "sport") {
+    return { ok: false, sport: key, reason: "SHADOW_SYNC_REFUSED_SPORT_MODE",
+      canAuthorizeWager: false };
+  }
   const plan = SPORT_DATABASES[key];
   const primary = env?.DB;
   const sportDb = plan?.binding ? env?.[plan.binding] : null;
@@ -1090,6 +1094,10 @@ export async function copySportPrefixTables(env, sport, {
   skipCaughtUp = false,
 } = {}) {
   const key = String(sport || "").toLowerCase();
+  if (deployedSportDbMode(env, key) === "sport") {
+    return { ok: false, sport: key, reason: "SHADOW_SYNC_REFUSED_SPORT_MODE",
+      canAuthorizeWager: false };
+  }
   const plan = SPORT_DATABASES[key];
   const primary = env?.DB;
   const sportDb = plan?.binding ? env?.[plan.binding] : null;
