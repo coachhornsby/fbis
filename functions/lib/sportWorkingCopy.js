@@ -261,6 +261,24 @@ async function beginSportWorkingCopy(primary, sportDb, sport, table, resume) {
   const plan = planSportShadowCursorRecovery({
     primaryCount, sportCount, resumeCursor, replayActive,
   });
+  // NHL grading and schedule updates can change rows without changing counts.
+  // Rewind a completed shadow keyset only when PRIMARY's latest update is
+  // strictly newer; preserve interrupted replay cursors.
+  const freshnessColumn = sport === "nhl" && table === "prediction_snapshots"
+    ? "graded_at" : sport === "nhl" && table === "games" ? "updated_at" : null;
+  if (freshnessColumn && primaryCount === sportCount &&
+      !plan.replayActive && !plan.startReplay) {
+    const [source, target] = await Promise.all([
+      primary.prepare(`SELECT MAX(${freshnessColumn}) latest FROM ${table} WHERE sport=?`).bind(sport).first(),
+      sportDb.prepare(`SELECT MAX(${freshnessColumn}) latest FROM ${table} WHERE sport=?`).bind(sport).first(),
+    ]);
+    if (newerPrefixSourceTimestamp(source?.latest, target?.latest)) {
+      plan.startReplay = true;
+      plan.replayActive = true;
+      plan.cursor = "";
+      plan.staleContentReplay = true;
+    }
+  }
   if (plan.startReplay) {
     // Persist both markers before D1 copying, so interrupted retries resume
     // from the beginning rather than skipping earlier missing IDs.
@@ -1037,15 +1055,24 @@ export async function copySportPrefixTables(env, sport, {
       const replayActive = resume && (await metaGet(sportDb, replayKey)) === "1";
       // NFL team/player profile rows update in place. Equal counts do not
       // imply parity: a saved keyset cursor otherwise hides changed rosters.
-      const checkInPlaceUpdates = key === "nfl" &&
-        ["nfl_team_profiles", "nfl_player_profiles"].includes(table);
+      const freshnessColumnBySport = {
+        nfl: { nfl_team_profiles: "updated_at", nfl_player_profiles: "updated_at" },
+        cfb: { cfb_pregame_feature_vectors: "created_at" },
+        nhl: {
+          nhl_team_profiles: "updated_at",
+          nhl_goalie_profiles: "updated_at",
+          nhl_team_schedule_profile: "source_updated_at",
+          nhl_deployment_observations: "observed_at",
+        },
+      };
+      const freshnessColumn = freshnessColumnBySport[key]?.[table] || null;
       let staleContent = false;
-      if (checkInPlaceUpdates && primaryN != null && sportN != null &&
+      if (freshnessColumn && primaryN != null && sportN != null &&
           primaryN === sportN && !replayActive) {
         const safe = assertSafeIdent(table);
         const [sourceStamp, targetStamp] = await Promise.all([
-          primary.prepare(`SELECT MAX(updated_at) AS latest FROM ${safe}`).first(),
-          sportDb.prepare(`SELECT MAX(updated_at) AS latest FROM ${safe}`).first(),
+          primary.prepare(`SELECT MAX(${freshnessColumn}) AS latest FROM ${safe}`).first(),
+          sportDb.prepare(`SELECT MAX(${freshnessColumn}) AS latest FROM ${safe}`).first(),
         ]);
         staleContent = newerPrefixSourceTimestamp(sourceStamp?.latest, targetStamp?.latest);
       }
