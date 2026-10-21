@@ -178,13 +178,24 @@ export async function onRequest(context) {
   // in D1. Load the grant into THIS request's env before any route executes.
   // An unavailable/revoked receipt must fail closed; do not cache authority
   // across requests or permit request query/body overrides.
-  if (String(context.env?.SPORT_DB_MODE_NFL || "").toLowerCase() === "sport") {
+  // All independently activated sports need a fresh CORE grant on every API
+  // request. A single failed lookup clears the entire request-local cache:
+  // no stale approval and no accidental PRIMARY fallback in strict mode.
+  const activeSportKeys = Object.keys(context.env || {})
+    .filter(key => /^SPORT_DB_MODE_[A-Z]+$/.test(key)
+      && String(context.env[key]).toLowerCase() === "sport")
+    .map(key => key.slice("SPORT_DB_MODE_".length).toLowerCase());
+  if (activeSportKeys.length) {
     context.env.__fbisCutoverApprovals = new Map();
-    try {
-      const state = await hydrateCutoverApprovals(context.env, { sport: "nfl" });
-      if (!state.ok) context.env.__fbisCutoverApprovals.clear();
-    } catch {
+    for (const sport of activeSportKeys) {
+      try {
+        const state = await hydrateCutoverApprovals(context.env, { sport });
+        if (state.ok) continue;
+      } catch {
+        // Do not accept partial authority state after a failed CORE lookup.
+      }
       context.env.__fbisCutoverApprovals.clear();
+      break;
     }
   }
 
