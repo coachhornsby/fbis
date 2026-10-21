@@ -27,3 +27,8 @@ CREATE TABLE IF NOT EXISTS team_form (
 );
 CREATE INDEX IF NOT EXISTS idx_nfl_predictions_sport_date ON predictions(sport,date);
 CREATE INDEX IF NOT EXISTS idx_nfl_odds_sport_date ON odds_snapshots(sport,date);
+
+CREATE TABLE IF NOT EXISTS team_form_games (
+  sport TEXT NOT NULL, game_id TEXT NOT NULL, date TEXT,
+  PRIMARY KEY(sport, game_id)
+);
