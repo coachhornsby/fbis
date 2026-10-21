@@ -14,6 +14,7 @@ import { attachNflShadow } from "./nflModel.js";
 import { attachNflProShadow } from "./nflProModel.js";
 import { attachNflGameMatchups } from "./nflGameMatchup.js";
 import { attachNflWagerDecisions } from "./nflWagerDecision.js";
+import { productSportDbHandle } from "./databaseTopology.js";
 import { loadNflTeamProfiles, attachNflPersistentProfiles } from "./nflTeamProfiles.js";
 import { NFL_WAGER_CONFIDENCE_V1 } from "../../data/models/nfl-wager-confidence-v1.js";
 import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
@@ -655,7 +656,7 @@ export async function buildSlate(sport, date, env = {}) {
     if (env.DB) {
       try {
         const { persistNflWagerDecisionSnapshots } = await import("./nflWagerDecisionStore.js");
-        const persisted = await persistNflWagerDecisionSnapshots(env.DB, next.games);
+        const persisted = await persistNflWagerDecisionSnapshots(productSportDbHandle(env, "nfl").db, next.games);
         next.nflWagerArchitecture = {
           ...next.nflWagerArchitecture,
           decisionSnapshotsPersisted: persisted.inserted || 0,
