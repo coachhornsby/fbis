@@ -65,6 +65,8 @@ test("exchange inventory attaches to existing independent FBIS projection withou
  assert.equal(r.added.length,0);
  assert.equal(r.games[0].tennisProjection.player1WinProb,.63);
  assert.equal(r.games[0].tennisProjection.venueOffers.length,2);
+ assert.equal(r.games[0].tennisProjection.venueOffers.find(x=>x.participantName==="Oriol Roca Batalla").side,"away");
+ assert.equal(r.games[0].tennisProjection.venueOffers.find(x=>x.participantName==="Dimitris Sakellaridis").side,"home");
 });
 test("uncertain doubles, duplicate match identity and mismatched day never authorizes or creates a model",()=>{
  assert.equal(normalizePolymarketUsTennisEvent(event("Player One / Player Two vs. Player Three"),"atp",now),null);
