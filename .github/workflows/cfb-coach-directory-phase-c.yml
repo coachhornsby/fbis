@@ -1,0 +1,88 @@
+name: CFB coach directory Phase C
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/cfb-coach-directory-build.py"
+      - "migrations/*cfb*coach*"
+      - ".github/workflows/cfb-coach-directory-phase-c.yml"
+      - "functions/lib/cfbCoachDirectory.js"
+  workflow_dispatch:
+    inputs:
+      start_year:
+        required: false
+        default: "2004"
+      end_year:
+        required: false
+        default: "2026"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cfb-coach-directory-phase-c
+  cancel-in-progress: false
+
+jobs:
+  populate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Require credentials
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID}"
+          test -n "${CFBD_API_KEY}"
+      - name: Build bounded coach shards
+        run: |
+          START="${{ inputs.start_year || '2004' }}"
+          END="${{ inputs.end_year || '2026' }}"
+          python scripts/cfb-coach-directory-build.py --start "${START}" --end "${END}" --out artifacts/cfb-coaches
+      - name: Wait for additive schema
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5 6; do
+            if npx wrangler d1 execute fbis --remote --command="SELECT COUNT(*) FROM cfb_canonical_staff;" >/dev/null 2>&1; then exit 0; fi
+            echo "Coach schema not visible yet; waiting for main deployment migration"
+            sleep 20
+          done
+          echo "Coach schema unavailable"; exit 1
+      - name: Apply season shards with durable verification
+        run: |
+          set -euo pipefail
+          for file in artifacts/cfb-coaches/season-20*.sql; do
+            season="$(basename "${file}" .sql | sed 's/season-//')"
+            existing="$(npx wrangler d1 execute fbis --remote --json --command="SELECT COUNT(*) AS n FROM cfb_staff_source_coverage WHERE source='CFBD_COACHES' AND season=${season};")"
+            n="$(printf '%s' "${existing}" | jq -r '.[0].results[0].n // 0')"
+            if [ "${n}" -eq 1 ]; then echo "Season ${season} already durable; skipping"; continue; fi
+            ok=0
+            for attempt in 1 2 3 4; do
+              if npx wrangler d1 execute fbis --remote --file="${file}"; then ok=1; break; fi
+              landed="$(npx wrangler d1 execute fbis --remote --json --command="SELECT COUNT(*) AS n FROM cfb_staff_source_coverage WHERE source='CFBD_COACHES' AND season=${season};" || true)"
+              landed_n="$(printf '%s' "${landed}" | jq -r '.[0].results[0].n // 0' 2>/dev/null || echo 0)"
+              if [ "${landed_n}" -eq 1 ]; then echo "Season ${season} durable despite Wrangler failure"; ok=1; break; fi
+              sleep $((attempt * 5))
+            done
+            test "${ok}" -eq 1 || { echo "Failed season ${season}"; exit 1; }
+          done
+      - name: Finalize active staff
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4; do
+            if npx wrangler d1 execute fbis --remote --file=artifacts/cfb-coaches/finalize.sql; then exit 0; fi
+            sleep $((attempt * 5))
+          done
+          exit 1
+      - name: Verify production coach state and governance
+        run: |
+          npx wrangler d1 execute fbis --remote --command="SELECT COUNT(*) AS staff FROM cfb_canonical_staff; SELECT role,COUNT(*) AS n FROM cfb_staff_role_assignments GROUP BY role; SELECT COUNT(*) AS coverage FROM cfb_staff_source_coverage WHERE source='CFBD_COACHES'; SELECT state_family,mode,can_influence_projection,can_qualify,can_authorize_wager FROM cfb_state_overlay_governance WHERE state_family IN ('STAFF_DIRECTORY','COACH_ROLE_STATE') ORDER BY state_family;"
