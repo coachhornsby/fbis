@@ -25,6 +25,23 @@ const { postTopology } = createTopologyClient({
   retries: 3,
 });
 
+// Once sport authority is live, PRIMARY-to-sport replay MUST STOP. A bad
+// receipt is a hard failure, never a signal to resume stale PRIMARY copies.
+const authority = await postTopology("sport-authority-state", { sport: SPORT });
+if (authority.mode === "sport") {
+  if (authority.productIoUsesSportDb !== true || authority.binding !==
+      (SPORT.toUpperCase() + "_DB")) {
+    throw new Error("SPORT_MODE_WITHOUT_VALID_AUTHORITY_STOP_SHADOW_SYNC");
+  }
+  console.log(JSON.stringify({
+    ok: true, status: "SKIPPED_SPORT_AUTHORITATIVE",
+    sport: SPORT, binding: authority.binding, authoritySkip: true,
+    productStillPrimary: false, cutoverAuthorized: true,
+    canAuthorizeWager: false,
+  }, null, 2));
+  process.exit(0);
+}
+
 // Working-set first (games / predictions / published_projections).
 const sync = await postTopology("sport-delta-sync", {
   sport: SPORT,

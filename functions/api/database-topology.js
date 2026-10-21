@@ -124,7 +124,7 @@ export async function verifyDeploymentBindings(env) {
   const anySportAuthoritative = Object.values(productAuthority).some((s) => s.productIoUsesSportDb);
 
   return {
-    ok: gate.ok && missing.length === 0 && unreachable.length === 0 && !anySportAuthoritative,
+    ok: gate.ok && missing.length === 0 && unreachable.length === 0,
     missing: [...new Set([...gate.missing, ...missing])],
     unreachable,
     modeFailures: gate.modeFailures,
@@ -133,7 +133,7 @@ export async function verifyDeploymentBindings(env) {
     anySportAuthoritative,
     bindingGate: gate,
     restorePlan: topologyBindingRestorePlan(),
-    note: "Bindings may be present while productIoUsesSportDb stays false under shadow mode. Cutover still blocked.",
+    note: gate.approvedLive?.length ? "Approved NFL authority and deployed D1 bindings verified." : "Shadow mode: PRIMARY remains authoritative until a CORE-approved cutover.",
     canAuthorizeWager: false,
   };
 }
@@ -191,6 +191,17 @@ export async function onRequestPost({ env, request } = {}) {
   let body = {};
   try { body = await request.json(); } catch { return json({ ok: false, error: "INVALID_JSON" }, 400); }
   const operation = String(body.operation || "");
+  if (operation === "sport-authority-state") {
+    const gate = requireSyncSport(body.sport);
+    if (!gate.ok) return json(gate, 400);
+    const h = productSportDbHandle(env, gate.sport);
+    return json({
+      ok: true, sport: gate.sport, mode: h.mode, binding: h.binding,
+      productIoUsesSportDb: h.productIoUsesSportDb === true,
+      cutoverAuthorized: h.productIoUsesSportDb === true,
+      canAuthorizeWager: false,
+    });
+  }
   if (operation === "verify-bindings") {
     return json(await verifyDeploymentBindings(env));
   }
