@@ -1071,6 +1071,15 @@ export async function verifySportPrefixParity(env, sport, { now = new Date() } =
  * When skipCaughtUp is true, tables already at count parity are skipped so
  * remaining budget focuses on incomplete research/roster/model tables.
  */
+/** Detect in-place source updates missed by count-only shadow parity.
+ * Only tables explicitly opted in below incur MAX(updated_at) reads.
+ */
+export function newerPrefixSourceTimestamp(primaryTimestamp, sportTimestamp) {
+  const src = Date.parse(String(primaryTimestamp || ""));
+  const dst = Date.parse(String(sportTimestamp || ""));
+  return Number.isFinite(src) && (!Number.isFinite(dst) || src > dst);
+}
+
 export async function copySportPrefixTables(env, sport, {
   pageSize = 200,
   maxPages = 25,
@@ -1112,7 +1121,21 @@ export async function copySportPrefixTables(env, sport, {
       const sportN = await count(sportDb, countSql, ...(league ? [league] : []));
       const replayKey = `copy_replay_active_prefix_${table}`;
       const replayActive = resume && (await metaGet(sportDb, replayKey)) === "1";
-      if (primaryN != null && sportN != null && primaryN === sportN && !replayActive) {
+      // NFL team/player profile rows update in place. Equal counts do not
+      // imply parity: a saved keyset cursor otherwise hides changed rosters.
+      const checkInPlaceUpdates = key === "nfl" &&
+        ["nfl_team_profiles", "nfl_player_profiles"].includes(table);
+      let staleContent = false;
+      if (checkInPlaceUpdates && primaryN != null && sportN != null &&
+          primaryN === sportN && !replayActive) {
+        const safe = assertSafeIdent(table);
+        const [sourceStamp, targetStamp] = await Promise.all([
+          primary.prepare(`SELECT MAX(updated_at) AS latest FROM ${safe}`).first(),
+          sportDb.prepare(`SELECT MAX(updated_at) AS latest FROM ${safe}`).first(),
+        ]);
+        staleContent = newerPrefixSourceTimestamp(sourceStamp?.latest, targetStamp?.latest);
+      }
+      if (primaryN != null && sportN != null && primaryN === sportN && !replayActive && !staleContent) {
         skipped.push({ table, primaryCount: primaryN, sportCount: sportN, status: "SKIPPED_CAUGHT_UP" });
         continue;
       }
@@ -1120,7 +1143,7 @@ export async function copySportPrefixTables(env, sport, {
       // Start one full idempotent replay and record that it is in progress;
       // otherwise large research tables would rewind at *every* bounded pass
       // and never get beyond the first few pages.
-      if (resume && primaryN != null && sportN != null && sportN < primaryN && !replayActive) {
+      if (resume && primaryN != null && sportN != null && (sportN < primaryN || staleContent) && !replayActive) {
         await metaSet(sportDb, `copy_cursor_prefix_${table}`, "");
         await metaSet(sportDb, replayKey, "1");
       }
