@@ -37,7 +37,7 @@ export function normalizePolymarketUsTennisEvent(e,tour,now=new Date()){
  const names=tennisExchangePlayers(e?.title);
  const start=marketEventStart(e),ms=Date.parse(start||"");
  const seen=now.getTime();
- if(!names||!Number.isFinite(ms)||ms<seen-12*3600000||ms>seen+72*3600000||
+ if(!names||!Number.isFinite(ms)||ms<seen-48*3600000||ms>seen+72*3600000||
   e?.id==null||!/^[a-z0-9_-]{1,160}$/i.test(String(e.id))||
   (e?.seriesSlug && !String(e.seriesSlug).toLowerCase().startsWith(tour)))return null;
  const eventId=String(e.id),id="tennis:polyus:"+tour+":"+eventId;
@@ -61,7 +61,7 @@ export function normalizePolymarketUsTennisEvent(e,tour,now=new Date()){
 async function pageJson(fetchImpl,tour,offset,now){
  const url=new URL("/v1/events",POLY_US_API);
  for(const [name,value] of Object.entries({tagSlug:tour,active:"true",closed:"false",
-  startTimeMin:new Date(+now-12*3600000).toISOString(),
+  startTimeMin:new Date(+now-48*3600000).toISOString(),
   startTimeMax:new Date(+now+72*3600000).toISOString(),
   limit:PAGE_SIZE,offset,orderBy:"id",orderDirection:"asc"}))
   url.searchParams.set(name,String(value));
@@ -101,7 +101,7 @@ export async function collectPolymarketUsTennisInventory(env,{now=new Date(),fet
  const snapshot={version:1,source:"POLYMARKET_US_PUBLIC",
   capturedAt:now.toISOString(),events:[...events.values()],
   sources,complete:errors.length===0,errors,
-  scope:"ACTIVE_TENNIS_SINGLES_12H_BACK_72H_FORWARD",
+  scope:"ACTIVE_TENNIS_SINGLES_48H_BACK_72H_FORWARD",
   canQualify:false,canAuthorizeWager:false};
  if(snapshot.events.length)await env.ARCHIVE.put(TENNIS_EXCHANGE_INVENTORY_KEY,JSON.stringify(snapshot));
  return {ok:snapshot.events.length>0,complete:snapshot.complete,
