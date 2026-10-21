@@ -1,5 +1,5 @@
 import {loadPolymarketUsTennisInventory} from "../lib/tennisExchangeInventory.js";
-import {loadKalshiTennisResearch} from "../lib/tennisKalshiResearch.js";
+import {loadKalshiTennisResearch,TENNIS_KALSHI_SPORTS} from "../lib/tennisKalshiResearch.js";
 import {kalshiTennisContractPairs} from "../lib/tennisKalshiInventory.js";
 const respond=(body,status=200)=>Response.json(body,{status,headers:{
  "cache-control":"no-store","x-content-type-options":"nosniff"}});
@@ -25,6 +25,12 @@ export async function onRequestGet({env}){
    year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(e.start));
   dates[date]=(dates[date]||0)+1;
  }
+ const kalshiBySeries=Object.fromEntries(TENNIS_KALSHI_SPORTS.map(sport=>{
+  const matches=pairs.filter(p=>p.seriesSport===sport);
+  return [sport,{status:kalshi[sport+"Status"]||"NO_FRESH_SNAPSHOT",
+   matchedEvents:matches.length,quotedSides:matches.reduce((n,x)=>n+
+    x.offers.filter(o=>o.yesAskDollars!=null).length,0)}];
+ }));
  const polyOk=Boolean(polymarket.ok);
  const kalshiOk=pairs.length>0;
  const ok=polyOk||kalshiOk;
@@ -36,7 +42,7 @@ export async function onRequestGet({env}){
     events:polymarket.events?.length||0,sources:polymarket.sources||[]},
    kalshi:{available:kalshiOk,status:kalshi.status,
     atpStatus:kalshi.atpStatus,wtaStatus:kalshi.wtaStatus,
-    events:pairs.length,quotedSides:pairs.reduce((n,x)=>n+x.offers.filter(o=>o.yesAskDollars!=null).length,0)}
+    bySeries:kalshiBySeries,events:pairs.length,quotedSides:pairs.reduce((n,x)=>n+x.offers.filter(o=>o.yesAskDollars!=null).length,0)}
   },inventoryFresh:ok,byTour,byDate:dates,
   modelIndependent:true,quotesDoNotGuaranteeExecution:true,
   canQualify:false,canAuthorizeWager:false},ok?200:503);

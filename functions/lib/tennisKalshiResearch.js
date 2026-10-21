@@ -1,4 +1,6 @@
 import {loadKalshiR2Shadow} from "./kalshiR2Shadow.js";
+import {KALSHI_SHADOW_SERIES} from "./kalshiMarketShadow.js";
+export const TENNIS_KALSHI_SPORTS=Object.freeze(["atp","wta","atp_challenger","itf_men","itf_women","atp_doubles","wta_doubles","itf_doubles","itf_women_doubles"]);
 const key = s => " "+String(s||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()+" ";
 // Provider name disambiguators such as "Kenta (2004) Miyoshi" are not
 // part of the athlete name. Keep two full names and event/schedule proof.
@@ -69,7 +71,7 @@ async function readKalshiTennisProgress(archive,sport,now){
     p.pagesFetched<1||p.pagesFetched>12||typeof p.cursor!=="string"||!p.cursor)return [];
   const started=Date.parse(p.startedAt||"");
   if(!Number.isFinite(started)||started>+now||+now-started>8*3600000)return [];
-  const series=sport==="atp"?"KXATPMATCH-":"KXWTAMATCH-";
+  const series=KALSHI_SHADOW_SERIES[sport]+"-";
   return p.records.filter(r=>{
    const fetched=Date.parse(r?.fetchedAt||"");
    return r?.sport===sport&&typeof r?.ticker==="string"&&
@@ -82,7 +84,7 @@ async function readKalshiTennisProgress(archive,sport,now){
 export async function loadKalshiTennisResearch(env,now=new Date()){
  if(!env?.ARCHIVE?.get)return {atp:[],wta:[],status:"R2_UNAVAILABLE",
   atpStatus:"R2_UNAVAILABLE",wtaStatus:"R2_UNAVAILABLE"};
- const results=await Promise.all(["atp","wta"].map(async sport=>{
+ const results=await Promise.all(TENNIS_KALSHI_SPORTS.map(async sport=>{
   const complete=await loadKalshiR2Shadow(env,sport,{now,maxAgeMs:90*60000}).catch(()=>null);
   if(complete?.ok&&complete.sourceQueryComplete)return {
    rows:complete.records,status:"COMPLETE_RESEARCH_SNAPSHOT"};
@@ -90,8 +92,11 @@ export async function loadKalshiTennisResearch(env,now=new Date()){
   return {rows,status:rows.length?"PARTIAL_PAGINATING_RESEARCH_ONLY":
     complete?.code||"NO_FRESH_SNAPSHOT"};
  }));
- return {atp:results[0].rows,wta:results[1].rows,
-  atpStatus:results[0].status,wtaStatus:results[1].status,
-  status:results.some(r=>r.status==="COMPLETE_RESEARCH_SNAPSHOT")?"RESEARCH_SNAPSHOT":
+ const obj={};
+ for(let i=0;i<TENNIS_KALSHI_SPORTS.length;i++){
+  const sport=TENNIS_KALSHI_SPORTS[i];
+  obj[sport]=results[i].rows;obj[sport+"Status"]=results[i].status;
+ }
+ return {...obj,status:results.some(r=>r.status==="COMPLETE_RESEARCH_SNAPSHOT")?"RESEARCH_SNAPSHOT":
    results.some(r=>r.rows.length)?"PARTIAL_RESEARCH_SNAPSHOT":"NO_FRESH_SNAPSHOT"};
 }

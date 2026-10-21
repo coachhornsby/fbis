@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {onRequestGet as exchangeStatus} from "../functions/api/tennis-exchange-status.js";
 import {buildTennisResearchSlate} from "../functions/lib/todayBoard.js";
+import {normalizeKalshiShadowMarket} from "../functions/lib/kalshiMarketShadow.js";
 import {kalshiTennisContractPairs,mergeKalshiTennisCards}
  from "../functions/lib/tennisKalshiInventory.js";
 const now=new Date("2026-10-21T14:00:00Z");
@@ -101,4 +102,53 @@ test("official TODAY Tennis board retains Kalshi-only match without ESPN, model 
  assert.equal(board.games[0].tennisProjection.kalshiResearchOffers.length,2);
  assert.equal(board.games[0].canAuthorizeWager,false);
  assert.equal(board.research.configured,true);
+});
+
+test("real Kalshi Challenger market format uses occurrence_datetime for source match timing",()=>{
+ const common={sport:"atp_challenger",status:"active",
+  event_ticker:"KXATPCHALLENGERMATCH-26OCT21PDAJAR",
+  occurrence_datetime:"2026-10-22T00:00:00Z",
+  expected_expiration_time:"2026-10-22T00:00:00Z",
+  rules_primary:"If Pucinelli de Almeida wins the Pucinelli de Almeida vs Jarry professional tennis match in the 2026 ATP Challenger Cali, the market resolves to Yes."};
+ const markets=[
+  {...common,ticker:common.event_ticker+"-PDA",yes_sub_title:"Matheus Pucinelli de Almeida",
+   yes_ask_dollars:"0.5300"},
+  {...common,ticker:common.event_ticker+"-JAR",yes_sub_title:"Nicolas Jarry",
+   yes_ask_dollars:"0.4800",
+   rules_primary:"If Nicolas Jarry wins the Pucinelli de Almeida vs Jarry professional tennis match in the 2026 ATP Challenger Cali, the market resolves to Yes."}
+ ];
+ const source=markets.map(m=>normalizeKalshiShadowMarket(m,
+  {sport:"atp_challenger",fetchedAt:now.toISOString()}));
+ assert.equal(source[0].occurrenceAt,"2026-10-22T00:00:00.000Z");
+ const events=kalshiTennisContractPairs({atp_challenger:source},now);
+ assert.equal(events.length,1);
+ assert.equal(events[0].tour,"atp");
+ assert.equal(events[0].seriesSport,"atp_challenger");
+ assert.equal(events[0].providerTimeStatus,"PROVIDER_OCCURRENCE_TIME");
+ assert.equal(events[0].offers.length,2);
+ const result=mergeKalshiTennisCards([],{atp_challenger:source},{
+  date:"2026-10-21",now});
+ assert.equal(result.added.length,1);
+ assert.equal(result.games[0].startTimeBasis,"KALSHI_PROVIDER_OCCURRENCE");
+ assert.equal(result.games[0].canAuthorizeWager,false);
+});
+test("independent Kalshi ITF singles and doubles retain their own match categories",()=>{
+ for(const [sport,prefix,pair] of [
+  ["itf_men","KXITFMATCH",["Dan Added","Daniel Domingos"]],
+  ["itf_women","KXITFWMATCH",["Anastasia Gasanova","Maaya Rajeshwaran Revathi"]],
+  ["itf_doubles","KXITFDOUBLES",["Alec Deckers / Noah Zamora","Dan Added / Daniel Domingos"]]]){
+   const ev=prefix+"-26OCT21TEST";
+   const rules="This tennis match features "+pair[0]+" vs "+pair[1]+".";
+   const markets=pair.map((p,i)=>({
+    sport,status:"active",eventTicker:ev,ticker:ev+"-"+i,
+    yesLabel:p,yesAskDollars:i?0.45:0.56,rulesPrimary:rules,
+    fetchedAt:"2026-10-21T13:58:00Z",
+    occurrenceAt:"2026-10-21T22:00:00Z",
+    expectedExpirationAt:"2026-10-22T00:00:00Z"}));
+   const observed=kalshiTennisContractPairs({[sport]:markets},now);
+   assert.equal(observed.length,1,sport);
+   assert.equal(observed[0].tour,sport);
+   assert.equal(observed[0].offers.length,2);
+   assert.equal(observed[0].canAuthorizeWager,false);
+ }
 });

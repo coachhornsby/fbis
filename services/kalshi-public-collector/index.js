@@ -7,7 +7,8 @@
  */
 const PREFIX="kalshi/public-shadow/v1/";
 const SPORTS=["nfl","cfb"];
-const TENNIS_RESEARCH=["atp","wta"];
+const TENNIS_RESEARCH=["atp","wta","atp_challenger","itf_men","itf_women",
+ "atp_doubles","wta_doubles","itf_doubles","itf_women_doubles"];
 const SLOT_MS=15*60*1000;
 const PAGES_ROUTE="https://fbis-myz.pages.dev/api/kalshi-collector-internal";
 const ms=v=>Number.isFinite(Date.parse(v||""))?Date.parse(v):0;
@@ -97,11 +98,21 @@ export async function collectKalshiPublicOnce(env,{now=new Date(),fetchImpl=fetc
  */
 export async function collectKalshiTennisShadowOnce(env,{now=new Date(),fetchImpl=fetch}={}){
   if(!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};
-  const sport=TENNIS_RESEARCH[Math.floor(now.getTime()/(30*60*1000))%2];
-  const previous=await readJson(env.ARCHIVE,"sports/"+sport+"-status.json");
-  if(ms(previous?.attemptedAt)>now.getTime()-60*60*1000)
-    return {ok:false,code:"TENNIS_SHADOW_POLL_NOT_DUE",sport};
-  return relaySignedPages(env,{scope:"markets",sport,fetchImpl});
+  // Rotate three distinct series each quarter-hour. Nine families then receive
+  // one capture opportunity per 45 minutes. Provider cooldown still applies.
+  const slot=Math.floor(now.getTime()/SLOT_MS);
+  const selected=[0,1,2].map(i=>TENNIS_RESEARCH[(slot*3+i)%TENNIS_RESEARCH.length]);
+  const results=[];
+  for(const sport of selected){
+    const previous=await readJson(env.ARCHIVE,"sports/"+sport+"-status.json");
+    if(ms(previous?.attemptedAt)>now.getTime()-45*60*1000){
+      results.push({ok:true,status:"TENNIS_SHADOW_POLL_NOT_DUE",sport});continue;
+    }
+    const result=await relaySignedPages(env,{scope:"markets",sport,fetchImpl});
+    results.push({sport,...result});
+    if(result.code==="KALSHI_SIGNED_RATE_LIMITED"||result.httpStatus===429)break;
+  }
+  return {ok:results.some(x=>x.ok),results};
 }
 export async function collectKalshiExchangeStatusOnce(env,{now=new Date(),fetchImpl=fetch}={}){
   if(!env?.ARCHIVE?.get)return {ok:false,code:"ARCHIVE_BINDING_MISSING"};

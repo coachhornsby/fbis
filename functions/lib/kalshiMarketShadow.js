@@ -8,7 +8,12 @@
  */
 export const KALSHI_PUBLIC_BASE = "https://external-api.kalshi.com/trade-api/v2";
 export const KALSHI_SHADOW_SERIES = Object.freeze({
-  nfl: "KXNFLGAME", cfb: "KXNCAAFGAME", mlb: "KXMLBGAME", nba: "KXNBAGAME", atp: "KXATPMATCH", wta: "KXWTAMATCH",
+  nfl: "KXNFLGAME", cfb: "KXNCAAFGAME", mlb: "KXMLBGAME", nba: "KXNBAGAME",
+  atp: "KXATPMATCH", wta: "KXWTAMATCH",
+  atp_challenger: "KXATPCHALLENGERMATCH",
+  itf_men: "KXITFMATCH", itf_women: "KXITFWMATCH",
+  atp_doubles: "KXATPDOUBLES", wta_doubles: "KXWTADOUBLES",
+  itf_doubles: "KXITFDOUBLES", itf_women_doubles: "KXITFWDOUBLES",
 });
 export const KALSHI_SHADOW_AUTHORITY = "SHADOW_ONLY";
 const TICKER = /^[A-Z0-9_.-]{4,160}$/;
@@ -67,6 +72,7 @@ export function normalizeKalshiShadowMarket(m, {sport, fetchedAt} = {}) {
     yesBidSize: count(m.yes_bid_size_fp), yesAskSize: count(m.yes_ask_size_fp),
     volumeContracts: count(m.volume_fp), openInterestContracts: count(m.open_interest_fp),
     closeAt: stamp(m.close_time), expectedExpirationAt: stamp(m.expected_expiration_time),
+    occurrenceAt: stamp(m.occurrence_datetime),
     rulesPrimary: short(m.rules_primary, 600), rulesSecondary: short(m.rules_secondary, 600),
     fetchedAt: fetchedAt || null,
     quoteSourceTime: null, // Market updated_time can be metadata-only, NOT a trade clock.
