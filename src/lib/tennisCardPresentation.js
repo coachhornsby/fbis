@@ -25,3 +25,64 @@ export function splitTennisName(name) {
 export function neutralTennisAthlete(code, team = {}) {
   return team.neutralAthlete === true || ['RU', 'RUS', 'BY', 'BLR', 'AIN'].includes(String(code || '').toUpperCase());
 }
+
+
+/** A scan-first view over ALREADY-MATCHED research offers. Derivative
+ * contracts (sets, handicaps and game totals) never masquerade as a
+ * match-winner price in the main Tennis card.
+ */
+export function tennisMarketSnapshot(projection = {}, venueOffers = []) {
+  const kalshi = [];
+  const seen = new Set();
+  for (const offer of Array.isArray(projection.kalshiResearchOffers) ? projection.kalshiResearchOffers : []) {
+    const name = String(offer?.yesLabel || "").trim();
+    if (!name || seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    kalshi.push({ name, ask: finitePrice(offer.yesAskDollars), bid: finitePrice(offer.yesBidDollars),
+      at: offer.fetchedAt || null, warning: offer.scheduleStatus && offer.scheduleStatus !== "START_WITHIN_TWO_HOURS" });
+  }
+  const derivative = /\b(?:set\s*\d+|set winner|set handicap|handicap|game spread|total games|game total|tiebreak|over\/under)\b/i;
+  const all = Array.isArray(projection.polymarketGlobalOffers) ? projection.polymarketGlobalOffers : [];
+  const winner = all.find(m => m && !derivative.test(String(m.question || "")) &&
+    Array.isArray(m.outcomes) && m.outcomes.length === 2 &&
+    Array.isArray(m.indicativePrices) && m.indicativePrices.length === 2) || null;
+  // Polymarket US observations are a separate research feed. Use them in
+  // the compact card only if no source-matched Gamma winner contract exists.
+  const us = (Array.isArray(venueOffers)?venueOffers:[]).filter(o=>
+    /polymarket us/i.test(String(o?.source||"")) &&
+    /^(moneyline|match_winner)$/i.test(String(o?.marketFamily||"")) &&
+    Boolean(String(o?.participantName||"").trim()) &&
+    finitePrice(o?.contractPrice)!=null);
+  const usByPlayer=new Map();
+  for(const o of us){
+    const name=String(o.participantName).trim(),prior=usByPlayer.get(name.toLowerCase());
+    if(!prior||String(o.collectedAt||"")>String(prior.collectedAt||""))usByPlayer.set(name.toLowerCase(),o);
+  }
+  const usPrices=[...usByPlayer.values()].slice(0,2);
+  const polymarket = winner ? {
+    name: winner.question || "Match winner",sourceName:"POLYMARKET.COM",
+    sides: winner.outcomes.map((name,i)=>({
+      name,
+      ask: finitePrice(winner.researchClob?.sides?.[i]?.bestAsk?.price),
+      indicative: finitePrice(winner.indicativePrices?.[i]),
+    })),
+    observedAt: winner.researchClob?.observedAt || winner.capturedAt || null,
+    kind: winner.researchClob?.sides?.some(s=>finitePrice(s?.bestAsk?.price)!=null) ? "CLOB ASK" : "INDICATIVE",
+    scheduleWarning: winner.scheduleStatus && winner.scheduleStatus !== "START_WITHIN_TWO_HOURS",
+    eventSlug: winner.eventSlug || null,
+  } : usPrices.length ? {
+    name:"Observed match winner",sourceName:"POLYMARKET US",
+    sides:usPrices.map(o=>({name:o.participantName,observed:finitePrice(o.contractPrice),ask:null,indicative:null})),
+    observedAt:usPrices.map(o=>o.collectedAt).filter(Boolean).sort().at(-1)||null,
+    kind:"OBSERVED · SOURCE QUOTE CLOCK UNVERIFIED",
+    scheduleWarning:false,eventSlug:null,
+  } : null;
+  return {kalshi:kalshi.slice(0,2),kalshiTotal:kalshi.length,
+    polymarket,otherPolymarketMarkets:Math.max(0,all.length-(winner?1:0)),
+    researchOnly:true,comparable:false};
+}
+function finitePrice(v){
+  if(v==null || v==="")return null;
+  const x=Number(v);
+  return Number.isFinite(x)&&x>0&&x<1?x:null;
+}
