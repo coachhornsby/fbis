@@ -1,3 +1,4 @@
+import { productSportDbHandle } from "../lib/databaseTopology.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { syncNflTeamProfile } from "../lib/nflTeamProfiles.js";
 
@@ -18,13 +19,14 @@ export async function onRequestGet(context){
   const url=new URL(context.request.url);
   const teams=teamsFrom(url);
   if(!teams.length)return json({ok:false,error:"team-or-teams-required"},400);
-  if(!context.env?.DB?.prepare)return json({ok:false,error:"database-unavailable"},503);
+  const db=productSportDbHandle(context.env,"nfl").db;
+  if(!db?.prepare)return json({ok:false,error:"database-unavailable"},503);
 
   // Bounded batch: maximum four teams per request. Each team uses only a few
   // source calls and writes independently so one slow/failing team cannot
   // invalidate successful profiles in the same batch.
   const results=await Promise.all(teams.map(team=>syncNflTeamProfile({
-    DB:context.env.DB,
+    DB:db,
     ARCHIVE:context.env.ARCHIVE,
     caches:caches.default,
   },team)));
