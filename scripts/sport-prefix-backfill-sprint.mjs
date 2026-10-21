@@ -70,13 +70,19 @@ for (let passNo = 1; passNo <= maxPasses && status !== "PARITY" && Date.now() < 
     const added = Number(row?.copied || 0);
     copied += added;
     history.push({ pass: passNo, copied: added, exhausted: Boolean(row?.exhausted), skipped });
-    const checked = await inspect();
+    // One full prefix parity query checks every declared research table.
+    // Avoid issuing that expensive multi-table probe on every 1k-row page.
+    let checked = null;
+    if (row?.exhausted || skipped || added === 0 || passNo % 8 === 0) {
+      checked = await inspect();
+    }
     console.log(JSON.stringify({
       sport: SPORT, table: TABLE, pass: passNo, copied: added,
-      primaryCount: checked.primaryCount, shadowCount: checked.sportCount,
-      gap: checked.primaryCount - checked.sportCount,
+      primaryCount: checked?.primaryCount ?? lastSource,
+      shadowCount: checked?.sportCount ?? lastTarget,
+      gap: checked ? checked.primaryCount - checked.sportCount : null,
     }));
-    if (checked.status === "PARITY") { status = "PARITY"; break; }
+    if (checked?.status === "PARITY") { status = "PARITY"; break; }
     if (added === 0) consecutiveIdle += 1;
     else consecutiveIdle = 0;
     if (consecutiveIdle >= 2) {
@@ -87,6 +93,16 @@ for (let passNo = 1; passNo <= maxPasses && status !== "PARITY" && Date.now() < 
     lastError = String(error?.message || error).slice(0, 300);
     status = "FAILED";
     break;
+  }
+}
+// Capture authoritative final count parity, even on a bounded continuation.
+if (status !== "FAILED") {
+  try {
+    const final = await inspect();
+    if (final.status === "PARITY") status = "PARITY";
+  } catch (error) {
+    lastError = String(error?.message || error).slice(0, 300);
+    status = "FAILED";
   }
 }
 const receipt = {
