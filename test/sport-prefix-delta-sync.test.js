@@ -8,6 +8,7 @@ import {
   copySportPrefixTables,
   verifySportPrefixParity,
   syncSportWorkingDelta,
+  copySportWorkingTables,
   planSportShadowCursorRecovery,
   SPORT_PREFIX_TABLES,
   SPORT_SYNC_SPORTS,
@@ -138,6 +139,52 @@ function memoryDb(seed = {}) {
     _metadata: metadata,
   };
 }
+
+test("working-set prediction replay uses bounded D1 atomic batches and idempotent keys", async () => {
+  const rows = Array.from({ length: 85 }, (_, n) => ({
+    id: `nfl-pred-${String(n).padStart(4, "0")}`,
+    sport: "nfl", game_id: "nfl-game-1", model_version: "research-v1",
+    projection_kind: "ml", proj_total: 40, proj_home: 21, proj_away: 19,
+    p_home_final: 0.54, frozen_at: "2026-10-20T12:00:00.000Z",
+  }));
+  const primary = memoryDb({
+    games: [], prediction_snapshots: rows, published_projections: [],
+  });
+  const oldPrepare = primary.prepare.bind(primary);
+  primary.prepare = sql => {
+    if (String(sql).startsWith("SELECT * FROM prediction_snapshots")) {
+      return {
+        bind(sport, cursor, limit) {
+          return { all: async () => ({
+            results: rows.filter(r => r.sport === sport && r.id > cursor).slice(0, limit),
+          }) };
+        },
+      };
+    }
+    return oldPrepare(sql);
+  };
+  const nfl = memoryDb({
+    games: [], prediction_snapshots: [], published_projections: [],
+  });
+  const batches = [];
+  nfl.batch = async statements => {
+    batches.push(statements.length);
+    for (const statement of statements) await statement.run();
+    return statements.map(() => ({ success: true }));
+  };
+  const env = { DB: primary, NFL_DB: nfl };
+  const first = await copySportWorkingTables(env, "nfl", {
+    pageSize: 85, maxPages: 1, resume: true,
+  });
+  assert.equal(first.ok, true);
+  assert.deepEqual(batches, [40, 40, 5]);
+  assert.equal(nfl._tables.get("prediction_snapshots").rows.length, 85);
+  const second = await copySportWorkingTables(env, "nfl", {
+    pageSize: 85, maxPages: 1, resume: false,
+  });
+  assert.equal(second.ok, true);
+  assert.equal(nfl._tables.get("prediction_snapshots").rows.length, 85);
+});
 
 test("late prediction IDs below the saved high-water mark force a bounded replay", () => {
   // Production incident: PRIMARY gained two NFL predictions behind the
