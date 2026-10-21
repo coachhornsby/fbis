@@ -25,7 +25,7 @@ const countryCode=v=>COUNTRY_CODES[String(v).toUpperCase()]||String(v).toUpperCa
 
 export default function TennisMatchCard({game,open=false,onToggle,renderDetail=null}){
   const away=game?.away||{},home=game?.home||{},t=game?.tennisProjection||{},ref=game?.market?.reference||{},intel=game?.actionIntel||{};
-  if(t.eventIntegrity?.valid!==true && !(t.researchFixture?.verified===true && t.researchFixture?.source==="ESPN_PUBLIC" && t.researchFixture?.fixtureId===game?.id))return <article className="tmc" role="status">Tennis card withheld: event identity or projection provenance is unverified.</article>;
+  if(t.eventIntegrity?.valid!==true && !(t.researchFixture?.verified===true && ["ESPN_PUBLIC","POLYMARKET_US_PUBLIC"].includes(t.researchFixture?.source) && t.researchFixture?.fixtureId===game?.id))return <article className="tmc" role="status">Tennis card withheld: event identity or projection provenance is unverified.</article>;
   const tour=String(game?.tour||t?.tour||"TENNIS").toUpperCase();
   const display=tennisProjectionDisplay(game),{pAway,pHome,edgeHome,edgeAway}=display;
   // Research estimates are visually useful but remain separate from the
@@ -58,7 +58,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const when=game?.start?new Date(game.start):null;
   const time=when&&Number.isFinite(when.getTime())?when.toLocaleString("en-US",{timeZone:"America/Chicago",weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true}):"—";
   const status=game?.publicationStatus||"RESEARCH";
-  const statusLabel=t.researchFixture?"RESEARCH FIXTURE":display.valid?"RESEARCH PROJECTION":"PROJECTION BLOCKED";
+  const statusLabel=t.researchFixture?.source==="POLYMARKET_US_PUBLIC"?"EXCHANGE-LISTED · RESEARCH ONLY":t.researchFixture?"RESEARCH FIXTURE":display.valid?"RESEARCH PROJECTION":"PROJECTION BLOCKED";
   const hasObservedMarket=Boolean(venueOffers.some(o=>o.source&&o.collectedAt)||ref.observedAt||t.marketObservedAt);
   const researchOnly=Boolean(t.researchFixture);
   const winnerName=display.valid?(display.winner?.fullName||display.winner?.name||"Model tie"):null;
@@ -83,6 +83,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
         {name:"POLYMARKET",offers:[...(Array.isArray(t.polymarketGlobalOffers)?t.polymarketGlobalOffers:[]),...venueOffers.filter(o=>String(o.source||"").startsWith("Polymarket US"))],sourceStatus:t.polymarketGlobalStatus||"NO MATCHED CONTRACT",kind:"poly"}
       ].map(exchange=><div key={exchange.name} style={{border:"1px solid #286080",borderRadius:7,padding:"9px 11px",minWidth:0}}>
         <strong style={{color:"#5cc5ff",letterSpacing:".04em"}}>{exchange.name}</strong>
+        {exchange.name==="POLYMARKET"&&t.polymarketUsMarketUrl?<a href={t.polymarketUsMarketUrl} target="_blank" rel="noopener noreferrer" style={{display:"block",fontSize:11,color:"#abd8fb"}}>POLYMARKET US MATCH ↗</a>:null}
         {Array.isArray(exchange.offers)&&exchange.offers.length?exchange.offers.filter((_,index)=>index<4).map((offer,i)=><div key={offer.ticker||offer.marketId||i} style={{marginTop:5,fontSize:12}}>
           {exchange.kind==="kalshi"?<><b>{offer.yesLabel||"Unidentified outcome"}</b> · ASK {offer.yesAskDollars==null?"UNAVAILABLE":(100*Number(offer.yesAskDollars)).toFixed(1)+"¢"}{offer.yesBidDollars!=null?" · BID "+(100*Number(offer.yesBidDollars)).toFixed(1)+"¢":""}</>:<><b>{offer.outcomes?.join(" / ")||(offer.side==="home"?(home.fullName||home.name):offer.side==="away"?(away.fullName||away.name):offer.side)||"Unidentified outcomes"}</b> · {offer.contractPrice!=null?(100*Number(offer.contractPrice)).toFixed(1)+"¢ OBSERVED":offer.researchClob?.sides?.some(x=>x.bestAsk)?offer.researchClob.sides.map(x=>x.bestAsk?(100*Number(x.bestAsk.price)).toFixed(1)+"¢ ASK":"NO ASK").join(" / "):"INDICATIVE "+(offer.indicativePrices||[]).map(x=>(100*Number(x)).toFixed(1)+"%").join(" / ")}</>}
           <small style={{display:"block",color:"#b1c5db"}}>Captured {stamp(exchange.kind==="kalshi"?offer.fetchedAt:offer.researchClob?.observedAt||offer.capturedAt||offer.collectedAt||offer.observedAt)} · {exchange.kind==="poly"?(offer.source||"Polymarket.com")+" · ":""}Research only</small>
