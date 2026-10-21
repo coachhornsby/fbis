@@ -25,7 +25,7 @@ const countryCode=v=>COUNTRY_CODES[String(v).toUpperCase()]||String(v).toUpperCa
 
 export default function TennisMatchCard({game,open=false,onToggle,renderDetail=null}){
   const away=game?.away||{},home=game?.home||{},t=game?.tennisProjection||{},ref=game?.market?.reference||{},intel=game?.actionIntel||{};
-  if(t.eventIntegrity?.valid!==true && !(t.researchFixture?.verified===true && ["ESPN_PUBLIC","POLYMARKET_US_PUBLIC"].includes(t.researchFixture?.source) && t.researchFixture?.fixtureId===game?.id))return <article className="tmc" role="status">Tennis card withheld: event identity or projection provenance is unverified.</article>;
+  if(t.eventIntegrity?.valid!==true && !(t.researchFixture?.verified===true && ["ESPN_PUBLIC","POLYMARKET_US_PUBLIC","KALSHI_PUBLIC_SHADOW"].includes(t.researchFixture?.source) && t.researchFixture?.fixtureId===game?.id))return <article className="tmc" role="status">Tennis card withheld: event identity or projection provenance is unverified.</article>;
   const tour=String(game?.tour||t?.tour||"TENNIS").toUpperCase();
   const display=tennisProjectionDisplay(game),{pAway,pHome,edgeHome,edgeAway}=display;
   // Research estimates are visually useful but remain separate from the
@@ -56,9 +56,9 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const cardKey=`tennis:${game?.id||""}`;
   const surface=[t.surface?String(t.surface).toUpperCase():null,t.indoor===true?"INDOOR":t.indoor===false?"OUTDOOR":null].filter(Boolean).join(" · ");
   const when=game?.start?new Date(game.start):null;
-  const time=when&&Number.isFinite(when.getTime())?when.toLocaleString("en-US",{timeZone:"America/Chicago",weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true}):"—";
+  const time=game?.startTimeBasis==="KALSHI_CONTRACT_EXPIRATION_ONLY"?"MATCH TIME UNVERIFIED · KALSHI EXPIRY "+(when&&Number.isFinite(+when)?when.toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true}):"—"):when&&Number.isFinite(when.getTime())?when.toLocaleString("en-US",{timeZone:"America/Chicago",weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true}):"—";
   const status=game?.publicationStatus||"RESEARCH";
-  const statusLabel=t.researchFixture?.source==="POLYMARKET_US_PUBLIC"?"EXCHANGE-LISTED · RESEARCH ONLY":t.researchFixture?"RESEARCH FIXTURE":display.valid?"RESEARCH PROJECTION":"PROJECTION BLOCKED";
+  const statusLabel=t.researchFixture?.source==="KALSHI_PUBLIC_SHADOW"?"KALSHI-ONLY · RESEARCH":t.researchFixture?.source==="POLYMARKET_US_PUBLIC"?"EXCHANGE-LISTED · RESEARCH ONLY":t.researchFixture?"RESEARCH FIXTURE":display.valid?"RESEARCH PROJECTION":"PROJECTION BLOCKED";
   const hasObservedMarket=Boolean(venueOffers.some(o=>o.source&&o.collectedAt)||ref.observedAt||t.marketObservedAt);
   const researchOnly=Boolean(t.researchFixture);
   const winnerName=display.valid?(display.winner?.fullName||display.winner?.name||"Model tie"):null;
