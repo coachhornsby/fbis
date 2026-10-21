@@ -50,6 +50,9 @@ async function markets(parent,ref){
  throw Error("TENNIS_MARKET_PAGINATION_LIMIT");
 }
 try{
+ const inventory=await post({operation:"tennis-inventory"});
+ report.exchangeInventory=inventory;
+ if(!inventory.complete)report.errors.push({code:"TENNIS_MARKET_INVENTORY_PARTIAL",details:inventory.errors||[]});
  const catalogues=[];let offset=0;
  for(let i=0;i<14;i++){
   const catalogue=await post({operation:"catalogue",offset});

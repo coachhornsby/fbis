@@ -1,6 +1,8 @@
 import {loadKalshiR2Shadow} from "./kalshiR2Shadow.js";
 const key = s => " "+String(s||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()+" ";
-const clean=s=>key(s).trim();
+// Provider name disambiguators such as "Kenta (2004) Miyoshi" are not
+// part of the athlete name. Keep two full names and event/schedule proof.
+const clean=s=>key(String(s||"").replace(/\((?:19|20)\d{2}\)/g,"")).trim();
 const surname=name=>clean(name).split(" ").at(-1)||"";
 const same=(a,b)=>clean(a)===clean(b);
 const hasSurname=(text,name)=>surname(name).length>=4&&key(text).includes(key(surname(name)));
