@@ -154,9 +154,27 @@ export const SPORT_PREFIX_TABLES = Object.freeze({
     "tennis_market_snapshots",
     "tennis_availability_observations",
   ]),
-  // Working-set only until sport-specific research tables are provisioned.
-  npb: Object.freeze([]),
-  kbo: Object.freeze([]),
+  // Shared Asian baseball history is league-scoped in PRIMARY. These rows
+  // are split into the two independent sport D1s by WHERE league=? on copy
+  // and on parity; never copy the other league into the destination.
+  npb: Object.freeze([
+    "asian_baseball_games",
+    "asian_baseball_game_observations",
+    "asian_baseball_pregame_snapshots",
+    "asian_baseball_park_factors",
+    "asian_baseball_game_provider_crosswalk",
+    "asian_baseball_player_identities",
+    "asian_baseball_player_game_observations",
+  ]),
+  kbo: Object.freeze([
+    "asian_baseball_games",
+    "asian_baseball_game_observations",
+    "asian_baseball_pregame_snapshots",
+    "asian_baseball_park_factors",
+    "asian_baseball_game_provider_crosswalk",
+    "asian_baseball_player_identities",
+    "asian_baseball_player_game_observations",
+  ]),
 });
 
 const DEFAULT_PAGE_SIZE = 1000;
@@ -884,8 +902,14 @@ export async function copyPrefixedTablePaged(primary, sportDb, tableName, {
   pageSize = 200,
   maxPages = 25,
   afterKey = "",
+  leagueFilter = null,
 } = {}) {
   const table = assertSafeIdent(tableName);
+  // A cross-sport league filter is only valid for the shared Asian tables.
+  const league = leagueFilter == null ? null : String(leagueFilter).toUpperCase();
+  if (league !== null && (!table.startsWith("asian_baseball_") || !["KBO", "NPB"].includes(league))) {
+    throw new Error("UNSAFE_ASIAN_BASEBALL_LEAGUE_FILTER");
+  }
   const mirror = await ensureMirroredSportTable(primary, sportDb, table);
   if (!mirror.ok) return { table, ok: false, copied: 0, ...mirror };
 
@@ -902,9 +926,20 @@ export async function copyPrefixedTablePaged(primary, sportDb, tableName, {
   let lastKey = cursor;
   for (; pages < maxPages; pages += 1) {
     const plan = prefixCompositeCursorPlan(keyNames, cursor);
+    const filterTerms = [];
+    const filterArgs = [];
+    if (league) {
+      filterTerms.push("league=?");
+      filterArgs.push(league);
+    }
+    if (plan.where) {
+      filterTerms.push(plan.where.replace(/^WHERE\\s+/i, ""));
+      filterArgs.push(...plan.values);
+    }
+    const where = filterTerms.length ? `WHERE ${filterTerms.join(" AND ")}` : "";
     const page = await primary.prepare(
-      `SELECT ${selectCols.join(",")} FROM ${table} ${plan.where} ORDER BY ${plan.orderBy} ASC LIMIT ?`
-    ).bind(...plan.values, pageSize).all();
+      `SELECT ${selectCols.join(",")} FROM ${table} ${where} ORDER BY ${plan.orderBy} ASC LIMIT ?`
+    ).bind(...filterArgs, pageSize).all();
     const rows = page?.results || [];
     if (!rows.length) break;
     const colList = cols.join(",");
@@ -965,11 +1000,14 @@ export async function verifySportPrefixParity(env, sport, { now = new Date() } =
   let incomplete = 0;
   let missing = 0;
   for (const table of tables) {
-    const primaryN = await count(primary, `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}`);
+    const league = table.startsWith("asian_baseball_") && ["kbo", "npb"].includes(key)
+      ? key.toUpperCase() : null;
+    const countSql = `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}${league ? " WHERE league=?" : ""}`;
+    const primaryN = await count(primary, countSql, ...(league ? [league] : []));
     let sportN = null;
     let reason = null;
     try {
-      sportN = await count(sportDb, `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}`);
+      sportN = await count(sportDb, countSql, ...(league ? [league] : []));
     } catch (error) {
       reason = String(error?.message || error).slice(0, 120);
     }
@@ -1054,8 +1092,11 @@ export async function copySportPrefixTables(env, sport, {
   if (skipCaughtUp && wanted.length) {
     const next = [];
     for (const table of wanted) {
-      const primaryN = await count(primary, `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}`);
-      const sportN = await count(sportDb, `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}`);
+      const league = table.startsWith("asian_baseball_") && ["kbo", "npb"].includes(key)
+        ? key.toUpperCase() : null;
+      const countSql = `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}${league ? " WHERE league=?" : ""}`;
+      const primaryN = await count(primary, countSql, ...(league ? [league] : []));
+      const sportN = await count(sportDb, countSql, ...(league ? [league] : []));
       const replayKey = `copy_replay_active_prefix_${table}`;
       const replayActive = resume && (await metaGet(sportDb, replayKey)) === "1";
       if (primaryN != null && sportN != null && primaryN === sportN && !replayActive) {
@@ -1083,6 +1124,8 @@ export async function copySportPrefixTables(env, sport, {
         pageSize: Math.min(500, Math.max(1, Number(pageSize) || 200)),
         maxPages: Math.min(100, Math.max(1, Number(maxPages) || 25)),
         afterKey,
+        leagueFilter: table.startsWith("asian_baseball_") && ["kbo", "npb"].includes(key)
+          ? key.toUpperCase() : null,
       });
       if (copied.cursor) await metaSet(sportDb, `copy_cursor_prefix_${table}`, copied.cursor);
       // Only stop replaying after the keyset scan reaches its end.
