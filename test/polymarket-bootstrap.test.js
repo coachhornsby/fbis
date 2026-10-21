@@ -128,3 +128,19 @@ test('WTA underscore receipt identities persist without relaxing provider slug v
  await assert.rejects(()=>bootstrapPolymarket(e,{operation:'page',sport:'nfl',slug:'invalid_slug',offset:0,receiptId:'bad-slug'},
   {now,fetchImpl:async()=>Response.json({events:[]})}),/INVALID_SCOPE/);
 });
+
+test('bootstrap does not resume aged receipts into expired quote batches',async()=>{
+ const e=environment();
+ const now=new Date('2026-10-18T06:00:00Z');
+ const run='bootstrap-old-1';
+ for(const [startedAt,expectedRun] of [
+  ['2026-10-18T05:40:00Z',null],
+  ['2026-10-18T05:50:00Z',run],
+ ]) {
+  await e.ARCHIVE.put('market-sources/polymarket-us/coverage/latest.json',
+   JSON.stringify({run,runStartedAt:startedAt,checkedAt:now.toISOString(),
+    status:'GAPS',errors:[{reason:'SOURCE_UNAVAILABLE'}]}));
+  const result=await bootstrapPolymarket(e,{operation:'resume'},{now});
+  assert.equal(result.run,expectedRun);
+ }
+});

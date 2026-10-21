@@ -56,9 +56,11 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
  const fixtures=await projectedPolymarketFixtures(env.DB,now);
  if(opts.operation==='resume'){
   const object=await env.ARCHIVE.get('market-sources/polymarket-us/coverage/latest.json');if(!object)return {ok:true,run:null};const previous=await object.json();
-  const started=previous.runStartedAt||previous.checkedAt;
+  // A 30-minute quote receipt cannot be safely resumed near expiry: full-league
+   // discovery can take over 15 minutes before reaching an early book batch.
+   const started=previous.runStartedAt||previous.checkedAt;
   const gaps=previous.status==='IN_PROGRESS'||previous.errors?.length||previous.missingMarketEnumeration?.length||previous.missingBooks?.length||previous.missingSubscriptions?.length;
-  return {ok:true,run:gaps&&valid(previous.run)&&now.getTime()-Date.parse(started)<3600000?previous.run:null,runStartedAt:started};
+  return {ok:true,run:gaps&&valid(previous.run)&&now.getTime()-Date.parse(started)<15*60*1000?previous.run:null,runStartedAt:started};
  }
  if(opts.operation==='catalogue'){
   const offset=opts.offset??0;if(!Number.isSafeInteger(offset)||offset<0||offset%50)throw Error('INVALID_CATALOGUE_OFFSET');
