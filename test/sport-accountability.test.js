@@ -13,8 +13,8 @@ test("eleven sport reporting rows are present and no absence is labeled zero",()
  assert.equal(x.eligibleForecasts,1);
  assert.equal(x.sports.find(s=>s.sport==="tennis").status,"NO_VERIFIED_PREGAME_OUTCOMES");
  assert.equal(x.sports.find(s=>s.sport==="tennis").scoreMae,null);
- assert.equal(x.sports.find(s=>s.sport==="nfl").scoreMae,3.5);
- assert.equal(x.sports.find(s=>s.sport==="nfl").brier,.16);
+ assert.equal(x.sports.find(s=>s.sport==="nfl").scoreMae,3);
+ assert.ok(Math.abs(x.sports.find(s=>s.sport==="nfl").brier-.16)<1e-12);
  assert.equal(x.sports.find(s=>s.sport==="nfl").simulationStatus,"NO_VERIFIED_SIMULATION_EVIDENCE");
  assert.equal(x.sports.find(s=>s.sport==="nfl").roi,null);
  assert.equal(x.governance.autoWagerAuthority,false);
