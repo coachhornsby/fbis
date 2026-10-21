@@ -43,7 +43,9 @@ function summary(values) {
     n: sorted.length,
     p05: quantile(sorted, .05),
     p10: quantile(sorted, .10),
+    p25: quantile(sorted, .25),
     p50: quantile(sorted, .50),
+    p75: quantile(sorted, .75),
     p90: quantile(sorted, .90),
     p95: quantile(sorted, .95),
     mean: average(sorted),
@@ -103,7 +105,7 @@ export function runSportSimulationResearch({
 function accepted(row) {
   let sport;
   try { sport = sportKey(row?.sport); } catch { return { error: "UNSUPPORTED_SPORT" }; }
-  if (![row?.eventId, row?.modelId, row?.modelVersion, row?.marketKey, row?.statKey].every(v => typeof v === "string" && v.trim())) return { error: "MISSING_IDENTITY" };
+  if (![row?.eventId, row?.subjectId, row?.modelId, row?.modelVersion, row?.marketKey, row?.statKey, row?.snapshotId, row?.settlementId].every(v => typeof v === "string" && v.trim())) return { error: "MISSING_IDENTITY" };
   const published = time(row.publishedAt), start = time(row.eventStart), settled = time(row.settledAt);
   if (!(Number.isFinite(published) && Number.isFinite(start) && Number.isFinite(settled) && published < start && settled >= start)) return { error: "INVALID_TEMPORAL_EVIDENCE" };
   if (row.official !== true || row.prospective !== true || row.identityVerified !== true) return { error: "UNVERIFIED_OUTCOME" };
@@ -111,7 +113,7 @@ function accepted(row) {
     if (!finite(row.probability) || row.probability < 0 || row.probability > 1 || (row.actual !== 0 && row.actual !== 1)) return { error: "INVALID_BINARY_FORECAST" };
   } else if (row.kind === "quantity") {
     const q = row.quantiles || {};
-    const values = [q.p05, q.p10, q.p50, q.p90, q.p95];
+    const values = [q.p05, q.p10, q.p25, q.p50, q.p75, q.p90, q.p95];
     if (!finite(row.actual) || values.some(v => !finite(v)) || values.some((v, i) => i > 0 && v < values[i-1])) return { error: "INVALID_QUANTILE_FORECAST" };
   } else return { error: "UNKNOWN_FORECAST_KIND" };
   return { sport };
@@ -119,7 +121,8 @@ function accepted(row) {
 /**
  * Strict descriptive grading of immutable prospective rows.
  * Separate forecasts for the same event/stat/model are not independent:
- * callers must supply one canonical pregame snapshot per forecast identity.
+ * callers must supply one canonical pregame snapshot per subject/forecast identity.
+ * snapshotId and settlementId are required evidence references, not computed IDs.
  * No market/economic metric is calculated from an absent execution ledger.
  */
 export function gradeSportSimulationResearch(rows = [], { minimumSample = 100 } = {}) {
@@ -129,7 +132,7 @@ export function gradeSportSimulationResearch(rows = [], { minimumSample = 100 } 
   for (const row of rows) {
     const valid = accepted(row);
     if (valid.error) { errors[valid.error] = (errors[valid.error] || 0) + 1; continue; }
-    const identity = [valid.sport, row.eventId, row.modelId, row.modelVersion, row.marketKey, row.statKey].join("|");
+    const identity = [valid.sport, row.eventId, row.subjectId, row.modelId, row.modelVersion, row.marketKey, row.statKey].join("|");
     if (seen.has(identity)) { errors.DUPLICATE_FORECAST = (errors.DUPLICATE_FORECAST || 0) + 1; continue; }
     seen.add(identity);
     const cohortId = [valid.sport, row.modelId, row.modelVersion, row.marketKey, row.statKey, row.kind].join("|");
@@ -143,6 +146,7 @@ export function gradeSportSimulationResearch(rows = [], { minimumSample = 100 } 
       return { ...base,
         medianMae: average(v.map(r => Math.abs(r.actual - r.quantiles.p50))),
         medianBias: average(v.map(r => r.actual - r.quantiles.p50)),
+        coverage50: average(v.map(r => Number(r.actual >= r.quantiles.p25 && r.actual <= r.quantiles.p75))),
         coverage80: average(v.map(r => Number(r.actual >= r.quantiles.p10 && r.actual <= r.quantiles.p90))),
         coverage90: average(v.map(r => Number(r.actual >= r.quantiles.p05 && r.actual <= r.quantiles.p95))),
         upper90Breach: average(v.map(r => Number(r.actual > r.quantiles.p90))),
@@ -162,7 +166,7 @@ export function gradeSportSimulationResearch(rows = [], { minimumSample = 100 } 
     }
     return { ...base, brier, logLoss,
       reliability: bins.map(b => ({ bin: b.bin, n: b.count, predicted: b.count ? b.probabilitySum/b.count : null, observed: b.count ? b.outcomeSum/b.count : null })),
-      medianMae: null, medianBias: null, coverage80: null, coverage90: null, upper90Breach: null, lower10Breach: null,
+      medianMae: null, medianBias: null, coverage50: null, coverage80: null, coverage90: null, upper90Breach: null, lower10Breach: null,
     };
   }).sort((a,b) => [a.sport,a.marketKey,a.statKey,a.modelId].join("|").localeCompare([b.sport,b.marketKey,b.statKey,b.modelId].join("|")));
   return { accepted: results.reduce((s, x) => s + x.n, 0), rejected: Object.values(errors).reduce((s, x) => s + x, 0),
