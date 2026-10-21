@@ -1037,15 +1037,16 @@ export async function copySportPrefixTables(env, sport, {
       const replayActive = resume && (await metaGet(sportDb, replayKey)) === "1";
       // NFL team/player profile rows update in place. Equal counts do not
       // imply parity: a saved keyset cursor otherwise hides changed rosters.
-      const checkInPlaceUpdates = key === "nfl" &&
-        ["nfl_team_profiles", "nfl_player_profiles"].includes(table);
+      const freshnessColumn = key === "nfl" &&
+        ["nfl_team_profiles", "nfl_player_profiles"].includes(table) ? "updated_at" :
+        key === "cfb" && table === "cfb_pregame_feature_vectors" ? "created_at" : null;
       let staleContent = false;
-      if (checkInPlaceUpdates && primaryN != null && sportN != null &&
+      if (freshnessColumn && primaryN != null && sportN != null &&
           primaryN === sportN && !replayActive) {
         const safe = assertSafeIdent(table);
         const [sourceStamp, targetStamp] = await Promise.all([
-          primary.prepare(`SELECT MAX(updated_at) AS latest FROM ${safe}`).first(),
-          sportDb.prepare(`SELECT MAX(updated_at) AS latest FROM ${safe}`).first(),
+          primary.prepare(`SELECT MAX(${freshnessColumn}) AS latest FROM ${safe}`).first(),
+          sportDb.prepare(`SELECT MAX(${freshnessColumn}) AS latest FROM ${safe}`).first(),
         ]);
         staleContent = newerPrefixSourceTimestamp(sourceStamp?.latest, targetStamp?.latest);
       }
