@@ -1,20 +1,22 @@
 /**
- * Research-only CFB scoring challengers (Models B / C / D).
+ * Research-only CFB scoring challengers (Models B / C / D / E).
  *
  * Model A = production CFB-FBIS-v2 fitted A/A (repaired current-season inputs).
  * These challengers MUST NOT authorize wagers or mutate production coefficients.
- * Coefficients here are documented research hypotheses evaluated via walk-forward —
+ * Fitted advanced packages come from fold3 walk-forward research artifacts —
  * not Oct-17-tuned hacks.
  */
 
 import { projectCfbFbisV2Production } from "./cfbFbisV2.js";
 import { projectCfbCoreShadow, CFB_CORE_SHADOW_ID } from "./cfbCoreChallenger.js";
 import { currentSeasonWeight, CFB_PRIOR_DECAY_DEFAULT_K } from "./cfbPriorDecay.js";
+import { getResearchFittedArtifact } from "./cfbResearchModelFamilies.js";
 
 export const CFB_MODEL_A_ID = "CFB-FBIS-v2";
-export const CFB_MODEL_B_ID = "CFB-CURRENT-SEASON-v1";
-export const CFB_MODEL_C_ID = "CFB-CURRENT-CORE-v1";
-export const CFB_MODEL_D_ID = "CFB-COMBINED-RESEARCH-v1";
+export const CFB_MODEL_B_ID = "CFB-RESEARCH-B";
+export const CFB_MODEL_C_ID = "CFB-RESEARCH-C";
+export const CFB_MODEL_D_ID = "CFB-RESEARCH-D";
+export const CFB_MODEL_E_ID = "CFB-RESEARCH-E";
 
 const RESEARCH = Object.freeze({
   authority: "research_only",
@@ -45,33 +47,48 @@ export function projectModelA(game = {}) {
     modelId: CFB_MODEL_A_ID,
     label: "Repaired Champion",
     ...RESEARCH,
-    // Model A mirrors production projection authority flags from the package,
-    // but challenger wrappers never authorize wagers.
     canAuthorizeWager: false,
     canQualify: false,
   };
 }
 
 /**
- * Model B — current-season dominant.
- *
- * Same fitted A/A ridge as production, but research shrinkK=3 (documented in
- * cfbPriorDecay candidate set) so that at n=6 current weight is 67% not 50%.
- * Does not invent success/PPO betas — those stay unused until a leakage-safe refit.
+ * Model B — fitted advanced pass/rush ridge (research package).
+ * Falls back to shrinkK sensitivity only when the fitted artifact is missing.
  */
-export function projectModelB(game = {}, { shrinkK = 3 } = {}) {
+export function projectModelB(game = {}, { shrinkK = 3, fitted = null } = {}) {
+  const artifact = fitted || getResearchFittedArtifact("B");
+  if (artifact?.margin?.beta?.length) {
+    const primary = projectCfbFbisV2Production(game, { fitted: artifact });
+    return {
+      ...primary,
+      ok: Boolean(primary?.ok),
+      challengerId: "B",
+      modelId: CFB_MODEL_B_ID,
+      label: "Advanced Pass/Rush (fitted research)",
+      fittedArtifactId: artifact.id,
+      oosDecision: artifact.oosValidation?.decision || null,
+      improvesOverChampion: artifact.oosValidation?.improvesOverChampion === true,
+      ...RESEARCH,
+      home: round1(primary?.home),
+      away: round1(primary?.away),
+      margin: round1((primary?.home ?? 0) - (primary?.away ?? 0)),
+      total: round1((primary?.home ?? 0) + (primary?.away ?? 0)),
+      projectionEnabled: false,
+      canPublishForecasts: false,
+    };
+  }
   const primary = projectCfbFbisV2Production(game, { shrinkK });
   const homeGames =
     num(game?.cfbFbisV2Input?.home?.gamesPlayed ?? game?.cfbDeepInput?.home?.gamesPlayed) || 0;
   const awayGames =
     num(game?.cfbFbisV2Input?.away?.gamesPlayed ?? game?.cfbDeepInput?.away?.gamesPlayed) || 0;
-
   return {
     ...primary,
     ok: Boolean(primary?.ok),
     challengerId: "B",
     modelId: CFB_MODEL_B_ID,
-    label: "Current-Season Performance",
+    label: "Current-Season Performance (shrink scaffold)",
     researchShrinkK: shrinkK,
     currentSeasonWeights: {
       home: currentSeasonWeight(homeGames, shrinkK),
@@ -84,6 +101,7 @@ export function projectModelB(game = {}, { shrinkK = 3 } = {}) {
     away: round1(primary?.away),
     margin: round1((primary?.home ?? 0) - (primary?.away ?? 0)),
     total: round1((primary?.home ?? 0) + (primary?.away ?? 0)),
+    note: "Fitted B artifact unavailable — shrinkK scaffold only",
   };
 }
 
@@ -145,42 +163,63 @@ export function projectModelC(game = {}, { coreArtifact = null, season = 2026, w
 }
 
 /**
- * Model D — simple research blend of A and B margins/totals (equal weight).
- * Not a fitted combined model; used only for comparative diagnostics until
- * leakage-safe combined training lands.
+ * Model D — SDV challenger. Fails closed until a validated SDV fitted artifact exists.
  */
-export function projectModelD(game = {}) {
-  const a = projectModelA(game);
-  const b = projectModelB(game);
-  if (!a?.ok || !b?.ok) {
+export function projectModelD(game = {}, { sdvArtifact = null } = {}) {
+  void game;
+  if (!sdvArtifact) {
     return {
       ok: false,
       challengerId: "D",
       modelId: CFB_MODEL_D_ID,
-      label: "Optimized Combined (research blend)",
-      reason: "missing-A-or-B",
-      a,
-      b,
+      label: "Advanced CFBD + SDV",
+      reason: "FITTED_SDV_ARTIFACT_UNAVAILABLE",
+      ...RESEARCH,
+      note: "SDV never enters fitted champion; no validated SDV challenger artifact",
+    };
+  }
+  return {
+    ok: false,
+    challengerId: "D",
+    modelId: CFB_MODEL_D_ID,
+    label: "Advanced CFBD + SDV",
+    reason: "SDV_ARTIFACT_NOT_WIRED",
+    ...RESEARCH,
+  };
+}
+
+/**
+ * Model E — fitted combined advanced CFBD (pass/rush + drive + situational).
+ */
+export function projectModelE(game = {}, { fitted = null } = {}) {
+  const artifact = fitted || getResearchFittedArtifact("E");
+  if (!artifact?.margin?.beta?.length) {
+    return {
+      ok: false,
+      challengerId: "E",
+      modelId: CFB_MODEL_E_ID,
+      label: "Optimized Combined Advanced",
+      reason: "FITTED_COMBINED_ARTIFACT_UNAVAILABLE",
       ...RESEARCH,
     };
   }
-  const margin = (a.margin + b.margin) / 2;
-  const total = (a.total + b.total) / 2;
-  const home = round1((total + margin) / 2);
-  const away = round1((total - margin) / 2);
+  const primary = projectCfbFbisV2Production(game, { fitted: artifact });
   return {
-    ok: true,
-    challengerId: "D",
-    modelId: CFB_MODEL_D_ID,
-    label: "Optimized Combined (research blend)",
-    home,
-    away,
-    margin: round1(home - away),
-    total: round1(home + away),
-    components: { A: { home: a.home, away: a.away }, B: { home: b.home, away: b.away } },
-    blend: "equal-weight-margin-total",
+    ...primary,
+    ok: Boolean(primary?.ok),
+    challengerId: "E",
+    modelId: CFB_MODEL_E_ID,
+    label: "Optimized Combined Advanced (fitted research)",
+    fittedArtifactId: artifact.id,
+    oosDecision: artifact.oosValidation?.decision || null,
+    improvesOverChampion: artifact.oosValidation?.improvesOverChampion === true,
     ...RESEARCH,
-    note: "Equal-weight A/B blend is a diagnostic placeholder, not a trained ensemble",
+    home: round1(primary?.home),
+    away: round1(primary?.away),
+    margin: round1((primary?.home ?? 0) - (primary?.away ?? 0)),
+    total: round1((primary?.home ?? 0) + (primary?.away ?? 0)),
+    projectionEnabled: false,
+    canPublishForecasts: false,
   };
 }
 
@@ -189,7 +228,8 @@ export function projectAllChallengers(game = {}, opts = {}) {
     A: projectModelA(game),
     B: projectModelB(game, opts),
     C: projectModelC(game, opts),
-    D: projectModelD(game),
+    D: projectModelD(game, opts),
+    E: projectModelE(game, opts),
     coreShadowId: CFB_CORE_SHADOW_ID,
   };
 }
