@@ -9,7 +9,7 @@ export async function onRequestPost({request,env}){
  const receipts=[],errors=[];
  for(const tour of ['atp','wta']){
   try{
-   const record=await fetchTennisAbstractElo(tour);
+   const record=await fetchTennisAbstractElo(tour,{apifyToken:env.APIFY_TOKEN});
    receipts.push(await persistTennisAbstractElo(env.DB,record));
   }catch(e){errors.push({tour,error:String(e?.message||e).slice(0,140)});}
  }
@@ -21,7 +21,7 @@ export async function onRequestPost({request,env}){
 export async function onRequestGet({env}){
  if(!env?.DB?.prepare)return json({ok:false,error:'D1_BINDING_UNAVAILABLE'},503);
  try{
-  const rows=(await env.DB.prepare(`SELECT tour,report_date,player_count,retrieved_at,
+  const rows=(await env.DB.prepare(`SELECT tour,report_date,player_count,retrieved_at,source_label,
    'TENNIS_ABSTRACT_LIVE_ELO_RESEARCH' AS source FROM (
    SELECT *,ROW_NUMBER() OVER(PARTITION BY tour ORDER BY report_date DESC,retrieved_at DESC) rn
    FROM tennis_abstract_elo_runs) WHERE rn=1 ORDER BY tour`).all()).results||[];
