@@ -48,13 +48,34 @@ export function parseTennisAbstractElo(html,tour,{now=new Date()}={}){
 }
 const hash=async data=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(data)))]
  .map(v=>v.toString(16).padStart(2,'0')).join('');
-export async function fetchTennisAbstractElo(tour,{fetchImpl=fetch,now=new Date()}={}){
+/**
+ * The tennisabstract.com origin blocks Cloudflare's Pages egress (403).
+ * APIFY_TOKEN is an existing Cloudflare secret; use the bounded web-fetch
+ * relay ONLY when direct transport is blocked. Validate the relay's original
+ * target and the untouched HTML with the same strict source parser.
+ */
+export async function fetchTennisAbstractElo(tour,{fetchImpl=fetch,now=new Date(),apifyToken=null}={}){
  if(!['atp','wta'].includes(tour))throw Error('ELO_TOUR_INVALID');
  const url=tennisAbstractEloUrl(tour);
  const response=await fetchImpl(url,{headers:{accept:'text/html'},signal:AbortSignal.timeout(20000)});
- if(!response.ok)throw Error('ELO_PROVIDER_HTTP_'+response.status);
- const html=await response.text(),parsed=parseTennisAbstractElo(html,tour,{now});
- return {...parsed,sourceHash:await hash(html),retrievedAt:now.toISOString()};
+ let html,acquisitionTransport='DIRECT_HTTPS';
+ if(response.ok){
+  html=await response.text();
+ }else if([403,429].includes(response.status)&&apifyToken){
+  const relay=await fetchImpl('https://api.apify.com/v2/acts/apify~web-fetch/run-sync-get-dataset-items?format=json&timeout=90',{
+   method:'POST',headers:{'authorization':'Bearer '+apifyToken,'content-type':'application/json'},
+   body:JSON.stringify({url,formats:['raw']}),signal:AbortSignal.timeout(100000)});
+  if(!relay.ok)throw Error('ELO_RELAY_HTTP_'+relay.status);
+  const body=await relay.json();
+  if(!Array.isArray(body)||body.length!==1||body[0]?.fetch?.httpStatusCode!==200||
+    body[0]?.fetch?.loadedUrl!==url||typeof body[0].raw!=='string'||
+    body[0].raw.length<10000||body[0].raw.length>2000000)
+    throw Error('ELO_RELAY_SOURCE_EVIDENCE_INVALID');
+  html=body[0].raw;
+  acquisitionTransport='APIFY_WEB_FETCH_RELAY';
+ }else throw Error('ELO_PROVIDER_HTTP_'+response.status);
+ const parsed=parseTennisAbstractElo(html,tour,{now});
+ return {...parsed,sourceHash:await hash(html),retrievedAt:now.toISOString(),acquisitionTransport};
 }
 export async function persistTennisAbstractElo(db,record){
  if(!db?.prepare||!record?.players?.length||!record?.sourceHash)throw Error('ELO_STORAGE_INPUT_INVALID');
@@ -80,8 +101,9 @@ export async function persistTennisAbstractElo(db,record){
   .bind(record.tour,record.reportDate,record.sourceHash).first();
  if(Number(check?.n)!==record.players.length)throw Error('ELO_ROW_PARITY_FAILED');
  await db.prepare(`INSERT OR IGNORE INTO tennis_abstract_elo_runs
-  (tour,report_date,source_hash,source_url,player_count,retrieved_at,research_only,can_authorize_wager)
-  VALUES(?,?,?,?,?,?,1,0)`).bind(record.tour,record.reportDate,record.sourceHash,record.url,
+  (tour,report_date,source_hash,source_url,source_label,player_count,retrieved_at,research_only,can_authorize_wager)
+  VALUES(?,?,?,?,?,?,?,1,0)`).bind(record.tour,record.reportDate,record.sourceHash,record.url,
+  record.acquisitionTransport==='APIFY_WEB_FETCH_RELAY'?'TENNIS_ABSTRACT_ELO_APIFY_RELAY':'TENNIS_ABSTRACT_LIVE_ELO',
   record.players.length,record.retrievedAt).run();
  return {tour:record.tour,reportDate:record.reportDate,players:record.players.length,
   unchanged:false,wrote,sourceHash:record.sourceHash};
