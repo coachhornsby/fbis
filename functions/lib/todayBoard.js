@@ -30,6 +30,8 @@ import { loadStoredTennisPrizePicksHeadshots } from "./tennisPrizePicksHeadshots
 import { buildIndependentTennisCards, tennisFixtureOffers } from "./tennisIntelligenceBank.js";
 import { attachOfficialTennisExchangeResearch } from "./tennisOfficialExchangeResearch.js";
 import {loadPolymarketUsTennisInventory,mergePolymarketUsTennisCards} from "./tennisExchangeInventory.js";
+import {loadKalshiTennisResearch} from "./tennisKalshiResearch.js";
+import {loadPolymarketGlobalTennisSnapshot} from "./tennisPolymarketGlobal.js";
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "./polymarketBoard.js";
 import { listMarketHistoryReadDbs } from "./databaseTopology.js";
 import {
@@ -740,7 +742,19 @@ async function tennisVenueOffers(db,row,now){
 
 export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} = {}) {
   if (!env.DB?.prepare) {
-    return { sport: "tennis", date, games: [], research: { configured: false, error: "database unavailable" } };
+    // The EXCHANGE board must not disappear merely because model D1 or ESPN
+    // is unavailable. Degraded cards have no inferred FBIS win probability.
+    const [inventory,kalshi,polymarketGlobal]=await Promise.all([
+      loadPolymarketUsTennisInventory(env.ARCHIVE,{now}),
+      loadKalshiTennisResearch(env,now).catch(()=>({atp:[],wta:[]})),
+      loadPolymarketGlobalTennisSnapshot(env.ARCHIVE,{now}).catch(()=>({events:[]})),
+    ]);
+    const exchange=mergePolymarketUsTennisCards([],inventory,{
+      date,now,kalshi,polymarketGlobal});
+    return {sport:"tennis",date,games:exchange.games,
+      research:{configured:inventory.ok,source:"EXCHANGE_LISTINGS_R2",
+       modelStatus:"MODEL_DATABASE_UNAVAILABLE",records:exchange.games.length,
+       withheld:0,exchangeInventoryStatus:exchange.status}};
   }
   const [query] = await Promise.all([
     env.DB.prepare(`
@@ -1059,7 +1073,17 @@ export async function buildTennisResearchSlate(date, env = {}, {now=new Date()} 
         quality:{state:"RESEARCH",flags:["research_only","projection_unavailable"]}});
     }
   } catch { projectionCoverage={status:"UNAVAILABLE",reason:"COVERAGE_EVIDENCE_UNAVAILABLE"}; }
-  const independent = await buildIndependentTennisCards(env.DB, date, {now,archive:env.ARCHIVE});
+  let independent={games:[],exchangeSources:null,coverage:{source:"ESPN_ENRICHMENT_NOT_AVAILABLE"}};
+  try{independent=await buildIndependentTennisCards(env.DB,date,{now,archive:env.ARCHIVE})}
+  catch{
+    // Historical ESPN research is optional. Exchange market inventory and
+    // official FBIS projections remain available when that feed fails.
+    const [kalshi,polymarketGlobal]=await Promise.all([
+      loadKalshiTennisResearch(env,now).catch(()=>({atp:[],wta:[]})),
+      loadPolymarketGlobalTennisSnapshot(env.ARCHIVE,{now}).catch(()=>({events:[]})),
+    ]);
+    independent.exchangeSources={kalshi,polymarketGlobal};
+  }
   // Official projection cards take precedence for the same tour/player pair/start.
   const key = g => [String(g.tour).toLowerCase(), [tennisNameKey(g.home?.name),tennisNameKey(g.away?.name)].sort().join("|"),Date.parse(g.start)].join(":");
   const seen = new Set(games.map(key));
