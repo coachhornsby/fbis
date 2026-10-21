@@ -1,3 +1,4 @@
+import { nflSportDbContext } from "../lib/nflSportDbContext.js";
 import { authorizeOperatorWrite, unauthorizedBody } from "../lib/auth.js";
 import { buildSlate, resolveSlateDate, shiftDateCT, todayCT } from "../lib/slateEngine.js";
 import { productProjectionCard } from "../lib/productProjection.js";
@@ -86,7 +87,7 @@ export async function onRequestPost(context) {
     CFBD_API_KEY: context.env.CFBD_API_KEY,
     CBBD_API_KEY: context.env.CBBD_API_KEY,
     KENPOM_API_KEY: context.env.KENPOM_API_KEY,
-    DB: context.env.DB,
+    ...nflSportDbContext(context.env), DB: context.env.DB,
     ARCHIVE: context.env.ARCHIVE,
     caches: caches.default,
   };
