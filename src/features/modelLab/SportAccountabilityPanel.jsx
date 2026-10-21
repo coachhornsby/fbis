@@ -4,7 +4,7 @@ import "./sportAccountability.css";
 const SPORTS=["all","nfl","cfb","nba","cbb","wnba","mlb","npb","kbo","nhl","soccer","tennis"];
 const fmt=(n,d=1)=>typeof n==="number"&&Number.isFinite(n)?n.toFixed(d):"—";
 const pct=n=>typeof n==="number"&&Number.isFinite(n)?(n*100).toFixed(1)+"%":"—";
-function statusName(s){return s==="PREGAME_OUTCOMES_GRADED"?"Official scores graded":"Awaiting verified outcomes";}
+function statusName(s){return s==="READ_DEGRADED"?"Snapshot source unavailable":s==="PREGAME_OUTCOMES_GRADED"?"Graded pregame outcomes":"Awaiting verified outcomes";}
 function Badge({ok,children}){return <span className={"si-status "+(ok?"si-ok":"si-muted")}>{children}</span>}
 export default function SportAccountabilityPanel({sportFilter="all"}){
   const [sport,setSport]=useState(SPORTS.includes(sportFilter)?sportFilter:"all");
@@ -29,7 +29,7 @@ export default function SportAccountabilityPanel({sportFilter="all"}){
       <div>
         <p className="si-kicker">FBIS · MODEL INTELLIGENCE</p>
         <h2>Simulation & Model Accountability</h2>
-        <p className="si-subtitle">Verified pregame forecasts vs. official game outcomes. Simulation-range and betting economics stay blank until independently supported.</p>
+        <p className="si-subtitle">Frozen pregame projections compared with graded outcomes. Simulation-range and betting economics stay blank until independently supported.</p>
       </div>
       <div className="si-controls">
         <label>Sport <select aria-label="Accountability sport" value={sport} onChange={e=>setSport(e.target.value)}>
@@ -43,6 +43,7 @@ export default function SportAccountabilityPanel({sportFilter="all"}){
     {loading&&<p role="status" className="si-subtitle">Reading frozen model evidence…</p>}
     {error&&<p role="alert" className="si-error">Model accountability unavailable: {error}. No results inferred.</p>}
     {report&&<div className="si-content">
+      {report.degraded&&<p className="si-error" role="alert">Snapshot source degraded for {report.failedSports?.join(", ")}. Those sports are not counted as healthy.</p>}
       <div className="si-stat-grid">
         <article className="si-stat"><span>Official graded forecasts</span><strong>{report.eligibleForecasts}</strong><small>{report.eligibleEvents} events · across models</small></article>
         <article className="si-stat"><span>Covered sports</span><strong>{sports.filter(s=>s.samples>0).length}<small>/{sports.length}</small></strong><small>Verified pregame evidence only</small></article>

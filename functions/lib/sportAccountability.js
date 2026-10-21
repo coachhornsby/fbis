@@ -113,12 +113,13 @@ export function buildSportAccountabilityReport(rows = [], { sport = "all", gener
     }));
   return {
     ok:true, version:"fbis-accountability-v1", generatedAt, sport, windowDays,
-    source:"immutable_prediction_snapshots", sourceStatus:"READ_ONLY_PRIMARY",
+    source:"immutable_prediction_snapshots", sourceStatus:"CANONICAL_SPORT_READ_ROUTING",
     sports:sport==="all"?allSports:allSports.filter(s=>s.sport===sport),
     cohorts, receipts, rejectionCounts:rejected,
     eligibleEvents:new Set(selected.map(r=>[r.sport,r.gameId].join("|"))).size,
     eligibleForecasts:selected.length,
     notes:[
+      "Recorded final-score grading does not independently verify the upstream official result source.",
       "Observed score metrics are not simulation-range calibration.",
       "Prediction interval coverage requires archived prospective simulation quantiles.",
       "Economic metrics require a separate priced/settled execution ledger.",
