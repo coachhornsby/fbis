@@ -1,0 +1,64 @@
+name: Tennis Abstract current Elo research refresh
+on:
+  schedule:
+    # Tennis Abstract reports update roughly weekly; daily source checks are sufficient.
+    - cron: '15 13 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'functions/lib/tennisAbstractEloSource.js'
+      - 'functions/api/tennis-abstract-elo-refresh.js'
+      - 'migrations/0102_tennis_abstract_live_elo_research.sql'
+      - '.github/workflows/tennis-abstract-current-elo.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fbis-tennis-abstract-current-elo
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Regression-test parser before source calls
+        run: node --test test/tennis-abstract-elo-source.test.mjs
+      - name: Wait for source endpoint and additive migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            response="$(curl -fsS --connect-timeout 3 --max-time 10 'https://fbis-myz.pages.dev/api/tennis-abstract-elo-refresh' || true)"
+            if jq -e '.ok == true and (.snapshots | type == "array")' <<<"$response" >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" = 30 ]; then echo 'ELO_ENDPOINT_OR_SCHEMA_UNAVAILABLE'; exit 1; fi
+            sleep 10
+          done
+      - name: Refresh research-only live ATP and WTA Elo
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "HARVEST_SECRET_NOT_CONFIGURED"; exit 1; }
+          status="$(curl -sS --max-time 170 -w '%{http_code}' -o /tmp/elo-receipt.json \
+            -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H 'content-type: application/json' \
+            -d '{}' 'https://fbis-myz.pages.dev/api/tennis-abstract-elo-refresh')"
+          jq '{ok,receipts,errors,researchOnly,canAuthorizeWager}' /tmp/elo-receipt.json
+          test "$status" = 200
+          jq -e '.ok == true and (.receipts | length) == 2 and
+            all(.receipts[]; .players >= 100) and
+            .researchOnly == true and .canAuthorizeWager == false' /tmp/elo-receipt.json
+      - name: Verify persisted source-date and player-count receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(curl -fsS --max-time 15 'https://fbis-myz.pages.dev/api/tennis-abstract-elo-refresh')"
+          jq -e '.ok == true and (.snapshots | length) == 2 and
+            all(.snapshots[]; .player_count >= 100)' <<<"$body"
+          echo "$body" | jq -c '.snapshots' >> "$GITHUB_STEP_SUMMARY"
