@@ -28,7 +28,6 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const away=game?.away||{},home=game?.home||{},t=game?.tennisProjection||{},ref=game?.market?.reference||{},intel=game?.actionIntel||{};
   if(t.eventIntegrity?.valid!==true && !(t.researchFixture?.verified===true && ["ESPN_PUBLIC","POLYMARKET_US_PUBLIC","KALSHI_PUBLIC_SHADOW"].includes(t.researchFixture?.source) && t.researchFixture?.fixtureId===game?.id))return <article className="tmc" role="status">Tennis card withheld: event identity or projection provenance is unverified.</article>;
   const tour=String(game?.tour||t?.tour||"TENNIS").toUpperCase();
-  const marketSnapshot=tennisMarketSnapshot(t);
   const display=tennisProjectionDisplay(game),{pAway,pHome,edgeHome,edgeAway}=display;
   // Research estimates are visually useful but remain separate from the
   // independently governed full FBIS projection and market-edge calculation.
@@ -51,6 +50,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
 
   const spread=ref?.spreadDetail||(typeof ref?.spread==="object"?ref.spread:{} )||{},total=ref?.totalDetail||(typeof ref?.total==="object"?ref.total:{} )||{},ml=ref?.moneyline||{};
   const venueOffers=[...(Array.isArray(t.venueOffers)?t.venueOffers:[]),...(Array.isArray(game?.market?.venueOffers)?game.market.venueOffers:[]),...(Array.isArray(ref.venueOffers)?ref.venueOffers:[])].filter((o,i,all)=>all.findIndex(x=>[x.source,x.sourceMarketId,x.sourceOutcomeId,x.collectedAt].join("|") === [o.source,o.sourceMarketId,o.sourceOutcomeId,o.collectedAt].join("|"))===i);
+  const marketSnapshot=tennisMarketSnapshot(t,venueOffers);
   const markets=Array.isArray(intel?.publicSplits?.markets)?intel.publicSplits.markets:[];
   const spIntel=markets.find(x=>String(x.market).toUpperCase()==="SPREAD");
   const totIntel=markets.find(x=>String(x.market).toUpperCase()==="TOTAL");
@@ -108,10 +108,10 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
           {marketSnapshot.kalshi.some(o=>o.warning)?<small className="tmc-snapshot-caution">Provider start differs · research only</small>:null}
         </div>
         <div className="tmc-snapshot-venue">
-          <header><b>POLYMARKET.COM</b><small>{marketSnapshot.polymarket?.kind||"No matched winner market"}</small></header>
+          <header><b>{marketSnapshot.polymarket?.sourceName||"POLYMARKET"}</b><small>{marketSnapshot.polymarket?.kind||"No matched winner market"}</small></header>
           {marketSnapshot.polymarket ? marketSnapshot.polymarket.sides.map((o,i)=>
             <div className="tmc-snapshot-price" key={i}>
-              <span>{o.name}</span><strong>{o.ask!=null?(o.ask*100).toFixed(1)+"¢":o.indicative!=null?(o.indicative*100).toFixed(1)+"%":"—"}</strong><small>{o.ask!=null?"CLOB ask":"indicative"}</small>
+              <span>{o.name}</span><strong>{o.ask!=null?(o.ask*100).toFixed(1)+"¢":o.observed!=null?(o.observed*100).toFixed(1)+"¢":o.indicative!=null?(o.indicative*100).toFixed(1)+"%":"—"}</strong><small>{o.ask!=null?"CLOB ask":o.observed!=null?"observed":"indicative"}</small>
             </div>
           ) : <div className="tmc-snapshot-empty">No source-matched winner prices</div>}
           {marketSnapshot.otherPolymarketMarkets>0?<small className="tmc-snapshot-extra">+{marketSnapshot.otherPolymarketMarkets} set/spread/other contracts in Market details</small>:null}
