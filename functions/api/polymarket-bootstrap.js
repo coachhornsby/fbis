@@ -1,5 +1,6 @@
 import {authorizeHarvest,unauthorizedBody} from '../lib/auth.js';
 import {bootstrapPolymarket} from '../lib/polymarketBootstrap.js';
+import {collectPolymarketUsTennisInventory} from '../lib/tennisExchangeInventory.js';
 const LIMIT=9_500_000_000;
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 /**
@@ -27,6 +28,12 @@ export async function onRequestPost({request,env}){
  if(!authorizeHarvest(request,env).ok)return json(unauthorizedBody(),403);
  try{const body=await request.json();
   if(body.operation==='report'){if(!body.report||JSON.stringify(body.report).length>1000000)return json({ok:false,error:'INVALID_REPORT'},400);await env.ARCHIVE.put('market-sources/polymarket-us/coverage/latest.json',JSON.stringify(body.report));return json({ok:true});}
+  // Market-first ATP/WTA discovery does not require a prior FBIS projection
+  // and writes ONLY a bounded public-data R2 snapshot, never market D1.
+  if(body.operation==='tennis-inventory'){
+   const result=await collectPolymarketUsTennisInventory(env);
+   return json(result,result.ok?200:503);
+  }
   let observationDb=env.DB,observationStore='PRIMARY';
   if(body.operation!=='catalogue'){
    const probe=await env.DB.prepare('SELECT 1 AS healthy').all();
