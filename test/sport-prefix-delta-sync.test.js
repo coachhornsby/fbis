@@ -204,8 +204,10 @@ test("all 11 sports are sync-eligible with no prop tables in prefix sets", () =>
   assert.ok(SPORT_PREFIX_TABLES.nba.includes("nba_team_profiles"));
   assert.ok(SPORT_PREFIX_TABLES.mlb.includes("mlb_team_profiles"));
   assert.ok(SPORT_PREFIX_TABLES.tennis.includes("tennis_players"));
-  assert.equal(SPORT_PREFIX_TABLES.npb.length, 0);
-  assert.equal(SPORT_PREFIX_TABLES.kbo.length, 0);
+  assert.ok(SPORT_PREFIX_TABLES.npb.includes("asian_baseball_games"));
+  assert.ok(SPORT_PREFIX_TABLES.kbo.includes("asian_baseball_pregame_snapshots"));
+  assert.equal(SPORT_PREFIX_TABLES.npb.length, 7);
+  assert.equal(SPORT_PREFIX_TABLES.kbo.length, 7);
 });
 
 test("composite primary-key cursor resumes within repeated first-key groups", () => {
@@ -410,6 +412,68 @@ test("Cloudflare D1 atomic batch path copies large prefix pages in groups of for
   });
   assert.equal(again.copied, 85);
   assert.equal(sport._tables.get("nba_team_profiles").rows.length, 85);
+});
+
+test("NPB/KBO history copying filters PRIMARY by actual league, never cross-loads", async () => {
+  const original = [
+    { canonical_game_id: "KBO-20250901-A-B", league: "KBO", season: 2025 },
+    { canonical_game_id: "NPB-20250901-A-B", league: "NPB", season: 2025 },
+    { canonical_game_id: "NPB-20250902-C-D", league: "NPB", season: 2025 },
+  ];
+  const columns = [
+    { name: "canonical_game_id", type: "TEXT", pk: 1 },
+    { name: "league", type: "TEXT", pk: 0 },
+    { name: "season", type: "INTEGER", pk: 0 },
+  ];
+  const copied = new Map();
+  let sportExists = false;
+  const queries = [];
+  const primary = {
+    prepare(sql) {
+      if (sql.startsWith("PRAGMA")) return { all: async () => ({ results: columns }) };
+      return { bind(...args) {
+        return { async all() {
+          queries.push({ sql, args });
+          const league = args[0];
+          const cursor = sql.includes("AND canonical_game_id>?") ? args[1] : "";
+          const limit = args[args.length - 1];
+          const rows = original.filter(r => r.league === league && r.canonical_game_id > cursor);
+          return { results: rows.slice(0, limit) };
+        } };
+      } };
+    },
+  };
+  const sport = {
+    prepare(sql) {
+      if (sql.includes("sqlite_master")) return {
+        bind() { return { first: async () => sportExists ? { ok: 1 } : null }; },
+      };
+      if (sql.startsWith("CREATE TABLE")) return {
+        run: async () => { sportExists = true; return {}; },
+      };
+      if (sql.startsWith("PRAGMA")) return { all: async () => ({ results: columns }) };
+      if (sql.startsWith("INSERT OR REPLACE")) return { bind(...args) {
+        return { async run() { copied.set(args[0], { id: args[0], league: args[1] }); return {}; } };
+      } };
+      throw new Error("Unexpected SQL " + sql);
+    },
+  };
+  const first = await copyPrefixedTablePaged(primary, sport, "asian_baseball_games", {
+    pageSize: 1, maxPages: 1, leagueFilter: "NPB",
+  });
+  assert.equal(first.copied, 1);
+  const second = await copyPrefixedTablePaged(primary, sport, "asian_baseball_games", {
+    pageSize: 1, maxPages: 2, afterKey: first.cursor, leagueFilter: "NPB",
+  });
+  assert.equal(second.copied, 1);
+  assert.equal(copied.size, 2);
+  assert.ok([...copied.values()].every(r => r.league === "NPB"));
+  assert.ok(queries.every(q => q.sql.includes("WHERE league=?")));
+  assert.ok(queries.some(q => q.sql.includes("WHERE league=? AND canonical_game_id>?")));
+  await assert.rejects(
+    () => copyPrefixedTablePaged(primary, sport, "asian_baseball_games", { leagueFilter: "NFL" }),
+    /UNSAFE_ASIAN_BASEBALL_LEAGUE_FILTER/
+  );
 });
 
 test("verifySportPrefixParity distinguishes complete vs incomplete research copy", async () => {
