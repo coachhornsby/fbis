@@ -15,6 +15,7 @@ import {
 } from "./probability.js";
 import { expectedRoi, validAmericanOdds } from "./pricing.js";
 import { sportLedgerEnv, sportLedgerFanoutDbs } from "./sportLedgerRouting.js";
+import { productSportDbHandle } from "./databaseTopology.js";
 
 let soccerHistoryLastError = null;
 
@@ -2671,6 +2672,7 @@ export async function persistHfaExternal(env, row) {
 }
 
 export async function persistHfaRating(env, row) {
+  env = { ...env, DB: productSportDbHandle(env, "cfb").db };
   if (!hasDb(env) || !row?.teamKey) return { ok: false };
   try {
     await env.DB.prepare(
@@ -2708,6 +2710,7 @@ export async function persistHfaRating(env, row) {
 }
 
 export async function loadHfaRatings(env, method, asOfSeason) {
+  env = { ...env, DB: productSportDbHandle(env, "cfb").db };
   const map = {};
   if (!hasDb(env)) return map;
   try {
