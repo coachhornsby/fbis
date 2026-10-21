@@ -36,8 +36,8 @@ jobs:
       - name: Install undici for long topology fetches
         if: github.event_name != 'pull_request'
         run: npm install --no-save --no-package-lock undici@7.29.0
-      - name: Unit-test migration qualify contracts
-        run: node --test test/sport-migration-qualify.test.js
+      - name: Unit-test migration and 11-sport product-routing fail-closed contracts
+        run: node --test test/sport-migration-qualify.test.js test/sport-db-shadow-routing.test.js test/sport-cutover-all11-routing-gate.test.js
       - name: Wait until production contains this qualify change
         if: github.event_name != 'pull_request'
         env:
