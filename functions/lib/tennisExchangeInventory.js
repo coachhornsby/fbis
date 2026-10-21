@@ -141,7 +141,12 @@ export function mergePolymarketUsTennisCards(games=[],inventory={},{date,now=new
   const enriched={...event,kalshiResearchOffers,polymarketGlobalOffers};
   if(options.length===1){
    const g=options[0],t=g.tennisProjection||{},old=t.venueOffers||[];
-   const unique=new Map([...old,...event.offers].map(o=>[[o.source,o.sourceMarketId,o.sourceOutcomeId].join("|"),o]));
+   // Provider listing order is not the canonical FBIS home/away order.
+   // Rebind BOTH player outcomes to the existing card's verified names.
+   const homeName=g.home?.fullName||g.home?.name;
+   const reoriented=event.offers.map(o=>({...o,side:
+    norm(o.participantName)===norm(homeName)?"home":"away"}));
+   const unique=new Map([...old,...reoriented].map(o=>[[o.source,o.sourceMarketId,o.sourceOutcomeId].join("|"),o]));
    g.tennisProjection={...t,venueOffers:[...unique.values()],
     polymarketUsMarketUrl:event.marketUrl,polymarketUsEventId:event.providerEventId,
     exchangeInventorySource:"POLYMARKET_US_PUBLIC",
