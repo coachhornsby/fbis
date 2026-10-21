@@ -1,7 +1,7 @@
 import { useState } from "react";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
 import "./tennisMatchCard.css";
-import { tennisProjectionDisplay, splitTennisName, neutralTennisAthlete } from "../../lib/tennisCardPresentation.js";
+import { tennisProjectionDisplay, splitTennisName, neutralTennisAthlete, tennisMarketSnapshot } from "../../lib/tennisCardPresentation.js";
 
 const n=v=>{if(v==null||v==="")return null;const x=Number(v);return Number.isFinite(x)?x:null};
 const pct=v=>n(v)==null?"—":`${(n(v)*100).toFixed(1)}%`;
@@ -24,9 +24,11 @@ const countryCode=v=>COUNTRY_CODES[String(v).toUpperCase()]||String(v).toUpperCa
   const PlayerVisual=({team,bp})=>{const [failed,setFailed]=useState(false),src=portraitUrl(team,bp),cc=country(team,bp),flag=neutralTennisAthlete(cc,team)?null:flagUrl(cc);return <div className="tmc-player-visual" style={{"--tmc-country":countryColor(cc)}}>{src&&!failed?<img className="tmc-headshot tmc-portrait-asset" src={src} alt={`${team?.fullName||team?.name||"Tennis player"} headshot`} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>:<div className="tmc-headshot-fallback" aria-label="Player headshot unavailable"><svg viewBox="0 0 100 120" role="img" aria-label="Neutral player silhouette"><circle cx="50" cy="34" r="22" fill="currentColor"/><path d="M8 116v-18c0-25 19-40 42-40s42 15 42 40v18z" fill="currentColor"/></svg></div>}</div>};
 
 export default function TennisMatchCard({game,open=false,onToggle,renderDetail=null}){
+  const [detailTab,setDetailTab]=useState("overview");
   const away=game?.away||{},home=game?.home||{},t=game?.tennisProjection||{},ref=game?.market?.reference||{},intel=game?.actionIntel||{};
   if(t.eventIntegrity?.valid!==true && !(t.researchFixture?.verified===true && ["ESPN_PUBLIC","POLYMARKET_US_PUBLIC","KALSHI_PUBLIC_SHADOW"].includes(t.researchFixture?.source) && t.researchFixture?.fixtureId===game?.id))return <article className="tmc" role="status">Tennis card withheld: event identity or projection provenance is unverified.</article>;
   const tour=String(game?.tour||t?.tour||"TENNIS").toUpperCase();
+  const marketSnapshot=tennisMarketSnapshot(t);
   const display=tennisProjectionDisplay(game),{pAway,pHome,edgeHome,edgeAway}=display;
   // Research estimates are visually useful but remain separate from the
   // independently governed full FBIS projection and market-edge calculation.
@@ -77,22 +79,6 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <div className="tmc-vs">VS</div>
       <div className="tmc-player-side tmc-home" style={sideStyle(home,bp1)}><PlayerVisual key={home.canonicalId||home.fbisPlayerId||home.name} team={home} bp={bp1}/>{identity(home,bp1)}</div>
     </section>
-    <section className="tmc-exchange-strip" aria-label="Tennis exchange prices" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:8,padding:"10px 12px",borderBottom:"1px solid #185478",background:"rgb(6,27,45)"}}>
-      {[
-        {name:"KALSHI",offers:t.kalshiResearchOffers,sourceStatus:t.kalshiResearchStatus||"NO MATCHED CONTRACT",kind:"kalshi"},
-        {name:"POLYMARKET",offers:[...(Array.isArray(t.polymarketGlobalOffers)?t.polymarketGlobalOffers:[]),...venueOffers.filter(o=>String(o.source||"").startsWith("Polymarket US"))],sourceStatus:t.polymarketGlobalStatus||"NO MATCHED CONTRACT",kind:"poly"}
-      ].map(exchange=><div key={exchange.name} style={{border:"1px solid #286080",borderRadius:7,padding:"9px 11px",minWidth:0}}>
-        <strong style={{color:"#5cc5ff",letterSpacing:".04em"}}>{exchange.name}</strong>
-        {exchange.name==="POLYMARKET"&&t.polymarketUsMarketUrl?<a href={t.polymarketUsMarketUrl} target="_blank" rel="noopener noreferrer" style={{display:"block",fontSize:11,color:"#abd8fb"}}>POLYMARKET US MATCH ↗</a>:null}
-        {Array.isArray(exchange.offers)&&exchange.offers.length?exchange.offers.filter((_,index)=>index<4).map((offer,i)=><div key={offer.ticker||offer.marketId||i} style={{marginTop:5,fontSize:12}}>
-          {exchange.kind==="kalshi"?<><b>{offer.yesLabel||"Unidentified outcome"}</b> · ASK {offer.yesAskDollars==null?"UNAVAILABLE":(100*Number(offer.yesAskDollars)).toFixed(1)+"¢"}{offer.yesBidDollars!=null?" · BID "+(100*Number(offer.yesBidDollars)).toFixed(1)+"¢":""}</>:<><b>{offer.outcomes?.join(" / ")||(offer.side==="home"?(home.fullName||home.name):offer.side==="away"?(away.fullName||away.name):offer.side)||"Unidentified outcomes"}</b> · {offer.contractPrice!=null?(100*Number(offer.contractPrice)).toFixed(1)+"¢ OBSERVED":offer.researchClob?.sides?.some(x=>x.bestAsk)?offer.researchClob.sides.map(x=>x.bestAsk?(100*Number(x.bestAsk.price)).toFixed(1)+"¢ ASK":"NO ASK").join(" / "):"INDICATIVE "+(offer.indicativePrices||[]).map(x=>(100*Number(x)).toFixed(1)+"%").join(" / ")}</>}
-          <small style={{display:"block",color:"#b1c5db"}}>Captured {stamp(exchange.kind==="kalshi"?offer.fetchedAt:offer.researchClob?.observedAt||offer.capturedAt||offer.collectedAt||offer.observedAt)} · {exchange.kind==="poly"?(offer.source||"Polymarket.com")+" · ":""}Research only</small>
-          {exchange.kind==="poly"&&String(offer.source||"").startsWith("Polymarket US")&&!offer.providerObservedAt?<small style={{display:"block",color:"#ffba65"}}>⚠ Provider quote time unverified</small>:null}
-          {offer.scheduleStatus&&offer.scheduleStatus!=="START_WITHIN_TWO_HOURS"?<small style={{display:"block",color:"#ffba65"}}>⚠ {offer.scheduleStatus.replaceAll("_"," ")}</small>:null}
-        </div>):<p style={{margin:"6px 0 0",fontSize:12,color:"#bdcde0"}}>No matched price · {exchange.sourceStatus}</p>}
-      </div>)}
-      <small style={{gridColumn:"1 / -1",color:"#93aac5"}}>Independent exchange observations. No comparable price or betting edge is inferred without validated event, timestamp, market and execution terms. PinnOdds optional.</small>
-    </section>
     <section className={`tmc-market-gap ${gapPlayer?"is-player":"is-neutral"}`} style={gapPlayerTint?{"--tmc-market-gap-color":gapPlayerTint}:undefined} aria-label="Tennis model versus market comparison">
       <span>FBIS / MARKET GAP</span>
       <div className="tmc-market-gap-identity">
@@ -109,6 +95,34 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <div className="tmc-probability-center">{shownHome!=null&&shownAway!=null?<><div className="tmc-probability-track" role="img" aria-label={`${away.name} ${pct(shownAway)}; ${home.name} ${pct(shownHome)}`}><span style={{width:`${shownAway*100}%`}}/><span style={{width:`${shownHome*100}%`}}/></div><div className="tmc-bar-labels"><b>{pct(shownAway)}</b><b>{pct(shownHome)}</b></div>{researchOk&&!display.valid?<small>RESEARCH ONLY · {research.source==="RANK_PRIOR_RESEARCH_ONLY"?"Ranking-derived prior; recent form and surface performance insufficient":<>{research.surface?research.surface.toUpperCase()+" COURT":"SURFACE UNVERIFIED"} · Historical sample through {research.observations?.map(o=>o.lastMatchDate).filter(Boolean).sort().at(-1)||"date unavailable"}</>} · Not a validated FBIS model or betting edge</small>:null}</>:<p className="tmc-blocked">PROJECTION UNAVAILABLE · INSUFFICIENT HISTORICAL INPUTS · {display.reason}</p>}</div>
       <div><span>{shownLabel}</span><strong>{pct(shownHome)}</strong></div>
     </section>
+    <section className="tmc-market-snapshot" aria-label="Exchange match-winner research prices">
+      <div className="tmc-snapshot-heading"><strong>EXCHANGE SNAPSHOT</strong><span>Match winner only · independent research quotes</span></div>
+      <div className="tmc-snapshot-grid">
+        <div className="tmc-snapshot-venue">
+          <header><b>KALSHI</b><small>{marketSnapshot.kalshi.length ? "Two-sided research" : "No matched winner pair"}</small></header>
+          {marketSnapshot.kalshi.length ? marketSnapshot.kalshi.map(o=>
+            <div className="tmc-snapshot-price" key={o.name}>
+              <span>{o.name}</span><strong>{o.ask==null?"—":(o.ask*100).toFixed(1)+"¢"}</strong><small>YES ask</small>
+            </div>
+          ) : <div className="tmc-snapshot-empty">No source-matched winner prices</div>}
+          {marketSnapshot.kalshi.some(o=>o.warning)?<small className="tmc-snapshot-caution">Provider start differs · research only</small>:null}
+        </div>
+        <div className="tmc-snapshot-venue">
+          <header><b>POLYMARKET.COM</b><small>{marketSnapshot.polymarket?.kind||"No matched winner market"}</small></header>
+          {marketSnapshot.polymarket ? marketSnapshot.polymarket.sides.map((o,i)=>
+            <div className="tmc-snapshot-price" key={i}>
+              <span>{o.name}</span><strong>{o.ask!=null?(o.ask*100).toFixed(1)+"¢":o.indicative!=null?(o.indicative*100).toFixed(1)+"%":"—"}</strong><small>{o.ask!=null?"CLOB ask":"indicative"}</small>
+            </div>
+          ) : <div className="tmc-snapshot-empty">No source-matched winner prices</div>}
+          {marketSnapshot.otherPolymarketMarkets>0?<small className="tmc-snapshot-extra">+{marketSnapshot.otherPolymarketMarkets} set/spread/other contracts in Market details</small>:null}
+          {marketSnapshot.polymarket?.scheduleWarning?<small className="tmc-snapshot-caution">Provider schedule differs · research only</small>:null}
+        </div>
+      </div>
+      <p className="tmc-snapshot-disclaimer">Captured research prices, not verified executable odds. No automatic edge, arbitrage, or wager authority.</p>
+    </section>
+    <details className="tmc-evidence-drawer">
+      <summary>Evidence & data limitations <span>{t.researchFixture?.missingEvidence?.length ? t.researchFixture.missingEvidence.length + " gaps" : "Sources and methodology"}</span></summary>
+      <div className="tmc-evidence-content">
     {t.researchFixture?<p className="tmc-fixture-note">Independent ESPN research fixture · {t.researchFixture.fixtureFreshness==="STALE"?"STATUS STALE · ":null}{t.researchFixture.officialDisplayEvidence?`WTA official match metadata linked (display only, observed ${t.researchFixture.officialDisplayEvidence.observedAt}) · No verified projection`:"Official schedule metadata unverified · No verified projection"} · ESPN observed {t.researchFixture.fetchedAt}</p>:null}
     {t.researchFixture?.wtaTournamentSurfaceEvidence?<p className="tmc-fixture-note">SURFACE SOURCE · <a href={t.researchFixture.wtaTournamentSurfaceEvidence.sourceUrl} target="_blank" rel="noreferrer">WTA TOUR 2026 CALENDAR</a> · HARD · OUTDOOR · Tournament court classification only, not official match confirmation</p>:null}
     {t.researchFixture?.atpTournamentSurfaceEvidence?<p className="tmc-fixture-note">SURFACE SOURCE · <a href={t.researchFixture.atpTournamentSurfaceEvidence.sourceUrl} target="_blank" rel="noreferrer">ATP TOUR 2026 CALENDAR</a> · HARD · INDOOR · Tournament court classification only, not official match confirmation</p>:null}
@@ -137,16 +151,21 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
         <small>INDICATIVE RESEARCH ONLY · Snapshot prices and sizes are not verified executable quotes, arbitrage or EV. Fees, settlement comparability and fillability are unverified. Not a betting recommendation.</small>
       </>:<div>No source-verified same-outcome cross-exchange pair. Expand for individual market observations.</div>}
     </section>:null}
+
+      </div>
+    </details>
     <div className="tmc-quick-summary" aria-label="FBIS projection summary">
       <span className="tmc-quick-model">FBIS PROJECTION · {display.valid?winnerName:"BLOCKED"}</span>
       <span className="tmc-quick-fair">FAIR MONEYLINE · {fair(pAway)} / {fair(pHome)}</span>
       <span className="tmc-quick-status">{display.valid?(game.projectionMaturity||"RESEARCH"):"NO VERIFIED PROJECTION"}</span>
     </div>
     {[away,home].some(p=>p.portraitSourceUrl&&p.portraitCredit)?<div className="tmc-photo-credits" aria-label="Player portrait credits">{[away,home].filter(p=>p.portraitSourceUrl&&p.portraitCredit).map(p=><span key={p.canonicalId||p.name}><a href={p.portraitSourceUrl} target="_blank" rel="noopener noreferrer" title={p.portraitCredit}>Photo: {p.fullName||p.name}</a>{p.portraitLicenseUrl?<a href={p.portraitLicenseUrl} target="_blank" rel="noopener noreferrer"> · License</a>:null}</span>)}</div>:null}
-    {t.polymarketGlobalOffers?.length?<div className="tmc-fixture-note"><strong>POLYMARKET.COM · {t.polymarketGlobalOffers.length} SOURCE-MATCHED RESEARCH MARKET{t.polymarketGlobalOffers.length===1?"":"S"}</strong> · Expand Matchup Intelligence for prices, CLOB depth, and schedule verification.</div>:null}
     <details className="tmc-expand">
       <summary className="tmc-expand-toggle"><span className="tmc-expand-title">MATCHUP INTELLIGENCE</span><span className="tmc-expand-hint">{researchOnly?"Research fixture · Unverified event details · Form · Surfaces":"FBIS projection · Markets · Form · H2H · Surfaces"}</span><span className="tmc-expand-chevron" aria-hidden="true">⌄</span></summary>
-      <div className="tmc-expanded-body">
+      <div className="tmc-expanded-body" data-view={detailTab}>
+        <nav className="tmc-detail-tabs" role="tablist" aria-label="Tennis match intelligence sections">
+          {[["overview","Overview"],["markets","Exchange markets"],["form","Form & surfaces"]].map(([value,label])=><button type="button" key={value} role="tab" aria-selected={detailTab===value} onClick={()=>setDetailTab(value)}>{label}</button>)}
+        </nav>
     <div className="tmc-main">
       <section className="tmc-panel tmc-comparison"><h3>MODEL VS MARKET</h3><table><thead><tr><th></th><th>{away.name}</th><th>{home.name}</th></tr></thead><tbody><tr><td>FBIS FAIR ML</td><td className="tmc-good">{fair(pAway)}</td><td className="tmc-good">{fair(pHome)}</td></tr><tr><td>EDGE VS NO-VIG</td><td>{edgeAway==null?"—":`${edgeAway.toFixed(1)} pp`}</td><td>{edgeHome==null?"—":`${edgeHome.toFixed(1)} pp`}</td></tr></tbody></table><small>{display.marketReason||"Contemporaneous paired prices · research only"}</small></section>
       <section className="tmc-panel tmc-odds"><h3>MARKET ODDS</h3><table><thead><tr><th></th><th>MONEYLINE</th><th>GAME SPREAD</th><th>TOTAL GAMES</th></tr></thead><tbody>
@@ -158,9 +177,9 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <section className="tmc-panel tmc-projection-panel"><h3>FBIS PROJECTION</h3><div className="tmc-projected"><div><span>Win probability · {away.name} / {home.name}</span><b>{pct(pAway)} / {pct(pHome)}</b></div><div><span>Fair moneyline · {away.name} / {home.name}</span><b>{fair(pAway)} / {fair(pHome)}</b></div><div><span>Projected winner</span><b>{display.winner?.fullName||display.winner?.name||(display.valid?"Even projection":"Blocked")}</b></div><div><span>Projected total games</span><b>{display.valid&&n(t.projectedTotalGames)!=null?n(t.projectedTotalGames).toFixed(1):display.valid?"Not modeled":"—"}</b></div><div><span>Projected game spread</span><b>{display.valid?t.projectedGameSpread??"Not modeled":"—"}</b></div><div><span>Status</span><b>{display.freshness} · {game.projectionMaturity||"RESEARCH"}</b></div></div>{!display.valid?<p className="tmc-blocked">{display.reason}</p>:null}<small>{t.modelId||game.model?.name||game.modelId||"FBIS model unavailable"} · {display.version||"Version unavailable"}<br/>Created {stamp(display.createdAt)} · Wager eligibility unchanged<br/>Input history through {t.profileCutoffs?.length?t.profileCutoffs.map(p=>p.lastMatchDate||"unavailable").join(" / "):"unavailable"}</small></section>
     </div>
     {t.researchFixture && !t.polymarketGlobalOffers?.length?<p className="tmc-fixture-note">POLYMARKET.COM · {t.polymarketGlobalStatus==="FRESH_SNAPSHOT"?"NO VERIFIED MATCHED GAMMA CONTRACT":"SOURCE "+(t.polymarketGlobalStatus||"UNAVAILABLE")}</p>:null}
-    {t.polymarketGlobalOffers?.length?<section className="tmc-panel" aria-label="Polymarket global research markets"><h3>POLYMARKET.COM · MATCH RESEARCH</h3><p>Independent international Gamma source; indicative probabilities are separate from captured CLOB asks. Market depth and fillability can change; no verified execution or FBIS betting authority.</p><table><thead><tr><th>MARKET</th><th>OUTCOMES</th><th>INDICATIVE PROBABILITY</th><th>CLOB ASK (CAPTURED)</th></tr></thead><tbody>{t.polymarketGlobalOffers.map(o=><tr key={o.marketId}><td><a href={"https://polymarket.com/sports/"+String(game.tour||"atp").toLowerCase()+"/"+o.eventSlug} target="_blank" rel="noreferrer">{o.question}</a>{o.scheduleStatus!=="START_WITHIN_TWO_HOURS"?<p>⚠ Schedule verification: {o.scheduleStatus==="PROVIDER_START_DIFFERS"?"provider start differs from FBIS": "provider date only; exact start unverified"}</p>:null}</td><td>{o.outcomes.join(" / ")}</td><td>{o.indicativePrices.map(v=>(v*100).toFixed(1)+"%").join(" / ")}</td><td>{o.researchClob?.sides?.map(x=>x.bestAsk?"$"+x.bestAsk.price.toFixed(2)+" · "+x.bestAsk.size+" contracts":"—").join(" / ")||"Unverified"}</td></tr>)}</tbody></table></section>:null}
-    {t.kalshiResearchOffers?.length?<section className="tmc-panel" aria-label="Kalshi source-matched research offers"><h3>KALSHI · RESEARCH MATCH OBSERVATIONS</h3><p>Paired-player and event-clock research match only. Public indicative market level; not a verified fillable price, no fees or wager authority.</p><table><thead><tr><th>CONTRACT</th><th>YES OUTCOME</th><th>INDICATIVE ASK</th><th>FETCHED</th></tr></thead><tbody>{t.kalshiResearchOffers.map(o=><tr key={o.ticker}><td>{o.ticker}</td><td>{o.yesLabel||"Unverified"}</td><td>{o.yesAskDollars==null?"Unavailable":"$"+Number(o.yesAskDollars).toFixed(2)}</td><td>{o.fetchedAt||"Unavailable"}</td></tr>)}</tbody></table></section>:null}
-    <div className="tmc-market-details">      {venueOffers.length?<section className="tmc-panel tmc-venues"><details><summary>MULTI-VENUE MARKET · {venueOffers.length} observed offers</summary><table><thead><tr><th>VENUE</th><th>MARKET / PERIOD</th><th>SELECTION</th><th>OBSERVED PRICE</th></tr></thead><tbody>{venueOffers.map((o,i)=><tr key={o.observationId||i}><td>{o.source}<small>Collected {o.collectedAt||"unavailable"}</small></td><td>{o.marketFamily} · {o.period||"unspecified"}<small>{o.standardOrAlt||"unknown"}</small></td><td>{o.participantName||o.providerSide||o.side||"unresolved"}</td><td>{offerText(o)}</td></tr>)}</tbody></table><small>Observed venue offers · informational only · Collection time is not a verified provider quote time</small></details></section>:null}
+    {t.polymarketGlobalOffers?.length?<section className="tmc-panel" className="tmc-global-markets" aria-label="Polymarket global research markets"><h3>POLYMARKET.COM · MATCH RESEARCH</h3><p>Independent international Gamma source; indicative probabilities are separate from captured CLOB asks. Market depth and fillability can change; no verified execution or FBIS betting authority.</p><table><thead><tr><th>MARKET</th><th>OUTCOMES</th><th>INDICATIVE PROBABILITY</th><th>CLOB ASK (CAPTURED)</th></tr></thead><tbody>{t.polymarketGlobalOffers.map(o=><tr key={o.marketId}><td><a href={"https://polymarket.com/sports/"+String(game.tour||"atp").toLowerCase()+"/"+o.eventSlug} target="_blank" rel="noreferrer">{o.question}</a>{o.scheduleStatus!=="START_WITHIN_TWO_HOURS"?<p>⚠ Schedule verification: {o.scheduleStatus==="PROVIDER_START_DIFFERS"?"provider start differs from FBIS": "provider date only; exact start unverified"}</p>:null}</td><td>{o.outcomes.join(" / ")}</td><td>{o.indicativePrices.map(v=>(v*100).toFixed(1)+"%").join(" / ")}</td><td>{o.researchClob?.sides?.map(x=>x.bestAsk?"$"+x.bestAsk.price.toFixed(2)+" · "+x.bestAsk.size+" contracts":"—").join(" / ")||"Unverified"}</td></tr>)}</tbody></table></section>:null}
+    {t.kalshiResearchOffers?.length?<section className="tmc-panel" className="tmc-kalshi-markets" aria-label="Kalshi source-matched research offers"><h3>KALSHI · RESEARCH MATCH OBSERVATIONS</h3><p>Paired-player and event-clock research match only. Public indicative market level; not a verified fillable price, no fees or wager authority.</p><table><thead><tr><th>CONTRACT</th><th>YES OUTCOME</th><th>INDICATIVE ASK</th><th>FETCHED</th></tr></thead><tbody>{t.kalshiResearchOffers.map(o=><tr key={o.ticker}><td>{o.ticker}</td><td>{o.yesLabel||"Unverified"}</td><td>{o.yesAskDollars==null?"Unavailable":"$"+Number(o.yesAskDollars).toFixed(2)}</td><td>{o.fetchedAt||"Unavailable"}</td></tr>)}</tbody></table></section>:null}
+    <div className="tmc-market-details tmc-venue-details">      {venueOffers.length?<section className="tmc-panel tmc-venues"><details><summary>MULTI-VENUE MARKET · {venueOffers.length} observed offers</summary><table><thead><tr><th>VENUE</th><th>MARKET / PERIOD</th><th>SELECTION</th><th>OBSERVED PRICE</th></tr></thead><tbody>{venueOffers.map((o,i)=><tr key={o.observationId||i}><td>{o.source}<small>Collected {o.collectedAt||"unavailable"}</small></td><td>{o.marketFamily} · {o.period||"unspecified"}<small>{o.standardOrAlt||"unknown"}</small></td><td>{o.participantName||o.providerSide||o.side||"unresolved"}</td><td>{offerText(o)}</td></tr>)}</tbody></table><small>Observed venue offers · informational only · Collection time is not a verified provider quote time</small></details></section>:null}
     </div>
     <div className="tmc-lower">
       {mlIntel||spIntel||totIntel?<>
