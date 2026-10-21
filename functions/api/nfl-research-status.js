@@ -1,3 +1,4 @@
+import { productSportDbHandle } from "../lib/databaseTopology.js";
 import { evaluateNflQbProspectiveGate, nflQbProspectiveCriteria } from "../lib/nflProspectiveGate.js";
 
 function json(body,status=200){
@@ -25,7 +26,7 @@ export async function onRequest(context){
   if(!context.env?.DB)return json({ok:false,error:"database-unavailable"},503);
   try{
     const [shadowQ,calQ,snapQ,gradedPropQ]=await Promise.all([
-      context.env.DB.prepare("SELECT * FROM nfl_qb_personnel_shadow_predictions ORDER BY start_time").all(),
+      productSportDbHandle(context.env,'nfl').db.prepare("SELECT * FROM nfl_qb_personnel_shadow_predictions ORDER BY start_time").all(),
       context.env.DB.prepare("SELECT * FROM nfl_prop_market_calibration_runs ORDER BY evaluated_at DESC").all(),
       context.env.DB.prepare(`
         SELECT market,
