@@ -187,3 +187,58 @@ jobs:
           path: artifacts/sport-qualify-${{ matrix.sport }}.json
           if-no-files-found: ignore
           retention-days: 30
+
+  # Complete coverage: wave 1 qualifies NFL/CFB/NHL/NBA/MLB; these six
+  # sports were previously absent from production qualification entirely.
+  # This validates shadow completeness; it does NOT perform a cutover.
+  qualify-wave2:
+    needs: health-all
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        sport: [cbb, wnba, soccer, tennis, npb, kbo]
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Install authenticated request transport
+        run: npm install --no-save --no-package-lock undici@7.29.0
+      - name: Validate all remaining sport shadow tables and live sync freshness
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+          SPORT: ${{ matrix.sport }}
+          RUN_DELTA_SYNC: "false"
+          RUN_CUTOVER_REHEARSAL: "false"
+          REQUIRE_CUTOVER_READY: "false"
+          SAMPLE_SIZE: "40"
+          QUALIFY_TIMEOUT_MS: "480000"
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          test -n "$HARVEST_SECRET"
+          node scripts/sport-migration-qualify-ops.mjs | tee "artifacts/sport-qualify-${SPORT}.json"
+          jq -e '
+            .ok == true
+            and .gates.countParity == true
+            and .gates.recordParity == true
+            and .gates.prefixParity == true
+            and .gates.sourceCoverage == true
+            and .gates.syncLag == true
+            and .gates.productStillPrimary == true
+            and .cutoverAuthorized == false
+            and .deletionAuthorized == false
+            and .activationPerformed == false
+            and .canAuthorizeWager == false
+          ' "artifacts/sport-qualify-${SPORT}.json" >/dev/null
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: sport-qualify-${{ matrix.sport }}
+          path: artifacts/sport-qualify-${{ matrix.sport }}.json
+          if-no-files-found: ignore
+          retention-days: 30
