@@ -1,3 +1,5 @@
+import { productSportDbHandle } from "./databaseTopology.js";
+
 function asRows(result) {
   return Array.isArray(result?.results) ? result.results : [];
 }
@@ -9,8 +11,9 @@ export async function sha256Hex(value) {
 }
 
 export async function insertPublishedProjection(env, row) {
-  if (!env?.DB) throw new Error("d1-unavailable");
-  const existing = await env.DB.prepare(
+  const db = row?.sport === "nfl" ? productSportDbHandle(env, "nfl").db : env?.DB;
+  if (!db?.prepare) throw new Error("d1-unavailable");
+  const existing = await db.prepare(
     `SELECT id, payload_hash, payload_json, published_at
        FROM published_projections
       WHERE sport = ?1 AND game_id = ?2 AND model_version IS ?3
@@ -24,7 +27,7 @@ export async function insertPublishedProjection(env, row) {
     return { ok: true, inserted: false, existing };
   }
 
-  const result = await env.DB.prepare(
+  const result = await db.prepare(
     `INSERT INTO published_projections
       (sport, game_id, game_date, start_time, model_version, payload_hash, payload_json, published_at, published_by)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`
@@ -43,7 +46,9 @@ export async function insertPublishedProjection(env, row) {
 }
 
 export async function listPublishedProjections(env, { sport = null, date = null, limit = 100 } = {}) {
-  if (!env?.DB) throw new Error("d1-unavailable");
+  // Unscoped/cross-sport reads remain on PRIMARY until a separate fanout contract is proven.
+  const db = sport === "nfl" ? productSportDbHandle(env, "nfl").db : env?.DB;
+  if (!db?.prepare) throw new Error("d1-unavailable");
   const safeLimit = Math.max(1, Math.min(250, Number(limit) || 100));
   const clauses = [];
   const binds = [];
@@ -54,7 +59,7 @@ export async function listPublishedProjections(env, { sport = null, date = null,
                  FROM published_projections ${where}
                 ORDER BY published_at DESC
                 LIMIT ${safeLimit}`;
-  const stmt = env.DB.prepare(sql);
+  const stmt = db.prepare(sql);
   const result = binds.length ? await stmt.bind(...binds).all() : await stmt.all();
   return asRows(result).map((row) => ({
     sport: row.sport,
