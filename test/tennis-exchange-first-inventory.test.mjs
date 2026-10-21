@@ -113,3 +113,12 @@ test("Polymarket US matches publish without model D1 or ESPN fixture database",a
  assert.equal(slate.research.modelStatus,"MODEL_DATABASE_UNAVAILABLE");
  assert.equal(slate.games[0].canAuthorizeWager,false);
 });
+
+test("prior-day Polymarket match still active remains discoverable without changing start",()=>{
+ const live={...event("Yanaki Milev vs. Lorenzo Giustino","171238"),
+  startTime:"2026-10-20T14:45:00Z"};
+ const discovered=normalizePolymarketUsTennisEvent(live,"atp",now);
+ assert.ok(discovered);
+ assert.equal(discovered.start,"2026-10-20T14:45:00.000Z");
+ assert.equal(normalizePolymarketUsTennisEvent({...live,startTime:"2026-10-18T02:00:00Z"},"atp",now),null);
+});
