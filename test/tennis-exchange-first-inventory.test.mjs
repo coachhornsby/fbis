@@ -52,7 +52,10 @@ test("collector pages ATP and WTA source markets directly, without calling ESPN 
  assert.equal(board.games[0].tennisProjection.researchFixture.source,"POLYMARKET_US_PUBLIC");
  assert.equal(board.games[0].canAuthorizeWager,false);
  const old=await loadPolymarketUsTennisInventory(env.ARCHIVE,{now:new Date(+now+30*60000)});
- assert.equal(old.ok,false);
+ assert.equal(old.ok,true);
+ assert.equal(old.fresh,false);
+ assert.equal(old.code,"STALE_LISTINGS_NO_QUOTES");
+ assert.deepEqual(old.events[0].offers,[]);
 });
 test("exchange inventory attaches to existing independent FBIS projection without changing its probability",()=>{
  const e=normalizePolymarketUsTennisEvent(event(),"atp",now);
