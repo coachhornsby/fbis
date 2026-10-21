@@ -1,0 +1,66 @@
+name: FBIS immediate NPB KBO shadow D1 history sync
+
+# Dedicated catch-up after official 2026 source ingestion. PRIMARY retains
+# product authority; this cannot approve a sport or authorize a wager.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/asian-baseball-sport-shadow-sync.yml"
+      - "ops/triggers/asian-baseball-sport-shadow-sync"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-asia-baseball-sport-shadow-sync
+  cancel-in-progress: false
+
+jobs:
+  asia-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        sport: [npb, kbo]
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Install API request transport
+        run: npm install --no-save --no-package-lock undici@7.29.0
+      - name: Synchronize real league-isolated official history into shadow D1
+        env:
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          SPORT: ${{ matrix.sport }}
+          INCLUDE_PREFIX: "true"
+          SYNC_ROUNDS: "3"
+          SYNC_PAGE_SIZE: "250"
+          SYNC_MAX_PAGES: "8"
+          PREFIX_PAGE_SIZE: "200"
+          PREFIX_MAX_PAGES: "5"
+          PREFIX_ROUNDS: "4"
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          mkdir -p artifacts
+          node scripts/sport-delta-sync-ops.mjs | tee "artifacts/asia-shadow-${SPORT}.json"
+          jq -e '
+            .ok==true and .fullSportMigration==true
+            and .prefixParity.status=="PREFIX_PARITY_OK"
+            and .productStillPrimary==true
+            and .cutoverAuthorized==false and .canAuthorizeWager==false
+          ' "artifacts/asia-shadow-${SPORT}.json" >/dev/null
+      - name: Save explicit parity receipt
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: asian-shadow-${{ matrix.sport }}
+          path: artifacts/asia-shadow-${{ matrix.sport }}.json
+          if-no-files-found: ignore
+          retention-days: 30
