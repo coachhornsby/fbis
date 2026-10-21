@@ -45,14 +45,13 @@ export async function insertPublishedProjection(env, row) {
   return { ok: true, inserted: true, id: result?.meta?.last_row_id ?? null };
 }
 
-export async function listPublishedProjections(env, { sport = null, date = null, limit = 100 } = {}) {
-  // Unscoped/cross-sport reads remain on PRIMARY until a separate fanout contract is proven.
-  const db = sport === "nfl" ? productSportDbHandle(env, "nfl").db : env?.DB;
+async function listRows(db, { sport = null, excludeSport = null, date = null, limit = 100 } = {}) {
   if (!db?.prepare) throw new Error("d1-unavailable");
   const safeLimit = Math.max(1, Math.min(250, Number(limit) || 100));
   const clauses = [];
   const binds = [];
   if (sport) { clauses.push(`sport = ?${binds.length + 1}`); binds.push(String(sport).toLowerCase()); }
+  if (excludeSport) { clauses.push(`sport <> ?${binds.length + 1}`); binds.push(String(excludeSport).toLowerCase()); }
   if (date) { clauses.push(`game_date = ?${binds.length + 1}`); binds.push(String(date)); }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const sql = `SELECT sport, game_id, game_date, start_time, model_version, payload_hash, payload_json, published_at
@@ -71,4 +70,21 @@ export async function listPublishedProjections(env, { sport = null, date = null,
     publishedAt: row.published_at,
     projection: JSON.parse(row.payload_json),
   }));
+}
+
+/** Aggregate unscoped publication reads without hiding NFL when authority moves. */
+export async function listPublishedProjections(env, { sport = null, date = null, limit = 100 } = {}) {
+  const safeLimit = Math.max(1, Math.min(250, Number(limit) || 100));
+  const nfl = productSportDbHandle(env, "nfl");
+  if (!sport && nfl.productIoUsesSportDb) {
+    const [otherSports, nflRows] = await Promise.all([
+      listRows(env?.DB, { excludeSport: "nfl", date, limit: safeLimit }),
+      listRows(nfl.db, { sport: "nfl", date, limit: safeLimit }),
+    ]);
+    return [...otherSports, ...nflRows]
+      .sort((a, b) => String(b.publishedAt || "").localeCompare(String(a.publishedAt || "")))
+      .slice(0, safeLimit);
+  }
+  const db = sport === "nfl" ? nfl.db : env?.DB;
+  return listRows(db, { sport, date, limit: safeLimit });
 }
