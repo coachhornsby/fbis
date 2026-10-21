@@ -1,3 +1,4 @@
+import { productSportDbHandle } from "./databaseTopology.js";
 /**
  * Weekly point-in-time CORE archive for research shadow systems.
  * CORE remains research-only until explicitly promoted.
@@ -134,7 +135,7 @@ export function coreArchiveRowsFromPayload(payload) {
  * Persist CORE weekly archive to D1 when DB available. Idempotent on archive_id.
  */
 export async function persistCoreWeeklyArchive(env, payload) {
-  const db = env?.DB;
+  const db = productSportDbHandle(env, "cfb").db;
   if (!db) {
     return { ok: false, reason: "no_db", written: 0 };
   }
