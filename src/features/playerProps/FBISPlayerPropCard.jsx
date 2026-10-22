@@ -76,7 +76,7 @@ function shortGameDate(g) {
       return d.toLocaleDateString("en-US", { month: "numeric", day: "numeric", timeZone: "America/Chicago" });
     }
   }
-  return g?.week ? ("W" + g.week) : "—";
+  return g?.week ? (`${String(g.season||" ").slice(-2)} W${g.week}`.trim()) : "—";
 }
 function fmtStat(v) {
   const n = finite(v);
@@ -125,7 +125,7 @@ function useTeamTheme(sport, team) {
 export function LastFiveStatChart({ row, history=null }) {
   const cardRef = useRef(null);
   const [visible, setVisible] = useState(false);
-  const [state, setState] = useState({ loading: false, error: "", games: [], avg: null });
+  const [state, setState] = useState({ loading: true, error: "", games: [], avg: null });
 
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") {
@@ -261,6 +261,12 @@ function VenueComparison({row}) {
   QUOTE_CLOCK_OR_EXECUTION_UNVERIFIED:'Quote clock or ask unverified',
   COMPARABLE_CURRENT_QUOTES:'Comparable current purchase asks (fees excluded)'
  };
+ const providers=[...new Set(Object.values(rows).flatMap(s=>(s.venues||[]).map(v=>v.provider)))];
+ if(providers.length===1){const provider=providers[0];return <div className="pp-venue-comparison" aria-label={`${provider} research prices`}>
+  <div className="pp-venue-topline"><b>{provider.toUpperCase()} PRICES</b><span>Research reference</span></div>
+  <div className="pp-single-venue-quotes">{['over','under'].map(side=>{const offer=rows[side]?.venues?.find(v=>v.provider===provider);return <div key={side} className={'pp-side-'+side}><span>{side==='over'?'↑ OVER':'↓ UNDER'}</span><strong>{price(offer?.price)}</strong><small>{offer?.priceKind==='VERIFIED_PURCHASE_ASK'?'Verified ask':offer?.priceKind==='DISPLAY_REFERENCE_NOT_ASK'?'Global reference':offer?'Observed':'Unavailable'}</small></div>;})}</div>
+  <details className="pp-venue-caveat"><summary>Price & exchange notes</summary><p>The other exchange has no matched contract. Observed or global reference prices require verified purchase asks, clocks, fees and matching settlement rules before an executable comparison.</p></details>
+ </div>;}
  return <div className="pp-venue-comparison" aria-label="Kalshi and Polymarket price comparison">
   <div className="pp-venue-topline"><b>EXCHANGE PRICES</b><span>Over / Under</span></div>
   <div className="pp-venue-matrix" role="table" aria-label="Price and exchange difference by Over and Under">
@@ -403,9 +409,6 @@ export default function FBISPlayerPropCard({
         {row.start_time ? <p className="pp-quote-status">{new Date(row.start_time).toLocaleString("en-US", {timeZone:"America/Chicago"})} CT</p> : null}
         <div className="pp-market-name pp-premium-market-name">{marketLabel(row)}</div>
         <div className="pp-variant-shell">
-          <div className="pp-tier-control-row">
-            <span className={"pp-active-tier pp-active-tier-" + tier}>{tier.toUpperCase()}</span>
-          </div>
           <div className="pp-line-row pp-premium-metrics" aria-label="Market threshold versus FBIS projection">
             <div className="pp-metric-cell">
               <span>{row.provider || "MARKET"} THRESHOLD</span>
@@ -415,10 +418,6 @@ export default function FBISPlayerPropCard({
               <span>FBIS PROJECTION</span>
               <strong>{num(projection)}</strong>
             </div>
-            <div className={"pp-metric-cell pp-metric-diff " + (delta == null ? "" : delta > 0 ? "is-over" : delta < 0 ? "is-under" : "is-push")}>
-              <span>STAT GAP</span>
-              <strong>{signed(delta)}</strong>
-            </div>
           </div>
           <div className={"pp-read pp-premium-read pp-read-" + String(side).toLowerCase()}>
             <div className="pp-read-side">
@@ -426,8 +425,8 @@ export default function FBISPlayerPropCard({
               <b>{side}</b>
             </div>
             <div className="pp-edge-value">
-              <span>FBIS vs threshold</span>
-              <strong>{line==null?"Projection only":`${Math.abs(delta||0).toFixed(1)} ${delta>=0?"above":"below"}`}</strong>
+              <span>STAT GAP</span>
+              <strong>{signed(delta)}</strong>
             </div>
           </div>
         </div>

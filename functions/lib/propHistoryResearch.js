@@ -3,8 +3,9 @@ import { loadNflVerseFeatures } from './nflVerseFeed.js';
 import { valueForEspnEvent } from './playerPropHistory.js';
 export function historySummary(input,{line=null,asOf=new Date().toISOString(),season=null}={}) {
  const seen=new Set();const cutoff=Date.parse(asOf);
- const games=input.filter(g=>g&&n(g.value)!=null&&Date.parse(g.date)<cutoff&&(String(g.date).slice(0,10)<String(asOf).slice(0,10)||['FINAL','OFF'].includes(g.status))&&!['DNP','CANCELLED','CANCELED','UNVERIFIED'].includes(g.status))
-  .sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).filter(g=>{const id=g.eventId||`${g.date}:${g.opponent}`;if(seen.has(id))return false;seen.add(id);return true;});
+ const priorWeek=g=>g?.temporalBasis==='PRIOR_SEASON_WEEKLY_SNAPSHOT'&&g.status==='FINAL'&&Number.isInteger(g.season)&&g.season<new Date(asOf).getUTCFullYear()&&(g.season<new Date(asOf).getUTCFullYear()-1||new Date(asOf).getUTCMonth()>=2)&&Number.isInteger(g.week)&&g.week>=1&&g.week<=22;
+ const games=input.filter(g=>g&&n(g.value)!=null&&(priorWeek(g)||Date.parse(g.date)<cutoff&&(String(g.date).slice(0,10)<String(asOf).slice(0,10)||['FINAL','OFF'].includes(g.status)))&&!['DNP','CANCELLED','CANCELED','UNVERIFIED'].includes(g.status))
+  .sort((a,b)=>Number.isInteger(a.season)&&Number.isInteger(b.season)&&Number.isInteger(a.week)&&Number.isInteger(b.week)?(b.season-a.season)*100+b.week-a.week:Date.parse(b.date)-Date.parse(a.date)).filter(g=>{const id=g.eventId||`${g.date}:${g.opponent}`;if(seen.has(id))return false;seen.add(id);return true;});
  const mean=a=>a.length?a.reduce((s,x)=>s+x.value,0)/a.length:null;
  const median=a=>{if(!a.length)return null;const v=a.map(x=>x.value).sort((a,b)=>a-b),m=Math.floor(v.length/2);return v.length%2?v[m]:(v[m-1]+v[m])/2;};
  const stats=a=>{const avg=mean(a);return {games:a.length,average:avg,median:median(a),minimum:a.length?Math.min(...a.map(g=>g.value)):null,maximum:a.length?Math.max(...a.map(g=>g.value)):null,sd:a.length>1?Math.sqrt(a.reduce((s,g)=>s+(g.value-avg)**2,0)/(a.length-1)):null,
@@ -29,18 +30,43 @@ export function espnPropHistoryGames(body,{market,sport,season}={}) {
  });
 }
 
+const NFL_HISTORY_FIELDS={passing_yards:'passing_yards',passing_attempts:'attempts',completions:'completions',rushing_yards:'rushing_yards',rushing_attempts:'carries',receiving_yards:'receiving_yards',receptions:'receptions',passing_touchdowns:'passing_tds',touchdowns:'total_tds'};
+export function nflSnapshotHistoryGames(player,schedule,asOf,field) {
+ return (player.recentGames||[]).map(g=>{
+  const matches=schedule.filter(x=>Number(x.season)===Number(g.season)&&Number(x.week)===Number(g.week)&&String(x.opponent_key).toUpperCase()===String(g.opponent).toUpperCase());
+  const fixture=matches.length===1?matches[0]:null,date=g.date||fixture?.start_time;
+  const prior=!date&&Number(g.season)<new Date(asOf).getUTCFullYear();
+  return {eventId:g.eventId||fixture?.event_id||`${g.season}-${g.week}`,date:date||null,season:g.season,week:g.week,opponent:g.opponent,
+   isHome:fixture?.site==='HOME'?true:['AWAY','ROAD'].includes(fixture?.site)?false:null,value:n(g.stats?.[field]),
+   status:date||prior?'FINAL':'UNVERIFIED',temporalBasis:prior?'PRIOR_SEASON_WEEKLY_SNAPSHOT':'EXACT_SCHEDULE_DATE'};
+ });
+}
+async function nflSchedule(env,team,asOf) {
+ try{return (await env.DB.prepare('SELECT event_id,season,week,start_time,opponent_key,site FROM nfl_team_schedule_profile WHERE team_key=? AND season>=?').bind(String(team||'').toLowerCase(),new Date(asOf).getUTCFullYear()-1).all()).results||[];}catch{return [];}
+}
+async function storedNflHistory(env,profile,{playerId,market,asOf,line}) {
+ try{
+  const raw=JSON.parse(profile?.raw_json||'{}'),player=raw.usage;
+  if(!player?.id||String(raw.roster?.id)!==String(playerId)||String(profile.player_id)!==String(playerId)||String(player.team).toUpperCase()!==String(profile.team_key).toUpperCase()||!NFL_HISTORY_FIELDS[market])return null;
+  const schedule=await nflSchedule(env,player.team,asOf),games=nflSnapshotHistoryGames(player,schedule,asOf,NFL_HISTORY_FIELDS[market]);
+  const summary=historySummary(games,{line,asOf,season:new Date(asOf).getUTCFullYear()});
+  if(!summary.games.length)return null;
+  return {available:true,identityVerified:true,canonicalPlayerId:`nfl:espn:${playerId}`,source:'Stored nflverse weekly statistics · exact roster/GSIS link',sourceFetchedAt:profile.updated_at,partialSeason:true,...summary,reason:null};
+ }catch{return null;}
+}
 async function get(url,fetchImpl) {
  const cache=typeof caches==='undefined'?null:caches.default;
  const key=new Request(url);const saved=cache?await cache.match(key):null;if(saved)return saved;
  const r=await fetchImpl(url,{headers:{accept:'application/json,text/csv','user-agent':'FBIS/2.0'},signal:AbortSignal.timeout(6500)});
  if(!r.ok)throw Error('HISTORY_SOURCE_HTTP_'+r.status);
- if(cache){const copy=new Response(await r.clone().text(),{headers:{'content-type':'application/json','cache-control':'public,max-age=900'}});await cache.put(key,copy);}
+ if(cache){const copy=new Response(await r.clone().text(),{headers:{'content-type':'application/json','cache-control':'public,max-age=900'}});try{await cache.put(key,copy);}catch{}}
  return r;
 }
-export async function loadCanonicalPropHistory(env,{sport,provider,playerId,market,asOf=new Date().toISOString(),line=null,fetchImpl=fetch}={}) {
+export async function loadCanonicalPropHistory(env,{sport,provider,playerId,market,asOf=new Date().toISOString(),line=null,fetchImpl=fetch,profile=null}={}) {
  if(!playerId||!['nflverse','nhl','mlb','espn'].includes(provider))return {available:false,reason:'VERIFIED_HISTORY_ID_REQUIRED'};
  // Preserve the existing NBA provider/rights gate; no alternate-stat backdoor.
  if(sport==='nba')return {available:false,reason:'NBA_RIGHTS_CLEARED_PLAYER_FEED_REQUIRED',source:'NBA_PLAYER_DATA_POLICY'};
+ if(sport==='nfl'&&provider==='espn'&&profile){const stored=await storedNflHistory(env,profile,{playerId,market,asOf,line});if(stored)return stored;}
  let games=[],source=null,season=null,identityVerified=false,partial=false;
  try {
   if(provider==='nhl'&&sport==='nhl'&&/^\d+$/.test(playerId)){
@@ -57,14 +83,11 @@ export async function loadCanonicalPropHistory(env,{sport,provider,playerId,mark
    games=(b.stats||[]).flatMap(x=>x.splits||[]).map(g=>({eventId:String(g.game?.gamePk),date:g.date,opponent:g.opponent?.name,isHome:g.isHome,season,value:n(g.stat?.[key]),workload:pitching?n(g.stat?.numberOfPitches):n(g.stat?.plateAppearances)}));
    source='MLB official player game log';identityVerified=true;
   }else if(provider==='nflverse'&&sport==='nfl'){
-   const field={passing_yards:'passing_yards',passing_attempts:'attempts',completions:'completions',rushing_yards:'rushing_yards',rushing_attempts:'carries',receiving_yards:'receiving_yards',receptions:'receptions'}[market];
+   const field=NFL_HISTORY_FIELDS[market];
    if(!field)return {available:false,reason:'STAT_DEFINITION_UNSUPPORTED'};
    const feed=await loadNflVerseFeatures(env,{forceNetwork:false});const p=Object.values(feed.playersByTeam||{}).flat().find(p=>String(p.id)===String(playerId));
    if(!p)return {available:false,reason:'CANONICAL_PLAYER_NOT_IN_NFLVERSE_SNAPSHOT'};
-   let schedule=[];
-   try { schedule=(await env.DB.prepare('SELECT event_id,season,week,start_time,opponent_key,site FROM nfl_team_schedule_profile WHERE team_key=? AND season>=?').bind(String(p.team||'').toLowerCase(),new Date(asOf).getUTCFullYear()-1).all()).results||[]; } catch {}
-   games=(p.recentGames||[]).map(g=>{const matches=schedule.filter(x=>Number(x.season)===Number(g.season)&&Number(x.week)===Number(g.week)&&String(x.opponent_key).toUpperCase()===String(g.opponent).toUpperCase());const fixture=matches.length===1?matches[0]:null;
-    return {eventId:g.eventId||fixture?.event_id||`${g.season}-${g.week}`,date:g.date||fixture?.start_time,season:g.season,week:g.week,opponent:g.opponent,isHome:fixture?.site==='HOME'?true:fixture?.site==='AWAY'?false:null,value:n(g.stats?.[field])};});
+   games=nflSnapshotHistoryGames(p,await nflSchedule(env,p.team,asOf),asOf,field);
    // A five-game feature snapshot is not the full season.
    source='nflverse exact GSIS player ID';season=new Date(asOf).getUTCFullYear();identityVerified=true;partial=true;
   }else if(provider==='espn'&&['nfl','cfb','cbb','wnba'].includes(sport)&&/^\d+$/.test(playerId)){
