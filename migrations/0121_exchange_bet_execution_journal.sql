@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS exchange_bet_settlements (
   outcome TEXT NOT NULL CHECK(outcome IN ('YES','NO','VOID')),
   yes_contracts REAL,
   no_contracts REAL,
+  revenue_usd REAL,
+  settlement_fee_usd REAL,
   settled_at TEXT NOT NULL,
   observed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY(provider,market)

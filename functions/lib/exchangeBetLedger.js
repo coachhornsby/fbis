@@ -54,7 +54,7 @@ export function ticketFromGroup(group){
   return {id,provider:first.provider,market:first.market,marketLabel:first.marketLabel||first.market,
     side:first.side,contracts:round(contracts),risk:round(stake),toWin:round(contracts-stake),
     fee:round(xs.reduce((n,x)=>n+x.fee,0)),unitPrice:round(unit),
-    executedAt:xs.map(x=>x.at).sort()[0],fillCount:xs.length,status:"OPEN",
+    executedAt:xs.map(x=>x.at).sort()[0],lastExecutedAt:xs.map(x=>x.at).sort().at(-1),fillCount:xs.length,status:"OPEN",
     settlementSource:null,profit:null};
 }
 export function groupExecutions(events){
@@ -87,9 +87,16 @@ export async function readExchangeTickets(db){
     if(matching.length!==1)continue;
     const t=matching[0],settledQty=num(t.side==="YES"?s.yes_contracts:s.no_contracts);
     if(settledQty==null||Math.abs(t.contracts-settledQty)>0.00001)continue;
+    const expectedGross=s.outcome===t.side?t.contracts:0;
+    const actualGross=num(s.revenue_usd);
+    // Revenue must corroborate the contract payout. Missing/ambiguous fees or
+    // provider settlement economics cannot be graded from a winner label alone.
+    if(actualGross==null||Math.abs(expectedGross-actualGross)>0.011){
+      t.status="REVIEW";t.reconciliationRequired=true;continue;
+    }
     t.status=s.outcome===t.side?"WON":"LOST";
-    t.profit=round((t.status==="WON"?t.contracts:0)-t.risk);
-    t.settledAt=s.settled_at;t.settlementSource="KALSHI_SETTLEMENT";
+    t.profit=round(actualGross-t.risk);
+    t.settledAt=s.settled_at;t.settlementSource="KALSHI_SETTLEMENT_REVENUE_VERIFIED";
   }
   // Unknown or incomplete provider fields stay in the journal for reconciliation;
   // never invent a side, risk amount, result, or player identity.
@@ -110,7 +117,7 @@ export async function syncExchangeEvents(env,{now=new Date().toISOString()}={}){
     if(settles.ok)for(const x of settles.items){
       const market=safe(x.ticker),outcome=safe(x.market_result,10).toUpperCase(),at=stamp(x.settled_time);
       if(market&&["YES","NO","VOID"].includes(outcome)&&at)settlements.push({provider:"Kalshi",
-        market,outcome,yes:num(x.yes_count_fp),no:num(x.no_count_fp),at});
+        market,outcome,yes:num(x.yes_count_fp),no:num(x.no_count_fp),revenue:num(x.revenue)==null?null:Number(x.revenue)/100,settlementFee:num(x.fee_cost),at});
     }
   }else providers.kalshi={ok:false,reason:"NOT_CONFIGURED"};
   if(env.POLYMARKET_US_KEY_ID&&env.POLYMARKET_US_SECRET_KEY){
@@ -132,8 +139,8 @@ export async function syncExchangeEvents(env,{now=new Date().toISOString()}={}){
     inserted+=r.meta?.changes||0;
   }
   for(const s of settlements)await env.DB.prepare(`INSERT OR IGNORE INTO exchange_bet_settlements
-    (provider,market,outcome,yes_contracts,no_contracts,settled_at) VALUES (?,?,?,?,?,?)`)
-    .bind(s.provider,s.market,s.outcome,s.yes,s.no,s.at).run();
+    (provider,market,outcome,yes_contracts,no_contracts,revenue_usd,settlement_fee_usd,settled_at) VALUES (?,?,?,?,?,?,?,?)`)
+    .bind(s.provider,s.market,s.outcome,s.yes,s.no,s.revenue,s.settlementFee,s.at).run();
   return {ok:Object.values(providers).some(x=>x.ok),providers,observed:events.length,inserted,conflicts,
     at:now,readOnly:true,tradingEnabled:false};
 }

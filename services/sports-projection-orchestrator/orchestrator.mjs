@@ -1490,7 +1490,7 @@ export async function syncExchangeBetsToTracker({since="2026-10-21T00:00:00Z"}={
       continue;
     }
     // Give partial-fill orders a settling window before a permanent execution receipt is locked.
-    if(!Number.isFinite(Date.parse(t.executedAt))||Date.now()-Date.parse(t.executedAt)<30*60000){skipped++;continue;}
+    if(!Number.isFinite(Date.parse(t.executedAt))||Date.now()-Date.parse(t.lastExecutedAt||t.executedAt)<30*60000){skipped++;continue;}
     const price=t.unitPrice;
     const american=price>=0.5?String(Math.round(-100*price/(1-price))):"+"+Math.round(100*(1-price)/price);
     const row=Array(45).fill("");
