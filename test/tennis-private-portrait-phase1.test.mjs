@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 const sql=readFileSync(new URL('../migrations/0119_tennis_private_portrait_phase1.sql',import.meta.url),'utf8');
-const python=String.raw\`
+const python=String.raw`
 import sqlite3,sys
 c=sqlite3.connect(':memory:')
 c.executescript("""
@@ -39,7 +39,7 @@ blocked("DELETE FROM tennis_private_portrait_cohort_members WHERE cohort_id='"+c
 c.execute("INSERT INTO tennis_player_portraits VALUES ('atp:id0','ATP_OFFICIAL','PRIVATE_ONLY',0,'PENDING')")
 assert c.execute("SELECT COUNT(*) FROM tennis_player_portraits WHERE source_name='ATP_OFFICIAL' AND approval_status='PENDING'").fetchone()[0]==1
 print('PHASE1_SQLITE_CONTRACT_OK total=1074 approvedRestricted=0 policiesBlocked=2')
-\`;
+`;
 test('Phase 1 freezes exactly 559 ATP + 515 WTA and denies public/private-unverified headshots',()=>{
  const run=spawnSync('python3',['-c',python],{input:sql,encoding:'utf8',timeout:15000});
  assert.equal(run.status,0,run.stderr||run.stdout);
