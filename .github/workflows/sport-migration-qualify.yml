@@ -85,7 +85,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts
           node scripts/sport-sync-health-ops.mjs | tee artifacts/sport-sync-health-all.json
-          jq -e '.ok==true and .allProductPrimary==true and .cutoverAuthorized==false' \
+          jq -e '.ok==true and .authorityRoutingValid==true and .cutoverAuthorized==false' \
             artifacts/sport-sync-health-all.json >/dev/null
       - uses: actions/upload-artifact@v4.6.2
         if: always() && github.event_name != 'pull_request'
