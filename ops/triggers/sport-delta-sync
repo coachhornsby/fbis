@@ -5,3 +5,5 @@ trigger 2026-10-22 NBA phase-2 refresh: bounded shadow catch-up; sport authority
 trigger 2026-10-22 NBA phase-5 post #1554 replay verification under shadow authority
 
 trigger 2026-10-22 NBA post settlement-grade replay PR1556 shadow certification
+
+trigger 2026-10-22 NBA full 31-table research shadow catch-up, no authority cutover
