@@ -19,3 +19,12 @@ test("Polymarket explicit confirmed buy is eligible",()=>{
  const a=polymarketExecution({type:"ACTIVITY_TYPE_TRADE",trade:{id:"p1",orderId:"pord",marketSlug:"atp-test",outcomeSide:"YES",intent:"BUY",qtyDecimal:"3",price:"0.55",feeAmount:"0",state:"FILLED",createTime:"2026-10-21T12:00:00Z"}});
  const rows=groupExecutions([a]);assert.equal(rows.length,1);assert.equal(rows[0].id,"PMUS:pord:YES");assert.equal(rows[0].risk,1.65);
 });
+
+test("multi-market combo with one order ID is never inflated into independent straight bets",()=>{
+ const base={provider:"Kalshi",side:"YES",action:"BUY",groupId:"combo-123",quantity:1,price:.4,fee:0,at:"2026-10-21T14:00:00Z"};
+ const tickets=groupExecutions([
+   {...base,fillId:"f1",market:"KX-ONE"},
+   {...base,fillId:"f2",market:"KX-TWO"}
+ ]);
+ assert.equal(tickets.length,0);
+});

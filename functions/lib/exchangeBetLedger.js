@@ -58,14 +58,21 @@ export function ticketFromGroup(group){
     settlementSource:null,profit:null};
 }
 export function groupExecutions(events){
-  const groups=new Map();
+  const groups=new Map(),orderMarkets=new Map();
   for(const e of events){
     if(e.action!=="BUY")continue;
+    const order=e.provider+"|"+e.groupId;
+    if(!orderMarkets.has(order))orderMarkets.set(order,new Set());
+    orderMarkets.get(order).add(e.market+"|"+e.side);
     const key=[e.provider,e.groupId,e.market,e.side].join("|");
     if(!groups.has(key))groups.set(key,[]);
     groups.get(key).push(e);
   }
-  return [...groups.values()].map(ticketFromGroup).filter(Boolean);
+  // A single multi-market combo must not be counted as multiple straight wagers.
+  // Combo payout cannot be reconstructed from leg unit prices independently.
+  return [...groups.values()]
+    .filter(group=>orderMarkets.get(group[0].provider+"|"+group[0].groupId)?.size===1)
+    .map(ticketFromGroup).filter(Boolean);
 }
 const dbEvent=r=>({provider:r.provider,fillId:r.fill_id,groupId:r.group_id,market:r.market,marketLabel:r.market_label,
   side:r.side,action:r.action,quantity:num(r.quantity),price:num(r.unit_price),fee:num(r.fee_usd),at:r.occurred_at});
