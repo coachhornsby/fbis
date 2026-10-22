@@ -362,7 +362,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
   const rosterIdSet=new Set(roster.map(p=>p.id));
   const shiftSets=(sources.detail||[]).map(d=>({gameId:d.game.id,rows:parseShiftRows(d.shifts?.data||{},team,rosterIdSet)}));
   const deploy=deploymentFromShifts(roster,shiftSets),units=ppPkUnits(roster,timeById);
-  const [existing,availRows,existingGoalieRows]=await Promise.all([existingPlayers(DB,tkey),availabilityRows(DB,tkey),existingGoalies(DB,tkey)]);
+  const [existing,availRows,existingGoalieRows]=await Promise.all([existingPlayers(DB,tkey),availabilityRows(env?.PRIMARY_DB||DB,tkey),existingGoalies(DB,tkey)]);
   const priorById=new Map(existing.map(x=>[String(x.player_id),x])),availability=latestAvailability(availRows);
   const players=roster.map(p=>{
    const stat=summaryById.get(p.id)||{},toi=timeById.get(p.id)||{},role=deploy.lines.get(p.id)||{},unit=units.get(p.id)||{},prior=priorById.get(p.id)||null;
