@@ -1,0 +1,26 @@
+name: CFB shadow simulation contract
+on:
+  pull_request:
+    paths:
+      - "functions/lib/cfbSimulationV1.js"
+      - "functions/lib/cfbSimulationStore.js"
+      - "functions/api/cfb-simulation.js"
+      - "sql/cfb/**"
+      - "test/cfb-simulation-v1.test.js"
+      - ".github/workflows/cfb-simulation-shadow.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cfb-simulation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: CFB point-in-time data and fail-closed research tests
+        run: node --test test/cfb-simulation-v1.test.js
+      - name: Syntax check isolated Cloudflare Functions
+        run: node --check functions/api/cfb-simulation.js
