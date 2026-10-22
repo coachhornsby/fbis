@@ -1,4 +1,5 @@
 import { ingestCfbDriveBatch } from "./cfbDriveSimulationStore.js";
+import {harvestCfbVerifiedDriveWeek} from "./cfbDriveWeekHarvest.js";
 import {acknowledgeCfbdQuotaReplenishment,cfbCfbdAcquisitionHealth} from "./cfbCfbdAcquisition.js";
 import {reconcileSharedCollegeQuota} from "./quota.js";
 /**
@@ -141,6 +142,7 @@ export const COLLEGE_JOBS = [
   "cfb-core-model-c-readiness",
   "cfb-core-2025-2026-holdout",
   "cfb-postgame-harvest",
+  "cfb-drive-week6-harvest",
   "cfb-qb-transfer-refresh",
   "cfb-quota-replenish-ack",
   "cfbd-endpoint-audit",
@@ -540,6 +542,20 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
   let coreAdvancedSummary = null;
 
   try {
+    if (job === "cfb-drive-week6-harvest") {
+      const result=await harvestCfbVerifiedDriveWeek(env,{
+        year:opts.year,week:opts.week,trigger:opts.trigger,
+        operatorApproved:opts.operatorApproved,fetchFn:opts.fetchFn,
+      });
+      return jobPayload({
+        ok:result.ok===true,job,
+        status:result.ok?"success":JOB_FAILED,
+        attemptedAt:started,successfulAt:result.ok?new Date().toISOString():null,
+        errors:result.ok?[]:[result.reason||"CFB_WEEK_HARVEST_FAILED"],
+        env,writes:{...writes,writesSucceeded:result.accepted||0},
+        d1:{bound:hasDb(env),cfbDriveWeek:result},
+      });
+    }
     if (job === "cfb-pregame-freeze") {
       const result=await freezeCfbPregameFeatures(env,{now:started});
       return jobPayload({ok:result.ok,job,status:result.ok?"success":JOB_FAILED,attemptedAt:started,successfulAt:result.ok?new Date().toISOString():null,errors:result.ok?[]:[result.reason||"cfb-pregame-freeze-failed"],env,writes,d1:{bound:hasDb(env),cfbPregame:result}});
