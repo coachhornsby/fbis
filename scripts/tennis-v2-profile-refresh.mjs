@@ -10,7 +10,7 @@ const MIRROR="https://raw.githubusercontent.com/Aneeshers/tennis-sackmann-archiv
 const cutoff=process.env.TENNIS_PROFILE_CUTOFF||new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()).replaceAll("-","");
 const sourceAsOf=`${cutoff.slice(0,4)}-${cutoff.slice(4,6)}-${cutoff.slice(6,8)}T00:00:00-05:00`;
 
-const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
+const finite=v=>{if(v==null || (typeof v==='string' && v.trim()==='')) return null; const n=Number(v);return Number.isFinite(n)?n:null};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const clean=v=>String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 const surfaceKey=s=>{s=String(s||"hard").toLowerCase();return s.includes("clay")?"clay":s.includes("grass")?"grass":"hard"};
