@@ -44,3 +44,9 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/tennis-private-atp-official-source.mjs
+      - name: Verify ATP candidate headshot sources by HEAD only
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          node scripts/tennis-private-atp-headshot-source-check.mjs
