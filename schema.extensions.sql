@@ -5202,7 +5202,7 @@ CREATE TABLE IF NOT EXISTS exchange_bet_settlements (
 );
 
 
--- Restricted official Tennis photo assets; migration 0121_tennis_private_portrait_imports
+-- Restricted official Tennis photo assets; migration 0122_tennis_private_portrait_imports
 -- Separate official private-media ledger. No public release and no photo bytes in D1.
 CREATE TABLE IF NOT EXISTS tennis_private_portrait_imports (
  cohort_id TEXT NOT NULL,
