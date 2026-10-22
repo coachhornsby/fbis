@@ -1,0 +1,140 @@
+name: CFB V2 Phase 4 prospective lifecycle
+
+# CFB-only research. NO provider calls, wagers or champion changes.
+# One-shot startup after the signed off release, then daily prospective freeze
+# and source-verified grade passes from Oct 22 through Nov 20, 2026.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "0 16 * * *"
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cfb-drive-v2-phase4
+  cancel-in-progress: false
+jobs:
+  prospective-freeze:
+    if: >-
+      ${{ (github.event_name == 'workflow_run' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          contains(github.event.workflow_run.head_commit.message, '[CFB-V2-PHASE4-20261022]')) ||
+          (github.event_name == 'schedule' && github.event.schedule == '0 16 * * *') ||
+          github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Deterministic pre-kickoff prospect selection and freeze
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "No operator secret"; exit 2; }
+          today="$(date -u +%Y-%m-%d)"
+          if [[ "$today" < 2026-10-22 || "$today" > 2026-11-20 ]]; then
+            echo "Outside bounded 2026 observation period"; exit 0
+          fi
+          mkdir -p sanitized
+          base="https://fbis-myz.pages.dev/api/cfb-simulation"
+          http="$(curl -sS --show-error --retry 0 --max-time 60 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -o eligible.json -w '%{http_code}' "$base?mode=eligible")" || http="000"
+          test "$http" = 200
+          jq -e '.ok and .source=="CFB_DB" and .canAuthorizeWager==false and (.games|type=="array")' eligible.json >/dev/null
+          jq '{mode,asOf,through,eligible,games:[.games[]|{gameId,kickoff}]}' eligible.json > sanitized/selection.json
+          cat sanitized/selection.json >> "$GITHUB_STEP_SUMMARY"
+          frozen=0; failures=0; skipped=0
+          jq -r '.games[] | [.gameId,.kickoff] | @tsv' eligible.json |
+          while IFS=$'\t' read -r gid kickoff; do
+            if [[ -z "$gid" || "$gid" == "null" ]]; then continue; fi
+            if (( $(date -u +%s) >= $(date -u -d "$kickoff" +%s) )); then
+              echo "Skip game past kickoff: $gid";continue
+            fi
+            payload="$(jq -nc --arg id "$gid" '{action:"drive-research-asof",gameId:$id}')"
+            http="$(curl -sS --show-error --retry 0 --max-time 120 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" \
+              -X POST --data "$payload" \
+              -o "result-$gid.json" -w '%{http_code}' "$base")" || http="000"
+            if jq -e . "result-$gid.json" >/dev/null 2>&1; then
+              jq '{ok,status,gameId,sourceFrozenAt,researchFrozenAt,
+                   trainingGames,trainingDrives,iterations,
+                   noWagerAuthority,changesProductionChampion,
+                   reason,error}' "result-$gid.json" > "sanitized/result-$gid.json"
+            else
+              echo "{\"ok\":false,\"gameId\":\"$gid\",\"error\":\"NON_JSON\"}" > "sanitized/result-$gid.json"
+            fi
+            if [ "$http" != 200 ] || ! jq -e '.ok==true and (.status=="FROZEN" or .status=="ALREADY_FROZEN")
+                 and .noWagerAuthority==true' "result-$gid.json" >/dev/null 2>&1; then
+              echo "::error::Freeze failed game $gid with HTTP $http"
+              exit 4
+            fi
+            echo "Frozen $gid"
+          done
+          # pipefail propagates failures in the loop subshell.
+          http="$(curl -sS --show-error --retry 0 --max-time 60 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -o cohort.json -w '%{http_code}' "$base?mode=cohort")" || http="000"
+          test "$http" = 200
+          jq -e '.ok==true and .scope=="CFB_DB" and .canAuthorizeWager==false' cohort.json >/dev/null
+          jq '{frozen,graded,gradeCoverage,calibrationStatus,paired,
+               canAuthorizeWager,changesProductionChampion}' cohort.json > sanitized/cohort.json
+          cat sanitized/cohort.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive safe prospective receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-drive-v2-phase4-freeze
+          path: sanitized/*.json
+          retention-days: 21
+          if-no-files-found: ignore
+  verified-postgame-grade:
+    if: >-
+      ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * *') ||
+          github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Source-verified grading only, without CFBD calls
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "No operator secret"; exit 2; }
+          today="$(date -u +%Y-%m-%d)"
+          if [[ "$today" < 2026-10-23 || "$today" > 2026-11-20 ]]; then
+            echo "No authorized prospective results to grade";exit 0
+          fi
+          mkdir -p sanitized
+          base="https://fbis-myz.pages.dev/api/cfb-simulation"
+          payload='{"action":"drive-grade-ready"}'
+          http="$(curl -sS --show-error --retry 0 --max-time 240 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            -X POST --data "$payload" -o grade.json -w '%{http_code}' "$base")" || http="000"
+          test "$http" = 200
+          jq -e '.ok==true and .source=="CFB_DB" and .providerRequests==0 and
+            .canAuthorizeWager==false' grade.json >/dev/null
+          jq '{ok,graded,checked,eligibleGames,source,providerRequests,
+            canAuthorizeWager,changesProductionChampion}' grade.json > sanitized/grading.json
+          cat sanitized/grading.json >> "$GITHUB_STEP_SUMMARY"
+          http="$(curl -sS --show-error --retry 0 --max-time 90 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -o cohort.json -w '%{http_code}' "$base?mode=cohort")" || http="000"
+          test "$http" = 200
+          jq -e '.ok==true and .scope=="CFB_DB" and .canAuthorizeWager==false' cohort.json >/dev/null
+          jq '{frozen,graded,calibrationStatus,gradeCoverage,scores,paired,
+                intervalCoverage,canAuthorizeWager}' cohort.json > sanitized/report.json
+          cat sanitized/report.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive safe evaluation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-drive-v2-phase4-evaluation
+          path: sanitized/*.json
+          retention-days: 30
+          if-no-files-found: ignore

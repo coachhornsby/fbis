@@ -13,7 +13,7 @@ export function summarizeCfbDriveCohort(rows=[]){
   if(!base||!dist?.total||!dist?.margin||!dist?.home_score||!dist?.away_score)continue;
   const bHome=base.home,bAway=base.away,h=dist.home_score.mean,a=dist.away_score.mean;
   if(![bHome,bAway,h,a].every(finite))continue;
-  const official=finite(r.score_home)&&finite(r.score_away)&&r.grade_run_id;
+  const official=finite(r.score_home)&&finite(r.score_away)&&Boolean(r.grade_run_id);
   const item={
    gameId:String(r.game_id),kickoff:r.kickoff,home:r.home_name,away:r.away_name,
    researchFrozenAt:r.frozen_at,sourceSnapshotFrozenAt:base.sourceFrozenAt||null,
@@ -45,6 +45,14 @@ export function summarizeCfbDriveCohort(rows=[]){
  return {ok:true,scope:"CFB_DB",simulator:"CFB-DRIVE-STATE-SHADOW-v2",
    type:"RESEARCH_ONLY_PROSPECTIVE_COHORT",frozen:items.length,graded:graded.length,
    gradeCoverage:items.length?round(graded.length/items.length):null,
+   paired:{
+     totalErrorImprovement:graded.length?round(err("originalTotal")-err("v2Total")):null,
+     marginErrorImprovement:graded.length?round(err("originalMargin")-err("v2Margin")):null,
+     v2BetterTotalGames:graded.filter(x=>x.errors.v2Total<x.errors.originalTotal).length,
+     v2BetterMarginGames:graded.filter(x=>x.errors.v2Margin<x.errors.originalMargin).length,
+     tiesTotalGames:graded.filter(x=>x.errors.v2Total===x.errors.originalTotal).length,
+     tiesMarginGames:graded.filter(x=>x.errors.v2Margin===x.errors.originalMargin).length,
+   },
    calibrationStatus:graded.length>=30?"RESEARCH_EVALUABLE":"INSUFFICIENT_PROSPECTIVE_GRADES",
    scores:{originalTotalMAE:err("originalTotal"),v2TotalMAE:err("v2Total"),
      originalMarginMAE:err("originalMargin"),v2MarginMAE:err("v2Margin"),
@@ -71,7 +79,15 @@ export async function cfbDriveCohortReport(env,{limit=80}={}){
     LEFT JOIN games e ON e.id=r.game_id AND e.sport='cfb'
     WHERE r.authority='RESEARCH_SHADOW_ONLY'
       AND r.can_authorize_wager=0
-    ORDER BY r.frozen_at DESC LIMIT ?`
+      AND r.frozen_at<r.kickoff
+      AND NOT EXISTS (
+        SELECT 1 FROM cfb_drive_shadow_runs earlier
+        WHERE earlier.game_id=r.game_id
+          AND earlier.simulator_version=r.simulator_version
+          AND (earlier.frozen_at<r.frozen_at OR
+            (earlier.frozen_at=r.frozen_at AND earlier.id<r.id))
+      )
+    ORDER BY r.kickoff DESC,r.game_id ASC LIMIT ?`
  ).bind(cap).all();
  if(!Array.isArray(results?.results))throw Error("CFB_COHORT_READ_FAILED");
  return summarizeCfbDriveCohort(results.results);
