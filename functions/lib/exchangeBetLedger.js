@@ -26,8 +26,11 @@ export function polymarketExecution(row){
   if(row?.type!=="ACTIVITY_TYPE_TRADE"||!row.trade)return null;
   const t=row.trade,market=safe(t.marketSlug),id=safe(t.id);
   if(!id||!market)return null;
-  const side=safe(t.outcomeSide||t.side||t.contractSide,10).toUpperCase();
-  const action=safe(t.intent||t.action,12).toUpperCase();
+  // Provider versions may use side for BUY/SELL or YES/NO. Classify by value,
+  // never infer the contract outcome from a BUY direction.
+  const candidates=[t.outcomeSide,t.contractSide,t.side,t.intent,t.action].map(v=>safe(v,16).toUpperCase());
+  const side=candidates.find(v=>v==="YES"||v==="NO")||"UNKNOWN";
+  const action=candidates.find(v=>v==="BUY"||v==="SELL")||"UNKNOWN";
   const status=safe(t.state,60).toUpperCase();
   // An explicitly unconfirmed/pending/cancelled activity must not be a wager.
   if(/PENDING|CANCEL|REJECT|FAILED|CREATED|UNFILLED/.test(status))return null;
@@ -73,6 +76,9 @@ export async function readExchangeTickets(db){
   const tickets=groupExecutions(events);
   const settle=(await db.prepare("SELECT * FROM exchange_bet_settlements").all()).results||[];
   const sales=new Set(events.filter(e=>e.action==="SELL").map(e=>e.provider+"|"+e.market));
+  for(const t of tickets)if(sales.has(t.provider+"|"+t.market)){
+    t.status="REVIEW";t.reconciliationRequired=true;
+  }
   for(const s of settle){
     if(s.provider!=="Kalshi"||!["YES","NO"].includes(s.outcome)||sales.has(s.provider+"|"+s.market))continue;
     const matching=tickets.filter(t=>t.provider===s.provider&&t.market===s.market);

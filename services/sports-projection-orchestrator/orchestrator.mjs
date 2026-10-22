@@ -1471,7 +1471,7 @@ export async function syncExchangeBetsToTracker({since="2026-10-21T00:00:00Z"}={
   const touchedIds=new Set();
   for(const t of data.tickets){
     if(!t.id||!t.executedAt||t.executedAt<since){skipped++;continue;}
-    if(!(t.contracts>0)||!(t.risk>0)||!(t.unitPrice>0&&t.unitPrice<1)){skipped++;continue;}
+    if(t.status==="REVIEW"||!(t.contracts>0)||!(t.risk>0)||!(t.unitPrice>0&&t.unitPrice<1)){skipped++;continue;}
     const prior=existing.get(t.id);
     if(prior){
       touchedIds.add(t.id);

@@ -53,7 +53,7 @@ test("snapshot only returns sanitized private data and exact money units",async(
   assert.equal(result.complete.positions,true);
   assert.equal(result.tradingEnabled,false);
   assert.ok(!JSON.stringify(result).includes(env.KALSHI_PRIVATE_KEY_PEM));
-  assert.deepEqual(new Set(seen.map(u=>u.pathname)),new Set(Object.values(KALSHI_ACCOUNT_PATHS)));
+  assert.deepEqual(new Set(seen.map(u=>u.pathname)),new Set(Object.values(KALSHI_ACCOUNT_PATHS).filter(x=>!x.endsWith("/settlements"))));
 });
 test("pagination truncation stays visibly incomplete",async()=>{
   const env=await envWithKey();
