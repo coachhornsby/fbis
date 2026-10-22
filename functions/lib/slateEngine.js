@@ -504,7 +504,10 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   if (id === "nba" && Array.isArray(next.games)) {
-    const db = env.DB || null;
+    // Only the CORE-approved NBA owner may serve NBA research after cutover.
+    // In shadow mode the authority resolver deliberately returns PRIMARY.
+    // Strict sport mode with a missing receipt/binding returns no database.
+    const db = productSportDbHandle(env, "nba").db || null;
     const gate = await resolveNbaProspectiveGate(db).catch((err) => ({
       status: "FROZEN_RESEARCH_GATE",
       canAuthorize: false,
