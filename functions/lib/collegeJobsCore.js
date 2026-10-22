@@ -1,3 +1,4 @@
+import { ingestCfbDriveBatch } from "./cfbDriveSimulationStore.js";
 import {acknowledgeCfbdQuotaReplenishment,cfbCfbdAcquisitionHealth} from "./cfbCfbdAcquisition.js";
 import {reconcileSharedCollegeQuota} from "./quota.js";
 /**
@@ -1830,6 +1831,40 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             if(!persisted?.ok)throw Error("CFBD_DAILY_D1_ARCHIVE_POINTER_FAILED: "+endpoint);
             if(persisted.r2Key)cfbDailyArchives.push({endpoint,week:w.week,seasonType:w.seasonType,r2Key:persisted.r2Key,storage:persisted.storage});
             writes.writesSucceeded+=persisted.inserted||0;
+          }
+          // One optional CFBD /drives batch per already authorized postgame
+          // week. Reuses the existing morning-only CFBD quota ledger, NEVER an
+          // extra unrestricted network owner or per-team/per-game request.
+          if (env.CFB_DRIVE_RESEARCH_COLLECTION === "enabled" &&
+              env.CFB_DB?.prepare && env.cfbdNetworkAuthorized === true &&
+              env.cfbdCacheOnly !== true && opts.trigger === "schedule") {
+            const driveRes = await cfbdGet("/drives",env,{query:w,fetchFn:opts.fetchFn||fetch});
+            const ids=new Set(finals.filter(g=>Number(g.week)===w.week &&
+              String(g.seasonType||g.season_type||"regular")===w.seasonType)
+              .map(g=>String(g.id||g.gameId)));
+            if(driveRes.ok && Array.isArray(driveRes.data)){
+              try{
+                const selected=driveRes.data.filter(d=>ids.has(String(d.gameId)));
+                const selectedFinals=finals.filter(g=>ids.has(String(g.id||g.gameId)));
+                const drivePersist=await ingestCfbDriveBatch(env,{
+                  finals:selectedFinals,drives:selected,
+                  observedAt:new Date().toISOString(),
+                });
+                cfbDailyArchives.push({endpoint:"/drives",week:w.week,
+                  source:"CFBD_DRIVES",researchOnly:true,
+                  inserted:drivePersist.inserted,rejected:drivePersist.rejected,
+                  quotaOwner:"cfb-postgame-harvest"});
+                writes.writesSucceeded+=drivePersist.inserted;
+              }catch(err){
+                // Optional research must not jeopardize canonical postgame
+                // grades, but its failure is visible to the operator.
+                cfbDailyArchives.push({endpoint:"/drives",researchOnly:true,
+                  status:"RESEARCH_FAILED",reason:String(err?.message||err).slice(0,120)});
+              }
+            }else{
+              cfbDailyArchives.push({endpoint:"/drives",researchOnly:true,
+                status:"SOURCE_UNAVAILABLE_OR_QUOTA_GATED",reason:driveRes.reason||"CFBD_UNAVAILABLE"});
+            }
           }
         }
       }
