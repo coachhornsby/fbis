@@ -1,4 +1,5 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
+import { productSportDbHandle } from "../lib/databaseTopology.js";
 import { buildTodayBoard, resolveTodayDate } from "../lib/todayBoard.js";
 import { buildPlayerPropsBoard } from "../../src/features/playerProps/buildPlayerPropsBoard.js";
 import { americanProfit } from "../lib/pricing.js";
@@ -10,6 +11,7 @@ function finite(v){if(v==null||v==="")return null;const n=Number(v);return Numbe
 function dateCt(d=new Date()){return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(d);}
 function shiftDay(day,delta){const [y,m,d]=day.split("-").map(Number),x=new Date(Date.UTC(y,m-1,d,12));x.setUTCDate(x.getUTCDate()+delta);return x.toISOString().slice(0,10);}
 function envOf(context){return {
+  ...context.env,
   PARLAY_API_KEY:context.env.PARLAY_API_KEY,THEODDS_API_KEY:context.env.THEODDS_API_KEY,
   SHARPAPI_API_KEY:context.env.SHARPAPI_API_KEY,THERUNDOWN_API_KEY:context.env.THERUNDOWN_API_KEY,
   BALLPARK_PAL_API_KEY:context.env.BALLPARK_PAL_API_KEY,CFBD_API_KEY:context.env.CFBD_API_KEY,
@@ -192,18 +194,18 @@ async function summary(db){
   const [counts,cal,lastRun]=await Promise.all([
     db.prepare(`SELECT wager_scope,market,decision,COUNT(*) n,MIN(snapshot_at) first_at,MAX(snapshot_at) last_at
       FROM nhl_wager_decisions GROUP BY wager_scope,market,decision ORDER BY wager_scope,market,decision`).all(),
-    db.prepare("SELECT * FROM nhl_wager_confidence_calibration ORDER BY wager_scope,market,confidence_band").all(),
+    db.prepare("SELECT * FROM nhl_wager_confidence_calibration ORDER BY wager_scope,market,confidence_band").all().catch(()=>({results:[]})),
     db.prepare("SELECT * FROM nhl_wager_confidence_runs ORDER BY run_at DESC LIMIT 1").first().catch(()=>null)
   ]);
   return{counts:counts.results||[],calibration:cal.results||[],confidenceAudit:lastRun||null};
 }
 export async function onRequestGet(context){
-  const db=context.env.DB;if(!db?.prepare)return json({ok:false,error:"d1_unavailable"},503);
+  const db=productSportDbHandle(context.env,"nhl").db;if(!db?.prepare)return json({ok:false,error:"nhl-authority-unavailable"},503);
   return json({ok:true,...await summary(db)});
 }
 export async function onRequestPost(context){
   const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(),401);
-  const db=context.env.DB;if(!db?.prepare)return json({ok:false,error:"d1_unavailable"},503);
+  const db=productSportDbHandle(context.env,"nhl").db;if(!db?.prepare)return json({ok:false,error:"nhl-authority-unavailable"},503);
   let body={};try{body=await context.request.json()}catch{}
   const mode=String(body.mode||"capture").toLowerCase(),raw=String(body.date||dateCt());
   const resolved=resolveTodayDate(raw);if(!resolved.ok)return json({ok:false,error:resolved.error},400);
