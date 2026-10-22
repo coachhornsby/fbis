@@ -1,4 +1,5 @@
 import { collectBoards } from "../lib/projLedger.js";
+import { sportDbContext } from "../lib/nflSportDbContext.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { deploymentCommit, httpStatusForJob, parseJobTrigger } from "../lib/jobs.js";
 import { readMeta, setMeta } from "../lib/store.js";
@@ -70,6 +71,7 @@ export async function collectCurrentPipeline(context, collect = collectBoards) {
       CFBD_API_KEY: context.env.CFBD_API_KEY,
       CBBD_API_KEY: context.env.CBBD_API_KEY,
       caches: globalThis.caches?.default,
+      ...sportDbContext(context.env),
       DB: context.env.DB,
       CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
     }, {
