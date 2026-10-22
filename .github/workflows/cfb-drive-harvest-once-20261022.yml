@@ -1,0 +1,78 @@
+name: One-time CFB drive harvest October 22
+
+# One-shot: runs only after a successful MAIN production CI run whose
+# merge message contains an explicit token. No recurring cron or unbounded
+# provider calls; reruns remain idempotent at the immutable CFB D1 source.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cfb-drive-harvest-operator-20261022
+  cancel-in-progress: false
+
+jobs:
+  cfb-drive-one-time:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          contains(github.event.workflow_run.head_commit.message, '[CFB-DRIVE-HARVEST-20261022]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Authorized one-time CFB postgame research harvest
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          CFB_URL: https://fbis-myz.pages.dev/api/college
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "Existing HARVEST_SECRET missing"; exit 2; }
+          mkdir -p evidence
+          failed=0
+          for day in 2026-10-17 2026-10-21; do
+            echo "::group::CFB drive harvest for ${day}"
+            url="${CFB_URL}?job=cfb-postgame-harvest&trigger=workflow_dispatch&operatorApproved=true&date=${day}&year=2026"
+            http="$(curl --silent --show-error --max-time 300 --retry 0 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "Accept: application/json" \
+              -o "evidence/cfb-${day}.json" -w "%{http_code}" "$url")" || http="000"
+            echo "HTTP: $http"
+            if ! jq -e . "evidence/cfb-${day}.json" > /dev/null 2>&1; then
+              echo "Missing JSON response"; failed=1; echo "::endgroup::"; continue
+            fi
+            jq -c '{ok,status,gamesDiscovered,errors,
+              driveHarvest: [.d1.cfbDailyArchive.payloads[]? |
+                select(.endpoint=="/drives") |
+                {status,week,inserted,rejected,reason,source,quotaOwner}]}' "evidence/cfb-${day}.json"
+            if [ "$http" != 200 ] || ! jq -e '.ok == true and .status == "success"' "evidence/cfb-${day}.json" >/dev/null; then
+              echo "CFB research harvest was not successful for $day"; failed=1
+            fi
+            if ! jq -e '.d1.cfbDailyArchive.payloads | map(select(.endpoint == "/drives")) | length > 0' "evidence/cfb-${day}.json" >/dev/null; then
+              echo "No /drives receipt: no verified game collection can be claimed for $day"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          {
+            echo "## CFB research drive harvest"
+            echo "Operator-approved, existing CFBD quota ledger, no automatic model or bet promotion."
+            for day in 2026-10-17 2026-10-21; do
+              echo "### $day"
+              jq -c '{ok,status,gamesDiscovered,driveHarvest: [.d1.cfbDailyArchive.payloads[]? |
+                select(.endpoint=="/drives") | {status,inserted,rejected,reason}]}' "evidence/cfb-${day}.json" || true
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$failed"
+      - name: Upload limited harvest receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-drive-harvest-20261022
+          path: evidence/cfb-*.json
+          retention-days: 14
+          if-no-files-found: ignore
