@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS tennis_private_portrait_source_references (
  headshot_candidate_url TEXT,
  headshot_candidate_source TEXT,
  headshot_status TEXT NOT NULL DEFAULT 'NO_OFFICIAL_IMAGE_VERIFIED'
-   CHECK(headshot_status IN ('NO_OFFICIAL_IMAGE_VERIFIED','THIRD_PARTY_URL_CANDIDATE','OFFICIAL_IMAGE_SOURCE_VERIFIED')),
+   CHECK(headshot_status IN ('NO_OFFICIAL_IMAGE_VERIFIED','THIRD_PARTY_URL_CANDIDATE','OFFICIAL_SITE_TEMPLATE_CANDIDATE','OFFICIAL_IMAGE_SOURCE_VERIFIED')),
  headshot_evidence_ref TEXT,
  private_image_imported INTEGER NOT NULL DEFAULT 0 CHECK(private_image_imported=0),
  public_display_allowed INTEGER NOT NULL DEFAULT 0 CHECK(public_display_allowed=0),
@@ -77,14 +77,21 @@ SELECT m.cohort_id,m.tour,m.player_key,m.fbis_player_id,
       replace(m.player_key,' ','-') ELSE NULL END,
  CASE WHEN m.tour='wta' AND s.source_player_id IS NOT NULL AND s.provider='WTA_OFFICIAL'
     THEN 'OFFICIAL_ID_BASED_CANDIDATE' ELSE 'NOT_VERIFIED' END,
- CASE WHEN m.tour='atp' AND p.official_headshot_source='PRIZEPICKS_FEED'
-   AND lower(p.official_headshot_url) LIKE 'https://www.atptour.com/%'
+ CASE WHEN m.tour='wta' AND s.provider='WTA_OFFICIAL'
+   AND s.source_player_id GLOB '[0-9]*'
+   THEN 'https://wtafiles.blob.core.windows.net/images/headshots/'||s.source_player_id||'.jpg'
+   WHEN m.tour='atp' AND p.official_headshot_source='PRIZEPICKS_FEED'
+    AND lower(p.official_headshot_url) LIKE 'https://www.atptour.com/%'
    THEN p.official_headshot_url ELSE NULL END,
- CASE WHEN m.tour='atp' AND p.official_headshot_source='PRIZEPICKS_FEED'
-   AND lower(p.official_headshot_url) LIKE 'https://www.atptour.com/%'
+ CASE WHEN m.tour='wta' AND s.provider='WTA_OFFICIAL' AND s.source_player_id GLOB '[0-9]*'
+   THEN 'WTA_OFFICIAL_SITE_TEMPLATE'
+   WHEN m.tour='atp' AND p.official_headshot_source='PRIZEPICKS_FEED'
+    AND lower(p.official_headshot_url) LIKE 'https://www.atptour.com/%'
    THEN 'PRIZEPICKS_FEED' ELSE NULL END,
- CASE WHEN m.tour='atp' AND p.official_headshot_source='PRIZEPICKS_FEED'
-   AND lower(p.official_headshot_url) LIKE 'https://www.atptour.com/%'
+ CASE WHEN m.tour='wta' AND s.provider='WTA_OFFICIAL' AND s.source_player_id GLOB '[0-9]*'
+   THEN 'OFFICIAL_SITE_TEMPLATE_CANDIDATE'
+   WHEN m.tour='atp' AND p.official_headshot_source='PRIZEPICKS_FEED'
+    AND lower(p.official_headshot_url) LIKE 'https://www.atptour.com/%'
    THEN 'THIRD_PARTY_URL_CANDIDATE' ELSE 'NO_OFFICIAL_IMAGE_VERIFIED' END
 FROM tennis_private_portrait_cohort_members m
 JOIN tennis_players p ON p.fbis_player_id=m.fbis_player_id AND p.tour=m.tour
