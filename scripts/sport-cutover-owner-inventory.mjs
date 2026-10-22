@@ -41,12 +41,20 @@ for (const sport of sports) {
     sharedLedgerCandidate: shared.test(x.source),
     potentiallyWrites: /\b(INSERT|UPDATE|DELETE|REPLACE)\b|\.run\(/i.test(x.source),
     disposition: "REQUIRES_RECORD_LEVEL_OWNER_REVIEW",
+    priority: primary.test(x.source) && (/\b(INSERT|UPDATE|DELETE|REPLACE)\b|\.run\(/i.test(x.source)) ? "P0_PRIMARY_WRITE_CANDIDATE"
+      : primary.test(x.source) ? "P1_PRIMARY_READ_CANDIDATE"
+      : shared.test(x.source) ? "P2_SHARED_LEDGER_REVIEW" : "P3_CONTEXT_REVIEW",
   }));
   report.sports[sport] = {
     prefixTables: tableNames,
     scannedFiles: results.length,
     primaryCandidates: results.filter(x => x.primaryCandidate).length,
     sharedLedgerCandidates: results.filter(x => x.sharedLedgerCandidate).length,
+    ownerTriage: {
+      p0DirectPrimaryWriteCandidates: results.filter(x => x.priority === "P0_PRIMARY_WRITE_CANDIDATE").map(x => x.path),
+      p1DirectPrimaryReadCandidates: results.filter(x => x.priority === "P1_PRIMARY_READ_CANDIDATE").map(x => x.path),
+      p2SharedLedgerCandidates: results.filter(x => x.priority === "P2_SHARED_LEDGER_REVIEW").map(x => x.path),
+    },
     readyForLiveCutover: false,
     consumerReviewComplete: false,
     consumers: results,
