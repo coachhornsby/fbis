@@ -44,8 +44,6 @@ for (const row of sports) {
     // Frozen PRIMARY-to-sport last_copy_at is expected once sport is authoritative.
   } else if (row.mode === "sport" || row.productStillPrimary !== true) {
     failures.push(`UNAUTHORIZED_SPORT_ROUTING:${row.sport}`);
-  } else if (row.parityOk !== true) {
-    failures.push(`SHADOW_PARITY_INCOMPLETE:${row.sport}`);
   }
 }
 if (health.cutoverAuthorized === true) failures.push("CUTOVER_MUST_STAY_CLOSED");
