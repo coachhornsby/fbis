@@ -1,0 +1,101 @@
+name: CFB Week 6 drive harvest (one time)
+
+# Launch once after the PR's successful main CI/production release.
+# No recurring cron. All provider requests still use normal Pages quotas.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cfb-week6-drive-harvest-20261022
+  cancel-in-progress: false
+
+jobs:
+  harvest-week6:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          contains(github.event.workflow_run.head_commit.message, '[CFB-DRIVE-WEEK6-20261022]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Harvest October 6-10 verified CFB drives via authorized provider job
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          BASE_URL: https://fbis-myz.pages.dev/api
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "Missing configured HARVEST_SECRET"; exit 2; }
+          mkdir -p results/summaries
+          failures=0
+          for day in 2026-10-06 2026-10-07 2026-10-08 2026-10-09 2026-10-10; do
+            echo "::group::CFB Week 6 ${day}"
+            url="${BASE_URL}/college?job=cfb-postgame-harvest&trigger=workflow_dispatch&operatorApproved=true&date=${day}&year=2026"
+            http="$(curl -sS --show-error --retry 0 --max-time 300 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "Accept: application/json" \
+              -o "results/${day}.json" -w '%{http_code}' "$url")" || http="000"
+            echo "HTTP ${http}"
+            if jq -e . "results/${day}.json" >/dev/null 2>&1; then
+              jq '{ok,status,errors,
+                source_receipts: [.d1.cfbDailyArchive.payloads[]? |
+                  select(.endpoint == "/drives") |
+                  {week,seasonType,status,source,inserted,rejected,reason}]}' \
+                  "results/${day}.json" > "results/summaries/${day}.json"
+              jq -c . "results/summaries/${day}.json"
+              if ! jq -e '.ok == true and .status == "success"' "results/${day}.json" >/dev/null; then
+                echo "Job returned a failure / pause for ${day}"; failures=1
+              fi
+              if ! jq -e '([.d1.cfbDailyArchive.payloads[]? |
+                  select(.endpoint == "/drives")] | length) > 0' "results/${day}.json" >/dev/null; then
+                echo "No /drives receipt: unable to claim drive ingestion"; failures=1
+              fi
+            else
+              echo "Invalid or missing JSON response"
+              echo '{"ok":false,"status":"MISSING_JSON"}' > "results/summaries/${day}.json"
+              failures=1
+            fi
+            if [ "$http" != "200" ]; then failures=1; fi
+            echo "::endgroup::"
+          done
+          echo "::group::Independent CFB research status"
+          http="$(curl -sS --show-error --retry 0 --max-time 90 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "Accept: application/json" \
+              -o results/drive-status-raw.json -w '%{http_code}' \
+              "${BASE_URL}/cfb-simulation?mode=drives")" || http="000"
+          echo "D1 status API HTTP ${http}"
+          if jq -e . results/drive-status-raw.json >/dev/null 2>&1; then
+            jq '{ok,source,simulator,sourceGames,sourceDrives,
+                 trainingReady,runs,grades,limitations}' results/drive-status-raw.json \
+                 > results/summaries/drive-status.json
+            jq -c . results/summaries/drive-status.json
+          else
+            failures=1
+          fi
+          if [ "$http" != "200" ]; then failures=1; fi
+          echo "::endgroup::"
+          {
+            echo "## CFB Week 6 drive ingestion — operator report"
+            echo "One-time, quota-controlled, research-only. No wager authority."
+            for day in 2026-10-06 2026-10-07 2026-10-08 2026-10-09 2026-10-10; do
+              echo "### ${day}"
+              jq -c . "results/summaries/${day}.json" || true
+            done
+            echo "### CFB_DB status"
+            jq -c . results/summaries/drive-status.json || true
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$failures"
+      - name: Upload sanitized operator receipts only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-week6-drive-harvest-20261022
+          path: results/summaries/*.json
+          retention-days: 14
+          if-no-files-found: ignore
