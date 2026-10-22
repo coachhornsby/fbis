@@ -1,5 +1,9 @@
 name: Tennis Phase 2 official WTA headshot source check
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'migrations/0120_tennis_private_portrait_phase2.sql'
   workflow_dispatch:
   schedule:
     # Once weekly. Image-source HEAD checks only; no image downloads.
@@ -18,6 +22,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Wait for source registry deployment and schema
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 48); do
+            response="$(curl --max-time 10 -fsS -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              'https://fbis-myz.pages.dev/api/tennis-private-portrait-phase2' || true)"
+            if jq -e '.ok == true and .totals.roster == 1074 and .totals.canonicalMatched == 1074' <<<"$response" >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "PHASE2_PRODUCTION_SCHEMA_UNAVAILABLE"
+          exit 1
       - name: Check official WTA player image URLs by HEAD only
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
