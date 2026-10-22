@@ -318,8 +318,14 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
  const team=productAbbr(abbr),official=officialAbbr(team),record=teamRecord(team),seasonId=seasonIdFor(now),tkey=teamKey(team);
  if(!record)return{ok:false,error:"unknown-team",team};
  const runId=`nhl-profile:${tkey}:${now.toISOString()}:${Math.random().toString(36).slice(2,8)}`,started=now.toISOString();
- await DB.prepare(`INSERT INTO nhl_profile_sync_runs(id,season_id,team_key,status,source,started_at) VALUES(?,?,?,?,?,?)`)
-  .bind(runId,seasonId,tkey,"RUNNING",NHL_PERSISTENT_PROFILE_SOURCE,started).run();
+ // Sport D1 copied schemas may not retain PRIMARY's DEFAULT 0 declarations.
+ // Initialize every required counter explicitly so a fresh authorized NHL sync
+ // is compatible with both databases without rebuilding existing history.
+ await DB.prepare(`INSERT INTO nhl_profile_sync_runs(
+   id,season_id,team_key,status,source,started_at,source_calls,roster_rows,schedule_rows,
+   player_rows_upserted,goalie_rows_upserted,linemate_rows_upserted,deployment_rows_upserted
+ ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+  .bind(runId,seasonId,tkey,"RUNNING",NHL_PERSISTENT_PROFILE_SOURCE,started,0,0,0,0,0,0,0).run();
 
  try{
   const sources=await budget((async()=>{
