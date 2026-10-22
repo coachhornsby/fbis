@@ -1,7 +1,7 @@
 {
   "modelId": "NHL-PERSISTENT-STATE-CHALLENGER-v1",
   "version": "research-v1.0-pit-deployment-linemate-replacement-goalie",
-  "generatedAt": "2026-10-20T08:01:08.186Z",
+  "generatedAt": "2026-10-22T00:23:18.191Z",
   "sourceModel": "NHL-PRO-v2",
   "sourceVersion": "research-v2.0-event-chain-gbdt",
   "sourceGeneratedAt": "2026-10-04T09:27:24.766Z",
