@@ -35,7 +35,7 @@ jobs:
       - name: Verify schema/migrations
         run: npm run verify:migrations
       - name: Verify private exchange bet contract and settlement safety
-        run: node --test test/exchange-bets-sync.test.js test/exchange-bets-ledger.test.js
+        run: node --test test/exchange-bets-sync.test.js test/exchange-bets-ledger.test.js test/exchange-bets-private-public.test.js
       - name: Inventory remaining sport D1 consumers before cutover
         run: node scripts/sport-cutover-owner-inventory.mjs
       - name: Preserve remaining sport cutover consumer inventory
