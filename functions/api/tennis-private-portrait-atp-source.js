@@ -58,7 +58,7 @@ export async function onRequestPost({request,env}){
    const update=await env.DB.prepare(`UPDATE tennis_private_portrait_source_references
     SET official_id_provider='ATP_OFFICIAL',official_player_id=?,official_id_status='LINKED_FROM_OFFICIAL_INGEST',
       official_profile_candidate_url=?,profile_status='SOURCE_URL_VERIFIED',
-      headshot_candidate_url='https://www.atptour.com/-/media/alias/player-headshot/'||upper(?),
+      headshot_candidate_url='https://www.atptour.com/-/media/alias/player-headshot/'||lower(?),
       headshot_candidate_source='ATP_OFFICIAL_PAGE_TEMPLATE',
       headshot_status='OFFICIAL_SITE_TEMPLATE_CANDIDATE',
       headshot_evidence_ref=NULL,noted_at=?
