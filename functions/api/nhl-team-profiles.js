@@ -1,9 +1,11 @@
+import { productSportDbHandle } from "../lib/databaseTopology.js";
 import { loadNhlPersistentProfiles } from "../lib/nhlPersistentProfiles.js";
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"public, max-age=60","access-control-allow-origin":"*"}});}
 async function first(db,sql,...binds){try{return await db.prepare(sql).bind(...binds).first();}catch{return null;}}
 export async function onRequestGet(context){
- if(!context.env?.DB?.prepare)return json({ok:false,error:"database-unavailable"},503);
- const db=context.env.DB,url=new URL(context.request.url);
+ const db=productSportDbHandle(context.env,"nhl").db;
+ if(!db?.prepare)return json({ok:false,error:"nhl-authority-unavailable"},503);
+ const url=new URL(context.request.url);
  if(url.searchParams.get("summary")==="1"){
   const [teams,players,goalies,schedule,snapshots,runs,deployment,linemates,coach]=await Promise.all([
    first(db,"SELECT COUNT(*) n FROM nhl_team_profiles"),
