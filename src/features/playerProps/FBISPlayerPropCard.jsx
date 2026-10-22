@@ -304,7 +304,6 @@ export default function FBISPlayerPropCard({
   const line = row.line;
   const delta = projection != null && line != null ? projection - line : null;
   const side = delta == null ? "WATCH" : delta > 0 ? "OVER" : delta < 0 ? "UNDER" : "WATCH";
-  const tier = "research";
   // Basketball logos are derived from canonical player-team identity, not an
   // async fuzzy team-name endpoint. Missing/conflicting identity has no logo.
   const basketballTeam = resolveBasketballPropTeam(row);
@@ -396,14 +395,13 @@ export default function FBISPlayerPropCard({
         <div className="pp-team-pill">
           {(row.sport || "NFL").toUpperCase()}
           {row.team ? <><span>•</span>{row.team}</> : null}
-          {tier !== "standard" ? <><span>•</span>{tier.toUpperCase()}</> : null}
         </div>
       </div>
       <div className="pp-card-body pp-flow-body">
         <header className="pp-flow-identity">
           <h3>{row.player_name || "Unknown player"}</h3>
           <div className="pp-flow-matchup"><span><b>{row.team || row.sport?.toUpperCase()}</b>{row.opponent ? <> <span>vs</span> <b>{row.opponent}</b></>:null}</span>
-            {row.start_time?<time dateTime={row.start_time}>{new Date(row.start_time).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})} CT</time>:null}</div>
+            {row.start_time?<time dateTime={row.start_time}>{new Date(row.start_time).toLocaleString('en-US',{timeZone:'America/Chicago',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})} CT</time>:null}</div>
         </header>
         <section className="pp-flow-forecast" aria-label="FBIS forecast versus market threshold" data-lean={side.toLowerCase()}>
           <div className="pp-flow-stat">{marketLabel(row)}</div>
