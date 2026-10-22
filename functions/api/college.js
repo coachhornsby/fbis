@@ -61,6 +61,7 @@ function envFrom(context) {
     TIER3_DB: context.env.TIER3_DB,
     // Sport shard for prediction_snapshots A/A overlays (Model C holdout).
     CFB_DB: context.env.CFB_DB,
+    CFB_DRIVE_RESEARCH_COLLECTION: context.env.CFB_DRIVE_RESEARCH_COLLECTION,
     ARCHIVE: context.env.ARCHIVE,
     CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
     CFBD_DAILY_NETWORK_BUDGET: context.env.CFBD_DAILY_NETWORK_BUDGET,
