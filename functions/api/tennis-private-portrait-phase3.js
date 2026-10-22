@@ -18,16 +18,14 @@ export async function onRequestGet({request,env}) {
       SUM(CASE WHEN r.headshot_status='OFFICIAL_IMAGE_SOURCE_VERIFIED'
          AND length(trim(COALESCE(r.headshot_evidence_ref,'')))>0 THEN 1 ELSE 0 END) AS official_url_verified,
       SUM(CASE WHEN r.headshot_candidate_url IS NOT NULL THEN 1 ELSE 0 END) AS url_candidates,
-      SUM(CASE WHEN pp.fbis_player_id IS NOT NULL THEN 1 ELSE 0 END) AS private_asset_records,
-      SUM(CASE WHEN pp.approval_status='APPROVED' THEN 1 ELSE 0 END) AS approved_private_records,
-      SUM(CASE WHEN pp.public_display_allowed<>0 OR pp.display_scope<>'PRIVATE_ONLY' THEN 1 ELSE 0 END) AS public_scope_violations
+      SUM(CASE WHEN i.fbis_player_id IS NOT NULL THEN 1 ELSE 0 END) AS private_asset_records,
+      SUM(CASE WHEN i.fbis_player_id IS NOT NULL THEN 1 ELSE 0 END) AS approved_private_records,
+      SUM(CASE WHEN i.public_display_allowed<>0 OR i.storage_scope<>'PRIVATE_ONLY' THEN 1 ELSE 0 END) AS public_scope_violations
       FROM tennis_private_portrait_cohort_members m
       LEFT JOIN tennis_players p ON p.fbis_player_id=m.fbis_player_id AND p.tour=m.tour
       LEFT JOIN tennis_private_portrait_source_references r
         ON r.cohort_id=m.cohort_id AND r.tour=m.tour AND r.player_key=m.player_key
-      LEFT JOIN tennis_player_portraits pp ON pp.fbis_player_id=m.fbis_player_id
-        AND pp.source_name=CASE WHEN m.tour='atp' THEN 'ATP_OFFICIAL' ELSE 'WTA_OFFICIAL' END
-        AND pp.asset_key IS NOT NULL AND length(trim(pp.asset_key))>0
+      LEFT JOIN tennis_private_portrait_imports i ON i.cohort_id=m.cohort_id AND i.tour=m.tour AND i.player_key=m.player_key
       WHERE m.cohort_id=? GROUP BY m.tour ORDER BY m.tour`).bind(COHORT).all()).results||[];
     const policy=(await env.DB.prepare(`SELECT tour,rights_verification,access_verification,activation_state,
       CASE WHEN length(trim(COALESCE(rights_evidence_ref,'')))>0 THEN 1 ELSE 0 END evidence_present
@@ -36,14 +34,12 @@ export async function onRequestGet({request,env}) {
       m.fbis_player_id AS playerId, m.identity_status AS identityStatus,
       COALESCE(r.official_id_status,'NOT_VERIFIED') AS officialIdStatus,
       COALESCE(r.headshot_status,'NO_OFFICIAL_IMAGE_VERIFIED') AS headshotStatus,
-      CASE WHEN pp.fbis_player_id IS NOT NULL THEN 1 ELSE 0 END AS hasPrivateAssetRecord
+      CASE WHEN i.fbis_player_id IS NOT NULL THEN 1 ELSE 0 END AS hasPrivateAssetRecord
       FROM tennis_private_portrait_cohort_members m
       LEFT JOIN tennis_private_portrait_source_references r
         ON r.cohort_id=m.cohort_id AND r.tour=m.tour AND r.player_key=m.player_key
-      LEFT JOIN tennis_player_portraits pp ON pp.fbis_player_id=m.fbis_player_id
-        AND pp.source_name=CASE WHEN m.tour='atp' THEN 'ATP_OFFICIAL' ELSE 'WTA_OFFICIAL' END
-        AND pp.asset_key IS NOT NULL AND length(trim(pp.asset_key))>0
-      WHERE m.cohort_id=? AND (pp.fbis_player_id IS NULL
+      LEFT JOIN tennis_private_portrait_imports i ON i.cohort_id=m.cohort_id AND i.tour=m.tour AND i.player_key=m.player_key
+      WHERE m.cohort_id=? AND (i.fbis_player_id IS NULL
         OR r.headshot_status IS NULL OR r.headshot_status<>'OFFICIAL_IMAGE_SOURCE_VERIFIED')
       ORDER BY m.tour,m.elo_rank LIMIT ?`).bind(COHORT,limit).all()).results||[]:[];
     const n=(row,key)=>Number(row?.[key]||0);
