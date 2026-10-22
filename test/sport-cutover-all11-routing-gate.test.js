@@ -1,3 +1,4 @@
+import { sportLedgerEnv } from "../functions/lib/sportLedgerRouting.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -65,4 +66,31 @@ test("all 11 sports: missing sport bindings fail back to PRIMARY", () => {
     assert.equal(routed.db, primary, sport);
     assert.equal(routed.productIoUsesSportDb, false, sport);
   }
+});
+
+
+test("NBA ledger storage fails closed without independent readiness and CORE approval", () => {
+  const primary = handle("PRIMARY");
+  const nba = handle("NBA_DB");
+  const env = { DB: primary, NBA_DB: nba, SPORT_DB_MODE_NBA: "sport", SPORT_DB_STRICT_NBA: "1" };
+  const missingReady = sportLedgerEnv(env, "nba");
+  assert.equal(missingReady.DB, null);
+  assert.equal(missingReady.__sportLedgerRoutingError, "SPORT_LEDGER_NOT_QUALIFIED");
+  const readyNoReceipt = sportLedgerEnv({ ...env, SPORT_DB_LEDGER_READY_NBA: "1" }, "nba");
+  assert.equal(readyNoReceipt.DB, null);
+  assert.match(readyNoReceipt.__sportLedgerRoutingError, /RECEIPT/);
+  const readyUnapproved = sportLedgerEnv({ ...env, SPORT_DB_LEDGER_READY_NBA: "1", SPORT_CUTOVER_RECEIPT_NBA: "not-approved" }, "nba");
+  assert.equal(readyUnapproved.DB, null);
+  assert.match(readyUnapproved.__sportLedgerRoutingError, /APPROVAL/);
+  const approvedEnv = {
+    ...env,
+    SPORT_DB_LEDGER_READY_NBA: "1",
+    SPORT_CUTOVER_RECEIPT_NBA: "nba-verified-receipt",
+    __fbisCutoverApprovals: new Map([["nba:nba-verified-receipt", { sport: "nba", status: "APPROVED" }]]),
+  };
+  const authorized = sportLedgerEnv(approvedEnv, "nba");
+  assert.equal(authorized.DB, nba);
+  assert.equal(authorized.__sportLedgerBinding, "NBA_DB");
+  const rollback = sportLedgerEnv({ ...approvedEnv, SPORT_DB_MODE_NBA: "shadow" }, "nba");
+  assert.equal(rollback.DB, primary);
 });
