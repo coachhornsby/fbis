@@ -15,6 +15,7 @@ export async function onRequestGet({request,env}){
      SUM(CASE WHEN r.official_id_status='LINKED_FROM_OFFICIAL_INGEST' THEN 1 ELSE 0 END) official_id_linked,
      SUM(CASE WHEN r.profile_status='OFFICIAL_ID_BASED_CANDIDATE' THEN 1 ELSE 0 END) official_profile_candidates,
      SUM(CASE WHEN r.headshot_status='THIRD_PARTY_URL_CANDIDATE' THEN 1 ELSE 0 END) third_party_image_candidates,
+     SUM(CASE WHEN r.headshot_status='OFFICIAL_SITE_TEMPLATE_CANDIDATE' THEN 1 ELSE 0 END) official_image_candidates,
      SUM(CASE WHEN r.headshot_status='OFFICIAL_IMAGE_SOURCE_VERIFIED' THEN 1 ELSE 0 END) verified_official_image_sources,
      SUM(CASE WHEN r.private_image_imported<>0 OR r.public_display_allowed<>0 THEN 1 ELSE 0 END) unsafe_refs
    FROM tennis_private_portrait_cohort_members m
@@ -33,13 +34,14 @@ export async function onRequestGet({request,env}){
    WHERE r.official_id_status='NOT_VERIFIED'
    ORDER BY m.tour,m.elo_rank LIMIT ?`).bind(limit).all()).results||[]:[];
   const totals={roster:0,canonicalMatched:0,researchOnlyCanonical:0,officialIdsLinked:0,
-    officialProfileCandidates:0,thirdPartyImageCandidates:0,verifiedOfficialImageSources:0};
+    officialProfileCandidates:0,thirdPartyImageCandidates:0,officialImageCandidates:0,verifiedOfficialImageSources:0};
   for(const row of byTour){
     totals.roster+=Number(row.roster||0);totals.canonicalMatched+=Number(row.canonical_matched||0);
     totals.researchOnlyCanonical+=Number(row.research_only_canonical||0);
     totals.officialIdsLinked+=Number(row.official_id_linked||0);
     totals.officialProfileCandidates+=Number(row.official_profile_candidates||0);
     totals.thirdPartyImageCandidates+=Number(row.third_party_image_candidates||0);
+    totals.officialImageCandidates+=Number(row.official_image_candidates||0);
     totals.verifiedOfficialImageSources+=Number(row.verified_official_image_sources||0);
   }
   const ok=byTour.length===2&&byTour.every(row=>Number(row.roster)===(row.tour==='atp'?559:515)
