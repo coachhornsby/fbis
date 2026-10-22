@@ -38,7 +38,7 @@ export async function onRequestGet({env,request}) {
   model=resolvePropModelIdentities(independentPropRows(slate),context).find(p=>p.canonicalEventId===eventId&&p.canonicalPlayerId===id&&(p.canonical_market===market||(p.canonical_market==='pra'&&market==='points_rebounds_assists')))||null;
   modelState=model?'RESEARCH_PROJECTION':(slate.games||[]).find(g=>String(g.id)===eventId)?.playerProjectionStatus?.state||'UNAVAILABLE';
  }catch{modelState='MODEL_DELIVERY_UNAVAILABLE';}
- const history=await loadCanonicalPropHistory(env,{sport,provider,playerId,market,line:contract?.line??null,asOf:new Date(Math.min(Date.now(),Date.parse(game.start))).toISOString()});
+ const history=await loadCanonicalPropHistory(env,{sport,provider,playerId,market,profile:player,line:contract?.line??null,asOf:new Date(Math.min(Date.now(),Date.parse(game.start))).toISOString()});
  let stored={};try{stored=JSON.parse(player.raw_json||'{}');}catch{}
  const profile={role:player.role_label,depthRank:player.depth_rank,jersey:player.jersey,practice:player.practice_state,injury:player.injury_detail,snapShare:player.last_known_snap_share,nextGen:stored.usage?.ngs||null,recentForm:stored.usage?.recent5||null,position:player.position,availability:player.health_state||player.availability_state||player.status||'UNKNOWN',source:player.state_source||player.source,asOf:player.state_source_updated_at||player.source_updated_at||player.as_of,
   expectedMinutes:player.expected_minutes,expectedSnapShare:player.expected_snap_share,evLine:player.ev_line,powerPlayUnit:player.pp_unit,iceTimeSeconds:player.rolling_toi_seconds,roleConfidence:player.role_confidence};

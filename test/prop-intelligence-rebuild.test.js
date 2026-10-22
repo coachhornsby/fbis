@@ -98,3 +98,18 @@ test('ESPN dictionary metadata joins exact season stat rows and preserves missin
  assert.deepEqual(games.map(g=>g.value),[305,0,null]);assert.equal(games[0].opponent,'ATL');
  const h=historySummary(games,{asOf:'2026-10-22T12:00Z'});assert.equal(h.games.length,2);assert.equal(h.recent5.average,152.5);
 });
+
+test('stored exact-ID NFL history survives an unavailable external API without inventing dates',async()=>{
+ const profile={player_id:'4431611',team_key:'chi',updated_at:'2026-10-21T12:00Z',raw_json:JSON.stringify({roster:{id:'4431611'},usage:{id:'00-0039918',team:'CHI',recentGames:[{season:2026,week:6,opponent:'ATL',stats:{passing_yards:305}},{season:2025,week:18,opponent:'DET',stats:{passing_yards:0}},{season:2025,week:17,opponent:'SF',stats:{passing_yards:null}}]}})};
+ const env={DB:{prepare:()=>({bind:()=>({all:async()=>({results:[{event_id:'final',season:2026,week:6,start_time:'2026-10-18T17:00Z',opponent_key:'atl',site:'ROAD'}]})})})}};
+ let external=false;const h=await loadCanonicalPropHistory(env,{sport:'nfl',provider:'espn',playerId:'4431611',market:'passing_yards',profile,asOf:'2026-10-22T12:00Z',fetchImpl:()=>{external=true;throw Error('unavailable');}});
+ assert.equal(external,false);assert.equal(h.available,true);assert.equal(h.partialSeason,true);assert.deepEqual(h.last5.map(g=>g.value),[305,0]);assert.equal(h.last5[0].isHome,false);assert.equal(h.last5[1].date,null);assert.equal(h.last5[1].week,18);
+ const january=historySummary(h.games,{asOf:'2026-01-01T12:00Z'});assert.equal(january.games.length,0);
+ const invalid=await loadCanonicalPropHistory(env,{sport:'nfl',provider:'espn',playerId:'wrong-id',market:'passing_yards',profile,asOf:'2026-10-22T12:00Z',fetchImpl:()=>{throw Error('blocked');}});assert.equal(invalid.available,false);
+});
+test('roster reads scope to fixture teams instead of truncating later teams from the league table',async()=>{
+ const {loadPropFixturesAndPlayers}=await import('../functions/lib/propResearchData.js');const queries=[];
+ const env={DB:{prepare(sql){return{bind(...args){queries.push({sql,args});return{all:async()=>({results:sql.includes('FROM games')?[{id:'G',sport:'nfl',home_abbr:'CHI',away_abbr:'NE'}]:[]})};}};}}};
+ await loadPropFixturesAndPlayers(env,{start:'2026-10-22T05:00Z',end:'2026-10-23T05:00Z',sport:'nfl'});
+ const q=queries.find(q=>q.sql.includes('nfl_player_profiles'));assert.ok(q.sql.includes('team_key IN'));assert.ok(q.args.includes('ne'));assert.ok(q.args.includes('chi'));assert.ok(!q.sql.includes('LIMIT 2000'));
+});

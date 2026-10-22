@@ -76,7 +76,7 @@ function shortGameDate(g) {
       return d.toLocaleDateString("en-US", { month: "numeric", day: "numeric", timeZone: "America/Chicago" });
     }
   }
-  return g?.week ? ("W" + g.week) : "—";
+  return g?.week ? (`${String(g.season||" ").slice(-2)} W${g.week}`.trim()) : "—";
 }
 function fmtStat(v) {
   const n = finite(v);
@@ -125,7 +125,7 @@ function useTeamTheme(sport, team) {
 export function LastFiveStatChart({ row, history=null }) {
   const cardRef = useRef(null);
   const [visible, setVisible] = useState(false);
-  const [state, setState] = useState({ loading: false, error: "", games: [], avg: null });
+  const [state, setState] = useState({ loading: true, error: "", games: [], avg: null });
 
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") {
@@ -427,7 +427,7 @@ export default function FBISPlayerPropCard({
             </div>
             <div className="pp-edge-value">
               <span>FBIS vs threshold</span>
-              <strong>{line==null?"Projection only":`${Math.abs(delta||0).toFixed(1)} ${delta>=0?"above":"below"}`}</strong>
+              <strong>{line==null?"Projection only":delta===0?"At threshold":`${Math.abs(delta||0).toFixed(1)} ${delta>0?"above":"below"}`}</strong>
             </div>
           </div>
         </div>

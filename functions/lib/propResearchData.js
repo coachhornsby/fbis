@@ -7,7 +7,11 @@ export async function loadPropFixturesAndPlayers(env,{start,end,sport='all'}={})
  const tables={nba:['nba_player_state_profiles','as_of'],nfl:['nfl_player_profiles','updated_at'],nhl:['nhl_player_profiles','source_updated_at'],mlb:['mlb_player_state_profiles','updated_at']};
  for(const [s,[table,clock]]of Object.entries(tables)){
   if(sport!=='all'&&sport!==s)continue;
-  try{ const rows=(await env.DB.prepare(`SELECT * FROM ${table} WHERE julianday(${clock})>=julianday('now','-14 days') LIMIT 2000`).all()).results||[];
+  const teamKeys=[...new Set(games.filter(g=>g.sport===s).flatMap(g=>[g.home_abbr,g.away_abbr]).filter(Boolean).flatMap(t=>{
+   const v=String(t).toUpperCase(),canonical=s==='nba'?({SA:'SAS',NY:'NYK'}[v]||v):v;return [v,v.toLowerCase(),canonical,canonical.toLowerCase()];
+  }))];
+  if(!teamKeys.length)continue;
+  try{ const rows=(await env.DB.prepare(`SELECT * FROM ${table} WHERE team_key IN (${teamKeys.map(()=>'?').join(',')}) AND julianday(${clock})>=julianday('now','-14 days') LIMIT 5000`).bind(...teamKeys).all()).results||[];
    for(const p of rows)players.push({...p,sport:s});
   }catch{diagnostics.push(`${s.toUpperCase()}_ROSTER_READ_FAILED`);}
  }
