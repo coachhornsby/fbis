@@ -1,0 +1,27 @@
+name: Tennis Phase 2 ATP official ID source inventory
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly source reconciliation while official ATP identity coverage is incomplete.
+    - cron: '32 12 * * 2'
+permissions:
+  contents: read
+concurrency:
+  group: fbis-tennis-atp-official-source
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse ATP official ranking player URLs, identities and candidate image source
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+        run: |
+          set -euo pipefail
+          node scripts/tennis-private-atp-official-source.mjs
