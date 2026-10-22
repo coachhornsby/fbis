@@ -95,6 +95,19 @@ export const SPORT_PREFIX_TABLES = Object.freeze({
     "nba_wager_decisions",
     "nba_qualification_state",
     "nba_confidence_calibration",
+    "nba_decision_validation_runs",
+    "nba_deep_game_shadow",
+    "nba_deep_validation_runs",
+    "nba_player_game_features",
+    "nba_player_impact_validation",
+    "nba_player_prop_impact_shadow",
+    "nba_player_prop_projections",
+    "nba_prop_comparisons",
+    "nba_prop_market_evaluations",
+    "nba_prospective_exclusions",
+    "nba_prospective_game_shadow",
+    "nba_prospective_gate",
+    "nba_prospective_market_links",
   ]),
   mlb: Object.freeze([
     "mlb_team_profiles",
@@ -1060,6 +1073,12 @@ export async function copySportPrefixTables(env, sport, {
       const freshnessColumnBySport = {
         nfl: { nfl_team_profiles: "updated_at", nfl_player_profiles: "updated_at" },
         cfb: { cfb_pregame_feature_vectors: "created_at" },
+        nba: {
+          nba_player_prop_projections: "graded_at",
+          nba_player_prop_impact_shadow: "graded_at",
+          nba_prospective_game_shadow: "graded_at",
+          nba_deep_game_shadow: "graded_at",
+        },
         nhl: {
           nhl_team_profiles: "updated_at",
           nhl_goalie_profiles: "updated_at",
