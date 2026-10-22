@@ -189,3 +189,13 @@ CREATE TABLE IF NOT EXISTS fbis_topology_migrations (
 
 INSERT OR IGNORE INTO fbis_topology_migrations(migration_id, notes)
 VALUES ('nhl-sport-v1', 'NHL sport D1 pilot schema');
+
+-- Mirror the source NHL research uniqueness contracts. A plain PK-only
+-- shadow copy permitted duplicate events, line pairs and schedule games.
+-- Production NHL_DB was verified duplicate-free before these were added.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_nhl_goalie_shadow_event_model
+  ON nhl_goalie_probability_shadow(event_id,model_version);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_nhl_linemates_team_pair_strength
+  ON nhl_linemate_profiles(team_key,player_id,teammate_id,strength_state);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_nhl_schedule_season_team_game
+  ON nhl_team_schedule_profile(season_id,team_key,game_id);
