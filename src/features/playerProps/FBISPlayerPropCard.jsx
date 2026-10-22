@@ -122,7 +122,7 @@ function useTeamTheme(sport, team) {
   return theme;
 }
 
-export function LastFiveStatChart({ row }) {
+export function LastFiveStatChart({ row, history=null }) {
   const cardRef = useRef(null);
   const [visible, setVisible] = useState(false);
   const [state, setState] = useState({ loading: false, error: "", games: [], avg: null });
@@ -143,6 +143,7 @@ export function LastFiveStatChart({ row }) {
   }, []);
 
   useEffect(() => {
+    if(history?.available){setState({loading:false,error:"",games:verifiedLastFive(history.last5||[]),avg:null});return undefined;}
     if (!visible) return undefined;
     let cancelled = false;
     const q = new URLSearchParams({
@@ -193,7 +194,7 @@ export function LastFiveStatChart({ row }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [visible, row.sport, row.player_name, row.team, row.opponent, row.canonical_market, row.line, row.model_version, row.canonicalPlayerId, row.canonicalEventId, row.contractId]);
+  }, [history, visible, row.sport, row.player_name, row.team, row.opponent, row.canonical_market, row.line, row.model_version, row.canonicalPlayerId, row.canonicalEventId, row.contractId]);
 
   const line = finite(row.line);
   const games = state.games;
@@ -261,7 +262,7 @@ function VenueComparison({row}) {
   COMPARABLE_CURRENT_QUOTES:'Comparable current purchase asks (fees excluded)'
  };
  return <div className="pp-venue-comparison" aria-label="Kalshi and Polymarket price comparison">
-  <div className="pp-venue-topline"><b>KALSHI VS POLYMARKET</b><span>Same player · stat · threshold</span></div>
+  <div className="pp-venue-topline"><b>EXCHANGE PRICES</b><span>Over / Under</span></div>
   <div className="pp-venue-matrix" role="table" aria-label="Price and exchange difference by Over and Under">
    <div className="pp-venue-matrix-head" role="row"><b>Side</b><b>Kalshi</b><b>Polymarket</b><b>Gap</b></div>
    {['over','under'].map(side=>{
@@ -277,7 +278,7 @@ function VenueComparison({row}) {
     </div>;
    })}
   </div>
-  <p className="pp-venue-caveat">Reference Δ is a display-price difference, NOT a betting edge. Polymarket Global and Kalshi can settle inactive players differently; executable comparisons require equivalent rules, current order books, and fees.</p>
+  <details className="pp-venue-caveat"><summary>Price comparison notes</summary><p>Observed prices are research references. Price differences require matching settlement rules, current purchase asks and fees before they can support an edge.</p></details>
  </div>;
 }
 
@@ -415,7 +416,7 @@ export default function FBISPlayerPropCard({
               <strong>{num(projection)}</strong>
             </div>
             <div className={"pp-metric-cell pp-metric-diff " + (delta == null ? "" : delta > 0 ? "is-over" : delta < 0 ? "is-under" : "is-push")}>
-              <span>DIFF</span>
+              <span>STAT GAP</span>
               <strong>{signed(delta)}</strong>
             </div>
           </div>
@@ -425,20 +426,22 @@ export default function FBISPlayerPropCard({
               <b>{side}</b>
             </div>
             <div className="pp-edge-value">
-              <span>STAT DIFF</span>
-              <strong>{signed(delta)}</strong>
+              <span>FBIS vs threshold</span>
+              <strong>{line==null?"Projection only":`${Math.abs(delta||0).toFixed(1)} ${delta>=0?"above":"below"}`}</strong>
             </div>
           </div>
         </div>
         <VenueComparison row={row} />
         <LastFiveStatChart row={row} />
         <div className="pp-contract-status"><b>{row.identityVerified && row.contractId ? "Contract mapped" : "Projection only"}</b><span>{row.marketAvailable ? "Verified purchase quote" : row.provider ? "Research · quote not executable" : "Market unavailable"}</span></div>
-        <p className="pp-quote-status">{row.observedAsk != null ? `Observed ${String(row.side||"yes").toUpperCase()} ask $${Number(row.observedAsk).toFixed(2)} · depth ${row.observedDepth ?? "unknown"}` : row.purchaseAsk != null ? `Buy ask $${Number(row.purchaseAsk).toFixed(2)}` : "Purchase ask unavailable"}</p>
-        <p className="pp-quote-status">{row.observedAt ? `Source: ${row.observedAt}` : "Source quote time unknown"}{row.collectedAt ? ` · Captured ${row.collectedAt}` : ""}</p>
-        <p className="pp-quote-status">{row.modelVersion || "Model unavailable"} · {row.calibratedProbability == null ? "Probability not calibrated" : `${Math.round(row.calibratedProbability*100)}% calibrated`}</p>
+        {row.alternateThresholds?.length>1?<p className="pp-alternate-count">{row.alternateThresholds.length} market thresholds · Compare in research</p>:null}
+        <details className="pp-source-details"><summary>Source & model details</summary>
+          <p>{row.observedAt?`Quote: ${row.observedAt}`:'Quote source time unknown'}{row.collectedAt?` · Captured ${new Date(row.collectedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})} CT`:''}</p>
+          <p>{row.modelVersion||row.modelId} · Threshold probability uncalibrated</p>
+        </details>
         {onResearch ? <button type="button" className="header-btn" onClick={() => onResearch(rawRow)}>Open player research</button> : null}
         <div className="pp-card-foot pp-premium-foot">
-          <span>{row.provider || "Market unavailable"} · {row.modelStatus || "Research only"}</span>
+          <span>FBIS model · {row.provider || "Projection only"}</span>
           <span>Not a wager authorization</span>
         </div>
       </div>

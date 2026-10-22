@@ -793,3 +793,16 @@ test('verified dual-exchange research is displayed before single-venue rows at 1
  assert.ok(first30.every(r=>r.venueComparison?.providerCount===2));
  assert.equal(new Set(first30.map(r=>r.canonicalEventId)).size,3);
 });
+
+test('top props require independent projections and never repeat a player across thresholds or stats',async()=>{
+ const {selectProjectedPropCards}=await import('../src/features/playerProps/buildPlayerPropsBoard.js');
+ const base={sport:'nfl',canonicalEventId:'G',canonicalPlayerId:'nfl:espn:1',canonical_market:'passing_yards',period:'full_game',player_name:'Caleb Williams',team:'CHI',provider:'Kalshi',identityVerified:true,independent:true,fbis_projection:226.2};
+ const variants=[174.5,199.5,224.5,249.5,274.5].map((line,i)=>({...base,id:'c'+i,contractId:'c'+i,line,venueComparison:{venues:[{price:[.84,.76,.63,.47,.35][i]}]}}));
+ const other={...base,id:'other',contractId:'other',canonicalPlayerId:'nfl:espn:2',player_name:'Other Player',canonical_market:'receiving_yards',fbis_projection:61,line:59.5};
+ const unmodeled={...other,id:'missing',canonicalPlayerId:'nfl:espn:3',fbis_projection:null};
+ const contaminated={...other,id:'market-model',canonicalPlayerId:'nfl:espn:4',independent:false};
+ const shown=selectProjectedPropCards([...variants,{...variants[0],id:'rush',canonical_market:'rushing_yards'},other,unmodeled,contaminated],{limit:5,distinctPlayers:true});
+ assert.equal(shown.length,2);assert.equal(shown[0].line,249.5);assert.equal(shown[0].alternateThresholds.length,5);
+ assert.ok(shown.every(r=>r.fbis_projection!=null&&r.independent===true));assert.equal(new Set(shown.map(r=>r.canonicalPlayerId)).size,shown.length);
+ assert.equal(selectProjectedPropCards(variants,{limit:0}).length,0);
+});

@@ -77,3 +77,24 @@ test('PRA model alias joins only exact independent player, event and period',()=
   assert.equal(out[0].fbis_projection,undefined);
  }
 });
+
+test('persisted ESPN/GSIS roster links join an NFL model without guessing from player name',async()=>{
+ const {resolvePropModelIdentities}=await import('../functions/lib/propResearchData.js');
+ const model={sport:'nfl',canonicalEventId:'G',canonicalPlayerId:'nfl:nflverse:00-0039918',historyProvider:'nflverse',historyPlayerId:'00-0039918',team:'CHI',fbis_projection:226.2,canonical_market:'passing_yards',period:'full_game',independent:true};
+ const roster={sport:'nfl',player_id:'4431611',team_key:'chi',player_name:'Caleb Williams',raw_json:JSON.stringify({roster:{id:'4431611'},usage:{id:'00-0039918',team:'CHI'}})};
+ const context={games:[{id:'G',home_abbr:'CHI',away_abbr:'NE'}],players:[roster]};
+ const resolved=resolvePropModelIdentities([model],context)[0];
+ assert.equal(resolved.canonicalPlayerId,'nfl:espn:4431611');assert.equal(resolved.historyPlayerId,'4431611');assert.equal(resolved.modelPlayerId,model.canonicalPlayerId);
+ const contract={canonicalEventId:'G',canonicalPlayerId:'nfl:espn:4431611',canonical_market:'passing_yards',period:'full_game',line:249.5,reasons:['MODEL_UNAVAILABLE']};
+ assert.equal(joinIndependentPropModels([contract],[resolved])[0].fbis_projection,226.2);
+ for(const players of [[{...roster,raw_json:'{}'}],[{...roster,team_key:'NE'}],[roster,{...roster,player_id:'different',raw_json:JSON.stringify({roster:{id:'different'},usage:{id:'00-0039918',team:'CHI'}})}]]){
+  assert.equal(resolvePropModelIdentities([model],{...context,players})[0].canonicalPlayerId,model.canonicalPlayerId);
+ }
+});
+test('ESPN dictionary metadata joins exact season stat rows and preserves missing stats and true zero',async()=>{
+ const {espnPropHistoryGames}=await import('../functions/lib/propHistoryResearch.js');
+ const b={names:['passingYards','rushingYards'],events:{a:{id:'a',gameDate:'2026-10-18T17:00Z',gameResult:'W',atVs:'@',opponent:{abbreviation:'ATL'}},b:{id:'b',gameDate:'2026-10-11T17:00Z',gameResult:'L'},c:{id:'c',gameDate:'2026-10-04T17:00Z',gameResult:'W'}},seasonTypes:[{categories:[{events:[{eventId:'a',stats:['305','3']},{eventId:'b',stats:['0','10']},{eventId:'c',stats:['--','20']}]}]}]};
+ const games=espnPropHistoryGames(b,{sport:'nfl',market:'passing_yards',season:2026});
+ assert.deepEqual(games.map(g=>g.value),[305,0,null]);assert.equal(games[0].opponent,'ATL');
+ const h=historySummary(games,{asOf:'2026-10-22T12:00Z'});assert.equal(h.games.length,2);assert.equal(h.recent5.average,152.5);
+});

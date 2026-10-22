@@ -26,8 +26,9 @@ export function independentPropRows(board,{now=Date.now()}={}) {
     historyProvider,historyPlayerId:String(p.playerId),start_time:g.start,canonical_market:p.market,period:'full_game',
     line:null,provider:null,side:null,statSide:null,fbis_projection:n(p.fbisProjection),sigma:n(p.fbisSigma),
     modelId:g.playerProjectionStatus?.model||p.source,modelVersion:g.playerProjectionStatus?.version||p.modelVersion,
-    modelAsOf:p.featureCutoffTimestamp||p.asOf||null,independent:true,modelStatus:'RESEARCH_PROJECTION',
+    modelAsOf:p.featureCutoffTimestamp||p.featureCutoff||p.asOf||g.playerProjectionStatus?.asOf||null,independent:true,modelStatus:'RESEARCH_PROJECTION',
     availabilityStatus:p.availabilityStatus||'UNKNOWN',features:p.featureEvidence||p.shotEnvironment||null,
+    researchInputs:{role:p.targetRole,roleConfidence:p.roleConfidence,snapShare:p.snapShare,recent5:p.recent5,seasonAverage:p.seasonAverage,priorAverage:p.priorAverage,formBlend:p.formBlend,opponentMatchup:p.opponentMatchup,environmentFactor:p.environmentFactor,matchupFactor:p.matchupFactor,projectedMinutes:p.projectedMinutes,notes:p.notes},
     validationStatus:p.validationStatus||'CALIBRATION_PENDING',marketAvailable:false,identityVerified:true,purchaseAsk:null,
     reasons:[p.gateReason,'MARKET_UNAVAILABLE','THRESHOLD_CALIBRATION_REQUIRED'].filter(Boolean),canQualify:false,canAuthorizeWager:false});
   }
@@ -41,8 +42,27 @@ export function joinIndependentPropModels(markets,models) {
   if(matches.length!==1)return m;
   const p=matches[0];used.add(p.id);
   return {...m,fbis_projection:p.fbis_projection,sigma:p.sigma,modelId:p.modelId,modelVersion:p.modelVersion,modelAsOf:p.modelAsOf,
-   independent:true,modelStatus:p.modelStatus,availabilityStatus:p.availabilityStatus,features:p.features,validationStatus:p.validationStatus,
+   independent:true,modelStatus:p.modelStatus,availabilityStatus:p.availabilityStatus,features:p.features,researchInputs:p.researchInputs,validationStatus:p.validationStatus,
    projectionDelta:p.fbis_projection-m.line,reasons:[...m.reasons.filter(r=>r!=='MODEL_UNAVAILABLE'),'THRESHOLD_CALIBRATION_REQUIRED']};
  });
  return [...rows,...models.filter(p=>!used.has(p.id))];
+}
+
+/** Use the persisted roster's explicit ESPN↔GSIS link, never a name-only model join. */
+export function resolvePropModelIdentities(models, {players=[],games=[]}={}) {
+ return models.map(m=>{
+  if(m.sport!=='nfl'||m.historyProvider!=='nflverse')return m;
+  const game=games.find(g=>String(g.id)===m.canonicalEventId);
+  if(!game)return m;
+  const candidates=players.filter(p=>{
+   if(p.sport!=='nfl'||String(p.team_key).toUpperCase()!==String(m.team).toUpperCase()||
+      ![game.home_abbr,game.away_abbr].some(t=>String(t).toUpperCase()===String(p.team_key).toUpperCase()))return false;
+   try {const raw=JSON.parse(p.raw_json||'{}');return String(raw.roster?.id)===String(p.player_id)&&
+    String(raw.usage?.id)===String(m.historyPlayerId)&&String(raw.usage?.team).toUpperCase()===String(m.team).toUpperCase();}catch{return false;}
+  });
+  if(candidates.length!==1)return m;
+  const p=candidates[0];
+  return {...m,canonicalPlayerId:canonicalPlayerId('nfl','espn',p.player_id),historyProvider:'espn',historyPlayerId:String(p.player_id),
+   modelPlayerId:m.canonicalPlayerId,identityBasis:'PERSISTED_ROSTER_ESPN_GSIS_LINK'};
+ });
 }

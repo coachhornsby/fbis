@@ -949,3 +949,26 @@ export function groupExchangePlayerStatCards(rows=[]) {
   }};
  }).flat();
 }
+
+/** One representative threshold per player/stat; top cards also use distinct players. */
+export function selectProjectedPropCards(rows=[],{limit=100,distinctPlayers=false}={}) {
+ const groups=new Map();
+ const finite=v=>v!=null&&v!==''&&Number.isFinite(Number(v));
+ const center=r=>{
+  const over=r.venueComparison?.marketSides?.over||r.venueComparison;
+  const prices=(over?.venues||[]).map(v=>v.price).filter(finite);
+  return prices.length?Math.min(...prices.map(p=>Math.abs(Number(p)-.5))):1;
+ };
+ for(const r of rows){
+  if(!finite(r.fbis_projection)||r.independent!==true)continue;
+  const key=[r.sport,r.canonicalEventId,r.canonicalPlayerId,r.canonical_market==='pra'?'points_rebounds_assists':r.canonical_market,r.period].join('|');
+  if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);
+ }
+ const representatives=[...groups.values()].map(variants=>{
+  const sorted=[...variants].sort((a,b)=>Number(Boolean(b.contractId))-Number(Boolean(a.contractId))||center(a)-center(b)||Number(a.line)-Number(b.line)||String(a.id).localeCompare(String(b.id)));
+  return {...sorted[0],alternateThresholds:[...new Set(variants.map(r=>r.line).filter(finite))].sort((a,b)=>a-b)};
+ });
+ const ranked=orderExchangeResearchCards(representatives,2000);
+ if(!distinctPlayers)return ranked.slice(0,limit);
+ const seen=new Set();return ranked.filter(r=>{const key=r.sport+':'+r.canonicalPlayerId;if(seen.has(key))return false;seen.add(key);return true;}).slice(0,limit);
+}

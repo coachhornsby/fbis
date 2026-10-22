@@ -46,7 +46,7 @@ export default function TodayCommandCenter({
         onSportFilter={onSportFilter}
         totalGames={totalGames}
       />
-      <TopPlayerProps sportFilter={sportFilter} limit={5} rows={domain.topPlayerProps || []} />
+      <TopPlayerProps sportFilter={sportFilter} limit={5} board={board} date={date||board?.date} />
       <MarketMovers events={domain.marketMovers || []} />
     </div>
   );

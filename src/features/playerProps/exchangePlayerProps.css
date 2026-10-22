@@ -64,3 +64,34 @@
 .exchange-prop-grid .pp-side-under{color:#efb6b6;}
 .exchange-prop-grid .pp-venue-matrix-row>div{min-width:0;}
 @media(min-width:1600px){.exchange-prop-grid .pp-venue-matrix-row strong{font-size:12px;}}
+
+/* Make the forecast, player and recent form the first read. */
+.exchange-prop-grid .pp-player-title h3{font-size:clamp(21px,1.65vw,28px);line-height:1.08;letter-spacing:-.025em;margin:0 0 7px;}
+.exchange-prop-grid .pp-player-title p{font-size:14px;color:#d1deed;}
+.exchange-prop-grid .pp-premium-market-name{font-size:16px;font-weight:800;color:#eacd78;letter-spacing:.015em;}
+.exchange-prop-grid .pp-premium-metrics{background:rgba(6,15,30,.78);border:1px solid #5c7490;border-radius:12px;overflow:hidden;}
+.exchange-prop-grid .fbis-metric{background:linear-gradient(160deg,rgba(31,102,118,.45),rgba(13,46,67,.55));border-inline:1px solid #558699;}
+.exchange-prop-grid .fbis-metric strong{color:#a4f4e2;font-size:30px;}
+.exchange-prop-grid .pp-metric-cell>span{font-size:10px;letter-spacing:.045em;color:#d4dfed;}
+.exchange-prop-grid .pp-tier-control-row{display:none;}
+.exchange-prop-grid .pp-source-details,.exchange-prop-grid .pp-alternate-count{font-size:11px;line-height:1.5;color:#b6c9df;margin:9px 0;}
+.exchange-prop-grid .pp-source-details summary{cursor:pointer;}
+.exchange-prop-grid .pp-source-details p{margin:5px 0;overflow-wrap:anywhere;}
+.exchange-prop-grid .pp-card-body>.header-btn{width:100%;padding:12px;border:1px solid #c6ad63;border-radius:10px;background:linear-gradient(130deg,#263e58,#182c42);font-weight:800;color:#f7df9a;cursor:pointer;}
+.exchange-prop-grid .pp-card-body>.header-btn:hover{background:#304d69;}
+.exchange-prop-grid .pp-premium-foot{font-size:10px;color:#b4c7dd;}
+.pp-board-coverage{font-size:12px;color:#aebfd5;line-height:1.5;}
+.prop-workspace-kicker{font-size:11px;letter-spacing:.09em;color:#edce7c;font-weight:800;}
+.prop-research-dialog h2{font-size:32px;line-height:1.1;margin:8px 0;}
+.prop-research-dialog h3{color:#ebd38b;font-size:17px;margin-top:24px;}
+.prop-research-dialog .prop-research-summary .prop-research-facts>div:first-child{border-color:#61b7b0;background:#123340;}
+.prop-research-dialog .prop-research-summary dd{font-size:25px;color:#b1f4e7;}
+.prop-research-note{font-size:12px;line-height:1.6;color:#b9cbe0;}
+.prop-threshold-select{display:flex;align-items:center;gap:12px;font-weight:700;margin:16px 0;}
+.prop-threshold-select select{background:#172d44;color:#fff;border:1px solid #b49a52;padding:9px;border-radius:7px;}
+.prop-contract-table{overflow:auto;max-height:440px;}
+.prop-contract-table thead{position:sticky;top:0;background:#11243a;}
+.is-selected-threshold{background:rgba(45,108,118,.3);}
+.prop-research-dialog .pp-history-block{max-width:680px;margin:20px auto;}
+@media(prefers-reduced-motion:no-preference){.exchange-prop-grid .pp-card{transition:border-color .16s,box-shadow .16s;}.exchange-prop-grid .pp-card:hover{border-color:#ddc47f!important;box-shadow:0 8px 26px #030a1460;}}
+@media(max-width:640px){.prop-research-dialog{padding:14px;}.prop-research-dialog h2{font-size:25px;}.prop-research-facts{grid-template-columns:repeat(2,minmax(0,1fr));}.prop-research-facts>div{min-width:0;padding:10px;}.exchange-prop-tabs{gap:6px;}.exchange-prop-tabs button{font-size:11px;padding:8px;}}
