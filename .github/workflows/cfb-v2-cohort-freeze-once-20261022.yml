@@ -1,0 +1,100 @@
+name: CFB V2 prospective cohort freeze (one time)
+
+# Pre-registered twenty-game cohort. Runs only on this successful main release.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: cfb-v2-cohort-freeze-20261022
+  cancel-in-progress: false
+jobs:
+  freeze-cohort:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          contains(github.event.workflow_run.head_commit.message, '[CFB-V2-COHORT-20261022]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Freeze pre-registered CFB V2 research cohort
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "Operator secret not configured"; exit 2; }
+          mkdir -p sanitized
+          file=data/research/cfb-drive-v2-cohort-20261022.tsv
+          test -f "$file"
+          n="$(grep -v '^#' "$file" | grep -c .)"
+          test "$n" = 20 || { echo "Preregistration is not twenty games"; exit 2; }
+          success=0; failed=0; late=0
+          while IFS=$'\t' read -r gid kickoff home away; do
+            [[ "$gid" = \#* || -z "$gid" ]] && continue
+            printf 'Evaluating %s (%s vs %s)\n' "$gid" "$home" "$away"
+            # Never freeze a game after kickoff, even if the runner starts late.
+            start="$(date -u -d "$kickoff" +%s)"
+            current="$(date -u +%s)"
+            if (( current >= start )); then
+              echo "Skipped: kickoff already passed for game $gid"
+              echo "{\"ok\":false,\"reason\":\"KICKOFF_PASSED\",\"gameId\":\"$gid\"}" > "sanitized/$gid.json"
+              late=$((late+1))
+              continue
+            fi
+            payload="$(jq -nc --arg gid "$gid" '{action:"drive-research-asof",gameId:$gid}')"
+            http="$(curl -sS --show-error --retry 0 --max-time 105 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" \
+              -X POST --data "$payload" -o "response-$gid.json" -w '%{http_code}' \
+              https://fbis-myz.pages.dev/api/cfb-simulation)" || http="000"
+            if jq -e . "response-$gid.json" >/dev/null 2>&1; then
+              jq '{ok,status,gameId,runId,sourceSnapshotId,sourceFrozenAt,researchFrozenAt,
+                   trainingGames,trainingDrives,iterations,researchMode,
+                   noWagerAuthority,changesProductionChampion,
+                   totalMean:.distributions.total.mean,
+                   marginMean:.distributions.margin.mean,reason,error}' \
+                  "response-$gid.json" > "sanitized/$gid.json"
+            else
+              echo "{\"ok\":false,\"error\":\"INVALID_API_RESPONSE\",\"gameId\":\"$gid\"}" > "sanitized/$gid.json"
+            fi
+            if [ "$http" = 200 ] && jq -e '.ok and
+                 (.status=="FROZEN" or .status=="ALREADY_FROZEN") and
+                 .noWagerAuthority == true and .changesProductionChampion == false' "response-$gid.json" >/dev/null 2>&1; then
+              success=$((success+1))
+            else
+              failed=$((failed+1));echo "Research freeze failed game $gid, HTTP $http"
+            fi
+          done < "$file"
+          printf 'CFB V2 cohort: preregistered=20, frozen=%s, kickoff_passed=%s, failed=%s\n' "$success" "$late" "$failed"
+          {
+            echo "### CFB prospective cohort, research-only"
+            echo "Pre-registered: 20. Frozen: $success. Kickoff passed: $late. Failed: $failed."
+            echo "Original source forecast freeze vs new research as-of timestamp are separate."
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$success" -ge 1
+          test "$failed" -eq 0
+      - name: Verify operator-only D1 cohort summary
+        if: success()
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          http="$(curl -sS --show-error --max-time 90 --retry 0 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -o cohort-report.json -w '%{http_code}' \
+            "https://fbis-myz.pages.dev/api/cfb-simulation?mode=cohort")" || http="000"
+          test "$http" = 200
+          jq '{ok,scope,type,frozen,graded,calibrationStatus,canAuthorizeWager}' cohort-report.json > sanitized/cohort-status.json
+          jq -e '.ok == true and .scope == "CFB_DB" and .frozen >= 2 and .canAuthorizeWager == false' sanitized/cohort-status.json
+          cat sanitized/cohort-status.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve sanitized cohort receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-v2-prospective-cohort-20261022
+          path: sanitized/*.json
+          retention-days: 14
+          if-no-files-found: ignore
