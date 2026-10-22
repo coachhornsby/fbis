@@ -2,7 +2,7 @@
  * NHL sport-D1 pilot: copy selected working rows from primary and verify read parity.
  * Primary remains authoritative until NHL_SPORT_DB_MODE=sport after parity passes.
  */
-import { resolveSportDb, SPORT_DATABASES } from "./databaseTopology.js";
+import { resolveSportDb, SPORT_DATABASES, deployedSportDbMode } from "./databaseTopology.js";
 
 export const NHL_PILOT_TABLES = Object.freeze([
   Object.freeze({
@@ -221,6 +221,11 @@ export async function verifyNhlRecordLevelParity(env, {
  * Callers must harvest-authorize; this never deletes primary rows.
  */
 export async function copyNhlPilotTables(env, { limitPerTable = 5000 } = {}) {
+  // Obsolete pilot copy uses REPLACE with partial columns; never run against live NHL authority.
+  if (deployedSportDbMode(env, "nhl") === "sport") {
+    return { ok: false, reason: "SHADOW_SYNC_REFUSED_SPORT_MODE", sport: "nhl",
+      canAuthorizeWager: false };
+  }
   const primary = env?.DB;
   const sportDb = env?.NHL_DB;
   if (!primary?.prepare || !sportDb?.prepare) {

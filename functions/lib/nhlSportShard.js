@@ -8,6 +8,8 @@
  * wager authority, and a failed shard read falls back to primary in the caller.
  */
 
+import { deployedSportDbMode, productSportDbHandle } from "./databaseTopology.js";
+
 export const NHL_SHARD_DATABASE_ID = "a0aa010c-40d3-4d2f-8109-eca4e74e2a73";
 export const NHL_DURABLE_RECEIPT_TABLE = "DURABLE_READ_COLUMNS";
 export const NHL_PROJECTION_FIELDS = Object.freeze([
@@ -81,6 +83,20 @@ export function cutoverGate({ bindingPresent = false, receipt = null, projection
 }
 
 export async function nhlDurableDatabase(env = {}) {
+  // The legacy pilot receipt is not a production cutover grant.
+  // Once mode=sport, honor the same strict CORE authority as every product reader.
+  // Never silently recover from NHL D1 failure by reading stale PRIMARY.
+  if (deployedSportDbMode(env, "nhl") === "sport") {
+    const handle = productSportDbHandle(env, "nhl");
+    return {
+      database: handle.productIoUsesSportDb ? "NHL_DB" : "UNAVAILABLE",
+      db: handle.productIoUsesSportDb ? handle.db : null,
+      liveReadsRerouted: handle.productIoUsesSportDb === true,
+      reason: handle.reason,
+      canQualify: false,
+      canAuthorizeWager: false,
+    };
+  }
   if (!env.NHL_DB?.prepare) {
     return { ...cutoverGate({ bindingPresent: false }), db: env.DB || null };
   }
