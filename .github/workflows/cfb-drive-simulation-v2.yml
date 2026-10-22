@@ -1,0 +1,27 @@
+name: CFB Drive Simulation V2
+on:
+  pull_request:
+    paths:
+      - "functions/lib/cfbDriveSimulationV2.js"
+      - "functions/lib/cfbDriveSimulationStore.js"
+      - "functions/lib/collegeJobsCore.js"
+      - "functions/api/cfb-simulation.js"
+      - "functions/api/college.js"
+      - "sql/cfb/0002_cfb_drive_shadow.sql"
+      - "test/cfb-drive-simulation-v2.test.js"
+      - ".github/workflows/cfb-drive-simulation-v2.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cfb-drive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - run: node --test test/cfb-drive-simulation-v2.test.js test/cfb-simulation-v1.test.js
+      - run: node --check functions/lib/cfbDriveSimulationStore.js
+      - run: node --check functions/lib/collegeJobsCore.js
+      - run: node --check functions/api/cfb-simulation.js
