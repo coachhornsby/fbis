@@ -2,3 +2,5 @@ FBIS all-11 sport qualification after full synced migration
 base=b361a21b1f2a875c27941a7c92bde6449aeacf56
 Required: record parity + sport-prefix research + positive source coverage + fresh sync
 PRIMARY remains authoritative; no cutover/deletion/automatic wagering
+
+trigger 2026-10-22 NBA mandatory cutover rehearsal post PR1557; preserve shadow authority
