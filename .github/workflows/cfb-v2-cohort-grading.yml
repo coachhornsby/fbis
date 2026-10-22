@@ -2,10 +2,9 @@ name: CFB V2 prospective cohort grading
 
 # One prospective read-only evaluation on October 26 (after weekend harvest).
 # Available on workflow_dispatch for operator reruns without provider fetches.
+# Kept for explicit Oct 26 operator replay; Phase 4 owns daily grading.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 17 26 10 *"
 permissions:
   contents: read
 concurrency:
@@ -13,9 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   grade-cohort:
-    if: >-
-      ${{ github.event_name == 'workflow_dispatch' ||
-          (github.event_name == 'schedule' && github.ref == 'refs/heads/main') }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 18
     steps:
