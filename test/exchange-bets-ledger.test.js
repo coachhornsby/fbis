@@ -17,5 +17,5 @@ test("settlement matches only unique full position without sell offsets",async()
  const db={prepare:(sql)=>({all:async()=>({results:sql.includes("FROM exchange_bet_settlements")?settles:rows})})};
  const r=await readExchangeTickets(db);assert.equal(r.tickets[0].status,"WON");assert.equal(r.tickets[0].profit,1.18);
  rows.push({...rows[0],fill_id:"sell",group_id:"osell",action:"SELL",quantity:1});
- const r2=await readExchangeTickets(db);assert.equal(r2.tickets[0].status,"OPEN");
+ const r2=await readExchangeTickets(db);assert.equal(r2.tickets[0].status,"REVIEW");
 });

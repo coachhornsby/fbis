@@ -16,6 +16,6 @@ test("sells and resting orders never create independent bets",()=>{
  assert.equal(groupExecutions([kalshiExecution({fill_id:"1",order_id:"o",ticker:"KX",side:"no",action:"sell",count_fp:"2",no_price_dollars:"0.4",created_time:"2026-10-21T13:00:00Z"})]).length,0);
 });
 test("Polymarket explicit confirmed buy is eligible",()=>{
- const a=polymarketExecution({type:"ACTIVITY_TYPE_TRADE",trade:{id:"p1",orderId:"pord",marketSlug:"atp-test",outcomeSide:"YES",intent:"BUY",qtyDecimal:"3",price:"0.55",state:"FILLED",createTime:"2026-10-21T12:00:00Z"}});
+ const a=polymarketExecution({type:"ACTIVITY_TYPE_TRADE",trade:{id:"p1",orderId:"pord",marketSlug:"atp-test",outcomeSide:"YES",intent:"BUY",qtyDecimal:"3",price:"0.55",feeAmount:"0",state:"FILLED",createTime:"2026-10-21T12:00:00Z"}});
  const rows=groupExecutions([a]);assert.equal(rows.length,1);assert.equal(rows[0].id,"PMUS:pord:YES");assert.equal(rows[0].risk,1.65);
 });
