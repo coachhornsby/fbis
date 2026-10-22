@@ -115,7 +115,7 @@ jobs:
             cutover: "true"
             run_delta: "false"
           - sport: nba
-            cutover: "false"
+            cutover: "true"
             run_delta: "false"
           - sport: mlb
             cutover: "false"
