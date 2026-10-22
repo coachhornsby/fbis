@@ -7,7 +7,9 @@ const fmt=v=>v==null?'—':typeof v==='number'?Number(v.toFixed(2)):String(v);
 const pct=v=>v==null?null:`${(v*100).toFixed(1)}%`;
 const date=v=>v?new Date(v).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' CT':null;
 function Facts({values}) {return <dl className="prop-research-facts">{Object.entries(values).filter(([,v])=>v!=null&&v!=='').map(([k,v])=><div key={k}><dt>{k}</dt><dd>{fmt(v)}</dd></div>)}</dl>;}
-function StatTable({values}) {const entries=Object.entries(values||{}).filter(([,v])=>v!=null&&typeof v!=='object');return entries.length?<table className="exchange-prop-coverage"><tbody>{entries.map(([k,v])=><tr key={k}><th>{formatMarketLabel(k)}</th><td>{typeof v==='boolean'?v?'Available':'Unavailable':fmt(v)}</td></tr>)}</tbody></table>:null;}
+const inputLabels={passEpaAllowed:'Pass EPA allowed',rushEpaAllowed:'Rush EPA allowed',pressureRate:'Pressure rate',allowed:'Opponent allowed to position',leagueAllowed:'League average allowed',positionDefenseFactor:'Position adjustment',positionDefenseStrength:'Adjustment weight',avgTimeToThrow:'Time to throw (seconds)',cpoe:'Completion % above expected',passerRating:'Passer rating'};
+function inputValue(k,v){if(typeof v==='boolean')return v?'Available':'Unavailable';if(['pressureRate','positionDefenseStrength'].includes(k))return pct(v);if(['passEpaAllowed','rushEpaAllowed'].includes(k))return Number(v).toFixed(3);if(k==='market')return formatMarketLabel(v);return fmt(v);}
+function StatTable({values}) {const entries=Object.entries(values||{}).filter(([,v])=>v!=null&&typeof v!=='object');return entries.length?<table className="exchange-prop-coverage"><tbody>{entries.map(([k,v])=><tr key={k}><th>{inputLabels[k]||formatMarketLabel(k.replace(/([a-z0-9])([A-Z])/g,'$1 $2'))}</th><td>{inputValue(k,v)}</td></tr>)}</tbody></table>:null;}
 export default function ExchangePlayerWorkspace({row,onClose}) {
  const dialog=useRef(null);
  useEffect(()=>{dialog.current?.showModal();return()=>dialog.current?.close();},[]);
