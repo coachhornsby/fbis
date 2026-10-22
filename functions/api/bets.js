@@ -608,13 +608,53 @@ export async function handleBetsPost(env, request, body) {
   return { status: 400, body: { ok: false, error: "unknown action" } };
 }
 
+/** Private exchange fills must not enter the anonymous /api/bets payload.
+ * Public sportsbook history preserves its existing behavior.
+ * The protected exchange history endpoint has a separate account token gate.
+ */
+export function publicBetsOnly(payload) {
+  if (!payload || !Array.isArray(payload.bets)) return payload;
+  const bets = payload.bets.filter(b =>
+    !["Kalshi", "Polymarket US"].includes(String(b.executionBook || "")) ||
+    !/^(KALSHI:|PMUS:)/.test(String(b.externalTicketId || ""))
+  );
+  return {
+    ...payload, bets, summary: summarizeExecutedBets(bets),
+    population: payload.population ? {
+      ...payload.population,
+      settledN: bets.filter(b => b.result === "WON" || b.result === "LOST").length,
+      openN: bets.filter(b => !b.result || b.result === "OPEN").length,
+      pushN: bets.filter(b => b.result === "PUSH").length,
+      voidN: bets.filter(b => b.result === "VOID").length,
+      unresolvedN: bets.filter(b => String(b.matchStatus || "").toLowerCase() !== "matched").length,
+      clvN: bets.filter(b => b.clv != null).length,
+    } : null,
+    telemetry: payload.telemetry ? {...payload.telemetry, rowsReadEstimate: bets.length} : null,
+  };
+}
+async function authorizedPrivateBetView(request, env) {
+  const access = String(env?.FBIS_ACCOUNT_VIEW_TOKEN || "");
+  const supplied = String(request.headers.get("x-fbis-account-token") || "");
+  if (!access || !supplied || supplied.length > 512) return false;
+  const enc = new TextEncoder();
+  const [a,b] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(access)),
+    crypto.subtle.digest("SHA-256", enc.encode(supplied)),
+  ]);
+  const x = new Uint8Array(a), y = new Uint8Array(b);
+  let diff = 0;
+  for(let i=0;i<x.length;i++) diff |= x[i]^y[i];
+  return diff===0;
+}
 export async function onRequestGet(context) {
   try {
     const url = new URL(context.request.url);
+    const privateView = await authorizedPrivateBetView(context.request, context.env);
     const payload = await handleBetsGet({ DB: context.env.DB }, url);
-    return json(payload, 200, { "access-control-allow-origin": "*" });
+    return json(privateView ? payload : publicBetsOnly(payload), 200,
+      privateView ? { "cache-control":"private, no-store", "x-robots-tag":"noindex" } : { "access-control-allow-origin": "*" });
   } catch (err) {
-    return json({ ok: false, error: String(err?.message || err) }, 500, { "access-control-allow-origin": "*" });
+    return json({ ok: false, error: "bets-read-unavailable" }, 500, { "access-control-allow-origin": "*" });
   }
 }
 

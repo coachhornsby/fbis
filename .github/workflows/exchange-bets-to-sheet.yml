@@ -1,0 +1,70 @@
+name: Sync Kalshi and Polymarket placed bets to FBIS and Google Sheets
+on:
+  schedule:
+    - cron: "47 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/exchange-bets-sync.js"
+      - "functions/lib/exchangeBetLedger.js"
+      - "services/sports-projection-orchestrator/orchestrator.mjs"
+      - "workers/sports-projection-orchestrator-worker.mjs"
+      - ".github/workflows/exchange-bets-to-sheet.yml"
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: fbis-exchange-bets-sheet
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Verify exchange fill contract
+        run: node --test test/exchange-bets-sync.test.js
+      - name: Read OIDC identity for existing orchestrator
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          u="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'
+          if [[ "$u" == *'?'* ]]; then sep='&'; fi
+          token="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${u}${sep}audience=sports-projection-orchestrator" | jq -r '.value // empty')"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - name: Confirm Pages and orchestrator deployed commit before ingest
+        env:
+          EXPECTED: ${{ github.sha }}
+          BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            for i in $(seq 1 25); do
+              found="$(curl -fsS --max-time 20 "$BASE/api/health" | jq -r '.deploymentCommit // .build.commitSha // empty' || true)"
+              if [ "$found" = "$EXPECTED" ]; then exit 0; fi
+              sleep 12
+            done
+            echo "Pages has not deployed the source commit"; exit 1
+          fi
+      - name: Capture exchange executions, append unique Google Sheet rows, sync D1
+        env:
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        run: |
+          set -euo pipefail
+          test -n "$OIDC_TOKEN"
+          curl --fail-with-body --max-time 190 -sS -X POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"since":"2026-10-21T00:00:00Z"}' \
+            "$ORCH_URL/api/sync-exchange-bets-sheet" > /tmp/exchange-bets-summary.json
+          jq -e '.ok==true and (.tracker.ok==true) and (.conflicts|length)==0' /tmp/exchange-bets-summary.json
+          jq '{ok,appended,updated,skipped,observed,conflicts,capture}' /tmp/exchange-bets-summary.json >> "$GITHUB_STEP_SUMMARY"

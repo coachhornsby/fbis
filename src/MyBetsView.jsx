@@ -5,6 +5,7 @@ import { TicketMatchup } from "./components/TeamLogo.jsx";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 import "./myBets.css";
+import ExchangeSyncedBets from "./ExchangeSyncedBets.jsx";
 import { parseComboTicket } from "./lib/comboTicket.js";
 import MyBetsIntelligence, {betFamily} from "./MyBetsIntelligence.jsx";
 import projectionScorecard from "./data/fbisProjectionScorecard.js";
@@ -179,6 +180,7 @@ export default function MyBetsView({
 
   return (
     <div className="main-content bets-dashboard">
+      <ExchangeSyncedBets />
       <MyBetsIntelligence bets={bets} unavailable={unavailable} projectionScorecard={projectionScorecard} onShowLedger={()=>setShowLedger(true)}/>
       {error && <div className="panel"><div className="error">{error}</div></div>}
       <section className="panel">

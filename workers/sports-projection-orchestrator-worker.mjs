@@ -21,6 +21,7 @@ import {
   syncWagerFeed,
   syncBetTrackerToD1,
   syncSettledBetsToTracker,
+  syncExchangeBetsToTracker,
   syncPlayerPropLearningToSheet,
 } from "../services/sports-projection-orchestrator/orchestrator.mjs";
 
@@ -362,6 +363,11 @@ async function handleFetch(request, env) {
     if (request.method === "POST" && url.pathname === "/api/sync-bet-tracker") {
       const payload = await requestBody(request);
       return json(200, { auth: auth.type, ...(await syncBetTrackerToD1({ since: payload?.since || "2026-09-21" })) });
+    }
+    if (request.method === "POST" && url.pathname === "/api/sync-exchange-bets-sheet") {
+      const payload = await requestBody(request);
+      const result = await syncExchangeBetsToTracker({since:payload?.since||"2026-10-21T00:00:00Z"});
+      return json(result.ok?200:409,{auth:auth.type,...result});
     }
     if (request.method === "POST" && url.pathname === "/api/sync-settled-bets-sheet") {
       return json(200, { auth: auth.type, ...(await syncSettledBetsToTracker()) });

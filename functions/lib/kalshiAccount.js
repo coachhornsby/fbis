@@ -12,6 +12,7 @@ export const KALSHI_ACCOUNT_PATHS = Object.freeze({
   positions: "/trade-api/v2/portfolio/positions",
   orders: "/trade-api/v2/portfolio/orders",
   fills: "/trade-api/v2/portfolio/fills",
+  settlements: "/trade-api/v2/portfolio/settlements",
 });
 export const KALSHI_PRIVATE_CHANNELS = Object.freeze(["fill", "market_positions", "user_orders"]);
 // Operator diagnostics permit signing ONLY these two fixed public GET paths.
