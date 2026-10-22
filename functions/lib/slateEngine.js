@@ -286,7 +286,7 @@ export async function buildSlate(sport, date, env = {}) {
         canQualify: false,
         canAuthorize: false,
       })),
-      loadNhlProV2Context(slate.date || date, slate.games || [], { DB: env.DB }).catch((err) => ({
+      loadNhlProV2Context(slate.date || date, slate.games || [], { DB: productSportDbHandle(env, "nhl").db }).catch((err) => ({
         ok: false,
         error: String(err?.message || err),
         base: {
