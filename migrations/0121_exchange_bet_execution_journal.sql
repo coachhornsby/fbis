@@ -27,3 +27,6 @@ CREATE TABLE IF NOT EXISTS exchange_bet_settlements (
   observed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY(provider,market)
 );
+
+INSERT OR IGNORE INTO schema_migrations(id,applied_at) VALUES
+ ('0121_exchange_bet_execution_journal',strftime('%Y-%m-%dT%H:%M:%fZ','now'));
