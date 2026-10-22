@@ -3,6 +3,7 @@ import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { httpStatusForJob, parseJobTrigger, parseJobMode, newJobId, JOB_FAILED, JOB_SUCCESS } from "../lib/jobs.js";
 import { setMeta, persistJobRun } from "../lib/store.js";
 import { refreshCbbDirectoryPhaseB } from "../lib/cbbDirectoryPhaseB.js";
+import { sportDbContext } from "../lib/nflSportDbContext.js";
 
 /** Pregame collection. Builds every board and freezes checkpoints. Does not require the browser. */
 export async function onRequestGet(context) {
@@ -77,6 +78,7 @@ export async function onRequestGet(context) {
         CFBD_API_KEY: context.env.CFBD_API_KEY,
         CBBD_API_KEY: context.env.CBBD_API_KEY,
         caches: caches.default,
+        ...sportDbContext(context.env),
         DB: context.env.DB,
         CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
       },
