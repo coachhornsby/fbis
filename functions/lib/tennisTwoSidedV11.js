@@ -12,7 +12,7 @@ export const TENNIS_DEEP_PLAYER_MODEL_ID="TENNIS-PLAYER-v1.1-DEEP";
 export const TENNIS_DEEP_VERSION="v1.1-two-sided-surface-recency";
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
+const finite=v=>{if(v==null || (typeof v==='string' && v.trim()==='')) return null; const n=Number(v);return Number.isFinite(n)?n:null};
 const logit=p=>Math.log(clamp(p,1e-5,1-1e-5)/(1-clamp(p,1e-5,1-1e-5)));
 const logistic=z=>1/(1+Math.exp(-z));
 const surfaceKey=s=>{
@@ -62,6 +62,16 @@ function statPack(row,side){
     oace=ov("ace"),odf=ov("df"),oserviceGames=ov("SvGms"),obpSaved=ov("bpSaved"),obpFaced=ov("bpFaced");
   if([svpt,firstIn,firstWon,secondWon,ace,df,serviceGames,bpSaved,bpFaced,
       osvpt,ofirstIn,ofirstWon,osecondWon,oace,odf,oserviceGames,obpSaved,obpFaced].some(x=>x==null)) return null;
+  // A score-only match may have blank service statistics. It must not become
+  // a synthetic zero-denominator observation for deep player projections.
+  if(svpt<=0 || osvpt<=0 || serviceGames<=0 || oserviceGames<=0 ||
+    firstIn<0 || firstIn>svpt || ofirstIn<0 || ofirstIn>osvpt ||
+    firstWon<0 || firstWon>firstIn || ofirstWon<0 || ofirstWon>ofirstIn ||
+    secondWon<0 || secondWon>svpt-firstIn ||
+    osecondWon<0 || osecondWon>osvpt-ofirstIn ||
+    ace<0 || ace>svpt || oace<0 || oace>osvpt ||
+    df<0 || df>svpt || odf<0 || odf>osvpt ||
+    bpSaved<0 || bpFaced<bpSaved || obpSaved<0 || obpFaced<obpSaved) return null;
   const secondPts=Math.max(0,svpt-firstIn),osecondPts=Math.max(0,osvpt-ofirstIn);
   return {
     matches:1,svpt,firstIn,firstWon,secondWon,ace,df,serviceGames,bpSaved,bpFaced,
