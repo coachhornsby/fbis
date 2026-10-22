@@ -60,14 +60,24 @@ function styleScores(profile,tour){
 }
 
 const all=[];
+const sourceReceipts={atp:new Set(),wta:new Set()};
 for(const tour of ["atp","wta"])for(const year of YEARS){
   try{
     const txt=await fetchText(`${MIRROR}/${tour}/${tour}_matches_${year}.csv`);
-    for(const r of parseCsv(txt))all.push({...r,_tour:tour,_year:year});
+    const parsed=parseCsv(txt);
+    if(parsed.length<100)throw new Error(`INSUFFICIENT_SOURCE_ROWS_${tour}_${year}_${parsed.length}`);
+    for(const r of parsed)all.push({...r,_tour:tour,_year:year});
+    sourceReceipts[tour].add(year);
     process.stderr.write(`loaded ${tour} ${year}
 `);
   }catch(e){process.stderr.write(`skip ${tour} ${year}: ${e.message}
 `)}
+}
+// The generated SQL replaces the whole current profile set. A transient
+// upstream outage must never erase an otherwise healthy production store.
+for (const tour of ["atp","wta"]) {
+  const absent=YEARS.filter(y=>!sourceReceipts[tour].has(y));
+  if(absent.length)throw new Error("TENNIS_PROFILE_SOURCE_INCOMPLETE_"+tour+"_"+absent.join("_"));
 }
 all.sort((a,b)=>String(a.tourney_date).localeCompare(String(b.tourney_date))||String(a.match_num||"").localeCompare(String(b.match_num||"")));
 
@@ -131,6 +141,9 @@ for(const tour of ["atp","wta"]){
       });
     }
   }
+}
+for(const tour of ["atp","wta"]){
+  if(!profileRows.some(r=>r.tour===tour))throw new Error("TENNIS_PROFILE_EMPTY_TOUR_"+tour);
 }
 const currentYear=Math.max(...YEARS);
 const tourEnv={};
