@@ -5142,7 +5142,7 @@ CREATE TABLE IF NOT EXISTS tennis_private_portrait_source_references (
  headshot_candidate_url TEXT,
  headshot_candidate_source TEXT,
  headshot_status TEXT NOT NULL DEFAULT 'NO_OFFICIAL_IMAGE_VERIFIED'
-   CHECK(headshot_status IN ('NO_OFFICIAL_IMAGE_VERIFIED','THIRD_PARTY_URL_CANDIDATE','OFFICIAL_IMAGE_SOURCE_VERIFIED')),
+   CHECK(headshot_status IN ('NO_OFFICIAL_IMAGE_VERIFIED','THIRD_PARTY_URL_CANDIDATE','OFFICIAL_SITE_TEMPLATE_CANDIDATE','OFFICIAL_IMAGE_SOURCE_VERIFIED')),
  headshot_evidence_ref TEXT,
  private_image_imported INTEGER NOT NULL DEFAULT 0 CHECK(private_image_imported=0),
  public_display_allowed INTEGER NOT NULL DEFAULT 0 CHECK(public_display_allowed=0),
