@@ -71,8 +71,8 @@ export function evaluateCfbDrivePhase5(rows=[],{now=new Date().toISOString()}={}
   const dist=parse(r.distributions_json),base=parse(r.baseline_json);
   const home=base?.home,away=base?.away;
   if(![home,away,dist?.total?.mean,dist?.margin?.mean,dist?.home_score?.mean,
-        dist?.away_score?.mean,dist?.total?.p10,dist?.total?.p90,
-        dist?.margin?.p10,dist?.margin?.p90].every(finite)){
+        dist?.away_score?.mean,dist?.total?.p10,dist?.total?.p90,dist?.total?.p05,dist?.total?.p95,
+        dist?.margin?.p10,dist?.margin?.p90,dist?.margin?.p05,dist?.margin?.p95].every(finite)){
     excluded.push({gameId:r.game_id,reason:"INVALID_FROZEN_EVIDENCE"});continue;
   }
   const total=r.actual_home+r.actual_away,margin=r.actual_home-r.actual_away;
