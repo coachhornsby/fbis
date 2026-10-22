@@ -1064,6 +1064,7 @@ export async function copySportPrefixTables(env, sport, {
           nhl_team_profiles: "updated_at",
           nhl_goalie_profiles: "updated_at",
           nhl_player_profiles: "updated_at",
+          nhl_goalie_probability_shadow: "graded_at",
           nhl_team_schedule_profile: "source_updated_at",
           nhl_deployment_observations: "observed_at",
         },
