@@ -201,6 +201,19 @@ jobs:
               and .canAuthorizeWager==false
             ' "artifacts/sport-qualify-${SPORT}.json" >/dev/null
           fi
+      - name: Inventory NBA production owners (non-authorizing)
+        if: matrix.sport == 'nba' && github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          node scripts/sport-cutover-owner-inventory.mjs artifacts/sport-cutover-owners.json
+          jq -e '.authorityActivated==false and .canAuthorizeWager==false and .sports.nba.readyForLiveCutover==false and .sports.nba.consumerReviewComplete==false' artifacts/sport-cutover-owners.json >/dev/null
+      - uses: actions/upload-artifact@v4.6.2
+        if: always() && matrix.sport == 'nba' && github.event_name != 'pull_request'
+        with:
+          name: nba-cutover-consumer-inventory
+          path: artifacts/sport-cutover-owners.json
+          if-no-files-found: error
+          retention-days: 30
       - uses: actions/upload-artifact@v4.6.2
         if: always() && github.event_name != 'pull_request'
         with:
