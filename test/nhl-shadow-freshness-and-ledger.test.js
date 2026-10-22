@@ -15,6 +15,7 @@ test("NHL shadow ledger DDL is additive and has all four compatibility tables",(
 });
 test("NHL equal-count stale working rows trigger bounded replay",()=>{
  assert.match(source,/sport === "nhl" && table === "prediction_snapshots"/);
+ assert.match(source,/sport === "nba" && table === "prediction_snapshots"/);
  assert.match(source,/sport === "nhl" && table === "games"/);
  assert.match(source,/sport === "nba" && table === "games"/);
  assert.match(source,/plan\.staleContentReplay = true/);
