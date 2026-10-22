@@ -1,4 +1,5 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
+import { productSportDbHandle } from "../lib/databaseTopology.js";
 import { buildTodayBoard, resolveTodayDate } from "../lib/todayBoard.js";
 import { americanProfit } from "../lib/pricing.js";
 import { NHL_GOALIE_PROB_PROSPECTIVE_GATE as PROSPECTIVE_GATE } from "../../data/models/nhl-goalie-prob-prospective-gate-v1.js";
@@ -23,6 +24,7 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function dateCt(d=new Date()){return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(d);}
 function shiftDay(day,delta){const [y,m,d]=day.split("-").map(Number),x=new Date(Date.UTC(y,m-1,d,12));x.setUTCDate(x.getUTCDate()+delta);return x.toISOString().slice(0,10);}
 function envOf(context){return {
+  ...context.env,
   PARLAY_API_KEY:context.env.PARLAY_API_KEY,THEODDS_API_KEY:context.env.THEODDS_API_KEY,
   SHARPAPI_API_KEY:context.env.SHARPAPI_API_KEY,THERUNDOWN_API_KEY:context.env.THERUNDOWN_API_KEY,
   BALLPARK_PAL_API_KEY:context.env.BALLPARK_PAL_API_KEY,CFBD_API_KEY:context.env.CFBD_API_KEY,
@@ -141,7 +143,7 @@ export async function freezeRows(db,board,snapshotAt,codeSha){
   }
   return out;
 }
-export async function persist(db,rows){
+export async function persist(db,rows,{canonicalDb=db}={}){
   let written=0,existing=0,canonicalWritten=0,canonicalExisting=0,canonicalTemporalFailures=0,canonicalContextExcluded=0;
   for(const r of rows){
     const result=await retryDb(()=>db.prepare(`INSERT OR IGNORE INTO nhl_goalie_probability_shadow(
@@ -162,7 +164,7 @@ export async function persist(db,rows){
         r.deploymentEvidenceAt,r.availabilityEvidenceAt,r.marketObservedAt,r.temporalIntegrityPassed?1:0,JSON.stringify(r.temporalIntegrity),r.probabilityDelta,r.starterQualityDelta,r.goalieUsageState).run());
     if(result?.meta?.changes)written++;else existing++;
     if(!r.gateFired){canonicalContextExcluded++;continue;}
-    const canonical=await retryDb(()=>persistCanonicalProspectiveEvidence(db,{
+    const canonical=await retryDb(()=>persistCanonicalProspectiveEvidence(canonicalDb,{
       sport:"nhl",eventId:r.eventId,eventStartAt:r.gameStart,snapshotAt:r.featureCutoffTimestamp,
       championModelId:"NHL-PRO-v2",modelId:r.modelId,modelVersion:r.modelVersion,
       lifecycle:"SHADOW",gateVersion:PROSPECTIVE_GATE.gateVersion,
@@ -244,7 +246,7 @@ async function closeNoVig(db,eventId,side,start){
     return finite(row?.no_vig);
   }catch{return null;}
 }
-export async function settle(db,date){
+export async function settle(db,date,{canonicalDb=db}={}){
   const rows=((await retryDb(()=>db.prepare(`SELECT * FROM nhl_goalie_probability_shadow
     WHERE graded_at IS NULL AND substr(game_start,1,10) BETWEEN ? AND ? ORDER BY game_start`)
     .bind(shiftDay(date,-1),shiftDay(date,1)).all())).results)||[];
@@ -272,13 +274,13 @@ export async function settle(db,date){
 
     if(Number(r.gate_fired)===1 && Number(r.temporal_integrity_passed)===1){
       const evidenceId=canonicalEvidenceId({sport:"nhl",sourceTable:"nhl_goalie_probability_shadow",sourceId:r.id,gateVersion:PROSPECTIVE_GATE.gateVersion});
-      await retryDb(()=>markCanonicalEvidenceGraded(db,evidenceId,{gradedAt,result:{
+      await retryDb(()=>markCanonicalEvidenceGraded(canonicalDb,evidenceId,{gradedAt,result:{
         actualHome:score.home,actualAway:score.away,incumbentBrier:ib,challengerBrier:sb,
         incumbentLogLoss:ill,challengerLogLoss:sll,actualHomeStarterId:score.homeStarterId,actualAwayStarterId:score.awayStarterId,
         unexpectedStarter,sourceResearchClvProbabilityPp:clv,sourceResearchProfitUnits:profit
       }}));
       const entryNoVig=noVigForSide(market,side);
-      await retryDb(()=>persistCanonicalEconomicGrade(db,{
+      await retryDb(()=>persistCanonicalEconomicGrade(canonicalDb,{
         evidenceId,sport:"nhl",eventId:String(r.event_id),marketFamily:"moneyline_probability",
         selection:side,projectedProbability:side==="HOME"?ps:1-ps,entryNoVigProbability:entryNoVig,closeNoVigProbability:close,
         result:won?"WIN":"LOSS",gradedAt,metadata:{researchOnly:true,sourceClvSemantics:"close_no_vig_minus_entry_vigged_implied_pp",canonicalClvSemantics:"close_no_vig_minus_entry_no_vig_probability"}
@@ -329,20 +331,20 @@ export async function summary(db){
   };
 }
 export async function onRequestGet(context){
-  const db=context.env.DB;if(!db?.prepare)return json({ok:false,error:"d1_unavailable"},503);
+  const db=productSportDbHandle(context.env,"nhl").db;if(!db?.prepare)return json({ok:false,error:"nhl-authority-unavailable"},503);
   return json({ok:true,codeSha:context.env.CF_PAGES_COMMIT_SHA||null,...await summary(db)});
 }
 export async function onRequestPost(context){
   const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(),401);
-  const db=context.env.DB;if(!db?.prepare)return json({ok:false,error:"d1_unavailable"},503);
+  const db=productSportDbHandle(context.env,"nhl").db;if(!db?.prepare)return json({ok:false,error:"nhl-authority-unavailable"},503);
   let body={};try{body=await context.request.json()}catch{}
   const mode=String(body.mode||"freeze").toLowerCase(),raw=String(body.date||dateCt()),resolved=resolveTodayDate(raw);
   if(!resolved.ok)return json({ok:false,error:resolved.error},400);
-  if(mode==="settle")return json({ok:true,mode,date:resolved.date,...await settle(db,resolved.date),...await summary(db)});
+  if(mode==="settle")return json({ok:true,mode,date:resolved.date,...await settle(db,resolved.date,{canonicalDb:context.env.DB}),...await summary(db)});
   if(mode!=="freeze")return json({ok:false,error:"invalid_mode"},400);
   const board=await buildTodayBoard(resolved.date,envOf(context),{focusSport:"nhl"});
   const snapshotAt=new Date().toISOString(),codeSha=context.env.CF_PAGES_COMMIT_SHA||body.codeSha||null;
-  const rows=await freezeRows(db,board,snapshotAt,codeSha),p=await persist(db,rows);
+  const rows=await freezeRows(db,board,snapshotAt,codeSha),p=await persist(db,rows,{canonicalDb:context.env.DB});
   return json({ok:true,mode,date:resolved.date,snapshotAt,candidates:rows.length,...p,
     gateFired:rows.filter(r=>r.gateFired).length,temporalIntegrityPassed:rows.filter(r=>r.temporalIntegrityPassed).length,
     prospectiveGateVersion:PROSPECTIVE_GATE.gateVersion,productionChampion:"NHL-PRO-v2",productionChanged:false,qualificationChanged:false,authority:false,staking:false});
