@@ -70,6 +70,8 @@ export const SPORT_PREFIX_TABLES = Object.freeze({
     "nhl_deployment_observations",
     "nhl_goalie_probability_shadow",
     "nhl_bookmaker_quote_evidence",
+    "nhl_player_tracking_profiles",
+    "nhl_replacement_observations",
     "nhl_wager_decisions",
     "nhl_wager_settlements",
     "nhl_wager_confidence_runs",
@@ -1061,6 +1063,7 @@ export async function copySportPrefixTables(env, sport, {
         nhl: {
           nhl_team_profiles: "updated_at",
           nhl_goalie_profiles: "updated_at",
+          nhl_player_profiles: "updated_at",
           nhl_team_schedule_profile: "source_updated_at",
           nhl_deployment_observations: "observed_at",
         },
