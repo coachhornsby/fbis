@@ -7,7 +7,7 @@
 - `functions/lib/cfbDriveSimulationStore.js`: immutable verified source-game records, prospective regulation-only drive simulator freeze receipts and separate source-reconciled interval grades. All tables are `CFB_DB`-bound, `research-only`, with zero wager authority.
 - `sql/cfb/0002_cfb_drive_shadow.sql`: schema for `cfb_drive_verified_games`, `cfb_drive_shadow_runs`, `cfb_drive_shadow_grades`. **Never** apply through canonical `migrations/*.sql`, which targets the primary `fbis` D1.
 - `functions/api/cfb-simulation.js`: authenticated `drive-freeze`, `drive-grade`, and `GET ?mode=drives` research status. The pre-existing header secret is required; no secret in query strings or logs.
-- `functions/lib/collegeJobsCore.js`: one *optional* `GET /drives` batch per week of completed games through the existing `cfb-postgame-harvest` scheduled morning job **only**, using `cfbdGet()` with existing shared subscription budgets and receipts; never another network owner. Preview flag disabled. Production flag enabled.
+- `functions/lib/collegeJobsCore.js`: one *optional* `GET /drives` batch per completed-game week encountered within a scheduled daily harvest (the same week may recur on multiple harvest days) through the existing `cfb-postgame-harvest` scheduled morning job **only**, using `cfbdGet()` with existing shared subscription budgets and receipts; never another network owner. Preview flag disabled. Production flag enabled.
 - `test/cfb-drive-simulation-v2.test.js`: deterministic simulation, provenance validation, game-score reconciliation, strict training as-of gating, no primary fallback, authorization.
 
 ## Exact research method
