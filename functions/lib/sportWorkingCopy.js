@@ -267,7 +267,7 @@ async function beginSportWorkingCopy(primary, sportDb, sport, table, resume) {
   // Rewind a completed shadow keyset only when PRIMARY's latest update is
   // strictly newer; preserve interrupted replay cursors.
   const freshnessColumn = sport === "nhl" && table === "prediction_snapshots"
-    ? "graded_at" : sport === "nhl" && table === "games" ? "updated_at" : null;
+    ? "graded_at" : ((sport === "nhl" && table === "games") || (sport === "nba" && table === "games")) ? "updated_at" : null;
   if (freshnessColumn && primaryCount === sportCount &&
       !plan.replayActive && !plan.startReplay) {
     const [source, target] = await Promise.all([
