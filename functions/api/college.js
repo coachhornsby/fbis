@@ -94,7 +94,7 @@ export async function onRequestGet(context) {
     const scheduledOwner = options.trigger === "schedule" &&
       ["cfb-postgame-harvest","cfb-current-refresh"].includes(job);
     const manualOwner = options.trigger === "workflow_dispatch" && options.operatorApproved &&
-      ["cfb-postgame-harvest","cfb-current-refresh","cfb-reference-backfill",
+      ["cfb-postgame-harvest","cfb-drive-week6-harvest","cfb-current-refresh","cfb-reference-backfill",
        "cfb-qb-transfer-refresh","cfb-quota-replenish-ack","cfbd-endpoint-audit",
        // Research-only historical CORE reconstruct + frozen holdout (authorized operator path).
        "cfb-core-historical-reconstruct",
