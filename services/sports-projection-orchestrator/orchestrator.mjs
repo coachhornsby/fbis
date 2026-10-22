@@ -1352,7 +1352,8 @@ function trackerTicket(row,rowNumber){
     ? selection.replace(/\s+[+-]?\d+(?:\.\d+)?\s*$/,"").trim()
     : selection;
   const normTeam=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
-  let selectedSide=/^under\b/i.test(selection)?"UNDER":/^over\b/i.test(selection)?"OVER":null;
+  let selectedSide=/^under\b/i.test(selection)?"UNDER":/^over\b/i.test(selection)?"OVER":
+    /^(YES|NO)\b/i.test(selection)?selection.slice(0,2).toUpperCase()==="YE"?"YES":"NO":null;
   if(!selectedSide && cleanSelection){
     if(normTeam(cleanSelection)===normTeam(awayTeam)) selectedSide="AWAY";
     else if(normTeam(cleanSelection)===normTeam(homeTeam)) selectedSide="HOME";
@@ -1361,7 +1362,11 @@ function trackerTicket(row,rowNumber){
   const trackerId="TRACKER-"+sha256(stableKey).slice(0,24).toUpperCase();
   // Keep the deterministic tracker ID as the D1 primary external key. Switching
   // historical rows to Heritage ticket IDs would duplicate already-synced bets.
-  const externalTicketId=trackerId;
+  // Exchange imports have immutable provider order IDs. Retain tracker keys for all legacy rows.
+  const exchangeReceipt=String(row["Heritage Ticket ID"]||"").trim();
+  const exchangeBook=["KALSHI","POLYMARKET US"].includes(book.toUpperCase());
+  const externalTicketId=exchangeBook && /^(KALSHI:|PMUS:)[A-Za-z0-9:._-]+$/.test(exchangeReceipt)
+    ? exchangeReceipt : trackerId;
   const placedAt=String(row["Placed At"]||"").trim();
   // Prefer authenticated Placed At as ledger executedAt. Synthetic noon remains
   // the identity-stable fallback only when Placed At is missing/unparseable, and
@@ -1433,6 +1438,87 @@ export async function syncBetTrackerToD1({since="2026-09-21"}={}){
   };
 }
 
+
+/** Exchange source → Google Sheet → existing D1 tracker ingestion.
+ * No public exchange account URLs, no client-side exchange keys, and no duplicate writes.
+ * A changed fill total after first sheet import is reported as conflict (never rewritten).
+ */
+export async function syncExchangeBetsToTracker({since="2026-10-21T00:00:00Z"}={}){
+  if(!sheets.available()) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required");
+  if(!runtimeEnv.HARVEST_SECRET) throw new Error("HARVEST_SECRET required");
+  const base=String(CFG.fbisBaseUrl||"https://fbis-myz.pages.dev").replace(/\/$/,"");
+  const headers={"x-harvest-secret":runtimeEnv.HARVEST_SECRET,"accept":"application/json"};
+  const refreshed=await fetchRetry(base+"/api/exchange-bets-sync",{method:"POST",headers},2);
+  const result=await refreshed.json().catch(()=>({}));
+  if(!refreshed.ok||!result.ok)throw new Error("Exchange capture unavailable: "+String(result.code||result.reason||refreshed.status));
+  const read=await fetchRetry(base+"/api/exchange-bets-sync",{headers},2);
+  const data=await read.json().catch(()=>({}));
+  if(!read.ok||!data.ok||!Array.isArray(data.tickets))throw new Error("Private execution journal unavailable");
+  const old=await sheets.get(q(CFG.sheets.bets)+"!A1:AS1000");
+  const values=old.values||[];
+  const headings=values[0]||[];
+  if(headings[42]!=="Heritage Ticket ID"||headings[43]!=="Placed At"||headings[11]!=="Result"||
+    headings[12]!=="P/L"||headings[9]!=="Risk")throw new Error("Bets sheet column contract changed");
+  const existing=new Map();
+  for(let i=1;i<values.length;i++){
+    const row=values[i]||[],id=String(row[42]||"").trim();
+    if(id){
+      if(existing.has(id))throw new Error("Duplicate external ticket ID in sheet: "+id);
+      existing.set(id,{row,i:i+1});
+    }
+  }
+  let appended=0,updated=0,skipped=0;const conflicts=[];
+  for(const t of data.tickets){
+    if(!t.id||!t.executedAt||t.executedAt<since){skipped++;continue;}
+    if(!(t.contracts>0)||!(t.risk>0)||!(t.unitPrice>0&&t.unitPrice<1)){skipped++;continue;}
+    const prior=existing.get(t.id);
+    if(prior){
+      const risk=Number(String(prior.row[9]||"").replace(/[$,]/g,""));
+      if(!Number.isFinite(risk)||Math.abs(risk-t.risk)>0.011){
+        conflicts.push({id:t.id,reason:"PARTIAL_FILL_OR_AMOUNT_CONFLICT"});continue;
+      }
+      const current=String(prior.row[11]||"").trim().toUpperCase();
+      if(t.status!=="OPEN"&&["","PENDING","OPEN"].includes(current)){
+        await sheets.update(q(CFG.sheets.bets)+"!L"+prior.i+":M"+prior.i,
+          [[t.status==="WON"?"Win":t.status==="LOST"?"Loss":t.status,Number(t.profit)]]);
+        updated++;
+      }else if(t.status!=="OPEN"&&!["WIN","WON","LOSS","LOST"].includes(current)){
+        conflicts.push({id:t.id,reason:"EXISTING_SETTLEMENT_CONFLICT"});
+      }else skipped++;
+      continue;
+    }
+    // Give partial-fill orders a settling window before a permanent execution receipt is locked.
+    if(Date.now()-Date.parse(t.executedAt)<30*60000){skipped++;continue;}
+    const price=t.unitPrice;
+    const american=price>=0.5?String(Math.round(-100*price/(1-price))):"+"+Math.round(100*(1-price)/price);
+    const row=Array(45).fill("");
+    const date=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"})
+      .format(new Date(t.executedAt));
+    row[0]=date;row[1]="Prediction Market";row[2]="Unknown";row[3]=t.marketLabel||t.market;
+    row[4]=t.side+" — "+t.market;row[5]="Exchange / Contract";row[6]=t.provider;
+    row[7]=t.side;row[8]=american;row[9]=t.risk;row[10]=t.toWin;
+    row[11]=t.status==="WON"?"Win":t.status==="LOST"?"Loss":"Pending";
+    row[12]=t.profit==null?"":Number(t.profit);
+    row[15]="Exchange fill(s) confirmed; "+t.fillCount+" fills; "+t.contracts+" contracts; fees $"+t.fee.toFixed(4)+
+      ". Market identity unqualified; no FBIS projection authority.";
+    row[19]=(100*price).toFixed(2)+"%";
+    row[33]="Provider execution journal";
+    row[34]="NOT QUALIFIED";row[35]="No pre-execution FBIS model lock";
+    row[38]="INELIGIBLE - EXCHANGE IMPORT";
+    row[42]=t.id;row[43]=t.executedAt;
+    await sheets.append(q(CFG.sheets.bets)+"!A:AS",[row]);
+    appended++;
+    // Maintain in-run identity against a duplicate result in one capture.
+    existing.set(t.id,{row,i:0});
+  }
+  const verified=await sheets.get(q(CFG.sheets.bets)+"!AQ1:AQ1000");
+  const ids=new Set((verified.values||[]).map(x=>String(x?.[0]||"").trim()));
+  for(const t of data.tickets.filter(t=>t.executedAt>=since))
+    if((existing.has(t.id)||appended)&&!ids.has(t.id))throw new Error("Exchange sheet readback missing ID: "+t.id);
+  const d1=await syncBetTrackerToD1({since:"2026-09-21"});
+  return {ok:conflicts.length===0,capture:result.providers,observed:data.tickets.length,appended,updated,
+    skipped,conflicts,tracker:d1,at:now()};
+}
 
 export async function syncSettledBetsToTracker(){
   if(!sheets.available()) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required for settlement sync");

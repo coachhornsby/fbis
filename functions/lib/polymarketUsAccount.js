@@ -122,6 +122,10 @@ export function polymarketAccountActivity(row) {
     costBasis: amount(t.costBasis),
     realizedPnl: amount(t.realizedPnl),
     state: bounded(t.state, 50),
+    side: bounded(t.outcomeSide || t.side, 20),
+    action: bounded(t.intent || t.action, 20),
+    orderId: bounded(t.orderId || t.orderID),
+    fee: amount(t.feeAmount ?? t.fee),
   };
 }
 
