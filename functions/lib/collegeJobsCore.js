@@ -1837,7 +1837,9 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
           // extra unrestricted network owner or per-team/per-game request.
           if (env.CFB_DRIVE_RESEARCH_COLLECTION === "enabled" &&
               env.CFB_DB?.prepare && env.cfbdNetworkAuthorized === true &&
-              env.cfbdCacheOnly !== true && opts.trigger === "schedule") {
+              env.cfbdCacheOnly !== true &&
+              (opts.trigger === "schedule" ||
+               (opts.trigger === "workflow_dispatch" && opts.operatorApproved === true))) {
             const driveRes = await cfbdGet("/drives",env,{query:w,fetchFn:opts.fetchFn||fetch});
             const ids=new Set(finals.filter(g=>Number(g.week)===w.week &&
               String(g.seasonType||g.season_type||"regular")===w.seasonType)
