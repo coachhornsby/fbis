@@ -148,7 +148,7 @@ SPORT_DB_MODE_KBO = "shadow"
 MARKET_HISTORY_SHADOW_WS = "enabled"
 COLD_MARKET_ARCHIVE_READS = "enabled"
 NHL_SPORT_DB_MODE = "shadow"
-SPORT_DB_MODE_NHL = "shadow"
+SPORT_DB_MODE_NHL = "sport"
 SPORT_DB_MODE_NFL = "sport"
 SPORT_DB_MODE_CFB = "sport"
 SPORT_DB_MODE_CBB = "shadow"
@@ -164,6 +164,11 @@ SPORT_CUTOVER_RECEIPT_NFL = "nfl-20261021-production-v1"
 SPORT_DB_STRICT_CFB = "true"
 SPORT_DB_LEDGER_READY_CFB = "true"
 SPORT_CUTOVER_RECEIPT_CFB = "cfb-20261021-production-v1"
+# NHL storage-only cutover: research/model wagering remains unqualified.
+# NHL_SPORT_DB_MODE stays shadow as the legacy alias; SPORT_DB_MODE_NHL is authoritative.
+SPORT_DB_STRICT_NHL = "true"
+SPORT_DB_LEDGER_READY_NHL = "true"
+SPORT_CUTOVER_RECEIPT_NHL = "nhl-20261022-production-v1"
 
 [[env.production.d1_databases]]
 binding = "DB"
