@@ -1,0 +1,76 @@
+name: CFB authoritative write-path certification
+# One controlled production collector invocation; never inserts synthetic predictions.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/cfb-authoritative-write-cert.yml]
+permissions:
+  contents: read
+concurrency:
+  group: fbis-cfb-write-certification
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Verify live production includes this release
+        env:
+          BASE: https://fbis-myz.pages.dev
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main --prune
+          for i in $(seq 1 60); do
+            payload="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$payload" -w '%{http_code}' "$BASE/api/health?_t=$(date +%s)-$i" || true)"
+            if [ "$code" = 200 ]; then
+              while IFS= read -r deployed; do
+                if git cat-file -e "$deployed^{commit}" 2>/dev/null &&
+                  git merge-base --is-ancestor "$EXPECTED_SHA" "$deployed"; then
+                  echo "production_contains=$EXPECTED_SHA deployed=$deployed"
+                  exit 0
+                fi
+              done < <(jq -r '.. | strings | select(test("^[0-9a-f]{40}$"))' "$payload" 2>/dev/null | sort -u)
+            fi
+            sleep 5
+          done
+          echo "Production SHA not qualified; fail closed"
+          exit 1
+      - name: Authenticated production CFB collect (real records only)
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          mkdir -p artifacts
+          writes=0
+          for offset in 0 1 2 3; do
+            body="artifacts/collect-cfb-offset-${offset}.json"
+            status="$(curl -sS --retry 1 --max-time 150 -o "$body" -w '%{http_code}' \
+              -H "x-harvest-secret: $HARVEST_SECRET" -H "accept: application/json" \
+              "$BASE/api/collect?odds=cache&sport=cfb&dayOffset=${offset}&trigger=workflow_dispatch")"
+            jq --argjson dayOffset "$offset" --arg status "$status" '{dayOffset:$dayOffset,http:$status,ok,status,errors:(.errors//[]),writes:(.sports//[]|map(.writes//{}))}' "$body"
+            test "$status" = 200
+            jq -e '.ok==true and .status=="success" and (.errors//[]|length)==0' "$body" >/dev/null
+            count="$(jq '[.sports[]?.writes?.writesSucceeded // 0] | add // 0' "$body")"
+            writes=$((writes + count))
+          done
+          echo "cfb_record_writes_succeeded=$writes"
+          if [ "$writes" -eq 0 ]; then
+            echo "CFB_NO_NEW_WRITES: inconclusive; never certify empty collection"
+            exit 1
+          fi
+      - name: Preserve write-path evidence
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: cfb-authoritative-collect-evidence
+          path: artifacts/collect-cfb-offset-*.json
+          retention-days: 30
+          if-no-files-found: ignore

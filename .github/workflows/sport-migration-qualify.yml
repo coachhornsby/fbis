@@ -168,6 +168,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
+          # Migration qualification is only for PRIMARY-backed candidates.
+          # Once authority is live, assert the hardened production routing receipt
+          # instead of failing a deliberately false productStillPrimary gate.
+          if [[ "$SPORT" == "nfl" || "$SPORT" == "cfb" || "$SPORT" == "nhl" ]]; then
+            node scripts/sport-delta-sync-ops.mjs | tee "artifacts/sport-qualify-${SPORT}.json"
+            jq -e '.ok==true and .status=="SKIPPED_SPORT_AUTHORITATIVE" and .authoritySkip==true and .productStillPrimary==false and .cutoverAuthorized==true and .canAuthorizeWager==false' "artifacts/sport-qualify-${SPORT}.json" >/dev/null
+            exit 0
+          fi
           node scripts/sport-migration-qualify-ops.mjs | tee "artifacts/sport-qualify-${SPORT}.json"
           # When cutover rehearsal is on, readyForCutoverReview + rehearsal must pass.
           # When cutover is off, require working/prefix gates without claiming cutover-ready.
