@@ -15,7 +15,7 @@ CREATE TABLE tennis_players(fbis_player_id TEXT PRIMARY KEY,tour TEXT,normalized
 CREATE TABLE tennis_player_portraits(fbis_player_id TEXT,source_name TEXT,display_scope TEXT,public_display_allowed INTEGER,approval_status TEXT);
 """)
 cohort='tennis-elo-private-20261019-1074'
-rows=[('atp',559,'8e17d8cc26cc96bbf9d03f506adf788d6c172ff310a50583d7c0dc26f1'),
+rows=[('atp',559,'8e17d8cc26cc96bbf9d03f506adf788d6c172ff310a50583d6da39d7c0dc26f1'),
       ('wta',515,'ffe2e714a810da20a0f2107f14b85d87e52de50101d4bf931e3e53970d796c6b')]
 for tour,n,h in rows:
  c.execute('INSERT INTO tennis_abstract_elo_runs VALUES (?,?,?,?,?,?,?,?)',(tour,'2026-10-19',h,'https://www.tennisabstract.com/reports/'+tour+'_elo_ratings.html',n,'2026-10-21T20:41:00Z',1,0))
@@ -41,6 +41,8 @@ assert c.execute("SELECT COUNT(*) FROM tennis_player_portraits WHERE source_name
 print('PHASE1_SQLITE_CONTRACT_OK total=1074 approvedRestricted=0 policiesBlocked=2')
 `;
 test('Phase 1 freezes exactly 559 ATP + 515 WTA and denies public/private-unverified headshots',()=>{
+ assert.match(sql,/8e17d8cc26cc96bbf9d03f506adf788d6c172ff310a50583d6da39d7c0dc26f1/);
+ assert.equal((sql.match(/r\.source_hash='[a-f0-9]{64}'/g)||[]).length,2);
  const run=spawnSync('python3',['-c',python],{input:sql,encoding:'utf8',timeout:15000});
  assert.equal(run.status,0,run.stderr||run.stdout);
  assert.match(run.stdout,/PHASE1_SQLITE_CONTRACT_OK/);
