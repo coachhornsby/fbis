@@ -2,6 +2,7 @@ import {authorizeStrategyPost} from "../lib/auth.js";
 import {freezeCfbShadowEvent,gradeCfbShadowEvent,cfbShadowReport} from "../lib/cfbSimulationStore.js";
 import {freezeCfbDriveShadow,gradeCfbDriveShadow,cfbDriveResearchStatus} from "../lib/cfbDriveSimulationStore.js";
 import {freezeCfbDriveResearchAsOf} from "../lib/cfbDriveResearchAsOf.js";
+import {cfbDriveCohortReport} from "../lib/cfbDriveCohortReport.js";
 const response=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{
   "content-type":"application/json; charset=utf-8","cache-control":"no-store",
   "x-content-type-options":"nosniff"
@@ -16,6 +17,7 @@ const errorStatus=err=>{
 export async function onRequestGet({request,env}){
   if(!authorizeStrategyPost(request,env).ok)return response({ok:false,error:"unauthorized"},401);
   try{if(new URL(request.url).searchParams.get("mode")==="drives")return response(await cfbDriveResearchStatus(env));
+    if(new URL(request.url).searchParams.get("mode")==="cohort")return response(await cfbDriveCohortReport(env,{limit:100}));
     return response(await cfbShadowReport(env,{limit:new URL(request.url).searchParams.get("limit")||20}));}
   catch(err){return response({ok:false,error:String(err?.message||err).slice(0,100)},errorStatus(err));}
 }

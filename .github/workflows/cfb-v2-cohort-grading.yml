@@ -1,0 +1,82 @@
+name: CFB V2 prospective cohort grading
+
+# One prospective read-only evaluation on October 26 (after weekend harvest).
+# Available on workflow_dispatch for operator reruns without provider fetches.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 17 26 10 *"
+permissions:
+  contents: read
+concurrency:
+  group: cfb-v2-cohort-grade-20261026
+  cancel-in-progress: false
+jobs:
+  grade-cohort:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'schedule' && github.ref == 'refs/heads/main') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Grade only verified completed CFB games
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "Missing operator secret"; exit 2; }
+          if [ "${{ github.event_name }}" = schedule ] && [ "$(date -u +%Y-%m-%d)" != 2026-10-26 ]; then
+            echo "Outside the approved one-time October 26 grading date."
+            exit 0
+          fi
+          mkdir -p sanitized
+          checked=0; graded=0; pending=0; hard_fail=0
+          while IFS=$'\t' read -r gid kickoff home away; do
+            [[ "$gid" = \#* || -z "$gid" ]] && continue
+            checked=$((checked+1))
+            payload="$(jq -nc --arg gid "$gid" '{action:"drive-grade",gameId:$gid}')"
+            http="$(curl -sS --show-error --max-time 90 --retry 0 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" \
+              -X POST --data "$payload" -o "grade-$gid.json" -w '%{http_code}' \
+              https://fbis-myz.pages.dev/api/cfb-simulation)" || http="000"
+            if jq -e . "grade-$gid.json" >/dev/null 2>&1; then
+              jq '{ok,gameId,graded,reason,error,authority}' "grade-$gid.json" > "sanitized/$gid.json"
+            else
+              echo "{\"ok\":false,\"gameId\":\"$gid\",\"reason\":\"NON_JSON\",\"http\":\"$http\"}" > "sanitized/$gid.json"
+              hard_fail=$((hard_fail+1));continue
+            fi
+            if [ "$http" = 200 ] && jq -e '.ok == true' "grade-$gid.json" >/dev/null; then
+              graded=$((graded + $(jq -r '.graded // 0' "grade-$gid.json")))
+            elif jq -e '.reason == "REGULATION_FINAL_SOURCE_NOT_VERIFIED"' "grade-$gid.json" >/dev/null; then
+              pending=$((pending+1))
+            else
+              hard_fail=$((hard_fail+1))
+            fi
+          done < data/research/cfb-drive-v2-cohort-20261022.tsv
+          echo "Checked: $checked, newly graded: $graded, still lacking reconciled finals: $pending, errors: $hard_fail"
+          test "$checked" = 20
+          test "$hard_fail" = 0
+      - name: Report prospective head-to-head accuracy, no promotion
+        if: success()
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          http="$(curl -sS --show-error --max-time 90 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -o report.json -w '%{http_code}' \
+            "https://fbis-myz.pages.dev/api/cfb-simulation?mode=cohort")" || http="000"
+          test "$http" = 200
+          jq '{ok,scope,frozen,graded,calibrationStatus,scores,intervalCoverage,
+            canAuthorizeWager,changesProductionChampion}' report.json > sanitized/cohort-evaluation.json
+          cat sanitized/cohort-evaluation.json >> "$GITHUB_STEP_SUMMARY"
+          jq -e '.ok and .scope=="CFB_DB" and .canAuthorizeWager==false' report.json >/dev/null
+      - name: Save sanitized prospective grade receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-v2-prospective-grading-20261026
+          path: sanitized/*.json
+          retention-days: 30
+          if-no-files-found: ignore

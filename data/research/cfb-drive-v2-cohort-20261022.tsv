@@ -1,0 +1,22 @@
+# 20-game pre-registered cohort: first 20 upcoming eligible CFB-FBIS-v2 games by kickoff,game_id from CFB_DB selection on Oct 22 2026.
+# game_id<TAB>kickoff_utc<TAB>home<TAB>away. No odds, bets or post-result selection.
+401869845	2026-10-22T23:00:00Z	App State	James Madison
+401871056	2026-10-22T23:00:00Z	Kennesaw State	Liberty
+401862807	2026-10-22T23:30:00Z	Memphis	East Carolina
+401858271	2026-10-23T23:00:00Z	Virginia	Duke
+401861965	2026-10-23T23:00:00Z	UConn	Massachusetts
+401862808	2026-10-24T00:30:00Z	Tulsa	Army
+401864525	2026-10-24T01:00:00Z	Wyoming	Air Force
+401858272	2026-10-24T02:30:00Z	Stanford	NC State
+401856728	2026-10-24T16:00:00Z	Auburn	LSU
+401856840	2026-10-24T16:00:00Z	Cincinnati	Texas Tech
+401856841	2026-10-24T16:00:00Z	TCU	West Virginia
+401858270	2026-10-24T16:00:00Z	SMU	California
+401858274	2026-10-24T16:00:00Z	Miami	Pittsburgh
+401858496	2026-10-24T16:00:00Z	Michigan	Indiana
+401858498	2026-10-24T16:00:00Z	Northwestern	Rutgers
+401862809	2026-10-24T16:00:00Z	Florida Atlantic	Rice
+401866450	2026-10-24T16:00:00Z	Toledo	Western Michigan
+401856834	2026-10-24T17:00:00Z	Kansas	Baylor
+401866446	2026-10-24T17:00:00Z	Kent State	Akron
+401866476	2026-10-24T17:00:00Z	Central Michigan	Miami (OH)
