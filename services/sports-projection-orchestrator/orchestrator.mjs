@@ -1468,11 +1468,13 @@ export async function syncExchangeBetsToTracker({since="2026-10-21T00:00:00Z"}={
     }
   }
   let appended=0,updated=0,skipped=0;const conflicts=[];
+  const touchedIds=new Set();
   for(const t of data.tickets){
     if(!t.id||!t.executedAt||t.executedAt<since){skipped++;continue;}
     if(!(t.contracts>0)||!(t.risk>0)||!(t.unitPrice>0&&t.unitPrice<1)){skipped++;continue;}
     const prior=existing.get(t.id);
     if(prior){
+      touchedIds.add(t.id);
       const risk=Number(String(prior.row[9]||"").replace(/[$,]/g,""));
       if(!Number.isFinite(risk)||Math.abs(risk-t.risk)>0.011){
         conflicts.push({id:t.id,reason:"PARTIAL_FILL_OR_AMOUNT_CONFLICT"});continue;
@@ -1488,12 +1490,14 @@ export async function syncExchangeBetsToTracker({since="2026-10-21T00:00:00Z"}={
       continue;
     }
     // Give partial-fill orders a settling window before a permanent execution receipt is locked.
-    if(Date.now()-Date.parse(t.executedAt)<30*60000){skipped++;continue;}
+    if(!Number.isFinite(Date.parse(t.executedAt))||Date.now()-Date.parse(t.executedAt)<30*60000){skipped++;continue;}
     const price=t.unitPrice;
     const american=price>=0.5?String(Math.round(-100*price/(1-price))):"+"+Math.round(100*(1-price)/price);
     const row=Array(45).fill("");
-    const date=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"})
-      .format(new Date(t.executedAt));
+    const parts=new Intl.DateTimeFormat("en-US",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"})
+      .formatToParts(new Date(t.executedAt));
+    const part=type=>parts.find(p=>p.type===type)?.value;
+    const date=part("year")+"-"+part("month")+"-"+part("day");
     row[0]=date;row[1]="Prediction Market";row[2]="Unknown";row[3]=t.marketLabel||t.market;
     row[4]=t.side+" — "+t.market;row[5]="Exchange / Contract";row[6]=t.provider;
     row[7]=t.side;row[8]=american;row[9]=t.risk;row[10]=t.toWin;
@@ -1508,13 +1512,14 @@ export async function syncExchangeBetsToTracker({since="2026-10-21T00:00:00Z"}={
     row[42]=t.id;row[43]=t.executedAt;
     await sheets.append(q(CFG.sheets.bets)+"!A:AS",[row]);
     appended++;
+    touchedIds.add(t.id);
     // Maintain in-run identity against a duplicate result in one capture.
     existing.set(t.id,{row,i:0});
   }
   const verified=await sheets.get(q(CFG.sheets.bets)+"!AQ1:AQ1000");
   const ids=new Set((verified.values||[]).map(x=>String(x?.[0]||"").trim()));
-  for(const t of data.tickets.filter(t=>t.executedAt>=since))
-    if((existing.has(t.id)||appended)&&!ids.has(t.id))throw new Error("Exchange sheet readback missing ID: "+t.id);
+  for(const id of touchedIds)
+    if(!ids.has(id))throw new Error("Exchange sheet readback missing ID: "+id);
   const d1=await syncBetTrackerToD1({since:"2026-09-21"});
   return {ok:conflicts.length===0,capture:result.providers,observed:data.tickets.length,appended,updated,
     skipped,conflicts,tracker:d1,at:now()};

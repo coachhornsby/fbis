@@ -19,7 +19,7 @@ export function kalshiExecution(f) {
     market:safe(f.ticker||f.market_ticker),marketLabel:safe(f.ticker||f.market_ticker),
     side:["YES","NO"].includes(side)?side:"UNKNOWN",action:["BUY","SELL"].includes(action)?action:"UNKNOWN",
     quantity:qty>0?qty:null,price:price!=null&&price>0&&price<1?price:null,
-    fee:num(f.fee_cost??f.fee_cost_dollars)??0,
+    fee:num(f.fee_cost??f.fee_cost_dollars),
     at:stamp(f.created_time)||isoSeconds(f.ts)};
 }
 export function polymarketExecution(row){
@@ -37,7 +37,7 @@ export function polymarketExecution(row){
     side:["YES","NO"].includes(side)?side:"UNKNOWN",
     action:["BUY","SELL"].includes(action)?action:"UNKNOWN",
     quantity:qty>0?qty:null,price:price!=null&&price>0&&price<1?price:null,
-    fee:num(t.feeAmount??t.fee??t.fees)??0,at:stamp(t.createTime||t.updateTime)};
+    fee:num(t.feeAmount??t.fee??t.fees),at:stamp(t.createTime||t.updateTime)};
 }
 export function ticketFromGroup(group){
   const xs=group.filter(e=>e.action==="BUY"),first=xs[0];
@@ -67,7 +67,8 @@ export function groupExecutions(events){
 const dbEvent=r=>({provider:r.provider,fillId:r.fill_id,groupId:r.group_id,market:r.market,marketLabel:r.market_label,
   side:r.side,action:r.action,quantity:num(r.quantity),price:num(r.unit_price),fee:num(r.fee_usd),at:r.occurred_at});
 export async function readExchangeTickets(db){
-  const records=await db.prepare("SELECT * FROM exchange_bet_fills ORDER BY occurred_at DESC LIMIT 3000").all();
+  const records=await db.prepare("SELECT * FROM exchange_bet_fills ORDER BY occurred_at DESC LIMIT 3001").all();
+  if((records.results||[]).length>3000)throw new Error("EXCHANGE_HISTORY_LIMIT_REQUIRES_PAGINATION");
   const events=(records.results||[]).map(dbEvent);
   const tickets=groupExecutions(events);
   const settle=(await db.prepare("SELECT * FROM exchange_bet_settlements").all()).results||[];
