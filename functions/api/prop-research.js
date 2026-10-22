@@ -1,5 +1,6 @@
+import { loadPolymarketGlobalNba } from '../lib/polymarketGlobalNbaProps.js';
 import { propModelEvidence } from '../lib/propModelEvidence.js';
-import { loadPropFixturesAndPlayers,independentPropRows } from '../lib/propResearchData.js';
+import { loadPropFixturesAndPlayers,independentPropRows,resolvePropModelIdentities } from '../lib/propResearchData.js';
 import { loadCapturedKalshiProps } from '../lib/kalshiPlayerPropCollector.js';
 import { loadCanonicalPropHistory } from '../lib/propHistoryResearch.js';
 import { loadNflVerseFeatures } from '../lib/nflVerseFeed.js';
@@ -27,19 +28,22 @@ export async function onRequestGet({env,request}) {
  }
  if(!player||!['nflverse','nhl','mlb','espn'].includes(provider))return json({ok:false,error:'Player/event roster identity not verified'},422);
  const contractId=u.searchParams.get('contractId');
- const captured=contractId?await loadCapturedKalshiProps(env,{...context,sport,seriesFilter:contractId.split('-')[0]}):{rows:[]};
- const contracts=captured.rows.filter(r=>r.canonicalEventId===eventId&&r.canonicalPlayerId===id&&r.canonical_market===market);
+ const captured=contractId&&u.searchParams.get('historyOnly')!=='1'?await loadCapturedKalshiProps(env,{...context,sport,seriesFilter:contractId.split('-')[0]}):{rows:[]};
+ const gamma=sport==='nba'&&u.searchParams.get('historyOnly')!=='1'?await loadPolymarketGlobalNba(env,{day}):{rows:[]};
+ const contracts=[...captured.rows,...gamma.rows].filter(r=>r.canonicalEventId===eventId&&r.canonicalPlayerId===id&&r.canonical_market===market);
  const contract=contracts.find(c=>c.contractId===u.searchParams.get('contractId')&&c.side===(u.searchParams.get('contractSide')||'yes'))||null;
  // No request-provided projection, probability, price or threshold enters this estimate.
  let model=null,modelState='UNAVAILABLE';
  if(u.searchParams.get('historyOnly')!=='1')try {const slate=await buildSlate(sport,day,{...env,caches:typeof caches==='undefined'?null:caches.default,parlayCacheOnly:true,cfbdScheduleFallback:false});
-  model=independentPropRows(slate).find(p=>p.canonicalEventId===eventId&&p.canonicalPlayerId===id&&(p.canonical_market===market||(p.canonical_market==='pra'&&market==='points_rebounds_assists')))||null;
+  model=resolvePropModelIdentities(independentPropRows(slate),context).find(p=>p.canonicalEventId===eventId&&p.canonicalPlayerId===id&&(p.canonical_market===market||(p.canonical_market==='pra'&&market==='points_rebounds_assists')))||null;
   modelState=model?'RESEARCH_PROJECTION':(slate.games||[]).find(g=>String(g.id)===eventId)?.playerProjectionStatus?.state||'UNAVAILABLE';
  }catch{modelState='MODEL_DELIVERY_UNAVAILABLE';}
  const history=await loadCanonicalPropHistory(env,{sport,provider,playerId,market,line:contract?.line??null,asOf:new Date(Math.min(Date.now(),Date.parse(game.start))).toISOString()});
- const profile={position:player.position,availability:player.health_state||player.availability_state||player.status||'UNKNOWN',source:player.state_source||player.source,asOf:player.state_source_updated_at||player.source_updated_at||player.as_of,
+ let stored={};try{stored=JSON.parse(player.raw_json||'{}');}catch{}
+ const profile={role:player.role_label,depthRank:player.depth_rank,jersey:player.jersey,practice:player.practice_state,injury:player.injury_detail,snapShare:player.last_known_snap_share,nextGen:stored.usage?.ngs||null,recentForm:stored.usage?.recent5||null,position:player.position,availability:player.health_state||player.availability_state||player.status||'UNKNOWN',source:player.state_source||player.source,asOf:player.state_source_updated_at||player.source_updated_at||player.as_of,
   expectedMinutes:player.expected_minutes,expectedSnapShare:player.expected_snap_share,evLine:player.ev_line,powerPlayUnit:player.pp_unit,iceTimeSeconds:player.rolling_toi_seconds,roleConfidence:player.role_confidence};
  return json({ok:true,modelEvidence:propModelEvidence(sport,market),canonicalPlayerId:id,canonicalEventId:eventId,player:{name:player.player_name,team:player.team_key,...profile},market,model,modelState,history,
+  matchup:{opponent:player.team_key?.toUpperCase()===game.home_abbr?.toUpperCase()?game.away_abbr:game.home_abbr,venue:game.venue_name||game.venue,home:player.team_key?.toUpperCase()===game.home_abbr?.toUpperCase(),inputs:model?.researchInputs||null},
   contracts,selectedContract:contract,calibration:{status:'THRESHOLD_CALIBRATION_UNVERIFIED',probability:null,reason:'Projection validation is separate from exchange threshold and settlement calibration.'},
   results:{status:Date.parse(game.start)>Date.now()?'PREGAME':'OFFICIAL_RESULT_NOT_JOINED',recordedWager:false},canQualify:false,canAuthorizeWager:false});
 }

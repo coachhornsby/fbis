@@ -1,24 +1,68 @@
 import { useEffect,useState,useRef } from 'react';
 import { LastFiveStatChart } from './FBISPlayerPropCard.jsx';
 import { fetchPropResearch } from './propResearchClient.js';
+import { formatMarketLabel } from './buildPlayerPropsBoard.js';
 const tabs=['Overview','Historical Performance','Matchup Intelligence','Market Comparison','Model Research','Results & Learning'];
-const fmt=v=>v==null?'Unavailable':typeof v==='number'?Number(v.toFixed(2)):String(v);
-function Facts({values}) {return <dl className="prop-research-facts">{Object.entries(values).map(([k,v])=><div key={k}><dt>{k}</dt><dd>{fmt(v)}</dd></div>)}</dl>;}
+const fmt=v=>v==null?'—':typeof v==='number'?Number(v.toFixed(2)):String(v);
+const pct=v=>v==null?null:`${(v*100).toFixed(1)}%`;
+const date=v=>v?new Date(v).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' CT':null;
+function Facts({values}) {return <dl className="prop-research-facts">{Object.entries(values).filter(([,v])=>v!=null&&v!=='').map(([k,v])=><div key={k}><dt>{k}</dt><dd>{fmt(v)}</dd></div>)}</dl>;}
+function StatTable({values}) {const entries=Object.entries(values||{}).filter(([,v])=>v!=null&&typeof v!=='object');return entries.length?<table className="exchange-prop-coverage"><tbody>{entries.map(([k,v])=><tr key={k}><th>{formatMarketLabel(k)}</th><td>{typeof v==='boolean'?v?'Available':'Unavailable':fmt(v)}</td></tr>)}</tbody></table>:null;}
 export default function ExchangePlayerWorkspace({row,onClose}) {
  const dialog=useRef(null);
  useEffect(()=>{dialog.current?.showModal();return()=>dialog.current?.close();},[]);
- const [tab,setTab]=useState(tabs[0]),[state,setState]=useState({loading:true,data:null,error:''});
- useEffect(()=>{let canceled=false;setTab(tabs[0]);setState({loading:true,data:null,error:''});fetchPropResearch(row).then(data=>{if(!canceled)setState({loading:false,data,error:''});}).catch(e=>{if(!canceled)setState({loading:false,data:null,error:e.message});});return()=>{canceled=true;};},[row.id]);
- const d=state.data,h=d?.history,m=d?.model||row,contracts=d?.contracts||[],contract=d?.selectedContract;
+ const [tab,setTab]=useState(tabs[0]),[state,setState]=useState({loading:true,data:null,error:''}),[threshold,setThreshold]=useState(row.line);
+ useEffect(()=>{let canceled=false;setTab(tabs[0]);setThreshold(row.line);setState({loading:true,data:null,error:''});fetchPropResearch(row).then(data=>{if(!canceled)setState({loading:false,data,error:''});}).catch(e=>{if(!canceled)setState({loading:false,data:null,error:e.message});});return()=>{canceled=true;};},[row.id]);
+ const d=state.data,h=d?.history,m=d?.model||row,p=d?.player||{},inputs=m.researchInputs||{},contracts=d?.contracts||[],contract=d?.selectedContract;
+ const viewRow={...row,line:threshold};
+ const alternatives=[...new Set(contracts.map(c=>c.line).filter(v=>v!=null))].sort((a,b)=>a-b);
+ const recent=h?.last10||[];
+ const over=threshold==null?null:recent.filter(g=>g.value>threshold).length,under=threshold==null?null:recent.filter(g=>g.value<threshold).length;
  return <dialog ref={dialog} onCancel={onClose} className="props-workspace prop-research-dialog" aria-label={`${row.player_name} research`}>
-  <div className="props-workspace-header"><div><h2>{row.player_name} · {row.canonical_market?.replaceAll('_',' ')}</h2><p>{row.team} vs {row.opponent} · {row.start_time}</p></div><button type="button" className="header-btn" onClick={onClose}>Close research</button></div>
+  <div className="props-workspace-header"><div><span className="prop-workspace-kicker">FBIS PLAYER RESEARCH · {row.sport?.toUpperCase()}</span><h2>{row.player_name}</h2><p>{formatMarketLabel(row.canonical_market)} · {row.team} vs {row.opponent} · {date(row.start_time)}</p></div><button type="button" className="header-btn" onClick={onClose}>Close research</button></div>
   <div className="exchange-prop-tabs" aria-label="Research sections">{tabs.map(t=><button type="button" key={t} aria-pressed={tab===t} onClick={()=>setTab(t)}>{t}</button>)}</div>
   {state.loading?<p role="status">Loading verified player research…</p>:null}{state.error?<p role="alert">Research unavailable: {state.error}</p>:null}
-  {tab==='Overview'?<><Facts values={{'Independent projection':m.fbis_projection,'Model uncertainty (σ)':m.sigma,'Threshold':row.line,'Contract side':row.side,'Calibrated probability':m.calibratedProbability,'Model state':d?.modelState||row.modelStatus,'Availability':d?.player?.availability}}/><p>{d?.calibration?.reason}</p><ul>{(row.reasons||[]).map(r=><li key={r}>{r.replaceAll('_',' ')}</li>)}</ul></>:null}
-  {tab==='Historical Performance'?<><LastFiveStatChart row={row}/>{h?.available?<><Facts values={{'Last 5 average':h.recent5?.average,'Last 10 average':h.recent10?.average,'Season average':h.partialSeason?null:h.season?.average,'Median':h.recent10?.median,'Standard deviation':h.recent10?.sd,'Home average':h.partialSeason?null:h.splits?.home?.average,'Away average':h.partialSeason?null:h.splits?.away?.average,'Over / under / push':h.threshold==null?'No selected threshold':`${h.recent10.over} / ${h.recent10.under} / ${h.recent10.pushes}`}}/><p>{h.partialSeason?'Partial history: season totals and splits are withheld. ':''}{h.source}. Today’s threshold applies retroactively; frequency is not calibrated probability.</p><table className="exchange-prop-coverage"><thead><tr><th>Date</th><th>Opponent</th><th>Actual</th><th>Workload</th></tr></thead><tbody>{h.last10.map(g=><tr key={g.eventId||g.date}><td>{g.date}</td><td>{g.opponent}</td><td>{g.value}</td><td>{g.workload??'—'}</td></tr>)}</tbody></table></>:!state.loading?<p>{h?.reason?.replaceAll('_',' ')||'Verified history unavailable'}</p>:null}</>:null}
-  {tab==='Matchup Intelligence'?<><Facts values={{'Availability':d?.player?.availability,'Position':d?.player?.position,'Expected minutes':d?.player?.expectedMinutes,'Expected snap share':d?.player?.expectedSnapShare,'Even-strength line':d?.player?.evLine,'Power-play unit':d?.player?.powerPlayUnit,'Ice time (seconds)':d?.player?.iceTimeSeconds,'Profile source':d?.player?.source,'Profile as of':d?.player?.asOf}}/>{m.features?<details open><summary>Verified model inputs</summary><pre>{JSON.stringify(m.features,null,2)}</pre></details>:<p>Opponent category adjustments and feature contributions are unavailable for this estimate.</p>}</>:null}
-  {tab==='Market Comparison'?<><table className="exchange-prop-coverage"><thead><tr><th>Provider</th><th>Contract</th><th>Threshold</th><th>Observed ask</th><th>Depth</th><th>Captured</th></tr></thead><tbody>{contracts.map(c=><tr key={c.id}><td>{c.provider}</td><td>{c.contractId}</td><td>{c.side?.toUpperCase()} · {c.line} ({c.trigger}+)</td><td>{fmt(c.observedAsk)}</td><td>{fmt(c.observedDepth)}</td><td>{c.collectedAt}</td></tr>)}</tbody></table>{!contracts.length?<p>Market unavailable.</p>:null}<p>Source quote time, verified fees and fee-adjusted expected return are unavailable. Contracts with different DNP, postponement, period or settlement rules are not interchangeable.</p>{contract?<details open><summary>Exact provider settlement rules</summary><p className="prop-settlement-terms">{contract.settlementTerms}</p><p>DNP settlement: {contract.dnpSettlement}. Period: {contract.period}.</p></details>:null}</>:null}
-  {tab==='Model Research'?<><Facts values={{'Model':m.modelId,'Version':m.modelVersion,'Projection as of':m.modelAsOf,'Independent':m.independent===true?'Yes':'Unverified','Validation':m.validationStatus,'Threshold calibration':d?.calibration?.status}}/>{d?.modelEvidence?<details open><summary>Validation evidence and limitations</summary><pre>{JSON.stringify(d.modelEvidence,null,2)}</pre></details>:null}<p>No star rating or expected return is derived from an uncalibrated projection gap. Model projection accuracy does not establish exchange contract calibration.</p></>:null}
-  {tab==='Results & Learning'?<><Facts values={{'Result status':d?.results?.status,'Frozen prediction':m.modelAsOf,'Official actual':d?.results?.actual,'Forecast error':d?.results?.forecastError}}/><p>Only an official result joined to frozen pregame evidence can be graded. Viewing this contract creates no wager, profit, or personal performance record.</p></>:null}
+  {tab==='Overview'?<>
+   <div className="prop-research-summary"><Facts values={{'FBIS projection':m.fbis_projection,'Selected threshold':threshold,'Stat gap':threshold==null?null:fmt(m.fbis_projection-threshold),'Last 5 average':h?.recent5?.average,'Availability':p.availability,'Role':p.role||inputs.role}}/></div>
+   <LastFiveStatChart row={viewRow} history={h}/>
+   <Facts values={{'Position':p.position||row.position,'Jersey':p.jersey?`#${p.jersey}`:null,'Expected snap share':pct(p.expectedSnapShare??inputs.snapShare),'Recent snap share':pct(p.snapShare),'Model uncertainty (σ)':m.sigma}}/>
+   {p.injury?<p className="prop-research-note">Availability: {p.injury} · {p.practice||p.availability}. Updated {date(p.asOf)}.</p>:null}
+   <p className="prop-research-note">{m.modelId} · Independent player projection. {alternatives.length} exchange thresholds available in Market Comparison. Threshold probabilities remain uncalibrated.</p>
+  </>:null}
+  {tab==='Historical Performance'?<>
+   <LastFiveStatChart row={viewRow} history={h}/>{h?.available?<>
+    <Facts values={{'Last 5 average':h.recent5?.average,'Last 10 average':h.recent10?.average,'Current season average':h.partialSeason?null:h.season?.average,'Season games':h.partialSeason?null:h.season?.games,'Recent median':h.recent10?.median,'Standard deviation':h.recent10?.sd,'Home average':h.partialSeason?null:h.splits?.home?.average,'Away average':h.partialSeason?null:h.splits?.away?.average,'Over / under / push':threshold==null?null:`${over} / ${under} / ${recent.length-over-under}`}}/>
+    <p className="prop-research-note">{h.source}. {h.partialSeason?'Partial history. ':''}Recent games can span seasons. Today’s threshold applies retroactively; hit frequency is not a calibrated probability.</p>
+    <table className="exchange-prop-coverage"><thead><tr><th>Date</th><th>Opponent</th><th>Site</th><th>Actual</th><th>vs threshold</th></tr></thead><tbody>{recent.map(g=><tr key={g.eventId||g.date}><td>{new Date(g.date).toLocaleDateString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',year:'2-digit'})}</td><td>{g.opponent}</td><td>{g.isHome==null?'—':g.isHome?'Home':'Away'}</td><td><strong>{g.value}</strong></td><td>{threshold==null?'—':g.value>threshold?'Over':g.value<threshold?'Under':'Push'}</td></tr>)}</tbody></table>
+   </>:!state.loading?<p>{h?.reason?.replaceAll('_',' ')||'Verified history unavailable'}</p>:null}
+  </>:null}
+  {tab==='Matchup Intelligence'?<>
+   <Facts values={{'Opponent':d?.matchup?.opponent||row.opponent,'Site':d?.matchup?.home?'Home':'Away','Availability':p.availability,'Practice':p.practice,'Injury':p.injury,'Position':p.position,'Depth role':p.role||inputs.role,'Expected minutes':p.expectedMinutes??inputs.projectedMinutes,'Expected snap share':pct(p.expectedSnapShare),'Recent snap share':pct(p.snapShare??inputs.snapShare),'Role confidence':pct(inputs.roleConfidence),'Even-strength line':p.evLine,'Power-play unit':p.powerPlayUnit,'Ice time (seconds)':p.iceTimeSeconds}}/>
+   {inputs.opponentMatchup?<><h3>Opponent and position matchup</h3><StatTable values={inputs.opponentMatchup}/></>:null}
+   {p.nextGen?<><h3>Next Gen player context</h3><StatTable values={p.nextGen}/></>:null}
+   <Facts values={{'Profile source':p.source,'Profile updated':date(p.asOf)}}/>
+  </>:null}
+  {tab==='Market Comparison'?<>
+   {alternatives.length?<label className="prop-threshold-select">Compare threshold <select value={threshold??''} onChange={e=>setThreshold(Number(e.target.value))}>{alternatives.map(v=><option key={v} value={v}>{v}</option>)}</select></label>:null}
+   <Facts values={{'FBIS projection':m.fbis_projection,'Selected threshold':threshold,'Stat gap':threshold==null?null:fmt(m.fbis_projection-threshold)}}/>
+   <div className="prop-contract-table"><table className="exchange-prop-coverage"><thead><tr><th>Exchange</th><th>Threshold</th><th>Side</th><th>Observed price</th><th>Depth</th><th>Captured (CT)</th></tr></thead><tbody>{contracts.map(c=><tr key={c.id} className={c.line===threshold?'is-selected-threshold':''}><td>{c.provider}</td><td>{c.line}</td><td>{c.statSide||c.side}</td><td>{c.observedAsk!=null?(c.observedAsk*100).toFixed(1)+'¢':c.displayPrice!=null?(c.displayPrice*100).toFixed(1)+'¢ reference':'—'}</td><td>{fmt(c.observedDepth)}</td><td>{date(c.collectedAt)}</td></tr>)}</tbody></table></div>
+   {!contracts.length?<p>No matched exchange contract. This is an independent projection.</p>:null}<p className="prop-research-note">Observed prices need verified quote clocks, purchase asks, fees and matching settlement rules before they support an executable comparison.</p>
+   {contract?<details><summary>Exact contract and settlement rules</summary><p>{contract.contractId}</p><p className="prop-settlement-terms">{contract.settlementTerms}</p><p>DNP: {contract.dnpSettlement}. Period: {contract.period}.</p></details>:null}
+  </>:null}
+  {tab==='Model Research'?<>
+   <Facts values={{'Model':m.modelId,'Version':m.modelVersion,'Projection':m.fbis_projection,'Uncertainty (σ)':m.sigma,'Projection as of':date(m.modelAsOf),'Independent':m.independent===true?'Yes':'Unverified','Validation':m.validationStatus}}/>
+   {inputs.notes?<p>{inputs.notes}</p>:null}
+   {inputs.formBlend?<><h3>Forecast weights</h3><StatTable values={inputs.formBlend}/></>:null}
+   {inputs.recent5?<><h3>Recent player form</h3><StatTable values={inputs.recent5}/></>:null}
+   {m.features?<><h3>Model input coverage</h3><StatTable values={m.features}/></>:null}
+   {d?.modelEvidence?<details><summary>Validation evidence and limitations</summary><pre>{JSON.stringify(d.modelEvidence,null,2)}</pre></details>:null}
+   <p className="prop-research-note">Projection accuracy and contract calibration are separate checks. An uncalibrated stat gap does not receive an expected return or wager rating.</p>
+  </>:null}
+  {tab==='Results & Learning'?<>
+   <Facts values={{'Result status':d?.results?.status,'Frozen prediction':date(m.modelAsOf),'Official actual':d?.results?.actual,'Forecast error':d?.results?.forecastError}}/>
+   <p>{d?.results?.status==='PREGAME'?'This game has not started. Official results and forecast errors appear after an official result joins a frozen pregame prediction.':'An official result has not been joined to a frozen pregame prediction for this card.'}</p>
+   {h?.available?<Facts values={{'Verified history games':h.games?.length,'Recent actual average':h.recent10?.average,'Recent actual range':`${h.recent10?.minimum}–${h.recent10?.maximum}`}}/>:null}
+   <p className="prop-research-note">Historical player performance does not represent your wagers or profit.</p>
+  </>:null}
  </dialog>;
 }
