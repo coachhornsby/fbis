@@ -51,6 +51,8 @@ export async function onRequestPost({request,env}){
      WHERE cohort_id=? AND tour='atp' AND official_id_provider='ATP_OFFICIAL'
       AND official_player_id=? AND player_key<>?`).bind(COHORT,id,key).first();
    if(dup){rejected++;continue;}
+   const sourceIdLink=await env.DB.prepare(`SELECT fbis_player_id FROM tennis_player_source_ids WHERE provider='ATP_OFFICIAL' AND source_player_id=?`).bind(id).first();
+   if(sourceIdLink&&sourceIdLink.fbis_player_id!==source.fbis_player_id){rejected++;continue;}
    const provenance=JSON.stringify({source:'ATP_OFFICIAL',rankingPage:'https://www.atptour.com/en/rankings/singles?rankRange='+range,
     rankingHtmlSha256:sourceHash,playerLink:src,collectionMethod:'GITHUB_ACTIONS_OFFICIAL_SITE',verifiedScope:'OFFICIAL_LINK_ONLY'});
    const update=await env.DB.prepare(`UPDATE tennis_private_portrait_source_references
