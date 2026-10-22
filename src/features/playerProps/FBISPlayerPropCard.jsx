@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "./playerProps.css";
+import "./propCardFlow.css";
 import { fetchPropResearch } from "./propResearchClient.js";
 import { verifiedLastFive } from "./verifiedHistory.js";
 import { resolveBasketballPropTeam } from "../../../functions/lib/basketballPropTeam.js";
@@ -398,50 +399,29 @@ export default function FBISPlayerPropCard({
           {tier !== "standard" ? <><span>•</span>{tier.toUpperCase()}</> : null}
         </div>
       </div>
-      <div className="pp-card-body">
-        <div className="pp-player-title">
+      <div className="pp-card-body pp-flow-body">
+        <header className="pp-flow-identity">
           <h3>{row.player_name || "Unknown player"}</h3>
-          <p>
-            {row.team || (row.sport || "").toUpperCase()}
-            {row.opponent ? <><span> vs </span><b>{row.opponent}</b></> : null}
-          </p>
-        </div>
-        {row.start_time ? <p className="pp-quote-status">{new Date(row.start_time).toLocaleString("en-US", {timeZone:"America/Chicago"})} CT</p> : null}
-        <div className="pp-market-name pp-premium-market-name">{marketLabel(row)}</div>
-        <div className="pp-variant-shell">
-          <div className="pp-line-row pp-premium-metrics" aria-label="Market threshold versus FBIS projection">
-            <div className="pp-metric-cell">
-              <span>{row.provider || "MARKET"} THRESHOLD</span>
-              <strong>{num(line)}</strong>
-            </div>
-            <div className="pp-metric-cell fbis-metric">
-              <span>FBIS PROJECTION</span>
-              <strong>{num(projection)}</strong>
-            </div>
+          <div className="pp-flow-matchup"><span><b>{row.team || row.sport?.toUpperCase()}</b>{row.opponent ? <> <span>vs</span> <b>{row.opponent}</b></>:null}</span>
+            {row.start_time?<time dateTime={row.start_time}>{new Date(row.start_time).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})} CT</time>:null}</div>
+        </header>
+        <section className="pp-flow-forecast" aria-label="FBIS forecast versus market threshold" data-lean={side.toLowerCase()}>
+          <div className="pp-flow-stat">{marketLabel(row)}</div>
+          <div className="pp-flow-numbers">
+            <div className="pp-flow-projection fbis-metric"><span>FBIS FORECAST</span><strong>{num(projection)}</strong></div>
+            <div className="pp-flow-threshold"><span>{row.provider || 'MARKET'} LINE</span><strong>{num(line)}</strong></div>
           </div>
-          <div className={"pp-read pp-premium-read pp-read-" + String(side).toLowerCase()}>
-            <div className="pp-read-side">
-              <span className="pp-read-arrow" aria-hidden="true">{side === "WATCH" ? "·" : side === "UNDER" ? "↓" : "↑"}</span>
-              <b>{side}</b>
-            </div>
-            <div className="pp-edge-value">
-              <span>STAT GAP</span>
-              <strong>{signed(delta)}</strong>
-            </div>
-          </div>
-        </div>
-        <VenueComparison row={row} />
+          <div className="pp-flow-lean"><b>{side==='UNDER'?'↘':side==='OVER'?'↗':'•'} {side==='WATCH'?'NO STAT LEAN':`${side} LEAN`}</b><span>{delta==null?'Projection only':delta===0?'At the line':`${num(Math.abs(delta))} ${delta>0?'above':'below'} line`}</span></div>
+        </section>
         <LastFiveStatChart row={row} />
-        <div className="pp-contract-status"><b>{row.identityVerified && row.contractId ? "Contract mapped" : "Projection only"}</b><span>{row.marketAvailable ? "Verified purchase quote" : row.provider ? "Research · quote not executable" : "Market unavailable"}</span></div>
-        {row.alternateThresholds?.length>1?<p className="pp-alternate-count">{row.alternateThresholds.length} market thresholds · Compare in research</p>:null}
-        <details className="pp-source-details"><summary>Source & model details</summary>
-          <p>{row.observedAt?`Quote: ${row.observedAt}`:'Quote source time unknown'}{row.collectedAt?` · Captured ${new Date(row.collectedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})} CT`:''}</p>
-          <p>{row.modelVersion||row.modelId} · Threshold probability uncalibrated</p>
-        </details>
-        {onResearch ? <button type="button" className="header-btn" onClick={() => onResearch(rawRow)}>Open player research</button> : null}
-        <div className="pp-card-foot pp-premium-foot">
-          <span>FBIS model · {row.provider || "Projection only"}</span>
-          <span>Not a wager authorization</span>
+        <VenueComparison row={row} />
+        <div className="pp-flow-bottom">
+          {onResearch?<button type="button" className="pp-flow-research" aria-label="Open player research" onClick={()=>onResearch(rawRow)}><span>Player research</span><span>{row.alternateThresholds?.length>1?`${row.alternateThresholds.length} lines `:''}↗</span></button>:null}
+          <div className="pp-flow-meta"><span className="pp-flow-status">Research only</span><details><summary>Sources & contracts</summary>
+            <p>{row.identityVerified&&row.contractId?'Exact player contract mapped.':'Independent projection; no exchange contract mapped.'} {row.marketAvailable?'Verified purchase quote.':'Quote is not executable.'}</p>
+            <p>{row.observedAt?`Quote: ${row.observedAt}`:'Quote source time unknown'}{row.collectedAt?` · Captured ${new Date(row.collectedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})} CT`:''}</p>
+            <p>{row.modelVersion||row.modelId} · Threshold probability uncalibrated. Not a wager authorization.</p>
+          </details></div>
         </div>
       </div>
     </article>
