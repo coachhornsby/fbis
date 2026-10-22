@@ -30,7 +30,7 @@ if(!manifest.ok||manifest.cohortId!=='tennis-elo-private-20261019-1074'||manifes
 const target=new Map(manifest.players.map(p=>[p.key,p]));
 const ranges=['0-100','101-200','201-300','301-400','401-500','501-600',
  '601-700','701-800','801-900','901-1000','1001-1100','1101-1200',
- '1201-1300','1301-1400','1401-1500','1501-5000'];
+ '1201-1300','1301-1400','1401-1500'];
 const found=new Map(),idUse=new Set();let pages=0,sourceLinks=0;
 for(const rankingRange of ranges){
  const url=origin+'/en/rankings/singles?rankRange='+rankingRange;
