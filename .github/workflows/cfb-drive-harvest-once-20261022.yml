@@ -32,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}" || { echo "Existing HARVEST_SECRET missing"; exit 2; }
-          mkdir -p evidence
+          mkdir -p evidence evidence/summaries
           failed=0
           for day in 2026-10-17 2026-10-21; do
             echo "::group::CFB drive harvest for ${day}"
@@ -45,10 +45,11 @@ jobs:
             if ! jq -e . "evidence/cfb-${day}.json" > /dev/null 2>&1; then
               echo "Missing JSON response"; failed=1; echo "::endgroup::"; continue
             fi
-            jq -c '{ok,status,gamesDiscovered,errors,
+            jq '{ok,status,gamesDiscovered,errors,
               driveHarvest: [.d1.cfbDailyArchive.payloads[]? |
                 select(.endpoint=="/drives") |
-                {status,week,inserted,rejected,reason,source,quotaOwner}]}' "evidence/cfb-${day}.json"
+                {status,week,inserted,rejected,reason,source,quotaOwner}]}' "evidence/cfb-${day}.json" > "evidence/summaries/cfb-${day}.json"
+            jq -c . "evidence/summaries/cfb-${day}.json"
             if [ "$http" != 200 ] || ! jq -e '.ok == true and .status == "success"' "evidence/cfb-${day}.json" >/dev/null; then
               echo "CFB research harvest was not successful for $day"; failed=1
             fi
@@ -73,6 +74,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cfb-drive-harvest-20261022
-          path: evidence/cfb-*.json
+          path: evidence/summaries/*.json
           retention-days: 14
           if-no-files-found: ignore
