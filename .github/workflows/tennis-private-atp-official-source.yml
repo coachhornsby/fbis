@@ -1,9 +1,10 @@
-name: Tennis Phase 2 ATP official ID source inventory
+name: Tennis Phase 2 ATP official portrait source verification
 on:
   push:
     branches: [main]
     paths:
       - 'migrations/0120_tennis_private_portrait_phase2.sql'
+      - '.github/workflows/tennis-private-atp-official-source.yml'
   workflow_dispatch:
   schedule:
     # Weekly source reconciliation while official ATP identity coverage is incomplete.
@@ -37,13 +38,14 @@ jobs:
           done
           echo "PHASE2_PRODUCTION_SCHEMA_UNAVAILABLE"
           exit 1
-      - name: Parse ATP official ranking player URLs, identities and candidate image source
+      - name: Require official ATP player-ID linkage already established from ranked source links
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
         run: |
           set -euo pipefail
-          node scripts/tennis-private-atp-official-source.mjs
+          response="$(curl --retry 2 --max-time 20 -fsS -H "x-harvest-secret: ${HARVEST_SECRET}" 'https://fbis-myz.pages.dev/api/tennis-private-portrait-phase2')"
+          echo "$response" | jq -e '.ok == true and (.byTour[] | select(.tour == "atp") | .official_id_linked >= 530 and .roster == 559)' >/dev/null
+          echo "ATP official source links preserved; verifying headshot responses without image GET"
       - name: Verify ATP candidate headshot sources by HEAD only
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
