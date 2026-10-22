@@ -4,6 +4,7 @@ import {freezeCfbDriveShadow,gradeCfbDriveShadow,cfbDriveResearchStatus} from ".
 import {freezeCfbDriveResearchAsOf} from "../lib/cfbDriveResearchAsOf.js";
 import {cfbDriveCohortReport} from "../lib/cfbDriveCohortReport.js";
 import {eligibleCfbDriveProspectiveGames,gradeReadyCfbDriveCohort} from "../lib/cfbDrivePhase4Lifecycle.js";
+import {cfbDrivePhase5Audit} from "../lib/cfbDrivePhase5Qualification.js";
 const response=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{
   "content-type":"application/json; charset=utf-8","cache-control":"no-store",
   "x-content-type-options":"nosniff"
@@ -20,6 +21,7 @@ export async function onRequestGet({request,env}){
   try{if(new URL(request.url).searchParams.get("mode")==="drives")return response(await cfbDriveResearchStatus(env));
     if(new URL(request.url).searchParams.get("mode")==="cohort")return response(await cfbDriveCohortReport(env,{limit:100}));
     if(new URL(request.url).searchParams.get("mode")==="eligible")return response(await eligibleCfbDriveProspectiveGames(env,{limit:30,horizonDays:7}));
+    if(new URL(request.url).searchParams.get("mode")==="qualification")return response(await cfbDrivePhase5Audit(env));
     return response(await cfbShadowReport(env,{limit:new URL(request.url).searchParams.get("limit")||20}));}
   catch(err){return response({ok:false,error:String(err?.message||err).slice(0,100)},errorStatus(err));}
 }
