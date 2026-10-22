@@ -61,7 +61,7 @@ SELECT 'tennis-elo-private-20261019-1074',r.tour,r.report_date,r.source_hash,
        r.source_url,r.player_count,r.retrieved_at
 FROM tennis_abstract_elo_runs r
 WHERE r.report_date='2026-10-19' AND r.research_only=1 AND r.can_authorize_wager=0
- AND ((r.tour='atp' AND r.player_count=559 AND r.source_hash='8e17d8cc26cc96bbf9d03f506adf788d6c172ff310a50583d7c0dc26f1')
+ AND ((r.tour='atp' AND r.player_count=559 AND r.source_hash='8e17d8cc26cc96bbf9d03f506adf788d6c172ff310a50583d6da39d7c0dc26f1')
    OR (r.tour='wta' AND r.player_count=515 AND r.source_hash='ffe2e714a810da20a0f2107f14b85d87e52de50101d4bf931e3e53970d796c6b'))
  AND (SELECT COUNT(*) FROM tennis_abstract_elo_players p
       WHERE p.tour=r.tour AND p.report_date=r.report_date AND p.source_hash=r.source_hash)=r.player_count;
