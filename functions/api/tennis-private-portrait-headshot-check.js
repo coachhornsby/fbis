@@ -13,7 +13,7 @@ const CONFIG={
 function sourceMatch(url,id,tour){
  const value=String(id||''),cfg=CONFIG[tour];
  if(!cfg||(tour==='wta'?!/^\d{2,10}$/.test(value):!/^[a-z0-9]{3,6}$/.test(value)))return false;
- return url===cfg.prefix+(tour==='atp'?value.toUpperCase():value)+cfg.suffix;
+ return url===cfg.prefix+(tour==='atp'?value.toLowerCase():value)+cfg.suffix;
 }
 export async function onRequestGet({request,env}){
  const auth=authorizeHarvest(request,env);
