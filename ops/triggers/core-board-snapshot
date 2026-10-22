@@ -1,1 +1,1 @@
-trigger 2026-10-22 — post-NHL dedicated D1 cutover CORE aggregation acceptance; verify NHL/NFL/CFB SPORT_DB and all other eight sports SHADOW, 11/11 board completeness, no wager authorization
+trigger 2026-10-22 — NHL cutover post-reconciliation CORE acceptance; 180 NHL games, 754 immutable snapshots in NHL_DB; NFL and CFB remain SPORT_DB; all 11 sport summaries complete; no wager authorization
