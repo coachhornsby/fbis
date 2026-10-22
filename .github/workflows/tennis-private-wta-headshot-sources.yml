@@ -1,0 +1,26 @@
+name: Tennis Phase 2 official WTA headshot source check
+on:
+  workflow_dispatch:
+  schedule:
+    # Once weekly. Image-source HEAD checks only; no image downloads.
+    - cron: '11 12 * * 4'
+permissions:
+  contents: read
+concurrency:
+  group: fbis-tennis-wta-headshot-source
+  cancel-in-progress: false
+jobs:
+  verify-metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check official WTA player image URLs by HEAD only
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          node scripts/tennis-private-wta-headshot-source-check.mjs
