@@ -1,0 +1,43 @@
+name: CFB simulation operator
+on:
+  workflow_dispatch:
+    inputs:
+      game_id:
+        description: "Existing CFB game ID from FBIS (e.g. 401869845)"
+        required: true
+        type: string
+      operation:
+        description: "Immutable freeze before kickoff, or grade after an official final"
+        required: true
+        default: freeze
+        type: choice
+        options: [freeze, grade]
+permissions:
+  contents: read
+concurrency:
+  group: cfb-simulation-${{ inputs.game_id }}-${{ inputs.operation }}
+  cancel-in-progress: false
+jobs:
+  research:
+    name: CFB D1 shadow freeze / grade
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Operator authorization and strict input validation
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          GAME_ID: ${{ inputs.game_id }}
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "Missing existing HARVEST_SECRET"; exit 1; }
+          [[ "$GAME_ID" =~ ^[a-zA-Z0-9:._-]{1,80}$ ]] || { echo "Invalid game ID"; exit 1; }
+          case "$OPERATION" in freeze|grade) ;; *) echo "Invalid operation"; exit 1 ;; esac
+          payload="$(jq -nc --arg action "$OPERATION" --arg gameId "$GAME_ID" '{action:$action,gameId:$gameId}')"
+          http="$(curl -sS --show-error --retry 1 --max-time 90             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "Content-Type: application/json"             -X POST --data "$payload"             -o cfb-simulation-result.json -w '%{http_code}'             https://fbis-myz.pages.dev/api/cfb-simulation)"
+          echo "CFB research API HTTP ${http}"
+          jq '{ok,status,gameId,runId,trainingCount,modelAuthority,authority,graded,error,reason}' cfb-simulation-result.json
+          test "$http" = "200"
+          jq -e '.ok == true' cfb-simulation-result.json >/dev/null
+          # No betting authorization, no champion promotion.
+          jq -e '(.canAuthorizeWager // false) == false' cfb-simulation-result.json >/dev/null
