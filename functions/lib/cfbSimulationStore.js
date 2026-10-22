@@ -58,7 +58,7 @@ export async function freezeCfbShadowEvent(env,{gameId,now=new Date().toISOStrin
   if(!Number.isFinite(time(now)))throw new Error("INVALID_CLOCK");
   if(!(await hasSchema(db)))throw new Error("CFB_SIM_SCHEMA_NOT_INSTALLED");
   const source=await sourceSnapshot(db,id,now);
-  if(!source) return {ok:false,reason:"NO_ELIGIBLE_CURRENT_PREGAME_SNAPSHOT",gameId:id};
+  if(!source || !(time(source.frozenAt)<time(source.kickoff) && time(now)<time(source.kickoff))) return {ok:false,reason:"NO_ELIGIBLE_CURRENT_PREGAME_SNAPSHOT",gameId:id};
   const existing=await db.prepare("SELECT id FROM cfb_sim_shadow_runs WHERE snapshot_id=? AND simulator_version=?").bind(source.snapshotId,CFB_SIM_ID).first();
   if(existing)return {ok:true,status:"ALREADY_FROZEN",runId:existing.id,gameId:id};
   const rows=await historical(db,source.frozenAt,source.modelVersion);
