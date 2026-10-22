@@ -7,13 +7,16 @@ const parse = v => { try { return typeof v === 'string' ? JSON.parse(v) : v; } c
 const num = v => v == null || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null;
 const verifiedFormat = f => /^(ATP ?(250|500|1000)|WTA ?(125|250|500|1000)|250|500|1000)$/.test(String(f.tournament_level || '').toUpperCase());
 const age = (v, now) => (+now - Date.parse(v || '')) / 3600000;
+const validTime = v => v != null && v !== '' && Number.isFinite(Date.parse(v));
 export function validateTennisPrematchProfiles(rows, fixture, now = new Date()) {
   if (rows.length !== 2 || rows.some(r => !r)) return 'SURFACE_PROFILE_MISSING';
+  if (!validTime(fixture.event_start_time) || Date.parse(fixture.event_start_time) <= +now) return 'FIXTURE_TIME_INVALID_OR_STARTED';
   for (const row of rows) {
     const p = parse(row.profile_json);
     if (!p || tennisKey(p.name) !== tennisKey(row.player_name)) return 'PROFILE_IDENTITY_MISMATCH';
     if (!Number.isFinite(age(row.source_as_of, now)) || age(row.source_as_of, now) < 0 || !Number.isFinite(age(row.updated_at, now)) || age(row.updated_at, now) < 0) return 'PROFILE_CUTOFF_UNVERIFIED';
-    if (Date.parse(row.source_as_of) >= Date.parse(fixture.event_start_time) || !row.last_match_date || Date.parse(row.last_match_date) >= Date.parse(fixture.event_start_time)) return 'PROFILE_NOT_PREMATCH';
+    if (!validTime(row.last_match_date) || !validTime(row.source_as_of) || !validTime(row.updated_at)) return 'PROFILE_TIME_INVALID';
+    if (Date.parse(row.source_as_of) >= Date.parse(fixture.event_start_time) || Date.parse(row.updated_at) >= Date.parse(fixture.event_start_time) || Date.parse(row.last_match_date) >= Date.parse(fixture.event_start_time)) return 'PROFILE_NOT_PREMATCH';
     if (!row.source || !row.source_license) return 'PROFILE_PROVENANCE_MISSING';
     if (!(num(p.historyMatches) > 0) || !(num(p.surfaceMatches) > 0)) return 'PROFILE_SAMPLE_MISSING';
     const serve = num(p.servePointWinPct ?? p.servePointWin), ret = num(p.returnPointWinPct ?? p.returnPointWin);
@@ -53,9 +56,13 @@ export async function inspectTennisProjectionCoverage(db, { now = new Date(), li
       if(!reason && !verifiedFormat(f)) reason="MATCH_FORMAT_UNVERIFIED";
     }
     const persisted = f.pure_p1 != null ? await proveTennisEvent(db, f, { projection: true }) : null;
-    const available = persisted?.valid === true && f.pure_model_id === 'TENNIS-FBIS-v2-CONTEXT';
+    const probability = num(f.pure_p1);
+    const available = persisted?.valid === true && f.pure_model_id === 'TENNIS-FBIS-v2-CONTEXT'
+      && probability !== null && probability > 0 && probability < 1
+      && validTime(f.decision_timestamp) && Date.parse(f.decision_timestamp) < Date.parse(f.match_time)
+      && age(f.decision_timestamp, now) >= 0;
     fixtures.push({ ...f, proof, profiles, available, inferenceReady: !reason,
-      blockedReason: available ? null : reason || (persisted?.valid === true ? 'PURE_MODEL_PROVENANCE_MISMATCH' : persisted?.reason) || 'PERSISTED_PURE_PROJECTION_MISSING',
+      blockedReason: available ? null : reason || (persisted?.valid === true ? 'PURE_OUTPUT_INVALID_OR_PROVENANCE_MISMATCH' : persisted?.reason) || 'PERSISTED_PURE_PROJECTION_MISSING',
       freshness: available ? age(f.decision_timestamp, now) > 6 ? 'STALE' : 'CURRENT' : 'BLOCKED' });
   }
   const blockedReasons = {};
