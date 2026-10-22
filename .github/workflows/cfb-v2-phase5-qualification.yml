@@ -1,0 +1,84 @@
+name: CFB V2 Phase 5 evidence qualification audit
+
+# After daily drive source collection and Phase 4 grading, publish only a
+# research-grade audit; no provider request, no champion or wager changes.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cfb-v2-phase5-evidence
+  cancel-in-progress: false
+jobs:
+  qualification:
+    if: >-
+      ${{ (github.event_name == 'workflow_run' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          contains(github.event.workflow_run.head_commit.message, '[CFB-V2-PHASE5-20261022]')) ||
+          (github.event_name == 'schedule' && github.ref == 'refs/heads/main') ||
+          github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Read CFB-only research and verify qualification cannot promote
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "Missing HARVEST_SECRET"; exit 2; }
+          today="$(date -u +%Y-%m-%d)"
+          if [[ "$today" < 2026-10-22 || "$today" > 2026-12-10 ]]; then
+            echo "Outside observation and postgame evaluation window"
+            exit 0
+          fi
+          mkdir -p sanitized
+          url="https://fbis-myz.pages.dev/api/cfb-simulation?mode=qualification"
+          http="$(curl -sS --show-error --retry 0 --max-time 120 \
+               -H "x-harvest-secret: ${HARVEST_SECRET}" \
+               -o qualification.json -w '%{http_code}' "$url")" || http="000"
+          echo "CFB qualification audit HTTP ${http}"
+          if [ "$http" != "200" ] || ! jq -e '.ok==true and .source=="CFB_DB" and
+               .classification=="RESEARCH_ONLY" and
+               .noAutomaticPromotion==true and
+               .canAuthorizeWager==false and
+               (.sample.frozen|type=="number")' qualification.json >/dev/null 2>&1; then
+            echo "::error::Missing, incomplete or unsafe evidence report"
+            exit 1
+          fi
+          jq '{ok,source,model,classification,auditAt,
+            sample,pairedError,intervalCalibration,qualificationGates,
+            researchEvaluable,positiveResearchSignal,conclusion,
+            noAutomaticPromotion,canAuthorizeWager,limitations}' qualification.json > sanitized/report.json
+          {
+            echo "## CFB V2 research qualification"
+            echo "Read-only verification. Production champion and wagers unchanged."
+            jq -r '"- Frozen: \(.sample.frozen) / graded: \(.sample.verifiedGrades) / started: \(.sample.alreadyStarted) / overdue: \(.sample.overdueForSource) / verified overdue: \(.sample.overdueWithVerifiedGrades)"' sanitized/report.json
+            jq -r '"- Conclusion: \(.conclusion)"' sanitized/report.json
+            jq -r '"- Promotion automatic: \(.noAutomaticPromotion | not)"' sanitized/report.json
+            jq -r '"- Grading source: \(.source); wager authorization: \(.canAuthorizeWager)"' sanitized/report.json
+            echo "### Primary calibration gates"
+            jq -r '.qualificationGates | to_entries[] | "- \(.key): \(.value)"' sanitized/report.json
+            echo "### Paired scoring and uncertainty"
+            jq -c .pairedError sanitized/report.json
+            echo "### Interval coverage and uncertainty"
+            jq -c .intervalCalibration sanitized/report.json
+          } >> "$GITHUB_STEP_SUMMARY"
+          jq -c '{sample,qualificationGates,conclusion,canAuthorizeWager}' sanitized/report.json
+          # Missing future games are not failure, but a false automatic
+          # promotion/unsafe authorization always is.
+          jq -e '.noAutomaticPromotion and (.canAuthorizeWager|not)' sanitized/report.json >/dev/null
+      - name: Save sanitized audit without secret or raw provider data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-drive-v2-phase5-qualification
+          path: sanitized/report.json
+          retention-days: 30
+          if-no-files-found: ignore
