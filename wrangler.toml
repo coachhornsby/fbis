@@ -153,7 +153,8 @@ NHL_SPORT_DB_MODE = "shadow"
 SPORT_DB_MODE_NHL = "sport"
 SPORT_DB_MODE_NFL = "sport"
 SPORT_DB_MODE_CFB = "sport"
-# At most one additional /drives request per completed CFBD week, through
+# At most one additional /drives batch per week encountered within each daily
+# harvest; the same week can recur on multiple completed-game days. Through
 # the existing scheduled CFB morning harvest and shared quota receipt ledger.
 CFB_DRIVE_RESEARCH_COLLECTION = "enabled"
 SPORT_DB_MODE_CBB = "shadow"
