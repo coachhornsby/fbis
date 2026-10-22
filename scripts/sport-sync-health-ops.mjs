@@ -30,7 +30,24 @@ async function postTopology(operation, extra = {}) {
 
 const health = await postTopology("sport-sync-health-all");
 const failures = [];
-if (health.allProductPrimary !== true) failures.push("PRODUCT_MUST_STAY_PRIMARY");
+// Authoritative sports intentionally no longer use PRIMARY and stop shadow copying.
+// Validate each sport against its deployed mode instead of the retired all-PRIMARY invariant.
+const sports = Array.isArray(health.sports) ? health.sports : [];
+if (sports.length !== 11 || health.sportCount !== 11) failures.push("SPORT_INVENTORY_INCOMPLETE");
+const authoritative = new Set(["nfl", "cfb", "nhl"]);
+for (const row of sports) {
+  const shouldUseSport = authoritative.has(row.sport);
+  if (shouldUseSport) {
+    if (row.mode !== "sport" || row.productStillPrimary !== false) {
+      failures.push(`CUTOVER_ROUTING_INVALID:${row.sport}`);
+    }
+    // Frozen PRIMARY-to-sport last_copy_at is expected once sport is authoritative.
+  } else if (row.mode === "sport" || row.productStillPrimary !== true) {
+    failures.push(`UNAUTHORIZED_SPORT_ROUTING:${row.sport}`);
+  } else if (row.parityOk !== true) {
+    failures.push(`SHADOW_PARITY_INCOMPLETE:${row.sport}`);
+  }
+}
 if (health.cutoverAuthorized === true) failures.push("CUTOVER_MUST_STAY_CLOSED");
 if (health.canAuthorizeWager === true) failures.push("WAGER_AUTHORITY_MUST_STAY_FALSE");
 
@@ -40,6 +57,8 @@ const out = {
   sportCount: health.sportCount,
   parityOkCount: health.parityOkCount,
   allProductPrimary: health.allProductPrimary,
+  authorityRoutingValid: failures.every((f) => !f.includes("ROUTING_")),
+  authoritativeSports: [...authoritative],
   cutoverAuthorized: false,
   deletionAuthorized: false,
   canAuthorizeWager: false,
