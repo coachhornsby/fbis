@@ -1130,11 +1130,16 @@ export async function copySportPrefixTables(env, sport, {
         nfl: { nfl_team_profiles: "updated_at", nfl_player_profiles: "updated_at" },
         cfb: { cfb_pregame_feature_vectors: "created_at" },
         nba: {
-          nba_player_prop_projections: "graded_at",
-          nba_player_prop_impact_shadow: "graded_at",
-          nba_prospective_game_shadow: "graded_at",
-          // NBA deep projections are recomputed in place before grading.
-          // Both created_at and graded_at must advance the bounded replay.
+          // Scheduled NBA collection frequently updates profile and schedule
+          // rows in place. Equal source/shard counts are not content parity.
+          nba_observation_health: "updated_at",
+          nba_player_state_profiles: "updated_at",
+          nba_team_profiles: "updated_at",
+          nba_team_schedule_items: ["observed_at", "created_at"],
+          nba_wager_decisions: ["graded_at", "created_at"],
+          nba_player_prop_projections: ["graded_at", "created_at"],
+          nba_player_prop_impact_shadow: ["graded_at", "created_at"],
+          nba_prospective_game_shadow: ["graded_at", "created_at"],
           nba_deep_game_shadow: ["created_at", "graded_at"],
         },
         nhl: {
