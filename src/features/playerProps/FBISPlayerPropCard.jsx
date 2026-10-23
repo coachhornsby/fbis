@@ -203,7 +203,7 @@ export function LastFiveStatChart({ row, history=null }) {
     <div className="pp-history-block pp-card-last5" ref={cardRef} aria-label="Last five games for this player and stat">
       <div className="pp-history-head">
         <div>
-          <div className="pp-analytics-label">LAST 5</div>
+          <div className="pp-analytics-label">{row.sport === "nba" ? "LAST 5 · REGULAR SEASON" : "LAST 5"}</div>
           <strong>{marketLabel(row)}</strong>
         </div>
         <div className="pp-history-summary">
@@ -214,7 +214,7 @@ export function LastFiveStatChart({ row, history=null }) {
       {state.loading ? <div className="pp-analytics-loading">Loading last 5…</div> : null}
       {state.error && !state.loading ? <div className="pp-analytics-loading">Last-5 unavailable</div> : null}
       {!state.loading && !state.error && !games.length ? (
-        <div className="pp-analytics-unavailable">{state.unavailableReason==='NBA_RIGHTS_CLEARED_PLAYER_FEED_REQUIRED'?'NBA last five requires a rights-cleared player-stat feed.':'No verified last-5 logs for this player/stat yet.'}</div>
+        <div className="pp-analytics-unavailable">No verified last-5 logs for this player/stat yet.</div>
       ) : null}
       {games.length ? (
         <>

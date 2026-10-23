@@ -33,3 +33,8 @@ test("all-sport Last 5 parser derives tennis match games from set scores",()=>{
   assert.equal(valueForEspnEvent(payload,event,"total_games","tennis","Player A"),29);
   assert.equal(valueForEspnEvent(payload,event,"total_games_won","tennis","Player A"),16);
 });
+
+test('ESPN NBA live field names support rebounds, made threes and PRA',()=>{
+ const p={names:['minutes','threePointFieldGoalsMade-threePointFieldGoalsAttempted','totalRebounds','assists','points']},e={stats:['33','9-17','10','3','45']};
+ assert.equal(valueForEspnEvent(p,e,'rebounds','nba'),10);assert.equal(valueForEspnEvent(p,e,'three_pointers_made','nba'),9);assert.equal(valueForEspnEvent(p,e,'pra','nba'),58);
+});

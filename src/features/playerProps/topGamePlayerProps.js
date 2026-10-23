@@ -56,6 +56,13 @@ export function topThreeGamePlayerProps(game={}) {
       ...result,marketLabel:formatMarketLabel(market),
       hasPairedLine:line!=null,
       gameId:String(game.id),
+      // NBA research projections persist the exact ESPN roster athlete ID.
+      // Use the same event/roster-verified history route as the main props board.
+      ...(sport==='nba'&&raw.projectionSource==='NBA_PLAYER_PROP_PROJECTIONS_D1'&&/^\d+$/.test(String(raw.fbisPlayerId||''))?{
+        canonicalPlayerId:`nba:espn:${raw.fbisPlayerId}`,canonicalEventId:String(game.id),
+        start_time:game.start,canonical_market:market,
+        opponent:normalized(raw.team)===normalized(game.home?.abbr)?game.away?.abbr:game.home?.abbr,
+      }:{}),
       decisionEligible:false,canQualify:false,canAuthorizeWager:false,
       displayStatus:line==null?"PROJECTION_ONLY":raw.propGate==="HOLD"?"RESEARCH_HOLD":"RESEARCH_ONLY",
     });
