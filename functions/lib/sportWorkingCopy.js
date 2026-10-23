@@ -22,7 +22,7 @@ export const SPORT_WORKING_TABLES = Object.freeze([
 /** Legacy NBA prediction rows must migrate before NBA ledger authority switches. */
 export function workingTablesForSport(sport) {
   return String(sport).toLowerCase() === "nba"
-    ? [...SPORT_WORKING_TABLES, { table: "predictions" }, { table: "odds_snapshots" }, { table: "team_form" }]
+    ? [...SPORT_WORKING_TABLES, { table: "predictions" }, { table: "odds_snapshots" }, { table: "team_form" }, { table: "team_form_games" }]
     : SPORT_WORKING_TABLES;
 }
 
@@ -470,7 +470,7 @@ async function copyPublishedPaged(primary, sportDb, sport, { pageSize, maxPages,
 export async function copyNbaScopedSharedLedger(primary, shard, table, {
   pageSize = 250, maxPages = 200,
 } = {}) {
-  if (!["odds_snapshots", "team_form"].includes(table)) {
+  if (!["odds_snapshots", "team_form", "team_form_games"].includes(table)) {
     throw new Error("NBA_SHARED_LEDGER_TABLE_NOT_APPROVED");
   }
   const mirrored = await ensureMirroredSportTable(primary, shard, table);
@@ -483,15 +483,18 @@ export async function copyNbaScopedSharedLedger(primary, shard, table, {
   const placeholders = columns.map(() => "?").join(",");
   const stmt = `INSERT OR REPLACE INTO ${table} (${columns.join(",")}) VALUES (${placeholders})`;
   let copied = 0, pages = 0;
-  let cursorId = 0, cursorSeason = -1, cursorTeam = "";
+  let cursorId = 0, cursorSeason = -1, cursorTeam = "", cursorGame = "";
   let exhausted = false;
   for (; pages < batches; pages += 1) {
     const query = table === "odds_snapshots"
       ? `SELECT * FROM odds_snapshots WHERE sport=? AND id>? ORDER BY id LIMIT ?`
-      : `SELECT * FROM team_form WHERE sport=? AND (season>? OR (season=? AND team_key>?))
+      : table === "team_form_games"
+        ? `SELECT * FROM team_form_games WHERE sport=? AND game_id>? ORDER BY game_id LIMIT ?`
+        : `SELECT * FROM team_form WHERE sport=? AND (season>? OR (season=? AND team_key>?))
          ORDER BY season,team_key LIMIT ?`;
     const args = table === "odds_snapshots"
-      ? ["nba", cursorId, batchSize] : ["nba", cursorSeason, cursorSeason, cursorTeam, batchSize];
+      ? ["nba", cursorId, batchSize] : table === "team_form_games"
+        ? ["nba", cursorGame, batchSize] : ["nba", cursorSeason, cursorSeason, cursorTeam, batchSize];
     const rows = (await primary.prepare(query).bind(...args).all())?.results || [];
     if (!rows.length) { exhausted = true; break; }
     for (const row of rows) {
@@ -501,11 +504,12 @@ export async function copyNbaScopedSharedLedger(primary, shard, table, {
     }
     const last = rows[rows.length - 1];
     if (table === "odds_snapshots") cursorId = Number(last.id);
+    else if (table === "team_form_games") cursorGame = String(last.game_id);
     else { cursorSeason = Number(last.season); cursorTeam = String(last.team_key); }
     if (rows.length < batchSize) { exhausted = true; break; }
   }
   return { table, ok: true, copied, pages, exhausted,
-    cursor: table === "odds_snapshots" ? String(cursorId) : `${cursorSeason}|${cursorTeam}`,
+    cursor: table === "odds_snapshots" ? String(cursorId) : table === "team_form_games" ? cursorGame : `${cursorSeason}|${cursorTeam}`,
     canAuthorizeWager: false };
 }
 
@@ -618,7 +622,7 @@ export async function copySportWorkingTables(env, sport, {
   }
 
   if (key === "nba") {
-    for (const table of ["odds_snapshots", "team_form"]) {
+    for (const table of ["odds_snapshots", "team_form", "team_form_games"]) {
       try {
         const copied = await copyNbaScopedSharedLedger(primary, sportDb, table, {
           pageSize: effectivePageSize, maxPages: effectiveMaxPages,
