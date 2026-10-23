@@ -51,13 +51,13 @@ export function alignTennisSnapshotSides(sides = [], cardPlayerNames = []) {
     const parts = actual.split(" ").filter(Boolean);
     if (parts.length < 2) return -1;
     const first = parts[0], surname = parts.at(-1);
-    const matches = athleteParts.flatMap((roster,i) => {
-      const exact = actual === rosterNames[i];
-      const clearAlias = surname.length >= 3 &&
-        roster.at(-1) === surname && roster[0][0] === first[0];
-      return exact || clearAlias ? [i] : [];
-    });
-    return matches.length === 1 ? matches[0] : -1;
+    const exact = rosterNames.flatMap((name,i) => actual === name ? [i] : []);
+    if (exact.length === 1) return exact[0];
+    if (exact.length > 1) return -1;
+    const aliases = athleteParts.flatMap((roster,i) =>
+      surname.length >= 3 && roster.at(-1) === surname &&
+      roster[0][0] === first[0] ? [i] : []);
+    return aliases.length === 1 ? aliases[0] : -1;
   });
   if (!(assigned.includes(0) && assigned.includes(1))) return sides;
   return assigned[0] === 0 ? sides : [sides[1], sides[0]];
