@@ -1,4 +1,6 @@
 import { harvestSecret } from "../lib/auth.js";
+import { resolveNbaResearchOwnerDb } from "../lib/nbaResearchOwnerDb.js";
+import { persistGame, persistPrediction, persistOddsSnapshot } from "../lib/store.js";
 import {
   topologyManifest,
   probeTopologyCapacity,
@@ -191,6 +193,68 @@ export async function onRequestPost({ env, request } = {}) {
   let body = {};
   try { body = await request.json(); } catch { return json({ ok: false, error: "INVALID_JSON" }, 400); }
   const operation = String(body.operation || "");
+  if (operation === "nba-production-writer-canary") {
+    // Authenticated, deployed-path proof only AFTER real CORE-approved sport activation.
+    // Synthetic IDs never overlap official fixtures; cleanup is restricted to NBA_DB.
+    const owner = await resolveNbaResearchOwnerDb(env);
+    if (!owner.ok || owner.binding !== "NBA_DB" || owner.mode !== "sport") {
+      return json({ ok: false, reason: owner.reason || "NBA_NOT_AUTHORITATIVE",
+        mode: owner.mode, canAuthorizeWager: false }, 409);
+    }
+    const id = "nba-cutover-sentinel-v1";
+    const p = env.DB, shard = owner.db;
+    if (!p?.prepare || !shard?.prepare || p === shard) return json({ok:false,reason:"ISOLATION_BINDING_INVALID"},503);
+    const existing = await p.prepare("SELECT COUNT(*) n FROM games WHERE id=?").bind(id).first();
+    const existedSport = await shard.prepare("SELECT COUNT(*) n FROM games WHERE id=?").bind(id).first();
+    if (Number(existing?.n) || Number(existedSport?.n)) {
+      return json({ok:false,reason:"SENTINEL_ID_ALREADY_EXISTS"},409);
+    }
+    let written = {game:false,prediction:false,odds:false}, readback = {};
+    try {
+      const game = await persistGame(owner.env, {
+        id,sport:"nba",start:"2099-01-01T01:00:00Z",
+        home:{name:"Cutover Canary Home",abbr:"ZZH"},
+        away:{name:"Cutover Canary Away",abbr:"ZZA"}
+      }, "2099-01-01");
+      written.game = game.ok === true;
+      if (!written.game) throw new Error("GAME_WRITE_FAILED:" + game.reason);
+      const pred = await persistPrediction(owner.env, {
+        id,gameId:id,sport:"nba",date:"2099-01-01",
+        matchup:"Canary",checkpoint:"CUTOVER",modelVersion:"isolation-canary-v1",
+        asOf:new Date().toISOString(),projectionState:"RESEARCH",projectionKind:"CANARY"
+      });
+      written.prediction = pred.ok === true;
+      if (!written.prediction) throw new Error("PREDICTION_WRITE_FAILED:" + pred.reason);
+      const odds = await persistOddsSnapshot(owner.env, {
+        gameId:id,sport:"nba",date:"2099-01-01",book:"CUTOVER_CANARY",
+        market:"total",side:"over",line:200,price:-110,
+        capturedAt:new Date().toISOString()
+      });
+      written.odds = odds.ok === true;
+      if (!written.odds) throw new Error("ODDS_WRITE_FAILED:" + odds.reason);
+      const get = async (db,table,field="id") =>
+        Number((await db.prepare(`SELECT COUNT(*) n FROM ${table} WHERE ${field}=?`).bind(id).first())?.n || 0);
+      readback = {
+        sport:{ games:await get(shard,"games"), predictions:await get(shard,"predictions"),
+          odds:await get(shard,"odds_snapshots","game_id") },
+        primary:{ games:await get(p,"games"), predictions:await get(p,"predictions"),
+          odds:await get(p,"odds_snapshots","game_id") }
+      };
+      const ok = Object.values(readback.sport).every(n=>n>=1)
+        && Object.values(readback.primary).every(n=>n===0);
+      return json({ok,sport:"nba",binding:"NBA_DB",written,readback,
+        result:ok?"NBA_DB_ONLY_WRITES_PROVED":"ISOLATION_VIOLATION",canAuthorizeWager:false},ok?200:500);
+    } catch(error){
+      return json({ok:false,sport:"nba",written,readback,
+        reason:String(error?.message||error).slice(0,240),canAuthorizeWager:false},500);
+    } finally {
+      // Never delete an official game or any PRIMARY data.
+      for (const [table,field] of [["odds_snapshots","game_id"],["predictions","id"],["games","id"]]) {
+        try { await shard.prepare(`DELETE FROM ${table} WHERE ${field}=? AND sport='nba'`).bind(id).run(); }
+        catch { /* canary cleanup failure is independently visible on next invocation */ }
+      }
+    }
+  }
   if (operation === "sport-authority-state") {
     const gate = requireSyncSport(body.sport);
     if (!gate.ok) return json(gate, 400);

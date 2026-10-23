@@ -66,3 +66,29 @@ test("NBA rollback to shadow returns all product writer ownership to PRIMARY",as
  assert.ok(x.DB.statements.some(s=>s.includes("INSERT INTO games")));
  assert.deepEqual(x.NBA_DB.statements,[]);
 });
+
+test("production NBA canary refuses shadow mode without touching either database",async()=>{
+ const {onRequestPost}=await import("../functions/api/database-topology.js");
+ const x={...env("shadow"),HARVEST_SECRET:"test-secret"};
+ const request=new Request("https://example.test/api/database-topology",{
+   method:"POST",headers:{"x-harvest-secret":"test-secret","content-type":"application/json"},
+   body:JSON.stringify({operation:"nba-production-writer-canary"})
+ });
+ const response=await onRequestPost({env:x,request});
+ assert.equal(response.status,409);
+ assert.equal((await response.json()).ok,false);
+ assert.deepEqual(x.DB.statements,[]);
+ assert.deepEqual(x.NBA_DB.statements,[]);
+});
+test("production NBA canary refuses revoked CORE grant without touching PRIMARY",async()=>{
+ const {onRequestPost}=await import("../functions/api/database-topology.js");
+ const x={...env("sport",false),HARVEST_SECRET:"test-secret"};
+ const request=new Request("https://example.test/api/database-topology",{
+   method:"POST",headers:{"x-harvest-secret":"test-secret","content-type":"application/json"},
+   body:JSON.stringify({operation:"nba-production-writer-canary"})
+ });
+ const response=await onRequestPost({env:x,request});
+ assert.equal(response.status,409);
+ assert.deepEqual(x.DB.statements,[]);
+ assert.deepEqual(x.NBA_DB.statements,[]);
+});
