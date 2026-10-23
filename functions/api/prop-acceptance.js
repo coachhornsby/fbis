@@ -1,3 +1,5 @@
+import {prepareNbaPropHistory} from '../lib/propHistoryResearch.js';
+import {SDV_NBA_PREFIX} from '../lib/nbaSdvHistoryShadow.js';
 import {authorizeHarvest,unauthorizedBody} from '../lib/auth.js';
 import {capturePropForecastJob} from '../lib/propForecastCaptureJob.js';
 import { onRequestGet as exchange } from './exchange-player-props.js';
@@ -13,7 +15,17 @@ export async function onRequestGet({env,request}) {
  const [model,market]=await Promise.all([modelResponse.json(),marketResponse.json()]);
  const diagnostics=[...(model.ok?[]:['MODEL_DELIVERY_UNAVAILABLE']),...(market.ok?[]:['MARKET_DELIVERY_UNAVAILABLE']),...(market.identityDiagnostics||[]),
   ...(market.diagnostics||[]).filter(d=>d.status==='READ_FAILED'||d.truncated).map(d=>d.store+':'+(d.truncated?'TRUNCATED':d.status))];
- const report=buildPropAcceptance({models:model.rows||[],contracts:market.rows||[],sport,date,sourceDiagnostics:diagnostics});
+ diagnostics.push(...(market.collectorCoverage||[]).filter(c=>['PARTIAL','STALE','READ_FAILED'].includes(c.status)).map(c=>c.series+':'+c.status));
+ const historyByPlayer={};
+ if(sport==='nba')try{
+  const file=await env.ARCHIVE?.get(SDV_NBA_PREFIX+'snapshot.json'),read=file?prepareNbaPropHistory(await file.json()):null;
+  for(const r of model.rows||[]){
+   const history=read&&r.canonicalPlayerId?.startsWith('nba:espn:')?read({playerId:r.canonicalPlayerId.split(':')[2],market:r.canonical_market,asOf:new Date(Math.min(Date.now(),Date.parse(r.start_time))).toISOString()}):null;
+   const stat=r.canonical_market==='pra'?'points_rebounds_assists':r.canonical_market;
+   (historyByPlayer[r.canonicalPlayerId]||={})[stat]=history||{available:false,reason:'EXACT_PLAYER_STAT_HISTORY_UNAVAILABLE'};
+  }
+ }catch{diagnostics.push('NBA_HISTORY_SNAPSHOT_READ_FAILED');}
+ const report=buildPropAcceptance({models:model.rows||[],contracts:market.rows||[],historyByPlayer,sport,date,sourceDiagnostics:diagnostics});
  return Response.json({ok:model.ok===true&&market.ok===true,...report,collectorCoverage:market.collectorCoverage||[],marketCoverage:market.coverage||[],modelStates:model.modelStates||[]},{headers:{'cache-control':'no-store'}});
 }
 

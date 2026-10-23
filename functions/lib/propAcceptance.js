@@ -33,7 +33,7 @@ export function buildPropAcceptance({models=[],contracts=[],historyByPlayer={},s
   if(keyCount.get(propIdentityKey(row))!==1)result.reasons.push('AMBIGUOUS_MODEL_IDENTITY');
   result.displayReady=result.reasons.length===0;
   const history=historyByPlayer[row.canonicalPlayerId]?.[stat(row.canonical_market)];
-  return {id:row.id,player:row.player_name,market:row.canonical_market,...result,
+  return {id:row.id,player:row.player_name,market:row.canonical_market,modelId:row.modelId,modelVersion:row.modelVersion,modelAsOf:row.modelAsOf,eventStart:row.start_time,...result,
    history:history?.identityVerified===true&&history?.available===true?{state:'AVAILABLE',games:history.games?.length||0,last5:history.last5?.length||0,source:history.source}: {state:history?'UNAVAILABLE':'NOT_CHECKED',reason:history?.reason||'HISTORY_REQUIRES_EXACT_PLAYER_READ'},
    matchedContracts:contractCounts.get(propIdentityKey(row))||0};
  });

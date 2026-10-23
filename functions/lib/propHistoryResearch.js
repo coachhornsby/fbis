@@ -59,15 +59,13 @@ async function storedNflHistory(env,profile,{playerId,market,asOf,line}) {
  }catch{return null;}
 }
 /** Read the existing daily research snapshot; card requests need no upstream scrape. */
-export async function storedNbaHistory(env,{playerId,market,asOf,line}) {
- if(!env.ARCHIVE?.get)return null;
- try {
-  const object=await env.ARCHIVE.get(SDV_NBA_PREFIX+'snapshot.json');if(!object)return null;
-  const payload=await object.json();
-  if(!verifySdvNbaHistorySnapshot(payload).ok||payload.authority!=='SHADOW_HISTORY_ONLY')return null;
+export function prepareNbaPropHistory(payload){
+ if(!verifySdvNbaHistorySnapshot(payload).ok||payload.authority!=='SHADOW_HISTORY_ONLY')return null;
+ const entries=new Map(payload.entries.map(p=>[String(p.espnPlayerId),p]));
+ return ({playerId,market,asOf,line=null})=>{
   const cutoff=Date.parse(asOf),capture=Date.parse(payload.generatedAt);
   if(!Number.isFinite(cutoff)||capture>cutoff||cutoff-capture>3*86400000)return null;
-  const entry=payload.entries.find(p=>p.espnPlayerId===String(playerId));if(!entry)return null;
+  const entry=entries.get(String(playerId));if(!entry)return null;
   const fields={points:['points'],rebounds:['rebounds'],assists:['assists'],three_pointers_made:['three_pointers_made'],'3_pt_made':['three_pointers_made'],pra:['points','rebounds','assists'],points_rebounds_assists:['points','rebounds','assists'],points_rebounds:['points','rebounds'],points_assists:['points','assists'],rebounds_assists:['rebounds','assists']}[market];
   if(!fields)return null;
   const games=entry.games.map(g=>({...g,eventId:g.gameId,status:'FINAL',
@@ -77,6 +75,12 @@ export async function storedNbaHistory(env,{playerId,market,asOf,line}) {
   return {available:true,identityVerified:true,canonicalPlayerId:`nba:espn:${playerId}`,
    source:'SportsDataverse / ESPN regular-season box scores',sourceFetchedAt:payload.ingestedAt||payload.generatedAt,
    historyAsOfDay:payload.asOfDayExclusive,partialSeason:true,seasonType:'REGULAR_SEASON',...summary,reason:null};
+ };
+}
+export async function storedNbaHistory(env,options){
+ if(!env.ARCHIVE?.get)return null;
+ try{const object=await env.ARCHIVE.get(SDV_NBA_PREFIX+'snapshot.json');if(!object)return null;
+  const read=prepareNbaPropHistory(await object.json());return read?read(options):null;
  }catch{return null;}
 }
 async function get(url,fetchImpl) {
