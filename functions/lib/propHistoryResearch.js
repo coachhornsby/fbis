@@ -20,14 +20,17 @@ export function historySummary(input,{line=null,asOf=new Date().toISOString(),se
 /** Join ESPN's event dictionary to season-type stat rows by exact event ID. */
 export function espnPropHistoryGames(body,{market,sport,season}={}) {
  const metadata=Array.isArray(body.events)?Object.fromEntries(body.events.map(e=>[String(e.id||e.eventId),e])):body.events||{};
- const rows=(body.seasonTypes||[]).flatMap(s=>(s.categories||[]).flatMap(c=>c.events||[]));
- const events=rows.length?rows:Array.isArray(body.events)?body.events:[];
+ const types=sport==='nba'?(body.seasonTypes||[]).filter(s=>/regular season/i.test(s.displayName||'')):(body.seasonTypes||[]);
+ const rows=types.flatMap(s=>(s.categories||[]).flatMap(c=>c.events||[]));
+ const events=rows.length?rows:sport==='nba'?[]:Array.isArray(body.events)?body.events:[];
  return events.map(row=>{
   const id=String(row.eventId||row.id||''),event={...metadata[id],...row};
+  const minutes=valueForEspnEvent(body,event,'minutes',sport,'');
+  if(sport==='nba'&&(!event.gameResult||event.team?.isAllStar===true||minutes==null||minutes<=0||event.didNotPlay===true))return null;
   return {eventId:id,date:event.gameDate||event.date,opponent:event.opponent?.abbreviation,isHome:event.atVs==='vs',season,
    status:event.gameResult?'FINAL':event.status?.type?.completed?'FINAL':undefined,
-   value:valueForEspnEvent(body,event,market,sport,'')};
- });
+   workload:minutes,seasonType:sport==='nba'?'REGULAR_SEASON':null,value:valueForEspnEvent(body,event,market,sport,'')};
+ }).filter(Boolean);
 }
 
 const NFL_HISTORY_FIELDS={passing_yards:'passing_yards',passing_attempts:'attempts',completions:'completions',rushing_yards:'rushing_yards',rushing_attempts:'carries',receiving_yards:'receiving_yards',receptions:'receptions',passing_touchdowns:'passing_tds',touchdowns:'total_tds'};
@@ -64,8 +67,8 @@ async function get(url,fetchImpl) {
 }
 export async function loadCanonicalPropHistory(env,{sport,provider,playerId,market,asOf=new Date().toISOString(),line=null,fetchImpl=fetch,profile=null}={}) {
  if(!playerId||!['nflverse','nhl','mlb','espn'].includes(provider))return {available:false,reason:'VERIFIED_HISTORY_ID_REQUIRED'};
- // Preserve the existing NBA provider/rights gate; no alternate-stat backdoor.
- if(sport==='nba')return {available:false,reason:'NBA_RIGHTS_CLEARED_PLAYER_FEED_REQUIRED',source:'NBA_PLAYER_DATA_POLICY'};
+ // Historical research display uses the roster's exact ESPN athlete ID.
+ // This does not activate licensed live feeds or change projection/wager gates.
  if(sport==='nfl'&&provider==='espn'&&profile){const stored=await storedNflHistory(env,profile,{playerId,market,asOf,line});if(stored)return stored;}
  let games=[],source=null,season=null,identityVerified=false,partial=false;
  try {
@@ -90,19 +93,20 @@ export async function loadCanonicalPropHistory(env,{sport,provider,playerId,mark
    games=nflSnapshotHistoryGames(p,await nflSchedule(env,p.team,asOf),asOf,field);
    // A five-game feature snapshot is not the full season.
    source='nflverse exact GSIS player ID';season=new Date(asOf).getUTCFullYear();identityVerified=true;partial=true;
-  }else if(provider==='espn'&&['nfl','cfb','cbb','wnba'].includes(sport)&&/^\d+$/.test(playerId)){
-   const cfg={nfl:['football','nfl'],cfb:['football','college-football'],cbb:['basketball','mens-college-basketball'],wnba:['basketball','wnba']}[sport];
-   season=new Date(asOf).getUTCFullYear();
+  }else if(provider==='espn'&&['nfl','cfb','cbb','wnba','nba'].includes(sport)&&/^\d+$/.test(playerId)){
+   const cfg={nfl:['football','nfl'],cfb:['football','college-football'],cbb:['basketball','mens-college-basketball'],wnba:['basketball','wnba'],nba:['basketball','nba']}[sport];
+   const cutoff=new Date(asOf);
+   season=cutoff.getUTCFullYear()+(sport==='nba'&&cutoff.getUTCMonth()>=6?1:0);
    const b=await(await get(`https://site.web.api.espn.com/apis/common/v3/sports/${cfg[0]}/${cfg[1]}/athletes/${playerId}/gamelog?season=${season}`,fetchImpl)).json();
    games=espnPropHistoryGames(b,{market,sport,season});
    if(historySummary(games,{asOf}).games.length<5){
     try{const previous=await(await get(`https://site.web.api.espn.com/apis/common/v3/sports/${cfg[0]}/${cfg[1]}/athletes/${playerId}/gamelog?season=${season-1}`,fetchImpl)).json();
      games.push(...espnPropHistoryGames(previous,{market,sport,season:season-1}));}catch{}
    }
-   source='ESPN exact roster player ID';identityVerified=true;
+   source=sport==='nba'?'ESPN regular-season box scores · exact athlete ID':'ESPN exact roster player ID';identityVerified=true;
   }else return {available:false,reason:'HISTORY_PROVIDER_ADAPTER_UNAVAILABLE'};
   const summary=historySummary(games,{line,asOf,season});
-  return {available:summary.games.length>0,identityVerified,canonicalPlayerId:`${sport}:${provider}:${playerId}`,source,sourceFetchedAt:new Date().toISOString(),partialSeason:partial,...summary,
+  return {available:summary.games.length>0,identityVerified,canonicalPlayerId:`${sport}:${provider}:${playerId}`,source,sourceFetchedAt:new Date().toISOString(),partialSeason:partial,seasonType:sport==='nba'?'REGULAR_SEASON':null,...summary,
    reason:summary.games.length?null:'NO_VERIFIED_PREGAME_STATISTICS'};
  }catch{return {available:false,reason:'VERIFIED_HISTORY_SOURCE_UNAVAILABLE',source};}
 }

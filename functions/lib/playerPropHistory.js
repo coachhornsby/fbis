@@ -70,10 +70,10 @@ function first(map,aliases=[]){
 
 const MARKET_ALIASES = Object.freeze({
   points:["points","pts"],
-  rebounds:["rebounds","reb"],
+  rebounds:["rebounds","totalRebounds","reb"],
   assists:["assists","ast","a"],
-  "3_pt_made":["threePointsMade","threePointFieldGoalsMade","3PT","3PM","3FGM"],
-  three_pointers_made:["threePointsMade","threePointFieldGoalsMade","3PT","3PM","3FGM"],
+  "3_pt_made":["threePointsMade","threePointFieldGoalsMade","threePointFieldGoalsMade-threePointFieldGoalsAttempted","3PT","3PM","3FGM"],
+  three_pointers_made:["threePointsMade","threePointFieldGoalsMade","threePointFieldGoalsMade-threePointFieldGoalsAttempted","3PT","3PM","3FGM"],
   passing_yards:["passingYards","passYards","yards"],
   pass_yards:["passingYards","passYards"],
   rushing_yards:["rushingYards","rushYards"],
@@ -124,7 +124,8 @@ function tennisScoreValue(event,market,name){
 }
 
 export function valueForEspnEvent(payload,event,market,sport,name){
-  const m=String(market||"").toLowerCase().replace(/_combo$/,"");
+  const raw=String(market||"").toLowerCase().replace(/_combo$/,"");
+  const m=raw==="pra"?"points_rebounds_assists":raw;
   const map=eventStatMap(payload,event);
   if(m==="points_rebounds_assists"){
     const vals=["points","rebounds","assists"].map(k=>first(map,MARKET_ALIASES[k]));

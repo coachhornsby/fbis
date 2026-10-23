@@ -1,3 +1,4 @@
+import {pinnoddsReferenceDifference} from "./pinnoddsReferenceDifference.js";
 import {selectPinnoddsGameMarkets} from "./pinnoddsMarketSelection.js";
 
 /**
@@ -61,6 +62,42 @@ export function rankResearchMoneylines(game={},vm={},now=new Date()){
  return {candidates:candidates.sort((a,b)=>b.roi-a.roi),reason:candidates.length?null:"No current pregame paired price within 45 minutes"};
 }
 
+/** A score/line comparison is a model lean, never an expected return. */
+export function modelDirectionPresentation(game={},vm={}) {
+ const p=vm.projection;
+ if(!p?.available||game?.model?.marketInformed===true||game?.projection?.marketInformed===true||
+    game?.model?.independent===false||game?.projection?.independent===false)return null;
+ const home=finite(p.home),away=finite(p.away);
+ if(home==null||away==null)return null;
+ const abbr=side=>(vm[side]||game[side])?.abbr||(vm[side]||game[side])?.name||side.toUpperCase();
+ const fmt=x=>Number(x.toFixed(1)).toString();
+ const signed=x=>x>0?`+${fmt(x)}`:fmt(x);
+ const modelHome=away-home,modelTotal=finite(p.total)??home+away;
+ const reference=pinnoddsReferenceDifference(game,p);
+ const marketHome=reference.spread?.offeredHome??(vm.market?.available?finite(vm.market.spread):null);
+ const marketTotal=reference.total?.offeredTotal??(vm.market?.available?finite(vm.market.total):null);
+ const spreadDelta=marketHome==null?null:modelHome-marketHome;
+ const totalDelta=marketTotal==null?null:modelTotal-marketTotal;
+ const tolerance=.25;
+ const spread=spreadDelta==null?null:{kind:'spread',delta:spreadDelta,
+  side:Math.abs(spreadDelta)<tolerance?null:spreadDelta<0?'home':'away'};
+ const total=totalDelta==null?null:{kind:'total',delta:totalDelta,
+  side:Math.abs(totalDelta)<tolerance?null:totalDelta>0?'over':'under'};
+ const signals=[spread,total].filter(Boolean).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+ const leading=signals[0];
+ const spreadText=spread?(spread.side?`${abbr(spread.side)} ${signed(spread.side==='home'?marketHome:-marketHome)} · ${fmt(Math.abs(spread.delta))} ${vm.units?.shortUnit||'PTS'} MODEL GAP`:'SPREAD AT THE LINE'):null;
+ const totalText=total?(total.side?`${total.side.toUpperCase()} ${fmt(marketTotal)} · FBIS ${fmt(modelTotal)}`:'TOTAL AT THE LINE'):null;
+ const favorite=Math.abs(modelHome)<.05?null:modelHome<0?'home':'away';
+ const fairLine=favorite?`${abbr(favorite)} ${signed(-Math.abs(modelHome))}`:"PICK'EM";
+ const value=leading?(leading.side?leading.kind==='spread'?`${abbr(leading.side)} ${signed(leading.side==='home'?marketHome:-marketHome)} LEAN`:`${leading.side.toUpperCase()} ${fmt(marketTotal)} LEAN`:'AT THE MARKET LINE'):favorite?`${abbr(favorite)} PROJECTED WINNER`:"PROJECTED TIE";
+ return {status:'model',heading:'FBIS DIRECTION · RESEARCH',value,
+  teamSide:leading?.kind==='spread'?leading.side:!leading?favorite:null,
+  totalDirection:leading?.kind==='total'?leading.side:null,
+  detail:leading?[spreadText,totalText].filter(Boolean).join(' · '):`FBIS ${fairLine} · TOTAL ${fmt(modelTotal)} · MARKET LINE UNAVAILABLE`,
+  secondary:leading?'PROJECTION COMPARISON · PRICE VALUE UNVERIFIED · NO WAGER AUTHORITY':'MODEL FORECAST · NO LINE COMPARISON AVAILABLE · NO WAGER AUTHORITY',
+  modelOnly:true,executable:false,qualified:false};
+}
+
 /** No projected-goal / puck-line / points difference can become EV. */
 export function bestValuePresentation(game={},vm={},options={}){
  const sport=String(game.sport||vm.sport||"").toLowerCase();
@@ -91,6 +128,8 @@ export function bestValuePresentation(game={},vm={},options={}){
    secondary:"PRICE / SETTLEMENT NEED VERIFICATION · NOT EXECUTABLE · NO WAGER AUTHORITY",
    research:{...leader,estimated:true}};
  }
+ const direction=modelDirectionPresentation(game,vm);
+ if(direction)return direction;
  if(leader){
   return {status:"pass",heading:"BEST VALUE / DECISION",value:"NO POSITIVE PRICED VALUE",
    detail:"MODELED MONEYLINE RETURN IS NON-POSITIVE AT CAPTURED PRICES",
@@ -100,12 +139,12 @@ export function bestValuePresentation(game={},vm={},options={}){
   const model=independentMoneyline(game,sport);
   const homeP=model?.home;
   const favorite=homeP!=null?`${homeP>=.5?(vm.home?.abbr||game.home?.abbr||"HOME"):(vm.away?.abbr||game.away?.abbr||"AWAY")} ML`:null;
-  return {status:"unpriced",heading:"BEST VALUE / DECISION",value:"VALUE NOT PRICED",
+  return {status:"unpriced",heading:"BEST VALUE / DECISION",value:"MODEL DIRECTION UNAVAILABLE",
    detail:result.reason||"NO CURRENT COMPARABLE MONEYLINE PRICES",
    secondary:favorite?`MODEL FAVORITE: ${favorite} · RESEARCH ONLY, NOT A BET`:
       "NO INDEPENDENT MATCHED RESEARCH SIGNAL"};
  }
- return {status:"unpriced",heading:"BEST VALUE / DECISION",value:"VALUE NOT PRICED",
+ return {status:"unpriced",heading:"BEST VALUE / DECISION",value:"MODEL DIRECTION UNAVAILABLE",
    detail:result.reason||"NO CURRENT COMPARABLE MARKET",
    secondary:"MONEYLINE / SPREAD / TOTAL REQUIRE MATCHED PRICES AND OUTCOME PROBABILITIES"};
 }

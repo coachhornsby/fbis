@@ -120,3 +120,8 @@ test("TopGameProps all-sport path renders neutral premium cards including tennis
   assert.match(css,/Black field behind the logo/);
   assert.match(css,/#000 !important/);
 });
+
+test('embedded NBA projections retain exact ESPN/event keys for verified last-five history',()=>{
+ const g={...base(),sport:'nba',playerProjectionRows:[{playerId:'4594268',playerName:'Anthony Edwards',team:'BUF',market:'assists',fbisProjection:3,independent:true,source:'NBA_PLAYER_PROP_PROJECTIONS_D1'}]};
+ const [r]=topThreeGamePlayerProps(g);assert.equal(r.canonicalPlayerId,'nba:espn:4594268');assert.equal(r.canonicalEventId,g.id);assert.equal(r.start_time,g.start);assert.equal(r.opponent,'KC');
+});

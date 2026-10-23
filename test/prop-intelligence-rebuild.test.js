@@ -24,8 +24,23 @@ test('history excludes future/current-day unknown finals, missing and DNP, retai
  const games=[{eventId:'a',date:'2026-10-18',value:0,isHome:true},{eventId:'b',date:'2026-10-19',value:10,isHome:false},{eventId:'c',date:'2026-10-19',value:null},{eventId:'d',date:'2026-10-20',value:99},{eventId:'e',date:'2026-10-21',value:88},{eventId:'f',date:'2026-10-17',value:0,status:'DNP'}];
  const h=historySummary(games,{asOf:'2026-10-20T14:00:00Z',line:5});assert.equal(h.games.length,2);assert.equal(h.recent5.average,5);assert.equal(h.recent5.median,5);assert.equal(h.splits.home.average,0);assert.equal(h.splits.away.average,10);assert.equal(h.thresholdBasis,'CURRENT_THRESHOLD_RETROACTIVE');assert.equal(h.calibratedProbability,null);
 });
-test('NBA policy block stays closed even with a valid athlete ID',async()=>{
- let called=false;const r=await loadCanonicalPropHistory({}, {sport:'nba',provider:'espn',playerId:'5104157',market:'points',fetchImpl:()=>{called=true;}});assert.equal(called,false);assert.equal(r.reason,'NBA_RIGHTS_CLEARED_PLAYER_FEED_REQUIRED');
+test('NBA exact athlete history joins dates and stats, excludes preseason/DNP/future, and carries prior regular season',async()=>{
+ const requests=[];
+ const payload=(season)=>({names:['minutes','totalRebounds','assists','points'],events:{
+  current:{gameDate:'2026-10-21T23:00Z',gameResult:'W',opponent:{abbreviation:'MIA'},atVs:'@'},
+  pre:{gameDate:'2026-10-15T23:00Z',gameResult:'W'},dnp:{gameDate:'2026-10-20T23:00Z',gameResult:'W'},
+  future:{gameDate:'2026-10-24T23:00Z',gameResult:'W'},old:{gameDate:'2026-04-12T23:00Z',gameResult:'L',opponent:{abbreviation:'BOS'}}},
+  seasonTypes:[{displayName:season===2027?'2026-27 Regular Season':'2025-26 Regular Season',categories:[{events:season===2027?[{eventId:'current',stats:['33','10','0','45']},{eventId:'dnp',stats:['0','0','0','0']},{eventId:'future',stats:['30','5','8','22']}]:[{eventId:'old',stats:['31','8','5','20']}]}]},
+  {displayName:'Preseason',categories:[{events:[{eventId:'pre',stats:['28','0','3','20']}]}]}]});
+ const r=await loadCanonicalPropHistory({}, {sport:'nba',provider:'espn',playerId:'4594268',market:'assists',asOf:'2026-10-23T12:00Z',fetchImpl:async url=>{requests.push(String(url));return Response.json(payload(Number(new URL(url).searchParams.get('season'))));}});
+ assert.equal(r.available,true);assert.equal(r.identityVerified,true);assert.equal(r.canonicalPlayerId,'nba:espn:4594268');
+ assert.deepEqual(r.last5.map(g=>g.value),[0,5]);assert.equal(r.last5[0].opponent,'MIA');assert.equal(r.season.games,1);
+ assert.match(requests[0],/athletes\/4594268\/gamelog\?season=2027/);assert.equal(requests.length,2);assert.equal(r.calibratedProbability,null);
+});
+test('NBA history refuses a non-ESPN or malformed identity without network access',async()=>{
+ for(const [provider,playerId] of [['nhl','4594268'],['espn','not-an-id']]){
+ const r=await loadCanonicalPropHistory({}, {sport:'nba',provider,playerId,fetchImpl:()=>{throw Error('must not fetch');}});assert.equal(r.available,false);
+ }
 });
 test('NHL canonical player endpoint yields real zeros and omits DNP without name search',async()=>{
  const r=await loadCanonicalPropHistory({}, {sport:'nhl',provider:'nhl',playerId:'123',market:'shots_on_goal',asOf:'2026-10-20T14:00:00Z',fetchImpl:async url=>{assert.match(String(url),/\/player\/123\/game-log\/now/);return Response.json({playerId:123,seasonId:20262027,gameLog:[{gameId:1,gameDate:'2026-10-19',shots:0,toi:'14:00',opponentAbbrev:'BOS'},{gameId:2,gameDate:'2026-10-18',shots:null,toi:'0:00'}]});}});

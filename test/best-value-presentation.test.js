@@ -54,3 +54,20 @@ test("spread and total deltas never become research EV without outcome probabili
  const v=bestValuePresentation({sport:"nba",market:{spread:5}}, {sport:"nba",comparison:{sideDiff:10,totalDiff:12}},{now});
  assert.equal(v.status,"unpriced");
 });
+
+test('model directions show spread and total leans without inventing EV or authority',()=>{
+ const vm={sport:'nba',home:{abbr:'BOS'},away:{abbr:'NYK'},projection:{available:true,home:113.4,away:98.4,total:211.8},market:{available:true,spread:-10,total:220}};
+ const v=bestValuePresentation({sport:'nba'},vm,{now});assert.equal(v.value,'UNDER 220 LEAN');assert.match(v.detail,/BOS -10/);assert.match(v.detail,/FBIS 211.8/);assert.equal(v.qualified,false);assert.equal(v.executable,false);assert.doesNotMatch(v.detail,/ROI|EV/);
+ const away=bestValuePresentation({sport:'nba'},{...vm,market:{available:true,spread:-20,total:211.8}},{now});assert.equal(away.value,'NYK +20 LEAN');
+});
+test('aligned lines explicitly say at the market line and missing lines retain model winner',()=>{
+ const vm={home:{abbr:'BOS'},away:{abbr:'NYK'},projection:{available:true,home:113.4,away:98.4,total:211.8},market:{available:true,spread:-15,total:212}};
+ const aligned=bestValuePresentation({sport:'nba'},vm,{now});assert.equal(aligned.value,'AT THE MARKET LINE');assert.match(aligned.detail,/SPREAD AT THE LINE.*TOTAL AT THE LINE/);
+ const missing=bestValuePresentation({sport:'nba'},{...vm,market:{available:false}},{now});assert.equal(missing.value,'BOS PROJECTED WINNER');assert.match(missing.detail,/FBIS BOS -15.*TOTAL 211.8.*MARKET LINE UNAVAILABLE/);
+ const noModel=bestValuePresentation({sport:'nba'},{...vm,projection:{available:false}},{now});assert.equal(noModel.value,'MODEL DIRECTION UNAVAILABLE');
+});
+test('market-informed or stored forecasts do not become independent model directions',()=>{
+ const vm={projection:{available:true,home:110,away:100}};
+ assert.notEqual(bestValuePresentation({sport:'nba',model:{marketInformed:true}},vm,{now}).status,'model');
+ assert.notEqual(bestValuePresentation({sport:'nba',durableFallback:{statusUnverified:true}},vm,{now}).status,'model');
+});
