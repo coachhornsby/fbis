@@ -2,6 +2,7 @@
 // Evidence-only low-tier source recovery audit. No D1 writes or profile updates.
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {adjudicateResearchReport} from './lib/tennis-identity-adjudication.mjs';
 import {masterPlayerIndex,evaluateIdentityEvidence} from './lib/tennis-lowtier-identity-evidence.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {makeCandidateIndex,parseCsv,scanSource,sources,summarize} from './lib/tennis-lowtier-source-audit.mjs';
@@ -101,5 +102,8 @@ report.researchIntegrity={sourceMastersVerified:masterReceipts.length,statistica
 
 await mkdir('artifacts',{recursive:true});
 await writeFile('artifacts/tennis-lowtier-source-recovery.json',JSON.stringify(report,null,2)+'\n');
+const adjudication=adjudicateResearchReport(report);
+await writeFile('artifacts/tennis-identity-adjudication.json',JSON.stringify(adjudication,null,2)+'\n');
+console.log(JSON.stringify({identityResearchCorroborated:adjudication.identityCorroboratedResearchOnly,unresolvedManualReview:adjudication.unresolvedReview,reasonCounts:adjudication.conflictsByReason,productionWrites:0}));
 console.log(JSON.stringify({targets:report.targets,summary:report.summary,sourceReceipts:receipts.length,
  productionWrites:report.productionWrites,canAuthorizeWager:report.canAuthorizeWager}));
