@@ -91,13 +91,20 @@ export default function SimulationRankingsView(){
      <th scope="col">Evidence</th>
     </tr></thead>
     <tbody>{rows.map((g,i)=>{
-     const w=g.winnerSide==="home"?g.home:g.away,l=g.winnerSide==="home"?g.away:g.home;
+     const w=g.winnerSide==="home"?g.home:g.winnerSide==="away"?g.away:null;
      return <tr key={g.id} className={g.probabilityComplete?"":"simrank-partial"}>
       <td className="simrank-rank">{i+1}</td>
       <td><div className="simrank-match">
-       <TeamLogo team={{sport,name:w.name,abbr:w.abbr}} size={42} />
-       <div><strong>{w.name}</strong><span>vs {l.abbr} · {date(g.kickoff)}</span>
-        <small>Regulation projected leader</small></div></div></td>
+       <div className="simrank-logo-versus" style={{display:"flex",alignItems:"center",gap:10}}>
+        <TeamLogo team={{sport,name:g.away.name,abbr:g.away.abbr}} size={42}/>
+        <b aria-label="versus">VS</b>
+        <TeamLogo team={{sport,name:g.home.name,abbr:g.home.abbr}} size={42}/>
+       </div>
+       <div><strong>{g.away.name} vs {g.home.name}</strong>
+        <span>{date(g.kickoff)}</span>
+        <small>{w?"Projected leader: "+w.name:"Projected leader unavailable or tied"}</small>
+        <small>{g.away.abbr}: {pct(g.awayWinPct)} · {g.home.abbr}: {pct(g.homeWinPct)} · Tie: {pct(g.tiePct)}</small>
+       </div></div></td>
       <td><div className="simrank-prob">{pct(g.winPct)}
         <span className="simrank-bar"><i style={{width:(g.winPct??0)+"%"}} /></span></div></td>
       <td>{number(g.blowoutPct)?<div className="simrank-prob">{pct(g.blowoutPct)}
