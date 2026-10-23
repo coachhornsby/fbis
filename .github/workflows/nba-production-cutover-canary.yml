@@ -1,0 +1,53 @@
+name: NBA production authority canary
+
+# Operator-only trigger, never activates authority or writes an approval.
+on:
+  push:
+    branches: [main]
+    paths: ["ops/triggers/nba-cutover-verify"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-nba-production-canary
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify the CORE-approved deployed NBA writer owner
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          curl -fsS --retry 2 --max-time 90 -X POST "$BASE/api/database-topology" \
+            -H "x-harvest-secret: $HARVEST_SECRET" \
+            -H "content-type: application/json" \
+            --data '{"operation":"nba-production-writer-canary"}' \
+            | tee nba-writer-canary.json
+          jq -e '.ok==true and .binding=="NBA_DB" and .result=="NBA_DB_ONLY_WRITES_PROVED" and .readback.primary.games==0 and .readback.primary.predictions==0 and .readback.primary.odds==0' nba-writer-canary.json
+      - name: Publish and require complete post-switch CORE board
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 2 --max-time 90 -X POST "$BASE/api/database-topology" \
+            -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
+            --data '{"operation":"core-board-summary-publish"}' | tee nba-core-after-switch.json
+          jq -e '.ok==true and .summary.complete==true and (.summary.sports|length)==11' nba-core-after-switch.json
+          jq -e '.summary.sports.nba.authority=="SPORT_DB"' nba-core-after-switch.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nba-cutover-production-verification
+          path: |
+            nba-writer-canary.json
+            nba-core-after-switch.json
+          if-no-files-found: ignore
+          retention-days: 90
