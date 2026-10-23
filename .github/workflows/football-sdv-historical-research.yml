@@ -45,7 +45,7 @@ jobs:
           node --check scripts/football-sdv-evaluate.mjs
           node --check scripts/football-sdv-upload.mjs
       - name: Install SportsDataverse historical parquet loaders
-        run: python -m pip install --disable-pip-version-check --quiet "sportsdataverse==0.1.4" "polars>=2.0,<3"
+        run: python -m pip install --disable-pip-version-check --quiet "sportsdataverse==0.1.4"
       - name: Acquire real NFL and CFB SDV PBP with actual schedule starts
         run: |
           python scripts/football-sdv-acquire.py \
