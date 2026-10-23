@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolveNbaResearchOwnerDb } from "../functions/lib/nbaResearchOwnerDb.js";
+import { collectBoards } from "../functions/lib/projLedger.js";
 
 const source = readFileSync(new URL("../functions/lib/projLedger.js", import.meta.url), "utf8");
 const primary = { prepare() { throw new Error("PRIMARY_NBA_PRODUCT_WRITE"); } };
@@ -38,4 +39,21 @@ test("NBA shadow collection keeps PRIMARY authoritative and never gains wagering
   assert.equal(owner.ok, true);
   assert.equal(owner.db, primary);
   assert.equal(owner.canAuthorizeWager, false);
+});
+
+test("NBA sport collection refuses invalid authority before requesting a slate", async () => {
+  let builders = 0;
+  const result = await collectBoards({
+    ...base,
+    SPORT_CUTOVER_RECEIPT_NBA: "unapproved",
+    CORE_DB: { prepare() { return { bind() { return this; }, all: async () => ({ results: [] }) }; } },
+  }, {
+    sport: "nba",
+    odds: "cache",
+    buildSlateFn: async () => { builders++; throw new Error("BUILDER_MUST_NOT_RUN"); },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, "failed");
+  assert.equal(builders, 0);
+  assert.ok(result.errors.some(e => String(e).includes("NBA_COLLECTION_OWNER_UNAVAILABLE")));
 });
