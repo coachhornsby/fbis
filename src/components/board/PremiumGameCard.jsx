@@ -303,14 +303,16 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </div>
 
         <div className="pgc-featured-center">
-          <span className="pgc-vs">VS</span>
-          <small>{sportId === "mlb" ? "PITCH · HIT" : "FBIS MATCHUP INTELLIGENCE"}</small>
           {sportId === "mlb" ? (
-            <div className="pgc-mlb-center-logos" aria-hidden="true">
-              <TeamLogo team={away} size={44} tone="light" />
-              <TeamLogo team={home} size={44} tone="light" />
-            </div>
-          ) : null}
+            <>
+              <div className="pgc-mlb-center-logos">
+                <TeamLogo team={away} size={96} tone="light" />
+                <span className="pgc-vs">VS</span>
+                <TeamLogo team={home} size={96} tone="light" />
+              </div>
+              <small>PITCH · HIT</small>
+            </>
+          ) : <><span className="pgc-vs">VS</span><small>FBIS MATCHUP INTELLIGENCE</small></>}
         </div>
 
         <div className={`pgc-featured-team pgc-featured-team-home${sportId === "mlb" ? " pgc-featured-team-mlb" : ""}`}>
