@@ -21,11 +21,11 @@ export async function loadPrizePicksCandidates(readBoard, date) {
  return {candidates,failures};
 }
 
-export async function restorePrizePicks({base=process.env.BASE||'https://fbis-myz.pages.dev',secret=process.env.HARVEST_SECRET}={}) {
+export async function restorePrizePicks({base=process.env.BASE||'https://fbis-myz.pages.dev',secret=process.env.HARVEST_SECRET,fetchImpl=globalThis.fetch}={}) {
  if(!secret)throw Error('OPERATOR_AUTH_REQUIRED');
  const headers={'content-type':'application/json','x-harvest-secret':secret};
  await mkdir('artifacts',{recursive:true});
- async function api(path,body){const r=await fetch(base+path,{...(body?{method:'POST',body:JSON.stringify(body)}:{}),headers,signal:AbortSignal.timeout(180000)});const x=await r.json();if(!r.ok||x.ok===false||x.error)throw Error(JSON.stringify({path,http:r.status,...x}));return x;}
+ async function api(path,body){const r=await fetchImpl(base+path,{...(body?{method:'POST',body:JSON.stringify(body)}:{}),headers,signal:AbortSignal.timeout(180000)});const x=await r.json();if(!r.ok||x.ok===false||x.error)throw Error(JSON.stringify({path,http:r.status,...x}));return x;}
  const today=await api('/api/prizepicks-props?mode=acquisition');
  if(today.acquisition?.state==='COMPLETE'){
   // Never relaunch a paid source just because it has no lines for a sport.
@@ -34,19 +34,37 @@ export async function restorePrizePicks({base=process.env.BASE||'https://fbis-my
   await writeFile('artifacts/zen-prizepicks-restoration.json',JSON.stringify(report,null,2));
   console.log(JSON.stringify(report));return report;
  }
- const reauthorized=await api('/api/prizepicks-reauthorize',{operation:'reauthorize_prizepicks'});console.log(JSON.stringify(reauthorized));
  const runId=today.acquisition?.run_id||'zen-pp-'+today.ctDate;
- if(!today.acquisition)await api('/api/prizepicks-props',{operation:'reserve',runId});
- // The durable owner enforces the existing $0.70 launch ceiling, account budget,
- // one-run daily policy and ambiguous-start protection across all eleven sports.
- const started=await api('/api/apify-acquire',{source:'prizepicks'});
- const actorRunId=started.data?.id;if(!actorRunId)throw Error('PROVIDER_RUN_ID_REQUIRED');
- for(let attempt=0;attempt<36;attempt++){
-  try{await api('/api/apify-acquire',{operation:'capture',run:{id:actorRunId}});break;}
-  catch(error){if(!error.message.includes('CAPTURE_NOT_COMPLETE')||attempt===35)throw error;await new Promise(r=>setTimeout(r,5000));}
+ let actorRunId,acquisitionId,reusedCapture=false;
+ async function captureOwnedRun(id){
+  for(let attempt=0;attempt<36;attempt++){
+   try{await api('/api/apify-acquire',{operation:'capture',run:{id}});return;}
+   catch(error){if(!error.message.includes('CAPTURE_NOT_COMPLETE')||attempt===35)throw error;await new Promise(r=>setTimeout(r,5000));}
+  }
+ }
+ if(today.acquisition){
+  // A RESERVED daily acquisition is NOT permission to start a second paid actor.
+  // Recover only the provider run already owned by today's durable ledger.
+  const owned=await api('/api/apify-acquire');
+  actorRunId=owned.data?.id;acquisitionId=owned.acquisitionId;
+  if(!actorRunId||!acquisitionId)throw Error('RESERVED_WITHOUT_OWNED_PROVIDER_RUN');
+  try{
+   await api('/api/apify-acquire?operation=rows&offset=0');
+   reusedCapture=true;
+  }catch(error){
+   if(!error.message.includes('CAPTURE_REQUIRED'))throw error;
+   await captureOwnedRun(actorRunId);
+  }
+ }else{
+  const reauthorized=await api('/api/prizepicks-reauthorize',{operation:'reauthorize_prizepicks'});console.log(JSON.stringify(reauthorized));
+  await api('/api/prizepicks-props',{operation:'reserve',runId});
+  // Only the first daily reservation may launch a paid provider run.
+  const started=await api('/api/apify-acquire',{source:'prizepicks'});
+  actorRunId=started.data?.id;if(!actorRunId)throw Error('PROVIDER_RUN_ID_REQUIRED');
+  await captureOwnedRun(actorRunId);
  }
  const {candidates,failures}=await loadPrizePicksCandidates((sport,date)=>api('/api/today?sport='+sport+'&date='+date),today.ctDate);
- let offset=0,total=0,acquisitionId;
+ let offset=0,total=0;
  while(true){const page=await api('/api/apify-acquire?operation=rows&offset='+offset);total=page.total;acquisitionId=page.acquisitionId;
   if(!page.rows.length)break;
   await api('/api/prizepicks-props',{runId,acquisitionId,batchIndex:offset/200,rows:page.rows,candidates});
@@ -64,7 +82,7 @@ export async function restorePrizePicks({base=process.env.BASE||'https://fbis-my
  }
  const health=await api('/api/prizepicks-props?mode=ingestion_health');
  const coverage=await api('/api/prizepicks-props?mode=acquisition');
- const report={runId,actorRunId,total,requestedSports:PRIZEPICKS_FBIS_SPORTS,candidates:candidates.length,modelFailures:failures,enrichment,health,coverage:coverage.coverage};
+ const report={runId,actorRunId,reusedCapture,total,requestedSports:PRIZEPICKS_FBIS_SPORTS,candidates:candidates.length,modelFailures:failures,enrichment,health,coverage:coverage.coverage};
  await writeFile('artifacts/zen-prizepicks-restoration.json',JSON.stringify(report,null,2));
  console.log(JSON.stringify(report));
  if(!health.healthy||failures.length)process.exitCode=1;
