@@ -529,21 +529,24 @@ export async function resolveMarketHistoryWriteDb(env, {
       continue;
     }
     const bytes = await probeSize(db);
-    if (bytes != null) {
-      const capacity = capacityAlertLevel(bytes);
-      // Fail closed from HIGH (85%) — leave headroom for archive/ops; do not wait for CRITICAL.
-      const gate = shouldBlockMarketHistoryWrite(capacity);
-      if (gate.blocked) {
-        rejected.push({ key: part.key, reason: gate.reason, capacity });
-        continue;
-      }
+    if (bytes == null) {
+      // An unmeasured partition is not proof of available headroom.
+      rejected.push({ key: part.key, reason: "SIZE_UNVERIFIED" });
+      continue;
+    }
+    const capacity = capacityAlertLevel(bytes);
+    // Fail closed from HIGH (85%) — leave headroom for archive/ops; do not wait for CRITICAL.
+    const gate = shouldBlockMarketHistoryWrite(capacity);
+    if (gate.blocked) {
+      rejected.push({ key: part.key, reason: gate.reason, capacity });
+      continue;
     }
     return {
       db,
       partition: part,
       binding: part.binding,
       store: part.key,
-      capacity: bytes == null ? null : capacityAlertLevel(bytes),
+      capacity,
       hotWindowMs: MARKET_HISTORY_HOT_WINDOW_MS,
       rejected,
     };

@@ -29,6 +29,13 @@ function archiveEnv({receipt,rawKey,rawBody,games=[],tennisFixtures=[]}={}){
     _values:values,
     _writes:writes,
   };
+  // These ingestion fixtures model a bound, schema-ready Q4 history shard with
+  // measured headroom. They must not rely on the production primary fallback.
+  env.MARKET_HISTORY_2026Q4_DB={prepare(sql){
+    if(sql.includes('sqlite_master'))return{bind(){return{async first(){return{ok:1}}}}};
+    if(sql==='SELECT 1 AS healthy')return{async all(){return{meta:{size_after:1_000_000_000}}}};
+    return env.DB.prepare(sql);
+  }};
   return env;
 }
 

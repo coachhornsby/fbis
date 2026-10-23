@@ -2,6 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normalizeMirrorProps,matchMirrorEvent,FREE_PROP_MIRROR_URL,loadFreeMirrorRows,loadArchivedFreeMirrorRows} from '../functions/lib/freePrizePicksMirror.js';
 import {captureFreeMirror,consumeFreeMirror,onRequestPost} from '../functions/api/free-prizepicks-collect.js';
+function withHistoryShard(env){env.MARKET_HISTORY_2026Q4_DB={prepare(sql){
+ if(sql.includes('sqlite_master'))return{bind(){return{async first(){return{ok:1}}}}};
+ if(sql==='SELECT 1 AS healthy')return{async all(){return{meta:{size_after:1_000_000_000}}}};
+ return env.DB.prepare(sql);
+}};return env;}
 const now=new Date('2026-10-13T16:00:00Z');
 const prop=(patch={})=>({projectionId:'p1',playerId:'player1',player:'Quarterback',sport:'NFL',stat:'Pass Yards',line:'220.5',Team:'Seattle Seahawks',Opponent:'Denver Broncos',teamCode:'SEA',opponentCode:'DEN',startTimeIso:'2026-10-15T20:15:00-04:00',providerFetchedAt:'2026-10-13T12:09:00Z',oddsType:'standard',status:'pre_game',gameId:'provider-game',...patch});
 const feed=props=>({scrapedAt:'2026-10-13T12:11:00Z',leagueResults:[{leagueName:'NFL',ok:true,publishedCount:props.length,providerFetchedAt:'2026-10-13T12:09:00Z'}],props});
@@ -29,7 +34,7 @@ test('clock failures and failed publisher leagues cannot create usable normalize
  const failed=normalizeMirrorProps({...feed([prop()]),leagueResults:[{leagueName:'NFL',ok:false}]},{now});assert.equal(failed.reasons.PUBLISHER_LEAGUE_COLLECTION_FAILED,1);
 });
 test('raw free capture precedes ingestion, replay keeps original capture clock and paid calls never occur',async()=>{
- const env={ARCHIVE:archive(),DB:database()};let calls=0;
+ const env=withHistoryShard({ARCHIVE:archive(),DB:database()});let calls=0;
  const fetchImpl=async url=>{assert.equal(url,FREE_PROP_MIRROR_URL);calls++;return new Response(JSON.stringify(feed([prop()])),{headers:{etag:'publisher-etag'}})};
  const first=await captureFreeMirror(env,{fetchImpl,now});assert.equal(first.pages,1);assert.equal(env.ARCHIVE.data.size,3);assert.equal(env.DB.writes.size,0);
  const pointer=JSON.parse(env.ARCHIVE.data.get('market-sources/free-prizepicks/latest.json'));

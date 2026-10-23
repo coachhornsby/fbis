@@ -30,7 +30,9 @@ export async function marketObservationDatabase(env,capturedAt,snapshotType='RES
  if(snap==='RESEARCH'||snap==='HISTORICAL'){
   const target=await resolveMarketHistoryWriteDb(env,{now:capturedAt||new Date()});
   if(target.db)return target.db;
-  if(env?.MARKET_HISTORY_DB?.prepare)return env.MARKET_HISTORY_DB;
+  // A rejected history partition must never spill into a full legacy D1 or
+  // into the primary operational database. Preserve the resolver's fail-closed gate.
+  throw new Error(target.warning || 'MARKET_HISTORY_WRITE_UNAVAILABLE_FAIL_CLOSED');
  }
  return env.DB;
 }

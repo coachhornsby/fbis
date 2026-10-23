@@ -57,13 +57,23 @@ test('private cold-history readers reject anonymous access and exclude protected
 });
 test('cold gate rejects an unverified independent backup, and current writes remain primary',async()=>{
  const f=await fixture();try{
-  // Without MARKET_HISTORY_DB, post-cutoff RESEARCH still falls back to primary.
-  assert.equal(await marketObservationDatabase(f.env,'2026-10-17T02:00:00Z'),f.env.DB);
+  // Research history must never spill into primary or a full/unverified legacy shard.
+  await assert.rejects(marketObservationDatabase(f.env,'2026-10-17T02:00:00Z'),/MARKET_HISTORY_UNBOUND/);
   assert.equal(await marketObservationDatabase(f.env,'2026-10-15T02:00:00Z'),f.env.COLD_HISTORY_DB);
   assert.equal(await marketObservationDatabase(f.env,'2026-10-15T02:00:00Z','CURRENT'),f.env.DB);
   const history={prepare(){return {};}};
-  assert.equal(await marketObservationDatabase({...f.env,MARKET_HISTORY_DB:history},'2026-10-17T02:00:00Z','RESEARCH'),history);
+  await assert.rejects(marketObservationDatabase({...f.env,MARKET_HISTORY_DB:history},'2026-10-17T02:00:00Z','RESEARCH'),/FAIL_CLOSED/);
   assert.equal(await marketObservationDatabase({...f.env,MARKET_HISTORY_DB:history},'2026-10-17T02:00:00Z','CURRENT'),f.env.DB);
+  // Capacity is verified from D1 query metadata, not a synthetic row count.
+  const partition=(size)=>({prepare(sql){
+    if(sql.includes('sqlite_master'))return {bind(){return {async first(){return {ok:1};}};}};
+    if(sql.includes('SELECT 1 AS healthy'))return {async all(){return {meta:size==null?{}:{size_after:size}};}};
+    throw Error('unexpected probe');
+  }});
+  const q4=partition(1_000_000_000);
+  assert.equal(await marketObservationDatabase({...f.env,MARKET_HISTORY_2026Q4_DB:q4},'2026-10-23T06:00:00Z','RESEARCH'),q4);
+  await assert.rejects(marketObservationDatabase({...f.env,MARKET_HISTORY_2026Q4_DB:partition(8_600_000_000)},'2026-10-23T06:00:00Z','RESEARCH'),/FAIL_CLOSED/);
+  await assert.rejects(marketObservationDatabase({...f.env,MARKET_HISTORY_2026Q4_DB:partition(null)},'2026-10-23T06:00:00Z','RESEARCH'),/FAIL_CLOSED/);
   execute(f.cold,"UPDATE storage_archive_acceptance SET drive_verified=0");
   await assert.rejects(coldMarketPartitions(f.env),/NOT_QUALIFIED/);
   assert.equal((await coldMarketPartitions({DB:f.env.DB})).length,1);
