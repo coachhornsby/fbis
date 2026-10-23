@@ -1,3 +1,4 @@
+import { resolveNbaResearchOwnerDb } from "./nbaResearchOwnerDb.js";
 /** Polymarket Global Gamma: independently matched NBA props, display prices only. */
 const ROOT='player-props/polymarket-global/v1/';
 const abbr=x=>({NY:'NYK',SA:'SAS'}[String(x||'').toUpperCase()]||String(x||'').toUpperCase());
@@ -57,18 +58,23 @@ export function normalizeGlobalNbaProp(m,e,g,players,{capturedAt}={}){
  }));
 }
 export async function listGlobalNbaFixtureSlugs(env,{now=new Date()}={}){
- if(!env?.DB?.prepare)return {ok:false,code:'PRIMARY_D1_UNBOUND'};
+ const owner=await resolveNbaResearchOwnerDb(env);
+ if(!owner.ok)return {ok:false,code:owner.reason||'NBA_OWNER_UNAVAILABLE'};
+ const db=owner.db;
  const today=day(now);
- const games=(await env.DB.prepare("SELECT id,date,start,home_abbr,away_abbr FROM games WHERE sport='nba' AND date=? ORDER BY start LIMIT 8").bind(today).all()).results||[];
+ const games=(await db.prepare("SELECT id,date,start,home_abbr,away_abbr FROM games WHERE sport='nba' AND date=? ORDER BY start LIMIT 8").bind(today).all()).results||[];
  return {ok:true,day:today,slugs:games.filter(g=>Number.isFinite(Date.parse(g.start))&&
    Date.parse(g.start)>=now.getTime()-3*3600000&&Date.parse(g.start)<=now.getTime()+48*3600000).map(tag),
   canAuthorizeWager:false};
 }
 export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=fetch,providedEvents=null}={}){
- if(!env?.ARCHIVE?.put||!env?.DB?.prepare)return {ok:false,code:'STORAGE_UNBOUND'};
+ if(!env?.ARCHIVE?.put)return {ok:false,code:'STORAGE_UNBOUND'};
+ const owner=await resolveNbaResearchOwnerDb(env);
+ if(!owner.ok)return {ok:false,code:owner.reason||'NBA_OWNER_UNAVAILABLE'};
+ const db=owner.db;
  const today=day(now),capturedAt=now.toISOString();
- const games=(await env.DB.prepare("SELECT id,date,start,home_abbr,away_abbr FROM games WHERE sport='nba' AND date=? ORDER BY start LIMIT 8").bind(today).all()).results||[];
- const players=(await env.DB.prepare("SELECT player_id,player_name,team_key FROM nba_player_state_profiles WHERE julianday(as_of)>=julianday(?) LIMIT 1500").bind(new Date(now.getTime()-14*86400000).toISOString()).all()).results||[];
+ const games=(await db.prepare("SELECT id,date,start,home_abbr,away_abbr FROM games WHERE sport='nba' AND date=? ORDER BY start LIMIT 8").bind(today).all()).results||[];
+ const players=(await db.prepare("SELECT player_id,player_name,team_key FROM nba_player_state_profiles WHERE julianday(as_of)>=julianday(?) LIMIT 1500").bind(new Date(now.getTime()-14*86400000).toISOString()).all()).results||[];
  const rows=[],errors=[],fixtures=[];
  for(const g of games){
   const kickoff=Date.parse(g.start||'');
