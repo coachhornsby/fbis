@@ -84,9 +84,10 @@ const MLB_STARTER_FLAGS = new Set(["missing_home_sp", "missing_away_sp"]);
 export async function buildSlate(sport, date, env = {}) {
   if (String(sport).toLowerCase() === "nba") {
     const owner = await resolveNbaResearchOwnerDb(env);
-    if (!owner.ok) throw new Error(owner.reason || "NBA_RESEARCH_OWNER_UNAVAILABLE");
-    // CORE approval is hydrated request-locally and applies to the entire slate.
-    env = owner.env;
+    // Preserve legacy no-D1 research behavior in shadow, but never fall back
+    // to PRIMARY when sport mode has been requested without CORE approval.
+    if (!owner.ok && owner.mode === "sport") throw new Error(owner.reason || "NBA_RESEARCH_OWNER_UNAVAILABLE");
+    if (owner.ok) env = owner.env;
   }
   const slate = await core.buildSlate(sport, date, env);
   const id = String(slate?.sport || sport).toLowerCase();
