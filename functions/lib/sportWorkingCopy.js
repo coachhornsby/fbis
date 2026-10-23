@@ -19,6 +19,13 @@ export const SPORT_WORKING_TABLES = Object.freeze([
   Object.freeze({ table: "published_projections" }),
 ]);
 
+/** Legacy NBA prediction rows must migrate before NBA ledger authority switches. */
+export function workingTablesForSport(sport) {
+  return String(sport).toLowerCase() === "nba"
+    ? [...SPORT_WORKING_TABLES, { table: "predictions" }]
+    : SPORT_WORKING_TABLES;
+}
+
 /**
  * Sport-prefixed research tables to copy in shadow (Wave 1–2).
  * Player-prop tables are intentionally omitted (separate Props workstream).
@@ -279,7 +286,7 @@ async function beginSportWorkingCopy(primary, sportDb, sport, table, resume) {
   // NHL grading and schedule updates can change rows without changing counts.
   // Rewind a completed shadow keyset only when PRIMARY's latest update is
   // strictly newer; preserve interrupted replay cursors.
-  const freshnessColumn = (sport === "nhl" && table === "prediction_snapshots" || sport === "nba" && table === "prediction_snapshots")
+  const freshnessColumn = (sport === "nhl" && table === "prediction_snapshots" || sport === "nba" && ["prediction_snapshots", "predictions"].includes(table))
     ? "graded_at" : ((sport === "nhl" && table === "games") || (sport === "nba" && table === "games")) ? "updated_at" : null;
   if (freshnessColumn && primaryCount === sportCount &&
       !plan.replayActive && !plan.startReplay) {
@@ -379,6 +386,37 @@ async function copyPredictionsPaged(primary, sportDb, sport, { pageSize, maxPage
   return { copied, pages, cursor: lastId, exhausted: pages < maxPages || copied === 0, fidelityFailures };
 }
 
+/**
+ * NBA-only legacy predictions: same full-fidelity, idempotent keyset as other
+ * working tables. Source remains PRIMARY in shadow; never synthesizes authority.
+ */
+async function copyNbaLegacyPredictionsPaged(primary, sportDb, { pageSize, maxPages, afterId = "" }) {
+  let cursor = afterId, copied = 0, pages = 0;
+  for (; pages < maxPages; pages += 1) {
+    const page = await primary.prepare(
+      "SELECT * FROM predictions WHERE sport='nba' AND id>? ORDER BY id ASC LIMIT ?"
+    ).bind(cursor, pageSize).all();
+    const rows = page?.results || [];
+    if (!rows.length) break;
+    const statements = rows.map(row => {
+      const cols = Object.keys(row).map(assertSafeIdent);
+      return sportDb.prepare(fullFidelitySportUpsertSql("predictions", cols))
+        .bind(...cols.map(c => row[c] ?? null));
+    });
+    if (typeof sportDb.batch === "function") {
+      for (let i = 0; i < statements.length; i += 40) {
+        await sportDb.batch(statements.slice(i, i + 40));
+      }
+    } else {
+      for (const statement of statements) await statement.run();
+    }
+    copied += rows.length;
+    cursor = rows[rows.length - 1].id;
+    if (rows.length < pageSize) break;
+  }
+  return { copied, pages, cursor, exhausted: pages < maxPages || copied === 0 };
+}
+
 async function copyPublishedPaged(primary, sportDb, sport, { pageSize, maxPages, afterKey = "" }) {
   let cursor = afterKey;
   let copied = 0;
@@ -468,7 +506,7 @@ export async function copySportWorkingTables(env, sport, {
   const schemaHeals = [];
 
   // Heal lean sport-side working tables before INSERT (NBA/MLB stubs lack evidence cols).
-  for (const table of ["games", "prediction_snapshots", "published_projections"]) {
+  for (const table of [...["games", "prediction_snapshots", "published_projections"], ...(key === "nba" ? ["predictions"] : [])]) {
     try {
       const heal = await ensureMirroredSportTable(primary, sportDb, table);
       if (heal.healed) schemaHeals.push({ table, addedColumns: heal.addedColumns || [] });
@@ -531,6 +569,24 @@ export async function copySportWorkingTables(env, sport, {
       copied: 0,
       error: String(error?.message || error).slice(0, 240),
     });
+  }
+
+  // Historic NBA 'predictions' remains a production read dependency. Include
+  // it only for NBA; other leagues retain their established migration scope.
+  if (key === "nba") {
+    try {
+      const legacyPlan = await beginSportWorkingCopy(primary, sportDb, key, "predictions", resume);
+      const legacy = await copyNbaLegacyPredictionsPaged(primary, sportDb, {
+        pageSize: effectivePageSize,
+        maxPages: effectiveMaxPages,
+        afterId: legacyPlan.cursor,
+      });
+      await finishSportWorkingCopy(sportDb, "predictions", legacyPlan, legacy);
+      checkpoints.predictions = legacy.cursor;
+      results.push({ table: "predictions", ok: true, ...legacy });
+    } catch (error) {
+      results.push({ table: "predictions", ok: false, copied: 0, error: String(error?.message || error).slice(0, 240) });
+    }
   }
 
   await metaSet(sportDb, "last_copy_at", new Date().toISOString());
@@ -742,7 +798,7 @@ export function sportMigrationScope(sport) {
   const key = String(sport || "").toLowerCase();
   return {
     sport: key,
-    workingTables: SPORT_WORKING_TABLES.map((t) => t.table),
+    workingTables: workingTablesForSport(key).map((t) => t.table),
     prefixTables: SPORT_PREFIX_TABLES[key] || [],
     syncEligible: isSportSyncEligible(key),
     deferredPlayerProps: true,
@@ -1236,7 +1292,8 @@ export async function verifySportWorkingParity(env, sport, { now = new Date() } 
 
   const tables = [];
   let matched = 0;
-  for (const spec of SPORT_WORKING_TABLES) {
+  const workingTables = workingTablesForSport(key);
+  for (const spec of workingTables) {
     const sql = `SELECT COUNT(*) n FROM ${spec.table} WHERE sport=?`;
     const primaryCount = await count(primary, sql, key);
     const sportCount = await count(sportDb, sql, key);
@@ -1250,14 +1307,14 @@ export async function verifySportWorkingParity(env, sport, { now = new Date() } 
     });
   }
 
-  const status = matched === SPORT_WORKING_TABLES.length ? "PARITY_OK" : "PARITY_INCOMPLETE";
+  const status = matched === workingTables.length ? "PARITY_OK" : "PARITY_INCOMPLETE";
   const receipt = {
     receiptId: `${key}-parity-${now.toISOString().replace(/[:.]/g, "-")}`,
     checkedAt: now.toISOString(),
     sport: key,
     status,
     matchedTables: matched,
-    tableCount: SPORT_WORKING_TABLES.length,
+    tableCount: workingTables.length,
     tables,
     productIoUsesSportDb: false,
     plan: resolved.plan,
