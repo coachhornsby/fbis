@@ -1131,6 +1131,132 @@ export async function verifySportPrefixParity(env, sport, { now = new Date() } =
 }
 
 /**
+ * Remove shadow-only prefix rows that no longer exist on PRIMARY.
+ * Never deletes PRIMARY rows. Cross-DB anti-join via paged PK compare.
+ * Callers must already refuse sport-authoritative mode.
+ */
+export async function pruneSportPrefixOrphans(primary, sportDb, tableName, {
+  pageSize = 200,
+  maxPages = 25,
+  leagueFilter = null,
+} = {}) {
+  const table = assertSafeIdent(tableName);
+  const league = leagueFilter == null ? null : String(leagueFilter).toUpperCase();
+  if (league !== null && (!table.startsWith("asian_baseball_") || !["KBO", "NPB"].includes(league))) {
+    throw new Error("UNSAFE_ASIAN_BASEBALL_LEAGUE_FILTER");
+  }
+  const info = await primary.prepare(`PRAGMA table_info(${table})`).all();
+  const cols = info?.results || [];
+  if (!cols.length) {
+    return { table, ok: false, action: "PRUNE_ORPHANS", reason: "PRIMARY_TABLE_MISSING", pruned: 0 };
+  }
+  const pkCols = cols.filter((c) => Number(c.pk) > 0).sort((a, b) => Number(a.pk) - Number(b.pk));
+  const hasPrimaryKey = pkCols.length > 0;
+  const keyNames = hasPrimaryKey ? pkCols.map((c) => assertSafeIdent(c.name)) : ["rowid"];
+
+  let pruned = 0;
+  let examined = 0;
+  let pages = 0;
+  let cursor = "";
+  for (; pages < maxPages; pages += 1) {
+    const plan = prefixCompositeCursorPlan(keyNames, cursor);
+    const filterTerms = [];
+    const filterArgs = [];
+    if (league) {
+      filterTerms.push("league=?");
+      filterArgs.push(league);
+    }
+    if (plan.where) {
+      filterTerms.push(plan.where.slice(6));
+      filterArgs.push(...plan.values);
+    }
+    const where = filterTerms.length ? `WHERE ${filterTerms.join(" AND ")}` : "";
+    const selectCols = hasPrimaryKey ? keyNames.join(",") : "rowid AS __key";
+    const page = await sportDb.prepare(
+      `SELECT ${selectCols} FROM ${table} ${where} ORDER BY ${plan.orderBy} ASC LIMIT ?`
+    ).bind(...filterArgs, pageSize).all();
+    const rows = page?.results || [];
+    if (!rows.length) break;
+    examined += rows.length;
+
+    const orphans = [];
+    if (hasPrimaryKey && keyNames.length === 1) {
+      const pk = keyNames[0];
+      const placeholders = rows.map(() => "?").join(",");
+      const keys = rows.map((r) => r[pk]);
+      const found = await primary.prepare(
+        `SELECT ${pk} AS k FROM ${table} WHERE ${pk} IN (${placeholders})`
+      ).bind(...keys).all();
+      const present = new Set((found?.results || []).map((r) => String(r.k)));
+      for (const r of rows) {
+        if (!present.has(String(r[pk]))) orphans.push(r);
+      }
+    } else if (hasPrimaryKey) {
+      for (let i = 0; i < rows.length; i += 20) {
+        const chunk = rows.slice(i, i + 20);
+        const ors = chunk.map(() => `(${keyNames.map((k) => `${k}=?`).join(" AND ")})`).join(" OR ");
+        const binds = chunk.flatMap((r) => keyNames.map((k) => r[k]));
+        const found = await primary.prepare(
+          `SELECT ${keyNames.join(",")} FROM ${table} WHERE ${ors}`
+        ).bind(...binds).all();
+        const present = new Set(
+          (found?.results || []).map((r) => keyNames.map((k) => String(r[k])).join("\0"))
+        );
+        for (const r of chunk) {
+          const sig = keyNames.map((k) => String(r[k])).join("\0");
+          if (!present.has(sig)) orphans.push(r);
+        }
+      }
+    } else {
+      const keys = rows.map((r) => r.__key);
+      const placeholders = keys.map(() => "?").join(",");
+      const found = await primary.prepare(
+        `SELECT rowid AS k FROM ${table} WHERE rowid IN (${placeholders})`
+      ).bind(...keys).all();
+      const present = new Set((found?.results || []).map((r) => String(r.k)));
+      for (const r of rows) {
+        if (!present.has(String(r.__key))) orphans.push(r);
+      }
+    }
+
+    if (orphans.length) {
+      const deleteSql = hasPrimaryKey
+        ? `DELETE FROM ${table} WHERE ${keyNames.map((k) => `${k}=?`).join(" AND ")}`
+        : `DELETE FROM ${table} WHERE rowid=?`;
+      const statement = sportDb.prepare(deleteSql);
+      const bound = orphans.map((r) => (
+        hasPrimaryKey
+          ? statement.bind(...keyNames.map((k) => r[k]))
+          : statement.bind(r.__key)
+      ));
+      if (typeof sportDb.batch === "function") {
+        for (let offset = 0; offset < bound.length; offset += 40) {
+          await sportDb.batch(bound.slice(offset, offset + 40));
+        }
+      } else {
+        for (const stmt of bound) await stmt.run();
+      }
+      pruned += orphans.length;
+    }
+
+    const final = rows[rows.length - 1];
+    cursor = plan.encode(hasPrimaryKey ? final : { rowid: final.__key });
+    if (rows.length < pageSize) break;
+  }
+
+  return {
+    table,
+    ok: true,
+    action: "PRUNE_ORPHANS",
+    pruned,
+    examined,
+    pages,
+    exhausted: pages < maxPages || examined === 0,
+    canAuthorizeWager: false,
+  };
+}
+
+/**
  * Shadow-copy declared prefix tables for a sport. Never activates authority.
  * When skipCaughtUp is true, tables already at count parity are skipped so
  * remaining budget focuses on incomplete research/roster/model tables.
@@ -1215,6 +1341,13 @@ export async function copySportPrefixTables(env, sport, {
           nhl_team_schedule_profile: "source_updated_at",
           nhl_deployment_observations: "observed_at",
         },
+        // Tennis identity bank mutates in place; equal counts can still drift.
+        tennis: {
+          tennis_players: "updated_at",
+          tennis_player_aliases: "last_seen_at",
+          tennis_player_source_ids: "last_seen_at",
+          tennis_player_profiles_current: "updated_at",
+        },
       };
       const freshnessColumns = freshnessColumnBySport[key]?.[table] || null;
       let staleContent = false;
@@ -1241,7 +1374,9 @@ export async function copySportPrefixTables(env, sport, {
       // Start one full idempotent replay and record that it is in progress;
       // otherwise large research tables would rewind at *every* bounded pass
       // and never get beyond the first few pages.
-      if (resume && primaryN != null && sportN != null && (sportN < primaryN || staleContent) && !replayActive) {
+      // Sport-ahead (orphans) also forces a replay pass so prune + copy share budget.
+      if (resume && primaryN != null && sportN != null
+          && (sportN < primaryN || sportN > primaryN || staleContent) && !replayActive) {
         await metaSet(sportDb, `copy_cursor_prefix_${table}`, "");
         await metaSet(sportDb, replayKey, "1");
       }
@@ -1253,13 +1388,34 @@ export async function copySportPrefixTables(env, sport, {
   const results = [];
   for (const table of wanted) {
     try {
+      const leagueFilter = table.startsWith("asian_baseball_") && ["kbo", "npb"].includes(key)
+        ? key.toUpperCase() : null;
+      const countSql = `SELECT COUNT(*) n FROM ${assertSafeIdent(table)}${leagueFilter ? " WHERE league=?" : ""}`;
+      const primaryN = await count(primary, countSql, ...(leagueFilter ? [leagueFilter] : []));
+      let sportN = await count(sportDb, countSql, ...(leagueFilter ? [leagueFilter] : []));
+      const pageBudget = Math.min(500, Math.max(1, Number(pageSize) || 200));
+      const pageCap = Math.min(100, Math.max(1, Number(maxPages) || 25));
+
+      // Copy alone cannot remove shadow orphans (sportCount > primaryCount).
+      // Prune sport-only keys first so tennis/MLB prefix parity can close.
+      if (primaryN != null && sportN != null && sportN > primaryN) {
+        const pruned = await pruneSportPrefixOrphans(primary, sportDb, table, {
+          pageSize: pageBudget,
+          maxPages: pageCap,
+          leagueFilter,
+        });
+        results.push(pruned);
+        sportN = await count(sportDb, countSql, ...(leagueFilter ? [leagueFilter] : []));
+        // If orphans remain, spend this table's budget on prune only.
+        if (sportN != null && sportN > primaryN) continue;
+      }
+
       const afterKey = resume ? (await metaGet(sportDb, `copy_cursor_prefix_${table}`) || "") : "";
       const copied = await copyPrefixedTablePaged(primary, sportDb, table, {
-        pageSize: Math.min(500, Math.max(1, Number(pageSize) || 200)),
-        maxPages: Math.min(100, Math.max(1, Number(maxPages) || 25)),
+        pageSize: pageBudget,
+        maxPages: pageCap,
         afterKey,
-        leagueFilter: table.startsWith("asian_baseball_") && ["kbo", "npb"].includes(key)
-          ? key.toUpperCase() : null,
+        leagueFilter,
       });
       if (copied.cursor) await metaSet(sportDb, `copy_cursor_prefix_${table}`, copied.cursor);
       // Only stop replaying after the keyset scan reaches its end.
