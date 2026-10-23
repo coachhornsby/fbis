@@ -5,6 +5,7 @@ import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
 import {marketObservationDatabase} from './coldMarketHistory.js';
 import {loadVerifiedTennisCandidates} from './polymarketTennisIdentity.js';
 import {filterPinnoddsToFbisProjections} from './pinnoddsProjectionScope.js';
+import {isD1CapacityError} from './d1Capacity.js';
 const root='market-sources/pinnodds',valid=id=>/^[a-z0-9-]{1,180}$/i.test(id||''),batchSize=100;
 async function source(env,snapshotId){
  if(!valid(snapshotId))throw Error('INVALID_SNAPSHOT_ID');
@@ -169,14 +170,50 @@ export async function consumePinnoddsSnapshot(env,{snapshotId,batchIndex}={}){
  if(!valid(snapshotId)||!Number.isSafeInteger(batchIndex)||batchIndex<0)throw Error('INVALID_BATCH_IDENTITY');
  const object=await env.ARCHIVE.get(`${root}/normalized/${snapshotId}.json`);if(!object)throw Error('SNAPSHOT_NOT_PREPARED');const prepared=await object.json();
  if(batchIndex>=prepared.batches)throw Error('BATCH_OUT_OF_RANGE');
- const rows=prepared.rows.slice(batchIndex*batchSize,(batchIndex+1)*batchSize),saved=await persistNormalizedMarketBatch(await marketObservationDatabase(env,prepared.collectedAt),rows,{snapshotType:'RESEARCH',collectedAt:prepared.collectedAt,modelProbability:null});
- return{ok:true,snapshotId,batchIndex,expectedRows:rows.length,inserted:saved.inserted,canAuthorizeWager:false};
+ const rows=prepared.rows.slice(batchIndex*batchSize,(batchIndex+1)*batchSize);
+ try{
+  const saved=await persistNormalizedMarketBatch(await marketObservationDatabase(env,prepared.collectedAt),rows,{snapshotType:'RESEARCH',collectedAt:prepared.collectedAt,modelProbability:null});
+  return{ok:true,snapshotId,batchIndex,expectedRows:rows.length,inserted:saved.inserted,d1Reconciled:true,canAuthorizeWager:false};
+ }catch(error){
+  // MARKET_HISTORY_DB can hit the 10 GB ceiling. R2 modeled boards from prepare
+  // remain the live card read path; do not fail the free capture slot.
+  if(isD1CapacityError(error)){
+   return{ok:true,snapshotId,batchIndex,expectedRows:rows.length,inserted:0,
+    d1Reconciled:false,d1CapacityDegraded:true,
+    reason:'D1_CAPACITY_DEGRADED_R2_MODELED_BOARD_RETAINS_PRICES',
+    canAuthorizeWager:false};
+  }
+  throw error;
+ }
 }
 export async function reconcilePinnoddsSnapshot(env,{snapshotId}={}){
  if(!valid(snapshotId))throw Error('INVALID_SNAPSHOT_ID');const object=await env.ARCHIVE.get(`${root}/normalized/${snapshotId}.json`);if(!object)throw Error('SNAPSHOT_NOT_PREPARED');const {rows,...receipt}=await object.json();
- const result=await (await marketObservationDatabase(env,receipt.collectedAt)).prepare(`SELECT COUNT(*) n FROM normalized_market_observations WHERE source='PinnOdds' AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.snapshotId')=?`).bind(snapshotId).first();
- const persistedRows=Number(result?.n||0),ok=persistedRows===receipt.normalizedRows,status={...receipt,ok,persistedRows,reconciled:ok};
+ let persistedRows=0,capacityDegraded=false;
+ try{
+  const result=await (await marketObservationDatabase(env,receipt.collectedAt)).prepare(`SELECT COUNT(*) n FROM normalized_market_observations WHERE source='PinnOdds' AND json_valid(raw_payload_json) AND json_extract(raw_payload_json,'$.snapshotId')=?`).bind(snapshotId).first();
+  persistedRows=Number(result?.n||0);
+ }catch(error){
+  if(!isD1CapacityError(error))throw error;
+  capacityDegraded=true;
+ }
+ const d1Ok=!capacityDegraded&&persistedRows===receipt.normalizedRows;
+ // When MARKET_HISTORY_DB is full, accept R2 modeled board published by prepare
+ // for the same snapshotId as research reconciliation (board read path).
+ let r2ModeledReady=false;
+ if(!d1Ok&&receipt.projectionScope==='FBIS_MODELED_EVENTS_ONLY'&&receipt.kind==='board'
+    &&['prematch','live'].includes(receipt.feed)&&Number.isInteger(receipt.sportId)){
+  try{
+   const modeled=await env.ARCHIVE.get(`${root}/latest-modeled/board-${receipt.sportId}-${receipt.feed}.json`);
+   const body=modeled?await modeled.json():null;
+   r2ModeledReady=body?.snapshotId===snapshotId&&body?.readOnly===true&&body?.canAuthorizeWager===false
+     &&Array.isArray(body.rows)&&body.collectedAt===receipt.collectedAt;
+  }catch{r2ModeledReady=false;}
+ }
+ const status={...receipt,ok:d1Ok||r2ModeledReady,persistedRows,
+  reconciled:d1Ok||r2ModeledReady,d1Reconciled:d1Ok,
+  d1CapacityDegraded:capacityDegraded||(r2ModeledReady&&!d1Ok),
+  canAuthorizeWager:false};
  await env.ARCHIVE.put(`${root}/status/${snapshotId}.json`,JSON.stringify(status));
- if(ok)await env.ARCHIVE.put(`${root}/latest/${receipt.kind}-${receipt.sportId||'all'}-${receipt.feed||'all'}.json`,JSON.stringify(status));
+ if(status.reconciled)await env.ARCHIVE.put(`${root}/latest/${receipt.kind}-${receipt.sportId||'all'}-${receipt.feed||'all'}.json`,JSON.stringify(status));
  return status;
 }

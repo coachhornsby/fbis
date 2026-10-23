@@ -1,0 +1,71 @@
+name: Market-history headroom repair
+on:
+  workflow_dispatch:
+    inputs:
+      cutoff:
+        description: "Delete Polymarket US WebSocket shadow rows collected before this UTC instant"
+        required: false
+        type: string
+        default: "2026-10-18T00:00:00Z"
+      apply:
+        description: "Apply deletes (false = dry-run)"
+        required: false
+        type: boolean
+        default: true
+  # Merge-trigger path: agents cannot workflow_dispatch (403).
+  push:
+    branches: [main]
+    paths:
+      - "ops/triggers/market-history-headroom-repair"
+      - ".github/workflows/market-history-headroom-repair.yml"
+      - "scripts/repair-market-history-headroom.mjs"
+permissions:
+  contents: read
+concurrency:
+  group: fbis-market-history-headroom-repair
+  cancel-in-progress: false
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CUTOFF: ${{ github.event_name == 'workflow_dispatch' && inputs.cutoff || '2026-10-18T00:00:00Z' }}
+      APPLY: ${{ github.event_name == 'workflow_dispatch' && inputs.apply || true }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Unit-test capacity soft-fail paths
+        run: node --test test/pinnodds-ingestion.test.js test/d1-capacity.test.js
+      - name: Repair market-history headroom
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          args=(--cutoff="$CUTOFF" --batch=4000 --max-batches=120)
+          if [ "${APPLY}" = "true" ]; then args+=(--apply); fi
+          node scripts/repair-market-history-headroom.mjs "${args[@]}" | tee artifacts/market-history-headroom-repair.json
+          jq -e '.completed == true and .canAuthorizeWager == false' artifacts/market-history-headroom-repair.json
+      - name: Rematch fresh NBA board-3 archives onto ESPN ids (zero paid pulls)
+        if: success()
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          # Fresh free capture already archived in R2; rematch consumes into
+          # repaired MARKET_HISTORY_DB without another paid provider pull.
+          node scripts/rematch-pinnodds-archived.mjs \
+            --snapshot-id=pinnodds-20261020-00-full-board-3-prematch \
+            --snapshot-id=pinnodds-20261020-00-full-board-3-live \
+            --post-capture-fixtures \
+            | tee artifacts/pinnodds-nba-rematch-after-repair.json
+          jq -e '.ok == true and .paidProviderCalls == 0' artifacts/pinnodds-nba-rematch-after-repair.json
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: market-history-headroom-repair-${{ github.run_id }}
+          path: artifacts/**
+          if-no-files-found: ignore

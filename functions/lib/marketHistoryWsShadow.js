@@ -3,6 +3,7 @@
  * Neither full source nor betting decisions are ever removed or redirected.
  * A failure must be surfaced to operators; never lose the canonical insert.
  */
+import {isD1CapacityError} from "./d1Capacity.js";
 const ORIGIN_DB="b50c724c-903b-4241-8ce1-48d931e7a44c";
 const WS_SOURCE="Polymarket US WebSocket";
 const BATCH="FBIS_WS_DUAL_SHADOW_20261016_V1";
@@ -36,7 +37,18 @@ export async function mirrorVerifiedWsObservations(env,ids=[]){
  for(const row of source){
   if(row.source!==WS_SOURCE || Number(row.can_qualify)!==0 || Number(row.can_authorize_wager)!==0)fail("SCOPE_OR_AUTHORITY");
   const values=columns.map(k=>row[k]),digest=await hash(JSON.stringify(values));
-  const result=await env.MARKET_HISTORY_DB.prepare(insert).bind(...values).run();
+  let result;
+  try{result=await env.MARKET_HISTORY_DB.prepare(insert).bind(...values).run();}
+  catch(error){
+   // Primary remains authoritative. When the history shard is at its 10 GB
+   // ceiling, skip shadowing rather than failing the live WS ingest path.
+   if(isD1CapacityError(error)){
+    return {state:"SHADOW_CAPACITY_DEGRADED",attempted:unique.length,written,verified,
+     sourceRowsDeleted:0,canQualify:false,canAuthorizeWager:false,primaryIsAuthoritative:true,
+     reason:"MARKET_HISTORY_D1_CAPACITY"};
+   }
+   throw error;
+  }
   written+=Number(result?.meta?.changes||0);
   const matched=await all(env.MARKET_HISTORY_DB,"SELECT * FROM normalized_market_observations WHERE id=?",row.id);
   if(matched.length!==1 || await hash(JSON.stringify(columns.map(k=>matched[0][k])))!==digest)fail("SHARD_CONTENT_PARITY");
