@@ -8,17 +8,26 @@ import {DATABASE_OWNERS} from '../functions/lib/databaseOwnership.js';
 
 function expectedThreshold(bytes){
   if(bytes>=10000000000)return 100;
-  if(bytes>=9000000000)return 90;
+  if(bytes>=9500000000)return 95;
   if(bytes>=8500000000)return 85;
-  if(bytes>=8000000000)return 80;
-  if(bytes>=7000000000)return 70;
+  if(bytes>=7500000000)return 75;
   return 0;
 }
 
 for(const bytes of [6900000000,7000000000,8000000000,8500000000,9000000000,9500000000,10007482368])test('daily physical capacity '+bytes,async()=>{
  const dir=await mkdtemp(join(tmpdir(),'capacity-test-'));
  try{
- const mock=`const objects=new Map();globalThis.fetch=async(url,o={})=>{if(url.includes('/r2/')){if(o.method==='PUT'){objects.set(url,o.body);return new Response('{}');}const b=objects.get(url);return b?new Response(b):new Response('',{status:404});}if(o.method&&o.method!=='GET')throw Error('D1_MUTATION_ATTEMPT');return Response.json({success:true,result:{name:'fixture',file_size:${bytes}}});};`;
+ const mock=`const objects=new Map(),ops=new Map();globalThis.fetch=async(url,o={})=>{
+if(url.includes('/r2/')){if(o.method==='PUT'){objects.set(url,o.body);return new Response('{}');}const b=objects.get(url);return b?new Response(b):new Response('',{status:404});}
+if(url.includes('/d1/database/')&&o.method==='POST'){
+ if(!url.includes('2371df3a-17bf-44d6-abf0-d275cf2f331e'))throw Error('NON_OPERATIONS_DB_WRITE');
+ const p=JSON.parse(o.body);
+ if(p.batch){for(const q of p.batch){if(!q.sql.includes('INSERT OR IGNORE INTO fbis_capacity_measurements'))throw Error('BAD_MIRROR_SQL');ops.set(q.params[0],{at:q.params[1],hash:q.params[12]});}return Response.json({success:true,result:p.batch.map(()=>({success:true,meta:{changes:1}}))});}
+ if(p.sql.startsWith('SELECT COUNT(*)')){const n=[...ops.values()].filter(x=>x.at===p.params[0]&&x.hash===p.params[1]).length;return Response.json({success:true,result:[{success:true,results:[{n}]}]});}
+ throw Error('UNEXPECTED_OPS_SQL');
+}
+if(o.method&&o.method!=='GET')throw Error('D1_MUTATION_ATTEMPT');
+return Response.json({success:true,result:{name:'fixture',file_size:${bytes}}});};`;
  await writeFile(join(dir,'mock.mjs'),mock);
  const r=spawnSync(process.execPath,['--import',join(dir,'mock.mjs'),new URL('../scripts/storage-capacity-daily.mjs',import.meta.url).pathname],{encoding:'utf8',env:{...process.env,CLOUDFLARE_API_TOKEN:'fixture',CLOUDFLARE_ACCOUNT_ID:'fixture',CAPACITY_OUTPUT:join(dir,'out')}});
  const report=JSON.parse(await readFile(join(dir,'out/result.json'),'utf8'));
@@ -33,6 +42,9 @@ for(const bytes of [6900000000,7000000000,8000000000,8500000000,9000000000,95000
  assert.ok(report.databases.some(d=>d.key==='COLD_HISTORY'));
  assert.equal(report.databases[0].physicalBytes,bytes);assert.equal(r.status,bytes>=9500000000?1:0,r.stderr);
  assert.equal(report.primaryThresholdPercent,expectedThreshold(bytes));
+ assert.equal(report.primaryAdmissionThresholdPercent,bytes>=10000000000?100:bytes>=9000000000?90:bytes>=8500000000?85:bytes>=8000000000?80:bytes>=7000000000?70:0);
+ assert.equal(report.databases[0].alertLevel,bytes>=9500000000?'CRITICAL':bytes>=8500000000?'DEGRADED':bytes>=7500000000?'WARN':'INFO');
+ assert.ok(r.stdout.includes('"operationsMirrorVerified":true'),r.stdout);
  assert.ok(Array.isArray(report.alertsTriggered.warn75));
  assert.ok(Array.isArray(report.alertsTriggered.degraded85));
  assert.ok(Array.isArray(report.alertsTriggered.critical95));
@@ -40,5 +52,23 @@ for(const bytes of [6900000000,7000000000,8000000000,8500000000,9000000000,95000
  assert.ok(Array.isArray(report.alertsTriggered.watch80));
  assert.ok(Array.isArray(report.alertsTriggered.high85));
  assert.ok(Array.isArray(report.alertsTriggered.critical90));
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('operations mirror failure leaves R2 evidence but fails monitoring',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'capacity-fail-'));
+ try{
+  const mock=`const objects=new Map();globalThis.fetch=async(url,o={})=>{
+    if(url.includes('/r2/')){if(o.method==='PUT'){objects.set(url,o.body);return new Response('{}');}const b=objects.get(url);return b?new Response(b):new Response('',{status:404});}
+    if(url.includes('/d1/database/')&&o.method==='POST')return new Response('{"success":false}',{status:503,headers:{'content-type':'application/json'}});
+    if(o.method&&o.method!=='GET')throw Error('UNEXPECTED_MUTATION');
+    return Response.json({success:true,result:{name:'fixture',file_size:8000000000}});
+  };`;
+  await writeFile(join(dir,'mock.mjs'),mock);
+  const r=spawnSync(process.execPath,['--import',join(dir,'mock.mjs'),new URL('../scripts/storage-capacity-daily.mjs',import.meta.url).pathname],{encoding:'utf8',env:{...process.env,CLOUDFLARE_API_TOKEN:'fixture',CLOUDFLARE_ACCOUNT_ID:'fixture',CAPACITY_OUTPUT:join(dir,'out')}});
+  const report=JSON.parse(await readFile(join(dir,'out/result.json'),'utf8'));
+  assert.equal(report.databases.length,Object.keys(DATABASE_OWNERS).length);
+  assert.notEqual(r.status,0);
+  assert.match(r.stderr,/OPS_CAPACITY_MIRROR_WRITE_FAILED_503/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
