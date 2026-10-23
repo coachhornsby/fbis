@@ -54,7 +54,10 @@ def normalize(records, cutoff):
             continue
         grouped[athlete].append({
             "gameId": game, "date": played, "season": int(r.get("season") or 0),
-            "seasonType": 2, "minutes": minutes, **stats,
+            "seasonType": 2, "minutes": minutes,
+            "opponent": r.get("opponent_team_abbreviation") or None,
+            "isHome": True if r.get("home_away") == "home" else False if r.get("home_away") == "away" else None,
+            **stats,
         })
     result = []
     for athlete, entries in sorted(grouped.items(), key=lambda x: int(x[0])):

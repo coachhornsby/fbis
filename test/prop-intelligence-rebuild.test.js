@@ -128,3 +128,12 @@ test('roster reads scope to fixture teams instead of truncating later teams from
  await loadPropFixturesAndPlayers(env,{start:'2026-10-22T05:00Z',end:'2026-10-23T05:00Z',sport:'nfl'});
  const q=queries.find(q=>q.sql.includes('nfl_player_profiles'));assert.ok(q.sql.includes('team_key IN'));assert.ok(q.args.includes('ne'));assert.ok(q.args.includes('chi'));assert.ok(!q.sql.includes('LIMIT 2000'));
 });
+
+test('NBA cards use the verified daily archive without relying on an edge upstream request',async()=>{
+ const payload={version:1,source:'SDV_ESPN_NBA_PLAYER_BOXSCORES',mode:'SHADOW_RESEARCH_ONLY',authority:'SHADOW_HISTORY_ONLY',seasonType:'NBA_REGULAR_SEASON_ONLY',generatedAt:'2026-10-22T13:00Z',ingestedAt:'2026-10-22T13:01Z',asOfDayExclusive:'2026-10-22',provenance:'https://github.com/sportsdataverse/sportsdataverse-data/releases/tag/espn_nba_player_boxscores',canQualify:false,canAuthorizeWager:false,playerCount:1,entries:[{espnPlayerId:'4594268',games:[{gameId:'401909091',date:'2026-10-21',season:2027,seasonType:2,minutes:33,points:45,rebounds:10,assists:0,three_pointers_made:9,opponent:'MIA',isHome:false}]}]};
+ const env={ARCHIVE:{get:async key=>{assert.match(key,/player-history-shadow/);return {json:async()=>payload};}}};
+ const h=await loadCanonicalPropHistory(env,{sport:'nba',provider:'espn',playerId:'4594268',market:'pra',asOf:'2026-10-23T12:00Z',fetchImpl:()=>{throw Error('network must not run');}});
+ assert.equal(h.available,true);assert.equal(h.last5[0].value,55);assert.equal(h.last5[0].opponent,'MIA');assert.equal(h.historyAsOfDay,'2026-10-22');assert.equal(h.partialSeason,true);assert.equal(h.calibratedProbability,null);
+ payload.entries[0].games[0].minutes=0;
+ const rejected=await loadCanonicalPropHistory(env,{sport:'nba',provider:'espn',playerId:'4594268',market:'points',asOf:'2026-10-23T12:00Z',fetchImpl:()=>{throw Error('no source');}});assert.equal(rejected.available,false);
+});
