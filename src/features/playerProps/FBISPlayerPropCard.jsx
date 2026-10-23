@@ -259,12 +259,12 @@ function VenueComparison({row}) {
  };
  const status={
   OTHER_PROVIDER_UNAVAILABLE:'One venue only',
-  SETTLEMENT_NOT_EQUIVALENT_OR_UNVERIFIED:'Different or unverified settlement',
-  QUOTE_CLOCK_OR_EXECUTION_UNVERIFIED:'Quote clock or ask unverified',
+  SETTLEMENT_NOT_EQUIVALENT_OR_UNVERIFIED:'Settlement comparison unavailable',
+  QUOTE_CLOCK_OR_EXECUTION_UNVERIFIED:'Quote time or ask unavailable',
   COMPARABLE_CURRENT_QUOTES:'Comparable current purchase asks (fees excluded)'
  };
  const providers=[...new Set(Object.values(rows).flatMap(s=>(s.venues||[]).map(v=>v.provider)))];
- if(providers.length===1){const provider=providers[0];return <div className="pp-venue-comparison" aria-label={`${provider} research prices`}>
+ if(providers.length===1){const provider=providers[0];return <div className="pp-venue-comparison" aria-label={`${provider} prices`}>
   <div className="pp-venue-topline"><b>{provider.toUpperCase()} PRICES</b><span>Price reference</span></div>
   <div className="pp-single-venue-quotes">{['over','under'].map(side=>{const offer=rows[side]?.venues?.find(v=>v.provider===provider);return <div key={side} className={'pp-side-'+side}><span>{side==='over'?'↑ OVER':'↓ UNDER'}</span><strong>{price(offer?.price)}</strong><small>{offer?.priceKind==='VERIFIED_PURCHASE_ASK'?'Verified ask':offer?.priceKind==='DISPLAY_REFERENCE_NOT_ASK'?'Global reference':offer?'Observed':'Unavailable'}</small></div>;})}</div>
   <details className="pp-venue-caveat"><summary>Price & exchange notes</summary><p>The other exchange has no matched contract. Observed or global reference prices require verified purchase asks, clocks, fees and matching settlement rules before an executable comparison.</p></details>
@@ -281,7 +281,7 @@ function VenueComparison({row}) {
      <div><strong>{price(k?.price)}</strong><small>{k?.priceKind==='VERIFIED_PURCHASE_ASK'?'Live ask':k?'Observed':'Unavailable'}</small></div>
      <div><strong>{price(p?.price)}</strong><small>{p?.priceKind==='VERIFIED_PURCHASE_ASK'?'Verified ask':p?.priceKind==='DISPLAY_REFERENCE_NOT_ASK'?'Global ref · not ask':p?'Observed':'Unavailable'}</small></div>
      <div><strong>{price(item?.priceDifferenceDollars!=null?Math.abs(item.priceDifferenceDollars):item?.referenceDifferenceDollars!=null?Math.abs(item.referenceDifferenceDollars):null)}</strong>
-      <small>{item?.priceDifferenceDollars!=null?'Verified price gap':item?.referenceDifferenceDollars!=null?'Reference Δ · not comparable':item?.cheaperProvider?'Lower '+item.cheaperProvider:item?status[item.priceComparisonStatus]||'Unverified':'No contract'}</small>
+      <small>{item?.priceDifferenceDollars!=null?'Verified price gap':item?.referenceDifferenceDollars!=null?'Reference Δ · not comparable':item?.cheaperProvider?'Lower '+item.cheaperProvider:item?status[item.priceComparisonStatus]||'Unavailable':'No contract'}</small>
      </div>
     </div>;
    })}
