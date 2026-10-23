@@ -197,7 +197,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const gapLabel = stored ? "MARKET UNAVAILABLE" : soccerPick ? "CONFIDENCE PICK"
     : showReferenceGap ? "FBIS / PINNODDS GAP" : vm.decision?.evAvailable ? "CALIBRATED EDGE" : "MODEL / MARKET GAP";
   const gapDescription = stored ? "STORED PREGAME · NO VERIFIED ODDS" : soccerPick ? "1X2 · MODEL CONFIDENCE · NOT EV"
-    : showReferenceGap ? referenceLead.kind === "spread" ? `Market: ${home.abbr} ${signed(referenceLead.offeredHome)} · FBIS: ${home.abbr} ${signed(referenceLead.modelHome)} · RESEARCH ONLY` : `Market: ${referenceLead.offeredTotal} · FBIS: ${referenceLead.modelTotal} · RESEARCH ONLY`
+    : showReferenceGap ? referenceLead.kind === "spread" ? `Market: ${home.abbr} ${signed(referenceLead.offeredHome)} · FBIS: ${home.abbr} ${signed(referenceLead.modelHome)}` : `Market: ${referenceLead.offeredTotal} · FBIS: ${referenceLead.modelTotal}`
     : `${edge.type} · MODEL / MARKET`;
   const isTennis = sportId === "tennis";
   if (isTennis) {
@@ -229,7 +229,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
     : null;
   const tennisEdgeTeam = tennisProbEdge == null ? null : tennisProbEdge >= 0 ? home : away;
   const tennisEdgeValue = tennisProbEdge == null
-    ? "RESEARCH"
+    ? "—"
     : `${tennisEdgeTeam?.abbr || "EDGE"} +${num(Math.abs(tennisProbEdge))}%`;
   const tennisEdgeDelta = tennisProbEdge == null ? "NO MARKET EDGE" : "MODEL vs NO-VIG";
 
@@ -243,13 +243,13 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <div className="pgc-featured-meta">
           <span>{[vm.timing?.dateLine, vm.timing?.timeLine].filter(Boolean).join(" · ") || "—"}</span>
           <span className="pgc-sport-pill">{String(vm.sport || "").toUpperCase()}</span>
-          {stored ? null : sportId !== "nhl" || proj.available ? <span title={sportId === "nhl" ? "NHL evidence rating, not wagering authority" : "Model confidence rating"}><SharpStars value={stars} max={rating.max} /></span> : <span>NO MODEL RATING</span>}
+          {stored ? null : sportId !== "nhl" || proj.available ? <span title={sportId === "nhl" ? "NHL model confidence rating" : "Model confidence rating"}><SharpStars value={stars} max={rating.max} /></span> : <span>NO MODEL RATING</span>}
         </div>
       </header>
       {isNfl ? <NflInjuryIntegrityStrip game={game} /> : null}
       {isNfl && game.nflInternationalContext?.international ? (
         <div className="pgc-status-note" role="status" aria-label="International-game risk">
-          🌍 {game.nflInternationalContext.site?.city || "INTERNATIONAL"} · INTERNATIONAL / NEUTRAL · TRAVEL NOT VALIDATED · NO BET AUTHORITY
+          🌍 {game.nflInternationalContext.site?.city || "INTERNATIONAL"} · INTERNATIONAL / NEUTRAL · TRAVEL NOT VALIDATED
         </div>
       ) : null}
       {sportId === "nhl" && vm.event?.live ? (
@@ -348,14 +348,13 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </div>
       </section>
       <VenueConditions context={ctx} game={game} />
-      <div className="pgc-qualification" role="status">{stored ? "STORED PREGAME · STATUS UNVERIFIED" : game?.canAuthorizeWager === true && vm.decision?.qualification === "QUALIFIED" ? "QUALIFIED" : `RESEARCH ONLY · ${String(game.projectionState || "NOT QUALIFIED").replaceAll("_"," ")} · NO WAGER AUTHORITY`}</div>
       <section className={`pgc-gap-strip value-decision-${valueChoice.status}${valueChoice.teamSide ? " is-team is-branded" : valueChoice.totalDirection ? ` is-total is-${valueChoice.totalDirection}` : " is-neutral"}`} style={valueChoice.teamSide ? {"--pgc-gap-brand":gapBrandColor(valueChoice.teamSide==="home"?home:away,valueChoice.teamSide==="home"?game.home:game.away,sportId)} : undefined} aria-label="FBIS direction and price-supported value">
         <span className="pgc-gap-heading">{valueChoice.heading}</span>
         <div className="pgc-gap-identity">
           {valueChoice.teamSide ? <TeamLogo team={valueChoice.teamSide==="home"?home:away} size={100} tone="light" className="pgc-gap-logo" /> : valueChoice.totalDirection ? <span className="pgc-gap-direction"><b aria-hidden="true">{valueChoice.totalDirection==="over"?"↑":"↓"}</b><strong>{valueChoice.totalDirection.toUpperCase()}</strong></span> : null}
         </div>
         <strong className="pgc-gap-value">{valueChoice.value}</strong>
-        <span className="pgc-gap-description">{valueChoice.detail} · {valueChoice.secondary}</span>
+        <span className="pgc-gap-description">{[valueChoice.detail,valueChoice.secondary].filter(Boolean).join(' · ')}</span>
       </section>
 
       {["cfb","nfl","cbb","nba","wnba","nhl","mlb","npb","kbo","soccer","tennis"].includes(sportId) ? (

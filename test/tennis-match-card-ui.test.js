@@ -36,7 +36,7 @@ test("Tennis card actually renders populated recent form and missing-form fallba
         researchFixture:{verified:true,source:"ESPN_PUBLIC",fixtureId:"tennis:espn:atp:1:2"},
         venueOffers:[{source:"PinnOdds",marketFamily:"moneyline",period:"full_game",side:"home",decimalOdds:1.8},
           {source:"Polymarket US",marketFamily:"moneyline",period:"full_game",side:"away",contractPrice:.42}]}}}));
-    assert.match(independent,/Independent ESPN research fixture/);
+    assert.match(independent,/ESPN fixture/);
     assert.match(independent,/PROJECTION UNAVAILABLE/);
     assert.match(independent,/1.800 dec/);
     assert.match(independent,/42.0¢/);
@@ -44,9 +44,9 @@ test("Tennis card actually renders populated recent form and missing-form fallba
     const officialGame={...game,id:"official-order",home:{name:"Official Home"},away:{name:"Official Away"}};
     const researchGame={...game,id:"tennis:espn:wta:order",home:{name:"Independent Home"},away:{name:"Independent Away"},tennisProjection:{researchFixture:{verified:true,source:"ESPN_PUBLIC",fixtureId:"tennis:espn:wta:order"}}};
     const separated=renderToStaticMarkup(createElement(DecisionBoard,{games:[researchGame,officialGame]}));
-    assert.ok(separated.indexOf("Verified official Tennis schedule")<separated.indexOf("Official Away versus Official Home"));
-    assert.ok(separated.indexOf("Official Away versus Official Home")<separated.indexOf("Independent Tennis research fixtures"));
-    assert.ok(separated.indexOf("Independent Tennis research fixtures")<separated.indexOf("Independent Away versus Independent Home"));
+    assert.ok(separated.indexOf("Tennis schedule")<separated.indexOf("Official Away versus Official Home"));
+    assert.ok(separated.indexOf("Official Away versus Official Home")<separated.indexOf("Additional Tennis fixtures"));
+    assert.ok(separated.indexOf("Additional Tennis fixtures")<separated.indexOf("Independent Away versus Independent Home"));
     const missing=renderToStaticMarkup(createElement(TennisMatchCard,{game:{...game,tennisProjection:{eventIntegrity:{valid:true}}}}));
     assert.equal((missing.match(/Recent form unavailable/g)||[]).length,2);
   } finally { await server.close(); }

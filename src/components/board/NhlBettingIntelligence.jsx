@@ -24,7 +24,7 @@ export default function NhlBettingIntelligence({game,vm}){
   return <section className="nhl-bi" aria-label="NHL betting intelligence research" style={{
     "--nhl-bi-team": teamHex(b.team?.color||b.team?.primaryColor||b.team?.primary_color)||"#b7213d"
   }}>
-    <header className="nhl-bi-head"><strong>▥ BETTING INTELLIGENCE</strong><span>RESEARCH ONLY</span></header>
+    <header className="nhl-bi-head"><strong>▥ BETTING INTELLIGENCE</strong></header>
     <div className="nhl-bi-lead">
       {validModel ? <TeamLogo team={b.team} size={45} className="nhl-bi-team-logo" />:null}
       <div><small>{b.headline}</small><strong>{validModel?`${b.abbr} MONEYLINE`:NA}</strong>
@@ -43,7 +43,7 @@ export default function NhlBettingIntelligence({game,vm}){
     {poly.display!=null&&poly.ask==null?<p className="nhl-bi-caption">Polymarket display reference: {cents(poly.display)} · Not an executable ask</p>:null}
     {action.available?
       <div className="nhl-bi-module">
-        <div className="nhl-bi-module-head"><strong>⚡ ACTION SIGNAL</strong><small>{action.marketMatched?"Same-market split":"Market-family unverified"}</small></div>
+        <div className="nhl-bi-module-head"><strong>⚡ ACTION SIGNAL</strong><small>{action.marketMatched?"Same-market split":"Market family unavailable"}</small></div>
         <div className="nhl-bi-action-grid">
           <div><span>Tickets · {b.abbr}</span><strong>{action.tickets==null?NA:`${Math.round(action.tickets)}%`}</strong>
             {action.tickets!=null?<i className="nhl-bi-track"><i style={{width:`${action.tickets}%`}}/></i>:null}</div>
@@ -66,9 +66,6 @@ export default function NhlBettingIntelligence({game,vm}){
         {!poly.comparable?<small className="nhl-bi-caption">Settlement equivalence: {NA} · No executable-value calculation</small>:null}
       </div>:
       <div className="nhl-bi-empty"><strong>POLYMARKET BOOK</strong><span>{NA}</span></div>}
-    <footer className="nhl-bi-status">
-      <strong>BET STATUS: RESEARCH ONLY</strong>
-      <small>{b.limitations[0]||"No betting authority; independent prospective qualification required"}</small>
-    </footer>
+
   </section>;
 }

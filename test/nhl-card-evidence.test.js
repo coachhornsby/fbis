@@ -76,7 +76,7 @@ test("NHL compact and expanded cards share evidence contract and avoid unconditi
     assert.doesNotMatch(code,/<NhlEvidenceStrip/);
     assert.doesNotMatch(code,/<NhlPlayerProjectionStrip/);
   }
-  assert.match(component,/RESEARCH ONLY/);
+  assert.doesNotMatch(component,/RESEARCH ONLY|NO WAGER AUTHORITY/);
   assert.match(component,/const NA="N\/A"/);
   assert.doesNotMatch(component,/canAuthorizeWager\s*:\s*true/);
   assert.match(compact,/LIVE SCORE NOT AVAILABLE FROM FEED/);

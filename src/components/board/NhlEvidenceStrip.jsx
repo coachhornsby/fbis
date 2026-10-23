@@ -6,11 +6,11 @@ export default function NhlEvidenceStrip({game,vm,expanded=false}){
   if(!e)return null;
   const a=e.moneyline,b=e.market;
   return <section className={`nhl-evidence${expanded?" is-expanded":""}`} aria-label="NHL model moneyline, market and goalie source coverage">
-    <div className="nhl-evidence-head"><strong>NHL INTELLIGENCE</strong><span>RESEARCH · NO WAGER AUTHORITY</span></div>
+    <div className="nhl-evidence-head"><strong>NHL INTELLIGENCE</strong></div>
     <div className="nhl-evidence-grid">
       <div className="nhl-evidence-block">
         <span>MODEL ML · INCLUDING OT / SO</span>
-        <strong>{a.valid?`${e.away} ${a.away} · ${e.home} ${a.home}`:"PROBABILITY UNVERIFIED"}</strong>
+        <strong>{a.valid?`${e.away} ${a.away} · ${e.home} ${a.home}`:"PROBABILITY UNAVAILABLE"}</strong>
         <small>{a.integrity} · {e.model}</small>
       </div>
       <div className="nhl-evidence-block">
@@ -26,6 +26,6 @@ export default function NhlEvidenceStrip({game,vm,expanded=false}){
       </div>
     </div>
     <div className="nhl-evidence-coverage"><strong>DATA COVERAGE</strong>{Object.entries(e.coverage).map(([key,state])=><span key={key} className={state==="AVAILABLE"||state==="CONFIRMED"?"is-ready":"is-missing"}>{key.toUpperCase()}: {state.replaceAll("_"," ")}</span>)}</div>
-    {expanded||e.notes.length?<div className="nhl-evidence-note">{e.notes.length?e.notes.join(" · "):"All listed evidence is present; projections and market comparisons remain research-only."}{expanded&&a.reason?` · ML: ${a.reason}`:""}</div>:null}
+
   </section>;
 }
