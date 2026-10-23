@@ -48,3 +48,37 @@ test("Polymarket fixture research obeys approved NBA_DB and rejects revocation",
  assert.deepEqual(denied.DB.queries,[]);
  assert.deepEqual(denied.NBA_DB.queries,[]);
 });
+
+test("approved NBA prop fixture owner never reads PRIMARY and denied authority fails closed",async()=>{
+ const { loadPropFixturesAndPlayers } = await import("../functions/lib/propResearchData.js");
+ const env=testEnv();
+ const opts={sport:"nba",start:"2026-10-23T00:00:00Z",end:"2026-10-24T00:00:00Z"};
+ const result=await loadPropFixturesAndPlayers(env,opts);
+ assert.deepEqual(result.diagnostics,[]);
+ assert.ok(env.NBA_DB.queries.some(q=>q.includes("FROM games")));
+ assert.deepEqual(env.DB.queries,[]);
+ const revoked=testEnv({CORE_DB:{prepare(){return {bind(){return this},all:async()=>({results:[]})}}}});
+ const refused=await loadPropFixturesAndPlayers(revoked,opts);
+ assert.deepEqual(refused.games,[]);
+ assert.match(refused.diagnostics[0],/NBA_OWNER_UNAVAILABLE/);
+ assert.deepEqual(revoked.DB.queries,[]);
+ assert.deepEqual(revoked.NBA_DB.queries,[]);
+ const shadow=testEnv({SPORT_DB_MODE_NBA:"shadow"});
+ await loadPropFixturesAndPlayers(shadow,opts);
+ assert.ok(shadow.DB.queries.some(q=>q.includes("FROM games")));
+ assert.deepEqual(shadow.NBA_DB.queries,[]);
+});
+test("NBA settlement backfill denies missing CORE approval before any ledger write",async()=>{
+ const { onRequestPost }=await import("../functions/api/basketball-form-backfill.js");
+ const env=testEnv({HARVEST_SECRET:"test-secret",
+   CORE_DB:{prepare(){return {bind(){return this},all:async()=>({results:[]})}}}});
+ const request=new Request("https://example.test/api/basketball-form-backfill",{
+   method:"POST",headers:{"x-harvest-secret":"test-secret","content-type":"application/json"},
+   body:JSON.stringify({sport:"nba",games:[{id:"test-game",date:"2026-10-23",homeScore:99,awayScore:101}]})
+ });
+ const response=await onRequestPost({env,request});
+ assert.equal(response.status,503);
+ assert.equal((await response.json()).error,"NBA_FORM_OWNER_UNAVAILABLE");
+ assert.deepEqual(env.DB.queries,[]);
+ assert.deepEqual(env.NBA_DB.queries,[]);
+});

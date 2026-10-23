@@ -1,8 +1,16 @@
 import { canonicalPlayerId } from './propProviderAdapters.js';
 import { finitePropNumber as n } from './exchangePlayerProps.js';
+import { resolveNbaResearchOwnerDb } from './nbaResearchOwnerDb.js';
 export async function loadPropFixturesAndPlayers(env,{start,end,sport='all'}={}) {
  const diagnostics=[],games=[],players=[];
- if(!env.DB?.prepare)return {games,players,diagnostics:['PRIMARY_UNBOUND']};
+ // This path serves the live NBA player research UI. A sport cutover must
+ // replace both the fixture and roster owner, not merely the projection owner.
+ if(sport==='nba'){
+  const owner=await resolveNbaResearchOwnerDb(env);
+  if(!owner.ok||!owner.db?.prepare)return {games,players,diagnostics:['NBA_OWNER_UNAVAILABLE:'+owner.reason]};
+  env={...owner.env,DB:owner.db};
+ }
+ if(!env.DB?.prepare)return {games,players,diagnostics:['DATABASE_UNBOUND']};
  try { games.push(...((await env.DB.prepare(`SELECT * FROM games WHERE julianday(start)>=julianday(?) AND julianday(start)<julianday(?) AND date=? ${sport==='all'?'':'AND sport=?'} ORDER BY start LIMIT 500`).bind(start,end,start.slice(0,10),...(sport==='all'?[]:[sport])).all()).results||[])); }catch{diagnostics.push('FIXTURE_READ_FAILED');}
  const tables={nba:['nba_player_state_profiles','as_of'],nfl:['nfl_player_profiles','updated_at'],nhl:['nhl_player_profiles','source_updated_at'],mlb:['mlb_player_state_profiles','updated_at']};
  for(const [s,[table,clock]]of Object.entries(tables)){
