@@ -9,12 +9,8 @@ const token=process.env.CLOUDFLARE_API_TOKEN,account=process.env.CLOUDFLARE_ACCO
 if(!token||!account)throw Error('CREDENTIALS_REQUIRED');
 const base=`https://api.cloudflare.com/client/v4/accounts/${account}`;
 const headers={Authorization:`Bearer ${token}`};
-const OWNED=[
-  DATABASE_OWNERS.PRIMARY,
-  DATABASE_OWNERS.MARKET_HISTORY,
-  DATABASE_OWNERS.OPERATIONS,
-  DATABASE_OWNERS.COLD_HISTORY,
-];
+// One metadata-only pass over every registered D1, including Q4 and sport shards.
+const OWNED=Object.values(DATABASE_OWNERS);
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const objectBase=base+'/r2/buckets/fbis-archive/objects/';
 async function read(key){const r=await fetch(objectBase+key,{headers,signal:AbortSignal.timeout(90000)});if(r.status===404)return null;if(!r.ok)throw Error('R2_READ_'+r.status);return r.text();}
@@ -40,25 +36,29 @@ for(const owner of OWNED){
 }
 
 const primary=databases.find(d=>d.key==='PRIMARY');
+const platformPercent=Math.max(...databases.map(d=>d.percentUsed));
+const platformThreshold=platformPercent>=100?100:platformPercent>=95?95:platformPercent>=85?85:platformPercent>=75?75:0;
 const threshold=primary.alertLevel==='OVER_LIMIT'?100:primary.alertLevel==='CRITICAL'?90:primary.alertLevel==='HIGH'?85:primary.alertLevel==='WATCH'?80:primary.percentUsed>=70?70:0;
-const action={
-  0:'NORMAL',
-  70:'ARCHIVE_REVIEW',
-  80:'ARCHIVE_PRIORITY',
-  85:'RETIREMENT_PREPARATION',
-  90:'CRITICAL',
-  100:'HARD_STORAGE_INCIDENT',
-}[threshold]||primary.alertLevel;
+const action={0:'NORMAL',75:'WARN',85:'DEGRADED',95:'CRITICAL',100:'HARD_STORAGE_INCIDENT'}[platformThreshold];
 
 const previousText=await read('research/storage-capacity/latest.json');let forecast=null;
+const databaseForecasts={};let previous=null;
 if(previousText){
-  const previous=JSON.parse(previousText);
+  previous=JSON.parse(previousText);
   if(previous.contract!=='fbis-capacity-measurement-v1')throw Error('INVALID_PREVIOUS_MEASUREMENT');
   const days=(now-Date.parse(previous.measuredAt))/86400000;
   if(days>0){
     const priorPrimary=previous.databases.find(d=>d.key==='PRIMARY'||d.id===primary.id)||previous.databases[0];
     const growth=(primary.physicalBytes-priorPrimary.physicalBytes)/days;
     forecast={elapsedDays:days,primaryBytesPerDay:growth,daysToCap:primary.percentUsed>=100?0:growth>0?(primary.capBytes-primary.physicalBytes)/growth:null,method:'two_point_measurement_not_a_guarantee'};
+    for(const db of databases){
+      const prior=previous.databases.find(d=>d.id===db.id);
+      if(!prior)continue;
+      const dailyGrowth=(db.physicalBytes-prior.physicalBytes)/days;
+      databaseForecasts[db.key]={observedBytesPerDay:dailyGrowth,daysToCap:db.percentUsed>=100?0:dailyGrowth>0?(db.capBytes-db.physicalBytes)/dailyGrowth:null,
+        projectedBytes30d:Math.max(0,db.physicalBytes+dailyGrowth*30),projectedBytes90d:Math.max(0,db.physicalBytes+dailyGrowth*90),projectedBytes180d:Math.max(0,db.physicalBytes+dailyGrowth*180),
+        method:'two_point_extrapolation_not_guaranteed'};
+    }
   }
 }
 
@@ -67,14 +67,19 @@ const report={
   measuredAt:now.toISOString(),
   databases,
   primaryThresholdPercent:threshold,
+  platformThresholdPercent:platformThreshold,
   action,
   alertsTriggered:{
+    warn75:databases.filter(d=>d.percentUsed>=75).map(d=>d.key),
+    degraded85:databases.filter(d=>d.percentUsed>=85).map(d=>d.key),
+    critical95:databases.filter(d=>d.percentUsed>=95).map(d=>d.key),
     watch80:databases.filter(d=>d.percentUsed>=80).map(d=>d.key),
     high85:databases.filter(d=>d.percentUsed>=85).map(d=>d.key),
     critical90:databases.filter(d=>d.percentUsed>=90).map(d=>d.key),
   },
   bytesAbove8GbTarget:Math.max(0,primary.physicalBytes-8000000000),
   forecast,
+  databaseForecasts,
   sourceDbMutations:0,
   retentionReleaseAuthorized:false,
   retentionRequiresVerifiedRecovery:true,
@@ -97,5 +102,6 @@ if(process.env.GITHUB_STEP_SUMMARY){
     `No production records deleted. Retention still requires verified recovery copies. OPERATIONS_DB is preferred for new operational workloads.\n`);
 }
 console.log(JSON.stringify({action,primaryBytes:primary.physicalBytes,alertLevel:primary.alertLevel,archiveKey:key,alertsTriggered:report.alertsTriggered}));
-// Operator alert via failed GitHub run after durable evidence is saved.
-if(threshold>=90||report.alertsTriggered.critical90.length)process.exitCode=1;
+// Only signal a newly critical database; repeated hourly failures create alert storms.
+const priorCritical=new Set((previous?.databases||[]).filter(d=>d.percentUsed>=95).map(d=>d.key));
+if(report.alertsTriggered.critical95.some(key=>!priorCritical.has(key)))process.exitCode=1;
