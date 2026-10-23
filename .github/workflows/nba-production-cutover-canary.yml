@@ -41,7 +41,7 @@ jobs:
             -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
             --data '{"operation":"core-board-summary-publish"}' | tee nba-core-after-switch.json
           jq -e '.ok==true and .summary.complete==true and (.summary.sports|length)==11' nba-core-after-switch.json
-          jq -e '.summary.sports.nba.authority=="SPORT_DB"' nba-core-after-switch.json
+          jq -e 'any(.summary.sports[]; .sport=="nba" and .authority=="SPORT_DB")' nba-core-after-switch.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
