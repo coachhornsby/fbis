@@ -90,7 +90,7 @@ def main():
                     schedule = sdv.nfl.load_nfl_schedule(seasons=[season])
                     source = NFL_SOURCE.format(season=season)
                     sched = {str(r["game_id"]):r for r in frame_rows(schedule,("game_id","gameday","gametime",
-                          "home_score","away_score","game_type")) if r.get("game_id") is not None}
+                          "home_score","away_score","game_type","spread_line","total_line")) if r.get("game_id") is not None}
                     fields = NFL_FIELDS
                 else:
                     pbp = sdv.cfb.load_cfb_pbp(seasons=[season])
@@ -133,7 +133,14 @@ def main():
                             skipped["INVALID_SCHEDULE_CLOCK"]=skipped["INVALID_SCHEDULE_CLOCK"]+1
                             continue
                         # Dataset timestamps are collection clocks, never backdated to past games.
+                        market_reference = None
+                        if sport == "nfl":
+                            spread, total = s.get("spread_line"), s.get("total_line")
+                            if isinstance(spread,(float,int)) and isinstance(total,(float,int)) and math.isfinite(spread) and math.isfinite(total) and 20 <= total <= 90:
+                                market_reference = {"homeMargin": float(spread), "total": float(total),
+                                  "source": "NFLVERSE_PFR_HISTORICAL_CLOSING", "asOf": None, "prospective": False}
                         obj={"sport":sport,"season":season,"gameId":gid,"kickoff":kickoff,
+                             "marketReference":market_reference,
                              "observedAt":observed_at,"gradedAt":observed_at,
                              "sourceAsset":source,"evidenceClass":"RECONSTRUCTED_HISTORICAL",
                              "sourceRows":plays}
