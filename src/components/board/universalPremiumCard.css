@@ -635,6 +635,7 @@
 /* Give model direction its own readable rows instead of squeezing long labels
    into the old four-column numeric-gap strip. */
 .fbis-shell-main .cgc.fbis-universal-premium aside.cgc-best-edge.value-decision-model {
+  display:grid !important;
   grid-template-columns: 86px minmax(0,1fr) !important;
   grid-template-areas: "label label" "identity delta" "detail detail" "note note" !important;
   gap:8px 12px !important;
@@ -671,3 +672,9 @@
   .fbis-shell-main .cgc.fbis-universal-premium aside.cgc-best-edge.value-decision-model {grid-template-columns:68px minmax(0,1fr) !important;padding:12px !important;gap:8px !important;}
   .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.value-decision-model {grid-template-columns:70px minmax(0,1fr) !important;gap:8px !important;}
 }
+
+.fbis-shell-main .cgc.fbis-universal-premium aside.cgc-best-edge.value-decision-model > span:first-child {grid-area:label;}
+.fbis-shell-main .cgc.fbis-universal-premium aside.cgc-best-edge.value-decision-model .cgc-edge-identity {grid-area:identity;}
+.fbis-shell-main .cgc.fbis-universal-premium aside.cgc-best-edge.value-decision-model > strong {grid-area:delta;}
+.fbis-shell-main .cgc.fbis-universal-premium aside.cgc-best-edge.value-decision-model > b {grid-area:detail;}
+.fbis-shell-main .cgc.fbis-universal-premium aside.cgc-best-edge.value-decision-model > small {grid-area:note;}
