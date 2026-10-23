@@ -1,0 +1,65 @@
+name: NBA paused cutover rollback recovery
+
+# Trigger only AFTER operator has paused NBA writes by removing the Pages
+# cutover receipt while leaving STRICT=1, MODE=sport, RECOVERY_MODE=paused.
+on:
+  push:
+    branches: [main]
+    paths: ["ops/triggers/nba-cutover-rollback"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-nba-cutover-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Replay source sport records back to PRIMARY while product writes are paused
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          mkdir -p artifacts
+          node --input-type=module -e 'import {SPORT_PREFIX_TABLES,workingTablesForSport} from "./functions/lib/sportWorkingCopy.js"; for(const t of [...workingTablesForSport("nba").map(x=>x.table),...SPORT_PREFIX_TABLES.nba])console.log(t)' > artifacts/nba-tables.txt
+          while read -r table; do
+            offset=0
+            complete=false
+            for pass in $(seq 1 500); do
+              payload="$(printf '{"operation":"nba-paused-rollback-replay","table":"%s","offset":%s,"pageSize":40}' "$table" "$offset")"
+              response="$(curl -fsS --retry 2 --max-time 110 -X POST "$BASE/api/database-topology" -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" --data "$payload")"
+              echo "$response" | jq -e '.ok==true and .sourcePreserved==true and .primaryDeletionCount==0' >/dev/null
+              complete="$(echo "$response" | jq -r '.complete')"
+              offset="$(echo "$response" | jq -r '.nextOffset')"
+              [ "$complete" = "true" ] && break
+            done
+            [ "$complete" = "true" ] || { echo "Table recovery not exhausted: $table"; exit 1; }
+            echo "$table $offset" | tee -a artifacts/nba-recovery-progress.txt
+          done < artifacts/nba-tables.txt
+      - name: Verify full sport working parity and research parity
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          for operation in sport-parity sport-prefix-parity; do
+            response="$(curl -fsS --max-time 90 -X POST "$BASE/api/database-topology" -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" --data "{\"operation\":\"$operation\",\"sport\":\"nba\"}")"
+            echo "$response" | tee "artifacts/$operation.json"
+            echo "$response" | jq -e '.ok==true' >/dev/null
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nba-rollback-restore-record
+          path: artifacts
+          retention-days: 90
