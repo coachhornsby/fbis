@@ -27,11 +27,47 @@ export function neutralTennisAthlete(code, team = {}) {
 }
 
 
+/**
+ * Display-only alignment across already event-matched exchange winner quotes.
+ * Both columns follow the matchup card's away-then-home athlete order.
+ *
+ * Prefer full-name equality; accept a first-initial + identical surname only
+ * when it maps uniquely to one athlete in THIS fixture (e.g. Yulia/Yuliia
+ * Starodubtseva). If either identity is unresolved or ambiguous, preserve
+ * provider order instead of aligning the wrong prices.
+ */
+export function alignTennisSnapshotSides(sides = [], cardPlayerNames = []) {
+  if (!Array.isArray(sides) || sides.length !== 2 ||
+      !Array.isArray(cardPlayerNames) || cardPlayerNames.length !== 2) return sides;
+  const normalized = value => String(value || "")
+    .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  const athleteParts = cardPlayerNames.map(name => normalized(name).split(" ").filter(Boolean));
+  if (athleteParts.some(parts => parts.length < 2)) return sides;
+  const rosterNames = athleteParts.map(parts => parts.join(" "));
+  if (rosterNames[0] === rosterNames[1]) return sides;
+  const assigned = sides.map(side => {
+    const actual = normalized(side?.name);
+    const parts = actual.split(" ").filter(Boolean);
+    if (parts.length < 2) return -1;
+    const first = parts[0], surname = parts.at(-1);
+    const exact = rosterNames.flatMap((name,i) => actual === name ? [i] : []);
+    if (exact.length === 1) return exact[0];
+    if (exact.length > 1) return -1;
+    const aliases = athleteParts.flatMap((roster,i) =>
+      surname.length >= 3 && roster.at(-1) === surname &&
+      roster[0][0] === first[0] ? [i] : []);
+    return aliases.length === 1 ? aliases[0] : -1;
+  });
+  if (!(assigned.includes(0) && assigned.includes(1))) return sides;
+  return assigned[0] === 0 ? sides : [sides[1], sides[0]];
+}
+
 /** A scan-first view over ALREADY-MATCHED research offers. Derivative
  * contracts (sets, handicaps and game totals) never masquerade as a
  * match-winner price in the main Tennis card.
  */
-export function tennisMarketSnapshot(projection = {}, venueOffers = []) {
+export function tennisMarketSnapshot(projection = {}, venueOffers = [], cardPlayerNames = []) {
   const kalshi = [];
   const seen = new Set();
   for (const offer of Array.isArray(projection.kalshiResearchOffers) ? projection.kalshiResearchOffers : []) {
@@ -77,8 +113,12 @@ export function tennisMarketSnapshot(projection = {}, venueOffers = []) {
     kind:"OBSERVED · SOURCE QUOTE CLOCK UNVERIFIED",
     scheduleWarning:false,eventSlug:null,
   } : null;
-  return {kalshi:kalshi.slice(0,2),kalshiTotal:kalshi.length,
-    polymarket,otherPolymarketMarkets:Math.max(0,all.length-(winner?1:0)),
+  const twoKalshi = alignTennisSnapshotSides(kalshi.slice(0,2),cardPlayerNames);
+  const alignedPolymarket = polymarket
+    ? {...polymarket,sides:alignTennisSnapshotSides(polymarket.sides,cardPlayerNames)}
+    : null;
+  return {kalshi:twoKalshi,kalshiTotal:kalshi.length,
+    polymarket:alignedPolymarket,otherPolymarketMarkets:Math.max(0,all.length-(winner?1:0)),
     researchOnly:true,comparable:false};
 }
 function finitePrice(v){
