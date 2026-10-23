@@ -286,7 +286,7 @@ async function beginSportWorkingCopy(primary, sportDb, sport, table, resume) {
   // NHL grading and schedule updates can change rows without changing counts.
   // Rewind a completed shadow keyset only when PRIMARY's latest update is
   // strictly newer; preserve interrupted replay cursors.
-  const freshnessColumn = (sport === "nhl" && table === "prediction_snapshots" || sport === "nba" && ["prediction_snapshots", "predictions"].includes(table))
+  const freshnessColumn = (sport === "nhl" && table === "prediction_snapshots" || (sport === "nba" && table === "prediction_snapshots" || sport === "nba" && table === "predictions"))
     ? "graded_at" : ((sport === "nhl" && table === "games") || (sport === "nba" && table === "games")) ? "updated_at" : null;
   if (freshnessColumn && primaryCount === sportCount &&
       !plan.replayActive && !plan.startReplay) {
