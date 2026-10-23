@@ -112,3 +112,27 @@ test("Legacy CFB runs permit exact complementary away regulation win frequency, 
  assert.equal(r.cards[0].blowoutPct,null);
  assert.equal(r.cards[0].margin,4);
 });
+
+test("Probability favorite wins even with a lower mean score and under 50 percent",()=>{
+ const r=rankFootballDistribution({sport:"nfl",gameId:"upset",iterations:1000,
+  home:"Home",away:"Away",distributions:{
+   home_score:{mean:28},away_score:{mean:25},
+   home_regulation_lead:{mean:.42},away_regulation_lead:{mean:.49},
+   regulation_tie:{mean:.09},home_blowout_14:{mean:.22},
+   away_blowout_14:{mean:.18}}});
+ assert.equal(r.winner,"Away");
+ assert.equal(r.winnerSide,"away");
+ assert.equal(r.winPct,49);
+ assert.equal(r.predictedScoreWinner,25);
+ assert.equal(r.predictedScoreLoser,28);
+ assert.equal(r.awayWinPct,49);
+ assert.equal(r.homeWinPct,42);
+ assert.equal(r.tiePct,9);
+});
+test("Missing lead evidence never assigns home as projected winner",()=>{
+ const r=rankFootballDistribution({sport:"cfb",gameId:"missing",iterations:1000,
+ home:"Home",away:"Away",distributions:{home_score:{mean:25},away_score:{mean:20}}});
+ assert.equal(r.winner,null);
+ assert.equal(r.winnerSide,null);
+ assert.equal(r.winPct,null);
+});
