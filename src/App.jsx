@@ -23,6 +23,7 @@ import AppShell, { FeaturePlaceholder } from "./app/AppShell.jsx";
 import { legacyToRoute, normalizeRoute, routeToLegacy } from "./app/navigation.js";
 import ExchangePlayerPropsPanel from "./features/playerProps/ExchangePlayerPropsPanel.jsx";
 import ModelLabView from "./features/modelLab/ModelLabView.jsx";
+import SimulationRankingsView from "./features/simulationRankings/SimulationRankingsView.jsx";
 import SportAccountabilityPanel from "./features/modelLab/SportAccountabilityPanel.jsx";
 import CurrentProjectionsView from "./features/models/CurrentProjectionsView.jsx";
 import TeamProfilesView from "./features/teamProfiles/TeamProfilesView.jsx";
@@ -630,7 +631,9 @@ export default function App() {
           <Ticker items={slate?.ticker || []} logged={loggedOpen} />
         ) : null}
 
-        {route === "models" || route === "publish" ? (
+        {route === "simulation-rankings" ? (
+          <SimulationRankingsView />
+        ) : route === "models" || route === "publish" ? (
           <div className="canonical-models-stack">
             <CurrentProjectionsView date={todayDate} sportFilter={sportFilter} />
           </div>
