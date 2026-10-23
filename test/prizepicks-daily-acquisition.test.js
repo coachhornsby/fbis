@@ -202,3 +202,52 @@ test('immutable mixed-sport consumption preserves model holds and leaves later g
  const pitcher=db.prepare("SELECT * FROM prizepicks_prop_lines WHERE sport='mlb'").get();assert.equal(pitcher.fbis_projection,6);assert.equal(pitcher.eligible_for_card,0);assert.equal(pitcher.prop_gate,'HOLD');assert.deepEqual(JSON.parse(pitcher.feature_evidence_json),{starterConfirmed:false});
  assert.equal(db.prepare("SELECT fbis_projection FROM prizepicks_prop_lines WHERE sport='nhl'").get().fbis_projection,null);db.close();
 });
+
+
+test('reserved daily PrizePicks capture resumes the owned dataset without another paid provider start',async()=>{
+ const {restorePrizePicks}=await import('../scripts/restore-zen-prizepicks.mjs');
+ const calls=[];
+ const fetchImpl=async(url,init={})=>{
+  const u=new URL(url),key=u.pathname+u.search,method=init.method||'GET';
+  calls.push({key,method});
+  const ok=body=>new Response(JSON.stringify({ok:true,...body}),{status:200});
+  if(key==='/api/prizepicks-props?mode=acquisition')return ok({ctDate:'2026-10-23',acquisition:{run_id:'zen-pp-2026-10-23',state:'RESERVED'},coverage:[]});
+  if(key==='/api/apify-acquire'&&method==='GET')return ok({acquisitionId:'owned-capture',data:{id:'already-paid-actor',status:'SUCCEEDED'}});
+  if(key==='/api/apify-acquire?operation=rows&offset=0')return ok({acquisitionId:'owned-capture',rows:[],total:0});
+  if(key.startsWith('/api/today?'))return ok({games:[]});
+  if(key==='/api/prizepicks-props'&&method==='POST')return ok({consumptionComplete:true});
+  if(key.startsWith('/api/nfl-prop-enrich?'))return ok({remainingHint:0});
+  if(key==='/api/prop-enrich-current')return ok({remainingHint:0});
+  if(key==='/api/prizepicks-props?mode=ingestion_health')return ok({healthy:true});
+  throw Error('UNEXPECTED_API_CALL '+method+' '+key);
+ };
+ const report=await restorePrizePicks({base:'https://test.local',secret:'test-secret',fetchImpl});
+ assert.equal(report.reusedCapture,true);
+ assert.equal(report.actorRunId,'already-paid-actor');
+ assert.equal(report.runId,'zen-pp-2026-10-23');
+ assert.ok(calls.some(c=>c.key==='/api/apify-acquire'&&c.method==='GET'));
+ assert.ok(!calls.some(c=>c.key==='/api/apify-acquire'&&c.method==='POST'),'must not launch paid actor');
+ assert.ok(!calls.some(c=>c.key==='/api/prizepicks-reauthorize'),'must not reauthorize existing reservation');
+ assert.ok(!calls.some(c=>c.key==='/api/prizepicks-props'&&c.method==='POST'&&c.operation==='reserve'));
+});
+
+test('reserved daily PrizePicks acquisition fails closed if owned capture lookup fails',async()=>{
+ const {restorePrizePicks}=await import('../scripts/restore-zen-prizepicks.mjs');
+ const calls=[];
+ const fetchImpl=async(url,init={})=>{
+  const u=new URL(url),key=u.pathname+u.search,method=init.method||'GET';
+  calls.push({key,method});
+  if(key==='/api/prizepicks-props?mode=acquisition')return new Response(JSON.stringify({ok:true,ctDate:'2026-10-23',acquisition:{run_id:'zen-pp-2026-10-23',state:'RESERVED'}}),{status:200});
+  if(key==='/api/apify-acquire')return new Response(JSON.stringify({ok:false,error:'NO_CURRENT_OWNED_CAPTURE'}),{status:409});
+  throw Error('UNEXPECTED_API_CALL '+method+' '+key);
+ };
+ await assert.rejects(()=>restorePrizePicks({base:'https://test.local',secret:'test-secret',fetchImpl}),/NO_CURRENT_OWNED_CAPTURE/);
+ assert.ok(!calls.some(c=>c.method==='POST'),'ambiguous paid run must not trigger any POST');
+});
+
+test('captured PrizePicks batches avoid unrelated full-table NFL and tennis reads',()=>{
+ const code=fs.readFileSync('functions/api/prizepicks-props.js','utf8');
+ assert.match(code,/batchSports\.has\('nfl'\)\?await loadNflPropStateIndex/);
+ assert.match(code,/batchSports\.has\('nfl'\)\?await loadCanonicalNflGameIndex/);
+ assert.match(code,/if\(batchSports\.has\('tennis'\)\)/);
+});
