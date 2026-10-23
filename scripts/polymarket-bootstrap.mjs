@@ -10,6 +10,7 @@ async function call(body){const response=await fetch(base+'/api/polymarket-boots
  if(!response.ok&&!result.errors)throw Error('BOOTSTRAP_HTTP_'+response.status+'_'+(result.error||'UNAVAILABLE'));return result;}
 const checkpoint=await call({operation:'resume'}),run=checkpoint.run||newRun,runStartedAt=checkpoint.run?checkpoint.runStartedAt:new Date().toISOString();
 const pages=[],errors=[],fixtures=new Map(),leagues=new Map();let discoveryComplete=true,rateLimited=false;
+const capacityBlocked=e=>/BOOTSTRAP_HTTP_409_MARKET_HISTORY_(?:SIZE_UNVERIFIED|CAPACITY_)/.test(String(e?.message||e));
 await call({operation:'report',report:{run,runStartedAt,status:'IN_PROGRESS',checkedAt:new Date().toISOString(),coverageComplete:false}});
 async function collectPage(body){const page=await call(body),cached=page.cachedQuotes;delete page.cachedQuotes;page.quotes=cached||[];pages.push(page);
  for(let batchIndex=0;!cached&&batchIndex<(page.bookBatches||0);batchIndex++){
@@ -38,9 +39,9 @@ try{
   try{await traverse('page',league,`${run}-${league.slug}`,async page=>{
    for(const ref of page.matchedEventRefs||[]){const key=league.sport+'|'+ref.eventId;if(expanded.has(key))continue;
     try{await traverse('markets',{parentReceiptId:page.receiptId,eventIndex:ref.eventIndex},`${run}-markets-${ref.eventId}`,null);expanded.add(key);}
-    catch(error){discoveryComplete=false;errors.push({eventId:ref.eventId,reason:error.message});if(/429|PROVIDER_RATE_LIMITED/.test(error.message))throw error;}
+    catch(error){discoveryComplete=false;errors.push({eventId:ref.eventId,reason:error.message});if(/429|PROVIDER_RATE_LIMITED/.test(error.message)||capacityBlocked(error))throw error;}
    }
-  });}catch(error){discoveryComplete=false;errors.push({league:league.slug,reason:error.message});if(/429|PROVIDER_RATE_LIMITED/.test(error.message)){rateLimited=true;break;}}
+  });}catch(error){discoveryComplete=false;errors.push({league:league.slug,reason:error.message});if(capacityBlocked(error))throw error;if(/429|PROVIDER_RATE_LIMITED/.test(error.message)){rateLimited=true;break;}}
  }
 }catch(error){discoveryComplete=false;errors.push({reason:error.message});rateLimited=/429|PROVIDER_RATE_LIMITED/.test(error.message);}
 for(const page of pages)for(const batch of page.quotes||[])errors.push(...(batch.errors||[]));
