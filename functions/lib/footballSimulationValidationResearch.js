@@ -12,6 +12,7 @@ export function selectPregameSimulationEvidence(rows,{sport,asOf}={}){
  for(const r of rows||[]){
   let reason=null;
   if(r?.sport!==sport)reason="SPORT_MISMATCH";
+  else if(r.regulationOnly!==true)reason="REGULATION_SCORE_NOT_VERIFIED";
   else if(!r.gameId||!Number.isFinite(cutoff(r.kickoff))||!Number.isFinite(cutoff(r.frozenAt))||
    !Number.isFinite(cutoff(r.observedAt))||!Number.isFinite(cutoff(r.gradedAt)))reason="MISSING_TIME";
   else if(!(cutoff(r.frozenAt)<cutoff(r.kickoff)&&cutoff(r.kickoff)<=cutoff(r.gradedAt)&&
