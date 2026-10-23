@@ -26,6 +26,13 @@ export async function resolveNbaResearchOwnerDb(env = {}) {
       canAuthorizeWager: false,
     };
   }
+  const enabled = value => ["1", "true", "yes"].includes(String(value ?? "").toLowerCase());
+  // Never transition research reads before the independently certified
+  // shared ledger is ready and strict NBA routing is enabled.
+  if (!enabled(env.SPORT_DB_STRICT_NBA) || !enabled(env.SPORT_DB_LEDGER_READY_NBA)) {
+    return { ok: false, db: null, env, mode,
+      reason: "NBA_STRICT_LEDGER_READINESS_REQUIRED", canAuthorizeWager: false };
+  }
   // Do not rely on a previously hydrated/injected approval map. Reload the
   // current production CORE decision for this request, including revocations.
   const scoped = { ...env, __fbisCutoverApprovals: new Map() };
