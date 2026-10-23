@@ -1,7 +1,8 @@
 // Tennis lower-tier historical source audit. RESEARCH ONLY.
 // Name matching identifies candidates for manual source-ID verification; never auto-link.
+import {addSourceMatchEvidence,tierEvidence} from './tennis-tiered-research-evidence.mjs';
 export const normalizeName=(v)=>String(v??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-export function parseCsv(text){
+export function parseCsv(text,{required=['winner_id','loser_id','tourney_date']}={}){
  const rows=[];let row=[],field='',quoted=false;
  for(let i=0;i<text.length;i++){
   const ch=text[i];
@@ -10,7 +11,7 @@ export function parseCsv(text){
  }
  if(field!==''||row.length){row.push(field);rows.push(row)}
  const header=rows.shift()||[];
- if(!header.includes('winner_id')||!header.includes('loser_id')||!header.includes('tourney_date'))
+ if(required.some(column=>!header.includes(column)))
   throw Error('SOURCE_CSV_REQUIRED_COLUMNS_MISSING');
  return rows.map(r=>Object.fromEntries(header.map((k,i)=>[k,r[i]??''])));
 }
@@ -52,7 +53,7 @@ export function makeCandidateIndex(players){
   index.set(key,{tour:p.tour,playerName:p.playerName,playerKey:p.playerKey,
    missingHard:Boolean(p.missingHard),missingClay:Boolean(p.missingClay),
    missingGrass:Boolean(p.missingGrass),sourceIds:new Set(),
-   observed:new Set(),qualified:new Set(),sources:new Set(),bySurface:{hard:0,clay:0,grass:0},
+   observed:new Set(),qualified:new Set(),sources:new Set(),researchBuckets:new Map(),bySurface:{hard:0,clay:0,grass:0},
    qualifiedBySurface:{hard:0,clay:0,grass:0}});
  }
  return index;
@@ -75,7 +76,11 @@ export function scanSource(index,meta,rows,cutoff){
    p.observed.add(key);p.bySurface[surface]++;p.sources.add(meta.tier);
    if(r[side+'_id'])p.sourceIds.add(String(r[side+'_id']));
    seen++;
-   if(valid){p.qualified.add(key);p.qualifiedBySurface[surface]++;qualifying++}
+   if(valid){
+    const added=addSourceMatchEvidence(p.researchBuckets,{tier:meta.tier,surface,side:side==='winner'?'w':'l',row:r,date});
+    if(!added)throw Error('VALIDATION_AGGREGATION_DISAGREEMENT');
+    p.qualified.add(key);p.qualifiedBySurface[surface]++;qualifying++
+   }
   }
  }
  return {playerAppearances:seen,validTwoSidedServeAppearances:qualifying};
@@ -87,6 +92,7 @@ export function summarize(index,receipts){
   candidateSourceIds:[...p.sourceIds].sort(),identityStatus:'NAME_MATCH_UNVERIFIED',
   observedMatches:p.observed.size,validServeMatches:p.qualified.size,
   bySurface:p.bySurface,validBySurface:p.qualifiedBySurface,sources:[...p.sources].sort(),
+  tieredResearchEvidence:tierEvidence(p.researchBuckets),
   // The actual minimum-3 per-surface requirement is separate from the all-surface smoothing of current engine.
   candidateThreeValidMatches:['hard','clay','grass'].some(s=>p.qualifiedBySurface[s]>=3),
  }));

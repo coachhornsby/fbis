@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Evidence-only low-tier source recovery audit. No D1 writes or profile updates.
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {masterPlayerIndex,evaluateIdentityEvidence} from './lib/tennis-lowtier-identity-evidence.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {makeCandidateIndex,parseCsv,scanSource,sources,summarize} from './lib/tennis-lowtier-source-audit.mjs';
 
@@ -54,12 +56,49 @@ for(const meta of sources){
  const rows=parseCsv(body);
  if(rows.length<100)throw Error('INSUFFICIENT_SOURCE_ROWS_'+meta.path);
  const stat=scanSource(index,meta,rows,cutoff);
- receipts.push({...meta,rows:rows.length,...stat,cutoffExclusive:cutoff});
+ receipts.push({...meta,rows:rows.length,...stat,sha256:createHash('sha256').update(body).digest('hex'),cutoffExclusive:cutoff});
  console.log(JSON.stringify({source:meta.path,rows:rows.length,...stat}));
 }
 assert.equal(receipts.length,sources.length,'SOURCE_RECEIPTS_INCOMPLETE');
 const report=summarize(index,receipts);
 assert.equal(report.targets,expectedIncomplete);
+// Source masters contain independent player IDs, DOB and IOC. Verify the
+// source ID and canonical biography before labeling any candidate corroborated.
+const masters={};const masterReceipts=[];
+for(const tour of ['atp','wta']){
+ const path=tour+'/'+tour+'_players.csv';
+ const response=await fetch(MIRROR+path,{headers:{'user-agent':'FBIS tennis identity research verification'},signal:AbortSignal.timeout(120000)});
+ if(!response.ok)throw Error('MASTER_PLAYER_SOURCE_UNAVAILABLE_'+path);
+ const body=await response.text();
+ const rows=parseCsv(body,{required:['player_id','name_first','name_last','dob','ioc']});
+ if(rows.length<100)throw Error('MASTER_PLAYER_SOURCE_INSUFFICIENT_'+tour);
+ masters[tour]=masterPlayerIndex(rows);
+ masterReceipts.push({tour,path,rows:rows.length,sha256:createHash('sha256').update(body).digest('hex')});
+}
+const rawByKey=new Map(targets.map(x=>[x.tour+'|'+x.playerKey,x]));
+for(const player of report.players){
+ const canonical=rawByKey.get(player.tour+'|'+player.playerKey);
+ assert.ok(canonical,'COHORT_CANDIDATE_MISSING');
+ player.identityResearch=evaluateIdentityEvidence(player,canonical,masters[player.tour]);
+ // Research observation is NOT a CORE profile: no tier blending/adjustments,
+ // confidence/qualifications, wagering authority or production mutations.
+ player.researchTierProfiles=(player.tieredResearchEvidence||[]).filter(x=>x.validMatches>=3);
+ player.researchProfileUsage='PRIVATE_NONCOMMERCIAL_RESEARCH_ONLY';
+ player.canQualify=false;player.canAuthorizeWager=false;
+}
+report.masterReceipts=masterReceipts;
+report.identitySummary=Object.fromEntries(['atp','wta'].map(tour=>{
+ const p=report.players.filter(x=>x.tour===tour);
+ const reasons={};
+ for(const x of p){const k=x.identityResearch.reason||'BIOGRAPHICALLY_CORROBORATED';reasons[k]=(reasons[k]||0)+1;}
+ return [tour,{total:p.length,biographicallyCorroborated:p.filter(x=>x.identityResearch.reason===null).length,
+  unresolved:p.filter(x=>x.identityResearch.reason!==null).length,
+  threeTierSurfaceProfiles:p.reduce((n,x)=>n+x.researchTierProfiles.length,0),reasons}];
+}));
+report.researchIntegrity={sourceMastersVerified:masterReceipts.length,statisticalSourcesVerified:receipts.length,
+ noCrossTierPooling:true,allTierAdjustments:'NOT_ESTIMATED',identityAutoLinks:0,
+  productionWrites:0,canQualify:false,canAuthorizeWager:false};
+
 await mkdir('artifacts',{recursive:true});
 await writeFile('artifacts/tennis-lowtier-source-recovery.json',JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify({targets:report.targets,summary:report.summary,sourceReceipts:receipts.length,
