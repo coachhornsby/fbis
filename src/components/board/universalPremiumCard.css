@@ -704,3 +704,19 @@
  .fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter > div {width:100%;text-align:center;}
  .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.value-decision-model {overflow:hidden !important;}
 }
+
+/* MLB team marks flank VS on one line, with room for the pitcher panels. */
+.fbis-shell-main .pgc.fbis-universal-premium.pgc-mlb .pgc-mlb-center-logos {display:flex;align-items:center;justify-content:center;gap:12px;margin:0 auto;}
+.fbis-shell-main .pgc.fbis-universal-premium.pgc-mlb .pgc-mlb-center-logos .team-logo-wrap,
+.fbis-shell-main .pgc.fbis-universal-premium.pgc-mlb .pgc-mlb-center-logos .team-logo {width:96px!important;height:96px!important;flex-shrink:0;}
+.fbis-shell-main .pgc.fbis-universal-premium.pgc-mlb .pgc-mlb-center-logos .pgc-vs {font-size:24px;font-weight:950;flex-shrink:0;}
+@media(max-width:900px){
+ .fbis-shell-main .pgc.fbis-universal-premium.pgc-mlb .pgc-featured-matchup {grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;}
+ .fbis-shell-main .pgc.fbis-universal-premium.pgc-mlb .pgc-featured-center {grid-column:1/-1;grid-row:1;}
+ .fbis-shell-main .pgc.fbis-universal-premium.pgc-mlb .pgc-mlb-center-logos .team-logo-wrap,
+ .fbis-shell-main .pgc.fbis-universal-premium.pgc-mlb .pgc-mlb-center-logos .team-logo {width:76px!important;height:76px!important;}
+}
+@media(max-width:560px){
+ .fbis-shell-main .pgc.fbis-universal-premium.pgc-mlb .pgc-mlb-center-logos .team-logo-wrap,
+ .fbis-shell-main .pgc.fbis-universal-premium.pgc-mlb .pgc-mlb-center-logos .team-logo {width:64px!important;height:64px!important;}
+}
