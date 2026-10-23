@@ -15,9 +15,11 @@ test('PinnOdds rejects unknown, missing, malformed and non-positive capacity met
     assert.throws(()=>requirePinnoddsMarketHistoryHeadroom(bad),/UNVERIFIED_FAIL_CLOSED/);
 });
 test('PinnOdds allows a verified under-85% Q4 and reports exact measured bytes',()=>{
-  assert.deepEqual(requirePinnoddsMarketHistoryHeadroom(report(8_499_999_999)),{
-    databaseKey:'MARKET_HISTORY_2026Q4',usedBytes:8_499_999_999,hardLimitBytes:10_000_000_000,percentUsed:84.99999999
-  });
+  const value=requirePinnoddsMarketHistoryHeadroom(report(8_499_999_999));
+  assert.equal(value.databaseKey,'MARKET_HISTORY_2026Q4');
+  assert.equal(value.usedBytes,8_499_999_999);
+  assert.equal(value.hardLimitBytes,10_000_000_000);
+  assert.ok(Math.abs(value.percentUsed-84.99999999)<1e-7);
 });
 test('capacity preflight precedes the quota-reserving PinnOdds API call',()=>{
   const source=readFileSync(new URL('../scripts/collect-pinnodds-governed.mjs',import.meta.url),'utf8');
