@@ -1,3 +1,5 @@
+import { resolveNbaResearchOwnerDb } from "../lib/nbaResearchOwnerDb.js";
+
 function json(body,status=200){
   return new Response(JSON.stringify(body),{status,headers:{
     "content-type":"application/json; charset=utf-8",
@@ -6,9 +8,10 @@ function json(body,status=200){
   }});
 }
 export async function onRequestGet({env}){
-  if(!env?.DB?.prepare)return json({ok:false,error:"database unavailable",rows:[]},503);
+  const owner=await resolveNbaResearchOwnerDb(env);
+  if(!owner.ok)return json({ok:false,error:owner.reason,rows:[]},503);
   try{
-    const res=await env.DB.prepare(`
+    const res=await owner.db.prepare(`
       SELECT
         p.game_id AS event_id,
         p.player_id,
