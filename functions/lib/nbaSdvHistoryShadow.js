@@ -3,6 +3,8 @@
  * The public SDV release is a historical dataset, not a rights-cleared live
  * boxscore feed or automatically qualified FBIS player-projection source.
  */
+import { resolveNbaResearchOwnerDb } from "./nbaResearchOwnerDb.js";
+
 export const SDV_NBA_PREFIX='nba/sdv/player-history-shadow/v1/';
 const MAX_PLAYERS=1500, MAX_GAMES=5;
 const bounds={minutes:75,points:100,rebounds:60,assists:40,three_pointers_made:25};
@@ -40,7 +42,9 @@ export function verifySdvNbaHistorySnapshot(payload,{expectedDay=null}={}){
  return {ok:true,players:identities.size,gameLogs:logs,asOfDay:payload.asOfDayExclusive};
 }
 export async function storeSdvNbaHistoryShadow(env,payload,{now=new Date()}={}){
- if(!env?.ARCHIVE?.put||!env?.DB?.prepare)return {ok:false,code:'SDV_STORAGE_UNBOUND'};
+ if(!env?.ARCHIVE?.put)return {ok:false,code:'SDV_STORAGE_UNBOUND'};
+ const owner=await resolveNbaResearchOwnerDb(env);
+ if(!owner.ok)return {ok:false,code:owner.reason||'NBA_RESEARCH_OWNER_UNAVAILABLE'};
  const check=verifySdvNbaHistorySnapshot(payload);
  if(!check.ok)return {ok:false,code:check.reason};
  if(Math.abs(now.getTime()-Date.parse(payload.generatedAt))>6*3600000)
@@ -48,7 +52,7 @@ export async function storeSdvNbaHistoryShadow(env,payload,{now=new Date()}={}){
  // At capture only allow independently verified ESPN athlete IDs from FBIS
  // roster evidence. Do NOT promote historical team/name fields into identity.
  let players;
- try{players=(await env.DB.prepare("SELECT DISTINCT player_id FROM nba_player_state_profiles WHERE julianday(as_of)>=julianday(?) LIMIT 1700").bind(new Date(now.getTime()-14*86400000).toISOString()).all()).results||[]}
+ try{players=(await owner.db.prepare("SELECT DISTINCT player_id FROM nba_player_state_profiles WHERE julianday(as_of)>=julianday(?) LIMIT 1700").bind(new Date(now.getTime()-14*86400000).toISOString()).all()).results||[]}
  catch{return {ok:false,code:'CANONICAL_ROSTER_UNAVAILABLE'}};
  const known=new Set(players.map(p=>String(p.player_id)));
  const matched=payload.entries.filter(p=>known.has(p.espnPlayerId));
