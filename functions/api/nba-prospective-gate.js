@@ -1,4 +1,5 @@
 import { resolveNbaProspectiveGate } from "../lib/nbaProspectiveGate.js";
+import { resolveNbaResearchOwnerDb } from "../lib/nbaResearchOwnerDb.js";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -13,11 +14,12 @@ function json(body, status = 200) {
 
 /** GET /api/nba-prospective-gate — unfreeze criteria progress (read-only). */
 export async function onRequestGet({ env }) {
-  if (!env?.DB?.prepare) {
-    return json({ ok: false, error: "database unavailable", gate: null }, 503);
+  const owner = await resolveNbaResearchOwnerDb(env);
+  if (!owner.ok) {
+    return json({ ok: false, error: owner.reason, gate: null }, 503);
   }
   try {
-    const gate = await resolveNbaProspectiveGate(env.DB);
+    const gate = await resolveNbaProspectiveGate(owner.db);
     return json({
       ok: true,
       gate,
