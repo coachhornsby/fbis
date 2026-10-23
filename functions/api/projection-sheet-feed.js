@@ -1,5 +1,6 @@
 import { buildSlate, resolveSlateDate, shiftDateCT, todayCT } from "../lib/slateEngine.js";
 import { productProjectionCard } from "../lib/productProjection.js";
+import { sportDbContext } from "../lib/nflSportDbContext.js";
 
 const SPORTS = new Set(["mlb","npb","kbo","nfl","cfb","cbb","nba","nhl"]);
 
@@ -159,7 +160,9 @@ export async function onRequestGet(context) {
     BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
     CFBD_API_KEY: context.env.CFBD_API_KEY,
     CBBD_API_KEY: context.env.CBBD_API_KEY,
+    ...sportDbContext(context.env),
     DB: context.env.DB,
+    ARCHIVE: context.env.ARCHIVE,
     caches: caches.default,
     parlayCacheOnly: true,
     palCacheOnly: true,
