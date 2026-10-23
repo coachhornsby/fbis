@@ -13,6 +13,7 @@ import {
   copySportPrefixTables,
 } from "./sportWorkingCopy.js";
 import { rehearseSportCutover } from "./sportCutoverRehearsal.js";
+import { verifyNbaMutableFieldParity } from "./nbaMutableFieldParity.js";
 import { sha256Hex } from "./sha256Hex.js";
 
 export const SPORT_MIGRATION_QUALIFY_CONTRACT = "fbis-sport-migration-qualify-v1";
@@ -229,6 +230,9 @@ export async function qualifySportMigration(env, sport, {
   const countParity = await verifySportWorkingParity(env, key, { now });
   const recordParity = await verifySportRecordLevelParity(env, key, { sampleSize, now });
   const prefixParity = await verifySportPrefixParity(env, key, { now });
+  const nbaMutableFieldParity = key === "nba"
+    ? await verifyNbaMutableFieldParity(env, { sampleSize })
+    : null;
   const health = await buildSportSyncHealth(env, key, { now });
 
   let cutover = null;
@@ -269,6 +273,8 @@ export async function qualifySportMigration(env, sport, {
     sourceCoverage: hasSourceData && hasDeclaredResearchScope,
     // Working-set parity ≠ complete sport migration — prefix research must catch up too.
     prefixParity: prefixParity.ok === true && hasDeclaredResearchScope && hasSourceData,
+    // NBA cutover cannot rely on row counts while mutable owner records diverge.
+    nbaMutableFieldParity: key === "nba" ? nbaMutableFieldParity?.ok === true : null,
     // An absent sync timestamp does not qualify a never-synced database.
     syncLag: health.lagOk === true && health.lastCopyAt != null,
     productStillPrimary: health.productStillPrimary === true,
@@ -281,6 +287,7 @@ export async function qualifySportMigration(env, sport, {
     && gates.recordParity
     && gates.sourceCoverage
     && gates.prefixParity
+    && (key !== "nba" || gates.nbaMutableFieldParity)
     && gates.syncLag
     && gates.productStillPrimary
     && (cutover ? cutover.ok === true : false);
@@ -299,6 +306,7 @@ export async function qualifySportMigration(env, sport, {
     countParity,
     recordParity,
     prefixParity,
+    nbaMutableFieldParity,
     health,
     cutoverRehearsal: cutover,
     rollbackPlan: {
@@ -312,7 +320,7 @@ export async function qualifySportMigration(env, sport, {
     },
     migrationCompleteness: {
       workingSetOnly: gates.countParity && gates.recordParity && !gates.prefixParity,
-      fullSportIncludingPrefix: gates.countParity && gates.recordParity && gates.sourceCoverage && gates.prefixParity && gates.syncLag,
+      fullSportIncludingPrefix: gates.countParity && gates.recordParity && gates.sourceCoverage && gates.prefixParity && gates.syncLag && (key !== "nba" || gates.nbaMutableFieldParity),
       note: "Do not treat games/predictions parity as a complete sport migration",
     },
     canAuthorizeWager: false,
@@ -324,11 +332,12 @@ export async function qualifySportMigration(env, sport, {
     countParity: countParity.status,
     recordParity: recordParity.status,
     prefixParity: prefixParity.status,
+    nbaMutableFieldParity: nbaMutableFieldParity?.status || null,
     lagMs: health.lagMs,
   }));
 
   return {
-    ok: gates.countParity && gates.recordParity && gates.productStillPrimary,
+    ok: gates.countParity && gates.recordParity && gates.productStillPrimary && (key !== "nba" || gates.nbaMutableFieldParity),
     productStillPrimary: gates.productStillPrimary,
     ...packageBody,
   };
