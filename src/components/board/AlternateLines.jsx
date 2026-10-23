@@ -119,7 +119,7 @@ export default function AlternateLines({ game }) {
       )}
 
       <p className="alt-lines-note">
-        Research only · fees included where known · not a wager authorization. Extreme longshots are filtered out.
+        Fees included where known. Extreme longshots are filtered out.
       </p>
     </section>
   );

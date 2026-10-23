@@ -17,7 +17,7 @@ const stamp=v=>v&&Number.isFinite(Date.parse(v))?new Date(v).toLocaleString("en-
 const pp=v=>v==null?"—":`${v>0?"+":""}${v.toFixed(1)} pp`;
 export default function MoneylinePriceComparison({game}){
  const live=usePolymarketQuotes(game);
- const {rows,hasPrices,researchOnly,projectionState}=buildMoneylinePriceComparison(live.game);
+ const {rows,hasPrices}=buildMoneylinePriceComparison(live.game);
  if(!hasPrices)return null;
  const hasPolymarket=rows.some(r=>r.polymarketProbability!=null);
  const priced=rows.map(r=>({...r,modelBookGap:gap(r)}));
@@ -50,19 +50,19 @@ export default function MoneylinePriceComparison({game}){
       <span>FBIS MODEL</span><strong>{percent(r.fbisProbability)}</strong><b>{american(r.fbisFairAmerican)}</b><small>Win % · Fair odds</small>
     </div>
    </div>
-   <div className="fbis-poly-intelligence" data-state={r.polymarketIntelligence.state}>
-    <strong>{r.polymarketIntelligence.state} · POLYMARKET</strong>
+   {hasPolymarket ? <div className="fbis-poly-intelligence" data-state={r.polymarketIntelligence.state}>
+    <strong>POLYMARKET BOOK</strong>
     <dl>
      <div><dt>BUY / SELL</dt><dd>{american(r.polymarketIntelligence.askAmerican)} / {american(r.polymarketIntelligence.bidAmerican)}</dd></div>
      <div><dt>NET GAP · EST.</dt><dd>{pp(r.polymarketIntelligence.netEdge==null?null:r.polymarketIntelligence.netEdge*100)}</dd></div>
      <div><dt>BREAK-EVEN · EST.</dt><dd>{r.polymarketIntelligence.maxEntry==null?"—":`${(r.polymarketIntelligence.maxEntry*100).toFixed(1)}¢`}</dd></div>
-     <div><dt>DEPTH AT $5</dt><dd>{r.polymarketIntelligence.averageEntry==null?"Unverified":`${(r.polymarketIntelligence.averageEntry*100).toFixed(1)}¢ avg.`}</dd></div>
+     <div><dt>DEPTH AT $5</dt><dd>{r.polymarketIntelligence.averageEntry==null?"—":`${(r.polymarketIntelligence.averageEntry*100).toFixed(1)}¢ avg.`}</dd></div>
     </dl>
-    <p>{r.polymarketIntelligence.synopsis}</p>
+
     <small>Manual review · standard taker fee estimate · no assumed rebate{/MARKET_HISTORY_(?:RECOVERY|2026Q4)/.test(String(r.polymarketIntelligence.delivery||""))?" · recovery feed":""}</small>
-   </div>
+   </div> : null}
   </div>)}</div>
   {!hasPolymarket ? <p className="fbis-moneyline-note">Polymarket: no matched observed price for this event.</p> : null}
-  <p className="fbis-moneyline-note">FBIS − book gap is a percentage-point comparison against the PinnOdds quoted implied probability (including vig), not a calibrated betting edge. Polymarket contract prices are before fees; a missing source shows —. {researchOnly?"No automatic wager authorization. ":""}{projectionState?`Model: ${String(projectionState).replaceAll("_"," ")}.`:""}</p>
+
  </section>;
 }
