@@ -14,3 +14,5 @@ trigger 2026-10-23 NBA formal qualification after successful batched 7-table sha
 trigger 2026-10-23 NBA phase 22 pre-cutover official qualification after successful fresh sync 39998686092
 
 trigger 2026-10-23 NBA authoritative post-cutover 11-sport operations health certification after PR1616
+
+trigger 2026-10-23 final post NBA D1 cutover health runtime validation after PR1617
