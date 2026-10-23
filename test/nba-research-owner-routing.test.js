@@ -26,6 +26,7 @@ const base = {
   CORE_DB: core([]),
   SPORT_DB_MODE_NBA: "sport",
   SPORT_DB_STRICT_NBA: "1",
+  SPORT_DB_LEDGER_READY_NBA: "1",
 };
 
 test("shadow mode retains PRIMARY as canonical NBA research owner", async () => {
@@ -60,6 +61,12 @@ test("CORE-approved NBA receipt routes exclusively to NBA_DB; a revoked grant bl
   assert.equal(revoked.db, null);
   const missingBinding = await resolveNbaResearchOwnerDb({ ...env, NBA_DB: null });
   assert.equal(missingBinding.ok, false);
+  for (const overrides of [{ SPORT_DB_STRICT_NBA: null }, { SPORT_DB_LEDGER_READY_NBA: null }]) {
+    const unauthorized = await resolveNbaResearchOwnerDb({ ...env, ...overrides });
+    assert.equal(unauthorized.ok, false);
+    assert.equal(unauthorized.db, null);
+    assert.equal(unauthorized.reason, "NBA_STRICT_LEDGER_READINESS_REQUIRED");
+  }
 });
 
 test("NBA routes return 503 without approval, never query PRIMARY after attempted sport activation", async () => {
