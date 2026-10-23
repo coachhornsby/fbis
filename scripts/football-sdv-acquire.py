@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -45,7 +46,7 @@ def frame_rows(frame, columns):
     if hasattr(frame, "select"):
         available = [c for c in columns if c in frame.columns]
         for row in frame.select(available).iter_rows(named=True):
-            yield {k: iso(v) if isinstance(v, (datetime,)) else v for k, v in row.items()}
+            yield {k: (None if isinstance(v,float) and not math.isfinite(v) else iso(v) if isinstance(v, datetime) else v) for k, v in row.items()}
     else:
         for row in frame.to_dict("records"):
             yield {k: row.get(k) for k in columns if k in row}
