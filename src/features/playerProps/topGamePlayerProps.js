@@ -67,22 +67,35 @@ export function topThreeGamePlayerProps(game={}) {
       displayStatus:line==null?"PROJECTION_ONLY":raw.propGate==="HOLD"?"RESEARCH_HOLD":"RESEARCH_ONLY",
     });
   }
-  // Prefer Standard PrizePicks lines so embedded cards match Player Props / Board.
-  const isStandard=(r)=>String(r.oddsTier||r.odds_tier||"standard").toLowerCase()==="standard";
-  const isPrizePicks=(r)=>{
-    const book=String(r.book||r.source||"").toLowerCase();
-    return book.includes("prizepicks")||book==="prizepicks_apify";
+  // One player per game card, regardless of market or provider ID spelling.
+  // Rank matched, independently modeled probabilities first. A projection
+  // without a comparable market threshold cannot assert a hit probability.
+  const isPrizePicks = r => /prizepicks/i.test(String(r.book || r.source || r.provider || ""));
+  const candidates = rows.filter(r => !isPrizePicks(r));
+  const hitProbability = r => {
+    if (!r.hasPairedLine) return null;
+    const over = finite(r.probabilityOver);
+    const under = finite(r.probabilityUnder);
+    if (over == null || under == null || over < 0 || under < 0 ||
+        over > 1 || under > 1 || Math.abs(over + under - 1) > 0.05) return null;
+    return Math.max(over, under);
   };
-  const standardPp=rows.filter((r)=>isPrizePicks(r)&&isStandard(r)&&r.hasPairedLine);
-  const paired=rows.filter((r)=>r.hasPairedLine);
-  const pool=standardPp.length?standardPp:paired.length?paired:rows;
-  const sorted=sortPropsByConviction(pool);
-  const seen=new Set();
-  return sorted.filter(row=>{
-    const id=normalized(row.fbisPlayerId||row.providerPlayerId||row.playerName);
-    const key=[id,normalized(row.marketCanonical)].join("|");
-    if(seen.has(key))return false;
-    seen.add(key);
+  const sorted = [...candidates].sort((a, b) => {
+    const ap = hitProbability(a), bp = hitProbability(b);
+    if ((bp != null) !== (ap != null)) return bp != null ? 1 : -1;
+    if (ap != null && bp !== ap) return bp - ap;
+    // Unpriced / uncalibrated projections are context, not ranked hit picks.
+    return sortPropsByConviction([a, b])[0] === a ? -1 : 1;
+  });
+  const seen = new Set();
+  return sorted.filter(row => {
+    const id = normalized(row.canonicalPlayerId || row.fbisPlayerId ||
+      row.providerPlayerId || row.playerName);
+    const name = normalized(row.playerName);
+    // Name is also checked: one person may have several provider identifiers.
+    if (!id || seen.has(id) || seen.has(name)) return false;
+    seen.add(id);
+    seen.add(name);
     return true;
-  }).slice(0,3);
+  }).slice(0, 3);
 }
