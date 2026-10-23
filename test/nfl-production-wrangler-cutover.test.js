@@ -6,7 +6,7 @@ const file=readFileSync(new URL("../wrangler.toml",import.meta.url),"utf8");
 const base=file.split("[env.production.vars]")[0];
 const production=file.split("[env.production.vars]")[1]||"";
 const prodVars=production.split("[[env.production.d1_databases]]")[0];
-test("base/preview remain shadow while NFL, CFB and NHL are authoritative in production",()=>{
+test("base/preview remain shadow while NFL, CFB, NHL and NBA are authoritative in production",()=>{
  assert.match(base,/SPORT_DB_MODE_NFL\s*=\s*"shadow"/);
  assert.match(prodVars,/SPORT_DB_MODE_NFL\s*=\s*"sport"/);
  assert.match(prodVars,/SPORT_DB_STRICT_NFL\s*=\s*"true"/);
@@ -21,7 +21,12 @@ test("base/preview remain shadow while NFL, CFB and NHL are authoritative in pro
  assert.match(prodVars,/SPORT_DB_STRICT_NHL\s*=\s*"true"/);
  assert.match(prodVars,/SPORT_DB_LEDGER_READY_NHL\s*=\s*"true"/);
  assert.match(prodVars,/SPORT_CUTOVER_RECEIPT_NHL\s*=\s*"nhl-20261022-production-v1"/);
- for(const sport of ["NBA","MLB","CBB","WNBA","SOCCER","TENNIS","NPB","KBO"]){
+ assert.match(base,/SPORT_DB_MODE_NBA\\s*=\\s*"shadow"/);
+ assert.match(prodVars,/SPORT_DB_MODE_NBA\\s*=\\s*"sport"/);
+ assert.match(prodVars,/SPORT_DB_STRICT_NBA\\s*=\\s*"true"/);
+ assert.match(prodVars,/SPORT_DB_LEDGER_READY_NBA\\s*=\\s*"true"/);
+ assert.match(prodVars,/SPORT_CUTOVER_RECEIPT_NBA\\s*=\\s*"nba-20261023-production-v1"/);
+ for(const sport of ["MLB","CBB","WNBA","SOCCER","TENNIS","NPB","KBO"]){
   assert.match(prodVars,new RegExp("SPORT_DB_MODE_"+sport+"\\s*=\\s*\"shadow\""));
  }
 });
