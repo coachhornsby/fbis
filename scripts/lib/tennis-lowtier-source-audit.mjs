@@ -2,7 +2,7 @@
 // Name matching identifies candidates for manual source-ID verification; never auto-link.
 import {addSourceMatchEvidence,tierEvidence} from './tennis-tiered-research-evidence.mjs';
 export const normalizeName=(v)=>String(v??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-export function parseCsv(text){
+export function parseCsv(text,{required=['winner_id','loser_id','tourney_date']}={}){
  const rows=[];let row=[],field='',quoted=false;
  for(let i=0;i<text.length;i++){
   const ch=text[i];
@@ -11,7 +11,7 @@ export function parseCsv(text){
  }
  if(field!==''||row.length){row.push(field);rows.push(row)}
  const header=rows.shift()||[];
- if(!header.includes('winner_id')||!header.includes('loser_id')||!header.includes('tourney_date'))
+ if(required.some(column=>!header.includes(column)))
   throw Error('SOURCE_CSV_REQUIRED_COLUMNS_MISSING');
  return rows.map(r=>Object.fromEntries(header.map((k,i)=>[k,r[i]??''])));
 }
