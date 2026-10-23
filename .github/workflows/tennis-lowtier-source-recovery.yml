@@ -1,0 +1,36 @@
+name: Tennis lower-tier source recovery audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/tennis-profile-reconciliation.js"
+      - "scripts/tennis-lowtier-source-recovery-audit.mjs"
+      - "scripts/lib/tennis-lowtier-source-audit.mjs"
+      - ".github/workflows/tennis-lowtier-source-recovery.yml"
+permissions:
+  contents: read
+concurrency:
+  group: tennis-lowtier-source-recovery
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: '22'}
+      - name: Verify deployed commit before relying on live authenticated API
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Audit source-backed Challenger Futures and ITF recovery candidates
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: node scripts/tennis-lowtier-source-recovery-audit.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: tennis-lowtier-source-recovery
+          path: artifacts/tennis-lowtier-source-recovery.json
+          retention-days: 30
+          if-no-files-found: warn
