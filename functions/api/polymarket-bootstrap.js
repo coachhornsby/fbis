@@ -1,28 +1,29 @@
 import {authorizeHarvest,unauthorizedBody} from '../lib/auth.js';
 import {bootstrapPolymarket} from '../lib/polymarketBootstrap.js';
 import {collectPolymarketUsTennisInventory} from '../lib/tennisExchangeInventory.js';
-const LIMIT=9_500_000_000;
+import {capacityAlertLevel} from '../lib/databaseOwnership.js';
+import {shouldBlockMarketHistoryWrite} from '../lib/marketHistoryCapacity.js';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 /**
  * Unified with resolveMarketHistoryWriteDb / WS persist: observation writes
  * always prefer Q4. Never fall through to PRIMARY for market observations.
  * Legacy MARKET_HISTORY_DB only when MARKET_HISTORY_ALLOW_LEGACY_WRITE=enabled.
  */
-export function bootstrapWriteTarget(env,sizeAfter){
- const bytes=Number(sizeAfter);
- const primaryBytes=Number.isFinite(bytes)?bytes:null;
- if(env.MARKET_HISTORY_2026Q4_DB?.prepare){
-  return {db:env.MARKET_HISTORY_2026Q4_DB,store:'MARKET_HISTORY_2026Q4',primaryBytes};
- }
- if(env.MARKET_HISTORY_ALLOW_LEGACY_WRITE==='enabled'&&env.MARKET_HISTORY_DB?.prepare){
-  return {db:env.MARKET_HISTORY_DB,store:'MARKET_HISTORY',primaryBytes};
- }
- return {
-  db:null,
-  store:null,
-  primaryBytes,
-  blocked:'MARKET_HISTORY_2026Q4_UNBOUND_FAIL_CLOSED',
- };
+export function bootstrapWriteTarget(env,sizeAfter,historySizeAfter=null){
+ const primary=Number(sizeAfter);
+ const primaryBytes=Number.isSafeInteger(primary)&&primary>0?primary:null;
+ const q4=env.MARKET_HISTORY_2026Q4_DB?.prepare?env.MARKET_HISTORY_2026Q4_DB:null;
+ const legacy=!q4&&env.MARKET_HISTORY_ALLOW_LEGACY_WRITE==='enabled'&&env.MARKET_HISTORY_DB?.prepare?env.MARKET_HISTORY_DB:null;
+ const db=q4||legacy;
+ const store=q4?'MARKET_HISTORY_2026Q4':legacy?'MARKET_HISTORY':null;
+ if(!db)return {db:null,store:null,primaryBytes,blocked:'MARKET_HISTORY_2026Q4_UNBOUND_FAIL_CLOSED'};
+ // A bound shard is not evidence of free space. Reject unknown or >=85% Q4/legacy.
+ const bytes=Number(historySizeAfter);
+ if(!Number.isSafeInteger(bytes)||bytes<=0)return {db:null,store,primaryBytes,blocked:'MARKET_HISTORY_SIZE_UNVERIFIED_FAIL_CLOSED'};
+ const capacity=capacityAlertLevel(bytes);
+ const gate=shouldBlockMarketHistoryWrite(capacity);
+ if(gate.blocked)return {db:null,store,primaryBytes,capacity,blocked:'MARKET_HISTORY_CAPACITY_'+capacity.level+'_FAIL_CLOSED'};
+ return {db,store,primaryBytes,historyBytes:bytes,capacity};
 }
 export async function onRequestPost({request,env}){
  if(!authorizeHarvest(request,env).ok)return json(unauthorizedBody(),403);
@@ -37,7 +38,10 @@ export async function onRequestPost({request,env}){
   let observationDb=env.DB,observationStore='PRIMARY';
   if(body.operation!=='catalogue'){
    const probe=await env.DB.prepare('SELECT 1 AS healthy').all();
-   const target=bootstrapWriteTarget(env,probe?.meta?.size_after);
+   const historyDb=env.MARKET_HISTORY_2026Q4_DB?.prepare?env.MARKET_HISTORY_2026Q4_DB:
+     env.MARKET_HISTORY_ALLOW_LEGACY_WRITE==='enabled'?env.MARKET_HISTORY_DB:null;
+   const historyProbe=historyDb?.prepare?await historyDb.prepare('SELECT 1 AS healthy').all():null;
+   const target=bootstrapWriteTarget(env,probe?.meta?.size_after,historyProbe?.meta?.size_after);
    if(!target.db)return json({ok:false,error:target.blocked,canAuthorizeWager:false},409);
    observationDb=target.db;observationStore=target.store;
   }
