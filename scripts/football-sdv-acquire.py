@@ -135,9 +135,9 @@ def main():
                         # Dataset timestamps are collection clocks, never backdated to past games.
                         market_reference = None
                         if sport == "nfl":
-                            spread, total = s.get("spread_line"), s.get("total_line")
-                            if isinstance(spread,(float,int)) and isinstance(total,(float,int)) and math.isfinite(spread) and math.isfinite(total) and 20 <= total <= 90:
-                                market_reference = {"homeMargin": float(spread), "total": float(total),
+                            spread, closing_total = s.get("spread_line"), s.get("total_line")
+                            if isinstance(spread,(float,int)) and isinstance(total,(float,int)) and math.isfinite(spread) and math.isfinite(closing_total) and 20 <= closing_total <= 90:
+                                market_reference = {"homeMargin": float(spread), "total": float(closing_total),
                                   "source": "NFLVERSE_PFR_HISTORICAL_CLOSING", "asOf": None, "prospective": False}
                         obj={"sport":sport,"season":season,"gameId":gid,"kickoff":kickoff,
                              "marketReference":market_reference,
@@ -156,7 +156,7 @@ def main():
             except Exception as e:
                 manifest["errors"].append({"sport":sport,"season":season,"error":str(e)[:240]})
                 print(f"{sport} {season}: {type(e).__name__}: {e}",flush=True)
-    manifest["scheduledGames"]=total
+    manifest["scheduledGames"]=int(total)
     (out/"acquisition-manifest.json").write_text(json.dumps(manifest,indent=2))
     if total==0:
         raise SystemExit("NO_VERIFIED_SDV_SCHEDULE_AND_PBP_PAIRS")
