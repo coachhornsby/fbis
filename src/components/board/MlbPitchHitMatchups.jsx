@@ -130,9 +130,9 @@ function buildSide({ game, away, home, offenseSide }) {
     metrics,
     bppBits,
     detail: factor?.detail || (packet
-      ? "Statcast arsenal × contact-zone research."
+      ? "Statcast arsenal × contact zones."
       : bppBits.length
-        ? "Ballpark Pal starter matchup research."
+        ? "Ballpark Pal starter matchup."
         : "Starter projection inputs."),
     source: packet
       ? "STATCAST PITCH × HITTER ZONE"
@@ -187,7 +187,7 @@ export default function MlbPitchHitMatchups({ game, away, home }) {
           <small>RUN ENV Δ</small>
           <strong>{summaryValue}</strong>
         </div>
-        <p>Lineup contact-zone profile versus opposing starter arsenal. Research only — not wager authority.</p>
+        <p>Lineup contact-zone profile versus opposing starter arsenal.</p>
       </div>
 
       <div className="mlb-pvh-grid">

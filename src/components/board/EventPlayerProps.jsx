@@ -23,7 +23,7 @@ export default function EventPlayerProps({game}) {
   return <details className="event-player-props" onClick={event=>event.stopPropagation()} onKeyDown={event=>event.stopPropagation()} onToggle={event=>setExpanded(event.currentTarget.open)}>
     <summary>PLAYER PROPS <span>{result ? `${result.rows.length} observed markets` : 'View sources and markets'}</span></summary>
     {expanded ? <div className="event-props-body">
-      <p>Observed market prices · Research only · No wager authority</p>
+      <p>Observed market prices</p>
       {error ? <p role="alert">Prop source unavailable: {error}</p> : !result ? <p role="status">Loading event markets…</p> : <>
         {result.rows.length ? <div className="event-props-table"><table>
           <thead><tr><th>Player / market</th><th>Book / line</th><th>Over / Under</th><th>FBIS</th><th>Evidence</th></tr></thead>
@@ -35,7 +35,7 @@ export default function EventPlayerProps({game}) {
               <td>{row.book||row.provider||'Unknown source'}<span>{line??'—'}</span></td>
               <td>{row.decimalPrice!=null?`${row.side||'Observed'} ${decimal(row.decimalPrice)}`:`${row.overOdds!=null?odds(row.overOdds):decimal(row.overDecimalOdds)} / ${row.underOdds!=null?odds(row.underOdds):decimal(row.underDecimalOdds)}`}</td>
               <td>{projection??'No comparable projection'}{gap!=null?<span>Difference {gap>0?'+':''}{gap}</span>:null}</td>
-              <td>{row.temporal?.status||'SOURCE_TIME_UNKNOWN'}<span>Collected {row.collectedAt||'unknown'}</span><span>{row.providerTimeConfidence==='MIRROR_REPORTED_CAPTURE'?'Mirror capture':'Provider time'} {row.sourceObservedAt||'unknown'}</span>{row.quoteKind==='DAILY_MIRROR_REFERENCE_NOT_LIVE_VERIFIED'?<span>Daily snapshot · Not live verified</span>:null}<span>RESEARCH / NOT QUALIFIED</span></td>
+              <td>{row.temporal?.status||'SOURCE_TIME_UNKNOWN'}<span>Collected {row.collectedAt||'unknown'}</span><span>{row.providerTimeConfidence==='MIRROR_REPORTED_CAPTURE'?'Mirror capture':'Provider time'} {row.sourceObservedAt||'unknown'}</span>{row.quoteKind==='DAILY_MIRROR_REFERENCE_NOT_LIVE_VERIFIED'?<span>Daily snapshot · Not live verified</span>:null}</td>
             </tr>;
           })}</tbody>
         </table></div> : <p>{result.diagnostics?.absenceReason||'NO_OBSERVED_PROPS_FOR_EVENTS'}</p>}

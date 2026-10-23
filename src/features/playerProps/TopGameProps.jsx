@@ -72,8 +72,8 @@ export default function TopGameProps({ game }) {
         <h3>TOP 3 PLAYER PROPS</h3>
         <span>
           {useStyleCards
-            ? "FBIS projections · last-5 · research only"
-            : "FBIS model context · not betting picks"}
+            ? "FBIS projections · last-5"
+            : "FBIS model context"}
         </span>
       </div>
 
@@ -98,8 +98,8 @@ export default function TopGameProps({ game }) {
                   {p.displayStatus === "PROJECTION_ONLY"
                     ? "MODEL ONLY"
                     : p.displayStatus === "RESEARCH_HOLD"
-                      ? "RESEARCH HOLD"
-                      : "RESEARCH"}
+                      ? "MODEL"
+                      : "MODEL"}
                 </span>
               </div>
               <strong className="top-game-prop-player">{p.playerName}</strong>
@@ -134,9 +134,7 @@ export default function TopGameProps({ game }) {
                 : "No game-matched, independent FBIS player projections available for this matchup."}
         </p>
       )}
-      <p className="top-game-props-disclaimer">
-        Research display only. Missing prices, lines and probabilities are not estimated. No automatic wager qualification.
-      </p>
+
     </section>
   );
 }

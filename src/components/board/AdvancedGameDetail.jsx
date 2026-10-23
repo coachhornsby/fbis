@@ -123,7 +123,6 @@ export default function AdvancedGameDetail({ game, onClose }) {
                 <Kv label={`${weatherEmoji(vm.weatherLine)} WEATHER`} value={vm.weatherLine || "Unavailable"} />
                 <Kv label="🏟 VENUE" value={vm.venueLine || "Unavailable"} />
                 <Kv label="🩹 PERSONNEL" value={vm.injuries?.available ? `${vm.injuries.rows.length} listed` : "Unavailable"} />
-                <Kv label="🧠 AUTHORITY" value={vm.authority?.research ? "RESEARCH" : vm.status?.label || "—"} />
               </div>
             </div>
 
