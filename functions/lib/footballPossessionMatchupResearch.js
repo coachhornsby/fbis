@@ -90,7 +90,7 @@ export function selectMatchupDriveHistory(games,{
      !validId(g.sourceFingerprint)||!Array.isArray(g.drives)||g.drives.length<12)reason="UNVERIFIED_SOURCE_OR_TEAM";
   else if(![stamp(g.kickoff),stamp(g.gradedAt),stamp(g.observedAt)].every(Number.isFinite)||
      !(stamp(g.kickoff)<=stamp(g.gradedAt)&&stamp(g.gradedAt)<=stamp(g.observedAt)&&
-       (historicalReconstruction?stamp(g.gradedAt)<stamp(frozenAt):stamp(g.observedAt)<stamp(frozenAt))))
+       (historicalReconstruction?stamp(g.kickoff)<stamp(frozenAt):stamp(g.observedAt)<stamp(frozenAt))))
      reason="FUTURE_OR_MISSING_SOURCE_TIME";
   else if(g.drives.some(d=>!["home","away"].includes(d.offense)||
      !Number.isInteger(d.period)||d.period<1||d.period>4||
