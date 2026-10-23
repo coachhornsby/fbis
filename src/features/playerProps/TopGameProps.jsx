@@ -117,7 +117,7 @@ export default function TopGameProps({ game }) {
     r.probabilityOver != null && r.probabilityUnder != null).length;
 
   return (
-    <section className="top-game-props" aria-label="Top three game player props">
+    <section className="top-game-props exchange-props-panel pp-premium-page" aria-label="Top three game player props">
       <div className="top-game-props-heading">
         <h3>TOP 3 PLAYER PROPS</h3>
         <span>
@@ -128,7 +128,7 @@ export default function TopGameProps({ game }) {
       </div>
 
       {styleCardRows.length ? (
-        <div className="pp-card-grid pp-premium-grid top-game-props-grid top-game-pp-cards">
+        <div className="pp-card-grid pp-premium-grid exchange-prop-grid top-game-props-grid top-game-pp-cards">
           {styleCardRows.map((p, i) => (
             <FBISPlayerPropCard
               key={`${p.gameId}:${p.playerName}:${p.marketCanonical}:${p.line}:${i}`}
