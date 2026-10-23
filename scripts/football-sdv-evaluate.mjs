@@ -18,7 +18,7 @@ const args=Object.fromEntries(process.argv.slice(2).filter(x=>x.startsWith("--")
 const folder=args.input||"artifacts/football-sdv";
 const maxGames=Math.min(400,Math.max(1,Number(args.maxGames||200)));
 const rounds=Math.min(500,Math.max(100,Number(args.iterations||150)));
-const now=new Date().toISOString(),stats={},all=[];
+const now=new Date().toISOString(),stats={},all=[],historicMarkets=new Map();
 const mark=(s,key)=>{s[key]=(s[key]||0)+1};
 async function load(file){
  const sport=path.basename(file).split("-")[0];
@@ -29,6 +29,9 @@ async function load(file){
   counter.sources++;
   try{
    const raw=JSON.parse(line);
+   if(raw.marketReference?.source==="NFLVERSE_PFR_HISTORICAL_CLOSING"&&
+     Number.isFinite(raw.marketReference.homeMargin)&&Number.isFinite(raw.marketReference.total))
+    historicMarkets.set(sport+"|"+raw.gameId,raw.marketReference);
    const sourceArtifactHash=crypto.createHash("sha256").update(JSON.stringify(raw.sourceRows)).digest("hex");
    const fn=sport==="nfl"?extractNflfastRPossessionGame:extractSdvCfbDriveGame;
    const game=fn({gameId:raw.gameId,kickoff:raw.kickoff,
@@ -65,6 +68,8 @@ function fairBaseline(g,training){
 const round=x=>x===null?null:Math.round(x*10000)/10000;
 function grade(items){
  const n=items.length;
+ const paired=items.filter(x=>x.historicalMarket&&Number.isFinite(x.historicalMarket.homeMargin)&&
+   Number.isFinite(x.historicalMarket.total));
  const buckets=Array.from({length:10},(_,k)=>{
   const xs=items.filter(x=>Math.min(9,Math.floor(x.homeProb*10))===k);
   return {bin:k,n:xs.length,predicted:round(mean(xs.map(x=>x.homeProb))),
@@ -76,7 +81,14 @@ function grade(items){
   projectedTotalMAE:round(mean(items.map(x=>Math.abs(x.predTotal-(x.homeScore+x.awayScore))))),
   blowout14Brier:round(mean(items.map(x=>x.blowoutBrier))),
   medianRankP:round(mean(items.map(x=>Math.max(x.homeProb,x.awayProb)))),
-  calibrationBuckets:buckets};
+  calibrationBuckets:buckets,
+  historicalClosingLineComparison:{source:"NFLVERSE_PFR_HISTORICAL_CLOSING",
+   sampleN:paired.length,
+   referenceMarginMAE:round(mean(paired.map(x=>Math.abs(x.historicalMarket.homeMargin-(x.homeScore-x.awayScore))))),
+   referenceTotalMAE:round(mean(paired.map(x=>Math.abs(x.historicalMarket.total-(x.homeScore+x.awayScore))))),
+   challengerMarginMAE:round(mean(paired.map(x=>Math.abs(x.predMargin-(x.homeScore-x.awayScore))))),
+   challengerTotalMAE:round(mean(paired.map(x=>Math.abs(x.predTotal-(x.homeScore+x.awayScore))))),
+   contemporaneousQuotesVerified:false,CLV:null,ROI:null}};
 }
 const reports={};
 const minTrain=20;
@@ -110,6 +122,7 @@ for(const sport of ["nfl","cfb"]){
   outcomes.push({gameId:g.gameId,kickoff:g.kickoff,season:g.season,homeTeamId:g.homeTeamId,
    awayTeamId:g.awayTeamId,homeScore:g.homeScore,awayScore:g.awayScore,
    sourceFingerprint:g.sourceFingerprint,sourceObservedAt:g.observedAt,
+   historicalMarket:historicMarkets.get(sport+"|"+g.gameId)||null,
    reconstructed:true,prospective:false,trainingGames:r.trainingGames,trainingDrives:r.trainingDrives,
    modelId:r.modelId,modelVersion:r.modelVersion,iterations:r.iterations,
    homeProb:ps[0],awayProb:ps[1],tieProb:ps[2],
@@ -121,7 +134,8 @@ for(const sport of ["nfl","cfb"]){
  reports[sport]={archiveGames:games.length,holdoutCandidates:holdout.length,
   reconstructedOnly:true,prospective:false,excluded,
   model:grade(outcomes),baseline:"lagged team points for / opponent allowed",
-  liveChampionComparison:null,closingPriceComparison:null,CLV:null,ROI:null,
+  liveChampionComparison:null,closingPriceComparison:sport==="nfl"?"RETROSPECTIVE_PFR_CLOSING_COMPARISON":null,
+  contemporaneousPricingVerified:false,CLV:null,ROI:null,
   limitations:["SDV archive observed after games; not strict historical point-in-time",
     "No contemporaneous wager/closing line ledger joined",
     "Empirical challenger never promotes on retrospective results"]};
