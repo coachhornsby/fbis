@@ -15,6 +15,7 @@ import { attachNflProShadow } from "./nflProModel.js";
 import { attachNflGameMatchups } from "./nflGameMatchup.js";
 import { attachNflWagerDecisions } from "./nflWagerDecision.js";
 import { productSportDbHandle } from "./databaseTopology.js";
+import { resolveNbaResearchOwnerDb } from "./nbaResearchOwnerDb.js";
 import { loadNflTeamProfiles, attachNflPersistentProfiles } from "./nflTeamProfiles.js";
 import { NFL_WAGER_CONFIDENCE_V1 } from "../../data/models/nfl-wager-confidence-v1.js";
 import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
@@ -81,6 +82,12 @@ const MLB_STARTER_FLAGS = new Set(["missing_home_sp", "missing_away_sp"]);
  * production projection engine after cutover; qualification stays disabled.
  */
 export async function buildSlate(sport, date, env = {}) {
+  if (String(sport).toLowerCase() === "nba") {
+    const owner = await resolveNbaResearchOwnerDb(env);
+    if (!owner.ok) throw new Error(owner.reason || "NBA_RESEARCH_OWNER_UNAVAILABLE");
+    // CORE approval is hydrated request-locally and applies to the entire slate.
+    env = owner.env;
+  }
   const slate = await core.buildSlate(sport, date, env);
   const id = String(slate?.sport || sport).toLowerCase();
 
