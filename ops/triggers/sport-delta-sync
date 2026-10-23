@@ -9,3 +9,5 @@ trigger 2026-10-22 NBA post settlement-grade replay PR1556 shadow certification
 trigger 2026-10-22 NBA full 31-table research shadow catch-up, no authority cutover
 
 trigger 2026-10-23 NBA generic predictions 137-v-133 gap replay PR1577; shadow only
+
+trigger 2026-10-23 NBA mutable profile/team/schedule/observations replay after PR1585; shadow only
