@@ -82,3 +82,17 @@ test("NBA settlement backfill denies missing CORE approval before any ledger wri
  assert.deepEqual(env.DB.queries,[]);
  assert.deepEqual(env.NBA_DB.queries,[]);
 });
+
+test("NBA CSV export surfaces missing cutover approval as 503 instead of empty 200",async()=>{
+ const { onRequestGet }=await import("../functions/api/projection-sheet-feed.js");
+ const previous=globalThis.caches;
+ globalThis.caches={default:{}};
+ try{
+  const env=testEnv({CORE_DB:{prepare(){return {bind(){return this},all:async()=>({results:[]})}}}});
+  const response=await onRequestGet({env,request:new Request("https://example.test/api/projection-sheet-feed?sport=nba")});
+  assert.equal(response.status,503);
+  assert.match(await response.text(),/nba-owner-unavailable/);
+  assert.deepEqual(env.DB.queries,[]);
+  assert.deepEqual(env.NBA_DB.queries,[]);
+ }finally{globalThis.caches=previous;}
+});
