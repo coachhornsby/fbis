@@ -1133,7 +1133,9 @@ export async function copySportPrefixTables(env, sport, {
           nba_player_prop_projections: "graded_at",
           nba_player_prop_impact_shadow: "graded_at",
           nba_prospective_game_shadow: "graded_at",
-          nba_deep_game_shadow: "graded_at",
+          // NBA deep projections are recomputed in place before grading.
+          // Both created_at and graded_at must advance the bounded replay.
+          nba_deep_game_shadow: ["created_at", "graded_at"],
         },
         nhl: {
           nhl_team_profiles: "updated_at",
@@ -1144,16 +1146,22 @@ export async function copySportPrefixTables(env, sport, {
           nhl_deployment_observations: "observed_at",
         },
       };
-      const freshnessColumn = freshnessColumnBySport[key]?.[table] || null;
+      const freshnessColumns = freshnessColumnBySport[key]?.[table] || null;
       let staleContent = false;
-      if (freshnessColumn && primaryN != null && sportN != null &&
+      if (freshnessColumns && primaryN != null && sportN != null &&
           primaryN === sportN && !replayActive) {
         const safe = assertSafeIdent(table);
-        const [sourceStamp, targetStamp] = await Promise.all([
-          primary.prepare(`SELECT MAX(${freshnessColumn}) AS latest FROM ${safe}`).first(),
-          sportDb.prepare(`SELECT MAX(${freshnessColumn}) AS latest FROM ${safe}`).first(),
-        ]);
-        staleContent = newerPrefixSourceTimestamp(sourceStamp?.latest, targetStamp?.latest);
+        for (const field of [freshnessColumns].flat()) {
+          const freshnessColumn = assertSafeIdent(field);
+          const [sourceStamp, targetStamp] = await Promise.all([
+            primary.prepare(`SELECT MAX(${freshnessColumn}) AS latest FROM ${safe}`).first(),
+            sportDb.prepare(`SELECT MAX(${freshnessColumn}) AS latest FROM ${safe}`).first(),
+          ]);
+          if (newerPrefixSourceTimestamp(sourceStamp?.latest, targetStamp?.latest)) {
+            staleContent = true;
+            break;
+          }
+        }
       }
       if (primaryN != null && sportN != null && primaryN === sportN && !replayActive && !staleContent) {
         skipped.push({ table, primaryCount: primaryN, sportCount: sportN, status: "SKIPPED_CAUGHT_UP" });
