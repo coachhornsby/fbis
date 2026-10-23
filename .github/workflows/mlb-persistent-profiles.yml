@@ -4,7 +4,8 @@ name: MLB persistent team profiles
 on:
   workflow_dispatch:
   schedule:
-    - cron: "45 10,18 * * *"
+    # Eight-hour cadence stays inside the board's 14-hour profile limit.
+    - cron: "45 2,10,18 * * *"
   push:
     branches: [main, "feat/mlb-persistent-state-*"]
     paths:
@@ -16,6 +17,7 @@ on:
       - "migrations/0055_mlb_persistent_profiles.sql"
       - "test/mlb-persistent-profiles.test.js"
       - ".github/workflows/mlb-persistent-profiles.yml"
+      - "ops/triggers/mlb-profile-refresh"
 
 permissions:
   contents: read

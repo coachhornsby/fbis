@@ -678,3 +678,24 @@
 .fbis-shell-main .cgc.fbis-universal-premium aside.cgc-best-edge.value-decision-model > strong {grid-area:delta;}
 .fbis-shell-main .cgc.fbis-universal-premium aside.cgc-best-edge.value-decision-model > b {grid-area:detail;}
 .fbis-shell-main .cgc.fbis-universal-premium aside.cgc-best-edge.value-decision-model > small {grid-area:note;}
+
+/* Starting pitchers remain readable beneath each MLB team. */
+.fbis-shell-main .cgc.fbis-universal-premium .cgc-mlb-starter {width:min(260px,100%);gap:10px;margin:7px auto 3px;}
+.fbis-shell-main .cgc.fbis-universal-premium .cgc-starter-avatar.cgc-starter-shot {width:78px;height:78px;flex:0 0 78px;}
+.fbis-shell-main .cgc.fbis-universal-premium .cgc-starter-copy {gap:5px;}
+.fbis-shell-main .cgc.fbis-universal-premium .cgc-starter-copy > strong {max-width:none;font-size:15px;line-height:1.2;white-space:normal;overflow:visible;}
+.fbis-shell-main .cgc.fbis-universal-premium .cgc-starter-copy > span {font-size:13px;line-height:1.3;white-space:normal;color:#d6e9fa;font-weight:750;}
+.fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter {max-width:350px;padding:8px 12px;gap:12px;}
+.fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter-shot {width:112px;height:112px;flex:0 0 112px;}
+.fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter strong {font-size:19px;line-height:1.2;white-space:normal;overflow:visible;}
+.fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter div > span {font-size:15px;line-height:1.3;white-space:normal;color:#d6e9fa;font-weight:750;}
+.fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter small {font-size:11px;}
+@media(max-width:560px){
+ .fbis-shell-main .cgc.fbis-universal-premium .cgc-mlb-starter {flex-direction:column;gap:6px;}
+ .fbis-shell-main .cgc.fbis-universal-premium .cgc-starter-copy {text-align:center;}
+ .fbis-shell-main .cgc.fbis-universal-premium .cgc-starter-copy > strong {font-size:13px;}
+ .fbis-shell-main .cgc.fbis-universal-premium .cgc-starter-copy > span {font-size:12px;}
+ .fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter-shot {width:88px;height:88px;flex-basis:88px;}
+ .fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter strong {font-size:16px;}
+ .fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter div > span {font-size:14px;}
+}

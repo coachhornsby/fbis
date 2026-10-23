@@ -368,6 +368,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     mlbDeepShadow: sport === "mlb" && game.mlbDeepShadow
       ? {
           ok: game.mlbDeepShadow.ok === true,
+          reason: game.mlbDeepShadow.reason || null,
           pitcherKs: game.mlbDeepShadow.pitcherKs || null,
           f5: game.mlbDeepShadow.f5 || null,
         }

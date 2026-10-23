@@ -122,7 +122,7 @@ function MlbStarterMini({ game, side }) {
   const record = sp.wins != null && sp.losses != null ? `${sp.wins}-${sp.losses}` : null;
   const era = Number.isFinite(Number(sp.era)) ? `${Number(sp.era).toFixed(2)} ERA` : null;
   const image = sp.id
-    ? `https://img.mlbstatic.com/mlb-photos/image/upload/w_180,q_auto:best/v1/people/${sp.id}/headshot/67/current`
+    ? `/api/mlb-headshot?id=${encodeURIComponent(sp.id)}`
     : null;
   return (
     <div className="pgc-mlb-starter">
