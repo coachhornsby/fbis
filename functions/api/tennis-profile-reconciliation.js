@@ -12,6 +12,7 @@ export async function onRequestGet({request,env}){
  const offset=Math.max(0,Math.min(2000,Math.floor(Number(params.get('offset')||0)||0)));
  try{
   const base=`FROM tennis_private_portrait_cohort_members m
+   LEFT JOIN tennis_players cp ON cp.fbis_player_id=m.fbis_player_id AND cp.tour=m.tour
    LEFT JOIN tennis_private_portrait_source_references r
     ON r.cohort_id=m.cohort_id AND r.tour=m.tour AND r.player_key=m.player_key
    WHERE m.cohort_id=?`;
@@ -33,6 +34,7 @@ export async function onRequestGet({request,env}){
   const missing=(await env.DB.prepare(`SELECT m.tour,m.elo_rank AS eloRank,m.player_name AS playerName,
     m.player_key AS playerKey,m.fbis_player_id AS playerId,
     r.official_id_status AS officialIdStatus,
+    cp.date_of_birth AS canonicalDob,cp.country_code AS canonicalCountry,
     CASE WHEN ${profileExists('hard')} THEN 0 ELSE 1 END missingHard,
     CASE WHEN ${profileExists('clay')} THEN 0 ELSE 1 END missingClay,
     CASE WHEN ${profileExists('grass')} THEN 0 ELSE 1 END missingGrass,
