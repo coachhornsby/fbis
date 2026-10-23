@@ -29,6 +29,7 @@ jobs:
           node-version: '22'
       - name: Trace production model and contract completeness
         env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           AUDIT_DATE: ${{ inputs.date }}
           AUDIT_SPORTS: ${{ inputs.sports }}
         run: node scripts/audit-prop-acceptance.mjs "$AUDIT_DATE" "$AUDIT_SPORTS"

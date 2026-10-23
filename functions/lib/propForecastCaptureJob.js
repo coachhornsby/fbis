@@ -2,8 +2,10 @@ import { buildSlate } from './slateEngine.js';
 import { independentPropRows,loadPropFixturesAndPlayers,resolvePropModelIdentities,resolvePropResearchEnv } from './propResearchData.js';
 import { chicagoDayBounds } from './chicagoDayBounds.js';
 import { freezePropForecasts } from './propForecastArchive.js';
-export async function capturePropForecastJob(env,{now=new Date(),webCrypto=globalThis.crypto}={}){
- const sport=['nba','nfl','nhl','mlb'][Math.floor(now.getTime()/(15*60*1000))%4];
+export async function capturePropForecastJob(env,{now=new Date(),webCrypto=globalThis.crypto,sport:requestedSport=null}={}){
+ const sports=['nba','nfl','nhl','mlb'];
+ if(requestedSport&&!sports.includes(requestedSport))return {ok:false,reason:'SPORT_CAPTURE_NOT_SUPPORTED'};
+ const sport=requestedSport||sports[Math.floor(now.getTime()/(15*60*1000))%4];
  const owner=await resolvePropResearchEnv(env,sport);if(!owner.ok)return {ok:false,reason:'SPORT_OWNER_UNAVAILABLE',sport};
  const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
  let date=day;

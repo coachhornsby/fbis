@@ -1,3 +1,5 @@
+import {authorizeHarvest,unauthorizedBody} from '../lib/auth.js';
+import {capturePropForecastJob} from '../lib/propForecastCaptureJob.js';
 import { onRequestGet as exchange } from './exchange-player-props.js';
 import { onRequestGet as projections } from './prop-projections.js';
 import { buildPropAcceptance } from '../lib/propAcceptance.js';
@@ -13,4 +15,13 @@ export async function onRequestGet({env,request}) {
   ...(market.diagnostics||[]).filter(d=>d.status==='READ_FAILED'||d.truncated).map(d=>d.store+':'+(d.truncated?'TRUNCATED':d.status))];
  const report=buildPropAcceptance({models:model.rows||[],contracts:market.rows||[],sport,date,sourceDiagnostics:diagnostics});
  return Response.json({ok:model.ok===true&&market.ok===true,...report,collectorCoverage:market.collectorCoverage||[],marketCoverage:market.coverage||[],modelStates:model.modelStates||[]},{headers:{'cache-control':'no-store'}});
+}
+
+/** Authenticated trigger builds models server-side; request bodies never supply forecasts. */
+export async function onRequestPost({env,request}){
+ const auth=authorizeHarvest(request,env);if(!auth.ok)return Response.json(unauthorizedBody(auth.reason),{status:403});
+ const sport=new URL(request.url).searchParams.get('sport');
+ if(!['nba','nfl','nhl','mlb'].includes(sport))return Response.json({ok:false,error:'Unsupported forecast capture sport'},{status:400});
+ try{const result=await capturePropForecastJob(env,{sport});return Response.json(result,{status:result.ok?200:503,headers:{'cache-control':'no-store'}});}
+ catch{return Response.json({ok:false,error:'FORECAST_CAPTURE_UNAVAILABLE'},{status:503});}
 }
