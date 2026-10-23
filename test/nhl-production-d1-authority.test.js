@@ -6,12 +6,12 @@ import { sportLedgerEnv, sportLedgerFanoutDbs } from "../functions/lib/sportLedg
 const text=readFileSync(new URL("../wrangler.toml",import.meta.url),"utf8");
 const [preview,prod=""]=text.split("[env.production.vars]");
 const cfg=prod.split("[[env.production.d1_databases]]")[0];
-test("NHL joins NFL and CFB as separately approved sport authority only in production",()=>{
- for(const sport of ["NHL","NFL","CFB"]){
+test("NHL, NFL, CFB and NBA have independently approved production storage authority",()=>{
+ for(const sport of ["NHL","NFL","CFB","NBA"]){
   assert.ok(preview.includes('SPORT_DB_MODE_'+sport+' = "shadow"'));
   assert.ok(cfg.includes('SPORT_DB_MODE_'+sport+' = "sport"'));
  }
- for(const sport of ["NBA","CBB","MLB","SOCCER","TENNIS","WNBA","NPB","KBO"]){
+ for(const sport of ["CBB","MLB","SOCCER","TENNIS","WNBA","NPB","KBO"]){
   assert.ok(cfg.includes('SPORT_DB_MODE_'+sport+' = "shadow"'));
  }
  assert.ok(cfg.includes('NHL_SPORT_DB_MODE = "shadow"'));
