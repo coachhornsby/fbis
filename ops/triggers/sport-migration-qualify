@@ -8,3 +8,5 @@ trigger 2026-10-22 NBA mandatory cutover rehearsal post PR1557; preserve shadow 
 trigger 2026-10-23 NBA 31-prefix plus 4-working-table authority rehearsal after PR1577 PR1580 (shadow only)
 
 trigger 2026-10-23 NBA source-field mutable-owner integrity gate PR1588, fail-closed shadow qualification
+
+trigger 2026-10-23 tennis prefix parity unblock after orphan prune + catch-up; wave2 prefixParity gate; no cutover/deletion

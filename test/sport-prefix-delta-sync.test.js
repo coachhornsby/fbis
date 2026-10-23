@@ -4,6 +4,7 @@ import {
   sportMigrationScope,
   ensureMirroredSportTable,
   copyPrefixedTablePaged,
+  pruneSportPrefixOrphans,
   prefixCompositeCursorPlan,
   copySportPrefixTables,
   verifySportPrefixParity,
@@ -246,9 +247,14 @@ test("all 11 sports are sync-eligible with no prop tables in prefix sets", () =>
     const scope = sportMigrationScope(sport);
     assert.equal(scope.syncEligible, true, sport);
     assert.equal(scope.cutoverAuthorized, false, sport);
-    assert.ok(!scope.prefixTables.some((t) => t.includes("prop")), sport);
+    // NBA shadow migration intentionally includes player-prop research tables.
+    // Other sports still keep props on the separate Props workstream.
+    if (sport !== "nba") {
+      assert.ok(!scope.prefixTables.some((t) => t.includes("prop")), sport);
+    }
   }
   assert.ok(SPORT_PREFIX_TABLES.nba.includes("nba_team_profiles"));
+  assert.ok(SPORT_PREFIX_TABLES.nba.some((t) => t.includes("prop")));
   assert.ok(SPORT_PREFIX_TABLES.mlb.includes("mlb_team_profiles"));
   assert.ok(SPORT_PREFIX_TABLES.tennis.includes("tennis_players"));
   assert.ok(SPORT_PREFIX_TABLES.npb.includes("asian_baseball_games"));
@@ -584,6 +590,229 @@ test("copySportPrefixTables skipCaughtUp focuses budget on incomplete tables", a
   });
   assert.ok(result.skippedCaughtUp.some((s) => s.table === "nfl_team_profiles"));
   assert.ok(result.results.some((r) => r.table === "nfl_player_profiles" && r.copied === 2));
+});
+
+test("pruneSportPrefixOrphans removes shadow-only composite keys", async () => {
+  const primaryRows = [
+    { tour: "atp", player_key: "a", surface: "hard", updated_at: "2026-10-01" },
+    { tour: "atp", player_key: "b", surface: "hard", updated_at: "2026-10-01" },
+  ];
+  const sportRows = [
+    ...primaryRows,
+    { tour: "atp", player_key: "orphan", surface: "hard", updated_at: "2026-09-01" },
+  ];
+  function pkSig(row) {
+    return `${row.tour}\0${row.player_key}\0${row.surface}`;
+  }
+  const primary = {
+    prepare(sql) {
+      const s = String(sql);
+      if (s.startsWith("PRAGMA table_info")) {
+        return {
+          all: async () => ({
+            results: [
+              { name: "tour", pk: 1 },
+              { name: "player_key", pk: 2 },
+              { name: "surface", pk: 3 },
+              { name: "updated_at", pk: 0 },
+            ],
+          }),
+        };
+      }
+      if (s.includes("SELECT tour,player_key,surface FROM")) {
+        return {
+          bind(...args) {
+            return {
+              async all() {
+                const found = primaryRows.filter((r) => {
+                  for (let i = 0; i < args.length; i += 3) {
+                    if (r.tour === args[i] && r.player_key === args[i + 1] && r.surface === args[i + 2]) {
+                      return true;
+                    }
+                  }
+                  return false;
+                });
+                return { results: found };
+              },
+            };
+          },
+        };
+      }
+      throw new Error(`unexpected primary sql: ${s}`);
+    },
+  };
+  const deleted = [];
+  const sport = {
+    prepare(sql) {
+      const s = String(sql);
+      if (s.startsWith("SELECT tour,player_key,surface FROM")) {
+        return {
+          bind(...args) {
+            const limit = Number(args[args.length - 1]);
+            return {
+              async all() {
+                let rows = [...sportRows];
+                if (s.includes("WHERE") && args.length > 1) {
+                  // composite cursor after first page — not needed for this fixture
+                }
+                return { results: rows.slice(0, limit) };
+              },
+            };
+          },
+        };
+      }
+      if (s.startsWith("DELETE FROM")) {
+        return {
+          bind(...args) {
+            return {
+              async run() {
+                deleted.push(args.join("\0"));
+                const idx = sportRows.findIndex(
+                  (r) => r.tour === args[0] && r.player_key === args[1] && r.surface === args[2]
+                );
+                if (idx >= 0) sportRows.splice(idx, 1);
+                return { meta: { changes: 1 } };
+              },
+            };
+          },
+        };
+      }
+      throw new Error(`unexpected sport sql: ${s}`);
+    },
+  };
+  const result = await pruneSportPrefixOrphans(primary, sport, "tennis_player_profiles_current", {
+    pageSize: 10,
+    maxPages: 2,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.action, "PRUNE_ORPHANS");
+  assert.equal(result.pruned, 1);
+  assert.deepEqual(deleted, ["atp\0orphan\0hard"]);
+  assert.equal(sportRows.length, 2);
+  assert.ok(sportRows.every((r) => pkSig(r) !== "atp\0orphan\0hard"));
+});
+
+test("copySportPrefixTables prunes sport-ahead prefix orphans before copy", async () => {
+  const primary = memoryDb({
+    tennis_player_profiles_current: [
+      { id: "a|hard", tour: "atp", player_key: "a", surface: "hard", updated_at: "t1" },
+    ],
+  });
+  // Seed other tennis prefix tables empty on both sides.
+  for (const table of SPORT_PREFIX_TABLES.tennis) {
+    if (!primary._tables.has(table)) primary._tables.set(table, { cols: ["id"], rows: [] });
+  }
+  const sport = memoryDb({
+    tennis_player_profiles_current: [
+      { id: "a|hard", tour: "atp", player_key: "a", surface: "hard", updated_at: "t1" },
+      { id: "orphan|hard", tour: "atp", player_key: "orphan", surface: "hard", updated_at: "t0" },
+    ],
+  });
+  for (const table of SPORT_PREFIX_TABLES.tennis) {
+    if (!sport._tables.has(table)) sport._tables.set(table, { cols: ["id"], rows: [] });
+  }
+  // Extend memory DB with DELETE + IN lookups used by prune.
+  const wrap = (db) => {
+    const old = db.prepare.bind(db);
+    db.prepare = (sql) => {
+      const s = String(sql);
+      if (s.startsWith("DELETE FROM")) {
+        return {
+          bind(...args) {
+            return {
+              async run() {
+                const table = s.match(/DELETE FROM\s+(\w+)/i)?.[1];
+                const bucket = db._tables.get(table);
+                if (!bucket) return { meta: { changes: 0 } };
+                if (s.includes("player_key=?")) {
+                  bucket.rows = bucket.rows.filter(
+                    (r) => !(r.tour === args[0] && r.player_key === args[1] && r.surface === args[2])
+                  );
+                } else {
+                  const pk = args[0];
+                  bucket.rows = bucket.rows.filter((r) => String(r.id) !== String(pk));
+                }
+                return { meta: { changes: 1 } };
+              },
+            };
+          },
+        };
+      }
+      return old(sql);
+    };
+    return db;
+  };
+  wrap(primary);
+  wrap(sport);
+  // Force PRAGMA pk metadata for composite tennis profile keys.
+  const oldPrimaryPrepare = primary.prepare.bind(primary);
+  primary.prepare = (sql) => {
+    const s = String(sql);
+    if (s.startsWith("PRAGMA table_info(tennis_player_profiles_current)")) {
+      return {
+        all: async () => ({
+          results: [
+            { name: "tour", pk: 1 },
+            { name: "player_key", pk: 2 },
+            { name: "surface", pk: 3 },
+            { name: "updated_at", pk: 0 },
+            { name: "id", pk: 0 },
+          ],
+        }),
+      };
+    }
+    if (s.includes("SELECT tour,player_key,surface FROM tennis_player_profiles_current WHERE")) {
+      return {
+        bind(...args) {
+          return {
+            async all() {
+              const rows = (primary._tables.get("tennis_player_profiles_current")?.rows || []).filter((r) => {
+                for (let i = 0; i < args.length; i += 3) {
+                  if (r.tour === args[i] && r.player_key === args[i + 1] && r.surface === args[i + 2]) return true;
+                }
+                return false;
+              });
+              return { results: rows };
+            },
+          };
+        },
+      };
+    }
+    return oldPrimaryPrepare(sql);
+  };
+  const oldSportPrepare = sport.prepare.bind(sport);
+  sport.prepare = (sql) => {
+    const s = String(sql);
+    if (s.startsWith("SELECT tour,player_key,surface FROM tennis_player_profiles_current")) {
+      return {
+        bind(...args) {
+          const limit = Number(args[args.length - 1]) || 100;
+          return {
+            async all() {
+              const rows = [...(sport._tables.get("tennis_player_profiles_current")?.rows || [])];
+              rows.sort((a, b) => `${a.tour}|${a.player_key}|${a.surface}`.localeCompare(
+                `${b.tour}|${b.player_key}|${b.surface}`
+              ));
+              return { results: rows.slice(0, limit) };
+            },
+          };
+        },
+      };
+    }
+    return oldSportPrepare(sql);
+  };
+
+  const env = { DB: primary, TENNIS_DB: sport };
+  const result = await copySportPrefixTables(env, "tennis", {
+    pageSize: 10,
+    maxPages: 2,
+    skipCaughtUp: true,
+    tables: ["tennis_player_profiles_current"],
+  });
+  assert.ok(result.results.some((r) => r.action === "PRUNE_ORPHANS" && r.pruned === 1));
+  const left = sport._tables.get("tennis_player_profiles_current").rows;
+  assert.equal(left.length, 1);
+  assert.equal(left[0].player_key, "a");
 });
 
 test("syncSportWorkingDelta refuses while sport mode is active", async () => {
