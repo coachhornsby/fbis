@@ -35,6 +35,7 @@ import {
   syncSportWorkingDelta,
   sportMigrationScope,
   isSportSyncEligible,
+  restorePausedNbaToPrimary,
 } from "../lib/sportWorkingCopy.js";
 
 function requireSyncSport(sport) {
@@ -193,6 +194,12 @@ export async function onRequestPost({ env, request } = {}) {
   let body = {};
   try { body = await request.json(); } catch { return json({ ok: false, error: "INVALID_JSON" }, 400); }
   const operation = String(body.operation || "");
+  if (operation === "nba-paused-rollback-replay") {
+    const receipt=await restorePausedNbaToPrimary(env,{
+      table:body.table,offset:body.offset,pageSize:body.pageSize
+    });
+    return json(receipt,receipt.ok?200:409);
+  }
   if (operation === "nba-production-writer-canary") {
     // Authenticated, deployed-path proof only AFTER real CORE-approved sport activation.
     // Synthetic IDs never overlap official fixtures; cleanup is restricted to NBA_DB.
