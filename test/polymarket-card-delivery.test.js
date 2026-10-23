@@ -6,9 +6,9 @@ const quote={source:'Polymarket US WebSocket',side:'home',period:'full_game',mar
 test('Polymarket quotes add no compact-card markup or new visual panels',()=>{
  assert.equal(render(game,true),render({...game,market:{venueOffers:[quote]}},true));
 });
-test('expanded priceboard shows implied American conversion and explicit unverified decision reason',()=>{
+test('expanded priceboard retains prices and gaps without repeated status disclaimers',()=>{
  const html=render({...game,market:{venueOffers:[quote]}},false);
- assert.match(html,/-150/);assert.match(html,/Implied American/);assert.match(html,/BUY \/ SELL/);assert.match(html,/VERIFY/);assert.match(html,/Settlement equivalence unverified/);assert.match(html,/BREAK-EVEN/);
+ assert.match(html,/-150/);assert.match(html,/Implied American/);assert.match(html,/BUY \/ SELL/);assert.match(html,/POLYMARKET BOOK/);assert.doesNotMatch(html,/unverified|research|wager authority/i);assert.match(html,/BREAK-EVEN/);
 });
 test('quote endpoint rejects oversized event batches before reading storage',async()=>{
  const {onRequestGet}=await import('../functions/api/polymarket-quotes.js');

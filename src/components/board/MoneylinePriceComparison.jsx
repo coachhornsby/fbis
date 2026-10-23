@@ -51,7 +51,7 @@ export default function MoneylinePriceComparison({game}){
     </div>
    </div>
    {hasPolymarket ? <div className="fbis-poly-intelligence" data-state={r.polymarketIntelligence.state}>
-    <strong>{r.polymarketIntelligence.state} · POLYMARKET</strong>
+    <strong>POLYMARKET BOOK</strong>
     <dl>
      <div><dt>BUY / SELL</dt><dd>{american(r.polymarketIntelligence.askAmerican)} / {american(r.polymarketIntelligence.bidAmerican)}</dd></div>
      <div><dt>NET GAP · EST.</dt><dd>{pp(r.polymarketIntelligence.netEdge==null?null:r.polymarketIntelligence.netEdge*100)}</dd></div>
