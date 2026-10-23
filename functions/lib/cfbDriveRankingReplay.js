@@ -5,7 +5,7 @@
  */
 import {simulateCfbDriveShadowV2,CFB_DRIVE_SIM_ID} from "./cfbDriveSimulationV2.js";
 function dbFrom(env){if(!env?.CFB_DB?.prepare)throw Error("CFB_DB_UNBOUND");return env.CFB_DB;}
-const validId=id=>/^[a-zA-Z0-9_:.-|]{1,220}$/.test(String(id||""));
+const validId=id=>/^[A-Za-z0-9_.:|-]{1,220}$/.test(String(id||""));
 const distKeys=["home_regulation_lead","away_regulation_lead","regulation_tie",
   "home_blowout_14","away_blowout_14"];
 export async function pendingCfbRankingReplays(env,{limit=70}={}){
