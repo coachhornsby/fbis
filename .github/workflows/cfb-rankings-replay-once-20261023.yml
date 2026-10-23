@@ -1,0 +1,88 @@
+name: CFB verified rankings same-seed replay (one time)
+# Research only; this replays original simulation draws in separate audit D1.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: cfb-rankings-enrichment-20261023
+  cancel-in-progress: false
+jobs:
+  backfill-ranking-metrics:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          contains(github.event.workflow_run.head_commit.message, '[FBIS-FOOTBALL-SIM-RANKINGS-20261023]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply additive CFB research-only ranking enrichment schema
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" && test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          npx --yes wrangler@4 d1 execute fbis-cfb --remote --file=sql/cfb/0003_cfb_drive_rankings_enrichment.sql
+      - name: Re-run exact original CFB draws with source and score checks
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || exit 2
+          mkdir -p sanitized
+          base="https://fbis-myz.pages.dev/api/cfb-simulation"
+          http="$(curl -fsS --retry 0 --max-time 60 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -o list.json -w '%{http_code}' "$base?mode=ranking-replay-pending")"
+          test "$http" = 200
+          jq -e '.ok and .source=="CFB_DB" and .canAuthorizeWager==false and (.pending|type=="array")' list.json
+          jq '{source,planned:(.pending|length),canAuthorizeWager}' list.json > sanitized/plan.json
+          count=0
+          while IFS= read -r runid; do
+            [ -z "$runid" ] && continue
+            payload="$(jq -nc --arg id "$runid" '{action:"drive-ranking-replay",runId:$id}')"
+            http="$(curl -sS --show-error --retry 0 --max-time 170 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" \
+              --data "$payload" -o reply.json -w '%{http_code}' "$base")" || http="000"
+            if [ "$http" != 200 ] || ! jq -e '.ok==true and
+               (.status=="REPLAYED" or .status=="ALREADY_REPLAYED") and
+               .canAuthorizeWager==false' reply.json >/dev/null 2>&1; then
+              echo "::error::CFB historical replay failed with HTTP $http for original run"
+              jq '{error,status,ok,reason}' reply.json 2>/dev/null || true
+              exit 1
+            fi
+            count=$((count+1))
+            echo "Same-seed replay verified: $count"
+          done < <(jq -r '.pending[].runId' list.json)
+          echo "Verified replay records: $count"
+          echo "### Historical CFB 14-point tail recovery" >> "$GITHUB_STEP_SUMMARY"
+          echo "Replayed with exact original seed, point-in-time source fingerprint, and identical score distribution: $count runs." >> "$GITHUB_STEP_SUMMARY"
+          echo "{\"ok\":true,\"source\":\"CFB_DB\",\"verifiedReplays\":$count,\"canAuthorizeWager\":false}" > sanitized/result.json
+      - name: Verify remaining replays and safe ranking API
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 60 -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            "https://fbis-myz.pages.dev/api/cfb-simulation?mode=ranking-replay-pending" > pending.json
+          jq '{remaining:(.pending|length),source,canAuthorizeWager}' pending.json > sanitized/remaining.json
+          cat sanitized/remaining.json >> "$GITHUB_STEP_SUMMARY"
+          jq -e '.ok==true and (.pending|length)==0' pending.json
+          curl -fsS --max-time 90 \
+            "https://fbis-myz.pages.dev/api/football-simulation-rankings?sport=cfb&week=0" > board.json
+          jq -e '.ok==true and .sport=="cfb" and .canAuthorizeWager==false' board.json
+          jq '{sport,eligible,displayed,calibrated,canAuthorizeWager,
+               fullOutcomeRecords:([.results[]|select(.probabilityComplete)]|length)}' board.json > sanitized/board.json
+      - name: Archive sanitized verification only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-weekly-rankings-replay-20261023
+          path: sanitized/*.json
+          retention-days: 14
+          if-no-files-found: ignore

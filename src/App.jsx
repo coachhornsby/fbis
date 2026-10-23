@@ -23,6 +23,7 @@ import AppShell, { FeaturePlaceholder } from "./app/AppShell.jsx";
 import { legacyToRoute, normalizeRoute, routeToLegacy } from "./app/navigation.js";
 import ExchangePlayerPropsPanel from "./features/playerProps/ExchangePlayerPropsPanel.jsx";
 import ModelLabView from "./features/modelLab/ModelLabView.jsx";
+import SimulationRankingsView from "./features/simulationRankings/SimulationRankingsView.jsx";
 import SportAccountabilityPanel from "./features/modelLab/SportAccountabilityPanel.jsx";
 import CurrentProjectionsView from "./features/models/CurrentProjectionsView.jsx";
 import TeamProfilesView from "./features/teamProfiles/TeamProfilesView.jsx";
@@ -644,6 +645,8 @@ export default function App() {
               onSportFilterChange={setPlayerPropsSport}
             />
           </div>
+        ) : route === "simulation-rankings" ? (
+          <SimulationRankingsView />
         ) : route === "teams" ? (
           <TeamProfilesView refreshKey={cfbTeamsRefresh} />
         ) : route === "performance" ? (

@@ -1,0 +1,54 @@
+.simrank-view{--sr-navy:#0a1730;--sr-green:#46cda0;--sr-gold:#ffc968;color:var(--text-primary,#edf5ff);padding:12px 0 42px;max-width:1700px;margin:auto}
+.simrank-header{display:flex;align-items:center;justify-content:space-between;gap:22px;padding:24px 26px;margin-bottom:14px;border:1px solid #355479;border-radius:16px;background:radial-gradient(ellipse at 77% 20%,#233e65 0%,#0c1b33 58%,#081324 100%)}
+.simrank-overline{font-size:11px;letter-spacing:.17em;color:#7fa8dd;font-weight:800}
+.simrank-header h2{font-size:clamp(27px,3vw,44px);letter-spacing:-.035em;font-weight:900;margin:5px 0}
+.simrank-header h2 span{color:var(--sr-gold)}
+.simrank-header p{font-size:14px;color:#b9cde2;max-width:680px;line-height:1.5;margin:0}
+.simrank-signal{font-size:11px;color:#5ee0b0;letter-spacing:.1em;font-weight:900;border:1px solid #316e64;padding:12px 16px;border-radius:10px;background:#0d342d;white-space:nowrap}
+.simrank-signal span{display:block;color:#98bfb5;font-size:9px;margin-top:5px}
+.simrank-controls{display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px;padding:12px 0 17px}
+.simrank-toggle{display:flex;border:1px solid #315173;border-radius:9px;overflow:hidden}
+.simrank-toggle button,.simrank-refresh{padding:10px 16px;min-height:42px;border:0;background:#102743;color:#cbdef4;font-size:13px;font-weight:900;cursor:pointer}
+.simrank-toggle button.selected{background:#e8b355;color:#091326}
+.simrank-controls label{display:flex;flex-direction:column;gap:4px;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#9bb8d1}
+.simrank-controls select{min-width:164px;background:#102743;color:#eff6ff;border:1px solid #426180;border-radius:9px;padding:11px 9px;font-size:12px}
+.simrank-refresh{border:1px solid #426180;border-radius:9px;margin-left:auto}
+.simrank-refresh:disabled{opacity:.55;cursor:wait}
+.simrank-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:13px}
+.simrank-kpis>div{display:flex;flex-direction:column;gap:5px;padding:16px;border:1px solid #294762;border-radius:12px;background:linear-gradient(135deg,#0f253c,#142d49)}
+.simrank-kpis span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#adc4d9;font-weight:750}
+.simrank-kpis strong{font-size:27px;color:#f4fafc;line-height:1.1;font-weight:900}
+.simrank-kpis .simrank-kpi-text{font-size:15px;color:#f3be65;padding-top:8px}
+.simrank-kpis small{color:#7fa4c6;font-size:10px}
+.simrank-notice{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;background:#151f31;border:1px solid #566175;border-radius:10px;padding:11px 14px;margin-bottom:13px;font-size:12px;color:#aebdd0}
+.simrank-notice strong{color:#f5c775}
+.simrank-empty{border:1px dashed #506d88;background:#101e31;border-radius:12px;text-align:center;padding:45px 20px;color:#ccddf1}
+.simrank-tablewrap{overflow-x:auto;border:1px solid #344c67;border-radius:14px;background:#111f33;box-shadow:0 15px 40px #0002}
+.simrank-table{width:100%;border-collapse:separate;border-spacing:0;min-width:1100px;font-variant-numeric:tabular-nums}
+.simrank-table th{position:sticky;top:0;text-align:left;background:#223a56;color:#b3d0ef;font-size:11px;letter-spacing:.045em;padding:15px 11px;white-space:nowrap;text-transform:uppercase;border-bottom:1px solid #496581}
+.simrank-table th:not(:nth-child(2)),.simrank-table td:not(:nth-child(2)){text-align:center}
+.simrank-table th button{cursor:pointer;background:transparent;border:0;color:inherit;text-transform:inherit;font-size:inherit;font-weight:inherit;letter-spacing:inherit}
+.simrank-table td{border-bottom:1px solid #26415a;padding:14px 10px;font-size:13px;color:#dceaff}
+.simrank-table tr:last-child td{border-bottom:0}
+.simrank-table tbody tr:hover{background:#1a344e}
+.simrank-rank{font-weight:900;font-size:19px!important;color:#f6bf63!important}
+.simrank-match{display:flex;gap:11px;align-items:center;min-width:210px}
+.simrank-match div{display:flex;flex-direction:column;gap:3px}
+.simrank-match strong{font-weight:900;font-size:14px;line-height:1.2;color:#f4f7ff}
+.simrank-match span{font-size:11px;color:#b8cce1}
+.simrank-match small{font-size:10px;color:#75aa9b}
+.simrank-prob{font-size:19px;font-weight:900;color:#62daa9;min-width:76px}
+.simrank-bar{display:block;width:82px;max-width:100%;height:4px;border-radius:10px;margin:7px auto 0;background:#37536a;overflow:hidden}
+.simrank-bar i{display:block;height:100%;background:linear-gradient(90deg,#2c906c,#60dfae);border-radius:10px}
+.simrank-bar.blowout i{background:linear-gradient(90deg,#d8a352,#ffe0a4)}
+.simrank-score-win{font-size:18px!important;font-weight:900;color:#82e5bc!important}
+.simrank-score-lose{font-size:18px!important;font-weight:850;color:#f49b95!important}
+.simrank-number{font-size:17px!important;font-weight:800}
+.simrank-missing{font-size:11px;color:#c1b4a1;background:#3c3540;border-radius:6px;padding:5px 7px;white-space:nowrap}
+.simrank-provenance{display:flex;flex-direction:column;gap:3px;text-align:left;min-width:150px}
+.simrank-provenance b{font-size:11px;color:#9fc9f3}
+.simrank-provenance span{font-size:10px;color:#aabbd1}
+.simrank-provenance small{color:#b0a078;font-size:10px}
+.simrank-footer{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;padding:17px 4px;font-size:11px;color:#89a6c5}
+@media(max-width:950px){.simrank-header{align-items:flex-start;flex-direction:column}.simrank-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.simrank-refresh{margin-left:0}}
+@media(max-width:480px){.simrank-header{padding:20px 17px}.simrank-kpis>div{padding:12px}.simrank-kpis strong{font-size:23px}.simrank-view{padding-top:3px}.simrank-controls select{min-width:120px}}
