@@ -59,12 +59,15 @@ export default function TopGameProps({ game }) {
 
   const rows = topThreeGamePlayerProps(drilldown || game);
   const projected = rows.filter((r) => r.fbisProjection != null);
-  // Independent projection-only rows remain useful without a current exchange contract.
-  // Legacy provider lines never become active market thresholds.
-  const styleCardRows = useStyleCards ? projected.filter(r => !isPrizePicksRow(r)).map(r => ({
-    ...r, line: null, provider: null, purchaseAsk: null,
-    probabilityOver: null, probabilityUnder: null, modelStatus: "RESEARCH_ONLY",
-  })).slice(0,3) : [];
+  // Retain genuine paired lines and model probabilities so the chart can show
+  // the threshold and the prop direction. Never promote legacy PrizePicks rows.
+  const styleCardRows = useStyleCards
+    ? projected.filter(r => !isPrizePicksRow(r)).slice(0, 3)
+    : [];
+  const rankedHitCount = styleCardRows.filter(r => r.line != null &&
+    Number.isFinite(Number(r.probabilityOver)) &&
+    Number.isFinite(Number(r.probabilityUnder)) &&
+    r.probabilityOver != null && r.probabilityUnder != null).length;
 
   return (
     <section className="top-game-props" aria-label="Top three game player props">
@@ -72,7 +75,7 @@ export default function TopGameProps({ game }) {
         <h3>TOP 3 PLAYER PROPS</h3>
         <span>
           {useStyleCards
-            ? "FBIS projections · last-5"
+            ? rankedHitCount ? "Ranked by modeled hit probability · last 5" : "FBIS projections · last 5 (no verified hit ranking)"
             : "FBIS model context"}
         </span>
       </div>
