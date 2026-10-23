@@ -36,6 +36,9 @@ async function load(file){
     sourceRows:raw.sourceRows,plays:raw.sourceRows,
     sourceArtifactHash,sourceAsset:raw.sourceAsset});
    game.sport=sport;game.season=raw.season;
+   game.sourceAsset=raw.sourceAsset;
+   // Immutable per-game content fingerprint; do not hash the current observation clock.
+   if(sport==="nfl")game.sourceFingerprint=sourceArtifactHash;
    game.evidenceClass="POSTGAME_RECONSTRUCTED";game.prospective=false;
    counter.accepted++;counter.bySeason[raw.season]=(counter.bySeason[raw.season]||0)+1;
    all.push(game);
