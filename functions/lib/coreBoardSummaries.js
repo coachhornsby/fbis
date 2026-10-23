@@ -5,7 +5,7 @@
  *
  * Fail-closed: missing sport entries are incomplete (never default complete:true).
  */
-import { resolveCoreDb, deployedSportDbMode, productSportDbHandle } from "./databaseTopology.js";
+import { resolveCoreDb, deployedSportDbMode, productSportDbHandle, hydrateCutoverApprovals } from "./databaseTopology.js";
 import { FBIS_SPORTS } from "./databaseTopology.js";
 
 export const CORE_BOARD_SUMMARY_KEY = "cross_sport_board_snapshot";
@@ -108,6 +108,11 @@ export async function collectAuthoritySportBoardStats(env, sport) {
   if (deployedSportDbMode(env, sport) !== "sport") {
     return collectPrimarySportBoardStats(env, sport);
   }
+  // A scheduled CORE publication is a fresh request. Never rely on a grant
+  // loaded by some other invocation; verify current CORE APPROVED receipts.
+  const hydration = await hydrateCutoverApprovals(env, { sport });
+  if (!hydration.ok) return {sport,complete:false,
+    reason:hydration.reason||"SPORT_CORE_APPROVAL_UNAVAILABLE"};
   const routed = productSportDbHandle(env, sport);
   if (!routed.productIoUsesSportDb || !routed.db?.prepare) {
     return { sport, complete: false, reason: "SPORT_AUTHORITY_UNVERIFIED" };

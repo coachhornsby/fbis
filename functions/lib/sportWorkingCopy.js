@@ -1434,3 +1434,101 @@ export async function verifySportWorkingParity(env, sport, { now = new Date() } 
 
   return { ok: status === "PARITY_OK", ...receipt };
 }
+
+
+/**
+ * Operator-controlled, paused NBA recovery after a live cutover.
+ * Source NBA_DB is never deleted. Copy is limited to NBA-owned prefixes and
+ * sport='nba' rows in the seven shared tables. Called only after production
+ * receipt has been removed while STRICT sport mode remains on, so NBA product
+ * writes fail closed. Offset paging is deterministic while the source is paused.
+ */
+export async function restorePausedNbaToPrimary(env, {table,offset=0,pageSize=40}={}) {
+  const name=String(table||"");
+  const shared=new Set(workingTablesForSport("nba").map(x=>x.table));
+  const approved=new Set([...shared,...(SPORT_PREFIX_TABLES.nba||[])]);
+  if(!approved.has(name))return {ok:false,reason:"NBA_RECOVERY_TABLE_NOT_ALLOWLISTED"};
+  if(deployedSportDbMode(env,"nba")!=="sport"
+     || !["1","true"].includes(String(env?.SPORT_DB_STRICT_NBA||"").toLowerCase())
+     || env?.NBA_ROLLBACK_RECOVERY_MODE!=="paused"
+     || String(env?.SPORT_CUTOVER_RECEIPT_NBA||"").trim()) {
+    return {ok:false,reason:"NBA_RECOVERY_REQUIRES_PAUSED_STRICT_MODE_NO_RECEIPT"};
+  }
+  const source=env?.NBA_DB,target=env?.DB;
+  if(!source?.prepare||!target?.prepare||source===target)
+    return {ok:false,reason:"NBA_RECOVERY_DATABASE_BINDING_INVALID"};
+  const safe=assertSafeIdent(name);
+  const start=Number(offset),limit=Number(pageSize);
+  if(!Number.isInteger(start)||start<0||!Number.isInteger(limit)||limit<1||limit>100)
+    return {ok:false,reason:"NBA_RECOVERY_INVALID_PAGE"};
+  const srcInfo=(await source.prepare(`PRAGMA table_info(${safe})`).all())?.results||[];
+  const dstInfo=(await target.prepare(`PRAGMA table_info(${safe})`).all())?.results||[];
+  if(!srcInfo.length||!dstInfo.length)return {ok:false,reason:"NBA_RECOVERY_TABLE_SCHEMA_MISSING",table:safe};
+  // Additive-only destination reconciliation; existing columns/rows untouched.
+  const destNames=new Set(dstInfo.map(x=>x.name));
+  for(const c of srcInfo){
+    if(destNames.has(c.name))continue;
+    if(c.pk||c.notnull) return {ok:false,reason:"NBA_RECOVERY_NONADDITIVE_SCHEMA",table:safe,column:c.name};
+    const col=assertSafeIdent(c.name);
+    const typ=/^(TEXT|REAL|INTEGER|BLOB|NUMERIC)$/i.test(c.type)?c.type:"TEXT";
+    await target.prepare(`ALTER TABLE ${safe} ADD COLUMN ${col} ${typ}`).run();
+    destNames.add(c.name);
+  }
+  const columns=srcInfo.map(c=>assertSafeIdent(c.name));
+  const scoped=shared.has(safe)?"WHERE sport='nba'":"";
+  const rows=(await source.prepare(`SELECT * FROM ${safe} ${scoped} ORDER BY rowid LIMIT ? OFFSET ?`)
+    .bind(limit,start).all())?.results||[];
+  let copied=0,remapped=0;
+  for(const row of rows){
+    if(shared.has(safe)&&row.sport!=="nba")throw Error("NBA_RECOVERY_CROSS_SPORT_ROW");
+    if(safe==="odds_snapshots"){
+      await target.prepare(`CREATE TABLE IF NOT EXISTS fbis_nba_rollback_odds_map (
+        source_id INTEGER PRIMARY KEY, primary_id INTEGER NOT NULL, restored_at TEXT NOT NULL)`).run();
+      const mapped=await target.prepare("SELECT primary_id FROM fbis_nba_rollback_odds_map WHERE source_id=?")
+        .bind(row.id).first();
+      const same=await target.prepare("SELECT sport,game_id FROM odds_snapshots WHERE id=?")
+        .bind(mapped?.primary_id||row.id).first();
+      const identityMatches=same?.sport==="nba"&&String(same.game_id)===String(row.game_id);
+      const values=columns.filter(c=>c!=="id");
+      if(identityMatches){
+        const changes=values.map(c=>`${c}=?`).join(",");
+        await target.prepare(`UPDATE odds_snapshots SET ${changes} WHERE id=? AND sport='nba'`)
+          .bind(...values.map(c=>row[c]??null),mapped?.primary_id||row.id).run();
+      }else{
+        const result=await target.prepare(`INSERT INTO odds_snapshots (${values.join(",")}) VALUES (${values.map(()=>"?").join(",")})`)
+          .bind(...values.map(c=>row[c]??null)).run();
+        const primaryId=result?.meta?.last_row_id;
+        if(!Number.isInteger(Number(primaryId))||Number(primaryId)<=0)
+          throw Error("NBA_RECOVERY_ODDS_MAPPING_REQUIRED");
+        await target.prepare(`INSERT OR REPLACE INTO fbis_nba_rollback_odds_map(source_id,primary_id,restored_at) VALUES(?,?,?)`)
+          .bind(row.id,primaryId,new Date().toISOString()).run();
+        remapped++;
+      }
+    }else if(safe==="published_projections"){
+      // Shard IDs are TEXT, legacy PRIMARY IDs are INTEGER: never copy shard id.
+      const match=await target.prepare(`SELECT id FROM published_projections
+        WHERE sport='nba' AND game_id=? AND published_at=? AND model_version IS ? LIMIT 1`)
+        .bind(row.game_id,row.published_at,row.model_version??null).first();
+      const cols=columns.filter(c=>c!=="id");
+      if(match?.id!=null){
+        await target.prepare(`UPDATE published_projections SET ${cols.map(c=>`${c}=?`).join(",")}
+          WHERE id=? AND sport='nba'`).bind(...cols.map(c=>row[c]??null),match.id).run();
+      }else{
+        await target.prepare(`INSERT INTO published_projections(${cols.join(",")})
+          VALUES(${cols.map(()=>"?").join(",")})`).bind(...cols.map(c=>row[c]??null)).run();
+      }
+    }else{
+      // Shared string IDs may never overwrite another sport's row.
+      if(shared.has(safe)&&["games","predictions","prediction_snapshots"].includes(safe)){
+        const existing=await target.prepare(`SELECT sport FROM ${safe} WHERE id=?`).bind(row.id).first();
+        if(existing&&existing.sport!=="nba")throw Error("NBA_RECOVERY_PRIMARY_ID_COLLISION:"+safe);
+      }
+      await target.prepare(`INSERT OR REPLACE INTO ${safe}(${columns.join(",")})
+        VALUES(${columns.map(()=>"?").join(",")})`).bind(...columns.map(c=>row[c]??null)).run();
+    }
+    copied++;
+  }
+  return {ok:true,sport:"nba",table:safe,copied,remapped,offset:start,
+    nextOffset:start+copied,complete:rows.length<limit,sourcePreserved:true,
+    primaryDeletionCount:0,canAuthorizeWager:false};
+}

@@ -92,3 +92,33 @@ test("production NBA canary refuses revoked CORE grant without touching PRIMARY"
  assert.deepEqual(x.DB.statements,[]);
  assert.deepEqual(x.NBA_DB.statements,[]);
 });
+
+test("NBA reverse recovery is forbidden while normal sport writes may be active",async()=>{
+ const {restorePausedNbaToPrimary}=await import("../functions/lib/sportWorkingCopy.js");
+ const x={...env("sport"),NBA_ROLLBACK_RECOVERY_MODE:"paused"};
+ const result=await restorePausedNbaToPrimary(x,{table:"games"});
+ assert.equal(result.ok,false);
+ assert.match(result.reason,/PAUSED_STRICT_MODE/);
+ assert.deepEqual(x.DB.statements,[]);
+ assert.deepEqual(x.NBA_DB.statements,[]);
+});
+test("paused NBA recovery copies only NBA-owned game into PRIMARY without deleting anything",async()=>{
+ const {restorePausedNbaToPrimary}=await import("../functions/lib/sportWorkingCopy.js");
+ const fields=[{name:"id",type:"TEXT",pk:1},{name:"sport",type:"TEXT",pk:0},{name:"start",type:"TEXT",pk:0}];
+ const source={prepare(sql){return {bind(){return this},async all(){
+   return {results:sql.startsWith("PRAGMA")?fields:sql.startsWith("SELECT *")?
+     [{id:"nba-restore-fixture",sport:"nba",start:"2026-10-24T00:00:00Z"}]:[]};
+ }}}};
+ const writes=[];
+ const target={prepare(sql){return {bind(...args){this.args=args;return this},async all(){return {results:fields}},
+   async first(){return null},async run(){writes.push({sql,args:this.args});return {meta:{changes:1}}}}}};
+ const e={DB:target,NBA_DB:source,SPORT_DB_MODE_NBA:"sport",SPORT_DB_STRICT_NBA:"1",
+   NBA_ROLLBACK_RECOVERY_MODE:"paused"};
+ const result=await restorePausedNbaToPrimary(e,{table:"games",pageSize:10});
+ assert.equal(result.ok,true);
+ assert.equal(result.complete,true);
+ assert.equal(result.copied,1);
+ assert.ok(writes.some(x=>x.sql.includes("INSERT OR REPLACE INTO games")));
+ assert.ok(!writes.some(x=>/DELETE FROM/i.test(x.sql)));
+ assert.equal(result.primaryDeletionCount,0);
+});
