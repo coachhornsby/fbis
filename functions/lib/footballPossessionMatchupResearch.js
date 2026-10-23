@@ -75,19 +75,22 @@ export function normalizeVerifiedNflPossessions({
 }
 export function selectMatchupDriveHistory(games,{
  sport,targetGameId,frozenAt,homeTeamId,awayTeamId,minTeamDrives=24,minTeamGames=3,
+  historicalReconstruction=false,
 }={}){
  requireThat(MATCHUP_DRIVE_IDS[sport]&&validId(targetGameId)&&validId(homeTeamId)&&validId(awayTeamId)
    &&homeTeamId!==awayTeamId&&Number.isFinite(stamp(frozenAt)),"MATCHUP_CONTEXT_INVALID");
- const map=new Map(),excluded={},source=sport==="nfl"?"NFL_PBP_VERIFIED_POSSESSIONS":"CFBD_DRIVES";
+ const map=new Map(),excluded={},sources=sport==="nfl"?
+   ["NFL_PBP_VERIFIED_POSSESSIONS"]:["CFBD_DRIVES","SDV_ESPN_CFB_PBP_DRIVES"];
  const mark=k=>excluded[k]=(excluded[k]||0)+1;
  for(const g of games||[]){
   let reason=null;
   if(g?.gameId===targetGameId)reason="TARGET_GAME";
-  else if(g?.source!==source||g.regulationOnly!==true||g.officialScoreMatched!==true||
+  else if(!sources.includes(g?.source)||g.regulationOnly!==true||g.officialScoreMatched!==true||
      !validId(g.homeTeamId)||!validId(g.awayTeamId)||g.homeTeamId===g.awayTeamId||
      !validId(g.sourceFingerprint)||!Array.isArray(g.drives)||g.drives.length<12)reason="UNVERIFIED_SOURCE_OR_TEAM";
   else if(![stamp(g.kickoff),stamp(g.gradedAt),stamp(g.observedAt)].every(Number.isFinite)||
-     !(stamp(g.kickoff)<=stamp(g.gradedAt)&&stamp(g.gradedAt)<=stamp(g.observedAt)&&stamp(g.observedAt)<stamp(frozenAt)))
+     !(stamp(g.kickoff)<=stamp(g.gradedAt)&&stamp(g.gradedAt)<=stamp(g.observedAt)&&
+       (historicalReconstruction?stamp(g.gradedAt)<stamp(frozenAt):stamp(g.observedAt)<stamp(frozenAt))))
      reason="FUTURE_OR_MISSING_SOURCE_TIME";
   else if(g.drives.some(d=>!["home","away"].includes(d.offense)||
      !Number.isInteger(d.period)||d.period<1||d.period>4||
@@ -125,7 +128,9 @@ export function selectMatchupDriveHistory(games,{
  const eligible=pool.length>=20&&pool.reduce((n,g)=>n+g.drives.length,0)>=300&&
   keys.every(k=>coverage[k].games>=minTeamGames&&coverage[k].offenseDrives>=minTeamDrives&&
    coverage[k].defenseDrives>=minTeamDrives);
- return {sport,frozenAt,eligible,trainingGames:pool.length,
+ return {sport,frozenAt,eligible,
+  evidenceMode:historicalReconstruction?"POSTGAME_RECONSTRUCTED_BACKTEST":"STRICT_POINT_IN_TIME",
+  trainingGames:pool.length,
   trainingDrives:pool.reduce((n,g)=>n+g.drives.length,0),coverage,excluded,
   sourceFingerprint:fingerprint(pool.map(g=>g.sourceFingerprint).sort()),
   // Internal research samples. Callers must not serialize these raw records to public responses.
@@ -134,13 +139,14 @@ export function selectMatchupDriveHistory(games,{
 export function simulateMatchupDriveShadow({
  sport,gameId,snapshotId,frozenAt,kickoff,homeTeamId,awayTeamId,
  projectedHome,projectedAway,trainingGames=[],iterations=1000,
+ historicalReconstruction=false,
 }={}){
  requireThat(MATCHUP_DRIVE_IDS[sport]&&validId(gameId)&&validId(snapshotId)&&
    Number.isFinite(stamp(frozenAt))&&stamp(frozenAt)<stamp(kickoff)&&
    [projectedHome,projectedAway].every(x=>finite(x)&&x>=0&&x<=90)&&
    Number.isInteger(iterations)&&iterations>=100&&iterations<=5000,"INVALID_MATCHUP_RESEARCH_BASELINE");
  const history=selectMatchupDriveHistory(trainingGames,{
-  sport,targetGameId:gameId,frozenAt,homeTeamId,awayTeamId,
+  sport,targetGameId:gameId,frozenAt,homeTeamId,awayTeamId,historicalReconstruction,
  });
  requireThat(history.eligible,"INSUFFICIENT_MATCHUP_TEAM_DRIVE_HISTORY");
  const ids=[homeTeamId,awayTeamId],pace=ids.map(id=>history.coverage[id].meanPace);
@@ -186,7 +192,8 @@ export function simulateMatchupDriveShadow({
   matchupTeams:{home:homeTeamId,away:awayTeamId},coverage:history.coverage,
   evidenceFingerprint:history.sourceFingerprint,trainingGames:history.trainingGames,
   trainingDrives:history.trainingDrives,method:"EMPIRICAL_OFFENSE_OPPONENT_ALLOWED_DRIVE_RESAMPLING",
-  dataAccess:"VERIFIED_POINT_IN_TIME_HISTORY_ONLY",calibrationStatus:"NOT_VALIDATED",
+  dataAccess:historicalReconstruction?"HISTORICAL_RECONSTRUCTED_NOT_PROSPECTIVE":"VERIFIED_POINT_IN_TIME_HISTORY_ONLY",
+  calibrationStatus:"NOT_VALIDATED",
   marketScope:"REGULATION_ONLY",overtimeMode:"NOT_MODELED",
   canQualify:false,canAuthorizeWager:false,changesProductionChampion:false};
 }
