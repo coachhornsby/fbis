@@ -1,0 +1,35 @@
+name: Tennis cross-level prospective validation
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/tennis-crosslevel-walkforward.mjs"
+      - "scripts/lib/tennis-crosslevel-walkforward.mjs"
+      - "scripts/lib/tennis-lowtier-source-audit.mjs"
+      - ".github/workflows/tennis-crosslevel-walkforward.yml"
+permissions:
+  contents: read
+concurrency:
+  group: tennis-crosslevel-walkforward-research
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: '22'}
+      - name: Validate temporal holdouts and research-only constraints
+        run: node --test test/tennis-crosslevel-walkforward.test.mjs
+      - name: Evaluate held-out 2025 and 2026 main-tour point outcomes
+        run: node scripts/tennis-crosslevel-walkforward.mjs
+      - name: Retain source/qualification evidence
+        uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: tennis-crosslevel-walkforward-evidence
+          path: artifacts/tennis-crosslevel-walkforward.json
+          retention-days: 30
+          if-no-files-found: warn
