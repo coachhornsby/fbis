@@ -1,6 +1,7 @@
 import {createGitHubOidcProvider} from './github-oidc.mjs';
 import {pinnoddsWindow,pinnoddsWindowComplete,pinnoddsDueWindow} from './lib/pinnoddsSchedule.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
+import {requirePinnoddsMarketHistoryHeadroom} from './lib/pinnoddsCapacityPreflight.mjs';
 async function main(){
 const base=process.env.BASE||'https://fbis-myz.pages.dev',worker='https://fbis-orchestrator.coachhornsby.workers.dev';
 const secret=process.env.HARVEST_SECRET;
@@ -24,6 +25,18 @@ if(pinnoddsWindowComplete(status,window)){
  console.log(JSON.stringify({ok:true,status:'already_collected_slot',scope,runId,paidProviderCalls:0}));
  return;
 }
+
+ // This source persists RESEARCH observations to the Q4 D1 partition.
+ // A successful provider capture without writable D1 wastes daily request quota.
+ // Probe existing authenticated production capacity before any reserve/capture call.
+ const capacityResponse=await fetch(base+'/api/storage-capacity',{
+  headers:{'x-harvest-secret':secret,'cache-control':'no-store'},
+  signal:AbortSignal.timeout(20000)
+ });
+ if(!capacityResponse.ok)throw Error('PINNODDS_CAPACITY_PREFLIGHT_HTTP_'+capacityResponse.status);
+ const capacity=await capacityResponse.json();
+ const capacityState=requirePinnoddsMarketHistoryHeadroom(capacity);
+ await writeFile('artifacts/pinnodds-capacity-preflight.json',JSON.stringify({ok:true,...capacityState}));
 
 await mkdir('artifacts',{recursive:true});
 async function call(path,body,{upstream=false}={}){
