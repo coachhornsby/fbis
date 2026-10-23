@@ -22,7 +22,7 @@ export const SPORT_WORKING_TABLES = Object.freeze([
 /** Legacy NBA prediction rows must migrate before NBA ledger authority switches. */
 export function workingTablesForSport(sport) {
   return String(sport).toLowerCase() === "nba"
-    ? [...SPORT_WORKING_TABLES, { table: "predictions" }]
+    ? [...SPORT_WORKING_TABLES, { table: "predictions" }, { table: "odds_snapshots" }, { table: "team_form" }]
     : SPORT_WORKING_TABLES;
 }
 
@@ -463,6 +463,52 @@ async function copyPublishedPaged(primary, sportDb, sport, { pageSize, maxPages,
   return { copied, pages, cursor: lastKey, exhausted: pages < maxPages || copied === 0 };
 }
 
+/** Shadow-only, sport-filtered NBA copies of the shared market/form ledgers.
+ * Generic prefix copy is unsafe here: these tables contain other sports.
+ * Replaying the bounded NBA subset is idempotent and never deletes PRIMARY.
+ */
+export async function copyNbaScopedSharedLedger(primary, shard, table, {
+  pageSize = 250, maxPages = 200,
+} = {}) {
+  if (!["odds_snapshots", "team_form"].includes(table)) {
+    throw new Error("NBA_SHARED_LEDGER_TABLE_NOT_APPROVED");
+  }
+  const mirrored = await ensureMirroredSportTable(primary, shard, table);
+  if (!mirrored.ok) throw new Error(mirrored.reason || "NBA_LEDGER_SCHEMA_UNAVAILABLE");
+  const info = (await primary.prepare(`PRAGMA table_info(${table})`).all())?.results || [];
+  const columns = info.map(c => assertSafeIdent(c.name));
+  if (!columns.includes("sport")) throw new Error("NBA_SHARED_LEDGER_SPORT_FIELD_MISSING");
+  const batchSize = Math.min(500, Math.max(1, Number(pageSize) || 250));
+  const batches = Math.min(200, Math.max(1, Number(maxPages) || 200));
+  const placeholders = columns.map(() => "?").join(",");
+  const stmt = `INSERT OR REPLACE INTO ${table} (${columns.join(",")}) VALUES (${placeholders})`;
+  let copied = 0, pages = 0;
+  let cursorId = 0, cursorSeason = -1, cursorTeam = "";
+  let exhausted = false;
+  for (; pages < batches; pages += 1) {
+    const query = table === "odds_snapshots"
+      ? `SELECT * FROM odds_snapshots WHERE sport=? AND id>? ORDER BY id LIMIT ?`
+      : `SELECT * FROM team_form WHERE sport=? AND (season>? OR (season=? AND team_key>?))
+         ORDER BY season,team_key LIMIT ?`;
+    const args = table === "odds_snapshots"
+      ? ["nba", cursorId, batchSize] : ["nba", cursorSeason, cursorSeason, cursorTeam, batchSize];
+    const rows = (await primary.prepare(query).bind(...args).all())?.results || [];
+    if (!rows.length) { exhausted = true; break; }
+    for (const row of rows) {
+      if (row.sport !== "nba") throw new Error("NBA_SHARED_LEDGER_CROSS_SPORT_ROW");
+      await shard.prepare(stmt).bind(...columns.map(c => row[c] ?? null)).run();
+      copied++;
+    }
+    const last = rows[rows.length - 1];
+    if (table === "odds_snapshots") cursorId = Number(last.id);
+    else { cursorSeason = Number(last.season); cursorTeam = String(last.team_key); }
+    if (rows.length < batchSize) { exhausted = true; break; }
+  }
+  return { table, ok: true, copied, pages, exhausted,
+    cursor: table === "odds_snapshots" ? String(cursorId) : `${cursorSeason}|${cursorTeam}`,
+    canAuthorizeWager: false };
+}
+
 export async function copySportWorkingTables(env, sport, {
   pageSize = DEFAULT_PAGE_SIZE,
   maxPages = DEFAULT_MAX_PAGES,
@@ -569,6 +615,21 @@ export async function copySportWorkingTables(env, sport, {
       copied: 0,
       error: String(error?.message || error).slice(0, 240),
     });
+  }
+
+  if (key === "nba") {
+    for (const table of ["odds_snapshots", "team_form"]) {
+      try {
+        const copied = await copyNbaScopedSharedLedger(primary, sportDb, table, {
+          pageSize: effectivePageSize, maxPages: effectiveMaxPages,
+        });
+        results.push(copied);
+        checkpoints[table] = copied.cursor;
+      } catch (error) {
+        results.push({ table, ok: false, copied: 0,
+          error: String(error?.message || error).slice(0, 240) });
+      }
+    }
   }
 
   // Historic NBA 'predictions' remains a production read dependency. Include
