@@ -390,7 +390,7 @@ async function copyPredictionsPaged(primary, sportDb, sport, { pageSize, maxPage
  * NBA-only legacy predictions: same full-fidelity, idempotent keyset as other
  * working tables. Source remains PRIMARY in shadow; never synthesizes authority.
  */
-async function copyNbaLegacyPredictionsPaged(primary, sportDb, { pageSize, maxPages, afterId = "" }) {
+export async function copyNbaLegacyPredictionsPaged(primary, sportDb, { pageSize, maxPages, afterId = "" }) {
   let cursor = afterId, copied = 0, pages = 0;
   for (; pages < maxPages; pages += 1) {
     const page = await primary.prepare(
