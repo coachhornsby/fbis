@@ -54,3 +54,21 @@ return Response.json({success:true,result:{name:'fixture',file_size:${bytes}}});
  assert.ok(Array.isArray(report.alertsTriggered.critical90));
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+test('operations mirror failure leaves R2 evidence but fails monitoring',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'capacity-fail-'));
+ try{
+  const mock=`const objects=new Map();globalThis.fetch=async(url,o={})=>{
+    if(url.includes('/r2/')){if(o.method==='PUT'){objects.set(url,o.body);return new Response('{}');}const b=objects.get(url);return b?new Response(b):new Response('',{status:404});}
+    if(url.includes('/d1/database/')&&o.method==='POST')return new Response('{"success":false}',{status:503,headers:{'content-type':'application/json'}});
+    if(o.method&&o.method!=='GET')throw Error('UNEXPECTED_MUTATION');
+    return Response.json({success:true,result:{name:'fixture',file_size:8000000000}});
+  };`;
+  await writeFile(join(dir,'mock.mjs'),mock);
+  const r=spawnSync(process.execPath,['--import',join(dir,'mock.mjs'),new URL('../scripts/storage-capacity-daily.mjs',import.meta.url).pathname],{encoding:'utf8',env:{...process.env,CLOUDFLARE_API_TOKEN:'fixture',CLOUDFLARE_ACCOUNT_ID:'fixture',CAPACITY_OUTPUT:join(dir,'out')}});
+  const report=JSON.parse(await readFile(join(dir,'out/result.json'),'utf8'));
+  assert.equal(report.databases.length,Object.keys(DATABASE_OWNERS).length);
+  assert.notEqual(r.status,0);
+  assert.match(r.stderr,/OPS_CAPACITY_MIRROR_WRITE_FAILED_503/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
