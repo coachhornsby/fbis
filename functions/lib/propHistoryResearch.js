@@ -109,9 +109,16 @@ export async function loadCanonicalPropHistory(env,{sport,provider,playerId,mark
    const pitching=['strikeouts','pitcher_outs','earned_runs','hits_allowed','walks_allowed'].includes(market);
    const key={strikeouts:'strikeOuts',pitcher_outs:'outs',earned_runs:'earnedRuns',hits_allowed:'hits',walks_allowed:'baseOnBalls',hits:'hits',home_runs:'homeRuns',total_bases:'totalBases',rbis:'rbi',runs:'runs',walks:'baseOnBalls',stolen_bases:'stolenBases'}[market];
    if(!key)return {available:false,reason:'STAT_DEFINITION_UNSUPPORTED'};
-   season=new Date(asOf).getUTCFullYear();const b=await(await get(`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=${pitching?'pitching':'hitting'}&season=${season}`,fetchImpl)).json();
-   games=(b.stats||[]).flatMap(x=>x.splits||[]).map(g=>({eventId:String(g.game?.gamePk),date:g.date,opponent:g.opponent?.name,isHome:g.isHome,season,value:n(g.stat?.[key]),workload:pitching?n(g.stat?.numberOfPitches):n(g.stat?.plateAppearances)}));
-   source='MLB official player game log';identityVerified=true;
+   // MLB defaults to regular season. Fetch postseason explicitly so October
+   // recent form includes the latest appearances across every playoff round.
+   // Both requests must succeed; never silently substitute September if P fails.
+   season=new Date(asOf).getUTCFullYear();
+   const logs=await Promise.all(['R','P'].map(async gameType=>{
+    const b=await(await get(`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=${pitching?'pitching':'hitting'}&season=${season}&gameType=${gameType}`,fetchImpl)).json();
+    return (b.stats||[]).flatMap(x=>x.splits||[]).filter(g=>g.game?.gamePk&&(!g.player?.id||String(g.player.id)===String(playerId))).map(g=>({eventId:String(g.game.gamePk),date:g.date,gameNumber:g.gameNumber||g.game?.gameNumber||0,gameType,opponent:g.opponent?.name,isHome:g.isHome,season,value:n(g.stat?.[key]),workload:pitching?n(g.stat?.numberOfPitches):n(g.stat?.plateAppearances)}));
+   }));
+   games=logs.flat();
+   source='MLB official player game logs · regular season and postseason';identityVerified=true;
   }else if(provider==='nflverse'&&sport==='nfl'){
    const field=NFL_HISTORY_FIELDS[market];
    if(!field)return {available:false,reason:'STAT_DEFINITION_UNSUPPORTED'};
