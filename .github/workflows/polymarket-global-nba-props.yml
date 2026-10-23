@@ -18,7 +18,7 @@ jobs:
   capture:
     if: github.repository == 'coachhornsby/fbis'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
       - name: Retrieve Gamma events and send authenticated raw batch for FBIS verification
         env:
@@ -34,11 +34,14 @@ jobs:
           : >/tmp/nba-gamma-event-lines.jsonl
           while IFS= read -r slug; do
             test -n "$slug" || continue
-            curl --fail-with-body --silent --show-error --retry 3 --retry-delay 8 --max-time 35 \
+            if curl --fail-with-body --silent --show-error --retry 2 --retry-delay 5 --max-time 35 \
               --get "https://gamma-api.polymarket.com/events" \
-              --data-urlencode "slug=$slug" --data-urlencode "limit=1" >/tmp/nba-gamma-one.json
-            jq -e --arg slug "$slug" 'type=="array" and length==1 and .[0].slug==$slug and (.[0].markets | type=="array")' /tmp/nba-gamma-one.json
-            jq -c '.[0]' /tmp/nba-gamma-one.json >>/tmp/nba-gamma-event-lines.jsonl
+              --data-urlencode "slug=$slug" --data-urlencode "limit=1" >/tmp/nba-gamma-one.json \
+              && jq -e --arg slug "$slug" 'type=="array" and length==1 and .[0].slug==$slug and (.[0].markets | type=="array")' /tmp/nba-gamma-one.json; then
+              jq -c '.[0]' /tmp/nba-gamma-one.json >>/tmp/nba-gamma-event-lines.jsonl
+            else
+              echo "Gamma event unavailable: $slug; continuing other fixtures" >>"$GITHUB_STEP_SUMMARY"
+            fi
           done < <(jq -r '.slugs[]' /tmp/nba-prop-fixtures.json)
           jq -sc '{mode:"ingest",events:.}' /tmp/nba-gamma-event-lines.jsonl >/tmp/nba-gamma-ingest.json
           curl --fail-with-body --silent --show-error --retry 3 --retry-delay 8 --max-time 65 \

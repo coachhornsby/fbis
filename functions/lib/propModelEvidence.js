@@ -8,6 +8,6 @@ export function propModelEvidence(sport,market) {
   threshold:nhl.aggregate?.threshold,marketValidation:nhl.marketValidation?.[market]||null,conditionalOnActive:nhl.conditionalOnActive,
   conditionalOnConfirmedStarter:nhl.conditionalOnConfirmedStarter,exchangeContractValidated:false,canAuthorizeWager:false};
  if(sport==='nba')return {modelId:nba.modelId,version:nba.version,status:nba.decision,reason:nba.reason,
-  dataPolicy:'RIGHTS_CLEARED_PLAYER_FEED_REQUIRED',exchangeContractValidated:false,canAuthorizeWager:false};
+  dataPolicy:'APPROVED_ESPN_BOX_INPUTS_ONLY; LIVE_FEED_GATES_UNCHANGED',exchangeContractValidated:false,canAuthorizeWager:false};
  return {status:'SPORT_MARKET_VALIDATION_NOT_ATTACHED',exchangeContractValidated:false,canAuthorizeWager:false};
 }

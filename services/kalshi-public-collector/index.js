@@ -31,7 +31,7 @@ export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}
   if(typeof env?.FBIS_KALSHI_RELAY_TOKEN!=="string"
     ||env.FBIS_KALSHI_RELAY_TOKEN.length<40)
     return {ok:false,code:"SIGNED_RELAY_SECRET_MISSING"};
-  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs"&&scope!=="combo-tape"&&scope!=="nhl-official-prop-results"&&scope!=="prop-reconciliation"&&scope!=="nhl-official-scope-discovery"&&scope!=="nhl-prospective-capture")
+  if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs"&&scope!=="combo-tape"&&scope!=="nhl-official-prop-results"&&scope!=="prop-reconciliation"&&scope!=="nhl-official-scope-discovery"&&scope!=="nhl-prospective-capture"&&scope!=="prop-model-freeze"&&scope!=="prop-grade-reconcile")
     return {ok:false,code:"SIGNED_RELAY_SCOPE_NOT_ALLOWED"};
   if(scope==="markets"&&![...SPORTS,...TENNIS_RESEARCH].includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
@@ -193,8 +193,8 @@ export async function collectNhlProspectiveOnce(env,{now=new Date(),fetchImpl=fe
  return relaySignedPages(env,{scope:"nhl-prospective-capture",fetchImpl});
 }
 /**
- * Refresh 4 player-prop series in three of every four quarter-hour slots.
- * This keeps an ~18-series inventory within the two-hour read window when
+ * Refresh 6 player-prop series in three of every four quarter-hour slots.
+ * This keeps the expanded discovered series inventory within the two-hour read window when
  * provider responses succeed. The fourth slot rotates research-only scopes.
  */
 export function selectedAuxScope(now){
@@ -226,7 +226,7 @@ export default {
       collectKalshiExchangeStatusOnce(env),collectKalshiSeriesCatalogOnce(env),
       collectNhlOfficialResultsOnce(env,{now}),
       collectPropReconciliationOnce(env,{now}),
-      Math.floor(now.getTime()/SLOT_MS)%16===0 ? relaySignedPages(env,{scope:"prop-model-freeze"}) : Promise.resolve({ok:true,status:"NOT_DUE"}),collectReviewedPropGradesOnce(env,{now}),
+      relaySignedPages(env,{scope:"prop-model-freeze"}),collectReviewedPropGradesOnce(env,{now}),
       collectNhlSourceDiscoveryOnce(env,{now}),collectNhlProspectiveOnce(env,{now}),
       aux==="qualification-evidence"?collectKalshiEvidenceOnce(env):
         relaySignedPages(env,{scope:aux}),

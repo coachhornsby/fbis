@@ -5,7 +5,7 @@ import { SDV_NBA_PREFIX,verifySdvNbaHistorySnapshot } from './nbaSdvHistoryShado
 export function historySummary(input,{line=null,asOf=new Date().toISOString(),season=null}={}) {
  const seen=new Set();const cutoff=Date.parse(asOf);
  const priorWeek=g=>g?.temporalBasis==='PRIOR_SEASON_WEEKLY_SNAPSHOT'&&g.status==='FINAL'&&Number.isInteger(g.season)&&g.season<new Date(asOf).getUTCFullYear()&&(g.season<new Date(asOf).getUTCFullYear()-1||new Date(asOf).getUTCMonth()>=2)&&Number.isInteger(g.week)&&g.week>=1&&g.week<=22;
- const games=input.filter(g=>g&&n(g.value)!=null&&(priorWeek(g)||Date.parse(g.date)<cutoff&&(String(g.date).slice(0,10)<String(asOf).slice(0,10)||['FINAL','OFF'].includes(g.status)))&&!['DNP','CANCELLED','CANCELED','UNVERIFIED'].includes(g.status))
+ const games=input.map(g=>({...g,value:n(g?.value)})).filter(g=>g&&n(g.value)!=null&&(priorWeek(g)||Date.parse(g.date)<cutoff&&(String(g.date).slice(0,10)<String(asOf).slice(0,10)||['FINAL','OFF'].includes(g.status)))&&!['DNP','CANCELLED','CANCELED','UNVERIFIED'].includes(g.status))
   .sort((a,b)=>Number.isInteger(a.season)&&Number.isInteger(b.season)&&Number.isInteger(a.week)&&Number.isInteger(b.week)?(b.season-a.season)*100+b.week-a.week:Date.parse(b.date)-Date.parse(a.date)).filter(g=>{const id=g.eventId||`${g.date}:${g.opponent}`;if(seen.has(id))return false;seen.add(id);return true;});
  const mean=a=>a.length?a.reduce((s,x)=>s+x.value,0)/a.length:null;
  const median=a=>{if(!a.length)return null;const v=a.map(x=>x.value).sort((a,b)=>a-b),m=Math.floor(v.length/2);return v.length%2?v[m]:(v[m-1]+v[m])/2;};
@@ -14,7 +14,7 @@ export function historySummary(input,{line=null,asOf=new Date().toISOString(),se
  const seasonGames=season==null?games:games.filter(g=>String(g.season)===String(season));
  const opponents=[...new Set(games.map(g=>g.opponent).filter(Boolean))];
  return {games,last5:games.slice(0,5),last10:games.slice(0,10),recent5:stats(games.slice(0,5)),recent10:stats(games.slice(0,10)),
-  season:stats(seasonGames),splits:{home:stats(seasonGames.filter(g=>g.isHome===true)),away:stats(seasonGames.filter(g=>g.isHome===false)),opponents:opponents.map(opponent=>({opponent,...stats(seasonGames.filter(g=>g.opponent===opponent))}))},
+  season:stats(seasonGames),workload:{recent5:stats(games.slice(0,5).filter(g=>n(g.workload)!=null).map(g=>({...g,value:n(g.workload)}))),recent10:stats(games.slice(0,10).filter(g=>n(g.workload)!=null).map(g=>({...g,value:n(g.workload)})))},splits:{home:stats(seasonGames.filter(g=>g.isHome===true)),away:stats(seasonGames.filter(g=>g.isHome===false)),opponents:opponents.map(opponent=>({opponent,...stats(seasonGames.filter(g=>g.opponent===opponent))}))},
   thresholdBasis:line==null?'NO_MARKET_THRESHOLD':'CURRENT_THRESHOLD_RETROACTIVE',threshold:line,calibratedProbability:null};
 }
 
@@ -59,24 +59,28 @@ async function storedNflHistory(env,profile,{playerId,market,asOf,line}) {
  }catch{return null;}
 }
 /** Read the existing daily research snapshot; card requests need no upstream scrape. */
-export async function storedNbaHistory(env,{playerId,market,asOf,line}) {
- if(!env.ARCHIVE?.get)return null;
- try {
-  const object=await env.ARCHIVE.get(SDV_NBA_PREFIX+'snapshot.json');if(!object)return null;
-  const payload=await object.json();
-  if(!verifySdvNbaHistorySnapshot(payload).ok||payload.authority!=='SHADOW_HISTORY_ONLY')return null;
+export function prepareNbaPropHistory(payload){
+ if(!verifySdvNbaHistorySnapshot(payload).ok||payload.authority!=='SHADOW_HISTORY_ONLY')return null;
+ const entries=new Map(payload.entries.map(p=>[String(p.espnPlayerId),p]));
+ return ({playerId,market,asOf,line=null})=>{
   const cutoff=Date.parse(asOf),capture=Date.parse(payload.generatedAt);
   if(!Number.isFinite(cutoff)||capture>cutoff||cutoff-capture>3*86400000)return null;
-  const entry=payload.entries.find(p=>p.espnPlayerId===String(playerId));if(!entry)return null;
+  const entry=entries.get(String(playerId));if(!entry)return null;
   const fields={points:['points'],rebounds:['rebounds'],assists:['assists'],three_pointers_made:['three_pointers_made'],'3_pt_made':['three_pointers_made'],pra:['points','rebounds','assists'],points_rebounds_assists:['points','rebounds','assists'],points_rebounds:['points','rebounds'],points_assists:['points','assists'],rebounds_assists:['rebounds','assists']}[market];
   if(!fields)return null;
   const games=entry.games.map(g=>({...g,eventId:g.gameId,status:'FINAL',
-   opponent:g.opponent||null,isHome:g.isHome??null,value:fields.every(k=>n(g[k])!=null)?fields.reduce((sum,k)=>sum+g[k],0):null}));
+   opponent:g.opponent||null,isHome:g.isHome??null,workload:n(g.minutes),value:fields.every(k=>n(g[k])!=null)?fields.reduce((sum,k)=>sum+g[k],0):null}));
   const season=new Date(asOf).getUTCFullYear()+(new Date(asOf).getUTCMonth()>=6?1:0);
   const summary=historySummary(games,{line,asOf,season});if(!summary.games.length)return null;
   return {available:true,identityVerified:true,canonicalPlayerId:`nba:espn:${playerId}`,
    source:'SportsDataverse / ESPN regular-season box scores',sourceFetchedAt:payload.ingestedAt||payload.generatedAt,
    historyAsOfDay:payload.asOfDayExclusive,partialSeason:true,seasonType:'REGULAR_SEASON',...summary,reason:null};
+ };
+}
+export async function storedNbaHistory(env,options){
+ if(!env.ARCHIVE?.get)return null;
+ try{const object=await env.ARCHIVE.get(SDV_NBA_PREFIX+'snapshot.json');if(!object)return null;
+  const read=prepareNbaPropHistory(await object.json());return read?read(options):null;
  }catch{return null;}
 }
 async function get(url,fetchImpl) {
@@ -99,7 +103,7 @@ export async function loadCanonicalPropHistory(env,{sport,provider,playerId,mark
    const b=await (await get(`https://api-web.nhle.com/v1/player/${playerId}/game-log/now`,fetchImpl)).json();
    if(String(b.playerId||playerId)!==String(playerId))throw Error('HISTORY_ID_MISMATCH');
    const key={shots_on_goal:'shots',points:'points',goals:'goals',assists:'assists',saves:'saves'}[market];if(!key)return {available:false,reason:'STAT_DEFINITION_UNSUPPORTED'};
-   games=(b.gameLog||[]).filter(g=>g.toi!=='0:00').map(g=>({eventId:String(g.gameId),date:g.gameDate,opponent:g.opponentAbbrev,isHome:g.homeRoadFlag==='H',season:b.seasonId,value:n(g[key]),workload:g.toi||null}));
+   games=(b.gameLog||[]).filter(g=>g.toi!=='0:00').map(g=>({eventId:String(g.gameId),date:g.gameDate,opponent:g.opponentAbbrev,isHome:g.homeRoadFlag==='H',season:b.seasonId,value:n(g[key]),workload:/^\d+:\d{2}$/.test(g.toi||'')?g.toi.split(':').reduce((m,v)=>m*60+Number(v),0):null}));
    source='NHL official player game log';season=b.seasonId;identityVerified=true;
   }else if(provider==='mlb'&&sport==='mlb'&&/^\d+$/.test(playerId)){
    const pitching=['strikeouts','pitcher_outs','earned_runs','hits_allowed','walks_allowed'].includes(market);

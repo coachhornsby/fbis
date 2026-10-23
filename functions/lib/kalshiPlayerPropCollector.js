@@ -1,7 +1,7 @@
 import { KALSHI_PROP_SERIES } from './propProviderAdapters.js';
 import { kalshiSignedReadProxy } from './kalshiSignedCollector.js';
 const ROOT='player-props/kalshi/v1/';
-export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fetch,webCrypto=crypto,maxSeries=4}={}) {
+export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fetch,webCrypto=crypto,maxSeries=6,maxPages=5}={}) {
  if(!env.ARCHIVE?.get||!env.ARCHIVE?.put)return {ok:false,code:'ARCHIVE_BINDING_MISSING'};
  const previous=await env.ARCHIVE.get(ROOT+'status.json');const status=previous?await previous.json():null;
  if(Date.parse(status?.nextAllowedAt)>now.getTime())return {ok:true,status:'NOT_DUE',records:0};
@@ -13,20 +13,29 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
  const proxy=kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});const receipts=[];
  for(const ticker of selected){
   try {
-   const response=await proxy(`https://external-api.kalshi.com/trade-api/v2/markets?series_ticker=${encodeURIComponent(ticker)}&status=open&limit=1000`,{method:'GET'});
-   if(response.status===429){receipts.push({series:ticker,status:'RATE_LIMITED',records:0});break;}
-   if(!response.ok){receipts.push({series:ticker,status:'HTTP_ERROR',httpStatus:response.status,records:0});continue;}
-   const data=await response.json();if(!Array.isArray(data.markets))throw Error('SCHEMA_CHANGED');
-   const records=data.markets.filter(m=>String(m.ticker||'').startsWith(ticker+'-')&&!m.mve_collection_ticker).slice(0,1000);
+   let cursor='',pages=0,complete=false,rateLimited=false;const records=[],seen=new Set(),cursors=new Set();
+   do {
+    const q=new URLSearchParams({series_ticker:ticker,status:'open',limit:'1000'});if(cursor)q.set('cursor',cursor);
+    const response=await proxy('https://external-api.kalshi.com/trade-api/v2/markets?'+q,{method:'GET'});
+    if(response.status===429){rateLimited=true;break;}
+    if(!response.ok)throw Error('HTTP_'+response.status);
+    const data=await response.json();if(!Array.isArray(data.markets))throw Error('SCHEMA_CHANGED');
+    pages++;
+    for(const m of data.markets)if(String(m.ticker||'').startsWith(ticker+'-')&&!m.mve_collection_ticker&&!seen.has(m.ticker)){seen.add(m.ticker);records.push(m);}
+    cursor=typeof data.cursor==='string'?data.cursor:'';
+    if(!cursor){complete=true;break;}
+    if(cursors.has(cursor))break;cursors.add(cursor);
+   }while(pages<Math.min(10,Math.max(1,maxPages)));
+   if(rateLimited){receipts.push({series:ticker,status:'RATE_LIMITED',records:0});break;}
    const receipt={version:1,provider:'Kalshi',seriesTicker:ticker,sport:KALSHI_PROP_SERIES[ticker][0],capturedAt:now.toISOString(),
-    sourceObservedAt:null,quoteTimeBasis:'REST_CAPTURE_ONLY',records,paginationComplete:!data.cursor,canQualify:false,canAuthorizeWager:false};
+    sourceObservedAt:null,quoteTimeBasis:'REST_CAPTURE_ONLY',records,pages,paginationComplete:complete,canQualify:false,canAuthorizeWager:false};
    await env.ARCHIVE.put(ROOT+ticker+'.json',JSON.stringify(receipt),{httpMetadata:{contentType:'application/json'}});
-   receipts.push({series:ticker,status:'CAPTURED',records:records.length,paginationComplete:receipt.paginationComplete});
+   receipts.push({series:ticker,status:complete?'CAPTURED':'PARTIAL',records:records.length,pages,paginationComplete:receipt.paginationComplete});
   }catch{receipts.push({series:ticker,status:'UNAVAILABLE',records:0});}
  }
  const rateLimited=receipts.some(r=>r.status==='RATE_LIMITED');
- const result={ok:receipts.some(r=>r.status==='CAPTURED'),version:1,attemptedAt:now.toISOString(),nextAllowedAt:new Date(now.getTime()+(rateLimited?3600000:14*60000)).toISOString(),
-  nextOffset:(offset+selected.length)%Math.max(1,series.length),discoveredSeries:series.length,receipts,records:receipts.reduce((n,r)=>n+r.records,0),canQualify:false,canAuthorizeWager:false};
+ const result={ok:receipts.some(r=>r.status==='CAPTURED'||r.status==='PARTIAL'),version:1,attemptedAt:now.toISOString(),nextAllowedAt:new Date(now.getTime()+(rateLimited?3600000:14*60000)).toISOString(),
+  nextOffset:(offset+receipts.filter(r=>r.status!=='RATE_LIMITED').length)%Math.max(1,series.length),discoveredSeries:series.length,receipts,records:receipts.reduce((n,r)=>n+r.records,0),canQualify:false,canAuthorizeWager:false};
  await env.ARCHIVE.put(ROOT+'status.json',JSON.stringify(result),{httpMetadata:{contentType:'application/json'}});return result;
 }
 export async function loadCapturedKalshiProps(env,{games,players,sport='all',seriesFilter=null,now=Date.now()}={}) {
