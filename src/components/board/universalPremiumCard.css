@@ -631,3 +631,43 @@
   border-color:rgba(255,255,255,.1) !important;
   border-radius:10px !important;
 }
+
+/* Give model direction its own readable rows instead of squeezing long labels
+   into the old four-column numeric-gap strip. */
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.value-decision-model {
+  grid-template-columns: 86px minmax(0,1fr) !important;
+  grid-template-areas: "label label" "identity delta" "detail detail" "note note" !important;
+  gap:8px 12px !important;
+  padding:13px 16px !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.value-decision-model > strong {
+  min-width:0 !important;
+  white-space:normal !important;
+  overflow-wrap:normal !important;
+  font-size:clamp(21px,2.3vw,30px) !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.value-decision-model > b,
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.value-decision-model > span:first-child {
+  width:100% !important;
+  white-space:normal !important;
+  overflow-wrap:normal !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.value-decision-model.cgc-gap-neutral {
+  grid-template-areas:"label label" "delta delta" "detail detail" "note note" !important;
+}
+.fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.value-decision-model.cgc-gap-neutral .cgc-edge-identity {display:none !important;}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.value-decision-model {
+  grid-template-columns:100px minmax(0,1fr) !important;
+  grid-template-areas:"heading heading" "identity value" "description description" !important;
+  gap:9px 16px !important;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.value-decision-model .pgc-gap-value {
+  min-width:0;
+  white-space:normal !important;
+  overflow-wrap:normal;
+  text-align:center;
+}
+@media(max-width:560px){
+  .fbis-shell-main.route-board .cgc.fbis-universal-premium .cgc-best-edge.value-decision-model {grid-template-columns:68px minmax(0,1fr) !important;padding:12px !important;gap:8px !important;}
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.value-decision-model {grid-template-columns:70px minmax(0,1fr) !important;gap:8px !important;}
+}
