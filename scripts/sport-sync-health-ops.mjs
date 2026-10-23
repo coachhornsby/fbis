@@ -34,7 +34,8 @@ const failures = [];
 // Validate each sport against its deployed mode instead of the retired all-PRIMARY invariant.
 const sports = Array.isArray(health.sports) ? health.sports : [];
 if (sports.length !== 11 || health.sportCount !== 11) failures.push("SPORT_INVENTORY_INCOMPLETE");
-// Each entry below must have a matching deployed sport mode, strict routing,\n// and an independently approved CORE cutover receipt. Keep this explicit.\nconst authoritative = new Set(["nfl", "cfb", "nhl", "nba"]);
+// Authoritative sport allowlist must match the independently approved CORE cutovers.
+const authoritative = new Set(["nfl", "cfb", "nhl", "nba"]);
 for (const row of sports) {
   const shouldUseSport = authoritative.has(row.sport);
   if (shouldUseSport) {

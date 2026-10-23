@@ -99,7 +99,7 @@ test("NBA ledger storage fails closed without independent readiness and CORE app
 
 test("health operations recognize exactly the four CORE-approved authoritative sports",()=>{
  const script=readFileSync(new URL("../scripts/sport-sync-health-ops.mjs",import.meta.url),"utf8");
- const match=script.match(/const authoritative = new Set\(\[([^\]]+)\]\)/);
+ const match=script.match(/^const authoritative = new Set\(\[([^\]]+)\]\);$/m);
  assert.ok(match,"authoritative sports health allowlist missing");
  const names=[...match[1].matchAll(/"([a-z]+)"/g)].map(x=>x[1]);
  assert.deepEqual(names,["nfl","cfb","nhl","nba"]);
