@@ -203,7 +203,7 @@ export default function CompactGameCard({ game, onOpen }) {
         <div className="cgc-head-right">
           {stored ? null : showStars ? <span title={isNhl ? "NHL evidence rating, not a qualified betting signal" : "Model confidence rating"}><Stars value={stars} max={rating.max} /></span> : <span className="cgc-rating-unavailable">NO MODEL RATING</span>}
           <span className={`cgc-status cgc-status-${String(vm.status?.tone || "neutral").toLowerCase()}`}>
-            {vm.status?.label || "FBIS"}
+            {vm.status?.key === "RESEARCH" ? "FBIS" : vm.status?.key === "STORED_UNVERIFIED" ? "STORED" : vm.status?.label || "FBIS"}
           </span>
         </div>
       </header>
@@ -211,7 +211,7 @@ export default function CompactGameCard({ game, onOpen }) {
       {isNfl ? <NflInjuryIntegrityStrip game={game} /> : null}
       {isNfl && game.nflInternationalContext?.international ? (
         <div className="cgc-status-note" role="status" aria-label="International-game risk">
-          🌍 {game.nflInternationalContext.site?.city || "INTERNATIONAL"} · INTERNATIONAL / NEUTRAL · TRAVEL NOT VALIDATED · NO BET AUTHORITY
+          🌍 {game.nflInternationalContext.site?.city || "INTERNATIONAL"} · INTERNATIONAL / NEUTRAL · TRAVEL NOT VALIDATED
         </div>
       ) : null}
 
@@ -281,7 +281,7 @@ export default function CompactGameCard({ game, onOpen }) {
           </div>
           <strong>{valueChoice.value}</strong>
           <b>{valueChoice.detail}</b>
-          <small>{valueChoice.secondary}</small>
+          {valueChoice.secondary ? <small>{valueChoice.secondary}</small> : null}
         </aside>
         )}
       </div>

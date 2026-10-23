@@ -18,7 +18,7 @@ test("positive unqualified research value appears without granting wagering auth
  assert.equal(v.status,"research");
  assert.match(v.value,/MTL ML -140/);
  assert.match(v.detail,/EST. ROI \+12\.3%/);
- assert.match(v.secondary,/NOT EXECUTABLE/);
+ assert.equal(v.secondary, "");
  assert.equal(v.research.qualified,false);
  assert.doesNotMatch(JSON.stringify(v),/0\.8 GOALS DIFFERENCE/);
 });

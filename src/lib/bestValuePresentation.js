@@ -36,7 +36,7 @@ function independentMoneyline(game,sport){
 
 export function rankResearchMoneylines(game={},vm={},now=new Date()){
  const sport=String(game?.sport||vm?.sport||"").toLowerCase();
- if(game?.durableFallback?.statusUnverified===true||game?.status?.completed===true)return {candidates:[],reason:"Game status or snapshot unverified"};
+ if(game?.durableFallback?.statusUnverified===true||game?.status?.completed===true)return {candidates:[],reason:"Current game snapshot unavailable"};
  const start=Date.parse(String(game?.start||""));
  const clock=now instanceof Date?now.getTime():Date.parse(now);
  if(!Number.isFinite(clock))return {candidates:[],reason:"Current time unavailable"};
@@ -91,11 +91,11 @@ export function modelDirectionPresentation(game={},vm={}) {
  const favorite=Math.abs(modelHome)<.05?null:modelHome<0?'home':'away';
  const fairLine=favorite?`${abbr(favorite)} ${signed(-Math.abs(modelHome))}`:"PICK'EM";
  const value=leading?(leading.side?leading.kind==='spread'?`${abbr(leading.side)} ${signed(leading.side==='home'?marketHome:-marketHome)} LEAN`:`${leading.side.toUpperCase()} ${fmt(marketTotal)} LEAN`:'AT THE MARKET LINE'):favorite?`${abbr(favorite)} PROJECTED WINNER`:"PROJECTED TIE";
- return {status:'model',heading:'FBIS DIRECTION · RESEARCH',value,
+ return {status:'model',heading:'FBIS DIRECTION',value,
   teamSide:leading?.kind==='spread'?leading.side:!leading?favorite:null,
   totalDirection:leading?.kind==='total'?leading.side:null,
   detail:leading?[spreadText,totalText].filter(Boolean).join(' · '):`FBIS ${fairLine} · TOTAL ${fmt(modelTotal)} · MARKET LINE UNAVAILABLE`,
-  secondary:leading?'PROJECTION COMPARISON · PRICE VALUE UNVERIFIED · NO WAGER AUTHORITY':'MODEL FORECAST · NO LINE COMPARISON AVAILABLE · NO WAGER AUTHORITY',
+  secondary:'',
   modelOnly:true,executable:false,qualified:false};
 }
 
@@ -116,17 +116,17 @@ export function bestValuePresentation(game={},vm={},options={}){
    secondary:"See market details and confirm price before placing a bet"};
  }
  const stored=game?.durableFallback?.statusUnverified===true;
- if(stored)return {status:"pass",heading:"BEST VALUE / DECISION",value:"PRICE UNVERIFIED",
-    detail:"STORED PREGAME · CANNOT RANK CURRENT MARKET VALUE",secondary:"RESEARCH ONLY · NO WAGER AUTHORITY"};
+ if(stored)return {status:"pass",heading:"BEST VALUE / DECISION",value:"STORED SNAPSHOT",
+    detail:"STORED PREGAME · CANNOT RANK CURRENT MARKET VALUE",secondary:""};
  const result=rankResearchMoneylines(game,vm,options.now||new Date());
  const leader=result.candidates[0];
  if(leader&&leader.roi>0){
   const team=leader.side==="home"?vm.home||game.home:vm.away||game.away;
   const abbr=team?.abbr||team?.name||leader.side.toUpperCase();
-  return {status:"research",teamSide:leader.side,heading:"RESEARCH VALUE · NOT QUALIFIED",
+  return {status:"research",teamSide:leader.side,heading:"MODEL VALUE",
    value:`${abbr} ML ${signedAmerican(leader.odds)}`,
    detail:`EST. ROI +${(leader.roi*100).toFixed(1)}% · ${(leader.probability*100).toFixed(1)}% MODEL · PINNODDS CAPTURED REFERENCE`,
-   secondary:"PRICE / SETTLEMENT NEED VERIFICATION · NOT EXECUTABLE · NO WAGER AUTHORITY",
+   secondary:"",
    research:{...leader,estimated:true}};
  }
  const direction=modelDirectionPresentation(game,vm);
@@ -150,8 +150,8 @@ export function bestValuePresentation(game={},vm={},options={}){
   const favorite=homeP!=null?`${homeP>=.5?(vm.home?.abbr||game.home?.abbr||"HOME"):(vm.away?.abbr||game.away?.abbr||"AWAY")} ML`:null;
   return {status:"unpriced",heading:"BEST VALUE / DECISION",value:"MODEL DIRECTION UNAVAILABLE",
    detail:result.reason||"NO CURRENT COMPARABLE MONEYLINE PRICES",
-   secondary:favorite?`MODEL FAVORITE: ${favorite} · RESEARCH ONLY, NOT A BET`:
-      "NO INDEPENDENT MATCHED RESEARCH SIGNAL"};
+   secondary:favorite?`MODEL FAVORITE: ${favorite}`:
+      "NO INDEPENDENT MATCHED SIGNAL"};
  }
  return {status:"unpriced",heading:"BEST VALUE / DECISION",value:"MODEL DIRECTION UNAVAILABLE",
    detail:result.reason||"NO CURRENT COMPARABLE MARKET",

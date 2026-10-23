@@ -43,7 +43,6 @@ export function BoardSummaryStrip({ games = [] }) {
     <div className="db-summary" aria-label="Board summary">
       <div className="db-sum-tiles">
         <div className="db-sum-tile"><strong>{stats.n}</strong><span>GAMES</span></div>
-        {stats.research > 0 ? <div className="db-sum-tile db-sum-research"><strong>{stats.research}</strong><span>RESEARCH</span></div> : null}
         {stats.watch > 0 ? <div className="db-sum-tile db-sum-watch"><strong>{stats.watch}</strong><span>WATCH</span></div> : null}
         {stats.qualified > 0 ? <div className="db-sum-tile db-sum-qual"><strong>{stats.qualified}</strong><span>QUAL</span></div> : null}
         {stats.blocked > 0 ? <div className="db-sum-tile db-sum-block"><strong>{stats.blocked}</strong><span>BLOCK</span></div> : null}
@@ -51,7 +50,7 @@ export function BoardSummaryStrip({ games = [] }) {
         {stats.final > 0 ? <div className="db-sum-tile db-sum-final"><strong>{stats.final}</strong><span>FINAL</span></div> : null}
         <div className="db-sum-tile db-sum-mkt"><strong>{stats.pinnodds}</strong><span>PIN CAPTURES</span></div>
         <div className="db-sum-tile db-sum-mkt"><strong>{stats.exchange}</strong><span>EXCH OFFERS</span></div>
-        {stats.polyGlobalResearch > 0 ? <div className="db-sum-tile db-sum-mkt"><strong>{stats.polyGlobalResearch}</strong><span>POLY GLOBAL RESEARCH</span></div> : null}
+        {stats.polyGlobalResearch > 0 ? <div className="db-sum-tile db-sum-mkt"><strong>{stats.polyGlobalResearch}</strong><span>POLY GLOBAL</span></div> : null}
         <div className="db-sum-tile db-sum-mkt"><strong>{stats.withMarket}</strong><span>EXEC MKT</span></div>
       </div>
       {stats.cfbGames ? <div className="db-cfb-source-strip" aria-label="College football data coverage">
@@ -105,8 +104,8 @@ export default function DecisionBoard({ games = [], renderDetail }) {
           const isTennis = String(g?.sport || "").toLowerCase() === "tennis";
           return (
             <Fragment key={`${g.sport}:${g.id}`}>
-            {isTennis&&index===0&&!g.tennisProjection?.researchFixture?<div className="tmc-official-separator" role="note">Verified official Tennis schedule · FBIS model research · No wager authority</div>:null}
-            {g.tennisProjection?.researchFixture&&!ranked[index-1]?.tennisProjection?.researchFixture?<div className="tmc-research-separator" role="note">Independent Tennis research fixtures · Separate from verified scheduled events · No projection or wager authority</div>:null}
+            {isTennis&&index===0&&!g.tennisProjection?.researchFixture?<div className="tmc-official-separator" role="note">Tennis schedule</div>:null}
+            {g.tennisProjection?.researchFixture&&!ranked[index-1]?.tennisProjection?.researchFixture?<div className="tmc-research-separator" role="note">Additional Tennis fixtures</div>:null}
             <div role="listitem" className={isTennis ? "db-grid-item db-grid-item-tennis" : "db-grid-item"}>
               {isTennis
                 ? <PremiumGameCard game={g} />

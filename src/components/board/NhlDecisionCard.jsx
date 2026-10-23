@@ -72,7 +72,7 @@ export default function NhlDecisionCard({game,vm:givenVm,onOpen,expanded=false})
     aria-label={open?`Open NHL analysis for ${away.abbr||"away"} and ${home.abbr||"home"}`:undefined}>
     <header className="nhlc-head">
       <div className="nhlc-headline"><span>NHL</span><strong>{vm.timing?.timeLine||"Game time unavailable"}</strong></div>
-      <div className="nhlc-labels"><span className={`nhlc-state nhlc-state-${label.toLowerCase()}`}>{label}</span><span className="nhlc-research">RESEARCH ONLY</span></div>
+      <div className="nhlc-labels"><span className={`nhlc-state nhlc-state-${label.toLowerCase()}`}>{label}</span></div>
     </header>
     {scored?<div className="nhlc-score"><span>{final?"FINAL":"LIVE"} SCORE</span><strong>{away.abbr} {actualAway} – {actualHome} {home.abbr}</strong></div>:null}
     <div className="nhlc-premium-kicker"><span>FBIS HOCKEY INTELLIGENCE</span><strong>MODEL vs MARKET</strong></div>
@@ -110,7 +110,7 @@ export default function NhlDecisionCard({game,vm:givenVm,onOpen,expanded=false})
     </section>
     <footer className="nhlc-footer">
       <span>{p.available?"NHL-PRO-v2":"NO PURE MODEL"} · {hasQuote?"SOURCED MARKET":"NO VERIFIED ML"} · NO BET AUTHORITY</span>
-      <strong>{open?"VIEW ANALYSIS →":expanded?"MODEL DETAILS BELOW":"RESEARCH"}</strong>
+      <strong>{open?"VIEW ANALYSIS →":expanded?"MODEL DETAILS BELOW":"MODEL"}</strong>
     </footer>
   </article>;
 }

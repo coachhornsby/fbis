@@ -720,3 +720,14 @@
  .fbis-shell-main .pgc.fbis-universal-premium.pgc-mlb .pgc-mlb-center-logos .team-logo-wrap,
  .fbis-shell-main .pgc.fbis-universal-premium.pgc-mlb .pgc-mlb-center-logos .team-logo {width:64px!important;height:64px!important;}
 }
+
+/* Keep each projected score directly centered below its team name. */
+.fbis-shell-main .fbis-universal-premium.pgc-featured.pgc-mlb .pgc-mlb-score-inline,
+.fbis-shell-main .fbis-universal-premium.pgc-featured.pgc-mlb .pgc-featured-team-home .pgc-mlb-score-inline {
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+  width:100%;
+  text-align:center;
+}

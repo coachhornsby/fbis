@@ -265,7 +265,7 @@ function VenueComparison({row}) {
  };
  const providers=[...new Set(Object.values(rows).flatMap(s=>(s.venues||[]).map(v=>v.provider)))];
  if(providers.length===1){const provider=providers[0];return <div className="pp-venue-comparison" aria-label={`${provider} research prices`}>
-  <div className="pp-venue-topline"><b>{provider.toUpperCase()} PRICES</b><span>Research reference</span></div>
+  <div className="pp-venue-topline"><b>{provider.toUpperCase()} PRICES</b><span>Price reference</span></div>
   <div className="pp-single-venue-quotes">{['over','under'].map(side=>{const offer=rows[side]?.venues?.find(v=>v.provider===provider);return <div key={side} className={'pp-side-'+side}><span>{side==='over'?'↑ OVER':'↓ UNDER'}</span><strong>{price(offer?.price)}</strong><small>{offer?.priceKind==='VERIFIED_PURCHASE_ASK'?'Verified ask':offer?.priceKind==='DISPLAY_REFERENCE_NOT_ASK'?'Global reference':offer?'Observed':'Unavailable'}</small></div>;})}</div>
   <details className="pp-venue-caveat"><summary>Price & exchange notes</summary><p>The other exchange has no matched contract. Observed or global reference prices require verified purchase asks, clocks, fees and matching settlement rules before an executable comparison.</p></details>
  </div>;}
@@ -286,7 +286,7 @@ function VenueComparison({row}) {
     </div>;
    })}
   </div>
-  <details className="pp-venue-caveat"><summary>Price comparison notes</summary><p>Observed prices are research references. Price differences require matching settlement rules, current purchase asks and fees before they can support an edge.</p></details>
+  <details className="pp-venue-caveat"><summary>Price comparison notes</summary><p>Observed market prices. Price differences require matching settlement rules, current purchase asks and fees before they can support an edge.</p></details>
  </div>;
 }
 
@@ -415,11 +415,11 @@ export default function FBISPlayerPropCard({
         <LastFiveStatChart row={row} />
         <VenueComparison row={row} />
         <div className="pp-flow-bottom">
-          {onResearch?<button type="button" className="pp-flow-research" aria-label="Open player research" onClick={()=>onResearch(rawRow)}><span>Player research</span><span>{row.alternateThresholds?.length>1?`${row.alternateThresholds.length} lines `:''}↗</span></button>:null}
-          <div className="pp-flow-meta"><span className="pp-flow-status">Research only</span><details><summary>Sources & contracts</summary>
+          {onResearch?<button type="button" className="pp-flow-research" aria-label="Open player details" onClick={()=>onResearch(rawRow)}><span>Player details</span><span>{row.alternateThresholds?.length>1?`${row.alternateThresholds.length} lines `:''}↗</span></button>:null}
+          <div className="pp-flow-meta"><details><summary>Sources & contracts</summary>
             <p>{row.identityVerified&&row.contractId?'Exact player contract mapped.':'Independent projection; no exchange contract mapped.'} {row.marketAvailable?'Verified purchase quote.':'Quote is not executable.'}</p>
             <p>{row.observedAt?`Quote: ${row.observedAt}`:'Quote source time unknown'}{row.collectedAt?` · Captured ${new Date(row.collectedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})} CT`:''}</p>
-            <p>{row.modelVersion||row.modelId} · Threshold probability uncalibrated. Not a wager authorization.</p>
+            <p>{row.modelVersion||row.modelId} · Threshold probability uncalibrated. </p>
           </details></div>
         </div>
       </div>
