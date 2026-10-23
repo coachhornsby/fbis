@@ -1,5 +1,6 @@
 import {useEffect,useMemo,useState} from "react";
 import TeamLogo from "../../components/TeamLogo.jsx";
+import {enrichTeam} from "../../../functions/lib/teams.js";
 import "./simulationRankings.css";
 
 const ORDER_OPTIONS=[
@@ -92,18 +93,20 @@ export default function SimulationRankingsView(){
     </tr></thead>
     <tbody>{rows.map((g,i)=>{
      const w=g.winnerSide==="home"?g.home:g.winnerSide==="away"?g.away:null;
+     const away=enrichTeam(sport,g.away),home=enrichTeam(sport,g.home);
+     const leader=g.winnerSide==="home"?home:g.winnerSide==="away"?away:null;
      return <tr key={g.id} className={g.probabilityComplete?"":"simrank-partial"}>
       <td className="simrank-rank">{i+1}</td>
       <td><div className="simrank-match">
-       <div className="simrank-logo-versus" style={{display:"flex",alignItems:"center",gap:10}}>
-        <TeamLogo team={{sport,name:g.away.name,abbr:g.away.abbr}} size={42}/>
+       <div className="simrank-logo-versus">
+        <TeamLogo team={{...away,sport}} size={50} tone="dark"/>
         <b aria-label="versus">VS</b>
-        <TeamLogo team={{sport,name:g.home.name,abbr:g.home.abbr}} size={42}/>
+        <TeamLogo team={{...home,sport}} size={50} tone="dark"/>
        </div>
-       <div><strong>{g.away.name} vs {g.home.name}</strong>
+       <div><strong>{g.away.name} <span className="simrank-name-vs">vs</span> {g.home.name}</strong>
         <span>{date(g.kickoff)}</span>
-        <small>{w?"Projected leader: "+w.name:"Projected leader unavailable or tied"}</small>
-        <small>{g.away.abbr}: {pct(g.awayWinPct)} · {g.home.abbr}: {pct(g.homeWinPct)} · Tie: {pct(g.tiePct)}</small>
+        <div className="simrank-leader" aria-label="Simulated regulation projected leader">{leader?<><span className="simrank-leader-label">PROJECTED WINNER</span><TeamLogo team={{...leader,sport}} size={26} tone="dark"/><b>{w.name}</b></>:<b>Projected winner unavailable or tied</b>}</div>
+        <div className="simrank-sides"><span className={g.winnerSide==="away"?"fav":""}>{g.away.abbr} {pct(g.awayWinPct)}</span><span className={g.winnerSide==="home"?"fav":""}>{g.home.abbr} {pct(g.homeWinPct)}</span><span>Tie {pct(g.tiePct)}</span></div>
        </div></div></td>
       <td><div className="simrank-prob">{pct(g.winPct)}
         <span className="simrank-bar"><i style={{width:(g.winPct??0)+"%"}} /></span></div></td>
