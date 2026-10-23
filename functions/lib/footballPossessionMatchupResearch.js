@@ -102,7 +102,7 @@ export function selectMatchupDriveHistory(games,{
   const old=map.get(g.gameId);
   if(!old||stamp(g.observedAt)>stamp(old.observedAt))map.set(g.gameId,g);
  }
- const pool=[...map.values()].sort((a,b)=>stamp(b.kickoff)-stamp(a.kickoff)).slice(0,350);
+ const pool=[...map.values()].sort((a,b)=>stamp(b.kickoff)-stamp(a.kickoff)).slice(0,sport==="cfb"?700:350);
  const off=new Map(),allow=new Map(),gamesByTeam=new Map(),perGame=new Map();
  const add=(map,key,row)=>{if(!map.has(key))map.set(key,[]);map.get(key).push(row)};
  for(const g of pool){
