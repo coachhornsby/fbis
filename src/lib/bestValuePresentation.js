@@ -13,6 +13,7 @@ const americanReturn=odds=>odds>0?odds/100:100/Math.abs(odds);
 const signedAmerican=odds=>odds>0?`+${Math.round(odds)}`:String(Math.round(odds));
 
 function independentMoneyline(game,sport){
+ if(sport==="mlb"&&game?.pureProjectionAvailable===false)return null;
  if(sport==="nhl"){
   const p=game?.nhlProV2;
   const home=probability(p?.probability?.homeWinIncludingOt);
@@ -134,6 +135,14 @@ export function bestValuePresentation(game={},vm={},options={}){
   return {status:"pass",heading:"BEST VALUE / DECISION",value:"NO POSITIVE PRICED VALUE",
    detail:"MODELED MONEYLINE RETURN IS NON-POSITIVE AT CAPTURED PRICES",
    secondary:"PUCK LINE / SPREAD / TOTAL NOT RANKED WITHOUT COVER/OVER PROBABILITIES"};
+ }
+ if(sport==="mlb"&&game?.mlbDeepShadow?.ok===false){
+  const stale=game?.mlbPersistentState?.fresh===false;
+  const asOf=game?.mlbPersistentState?.asOf;
+  const stamp=asOf&&Number.isFinite(Date.parse(asOf))?new Date(asOf).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' CT':null;
+  return {status:'unpriced',heading:'FBIS MODEL STATUS',value:stale?'MLB INPUT REFRESH REQUIRED':'MLB PROJECTION INPUTS MISSING',
+   detail:stale?'TEAM / PITCHER PROFILES EXCEED THE 14-HOUR FRESHNESS LIMIT':String(game.mlbDeepShadow.reason||'STARTER OR TEAM OFFENSE MISSING').replaceAll('-',' ').toUpperCase(),
+   secondary:[stamp?`LAST PROFILE UPDATE ${stamp}`:null,'INDEPENDENT RUN FORECAST PENDING'].filter(Boolean).join(' · ')};
  }
  if(sport==="nhl"){
   const model=independentMoneyline(game,sport);

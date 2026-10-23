@@ -71,3 +71,10 @@ test('market-informed or stored forecasts do not become independent model direct
  assert.notEqual(bestValuePresentation({sport:'nba',model:{marketInformed:true}},vm,{now}).status,'model');
  assert.notEqual(bestValuePresentation({sport:'nba',durableFallback:{statusUnverified:true}},vm,{now}).status,'model');
 });
+
+test('MLB stale-input status explains the missing direction and never promotes a blended probability',()=>{
+ const g={sport:'mlb',pHome:.6008,pureProjectionAvailable:false,mlbDeepShadow:{ok:false,reason:'starter-or-team-offense-missing'},mlbPersistentState:{fresh:false,asOf:'2026-10-22T21:54Z'}};
+ const v=bestValuePresentation(g,{projection:{available:false}},{now});
+ assert.equal(v.value,'MLB INPUT REFRESH REQUIRED');assert.match(v.detail,/14-HOUR/);assert.match(v.secondary,/LAST PROFILE UPDATE/);assert.doesNotMatch(JSON.stringify(v),/60.1%|EST. ROI|MIL.*FAVORITE/);
+ assert.equal(rankResearchMoneylines(g,{},now).candidates.length,0);
+});

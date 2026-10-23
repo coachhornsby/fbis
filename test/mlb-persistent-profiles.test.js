@@ -103,3 +103,11 @@ test("production MLB board disables live Savant feature fanout when D1 is bound"
   assert.equal(shouldUseLiveMlbFeatureFallback({DB:{prepare(){}}}),false);
   assert.equal(shouldUseLiveMlbFeatureFallback({}),true);
 });
+
+test('MLB profile refresh cadence fits within the live board freshness policy',async()=>{
+ const fs=await import('node:fs/promises');const workflow=await fs.readFile(new URL('../.github/workflows/mlb-persistent-profiles.yml',import.meta.url),'utf8');
+ const cron=workflow.match(/cron: "\d+ ([\d,]+) \* \* \*"/)[1].split(',').map(Number).sort((a,b)=>a-b);
+ const gaps=cron.map((h,i)=>(cron[(i+1)%cron.length]+(i===cron.length-1?24:0))-h);
+ assert.ok(Math.max(...gaps)<14,'scheduled gap must be shorter than the 14-hour board profile limit');
+ assert.match(workflow,/ops\/triggers\/mlb-profile-refresh/);
+});
