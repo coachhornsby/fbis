@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {gradeRegulationSimulations,fitNflDriveOutcomeResearch} from "../functions/lib/footballSimulationValidationResearch.js";
 const asOf="2026-10-23T12:00:00Z";
-const row={sport:"nfl",gameId:"g1",kickoff:"2026-10-20T18:00:00Z",
+const row={sport:"nfl",regulationOnly:true,gameId:"g1",kickoff:"2026-10-20T18:00:00Z",
  frozenAt:"2026-10-19T18:00:00Z",gradedAt:"2026-10-20T22:00:00Z",
  observedAt:"2026-10-21T01:00:00Z",homeScore:28,awayScore:14,
  projectedHome:24,projectedAway:17,homeWinProb:.75,awayWinProb:.2,tieProb:.05,
