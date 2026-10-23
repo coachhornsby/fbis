@@ -24,7 +24,10 @@ for(const meta of sourceFiles){
  const rows=parseCsv(txt);
  assert.ok(rows.length>200,'CROSSLEVEL_SOURCE_INCOMPLETE_'+meta.path);
  const stat=ingestCrossLevelRows(store,meta,rows,{cutoffExclusive:cutoff});
- assert.ok(stat.accepted>0,'CROSSLEVEL_VALID_SOURCE_EMPTY_'+meta.path);
+ // Historical sources can be score-only in a year (notably ATP Futures 2024).
+ // Retain an auditable zero-valid receipt rather than fabricate samples.
+ if(meta.sourceTier==='MAIN_TOUR' && stat.accepted===0)
+  throw Error('CROSSLEVEL_MAIN_TOUR_VALID_SAMPLE_EMPTY_'+meta.path);
  const receipt={...stat,sha256:createHash('sha256').update(txt).digest('hex'),cutoffExclusive:cutoff};
  sourceReceipts.push(receipt);
  console.log(JSON.stringify(receipt));
