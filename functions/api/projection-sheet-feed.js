@@ -1,6 +1,7 @@
 import { buildSlate, resolveSlateDate, shiftDateCT, todayCT } from "../lib/slateEngine.js";
 import { productProjectionCard } from "../lib/productProjection.js";
 import { sportDbContext } from "../lib/nflSportDbContext.js";
+import { resolveNbaResearchOwnerDb } from "../lib/nbaResearchOwnerDb.js";
 
 const SPORTS = new Set(["mlb","npb","kbo","nfl","cfb","cbb","nba","nhl"]);
 
@@ -168,6 +169,15 @@ export async function onRequestGet(context) {
     palCacheOnly: true,
   };
 
+  // The CSV export is a production consumer, not an optional research view.
+  // An attempted NBA sport cutover without a valid CORE grant must be visible
+  // as an HTTP failure; never return an empty successful spreadsheet export.
+  if (sport === "nba") {
+    const owner = await resolveNbaResearchOwnerDb(env);
+    if (!owner.ok || !owner.db?.prepare) return new Response("nba-owner-unavailable", {
+      status: 503, headers: { "cache-control": "no-store" }
+    });
+  }
   const games = [];
   for (let i=0;i<days;i++) {
     const date = shiftDateCT(resolved.date,i);
