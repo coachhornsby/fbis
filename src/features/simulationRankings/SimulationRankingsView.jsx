@@ -85,7 +85,7 @@ export default function SimulationRankingsView(){
      <th scope="col">Rank</th><th scope="col">Matchup / winner</th>
      <th scope="col"><button onClick={()=>toggleSort("winPct")}>Win % {sort==="winPct"?(direction==="desc"?"↓":"↑"):""}</button></th>
      <th scope="col"><button onClick={()=>toggleSort("blowoutPct")}>Blowout 14+ % {sort==="blowoutPct"?(direction==="desc"?"↓":"↑"):""}</button></th>
-     <th scope="col">Winner score</th><th scope="col">Loser score</th>
+     <th scope="col">Away score</th><th scope="col">Home score</th>
      <th scope="col"><button onClick={()=>toggleSort("total")}>Total</button></th>
      <th scope="col"><button onClick={()=>toggleSort("margin")}>Margin</button></th>
      <th scope="col">Evidence</th>
@@ -110,14 +110,18 @@ export default function SimulationRankingsView(){
       <td>{number(g.blowoutPct)?<div className="simrank-prob">{pct(g.blowoutPct)}
         <span className="simrank-bar blowout"><i style={{width:g.blowoutPct+"%"}} /></span></div>:
        <span className="simrank-missing" title="This original frozen research run did not record a 14-point tail frequency">Not captured</span>}</td>
-      <td className="simrank-score-win">{score(g.predictedScoreWinner)}</td>
-      <td className="simrank-score-lose">{score(g.predictedScoreLoser)}</td>
+      <td className="simrank-score-win">{score(g.away.score)}</td>
+      <td className="simrank-score-lose">{score(g.home.score)}</td>
       <td className="simrank-number">{score(g.total)}</td>
       <td className="simrank-number">+{score(g.margin)}</td>
       <td><div className="simrank-provenance"><b>{g.modelVersion}</b>
         <span>{g.iterations.toLocaleString()} draws · {g.calibrationStatus.replaceAll("_"," ").toLowerCase()}</span>
         <small>{age(g.sourceFrozenAt)}</small></div></td>
      </tr>})}</tbody></table></div>}
+  <div className="simrank-notice" aria-label="Simulation performance">
+   <strong>Simulation performance · {sport.toUpperCase()}</strong>
+   <span>Verified Brier score, log loss, margin MAE, total MAE, probability-bucket calibration, and 14+ blowout accuracy: not available until pregame simulations are matched with official graded results. Historical replay is not prospective validation.</span>
+  </div>
   {payload&&<div className="simrank-footer">
    <span>Generated {date(payload.generatedAt)} · {payload.displayed} of {payload.eligible} eligible games</span>
    <span>Tie % tracked separately; overtime not modeled. Missing metrics are never estimated from margins or odds.</span>
