@@ -373,8 +373,10 @@ export async function onRequestPost(context){
     return json({ok:false,blocked:true,error:"monthly_budget_cap",monthToDateUsd:spent.usd,estimatedRunUsd:estimate,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD},409);
   }
   const cmap=new Map(candidates.map(c=>[candidateKey(c),c]));
-  const nflStateIndex=await loadNflPropStateIndex(context.env.DB);
-  const canonicalNflGames=await loadCanonicalNflGameIndex(context.env.DB);
+  const batchSports=new Set(rows.map(sportOf));
+  // Avoid two full NFL table reads on every CFB/NBA/soccer batch.
+  const nflStateIndex=batchSports.has('nfl')?await loadNflPropStateIndex(context.env.DB):{byId:new Map(),byTeamName:new Map(),byUniqueName:new Map()};
+  const canonicalNflGames=batchSports.has('nfl')?await loadCanonicalNflGameIndex(context.env.DB):new Map();
   // Snapshot time is assigned only after all persisted state used by this freeze has been read.
   // The acquisition timestamp remains provenance for the market pull; it is not the state freeze.
   const nflStateFrozenAt=new Date().toISOString();
@@ -525,7 +527,10 @@ export async function onRequestPost(context){
     nflStateSnapshotsWritten+=result.reduce((sum,row)=>sum+Number(row?.meta?.changes||0),0);
   }
   let tennisHeadshots={updated:0};
-  try{tennisHeadshots=await persistTennisPrizePicksHeadshots(context.env.DB,{runId});}catch{tennisHeadshots={updated:0,error:true};}
+  // This query scans all tennis lines in the run; it is unnecessary on non-tennis batches.
+  if(batchSports.has('tennis')){
+   try{tennisHeadshots=await persistTennisPrizePicksHeadshots(context.env.DB,{runId});}catch{tennisHeadshots={updated:0,error:true};}
+  }
   if(capturedSource){
     await context.env.DB.prepare("INSERT OR IGNORE INTO external_acquisition_batches VALUES(?,'prizepicks-daily',?,?,?,?,?,?)").bind(capturedSource.id,batchKey,rows.length,written,Math.max(0,rows.length-malformed-written),malformed,new Date().toISOString()).run();
     return json({ok:true,runId,written,matched,malformed,batchIndex:batchKey,acquisitionId:capturedSource.id,tennisPlayerHeadshotsUpdated:Number(tennisHeadshots.updated||0)});
