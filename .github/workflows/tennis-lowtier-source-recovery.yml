@@ -21,8 +21,21 @@ jobs:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
         with: {node-version: '22'}
-      - name: Verify deployed commit before relying on live authenticated API
-        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Verify deployed revision contains this audit commit
+        run: |
+          set -euo pipefail
+          receipt="$(VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs)"
+          echo "$receipt"
+          live_sha="$(printf '%s' "$receipt" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const r=JSON.parse(s);if(r.outcome!=='match'||!(/^[0-9a-f]{40}$/.test(r.productionSha||'')))process.exit(1);process.stdout.write(r.productionSha)})")"
+          # GitHub may release other sports while this task queues. A verified
+          # descendant SHA contains this commit without requiring equality.
+          git fetch --no-tags --depth=64 origin main
+          git cat-file -e "$live_sha^{commit}"
+          git merge-base --is-ancestor "$GITHUB_SHA" "$live_sha" || {
+            echo "LIVE_PRODUCTION_MISSING_TENNIS_AUDIT_COMMIT"
+            exit 1
+          }
+          echo "Verified release ancestor $GITHUB_SHA in production $live_sha"
       - name: Audit source-backed Challenger Futures and ITF recovery candidates
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
