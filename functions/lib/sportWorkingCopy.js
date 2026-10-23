@@ -499,8 +499,23 @@ export async function copyNbaScopedSharedLedger(primary, shard, table, {
     if (!rows.length) { exhausted = true; break; }
     for (const row of rows) {
       if (row.sport !== "nba") throw new Error("NBA_SHARED_LEDGER_CROSS_SPORT_ROW");
-      await shard.prepare(stmt).bind(...columns.map(c => row[c] ?? null)).run();
-      copied++;
+    }
+    // Use bounded D1 batch statements rather than thousands of sequential
+    // cross-database round trips. This is a shadow-only, idempotent replay.
+    const chunkSize = 40;
+    for (let offset = 0; offset < rows.length; offset += chunkSize) {
+      const chunk = rows.slice(offset, offset + chunkSize);
+      if (typeof shard.batch === "function") {
+        const stmts = chunk.map(row =>
+          shard.prepare(stmt).bind(...columns.map(c => row[c] ?? null))
+        );
+        await shard.batch(stmts);
+      } else {
+        for (const row of chunk) {
+          await shard.prepare(stmt).bind(...columns.map(c => row[c] ?? null)).run();
+        }
+      }
+      copied += chunk.length;
     }
     const last = rows[rows.length - 1];
     if (table === "odds_snapshots") cursorId = Number(last.id);
