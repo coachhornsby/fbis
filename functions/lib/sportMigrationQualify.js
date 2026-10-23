@@ -4,7 +4,7 @@
  */
 import { resolveSportDb, SPORT_DATABASES, productSportDbHandle, deployedSportDbMode } from "./databaseTopology.js";
 import {
-  SPORT_WORKING_TABLES,
+  workingTablesForSport,
   SPORT_PREFIX_TABLES,
   SPORT_SYNC_SPORTS,
   verifySportWorkingParity,
@@ -184,7 +184,7 @@ export async function buildSportSyncHealth(env, sport, {
     maxLagMs,
     lagOk,
     prefixTables: { expected: prefixExpected, present: prefixPresent },
-    workingTables: SPORT_WORKING_TABLES.map((t) => t.table),
+    workingTables: workingTablesForSport(key).map((t) => t.table),
     productStillPrimary: product.productIoUsesSportDb !== true,
     cutoverAuthorized: false,
     canAuthorizeWager: false,
