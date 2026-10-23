@@ -6,6 +6,7 @@
  */
 import { sha256Hex } from "./sha256Hex.js";
 import { runSportSimulationResearch } from "./sportSimulationResearch.js";
+import {outcomeMetrics} from "./footballSimulationRankings.js";
 
 export const CFB_DRIVE_SIM_ID = "CFB-DRIVE-STATE-SHADOW-v2";
 export const CFB_DRIVE_MIN_GAMES = 20;
@@ -153,8 +154,7 @@ export function simulateCfbDriveShadowV2({
    return {metrics:{home_score:h,away_score:a,total:h+a,margin:h-a,
      home_drives:hDr,away_drives:aDr,home_touchdown_drives:hTd,
      away_touchdown_drives:aTd,home_field_goal_drives:hFg,
-     away_field_goal_drives:aFg,home_regulation_lead:Number(h>a),
-     regulation_tie:Number(h===a)}};
+     away_field_goal_drives:aFg,...outcomeMetrics(h,a)}};
   }
  });
  return {...output,sourceDb:"CFB_DB",sourceSnapshotId:snapshotId,
