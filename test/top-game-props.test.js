@@ -78,7 +78,7 @@ test("frozen schedule fallback contains no invented player props or wagering imp
   assert.deepEqual(topThreeGamePlayerProps({...base(),playerMarkets:[]}),[]);
 });
 
-test("NFL top three prefers Standard PrizePicks lines over Demon/Goblin alts",()=>{
+test("legacy PrizePicks rows do not populate game-card top three",()=>{
   const g=base();
   g.playerMarkets=[
     {playerName:"QB1",team:"BUF",marketCanonical:"passing_yards",line:320.5,fbisProjection:250,fbisSigma:30,oddsTier:"demon",book:"PrizePicks"},
@@ -88,9 +88,7 @@ test("NFL top three prefers Standard PrizePicks lines over Demon/Goblin alts",()
     {playerName:"RB1",team:"BUF",marketCanonical:"rushing_yards",line:58.5,fbisProjection:65.5,fbisSigma:12,oddsTier:"standard",book:"PrizePicks"},
   ];
   const rows=topThreeGamePlayerProps(g);
-  assert.equal(rows.length,3);
-  assert.ok(rows.every((r)=>String(r.oddsTier||"standard").toLowerCase()==="standard"));
-  assert.ok(rows.every((r)=>r.book==="PrizePicks"&&r.line!=null&&r.fbisProjection!=null));
+  assert.equal(rows.length,0);
 });
 
 test("TopGameProps all-sport path renders neutral premium cards including tennis",()=>{
@@ -101,8 +99,8 @@ test("TopGameProps all-sport path renders neutral premium cards including tennis
   assert.match(src,/useStyleCards/);
   assert.match(src,/"tennis"/);
   assert.match(src,/!isPrizePicksRow/);
-  assert.match(src,/line: null/);
-  assert.match(src,/projection-only rows/);
+  assert.doesNotMatch(src,/line: null, provider: null/);
+  assert.match(src,/rankedHitCount/);
   assert.doesNotMatch(src,/usePrizePicksCards = sport === "nfl"/);
   const card=fs.readFileSync("src/features/playerProps/FBISPlayerPropCard.jsx","utf8");
   assert.match(card,/pp-team-watermark/);
@@ -124,4 +122,28 @@ test("TopGameProps all-sport path renders neutral premium cards including tennis
 test('embedded NBA projections retain exact ESPN/event keys for verified last-five history',()=>{
  const g={...base(),sport:'nba',playerProjectionRows:[{playerId:'4594268',playerName:'Anthony Edwards',team:'BUF',market:'assists',fbisProjection:3,independent:true,source:'NBA_PLAYER_PROP_PROJECTIONS_D1'}]};
  const [r]=topThreeGamePlayerProps(g);assert.equal(r.canonicalPlayerId,'nba:espn:4594268');assert.equal(r.canonicalEventId,g.id);assert.equal(r.start_time,g.start);assert.equal(r.opponent,'KC');
+});
+
+test("one player cannot occupy multiple game cards even with alternate identities and stats",()=> {
+  const g=base();
+  g.playerMarkets=[
+    {playerName:"Alpha",fbisPlayerId:"42",team:"BUF",marketCanonical:"passing_yards",line:199.5,fbisProjection:240,probabilityOver:.72,probabilityUnder:.28},
+    {playerName:"Alpha",providerPlayerId:"different-source",team:"BUF",marketCanonical:"rushing_yards",line:19.5,fbisProjection:35,probabilityOver:.83,probabilityUnder:.17},
+    {playerName:"Beta",team:"KC",marketCanonical:"receiving_yards",line:39.5,fbisProjection:51,probabilityOver:.68,probabilityUnder:.32},
+    {playerName:"Gamma",team:"BUF",marketCanonical:"receptions",line:3.5,fbisProjection:4.5,probabilityOver:.61,probabilityUnder:.39},
+  ];
+  const rows=topThreeGamePlayerProps(g);
+  assert.deepEqual(rows.map(r=>r.playerName),["Alpha","Beta","Gamma"]);
+  assert.equal(rows[0].marketCanonical,"rushing_yards");
+});
+
+test("highest comparable hit probabilities outrank unpriced projections",()=> {
+  const g=base();
+  g.playerMarkets=[
+    {playerName:"No line",team:"BUF",marketCanonical:"rushing_yards",fbisProjection:150},
+    {playerName:"Second",team:"KC",marketCanonical:"receiving_yards",line:55.5,fbisProjection:69,probabilityOver:.75,probabilityUnder:.25},
+    {playerName:"First",team:"BUF",marketCanonical:"passing_yards",line:259.5,fbisProjection:290,probabilityOver:.82,probabilityUnder:.18},
+    {playerName:"No odds",team:"KC",marketCanonical:"receptions",line:3.5,fbisProjection:5},
+  ];
+  assert.deepEqual(topThreeGamePlayerProps(g).map(r=>r.playerName),["First","Second","No odds"]);
 });
