@@ -6,6 +6,29 @@ import {historySummary,loadCanonicalPropHistory,gradeFrozenProp} from '../functi
 import {independentPropRows,joinIndependentPropModels} from '../functions/lib/propResearchData.js';
 import {evaluatePropEconomics,equivalentPropContracts} from '../functions/lib/propEconomics.js';
 import {captureKalshiPlayerProps} from '../functions/lib/kalshiPlayerPropCollector.js';
+test('MLB last five follows postseason appearances across rounds before regular-season games for hitters and pitchers',async()=>{
+ const split=(id,date,value)=>({date,game:{gamePk:id},player:{id:123},opponent:{name:'Opponent'},stat:{hits:value,strikeOuts:value,numberOfPitches:85,plateAppearances:4}});
+ const regular=[split(1,'2026-09-27',9),split(2,'2026-09-28',8)];
+ const playoffs=[split(3,'2026-10-02',0),split(4,'2026-10-07',1),split(5,'2026-10-12',2),split(6,'2026-10-17',3),split(7,'2026-10-21',4),split(8,'2026-10-24',99)];
+ for(const market of ['hits','strikeouts']){
+  const requests=[];
+  const h=await loadCanonicalPropHistory({},{sport:'mlb',provider:'mlb',playerId:'123',market,asOf:'2026-10-23T12:00Z',fetchImpl:async url=>{const u=new URL(url);requests.push(u);return Response.json({stats:[{splits:u.searchParams.get('gameType')==='P'?playoffs:regular}]});}});
+  assert.equal(h.available,true);assert.deepEqual(h.last5.map(g=>g.eventId),['7','6','5','4','3']);assert.deepEqual(h.last5.map(g=>g.value),[4,3,2,1,0]);
+  assert.deepEqual(requests.map(u=>u.searchParams.get('gameType')).sort(),['P','R']);
+  assert.ok(requests.every(u=>u.searchParams.get('group')===(market==='hits'?'hitting':'pitching')));
+ }
+});
+
+test('MLB mixes short postseason samples with preceding regular games and refuses a failed playoff feed',async()=>{
+ const regular=[1,2,3,4,5].map(n=>({date:`2026-09-${20+n}`,game:{gamePk:n},stat:{hits:n}}));
+ const playoff={date:'2026-10-02',game:{gamePk:6},stat:{hits:0}};
+ const options={sport:'mlb',provider:'mlb',playerId:'123',market:'hits',asOf:'2026-10-23T12:00Z'};
+ const fetchImpl=async url=>Response.json({stats:[{splits:new URL(url).searchParams.get('gameType')==='P'?[playoff,playoff]:regular}]});
+ const h=await loadCanonicalPropHistory({}, {...options,fetchImpl});
+ assert.deepEqual(h.last5.map(g=>g.eventId),['6','5','4','3','2']);assert.equal(h.last5[0].value,0);
+ const failed=await loadCanonicalPropHistory({}, {...options,fetchImpl:async url=>new URL(url).searchParams.get('gameType')==='P'?new Response('',{status:503}):fetchImpl(url)});
+ assert.equal(failed.available,false);assert.equal(failed.reason,'VERIFIED_HISTORY_SOURCE_UNAVAILABLE');assert.equal(failed.last5,undefined);
+});
 const market=JSON.parse(fs.readFileSync('test/fixtures/props/kalshi-nba-live-capture-20261020.json')).markets[0];
 const game={id:'fixture-1',sport:'nba',home_abbr:'SA',away_abbr:'OKC',home_name:'San Antonio Spurs',away_name:'Oklahoma City Thunder',start:'2026-10-21T01:30:00Z'};
 const player={sport:'nba',player_name:'Victor Wembanyama',player_id:'5104157',team_key:'SA'};
@@ -136,4 +159,24 @@ test('NBA cards use the verified daily archive without relying on an edge upstre
  assert.equal(h.available,true);assert.equal(h.last5[0].value,55);assert.equal(h.last5[0].opponent,'MIA');assert.equal(h.historyAsOfDay,'2026-10-22');assert.equal(h.partialSeason,true);assert.equal(h.calibratedProbability,null);
  payload.entries[0].games[0].minutes=0;
  const rejected=await loadCanonicalPropHistory(env,{sport:'nba',provider:'espn',playerId:'4594268',market:'points',asOf:'2026-10-23T12:00Z',fetchImpl:()=>{throw Error('no source');}});assert.equal(rejected.available,false);
+});
+
+test('legacy MLB card endpoint requests postseason and sorts combined logs rather than trusting source order',async()=>{
+ const {onRequestGet}=await import('../functions/api/player-prop-detail.js');
+ const original=globalThis.fetch;const requests=[];
+ try{
+  globalThis.fetch=async url=>{
+   requests.push(new URL(url));
+   if(String(url).includes('/people/search'))return Response.json({people:[{id:123,fullName:'Test Player'}]});
+   return Response.json({stats:[{type:{displayName:'gameLog'},splits:[
+    {game:{gamePk:2},date:'2025-10-15',opponent:{name:'Playoffs'},stat:{hits:0}},
+    {game:{gamePk:1},date:'2025-09-28',opponent:{name:'Regular'},stat:{hits:9}},
+    {game:{gamePk:3},date:'2025-10-20',opponent:{name:'Playoffs'},stat:{hits:2}}
+   ]}]});
+  };
+  const response=await onRequestGet({env:{},request:new Request('https://fbis.test/api/player-prop-detail?sport=mlb&name=Test%20Player&market=hits')});
+  const body=await response.json();assert.equal(body.ok,true);
+  assert.deepEqual(body.detail.last5.map(g=>g.date),['2025-10-20','2025-10-15','2025-09-28']);
+  assert.equal(requests[1].searchParams.get('gameType'),'R,P');
+ }finally{globalThis.fetch=original;}
 });

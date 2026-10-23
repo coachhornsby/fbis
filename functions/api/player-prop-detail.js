@@ -159,7 +159,7 @@ async function mlbDetail({name,market,line}){
   if(!person?.id)return null;
   const season=new Date().getFullYear();
   const group=mlbGroup(market);
-  const qs=new URLSearchParams({stats:"gameLog,season",group,season:String(season)});
+  const qs=new URLSearchParams({stats:"gameLog,season",group,season:String(season),gameType:"R,P"});
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort("mlb-player-stats-timeout"),4500);
   let body={};
@@ -174,10 +174,12 @@ async function mlbDetail({name,market,line}){
   for(const block of body?.stats||[]){
     const type=String(block?.type?.displayName||block?.type||"").toLowerCase();
     const splits=Array.isArray(block?.splits)?block.splits:[];
-    if(type.includes("game")) games=splits;
+    if(type.includes("game")) games.push(...splits);
     if(type.includes("season")) seasonStat=splits[0]?.stat||null;
   }
-  const last5=games.slice(-5).reverse().map(g=>{
+  const seenGames=new Set();
+  games=games.filter(g=>g?.game?.gamePk&&Date.parse(g.date)<Date.now()).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)||Number(b.gameNumber||0)-Number(a.gameNumber||0)).filter(g=>{const id=String(g.game.gamePk);if(seenGames.has(id))return false;seenGames.add(id);return true;});
+  const last5=games.slice(0,5).map(g=>{
     const value=mlbValue(g?.stat,market);
     return {
       date:g?.date||null,opponent:g?.opponent?.abbreviation||g?.opponent?.name||null,

@@ -6,7 +6,7 @@ export function historySummary(input,{line=null,asOf=new Date().toISOString(),se
  const seen=new Set();const cutoff=Date.parse(asOf);
  const priorWeek=g=>g?.temporalBasis==='PRIOR_SEASON_WEEKLY_SNAPSHOT'&&g.status==='FINAL'&&Number.isInteger(g.season)&&g.season<new Date(asOf).getUTCFullYear()&&(g.season<new Date(asOf).getUTCFullYear()-1||new Date(asOf).getUTCMonth()>=2)&&Number.isInteger(g.week)&&g.week>=1&&g.week<=22;
  const games=input.map(g=>({...g,value:n(g?.value)})).filter(g=>g&&n(g.value)!=null&&(priorWeek(g)||Date.parse(g.date)<cutoff&&(String(g.date).slice(0,10)<String(asOf).slice(0,10)||['FINAL','OFF'].includes(g.status)))&&!['DNP','CANCELLED','CANCELED','UNVERIFIED'].includes(g.status))
-  .sort((a,b)=>Number.isInteger(a.season)&&Number.isInteger(b.season)&&Number.isInteger(a.week)&&Number.isInteger(b.week)?(b.season-a.season)*100+b.week-a.week:Date.parse(b.date)-Date.parse(a.date)).filter(g=>{const id=g.eventId||`${g.date}:${g.opponent}`;if(seen.has(id))return false;seen.add(id);return true;});
+  .sort((a,b)=>Number.isInteger(a.season)&&Number.isInteger(b.season)&&Number.isInteger(a.week)&&Number.isInteger(b.week)?(b.season-a.season)*100+b.week-a.week:(Date.parse(b.date)-Date.parse(a.date)||Number(b.gameNumber||0)-Number(a.gameNumber||0))).filter(g=>{const id=g.eventId||`${g.date}:${g.opponent}`;if(seen.has(id))return false;seen.add(id);return true;});
  const mean=a=>a.length?a.reduce((s,x)=>s+x.value,0)/a.length:null;
  const median=a=>{if(!a.length)return null;const v=a.map(x=>x.value).sort((a,b)=>a-b),m=Math.floor(v.length/2);return v.length%2?v[m]:(v[m-1]+v[m])/2;};
  const stats=a=>{const avg=mean(a);return {games:a.length,average:avg,median:median(a),minimum:a.length?Math.min(...a.map(g=>g.value)):null,maximum:a.length?Math.max(...a.map(g=>g.value)):null,sd:a.length>1?Math.sqrt(a.reduce((s,g)=>s+(g.value-avg)**2,0)/(a.length-1)):null,
@@ -109,9 +109,16 @@ export async function loadCanonicalPropHistory(env,{sport,provider,playerId,mark
    const pitching=['strikeouts','pitcher_outs','earned_runs','hits_allowed','walks_allowed'].includes(market);
    const key={strikeouts:'strikeOuts',pitcher_outs:'outs',earned_runs:'earnedRuns',hits_allowed:'hits',walks_allowed:'baseOnBalls',hits:'hits',home_runs:'homeRuns',total_bases:'totalBases',rbis:'rbi',runs:'runs',walks:'baseOnBalls',stolen_bases:'stolenBases'}[market];
    if(!key)return {available:false,reason:'STAT_DEFINITION_UNSUPPORTED'};
-   season=new Date(asOf).getUTCFullYear();const b=await(await get(`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=${pitching?'pitching':'hitting'}&season=${season}`,fetchImpl)).json();
-   games=(b.stats||[]).flatMap(x=>x.splits||[]).map(g=>({eventId:String(g.game?.gamePk),date:g.date,opponent:g.opponent?.name,isHome:g.isHome,season,value:n(g.stat?.[key]),workload:pitching?n(g.stat?.numberOfPitches):n(g.stat?.plateAppearances)}));
-   source='MLB official player game log';identityVerified=true;
+   // MLB defaults to regular season. Fetch postseason explicitly so October
+   // recent form includes the latest appearances across every playoff round.
+   // Both requests must succeed; never silently substitute September if P fails.
+   season=new Date(asOf).getUTCFullYear();
+   const logs=await Promise.all(['R','P'].map(async gameType=>{
+    const b=await(await get(`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=${pitching?'pitching':'hitting'}&season=${season}&gameType=${gameType}`,fetchImpl)).json();
+    return (b.stats||[]).flatMap(x=>x.splits||[]).filter(g=>g.game?.gamePk&&(!g.player?.id||String(g.player.id)===String(playerId))).map(g=>({eventId:String(g.game.gamePk),date:g.date,gameNumber:g.gameNumber||g.game?.gameNumber||0,gameType,opponent:g.opponent?.name,isHome:g.isHome,season,value:n(g.stat?.[key]),workload:pitching?n(g.stat?.numberOfPitches):n(g.stat?.plateAppearances)}));
+   }));
+   games=logs.flat();
+   source='MLB official player game logs · regular season and postseason';identityVerified=true;
   }else if(provider==='nflverse'&&sport==='nfl'){
    const field=NFL_HISTORY_FIELDS[market];
    if(!field)return {available:false,reason:'STAT_DEFINITION_UNSUPPORTED'};
