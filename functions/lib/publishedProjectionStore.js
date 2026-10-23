@@ -1,4 +1,6 @@
 import { productSportDbHandle } from "./databaseTopology.js";
+import { resolveNbaResearchOwnerDb } from "./nbaResearchOwnerDb.js";
+import { deployedSportDbMode } from "./databaseTopology.js";
 
 function asRows(result) {
   return Array.isArray(result?.results) ? result.results : [];
@@ -11,7 +13,10 @@ export async function sha256Hex(value) {
 }
 
 export async function insertPublishedProjection(env, row) {
-  const db = row?.sport === "nfl" ? productSportDbHandle(env, "nfl").db : env?.DB;
+  const nbaOwner = String(row?.sport || "").toLowerCase() === "nba"
+    ? await resolveNbaResearchOwnerDb(env) : null;
+  if (nbaOwner && !nbaOwner.ok) throw new Error("NBA_PUBLISHED_OWNER_UNAVAILABLE:" + nbaOwner.reason);
+  const db = nbaOwner ? nbaOwner.db : row?.sport === "nfl" ? productSportDbHandle(env, "nfl").db : env?.DB;
   if (!db?.prepare) throw new Error("d1-unavailable");
   const existing = await db.prepare(
     `SELECT id, payload_hash, payload_json, published_at
@@ -76,6 +81,20 @@ async function listRows(db, { sport = null, excludeSport = null, date = null, li
 export async function listPublishedProjections(env, { sport = null, date = null, limit = 100 } = {}) {
   const safeLimit = Math.max(1, Math.min(250, Number(limit) || 100));
   const nfl = productSportDbHandle(env, "nfl");
+  const nbaOwner = (!sport || String(sport).toLowerCase() === "nba")
+    ? await resolveNbaResearchOwnerDb(env) : null;
+  if (nbaOwner && !nbaOwner.ok) throw new Error("NBA_PUBLISHED_OWNER_UNAVAILABLE:" + nbaOwner.reason);
+  // An unscoped read must not silently return PRIMARY NBA records after
+  // approved NBA owner transfer. Combine the sport-owned rows explicitly.
+  if (!sport && deployedSportDbMode(env, "nba") === "sport") {
+    const [legacyOther, nbaRows, nflRows] = await Promise.all([
+      listRows(env?.DB, { date, limit: safeLimit }),
+      listRows(nbaOwner.db, { sport: "nba", date, limit: safeLimit }),
+      nfl.productIoUsesSportDb ? listRows(nfl.db, { sport: "nfl", date, limit: safeLimit }) : Promise.resolve([]),
+    ]);
+    return [...legacyOther.filter(r => r.sport !== "nba" && (!nfl.productIoUsesSportDb || r.sport !== "nfl")), ...nbaRows, ...nflRows]
+      .sort((a, b) => String(b.publishedAt || "").localeCompare(String(a.publishedAt || ""))).slice(0, safeLimit);
+  }
   if (!sport && nfl.productIoUsesSportDb) {
     const [otherSports, nflRows] = await Promise.all([
       listRows(env?.DB, { excludeSport: "nfl", date, limit: safeLimit }),
@@ -85,6 +104,6 @@ export async function listPublishedProjections(env, { sport = null, date = null,
       .sort((a, b) => String(b.publishedAt || "").localeCompare(String(a.publishedAt || "")))
       .slice(0, safeLimit);
   }
-  const db = sport === "nfl" ? nfl.db : env?.DB;
+  const db = sport === "nfl" ? nfl.db : String(sport || "").toLowerCase() === "nba" ? nbaOwner.db : env?.DB;
   return listRows(db, { sport, date, limit: safeLimit });
 }
