@@ -5,6 +5,8 @@ import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
 import {marketObservationDatabase} from './coldMarketHistory.js';
 import {loadVerifiedTennisCandidates} from './polymarketTennisIdentity.js';
 import {filterPinnoddsToFbisProjections} from './pinnoddsProjectionScope.js';
+import { resolveNbaResearchOwnerDb } from "./nbaResearchOwnerDb.js";
+import { deployedSportDbMode } from "./databaseTopology.js";
 const root='market-sources/pinnodds',valid=id=>/^[a-z0-9-]{1,180}$/i.test(id||''),batchSize=100;
 async function source(env,snapshotId){
  if(!valid(snapshotId))throw Error('INVALID_SNAPSHOT_ID');
@@ -18,6 +20,24 @@ async function normalizeFromArchivedRaw(env,receipt,{snapshotId,fixtureAsOf=null
   const starts=body.events.map(e=>Date.parse(e.starts||'')).filter(Number.isFinite);
   const games=starts.length?(await env.DB.prepare(`SELECT id,sport,start,home_name,away_name,home_abbr,away_abbr FROM games WHERE julianday(start) BETWEEN julianday(?) AND julianday(?)`)
     .bind(new Date(Math.min(...starts)-7200000).toISOString(),new Date(Math.max(...starts)+7200000).toISOString()).all())?.results||[]:[];
+  // Basketball is one provider family containing NBA, WNBA and CBB.
+  // With approved NBA sport ownership, PRIMARY must no longer supply NBA
+  // fixture identity; retain other basketball leagues on their current owner.
+  if (receipt.sportId === 3 && deployedSportDbMode(env, "nba") === "sport") {
+    const owner = await resolveNbaResearchOwnerDb(env);
+    if (!owner.ok) throw Error("NBA_PINNODDS_FIXTURE_OWNER_UNAVAILABLE:" + owner.reason);
+    for (let i = games.length - 1; i >= 0; i--) {
+      if (games[i].sport === "nba") games.splice(i, 1);
+    }
+    if (starts.length) {
+      const nbaGames = (await owner.db.prepare(
+        `SELECT id,sport,start,home_name,away_name,home_abbr,away_abbr
+           FROM games WHERE sport='nba' AND julianday(start) BETWEEN julianday(?) AND julianday(?)`
+      ).bind(new Date(Math.min(...starts)-7200000).toISOString(),
+             new Date(Math.max(...starts)+7200000).toISOString()).all())?.results || [];
+      games.push(...nbaGames);
+    }
+  }
   // Tennis is not in the generic games table. Verified independent fixtures are
   // display-only; snapshot source and raw acquisition times remain immutable.
   if(receipt.sportId===2){
