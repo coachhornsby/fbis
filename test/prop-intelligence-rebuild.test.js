@@ -160,3 +160,23 @@ test('NBA cards use the verified daily archive without relying on an edge upstre
  payload.entries[0].games[0].minutes=0;
  const rejected=await loadCanonicalPropHistory(env,{sport:'nba',provider:'espn',playerId:'4594268',market:'points',asOf:'2026-10-23T12:00Z',fetchImpl:()=>{throw Error('no source');}});assert.equal(rejected.available,false);
 });
+
+test('legacy MLB card endpoint requests postseason and sorts combined logs rather than trusting source order',async()=>{
+ const {onRequestGet}=await import('../functions/api/player-prop-detail.js');
+ const original=globalThis.fetch;const requests=[];
+ try{
+  globalThis.fetch=async url=>{
+   requests.push(new URL(url));
+   if(String(url).includes('/people/search'))return Response.json({people:[{id:123,fullName:'Test Player'}]});
+   return Response.json({stats:[{type:{displayName:'gameLog'},splits:[
+    {game:{gamePk:2},date:'2025-10-15',opponent:{name:'Playoffs'},stat:{hits:0}},
+    {game:{gamePk:1},date:'2025-09-28',opponent:{name:'Regular'},stat:{hits:9}},
+    {game:{gamePk:3},date:'2025-10-20',opponent:{name:'Playoffs'},stat:{hits:2}}
+   ]}]});
+  };
+  const response=await onRequestGet({env:{},request:new Request('https://fbis.test/api/player-prop-detail?sport=mlb&name=Test%20Player&market=hits')});
+  const body=await response.json();assert.equal(body.ok,true);
+  assert.deepEqual(body.detail.last5.map(g=>g.date),['2025-10-20','2025-10-15','2025-09-28']);
+  assert.equal(requests[1].searchParams.get('gameType'),'R,P');
+ }finally{globalThis.fetch=original;}
+});
