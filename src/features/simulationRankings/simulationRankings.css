@@ -52,3 +52,32 @@
 .simrank-footer{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;padding:17px 4px;font-size:11px;color:#89a6c5}
 @media(max-width:950px){.simrank-header{align-items:flex-start;flex-direction:column}.simrank-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.simrank-refresh{margin-left:0}}
 @media(max-width:480px){.simrank-header{padding:20px 17px}.simrank-kpis>div{padding:12px}.simrank-kpis strong{font-size:23px}.simrank-view{padding-top:3px}.simrank-controls select{min-width:120px}}
+
+/* Rankings visual system: authentic logos, visible favorite and dynamic score hierarchy */
+.simrank-table tbody tr:nth-child(odd){background:linear-gradient(90deg,#142842,#101f36)}
+.simrank-table tbody tr:nth-child(even){background:linear-gradient(90deg,#102139,#0e1c30)}
+.simrank-table tbody tr{transition:background .16s,border-color .16s}
+.simrank-table tbody tr:hover{background:linear-gradient(90deg,#204465,#152c4b)}
+.simrank-table td{padding:18px 12px;border-bottom:1px solid #33526d}
+.simrank-table td:nth-child(3){background:#113b38a6}
+.simrank-table td:nth-child(4){background:#4a331e67}
+.simrank-table th{background:linear-gradient(180deg,#294c73,#182d4d);color:#e6f1ff}
+.simrank-match{min-width:410px;gap:16px}
+.simrank-match>div:last-child{display:flex;flex-direction:column;align-items:flex-start;gap:7px}
+.simrank-match .simrank-logo-versus{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:10px;flex-shrink:0;min-width:145px;padding:8px 10px;border:1px solid #42678d;border-radius:14px;background:radial-gradient(ellipse at center,#294467,#0b1d34)}
+.simrank-match .simrank-logo-versus>b{font-size:11px;font-weight:950;letter-spacing:.12em;color:#f4c978}
+.simrank-match .simrank-logo-versus .team-logo-wrap,.simrank-match .simrank-logo-versus .team-logo-fallback{flex-shrink:0}
+.simrank-match .simrank-name-vs{font-size:12px;text-transform:uppercase;color:#f4c978}
+.simrank-match .simrank-leader{display:flex;flex-direction:row;align-items:center;gap:8px;padding:7px 11px;border:1px solid #49b9a0;border-left:4px solid #52e8b7;border-radius:8px;background:linear-gradient(90deg,#14594d,#153b47);color:#eafff7}
+.simrank-match .simrank-leader-label{font-size:10px;font-weight:950;letter-spacing:.06em;color:#aaf5d8}
+.simrank-match .simrank-leader b{font-size:14px;font-weight:950;color:#fff}
+.simrank-match .simrank-sides{display:flex;flex-direction:row;flex-wrap:wrap;gap:6px}
+.simrank-match .simrank-sides span{font-size:11px;padding:4px 7px;border:1px solid #345474;border-radius:6px;background:#182f4b;color:#c2dbef}
+.simrank-match .simrank-sides span.fav{color:#b7ffe2;border-color:#389c82;background:#155446}
+.simrank-prob{font-size:24px;color:#7cf2bf;text-shadow:0 0 14px #2eca8a35}
+.simrank-bar{height:7px;width:105px;background:#29435d}
+.simrank-table .simrank-score-win,.simrank-table .simrank-score-lose{color:#f8f9ff!important;font-size:20px!important}
+.simrank-table td:nth-child(5),.simrank-table td:nth-child(6){font-weight:950}
+.simrank-table td:nth-child(7){color:#f6cb82;font-weight:950}
+.simrank-table td:nth-child(8){color:#9dcafb;font-weight:950}
+@media(max-width:600px){.simrank-match{min-width:330px;gap:9px}.simrank-match .simrank-logo-versus{min-width:118px;gap:5px;padding:6px}.simrank-match .simrank-leader{flex-wrap:wrap}.simrank-table{min-width:1100px}}
