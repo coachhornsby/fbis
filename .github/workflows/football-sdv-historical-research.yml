@@ -1,0 +1,80 @@
+name: Football SDV verified history and research replay
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: football-sdv-historical-research
+  cancel-in-progress: false
+jobs:
+  historical-research:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.event == 'push' &&
+           contains(github.event.workflow_run.head_commit.message, '[FBIS-SDV-FOOTBALL-20261023]')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SDV_OUT: artifacts/football-sdv
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify football source adapters and defensive test contracts
+        run: |
+          node --test test/football-sdv-historical-integration.test.js \
+            test/nfl-pbp-drive-research-adapter.test.js \
+            test/football-possession-matchup-research.test.js \
+            test/football-simulation-validation-research.test.js
+          python -m py_compile scripts/football-sdv-acquire.py
+          node --check scripts/football-sdv-evaluate.mjs
+          node --check scripts/football-sdv-upload.mjs
+      - name: Install SportsDataverse historical parquet loaders
+        run: python -m pip install --disable-pip-version-check --quiet "sportsdataverse>=0.1.5" "polars>=2.0,<3"
+      - name: Acquire real NFL and CFB SDV PBP with actual schedule starts
+        run: |
+          python scripts/football-sdv-acquire.py \
+            --sports nfl cfb --seasons 2024 2025 2026 --out "$SDV_OUT"
+      - name: Normalize and run historical reconstructed matchup evaluation
+        run: |
+          node scripts/football-sdv-evaluate.mjs \
+            --input="$SDV_OUT" --maxGames=200 --iterations=150
+      - name: Apply additive verified-research D1 schema per sport
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npx --yes wrangler@4 d1 execute fbis-nfl --remote --file=sql/football/0001_sdv_verified_history.sql
+          npx --yes wrangler@4 d1 execute fbis-cfb --remote --file=sql/football/0001_sdv_verified_history.sql
+      - name: Persist and reconcile immutable SDV source histories
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_URL: https://fbis-myz.pages.dev
+        run: |
+          node scripts/football-sdv-upload.mjs
+          cat "$SDV_OUT/d1-upload-verified.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish audited historical findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-sdv-historical-research-${{ github.run_id }}
+          path: |
+            artifacts/football-sdv/*manifest.json
+            artifacts/football-sdv/*evaluation.json
+            artifacts/football-sdv/*backtest.jsonl
+            artifacts/football-sdv/d1-upload-verified.json
+          retention-days: 30
+          if-no-files-found: warn
