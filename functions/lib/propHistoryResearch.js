@@ -1,6 +1,7 @@
 import { finitePropNumber as n } from './exchangePlayerProps.js';
 import { loadNflVerseFeatures } from './nflVerseFeed.js';
 import { valueForEspnEvent } from './playerPropHistory.js';
+import { SDV_NBA_PREFIX,verifySdvNbaHistorySnapshot } from './nbaSdvHistoryShadow.js';
 export function historySummary(input,{line=null,asOf=new Date().toISOString(),season=null}={}) {
  const seen=new Set();const cutoff=Date.parse(asOf);
  const priorWeek=g=>g?.temporalBasis==='PRIOR_SEASON_WEEKLY_SNAPSHOT'&&g.status==='FINAL'&&Number.isInteger(g.season)&&g.season<new Date(asOf).getUTCFullYear()&&(g.season<new Date(asOf).getUTCFullYear()-1||new Date(asOf).getUTCMonth()>=2)&&Number.isInteger(g.week)&&g.week>=1&&g.week<=22;
@@ -57,6 +58,27 @@ async function storedNflHistory(env,profile,{playerId,market,asOf,line}) {
   return {available:true,identityVerified:true,canonicalPlayerId:`nfl:espn:${playerId}`,source:'Stored nflverse weekly statistics · exact roster/GSIS link',sourceFetchedAt:profile.updated_at,partialSeason:true,...summary,reason:null};
  }catch{return null;}
 }
+/** Read the existing daily research snapshot; card requests need no upstream scrape. */
+export async function storedNbaHistory(env,{playerId,market,asOf,line}) {
+ if(!env.ARCHIVE?.get)return null;
+ try {
+  const object=await env.ARCHIVE.get(SDV_NBA_PREFIX+'snapshot.json');if(!object)return null;
+  const payload=await object.json();
+  if(!verifySdvNbaHistorySnapshot(payload).ok||payload.authority!=='SHADOW_HISTORY_ONLY')return null;
+  const cutoff=Date.parse(asOf),capture=Date.parse(payload.generatedAt);
+  if(!Number.isFinite(cutoff)||capture>cutoff||cutoff-capture>3*86400000)return null;
+  const entry=payload.entries.find(p=>p.espnPlayerId===String(playerId));if(!entry)return null;
+  const fields={points:['points'],rebounds:['rebounds'],assists:['assists'],three_pointers_made:['three_pointers_made'],'3_pt_made':['three_pointers_made'],pra:['points','rebounds','assists'],points_rebounds_assists:['points','rebounds','assists'],points_rebounds:['points','rebounds'],points_assists:['points','assists'],rebounds_assists:['rebounds','assists']}[market];
+  if(!fields)return null;
+  const games=entry.games.map(g=>({...g,eventId:g.gameId,status:'FINAL',
+   opponent:g.opponent||null,isHome:g.isHome??null,value:fields.every(k=>n(g[k])!=null)?fields.reduce((sum,k)=>sum+g[k],0):null}));
+  const season=new Date(asOf).getUTCFullYear()+(new Date(asOf).getUTCMonth()>=6?1:0);
+  const summary=historySummary(games,{line,asOf,season});if(!summary.games.length)return null;
+  return {available:true,identityVerified:true,canonicalPlayerId:`nba:espn:${playerId}`,
+   source:'SportsDataverse / ESPN regular-season box scores',sourceFetchedAt:payload.ingestedAt||payload.generatedAt,
+   historyAsOfDay:payload.asOfDayExclusive,partialSeason:true,seasonType:'REGULAR_SEASON',...summary,reason:null};
+ }catch{return null;}
+}
 async function get(url,fetchImpl) {
  const cache=typeof caches==='undefined'?null:caches.default;
  const key=new Request(url);const saved=cache?await cache.match(key):null;if(saved)return saved;
@@ -67,6 +89,7 @@ async function get(url,fetchImpl) {
 }
 export async function loadCanonicalPropHistory(env,{sport,provider,playerId,market,asOf=new Date().toISOString(),line=null,fetchImpl=fetch,profile=null}={}) {
  if(!playerId||!['nflverse','nhl','mlb','espn'].includes(provider))return {available:false,reason:'VERIFIED_HISTORY_ID_REQUIRED'};
+ if(sport==='nba'&&provider==='espn'&&/^\d+$/.test(playerId)){const stored=await storedNbaHistory(env,{playerId,market,asOf,line});if(stored)return stored;}
  // Historical research display uses the roster's exact ESPN athlete ID.
  // This does not activate licensed live feeds or change projection/wager gates.
  if(sport==='nfl'&&provider==='espn'&&profile){const stored=await storedNflHistory(env,profile,{playerId,market,asOf,line});if(stored)return stored;}

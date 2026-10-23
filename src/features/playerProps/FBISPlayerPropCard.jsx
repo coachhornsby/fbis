@@ -161,7 +161,7 @@ export function LastFiveStatChart({ row, history=null }) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort("player-prop-detail-timeout"), 18000);
     const request = row.canonicalPlayerId
-      ? fetchPropResearch(row, {historyOnly:true}).then(body => ({canonicalPlayerId:body.canonicalPlayerId,detail:{last5:body.history?.last5||[],historyReason:body.history?.reason||null}}))
+      ? fetchPropResearch(row, {historyOnly:true}).then(body => ({canonicalPlayerId:body.canonicalPlayerId,detail:{last5:body.history?.last5||[],historyReason:body.history?.reason||null,historyAsOfDay:body.history?.historyAsOfDay||null}}))
       : fetch("/api/player-prop-detail?" + q.toString(), { credentials: "same-origin", signal: controller.signal }).then(async res => {
         const body=await res.json();if(!res.ok||body.ok===false)throw Error(body.error||`HTTP ${res.status}`);return body;
       });
@@ -176,7 +176,7 @@ export function LastFiveStatChart({ row, history=null }) {
           error: "",
           games,
           avg: null,
-          unavailableReason:body?.detail?.historyReason||null,
+          unavailableReason:body?.detail?.historyReason||null,historyAsOfDay:body?.detail?.historyAsOfDay||null,
         });
       })
       .catch((err) => {
@@ -240,6 +240,7 @@ export function LastFiveStatChart({ row, history=null }) {
               );
             })}
           </div>
+          {row.sport === "nba" && (history?.historyAsOfDay || state.historyAsOfDay) ? <p className="muted">Stats before {history?.historyAsOfDay || state.historyAsOfDay} · regular season</p> : null}
           {games.length < 5 ? <p className="muted">{games.length} verified games available</p> : null}
           <div className="pp-history-legend"><span /> {row.provider || "Market"} threshold {row.line ?? "—"}</div>
         </>
