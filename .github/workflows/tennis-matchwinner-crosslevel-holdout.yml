@@ -1,0 +1,33 @@
+name: Tennis held-out match-winner transfer validation
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/tennis-matchwinner-crosslevel-holdout.mjs"
+      - "scripts/lib/tennis-matchwinner-transfer.mjs"
+      - ".github/workflows/tennis-matchwinner-crosslevel-holdout.yml"
+permissions:
+  contents: read
+concurrency:
+  group: tennis-matchwinner-transfer-research
+  cancel-in-progress: false
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: '22'}
+      - name: Prove no holdout leakage and no wager authority
+        run: node --test test/tennis-matchwinner-crosslevel-holdout.test.mjs
+      - name: Run paired raw vs calibrated match-winner evaluation
+        run: node scripts/tennis-matchwinner-crosslevel-holdout.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: tennis-matchwinner-crosslevel-holdout
+          path: artifacts/tennis-matchwinner-crosslevel-holdout.json
+          retention-days: 30
+          if-no-files-found: warn
