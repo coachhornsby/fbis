@@ -13,6 +13,31 @@ const headers={Authorization:`Bearer ${token}`};
 const OWNED=Object.values(DATABASE_OWNERS);
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const objectBase=base+'/r2/buckets/fbis-archive/objects/';
+const policyLevel=percent=>percent>=95?'CRITICAL':percent>=85?'DEGRADED':percent>=75?'WARN':'INFO';
+// Mirror physical-byte observations into OPERATIONS D1 only; never alter source tables.
+async function mirrorToOperationsDb(databases,measuredAt,evidenceHash,r2Key){
+  const endpoint=base+'/d1/database/'+DATABASE_OWNERS.OPERATIONS.databaseId+'/query';
+  const sql='INSERT OR IGNORE INTO fbis_capacity_measurements (measurement_id,measured_at,database_key,database_id,database_name,used_bytes,hard_limit_bytes,percent_used,alert_level,alert_80,alert_85,alert_90,evidence_sha256,metadata_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+  const batch=databases.map(d=>({sql,params:[
+    d.key+':'+measuredAt,measuredAt,d.key,d.id,d.name,String(d.physicalBytes),String(d.capBytes),
+    String(d.percentUsed),d.alertLevel,String(Number(d.percentUsed>=80)),String(Number(d.percentUsed>=85)),
+    String(Number(d.percentUsed>=90)),evidenceHash,
+    JSON.stringify({r2Key,role:d.role,writeAdmissionAlertLevel:d.writeAdmissionAlertLevel,source:'cloudflare_d1_database_metadata'})
+  ]}));
+  const headersJson={...headers,'Content-Type':'application/json'};
+  const result=await fetch(endpoint,{method:'POST',headers:headersJson,body:JSON.stringify({batch}),signal:AbortSignal.timeout(30000)});
+  const payload=await result.json();
+  if(!result.ok||payload.success!==true||!Array.isArray(payload.result)||payload.result.length!==batch.length||payload.result.some(x=>x.success!==true))
+    throw Error('OPS_CAPACITY_MIRROR_WRITE_FAILED_'+result.status);
+  const verify=await fetch(endpoint,{method:'POST',headers:headersJson,
+    body:JSON.stringify({sql:'SELECT COUNT(*) AS n FROM fbis_capacity_measurements WHERE measured_at = ? AND evidence_sha256 = ?',params:[measuredAt,evidenceHash]}),
+    signal:AbortSignal.timeout(30000)});
+  const verified=await verify.json();
+  if(!verify.ok||verified.success!==true||Number(verified.result?.[0]?.results?.[0]?.n)!==databases.length)
+    throw Error('OPS_CAPACITY_MIRROR_READBACK_FAILED_'+verify.status);
+  return databases.length;
+}
+
 async function read(key){const r=await fetch(objectBase+key,{headers,signal:AbortSignal.timeout(90000)});if(r.status===404)return null;if(!r.ok)throw Error('R2_READ_'+r.status);return r.text();}
 async function put(key,text){const r=await fetch(objectBase+key,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:text,signal:AbortSignal.timeout(90000)});if(!r.ok)throw Error('R2_WRITE_'+r.status);const b=await read(key);if(b===null||sha(b)!==sha(text))throw Error('R2_MONITOR_READBACK_FAILED');}
 
@@ -30,7 +55,8 @@ for(const owner of OWNED){
     physicalBytes:b.result.file_size,
     capBytes:D1_HARD_LIMIT_BYTES,
     percentUsed:alert.percentUsed,
-    alertLevel:alert.level,
+    alertLevel:policyLevel(alert.percentUsed),
+    writeAdmissionAlertLevel:alert.level,
     alerts:alert.alerts,
   });
 }
@@ -38,7 +64,8 @@ for(const owner of OWNED){
 const primary=databases.find(d=>d.key==='PRIMARY');
 const platformPercent=Math.max(...databases.map(d=>d.percentUsed));
 const platformThreshold=platformPercent>=100?100:platformPercent>=95?95:platformPercent>=85?85:platformPercent>=75?75:0;
-const threshold=primary.alertLevel==='OVER_LIMIT'?100:primary.alertLevel==='CRITICAL'?90:primary.alertLevel==='HIGH'?85:primary.alertLevel==='WATCH'?80:primary.percentUsed>=70?70:0;
+const admissionThreshold=primary.writeAdmissionAlertLevel==='OVER_LIMIT'?100:primary.writeAdmissionAlertLevel==='CRITICAL'?90:primary.writeAdmissionAlertLevel==='HIGH'?85:primary.writeAdmissionAlertLevel==='WATCH'?80:primary.percentUsed>=70?70:0;
+const threshold=primary.percentUsed>=100?100:primary.percentUsed>=95?95:primary.percentUsed>=85?85:primary.percentUsed>=75?75:0;
 const action={0:'NORMAL',75:'WARN',85:'DEGRADED',95:'CRITICAL',100:'HARD_STORAGE_INCIDENT'}[platformThreshold];
 
 const previousText=await read('research/storage-capacity/latest.json');let forecast=null;
@@ -67,6 +94,7 @@ const report={
   measuredAt:now.toISOString(),
   databases,
   primaryThresholdPercent:threshold,
+  primaryAdmissionThresholdPercent:admissionThreshold,
   platformThresholdPercent:platformThreshold,
   action,
   alertsTriggered:{
@@ -95,6 +123,8 @@ const key=`research/storage-capacity/${now.toISOString().slice(0,10)}/measuremen
 await put(key,body);await put('research/storage-capacity/latest.json',body);
 const output=process.env.CAPACITY_OUTPUT||'/tmp/fbis-capacity';
 await mkdir(output,{recursive:true});await writeFile(output+'/result.json',body);
+const mirroredRows=await mirrorToOperationsDb(databases,report.measuredAt,sha(body),key);
+console.log(JSON.stringify({operationsMirrorVerified:true,mirroredRows,operationsDb:DATABASE_OWNERS.OPERATIONS.databaseName}));
 if(process.env.GITHUB_STEP_SUMMARY){
   await appendFile(process.env.GITHUB_STEP_SUMMARY,
     `## Storage: ${action}\n\nPrimary: ${primary.physicalBytes} bytes (${primary.percentUsed}%, ${primary.alertLevel}).\n\n`+
