@@ -699,3 +699,8 @@
  .fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter strong {font-size:16px;}
  .fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter div > span {font-size:14px;}
 }
+@media(max-width:560px){
+ .fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter {flex-direction:column;width:100%;max-width:100%;padding:7px 4px;gap:6px;border-radius:14px;}
+ .fbis-shell-main .pgc.fbis-universal-premium .pgc-mlb-starter > div {width:100%;text-align:center;}
+ .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-gap-strip.value-decision-model {overflow:hidden !important;}
+}
