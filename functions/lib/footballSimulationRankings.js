@@ -56,6 +56,8 @@ export function rankFootballDistribution({
     iterations,modelVersion,sourceFrozenAt,simulationFrozenAt,generatedAt,
     source,method,calibrationStatus,
     metricScope:"REGULATION_ONLY",overtimeMode:"NOT_MODELED",
+    evaluation:{status:"NOT_GRADED",brierScore:null,logLoss:null,marginMAE:null,
+      totalMAE:null,calibrationBuckets:null,blowout14Accuracy:null},
     probabilisticRankingType:"UNVALIDATED_RESEARCH_FREQUENCY",
     canAuthorizeWager:false,canQualify:false,changesProductionChampion:false,
     probabilityComplete:completeLeads&&wins!==null&&blowout!==null,
