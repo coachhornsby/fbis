@@ -240,7 +240,7 @@ export async function buildSlate(sport, date, env = {}) {
     // Research board: independent form/pure scores are displayable + freezable,
     // but never qualify or authorize. Board promotion uses nflProShadow, not QB overlay.
     const research = promoteNflResearchToBoard(gameMatchups.games);
-    const playerResearch = attachNflPlayerProjectionResearch(research.games, { byTeam: verse.playersByTeam || {}, leaguePositionDefense: verse.leaguePositionDefense || {} });
+    const playerResearch = attachNflPlayerProjectionResearch(research.games, { byTeam: verse.playersByTeam || {}, leaguePositionDefense: verse.leaguePositionDefense || {}, meta: verse.meta || {} });
     const audited = attachNflFrozenAuditPackets(playerResearch, {
       ...slate,
       research: { ...(slate.research || {}), nflVerse: verse.meta, nflPro: pro.meta },
