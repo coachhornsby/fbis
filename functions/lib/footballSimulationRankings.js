@@ -30,19 +30,26 @@ export function rankFootballDistribution({
   // Every display total and margin comes from the SAME two displayed scores.
   const homeMargin=rounded(homeScore-awayScore);
   const total=rounded(homeScore+awayScore);
-  const winnerSide=homeMargin>=0?"home":"away";
-  const winner=winnerSide==="home"?home:away,loser=winnerSide==="home"?away:home;
-  const wins=rate(distributions[winnerSide+"_regulation_lead"]?.mean
-    ??(winnerSide==="home"?distributions.home_regulation_lead?.mean:null));
+  const homeLead=rate(distributions.home_regulation_lead?.mean);
+  const awayLead=rate(distributions.away_regulation_lead?.mean);
   const ties=rate(distributions.regulation_tie?.mean);
-  const blowout=rate(distributions[winnerSide+"_blowout_14"]?.mean);
+  // Matchup favorite is determined by simulated lead frequency, never by home status
+  // or average score. If the evidence is missing, leave the favorite unknown.
+  const completeLeads=homeLead!==null&&awayLead!==null&&ties!==null&&
+    Math.abs(homeLead+awayLead+ties-1)<0.005;
+  const winnerSide=!completeLeads||Math.abs(homeLead-awayLead)<1e-9
+    ?null:homeLead>awayLead?"home":"away";
+  const winner=winnerSide==="home"?home:winnerSide==="away"?away:null;
+  const loser=winnerSide==="home"?away:winnerSide==="away"?home:null;
+  const wins=winnerSide==="home"?homeLead:winnerSide==="away"?awayLead:null;
+  const blowout=winnerSide?rate(distributions[winnerSide+"_blowout_14"]?.mean):null;
   return {id:String(gameId),sport,kickoff,
     home:{name:home,abbr:homeAbbr||home,score:homeScore},
     away:{name:away,abbr:awayAbbr||away,score:awayScore},
     winner,winnerSide,loser,
-    predictedScoreWinner:winnerSide==="home"?homeScore:awayScore,
-    predictedScoreLoser:winnerSide==="home"?awayScore:homeScore,
-    total,margin:Math.abs(homeMargin),homeMargin,
+    predictedScoreWinner:winnerSide==="home"?homeScore:winnerSide==="away"?awayScore:null,
+    predictedScoreLoser:winnerSide==="home"?awayScore:winnerSide==="away"?homeScore:null,
+    total,margin:Math.abs(homeMargin),homeMargin,homeWinPct:homeLead===null?null:rounded(homeLead*100),awayWinPct:awayLead===null?null:rounded(awayLead*100),
     winPct:wins===null?null:rounded(wins*100),
     blowoutPct:blowout===null?null:rounded(blowout*100),
     tiePct:ties===null?null:rounded(ties*100),blowoutThreshold:FOOTBALL_BLOWOUT_MARGIN,
@@ -51,7 +58,7 @@ export function rankFootballDistribution({
     metricScope:"REGULATION_ONLY",overtimeMode:"NOT_MODELED",
     probabilisticRankingType:"UNVALIDATED_RESEARCH_FREQUENCY",
     canAuthorizeWager:false,canQualify:false,changesProductionChampion:false,
-    probabilityComplete:wins!==null&&blowout!==null&&ties!==null,
+    probabilityComplete:completeLeads&&wins!==null&&blowout!==null,
   };
 }
 export function sortFootballRankings(rows,field="winPct",direction="desc"){
