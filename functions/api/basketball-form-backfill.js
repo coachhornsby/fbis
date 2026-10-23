@@ -1,6 +1,7 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { fetchResultsForReconcile } from "../lib/slateEngine.js";
 import { applyFinalToForm } from "../lib/store.js";
+import { resolveNbaResearchOwnerDb } from "../lib/nbaResearchOwnerDb.js";
 
 const ALLOWED=new Set(["nba","wnba"]);
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
@@ -24,6 +25,14 @@ export async function onRequestPost(context){
   const supplied=Array.isArray(body.games)?body.games:null;
   const dates=supplied?[]:dateList(start,end);
   if(!supplied&&!dates.length)return json({ok:false,error:"date-range-required-max-14-days"},400);
+ // Settlement membership is mutable NBA sport-owned state. Hydrate the CORE
+ // approval before sportLedgerEnv() can write to NBA_DB; do not fall back.
+ let ledgerEnv=context.env;
+ if(sport==="nba"){
+   const owner=await resolveNbaResearchOwnerDb(context.env);
+   if(!owner.ok||!owner.db?.prepare)return json({ok:false,error:"NBA_FORM_OWNER_UNAVAILABLE",reason:owner.reason},503);
+   ledgerEnv=owner.env;
+ }
   let finals=0,applied=0,skipped=0,failed=0; const errors=[];
   const applyGames=async(rows=[],fallbackDate=null)=>{
     for(const g of rows||[]){
@@ -32,7 +41,7 @@ export async function onRequestPost(context){
       const completed=supplied?true:g?.status?.completed===true;
       if(!completed||!date||!Number.isFinite(hs)||!Number.isFinite(as))continue;
       finals++;
-      const res=await applyFinalToForm(context.env,{
+      const res=await applyFinalToForm(ledgerEnv,{
         sport,season:season(sport,date),gameId:String(g.id),date,
         home:{name:g.home?.name,abbr:g.home?.abbr,espnId:g.home?.espnId},
         away:{name:g.away?.name,abbr:g.away?.abbr,espnId:g.away?.espnId},
