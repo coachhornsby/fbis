@@ -75,6 +75,10 @@ test("ambiguous, one-sided, third-party and unmatched identities do not force or
   const names=["Maria Smith","Maya Smith"];
   const collision=[{name:"M. Smith",ask:.22},{name:"Maria Smith",ask:.78}];
   assert.strictEqual(alignTennisSnapshotSides(collision,names),collision);
+  const exactButSharedSurname=[{name:"Maya Smith",ask:.67},{name:"Maria Smith",ask:.34}];
+  const reordered=alignTennisSnapshotSides(exactButSharedSurname,names);
+  assert.deepEqual(reordered.map(o=>o.name),["Maria Smith","Maya Smith"]);
+  assert.deepEqual(reordered.map(o=>o.ask),[.34,.67]);
   const unmatched=[{name:"Different Player",ask:.15},{name:"Maria Smith",ask:.9}];
   assert.strictEqual(alignTennisSnapshotSides(unmatched,names),unmatched);
   const partial=[{name:"Ann Li",ask:.61}];
