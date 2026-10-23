@@ -1,4 +1,5 @@
 import { canonicalProjectionConfidence } from "./projectionConfidence.js";
+import { resolveNbaResearchOwnerDb } from "./nbaResearchOwnerDb.js";
 /**
  * Frozen projection ledger. Snapshot pregame scores, then grade vs finals.
  * Harvest uses scoreboards only — never Parlay — so nightly grading is free.
@@ -2813,6 +2814,32 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
       errors: payload.errors,
     });
     return { ...payload, date, odds, db: payload.d1 };
+  }
+
+  // NBA collector writes may begin only after request-local CORE ownership
+  // hydration. Shadow keeps PRIMARY; sport mode rejects revoked/missing grants.
+  // Shared operational job metadata remains in its existing PRIMARY owner.
+  if (sportList.includes("nba")) {
+    const owner = await resolveNbaResearchOwnerDb(env);
+    if (!owner.ok || !owner.db?.prepare) {
+      const reason = "NBA_COLLECTION_OWNER_UNAVAILABLE:" + (owner.reason || "unknown");
+      const payload = jobPayload({
+        ok: false, job: odds === "full" ? "collect-full" : "collect-cache",
+        status: JOB_FAILED, attemptedAt, successfulAt: null,
+        sports: [], dates: [], gamesDiscovered: 0,
+        writes: emptyWriteCounts(), finals: { discovered: 0, graded: 0, failed: 0 },
+        d1: await dbPayload(env), errors: [reason], env,
+      });
+      await recordJob(env, {
+        jobType: payload.job, triggerType: trigger, startedAt: attemptedAt,
+        completedAt: new Date().toISOString(), status: JOB_FAILED,
+        sport: String(sport || "all"), errors: payload.errors,
+      });
+      return { ...payload, date, odds, db: payload.d1 };
+    }
+    // sportLedgerEnv() and slateEngine consume the same freshly verified
+    // receipt; never permit NBA product writes through stale injected grants.
+    env = owner.env;
   }
 
   for (const sport of sportList) {

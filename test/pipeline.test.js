@@ -741,6 +741,7 @@ describe("collect and harvest fail honestly", () => {
         buildSlateFn: async () => {
           throw new Error("ESPN 502");
         },
+        sport: "mlb",
       }
     );
     assert.equal(out.status, "failed");
