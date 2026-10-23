@@ -1,9 +1,9 @@
-name: Daily physical storage capacity and incident alert
-# Measures primary, market-history, operations, and cold-history.
-# Alerts at 80% (WATCH), 85% (HIGH), 90% (CRITICAL). Critical exits nonzero after R2 evidence.
+name: Hourly physical storage capacity and incident alert
+# Measures every registered D1 by metadata only; one shared low-cost monitor.
+# Reports 75% WARN, 85% DEGRADED, 95% CRITICAL; fails only on new critical crossing.
 on:
   schedule:
-    - cron: '17 11 * * *'
+    - cron: '17 * * * *'
   workflow_dispatch:
   push:
     branches: [main]

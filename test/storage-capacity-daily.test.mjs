@@ -4,6 +4,7 @@ import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {DATABASE_OWNERS} from '../functions/lib/databaseOwnership.js';
 
 function expectedThreshold(bytes){
   if(bytes>=10000000000)return 100;
@@ -24,12 +25,18 @@ for(const bytes of [6900000000,7000000000,8000000000,8500000000,9000000000,95000
  assert.equal(report.sourceDbMutations,0);assert.equal(report.retentionReleaseAuthorized,false);
  assert.equal(report.retentionRequiresVerifiedRecovery,true);
  assert.equal(report.operationsDbPreferred,true);
- assert.equal(report.databases.length,4);
+ assert.equal(report.databases.length,Object.keys(DATABASE_OWNERS).length);
+ assert.ok(report.databases.some(d=>d.key==='MARKET_HISTORY_2026Q4'));
+ for(const sport of ['CFB','CBB','NFL','NBA','WNBA','MLB','NHL','SOCCER','TENNIS','NPB','KBO'])assert.ok(report.databases.some(d=>d.key===sport),sport);
  assert.equal(report.databases[0].key,'PRIMARY');
  assert.ok(report.databases.some(d=>d.key==='OPERATIONS'));
  assert.ok(report.databases.some(d=>d.key==='COLD_HISTORY'));
- assert.equal(report.databases[0].physicalBytes,bytes);assert.equal(r.status,bytes>=9000000000?1:0,r.stderr);
+ assert.equal(report.databases[0].physicalBytes,bytes);assert.equal(r.status,bytes>=9500000000?1:0,r.stderr);
  assert.equal(report.primaryThresholdPercent,expectedThreshold(bytes));
+ assert.ok(Array.isArray(report.alertsTriggered.warn75));
+ assert.ok(Array.isArray(report.alertsTriggered.degraded85));
+ assert.ok(Array.isArray(report.alertsTriggered.critical95));
+ assert.equal(report.platformThresholdPercent,bytes>=10000000000?100:bytes>=9500000000?95:bytes>=8500000000?85:bytes>=7500000000?75:0);
  assert.ok(Array.isArray(report.alertsTriggered.watch80));
  assert.ok(Array.isArray(report.alertsTriggered.high85));
  assert.ok(Array.isArray(report.alertsTriggered.critical90));
