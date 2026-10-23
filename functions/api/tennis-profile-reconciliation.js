@@ -7,7 +7,9 @@ export async function onRequestGet({request,env}){
  const auth=authorizeHarvest(request,env);
  if(!auth.ok)return send(unauthorizedBody(auth.reason),403);
  if(!env?.DB?.prepare)return send({ok:false,reason:'DB_REQUIRED'},503);
- const limit=Math.max(1,Math.min(200,Number(new URL(request.url).searchParams.get('limit')||75)||75));
+ const params=new URL(request.url).searchParams;
+ const limit=Math.max(1,Math.min(200,Number(params.get('limit')||75)||75));
+ const offset=Math.max(0,Math.min(2000,Math.floor(Number(params.get('offset')||0)||0)));
  try{
   const base=`FROM tennis_private_portrait_cohort_members m
    LEFT JOIN tennis_private_portrait_source_references r
@@ -37,9 +39,9 @@ export async function onRequestGet({request,env}){
     CASE WHEN ${sourceIdProfile} THEN 1 ELSE 0 END sourceIdProfileCandidate
     ${base} AND (NOT (${profileExists('hard')} AND ${profileExists('clay')} AND ${profileExists('grass')})
       OR r.official_id_status IS NULL OR r.official_id_status<>'LINKED_FROM_OFFICIAL_INGEST')
-    ORDER BY m.tour,m.elo_rank LIMIT ?`).bind(COHORT,limit).all()).results||[];
+    ORDER BY m.tour,m.elo_rank LIMIT ? OFFSET ?`).bind(COHORT,limit,offset).all()).results||[];
   const ok=agg.length===2&&agg.every(x=>Number(x.roster)===(x.tour==='atp'?559:515));
-  return send({ok,cohortId:COHORT,byTour:agg,missingPlayers:missing,
+  return send({ok,cohortId:COHORT,byTour:agg,missingPlayers:missing,limit,offset,
     candidatesRequireReview:true,identityUpdatesPerformed:0,profilesManufactured:0,
     researchOnly:true,canAuthorizeWager:false,
     note:'An official source-ID match is a candidate, not enough to copy a profile or confer projection eligibility.'},ok?200:409);
