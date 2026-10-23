@@ -1,0 +1,35 @@
+name: Player props production acceptance audit
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: Chicago game date (YYYY-MM-DD), blank for today
+        required: false
+        type: string
+      sports:
+        description: Comma-separated sports, blank for all supported sports
+        required: false
+        type: string
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Trace production model and contract completeness
+        env:
+          AUDIT_DATE: ${{ inputs.date }}
+          AUDIT_SPORTS: ${{ inputs.sports }}
+        run: node scripts/audit-prop-acceptance.mjs "$AUDIT_DATE" "$AUDIT_SPORTS"
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: player-props-production-acceptance
+          path: artifacts/prop-acceptance-*.json
+          if-no-files-found: error
+          retention-days: 30

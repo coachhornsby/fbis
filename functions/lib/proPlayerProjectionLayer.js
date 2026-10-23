@@ -403,6 +403,7 @@ function nflRowsForSide(game, side, playerFeed = {}, {includeDepthResearch=false
       row.roleConfidence=round1(roleConfidence);
       row.snapShare=snapShare==null?null:round1(snapShare);
       row.recent5=p.recent5||null;
+      row.stateAsOf=playerFeed?.meta?.builtAt||null;
       row.formBlend=calibrated?.weights||p.formBlend||null;
       row.recent5Games=recentGames;
       row.seasonAverage=p.seasonAvg||null;
@@ -478,6 +479,7 @@ function nhlRowsForSide(game, side, ctx = {}) {
     return {
       ...row,
       validationStatus,
+      stateAsOf:game?.nhlProV2?.featureCutoffTimestamp||ctx?.sourceLineage?.asOf||null,
       validatedLines:p.validatedLines||{},
       shotEnvironment:p.shotEnvironment||null,
       modelValidated,

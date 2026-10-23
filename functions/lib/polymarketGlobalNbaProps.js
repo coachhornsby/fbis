@@ -62,7 +62,7 @@ export async function listGlobalNbaFixtureSlugs(env,{now=new Date()}={}){
  if(!owner.ok)return {ok:false,code:owner.reason||'NBA_OWNER_UNAVAILABLE'};
  const db=owner.db;
  const today=day(now);
- const games=(await db.prepare("SELECT id,date,start,home_abbr,away_abbr FROM games WHERE sport='nba' AND date=? ORDER BY start LIMIT 8").bind(today).all()).results||[];
+ const games=(await db.prepare("SELECT id,date,start,home_abbr,away_abbr FROM games WHERE sport='nba' AND date=? ORDER BY start LIMIT 32").bind(today).all()).results||[];
  return {ok:true,day:today,slugs:games.filter(g=>Number.isFinite(Date.parse(g.start))&&
    Date.parse(g.start)>=now.getTime()-3*3600000&&Date.parse(g.start)<=now.getTime()+48*3600000).map(tag),
   canAuthorizeWager:false};
@@ -73,7 +73,7 @@ export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=f
  if(!owner.ok)return {ok:false,code:owner.reason||'NBA_OWNER_UNAVAILABLE'};
  const db=owner.db;
  const today=day(now),capturedAt=now.toISOString();
- const games=(await db.prepare("SELECT id,date,start,home_abbr,away_abbr FROM games WHERE sport='nba' AND date=? ORDER BY start LIMIT 8").bind(today).all()).results||[];
+ const games=(await db.prepare("SELECT id,date,start,home_abbr,away_abbr FROM games WHERE sport='nba' AND date=? ORDER BY start LIMIT 32").bind(today).all()).results||[];
  const players=(await db.prepare("SELECT player_id,player_name,team_key FROM nba_player_state_profiles WHERE julianday(as_of)>=julianday(?) LIMIT 1500").bind(new Date(now.getTime()-14*86400000).toISOString()).all()).results||[];
  const rows=[],errors=[],fixtures=[];
  for(const g of games){
@@ -86,7 +86,7 @@ export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=f
    if(Array.isArray(providedEvents)){
     // Signed GitHub Actions sends raw public Gamma event payloads, not prequalified rows.
     // Identity, settlement and canonical player rules are still validated here.
-    if(providedEvents.length>8){errors.push({slug,code:'BATCH_TOO_LARGE'});continue}
+    if(providedEvents.length>32){errors.push({slug,code:'BATCH_TOO_LARGE'});continue}
     event=providedEvents.find(x=>x?.slug===slug)||null;
    }else{
     const response=await fetchImpl(url,{method:'GET',headers:{accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(16000)});

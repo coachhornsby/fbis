@@ -17,12 +17,19 @@ export async function onRequestGet({env,request}) {
   const queriedSports=sport==='all'?PROP_SPORTS:[sport];
   for (const store of stores) {
     try {
-      const result = await store.db.prepare(`SELECT * FROM normalized_market_observations
+      let cursor=null,complete=false,count=0;
+      for(let page=0;page<10;page++){
+       const result=await store.db.prepare(`SELECT * FROM normalized_market_observations
         WHERE source IN ('Kalshi','Kalshi REST','Kalshi WebSocket','Polymarket','Polymarket US','Polymarket US WebSocket')
         AND market_family='player_prop' AND event_start_time >= ? AND event_start_time < ?
         AND sport IN (${queriedSports.map(()=>'?').join(',')})
-        ORDER BY collected_at DESC LIMIT 500`).bind(bounds.start,bounds.end,...queriedSports).all();
-      rows.push(...(result.results || [])); diagnostics.push({store:store.binding,status:'READ',observations:result.results?.length || 0,truncated:result.results?.length===500});
+        ${cursor?'AND (collected_at < ? OR (collected_at = ? AND id < ?))':''}
+        ORDER BY collected_at DESC,id DESC LIMIT 500`).bind(bounds.start,bounds.end,...queriedSports,...(cursor?[cursor.collected_at,cursor.collected_at,cursor.id]:[])).all();
+       const batch=result.results||[];rows.push(...batch);count+=batch.length;
+       if(batch.length<500){complete=true;break;}
+       const last=batch.at(-1);if(last.id==null||!last.collected_at)break;cursor=last;
+      }
+      diagnostics.push({store:store.binding,status:'READ',observations:count,truncated:!complete});
     } catch { diagnostics.push({store:store.binding,status:'READ_FAILED'}); }
   }
   const context=await loadPropFixturesAndPlayers(env,{start:bounds.start,end:bounds.end,sport});

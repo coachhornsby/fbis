@@ -5,10 +5,10 @@ import mlb from '../../data/teams/mlb.js';
 import { finitePropNumber as number } from './exchangePlayerProps.js';
 const registries={nba,nfl,nhl,mlb};
 export const KALSHI_PROP_SERIES=Object.freeze({
- KXNBAPTS:['nba','points'],KXNBAREB:['nba','rebounds'],KXNBAAST:['nba','assists'],KXNBA3PT:['nba','three_pointers_made'],KXNBAPRA:['nba','points_rebounds_assists'],
+ KXNBAPTS:['nba','points'],KXNBAREB:['nba','rebounds'],KXNBAAST:['nba','assists'],KXNBA3PT:['nba','three_pointers_made'],KXNBAPRA:['nba','points_rebounds_assists'],KXNBAPR:['nba','points_rebounds'],KXNBAPA:['nba','points_assists'],KXNBARA:['nba','rebounds_assists'],
  KXNFLPASSYDS:['nfl','passing_yards'],KXNFLRSHYDS:['nfl','rushing_yards'],KXNFLRECYDS:['nfl','receiving_yards'],KXNFLREC:['nfl','receptions'],
- KXNHLPTS:['nhl','points'],KXNHLSAVES:['nhl','saves'],KXNHLGOALS:['nhl','goals'],KXNHLSOG:['nhl','shots_on_goal'],
- KXMLBHIT:['mlb','hits'],KXMLBHR:['mlb','home_runs'],KXMLBOUTS:['mlb','pitcher_outs'],KXMLBSO:['mlb','strikeouts'],
+ KXNHLPTS:['nhl','points'],KXNHLAST:['nhl','assists'],KXNHLSAVE:['nhl','saves'],KXNHLSAVES:['nhl','saves'],KXNHLGOALS:['nhl','goals'],KXNHLSOG:['nhl','shots_on_goal'],
+ KXMLBHIT:['mlb','hits'],KXMLBHR:['mlb','home_runs'],KXMLBOUTS:['mlb','pitcher_outs'],KXMLBSO:['mlb','strikeouts'],KXMLBKS:['mlb','strikeouts'],
  KXWNBAPTS:['wnba','points'],KXWNBAREB:['wnba','rebounds'],KXWNBAAST:['wnba','assists'],
 });
 // ESPN game registry uses SA/NY; verified NBA roster states use SAS/NYK.
@@ -48,16 +48,18 @@ export function canonicalPlayerId(sport,provider,id) { return id?`${sport}:${pro
 export function mapKalshiPlayerContract(m,{games=[],players=[],capturedAt,seriesTicker}={}) {
  const spec=KALSHI_PROP_SERIES[seriesTicker];if(!spec||!String(m.ticker).startsWith(seriesTicker+'-')||m.mve_collection_ticker||m.mve_selected_legs?.length)return null;
  const [sport,stat]=spec;
- const rule=/^If (.+?) records (\d+(?:\.\d+)?)\+ (.+?) in the (.+?) vs (.+?) (?<league>Pro Basketball|Pro Football|Pro Hockey|Pro Baseball|Women\'s Pro Basketball|NHL|NFL|NBA|MLB) game originally scheduled for (?<day>[A-Z][a-z]{2} \d{1,2}, \d{4}), then the market resolves to Yes\.$/.exec(m.rules_primary||'');
+ const rule=/^If (.+?) (?:records|has) (\d+(?:\.\d+)?)\+ (.+?) in (?:the )?(.+?) vs (.+?) (?<league>Pro Basketball|Pro Football|Pro Hockey|Pro Baseball|Women\'s Pro Basketball|professional football|professional baseball|NHL|NFL|NBA|MLB) game originally scheduled for (?<day>[A-Z][a-z]{2} \d{1,2}, \d{4})(?: at (?<clock>\d{1,2}:\d{2} [AP]M) (?<zone>EDT|EST))?, then the market resolves to Yes\.$/.exec(m.rules_primary||'');
  if(!rule||m.strike_type!=='greater'||number(m.floor_strike)!==Number(rule[2])-.5)return {rejected:true,reason:'CONTRACT_RULE_TEMPLATE_UNVERIFIED',id:m.ticker,sport};
- const statNames={points:['points'],rebounds:['rebounds'],assists:['assists'],three_pointers_made:['three pointers','three-pointers','threes','three-pointers made','made three-pointers'],points_rebounds_assists:['points + rebounds + assists','combined points, rebounds, and assists'],passing_yards:['passing yards'],rushing_yards:['rushing yards'],receiving_yards:['receiving yards'],receptions:['receptions'],saves:['saves'],goals:['goals'],shots_on_goal:['shots on goal'],hits:['hits'],home_runs:['home runs'],pitcher_outs:['outs recorded'],strikeouts:['strikeouts']};
+ const statNames={points:['points'],rebounds:['rebounds'],assists:['assists'],three_pointers_made:['three pointers','three-pointers','threes','three-pointers made','made three-pointers'],points_rebounds_assists:['points + rebounds + assists','combined points, rebounds, and assists'],points_rebounds:['points + rebounds','combined points and rebounds','combined points, and rebounds'],points_assists:['points + assists','combined points and assists','combined points, and assists'],rebounds_assists:['rebounds + assists','combined rebounds and assists','combined rebounds, and assists'],passing_yards:['passing yards'],rushing_yards:['rushing yards'],receiving_yards:['receiving yards'],receptions:['receptions'],saves:['saves'],goals:['goals'],shots_on_goal:['shots on goal'],hits:['hits'],home_runs:['home runs'],pitcher_outs:['outs recorded'],strikeouts:['strikeouts']};
  if(!(statNames[stat]||[]).some(s=>norm(s)===norm(rule[3])))return {rejected:true,reason:'STAT_DEFINITION_MISMATCH',id:m.ticker,sport};
- const leagueNames={nba:['Pro Basketball','NBA'],nfl:['Pro Football','NFL'],nhl:['Pro Hockey','NHL'],mlb:['Pro Baseball','MLB'],wnba:["Women's Pro Basketball"]};
+ const leagueNames={nba:['Pro Basketball','NBA'],nfl:['Pro Football','professional football','NFL'],nhl:['Pro Hockey','NHL'],mlb:['Pro Baseball','professional baseball','MLB'],wnba:["Women's Pro Basketball"]};
  if(!leagueNames[sport]?.includes(rule.groups.league))return {rejected:true,reason:'LEAGUE_DEFINITION_MISMATCH',id:m.ticker,sport};
  const ruleDate=Date.parse(rule.groups.day+' 12:00:00 GMT');if(!Number.isFinite(ruleDate))return null;
  const day=new Date(ruleDate).toISOString().slice(0,10);
+ const exactStart=rule.groups.clock?Date.parse(rule.groups.day+' '+rule.groups.clock+' '+(rule.groups.zone==='EDT'?'GMT-0400':'GMT-0500')):null;
+ if(rule.groups.clock&&!Number.isFinite(exactStart))return {rejected:true,reason:'CONTRACT_START_TIME_INVALID',id:m.ticker,sport};
  const matches=games.filter(g=>g.sport===sport&&Number.isFinite(Date.parse(g.start))&&
-  ctDate(g.start)===day&&verifiedMatchTeams(g,rule[4],rule[5],sport));
+  ctDate(g.start)===day&&(exactStart==null||Date.parse(g.start)===exactStart)&&verifiedMatchTeams(g,rule[4],rule[5],sport));
  if(matches.length!==1)return {rejected:true,reason:'EXACT_EVENT_UNRESOLVED',id:m.ticker,sport};
  const game=matches[0],canonicalTeams=verifiedMatchTeams(game,rule[4],rule[5],sport);
  if(!canonicalTeams)return {rejected:true,reason:'REGISTERED_TEAM_IDENTITY_UNRESOLVED',id:m.ticker,sport};
@@ -85,7 +87,7 @@ export function mapKalshiPlayerContract(m,{games=[],players=[],capturedAt,series
   player_name:player.player_name,home_abbr:String(game.home_abbr).toUpperCase(),away_abbr:String(game.away_abbr).toUpperCase(),team,opponent,
   position:player.position||null,historyProvider,historyPlayerId:String(player.player_id),start_time:game.start,canonical_market:stat,
   line:number(m.floor_strike),trigger:Number(rule[2]),side:'yes',statSide:'over',period:'full_game',settlementTerms:terms,
-  settlementScope:'OFFICIAL_GAME_PER_PROVIDER_RULES',dnpSettlement:/last fair market price before game start/i.test(m.rules_secondary||'')?'ACTIVE_NO_APPEARANCE_LAST_FAIR_PRICE':/fair price/i.test(m.rules_secondary||'')?'FAIR_PRICE':'UNVERIFIED',
+  settlementScope:'OFFICIAL_GAME_PER_PROVIDER_RULES',dnpSettlement:sport==='mlb'&&/not (?:included in the starting lineup|a starting pitcher)|not in the starting lineup/i.test(m.rules_secondary||'')&&/fair market price/i.test(m.rules_secondary||'')?'STARTER_PARTICIPATION_FAIR_PRICE':/last fair market price before game start/i.test(m.rules_secondary||'')?'ACTIVE_NO_APPEARANCE_LAST_FAIR_PRICE':/fair price/i.test(m.rules_secondary||'')?'FAIR_PRICE':'UNVERIFIED',
   identityVerified:true,priceVerified:false,observedAsk:number(m.yes_ask_dollars),observedBid:number(m.yes_bid_dollars),
   observedDepth:number(m.yes_ask_size_fp),contractStatus:m.status,observedAt:null,collectedAt:capturedAt,
   quoteClockStatus:'SOURCE_TIME_UNKNOWN',purchaseAsk:null,executableSize:null,fresh:false,marketAvailable:false,
