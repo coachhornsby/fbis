@@ -53,8 +53,10 @@ export async function loadFootballRankingGames(env,{
      r.id runId,r.frozen_at simulationFrozenAt,
      r.generated_at generatedAt,r.iterations,
      r.simulator_version baselineVersion,
-     r.baseline_json baselineJson,r.distributions_json distributionsJson
+     r.baseline_json baselineJson,r.distributions_json distributionsJson,
+     e.ranking_metrics_json rankingMetricsJson
    FROM games g JOIN cfb_drive_shadow_runs r ON r.game_id=g.id
+   LEFT JOIN cfb_drive_rankings_enrichment e ON e.run_id=r.id
    WHERE g.sport='cfb' AND g.start>? AND g.start<=?
      AND r.frozen_at<g.start AND r.frozen_at<=?
      AND r.authority='RESEARCH_SHADOW_ONLY' AND r.can_authorize_wager=0
@@ -82,13 +84,22 @@ export function buildFootballRankings(rows,options){
        iterations:5000,modelVersion:game.baselineVersion,
      });
      sourceFrozenAt=game.sourceFrozenAt;
-     simulationFrozenAt=game.sourceFrozenAt;
+     simulationFrozenAt=options.generatedAt||null;
      method=simulation.method;
      modelVersion=simulation.modelId;
      calibrationStatus="NOT_VALIDATED";
    }else{
      const base=JSON.parse(game.baselineJson);
      simulation={distributions:JSON.parse(game.distributionsJson),iterations:game.iterations};
+     // A verified replay is an independent, additional immutable research
+     // receipt; it never rewrites the source's 1,000 frozen draws.
+     if(game.rankingMetricsJson){
+       const verified=JSON.parse(game.rankingMetricsJson);
+       for(const metric of ["home_regulation_lead","away_regulation_lead",
+          "regulation_tie","home_blowout_14","away_blowout_14"]){
+         if(verified[metric])simulation.distributions[metric]=verified[metric];
+       }
+     }
      sourceFrozenAt=base.sourceFrozenAt;
      simulationFrozenAt=game.simulationFrozenAt;
      method="CFBD_VERIFIED_DRIVE_RESAMPLING";
@@ -135,7 +146,7 @@ export async function onRequestGet({request,env}){
  try{
   const now=new Date().toISOString();
   const result=await loadFootballRankingGames(env,{sport,now,weekOffset:week});
-  const built=buildFootballRankings(result.games,{sport,source:result.source});
+  const built=buildFootballRankings(result.games,{sport,source:result.source,generatedAt:now});
   const cards=sortFootballRankings(built.cards,sort,direction).map((r,i)=>({...r,rank:i+1}));
   const data={ok:true,mode:"RESEARCH_ONLY",sport,week,window:{
    after:result.after,before:result.before},generatedAt:now,
