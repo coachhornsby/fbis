@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { sportLedgerEnv } from "../functions/lib/sportLedgerRouting.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -93,4 +94,13 @@ test("NBA ledger storage fails closed without independent readiness and CORE app
   assert.equal(authorized.__sportLedgerBinding, "NBA_DB");
   const rollback = sportLedgerEnv({ ...approvedEnv, SPORT_DB_MODE_NBA: "shadow" }, "nba");
   assert.equal(rollback.DB, primary);
+});
+
+
+test("health operations recognize exactly the four CORE-approved authoritative sports",()=>{
+ const script=readFileSync(new URL("../scripts/sport-sync-health-ops.mjs",import.meta.url),"utf8");
+ const match=script.match(/const authoritative = new Set\(\[([^\]]+)\]\)/);
+ assert.ok(match,"authoritative sports health allowlist missing");
+ const names=[...match[1].matchAll(/"([a-z]+)"/g)].map(x=>x[1]);
+ assert.deepEqual(names,["nfl","cfb","nhl","nba"]);
 });
