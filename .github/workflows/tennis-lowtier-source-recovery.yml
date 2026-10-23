@@ -7,6 +7,7 @@ on:
       - "functions/api/tennis-profile-reconciliation.js"
       - "scripts/tennis-lowtier-source-recovery-audit.mjs"
       - "scripts/lib/tennis-lowtier-source-audit.mjs"
+      - "scripts/lib/tennis-identity-adjudication.mjs"
       - ".github/workflows/tennis-lowtier-source-recovery.yml"
 permissions:
   contents: read
@@ -49,6 +50,8 @@ jobs:
         if: always()
         with:
           name: tennis-lowtier-source-recovery
-          path: artifacts/tennis-lowtier-source-recovery.json
+          path: |
+            artifacts/tennis-lowtier-source-recovery.json
+            artifacts/tennis-identity-adjudication.json
           retention-days: 30
           if-no-files-found: warn
