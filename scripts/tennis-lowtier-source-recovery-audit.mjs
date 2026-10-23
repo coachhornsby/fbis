@@ -11,7 +11,7 @@ if(!SECRET)throw Error('HARVEST_SECRET_REQUIRED');
 const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',
  year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(p=>[p.type,p.value]));
 const cutoff=parts.year+parts.month+parts.day;
-assert.match(cutoff,/^\\d{8}$/,'INVALID_CHICAGO_CUTOFF');
+assert.match(cutoff,/^[0-9]{8}$/,'INVALID_CHICAGO_CUTOFF');
 const targets=[];let lastCohort=null,expectedIncomplete=null;
 for(let offset=0;offset<1400;offset+=200){
  const url=new URL('/api/tennis-profile-reconciliation',BASE);

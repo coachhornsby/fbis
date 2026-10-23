@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {makeCandidateIndex,parseCsv,scanSource,summarize,numeric,hasValidTwoSidedServeStats,sources} from '../scripts/lib/tennis-lowtier-source-audit.mjs';
 
@@ -45,4 +46,10 @@ test('robust CSV reader supports quoted comma and escaped quotes',()=>{
  const r=parseCsv(str);
  assert.equal(r[0].winner_name,'Last, First');
  assert.equal(r[0].loser_name,'Name "Junior"');
+});
+
+test('workflow entrypoint checks eight numeric cutoff digits without double-escaped regex',()=>{
+ const src=readFileSync(new URL('../scripts/tennis-lowtier-source-recovery-audit.mjs',import.meta.url),'utf8');
+ assert.ok(src.includes('assert.match(cutoff,/^[0-9]{8}$/'));
+ assert.ok(!src.includes('cutoff,/^\\\\d'));
 });
