@@ -20,7 +20,7 @@ let ready=false;
 for(let attempt=0;attempt<60;attempt++){
  try{
   const result=await request("/api/football-sdv-prospective?sport=nfl");
-  if(result.status===200&&result.body?.ok===true&&result.body.canAuthorizeWager===false){
+  if(result.status===200&&result.body?.ok===true&&result.body.canAuthorizeWager===false&&result.body.slateCapacity>=240){
    ready=true;break;
   }
  }catch(e){console.log("prospective API not live, attempt",attempt+1,String(e).slice(0,100))}
@@ -32,7 +32,7 @@ for(const sport of ["nfl","cfb"]){
  const response=await request("/api/football-sdv-prospective?sport="+sport);
  if(response.status!==200||response.body.ok!==true||response.body.canAuthorizeWager!==false)
   throw Error("PROSPECTIVE_SLATE_UNAVAILABLE:"+sport);
- const slate=response.body.upcoming.slice(0,80);
+ const slate=response.body.upcoming.slice(0,240);
  s.slate=slate.length;
  for(const g of slate){
   try{

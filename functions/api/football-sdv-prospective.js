@@ -157,10 +157,10 @@ export async function onRequest({request,env}){
     "ROW_NUMBER() OVER(PARTITION BY substr(g.start,1,16),g.home_abbr,g.away_abbr "+
     "ORDER BY CASE WHEN g.id GLOB '[0-9]*' THEN 0 ELSE 1 END,g.id) rn "+
     "FROM games g WHERE g.sport=? AND g.start>? AND g.start<=?"+
-    ") WHERE rn=1 ORDER BY kickoff ASC,gameId ASC LIMIT 80"
+    ") WHERE rn=1 ORDER BY kickoff ASC,gameId ASC LIMIT 240"
    ).bind(sport,new Date(now+600000).toISOString(),until).all();
    if(!Array.isArray(upcoming?.results))throw Error("SLATE_QUERY_FAILED");
-   return json({ok:true,sport,upcoming:upcoming.results,canAuthorizeWager:false});
+   return json({ok:true,sport,upcoming:upcoming.results,slateCapacity:240,canAuthorizeWager:false});
   }
   if(request.method!=="POST")return json({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   const body=await request.json();
