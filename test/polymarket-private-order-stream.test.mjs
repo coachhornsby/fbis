@@ -37,7 +37,9 @@ test("private order stream cannot invent unsettled, canceled, partial or ambiguo
  event=clone();event.orderSubscriptionUpdate.execution.order.state="ORDER_STATE_PARTIALLY_FILLED";
  assert.equal(privateOrderExecution(event),null);
  event=clone();event.orderSubscriptionUpdate.execution.order.intent="ORDER_INTENT_SELL_LONG";
- assert.equal(privateOrderExecution(event),null);
+ event.orderSubscriptionUpdate.execution.order.side="ORDER_SIDE_SELL";
+ event.orderSubscriptionUpdate.execution.order.outcomeSide="OUTCOME_SIDE_YES";
+ assert.equal(privateOrderExecution(event).action,"SELL");
  event=clone();event.orderSubscriptionUpdate.execution.order.outcomeSide="OUTCOME_SIDE_YES";
  assert.equal(privateOrderExecution(event),null);
  event=clone();event.orderSubscriptionUpdate.execution.commissionNotionalCollected={value:".03",currency:"EUR"};
