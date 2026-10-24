@@ -4,6 +4,11 @@ on:
     branches: [main]
     paths:
       - .github/workflows/football-sdv-historical-research.yml
+      - scripts/football-sdv-acquire.py
+      - scripts/football-sdv-evaluate.mjs
+      - scripts/nfl-sdv-transition-coverage.mjs
+      - functions/lib/nflPbpDriveResearchAdapter.js
+      - functions/lib/footballPossessionMatchupResearch.js
   workflow_run:
     workflows: ["CI"]
     types: [completed]
