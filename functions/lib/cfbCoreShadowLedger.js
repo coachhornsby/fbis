@@ -633,6 +633,62 @@ function findTeamFeat(teamIndex, name) {
 }
 
 /**
+ * Exact game-ID join to the archived weekly FBIS/Tier3 training document.
+ * The historical hybrid was fitted on adjusted EPA × 100, NOT CFBD /ratings/core.
+ * Never substitute different provider ratings into the fitted coefficients.
+ * received_at is the conservative first-observed timestamp; the report week
+ * states the throughWeek cutoff (week - 1). Research-only until source audit.
+ */
+async function loadFbisWeeklyMatchups(env, season, weeks, beforeIso) {
+  const db = tier3(env);
+  const byGame = new Map();
+  if (!db?.prepare) return byGame;
+  for (const week of [...new Set(weeks)].filter(w => Number.isInteger(w) && w > 1)) {
+    try {
+      const rs = await db.prepare(
+        `SELECT g.game_id,g.season,g.week,g.home_team_source,g.away_team_source,
+                g.home_canonical_id,g.away_canonical_id,g.identity_status,
+                g.point_in_time_status,g.features_json,
+                s.received_at,s.provider_published_at,s.source_filename
+         FROM cfb_tier3_training_games g
+         JOIN cfb_tier3_training_snapshots s ON s.snapshot_id=g.snapshot_id
+         WHERE g.season=? AND g.week=? AND s.status='research_only'
+         ORDER BY CASE WHEN lower(s.source_filename) LIKE '%updated%' THEN 0 ELSE 1 END,
+                  s.received_at DESC LIMIT 180`
+      ).bind(season, week).all();
+      for (const g of rs?.results || []) {
+        if (byGame.has(String(g.game_id))) continue;
+        const received=Date.parse(String(g.received_at || ""));
+        if (!Number.isFinite(received) || received > Date.parse(beforeIso)) continue;
+        if (!String(g.identity_status || "").startsWith("matched")) continue;
+        const feat=parseFeatures(g.features_json);
+        const vals=["home_adjusted_epa","home_adjusted_epa_allowed",
+          "away_adjusted_epa","away_adjusted_epa_allowed"];
+        if (!feat || vals.some(k => num(feat[k]) == null)) continue;
+        const side=(prefix, team, canonicalId)=>({
+          team, canonicalId,
+          coreYear:season, coreThroughWeek:week-1,
+          coreOffense:num(feat[`${prefix}_adjusted_epa`])*100,
+          coreDefense:-num(feat[`${prefix}_adjusted_epa_allowed`])*100,
+          coreWeekBounded:true,
+          coreSourceEndpoint:"fbis_weekly_training_document",
+          coreSourceAsOf:g.received_at,
+          coreThroughSeasonType:"regular",
+        });
+        byGame.set(String(g.game_id),{
+          home:side("home",g.home_team_source,g.home_canonical_id),
+          away:side("away",g.away_team_source,g.away_canonical_id),
+          snapshotReceivedAt:g.received_at,
+          featureStatus:g.point_in_time_status,
+          sourceFilename:g.source_filename,
+        });
+      }
+    } catch { /* no row: research fail closed for this week */ }
+  }
+  return byGame;
+}
+
+/**
  * Cache-only freeze from prediction_snapshots / predictions + CORE team snapshots.
  * Does not call CFBD. model_predictions is optional (often absent on primary).
  */
@@ -673,7 +729,15 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
   }
 
   const season = new Date().getUTCFullYear();
-  const teamIndex = await loadCfbCoreTeamIndex(env, season);
+  const targetWeeks = preds.map(p => {
+    const meta = parsePalMeta(p.pal_json);
+    return num(meta.week) ?? estimateCfbWeekFromDate(p.date, season);
+  });
+  const weeklyMatchups = await loadFbisWeeklyMatchups(env, season, targetWeeks, generationAt);
+  const hybridArtifact = artifact?.modelId === CFB_CORE_MARGIN_HYBRID_ID;
+  const teamIndex = hybridArtifact
+    ? { byTeam: new Map(), ratedTeams: 0, reason: "FBIS_WEEKLY_REPORT_GAME_ID_SOURCE" }
+    : await loadCfbCoreTeamIndex(env, season);
   // Name index for matchup parsing (canonical team_id map alone is insufficient).
   teamIndex.byName = new Map();
   for (const feat of teamIndex.byTeam.values()) {
@@ -686,6 +750,7 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
   let skippedMissingKickoff = 0;
   let skippedAfterKickoff = 0;
   let skippedLateChampion = 0;
+  let skippedMissingWeeklyMatchup = 0;
   for (const p of preds) {
     const gid = String(p.game_id);
     if (seen.has(gid)) continue;
@@ -694,8 +759,10 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
     const parsed = parseMatchup(p.matchup);
     const homeTeam = pal.homeName || parsed.homeTeam;
     const awayTeam = pal.awayName || parsed.awayTeam;
-    const homeFeat = findTeamFeat(teamIndex, homeTeam);
-    const awayFeat = findTeamFeat(teamIndex, awayTeam);
+    const weekly = weeklyMatchups.get(gid);
+    if (hybridArtifact && !weekly) { skippedMissingWeeklyMatchup += 1; continue; }
+    const homeFeat = weekly?.home || findTeamFeat(teamIndex, homeTeam);
+    const awayFeat = weekly?.away || findTeamFeat(teamIndex, awayTeam);
     // Prospective claims require an actual provider kickoff and a champion
     // snapshot recorded BEFORE that kickoff. Never synthesize a time from date.
     const kickoff = pal.start || pal.kickoff || null;
@@ -748,6 +815,16 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
       } : null,
       now: generationAt,
     });
+    if (weekly) {
+      rec.provenance = {
+        ...rec.provenance,
+        weeklySourceFilename:weekly.sourceFilename,
+        weeklyObservedAt:weekly.snapshotReceivedAt,
+        sourceFeatureCutoffStatus:weekly.featureStatus,
+        sourceCutoffDerivation:"report_schedule_week_minus_one",
+        externalProviderPublicationTimestampVerified:false,
+      };
+    }
     records.push(rec);
   }
   const freeze = await freezeCfbCoreShadowRecords(env, records);
@@ -760,6 +837,9 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
     skippedMissingKickoff,
     skippedAfterKickoff,
     skippedLateChampion,
+    skippedMissingWeeklyMatchup,
+    weeklyMatchupsAvailable: weeklyMatchups.size,
+    weeklyReportSourceRequired:hybridArtifact,
     artifactLoaded: Boolean(artifact),
     teamCoverage: {
       ratedTeams: teamIndex.ratedTeams ?? null,
