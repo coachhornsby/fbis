@@ -154,6 +154,12 @@ export async function prospectiveFootballPerformance(env,{sport,now=new Date().t
  const reports={};
  for(const [modelId,rows] of byModel)
   reports[modelId]=gradeRegulationSimulations(rows,{sport,asOf:now,minSample:30});
+ if(sport==="nfl"){
+  const old="NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3";
+  if(reports[old])reports[old]={...reports[old],
+   technicalStatus:"SUPERSEDED_KICKOFF_FIELD_START_ERROR",
+   excludedFromQualification:true,canQualify:false,canAuthorizeWager:false};
+ }
  const baselineId=sport==="nfl"?"NFL-VERIFIED-POSSESSION-MATCHUP-SHADOW-v0":
   "CFB-VERIFIED-DRIVE-MATCHUP-SHADOW-v0";
  const baseline=reports[baselineId]||gradeRegulationSimulations([],{sport,asOf:now,minSample:30});
