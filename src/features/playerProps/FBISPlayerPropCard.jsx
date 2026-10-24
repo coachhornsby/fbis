@@ -144,7 +144,7 @@ export function LastFiveStatChart({ row, history=null }) {
   }, []);
 
   useEffect(() => {
-    if(history?.available){setState({loading:false,error:"",games:verifiedLastFive(history.last5||[]),avg:null});return undefined;}
+    if(history?.available){setState({loading:false,error:"",games:verifiedLastFive(history.last5||[]),avg:null,historyScope:history.historyScope});return undefined;}
     if (!visible) return undefined;
     let cancelled = false;
     const q = new URLSearchParams({
@@ -161,7 +161,7 @@ export function LastFiveStatChart({ row, history=null }) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort("player-prop-detail-timeout"), 18000);
     const request = row.canonicalPlayerId
-      ? fetchPropResearch(row, {historyOnly:true}).then(body => ({canonicalPlayerId:body.canonicalPlayerId,detail:{last5:body.history?.last5||[],historyReason:body.history?.reason||null,historyAsOfDay:body.history?.historyAsOfDay||null}}))
+      ? fetchPropResearch(row, {historyOnly:true}).then(body => ({canonicalPlayerId:body.canonicalPlayerId,detail:{last5:body.history?.last5||[],historyScope:body.history?.historyScope,historyReason:body.history?.reason||null,historyAsOfDay:body.history?.historyAsOfDay||null}}))
       : fetch("/api/player-prop-detail?" + q.toString(), { credentials: "same-origin", signal: controller.signal }).then(async res => {
         const body=await res.json();if(!res.ok||body.ok===false)throw Error(body.error||`HTTP ${res.status}`);return body;
       });
@@ -176,7 +176,7 @@ export function LastFiveStatChart({ row, history=null }) {
           error: "",
           games,
           avg: null,
-          unavailableReason:body?.detail?.historyReason||null,historyAsOfDay:body?.detail?.historyAsOfDay||null,
+          historyScope:body?.detail?.historyScope,unavailableReason:body?.detail?.historyReason||null,historyAsOfDay:body?.detail?.historyAsOfDay||null,
         });
       })
       .catch((err) => {
@@ -203,7 +203,7 @@ export function LastFiveStatChart({ row, history=null }) {
     <div className="pp-history-block pp-card-last5" ref={cardRef} aria-label="Last five games for this player and stat">
       <div className="pp-history-head">
         <div>
-          <div className="pp-analytics-label">{row.sport === "nba" ? "LAST 5 · REGULAR SEASON" : "LAST 5"}</div>
+          <div className="pp-analytics-label">{state.historyScope === "POSTSEASON" ? `LAST ${games.length || 5} · POSTSEASON` : row.sport === "nba" || state.historyScope === "REGULAR_SEASON" ? "LAST 5 · REGULAR SEASON" : "LAST 5"}</div>
           <strong>{marketLabel(row)}</strong>
         </div>
         <div className="pp-history-summary">

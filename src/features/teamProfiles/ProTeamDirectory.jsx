@@ -1,3 +1,4 @@
+import MlbPlayerIntelligence from './MlbPlayerIntelligence.jsx';
 import { useEffect, useMemo, useState } from "react";
 import TeamLogo from "../../components/TeamLogo.jsx";
 import "./proTeamDirectory.css";
@@ -20,6 +21,8 @@ function PlayerPortrait({ player }) {
 export default function ProTeamDirectory({ sport, refreshKey = 0 }) {
   const [teams, setTeams] = useState([]);
   const [selected, setSelected] = useState("");
+  const [activePlayer,setActivePlayer]=useState(null);
+  useEffect(()=>setActivePlayer(null),[sport,selected]);
   const [teamSearch, setTeamSearch] = useState("");
   const [playerSearch, setPlayerSearch] = useState("");
   const [position, setPosition] = useState("all");
@@ -81,6 +84,7 @@ export default function ProTeamDirectory({ sport, refreshKey = 0 }) {
           <p>{roster ? roster.rosterCount + " players • " + roster.source.replaceAll("_", " ") : "Roster directory"}</p></div>
         <a className="ptd-props-link" href={propsUrl}>Player props ↗</a>
       </header>
+      {activePlayer && sport === "mlb" ? <MlbPlayerIntelligence key={activePlayer.id} player={activePlayer} onClose={()=>setActivePlayer(null)} /> : null}
       {loading ? <p role="status">Loading current roster and headshots…</p> : null}
       {rosterError ? <p role="alert" className="stp-alert">Roster unavailable: {rosterError}. No prior roster is being presented as current.</p> : null}
       {roster ? <>
@@ -94,12 +98,13 @@ export default function ProTeamDirectory({ sport, refreshKey = 0 }) {
         </div>
         {display === "cards" ? <div className="ptd-player-grid">{filteredPlayers.map(p => <article className="ptd-player-card" key={p.playerKey}>
           <PlayerPortrait player={p} />
+          {sport === "mlb" ? <button type="button" onClick={()=>setActivePlayer(p)}>Open player statistics</button> : null}
           <div className="ptd-player-card-info"><strong>{p.name}</strong><span>{p.position || "—"} {p.jersey ? " · #" + p.jersey : ""}</span>
             <a href={propsUrl + "&propPlayer=" + encodeURIComponent(p.name)}>View player props ↗</a></div>
         </article>)}</div> : <div className="stp-table-scroll"><table className="ptd-player-table"><thead><tr><th>Photo</th><th>Player</th><th>Position</th><th>Number</th><th>Roster status</th><th>Player props</th></tr></thead>
-          <tbody>{filteredPlayers.map(p => <tr key={p.playerKey}><td><PlayerPortrait player={p}/></td><td><strong>{p.name}</strong><small>{p.playerKey}</small></td><td>{p.position || "—"}</td><td>{p.jersey || "—"}</td><td>{p.status || "Not supplied"}</td><td><a href={propsUrl + "&propPlayer=" + encodeURIComponent(p.name)}>View props ↗</a></td></tr>)}</tbody></table></div>}
+          <tbody>{filteredPlayers.map(p => <tr key={p.playerKey}><td><PlayerPortrait player={p}/></td><td>{sport === "mlb" ? <button type="button" onClick={()=>setActivePlayer(p)}>{p.name}</button> : <strong>{p.name}</strong>}<small>{p.playerKey}</small></td><td>{p.position || "—"}</td><td>{p.jersey || "—"}</td><td>{p.status || "Not supplied"}</td><td><a href={propsUrl + "&propPlayer=" + encodeURIComponent(p.name)}>View props ↗</a></td></tr>)}</tbody></table></div>}
         {!filteredPlayers.length ? <p className="stp-muted">No players match these filters.</p> : null}
-        <p className="ptd-provenance">Source player IDs remain namespaced to ESPN or the NHL. Headshot coverage counts source URLs, not confirmed successful image downloads. A roster entry is not evidence of game availability or prop-market qualification.</p>
+        <p className="ptd-provenance">Source player IDs remain namespaced to ESPN, NHL, or MLB. Headshot coverage counts source URLs, not confirmed successful image downloads. A roster entry is not evidence of game availability or prop-market qualification.</p>
       </> : null}
     </section> : <p className="ptd-hint">Select a team to open its roster, headshots, and player-prop links.</p>}
   </div>;

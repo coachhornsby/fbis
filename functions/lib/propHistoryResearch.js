@@ -1,3 +1,4 @@
+import { fetchMlbPlayerHistory } from './mlbPlayerHistory.js';
 import { finitePropNumber as n } from './exchangePlayerProps.js';
 import { loadNflVerseFeatures } from './nflVerseFeed.js';
 import { valueForEspnEvent } from './playerPropHistory.js';
@@ -106,19 +107,15 @@ export async function loadCanonicalPropHistory(env,{sport,provider,playerId,mark
    games=(b.gameLog||[]).filter(g=>g.toi!=='0:00').map(g=>({eventId:String(g.gameId),date:g.gameDate,opponent:g.opponentAbbrev,isHome:g.homeRoadFlag==='H',season:b.seasonId,value:n(g[key]),workload:/^\d+:\d{2}$/.test(g.toi||'')?g.toi.split(':').reduce((m,v)=>m*60+Number(v),0):null}));
    source='NHL official player game log';season=b.seasonId;identityVerified=true;
   }else if(provider==='mlb'&&sport==='mlb'&&/^\d+$/.test(playerId)){
-   const pitching=['strikeouts','pitcher_outs','earned_runs','hits_allowed','walks_allowed'].includes(market);
-   const key={strikeouts:'strikeOuts',pitcher_outs:'outs',earned_runs:'earnedRuns',hits_allowed:'hits',walks_allowed:'baseOnBalls',hits:'hits',home_runs:'homeRuns',total_bases:'totalBases',rbis:'rbi',runs:'runs',walks:'baseOnBalls',stolen_bases:'stolenBases'}[market];
-   if(!key)return {available:false,reason:'STAT_DEFINITION_UNSUPPORTED'};
-   // MLB defaults to regular season. Fetch postseason explicitly so October
-   // recent form includes the latest appearances across every playoff round.
-   // Both requests must succeed; never silently substitute September if P fails.
-   season=new Date(asOf).getUTCFullYear();
-   const logs=await Promise.all(['R','P'].map(async gameType=>{
-    const b=await(await get(`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=${pitching?'pitching':'hitting'}&season=${season}&gameType=${gameType}`,fetchImpl)).json();
-    return (b.stats||[]).flatMap(x=>x.splits||[]).filter(g=>g.game?.gamePk&&(!g.player?.id||String(g.player.id)===String(playerId))).map(g=>({eventId:String(g.game.gamePk),date:g.date,gameNumber:g.gameNumber||g.game?.gameNumber||0,gameType,opponent:g.opponent?.name,isHome:g.isHome,season,value:n(g.stat?.[key]),workload:pitching?n(g.stat?.numberOfPitches):n(g.stat?.plateAppearances)}));
-   }));
-   games=logs.flat();
-   source='MLB official player game logs · regular season and postseason';identityVerified=true;
+   const result=await fetchMlbPlayerHistory({playerId,market,asOf,read:async url=>(await get(url,fetchImpl)).json()});
+   if(result.unsupported)return {available:false,reason:'STAT_DEFINITION_UNSUPPORTED'};
+   const summary=historySummary(result.games,{line,asOf,season:result.season});
+   const blended=historySummary(result.allGames,{line,asOf,season:result.season});
+   return {available:summary.games.length>0,identityVerified:true,canonicalPlayerId:`mlb:mlb:${playerId}`,
+    source:'MLB official player logs · schedule-confirmed final appearances',sourceFetchedAt:new Date().toISOString(),
+    seasonType:result.scope,historyScope:result.scope,historyVersion:result.version,partialSeason:false,...summary,
+    blendedRecent:{scope:'COMPETITIVE_RECENT',last5:blended.last5,recent5:blended.recent5},
+    reason:summary.games.length?null:result.scope==='POSTSEASON'?'NO_VERIFIED_POSTSEASON_APPEARANCES':'NO_VERIFIED_PREGAME_STATISTICS'};
   }else if(provider==='nflverse'&&sport==='nfl'){
    const field=NFL_HISTORY_FIELDS[market];
    if(!field)return {available:false,reason:'STAT_DEFINITION_UNSUPPORTED'};
