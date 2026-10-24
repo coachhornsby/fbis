@@ -38,7 +38,21 @@ export function matchCbbNcaaPossessionsToEspnFixture({
   return reject("CBB_ESPN_FIXTURE_NOT_FINAL_OR_TIME_UNVERIFIED");
  const tipoff=clock(espnFixture.game_date_time);
  if(!tipoff)return reject("CBB_EXACT_TIPOFF_UNAVAILABLE");
- const d=Date.parse(id(ncaaSchedule.game_date).slice(0,10)+"T00:00:00Z");
+ const dateText=id(ncaaSchedule.game_date).trim();
+ let year,month,day;
+ let m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateText);
+ if(m){month=Number(m[1]);day=Number(m[2]);year=Number(m[3]);}
+ else{
+  m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(dateText);
+  if(m){year=Number(m[1]);month=Number(m[2]);day=Number(m[3]);}
+ }
+ const d=Number.isInteger(year)&&Number.isInteger(month)&&Number.isInteger(day)&&
+  year>=2000&&year<=2100&&month>=1&&month<=12&&day>=1&&day<=31?
+  Date.UTC(year,month-1,day):NaN;
+ const normalized=new Date(d);
+ if(!Number.isFinite(d)||normalized.getUTCFullYear()!==year||
+   normalized.getUTCMonth()+1!==month||normalized.getUTCDate()!==day)
+  return reject("CBB_NCAA_SCHEDULE_DATE_INVALID");
  if(!Number.isFinite(d)||Math.abs(Date.parse(tipoff)-d)>48*3600000)
   return reject("CBB_NCAA_VS_ESPN_DATE_MISMATCH");
  return{status:"INDEPENDENT_CBB_ESPN_EXACT_TIPOFF",tipoff,
