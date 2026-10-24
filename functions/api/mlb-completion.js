@@ -2,6 +2,7 @@ import {authorizeHarvest} from '../lib/auth.js';
 import {buildSlate} from '../lib/slateEngine.js';
 import {persistMlbAblationFreeze,archiveMlbFinalGame,gradeMlbAblations,summarizeMlbAblations,gunzipEvidence,validDay} from '../lib/mlbCompletionEvidence.js';
 import {persistMlbLeagueDay,poolMlbLeagueDays} from '../lib/mlbLeagueBenchmarks.js';
+const compactTrainingDay=p=>({playerId:p.playerId,pitches:p.pitches,plateAppearances:p.plateAppearances,metrics:Object.fromEntries(['strikeout','whiff','chase','hardHit','xwobacon','velocity','barrel','contact'].map(k=>[k,p.metrics[k]]))});
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store'}});
 async function readBounded(request,max){const reader=request.body?.getReader();if(!reader)return {};const chunks=[];let size=0;for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>max){await reader.cancel();throw Error('PAYLOAD_TOO_LARGE');}chunks.push(value);}const bytes=new Uint8Array(size);let at=0;for(const c of chunks){bytes.set(c,at);at+=c.length;}return JSON.parse(new TextDecoder().decode(bytes));}
 export async function onRequestPost(context){
@@ -18,8 +19,8 @@ export async function onRequestPost(context){
   if(body.operation==='training-day'){
    const manifestObject=await env.ARCHIVE.get(`models/mlb/intelligence/manifests/v1/${date}.json`),pointerObject=await env.ARCHIVE.get(`models/mlb/league/v1/${date}/current.json`);
    if(!manifestObject||!pointerObject)throw Error('HISTORY_DAY_NOT_COLLECTED');const manifest=await manifestObject.json(),pointer=await pointerObject.json(),leagueObject=await env.ARCHIVE.get(pointer.key);if(!manifest.complete||!leagueObject)throw Error('HISTORY_DAY_INCOMPLETE');const league=await leagueObject.json();if(!league.complete)throw Error('LEAGUE_DAY_INCOMPLETE');
-   const games=[];for(const receipt of manifest.receipts){const object=await env.ARCHIVE.get(receipt.key);if(!object)throw Error('GAME_SOURCE_MISSING');const game=await gunzipEvidence(object);games.push({gameId:game.gameId,date:game.officialDate,gameType:game.gameType,sourceHash:game.sourceHash,players:game.players.filter(p=>p.group==='pitching'||p.group==='batting')});}
-   return reply({ok:true,date,classification:'RETROSPECTIVE',leagueSourceHash:league.sourceHash,pitcherDays:league.pitcherDays||[],batterDays:league.batterDays||[],games});
+   const games=[];for(const receipt of manifest.receipts){const object=await env.ARCHIVE.get(receipt.key);if(!object)throw Error('GAME_SOURCE_MISSING');const game=await gunzipEvidence(object);games.push({gameId:game.gameId,date:game.officialDate,gameType:game.gameType,sourceHash:game.sourceHash,players:game.players.filter(p=>p.group==='pitching'||p.group==='batting').map(p=>({playerId:p.playerId,teamId:p.teamId,opponentId:p.opponentId,group:p.group,starter:p.starter,stats:Object.fromEntries(['strikeOuts','battersFaced','outs','runs','earnedRuns','plateAppearances','hits','totalBases','homeRuns'].filter(k=>p.stats[k]!=null).map(k=>[k,p.stats[k]]))}))});}
+   return reply({ok:true,date,classification:'RETROSPECTIVE',leagueSourceHash:league.sourceHash,pitcherDays:(league.pitcherDays||[]).map(compactTrainingDay),batterDays:(league.batterDays||[]).map(compactTrainingDay),games});
   }
   if(body.operation==='status'){
    const game=await env.ARCHIVE.get(`models/mlb/intelligence/manifests/v1/${date}.json`),league=await env.ARCHIVE.get(`models/mlb/league/v1/${date}/current.json`);
