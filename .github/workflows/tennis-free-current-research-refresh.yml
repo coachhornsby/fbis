@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   refresh:
-    if: github.repository == 'coachhornsby/fbis' && vars.TENNIS_FREE_RESEARCH_PROD_READY == 'true'
+    if: github.repository == 'coachhornsby/fbis'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
