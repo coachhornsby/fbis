@@ -5254,3 +5254,68 @@ CREATE TABLE IF NOT EXISTS tennis_inhouse_rank_challenger (
 );
 CREATE INDEX IF NOT EXISTS idx_tennis_inhouse_rank_challenger_event
  ON tennis_inhouse_rank_challenger(canonical_event_id,forecast_at DESC);
+
+-- Research-only Tennis source and grading additions (0124-0125)
+-- Immutable, evidence-linked settlement grades. Never confers wagering authorization.
+CREATE TABLE IF NOT EXISTS tennis_inhouse_rank_grades (
+ snapshot_id TEXT PRIMARY KEY REFERENCES tennis_inhouse_rank_challenger(snapshot_id),
+ canonical_event_id TEXT NOT NULL,
+ tour TEXT NOT NULL CHECK(tour IN ('atp','wta')),
+ winner_id TEXT NOT NULL,
+ result_raw_artifact_key TEXT NOT NULL,
+ p1_win REAL NOT NULL CHECK(p1_win>0 AND p1_win<1),
+ actual_p1 INTEGER NOT NULL CHECK(actual_p1 IN (0,1)),
+ brier REAL NOT NULL,
+ log_loss REAL NOT NULL,
+ hit INTEGER NOT NULL CHECK(hit IN (0,1)),
+ graded_at TEXT NOT NULL,
+ can_authorize_wager INTEGER NOT NULL DEFAULT 0 CHECK(can_authorize_wager=0)
+);
+CREATE TRIGGER IF NOT EXISTS tennis_rank_grades_immutable_update
+ BEFORE UPDATE ON tennis_inhouse_rank_grades BEGIN SELECT RAISE(ABORT,'IMMUTABLE_GRADE'); END;
+CREATE TRIGGER IF NOT EXISTS tennis_rank_grades_immutable_delete
+ BEFORE DELETE ON tennis_inhouse_rank_grades BEGIN SELECT RAISE(ABORT,'IMMUTABLE_GRADE'); END;
+
+-- Free current-season ATP/WTA third-party RESEARCH statistics. Not official settlement.
+-- Event date from source may be tournament week, not match start: never use as
+-- as-of evidence. source_observed_at is the earliest FBIS knowledge timestamp.
+CREATE TABLE IF NOT EXISTS tennis_free_current_matches (
+ source_event_key TEXT PRIMARY KEY,
+ provider TEXT NOT NULL CHECK(provider='TENNISMYLIFE'),
+ tour TEXT NOT NULL CHECK(tour IN ('atp','wta')),
+ source_date_label TEXT NOT NULL,
+ tournament_id TEXT NOT NULL,
+ match_num TEXT NOT NULL,
+ winner_source_id TEXT NOT NULL,
+ loser_source_id TEXT NOT NULL,
+ winner_name TEXT,
+ loser_name TEXT,
+ surface TEXT,
+ result_score TEXT NOT NULL,
+ winner_stats_json TEXT NOT NULL,
+ loser_stats_json TEXT NOT NULL,
+ source_row_checksum TEXT NOT NULL,
+ raw_file_checksum TEXT NOT NULL,
+ raw_r2_key TEXT NOT NULL,
+ first_observed_at TEXT NOT NULL,
+ last_observed_at TEXT NOT NULL,
+ contract_trading_authorized INTEGER NOT NULL DEFAULT 0 CHECK(contract_trading_authorized=0),
+ UNIQUE(tour,tournament_id,match_num)
+);
+CREATE INDEX IF NOT EXISTS idx_tennis_free_win ON tennis_free_current_matches(tour,winner_source_id,source_date_label);
+CREATE INDEX IF NOT EXISTS idx_tennis_free_lose ON tennis_free_current_matches(tour,loser_source_id,source_date_label);
+CREATE INDEX IF NOT EXISTS idx_tennis_free_obs ON tennis_free_current_matches(tour,last_observed_at);
+CREATE TABLE IF NOT EXISTS tennis_free_current_observations (
+ observation_key TEXT PRIMARY KEY,
+ source_event_key TEXT NOT NULL,
+ source_row_checksum TEXT NOT NULL,
+ raw_file_checksum TEXT NOT NULL,
+ raw_r2_key TEXT NOT NULL,
+ observed_at TEXT NOT NULL,
+ parsed_json TEXT NOT NULL,
+ provider TEXT NOT NULL CHECK(provider='TENNISMYLIFE'),
+ contract_trading_authorized INTEGER NOT NULL DEFAULT 0 CHECK(contract_trading_authorized=0),
+ UNIQUE(source_event_key,source_row_checksum)
+);
+CREATE INDEX IF NOT EXISTS idx_tennis_free_obs_row ON tennis_free_current_observations(source_event_key,observed_at);
+-- Dedicated fbis-tennis shard has no schema_migrations table; migration receipt is tracked externally.\n
