@@ -10,6 +10,8 @@ on:
       - "functions/lib/tennisProjectionPipeline.js"
       - "functions/api/tennis-projection-coverage.js"
       - "functions/lib/tennisOfficialSchedule.js"
+      - "functions/lib/tennisInhouseRankChallenger.js"
+      - "functions/api/tennis-inhouse-rank-challenger.js"
       - "functions/api/tennis-official-schedule.js"
 permissions:
   contents: read
@@ -50,6 +52,25 @@ jobs:
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
             https://fbis-myz.pages.dev/api/tennis-projection-coverage > artifacts/inference.json
           jq -e '.ok == true' artifacts/inference.json
+      - name: Freeze independent, existing-ranking-only challenger prior to match start
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail-with-body --max-time 120 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            https://fbis-myz.pages.dev/api/tennis-inhouse-rank-challenger > artifacts/inhouse-rank-snapshots.json
+          jq -e '.ok == true and .canAuthorizeWager == false and .sourceTermsReviewed == false' artifacts/inhouse-rank-snapshots.json
+      - name: Read back frozen inhouse ranking challenger research results
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --max-time 60 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            https://fbis-myz.pages.dev/api/tennis-inhouse-rank-challenger > artifacts/inhouse-rank-evaluation.json
+          jq -e '.ok == true and .canAuthorizeWager == false and .sourceRights == "REVIEW_REQUIRED"' artifacts/inhouse-rank-evaluation.json
       - name: Record readback coverage and blocked reasons
         if: always()
         run: |
