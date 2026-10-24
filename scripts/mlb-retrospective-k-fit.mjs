@@ -4,7 +4,7 @@ if(!process.env.HARVEST_SECRET)throw Error('HARVEST_SECRET_REQUIRED');
 const out='artifacts/mlb-retrospective-k';await fs.mkdir(out,{recursive:true});
 const endpoint='https://fbis-myz.pages.dev/api/mlb-completion';
 async function post(body){const r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json','x-harvest-secret':process.env.HARVEST_SECRET},body:JSON.stringify(body),signal:AbortSignal.timeout(120000)}),b=await r.json();if(!r.ok||!b.ok)throw Error(b.error||'READ_FAILED');return b;}
-const days=[],missing=[],through=new Date().toISOString().slice(0,10);
+const days=[],missing=[],through=process.env.MLB_HISTORY_THROUGH||new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 for(let t=Date.parse('2024-03-01');t<Date.parse(through);t+=86400000){const date=new Date(t).toISOString().slice(0,10),month=Number(date.slice(5,7));if(month<3||month>11)continue;
  try{days.push(await post({operation:'training-day',date}));}catch(e){missing.push({date,error:e.message});}
  if(days.length%20===0)await fs.writeFile(out+'/coverage.json',JSON.stringify({days:days.length,missing},null,2));

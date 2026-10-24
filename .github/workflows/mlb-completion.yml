@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.scope.outputs.matrix }}
+      through: ${{ steps.scope.outputs.through }}
     steps:
       - id: scope
         env:
@@ -29,6 +30,8 @@ jobs:
           node --input-type=module <<'JS'
           import fs from 'node:fs';
           const months=process.env.EVENT==='push'?['cycle',...[2024,2025,2026].flatMap(y=>Array.from({length:9},(_,i)=>`${y}-${String(i+3).padStart(2,'0')}`))]:[process.env.MONTH||'cycle'];
+          const through=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,`through=${through}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT,`matrix=${JSON.stringify({month:months})}\n`);
           JS
   run:
@@ -55,6 +58,7 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           MONTH: ${{ matrix.month }}
           EVENT: ${{ github.event_name }}
+          MLB_HISTORY_THROUGH: ${{ needs.scope.outputs.through }}
         run: |
           if [ "$MONTH" = cycle ]; then
             if [ "$EVENT" = schedule ] && [ "$(date -u +%F)" \> 2026-11-05 ]; then exit 0; fi
@@ -70,7 +74,7 @@ jobs:
           retention-days: 90
   fit-retrospective:
     if: github.event_name == 'push'
-    needs: run
+    needs: [scope, run]
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -78,9 +82,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Fit retrospective pitcher-K candidate after complete historical acquisition
+      - name: Fit retrospective candidates after complete historical acquisition
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          MLB_HISTORY_THROUGH: ${{ needs.scope.outputs.through }}
         run: node scripts/mlb-retrospective-k-fit.mjs
       - uses: actions/upload-artifact@v4
         if: always()

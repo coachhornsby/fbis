@@ -42,9 +42,10 @@ export async function onRequestPost(context){
   if(body.operation==='game')return reply({ok:true,...await archiveMlbFinalGame(env,body.feed)});
   if(body.operation==='league')return reply({ok:true,...await persistMlbLeagueDay(env,{date,rawCsv:body.rawCsv,finalGameIds:body.finalGameIds})});
   if(body.operation==='month'){
+   const through=body.through||new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());if(!validDay(through)||through>new Date().toISOString().slice(0,10))throw Error('INVALID_HISTORY_HORIZON');
    const month=date.slice(0,7),days=[];let expected=0,missing=[];
-   for(let n=1;n<=31;n++){const d=month+'-'+String(n).padStart(2,'0');if(!validDay(d)||d>=new Date().toISOString().slice(0,10))continue;expected++;const pointer=await env.ARCHIVE.get(`models/mlb/league/v1/${d}/current.json`);if(!pointer){missing.push(d);continue;}const p=await pointer.json(),object=await env.ARCHIVE.get(p.key);if(!object){missing.push(d);continue;}days.push(await object.json());}
-   const summary={...poolMlbLeagueDays(days),month,expectedDays:expected,missingDays:missing,complete:missing.length===0&&days.every(d=>d.complete)};
+   for(let n=1;n<=31;n++){const d=month+'-'+String(n).padStart(2,'0');if(!validDay(d)||d>=through)continue;expected++;const pointer=await env.ARCHIVE.get(`models/mlb/league/v1/${d}/current.json`);if(!pointer){missing.push(d);continue;}const p=await pointer.json(),object=await env.ARCHIVE.get(p.key);if(!object){missing.push(d);continue;}days.push(await object.json());}
+   const summary={...poolMlbLeagueDays(days),month,throughExclusive:through,calendarMonthComplete:through>new Date(Number(month.slice(0,4)),Number(month.slice(5)),0).toISOString().slice(0,10),expectedDays:expected,missingDays:missing,complete:missing.length===0&&days.every(d=>d.complete)};
    await env.ARCHIVE.put(`models/mlb/league/v1/months/${month}.json`,JSON.stringify(summary));return reply({ok:true,...summary});
   }
   if(body.operation==='grade'){
