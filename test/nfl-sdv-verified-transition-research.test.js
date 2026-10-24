@@ -38,7 +38,7 @@ function historical(i,verified=true){
   period:1+Math.floor(j/5),plays:7,startYardsToGoal:70+j%20,startMargin:0,
   offensePoints:j%5===0?7:j%5===1?3:0,defensePoints:0,
   ...(verified?{
-   officialDurationSeconds:160+j%5*7,
+   officialDurationSeconds:160+j%5*7,officialStartYardsToGoal:70+j%20,
    startTransition:j%4===0?"KICKOFF":"PUNT",
    endTransition:j%4===1?"PUNT":"SCORE",
    observedNextStartYardsToGoal:73,observedNextStartTransition:"PUNT",
