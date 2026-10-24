@@ -14,7 +14,7 @@ const rank=v=>{
 export function inhouseRankProbability(r1,r2,{exponent=.5}={}){
  const a=rank(r1),b=rank(r2);
  if(a==null||b==null||exponent!==.5)return null;
- // Fixed, pre-registered, NOT fit on the evaluation cohort.
+ // Fixed for all future predictions. The 0.5 coefficient was selected after\n // exploratory comparison on 30 WTA matches; those 30 are NOT an independent holdout.
  const p=1/(1+Math.exp(-exponent*Math.log(b/a)));
  return Number.isFinite(p)&&p>0&&p<1?p:null;
 }
