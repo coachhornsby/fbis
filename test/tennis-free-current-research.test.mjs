@@ -31,7 +31,9 @@ test('controlled collector archives authentic source and writes only TENNIS_DB',
  batch:async qs=>Promise.all(qs.map(q=>q.run()))};
  const env={TENNIS_FREE_RESEARCH_ENABLED:'true',TENNIS_DB:tennisDb,
   ARCHIVE:{put:async(...args)=>archive.push(args)}};
- const seasonCsv=csv+Array.from({length:100},(_,i)=>record.replace('20261021','20200101')\n  .replace(',7,',','+(i+8)+',')).join('\\n')+'\\n';\n const response=await captureFreeTennisCurrentSeason(env,{tour:'wta',
+ const seasonCsv=csv+Array.from({length:100},(_,i)=>record.replace('20261021','20200101')
+  .replace(',7,',','+(i+8)+',')).join('\n')+'\n';
+ const response=await captureFreeTennisCurrentSeason(env,{tour:'wta',
   now:new Date('2026-10-24T20:00:00Z'),
   fetchImpl:async(url)=>new Response(url.endsWith('wta_ongoing_tourneys.csv')?csv:seasonCsv,\n   {status:200,headers:{'content-type':'text/csv'}})});
  assert.equal(response.ok,true);assert.equal(response.validatedWithStats,1);
