@@ -103,3 +103,37 @@ test("existing CFB matchup attachment emits a separate pending CORE shadow witho
   assert.deepEqual(projected.model,before.model);
   assert.equal(projected.cfbMatchupV2.margin,after.cfbMatchupV2.margin);
 });
+
+
+test("CORE margin-only pregame freeze never binds undefined D1 probability", async () => {
+  const { buildCfbCoreShadowRecord, freezeCfbCoreShadowRecords } = await import("../functions/lib/cfbCoreShadowLedger.js");
+  const { CFB_CORE_MARGIN_HYBRID_ID, CFB_CORE_MARGIN_HYBRID_VARIANT_LEADING } = await import("../functions/lib/cfbCoreMarginHybrid.js");
+  const artifact = {
+    modelId: CFB_CORE_MARGIN_HYBRID_ID, variant: CFB_CORE_MARGIN_HYBRID_VARIANT_LEADING,
+    version: "research-test", lastTrainingSeason: 2025, artifactId: "research-test-artifact",
+    margin: { intercept: 0, beta: [0, 0, 0, 0], means: [0, 0, 0, 0], stds: [1, 1, 1, 1] },
+  };
+  const record = buildCfbCoreShadowRecord({
+    gameId: "future-cfb-game", season: 2026, week: 7, kickoff,
+    homeTeam: "Home", awayTeam: "Away", championHome: 27, championAway: 24,
+    championModelId: "CFB-FBIS-v2", championModelVersion: "frozen",
+    homeFeatures: row(12, -4), awayFeatures: row(9, -2),
+  }, { artifact, now: "2026-10-17T18:00:00Z" });
+  assert.equal(record.eligibility, "eligible_projected");
+  assert.equal(record.corePHomeWin, null); // Margin-only challenger has no win-probability head.
+  assert.equal(record.coreTotal, 51); // Champion total is unchanged.
+  let bound;
+  const db = {
+    prepare: () => ({ bind: (...values) => {
+      bound = values;
+      assert.ok(values.every(v => v !== undefined), "D1 rejects undefined bind parameters");
+      return { run: async () => ({ meta: { changes: 1 } }) };
+    } }),
+    batch: async statements => statements.map(() => ({ meta: { changes: 1 } })),
+  };
+  const frozen = await freezeCfbCoreShadowRecords({ TIER3_DB: db }, [record]);
+  assert.equal(frozen.ok, true);
+  assert.equal(frozen.inserted, 1);
+  assert.ok(bound.includes(null));
+  assert.equal(record.provenance.authority, "research_only");
+});
