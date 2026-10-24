@@ -295,6 +295,7 @@ export async function onRequest({request,env}){
    if(!Array.isArray(upcoming?.results))throw Error("SLATE_QUERY_FAILED");
    return json({ok:true,sport,upcoming:upcoming.results,slateCapacity:240,
     gradingContract:"SDV_FINALS_V3_REVISION_AUDIT",
+    readinessContract:"SDV_READINESS_V1",
     supportedVariants:sport==="nfl"?["standard","nfl-sdv-v031"]:["standard"],
     canAuthorizeWager:false});
   }
