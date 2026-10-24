@@ -15,8 +15,9 @@ export function tennisBoardPlayerPhoto(team = {}) {
   const approved = source === "RIGHTS_VERIFIED_TENNIS_PORTRAIT";
   if (approved) {
     if (!/^\/api\/tennis-portrait\?id=[a-z0-9%:_ -]+$/i.test(url) ||
-        !team?.fbisPlayerId ||
-        decodeURIComponent(url.split("id=")[1]) !== String(team.fbisPlayerId)) return null;
+        !team?.fbisPlayerId) return null;
+    try { if (decodeURIComponent(url.split("id=")[1]) !== String(team.fbisPlayerId)) return null; }
+    catch { return null; }
     return { url, source, credit:team.portraitCredit || null,
       creditUrl:team.portraitSourceUrl || null, licenseUrl:team.portraitLicenseUrl || null };
   }
