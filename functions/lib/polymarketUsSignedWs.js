@@ -16,7 +16,7 @@ function asBase64(bytes){
 }
 export async function signedPolymarketUsHeaders({keyId,secretKey,path="/v1/ws/markets",timestamp=Date.now(),webCrypto=crypto}={}){
   if(!/^[0-9a-f-]{36}$/i.test(keyId||""))throw Error("polymarket-key-id-not-configured");
-  if(!["/v1/ws/markets"].includes(path))throw Error("read-only-market-ws-path-only");
+  if(!["/v1/ws/markets","/v1/ws/private"].includes(path))throw Error("read-only-market-ws-path-only");
   const input=bytesFromBase64(secretKey);
   if(!input||input.length!==64)throw Error("polymarket-secret-not-configured");
   if(!Number.isSafeInteger(timestamp)||timestamp<0)throw Error("invalid-timestamp");
