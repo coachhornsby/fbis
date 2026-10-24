@@ -9,11 +9,14 @@ on:
   pull_request:
     paths:
       - functions/lib/basketballSdvReleaseHistory.js
+      - functions/lib/basketballSdvHistoricalReadiness.js
       - functions/lib/basketballSdvFixtureJoin.js
       - functions/lib/basketballSdvCbbFixtureJoin.js
       - scripts/basketball-sdv-history-acquire.py
       - scripts/basketball-sdv-history-audit.mjs
+      - scripts/basketball-sdv-history-readiness.mjs
       - test/basketball-sdv-release-history.test.js
+      - test/basketball-sdv-history-readiness.test.js
       - test/basketball-sdv-fixture-join.test.js
       - test/basketball-sdv-cbb-fixture-join.test.js
       - .github/workflows/basketball-sdv-historical-source.yml
@@ -21,11 +24,14 @@ on:
     branches: [main]
     paths:
       - functions/lib/basketballSdvReleaseHistory.js
+      - functions/lib/basketballSdvHistoricalReadiness.js
       - functions/lib/basketballSdvFixtureJoin.js
       - functions/lib/basketballSdvCbbFixtureJoin.js
       - scripts/basketball-sdv-history-acquire.py
       - scripts/basketball-sdv-history-audit.mjs
+      - scripts/basketball-sdv-history-readiness.mjs
       - test/basketball-sdv-release-history.test.js
+      - test/basketball-sdv-history-readiness.test.js
       - test/basketball-sdv-fixture-join.test.js
       - test/basketball-sdv-cbb-fixture-join.test.js
       - .github/workflows/basketball-sdv-historical-source.yml
@@ -50,7 +56,8 @@ jobs:
           python -m py_compile scripts/basketball-sdv-history-acquire.py
           node --check functions/lib/basketballSdvReleaseHistory.js
           node --check scripts/basketball-sdv-history-audit.mjs
-          node --test test/basketball-sdv-release-history.test.js test/basketball-sdv-fixture-join.test.js test/basketball-sdv-cbb-fixture-join.test.js test/basketball-sdv-possession-simulation-research.test.js test/basketball-sdv-pbp-adapter.test.js
+          node --check scripts/basketball-sdv-history-readiness.mjs
+          node --test test/basketball-sdv-release-history.test.js test/basketball-sdv-fixture-join.test.js test/basketball-sdv-cbb-fixture-join.test.js test/basketball-sdv-history-readiness.test.js test/basketball-sdv-possession-simulation-research.test.js test/basketball-sdv-pbp-adapter.test.js
   live-source:
     needs: contracts
     if: github.event_name != 'pull_request'
@@ -102,6 +109,11 @@ jobs:
           elif [ "$FBIS_BASKETBALL_SPORT" = "cbb" ]; then
             jq -e '.withExactTipoff > 0 and .admittedToTraining > 0'               "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-qa.json"
           fi
+      - name: Audit verified team-level NBA/CBB source readiness
+        run: |
+          set -euo pipefail
+          node scripts/basketball-sdv-history-readiness.mjs "$FBIS_BASKETBALL_SPORT"             "$FBIS_BASKETBALL_SEASON"             "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-verified-games.jsonl.gz"
+          jq -e '.sourceValidated == true and .acceptedGames > 0 and .acceptedPossessions > 0 and .historicalPregameForecasts == 0 and .gradedProspectiveGames == 0 and .canAuthorizeWager == false and .canQualify == false'             "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-team-readiness.json"
       - name: Freeze source and audit under immutable R2 research prefix
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -113,14 +125,20 @@ jobs:
           DOC="artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-acquisition.json"
           SOURCE_SHA="$(jq -r '.datasets.possession.sha256' "$DOC")"
           test "$(printf %s "$SOURCE_SHA" | wc -c)" -eq 64
-          PREFIX="research/basketball/sdv/v02/$FBIS_BASKETBALL_SPORT/$FBIS_BASKETBALL_SEASON/$SOURCE_SHA"
+          QA="artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-qa.json"
+          VERIFIED="artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-verified-games.jsonl.gz"
+          READY="artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-team-readiness.json"
+          AUDIT_SHA="$(sha256sum "$DOC" "$QA" "$VERIFIED" "$READY" | sha256sum | cut -d' ' -f1)"
+          if ! [[ "$AUDIT_SHA" =~ ^[a-f0-9]{64}$ ]]; then exit 1; fi
+          PREFIX="research/basketball/sdv/v03/$FBIS_BASKETBALL_SPORT/$FBIS_BASKETBALL_SEASON/$SOURCE_SHA/$AUDIT_SHA"
           npx wrangler r2 object put "fbis-archive/$PREFIX/source.jsonl.gz" \
             --file "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-source.jsonl.gz" --remote
           npx wrangler r2 object put "fbis-archive/$PREFIX/verified-games.jsonl.gz"             --file "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-verified-games.jsonl.gz" --remote
           npx wrangler r2 object put "fbis-archive/$PREFIX/acquisition.json" --file "$DOC" --remote
           npx wrangler r2 object put "fbis-archive/$PREFIX/qa.json" \
             --file "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-qa.json" --remote
-          echo "Research-only R2 prefix $PREFIX" >> "$GITHUB_STEP_SUMMARY"
+          npx wrangler r2 object put "fbis-archive/$PREFIX/team-readiness.json" --file "$READY" --remote
+          echo "Content-addressed research R2 revision $PREFIX" >> "$GITHUB_STEP_SUMMARY"
       - name: Report source evidence without fabricated PIT forecasts
         if: always()
         run: |
@@ -143,4 +161,5 @@ jobs:
             artifacts/basketball-sdv/*-qa.json
             artifacts/basketball-sdv/*-reconciled.jsonl
             artifacts/basketball-sdv/*-verified-games.jsonl.gz
+            artifacts/basketball-sdv/*-team-readiness.json
           retention-days: 60
