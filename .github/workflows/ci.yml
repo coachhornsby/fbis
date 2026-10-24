@@ -78,6 +78,9 @@ jobs:
         run: node --test test/storage-capacity-production.test.mjs
       - name: Verify OPERATIONS_DB ownership, schema-ready fallback, and routing
         run: node --test test/database-ownership.test.js test/operations-db-fallback.test.js
+      - name: Validate three-venue CFB market matching, exact-line EV and overflow routing
+        run: node --test test/cfb-three-venue-market.test.js
+
       - name: Gate multi-D1 topology bindings in wrangler.toml (prevent Pages wipe)
         run: node --test test/wrangler-topology-bindings.test.js test/topology-binding-gate.test.js test/ws-persist-target.test.js test/history-recovery-q4.test.js
       - name: Validate NBA bounded API imports and independent sport owner
