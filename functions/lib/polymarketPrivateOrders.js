@@ -20,6 +20,8 @@ export function privateOrderExecution(envelope){
    envelope?.order_subscription_update?.execution||null;
  if(!exec||exec.type!=="EXECUTION_TYPE_FILL")return null;
  const o=exec.order||{},intent=String(o.intent||"").toUpperCase();
+ // Complete SELL fills are recorded for account reconciliation, never as new bets.
+ // Sell activity forces related positions into review instead of pretending OPEN.
  // A single verified, fully filled order is safe for the current sheet ledger.
  // Multi-fill and open/partially-filled orders require a separate cumulative
  // reconciliation design, not a premature full-order P/L claim.
@@ -32,14 +34,16 @@ export function privateOrderExecution(envelope){
 
  const intentSide={"ORDER_INTENT_BUY_LONG":"YES","ORDER_INTENT_BUY_SHORT":"NO"}[intent]||null;
  const declared={"OUTCOME_SIDE_YES":"YES","OUTCOME_SIDE_NO":"NO"}[String(o.outcomeSide||"").toUpperCase()]||null;
+ const sellSide={"ORDER_INTENT_SELL_LONG":"YES","ORDER_INTENT_SELL_SHORT":"NO"}[intent]||null;
+ const outcome=intentSide||sellSide,action=intentSide?"BUY":sellSide?"SELL":null;
  // Outright contradictions require a manual investigation.
- if(declared&&intentSide&&declared!==intentSide)return null;
- if(o.side&&o.side!=="ORDER_SIDE_BUY")return null;
- if(!intentSide)return null; // no sell, cancel, replace or resting order creates a wager
+ if(declared&&outcome&&declared!==outcome)return null;
+ if(!outcome||!action)return null;
+ if(o.side&&o.side!=="ORDER_SIDE_"+action)return null;
  const record={
    provider:"Polymarket US",fillId:ident(exec.tradeId),
    groupId:ident(o.id),market:ident(o.marketSlug),
-   side:declared||intentSide,action:"BUY",
+   side:declared||outcome,action,
    quantity:quantity(exec.lastShares),price:price(exec.lastPx),
    fee:exec.commissionNotionalCollected==null?null:number(exec.commissionNotionalCollected),
    at:iso(exec.transactTime),marketLabel:String(o.marketMetadata?.title||o.marketSlug||"").slice(0,220)
