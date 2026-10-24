@@ -1,0 +1,31 @@
+name: Tennis free current-season research refresh
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '35 14 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: tennis-free-research-shard
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.repository == 'coachhornsby/fbis' && vars.TENNIS_FREE_RESEARCH_PROD_READY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Refresh ATP and WTA with explicit source receipts
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          for tour in atp wta; do
+            curl --fail-with-body -sS --retry 2 --max-time 100 \
+              -X POST "${BASE}/api/tennis-free-current-refresh?tour=${tour}" \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "content-type: application/json" -d '{}' > "/tmp/${tour}-free-research.json"
+            jq -e '.ok == true and .source=="TENNISMYLIFE" and .validatedWithStats>0 and .officialSettlementsCreated==0 and .contractTradingAuthorized==false' "/tmp/${tour}-free-research.json"
+            jq -r '"(.tour) source date (.dateFloor), validated (.validatedWithStats), new revisions (.newVersions), R2 (.rawArtifactKey)"' "/tmp/${tour}-free-research.json" >> "${GITHUB_STEP_SUMMARY}"
+          done
