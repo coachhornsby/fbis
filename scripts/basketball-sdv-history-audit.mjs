@@ -59,7 +59,20 @@ for await(const line of rl){
    firstPossession:row.rows[0],espnFixture:row.espnFixture,
    fixtureSourceFingerprint:row.espnFixtureSourceHash});
   if(pairing.tipoff){row.tipoff=pairing.tipoff;row.tipoffEvidence=pairing.evidence;}
-  else report.excluded["TIPOFF_"+pairing.status]=(report.excluded["TIPOFF_"+pairing.status]||0)+1;
+  else {
+   report.excluded["TIPOFF_"+pairing.status]=(report.excluded["TIPOFF_"+pairing.status]||0)+1;
+   if(pairing.status==="CBB_NCAA_VS_ESPN_DATE_MISMATCH"&&report.sampleTipoffConflicts.length<8){
+    const ncaa=String(row.schedule?.game_date||"");
+    const espn=String(row.espnFixture?.game_date_time||"");
+    report.sampleTipoffConflicts.push({
+     contestId:row.gameId,ncaaDate:ncaa,espnDateTime:espn,
+     espnGameId:String(row.espnFixture?.id),
+     ncaaFirstPossessionDate:String(row.rows[0]?.game_date||""),
+     parsedNCAA:Date.parse(ncaa.slice(0,10)+"T00:00:00Z"),
+     parsedESPN:Date.parse(espn.replace(" ","T"))
+    });
+   }
+  }
  }
  try{
   const result=normalizeSdvBasketballReleaseGame(row);
