@@ -4,7 +4,7 @@ import {
  parseNflSourcePossessionSeconds,parseNflSourceYardsToGoal,
  extractNflSourceDriveContext
 } from "../functions/lib/nflSdvDriveContext.js";
-import {simulateNflVerifiedDriveTransitionShadow} from "../functions/lib/nflSdvVerifiedTransitionResearch.js";
+import {simulateNflVerifiedDriveTransitionShadow,mapHistoricalNextOffenseToTarget} from "../functions/lib/nflSdvVerifiedTransitionResearch.js";
 test("Official nflfastR possession time and team-relative yards parse without imputation",()=>{
  assert.equal(parseNflSourcePossessionSeconds("03:42"),222);
  assert.equal(parseNflSourcePossessionSeconds("1:07"),67);
@@ -74,4 +74,10 @@ test("NFL 0.3 model refuses unverified official TOP and missing transitions",()=
  const e=Array.from({length:34},(_,i)=>historical(i));
  assert.throws(()=>simulateNflVerifiedDriveTransitionShadow({...base,trainingGames:e,
   frozenAt:"2026-10-26T00:00:00Z"}),/NFL_TRANSITION_INVALID_BASELINE/);
+});
+
+test("Observed field chain maps historical home/away roles to current offense correctly",()=>{
+ assert.equal(mapHistoricalNextOffenseToTarget({offense:"away",observedNextOffense:"home"},"home"),"away");
+ assert.equal(mapHistoricalNextOffenseToTarget({offense:"home",observedNextOffense:"home"},"away"),"away");
+ assert.equal(mapHistoricalNextOffenseToTarget({offense:"home",observedNextOffense:null},"home"),null);
 });
