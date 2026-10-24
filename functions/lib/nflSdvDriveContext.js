@@ -14,6 +14,7 @@ export function parseNflSourcePossessionSeconds(v){
 }
 export function normalizeNflSourceTransition(value){
  const s=clean(value).toUpperCase().replace(/[\s-]+/g,"_");
+ if(["NA","N_A","NONE","NULL","UNKNOWN","MISSING"].includes(s))return null;
  return /^[A-Z0-9_]{2,64}$/.test(s)?s:null;
 }
 export function parseNflSourceYardsToGoal(value,offenseAbbr,home,away){
