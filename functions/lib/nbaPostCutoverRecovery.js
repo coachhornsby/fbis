@@ -73,12 +73,18 @@ export async function recoverMissingNbaResearchPage(env,{
    }
    // Verify every missing source row now exists with every source field intact.
    // No replacement of an existing row is ever issued.
-   for(const row of missing){
-     const got=await target.prepare("SELECT * FROM "+table+
-         " WHERE "+quote(pk)+"=? LIMIT 1").bind(row[pk]).first();
-     if(!got||!same(row,got,srcCols))
-       return { ...refused("RECOVERY_SOURCE_FIELD_VERIFICATION_FAILED"),
-         failedKey:String(row[pk]).slice(0,120),copiedAttempted:missing.length };
+   for(let i=0;i<missing.length;i+=40){
+     const subset=missing.slice(i,i+40);
+     const gotRows=(await target.prepare("SELECT * FROM "+table+
+       " WHERE "+quote(pk)+" IN ("+subset.map(()=>"?").join(",")+")")
+       .bind(...subset.map(r=>r[pk])).all())?.results||[];
+     const map=new Map(gotRows.map(r=>[String(r[pk]),r]));
+     for(const row of subset){
+       const got=map.get(String(row[pk]));
+       if(!got||!same(row,got,srcCols))
+         return { ...refused("RECOVERY_SOURCE_FIELD_VERIFICATION_FAILED"),
+           failedKey:String(row[pk]).slice(0,120),copiedAttempted:missing.length };
+     }
    }
  }
  return {ok:true,table,sport:"nba",mode:dryRun?"dry-run":"insert-missing-only",
