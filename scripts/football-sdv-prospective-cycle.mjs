@@ -6,13 +6,27 @@ const secret=process.env.HARVEST_SECRET;
 if(!secret)throw Error("HARVEST_SECRET_REQUIRED");
 const headers={"x-harvest-secret":secret,"content-type":"application/json"};
 const summary={capturedAt:new Date().toISOString(),sport:{},canAuthorizeWager:false};
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function request(url,body){
  const x=await fetch(root+url,{method:body?"POST":"GET",headers,body:body?JSON.stringify(body):undefined,
   signal:AbortSignal.timeout(100000)});
  let json;
- try{json=await x.json()}catch{throw Error("INVALID_PROSPECTIVE_RESPONSE:"+x.status)}
+ try{json=await x.json()}catch{throw Error("INVALID_PROSPECTIVE_RESPONSE:"+x.status+":"+String(x.headers.get("content-type"))?.slice(0,80))}
  return {status:x.status,body:json};
 }
+// Initial on-push workflow may start before Pages deploy finishes. Require JSON
+// from the exact live API before any pregame capture writes.
+let ready=false;
+for(let attempt=0;attempt<60;attempt++){
+ try{
+  const result=await request("/api/football-sdv-prospective?sport=nfl");
+  if(result.status===200&&result.body?.ok===true&&result.body.canAuthorizeWager===false){
+   ready=true;break;
+  }
+ }catch(e){console.log("prospective API not live, attempt",attempt+1,String(e).slice(0,100))}
+ await sleep(15000);
+}
+if(!ready)throw Error("PROSPECTIVE_API_NOT_DEPLOYED_OR_UNHEALTHY");
 for(const sport of ["nfl","cfb"]){
  const s=summary.sport[sport]={slate:0,new:0,existing:0,skipped:{},failures:0,grades:null};
  const response=await request("/api/football-sdv-prospective?sport="+sport);
