@@ -1,0 +1,21 @@
+.mpi-profile{padding:24px!important;border:1px solid #3e7496!important;border-radius:18px;min-width:0;overflow:hidden}
+.mpi-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.mpi-profile .mpi-heading h3{font-size:30px;line-height:1.15;margin:5px 0 0}
+.mpi-eyebrow{color:#8ed7ff;font-size:11px;font-weight:800;letter-spacing:.13em}
+.mpi-close,.ptd-player-card>button{border:1px solid #49708a;background:#12354c;color:#e8f7ff;border-radius:9px;padding:9px 13px;font:inherit;cursor:pointer}
+.mpi-close:focus-visible,.ptd-player-card>button:focus-visible{outline:3px solid #8ed7ff;outline-offset:3px}
+.mpi-profile label{display:flex;gap:12px;align-items:center;font-size:13px;font-weight:700;margin-bottom:15px}
+.mpi-profile select{background:#071d2e;color:#eef8ff;border:1px solid #3f647e;border-radius:9px;padding:9px 13px;font:inherit}
+.mpi-profile p{font-size:14px;line-height:1.6;color:#c6dceb;margin:8px 0}
+.mpi-profile h4{font-size:17px;margin:22px 0 12px;color:#eef7ff}
+.mpi-profile h5{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#8ed7ff;margin:12px 0}
+.mpi-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;margin:0}
+.mpi-metrics>div{background:#081f32;border:1px solid #244a65;border-radius:10px;padding:13px 14px}
+.mpi-metrics dt{font-size:11px;font-weight:700;color:#96b6cd;line-height:1.4}
+.mpi-metrics dd{font-size:25px;font-weight:800;color:#f1f8fd;line-height:1.2;margin:7px 0 0;font-variant-numeric:tabular-nums}
+.mpi-profile .stp-table-scroll{margin:12px 0;border-radius:10px;border:1px solid #244a65}
+.mpi-profile .stp-table-scroll table{width:100%;border-collapse:collapse;font-size:13px}
+.mpi-profile .stp-table-scroll th,.mpi-profile .stp-table-scroll td{padding:11px 13px;text-align:left}
+.mpi-profile .stp-table-scroll th{background:#071d2e;color:#96b6cd;font-size:10px;letter-spacing:.07em}
+.mpi-profile .stp-muted{font-size:11px;color:#91acc1;margin-top:18px}
+@media(max-width:600px){.mpi-profile{padding:16px!important}.mpi-profile .mpi-heading h3{font-size:25px}.mpi-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.mpi-profile label{align-items:flex-start;flex-direction:column}}

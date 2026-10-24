@@ -25,6 +25,12 @@ if(args.persist==='true'){
  const token=process.env.CLOUDFLARE_API_TOKEN,account=process.env.CLOUDFLARE_ACCOUNT_ID;if(!token||!account)throw Error('CLOUDFLARE_CREDENTIALS_REQUIRED');
  const r=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/pages/projects/fbis`,{headers:{authorization:`Bearer ${token}`}});const b=await r.json();
  if(!r.ok||!b.success||b.result.deployment_configs.production.env_vars.SPORT_DB_MODE_MLB?.value!=='shadow')throw Error('MLB_OWNER_CHANGED_REQUALIFICATION_REQUIRED');
+ const databaseId=b.result.deployment_configs.production.d1_databases?.DB?.id;
+ if(!databaseId)throw Error('AUTHORITATIVE_PRIMARY_BINDING_REQUIRED');
+ const capacityResponse=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${databaseId}`,{headers:{authorization:`Bearer ${token}`}});
+ const capacity=await capacityResponse.json(),bytes=Number(capacity.result?.file_size);
+ // Stop below the hard limit; reserve 2 MB per admitted game plus 200 MB headroom.
+ if(!capacityResponse.ok||!capacity.success||!Number.isFinite(bytes)||bytes+limit*2000000+200000000>9000000000)throw Error('PRIMARY_D1_CAPACITY_ADMISSION_REJECTED');
  database='fbis';
  run('d1','execute',database,'--remote','--file=migrations/0124_mlb_player_intelligence.sql');
 }
@@ -32,6 +38,7 @@ const receipt={version:'mlb-intelligence-collector-v1',startedAt:new Date().toIS
 for(const id of games.slice(0,limit)){
  try{
   const feed=await get(`https://statsapi.mlb.com/api/v1.1/game/${id}/feed/live`),raw=JSON.stringify(feed),hash=createHash('sha256').update(JSON.stringify({gameData:feed.gameData,liveData:feed.liveData})).digest('hex');
+  if(Buffer.byteLength(raw)>25000000)throw Error('GAME_SOURCE_BYTE_BUDGET_EXCEEDED');
   const normalized=normalizeMlbGameFeed(feed,{sourceHash:hash}),base=`models/mlb/intelligence/games/${id}/${hash}`;
   const rawFile=`${out}/${id}-${hash}-raw.json.gz`,normalizedFile=`${out}/${id}-${hash}.json.gz`,sqlFile=`${out}/${id}-${hash}.sql`;
   await fs.writeFile(rawFile,gzipSync(raw));await fs.writeFile(normalizedFile,gzipSync(JSON.stringify(normalized)));

@@ -1,5 +1,8 @@
 name: MLB player intelligence
 on:
+  push:
+    branches: [main]
+    paths: [ops/triggers/mlb-intelligence-proof]
   workflow_dispatch:
     inputs:
       start:
@@ -40,7 +43,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           START: ${{ inputs.start }}
           END: ${{ inputs.end }}
-          GAME_ID: ${{ inputs.gameId }}
+          GAME_ID: ${{ github.event_name == 'push' && '813071' || inputs.gameId }}
           LIMIT: ${{ inputs.limit || '40' }}
         run: node scripts/mlb-player-intelligence-collect.mjs "start=$START" "end=$END" "gameId=$GAME_ID" "limit=$LIMIT" persist=true
       - uses: actions/upload-artifact@v4
