@@ -33,7 +33,7 @@ export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}
     return {ok:false,code:"SIGNED_RELAY_SECRET_MISSING"};
   if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs"&&scope!=="combo-tape"&&scope!=="nhl-official-prop-results"&&scope!=="prop-reconciliation"&&scope!=="nhl-official-scope-discovery"&&scope!=="nhl-prospective-capture"&&scope!=="prop-model-freeze"&&scope!=="prop-grade-reconcile")
     return {ok:false,code:"SIGNED_RELAY_SCOPE_NOT_ALLOWED"};
-  if(scope==="markets"&&![...SPORTS,...TENNIS_RESEARCH].includes(sport))
+  if(scope==="markets"&&![...SPORTS,"cfb_spread","cfb_total",...TENNIS_RESEARCH].includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
   const url=new URL(PAGES_ROUTE);
   url.searchParams.set("scope",scope);
@@ -93,6 +93,18 @@ export async function collectKalshiPublicOnce(env,{now=new Date(),fetchImpl=fetc
   // receipts; a Worker transport failure cannot fabricate provider 429.
   return result;
 }
+/** Full-game CFB spread and total series require independent discovery.
+ * One extra signed GET every 15 minutes, alternating series, avoids both
+ * unbounded provider fanout and the previous moneyline-only architecture.
+ * All returned contracts remain provider-research evidence (no bets).
+ */
+export async function collectKalshiCfbLineMarketsOnce(env,{now=new Date(),fetchImpl=fetch}={}){
+ const slot=Math.floor(now.getTime()/SLOT_MS);
+ const sport=slot%2===0?"cfb_spread":"cfb_total";
+ const result=await relaySignedPages(env,{scope:"markets",sport,fetchImpl});
+ return {sport,...result};
+}
+
 /** Add an isolated Tennis shadow rotation every 30 minutes, without
  * reducing existing NFL/CFB polls. No public card or execution authority.
  */
@@ -222,7 +234,7 @@ export default {
     const now=new Date(event?.scheduledTime||Date.now());
     const aux=selectedAuxScope(now);
     ctx.waitUntil(Promise.all([
-      collectKalshiPublicOnce(env),collectKalshiTennisShadowOnce(env),
+      collectKalshiPublicOnce(env),collectKalshiCfbLineMarketsOnce(env),collectKalshiTennisShadowOnce(env),
       collectKalshiExchangeStatusOnce(env),collectKalshiSeriesCatalogOnce(env),
       collectNhlOfficialResultsOnce(env,{now}),
       collectPropReconciliationOnce(env,{now}),
