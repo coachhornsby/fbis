@@ -6,6 +6,7 @@ import {authorizeHarvest,unauthorizedBody} from "../lib/auth.js";
 import {sha256Hex} from "../lib/sha256Hex.js";
 import {querySdvMatchupFromSportDb} from "./football-sdv-matchup-research.js";
 import {gradeRegulationSimulations} from "../lib/footballSimulationValidationResearch.js";
+import {summarizeFootballProspectiveReadiness} from "../lib/footballProspectiveReadinessResearch.js";
 import {evaluateProspectiveGradeIntegrity} from "../lib/footballProspectiveGradeIntegrity.js";
 import {selectProspectiveRegulationOutcome,KICKOFF_MATCH_TOLERANCE_MS} from "../lib/footballProspectiveOutcomeSelection.js";
 import {compareNflProspectiveShadowReceipts,NFL_STANDARD_SHADOW,NFL_VERIFIED_TRANSITION_SHADOW} from "../lib/nflSdvProspectivePairedEvaluation.js";
@@ -259,6 +260,13 @@ export async function auditFootballProspectiveGrades(env,{sport,now=new Date().t
  return evaluateProspectiveGradeIntegrity(response.results,{sport,asOf:now,maximum:2000});
 }
 
+export async function footballProspectiveReadiness(env,{sport,now=new Date().toISOString()}={}){
+ const db=d1(env,sport);
+ const data=await db.prepare("SELECT r.sport,r.game_id gameId,r.model_id modelId,r.captured_at capturedAt,r.kickoff,r.home_team_id homeTeamId,r.away_team_id awayTeamId,g.graded_at gradedAt FROM football_sdv_prospective_receipts r LEFT JOIN football_sdv_prospective_grades g ON g.receipt_id=r.receipt_id WHERE r.sport=? ORDER BY r.kickoff DESC LIMIT 10001").bind(sport).all();
+ const latest=await db.prepare("SELECT MAX(source_observed_at) latestSource FROM football_sdv_verified_games WHERE sport=? AND prospective=0 AND can_authorize_wager=0").bind(sport).first();
+ if(!Array.isArray(data?.results)||data.results.length>10000)throw Error("PROSPECTIVE_READINESS_COHORT_EXCEEDED");
+ return summarizeFootballProspectiveReadiness(data.results,{sport,asOf:now,sourceLatestObservedAt:latest?.latestSource||null});
+}
 export async function onRequest({request,env}){
  const auth=authorizeHarvest(request,env);
  if(!auth.ok)return json(unauthorizedBody(auth.reason),403);
@@ -266,6 +274,7 @@ export async function onRequest({request,env}){
  if(!sportOk(sport))return json({ok:false,error:"INVALID_SPORT"},400);
  try{
   if(request.method==="GET"){
+   if(u.searchParams.get("mode")==="readiness")return json(await footballProspectiveReadiness(env,{sport}));
    if(u.searchParams.get("mode")==="integrity")
     return json(await auditFootballProspectiveGrades(env,{sport}));
    if(u.searchParams.get("mode")==="paired"){
