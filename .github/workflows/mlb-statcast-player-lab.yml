@@ -52,7 +52,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node --test test/mlb-statcast-lab.test.js
+      - run: node --test test/mlb-statcast-lab.test.js test/mlb-model-features.test.js
       - name: Collect official final-game Statcast and archive per-player evidence
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
@@ -60,9 +60,13 @@ jobs:
           PLAYERS: ${{ github.event_name == 'push' && matrix.teamShard == 'proof' && '669373:pitcher,694973:pitcher,592450:batter' || inputs.players }}
           TEAM_SHARD: ${{ matrix.teamShard }}
         run: node scripts/mlb-statcast-lab-collect.mjs "seasons=$SEASONS" "players=$PLAYERS" "teamShard=$TEAM_SHARD" persist=true
+      - name: Freeze dated model features from verified archives
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: node scripts/mlb-model-feature-capture.mjs artifacts/mlb-statcast-lab/receipt.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: mlb-statcast-lab-${{ matrix.teamShard }}-${{ github.run_id }}
-          path: artifacts/mlb-statcast-lab/receipt.json
+          path: artifacts/mlb-statcast-lab/*.json
           retention-days: 90
