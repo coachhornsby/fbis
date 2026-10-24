@@ -39,7 +39,25 @@ function stats(row,p){
   return null;
  return obj;
 }
-const retired=/\b(?:RET|RETIRED|W\/O|WALKOVER|DEF|DEFAULT|ABD|ABANDONED|SUSPENDED)\b/i;
+const retired=/\\b(?:RET|RETIRED|W\\/O|WALKOVER|DEF|DEFAULT|ABD|ABANDONED|SUSPENDED)\\b/i;
+function completedScore(text,bestOf){
+ const target=Number(bestOf)===5?3:Number(bestOf)===3?2:null;
+ if(!target)return false;
+ const tokens=String(text||'').trim().split(/\\s+/);
+ if(tokens.length<target||tokens.length>Number(bestOf))return false;
+ let a=0,b=0;
+ for(const token of tokens){
+  const m=token.match(/^(\\d+)-(\\d+)(?:\\(\\d+\\))?$/);
+  if(!m)return false;
+  const x=Number(m[1]),y=Number(m[2]),hi=Math.max(x,y),lo=Math.min(x,y);
+  if(!((hi===6&&lo<=4)||(hi===7&&(lo===5||lo===6))))return false;
+  if(x>y)a++;else b++;
+  if(a===target||b===target){
+   if(token!==tokens[tokens.length-1])return false;
+  }
+ }
+ return a===target&&b<target;
+}
 export function parseTennisCurrentRow(r,{tour,asOfDay}={}){
  if(!['atp','wta'].includes(tour)||!/^\d{4}-\d{2}-\d{2}$/.test(asOfDay||''))
   throw Error('TOUR_OR_CLOCK_INVALID');
@@ -48,9 +66,9 @@ export function parseTennisCurrentRow(r,{tour,asOfDay}={}){
  if(!ti||!mi||!w||!l||w===l||!digits(dt)||
   !['hard','clay','grass','carpet'].includes(surface))return null;
  const label=dt.slice(0,4)+'-'+dt.slice(4,6)+'-'+dt.slice(6,8);
- if(!Number.isFinite(Date.parse(label+'T00:00:00Z'))||label>=asOfDay)return null;
+ if(!Number.isFinite(Date.parse(label+'T00:00:00Z'))||label>asOfDay)return null;
  const score=safe(r.score);
- if(!score||retired.test(score))return null;
+ if(!score||retired.test(score)||!completedScore(score,r.best_of))return null;
  const wstats=stats(r,'w'),lstats=stats(r,'l');
  if(!wstats||!lstats)return null;
  // TML's tournament_date is not a verified match start time. A valid score
@@ -71,7 +89,7 @@ export function selectCurrentTennisRows(rows,{tour,now=new Date(),lookbackDays=3
   const date=String(row.tourney_date||'');
   if(!digits(date)){reasons.INVALID_DATE=(reasons.INVALID_DATE||0)+1;continue}
   const label=date.slice(0,4)+'-'+date.slice(4,6)+'-'+date.slice(6,8);
-  if(label<floor||label>=day)continue;
+  if(label<floor||label>day)continue;
   seen++;
   const parsed=parseTennisCurrentRow(row,{tour,asOfDay:day});
   if(!parsed){reasons.INCOMPLETE_OR_INVALID_STATS=(reasons.INCOMPLETE_OR_INVALID_STATS||0)+1;continue}
