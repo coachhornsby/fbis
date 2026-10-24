@@ -24,11 +24,11 @@ export function buildRetrospectiveKRows(days){
  }
  return {rows,coverage};
 }
-export function predictRetrospectiveK(model,row){const z=row.features.map((x,i)=>clamp((x-model.mean[i])/model.sd[i],-5,5));return clamp(row.baseline*Math.exp(clamp(model.coefficients[0]+z.reduce((s,x,i)=>s+x*model.coefficients[i+1],0),-2,2)),.1,20);}
+export function predictRetrospectiveK(model,row){const z=row.features.map((x,i)=>clamp((x-model.mean[i])/model.sd[i],-5,5));return clamp(row.baseline*Math.exp(clamp(model.coefficients[0]+z.reduce((s,x,i)=>s+x*model.coefficients[i+1],0),-2,2)),.001,20);}
 function fit(train,ridge){
  const mean=K_FEATURES.map((_,i)=>avg(train.map(r=>r.features[i]))),sd=mean.map((m,i)=>Math.sqrt(avg(train.map(r=>(r.features[i]-m)**2)))||1),coefficients=Array(7).fill(0),model={mean,sd,coefficients,ridge};
  const design=train.map(r=>[1,...r.features.map((x,i)=>clamp((x-mean[i])/sd[i],-5,5))]);
- for(let epoch=0;epoch<400;epoch++){const gradient=Array(7).fill(0);for(let i=0;i<train.length;i++){const row=train[i],z=design[i],mu=clamp(row.baseline*Math.exp(clamp(z.reduce((s,x,j)=>s+x*coefficients[j],0),-2,2)),.1,20);for(let j=0;j<7;j++)gradient[j]+=(mu-row.target)*z[j]/train.length;}
+ for(let epoch=0;epoch<400;epoch++){const gradient=Array(7).fill(0);for(let i=0;i<train.length;i++){const row=train[i],z=design[i],mu=clamp(row.baseline*Math.exp(clamp(z.reduce((s,x,j)=>s+x*coefficients[j],0),-2,2)),.001,20);for(let j=0;j<7;j++)gradient[j]+=(mu-row.target)*z[j]/train.length;}
   for(let j=0;j<7;j++)coefficients[j]-=.01*(gradient[j]+(j?ridge*coefficients[j]:0));
  }
  return model;
@@ -80,7 +80,7 @@ export function buildRetrospectiveHitterRows(days){
     if(pa<50||past.reduce((s,d)=>s+d.pitches,0)<200||!features.every(Number.isFinite)||!expectedPa)continue;
     for(const [market,field] of [['hits','hits'],['total_bases','totalBases'],['home_runs','homeRuns']]){
      const target=p.stats[field];if(!Number.isFinite(target)||!games.every(g=>Number.isFinite(g[field])))continue;
-     rows[market].push({gameId:game.gameId,playerId:p.playerId,date:day.date,scope:game.gameType==='R'?'regular':'postseason',baseline:clamp(games.reduce((s,g)=>s+g[field],0)/pa*expectedPa,.1,20),features,target,classification:'RETROSPECTIVE',sourceHash:game.sourceHash,priorSourceDates:past.map(d=>d.date)});
+     rows[market].push({gameId:game.gameId,playerId:p.playerId,date:day.date,scope:game.gameType==='R'?'regular':'postseason',baseline:clamp(games.reduce((s,g)=>s+g[field],0)/pa*expectedPa,.01,20),features,target,classification:'RETROSPECTIVE',sourceHash:game.sourceHash,priorSourceDates:past.map(d=>d.date)});
     }
    }
   }

@@ -23,3 +23,8 @@ test('count calibration preserves actual zero outcomes and returns proper fixed-
  const {countCalibration}=await import('../functions/lib/mlbRetrospectiveKFit.js');
  const [score]=countCalibration([{target:0},{target:1}],()=>Math.log(2),[.5]);assert.equal(score.n,2);assert.ok(Math.abs(score.brier-.25)<1e-12);assert.ok(score.ece<1e-12);
 });
+
+test('rare-event count heads retain means below a tenth instead of inheriting a strikeout floor',()=>{
+ const model={mean:Array(6).fill(0),sd:Array(6).fill(1),coefficients:Array(7).fill(0)};
+ assert.equal(predictRetrospectiveK(model,{baseline:.02,features:Array(6).fill(0)}),.02);
+});
