@@ -14,7 +14,8 @@ const finite=x=>typeof x==="number"&&Number.isFinite(x);
 function check(x,reason){if(!x)throw Error(reason)}
 const duration=d=>Number.isInteger(d.officialDurationSeconds)&&
  d.officialDurationSeconds>=0&&d.officialDurationSeconds<=1800;
-const valid=d=>duration(d)&&Number.isInteger(d.officialStartYardsToGoal)&&
+const valid=d=>d.sourceNormalizerVersion==="NFL_PBP_NORMALIZER_v0.3.1"&&
+ duration(d)&&Number.isInteger(d.officialStartYardsToGoal)&&
  d.officialStartYardsToGoal>=0&&d.officialStartYardsToGoal<=100&&
  typeof d.startTransition==="string"&&d.startTransition.length>=2&&
  typeof d.endTransition==="string"&&d.endTransition.length>=2;
