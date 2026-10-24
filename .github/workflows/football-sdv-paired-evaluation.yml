@@ -1,0 +1,84 @@
+name: NFL/CFB SDV paired champion evaluation
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/football-sdv-paired-evaluation.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: football-sdv-paired-champion
+  cancel-in-progress: false
+jobs:
+  paired-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      SDV_OUT: artifacts/football-sdv
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify paired statistical and temporal gates
+        run: |
+          node --test test/football-paired-model-audit.test.js \
+            test/football-possession-matchup-research.test.js
+          node --check scripts/football-sdv-paired-evaluate.mjs
+      - name: Install published SportsDataverse
+        run: python -m pip install --disable-pip-version-check --quiet sportsdataverse==0.1.4
+      - name: Reacquire verified completed schedules and SDV play by play
+        run: |
+          python scripts/football-sdv-acquire.py \
+            --sports nfl cfb --seasons 2024 2025 2026 --out "$SDV_OUT"
+          node scripts/football-sdv-evaluate.mjs --input="$SDV_OUT" --maxGames=200 --iterations=150
+      - name: Read genuinely frozen NFL and CFB champion snapshots from separate D1 databases
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID"
+          for sport in nfl cfb; do
+            if [ "$sport" = nfl ]; then
+              id="0a49cad0-4bf9-4e01-88ce-be54123f712d"
+              sql=sql/football/0003_paired_nfl.sql
+            else
+              id="b589c91c-c53d-4f4a-9d32-99c4468e3033"
+              sql=sql/football/0002_paired_cfb.sql
+            fi
+            jq -Rs '{sql: .}' "$sql" > "$SDV_OUT/request.json"
+            curl -fsS --retry 2 --max-time 90 \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H 'content-type: application/json' \
+              --data-binary "@$SDV_OUT/request.json" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$id/query" \
+              > "$SDV_OUT/response.json"
+            jq -e '.success == true and .result[0].success == true and (.result[0].results | length) > 0' "$SDV_OUT/response.json"
+            jq '.result[0].results' "$SDV_OUT/response.json" > "$SDV_OUT/$sport-matched-champions.json"
+            echo "$sport paired frozen candidates: $(jq length "$SDV_OUT/$sport-matched-champions.json")"
+          done
+      - name: Evaluate paired champion and drive challenger on identical games
+        run: |
+          node scripts/football-sdv-paired-evaluate.mjs --input="$SDV_OUT" --iterations=150 --min=8
+          jq -e '.canAuthorizeWager==false and
+            .reports.nfl.canQualify==false and .reports.cfb.canQualify==false and
+            .reports.nfl.n>0 and .reports.cfb.n>0' "$SDV_OUT/football-paired-audit.json"
+          jq '{nfl:.reports.nfl | {n,champion,challenger,pairedDeltas},
+               cfb:.reports.cfb | {n,champion,challenger,pairedDeltas}}' "$SDV_OUT/football-paired-audit.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish reproducible research results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-sdv-paired-research-${{ github.run_id }}
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            artifacts/football-sdv/football-paired-audit.json
+            artifacts/football-sdv/nfl-paired-champion-challenger.jsonl
+            artifacts/football-sdv/cfb-paired-champion-challenger.jsonl

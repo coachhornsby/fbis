@@ -59,7 +59,7 @@ export async function querySdvMatchupFromSportDb(env,{sport,gameId,now=new Date(
   historyMode:"AVAILABLE_AT_RESEARCH_CLOCK",sourceDb:sport==="nfl"?"NFL_DB":"CFB_DB",
   sourceAssetFamily:"SDV_NFLVERSE_OR_ESPN_CFB_PBP",
   homeTeamId:home.id,awayTeamId:away.id,
-  coverage:result.coverage,trainingGames:result.trainingGames,
+  coverage:result.coverage,evidenceFingerprint:result.evidenceFingerprint,trainingGames:result.trainingGames,
   trainingDrives:result.trainingDrives,iterations:result.iterations,
   distributions:result.distributions,
   prospectiveQualification:false,calibrationStatus:"NOT_VALIDATED",
