@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {kalshiExecution,polymarketExecution,groupExecutions,shouldRepairPolymarketPrice} from "../functions/lib/exchangeBetLedger.js";
+import {kalshiExecution,polymarketExecution,groupExecutions,shouldRepairPolymarketPrice,unresolvedPolymarketTrades} from "../functions/lib/exchangeBetLedger.js";
 test("confirmed Kalshi buy fills aggregate by order, fees counted once per fill",()=>{
  const a=kalshiExecution({fill_id:"a",order_id:"o1",ticker:"KX-TEST",side:"yes",action:"buy",count_fp:"2",yes_price_dollars:"0.4",fee_cost:"0.02",created_time:"2026-10-21T14:00:00Z"});
  const b=kalshiExecution({fill_id:"b",order_id:"o1",ticker:"KX-TEST",side:"yes",action:"buy",count_fp:"3",yes_price_dollars:"0.5",fee_cost:"0.03",created_time:"2026-10-21T14:01:00Z"});
