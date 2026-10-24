@@ -20,6 +20,9 @@ concurrency:
 
 jobs:
   grade:
+    env:
+      CLOUDFLARE_D1_DATABASE_ID: ed992525-d2ed-4b1d-8a12-feeb2efa152c
+      D1_SQL_ATTEMPTS: "1"
     # All production NBA_DB imports must share a single exclusive queue.
     concurrency:
       group: ${{ github.ref == 'refs/heads/main' && 'nba-d1-profile-shadow-main' || format('nba-d1-grade-{0}', github.run_id) }}
@@ -61,9 +64,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis-nba --remote --file=migrations/0048_nba_player_impact.sql
+          node scripts/d1-batched-sql.mjs migrations/0048_nba_player_impact.sql
           if [ -s artifacts/nba-impact-shadow-grade.sql ]; then
-            npx wrangler d1 execute fbis-nba --remote --file=artifacts/nba-impact-shadow-grade.sql
+            node scripts/d1-batched-sql.mjs artifacts/nba-impact-shadow-grade.sql
           fi
 
       - name: Archive shadow validation report
