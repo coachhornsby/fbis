@@ -16,6 +16,54 @@ function owner(row,sport){
  if(sport==="cbb")return String(row.poss_team_espn_team_id||row.poss_team_ncaa_team_id||"");
  return String(row.verified_possession_owner_team_id||"");
 }
+/**
+ * NBA Stats PBP contains offensive lineup player IDs but individual action
+ * team_id may be defensive (block, foul, rebound) or neither. Confirm owner
+ * only from FIVE independently matched offensive player-to-team memberships.
+ * Missing/conflicting player-team evidence vetoes the whole possession.
+ */
+export function attachVerifiedNbaPossessionOwners(events,{
+ homeTeamId,awayTeamId,playerTeamMap,rosterSourceFingerprint
+}={}){
+ if(!Array.isArray(events)||!events.length||
+    !/^[0-9a-f]{64}$/i.test(rosterSourceFingerprint||"")||
+    !playerTeamMap||typeof playerTeamMap!=="object")
+  throw Error("NBA_ROSTER_OWNER_PROOF_MISSING");
+ const groups=new Map();
+ for(const raw of events){
+  const period=asNum(raw.period??raw.period_number);
+  if(period>4)continue;
+  const number=asNum(raw.possession_number);
+  if(period===null||number===null)throw Error("NBA_PBP_POSSESSION_NUMBER_MISSING");
+  const key=period+"|"+number;
+  if(!groups.has(key))groups.set(key,[]);
+  groups.get(key).push(raw);
+ }
+ const owners=new Map();
+ for(const [key,rows] of groups){
+  const possible=new Set();
+  for(const row of rows){
+   const ids=Array.from({length:5},(_,i)=>
+    String(row["off_player_"+(i+1)]??"")).filter(x=>x&&x!=="0"&&x!=="null");
+   if(ids.length!==5||new Set(ids).size!==5)continue;
+   const teams=new Set(ids.map(x=>playerTeamMap[x]).filter(Boolean));
+   if(teams.size!==1||ids.some(x=>!playerTeamMap[x]))continue;
+   const [team]=teams;
+   if(![homeTeamId,awayTeamId].includes(team))continue;
+   possible.add(team);
+  }
+  if(possible.size!==1)throw Error("NBA_POSSESSION_OWNER_NOT_LINEUP_VERIFIED:"+key);
+  owners.set(key,[...possible][0]);
+ }
+ return events.map(row=>{
+  const period=asNum(row.period??row.period_number);
+  if(period>4)return row;
+  const k=period+"|"+asNum(row.possession_number);
+  return {...row,verified_possession_owner_team_id:owners.get(k),
+   possession_owner_lineup_fingerprint:rosterSourceFingerprint};
+ });
+}
+
 export function normalizeSdvBasketballPbpPossessions({
  sport,gameId,tipoff,observedAt,sourceFingerprint,season,
  homeTeamId,awayTeamId,events,regulationEndScore
