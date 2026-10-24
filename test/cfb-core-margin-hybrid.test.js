@@ -144,3 +144,39 @@ test("bootstrap: IID vs week-clustered and independent replicate audit", () => {
   assert.equal(rep.spreadMae, Number((mC.spreadMae - mA.spreadMae).toFixed(4)));
   assert.equal(rep.n, idx.length);
 });
+
+
+test("margin-only CORE shadow freeze binds SQL NULL, not undefined, for missing win-probability head", async () => {
+  const { buildCfbCoreShadowRecord, freezeCfbCoreShadowRecords } = await import("../functions/lib/cfbCoreShadowLedger.js");
+  const training = Array.from({ length: 90 }, (_, i) => mkRow(i, 2025));
+  const artifact = fitModelCMarginAaTotalArtifact(training, { lambda: 1, lastTrainingSeason: 2025 });
+  assert.equal(artifact.ok, true);
+  const side = (offense, defense) => ({
+    coreYear: 2026, coreThroughWeek: 6, coreOffense: offense, coreDefense: defense,
+    coreWeekBounded: true, coreThroughSeasonType: "regular",
+    coreSourceEndpoint: "/ratings/core", coreSourceAsOf: "2026-10-16T12:00:00Z",
+  });
+  const record = buildCfbCoreShadowRecord({
+    gameId: "cfb-2026-123", season: 2026, week: 7, kickoff: "2026-10-17T19:30:00Z",
+    homeTeam: "Home", awayTeam: "Away", championHome: 28, championAway: 24,
+    championModelId: "CFB-FBIS-v2", championModelVersion: "frozen-v2",
+    homeFeatures: side(12, -4), awayFeatures: side(9, -2),
+  }, { artifact, now: "2026-10-17T18:00:00Z" });
+  assert.equal(record.eligibility, "eligible_projected");
+  assert.equal(record.corePHomeWin, null); // Hybrid has no probability head.
+  assert.equal(record.coreTotal, 52); // Production champion total remains unchanged.
+  let bound;
+  const db = {
+    prepare: () => ({ bind: (...values) => {
+      bound = values;
+      assert.ok(values.every(v => v !== undefined), "D1 rejects undefined bound values");
+      return { run: async () => ({ meta: { changes: 1 } }) };
+    } }),
+    batch: async statements => statements.map(() => ({ meta: { changes: 1 } })),
+  };
+  const result = await freezeCfbCoreShadowRecords({ TIER3_DB: db }, [record]);
+  assert.equal(result.ok, true);
+  assert.equal(result.inserted, 1);
+  assert.ok(bound.includes(null));
+  assert.equal(record.provenance.authority, "research_only");
+});
