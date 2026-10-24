@@ -1,3 +1,4 @@
+import {withArchivePlayerProfiles} from './mlbArchiveProjection.js';
 import { attachSoccerTeamBranding } from "./soccerTeamBranding.js";
 import {loadCfbFrozenUnitEvidence} from "./cfbPitFeatureDelivery.js";
 import { fbsOnlySlate } from "./cfbGameVisibility.js";
@@ -113,14 +114,15 @@ export async function buildSlate(sport, date, env = {}) {
     // Expensive MLB Stats/Statcast fanout belongs to scheduled profile refreshes.
     const baseEnriched = attachMlbBullpenContext(featureGames, bullpen).map((game) => {
       const pal = game.bpp || {};
-      const parkRunsPct = Number(pal.park?.runsPct);
-      const parkHrPct = Number(pal.park?.hrPct);
+      const parkRunsPct = pal.park?.runsPct == null ? NaN : Number(pal.park.runsPct);
+      const parkHrPct = pal.park?.hrPct == null ? NaN : Number(pal.park.hrPct);
       const homeVsAwaySp = pal.matchup?.vsAwaySp || null;
       const awayVsHomeSp = pal.matchup?.vsHomeSp || null;
       return {
         ...game,
         mlbContext: {
           ...(game.mlbContext || {}),
+          palParkIncludesWeather: true,
           palParkRunFactor: Number.isFinite(parkRunsPct) ? 1 + parkRunsPct / 100 : null,
           palParkHrFactor: Number.isFinite(parkHrPct) ? 1 + parkHrPct / 100 : null,
           palLineupsOfficial: pal.lineupsOfficial === true,
@@ -170,7 +172,7 @@ export async function buildSlate(sport, date, env = {}) {
 
     const deep = attachMlbDeepShadow(enriched);
     const research = promoteMlbResearchToBoard(deep.games);
-    const playerResearch = attachMlbPlayerProjectionResearch(research.games, persistent);
+    const playerResearch = attachMlbPlayerProjectionResearch(research.games, withArchivePlayerProfiles(persistent,pitchMatchup.archiveProfilesByGameId));
     next = {
       ...slate,
       games: playerResearch,

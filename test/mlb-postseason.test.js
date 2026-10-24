@@ -75,7 +75,7 @@ test("MLB deep model consumes postseason starter workload and active-core bullpe
     },
   });
   assert.equal(p.ok,true);
-  assert.equal(MLB_DEEP_VERSION,"research-v2.5-postseason-context");
+  assert.equal(MLB_DEEP_VERSION,"research-v2.6-archive-pal-environment");
   assert.equal(p.provenance.postseasonContext.round,"DIVISION_SERIES");
   assert.equal(p.pitcherKs.home.expectedInnings,6.0);
   assert.equal(p.pitcherKs.away.expectedInnings,4.8);

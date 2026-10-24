@@ -1,3 +1,4 @@
+import {mlbEnvironment} from './mlbEnvironment.js';
 /**
  * MLB-FBIS canonical projection engine.
  * Research-gated for wager authority, but it is the single published MLB score/F5/K projection path.
@@ -12,7 +13,7 @@ import { clamp, coverageSummary, finite, round1 } from "./deepModelCommon.js";
 import { evaluateMlbF5Market, f5MoneylineProbabilities } from "./mlbF5.js";
 
 export const MLB_DEEP_ID = "MLB-FBIS-v2";
-export const MLB_DEEP_VERSION = "research-v2.5-postseason-context";
+export const MLB_DEEP_VERSION = "research-v2.6-archive-pal-environment";
 export const MLB_DEEP_CONSTANTS = {
   leagueRpg: 4.45,
   leagueEra: 4.15,
@@ -134,22 +135,7 @@ function defenseFactor(runsSaved) {
   return clamp(1 - rs / 700, 0.94, 1.06);
 }
 
-function palParkFactor(ctx = {}) {
-  const run = finite(ctx.palParkRunFactor ?? ctx.parkFactor) ?? 1;
-  const hr = finite(ctx.palParkHrFactor);
-  if (hr == null) return run;
-  // Park run factor already contains much of the HR environment. Use only the
-  // HR-vs-run residual as a small incremental feature to avoid double counting.
-  const residual = clamp(hr - run, -0.25, 0.25);
-  return clamp(run * (1 + residual * 0.12), 0.78, 1.28);
-}
-
-function environmentFactor(ctx = {}) {
-  const park = palParkFactor(ctx);
-  const weather = finite(ctx.weatherRunFactor) ?? 1;
-  const umpire = finite(ctx.umpireRunFactor) ?? 1;
-  return clamp(park * weather * umpire, 0.78, 1.28);
-}
+function environmentFactor(ctx = {}) { return mlbEnvironment(ctx).runFactor; }
 
 function offenseRpg(teamRpg) {
   const n = finite(teamRpg);
@@ -362,6 +348,7 @@ export function projectMlbDeep(game = {}) {
         platoonFactor: homePlatoon,
         defenseFactor: homeDefenseOpp,
         environmentFactor: env,
+        environmentEvidence: mlbEnvironment(ctx),
         matchupFactor: homeMatchupFactor,
         matchupSource: homeDetailed ? "STATCAST_PITCH_SHAPE_X_HITTER_ZONE" : "BALLPARK_PAL_AGGREGATE_FALLBACK",
         detailedStarterRunFactor: homeStarterRunFactor,
@@ -387,6 +374,7 @@ export function projectMlbDeep(game = {}) {
         platoonFactor: awayPlatoon,
         defenseFactor: awayDefenseOpp,
         environmentFactor: env,
+        environmentEvidence: mlbEnvironment(ctx),
         matchupFactor: awayMatchupFactor,
         matchupSource: awayDetailed ? "STATCAST_PITCH_SHAPE_X_HITTER_ZONE" : "BALLPARK_PAL_AGGREGATE_FALLBACK",
         detailedStarterRunFactor: awayStarterRunFactor,

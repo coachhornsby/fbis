@@ -16,6 +16,7 @@ const isSwing=r=>r.type==='X'||/^(swinging_strike|swinging_strike_blocked|foul|f
 const isWhiff=r=>/^swinging_strike(_blocked)?$/.test(r.description);
 const isBBE=r=>r.type==='X';
 const COMPLETED_PA_EVENTS=new Set(['single','double','triple','home_run','strikeout','strikeout_double_play','field_out','force_out','grounded_into_double_play','double_play','triple_play','fielders_choice','fielders_choice_out','field_error','walk','intent_walk','hit_by_pitch','sac_fly','sac_bunt','sac_fly_double_play','sac_bunt_double_play','catcher_interf']);
+export const isCompletedLabPa=r=>COMPLETED_PA_EVENTS.has(r.events);
 export const isActualLabPitch=r=>!/^automatic_/.test(r.description||'');
 export function normalizeLabRows(input,{playerId,role='pitcher',season,cutoffDay,finalGameIds=null}={}){
  if(!/^\d+$/.test(String(playerId))||!['pitcher','batter'].includes(role)||!Number.isInteger(season)||season<2024||season>new Date().getUTCFullYear()||!/^\d{4}-\d{2}-\d{2}$/.test(cutoffDay||''))throw Error('INVALID_LAB_SCOPE');

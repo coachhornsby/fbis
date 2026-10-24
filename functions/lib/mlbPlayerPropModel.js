@@ -1,6 +1,7 @@
+import {mlbEnvironment} from './mlbEnvironment.js';
 import { scorePitcherVsBatter } from "./mlbPitchMatchup.js";
 
-export const MLB_PLAYER_PROP_MODEL_VERSION="research-v1-persistent-props";
+export const MLB_PLAYER_PROP_MODEL_VERSION="research-v1.1-archive-pal-environment";
 
 const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
@@ -61,7 +62,7 @@ function pitcherRows(game,state,side){
   const whip=finite(profile.whip);
   const hitLambda=h9!=null?(h9/9)*ip*contactFactor:whip!=null?Math.max(.5,whip*ip-(bb9!=null?(bb9/9)*ip:ip*.32))*contactFactor:null;
   const walkLambda=bb9!=null?(bb9/9)*ip*walkFactor:finite(profile.bbRate)!=null?profile.bbRate*expectedBf*walkFactor:null;
-  const env=clamp((finite(game?.mlbContext?.palParkRunFactor)??1)*(finite(game?.mlbContext?.weatherRunFactor)??1),.82,1.22);
+  const env=clamp(mlbEnvironment(game?.mlbContext).runFactor,.82,1.22);
   const erLambda=er9!=null?(er9/9)*ip*runFactor*env:null;
   const outSigma=recentIpSigma(profile)*3;
   const recentPitches=finite(profile?.recentStarter?.pitches);

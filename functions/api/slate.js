@@ -21,6 +21,7 @@ export async function onRequestGet(context) {
     BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
     CFBD_API_KEY: context.env.CFBD_API_KEY,
     caches: caches.default,
+    ARCHIVE: context.env.ARCHIVE,
     ...nflSportDbContext(context.env), DB: context.env.DB,
   };
   let publicWeek = null;
