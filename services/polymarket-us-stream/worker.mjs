@@ -680,6 +680,14 @@ export default {
       const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis-v3"));
       return stub.fetch("https://internal/start",{method:"POST"});
     }
+    if(u.pathname==="/private-health"){
+      if(request.method!=="GET"||!env.HARVEST_SECRET||
+        request.headers.get("x-harvest-secret")!==env.HARVEST_SECRET)
+        return toJSON({ok:false,error:"unauthorized"},403);
+      const owner=env.PM_PRIVATE.get(env.PM_PRIVATE.idFromName("private-orders-v1"));
+      const state=await owner.fetch("https://internal/status");
+      return toJSON(await state.json());
+    }
     if(u.pathname!=="/health")return toJSON({ok:false,error:"not-found"},404);
     const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis-v3"));
     const r=await stub.fetch("https://internal/status");
