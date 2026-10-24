@@ -39,16 +39,16 @@ function stats(row,p){
   return null;
  return obj;
 }
-const retired=/\\b(?:RET|RETIRED|W\\/O|WALKOVER|DEF|DEFAULT|ABD|ABANDONED|SUSPENDED)\\b/i;
+const retired=/\b(?:RET|RETIRED|W\/O|WALKOVER|DEF|DEFAULT|ABD|ABANDONED|SUSPENDED)\b/i;
 function completedScore(text,bestOf){
  const target=Number(bestOf)===5?3:Number(bestOf)===3?2:null;
  if(!target)return false;
- const tokens=String(text||'').trim().split(/\\s+/);
+ const tokens=String(text||'').trim().split(/\s+/);
  if(tokens.length<target||tokens.length>Number(bestOf))return false;
  let a=0,b=0;
  for(let i=0;i<tokens.length;i++){
   const token=tokens[i];
-  const m=token.match(/^(\\d+)-(\\d+)(?:\\(\\d+\\))?$/);
+  const m=token.match(/^(\d+)-(\d+)(?:\(\d+\))?$/);
   if(!m)return false;
   const x=Number(m[1]),y=Number(m[2]),hi=Math.max(x,y),lo=Math.min(x,y);
   if(!((hi===6&&lo<=4)||(hi===7&&(lo===5||lo===6))))return false;
