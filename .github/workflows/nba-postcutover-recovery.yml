@@ -1,0 +1,36 @@
+name: NBA live post-cutover research recovery
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [ops/triggers/nba-postcutover-recovery]
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    concurrency:
+      group: nba-d1-profile-shadow-main
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Gate additive recovery and approval handling
+        run: node --test test/nba-postcutover-recovery.test.js
+      - name: Recover only missing NBA research keys to NBA_DB
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+        run: node scripts/nba-postcutover-recovery-ops.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: nba-postcutover-primary-to-sport-recovery
+          path: artifacts/nba-research-recovery/
+          retention-days: 180
+          if-no-files-found: error
