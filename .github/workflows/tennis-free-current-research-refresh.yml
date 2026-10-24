@@ -1,5 +1,10 @@
 name: Tennis free current-season research refresh
 on:
+  # Bootstrap once on this workflow release; subsequent refreshes stay daily.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tennis-free-current-research-refresh.yml'
   workflow_dispatch:
   schedule:
     - cron: '35 14 * * *'
