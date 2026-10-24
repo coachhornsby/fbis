@@ -824,6 +824,18 @@ export async function persistCfbCoreEvaluationReport(env, report, { reportType =
         dataLimitations: report.dataLimitations,
         verifiedOos: report.verifiedOos,
         marketSummary: report.marketSummary,
+        prospective: report.prospective ? {
+          artifactId: report.prospective.artifactId,
+          frozenUniqueGames: report.prospective.frozenUniqueGames,
+          prospectiveSettledN: report.prospective.prospectiveSettledN,
+          weekClusters: report.prospective.weekClusters,
+          metrics: report.prospective.metrics,
+          gate: {
+            decision: report.prospective.gate?.decision,
+            fail: report.prospective.gate?.fail,
+            autoPromote: false,
+          },
+        } : null,
       }),
       j(report.folds || []),
       j(report.marketSummary || null),
