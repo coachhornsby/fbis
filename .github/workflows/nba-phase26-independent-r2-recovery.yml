@@ -1,6 +1,11 @@
 name: NBA Phase 26 independent R2 recovery
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/nba-independent-r2-recovery.mjs"
+      - ".github/workflows/nba-phase26-independent-r2-recovery.yml"
 permissions:
   contents: read
 concurrency:
