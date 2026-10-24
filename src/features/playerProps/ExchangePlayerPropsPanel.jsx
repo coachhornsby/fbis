@@ -5,6 +5,7 @@ import { joinIndependentPropModels } from '../../../functions/lib/propResearchDa
 import FBISPlayerPropCard from './FBISPlayerPropCard.jsx';
 import { selectProjectedPropCards, buildVenueComparisonRows, groupExchangePlayerStatCards } from './buildPlayerPropsBoard.js';
 import ExchangePlayerWorkspace from './ExchangePlayerWorkspace.jsx';
+import TennisExchangeResearch from './TennisExchangeResearch.jsx';
 import { basketballPropWatermarkCoverage } from '../../../functions/lib/basketballPropTeam.js';
 
 function today() { return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); }
@@ -80,6 +81,7 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
         <li key={i}>{x.sport.toUpperCase()} · {x.player||'Unknown player'} · team {x.team||'missing'} · {x.status.replaceAll('_',' ')}</li>)}</ul>:null}
     </details>:null}
     <div className="pp-card-grid pp-premium-grid exchange-prop-grid">{rows.map((r,i)=><FBISPlayerPropCard key={r.id} row={r} rank={compact?i+1:null} compact={compact} onResearch={setSelected}/>)}</div>
+    {!compact && sport==="tennis" ? <TennisExchangeResearch date={date} provider={provider} search={search} /> : null}
     {!compact&&unmodeled>0?<p className="pp-board-coverage">{unmodeled} contract thresholds withheld: independent player/stat projections are not matched. Alternate thresholds for projected players are in player research.</p>:null}
     {selected?<ExchangePlayerWorkspace row={selected} onClose={()=>setSelected(null)}/>:null}
     {!compact&&state.collectorCoverage?.length?<details><summary>Collector evidence and mapping</summary><p>Kalshi contracts captured: {state.collectorCoverage.reduce((n,c)=>n+(c.records||0),0)}. Only exact player/event/stat matches appear as cards.</p><table className="exchange-prop-coverage"><thead><tr><th>Series</th><th>Sport</th><th>Status</th><th>Captured</th></tr></thead><tbody>{state.collectorCoverage.map(c=><tr key={c.series}><td>{c.series}</td><td>{c.sport}</td><td>{c.status}</td><td>{c.capturedAt||'—'}</td></tr>)}</tbody></table></details>:null}
