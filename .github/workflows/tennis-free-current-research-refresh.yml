@@ -27,5 +27,5 @@ jobs:
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               -H "content-type: application/json" -d '{}' > "/tmp/${tour}-free-research.json"
             jq -e '.ok == true and .source=="TENNISMYLIFE" and .validatedWithStats>0 and .officialSettlementsCreated==0 and .contractTradingAuthorized==false' "/tmp/${tour}-free-research.json"
-            jq -r '"(.tour) source date (.dateFloor), validated (.validatedWithStats), new revisions (.newVersions), R2 (.rawArtifactKey)"' "/tmp/${tour}-free-research.json" >> "${GITHUB_STEP_SUMMARY}"
+            jq -r '[.tour, (.validatedWithStats|tostring), (.newVersions|tostring), (.sourceFiles|map(.rawKey)|join(";"))] | @tsv' "/tmp/${tour}-free-research.json" >> "${GITHUB_STEP_SUMMARY}"
           done
