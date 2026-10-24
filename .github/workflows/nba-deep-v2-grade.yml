@@ -20,6 +20,10 @@ concurrency:
 
 jobs:
   grade:
+    # All production NBA_DB imports must share a single exclusive queue.
+    concurrency:
+      group: ${{ github.ref == 'refs/heads/main' && 'nba-d1-profile-shadow-main' || format('nba-d1-grade-{0}', github.run_id) }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
