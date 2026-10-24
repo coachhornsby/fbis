@@ -38,9 +38,15 @@ export async function runD1ImportWithRetry({file,execute,sleep=ms=>new Promise(r
   throw new Error("D1_IMPORT_UNREACHABLE");
 }
 
+export function resolveD1ImportTarget(env=process.env) {
+ const target=String(env.FBIS_D1_TARGET||"fbis").trim();
+ if(target!=="fbis"&&target!=="fbis-nba")throw new Error("D1_IMPORT_TARGET_NOT_ALLOWLISTED");
+ return target;
+}
+
 function executeWrangler(file) {
   return new Promise((resolve,reject)=>{
-    const child=spawn("npx",["wrangler","d1","execute","fbis","--remote",`--file=${file}`],{
+    const child=spawn("npx",["wrangler","d1","execute",resolveD1ImportTarget(),"--remote",`--file=${file}`],{
       stdio:["ignore","pipe","pipe"],
       env:process.env,
     });

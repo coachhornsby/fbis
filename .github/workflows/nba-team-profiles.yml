@@ -108,9 +108,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM nba_player_state_profiles"             > artifacts/nba-player-states-prior.json || echo '[]' > artifacts/nba-player-states-prior.json
+          npx wrangler d1 execute fbis-nba --remote --json --command             "SELECT * FROM nba_player_state_profiles"             > artifacts/nba-player-states-prior.json || echo '[]' > artifacts/nba-player-states-prior.json
           npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM player_availability_observations WHERE sport='nba' AND observed_at <= datetime('now') ORDER BY observed_at ASC"             > artifacts/nba-availability.json
-          npx wrangler d1 execute fbis --remote --json --command             "WITH ranked AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY player_id ORDER BY as_of DESC) rn FROM nba_player_impact_snapshots) SELECT * FROM ranked WHERE rn=1"             > artifacts/nba-player-impact-current.json
+          npx wrangler d1 execute fbis-nba --remote --json --command             "WITH ranked AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY player_id ORDER BY as_of DESC) rn FROM nba_player_impact_snapshots) SELECT * FROM ranked WHERE rn=1"             > artifacts/nba-player-impact-current.json
 
       - name: Build all 30 persistent profiles
         run: |
@@ -120,6 +120,8 @@ jobs:
       - name: Persist profiles
         if: github.ref == 'refs/heads/main'
         env:
+          FBIS_D1_TARGET: fbis-nba
+          CLOUDFLARE_D1_DATABASE_ID: ed992525-d2ed-4b1d-8a12-feeb2efa152c
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |

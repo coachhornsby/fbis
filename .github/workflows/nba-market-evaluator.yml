@@ -25,6 +25,8 @@ concurrency:
 
 jobs:
   evaluate:
+    env:
+      CLOUDFLARE_D1_DATABASE_ID: ed992525-d2ed-4b1d-8a12-feeb2efa152c
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -50,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           for i in $(seq 1 18); do
-            if npx wrangler d1 execute fbis --remote --json --command "SELECT COUNT(*) AS n FROM nba_prospective_game_shadow WHERE code_sha <> '00e02556d645d2d13352eaf9b644fc94603f23c1' AND prediction_timestamp >= datetime('now','-21 days')" > /tmp/nba-ready.json; then
+            if npx wrangler d1 execute fbis-nba --remote --json --command "SELECT COUNT(*) AS n FROM nba_prospective_game_shadow WHERE code_sha <> '00e02556d645d2d13352eaf9b644fc94603f23c1' AND prediction_timestamp >= datetime('now','-21 days')" > /tmp/nba-ready.json; then
               count="$(jq -r '[..|objects|select(has("n"))|.n][0] // 0' /tmp/nba-ready.json)"
               echo "NBA prospective readiness attempt=$i count=$count"
               if [ "$count" -gt 0 ]; then exit 0; fi
@@ -77,8 +79,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --json --command "SELECT * FROM nba_prospective_game_shadow WHERE code_sha <> '00e02556d645d2d13352eaf9b644fc94603f23c1' AND prediction_timestamp >= datetime('now','-21 days') ORDER BY prediction_timestamp ASC" > artifacts/nba-prospective-projections.json
-          npx wrangler d1 execute fbis --remote --json --command "SELECT o.id,o.game_id,o.event_id,o.sport,o.book,o.market,o.side,o.line,o.price,o.no_vig,o.captured_at,o.checkpoint,o.game_start,o.rejected_post_start FROM odds_snapshots o JOIN (SELECT DISTINCT game_id FROM nba_prospective_game_shadow WHERE code_sha <> '00e02556d645d2d13352eaf9b644fc94603f23c1' AND prediction_timestamp >= datetime('now','-21 days')) p ON p.game_id=o.game_id WHERE o.sport='nba' AND o.captured_at >= datetime('now','-21 days') ORDER BY o.captured_at ASC" > artifacts/nba-prospective-odds.json
+          npx wrangler d1 execute fbis-nba --remote --json --command "SELECT * FROM nba_prospective_game_shadow WHERE code_sha <> '00e02556d645d2d13352eaf9b644fc94603f23c1' AND prediction_timestamp >= datetime('now','-21 days') ORDER BY prediction_timestamp ASC" > artifacts/nba-prospective-projections.json
+          npx wrangler d1 execute fbis-nba --remote --json --command "SELECT o.id,o.game_id,o.event_id,o.sport,o.book,o.market,o.side,o.line,o.price,o.no_vig,o.captured_at,o.checkpoint,o.game_start,o.rejected_post_start FROM odds_snapshots o JOIN (SELECT DISTINCT game_id FROM nba_prospective_game_shadow WHERE code_sha <> '00e02556d645d2d13352eaf9b644fc94603f23c1' AND prediction_timestamp >= datetime('now','-21 days')) p ON p.game_id=o.game_id WHERE o.sport='nba' AND o.captured_at >= datetime('now','-21 days') ORDER BY o.captured_at ASC" > artifacts/nba-prospective-odds.json
 
       - name: Link prospective projections to valid point-in-time markets
         run: |
@@ -113,11 +115,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM nba_game_projections WHERE feature_cutoff_timestamp >= datetime('now','-21 days') ORDER BY feature_cutoff_timestamp ASC"             > artifacts/game-projections.json
-          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM odds_snapshots WHERE sport='nba' AND captured_at >= datetime('now','-21 days') ORDER BY captured_at ASC"             > artifacts/nba-odds.json
+          npx wrangler d1 execute fbis-nba --remote --json --command             "SELECT * FROM nba_game_projections WHERE feature_cutoff_timestamp >= datetime('now','-21 days') ORDER BY feature_cutoff_timestamp ASC"             > artifacts/game-projections.json
+          npx wrangler d1 execute fbis-nba --remote --json --command             "SELECT * FROM odds_snapshots WHERE sport='nba' AND captured_at >= datetime('now','-21 days') ORDER BY captured_at ASC"             > artifacts/nba-odds.json
           npx wrangler d1 execute fbis --remote --json --command             "SELECT canonical_event_id, market_type, selection, line, american_price, public_ticket_pct, public_money_pct, snapshot_type, provider_timestamp, collected_at FROM action_market_book_observations WHERE sport='nba' AND collected_at >= datetime('now','-21 days') AND canonical_event_id IS NOT NULL UNION ALL SELECT o.fbis_event_id AS canonical_event_id, s.market AS market_type, s.side AS selection, NULL AS line, NULL AS american_price, s.tickets_percent AS public_ticket_pct, s.money_percent AS public_money_pct, 'CURRENT' AS snapshot_type, o.collected_at AS provider_timestamp, o.collected_at AS collected_at FROM shadow_market_observations o JOIN shadow_market_splits s ON s.observation_id=o.id WHERE lower(o.league)='nba' AND o.collected_at >= datetime('now','-21 days') AND o.fbis_event_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM action_market_book_observations a WHERE a.provider_event_id=o.action_game_id) ORDER BY collected_at ASC"             > artifacts/nba-action.json
-          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM nba_wager_decisions WHERE decision_timestamp >= datetime('now','-365 days') ORDER BY decision_timestamp ASC"             > artifacts/prior-decisions.json || echo '[]' > artifacts/prior-decisions.json
-          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM nba_confidence_calibration ORDER BY created_at DESC LIMIT 1"             > artifacts/confidence-calibration.json || echo '[]' > artifacts/confidence-calibration.json
+          npx wrangler d1 execute fbis-nba --remote --json --command             "SELECT * FROM nba_wager_decisions WHERE decision_timestamp >= datetime('now','-365 days') ORDER BY decision_timestamp ASC"             > artifacts/prior-decisions.json || echo '[]' > artifacts/prior-decisions.json
+          npx wrangler d1 execute fbis-nba --remote --json --command             "SELECT * FROM nba_confidence_calibration ORDER BY created_at DESC LIMIT 1"             > artifacts/confidence-calibration.json || echo '[]' > artifacts/confidence-calibration.json
 
       - name: Build strict game-level decisions
         run: |
@@ -130,9 +132,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --file=migrations/0041_nba_market_qualification.sql
-          npx wrangler d1 execute fbis --remote --file=migrations/0042_nba_game_level_decision.sql
-          npx wrangler d1 execute fbis --remote --file=artifacts/nba-game-decisions.sql
+          npx wrangler d1 execute fbis-nba --remote --file=migrations/0041_nba_market_qualification.sql
+          npx wrangler d1 execute fbis-nba --remote --file=migrations/0042_nba_game_level_decision.sql
+          npx wrangler d1 execute fbis-nba --remote --file=artifacts/nba-game-decisions.sql
 
       - name: Refresh empirical confidence calibration
         env:
@@ -141,13 +143,13 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            npx wrangler d1 execute fbis --remote --json --command               "SELECT * FROM nba_wager_decisions WHERE graded_at IS NOT NULL ORDER BY decision_timestamp ASC"               > artifacts/all-decisions.json
+            npx wrangler d1 execute fbis-nba --remote --json --command               "SELECT * FROM nba_wager_decisions WHERE graded_at IS NOT NULL ORDER BY decision_timestamp ASC"               > artifacts/all-decisions.json
           else
             cp artifacts/prior-decisions.json artifacts/all-decisions.json
           fi
           node scripts/nba-confidence-calibrate.mjs input=artifacts/all-decisions.json
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            npx wrangler d1 execute fbis --remote --file=artifacts/nba-confidence-calibration.sql
+            npx wrangler d1 execute fbis-nba --remote --file=artifacts/nba-confidence-calibration.sql
           fi
 
       - name: Validate wagering evidence
@@ -157,11 +159,11 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            npx wrangler d1 execute fbis --remote --json --command               "SELECT * FROM nba_wager_decisions ORDER BY decision_timestamp ASC"               > artifacts/all-decisions.json
+            npx wrangler d1 execute fbis-nba --remote --json --command               "SELECT * FROM nba_wager_decisions ORDER BY decision_timestamp ASC"               > artifacts/all-decisions.json
           fi
           node scripts/nba-decision-validate.mjs input=artifacts/all-decisions.json
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            npx wrangler d1 execute fbis --remote --file=artifacts/nba-decision-validation.sql
+            npx wrangler d1 execute fbis-nba --remote --file=artifacts/nba-decision-validation.sql
           fi
 
       - name: Archive reports

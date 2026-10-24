@@ -5,6 +5,7 @@
  */
 import { readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import { resolveD1ImportTarget } from "./d1-import-lock-retry.mjs";
 import { pathToFileURL } from "node:url";
 
 const defaultSql=`SELECT
@@ -50,7 +51,7 @@ export function parseWranglerD1Counts(body) {
 
 export async function queryWranglerReadOnly(sql) {
   return new Promise((resolve,reject)=>{
-    const child=spawn("npx",["wrangler","d1","execute","fbis","--remote","--json","--command",sql],{
+    const child=spawn("npx",["wrangler","d1","execute",resolveD1ImportTarget(),"--remote","--json","--command",sql],{
       stdio:["ignore","pipe","pipe"],env:process.env,
     });
     let stdout="",stderr="";

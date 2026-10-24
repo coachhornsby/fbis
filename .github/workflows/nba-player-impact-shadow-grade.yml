@@ -43,7 +43,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM nba_player_prop_impact_shadow WHERE feature_cutoff_timestamp >= datetime('now','-45 days') ORDER BY feature_cutoff_timestamp ASC"             > artifacts/nba-impact-shadow.json || echo '[]' > artifacts/nba-impact-shadow.json
+          npx wrangler d1 execute fbis-nba --remote --json --command             "SELECT * FROM nba_player_prop_impact_shadow WHERE feature_cutoff_timestamp >= datetime('now','-45 days') ORDER BY feature_cutoff_timestamp ASC"             > artifacts/nba-impact-shadow.json || echo '[]' > artifacts/nba-impact-shadow.json
           npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM prizepicks_prop_lines WHERE sport='nba' AND collected_at >= datetime('now','-45 days') ORDER BY collected_at ASC"             > artifacts/nba-prizepicks.json || echo '[]' > artifacts/nba-prizepicks.json
 
       - name: Grade impact challenger against baseline
@@ -57,9 +57,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --file=migrations/0048_nba_player_impact.sql
+          npx wrangler d1 execute fbis-nba --remote --file=migrations/0048_nba_player_impact.sql
           if [ -s artifacts/nba-impact-shadow-grade.sql ]; then
-            npx wrangler d1 execute fbis --remote --file=artifacts/nba-impact-shadow-grade.sql
+            npx wrangler d1 execute fbis-nba --remote --file=artifacts/nba-impact-shadow-grade.sql
           fi
 
       - name: Archive shadow validation report
