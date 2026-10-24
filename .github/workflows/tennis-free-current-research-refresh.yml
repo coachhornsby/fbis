@@ -34,3 +34,9 @@ jobs:
             jq -e '.ok == true and .source=="TENNISMYLIFE" and .validatedWithStats>0 and .officialSettlementsCreated==0 and .contractTradingAuthorized==false' "/tmp/${tour}-free-research.json"
             jq -r '[.tour, (.validatedWithStats|tostring), (.newVersions|tostring), (.sourceFiles|map(.rawKey)|join(";"))] | @tsv' "/tmp/${tour}-free-research.json" >> "${GITHUB_STEP_SUMMARY}"
           done
+          curl --fail-with-body -sS --retry 2 --max-time 90 \
+            -X POST "${BASE}/api/tennis-free-canonical-intelligence" \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" -d '{}' > /tmp/tennis-identity-coverage.json
+          jq -e '.ok == true and .insufficientIdentityEvidenceFailsClosed == true and .contractTradingAuthorized == false' /tmp/tennis-identity-coverage.json
+          jq -r '.tours[] | [.tour,(.linkedIds|tostring),(.unlinkedIds|tostring)] | @tsv' /tmp/tennis-identity-coverage.json >> "${GITHUB_STEP_SUMMARY}"
