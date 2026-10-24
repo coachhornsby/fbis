@@ -73,8 +73,8 @@ test("CFB hot quote model preserves provider price basis, forbids unverified sid
   capturedAt:"2026-10-24T14:55:00Z"}),null);
 });
 test("overflow writes prefer healthy Q4b but preserve readable legacy partitions",async()=>{
- const db=bytes=>({prepare:()=>({all:async()=>({results:[{healthy:1}],meta:{size_after:bytes}}),
-    first:async()=>({ok:1})})});
+ const db=bytes=>({prepare:()=>{const statement={all:async()=>({results:[{healthy:1}],meta:{size_after:bytes}}),
+    first:async()=>({ok:1}),bind:()=>statement};return statement;}});
  const env={MARKET_HISTORY_2026Q4B_DB:db(100000),
   MARKET_HISTORY_2026Q4_DB:db(9100000000),MARKET_HISTORY_DB:db(9999998000)};
  const target=await resolveMarketHistoryWriteDb(env,{now});
