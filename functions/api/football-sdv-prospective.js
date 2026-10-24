@@ -6,6 +6,7 @@ import {authorizeHarvest,unauthorizedBody} from "../lib/auth.js";
 import {sha256Hex} from "../lib/sha256Hex.js";
 import {querySdvMatchupFromSportDb} from "./football-sdv-matchup-research.js";
 import {gradeRegulationSimulations} from "../lib/footballSimulationValidationResearch.js";
+import {compareNflProspectiveShadowReceipts,NFL_STANDARD_SHADOW,NFL_VERIFIED_TRANSITION_SHADOW} from "../lib/nflSdvProspectivePairedEvaluation.js";
 const json=(v,s=200)=>new Response(JSON.stringify(v),{status:s,headers:{
  "content-type":"application/json","cache-control":"no-store","x-content-type-options":"nosniff"}});
 const sportOk=s=>["nfl","cfb"].includes(s);
@@ -160,6 +161,27 @@ export async function prospectiveFootballPerformance(env,{sport,now=new Date().t
   [...byModel].map(([id,rows])=>[id,rows.length])),totalModelReceipts:[...byModel.values()].reduce((n,r)=>n+r.length,0),
   calibrated:false,canQualify:false,canAuthorizeWager:false};
 }
+export async function prospectiveNflPairedPerformance(env,{now=new Date().toISOString()}={}){
+ if(!Number.isFinite(time(now)))throw Error("INVALID_NFL_PROSPECTIVE_PAIRS_CLOCK");
+ const db=d1(env,"nfl");
+ const q=await db.prepare(
+  "SELECT r.receipt_id receiptId,r.model_id modelId,r.game_id gameId,"+
+  "r.home_team_id homeTeamId,r.away_team_id awayTeamId,r.kickoff,"+
+  "r.captured_at capturedAt,r.projected_home projectedHome,r.projected_away projectedAway,"+
+  "r.home_reg_lead homeLead,r.away_reg_lead awayLead,r.reg_tie tieProb,"+
+  "g.graded_at gradedAt,g.source_observed_at observedAt,"+
+  "g.outcome_source_fingerprint outcomeFingerprint,"+
+  "g.actual_home actualHome,g.actual_away actualAway "+
+  "FROM football_sdv_prospective_receipts r "+
+  "JOIN football_sdv_prospective_grades g ON g.receipt_id=r.receipt_id "+
+  "WHERE r.sport='nfl' AND r.model_id IN (?,?) "+
+  "AND g.regulation_only=1 AND r.captured_at<r.kickoff "+
+  "ORDER BY r.kickoff DESC LIMIT 1200"
+ ).bind(NFL_STANDARD_SHADOW,NFL_VERIFIED_TRANSITION_SHADOW).all();
+ if(!Array.isArray(q?.results))throw Error("NFL_PROSPECTIVE_PAIR_QUERY_FAILED");
+ return compareNflProspectiveShadowReceipts(q.results,{asOf:now,minGames:30});
+}
+
 export async function onRequest({request,env}){
  const auth=authorizeHarvest(request,env);
  if(!auth.ok)return json(unauthorizedBody(auth.reason),403);
@@ -167,6 +189,10 @@ export async function onRequest({request,env}){
  if(!sportOk(sport))return json({ok:false,error:"INVALID_SPORT"},400);
  try{
   if(request.method==="GET"){
+   if(u.searchParams.get("mode")==="paired"){
+    if(sport!=="nfl")return json({ok:false,error:"NFL_ONLY"},400);
+    return json(await prospectiveNflPairedPerformance(env));
+   }
    if(u.searchParams.get("mode")==="performance")
     return json(await prospectiveFootballPerformance(env,{sport}));
    const db=d1(env,sport),now=Date.now(),until=new Date(now+8*86400000).toISOString();
