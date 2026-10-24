@@ -169,6 +169,8 @@ SPORT_DB_MODE_WNBA = "shadow"
 SPORT_DB_MODE_MLB = "shadow"
 SPORT_DB_MODE_SOCCER = "shadow"
 SPORT_DB_MODE_TENNIS = "shadow"
+# Read/write access is research-only and restricted to TENNIS_DB + ARCHIVE.
+TENNIS_FREE_RESEARCH_ENABLED = "true"
 SPORT_DB_MODE_NPB = "shadow"
 SPORT_DB_MODE_KBO = "shadow"
 # NBA database-only authority: independently qualified; preserve PRIMARY for safe recovery.
