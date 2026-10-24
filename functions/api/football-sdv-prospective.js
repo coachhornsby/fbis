@@ -6,6 +6,7 @@ import {authorizeHarvest,unauthorizedBody} from "../lib/auth.js";
 import {sha256Hex} from "../lib/sha256Hex.js";
 import {querySdvMatchupFromSportDb} from "./football-sdv-matchup-research.js";
 import {gradeRegulationSimulations} from "../lib/footballSimulationValidationResearch.js";
+import {selectProspectiveRegulationOutcome,KICKOFF_MATCH_TOLERANCE_MS} from "../lib/footballProspectiveOutcomeSelection.js";
 import {compareNflProspectiveShadowReceipts,NFL_STANDARD_SHADOW,NFL_VERIFIED_TRANSITION_SHADOW} from "../lib/nflSdvProspectivePairedEvaluation.js";
 const json=(v,s=200)=>new Response(JSON.stringify(v),{status:s,headers:{
  "content-type":"application/json","cache-control":"no-store","x-content-type-options":"nosniff"}});
@@ -81,44 +82,80 @@ export async function captureFootballProspective(env,{sport,gameId,now=new Date(
   capturedAt:stored.capturedAt,status:Number(write?.meta?.changes)===1?"NEW":"EXISTING",
   canQualify:false,canAuthorizeWager:false};
 }
-export async function gradeFootballProspective(env,{sport,now=new Date().toISOString(),limit=35}={}){
- if(!sportOk(sport)||!Number.isFinite(time(now))||!Number.isInteger(limit)||limit<1||limit>35)
+export async function gradeFootballProspective(env,{sport,now=new Date().toISOString(),limit=120}={}){
+ if(!sportOk(sport)||!Number.isFinite(time(now))||!Number.isInteger(limit)||limit<1||limit>160)
   throw Error("INVALID_GRADING_SCOPE");
- const db=d1(env,sport);
+ const db=d1(env,sport),cutoff=new Date(time(now)-3*3600000).toISOString();
+ // EXISTS excludes old receipts with no verified final. Otherwise the oldest
+ // 35 unresolved events block the later fully verified games indefinitely.
  const pending=await db.prepare(
-  "SELECT r.receipt_id receiptId,r.game_id gameId,r.kickoff,"+
+  "SELECT r.receipt_id receiptId,r.game_id gameId,r.kickoff,r.sport,"+
   "r.captured_at capturedAt,r.home_team_id homeTeamId,r.away_team_id awayTeamId "+
   "FROM football_sdv_prospective_receipts r "+
   "LEFT JOIN football_sdv_prospective_grades o ON o.receipt_id=r.receipt_id "+
   "WHERE r.sport=? AND r.kickoff<? AND o.receipt_id IS NULL "+
-  "ORDER BY r.kickoff LIMIT ?"
- ).bind(sport,new Date(time(now)-3*3600000).toISOString(),limit).all();
+  "AND EXISTS (SELECT 1 FROM football_sdv_verified_games s WHERE "+
+  "s.sport=r.sport AND s.home_team_id=r.home_team_id "+
+  "AND s.away_team_id=r.away_team_id "+
+  "AND ABS(unixepoch(s.kickoff)-unixepoch(r.kickoff))<=1800 "+
+  "AND s.source_observed_at>r.kickoff AND s.source_observed_at>r.captured_at "+
+  "AND s.source_observed_at<=? AND s.evidence_class='POSTGAME_RECONSTRUCTED' "+
+  "AND s.prospective=0 AND s.can_authorize_wager=0) "+
+  "ORDER BY r.kickoff ASC,r.receipt_id ASC LIMIT ?"
+ ).bind(sport,cutoff,now,limit).all();
  if(!Array.isArray(pending?.results))throw Error("PROSPECTIVE_PENDING_UNAVAILABLE");
- let graded=0,unavailable=0;
+ const all=await db.prepare(
+  "SELECT COUNT(*) pending FROM football_sdv_prospective_receipts r "+
+  "LEFT JOIN football_sdv_prospective_grades g ON g.receipt_id=r.receipt_id "+
+  "WHERE r.sport=? AND r.kickoff<? AND g.receipt_id IS NULL"
+ ).bind(sport,cutoff).first();
+ if(!all||!Number.isFinite(all.pending))throw Error("PROSPECTIVE_PENDING_COUNT_UNAVAILABLE");
+ if(!pending.results.length)return {ok:true,sport,checked:0,graded:0,
+  pendingNotGraded:all.pending,awaitingOfficialOutcome:all.pending,
+  sourceConflicts:0,canQualify:false,canAuthorizeWager:false};
+ const startMs=Math.min(...pending.results.map(r=>time(r.kickoff)))-KICKOFF_MATCH_TOLERANCE_MS;
+ const endMs=Math.max(...pending.results.map(r=>time(r.kickoff)))+KICKOFF_MATCH_TOLERANCE_MS;
+ if(!Number.isFinite(startMs)||!Number.isFinite(endMs))throw Error("PROSPECTIVE_INVALID_KICKOFF");
+ const history=await db.prepare(
+  "SELECT sport,game_id sourceGameId,home_team_id homeTeamId,"+
+  "away_team_id awayTeamId,kickoff,source_model sourceModel,"+
+  "score_home homeScore,score_away awayScore,"+
+  "source_fingerprint sourceFingerprint,source_observed_at observedAt "+
+  "FROM football_sdv_verified_games WHERE sport=? "+
+  "AND unixepoch(kickoff)>=? AND unixepoch(kickoff)<=? "+
+  "AND source_observed_at<=? "+
+  "AND evidence_class='POSTGAME_RECONSTRUCTED' AND prospective=0 "+
+  "AND can_authorize_wager=0 "+
+  "ORDER BY kickoff ASC,source_observed_at DESC LIMIT 2001"
+ ).bind(sport,Math.floor(startMs/1000),Math.ceil(endMs/1000),now).all();
+ if(!Array.isArray(history?.results)||history.results.length>2000)
+  throw Error("PROSPECTIVE_SOURCE_COHORT_UNAVAILABLE_OR_TRUNCATED");
+ const sourceByTeams=new Map();
+ for(const h of history.results){
+  const key=[h.homeTeamId,h.awayTeamId].join("|");
+  if(!sourceByTeams.has(key))sourceByTeams.set(key,[]);
+  sourceByTeams.get(key).push(h);
+ }
+ let graded=0,awaiting=0,conflicts=0;
  for(const r of pending.results){
-  const result=await db.prepare(
-   "SELECT game_id sourceGameId,score_home homeScore,score_away awayScore,"+
-   "source_fingerprint sourceFingerprint,source_observed_at observedAt "+
-   "FROM football_sdv_verified_games WHERE sport=? "+
-   "AND home_team_id=? AND away_team_id=? "+
-   "AND substr(kickoff,1,16)=substr(?,1,16) "+
-   "AND source_observed_at>? AND source_observed_at>? "+
-   "AND evidence_class='POSTGAME_RECONSTRUCTED' AND prospective=0 "+
-   "AND can_authorize_wager=0 ORDER BY source_observed_at DESC LIMIT 1"
-  ).bind(sport,r.homeTeamId,r.awayTeamId,r.kickoff,r.capturedAt,r.kickoff).first();
-  if(!result){unavailable++;continue}
+  const sources=sourceByTeams.get([r.homeTeamId,r.awayTeamId].join("|"))||[];
+  const match=selectProspectiveRegulationOutcome(r,sources,{asOf:now});
+  if(match.status==="CONFLICTING_VERIFIED_SCORES"){conflicts++;continue}
+  if(!match.outcome){awaiting++;continue}
+  const o=match.outcome;
   const w=await db.prepare(
    "INSERT OR IGNORE INTO football_sdv_prospective_grades "+
    "(receipt_id,sport,game_id,source_game_id,outcome_source_fingerprint,"+
    "graded_at,source_observed_at,regulation_only,actual_home,actual_away) "+
    "VALUES (?,?,?,?,?,?,?,1,?,?)"
-  ).bind(r.receiptId,sport,r.gameId,result.sourceGameId,
-   result.sourceFingerprint,now,result.observedAt,result.homeScore,
-   result.awayScore).run();
+  ).bind(r.receiptId,sport,r.gameId,o.sourceGameId,o.sourceFingerprint,
+   now,o.observedAt,o.homeScore,o.awayScore).run();
   graded+=Number(w?.meta?.changes)||0;
  }
  return {ok:true,sport,checked:pending.results.length,graded,
-  awaitingOfficialOutcome:unavailable,canQualify:false,canAuthorizeWager:false};
+  pendingNotGraded:Math.max(0,all.pending-graded),
+  awaitingOfficialOutcome:Math.max(0,all.pending-pending.results.length)+awaiting,
+  sourceConflicts:conflicts,canQualify:false,canAuthorizeWager:false};
 }
 export async function prospectiveFootballPerformance(env,{sport,now=new Date().toISOString()}={}){
  if(!sportOk(sport)||!Number.isFinite(time(now)))throw Error("INVALID_PERFORMANCE_SCOPE");
