@@ -5,6 +5,12 @@ const chicagoDay = instant => new Intl.DateTimeFormat('en-CA',{
  timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'
 }).format(new Date(instant));
 const historicalKey = (series,day) => ROOT+'history/'+day+'/'+series+'.json';
+function ruleStart(primary){
+ const m=/originally scheduled for ([A-Z][a-z]{2} \d{1,2}, \d{4}) at (\d{1,2}:\d{2} [AP]M) (EDT|EST)/.exec(primary||'');
+ if(!m)return null;
+ const time=Date.parse(m[1]+' '+m[2]+' GMT'+(m[3]==='EDT'?'-0400':'-0500'));
+ return Number.isFinite(time)?time:null;
+}
 export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fetch,webCrypto=crypto,maxSeries=6,maxPages=5}={}) {
  if(!env.ARCHIVE?.get||!env.ARCHIVE?.put)return {ok:false,code:'ARCHIVE_BINDING_MISSING'};
  const previous=await env.ARCHIVE.get(ROOT+'status.json');const status=previous?await previous.json():null;
@@ -50,8 +56,8 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
     const byTicker=new Map((Array.isArray(prior?.records)?prior.records:[]).map(m=>[m.ticker,m]));
     // Preserve the observed pregame snapshot, not a postgame close price.
     for(const m of markets){
-      if(Number.isFinite(eventStart) && new Date(now).getTime() >=
-         Date.parse(m.occurrence_datetime||m.open_time||'9999-01-01'))continue;
+      const kickoff=ruleStart(m.rules_primary);
+      if(kickoff==null || now.getTime()>=kickoff)continue;
       byTicker.set(m.ticker,m);
     }
     await env.ARCHIVE.put(key,JSON.stringify({
