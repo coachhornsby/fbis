@@ -32,7 +32,7 @@ for(const sport of ["nfl","cfb"]){
  const response=await request("/api/football-sdv-prospective?sport="+sport);
  if(response.status!==200||response.body.ok!==true||response.body.canAuthorizeWager!==false)
   throw Error("PROSPECTIVE_SLATE_UNAVAILABLE:"+sport);
- const slate=response.body.upcoming.slice(0,80);
+ const slate=response.body.upcoming.slice(0,240);
  s.slate=slate.length;
  for(const g of slate){
   try{
