@@ -1,4 +1,3 @@
-import {authorizeHarvest} from "../lib/auth.js";
 import {signedPolymarketUsHeaders} from "../lib/polymarketUsSignedWs.js";
 const json=(body,status)=>Response.json(body,{status,headers:{
  "cache-control":"private, no-store","x-robots-tag":"noindex","x-content-type-options":"nosniff"}});
@@ -6,7 +5,9 @@ const json=(body,status)=>Response.json(body,{status,headers:{
  * arbitrary path signing or credential disclosure. Require existing harvest backend identity.
  */
 export async function onRequestPost({request,env}){
- if(!authorizeHarvest(request,env).ok)return json({ok:false,code:"UNAUTHORIZED"},403);
+ const supplied=request.headers.get("x-harvest-secret");
+ if(!env.HARVEST_SECRET||!supplied||supplied!==env.HARVEST_SECRET)
+   return json({ok:false,code:"UNAUTHORIZED"},403);
  if(!env.POLYMARKET_US_KEY_ID||!env.POLYMARKET_US_SECRET_KEY)
    return json({ok:false,code:"ACCOUNT_CREDENTIALS_NOT_CONFIGURED"},503);
  try{
