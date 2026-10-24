@@ -48,11 +48,17 @@ export function prepareProspectiveFootballReceipt(result,{now}){
   projectedHome:score[0],projectedAway:score[1],
   evidence:JSON.stringify({evidenceFingerprint:result.evidenceFingerprint,
     mode:result.mode,sourceDb:result.sourceDb,asOf:result.researchAsOf,
-    sourceSnapshotId:result.sourceSnapshotId,canAuthorizeWager:false})};
+    sourceSnapshotId:result.sourceSnapshotId,
+    variant:result.variant||"standard",timeEvidence:result.timeEvidence||null,
+    fieldTransitionMode:result.fieldTransitionMode||null,
+    officialDurationDrives:result.officialDurationDrives||null,
+    linkedNextFieldDrives:result.linkedNextFieldDrives||null,
+    canAuthorizeWager:false})};
 }
-export async function captureFootballProspective(env,{sport,gameId,now=new Date().toISOString()}){
- if(!sportOk(sport)||!idOk(gameId))throw Error("PROSPECTIVE_INVALID_SCOPE");
- const result=await querySdvMatchupFromSportDb(env,{sport,gameId,now});
+export async function captureFootballProspective(env,{sport,gameId,now=new Date().toISOString(),variant="standard"}){
+ if(!sportOk(sport)||!idOk(gameId)||!["standard","nfl-sdv-v03"].includes(variant)||
+  (variant==="nfl-sdv-v03"&&sport!=="nfl"))throw Error("PROSPECTIVE_INVALID_SCOPE");
+ const result=await querySdvMatchupFromSportDb(env,{sport,gameId,now,variant});
  if(!result.ok)return {ok:false,reason:result.reason,sport,gameId,canAuthorizeWager:false};
  const row=prepareProspectiveFootballReceipt(result,{now}),db=d1(env,sport);
  const write=await db.prepare(
@@ -117,7 +123,7 @@ export async function prospectiveFootballPerformance(env,{sport,now=new Date().t
  if(!sportOk(sport)||!Number.isFinite(time(now)))throw Error("INVALID_PERFORMANCE_SCOPE");
  const db=d1(env,sport);
  const res=await db.prepare(
-  "SELECT r.receipt_id prospectiveReceiptId,r.game_id gameId,r.model_version modelVersion,"+
+  "SELECT r.receipt_id prospectiveReceiptId,r.game_id gameId,r.model_id modelId,r.model_version modelVersion,"+
   "r.captured_at frozenAt,r.kickoff,r.home_team_id homeTeamId,r.away_team_id awayTeamId,"+
   "r.projected_home projectedHome,r.projected_away projectedAway,"+
   "r.home_reg_lead homeWinProb,r.away_reg_lead awayWinProb,r.reg_tie tieProb,"+
@@ -134,12 +140,25 @@ export async function prospectiveFootballPerformance(env,{sport,now=new Date().t
  // keyed by actual kickoff and canonical participant identities.
  const dedup=new Map();
  for(const r of res.results){
-  const key=[sport,r.homeTeamId,r.awayTeamId,new Date(time(r.kickoff)).toISOString()].join("|");
+  const key=[sport,r.modelId,r.homeTeamId,r.awayTeamId,
+   new Date(time(r.kickoff)).toISOString()].join("|");
   const prior=dedup.get(key);
   if(!prior||time(r.frozenAt)<time(prior.frozenAt))dedup.set(key,r);
  }
- return gradeRegulationSimulations([...dedup.values()].map(r=>({...r,sport,regulationOnly:true})),
-  {sport,asOf:now,minSample:30});
+ const byModel=new Map();
+ for(const r of dedup.values()){
+  if(!byModel.has(r.modelId))byModel.set(r.modelId,[]);
+  byModel.get(r.modelId).push({...r,sport,regulationOnly:true});
+ }
+ const reports={};
+ for(const [modelId,rows] of byModel)
+  reports[modelId]=gradeRegulationSimulations(rows,{sport,asOf:now,minSample:30});
+ const baselineId=sport==="nfl"?"NFL-VERIFIED-POSSESSION-MATCHUP-SHADOW-v0":
+  "CFB-VERIFIED-DRIVE-MATCHUP-SHADOW-v0";
+ const baseline=reports[baselineId]||gradeRegulationSimulations([],{sport,asOf:now,minSample:30});
+ return {...baseline,cohorts:reports,gradedPerModel:Object.fromEntries(
+  [...byModel].map(([id,rows])=>[id,rows.length])),totalModelReceipts:[...byModel.values()].reduce((n,r)=>n+r.length,0),
+  calibrated:false,canQualify:false,canAuthorizeWager:false};
 }
 export async function onRequest({request,env}){
  const auth=authorizeHarvest(request,env);
@@ -167,7 +186,8 @@ export async function onRequest({request,env}){
   if(body?.action==="grade")return json(await gradeFootballProspective(env,{sport}));
   if(body?.action!=="capture"||!idOk(body.gameId))
    return json({ok:false,error:"INVALID_CAPTURE"},400);
-  const result=await captureFootballProspective(env,{sport,gameId:body.gameId});
+  const result=await captureFootballProspective(env,{sport,gameId:body.gameId,
+   variant:body.variant||"standard"});
   return json(result,result.ok?200:422);
  }catch(e){return json({ok:false,error:String(e.message||e).slice(0,120),
   canAuthorizeWager:false},503)}
