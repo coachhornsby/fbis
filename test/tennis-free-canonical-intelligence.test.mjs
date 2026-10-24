@@ -13,7 +13,7 @@ sql.exec(`CREATE TABLE tennis_free_current_matches(source_event_key TEXT PRIMARY
 sql.exec(`CREATE TABLE tennis_free_current_observations(observation_key TEXT PRIMARY KEY,
  source_event_key TEXT,observed_at TEXT,parsed_json TEXT)`);
 sql.exec(readFileSync(new URL('../migrations/0126_tennis_current_identity_links.sql',import.meta.url),'utf8'));
-const wrap={prepare(query){const st=sql.prepare(query);return {bind(...params){return {
+const wrap={prepare(query){const st=sql.prepare(query);return {all:async()=>({results:st.all()}),first:async()=>st.get()||null,run:async()=>({meta:{changes:st.run().changes}}),bind(...params){return {
  first:async()=>st.get(...params)||null,
  all:async()=>({results:st.all(...params)}),
  run:async()=>({meta:{changes:st.run(...params).changes}})
