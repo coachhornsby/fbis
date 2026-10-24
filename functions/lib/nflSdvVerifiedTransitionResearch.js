@@ -74,12 +74,12 @@ export function simulateNflVerifiedDriveTransitionShadow({
    history.defenseSamples.get(team).filter(valid).length>=24,
    "NFL_TRANSITION_TEAM_SOURCE_COVERAGE_INSUFFICIENT");
  }
- const modelId="NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3";
+ const modelId="NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3.1";
  const evidenceFingerprint=sha256Hex([modelId,history.sourceFingerprint,"OFFICIAL_DRIVE_TIME_AND_LINKED_TRANSITIONS"].join("|"));
  const seed=seedFor([modelId,gameId,snapshotId,frozenAt,evidenceFingerprint].join("|"));
  const scoredTotal=projectedHome+projectedAway,scoredMargin=projectedHome-projectedAway;
  const result=runSportSimulationResearch({
-  sport:"nfl",eventId:gameId,modelId,modelVersion:"0.3.0",
+  sport:"nfl",eventId:gameId,modelId,modelVersion:"0.3.1",
   publishedAt:frozenAt,eventStart:kickoff,seed,iterations,
   simulate:({random})=>{
    // Template preserves actual observed number and order of regulation drives.
