@@ -24,7 +24,7 @@ jobs:
         shard: [0, 1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Validate source-only SQL, foreign-sport fences, digest and restore contract
@@ -54,7 +54,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - uses: actions/download-artifact@v4.1.8

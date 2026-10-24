@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4.1.0
+      - uses: actions/setup-node@v7
         with: {node-version: '22'}
       - name: Validate temporal holdouts and research-only constraints
         run: node --test test/tennis-crosslevel-walkforward.test.mjs

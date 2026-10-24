@@ -36,7 +36,7 @@ jobs:
       SPORT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.sport_id || '2' }}
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Unit-test rematch ingestion
