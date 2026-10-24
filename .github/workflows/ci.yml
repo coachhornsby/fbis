@@ -86,6 +86,8 @@ jobs:
         run: node --test test/nba-postcutover-recovery.test.js
       - name: Verify NBA scheduled writers target approved sport database
         run: node --test test/nba-scheduled-writer-owner.test.mjs
+      - name: Gate complete NBA historical source-key membership audit
+        run: node --test test/nba-primary-source-key-coverage.test.mjs
       - name: Verify NBA PRIMARY archive is immutable and independently recoverable
         run: node --test test/nba-primary-retirement-archive.test.mjs
       - name: Verify cold historical readers and original source storage contracts
