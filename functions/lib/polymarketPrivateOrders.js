@@ -18,8 +18,18 @@ const quantity=v=>{const n=number(v);return n!=null&&n>0&&n<10000000?n:null;};
 export function privateOrderExecution(envelope){
  const exec=envelope?.orderSubscriptionUpdate?.execution||
    envelope?.order_subscription_update?.execution||null;
- if(!exec||!["EXECUTION_TYPE_FILL","EXECUTION_TYPE_PARTIAL_FILL"].includes(exec.type))return null;
+ if(!exec||exec.type!=="EXECUTION_TYPE_FILL")return null;
  const o=exec.order||{},intent=String(o.intent||"").toUpperCase();
+ // A single verified, fully filled order is safe for the current sheet ledger.
+ // Multi-fill and open/partially-filled orders require a separate cumulative
+ // reconciliation design, not a premature full-order P/L claim.
+ const filled=quantity(exec.lastShares),cum=quantity(o.cumQuantity);
+ const leaves=number(o.leavesQuantity);
+ const ordered=quantity(o.quantity);
+ if(o.state!=="ORDER_STATE_FILLED"||filled==null||cum==null||ordered==null||
+   Math.abs(filled-cum)>0.000001||Math.abs(cum-ordered)>0.000001||
+   leaves!==0)return null;
+
  const intentSide={"ORDER_INTENT_BUY_LONG":"YES","ORDER_INTENT_BUY_SHORT":"NO"}[intent]||null;
  const declared={"OUTCOME_SIDE_YES":"YES","OUTCOME_SIDE_NO":"NO"}[String(o.outcomeSide||"").toUpperCase()]||null;
  // Outright contradictions require a manual investigation.
