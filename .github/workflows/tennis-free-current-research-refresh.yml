@@ -40,3 +40,9 @@ jobs:
             -H "content-type: application/json" -d '{}' > /tmp/tennis-identity-coverage.json
           jq -e '.ok == true and .insufficientIdentityEvidenceFailsClosed == true and .contractTradingAuthorized == false' /tmp/tennis-identity-coverage.json
           jq -r '.tours[] | [.tour,(.linkedIds|tostring),(.unlinkedIds|tostring)] | @tsv' /tmp/tennis-identity-coverage.json >> "${GITHUB_STEP_SUMMARY}"
+          # Private, historical-observation-backed player intelligence API acceptance.
+          curl --fail-with-body -sS --retry 2 --max-time 60 \\
+            "${BASE}/api/tennis-free-canonical-intelligence?player_id=tennis%3Aatp%3Aresearch%3Adaniil%20medvedev" \\
+            -H "x-harvest-secret: ${HARVEST_SECRET}" > /tmp/tennis-intelligence-smoke.json
+          jq -e '.ok == true and .fbisPlayerId == "tennis:atp:research:daniil medvedev" and .researchStats.matches > 0 and .researchOnly == true and .contractTradingAuthorized == false' /tmp/tennis-intelligence-smoke.json
+          jq -r '[.fbisPlayerId,(.researchStats.matches|tostring),(.eloCoverage//"unknown")] | @tsv' /tmp/tennis-intelligence-smoke.json >> "${GITHUB_STEP_SUMMARY}"
