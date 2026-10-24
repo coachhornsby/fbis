@@ -19,13 +19,13 @@ else{
  const s=await get(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&startDate=${day}&endDate=${end}&gameTypes=R,F,D,L,W`);
  games=(s.dates||[]).flatMap(d=>d.games||[]).filter(g=>g.status?.codedGameState==='F').map(g=>String(g.gamePk));
 }
-let database=null;
+let database=null,token=null,account=null,databaseId=null;
 if(args.persist==='true'){
  // This collector is certified for current legacy ownership only. Stop on a future cutover.
- const token=process.env.CLOUDFLARE_API_TOKEN,account=process.env.CLOUDFLARE_ACCOUNT_ID;if(!token||!account)throw Error('CLOUDFLARE_CREDENTIALS_REQUIRED');
+ token=process.env.CLOUDFLARE_API_TOKEN;account=process.env.CLOUDFLARE_ACCOUNT_ID;if(!token||!account)throw Error('CLOUDFLARE_CREDENTIALS_REQUIRED');
  const r=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/pages/projects/fbis`,{headers:{authorization:`Bearer ${token}`}});const b=await r.json();
  if(!r.ok||!b.success||b.result.deployment_configs.production.env_vars.SPORT_DB_MODE_MLB?.value!=='shadow')throw Error('MLB_OWNER_CHANGED_REQUALIFICATION_REQUIRED');
- const databaseId=b.result.deployment_configs.production.d1_databases?.DB?.id;
+ databaseId=b.result.deployment_configs.production.d1_databases?.DB?.id;
  if(!databaseId)throw Error('AUTHORITATIVE_PRIMARY_BINDING_REQUIRED');
  const capacityResponse=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${databaseId}`,{headers:{authorization:`Bearer ${token}`}});
  const capacity=await capacityResponse.json(),bytes=Number(capacity.result?.file_size);
@@ -39,6 +39,12 @@ for(const id of games.slice(0,limit)){
  try{
   const feed=await get(`https://statsapi.mlb.com/api/v1.1/game/${id}/feed/live`),raw=JSON.stringify(feed),hash=createHash('sha256').update(JSON.stringify({gameData:feed.gameData,liveData:feed.liveData})).digest('hex');
   if(Buffer.byteLength(raw)>25000000)throw Error('GAME_SOURCE_BYTE_BUDGET_EXCEEDED');
+  if(database){
+   const existingResponse=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${databaseId}/query`,{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify({sql:'SELECT game_id FROM mlb_intelligence_game_versions WHERE game_id=? AND source_hash=?',params:[id,hash]})});
+   const existing=await existingResponse.json();if(!existingResponse.ok||!existing.success)throw Error('EXISTING_VERSION_CHECK_FAILED');
+   // Never overwrite archived raw bytes or first-observed normalized evidence on a retry.
+   if(existing.result?.[0]?.results?.length){receipt.processed.push({gameId:id,hash,persisted:true,reusedExistingVersion:true});await fs.writeFile(`${out}/receipt.json`,JSON.stringify(receipt,null,2));continue;}
+  }
   const normalized=normalizeMlbGameFeed(feed,{sourceHash:hash}),base=`models/mlb/intelligence/games/${id}/${hash}`;
   const rawFile=`${out}/${id}-${hash}-raw.json.gz`,normalizedFile=`${out}/${id}-${hash}.json.gz`,sqlFile=`${out}/${id}-${hash}.sql`;
   await fs.writeFile(rawFile,gzipSync(raw));await fs.writeFile(normalizedFile,gzipSync(JSON.stringify(normalized)));
