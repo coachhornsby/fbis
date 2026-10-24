@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import {gradeRegulationSimulations,fitNflDriveOutcomeResearch} from "../functions/lib/footballSimulationValidationResearch.js";
 const asOf="2026-10-23T12:00:00Z";
 const row={sport:"nfl",regulationOnly:true,gameId:"g1",kickoff:"2026-10-20T18:00:00Z",
- frozenAt:"2026-10-19T18:00:00Z",gradedAt:"2026-10-20T22:00:00Z",
- observedAt:"2026-10-21T01:00:00Z",homeScore:28,awayScore:14,
+ frozenAt:"2026-10-19T18:00:00Z",gradedAt:"2026-10-21T01:00:00Z",
+ observedAt:"2026-10-20T22:00:00Z",homeScore:28,awayScore:14,
  projectedHome:24,projectedAway:17,homeWinProb:.75,awayWinProb:.2,tieProb:.05,
  homeBlowoutProb:.3,awayBlowoutProb:.1,prospectiveReceiptId:"receipt-1",
  modelVersion:"test-shadow",sourceFingerprint:"sha256:test"};
@@ -33,4 +33,24 @@ test("NFL descriptive drive rates require timestamped sufficient history",()=>{
  assert.equal(a.calibrated,false);
  a=fitNflDriveOutcomeResearch(ds.map(d=>({...d,observedAt:"2026-10-25T00:00:00Z"})),{asOf});
  assert.equal(a.frequencies,null);
+});
+
+test("Actual grade lifecycle: source observed after kickoff, grade written after observation",()=>{
+ const good={...row,gameId:"live-game",frozenAt:"2026-10-19T18:00:00Z",
+  kickoff:"2026-10-20T18:00:00Z",observedAt:"2026-10-20T22:00:00Z",
+  gradedAt:"2026-10-21T01:00:00Z",prospectiveReceiptId:"sha:live"};
+ const result=gradeRegulationSimulations([good],{sport:"nfl",asOf,minSample:1});
+ assert.equal(result.n,1);
+ assert.equal(result.exclusions.TEMPORAL_VIOLATION,undefined);
+ assert.equal(result.metrics.marginMAE,7);
+ assert.equal(result.canAuthorizeWager,false);
+ for(const bad of [
+  {...good,observedAt:"2026-10-20T17:00:00Z"},
+  {...good,gradedAt:"2026-10-20T21:00:00Z"},
+  {...good,gradedAt:"2026-10-25T12:00:00Z"}
+ ]){
+  const tested=gradeRegulationSimulations([bad],{sport:"nfl",asOf,minSample:1});
+  assert.equal(tested.n,0);
+  assert.equal(tested.exclusions.TEMPORAL_VIOLATION,1);
+ }
 });
