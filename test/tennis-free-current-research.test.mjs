@@ -35,7 +35,8 @@ test('controlled collector archives authentic source and writes only TENNIS_DB',
   .replace(',7,',','+(i+8)+',')).join('\n')+'\n';
  const response=await captureFreeTennisCurrentSeason(env,{tour:'wta',
   now:new Date('2026-10-24T20:00:00Z'),
-  fetchImpl:async(url)=>new Response(url.endsWith('wta_ongoing_tourneys.csv')?csv:seasonCsv,\n   {status:200,headers:{'content-type':'text/csv'}})});
+  fetchImpl:async(url)=>new Response(url.endsWith('wta_ongoing_tourneys.csv')?csv:seasonCsv,
+   {status:200,headers:{'content-type':'text/csv'}})});
  assert.equal(response.ok,true);assert.equal(response.validatedWithStats,1);
  assert.equal(response.newVersions,1);assert.equal(response.officialSettlementsCreated,0);
  assert.equal(archive.length,2);assert.equal(response.sourceFiles.length,2);assert.equal(statements.length,2);
