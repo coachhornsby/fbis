@@ -36,7 +36,7 @@ test('controlled collector archives authentic source and writes only TENNIS_DB',
   fetchImpl:async()=>new Response(csv,{status:200,headers:{'content-type':'text/csv'}})});
  assert.equal(response.ok,true);assert.equal(response.validatedWithStats,1);
  assert.equal(response.newVersions,1);assert.equal(response.officialSettlementsCreated,0);
- assert.equal(archive.length,1);assert.equal(statements.length,2);
+ assert.equal(archive.length,2);assert.equal(response.sourceFiles.length,2);assert.equal(statements.length,2);
  assert.ok(statements[0].sql.includes('tennis_free_current_observations'));
  assert.ok(statements[1].sql.includes('tennis_free_current_matches'));
 });
