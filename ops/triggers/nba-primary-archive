@@ -1,0 +1,1 @@
+Trigger NBA Phase 23 PRIMARY legacy archive into R2. All source D1 reads are SELECT/PRAGMA only. Never delete or truncate PRIMARY. Date 2026-10-23. Scope 31 prefixed plus 7 sport-scoped shared tables.
