@@ -21,6 +21,7 @@ for(let attempt=0;attempt<60;attempt++){
  try{
   const result=await request("/api/football-sdv-prospective?sport=nfl");
   if(result.status===200&&result.body?.ok===true&&result.body.canAuthorizeWager===false&&result.body.slateCapacity>=240&&
+    result.body.gradingContract==="SDV_FINALS_V2_RECONCILED"&&
     result.body.supportedVariants?.includes("nfl-sdv-v031")){
    ready=true;break;
   }
@@ -31,7 +32,8 @@ if(!ready)throw Error("PROSPECTIVE_API_NOT_DEPLOYED_OR_UNHEALTHY");
 for(const sport of ["nfl","cfb"]){
  const s=summary.sport[sport]={slate:0,new:0,existing:0,skipped:{},failures:0,grades:null,variants:{}};
  const response=await request("/api/football-sdv-prospective?sport="+sport);
- if(response.status!==200||response.body.ok!==true||response.body.canAuthorizeWager!==false)
+ if(response.status!==200||response.body.ok!==true||response.body.canAuthorizeWager!==false||
+    response.body.gradingContract!=="SDV_FINALS_V2_RECONCILED")
   throw Error("PROSPECTIVE_SLATE_UNAVAILABLE:"+sport);
  const slate=response.body.upcoming.slice(0,240);
  s.slate=slate.length;
