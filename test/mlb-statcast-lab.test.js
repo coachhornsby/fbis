@@ -56,5 +56,5 @@ test('concurrent identical imports create a single immutable snapshot and reuse 
 });
 
 test('truncated PAs and baserunner-only events never inflate completed-PA K/BB denominators',()=>{
- const lab=buildMlbStatcastLab([packet([row(),row({at_bat_number:2,events:'truncated_pa',description:'ball',type:'B'}),row({at_bat_number:3,events:'caught_stealing_2b',description:'ball',type:'B'})])],{season:2024});assert.equal(lab.pitches,3);assert.equal(lab.plateAppearances,1);assert.equal(lab.metrics.strikeout.value,1);assert.equal(lab.calculationVersion,'mlb-lab-metrics-v1.1');
+ const lab=buildMlbStatcastLab([packet([row(),row({at_bat_number:2,events:'truncated_pa',description:'ball',type:'B'}),row({at_bat_number:3,events:'caught_stealing_2b',description:'ball',type:'B'})])],{season:2024});assert.equal(lab.pitches,3);assert.equal(lab.plateAppearances,1);assert.equal(lab.metrics.strikeout.value,1);assert.equal(lab.calculationVersion,'mlb-lab-metrics-v1.2');
 });
