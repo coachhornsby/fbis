@@ -9,6 +9,7 @@ import CfbDirectionalMatchups from "./CfbDirectionalMatchups.jsx";
 import CfbSeasonStatStrip from "./CfbSeasonStatStrip.jsx";
 import CfbProjectionReliability from "./CfbProjectionReliability.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
+import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
@@ -360,8 +361,8 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       {["cfb","nfl","cbb","nba","wnba","nhl","mlb","npb","kbo","soccer","tennis"].includes(sportId) ? (
         <>
           {["nhl","mlb","npb","kbo"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
-          <PinnoddsCardMarkets game={game} projection={proj} marketFamilies={["spread","total"]} />
-          {["cfb","nfl","cbb","nba","wnba","soccer"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
+          {sportId !== "cfb" ? <PinnoddsCardMarkets game={game} projection={proj} marketFamilies={["spread","total"]} /> : null}
+          {["nfl","cbb","nba","wnba","soccer"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
         </>
       ) : (
         <>
@@ -373,6 +374,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <MoneylinePriceComparison game={game} />
         </>
       )}
+      {sportId === "cfb" ? <CfbThreeVenueLines game={game} /> : null}
       {sportId === "cfb" ? <CfbSeasonStatStrip evidence={game.cfbSeasonEvidence} /> : null}
       {sportId === "cfb" ? <CfbProjectionReliability reliability={game.cfbProjectionReliability} game={game} /> : null}
       {!stored && sportId === "nhl" ? <NhlBettingIntelligence game={game} vm={vm} /> : null}
