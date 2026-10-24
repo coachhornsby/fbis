@@ -84,7 +84,7 @@ export function normalizeVerifiedNflPossessions({
   const current=normalized[i],next=normalized[i+1];
   if(current.endTransition&&next.startTransition){
    current.observedNextStartTransition=next.startTransition;
-   current.observedNextStartYardsToGoal=next.startYardsToGoal;
+   current.observedNextStartYardsToGoal=Number.isInteger(next.officialStartYardsToGoal)?next.officialStartYardsToGoal:next.startYardsToGoal;
    current.observedNextOffense=next.offense;
   }
  }

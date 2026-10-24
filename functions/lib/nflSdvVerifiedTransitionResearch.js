@@ -14,7 +14,10 @@ const finite=x=>typeof x==="number"&&Number.isFinite(x);
 function check(x,reason){if(!x)throw Error(reason)}
 const duration=d=>Number.isInteger(d.officialDurationSeconds)&&
  d.officialDurationSeconds>=0&&d.officialDurationSeconds<=1800;
-const valid=d=>duration(d)&&typeof d.startTransition==="string"&&d.startTransition.length>=2&&
+const valid=d=>d.sourceNormalizerVersion==="NFL_PBP_NORMALIZER_v0.3.1"&&
+ duration(d)&&Number.isInteger(d.officialStartYardsToGoal)&&
+ d.officialStartYardsToGoal>=0&&d.officialStartYardsToGoal<=100&&
+ typeof d.startTransition==="string"&&d.startTransition.length>=2&&
  typeof d.endTransition==="string"&&d.endTransition.length>=2;
 export function mapHistoricalNextOffenseToTarget(d,currentSide){
  if(!["home","away"].includes(currentSide)||!["home","away"].includes(d?.offense)||
@@ -72,12 +75,12 @@ export function simulateNflVerifiedDriveTransitionShadow({
    history.defenseSamples.get(team).filter(valid).length>=24,
    "NFL_TRANSITION_TEAM_SOURCE_COVERAGE_INSUFFICIENT");
  }
- const modelId="NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3";
+ const modelId="NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3.1";
  const evidenceFingerprint=sha256Hex([modelId,history.sourceFingerprint,"OFFICIAL_DRIVE_TIME_AND_LINKED_TRANSITIONS"].join("|"));
  const seed=seedFor([modelId,gameId,snapshotId,frozenAt,evidenceFingerprint].join("|"));
  const scoredTotal=projectedHome+projectedAway,scoredMargin=projectedHome-projectedAway;
  const result=runSportSimulationResearch({
-  sport:"nfl",eventId:gameId,modelId,modelVersion:"0.3.0",
+  sport:"nfl",eventId:gameId,modelId,modelVersion:"0.3.1",
   publishedAt:frozenAt,eventStart:kickoff,seed,iterations,
   simulate:({random})=>{
    // Template preserves actual observed number and order of regulation drives.
@@ -98,9 +101,10 @@ export function simulateNflVerifiedDriveTransitionShadow({
     const quarter=Math.min(4,1+Math.floor(elapsed/900));
     const margin=side==="home"?home-away:away-home;
     const nextSpot=previousExpectedSide===side&&Number.isInteger(expectedYardsToGoal)
-      ?expectedYardsToGoal:slot.startYardsToGoal;
+      ?expectedYardsToGoal:(Number.isInteger(slot.officialStartYardsToGoal)?
+         slot.officialStartYardsToGoal:null);
     const chosen=pick(random,candidates,d=>
-     Math.abs(d.startYardsToGoal-nextSpot)/25+
+     (Number.isInteger(nextSpot)?Math.abs(d.officialStartYardsToGoal-nextSpot)/25:0)+
      Math.abs(d.period-quarter)*.48+
      Math.abs(d.startMargin-margin)/24+
      (previousTransition&&category(previousTransition)!==category(d.startTransition)?1.25:0));

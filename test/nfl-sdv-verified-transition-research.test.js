@@ -38,7 +38,8 @@ function historical(i,verified=true){
   period:1+Math.floor(j/5),plays:7,startYardsToGoal:70+j%20,startMargin:0,
   offensePoints:j%5===0?7:j%5===1?3:0,defensePoints:0,
   ...(verified?{
-   officialDurationSeconds:160+j%5*7,
+   officialDurationSeconds:160+j%5*7,officialStartYardsToGoal:70+j%20,
+   sourceNormalizerVersion:"NFL_PBP_NORMALIZER_v0.3.1",
    startTransition:j%4===0?"KICKOFF":"PUNT",
    endTransition:j%4===1?"PUNT":"SCORE",
    observedNextStartYardsToGoal:73,observedNextStartTransition:"PUNT",
@@ -80,4 +81,12 @@ test("Observed field chain maps historical home/away roles to current offense co
  assert.equal(mapHistoricalNextOffenseToTarget({offense:"away",observedNextOffense:"home"},"home"),"away");
  assert.equal(mapHistoricalNextOffenseToTarget({offense:"home",observedNextOffense:"home"},"away"),"away");
  assert.equal(mapHistoricalNextOffenseToTarget({offense:"home",observedNextOffense:null},"home"),null);
+});
+
+test("NFL 0.3.1 refuses superseded 0.3 kickoff-yardline normalization even with complete timing",()=>{
+ const archived=Array.from({length:34},(_,i)=>historical(i,true));
+ const stale=archived.map(g=>({...g,drives:g.drives.map(d=>({...d,
+  sourceNormalizerVersion:"NFL_PBP_NORMALIZER_v0.3"}))}));
+ assert.throws(()=>simulateNflVerifiedDriveTransitionShadow({...base,trainingGames:stale}),
+  /NFL_TRANSITION_OFFICIAL_SOURCE_COVERAGE_INSUFFICIENT/);
 });

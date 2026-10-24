@@ -4,7 +4,7 @@
  * verified regulation final. No historical reconstructed picks may enter.
  */
 export const NFL_STANDARD_SHADOW="NFL-VERIFIED-POSSESSION-MATCHUP-SHADOW-v0";
-export const NFL_VERIFIED_TRANSITION_SHADOW="NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3";
+export const NFL_VERIFIED_TRANSITION_SHADOW="NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3.1";
 const finite=n=>typeof n==="number"&&Number.isFinite(n);
 const mean=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
 const clamp=x=>Math.max(1e-12,Math.min(1-1e-12,x));

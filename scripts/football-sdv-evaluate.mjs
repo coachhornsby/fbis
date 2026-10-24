@@ -41,7 +41,12 @@ async function load(file){
    game.sport=sport;game.season=raw.season;
    game.sourceAsset=raw.sourceAsset;
    // Immutable per-game content fingerprint; do not hash the current observation clock.
-   if(sport==="nfl")game.sourceFingerprint=sourceArtifactHash;
+   if(sport==="nfl"){
+    game.normalizerVersion="NFL_PBP_NORMALIZER_v0.3.1";
+    game.drives=game.drives.map(d=>({...d,sourceNormalizerVersion:game.normalizerVersion}));
+    game.sourceFingerprint=crypto.createHash("sha256").update(
+     game.normalizerVersion+"|"+sourceArtifactHash).digest("hex");
+   }
    game.evidenceClass="POSTGAME_RECONSTRUCTED";game.prospective=false;
    counter.accepted++;counter.bySeason[raw.season]=(counter.bySeason[raw.season]||0)+1;
    all.push(game);

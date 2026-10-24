@@ -21,7 +21,7 @@ for(let attempt=0;attempt<60;attempt++){
  try{
   const result=await request("/api/football-sdv-prospective?sport=nfl");
   if(result.status===200&&result.body?.ok===true&&result.body.canAuthorizeWager===false&&result.body.slateCapacity>=240&&
-    result.body.supportedVariants?.includes("nfl-sdv-v03")){
+    result.body.supportedVariants?.includes("nfl-sdv-v031")){
    ready=true;break;
   }
  }catch(e){console.log("prospective API not live, attempt",attempt+1,String(e).slice(0,100))}
@@ -35,7 +35,7 @@ for(const sport of ["nfl","cfb"]){
   throw Error("PROSPECTIVE_SLATE_UNAVAILABLE:"+sport);
  const slate=response.body.upcoming.slice(0,240);
  s.slate=slate.length;
- const variants=sport==="nfl"?["standard","nfl-sdv-v03"]:["standard"];
+ const variants=sport==="nfl"?["standard","nfl-sdv-v031"]:["standard"];
  if(!variants.every(v=>response.body.supportedVariants?.includes(v)))
   throw Error("PROSPECTIVE_VARIANT_RELEASE_NOT_READY:"+sport);
  for(const variant of variants)s.variants[variant]={new:0,existing:0,skipped:{}};
@@ -46,7 +46,7 @@ for(const sport of ["nfl","cfb"]){
     const r=await request("/api/football-sdv-prospective?sport="+sport,
      {action:"capture",gameId:g.gameId,variant});
     if(r.body.ok===true&&r.body.canAuthorizeWager===false&&r.body.variant===variant&&
-      (variant!=="nfl-sdv-v03"||r.body.modelId==="NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3")){
+      (variant!=="nfl-sdv-v031"||r.body.modelId==="NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3.1")){
      if(r.body.status==="NEW"){s.new++;v.new++}
      else{s.existing++;v.existing++}
     }else if(r.status===422&&r.body.canAuthorizeWager===false){

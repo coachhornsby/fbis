@@ -63,10 +63,11 @@ test("Actual documented NFL drive timing and linked source field transitions sur
  assert.equal(result.drives[0].officialDurationSeconds,125);
  assert.equal(result.drives[0].startTransition,"KICKOFF");
  assert.equal(result.drives[0].endTransition,"PUNT");
+ assert.equal(result.drives[0].startYardsToGoal,73);
  assert.equal(result.drives[0].officialStartYardsToGoal,70);
  assert.equal(result.drives[0].officialEndYardsToGoal,55);
  assert.equal(result.drives[0].observedNextStartTransition,"PUNT");
- assert.equal(result.drives[0].observedNextStartYardsToGoal,73);
+ assert.equal(result.drives[0].observedNextStartYardsToGoal,70);
  assert.equal(result.drives[0].observedNextOffense,"away");
  assert.equal(result.drives[15].observedNextStartYardsToGoal,undefined);
 });
