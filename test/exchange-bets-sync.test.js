@@ -60,3 +60,28 @@ test("Polymarket invalid currency or invalid Amount cannot silently become a USD
  assert.equal(polymarketExecution({...base,trade:{...base.trade,price:{value:".44",currency:"EUR"}}}).price,null);
  assert.equal(polymarketExecution({...base,trade:{...base.trade,price:{amount:".44"}}}).price,null);
 });
+
+test("captured but unpriceable Polymarket US trades appear as private review evidence, never tickets",()=>{
+ const a=polymarketExecution({type:"ACTIVITY_TYPE_TRADE",trade:{
+   id:"D9HSGDHG91KR",marketSlug:"asc-cfb-ncst-stan-2026-10-23-neg-7pt5",
+   price:{value:"0.47",currency:"USD"},qtyDecimal:"3.78",
+   createTime:"2026-10-24T01:53:01.638Z",state:"TRADE_STATE_FILLED"
+ }});
+ const pending=unresolvedPolymarketTrades([a]);
+ assert.equal(groupExecutions([a]).length,0);
+ assert.equal(pending.length,1);
+ assert.equal(pending[0].market,"asc-cfb-ncst-stan-2026-10-23-neg-7pt5");
+ assert.equal(pending[0].estimatedTradeValueBeforeFees,1.7766);
+ assert.deepEqual(pending[0].missing,["OUTCOME_SIDE","BUY_SELL_INTENT","FEE_AMOUNT"]);
+ assert.equal(pending[0].status,"RECONCILIATION_REQUIRED");
+ assert.equal(pending[0].knownSide,null);
+});
+test("private review evidence cannot include complete provider order executions",()=>{
+ const complete=polymarketExecution({type:"ACTIVITY_TYPE_TRADE",trade:{
+   id:"t1",orderId:"o1",marketSlug:"nba-game",
+   outcomeSide:"YES",action:"BUY",feeAmount:{value:"0.02",currency:"USD"},
+   qtyDecimal:"2",price:{value:"0.50",currency:"USD"},createTime:"2026-10-24T00:00:00Z"
+ }});
+ assert.equal(unresolvedPolymarketTrades([complete]).length,0);
+ assert.equal(groupExecutions([complete]).length,1);
+});
