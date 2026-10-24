@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {kalshiExecution,polymarketExecution,groupExecutions} from "../functions/lib/exchangeBetLedger.js";
+import {kalshiExecution,polymarketExecution,groupExecutions,shouldRepairPolymarketPrice} from "../functions/lib/exchangeBetLedger.js";
 test("confirmed Kalshi buy fills aggregate by order, fees counted once per fill",()=>{
  const a=kalshiExecution({fill_id:"a",order_id:"o1",ticker:"KX-TEST",side:"yes",action:"buy",count_fp:"2",yes_price_dollars:"0.4",fee_cost:"0.02",created_time:"2026-10-21T14:00:00Z"});
  const b=kalshiExecution({fill_id:"b",order_id:"o1",ticker:"KX-TEST",side:"yes",action:"buy",count_fp:"3",yes_price_dollars:"0.5",fee_cost:"0.03",created_time:"2026-10-21T14:01:00Z"});
@@ -27,4 +27,36 @@ test("multi-market combo with one order ID is never inflated into independent st
    {...base,fillId:"f2",market:"KX-TWO"}
  ]);
  assert.equal(tickets.length,0);
+});
+
+test("Polymarket US official REST Amount price is parsed without inventing order side, action, or fee",()=>{
+ const event=polymarketExecution({type:"ACTIVITY_TYPE_TRADE",trade:{
+   id:"D9FBQH6011KP",marketSlug:"tsc-cfb-duke-vir-2026-10-23-total-47pt5",
+   state:"TRADE_STATE_FILLED",price:{value:"0.385",currency:"USD"},
+   qtyDecimal:"5.68",createTime:"2026-10-23T23:03:07.160Z"
+ }});
+ assert.equal(event.price,0.385);
+ assert.equal(event.quantity,5.68);
+ assert.equal(event.side,"UNKNOWN");
+ assert.equal(event.action,"UNKNOWN");
+ assert.equal(event.fee,null);
+ assert.equal(groupExecutions([event]).length,0);
+});
+test("REST price repair is limited to identical historical fill identity and null existing price",()=>{
+ const event={provider:"Polymarket US",fillId:"D9FBQH6011KP",groupId:"D9FBQH6011KP",
+  market:"tsc-cfb-duke-vir-2026-10-23-total-47pt5",
+  side:"UNKNOWN",action:"UNKNOWN",quantity:5.68,price:.385,fee:null};
+ const prior={provider:event.provider,fill_id:event.fillId,group_id:event.groupId,
+  market:event.market,side:event.side,action:event.action,quantity:5.68,unit_price:null,fee_usd:null};
+ assert.equal(shouldRepairPolymarketPrice(prior,event),true);
+ assert.equal(shouldRepairPolymarketPrice({...prior,market:"other-market"},event),false);
+ assert.equal(shouldRepairPolymarketPrice({...prior,quantity:6.68},event),false);
+ assert.equal(shouldRepairPolymarketPrice({...prior,unit_price:.4},event),false);
+ assert.equal(shouldRepairPolymarketPrice(prior,{...event,price:null}),false);
+ assert.equal(shouldRepairPolymarketPrice(prior,{...event,side:"YES"}),false);
+});
+test("Polymarket invalid currency or invalid Amount cannot silently become a USD execution price",()=>{
+ const base={type:"ACTIVITY_TYPE_TRADE",trade:{id:"t",marketSlug:"test",qty:"3",createTime:"2026-10-23T23:00:00Z"}};
+ assert.equal(polymarketExecution({...base,trade:{...base.trade,price:{value:".44",currency:"EUR"}}}).price,null);
+ assert.equal(polymarketExecution({...base,trade:{...base.trade,price:{amount:".44"}}}).price,null);
 });

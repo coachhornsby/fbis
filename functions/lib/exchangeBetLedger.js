@@ -3,7 +3,13 @@ import {polymarketAccountPages} from "./polymarketUsAccount.js";
 
 /** Each account event is identity-stable. Unpriced/incomplete records stay out of approved tickets. */
 const safe=(v,n=220)=>v==null?"":String(v).slice(0,n);
-const num=v=>{if(v==null||v==="")return null;const x=Number(v);return Number.isFinite(x)?x:null};
+const num=v=>{if(v==null||v==="")return null;
+  // Polymarket US SDK Amount is {value:string,currency:"USD"}, not a bare number.
+  // Never reinterpret currency-tagged non-USD amounts as dollar prices/fees.
+  if(typeof v==="object"){if(!Object.prototype.hasOwnProperty.call(v,"value"))return null;
+    if(v.currency!=null&&String(v.currency).toUpperCase()!=="USD")return null;v=v.value;}
+  const x=Number(v);return Number.isFinite(x)?x:null;
+};
 const stamp=v=>v&&Number.isFinite(Date.parse(String(v)))?new Date(v).toISOString():null;
 const isoSeconds=v=>{const n=num(v);return n==null?null:stamp(new Date(n>1e12?n:n*1000).toISOString())};
 const round=v=>Math.round((v+Number.EPSILON)*10000)/10000;
@@ -110,6 +116,18 @@ export async function readExchangeTickets(db){
   return {tickets,unresolved:events.filter(e=>e.side==="UNKNOWN"||e.action==="UNKNOWN"||e.price==null||e.quantity==null).length,
     observedFills:events.length};
 }
+/** Historical REST backfill: repair missing provider-confirmed trade price only.
+ * Outcome, intent and fees remain unknown unless independently sourced; no wagers are created.
+ */
+export function shouldRepairPolymarketPrice(prior,event){
+  return prior?.provider==="Polymarket US" && event?.provider==="Polymarket US" &&
+    prior.fill_id===event.fillId && prior.market===event.market &&
+    prior.group_id===event.groupId && prior.side===event.side &&
+    prior.action===event.action && prior.unit_price==null &&
+    event.price!=null && event.price>0 && event.price<1 &&
+    event.quantity!=null && num(prior.quantity)!=null &&
+    Math.abs(num(prior.quantity)-event.quantity)<0.000001;
+}
 export async function syncExchangeEvents(env,{now=new Date().toISOString()}={}){
   if(!env?.DB?.prepare)return {ok:false,reason:"D1_UNBOUND"};
   const providers={},events=[],settlements=[];
@@ -130,14 +148,33 @@ export async function syncExchangeEvents(env,{now=new Date().toISOString()}={}){
   if(env.POLYMARKET_US_KEY_ID&&env.POLYMARKET_US_SECRET_KEY){
     const acts=await polymarketAccountPages("activities",env,{maxPages:8});
     providers.polymarket={ok:acts.ok,complete:acts.complete===true,reason:acts.ok?null:acts.code};
-    if(acts.ok)events.push(...acts.rows.map(polymarketExecution).filter(Boolean));
+    if(acts.ok){
+      const trades=acts.rows.map(polymarketExecution).filter(Boolean);
+      events.push(...trades);
+      // Counts describe REST payload coverage, not an absence of transactions.
+      providers.polymarket={...providers.polymarket,tradeCount:trades.length,
+        pricedCount:trades.filter(x=>x.price!=null).length,
+        unknownOutcomeCount:trades.filter(x=>x.side==="UNKNOWN").length,
+        unknownActionCount:trades.filter(x=>x.action==="UNKNOWN").length,
+        missingFeeCount:trades.filter(x=>x.fee==null).length,
+        mode:"AUTHENTICATED_REST_HISTORY"};
+    }
   }else providers.polymarket={ok:false,reason:"NOT_CONFIGURED"};
-  let inserted=0,conflicts=0;
+  let inserted=0,conflicts=0,pricesRecovered=0;
   for(const e of events){
     const prior=await env.DB.prepare("SELECT * FROM exchange_bet_fills WHERE provider=? AND fill_id=?").bind(e.provider,e.fillId).first();
     if(prior){
-      if(prior.market!==e.market||prior.group_id!==e.groupId||prior.side!==e.side||prior.action!==e.action||
-        (prior.quantity!=null&&e.quantity!=null&&Math.abs(Number(prior.quantity)-e.quantity)>0.000001))conflicts++;
+      const differs=prior.market!==e.market||prior.group_id!==e.groupId||prior.side!==e.side||
+        prior.action!==e.action||(prior.quantity!=null&&e.quantity!=null&&
+        Math.abs(Number(prior.quantity)-e.quantity)>0.000001)||
+        (prior.unit_price!=null&&e.price!=null&&Math.abs(Number(prior.unit_price)-e.price)>0.000001);
+      if(differs){conflicts++;continue;}
+      if(shouldRepairPolymarketPrice(prior,e)){
+        const repair=await env.DB.prepare(`UPDATE exchange_bet_fills SET unit_price=?
+          WHERE provider=? AND fill_id=? AND market=? AND group_id=? AND side=? AND action=?
+          AND unit_price IS NULL`).bind(e.price,e.provider,e.fillId,e.market,e.groupId,e.side,e.action).run();
+        pricesRecovered+=Number(repair.meta?.changes||0);
+      }
       continue;
     }
     const r=await env.DB.prepare(`INSERT OR IGNORE INTO exchange_bet_fills
@@ -148,6 +185,6 @@ export async function syncExchangeEvents(env,{now=new Date().toISOString()}={}){
   for(const s of settlements)await env.DB.prepare(`INSERT OR IGNORE INTO exchange_bet_settlements
     (provider,market,outcome,yes_contracts,no_contracts,revenue_usd,settlement_fee_usd,settled_at) VALUES (?,?,?,?,?,?,?,?)`)
     .bind(s.provider,s.market,s.outcome,s.yes,s.no,s.revenue,s.settlementFee,s.at).run();
-  return {ok:Object.values(providers).some(x=>x.ok),providers,observed:events.length,inserted,conflicts,
+  return {ok:Object.values(providers).some(x=>x.ok),providers,observed:events.length,inserted,pricesRecovered,conflicts,
     at:now,readOnly:true,tradingEnabled:false};
 }
