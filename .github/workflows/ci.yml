@@ -80,6 +80,8 @@ jobs:
         run: node --test test/database-ownership.test.js test/operations-db-fallback.test.js
       - name: Gate multi-D1 topology bindings in wrangler.toml (prevent Pages wipe)
         run: node --test test/wrangler-topology-bindings.test.js test/topology-binding-gate.test.js test/ws-persist-target.test.js test/history-recovery-q4.test.js
+      - name: Verify NBA PRIMARY archive is immutable and independently recoverable
+        run: node --test test/nba-primary-retirement-archive.test.mjs
       - name: Verify cold historical readers and original source storage contracts
         run: node --test test/cold-market-history.test.mjs test/storage-full-core.test.mjs test/storage-research-archive.test.mjs test/storage-capacity-daily.test.mjs
       - name: Syntax check Cloudflare Functions

@@ -1,0 +1,72 @@
+name: NBA PRIMARY historical archive and independent restore
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ops/triggers/nba-primary-archive
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-nba-primary-archive
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    name: Archive source cohort shard ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Validate source-only SQL, foreign-sport fences, digest and restore contract
+        run: node --test test/nba-primary-retirement-archive.test.mjs
+      - name: Capture PRIMARY into immutable R2 objects and restore independently
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NBA_ARCHIVE_SHARD: ${{ matrix.shard }}
+          NBA_ARCHIVE_SHARDS: "6"
+          NBA_ARCHIVE_PAGE_SIZE: "200"
+          NBA_ARCHIVE_OUTPUT: /tmp/fbis-nba-primary-archive
+        run: node scripts/nba-primary-archive.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: nba-primary-archive-shard-${{ matrix.shard }}
+          path: |
+            /tmp/fbis-nba-primary-archive/shard-*-receipt.json
+            /tmp/fbis-nba-primary-archive/*-verified-manifest.json
+          retention-days: 90
+          if-no-files-found: error
+  certify:
+    name: Certify all 38 tables, retention closed
+    needs: archive
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4.1.8
+        with:
+          pattern: nba-primary-archive-shard-*
+          path: archive-evidence
+          merge-multiple: false
+      - name: Verify all shard and per-table receipts
+        run: node scripts/nba-primary-archive-certify.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nba-primary-archive-certified-receipt
+          path: archive-evidence/certified-receipt.json
+          retention-days: 180
+          if-no-files-found: error
