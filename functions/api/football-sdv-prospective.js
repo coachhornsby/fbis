@@ -57,8 +57,8 @@ export function prepareProspectiveFootballReceipt(result,{now}){
     canAuthorizeWager:false})};
 }
 export async function captureFootballProspective(env,{sport,gameId,now=new Date().toISOString(),variant="standard"}){
- if(!sportOk(sport)||!idOk(gameId)||!["standard","nfl-sdv-v03"].includes(variant)||
-  (variant==="nfl-sdv-v03"&&sport!=="nfl"))throw Error("PROSPECTIVE_INVALID_SCOPE");
+ if(!sportOk(sport)||!idOk(gameId)||!["standard","nfl-sdv-v031"].includes(variant)||
+  (variant==="nfl-sdv-v031"&&sport!=="nfl"))throw Error("PROSPECTIVE_INVALID_SCOPE");
  const result=await querySdvMatchupFromSportDb(env,{sport,gameId,now,variant});
  if(!result.ok)return {ok:false,reason:result.reason,sport,gameId,canAuthorizeWager:false};
  const row=prepareProspectiveFootballReceipt(result,{now}),db=d1(env,sport);
@@ -206,7 +206,7 @@ export async function onRequest({request,env}){
    ).bind(sport,new Date(now+600000).toISOString(),until).all();
    if(!Array.isArray(upcoming?.results))throw Error("SLATE_QUERY_FAILED");
    return json({ok:true,sport,upcoming:upcoming.results,slateCapacity:240,
-    supportedVariants:sport==="nfl"?["standard","nfl-sdv-v03"]:["standard"],
+    supportedVariants:sport==="nfl"?["standard","nfl-sdv-v031"]:["standard"],
     canAuthorizeWager:false});
   }
   if(request.method!=="POST")return json({ok:false,error:"METHOD_NOT_ALLOWED"},405);
