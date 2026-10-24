@@ -29,3 +29,5 @@ CREATE TABLE IF NOT EXISTS tennis_inhouse_rank_challenger (
 );
 CREATE INDEX IF NOT EXISTS idx_tennis_inhouse_rank_challenger_event
  ON tennis_inhouse_rank_challenger(canonical_event_id,forecast_at DESC);
+
+INSERT OR IGNORE INTO schema_migrations(id,applied_at) VALUES('0123_tennis_inhouse_rank_challenger',strftime('%Y-%m-%dT%H:%M:%fZ','now'));
