@@ -1,0 +1,72 @@
+name: CFB CORE prospective shadow
+
+# Cache-only research jobs. Intentionally isolated from CFBD/CBBD
+# harvesting so an upstream 429/503 cannot suppress the shadow ledger.
+# This workflow neither changes production A/A nor authorizes wagers.
+on:
+  schedule:
+    - cron: "10 4,10,16,22 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cfb-core-prospective-shadow.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cfb-core-prospective-shadow
+  cancel-in-progress: false
+
+jobs:
+  shadow:
+    name: Freeze and settle CORE shadow
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Cache-only research shadow jobs
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HARVEST_SECRET:-}" ]; then
+            echo "::error::HARVEST_SECRET is required for authorized Pages research jobs."
+            exit 1
+          fi
+          mkdir -p artifacts
+          trigger=workflow_dispatch
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            trigger=schedule
+          fi
+          for job in cfb-core-shadow-freeze cfb-core-shadow-settle; do
+            echo "::group::${job}"
+            tmp="artifacts/${job}.json"
+            http=$(curl --silent --show-error --max-time 150 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              --output "$tmp" --write-out "%{http_code}" \
+              "https://fbis-myz.pages.dev/api/college?job=${job}&trigger=${trigger}")
+            if [ "$http" != "200" ] || ! jq -e '.ok == true and .status == "success"' "$tmp" >/dev/null 2>&1; then
+              echo "::error::${job} failed (HTTP ${http}); see sanitized summary and saved artifact."
+              jq -c '{job,status,ok,errors}' "$tmp" 2>/dev/null || true
+              exit 1
+            fi
+            jq -c '{job,status,ok,errors,d1}' "$tmp"
+            {
+              echo "### ${job}"
+              echo ""
+              jq -r '"- result: \(.status)\n- inserted: \(.d1.cfbCoreShadow.inserted // 0)\n- candidates: \(.d1.cfbCoreShadow.candidates // 0)\n- eligible projected: \(.d1.cfbCoreShadow.eligibleProjected // 0)\n- settled: \(.d1.cfbCoreShadowSettle.settled // 0)\n- authority: research_only"' "$tmp"
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::endgroup::"
+          done
+      - name: Retain shadow run receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-core-shadow-receipts
+          path: artifacts/*.json
+          if-no-files-found: ignore
+          retention-days: 14

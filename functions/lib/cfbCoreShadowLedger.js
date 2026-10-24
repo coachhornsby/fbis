@@ -390,16 +390,25 @@ export async function loadCfbCoreShadowDashboard(env, { limit = 80 } = {}) {
       .sort((a, b) => Math.abs(b.disagreement_spread) - Math.abs(a.disagreement_spread))
       .slice(0, 40);
 
+    // Count one genuinely pregame, settled prediction per game. Multiple
+    // scheduled freezes must NEVER inflate prospective performance or n=200.
     const graded = (await db.prepare(
-      `SELECT COUNT(*) as n,
-        AVG(ABS(champion_spread - (actual_away-actual_home))) as champ_spread_mae,
-        AVG(ABS(core_spread - (actual_away-actual_home))) as core_spread_mae,
-        AVG(ABS(champion_total - (actual_home+actual_away))) as champ_total_mae,
-        AVG(ABS(core_total - (actual_home+actual_away))) as core_total_mae
-       FROM cfb_core_shadow_predictions
-       WHERE final_verified=1 AND eligibility='eligible_projected'
-         AND champion_spread IS NOT NULL AND core_spread IS NOT NULL`
-    ).first()) || {};
+      `WITH ranked AS (
+         SELECT *, ROW_NUMBER() OVER (
+           PARTITION BY game_id ORDER BY generation_at ASC, id ASC
+         ) AS game_freeze_rank
+         FROM cfb_core_shadow_predictions
+         WHERE core_model_id=? AND eligibility='eligible_projected'
+           AND datetime(generation_at) < datetime(kickoff)
+           AND champion_spread IS NOT NULL AND core_spread IS NOT NULL
+       )
+       SELECT COUNT(*) AS n,
+         AVG(ABS(champion_spread - (actual_away-actual_home))) AS champ_spread_mae,
+         AVG(ABS(core_spread - (actual_away-actual_home))) AS core_spread_mae,
+         AVG(ABS(champion_total - (actual_home+actual_away))) AS champ_total_mae,
+         AVG(ABS(core_total - (actual_home+actual_away))) AS core_total_mae
+       FROM ranked WHERE game_freeze_rank=1 AND final_verified=1`
+    ).bind(CFB_CORE_MARGIN_HYBRID_ID).first()) || {};
 
     const coverageRow = (await db.prepare(
       `SELECT
@@ -407,10 +416,12 @@ export async function loadCfbCoreShadowDashboard(env, { limit = 80 } = {}) {
         SUM(CASE WHEN eligibility='eligible_projected' THEN 1 ELSE 0 END) as eligible_n,
         SUM(CASE WHEN eligibility!='eligible_projected' THEN 1 ELSE 0 END) as flagged_n,
         SUM(CASE WHEN final_verified=1 THEN 1 ELSE 0 END) as settled_n,
+        COUNT(DISTINCT CASE WHEN core_model_id=? AND eligibility='eligible_projected'
+           AND datetime(generation_at) < datetime(kickoff) THEN game_id END) AS unique_pregame_hybrid_n,
         MAX(core_through_week) as max_through_week,
         MAX(generation_at) as latest_generation
        FROM cfb_core_shadow_predictions`
-    ).first()) || {};
+    ).bind(CFB_CORE_MARGIN_HYBRID_ID).first()) || {};
 
     const latestReport = await db.prepare(
       `SELECT report_id,report_type,season,week,generated_at,sample_n,classification,summary_json
@@ -454,6 +465,8 @@ export async function loadCfbCoreShadowDashboard(env, { limit = 80 } = {}) {
         eligibleProjected: Number(coverageRow.eligible_n || 0),
         flaggedMissing: Number(coverageRow.flagged_n || 0),
         settled: Number(coverageRow.settled_n || 0),
+        uniquePregameHybridGames: Number(coverageRow.unique_pregame_hybrid_n || 0),
+        settledUniquePregameHybridGames: Number(graded.n || 0),
         maxThroughWeek: coverageRow.max_through_week ?? null,
         latestGeneration: coverageRow.latest_generation || null,
       },
@@ -668,6 +681,9 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
 
   const records = [];
   const seen = new Set();
+  let skippedMissingKickoff = 0;
+  let skippedAfterKickoff = 0;
+  let skippedLateChampion = 0;
   for (const p of preds) {
     const gid = String(p.game_id);
     if (seen.has(gid)) continue;
@@ -678,12 +694,19 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
     const awayTeam = pal.awayName || parsed.awayTeam;
     const homeFeat = findTeamFeat(teamIndex, homeTeam);
     const awayFeat = findTeamFeat(teamIndex, awayTeam);
-    const kickoff = pal.start || pal.kickoff || (p.date ? `${p.date}T19:00:00Z` : p.frozen_at);
-    const week = num(pal.week) ?? estimateCfbWeekFromDate(p.date || kickoff, season);
+    // Prospective claims require an actual provider kickoff and a champion
+    // snapshot recorded BEFORE that kickoff. Never synthesize a time from date.
+    const kickoff = pal.start || pal.kickoff || null;
     const kickMs = Date.parse(String(kickoff || ""));
-    // Ungraded snapshots remain freeze-eligible. CORE PIT still requires
-    // throughWeek < gameWeek and CORE observed before kickoff.
-    const frozenAfterKickoff = Number.isFinite(kickMs) && kickMs < Date.parse(generationAt);
+    const genMs = Date.parse(generationAt);
+    const championFrozenMs = Date.parse(String(p.frozen_at || ""));
+    if (!Number.isFinite(kickMs)) { skippedMissingKickoff += 1; continue; }
+    if (!Number.isFinite(genMs) || genMs >= kickMs) { skippedAfterKickoff += 1; continue; }
+    if (!Number.isFinite(championFrozenMs) || championFrozenMs > genMs || championFrozenMs >= kickMs) {
+      skippedLateChampion += 1;
+      continue;
+    }
+    const week = num(pal.week) ?? estimateCfbWeekFromDate(p.date || kickoff, season);
 
     const marketSpread = num(pal.pinSpread);
     const marketTotal = num(pal.pinTotal);
@@ -723,13 +746,6 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
       } : null,
       now: generationAt,
     });
-    if (frozenAfterKickoff) {
-      rec.provenance = {
-        ...rec.provenance,
-        frozenAfterKickoff: true,
-        note: "Ungraded snapshot freeze; CORE still week-bounded and pre-kickoff observed.",
-      };
-    }
     records.push(rec);
   }
   const freeze = await freezeCfbCoreShadowRecords(env, records);
@@ -739,6 +755,9 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
     candidates: records.length,
     eligibleProjected: records.filter(r => r.eligibility === "eligible_projected").length,
     flagged: records.filter(r => r.eligibility !== "eligible_projected").length,
+    skippedMissingKickoff,
+    skippedAfterKickoff,
+    skippedLateChampion,
     artifactLoaded: Boolean(artifact),
     teamCoverage: {
       ratedTeams: teamIndex.ratedTeams ?? null,
