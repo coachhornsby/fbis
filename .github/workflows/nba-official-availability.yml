@@ -25,6 +25,9 @@ concurrency:
 
 jobs:
   collect:
+    env:
+      CLOUDFLARE_D1_DATABASE_ID: ed992525-d2ed-4b1d-8a12-feeb2efa152c
+      D1_SQL_ATTEMPTS: "1"
     # All production NBA_DB imports must share a single exclusive queue.
     concurrency:
       group: ${{ github.ref == 'refs/heads/main' && 'nba-d1-profile-shadow-main' || format('nba-d1-collect-{0}', github.run_id) }}
@@ -81,8 +84,8 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          npx wrangler d1 execute fbis-nba --remote --file=migrations/0068_nba_observation_health.sql
-          npx wrangler d1 execute fbis-nba --remote --file=artifacts/nba-availability-health.sql
+          node scripts/d1-batched-sql.mjs migrations/0068_nba_observation_health.sql
+          node scripts/d1-batched-sql.mjs artifacts/nba-availability-health.sql
 
       - name: Persist immutable availability observations
         if: steps.report.outputs.available == 'true' && github.ref == 'refs/heads/main'
@@ -91,8 +94,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis-nba --remote --file=migrations/0053_nba_official_availability.sql
-          npx wrangler d1 execute fbis-nba --remote --file=artifacts/nba-official-availability.sql
+          node scripts/d1-batched-sql.mjs migrations/0053_nba_official_availability.sql
+          node scripts/d1-batched-sql.mjs artifacts/nba-official-availability.sql
 
       - name: Archive source evidence
         if: steps.report.outputs.available == 'true' && github.ref == 'refs/heads/main'

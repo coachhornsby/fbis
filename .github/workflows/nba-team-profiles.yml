@@ -53,6 +53,9 @@ jobs:
           retention-days: 7
 
   build:
+    env:
+      CLOUDFLARE_D1_DATABASE_ID: ed992525-d2ed-4b1d-8a12-feeb2efa152c
+      D1_SQL_ATTEMPTS: "1"
     needs: source
     # Coordinate all main NBA D1 writers, not just this workflow's own runs.
     concurrency:
@@ -126,16 +129,16 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          node scripts/d1-import-lock-retry.mjs migrations/0054_nba_persistent_team_profiles.sql
-          node scripts/d1-import-lock-retry.mjs migrations/0068_nba_observation_health.sql
+          node scripts/d1-batched-sql.mjs migrations/0054_nba_persistent_team_profiles.sql
+          node scripts/d1-batched-sql.mjs migrations/0068_nba_observation_health.sql
           if [ -s artifacts/nba-official-lineups.sql ]; then
-            node scripts/d1-import-lock-retry.mjs artifacts/nba-official-lineups.sql
+            node scripts/d1-batched-sql.mjs artifacts/nba-official-lineups.sql
           fi
-          node scripts/d1-import-lock-retry.mjs artifacts/nba-lineup-health.sql
-          node scripts/d1-import-lock-retry.mjs artifacts/nba-team-profiles.sql
+          node scripts/d1-batched-sql.mjs artifacts/nba-lineup-health.sql
+          node scripts/d1-batched-sql.mjs artifacts/nba-team-profiles.sql
           for f in artifacts/nba-team-schedule-*.sql; do
             [ -s "$f" ] || continue
-            node scripts/d1-import-lock-retry.mjs "$f"
+            node scripts/d1-batched-sql.mjs "$f"
           done
           # This is a read-only strict gate over the final asOf cohort, not a
           # workflow-success inference. A partially applied SQL run cannot

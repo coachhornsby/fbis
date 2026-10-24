@@ -25,12 +25,13 @@ concurrency:
 
 jobs:
   evaluate:
+    env:
+      CLOUDFLARE_D1_DATABASE_ID: ed992525-d2ed-4b1d-8a12-feeb2efa152c
+      D1_SQL_ATTEMPTS: "1"
     # All production NBA_DB imports must share a single exclusive queue.
     concurrency:
       group: ${{ github.ref == 'refs/heads/main' && 'nba-d1-profile-shadow-main' || format('nba-d1-evaluate-{0}', github.run_id) }}
       cancel-in-progress: false
-    env:
-      CLOUDFLARE_D1_DATABASE_ID: ed992525-d2ed-4b1d-8a12-feeb2efa152c
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -136,9 +137,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis-nba --remote --file=migrations/0041_nba_market_qualification.sql
-          npx wrangler d1 execute fbis-nba --remote --file=migrations/0042_nba_game_level_decision.sql
-          npx wrangler d1 execute fbis-nba --remote --file=artifacts/nba-game-decisions.sql
+          node scripts/d1-batched-sql.mjs migrations/0041_nba_market_qualification.sql
+          node scripts/d1-batched-sql.mjs migrations/0042_nba_game_level_decision.sql
+          node scripts/d1-batched-sql.mjs artifacts/nba-game-decisions.sql
 
       - name: Refresh empirical confidence calibration
         env:
@@ -153,7 +154,7 @@ jobs:
           fi
           node scripts/nba-confidence-calibrate.mjs input=artifacts/all-decisions.json
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            npx wrangler d1 execute fbis-nba --remote --file=artifacts/nba-confidence-calibration.sql
+            node scripts/d1-batched-sql.mjs artifacts/nba-confidence-calibration.sql
           fi
 
       - name: Validate wagering evidence
@@ -167,7 +168,7 @@ jobs:
           fi
           node scripts/nba-decision-validate.mjs input=artifacts/all-decisions.json
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            npx wrangler d1 execute fbis-nba --remote --file=artifacts/nba-decision-validation.sql
+            node scripts/d1-batched-sql.mjs artifacts/nba-decision-validation.sql
           fi
 
       - name: Archive reports
