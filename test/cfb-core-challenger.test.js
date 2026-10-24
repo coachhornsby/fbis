@@ -124,7 +124,15 @@ test("CORE margin-only pregame freeze never binds undefined D1 probability", asy
   assert.equal(record.coreTotal, 51); // Champion total is unchanged.
   let bound;
   const db = {
-    prepare: () => ({ bind: (...values) => {
+    prepare: sql => ({ bind: (...values) => {
+      const match = sql.match(/INSERT OR IGNORE INTO cfb_core_shadow_predictions\s*\(([\s\S]*?)\)\s*VALUES\s*\(([\s\S]*?)\)/i);
+      assert.ok(match, "must use the immutable CFB CORE shadow table");
+      const columns = match[1].split(",").map(v => v.trim());
+      const sqlValues = match[2].split(",").map(v => v.trim());
+      assert.equal(columns.length, 61);
+      assert.equal(sqlValues.length, columns.length, "SQLite column/value arity must match");
+      assert.equal(sqlValues.filter(v => v === "?").length, values.length, "SQL placeholders must match D1 binds");
+      assert.deepEqual(sqlValues.slice(-4), ["0", "0", "0", "?"]);
       bound = values;
       assert.ok(values.every(v => v !== undefined), "D1 rejects undefined bind parameters");
       return { run: async () => ({ meta: { changes: 1 } }) };
