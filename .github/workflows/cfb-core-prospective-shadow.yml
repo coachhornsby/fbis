@@ -5,7 +5,7 @@ name: CFB CORE prospective shadow
 # This workflow neither changes production A/A nor authorizes wagers.
 on:
   schedule:
-    - cron: "10 4,10,16,22 * * *"
+    - cron: "15 0,4,8,12,16,20 * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -40,6 +40,7 @@ jobs:
           if [ "$EVENT_NAME" = "schedule" ]; then
             trigger=schedule
           fi
+          failures=0
           for job in cfb-core-shadow-freeze cfb-core-shadow-settle; do
             echo "::group::${job}"
             tmp="artifacts/${job}.json"
@@ -47,21 +48,31 @@ jobs:
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               -H "accept: application/json" \
               --output "$tmp" --write-out "%{http_code}" \
-              "https://fbis-myz.pages.dev/api/college?job=${job}&trigger=${trigger}")
-            if [ "$http" != "200" ] || ! jq -e '.ok == true and .status == "success"' "$tmp" >/dev/null 2>&1; then
-              echo "::error::${job} failed (HTTP ${http}); see sanitized summary and saved artifact."
-              jq -c '{job,status,ok,errors}' "$tmp" 2>/dev/null || true
-              exit 1
-            fi
-            jq -c '{job,status,ok,errors,d1}' "$tmp"
+              "https://fbis-myz.pages.dev/api/college?job=${job}&trigger=${trigger}") || http="000"
             {
               echo "### ${job}"
               echo ""
-              jq -r '"- result: \(.status)\n- inserted: \(.d1.cfbCoreShadow.inserted // 0)\n- candidates: \(.d1.cfbCoreShadow.candidates // 0)\n- eligible projected: \(.d1.cfbCoreShadow.eligibleProjected // 0)\n- settled: \(.d1.cfbCoreShadowSettle.settled // 0)\n- authority: research_only"' "$tmp"
+              echo "- HTTP: ${http}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            if [ "$http" != "200" ] || ! jq -e '.ok == true and .status == "success"' "$tmp" >/dev/null 2>&1; then
+              echo "::error::${job} failed (HTTP ${http}); inspect the retained JSON receipt."
+              jq -c '{job,status,ok,errors}' "$tmp" 2>/dev/null || true
+              echo "- status: failed (other shadow job still executes)" >> "$GITHUB_STEP_SUMMARY"
+              failures=$((failures + 1))
+              echo "::endgroup::"
+              continue
+            fi
+            jq -c '{job,status,ok,errors,d1}' "$tmp"
+            {
+              jq -r '"- result: \\(.status)\\n- inserted: \\(.d1.cfbCoreShadow.inserted // 0)\\n- candidates: \\(.d1.cfbCoreShadow.candidates // 0)\\n- eligible projected: \\(.d1.cfbCoreShadow.eligibleProjected // 0)\\n- skipped after kickoff: \\(.d1.cfbCoreShadow.skippedAfterKickoff // 0)\\n- rated teams: \\(.d1.cfbCoreShadow.teamCoverage.ratedTeams // 0)\\n- settled: \\(.d1.cfbCoreShadowSettle.settled // 0)\\n- authority: research_only"' "$tmp"
               echo ""
             } >> "$GITHUB_STEP_SUMMARY"
             echo "::endgroup::"
           done
+          if [ "$failures" -gt 0 ]; then
+            echo "::error::${failures} CORE research jobs failed."
+            exit 1
+          fi
       - name: Retain shadow run receipts
         if: always()
         uses: actions/upload-artifact@v4
