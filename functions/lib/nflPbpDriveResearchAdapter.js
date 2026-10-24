@@ -67,7 +67,11 @@ export function extractNflfastRPossessionGame({
   drives.push({driveId:gameId+":"+drive,seq:drives.length+1,
    offenseTeamId:team===home?homeId:awayId,period,plays:rows.length,
    startYardsToGoal:firstYard,startHomeScore:startHome,startAwayScore:startAway,
-   endHomeScore:endHome,endAwayScore:endAway});
+   endHomeScore:endHome,endAwayScore:endAway,
+   // nflverse game_seconds_remaining is a play timestamp, not possession time.
+   // First-to-last-play span is only a lower bound on elapsed drive time.
+   gameClockFirst:integer(first.game_seconds_remaining),
+   gameClockLast:integer(last.game_seconds_remaining)});
  }
  return normalizeVerifiedNflPossessions({gameId,homeTeamId:homeId,awayTeamId:awayId,
   kickoff,gradedAt,observedAt,sourceArtifactHash,regulationOnly:true,

@@ -41,3 +41,13 @@ test("nflfastR adapter excludes OT, changed finals, and missing PBP score eviden
  const missing=fixture();missing[0]={...missing[0],total_home_score:null};
  assert.throws(()=>extractNflfastRPossessionGame({...meta,plays:missing}),/NFL_PBP_DRIVE_SCORE_OR_START_CONTEXT_MISSING/);
 });
+
+test("nflfastR first and last recorded snap clocks create a lower-bound span, not measured drive time",()=>{
+ const plays=fixture().map((p,i)=>({...p,game_seconds_remaining:3600-i*50}));
+ const result=extractNflfastRPossessionGame({...meta,plays});
+ assert.equal(result.drives[0].gameClockFirst,3600);
+ assert.equal(result.drives[0].gameClockLast,3550);
+ assert.equal(result.drives[0].clockSpanLowerBound,50);
+ const missing=extractNflfastRPossessionGame({...meta,plays:fixture()});
+ assert.equal(missing.drives[0].clockSpanLowerBound,undefined);
+});

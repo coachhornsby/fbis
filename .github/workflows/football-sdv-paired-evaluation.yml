@@ -28,7 +28,9 @@ jobs:
       - name: Verify paired statistical and temporal gates
         run: |
           node --test test/football-paired-model-audit.test.js \
-            test/football-possession-matchup-research.test.js
+            test/football-possession-matchup-research.test.js \
+            test/football-chronological-total-research.test.js \
+            test/nfl-clock-field-simulation-research.test.js
           node --check scripts/football-sdv-paired-evaluate.mjs
       - name: Install published SportsDataverse
         run: python -m pip install --disable-pip-version-check --quiet sportsdataverse==0.1.4
@@ -71,6 +73,14 @@ jobs:
             .reports.nfl.n>0 and .reports.cfb.n>0' "$SDV_OUT/football-paired-audit.json"
           jq '{nfl:.reports.nfl | {n,champion,challenger,pairedDeltas},
                cfb:.reports.cfb | {n,champion,challenger,pairedDeltas}}' "$SDV_OUT/football-paired-audit.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Evaluate game-day disjoint totals and NFL clock-field research
+        run: |
+          node scripts/football-chronological-total-evaluate.mjs "$SDV_OUT"
+          node scripts/football-nfl-clock-field-evaluate.mjs "$SDV_OUT"
+          jq -e '.canAuthorizeWager == false and .sports.cfb.canAuthorizeWager == false and .sports.nfl.canAuthorizeWager == false' "$SDV_OUT/football-chronological-total-evaluation.json"
+          jq -e '.canAuthorizeWager == false and .canQualify == false and .n >= 15' "$SDV_OUT/nfl-clock-field-holdout.json"
+          jq '{cfb_total:.sports.cfb|{n,trainN,holdoutN,alpha,holdout,status},nfl_total:.sports.nfl|{n,status}}' "$SDV_OUT/football-chronological-total-evaluation.json" >> "$GITHUB_STEP_SUMMARY"
+          jq '{clock_nfl: {n, excluded, current:.newModel.challenger,previous:.previousModel.challenger}}' "$SDV_OUT/nfl-clock-field-holdout.json" >> "$GITHUB_STEP_SUMMARY"
       - name: Publish reproducible research results
         if: always()
         uses: actions/upload-artifact@v4
@@ -82,3 +92,6 @@ jobs:
             artifacts/football-sdv/football-paired-audit.json
             artifacts/football-sdv/nfl-paired-champion-challenger.jsonl
             artifacts/football-sdv/cfb-paired-champion-challenger.jsonl
+            artifacts/football-sdv/football-chronological-total-evaluation.json
+            artifacts/football-sdv/nfl-clock-field-holdout.json
+            artifacts/football-sdv/nfl-clock-field-per-game.jsonl
