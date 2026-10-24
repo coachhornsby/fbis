@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import {evaluateChronologicalTotalOnly} from "../functions/lib/footballChronologicalTotalResearch.js";
+import {evaluateChronologicalTotalOnly,evaluateChronologicalCfbMarginBias} from "../functions/lib/footballChronologicalTotalResearch.js";
 const dir=process.argv[2]||"artifacts/football-chronological";
 const report={createdAt:new Date().toISOString(),scope:"RECONSTRUCTED_HISTORICAL_ABLATION_ONLY",
  originalSourceArtifact:"https://github.com/coachhornsby/fbis/actions/runs/40047245186/artifacts/12542310154",
@@ -16,6 +16,7 @@ for(const sport of ["nfl","cfb"]){
  const raw=fs.readFileSync(filename,"utf8");
  const rows=raw.split("\n").filter(Boolean).map(x=>JSON.parse(x));
  const score=evaluateChronologicalTotalOnly(rows,{sport,minTrain:50,minHoldout:40});
+ if(sport==="cfb")report.cfbMarginBias=evaluateChronologicalCfbMarginBias(rows,{minTrain:50,minHoldout:40});
  report.sports[sport]={...score,fileSha256:crypto.createHash("sha256").update(raw).digest("hex")};
  console.log(sport,JSON.stringify({
  n:score.n,trainN:score.trainN,holdoutN:score.holdoutN,
@@ -23,7 +24,7 @@ for(const sport of ["nfl","cfb"]){
  canAuthorizeWager:score.canAuthorizeWager
  }));
 }
-if(report.sports.cfb.holdoutN<40||
+if(report.cfbMarginBias?.canAuthorizeWager!==false||report.sports.cfb.holdoutN<40||
    report.sports.cfb.holdout?.deltaMAE===null||
    report.sports.nfl.canAuthorizeWager!==false||report.sports.cfb.canAuthorizeWager!==false)
  throw Error("CHRONOLOGICAL_RESEARCH_READINESS_FAILED");
