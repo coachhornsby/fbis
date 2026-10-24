@@ -51,18 +51,22 @@ test("stream binding gate requires Q4", () => {
   assert.ok(gate.missing.includes("MARKET_HISTORY_2026Q4_DB"));
 
   env.MARKET_HISTORY_2026Q4_DB = prepareDb();
+  assert.equal(evaluateTopologyBindingGate(env, { surface: "stream", requireShadowModes: false }).ok, false);
+  env.MARKET_HISTORY_2026Q4B_DB = prepareDb();
   const ok = evaluateTopologyBindingGate(env, { surface: "stream", requireShadowModes: false });
   assert.equal(ok.ok, true);
-  assert.equal(REQUIRED_STREAM_D1_BINDINGS.length, 3);
+  assert.equal(REQUIRED_STREAM_D1_BINDINGS.length, 4);
 });
 
 test("restore plan lists all required pages D1 ids and shadow modes", () => {
   const plan = topologyBindingRestorePlan();
-  assert.equal(REQUIRED_PAGES_D1_BINDINGS.length, 18);
+  assert.equal(REQUIRED_PAGES_D1_BINDINGS.length, 19);
   assert.ok(plan.pages.deployment_configs.production.d1_databases.CORE_DB);
   assert.ok(plan.pages.deployment_configs.production.d1_databases.NFL_DB);
   assert.ok(plan.pages.deployment_configs.production.d1_databases.TIER3_DB);
   assert.ok(plan.pages.deployment_configs.production.d1_databases.MARKET_HISTORY_2026Q4_DB);
+  assert.ok(plan.pages.deployment_configs.production.d1_databases.MARKET_HISTORY_2026Q4B_DB);
   assert.equal(plan.pages.deployment_configs.production.env_vars.SPORT_DB_MODE_NFL.value, "shadow");
   assert.ok(plan.stream.d1_databases.MARKET_HISTORY_2026Q4_DB);
+  assert.ok(plan.stream.d1_databases.MARKET_HISTORY_2026Q4B_DB);
 });
