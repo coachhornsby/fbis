@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {matchCbbNcaaPossessionsToEspnFixture} from "../functions/lib/basketballSdvCbbFixtureJoin.js";
 const row={gameId:"10258",season:2026,
- ncaaSchedule:{contest_id:"10258",game_date:"2026-01-31",home_score:78,away_score:72},
+ ncaaSchedule:{contest_id:"10258",game_date:"01/31/2026",home_score:78,away_score:72},
  firstPossession:{contest_id:"10258",espn_game_id:"401900123",
   home_espn_team_id:"12",away_espn_team_id:"22"},
  espnFixture:{id:401900123,season:2026,time_valid:true,status_type_completed:true,
@@ -39,4 +39,26 @@ test("CBB OT format and timezone/date conflict cannot be admitted",()=>{
  const b=matchCbbNcaaPossessionsToEspnFixture({...row,
   espnFixture:{...row.espnFixture,game_date_time:"2026-02-09T12:00:00-05:00"}});
  assert.equal(b.status,"CBB_NCAA_VS_ESPN_DATE_MISMATCH");
+});
+
+test("Live NCAA source MM/DD/YYYY dates are accepted only when they match verified ESPN tipoff",()=>{
+ const event={...row,ncaaSchedule:{...row.ncaaSchedule,
+  game_date:"11/03/2025"},
+  espnFixture:{...row.espnFixture,
+   game_date_time:"2025-11-03 18:30:00-05:00"}};
+ const a=matchCbbNcaaPossessionsToEspnFixture(event);
+ assert.equal(a.status,"INDEPENDENT_CBB_ESPN_EXACT_TIPOFF");
+ assert.equal(a.tipoff,"2025-11-03T23:30:00.000Z");
+ const iso=matchCbbNcaaPossessionsToEspnFixture({...event,
+  ncaaSchedule:{...event.ncaaSchedule,game_date:"2025-11-03"}});
+ assert.equal(iso.status,a.status);
+});
+test("Malformed or impossible NCAA calendar dates cannot pass source verification",()=>{
+ for(const game_date of ["13/03/2025","02/30/2025","2025-02-30","11/2025",
+  "","11/03/25"]){
+  const r=matchCbbNcaaPossessionsToEspnFixture({...row,ncaaSchedule:{
+   ...row.ncaaSchedule,game_date}});
+  assert.equal(r.status,"CBB_NCAA_SCHEDULE_DATE_INVALID");
+  assert.equal(r.tipoff,null);
+ }
 });
