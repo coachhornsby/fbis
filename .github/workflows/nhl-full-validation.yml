@@ -52,7 +52,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Restore NHL game PBP cache
-        uses: actions/cache@v4.2.0
+        uses: actions/cache@v6.1.0
         with:
           path: .cache/nhl-pro-v2
           key: nhl-pro-v2-pbp-full-v1-${{ runner.os }}-${{ hashFiles('scripts/nhl-pro-v2-walkforward.mjs') }}
@@ -60,7 +60,7 @@ jobs:
             nhl-pro-v2-pbp-v1-${{ runner.os }}-
             nhl-pro-v2-pbp-full-v1-${{ runner.os }}-
       - name: Restore NHL player boxscore cache
-        uses: actions/cache@v4.2.0
+        uses: actions/cache@v6.1.0
         with:
           path: .cache/nhl-player-pro-v2
           key: nhl-player-pro-v2-box-v1-${{ runner.os }}
