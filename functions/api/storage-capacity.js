@@ -52,7 +52,7 @@ function summarizeOne(bytes, databaseKey) {
   };
 }
 
-export function summarizeD1Storage(primaryBytes, shardBytes, operationsBytes = null, q4Bytes = null) {
+export function summarizeD1Storage(primaryBytes, shardBytes, operationsBytes = null, q4Bytes = null, q4bBytes = null) {
   const safe = (n) => Number.isSafeInteger(n) && n > 0;
   if (!safe(primaryBytes) || !safe(shardBytes)) throw Error("STORAGE_SIZE_UNAVAILABLE");
   const primary = summarizeOne(primaryBytes, "PRIMARY");
@@ -67,6 +67,11 @@ export function summarizeD1Storage(primaryBytes, shardBytes, operationsBytes = n
     : safe(q4Bytes)
       ? summarizeOne(q4Bytes, "MARKET_HISTORY_2026Q4")
       : (() => { throw Error("STORAGE_SIZE_UNAVAILABLE"); })();
+
+  const marketHistoryQ4b = q4bBytes == null ? null : safe(q4bBytes)
+    ? summarizeOne(q4bBytes, "MARKET_HISTORY_2026Q4B")
+    : (() => { throw Error("STORAGE_SIZE_UNAVAILABLE"); })();
+  const activeMarketHistory = marketHistoryQ4b || marketHistoryQ4;
 
   const primaryState = primaryBytes >= D1_DATABASE_MAX_BYTES
     ? "PRIMARY_OVER_LIMIT"
@@ -90,6 +95,8 @@ export function summarizeD1Storage(primaryBytes, shardBytes, operationsBytes = n
     primary,
     historyShard,
     marketHistoryQ4,
+    marketHistoryQ4b,
+    activeMarketHistory,
     operations,
     coldHistory: {
       databaseKey: "COLD_HISTORY",
@@ -98,7 +105,7 @@ export function summarizeD1Storage(primaryBytes, shardBytes, operationsBytes = n
       bound: false,
       note: "Pages may bind COLD_HISTORY_DB for qualified archive reads; daily monitor always measures physical bytes.",
     },
-    knownBoundD1Bytes: primaryBytes + shardBytes + (operationsBytes || 0) + (q4Bytes || 0),
+    knownBoundD1Bytes: primaryBytes + shardBytes + (operationsBytes || 0) + (q4Bytes || 0) + (q4bBytes || 0),
     accountWideUsageMeasured: false,
     r2BillableBytesMeasured: false,
     invoiceEstimated: false,
@@ -169,9 +176,10 @@ export async function onRequestGet({ env, request } = {}) {
       env.OPERATIONS_DB?.prepare ? probe(env.OPERATIONS_DB) : Promise.resolve(null),
       env.COLD_HISTORY_DB?.prepare ? probe(env.COLD_HISTORY_DB) : Promise.resolve(null),
       env.MARKET_HISTORY_2026Q4_DB?.prepare ? probe(env.MARKET_HISTORY_2026Q4_DB) : Promise.resolve(null),
+      env.MARKET_HISTORY_2026Q4B_DB?.prepare ? probe(env.MARKET_HISTORY_2026Q4B_DB) : Promise.resolve(null),
     ];
     const sizes = await Promise.all(probes);
-    const result = summarizeD1Storage(sizes[0], sizes[1], sizes[2], sizes[4]);
+    const result = summarizeD1Storage(sizes[0], sizes[1], sizes[2], sizes[4], sizes[5]);
     if (sizes[3] != null && Number.isSafeInteger(sizes[3]) && sizes[3] > 0) {
       result.coldHistory = {
         ...summarizeD1Storage(sizes[3], 1).primary,
@@ -183,7 +191,7 @@ export async function onRequestGet({ env, request } = {}) {
       result.knownBoundD1Bytes += sizes[3];
     }
     if (sizes[4] != null && Number.isSafeInteger(sizes[4]) && sizes[4] > 0) {
-      result.capacityPlan = buildVerifiedCapacityPlan({ usedBytes: sizes[4] });
+      result.capacityPlan = buildVerifiedCapacityPlan({ usedBytes: sizes[5] ?? sizes[4] });
     }
     let persisted = { ok: false, reason: "not-requested" };
     const url = request?.url ? new URL(request.url) : null;
