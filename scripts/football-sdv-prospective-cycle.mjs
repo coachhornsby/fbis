@@ -20,7 +20,7 @@ let ready=false;
 for(let attempt=0;attempt<60;attempt++){
  try{
   const result=await request("/api/football-sdv-prospective?sport=nfl");
-  if(result.status===200&&result.body?.ok===true&&result.body.canAuthorizeWager===false){
+  if(result.status===200&&result.body?.ok===true&&result.body.canAuthorizeWager===false&&result.body.slateCapacity>=240){
    ready=true;break;
   }
  }catch(e){console.log("prospective API not live, attempt",attempt+1,String(e).slice(0,100))}
