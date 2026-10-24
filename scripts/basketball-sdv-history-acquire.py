@@ -37,6 +37,7 @@ COLS = {
         "possession": ("game_id", "period", "possession_number", "start_order_index",
                        "offense_team_id", "defense_team_id", "points", "count_as_possession"),
         "schedule": ("game_id", "game_date", "home_team_id", "away_team_id",
+                     "home_team_abbreviation", "away_team_abbreviation",
                      "home_pts", "away_pts"),
     },
     "cbb": {
