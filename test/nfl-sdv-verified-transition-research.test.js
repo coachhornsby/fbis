@@ -39,6 +39,7 @@ function historical(i,verified=true){
   offensePoints:j%5===0?7:j%5===1?3:0,defensePoints:0,
   ...(verified?{
    officialDurationSeconds:160+j%5*7,officialStartYardsToGoal:70+j%20,
+   sourceNormalizerVersion:"NFL_PBP_NORMALIZER_v0.3.1",
    startTransition:j%4===0?"KICKOFF":"PUNT",
    endTransition:j%4===1?"PUNT":"SCORE",
    observedNextStartYardsToGoal:73,observedNextStartTransition:"PUNT",
