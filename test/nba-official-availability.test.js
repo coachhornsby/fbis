@@ -23,7 +23,9 @@ test("NBA official injury parser preserves submitted and not-yet-submitted state
     "text="+dir+"/report.txt",
     "discovery="+dir+"/discovery.json",
     "out="+dir+"/out.json",
-    "sql="+dir+"/out.sql"
+    "sql="+dir+"/out.sql",
+    "playerSql="+dir+"/player.sql",
+    "reportSql="+dir+"/reports.sql"
   ]);
   const j=JSON.parse(fs.readFileSync(dir+"/out.json","utf8"));
   assert.equal(j.quality.entries,3);
@@ -35,4 +37,12 @@ test("NBA official injury parser preserves submitted and not-yet-submitted state
   assert.match(sql,/NBA_OFFICIAL_INJURY_REPORT/);
   assert.match(sql,/player_availability_observations/);
   assert.match(sql,/nba_official_availability_reports/);
+  const playerSql=fs.readFileSync(dir+"/player.sql","utf8");
+  const reportSql=fs.readFileSync(dir+"/reports.sql","utf8");
+  assert.equal((playerSql.match(/INSERT OR IGNORE INTO/g)||[]).length,3);
+  assert.equal((reportSql.match(/INSERT OR IGNORE INTO/g)||[]).length,4);
+  assert.match(playerSql,/player_availability_observations/);
+  assert.doesNotMatch(playerSql,/nba_official_availability_reports/);
+  assert.match(reportSql,/nba_official_availability_reports/);
+  assert.doesNotMatch(reportSql,/player_availability_observations/);
 });
