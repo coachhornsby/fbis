@@ -46,7 +46,7 @@ for(const table of tables.filter((_,i)=>i%6===group)){
  const samples=[];
  while(scanned<sourceCount){
   const sourceRows=await query(primary,"SELECT "+key+" AS source_key FROM "+table+
-    " WHERE (? IS NULL OR "+key+">?) ORDER BY "+key+" LIMIT 150",[cursor,cursor]);
+    " WHERE (? IS NULL OR "+key+">?) ORDER BY "+key+" LIMIT 40",[cursor,cursor]);
   if(sourceRows.length===0)throw Error("EARLY_SOURCE_EXHAUSTION_"+table);
   const ids=sourceRows.map(x=>x.source_key);
   if(ids.some(x=>x===null||x===undefined))throw Error("NULL_SOURCE_PK_"+table);
