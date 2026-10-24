@@ -2,7 +2,7 @@
 const key = v => String(v || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const parse = v => { try { return typeof v === "string" ? JSON.parse(v) : v; } catch { return null; } };
 const instant = v => v ? Date.parse(v) : NaN;
-export function validateTennisEvent(row, event, { projection = false } = {}) {
+export function validateTennisEvent(row, event, { projection = false, now = new Date() } = {}) {
   const fail = reason => ({ valid: false, reason });
   if (!event?.match_id || !event.player1_id || !event.player2_id || !event.source) return fail("OFFICIAL_EVENT_MISSING");
   if (!/^(WTA|ATP)_OFFICIAL$/.test(event.source)) return fail("OFFICIAL_EVENT_SOURCE_UNVERIFIED");
@@ -15,7 +15,7 @@ export function validateTennisEvent(row, event, { projection = false } = {}) {
   if (!event.tournament_name || !["hard", "clay", "grass", "carpet"].includes(key(event.surface))) return fail("EVENT_CONTEXT_MISSING");
   if (row.surface && key(row.surface) !== key(event.surface)) return fail("SURFACE_MISMATCH");
   if (row.tournament && key(row.tournament) !== key(event.tournament_name)) return fail("TOURNAMENT_MISMATCH");
-  if (instant(event.match_time) <= Date.now() || !["SCHEDULED", "NOT_STARTED", "UPCOMING"].includes(String(event.completion_state).toUpperCase())) return fail("EVENT_NOT_UPCOMING");
+  if (instant(event.match_time) <= +now || !["SCHEDULED", "NOT_STARTED", "UPCOMING"].includes(String(event.completion_state).toUpperCase())) return fail("EVENT_NOT_UPCOMING");
   if (projection) {
     const proof = parse(row.context_json)?.eventProof;
     if (!proof || proof.matchId !== event.match_id || proof.source !== event.source || proof.player1Id !== p1.fbis_player_id || proof.player2Id !== p2.fbis_player_id || instant(proof.startTime) !== instant(event.match_time) || key(proof.surface) !== key(event.surface) || key(proof.tournament) !== key(event.tournament_name)) return fail("PROJECTION_EVENT_PROVENANCE_MISMATCH");
