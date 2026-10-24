@@ -15,8 +15,8 @@ export function selectPregameSimulationEvidence(rows,{sport,asOf}={}){
   else if(r.regulationOnly!==true)reason="REGULATION_SCORE_NOT_VERIFIED";
   else if(!r.gameId||!Number.isFinite(cutoff(r.kickoff))||!Number.isFinite(cutoff(r.frozenAt))||
    !Number.isFinite(cutoff(r.observedAt))||!Number.isFinite(cutoff(r.gradedAt)))reason="MISSING_TIME";
-  else if(!(cutoff(r.frozenAt)<cutoff(r.kickoff)&&cutoff(r.kickoff)<=cutoff(r.gradedAt)&&
-    cutoff(r.gradedAt)<=cutoff(r.observedAt)&&cutoff(r.observedAt)<=cutoff(asOf)))reason="TEMPORAL_VIOLATION";
+  else if(!(cutoff(r.frozenAt)<cutoff(r.kickoff)&&cutoff(r.kickoff)<cutoff(r.observedAt)&&
+    cutoff(r.observedAt)<=cutoff(r.gradedAt)&&cutoff(r.gradedAt)<=cutoff(asOf)))reason="TEMPORAL_VIOLATION";
   else if(![r.homeScore,r.awayScore,r.homeWinProb,r.awayWinProb,r.tieProb,
    r.projectedHome,r.projectedAway,r.homeBlowoutProb,r.awayBlowoutProb].every(finite))reason="MISSING_METRIC";
   else if([r.homeWinProb,r.awayWinProb,r.tieProb,r.homeBlowoutProb,r.awayBlowoutProb].some(p=>p<0||p>1)||
