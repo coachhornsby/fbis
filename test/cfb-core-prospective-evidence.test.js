@@ -7,7 +7,7 @@ const ARTIFACT = "frozen-leading-2025";
 function game(id, overrides = {}) {
   return {
     id: "shadow-"+id,game_id: String(id),core_model_id:MODEL,core_artifact_id:ARTIFACT,
-    season:2026,week:8,core_through_week:6,
+    season:2026,week:8,core_through_week:6,core_source_endpoint:"fbis_weekly_training_document",
     eligibility:"eligible_projected",
     generation_at:"2026-10-20T14:00:00.000Z",
     feature_cutoff_at:"2026-10-18T12:00:00.000Z",
@@ -26,7 +26,9 @@ test("prospective gate counts earliest valid pregame freeze once per game", () =
     game(3,{feature_cutoff_at:"2026-10-25T00:00:00.000Z"}), // feature future
     game(4,{core_home:25,core_away:14}), // changed totals
     game(5,{final_verified:0}),
+    game(6,{core_source_endpoint:"/ratings/core"}),
   ],{artifactId:ARTIFACT});
+  assert.equal(r.excluded.wrong_feature_family,1);
   assert.equal(r.frozenUniqueGames,2);
   assert.equal(r.prospectiveSettledN,1);
   assert.equal(r.metrics.marginMaeDelta,-6);
