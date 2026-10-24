@@ -28,11 +28,11 @@ export class PolymarketPrivateOrderSession extends DurableObject {
  async wake(){
   if(this.busy)return;
   if(this.ws?.readyState===WebSocket.OPEN&&Date.now()-this.connectedAt<8*60*1000)return;
-  if(!this.env.FBIS_STREAM_PROXY_TOKEN){this.lastError="BROKER_NOT_CONFIGURED";return;}
+  if(!this.env.HARVEST_SECRET){this.lastError="BROKER_NOT_CONFIGURED";return;}
   this.busy=true;
   try{
    if(this.ws){try{this.ws.close(1000,"refresh")}catch{}this.ws=null;}
-   const auth=await fetch(BASE,{method:"POST",headers:{"x-fbis-stream-token":this.env.FBIS_STREAM_PROXY_TOKEN,
+   const auth=await fetch(BASE,{method:"POST",headers:{"x-harvest-secret":this.env.HARVEST_SECRET,
      "content-type":"application/json"},body:"{}",
      signal:AbortSignal.timeout(12000)});
    if(!auth.ok)throw Error("PRIVATE_SIGNER_"+auth.status);
