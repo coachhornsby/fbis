@@ -1,3 +1,4 @@
+import {mlbCanonicalScheduleDays} from '../functions/lib/mlbHistoricalSchedule.js';
 import fs from 'node:fs/promises';
 const args=Object.fromEntries(process.argv.slice(2).map(s=>{const i=s.indexOf('=');return[s.slice(0,i),s.slice(i+1)];}));
 const base='https://fbis-myz.pages.dev',out=args.out||'artifacts/mlb-completion';await fs.mkdir(out,{recursive:true});
@@ -9,13 +10,11 @@ const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'nu
 const yesterday=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10),month=args.month,horizon=process.env.MLB_HISTORY_THROUGH||today;
 const receipt={startedAt:new Date().toISOString(),days:[],errors:[],classification:month?'RETROSPECTIVE_COLLECTION':'PROSPECTIVE_CAPTURE_AND_FINALS'};
 if(!month){receipt.capture=await post({operation:'capture',date:today});}
-const start=month?month+'-01':yesterday,end=month?new Date(Number(month.slice(0,4)),Number(month.slice(5)),0).toISOString().slice(0,10):yesterday;
+const start=month?month+'-01':new Date(Date.parse(today+'T12:00:00Z')-7*86400000).toISOString().slice(0,10),end=month?new Date(Number(month.slice(0,4)),Number(month.slice(5)),0).toISOString().slice(0,10):yesterday;
 if(month&&!/^202[4-6]-(0[3-9]|1[01])$/.test(month))throw Error('BOUNDED_MARCH_NOVEMBER_2024_2026_REQUIRED');
 if(month&&month>horizon.slice(0,7)){console.log(JSON.stringify({skipped:'FUTURE_MONTH',month}));process.exit(0);}
 const schedule=await official(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&startDate=${start}&endDate=${end}&gameTypes=R,F,D,L,W`);
-if(!Array.isArray(schedule.dates)||!Number.isFinite(schedule.totalGames))throw Error('INVALID_OFFICIAL_SCHEDULE');
-const pendingByDate=new Map(schedule.dates.map(d=>[d.date,d.games.filter(g=>g.status?.codedGameState!=='F'&&!/postponed|cancelled|canceled/i.test(g.status?.detailedState||'')).map(g=>String(g.gamePk))]));
-const byDate=new Map((schedule.dates||[]).map(d=>[d.date,(d.games||[]).filter(g=>g.status?.codedGameState==='F').map(g=>String(g.gamePk))]));
+const {gamesByDate:byDate,pendingByDate}=mlbCanonicalScheduleDays(schedule);
 for(let at=Date.parse(start);at<=Date.parse(end)&&at<Date.parse(horizon);at+=86400000){
  const date=new Date(at).toISOString().slice(0,10),ids=byDate.get(date)||[];
  try{
@@ -34,5 +33,5 @@ for(let at=Date.parse(start);at<=Date.parse(end)&&at<Date.parse(horizon);at+=864
  }catch(e){receipt.errors.push({date,error:e.message});}
  await fs.writeFile(out+'/receipt.json',JSON.stringify(receipt,null,2));
 }
-receipt.month=await post({operation:'month',date:start,through:horizon});receipt.finishedAt=new Date().toISOString();receipt.complete=!receipt.errors.length;
+receipt.months=[];for(const m of new Set([start.slice(0,7),...receipt.days.map(d=>d.date.slice(0,7))]))receipt.months.push(await post({operation:'month',date:m+'-01',through:horizon}));receipt.finishedAt=new Date().toISOString();receipt.complete=!receipt.errors.length;
 await fs.writeFile(out+'/receipt.json',JSON.stringify(receipt,null,2));console.log(JSON.stringify({complete:receipt.complete,days:receipt.days.length,errors:receipt.errors}));if(!receipt.complete)process.exitCode=1;

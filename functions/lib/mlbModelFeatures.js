@@ -3,7 +3,7 @@ import {buildMlbStatcastLab,MLB_STATCAST_LAB_CALC_VERSION} from './mlbStatcastLa
 import {sha256Hex} from './sha256Hex.js';
 export const MLB_FEATURE_VERSION='mlb-statcast-features-v1';
 const stamp=s=>typeof s==='string'&&/T.*Z$/.test(s)&&Number.isFinite(Date.parse(s));
-export function buildMlbModelFeatures({packets=[],playerId,role,capturedAt=new Date().toISOString()}={}){
+export function selectMlbFeatureRows({packets=[],playerId,role,capturedAt=new Date().toISOString()}={}){
  if(!/^\d+$/.test(String(playerId))||!['pitcher','batter'].includes(role)||!stamp(capturedAt))throw Error('INVALID_FEATURE_SCOPE');
  const day=capturedAt.slice(0,10),seen=new Set(),sources=[],rows=[];
  for(const p of packets){
@@ -15,6 +15,10 @@ export function buildMlbModelFeatures({packets=[],playerId,role,capturedAt=new D
    const key=`${r.game_pk}:${r.at_bat_number}:${r.pitch_number}`;if(seen.has(key))continue;seen.add(key);rows.push(r);
   }
  }
+ return {rows,sources,day};
+}
+export function buildMlbModelFeatures({packets=[],playerId,role,capturedAt=new Date().toISOString()}={}){
+ const {rows,sources,day}=selectMlbFeatureRows({packets,playerId,role,capturedAt});
  // A single synthetic season is only an aggregation container; game dates retain window membership.
  const windows=[30,90,365].map(days=>{
   const start=new Date(Date.parse(day)-days*86400000).toISOString().slice(0,10);

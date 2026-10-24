@@ -22,6 +22,20 @@ jobs:
       matrix: ${{ steps.scope.outputs.matrix }}
       through: ${{ steps.scope.outputs.through }}
     steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push'
+      - name: Capture current forecasts before starting any history shard
+        if: github.event_name == 'push'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          node scripts/verify-mlb-completion-api.mjs
+          node scripts/mlb-completion-capture.mjs
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name == 'push'
+        with:
+          name: mlb-first-capture-${{ github.run_id }}
+          path: artifacts/mlb-completion-capture/
       - id: scope
         env:
           EVENT: ${{ github.event_name }}
@@ -29,7 +43,7 @@ jobs:
         run: |
           node --input-type=module <<'JS'
           import fs from 'node:fs';
-          const months=process.env.EVENT==='push'?['cycle',...[2024,2025,2026].flatMap(y=>Array.from({length:9},(_,i)=>`${y}-${String(i+3).padStart(2,'0')}`))]:[process.env.MONTH||'cycle'];
+          const months=process.env.EVENT==='push'?[2024,2025,2026].flatMap(y=>Array.from({length:9},(_,i)=>`${y}-${String(i+3).padStart(2,'0')}`)):[process.env.MONTH||'cycle'];
           const through=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
           fs.appendFileSync(process.env.GITHUB_OUTPUT,`through=${through}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT,`matrix=${JSON.stringify({month:months})}\n`);
