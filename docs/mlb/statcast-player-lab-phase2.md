@@ -69,3 +69,13 @@ Production acceptance requires:
 4. Explicit distinction between verified pilot coverage and the larger roster-shard collection that can still be running.
 
 Full historical feature replay, challenger evaluation, model promotion, global league baselines and the remaining full game-history backfill from phase 1 are separate gates, not implied by rendering these charts.
+
+## Initial production evidence and completed-PA correction
+
+Implementation PR #1650 merged as `46be721dbec50788a477a373e5157fe47286147a` after CI `40062333975` passed. Cloudflare deployment `947c6a33-bf9d-47c7-8d2d-f08666fbbdcc` served that SHA. The named-player proof job in workflow `40062456887` passed all nine player-season imports with no errors. Source pitch counts: Skubal 3,130 / 3,152 / 2,531; Skenes 2,125 / 2,997 / 2,890; Judge 3,158 / 2,736 / 1,217 for 2024 / 2025 / 2026 respectively. These exclude automatic events.
+
+Live browser inspection confirmed the lab, measured charts, all eight filters and season trends render without console errors. Skenes's 2025 regular-season source reproduces the user reference's 2,997 pitches, 733 PAs, 469 BBE, 29.5% K, 5.7% BB, 23.7% K-BB, 30.5% Chase and 27.8% whiffs per swing.
+
+The 2026 source additionally contains two `truncated_pa` records. Calculation version `mlb-lab-metrics-v1.1` restricts PA-based rate denominators to explicit completed batting outcomes, excluding truncated PAs and baserunner-only events. These pitch observations remain in location/arsenal analyses. The frontend query carries this calculation version so old cached rate responses cannot mask the correction. Existing normalized source archives remain valid and do not require re-ingestion.
+
+The 30-team current-roster historical refresh is a resumable background workflow, separate from the verified nine-player-season proof. Its completion must be judged from all shard receipts, not inferred from the pilot.

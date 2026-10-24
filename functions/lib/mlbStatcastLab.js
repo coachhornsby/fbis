@@ -1,5 +1,6 @@
 /** Pitch-level descriptive analytics, independent of markets and predictive model authority. */
 export const MLB_STATCAST_LAB_VERSION='mlb-statcast-lab-v1';
+export const MLB_STATCAST_LAB_CALC_VERSION='mlb-lab-metrics-v1.1';
 export const LAB_PREFIX='models/mlb/player-lab/v1/';
 export const COMPETITIVE_GAME_TYPES=['R','F','D','L','W'];
 export const PITCH_TYPES={FF:['Four-seam','#ee5364','fastball'],SI:['Sinker','#f28b3c','fastball'],FC:['Cutter','#bd894d','fastball'],FA:['Fastball','#e66d72','fastball'],SL:['Slider','#e8cd44','breaking'],ST:['Sweeper','#b4a742','breaking'],CU:['Curveball','#6abce4','breaking'],KC:['Knuckle curve','#66d3d3','breaking'],SV:['Slurve','#aa91e3','breaking'],CS:['Slow curve','#89b7f1','breaking'],CH:['Changeup','#67bc6c','offspeed'],FS:['Splitter','#65bab1','offspeed'],FO:['Forkball','#83d0a8','offspeed'],SC:['Screwball','#a2d49d','offspeed'],KN:['Knuckleball','#c6a7d5','other'],EP:['Eephus','#b4c1cf','other']};
@@ -14,6 +15,7 @@ const deviation=(xs,unit)=>{const m=avg(xs),sumSquaredDeviations=xs.length?xs.re
 const isSwing=r=>r.type==='X'||/^(swinging_strike|swinging_strike_blocked|foul|foul_tip|foul_bunt|missed_bunt|bunt_foul_tip|hit_into_play)$/.test(r.description);
 const isWhiff=r=>/^swinging_strike(_blocked)?$/.test(r.description);
 const isBBE=r=>r.type==='X';
+const COMPLETED_PA_EVENTS=new Set(['single','double','triple','home_run','strikeout','strikeout_double_play','field_out','force_out','grounded_into_double_play','double_play','triple_play','fielders_choice','fielders_choice_out','field_error','walk','intent_walk','hit_by_pitch','sac_fly','sac_bunt','sac_fly_double_play','sac_bunt_double_play','catcher_interf']);
 export const isActualLabPitch=r=>!/^automatic_/.test(r.description||'');
 export function normalizeLabRows(input,{playerId,role='pitcher',season,cutoffDay,finalGameIds=null}={}){
  if(!/^\d+$/.test(String(playerId))||!['pitcher','batter'].includes(role)||!Number.isInteger(season)||season<2024||season>new Date().getUTCFullYear()||!/^\d{4}-\d{2}-\d{2}$/.test(cutoffDay||''))throw Error('INVALID_LAB_SCOPE');
@@ -46,7 +48,7 @@ export function labApproachAngles(row){
 }
 function metricSummary(observations){
  const rows=observations.filter(isActualLabPitch);
- const terminal=new Map();for(const r of observations)if(r.events)terminal.set(`${r.game_pk}:${r.at_bat_number}`,r);
+ const terminal=new Map();for(const r of observations)if(COMPLETED_PA_EVENTS.has(r.events))terminal.set(`${r.game_pk}:${r.at_bat_number}`,r);
  const pa=[...terminal.values()],bbe=rows.filter(isBBE),outside=rows.filter(r=>outsideZone(r)===true),zoneKnown=rows.filter(r=>outsideZone(r)!=null),swing=rows.filter(isSwing),whiff=rows.filter(isWhiff),expected=bbe.filter(r=>n(r.estimated_woba_using_speedangle)!=null),ev=bbe.filter(r=>n(r.launch_speed)!=null),barrel=bbe.filter(r=>n(r.launch_speed_angle)>=1&&n(r.launch_speed_angle)<=6);
  const k=pa.filter(r=>['strikeout','strikeout_double_play'].includes(r.events)).length,bb=pa.filter(r=>['walk','intent_walk'].includes(r.events)).length;
  const arms=values(rows,'arm_angle'),rx=values(rows,'release_pos_x'),rz=values(rows,'release_pos_z'),re=values(rows,'delta_run_exp');
@@ -72,7 +74,7 @@ export function buildMlbStatcastLab(packets,{season,hand='all',pitchType='all',p
  for(const r of rows){const x=n(r.plate_x),z=n(r.plate_z),top=n(r.sz_top),bot=n(r.sz_bot);if([x,z,top,bot].some(x=>x==null)||top<=bot)continue;located++;const yn=(z-bot)/(top-bot),xi=Math.floor((x+2)/4*12),yi=Math.floor((yn+.5)/2*12);if(xi<0||xi>=12||yi<0||yi>=12){offGrid++;continue;}cells[yi*12+xi].count++;}
  const sourceRows=selected?.rows||[];
  const trends=packets.map(packet=>{const filtered=filter(packet);return {season:packet.season,...metricSummary(filtered),categories:['all','fastball','breaking','offspeed'].map(category=>({category,...metricSummary(category==='all'?filtered:filtered.filter(r=>PITCH_TYPES[r.pitch_type]?.[2]===category))}))};}).sort((a,b)=>a.season-b.season);
- return {version:MLB_STATCAST_LAB_VERSION,role,season,available:rows.length>0,...metricSummary(rows),arsenal:arsenal(rows),handedness:['L','R'].map(hand=>({hand,pitches:allHands.filter(r=>r[handKey]===hand).length,arsenal:arsenal(allHands.filter(r=>r[handKey]===hand))})),heatmap:{cells,located,offGrid,orientation:'CATCHER_VIEW',xDomain:[-2,2],yDomain:[-.5,1.5],verticalBasis:'NORMALIZED_INDIVIDUAL_STRIKE_ZONE'},trends,
+ return {version:MLB_STATCAST_LAB_VERSION,calculationVersion:MLB_STATCAST_LAB_CALC_VERSION,role,season,available:rows.length>0,...metricSummary(rows),arsenal:arsenal(rows),handedness:['L','R'].map(hand=>({hand,pitches:allHands.filter(r=>r[handKey]===hand).length,arsenal:arsenal(allHands.filter(r=>r[handKey]===hand))})),heatmap:{cells,located,offGrid,orientation:'CATCHER_VIEW',xDomain:[-2,2],yDomain:[-.5,1.5],verticalBasis:'NORMALIZED_INDIVIDUAL_STRIKE_ZONE'},trends,
   filters:{seasons:packets.map(p=>p.season).sort(),pitchTypes:[...new Set(sourceRows.map(r=>r.pitch_type))].filter(Boolean).sort(),pitchResults:[...new Set(sourceRows.map(r=>r.description))].filter(Boolean).sort(),paResults:[...new Set(sourceRows.map(r=>r.events))].filter(Boolean).sort()},
   source:{name:'Baseball Savant / Statcast',url:'https://baseballsavant.mlb.com/csv-docs',asOf:selected?.observedAt||null,cutoffDay:selected?.cutoffDay||null,games:selected?.games||0,sourceHash:selected?.sourceHash||null,coverage:selected?.coverage||'COLLECTED_FINAL_GAMES',coordinateConvention:season>=2026?'2026 ABS-era plate coordinates':'Pre-2026 front-of-plate coordinates'},
   limitations:['Approach angles are derived from the measured velocity/acceleration trajectory at a fixed front-of-plate plane.','xwOBA on contact uses only batted balls with a supplied expected-wOBA value.','League averages, official run value, count-leverage Zone%, SSW, and xRA are not inferred from partial player data.'],canAuthorizeWager:false};
