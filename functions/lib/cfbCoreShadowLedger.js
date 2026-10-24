@@ -249,7 +249,8 @@ export function buildCfbCoreShadowRecord(game = {}, { artifact = null, market = 
     coreSpread, coreTotal,
     coreHome: coreProj.ok ? coreProj.home : null,
     coreAway: coreProj.ok ? coreProj.away : null,
-    corePHomeWin: coreProj.ok ? coreProj.pHomeWin : null,
+    // Margin-only hybrid intentionally has no win-probability head; bind SQL NULL, never undefined.
+    corePHomeWin: coreProj.ok ? num(coreProj.pHomeWin) : null,
     coreCrossMargin: vector.ok ? vector.features.coreCrossMargin : null,
     coreCrossTotal: vector.ok ? vector.features.coreCrossTotal : null,
     homeCoreOffense: homeCore?.coreOffense ?? null,
