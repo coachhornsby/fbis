@@ -249,6 +249,7 @@ export async function onRequest({request,env}){
    ).bind(sport,new Date(now+600000).toISOString(),until).all();
    if(!Array.isArray(upcoming?.results))throw Error("SLATE_QUERY_FAILED");
    return json({ok:true,sport,upcoming:upcoming.results,slateCapacity:240,
+    gradingContract:"SDV_FINALS_V2_RECONCILED",
     supportedVariants:sport==="nfl"?["standard","nfl-sdv-v031"]:["standard"],
     canAuthorizeWager:false});
   }
