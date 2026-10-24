@@ -20,5 +20,23 @@ for(const tour of ['atp','wta']){
  receipts.push({tour,url,sourceRows:rows.length,currentWindow:recent.seen,
   validCurrentStats:recent.matches.length,latestSourceDateLabel:newest,
   sourceDateIsExactMatchTime:false});
+ const ongoingFile=tour==='atp'?'ongoing_tourneys.csv':'wta_ongoing_tourneys.csv';
+ const ongoingUrl='https://stats.tennismylife.org/data/'+ongoingFile;
+ try{
+  const live=await fetch(ongoingUrl,{headers:{accept:'text/csv'},
+    signal:AbortSignal.timeout(25000)});
+  if(!live.ok)throw Error('HTTP_'+live.status);
+  const ongoingText=await live.text();
+  const ongoingRows=parseTennisCsv(ongoingText);
+  const ongoingValid=selectCurrentTennisRows(ongoingRows,{tour,now});
+  const latest=ongoingRows.map(x=>String(x.tourney_date||''))
+    .filter(x=>/^\\d{8}$/.test(x)).sort().at(-1)||null;
+  receipts.at(-1).ongoing={url:ongoingUrl,rows:ongoingRows.length,
+    statsValidated:ongoingValid.matches.length,latestSourceDateLabel:latest,
+    sameSchema:true};
+ }catch(e){
+  receipts.at(-1).ongoing={url:ongoingUrl,
+   available:false,reason:String(e.message||'SOURCE_UNAVAILABLE')};
+ }
 }
 process.stdout.write(JSON.stringify({ok:true,at:new Date().toISOString(),receipts},null,2)+'\n');
