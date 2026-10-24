@@ -2,7 +2,7 @@ name: Football prospective SDV shadow receipts
 on:
   push:
     branches: [main]
-    paths: [.github/workflows/football-sdv-prospective.yml]
+    paths: [.github/workflows/football-sdv-prospective.yml, functions/api/football-sdv-prospective.js, scripts/football-sdv-prospective-cycle.mjs]
   workflow_dispatch:
   schedule:
     - cron: "15 12,20 * * *"
