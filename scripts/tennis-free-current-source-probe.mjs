@@ -30,7 +30,7 @@ for(const tour of ['atp','wta']){
   const ongoingRows=parseTennisCsv(ongoingText);
   const ongoingValid=selectCurrentTennisRows(ongoingRows,{tour,now});
   const latest=ongoingRows.map(x=>String(x.tourney_date||''))
-    .filter(x=>/^\\d{8}$/.test(x)).sort().at(-1)||null;
+    .filter(x=>/^\d{8}$/.test(x)).sort().at(-1)||null;
   receipts.at(-1).ongoing={url:ongoingUrl,rows:ongoingRows.length,
     statsValidated:ongoingValid.matches.length,latestSourceDateLabel:latest,
     sameSchema:true};
