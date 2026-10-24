@@ -178,7 +178,9 @@ export function buildCfbCoreShadowRecord(game = {}, { artifact = null, market = 
     artifact?.modelId === CFB_CORE_MARGIN_HYBRID_ID ||
     artifact?.variant === CFB_CORE_MARGIN_HYBRID_VARIANT_LEADING ||
     artifact?.variant === CFB_CORE_MARGIN_HYBRID_VARIANT_RESIDUAL;
-  const coreProj = useMarginHybrid
+  const coreProj = useMarginHybrid && vector.ok && vector.coreSourceEndpoint !== "fbis_weekly_training_document"
+    ? { ok: false, reason: "HYBRID_REQUIRES_WEEKLY_TRAINING_DOCUMENT" }
+    : useMarginHybrid
     ? projectCfbCoreMarginHybrid(
         {
           season,
@@ -949,7 +951,7 @@ export async function runCfbCoreWeeklyEvaluation(env, { rows = null } = {}) {
       const db = tier3(env);
       const rs = await db.prepare(
         `SELECT id,game_id,season,week,kickoff,generation_at,feature_cutoff_at,
-          core_model_id,core_artifact_id,core_through_week,eligibility,
+          core_model_id,core_artifact_id,core_source_endpoint,core_through_week,eligibility,
           champion_home,champion_away,core_home,core_away,
           final_verified,actual_home,actual_away
          FROM cfb_core_shadow_predictions
