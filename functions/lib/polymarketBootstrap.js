@@ -1,13 +1,14 @@
 import {POLY_US_API,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers} from './polymarketUs.js';
 import {polymarketUsSideLabel,polymarketUsCanonicalSide} from './polymarketUs.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
+import {persistCfbMarketQuotes} from './cfbMarketState.js';
 // Capacity-aware bootstrap writes may land on MARKET_HISTORY_DB via the API gate.
 const valid=s=>/^[a-z0-9-]{1,160}$/i.test(s||'');
 // Exchange tennis event identifiers contain underscores (e.g. wta_abc).
 // Receipt IDs are internal evidence keys, not provider league or market slugs.
 const validReceipt=s=>typeof s==='string'&&/^[a-z0-9_-]{1,180}$/i.test(s);
 const prefix='market-sources/polymarket-us/bootstrap/';
-export async function projectedPolymarketFixtures(db,now=new Date()){
+export async function projectedPolymarketFixtures(db,now=new Date(),cfbDb=null){
  if(!db?.prepare)throw Error('PRIMARY_DB_REQUIRED');
  const asOf=now.toISOString(),end=new Date(now.getTime()+48*3600000).toISOString();
  // Team sports stay on games+prediction_snapshots. Tennis uses the official
@@ -20,6 +21,18 @@ export async function projectedPolymarketFixtures(db,now=new Date()){
  AND (ps.proj_total IS NOT NULL OR (ps.proj_home IS NOT NULL AND ps.proj_away IS NOT NULL) OR ps.p_home_final BETWEEN 0 AND 1)
  AND julianday(ps.frozen_at)<=julianday(?) AND julianday(ps.frozen_at)<julianday(g.start))
  ORDER BY g.start,g.id`).bind(asOf,end,asOf).all();
+ let sportRows=[];
+ if(cfbDb?.prepare){
+  // CFB was cut over to its own D1; do not rely on stale PRIMARY copies.
+  const cfb=await cfbDb.prepare(`SELECT g.id,g.sport,g.start,g.home_name,g.away_name,g.home_abbr,NULL AS tour FROM games g
+   WHERE g.sport='cfb' AND julianday(g.start)>julianday(?) AND julianday(g.start)<=julianday(?) AND EXISTS (
+   SELECT 1 FROM prediction_snapshots ps WHERE ps.game_id=g.id AND ps.sport='cfb'
+     AND ps.model_version IS NOT NULL AND COALESCE(ps.projection_kind,'FBIS')<>'UNAVAILABLE'
+     AND (ps.proj_total IS NOT NULL OR (ps.proj_home IS NOT NULL AND ps.proj_away IS NOT NULL) OR ps.p_home_final BETWEEN 0 AND 1)
+     AND julianday(ps.frozen_at)<=julianday(?) AND julianday(ps.frozen_at)<julianday(g.start))
+   ORDER BY g.start,g.id`).bind(asOf,end,asOf).all();
+  sportRows=cfb.results||[];
+ }
  let tennis={results:[]};
  try{
   tennis=await db.prepare(`SELECT m.match_id AS id,'tennis' AS sport,m.match_time AS start,
@@ -39,7 +52,9 @@ export async function projectedPolymarketFixtures(db,now=new Date()){
      AND julianday(d.decision_timestamp)<julianday(m.match_time))
   ORDER BY m.match_time,m.match_id`).bind(asOf,end,asOf).all();
  }catch{/* tennis tables absent on older D1 snapshots */}
- return [...(games.results||[]),...(tennis.results||[])].sort((a,b)=>String(a.start).localeCompare(String(b.start))||String(a.id).localeCompare(String(b.id)));
+ return [...(cfbDb?.prepare?(games.results||[]).filter(g=>g.sport!=='cfb'):(games.results||[])),
+   ...sportRows,...(tennis.results||[])]
+  .sort((a,b)=>String(a.start).localeCompare(String(b.start))||String(a.id).localeCompare(String(b.id)));
 }
 async function boundedJson(fetchImpl,url,maxBytes=4e6){
  const r=await fetchImpl(url,{headers:{accept:'application/json'},signal:AbortSignal.timeout(20000)});
@@ -53,7 +68,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
  if(!env.ARCHIVE?.get||!env.ARCHIVE?.put)throw Error('PRIVATE_ARCHIVE_REQUIRED');
  const writeDb=opts.observationDb||env.DB;
  if(!writeDb?.prepare)throw Error('OBSERVATION_DB_REQUIRED');
- const fixtures=await projectedPolymarketFixtures(env.DB,now);
+ const fixtures=await projectedPolymarketFixtures(env.DB,now,env.CFB_DB?.prepare?env.CFB_DB:null);
  if(opts.operation==='resume'){
   const object=await env.ARCHIVE.get('market-sources/polymarket-us/coverage/latest.json');if(!object)return {ok:true,run:null};const previous=await object.json();
   // A 30-minute quote receipt cannot be safely resumed near expiry: full-league
@@ -164,5 +179,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
   }catch(e){marketResults.push({market:offer.sourceMarketId,status:'UNAVAILABLE',reason:e.message});errors.push({market:offer.sourceMarketId,reason:e.message});}
  }));
  const saved=offers.length?await persistNormalizedMarketBatch(writeDb,offers,{snapshotType:'CURRENT',collectedAt:new Date().toISOString(),modelProbability:null}):{inserted:0};
- const result={ok:errors.length===0,inserted:saved.inserted,errors,marketResults,canAuthorizeWager:false};await env.ARCHIVE.put(doneKey,JSON.stringify(result));return result;
+ const cfbCurrent=await persistCfbMarketQuotes(env,offers,{capturedAt:new Date().toISOString()})
+  .catch(e=>({ok:false,reason:"CFB_CURRENT_MARKET_WRITE_FAILED",detail:String(e?.message||e).slice(0,120),stored:0}));
+ const result={ok:errors.length===0,inserted:saved.inserted,cfbCurrent,errors,marketResults,canAuthorizeWager:false};await env.ARCHIVE.put(doneKey,JSON.stringify(result));return result;
 }
