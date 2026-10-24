@@ -3,6 +3,7 @@ name: CFB CORE prospective shadow
 # Cache-only research jobs. Intentionally isolated from CFBD/CBBD
 # harvesting so an upstream 429/503 cannot suppress the shadow ledger.
 # This workflow neither changes production A/A nor authorizes wagers.
+# Operator verification 2026-10-24: run after weekly-source lock production deployment.
 on:
   schedule:
     - cron: "15 0,4,8,12,16,20 * * *"
