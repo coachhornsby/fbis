@@ -1,3 +1,4 @@
+import {archiveProjectionProfile,archiveLineupMatchup} from './mlbArchiveProjection.js';
 /**
  * Live Statcast feed for MLB pitch-shape x hitter-zone matchup research.
  *
@@ -143,10 +144,33 @@ async function buildSide(game,pitcherSide,env,fetchFn){
   }:null;
 }
 
+async function archivedSide(game,side,env,now,memo){
+ const pid=starterId(game,side),ids=lineupIdsVsStarter(game,pid);
+ if(!Number.isFinite(pid)||ids.length<5||ids.length>9||!env.ARCHIVE?.get)return null;
+ const {readLabPackets}=await import('./mlbStatcastLabStore.js');
+ const year=Number(now.slice(0,4)),seasons=[year-1,year].filter(y=>y>=2024);
+ const load=async(id,role)=>{
+  const key=`${role}:${id}:${game.start}`;
+  if(!memo.has(key))memo.set(key,(async()=>{
+   const {packets,diagnostics}=await readLabPackets(env,{playerId:String(id),role,seasons});
+   if(diagnostics.length)return null;
+   return archiveProjectionProfile({packets,playerId:String(id),role,gameStart:game.start,now});
+  })());
+  return memo.get(key);
+ };
+ const pitcherProfile=await load(pid,'pitcher'),batterProfiles=[];
+ if(!pitcherProfile)return null;
+ // Two bounded player reads at a time; retain compact profiles, not raw archives.
+ for(let i=0;i<ids.length;i+=2)batterProfiles.push(...await Promise.all(ids.slice(i,i+2).map(id=>load(id,'batter'))));
+ const matchup=archiveLineupMatchup({pitcherProfile,batterProfiles:batterProfiles.filter(Boolean),pitcherId:pid,batterIds:ids,expectedInnings:expectedIp(game,side),battersFacedPerInning:bfPerIp(game,side)});
+ return matchup?{matchup,pitcherProfile,batterProfiles}:null;
+}
+
 export async function loadMlbPitchMatchupContext(games=[],env={},options={}){
   const fetchFn=options.fetchFn||fetch;
-  const byGameId={};
-  let available=0,persistentAvailable=0,liveFallbacks=0;
+  const byGameId={},archiveProfilesByGameId={};
+  let available=0,persistentAvailable=0,liveFallbacks=0,archiveAvailable=0;
+  const archiveMemo=new Map(),now=options.now||new Date().toISOString();
   const persistent=options.persistentState || await loadMlbPersistentState(games,env,{maxAgeHours:options.maxPersistentAgeHours??14}).catch(()=>({byGameId:{},meta:{configured:false}}));
   // In production, D1 persistence is the primary path. Avoid expensive per-game
   // Statcast fanout on customer requests. Live fallback is opt-in when D1 is bound.
@@ -154,7 +178,12 @@ export async function loadMlbPitchMatchupContext(games=[],env={},options={}){
   for(const game of games||[]){
     if(game?.sport&&game.sport!=="mlb")continue;
     const key=String(game.id||game.bpp?.gamePk||"");
-    const saved=buildPersistentPitchMatchup(game,persistent.byGameId?.[key]);
+    const homeArchive=await archivedSide(game,'home',env,now,archiveMemo).catch(()=>null);
+    const awayArchive=await archivedSide(game,'away',env,now,archiveMemo).catch(()=>null);
+    if(homeArchive||awayArchive)archiveProfilesByGameId[key]={home:homeArchive,away:awayArchive};
+    const stored=buildPersistentPitchMatchup(game,persistent.byGameId?.[key]);
+    const saved=homeArchive||awayArchive?{...stored,homeOffense:awayArchive?.matchup||stored?.homeOffense||null,awayOffense:homeArchive?.matchup||stored?.awayOffense||null,source:'ARCHIVE_WITH_PERSISTENT_FALLBACK',asOf:now}:stored;
+    if(homeArchive||awayArchive)archiveAvailable+=1;
     if(saved?.homeOffense||saved?.awayOffense){
       byGameId[key]=saved;
       available+=1;
@@ -190,12 +219,14 @@ export async function loadMlbPitchMatchupContext(games=[],env={},options={}){
   }
   return{
     byGameId,
+    archiveProfilesByGameId,
     meta:{
       version:MLB_PITCH_MATCHUP_VERSION,
       source:persistentAvailable?"D1 persistent Statcast profiles":"Baseball Savant Statcast pitch-level",
       games:(games||[]).length,
       available,
       persistentAvailable,
+      archiveAvailable,
       liveFallbacks,
       persistentConfigured:Boolean(persistent.meta?.configured),
       liveFanoutDisabled:Boolean(env?.DB?.prepare&&!allowLiveFallback),
