@@ -1,0 +1,32 @@
+name: NBA Phase 26 retention routing guard
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/nba-team-profiles.yml"
+      - ".github/workflows/nba-prospective-shadow.yml"
+      - ".github/workflows/nba-official-availability.yml"
+      - "scripts/nba-source-key-certify.mjs"
+      - "test/nba-phase26-retention-routing.test.mjs"
+      - ".github/workflows/nba-phase26-retention-guard.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/nba-team-profiles.yml"
+      - ".github/workflows/nba-prospective-shadow.yml"
+      - ".github/workflows/nba-official-availability.yml"
+      - "scripts/nba-source-key-certify.mjs"
+      - "test/nba-phase26-retention-routing.test.mjs"
+      - ".github/workflows/nba-phase26-retention-guard.yml"
+permissions:
+  contents: read
+jobs:
+  retention-routing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test test/nba-phase26-retention-routing.test.mjs
