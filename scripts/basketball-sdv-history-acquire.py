@@ -30,6 +30,7 @@ URLS = {
     "cbb": [
         ("possession", f"{ROOT}/ncaa_mbb_possessions/ncaa_mbb_possessions_{SEASON}.parquet"),
         ("schedule", f"{ROOT}/ncaa_mbb_schedule/ncaa_mbb_schedule_{SEASON}.parquet"),
+        ("espn_fixture", f"{ROOT}/espn_mens_college_basketball_schedules/mbb_schedule_{SEASON}.parquet"),
     ],
 }
 COLS = {
@@ -41,9 +42,13 @@ COLS = {
                      "home_pts", "away_pts"),
     },
     "cbb": {
-        "possession": ("contest_id", "period", "poss_num", "poss_team_ncaa_team_id",
-                       "home_ncaa_team_id", "away_ncaa_team_id", "home", "away", "pts"),
+        "possession": ("contest_id", "espn_game_id", "period", "poss_num", "poss_team_ncaa_team_id",
+                       "home_ncaa_team_id", "away_ncaa_team_id",
+                       "home_espn_team_id", "away_espn_team_id", "home", "away", "pts"),
         "schedule": ("contest_id", "game_date", "home", "away", "home_score", "away_score"),
+        "espn_fixture": ("id", "game_date_time", "time_valid", "status_type_completed",
+                         "format_regulation_periods", "home_id", "away_id",
+                         "home_score", "away_score", "season"),
     },
 }
 KEY = "game_id" if SPORT == "nba" else "contest_id"
@@ -84,6 +89,14 @@ for row in frames["schedule"].iter_rows(named=True):
         schedules[gid] = row
 if duplicates:
     raise RuntimeError(f"SDV_DUPLICATE_OFFICIAL_SCHEDULE_GAMES {len(duplicates)}")
+espn_fixtures = {}
+if SPORT == "cbb":
+    for row in frames["espn_fixture"].iter_rows(named=True):
+        game_id = str(row.get("id") or "")
+        if not game_id: continue
+        if game_id in espn_fixtures:
+            raise RuntimeError("SDV_DUPLICATE_ESPN_CBB_FIXTURE_ID: " + game_id)
+        espn_fixtures[game_id] = row
 grouped = defaultdict(list)
 for row in frames["possession"].iter_rows(named=True):
     gid = str(row.get(KEY) or "")
@@ -107,6 +120,10 @@ with gzip.open(out_file, "wt", encoding="utf8", compresslevel=6) as output:
                "observedAt": now, "tipoff": None, "tipoffEvidence": None,
                "sourceArtifactHash": sources["possession"]["sha256"],
                "scheduleArtifactHash": sources["schedule"]["sha256"]}
+        if SPORT == "cbb":
+            espn_id = str(grouped[gid][0].get("espn_game_id") or "")
+            row["espnFixture"] = espn_fixtures.get(espn_id)
+            row["espnFixtureSourceHash"] = sources["espn_fixture"]["sha256"]
         output.write(json.dumps(row, separators=(",", ":"), default=str) + "\n")
         considered += 1
 manifest = {
@@ -114,6 +131,7 @@ manifest = {
     "sport": SPORT, "season": SEASON, "generatedAt": now,
     "datasets": sources, "scheduleGames": len(schedules),
     "possessionGames": len(grouped), "joinedGames": considered,
+    "espnFixtureGames": len(espn_fixtures),
     "sourceRows": sum(len(x) for x in grouped.values()),
     "sourceArtifact": str(out_file),
     "authoritativeTipoffsAttached": 0,
