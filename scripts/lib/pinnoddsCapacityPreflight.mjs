@@ -5,7 +5,7 @@
 export const PINNODDS_Q4_WRITE_CUTOFF = 0.85;
 
 export function requirePinnoddsMarketHistoryHeadroom(report) {
-  const q4 = report?.marketHistoryQ4;
+  const q4 = report?.activeMarketHistory || report?.marketHistoryQ4b || report?.marketHistoryQ4;
   if (
     report?.ok !== true ||
     !Number.isSafeInteger(q4?.usedBytes) ||
@@ -16,5 +16,5 @@ export function requirePinnoddsMarketHistoryHeadroom(report) {
   const ratio = q4.usedBytes / q4.hardLimitBytes;
   if (ratio >= PINNODDS_Q4_WRITE_CUTOFF)
     throw Error('PINNODDS_Q4_CAPACITY_PREFLIGHT_BLOCKED_NO_PROVIDER_CALL');
-  return {databaseKey:'MARKET_HISTORY_2026Q4',usedBytes:q4.usedBytes,hardLimitBytes:q4.hardLimitBytes,percentUsed:ratio*100};
+  return {databaseKey:q4.databaseKey,usedBytes:q4.usedBytes,hardLimitBytes:q4.hardLimitBytes,percentUsed:ratio*100};
 }

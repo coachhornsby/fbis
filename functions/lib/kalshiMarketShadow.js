@@ -8,7 +8,7 @@
  */
 export const KALSHI_PUBLIC_BASE = "https://external-api.kalshi.com/trade-api/v2";
 export const KALSHI_SHADOW_SERIES = Object.freeze({
-  nfl: "KXNFLGAME", cfb: "KXNCAAFGAME", mlb: "KXMLBGAME", nba: "KXNBAGAME",
+  nfl: "KXNFLGAME", cfb: "KXNCAAFGAME", cfb_spread:"KXNCAAFSPREAD", cfb_total:"KXNCAAFTOTAL", mlb: "KXMLBGAME", nba: "KXNBAGAME",
   atp: "KXATPMATCH", wta: "KXWTAMATCH",
   atp_challenger: "KXATPCHALLENGERMATCH",
   itf_men: "KXITFMATCH", itf_women: "KXITFWMATCH",
@@ -63,6 +63,12 @@ export function normalizeKalshiShadowMarket(m, {sport, fetchedAt} = {}) {
     title: short(m.title), yesLabel: short(m.yes_sub_title),
     noLabel: short(m.no_sub_title), status: short(m.status, 30),
     marketType: short(m.market_type, 30),
+    // Provider strike metadata is retained for exact spread/total settlement
+    // matching. Never invent strike from a ticker or model point difference.
+    floorStrike: m.floor_strike==null?null:Number(m.floor_strike),
+    capStrike: m.cap_strike==null?null:Number(m.cap_strike),
+    functionalStrike: m.functional_strike==null?null:String(m.functional_strike).slice(0,180),
+    strikeType: short(m.strike_type,80),
     // Provider-supplied dollars and legacy integer cents are never conflated.
     yesBidDollars: fixedPrice(m, "yes_bid_dollars", "yes_bid"),
     yesAskDollars: fixedPrice(m, "yes_ask_dollars", "yes_ask"),
@@ -177,7 +183,7 @@ export async function getKalshiShadowMarketsPaged(sport,{
   fetchImpl=fetch,now=new Date(),pageLimit=1000,maxPages=4,
 }={}){
   const series=KALSHI_SHADOW_SERIES[sport];
-  if(!series||!["nfl","cfb","atp","wta"].includes(sport))
+  if(!series||!["nfl","cfb","cfb_spread","cfb_total","atp","wta"].includes(sport))
     return {ok:false,code:"KALSHI_SERIES_NOT_QUALIFIED"};
   const perPage=Math.min(1000,Math.max(1,Math.floor(Number(pageLimit)||1000)));
   const budget=Math.min(6,Math.max(1,Math.floor(Number(maxPages)||4)));
@@ -230,7 +236,7 @@ export async function getKalshiShadowMarketsPage(sport,{
   cursor="",fetchImpl=fetch,now=new Date(),limit=250,
 }={}){
   const series=KALSHI_SHADOW_SERIES[sport];
-  if(!["nfl","cfb","atp","wta"].includes(sport)||!series)
+  if(!["nfl","cfb","cfb_spread","cfb_total","atp","wta"].includes(sport)||!series)
     return {ok:false,code:"KALSHI_SERIES_NOT_QUALIFIED"};
   if(typeof cursor!=="string"||cursor.length>2048)
     return {ok:false,code:"KALSHI_PUBLIC_CURSOR_INVALID"};

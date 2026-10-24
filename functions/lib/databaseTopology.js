@@ -92,6 +92,14 @@ export const CORE_DATABASE = Object.freeze({
 /** Ordered newest-first market history partitions. Writes prefer the first writable partition. */
 export const MARKET_HISTORY_PARTITIONS = Object.freeze([
   Object.freeze({
+    key: "MARKET_HISTORY_2026Q4B",
+    binding: "MARKET_HISTORY_2026Q4B_DB",
+    databaseName: "fbis-market-history-2026q4b",
+    databaseId: "bb240435-e227-43e9-b8a6-eb05f0c68d4c",
+    window: Object.freeze({ start: "2026-10-24T00:00:00.000Z", end: "2027-01-01T00:00:00.000Z" }),
+    role: "active_market_history_overflow_partition",
+  }),
+  Object.freeze({
     key: "MARKET_HISTORY_2026Q4",
     binding: "MARKET_HISTORY_2026Q4_DB",
     databaseName: "fbis-market-history-2026q4",
@@ -566,7 +574,7 @@ export async function resolveMarketHistoryWriteDb(env, {
     partition: null,
     binding: null,
     store: null,
-    warning: env?.MARKET_HISTORY_DB?.prepare || env?.MARKET_HISTORY_2026Q4_DB?.prepare
+    warning: env?.MARKET_HISTORY_DB?.prepare || env?.MARKET_HISTORY_2026Q4_DB?.prepare || env?.MARKET_HISTORY_2026Q4B_DB?.prepare
       ? "MARKET_HISTORY_WRITE_UNAVAILABLE_FAIL_CLOSED"
       : "MARKET_HISTORY_UNBOUND",
     rejected,
@@ -659,7 +667,8 @@ export async function probeTopologyCapacity(env) {
     ["NPB", env?.NPB_DB, SPORT_DATABASES.npb.databaseId],
     ["KBO", env?.KBO_DB, SPORT_DATABASES.kbo.databaseId],
     ["MARKET_HISTORY", env?.MARKET_HISTORY_DB, DATABASE_OWNERS.MARKET_HISTORY.databaseId],
-    ["MARKET_HISTORY_2026Q4", env?.MARKET_HISTORY_2026Q4_DB, MARKET_HISTORY_PARTITIONS[0].databaseId],
+    ["MARKET_HISTORY_2026Q4", env?.MARKET_HISTORY_2026Q4_DB, "e8b0b65d-90a6-4842-8ee7-0f85d75afb4c"],
+    ["MARKET_HISTORY_2026Q4B", env?.MARKET_HISTORY_2026Q4B_DB, "bb240435-e227-43e9-b8a6-eb05f0c68d4c"],
     ["COLD_HISTORY", env?.COLD_HISTORY_DB, DATABASE_OWNERS.COLD_HISTORY.databaseId],
     ["TIER3", env?.TIER3_DB, null],
   ];

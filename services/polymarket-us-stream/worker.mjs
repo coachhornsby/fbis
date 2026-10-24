@@ -520,7 +520,7 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
       if(historyOk||spilledKey){
         // Intentional history-default is HISTORY; keep DEGRADED_HISTORY for failure recovery only.
         // WS_Q4_DEFAULT is the fail-closed partition path; keep WS_HISTORY_DEFAULT for older DO pins.
-        const historyDefault=route.reason==="WS_Q4_DEFAULT"||route.reason==="WS_HISTORY_DEFAULT";
+        const historyDefault=["WS_Q4B_DEFAULT","WS_Q4_DEFAULT","WS_HISTORY_DEFAULT"].includes(route.reason);
         this.persistenceStatus=historyOk?(historyDefault?"HISTORY":"DEGRADED_HISTORY"):"DEGRADED";
         for(const t of ticks)this.lastSaved.set(t.marketSlug,t);
       }else{

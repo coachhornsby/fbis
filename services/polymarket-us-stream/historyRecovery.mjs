@@ -144,6 +144,9 @@ export async function ensureHistoryLedgerSchema(db){
  * Synchronous binding check only; capacity gating uses resolveMarketHistoryWriteDb.
  */
 export function resolveRecoveryHistoryDb(env){
+  if(env?.MARKET_HISTORY_2026Q4B_DB?.prepare){
+    return {db:env.MARKET_HISTORY_2026Q4B_DB,target:"MARKET_HISTORY_2026Q4B_DB"};
+  }
   if(env?.MARKET_HISTORY_2026Q4_DB?.prepare){
     return {db:env.MARKET_HISTORY_2026Q4_DB,target:"MARKET_HISTORY_2026Q4_DB"};
   }

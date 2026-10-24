@@ -3,6 +3,7 @@ import {loadSoccerMarketFixtures} from "./soccerMarketFixtures.js";
 import {normalizePinnoddsMarkets} from './pinnoddsMarkets.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
 import {marketObservationDatabase} from './coldMarketHistory.js';
+import {persistCfbMarketQuotes} from './cfbMarketState.js';
 import {loadVerifiedTennisCandidates} from './polymarketTennisIdentity.js';
 import {filterPinnoddsToFbisProjections} from './pinnoddsProjectionScope.js';
 import { resolveNbaResearchOwnerDb } from "./nbaResearchOwnerDb.js";
@@ -190,7 +191,10 @@ export async function consumePinnoddsSnapshot(env,{snapshotId,batchIndex}={}){
  const object=await env.ARCHIVE.get(`${root}/normalized/${snapshotId}.json`);if(!object)throw Error('SNAPSHOT_NOT_PREPARED');const prepared=await object.json();
  if(batchIndex>=prepared.batches)throw Error('BATCH_OUT_OF_RANGE');
  const rows=prepared.rows.slice(batchIndex*batchSize,(batchIndex+1)*batchSize),saved=await persistNormalizedMarketBatch(await marketObservationDatabase(env,prepared.collectedAt),rows,{snapshotType:'RESEARCH',collectedAt:prepared.collectedAt,modelProbability:null});
- return{ok:true,snapshotId,batchIndex,expectedRows:rows.length,inserted:saved.inserted,canAuthorizeWager:false};
+ const cfbCurrent=await persistCfbMarketQuotes(env,rows,{capturedAt:prepared.collectedAt})
+  .catch(e=>({ok:false,reason:"CFB_CURRENT_MARKET_WRITE_FAILED",detail:String(e?.message||e).slice(0,120),stored:0}));
+ return{ok:true,snapshotId,batchIndex,expectedRows:rows.length,inserted:saved.inserted,
+   cfbCurrent,canAuthorizeWager:false};
 }
 export async function reconcilePinnoddsSnapshot(env,{snapshotId}={}){
  if(!valid(snapshotId))throw Error('INVALID_SNAPSHOT_ID');const object=await env.ARCHIVE.get(`${root}/normalized/${snapshotId}.json`);if(!object)throw Error('SNAPSHOT_NOT_PREPARED');const {rows,...receipt}=await object.json();

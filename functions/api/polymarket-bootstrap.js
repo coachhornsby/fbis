@@ -12,10 +12,11 @@ const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:
 export function bootstrapWriteTarget(env,sizeAfter,historySizeAfter=null){
  const primary=Number(sizeAfter);
  const primaryBytes=Number.isSafeInteger(primary)&&primary>0?primary:null;
+ const overflow=env.MARKET_HISTORY_2026Q4B_DB?.prepare?env.MARKET_HISTORY_2026Q4B_DB:null;
  const q4=env.MARKET_HISTORY_2026Q4_DB?.prepare?env.MARKET_HISTORY_2026Q4_DB:null;
- const legacy=!q4&&env.MARKET_HISTORY_ALLOW_LEGACY_WRITE==='enabled'&&env.MARKET_HISTORY_DB?.prepare?env.MARKET_HISTORY_DB:null;
- const db=q4||legacy;
- const store=q4?'MARKET_HISTORY_2026Q4':legacy?'MARKET_HISTORY':null;
+ const legacy=!overflow&&!q4&&env.MARKET_HISTORY_ALLOW_LEGACY_WRITE==='enabled'&&env.MARKET_HISTORY_DB?.prepare?env.MARKET_HISTORY_DB:null;
+ const db=overflow||q4||legacy;
+ const store=overflow?'MARKET_HISTORY_2026Q4B':q4?'MARKET_HISTORY_2026Q4':legacy?'MARKET_HISTORY':null;
  if(!db)return {db:null,store:null,primaryBytes,blocked:'MARKET_HISTORY_2026Q4_UNBOUND_FAIL_CLOSED'};
  // A bound shard is not evidence of free space. Reject unknown or >=85% Q4/legacy.
  const bytes=Number(historySizeAfter);
@@ -38,7 +39,8 @@ export async function onRequestPost({request,env}){
   let observationDb=env.DB,observationStore='PRIMARY';
   if(body.operation!=='catalogue'){
    const probe=await env.DB.prepare('SELECT 1 AS healthy').all();
-   const historyDb=env.MARKET_HISTORY_2026Q4_DB?.prepare?env.MARKET_HISTORY_2026Q4_DB:
+   const historyDb=env.MARKET_HISTORY_2026Q4B_DB?.prepare?env.MARKET_HISTORY_2026Q4B_DB:
+     env.MARKET_HISTORY_2026Q4_DB?.prepare?env.MARKET_HISTORY_2026Q4_DB:
      env.MARKET_HISTORY_ALLOW_LEGACY_WRITE==='enabled'?env.MARKET_HISTORY_DB:null;
    const historyProbe=historyDb?.prepare?await historyDb.prepare('SELECT 1 AS healthy').all():null;
    const target=bootstrapWriteTarget(env,probe?.meta?.size_after,historyProbe?.meta?.size_after);

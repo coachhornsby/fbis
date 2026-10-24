@@ -1,0 +1,31 @@
+name: Refresh CFB three-venue current market board
+on:
+  schedule:
+    - cron: '3,18,33,48 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fbis-cfb-current-market-refresh
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Import matched Kalshi CFB winner quotes from R2 into CFB D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          receipt="$(mktemp)"
+          code="$(curl -sS --max-time 90 --retry 2 --retry-delay 3 \
+            -X POST -H "x-harvest-secret: $HARVEST_SECRET" \
+            -o "$receipt" -w '%{http_code}' \
+            https://fbis-myz.pages.dev/api/cfb-market-refresh)"
+          jq -c '{ok,source,providerMarkets,matchedGames,matchedOffers,unmatchedPairs,persistedCurrentQuotes,error}' "$receipt"
+          test "$code" = "200"
+          jq -e '.ok==true and .readOnly==true and .canAuthorizeWager==false' "$receipt" >/dev/null
+          echo "CFB latest-quote read model updated; no bets authorized." >> "$GITHUB_STEP_SUMMARY"

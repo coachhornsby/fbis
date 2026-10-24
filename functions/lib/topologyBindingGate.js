@@ -20,11 +20,9 @@ export const REQUIRED_PAGES_D1_BINDINGS = Object.freeze([
   Object.freeze({ binding: CORE_DATABASE.binding, databaseId: CORE_DATABASE.databaseId, role: "core" }),
   Object.freeze({ binding: "OPERATIONS_DB", databaseId: DATABASE_OWNERS.OPERATIONS.databaseId, role: "operations" }),
   Object.freeze({ binding: "MARKET_HISTORY_DB", databaseId: DATABASE_OWNERS.MARKET_HISTORY.databaseId, role: "market_history_legacy" }),
-  Object.freeze({
-    binding: MARKET_HISTORY_PARTITIONS[0].binding,
-    databaseId: MARKET_HISTORY_PARTITIONS[0].databaseId,
-    role: "market_history_active_partition",
-  }),
+  ...MARKET_HISTORY_PARTITIONS.filter(p=>p.binding!=="MARKET_HISTORY_DB").map(p=>Object.freeze({
+    binding:p.binding,databaseId:p.databaseId,role:"market_history_partition",
+  })),
   Object.freeze({ binding: "COLD_HISTORY_DB", databaseId: DATABASE_OWNERS.COLD_HISTORY.databaseId, role: "cold_history" }),
   Object.freeze({ binding: TIER3_DATABASE.binding, databaseId: TIER3_DATABASE.databaseId, role: "tier3_research" }),
   ...Object.values(SPORT_DATABASES).map((plan) => Object.freeze({
@@ -38,10 +36,9 @@ export const REQUIRED_PAGES_D1_BINDINGS = Object.freeze([
 export const REQUIRED_STREAM_D1_BINDINGS = Object.freeze([
   Object.freeze({ binding: "DB", databaseId: DATABASE_OWNERS.PRIMARY.databaseId }),
   Object.freeze({ binding: "MARKET_HISTORY_DB", databaseId: DATABASE_OWNERS.MARKET_HISTORY.databaseId }),
-  Object.freeze({
-    binding: MARKET_HISTORY_PARTITIONS[0].binding,
-    databaseId: MARKET_HISTORY_PARTITIONS[0].databaseId,
-  }),
+  ...MARKET_HISTORY_PARTITIONS.filter(p=>p.binding!=="MARKET_HISTORY_DB").map(p=>Object.freeze({
+    binding:p.binding,databaseId:p.databaseId,
+  })),
 ]);
 
 /** All sport mode env vars must remain shadow until explicit cutover authorization. */

@@ -20,7 +20,7 @@ test("topology manifest names CORE, OPERATIONS, NHL pilot, and partitioned histo
   assert.equal(m.contract, "fbis-database-topology-v2");
   assert.equal(m.core.databaseId, CORE_DATABASE.databaseId);
   assert.equal(SPORT_DATABASES.nhl.databaseId, "a0aa010c-40d3-4d2f-8109-eca4e74e2a73");
-  assert.equal(m.marketHistoryPartitions[0].binding, "MARKET_HISTORY_2026Q4_DB");
+  assert.equal(m.marketHistoryPartitions[0].binding, "MARKET_HISTORY_2026Q4B_DB");
   assert.ok(m.migrationPhases.includes("pilot_nhl_copy_and_read_parity"));
 });
 

@@ -118,6 +118,25 @@ export function bestValuePresentation(game={},vm={},options={}){
  const stored=game?.durableFallback?.statusUnverified===true;
  if(stored)return {status:"pass",heading:"BEST VALUE / DECISION",value:"STORED SNAPSHOT",
     detail:"STORED PREGAME · CANNOT RANK CURRENT MARKET VALUE",secondary:""};
+ if(sport==="cfb"&&Array.isArray(game?.cfbMarketShopping?.bestPrices)){
+  const shop=game.cfbMarketShopping,top=shop.bestValue;
+  if(top&&top.grossExpectedRoi>0){
+   const odds=top.americanEquivalent;
+   const line=top.marketFamily==="moneyline"?"ML":top.marketFamily==="spread"?(top.line>0?"+":"")+top.line:String(top.line);
+   return {status:"research",heading:"THREE-VENUE GROSS VALUE",value:`${top.selection} ${line} ${signedAmerican(odds)}`,
+    teamSide:["home","away"].includes(top.side)?top.side:null,
+    totalDirection:["over","under"].includes(top.side)?top.side:null,
+    detail:`${top.source.toUpperCase()} · FBIS ${(top.modelProbability*100).toFixed(1)}% · PRICE ${(top.impliedProbability*100).toFixed(1)}% · GROSS ROI +${(top.grossExpectedRoi*100).toFixed(1)}%`,
+    secondary:"GROSS RESEARCH ONLY · FEES AND EXECUTION NOT VERIFIED",research:{...top,estimated:true}};
+  }
+  if(shop.bestPrices.length){
+   const c=shop.providerCoverage||{};
+   return {status:"research",heading:"THREE-VENUE MARKET COMPARISON",
+    value:`${shop.bestPrices.length} PRICED SELECTIONS`,
+    detail:`PINNODDS ${c.PinnOdds||0} · POLYMARKET ${c["Polymarket US"]||0} · KALSHI ${c.Kalshi||0}`,
+    secondary:"COMPARE THE SAME SIDE AND LINE · COVER/OVER EV REQUIRES CALIBRATED PROBABILITY"};
+  }
+ }
  const result=rankResearchMoneylines(game,vm,options.now||new Date());
  const leader=result.candidates[0];
  if(leader&&leader.roi>0){

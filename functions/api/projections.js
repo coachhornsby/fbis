@@ -7,6 +7,10 @@ import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "../lib
 import { loadPinnoddsBoardResearch } from "../lib/pinnoddsBoardResearch.js";
 import {loadPinnoddsR2BoardResearch,preferFreshPinnoddsArchive} from "../lib/pinnoddsArchiveBoard.js";
 import { listMarketHistoryReadDbs } from "../lib/databaseTopology.js";
+import {loadKalshiR2Shadow} from "../lib/kalshiR2Shadow.js";
+import {matchKalshiCfbMoneylines} from "../lib/cfbKalshiMarkets.js";
+import {readCfbMarketQuotes} from "../lib/cfbMarketState.js";
+import {buildCfbMarketShopping} from "../lib/cfbMarketShop.js";
 
 const SPORTS = new Set(["mlb", "npb", "kbo", "cfb", "cbb", "nfl", "nba", "wnba", "nhl", "soccer", "tennis"]);
 
@@ -76,17 +80,43 @@ export async function onRequestGet(context) {
       }
       catch(_){/* missing PinnOdds may not break independent model calculations */}
     }
+    // Each venue remains independent: one failed source never blanks other quotes.
+    const [kalshiSnapshot,cfbOwned]=sport==="cfb"?await Promise.allSettled([
+      loadKalshiR2Shadow(context.env,"cfb"),
+      readCfbMarketQuotes(context.env,board.games),
+    ]):[{status:"fulfilled",value:null},{status:"fulfilled",value:null}];
+    const kalshiData=kalshiSnapshot.status==="fulfilled"&&kalshiSnapshot.value?.ok?
+      matchKalshiCfbMoneylines(kalshiSnapshot.value.records||[],board.games):null;
+    const cfbData=cfbOwned.status==="fulfilled"?cfbOwned.value:null;
     const cards=attachPolymarketBoardOffers(board.games,overlay).map(game=>{
       const observed=pinnodds.byGame?.[String(game.id)]||game.pinnoddsResearch||null;
-      return {...game,pinnoddsResearch:observed,
-        pinnoddsEvidenceState:observed?.status||pinnodds.reason||"NO_PINNODDS_OBSERVATIONS"};
+      const kalshiOffers=kalshiData?.byId?.get(String(game.id))||[];
+      const cfbOwnedMarketQuotes=cfbData?.byGame?.get(String(game.id))||[];
+      const withVenue={...game,pinnoddsResearch:observed,
+        pinnoddsEvidenceState:observed?.status||pinnodds.reason||"NO_PINNODDS_OBSERVATIONS",
+        market:{...(game.market||{}),venueOffers:[...(game.market?.venueOffers||[]),...kalshiOffers]},
+        ...(sport==="cfb"?{cfbOwnedMarketQuotes}:{}),
+      };
+      return sport==="cfb"?{...withVenue,cfbMarketShopping:buildCfbMarketShopping(withVenue)}:withVenue;
     });
     return json({...board,games:cards,
       pinnoddsResearchCoverage:{source:"PinnOdds",matchedGames:Object.keys(pinnodds.byGame||{}).length,
         capturedRows:pinnodds.rows||0,reason:pinnodds.reason||null,readOnly:true,
         providerQuoteClockVerified:false,canQualify:false,canAuthorizeWager:false},
       polymarketResearch:{source:"Polymarket US",available:[...overlay.byId.values()].some(offers => offers.some(o => o.source.startsWith("Polymarket US"))),
-        qualified:false,executable:false}},200,{tier:access.tier});
+        qualified:false,executable:false},
+      ...(sport==="cfb"?{cfbMarketCoverage:{
+        PinnOdds:Object.keys(pinnodds.byGame||{}).length,
+        Polymarket:[...overlay.byId.values()].filter(x=>x.length).length,
+        Kalshi:kalshiData?.matchedGames||0,
+        KalshiQuoteCount:kalshiData?.quotes||0,
+        KalshiUnmatchedPairs:kalshiData?.unmatchedPairs??null,
+        KalshiFeed:kalshiSnapshot?.status==="fulfilled"?(kalshiSnapshot.value?.code||"SNAPSHOT_RECEIVED"):"READ_FAILED",
+        CfbCurrentD1Quotes:cfbData?.rows||0,
+        CfbCurrentD1Status:cfbData?.reason||"UNAVAILABLE",
+        comparisonScope:["moneyline","spread","total"],
+        netFeeVerified:false,canAuthorizeWager:false,
+      }}:{})},200,{tier:access.tier});
   } catch (err) {
     return json({ ok: false, error: "projection-board-unavailable", detail: String(err?.message || err) }, 502, { tier: access.tier, maxAge: 5 });
   }
