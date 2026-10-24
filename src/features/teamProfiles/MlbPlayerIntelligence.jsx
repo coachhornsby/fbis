@@ -1,3 +1,4 @@
+import MlbStatcastLab from './MlbStatcastLab.jsx';
 import './mlbPlayerIntelligence.css';
 import { useEffect,useState } from 'react';
 const labels={runs:'Runs',homeRuns:'Home runs',strikeOuts:'Strikeouts',hits:'Hits',avg:'AVG',obp:'OBP',slg:'SLG',ops:'OPS',plateAppearances:'Plate appearances',rbi:'RBIs',era:'ERA',whip:'WHIP',inningsPitched:'Innings',gamesStarted:'Starts'};
@@ -13,6 +14,7 @@ export default function MlbPlayerIntelligence({player,onClose}) {
  <div className="stp-table-scroll"><table><thead><tr><th>Date</th><th>Opponent</th><th>Round</th><th>Value</th><th>Game</th></tr></thead><tbody>{(data.history.last5||[]).map(g=><tr key={g.gameId}><td>{g.date}</td><td>{g.opponent}</td><td>{g.gameTypeLabel}</td><td><strong>{g.value}</strong></td><td><a href={g.sourceUrl} target="_blank" rel="noreferrer">{g.gameId}</a></td></tr>)}</tbody></table></div>
  {!data.history.available?<p>No verified appearances in this scope.</p>:null}
  <h4>Season statistics</h4>{(data.player.stats||[]).map((block,i)=><div key={i}><h5>{block.group?.displayName}</h5><dl className="mpi-metrics">{Object.entries(block.splits?.[0]?.stat||{}).filter(([key])=>Object.hasOwn(labels,key)).map(([k,v])=><div key={k}><dt>{labels[k]}</dt><dd>{String(v)}</dd></div>)}</dl></div>)}
+ <MlbStatcastLab player={player}/>
  <p className="stp-muted">Official MLB statistics · Retrieved {new Date(data.sourceFetchedAt).toLocaleString()}</p>
  </>}
  </section>;

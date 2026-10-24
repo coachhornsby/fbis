@@ -1,0 +1,68 @@
+name: MLB Statcast player lab
+on:
+  push:
+    branches: [main]
+    paths: [ops/triggers/mlb-statcast-player-lab]
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: Comma-separated seasons (2024 onwards), blank uses current season
+        default: ''
+      players:
+        description: Exact IDs with roles, e.g. 669373:pitcher,592450:batter; blank collects all roster shards
+        default: ''
+  schedule:
+    - cron: '40 13 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: mlb-statcast-player-lab
+  cancel-in-progress: false
+jobs:
+  scope:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.scope.outputs.matrix }}
+    steps:
+      - id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          PLAYERS: ${{ inputs.players }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            echo 'matrix={"teamShard":["proof",0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29]}' >> "$GITHUB_OUTPUT"
+          elif [ -n "$PLAYERS" ]; then
+            echo 'matrix={"teamShard":["proof"]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matrix={"teamShard":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29]}' >> "$GITHUB_OUTPUT"
+          fi
+  collect:
+    needs: scope
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.scope.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test test/mlb-statcast-lab.test.js
+      - name: Collect official final-game Statcast and archive per-player evidence
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          SEASONS: ${{ github.event_name == 'push' && '2024,2025,2026' || inputs.seasons }}
+          PLAYERS: ${{ github.event_name == 'push' && matrix.teamShard == 'proof' && '669373:pitcher,694973:pitcher,592450:batter' || inputs.players }}
+          TEAM_SHARD: ${{ matrix.teamShard }}
+        run: node scripts/mlb-statcast-lab-collect.mjs "seasons=$SEASONS" "players=$PLAYERS" "teamShard=$TEAM_SHARD" persist=true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mlb-statcast-lab-${{ matrix.teamShard }}-${{ github.run_id }}
+          path: artifacts/mlb-statcast-lab/receipt.json
+          retention-days: 90
