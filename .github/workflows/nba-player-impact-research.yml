@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: "22", cache: "npm" }
       - run: npm ci
       - run: node --test test/nba-player-impact.test.js test/nba-fbis-v1.test.js
@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: "22", cache: "npm" }
       - run: npm ci
       - name: Download frozen canonical history
@@ -66,7 +66,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: "22", cache: "npm" }
       - run: npm ci
       - uses: actions/download-artifact@v4

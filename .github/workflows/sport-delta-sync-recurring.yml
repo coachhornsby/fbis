@@ -39,7 +39,7 @@ jobs:
         with:
           # Need history so production descendant SHAs can satisfy merge-base ancestor checks.
           fetch-depth: 0
-      - uses: actions/setup-node@v4.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Install undici for long topology fetches
