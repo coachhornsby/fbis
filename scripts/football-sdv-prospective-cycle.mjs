@@ -61,6 +61,11 @@ for(const sport of ["nfl","cfb"]){
  if(grade.status!==200||grade.body.ok!==true||grade.body.canAuthorizeWager!==false)
   throw Error("PROSPECTIVE_GRADING_FAILED:"+sport);
  s.grades=grade.body;
+ if(!Number.isInteger(s.grades.sourceConflicts) ||
+    s.grades.sourceConflicts>0 ||
+    !Number.isInteger(s.grades.pendingNotGraded) ||
+    s.grades.canAuthorizeWager!==false)
+  throw Error("PROSPECTIVE_GRADE_LEDGER_INTEGRITY_FAILURE:"+sport);
  const performance=await request("/api/football-sdv-prospective?sport="+sport+"&mode=performance");
  if(performance.status!==200||performance.body.sport!==sport||
    performance.body.canAuthorizeWager!==false||performance.body.calibrated!==false)
@@ -68,6 +73,16 @@ for(const sport of ["nfl","cfb"]){
  s.gradedSample=performance.body.n;
  s.metricState=performance.body.status;
  s.gradedPerModel=performance.body.gradedPerModel||{};
+ const pairedPath=sport==="nfl"?"/api/football-sdv-prospective?sport=nfl&mode=paired":
+   "/api/cfb-sdv-prospective-paired";
+ const pair=await request(pairedPath);
+ if(pair.status!==200||pair.body?.canAuthorizeWager!==false ||
+   pair.body?.canQualify!==false ||!Number.isInteger(pair.body?.n))
+  throw Error("PROSPECTIVE_PAIRED_EVALUATION_UNAVAILABLE:"+sport);
+ s.paired={n:pair.body.n,status:pair.body.status,
+  baseline:pair.body.standardModelId||pair.body.championModelId,
+  challenger:pair.body.transitionModelId||pair.body.challengerModelId,
+  canAuthorizeWager:false};
 }
 console.log(JSON.stringify(summary,null,2));
 fs.mkdirSync("artifacts/football-sdv",{recursive:true});
