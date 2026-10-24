@@ -5,6 +5,28 @@ const isFinitePrice = value =>
   Number(value) > 0 && Number(value) < 1;
 
 /**
+ * Match-level UI may reuse the same verified player portrait supplied by
+ * the Tennis Board. It must never guess an image from a name, roster ranking,
+ * source-site template, league badge, or an unapproved ATP/WTA photo.
+ */
+export function tennisBoardPlayerPhoto(team = {}) {
+  const url = String(team?.headshotUrl || team?.headshot_url || "").trim();
+  const source = String(team?.imageSource || team?.headshotSource || "");
+  const approved = source === "RIGHTS_VERIFIED_TENNIS_PORTRAIT";
+  if (approved) {
+    if (!/^\/api\/tennis-portrait\?id=[a-z0-9%:_ -]+$/i.test(url) ||
+        !team?.fbisPlayerId) return null;
+    try { if (decodeURIComponent(url.split("id=")[1]) !== String(team.fbisPlayerId)) return null; }
+    catch { return null; }
+    return { url, source, credit:team.portraitCredit || null,
+      creditUrl:team.portraitSourceUrl || null, licenseUrl:team.portraitLicenseUrl || null };
+  }
+  if (source !== "PRIZEPICKS_FEED" || !/^https:\/\//i.test(url) ||
+      /\/(?:images\/teams|v2\/team|team-logo|team_logo|flags|logos?)(?:\/|$)/i.test(url)) return null;
+  return { url, source, credit:null, creditUrl:null, licenseUrl:null };
+}
+
+/**
  * Additive, read-only inventory of already joined Tennis Board exchanges.
  * These are match/sets/games markets, NOT independent player-stat props.
  * No synthetic player projections, order book prices or settlement scope.
@@ -47,6 +69,10 @@ export function tennisExchangeResearchCards(games = [], { limit = 24 } = {}) {
     cards.push({
       id:key, tour:String(game.tour || t.tour || "Tennis").toUpperCase(),
       away:awayName, home:homeName, start:game.start || null,
+      athletes:[
+        {name:awayName, photo:tennisBoardPlayerPhoto(game.away), canonicalId:game.away?.fbisPlayerId || null},
+        {name:homeName, photo:tennisBoardPlayerPhoto(game.home), canonicalId:game.home?.fbisPlayerId || null},
+      ],
       tournament:t.tournament || null,
       kalshi:snapshot.kalshi, polymarket:snapshot.polymarket,
       derivative,
