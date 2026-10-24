@@ -43,7 +43,7 @@ test("No future, predating, identity-mismatched or remote-kickoff final is inven
  const s=selectProspectiveRegulationOutcome(receipt,invalid,{asOf:now});
  assert.equal(s.status,"AWAITING_VERIFIED_OUTCOME");
  assert.equal(s.outcome,null);
- assert.equal(s.invalidSourceCount,3);
+ assert.equal(s.invalidSourceCount,4);
 });
 test("Small schedule-clock drift is eligible only when verified teams and source agree",()=>{
  const shifted={...source,kickoff:"2026-10-25T18:20:00Z"};
