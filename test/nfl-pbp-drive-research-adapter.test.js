@@ -51,3 +51,22 @@ test("nflfastR first and last recorded snap clocks create a lower-bound span, no
  const missing=extractNflfastRPossessionGame({...meta,plays:fixture()});
  assert.equal(missing.drives[0].clockSpanLowerBound,undefined);
 });
+
+test("Actual documented NFL drive timing and linked source field transitions survive normalization",()=>{
+ const rows=fixture().map((p,i)=>({...p,
+  drive_time_of_possession:"02:05",
+  drive_start_transition:i<2?"Kickoff":"Punt",
+  drive_end_transition:"Punt",
+  drive_start_yard_line:p.posteam+" 30",
+  drive_end_yard_line:p.posteam+" 45"}));
+ const result=extractNflfastRPossessionGame({...meta,plays:rows});
+ assert.equal(result.drives[0].officialDurationSeconds,125);
+ assert.equal(result.drives[0].startTransition,"KICKOFF");
+ assert.equal(result.drives[0].endTransition,"PUNT");
+ assert.equal(result.drives[0].officialStartYardsToGoal,70);
+ assert.equal(result.drives[0].officialEndYardsToGoal,55);
+ assert.equal(result.drives[0].observedNextStartTransition,"PUNT");
+ assert.equal(result.drives[0].observedNextStartYardsToGoal,73);
+ assert.equal(result.drives[0].observedNextOffense,"away");
+ assert.equal(result.drives[15].observedNextStartYardsToGoal,undefined);
+});

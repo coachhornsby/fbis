@@ -6,6 +6,7 @@ import {authorizeHarvest,unauthorizedBody} from "../lib/auth.js";
 import {sha256Hex} from "../lib/sha256Hex.js";
 import {querySdvMatchupFromSportDb} from "./football-sdv-matchup-research.js";
 import {gradeRegulationSimulations} from "../lib/footballSimulationValidationResearch.js";
+import {compareNflProspectiveShadowReceipts,NFL_STANDARD_SHADOW,NFL_VERIFIED_TRANSITION_SHADOW} from "../lib/nflSdvProspectivePairedEvaluation.js";
 const json=(v,s=200)=>new Response(JSON.stringify(v),{status:s,headers:{
  "content-type":"application/json","cache-control":"no-store","x-content-type-options":"nosniff"}});
 const sportOk=s=>["nfl","cfb"].includes(s);
@@ -48,11 +49,17 @@ export function prepareProspectiveFootballReceipt(result,{now}){
   projectedHome:score[0],projectedAway:score[1],
   evidence:JSON.stringify({evidenceFingerprint:result.evidenceFingerprint,
     mode:result.mode,sourceDb:result.sourceDb,asOf:result.researchAsOf,
-    sourceSnapshotId:result.sourceSnapshotId,canAuthorizeWager:false})};
+    sourceSnapshotId:result.sourceSnapshotId,
+    variant:result.variant||"standard",timeEvidence:result.timeEvidence||null,
+    fieldTransitionMode:result.fieldTransitionMode||null,
+    officialDurationDrives:result.officialDurationDrives||null,
+    linkedNextFieldDrives:result.linkedNextFieldDrives||null,
+    canAuthorizeWager:false})};
 }
-export async function captureFootballProspective(env,{sport,gameId,now=new Date().toISOString()}){
- if(!sportOk(sport)||!idOk(gameId))throw Error("PROSPECTIVE_INVALID_SCOPE");
- const result=await querySdvMatchupFromSportDb(env,{sport,gameId,now});
+export async function captureFootballProspective(env,{sport,gameId,now=new Date().toISOString(),variant="standard"}){
+ if(!sportOk(sport)||!idOk(gameId)||!["standard","nfl-sdv-v03"].includes(variant)||
+  (variant==="nfl-sdv-v03"&&sport!=="nfl"))throw Error("PROSPECTIVE_INVALID_SCOPE");
+ const result=await querySdvMatchupFromSportDb(env,{sport,gameId,now,variant});
  if(!result.ok)return {ok:false,reason:result.reason,sport,gameId,canAuthorizeWager:false};
  const row=prepareProspectiveFootballReceipt(result,{now}),db=d1(env,sport);
  const write=await db.prepare(
@@ -70,7 +77,7 @@ export async function captureFootballProspective(env,{sport,gameId,now=new Date(
  const stored=await db.prepare("SELECT receipt_id receiptId,captured_at capturedAt,game_id gameId FROM football_sdv_prospective_receipts WHERE sport=? AND game_id=? AND model_id=?")
   .bind(sport,gameId,row.modelId).first();
  if(!stored)throw Error("PROSPECTIVE_RECEIPT_READBACK_MISSING");
- return {ok:true,sport,gameId,receiptId:stored.receiptId,
+ return {ok:true,sport,gameId,modelId:row.modelId,variant,receiptId:stored.receiptId,
   capturedAt:stored.capturedAt,status:Number(write?.meta?.changes)===1?"NEW":"EXISTING",
   canQualify:false,canAuthorizeWager:false};
 }
@@ -117,7 +124,7 @@ export async function prospectiveFootballPerformance(env,{sport,now=new Date().t
  if(!sportOk(sport)||!Number.isFinite(time(now)))throw Error("INVALID_PERFORMANCE_SCOPE");
  const db=d1(env,sport);
  const res=await db.prepare(
-  "SELECT r.receipt_id prospectiveReceiptId,r.game_id gameId,r.model_version modelVersion,"+
+  "SELECT r.receipt_id prospectiveReceiptId,r.game_id gameId,r.model_id modelId,r.model_version modelVersion,"+
   "r.captured_at frozenAt,r.kickoff,r.home_team_id homeTeamId,r.away_team_id awayTeamId,"+
   "r.projected_home projectedHome,r.projected_away projectedAway,"+
   "r.home_reg_lead homeWinProb,r.away_reg_lead awayWinProb,r.reg_tie tieProb,"+
@@ -134,13 +141,47 @@ export async function prospectiveFootballPerformance(env,{sport,now=new Date().t
  // keyed by actual kickoff and canonical participant identities.
  const dedup=new Map();
  for(const r of res.results){
-  const key=[sport,r.homeTeamId,r.awayTeamId,new Date(time(r.kickoff)).toISOString()].join("|");
+  const key=[sport,r.modelId,r.homeTeamId,r.awayTeamId,
+   new Date(time(r.kickoff)).toISOString()].join("|");
   const prior=dedup.get(key);
   if(!prior||time(r.frozenAt)<time(prior.frozenAt))dedup.set(key,r);
  }
- return gradeRegulationSimulations([...dedup.values()].map(r=>({...r,sport,regulationOnly:true})),
-  {sport,asOf:now,minSample:30});
+ const byModel=new Map();
+ for(const r of dedup.values()){
+  if(!byModel.has(r.modelId))byModel.set(r.modelId,[]);
+  byModel.get(r.modelId).push({...r,sport,regulationOnly:true});
+ }
+ const reports={};
+ for(const [modelId,rows] of byModel)
+  reports[modelId]=gradeRegulationSimulations(rows,{sport,asOf:now,minSample:30});
+ const baselineId=sport==="nfl"?"NFL-VERIFIED-POSSESSION-MATCHUP-SHADOW-v0":
+  "CFB-VERIFIED-DRIVE-MATCHUP-SHADOW-v0";
+ const baseline=reports[baselineId]||gradeRegulationSimulations([],{sport,asOf:now,minSample:30});
+ return {...baseline,cohorts:reports,gradedPerModel:Object.fromEntries(
+  [...byModel].map(([id,rows])=>[id,rows.length])),totalModelReceipts:[...byModel.values()].reduce((n,r)=>n+r.length,0),
+  calibrated:false,canQualify:false,canAuthorizeWager:false};
 }
+export async function prospectiveNflPairedPerformance(env,{now=new Date().toISOString()}={}){
+ if(!Number.isFinite(time(now)))throw Error("INVALID_NFL_PROSPECTIVE_PAIRS_CLOCK");
+ const db=d1(env,"nfl");
+ const q=await db.prepare(
+  "SELECT r.receipt_id receiptId,r.model_id modelId,r.game_id gameId,"+
+  "r.home_team_id homeTeamId,r.away_team_id awayTeamId,r.kickoff,"+
+  "r.captured_at capturedAt,r.projected_home projectedHome,r.projected_away projectedAway,"+
+  "r.home_reg_lead homeLead,r.away_reg_lead awayLead,r.reg_tie tieProb,"+
+  "g.graded_at gradedAt,g.source_observed_at observedAt,"+
+  "g.outcome_source_fingerprint outcomeFingerprint,"+
+  "g.actual_home actualHome,g.actual_away actualAway "+
+  "FROM football_sdv_prospective_receipts r "+
+  "JOIN football_sdv_prospective_grades g ON g.receipt_id=r.receipt_id "+
+  "WHERE r.sport='nfl' AND r.model_id IN (?,?) "+
+  "AND g.regulation_only=1 AND r.captured_at<r.kickoff "+
+  "ORDER BY r.kickoff DESC LIMIT 1200"
+ ).bind(NFL_STANDARD_SHADOW,NFL_VERIFIED_TRANSITION_SHADOW).all();
+ if(!Array.isArray(q?.results))throw Error("NFL_PROSPECTIVE_PAIR_QUERY_FAILED");
+ return compareNflProspectiveShadowReceipts(q.results,{asOf:now,minGames:30});
+}
+
 export async function onRequest({request,env}){
  const auth=authorizeHarvest(request,env);
  if(!auth.ok)return json(unauthorizedBody(auth.reason),403);
@@ -148,6 +189,10 @@ export async function onRequest({request,env}){
  if(!sportOk(sport))return json({ok:false,error:"INVALID_SPORT"},400);
  try{
   if(request.method==="GET"){
+   if(u.searchParams.get("mode")==="paired"){
+    if(sport!=="nfl")return json({ok:false,error:"NFL_ONLY"},400);
+    return json(await prospectiveNflPairedPerformance(env));
+   }
    if(u.searchParams.get("mode")==="performance")
     return json(await prospectiveFootballPerformance(env,{sport}));
    const db=d1(env,sport),now=Date.now(),until=new Date(now+8*86400000).toISOString();
@@ -160,14 +205,17 @@ export async function onRequest({request,env}){
     ") WHERE rn=1 ORDER BY kickoff ASC,gameId ASC LIMIT 240"
    ).bind(sport,new Date(now+600000).toISOString(),until).all();
    if(!Array.isArray(upcoming?.results))throw Error("SLATE_QUERY_FAILED");
-   return json({ok:true,sport,upcoming:upcoming.results,slateCapacity:240,canAuthorizeWager:false});
+   return json({ok:true,sport,upcoming:upcoming.results,slateCapacity:240,
+    supportedVariants:sport==="nfl"?["standard","nfl-sdv-v03"]:["standard"],
+    canAuthorizeWager:false});
   }
   if(request.method!=="POST")return json({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   const body=await request.json();
   if(body?.action==="grade")return json(await gradeFootballProspective(env,{sport}));
   if(body?.action!=="capture"||!idOk(body.gameId))
    return json({ok:false,error:"INVALID_CAPTURE"},400);
-  const result=await captureFootballProspective(env,{sport,gameId:body.gameId});
+  const result=await captureFootballProspective(env,{sport,gameId:body.gameId,
+   variant:body.variant||"standard"});
   return json(result,result.ok?200:422);
  }catch(e){return json({ok:false,error:String(e.message||e).slice(0,120),
   canAuthorizeWager:false},503)}

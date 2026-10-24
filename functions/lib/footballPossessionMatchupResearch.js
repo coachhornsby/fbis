@@ -62,11 +62,31 @@ export function normalizeVerifiedNflPossessions({
    d.gameClockFirst<=3600&&d.gameClockFirst>=0&&d.gameClockLast<=d.gameClockFirst&&d.gameClockLast>=0;
   const clock=clockOk?{gameClockFirst:d.gameClockFirst,gameClockLast:d.gameClockLast,
    clockSpanLowerBound:d.gameClockFirst-d.gameClockLast}:{};
+  const durationOk=Number.isInteger(d.officialDurationSeconds)&&
+   d.officialDurationSeconds>=0&&d.officialDurationSeconds<=1800&&
+   (!clockOk||d.officialDurationSeconds>=d.gameClockFirst-d.gameClockLast);
+  const transitionOk=s=>typeof s==="string"&&/^[A-Z0-9_]{2,64}$/.test(s);
+  const yardsOk=x=>Number.isInteger(x)&&x>=0&&x<=100;
   normalized.push({driveId:d.driveId,seq:d.seq,offense:side,period:d.period,plays:d.plays,
    startYardsToGoal:d.startYardsToGoal,startMargin:side==="home"?h-a:a-h,
-   offensePoints:offPoints,defensePoints:defPoints,...clock});
+   offensePoints:offPoints,defensePoints:defPoints,...clock,
+   ...(durationOk?{officialDurationSeconds:d.officialDurationSeconds}:{}),
+   ...(transitionOk(d.startTransition)?{startTransition:d.startTransition}:{}),
+   ...(transitionOk(d.endTransition)?{endTransition:d.endTransition}:{}),
+   ...(yardsOk(d.officialStartYardsToGoal)?{officialStartYardsToGoal:d.officialStartYardsToGoal}:{}),
+   ...(yardsOk(d.officialEndYardsToGoal)?{officialEndYardsToGoal:d.officialEndYardsToGoal}:{})});
   h=d.endHomeScore;a=d.endAwayScore;
   if(side==="home")homeDrives++;else awayDrives++;
+ }
+ // The next-drive linkage is observed in one historical game, not inferred
+ // from a transition label or invented special-teams return yardage.
+ for(let i=0;i<normalized.length-1;i++){
+  const current=normalized[i],next=normalized[i+1];
+  if(current.endTransition&&next.startTransition){
+   current.observedNextStartTransition=next.startTransition;
+   current.observedNextStartYardsToGoal=next.startYardsToGoal;
+   current.observedNextOffense=next.offense;
+  }
  }
  requireThat(h===homeScore&&a===awayScore&&homeDrives>=8&&awayDrives>=8,
   "NFL_OFFICIAL_SCORE_OR_SIDE_COVERAGE_MISMATCH");

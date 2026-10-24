@@ -20,7 +20,8 @@ let ready=false;
 for(let attempt=0;attempt<60;attempt++){
  try{
   const result=await request("/api/football-sdv-prospective?sport=nfl");
-  if(result.status===200&&result.body?.ok===true&&result.body.canAuthorizeWager===false&&result.body.slateCapacity>=240){
+  if(result.status===200&&result.body?.ok===true&&result.body.canAuthorizeWager===false&&result.body.slateCapacity>=240&&
+    result.body.supportedVariants?.includes("nfl-sdv-v03")){
    ready=true;break;
   }
  }catch(e){console.log("prospective API not live, attempt",attempt+1,String(e).slice(0,100))}
@@ -28,23 +29,33 @@ for(let attempt=0;attempt<60;attempt++){
 }
 if(!ready)throw Error("PROSPECTIVE_API_NOT_DEPLOYED_OR_UNHEALTHY");
 for(const sport of ["nfl","cfb"]){
- const s=summary.sport[sport]={slate:0,new:0,existing:0,skipped:{},failures:0,grades:null};
+ const s=summary.sport[sport]={slate:0,new:0,existing:0,skipped:{},failures:0,grades:null,variants:{}};
  const response=await request("/api/football-sdv-prospective?sport="+sport);
  if(response.status!==200||response.body.ok!==true||response.body.canAuthorizeWager!==false)
   throw Error("PROSPECTIVE_SLATE_UNAVAILABLE:"+sport);
  const slate=response.body.upcoming.slice(0,240);
  s.slate=slate.length;
+ const variants=sport==="nfl"?["standard","nfl-sdv-v03"]:["standard"];
+ if(!variants.every(v=>response.body.supportedVariants?.includes(v)))
+  throw Error("PROSPECTIVE_VARIANT_RELEASE_NOT_READY:"+sport);
+ for(const variant of variants)s.variants[variant]={new:0,existing:0,skipped:{}};
  for(const g of slate){
-  try{
-   const r=await request("/api/football-sdv-prospective?sport="+sport,
-    {action:"capture",gameId:g.gameId});
-   if(r.body.ok===true&&r.body.canAuthorizeWager===false){
-    if(r.body.status==="NEW")s.new++;else s.existing++;
-   }else if(r.status===422&&r.body.canAuthorizeWager===false){
-    const reason=r.body.reason||r.body.error||"NO_EVIDENCE";
-    s.skipped[reason]=(s.skipped[reason]||0)+1;
-   }else{s.failures++;console.log(sport,g.gameId,"capture rejected",r.status,r.body.error)}
-  }catch(e){s.failures++;console.log(sport,g.gameId,String(e))}
+  for(const variant of variants){
+   const v=s.variants[variant];
+   try{
+    const r=await request("/api/football-sdv-prospective?sport="+sport,
+     {action:"capture",gameId:g.gameId,variant});
+    if(r.body.ok===true&&r.body.canAuthorizeWager===false&&r.body.variant===variant&&
+      (variant!=="nfl-sdv-v03"||r.body.modelId==="NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3")){
+     if(r.body.status==="NEW"){s.new++;v.new++}
+     else{s.existing++;v.existing++}
+    }else if(r.status===422&&r.body.canAuthorizeWager===false){
+     const reason=r.body.reason||r.body.error||"NO_EVIDENCE";
+     s.skipped[variant+":"+reason]=(s.skipped[variant+":"+reason]||0)+1;
+     v.skipped[reason]=(v.skipped[reason]||0)+1;
+    }else{s.failures++;console.log(sport,g.gameId,variant,"capture rejected",r.status,r.body.error)}
+   }catch(e){s.failures++;console.log(sport,g.gameId,variant,String(e))}
+  }
  }
  const grade=await request("/api/football-sdv-prospective?sport="+sport,{action:"grade"});
  if(grade.status!==200||grade.body.ok!==true||grade.body.canAuthorizeWager!==false)
@@ -56,6 +67,7 @@ for(const sport of ["nfl","cfb"]){
   throw Error("PROSPECTIVE_PERFORMANCE_UNSAFE:"+sport);
  s.gradedSample=performance.body.n;
  s.metricState=performance.body.status;
+ s.gradedPerModel=performance.body.gradedPerModel||{};
 }
 console.log(JSON.stringify(summary,null,2));
 fs.mkdirSync("artifacts/football-sdv",{recursive:true});

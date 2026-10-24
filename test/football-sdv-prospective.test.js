@@ -30,3 +30,18 @@ test("No fake or late receipts: missing provenance, kickoff proximity and malfor
  assert.throws(()=>prepareProspectiveFootballReceipt({...model,trainingDrives:20},{now}),/PROSPECTIVE_RESEARCH_EVIDENCE_NOT_READY/);
  assert.throws(()=>prepareProspectiveFootballReceipt({...model,distributions:{...model.distributions,regulation_tie:{mean:.25}}},{now}),/PROSPECTIVE_DISTRIBUTION_INVALID/);
 });
+
+test("The independently versioned NFL verified-transition receipt cannot overwrite the legacy model",()=>{
+ const next={...model,modelId:"NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3",
+  modelVersion:"0.3.0",variant:"nfl-sdv-v03",timeEvidence:"NFLFASTR_REPORTED_DRIVE_TIME_OF_POSSESSION",
+  fieldTransitionMode:"OBSERVED_NEXT_DRIVE_FIELD_CONDITIONING",
+  officialDurationDrives:700,linkedNextFieldDrives:680};
+ const legacy=prepareProspectiveFootballReceipt(model,{now});
+ const enhanced=prepareProspectiveFootballReceipt(next,{now});
+ assert.notEqual(enhanced.receiptId,legacy.receiptId);
+ assert.equal(enhanced.modelId,next.modelId);
+ assert.equal(JSON.parse(enhanced.evidence).variant,"nfl-sdv-v03");
+ assert.equal(JSON.parse(enhanced.evidence).timeEvidence,
+  "NFLFASTR_REPORTED_DRIVE_TIME_OF_POSSESSION");
+ assert.equal(JSON.parse(enhanced.evidence).canAuthorizeWager,false);
+});
