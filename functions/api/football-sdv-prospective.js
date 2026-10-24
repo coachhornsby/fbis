@@ -118,7 +118,8 @@ export async function prospectiveFootballPerformance(env,{sport,now=new Date().t
  const db=d1(env,sport);
  const res=await db.prepare(
   "SELECT r.receipt_id prospectiveReceiptId,r.game_id gameId,r.model_version modelVersion,"+
-  "r.captured_at frozenAt,r.kickoff,r.projected_home projectedHome,r.projected_away projectedAway,"+
+  "r.captured_at frozenAt,r.kickoff,r.home_team_id homeTeamId,r.away_team_id awayTeamId,"+
+  "r.projected_home projectedHome,r.projected_away projectedAway,"+
   "r.home_reg_lead homeWinProb,r.away_reg_lead awayWinProb,r.reg_tie tieProb,"+
   "r.home_blowout14 homeBlowoutProb,r.away_blowout14 awayBlowoutProb,"+
   "o.graded_at gradedAt,o.source_observed_at observedAt,"+
@@ -129,7 +130,15 @@ export async function prospectiveFootballPerformance(env,{sport,now=new Date().t
   "ORDER BY r.kickoff DESC LIMIT 2000"
  ).bind(sport).all();
  if(!Array.isArray(res?.results))throw Error("PROSPECTIVE_PERFORMANCE_READ_FAILED");
- return gradeRegulationSimulations(res.results.map(r=>({...r,sport,regulationOnly:true})),
+ // A game may have ESPN and internal FBIS IDs. Grade one independent event,
+ // keyed by actual kickoff and canonical participant identities.
+ const dedup=new Map();
+ for(const r of res.results){
+  const key=[sport,r.homeTeamId,r.awayTeamId,new Date(time(r.kickoff)).toISOString()].join("|");
+  const prior=dedup.get(key);
+  if(!prior||time(r.frozenAt)<time(prior.frozenAt))dedup.set(key,r);
+ }
+ return gradeRegulationSimulations([...dedup.values()].map(r=>({...r,sport,regulationOnly:true})),
   {sport,asOf:now,minSample:30});
 }
 export async function onRequest({request,env}){
@@ -143,8 +152,12 @@ export async function onRequest({request,env}){
     return json(await prospectiveFootballPerformance(env,{sport}));
    const db=d1(env,sport),now=Date.now(),until=new Date(now+8*86400000).toISOString();
    const upcoming=await db.prepare(
-    "SELECT g.id gameId,g.start kickoff FROM games g WHERE g.sport=? "+
-    "AND g.start>? AND g.start<=? ORDER BY g.start ASC,g.id ASC LIMIT 80"
+    "SELECT gameId,kickoff FROM ("+
+    "SELECT g.id gameId,g.start kickoff,"+
+    "ROW_NUMBER() OVER(PARTITION BY substr(g.start,1,16),g.home_abbr,g.away_abbr "+
+    "ORDER BY CASE WHEN g.id GLOB '[0-9]*' THEN 0 ELSE 1 END,g.id) rn "+
+    "FROM games g WHERE g.sport=? AND g.start>? AND g.start<=?"+
+    ") WHERE rn=1 ORDER BY kickoff ASC,gameId ASC LIMIT 80"
    ).bind(sport,new Date(now+600000).toISOString(),until).all();
    if(!Array.isArray(upcoming?.results))throw Error("SLATE_QUERY_FAILED");
    return json({ok:true,sport,upcoming:upcoming.results,canAuthorizeWager:false});
