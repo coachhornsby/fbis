@@ -1,6 +1,16 @@
 import { KALSHI_PROP_SERIES } from './propProviderAdapters.js';
 import { kalshiSignedReadProxy } from './kalshiSignedCollector.js';
 const ROOT='player-props/kalshi/v1/';
+const chicagoDay = instant => new Intl.DateTimeFormat('en-CA',{
+ timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'
+}).format(new Date(instant));
+const historicalKey = (series,day) => ROOT+'history/'+day+'/'+series+'.json';
+function ruleStart(primary){
+ const m=/originally scheduled for ([A-Z][a-z]{2} \d{1,2}, \d{4}) at (\d{1,2}:\d{2} [AP]M) (EDT|EST)/.exec(primary||'');
+ if(!m)return null;
+ const time=Date.parse(m[1]+' '+m[2]+' GMT'+(m[3]==='EDT'?'-0400':'-0500'));
+ return Number.isFinite(time)?time:null;
+}
 export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fetch,webCrypto=crypto,maxSeries=6,maxPages=5}={}) {
  if(!env.ARCHIVE?.get||!env.ARCHIVE?.put)return {ok:false,code:'ARCHIVE_BINDING_MISSING'};
  const previous=await env.ARCHIVE.get(ROOT+'status.json');const status=previous?await previous.json():null;
@@ -29,6 +39,34 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
    if(rateLimited){receipts.push({series:ticker,status:'RATE_LIMITED',records:0});break;}
    const receipt={version:1,provider:'Kalshi',seriesTicker:ticker,sport:KALSHI_PROP_SERIES[ticker][0],capturedAt:now.toISOString(),
     sourceObservedAt:null,quoteTimeBasis:'REST_CAPTURE_ONLY',records,pages,paginationComplete:complete,canQualify:false,canAuthorizeWager:false};
+   // Immutable-by-event historical inventory: keep the last pregame observation
+   // for each exact contract. The rolling 2-hour snapshot is not historical storage.
+   const eventDays=new Map();
+   for(const market of records){
+    const day=/originally scheduled for ([A-Z][a-z]{2} \d{1,2}, \d{4})/.exec(market.rules_primary||'');
+    const d=day?new Date(day[1]+' 12:00:00 GMT').toISOString().slice(0,10):null;
+    if(!d || !/^\d{4}-\d{2}-\d{2}$/.test(d))continue;
+    if(!eventDays.has(d))eventDays.set(d,[]);
+    eventDays.get(d).push(market);
+   }
+   for(const [day,markets] of eventDays){
+    const key=historicalKey(ticker,day);
+    const old=await env.ARCHIVE.get(key);
+    const prior=old?await old.json():null;
+    const byTicker=new Map((Array.isArray(prior?.records)?prior.records:[]).map(m=>[m.ticker,m]));
+    let additions=0;
+    // Preserve the observed pregame snapshot, not a postgame close price.
+    for(const m of markets){
+      const kickoff=ruleStart(m.rules_primary);
+      if(kickoff==null || now.getTime()>=kickoff)continue;
+      byTicker.set(m.ticker,m);additions++;
+    }
+    if(!additions)continue;
+    await env.ARCHIVE.put(key,JSON.stringify({
+      version:1,seriesTicker:ticker,sport:KALSHI_PROP_SERIES[ticker][0],
+      capturedAt:now.toISOString(),historical:true,records:[...byTicker.values()]
+    }),{httpMetadata:{contentType:'application/json'}});
+   }
    await env.ARCHIVE.put(ROOT+ticker+'.json',JSON.stringify(receipt),{httpMetadata:{contentType:'application/json'}});
    receipts.push({series:ticker,status:complete?'CAPTURED':'PARTIAL',records:records.length,pages,paginationComplete:receipt.paginationComplete});
   }catch{receipts.push({series:ticker,status:'UNAVAILABLE',records:0});}
@@ -38,17 +76,19 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
   nextOffset:(offset+receipts.filter(r=>r.status!=='RATE_LIMITED').length)%Math.max(1,series.length),discoveredSeries:series.length,receipts,records:receipts.reduce((n,r)=>n+r.records,0),canQualify:false,canAuthorizeWager:false};
  await env.ARCHIVE.put(ROOT+'status.json',JSON.stringify(result),{httpMetadata:{contentType:'application/json'}});return result;
 }
-export async function loadCapturedKalshiProps(env,{games,players,sport='all',seriesFilter=null,now=Date.now()}={}) {
+export async function loadCapturedKalshiProps(env,{games,players,sport='all',seriesFilter=null,now=Date.now(),date=null}={}) {
  const {mapKalshiPlayerContract}=await import('./propProviderAdapters.js');
  const rows=[],rejected=[],coverage=[];
  if(!env.ARCHIVE?.get)return {rows,rejected,coverage,error:'ARCHIVE_UNBOUND'};
  for(const [series,[s]] of Object.entries(KALSHI_PROP_SERIES)){
   if((sport!=='all'&&sport!==s)||(seriesFilter&&series!==seriesFilter))continue;
-  try{const obj=await env.ARCHIVE.get(ROOT+series+'.json');if(!obj){coverage.push({series,sport:s,status:'NOT_CAPTURED'});continue;}
+  try{const historicalObj=date?await env.ARCHIVE.get(historicalKey(series,date)):null;
+   const historic=Boolean(historicalObj);
+   const obj=historicalObj||await env.ARCHIVE.get(ROOT+series+'.json');if(!obj){coverage.push({series,sport:s,status:'NOT_CAPTURED'});continue;}
    const snap=await obj.json(),age=now-Date.parse(snap.capturedAt);
-   if(!Array.isArray(snap.records)||!Number.isFinite(age)||age<0||age>2*3600000){coverage.push({series,sport:s,status:'STALE'});continue;}
-   coverage.push({series,sport:s,status:snap.paginationComplete?'CAPTURED':'PARTIAL',capturedAt:snap.capturedAt,records:snap.records.length});
-   for(const raw of snap.records){const mapped=mapKalshiPlayerContract(raw,{games,players,capturedAt:snap.capturedAt,seriesTicker:series});if(!mapped)continue;if(mapped.rejected)rejected.push(mapped);else if(Date.parse(mapped.start_time)>now){
+   if(!Array.isArray(snap.records)||!Number.isFinite(age)||age<0||(!historic&&!date&&age>2*3600000)){coverage.push({series,sport:s,status:'STALE'});continue;}
+   coverage.push({series,sport:s,status:snap.paginationComplete?'CAPTURED':'PARTIAL',capturedAt:snap.capturedAt,records:snap.records.length,historical:historic});
+   for(const raw of snap.records){const mapped=mapKalshiPlayerContract(raw,{games,players,capturedAt:snap.capturedAt,seriesTicker:series});if(!mapped)continue;if(mapped.rejected)rejected.push(mapped);else if(date || Date.parse(mapped.start_time)>now){
      rows.push(mapped);
      const noAsk=Number(raw.no_ask_dollars),yesBid=Number(raw.yes_bid_dollars),yesBidSize=Number(raw.yes_bid_size_fp);
      if(raw.no_ask_dollars!=null&&raw.yes_bid_dollars!=null&&noAsk>0&&noAsk<1&&Math.abs(noAsk-(1-yesBid))<0.00001&&yesBidSize>0)
