@@ -1,0 +1,95 @@
+name: MLB completion and World Series evidence
+on:
+  push:
+    branches: [main]
+    paths: [ops/triggers/mlb-completion-history]
+  workflow_dispatch:
+    inputs:
+      month:
+        description: Optional single YYYY-MM history shard; blank runs capture and prior-day reconciliation
+        default: ''
+  schedule:
+    - cron: '*/10 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: mlb-completion-${{ github.event_name }}-${{ inputs.month || 'cycle' }}
+  cancel-in-progress: false
+jobs:
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.scope.outputs.matrix }}
+      through: ${{ steps.scope.outputs.through }}
+    steps:
+      - id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          MONTH: ${{ inputs.month }}
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const months=process.env.EVENT==='push'?['cycle',...[2024,2025,2026].flatMap(y=>Array.from({length:9},(_,i)=>`${y}-${String(i+3).padStart(2,'0')}`))]:[process.env.MONTH||'cycle'];
+          const through=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,`through=${through}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,`matrix=${JSON.stringify({month:months})}\n`);
+          JS
+  run:
+    needs: scope
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.scope.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test test/mlb-completion.test.js test/mlb-league-benchmarks.test.js
+      - name: Wait for release before controlled history launch
+        if: github.event_name == 'push'
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Capture remaining postseason evidence or resume historical month
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          MONTH: ${{ matrix.month }}
+          EVENT: ${{ github.event_name }}
+          MLB_HISTORY_THROUGH: ${{ needs.scope.outputs.through }}
+        run: |
+          if [ "$MONTH" = cycle ]; then
+            if [ "$EVENT" = schedule ] && [ "$(date -u +%F)" \> 2026-11-05 ]; then exit 0; fi
+            node scripts/mlb-completion-cycle.mjs
+          else
+            node scripts/mlb-completion-cycle.mjs "month=$MONTH"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mlb-completion-${{ matrix.month }}-${{ github.run_id }}
+          path: artifacts/mlb-completion/
+          retention-days: 90
+  fit-retrospective:
+    if: github.event_name == 'push'
+    needs: [scope, run]
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fit retrospective candidates after complete historical acquisition
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          MLB_HISTORY_THROUGH: ${{ needs.scope.outputs.through }}
+        run: node scripts/mlb-retrospective-k-fit.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mlb-retrospective-k-${{ github.run_id }}
+          path: artifacts/mlb-retrospective-k/
+          retention-days: 90
