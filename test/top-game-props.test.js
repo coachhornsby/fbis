@@ -95,6 +95,8 @@ test("TopGameProps all-sport path renders neutral premium cards including tennis
   const src=fs.readFileSync("src/features/playerProps/TopGameProps.jsx","utf8");
   assert.match(src,/FBISPlayerPropCard/);
   assert.match(src,/top-game-pp-cards/);
+  assert.match(src,/exchange-props-panel pp-premium-page/);
+  assert.match(src,/exchange-prop-grid top-game-props-grid/);
   assert.match(src,/STYLE_CARD_SPORTS/);
   assert.match(src,/useStyleCards/);
   assert.match(src,/"tennis"/);
