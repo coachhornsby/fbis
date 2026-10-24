@@ -11,7 +11,7 @@ test("CFB CORE shadow freeze has one SQL value per column and one bind per place
   const db = {
     prepare(sql) {
       prepared++;
-      const match = sql.match(/INSERT OR IGNORE INTO cfb_core_shadow_predictions\\s*\\(([\\s\\S]*?)\\)\\s*VALUES\\s*\\(([\\s\\S]*?)\\)/i);
+      const match = sql.match(/INSERT OR IGNORE INTO cfb_core_shadow_predictions\s*\(([\s\S]*?)\)\s*VALUES\s*\(([\s\S]*?)\)/i);
       assert.ok(match, "must insert into the research-only CORE shadow ledger");
       const columns = match[1].split(",").map(x => x.trim());
       const values = match[2].split(",").map(x => x.trim());
