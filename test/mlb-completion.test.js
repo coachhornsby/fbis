@@ -32,3 +32,10 @@ test('future source timestamps reject before freezing; operator route requires a
  const g=game();g.mlbContext.palAsOf='2026-10-24T16:00:00Z';assert.throws(()=>buildMlbAblationFreeze(g,now));
  const {onRequestPost}=await import('../functions/api/mlb-completion.js');const r=await onRequestPost({env:{},request:new Request('https://fbis-myz.pages.dev/api/mlb-completion',{method:'POST',body:'{}'})});assert.equal(r.status,403);
 });
+
+test('production hitter forecasts freeze without quotes and preserve real zeroes while excluding DNPs',()=>{
+ const g=game();g.playerProjectionRows=[{playerId:'99',position:'DH',market:'hits',fbisProjection:1.2,modelVersion:'hitter-v1'}];const f=buildMlbAblationFreeze(g,now),result=feed();
+ result.liveData.boxscore.teams.home.players.ID99={person:{id:99},stats:{batting:{plateAppearances:4,hits:0,doubles:0,triples:0,homeRuns:0}}};
+ let graded=gradeMlbAblations(f,result);assert.equal(graded.productionPlayerTargets[0].actual,0);assert.equal(graded.productionPlayerTargets[0].projection,1.2);
+ result.liveData.boxscore.teams.home.players.ID99.stats.batting.plateAppearances=0;graded=gradeMlbAblations(f,result);assert.equal(graded.productionPlayerTargets.length,0);
+});
