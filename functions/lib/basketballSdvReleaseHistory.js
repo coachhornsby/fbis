@@ -25,21 +25,25 @@ function fields(sport,row){
   order:int(row.start_order_index),owner:str(row.offense_team_id),
   defense:str(row.defense_team_id),points:int(row.points),count:row.count_as_possession
  };
- return{gameId:str(row.espn_game_id)||str(row.contest_id),
+ return{gameId:str(row.contest_id),
   period:int(row.period),serial:int(row.poss_num),order:int(row.poss_num),
-  owner:str(row.poss_team_espn_team_id)||str(row.poss_team_ncaa_team_id),
+  owner:str(row.poss_team_ncaa_team_id),
   defense:"",points:int(row.pts),count:true};
 }
 function trueCount(x){return x===true||x===1||x==="1"||String(x).toLowerCase()==="true"}
-function matchedSchedule(sport,gameId,schedule){
+function matchedSchedule(sport,gameId,schedule,firstRow){
  if(!schedule||typeof schedule!=="object")fail("SDV_OFFICIAL_SCHEDULE_ABSENT");
- const id=sport==="nba"?str(schedule.game_id):
-   str(schedule.espn_game_id)||str(schedule.contest_id);
+ const id=sport==="nba"?str(schedule.game_id):str(schedule.contest_id);
  if(id!==gameId)fail("SDV_SCHEDULE_ID_MISMATCH");
  const homeId=sport==="nba"?str(schedule.home_team_id):
-    str(schedule.home_espn_team_id)||str(schedule.home_ncaa_team_id);
+    str(firstRow?.home_ncaa_team_id);
  const awayId=sport==="nba"?str(schedule.away_team_id):
-    str(schedule.away_espn_team_id)||str(schedule.away_ncaa_team_id);
+    str(firstRow?.away_ncaa_team_id);
+ if(sport==="cbb"&&(str(schedule.home).trim().toLowerCase()!==
+      str(firstRow?.home).trim().toLowerCase()||
+      str(schedule.away).trim().toLowerCase()!==
+      str(firstRow?.away).trim().toLowerCase()))
+  fail("SDV_CBB_SCHEDULE_TEAM_NAMES_MISMATCH");
  const homeScore=int(sport==="nba"?schedule.home_pts:schedule.home_score);
  const awayScore=int(sport==="nba"?schedule.away_pts:schedule.away_score);
  if(!homeId||!awayId||homeId===awayId||
@@ -55,7 +59,7 @@ export function normalizeSdvBasketballReleaseGame({
     season>2100||!Array.isArray(rows)||!rows.length||
     !validHash(sourceArtifactHash)||!iso(observedAt))
   fail("SDV_POSSESSION_RELEASE_PROVENANCE_INVALID");
- const match=matchedSchedule(sport,gameId,schedule);
+ const match=matchedSchedule(sport,gameId,schedule,rows[0]);
  const selected=[],keys=new Set(),unsupported=[];
  for(const row of rows){
   const v=fields(sport,row);
