@@ -10,6 +10,21 @@ const chicagoTime = stamp => {
   });
 };
 
+function TennisAthletePhoto({athlete}) {
+  const [failed,setFailed]=useState(false);
+  const photo=athlete?.photo;
+  const initials=String(athlete?.name||"").split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase();
+  return <div className="pp-tennis-athlete-photo">
+    {photo?.url&&!failed
+      ? <img src={photo.url} alt={athlete.name+" portrait"} loading="lazy" decoding="async"
+          referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>
+      : <span aria-label={athlete?.name+" photo unavailable"}>{initials||"?"}</span>}
+    {photo?.credit&&photo?.creditUrl
+      ? <a className="pp-tennis-photo-credit" href={photo.creditUrl} target="_blank" rel="noopener noreferrer"
+          title={photo.credit}>Photo credit</a> : null}
+  </div>;
+}
+
 /** Tennis match/set/game observations shown separately from real player-stat props. */
 export default function TennisExchangeResearch({date, provider = "all", search = ""}) {
   const [data, setData] = useState({loading:true,games:[],error:""});
@@ -51,7 +66,13 @@ export default function TennisExchangeResearch({date, provider = "all", search =
     {!data.loading&&!data.error&&!relevant.length?<p className="pp-empty">No event-matched tennis exchange markets available for this date or filters.</p>:null}
     <div className="pp-tennis-market-grid">{relevant.map(card=><article className="pp-tennis-market-card" key={card.id}>
       <div className="pp-tennis-market-meta"><b>{card.tour}</b><span>{chicagoTime(card.start)}</span></div>
-      <h3>{card.away}<span> vs </span>{card.home}</h3>
+      <div className="pp-tennis-athlete-versus">
+        {card.athletes.map((athlete,i)=><div className="pp-tennis-athlete" key={athlete.canonicalId||athlete.name}>
+          <TennisAthletePhoto athlete={athlete}/>
+          <strong>{athlete.name}</strong>
+          {i===0?<span className="pp-tennis-versus">VS</span>:null}
+        </div>)}
+      </div>
       {card.tournament?<p className="pp-tennis-tournament">{card.tournament}</p>:null}
       {card.matchWinProbability?<p className="pp-tennis-projection">
         FBIS match-win: <b>{card.away} {price(card.matchWinProbability[0],"%")}</b>
