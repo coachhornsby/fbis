@@ -40,4 +40,6 @@ CREATE TABLE IF NOT EXISTS tennis_free_current_observations (
  UNIQUE(source_event_key,source_row_checksum)
 );
 CREATE INDEX IF NOT EXISTS idx_tennis_free_obs_row ON tennis_free_current_observations(source_event_key,observed_at);
--- Dedicated fbis-tennis shard has no schema_migrations table; migration receipt is tracked externally.\n
+CREATE TABLE IF NOT EXISTS schema_migrations(id TEXT PRIMARY KEY,applied_at TEXT);
+INSERT OR IGNORE INTO schema_migrations(id,applied_at)
+ VALUES('0125_tennis_free_current_research',strftime('%Y-%m-%dT%H:%M:%fZ','now'));
