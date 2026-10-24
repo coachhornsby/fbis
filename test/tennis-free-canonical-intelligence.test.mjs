@@ -37,7 +37,7 @@ test('only unique exact tour-specific canonical identities are linked',async()=>
   sql.prepare('INSERT INTO tennis_players VALUES(?,?,?)').run(id,tour,name);
  }
  match('m1','A','Player One','B','Player Two');
- match('m2','C','Ambiguous Name','D','Player One');
+ match('m2','C','Ambiguous Name','D','Unlinked Name');
  match('m3','W','WTA Correct','Z','No Known Player','wta');
  match('m4','W','WTA Wrong','Y','No Match','wta');
  const out=await reconcileFreeTennisIdentities(wrap,{now:new Date('2026-10-24T21:00:00Z')});
