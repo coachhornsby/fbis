@@ -14,15 +14,19 @@ function TennisAthletePhoto({athlete}) {
   const [failed,setFailed]=useState(false);
   const photo=athlete?.photo;
   const initials=String(athlete?.name||"").split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase();
-  return <div className="pp-tennis-athlete-photo">
-    {photo?.url&&!failed
-      ? <img src={photo.url} alt={athlete.name+" portrait"} loading="lazy" decoding="async"
-          referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>
-      : <span aria-label={athlete?.name+" photo unavailable"}>{initials||"?"}</span>}
-    {photo?.credit&&photo?.creditUrl
-      ? <a className="pp-tennis-photo-credit" href={photo.creditUrl} target="_blank" rel="noopener noreferrer"
-          title={photo.credit}>Photo credit</a> : null}
-  </div>;
+  return <>
+    <div className="pp-tennis-athlete-photo">
+      {photo?.url&&!failed
+        ? <img src={photo.url} alt={athlete.name+" portrait"} loading="lazy" decoding="async"
+            referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>
+        : <span aria-label={athlete?.name+" photo unavailable"}>{initials||"?"}</span>}
+    </div>
+    {photo?.credit&&photo?.creditUrl&&!failed
+      ? <small className="pp-tennis-photo-credit">
+          <a href={photo.creditUrl} target="_blank" rel="noopener noreferrer">{photo.credit}</a>
+          {photo.licenseUrl ? <> · <a href={photo.licenseUrl} target="_blank" rel="noopener noreferrer">License</a></> : null}
+        </small> : null}
+  </>;
 }
 
 /** Tennis match/set/game observations shown separately from real player-stat props. */
