@@ -1,0 +1,60 @@
+name: NBA legacy key coverage in authoritative sport DB
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [ops/triggers/nba-primary-key-coverage]
+permissions:
+  contents: read
+concurrency:
+  group: nba-primary-key-coverage
+  cancel-in-progress: false
+jobs:
+  keys:
+    name: Primary-key coverage shard ${{ matrix.shard }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3,4,5]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Exhaustive keyset membership against NBA_DB
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NBA_AUDIT_SHARD: ${{ matrix.shard }}
+          NBA_AUDIT_SHARDS: '6'
+        run: node scripts/nba-primary-source-key-coverage.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: nba-source-key-audit-${{ matrix.shard }}
+          path: artifacts/nba-source-coverage/*.json
+          if-no-files-found: warn
+          retention-days: 90
+  certify:
+    name: Certify 31-table historical key coverage
+    needs: keys
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4.1.8
+        with:
+          pattern: nba-source-key-audit-*
+          path: artifacts/nba-source-coverage
+          merge-multiple: true
+      - run: node scripts/nba-source-key-certify.mjs
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nba-source-key-coverage-certified
+          path: artifacts/nba-source-coverage/certified.json
+          retention-days: 90
