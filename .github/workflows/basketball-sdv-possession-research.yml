@@ -1,0 +1,41 @@
+name: NBA and CBB SDV possession research v0.1
+on:
+  pull_request:
+    paths:
+      - functions/lib/basketballSdvPossessionSimulationResearch.js
+      - functions/lib/basketballSdvPbpAdapter.js
+      - test/basketball-sdv-possession-simulation-research.test.js
+      - test/basketball-sdv-pbp-adapter.test.js
+      - .github/workflows/basketball-sdv-possession-research.yml
+  push:
+    branches: [main]
+    paths:
+      - functions/lib/basketballSdvPossessionSimulationResearch.js
+      - functions/lib/basketballSdvPbpAdapter.js
+      - test/basketball-sdv-possession-simulation-research.test.js
+      - test/basketball-sdv-pbp-adapter.test.js
+      - .github/workflows/basketball-sdv-possession-research.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify NBA/CBB simulation and PBP source adapters
+        run: |
+          set -euo pipefail
+          node --check functions/lib/basketballSdvPossessionSimulationResearch.js
+          node --check functions/lib/basketballSdvPbpAdapter.js
+          node --test \
+            test/basketball-sdv-possession-simulation-research.test.js \
+            test/basketball-sdv-pbp-adapter.test.js
+      - name: Record independent research-only result
+        run: |
+          echo "NBA/CBB empirical possession engine and source adapters pass unit gates." >> "$GITHUB_STEP_SUMMARY"
+          echo "No real pregame receipts, prospective validation, historical PIT qualification, or wagering permissions are inferred from fixture tests." >> "$GITHUB_STEP_SUMMARY"
