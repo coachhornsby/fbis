@@ -78,6 +78,7 @@ export async function onRequestGet(context) {
         CFBD_API_KEY: context.env.CFBD_API_KEY,
         CBBD_API_KEY: context.env.CBBD_API_KEY,
         caches: caches.default,
+        ARCHIVE: context.env.ARCHIVE,
         ...sportDbContext(context.env),
         DB: context.env.DB,
         CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
@@ -89,6 +90,7 @@ export async function onRequestGet(context) {
         CFBD_API_KEY: context.env.CFBD_API_KEY,
         CBBD_API_KEY: context.env.CBBD_API_KEY,
         caches: caches.default,
+        ARCHIVE: context.env.ARCHIVE,
         DB: context.env.DB,
       });
     }

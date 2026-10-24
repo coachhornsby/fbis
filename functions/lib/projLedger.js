@@ -1,3 +1,4 @@
+import {collectionOwnerContext} from './collectionOwnerContext.js';
 import { canonicalProjectionConfidence } from "./projectionConfidence.js";
 import { resolveNbaResearchOwnerDb } from "./nbaResearchOwnerDb.js";
 /**
@@ -2173,6 +2174,7 @@ async function writeDailyMetrics(env, rows) {
 }
 
 export async function harvestSport(sport, days, env = {}, opts = {}) {
+  env = await collectionOwnerContext(env);
   const cfCache = env.caches;
   const singleDate = String(opts.date || "").slice(0, 10);
   const n = Math.max(1, Math.min(Number(days) || 8, KEEP_DAYS));
@@ -2638,6 +2640,7 @@ export function sportsForJob(sport) {
 }
 
 export async function harvestAll(days, env = {}, opts = {}) {
+  env = await collectionOwnerContext(env);
   const attemptedAt = new Date().toISOString();
   await stampAttempt(env, "harvest", attemptedAt, opts.trigger || "http");
   const unbound = !hasDb(env);
@@ -2776,6 +2779,7 @@ export async function harvestAll(days, env = {}, opts = {}) {
 }
 
 export async function collectBoards(env = {}, { odds = "cache", trigger = "http", buildSlateFn, sport, dayOffset, mode } = {}) {
+  env = await collectionOwnerContext(env);
   const healthMode = mode === "health";
   const attemptedAt = new Date().toISOString();
   await stampAttempt(env, "collect", attemptedAt, trigger);
@@ -2840,6 +2844,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
     // sportLedgerEnv() and slateEngine consume the same freshly verified
     // receipt; never permit NBA product writes through stale injected grants.
     env = owner.env;
+    env = await collectionOwnerContext(env);
   }
 
   for (const sport of sportList) {

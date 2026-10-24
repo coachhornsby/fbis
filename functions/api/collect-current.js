@@ -71,6 +71,7 @@ export async function collectCurrentPipeline(context, collect = collectBoards) {
       CFBD_API_KEY: context.env.CFBD_API_KEY,
       CBBD_API_KEY: context.env.CBBD_API_KEY,
       caches: globalThis.caches?.default,
+      ARCHIVE: context.env.ARCHIVE,
       ...sportDbContext(context.env),
       DB: context.env.DB,
       CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,

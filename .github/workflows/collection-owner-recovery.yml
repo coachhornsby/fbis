@@ -1,0 +1,36 @@
+name: Approved collection owner recovery
+on:
+  push:
+    branches: [main]
+    paths: [ops/triggers/collection-owner-recovery]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Wait for exact deployed writer fix
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Run normal NHL collection under existing approval and verify health
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          mkdir -p artifacts
+          node --input-type=module <<'JS'
+          import fs from 'node:fs/promises';
+          const q=new URLSearchParams({sport:'nhl',trigger:'schedule',expectedSha:process.env.GITHUB_SHA,runUrl:`https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`});
+          const r=await fetch('https://fbis-myz.pages.dev/api/collect-current?'+q,{headers:{'x-harvest-secret':process.env.HARVEST_SECRET},signal:AbortSignal.timeout(180000)}),body=await r.json();
+          await fs.writeFile('artifacts/nhl-owner-recovery.json',JSON.stringify(body,null,2));
+          if(!r.ok||body.ok!==true||body.status!=='success')throw Error('NORMAL_COLLECTION_NOT_SUCCESSFUL');
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: collection-owner-recovery-${{ github.run_id }}
+          path: artifacts/
