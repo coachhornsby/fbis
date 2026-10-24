@@ -7,7 +7,7 @@ import {
   requiredSportModeVars,
 } from "../functions/lib/topologyBindingGate.js";
 
-const EXPECTED_PAGES_D1_COUNT = 18;
+const EXPECTED_PAGES_D1_COUNT = 19;
 
 function parseTomlBindings(toml) {
   const bindingNames = [...toml.matchAll(/binding\s*=\s*"([^"]+)"/g)].map((m) => m[1]);
