@@ -31,7 +31,7 @@ for(const sport of ["nba","cbb"]){
   assert.equal(got.ok,true);
   assert.equal(got.canQualify,false);
   assert.equal(got.canAuthorizeWager,false);
-  assert.equal(got.sourceObservedAt,observedAt);
+  assert.equal(got.sourceObservedAt,new Date(observedAt).toISOString());
   assert.equal(got.count,sport==="nba"?184:128);
   assert.equal(got.game,undefined);
  });
@@ -40,7 +40,7 @@ for(const sport of ["nba","cbb"]){
   const evidence={gameId:base.gameId,tipoff,sourceFingerprint:"b".repeat(64),verified:true};
   const good=normalizeSdvBasketballReleaseGame({...base,tipoff,tipoffEvidence:evidence});
   assert.equal(good.status,"VERIFIED_HISTORICAL_GAME");
-  assert.equal(good.game.tipoff,tipoff);
+  assert.equal(good.game.tipoff,new Date(tipoff).toISOString());
   assert.equal(good.game.regulationOnly,true);
   assert.equal(good.game.canAuthorizeWager,false);
   const wrong=normalizeSdvBasketballReleaseGame({...base,tipoff,
