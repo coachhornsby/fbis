@@ -9,6 +9,7 @@ test("source membership audit has source-D1 read-only query contract",()=>{
  assert.match(script,/const nba="ed992525-d2ed-4b1d-8a12-feeb2efa152c"/);
  assert.match(script,/SELECT .*source_key FROM/);
  assert.match(script,/sourceCoverageVerified/);
+ assert.match(script,/LIMIT 40/);
  assert.match(script,/sourceRowsDeleted:0/);
  assert.match(script,/sourceDbMutations:0/);
  assert.doesNotMatch(script,/(DELETE FROM|DROP TABLE|INSERT INTO|UPDATE .* SET)/i);
