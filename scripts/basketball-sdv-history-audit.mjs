@@ -8,6 +8,7 @@ import {createGunzip,createGzip} from "node:zlib";
 import {createInterface} from "node:readline";
 import {normalizeSdvBasketballReleaseGame} from "../functions/lib/basketballSdvReleaseHistory.js";
 import {nbaCanonicalFixtureEvidence,matchNbaStatsScheduleToCanonical} from "../functions/lib/basketballSdvFixtureJoin.js";
+import {matchCbbNcaaPossessionsToEspnFixture} from "../functions/lib/basketballSdvCbbFixtureJoin.js";
 
 const sport=process.argv[2],season=Number(process.argv[3]);
 if(!["nba","cbb"].includes(sport)||!Number.isInteger(season))
@@ -38,6 +39,14 @@ for await(const line of rl){
  report.sourceRows+=row.rows.length;
  if(sport==="nba"){
   const pairing=matchNbaStatsScheduleToCanonical(row.schedule,nbaCanonical,{statsGameId:row.gameId});
+  if(pairing.tipoff){row.tipoff=pairing.tipoff;row.tipoffEvidence=pairing.evidence;}
+  else report.excluded["TIPOFF_"+pairing.status]=(report.excluded["TIPOFF_"+pairing.status]||0)+1;
+ }
+ if(sport==="cbb"){
+  const pairing=matchCbbNcaaPossessionsToEspnFixture({
+   gameId:row.gameId,season:row.season,ncaaSchedule:row.schedule,
+   firstPossession:row.rows[0],espnFixture:row.espnFixture,
+   fixtureSourceFingerprint:row.espnFixtureSourceHash});
   if(pairing.tipoff){row.tipoff=pairing.tipoff;row.tipoffEvidence=pairing.evidence;}
   else report.excluded["TIPOFF_"+pairing.status]=(report.excluded["TIPOFF_"+pairing.status]||0)+1;
  }
