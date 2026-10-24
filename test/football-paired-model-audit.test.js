@@ -18,7 +18,7 @@ test("Paired CFB/NFL metric deltas score same game and deterministic bootstrap",
  assert.equal(r.pairedDeltas.marginMAE,-4);
  assert.equal(r.pairedDeltas.totalMAE,0);
  assert.deepEqual(r.pairedDeltas.marginBootstrap95,[-4,-4]);
- assert.equal(r.challenger.multiclassBrier,0.26);
+ assert.ok(Math.abs(r.challenger.multiclassBrier-0.26)<1e-12);
  assert.equal(r.historicalPITCertified,false);
  assert.equal(r.canAuthorizeWager,false);
 });
