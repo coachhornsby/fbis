@@ -8,6 +8,7 @@
  */
 import {resolveTeamExact} from "./teams.js";
 import {normalizeVerifiedNflPossessions} from "./footballPossessionMatchupResearch.js";
+import {extractNflSourceDriveContext} from "./nflSdvDriveContext.js";
 const number=x=>x===null||x===undefined||x===""?null:Number(x);
 const integer=x=>{const n=number(x);return Number.isInteger(n)?n:null};
 const alias=Object.freeze({JAC:"JAX",STL:"LAR",SD:"LAC",OAK:"LV",LA:"LAR"});
@@ -71,7 +72,8 @@ export function extractNflfastRPossessionGame({
    // nflverse game_seconds_remaining is a play timestamp, not possession time.
    // First-to-last-play span is only a lower bound on elapsed drive time.
    gameClockFirst:integer(first.game_seconds_remaining),
-   gameClockLast:integer(last.game_seconds_remaining)});
+   gameClockLast:integer(last.game_seconds_remaining),
+   ...extractNflSourceDriveContext(rows,{home,away,offense:team})});
  }
  return normalizeVerifiedNflPossessions({gameId,homeTeamId:homeId,awayTeamId:awayId,
   kickoff,gradedAt,observedAt,sourceArtifactHash,regulationOnly:true,
