@@ -41,6 +41,7 @@ jobs:
         run: |
           node --test test/football-sdv-historical-integration.test.js \
             test/nfl-pbp-drive-research-adapter.test.js \
+            test/nfl-sdv-verified-transition-research.test.js \
             test/football-possession-matchup-research.test.js \
             test/football-simulation-validation-research.test.js
           python -m py_compile scripts/football-sdv-acquire.py
