@@ -10,6 +10,7 @@ export const PRIMARY_WS_SOFT_CAP_BYTES = 8_000_000_000;
  * continuous-learning / live-board headroom.
  */
 export function historyStore(env) {
+  if (env?.MARKET_HISTORY_2026Q4B_DB?.prepare) return "MARKET_HISTORY_2026Q4B";
   if (env?.MARKET_HISTORY_2026Q4_DB?.prepare) return "MARKET_HISTORY_2026Q4";
   if (env?.MARKET_HISTORY_ALLOW_LEGACY_WRITE === "enabled" && env?.MARKET_HISTORY_DB?.prepare) {
     return "MARKET_HISTORY";
@@ -20,7 +21,7 @@ export function historyStore(env) {
 export function resolveWsPersistTarget(env, primaryBytes = null) {
   const store = historyStore(env);
   if (!store) {
-    const q4Missing = !env?.MARKET_HISTORY_2026Q4_DB?.prepare;
+    const q4Missing = !env?.MARKET_HISTORY_2026Q4_DB?.prepare && !env?.MARKET_HISTORY_2026Q4B_DB?.prepare;
     return {
       store: null,
       reason: q4Missing
@@ -54,7 +55,7 @@ export function resolveWsPersistTarget(env, primaryBytes = null) {
   }
   return {
     store,
-    reason: store === "MARKET_HISTORY_2026Q4" ? "WS_Q4_DEFAULT" : "WS_HISTORY_LEGACY_ESCAPE",
+    reason: store === "MARKET_HISTORY_2026Q4B" ? "WS_Q4B_DEFAULT" : store === "MARKET_HISTORY_2026Q4" ? "WS_Q4_DEFAULT" : "WS_HISTORY_LEGACY_ESCAPE",
     preferHistory: true,
     blocked: false,
     primaryBytes: Number.isFinite(Number(primaryBytes)) ? Number(primaryBytes) : null,
