@@ -1,3 +1,4 @@
 2026-10-23: archive and index official 2025 Wild Card game 813071 only.
 Proof scope: one finalized source game, immutable R2 versions, compact primary D1 records.
 No sport database cutover, challenger promotion, or bulk season backfill.
+Repeat proof: reuse the existing source version without rewriting archived evidence.

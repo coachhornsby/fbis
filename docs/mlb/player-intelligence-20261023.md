@@ -99,3 +99,13 @@ Browser, remote CI, migration, deployment, and production import receipts must b
 - Primary migration registration verified: `0124_mlb_player_intelligence`, applied `2026-10-24 03:28:43` UTC.
 - Shadow migration attempt failed atomically because that database has no `schema_migrations` table. Readback found none of the four new tables there. The shadow database remains unchanged and is not authoritative.
 - The operations trigger `ops/triggers/mlb-intelligence-proof` requests one archived official game (`813071`), not a season backfill. Confirm its workflow receipt before claiming production import success.
+
+## Verified production import and interface
+
+PR #1640 merged as `71c05bb15efb14b97ea2a4fc9a4e8724a87f7970`. Main release CI `40059807150` passed, including production SHA/API verification. Cloudflare deployment `0b67e098-4824-40c8-9b56-22ca9632dd68` served this SHA successfully.
+
+Production workflow `40059807085` passed. Its receipt confirms one complete game (`813071`), 33 distinct players, 52 stat records and 317 pitches, with no errors or remaining games in that one-game scope. Both compressed R2 uploads completed before the D1 import. D1 readback verified the counts and `persisted=true` receipt. Semantic source hash: `b1fe7332733ab0bd3d04f6d2cd7c0e292098ae69c1950d0e66b9e81f8338a678`. This proves one game, not a completed season backfill.
+
+Live browser verification confirmed all 30 teams, the Yankees official roster, Aaron Judge's exact-ID profile and readable metric tiles, and three distinct projection-only shared cards for the expanded TB–MIL game. No matched exchange offers were available for that game. Judge's current 2026 official feed had zero verified postseason appearances; the profile displayed that empty sample without substituting regular-season games. Browser error logs were empty.
+
+The retry hardening checks the persisted semantic source version before any archive upload. An existing version is reused, preserving its first-observed raw and normalized evidence. The operations trigger repeats the same game to verify this path.
