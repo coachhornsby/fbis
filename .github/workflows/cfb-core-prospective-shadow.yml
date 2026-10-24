@@ -41,7 +41,7 @@ jobs:
             trigger=schedule
           fi
           failures=0
-          for job in cfb-core-shadow-freeze cfb-core-shadow-settle; do
+          for job in cfb-core-shadow-freeze cfb-core-shadow-settle cfb-core-weekly-evaluation; do
             echo "::group::${job}"
             tmp="artifacts/${job}.json"
             http=$(curl --silent --show-error --max-time 150 \
@@ -64,7 +64,7 @@ jobs:
             fi
             jq -c '{job,status,ok,errors,d1}' "$tmp"
             {
-              jq -r '"- result: \\(.status)\\n- inserted: \\(.d1.cfbCoreShadow.inserted // 0)\\n- candidates: \\(.d1.cfbCoreShadow.candidates // 0)\\n- eligible projected: \\(.d1.cfbCoreShadow.eligibleProjected // 0)\\n- skipped after kickoff: \\(.d1.cfbCoreShadow.skippedAfterKickoff // 0)\\n- rated teams: \\(.d1.cfbCoreShadow.teamCoverage.ratedTeams // 0)\\n- settled: \\(.d1.cfbCoreShadowSettle.settled // 0)\\n- authority: research_only"' "$tmp"
+              jq -r '"- result: \\(.status)\\n- inserted: \\(.d1.cfbCoreShadow.inserted // 0)\\n- candidates: \\(.d1.cfbCoreShadow.candidates // 0)\\n- eligible projected: \\(.d1.cfbCoreShadow.eligibleProjected // 0)\\n- skipped after kickoff: \\(.d1.cfbCoreShadow.skippedAfterKickoff // 0)\\n- rated teams: \\(.d1.cfbCoreShadow.teamCoverage.ratedTeams // 0)\\n- settled: \\(.d1.cfbCoreShadowSettle.settled // 0)\\n- prospective settled sample: \\(.d1.cfbCoreWeekly.eligibleRows // 0)\\n- evaluation: \\(.d1.cfbCoreWeekly.classification // "n/a")\\n- authority: research_only"' "$tmp"
               echo ""
             } >> "$GITHUB_STEP_SUMMARY"
             echo "::endgroup::"
