@@ -32,7 +32,8 @@ export function evaluateProspectiveGradeIntegrity(rows,{sport,asOf,maximum=2000}
  for(const i of incidents)for(const e of i.errors)classifications[e]=(classifications[e]||0)+1;
  return {sport,checked:rows.length,distinctGameKickoffs:physical.size,
   incidentCount:incidents.length,classifications,incidents:incidents.slice(0,25),
-  status:incidents.length===0?"CONSISTENT_WITH_VERIFIED_SOURCE":"INTEGRITY_VIOLATION",
+  status:rows.length===0?"NO_GRADED_PROSPECTIVE_EVIDENCE":
+   incidents.length===0?"CONSISTENT_WITH_VERIFIED_SOURCE":"INTEGRITY_VIOLATION",
   prospectiveProof:"SOURCE_OBSERVED_AFTER_PREGAME_KICKOFF",
   calibrated:false,canQualify:false,canAuthorizeWager:false};
 }
