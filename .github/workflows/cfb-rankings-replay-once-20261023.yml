@@ -80,7 +80,7 @@ jobs:
                fullOutcomeRecords:([.results[]|select(.probabilityComplete)]|length)}' board.json > sanitized/board.json
       - name: Archive sanitized verification only
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfb-weekly-rankings-replay-20261023
           path: sanitized/*.json

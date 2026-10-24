@@ -64,7 +64,7 @@ jobs:
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: node scripts/mlb-model-feature-capture.mjs artifacts/mlb-statcast-lab/receipt.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: mlb-statcast-lab-${{ matrix.teamShard }}-${{ github.run_id }}

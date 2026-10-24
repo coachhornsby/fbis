@@ -33,7 +33,7 @@ jobs:
           AUDIT_DATE: ${{ inputs.date }}
           AUDIT_SPORTS: ${{ inputs.sports }}
         run: node scripts/audit-prop-acceptance.mjs "$AUDIT_DATE" "$AUDIT_SPORTS"
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: player-props-production-acceptance

@@ -62,7 +62,7 @@ jobs:
           curl --fail-with-body -sS --max-time 75 -X POST -H "Authorization: Bearer $OIDC_TOKEN" https://fbis-orchestrator.coachhornsby.workers.dev/api/pinnodds-account-usage > artifacts/pinnodds-account-capability.json
           jq -e '.ok==true and .chargeableOddsRequests==0 and .canAuthorizeWager==false' artifacts/pinnodds-account-capability.json >/dev/null
           jq . artifacts/pinnodds-account-capability.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always() && github.event_name != 'pull_request'
         with:
           name: pinnodds-existing-capability-${{ github.run_id }}

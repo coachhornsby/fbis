@@ -25,7 +25,7 @@ jobs:
           node-version: '22'
       - run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
       - run: node scripts/restore-zen-prizepicks.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: zen-prizepicks-restoration-${{ github.run_id }}

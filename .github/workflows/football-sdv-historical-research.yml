@@ -84,7 +84,7 @@ jobs:
           cat "$SDV_OUT/d1-upload-verified.json" >> "$GITHUB_STEP_SUMMARY"
       - name: Publish audited historical findings
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: football-sdv-historical-research-${{ github.run_id }}
           path: |

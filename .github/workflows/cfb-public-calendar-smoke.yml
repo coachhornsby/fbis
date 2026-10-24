@@ -23,7 +23,7 @@ jobs:
         run: node scripts/cfb-public-calendar-smoke.mjs 2026-10-11 "$RUNNER_TEMP/fbs-calendar.json"
       - name: Save schedule source coverage evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfb-fbs-public-calendar-${{ github.run_id }}
           path: ${{ runner.temp }}/fbs-calendar.json

@@ -71,7 +71,7 @@ jobs:
           jq -e '.ok and .scope=="CFB_DB" and .canAuthorizeWager==false' report.json >/dev/null
       - name: Save sanitized prospective grade receipts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfb-v2-prospective-grading-20261026
           path: sanitized/*.json
