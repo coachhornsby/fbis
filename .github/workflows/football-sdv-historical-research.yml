@@ -60,6 +60,7 @@ jobs:
         run: |
           node scripts/football-sdv-evaluate.mjs \
             --input="$SDV_OUT" --maxGames=200 --iterations=150
+          node scripts/nfl-sdv-transition-coverage.mjs "$SDV_OUT"
       - name: Apply additive verified-research D1 schema per sport
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -86,5 +87,6 @@ jobs:
             artifacts/football-sdv/*evaluation.json
             artifacts/football-sdv/*backtest.jsonl
             artifacts/football-sdv/d1-upload-verified.json
+            artifacts/football-sdv/nfl-sdv-verified-transition-coverage.json
           retention-days: 30
           if-no-files-found: warn
