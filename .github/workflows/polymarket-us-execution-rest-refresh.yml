@@ -1,0 +1,37 @@
+name: Polymarket US authenticated REST trade refresh
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fbis-polymarket-us-execution-rest-refresh
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Refresh private REST fills into secured FBIS ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          output="$(mktemp)"
+          status="$(curl -sS --max-time 90 --retry 2 --retry-delay 2 \
+            -X POST -H "x-harvest-secret: $HARVEST_SECRET" \
+            -H "accept: application/json" \
+            -o "$output" -w '%{http_code}' \
+            https://fbis-myz.pages.dev/api/exchange-bets-sync)"
+          test "$status" = "200"
+          jq -e '.ok==true and .providers.polymarket.ok==true' "$output" >/dev/null
+          jq -c '{ok,at,inserted,pricesRecovered,conflicts,
+            polymarket:{ok:.providers.polymarket.ok,complete:.providers.polymarket.complete,
+            tradeCount:.providers.polymarket.tradeCount,pricedCount:.providers.polymarket.pricedCount,
+            unknownOutcomeCount:.providers.polymarket.unknownOutcomeCount,
+            unknownActionCount:.providers.polymarket.unknownActionCount,
+            missingFeeCount:.providers.polymarket.missingFeeCount}}' "$output"
+          echo "Authenticated Polymarket US REST capture verified. Historical incomplete wagers remain review-only." >> "$GITHUB_STEP_SUMMARY"
