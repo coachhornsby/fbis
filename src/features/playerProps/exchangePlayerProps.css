@@ -111,3 +111,36 @@
 /* Override the legacy three-cell premium grid on provider-neutral cards. */
 .exchange-props-panel.pp-premium-page .exchange-prop-grid .pp-card.pp-premium-card .pp-line-row.pp-premium-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;height:auto!important;min-height:80px;}
 .exchange-props-panel.pp-premium-page .exchange-prop-grid .pp-card.pp-premium-card .pp-line-row.pp-premium-metrics>.pp-metric-cell>span{white-space:normal!important;font-size:10px!important;letter-spacing:0!important;line-height:1.3!important;min-height:26px;}
+
+
+/* Tennis match-level venue research: independent of player-stat prop authorization. */
+.pp-tennis-market-research{padding:18px 0 26px;color:#f4f8ff}
+.pp-tennis-market-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pp-tennis-market-heading h2{margin:0;font-size:clamp(20px,1.6vw,27px);font-weight:900;color:#fff}
+.pp-tennis-market-heading p{margin:5px 0 0;color:#c3d7ec;font-size:13px}
+.pp-tennis-market-heading>strong{font-size:17px;font-variant-numeric:tabular-nums;color:#f4db8f}
+.pp-tennis-market-caveat{margin:12px 0 16px;color:#d6e3ef;font-size:12px;line-height:1.55;max-width:105ch}
+.pp-tennis-market-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.pp-tennis-market-card{min-width:0;padding:15px;border-radius:13px;border:2px solid #3c719b;background:linear-gradient(155deg,#0f2b47,#061527 80%);box-shadow:0 6px 22px #0004;display:flex;flex-direction:column;gap:10px}
+.pp-tennis-market-meta{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#bcd5e8;font-size:11px}
+.pp-tennis-market-meta b{color:#ffe09a;font-weight:900;letter-spacing:.08em}
+.pp-tennis-market-card h3{font-size:18px;line-height:1.3;font-weight:900;color:#fff;margin:0}
+.pp-tennis-market-card h3 span{color:#91bad9;font-size:13px;font-weight:700}
+.pp-tennis-tournament{color:#b8d1eb;font-size:12px;margin:0}
+.pp-tennis-projection{border:1px solid #416b89;border-radius:8px;padding:9px;font-size:12px;margin:0;display:flex;flex-wrap:wrap;gap:7px 13px;color:#d4e4f6}
+.pp-tennis-projection b{color:#fff}
+.pp-tennis-market-venues{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pp-tennis-market-venues>section{min-width:0;border:1px solid #416383;padding:9px;border-radius:10px;background:#071c32}
+.pp-tennis-market-venues h4{margin:0 0 7px;color:#80daff;font-size:12px;letter-spacing:.04em}
+.pp-tennis-market-venues h4 small{display:block;letter-spacing:0;color:#a9bdcf;font-size:10px;font-weight:500;margin-top:2px}
+.pp-tennis-market-venues p{font-size:11px;color:#c2d1e3}
+.pp-tennis-quote{border-top:1px solid #34516a;padding:8px 0;display:flex;flex-direction:column;gap:2px;min-width:0}
+.pp-tennis-quote span{font-size:12px;line-height:1.3;font-weight:800;overflow-wrap:anywhere}
+.pp-tennis-quote strong{font-size:21px;color:#fff;line-height:1.2;font-variant-numeric:tabular-nums}
+.pp-tennis-derivatives{border-top:1px solid #34516a;padding-top:10px;font-size:11px;line-height:1.4}
+.pp-tennis-derivatives summary{cursor:pointer;font-weight:850;color:#b8ddff}
+.pp-tennis-derivatives>div{padding:8px 0;border-bottom:1px solid #244663}
+.pp-tennis-derivatives>div strong{display:block;overflow-wrap:anywhere}
+.pp-tennis-derivatives p{margin:4px 0;color:#cbd9e9}
+@media(min-width:1700px){.pp-tennis-market-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:640px){.pp-tennis-market-grid,.pp-tennis-market-venues{grid-template-columns:minmax(0,1fr)}}
