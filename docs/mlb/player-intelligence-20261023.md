@@ -60,7 +60,9 @@ Existing MLB player models, pitcher workloads, matchup features, Statcast profil
 
 `mlb-player-intelligence.yml` supports daily previous-day acquisition and manual bounded corrections/backfill batches, at most seven days and 40 games per invocation. The collector records remaining game IDs and errors and writes per-game idempotent receipts. It archives immutable source versions before compact indexes, rejects non-final feeds, and stops if deployed MLB ownership differs from the currently certified shadow/primary configuration.
 
-This is a bounded import mechanism, not an automatically reconciled three-season backfill. Remaining games require subsequent batches. Rate-limit-specific backoff, persistent season checkpoint orchestration, complete final-game reconciliation, byte-budget admission controls, and long-run capacity qualification remain to be implemented before a bulk three-season run.
+The production importer verifies the deployed primary binding and physical D1 size before writes, reserving 2 MB per admitted game plus 200 MB headroom below a 9 GB stop threshold. Raw game responses above 25 MB are rejected.
+
+This is a bounded import mechanism, not an automatically reconciled three-season backfill. Remaining games require subsequent batches. Rate-limit-specific backoff, persistent season checkpoint orchestration, complete final-game reconciliation, and long-run capacity qualification remain to be implemented before a bulk three-season run.
 
 ## Exchange integration
 
