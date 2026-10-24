@@ -70,7 +70,7 @@ jobs:
           fi
           pdftotext -layout artifacts/report.pdf artifacts/report.txt
           test -s artifacts/report.txt
-          node scripts/nba-official-injury-parse.mjs             text=artifacts/report.txt discovery=artifacts/discovery.json             out=artifacts/nba-official-availability.json             sql=artifacts/nba-official-availability.sql
+          node scripts/nba-official-injury-parse.mjs             text=artifacts/report.txt discovery=artifacts/discovery.json             out=artifacts/nba-official-availability.json             sql=artifacts/nba-official-availability.sql playerSql=artifacts/nba-player-availability.sql reportSql=artifacts/nba-official-reports.sql
           jq -e '.ok==true and (.quality.teams > 0)' artifacts/nba-official-availability.json >/dev/null
 
       - name: Build availability observation health
@@ -95,7 +95,8 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/d1-batched-sql.mjs migrations/0053_nba_official_availability.sql
-          node scripts/d1-batched-sql.mjs artifacts/nba-official-availability.sql
+          CLOUDFLARE_D1_DATABASE_ID=b50c724c-903b-4241-8ce1-48d931e7a44c node scripts/d1-batched-sql.mjs artifacts/nba-player-availability.sql
+          node scripts/d1-batched-sql.mjs artifacts/nba-official-reports.sql
 
       - name: Archive source evidence
         if: steps.report.outputs.available == 'true' && github.ref == 'refs/heads/main'
