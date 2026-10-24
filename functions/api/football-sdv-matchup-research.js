@@ -8,8 +8,8 @@ const send=(b,s=200)=>new Response(JSON.stringify(b),{status:s,headers:{
 const time=s=>typeof s==="string"?Date.parse(s):NaN;
 export async function querySdvMatchupFromSportDb(env,{sport,gameId,now=new Date().toISOString(),variant="standard"}={}){
  if(!["nfl","cfb"].includes(sport)||!/^[A-Za-z0-9:._-]{1,120}$/.test(String(gameId||""))||
-    !Number.isFinite(time(now))||!["standard","nfl-sdv-v03"].includes(variant)||
-    (variant==="nfl-sdv-v03"&&sport!=="nfl"))throw Error("INVALID_RESEARCH_SCOPE");
+    !Number.isFinite(time(now))||!["standard","nfl-sdv-v031"].includes(variant)||
+    (variant==="nfl-sdv-v031"&&sport!=="nfl"))throw Error("INVALID_RESEARCH_SCOPE");
  const db=sport==="nfl"?env?.NFL_DB:env?.CFB_DB;
  if(!db?.prepare)throw Error("SPORT_DB_UNBOUND");
  const version=sport==="nfl"?"v1.2":"CFB-FBIS-v2";
@@ -57,12 +57,12 @@ export async function querySdvMatchupFromSportDb(env,{sport,gameId,now=new Date(
    frozenAt:now,kickoff:target.kickoff,homeTeamId:home.id,awayTeamId:away.id,
    projectedHome:target.projectedHome,projectedAway:target.projectedAway,
    trainingGames:training};
-  result=variant==="nfl-sdv-v03"?
+  result=variant==="nfl-sdv-v031"?
    simulateNflVerifiedDriveTransitionShadow({...input,iterations:250}):
    simulateMatchupDriveShadow({...input,iterations:150});
  }catch(error){
   const reason=String(error?.message||"RESEARCH_SIMULATION_INELIGIBLE");
-  if(variant==="nfl-sdv-v03"&&/^NFL_TRANSITION_/.test(reason))
+  if(variant==="nfl-sdv-v031"&&/^NFL_TRANSITION_/.test(reason))
    return {ok:false,sport,gameId,variant,reason,canQualify:false,canAuthorizeWager:false};
   throw error;
  }
