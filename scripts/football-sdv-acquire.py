@@ -19,7 +19,10 @@ NFL_FIELDS = (
     "game_id","play_id","home_team","away_team","home_score","away_score",
     "posteam","defteam","qtr","game_half","drive","yardline_100",
     "total_home_score","total_away_score","posteam_score_post",
-    "defteam_score_post","game_seconds_remaining","play_type"
+    "defteam_score_post","game_seconds_remaining","play_type",
+    "drive_time_of_possession","drive_start_transition","drive_end_transition",
+    "drive_game_clock_start","drive_game_clock_end",
+    "drive_start_yard_line","drive_end_yard_line"
 )
 CFB_FIELDS = (
     "game_id","game_play_number","drive.id","start.team.id",
