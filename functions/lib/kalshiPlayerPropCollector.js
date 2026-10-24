@@ -54,12 +54,14 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
     const old=await env.ARCHIVE.get(key);
     const prior=old?await old.json():null;
     const byTicker=new Map((Array.isArray(prior?.records)?prior.records:[]).map(m=>[m.ticker,m]));
+    let additions=0;
     // Preserve the observed pregame snapshot, not a postgame close price.
     for(const m of markets){
       const kickoff=ruleStart(m.rules_primary);
       if(kickoff==null || now.getTime()>=kickoff)continue;
-      byTicker.set(m.ticker,m);
+      byTicker.set(m.ticker,m);additions++;
     }
+    if(!additions)continue;
     await env.ARCHIVE.put(key,JSON.stringify({
       version:1,seriesTicker:ticker,sport:KALSHI_PROP_SERIES[ticker][0],
       capturedAt:now.toISOString(),historical:true,records:[...byTicker.values()]
