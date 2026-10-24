@@ -1,0 +1,34 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {buildMlbAblationFreeze,persistMlbAblationFreeze,archiveMlbFinalGame,gradeMlbAblations,summarizeMlbAblations} from '../functions/lib/mlbCompletionEvidence.js';
+const now='2026-10-24T15:00:00Z';
+const game=()=>({id:'1',start:'2026-10-25T00:00:00Z',homeSp:{id:11},awaySp:{id:22},home:{abbr:'A'},away:{abbr:'B'},savant:{homeRpg:4,awayRpg:4,homeSpEra:3,awaySpEra:4,homeSpKPer9:9,awaySpKPer9:9,homeSpInningsPerStart:5,awaySpInningsPerStart:5},mlbContext:{postseason:true,palParkRunFactor:1.1,palParkHrFactor:1.2,homePalRcVsTypical:.1,awayPalRcVsTypical:.2}});
+const feed=()=>({gameData:{game:{pk:1,type:'W',season:2026},datetime:{officialDate:'2026-10-24',dateTime:'2026-10-25T00:00:00Z'},status:{abstractGameState:'Final',codedGameState:'F'}},liveData:{boxscore:{teams:{home:{team:{id:1},pitchers:[11],players:{ID11:{person:{id:11},stats:{pitching:{inningsPitched:'5.0',battersFaced:20,strikeOuts:0}}}}},away:{team:{id:2},pitchers:[22],players:{ID22:{person:{id:22},stats:{pitching:{inningsPitched:'6.0',battersFaced:24,strikeOuts:6}}}}}}},linescore:{teams:{home:{runs:0},away:{runs:3}}},plays:{allPlays:[]}}});
+function archive(){const objects=new Map();return {objects,get:async key=>{const value=objects.get(key);if(value==null)return null;return {json:async()=>JSON.parse(value),body:new Blob([value]).stream()};},put:async(key,value,options)=>{if(options?.onlyIf&&objects.has(key))return null;objects.set(key,value);return{};}};}
+test('freezes all four variants without market quotes and rejects after-start inputs',()=>{
+ const f=buildMlbAblationFreeze(game(),now);assert.deepEqual(Object.keys(f.predictions),['baseline','statcast','pal','combined']);assert.equal(f.classification,'PROSPECTIVE');assert.equal(f.canPromote,false);
+ assert.notEqual(f.predictions.baseline.total,f.predictions.pal.total);
+ assert.throws(()=>buildMlbAblationFreeze(game(),'2026-10-25T01:00:00Z'));
+});
+test('first checkpoint forecast survives retries unchanged',async()=>{
+ const env={ARCHIVE:archive()},a=await persistMlbAblationFreeze(env,game(),'2026-10-24',now),g=game();g.savant.homeRpg=9;
+ const b=await persistMlbAblationFreeze(env,g,'2026-10-24','2026-10-24T16:00:00Z');assert.equal(b.reused,true);assert.equal(a.sourceHash,b.sourceHash);assert.equal(a.capturedAt,b.capturedAt);
+});
+test('official final grading preserves zero strikeouts, rejects identity changes and does not invent DNP outcomes',()=>{
+ const f=buildMlbAblationFreeze(game(),now),final=feed(),grade=gradeMlbAblations(f,final);assert.equal(grade.targets.find(t=>t.playerId==='11').actual,0);
+ final.liveData.boxscore.teams.home.pitchers=[99];const missing=gradeMlbAblations(f,final);assert.equal(missing.missingPitcherTargets,1);
+ final.gameData.game.pk=2;assert.throws(()=>gradeMlbAblations(f,final));assert.throws(()=>gradeMlbAblations({...f,sourceHash:'bad'},feed()));
+});
+test('source retries preserve immutable game versions and keep bulk history out of D1',async()=>{
+ const env={ARCHIVE:archive()},a=await archiveMlbFinalGame(env,feed(),now),b=await archiveMlbFinalGame(env,feed(),'2026-10-25T12:00:00Z');
+ assert.equal(a.sourceHash,b.sourceHash);assert.equal(a.observedAt,b.observedAt);assert.equal(b.reused,true);assert.equal(b.indexedInD1,false);
+});
+test('score cohorts separate checkpoints and count distinct games instead of treating variants as games',()=>{
+ const grade=gradeMlbAblations(buildMlbAblationFreeze(game(),now),feed()),report=summarizeMlbAblations([grade]);
+ const k=report.cohorts.find(c=>c.cohort.includes('pitcher_strikeouts'));assert.equal(k.n,2);assert.equal(k.distinctGames,1);assert.equal(report.canPromote,false);assert.equal(report.profitability,null);assert.throws(()=>summarizeMlbAblations([grade,grade]));
+});
+
+test('future source timestamps reject before freezing; operator route requires auth',async()=>{
+ const g=game();g.mlbContext.palAsOf='2026-10-24T16:00:00Z';assert.throws(()=>buildMlbAblationFreeze(g,now));
+ const {onRequestPost}=await import('../functions/api/mlb-completion.js');const r=await onRequestPost({env:{},request:new Request('https://fbis-myz.pages.dev/api/mlb-completion',{method:'POST',body:'{}'})});assert.equal(r.status,403);
+});

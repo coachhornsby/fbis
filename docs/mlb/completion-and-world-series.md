@@ -1,0 +1,25 @@
+# MLB completion work and remaining-season evidence
+
+## Implemented operations
+
+`MLB completion and World Series evidence` freezes four forecasts without requiring market quotes: season/workload baseline, Statcast matchup, Pal context, and combined. These are ablations of the existing projection formula, not four newly trained models. The Pal pitcher-K ablation can equal baseline because finished Pal K projections remain external comparison inputs. Freeze inputs and model/source versions are immutable for EARLY, T60 and T15 checkpoints. Late capture is rejected. Expected/confirmed lineup state is retained. Official finals grade only pitchers who actually started; a DNP is missing, never zero. Zero strikeouts and zero runs remain real outcomes.
+
+The ten-minute schedule runs through November 5, 2026; subsequent scheduled executions exit without collecting. Actual runs and checkpoints depend on GitHub scheduling availability. The operator can invoke the workflow manually. Each cycle also reconciles the prior UTC day's official finals and prior-day league data. Checkpoints/players sharing a game are not independent games. No market quote means no economic-return assertion. Existing quote-specific prospective evidence continues separately.
+
+## Full historical acquisition
+
+The controlled trigger starts monthly March–November shards for 2024–2026, capped at two concurrent jobs. Future months skip. Each day reconciles official final-game IDs against versioned game archives and daily Statcast coverage. A durable per-day manifest supports restarting completed months without downloading them again. Corrections can explicitly force re-acquisition. Source retries preserve the first observation in unchanged semantic versions. Raw official feeds, normalized game/player/pitch records, raw Statcast CSVs and normalized league rows live in R2. Bulk history is not inserted into the nearly full primary D1 database. Existing one-game D1 indexes remain unchanged.
+
+League summaries use deduplicated complete-day source universes, with regular/postseason and batter-hand cohorts. Pooling sums numerators and denominators instead of averaging daily averages. Final-game membership does not assert pitch-for-pitch reconciliation or complete tracking-field coverage. Unmeasured values remain missing. `/api/mlb-league-benchmarks?season=2026` exposes acquired coverage; partial months are not declared complete seasons.
+
+## Historical pitcher-K fit
+
+After successful acquisition, a separate job builds whole-day-lagged design rows from archived games and per-pitcher Statcast days. Workload uses prior starts only; actual same-game innings/BF never become predictors. A Poisson count candidate uses a workload/K baseline offset with whiff, chase, contact quality, velocity and opponent K features. Feature scaling and coefficient fitting use the first 70% of dates; the next 15% selects regularization; the final 15% is untouched until scoring. Four expanding chronological folds also test earlier windows, ending before the final untouched holdout. Folds with insufficient observations remain explicit. These are retrospective tests, not proof of historical source availability. Tests verify changing final-holdout outcomes cannot change fitted parameters. Reports remain research-only and require a complete daily corpus before fitting.
+
+Retrospectively acquired sources, actual starting-pitcher identities and missing historic Pal forecast archives prevent calling this prospective or an economically qualified comparison. Historical Pal/weather forecasts are not reconstructed from final outcomes. The newly frozen remaining-season games supply actual prospective observations, but cannot produce 17/30/45 independent dates before the season ends. Existing promotion thresholds remain unchanged.
+
+## Live status and limits
+
+`/api/mlb-completion` reports monthly coverage, today's immutable captures, settled cohorts and the historical-fit report. Workflow artifacts and R2 contain durable receipts. Code completion does not mean all monthly collection jobs succeeded; evaluate each receipt and missing-day list.
+
+SSW and xRA are explicitly unfinished, not fabricated from convenient fields. The current CSV includes spin axis and measured movement, but the project has no validated observed-versus-inferred axis residual estimator. xRA has no agreed/validated expected-run target and estimator. The existing batting run-expectancy change is not relabeled xRA. Separate retrospective hit, total-base and HR count fits use prior batting outcomes, prior projected opportunity and hitter/opposing-pitcher Statcast features. They use the same untouched holdout protocol and remain research candidates. Actual economic qualification remains unfinished; retrospective expanding folds are supplied by the fitting pipeline. No model is automatically promoted on a small World Series sample.
