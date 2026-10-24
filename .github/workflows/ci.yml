@@ -80,6 +80,8 @@ jobs:
         run: node --test test/database-ownership.test.js test/operations-db-fallback.test.js
       - name: Gate multi-D1 topology bindings in wrangler.toml (prevent Pages wipe)
         run: node --test test/wrangler-topology-bindings.test.js test/topology-binding-gate.test.js test/ws-persist-target.test.js test/history-recovery-q4.test.js
+      - name: Validate NBA bounded API imports and independent sport owner
+        run: node --test test/nba-d1-api-import-gates.test.mjs
       - name: Verify strictly additive NBA post-cutover recovery
         run: node --test test/nba-postcutover-recovery.test.js
       - name: Verify NBA scheduled writers target approved sport database
