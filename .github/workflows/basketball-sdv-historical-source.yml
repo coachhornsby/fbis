@@ -10,20 +10,24 @@ on:
     paths:
       - functions/lib/basketballSdvReleaseHistory.js
       - functions/lib/basketballSdvFixtureJoin.js
+      - functions/lib/basketballSdvCbbFixtureJoin.js
       - scripts/basketball-sdv-history-acquire.py
       - scripts/basketball-sdv-history-audit.mjs
       - test/basketball-sdv-release-history.test.js
       - test/basketball-sdv-fixture-join.test.js
+      - test/basketball-sdv-cbb-fixture-join.test.js
       - .github/workflows/basketball-sdv-historical-source.yml
   push:
     branches: [main]
     paths:
       - functions/lib/basketballSdvReleaseHistory.js
       - functions/lib/basketballSdvFixtureJoin.js
+      - functions/lib/basketballSdvCbbFixtureJoin.js
       - scripts/basketball-sdv-history-acquire.py
       - scripts/basketball-sdv-history-audit.mjs
       - test/basketball-sdv-release-history.test.js
       - test/basketball-sdv-fixture-join.test.js
+      - test/basketball-sdv-cbb-fixture-join.test.js
       - .github/workflows/basketball-sdv-historical-source.yml
 permissions:
   contents: read
@@ -46,7 +50,7 @@ jobs:
           python -m py_compile scripts/basketball-sdv-history-acquire.py
           node --check functions/lib/basketballSdvReleaseHistory.js
           node --check scripts/basketball-sdv-history-audit.mjs
-          node --test test/basketball-sdv-release-history.test.js test/basketball-sdv-fixture-join.test.js test/basketball-sdv-possession-simulation-research.test.js test/basketball-sdv-pbp-adapter.test.js
+          node --test test/basketball-sdv-release-history.test.js test/basketball-sdv-fixture-join.test.js test/basketball-sdv-cbb-fixture-join.test.js test/basketball-sdv-possession-simulation-research.test.js test/basketball-sdv-pbp-adapter.test.js
   live-source:
     needs: contracts
     if: github.event_name != 'pull_request'
@@ -95,6 +99,8 @@ jobs:
             "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-qa.json"
           if [ "$FBIS_BASKETBALL_SPORT" = "nba" ]; then
             jq -e '.withExactTipoff > 0 and .admittedToTraining > 0 and .canonicalGameCount > 200'               "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-qa.json"
+          elif [ "$FBIS_BASKETBALL_SPORT" = "cbb" ]; then
+            jq -e '.withExactTipoff > 0 and .admittedToTraining > 0'               "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-qa.json"
           fi
       - name: Freeze source and audit under immutable R2 research prefix
         env:
