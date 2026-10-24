@@ -58,9 +58,13 @@ export function normalizeVerifiedNflPossessions({
   const offPoints=side==="home"?d.endHomeScore-h:d.endAwayScore-a;
   const defPoints=side==="home"?d.endAwayScore-a:d.endHomeScore-h;
   requireThat(offPoints<=8&&defPoints<=8&&!(offPoints&&defPoints),"NFL_DRIVE_SCORE_UNSUPPORTED");
+  const clockOk=Number.isInteger(d.gameClockFirst)&&Number.isInteger(d.gameClockLast)&&
+   d.gameClockFirst<=3600&&d.gameClockFirst>=0&&d.gameClockLast<=d.gameClockFirst&&d.gameClockLast>=0;
+  const clock=clockOk?{gameClockFirst:d.gameClockFirst,gameClockLast:d.gameClockLast,
+   clockSpanLowerBound:d.gameClockFirst-d.gameClockLast}:{};
   normalized.push({driveId:d.driveId,seq:d.seq,offense:side,period:d.period,plays:d.plays,
    startYardsToGoal:d.startYardsToGoal,startMargin:side==="home"?h-a:a-h,
-   offensePoints:offPoints,defensePoints:defPoints});
+   offensePoints:offPoints,defensePoints:defPoints,...clock});
   h=d.endHomeScore;a=d.endAwayScore;
   if(side==="home")homeDrives++;else awayDrives++;
  }
