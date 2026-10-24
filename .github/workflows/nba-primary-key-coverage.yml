@@ -30,7 +30,7 @@ jobs:
           NBA_AUDIT_SHARD: ${{ matrix.shard }}
           NBA_AUDIT_SHARDS: '6'
         run: node scripts/nba-primary-source-key-coverage.mjs
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nba-source-key-audit-${{ matrix.shard }}
@@ -53,7 +53,7 @@ jobs:
           path: artifacts/nba-source-coverage
           merge-multiple: true
       - run: node scripts/nba-source-key-certify.mjs
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         with:
           name: nba-source-key-coverage-certified
           path: artifacts/nba-source-coverage/certified.json

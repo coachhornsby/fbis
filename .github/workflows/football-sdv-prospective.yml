@@ -57,7 +57,7 @@ jobs:
           cat artifacts/football-sdv/prospective-cycle.json >> "$GITHUB_STEP_SUMMARY"
       - name: Store research-only receipts audit
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: football-prospective-sdv-${{ github.run_id }}
           path: artifacts/football-sdv/prospective-cycle.json

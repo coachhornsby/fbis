@@ -83,7 +83,7 @@ jobs:
           ARTIFACT_DIR: artifacts/nfl-training-archive
         run: node scripts/nfl-archive-training-dataset.mjs
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nfl-training-archive-${{ github.run_id }}

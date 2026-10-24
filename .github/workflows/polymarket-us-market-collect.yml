@@ -79,7 +79,7 @@ jobs:
           echo "- Matched live BBO responses: $(jq -r '.validBbo // 0' artifacts/polymarket-us-ws.json)" >> "$GITHUB_STEP_SUMMARY"
           test "$code" = "200"
           jq -e '.ok==true and .connected==true and .subscribed==true and .readOnly==true and .tradingEnabled==false and .canAuthorizeWager==false' artifacts/polymarket-us-ws.json >/dev/null
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always() && github.event_name != 'pull_request'
         with:
           name: polymarket-us-research-${{ github.run_id }}

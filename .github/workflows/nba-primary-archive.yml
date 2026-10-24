@@ -38,7 +38,7 @@ jobs:
           NBA_ARCHIVE_PAGE_SIZE: "200"
           NBA_ARCHIVE_OUTPUT: /tmp/fbis-nba-primary-archive
         run: node scripts/nba-primary-archive.mjs
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nba-primary-archive-shard-${{ matrix.shard }}
@@ -64,7 +64,7 @@ jobs:
           merge-multiple: false
       - name: Verify all shard and per-table receipts
         run: node scripts/nba-primary-archive-certify.mjs
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         with:
           name: nba-primary-archive-certified-receipt
           path: archive-evidence/certified-receipt.json

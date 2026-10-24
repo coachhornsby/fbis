@@ -44,7 +44,7 @@ jobs:
           STORAGE_RETIRE_BATCH: '500'
           STORAGE_RETIRE_MAX_BATCHES: '40'
         run: node scripts/storage-retire-gated.mjs
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: storage-retire-gated

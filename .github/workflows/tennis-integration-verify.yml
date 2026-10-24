@@ -17,7 +17,7 @@ jobs:
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: node scripts/verify-tennis-integration.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: tennis-integration-production-${{ github.run_id }}

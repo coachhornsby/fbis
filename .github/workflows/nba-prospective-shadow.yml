@@ -198,7 +198,7 @@ jobs:
             npx wrangler r2 object put "fbis-archive/evaluation/nba/forward-shadow/${stamp}/nba-shadow.sql" --file artifacts/nba-shadow.sql --remote
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: nba-prospective-shadow-${{ github.run_id }}
           path: |
