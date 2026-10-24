@@ -3,10 +3,11 @@
  * Audit real SDV release possessions. This is not a time-travel backtest:
  * generated/observed time is actual acquisition and tipoff is unresolved.
  */
-import {createReadStream,createWriteStream,mkdirSync,writeFileSync} from "node:fs";
-import {createGunzip} from "node:zlib";
+import {createReadStream,createWriteStream,mkdirSync,writeFileSync,readFileSync,existsSync} from "node:fs";
+import {createGunzip,createGzip} from "node:zlib";
 import {createInterface} from "node:readline";
 import {normalizeSdvBasketballReleaseGame} from "../functions/lib/basketballSdvReleaseHistory.js";
+import {nbaCanonicalFixtureEvidence,matchNbaStatsScheduleToCanonical} from "../functions/lib/basketballSdvFixtureJoin.js";
 
 const sport=process.argv[2],season=Number(process.argv[3]);
 if(!["nba","cbb"].includes(sport)||!Number.isInteger(season))
@@ -15,6 +16,14 @@ const dir="artifacts/basketball-sdv",input=dir+"/"+sport+"-"+season+"-source.jso
 mkdirSync(dir,{recursive:true});
 const rl=createInterface({input:createReadStream(input).pipe(createGunzip()),crlfDelay:Infinity});
 const accepted=createWriteStream(dir+"/"+sport+"-"+season+"-reconciled.jsonl");
+const gameCompression=createGzip({level:6});
+const verifiedOut=createWriteStream(dir+"/"+sport+"-"+season+"-verified-games.jsonl.gz");
+gameCompression.pipe(verifiedOut);
+const nbaCanonicalPath=process.env.FBIS_NBA_CANONICAL_FILE||"";
+if(sport==="nba"&&(!nbaCanonicalPath||!existsSync(nbaCanonicalPath)))
+ throw Error("INDEPENDENT_NBA_CANONICAL_ARCHIVE_REQUIRED");
+const nbaCanonical=sport==="nba"?
+ nbaCanonicalFixtureEvidence(readFileSync(nbaCanonicalPath,"utf8")):null;
 const report={sport,season,modelFamily:"BASKETBALL_SDV_EMPIRICAL_V0.1",
  reportType:"REAL_SOURCE_GAME_QA_NOT_BACKTEST",
  sourceRows:0,checked:0,scoreReconciled:0,withExactTipoff:0,
@@ -27,11 +36,17 @@ for await(const line of rl){
  const row=JSON.parse(line);
  report.checked++;
  report.sourceRows+=row.rows.length;
+ if(sport==="nba"){
+  const pairing=matchNbaStatsScheduleToCanonical(row.schedule,nbaCanonical,{statsGameId:row.gameId});
+  if(pairing.tipoff){row.tipoff=pairing.tipoff;row.tipoffEvidence=pairing.evidence;}
+  else report.excluded["TIPOFF_"+pairing.status]=(report.excluded["TIPOFF_"+pairing.status]||0)+1;
+ }
  try{
   const result=normalizeSdvBasketballReleaseGame(row);
   report.scoreReconciled++;
   if(result.status==="VERIFIED_HISTORICAL_GAME"){
    report.withExactTipoff++;report.admittedToTraining++;
+   gameCompression.write(JSON.stringify(result.game)+"\n");
   } else {report.sourceOnly++;report.missingTipoff++;}
   const summary={gameId:row.gameId,season:row.season,sport,
    sourceObservedAt:result.sourceObservedAt,
@@ -49,6 +64,11 @@ for await(const line of rl){
  }
 }
 await new Promise((resolve,reject)=>accepted.end(err=>err?reject(err):resolve()));
+await new Promise((resolve,reject)=>{
+ verifiedOut.on("finish",resolve);verifiedOut.on("error",reject);
+ gameCompression.end();
+});
+report.canonicalGameCount=nbaCanonical?.distinctGames??0;
 report.status=report.withExactTipoff>0?"HISTORICAL_SDV_VERIFIED_TIPOFF_SOURCE":
  report.scoreReconciled>0?"HISTORICAL_SCORE_RECONCILED_TIPOFF_UNVERIFIED":
  "NO_RECONCILED_GAMES";
