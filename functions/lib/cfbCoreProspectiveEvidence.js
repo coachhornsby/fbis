@@ -22,6 +22,9 @@ export function evaluateCfbProspectiveHybridRows(rows = [], { artifactId = null,
   for (const r of ordered) {
     const gid = String(r.game_id || "");
     if (!gid || String(r.core_model_id) !== CFB_CORE_MARGIN_HYBRID_ID || (artifactId && r.core_artifact_id !== artifactId)) { drop("wrong_model_or_artifact"); continue; }
+    // Coefficients were fitted on weekly adjusted EPA × 100. CFBD /ratings/core
+    // is a different statistical distribution and cannot qualify this cohort.
+    if (r.core_source_endpoint !== "fbis_weekly_training_document") { drop("wrong_feature_family"); continue; }
     if (unique.has(gid)) { drop("repeat_freeze"); continue; }
     const generation = Date.parse(r.generation_at);
     const kickoff = Date.parse(r.kickoff);
