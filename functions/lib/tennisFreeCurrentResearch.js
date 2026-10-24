@@ -46,14 +46,15 @@ function completedScore(text,bestOf){
  const tokens=String(text||'').trim().split(/\\s+/);
  if(tokens.length<target||tokens.length>Number(bestOf))return false;
  let a=0,b=0;
- for(const token of tokens){
+ for(let i=0;i<tokens.length;i++){
+  const token=tokens[i];
   const m=token.match(/^(\\d+)-(\\d+)(?:\\(\\d+\\))?$/);
   if(!m)return false;
   const x=Number(m[1]),y=Number(m[2]),hi=Math.max(x,y),lo=Math.min(x,y);
   if(!((hi===6&&lo<=4)||(hi===7&&(lo===5||lo===6))))return false;
   if(x>y)a++;else b++;
   if(a===target||b===target){
-   if(token!==tokens[tokens.length-1])return false;
+   if(i!==tokens.length-1)return false;
   }
  }
  return a===target&&b<target;
