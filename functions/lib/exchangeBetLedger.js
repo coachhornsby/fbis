@@ -82,6 +82,24 @@ export function groupExecutions(events){
 }
 const dbEvent=r=>({provider:r.provider,fillId:r.fill_id,groupId:r.group_id,market:r.market,marketLabel:r.market_label,
   side:r.side,action:r.action,quantity:num(r.quantity),price:num(r.unit_price),fee:num(r.fee_usd),at:r.occurred_at});
+/** Evidence-visible Polymarket trade queue. A provider activity is NOT a qualified wager
+ * until order side, intent, fee, and settlement can be verified. Read-only private UI.
+ */
+export function unresolvedPolymarketTrades(events=[],limit=150){
+ return events.filter(e=>e?.provider==="Polymarket US"&&
+   (e.side==="UNKNOWN"||e.action==="UNKNOWN"||e.price==null||e.fee==null))
+  .sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")))
+  .slice(0,limit).map(e=>({
+    id:e.fillId,market:e.market,label:e.marketLabel||e.market,
+    observedAt:e.at||null,quantity:e.quantity??null,unitPrice:e.price??null,
+    estimatedTradeValueBeforeFees:e.price!=null&&e.quantity!=null
+      ?Math.round(e.price*e.quantity*10000)/10000:null,
+    knownSide:["YES","NO"].includes(e.side)?e.side:null,
+    missing:[e.side==="UNKNOWN"?"OUTCOME_SIDE":null,e.action==="UNKNOWN"?"BUY_SELL_INTENT":null,
+      e.price==null?"TRADE_PRICE":null,e.fee==null?"FEE_AMOUNT":null].filter(Boolean),
+    status:"RECONCILIATION_REQUIRED"
+  }));
+}
 export async function readExchangeTickets(db){
   const records=await db.prepare("SELECT * FROM exchange_bet_fills ORDER BY occurred_at DESC LIMIT 3001").all();
   if((records.results||[]).length>3000)throw new Error("EXCHANGE_HISTORY_LIMIT_REQUIRES_PAGINATION");
@@ -113,7 +131,9 @@ export async function readExchangeTickets(db){
   }
   // Unknown or incomplete provider fields stay in the journal for reconciliation;
   // never invent a side, risk amount, result, or player identity.
-  return {tickets,unresolved:events.filter(e=>e.side==="UNKNOWN"||e.action==="UNKNOWN"||e.price==null||e.quantity==null).length,
+  const incomplete=events.filter(e=>e.side==="UNKNOWN"||e.action==="UNKNOWN"||e.price==null||e.quantity==null||e.fee==null);
+  return {tickets,unresolved:incomplete.length,pendingReview:unresolvedPolymarketTrades(events),
+    pendingReviewCount:incomplete.filter(e=>e.provider==="Polymarket US").length,
     observedFills:events.length};
 }
 /** Historical REST backfill: repair missing provider-confirmed trade price only.

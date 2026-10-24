@@ -35,7 +35,26 @@ export default function ExchangeSyncedBets(){
     <div className="table-scroll"><table className="fbis-table"><thead><tr><th>Exchange</th><th>Market</th><th>Side</th><th>Contracts</th><th>Stake incl. fees</th><th>Max profit</th><th>Status</th><th>Realized P/L</th><th>Ticket</th></tr></thead><tbody>
       {payload.tickets.map(t=><tr key={t.id}><td>{t.provider}</td><td>{t.marketLabel}</td><td>{t.side}</td><td>{t.contracts}</td><td>{fmt(t.risk)}</td><td>{fmt(t.toWin)}</td><td>{t.status}</td><td>{fmt(t.profit)}</td><td>{t.id}</td></tr>)}
       {!payload.tickets.length&&<tr><td colSpan="9">No complete exchange executions recorded yet.</td></tr>}
-    </tbody></table></div></>}
+    </tbody></table></div>
+    <section aria-label="Unreconciled Polymarket US trades" style={{marginTop:20}}>
+      <h3>Polymarket US · Trades awaiting reconciliation</h3>
+      <p className="muted"> {payload.pendingReviewCount||0} provider transactions recorded by authenticated REST.
+       These are real observed activities, but their bought outcome or order direction, fees or both are not verified.
+       They are deliberately excluded from wager totals and realized P/L.</p>
+      <div className="table-scroll"><table className="fbis-table">
+        <thead><tr><th>Observed</th><th>Market</th><th>Contracts</th><th>Unit price</th>
+          <th>Trade value before fees</th><th>Missing evidence</th><th>Status</th></tr></thead>
+        <tbody>{(payload.pendingReview||[]).map(trade=><tr key={trade.id}>
+          <td>{trade.observedAt?new Date(trade.observedAt).toLocaleString():"—"}</td>
+          <td>{trade.label||trade.market}</td>
+          <td>{trade.quantity??"—"}</td>
+          <td>{trade.unitPrice==null?"—":String((trade.unitPrice*100).toFixed(2))+"¢"}</td>
+          <td>{fmt(trade.estimatedTradeValueBeforeFees)}</td>
+          <td>{(trade.missing||[]).join(", ")||"Review"}</td>
+          <td>REVIEW · NOT GRADED</td></tr>)}
+          {!payload.pendingReview?.length&&<tr><td colSpan="7">No incomplete Polymarket US trades in the current stored history.</td></tr>}
+        </tbody></table></div>
+    </section></>}
    </>}
   </div>
  </section>
