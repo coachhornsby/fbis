@@ -1,0 +1,43 @@
+name: Tennis free-source qualification
+on:
+  pull_request:
+    paths:
+      - 'functions/lib/tennisFreeCurrentResearch.js'
+      - 'functions/lib/tennisFreeCurrentCollector.js'
+      - 'functions/lib/tennisFreeStatProfile.js'
+      - 'functions/api/tennis-free-current-*.js'
+      - 'migrations/0125_tennis_free_current_research.sql'
+      - 'schema.extensions.sql'
+      - 'functions/lib/migrationTip.js'
+      - 'test/tennis-free-*.test.mjs'
+      - '.github/workflows/tennis-free-source-qualification.yml'
+      - 'scripts/tennis-free-current-source-probe.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Strict syntax checks
+        run: |
+          node --check functions/lib/tennisFreeCurrentResearch.js
+          node --check functions/lib/tennisFreeCurrentCollector.js
+          node --check functions/lib/tennisFreeStatProfile.js
+          node --check functions/api/tennis-free-current-refresh.js
+          node --check functions/api/tennis-free-current-profile.js
+      - name: Match-stat parsing, storage, and profile tests
+        run: node --test test/tennis-free-current-research.test.mjs test/tennis-free-profile.test.mjs
+      - name: Live source availability and recent serve-stat coverage
+        run: node scripts/tennis-free-current-source-probe.mjs
+      - name: Verify canonical migration tip and schema
+        run: npm run verify:migrations
+      - name: Production bundle build
+        run: npm run build
