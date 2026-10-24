@@ -1,0 +1,45 @@
+name: Tennis research integration qualification
+on:
+  pull_request:
+    paths:
+      - 'functions/lib/tennis*.js'
+      - 'functions/api/tennis-*.js'
+      - 'migrations/0124_tennis_challenger_grades.sql'
+      - 'test/tennis-*.test.mjs'
+      - '.github/workflows/tennis-research-integration-qualification.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit-and-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check modules
+        run: |
+          node --check functions/lib/tennisMarketEvidenceGrade.js
+          node --check functions/lib/tennisInhouseElo.js
+          node --check functions/lib/tennisChallengerGrades.js
+          node --check functions/lib/tennisSourceAdmission.js
+          node --check functions/lib/tennisSackmannPrivateResearch.js
+          node --check functions/lib/tennisAtpOfficialResultContract.js
+          node --check functions/api/tennis-inhouse-ratings.js
+      - name: Run research and source-contract tests
+        run: |
+          node --test \
+            test/tennis-inhouse-ranking-challenger.test.mjs \
+            test/tennis-challenger-grades.test.mjs \
+            test/tennis-inhouse-elo.test.mjs \
+            test/tennis-inhouse-ratings-api.test.mjs \
+            test/tennis-atp-official-result-contract.test.mjs \
+            test/tennis-source-admission.test.mjs \
+            test/tennis-sackmann-private-research.test.mjs \
+            test/tennis-market-evidence-grade.test.mjs
+      - name: Verify shadow-only flags
+        run: |
+          grep -q 'can_authorize_wager INTEGER NOT NULL DEFAULT 0' migrations/0124_tennis_challenger_grades.sql
+          grep -q 'canAuthorizeWager:false' functions/lib/tennisMarketEvidenceGrade.js
