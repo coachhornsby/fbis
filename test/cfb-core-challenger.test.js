@@ -125,7 +125,7 @@ test("CORE margin-only pregame freeze never binds undefined D1 probability", asy
   let bound;
   const db = {
     prepare: sql => ({ bind: (...values) => {
-      const match = sql.match(/INSERT OR IGNORE INTO cfb_core_shadow_predictions\\s*\\(([\\s\\S]*?)\\)\\s*VALUES\\s*\\(([\\s\\S]*?)\\)/i);
+      const match = sql.match(/INSERT OR IGNORE INTO cfb_core_shadow_predictions\s*\(([\s\S]*?)\)\s*VALUES\s*\(([\s\S]*?)\)/i);
       assert.ok(match, "must use the immutable CFB CORE shadow table");
       const columns = match[1].split(",").map(v => v.trim());
       const sqlValues = match[2].split(",").map(v => v.trim());
