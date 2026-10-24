@@ -23,7 +23,7 @@ export function selectProspectiveRegulationOutcome(receipt,sources,{asOf}={}){
  for(const s of sources||[]){
   if(s.sport!==receipt.sport||
      s.homeTeamId!==receipt.homeTeamId||s.awayTeamId!==receipt.awayTeamId||
-     Math.abs(timestamp(s.kickoff)-timestamp(receipt.kickoff))>KICKOFF_MATCH_TOLERANCE_MS)
+     !Number.isFinite(timestamp(s.kickoff))||Math.abs(timestamp(s.kickoff)-timestamp(receipt.kickoff))>KICKOFF_MATCH_TOLERANCE_MS)
    continue;
   if(!fingerprint(s.sourceFingerprint)||!validId(s.sourceGameId)||
     s.sourceModel!==allowedModel[receipt.sport]||
