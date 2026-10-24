@@ -39,7 +39,8 @@ jobs:
             test/tennis-source-admission.test.mjs \
             test/tennis-sackmann-private-research.test.mjs \
             test/tennis-market-evidence-grade.test.mjs \
-            test/tennis-fast-data.test.mjs
+            test/tennis-fast-data.test.mjs \
+            test/tennis-fast-canonical-api.test.mjs
       - name: Verify shadow-only flags
         run: |
           grep -q 'can_authorize_wager INTEGER NOT NULL DEFAULT 0' migrations/0124_tennis_challenger_grades.sql
