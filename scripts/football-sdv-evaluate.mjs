@@ -43,6 +43,7 @@ async function load(file){
    // Immutable per-game content fingerprint; do not hash the current observation clock.
    if(sport==="nfl"){
     game.normalizerVersion="NFL_PBP_NORMALIZER_v0.3.1";
+    game.drives=game.drives.map(d=>({...d,sourceNormalizerVersion:game.normalizerVersion}));
     game.sourceFingerprint=crypto.createHash("sha256").update(
      game.normalizerVersion+"|"+sourceArtifactHash).digest("hex");
    }
