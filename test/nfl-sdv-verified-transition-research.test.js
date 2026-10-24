@@ -82,3 +82,11 @@ test("Observed field chain maps historical home/away roles to current offense co
  assert.equal(mapHistoricalNextOffenseToTarget({offense:"home",observedNextOffense:"home"},"away"),"away");
  assert.equal(mapHistoricalNextOffenseToTarget({offense:"home",observedNextOffense:null},"home"),null);
 });
+
+test("NFL 0.3.1 refuses superseded 0.3 kickoff-yardline normalization even with complete timing",()=>{
+ const archived=Array.from({length:34},(_,i)=>historical(i,true));
+ const stale=archived.map(g=>({...g,drives:g.drives.map(d=>({...d,
+  sourceNormalizerVersion:"NFL_PBP_NORMALIZER_v0.3"}))}));
+ assert.throws(()=>simulateNflVerifiedDriveTransitionShadow({...base,trainingGames:stale}),
+  /NFL_TRANSITION_OFFICIAL_SOURCE_COVERAGE_INSUFFICIENT/);
+});
