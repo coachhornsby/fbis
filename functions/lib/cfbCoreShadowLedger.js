@@ -11,6 +11,7 @@ import {
   projectCfbCoreMarginHybrid,
 } from "./cfbCoreMarginHybrid.js";
 import {evaluateCfbCoreResearch} from "./cfbCoreEvaluation.js";
+import {evaluateCfbProspectiveHybridRows} from "./cfbCoreProspectiveEvidence.js";
 import {CHAMPION_HFA} from "./collegeModels.js";
 import {estimateCfbWeekFromDate} from "./cfbCoreAdvancedPlumbing.js";
 
@@ -842,11 +843,63 @@ export async function persistCfbCoreEvaluationReport(env, report, { reportType =
 }
 
 export async function runCfbCoreWeeklyEvaluation(env, { rows = null } = {}) {
-  // Prefer explicit offline rows; otherwise build a limitation report from live coverage.
+  // Preserve existing explicit walk-forward evaluator when provided research rows.
   if (Array.isArray(rows) && rows.length) {
     const report = evaluateCfbCoreResearch(rows);
     const saved = await persistCfbCoreEvaluationReport(env, report, { reportType: "weekly_walkforward" });
-    return { ok: true, report, saved };
+    return { ok: saved?.ok === true, report, saved };
+  }
+  // First-class operational gate: genuinely prospective, immutable hybrid
+  // forecasts matched against the same frozen production A/A scores.
+  const artifact = await loadCfbCoreResearchArtifact(env);
+  if (artifact?.modelId === CFB_CORE_MARGIN_HYBRID_ID && tier3(env)?.prepare) {
+    try {
+      const db = tier3(env);
+      const rs = await db.prepare(
+        `SELECT id,game_id,season,week,kickoff,generation_at,feature_cutoff_at,
+          core_model_id,core_artifact_id,core_through_week,eligibility,
+          champion_home,champion_away,core_home,core_away,
+          final_verified,actual_home,actual_away
+         FROM cfb_core_shadow_predictions
+         WHERE core_model_id=? AND core_artifact_id=?
+         ORDER BY generation_at ASC, id ASC LIMIT 3000`
+      ).bind(CFB_CORE_MARGIN_HYBRID_ID, artifact.artifactId).all();
+      const evidence = evaluateCfbProspectiveHybridRows(rs?.results || [], {
+        artifactId: artifact.artifactId,
+        historicalHoldoutN: 149,
+      });
+      const report = {
+        eligibleRows: evidence.prospectiveSettledN,
+        classification: evidence.classification,
+        seasons: [2026],
+        excluded: evidence.excluded,
+        decision: evidence.gate.decision,
+        comparison: evidence.metrics,
+        verifiedOos: evidence.prospectiveSettledN > 0,
+        dataLimitations: evidence.prospectiveSettledN < 200
+          ? ["PROSPECTIVE_N_BELOW_200", "KEEP_PRODUCTION_AA_CHAMPION"]
+          : [],
+        marketSummary: null,
+        folds: [],
+        ablation: null,
+        prospective: evidence,
+      };
+      const saved = await persistCfbCoreEvaluationReport(env, report, {
+        reportType: "prospective_margin_hybrid",
+        season: 2026,
+      });
+      return {
+        ok: saved?.ok === true,
+        report,
+        saved,
+        prospective: evidence,
+        authority: "research_only",
+        canAuthorizeWager: false,
+        canInfluenceProduction: false,
+      };
+    } catch (err) {
+      return { ok: false, reason: "PROSPECTIVE_LEDGER_EVALUATION_FAILED", detail: String(err?.message || err), authority: "research_only" };
+    }
   }
   const dash = await loadCfbCoreShadowDashboard(env, { limit: 20 });
   const teamIndex = await loadCfbCoreTeamIndex(env, new Date().getUTCFullYear());
