@@ -1,5 +1,6 @@
 import { harvestSecret } from "../lib/auth.js";
 import { resolveNbaResearchOwnerDb } from "../lib/nbaResearchOwnerDb.js";
+import { recoverMissingNbaResearchPage } from "../lib/nbaPostCutoverRecovery.js";
 import { persistGame, persistPrediction, persistOddsSnapshot } from "../lib/store.js";
 import {
   topologyManifest,
@@ -194,6 +195,19 @@ export async function onRequestPost({ env, request } = {}) {
   let body = {};
   try { body = await request.json(); } catch { return json({ ok: false, error: "INVALID_JSON" }, 400); }
   const operation = String(body.operation || "");
+  if (operation === "nba-primary-research-recover") {
+    try {
+      const recovery=await recoverMissingNbaResearchPage(env,{
+        table:body.table,afterRowid:body.afterRowid,pageSize:body.pageSize,
+        highRowid:body.highRowid,dryRun:body.dryRun===true,
+      });
+      return json(recovery,recovery.ok?200:409);
+    }catch(error) {
+      return json({ok:false,sport:"nba",reason:"NBA_ADDITIVE_RECOVERY_FAILED",
+        detail:String(error?.message||error).slice(0,220),
+        sourceRowsDeleted:0,canAuthorizeWager:false},500);
+    }
+  }
   if (operation === "nba-paused-rollback-replay") {
     const receipt=await restorePausedNbaToPrimary(env,{
       table:body.table,offset:body.offset,pageSize:body.pageSize
