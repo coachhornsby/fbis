@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {tennisExchangeResearchCards} from "../src/lib/tennisPropMarketResearch.js";
+import {tennisExchangeResearchCards,tennisBoardPlayerPhoto} from "../src/lib/tennisPropMarketResearch.js";
 
 const fixture = {
   id:"tennis-watson-samsonova",sport:"tennis",tour:"wta",
@@ -67,4 +67,41 @@ test("Player Props page is fed tennis Board data and preserves stat-card restric
   assert.match(view,/o\.ask!=null\?price\(o\.ask\)/);
   assert.match(app,/normalizedRoute === "player-props" && explicitSport && SPORTS\[explicitSport\]/);
   assert.match(app,/route === "player-props"\s*\?\s*\(SPORTS\[sportFilter\] \? sportFilter : "all"\)/);
+});
+
+test("Tennis market cards reuse two athlete portraits only from identity-verified Board sources",()=>{
+ const approvedId="tennis:wta:326384";
+ const approvedUrl="/api/tennis-portrait?id="+encodeURIComponent(approvedId);
+ const withPhotos={...fixture,
+   away:{name:"Heather Watson",fbisPlayerId:approvedId,headshotUrl:approvedUrl,
+     imageSource:"RIGHTS_VERIFIED_TENNIS_PORTRAIT",
+     portraitCredit:"Commons verified",portraitSourceUrl:"https://commons.wikimedia.org/wiki/File:Example.jpg"},
+   home:{name:"Liudmila Samsonova",fbisPlayerId:"tennis:wta:123",
+     headshotUrl:"https://static.prizepicks.com/images/manual/Athlete.png",imageSource:"PRIZEPICKS_FEED"},
+ };
+ const [card]=tennisExchangeResearchCards([withPhotos]);
+ assert.equal(card.athletes[0].photo.url,approvedUrl);
+ assert.equal(card.athletes[0].photo.credit,"Commons verified");
+ assert.equal(card.athletes[1].photo.url,"https://static.prizepicks.com/images/manual/Athlete.png");
+ assert.deepEqual(card.athletes.map(a=>a.name),["Heather Watson","Liudmila Samsonova"]);
+ assert.deepEqual(card.kalshi.map(o=>o.name),["Heather Watson","Liudmila Samsonova"]);
+});
+test("No unapproved ATP/WTA photos, logos, arbitrary URLs or wrong athlete's portrait",()=>{
+ const id="tennis:wta:326384";
+ assert.equal(tennisBoardPlayerPhoto({fbisPlayerId:id,headshotUrl:"https://www.wtatennis.com/players/abc.jpg",imageSource:"WTA_OFFICIAL"}),null);
+ assert.equal(tennisBoardPlayerPhoto({fbisPlayerId:id,headshotUrl:"https://img0.aiscore.com/v2/team/abc.png",imageSource:"PRIZEPICKS_FEED"}),null);
+ assert.equal(tennisBoardPlayerPhoto({fbisPlayerId:id,headshotUrl:"https://example.com/logos/player.png",imageSource:"PRIZEPICKS_FEED"}),null);
+ assert.equal(tennisBoardPlayerPhoto({fbisPlayerId:id,headshotUrl:"/api/tennis-portrait?id=tennis%3Awta%3AOTHER",imageSource:"RIGHTS_VERIFIED_TENNIS_PORTRAIT"}),null);
+ assert.equal(tennisBoardPlayerPhoto({fbisPlayerId:id,headshotUrl:"/api/tennis-portrait?id=%xx",imageSource:"RIGHTS_VERIFIED_TENNIS_PORTRAIT"}),null);
+ assert.equal(tennisBoardPlayerPhoto({headshotUrl:"https://static.prizepicks.com/images/manual/valid.png"}),null);
+ const [noPhoto]=tennisExchangeResearchCards([fixture]);
+ assert.equal(noPhoto.athletes[0].photo,null);
+ assert.equal(noPhoto.athletes[1].photo,null);
+});
+test("Tennis exchange UI renders two resilient face slots and photo attribution",()=>{
+ const view=readFileSync(new URL("../src/features/playerProps/TennisExchangeResearch.jsx",import.meta.url),"utf8");
+ assert.match(view,/function TennisAthletePhoto/);
+ assert.match(view,/card\.athletes\.map/);
+ assert.match(view,/onError=\{\(\)=>setFailed\(true\)\}/);
+ assert.match(view,/photo\.creditUrl/);
 });
