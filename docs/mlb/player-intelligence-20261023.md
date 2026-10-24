@@ -88,3 +88,12 @@ Browser, remote CI, migration, deployment, and production import receipts must b
 6. Complete rich profile trends, pitch arsenals, situational charts, projections, and full game-log pagination from the persisted intelligence store. Current profile view provides official bio, season stats and recent appearances.
 7. Qualify database-backed recent-history reads only after their coverage is reconciled; current product history still uses cached official upstream sources.
 8. Verify remote release and production behavior; do not call this entire assignment complete until these gates pass.
+
+## Release evidence
+
+- Implementation PR: https://github.com/coachhornsby/fbis/pull/1638 (merged).
+- Final PR head: `a3ba244e43f043f21315d1ed6f09f0295a1fd7f7`; CI run `40058446743` passed.
+- Merge commit: `bb4ed1ee13b7b78b493e48c99b0ed2966b6e0752`.
+- Primary migration registration verified: `0124_mlb_player_intelligence`, applied `2026-10-24 03:28:43` UTC.
+- Shadow migration attempt failed atomically because that database has no `schema_migrations` table. Readback found none of the four new tables there. The shadow database remains unchanged and is not authoritative.
+- The operations trigger `ops/triggers/mlb-intelligence-proof` requests one archived official game (`813071`), not a season backfill. Confirm its workflow receipt before claiming production import success.
