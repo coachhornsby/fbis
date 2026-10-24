@@ -1,7 +1,7 @@
 # FBIS NFL SDV v0.3 — Independent Prospective Protocol (2026-10-23)
 
 ## Source, engine and authority
-- Model: NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3
+- Model: NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3.1
 - Comparison: NFL-VERIFIED-POSSESSION-MATCHUP-SHADOW-v0
 - Sources: SportsDataverse/nflverse 2024–2026 play-by-play; nflfastR `drive_time_of_possession`, `drive_start_transition`, `drive_end_transition`, `drive_start_yard_line`, `drive_end_yard_line`; plus the reported next possession's observed starting field position.
 - Historic source data is postgame-reconstructed. Its availability clock may never be backdated. A forecast counts as prospective ONLY if an immutable receipt was created before kickoff, the specific historical input records existed before that receipt, and a verified final arrived later.
