@@ -4,6 +4,7 @@ import {readFileSync} from "node:fs";
 const path=new URL("../services/polymarket-us-stream/worker.mjs",import.meta.url);
 async function getWorker(){
  let code=readFileSync(path,"utf8");
+ code=code.replace('export {PolymarketPrivateOrderSession} from "./privateOrderSession.mjs";', "");
  code=code.replace('import {DurableObject} from "cloudflare:workers";',
    'class DurableObject { constructor(ctx,env){this.ctx=ctx;this.env=env;} }');
  code=code.replace('import {persistNormalizedMarketBatch} from "../../functions/lib/marketObservationLedger.js";',
