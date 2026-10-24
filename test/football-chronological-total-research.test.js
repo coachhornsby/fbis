@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {evaluateChronologicalTotalOnly,totalOnlyProjection} from "../functions/lib/footballChronologicalTotalResearch.js";
+import {evaluateChronologicalTotalOnly,totalOnlyProjection,evaluateChronologicalCfbMarginBias} from "../functions/lib/footballChronologicalTotalResearch.js";
 function row(i,date){
  return {sport:"cfb",gameId:"g"+i,kickoff:date+"T18:00:00Z",
  frozenAt:"2026-09-01T00:00:00Z",
@@ -40,4 +40,18 @@ test("Tiny football samples cannot be promoted on training-only improvements",()
  const e=evaluateChronologicalTotalOnly(rows,{sport:"cfb",minTrain:50,minHoldout:20});
  assert.equal(e.status,"INSUFFICIENT_CHRONOLOGICAL_EVIDENCE");
  assert.equal(e.canQualify,false);
+});
+
+test("CFB margin bias is fit on earlier days while preserving total and never authorizing wagers",()=>{
+ const rows=[];
+ for(let d=1;d<=10;d++)for(let j=0;j<10;j++)
+  rows.push(row(d*10+j,"2026-10-"+String(d).padStart(2,"0")));
+ const r=evaluateChronologicalCfbMarginBias(rows);
+ assert.equal(r.cutoffDay,"2026-10-07");
+ assert.equal(r.trainN,60);
+ assert.equal(r.holdoutN,40);
+ assert.ok(Number.isFinite(r.shift));
+ assert.equal(r.championTotalPreserved,true);
+ assert.equal(r.canAuthorizeWager,false);
+ assert.equal(r.prospectiveValidated,false);
 });
