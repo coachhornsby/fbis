@@ -36,7 +36,7 @@ test("direct old PRIMARY D1 lines in NBA workflows read only independently owned
       name+" must not send NBA sport-owned data to PRIMARY");
     allowed++;
    }
-   if(line.includes("npx wrangler d1 execute fbis-nba --remote"))isolated++;
+   if(line.includes("npx wrangler d1 execute fbis-nba --remote") || line.includes("node scripts/d1-batched-sql.mjs "))isolated++;
   }
  }
  assert.ok(allowed>=3,"shared provider/availability observations must remain separately sourced");
