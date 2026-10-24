@@ -132,7 +132,7 @@ test("NBA jobs share a production D1 writer lock; Tennis uses independent existi
   for(const w of [profile,shadow]){
     assert.ok(w.includes(shared));
     assert.match(w,/cancel-in-progress:\s*false/);
-    assert.match(w,/scripts\/d1-import-lock-retry\.mjs/);
+    assert.match(w,/scripts\/d1-batched-sql\.mjs/);
     assert.doesNotMatch(w,/npx wrangler d1 execute fbis --remote --file=/);
   }
   assert.match(profile,/nba-profile-persistence-verify\.mjs/);
