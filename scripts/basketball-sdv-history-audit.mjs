@@ -29,7 +29,7 @@ const report={sport,season,modelFamily:"BASKETBALL_SDV_EMPIRICAL_V0.1",
  reportType:"REAL_SOURCE_GAME_QA_NOT_BACKTEST",
  sourceRows:0,checked:0,scoreReconciled:0,withExactTipoff:0,
  admittedToTraining:0,sourceOnly:0,missingTipoff:0,
- excluded:{},sampleRejected:[],sampleAccepted:[],
+ excluded:{},sampleRejected:[],sampleAccepted:[],sampleTipoffConflicts:[],
  prospectivelyGraded:0,calibrated:false,canQualify:false,
  canAuthorizeWager:false,changesProductionChampion:false};
 for await(const line of rl){
@@ -40,7 +40,18 @@ for await(const line of rl){
  if(sport==="nba"){
   const pairing=matchNbaStatsScheduleToCanonical(row.schedule,nbaCanonical,{statsGameId:row.gameId});
   if(pairing.tipoff){row.tipoff=pairing.tipoff;row.tipoffEvidence=pairing.evidence;}
-  else report.excluded["TIPOFF_"+pairing.status]=(report.excluded["TIPOFF_"+pairing.status]||0)+1;
+  else {
+   report.excluded["TIPOFF_"+pairing.status]=(report.excluded["TIPOFF_"+pairing.status]||0)+1;
+   if(pairing.status==="CBB_NCAA_VS_ESPN_DATE_MISMATCH"&&report.sampleTipoffConflicts.length<8)
+    report.sampleTipoffConflicts.push({
+     contestId:row.gameId,ncaaDate:String(row.schedule?.game_date),
+     espnDateTime:String(row.espnFixture?.game_date_time),
+     espnStartDate:String(row.espnFixture?.start_date),
+     espnGameId:String(row.espnFixture?.id),
+     espnGameDate:String(row.espnFixture?.date),
+     parsedNCAA:Date.parse(String(row.schedule?.game_date).slice(0,10)+"T00:00:00Z"),
+     parsedESPN:Date.parse(String(row.espnFixture?.game_date_time).replace(" ","T"))});
+  }
  }
  if(sport==="cbb"){
   const pairing=matchCbbNcaaPossessionsToEspnFixture({
