@@ -80,10 +80,12 @@ export async function loadCapturedKalshiProps(env,{games,players,sport='all',ser
  if(!env.ARCHIVE?.get)return {rows,rejected,coverage,error:'ARCHIVE_UNBOUND'};
  for(const [series,[s]] of Object.entries(KALSHI_PROP_SERIES)){
   if((sport!=='all'&&sport!==s)||(seriesFilter&&series!==seriesFilter))continue;
-  try{const obj=await env.ARCHIVE.get(ROOT+series+'.json');if(!obj){coverage.push({series,sport:s,status:'NOT_CAPTURED'});continue;}
+  try{const historicalObj=date?await env.ARCHIVE.get(historicalKey(series,date)):null;
+   const historic=Boolean(historicalObj);
+   const obj=historicalObj||await env.ARCHIVE.get(ROOT+series+'.json');if(!obj){coverage.push({series,sport:s,status:'NOT_CAPTURED'});continue;}
    const snap=await obj.json(),age=now-Date.parse(snap.capturedAt);
    if(!Array.isArray(snap.records)||!Number.isFinite(age)||age<0||(!historic&&!date&&age>2*3600000)){coverage.push({series,sport:s,status:'STALE'});continue;}
-   coverage.push({series,sport:s,status:snap.paginationComplete?'CAPTURED':'PARTIAL',capturedAt:snap.capturedAt,records:snap.records.length});
+   coverage.push({series,sport:s,status:snap.paginationComplete?'CAPTURED':'PARTIAL',capturedAt:snap.capturedAt,records:snap.records.length,historical:historic});
    for(const raw of snap.records){const mapped=mapKalshiPlayerContract(raw,{games,players,capturedAt:snap.capturedAt,seriesTicker:series});if(!mapped)continue;if(mapped.rejected)rejected.push(mapped);else if(date || Date.parse(mapped.start_time)>now){
      rows.push(mapped);
      const noAsk=Number(raw.no_ask_dollars),yesBid=Number(raw.yes_bid_dollars),yesBidSize=Number(raw.yes_bid_size_fp);
