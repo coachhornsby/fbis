@@ -87,7 +87,7 @@ export async function createInhouseRankChallenger(db,{now=new Date(),limit=100}=
     WHERE canonical_event_id=? AND model_id=? LIMIT 1`)
     .bind(row.match_id,TENNIS_INHOUSE_RANK_VERSION).first();
   if(prior){results.push({eventId:row.match_id,inserted:false,reason:'FROZEN_EARLIEST_FORECAST_EXISTS'});continue}
-  const proof=await proveTennisEvent(db,row);
+  const proof=await proveTennisEvent(db,row,{now});
   if(!proof.valid){drop(proof.reason);results.push({eventId:row.match_id,reason:proof.reason});continue}
   const source=row.tour.toUpperCase()+'_OFFICIAL';
   const one=await latestRanking(db,row.player1_id,source,row.tour,now.toISOString());
