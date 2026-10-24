@@ -9,6 +9,8 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "35 09 * * *"
 permissions:
   contents: read
 concurrency:
@@ -17,7 +19,7 @@ concurrency:
 jobs:
   historical-research:
     if: >-
-      ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' ||
+      ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'schedule' ||
           (github.event.workflow_run.conclusion == 'success' &&
            github.event.workflow_run.event == 'push' &&
            contains(github.event.workflow_run.head_commit.message, '[FBIS-SDV-FOOTBALL-20261023]')) }}
@@ -48,8 +50,11 @@ jobs:
         run: python -m pip install --disable-pip-version-check --quiet "sportsdataverse==0.1.4"
       - name: Acquire real NFL and CFB SDV PBP with actual schedule starts
         run: |
-          python scripts/football-sdv-acquire.py \
-            --sports nfl cfb --seasons 2024 2025 2026 --out "$SDV_OUT"
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            python scripts/football-sdv-acquire.py --sports nfl cfb --seasons 2026 --out "$SDV_OUT"
+          else
+            python scripts/football-sdv-acquire.py --sports nfl cfb --seasons 2024 2025 2026 --out "$SDV_OUT"
+          fi
       - name: Normalize and run historical reconstructed matchup evaluation
         run: |
           node scripts/football-sdv-evaluate.mjs \
