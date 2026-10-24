@@ -35,3 +35,38 @@ test("No imported canonical NBA fixture means no manufactured tipoff",()=>{
  assert.equal(matchNbaStatsScheduleToCanonical({...schedule,game_id:"other"},
   lib,{statsGameId:"0022500001"}).tipoff,null);
 });
+
+test("Verified cross-provider NBA team aliases recover exactly matched games without fuzzy name inference",()=>{
+ const examples=[
+  ["GS","GSW"],["NO","NOP"],["NY","NYK"],
+  ["SA","SAS"],["UTAH","UTA"],["WAS","WSH"]
+ ];
+ for(const [espn,stats] of examples){
+  const g=nbaCanonicalFixtureEvidence(JSON.stringify({
+   id:"401"+espn,start:"2026-01-31T22:00:00Z",
+   home:{abbr:espn},away:{abbr:"BOS"},
+   homeScore:100,awayScore:90})+"\n");
+  const source={...schedule,game_id:"0022500001",
+   home_team_abbreviation:stats,away_team_abbreviation:"BOS",
+   home_pts:100,away_pts:90};
+  const r=matchNbaStatsScheduleToCanonical(source,g,{statsGameId:"0022500001"});
+  assert.equal(r.status,"INDEPENDENT_CANONICAL_EXACT_TIPOFF",espn+"-"+stats);
+  assert.equal(r.evidence.espnGameId,"401"+espn);
+ }
+});
+test("Unverified abbreviation collisions and contradictory final scores stay excluded",()=>{
+ const lib=nbaCanonicalFixtureEvidence(JSON.stringify({
+  id:"410",start:"2026-02-01T01:30:00Z",
+  home:{abbr:"GS"},away:{abbr:"BOS"},
+  homeScore:115,awayScore:104})+"\n");
+ for(const bad of ["GSA","GA","SFW","UNKNOWN"]){
+  const r=matchNbaStatsScheduleToCanonical({...schedule,
+   home_team_abbreviation:bad,away_team_abbreviation:"BOS"},lib,
+   {statsGameId:"0022500001"});
+  assert.equal(r.tipoff,null);
+ }
+ const wrong=matchNbaStatsScheduleToCanonical({...schedule,
+  home_team_abbreviation:"GSW",away_team_abbreviation:"BOS",
+  home_pts:116},lib,{statsGameId:"0022500001"});
+ assert.equal(wrong.tipoff,null);
+});
