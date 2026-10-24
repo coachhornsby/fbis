@@ -14,7 +14,7 @@ permissions:
   contents: read
 concurrency:
   group: mlb-completion-${{ github.event_name }}-${{ inputs.month || 'cycle' }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 jobs:
   scope:
     runs-on: ubuntu-latest
@@ -50,9 +50,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --test test/mlb-completion.test.js test/mlb-league-benchmarks.test.js
-      - name: Wait for release before controlled history launch
-        if: github.event_name == 'push'
-        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Require compatible deployed MLB archive contract
+        run: node scripts/verify-mlb-completion-api.mjs
       - name: Capture remaining postseason evidence or resume historical month
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
