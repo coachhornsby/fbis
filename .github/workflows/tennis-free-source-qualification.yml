@@ -11,6 +11,7 @@ on:
       - 'functions/lib/migrationTip.js'
       - 'test/tennis-free-*.test.mjs'
       - '.github/workflows/tennis-free-source-qualification.yml'
+      - 'scripts/tennis-free-current-source-probe.mjs'
   workflow_dispatch:
 permissions:
   contents: read
@@ -34,6 +35,8 @@ jobs:
           node --check functions/api/tennis-free-current-profile.js
       - name: Match-stat parsing, storage, and profile tests
         run: node --test test/tennis-free-current-research.test.mjs test/tennis-free-profile.test.mjs
+      - name: Live source availability and recent serve-stat coverage
+        run: node scripts/tennis-free-current-source-probe.mjs
       - name: Verify canonical migration tip and schema
         run: npm run verify:migrations
       - name: Production bundle build
