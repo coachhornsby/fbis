@@ -71,13 +71,15 @@ test("CBB must have three verified same-season games for each team",()=>{
   frozenAt:"2026-10-28T19:00:00Z",history:old
  }),/CBB_CURRENT_SEASON_ROSTER_ERA_UNVERIFIED/);
 });
-test("Target game itself, regardless of finalized data, cannot enter its training set",()=>{
+test("A future event with same ID is excluded from the empirical training set",()=>{
  const history=Array.from({length:16},(_,i)=>fixture("nba",i,
  {home:i%2?"A":"B",away:i%2?"B":"A"}));
- const item={...history[0],gameId:"target",tipoff:"2026-10-01T16:00:00Z"};
- assert.throws(()=>simulateBasketballPossessions({
-  sport:"nba",eventId:"target",homeTeamId:"A",awayTeamId:"B",season:2026,
+ const req={sport:"nba",eventId:"target",homeTeamId:"A",awayTeamId:"B",season:2026,
   tipoff:"2026-11-02T20:00:00Z",frozenAt:"2026-10-28T19:00:00Z",
-  history:[...history,item]
- }),/DUPLICATE_BASKETBALL_SOURCE_GAME|BASKETBALL_TEAM_HISTORY_INSUFFICIENT/);
+  iterations:150};
+ const a=simulateBasketballPossessions({...req,history});
+ const cloned={...history[0],gameId:"target"};
+ const b=simulateBasketballPossessions({...req,history:[...history,cloned]});
+ assert.deepEqual(a.distributions,b.distributions);
+ assert.equal(b.exclusions.NOT_VERIFIABLY_BEFORE_FORECAST,1);
 });
