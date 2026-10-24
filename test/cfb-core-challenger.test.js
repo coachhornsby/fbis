@@ -117,8 +117,17 @@ test("CORE margin-only pregame freeze never binds undefined D1 probability", asy
     gameId: "future-cfb-game", season: 2026, week: 7, kickoff,
     homeTeam: "Home", awayTeam: "Away", championHome: 27, championAway: 24,
     championModelId: "CFB-FBIS-v2", championModelVersion: "frozen",
-    homeFeatures: row(12, -4), awayFeatures: row(9, -2),
+    homeFeatures: row(12, -4, {coreSourceEndpoint:"fbis_weekly_training_document"}),
+    awayFeatures: row(9, -2, {coreSourceEndpoint:"fbis_weekly_training_document"}),
   }, { artifact, now: "2026-10-17T18:00:00Z" });
+  const wrongSource = buildCfbCoreShadowRecord({
+    gameId:"wrong-core-source",season:2026,week:7,kickoff,
+    championHome:27,championAway:24,
+    homeFeatures:row(12,-4),awayFeatures:row(9,-2),
+  }, { artifact, now:"2026-10-17T18:00:00Z" });
+  assert.equal(wrongSource.eligibility, "vector_ok_artifact_unverified");
+  assert.equal(wrongSource.missingReason, "HYBRID_REQUIRES_WEEKLY_TRAINING_DOCUMENT");
+  assert.equal(wrongSource.coreSpread, null);
   assert.equal(record.eligibility, "eligible_projected");
   assert.equal(record.corePHomeWin, null); // Margin-only challenger has no win-probability head.
   assert.equal(record.coreTotal, 51); // Champion total is unchanged.
