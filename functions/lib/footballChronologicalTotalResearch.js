@@ -106,3 +106,54 @@ export function evaluateChronologicalTotalOnly(rows,{
   // betting model. Prospective independent promotion remains a separate gate.
   calibrated:false,prospectiveValidated:false};
 }
+
+
+/**
+ * Separate CFB margin-bias experiment, fit only on dates BEFORE holdout.
+ * Preserve frozen champion total exactly; no probability or wager changes.
+ */
+export function evaluateChronologicalCfbMarginBias(rows,{minTrain=50,minHoldout=40}={}){
+ if(!Number.isInteger(minTrain)||!Number.isInteger(minHoldout)||minTrain<1||minHoldout<1)
+  throw Error("INVALID_MARGIN_BIAS_SETTINGS");
+ requireValid(rows,"cfb");
+ const sorted=[...rows].sort((a,b)=>Date.parse(a.kickoff)-Date.parse(b.kickoff)||
+  String(a.gameId).localeCompare(String(b.gameId)));
+ if(!sorted.length)return {sport:"cfb",status:"NO_VERIFIED_GAMES",
+  n:0,canQualify:false,canAuthorizeWager:false};
+ const cutoffDay=day(sorted[Math.min(sorted.length-1,Math.floor(sorted.length*.6))].kickoff);
+ const train=sorted.filter(r=>day(r.kickoff)<cutoffDay);
+ const holdout=sorted.filter(r=>day(r.kickoff)>=cutoffDay);
+ const meta={sport:"cfb",n:sorted.length,cutoffDay,
+  trainN:train.length,holdoutN:holdout.length,
+  sourceEvidence:"POSTGAME_RECONSTRUCTED_NOT_PROSPECTIVE",
+  championTotalPreserved:true,calibrated:false,prospectiveValidated:false,
+  canQualify:false,canAuthorizeWager:false};
+ if(train.length<minTrain||holdout.length<minHoldout)
+  return {...meta,status:"INSUFFICIENT_CHRONOLOGICAL_EVIDENCE",shift:null,holdout:null};
+ const shifts=[-8,-6,-4,-2,0,2,4,6,8];
+ const score=(r,shift)=>{
+  const margin=r.championHome-r.championAway+shift;
+  const total=r.championHome+r.championAway;
+  return Math.abs(margin)<=total?Math.abs(margin-r.actualHome+r.actualAway):null;
+ };
+ const error=(list,shift)=>{
+  const e=list.map(r=>score(r,shift));
+  return e.some(x=>x===null)?null:e;
+ };
+ const fits=shifts.map(shift=>({shift,loss:mean(error(train,shift)||[])}))
+  .filter(x=>finite(x.loss))
+  .sort((a,b)=>a.loss-b.loss||Math.abs(a.shift)-Math.abs(b.shift));
+ if(!fits.length)return {...meta,status:"NO_VALID_SCORE_PRESERVING_SHIFT",shift:null,holdout:null};
+ const shift=fits[0].shift;
+ const baseline=error(holdout,0),variant=error(holdout,shift);
+ if(!baseline||!variant)return {...meta,status:"HOLDOUT_INVALID_SCORE_RECONSTRUCTION",
+  shift,holdout:null};
+ const delta=variant.map((x,i)=>x-baseline[i]),boot=interval(delta);
+ const improved=mean(delta)<0&&boot[1]<0;
+ return {...meta,status:improved?"RESEARCH_SIGNAL_REQUIRES_PROSPECTIVE_VALIDATION":
+  "NO_VALIDATED_MARGIN_BIAS_IMPROVEMENT",
+  shift,training:{n:train.length,mae:fits[0].loss,championMAE:mean(error(train,0))},
+  holdout:{n:holdout.length,championMarginMAE:mean(baseline),
+   adjustedMarginMAE:mean(variant),deltaMAE:mean(delta),bootstrap95:boot},
+  historicalHoldoutSupportsImprovement:improved};
+}
