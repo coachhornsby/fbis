@@ -668,6 +668,9 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
 
   const records = [];
   const seen = new Set();
+  let skippedMissingKickoff = 0;
+  let skippedAfterKickoff = 0;
+  let skippedLateChampion = 0;
   for (const p of preds) {
     const gid = String(p.game_id);
     if (seen.has(gid)) continue;
@@ -678,12 +681,19 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
     const awayTeam = pal.awayName || parsed.awayTeam;
     const homeFeat = findTeamFeat(teamIndex, homeTeam);
     const awayFeat = findTeamFeat(teamIndex, awayTeam);
-    const kickoff = pal.start || pal.kickoff || (p.date ? `${p.date}T19:00:00Z` : p.frozen_at);
-    const week = num(pal.week) ?? estimateCfbWeekFromDate(p.date || kickoff, season);
+    // Prospective claims require an actual provider kickoff and a champion
+    // snapshot recorded BEFORE that kickoff. Never synthesize a time from date.
+    const kickoff = pal.start || pal.kickoff || null;
     const kickMs = Date.parse(String(kickoff || ""));
-    // Ungraded snapshots remain freeze-eligible. CORE PIT still requires
-    // throughWeek < gameWeek and CORE observed before kickoff.
-    const frozenAfterKickoff = Number.isFinite(kickMs) && kickMs < Date.parse(generationAt);
+    const genMs = Date.parse(generationAt);
+    const championFrozenMs = Date.parse(String(p.frozen_at || ""));
+    if (!Number.isFinite(kickMs)) { skippedMissingKickoff += 1; continue; }
+    if (!Number.isFinite(genMs) || genMs >= kickMs) { skippedAfterKickoff += 1; continue; }
+    if (!Number.isFinite(championFrozenMs) || championFrozenMs > genMs || championFrozenMs >= kickMs) {
+      skippedLateChampion += 1;
+      continue;
+    }
+    const week = num(pal.week) ?? estimateCfbWeekFromDate(p.date || kickoff, season);
 
     const marketSpread = num(pal.pinSpread);
     const marketTotal = num(pal.pinTotal);
@@ -723,13 +733,6 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
       } : null,
       now: generationAt,
     });
-    if (frozenAfterKickoff) {
-      rec.provenance = {
-        ...rec.provenance,
-        frozenAfterKickoff: true,
-        note: "Ungraded snapshot freeze; CORE still week-bounded and pre-kickoff observed.",
-      };
-    }
     records.push(rec);
   }
   const freeze = await freezeCfbCoreShadowRecords(env, records);
@@ -739,6 +742,9 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
     candidates: records.length,
     eligibleProjected: records.filter(r => r.eligibility === "eligible_projected").length,
     flagged: records.filter(r => r.eligibility !== "eligible_projected").length,
+    skippedMissingKickoff,
+    skippedAfterKickoff,
+    skippedLateChampion,
     artifactLoaded: Boolean(artifact),
     teamCoverage: {
       ratedTeams: teamIndex.ratedTeams ?? null,
