@@ -1,0 +1,119 @@
+name: NBA and CBB verified SDV possession history v0.2
+on:
+  workflow_dispatch:
+    inputs:
+      season:
+        description: "SDV release END year"
+        default: "2026"
+        type: string
+  pull_request:
+    paths:
+      - functions/lib/basketballSdvReleaseHistory.js
+      - scripts/basketball-sdv-history-acquire.py
+      - scripts/basketball-sdv-history-audit.mjs
+      - test/basketball-sdv-release-history.test.js
+      - .github/workflows/basketball-sdv-historical-source.yml
+  push:
+    branches: [main]
+    paths:
+      - functions/lib/basketballSdvReleaseHistory.js
+      - scripts/basketball-sdv-history-acquire.py
+      - scripts/basketball-sdv-history-audit.mjs
+      - test/basketball-sdv-release-history.test.js
+      - .github/workflows/basketball-sdv-historical-source.yml
+permissions:
+  contents: read
+concurrency:
+  group: basketball-sdv-history-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Verify immutable source, scoring and PIT contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/basketball-sdv-history-acquire.py
+          node --check functions/lib/basketballSdvReleaseHistory.js
+          node --check scripts/basketball-sdv-history-audit.mjs
+          node --test test/basketball-sdv-release-history.test.js test/basketball-sdv-possession-simulation-research.test.js test/basketball-sdv-pbp-adapter.test.js
+  live-source:
+    needs: contracts
+    if: github.event_name != 'pull_request'
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        sport: [nba, cbb]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      FBIS_BASKETBALL_SPORT: ${{ matrix.sport }}
+      FBIS_BASKETBALL_SEASON: ${{ inputs.season || '2026' }}
+      FBIS_BASKETBALL_OUT: artifacts/basketball-sdv
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Install parquet reader
+        run: pip install --disable-pip-version-check "polars>=1.20,<2" "requests>=2.31,<3"
+      - name: Download original SportsDataverse league releases
+        run: |
+          set -euo pipefail
+          python scripts/basketball-sdv-history-acquire.py
+          jq -e '.ok == true and .historicalProspectiveCount == 0 and .canAuthorizeWager == false and .joinedGames > 100' \
+            "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-acquisition.json"
+      - name: Verify actual possession and final score reconciliation
+        run: |
+          set -euo pipefail
+          node scripts/basketball-sdv-history-audit.mjs "$FBIS_BASKETBALL_SPORT" "$FBIS_BASKETBALL_SEASON"
+          jq -e '.checked > 100 and .scoreReconciled > 0 and .prospectivelyGraded == 0 and .canQualify == false and .canAuthorizeWager == false' \
+            "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-qa.json"
+      - name: Freeze source and audit under immutable R2 research prefix
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          DOC="artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-acquisition.json"
+          SOURCE_SHA="$(jq -r '.datasets.possession.sha256' "$DOC")"
+          test "$(printf %s "$SOURCE_SHA" | wc -c)" -eq 64
+          PREFIX="research/basketball/sdv/v02/$FBIS_BASKETBALL_SPORT/$FBIS_BASKETBALL_SEASON/$SOURCE_SHA"
+          npx wrangler r2 object put "fbis-archive/$PREFIX/source.jsonl.gz" \
+            --file "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-source.jsonl.gz" --remote
+          npx wrangler r2 object put "fbis-archive/$PREFIX/acquisition.json" --file "$DOC" --remote
+          npx wrangler r2 object put "fbis-archive/$PREFIX/qa.json" \
+            --file "artifacts/basketball-sdv/$FBIS_BASKETBALL_SPORT-$FBIS_BASKETBALL_SEASON-qa.json" --remote
+          echo "Research-only R2 prefix $PREFIX" >> "$GITHUB_STEP_SUMMARY"
+      - name: Report source evidence without fabricated PIT forecasts
+        if: always()
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json,os
+          from pathlib import Path
+          p=Path("artifacts/basketball-sdv")/(os.environ["FBIS_BASKETBALL_SPORT"]+"-"+os.environ["FBIS_BASKETBALL_SEASON"]+"-qa.json")
+          if p.exists():
+              d=json.loads(p.read_text())
+              for k in ("sport","checked","scoreReconciled","missingTipoff","admittedToTraining","prospectivelyGraded","status"):
+                  print(f"- {k}: {d.get(k)}")
+              print("Historical SDV release is NOT pregame prospective evidence.")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: basketball-sdv-${{ matrix.sport }}-${{ github.run_id }}
+          path: |
+            artifacts/basketball-sdv/*-acquisition.json
+            artifacts/basketball-sdv/*-qa.json
+            artifacts/basketball-sdv/*-reconciled.jsonl
+          retention-days: 60
