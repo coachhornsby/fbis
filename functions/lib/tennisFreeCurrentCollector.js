@@ -8,7 +8,7 @@ const base='https://stats.tennismylife.org/data/';
 export async function captureFreeTennisCurrentSeason(env,{tour,now=new Date(),fetchImpl=fetch}={}){
  if(env?.TENNIS_FREE_RESEARCH_ENABLED!=='true')throw Error('FREE_RESEARCH_DISABLED');
  if(!['atp','wta'].includes(tour)||!Number.isFinite(+now))throw Error('TOUR_OR_CLOCK_INVALID');
- if(!env.DB?.prepare||!env.ARCHIVE?.put)throw Error('DEDICATED_RESEARCH_STORAGE_REQUIRED');
+ if(!env.TENNIS_DB?.prepare||!env.ARCHIVE?.put)throw Error('DEDICATED_TENNIS_RESEARCH_STORAGE_REQUIRED');
  const year=now.getUTCFullYear(),filename=String(year)+(tour==='wta'?'_wta':'')+'.csv';
  const url=base+filename,resp=await fetchImpl(url,{
   headers:{accept:'text/csv','user-agent':'FBIS-Tennis-Private-Research/1.0'},
@@ -47,7 +47,7 @@ export async function captureFreeTennisCurrentSeason(env,{tour,now=new Date(),fe
  async function flush(){
   if(!queued.length)return;
   let receipts=[];
-  if(typeof env.DB.batch==='function')receipts=await env.DB.batch(queued.splice(0));
+  if(typeof env.TENNIS_DB.batch==='function')receipts=await env.TENNIS_DB.batch(queued.splice(0));
   else {for(const q of queued.splice(0))receipts.push(await q.run());}
   for(let i=0;i<receipts.length;i+=2){
    newVersions+=Number(receipts[i]?.meta?.changes??receipts[i]?.changes??0);
@@ -57,9 +57,9 @@ export async function captureFreeTennisCurrentSeason(env,{tour,now=new Date(),fe
  for(const item of selected.matches){
   const stable=JSON.stringify(item),rowSha=await sha(stable);
   const obsKey=await sha(item.sourceEventKey+'|'+rowSha);
-  queued.push(env.DB.prepare(queryObs).bind(obsKey,item.sourceEventKey,rowSha,
+  queued.push(env.TENNIS_DB.prepare(queryObs).bind(obsKey,item.sourceEventKey,rowSha,
    fileChecksum,rawKey,at,stable));
-  queued.push(env.DB.prepare(queryCurrent).bind(
+  queued.push(env.TENNIS_DB.prepare(queryCurrent).bind(
    item.sourceEventKey,item.tour,item.dateLabel,item.tournamentId,item.matchNum,
    item.winnerSourceId,item.loserSourceId,item.winnerName,item.loserName,
    item.surface,item.score,JSON.stringify(item.winnerStats),
