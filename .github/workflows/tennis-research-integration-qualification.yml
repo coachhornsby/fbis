@@ -21,6 +21,9 @@ jobs:
           node-version: '22'
       - name: Syntax check modules
         run: |
+          node --check functions/lib/tennisFreeCurrentResearch.js
+          node --check functions/lib/tennisFreeCurrentCollector.js
+          node --check functions/api/tennis-free-current-refresh.js
           node --check functions/lib/tennisMarketEvidenceGrade.js
           node --check functions/lib/tennisInhouseElo.js
           node --check functions/lib/tennisChallengerGrades.js
@@ -40,7 +43,8 @@ jobs:
             test/tennis-sackmann-private-research.test.mjs \
             test/tennis-market-evidence-grade.test.mjs \
             test/tennis-fast-data.test.mjs \
-            test/tennis-fast-canonical-api.test.mjs
+            test/tennis-fast-canonical-api.test.mjs \
+            test/tennis-free-current-research.test.mjs
       - name: Verify shadow-only flags
         run: |
           grep -q 'can_authorize_wager INTEGER NOT NULL DEFAULT 0' migrations/0124_tennis_challenger_grades.sql
