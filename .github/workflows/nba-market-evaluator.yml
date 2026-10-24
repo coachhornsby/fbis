@@ -32,8 +32,6 @@ jobs:
     concurrency:
       group: ${{ github.ref == 'refs/heads/main' && 'nba-d1-profile-shadow-main' || format('nba-d1-evaluate-{0}', github.run_id) }}
       cancel-in-progress: false
-    env:
-      CLOUDFLARE_D1_DATABASE_ID: ed992525-d2ed-4b1d-8a12-feeb2efa152c
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
