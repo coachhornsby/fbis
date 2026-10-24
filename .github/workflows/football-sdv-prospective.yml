@@ -3,6 +3,10 @@ on:
   push:
     branches: [main]
     paths: [.github/workflows/football-sdv-prospective.yml, functions/api/football-sdv-prospective.js, scripts/football-sdv-prospective-cycle.mjs]
+  workflow_run:
+    workflows: ["Football SDV verified history and research replay"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: "15 12,20 * * *"
@@ -13,6 +17,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   collect-and-grade:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -24,7 +29,9 @@ jobs:
           node-version: '22'
       - name: Test prospective research-only capture contract
         run: |
-          node --test test/football-sdv-prospective.test.js
+          node --test test/football-sdv-prospective.test.js \
+            test/nfl-sdv-prospective-paired.test.js \
+            test/nfl-sdv-verified-transition-research.test.js
           node --check scripts/football-sdv-prospective-cycle.mjs
       - name: Apply immutable prospective research schema only to dedicated sport databases
         env:
