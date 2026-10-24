@@ -16,6 +16,12 @@ const duration=d=>Number.isInteger(d.officialDurationSeconds)&&
  d.officialDurationSeconds>=0&&d.officialDurationSeconds<=1800;
 const valid=d=>duration(d)&&typeof d.startTransition==="string"&&d.startTransition.length>=2&&
  typeof d.endTransition==="string"&&d.endTransition.length>=2;
+export function mapHistoricalNextOffenseToTarget(d,currentSide){
+ if(!["home","away"].includes(currentSide)||!["home","away"].includes(d?.offense)||
+    !["home","away"].includes(d?.observedNextOffense))return null;
+ return d.observedNextOffense===d.offense?currentSide:
+   currentSide==="home"?"away":"home";
+}
 function seedFor(s){let h=2166136261;for(const c of s)h=Math.imul(h^c.charCodeAt(0),16777619);return(h>>>0)||1}
 function category(label){
  const s=String(label||"").toUpperCase();
@@ -107,7 +113,7 @@ export function simulateNflVerifiedDriveTransitionShadow({
     if(side==="home"){home+=chosen.offensePoints;away+=chosen.defensePoints}
     else{away+=chosen.offensePoints;home+=chosen.defensePoints}
     previousTransition=chosen.endTransition;
-    previousExpectedSide=chosen.observedNextOffense||null;
+    previousExpectedSide=mapHistoricalNextOffenseToTarget(chosen,side);
     expectedYardsToGoal=Number.isInteger(chosen.observedNextStartYardsToGoal)?
       chosen.observedNextStartYardsToGoal:null;
     if(previousExpectedSide!==null&&expectedYardsToGoal!==null)sourceLinks++;
