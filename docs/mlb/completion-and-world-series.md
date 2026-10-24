@@ -23,3 +23,9 @@ Retrospectively acquired sources, actual starting-pitcher identities and missing
 `/api/mlb-completion` reports monthly coverage, today's immutable captures, settled cohorts and the historical-fit report. Workflow artifacts and R2 contain durable receipts. Code completion does not mean all monthly collection jobs succeeded; evaluate each receipt and missing-day list.
 
 SSW and xRA are explicitly unfinished, not fabricated from convenient fields. The current CSV includes spin axis and measured movement, but the project has no validated observed-versus-inferred axis residual estimator. xRA has no agreed/validated expected-run target and estimator. The existing batting run-expectancy change is not relabeled xRA. Separate retrospective hit, total-base and HR count fits use prior batting outcomes, prior projected opportunity and hitter/opposing-pitcher Statcast features. They use the same untouched holdout protocol and remain research candidates. Actual economic qualification remains unfinished; retrospective expanding folds are supplied by the fitting pipeline. No model is automatically promoted on a small World Series sample.
+
+## Restart and nested-owner recovery
+
+A controlled history-trigger update supersedes an older push run in the same workflow group. Completed daily manifests and immutable archives are retained and checked before any downloads resume. Child batches require the deployed `mlb-completion-v1` API contract rather than the initial release SHA, allowing compatible later releases during a multi-hour acquisition.
+
+Collector requests load existing CORE approvals. Nested sport-ledger writes/readbacks retain the original PRIMARY handle solely for authority verification, recheck the approved dedicated binding on every routing call, and reject tampered/revoked contexts. No approval, owner mode or readiness flag is synthesized. Normal scheduled NHL collection is the recovery check; historical failure counters are retained.
