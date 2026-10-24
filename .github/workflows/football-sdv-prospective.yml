@@ -2,7 +2,7 @@ name: Football prospective SDV shadow receipts
 on:
   push:
     branches: [main]
-    paths: [.github/workflows/football-sdv-prospective.yml, functions/api/football-sdv-prospective.js, functions/lib/footballSimulationValidationResearch.js, functions/lib/footballProspectiveOutcomeSelection.js, scripts/football-sdv-prospective-cycle.mjs]
+    paths: [.github/workflows/football-sdv-prospective.yml, functions/api/football-sdv-prospective.js, functions/lib/footballSimulationValidationResearch.js, functions/lib/footballProspectiveOutcomeSelection.js, functions/lib/footballProspectiveGradeIntegrity.js, scripts/football-sdv-prospective-cycle.mjs]
   workflow_run:
     workflows: ["Football SDV verified history and research replay"]
     types: [completed]
@@ -32,6 +32,7 @@ jobs:
           node --test test/football-sdv-prospective.test.js \
             test/football-sdv-prospective-grading.test.js \
             test/football-prospective-outcome-selection.test.js \
+            test/football-prospective-postgrade-integrity.test.js \
             test/football-simulation-validation-research.test.js \
             test/cfb-sdv-prospective-champion-audit.test.js \
             test/nfl-sdv-prospective-paired.test.js \

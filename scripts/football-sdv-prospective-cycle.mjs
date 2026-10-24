@@ -21,7 +21,7 @@ for(let attempt=0;attempt<60;attempt++){
  try{
   const result=await request("/api/football-sdv-prospective?sport=nfl");
   if(result.status===200&&result.body?.ok===true&&result.body.canAuthorizeWager===false&&result.body.slateCapacity>=240&&
-    result.body.gradingContract==="SDV_FINALS_V2_RECONCILED"&&
+    result.body.gradingContract==="SDV_FINALS_V3_REVISION_AUDIT"&&
     result.body.supportedVariants?.includes("nfl-sdv-v031")){
    ready=true;break;
   }
@@ -33,7 +33,7 @@ for(const sport of ["nfl","cfb"]){
  const s=summary.sport[sport]={slate:0,new:0,existing:0,skipped:{},failures:0,grades:null,variants:{}};
  const response=await request("/api/football-sdv-prospective?sport="+sport);
  if(response.status!==200||response.body.ok!==true||response.body.canAuthorizeWager!==false||
-    response.body.gradingContract!=="SDV_FINALS_V2_RECONCILED")
+    response.body.gradingContract!=="SDV_FINALS_V3_REVISION_AUDIT")
   throw Error("PROSPECTIVE_SLATE_UNAVAILABLE:"+sport);
  const slate=response.body.upcoming.slice(0,240);
  s.slate=slate.length;
@@ -63,6 +63,17 @@ for(const sport of ["nfl","cfb"]){
  if(grade.status!==200||grade.body.ok!==true||grade.body.canAuthorizeWager!==false)
   throw Error("PROSPECTIVE_GRADING_FAILED:"+sport);
  s.grades=grade.body;
+ const integrity=await request("/api/football-sdv-prospective?sport="+sport+"&mode=integrity");
+ if(integrity.status!==200||integrity.body?.canAuthorizeWager!==false ||
+    integrity.body?.canQualify!==false ||
+    !Number.isInteger(integrity.body.checked)||
+    !Number.isInteger(integrity.body.incidentCount)||
+    integrity.body.incidentCount>0 ||
+    !["NO_GRADED_PROSPECTIVE_EVIDENCE","CONSISTENT_WITH_VERIFIED_SOURCE"].includes(integrity.body.status))
+  throw Error("PROSPECTIVE_POST_GRADE_SOURCE_INTEGRITY_FAILURE:"+sport+":"+
+    JSON.stringify(integrity.body).slice(0,300));
+ s.postGradeIntegrity={checked:integrity.body.checked,
+  incidentCount:integrity.body.incidentCount,status:integrity.body.status};
  if(!Number.isInteger(s.grades.sourceConflicts) ||
     s.grades.sourceConflicts>0 ||
     !Number.isInteger(s.grades.pendingNotGraded) ||

@@ -6,6 +6,7 @@ import {authorizeHarvest,unauthorizedBody} from "../lib/auth.js";
 import {sha256Hex} from "../lib/sha256Hex.js";
 import {querySdvMatchupFromSportDb} from "./football-sdv-matchup-research.js";
 import {gradeRegulationSimulations} from "../lib/footballSimulationValidationResearch.js";
+import {evaluateProspectiveGradeIntegrity} from "../lib/footballProspectiveGradeIntegrity.js";
 import {selectProspectiveRegulationOutcome,KICKOFF_MATCH_TOLERANCE_MS} from "../lib/footballProspectiveOutcomeSelection.js";
 import {compareNflProspectiveShadowReceipts,NFL_STANDARD_SHADOW,NFL_VERIFIED_TRANSITION_SHADOW} from "../lib/nflSdvProspectivePairedEvaluation.js";
 const json=(v,s=200)=>new Response(JSON.stringify(v),{status:s,headers:{
@@ -225,6 +226,39 @@ export async function prospectiveNflPairedPerformance(env,{now=new Date().toISOS
  return compareNflProspectiveShadowReceipts(q.results,{asOf:now,minGames:30});
 }
 
+export async function auditFootballProspectiveGrades(env,{sport,now=new Date().toISOString()}={}){
+ if(!sportOk(sport)||!Number.isFinite(time(now)))throw Error("INVALID_PROSPECTIVE_GRADE_AUDIT");
+ const db=d1(env,sport);
+ const sql=
+  "SELECT g.receipt_id receiptId,g.sport,g.outcome_source_fingerprint sourceFingerprint,"+
+  "g.source_observed_at observedAt,g.graded_at gradedAt,g.regulation_only regulationOnly,"+
+  "g.can_authorize_wager authority,r.can_authorize_wager receiptAuthority,"+
+  "r.captured_at capturedAt,r.kickoff,r.home_team_id homeTeamId,"+
+  "r.away_team_id awayTeamId,g.actual_home actualHome,g.actual_away actualAway,"+
+  "(SELECT COUNT(*) FROM football_sdv_verified_games s "+
+  "WHERE s.sport=g.sport AND s.game_id=g.source_game_id "+
+  "AND s.source_fingerprint=g.outcome_source_fingerprint "+
+  "AND s.home_team_id=r.home_team_id AND s.away_team_id=r.away_team_id "+
+  "AND s.source_observed_at=g.source_observed_at "+
+  "AND s.score_home=g.actual_home AND s.score_away=g.actual_away "+
+  "AND s.evidence_class='POSTGAME_RECONSTRUCTED' AND s.prospective=0 "+
+  "AND s.can_authorize_wager=0) originalSourceCount,"+
+  "(SELECT COUNT(*) FROM football_sdv_verified_games s "+
+  "WHERE s.sport=g.sport AND s.home_team_id=r.home_team_id "+
+  "AND s.away_team_id=r.away_team_id "+
+  "AND ABS(unixepoch(s.kickoff)-unixepoch(r.kickoff))<=1800 "+
+  "AND s.source_observed_at>r.kickoff AND s.source_observed_at<=? "+
+  "AND s.evidence_class='POSTGAME_RECONSTRUCTED' AND s.prospective=0 "+
+  "AND s.can_authorize_wager=0 "+
+  "AND (s.score_home!=g.actual_home OR s.score_away!=g.actual_away)) disagreeingSourceCount "+
+  "FROM football_sdv_prospective_grades g "+
+  "JOIN football_sdv_prospective_receipts r ON r.receipt_id=g.receipt_id "+
+  "WHERE g.sport=? ORDER BY g.graded_at DESC LIMIT 2001";
+ const response=await db.prepare(sql).bind(now,sport).all();
+ if(!Array.isArray(response?.results))throw Error("PROSPECTIVE_GRADE_AUDIT_QUERY_FAILED");
+ return evaluateProspectiveGradeIntegrity(response.results,{sport,asOf:now,maximum:2000});
+}
+
 export async function onRequest({request,env}){
  const auth=authorizeHarvest(request,env);
  if(!auth.ok)return json(unauthorizedBody(auth.reason),403);
@@ -232,6 +266,8 @@ export async function onRequest({request,env}){
  if(!sportOk(sport))return json({ok:false,error:"INVALID_SPORT"},400);
  try{
   if(request.method==="GET"){
+   if(u.searchParams.get("mode")==="integrity")
+    return json(await auditFootballProspectiveGrades(env,{sport}));
    if(u.searchParams.get("mode")==="paired"){
     if(sport!=="nfl")return json({ok:false,error:"NFL_ONLY"},400);
     return json(await prospectiveNflPairedPerformance(env));
@@ -249,7 +285,7 @@ export async function onRequest({request,env}){
    ).bind(sport,new Date(now+600000).toISOString(),until).all();
    if(!Array.isArray(upcoming?.results))throw Error("SLATE_QUERY_FAILED");
    return json({ok:true,sport,upcoming:upcoming.results,slateCapacity:240,
-    gradingContract:"SDV_FINALS_V2_RECONCILED",
+    gradingContract:"SDV_FINALS_V3_REVISION_AUDIT",
     supportedVariants:sport==="nfl"?["standard","nfl-sdv-v031"]:["standard"],
     canAuthorizeWager:false});
   }
