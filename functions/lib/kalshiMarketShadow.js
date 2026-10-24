@@ -8,7 +8,7 @@
  */
 export const KALSHI_PUBLIC_BASE = "https://external-api.kalshi.com/trade-api/v2";
 export const KALSHI_SHADOW_SERIES = Object.freeze({
-  nfl: "KXNFLGAME", cfb: "KXNCAAFGAME", mlb: "KXMLBGAME", nba: "KXNBAGAME",
+  nfl: "KXNFLGAME", cfb: "KXNCAAFGAME", cfb_spread:"KXNCAAFSPREAD", cfb_total:"KXNCAAFTOTAL", mlb: "KXMLBGAME", nba: "KXNBAGAME",
   atp: "KXATPMATCH", wta: "KXWTAMATCH",
   atp_challenger: "KXATPCHALLENGERMATCH",
   itf_men: "KXITFMATCH", itf_women: "KXITFWMATCH",
@@ -63,6 +63,12 @@ export function normalizeKalshiShadowMarket(m, {sport, fetchedAt} = {}) {
     title: short(m.title), yesLabel: short(m.yes_sub_title),
     noLabel: short(m.no_sub_title), status: short(m.status, 30),
     marketType: short(m.market_type, 30),
+    // Provider strike metadata is retained for exact spread/total settlement
+    // matching. Never invent strike from a ticker or model point difference.
+    floorStrike: m.floor_strike==null?null:Number(m.floor_strike),
+    capStrike: m.cap_strike==null?null:Number(m.cap_strike),
+    functionalStrike: m.functional_strike==null?null:String(m.functional_strike).slice(0,180),
+    strikeType: short(m.strike_type,80),
     // Provider-supplied dollars and legacy integer cents are never conflated.
     yesBidDollars: fixedPrice(m, "yes_bid_dollars", "yes_bid"),
     yesAskDollars: fixedPrice(m, "yes_ask_dollars", "yes_ask"),
