@@ -20,6 +20,7 @@ import {
 } from "../../lib/boardDecision.js";
 import { fmtAmerican, fmtNum } from "../../lib/format.js";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
+import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import { venueAtmosphereClass } from "../../lib/venueAtmosphere.js";
@@ -252,6 +253,7 @@ export default function GameCard({
 
       <MoneylinePriceComparison game={game} />
       {game.pinnoddsResearch?.offers?.length ? <PinnoddsCardMarkets game={game} /> : null}
+      {game.sport === "cfb" ? <CfbThreeVenueLines game={game} /> : null}
       <MultiBookMarketTable game={game} />
 
       {game.market?.reference?.available && (mkt.referenceOnly || mkt.book === "Reference" || !game.market?.marketAvailable) ? (
