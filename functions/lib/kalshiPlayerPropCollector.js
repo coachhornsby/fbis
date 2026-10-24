@@ -50,7 +50,6 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
     const byTicker=new Map((Array.isArray(prior?.records)?prior.records:[]).map(m=>[m.ticker,m]));
     // Preserve the observed pregame snapshot, not a postgame close price.
     for(const m of markets){
-      const eventStart=Date.parse(m.rules_primary?.match(/originally scheduled for ([A-Z][a-z]{2} \d{1,2}, \d{4})(?: at (\d{1,2}:\d{2} [AP]M) (EDT|EST))?/)?.[1]||'');
       if(Number.isFinite(eventStart) && new Date(now).getTime() >=
          Date.parse(m.occurrence_datetime||m.open_time||'9999-01-01'))continue;
       byTicker.set(m.ticker,m);
@@ -77,9 +76,9 @@ export async function loadCapturedKalshiProps(env,{games,players,sport='all',ser
   if((sport!=='all'&&sport!==s)||(seriesFilter&&series!==seriesFilter))continue;
   try{const obj=await env.ARCHIVE.get(ROOT+series+'.json');if(!obj){coverage.push({series,sport:s,status:'NOT_CAPTURED'});continue;}
    const snap=await obj.json(),age=now-Date.parse(snap.capturedAt);
-   if(!Array.isArray(snap.records)||!Number.isFinite(age)||age<0||(!historic&&age>2*3600000)){coverage.push({series,sport:s,status:'STALE'});continue;}
+   if(!Array.isArray(snap.records)||!Number.isFinite(age)||age<0||(!historic&&!date&&age>2*3600000)){coverage.push({series,sport:s,status:'STALE'});continue;}
    coverage.push({series,sport:s,status:snap.paginationComplete?'CAPTURED':'PARTIAL',capturedAt:snap.capturedAt,records:snap.records.length});
-   for(const raw of snap.records){const mapped=mapKalshiPlayerContract(raw,{games,players,capturedAt:snap.capturedAt,seriesTicker:series});if(!mapped)continue;if(mapped.rejected)rejected.push(mapped);else if(historic || Date.parse(mapped.start_time)>now){
+   for(const raw of snap.records){const mapped=mapKalshiPlayerContract(raw,{games,players,capturedAt:snap.capturedAt,seriesTicker:series});if(!mapped)continue;if(mapped.rejected)rejected.push(mapped);else if(date || Date.parse(mapped.start_time)>now){
      rows.push(mapped);
      const noAsk=Number(raw.no_ask_dollars),yesBid=Number(raw.yes_bid_dollars),yesBidSize=Number(raw.yes_bid_size_fp);
      if(raw.no_ask_dollars!=null&&raw.yes_bid_dollars!=null&&noAsk>0&&noAsk<1&&Math.abs(noAsk-(1-yesBid))<0.00001&&yesBidSize>0)
