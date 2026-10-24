@@ -88,6 +88,7 @@ export default function TopGameProps({ game }) {
       );
       setExchangeProps(joined.filter(p => p.provider && p.fbis_projection != null)
         .map(p => ({
+          ...p,
           canonicalEventId: p.canonicalEventId, canonicalPlayerId: p.canonicalPlayerId,
           playerName: p.player_name, team: p.team, marketCanonical: p.canonical_market,
           line: p.line, fbisProjection: p.fbis_projection, fbisSigma: p.sigma,

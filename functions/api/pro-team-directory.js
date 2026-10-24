@@ -15,7 +15,7 @@ export async function onRequestGet({ request }) {
   const params = new URL(request.url).searchParams;
   const sport = String(params.get("sport") || "").toLowerCase();
   const teams = getProTeamDirectory(sport);
-  if (!teams) return json({ ok: false, error: "supported-sports-nfl-nba-nhl" }, 400, 0);
+  if (!teams) return json({ ok: false, error: "supported-sports-nfl-nba-nhl-mlb" }, 400, 0);
   const team = String(params.get("team") || "").trim();
   if (!team) return json({ ok: true, sport, teams, teamCount: teams.length, source: "FBIS_CANONICAL_TEAM_REGISTRY" }, 200, 3600);
   const roster = await loadProTeamRoster({ sport, team });

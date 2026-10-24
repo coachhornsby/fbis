@@ -1,3 +1,5 @@
+import mlbTeams from '../../data/teams/mlb.js';
+import { MLB_STATS_ID } from './mlbCanonical.js';
 import nflTeams from "../../data/teams/nfl.js";
 import nbaTeams from "../../data/teams/nba.js";
 import nhlTeams from "../../data/teams/nhl.js";
@@ -6,7 +8,7 @@ import { resolveBasketballPropTeam } from "./basketballPropTeam.js";
 
 const ROSTER_CACHE = new Map();
 const ROSTER_CACHE_MS = 15 * 60 * 1000;
-const REGISTRIES = Object.freeze({ nfl: nflTeams, nba: nbaTeams, nhl: nhlTeams });
+const REGISTRIES = Object.freeze({ nfl: nflTeams, nba: nbaTeams, nhl: nhlTeams, mlb: mlbTeams });
 const ESPN_SPORT = Object.freeze({ nfl: "football", nba: "basketball" });
 const normalize = value => String(value ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const safeText = value => String(value ?? "").trim();
@@ -27,6 +29,7 @@ export function getProTeamDirectory(sport) {
     abbr: team.abbr,
     name: team.displayName,
     displayName: team.displayName,
+    mlbId: league === "mlb" ? MLB_STATS_ID[team.abbr] : null,
     espnId: team.espnId || team.sources?.espn?.id || null,
     logo: team.logo || null,
     color: team.color ? "#" + team.color.replace(/^#/, "") : null,
@@ -108,6 +111,12 @@ function parseNhlRoster(payload) {
 }
 
 export function parseProRoster(sport, data) {
+  if (sport === "mlb") {
+    const seen=new Set();return (data.roster||[]).flatMap(row=>{
+      const p=row.person||{},id=String(p.id||'');if(!/^\d+$/.test(id)||seen.has(id))return [];seen.add(id);
+      return [{id,sourcePlayerId:id,identitySource:'MLB_OFFICIAL',canonicalPlayerId:`mlb:mlb:${id}`,playerKey:`mlb:mlb:${id}`,name:p.fullName,position:row.position?.abbreviation||p.primaryPosition?.abbreviation,jersey:row.jerseyNumber||p.primaryNumber,status:row.status?.description||row.status?.code,batSide:p.batSide?.code,pitchHand:p.pitchHand?.code,birthDate:p.birthDate,height:p.height,weight:p.weight,headshotSource:'MLB_OFFICIAL',headshotUrl:`https://img.mlbstatic.com/mlb-photos/image/upload/w_426,q_auto:best/v1/people/${id}/headshot/67/current`}];
+    });
+  }
   if (sport === "nhl") return parseNhlRoster(data);
   if (sport === "nfl" || sport === "nba") return parseEspnRoster(data, sport);
   return [];
@@ -128,7 +137,7 @@ export async function loadProTeamRoster({ sport, team, fetcher = fetch }) {
   const useCache = fetcher === fetch;
   const hit = useCache ? ROSTER_CACHE.get(key) : null;
   if (hit && Date.now() - hit.time < ROSTER_CACHE_MS) return hit.result;
-  const sourceUrl = league === "nhl"
+  const sourceUrl = league === "mlb" ? `https://statsapi.mlb.com/api/v1/teams/${selected.mlbId}/roster?rosterType=40Man&hydrate=person` : league === "nhl"
     ? "https://api-web.nhle.com/v1/roster/" + encodeURIComponent(nhlModelTeamCode(selected.abbr)) + "/current"
     : "https://site.api.espn.com/apis/site/v2/sports/" + ESPN_SPORT[league] + "/" + league + "/teams/" + encodeURIComponent(selected.espnId) + "/roster";
   const controller = new AbortController();
@@ -141,7 +150,7 @@ export async function loadProTeamRoster({ sport, team, fetcher = fetch }) {
     if (!players.length) return { ok: false, error: "upstream-roster-empty", status: 502, team: selected };
     const result = {
       ok: true, sport: league, team: selected, players,
-      source: league === "nhl" ? "NHL_OFFICIAL_CURRENT_ROSTER" : "ESPN_TEAM_ROSTER",
+      source: league === "mlb" ? "MLB_OFFICIAL_40_MAN_ROSTER" : league === "nhl" ? "NHL_OFFICIAL_CURRENT_ROSTER" : "ESPN_TEAM_ROSTER",
       sourceUrl, fetchedAt: new Date().toISOString(), rosterCount: players.length
     };
     if (useCache) ROSTER_CACHE.set(key, { time: Date.now(), result });

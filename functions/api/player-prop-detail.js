@@ -1,3 +1,4 @@
+import { loadCanonicalPropHistory } from '../lib/propHistoryResearch.js';
 import { loadNflVerseFeatures } from "../lib/nflVerseFeed.js";
 import { loadEspnLastFive } from "../lib/playerPropHistory.js";
 
@@ -110,101 +111,6 @@ async function nflDetail(context,{name,team,opponent,market,line}){
   const recent5Avg=last5.length?last5.reduce((s,g)=>s+(Number(g.value)||0),0)/last5.length:null;
   return {source:"nflverse",sourceLabel:"nflverse weekly player stats",statField:field,last5,season:{games:n(p?.games)??currentSeason.length,average:seasonAvg,recent5Average:recent5Avg},role:{position:position||null,snapShare:n(p?.snapShare),trackingGames:n(p?.trackingGames),snapGames:n(p?.snapGames)},matchup:{opponent:opp||null,opponentAllowed:defense==null?null:Number(defense),leagueAverageAllowed:league==null?null:Number(league),matchupFactor:defense!=null&&league?Number(defense)/Number(league):null,defenseRank:verifiedRank,rankBasis:"fewest allowed to position",rankedTeams:rankedDefense.length,passDefense,runDefense},advanced:p?.ngs||null};
 }
-async function mlbPerson(name){
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort("mlb-player-search-timeout"),3500);
-  try{
-    const r=await fetch("https://statsapi.mlb.com/api/v1/people/search?active=true&sportIds=1&names="+encodeURIComponent(name),{
-      headers:{accept:"application/json","user-agent":"FBIS/1.0"},signal:controller.signal
-    });
-    if(!r.ok)return null;
-    const body=await r.json().catch(()=>({}));
-    const wanted=norm(name);
-    return (body?.people||[]).find(x=>norm(x?.fullName)===wanted)||(body?.people||[])[0]||null;
-  }catch{return null;}finally{clearTimeout(timer);}
-}
-function mlbGroup(market){
-  return ["strikeouts","pitching_outs","earned_runs","walks_allowed","hits_allowed"].includes(market)?"pitching":"hitting";
-}
-function mlbValue(stats,market){
-  const s=stats||{};
-  if(market==="strikeouts")return n(s.strikeOuts);
-  if(market==="pitching_outs")return n(s.outs);
-  if(market==="earned_runs")return n(s.earnedRuns);
-  if(market==="walks_allowed")return n(s.baseOnBalls);
-  if(market==="hits_allowed")return n(s.hits);
-  if(market==="hits")return n(s.hits);
-  if(market==="runs")return n(s.runs);
-  if(market==="rbis")return n(s.rbi);
-  if(market==="total_bases")return n(s.totalBases);
-  if(market==="hits_runs_rbis"){
-    const h=n(s.hits)||0,r=n(s.runs)||0,rbi=n(s.rbi)||0; return h+r+rbi;
-  }
-  if(market==="home_runs")return n(s.homeRuns);
-  if(market==="doubles")return n(s.doubles);
-  if(market==="triples")return n(s.triples);
-  if(market==="walks")return n(s.baseOnBalls);
-  if(market==="stolen_bases")return n(s.stolenBases);
-  if(market==="plate_appearances")return n(s.plateAppearances);
-  if(market==="batters_faced")return n(s.battersFaced);
-  if(market==="pitches_thrown")return n(s.numberOfPitches ?? s.pitchesThrown);
-  if(market==="singles"){
-    const h=n(s.hits),d=n(s.doubles)||0,t=n(s.triples)||0,hr=n(s.homeRuns)||0;
-    return h==null?null:Math.max(0,h-d-t-hr);
-  }
-  return null;
-}
-async function mlbDetail({name,market,line}){
-  const person=await mlbPerson(name);
-  if(!person?.id)return null;
-  const season=new Date().getFullYear();
-  const group=mlbGroup(market);
-  const qs=new URLSearchParams({stats:"gameLog,season",group,season:String(season),gameType:"R,P"});
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort("mlb-player-stats-timeout"),4500);
-  let body={};
-  try{
-    const r=await fetch("https://statsapi.mlb.com/api/v1/people/"+person.id+"/stats?"+qs.toString(),{
-      headers:{accept:"application/json","user-agent":"FBIS/1.0"},signal:controller.signal
-    });
-    if(!r.ok)return null;
-    body=await r.json().catch(()=>({}));
-  }catch{return null;}finally{clearTimeout(timer);}
-  let games=[],seasonStat=null;
-  for(const block of body?.stats||[]){
-    const type=String(block?.type?.displayName||block?.type||"").toLowerCase();
-    const splits=Array.isArray(block?.splits)?block.splits:[];
-    if(type.includes("game")) games.push(...splits);
-    if(type.includes("season")) seasonStat=splits[0]?.stat||null;
-  }
-  const seenGames=new Set();
-  games=games.filter(g=>g?.game?.gamePk&&Date.parse(g.date)<Date.now()).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)||Number(b.gameNumber||0)-Number(a.gameNumber||0)).filter(g=>{const id=String(g.game.gamePk);if(seenGames.has(id))return false;seenGames.add(id);return true;});
-  const last5=games.slice(0,5).map(g=>{
-    const value=mlbValue(g?.stat,market);
-    return {
-      date:g?.date||null,opponent:g?.opponent?.abbreviation||g?.opponent?.name||null,
-      value,hit:line==null||value==null?null:value>Number(line),
-    };
-  });
-  const values=games.map(g=>mlbValue(g?.stat,market)).filter(v=>v!=null);
-  const avg=values.length?values.reduce((a,b)=>a+b,0)/values.length:null;
-  const advanced=group==="pitching"&&seasonStat?{
-    era:n(seasonStat.era),
-    whip:n(seasonStat.whip),
-    strikeoutsPer9:n(seasonStat.strikeoutsPer9Inn),
-    walksPer9:n(seasonStat.walksPer9Inn),
-    hitsPer9:n(seasonStat.hitsPer9Inn),
-    inningsPitched:n(seasonStat.inningsPitched),
-    gamesStarted:n(seasonStat.gamesStarted),
-    pitchesThrown:n(seasonStat.numberOfPitches ?? seasonStat.pitchesThrown),
-  }:null;
-  return {
-    source:"mlb-stats-api",sourceLabel:"MLB Stats API",
-    statField:market,last5,
-    season:{games:values.length,average:avg,total:mlbValue(seasonStat,market)},
-    role:null,matchup:null,advanced,
-  };
-}
 async function calibration(db,sport,market,modelVersion){
   if(!db)return null;
   try{
@@ -235,11 +141,11 @@ export async function onRequestGet(context){
         if(fallback && !fallback.unavailable) detail={...fallback,matchup:detail?.matchup||fallback.matchup||null,role:detail?.role||fallback.role||null,advanced:detail?.advanced||fallback.advanced||null};
       }
     } else if(sport==="mlb") {
-      detail=await mlbDetail({name,market,line});
-      if(!detail || !detail.last5?.some(x=>x.value!=null)) {
-        const fallback=await loadEspnLastFive({sport,name,team,market,line});
-        if(fallback && !fallback.unavailable) detail=fallback;
-      }
+      const canonicalId=url.searchParams.get('canonicalPlayerId')||'';
+      const playerId=canonicalId.match(/^mlb:mlb:(\d+)$/)?.[1];
+      if(!playerId)return json({ok:false,error:'Exact canonical MLB player ID required'},422);
+      detail=await loadCanonicalPropHistory(context.env,{sport:'mlb',provider:'mlb',playerId,market:market==='pitching_outs'?'pitcher_outs':market,line});
+      return json({ok:true,sport,name,market,line,canonicalPlayerId:canonicalId,detail});
     } else {
       detail=await loadEspnLastFive({sport,name,team,market,line});
     }
