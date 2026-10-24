@@ -76,7 +76,7 @@ export async function captureFootballProspective(env,{sport,gameId,now=new Date(
  const stored=await db.prepare("SELECT receipt_id receiptId,captured_at capturedAt,game_id gameId FROM football_sdv_prospective_receipts WHERE sport=? AND game_id=? AND model_id=?")
   .bind(sport,gameId,row.modelId).first();
  if(!stored)throw Error("PROSPECTIVE_RECEIPT_READBACK_MISSING");
- return {ok:true,sport,gameId,receiptId:stored.receiptId,
+ return {ok:true,sport,gameId,modelId:row.modelId,variant,receiptId:stored.receiptId,
   capturedAt:stored.capturedAt,status:Number(write?.meta?.changes)===1?"NEW":"EXISTING",
   canQualify:false,canAuthorizeWager:false};
 }
@@ -179,7 +179,9 @@ export async function onRequest({request,env}){
     ") WHERE rn=1 ORDER BY kickoff ASC,gameId ASC LIMIT 240"
    ).bind(sport,new Date(now+600000).toISOString(),until).all();
    if(!Array.isArray(upcoming?.results))throw Error("SLATE_QUERY_FAILED");
-   return json({ok:true,sport,upcoming:upcoming.results,slateCapacity:240,canAuthorizeWager:false});
+   return json({ok:true,sport,upcoming:upcoming.results,slateCapacity:240,
+    supportedVariants:sport==="nfl"?["standard","nfl-sdv-v03"]:["standard"],
+    canAuthorizeWager:false});
   }
   if(request.method!=="POST")return json({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   const body=await request.json();
