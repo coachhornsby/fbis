@@ -31,7 +31,7 @@ test('heatmap uses catcher-view x without mirroring and normalized individual st
 test('approach-angle calculation has documented plane and rejects impossible or missing trajectories',()=>{
  const a=labApproachAngles(row());assert.equal(a.haa,0);assert.ok(Math.abs(a.vaa+5.7105931375)<1e-8);assert.equal(labApproachAngles(row({vy0:100})),null);assert.equal(labApproachAngles(row({az:''})),null);
 });
-function bucket(){const map=new Map();return {map,async get(key){if(!map.has(key))return null;const bytes=map.get(key);return {body:new Blob([bytes]).stream(),json:async()=>JSON.parse(new TextDecoder().decode(bytes))};},async put(key,value){map.set(key,typeof value==='string'?new TextEncoder().encode(value):new Uint8Array(value));}};}
+function bucket(){const map=new Map();return {map,async get(key){if(!map.has(key))return null;const bytes=map.get(key);return {body:new Blob([bytes]).stream(),json:async()=>JSON.parse(new TextDecoder().decode(bytes))};},async put(key,value,options){if(options?.onlyIf?.get('If-None-Match')==='*'&&map.has(key))return null;map.set(key,typeof value==='string'?new TextEncoder().encode(value):new Uint8Array(value));return {key};}};}
 const csv=rows=>{const keys=Object.keys(row());return keys.map(k=>`"${k}"`).join(',')+'\n'+rows.map(r=>keys.map(k=>'"'+String(r[k]??'').replaceAll('"','""')+'"').join(',')).join('\n');};
 test('archive ingestion is exact-ID scoped, immutable on retry, and readback verifies its content hash',async()=>{
  const ARCHIVE=bucket(),payload={playerId:'669373',role:'pitcher',season:2024,cutoffDay:'2026-10-24',rawCsv:csv([row()]),finalGameIds:['1'],sourceUrl:'https://baseballsavant.mlb.com/statcast_search/csv?player_type=pitcher&pitchers_lookup[]=669373'};
@@ -48,4 +48,9 @@ test('public reads do not acquire source data; writes require the operator heade
 
 test('automatic balls retain terminal walk evidence but never inflate pitched-ball denominators or arsenal usage',()=>{
  const lab=buildMlbStatcastLab([packet([row(),row({at_bat_number:2,pitch_number:2,description:'automatic_ball',events:'intent_walk',pitch_type:'',type:'B',zone:null,plate_x:null,plate_z:null})])],{season:2024});assert.equal(lab.pitches,1);assert.equal(lab.plateAppearances,2);assert.equal(lab.metrics.walk.value,.5);assert.equal(lab.metrics.swstr.value,1);assert.equal(lab.arsenal.length,1);assert.equal(lab.handedness[0].pitches,1);assert.equal(lab.coverage.automaticEvents,1);
+});
+
+test('concurrent identical imports create a single immutable snapshot and reuse the first committed evidence',async()=>{
+ const ARCHIVE=bucket(),payload={playerId:'669373',role:'pitcher',season:2024,cutoffDay:'2026-10-24',rawCsv:csv([row()]),finalGameIds:['1'],sourceUrl:'https://baseballsavant.mlb.com/statcast_search/csv?player_type=pitcher&pitchers_lookup[]=669373'};
+ const results=await Promise.all([persistLabPacket({ARCHIVE},payload),persistLabPacket({ARCHIVE},payload)]);assert.equal(results.filter(r=>r.reused).length,1);assert.equal(ARCHIVE.map.size,3);assert.equal((await readLabPackets({ARCHIVE},{playerId:'669373',role:'pitcher',seasons:[2024]})).packets.length,1);
 });
