@@ -46,7 +46,13 @@ function readUrlState() {
   const sportRaw = routeParam === "teams" ? "cfb" : (u.searchParams.get("sport") || "mlb");
   const mapped = legacyToRoute({ tab, sport: sportRaw });
   const normalizedRoute = normalizeRoute(routeParam || mapped.route);
-  const filter = routeParam === "teams" ? "cfb" : (u.searchParams.get("sportFilter") || mapped.sportFilter || "all");
+  // Player Props bookmarks historically retained two conflicting sport params.
+  // Prefer explicit ?sport= when it names a supported sport (e.g. tennis),
+  // then persist BOTH parameters in sync on subsequent route changes.
+  const explicitSport = u.searchParams.get("sport");
+  const filter = routeParam === "teams" ? "cfb"
+    : normalizedRoute === "player-props" && explicitSport && SPORTS[explicitSport]
+      ? explicitSport : (u.searchParams.get("sportFilter") || mapped.sportFilter || "all");
   const sport = normalizedRoute === "board" && SPORTS[filter] ? filter : sportRaw;
   // The product route is authoritative on cold loads. A legacy ?tab=board
   // combined with ?route=board would otherwise render TodayView but trigger
@@ -66,7 +72,9 @@ function writeUrlState({ tab, date, sport, route, sportFilter }) {
   const u = new URL(window.location.href);
   u.searchParams.set("tab", tab);
   // Board uses one canonical sport filter. Do not leave stale legacy sport=mlb on NHL links.
-  const boardSport = route === "board" && SPORTS[sportFilter] ? sportFilter : sport;
+  const boardSport = route === "player-props"
+    ? (SPORTS[sportFilter] ? sportFilter : "all")
+    : route === "board" && SPORTS[sportFilter] ? sportFilter : sport;
   if (boardSport) u.searchParams.set("sport", boardSport);
   if (route) u.searchParams.set("route", route);
   if (sportFilter) u.searchParams.set("sportFilter", sportFilter);
