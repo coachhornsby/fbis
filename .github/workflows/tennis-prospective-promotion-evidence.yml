@@ -1,0 +1,52 @@
+name: Tennis official prospective settlement and promotion evidence
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '43 2,8,14,20 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: tennis-official-prospective-settlement
+  cancel-in-progress: false
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Require source-authenticated execution credentials
+        run: test -n "${HARVEST_SECRET:-}"
+      - name: Resolve live production commit before official source writes
+        run: VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs
+      - name: Verify current official WTA completed singles and grade eligible PURE snapshots
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail-with-body --max-time 180 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            "${BASE}/api/tennis-official-outcome-reconcile" > artifacts/tennis-official-settlement.json
+          jq -e '.ok == true and .researchOnly == true and .canAuthorizeWager == false' artifacts/tennis-official-settlement.json
+          jq '{asOf,tournamentsExamined,resultsWritten,graded,errors}' artifacts/tennis-official-settlement.json
+      - name: Read back prospective promotion certificate
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail-with-body --max-time 90 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            "${BASE}/api/tennis-promotion-readiness" > artifacts/tennis-promotion-readiness.json
+          jq -e '.ok == true and .canAuthorizeWager == false and .productionWrites == 0' artifacts/tennis-promotion-readiness.json
+          jq '{asOf,status,promotionReady,cohorts,sourceRights,blockedReasons}' artifacts/tennis-promotion-readiness.json
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: tennis-prospective-promotion-evidence
+          path: artifacts/tennis-*.json
+          retention-days: 30
+          if-no-files-found: warn
