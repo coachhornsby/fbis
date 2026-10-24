@@ -46,3 +46,15 @@ test("profile recovery fails over to NBA_DB and not stale PRIMARY",()=>{
  const s=readFileSync(new URL("../scripts/nba-profile-persistence-verify.mjs",import.meta.url),"utf8");
  assert.match(s,/resolveD1ImportTarget\(\),"--remote","--json"/);
 });
+
+test("all production NBA scheduled import jobs share exclusive D1 writer concurrency",()=>{
+ for(const name of [
+  "nba-team-profiles.yml","nba-prospective-shadow.yml",
+  "nba-official-availability.yml","nba-player-impact-shadow-grade.yml",
+  "nba-deep-v2-grade.yml","nba-market-evaluator.yml"
+ ]){
+  const content=file(name);
+  assert.match(content,/nba-d1-profile-shadow-main/,name);
+  assert.match(content,/cancel-in-progress: false/,name);
+ }
+});
