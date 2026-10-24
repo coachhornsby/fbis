@@ -46,4 +46,14 @@ const result={ok:true,source:"NBA_OFFICIAL_INJURY_REPORT",sourceUrl,reportTimest
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});
 fs.writeFileSync(out,JSON.stringify(result,null,2)+"\n");
 fs.writeFileSync(sqlOut,sql.join("\n")+(sql.length?"\n":""));
+for(const [target,prefix,expected] of [
+  [args.playerSql,"INSERT OR IGNORE INTO player_availability_observations ",entries.length],
+  [args.reportSql,"INSERT OR IGNORE INTO nba_official_availability_reports ",coverage.size]
+]){
+  if(!target)continue;
+  const selected=sql.filter(statement=>statement.startsWith(prefix));
+  if(selected.length!==expected)throw new Error("NBA availability SQL routing count mismatch");
+  fs.mkdirSync(target.split("/").slice(0,-1).join("/")||".",{recursive:true});
+  fs.writeFileSync(target,selected.join("\n")+(selected.length?"\n":""));
+}
 console.log(JSON.stringify({ok:true,reportTimestamp,sourceUrl,quality:result.quality,out,sqlOut},null,2));
