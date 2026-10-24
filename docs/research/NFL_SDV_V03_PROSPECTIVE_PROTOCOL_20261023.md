@@ -27,3 +27,9 @@ Previous NFL v0.2 applied a heuristic +25 seconds to the difference between the 
 - After successful verified historical ingestion, the NFL prospective task captures **both** independent shadow models for each upcoming eligible game, and later grades them against the same verified regulation outcome.
 - Operator-only `/api/football-sdv-prospective?sport=nfl&mode=paired` reports paired metrics, exclusions and readiness with no wager or promotion permissions.
 - Incomplete provider duration, contradictory transitions, stale data, missing kickoff times, weak matchup coverage, and missing grading evidence must fail closed.
+
+
+## Mandatory v0.3 supersession (source kickoff-field correction)
+An independent D1 read identified 12 immutable initial v0.3 receipts on 2026-10-24. The initial model used first-play `yardline_100` as the simulated drive start; this can reflect a kickoff yardline (e.g. 35 yards to the goal) rather than the receiving offense's official drive start (e.g. own 30 = 70 yards to opponent goal). Those v0.3 receipts are **superseded and barred from model qualification**. Do not delete or rewrite them.
+The corrected v0.3.1 requires nflfastR's `drive_start_yard_line` and links the next drive to the next offense's documented official starting spot. Its deterministic normalization fingerprint includes `NFL_PBP_NORMALIZER_v0.3.1` and raw-source SHA256; historical game records are inserted as new immutable revisions, never upserted over prior source hashes.
+Only model ID `NFL-SDV-VERIFIED-POSSESSION-TRANSITION-SHADOW-v0.3.1` can enter the new independent prospective paired cohort. The 12 old v0.3 receipts remain outside comparison even after official outcomes arrive.
