@@ -47,9 +47,10 @@ export function topThreeGamePlayerProps(game={}) {
       fbisProjection:finite(raw.fbisProjection??raw.projection),line,
       // Do not interpret a missing line as zero or derive synthetic
       // over/under probabilities from a model-only projection.
-      fbisSigma:line==null?null:raw.fbisSigma,
-      probabilityOver:line==null?null:raw.probabilityOver,
-      probabilityUnder:line==null?null:raw.probabilityUnder,
+      fbisSigma:line==null||sport==='mlb'&&raw.propCalibrationValidated!==true?null:raw.fbisSigma,
+      probabilityOver:line==null||sport==='mlb'&&raw.propCalibrationValidated!==true?null:raw.probabilityOver,
+      probabilityUnder:line==null||sport==='mlb'&&raw.propCalibrationValidated!==true?null:raw.probabilityUnder,
+      ...(sport==='mlb'&&raw.propCalibrationValidated!==true?{probability:null}:{}),
       edge:line==null?null:raw.edge,
     });
     if(sport==='mlb'&&raw.propCalibrationValidated!==true){

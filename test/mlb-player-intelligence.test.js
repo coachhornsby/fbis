@@ -1,3 +1,4 @@
+import {topThreeGamePlayerProps} from '../src/features/playerProps/topGamePlayerProps.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mlbInningsToOuts,mlbOutsToInnings,mlbStatValue,normalizeMlbAppearances,mlbScheduleIndex} from '../functions/lib/mlbPlayerHistory.js';
@@ -55,4 +56,9 @@ test('game normalization preserves pitch-to-PA identities and rejects non-final 
 test('features exclude data observed after replay cutoff and preserve rate operands',()=>{
  const record={gameId:'1',date:'2026-10-01',observedAt:'2026-10-02',gameType:'R',group:'pitching',stats:{outs:17,earnedRuns:2,hits:4,baseOnBalls:1,strikeOuts:6,battersFaced:21}};
  const h=mlbBoxscoreFeatures([record,{...record,gameId:'2',observedAt:'2026-10-10'}],{asOf:'2026-10-05'});assert.equal(h.sampleGames,1);assert.equal(h.pitcher.ERA.numerator,54);assert.equal(h.pitcher.ERA.denominator,17);assert.equal(h.pitcher.WHIP.value,15/17);assert.equal(h.hitter.AVG.value,null);assert.equal(h.canAuthorizeWager,false);
+});
+
+test('MLB Top 3 preserves canonical identity without deriving unsupported hit probability',()=>{
+ const game={id:'mlb-1',sport:'mlb',start:'2026-10-24T20:00:00Z',home:{abbr:'NYY'},away:{abbr:'HOU'},playerMarkets:[{canonicalEventId:'mlb-1',canonicalPlayerId:'mlb:mlb:123',playerName:'Player',team:'NYY',marketCanonical:'hits',line:0.5,fbisProjection:1.4,fbisSigma:0.8,modelIndependent:true,provider:'Kalshi',contractId:'contract',observedAsk:0.4,identityVerified:true}]};
+ const rows=topThreeGamePlayerProps(game);assert.equal(rows.length,1);assert.equal(rows[0].canonicalPlayerId,'mlb:mlb:123');assert.equal(rows[0].contractId,'contract');assert.equal(rows[0].observedAsk,0.4);assert.equal(rows[0].probabilityOver,null);assert.equal(rows[0].probabilityUnder,null);
 });
