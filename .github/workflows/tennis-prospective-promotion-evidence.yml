@@ -1,6 +1,10 @@
 name: Tennis official prospective settlement and promotion evidence
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/tennis-prospective-promotion-evidence.yml"
   schedule:
     - cron: '43 2,8,14,20 * * *'
 permissions:
@@ -22,8 +26,26 @@ jobs:
           node-version: '22'
       - name: Require source-authenticated execution credentials
         run: test -n "${HARVEST_SECRET:-}"
-      - name: Resolve live production commit before official source writes
-        run: VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs
+      - name: Wait for an authoritative live production descendant
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            echo "Production lineage verification attempt $attempt/20"
+            if receipt="$(VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs)"; then
+              echo "$receipt"
+              if live_sha="$(printf '%s' "$receipt" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const r=JSON.parse(s);if(r.outcome!=='match'||!(/^[0-9a-f]{40}$/.test(r.productionSha||'')))process.exit(1);process.stdout.write(r.productionSha)})")"; then
+                git fetch --no-tags --depth=64 origin main
+                if git cat-file -e "$live_sha^{commit}" 2>/dev/null && git merge-base --is-ancestor "$GITHUB_SHA" "$live_sha"; then
+                  echo "Verified release ancestor $GITHUB_SHA in live production $live_sha"
+                  exit 0
+                fi
+                echo "Production $live_sha does not yet include promotion code commit $GITHUB_SHA"
+              fi
+            fi
+            if [ "$attempt" -lt 20 ]; then sleep 20; fi
+          done
+          echo "LIVE_PRODUCTION_MISSING_TENNIS_PROMOTION_CODE_AFTER_BOUNDED_WAIT"
+          exit 1
       - name: Verify current official WTA completed singles and grade eligible PURE snapshots
         run: |
           set -euo pipefail
