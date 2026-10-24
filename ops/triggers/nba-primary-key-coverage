@@ -1,1 +1,3 @@
 Trigger exhaustive read-only post-NBA cutover historical primary-key coverage against NBA_DB, Oct 24 2026. Never delete PRIMARY rows. Requires 31/31 NBA prefix tables with zero missing source keys.
+
+2026-10-24 bounded 40-key read-only audit rerun after D1 query-limit hotfix
