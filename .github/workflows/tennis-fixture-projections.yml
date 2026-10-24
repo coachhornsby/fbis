@@ -58,8 +58,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          curl --fail-with-body --max-time 120 -X POST \\
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \\
+          curl --fail-with-body --max-time 120 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
             https://fbis-myz.pages.dev/api/tennis-inhouse-rank-challenger > artifacts/inhouse-rank-snapshots.json
           jq -e '.ok == true and .canAuthorizeWager == false and .sourceTermsReviewed == false' artifacts/inhouse-rank-snapshots.json
       - name: Read back frozen inhouse ranking challenger research results
@@ -67,8 +67,8 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set -euo pipefail
-          curl --fail-with-body --max-time 60 \\
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \\
+          curl --fail-with-body --max-time 60 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
             https://fbis-myz.pages.dev/api/tennis-inhouse-rank-challenger > artifacts/inhouse-rank-evaluation.json
           jq -e '.ok == true and .canAuthorizeWager == false and .sourceRights == "REVIEW_REQUIRED"' artifacts/inhouse-rank-evaluation.json
       - name: Record readback coverage and blocked reasons
