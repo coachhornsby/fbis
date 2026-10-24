@@ -54,3 +54,7 @@ test('concurrent identical imports create a single immutable snapshot and reuse 
  const ARCHIVE=bucket(),payload={playerId:'669373',role:'pitcher',season:2024,cutoffDay:'2026-10-24',rawCsv:csv([row()]),finalGameIds:['1'],sourceUrl:'https://baseballsavant.mlb.com/statcast_search/csv?player_type=pitcher&pitchers_lookup[]=669373'};
  const results=await Promise.all([persistLabPacket({ARCHIVE},payload),persistLabPacket({ARCHIVE},payload)]);assert.equal(results.filter(r=>r.reused).length,1);assert.equal(ARCHIVE.map.size,3);assert.equal((await readLabPackets({ARCHIVE},{playerId:'669373',role:'pitcher',seasons:[2024]})).packets.length,1);
 });
+
+test('truncated PAs and baserunner-only events never inflate completed-PA K/BB denominators',()=>{
+ const lab=buildMlbStatcastLab([packet([row(),row({at_bat_number:2,events:'truncated_pa',description:'ball',type:'B'}),row({at_bat_number:3,events:'caught_stealing_2b',description:'ball',type:'B'})])],{season:2024});assert.equal(lab.pitches,3);assert.equal(lab.plateAppearances,1);assert.equal(lab.metrics.strikeout.value,1);assert.equal(lab.calculationVersion,'mlb-lab-metrics-v1.1');
+});
