@@ -148,6 +148,19 @@ export function shouldRepairPolymarketPrice(prior,event){
     event.quantity!=null && num(prior.quantity)!=null &&
     Math.abs(num(prior.quantity)-event.quantity)<0.000001;
 }
+/** A subsequent REST activity cannot downgrade an independently verified
+ * private WebSocket execution to UNKNOWN. Absence of fields is not a conflict.
+ */
+export function restActivityCoveredByPrivateFill(prior,event){
+ return prior?.provider==="Polymarket US"&&event?.provider==="Polymarket US"&&
+   prior.fill_id===event.fillId&&prior.market===event.market&&
+   ["YES","NO"].includes(prior.side)&&prior.action==="BUY"&&
+   event.side==="UNKNOWN"&&event.action==="UNKNOWN"&&
+   num(prior.quantity)!=null&&event.quantity!=null&&
+   Math.abs(num(prior.quantity)-event.quantity)<0.000001&&
+   (event.price==null||num(prior.unit_price)==null||
+     Math.abs(num(prior.unit_price)-event.price)<0.000001);
+}
 export async function syncExchangeEvents(env,{now=new Date().toISOString()}={}){
   if(!env?.DB?.prepare)return {ok:false,reason:"D1_UNBOUND"};
   const providers={},events=[],settlements=[];
@@ -184,6 +197,7 @@ export async function syncExchangeEvents(env,{now=new Date().toISOString()}={}){
   for(const e of events){
     const prior=await env.DB.prepare("SELECT * FROM exchange_bet_fills WHERE provider=? AND fill_id=?").bind(e.provider,e.fillId).first();
     if(prior){
+      if(restActivityCoveredByPrivateFill(prior,e))continue;
       const differs=prior.market!==e.market||prior.group_id!==e.groupId||prior.side!==e.side||
         prior.action!==e.action||(prior.quantity!=null&&e.quantity!=null&&
         Math.abs(Number(prior.quantity)-e.quantity)>0.000001)||

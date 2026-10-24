@@ -199,6 +199,7 @@ test("a successful retried socket flush clears only its recovered database error
  const {readFile}=await import('node:fs/promises');
  const file=new URL('../services/polymarket-us-stream/worker.mjs',import.meta.url);
  let source=await readFile(file,'utf8');
+ source=source.replace('export {PolymarketPrivateOrderSession} from "./privateOrderSession.mjs";', "");
  source=source.replace('import {DurableObject} from "cloudflare:workers";', 'class DurableObject { constructor(ctx,env){this.ctx=ctx;this.env=env;} }');
  source=source.replace(/from\s+["'](\.[^"']+)["']/g,(_,path)=>'from '+JSON.stringify(new URL(path,file).href));
  const {PolymarketMarketStream}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
@@ -225,6 +226,7 @@ test("R2 spill on D1 failure preserves ticks without claiming inserted success",
  const {readFile}=await import('node:fs/promises');
  const file=new URL('../services/polymarket-us-stream/worker.mjs',import.meta.url);
  let source=await readFile(file,'utf8');
+ source=source.replace('export {PolymarketPrivateOrderSession} from "./privateOrderSession.mjs";', "");
  source=source.replace('import {DurableObject} from "cloudflare:workers";', 'class DurableObject { constructor(ctx,env){this.ctx=ctx;this.env=env;} }');
  source=source.replace(/from\s+["'](\.[^"']+)["']/g,(_,path)=>'from '+JSON.stringify(new URL(path,file).href));
  const {PolymarketMarketStream}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
@@ -258,6 +260,7 @@ test("history-shard recovery write on primary D1 failure does not claim primary 
  const {DatabaseSync}=await import('node:sqlite');
  const file=new URL('../services/polymarket-us-stream/worker.mjs',import.meta.url);
  let source=await readFile(file,'utf8');
+ source=source.replace('export {PolymarketPrivateOrderSession} from "./privateOrderSession.mjs";', "");
  source=source.replace('import {DurableObject} from "cloudflare:workers";', 'class DurableObject { constructor(ctx,env){this.ctx=ctx;this.env=env;} }');
  source=source.replace(/from\s+["'](\.[^"']+)["']/g,(_,path)=>'from '+JSON.stringify(new URL(path,file).href));
  const {PolymarketMarketStream}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
@@ -332,6 +335,7 @@ test("operator /start always forces socket rotation for post-deploy code pickup"
  const {readFile}=await import('node:fs/promises');
  const file=new URL('../services/polymarket-us-stream/worker.mjs',import.meta.url);
  let source=await readFile(file,'utf8');
+ source=source.replace('export {PolymarketPrivateOrderSession} from "./privateOrderSession.mjs";', "");
  source=source.replace('import {DurableObject} from "cloudflare:workers";', 'class DurableObject { constructor(ctx,env){this.ctx=ctx;this.env=env;} }');
  source=source.replace(/from\s+["'](\.[^"']+)["']/g,(_,path)=>'from '+JSON.stringify(new URL(path,file).href));
  const {PolymarketMarketStream}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));

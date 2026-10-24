@@ -1,3 +1,4 @@
+export {PolymarketPrivateOrderSession} from "./privateOrderSession.mjs";
 import {DurableObject} from "cloudflare:workers";
 import {polymarketUsSubscribeBatches,parsePolymarketUsLite,parsePolymarketUsTrade}
   from "../../functions/lib/polymarketUsSignedWs.js";
@@ -596,6 +597,12 @@ export {PolymarketMarketStreamRecovered as PolymarketMarketStreamCoverage,Polyma
 
 export default {
   async scheduled(_event,env,ctx){
+    // Private-account connection is logically isolated from market data. No private
+    // records are served through the public market-stream health endpoint.
+    if(env.PM_PRIVATE&&env.HARVEST_SECRET){
+      const privateOwner=env.PM_PRIVATE.get(env.PM_PRIVATE.idFromName("private-orders-v1"));
+      ctx.waitUntil(privateOwner.fetch("https://internal/wake",{method:"POST"}).catch(()=>{}));
+    }
     // Safe periodic reactivation after worker restarts/deployment. One DO
     // owns dynamic all-sport capacity (no competing collectors).
     // v2 cutover: long-lived WS pins prior DO isolates after deploy; a new
@@ -672,6 +679,14 @@ export default {
       if(!env.FBIS_STREAM_PROXY_TOKEN||request.headers.get('x-fbis-stream-token')!==env.FBIS_STREAM_PROXY_TOKEN)return toJSON({ok:false,error:"unauthorized"},403);
       const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis-v3"));
       return stub.fetch("https://internal/start",{method:"POST"});
+    }
+    if(u.pathname==="/private-health"){
+      if(request.method!=="GET"||!env.HARVEST_SECRET||
+        request.headers.get("x-harvest-secret")!==env.HARVEST_SECRET)
+        return toJSON({ok:false,error:"unauthorized"},403);
+      const owner=env.PM_PRIVATE.get(env.PM_PRIVATE.idFromName("private-orders-v1"));
+      const state=await owner.fetch("https://internal/status");
+      return toJSON(await state.json());
     }
     if(u.pathname!=="/health")return toJSON({ok:false,error:"not-found"},404);
     const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis-v3"));
