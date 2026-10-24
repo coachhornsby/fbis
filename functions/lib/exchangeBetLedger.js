@@ -3,7 +3,13 @@ import {polymarketAccountPages} from "./polymarketUsAccount.js";
 
 /** Each account event is identity-stable. Unpriced/incomplete records stay out of approved tickets. */
 const safe=(v,n=220)=>v==null?"":String(v).slice(0,n);
-const num=v=>{if(v==null||v==="")return null;\n  // Polymarket US SDK Amount is {value:string,currency:"USD"}, not a bare number.\n  // Never reinterpret currency-tagged non-USD amounts as dollar prices/fees.\n  if(typeof v==="object"){if(!Object.prototype.hasOwnProperty.call(v,"value"))return null;\n    if(v.currency!=null&&String(v.currency).toUpperCase()!=="USD")return null;v=v.value;}\n  const x=Number(v);return Number.isFinite(x)?x:null;\n};
+const num=v=>{if(v==null||v==="")return null;
+  // Polymarket US SDK Amount is {value:string,currency:"USD"}, not a bare number.
+  // Never reinterpret currency-tagged non-USD amounts as dollar prices/fees.
+  if(typeof v==="object"){if(!Object.prototype.hasOwnProperty.call(v,"value"))return null;
+    if(v.currency!=null&&String(v.currency).toUpperCase()!=="USD")return null;v=v.value;}
+  const x=Number(v);return Number.isFinite(x)?x:null;
+};
 const stamp=v=>v&&Number.isFinite(Date.parse(String(v)))?new Date(v).toISOString():null;
 const isoSeconds=v=>{const n=num(v);return n==null?null:stamp(new Date(n>1e12?n:n*1000).toISOString())};
 const round=v=>Math.round((v+Number.EPSILON)*10000)/10000;
