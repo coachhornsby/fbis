@@ -71,7 +71,7 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
     {state.error?<p role="alert">Player prop delivery failed: {state.error}</p>:null}
     {modelError?<p role="status">Model delivery: {modelError}</p>:null}
     {state.degraded?<p role="status">Coverage unknown: one or more observation stores could not be read completely.</p>:null}
-    {!state.loading&&!modelLoading&&!state.error&&!rows.length?<p className="pp-empty">No independent FBIS projections available for these filters. Contracts without a matched projection stay off the board.</p>:null}
+    {!state.loading&&!modelLoading&&!state.error&&!rows.length?<p className="pp-empty">{sport==="tennis" ? "No independent tennis player-stat projections available for these filters. Available tennis match/set/game exchange markets are shown separately below." : "No independent FBIS projections available for these filters. Contracts without a matched projection stay off the board."}</p>:null}
     {!compact&&basketballWatermarks.total>0?<details className="pp-basketball-watermark-audit">
       <summary>Basketball team watermarks: {basketballWatermarks.resolved}/{basketballWatermarks.total} resolved
         {basketballWatermarks.unresolved ? ` · ${basketballWatermarks.unresolved} need team identity` : ' · all verified'}
