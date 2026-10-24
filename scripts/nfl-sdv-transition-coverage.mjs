@@ -16,7 +16,9 @@ for(const g of data){
 }
 const unique=[...groups.values()],drives=unique.flatMap(x=>x.drives);
 const valid=d=>Number.isInteger(d.officialDurationSeconds)&&d.officialDurationSeconds>=0&&
- d.officialDurationSeconds<=1800&&typeof d.startTransition==="string"&&
+ d.officialDurationSeconds<=1800&&
+ Number.isInteger(d.officialStartYardsToGoal)&&d.officialStartYardsToGoal>=0&&
+ d.officialStartYardsToGoal<=100&&typeof d.startTransition==="string"&&
  typeof d.endTransition==="string";
 const source=drives.filter(valid),linked=source.filter(d=>
  Number.isInteger(d.observedNextStartYardsToGoal)&&d.observedNextStartYardsToGoal>=0&&
