@@ -83,6 +83,9 @@ for(const sport of ["nfl","cfb"]){
  if(performance.status!==200||performance.body.sport!==sport||
    performance.body.canAuthorizeWager!==false||performance.body.calibrated!==false)
   throw Error("PROSPECTIVE_PERFORMANCE_UNSAFE:"+sport);
+ const readiness=await request("/api/football-sdv-prospective?sport="+sport+"&mode=readiness");
+ if(readiness.status!==200||readiness.body?.sport!==sport||readiness.body.canAuthorizeWager!==false||!Number.isInteger(readiness.body.receiptCount))throw Error("PROSPECTIVE_READINESS_REPORT_UNAVAILABLE:"+sport);
+ s.readiness={receipts:readiness.body.receiptCount,physicalGames:readiness.body.distinctPhysicalGames,overduePhysicalGames:readiness.body.overduePhysicalGames,sourceAgeHours:readiness.body.sourceAgeHours,models:readiness.body.models};
  s.gradedSample=performance.body.n;
  s.metricState=performance.body.status;
  s.gradedPerModel=performance.body.gradedPerModel||{};
