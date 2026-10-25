@@ -1,8 +1,6 @@
 name: Soccer PitchAPI v3 sync
 
 on:
-  schedule:
-    - cron: "35 11 * * *"
   workflow_dispatch:
     inputs:
       mode:
