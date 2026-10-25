@@ -68,6 +68,10 @@ export async function onRequestGet({env,request}) {
     identityVerified:false,priceVerified:false,marketAvailable:false,
     purchaseAsk:null,canQualify:false,canAuthorizeWager:false
   })));
+  marketOnly.push(...(gamma.marketOnly||[]).filter(r=>
+    date && (Date.parse(r.start_time)>now || r.collectedAt &&
+      Date.parse(r.collectedAt)<Date.parse(r.start_time) && r.historicalReference===true)
+  ));
   const officialScopeCandidates = buildNhlOfficialScopeCandidates(captured.rows,{capturedAt:new Date().toISOString()});
 
   const degraded = !stores.length || diagnostics.some(d=>d.status==='READ_FAILED' || d.truncated);
