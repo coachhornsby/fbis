@@ -95,3 +95,15 @@ test('MLB completion rejects a later offset Statcast receipt before first pitch'
  g.mlbPitchMatchup={homeOffense:{featureEvidence:[{capturedAt:'2026-10-24T11:10:00-04:00',sources:[{observedAt:'2026-10-24T10:59:59-04:00'}]}]}};
  assert.throws(()=>buildMlbAblationFreeze(g,now),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
 });
+
+test('MLB completion freeze rejects nested post-checkpoint asOf and observed_at on actual model operands',()=>{
+ const g=game();
+ g.mlbContext.bullpenEvidence={sources:[{asOf:'2026-10-24T15:00:01Z'}]};
+ assert.throws(()=>buildMlbAblationFreeze(g,now),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+ g.mlbContext.bullpenEvidence.sources[0].asOf='2026-10-23';
+ g.savant.pitcherUsageEvidence={observed_at:'2026-10-24T15:01:00Z'};
+ assert.throws(()=>buildMlbAblationFreeze(g,now),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+ g.savant.pitcherUsageEvidence.observed_at='2026-10-24T14:59:00Z';
+ g.mlbPitchMatchup={awayOffense:{featureEvidence:[{sources:[{fetchedAt:'2026-10-24T15:00:01Z'}]}]}};
+ assert.throws(()=>buildMlbAblationFreeze(g,now),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+});
