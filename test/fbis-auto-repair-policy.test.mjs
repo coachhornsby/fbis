@@ -86,11 +86,14 @@ test('provider-timed Polymarket US research BBO can count as current observed od
  assert.equal(verifiedCurrentQuote({...safe,providerTimestampVerified:false},now),false);
  assert.equal(verifiedCurrentQuote({...safe,temporal:{status:'STALE'}},now),false);
 });
-test('soccer full-time moneyline requires home draw and away from same provider market',()=>{
+test('soccer full-time moneyline requires independently observed home, draw, and away contracts',()=>{
  const common={source:'Test Provider',sourceMarketId:'1x2',marketFamily:'moneyline',period:'full_game',
   marketAvailable:true,priceVerified:true,providerTimestampVerified:true,contractPrice:.33,
   sourceObservedAt:'2026-10-25T17:50:00Z'};
  const homeAway=[{...common,side:'home'},{...common,side:'away'}];
  assert.equal(marketFamilyEvidence(homeAway,'moneyline',{now,sport:'soccer'}).available,false);
- assert.equal(marketFamilyEvidence([...homeAway,{...common,side:'draw'}],'moneyline',{now,sport:'soccer'}).available,true);
+ // Source-specific Polymarket US soccer 1X2 settlement uses three separately
+ // priced binary contracts. Repeating one market ID for all three sides is
+ // insufficient evidence and must not grant current-market qualification.
+ assert.equal(marketFamilyEvidence([...homeAway,{...common,side:'draw'}],'moneyline',{now,sport:'soccer'}).available,false);
 });
