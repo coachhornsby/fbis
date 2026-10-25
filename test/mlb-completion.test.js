@@ -68,3 +68,30 @@ test('immutable MLB ablation freeze rejects nested bulletin and lineup receipts 
  g.savant.pitcherTrend={sourceObservedAt:'2026-10-24T15:02:00Z'};
  assert.throws(()=>buildMlbAblationFreeze(g,now),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
 });
+
+test('MLB completion freeze accepts explicit local timezone offsets and prior-day date-only legacy evidence',()=>{
+ const g=game();
+ g.start='2026-10-24T19:00:00-05:00'; // October 25 00:00 UTC
+ g.mlbContext.palAsOf='2026-10-24T10:00:00-05:00'; // exact 15:00 UTC
+ g.mlbPersistentState={asOf:'2026-10-23'};
+ const freeze=buildMlbAblationFreeze(g,'2026-10-24T10:00:00-05:00');
+ assert.equal(freeze.checkpoint,'EARLY');
+ assert.equal(freeze.gameStart,g.start);
+ assert.equal(freeze.capturedAt,'2026-10-24T10:00:00-05:00');
+ assert.equal(freeze.classification,'PROSPECTIVE');
+});
+test('MLB completion freeze rejects same-day date-only Pal or persistent-state source evidence',()=>{
+ const g=game();
+ g.mlbContext.palAsOf='2026-10-24'; // 24th UTC day is not provably complete by 15:00Z
+ assert.throws(()=>buildMlbAblationFreeze(g,now),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+ g.mlbContext.palAsOf='2026-10-23';
+ g.mlbPersistentState={asOf:'2026-10-24'};
+ assert.throws(()=>buildMlbAblationFreeze(g,now),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+ g.mlbPersistentState.asOf='2026-10-23';
+ assert.equal(buildMlbAblationFreeze(g,now).canPromote,false);
+});
+test('MLB completion rejects a later offset Statcast receipt before first pitch',()=>{
+ const g=game();
+ g.mlbPitchMatchup={homeOffense:{featureEvidence:[{capturedAt:'2026-10-24T11:10:00-04:00',sources:[{observedAt:'2026-10-24T10:59:59-04:00'}]}]}};
+ assert.throws(()=>buildMlbAblationFreeze(g,now),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+});
