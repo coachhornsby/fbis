@@ -85,7 +85,7 @@ test("NBA R2 promotion requires matching all-30 immutable snapshot and player/sc
 test("NBA reconciliation uses only read-only D1 query with exact asOf parameters",async()=>{
   let body=null;
   const observed=await readNbaPersistence(fakeProfile,{
-    env:{CLOUDFLARE_API_TOKEN:"test-only",CLOUDFLARE_ACCOUNT_ID:"account",CLOUDFLARE_D1_DATABASE_ID:"db"},
+    env:{CLOUDFLARE_API_TOKEN:"test-only",CLOUDFLARE_ACCOUNT_ID:"account",CLOUDFLARE_D1_DATABASE_ID:"ed992525-d2ed-4b1d-8a12-feeb2efa152c"},
     fetchImpl:async(_url,opts)=>{
       body=JSON.parse(opts.body);
       return {ok:true,json:async()=>({success:true,result:[{success:true,results:[complete]}]})};
@@ -148,7 +148,7 @@ test("NBA jobs share a production D1 writer lock; Tennis uses independent existi
 test("transient D1 7500 uses a second read-only Wrangler verification without rerunning writes",async()=>{
   let calls=0,sql=null;
   const row=await readNbaPersistence(fakeProfile,{
-    env:{CLOUDFLARE_API_TOKEN:"test-only",CLOUDFLARE_ACCOUNT_ID:"account"},
+    env:{CLOUDFLARE_API_TOKEN:"test-only",CLOUDFLARE_ACCOUNT_ID:"account",CLOUDFLARE_D1_DATABASE_ID:"ed992525-d2ed-4b1d-8a12-feeb2efa152c"},
     fetchImpl:async()=>({ok:true,json:async()=>({
       success:false,errors:[{code:7500,message:"internal error"}],
     })}),
@@ -161,7 +161,7 @@ test("transient D1 7500 uses a second read-only Wrangler verification without re
   assert.doesNotMatch(sql,/\\b(?:INSERT|UPDATE|DELETE|REPLACE|DROP)\\b/i);
   assert.deepEqual(parseWranglerD1Counts([{success:true,results:[complete]}]),complete);
   await assert.rejects(readNbaPersistence(fakeProfile,{
-    env:{CLOUDFLARE_API_TOKEN:"test-only",CLOUDFLARE_ACCOUNT_ID:"account"},
+    env:{CLOUDFLARE_API_TOKEN:"test-only",CLOUDFLARE_ACCOUNT_ID:"account",CLOUDFLARE_D1_DATABASE_ID:"ed992525-d2ed-4b1d-8a12-feeb2efa152c"},
     fetchImpl:async()=>({ok:false,status:401}),
     wranglerRead:async()=>{throw Error("AUTHENTICATION_ERROR_SHOULD_NOT_RETRY");},
   }),/HTTP_401/);
