@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   resolveMarketHistoryWriteDb,
+  buildLiveMarketHistoryCapacityPlan,
   marketHistoryRetentionDecision,
   MARKET_HISTORY_HOT_WINDOW_MS,
 } from "../functions/lib/databaseTopology.js";
@@ -130,4 +131,28 @@ test("archive scan never deletes and retention gate blocks deletion without veri
   });
   assert.equal(blocked.authorized, false);
   assert.equal(blocked.canDeleteSourceRows, false);
+});
+
+test("live capacity plan identifies Q4B and labels old Q4 rates as scenarios", async () => {
+ const plan = await buildLiveMarketHistoryCapacityPlan({
+  MARKET_HISTORY_2026Q4B_DB: historyDb(1_649_008_640),
+  MARKET_HISTORY_2026Q4_DB: historyDb(9_109_897_216),
+ }, { now: new Date("2026-10-25T22:00:00Z") });
+ assert.equal(plan.writerBinding, "MARKET_HISTORY_2026Q4B_DB");
+ assert.equal(plan.measured.databaseName, "fbis-market-history-2026q4b");
+ assert.equal(plan.measured.usedBytes, 1_649_008_640);
+ assert.equal(plan.verifiedLiveWriters.liveTarget, "MARKET_HISTORY_2026Q4B");
+ assert.equal(plan.verifiedLiveWriters.q4ReceivingLiveObservations, false);
+ assert.equal(plan.measurementBasis, "LIVE_PARTITION_SIZE");
+ assert.equal(plan.ingestRateBasis, "HISTORICAL_Q4_SCENARIO_NOT_CURRENT_GROWTH");
+ assert.equal(plan.canAuthorizeWager, false);
+});
+test("live capacity plan never substitutes old baseline for blocked or unmeasured writers", async () => {
+ for (const bytes of [undefined, 9_100_000_000]) {
+  const plan = await buildLiveMarketHistoryCapacityPlan({MARKET_HISTORY_2026Q4B_DB: historyDb(bytes)},
+   {now:new Date("2026-10-25T22:00:00Z")});
+  assert.equal(plan.writerAvailable, false);
+  assert.equal(plan.forecast, null);
+  assert.equal(plan.measurementBasis, "LIVE_WRITER_UNAVAILABLE");
+ }
 });

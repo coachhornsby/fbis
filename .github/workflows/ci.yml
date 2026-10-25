@@ -77,7 +77,7 @@ jobs:
       - name: Verify continuous WS shadow release guard and parity monitoring
         run: node --test test/market-history-ws-health.test.mjs
       - name: Verify protected physical D1 storage capacity reporting
-        run: node --test test/storage-capacity-production.test.mjs
+        run: node --test test/storage-capacity-production.test.mjs test/market-history-capacity.test.js test/market-history-protection.test.js
       - name: Verify OPERATIONS_DB ownership, schema-ready fallback, and routing
         run: node --test test/database-ownership.test.js test/operations-db-fallback.test.js
       - name: Validate three-venue CFB market matching, exact-line EV and overflow routing

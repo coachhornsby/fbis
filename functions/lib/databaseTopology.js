@@ -7,6 +7,7 @@ import { DATABASE_OWNERS, D1_HARD_LIMIT_BYTES, capacityAlertLevel } from "./data
 import {
   recommendHotWindowMs,
   shouldBlockMarketHistoryWrite,
+  buildVerifiedCapacityPlan,
   MARKET_HISTORY_HOT_WINDOW_MS_LEGACY_7D,
   MEASURED_Q4_BASELINE,
   rowsPerHourFromSeries,
@@ -683,4 +684,30 @@ export async function probeTopologyCapacity(env) {
       : { bound: true, databaseId, ...capacityAlertLevel(bytes) };
   }
   return live;
+}
+
+/** Read-only capacity report uses the same qualification as the actual writer. */
+export async function buildLiveMarketHistoryCapacityPlan(env, { now = new Date() } = {}) {
+  const target = await resolveMarketHistoryWriteDb(env, { now });
+  if (!target.db) return {
+    contract: "fbis-market-history-capacity-plan-v1",
+    measurementBasis: "LIVE_WRITER_UNAVAILABLE",
+    writerAvailable: false,
+    rejected: target.rejected,
+    warning: target.warning,
+    forecast: null,
+    canAuthorizeWager: false,
+  };
+  return {
+    ...buildVerifiedCapacityPlan({
+      usedBytes: target.capacity.usedBytes,
+      databaseName: target.partition.databaseName,
+      databaseId: target.partition.databaseId,
+      liveWriterTarget: target.store,
+      measuredAt: now instanceof Date ? now.toISOString() : String(now),
+    }),
+    writerAvailable: true,
+    writerBinding: target.binding,
+    rejected: target.rejected,
+  };
 }
