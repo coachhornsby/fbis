@@ -2,6 +2,7 @@ import { buildSlate } from './slateEngine.js';
 import { independentPropRows,loadPropFixturesAndPlayers,resolvePropModelIdentities,resolvePropResearchEnv } from './propResearchData.js';
 import { chicagoDayBounds } from './chicagoDayBounds.js';
 import { freezePropForecasts } from './propForecastArchive.js';
+import { frozenForecastDateIndex } from './fbisFrozenModelDelivery.js';
 export async function capturePropForecastJob(env,{now=new Date(),webCrypto=globalThis.crypto,sport:requestedSport=null}={}){
  const sports=['nba','nfl','nhl','mlb'];
  if(requestedSport&&!sports.includes(requestedSport))return {ok:false,reason:'SPORT_CAPTURE_NOT_SUPPORTED'};
@@ -17,5 +18,21 @@ export async function capturePropForecastJob(env,{now=new Date(),webCrypto=globa
  const result=await freezePropForecasts(env,rows,{now,webCrypto});
  const receipt={...result,sport,date,attemptedAt:now.toISOString(),candidateProjections:rows.length};
  await env.ARCHIVE.put('player-props/forecasts/v1/'+sport+'/last-capture.json',JSON.stringify(receipt),{httpMetadata:{contentType:'application/json'}});
+ // Index only already readback-verified immutable blobs; never copy projections
+ // into a mutable unverified price/forecast payload.
+ const indexKey=frozenForecastDateIndex(sport,date);
+ try{
+  const old=await env.ARCHIVE.get(indexKey),previous=old?await old.json():null;
+  const receipts=new Map();
+  if(previous?.sport===sport&&previous?.date===date&&Array.isArray(previous.receipts))
+   for(const r of previous.receipts)if(r.ok===true&&r.event&&r.key)receipts.set(r.event,r);
+  for(const r of result.receipts||[])if(r.ok===true&&r.event&&r.key)receipts.set(r.event,r);
+  await env.ARCHIVE.put(indexKey,JSON.stringify({
+   schemaVersion:1,sport,date,attemptedAt:now.toISOString(),receipts:[...receipts.values()],
+   canAuthorizeWager:false
+  }),{httpMetadata:{contentType:'application/json'}});
+ }catch{
+  receipt.indexStatus='DATE_INDEX_WRITE_FAILED';
+ }
  return receipt;
 }
