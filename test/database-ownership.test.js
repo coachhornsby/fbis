@@ -134,9 +134,7 @@ test("performance audit surfaces high-severity primary growth findings", () => {
 });
 
 test("pipeline validation covers board sports and all five surfaces", async () => {
-  assert.ok(PIPELINE_VALIDATION_SPORTS.includes("nfl"));
-  assert.ok(PIPELINE_VALIDATION_SPORTS.includes("soccer"));
-  assert.ok(PIPELINE_VALIDATION_SPORTS.includes("tennis"));
+  assert.deepEqual([...PIPELINE_VALIDATION_SPORTS].sort(), ["nfl", "mlb", "nba", "nhl", "cfb", "cbb", "tennis"].sort());
   const recent = new Date(Date.now() - 3_600_000).toISOString();
   const env = {
     DB: {
