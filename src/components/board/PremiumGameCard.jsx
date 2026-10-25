@@ -10,6 +10,7 @@ import CfbSeasonStatStrip from "./CfbSeasonStatStrip.jsx";
 import CfbProjectionReliability from "./CfbProjectionReliability.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
+import CfbCapturedMarket from "./CfbCapturedMarket.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
@@ -380,6 +381,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <MoneylinePriceComparison game={game} />
         </>
       )}
+      {!stored && sportId === "cfb" ? <CfbCapturedMarket game={game} /> : null}
       {sportId === "cfb" ? <CfbThreeVenueLines game={game} /> : null}
       {sportId === "cfb" ? <CfbSeasonStatStrip evidence={game.cfbSeasonEvidence} /> : null}
       {sportId === "cfb" ? <CfbProjectionReliability reliability={game.cfbProjectionReliability} game={game} /> : null}
