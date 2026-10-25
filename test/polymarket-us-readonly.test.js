@@ -17,10 +17,9 @@ const E={id:"poly-123",title:"Buffalo Bills vs Los Angeles Rams",
 const game={id:"401872994",sport:"nfl",start:"2026-10-13T00:15Z",
  away_name:"Buffalo Bills",home_name:"Los Angeles Rams",away_abbr:"BUF",home_abbr:"LAR"};
 
-test("all eleven independently supported FBIS sport scopes are intentionally tracked",()=>{
- assert.equal(FBIS_POLY_SPORTS.length,11);
- assert.equal(new Set(FBIS_POLY_SPORTS).size,11);
- for(const sport of ["nfl","cfb","cbb","nba","wnba","mlb","npb","kbo","nhl","soccer","tennis"])assert.ok(FBIS_POLY_SPORTS.includes(sport));
+test("only seven supported FBIS sport scopes enter live Polymarket collection",()=>{
+ assert.deepEqual([...FBIS_POLY_SPORTS].sort(), ["nfl","mlb","nba","nhl","cfb","cbb","tennis"].sort());
+ for(const sport of ["wnba","npb","kbo","soccer"])assert.ok(!FBIS_POLY_SPORTS.includes(sport));
 });
 test("league discovery preserves US origin and does not conflate NFL or CFB, CBB or NBA",()=>{
  const pairs=[["NFL","nfl"],["NCAAF","cfb"],["NCAAB","cbb"],["NBA","nba"],["WNBA","wnba"],["MLB","mlb"],["NPB","npb"],["KBO","kbo"],["NHL","nhl"],["ATP","tennis"],["WTA","tennis"],["EPL","soccer"],["MLS","soccer"]];

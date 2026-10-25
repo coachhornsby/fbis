@@ -1,12 +1,13 @@
 import {marketTemporalStatus,providerObservationTime} from '../lib/marketTemporal.js';
 import {FBIS_POLY_SPORTS} from '../lib/polymarketUs.js';
+const RETIRED_ARCHIVE_SPORTS=new Set(["npb","kbo","wnba","soccer"]);
 import {marketDisplayAmerican,marketDisplayImplied} from '../../src/lib/marketQuoteDisplay.js';
 import {coldHistoryEnabled,readColdCompatibleEventObservations} from '../lib/coldMarketHistory.js';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 /** Public event research read. Latest immutable observation per exact source contract. */
 export async function onRequestGet({env,request}){
  const url=new URL(request.url),sport=url.searchParams.get('sport'),eventId=url.searchParams.get('eventId'),cursor=url.searchParams.get('cursor')||'0';
- if(!FBIS_POLY_SPORTS.includes(sport)||!eventId||eventId.length>160||!/^\d{1,7}$/.test(cursor))return json({ok:false,error:'INVALID_EVENT_QUERY'},400);
+ if(!(FBIS_POLY_SPORTS.includes(sport)||(url.searchParams.get('historical')==='1'&&RETIRED_ARCHIVE_SPORTS.has(sport)))||!eventId||eventId.length>160||!/^\d{1,7}$/.test(cursor))return json({ok:false,error:'INVALID_EVENT_QUERY'},400);
  if(!env.DB?.prepare)return json({ok:false,error:'DATABASE_UNAVAILABLE'},503);
  try{return json(await marketObservationPage(env,{sport,eventId,offset:Number(cursor),pageSize:100,now:new Date()}));}
  catch{return json({ok:false,error:'MARKET_READ_UNAVAILABLE'},502);}

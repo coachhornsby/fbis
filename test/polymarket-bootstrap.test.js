@@ -57,10 +57,14 @@ test('per-game market discovery reaches contracts beyond the first 40 embedded m
  assert.equal(result.contracts,1);assert.equal(result.inventory[0].market,'late-spread');
 });
 
-test('provider sport metadata includes NWSL and excludes cricket premier leagues',async()=>{
+test('retired soccer fixtures never reach market discovery or normalized writes',async()=>{
  const e=environment();e.db.prepare("UPDATE games SET sport='soccer'").run();forecast(e);e.db.prepare("UPDATE prediction_snapshots SET sport='soccer'").run();
- const r=await bootstrapPolymarket(e,{operation:'catalogue'},{now,fetchImpl:async u=>Response.json(u.pathname==='/v2/sports'?{sports:[{id:2,slug:'soccer'},{id:9,slug:'cricket'}]}:{leagues:[{slug:'nwsl',name:'NWSL',sportId:2},{slug:'etpl',name:'European T20 Premier League',sportId:9}]})});
- assert.deepEqual(r.leagues.map(l=>l.slug),['nwsl']);assert.equal(r.leagues[0].providerSport,'soccer');
+ const fixtures=await projectedPolymarketFixtures(e.DB,now);assert.equal(fixtures.length,0);
+ let fetched=0;
+ const r=await bootstrapPolymarket(e,{operation:'catalogue'},{now,fetchImpl:async()=>{fetched++;throw Error('RETIRED_PROVIDER_REQUEST')}});
+ assert.equal(r.projectedFixtures,0);assert.equal(fetched,0);assert.equal(e.writes.length,0);
+ await assert.rejects(()=>bootstrapPolymarket(e,{operation:'page',sport:'soccer',slug:'nwsl',offset:0,receiptId:'retired-soccer'},{now,fetchImpl:async()=>{fetched++;}}),/SPORT_RETIRED/);
+ assert.equal(fetched,0);
 });
 test('event detail cannot claim completeness when advertised and returned market counts differ',async()=>{
  const e=environment();forecast(e);const event={id:'ev',startTime:start,homeTeam:{name:'Denver Broncos'},awayTeam:{name:'Seattle Seahawks'},markets:[]};

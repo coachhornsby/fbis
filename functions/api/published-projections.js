@@ -6,6 +6,8 @@ import { insertPublishedProjection, listPublishedProjections, sha256Hex } from "
 import { buildNflFrozenAuditPacket } from "../lib/nflFrozenPublicationAudit.js";
 
 const SPORTS = new Set(["mlb", "npb", "kbo", "cfb", "cbb", "nfl"]);
+// Historical GET access remains, but new publications require supported sports.
+const ACTIVE_SPORTS = new Set(["nfl", "mlb", "nba", "nhl", "cfb", "cbb", "tennis"]);
 
 function json(data, status = 200, cache = "no-store") {
   return new Response(JSON.stringify(data), {
@@ -72,7 +74,7 @@ export async function onRequestPost(context) {
 
   const sport = String(body.sport || "").toLowerCase();
   const gameId = String(body.gameId || body.game_id || "");
-  if (!SPORTS.has(sport) || !gameId) return json({ ok: false, error: "sport-and-gameId-required" }, 400);
+  if (!ACTIVE_SPORTS.has(sport) || !SPORTS.has(sport) || !gameId) return json({ ok: false, error: "sport-and-gameId-required" }, 400);
   const rawDate = String(body.date || "");
   const window = sport === "cfb" || sport === "cbb" ? { maxPast: 7, maxFuture: 14 } : { maxPast: 2, maxFuture: 2 };
   const resolved = resolveSlateDate(rawDate, window);

@@ -1,4 +1,4 @@
-import {POLY_US_API,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers} from './polymarketUs.js';
+import {POLY_US_API,FBIS_POLY_SPORTS,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers} from './polymarketUs.js';
 import {polymarketUsSideLabel,polymarketUsCanonicalSide} from './polymarketUs.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
 import {persistCfbMarketQuotes} from './cfbMarketState.js';
@@ -54,6 +54,7 @@ export async function projectedPolymarketFixtures(db,now=new Date(),cfbDb=null){
  }catch{/* tennis tables absent on older D1 snapshots */}
  return [...(cfbDb?.prepare?(games.results||[]).filter(g=>g.sport!=='cfb'):(games.results||[])),
    ...sportRows,...(tennis.results||[])]
+  .filter(g=>FBIS_POLY_SPORTS.includes(String(g.sport||'').toLowerCase()))
   .sort((a,b)=>String(a.start).localeCompare(String(b.start))||String(a.id).localeCompare(String(b.id)));
 }
 async function boundedJson(fetchImpl,url,maxBytes=4e6){
@@ -92,6 +93,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
  if(!validReceipt(opts.receiptId))throw Error('INVALID_RECEIPT');
  const key=prefix+opts.receiptId+'.json';
  if(opts.operation==='page'||opts.operation==='markets'){
+  if(opts.operation==='page'&&!FBIS_POLY_SPORTS.includes(String(opts.sport||'').toLowerCase()))throw Error('SPORT_RETIRED');
   if(!Number.isSafeInteger(opts.offset)||opts.offset<0||opts.offset%20)throw Error('INVALID_SCOPE');
   if(opts.operation==='page'&&(!valid(opts.slug)||classifyPolymarketUsLeague({slug:opts.slug,name:opts.name,providerSport:opts.providerSport})!==opts.sport))throw Error('INVALID_SCOPE');
   const existing=await env.ARCHIVE.get(key);if(existing){const old=await existing.json();
@@ -101,7 +103,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
   if(opts.operation==='markets'){
    if(!validReceipt(opts.parentReceiptId)||!Number.isSafeInteger(opts.eventIndex)||opts.eventIndex<0)throw Error('INVALID_PARENT');
    const parentObject=await env.ARCHIVE.get(prefix+opts.parentReceiptId+'.json');if(!parentObject)throw Error('UNKNOWN_PARENT');
-   const parent=await parentObject.json(),entry=parent.events?.[opts.eventIndex];if(!entry)throw Error('INVALID_EVENT_INDEX');
+   const parent=await parentObject.json(),entry=parent.events?.[opts.eventIndex];if(!FBIS_POLY_SPORTS.includes(String(parent.sport||'').toLowerCase()))throw Error('SPORT_RETIRED');if(!entry)throw Error('INVALID_EVENT_INDEX');
    if(!fixtures.some(g=>String(g.id)===entry.canonicalId&&g.sport===parent.sport))throw Error('FORECAST_EXPIRED');
    const detailKey=prefix+opts.parentReceiptId+'-event-'+opts.eventIndex+'-detail.json';
    let object=await env.ARCHIVE.get(detailKey),detail;
@@ -157,7 +159,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
   return {...receipt,offers:undefined,events:undefined};
  }
  if(opts.operation!=='quotes'||!Number.isInteger(opts.batchIndex)||opts.batchIndex<0)throw Error('INVALID_OPERATION');
- const source=await env.ARCHIVE.get(key);if(!source)throw Error('UNKNOWN_RECEIPT');const receipt=await source.json();
+ const source=await env.ARCHIVE.get(key);if(!source)throw Error('UNKNOWN_RECEIPT');const receipt=await source.json();if(!FBIS_POLY_SPORTS.includes(String(receipt.sport||'').toLowerCase()))throw Error('SPORT_RETIRED');
  const doneKey=prefix+opts.receiptId+'-quotes-'+opts.batchIndex+'.json';const done=await env.ARCHIVE.get(doneKey);if(done)return {...await done.json(),replayed:true};
  if(now.getTime()-Date.parse(receipt.capturedAt)>30*60000||opts.batchIndex>=receipt.bookBatches)throw Error('EXPIRED_OR_INVALID_BATCH');
  const permitted=new Set(fixtures.map(g=>String(g.id)));const offers=[],errors=[],marketResults=[];

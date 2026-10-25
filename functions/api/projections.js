@@ -12,7 +12,7 @@ import {matchKalshiCfbMoneylines} from "../lib/cfbKalshiMarkets.js";
 import {readCfbMarketQuotes} from "../lib/cfbMarketState.js";
 import {buildCfbMarketShopping} from "../lib/cfbMarketShop.js";
 
-const SPORTS = new Set(["mlb", "npb", "kbo", "cfb", "cbb", "nfl", "nba", "wnba", "nhl", "soccer", "tennis"]);
+const SPORTS = new Set(["nfl", "mlb", "nba", "nhl", "cfb", "cbb", "tennis"]);
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);

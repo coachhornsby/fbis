@@ -4,6 +4,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import { BOARD_SPORTS } from "../functions/lib/slateEngineCore.js";
 import { PROP_SPORTS } from "../functions/lib/exchangePlayerProps.js";
 import { SPORT_FILTERS } from "../src/app/navigation.js";
+import { retiredSportApiGate } from "../functions/api/_middleware.js";
+import { FBIS_POLY_SPORTS } from "../functions/lib/polymarketUs.js";
+import { STREAM_SPORTS } from "../services/polymarket-us-stream/core.mjs";
+import { onRequestGet as liveProjections } from "../functions/api/projections.js";
+import { onRequestGet as marketObservations } from "../functions/api/market-observations.js";
 
 const APPROVED = ["nfl", "mlb", "nba", "nhl", "cfb", "cbb", "tennis"];
 const RETIRED = ["npb", "kbo", "soccer", "wnba"];
@@ -34,5 +39,37 @@ test("retired soccer Worker cron schedules are empty in both configs", () => {
   for (const filename of ["wrangler.soccer-backfill.toml", "wrangler.soccer-pitchapi.toml"]) {
     const config = readFileSync(new URL("../" + filename, import.meta.url), "utf8");
     assert.match(config, /^crons = \[\]/m, filename);
+  }
+});
+
+test("retired API routes fail closed; explicit historical GET reads stay accessible", async () => {
+  for (const name of ["soccer-pitchapi-ingest", "soccer-pitchapi-sync", "wnba-wager-decisions", "asian-baseball-pregame-controlled"]) {
+    const path = "https://fbis.invalid/api/" + name;
+    for (const method of ["POST", "PUT", "DELETE"]) {
+      const response = retiredSportApiGate(new Request(path, { method }));
+      assert.equal(response?.status, 410, name + " " + method);
+      assert.equal((await response.json()).canAuthorizeWager, false);
+    }
+  }
+  for (const name of ["soccer-pitchapi-export", "asian-baseball-history-backfill", "wnba-wager-decisions"]) {
+    assert.equal(retiredSportApiGate(new Request("https://fbis.invalid/api/" + name)), null);
+  }
+  assert.equal(retiredSportApiGate(new Request("https://fbis.invalid/api/soccer-pitchapi-sync"))?.status, 410);
+  assert.equal(retiredSportApiGate(new Request("https://fbis.invalid/api/today")), null);
+});
+
+test("live exchange and WebSocket collectors use only the seven approved sports", () => {
+  assert.deepEqual([...FBIS_POLY_SPORTS].sort(), [...APPROVED].sort());
+  assert.deepEqual([...STREAM_SPORTS].sort(), [...APPROVED].sort());
+});
+
+test("retired live projection and market read paths fail closed without breaking archive opt-in", async () => {
+  for (const sport of RETIRED) {
+    const live = await liveProjections({ request: new Request("https://fbis.invalid/api/projections?sport=" + sport), env: {} });
+    assert.equal(live.status, 400, sport + " live projection");
+    const direct = await marketObservations({ request: new Request("https://fbis.invalid/api/market-observations?sport=" + sport + "&eventId=historical"), env: {} });
+    assert.equal(direct.status, 400, sport + " direct market query");
+    const historical = await marketObservations({ request: new Request("https://fbis.invalid/api/market-observations?historical=1&sport=" + sport + "&eventId=historical"), env: {} });
+    assert.equal(historical.status, 503, sport + " archived query accepted but unavailable without DB");
   }
 });

@@ -12,12 +12,12 @@ test("persistent market selection distributes subscriptions over all supported s
    sport:s,source_market_id:s+"-"+i,canonical_event_id:s+"-game"
  })));
  const selected=fairMarketSelection(rows,{perSport:4,maxMarkets:44});
- assert.equal(selected.length,44);
- assert.equal(new Set(selected.map(x=>x.sport)).size,11);
- assert.equal(new Set(selected.map(x=>x.source_market_id)).size,44);
+ assert.equal(selected.length,35);
+ assert.equal(new Set(selected.map(x=>x.sport)).size,7);
+ assert.equal(new Set(selected.map(x=>x.source_market_id)).size,35);
 });
 
-test("dynamic capacity retires the fixed 48 bottleneck and keeps all 11 sports",()=>{
+test("dynamic capacity serves all seven supported sports and excludes retired inventory",()=>{
   const rows=STREAM_SPORTS.flatMap(s=>Array.from({length:20},(_,i)=>({
     sport:s,source_market_id:`${s}-m-${i}`,canonical_event_id:`${s}-g-${i}`,
     market_family:i%3===0?"moneyline":i%3===1?"spread":"total",
@@ -39,17 +39,19 @@ test("dynamic capacity retires the fixed 48 bottleneck and keeps all 11 sports",
     ...Array.from({length:5},(_,i)=>({sport:"kbo",source_market_id:`kbo-x-${i}`,canonical_event_id:`kbo-e-${i}`,market_family:"moneyline",event_start_time:"2026-10-19T05:00:00Z",collected_at:"2026-10-16T12:00:00Z"})),
   ];
   const plan=manageSubscriptionCapacity([...rows,...stress],{
-    maxContracts:500,maxPerConnection:50,maxConnections:10,minPerSport:1,
+    maxContracts:350,maxPerConnection:50,maxConnections:10,minPerSport:1,
   });
   assert.ok(plan.assignedCount>48,"must exceed retired 48-cap when inventory allows");
-  assert.equal(plan.assignedCount,500);
+  assert.equal(plan.assignedCount,350);
   assert.ok(plan.uncoveredCount>0);
-  assert.equal(plan.partitions.length,10);
+  assert.equal(plan.partitions.length,7);
   assert.ok(plan.partitions.every(p=>p.size<=50));
   for(const sport of STREAM_SPORTS){
     assert.ok(plan.bySport[sport].assigned>=1,`${sport} starved under large CFB/CBB inventory`);
     assert.notEqual(plan.bySport[sport].status,"UNAVAILABLE");
   }
+  assert.ok(plan.assigned.every(row=>STREAM_SPORTS.includes(row.sport)));
+  for(const sport of ["soccer","wnba","npb","kbo"])assert.equal(plan.bySport[sport],undefined);
   assert.equal(new Set(plan.assigned.map(r=>r.source_market_id)).size,plan.assignedCount);
 });
 
@@ -168,8 +170,8 @@ test("legacy fairMarketSelection adapter still returns unique assigned contracts
   sport,source_market_id:sport+"-contract-"+i,canonical_event_id:null
  })));
  const result=fairMarketSelection(rows,{perSport:6,maxMarkets:48});
- assert.equal(result.length,48);
- assert.equal(new Set(result.map(r=>r.source_market_id)).size,48);
+ assert.equal(result.length,42);
+ assert.equal(new Set(result.map(r=>r.source_market_id)).size,42);
  for(const sport of STREAM_SPORTS){
   assert.ok(result.filter(r=>r.sport===sport).length>=1,sport+" lost baseline coverage");
  }
