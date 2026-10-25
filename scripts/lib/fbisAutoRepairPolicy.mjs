@@ -12,8 +12,9 @@ export const propKey=r=>[r.sport,r.canonicalEventId,r.canonicalPlayerId,stat(r.c
 const issue=(kind,sport,eventId,reason,details={})=>({kind,sport,eventId:String(eventId||''),reason,...details});
 export const isActiveGame=(g,now=Date.now(),horizonMs=36*3600000)=>{
  const start=clock(g.start);
+ const live=String(g?.status||'').toLowerCase()==='live';
  return Boolean(g?.sport&&g?.id)&&Number.isFinite(start)&&start<=now+horizonMs&&
-  start>=now-5*3600000&&!['final','postponed','canceled','cancelled','suspended'].includes(String(g.status||'').toLowerCase());
+  (start>=now-5*3600000||live)&&!['final','postponed','canceled','cancelled','suspended'].includes(String(g.status||'').toLowerCase());
 };
 export function verifiedCurrentQuote(o,now=Date.now(),maxAgeMs=2*3600000){
  if(!o||o.priceVerified!==true||o.providerTimestampVerified===false||
