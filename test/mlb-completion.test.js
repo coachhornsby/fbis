@@ -54,3 +54,15 @@ test('training-day reads immutable games in bounded batches, preserves receipt o
  const r=await call(),body=await r.json();assert.equal(r.status,200);assert.deepEqual(body.games.map(g=>g.gameId),receipts.map((_,i)=>String(i)));assert.equal(peak,4);
  missing=true;const failed=await call();assert.equal(failed.status,422);assert.equal((await failed.json()).error,'GAME_SOURCE_MISSING');
 });
+
+test('immutable MLB ablation freeze rejects nested bulletin and lineup receipts obtained after the capture',()=>{
+ const g=game();
+ g.mlbContext.bullpenEvidence={sources:[{observedAt:'2026-10-24T16:00:00Z'}]};
+ assert.throws(()=>buildMlbAblationFreeze(g,now),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+ g.mlbContext.bullpenEvidence.sources[0].observedAt='2026-10-24T14:00:00Z';
+ g.playerProjectionRows=[{playerId:'99',position:'DH',market:'hits',fbisProjection:1.2,
+  lineage:{acquisition_timestamp:'2026-10-24T15:01:00Z'}}];
+ assert.throws(()=>buildMlbAblationFreeze(g,now),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+ g.playerProjectionRows[0].lineage.acquisition_timestamp='2026-10-24T14:59:00Z';
+ assert.equal(buildMlbAblationFreeze(g,now).classification,'PROSPECTIVE');
+});
