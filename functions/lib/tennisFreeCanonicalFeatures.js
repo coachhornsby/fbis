@@ -16,7 +16,7 @@ export async function loadCanonicalFreeTennisFeatures(db,{
   playerId,asOf:at,contractTradingAuthorized:false};
  const link=links[0];
  const observations=(await db.prepare(`WITH ranked AS (
- SELECT parsed_json,observed_at,source_event_key,
+ SELECT parsed_json,observed_at,source_event_key,observation_key,source_row_checksum,
  ROW_NUMBER() OVER (PARTITION BY source_event_key
    ORDER BY observed_at DESC,observation_key DESC) rn
  FROM tennis_free_current_observations
@@ -24,7 +24,7 @@ export async function loadCanonicalFreeTennisFeatures(db,{
    AND (json_extract(parsed_json,'$.winnerSourceId')=?
     OR json_extract(parsed_json,'$.loserSourceId')=?)
  )
- SELECT parsed_json,observed_at,source_event_key FROM ranked
+ SELECT parsed_json,observed_at,source_event_key,observation_key,source_row_checksum FROM ranked
  WHERE rn=1 LIMIT ?`)
  .bind(at,link.tour,link.source_player_id,link.source_player_id,
   maxObservations+1).all()).results||[];
@@ -44,8 +44,10 @@ export async function loadCanonicalFreeTennisFeatures(db,{
  }
  const features=deriveFreeTennisStatProfile(rows,{tour:link.tour,
   sourcePlayerId:link.source_player_id});
+ const evidenceRefs=observations.map(o=>({key:o.observation_key,
+  eventId:o.source_event_key,observedAt:o.observed_at,rowHash:o.source_row_checksum}));
  return {ok:true,fbisPlayerId:playerId,asOf:at,identityMethod:'TOUR_UNIQUE_EXACT_FULL_NAME',
-  identityLinkedAt:link.linked_at,sourceEvidenceRows:observations.length,
+  identityLinkedAt:link.linked_at,sourceEvidenceRows:observations.length,evidenceRefs,
   researchStats:features,source:'TENNISMYLIFE',
   observedAfterMatchRisk:!features.exactMatchDateVerified,
   safeForHistoricalPreEventOnlyIfObservedBeforeCutoff:true,
