@@ -94,7 +94,7 @@ export function modelDirectionPresentation(game={},vm={}) {
  return {status:'model',heading:'FBIS DIRECTION',value,
   teamSide:leading?.kind==='spread'?leading.side:!leading?favorite:null,
   totalDirection:leading?.kind==='total'?leading.side:null,
-  detail:leading?[spreadText,totalText].filter(Boolean).join(' · '):`FBIS ${fairLine} · TOTAL ${fmt(modelTotal)} · MARKET LINE UNAVAILABLE`,
+  detail:leading?[spreadText,totalText].filter(Boolean).join(' · '):`FBIS ${fairLine} · TOTAL ${fmt(modelTotal)} · ${game?.cfbCapturedMarket?.pregameReferenceOnly === true && finite(game.cfbCapturedMarket.total) != null ? `PREGAME POLYMARKET TOTAL ${fmt(finite(game.cfbCapturedMarket.total))} · HISTORICAL CAPTURE, NOT LIVE` : "NO VERIFIED CURRENT MARKET LINE"}`,
   secondary:'',
   modelOnly:true,executable:false,qualified:false};
 }
