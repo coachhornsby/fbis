@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {kalshiExecution,polymarketExecution,groupExecutions,shouldRepairPolymarketPrice,unresolvedPolymarketTrades} from "../functions/lib/exchangeBetLedger.js";
+import {kalshiExecution,polymarketExecution,groupExecutions,shouldRepairPolymarketPrice,unresolvedPolymarketTrades,restActivityCoveredByPrivateFill} from "../functions/lib/exchangeBetLedger.js";
 test("confirmed Kalshi buy fills aggregate by order, fees counted once per fill",()=>{
  const a=kalshiExecution({fill_id:"a",order_id:"o1",ticker:"KX-TEST",side:"yes",action:"buy",count_fp:"2",yes_price_dollars:"0.4",fee_cost:"0.02",created_time:"2026-10-21T14:00:00Z"});
  const b=kalshiExecution({fill_id:"b",order_id:"o1",ticker:"KX-TEST",side:"yes",action:"buy",count_fp:"3",yes_price_dollars:"0.5",fee_cost:"0.03",created_time:"2026-10-21T14:01:00Z"});
@@ -84,4 +84,15 @@ test("private review evidence cannot include complete provider order executions"
  }});
  assert.equal(unresolvedPolymarketTrades([complete]).length,0);
  assert.equal(groupExecutions([complete]).length,1);
+});
+
+test("REST unknown activity cannot demote a verified private Polymarket order execution",()=>{
+ const prior={provider:"Polymarket US",fill_id:"trade-1",group_id:"order-1",market:"match",
+  side:"NO",action:"BUY",quantity:2,unit_price:.44,fee_usd:.01};
+ const incomplete={provider:"Polymarket US",fillId:"trade-1",groupId:"trade-1",market:"match",
+  side:"UNKNOWN",action:"UNKNOWN",quantity:2,price:.44,fee:null};
+ assert.equal(restActivityCoveredByPrivateFill(prior,incomplete),true);
+ assert.equal(restActivityCoveredByPrivateFill({...prior,quantity:3},incomplete),false);
+ assert.equal(restActivityCoveredByPrivateFill({...prior,market:"other"},incomplete),false);
+ assert.equal(restActivityCoveredByPrivateFill(prior,{...incomplete,price:.2}),false);
 });

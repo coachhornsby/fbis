@@ -5,6 +5,8 @@ on:
       - "services/polymarket-us-stream/**"
       - "wrangler.polymarket-us-stream.toml"
       - "functions/lib/polymarketUsSignedWs.js"
+      - "functions/lib/polymarketPrivateOrders.js"
+      - "functions/api/polymarket-private-stream-sign.js"
       - "functions/lib/marketObservationLedger.js"
       - "functions/lib/marketTemporal.js"
       - "functions/lib/marketHistoryVerifiedArchive.js"
@@ -24,6 +26,8 @@ on:
       - "services/polymarket-us-stream/**"
       - "wrangler.polymarket-us-stream.toml"
       - "functions/lib/polymarketUsSignedWs.js"
+      - "functions/lib/polymarketPrivateOrders.js"
+      - "functions/api/polymarket-private-stream-sign.js"
       - ".github/workflows/deploy-polymarket-us-stream.yml"
   workflow_dispatch:
 permissions:
@@ -42,7 +46,7 @@ jobs:
           node-version: "22"
       - run: npm ci --ignore-scripts
       - name: Market source/governance regression
-        run: node --test test/polymarket-us-signed-ws.test.js test/polymarket-us-persistent-stream.test.js test/polymarket-stream-control.test.js
+        run: node --test test/polymarket-us-signed-ws.test.js test/polymarket-us-persistent-stream.test.js test/polymarket-stream-control.test.js test/polymarket-private-order-stream.test.mjs
       - name: Validate primary-first bounded history shadow replication
         run: node --test test/polymarket-persistent-shadow-routing.test.mjs test/polymarket-shadow-durable-retry.test.mjs test/market-history-ws-shadow.test.mjs
       - name: Verify Worker and Durable Object bundle
@@ -139,3 +143,32 @@ jobs:
             echo "Persistent Polymarket WebSocket did not connect; deployment activation is NOT healthy."
             exit 1
           fi
+
+      - name: Verify private account order stream without exposing account records
+        if: github.event_name != 'pull_request'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          output="$(mktemp)"
+          healthy=0
+          for n in $(seq 1 24); do
+            status="$(curl -sS --max-time 20 -o "$output" -w '%{http_code}' \
+              -H "x-harvest-secret: $HARVEST_SECRET" \
+              "https://fbis-polymarket-us-stream.coachhornsby.workers.dev/private-health" || true)"
+            if [ "$status" = "200" ]; then
+              jq -c '{readOnly,canAuthorizeWager,configured,connected,reconnects,lastError}' "$output" || true
+              if jq -e '.readOnly==true and .canAuthorizeWager==false and .configured==true and .connected==true' "$output" >/dev/null 2>&1; then
+                healthy=1
+                break
+              fi
+            fi
+            sleep 15
+          done
+          if [ "$healthy" != "1" ]; then
+            echo "Polymarket private order subscription not verified; no claim of automatic private wager reconciliation." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "Authenticated private order stream connected; no private account details logged." >> "$GITHUB_STEP_SUMMARY"

@@ -11,6 +11,10 @@ crons = ["*/5 * * * *"]
 name = "PM_STREAM"
 class_name = "PolymarketMarketStreamRecovered"
 
+[[durable_objects.bindings]]
+name = "PM_PRIVATE"
+class_name = "PolymarketPrivateOrderSession"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["PolymarketMarketStream"]
@@ -71,3 +75,7 @@ head_sampling_rate = 0.1
 
 [observability]
 enabled = true
+
+[[migrations]]
+tag = "v4-private-order-session"
+new_sqlite_classes = ["PolymarketPrivateOrderSession"]
