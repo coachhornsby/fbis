@@ -51,7 +51,8 @@ test('game cards track missing spread and total separately from one valid moneyl
  const onlyMoneyline={...game,market:{venueOffers:game.market.venueOffers.slice(0,2)}};
  const x=assessFixtureCoverage({games:[onlyMoneyline]},{now});
  assert.deepEqual(x.games[0].missingFamilies,['spread','total']);
- assert.ok(x.findings.some(f=>f.reason==='CURRENT_MARKET_FAMILY_MISSING'));
+ assert.ok(x.findings.some(f=>f.reason==='CURRENT_MARKET_FAMILY_INCOMPLETE'&&
+  f.missingFamilies.includes('spread')&&f.missingFamilies.includes('total')));
  const tennis=assessFixtureCoverage({games:[{...game,sport:'tennis'}]},{now});
  assert.equal(tennis.games[0].missingFamilies.length,0);
 });

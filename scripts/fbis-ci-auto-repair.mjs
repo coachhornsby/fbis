@@ -13,6 +13,7 @@
  */
 import {mkdir,writeFile} from 'node:fs/promises';
 import {assessFixtureCoverage,assessPropCoverage,summarizeReliability,PROP_SPORTS} from './lib/fbisAutoRepairPolicy.mjs';
+import {readExchangeWithSportFallback} from './lib/fbisExchangeReadFallback.mjs';
 
 const BASE=(process.env.FBIS_BASE_URL||'https://fbis-myz.pages.dev').replace(/\/$/,'');
 const SECRET=process.env.HARVEST_SECRET||'';
@@ -53,9 +54,10 @@ async function scan(day){
  }
  const fixture=assessFixtureCoverage(board,{now});
  const scopedSports=[...new Set(fixture.games.map(g=>g.sport))].filter(s=>PROP_SPORTS.includes(s));
- let exchange={rows:[],coverage:[],collectorCoverage:[]};
- try{exchange=await request('/api/exchange-player-props?'+new URLSearchParams({sport:'all',date:day}),{timeoutMs:95000});}
- catch(e){errors.push({kind:'PIPELINE',sport:'all',eventId:'',reason:'EXCHANGE_PROPS_READ_FAILED',day,detail:String(e)});}
+ const exchangeRead=await readExchangeWithSportFallback({request,sports:scopedSports,date:day});
+ const exchange=exchangeRead.exchange;
+ for(const failed of exchangeRead.failedSports)errors.push({kind:'PIPELINE',sport:failed.sport,eventId:'',
+  reason:'EXCHANGE_PROPS_READ_FAILED',day,detail:failed.reason});
  const projections=[];
  const contracts=Array.isArray(exchange.rows)?exchange.rows:[];
  // Three simultaneous expensive slate requests at most; preserve per-sport failures.
@@ -71,7 +73,11 @@ async function scan(day){
   }
  }
  await Promise.all([worker(),worker(),worker()]);
- const props=scopedSports.map(sport=>assessPropCoverage({sport,games:board.games,models:projections,contracts,now}));
+ // An unreadable source is UNKNOWN, not an empty provider market. Keep a
+ // pipeline incident, but do not report unsupported zero-contract conclusions.
+ const failedSports=new Set(exchangeRead.failedSports.map(f=>f.sport));
+ const props=scopedSports.filter(s=>!failedSports.has(s)).map(sport=>
+  assessPropCoverage({sport,games:board.games,models:projections,contracts,now}));
  const diagnostics=[...(board.sports||[]).filter(s=>s.error).map(s=>({kind:'PIPELINE',sport:s.sport,eventId:'',
   reason:'SPORT_BOARD_FEED_ERROR',day,detail:String(s.error).slice(0,150)})),
   ...(exchange.diagnostics||[]).filter(x=>x.status==='READ_FAILED'||x.truncated).map(x=>({
@@ -79,14 +85,18 @@ async function scan(day){
   }))];
  return {day,board,fixture,props,findings:[...fixture.findings,...props.flatMap(p=>p.findings),...diagnostics],
   sports:scopedSports,counts:fixture.counts,projections,marketContracts:contracts,
-  providerStatus:exchange.coverage,collectorCoverage:exchange.collectorCoverage};
+  providerStatus:exchange.coverage,collectorCoverage:exchange.collectorCoverage,
+  exchangeReadMode:exchangeRead.fallbackUsed?'SCOPED_FALLBACK':'ALL_SPORT',
+  exchangeReadInitialFailure:exchangeRead.initialFailure};
 }
 for(const day of days){
  const data=await scan(day);
  const publicRecord={date:day,counts:data.counts,sports:data.sports,
   models:data.props?.map(p=>({sport:p.sport,counts:p.counts}))||[],
   games:data.fixture?.games||[],findings:data.findings,
-  providerStatus:data.providerStatus||[],collectorCoverage:data.collectorCoverage||[]};
+  providerStatus:data.providerStatus||[],collectorCoverage:data.collectorCoverage||[],
+  exchangeReadMode:data.exchangeReadMode||'UNKNOWN',
+  exchangeReadInitialFailure:data.exchangeReadInitialFailure||null};
  reports.push(publicRecord);
  matrix.push(data);
 }
