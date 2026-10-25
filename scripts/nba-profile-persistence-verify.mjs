@@ -69,7 +69,8 @@ export async function queryWranglerReadOnly(sql) {
 export async function readNbaPersistence(profile,{fetchImpl=fetch,env=process.env,wranglerRead=queryWranglerReadOnly}={}) {
   const account=env.CLOUDFLARE_ACCOUNT_ID;
   const token=env.CLOUDFLARE_API_TOKEN;
-  const database=env.CLOUDFLARE_D1_DATABASE_ID||"b50c724c-903b-4241-8ce1-48d931e7a44c";
+  const database=env.CLOUDFLARE_D1_DATABASE_ID;
+  if(database!=="ed992525-d2ed-4b1d-8a12-feeb2efa152c")throw new Error("NBA_PROFILE_D1_TARGET_REQUIRED");
   if(!account||!token||!database)throw new Error("D1_READ_ONLY_CREDENTIALS_UNAVAILABLE");
   const asOf=String(profile?.asOf||"");
   if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(asOf))
