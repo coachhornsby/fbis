@@ -10,7 +10,7 @@ import { STREAM_SPORTS } from "../services/polymarket-us-stream/core.mjs";
 import { onRequestGet as liveProjections } from "../functions/api/projections.js";
 import { onRequestGet as marketObservations } from "../functions/api/market-observations.js";
 import { groupActivePolymarketLeagues } from "../functions/api/polymarket-collect.js";
-import { PRO_PLAYER_PROP_SPORTS, normalizeProPropSport } from "../functions/lib/proPlayerProps.js";
+import { PRO_PLAYER_PROP_SPORTS, normalizeProPropSport, isProPlayerPropSport } from "../functions/lib/proPlayerProps.js";
 import { LEARNING_SPORTS } from "../functions/lib/snapshotLearning.js";
 import { onRequestGet as playerProps } from "../functions/api/player-props.js";
 import { onRequestGet as selectiveProps } from "../functions/api/selective-props.js";
@@ -101,7 +101,7 @@ test("only active sports are accepted by live prop normalization and learning", 
   assert.deepEqual([...PRO_PLAYER_PROP_SPORTS].sort(), [...APPROVED].sort());
   assert.deepEqual([...LEARNING_SPORTS].sort(), ["nfl","mlb","nba","nhl","cfb","cbb"].sort());
   for (const retired of RETIRED) {
-    assert.equal(normalizeProPropSport(retired), null);
+    assert.equal(isProPlayerPropSport(retired), false);
     const prop = await playerProps({ request:new Request("https://fbis.invalid/api/player-props?sport="+retired), env:{DB:{}} });
     assert.equal(prop.status, 200);
     assert.deepEqual((await prop.json()).rows, []);
