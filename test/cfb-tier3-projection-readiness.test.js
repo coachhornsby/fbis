@@ -25,3 +25,13 @@ test("private audit is cache-only and no licensed values escape",async()=>{
  assert.equal(JSON.stringify(result).includes("features_json"),false);
  await assert.rejects(auditCfbTier3ProjectionReadiness({}),/TIER3_DB_UNBOUND/);
 });
+
+test("immutable pregame receipt allows research shadow evidence without invented provider time",()=>{
+ const x=classifyTier3WeeklyEvidence({season:2026,week:8,total:56,matched:54,pregame:53,receipt_pit:51,published:0,feature_columns:72});
+ assert.equal(x.researchPregameEligibleGames,51);
+ assert.equal(x.clockEvidence,"FBIS_RECEIPT_ONLY");
+ assert.equal(x.productionFeatureEligible,false);
+ const no=classifyTier3WeeklyEvidence({season:2026,week:6,total:57,matched:56,pregame:0,receipt_pit:0,published:0});
+ assert.equal(no.researchPregameEligible,false);
+ assert.equal(no.productionFeatureEligible,false);
+});
