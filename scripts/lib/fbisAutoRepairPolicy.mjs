@@ -34,6 +34,53 @@ export function verifiedCurrentQuote(o,now=Date.now(),maxAgeMs=2*3600000){
  const asOf=clock(o.sourceObservedAt||o.providerObservedAt||o.observedAt);
  return Number.isFinite(asOf)&&asOf<=now&&now-asOf<=maxAgeMs;
 }
+const marketPrice=o=>{
+ const contract=num(o?.contractPrice??o?.observedAsk??o?.yesAskDollars);
+ if(contract!=null&&contract>0&&contract<1)return true;
+ const decimal=num(o?.decimalOdds);if(decimal!=null&&decimal>1)return true;
+ const american=num(o?.americanOdds);return american!=null&&Math.abs(american)>=100;
+};
+const side=o=>{
+ const s=String(o?.side??o?.statSide??'').trim().toLowerCase();
+ if(['home','away','over','under','draw','tie'].includes(s))return s==='tie'?'draw':s;
+ return null;
+};
+const sourceMarketKey=o=>{
+ const name=String(o?.source||o?.provider||'');
+ const id=String(o?.sourceMarketId||o?.marketId||'');
+ return name&&id?name+'|'+id:null;
+};
+const expectedSides=family=>family==='total'?['over','under']:['home','away'];
+export function marketFamilyEvidence(offers=[],familyName,{now=Date.now(),maxAgeMs=2*3600000}={}){
+ const relevant=offers.filter(o=>family(o)===familyName);
+ const full=relevant.filter(o=>o.period==='full_game');
+ const priced=full.filter(marketPrice);
+ const verified=priced.filter(o=>verifiedCurrentQuote(o,now,maxAgeMs));
+ const grouped=new Map();
+ for(const offer of verified){
+  const mk=sourceMarketKey(offer),direction=side(offer);
+  if(!mk||!direction)continue;
+  const threshold=familyName==='moneyline'?'none':Math.abs(num(offer.line)||0).toFixed(3);
+  const key=mk+'|'+threshold;
+  if(!grouped.has(key))grouped.set(key,new Set());
+  grouped.get(key).add(direction);
+ }
+ const paired=[...grouped.values()].filter(s=>expectedSides(familyName).every(x=>s.has(x))).length;
+ const state=paired?'VERIFIED_CURRENT_PAIR':!relevant.length?'NO_REFERENCE':
+  !full.length?'PERIOD_NOT_FULL_GAME':!priced.length?'NO_NUMERIC_PRICE':
+  !verified.length?'PROVIDER_CLOCK_OR_PRICE_UNVERIFIED':'UNPAIRED_CURRENT_MARKET';
+ return {state,referenceOutcomes:relevant.length,fullGameOutcomes:full.length,
+  verifiedOutcomes:verified.length,verifiedPairs:paired,available:paired>0};
+};
+export function independentlyProjectedGame(g){
+ const kind=String(g?.projectionKind||'').toUpperCase();
+ const prob=num(g?.tennisProjection?.player1WinProb),other=num(g?.tennisProjection?.player2WinProb);
+ if(g?.sport==='tennis')return g.tennisProjection?.eventIntegrity?.valid===true&&
+  prob!=null&&other!=null&&prob>=0&&prob<=1&&other>=0&&other<=1&&
+  Math.abs(prob+other-1)<0.015;
+ return kind==='FBIS'&&num(g.projHome)!=null&&num(g.projAway)!=null&&
+  g.projectionUnavailable!==true;
+}
 export function assessFixtureCoverage(board,{now=Date.now(),horizonMs=36*3600000,quoteMaxAgeMs=2*3600000}={}){
  const all=Array.isArray(board?.games)?board.games:[];
  const included=all.filter(g=>isActiveGame(g,now,horizonMs));
@@ -43,27 +90,32 @@ export function assessFixtureCoverage(board,{now=Date.now(),horizonMs=36*3600000
   const verified=offers.filter(o=>verifiedCurrentQuote(o,now,quoteMaxAgeMs));
   const hasReference=(Array.isArray(g.pinnoddsResearch?.offers)&&g.pinnoddsResearch.offers.length>0)||
     offers.length>0||g.referenceMarketAvailable===true;
-  const current=verified.length>0;
+  // Each family requires its own verified, full-game, two-sided market.
+  // One moneyline is never evidence of a spread or total.
+  const families=Object.fromEntries(expectedFamilies(g.sport).map(name=>[
+   name,marketFamilyEvidence(offers,name,{now,maxAgeMs:quoteMaxAgeMs})]));
+  const missingFamilies=Object.keys(families).filter(k=>!families[k].available);
+  const current=missingFamilies.length===0;
   const byFamily={moneyline:0,spread:0,total:0};
-  for(const offer of verified){const key=family(offer);if(key)byFamily[key]++;}
-  const hasClassified=Object.values(byFamily).some(n=>n>0);
-  const missingFamilies=hasClassified?expectedFamilies(g.sport).filter(k=>byFamily[k]===0):[];
-  // Active markets without a source-side quote clock are not "current".
-  const projectionGood=g.projectionUnavailable===false&&g.projectionKind!=='UNAVAILABLE'||
-   (g.projectionUnavailable!==true&&g.pureProjectionAvailable===true);
-  if(!current)findings.push(issue('GAME_ODDS',g.sport,g.id,
-    hasReference?'MARKET_REFERENCE_ONLY_OR_CLOCK_UNVERIFIED':'CURRENT_GAME_MARKET_MISSING',
-    {offers:offers.length,hasReference,phase:Date.parse(g.start)<=now?'LIVE':'PREGAME'}));
-  if(current&&hasClassified&&missingFamilies.length)findings.push(issue('GAME_ODDS',g.sport,g.id,
-   'CURRENT_MARKET_FAMILY_MISSING',{missingFamilies,verifiedFamilies:byFamily}));
-  if(current&&!hasClassified)findings.push(issue('GAME_ODDS',g.sport,g.id,'CURRENT_MARKET_TYPE_UNCLASSIFIED'));
+  for(const [key,result] of Object.entries(families))byFamily[key]=result.verifiedPairs;
+  const projectionGood=independentlyProjectedGame(g);
+  if(missingFamilies.length)findings.push(issue('GAME_ODDS',g.sport,g.id,
+    hasReference?'CURRENT_MARKET_FAMILY_INCOMPLETE':'CURRENT_GAME_MARKET_MISSING',
+    {missingFamilies,families,offers:offers.length,hasReference,
+      phase:Date.parse(g.start)<=now?'LIVE':'PREGAME'}));
   if(!projectionGood)findings.push(issue('MODELS',g.sport,g.id,'FBIS_GAME_PROJECTION_MISSING_OR_UNVERIFIED'));
   games.push({sport:g.sport,eventId:String(g.id),start:g.start,status:g.status,
    currentOdds:current,currentQuoteCount:verified.length,referenceOnly:hasReference&&!current,
-   modelAvailable:projectionGood,marketOffers:offers.length,verifiedFamilies:byFamily,missingFamilies});
+   modelAvailable:projectionGood,marketOffers:offers.length,verifiedFamilies:byFamily,missingFamilies,families});
  }
  return {games,findings,counts:{activeGames:games.length,currentMarketGames:games.filter(g=>g.currentOdds).length,
-  referenceOnlyGames:games.filter(g=>g.referenceOnly).length,modelGames:games.filter(g=>g.modelAvailable).length}};
+  referenceOnlyGames:games.filter(g=>g.referenceOnly).length,modelGames:games.filter(g=>g.modelAvailable).length,
+  marketFamilies:Object.fromEntries(['moneyline','spread','total'].map(k=>[k,{
+    required:games.filter(g=>g.families[k]).length,
+    complete:games.filter(g=>g.families[k]?.available===true).length,
+    incomplete:games.filter(g=>g.families[k]?.available===false).length,
+    capturedReferences:games.reduce((sum,g)=>sum+(g.families[k]?.referenceOutcomes||0),0)
+  }]))}};
 }
 export function assessPropCoverage({sport,games=[],models=[],contracts=[],now=Date.now(),horizonMs=36*3600000,quoteMaxAgeMs=2*3600000}={}){
  const gamesActive=games.filter(g=>g.sport===sport&&isActiveGame(g,now,horizonMs));

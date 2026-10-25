@@ -1,11 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {assessFixtureCoverage,assessPropCoverage,verifiedCurrentQuote,summarizeReliability} from '../scripts/lib/fbisAutoRepairPolicy.mjs';
+import {assessFixtureCoverage,assessPropCoverage,verifiedCurrentQuote,marketFamilyEvidence,independentlyProjectedGame,summarizeReliability} from '../scripts/lib/fbisAutoRepairPolicy.mjs';
 const now=Date.parse('2026-10-25T18:00:00Z'),start='2026-10-25T19:00:00Z';
-const game={id:'g1',sport:'nfl',start,status:'scheduled',projectionUnavailable:false,projectionKind:'FBIS',
- market:{venueOffers:['moneyline','spread','total'].map(marketFamily=>({
-  marketAvailable:true,priceVerified:true,providerTimestampVerified:true,
-  marketFamily,sourceObservedAt:'2026-10-25T17:40:00Z'}))}};
+const game={id:'g1',sport:'nfl',start,status:'scheduled',projectionUnavailable:false,
+ projectionKind:'FBIS',projHome:24,projAway:21,
+ market:{venueOffers:[
+  ...['moneyline','spread','total'].flatMap(marketFamily=>
+   (marketFamily==='total'?['over','under']:['home','away']).map(side=>({
+    source:'Verified Test',sourceMarketId:'m-'+marketFamily,marketFamily,side,
+    period:'full_game',line:marketFamily==='spread'?3.5:marketFamily==='total'?44.5:null,
+    contractPrice:.54,marketAvailable:true,priceVerified:true,providerTimestampVerified:true,
+    sourceObservedAt:'2026-10-25T17:40:00Z'})))]}};
 const player={sport:'nfl',canonicalEventId:'g1',canonicalPlayerId:'nfl:espn:42',canonical_market:'receptions',
  period:'full_game',identityVerified:true,independent:true,marketInformed:false,fbis_projection:5.2,modelId:'m',modelVersion:'v1'};
 const contract={...player,id:'c1',contractId:'k123',line:4.5,provider:'Kalshi',observedAt:'2026-10-25T17:40:00Z',
@@ -43,10 +48,29 @@ test('unknown local capture clocks do not masquerade as provider-verified game o
  assert.equal(verifiedCurrentQuote({...quote,providerTimestampVerified:true},now),true);
 });
 test('game cards track missing spread and total separately from one valid moneyline',()=>{
- const onlyMoneyline={...game,market:{venueOffers:game.market.venueOffers.slice(0,1)}};
+ const onlyMoneyline={...game,market:{venueOffers:game.market.venueOffers.slice(0,2)}};
  const x=assessFixtureCoverage({games:[onlyMoneyline]},{now});
  assert.deepEqual(x.games[0].missingFamilies,['spread','total']);
  assert.ok(x.findings.some(f=>f.reason==='CURRENT_MARKET_FAMILY_MISSING'));
  const tennis=assessFixtureCoverage({games:[{...game,sport:'tennis'}]},{now});
  assert.equal(tennis.games[0].missingFamilies.length,0);
+});
+
+test('one verified spread outcome cannot pass a two-sided market, even with a timestamp',()=>{
+ const result=marketFamilyEvidence(game.market.venueOffers.filter(o=>o.marketFamily==='spread').slice(0,1),'spread',{now});
+ assert.equal(result.verifiedOutcomes,1);
+ assert.equal(result.verifiedPairs,0);
+ assert.equal(result.state,'UNPAIRED_CURRENT_MARKET');
+});
+test('second half and alternate-market sides cannot satisfy full-game totals',()=>{
+ const offers=game.market.venueOffers.filter(o=>o.marketFamily==='total').map(x=>({...x,period:'second_half'}));
+ assert.equal(marketFamilyEvidence(offers,'total',{now}).state,'PERIOD_NOT_FULL_GAME');
+ const distinct=game.market.venueOffers.filter(o=>o.marketFamily==='total').map((x,i)=>({...x,sourceMarketId:'other-'+i}));
+ assert.equal(marketFamilyEvidence(distinct,'total',{now}).verifiedPairs,0);
+});
+test('strict model delivery accepts independently verified tennis probability only',()=>{
+ const t={sport:'tennis',tennisProjection:{eventIntegrity:{valid:true},player1WinProb:.61,player2WinProb:.39}};
+ assert.equal(independentlyProjectedGame(t),true);
+ assert.equal(independentlyProjectedGame({...t,tennisProjection:{...t.tennisProjection,eventIntegrity:{valid:false}}}),false);
+ assert.equal(independentlyProjectedGame({...game,projectionKind:'PINNACLE_IMPLIED'}),false);
 });
