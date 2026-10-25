@@ -330,7 +330,16 @@ export function toBoardGame(game, sport, now = Date.now()) {
     executionMarketUnavailable: !marketAvail.executionMarketAvailable,
     referenceMarketUnavailable: !marketAvail.referenceMarketAvailable,
     operationalMarketLabel: marketAvail.labels?.market || null,
-    projectionUnavailable: (game.model?.projHome == null && game.model?.projAway == null) || game.projectionKind === "UNAVAILABLE",
+    // Tennis has a probability-only PURE model: requiring projected team scores
+    // incorrectly marks verified ATP/WTA win probabilities as "no FBIS model".
+    // Exchange-only cards still fail closed because eventIntegrity is invalid.
+    projectionUnavailable: sport === "tennis"
+      ? !(game.tennisProjection?.eventIntegrity?.valid === true &&
+        game.pureProjectionAvailable === true &&
+        Number.isFinite(Number(game.tennisProjection?.player1WinProb)) &&
+        Number.isFinite(Number(game.tennisProjection?.player2WinProb)))
+      : ((game.model?.projHome == null && game.model?.projAway == null) ||
+        game.projectionKind === "UNAVAILABLE"),
     qualificationBlocked: Boolean(game.qualificationBlocked || (game.cfb && !game.cfb.bettingAllowed) || (game.sport === "nfl" && game.projectionKind !== "FBIS")),
     challengers: game.challengers || null,
     championModel: game.championModel || null,
