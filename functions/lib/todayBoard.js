@@ -150,6 +150,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
     // Scoreboard context is provider-observed, never a kickoff-based estimate.
     statusPeriod: game.status?.period ?? null,
     statusClock: game.status?.clock ?? null,
+    statusInning: game.status?.inning ?? null,
+    statusInningHalf: game.status?.inningHalf ?? null,
     away: {
       sport,
       brandingSource: game.away?.brandingSource || null,

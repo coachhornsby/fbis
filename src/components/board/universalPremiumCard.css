@@ -799,3 +799,24 @@
     font-size:12px!important;
   }
 }
+
+/* Keep the complete school identity "North Carolina" on ONE line on all college boards. */
+.fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-school--north-carolina{
+  white-space:nowrap!important;
+  overflow-wrap:normal!important;
+  word-break:keep-all!important;
+  font-size:clamp(11px,1.18vw,17px)!important;
+  letter-spacing:-.04em!important;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-college-team-name .fbis-college-school--north-carolina{
+  font-size:clamp(15px,1.5vw,21px)!important;
+}
+@media(max-width:640px){
+  .fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-school--north-carolina{
+    font-size:clamp(10px,2.4vw,13px)!important;
+    letter-spacing:-.055em!important;
+  }
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-college-team-name .fbis-college-school--north-carolina{
+    font-size:clamp(11px,2.4vw,15px)!important;
+  }
+}

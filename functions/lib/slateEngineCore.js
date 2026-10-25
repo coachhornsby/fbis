@@ -1,3 +1,4 @@
+import { readMlbInningState } from "./mlbInningState.js";
 import {fetchWithCfbBackoff} from "./cfbProviderBackoff.js";
 /** Shared slate builder — used by Pages Functions and local Vite middleware. */
 
@@ -1195,6 +1196,7 @@ function mapMlbStatsGame(g) {
   const postponed = /postpone/i.test(detailed);
   const canceled = /cancel/i.test(detailed);
   const suspended = /suspend/i.test(detailed);
+  const inningState = readMlbInningState(g.linescore);
   const homeScore = num(home.score ?? g.linescore?.teams?.home?.runs);
   const awayScore = num(away.score ?? g.linescore?.teams?.away?.runs);
   const homePct = Number(home.leagueRecord?.pct);
@@ -1216,6 +1218,8 @@ function mapMlbStatsGame(g) {
       postponed,
       canceled,
       suspended,
+      inning: live ? inningState.inning : null,
+      inningHalf: live ? inningState.inningHalf : null,
     },
     home: {
       name: ht.name || "Home",

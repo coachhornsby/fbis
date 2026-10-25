@@ -284,7 +284,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
               </div>
               <div>
                 <small>{game?.neutralSite ? "NEUTRAL SITE" : "AWAY"}</small>
-                <strong className={`pgc-featured-name${collegeAway.mascot ? " fbis-college-team-name" : ""}`}>{collegeAway.mascot ? <><span className="fbis-college-school">{collegeAway.school}</span><span className="fbis-college-mascot">{collegeAway.mascot}</span></> : collegeAway.school}</strong>
+                <strong className={`pgc-featured-name${collegeAway.mascot ? " fbis-college-team-name" : ""}`}>{collegeAway.mascot ? <><span className={`fbis-college-school${collegeAway.school === "North Carolina" ? " fbis-college-school--north-carolina" : ""}`}>{collegeAway.school}</span><span className="fbis-college-mascot">{collegeAway.mascot}</span></> : collegeAway.school}</strong>
                 {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(away, tennisTour)}</span> : null}
                 {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
                 <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" />
@@ -305,7 +305,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
               <small>PITCH · HIT</small>
             </>
           ) : <><span className="pgc-vs">VS</span>{!vm.event?.live ? <small>FBIS MATCHUP INTELLIGENCE</small> : null}</>}
-          {vm.event?.live ? <MatchupCenterClock clock={liveClock} /> : null}
+          {vm.event?.live ? <MatchupCenterClock clock={liveClock} sport={sportId} /> : null}
         </div>
 
         <div className={`pgc-featured-team pgc-featured-team-home${sportId === "mlb" ? " pgc-featured-team-mlb" : ""}`}>
@@ -326,7 +326,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
               </div>
               <div>
                 <small>{game?.neutralSite ? "NEUTRAL SITE" : "HOME"}</small>
-                <strong className={`pgc-featured-name${collegeHome.mascot ? " fbis-college-team-name" : ""}`}>{collegeHome.mascot ? <><span className="fbis-college-school">{collegeHome.school}</span><span className="fbis-college-mascot">{collegeHome.mascot}</span></> : collegeHome.school}</strong>
+                <strong className={`pgc-featured-name${collegeHome.mascot ? " fbis-college-team-name" : ""}`}>{collegeHome.mascot ? <><span className={`fbis-college-school${collegeHome.school === "North Carolina" ? " fbis-college-school--north-carolina" : ""}`}>{collegeHome.school}</span><span className="fbis-college-mascot">{collegeHome.mascot}</span></> : collegeHome.school}</strong>
                 {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(home, tennisTour)}</span> : null}
                 {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
                 <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" />

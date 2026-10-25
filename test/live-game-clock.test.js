@@ -17,3 +17,19 @@ test("no fabricated minutes for missing clock", () => {
   assert.equal(formatLiveGameClock({sport:"cfb",status:"final",statusPeriod:4,statusClock:"0:00"}),null);
   assert.equal(formatLiveGameClock({sport:"cfb",status:"scheduled"}),null);
 });
+
+test("MLB top of fifth inning uses inning, not clock", () => {
+  assert.equal(formatLiveGameClock({sport:"mlb",status:"live",statusInning:5,statusInningHalf:"TOP"}),"TOP · 5TH");
+});
+test("MLB bottom ninth and postseason extra innings", () => {
+  assert.equal(formatLiveGameClock({sport:"mlb",status:"live",statusInning:9,statusInningHalf:"BOT"}),"BOT · 9TH");
+  assert.equal(formatLiveGameClock({sport:"mlb",status:"live",statusInning:10,statusInningHalf:"TOP"}),"TOP · 10TH");
+});
+test("MLB middle of inning and ESPN status fallback", () => {
+  assert.equal(formatLiveGameClock({sport:"mlb",status:"live",statusInning:6,statusInningHalf:"MID"}),"MID · 6TH");
+  assert.equal(formatLiveGameClock({sport:"mlb",status:"live",statusDetail:"Top 7th"}),"TOP · 7TH");
+});
+test("MLB inning unavailable never displays CLOCK N/A", () => {
+  assert.equal(formatLiveGameClock({sport:"mlb",status:"live",statusDetail:"In Progress"}),"INNING N/A");
+  assert.equal(formatLiveGameClock({sport:"mlb",status:"final",statusInning:9,statusInningHalf:"BOT"}),null);
+});

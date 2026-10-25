@@ -235,7 +235,7 @@ export default function CompactGameCard({ game, onOpen }) {
               <strong className="cgc-team-name cgc-team-name-mlb">{away.fullName || away.name || away.abbr || "—"}</strong>
             ) : (
               <>
-                <strong className={`cgc-team-name fbis-full-team-name${collegeAway.mascot ? " fbis-college-team-name" : ""}${!away.abbr||away.abbr==="—"?" cgc-unresolved-school":""}`}>{collegeAway.mascot ? <><span className="fbis-college-school">{collegeAway.school}</span><span className="fbis-college-mascot">{collegeAway.mascot}</span></> : collegeAway.school}</strong>
+                <strong className={`cgc-team-name fbis-full-team-name${collegeAway.mascot ? " fbis-college-team-name" : ""}${!away.abbr||away.abbr==="—"?" cgc-unresolved-school":""}`}>{collegeAway.mascot ? <><span className={`fbis-college-school${collegeAway.school === "North Carolina" ? " fbis-college-school--north-carolina" : ""}`}>{collegeAway.school}</span><span className="fbis-college-mascot">{collegeAway.mascot}</span></> : collegeAway.school}</strong>
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
@@ -244,7 +244,7 @@ export default function CompactGameCard({ game, onOpen }) {
 
           <div className="cgc-vs-center">
             <span className="cgc-vs">VS</span>
-            {vm.event?.live ? <MatchupCenterClock clock={liveClock} /> : null}
+            {vm.event?.live ? <MatchupCenterClock clock={liveClock} sport={sportId} /> : null}
           </div>
 
           <div className="cgc-team-block">
@@ -253,7 +253,7 @@ export default function CompactGameCard({ game, onOpen }) {
               <strong className="cgc-team-name cgc-team-name-mlb">{home.fullName || home.name || home.abbr || "—"}</strong>
             ) : (
               <>
-                <strong className={`cgc-team-name fbis-full-team-name${collegeHome.mascot ? " fbis-college-team-name" : ""}${!home.abbr||home.abbr==="—"?" cgc-unresolved-school":""}`}>{collegeHome.mascot ? <><span className="fbis-college-school">{collegeHome.school}</span><span className="fbis-college-mascot">{collegeHome.mascot}</span></> : collegeHome.school}</strong>
+                <strong className={`cgc-team-name fbis-full-team-name${collegeHome.mascot ? " fbis-college-team-name" : ""}${!home.abbr||home.abbr==="—"?" cgc-unresolved-school":""}`}>{collegeHome.mascot ? <><span className={`fbis-college-school${collegeHome.school === "North Carolina" ? " fbis-college-school--north-carolina" : ""}`}>{collegeHome.school}</span><span className="fbis-college-mascot">{collegeHome.mascot}</span></> : collegeHome.school}</strong>
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
