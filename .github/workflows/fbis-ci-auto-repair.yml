@@ -1,0 +1,94 @@
+name: FBIS CI Auto Repair — all-sport production reliability
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+    - cron: '13 2,14,20 * * *'
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      repair:
+        description: 'Enable bounded source-owned recovery (no paid provider calls)'
+        type: boolean
+        required: false
+        default: false
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: fbis-ci-auto-repair
+  cancel-in-progress: false
+jobs:
+  audit:
+    if: github.repository == 'coachhornsby/fbis' && (github.event_name != 'workflow_run' || (github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      FBIS_BASE_URL: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      FBIS_REPAIR_WINDOW: ${{ github.event.schedule == '13 2,14,20 * * *' || (github.event_name == 'workflow_dispatch' && inputs.repair == true) }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: main
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Regression-test source clocks and model/contract joins
+        run: node --test test/fbis-auto-repair-policy.test.mjs test/nba-prop-market-freeze.test.js test/nba-official-prop-totals.test.js
+      - name: Audit all active game odds and player markets; verify safe recovery
+        id: coverage
+        continue-on-error: true
+        run: node scripts/fbis-ci-auto-repair.mjs
+      - name: Reconcile persistent incidents and verified recoveries
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="$(find artifacts -maxdepth 1 -name 'fbis-auto-repair-*.json' -type f | sort | tail -n1)"
+          if [[ -z "$file" || ! -s "$file" ]]; then
+            echo 'All-sport audit failed before producing evidence' >&2
+            exit 1
+          fi
+          echo "Audit artifact: $file"
+          for group in GAME_ODDS PLAYER_PROPS MODELS PIPELINE; do
+            title="FBIS Auto Repair | ${group}"
+            count="$(jq -r --arg group "$group" '.counts[$group] // 0' "$file")"
+            number="$(gh issue list --state open --limit 100 --json number,title | jq -r --arg title "$title" '.[] | select(.title == $title) | .number' | head -n1)"
+            if [[ "$count" -gt 0 ]]; then
+              if [[ -z "$number" ]]; then
+                body="$(mktemp)"
+                {
+                  echo "Scheduled all-sport audit identified **${count}** ${group} incidents."
+                  echo
+                  echo 'Missing third-party odds and missing source projections are never fabricated.'
+                  echo
+                  echo "Workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+                  echo
+                  echo 'Examples:'
+                  jq -r --arg group "$group" '.groups[$group][:10][] | "- \(.sport) / \(.eventId): \(.reason)"' "$file"
+                  echo
+                  echo 'Governance: no paid PinnOdds calls, synthetic quotes, wager promotion, or immutable evidence changes.'
+                } > "$body"
+                gh issue create --title "$title" --body-file "$body" >/dev/null
+                echo "Opened incident: $title ($count)"
+              else
+                echo "Existing incident: $title ($count); issue #$number"
+              fi
+            elif [[ -n "$number" ]]; then
+              games="$(jq '[.scan[].counts.activeGames // 0] | add // 0' "$file")"
+              if [[ "$games" -gt 0 ]]; then
+                gh issue close "$number" --comment "Clean active-slate verification: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >/dev/null
+                echo "Verified recovery: closed $title"
+              fi
+            fi
+          done
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: fbis-auto-repair-${{ github.run_id }}
+          path: artifacts/fbis-auto-repair-*.json
+          retention-days: 30
+          if-no-files-found: warn

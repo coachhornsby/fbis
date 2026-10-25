@@ -105,6 +105,8 @@ jobs:
         run: node --test test/pro-team-directory.test.js
       - name: Verify NBA/CBB SportsDataverse possession simulation source contracts
         run: node --test test/basketball-sdv-possession-simulation-research.test.js test/basketball-sdv-pbp-adapter.test.js
+      - name: Gate all-sport odds and prop reliability invariants
+        run: node --test test/fbis-auto-repair-policy.test.mjs
       - name: Run test suite
         run: npm test
       - name: Verify CFB private cold archive readback and integrity gates
