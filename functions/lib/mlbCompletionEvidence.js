@@ -1,4 +1,5 @@
 import {projectMlbDeep,MLB_DEEP_VERSION} from './mlbDeepModel.js';
+import {validatePregameSnapshot} from './mlbModelFeatures.js';
 import {normalizeMlbGameFeed} from './mlbGameIntelligence.js';
 import {sha256Hex} from './sha256Hex.js';
 export const MLB_COMPLETION_VERSION='mlb-completion-v1';
@@ -8,6 +9,11 @@ export async function gunzipEvidence(object){return new Response(object.body.pip
 export function buildMlbAblationFreeze(game,capturedAt=new Date().toISOString()){
  if(!/^\d+$/.test(String(game.id))||!Number.isFinite(Date.parse(capturedAt))||!Number.isFinite(Date.parse(game.start))||Date.parse(capturedAt)>=Date.parse(game.start))throw Error('PREGAME_IDENTITY_AND_TIME_REQUIRED');
  const ctx=game.mlbContext||{},neutral={...ctx};
+ validatePregameSnapshot({game_time:game.start},{
+  context:ctx,statcast:game.mlbPitchMatchup||null,persistent:game.mlbPersistentState||null,
+  starters:{home:game.homeSp||null,away:game.awaySp||null},
+  playerForecasts:game.playerProjectionRows||[]
+ },capturedAt);
  const availableTimes=[ctx.palAsOf,game.mlbPersistentState?.asOf,...['homeOffense','awayOffense'].flatMap(side=>(game.mlbPitchMatchup?.[side]?.featureEvidence||[]).flatMap(e=>[e.capturedAt,...(e.sources||[]).map(s=>s.observedAt)]))].filter(Boolean);
  if(availableTimes.some(t=>!Number.isFinite(Date.parse(t))||Date.parse(t)>Date.parse(capturedAt)))throw Error('SOURCE_NOT_AVAILABLE_AT_CAPTURE');
  for(const key of ['palParkRunFactor','palParkHrFactor','homePalRcVsTypical','homePalHrVsTypical','homePalKVsTypical','homePalMatchupN','awayPalRcVsTypical','awayPalHrVsTypical','awayPalKVsTypical','awayPalMatchupN'])neutral[key]=null;
