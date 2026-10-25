@@ -41,6 +41,14 @@ function finite(v){
   const n=Number(v);
   return Number.isFinite(n)?n:null;
 }
+// NHL Stats reports TOI as numeric seconds; retained sources may use M:SS.
+function clockSeconds(value){
+  if(value==null||value===""||typeof value==="boolean")return null;
+  const seconds=finite(value);
+  if(seconds!=null)return seconds>=0?seconds:null;
+  const match=/^(\d+):([0-5]\d(?:\.\d+)?)$/.exec(String(value).trim());
+  return match?Number(match[1])*60+Number(match[2]):null;
+}
 function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
 function round(v,n=3){ const p=10**n; return Math.round(Number(v)*p)/p; }
 function pct(v){
@@ -74,6 +82,10 @@ function normTeamName(value){
 function teamAbbr(row={},lookup=null){
   const direct=String(row.teamAbbrev||row.teamAbbreviation||row.rawTricode||row.triCode||"").trim().toUpperCase();
   if(direct) return direct;
+  // Official skater summaries expose teamAbbrevs (plural), even for one
+  // team. A multi-team season aggregate cannot identify a current roster.
+  const summaryTeam=String(row.teamAbbrevs||"").trim().toUpperCase();
+  if(/^[A-Z]{2,3}$/.test(summaryTeam)) return summaryTeam;
   if(row.teamId!=null && lookup?.byId?.has(String(row.teamId))) return lookup.byId.get(String(row.teamId));
   return lookup?.byName?.get(normTeamName(row.teamFullName||row.teamName||row.team))||"";
 }
