@@ -46,7 +46,12 @@ test('bounded Gamma collection stores independently verified snapshot and enforc
  assert.equal(r.ok,true);assert.equal(r.contracts,2);assert.equal(called,1);
  const current=await loadPolymarketGlobalNba({ARCHIVE},{day:'2026-10-20',now:now.getTime()+20_000});
  assert.equal(current.rows.length,2);assert.equal(current.status,'RESEARCH_CAPTURED');
- assert.equal((await loadPolymarketGlobalNba({ARCHIVE},{day:'2026-10-20',now:now.getTime()+3*3600_000})).status,'STALE');
+ const archiveResult=await loadPolymarketGlobalNba({ARCHIVE},{day:'2026-10-20',now:now.getTime()+3*3600_000});
+ assert.equal(archiveResult.status,'HISTORICAL_REFERENCE');
+ assert.equal(archiveResult.rows.length,2);
+ assert.equal(archiveResult.rows[0].historicalReference,true);
+ assert.equal(archiveResult.rows[0].marketAvailable,false);
+ assert.equal((await loadPolymarketGlobalNba({ARCHIVE},{day:'2026-10-20',now:now.getTime()+49*3600_000})).status,'STALE');
 });
 
 test('GitHub raw Gamma handoff revalidates independently verified fixture and roster without Pages egress',async()=>{
@@ -64,4 +69,13 @@ test('GitHub raw Gamma handoff revalidates independently verified fixture and ro
   fetchImpl:async()=>{throw Error('Unexpected provider fetch')}
  });
  assert.equal(bad.contracts,0);assert.equal(bad.errors[0].code,'EVENT_IDENTITY_UNRESOLVED');
+});
+
+test('NBA ESPN abbreviation aliases resolve Gamma matching only with exact teams',()=>{
+ const variants=[
+  [{...game,id:'a',away_abbr:'GS',home_abbr:'PHX'},'nba-gsw-phx-2026-10-20','GSW','PHX'],
+  [{...game,id:'b',away_abbr:'NO',home_abbr:'DEN'},'nba-nop-den-2026-10-20','NOP','DEN']
+ ];
+ for(const [g,slug,away,home] of variants)assert.equal(verifyGlobalNbaFixture({slug,teams:[
+  {ordering:'away',abbreviation:away.toLowerCase()},{ordering:'home',abbreviation:home.toLowerCase()}]},g),true);
 });

@@ -1,7 +1,7 @@
 import { resolveNbaResearchOwnerDb } from "./nbaResearchOwnerDb.js";
 /** Polymarket Global Gamma: independently matched NBA props, display prices only. */
 const ROOT='player-props/polymarket-global/v1/';
-const abbr=x=>({NY:'NYK',SA:'SAS'}[String(x||'').toUpperCase()]||String(x||'').toUpperCase());
+const abbr=x=>({NY:'NYK',SA:'SAS',GS:'GSW',NO:'NOP'}[String(x||'').toUpperCase()]||String(x||'').toUpperCase());
 const norm=x=>String(x||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const day=x=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(x));
 const price=x=>x!=null&&x!==''&&Number.isFinite(Number(x))&&Number(x)>0&&Number(x)<1?Number(x):null;
@@ -109,8 +109,14 @@ export async function loadPolymarketGlobalNba(env,{day:date,now=Date.now()}={}){
  try{
   const obj=await env.ARCHIVE.get(ROOT+'nba-'+date+'.json');if(!obj)return {rows:[],status:'NOT_CAPTURED'};
   const d=await obj.json(),age=now-Date.parse(d.capturedAt||'');
-  if(!Array.isArray(d.rows)||age<0||!Number.isFinite(age)||age>2*3600000)return {rows:[],status:'STALE'};
-  return {rows:d.rows.filter(r=>r.identityVerified&&r.canAuthorizeWager===false&&r.venue==='Polymarket Global'),
-   status:d.errors?.length?'PARTIAL':'RESEARCH_CAPTURED',capturedAt:d.capturedAt,fixtures:d.fixtures||[]};
+  // Game-day archives remain useful for dated historical comparisons after
+  // the strict 2h current-research freshness window. Never relabel as live.
+  if(!Array.isArray(d.rows)||age<0||!Number.isFinite(age)||age>48*3600000)return {rows:[],status:'STALE'};
+  const historical=age>2*3600000;
+  return {rows:d.rows.filter(r=>r.identityVerified&&r.canAuthorizeWager===false&&r.venue==='Polymarket Global')
+    .map(r=>historical?{...r,historicalReference:true,fresh:false,marketAvailable:false,
+      priceVerified:false,purchaseAsk:null,priceKind:'DISPLAY_REFERENCE_NOT_ASK'}:r),
+   status:historical?'HISTORICAL_REFERENCE':d.errors?.length?'PARTIAL':'RESEARCH_CAPTURED',
+   capturedAt:d.capturedAt,fixtures:d.fixtures||[]};
  }catch{return {rows:[],status:'READ_FAILED'}}
 }

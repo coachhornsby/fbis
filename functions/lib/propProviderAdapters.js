@@ -13,7 +13,7 @@ export const KALSHI_PROP_SERIES=Object.freeze({
 });
 // ESPN game registry uses SA/NY; verified NBA roster states use SAS/NYK.
 // Exact fixture and canonical team identity remain mandatory before applying this crosswalk.
-const NBA_ROSTER_ABBR=Object.freeze({SA:'SAS',NY:'NYK'});
+const NBA_ROSTER_ABBR=Object.freeze({SA:'SAS',NY:'NYK',GS:'GSW',NO:'NOP'});
 export const norm=v=>String(v||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const ctDate=v=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(v)).map(p=>[p.type,p.value]));return `${parts.year}-${parts.month}-${parts.day}`;};
 /**

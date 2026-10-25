@@ -4,7 +4,7 @@ import { finitePropNumber as n } from './exchangePlayerProps.js';
 import { resolveNbaResearchOwnerDb } from './nbaResearchOwnerDb.js';
 import { deployedSportDbMode,hydrateCutoverApprovals,productSportDbHandle } from './databaseTopology.js';
 import { PROP_SPORTS } from './exchangePlayerProps.js';
-export const propTeamKey=(sport,value)=>sport==='nba'?({SA:'SAS',NY:'NYK'}[String(value).toUpperCase()]||String(value).toUpperCase()):sport==='nhl'?nhlModelTeamCode(value):String(value).toUpperCase();
+export const propTeamKey=(sport,value)=>sport==='nba'?({SA:'SAS',NY:'NYK',GS:'GSW',NO:'NOP'}[String(value).toUpperCase()]||String(value).toUpperCase()):sport==='nhl'?nhlModelTeamCode(value):String(value).toUpperCase();
 export async function resolvePropResearchEnv(env,sport){
  if(sport==='nba')return resolveNbaResearchOwnerDb(env);
  if(deployedSportDbMode(env,sport)!=='sport')return {ok:!!env.DB?.prepare,db:env.DB,env,binding:'DB'};
