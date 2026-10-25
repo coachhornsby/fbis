@@ -93,3 +93,13 @@ test('offset feature captures use UTC calendar day in window filtering and immut
  assert.match(stored[0],/\/2026-10-25\/[a-f0-9]{64}\.json$/);
  assert.throws(()=>buildMlbModelFeatures({packets:[{...p,observedAt:'2026-10-24T23:45:00-05:00'}],playerId:'1',role:'pitcher',capturedAt:localCapture}),/FEATURE_SOURCE_NOT_AVAILABLE_OR_CORRUPT/);
 });
+
+test('PIT source schema checks nested asOf, observed_at, fetchedAt and snake_case acquisition clocks',()=>{
+ const fixture={game_time:'2026-10-25T19:00:00Z'},cutoff='2026-10-25T18:45:00Z';
+ const late='2026-10-25T18:46:00Z';
+ for(const key of ['asOf','source_as_of','observed_at','source_observed_at','fetchedAt','fetched_at','acquired_at','captured_at','collected_at','ingested_at','palAsOf','profileAsOf']){
+  assert.throws(()=>validatePregameSnapshot(fixture,{context:{bullpenEvidence:{sources:[{[key]:late}]}}},cutoff),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/,key);
+ }
+ assert.equal(validatePregameSnapshot(fixture,{context:{bullpenEvidence:{sources:[{asOf:'2026-10-24',observed_at:'2026-10-25T13:40:00-05:00'}]}}},cutoff),true);
+ assert.throws(()=>validatePregameSnapshot(fixture,{context:{bullpenEvidence:{sources:[{asOf:'2026-10-25'}]}}},cutoff),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+});
