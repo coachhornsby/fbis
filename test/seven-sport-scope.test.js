@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { BOARD_SPORTS } from "../functions/lib/slateEngineCore.js";
 import { PROP_SPORTS } from "../functions/lib/exchangePlayerProps.js";
 import { SPORT_FILTERS } from "../src/app/navigation.js";
+import { retiredSportApiGate } from "../functions/api/_middleware.js";
 
 const APPROVED = ["nfl", "mlb", "nba", "nhl", "cfb", "cbb", "tennis"];
 const RETIRED = ["npb", "kbo", "soccer", "wnba"];
@@ -35,4 +36,20 @@ test("retired soccer Worker cron schedules are empty in both configs", () => {
     const config = readFileSync(new URL("../" + filename, import.meta.url), "utf8");
     assert.match(config, /^crons = \[\]/m, filename);
   }
+});
+
+test("retired API routes fail closed; explicit historical GET reads stay accessible", async () => {
+  for (const name of ["soccer-pitchapi-ingest", "soccer-pitchapi-sync", "wnba-wager-decisions", "asian-baseball-pregame-controlled"]) {
+    const path = "https://fbis.invalid/api/" + name;
+    for (const method of ["POST", "PUT", "DELETE"]) {
+      const response = retiredSportApiGate(new Request(path, { method }));
+      assert.equal(response?.status, 410, name + " " + method);
+      assert.equal((await response.json()).canAuthorizeWager, false);
+    }
+  }
+  for (const name of ["soccer-pitchapi-export", "asian-baseball-history-backfill", "wnba-wager-decisions"]) {
+    assert.equal(retiredSportApiGate(new Request("https://fbis.invalid/api/" + name)), null);
+  }
+  assert.equal(retiredSportApiGate(new Request("https://fbis.invalid/api/soccer-pitchapi-sync"))?.status, 410);
+  assert.equal(retiredSportApiGate(new Request("https://fbis.invalid/api/today")), null);
 });
