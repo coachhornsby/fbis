@@ -50,3 +50,5 @@
 .pp-card.sport-nba .pp-flow-numbers .pp-flow-projection strong{font-size:30px!important}
 .pp-card.sport-nba .pp-flow-threshold strong,.pp-card.sport-nba .pp-flow-actual strong{font-size:24px}
 .pp-card.sport-nba .pp-flow-numbers span{font-size:8px;letter-spacing:.035em}}
+
+.pp-card.sport-nba .pp-flow-threshold small{font-size:9px;color:#a5c8d7;line-height:1.25;white-space:nowrap}
