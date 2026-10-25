@@ -98,3 +98,33 @@
   .fbis-shell-main .fbis-universal-premium .fbis-game-score__projection span{font-size:9px!important}
   .fbis-shell-main .fbis-universal-premium .fbis-game-score__projection strong{font-size:18px!important}
 }
+
+/* Clock is attached to the score, not a second redundant banner. */
+.fbis-shell-main .fbis-universal-premium .fbis-game-score__clock {
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  margin:4px 0 1px;
+  padding:6px 7px;
+  border:1px solid rgba(93,236,195,.39);
+  border-radius:7px;
+  background:rgba(7,54,56,.82);
+  color:#a4ffe6!important;
+  font-size:clamp(11px,1vw,14px)!important;
+  line-height:1.15;
+  letter-spacing:.045em;
+  font-weight:950!important;
+  text-transform:uppercase;
+  white-space:normal;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-game-score__clock {
+  font-size:clamp(12px,1.15vw,16px)!important;
+  padding:8px 9px;
+}
+@media(max-width:640px){
+  .fbis-shell-main .fbis-universal-premium .fbis-game-score__clock {
+    font-size:10px!important;
+    letter-spacing:0;
+    padding:6px 3px;
+  }
+}
