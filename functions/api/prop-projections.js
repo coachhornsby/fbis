@@ -4,7 +4,7 @@ import { chicagoDayBounds } from '../lib/chicagoDayBounds.js';
 import { buildPropAcceptance,assessPropModel } from '../lib/propAcceptance.js';
 import { PROP_SPORTS } from '../lib/exchangePlayerProps.js';
 import { loadNbaFrozenPregameModels } from '../lib/nbaFrozenPregameModels.js';
-import { loadIndexedFrozenForecasts } from '../lib/fbisFrozenModelDelivery.js';
+import { loadIndexedFrozenForecasts,appendMissingFrozenForecasts } from '../lib/fbisFrozenModelDelivery.js';
 export async function onRequestGet({env,request}) {
  const u=new URL(request.url),sport=u.searchParams.get('sport')||'nfl',date=resolveSlateDate(u.searchParams.get('date')||'',{maxPast:sport==='nba'?14:0,maxFuture:7});
  if(!PROP_SPORTS.includes(sport)||!date.ok)return Response.json({ok:false,error:'Invalid sport or date'}, {status:400});
@@ -35,9 +35,11 @@ export async function onRequestGet({env,request}) {
   if(sport==='nba'){
    const freeze=await loadNbaFrozenPregameModels(env,{date:date.date,players:context.players});
    archived=freeze.rows.filter(r=>Date.parse(r.start_time)<=Date.now());
+   // Indexed R2 and sport-D1 freezes may contain the same exact forecast.
+   // Keep one row per identity so the frontend join remains unambiguous.
    historicalDiagnostics=freeze.diagnostics;
   }
-  const rows=[...upcoming,...archived].map(r=>({
+  const rows=appendMissingFrozenForecasts(upcoming,archived).map(r=>({
    ...r,
    dataAcceptance:assessPropModel(r,r.historicalPregame
      ? {now:Math.min(Date.now(),Date.parse(r.start_time)-1)}

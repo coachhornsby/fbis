@@ -35,6 +35,8 @@ export function verifiedCurrentQuote(o,now=Date.now(),maxAgeMs=2*3600000){
   o.observedReferenceCurrent===true&&o.temporal?.status==='CURRENT'&&
   o.executionEligible===false&&o.canAuthorizeWager===false;
  if(!o||o.priceVerified!==true||o.identityVerified===false||
+  o.suspended===true||o.active===false||['CLOSED','SUSPENDED','EXPIRED','INACTIVE'].includes(String(o.marketState||o.status||'').toUpperCase())||
+  (o.snapshotType&&o.snapshotType!=='CURRENT')||
   (o.marketAvailable!==true&&!safeResearchBbo))return false;
  const provenance=o.providerTimestampVerified===true||
    ['PROVIDER_VERIFIED','SOURCE_VERIFIED','VERIFIED_PROVIDER_TIMESTAMP'].includes(o.quoteClockStatus);
@@ -69,7 +71,13 @@ export function marketFamilyEvidence(offers=[],familyName,{now=Date.now(),maxAge
  for(const offer of verified){
   const mk=sourceMarketKey(offer),direction=side(offer);
   if(!mk||!direction)continue;
-  const threshold=familyName==='moneyline'?'none':Math.abs(num(offer.line)||0).toFixed(3);
+  const line=num(offer.line);
+  if(familyName!=='moneyline'&&line===null)continue;
+  // Opposing spread selections have opposite signs. Totals share one
+  // positive threshold; taking abs(total) would hide malformed lines.
+  if(familyName==='total'&&line<=0)continue;
+  const threshold=familyName==='moneyline'?'none':
+   (familyName==='spread'?(direction==='away'?-line:line):line).toFixed(3);
   const key=mk+'|'+threshold;
   if(!grouped.has(key))grouped.set(key,new Set());
   grouped.get(key).add(direction);

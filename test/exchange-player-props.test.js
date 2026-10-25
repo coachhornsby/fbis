@@ -53,3 +53,12 @@ test('Polymarket research adapter exposes only verified direction and settlement
  const unverified=normalizeExchangeProp(changeRaw(fixture(),p=>{p.playerPropIdentity.statSide='yes';p.playerPropIdentity.settlementScope=null;}),{now});
  assert.equal(unverified.statSide,null);assert.equal(unverified.settlementScope,null);
 });
+
+test('historical observations cannot become current executable quotes after a fresh collection',()=>{
+ const p=normalizeExchangeProp({...fixture(),snapshot_type:'HISTORICAL'},{now});
+ assert.equal(p.marketAvailable,false);assert.equal(p.purchaseAsk,null);
+ assert.ok(p.reasons.includes('HISTORICAL_REFERENCE_NOT_LIVE'));
+ const missing=normalizeExchangeProp({...fixture(),source_outcome_id:null},{now});
+ assert.equal(missing.marketAvailable,false);assert.equal(missing.executableSize,null);
+ assert.ok(missing.reasons.includes('SOURCE_OUTCOME_ID_MISSING'));
+});

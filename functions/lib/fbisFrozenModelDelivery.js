@@ -17,13 +17,14 @@ export function mapIndexedFrozenForecasts(objects=[],{sport,games=[],players=[],
   const frozen=Date.parse(obj?.frozenAt);
   if(!g||obj.schemaVersion!==1||obj.sport!==sport||
    obj.recordedWager!==false||!Number.isFinite(start)||
-   Date.parse(obj.eventStart)!==start||!Number.isFinite(frozen)||frozen>=start||
+   Date.parse(obj.eventStart)!==start||!Number.isFinite(frozen)||frozen>now||frozen>=start||
    !Array.isArray(obj.forecasts)||obj.forecasts.length>1500)continue;
   const teams=[propTeamKey(sport,g.home_abbr),propTeamKey(sport,g.away_abbr)];
   for(const f of obj.forecasts){
    const id=String(f?.canonicalPlayerId||''),parts=id.split(':'),playerId=parts.at(-1);
    const asOf=Date.parse(f?.modelAsOf),projection=finite(f?.projection),market=String(f?.market||'');
-   if(parts.length!==3||parts[0]!==sport||!validId(playerId)||projection===null||
+   const provider={nba:'espn',nfl:'espn',nhl:'nhl',mlb:'mlb'}[sport];
+   if(parts.length!==3||parts[0]!==sport||parts[1]!==provider||!validId(playerId)||projection===null||
     !Number.isFinite(asOf)||asOf>frozen||asOf>=start||f.period!=='full_game'||
     !validId(market)||!f.modelId||!f.modelVersion)continue;
    const matches=players.filter(p=>p.sport===sport&&String(p.player_id)===playerId&&
@@ -67,7 +68,9 @@ export async function loadIndexedFrozenForecasts(env,{sport,date,games=[],player
     if(!blob)return null;
     const raw=await blob.text(),expected=r.key.match(/-([a-f0-9]{64})\.json$/)?.[1];
     if(!expected||await digest(raw,subtle)!==expected)return null;
-    return JSON.parse(raw);
+    const object=JSON.parse(raw);
+    if(object.canonicalEventId!==r.event||object.sport!==sport)return null;
+    return object;
    }catch{return null}
   }));
   const valid=read.filter(Boolean);
@@ -75,4 +78,14 @@ export async function loadIndexedFrozenForecasts(env,{sport,date,games=[],player
   return {rows,status:valid.length===indexed.length?'SOURCE_HASH_VERIFIED':'PARTIAL_HASH_OR_READ_FAILURE',
    checkedObjects:indexed.length,verifiedObjects:valid.length};
  }catch{return {rows:[],status:'READ_FAILED'};}
+}
+
+/** Preferred source wins only across stores; ambiguous rows within a source
+ * remain visible to the existing acceptance gate. No forecast is recomputed. */
+export function appendMissingFrozenForecasts(preferred=[],fallback=[]) {
+ const key=r=>[r.sport,r.canonicalEventId,r.canonicalPlayerId,
+  r.canonical_market==='pra'?'points_rebounds_assists':r.canonical_market,r.period].join('|');
+ const seen=new Set(preferred.map(key)),out=[...preferred];
+ for(const row of fallback)if(!seen.has(key(row))){out.push(row);seen.add(key(row));}
+ return out;
 }

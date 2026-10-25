@@ -47,3 +47,17 @@ test('historical frozen NFL player score survives start only with exact source i
  assert.equal(row.length,1);assert.equal(row[0].historicalPregame,true);
  assert.equal(row[0].marketInformed,false);assert.equal(row[0].canAuthorizeWager,false);
 });
+
+test('frozen source rejects future capture clocks and wrong player provider namespaces',()=>{
+ const options={sport,games:[game],players:[athlete],now};
+ assert.equal(mapIndexedFrozenForecasts([{...observation,frozenAt:'2026-10-25T19:00:00Z'}],options).length,0);
+ assert.equal(mapIndexedFrozenForecasts([{...observation,forecasts:[{...observation.forecasts[0],canonicalPlayerId:'nba:nhl:123'}]}],options).length,0);
+});
+test('R2 and sport-D1 copies deliver one exact forecast after start; stat aliases deduplicate',async()=>{
+ const {appendMissingFrozenForecasts}=await import('../functions/lib/fbisFrozenModelDelivery.js');
+ const r=mapIndexedFrozenForecasts([observation],{sport,games:[game],players:[athlete],now:Date.parse(start)+1})[0];
+ const out=appendMissingFrozenForecasts([r],[{...r,id:'d1-copy'},{...r,id:'other-stat',canonical_market:'rebounds'}]);
+ assert.equal(out.length,2);assert.equal(out[0].id,r.id);
+ assert.equal(appendMissingFrozenForecasts([{...r,canonical_market:'pra'}],[{...r,canonical_market:'points_rebounds_assists'}]).length,1);
+ assert.equal(out.every(x=>x.canAuthorizeWager===false),true);
+});
