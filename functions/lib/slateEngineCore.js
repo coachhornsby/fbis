@@ -270,12 +270,23 @@ function parseOdds(comp, sport) {
   };
 }
 
-function statusInfo(comp) {
-  const t = comp.status?.type || {};
+function statusInfo(comp, event = {}) {
+  // ESPN publishes the in-game period and display clock on the competition
+  // status, and in some payload variants on event.status instead.
+  const raw = comp?.status || event?.status || {};
+  const fallback = event?.status || {};
+  const t = raw.type || fallback.type || {};
   const state = t.state || "pre";
+  const rawPeriod = raw.period ?? fallback.period;
+  const periodNumber = rawPeriod === "" || rawPeriod == null ? null : Number(rawPeriod);
+  const displayClock = raw.displayClock ?? fallback.displayClock ?? null;
   return {
     state,
-    detail: t.shortDetail || t.detail || t.description || "",
+    detail: t.shortDetail || t.detail || t.description ||
+      fallback.type?.shortDetail || fallback.type?.detail || "",
+    period: Number.isInteger(periodNumber) && periodNumber >= 1 && periodNumber <= 20 ? periodNumber : null,
+    clock: typeof displayClock === "string" && /^\\d{1,3}:\\d{2}$/.test(displayClock.trim())
+      ? displayClock.trim() : null,
     completed: state === "post" || t.completed === true,
     live: state === "in",
   };
@@ -896,7 +907,7 @@ export function mapEvent(sport, event) {
   home.conference = homeC?.team?.conferenceId || null;
   away.conference = awayC?.team?.conferenceId || null;
   const odds = parseOdds(comp, sport);
-  const status = statusInfo(comp);
+  const status = statusInfo(comp, event);
   const espnHomeWinPct = espnWinPct(event, homeC);
   const notes = (event.notes || []).map((n) => n.headline).filter(Boolean);
   const neutralSite = Boolean(comp.neutralSite) || notes.some((n) => /neutral/i.test(n));
