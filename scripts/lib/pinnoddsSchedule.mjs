@@ -18,7 +18,7 @@ export function pinnoddsWindowComplete(status,window,now=new Date()){
     Date.parse(s.collectedAt)>=Date.parse(window.windowStart)&&Date.parse(s.collectedAt)<=checked.getTime());
  const keys=new Set(recent.map(s=>[s.kind,s.sportId||'all',s.feed].join(':')));
  const expected=window.scope==='full'?
-  Array.from({length:6},(_,i)=>['board:'+(i+1)+':prematch','board:'+(i+1)+':live']).flat():
+  [2,3,4,5,6].flatMap(id=>['board:'+id+':prematch','board:'+id+':live']):
   window.scope==='football'?['board:5:prematch']:window.scope==='football-drops'?['board:5:prematch','drops:all:prematch','drops:all:live']:['drops:all:prematch','drops:all:live'];
  return expected.every(k=>keys.has(k));
 }
