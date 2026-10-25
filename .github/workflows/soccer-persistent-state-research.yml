@@ -1,8 +1,6 @@
 name: Soccer persistent state research
 
 on:
-  schedule:
-    - cron: "12,42 * * * *"
   workflow_dispatch:
 
 permissions:
