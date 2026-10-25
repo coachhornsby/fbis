@@ -189,11 +189,17 @@ export async function loadPolymarketGlobalNba(env,{day:date,now=Date.now()}={}){
   const d=await obj.json(),age=now-Date.parse(d.capturedAt||'');
   // Game-day archives remain useful for dated historical comparisons after
   // the strict 2h current-research freshness window. Never relabel as live.
-  if(!Array.isArray(d.rows)||age<0||!Number.isFinite(age)||age>48*3600000)return {rows:[],status:'STALE'};
+  if(!Array.isArray(d.rows)||age<0||!Number.isFinite(age)||age>48*3600000)return {rows:[],marketOnly:[],status:'STALE'};
   const historical=age>2*3600000;
   return {rows:d.rows.filter(r=>r.identityVerified&&r.canAuthorizeWager===false&&r.venue==='Polymarket Global')
     .map(r=>historical?{...r,historicalReference:true,fresh:false,marketAvailable:false,
       priceVerified:false,purchaseAsk:null,priceKind:'DISPLAY_REFERENCE_NOT_ASK'}:r),
+   marketOnly:(d.sourceOnly||[]).filter(r=>r?.canAuthorizeWager===false &&
+     r.venue==='Polymarket Global' && r.identityVerified===false &&
+     (!historical || r.collectedAt)).map(r=>({
+       ...r,historicalReference:historical,marketAvailable:false,
+       priceVerified:false,purchaseAsk:null,canQualify:false,canAuthorizeWager:false
+     })),
    status:historical?'HISTORICAL_REFERENCE':d.errors?.length?'PARTIAL':'RESEARCH_CAPTURED',
    capturedAt:d.capturedAt,fixtures:d.fixtures||[]};
  }catch{return {rows:[],status:'READ_FAILED'}}
