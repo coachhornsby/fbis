@@ -13,6 +13,12 @@ test('exact final NBA event and team/athlete IDs produce official P/R/A/3PM',()=
  assert.equal(nbaActualForMarket(r.rows[0],'points_rebounds_assists'),20);
  assert.equal(nbaActualForMarket(r.rows[0],'three_pointers_made'),2);
 });
+test('NBA fixture abbreviations verify final when team IDs are not populated',()=>{
+ const d={...finished,header:{competitions:[{...finished.header.competitions[0],competitors:[{team:{id:homeId,abbreviation:'DAL'}},{team:{id:awayId,abbreviation:'SA'}}]}]}};
+ const out=extractNbaOfficialBoxscore(d,{eventId,homeAbbr:'DAL',awayAbbr:'SA'});
+ assert.equal(out.ok,true);assert.equal(out.rows.length,1);
+ assert.equal(extractNbaOfficialBoxscore(d,{eventId,homeAbbr:'DAL',awayAbbr:'BOS'}).ok,false);
+});
 test('never use live or wrong game or wrong team stats as actual',()=>{
  const query={eventId,homeId,awayId};
  assert.equal(extractNbaOfficialBoxscore({...finished,header:{competitions:[{...finished.header.competitions[0],status:{type:{name:'STATUS_IN_PROGRESS',completed:false}}}]}},query).ok,false);

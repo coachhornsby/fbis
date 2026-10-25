@@ -9,7 +9,7 @@ export async function onRequestGet({env,request,fetchImpl=fetch}){
  if(!owner.ok)return respond({ok:false,reason:'NBA_DATA_OWNER_UNAVAILABLE',rows:[]},503);
  let games=[];
  try{
-  const result=await owner.db.prepare("SELECT id,home_id,away_id,start FROM games WHERE sport='nba' AND date=? ORDER BY start LIMIT 15").bind(date).all();
+  const result=await owner.db.prepare("SELECT id,home_id,away_id,home_abbr,away_abbr,start FROM games WHERE sport='nba' AND date=? ORDER BY start LIMIT 15").bind(date).all();
   games=(result.results||[]).filter(g=>/^\d+$/.test(String(g.id))&&
    (!eventId||String(g.id)===eventId)&&Number.isFinite(Date.parse(g.start))&&Date.parse(g.start)<Date.now());
  }catch{return respond({ok:false,reason:'NBA_GAMES_READ_FAILED',rows:[]},503)}
@@ -20,7 +20,7 @@ export async function onRequestGet({env,request,fetchImpl=fetch}){
    const res=await fetchImpl(uri,{method:'GET',headers:{accept:'application/json'},redirect:'manual',
     signal:AbortSignal.timeout(8000)});
    if(!res.ok){pending.push({eventId:g.id,status:'OFFICIAL_SOURCE_UNAVAILABLE'});return;}
-   const evidence=extractNbaOfficialBoxscore(await res.json(),{eventId:g.id,homeId:g.home_id,awayId:g.away_id});
+   const evidence=extractNbaOfficialBoxscore(await res.json(),{eventId:g.id,homeId:g.home_id,awayId:g.away_id,homeAbbr:g.home_abbr,awayAbbr:g.away_abbr});
    if(!evidence.ok){pending.push({eventId:g.id,status:evidence.reason});return;}
    rows.push(...evidence.rows);
   }catch{pending.push({eventId:g.id,status:'OFFICIAL_SOURCE_UNAVAILABLE'});}

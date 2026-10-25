@@ -1,4 +1,5 @@
 /** NBA official final boxscore parser: only exact ESPN event/athlete IDs. */
+const canonical=x=>({SA:'SAS',GS:'GSW',NO:'NOP',NY:'NYK'}[String(x||'').toUpperCase()]||String(x||'').toUpperCase());
 const int=v=>v!=null&&v!==''&&/^\d+$/.test(String(v).trim())?Number(v):null;
 const made=v=>{if(typeof v==='string'&&/^\d+-\d+$/.test(v.trim()))return int(v.split('-')[0]);return int(v);};
 const stat=(labels,values,name)=>{
@@ -14,7 +15,7 @@ export const nbaActualForMarket=(totals,market)=>{
  if(!parts||parts.some(k=>!Number.isInteger(totals[k])||totals[k]<0))return null;
  return parts.reduce((sum,k)=>sum+totals[k],0);
 };
-export function extractNbaOfficialBoxscore(body,{eventId,homeId,awayId}={}){
+export function extractNbaOfficialBoxscore(body,{eventId,homeId,awayId,homeAbbr,awayAbbr}={}){
  const comp=body?.header?.competitions?.[0]||null;
  const got=String(comp?.id||body?.header?.id||'');
  const status=comp?.status?.type;
@@ -23,12 +24,17 @@ export function extractNbaOfficialBoxscore(body,{eventId,homeId,awayId}={}){
   return {ok:false,reason:'EVENT_NOT_OFFICIALLY_FINAL'};
  const competitors=comp?.competitors||[];
  const ids=competitors.map(c=>String(c?.team?.id||c?.id||'')).sort();
- if(!homeId||!awayId||ids.length!==2||ids[0]===ids[1]||
-  ids.join('|')!==[String(homeId),String(awayId)].sort().join('|'))
+ const codes=competitors.map(c=>canonical(c?.team?.abbreviation));
+ const expectedCodes=[canonical(homeAbbr),canonical(awayAbbr)];
+ const verifiedById=homeId&&awayId&&ids.length===2&&ids[0]!==ids[1]&&
+  ids.join('|')===[String(homeId),String(awayId)].sort().join('|');
+ const verifiedByCode=homeAbbr&&awayAbbr&&codes.length===2&&codes[0]!==codes[1]&&
+  codes.slice().sort().join('|')===expectedCodes.sort().join('|');
+ if(!verifiedById&&!verifiedByCode)
   return {ok:false,reason:'GAME_TEAM_IDENTITY_MISMATCH'};
  const output=new Map(),bad=new Set();
  for(const team of body?.boxscore?.players||[]){
-  if(!ids.includes(String(team?.team?.id||'')))continue;
+  if(!ids.includes(String(team?.team?.id||''))&&!codes.includes(canonical(team?.team?.abbreviation)))continue;
   for(const group of team.statistics||[]){
    const labels=group.labels||group.names||[];
    for(const p of group.athletes||[]){
