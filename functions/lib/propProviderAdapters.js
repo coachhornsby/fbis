@@ -21,8 +21,8 @@ export function discoverKalshiPlayerSeries(records=[]) {
   ['KXNBA','nba'],['KXNFL','nfl'],['KXNHL','nhl'],['KXMLB','mlb'],
   ['KXNPB','npb'],['KXKBO','kbo']
  ];
- const stat=/\\b(?:players?|quarterbacks?|running backs?|wide receivers?|receivers?|pitchers?|goalies?|batters?|rebounds?|assists?|receptions?|passing yards|receiving yards|rushing yards|strikeouts?|shots? on goal|saves?|home runs?|touchdowns?|three.pointers?)\\b/i;
- const disallow=/\\b(?:team|season|career|championship|league winner|most wins|mvp|awards?|draft|playoff winner|division winner)\\b/i;
+ const stat=/\b(?:players?|quarterbacks?|running backs?|wide receivers?|receivers?|pitchers?|goalies?|batters?|rebounds?|assists?|receptions?|passing yards|receiving yards|rushing yards|strikeouts?|shots? on goal|saves?|home runs?|touchdowns?|three.pointers?)\b/i;
+ const disallow=/\b(?:team|season|career|championship|league winner|most wins|mvp|awards?|draft|playoff winner|division winner)\b/i;
  const discovered={};
  for(const r of records){
   const ticker=String(r?.ticker||'');
