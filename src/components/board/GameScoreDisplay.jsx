@@ -55,7 +55,6 @@ export function MatchupCenterClock({ clock = null }) {
   const remaining = parts.length > 1 ? parts.slice(1).join(" · ") : null;
   return (
     <div className="fbis-matchup-clock" role="status" aria-label={`Live game period and time: ${raw}`}>
-      <span className="fbis-matchup-clock__live"><span aria-hidden="true" /> LIVE</span>
       <strong className="fbis-matchup-clock__period">{phase}</strong>
       {remaining ? <span className="fbis-matchup-clock__remaining">{remaining}</span> : null}
     </div>

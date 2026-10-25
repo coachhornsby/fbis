@@ -99,7 +99,6 @@ function SharpStars({ value = 1, max = 5 }) {
   const safe = Math.max(1, Math.min(ceiling, Number(value) || 1));
   return <span className="pgc-sharp-stars" aria-label={`${safe} of ${ceiling} confidence stars`}>
     {Array.from({ length: safe }, (_, i) => <svg key={i} className="filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg>)}
-    <span className="pgc-star-count" aria-hidden="true">{safe}/{ceiling}</span>
   </span>;
 }
 function splitLabel(split, away, home) {
@@ -292,7 +291,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           )}
         </div>
 
-        <div className="pgc-featured-center">
+        <div className={`pgc-featured-center${vm.event?.live ? " has-center-clock" : ""}`}>
           {sportId === "mlb" ? (
             <>
               <div className="pgc-mlb-center-logos">
