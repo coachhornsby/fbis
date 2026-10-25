@@ -2,9 +2,6 @@ name: WNBA impact shadow grade
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "15 15 * * *"
-
 permissions:
   contents: read
 
