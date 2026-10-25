@@ -47,6 +47,31 @@ export async function onRequestGet({env,request}) {
   // newly fetched in-play / postgame quote masquerading as the closing line.
   const props=[...active(candidates.filter(p=>p.identityVerified)),
     ...active(captured.rows),...active(gamma.rows),...frozenRows];
+  // Return nonqualified market observations for research. Failure to match a
+  // canonical player or verify a provider quote is a data-quality state, not
+  // permission to silently discard an exchange-listed contract.
+  const marketOnly=candidates.filter(p=>!p.identityVerified).map(p=>({
+    id:p.id,provider:p.provider,source:p.source,sport:p.sport,
+    contractId:p.contractId,player_name:p.player_name||null,
+    canonical_market:p.canonical_market||null,line:p.line,
+    side:p.side,period:p.period,team:p.team||null,opponent:p.opponent||null,
+    collectedAt:p.collectedAt,reason:p.reasons||[],
+    identityVerified:false,marketAvailable:false,priceVerified:false,
+    purchaseAsk:null,canQualify:false,canAuthorizeWager:false
+  }));
+  marketOnly.push(...captured.rejected.map(r=>({
+    id:'kalshi-raw:'+r.id,provider:'Kalshi',source:r.source||'Kalshi REST',
+    sport:r.sport,contractId:r.id,series:r.series,
+    rawTitle:r.rawTitle||null,player_name:null,
+    canonical_market:null,line:r.line,side:null,period:null,
+    collectedAt:r.collectedAt||null,reason:[r.reason||'IDENTITY_UNVERIFIED'],
+    identityVerified:false,priceVerified:false,marketAvailable:false,
+    purchaseAsk:null,canQualify:false,canAuthorizeWager:false
+  })));
+  marketOnly.push(...(gamma.marketOnly||[]).filter(r=>
+    date && (Date.parse(r.start_time)>now || r.collectedAt &&
+      Date.parse(r.collectedAt)<Date.parse(r.start_time) && r.historicalReference===true)
+  ));
   const officialScopeCandidates = buildNhlOfficialScopeCandidates(captured.rows,{capturedAt:new Date().toISOString()});
 
   const degraded = !stores.length || diagnostics.some(d=>d.status==='READ_FAILED' || d.truncated);
@@ -56,7 +81,8 @@ export async function onRequestGet({env,request}) {
     verifiedContracts:props.filter(p=>p.sport===s&&p.provider===provider&&p.identityVerified).length,
     observations:candidates.filter(p=>p.sport===s&&p.provider===provider).length,modelStatus:'INDEPENDENT_MODEL_JOIN_REQUIRED',
   })));
-  return respond({ok:true,date,rows:props,coverage,diagnostics,degraded,collectorCoverage:captured.coverage,historicalReferenceDate:date,
+  return respond({ok:true,date,rows:props,marketOnly,marketOnlyCount:marketOnly.length,
+    coverage,diagnostics,degraded,collectorCoverage:captured.coverage,historicalReferenceDate:date,
     nbaPregameFreeze:nbaRequested?{Kalshi:frozen[0].status,Polymarket:frozen[1].status,
       capturedContracts:frozenRows.length,policy:'LAST_CAPTURE_BEFORE_GAME_START',canAuthorizeWager:false}:null,polymarketGlobalResearch:{status:gamma.status,contracts:gamma.rows.length,capturedAt:gamma.capturedAt||null,venue:'POLYMARKET_GLOBAL_NOT_US',priceSemantics:'DISPLAY_REFERENCE_NOT_BEST_ASK',canAuthorizeWager:false},officialScopeResearch:{status:'UNCERTIFIED_CANDIDATES_ONLY',candidateCount:officialScopeCandidates.scopes.length,rejectedCount:officialScopeCandidates.rejected.length,canActivateCollector:false},identityDiagnostics:context.diagnostics,identityCoverage:{fixtures:context.games.length,rosterPlayers:context.players.length,contractRejections:captured.rejected.reduce((a,r)=>(a[r.reason]=(a[r.reason]||0)+1,a),{})},rejected:candidates.filter(p=>!p.marketAvailable).map(p=>({id:p.id,provider:p.provider,sport:p.sport,reasons:p.reasons})),
     canQualify:false,canAuthorizeWager:false});
