@@ -14,7 +14,7 @@ test('a missed full-board hour is recovered before another football-only run',()
 });
 const status=(w,{skip=null,old=false,unreconciled=false}={})=>{
  const created=old?'2026-10-13T10:00:00.000Z':new Date(Date.parse(w.windowStart)+10*60000).toISOString();
- const scopes=w.scope==='full'?Array.from({length:6},(_,i)=>['prematch','live'].map(feed=>({kind:'board',sportId:i+1,feed}))).flat():w.scope==='football'?[{kind:'board',sportId:5,feed:'prematch'}]:[{kind:'board',sportId:5,feed:'prematch'},...['prematch','live'].map(feed=>({kind:'drops',feed}))];
+ const scopes=w.scope==='full'?[2,3,4,5,6].flatMap(sportId=>['prematch','live'].map(feed=>({kind:'board',sportId,feed}))):w.scope==='football'?[{kind:'board',sportId:5,feed:'prematch'}]:[{kind:'board',sportId:5,feed:'prematch'},...['prematch','live'].map(feed=>({kind:'drops',feed}))];
  return {ok:true,results:scopes.filter((_,i)=>i!==skip).map(s=>({...s,status:'RECENT_CAPTURE',collectedAt:created,reconciled:!unreconciled}))};
 };
 test('primary and fallback share one full six-hour slot key',()=>{
@@ -47,7 +47,7 @@ test('quota-bounded free PinnOdds schedule and backups reuse durable window iden
  const wf=readFileSync(new URL('../.github/workflows/pinnodds-governed-capture.yml',import.meta.url),'utf8');
  assert.match(wf,/23 \* \* \* \*/);
  assert.match(wf,/43 \* \* \* \*/);
- assert.match(wf,/maximum 88 reserved requests/);
+ assert.match(wf,/maximum 80 reserved requests/);
  assert.match(wf,/paid_capture:/);
  assert.match(wf,/default: false/);
  assert.match(wf,/if: github.event_name == 'schedule' \|\|/);
@@ -60,7 +60,7 @@ test('quota-bounded free PinnOdds schedule and backups reuse durable window iden
 test('24 hourly football windows reserve at most 88 requests and backup attempts share their slot',()=>{
  let total=0,football=0;for(let h=0;h<24;h++){
   const at=new Date(Date.UTC(2026,9,18,h,23));const w=pinnoddsWindow(at);const backup=pinnoddsWindow(new Date(+at+20*60000));
-  assert.equal(w.runId,backup.runId);total+=w.scope==='full'?15:w.scope==='football-drops'?3:1;football++;
+  assert.equal(w.runId,backup.runId);total+=w.scope==='full'?13:w.scope==='football-drops'?3:1;football++;
  }
- assert.equal(total,88);assert.equal(football,24);
+ assert.equal(total,80);assert.equal(football,24);
 });
