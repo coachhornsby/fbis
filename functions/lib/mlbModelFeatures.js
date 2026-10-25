@@ -3,6 +3,33 @@ import {buildMlbStatcastLab,MLB_STATCAST_LAB_CALC_VERSION} from './mlbStatcastLa
 import {sha256Hex} from './sha256Hex.js';
 export const MLB_FEATURE_VERSION='mlb-statcast-features-v1';
 const stamp=s=>typeof s==='string'&&/T.*Z$/.test(s)&&Number.isFinite(Date.parse(s));
+
+// Source availability is bounded by the exact prediction freeze, not merely first pitch.
+// Scan nested evidence without treating game dates, kickoff or predicted times as source receipts.
+const MLB_PIT_SOURCE_TIMES=new Set([
+ 'observedAt','observation_timestamp','observationTimestamp','sourceObservedAt',
+ 'source_timestamp','sourceTimestamp','acquiredAt','acquisition_timestamp',
+ 'acquisitionTimestamp','collectedAt','capturedAt','featureCapturedAt',
+ 'palAsOf','asOf'
+]);
+export function validatePregameSnapshot(fixture,features,maxObservationTime){
+ const gameStart=fixture?.game_time??fixture?.start;
+ if(!stamp(gameStart)||!stamp(maxObservationTime)||Date.parse(maxObservationTime)>=Date.parse(gameStart))throw Error('MLB_PIT_GAME_AND_CHECKPOINT_REQUIRED');
+ if(!features||typeof features!=='object')throw Error('MLB_PIT_FEATURE_EVIDENCE_REQUIRED');
+ const cutoff=Date.parse(maxObservationTime),visited=new WeakSet();
+ const scan=(node,path)=>{
+  if(node===null||typeof node!=='object'||visited.has(node))return;
+  visited.add(node);
+  for(const [key,value] of Object.entries(node)){
+   const next=path+'.'+key;
+   if(MLB_PIT_SOURCE_TIMES.has(key)&&value!=null){
+    if(!stamp(value)||Date.parse(value)>cutoff)throw Error('MLB_PIT_SOURCE_AFTER_CHECKPOINT:'+next);
+   }else if(value&&typeof value==='object')scan(value,next);
+  }
+ };
+ scan(features,'features');
+ return true;
+}
 export function selectMlbFeatureRows({packets=[],playerId,role,capturedAt=new Date().toISOString()}={}){
  if(!/^\d+$/.test(String(playerId))||!['pitcher','batter'].includes(role)||!stamp(capturedAt))throw Error('INVALID_FEATURE_SCOPE');
  const day=capturedAt.slice(0,10),seen=new Set(),sources=[],rows=[];
