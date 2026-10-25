@@ -76,6 +76,25 @@ export function kalshiTennisContractPairs(kalshi={},now=new Date()){
  }
  return matches;
 }
+const kalshiResearchVenueOffers=(contract,homeName)=>{
+ // Two full-name YES contracts on the same verified Kalshi event.
+ // These are captured REFERENCE prices, not provider-time-verified quotes.
+ const home=clean(homeName);
+ if(contract?.offers?.length!==2||!contract.offers.every(x=>x.ticker&&x.yesLabel&&
+   Number(x.yesAskDollars)>0&&Number(x.yesAskDollars)<1))return [];
+ const matches=contract.offers.map(o=>({
+  source:'Kalshi',provider:'Kalshi',sourceMarketId:o.ticker,
+  sourceOutcomeId:o.ticker+':yes',marketFamily:'moneyline',period:'full_game',
+  side:clean(o.yesLabel)===home?'home':'away',participantName:o.yesLabel,
+  contractPrice:Number(o.yesAskDollars),contractLong:true,
+  capturedAt:o.fetchedAt,providerObservedAt:null,sourceObservedAt:null,
+  providerTimestampVerified:false,priceVerified:false,
+  quoteClockStatus:'SOURCE_TIME_UNKNOWN',referenceOnly:true,
+  marketAvailable:false,executionEligible:false,canQualify:false,
+  canAuthorizeWager:false,quoteKind:'KALSHI_CAPTURED_REFERENCE_NOT_EXECUTABLE'
+ }));
+ return new Set(matches.map(o=>o.side)).size===2?matches:[];
+};
 export function mergeKalshiTennisCards(games=[],kalshi={},{
  date,now=new Date()
 }={}){
@@ -103,8 +122,13 @@ export function mergeKalshiTennisCards(games=[],kalshi={},{
    if(matched.length===2&&matched.every(o=>o.eventTicker===contract.eventTicker)){
     const old=t.kalshiResearchOffers||[];
     const map=new Map([...old,...matched].map(o=>[o.ticker,o]));
+    const existing=Array.isArray(t.venueOffers)?t.venueOffers:[];
+    const attached=kalshiResearchVenueOffers(contract,g.home?.fullName||g.home?.name);
+    const venue=new Map([...existing,...attached].map(o=>[
+     [o.source,o.sourceMarketId,o.sourceOutcomeId].join('|'),o]));
     g.tennisProjection={...t,kalshiResearchOffers:[...map.values()],
-     kalshiResearchStatus:kalshi[contract.tour+"Status"]||kalshi.status||"RESEARCH_SNAPSHOT"};
+     venueOffers:[...venue.values()],
+     kalshiResearchStatus:kalshi[contract.seriesSport+"Status"]||kalshi.status||"RESEARCH_SNAPSHOT"};
     continue;
    }
   }
@@ -112,6 +136,7 @@ export function mergeKalshiTennisCards(games=[],kalshi={},{
   // administrative expiry listing. No source or model may use it for betting.
   const schedule=contract.providerOccurrenceAt||contract.providerExpiry;
   if(ctDate(schedule)!==date)continue;
+  const capturedVenue=kalshiResearchVenueOffers(contract,contract.player1);
   const game={id:contract.id,sport:"tennis",tour:contract.tour,
    start:schedule,startTimeBasis:contract.providerOccurrenceAt?
     "KALSHI_PROVIDER_OCCURRENCE":"KALSHI_CONTRACT_EXPIRATION_ONLY",
@@ -121,7 +146,8 @@ export function mergeKalshiTennisCards(games=[],kalshi={},{
    canAuthorizeWager:false,qualificationBlocked:true,
    qualificationBlockReason:"UNVERIFIED_MATCH_START_AND_NO_FBIS_PROJECTION",
    model:null,projectionKind:"UNAVAILABLE",pureProjectionAvailable:false,
-   market:{reference:{available:false},venueOffers:[],marketAvailable:false},
+   market:{reference:{available:capturedVenue.length===2},venueOffers:capturedVenue,
+    marketAvailable:false,executionActionable:false},
    tennisProjection:{researchFixture:{verified:true,fixtureId:contract.id,
     source:"KALSHI_PUBLIC_SHADOW",eventTicker:contract.eventTicker,
     timeBasis:contract.providerTimeStatus},
@@ -129,7 +155,7 @@ export function mergeKalshiTennisCards(games=[],kalshi={},{
     tour:contract.tour,kalshiSeries:contract.seriesSport,
     kalshiResearchOffers:contract.offers,
     kalshiResearchStatus:kalshi[contract.seriesSport+"Status"]||kalshi.status||"RESEARCH_SNAPSHOT",
-    polymarketGlobalOffers:[],venueOffers:[],player1WinProb:null,
+    polymarketGlobalOffers:[],venueOffers:capturedVenue,player1WinProb:null,
     player2WinProb:null,blockedReason:"KALSHI_ONLY_RESEARCH_NO_MODEL_AUTHORITY",
     canQualify:false,canAuthorizeWager:false}};
   output.push(game);added.push(game.id);

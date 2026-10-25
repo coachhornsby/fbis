@@ -32,6 +32,11 @@ test("Kalshi creates two-sided ATP contract inventory without Polymarket or ESPN
  assert.equal(game.tennisProjection.kalshiResearchOffers.length,2);
  assert.equal(game.canAuthorizeWager,false);
  assert.equal(game.market.marketAvailable,false);
+ assert.equal(game.market.venueOffers.length,2);
+ assert.equal(game.market.venueOffers[0].marketFamily,'moneyline');
+ assert.equal(game.market.venueOffers[0].providerTimestampVerified,false);
+ assert.equal(game.market.venueOffers[0].sourceObservedAt,null);
+ assert.equal(game.market.venueOffers[0].marketAvailable,false);
 });
 test("Kalshi enriches independently scheduled Polymarket card with two outcomes",()=>{
  const game={id:"tennis:polyus:atp:555",sport:"tennis",tour:"atp",start:expiry,
@@ -43,6 +48,8 @@ test("Kalshi enriches independently scheduled Polymarket card with two outcomes"
  assert.equal(r.games[0].id,game.id);
  assert.equal(r.games[0].tennisProjection.kalshiResearchOffers.length,2);
  assert.equal(r.games[0].tennisProjection.venueOffers[0].contractPrice,.65);
+ assert.equal(r.games[0].tennisProjection.venueOffers.length,3);
+ assert.equal(r.games[0].tennisProjection.venueOffers.filter(o=>o.source==='Kalshi').length,2);
 });
 test("Kalshi cannot turn provider administrative expiry into an FBIS win prediction",()=>{
  const game={id:"projected",sport:"tennis",tour:"atp",start:expiry,
