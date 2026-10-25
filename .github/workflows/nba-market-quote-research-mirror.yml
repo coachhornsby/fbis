@@ -1,0 +1,36 @@
+name: NBA partitioned quote research mirror
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 */6 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/nba-market-quote-research-mirror.mjs"
+      - ".github/workflows/nba-market-quote-research-mirror.yml"
+permissions:
+  contents: read
+concurrency:
+  group: nba-d1-profile-shadow-main
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - name: Read both Q4 market partitions and mirror research evidence only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ed992525-d2ed-4b1d-8a12-feeb2efa152c
+        run: node scripts/nba-market-quote-research-mirror.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nba-market-research-mirror-${{ github.run_id }}
+          path: artifacts/nba-market-mirror.json
+          if-no-files-found: warn
+          retention-days: 90
