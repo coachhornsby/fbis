@@ -11,9 +11,9 @@ import {
 } from "../functions/lib/soccerFbisV1.js";
 import { SPORTS, BOARD_SPORTS } from "../functions/lib/slateEngineCore.js";
 
-test("soccer seven-league board is registered",()=>{
+test("retired soccer is archival only while league modeling remains reproducible",()=>{
   assert.equal(SPORTS.soccer.id,"soccer");
-  assert.ok(BOARD_SPORTS.includes("soccer"));
+  assert.ok(!BOARD_SPORTS.includes("soccer"));
   assert.deepEqual(SOCCER_LEAGUES,["eng.1","esp.1","ger.1","ita.1","fra.1","usa.1","usa.nwsl"]);
 });
 
