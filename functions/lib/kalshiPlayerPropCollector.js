@@ -6,7 +6,7 @@ import { kalshiSignedReadProxy } from './kalshiSignedCollector.js';
 const ROOT='player-props/kalshi/v1/';
 // A page budget controls one invocation, not completeness. A series resumes
 // from its saved cursor instead of discarding unvisited player thresholds.
-const PROGRESS_TTL_MS=90*60*1000;
+const PROGRESS_TTL_MS=6*60*60*1000;
 const chicagoDay = instant => new Intl.DateTimeFormat('en-CA',{
  timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'
 }).format(new Date(instant));
@@ -102,7 +102,7 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
    await env.ARCHIVE.put(ROOT+ticker+'.json',JSON.stringify(receipt),{httpMetadata:{contentType:'application/json'}});
    if(env.ARCHIVE.delete)await env.ARCHIVE.delete(progressKey);
    if(KALSHI_PROP_SERIES[ticker][0]==='nba' && complete)
-     nbaCaptures.push({ticker,records});
+     nbaCaptures.push({ticker,records,capturedAt:startedAt});
    receipts.push({series:ticker,status:'CAPTURED',records:records.length,
      pages:previousPages+pages,paginationComplete:true});
   }catch{receipts.push({series:ticker,status:'UNAVAILABLE',records:0});}
@@ -121,7 +121,7 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
     const context=await loadPropFixturesAndPlayers(env,{start:bounds.start,end:bounds.end,sport:'nba'});
     const lines=[];
     for(const snapshot of nbaCaptures)for(const raw of snapshot.records){
-     const mapped=mapKalshiPlayerContract(raw,{...context,capturedAt:now.toISOString(),seriesTicker:snapshot.ticker});
+     const mapped=mapKalshiPlayerContract(raw,{...context,capturedAt:snapshot.capturedAt,seriesTicker:snapshot.ticker});
      if(!mapped||mapped.rejected||!context.games.some(g=>String(g.id)===mapped.canonicalEventId))continue;
      lines.push(mapped);
      const noAsk=Number(raw.no_ask_dollars),yesBid=Number(raw.yes_bid_dollars),noSize=Number(raw.yes_bid_size_fp);
