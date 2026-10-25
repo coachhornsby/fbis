@@ -1,4 +1,5 @@
 import { resolveNbaResearchOwnerDb } from "./nbaResearchOwnerDb.js";
+import { captureNbaPregameMarketLines } from './nbaPropMarketFreeze.js';
 /** Polymarket Global Gamma: independently matched NBA props, display prices only. */
 const ROOT='player-props/polymarket-global/v1/';
 const abbr=x=>({NY:'NYK',SA:'SAS',GS:'GSW',NO:'NOP'}[String(x||'').toUpperCase()]||String(x||'').toUpperCase());
@@ -119,13 +120,16 @@ export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=f
  const fixtureMap=new Map();
  if(validPrevious)for(const f of previous.fixtures||[])if(f?.slug)fixtureMap.set(f.slug,f);
  for(const f of fixtures)if(f?.slug)fixtureMap.set(f.slug,f);
+ const freeze=await captureNbaPregameMarketLines(env,{provider:'Polymarket',date:today,rows,now});
  const result={ok:true,source:'POLYMARKET_GLOBAL_GAMMA',day:today,capturedAt,
   rows:[...history.values()],fixtures:[...fixtureMap.values()],errors,
+  pregameLineFreeze:freeze,
   retainedReferenceRows:retained,latestCaptureRows:rows.length,
   prices:'GAMMA_DISPLAY_REFERENCE_NOT_ORDERBOOK_ASK',canQualify:false,canAuthorizeWager:false};
  await env.ARCHIVE.put(archiveKey,JSON.stringify(result),{httpMetadata:{contentType:'application/json',cacheControl:'private,max-age=0'}});
  return {ok:true,source:result.source,day:today,capturedAt,contracts:result.rows.length,
   latestCaptureRows:rows.length,retainedReferenceRows:retained,fixtures:result.fixtures.length,errors,
+  pregameLineFreeze:freeze,
   canQualify:false,canAuthorizeWager:false};
 }
 export async function loadPolymarketGlobalNba(env,{day:date,now=Date.now()}={}){

@@ -1,4 +1,7 @@
-import { KALSHI_PROP_SERIES } from './propProviderAdapters.js';
+import { KALSHI_PROP_SERIES, mapKalshiPlayerContract } from './propProviderAdapters.js';
+import { captureNbaPregameMarketLines } from './nbaPropMarketFreeze.js';
+import { loadPropFixturesAndPlayers } from './propResearchData.js';
+import { chicagoDayBounds } from './chicagoDayBounds.js';
 import { kalshiSignedReadProxy } from './kalshiSignedCollector.js';
 const ROOT='player-props/kalshi/v1/';
 const chicagoDay = instant => new Intl.DateTimeFormat('en-CA',{
@@ -20,7 +23,7 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
  const available=new Set(catalog.records.map(r=>r.ticker));const series=Object.keys(KALSHI_PROP_SERIES).filter(s=>available.has(s));
  const offset=Number.isInteger(status?.nextOffset)?status.nextOffset%Math.max(1,series.length):0;
  const selected=Array.from({length:Math.min(maxSeries,series.length)},(_,i)=>series[(offset+i)%series.length]);
- const proxy=kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});const receipts=[];
+ const proxy=kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});const receipts=[],nbaCaptures=[];
  for(const ticker of selected){
   try {
    let cursor='',pages=0,complete=false,rateLimited=false;const records=[],seen=new Set(),cursors=new Set();
@@ -68,12 +71,40 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
     }),{httpMetadata:{contentType:'application/json'}});
    }
    await env.ARCHIVE.put(ROOT+ticker+'.json',JSON.stringify(receipt),{httpMetadata:{contentType:'application/json'}});
+   if(KALSHI_PROP_SERIES[ticker][0]==='nba' && complete)
+     nbaCaptures.push({ticker,records});
    receipts.push({series:ticker,status:complete?'CAPTURED':'PARTIAL',records:records.length,pages,paginationComplete:receipt.paginationComplete});
   }catch{receipts.push({series:ticker,status:'UNAVAILABLE',records:0});}
  }
+ // Only fully paginated, exactly roster/event matched NBA contracts can enter
+ // the last-observed-before-tip ledger. The raw Kalshi snapshot is NOT a quote clock.
+ const nbaFrozen=[];
+ if(nbaCaptures.length){
+  const localDate=chicagoDay(now);
+  const nextLocalDate=chicagoDay(new Date(now.getTime()+36*3600000));
+  for(const day of [...new Set([localDate,nextLocalDate])]){
+   try{
+    const bounds=chicagoDayBounds(day);
+    const context=await loadPropFixturesAndPlayers(env,{start:bounds.start,end:bounds.end,sport:'nba'});
+    const lines=[];
+    for(const snapshot of nbaCaptures)for(const raw of snapshot.records){
+     const mapped=mapKalshiPlayerContract(raw,{...context,capturedAt:now.toISOString(),seriesTicker:snapshot.ticker});
+     if(!mapped||mapped.rejected||!context.games.some(g=>String(g.id)===mapped.canonicalEventId))continue;
+     lines.push(mapped);
+     const noAsk=Number(raw.no_ask_dollars),yesBid=Number(raw.yes_bid_dollars),noSize=Number(raw.yes_bid_size_fp);
+     if(raw.no_ask_dollars!=null&&raw.yes_bid_dollars!=null&&noAsk>0&&noAsk<1&&
+        Math.abs(noAsk-(1-yesBid))<0.00001&&noSize>0)
+      lines.push({...mapped,id:'kalshi:'+raw.ticker+':no',side:'no',statSide:'under',
+       observedAsk:noAsk,observedBid:Number(raw.no_bid_dollars),observedDepth:noSize});
+    }
+    const frozen=await captureNbaPregameMarketLines(env,{provider:'Kalshi',date:day,rows:lines,now});
+    nbaFrozen.push({date:day,...frozen});
+   }catch{nbaFrozen.push({date:day,ok:false,reason:'NBA_FREEZE_CAPTURE_FAILED'});}
+  }
+ }
  const rateLimited=receipts.some(r=>r.status==='RATE_LIMITED');
  const result={ok:receipts.some(r=>r.status==='CAPTURED'||r.status==='PARTIAL'),version:1,attemptedAt:now.toISOString(),nextAllowedAt:new Date(now.getTime()+(rateLimited?3600000:14*60000)).toISOString(),
-  nextOffset:(offset+receipts.filter(r=>r.status!=='RATE_LIMITED').length)%Math.max(1,series.length),discoveredSeries:series.length,receipts,records:receipts.reduce((n,r)=>n+r.records,0),canQualify:false,canAuthorizeWager:false};
+  nextOffset:(offset+receipts.filter(r=>r.status!=='RATE_LIMITED').length)%Math.max(1,series.length),discoveredSeries:series.length,receipts,nbaPregameLineFreeze:nbaFrozen,records:receipts.reduce((n,r)=>n+r.records,0),canQualify:false,canAuthorizeWager:false};
  await env.ARCHIVE.put(ROOT+'status.json',JSON.stringify(result),{httpMetadata:{contentType:'application/json'}});return result;
 }
 export async function loadCapturedKalshiProps(env,{games,players,sport='all',seriesFilter=null,now=Date.now(),date=null}={}) {

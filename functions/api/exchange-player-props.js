@@ -1,4 +1,5 @@
 import {loadPolymarketGlobalNba} from '../lib/polymarketGlobalNbaProps.js';
+import { readNbaFrozenMarketLines } from '../lib/nbaPropMarketFreeze.js';
 import { buildNhlOfficialScopeCandidates } from '../lib/nhlPropScopeCandidates.js';
 import { loadPropFixturesAndPlayers } from '../lib/propResearchData.js';
 import { loadCapturedKalshiProps } from '../lib/kalshiPlayerPropCollector.js';
@@ -36,7 +37,16 @@ export async function onRequestGet({env,request}) {
   const captured=await loadCapturedKalshiProps(env,{...context,sport,date});
   const candidates = latestExchangeProps(rows);
   const gamma = sport==='all'||sport==='nba'?await loadPolymarketGlobalNba(env,{day:date}):{rows:[],status:'NOT_REQUESTED'};
-  const props = [...candidates.filter(p=>p.identityVerified),...captured.rows,...gamma.rows];
+  const now=Date.now();
+  const nbaRequested=sport==='all'||sport==='nba';
+  const frozen=nbaRequested?await Promise.all(['Kalshi','Polymarket'].map(provider=>
+    readNbaFrozenMarketLines(env,{provider,date,now}))):[];
+  const frozenRows=frozen.flatMap(result=>result.rows);
+  const active=rows=>rows.filter(r=>r.sport!=='nba'||Date.parse(r.start_time)>now);
+  // Started NBA games read ONLY proven pretip source observations, never a
+  // newly fetched in-play / postgame quote masquerading as the closing line.
+  const props=[...active(candidates.filter(p=>p.identityVerified)),
+    ...active(captured.rows),...active(gamma.rows),...frozenRows];
   const officialScopeCandidates = buildNhlOfficialScopeCandidates(captured.rows,{capturedAt:new Date().toISOString()});
 
   const degraded = !stores.length || diagnostics.some(d=>d.status==='READ_FAILED' || d.truncated);
@@ -46,6 +56,8 @@ export async function onRequestGet({env,request}) {
     verifiedContracts:props.filter(p=>p.sport===s&&p.provider===provider&&p.identityVerified).length,
     observations:candidates.filter(p=>p.sport===s&&p.provider===provider).length,modelStatus:'INDEPENDENT_MODEL_JOIN_REQUIRED',
   })));
-  return respond({ok:true,date,rows:props,coverage,diagnostics,degraded,collectorCoverage:captured.coverage,historicalReferenceDate:date,polymarketGlobalResearch:{status:gamma.status,contracts:gamma.rows.length,capturedAt:gamma.capturedAt||null,venue:'POLYMARKET_GLOBAL_NOT_US',priceSemantics:'DISPLAY_REFERENCE_NOT_BEST_ASK',canAuthorizeWager:false},officialScopeResearch:{status:'UNCERTIFIED_CANDIDATES_ONLY',candidateCount:officialScopeCandidates.scopes.length,rejectedCount:officialScopeCandidates.rejected.length,canActivateCollector:false},identityDiagnostics:context.diagnostics,identityCoverage:{fixtures:context.games.length,rosterPlayers:context.players.length,contractRejections:captured.rejected.reduce((a,r)=>(a[r.reason]=(a[r.reason]||0)+1,a),{})},rejected:candidates.filter(p=>!p.marketAvailable).map(p=>({id:p.id,provider:p.provider,sport:p.sport,reasons:p.reasons})),
+  return respond({ok:true,date,rows:props,coverage,diagnostics,degraded,collectorCoverage:captured.coverage,historicalReferenceDate:date,
+    nbaPregameFreeze:nbaRequested?{Kalshi:frozen[0].status,Polymarket:frozen[1].status,
+      capturedContracts:frozenRows.length,policy:'LAST_CAPTURE_BEFORE_GAME_START',canAuthorizeWager:false}:null,polymarketGlobalResearch:{status:gamma.status,contracts:gamma.rows.length,capturedAt:gamma.capturedAt||null,venue:'POLYMARKET_GLOBAL_NOT_US',priceSemantics:'DISPLAY_REFERENCE_NOT_BEST_ASK',canAuthorizeWager:false},officialScopeResearch:{status:'UNCERTIFIED_CANDIDATES_ONLY',candidateCount:officialScopeCandidates.scopes.length,rejectedCount:officialScopeCandidates.rejected.length,canActivateCollector:false},identityDiagnostics:context.diagnostics,identityCoverage:{fixtures:context.games.length,rosterPlayers:context.players.length,contractRejections:captured.rejected.reduce((a,r)=>(a[r.reason]=(a[r.reason]||0)+1,a),{})},rejected:candidates.filter(p=>!p.marketAvailable).map(p=>({id:p.id,provider:p.provider,sport:p.sport,reasons:p.reasons})),
     canQualify:false,canAuthorizeWager:false});
 }
