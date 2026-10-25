@@ -14,10 +14,15 @@ const college = Object.freeze({
 });
 const normalized = s => String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
 const finite = v => v == null || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null;
+const canonicalGameTeam = (sport,value) => {
+  const abbr=String(value||'').trim().toUpperCase();
+  return normalized(sport==='nba'?({SA:'SAS',NY:'NYK',GS:'GSW',NO:'NOP'}[abbr]||abbr):value);
+};
 const knownTeam = (game,team) => {
   if(!team)return true; // e.g. tennis singles; game evidence still required
-  const actual=normalized(team);
-  return [game.home,game.away].some(t=>[t?.abbr,t?.name,t?.fullName,t?.school].some(v=>normalized(v)===actual));
+  const actual=canonicalGameTeam(game.sport,team);
+  return [game.home,game.away].some(t=>[t?.abbr,t?.name,t?.fullName,t?.school]
+    .some(v=>canonicalGameTeam(game.sport,v)===actual));
 };
 
 /** Hard cap at three; never promote an unvalidated projection/line to a bet. */

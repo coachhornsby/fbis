@@ -149,3 +149,22 @@ test("highest comparable hit probabilities outrank unpriced projections",()=> {
   ];
   assert.deepEqual(topThreeGamePlayerProps(g).map(r=>r.playerName),["First","Second","No odds"]);
 });
+
+test('verified NBA exchange team aliases SA/GS/NO survive exact game-team lookup',()=>{
+ const cases=[
+  {away:'SA',home:'DAL',team:'SAS',opp:'DAL'},
+  {away:'GS',home:'PHX',team:'GSW',opp:'PHX'},
+  {away:'NO',home:'DEN',team:'NOP',opp:'DEN'}
+ ];
+ for(const c of cases){
+  const g={id:'nba-test',sport:'nba',start:'2026-10-24T23:00:00Z',
+   home:{abbr:c.home},away:{abbr:c.away},playerProjectionRows:[],
+   playerMarkets:[{canonicalEventId:'nba-test',playerName:'Verified player',team:c.team,
+    marketCanonical:'points',line:19.5,fbisProjection:24.1,modelIndependent:true,
+    book:'Kalshi',provider:'Kalshi',contractId:'kalshi-1'}]};
+  const rows=topThreeGamePlayerProps(g);
+  assert.equal(rows.length,1,`${c.team} should match verified ESPN team abbreviation`);
+  assert.equal(rows[0].line,19.5);
+  assert.equal(rows[0].book,'Kalshi');
+ }
+});
