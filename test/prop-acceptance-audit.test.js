@@ -31,7 +31,7 @@ test('Kalshi collection follows cursor, deduplicates overlap, and retains partia
  const result=await captureKalshiPlayerProps(env,{now,webCrypto:webcrypto,fetchImpl});assert.equal(result.ok,true);assert.deepEqual(seen,[null,'next-page']);
  const saved=JSON.parse(archive.files.get('player-props/kalshi/v1/KXNFLRECYDS.json'));assert.equal(saved.records.length,2);assert.equal(saved.paginationComplete,true);
  archive.files.delete('player-props/kalshi/v1/status.json');await captureKalshiPlayerProps(env,{now,webCrypto:webcrypto,fetchImpl,maxPages:1});
- assert.equal(JSON.parse(archive.files.get('player-props/kalshi/v1/KXNFLRECYDS.json')).paginationComplete,false);
+ assert.equal(JSON.parse(archive.files.get('player-props/kalshi/v1/KXNFLRECYDS.json')).paginationComplete,true); assert.equal(JSON.parse(archive.files.get('player-props/kalshi/v1/progress/KXNFLRECYDS.json')).cursor,'next-page');
 });
 const model={id:'m',sport:'nba',canonicalEventId:'g',canonicalPlayerId:'nba:espn:1',player_name:'Player',team:'CHI',opponent:'MIL',canonical_market:'points',period:'full_game',identityVerified:true,independent:true,fbis_projection:20,sigma:5,modelId:'MODEL',modelVersion:'v1',modelAsOf:'2026-10-23T15:00Z',start_time:'2026-10-24T00:00Z',availabilityStatus:'AVAILABLE',researchInputs:{projectedMinutes:30}};
 test('acceptance distinguishes complete model metadata, missing history, duplicate models and missing source reads',()=>{
