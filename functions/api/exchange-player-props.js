@@ -59,6 +59,15 @@ export async function onRequestGet({env,request}) {
     identityVerified:false,marketAvailable:false,priceVerified:false,
     purchaseAsk:null,canQualify:false,canAuthorizeWager:false
   }));
+  marketOnly.push(...captured.rejected.map(r=>({
+    id:'kalshi-raw:'+r.id,provider:'Kalshi',source:r.source||'Kalshi REST',
+    sport:r.sport,contractId:r.id,series:r.series,
+    rawTitle:r.rawTitle||null,player_name:null,
+    canonical_market:null,line:r.line,side:null,period:null,
+    collectedAt:r.collectedAt||null,reason:[r.reason||'IDENTITY_UNVERIFIED'],
+    identityVerified:false,priceVerified:false,marketAvailable:false,
+    purchaseAsk:null,canQualify:false,canAuthorizeWager:false
+  })));
   const officialScopeCandidates = buildNhlOfficialScopeCandidates(captured.rows,{capturedAt:new Date().toISOString()});
 
   const degraded = !stores.length || diagnostics.some(d=>d.status==='READ_FAILED' || d.truncated);
