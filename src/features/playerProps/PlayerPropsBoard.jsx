@@ -21,7 +21,7 @@ const TIER_LABELS = Object.freeze({
   NONE: "No FBIS read",
 });
 
-const PRO_SPORTS = new Set(["mlb", "cfb", "nfl", "nba", "wnba", "nhl", "tennis"]);
+const PRO_SPORTS = new Set(["nfl", "mlb", "nba", "nhl", "cfb", "cbb", "tennis"]);
 
 function fmtProb(v) {
   if (v == null || v === "" || !Number.isFinite(Number(v))) return "—";
