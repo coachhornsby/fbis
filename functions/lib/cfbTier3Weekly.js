@@ -71,7 +71,7 @@ export function reconcileCfbTier3GameIdentity(game) {
   };
 }
 
-export async function parseCfbTier3WeeklyCsv(raw, {receivedAt=new Date().toISOString(),filename="training_data.csv"}={}) {
+export async function parseCfbTier3WeeklyCsv(raw, {receivedAt=new Date().toISOString(),providerPublishedAt=null,sourceUrl=null,filename="training_data.csv"}={}) {
   if(typeof raw!=="string"||!raw.trim()||new TextEncoder().encode(raw).length>2_000_000)
     throw Error("TIER3_CSV_INVALID_SIZE");
   const {columns,rows}=parseCsv(raw.replace(/^\uFEFF/,""));
@@ -79,6 +79,7 @@ export async function parseCfbTier3WeeklyCsv(raw, {receivedAt=new Date().toISOSt
   const schema=assertCfbTier3Header(columns);
   if(rows.length<1||rows.length>200)throw Error("TIER3_INVALID_GAME_COUNT");
   if(!Number.isFinite(Date.parse(receivedAt)))throw Error("TIER3_INVALID_RECEIVED_AT");
+  if(providerPublishedAt!=null&&!Number.isFinite(Date.parse(providerPublishedAt)))throw Error("TIER3_INVALID_PROVIDER_PUBLISHED_AT");
   const seasons=new Set(rows.map(r=>r.season));
   const weeks=new Set(rows.map(r=>r.week));
   if(seasons.size!==1||weeks.size!==1)throw Error("TIER3_MIXED_SNAPSHOT");
@@ -138,7 +139,9 @@ export async function parseCfbTier3WeeklyCsv(raw, {receivedAt=new Date().toISOSt
     columnCount:CFB_TIER3_COLUMN_COUNT,
     identityCounts,
     authority:CFB_TIER3_AUTHORITY,canAuthorizeWager:false,canInfluenceProjection:false,
-    sourceFeatureCutoffVerified:false,providerPublishedAt:null,
+    // A publication clock does not prove the statistical feature cutoff.
+    sourceFeatureCutoffVerified:false,providerPublishedAt:providerPublishedAt||null,
+    sourceUrl:sourceUrl||null,
     expectedHeaderSha256:CFB_TIER3_HEADER_SHA256,
     expectedSchemaVersion:CFB_TIER3_SCHEMA_VERSION,
   };
@@ -153,11 +156,11 @@ export async function saveCfbTier3WeeklySnapshot(env,snapshot,raw) {
     customMetadata:{source:"cfbd-tier3-weekly",sha256:snapshot.sourceSha256,schema:snapshot.schemaVersion}});
   const statements=[
     env.TIER3_DB.prepare(`INSERT OR IGNORE INTO cfb_tier3_training_snapshots
-      (snapshot_id,source_sha256,season,week,source_filename,received_at,raw_r2_key,
+      (snapshot_id,source_sha256,season,week,source_filename,received_at,provider_published_at,source_url,raw_r2_key,
        row_count,feature_count,schema_columns_json,schema_version,header_sha256)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .bind(snapshot.snapshotId,snapshot.sourceSha256,snapshot.season,snapshot.week,
-        snapshot.filename,snapshot.receivedAt,key,snapshot.rowCount,snapshot.featureCount,
+        snapshot.filename,snapshot.receivedAt,snapshot.providerPublishedAt||null,snapshot.sourceUrl||null,key,snapshot.rowCount,snapshot.featureCount,
         JSON.stringify(snapshot.columns),snapshot.schemaVersion,snapshot.headerSha256)
   ];
   for(const row of snapshot.games){
@@ -179,6 +182,8 @@ export async function saveCfbTier3WeeklySnapshot(env,snapshot,raw) {
     season:snapshot.season,week:snapshot.week,rows:snapshot.rowCount,
     features:snapshot.featureCount,schemaVersion:snapshot.schemaVersion,
     headerSha256:snapshot.headerSha256,identityCounts:snapshot.identityCounts||{},
+    providerPublishedAt:snapshot.providerPublishedAt||null,sourceFeatureCutoffVerified:false,
+    sourceUrl:snapshot.sourceUrl||null,
     authority:CFB_TIER3_AUTHORITY,networkCalls:0,
     canAuthorizeWager:false,canInfluenceProjection:false
   };

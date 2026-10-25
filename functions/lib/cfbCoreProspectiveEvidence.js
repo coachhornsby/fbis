@@ -29,9 +29,14 @@ export function evaluateCfbProspectiveHybridRows(rows = [], { artifactId = null,
     const generation = Date.parse(r.generation_at);
     const kickoff = Date.parse(r.kickoff);
     const sourceAt = r.feature_cutoff_at ? Date.parse(r.feature_cutoff_at) : NaN;
+    let provenance = r.provenance_json || {};
+    if (typeof provenance === "string") { try { provenance=JSON.parse(provenance); } catch { provenance={}; } }
+    if (provenance.sourceFeatureCutoffVerified !== true ||
+        provenance.sourceFeatureCutoffStatus !== "source_feature_cutoff_verified" ||
+        !Number.isFinite(sourceAt)) { drop("source_cutoff_unverified"); continue; }
     const gameWeek = numeric(r.week), through = numeric(r.core_through_week);
     if (!(Number.isFinite(generation) && Number.isFinite(kickoff) && generation < kickoff)) { drop("not_pregame"); continue; }
-    if (r.feature_cutoff_at && !(Number.isFinite(sourceAt) && sourceAt <= generation)) { drop("future_or_unverified_feature_cutoff"); continue; }
+    if (!(sourceAt <= generation)) { drop("future_or_unverified_feature_cutoff"); continue; }
     if (gameWeek == null || through == null || !(through < gameWeek)) { drop("invalid_week_cutoff"); continue; }
     if (r.eligibility !== "eligible_projected") { drop("not_eligible"); continue; }
     const ah = numeric(r.champion_home), aa = numeric(r.champion_away), ch = numeric(r.core_home), ca = numeric(r.core_away);
@@ -43,6 +48,11 @@ export function evaluateCfbProspectiveHybridRows(rows = [], { artifactId = null,
   const observed = [];
   for (const r of unique.values()) {
     if (!(r.final_verified === 1 || r.final_verified === true)) continue;
+    if (!r.settlement_source_url || !r.settlement_verified_at ||
+        r.settlement_orientation !== "home_away_by_competitor_homeAway") {
+      drop("final_source_unverified");
+      continue;
+    }
     const home = numeric(r.actual_home), away = numeric(r.actual_away);
     if (home == null || away == null) { drop("missing_verified_final"); continue; }
     const actualMargin = home - away, actualTotal = home + away;
@@ -96,7 +106,9 @@ export function evaluateCfbProspectiveHybridRows(rows = [], { artifactId = null,
     marginMaeCiExcludesZero:ci?.excludesZero===true,
     weekClusteredBootstrap:ci!=null,
     prospectiveFrozenNoRetune:true,
-    trainEvalBaselineMismatchDocumented:true,
+    // The known Elo-proxy vs production A/A feature-distribution mismatch is
+    // still open. Do not turn an issue note into a cleared promotion gate.
+    trainEvalBaselineMismatchDocumented:false,
     noHoldoutRetune:true,operatorApproved:false
   });
   return {
@@ -112,6 +124,7 @@ export function evaluateCfbProspectiveHybridRows(rows = [], { artifactId = null,
     },
     gate,
     classification:observed.length<200?"PROSPECTIVE_ACCUMULATING": "PROSPECTIVE_GATE_EVALUATED",
+    featureDistributionRisk:"OPEN: training Elo-proxy versus production A/A mismatch remains under sensitivity review",
     caution:"Historical 149-game holdout excluded. Total parity is by construction. No auto-promotion or wagering authority."
   };
 }

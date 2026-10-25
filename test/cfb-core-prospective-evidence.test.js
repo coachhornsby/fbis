@@ -11,10 +11,15 @@ function game(id, overrides = {}) {
     eligibility:"eligible_projected",
     generation_at:"2026-10-20T14:00:00.000Z",
     feature_cutoff_at:"2026-10-18T12:00:00.000Z",
+    provenance_json:{sourceFeatureCutoffVerified:true,sourceFeatureCutoffStatus:"source_feature_cutoff_verified"},
     kickoff:"2026-10-24T22:00:00.000Z",
     champion_home:21,champion_away:17,
     core_home:24,core_away:14,
     final_verified:1,actual_home:24,actual_away:14,
+    settlement_source:"espn-public-summary",
+    settlement_source_url:"https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary?event=1",
+    settlement_orientation:"home_away_by_competitor_homeAway",
+    settlement_verified_at:"2026-10-25T01:00:00.000Z",
     ...overrides,
   };
 }

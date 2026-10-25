@@ -4740,6 +4740,10 @@ CREATE TABLE IF NOT EXISTS cfb_core_shadow_predictions (
   final_verified INTEGER NOT NULL DEFAULT 0,
   settled_at TEXT,
   settlement_json TEXT,
+  settlement_source TEXT,
+  settlement_source_url TEXT,
+  settlement_orientation TEXT,
+  settlement_verified_at TEXT,
   created_at TEXT NOT NULL,
   UNIQUE(game_id, core_model_id, generation_at)
 );
@@ -4773,6 +4777,14 @@ CREATE TABLE IF NOT EXISTS cfb_core_evaluation_reports (
 
 CREATE INDEX IF NOT EXISTS idx_cfb_core_eval_type
   ON cfb_core_evaluation_reports(report_type, generated_at DESC);
+
+CREATE TABLE IF NOT EXISTS cfb_core_shadow_settlement_attempts (
+  game_id TEXT PRIMARY KEY,
+  last_attempt_at TEXT NOT NULL,
+  outcome TEXT NOT NULL,
+  source_url TEXT,
+  updated_at TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS cfb_core_research_artifacts (
   artifact_id TEXT PRIMARY KEY,

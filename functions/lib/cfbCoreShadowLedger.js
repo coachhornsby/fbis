@@ -14,6 +14,7 @@ import {evaluateCfbCoreResearch} from "./cfbCoreEvaluation.js";
 import {evaluateCfbProspectiveHybridRows} from "./cfbCoreProspectiveEvidence.js";
 import {CHAMPION_HFA} from "./collegeModels.js";
 import {estimateCfbWeekFromDate} from "./cfbCoreAdvancedPlumbing.js";
+import {fetchEspnCfFinals} from "./cfbTier3WeeklyEvaluation.js";
 
 const num = v => v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v);
 const str = v => (v == null || v === "") ? null : String(v);
@@ -235,7 +236,10 @@ export function buildCfbCoreShadowRecord(game = {}, { artifact = null, market = 
     awayConference: str(game.awayConference || awayFeat.conference),
     neutralSite: game.neutralSite || game.neutral ? 1 : 0,
     generationAt,
-    featureCutoffAt: str(homeCore?.coreSourceAsOf || awayCore?.coreSourceAsOf),
+    // Source receipt time proves when the document was observed, not when its
+    // statistical features were cut off. A feature cutoff is only populated
+    // from explicit verification evidence supplied by the source audit.
+    featureCutoffAt: str(game.featureCutoffAt || null),
     coreThroughWeek: vector.ok ? vector.throughWeek : num(homeCore?.coreThroughWeek),
     coreYear: vector.ok ? vector.season : num(homeCore?.coreYear),
     coreSourceAsOfHome: homeCore?.coreSourceAsOf || null,
@@ -342,26 +346,35 @@ export async function settleCfbCoreShadowRecords(env, settlements = []) {
   let settled = 0;
   const now = new Date().toISOString();
   for (const s of settlements) {
-    if (!s?.gameId || s.finalVerified !== true) continue;
+    if (!s?.gameId || s.finalVerified !== true || !s.sourceUrl ||
+        s.scoreOrientation !== "home_away_by_competitor_homeAway" ||
+        !/^https:\/\/site\.api\.espn\.com\//i.test(String(s.sourceUrl))) continue;
     const ah = num(s.actualHome), aa = num(s.actualAway);
     if (ah == null || aa == null) continue;
     const settlement = {
       actualMargin: ah - aa,
       actualTotal: ah + aa,
       settledAt: now,
+      source: s.source || "espn-public-summary",
+      sourceUrl: String(s.sourceUrl),
+      scoreOrientation: s.scoreOrientation,
       researchOnly: true,
     };
     try {
       const res = await db.prepare(
         `UPDATE cfb_core_shadow_predictions SET
           actual_home=?, actual_away=?, final_verified=1, settled_at=?,
+          settlement_source=?, settlement_source_url=?, settlement_orientation=?,
+          settlement_verified_at=?,
           closing_spread=COALESCE(?, closing_spread),
           closing_total=COALESCE(?, closing_total),
           closing_captured_at=COALESCE(?, closing_captured_at),
           settlement_json=?
-         WHERE game_id=? AND final_verified=0 AND datetime(kickoff) < datetime(?)`
+         WHERE game_id=? AND datetime(kickoff) < datetime(?)
+           AND (final_verified=0 OR settlement_source_url IS NULL OR settlement_verified_at IS NULL)`
       ).bind(
         ah, aa, now,
+        settlement.source, settlement.sourceUrl, settlement.scoreOrientation, now,
         num(s.closingSpread), num(s.closingTotal), str(s.closingCapturedAt),
         j(settlement), String(s.gameId), now
       ).run();
@@ -651,7 +664,7 @@ async function loadFbisWeeklyMatchups(env, season, weeks, beforeIso) {
         `SELECT g.game_id,g.season,g.week,g.home_team_source,g.away_team_source,
                 g.home_canonical_id,g.away_canonical_id,g.identity_status,
                 g.point_in_time_status,g.features_json,
-                s.received_at,s.provider_published_at,s.source_filename
+                s.received_at,s.provider_published_at,s.source_filename,s.source_url
          FROM cfb_tier3_training_games g
          JOIN cfb_tier3_training_snapshots s ON s.snapshot_id=g.snapshot_id
          WHERE g.season=? AND g.week=? AND s.status='research_only'
@@ -681,6 +694,9 @@ async function loadFbisWeeklyMatchups(env, season, weeks, beforeIso) {
           home:side("home",g.home_team_source,g.home_canonical_id),
           away:side("away",g.away_team_source,g.away_canonical_id),
           snapshotReceivedAt:g.received_at,
+          featureCutoffAt:null,
+          providerPublishedAt:g.provider_published_at || null,
+          sourceUrl:g.source_url || null,
           featureStatus:g.point_in_time_status,
           sourceFilename:g.source_filename,
         });
@@ -796,6 +812,7 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
       homeConference: homeFeat?.conference || null,
       awayConference: awayFeat?.conference || null,
       neutralSite: false,
+      featureCutoffAt: weekly?.featureCutoffAt || null,
       championModelId: p.projection_kind === "FBIS" ? "CFB-FBIS-v2" : (p.model_version || "CFB-CHAMPION"),
       championModelVersion: p.model_version,
       championHome: num(p.proj_home),
@@ -821,10 +838,13 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
       rec.provenance = {
         ...rec.provenance,
         weeklySourceFilename:weekly.sourceFilename,
+        weeklySourceUrl:weekly.sourceUrl,
         weeklyObservedAt:weekly.snapshotReceivedAt,
         sourceFeatureCutoffStatus:weekly.featureStatus,
         sourceCutoffDerivation:"report_schedule_week_minus_one",
-        externalProviderPublicationTimestampVerified:false,
+        sourceFeatureCutoffVerified:false,
+        externalProviderPublicationTimestampCaptured:Boolean(weekly.providerPublishedAt),
+        providerPublishedAt:weekly.providerPublishedAt||null,
       };
     }
     records.push(rec);
@@ -855,35 +875,56 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
 }
 
 export async function runCfbCoreShadowSettle(env, { now = null } = {}) {
-  if (!env?.DB?.prepare) return { ok: false, reason: "PRIMARY_DB_UNAVAILABLE", settled: 0 };
-  let graded = [];
+  const db=tier3(env);
+  if (!db?.prepare) return { ok: false, reason: "TIER3_DB_UNAVAILABLE", settled: 0 };
+  const at=now||new Date().toISOString();
+  let games=[];
   try {
-    graded = (await env.DB.prepare(
-      `SELECT game_id,actual_home,actual_away FROM prediction_snapshots
-       WHERE sport='cfb' AND actual_home IS NOT NULL AND actual_away IS NOT NULL
-       ORDER BY frozen_at DESC LIMIT 400`
-    ).all())?.results || [];
-  } catch {
-    graded = [];
+    games=(await db.prepare(
+      `SELECT p.game_id,p.season,p.week,p.kickoff,p.home_team,p.away_team,
+              p.actual_home,p.actual_away,p.final_verified
+       FROM cfb_core_shadow_predictions p
+       WHERE (p.final_verified=0 OR p.settlement_source_url IS NULL OR p.settlement_verified_at IS NULL)
+         AND datetime(p.kickoff)<datetime(?)
+         AND datetime(p.kickoff)>=datetime(?,'-90 days')
+         AND NOT EXISTS (SELECT 1 FROM cfb_core_shadow_settlement_attempts a
+                         WHERE a.game_id=p.game_id AND datetime(a.last_attempt_at)>datetime(?,'-12 hours'))
+       GROUP BY p.game_id ORDER BY p.kickoff DESC LIMIT 400`
+    ).bind(at,at,at).all())?.results||[];
+  } catch(err) {
+    return {ok:false,reason:String(err?.message||err),settled:0,source:"espn-public-summary"};
   }
-  if (!graded.length) {
-    try {
-      graded = (await env.DB.prepare(
-        `SELECT game_id,actual_home,actual_away FROM predictions
-         WHERE sport='cfb' AND actual_home IS NOT NULL AND actual_away IS NOT NULL
-         ORDER BY as_of DESC LIMIT 400`
-      ).all())?.results || [];
-    } catch (err) {
-      return { ok: false, reason: String(err?.message || err), settled: 0 };
+  if(!games.length)return {ok:true,settled:0,attempted:0,unverified:0,source:"espn-public-summary",authority:"research_only"};
+  const candidates=games.slice(0,30);
+  const finals=await fetchEspnCfFinals(candidates.map(g=>g.game_id),{concurrency:8});
+  const settlements=[],attempts=[];
+  let unverified=0,identityMismatch=0,scoreConflict=0;
+  for(const g of candidates){
+    const f=finals.get(String(g.game_id));
+    if(!f?.completed||f.homePoints==null||f.awayPoints==null||!f.sourceUrl){unverified++;attempts.push([g.game_id,"unverified",null]);continue;}
+    const expectedHome=normalizeTeamName(g.home_team),expectedAway=normalizeTeamName(g.away_team);
+    const observedHome=normalizeTeamName(f.homeName),observedAway=normalizeTeamName(f.awayName);
+    if(!expectedHome||!expectedAway||expectedHome!==observedHome||expectedAway!==observedAway){identityMismatch++;attempts.push([g.game_id,"identity_mismatch",f.sourceUrl]);continue;}
+    if(g.final_verified===1 && (num(g.actual_home)!==f.homePoints||num(g.actual_away)!==f.awayPoints)){
+      scoreConflict++;attempts.push([g.game_id,"score_conflict",f.sourceUrl]);continue;
     }
+    settlements.push({gameId:g.game_id,actualHome:f.homePoints,actualAway:f.awayPoints,
+      finalVerified:true,source:f.source,sourceUrl:f.sourceUrl,
+      scoreOrientation:f.scoreOrientation});
+    attempts.push([g.game_id,"verified_candidate",f.sourceUrl]);
   }
-  const settlements = graded.map(g => ({
-    gameId: g.game_id,
-    actualHome: num(g.actual_home),
-    actualAway: num(g.actual_away),
-    finalVerified: true,
-  }));
-  return settleCfbCoreShadowRecords(env, settlements);
+  const saved=await settleCfbCoreShadowRecords(env,settlements);
+  if(db.batch&&attempts.length){
+    const statements=attempts.map(([gameId,outcome,url])=>db.prepare(
+      `INSERT INTO cfb_core_shadow_settlement_attempts(game_id,last_attempt_at,outcome,source_url,updated_at)
+       VALUES(?,?,?,?,?) ON CONFLICT(game_id) DO UPDATE SET last_attempt_at=excluded.last_attempt_at,
+       outcome=excluded.outcome,source_url=excluded.source_url,updated_at=excluded.updated_at`
+    ).bind(String(gameId),at,outcome,url,at));
+    try{await db.batch(statements);}catch{}
+  }
+  return {...saved,attempted:candidates.length,queued:games.length,verifiedCandidates:settlements.length,
+    unverified,identityMismatch,scoreConflict,source:"espn-public-summary",sourceUrlStored:true,
+    authority:"research_only",canAuthorizeWager:false,canInfluenceProduction:false};
 }
 
 export async function persistCfbCoreEvaluationReport(env, report, { reportType = "walkforward", season = null, week = null } = {}) {
@@ -908,6 +949,10 @@ export async function persistCfbCoreEvaluationReport(env, report, { reportType =
         marketSummary: report.marketSummary,
         prospective: report.prospective ? {
           artifactId: report.prospective.artifactId,
+          featureDistributionRisk: report.prospective.featureDistributionRisk,
+          cutoffQualifiedGames: report.prospective.prospectiveSettledN,
+          sourceCutoffUnverified: report.prospective.excluded?.source_cutoff_unverified || 0,
+          finalSourceUnverified: report.prospective.excluded?.final_source_unverified || 0,
           frozenUniqueGames: report.prospective.frozenUniqueGames,
           prospectiveSettledN: report.prospective.prospectiveSettledN,
           weekClusters: report.prospective.weekClusters,
@@ -953,7 +998,8 @@ export async function runCfbCoreWeeklyEvaluation(env, { rows = null } = {}) {
         `SELECT id,game_id,season,week,kickoff,generation_at,feature_cutoff_at,
           core_model_id,core_artifact_id,core_source_endpoint,core_through_week,eligibility,
           champion_home,champion_away,core_home,core_away,
-          final_verified,actual_home,actual_away
+          final_verified,actual_home,actual_away,provenance_json,
+          settlement_source,settlement_source_url,settlement_orientation,settlement_verified_at
          FROM cfb_core_shadow_predictions
          WHERE core_model_id=? AND core_artifact_id=?
          ORDER BY generation_at ASC, id ASC LIMIT 3000`
@@ -970,9 +1016,13 @@ export async function runCfbCoreWeeklyEvaluation(env, { rows = null } = {}) {
         decision: evidence.gate.decision,
         comparison: evidence.metrics,
         verifiedOos: evidence.prospectiveSettledN > 0,
-        dataLimitations: evidence.prospectiveSettledN < 200
-          ? ["PROSPECTIVE_N_BELOW_200", "KEEP_PRODUCTION_AA_CHAMPION"]
-          : [],
+        dataLimitations: [
+          ...(evidence.prospectiveSettledN < 200 ? ["PROSPECTIVE_N_BELOW_200"] : []),
+          ...(Number(evidence.excluded?.source_cutoff_unverified || 0) > 0 ? ["SOURCE_FEATURE_CUTOFF_UNVERIFIED"] : []),
+          ...(Number(evidence.excluded?.final_source_unverified || 0) > 0 ? ["FINAL_SCORE_SOURCE_UNVERIFIED"] : []),
+          ...(evidence.gate?.fail?.includes("train-eval-baseline-mismatch-undocumented") ? ["TRAINING_VS_AA_FEATURE_DISTRIBUTION_MISMATCH_OPEN"] : []),
+          "KEEP_PRODUCTION_AA_CHAMPION",
+        ],
         marketSummary: null,
         folds: [],
         ablation: null,

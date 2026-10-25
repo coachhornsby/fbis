@@ -1,7 +1,7 @@
 name: CFB CORE prospective shadow
 
-# Cache-only research jobs. Intentionally isolated from CFBD/CBBD
-# harvesting so an upstream 429/503 cannot suppress the shadow ledger.
+# Independent research jobs. Freeze/evaluation are cache-only; settlement
+# performs bounded, read-only ESPN final checks. No CFBD/CBBD harvesting.
 # This workflow neither changes production A/A nor authorizes wagers.
 # Operator verification 2026-10-24: run after weekly-source lock production deployment.
 on:
@@ -75,6 +75,15 @@ jobs:
                 "- settled: \(.d1.cfbCoreShadowSettle.settled // 0)",
                 "- prospective settled sample: \(.d1.cfbCoreWeekly.eligibleRows // 0)",
                 "- evaluation: \(.d1.cfbCoreWeekly.classification // "n/a")",
+                "- promotion readiness: \(.d1.cfbCoreWeekly.readinessGate // "n/a")",
+                "- readiness failures: \((.d1.cfbCoreWeekly.gateFailures // []) | join(", "))",
+                "- unique frozen games: \(.d1.cfbCoreWeekly.frozenUniqueGames // 0)",
+                "- settled eligible games: \(.d1.cfbCoreWeekly.prospectiveSettledN // 0)",
+                "- independent week clusters: \(.d1.cfbCoreWeekly.weekClusters // 0)",
+                "- margin MAE delta: \(.d1.cfbCoreWeekly.metrics.marginMaeDelta // "n/a")",
+                "- week-clustered 95% CI: \(.d1.cfbCoreWeekly.metrics.weekClustered95PctCi // "n/a")",
+                "- unverified source cutoffs excluded: \(.d1.cfbCoreWeekly.excluded.source_cutoff_unverified // 0)",
+                "- unverified settlement sources excluded: \(.d1.cfbCoreWeekly.excluded.final_source_unverified // 0)",
                 "- authority: research_only"
               ' "$tmp"
               echo ""

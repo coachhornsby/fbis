@@ -1,0 +1,45 @@
+name: CFB CORE licensed weekly training ingest
+
+# The licensed CSV is fetched only by the authenticated Pages job. It never
+# enters GitHub artifacts, logs, or the source repository.
+on:
+  schedule:
+    - cron: "15 12 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cfb-core-weekly-training-ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    name: Validate and privately ingest the upcoming weekly CSV
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Request authenticated private ingest
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HARVEST_SECRET:-}" ]; then
+            echo "::error::HARVEST_SECRET is required for the authenticated Pages research job."
+            exit 1
+          fi
+          response="$(mktemp)"
+          http=$(curl --silent --show-error --max-time 120 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "accept: application/json" \
+            --output "$response" --write-out "%{http_code}" \
+            "https://fbis-myz.pages.dev/api/college?job=cfb-tier3-weekly-ingest&trigger=schedule") || http="000"
+          echo "Ingest endpoint HTTP ${http}"
+          if [ "$http" != "200" ] || ! jq -e '.ok == true and .status == "success"' "$response" >/dev/null 2>&1; then
+            jq -c '{job,status,ok,errors,d1:{cfbTier3Ingest:(.d1.cfbTier3Ingest // null)}}' "$response" 2>/dev/null || true
+            echo "::error::Weekly licensed source was unavailable or failed validation. No rows were ingested."
+            exit 1
+          fi
+          jq -c '{job,status,ok,d1:{cfbTier3Ingest:(.d1.cfbTier3Ingest // null)}}' "$response"
+          jq -r '"- status: (.status)\n- season/week: (.d1.cfbTier3Ingest.season // "n/a")/(.d1.cfbTier3Ingest.week // "n/a")\n- rows: (.d1.cfbTier3Ingest.rows // 0)\n- source host: (.d1.cfbTier3Ingest.sourceUrlHost // "n/a")\n- provider publication timestamp: (.d1.cfbTier3Ingest.providerPublishedAt // "not supplied")\n- feature cutoff: source_feature_cutoff_unverified\n- authority: research_only\n- wagering authority: false"' "$response" >> "$GITHUB_STEP_SUMMARY"

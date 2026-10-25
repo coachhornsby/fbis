@@ -1979,6 +1979,7 @@ CREATE TABLE IF NOT EXISTS cfb_tier3_training_snapshots (
   source_filename TEXT NOT NULL,
   received_at TEXT NOT NULL,
   provider_published_at TEXT,
+  source_url TEXT,
   raw_r2_key TEXT NOT NULL,
   row_count INTEGER NOT NULL,
   feature_count INTEGER NOT NULL,
