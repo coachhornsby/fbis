@@ -7,7 +7,8 @@ import {assessFbisCoverage} from './lib/fbisCoveragePolicy.mjs';
 import {executeFbisRepairs} from './lib/fbisVerifiedRecovery.mjs';
 const BASE=process.env.FBIS_BASE_URL||'https://fbis-myz.pages.dev';
 const sports=['nfl','cfb','nba','wnba','nhl','mlb','cbb','soccer','tennis','npb','kbo'];
-const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const chicagoDate=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+let date=chicagoDate();
 const parse=async path=>{
  const uri=BASE+path+(path.includes('?')?'&':'?')+'_t='+Date.now();
  for(let attempt=0;attempt<2;attempt++){
@@ -35,7 +36,10 @@ async function audit(){
   modelFailures:sports.filter(s=>models[s].ok===false),
   exchangeFailures:sports.filter(s=>contracts[s].ok===false)}};
 }
-const baseline=await audit();
+let baseline=await audit();
+// A run crossing local midnight cannot compare requests from two distinct
+// slates; resample the new Chicago day before planning any repair.
+if(date!==chicagoDate()){date=chicagoDate();baseline=await audit();}
 // Recovery is constrained to existing authenticated model captures and PinnOdds
 // archived rematches. Every action is measured by a NEW independent board read.
 const recovery=await executeFbisRepairs({
@@ -43,13 +47,19 @@ const recovery=await executeFbisRepairs({
  event:process.env.GITHUB_EVENT_NAME||'push',
  secret:process.env.HARVEST_SECRET||'',base:BASE,
 });
-const verified=recovery.attempted>0?await audit():baseline;
+let verified=recovery.attempted>0?await audit():baseline;
+if(date!==chicagoDate()){
+ // Midnight during the recovery window invalidates a pre/post comparison.
+ // Restart the read-only assessment on the new day; never claim repair.
+ date=chicagoDate();verified=await audit();recovery.blocked.push('DAY_ROLLOVER_VERIFICATION_RESET');
+}
 const report=verified.assessment;
 const before=new Set(baseline.assessment.incidents.map(x=>
  [x.code,x.sport||'',x.eventId||'',x.playerId||'',x.stat||'',x.provider||''].join('|')));
 const after=new Set(report.incidents.map(x=>
  [x.code,x.sport||'',x.eventId||'',x.playerId||'',x.stat||'',x.provider||''].join('|')));
-recovery.clearedByIndependentRead=[...before].filter(x=>!after.has(x));
+recovery.clearedByIndependentRead=recovery.blocked.includes('DAY_ROLLOVER_VERIFICATION_RESET')?[]:
+ [...before].filter(x=>!after.has(x));
 recovery.unresolvedAfterRecheck=[...after].filter(x=>before.has(x)).length;
 recovery.verifiedRepairCount=recovery.clearedByIndependentRead.length;
 recovery.verification=recovery.attempted?'LIVE_API_READ_AFTER_RECOVERY':'NOT_NEEDED';

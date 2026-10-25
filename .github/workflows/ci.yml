@@ -32,6 +32,8 @@ jobs:
           cache: "npm"
       - name: Install dependencies
         run: npm ci
+      - name: Gate all-sport watchdog and bounded repair behavior
+        run: node --test test/fbis-all-sport-reliability.test.mjs test/fbis-verified-recovery.test.mjs
       - name: Verify schema/migrations
         run: npm run verify:migrations
       - name: Verify private exchange bet contract and settlement safety

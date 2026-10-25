@@ -8,6 +8,8 @@ on:
     paths:
       - 'scripts/fbis-all-sport-reliability.mjs'
       - 'scripts/lib/fbisCoveragePolicy.mjs'
+      - 'scripts/lib/fbisVerifiedRecovery.mjs'
+      - 'test/fbis-verified-recovery.test.mjs'
       - '.github/workflows/fbis-all-sport-reliability.yml'
 permissions:
   contents: read
@@ -29,7 +31,7 @@ jobs:
         with:
           node-version: '22'
       - name: Verify all-sport policy and negative cases
-        run: node --test test/fbis-all-sport-reliability.test.mjs
+        run: node --test test/fbis-all-sport-reliability.test.mjs test/fbis-verified-recovery.test.mjs
       - name: Audit source-backed game lines and player prop coverage
         id: audit
         continue-on-error: true
