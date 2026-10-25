@@ -121,3 +121,13 @@ test('soccer Over YES binary book verifies observed market, never fabricates Und
  assert.equal(r.underPriceIndependentlyObserved,false);
  assert.equal(marketFamilyEvidence([{...x,raw:{bestBid:null,bestAsk:.55}}],'total',{now,sport:'soccer'}).available,false);
 });
+
+test('tennis unspecified Polymarket settlement period is a distinct evidence gap',()=>{
+ const r=assessFixtureCoverage({games:[{...game,sport:'tennis',market:{venueOffers:[
+  {marketFamily:'moneyline',period:'unspecified',source:'Polymarket US WebSocket',sourceMarketId:'1',
+  priceVerified:true,providerTimestampVerified:true,marketAvailable:true,
+  side:'home',sourceObservedAt:'2026-10-25T17:40:00Z'}
+ ]}}]},{now});
+ assert.equal(r.games[0].families.moneyline.state,'SETTLEMENT_PERIOD_UNVERIFIED');
+ assert.equal(r.counts.currentMarketGames,0);
+});

@@ -106,7 +106,8 @@ export function marketFamilyEvidence(offers=[],familyName,{now=Date.now(),maxAge
    groupingMethod='ONE_PROVIDER_TIMED_OVER_BINARY_BID_ASK_UNDER_NOT_OBSERVED';}
  }
  const state=paired?(complementaryBinary?'PROVIDER_TIMED_BINARY_OVER_BOOK':'VERIFIED_CURRENT_PAIR'):!relevant.length?'NO_REFERENCE':
-  !full.length?'PERIOD_NOT_FULL_GAME':!priced.length?'NO_NUMERIC_PRICE':
+  !full.length?(relevant.every(o=>!o.period||o.period==='unspecified')?'SETTLEMENT_PERIOD_UNVERIFIED':'PERIOD_NOT_FULL_GAME'):
+  !priced.length?'NO_NUMERIC_PRICE':
   !verified.length?'PROVIDER_CLOCK_OR_PRICE_UNVERIFIED':'UNPAIRED_CURRENT_MARKET';
  return {state,referenceOutcomes:relevant.length,fullGameOutcomes:full.length,
   verifiedOutcomes:verified.length,verifiedPairs:paired,available:paired>0,
