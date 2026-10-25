@@ -11,6 +11,7 @@ import CfbProjectionReliability from "./CfbProjectionReliability.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
 import GameScoreDisplay from "./GameScoreDisplay.jsx";
+import { formatLiveGameClock } from "../../lib/liveGameClock.js";
 import CfbCapturedMarket from "./CfbCapturedMarket.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
@@ -97,7 +98,8 @@ function SharpStars({ value = 1, max = 5 }) {
   const ceiling = Math.max(1, Math.min(5, Number(max) || 5));
   const safe = Math.max(1, Math.min(ceiling, Number(value) || 1));
   return <span className="pgc-sharp-stars" aria-label={`${safe} of ${ceiling} confidence stars`}>
-    {Array.from({ length: ceiling }, (_, i) => <svg key={i} className={i < safe ? "filled" : "empty"} viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg>)}
+    {Array.from({ length: safe }, (_, i) => <svg key={i} className="filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg>)}
+    <span className="pgc-star-count" aria-hidden="true">{safe}/{ceiling}</span>
   </span>;
 }
 function splitLabel(split, away, home) {
@@ -213,6 +215,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const hasFinalScore = isFinal && finalAway != null && finalHome != null;
   const hasLiveScore = Boolean(vm.event?.live && finalAway != null && finalHome != null);
   const hasActualScore = hasFinalScore || hasLiveScore;
+  const liveClock = formatLiveGameClock(game);
   const tennis = game?.tennisProjection || {};
   const tennisTour = String(game?.tour || tennis.tour || "TENNIS").toUpperCase();
   const tennisRef = game?.market?.reference || {};
@@ -269,7 +272,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
                 <small>{game?.neutralSite ? "NEUTRAL SITE" : "AWAY"}</small>
                 <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
                 {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
-                <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" />
+                <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" liveClock={liveClock} />
               </div>
             </>
           ) : (
@@ -282,7 +285,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
                 <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
                 {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(away, tennisTour)}</span> : null}
                 {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
-                <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" />
+                <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" liveClock={liveClock} />
                 {proj.available && !stored && winProbabilities.find(r=>r.side==="away")?.fbisProbability!=null ? <small>{(winProbabilities.find(r=>r.side==="away").fbisProbability*100).toFixed(1)}% MODEL WIN PROB.</small> : null}
               </div>
             </>
@@ -310,7 +313,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
                 <small>{game?.neutralSite ? "NEUTRAL SITE" : "HOME"}</small>
                 <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
                 {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
-                <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" />
+                <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" liveClock={liveClock} />
               </div>
             </>
           ) : (
@@ -323,7 +326,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
                 <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
                 {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(home, tennisTour)}</span> : null}
                 {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
-                <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" />
+                <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" liveClock={liveClock} />
                 {proj.available && !stored && winProbabilities.find(r=>r.side==="home")?.fbisProbability!=null ? <small>{(winProbabilities.find(r=>r.side==="home").fbisProbability*100).toFixed(1)}% MODEL WIN PROB.</small> : null}
               </div>
             </>
