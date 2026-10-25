@@ -57,3 +57,38 @@ test('MLB PIT validation fails closed on missing/invalid capture clocks, future 
  assert.throws(()=>validatePregameSnapshot(fixture,{source:{observedAt:'bad'}},'2026-10-25T18:45:00Z'),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
  assert.throws(()=>validatePregameSnapshot(fixture,null,'2026-10-25T18:45:00Z'),/MLB_PIT_FEATURE_EVIDENCE_REQUIRED/);
 });
+
+test('PIT compares UTC instants across explicit offsets, milliseconds, and provider epoch units',()=>{
+ const fixture={game_time:'2026-10-25T14:00:00-05:00'};
+ const cutoff='2026-10-25T13:45:00-05:00';
+ const observed='2026-10-25T14:40:00-04:00'; // 18:40Z
+ const millis=Date.parse('2026-10-25T18:40:00.000Z');
+ assert.equal(validatePregameSnapshot(fixture,{source:{observedAt:observed,acquisition_timestamp:millis/1000,collectedAt:millis}},cutoff),true);
+ assert.throws(()=>validatePregameSnapshot(fixture,{source:{observedAt:'2026-10-25T13:46:00-05:00'}},cutoff),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+ assert.throws(()=>validatePregameSnapshot(fixture,{source:{acquiredAt:Date.parse('2026-10-25T18:46:00Z')/1000}},cutoff),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+});
+test('PIT rejects ambiguous timezone-less or invalid calendar timestamps instead of guessing UTC',()=>{
+ const fixture={game_time:'2026-10-25T19:00:00Z'},cutoff='2026-10-25T18:45:00Z';
+ for(const bad of ['2026-10-25T18:40:00','2026-10-25 18:40:00','2026-02-30T10:00:00Z','2026-10-25T25:00:00Z','2026-10-25T13:40:00+14:30','not-a-time',2026]){
+  assert.throws(()=>validatePregameSnapshot(fixture,{src:{sourceObservedAt:bad}},cutoff),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+ }
+ assert.throws(()=>validatePregameSnapshot({game_time:'2026-10-25T14:00:00'}, {}, cutoff),/MLB_PIT_GAME_AND_CHECKPOINT_REQUIRED/);
+ assert.throws(()=>validatePregameSnapshot(fixture, {}, '2026-10-25T18:45:00'),/MLB_PIT_GAME_AND_CHECKPOINT_REQUIRED/);
+});
+test('date-only source coverage is conservatively bounded at next UTC midnight, never presumed available at midnight',()=>{
+ const fixture={game_time:'2026-10-25T19:00:00Z'},cutoff='2026-10-25T18:45:00Z';
+ assert.equal(validatePregameSnapshot(fixture,{historical:{sourceObservedAt:'2026-10-24'}},cutoff),true);
+ assert.throws(()=>validatePregameSnapshot(fixture,{today:{sourceObservedAt:'2026-10-25'}},cutoff),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+ assert.throws(()=>validatePregameSnapshot(fixture,{source:{sourceObservedAt:'2026-10-26'}},cutoff),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
+});
+test('offset feature captures use UTC calendar day in window filtering and immutable object key',async()=>{
+ const localCapture='2026-10-24T23:30:00-05:00'; // October 25 UTC
+ const p={...packet([row('2026-10-23'),row('2026-10-24',2)]),observedAt:'2026-10-24T18:00:00-05:00'};
+ const evidence=buildMlbModelFeatures({packets:[p],playerId:'1',role:'pitcher',capturedAt:localCapture});
+ assert.equal(evidence.throughExclusive,'2026-10-25');
+ assert.equal(evidence.windows[0].splits[0].pitches,1);
+ let stored;
+ await persistMlbModelFeatures({ARCHIVE:{put:async (...args)=>{stored=args;}}},{packets:[p],playerId:'1',role:'pitcher',capturedAt:localCapture});
+ assert.match(stored[0],/\/2026-10-25\/[a-f0-9]{64}\.json$/);
+ assert.throws(()=>buildMlbModelFeatures({packets:[{...p,observedAt:'2026-10-24T23:45:00-05:00'}],playerId:'1',role:'pitcher',capturedAt:localCapture}),/FEATURE_SOURCE_NOT_AVAILABLE_OR_CORRUPT/);
+});
