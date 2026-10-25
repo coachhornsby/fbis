@@ -78,7 +78,7 @@ export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=f
  const days=eligibleDays(now),today=days[0],capturedAt=now.toISOString();
  const games=(await db.prepare("SELECT id,date,start,home_abbr,away_abbr FROM games WHERE sport='nba' AND date IN (?,?) ORDER BY start LIMIT 48").bind(...days).all()).results||[];
  const players=(await db.prepare("SELECT player_id,player_name,team_key FROM nba_player_state_profiles WHERE julianday(as_of)>=julianday(?) LIMIT 1500").bind(new Date(now.getTime()-14*86400000).toISOString()).all()).results||[];
- const rows=[],errors=[],fixtures=[];
+ const rows=[],errors=[],fixtures=[],sourceOnly=[];
  for(const g of games){
   if(!days.includes(g.date))continue;
   const kickoff=Date.parse(g.start||'');
@@ -99,7 +99,31 @@ export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=f
    }
    if(!verifyGlobalNbaFixture(event,g)){errors.push({slug,code:'EVENT_IDENTITY_UNRESOLVED'});continue}
    let count=0;
-   for(const market of event.markets||[]){const found=normalizeGlobalNbaProp(market,event,g,players,{capturedAt});rows.push(...found);count+=found.length;}
+   for(const market of event.markets||[]){
+    const found=normalizeGlobalNbaProp(market,event,g,players,{capturedAt});
+    rows.push(...found);count+=found.length;
+    // Preserve provider-native player threshold candidates even when the
+    // recognized stat/roster/settlement contract does not map yet.
+    // No value here is an executable ask or an independent model.
+    if(found.length===0 && market?.active===true && market.closed!==true &&
+       typeof market.question==='string' &&
+       /:\\s*[^:]+\\bO\\/U\\s*\\d+(?:\\.\\d+)?/i.test(market.question)){
+       sourceOnly.push({
+         id:'polymarket-global-raw:'+String(market.id||market.slug||''),
+         provider:'Polymarket',venue:'Polymarket Global',sport:'nba',
+         providerEventId:String(event.id),canonicalEventId:String(g.id),
+         contractId:String(market.slug||market.id||''),
+         rawTitle:market.question.slice(0,240),
+         canonical_market:null,line:Number.isFinite(Number(market.line))?Number(market.line):null,
+         player_name:null,team:null,opponent:null,start_time:g.start,
+         collectedAt:capturedAt,source:'Polymarket Global Gamma',
+         reason:['PLAYER_STAT_OR_SETTLEMENT_NOT_VERIFIED'],
+         priceKind:'GAMMA_DISPLAY_REFERENCE_NOT_ASK',
+         identityVerified:false,priceVerified:false,marketAvailable:false,
+         purchaseAsk:null,canQualify:false,canAuthorizeWager:false
+       });
+    }
+   }
    fixtures.push({slug,canonicalEventId:String(g.id),providerEventId:String(event.id),providerMarkets:event.markets?.length||0,statSides:count});
   }catch(err){errors.push({slug,code:'PROVIDER_'+String(err?.name||'FETCH_FAILURE').toUpperCase().replace(/[^A-Z_]/g,'_')})}
  }
@@ -109,6 +133,7 @@ export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=f
  for(const ledgerDate of days){
  const includedIds=new Set(games.filter(g=>g.date===ledgerDate).map(g=>String(g.id)));
  const dailyRows=rows.filter(r=>includedIds.has(String(r.canonicalEventId)));
+ const dailySourceOnly=sourceOnly.filter(r=>includedIds.has(String(r.canonicalEventId)));
  const dailyFixtures=fixtures.filter(f=>includedIds.has(String(f.canonicalEventId)));
  const dailyErrors=errors.filter(e=>String(e.slug||'').endsWith('-'+ledgerDate));
  // Daily Gamma capture must be cumulative. Later post-start sweeps see fewer
@@ -128,22 +153,31 @@ export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=f
  const retained=history.size;
  for(const row of dailyRows)if(row?.id&&row.identityVerified===true&&row.canAuthorizeWager===false)
   history.set(row.id,row);
+ const sourceOnlyHistory=new Map();
+ if(validPrevious)for(const row of previous.sourceOnly||[])
+   if(row?.id&&row?.canAuthorizeWager===false)sourceOnlyHistory.set(row.id,row);
+ for(const row of dailySourceOnly)if(row?.id&&row?.canAuthorizeWager===false)
+   sourceOnlyHistory.set(row.id,row);
  const fixtureMap=new Map();
  if(validPrevious)for(const f of previous.fixtures||[])if(f?.slug)fixtureMap.set(f.slug,f);
  for(const f of dailyFixtures)if(f?.slug)fixtureMap.set(f.slug,f);
  const freeze=await captureNbaPregameMarketLines(env,{provider:'Polymarket',date:ledgerDate,rows:dailyRows,now});
  const result={ok:true,source:'POLYMARKET_GLOBAL_GAMMA',day:ledgerDate,capturedAt,
-  rows:[...history.values()],fixtures:[...fixtureMap.values()],errors:dailyErrors,
+  rows:[...history.values()],sourceOnly:[...sourceOnlyHistory.values()],
+  fixtures:[...fixtureMap.values()],errors:dailyErrors,
   pregameLineFreeze:freeze,
   retainedReferenceRows:retained,latestCaptureRows:dailyRows.length,
   prices:'GAMMA_DISPLAY_REFERENCE_NOT_ORDERBOOK_ASK',canQualify:false,canAuthorizeWager:false};
  await env.ARCHIVE.put(archiveKey,JSON.stringify(result),{httpMetadata:{contentType:'application/json',cacheControl:'private,max-age=0'}});
- dateReceipts.push({date:ledgerDate,contracts:result.rows.length,latestCaptureRows:dailyRows.length,
+ dateReceipts.push({date:ledgerDate,contracts:result.rows.length,
+  rawMarketOnly:result.sourceOnly.length,latestCaptureRows:dailyRows.length,
   retainedReferenceRows:retained,fixtures:result.fixtures.length,pregameLineFreeze:freeze});
  }
  return {ok:true,source:'POLYMARKET_GLOBAL_GAMMA',day:today,days,capturedAt,
   contracts:dateReceipts.reduce((n,r)=>n+r.contracts,0),
-  latestCaptureRows:rows.length,retainedReferenceRows:dateReceipts.reduce((n,r)=>n+r.retainedReferenceRows,0),
+  latestCaptureRows:rows.length,
+  sourceMarketOnly:dateReceipts.reduce((n,r)=>n+r.rawMarketOnly,0),
+  retainedReferenceRows:dateReceipts.reduce((n,r)=>n+r.retainedReferenceRows,0),
   fixtures:dateReceipts.reduce((n,r)=>n+r.fixtures,0),errors,
   dateReceipts,pregameLineFreeze:dateReceipts[0]?.pregameLineFreeze||null,
   canQualify:false,canAuthorizeWager:false};
