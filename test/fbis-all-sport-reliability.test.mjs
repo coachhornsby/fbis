@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {assessFbisCoverage} from '../scripts/lib/fbisCoveragePolicy.mjs';
 const now=Date.parse('2026-10-24T20:00:00Z'),start='2026-10-25T00:00:00Z';
-const game={id:'1',sport:'nba',start,model:{projTotal:225},market:{total:224.5}};
+const game={id:'1',sport:'nba',start,model:{projTotal:225},market:{total:224.5,collectedAt:'2026-10-24T19:59:00Z'}};
 const model={canonicalEventId:'1',canonicalPlayerId:'nba:espn:123',canonical_market:'points',period:'full_game',independent:true,fbis_projection:22};
 const contract={...model,provider:'Kalshi',contractId:'KX-1',side:'yes',identityVerified:true,start_time:start,collectedAt:'2026-10-24T19:59:00Z',priceVerified:true,marketAvailable:true};
 test('complete, current, independently projected fixtures pass',()=>{
@@ -22,4 +22,11 @@ test('no synthetic odds or fake projection injected by evaluation',()=>{
  assessFbisCoverage({...raw,now});
  assert.equal(raw.board.games[0].market,null);
  assert.equal(raw.board.games[0].model,null);
+});
+
+test('stale or unclocked game-line references never count as current',()=>{
+ const stale=assessFbisCoverage({board:{games:[{...game,market:{total:224.5,collectedAt:'2026-10-24T01:00:00Z'}}]},now});
+ assert.equal(stale.summary.missingGameMarkets,1);
+ const missing=assessFbisCoverage({board:{games:[{...game,market:{total:224.5}}]},now});
+ assert.equal(missing.summary.missingGameMarkets,1);
 });

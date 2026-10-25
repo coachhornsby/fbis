@@ -8,13 +8,17 @@ const projection=g=>[g?.model?.projTotal,g?.model?.projHome,g?.model?.projAway,
  g?.researchProjection?.total,g?.cfb?.projTotal,g?.tennisProjection?.winProbability,
  g?.projection?.total,g?.projection?.home].some(positive)||
  Boolean(g?.prediction?.modelVersion&&g?.prediction?.value!=null);
-const market=g=>{
+const market=(g,now)=>{
  const m=g?.market||{},p=g?.pinnoddsResearch||{};
- return [m.spread,m.total,m.moneylineHome,m.moneylineAway,
+ const hasLine=[m.spread,m.total,m.moneylineHome,m.moneylineAway,
  m.homeMoneyline,m.awayMoneyline,m.homeML,m.awayML,
  p.spread,p.total,p.moneyline,p.homeMoneyline,p.awayMoneyline].some(positive)||
  Boolean(p?.markets&&Object.values(p.markets).some(v=>v&&
  [v.line,v.home,v.away,v.total,v.spread].some(positive)));
+ const captured=[p.collectedAt,p.capturedAt,p.asOf,p.observedAt,
+ m.collectedAt,m.capturedAt,m.sourceObservedAt,m.asOf].map(clock).find(Number.isFinite);
+ // No timestamp means a historical reference cannot masquerade as current.
+ return hasLine&&Number.isFinite(captured)&&captured<=now&&now-captured<=6*3600000;
 };
 export function assessFbisCoverage({board={},models={},contracts={},now=Date.now(),horizonHours=36}={}){
  const games=Array.isArray(board.games)?board.games:[];
@@ -25,7 +29,7 @@ export function assessFbisCoverage({board={},models={},contracts={},now=Date.now
  for(const g of games.filter(inWindow)){
   summary.games++;const sport=sportOf(g),id=String(g.id||g.gameId||'');
   if(!projection(g)){summary.missingGameProjections++;incidents.push({code:'GAME_PROJECTION_MISSING',sport,eventId:id});}
-  if(!market(g)){summary.missingGameMarkets++;incidents.push({code:'GAME_CURRENT_MARKET_UNVERIFIED',sport,eventId:id});}
+  if(!market(g,now)){summary.missingGameMarkets++;incidents.push({code:'GAME_CURRENT_MARKET_UNVERIFIED',sport,eventId:id});}
  }
  const sports=Object.keys(models);
  for(const sport of sports){
