@@ -11,6 +11,33 @@ export const KALSHI_PROP_SERIES=Object.freeze({
  KXMLBHIT:['mlb','hits'],KXMLBHR:['mlb','home_runs'],KXMLBOUTS:['mlb','pitcher_outs'],KXMLBSO:['mlb','strikeouts'],KXMLBKS:['mlb','strikeouts'],
  KXWNBAPTS:['wnba','points'],KXWNBAREB:['wnba','rebounds'],KXWNBAAST:['wnba','assists'],
 });
+/** Source-catalog candidates only. Newly discovered series cannot bypass the
+ * strict known-series settlement parser and are market-only until certified.
+ * Prefer false negatives over game/season markets falsely labeled player props.
+ */
+export function discoverKalshiPlayerSeries(records=[]) {
+ const prefixes=[
+  ['KXNCAAF','cfb'],['KXNCAAMB','cbb'],['KXWNBA','wnba'],
+  ['KXNBA','nba'],['KXNFL','nfl'],['KXNHL','nhl'],['KXMLB','mlb'],
+  ['KXNPB','npb'],['KXKBO','kbo']
+ ];
+ const stat=/\\b(?:players?|quarterbacks?|running backs?|wide receivers?|receivers?|pitchers?|goalies?|batters?|rebounds?|assists?|receptions?|passing yards|receiving yards|rushing yards|strikeouts?|shots? on goal|saves?|home runs?|touchdowns?|three.pointers?)\\b/i;
+ const disallow=/\\b(?:team|season|career|championship|league winner|most wins|mvp|awards?|draft|playoff winner|division winner)\\b/i;
+ const discovered={};
+ for(const r of records){
+  const ticker=String(r?.ticker||'');
+  if(!/^[A-Z0-9_.-]{4,120}$/.test(ticker)||
+     Object.hasOwn(KALSHI_PROP_SERIES,ticker))continue;
+  const sport=prefixes.find(([prefix])=>ticker.startsWith(prefix))?.[1];
+  if(!sport)continue;
+  const title=String(r.title||'');
+  const playerTag=Array.isArray(r.tags)&&r.tags.some(x=>/player prop/i.test(String(x)));
+  if((!stat.test(title)&&!playerTag)||disallow.test(title))continue;
+  discovered[ticker]=[sport,'SOURCE_SERIES_UNVERIFIED'];
+ }
+ return discovered;
+}
+
 // ESPN game registry uses SA/NY; verified NBA roster states use SAS/NYK.
 // Exact fixture and canonical team identity remain mandatory before applying this crosswalk.
 const NBA_ROSTER_ABBR=Object.freeze({SA:'SAS',NY:'NYK',GS:'GSW',NO:'NOP'});
