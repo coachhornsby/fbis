@@ -17,8 +17,8 @@ for(let p=0;p<16;p++){
  const items=j.items||[],results=[];
  for(let i=0;i<items.length;i+=5){
   results.push(...await Promise.all(items.slice(i,i+5).map(async row=>{
-   const url='https://www.atptour.com/-/media/alias/player-headshot/'+String(row.sourceId||'').toUpperCase();
-   if(row.candidateUrl!==url||!/^https:\/\/www\.atptour\.com\/-\/media\/alias\/player-headshot\/[A-Z0-9]{3,6}$/.test(url)
+   const url='https://www.atptour.com/-/media/alias/player-headshot/'+String(row.sourceId||'').toLowerCase();
+   if(row.candidateUrl!==url||!/^https:\/\/www\.atptour\.com\/-\/media\/alias\/player-headshot\/[a-z0-9]{3,6}$/.test(url)
       ||seen.has(row.playerKey))throw Error('ATP_IMAGE_TARGET_INVALID');
    seen.add(row.playerKey);
    let status=0,type='';
