@@ -664,7 +664,7 @@ async function loadFbisWeeklyMatchups(env, season, weeks, beforeIso) {
         `SELECT g.game_id,g.season,g.week,g.home_team_source,g.away_team_source,
                 g.home_canonical_id,g.away_canonical_id,g.identity_status,
                 g.point_in_time_status,g.features_json,
-                s.received_at,s.provider_published_at,s.source_filename
+                s.received_at,s.provider_published_at,s.source_filename,s.source_url
          FROM cfb_tier3_training_games g
          JOIN cfb_tier3_training_snapshots s ON s.snapshot_id=g.snapshot_id
          WHERE g.season=? AND g.week=? AND s.status='research_only'
@@ -696,6 +696,7 @@ async function loadFbisWeeklyMatchups(env, season, weeks, beforeIso) {
           snapshotReceivedAt:g.received_at,
           featureCutoffAt:null,
           providerPublishedAt:g.provider_published_at || null,
+          sourceUrl:g.source_url || null,
           featureStatus:g.point_in_time_status,
           sourceFilename:g.source_filename,
         });
@@ -837,6 +838,7 @@ export async function runCfbCoreShadowFreeze(env, { now = null, limit = 120 } = 
       rec.provenance = {
         ...rec.provenance,
         weeklySourceFilename:weekly.sourceFilename,
+        weeklySourceUrl:weekly.sourceUrl,
         weeklyObservedAt:weekly.snapshotReceivedAt,
         sourceFeatureCutoffStatus:weekly.featureStatus,
         sourceCutoffDerivation:"report_schedule_week_minus_one",
