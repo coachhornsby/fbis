@@ -1,13 +1,6 @@
 name: Soccer market identity reconciliation
 on:
-  schedule:
-    - cron: '23 * * * *'
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'ops/triggers/soccer-market-reconcile'
-      - '.github/workflows/soccer-market-reconcile.yml'
 permissions:
   contents: read
 concurrency:

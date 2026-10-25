@@ -2,12 +2,6 @@ name: WNBA possession-shot ablation resume
 # activation-touch: 2026-10-06
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/wnba-possession-shot-ablation-resume.yml"
-      - "scripts/wnba-possession-ablation.mjs"
-      - ".github/workflows/wnba-possession-shot-ablation.yml"
   workflow_dispatch:
 
 permissions:

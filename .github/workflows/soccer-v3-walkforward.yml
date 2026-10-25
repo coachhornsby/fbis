@@ -1,17 +1,6 @@
 name: Soccer-FBIS-v3 walk-forward
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/soccer-v3-walkforward.mjs"
-      - "scripts/soccer-phase3b-league-validation.mjs"
-      - "functions/lib/soccerFbisV3.js"
-      - "functions/api/soccer-validation-evidence.js"
-      - ".github/workflows/soccer-v3-walkforward.yml"
-      - "migrations/0067_soccer_phase3b_validation_provenance.sql"
-  schedule:
-    - cron: "23 */2 * * *"
   workflow_dispatch:
 
 permissions:

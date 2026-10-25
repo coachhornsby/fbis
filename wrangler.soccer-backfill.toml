@@ -8,7 +8,7 @@ workers_dev = true
 enabled = true
 
 [triggers]
-crons = ["*/15 * * * *"]
+crons = [] # Retired sport: never reactivate recurring collection
 
 # SOCCER_CONTROL_TOKEN and SOCCER_WORKER_TOKEN exist in the live Worker as
 # plain-text bindings. Move both to true secrets before the first GitHub deploy.

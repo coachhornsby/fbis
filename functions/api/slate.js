@@ -1,12 +1,13 @@
 import { nflSportDbContext } from "../lib/nflSportDbContext.js";
 import {loadCfbPublicWeek} from "../lib/cfbPublicSchedule.js";
 import { isFbsVsFbsGame } from "../lib/cfbGameVisibility.js";
-import { buildSlate, resolveSlateDate, findNextCfbdGameDate, fetchCfbdGamesForWeek } from "../lib/slateEngine.js";
+import { BOARD_SPORTS, buildSlate, resolveSlateDate, findNextCfbdGameDate, fetchCfbdGamesForWeek } from "../lib/slateEngine.js";
 import { compactMlbSlatePayload } from "../lib/propConviction.js";
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
-  const sport = url.searchParams.get("sport") || "mlb";
+  const sport = (url.searchParams.get("sport") || "mlb").toLowerCase();
+  if (!BOARD_SPORTS.includes(sport)) return Response.json({ error: "Unsupported sport", games: [], ticker: [], counts: {} }, { status: 400 });
   const rawDate = url.searchParams.get("date") || "";
   const weekShift = Number(url.searchParams.get("weekShift") || 0);
   const resolved = resolveSlateDate(rawDate, slateDateWindowForSport(sport));

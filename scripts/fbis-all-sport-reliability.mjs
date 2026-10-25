@@ -6,7 +6,7 @@ import {mkdir,writeFile,appendFile} from 'node:fs/promises';
 import {assessFbisCoverage} from './lib/fbisCoveragePolicy.mjs';
 import {executeFbisRepairs} from './lib/fbisVerifiedRecovery.mjs';
 const BASE=process.env.FBIS_BASE_URL||'https://fbis-myz.pages.dev';
-const sports=['nfl','cfb','nba','wnba','nhl','mlb','cbb','soccer','tennis','npb','kbo'];
+const sports=['nfl','mlb','nba','nhl','cfb','cbb','tennis'];
 const chicagoDate=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 let date=chicagoDate();
 const parse=async path=>{

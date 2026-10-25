@@ -5,12 +5,6 @@ name: FBIS NPB/KBO official 2026 completed-month history
 # the two sport D1s by sport-delta-sync-recurring (PR #1447).
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/asian-baseball-official-2026.yml"
-      - "scripts/asian-baseball-official-2026-ops.mjs"
-
 permissions:
   contents: read
 

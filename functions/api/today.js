@@ -1,7 +1,7 @@
 import { buildTodayBoard, resolveTodayDate } from "../lib/todayBoard.js";
 import { durableHealth, scheduledHealth } from "../lib/jobs.js";
 import { pingDb, countToday, readMeta, queryExecutedBets } from "../lib/store.js";
-import { todayCT } from "../lib/slateEngine.js";
+import { BOARD_SPORTS, todayCT } from "../lib/slateEngine.js";
 import { attachMyBetsToBoard } from "../lib/executedBets.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
@@ -33,6 +33,7 @@ export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const resolved = resolveTodayDate(url.searchParams.get("date") || "");
   const focusSport = (url.searchParams.get("sport") || "all").toLowerCase();
+  if (focusSport !== "all" && !BOARD_SPORTS.includes(focusSport)) return Response.json({ error: "Unsupported sport", games: [], sports: [], counts: {} }, { status: 400 });
   const attemptAt = new Date().toISOString();
   if (!resolved.ok) {
     return json({ error: resolved.error, date: resolved.date, games: [], sports: [], counts: {} }, 400);

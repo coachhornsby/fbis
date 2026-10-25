@@ -1,8 +1,6 @@
 name: Soccer PitchAPI queue drain
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:

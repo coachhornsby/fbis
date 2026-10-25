@@ -559,7 +559,7 @@ const LLM_GATE_THRESHOLDS = Object.freeze({
   nba:{side:3.0,total:4.0},
   nhl:{side:0.5,total:0.75},
 });
-const LLM_GATE_SPORTS = Object.freeze(['mlb','npb','kbo','cfb','nfl','cbb','nba','nhl']);
+const LLM_GATE_SPORTS = Object.freeze(['mlb','cfb','nfl','cbb','nba','nhl']);
 
 function finiteNumber(v){
   if(v==null || v==="") return null;
@@ -1676,13 +1676,11 @@ async function syncOpsTelemetrySheet(){
 export async function syncOperationalProjectionSheets(){
   if(!sheets.available()) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required for operational sheet sync");
   const ledger=await syncProjectionLedgerFromAudit();
-  const [pitchers,npb,kbo,opsTelemetry]=await Promise.all([
+  const [pitchers,opsTelemetry]=await Promise.all([
     syncPitcherProjectionSheet(),
-    syncAsiaOpsSheet("npb",CFG.sheets.npbOps),
-    syncAsiaOpsSheet("kbo",CFG.sheets.kboOps),
     syncOpsTelemetrySheet(),
   ]);
-  return {ok:true,ledger,pitchers,npb,kbo,opsTelemetry,syncedAt:now()};
+  return {ok:true,ledger,pitchers,opsTelemetry,syncedAt:now()};
 }
 
 export async function validateModels(){

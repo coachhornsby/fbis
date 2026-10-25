@@ -32,6 +32,8 @@ jobs:
           cache: "npm"
       - name: Install dependencies
         run: npm ci
+      - name: Verify seven-sport scope and retired automation safeguards
+        run: node --test test/seven-sport-scope.test.js
       - name: Gate all-sport watchdog, bounded repair, and frozen evidence delivery
         run: node --test test/fbis-all-sport-reliability.test.mjs test/fbis-verified-recovery.test.mjs test/fbis-frozen-model-delivery.test.js test/prop-forecast-completion-clock.test.js
       - name: Verify schema/migrations

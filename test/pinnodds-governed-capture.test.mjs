@@ -28,7 +28,7 @@ const accountFetch=(usage=16,status='active')=>async(url,options)=>{
 test('PinnOdds trial uses $0 full boards with 100/day and 20/minute quotas',()=>{
  assert.equal(PINNODDS_TRIAL_REST_COST_USD,0);
  assert.deepEqual(PINNODDS_TRIAL_DOCUMENTED_LIMITS,{perDay:100,perMinute:20});
- assert.equal(PINNODDS_CAPTURE_REQUESTS,15);
+ assert.equal(PINNODDS_CAPTURE_REQUESTS,13);
  const proof=verifyPinnoddsFreeTrial({plan:{id:'trial',limits:{perDay:100,perMin:20}}});
  assert.equal(proof.perRequestUsd,0);
  assert.throws(()=>verifyPinnoddsFreeTrial({plan:{id:'pro',limits:{perDay:100,perMin:20}}}),/FREE_PLAN_NOT_VERIFIED/);
@@ -41,17 +41,17 @@ test('optional narrow event-scoped helper still rejects unverified provider even
 test('whole-board retrieval reserves quota and archives immutable raw, tagged for modeled-only ingestion',async()=>{
  const R2_ARCHIVE=archive(),env={PINNODDS_API_KEY:'test-key',R2_ARCHIVE};
  const reservation=await reservePinnoddsRun(env,{runId:'run-one',scope:'full',now,fetchImpl:accountFetch()});
- assert.equal(reservation.requestsReserved,15);
+ assert.equal(reservation.requestsReserved,13);
  let requests=0;
  const fetchImpl=async(url,options)=>{
   requests++;
-  assert.equal(url.searchParams.get('sport_id'),'1');
+  assert.equal(url.searchParams.get('sport_id'),'2');
   assert.equal(url.searchParams.get('event_type'),'prematch');
-  assert.equal(url.searchParams.get('include_specials'),'nested');
+  assert.equal(url.searchParams.get('include_specials'),'1');
   assert.equal(options.headers['x-api-key'],'test-key');
   return new Response(JSON.stringify({events:[{event_id:42,home:'Home',away:'Away'}]}));
  };
- const config={runId:'run-one',kind:'board',sportId:1,feed:'prematch',now,fetchImpl};
+ const config={runId:'run-one',kind:'board',sportId:2,feed:'prematch',now,fetchImpl};
  const receipt=await capturePinnoddsSnapshot(env,config);
  assert.equal(receipt.ok,true);
  assert.equal(receipt.projectionScope,'FBIS_MODELED_EVENTS_ONLY');

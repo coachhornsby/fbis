@@ -4,12 +4,6 @@ name: FBIS immediate NPB KBO shadow D1 history sync
 # product authority; this cannot approve a sport or authorize a wager.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/asian-baseball-sport-shadow-sync.yml"
-      - "ops/triggers/asian-baseball-sport-shadow-sync"
-
 permissions:
   contents: read
 

@@ -1,11 +1,5 @@
 name: WNBA independent model walk-forward
 on:
-  push:
-    branches: ["feat/wnba-nba-independent-research","main"]
-    paths:
-      - "scripts/wnba-form-walkforward.mjs"
-      - "functions/lib/basketballFormModel.js"
-      - ".github/workflows/wnba-form-walkforward.yml"
   workflow_dispatch:
 permissions:
   contents: read

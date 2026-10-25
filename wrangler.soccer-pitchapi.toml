@@ -8,7 +8,7 @@ workers_dev = true
 enabled = true
 
 [triggers]
-crons = ["*/15 * * * *"]
+crons = [] # Retired sport: never reactivate recurring collection
 
 [[d1_databases]]
 binding = "DB"

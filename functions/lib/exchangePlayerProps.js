@@ -1,5 +1,5 @@
 /** Read-only exchange prop contract. No observation grants wager authority. */
-export const PROP_SPORTS = Object.freeze(['nfl','nba','nhl','mlb','cfb','wnba','cbb','tennis','soccer','npb','kbo']);
+export const PROP_SPORTS = Object.freeze(['nfl','mlb','nba','nhl','cfb','cbb','tennis']);
 export function finitePropNumber(v) {
   if (v == null || typeof v === 'boolean' || String(v).trim() === '') return null;
   const n = Number(v); return Number.isFinite(n) ? n : null;

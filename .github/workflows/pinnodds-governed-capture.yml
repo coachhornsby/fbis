@@ -2,7 +2,7 @@ name: PinnOdds free-tier governed board snapshots
 on:
   schedule:
     # Four full boards (60), hourly football outside full slots (20), and
-    # four drops pairs (8): maximum 88 reserved requests per UTC day.
+    # four drops pairs (8): maximum 80 reserved requests per UTC day.
     # Backup cron reuses the same durable reservation/snapshot receipt.
     - cron: '23 * * * *'
     - cron: '43 * * * *'

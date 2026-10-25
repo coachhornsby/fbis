@@ -179,7 +179,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        sport: [mlb, nba, wnba, nhl, nfl, cfb, cbb, soccer]
+        sport: [mlb, nba, nhl, nfl, cfb, cbb]
     steps:
       - uses: actions/checkout@v4.2.2
       - name: Assert production SHA unchanged
@@ -461,7 +461,7 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        sport: [cfb, mlb, nba, wnba, nhl, nfl, cbb, soccer]
+        sport: [cfb, mlb, nba, nhl, nfl, cbb]
         dayOffset: [0, 1, 2, 3, 4, 5]
     steps:
       - name: Assert production SHA unchanged
@@ -681,7 +681,7 @@ jobs:
           fi
           if [ "$need_collect" -eq 1 ]; then
             echo "Recovering missed/stale/delayed collect slot"
-            for sport in mlb nba wnba nhl cfb cbb nfl soccer; do
+            for sport in mlb nba nhl cfb cbb nfl; do
               body="$(mktemp)"
               ok_collect=0
               for attempt in 1 2 3; do

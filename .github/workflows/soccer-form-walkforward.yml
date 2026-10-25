@@ -1,14 +1,6 @@
 name: Soccer-FBIS walk-forward
 
 on:
-  pull_request:
-    paths:
-      - "functions/lib/soccerFbisV1.js"
-      - "src/lib/confidenceStars.js"
-      - "scripts/soccer-form-walkforward.mjs"
-      - "test/soccer-fbis.test.js"
-      - "test/confidence-stars.test.js"
-      - ".github/workflows/soccer-form-walkforward.yml"
   workflow_dispatch:
 
 permissions:

@@ -5,7 +5,8 @@ import { deploymentCommit, httpStatusForJob, parseJobTrigger } from "../lib/jobs
 import { readMeta, setMeta } from "../lib/store.js";
 import { lastExpectedCollectUtc } from "../lib/pipelineSchedule.js";
 
-const SPORTS = new Set(["mlb", "nba", "wnba", "nhl", "nfl", "cfb", "cbb", "soccer"]);
+// Tennis has a separate collector. The current-day team collector owns six active team sports.
+const SPORTS = new Set(["nfl", "mlb", "nba", "nhl", "cfb", "cbb"]);
 const json = (body, status) => new Response(JSON.stringify(body), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
 });
