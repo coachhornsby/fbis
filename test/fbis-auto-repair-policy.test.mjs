@@ -94,3 +94,30 @@ test('soccer full-time moneyline requires home draw and away from same provider 
  assert.equal(marketFamilyEvidence(homeAway,'moneyline',{now,sport:'soccer'}).available,false);
  assert.equal(marketFamilyEvidence([...homeAway,{...common,side:'draw'}],'moneyline',{now,sport:'soccer'}).available,true);
 });
+
+test('soccer independently observed 1X2 binary outcomes have separate market IDs',()=>{
+ const common={source:'Polymarket US WebSocket',marketFamily:'moneyline',period:'full_game',
+  contractPrice:.35,providerTimestampVerified:true,priceVerified:true,identityVerified:true,
+  marketAvailable:false,observedReferenceCurrent:true,quoteKind:'OBSERVED_BBO_NOT_GUARANTEED_FILL',
+  executionEligible:false,canAuthorizeWager:false,
+  temporal:{status:'CURRENT'},sourceObservedAt:'2026-10-25T17:50:00Z'};
+ const rows=['home','draw','away'].map((side,i)=>({...common,side,sourceMarketId:'m'+i,
+  sourceOutcomeId:String(i)}));
+ const x=marketFamilyEvidence(rows,'moneyline',{now,sport:'soccer'});
+ assert.equal(x.verifiedPairs,1);
+ assert.equal(x.verificationMethod,'THREE_INDEPENDENT_BINARY_CONTRACTS_SAME_CANONICAL_GAME');
+ assert.equal(marketFamilyEvidence(rows.slice(1),'moneyline',{now,sport:'soccer'}).available,false);
+});
+test('soccer Over YES binary book verifies observed market, never fabricates Under ask',()=>{
+ const x={source:'Polymarket US WebSocket',marketFamily:'total',period:'full_game',side:'over',
+  line:2.5,contractPrice:.55,priceVerified:true,providerTimestampVerified:true,
+  identityVerified:true,marketAvailable:false,observedReferenceCurrent:true,
+  quoteKind:'OBSERVED_BBO_NOT_GUARANTEED_FILL',executionEligible:false,canAuthorizeWager:false,
+  sourceMarketId:'total-2pt5',sourceOutcomeId:'yes',temporal:{status:'CURRENT'},
+  sourceObservedAt:'2026-10-25T17:50:00Z',raw:{bestBid:.51,bestAsk:.55}};
+ const r=marketFamilyEvidence([x],'total',{now,sport:'soccer'});
+ assert.equal(r.available,true);
+ assert.equal(r.state,'PROVIDER_TIMED_BINARY_OVER_BOOK');
+ assert.equal(r.underPriceIndependentlyObserved,false);
+ assert.equal(marketFamilyEvidence([{...x,raw:{bestBid:null,bestAsk:.55}}],'total',{now,sport:'soccer'}).available,false);
+});

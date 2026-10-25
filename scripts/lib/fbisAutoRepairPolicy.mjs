@@ -14,7 +14,8 @@ const family=o=>{
  if(/total|over.under|ou_/.test(x))return 'total';
  return null;
 };
-const expectedFamilies=sport=>sport==='tennis'?['moneyline']:sport==='soccer'?['moneyline','total']:
+const expectedFamilies=(sport,offers=[])=>sport==='tennis'?['moneyline']:
+ sport==='soccer'?['moneyline',...(offers.some(o=>family(o)==='spread')?['spread']:[]),'total']:
  ['moneyline','spread','total'];
 const stat=v=>v==='pra'?'points_rebounds_assists':v;
 export const propKey=r=>[r.sport,r.canonicalEventId,r.canonicalPlayerId,stat(r.canonical_market),r.period].join('|');
@@ -73,12 +74,43 @@ export function marketFamilyEvidence(offers=[],familyName,{now=Date.now(),maxAge
   if(!grouped.has(key))grouped.set(key,new Set());
   grouped.get(key).add(direction);
  }
- const paired=[...grouped.values()].filter(s=>expectedSides(familyName,sport).every(x=>s.has(x))).length;
- const state=paired?'VERIFIED_CURRENT_PAIR':!relevant.length?'NO_REFERENCE':
+ let paired=[...grouped.values()].filter(s=>expectedSides(familyName,sport).every(x=>s.has(x))).length;
+ let complementaryBinary=false;
+ let groupingMethod='MATCHED_TWO_SIDES_SAME_SOURCE_MARKET';
+ if(sport==='soccer'&&familyName==='moneyline'){
+  // Polymarket US lists HOME, DRAW and AWAY as THREE separate binary contracts
+  // under the SAME canonical event (already scoped by assessFixtureCoverage).
+  // Require each independent source-book price and distinct market IDs.
+  const bySource=new Map();
+  for(const o of verified){
+   if(!sourceMarketKey(o)||!['home','draw','away'].includes(side(o)))continue;
+   const key=String(o.source||o.provider||'');
+   if(!bySource.has(key))bySource.set(key,new Map());
+   const m=bySource.get(key);m.set(side(o),o.sourceMarketId);
+  }
+  paired=[...bySource.values()].filter(m=>['home','draw','away'].every(x=>m.has(x))&&
+   new Set(m.values()).size===3).length;
+  groupingMethod='THREE_INDEPENDENT_BINARY_CONTRACTS_SAME_CANONICAL_GAME';
+ }
+ if(sport==='soccer'&&familyName==='total'&&!paired){
+  // A YES=OVER contract has a live bid AND ask. A NO/UNDER quote is a
+  // mathematical complement of YES bid, NOT a separately observed under ask.
+  // We certify the binary market receipt only; no derived price is displayed.
+  const binary=verified.filter(o=>o.source==='Polymarket US WebSocket'&&
+   o.quoteKind==='OBSERVED_BBO_NOT_GUARANTEED_FILL'&&side(o)==='over'&&
+   Number.isFinite(num(o.line))&&o.line!=null&&
+   num(o.raw?.bestBid)>0&&num(o.raw?.bestAsk)>0&&
+   num(o.raw.bestBid)<=num(o.raw.bestAsk)&&
+   o.canAuthorizeWager===false&&o.executionEligible===false);
+  if(binary.length){paired=binary.length;complementaryBinary=true;
+   groupingMethod='ONE_PROVIDER_TIMED_OVER_BINARY_BID_ASK_UNDER_NOT_OBSERVED';}
+ }
+ const state=paired?(complementaryBinary?'PROVIDER_TIMED_BINARY_OVER_BOOK':'VERIFIED_CURRENT_PAIR'):!relevant.length?'NO_REFERENCE':
   !full.length?'PERIOD_NOT_FULL_GAME':!priced.length?'NO_NUMERIC_PRICE':
   !verified.length?'PROVIDER_CLOCK_OR_PRICE_UNVERIFIED':'UNPAIRED_CURRENT_MARKET';
  return {state,referenceOutcomes:relevant.length,fullGameOutcomes:full.length,
-  verifiedOutcomes:verified.length,verifiedPairs:paired,available:paired>0};
+  verifiedOutcomes:verified.length,verifiedPairs:paired,available:paired>0,
+  verificationMethod:groupingMethod,underPriceIndependentlyObserved:!complementaryBinary};
 };
 export function independentlyProjectedGame(g){
  const kind=String(g?.projectionKind||'').toUpperCase();
@@ -100,7 +132,7 @@ export function assessFixtureCoverage(board,{now=Date.now(),horizonMs=36*3600000
     offers.length>0||g.referenceMarketAvailable===true;
   // Each family requires its own verified, full-game, two-sided market.
   // One moneyline is never evidence of a spread or total.
-  const families=Object.fromEntries(expectedFamilies(g.sport).map(name=>[
+  const families=Object.fromEntries(expectedFamilies(g.sport,offers).map(name=>[
    name,marketFamilyEvidence(offers,name,{now,maxAgeMs:quoteMaxAgeMs,sport:g.sport})]));
   const missingFamilies=Object.keys(families).filter(k=>!families[k].available);
   const current=missingFamilies.length===0;
