@@ -94,3 +94,25 @@ test('Later missing Gamma fixtures preserve prior verified NBA source snapshots'
  assert.equal(stored.rows[0].collectedAt,'2026-10-20T17:00:00.000Z');
  assert.equal(stored.rows[0].canAuthorizeWager,false);
 });
+
+test('Gamma scheduled capture covers today and next Chicago game day with isolated market/freezes',async()=>{
+ const now=new Date('2026-10-20T17:00:00Z');
+ const later={...game,id:'401909089',date:'2026-10-21',start:'2026-10-21T23:00:00Z'};
+ const other={...event,id:'1185701',slug:'nba-bos-det-2026-10-21'};
+ const futureMarket={...market,slug:market.slug.replace('2026-10-20','2026-10-21'),
+  gameStartTime:'2026-10-21 23:00:00+00'};
+ const fakeDb={prepare(sql){return {bind(){return{all:async()=>({results:
+   sql.includes('FROM games')?[game,later]:players})}}}}};
+ const objects=new Map(),ARCHIVE={get:async key=>objects.has(key)?{json:async()=>objects.get(key)}:null,
+  put:async(key,value)=>objects.set(key,JSON.parse(value))};
+ const plan=await listGlobalNbaFixtureSlugs({DB:fakeDb},{now});
+ assert.deepEqual(plan.days,['2026-10-20','2026-10-21']);
+ assert.deepEqual(plan.slugs,[event.slug,other.slug]);
+ const result=await capturePolymarketGlobalNba({DB:fakeDb,ARCHIVE},{now,providedEvents:[
+  {...event,markets:[market]},{...other,markets:[futureMarket]}]});
+ assert.equal(result.contracts,4);
+ assert.equal(result.dateReceipts.length,2);
+ assert.equal(objects.get('player-props/polymarket-global/v1/nba-2026-10-20.json').rows.length,2);
+ assert.equal(objects.get('player-props/polymarket-global/v1/nba-2026-10-21.json').rows.length,2);
+ assert.equal(objects.get('player-props/pregame-lines/v1/nba/polymarket/2026-10-21.json').rows.length,2);
+});
