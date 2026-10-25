@@ -1,10 +1,6 @@
 name: Soccer-FBIS-v2 market replay
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "data/models/soccer-v2-market-replay-trigger.json"
   workflow_dispatch:
 
 permissions:
