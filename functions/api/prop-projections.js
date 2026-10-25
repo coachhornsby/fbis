@@ -5,10 +5,15 @@ import { buildPropAcceptance,assessPropModel } from '../lib/propAcceptance.js';
 import { PROP_SPORTS } from '../lib/exchangePlayerProps.js';
 import { loadNbaFrozenPregameModels } from '../lib/nbaFrozenPregameModels.js';
 export async function onRequestGet({env,request}) {
- const u=new URL(request.url),sport=u.searchParams.get('sport')||'nfl',date=resolveSlateDate(u.searchParams.get('date')||'',{maxPast:0,maxFuture:7});
+ const u=new URL(request.url),sport=u.searchParams.get('sport')||'nfl',date=resolveSlateDate(u.searchParams.get('date')||'',{maxPast:sport==='nba'?14:0,maxFuture:7});
  if(!PROP_SPORTS.includes(sport)||!date.ok)return Response.json({ok:false,error:'Invalid sport or date'}, {status:400});
  try {
-  const slate=await buildSlate(sport,date.date,{...env,caches:typeof caches==='undefined'?null:caches.default,parlayCacheOnly:true,cfbdScheduleFallback:false});
+  const chicagoToday=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',
+   year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  // Past NBA days MUST be sourced only from persisted pretip forecasts.
+  // Re-running today's projection model on historical data risks hindsight.
+  const pastNbaDate=sport==='nba'&&date.date<chicagoToday;
+  const slate=pastNbaDate?{games:[]}:await buildSlate(sport,date.date,{...env,caches:typeof caches==='undefined'?null:caches.default,parlayCacheOnly:true,cfbdScheduleFallback:false});
   const context=await loadPropFixturesAndPlayers(env,{...chicagoDayBounds(date.date),sport});
   // Live/final NBA games must retain source-saved PRETIP frozen forecasts.
   // independentPropRows deliberately excludes games after tip; never fabricate
