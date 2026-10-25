@@ -79,8 +79,19 @@ test("NHL compact and expanded cards share evidence contract and avoid unconditi
   assert.doesNotMatch(component,/RESEARCH ONLY|NO WAGER AUTHORITY/);
   assert.match(component,/const NA="N\/A"/);
   assert.doesNotMatch(component,/canAuthorizeWager\s*:\s*true/);
-  assert.match(compact,/LIVE SCORE NOT AVAILABLE FROM FEED/);
-  assert.match(premium,/LIVE SCORE NOT AVAILABLE FROM FEED/);
+  // The score contract lives in the shared child, not duplicated card markup.
+  const score=await readFile(new URL("../src/components/board/GameScoreDisplay.jsx",import.meta.url),"utf8");
+  for(const card of [compact,premium]) {
+    assert.match(card,/<GameScoreDisplay/);
+    assert.match(card,/actualScore=\{hasActualScore \? finalAway : null\}/);
+    assert.match(card,/actualScore=\{hasActualScore \? finalHome : null\}/);
+    assert.match(card,/hasProjection=\{proj\.available\}/);
+  }
+  assert.match(score,/\(live \|\| final\) && actualScore/);
+  assert.match(score,/actualAvailable \? actualScore/);
+  assert.match(score,/FBIS PROJECTED/);
+  assert.match(score,/LIVE — SCORE PENDING/);
+  assert.match(score,/FINAL — SCORE NOT IN FEED/);
 });
 
 test("point-in-time persisted goalie profiles enrich every NHL card without changing forecasts",()=>{
@@ -163,7 +174,12 @@ test("NHL compact card never advertises a legacy implied score as independent mo
  assert.match(evidence,/NO INDEPENDENT NHL MODEL/);
  assert.match(code,/bestValuePresentation\(game,\s*vm\)/);
  assert.doesNotMatch(code,/FBIS \/ PINNODDS GAP"\s*:/);
- assert.match(code,/PREGAME PROJ/);
+ // The shared score component labels the projection and cannot invent a live/final score.
+ const score=await readFile(new URL("../src/components/board/GameScoreDisplay.jsx",import.meta.url),"utf8");
+ assert.match(code,/<GameScoreDisplay/);
+ assert.match(score,/FBIS PROJECTED/);
+ assert.match(score,/\(live \|\| final\) && actualScore/);
+ assert.match(score,/actualAvailable \? actualScore/);
 });
 
 test("NHL goalie context presents independently labeled sides and responsive source tiles",async()=>{
