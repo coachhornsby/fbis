@@ -65,4 +65,6 @@ test('immutable MLB ablation freeze rejects nested bulletin and lineup receipts 
  assert.throws(()=>buildMlbAblationFreeze(g,now),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
  g.playerProjectionRows[0].lineage.acquisition_timestamp='2026-10-24T14:59:00Z';
  assert.equal(buildMlbAblationFreeze(g,now).classification,'PROSPECTIVE');
+ g.savant.pitcherTrend={sourceObservedAt:'2026-10-24T15:02:00Z'};
+ assert.throws(()=>buildMlbAblationFreeze(g,now),/MLB_PIT_SOURCE_AFTER_CHECKPOINT/);
 });
