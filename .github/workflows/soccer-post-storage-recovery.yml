@@ -1,8 +1,6 @@
 name: Soccer market recovery after storage cleanup
 on:
-  workflow_run:
-    workflows: ['Polymarket verified payload storage compaction']
-    types: [completed]
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
