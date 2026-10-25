@@ -100,7 +100,12 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   const period=soccerContract?polymarketUsPeriod(payload.providerMarket):r.period;
   const matchedGame=games.find(g=>String(g.id)===String(r.canonical_event_id));
   const binding=spreadBindings.get(r.source_market_id+'|'+r.source_outcome_id);
-  const inferredSide=family==='spread'?(binding?.side||polymarketUsCanonicalSide({marketFamily:family,sport,side:r.side,raw:payload},matchedGame)):null;
+  // Soccer 1X2 YES contracts are independently listed as team names,
+  // not necessarily home/away labels. Resolve ONLY against the exact
+  // canonical fixture identity; leave ambiguous names unqualified.
+  const inferredSide=['moneyline','spread'].includes(family)
+    ?(binding?.side||polymarketUsCanonicalSide({marketFamily:family,sport,side:r.side,raw:payload},matchedGame))
+    :null;
   const side=['moneyline','spread'].includes(family)&&['home','away','draw'].includes(payload?.canonicalSide)?payload.canonicalSide:inferredSide|| (soccerContract?polymarketUsSideLabel(payload.providerMarket,payload.providerSide,"soccer"):r.side);
   if(soccerContract&&family==="moneyline"&&payload.contractLong!==true)continue;
   if(sport==="soccer"&&r.source==="Polymarket US WebSocket"&&payload?.contractBindingVerified!==true)continue;

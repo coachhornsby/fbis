@@ -171,3 +171,26 @@ test('collector capture time and lite/unverified payloads are never promoted to 
  assert.equal(x.byId.get('g')[0].observedReferenceCurrent,false);
  assert.equal(x.byId.get('g')[0].providerTimestampVerified,false);
 });
+
+test('soccer binary home/draw/away exchange contracts use exact fixture team mapping',async()=>{
+ const at='2026-10-25T17:58:00Z';
+ const build=(side,slug,id)=>({
+  canonical_event_id:'match',sport:'soccer',source:'Polymarket US WebSocket',
+  market_family:'moneyline',period:'full_game',side,source_market_id:slug,
+  source_outcome_id:id,contract_price:.33,collected_at:'2026-10-25T17:59:00Z',
+  source_observed_at:at,
+  raw_payload_json:JSON.stringify({providerMarketId:slug,providerOutcomeId:id,
+    sourceObservedAt:at,canonicalSide:null,contractBindingVerified:true,
+    quoteKind:'WS_LIVE_BBO_UNVERIFIED_FILL',bestAsk:.33,bestBid:.31})
+ });
+ const rows=[build('Home FC','w-home','1'),build('draw','w-draw','2'),
+  build('Away FC','w-away','3')];
+ const db={prepare(){return{bind(){return{all:async()=>({results:rows})}}}}};
+ const x=await loadPolymarketUsBoardOffers(db,[{id:'match',sport:'soccer',
+  home:{name:'Home FC'},away:{name:'Away FC'}}],'soccer',{now:new Date('2026-10-25T18:00:00Z'),fullGameOnly:true});
+ assert.deepEqual(x.byId.get('match').map(o=>o.side),['home','draw','away']);
+ assert.ok(x.byId.get('match').every(o=>o.providerTimestampVerified&&o.canAuthorizeWager===false));
+ const unverified=await loadPolymarketUsBoardOffers(db,[{id:'match',sport:'soccer',
+  home:{name:'Another Home'},away:{name:'Away FC'}}],'soccer',{now:new Date('2026-10-25T18:00:00Z'),fullGameOnly:true});
+ assert.notEqual(unverified.byId.get('match')[0].side,'home');
+});
