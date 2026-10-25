@@ -1,22 +1,7 @@
 name: WNBA player impact live refresh
 
 on:
-  push:
-    branches: ["research/wnba-player-impact-v1", main]
-    paths:
-      - ".github/workflows/wnba-player-impact-live.yml"
-      - "scripts/wnba-player-impact-live.mjs"
-      - "scripts/wnba-canonical-build.mjs"
-      - "scripts/wnba-merge-canonical.mjs"
-      - "migrations/0049_wnba_player_impact.sql"
-      - "scripts/wnba-merge-lineup-stints.mjs"
-      - "scripts/wnba-lineup-effects-build.mjs"
-      - "research/wnba/player-impact-snapshot.json"
-      - "functions/lib/wnbaPlayerImpactShadow.js"
   workflow_dispatch:
-  schedule:
-    - cron: "10 14,19,23 * * *"
-
 permissions:
   contents: read
 
