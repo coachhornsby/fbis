@@ -41,9 +41,12 @@ function pitSourceUpperBound(value){
 // Source availability is bounded by the exact prediction freeze, not merely first pitch.
 // Scan nested evidence without treating game dates, kickoff or predicted times as source receipts.
 const MLB_PIT_SOURCE_TIMES=new Set([
- 'observedAt','observation_timestamp','observationTimestamp','sourceObservedAt',
- 'source_timestamp','sourceTimestamp','acquiredAt','acquisition_timestamp',
- 'acquisitionTimestamp','collectedAt','capturedAt','featureCapturedAt'
+ 'observedAt','observed_at','observation_timestamp','observationTimestamp',
+ 'sourceObservedAt','source_observed_at','sourceTimestamp','source_timestamp',
+ 'acquiredAt','acquired_at','acquisitionTimestamp','acquisition_timestamp',
+ 'collectedAt','collected_at','capturedAt','captured_at','featureCapturedAt','feature_captured_at',
+ 'fetchedAt','fetched_at','ingestedAt','ingested_at',
+ 'asOf','sourceAsOf','source_as_of','palAsOf','profileAsOf'
 ]);
 export function validatePregameSnapshot(fixture,features,maxObservationTime){
  const gameStart=fixture?.game_time??fixture?.start;
