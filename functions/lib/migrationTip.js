@@ -10,10 +10,10 @@
  */
 
 /** Latest migration filename (Wrangler d1_migrations.name form). */
-export const EXPECTED_MIGRATION_FILE = "0126_tennis_current_identity_links.sql";
+export const EXPECTED_MIGRATION_FILE = "0127_cfb_core_verified_settlement_provenance.sql";
 
 /** Latest migration id (schema_migrations.id form; no .sql suffix). */
-export const EXPECTED_MIGRATION_ID = "0126_tennis_current_identity_links";
+export const EXPECTED_MIGRATION_ID = "0127_cfb_core_verified_settlement_provenance";
 
 /** @deprecated Prefer EXPECTED_MIGRATION_ID — kept for response field naming. */
 export const EXPECTED_MIGRATION = EXPECTED_MIGRATION_ID;
