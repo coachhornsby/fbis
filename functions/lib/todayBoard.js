@@ -6,6 +6,7 @@ import { isFbsVsFbsGame } from "./cfbGameVisibility.js";
 import {pinnoddsOnlySlateMarket} from "./activeOddsPolicy.js";
 import {loadPinnoddsBoardResearch} from "./pinnoddsBoardResearch.js";
 import {loadPinnoddsR2BoardResearch,preferFreshPinnoddsArchive} from "./pinnoddsArchiveBoard.js";
+import { loadCfbPregameTotalReferences } from "./cfbBoardCapturedMarket.js";
 import { proveTennisEvent } from "./tennisEventIntegrity.js";
 import { currentActionDisplay } from "./actionDisplayFreshness.js";
 /**
@@ -1422,7 +1423,17 @@ export async function buildTodayBoard(
     }
     all = sortByStart(overlaid);
   }
-  // Derived-only read from private weekly CFBD and 2026 SDV D1 archives.
+  // Explicitly display independently captured, paired pregame exchange totals.
+  // These observations are historical research context and NEVER become
+  // the current operational market, execution price, or wager authorization.
+  if (all.some(g => g.sport === "cfb")) {
+    const cfbGames = all.filter(g => g.sport === "cfb");
+    const historicalTotals = await loadCfbPregameTotalReferences(env, cfbGames);
+    all = all.map(g => g.sport === "cfb"
+      ? { ...g, cfbCapturedMarket: historicalTotals.get(String(g.id)) || null }
+      : g);
+  }
+    // Derived-only read from private weekly CFBD and 2026 SDV D1 archives.
   // Never changes models, qualification, captured markets, or live CFBD quota.
   // Expose safe coverage/read-health signals even when one source is missing.
   let cfbDirectionalCoverage=null;
