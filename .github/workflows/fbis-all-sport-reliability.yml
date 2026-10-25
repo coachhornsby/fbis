@@ -10,6 +10,9 @@ on:
       - 'scripts/lib/fbisCoveragePolicy.mjs'
       - 'scripts/lib/fbisVerifiedRecovery.mjs'
       - 'test/fbis-verified-recovery.test.mjs'
+      - 'functions/lib/fbisFrozenModelDelivery.js'
+      - 'functions/api/prop-projections.js'
+      - 'functions/lib/propForecastCaptureJob.js'
       - '.github/workflows/fbis-all-sport-reliability.yml'
 permissions:
   contents: read
@@ -35,6 +38,11 @@ jobs:
           node-version: '22'
       - name: Verify all-sport policy and negative cases
         run: node --test test/fbis-all-sport-reliability.test.mjs test/fbis-verified-recovery.test.mjs
+      - name: Verify production SHA before auditing new code
+        if: github.event_name == 'push'
+        env:
+          BASE: https://fbis-myz.pages.dev
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
       - name: Audit source-backed game lines and player prop coverage
         id: audit
         continue-on-error: true
