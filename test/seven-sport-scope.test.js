@@ -9,6 +9,11 @@ import { FBIS_POLY_SPORTS } from "../functions/lib/polymarketUs.js";
 import { STREAM_SPORTS } from "../services/polymarket-us-stream/core.mjs";
 import { onRequestGet as liveProjections } from "../functions/api/projections.js";
 import { onRequestGet as marketObservations } from "../functions/api/market-observations.js";
+import { groupActivePolymarketLeagues } from "../functions/api/polymarket-collect.js";
+import { PRO_PLAYER_PROP_SPORTS, normalizeProPropSport } from "../functions/lib/proPlayerProps.js";
+import { LEARNING_SPORTS } from "../functions/lib/snapshotLearning.js";
+import { onRequestGet as playerProps } from "../functions/api/player-props.js";
+import { onRequestGet as selectiveProps } from "../functions/api/selective-props.js";
 
 const APPROVED = ["nfl", "mlb", "nba", "nhl", "cfb", "cbb", "tennis"];
 const RETIRED = ["npb", "kbo", "soccer", "wnba"];
@@ -71,5 +76,36 @@ test("retired live projection and market read paths fail closed without breaking
     assert.equal(direct.status, 400, sport + " direct market query");
     const historical = await marketObservations({ request: new Request("https://fbis.invalid/api/market-observations?historical=1&sport=" + sport + "&eventId=historical"), env: {} });
     assert.equal(historical.status, 503, sport + " archived query accepted but unavailable without DB");
+  }
+});
+
+test("retired Polymarket provider leagues are skipped without crashing collection", () => {
+  const leagues = [
+    {slug:"nfl",name:"National Football League"},
+    {slug:"wnba",name:"WNBA"},
+    {slug:"npb",name:"NPB"},
+    {slug:"kbo",name:"KBO"},
+    {slug:"epl",name:"English Premier League"},
+    {slug:"wta",name:"WTA Tour"},
+    {slug:"mlb",name:"MLB"},
+  ];
+  const grouped = groupActivePolymarketLeagues(leagues);
+  assert.deepEqual([...grouped.keys()].sort(), [...APPROVED].sort());
+  assert.deepEqual(grouped.get("nfl"), ["nfl"]);
+  assert.deepEqual(grouped.get("tennis"), ["wta"]);
+  assert.deepEqual(grouped.get("mlb"), ["mlb"]);
+  for (const retired of RETIRED) assert.equal(grouped.has(retired), false);
+});
+
+test("only active sports are accepted by live prop normalization and learning", async () => {
+  assert.deepEqual([...PRO_PLAYER_PROP_SPORTS].sort(), [...APPROVED].sort());
+  assert.deepEqual([...LEARNING_SPORTS].sort(), ["nfl","mlb","nba","nhl","cfb","cbb"].sort());
+  for (const retired of RETIRED) {
+    assert.equal(normalizeProPropSport(retired), null);
+    const prop = await playerProps({ request:new Request("https://fbis.invalid/api/player-props?sport="+retired), env:{DB:{}} });
+    assert.equal(prop.status, 200);
+    assert.deepEqual((await prop.json()).rows, []);
+    const selective = await selectiveProps({ request:new Request("https://fbis.invalid/api/selective-props?sport="+retired), env:{DB:{}} });
+    assert.equal(selective.status, 400);
   }
 });
