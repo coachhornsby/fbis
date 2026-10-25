@@ -79,3 +79,18 @@ test('NBA ESPN abbreviation aliases resolve Gamma matching only with exact teams
  for(const [g,slug,away,home] of variants)assert.equal(verifyGlobalNbaFixture({slug,teams:[
   {ordering:'away',abbreviation:away.toLowerCase()},{ordering:'home',abbreviation:home.toLowerCase()}]},g),true);
 });
+
+test('Later missing Gamma fixtures preserve prior verified NBA source snapshots',async()=>{
+ const now=new Date('2026-10-20T17:00:00Z'),memory=new Map();
+ const ARCHIVE={put:async(k,v)=>memory.set(k,JSON.parse(v)),get:async k=>memory.has(k)?{json:async()=>memory.get(k)}:null};
+ const env={DB:dbMock(),ARCHIVE};
+ const first=await capturePolymarketGlobalNba(env,{now,providedEvents:[{...event,markets:[market]}]});
+ assert.equal(first.contracts,2);
+ const next=await capturePolymarketGlobalNba(env,{now:new Date(now.getTime()+4*3600_000),providedEvents:[]});
+ assert.equal(next.contracts,2);
+ assert.equal(next.latestCaptureRows,0);
+ assert.equal(next.retainedReferenceRows,2);
+ const stored=memory.get('player-props/polymarket-global/v1/nba-2026-10-20.json');
+ assert.equal(stored.rows[0].collectedAt,'2026-10-20T17:00:00.000Z');
+ assert.equal(stored.rows[0].canAuthorizeWager,false);
+});

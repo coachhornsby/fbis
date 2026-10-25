@@ -99,10 +99,34 @@ export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=f
    fixtures.push({slug,canonicalEventId:String(g.id),providerEventId:String(event.id),providerMarkets:event.markets?.length||0,statSides:count});
   }catch(err){errors.push({slug,code:'PROVIDER_'+String(err?.name||'FETCH_FAILURE').toUpperCase().replace(/[^A-Z_]/g,'_')})}
  }
- const result={ok:true,source:'POLYMARKET_GLOBAL_GAMMA',day:today,capturedAt,rows,fixtures,errors,
+ // Daily Gamma capture must be cumulative. Later post-start sweeps see fewer
+ // active events; never overwrite verified earlier game/player thresholds with
+ // a smaller subset. Preserve each row's OWN original capture time and all
+ // historical (non-executable) quote caveats.
+ const archiveKey=ROOT+'nba-'+today+'.json';
+ let previous=null;
+ try{const original=await env.ARCHIVE.get(archiveKey);previous=original?await original.json():null;}catch{}
+ const validPrevious=previous?.day===today&&previous?.source==='POLYMARKET_GLOBAL_GAMMA'&&
+  previous?.canAuthorizeWager===false&&Array.isArray(previous?.rows);
+ const history=new Map();
+ if(validPrevious)for(const row of previous.rows){
+  if(row?.id&&row.identityVerified===true&&row.canAuthorizeWager===false&&row.venue==='Polymarket Global'&&
+    row.canonicalEventId&&row.canonicalPlayerId&&row.collectedAt&&row.line!=null)history.set(row.id,row);
+ }
+ const retained=history.size;
+ for(const row of rows)if(row?.id&&row.identityVerified===true&&row.canAuthorizeWager===false)
+  history.set(row.id,row);
+ const fixtureMap=new Map();
+ if(validPrevious)for(const f of previous.fixtures||[])if(f?.slug)fixtureMap.set(f.slug,f);
+ for(const f of fixtures)if(f?.slug)fixtureMap.set(f.slug,f);
+ const result={ok:true,source:'POLYMARKET_GLOBAL_GAMMA',day:today,capturedAt,
+  rows:[...history.values()],fixtures:[...fixtureMap.values()],errors,
+  retainedReferenceRows:retained,latestCaptureRows:rows.length,
   prices:'GAMMA_DISPLAY_REFERENCE_NOT_ORDERBOOK_ASK',canQualify:false,canAuthorizeWager:false};
- await env.ARCHIVE.put(ROOT+'nba-'+today+'.json',JSON.stringify(result),{httpMetadata:{contentType:'application/json',cacheControl:'private,max-age=0'}});
- return {ok:true,source:result.source,day:today,capturedAt,contracts:rows.length,fixtures:fixtures.length,errors,canAuthorizeWager:false};
+ await env.ARCHIVE.put(archiveKey,JSON.stringify(result),{httpMetadata:{contentType:'application/json',cacheControl:'private,max-age=0'}});
+ return {ok:true,source:result.source,day:today,capturedAt,contracts:result.rows.length,
+  latestCaptureRows:rows.length,retainedReferenceRows:retained,fixtures:result.fixtures.length,errors,
+  canQualify:false,canAuthorizeWager:false};
 }
 export async function loadPolymarketGlobalNba(env,{day:date,now=Date.now()}={}){
  if(!env?.ARCHIVE?.get||!/^\d{4}-\d{2}-\d{2}$/.test(date||''))return {rows:[],status:'UNAVAILABLE'};
