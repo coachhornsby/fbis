@@ -42,3 +42,14 @@ test('paired fresh PinnOdds research receipts count as captured game reference, 
  offers:[{marketFamily:'total',line:224.5,decimalOdds:1.9,capturedAt:'2026-10-24T07:59:00Z'}]}}]},now});
  assert.equal(stale.summary.missingGameMarkets,1);
 });
+
+test('independent model-only props remain visible as unpriced, not fabricated contracts',()=>{
+ const projected={sport:'nba',canonicalEventId:'1',canonicalPlayerId:'nba:espn:123',
+  canonical_market:'points',period:'full_game',start_time:start,independent:true,
+  fbis_projection:22};
+ const r=assessFbisCoverage({board:{games:[]},
+  models:{nba:{ok:true,rows:[projected]}},contracts:{nba:{ok:true,rows:[]}},now});
+ assert.equal(r.summary.modelPropsWithoutMarket,1);
+ assert.equal(r.incidents[0].code,'PROP_MARKET_NOT_OFFERED');
+ assert.equal(r.incidents[0].remedy,'NO_VERIFIED_SOURCE_CONTRACT; DO_NOT_INFER_PRICE');
+});

@@ -31,7 +31,7 @@ const market=(g,now)=>{
 export function assessFbisCoverage({board={},models={},contracts={},now=Date.now(),horizonHours=36}={}){
  const games=Array.isArray(board.games)?board.games:[];
  const incidents=[],summary={games:0,missingGameMarkets:0,missingGameProjections:0,
-  props:0,missingPropProjections:0,missingPropPrices:0};
+  props:0,missingPropProjections:0,missingPropPrices:0,modelPropsWithoutMarket:0};
  const inWindow=g=>{const t=clock(g.start||g.start_time||g.dateTime);
   return Number.isFinite(t)&&t>now&&t<=now+horizonHours*3600000;};
  for(const g of games.filter(inWindow)){
@@ -44,14 +44,26 @@ export function assessFbisCoverage({board={},models={},contracts={},now=Date.now
   const result=models[sport],lines=contracts[sport];
   if(!result?.ok){incidents.push({code:'PROP_MODEL_API_FAILED',sport});continue;}
   if(!lines?.ok){incidents.push({code:'PROP_EXCHANGE_API_FAILED',sport});continue;}
-  const modelKeys=new Set((result.rows||[]).filter(r=>r.independent===true&&positive(r.fbis_projection))
-   .map(r=>[r.canonicalEventId,r.canonicalPlayerId,r.canonical_market,r.period].join('|')));
+  const normalizedStat=s=>s==='pra'?'points_rebounds_assists':s;
+  const keyOf=r=>[r.canonicalEventId,r.canonicalPlayerId,normalizedStat(r.canonical_market),r.period].join('|');
+  const independentModels=(result.rows||[]).filter(r=>r.independent===true&&
+   positive(r.fbis_projection)&&inWindow(r));
+  const modelKeys=new Set(independentModels.map(keyOf));
   const offerings=(lines.rows||[]).filter(r=>r.identityVerified===true&&inWindow(r)&&r.contractId);
+  const offeredKeys=new Set(offerings.map(keyOf));
+  const without=independentModels.filter(r=>!offeredKeys.has(keyOf(r)));
+  if(without.length){
+   summary.modelPropsWithoutMarket+=without.length;
+   // Absence of an exchange listing is not evidence of a failed collector.
+   // Report explicitly; never manufacture prices or automatically wager.
+   incidents.push({code:'PROP_MARKET_NOT_OFFERED',sport,count:without.length,
+    remedy:'NO_VERIFIED_SOURCE_CONTRACT; DO_NOT_INFER_PRICE'});
+  }
   const seen=new Set();
   for(const r of offerings){
    const key=[r.provider,r.contractId,r.side].join('|');if(seen.has(key))continue;seen.add(key);
    summary.props++;
-   const identity=[r.canonicalEventId,r.canonicalPlayerId,r.canonical_market,r.period].join('|');
+   const identity=keyOf(r);
    if(!modelKeys.has(identity)){summary.missingPropProjections++;incidents.push({code:'PROP_PROJECTION_MISSING',sport,eventId:r.canonicalEventId,playerId:r.canonicalPlayerId,stat:r.canonical_market,provider:r.provider});}
    const sourceTime=clock(r.observedAt||r.sourceObservedAt);
    const captured=clock(r.collectedAt);
