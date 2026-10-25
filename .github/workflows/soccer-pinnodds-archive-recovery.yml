@@ -1,9 +1,6 @@
 name: Recover soccer PinnOdds prematch archive
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['ops/triggers/soccer-pinnodds-archive-recovery']
 permissions:
   contents: read
 concurrency:
