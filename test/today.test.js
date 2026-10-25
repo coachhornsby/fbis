@@ -16,6 +16,7 @@ import { summarize } from "../src/lib/learning.js";
 import { todayFeedNote } from "../functions/lib/propConviction.js";
 import { formatMarketPeriod, formatClv } from "../src/lib/format.js";
 import { todayEnv } from "../functions/api/today.js";
+import { listMarketHistoryReadDbs } from "../functions/lib/databaseTopology.js";
 import { finiteOrNull } from "../src/features/today/formatters.js";
 
 describe("TODAY display coercion", () => {
@@ -85,6 +86,7 @@ describe("TODAY cache-only and MY BET markers", () => {
     globalThis.caches = { default: { name: "test-cache" } };
     try {
       const q4 = { prepare() {} };
+      const q4b = { prepare() {}, database: "hot-overflow" };
       const env = todayEnv({
         env: {
           CFBD_API_KEY: "cfbd-key",
@@ -93,6 +95,7 @@ describe("TODAY cache-only and MY BET markers", () => {
           DB: { name: "db" },
           MARKET_HISTORY_DB: { prepare() {} },
           MARKET_HISTORY_2026Q4_DB: q4,
+          MARKET_HISTORY_2026Q4B_DB: q4b,
         },
       });
       assert.equal(env.CFBD_API_KEY, "cfbd-key");
@@ -100,6 +103,11 @@ describe("TODAY cache-only and MY BET markers", () => {
       assert.equal(env.BALLPARK_PAL_API_KEY, "pal-key");
       assert.equal(env.caches.name, "test-cache");
       assert.equal(env.MARKET_HISTORY_2026Q4_DB, q4);
+      assert.equal(env.MARKET_HISTORY_2026Q4B_DB, q4b);
+      // Previously missing this passthrough made TODAY invisible to the hot Q4B receipts.
+      assert.deepEqual(listMarketHistoryReadDbs(env).map(p => p.binding), [
+        "MARKET_HISTORY_2026Q4B_DB", "MARKET_HISTORY_2026Q4_DB", "MARKET_HISTORY_DB",
+      ]);
       assert.ok(env.MARKET_HISTORY_DB?.prepare);
     } finally {
       if (previousCaches === undefined) delete globalThis.caches;

@@ -23,6 +23,8 @@ export function todayEnv(context) {
     MARKET_HISTORY_DB: context.env.MARKET_HISTORY_DB,
     // Required for Q4 Polymarket/PinnOdds board overlays (listMarketHistoryReadDbs).
     MARKET_HISTORY_2026Q4_DB: context.env.MARKET_HISTORY_2026Q4_DB,
+    // Hot Q4 overflow shard holds the current PinnOdds NBA board receipts.
+    MARKET_HISTORY_2026Q4B_DB: context.env.MARKET_HISTORY_2026Q4B_DB,
     ARCHIVE: context.env.ARCHIVE,
   };
 }
