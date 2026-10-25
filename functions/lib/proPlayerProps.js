@@ -316,13 +316,13 @@ function cleanToken(raw) {
 export function normalizeProPropSport(raw) {
   const sport = cleanToken(raw);
   if (sport === "baseball" || sport === "major_league_baseball") return "mlb";
-  if (sport === "nippon_professional_baseball" || sport === "japanese_baseball") return "npb";
-  if (sport === "korean_baseball_organization" || sport === "korean_baseball") return "kbo";
+  if (sport === "nippon_professional_baseball" || sport === "japanese_baseball") return null;
+  if (sport === "korean_baseball_organization" || sport === "korean_baseball") return null;
   if (sport === "college_football" || sport === "ncaaf" || sport === "ncaa_football") return "cfb";
   if (sport === "college_basketball" || sport === "ncaab" || sport === "ncaa_basketball") return "cbb";
   if (sport === "atp" || sport === "wta" || sport === "tennis_atp" || sport === "tennis_wta") return "tennis";
   if (sport === "football" || sport === "national_football_league") return "nfl";
-  if (sport === "wnba" || sport === "womens_national_basketball_association" || sport === "women_s_national_basketball_association") return "wnba";
+  if (sport === "wnba" || sport === "womens_national_basketball_association" || sport === "women_s_national_basketball_association") return null;
   if (sport === "basketball" || sport === "national_basketball_association") return "nba";
   if (sport === "hockey" || sport === "national_hockey_league") return "nhl";
   return PRO_PLAYER_PROP_SPORTS.includes(sport) ? sport : null;
