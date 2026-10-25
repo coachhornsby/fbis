@@ -33,3 +33,15 @@ test('tour filters and invalid tour are deterministic',async()=>{
  assert.deepEqual(x.missingPlayers.map(p=>p.name),['ATP Missing Player']);
  assert.equal((await onRequestGet({request:new Request('https://fbis.test/api/tennis-portrait-coverage?tour=bad'),env})).status,400);
 });
+
+test('optional backlog includes external-only players without treating them as approved',async()=>{
+ const env={DB:database()};
+ const response=await onRequestGet({request:new Request('https://fbis.test/api/tennis-portrait-coverage?tour=atp&limit=10&includeExternal=1'),env});
+ assert.equal(response.status,200);
+ const payload=await response.json();
+ assert.equal(payload.includeExternal,true);
+ assert.equal(payload.total.archivedApproved,0);
+ assert.deepEqual(payload.missingPlayers.map(p=>[p.name,p.imageStatus]),[
+  ['ATP Feed Player','EXTERNAL_ONLY'],['ATP Missing Player','MISSING']
+ ]);
+});
