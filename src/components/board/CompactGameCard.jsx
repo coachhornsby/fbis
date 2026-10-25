@@ -6,7 +6,7 @@ import EventMarkets from "./EventMarkets.jsx";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
-import GameScoreDisplay from "./GameScoreDisplay.jsx";
+import GameScoreDisplay, { MatchupCenterClock } from "./GameScoreDisplay.jsx";
 import { formatLiveGameClock } from "../../lib/liveGameClock.js";
 import CfbCapturedMarket from "./CfbCapturedMarket.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
@@ -224,7 +224,7 @@ export default function CompactGameCard({ game, onOpen }) {
 
 
       <div className="cgc-main">
-        <div className="cgc-matchup cgc-team-atmosphere" style={matchupAtmosphere}>
+        <div className={`cgc-matchup cgc-team-atmosphere${vm.event?.live ? " has-center-clock" : ""}`} style={matchupAtmosphere}>
           {away.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-away" src={away.logoUrl} alt="" aria-hidden="true" /> : null}
           {home.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-home" src={home.logoUrl} alt="" aria-hidden="true" /> : null}
           <div className="cgc-team-block">
@@ -237,10 +237,13 @@ export default function CompactGameCard({ game, onOpen }) {
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
-            <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} liveClock={liveClock} />
+            <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} />
           </div>
 
-          <span className="cgc-vs">VS</span>
+          <div className="cgc-vs-center">
+            <span className="cgc-vs">VS</span>
+            {vm.event?.live ? <MatchupCenterClock clock={liveClock} /> : null}
+          </div>
 
           <div className="cgc-team-block">
             <TeamLogo team={home} size={118} tone="light" className={`cgc-logo${sportId === "mlb" ? " cgc-logo-mlb" : ""}`} />
@@ -252,7 +255,7 @@ export default function CompactGameCard({ game, onOpen }) {
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
-            <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} liveClock={liveClock} />
+            <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} />
           </div>
         </div>
 

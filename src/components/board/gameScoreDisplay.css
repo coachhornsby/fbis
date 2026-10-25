@@ -98,33 +98,102 @@
   .fbis-shell-main .fbis-universal-premium .fbis-game-score__projection span{font-size:9px!important}
   .fbis-shell-main .fbis-universal-premium .fbis-game-score__projection strong{font-size:18px!important}
 }
-
-/* Clock is attached to the score, not a second redundant banner. */
-.fbis-shell-main .fbis-universal-premium .fbis-game-score__clock {
-  display:block;
-  width:100%;
-  box-sizing:border-box;
-  margin:4px 0 1px;
-  padding:6px 7px;
-  border:1px solid rgba(93,236,195,.39);
-  border-radius:7px;
-  background:rgba(7,54,56,.82);
-  color:#a4ffe6!important;
-  font-size:clamp(11px,1vw,14px)!important;
-  line-height:1.15;
-  letter-spacing:.045em;
-  font-weight:950!important;
-  text-transform:uppercase;
-  white-space:normal;
+ 
+/* The game clock occupies the shared VS gutter, never a team score box. */
+.fbis-shell-main .fbis-universal-premium.cgc .cgc-matchup.has-center-clock {
+  grid-template-columns:minmax(0,1fr) minmax(82px,.52fr) minmax(0,1fr)!important;
 }
-.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-game-score__clock {
-  font-size:clamp(12px,1.15vw,16px)!important;
-  padding:8px 9px;
+.fbis-shell-main .fbis-universal-premium .cgc-vs-center{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  align-self:center;
+  gap:12px;
+  width:100%;
+  min-width:0;
+  position:relative;
+  z-index:3;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-matchup-clock{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  width:100%;
+  min-width:0;
+  max-width:155px;
+  padding:10px 6px;
+  box-sizing:border-box;
+  gap:4px;
+  border:1px solid rgba(115,235,206,.45);
+  border-radius:11px;
+  background:linear-gradient(150deg,rgba(7,56,59,.93),rgba(5,31,48,.97));
+  box-shadow:0 5px 18px rgba(0,0,0,.3),inset 0 1px rgba(176,255,229,.1);
+  text-align:center;
+  font-variant-numeric:tabular-nums;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-matchup-clock__live{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:5px;
+  color:#9cfae0!important;
+  font-weight:950;
+  font-size:10px!important;
+  letter-spacing:.1em;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-matchup-clock__live>span{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#ff5267;
+  box-shadow:0 0 7px rgba(255,82,103,.5);
+}
+.fbis-shell-main .fbis-universal-premium .fbis-matchup-clock__period{
+  display:block;
+  color:#fff!important;
+  font-size:clamp(17px,1.65vw,24px)!important;
+  font-weight:950!important;
+  line-height:1.05;
+  overflow-wrap:anywhere;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-matchup-clock__remaining{
+  display:block;
+  color:#a7ffe0!important;
+  font-size:clamp(10px,.9vw,13px)!important;
+  font-weight:900!important;
+  line-height:1.22;
+  overflow-wrap:anywhere;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-featured-center.has-center-clock,
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-featured-center{
+  min-width:0;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-matchup-clock{
+  padding:14px 8px;
+  max-width:164px;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-matchup-clock__period{
+  font-size:clamp(22px,2vw,30px)!important;
 }
 @media(max-width:640px){
-  .fbis-shell-main .fbis-universal-premium .fbis-game-score__clock {
-    font-size:10px!important;
-    letter-spacing:0;
-    padding:6px 3px;
+  .fbis-shell-main .fbis-universal-premium.cgc .cgc-matchup.has-center-clock{
+    grid-template-columns:minmax(0,1fr) minmax(68px,.48fr) minmax(0,1fr)!important;
+    column-gap:4px!important;
   }
+  .fbis-shell-main .fbis-universal-premium .cgc-vs-center{gap:8px}
+  .fbis-shell-main .fbis-universal-premium .fbis-matchup-clock{
+    padding:8px 2px;
+    gap:3px;
+    border-radius:9px;
+  }
+  .fbis-shell-main .fbis-universal-premium .fbis-matchup-clock__live{font-size:9px!important;gap:3px;letter-spacing:0}
+  .fbis-shell-main .fbis-universal-premium .fbis-matchup-clock__period{font-size:18px!important}
+  .fbis-shell-main .fbis-universal-premium .fbis-matchup-clock__remaining{font-size:10px!important}
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-featured-matchup.has-center-clock{
+    grid-template-columns:minmax(0,1fr) 78px minmax(0,1fr)!important;
+  }
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-matchup-clock{padding:10px 3px}
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-matchup-clock__period{font-size:20px!important}
 }

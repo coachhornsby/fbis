@@ -10,7 +10,7 @@ import CfbSeasonStatStrip from "./CfbSeasonStatStrip.jsx";
 import CfbProjectionReliability from "./CfbProjectionReliability.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
-import GameScoreDisplay from "./GameScoreDisplay.jsx";
+import GameScoreDisplay, { MatchupCenterClock } from "./GameScoreDisplay.jsx";
 import { formatLiveGameClock } from "../../lib/liveGameClock.js";
 import CfbCapturedMarket from "./CfbCapturedMarket.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
@@ -261,7 +261,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
       ) : null}
 
       <SoccerPinnOdds game={game} className="pgc-status-note" />
-      <section className="pgc-featured-matchup pgc-team-atmosphere">
+      <section className={`pgc-featured-matchup pgc-team-atmosphere${vm.event?.live ? " has-center-clock" : ""}`}>
         {away.logoUrl ? <img className="pgc-team-watermark pgc-team-watermark-away" src={away.logoUrl} alt="" aria-hidden="true" /> : null}
         {home.logoUrl ? <img className="pgc-team-watermark pgc-team-watermark-home" src={home.logoUrl} alt="" aria-hidden="true" /> : null}
         <div className={`pgc-featured-team${sportId === "mlb" ? " pgc-featured-team-mlb" : ""}`}>
@@ -272,7 +272,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
                 <small>{game?.neutralSite ? "NEUTRAL SITE" : "AWAY"}</small>
                 <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
                 {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
-                <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" liveClock={liveClock} />
+                <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" />
               </div>
             </>
           ) : (
@@ -285,7 +285,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
                 <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
                 {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(away, tennisTour)}</span> : null}
                 {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
-                <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" liveClock={liveClock} />
+                <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" />
                 {proj.available && !stored && winProbabilities.find(r=>r.side==="away")?.fbisProbability!=null ? <small>{(winProbabilities.find(r=>r.side==="away").fbisProbability*100).toFixed(1)}% MODEL WIN PROB.</small> : null}
               </div>
             </>
@@ -302,7 +302,8 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
               </div>
               <small>PITCH · HIT</small>
             </>
-          ) : <><span className="pgc-vs">VS</span><small>FBIS MATCHUP INTELLIGENCE</small></>}
+          ) : <><span className="pgc-vs">VS</span>{!vm.event?.live ? <small>FBIS MATCHUP INTELLIGENCE</small> : null}</>}
+          {vm.event?.live ? <MatchupCenterClock clock={liveClock} /> : null}
         </div>
 
         <div className={`pgc-featured-team pgc-featured-team-home${sportId === "mlb" ? " pgc-featured-team-mlb" : ""}`}>
@@ -313,7 +314,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
                 <small>{game?.neutralSite ? "NEUTRAL SITE" : "HOME"}</small>
                 <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
                 {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
-                <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" liveClock={liveClock} />
+                <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" />
               </div>
             </>
           ) : (
@@ -326,7 +327,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
                 <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
                 {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(home, tennisTour)}</span> : null}
                 {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
-                <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" liveClock={liveClock} />
+                <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" />
                 {proj.available && !stored && winProbabilities.find(r=>r.side==="home")?.fbisProbability!=null ? <small>{(winProbabilities.find(r=>r.side==="home").fbisProbability*100).toFixed(1)}% MODEL WIN PROB.</small> : null}
               </div>
             </>

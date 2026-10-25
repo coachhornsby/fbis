@@ -12,7 +12,6 @@ export default function GameScoreDisplay({
   live = false,
   final = false,
   variant = "compact",
-  liveClock = null,
 }) {
   const phase = final ? "final" : live ? "live" : "pregame";
   const actualAvailable =
@@ -33,11 +32,6 @@ export default function GameScoreDisplay({
         {label}
       </span>
       <strong className="fbis-game-score__primary">{primary}</strong>
-      {live && !final ? (
-        <span className="fbis-game-score__clock" aria-label="Game period and scoreboard time remaining">
-          {liveClock || "CLOCK N/A"}
-        </span>
-      ) : null}
       {actualAvailable && projectionAvailable ? (
         <div className="fbis-game-score__projection">
           <span>FBIS PROJ.</span>
@@ -49,6 +43,21 @@ export default function GameScoreDisplay({
           {final ? "FINAL — SCORE NOT IN FEED" : "LIVE — SCORE PENDING"}
         </small>
       ) : null}
+    </div>
+  );
+}
+
+/** One clock per matchup, centrally between the two team score cards. */
+export function MatchupCenterClock({ clock = null }) {
+  const raw = String(clock || "CLOCK N/A").trim();
+  const parts = raw.split(" · ");
+  const phase = parts.length > 1 ? parts[0] : raw;
+  const remaining = parts.length > 1 ? parts.slice(1).join(" · ") : null;
+  return (
+    <div className="fbis-matchup-clock" role="status" aria-label={`Live game period and time: ${raw}`}>
+      <span className="fbis-matchup-clock__live"><span aria-hidden="true" /> LIVE</span>
+      <strong className="fbis-matchup-clock__period">{phase}</strong>
+      {remaining ? <span className="fbis-matchup-clock__remaining">{remaining}</span> : null}
     </div>
   );
 }
