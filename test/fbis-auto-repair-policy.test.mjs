@@ -86,13 +86,13 @@ test('provider-timed Polymarket US research BBO can count as current observed od
  assert.equal(verifiedCurrentQuote({...safe,providerTimestampVerified:false},now),false);
  assert.equal(verifiedCurrentQuote({...safe,temporal:{status:'STALE'}},now),false);
 });
-test('soccer full-time moneyline requires home draw and away from same provider market',()=>{
+test('soccer 1X2 refuses to count home draw away from the same binary market ID',()=>{
  const common={source:'Test Provider',sourceMarketId:'1x2',marketFamily:'moneyline',period:'full_game',
   marketAvailable:true,priceVerified:true,providerTimestampVerified:true,contractPrice:.33,
   sourceObservedAt:'2026-10-25T17:50:00Z'};
  const homeAway=[{...common,side:'home'},{...common,side:'away'}];
  assert.equal(marketFamilyEvidence(homeAway,'moneyline',{now,sport:'soccer'}).available,false);
- assert.equal(marketFamilyEvidence([...homeAway,{...common,side:'draw'}],'moneyline',{now,sport:'soccer'}).available,true);
+ assert.equal(marketFamilyEvidence([...homeAway,{...common,side:'draw'}],'moneyline',{now,sport:'soccer'}).available,false);
 });
 
 test('soccer independently observed 1X2 binary outcomes have separate market IDs',()=>{
