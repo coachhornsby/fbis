@@ -30,8 +30,8 @@ export function buildCfbDirectionalBoardMap(games=[],cfbdRows=[],sdvRows=[],{now
   const cfbd=cfbdRows.filter(r=>String(r.game_id)===String(game.id)&&
    Number(r.season)===season && Number(r.season)===Number(r.snapshot_season)&&
    Number(r.week)===Number(r.snapshot_week)&&(r.identity_status==="matched_unique_active_fbs"||
-    (r.identity_status==="matched"&&/^cfb-\\d+$/.test(String(r.home_canonical_id||""))&&
-     /^cfb-\\d+$/.test(String(r.away_canonical_id||""))&&r.home_canonical_id!==r.away_canonical_id))&&
+    (r.identity_status==="matched"&&/^cfb-\d+$/.test(String(r.home_canonical_id||""))&&
+     /^cfb-\d+$/.test(String(r.away_canonical_id||""))&&r.home_canonical_id!==r.away_canonical_id))&&
    r.authority==="research_only"&&r.snapshot_status==="research_only"&&
    Number(r.can_influence_projection)===0&&Number(r.can_authorize_wager)===0&&
    time(r.received_at)!=null&&time(r.received_at)<start&&time(r.received_at)<=nowMs+60_000)
