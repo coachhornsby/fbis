@@ -79,6 +79,6 @@ export async function capturePinnoddsSnapshot(env,{runId,kind,sportId=null,feed=
  const body=JSON.parse(raw);if(kind==='board'&&!Array.isArray(body.events))throw Error('PINNODDS_EVENTS_CONTRACT_CHANGED');
  const receipt={ok:true,snapshotId,runId,kind,sportId,feed,captureStartedAt:now.toISOString(),collectedAt:new Date().toISOString(),sourceUrl:url.toString(),rawHash,rawKey,
   providerStatus:response.headers.get('x-data-status')||null,providerDataAge:response.headers.get('x-data-age')||null,
-  providerCursor:body.last??null,dropBufferHours:kind==='drops'?3:null,dropResponseLimit:kind==='drops'?10000:null,dropBufferComplete:kind==='drops'?(Array.isArray(body.drops)&&body.drops.length<10000&&(body.total==null||Number(body.total)<=body.drops.length)):null,providerEventCount:body.events?.length??null,projectionScope:'FBIS_MODELED_EVENTS_ONLY',providerCostUsd:0,readOnly:true,canAuthorizeWager:false};
+  providerCursor:body.last??null,dropBufferHours:kind==='drops'?3:null,dropResponseLimit:kind==='drops'?10000:null,dropBufferComplete:kind==='drops'?(Array.isArray(body.drops)&&body.drops.length<10000&&(body.total==null||Number(body.total)<=body.drops.length)):null,providerEventCount:body.events?.length??null,projectionScope:'FBIS_MODELED_EVENTS_ONLY',activeSportsOnly:true,providerCostUsd:0,readOnly:true,canAuthorizeWager:false};
  await env.R2_ARCHIVE.put(receiptKey,JSON.stringify(receipt),jsonOptions);return receipt;
 }
