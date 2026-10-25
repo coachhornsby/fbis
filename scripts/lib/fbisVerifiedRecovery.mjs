@@ -41,12 +41,21 @@ async function requestJson(fetchImpl,url,{method='GET',secret,body,timeoutMs=450
 export function chooseArchivedSnapshots(status,neededSports,{now=Date.now()}={}){
  const requested=new Set(neededSports.map(s=>ARCHIVE_SPORTS[s]).filter(Number.isInteger));
  if(!requested.size||status?.ok!==true||!Array.isArray(status.results))return [];
- return status.results.filter(r=>r.kind==='board'&&r.feed==='prematch'&&
+ const candidates=status.results.filter(r=>r.kind==='board'&&r.feed==='prematch'&&
   requested.has(Number(r.sportId))&&/^[a-z0-9-]{1,180}$/i.test(String(r.snapshotId||''))&&
   Number(r.normalizedRows)>0&&Number(r.matchedRows)===0&&r.reconciled!==false&&
   Number.isFinite(ms(r.collectedAt))&&now-ms(r.collectedAt)>=0&&now-ms(r.collectedAt)<=48*3600000)
-  .sort((a,b)=>ms(b.collectedAt)-ms(a.collectedAt))
-  .slice(0,1);
+  .sort((a,b)=>ms(b.collectedAt)-ms(a.collectedAt));
+ // Up to one eligible preexisting snapshot per distinct provider sport ID.
+ // The planner caps affected sports at two: no expansion of write budget.
+ const selected=[],seenSportIds=new Set();
+ for(const row of candidates){
+  const id=Number(row.sportId);
+  if(seenSportIds.has(id))continue;
+  seenSportIds.add(id);selected.push(row);
+  if(selected.length>=Math.min(neededSports.length,2))break;
+ }
+ return selected;
 }
 export async function executeFbisRepairs({incidents=[],date,now=Date.now(),event='schedule',
  secret='',base='https://fbis-myz.pages.dev',fetchImpl=fetch}={}){
