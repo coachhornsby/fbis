@@ -72,5 +72,8 @@ console.log(JSON.stringify({ok:report.ok,date,summary:report.summary,incidentCou
  sample:report.incidents.slice(0,25),recovery:{attempted:recovery.attempted,verifiedRepairCount:recovery.verifiedRepairCount,
  receipts:recovery.receipts,blocked:recovery.blocked,paidProviderCalls:0}},null,2));
 if(process.env.GITHUB_STEP_SUMMARY)await appendFile(process.env.GITHUB_STEP_SUMMARY,
- '## FBIS all-sport coverage\n\n'+sports.join(', ')+'\n\n'+JSON.stringify(report.summary)+'\n\nIncidents: '+report.incidents.length+'\n');
+ '## FBIS all-sport coverage\n\n'+sports.join(', ')+'\n\n'+JSON.stringify(report.summary)+
+ '\n\nIncident count: '+report.incidents.length+
+ '\nVerified repairs: '+report.recovery.verifiedRepairCount+
+ '\nRecovery attempts: '+report.recovery.attempted+'\n');
 if(!report.ok)process.exitCode=1;
