@@ -13,10 +13,14 @@ test('valid pregame frozen forecast joins only exact event/player/team',()=>{
  assert.equal(rows[0].canonicalPlayerId,'nba:espn:123');assert.equal(rows[0].opponent,'DAL');
  assert.equal(rows[0].canAuthorizeWager,false);
 });
-test('post-tip freeze, wrong roster, poststart data, or post-tip current time fail closed',()=>{
+test('reject post-tip source mutations and wrong roster, retain verified pretip snapshot after start',()=>{
  assert.equal(mapIndexedFrozenForecasts([{...observation,frozenAt:start}],{sport,games:[game],players:[athlete],now}).length,0);
  assert.equal(mapIndexedFrozenForecasts([observation],{sport,games:[game],players:[{...athlete,team_key:'NYK'}],now}).length,0);
- assert.equal(mapIndexedFrozenForecasts([observation],{sport,games:[game],players:[athlete],now:Date.parse(start)+1}).length,0);
+ const historical=mapIndexedFrozenForecasts([observation],{sport,games:[game],players:[athlete],now:Date.parse(start)+1});
+ assert.equal(historical.length,1);
+ assert.equal(historical[0].historicalPregame,true);
+ assert.equal(historical[0].fbis_projection,23.7);
+ assert.equal(historical[0].canAuthorizeWager,false);
  assert.equal(mapIndexedFrozenForecasts([{...observation,forecasts:[{...observation.forecasts[0],modelAsOf:start}]}],{sport,games:[game],players:[athlete],now}).length,0);
 });
 test('indexed blob must match its source SHA-256 before being shown',async()=>{
@@ -32,4 +36,14 @@ test('indexed blob must match its source SHA-256 before being shown',async()=>{
  files.set(key,raw.replace('23.7','29.7'));
  const bad=await loadIndexedFrozenForecasts(env,{sport,date,games:[game],players:[athlete],now});
  assert.equal(bad.rows.length,0);assert.equal(bad.status,'PARTIAL_HASH_OR_READ_FAILURE');
+});
+
+test('historical frozen NFL player score survives start only with exact source identity',()=>{
+ const old={...game,sport:'nfl',home_abbr:'KC',away_abbr:'BUF'};
+ const p={sport:'nfl',player_id:'42',player_name:'Verified NFL Player',team_key:'KC'};
+ const frozen={...observation,sport:'nfl',canonicalEventId:old.id,forecasts:[
+  {...observation.forecasts[0],canonicalPlayerId:'nfl:espn:42',market:'receptions',projection:5.7}]};
+ const row=mapIndexedFrozenForecasts([frozen],{sport:'nfl',games:[old],players:[p],now:Date.parse(start)+3600000});
+ assert.equal(row.length,1);assert.equal(row[0].historicalPregame,true);
+ assert.equal(row[0].marketInformed,false);assert.equal(row[0].canAuthorizeWager,false);
 });

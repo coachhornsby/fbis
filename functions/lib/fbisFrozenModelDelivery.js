@@ -16,7 +16,7 @@ export function mapIndexedFrozenForecasts(objects=[],{sport,games=[],players=[],
   const g=gameIndex.get(String(obj?.canonicalEventId||'')),start=Date.parse(g?.start);
   const frozen=Date.parse(obj?.frozenAt);
   if(!g||obj.schemaVersion!==1||obj.sport!==sport||
-   obj.recordedWager!==false||!Number.isFinite(start)||start<=now||
+   obj.recordedWager!==false||!Number.isFinite(start)||
    Date.parse(obj.eventStart)!==start||!Number.isFinite(frozen)||frozen>=start||
    !Array.isArray(obj.forecasts)||obj.forecasts.length>1500)continue;
   const teams=[propTeamKey(sport,g.home_abbr),propTeamKey(sport,g.away_abbr)];
@@ -40,9 +40,10 @@ export function mapIndexedFrozenForecasts(objects=[],{sport,games=[],players=[],
     fbis_projection:projection,sigma:finite(f.sigma),modelId:f.modelId,modelVersion:f.modelVersion,
     modelAsOf:f.modelAsOf,independent:true,marketInformed:false,identityVerified:true,
     modelStatus:'FROZEN_PREGAME_SOURCE',availabilityStatus:p.availability_status||'UNKNOWN',
-    historicalPregame:false,marketAvailable:false,
+    historicalPregame:start<=now,marketAvailable:false,
     canQualify:false,canAuthorizeWager:false,
-    reasons:['PERSISTED_PREGAME_FORECAST','THRESHOLD_CALIBRATION_REQUIRED']});
+    reasons:['PERSISTED_PREGAME_FORECAST',...(start<=now?['STARTED_EVENT_FROZEN_PROJECTION']:[]),
+      'THRESHOLD_CALIBRATION_REQUIRED']});
   }
  }
  return result;
