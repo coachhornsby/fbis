@@ -1,9 +1,6 @@
 name: Soccer canonical history ingest
 
 on:
-  schedule:
-    - cron: "15 10 * * *"
-    - cron: "15 11 * * *"
   workflow_dispatch:
     inputs:
       mode:
