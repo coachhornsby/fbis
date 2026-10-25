@@ -31,6 +31,10 @@ export function normalizeExchangeProp(row, { now = Date.now(), maxAgeMs = 5 * 60
   // Never substitute collector time for the provider quote clock.
   const fresh = Number.isFinite(observed) && Number.isFinite(collected) && observed <= now && collected <= now && observed <= collected && now - observed <= maxAgeMs;
   if (!fresh) reasons.push('QUOTE_CLOCK_STALE_OR_UNVERIFIED');
+  const currentSnapshot = !row.snapshot_type || row.snapshot_type === 'CURRENT';
+  if (!currentSnapshot) reasons.push('HISTORICAL_REFERENCE_NOT_LIVE');
+  const outcomeVerified = typeof row.source_outcome_id === 'string' && row.source_outcome_id.trim().length > 0;
+  if (!outcomeVerified) reasons.push('SOURCE_OUTCOME_ID_MISSING');
   const ask = finitePropNumber(raw.bestAsk), size = finitePropNumber(raw.askSize);
   const priceVerified = raw.priceSemantics === 'purchase_ask' && raw.quoteSide === row.side && ask > 0 && ask < 1 && size > 0 && raw.marketState === 'OPEN';
   if (!priceVerified) reasons.push('PURCHASE_ASK_DEPTH_OR_STATUS_UNVERIFIED');
@@ -50,12 +54,12 @@ export function normalizeExchangeProp(row, { now = Date.now(), maxAgeMs = 5 * 60
     settlementTerms: identityVerified ? proof.settlementTerms : null,
     identityVerified, priceVerified, fresh,
     observedAsk: priceVerified ? ask : null, observedDepth: priceVerified ? size : null,
-    purchaseAsk: priceVerified && fresh ? ask : null, executableSize: priceVerified && fresh ? size : null,
+    purchaseAsk: priceVerified && fresh && currentSnapshot && outcomeVerified ? ask : null, executableSize: priceVerified && fresh && currentSnapshot && outcomeVerified ? size : null,
     observedAt: row.source_observed_at, collectedAt: row.collected_at,
     // Projection joins require frozen, independent model evidence; market payloads are not models.
     fbis_projection: null, calibratedProbability: null, modelStatus: 'UNMODELED',
     fees: null, expectedReturn: null, reasons: [...reasons,'INDEPENDENT_MODEL_JOIN_REQUIRED','FEES_UNVERIFIED'],
-    marketAvailable: identityVerified && priceVerified && fresh && start > now,
+    marketAvailable: identityVerified && outcomeVerified && currentSnapshot && priceVerified && fresh && start > now,
     canQualify: false, executionEligible: false, canAuthorizeWager: false,
   };
 }

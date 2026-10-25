@@ -8,7 +8,7 @@ const game={id:'g1',sport:'nfl',start,status:'scheduled',projectionUnavailable:f
   ...['moneyline','spread','total'].flatMap(marketFamily=>
    (marketFamily==='total'?['over','under']:['home','away']).map(side=>({
     source:'Verified Test',sourceMarketId:'m-'+marketFamily,marketFamily,side,
-    period:'full_game',line:marketFamily==='spread'?3.5:marketFamily==='total'?44.5:null,
+    period:'full_game',line:marketFamily==='spread'?(side==='home'?-3.5:3.5):marketFamily==='total'?44.5:null,
     contractPrice:.54,marketAvailable:true,priceVerified:true,providerTimestampVerified:true,
     sourceObservedAt:'2026-10-25T17:40:00Z'})))]}};
 const player={sport:'nfl',canonicalEventId:'g1',canonicalPlayerId:'nfl:espn:42',canonical_market:'receptions',
@@ -130,4 +130,16 @@ test('tennis unspecified Polymarket settlement period is a distinct evidence gap
  ]}}]},{now});
  assert.equal(r.games[0].families.moneyline.state,'SETTLEMENT_PERIOD_UNVERIFIED');
  assert.equal(r.counts.currentMarketGames,0);
+});
+
+test('spread pairing preserves home-away handicap sign; missing totals never become zero',()=>{
+ const offers=game.market.venueOffers.filter(o=>o.marketFamily==='spread');
+ assert.equal(marketFamilyEvidence(offers,'spread',{now}).available,true);
+ assert.equal(marketFamilyEvidence(offers.map(o=>({...o,line:3.5})),'spread',{now}).available,false);
+ const totals=game.market.venueOffers.filter(o=>o.marketFamily==='total');
+ for(const line of [null,'',-44.5])assert.equal(marketFamilyEvidence(totals.map(o=>({...o,line})),'total',{now}).available,false);
+});
+test('historical, suspended, expired and inactive quotes remain excluded despite fresh clocks',()=>{
+ for(const patch of [{snapshotType:'HISTORICAL'},{suspended:true},{active:false},{marketState:'CLOSED'},{status:'EXPIRED'}])
+  assert.equal(verifiedCurrentQuote({...contract,...patch},now),false);
 });
