@@ -165,7 +165,8 @@ export const SPORTS = {
   },
 };
 
-export const BOARD_SPORTS = ["mlb", "npb", "kbo", "nba", "wnba", "nhl", "nfl", "cfb", "cbb", "soccer", "tennis"];
+// Supported active sports only. Historical model modules remain for audit/replay.
+export const BOARD_SPORTS = ["nfl", "mlb", "nba", "nhl", "cfb", "cbb", "tennis"];
 
 export function todayCT() {
   return new Intl.DateTimeFormat("en-CA", {
