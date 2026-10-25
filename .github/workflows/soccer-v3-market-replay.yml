@@ -1,9 +1,6 @@
 name: Soccer-FBIS-v3 market replay
 
 on:
-  workflow_run:
-    workflows: ["Soccer-FBIS-v3 walk-forward"]
-    types: [completed]
   workflow_dispatch:
 
 permissions:
