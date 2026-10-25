@@ -44,7 +44,7 @@ if(date!==chicagoDate()){date=chicagoDate();baseline=await audit();}
 // archived rematches. Every action is measured by a NEW independent board read.
 const recovery=await executeFbisRepairs({
  incidents:baseline.assessment.incidents,date,now:Date.now(),
- event:process.env.GITHUB_EVENT_NAME||'push',
+ event:process.env.FBIS_REPAIR_ONCE==='1'?'workflow_dispatch':process.env.GITHUB_EVENT_NAME||'push',
  secret:process.env.HARVEST_SECRET||'',base:BASE,
 });
 let verified=recovery.attempted>0?await audit():baseline;

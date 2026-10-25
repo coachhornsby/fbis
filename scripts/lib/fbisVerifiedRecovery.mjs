@@ -46,7 +46,7 @@ export function chooseArchivedSnapshots(status,neededSports,{now=Date.now()}={})
   Number(r.normalizedRows)>0&&Number(r.matchedRows)===0&&r.reconciled!==false&&
   Number.isFinite(ms(r.collectedAt))&&now-ms(r.collectedAt)>=0&&now-ms(r.collectedAt)<=48*3600000)
   .sort((a,b)=>ms(b.collectedAt)-ms(a.collectedAt))
-  .slice(0,2);
+  .slice(0,1);
 }
 export async function executeFbisRepairs({incidents=[],date,now=Date.now(),event='schedule',
  secret='',base='https://fbis-myz.pages.dev',fetchImpl=fetch}={}){
@@ -63,7 +63,7 @@ export async function executeFbisRepairs({incidents=[],date,now=Date.now(),event
   let result;
   try{
    result=await requestJson(fetchImpl,base+'/api/prop-acceptance?sport='+sport,{
-    method:'POST',secret,timeoutMs:100000});
+    method:'POST',secret,timeoutMs:90000});
    receipts.push({operation:'CAPTURE_OFFICIAL_INDEPENDENT_PROP_FORECAST',sport,
     status:Number(result.captured)>0?'RECORDED_AWAITING_READBACK':'NO_ELIGIBLE_PROJECTIONS',
     captured:Number(result.captured)||0,candidateProjections:Number(result.candidateProjections)||0,
@@ -82,11 +82,11 @@ export async function executeFbisRepairs({incidents=[],date,now=Date.now(),event
    const snapshotId=row.snapshotId,receipt={operation:'REMATCH_EXISTING_PINNODDS_ARCHIVE',
     snapshotId,sportId:Number(row.sportId),paidProviderCalls:0,canAuthorizeWager:false};
    try{
-    const query={method:'POST',secret,timeoutMs:170000};
+    const query={method:'POST',secret,timeoutMs:90000};
     const prepared=await requestJson(fetchImpl,base+'/api/pinnodds-ingest',{
      ...query,body:{operation:'rematch',phase:'prepare',snapshotId,postCaptureFixtures:true}});
     const batches=Number(prepared.batches);
-    if(!Number.isSafeInteger(batches)||batches<0||batches>8){
+    if(!Number.isSafeInteger(batches)||batches<0||batches>4){
      receipt.status='BLOCKED_UNBOUNDED_REPLAY';receipt.batches=batches;
     }else{
      let inserted=0;
