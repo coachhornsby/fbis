@@ -9,8 +9,7 @@ const stamp=s=>typeof s==='string'&&/T.*Z$/.test(s)&&Number.isFinite(Date.parse(
 const MLB_PIT_SOURCE_TIMES=new Set([
  'observedAt','observation_timestamp','observationTimestamp','sourceObservedAt',
  'source_timestamp','sourceTimestamp','acquiredAt','acquisition_timestamp',
- 'acquisitionTimestamp','collectedAt','capturedAt','featureCapturedAt',
- 'palAsOf','asOf'
+ 'acquisitionTimestamp','collectedAt','capturedAt','featureCapturedAt'
 ]);
 export function validatePregameSnapshot(fixture,features,maxObservationTime){
  const gameStart=fixture?.game_time??fixture?.start;
