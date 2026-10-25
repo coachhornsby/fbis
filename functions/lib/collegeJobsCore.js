@@ -68,6 +68,7 @@ import {
 } from "./cfbCoreFromWeeklyReports.js";
 import { projectCfbFbisV2, CFB_FBIS_V2_ID } from "./cfbFbisV2.js";
 import { schoolKey } from "./cfbdCanonical.js";
+import { parseCfbTier3WeeklyCsv, saveCfbTier3WeeklySnapshot } from "./cfbTier3Weekly.js";
 
 function todayCT(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -137,6 +138,7 @@ export const COLLEGE_JOBS = [
   "cfb-core-shadow-freeze",
   "cfb-core-shadow-settle",
   "cfb-core-weekly-evaluation",
+  "cfb-tier3-weekly-ingest",
   "cfb-core-historical-reconstruct",
   "cfb-core-publication-track",
   "cfb-core-model-c-readiness",
@@ -542,6 +544,79 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
   let coreAdvancedSummary = null;
 
   try {
+    if (job === "cfb-tier3-weekly-ingest") {
+      const sourceTemplate = String(env?.CFB_TIER3_WEEKLY_SOURCE_URL || "").trim();
+      if (!sourceTemplate) {
+        return jobPayload({ ok:false,job,status:JOB_FAILED,attemptedAt:started,
+          errors:["CFB_TIER3_WEEKLY_SOURCE_URL_NOT_CONFIGURED"],env,writes,
+          d1:{bound:Boolean(env?.TIER3_DB?.prepare),cfbTier3Ingest:{authority:"research_only",canInfluenceProduction:false,canAuthorizeWager:false}} });
+      }
+      const season = Number(opts.season) || yearCfb;
+      let week = Number(opts.week);
+      if (!env?.DB?.prepare) {
+        return jobPayload({ ok:false,job,status:JOB_FAILED,attemptedAt:started,
+          errors:["PRIMARY_DB_UNAVAILABLE"],env,writes });
+      }
+      if (!Number.isInteger(week) || week < 1 || week > 20) {
+        const upcoming = (await env.DB.prepare(
+          `SELECT date,pal_json FROM prediction_snapshots WHERE sport='cfb' AND actual_home IS NULL
+           AND date >= date('now') ORDER BY date ASC LIMIT 50`
+        ).all())?.results || [];
+        const target = upcoming.map(r => {
+          try { const p=JSON.parse(r.pal_json||"{}"); return Number(p.week||p.event?.week||p.game?.week)||estimateCfbWeekFromDate(r.date,season); }
+          catch { return estimateCfbWeekFromDate(r.date,season); }
+        }).find(w => Number.isInteger(w) && w > 0 && w <= 20);
+        week = Number(target);
+      }
+      if (!Number.isInteger(week) || week < 1 || week > 20) {
+        return jobPayload({ ok:false,job,status:JOB_FAILED,attemptedAt:started,
+          errors:["UPCOMING_CFB_WEEK_UNAVAILABLE"],env,writes,
+          d1:{bound:Boolean(env?.TIER3_DB?.prepare),cfbTier3Ingest:{season,week:null,authority:"research_only"}} });
+      }
+      if (!env?.TIER3_DB?.batch || !env?.ARCHIVE?.put) {
+        return jobPayload({ ok:false,job,status:JOB_FAILED,attemptedAt:started,
+          errors:["TIER3_PRIVATE_STORAGE_REQUIRED"],env,writes });
+      }
+      const sourceUrl = sourceTemplate.replaceAll("{season}",String(season)).replaceAll("{week}",String(week)).replaceAll("{week2}",String(week).padStart(2,"0"));
+      let parsedUrl;
+      try { parsedUrl = new URL(sourceUrl); } catch { parsedUrl = null; }
+      if (!parsedUrl || parsedUrl.protocol !== "https:") {
+        return jobPayload({ ok:false,job,status:JOB_FAILED,attemptedAt:started,
+          errors:["WEEKLY_SOURCE_MUST_BE_HTTPS"],env,writes });
+      }
+      try {
+        const headers = { accept:"text/csv" };
+        if (env.CFB_TIER3_WEEKLY_SOURCE_TOKEN) headers.authorization = `Bearer ${env.CFB_TIER3_WEEKLY_SOURCE_TOKEN}`;
+        const response = await fetch(sourceUrl,{headers,redirect:"follow",signal:AbortSignal.timeout(30000)});
+        if (!response.ok) throw Error(`WEEKLY_SOURCE_HTTP_${response.status}`);
+        const declared = Number(response.headers.get("content-length")||0);
+        if (declared > 2_000_000) throw Error("TIER3_CSV_INVALID_SIZE");
+        const raw = await response.text();
+        const receivedAt = new Date().toISOString();
+        const filename = response.headers.get("x-source-filename") ||
+          response.headers.get("content-disposition")?.match(/filename\*?=(?:UTF-8''|\")?([^;\"]+)/i)?.[1] ||
+          `training_data_${season}_week${String(week).padStart(2,"0")}.csv`;
+        const publishedAt = response.headers.get("x-provider-published-at") || null;
+        let safeSourceUrl=sourceUrl;
+        try { const u=new URL(response.url||sourceUrl); safeSourceUrl=`${u.origin}${u.pathname}`; } catch {}
+        const snapshot = await parseCfbTier3WeeklyCsv(raw,{receivedAt,providerPublishedAt:publishedAt,sourceUrl:safeSourceUrl,filename});
+        if (snapshot.season !== season || snapshot.week !== week) throw Error("WEEKLY_SOURCE_IDENTITY_MISMATCH");
+        if (snapshot.rowCount !== snapshot.identityCounts.matched) throw Error("WEEKLY_SOURCE_TEAM_IDENTITY_INCOMPLETE");
+        const saved = await saveCfbTier3WeeklySnapshot(env,snapshot,raw);
+        if (!saved.ok) throw Error(saved.reason || "WEEKLY_SOURCE_PERSIST_FAILED");
+        return jobPayload({ok:true,job,status:JOB_SUCCESS,attemptedAt:started,successfulAt:receivedAt,
+          errors:[],env,writes:{...writes,writesSucceeded:snapshot.rowCount},
+          d1:{bound:true,cfbTier3Ingest:{...saved,sourceUrlHost:parsedUrl.hostname,
+            providerPublishedAt:publishedAt,sourceFeatureCutoffVerified:false,
+            pointInTimeStatus:"source_feature_cutoff_unverified",authority:"research_only",
+            canInfluenceProduction:false,canAuthorizeWager:false}}});
+      } catch (err) {
+        const reason=String(err?.message||err);
+        return jobPayload({ok:false,job,status:JOB_FAILED,attemptedAt:started,
+          errors:[reason.startsWith("TIER3_")||reason.startsWith("WEEKLY_")?reason:"WEEKLY_SOURCE_FETCH_FAILED"],
+          env,writes,d1:{bound:true,cfbTier3Ingest:{season,week,authority:"research_only",sourceFeatureCutoffVerified:false}}});
+      }
+    }
     if (job === "cfb-drive-week6-harvest") {
       const result=await harvestCfbVerifiedDriveWeek(env,{
         year:opts.year,week:opts.week,trigger:opts.trigger,
@@ -560,7 +635,8 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
       const result=await freezeCfbPregameFeatures(env,{now:started});
       return jobPayload({ok:result.ok,job,status:result.ok?"success":JOB_FAILED,attemptedAt:started,successfulAt:result.ok?new Date().toISOString():null,errors:result.ok?[]:[result.reason||"cfb-pregame-freeze-failed"],env,writes,d1:{bound:hasDb(env),cfbPregame:result}});
     }
-    // CORE shadow jobs are cache-only: no CFBD network spend; research ledger only.
+    // CORE shadow freeze/evaluation are cache-only. Settlement makes bounded
+    // read-only ESPN final checks; no CFBD acquisition or production writes.
     if (job === "cfb-core-shadow-freeze") {
       const result = await runCfbCoreShadowFreeze(env, { now: started });
       writes.writesSucceeded += result.inserted || 0;
@@ -608,6 +684,14 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
             classification: result.report?.classification,
             eligibleRows: result.report?.eligibleRows,
             dataLimitations: result.report?.dataLimitations,
+            readinessGate: result.report?.prospective?.gate?.decision,
+            gateFailures: result.report?.prospective?.gate?.fail || [],
+            frozenUniqueGames: result.report?.prospective?.frozenUniqueGames,
+            prospectiveSettledN: result.report?.prospective?.prospectiveSettledN,
+            weekClusters: result.report?.prospective?.weekClusters,
+            excluded: result.report?.prospective?.excluded || {},
+            metrics: result.report?.prospective?.metrics || null,
+            promotionAuthority: "operator_approval_required",
             saved: result.saved,
             authority: "research_only",
             canAuthorizeWager: false,

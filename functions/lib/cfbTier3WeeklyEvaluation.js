@@ -233,6 +233,8 @@ export async function fetchEspnCfFinal(gameId, fetchFn = fetch) {
     completed: Boolean(status.completed) && homePoints != null && awayPoints != null,
     status: status.name || null,
     source: "espn-public-summary",
+    sourceUrl: url,
+    scoreOrientation: "home_away_by_competitor_homeAway",
   };
 }
 
