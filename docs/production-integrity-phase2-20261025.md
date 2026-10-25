@@ -11,7 +11,9 @@ The repair defines a bounded time parser for numeric seconds and M:SS source rep
 
 A regression fixture uses the retained official summary fields for player 8473986: 11 games, 19 shots, 2 goals and 3 assists. The complete official-context loader now delivers that athlete to the existing NHL player model and then to canonical prop rows for shots, goals, assists and points. Numeric TOI and M:SS are checked. A multi-team aggregate stays unassigned.
 
-Validation: 55 focused tests passed; the main npm test suite passed 2,207 tests with zero failures. Build passed. Release evidence and post-release production counts are recorded on the associated PR after deployment.
+The existing forecast-capture job also froze receipts at request initiation. Live features collected during that request could then fail the future-input check. Freeze at a separately sampled completion time, retain the original feature cutoff, and reject games that start during input loading. New tests cover successful delayed inputs, crossing kickoff, genuinely future inputs and a backwards clock. CI explicitly gates these tests.
+
+Validation: 58 focused tests passed; the main npm test suite passed 2,207 tests with zero failures. Build passed. Release evidence and post-release production counts are recorded on the associated PR after deployment.
 
 ## Other source findings
 
