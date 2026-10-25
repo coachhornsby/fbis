@@ -83,12 +83,12 @@ test("NHL compact and expanded cards share evidence contract and avoid unconditi
   const score=await readFile(new URL("../src/components/board/GameScoreDisplay.jsx",import.meta.url),"utf8");
   for(const card of [compact,premium]) {
     assert.match(card,/<GameScoreDisplay/);
-    assert.match(card,/actualScore=\\{hasActualScore \\? finalAway : null\\}/);
-    assert.match(card,/actualScore=\\{hasActualScore \\? finalHome : null\\}/);
-    assert.match(card,/hasProjection=\\{proj\\.available\\}/);
+    assert.match(card,/actualScore=\{hasActualScore \? finalAway : null\}/);
+    assert.match(card,/actualScore=\{hasActualScore \? finalHome : null\}/);
+    assert.match(card,/hasProjection=\{proj\.available\}/);
   }
-  assert.match(score,/\\(live \\|\\| final\\) && actualScore/);
-  assert.match(score,/actualAvailable \\? actualScore/);
+  assert.match(score,/\(live \|\| final\) && actualScore/);
+  assert.match(score,/actualAvailable \? actualScore/);
   assert.match(score,/FBIS PROJECTED/);
   assert.match(score,/LIVE — SCORE PENDING/);
   assert.match(score,/FINAL — SCORE NOT IN FEED/);
@@ -178,8 +178,8 @@ test("NHL compact card never advertises a legacy implied score as independent mo
  const score=await readFile(new URL("../src/components/board/GameScoreDisplay.jsx",import.meta.url),"utf8");
  assert.match(code,/<GameScoreDisplay/);
  assert.match(score,/FBIS PROJECTED/);
- assert.match(score,/\\(live \\|\\| final\\) && actualScore/);
- assert.match(score,/actualAvailable \\? actualScore/);
+ assert.match(score,/\(live \|\| final\) && actualScore/);
+ assert.match(score,/actualAvailable \? actualScore/);
 });
 
 test("NHL goalie context presents independently labeled sides and responsive source tiles",async()=>{
