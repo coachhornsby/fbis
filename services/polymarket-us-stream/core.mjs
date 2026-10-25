@@ -1,5 +1,5 @@
 /** Persistent US stream: fair capacity management, paced quote persistence. */
-export const STREAM_SPORTS=Object.freeze(["nfl","cfb","cbb","nba","wnba","mlb","npb","kbo","nhl","soccer","tennis"]);
+export const STREAM_SPORTS=Object.freeze(["nfl","cfb","cbb","nba","mlb","nhl","tennis"]);
 /** A bounded 72-hour, research-only REST contract roster can bootstrap signed WS
  * after an overnight database outage interrupts hourly discovery. It NEVER refreshes REST quote timestamps.
  */
@@ -63,7 +63,7 @@ export function dedupeEligibleContracts(rows=[]){
 }
 
 /**
- * Fair round-robin assignment across all 11 sports up to capacity.
+ * Fair round-robin assignment across the seven active FBIS sports up to capacity.
  * Large single-sport slates cannot silently starve another sport.
  * Returns assigned contracts, uncovered with reasons, and connection partitions.
  */
