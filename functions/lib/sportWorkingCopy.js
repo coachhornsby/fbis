@@ -142,6 +142,15 @@ export const SPORT_PREFIX_TABLES = Object.freeze({
     "cbb_player_state_snapshots",
     "cbb_game_state_snapshots",
     "cbb_availability_observations",
+    // CBB-specific PRIMARY owners identified by the 2026-10-25 live D1 inventory.
+    // Shadow-copy only: these tables confer no model, cutover or wager authority.
+    "cbb_state_events",
+    "cbb_rotation_observations",
+    "cbb_team_context_observations",
+    "cbb_directory_population_runs",
+    "cbb_directory_phase_b_runs",
+    "cbb_state_overlay_governance",
+    "cbb_shadow_challenger_definitions",
   ]),
   wnba: Object.freeze([
     "wnba_player_role_contexts",
