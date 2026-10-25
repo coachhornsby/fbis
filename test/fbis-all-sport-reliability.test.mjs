@@ -30,3 +30,15 @@ test('stale or unclocked game-line references never count as current',()=>{
  const missing=assessFbisCoverage({board:{games:[{...game,market:{total:224.5}}]},now});
  assert.equal(missing.summary.missingGameMarkets,1);
 });
+
+test('paired fresh PinnOdds research receipts count as captured game reference, not made-up execution odds',()=>{
+ const board={games:[{...game,market:null,pinnoddsResearch:{pairedMarkets:['spread','total'],
+  latestCapturedAt:'2026-10-24T19:59:00Z',providerTimestampVerified:false,
+  offers:[{marketFamily:'total',line:224.5,decimalOdds:1.9,capturedAt:'2026-10-24T19:59:00Z'}]}}]};
+ const result=assessFbisCoverage({board,now});
+ assert.equal(result.summary.missingGameMarkets,0);
+ const stale=assessFbisCoverage({board:{games:[{...board.games[0],pinnoddsResearch:{
+ ...board.games[0].pinnoddsResearch,latestCapturedAt:'2026-10-24T07:59:00Z',
+ offers:[{marketFamily:'total',line:224.5,decimalOdds:1.9,capturedAt:'2026-10-24T07:59:00Z'}]}}]},now});
+ assert.equal(stale.summary.missingGameMarkets,1);
+});

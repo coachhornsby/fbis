@@ -10,15 +10,23 @@ const projection=g=>[g?.model?.projTotal,g?.model?.projHome,g?.model?.projAway,
  Boolean(g?.prediction?.modelVersion&&g?.prediction?.value!=null);
 const market=(g,now)=>{
  const m=g?.market||{},p=g?.pinnoddsResearch||{};
+ const paired=Array.isArray(p.pairedMarkets)&&p.pairedMarkets.some(
+ family=>['moneyline','spread','total'].includes(family));
+ const researchOffers=paired&&Array.isArray(p.offers)&&p.offers.some(o=>
+  ['moneyline','spread','total'].includes(o.marketFamily)&&
+  (positive(o.line)||positive(o.decimalOdds)||positive(o.americanOdds)));
  const hasLine=[m.spread,m.total,m.moneylineHome,m.moneylineAway,
  m.homeMoneyline,m.awayMoneyline,m.homeML,m.awayML,
  p.spread,p.total,p.moneyline,p.homeMoneyline,p.awayMoneyline].some(positive)||
- Boolean(p?.markets&&Object.values(p.markets).some(v=>v&&
+ researchOffers||Boolean(p?.markets&&Object.values(p.markets).some(v=>v&&
  [v.line,v.home,v.away,v.total,v.spread].some(positive)));
- const captured=[p.collectedAt,p.capturedAt,p.asOf,p.observedAt,
+ const offerTime=Array.isArray(p.offers)?p.offers
+  .map(o=>clock(o.capturedAt)).filter(Number.isFinite).sort((a,b)=>b-a)[0]:NaN;
+ const captured=[p.latestCapturedAt,p.collectedAt,p.capturedAt,p.asOf,p.observedAt,
  m.collectedAt,m.capturedAt,m.sourceObservedAt,m.asOf].map(clock).find(Number.isFinite);
+ const observed=Number.isFinite(captured)?captured:offerTime;
  // No timestamp means a historical reference cannot masquerade as current.
- return hasLine&&Number.isFinite(captured)&&captured<=now&&now-captured<=6*3600000;
+ return hasLine&&Number.isFinite(observed)&&observed<=now&&now-observed<=6*3600000;
 };
 export function assessFbisCoverage({board={},models={},contracts={},now=Date.now(),horizonHours=36}={}){
  const games=Array.isArray(board.games)?board.games:[];
