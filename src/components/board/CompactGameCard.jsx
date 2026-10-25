@@ -6,6 +6,7 @@ import EventMarkets from "./EventMarkets.jsx";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
+import CfbCapturedMarket from "./CfbCapturedMarket.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
 import { lineLabel, bestEdge, evidenceNumber } from "../../lib/boardEvidence.js";
 import TeamLogo from "../TeamLogo.jsx";
@@ -291,6 +292,7 @@ export default function CompactGameCard({ game, onOpen }) {
         )}
       </div>
 
+      {!stored && isCfb ? <CfbCapturedMarket game={game} /> : null}
       {!stored && isCfb ? <CfbThreeVenueLines game={game} compact /> : null}
       {!stored ? <VenueConditions context={vm.context} game={game} compact /> : null}
 
