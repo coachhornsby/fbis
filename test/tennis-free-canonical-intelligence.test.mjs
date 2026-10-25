@@ -11,7 +11,7 @@ sql.exec(`CREATE TABLE tennis_free_current_matches(source_event_key TEXT PRIMARY
  tour TEXT,winner_source_id TEXT,loser_source_id TEXT,winner_name TEXT,
  loser_name TEXT,first_observed_at TEXT)`);
 sql.exec(`CREATE TABLE tennis_free_current_observations(observation_key TEXT PRIMARY KEY,
- source_event_key TEXT,observed_at TEXT,parsed_json TEXT)`);
+ source_event_key TEXT,observed_at TEXT,parsed_json TEXT,source_row_checksum TEXT DEFAULT '')`);
 sql.exec(readFileSync(new URL('../migrations/0126_tennis_current_identity_links.sql',import.meta.url),'utf8'));
 const wrap={prepare(query){const st=sql.prepare(query);return {all:async()=>({results:st.all()}),first:async()=>st.get()||null,run:async()=>({meta:{changes:st.run().changes}}),bind(...params){return {
  first:async()=>st.get(...params)||null,
@@ -27,7 +27,7 @@ function observation(k,at,win,lose){
   winnerSourceId:win,loserSourceId:lose,
   winnerStats:{svpt:70,'1stIn':40,'1stWon':30,'2ndWon':16,ace:3,df:1},
   loserStats:{svpt:65,'1stIn':34,'1stWon':24,'2ndWon':18,ace:4,df:2}};
- sql.prepare('INSERT INTO tennis_free_current_observations VALUES(?,?,?,?)')
+ sql.prepare('INSERT INTO tennis_free_current_observations(observation_key,source_event_key,observed_at,parsed_json) VALUES(?,?,?,?)')
  .run(k+'|'+at,k,at,JSON.stringify(data));
 }
 test('only unique exact tour-specific canonical identities are linked',async()=>{
