@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {assessFixtureCoverage,assessPropCoverage,verifiedCurrentQuote,summarizeReliability} from '../scripts/lib/fbisAutoRepairPolicy.mjs';
 const now=Date.parse('2026-10-25T18:00:00Z'),start='2026-10-25T19:00:00Z';
 const game={id:'g1',sport:'nfl',start,status:'scheduled',projectionUnavailable:false,projectionKind:'FBIS',
- market:{venueOffers:[{marketAvailable:true,priceVerified:true,providerTimestampVerified:true,
-  marketFamily:'moneyline',sourceObservedAt:'2026-10-25T17:40:00Z'}]}};
+ market:{venueOffers:['moneyline','spread','total'].map(marketFamily=>({
+  marketAvailable:true,priceVerified:true,providerTimestampVerified:true,
+  marketFamily,sourceObservedAt:'2026-10-25T17:40:00Z'}))}};
 const player={sport:'nfl',canonicalEventId:'g1',canonicalPlayerId:'nfl:espn:42',canonical_market:'receptions',
  period:'full_game',identityVerified:true,independent:true,marketInformed:false,fbis_projection:5.2,modelId:'m',modelVersion:'v1'};
 const contract={...player,id:'c1',contractId:'k123',line:4.5,provider:'Kalshi',observedAt:'2026-10-25T17:40:00Z',
@@ -42,7 +43,8 @@ test('unknown local capture clocks do not masquerade as provider-verified game o
  assert.equal(verifiedCurrentQuote({...quote,providerTimestampVerified:true},now),true);
 });
 test('game cards track missing spread and total separately from one valid moneyline',()=>{
- const x=assessFixtureCoverage({games:[game]},{now});
+ const onlyMoneyline={...game,market:{venueOffers:game.market.venueOffers.slice(0,1)}};
+ const x=assessFixtureCoverage({games:[onlyMoneyline]},{now});
  assert.deepEqual(x.games[0].missingFamilies,['spread','total']);
  assert.ok(x.findings.some(f=>f.reason==='CURRENT_MARKET_FAMILY_MISSING'));
  const tennis=assessFixtureCoverage({games:[{...game,sport:'tennis'}]},{now});
