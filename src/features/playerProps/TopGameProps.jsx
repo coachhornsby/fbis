@@ -25,6 +25,7 @@ export default function TopGameProps({ game }) {
   const [drilldown, setDrilldown] = useState(null);
   const [drilldownState, setDrilldownState] = useState("idle");
   const [exchangeProps, setExchangeProps] = useState([]);
+  const [gameOfficialTotals, setGameOfficialTotals] = useState([]);
   const date = game?.durableFallback?.boardDate;
   const sport = String(game?.sport || "").toLowerCase();
   const gameId = String(game?.id || "");
@@ -65,6 +66,7 @@ export default function TopGameProps({ game }) {
   // provider fixture IDs; unmatched exchange rows cannot acquire projections.
   useEffect(() => {
     setExchangeProps([]);
+    setGameOfficialTotals([]);
     if (!gameId || !sport || !game?.start || typeof fetch !== "function") return undefined;
     const date = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit",
@@ -83,6 +85,7 @@ export default function TopGameProps({ game }) {
       sport==='nba'?read('/api/nba-prop-actuals?'+new URLSearchParams({date,eventId:gameId})).catch(()=>[]):Promise.resolve([]),
     ]).then(([contracts, models, official]) => {
       if (controller.signal.aborted) return;
+      setGameOfficialTotals(official.filter(r=>r.officialVerified===true&&String(r.eventId)===gameId));
       const joined = joinIndependentPropModels(
         contracts.filter(p => p.canonicalEventId === gameId && p.identityVerified === true &&
           ["Kalshi", "Polymarket"].includes(p.provider) && p.line != null),
@@ -112,7 +115,15 @@ export default function TopGameProps({ game }) {
     : null;
   const exchangeRows = exchangeGame ? topThreeGamePlayerProps(exchangeGame) : [];
   const rows = exchangeRows.length ? exchangeRows : topThreeGamePlayerProps(focusedGame);
-  const projected = rows.filter((r) => r.fbisProjection != null);
+  // Even if no exchange was captured before tip, an independently saved NBA
+  // forecast can still be compared against a verified final actual.
+  const officialByPlayer=new Map(gameOfficialTotals.map(r=>[r.canonicalPlayerId,r]));
+  const withResults=sport==='nba'?rows.map(r=>{
+    const id=r.canonicalPlayerId||null;
+    const actual=nbaActualForMarket(id?officialByPlayer.get(id):null,r.marketCanonical||r.canonical_market);
+    return {...r,officialActual:actual,officialActualVerified:actual!=null};
+  }):rows;
+  const projected = withResults.filter((r) => r.fbisProjection != null);
   // Retain genuine paired lines and model probabilities so the chart can show
   // the threshold and the prop direction. Never promote legacy PrizePicks rows.
   const styleCardRows = useStyleCards

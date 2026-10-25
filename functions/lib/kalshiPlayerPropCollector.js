@@ -81,7 +81,9 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
  const nbaFrozen=[];
  if(nbaCaptures.length){
   const localDate=chicagoDay(now);
-  const nextLocalDate=chicagoDay(new Date(now.getTime()+36*3600000));
+  // Noon UTC is always inside its named America/Chicago calendar day;
+  // advancing that anchor one UTC day avoids skipping Sunday on late nights.
+  const nextLocalDate=chicagoDay(new Date(Date.parse(localDate+'T12:00:00Z')+86400000));
   for(const day of [...new Set([localDate,nextLocalDate])]){
    try{
     const bounds=chicagoDayBounds(day);
