@@ -1,0 +1,100 @@
+/* Scoreboard embedded under each team: no duplicated full-width live/final banner. */
+.fbis-shell-main .fbis-universal-premium .fbis-game-score {
+  --score-accent:#7cc9ff;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  width:min(100%,215px);
+  min-width:0;
+  margin:10px auto 2px;
+  padding:11px 12px 10px;
+  border:1px solid rgba(115,184,230,.35);
+  border-top:3px solid var(--score-accent);
+  border-radius:13px;
+  background:linear-gradient(150deg,rgba(20,52,80,.89),rgba(5,22,43,.93));
+  box-shadow:0 8px 20px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.07);
+  box-sizing:border-box;
+  text-align:center;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-game-score--live.is-actual{--score-accent:#61f2c5;background:linear-gradient(150deg,rgba(13,70,70,.89),rgba(5,26,45,.95))}
+.fbis-shell-main .fbis-universal-premium .fbis-game-score--final.is-actual{--score-accent:#ffd36c;background:linear-gradient(150deg,rgba(70,54,27,.85),rgba(9,25,42,.95))}
+.fbis-shell-main .fbis-universal-premium .fbis-game-score__label {
+  display:inline-flex;
+  justify-content:center;
+  align-items:center;
+  gap:6px;
+  font-size:clamp(10px,.9vw,12px)!important;
+  font-weight:950!important;
+  letter-spacing:.1em;
+  line-height:1.3;
+  color:var(--score-accent)!important;
+  white-space:nowrap;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-game-score__live-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#ff525f;
+  box-shadow:0 0 0 3px rgba(255,82,95,.16),0 0 9px rgba(255,82,95,.45);
+  flex:0 0 auto;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-game-score__primary {
+  display:block;
+  font-size:clamp(39px,3.5vw,52px)!important;
+  line-height:1!important;
+  font-weight:1000!important;
+  font-variant-numeric:tabular-nums;
+  color:#fff!important;
+  text-shadow:0 2px 9px rgba(0,0,0,.7),0 0 19px color-mix(in srgb,var(--score-accent) 24%,transparent)!important;
+  margin:1px 0;
+  letter-spacing:-.06em;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-game-score {
+  width:min(100%,250px);
+  padding:14px 16px 13px;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-game-score__primary {
+  font-size:clamp(46px,4.2vw,64px)!important;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-game-score__projection{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:baseline;
+  justify-content:center;
+  gap:5px 9px;
+  width:100%;
+  margin-top:5px;
+  padding:8px 9px 5px;
+  border-top:1px solid rgba(117,203,255,.29);
+  box-sizing:border-box;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-game-score__projection span{
+  color:#c2e6ff!important;
+  font-weight:900!important;
+  font-size:clamp(10px,.85vw,12px)!important;
+  letter-spacing:.035em;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-game-score__projection strong{
+  font-size:clamp(19px,1.6vw,24px)!important;
+  color:#86d9ff!important;
+  font-weight:950!important;
+  line-height:1.15;
+  font-variant-numeric:tabular-nums;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-game-score__pending{
+  color:#b6cedd!important;
+  font-size:9px!important;
+  font-weight:800!important;
+  line-height:1.3;
+}
+@media(max-width:640px){
+  .fbis-shell-main .fbis-universal-premium .fbis-game-score{padding:9px 5px 8px;width:100%;gap:2px}
+  .fbis-shell-main .fbis-universal-premium .fbis-game-score__primary{font-size:clamp(32px,7vw,43px)!important}
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-game-score__primary{font-size:clamp(41px,9vw,52px)!important}
+  .fbis-shell-main .fbis-universal-premium .fbis-game-score__label{font-size:9px!important;letter-spacing:.045em}
+  .fbis-shell-main .fbis-universal-premium .fbis-game-score__projection{padding:6px 2px 2px;gap:2px 5px}
+  .fbis-shell-main .fbis-universal-premium .fbis-game-score__projection span{font-size:9px!important}
+  .fbis-shell-main .fbis-universal-premium .fbis-game-score__projection strong{font-size:18px!important}
+}
