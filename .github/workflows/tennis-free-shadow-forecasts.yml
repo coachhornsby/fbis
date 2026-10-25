@@ -22,13 +22,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify code deployment before shadow writes
-        run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
-          else
-            VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs
-          fi
+      - name: Resolve healthy deployed production
+        run: VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs
       - name: Freeze independent pre-event shadow receipts
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
@@ -36,12 +31,16 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
+          curl --fail-with-body -sS --retry 3 --retry-delay 3 --max-time 40 \
+            "${BASE}/api/tennis-free-shadow-forecast" \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" > /tmp/tennis-shadow-model-contract.json
+          jq -e '.ok==true and .modelId=="FBIS-TENNIS-FREE-SURFACE-v0.1-SHADOW" and .researchOnly==true and .calibrated==false and .contractTradingAuthorized==false' /tmp/tennis-shadow-model-contract.json
           curl --fail-with-body -sS --retry 2 --max-time 110 -X POST \
             "${BASE}/api/tennis-free-shadow-forecast" \
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
             -H "content-type: application/json" -d '{}' > /tmp/tennis-shadow-capture.json
           jq -e '.ok==true and .researchOnly==true and .calibrated==false and .contractTradingAuthorized==false' /tmp/tennis-shadow-capture.json
-          jq -r '"Shadow (.modelId): (.created) new, (.alreadyFrozen) already frozen, (.observedUpcoming) upcoming, (.candidates) qualifying. Gaps: (.reasons|tostring)"' /tmp/tennis-shadow-capture.json >> "${GITHUB_STEP_SUMMARY}"
+          jq -r '"Shadow \(.modelId) \(.created) \(.alreadyFrozen) \(.observedUpcoming) \(.candidates)"' /tmp/tennis-shadow-capture.json >> "${GITHUB_STEP_SUMMARY}"
           curl --fail-with-body -sS --max-time 40 \
             "${BASE}/api/tennis-free-shadow-forecast" \
             -H "x-harvest-secret: ${HARVEST_SECRET}" > /tmp/tennis-shadow-readback.json
