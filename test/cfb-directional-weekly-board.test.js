@@ -85,3 +85,13 @@ test("read failure surfaces in health without taking down the independent SDV so
  assert.equal(result.sourceHealth.sdv,"MATCHED");
  assert.equal(JSON.stringify(result).includes("private SQL detail"),false);
 });
+
+test("Week 8 CFBD matched rows require distinct verified canonical IDs; partial and unresolved excluded",()=>{
+ const week8={...cfbd,week:8,snapshot_week:8,identity_status:"matched",home_canonical_id:"cfb-59",away_canonical_id:"cfb-103"};
+ const yes=buildCfbDirectionalBoardMap([game],[week8],[],{now});
+ assert.equal(yes.cfbdGames,1);
+ for(const patch of [{identity_status:"partial_match"},{away_canonical_id:null},{home_canonical_id:"unknown"},{away_canonical_id:"cfb-59"}]){
+  const no=buildCfbDirectionalBoardMap([game],[{...week8,...patch}],[],{now});
+  assert.equal(no.cfbdGames,0);
+ }
+});

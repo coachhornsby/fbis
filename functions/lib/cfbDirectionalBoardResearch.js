@@ -29,7 +29,9 @@ export function buildCfbDirectionalBoardMap(games=[],cfbdRows=[],sdvRows=[],{now
   // advanced-feature freeze or publication time.
   const cfbd=cfbdRows.filter(r=>String(r.game_id)===String(game.id)&&
    Number(r.season)===season && Number(r.season)===Number(r.snapshot_season)&&
-   Number(r.week)===Number(r.snapshot_week)&&r.identity_status==="matched_unique_active_fbs"&&
+   Number(r.week)===Number(r.snapshot_week)&&(r.identity_status==="matched_unique_active_fbs"||
+    (r.identity_status==="matched"&&/^cfb-\d+$/.test(String(r.home_canonical_id||""))&&
+     /^cfb-\d+$/.test(String(r.away_canonical_id||""))&&r.home_canonical_id!==r.away_canonical_id))&&
    r.authority==="research_only"&&r.snapshot_status==="research_only"&&
    Number(r.can_influence_projection)===0&&Number(r.can_authorize_wager)===0&&
    time(r.received_at)!=null&&time(r.received_at)<start&&time(r.received_at)<=nowMs+60_000)
@@ -64,7 +66,7 @@ export function buildCfbDirectionalBoardMap(games=[],cfbdRows=[],sdvRows=[],{now
  return {byGameId,cfbdGames:Object.values(byGameId).filter(v=>v.cfbd).length,
   sdvGames:Object.values(byGameId).filter(v=>v.sdv).length,networkCalls:0};
 }
-const sqlCfbd=n=>`SELECT g.game_id,g.season,g.week,g.identity_status,g.authority,
+const sqlCfbd=n=>`SELECT g.game_id,g.season,g.week,g.identity_status,g.home_canonical_id,g.away_canonical_id,g.authority,
  s.season snapshot_season,s.week snapshot_week,s.status snapshot_status,
  s.can_influence_projection,s.can_authorize_wager,s.received_at,
  json_extract(g.features_json,'$.home_adjusted_passing_epa') homePassOff,
