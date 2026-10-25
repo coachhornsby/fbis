@@ -29,6 +29,8 @@ export const SPORT_FILTERS = Object.freeze([
   { id: "mlb", label: "MLB" },
   { id: "nba", label: "NBA" },
   { id: "cbb", label: "CBB" },
+  { id: "nhl", label: "NHL" },
+  { id: "tennis", label: "TENNIS" },
 ]);
 
 /** Routes that show the sport filter bar. */
