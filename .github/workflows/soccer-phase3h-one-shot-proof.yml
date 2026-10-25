@@ -2,11 +2,7 @@ name: Soccer Phase 3H one-shot proof
 # Authorized one-shot reproof after #1103: corrected Bundesliga aliases and source-aware history.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/soccer-phase3h-one-shot-proof.yml"
-
+  workflow_dispatch:
 permissions:
   contents: write
 
