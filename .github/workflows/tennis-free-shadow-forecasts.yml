@@ -1,0 +1,48 @@
+name: Tennis independent free-data shadow forecast
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '47 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tennis-free-shadow-forecasts.yml'
+permissions:
+  contents: read
+concurrency:
+  group: tennis-free-shadow-forecast
+  cancel-in-progress: false
+jobs:
+  forecast:
+    if: github.repository == 'coachhornsby/fbis'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify code deployment before shadow writes
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+          else
+            VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs
+          fi
+      - name: Freeze independent pre-event shadow receipts
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          curl --fail-with-body -sS --retry 2 --max-time 110 -X POST \
+            "${BASE}/api/tennis-free-shadow-forecast" \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" -d '{}' > /tmp/tennis-shadow-capture.json
+          jq -e '.ok==true and .researchOnly==true and .calibrated==false and .contractTradingAuthorized==false' /tmp/tennis-shadow-capture.json
+          jq -r '"Shadow (.modelId): (.created) new, (.alreadyFrozen) already frozen, (.observedUpcoming) upcoming, (.candidates) qualifying. Gaps: (.reasons|tostring)"' /tmp/tennis-shadow-capture.json >> "${GITHUB_STEP_SUMMARY}"
+          curl --fail-with-body -sS --max-time 40 \
+            "${BASE}/api/tennis-free-shadow-forecast" \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" > /tmp/tennis-shadow-readback.json
+          jq -e '.ok==true and .researchOnly==true and .calibrated==false and .contractTradingAuthorized==false' /tmp/tennis-shadow-readback.json
