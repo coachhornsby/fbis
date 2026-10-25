@@ -16,6 +16,7 @@ const valid=o=>{
  if(Number(o.rejected_post_start||0)!==0)return false;
  if(!["ml","spread","total"].includes(String(o.market||"").toLowerCase()))return false;
  if(!o.game_id||!o.captured_at||!o.game_start||!o.side)return false;
+ if(!Number.isFinite(Date.parse(o.captured_at))||!Number.isFinite(Date.parse(o.game_start))||Date.parse(o.captured_at)>=Date.parse(o.game_start))return false;
  const m=String(o.market).toLowerCase();
  if(m==="ml")return numeric(o.price)&&numeric(o.no_vig);
  return numeric(o.line)&&numeric(o.price)&&numeric(o.no_vig);
@@ -26,7 +27,8 @@ const rows=[];
 for(const p of projections){
  if(excluded.has(String(p.code_sha)))continue;
  const pred=Date.parse(p.prediction_timestamp),tip=Date.parse(p.tipoff_timestamp);
- const pool=(byGame.get(String(p.game_id))||[]).filter(o=>Date.parse(o.captured_at)<tip);
+ if(!Number.isFinite(pred)||!Number.isFinite(tip)||pred>=tip)continue;
+ const pool=(byGame.get(String(p.game_id))||[]).filter(o=>Date.parse(o.captured_at)<tip && Math.abs(Date.parse(o.game_start)-tip)<60000);
  const keys=[...new Set(pool.map(o=>String(o.market).toLowerCase()+"|"+String(o.side).toUpperCase()))];
  for(const key of keys){
    const [market,side]=key.split("|"),same=pool.filter(o=>String(o.market).toLowerCase()===market&&String(o.side).toUpperCase()===side).sort((a,b)=>Date.parse(a.captured_at)-Date.parse(b.captured_at));
@@ -36,11 +38,13 @@ for(const p of projections){
    rows.push({id:[p.id,market,side].join(":"),projectionId:p.id,gameId:p.game_id,modelId:p.model_id,modelVersion:p.model_version,predictionTimestamp:p.prediction_timestamp,marketType:market,side,entry,close,gameStart:p.tipoff_timestamp});
  }
 }
-const eligibleProjectionIds=projections.filter(p=>!excluded.has(String(p.code_sha))).map(p=>p.id).filter(Boolean);
-const cleanup=eligibleProjectionIds.length?`DELETE FROM nba_prospective_market_links WHERE projection_id IN (${eligibleProjectionIds.map(q).join(",")});`:"";
+// Never erase previously verified point-in-time market links merely because the
+// current source collector is empty or stale. Replace only keys with fresh valid evidence.
+const eligibleProjectionIds=[...new Set(rows.map(r=>r.projectionId).filter(Boolean))];
+const cleanup="";
 const inserts=rows.map(r=>`INSERT OR REPLACE INTO nba_prospective_market_links (id,projection_id,game_id,model_id,model_version,prediction_timestamp,market_type,side,entry_snapshot_rowid,entry_line,entry_price,entry_no_vig,entry_captured_at,close_snapshot_rowid,close_line,close_price,close_no_vig,close_captured_at,game_start,market_used_as_feature,can_qualify,can_authorize,linked_at) VALUES (${q(r.id)},${q(r.projectionId)},${q(r.gameId)},${q(r.modelId)},${q(r.modelVersion)},${q(r.predictionTimestamp)},${q(r.marketType)},${q(r.side)},${num(r.entry.id)},${num(r.entry.line)},${num(r.entry.price)},${num(r.entry.no_vig)},${q(r.entry.captured_at)},${num(r.close.id)},${num(r.close.line)},${num(r.close.price)},${num(r.close.no_vig)},${q(r.close.captured_at)},${q(r.gameStart)},0,0,0,datetime('now'));`).join("\n");
 const sql=[cleanup,inserts].filter(Boolean).join("\n");
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});
-fs.writeFileSync(out,JSON.stringify({rows:rows.length,projectionCount:new Set(rows.map(r=>r.projectionId)).size,links:rows},null,2)+"\n");
+fs.writeFileSync(out,JSON.stringify({rows:rows.length,projectionCount:new Set(rows.map(r=>r.projectionId)).size,sourceOddsRows:odds.length,validPrestartOddsRows:[...byGame.values()].reduce((n,a)=>n+a.length,0),preservedExistingLinks:true,canAuthorizeWager:false,links:rows},null,2)+"\n");
 fs.writeFileSync(sqlOut,sql+(sql?"\n":""));
 console.log(JSON.stringify({ok:true,rows:rows.length,projectionCount:new Set(rows.map(r=>r.projectionId)).size}));
