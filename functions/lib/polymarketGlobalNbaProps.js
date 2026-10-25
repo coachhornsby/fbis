@@ -107,7 +107,7 @@ export async function capturePolymarketGlobalNba(env,{now=new Date(),fetchImpl=f
     // No value here is an executable ask or an independent model.
     if(found.length===0 && market?.active===true && market.closed!==true &&
        typeof market.question==='string' &&
-       /:\\s*[^:]+\\bO\\/U\\s*\\d+(?:\\.\\d+)?/i.test(market.question)){
+       market.question.includes(':') && market.question.includes('O/U') && /[0-9]/.test(market.question)){
        sourceOnly.push({
          id:'polymarket-global-raw:'+String(market.id||market.slug||''),
          provider:'Polymarket',venue:'Polymarket Global',sport:'nba',
