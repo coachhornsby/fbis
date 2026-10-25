@@ -55,7 +55,8 @@ jobs:
             if [ -z "$issue" ]; then
               gh issue create --title "$title" --body "Unresolved all-sport game-line, player-prop market or FBIS projection coverage. Run: $RUN_URL. Audit artifact contains per-sport gaps and approved retry receipts. No model or market values were invented."
             else
-              gh issue comment "$issue" --body "Still degraded: $RUN_URL"
+              # One persistent incident; do not post 48 redundant comments/day.
+              echo "Existing incident #$issue remains open; current audit: $RUN_URL"
             fi
             exit 1
           fi
