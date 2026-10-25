@@ -72,6 +72,14 @@ const report = {
     syntheticReceiptClock: syntheticClock,
   },
   byMarket,
+  clv: {
+    available: false,
+    validClvN: 0,
+    positiveClvRate: null,
+    meanClvProbability: null,
+    note: "CLV requires paired entry→close no-vig probabilities on model-authorized wagers. Tracker imports lack immutable close quotes; validClvN=0. Market promotion gate treats CLV as required evidence.",
+    requiredForMarketPromotionGate: true,
+  },
   interpretation: [
     "Reported 28-14 appears to be a stale/rounded recollection; live ledger is 29-14 with 1 push.",
     "Negative dollars with a strong win rate is consistent with incomplete stake/price fields, player-prop losses (0-6), and variable risk.",
@@ -81,6 +89,8 @@ const report = {
   governance: {
     modelAuthorizedWagers: false,
     canExpandWagerAuthority: false,
+    productionChampionUnchanged: true,
+    clvRequiredForPromotion: true,
   },
 };
 

@@ -1,4 +1,6 @@
 import fit from "./nflQbPersonnelFit.js";
+import { NFL_QB_PERSONNEL_CHALLENGER } from "./nflModelGovernance.js";
+import criteria from "./nflQbProspectiveCriteria.js";
 
 export const NFL_QB_PERSONNEL_SHADOW_ID = "NFL-QB-PERSONNEL-OVERLAY-v1";
 export const NFL_QB_PERSONNEL_GATE = Object.freeze({
@@ -8,7 +10,36 @@ export const NFL_QB_PERSONNEL_GATE = Object.freeze({
   prospectiveValidationPassed:false,
   operatorApprovedForProduction:false,
   lifecycle:"SHADOW",
+  minTotalGradedGames: NFL_QB_PERSONNEL_CHALLENGER.minTotalGradedGames,
+  minGateFiredGames: NFL_QB_PERSONNEL_CHALLENGER.minGateFiredGames,
+  thresholds: Object.freeze({ ...(criteria.thresholds || {}) }),
 });
+
+/** Hard SHADOW invariants — overlay may never mutate champion or wager authority. */
+export function assertNflQbShadowInvariants(shadow = {}) {
+  const violations = [];
+  if (shadow.lifecycle !== "SHADOW") violations.push("lifecycle-must-be-SHADOW");
+  if (shadow.canQualify !== false) violations.push("canQualify-must-be-false");
+  if (shadow.canAuthorizeWager !== false) violations.push("canAuthorizeWager-must-be-false");
+  if (shadow.invariants?.productionChampionModified) violations.push("productionChampionModified");
+  if (shadow.invariants?.wagerAuthorityModified) violations.push("wagerAuthorityModified");
+  if (shadow.gate?.prospectiveValidationPassed) violations.push("prospectiveValidationPassed-premature");
+  if (shadow.gate?.operatorApprovedForProduction) violations.push("operatorApprovedForProduction-premature");
+  if (shadow.ok && shadow.invariants && shadow.total !== undefined && shadow.incumbent?.total !== undefined) {
+    if (Number(shadow.total) !== Number(shadow.incumbent.total)) violations.push("totalUnchanged-violated");
+  }
+  return {
+    ok: violations.length === 0,
+    violations,
+    lifecycle: "SHADOW",
+    productionChampionUnchanged: true,
+    wagerAuthorityUnchanged: true,
+    heldUntil: {
+      minTotalGradedGames: NFL_QB_PERSONNEL_GATE.minTotalGradedGames,
+      minGateFiredGames: NFL_QB_PERSONNEL_GATE.minGateFiredGames,
+    },
+  };
+}
 
 const STATUS_WEIGHT=Object.freeze({
   OUT:1.00, IR:1.00, PUP:1.00, NFI:1.00, SUSPENDED:1.00,
@@ -131,7 +162,7 @@ export function buildNflQbPersonnelShadow(game={}){
   const pHomeWin=gateFired
     ? normalCdf(margin/sigma)
     : Number(incumbent.pHomeWin);
-  return {
+  const out = {
     ok:true,
     modelId:NFL_QB_PERSONNEL_SHADOW_ID,
     lifecycle:"SHADOW",
@@ -150,11 +181,23 @@ export function buildNflQbPersonnelShadow(game={}){
       genericInjuryAdjustmentApplied:false,
       productionChampionModified:false,
       wagerAuthorityModified:false,
+      displayedResearchScoreUnchanged:true,
+      shadowUntilProspectiveGates:true,
     },
     fit:{modelId:fit.modelId,trainedRows:fit.trainedRows,trainingThroughSeason:fit.trainingThroughSeason},
     canQualify:false,
     canAuthorizeWager:false,
+    shadowHardening: {
+      lifecycle: "SHADOW",
+      prospectiveValidationPassed: false,
+      operatorApprovedForProduction: false,
+      minTotalGradedGames: NFL_QB_PERSONNEL_GATE.minTotalGradedGames,
+      minGateFiredGames: NFL_QB_PERSONNEL_GATE.minGateFiredGames,
+      note: "Overlay remains SHADOW until prospective graded/gated thresholds pass; never mutates displayed v1.2 research or champion.",
+    },
   };
+  out.invariantCheck = assertNflQbShadowInvariants(out);
+  return out;
 }
 
 function americanImplied(price){

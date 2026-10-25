@@ -3,6 +3,7 @@ import io
 import json
 import math
 import os
+import sys
 from pathlib import Path
 from urllib.request import urlopen, Request
 
@@ -492,6 +493,7 @@ def flatten_game_level(games, team_pre, closing, ngs_pregame=None):
 
 
 def main():
+    require_ngs = os.environ.get("REQUIRE_NGS", "").strip().lower() in {"1", "true", "yes"} or "--require-ngs" in sys.argv
     games = read_csv_url(GAMES_URL)
     games = games[(games["season"] >= START_SEASON) & (games["season"] <= END_SEASON)].copy()
     games["home_team"] = games["home_team"].map(norm_team)
@@ -528,10 +530,22 @@ def main():
     closing = build_closing(lines, games)
     print("Building lagged Next Gen Stats features", flush=True)
     ngs_pregame = build_ngs_pregame_features(games)
+    ngs_cols_built = 0 if ngs_pregame is None else len([c for c in getattr(ngs_pregame, "columns", []) if str(c).startswith("ngs_") or "ngs_" in str(c)])
+    if require_ngs and (ngs_pregame is None or len(ngs_pregame) == 0 or ngs_cols_built == 0):
+        raise RuntimeError(
+            "REQUIRE_NGS/ --require-ngs set but NGS pregame features were not built. "
+            "Refuse to emit a training CSV that collapses core+tracking ablation. "
+            "Re-run after nflverse nextgen_stats feeds are reachable."
+        )
 
     full = flatten_game_level(games, team_pre, closing, ngs_pregame)
     full = full.sort_values(["season","week","gameday","game_id"]).reset_index(drop=True)
     final = full[full["is_final"]].copy()
+    ngs_feature_cols = [c for c in final.columns if "pregame_" in c and "ngs_" in c]
+    if require_ngs and len(ngs_feature_cols) == 0:
+        raise RuntimeError(
+            "REQUIRE_NGS/--require-ngs set but final training frame has zero NGS pregame columns."
+        )
 
     out_csv = OUT_DIR / "nfl_game_training_2015_2026.csv"
     final.to_csv(out_csv, index=False)
@@ -577,7 +591,13 @@ def main():
         "total_crosscheck_rows": total_compare_n,
         "total_crosscheck_mean_abs_diff": total_compare_mae,
         "pregame_feature_columns": len(leakage_columns),
-        "ngs_pregame_feature_columns": len([c for c in final.columns if "pregame_" in c and "ngs_" in c]),
+        "ngs_pregame_feature_columns": len(ngs_feature_cols),
+        "require_ngs": bool(require_ngs),
+        "ngs_rebuild_path": {
+            "command": "REQUIRE_NGS=1 python scripts/build-nfl-training-dataset.py --require-ngs",
+            "purpose": "Emit NGS-enriched training CSV so core+tracking ablation is evaluable in walk-forward",
+            "downstream": ["scripts/nfl-pro-v1-1-walkforward.py", "scripts/nfl-phase-a-ablation.py"],
+        },
         "temporal_integrity": "All rolling/expanding team and QB features use shift(1); current-game results are not used in pregame features.",
         "market_usage": "Canonical spread/total use nfldata games.csv for full-sample historical market coverage; nfldata closing_lines.csv is retained as an independent cross-check where available. Market fields are benchmark/labels only and are not used to construct football efficiency features.",
         "pbp_source": "nflverse/nflverse-data release tag pbp (nflfastR)",

@@ -3,9 +3,13 @@
  * Independent challenger comparison on identical chronological windows.
  * Reads artifacts/nfl-pro-v1-2/report.json from nfl-pro-v1-1-walkforward.py.
  * Research only — never promotes a champion or expands wager authority.
+ *
+ * Enforces market-relative promotion gate: identical-window OOS must beat
+ * closing market; CLV economics + operator approval still required.
  */
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const REPORT = process.env.WALKFORWARD_REPORT || "artifacts/nfl-pro-v1-2/report.json";
 const OUT = process.env.ARTIFACT_DIR || "artifacts/nfl-challenger-compare";
@@ -22,6 +26,10 @@ if (!fs.existsSync(REPORT)) {
 }
 
 const report = JSON.parse(fs.readFileSync(REPORT, "utf8"));
+const root = path.dirname(fileURLToPath(import.meta.url));
+const { evaluateMarketPromotionGate } = await import(
+  pathToFileURL(path.join(root, "../functions/lib/nflProjectionImprovements.js")).href
+);
 
 function metricBlock(label, block) {
   if (!block || typeof block !== "object") {
@@ -86,10 +94,11 @@ const comparison = {
   promotionEvidencePass: report.promotionEvidencePass ?? false,
   economic: {
     available: false,
-    note: "Walk-forward report does not include ATS/CLV economics; keep NULL until priced paired sample exists.",
+    note: "Walk-forward report does not include ATS/CLV economics; keep NULL until priced paired sample exists. Market promotion gate requires CLV before researchGatePassed.",
     ats: null,
     totals: null,
     clv: null,
+    validClvN: 0,
   },
   calibration: {
     available: false,
@@ -102,11 +111,27 @@ const comparison = {
     automaticPromotion: false,
     canAuthorizeWager: false,
     productionChampionUnchanged: true,
+    championFrozen: "NFL-PRO-v1.1",
     recommendation: report.promotionEvidencePass
       ? "Promotion evidence flag true in report — still requires operator approval; this script never promotes."
       : "No promotion. Challengers remain shadow/research.",
   },
 };
+
+const marketGate = evaluateMarketPromotionGate({
+  challenger: models.v12.available ? models.v12 : null,
+  market: models.market.available ? models.market : null,
+  identicalChronologicalWindows: Boolean(comparison.evaluation.identicalChronologicalWindows),
+  operatorApproved: false,
+  economicClvAvailable: false,
+});
+comparison.marketPromotionGate = marketGate;
+// Stricter: report flag alone is insufficient without beats-close + CLV + operator.
+comparison.researchGatePassed = marketGate.researchGatePassed;
+comparison.promotionEvidencePass = Boolean(
+  (report.promotionEvidencePass ?? false) && marketGate.beatsClosingOnIdenticalWindows
+);
+comparison.governance.recommendation = marketGate.recommendation;
 
 fs.writeFileSync(path.join(OUT, "challenger-compare.json"), JSON.stringify(comparison, null, 2));
 console.log(JSON.stringify({
@@ -117,6 +142,9 @@ console.log(JSON.stringify({
   v12MarginMae: models.v12.marginMae,
   v2MarginMae: models.v2.marginMae,
   marketMarginMae: models.market.marginMae,
+  beatsClosingOnIdenticalWindows: comparison.marketPromotionGate?.beatsClosingOnIdenticalWindows ?? false,
   promotionEvidencePass: comparison.promotionEvidencePass,
+  researchGatePassed: comparison.researchGatePassed,
+  automaticPromotion: false,
 }));
 process.exit(0);

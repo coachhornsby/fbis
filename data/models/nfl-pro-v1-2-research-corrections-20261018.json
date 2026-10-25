@@ -1,0 +1,58 @@
+{
+  "schema": "nfl-pro-v1-2-research-corrections-v1",
+  "fittedAt": "2026-10-18T22:14:45.958Z",
+  "targetModel": {
+    "modelId": "NFL-PRO-v1",
+    "version": "v1.2",
+    "role": "research-board-primary"
+  },
+  "championUnchanged": "NFL-PRO-v1.1",
+  "sample": {
+    "n": 35,
+    "nBinary": 34,
+    "source": "prediction_snapshots model_version=v1.2 preferred checkpoint with actuals",
+    "marginMae": 7.894285714285715,
+    "totalMae": 11.151428571428573,
+    "marginBias": 2.2428571428571424,
+    "totalBias": -3.0028571428571436,
+    "rawBrier": 0.21573803470076133,
+    "calibratedBrier": 0.2038623096065226,
+    "rawLogLoss": 0.6219432424386109,
+    "calibratedLogLoss": 0.5903504827373982,
+    "rawEce": 0.14122519746840173,
+    "calibratedEce": 0.18528102939608618
+  },
+  "scoreResiduals": {
+    "marginResidual": -2.2428571428571424,
+    "totalResidual": 3.0028571428571436,
+    "note": "marginResidual added to projected margin via home+=r/2, away-=r/2; totalResidual as +half to each side"
+  },
+  "platt": {
+    "method": "platt",
+    "intercept": -0.5464192157279735,
+    "weight": 1.0633117361449815,
+    "formula": "sigmoid(intercept + weight * logit(p))"
+  },
+  "marketPromotionGate": {
+    "requireBeatsClosingOnIdenticalWindows": true,
+    "metrics": [
+      "marginMae",
+      "totalMae",
+      "winnerAccuracy"
+    ],
+    "automaticPromotion": false,
+    "operatorApprovalRequired": true
+  },
+  "featureFamilyPolicy": {
+    "trenches": "NULL_UNTIL_AUTHORIZED_SOURCE",
+    "specialTeams": "NULL_UNTIL_AUTHORIZED_SOURCE",
+    "neverImpute": true
+  },
+  "weakResearchQuarantine": [
+    "research-v0.1-form-calibrated",
+    "research-v0-form"
+  ],
+  "lifecycle": "RESEARCH_CORRECTIONS",
+  "canAuthorizeWager": false,
+  "altersChampion": false
+}

@@ -433,6 +433,7 @@ def main():
             "trackingAblation": "deferred until NGS-enriched training rebuild"
             if not tracking_evaluable
             else "evaluated",
+            "ngsRebuildPath": "REQUIRE_NGS=1 python scripts/build-nfl-training-dataset.py --require-ngs",
         },
         "configs": summary,
         "rankingByMarginMae": ranked,
