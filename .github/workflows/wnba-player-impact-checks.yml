@@ -1,17 +1,5 @@
 name: WNBA player impact checks
 on:
-  push:
-    branches: ["research/wnba-player-impact-v1", main]
-    paths:
-      - "functions/lib/wnbaPlayerImpact.js"
-      - "functions/lib/wnbaLineupModel.js"
-      - "functions/lib/wnbaRoleRedistribution.js"
-      - "functions/lib/wnbaPlayerImpactShadow.js"
-      - "functions/lib/proPlayerProps.js"
-      - "research/wnba/player-impact-snapshot.json"
-      - "functions/lib/slateEngine.js"
-      - "test/wnba-player-impact.test.js"
-      - ".github/workflows/wnba-player-impact-checks.yml"
   workflow_dispatch:
 permissions:
   contents: read
