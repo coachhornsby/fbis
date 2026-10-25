@@ -12,6 +12,7 @@ export default function GameScoreDisplay({
   live = false,
   final = false,
   variant = "compact",
+  liveClock = null,
 }) {
   const phase = final ? "final" : live ? "live" : "pregame";
   const actualAvailable =
@@ -32,6 +33,11 @@ export default function GameScoreDisplay({
         {label}
       </span>
       <strong className="fbis-game-score__primary">{primary}</strong>
+      {live && !final ? (
+        <span className="fbis-game-score__clock" aria-label="Game period and scoreboard time remaining">
+          {liveClock || "CLOCK N/A"}
+        </span>
+      ) : null}
       {actualAvailable && projectionAvailable ? (
         <div className="fbis-game-score__projection">
           <span>FBIS PROJ.</span>
