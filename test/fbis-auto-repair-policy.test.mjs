@@ -75,3 +75,22 @@ test('strict model delivery accepts independently verified tennis probability on
  assert.equal(independentlyProjectedGame({...t,tennisProjection:{...t.tennisProjection,eventIntegrity:{valid:false}}}),false);
  assert.equal(independentlyProjectedGame({...game,projectionKind:'PINNACLE_IMPLIED'}),false);
 });
+
+test('provider-timed Polymarket US research BBO can count as current observed odds without a wager grant',()=>{
+ const safe={source:'Polymarket US WebSocket',sourceMarketId:'m',sourceObservedAt:'2026-10-25T17:40:00Z',
+  providerTimestampVerified:true,priceVerified:true,identityVerified:true,marketAvailable:false,
+  observedReferenceCurrent:true,temporal:{status:'CURRENT'},executionEligible:false,canAuthorizeWager:false,
+  contractPrice:.55};
+ assert.equal(verifiedCurrentQuote(safe,now),true);
+ assert.equal(verifiedCurrentQuote({...safe,canAuthorizeWager:true},now),false);
+ assert.equal(verifiedCurrentQuote({...safe,providerTimestampVerified:false},now),false);
+ assert.equal(verifiedCurrentQuote({...safe,temporal:{status:'STALE'}},now),false);
+});
+test('soccer full-time moneyline requires home draw and away from same provider market',()=>{
+ const common={source:'Test Provider',sourceMarketId:'1x2',marketFamily:'moneyline',period:'full_game',
+  marketAvailable:true,priceVerified:true,providerTimestampVerified:true,contractPrice:.33,
+  sourceObservedAt:'2026-10-25T17:50:00Z'};
+ const homeAway=[{...common,side:'home'},{...common,side:'away'}];
+ assert.equal(marketFamilyEvidence(homeAway,'moneyline',{now,sport:'soccer'}).available,false);
+ assert.equal(marketFamilyEvidence([...homeAway,{...common,side:'draw'}],'moneyline',{now,sport:'soccer'}).available,true);
+});

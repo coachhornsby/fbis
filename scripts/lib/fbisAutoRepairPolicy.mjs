@@ -27,7 +27,14 @@ export const isActiveGame=(g,now=Date.now(),horizonMs=36*3600000)=>{
 };
 export function verifiedCurrentQuote(o,now=Date.now(),maxAgeMs=2*3600000){
  // A local ingestion clock is NOT proof of a provider-side quote time.
- if(!o||o.priceVerified!==true||o.marketAvailable!==true||o.identityVerified===false)return false;
+ // Source-timed BBO observations are research market quotes, NEVER
+ // executable/wager-authorized orders. Track their freshness independently
+ // from the operator's execution market eligibility.
+ const safeResearchBbo=o?.source==='Polymarket US WebSocket'&&
+  o.observedReferenceCurrent===true&&o.temporal?.status==='CURRENT'&&
+  o.executionEligible===false&&o.canAuthorizeWager===false;
+ if(!o||o.priceVerified!==true||o.identityVerified===false||
+  (o.marketAvailable!==true&&!safeResearchBbo))return false;
  const provenance=o.providerTimestampVerified===true||
    ['PROVIDER_VERIFIED','SOURCE_VERIFIED','VERIFIED_PROVIDER_TIMESTAMP'].includes(o.quoteClockStatus);
  if(!provenance)return false;
@@ -50,8 +57,9 @@ const sourceMarketKey=o=>{
  const id=String(o?.sourceMarketId||o?.marketId||'');
  return name&&id?name+'|'+id:null;
 };
-const expectedSides=family=>family==='total'?['over','under']:['home','away'];
-export function marketFamilyEvidence(offers=[],familyName,{now=Date.now(),maxAgeMs=2*3600000}={}){
+const expectedSides=(family,sport)=>family==='total'?['over','under']:
+ family==='moneyline'&&sport==='soccer'?['home','away','draw']:['home','away'];
+export function marketFamilyEvidence(offers=[],familyName,{now=Date.now(),maxAgeMs=2*3600000,sport=null}={}){
  const relevant=offers.filter(o=>family(o)===familyName);
  const full=relevant.filter(o=>o.period==='full_game');
  const priced=full.filter(marketPrice);
@@ -65,7 +73,7 @@ export function marketFamilyEvidence(offers=[],familyName,{now=Date.now(),maxAge
   if(!grouped.has(key))grouped.set(key,new Set());
   grouped.get(key).add(direction);
  }
- const paired=[...grouped.values()].filter(s=>expectedSides(familyName).every(x=>s.has(x))).length;
+ const paired=[...grouped.values()].filter(s=>expectedSides(familyName,sport).every(x=>s.has(x))).length;
  const state=paired?'VERIFIED_CURRENT_PAIR':!relevant.length?'NO_REFERENCE':
   !full.length?'PERIOD_NOT_FULL_GAME':!priced.length?'NO_NUMERIC_PRICE':
   !verified.length?'PROVIDER_CLOCK_OR_PRICE_UNVERIFIED':'UNPAIRED_CURRENT_MARKET';
@@ -93,7 +101,7 @@ export function assessFixtureCoverage(board,{now=Date.now(),horizonMs=36*3600000
   // Each family requires its own verified, full-game, two-sided market.
   // One moneyline is never evidence of a spread or total.
   const families=Object.fromEntries(expectedFamilies(g.sport).map(name=>[
-   name,marketFamilyEvidence(offers,name,{now,maxAgeMs:quoteMaxAgeMs})]));
+   name,marketFamilyEvidence(offers,name,{now,maxAgeMs:quoteMaxAgeMs,sport:g.sport})]));
   const missingFamilies=Object.keys(families).filter(k=>!families[k].available);
   const current=missingFamilies.length===0;
   const byFamily={moneyline:0,spread:0,total:0};
