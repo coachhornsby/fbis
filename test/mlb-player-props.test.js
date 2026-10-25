@@ -103,5 +103,5 @@ test("PrizePicks persistence retains separate prop model source and version line
   assert.match(api,/raw_json,model_source,model_version/);
   assert.match(api,/s\(cand\?\.modelSource\),s\(cand\?\.modelVersion\)/);
   assert.match(workflow,/PRIZEPICKS_COLLECTOR_RETIRED/);
-  assert.match(workflow,/fbis-prizepicks-single-daily-acquisition/);
+  assert.doesNotMatch(workflow,/cron:|fbis-prizepicks-single-daily-acquisition/);
 });
