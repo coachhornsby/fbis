@@ -68,7 +68,7 @@ test('GitHub raw Gamma handoff revalidates independently verified fixture and ro
   now,providedEvents:[{...event,teams:[{ordering:'away',abbreviation:'phi'},{ordering:'home',abbreviation:'det'}],markets:[market]}],
   fetchImpl:async()=>{throw Error('Unexpected provider fetch')}
  });
- assert.equal(bad.contracts,0);assert.equal(bad.errors[0].code,'EVENT_IDENTITY_UNRESOLVED');
+ assert.equal(bad.latestCaptureRows,0);assert.equal(bad.contracts,2);assert.equal(bad.errors[0].code,'EVENT_IDENTITY_UNRESOLVED');
 });
 
 test('NBA ESPN abbreviation aliases resolve Gamma matching only with exact teams',()=>{
@@ -115,4 +115,29 @@ test('Gamma scheduled capture covers today and next Chicago game day with isolat
  assert.equal(objects.get('player-props/polymarket-global/v1/nba-2026-10-20.json').rows.length,2);
  assert.equal(objects.get('player-props/polymarket-global/v1/nba-2026-10-21.json').rows.length,2);
  assert.equal(objects.get('player-props/pregame-lines/v1/nba/polymarket/2026-10-21.json').rows.length,2);
+});
+
+test('Polymarket preserves unmatched player thresholds as non-executable market-only inventory',async()=>{
+ const now=new Date('2026-10-20T17:00:00Z');
+ const objects=new Map(),ARCHIVE={
+  put:async(k,v)=>objects.set(k,JSON.parse(v)),
+  get:async k=>objects.has(k)?{json:async()=>objects.get(k)}:null
+ };
+ const candidate={...market,id:'unmapped-2',slug:market.slug+'-alt',
+  question:'Ausar Thompson: Points O/U 11.5',line:9.5};
+ const result=await capturePolymarketGlobalNba({DB:dbMock(),ARCHIVE},{
+  now,providedEvents:[{...event,markets:[market,candidate]}],
+  fetchImpl:async()=>{throw Error('Unexpected fetch')}
+ });
+ assert.equal(result.latestCaptureRows,2);
+ assert.equal(result.sourceMarketOnly,1);
+ const stored=await loadPolymarketGlobalNba({ARCHIVE},{day:'2026-10-20',now:now.getTime()+1000});
+ assert.equal(stored.marketOnly.length,1);
+ const raw=stored.marketOnly[0];
+ assert.equal(raw.provider,'Polymarket');
+ assert.equal(raw.identityVerified,false);
+ assert.equal(raw.priceVerified,false);
+ assert.equal(raw.purchaseAsk,null);
+ assert.equal(raw.canAuthorizeWager,false);
+ assert.equal(raw.rawTitle,'Ausar Thompson: Points O/U 11.5');
 });

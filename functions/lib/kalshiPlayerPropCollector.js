@@ -4,6 +4,9 @@ import { loadPropFixturesAndPlayers } from './propResearchData.js';
 import { chicagoDayBounds } from './chicagoDayBounds.js';
 import { kalshiSignedReadProxy } from './kalshiSignedCollector.js';
 const ROOT='player-props/kalshi/v1/';
+// A page budget controls one invocation, not completeness. A series resumes
+// from its saved cursor instead of discarding unvisited player thresholds.
+const PROGRESS_TTL_MS=6*60*60*1000;
 const chicagoDay = instant => new Intl.DateTimeFormat('en-CA',{
  timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'
 }).format(new Date(instant));
@@ -14,7 +17,7 @@ function ruleStart(primary){
  const time=Date.parse(m[1]+' '+m[2]+' GMT'+(m[3]==='EDT'?'-0400':'-0500'));
  return Number.isFinite(time)?time:null;
 }
-export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fetch,webCrypto=crypto,maxSeries=6,maxPages=5}={}) {
+export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fetch,webCrypto=crypto,maxSeries=6,maxPages=5,signedProxy=null}={}) {
  if(!env.ARCHIVE?.get||!env.ARCHIVE?.put)return {ok:false,code:'ARCHIVE_BINDING_MISSING'};
  const previous=await env.ARCHIVE.get(ROOT+'status.json');const status=previous?await previous.json():null;
  if(Date.parse(status?.nextAllowedAt)>now.getTime())return {ok:true,status:'NOT_DUE',records:0};
@@ -23,12 +26,27 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
  const available=new Set(catalog.records.map(r=>r.ticker));const series=Object.keys(KALSHI_PROP_SERIES).filter(s=>available.has(s));
  const offset=Number.isInteger(status?.nextOffset)?status.nextOffset%Math.max(1,series.length):0;
  const selected=Array.from({length:Math.min(maxSeries,series.length)},(_,i)=>series[(offset+i)%series.length]);
- const proxy=kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});const receipts=[],nbaCaptures=[];
+ const proxy=signedProxy||kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});const receipts=[],nbaCaptures=[];
  for(const ticker of selected){
   try {
-   let cursor='',pages=0,complete=false,rateLimited=false;const records=[],seen=new Set(),cursors=new Set();
+   const progressKey=ROOT+'progress/'+ticker+'.json';
+   const priorObj=await env.ARCHIVE.get(progressKey);
+   const prior=priorObj?await priorObj.json():null;
+   const validResume=prior?.seriesTicker===ticker && typeof prior.cursor==='string' &&
+      prior.cursor.length>0 && Array.isArray(prior.records) &&
+      Number.isSafeInteger(prior.pages) && prior.pages>=0 &&
+      Array.isArray(prior.seenCursors) &&
+      Number.isFinite(Date.parse(prior.startedAt)) &&
+      now.getTime()>=Date.parse(prior.startedAt) &&
+      now.getTime()-Date.parse(prior.startedAt)<PROGRESS_TTL_MS;
+   const records=validResume?[...prior.records]:[];
+   const seen=new Set(records.map(r=>String(r.ticker||'')));
+   const cursors=new Set(validResume?prior.seenCursors:[]);
+   let cursor=validResume?prior.cursor:'',pages=0,complete=false,rateLimited=false;
+   const startedAt=validResume?prior.startedAt:now.toISOString();
+   const previousPages=validResume?prior.pages:0;
    do {
-    const q=new URLSearchParams({series_ticker:ticker,status:'open',limit:'1000'});if(cursor)q.set('cursor',cursor);
+    const q=new URLSearchParams({series_ticker:ticker,status:'open',mve_filter:'exclude',limit:'1000'});if(cursor)q.set('cursor',cursor);
     const response=await proxy('https://external-api.kalshi.com/trade-api/v2/markets?'+q,{method:'GET'});
     if(response.status===429){rateLimited=true;break;}
     if(!response.ok)throw Error('HTTP_'+response.status);
@@ -37,10 +55,21 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
     for(const m of data.markets)if(String(m.ticker||'').startsWith(ticker+'-')&&!m.mve_collection_ticker&&!seen.has(m.ticker)){seen.add(m.ticker);records.push(m);}
     cursor=typeof data.cursor==='string'?data.cursor:'';
     if(!cursor){complete=true;break;}
-    if(cursors.has(cursor))break;cursors.add(cursor);
+    if(cursors.has(cursor))throw Error('PROVIDER_CURSOR_LOOP');
+    cursors.add(cursor);
    }while(pages<Math.min(10,Math.max(1,maxPages)));
-   if(rateLimited){receipts.push({series:ticker,status:'RATE_LIMITED',records:0});break;}
-   const receipt={version:1,provider:'Kalshi',seriesTicker:ticker,sport:KALSHI_PROP_SERIES[ticker][0],capturedAt:now.toISOString(),
+   if(!complete){
+    // Never replace a complete public snapshot with an incomplete traversal.
+    await env.ARCHIVE.put(progressKey,JSON.stringify({
+      version:1,seriesTicker:ticker,startedAt,cursor,
+      pages:previousPages+pages,records,seenCursors:[...cursors]
+    }),{httpMetadata:{contentType:'application/json'}});
+    receipts.push({series:ticker,status:rateLimited?'RATE_LIMITED':'PARTIAL',
+      records:records.length,pages:previousPages+pages,paginationComplete:false});
+    if(rateLimited)break;
+    continue;
+   }
+   const receipt={version:1,provider:'Kalshi',seriesTicker:ticker,sport:KALSHI_PROP_SERIES[ticker][0],capturedAt:startedAt,completedAt:now.toISOString(),
     sourceObservedAt:null,quoteTimeBasis:'REST_CAPTURE_ONLY',records,pages,paginationComplete:complete,canQualify:false,canAuthorizeWager:false};
    // Immutable-by-event historical inventory: keep the last pregame observation
    // for each exact contract. The rolling 2-hour snapshot is not historical storage.
@@ -71,9 +100,11 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
     }),{httpMetadata:{contentType:'application/json'}});
    }
    await env.ARCHIVE.put(ROOT+ticker+'.json',JSON.stringify(receipt),{httpMetadata:{contentType:'application/json'}});
+   if(env.ARCHIVE.delete)await env.ARCHIVE.delete(progressKey);
    if(KALSHI_PROP_SERIES[ticker][0]==='nba' && complete)
-     nbaCaptures.push({ticker,records});
-   receipts.push({series:ticker,status:complete?'CAPTURED':'PARTIAL',records:records.length,pages,paginationComplete:receipt.paginationComplete});
+     nbaCaptures.push({ticker,records,capturedAt:startedAt});
+   receipts.push({series:ticker,status:'CAPTURED',records:records.length,
+     pages:previousPages+pages,paginationComplete:true});
   }catch{receipts.push({series:ticker,status:'UNAVAILABLE',records:0});}
  }
  // Only fully paginated, exactly roster/event matched NBA contracts can enter
@@ -90,7 +121,7 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
     const context=await loadPropFixturesAndPlayers(env,{start:bounds.start,end:bounds.end,sport:'nba'});
     const lines=[];
     for(const snapshot of nbaCaptures)for(const raw of snapshot.records){
-     const mapped=mapKalshiPlayerContract(raw,{...context,capturedAt:now.toISOString(),seriesTicker:snapshot.ticker});
+     const mapped=mapKalshiPlayerContract(raw,{...context,capturedAt:snapshot.capturedAt,seriesTicker:snapshot.ticker});
      if(!mapped||mapped.rejected||!context.games.some(g=>String(g.id)===mapped.canonicalEventId))continue;
      lines.push(mapped);
      const noAsk=Number(raw.no_ask_dollars),yesBid=Number(raw.yes_bid_dollars),noSize=Number(raw.yes_bid_size_fp);
@@ -106,7 +137,11 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
  }
  const rateLimited=receipts.some(r=>r.status==='RATE_LIMITED');
  const result={ok:receipts.some(r=>r.status==='CAPTURED'||r.status==='PARTIAL'),version:1,attemptedAt:now.toISOString(),nextAllowedAt:new Date(now.getTime()+(rateLimited?3600000:14*60000)).toISOString(),
-  nextOffset:(offset+receipts.filter(r=>r.status!=='RATE_LIMITED').length)%Math.max(1,series.length),discoveredSeries:series.length,receipts,nbaPregameLineFreeze:nbaFrozen,records:receipts.reduce((n,r)=>n+r.records,0),canQualify:false,canAuthorizeWager:false};
+  nextOffset:(offset+receipts.filter(r=>r.status!=='RATE_LIMITED').length)%Math.max(1,series.length),discoveredSeries:series.length,
+  catalogUnmappedSeries:catalog.records.filter(r=>r?.ticker&&!Object.hasOwn(KALSHI_PROP_SERIES,r.ticker)).length,
+  completeSeries:receipts.filter(r=>r.status==='CAPTURED').length,
+  incompleteSeries:receipts.filter(r=>r.status==='PARTIAL'||r.status==='RATE_LIMITED').length,
+  receipts,nbaPregameLineFreeze:nbaFrozen,records:receipts.reduce((n,r)=>n+r.records,0),canQualify:false,canAuthorizeWager:false};
  await env.ARCHIVE.put(ROOT+'status.json',JSON.stringify(result),{httpMetadata:{contentType:'application/json'}});return result;
 }
 export async function loadCapturedKalshiProps(env,{games,players,sport='all',seriesFilter=null,now=Date.now(),date=null}={}) {
@@ -121,7 +156,16 @@ export async function loadCapturedKalshiProps(env,{games,players,sport='all',ser
    const snap=await obj.json(),age=now-Date.parse(snap.capturedAt);
    if(!Array.isArray(snap.records)||!Number.isFinite(age)||age<0||(!historic&&!date&&age>2*3600000)){coverage.push({series,sport:s,status:'STALE'});continue;}
    coverage.push({series,sport:s,status:snap.paginationComplete?'CAPTURED':'PARTIAL',capturedAt:snap.capturedAt,records:snap.records.length,historical:historic});
-   for(const raw of snap.records){const mapped=mapKalshiPlayerContract(raw,{games,players,capturedAt:snap.capturedAt,seriesTicker:series});if(!mapped)continue;if(mapped.rejected)rejected.push(mapped);else if(date || Date.parse(mapped.start_time)>now){
+   for(const raw of snap.records){const mapped=mapKalshiPlayerContract(raw,{games,players,capturedAt:snap.capturedAt,seriesTicker:series});
+    if(!mapped || mapped.rejected){
+      rejected.push({id:String(raw.ticker||''),series,sport:s,provider:'Kalshi',
+        source:'Kalshi REST',rawTitle:String(raw.title||raw.yes_sub_title||'').slice(0,240),
+        line:raw.floor_strike??null,observedAt:null,collectedAt:snap.capturedAt,
+        reason:mapped?.reason||'PLAYER_OR_EVENT_IDENTITY_UNVERIFIED',
+        identityVerified:false,marketAvailable:false,canAuthorizeWager:false});
+      continue;
+    }
+    if(date || Date.parse(mapped.start_time)>now){
      rows.push(mapped);
      const noAsk=Number(raw.no_ask_dollars),yesBid=Number(raw.yes_bid_dollars),yesBidSize=Number(raw.yes_bid_size_fp);
      if(raw.no_ask_dollars!=null&&raw.yes_bid_dollars!=null&&noAsk>0&&noAsk<1&&Math.abs(noAsk-(1-yesBid))<0.00001&&yesBidSize>0)
