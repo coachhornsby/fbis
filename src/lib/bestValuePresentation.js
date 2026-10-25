@@ -91,10 +91,21 @@ export function modelDirectionPresentation(game={},vm={}) {
  const favorite=Math.abs(modelHome)<.05?null:modelHome<0?'home':'away';
  const fairLine=favorite?`${abbr(favorite)} ${signed(-Math.abs(modelHome))}`:"PICK'EM";
  const value=leading?(leading.side?leading.kind==='spread'?`${abbr(leading.side)} ${signed(leading.side==='home'?marketHome:-marketHome)} LEAN`:`${leading.side.toUpperCase()} ${fmt(marketTotal)} LEAN`:'AT THE MARKET LINE'):favorite?`${abbr(favorite)} PROJECTED WINNER`:"PROJECTED TIE";
+ const captured = game?.cfbCapturedMarket;
+ const pin = captured?.pinnodds;
+ const pinSpread = finite(pin?.spread?.homeLine), pinTotal = finite(pin?.total?.line);
+ const capturedDescription = captured?.pregameReferenceOnly === true
+   ? pinSpread != null || pinTotal != null
+     ? ["PREGAME PINNODDS CAPTURE",pinSpread == null ? null : `${abbr("home")} ${signed(pinSpread)}`,
+        pinTotal == null ? null : `O/U ${fmt(pinTotal)}`,"NOT LIVE"].filter(Boolean).join(" · ")
+     : finite(captured?.total) != null
+       ? `PREGAME POLYMARKET TOTAL ${fmt(finite(captured.total))} · HISTORICAL CAPTURE, NOT LIVE`
+       : "NO VERIFIED CURRENT MARKET LINE"
+   : "NO VERIFIED CURRENT MARKET LINE";
  return {status:'model',heading:'FBIS DIRECTION',value,
   teamSide:leading?.kind==='spread'?leading.side:!leading?favorite:null,
   totalDirection:leading?.kind==='total'?leading.side:null,
-  detail:leading?[spreadText,totalText].filter(Boolean).join(' · '):`FBIS ${fairLine} · TOTAL ${fmt(modelTotal)} · ${game?.cfbCapturedMarket?.pregameReferenceOnly === true && finite(game.cfbCapturedMarket.total) != null ? `PREGAME POLYMARKET TOTAL ${fmt(finite(game.cfbCapturedMarket.total))} · HISTORICAL CAPTURE, NOT LIVE` : "NO VERIFIED CURRENT MARKET LINE"}`,
+  detail:leading?[spreadText,totalText].filter(Boolean).join(' · '):`FBIS ${fairLine} · TOTAL ${fmt(modelTotal)} · ${capturedDescription}`,
   secondary:'',
   modelOnly:true,executable:false,qualified:false};
 }
