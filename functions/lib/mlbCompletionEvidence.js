@@ -11,6 +11,7 @@ export function buildMlbAblationFreeze(game,capturedAt=new Date().toISOString())
  const ctx=game.mlbContext||{},neutral={...ctx};
  validatePregameSnapshot({game_time:game.start},{
   context:ctx,statcast:game.mlbPitchMatchup||null,persistent:game.mlbPersistentState||null,
+  savant:game.savant||null,teams:{home:game.home||null,away:game.away||null},
   starters:{home:game.homeSp||null,away:game.awaySp||null},
   playerForecasts:game.playerProjectionRows||[]
  },capturedAt);
