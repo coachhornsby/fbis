@@ -39,3 +39,18 @@ test('production hitter forecasts freeze without quotes and preserve real zeroes
  let graded=gradeMlbAblations(f,result);assert.equal(graded.productionPlayerTargets[0].actual,0);assert.equal(graded.productionPlayerTargets[0].projection,1.2);
  result.liveData.boxscore.teams.home.players.ID99.stats.batting.plateAppearances=0;graded=gradeMlbAblations(f,result);assert.equal(graded.productionPlayerTargets.length,0);
 });
+
+test('training-day reads immutable games in bounded batches, preserves receipt order and fails on missing source',async()=>{
+ const {onRequestPost}=await import('../functions/api/mlb-completion.js'),{gzipEvidence}=await import('../functions/lib/mlbCompletionEvidence.js'),date='2024-05-01';
+ const receipts=Array.from({length:9},(_,i)=>({key:'game/'+i})),data=await Promise.all(receipts.map((_,i)=>gzipEvidence({gameId:String(i),officialDate:date,gameType:'R',sourceHash:'hash'+i,players:[]})));
+ let active=0,peak=0,missing=false;
+ const archive={put:async()=>{},get:async key=>{
+  if(key.includes('/manifests/'))return {json:async()=>({complete:true,receipts})};
+  if(key.includes('/current.json'))return {json:async()=>({key:'league'})};
+  if(key==='league')return {json:async()=>({complete:true,sourceHash:'leaguehash',pitcherDays:[],batterDays:[]})};
+  if(key.startsWith('game/')){active++;peak=Math.max(peak,active);await new Promise(r=>setTimeout(r,5));active--;if(missing&&key==='game/4')return null;return {body:new Blob([data[Number(key.slice(5))]]).stream()};}return null;
+ }};
+ const call=()=>onRequestPost({env:{ARCHIVE:archive,HARVEST_SECRET:'fixture'},request:new Request('https://example.com/api/mlb-completion',{method:'POST',headers:{'x-harvest-secret':'fixture'},body:JSON.stringify({date,operation:'training-day'})})});
+ const r=await call(),body=await r.json();assert.equal(r.status,200);assert.deepEqual(body.games.map(g=>g.gameId),receipts.map((_,i)=>String(i)));assert.equal(peak,4);
+ missing=true;const failed=await call();assert.equal(failed.status,422);assert.equal((await failed.json()).error,'GAME_SOURCE_MISSING');
+});
