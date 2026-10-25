@@ -1,0 +1,64 @@
+name: FBIS CI Auto Repair — all-sport market and projection coverage
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/fbis-all-sport-reliability.mjs'
+      - 'scripts/lib/fbisCoveragePolicy.mjs'
+      - '.github/workflows/fbis-all-sport-reliability.yml'
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: fbis-all-sport-production-reliability
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      FBIS_BASE_URL: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Verify all-sport policy and negative cases
+        run: node --test test/fbis-all-sport-reliability.test.mjs
+      - name: Audit source-backed game lines and player prop coverage
+        id: audit
+        continue-on-error: true
+        run: node scripts/fbis-all-sport-reliability.mjs
+      - name: Preserve machine-readable incident evidence
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: fbis-all-sport-reliability-${{ github.run_id }}
+          path: artifacts/fbis-all-sport-reliability.json
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Reconcile a single tracked incident
+        if: always()
+        env:
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title='FBIS all-sport market/projection reliability degraded'
+          issue="$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n1)"
+          if [ "$AUDIT_OUTCOME" != "success" ]; then
+            if [ -z "$issue" ]; then
+              gh issue create --title "$title" --body "Unresolved all-sport game-line, player-prop market or FBIS projection coverage. Run: $RUN_URL. Audit artifact contains per-sport gaps and approved retry receipts. No model or market values were invented."
+            else
+              gh issue comment "$issue" --body "Still degraded: $RUN_URL"
+            fi
+            exit 1
+          fi
+          if [ -n "$issue" ]; then
+            gh issue close "$issue" --comment "Recovered and rechecked: $RUN_URL"
+          fi
