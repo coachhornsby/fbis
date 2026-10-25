@@ -6,6 +6,7 @@ import EventMarkets from "./EventMarkets.jsx";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
+import GameScoreDisplay from "./GameScoreDisplay.jsx";
 import CfbCapturedMarket from "./CfbCapturedMarket.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
 import { lineLabel, bestEdge, evidenceNumber } from "../../lib/boardEvidence.js";
@@ -161,7 +162,6 @@ export default function CompactGameCard({ game, onOpen }) {
   const hasFinalScore = isFinal && finalAway != null && finalHome != null;
   const hasLiveScore = Boolean(vm.event?.live && finalAway != null && finalHome != null);
   const hasActualScore = hasFinalScore || hasLiveScore;
-  const scoreboardLabel = hasFinalScore ? "FINAL SCORE" : "LIVE SCORE";
   const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
@@ -219,20 +219,6 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       ) : null}
 
-      {vm.event?.live ? (
-        <section className="cgc-live-nhl-score" aria-label="Live NHL score">
-          <span>LIVE SCORE · PRE-GAME FORECAST IS SHOWN BELOW</span>
-          <strong>{hasLiveScore ? `${away.abbr} ${finalAway} – ${finalHome} ${home.abbr}` : "LIVE SCORE NOT AVAILABLE FROM FEED"}</strong>
-        </section>
-      ) : null}
-
-      {hasFinalScore ? (
-        <section className="cgc-final-score" aria-label="Final score">
-          <span>FINAL SCORE</span>
-          <strong><b>{away.abbr}</b> {finalAway} <i>–</i> {finalHome} <b>{home.abbr}</b></strong>
-          <small>vs FBIS {proj.available ? `${proj.away ?? "—"}–${proj.home ?? "—"}` : "projection"}</small>
-        </section>
-      ) : null}
 
       <div className="cgc-main">
         <div className="cgc-matchup cgc-team-atmosphere" style={matchupAtmosphere}>
@@ -248,9 +234,7 @@ export default function CompactGameCard({ game, onOpen }) {
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
-            <strong className="cgc-proj">{hasActualScore ? finalAway : proj.available ? (proj.away ?? "—") : "—"}</strong>
-            <span>{hasActualScore ? scoreboardLabel : stored ? "STORED PREGAME" : isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
-            {hasActualScore && proj.available ? <small className="cgc-model-below">FBIS PROJ {proj.away}</small> : null}
+            <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} />
           </div>
 
           <span className="cgc-vs">VS</span>
@@ -265,9 +249,7 @@ export default function CompactGameCard({ game, onOpen }) {
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
-            <strong className="cgc-proj">{hasActualScore ? finalHome : proj.available ? (proj.home ?? "—") : "—"}</strong>
-            <span>{hasActualScore ? scoreboardLabel : stored ? "STORED PREGAME" : isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
-            {hasActualScore && proj.available ? <small className="cgc-model-below">FBIS PROJ {proj.home}</small> : null}
+            <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} />
           </div>
         </div>
 
