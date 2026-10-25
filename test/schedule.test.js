@@ -148,9 +148,9 @@ describe("prospective Cloudflare recovery", () => {
     assert.equal(m.writes.length, RECOVERY_SPORTS.length);
   });
   it("resumes only missing sports after a partial cycle made global health healthy", async () => {
-    const m = mock(health(), () => {}, { ok: true, missingSports: ["soccer"], missingHarvestSports: [], initializing: false, inProgress: true });
+    const m = mock(health(), () => {}, { ok: true, missingSports: ["cbb"], missingHarvestSports: [], initializing: false, inProgress: true });
     await recoverCurrentPipeline(env, controller, m.request, now);
-    assert.deepEqual(m.writes.map(({ url }) => url.searchParams.get("sport")), ["soccer"]);
+    assert.deepEqual(m.writes.map(({ url }) => url.searchParams.get("sport")), ["cbb"]);
   });
   it("fails closed on unknown collection coverage", async () => {
     const m = mock(health("missed"), () => {}, { ok: true, missingSports: ["unknown"] });
@@ -158,17 +158,17 @@ describe("prospective Cloudflare recovery", () => {
     assert.equal(m.writes.length, 0);
   });
   it("resumes missing current-hour harvest sports even when global health is healthy", async () => {
-    const m = mock(health(), () => {}, { ok: true, missingSports: [], missingHarvestSports: ["mlb", "soccer"], initializing: false, inProgress: false });
+    const m = mock(health(), () => {}, { ok: true, missingSports: [], missingHarvestSports: ["mlb", "cbb"], initializing: false, inProgress: false });
     const r = await recoverCurrentPipeline(env, controller, m.request, now);
     assert.equal(r.harvestReason, "per_sport_hourly_delivery_gap");
     assert.deepEqual(m.writes.map(({ url }) => [url.pathname, url.searchParams.get("sport"), url.searchParams.get("date")]), [
-      ["/api/harvest", "mlb", "2026-10-07"], ["/api/harvest", "soccer", "2026-10-07"],
+      ["/api/harvest", "mlb", "2026-10-07"], ["/api/harvest", "cbb", "2026-10-07"],
     ]);
   });
   it("fills only overdue collection gaps left by the primary scheduler despite healthy global health", async () => {
-    const m = mock(health(), () => {}, { ok: true, missingSports: ["soccer"], missingHarvestSports: [], initializing: false, inProgress: false, overdue: true });
+    const m = mock(health(), () => {}, { ok: true, missingSports: ["cbb"], missingHarvestSports: [], initializing: false, inProgress: false, overdue: true });
     await recoverCurrentPipeline(env, controller, m.request, now);
-    assert.deepEqual(m.writes.map(({ url }) => [url.pathname, url.searchParams.get("sport")]), [["/api/collect-current", "soccer"]]);
+    assert.deepEqual(m.writes.map(({ url }) => [url.pathname, url.searchParams.get("sport")]), [["/api/collect-current", "cbb"]]);
   });
   it("collects all configured sports using current-day cached odds with actual cron provenance", async () => {
     const m = mock(health("missed", "healthy"));
@@ -254,14 +254,14 @@ describe("bounded current collection boundary", () => {
       const stmt = { bind(...args) { queries.push({ sql, args }); return stmt; }, async all() {
         if (sql.includes("store_meta")) return { results: RECOVERY_SPORTS.map(sport => ({ k: `native_current_collect_success:${sport}`, v: new Date().toISOString() })) };
         if (sql.includes("collect-cache")) return { results: RECOVERY_SPORTS.map(sport => ({ sport })) };
-        return { results: RECOVERY_SPORTS.filter(sport => sport !== "soccer").map(sport => ({ sport })) };
+        return { results: RECOVERY_SPORTS.filter(sport => sport !== "cbb").map(sport => ({ sport })) };
       } }; return stmt;
     } };
     const response = await collectCurrentPipeline(c, () => { throw new Error("status must not collect"); });
     const result = await response.json();
     assert.equal(response.status, 200);
     assert.deepEqual(result.missingSports, []);
-    assert.deepEqual(result.missingHarvestSports, ["soccer"]);
+    assert.deepEqual(result.missingHarvestSports, ["cbb"]);
     assert.equal(result.initializing, false);
     assert.match(queries[1].sql, /trigger_type = 'schedule'/);
     assert.match(queries[1].sql, /status = 'success'/);
