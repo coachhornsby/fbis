@@ -1419,7 +1419,11 @@ export async function buildTodayBoard(
           now: new Date(now),
           historyDbs: historyParts.map((p) => p.db),
           historyLabels: historyParts.map((p) => p.binding),
-          moneylineOnly: true,
+          // Restore independently source-timed FULL-GAME moneyline,
+          // spread and total BBOs. Never pull period/quarter/alt snapshots
+          // into a default game market or grant wager authority.
+          moneylineOnly: false,
+          fullGameOnly: true,
         });
         overlay.diagnostics = {
           ...(overlay.diagnostics || {}),

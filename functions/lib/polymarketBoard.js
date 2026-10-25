@@ -14,7 +14,7 @@ async function eventIndex(db){
  const clause=name?' INDEXED BY '+name:'';eventIndexes.set(db,clause);return clause;
 }
 
-export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Date(),maxAgeMs=45*60*1000,historyDb=null,historyDbs=null,historyLabels=null,deliveryStore="PRIMARY_D1",moneylineOnly=false}={}){
+export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Date(),maxAgeMs=45*60*1000,historyDb=null,historyDbs=null,historyLabels=null,deliveryStore="PRIMARY_D1",moneylineOnly=false,fullGameOnly=false}={}){
  const extras=[...(Array.isArray(historyDbs)?historyDbs:[]),...(historyDb?.prepare?[historyDb]:[])].filter((d,i,all)=>d?.prepare&&all.indexOf(d)===i);
  if(extras.length){
   // Explicit topology labels (binding names) win. Unlabeled historyDb callers
@@ -23,8 +23,8 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
     ? historyLabels
     : extras.map((_,i)=>i===0?"MARKET_HISTORY_RECOVERY":`MARKET_HISTORY_RECOVERY_${i}`);
   const attempts=await Promise.allSettled([
-   loadPolymarketUsBoardOffers(db,games,sport,{now,maxAgeMs,moneylineOnly}),
-   ...extras.map((h,i)=>loadPolymarketUsBoardOffers(h,games,sport,{now,maxAgeMs,deliveryStore:labels[i],moneylineOnly})),
+   loadPolymarketUsBoardOffers(db,games,sport,{now,maxAgeMs,moneylineOnly,fullGameOnly}),
+   ...extras.map((h,i)=>loadPolymarketUsBoardOffers(h,games,sport,{now,maxAgeMs,deliveryStore:labels[i],moneylineOnly,fullGameOnly})),
   ]);
   const byId=new Map();
   for(const result of attempts){if(result.status!=="fulfilled")continue;for(const [id,offers] of result.value.byId){
@@ -48,7 +48,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
     collected_at,source_observed_at,raw_payload_json,execution_eligible,can_qualify,can_authorize_wager,
     ROW_NUMBER() OVER (PARTITION BY source,canonical_event_id,market_family,source_market_id,source_outcome_id,period,side,line ORDER BY collected_at DESC,id DESC) rn
   FROM normalized_market_observations${indexClause}
-  WHERE source IN (${sport === 'soccer' ? "'Polymarket US','Polymarket US WebSocket','PinnOdds'" : "'Polymarket US','Polymarket US WebSocket'"}) AND sport=? ${moneylineOnly?"AND market_family='moneyline'":""} AND canonical_event_id IN (${params})
+  WHERE source IN (${sport === 'soccer' ? "'Polymarket US','Polymarket US WebSocket','PinnOdds'" : "'Polymarket US','Polymarket US WebSocket'"}) AND sport=? ${moneylineOnly?"AND market_family='moneyline'":""} ${fullGameOnly?"AND period='full_game' AND market_family IN ('moneyline','spread','total')":""} AND canonical_event_id IN (${params})
     AND collected_at BETWEEN ? AND ?
     AND (event_start_time IS NULL OR event_start_time >= ?)
  ) SELECT * FROM fresh WHERE rn=1 ORDER BY canonical_event_id,CASE WHEN source='Polymarket US WebSocket' THEN 0 ELSE 1 END,market_family,source_market_id,id LIMIT ? OFFSET ?`;
@@ -111,6 +111,18 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
     eventId:r.canonical_event_id,eventStartAt:r.event_start_time},{now,maxAgeMs});
   const historicalReference=sport==="soccer"&&r.source==="PinnOdds"&&!temporal.currentDisplayEligible&&temporal.researchEligible&&now.getTime()-Date.parse(r.collected_at)<=7*3600000;
   if(!temporal.currentDisplayEligible&&!historicalReference)continue;
+  // Provenance belongs to the provider's full-book transactTime, not FBIS
+  // collection time. A recorded WS BBO is observable, NOT a fillable order.
+  const sourceTimedBbo=r.source==='Polymarket US WebSocket'&&
+    payload?.quoteKind==='WS_LIVE_BBO_UNVERIFIED_FILL'&&
+    payload?.contractBindingVerified===true&&
+    typeof payload?.sourceObservedAt==='string'&&
+    payload.sourceObservedAt===providerObservedAt&&
+    typeof r.source_market_id==='string'&&r.source_market_id===payload.providerMarketId&&
+    typeof r.source_outcome_id==='string'&&r.source_outcome_id===String(payload.providerOutcomeId||'')&&
+    raw?.bestAsk!=null&&r.contract_price!=null&&
+    Math.abs(raw.bestAsk-Number(r.contract_price))<0.00001&&
+    temporal.status==='CURRENT';
   arr.push({
     source:r.source,marketFamily:family,side:family==='total'&&/^(over|under)\b/i.test(side)?side.match(/^(over|under)/i)[1].toLowerCase():side,period,deliveryStore,
     historicalReference,line:binding?.line!=null?binding.line:family==='spread'&&payload?.contractLong===false&&payload?.sideSpecificLine!==true&&r.line!=null?-Number(r.line):r.line,contractPrice:r.contract_price==null?null:Number.isFinite(display)?display:null,
@@ -118,6 +130,10 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
     americanOdds:r.source==="PinnOdds"&&r.american_odds!=null?Number(r.american_odds):null,quoteKind:r.source==="PinnOdds"?"DECIMAL_BOOK_REFERENCE_NOT_EXECUTION_VERIFIED":r.source==="Polymarket US WebSocket"?"OBSERVED_BBO_NOT_GUARANTEED_FILL":"DISPLAY_REFERENCE_NOT_EXECUTABLE",
     sourceMarketId:r.source_market_id,sourceOutcomeId:r.source_outcome_id,observedAt:providerObservedAt,collectedAt:r.collected_at,
     sourceObservedAt:providerObservedAt,providerObservedAt,temporal,raw,
+    providerTimestampVerified:sourceTimedBbo,priceVerified:sourceTimedBbo,
+    marketAvailable:false,identityVerified:sourceTimedBbo,
+    observedReferenceCurrent:sourceTimedBbo,
+    quoteClockStatus:sourceTimedBbo?'PROVIDER_VERIFIED':'SOURCE_TIME_UNKNOWN',
     executionEligible:false,canQualify:false,canAuthorizeWager:false
   });
  }

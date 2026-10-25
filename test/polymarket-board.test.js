@@ -125,3 +125,49 @@ test('fresh history recovery reaches cards without retiming or overwriting newer
  const failed={prepare(){throw Error('primary-unavailable')}};
  assert.equal((await loadPolymarketUsBoardOffers(failed,[{id:'g'}],'nfl',{now:new Date('2026-10-18T06:00:00Z'),historyDb:make('2026-10-18T05:59:30Z',.58)})).available,true);
 });
+
+test('source-timed paired full-game websocket spread and total remain non-executable',async()=>{
+ const at='2026-10-25T17:58:30Z',now=new Date('2026-10-25T18:00:00Z');
+ const make=(market_family,side,source_outcome_id,contract_price)=>({
+  canonical_event_id:'g',sport:'nba',source:'Polymarket US WebSocket',market_family,
+  period:'full_game',side,line:market_family==='spread'?3.5:220.5,
+  source_market_id:'m-'+market_family,source_outcome_id,contract_price,
+  event_start_time:'2026-10-25T19:00:00Z',collected_at:'2026-10-25T17:59:00Z',
+  source_observed_at:at,raw_payload_json:JSON.stringify({
+    providerMarketId:'m-'+market_family,providerOutcomeId:source_outcome_id,
+    contractBindingVerified:true,quoteKind:'WS_LIVE_BBO_UNVERIFIED_FILL',
+    sourceObservedAt:at,bestAsk:contract_price,bestBid:contract_price-.02,
+    canonicalSide:market_family==='spread'?side:null
+  })
+ });
+ const rows=[make('spread','home','a',.54),make('spread','away','b',.49),
+  make('total','over','c',.53),make('total','under','d',.5)];
+ let query='';
+ const db={prepare(sql){query=sql;return {bind(){return{all:async()=>({results:rows})}}}}};
+ const found=await loadPolymarketUsBoardOffers(db,[{id:'g'}],'nba',{now,fullGameOnly:true});
+ assert.match(query,/period='full_game'/);
+ assert.doesNotMatch(query,/AND market_family='moneyline'/);
+ assert.equal(found.byId.get('g').length,4);
+ for(const o of found.byId.get('g')){
+  assert.equal(o.providerTimestampVerified,true);
+  assert.equal(o.priceVerified,true);
+  assert.equal(o.observedReferenceCurrent,true);
+  assert.equal(o.marketAvailable,false);
+  assert.equal(o.executionEligible,false);
+  assert.equal(o.canAuthorizeWager,false);
+ }
+});
+test('collector capture time and lite/unverified payloads are never promoted to source clock',async()=>{
+ const date='2026-10-25T17:59:00Z';
+ const db={prepare(){return{bind(){return{all:async()=>({results:[{
+  canonical_event_id:'g',source:'Polymarket US WebSocket',sport:'nba',
+  market_family:'total',period:'full_game',side:'over',contract_price:.51,
+  source_market_id:'m',source_outcome_id:'a',
+  collected_at:date,source_observed_at:null,
+  raw_payload_json:JSON.stringify({providerMarketId:'m',providerOutcomeId:'a',
+    quoteKind:'WS_LIVE_BBO_UNVERIFIED_FILL',bestAsk:.51,sourceObservedAt:null})
+ }]})}}}}};
+ const x=await loadPolymarketUsBoardOffers(db,[{id:'g'}],'nba',{now:new Date('2026-10-25T18:00:00Z')});
+ assert.equal(x.byId.get('g')[0].observedReferenceCurrent,false);
+ assert.equal(x.byId.get('g')[0].providerTimestampVerified,false);
+});
