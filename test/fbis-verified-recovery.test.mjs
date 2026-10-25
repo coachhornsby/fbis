@@ -22,6 +22,17 @@ test('archive rematch requires a preexisting fresh zero-match source receipt',()
  {kind:'board',sportId:2,feed:'prematch',snapshotId:'safe-3',normalizedRows:30,matchedRows:0,collectedAt:new Date(time-49*3600000).toISOString()}];
  assert.deepEqual(chooseArchivedSnapshots({ok:true,results:rows},['tennis'],{now:time}).map(r=>r.snapshotId),['safe-1']);
 });
+test('archive recovery independently selects one latest eligible receipt for each of two sports',()=>{
+ const row=(sportId,snapshotId,minutes)=>({
+  kind:'board',feed:'prematch',sportId,snapshotId,normalizedRows:15,matchedRows:0,
+  reconciled:true,collectedAt:new Date(time-minutes*60000).toISOString()
+ });
+ const candidates=[row(3,'nba-old',40),row(2,'tennis-new',30),row(3,'nba-new',10),
+  row(2,'tennis-old',120),row(5,'other-sport',5)];
+ const selected=chooseArchivedSnapshots({ok:true,results:candidates},['nba','tennis'],{now:time});
+ assert.deepEqual(selected.map(r=>r.snapshotId),['nba-new','tennis-new']);
+ assert.equal(selected.length,2);
+});
 test('repair runner posts approved forecast once and rematches archived receipts, never provider capture',async()=>{
  const calls=[];
  const fetchImpl=async(url,opts={})=>{

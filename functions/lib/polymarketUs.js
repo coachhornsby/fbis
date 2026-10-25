@@ -42,7 +42,7 @@ export function marketEventStart(e={}){
   return e.startTime||e.eventDate||e.startDate||e.gameStartTime||null;
 }
 function normName(x){return CLEAN(String(x??"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"")).replace(/\b(the|club|fc|football|basketball|baseball|hockey|team)\b/g,"").replace(/\s+/g," ").trim();}
-const GENERIC_TEAM_TOKENS=new Set(["city","united","town","club","athletic","sporting","real","international","national","state","university","college","rovers"]);
+const GENERIC_TEAM_TOKENS=new Set(["city","united","town","club","athletic","sporting","real","international","national","state","university","college","rovers","home","away"]);
 function teamMatches(a,b,abbr){
   const x=normName(a), y=normName(b);
   if(!x||!y)return false;
