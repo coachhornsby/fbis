@@ -27,7 +27,7 @@ function observation(k,at,win,lose){
   winnerSourceId:win,loserSourceId:lose,
   winnerStats:{svpt:70,'1stIn':40,'1stWon':30,'2ndWon':16,ace:3,df:1},
   loserStats:{svpt:65,'1stIn':34,'1stWon':24,'2ndWon':18,ace:4,df:2}};
- sql.prepare('INSERT INTO tennis_free_current_observations VALUES(?,?,?,?)')
+ sql.prepare('INSERT INTO tennis_free_current_observations(observation_key,source_event_key,observed_at,parsed_json) VALUES(?,?,?,?)')
  .run(k+'|'+at,k,at,JSON.stringify(data));
 }
 test('only unique exact tour-specific canonical identities are linked',async()=>{
