@@ -83,10 +83,11 @@ test('date-only source coverage is conservatively bounded at next UTC midnight, 
 });
 test('offset feature captures use UTC calendar day in window filtering and immutable object key',async()=>{
  const localCapture='2026-10-24T23:30:00-05:00'; // October 25 UTC
- const p={...packet([row('2026-10-23'),row('2026-10-24',2)]),observedAt:'2026-10-24T18:00:00-05:00'};
+ const p={...packet([row('2026-10-23'),row('2026-10-24',2),row('2026-10-25',3)]),observedAt:'2026-10-24T18:00:00-05:00'};
  const evidence=buildMlbModelFeatures({packets:[p],playerId:'1',role:'pitcher',capturedAt:localCapture});
  assert.equal(evidence.throughExclusive,'2026-10-25');
- assert.equal(evidence.windows[0].splits[0].pitches,1);
+ // UTC Oct 24 is prior-day evidence; UTC Oct 25 remains excluded.
+ assert.equal(evidence.windows[0].splits[0].pitches,2);
  let stored;
  await persistMlbModelFeatures({ARCHIVE:{put:async (...args)=>{stored=args;}}},{packets:[p],playerId:'1',role:'pitcher',capturedAt:localCapture});
  assert.match(stored[0],/\/2026-10-25\/[a-f0-9]{64}\.json$/);
