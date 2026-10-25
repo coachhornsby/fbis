@@ -387,8 +387,8 @@ jobs:
             call cfb-core-shadow-settle
             call cfb-core-shadow-freeze
             call cfb-core-weekly-evaluation
-            if [ "${CFBD_RATE_LIMITED:-0}" = "1" ]; then
-              echo "Shared provider 429: college acquisition degraded; no retries or cross-sport paid calls."
+            if [ "${CFBD_RATE_LIMITED:-0}" = "1" ] || [ "${CFBD_QUOTA_PAUSED:-0}" = "1" ]; then
+              echo "::error::CFBD/CBBD shared provider acquisition degraded or quota exhausted. Current data retained; research ingestion is NOT healthy."
               exit 1
             fi
           else
