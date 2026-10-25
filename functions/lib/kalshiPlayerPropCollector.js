@@ -156,7 +156,16 @@ export async function loadCapturedKalshiProps(env,{games,players,sport='all',ser
    const snap=await obj.json(),age=now-Date.parse(snap.capturedAt);
    if(!Array.isArray(snap.records)||!Number.isFinite(age)||age<0||(!historic&&!date&&age>2*3600000)){coverage.push({series,sport:s,status:'STALE'});continue;}
    coverage.push({series,sport:s,status:snap.paginationComplete?'CAPTURED':'PARTIAL',capturedAt:snap.capturedAt,records:snap.records.length,historical:historic});
-   for(const raw of snap.records){const mapped=mapKalshiPlayerContract(raw,{games,players,capturedAt:snap.capturedAt,seriesTicker:series});if(!mapped)continue;if(mapped.rejected)rejected.push(mapped);else if(date || Date.parse(mapped.start_time)>now){
+   for(const raw of snap.records){const mapped=mapKalshiPlayerContract(raw,{games,players,capturedAt:snap.capturedAt,seriesTicker:series});
+    if(!mapped || mapped.rejected){
+      rejected.push({id:String(raw.ticker||''),series,sport:s,provider:'Kalshi',
+        source:'Kalshi REST',rawTitle:String(raw.title||raw.yes_sub_title||'').slice(0,240),
+        line:raw.floor_strike??null,observedAt:null,collectedAt:snap.capturedAt,
+        reason:mapped?.reason||'PLAYER_OR_EVENT_IDENTITY_UNVERIFIED',
+        identityVerified:false,marketAvailable:false,canAuthorizeWager:false});
+      continue;
+    }
+    if(date || Date.parse(mapped.start_time)>now){
      rows.push(mapped);
      const noAsk=Number(raw.no_ask_dollars),yesBid=Number(raw.yes_bid_dollars),yesBidSize=Number(raw.yes_bid_size_fp);
      if(raw.no_ask_dollars!=null&&raw.yes_bid_dollars!=null&&noAsk>0&&noAsk<1&&Math.abs(noAsk-(1-yesBid))<0.00001&&yesBidSize>0)
