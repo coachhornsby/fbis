@@ -1165,3 +1165,5 @@
   color-mix(in srgb,var(--cgc-gap-brand) 50%,var(--cgc-gap-secondary)) 48%,
   color-mix(in srgb,var(--cgc-gap-secondary) 65%,#071523) 100%)!important;
 }
+
+.cgc-model-below{display:block;color:#bedbe9;font-size:.72rem;font-weight:700;letter-spacing:.02em;margin-top:4px}
