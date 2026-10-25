@@ -68,7 +68,7 @@ test('GitHub raw Gamma handoff revalidates independently verified fixture and ro
   now,providedEvents:[{...event,teams:[{ordering:'away',abbreviation:'phi'},{ordering:'home',abbreviation:'det'}],markets:[market]}],
   fetchImpl:async()=>{throw Error('Unexpected provider fetch')}
  });
- assert.equal(bad.contracts,0);assert.equal(bad.errors[0].code,'EVENT_IDENTITY_UNRESOLVED');
+ assert.equal(bad.latestCaptureRows,0);assert.equal(bad.contracts,2);assert.equal(bad.errors[0].code,'EVENT_IDENTITY_UNRESOLVED');
 });
 
 test('NBA ESPN abbreviation aliases resolve Gamma matching only with exact teams',()=>{
