@@ -6,7 +6,7 @@ import { kalshiSignedReadProxy } from './kalshiSignedCollector.js';
 const ROOT='player-props/kalshi/v1/';
 // A page budget controls one invocation, not completeness. A series resumes
 // from its saved cursor instead of discarding unvisited player thresholds.
-const PROGRESS_TTL_MS=45*60*1000;
+const PROGRESS_TTL_MS=90*60*1000;
 const chicagoDay = instant => new Intl.DateTimeFormat('en-CA',{
  timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'
 }).format(new Date(instant));
@@ -17,7 +17,7 @@ function ruleStart(primary){
  const time=Date.parse(m[1]+' '+m[2]+' GMT'+(m[3]==='EDT'?'-0400':'-0500'));
  return Number.isFinite(time)?time:null;
 }
-export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fetch,webCrypto=crypto,maxSeries=6,maxPages=5}={}) {
+export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fetch,webCrypto=crypto,maxSeries=6,maxPages=5,signedProxy=null}={}) {
  if(!env.ARCHIVE?.get||!env.ARCHIVE?.put)return {ok:false,code:'ARCHIVE_BINDING_MISSING'};
  const previous=await env.ARCHIVE.get(ROOT+'status.json');const status=previous?await previous.json():null;
  if(Date.parse(status?.nextAllowedAt)>now.getTime())return {ok:true,status:'NOT_DUE',records:0};
@@ -26,7 +26,7 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
  const available=new Set(catalog.records.map(r=>r.ticker));const series=Object.keys(KALSHI_PROP_SERIES).filter(s=>available.has(s));
  const offset=Number.isInteger(status?.nextOffset)?status.nextOffset%Math.max(1,series.length):0;
  const selected=Array.from({length:Math.min(maxSeries,series.length)},(_,i)=>series[(offset+i)%series.length]);
- const proxy=kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});const receipts=[],nbaCaptures=[];
+ const proxy=signedProxy||kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});const receipts=[],nbaCaptures=[];
  for(const ticker of selected){
   try {
    const progressKey=ROOT+'progress/'+ticker+'.json';
