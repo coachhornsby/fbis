@@ -28,7 +28,7 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
   try {
    let cursor='',pages=0,complete=false,rateLimited=false;const records=[],seen=new Set(),cursors=new Set();
    do {
-    const q=new URLSearchParams({series_ticker:ticker,status:'open',limit:'1000'});if(cursor)q.set('cursor',cursor);
+    const q=new URLSearchParams({series_ticker:ticker,status:'open',mve_filter:'exclude',limit:'1000'});if(cursor)q.set('cursor',cursor);
     const response=await proxy('https://external-api.kalshi.com/trade-api/v2/markets?'+q,{method:'GET'});
     if(response.status===429){rateLimited=true;break;}
     if(!response.ok)throw Error('HTTP_'+response.status);
