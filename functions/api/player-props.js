@@ -11,7 +11,7 @@ import {
   normalizeProPropSport,
 } from "../lib/proPlayerProps.js";
 
-const PROP_RESEARCH_SPORTS=Object.freeze([...PRO_PLAYER_PROP_SPORTS,"soccer"]);
+const PROP_RESEARCH_SPORTS=Object.freeze([...PRO_PLAYER_PROP_SPORTS]);
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -273,7 +273,7 @@ export async function onRequestGet(context) {
   )];
   if (eventIds.length > 80) return json({ok:false,error:"EVENT_BATCH_TOO_LARGE",maxEvents:80,rows:[]},400);
   const requestedSport = str(url.searchParams.get("sport"));
-  const sportParam = normalizeProPropSport(requestedSport) || (requestedSport?.toLowerCase()==="soccer"?"soccer":null);
+  const sportParam = normalizeProPropSport(requestedSport);
   if (requestedSport && !sportParam) return json({ok:true,rows:[],sports:PROP_RESEARCH_SPORTS,diagnostics:{checkedEvents:eventIds.length,absenceReason:"UNSUPPORTED_PROP_SPORT"}});
   const dateParam = str(url.searchParams.get("date"));
 
@@ -335,7 +335,7 @@ export async function onRequestGet(context) {
            FROM action_market_book_observations
           WHERE canonical_event_id IN (${placeholders})
             AND (canonical_player_id IS NOT NULL OR provider_player_id IS NOT NULL)
-            AND LOWER(sport) IN ('mlb','nfl','nba','wnba','nhl','tennis')
+            AND LOWER(sport) IN ('mlb','nfl','nba','nhl','tennis')
             AND COALESCE(decision_eligible, 0) = 0
             AND COALESCE(can_qualify, 0) = 0
             AND COALESCE(can_authorize_wager, 0) = 0
@@ -382,7 +382,8 @@ export async function onRequestGet(context) {
     const sourceStatus = await propSourceStatus(context.env.DB);
     sourceStatus.push({source:"prizepicks_free_mirror",state:freeMirrorArchiveFallbackRows?"ARCHIVED_REFERENCE":freeMirrorError?"ERROR":!freeSupported?"UNSUPPORTED":Number(mirrorCoverage?.n||0)>0?"CAPTURED":"NOT_COLLECTED",reason:freeMirrorArchiveFallbackRows?"IMMUTABLE_R2_SNAPSHOT_NOT_LIVE_VERIFIED":freeMirrorError?"FREE_MIRROR_READ_FAILED":!freeSupported?"SPORT_NOT_PUBLISHED_BY_FREE_MIRROR":Number(mirrorCoverage?.n||0)>0?"DAILY_SNAPSHOT_NOT_LIVE_VERIFIED":"NO_DURABLE_FREE_MIRROR_CAPTURE",lastCollectedAt:mirrorCoverage?.collected_at||null,publisherCapturedAt:mirrorCoverage?.observed_at||null});
     sourceStatus.push({source:"pinnodds",state:pinnoddsError?"ERROR":pinnoddsRows.length?"CAPTURED":"NO_EVENT_PROPS",reason:pinnoddsError?"PINNODDS_PROP_READ_FAILED":"PROVIDER_QUOTE_CLOCK_UNKNOWN"});
-    const rows = [...actionRows, ...prizePicksRows, ...freeMirrorRows,...pinnoddsRows].map(row => {
+    const rows = [...actionRows, ...prizePicksRows, ...freeMirrorRows,...pinnoddsRows]
+      .filter(row => PROP_RESEARCH_SPORTS.includes(String(row.sport || "").toLowerCase())).map(row => {
       const temporal=marketTemporalStatus({source:row.book,providerObservedAt:row.sourceObservedAt,
         collectedAt:row.collectedAt,eventId:row.fbisEventId},{now:checkedAt,maxAgeMs:row.provider==='PINNODDS'?45*60*1000:24*60*60*1000});
       if(row.provider==='PRIZEPICKS_FREE_MIRROR')Object.assign(temporal,{
