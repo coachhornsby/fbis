@@ -412,3 +412,64 @@ test("late-arrival pass reports behind-cursor rows without moving primary cursor
   assert.equal(result.deletion?.includes("NOT_PERFORMED") || result.deletion == null || true, true);
   assert.equal(result.canAuthorizeWager, false);
 });
+
+test('idle archive run re-reads checkpoint R2 bytes and restores a D1 sample; missing or corrupt evidence fails', async () => {
+  const source = fullRow({collected_at:'2026-10-23T09:00:00.000Z'});
+  const body = {partition:'MARKET_HISTORY_2026Q4', binding:'MARKET_HISTORY_2026Q4_DB',
+    columnCount:50, rowCount:1, observations:[projectObservationForArchive(source)]};
+  const original = JSON.stringify(body);
+  let stored = original, live = source, reads = 0;
+  const checkpoint = {last_collected_at:source.collected_at, last_id:source.id,
+    last_object_key:'checkpoint.json', last_content_sha256:sha256Hex(original), archived_total:1};
+  const db = {prepare(sql) {
+    if(sql.includes('CREATE TABLE')) return {async run(){}};
+    return {bind(...args){return {
+      async first(){
+        if(sql.includes('FROM fbis_market_history_archive_checkpoint'))
+          return String(args[0]).includes('lease') ? null : checkpoint;
+        if(sql.includes('WHERE id=?')) return live;
+        if(sql.includes('COUNT(*)')) return {n:0};
+        return null;
+      },
+      async all(){return {results:[]};},
+      async run(){throw Error('idle checkpoint must not advance');}
+    };}};
+  }};
+  // Lease acquisition is a separate write; use an unexpired lease-free stub.
+  const prepare = db.prepare;
+  db.prepare = function(sql) {
+    if(sql.includes('INSERT INTO fbis_market_history_archive_checkpoint') || sql.includes('UPDATE fbis_market_history_archive_checkpoint'))
+      return {bind(){return {async run(){}};}};
+    return prepare.call(this,sql);
+  };
+  const env = {MARKET_HISTORY_2026Q4_DB:db, ARCHIVE:{
+    async get(key){assert.equal(key,'checkpoint.json'); reads++; return stored == null ? null : {async text(){return stored;}};},
+    async put(){throw Error('idle run must not copy archive');}
+  }};
+  const run = () => archiveAndVerifyColdMarketHistory(env,{now:new Date('2026-10-25T20:00:00Z'),archiveWrites:true,verifyReadback:true});
+  const valid = await run();
+  assert.equal(valid.ok,true);
+  assert.equal(valid.archived,0);
+  assert.equal(reads,1);
+  assert.equal(valid.readbackVerified,true);
+  assert.equal(valid.fullColumnRestore.ok,true);
+  assert.equal(valid.checkpoint.lastId,source.id);
+  stored = null;
+  assert.equal((await run()).readbackVerified,false);
+  stored = original+' ';
+  assert.equal((await run()).reason,'CHECKPOINT_ARCHIVE_HASH_MISMATCH');
+  stored = original;
+  live = {...source,raw_payload_json:'changed'};
+  const mismatch = await run();
+  assert.equal(mismatch.ok,false);
+  assert.equal(mismatch.fullColumnRestore.reason,'COLUMN_VALUE_MISMATCH');
+  live = null;
+  assert.equal((await run()).reason,'CHECKPOINT_SOURCE_SAMPLE_MISSING');
+  checkpoint.last_object_key = null;
+  const absent = await run();
+  assert.equal(absent.ok,false);
+  assert.equal(absent.readbackVerified,false);
+  assert.equal(absent.reason,'CHECKPOINT_ARCHIVE_EVIDENCE_MISSING');
+  assert.match(absent.deletion,/NOT_PERFORMED/);
+  assert.equal(absent.canAuthorizeWager,false);
+});
