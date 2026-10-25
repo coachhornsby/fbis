@@ -7,6 +7,7 @@ import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
 import GameScoreDisplay, { MatchupCenterClock } from "./GameScoreDisplay.jsx";
+import { collegeTeamDisplay } from "../../lib/collegeTeamDisplay.js";
 import { formatLiveGameClock } from "../../lib/liveGameClock.js";
 import CfbCapturedMarket from "./CfbCapturedMarket.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
@@ -164,6 +165,8 @@ export default function CompactGameCard({ game, onOpen }) {
   const hasLiveScore = Boolean(vm.event?.live && finalAway != null && finalHome != null);
   const hasActualScore = hasFinalScore || hasLiveScore;
   const liveClock = formatLiveGameClock(game);
+  const collegeAway = collegeTeamDisplay(away, sportId);
+  const collegeHome = collegeTeamDisplay(home, sportId);
   const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
@@ -232,7 +235,7 @@ export default function CompactGameCard({ game, onOpen }) {
               <strong className="cgc-team-name cgc-team-name-mlb">{away.fullName || away.name || away.abbr || "—"}</strong>
             ) : (
               <>
-                <strong className={`cgc-team-name fbis-full-team-name${!away.abbr||away.abbr==="—"?" cgc-unresolved-school":""}`}>{away.fullName || away.name || away.abbr || "—"}</strong>
+                <strong className={`cgc-team-name fbis-full-team-name${collegeAway.mascot ? " fbis-college-team-name" : ""}${!away.abbr||away.abbr==="—"?" cgc-unresolved-school":""}`}>{collegeAway.mascot ? <><span className="fbis-college-school">{collegeAway.school}</span><span className="fbis-college-mascot">{collegeAway.mascot}</span></> : collegeAway.school}</strong>
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
@@ -250,7 +253,7 @@ export default function CompactGameCard({ game, onOpen }) {
               <strong className="cgc-team-name cgc-team-name-mlb">{home.fullName || home.name || home.abbr || "—"}</strong>
             ) : (
               <>
-                <strong className={`cgc-team-name fbis-full-team-name${!home.abbr||home.abbr==="—"?" cgc-unresolved-school":""}`}>{home.fullName || home.name || home.abbr || "—"}</strong>
+                <strong className={`cgc-team-name fbis-full-team-name${collegeHome.mascot ? " fbis-college-team-name" : ""}${!home.abbr||home.abbr==="—"?" cgc-unresolved-school":""}`}>{collegeHome.mascot ? <><span className="fbis-college-school">{collegeHome.school}</span><span className="fbis-college-mascot">{collegeHome.mascot}</span></> : collegeHome.school}</strong>
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}

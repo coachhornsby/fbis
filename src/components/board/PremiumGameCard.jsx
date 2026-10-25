@@ -11,6 +11,7 @@ import CfbProjectionReliability from "./CfbProjectionReliability.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
 import GameScoreDisplay, { MatchupCenterClock } from "./GameScoreDisplay.jsx";
+import { collegeTeamDisplay } from "../../lib/collegeTeamDisplay.js";
 import { formatLiveGameClock } from "../../lib/liveGameClock.js";
 import CfbCapturedMarket from "./CfbCapturedMarket.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
@@ -215,6 +216,8 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const hasLiveScore = Boolean(vm.event?.live && finalAway != null && finalHome != null);
   const hasActualScore = hasFinalScore || hasLiveScore;
   const liveClock = formatLiveGameClock(game);
+  const collegeAway = collegeTeamDisplay(away, sportId);
+  const collegeHome = collegeTeamDisplay(home, sportId);
   const tennis = game?.tennisProjection || {};
   const tennisTour = String(game?.tour || tennis.tour || "TENNIS").toUpperCase();
   const tennisRef = game?.market?.reference || {};
@@ -281,7 +284,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
               </div>
               <div>
                 <small>{game?.neutralSite ? "NEUTRAL SITE" : "AWAY"}</small>
-                <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
+                <strong className={`pgc-featured-name${collegeAway.mascot ? " fbis-college-team-name" : ""}`}>{collegeAway.mascot ? <><span className="fbis-college-school">{collegeAway.school}</span><span className="fbis-college-mascot">{collegeAway.mascot}</span></> : collegeAway.school}</strong>
                 {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(away, tennisTour)}</span> : null}
                 {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
                 <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" />
@@ -323,7 +326,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
               </div>
               <div>
                 <small>{game?.neutralSite ? "NEUTRAL SITE" : "HOME"}</small>
-                <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
+                <strong className={`pgc-featured-name${collegeHome.mascot ? " fbis-college-team-name" : ""}`}>{collegeHome.mascot ? <><span className="fbis-college-school">{collegeHome.school}</span><span className="fbis-college-mascot">{collegeHome.mascot}</span></> : collegeHome.school}</strong>
                 {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(home, tennisTour)}</span> : null}
                 {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
                 <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} variant="featured" />

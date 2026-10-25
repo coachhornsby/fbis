@@ -318,6 +318,9 @@ function teamPayload(c) {
       : "—";
   return {
     name: team.displayName || team.name || "TBD",
+    // ESPN location and name are official display fields (not identity-matching keys).
+    school: team.location || null,
+    nickname: team.name || null,
     abbr,
     logo: team.logo || "",
     score: num(c.score),

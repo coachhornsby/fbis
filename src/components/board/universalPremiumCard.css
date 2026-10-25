@@ -740,3 +740,62 @@
   align-items:center;
   flex-wrap:nowrap;
 }
+
+/* College identity: uniform school first / mascot second under team logo. */
+.fbis-shell-main .fbis-universal-premium .fbis-college-team-name{
+  display:flex!important;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px!important;
+  width:100%;
+  min-height:70px!important;
+  box-sizing:border-box;
+  text-align:center!important;
+  overflow:visible!important;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-school{
+  display:block;
+  width:100%;
+  font-size:inherit;
+  font-weight:950;
+  line-height:1.1;
+  color:#fff;
+  overflow-wrap:normal;
+  word-break:normal;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-mascot{
+  display:block;
+  width:100%;
+  font-size:clamp(12px,1.02vw,16px)!important;
+  font-weight:850;
+  line-height:1.15;
+  letter-spacing:.08em;
+  color:#bcdfff!important;
+  text-transform:uppercase;
+  text-shadow:0 1px 7px rgba(0,0,0,.7);
+  overflow-wrap:normal;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-college-team-name{
+  min-height:82px!important;
+  gap:4px!important;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-college-team-name .fbis-college-mascot{
+  font-size:clamp(13px,1.15vw,18px)!important;
+}
+@media(max-width:640px){
+  .fbis-shell-main .fbis-universal-premium .fbis-college-team-name{
+    min-height:66px!important;
+    gap:3px!important;
+  }
+  .fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-mascot{
+    font-size:11px!important;
+    letter-spacing:.04em;
+  }
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-college-team-name{
+    min-height:72px!important;
+  }
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-college-team-name .fbis-college-mascot{
+    font-size:12px!important;
+  }
+}
