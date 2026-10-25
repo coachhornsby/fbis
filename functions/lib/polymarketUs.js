@@ -6,7 +6,7 @@
  */
 export const POLY_US_API = "https://gateway.polymarket.us";
 export const FBIS_POLY_SPORTS = Object.freeze([
-  "nfl","cfb","cbb","nba","wnba","mlb","npb","kbo","nhl","soccer","tennis"
+  "nfl","cfb","cbb","nba","mlb","nhl","tennis"
 ]);
 const CLEAN = value => String(value??"").trim().toLowerCase().replace(/[^a-z0-9]+/g," ");
 const CODE_ALIASES = {tbr:"tb",tampa:"tb",sfg:"sf",sd:"sdp",wsn:"wsh",was:"wsh",kcr:"kc",az:"ari",chw:"cws"};
