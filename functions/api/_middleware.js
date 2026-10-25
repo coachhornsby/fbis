@@ -160,6 +160,29 @@ async function guardActionCollection(context, request, url) {
   return null;
 }
 
+// Retired sports have no live API collection or mutation authority. Historical
+// audit reads remain available on an explicit, narrow allowlist.
+const RETIRED_API_ROUTE = /^\/api\/(?:soccer-|wnba-|asian-baseball-|kbo-|npb-)/i;
+const RETIRED_HISTORY_READS = new Set([
+  "/api/asian-baseball-history-backfill",
+  "/api/asian-baseball-pregame-controlled",
+  "/api/soccer-pitchapi-export",
+  "/api/soccer-validation-evidence",
+  "/api/wnba-wager-decisions",
+  "/api/wnba-wager-grade",
+  "/api/wnba-wager-validation",
+  "/api/wnba-prop-grade",
+]);
+
+export function retiredSportApiGate(request) {
+  const path = new URL(request.url).pathname;
+  if (!RETIRED_API_ROUTE.test(path)) return null;
+  const method = String(request.method || "GET").toUpperCase();
+  if ((method === "GET" || method === "HEAD") && RETIRED_HISTORY_READS.has(path)) return null;
+  return json({ ok: false, error: "SPORT_RETIRED", canQualify: false,
+    canAuthorizeWager: false, historicalEvidencePreserved: true }, 410);
+}
+
 /**
  * API write-surface guard.
  *
@@ -173,6 +196,8 @@ export async function onRequest(context) {
   const request = context.request;
   const url = new URL(request.url);
   const method = String(request.method || "GET").toUpperCase();
+  const retiredResponse = retiredSportApiGate(request);
+  if (retiredResponse) return retiredResponse;
 
   // Product database routing is synchronous, but CORE cutover approvals live
   // in D1. Load the grant into THIS request's env before any route executes.
