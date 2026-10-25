@@ -1,3 +1,4 @@
+import {loadFittedRuntime,scoreFittedGame} from './mlbFittedRuntime.js';
 import {withArchivePlayerProfiles} from './mlbArchiveProjection.js';
 import { attachSoccerTeamBranding } from "./soccerTeamBranding.js";
 import {loadCfbFrozenUnitEvidence} from "./cfbPitFeatureDelivery.js";
@@ -173,9 +174,11 @@ export async function buildSlate(sport, date, env = {}) {
     const deep = attachMlbDeepShadow(enriched);
     const research = promoteMlbResearchToBoard(deep.games);
     const playerResearch = attachMlbPlayerProjectionResearch(research.games, withArchivePlayerProfiles(persistent,pitchMatchup.archiveProfilesByGameId));
+    const fittedIds=playerResearch.flatMap(g=>[g.homeSp?.id,g.awaySp?.id,...(g.playerProjectionRows||[]).map(p=>p.playerId)]).filter(Boolean);
+    const fittedRuntime=await loadFittedRuntime(env,new Date().toISOString(),fittedIds);
     next = {
       ...slate,
-      games: playerResearch,
+      games: playerResearch.map(game=>({...game,mlbFittedShadow:scoreFittedGame(game,fittedRuntime)})),
       research: {
         ...(slate.research || {}),
         mlbPersistentProfiles: {

@@ -1,0 +1,34 @@
+name: MLB fitted model live shadow
+on:
+  push:
+    branches: [main]
+    paths: [ops/triggers/mlb-fitted-models]
+  workflow_dispatch:
+  schedule:
+    - cron: '15 12 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: mlb-fitted-state
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require deployed fitted API
+        run: node scripts/verify-mlb-fitted-api.mjs
+      - name: Refresh whole-day-lagged state and capture current forecasts
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: node scripts/mlb-fitted-state-refresh.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mlb-fitted-state-${{ github.run_id }}
+          path: artifacts/mlb-fitted-state/
+          retention-days: 90
