@@ -2,13 +2,6 @@ name: WNBA possession challenger coefficient freeze
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/wnba-possession-challenger-freeze.mjs"
-      - "migrations/0080_wnba_possession_challenger_shadow.sql"
-      - ".github/workflows/wnba-possession-challenger-freeze.yml"
-
 permissions:
   contents: read
 
