@@ -1,0 +1,32 @@
+name: MLB frozen champion paired replay
+on:
+  push:
+    branches: [codex/mlb-champion-replay]
+    paths: [ops/triggers/mlb-champion-replay]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mlb-frozen-champion-replay
+  cancel-in-progress: false
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify immutable forecast and pairing contracts
+        run: node --test test/mlb-champion-replay.test.js test/mlb-fitted-runtime.test.js
+      - name: Replay fixed fitted models against archived pregame production forecasts
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: node scripts/mlb-frozen-champion-replay.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mlb-frozen-champion-replay-${{ github.run_id }}
+          path: artifacts/mlb-champion-replay/
+          retention-days: 90
