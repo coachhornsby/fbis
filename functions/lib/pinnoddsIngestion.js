@@ -76,6 +76,15 @@ async function normalizeFromArchivedRaw(env,receipt,{snapshotId,fixtureAsOf=null
    result={...result,...filtered,normalizedRows:filtered.rows.length,
      matchedRows:filtered.rows.length,ingestionScope:filtered.ingestionScope};
   }
+  // Only NEW policy-tagged captures exclude retired sports. Old receipts may
+  // still be replayed for historical evidence without changing source clocks.
+  if (receipt.activeSportsOnly === true) {
+   const allowed = new Set(['nfl', 'mlb', 'nba', 'nhl', 'cfb', 'cbb', 'tennis']);
+   const rows = result.rows.filter(row => allowed.has(String(row.sport || '').toLowerCase()));
+   result = { ...result, rows, normalizedRows: rows.length,
+    matchedRows: rows.filter(row => row.eventId).length,
+    retiredRowsExcluded: result.rows.length - rows.length };
+  }
   if(fixtureAsOf)for(const row of result.rows)Object.assign(row.raw,{postCaptureIdentityLink:true,identityLinkedAt:fixtureAsOf});
  }
  return result;
