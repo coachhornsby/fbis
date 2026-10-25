@@ -27,9 +27,7 @@ export const LEARNING_SPORTS = Object.freeze([
   "cfb",
   "cbb",
   "nba",
-  "wnba",
   "nhl",
-  "soccer",
 ]);
 
 const SUPPORTED = new Set(LEARNING_SPORTS);

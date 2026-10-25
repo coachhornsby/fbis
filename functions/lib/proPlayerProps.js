@@ -1,4 +1,4 @@
-export const PRO_PLAYER_PROP_SPORTS = Object.freeze(["mlb", "npb", "kbo", "cfb", "cbb", "tennis", "nfl", "nba", "wnba", "nhl"]);
+export const PRO_PLAYER_PROP_SPORTS = Object.freeze(["nfl", "mlb", "nba", "nhl", "cfb", "cbb", "tennis"]);
 
 export const PRO_PLAYER_PROP_MARKETS = Object.freeze({
   npb: ["strikeouts"],
@@ -325,11 +325,11 @@ export function normalizeProPropSport(raw) {
   if (sport === "wnba" || sport === "womens_national_basketball_association" || sport === "women_s_national_basketball_association") return "wnba";
   if (sport === "basketball" || sport === "national_basketball_association") return "nba";
   if (sport === "hockey" || sport === "national_hockey_league") return "nhl";
-  return PRO_PLAYER_PROP_SPORTS.includes(sport) ? sport : null;
+  return (PRO_PLAYER_PROP_SPORTS.includes(sport) || ["npb","kbo","wnba"].includes(sport)) ? sport : null;
 }
 
 export function isProPlayerPropSport(raw) {
-  return Boolean(normalizeProPropSport(raw));
+  return PRO_PLAYER_PROP_SPORTS.includes(normalizeProPropSport(raw));
 }
 
 export function canonicalizeProPlayerPropMarket(sportRaw, marketRaw) {

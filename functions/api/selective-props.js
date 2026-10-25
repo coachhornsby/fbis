@@ -191,10 +191,12 @@ export async function onRequestGet(context) {
   const date = s(url.searchParams.get("date")) || todayCt();
   const sport = s(url.searchParams.get("sport"))?.toLowerCase() || null;
   const mode = String(url.searchParams.get("mode") || (sport ? "sport" : "top25")).toLowerCase();
+  if (sport && sport !== "all" && !["nfl","mlb","nba","nhl","cfb","cbb","tennis"].includes(sport)) return json({ok:false,error:"SPORT_RETIRED_OR_UNSUPPORTED",rows:[]},400);
 
   const where = [
     "run_id IN (SELECT run_id FROM prizepicks_daily_acquisitions WHERE state='COMPLETE') AND julianday(collected_at) BETWEEN julianday('now','-24 hours') AND julianday('now')",
     "julianday(start_time)>=julianday(?) AND julianday(start_time)<julianday(?)",
+    "LOWER(sport) IN ('nfl','mlb','nba','nhl','cfb','cbb','tennis')",
     "fbis_projection IS NOT NULL",
     "line IS NOT NULL",
   ];
@@ -212,7 +214,7 @@ export async function onRequestGet(context) {
   const rows = (await context.env.DB.prepare(sql).bind(...bind).all())?.results || [];
   const candidates = normalizedRows(rows);
   const coverageRows = (await context.env.DB.prepare(
-    "SELECT LOWER(sport) AS sport, COUNT(*) AS lines, SUM(fbis_projection IS NOT NULL) AS projected FROM prizepicks_prop_lines WHERE " + where.slice(0,2).join(" AND ") + " GROUP BY LOWER(sport)"
+    "SELECT LOWER(sport) AS sport, COUNT(*) AS lines, SUM(fbis_projection IS NOT NULL) AS projected FROM prizepicks_prop_lines WHERE " + where.slice(0,3).join(" AND ") + " GROUP BY LOWER(sport)"
   ).bind(bounds.start,bounds.end).all())?.results || [];
 
   let selected;
