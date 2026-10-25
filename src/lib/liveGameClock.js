@@ -31,11 +31,11 @@ function formatBaseballInning(game, detail) {
   const rawStatus = game?.status;
   const rawInning = game?.statusInning ?? rawStatus?.inning ?? game?.statusPeriod ?? null;
   let inning = rawInning == null || rawInning === "" ? NaN : Number(rawInning);
-  const found = detail.match(/\${sym}(?:top|bottom|bot|middle|mid|end)\${sym}+(?:of\${sym}+)?(?:the\${sym}+)?(\${sym}{1,2})(?:st|nd|rd|th)?\${sym}/i);
+  const found = detail.match(/\b(?:top|bottom|bot|middle|mid|end)\s+(?:of\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\b/i);
   if (!Number.isInteger(inning) && found) inning = Number(found[1]);
   if (!Number.isInteger(inning) || inning < 1 || inning > 30) inning = null;
   const explicit = String(game?.statusInningHalf ?? rawStatus?.inningHalf ?? "").trim().toLowerCase();
-  const rawHalf = explicit || detail.match(/\${sym}(top|bottom|bot|middle|mid|end)\${sym}/i)?.[1]?.toLowerCase() || "";
+  const rawHalf = explicit || detail.match(/\b(top|bottom|bot|middle|mid|end)\b/i)?.[1]?.toLowerCase() || "";
   const half = rawHalf === "top" ? "TOP" : ["bottom","bot"].includes(rawHalf) ? "BOT"
     : ["middle","mid"].includes(rawHalf) ? "MID" : rawHalf === "end" ? "END" : null;
   if (half && inning) return `${half} · ${inningOrdinal(inning)}`;
