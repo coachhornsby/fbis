@@ -95,6 +95,8 @@ jobs:
         run: node --test test/nba-primary-source-key-coverage.test.mjs
       - name: Verify NBA PRIMARY archive is immutable and independently recoverable
         run: node --test test/nba-primary-retirement-archive.test.mjs
+      - name: Verify market-history archive readback and closed retention gates
+        run: node --test test/market-history-verified-archive.test.js test/market-history-archive-ops.test.js test/market-history-retention-rehearsal.test.js
       - name: Verify cold historical readers and original source storage contracts
         run: node --test test/cold-market-history.test.mjs test/storage-full-core.test.mjs test/storage-research-archive.test.mjs test/storage-capacity-daily.test.mjs
       - name: Syntax check Cloudflare Functions
