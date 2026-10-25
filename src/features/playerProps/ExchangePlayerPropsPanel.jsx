@@ -17,6 +17,7 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
   const [search,setSearch]=useState(()=>typeof window==='undefined'?'':new URLSearchParams(window.location.search).get('propPlayer')||''),[stat,setStat]=useState('all'),[side,setSide]=useState('all'),[selected,setSelected]=useState(null);
   const [state,setState]=useState({loading:true,rows:[],coverage:[],error:''});
   const [nbaFinalTotals,setNbaFinalTotals]=useState([]);
+  const [marketOnlyPage,setMarketOnlyPage]=useState(0);
   const sport=onSportFilterChange?sportFilter:localSport;
   useEffect(()=>{if(selectedDate)setDate(selectedDate);},[selectedDate]);
   const modelSports=sport==='all'||sport==='top25'?[...new Set([...(state.rows||[]).map(r=>r.sport),...(board?.games||[]).map(g=>g.sport)])].filter(s=>PROP_SPORTS.includes(s)).sort().join(','):sport;
@@ -78,6 +79,17 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
   const statCards=useMemo(()=>groupExchangePlayerStatCards(comparableRows),[comparableRows]);
   const rows=useMemo(()=>selectProjectedPropCards(statCards,{limit,distinctPlayers:compact}),[statCards,limit,compact]);
   const unmodeled=statCards.filter(r=>r.fbis_projection==null||r.independent!==true).length;
+  const marketOnly=useMemo(()=>(state.marketOnly||[]).filter(r=>
+    (provider==='all'||r.provider===provider) &&
+    (stat==='all'||r.canonical_market===stat||r.canonical_market==null) &&
+    (side==='all'||r.side===side||r.side==null) &&
+    (sport==='all'||sport==='top25'||r.sport===sport) &&
+    `${r.player_name||''} ${r.rawTitle||''} ${r.contractId||''} ${r.team||''}`
+      .toLowerCase().includes(search.toLowerCase())
+  ),[state.marketOnly,provider,stat,side,sport,search]);
+  const marketPages=Math.ceil(marketOnly.length/50);
+  const currentMarketPage=Math.min(marketOnlyPage,Math.max(0,marketPages-1));
+  const visibleMarketOnly=marketOnly.slice(currentMarketPage*50,(currentMarketPage+1)*50);
   const basketballWatermarks=useMemo(()=>basketballPropWatermarkCoverage(rows),[rows]);
 
   return <section className="pp-premium-page exchange-props-panel" aria-label="FBIS Player Props">
@@ -95,7 +107,7 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
     {state.error?<p role="alert">Player prop delivery failed: {state.error}</p>:null}
     {modelError?<p role="status">Model delivery: {modelError}</p>:null}
     {state.degraded?<p role="status">Coverage unknown: one or more observation stores could not be read completely.</p>:null}
-    {!state.loading&&!modelLoading&&!state.error&&!rows.length?<p className="pp-empty">{sport==="tennis" ? "No independent tennis player-stat projections available for these filters. Available tennis match/set/game exchange markets are shown separately below." : "No independent FBIS projections available for these filters. Contracts without a matched projection stay off the board."}</p>:null}
+    {!state.loading&&!modelLoading&&!state.error&&!rows.length?<p className="pp-empty">{sport==="tennis" ? "No independent tennis player-stat projections available for these filters. Available tennis match/set/game exchange markets are shown separately below." : "No independent FBIS projections available for these filters. Unmatched exchange markets appear in the market-only inventory below."}</p>:null}
     {!compact&&basketballWatermarks.total>0?<details className="pp-basketball-watermark-audit">
       <summary>Basketball team watermarks: {basketballWatermarks.resolved}/{basketballWatermarks.total} resolved
         {basketballWatermarks.unresolved ? ` · ${basketballWatermarks.unresolved} need team identity` : ' · all verified'}
@@ -105,8 +117,27 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
         <li key={i}>{x.sport.toUpperCase()} · {x.player||'Unknown player'} · team {x.team||'missing'} · {x.status.replaceAll('_',' ')}</li>)}</ul>:null}
     </details>:null}
     <div className="pp-card-grid pp-premium-grid exchange-prop-grid">{rows.map((r,i)=><FBISPlayerPropCard key={r.id} row={r} rank={compact?i+1:null} compact={compact} onResearch={setSelected}/>)}</div>
+    {!compact&&marketOnly.length>0?<details className="pp-board-coverage">
+      <summary>Exchange market-only inventory: {marketOnly.length} source observations without verified player/event identity</summary>
+      <p>These are exchange-source research records, not qualified model edges or executable quotes. An unmatched contract must never receive invented FBIS projections.</p>
+      <table className="exchange-prop-coverage"><thead><tr><th>Sport</th><th>Exchange</th><th>Source contract</th><th>Player / market</th><th>Threshold</th><th>Missing proof</th></tr></thead>
+        <tbody>{visibleMarketOnly.map((r,i)=><tr key={r.id||i}>
+          <td>{String(r.sport||'—').toUpperCase()}</td>
+          <td>{r.provider||'—'}</td>
+          <td>{r.contractId||'—'}</td>
+          <td>{r.rawTitle||`${r.player_name||'Unknown'} · ${r.canonical_market||'Unmapped'}`}</td>
+          <td>{r.line??'—'}</td>
+          <td>{(r.reason||[]).join(', ')||'Identity unverified'}</td>
+        </tr>)}</tbody>
+      </table>
+      {marketPages>1?<div className="exchange-market-pagination">
+        <button type="button" disabled={currentMarketPage===0} onClick={()=>setMarketOnlyPage(v=>Math.max(0,v-1))}>Previous</button>
+        <span>{currentMarketPage+1} / {marketPages}</span>
+        <button type="button" disabled={currentMarketPage>=marketPages-1} onClick={()=>setMarketOnlyPage(v=>Math.min(marketPages-1,v+1))}>Next</button>
+      </div>:null}
+    </details>:null}
     {!compact && sport==="tennis" ? <TennisExchangeResearch date={date} provider={provider} search={search} /> : null}
-    {!compact&&unmodeled>0?<p className="pp-board-coverage">{unmodeled} contract thresholds withheld: independent player/stat projections are not matched. Alternate thresholds for projected players are in player research.</p>:null}
+    {!compact&&unmodeled>0?<p className="pp-board-coverage">{unmodeled} contract thresholds withheld: independent player/stat projections are not matched. Unmatched contracts are listed separately as market-only research; alternate thresholds for projected players are in player research.</p>:null}
     {selected?<ExchangePlayerWorkspace row={selected} onClose={()=>setSelected(null)}/>:null}
     {!compact&&state.collectorCoverage?.length?<details><summary>Collector evidence and mapping</summary><p>Kalshi contracts captured: {state.collectorCoverage.reduce((n,c)=>n+(c.records||0),0)}. Only exact player/event/stat matches appear as cards.</p><table className="exchange-prop-coverage"><thead><tr><th>Series</th><th>Sport</th><th>Status</th><th>Captured</th></tr></thead><tbody>{state.collectorCoverage.map(c=><tr key={c.series}><td>{c.series}</td><td>{c.sport}</td><td>{c.status}</td><td>{c.capturedAt||'—'}</td></tr>)}</tbody></table></details>:null}
     {!compact&&state.coverage.length?<details><summary>Coverage by sport and exchange</summary><table className="exchange-prop-coverage"><thead><tr><th>Sport</th><th>Exchange</th><th>Verified quotes</th><th>Coverage</th><th>Model</th></tr></thead><tbody>{state.coverage.filter(c=>provider==='all'||provider===c.provider).map(c=><tr key={`${c.sport}-${c.provider}`}><td>{c.sport.toUpperCase()}</td><td>{c.provider}</td><td>{c.verifiedMarkets}</td><td>{c.status.replaceAll('_',' ')}</td><td>{modelRows.some(r=>r.sport===c.sport)?"Research projections":"No independent projection delivered"}</td></tr>)}</tbody></table></details>:null}
