@@ -204,6 +204,7 @@ export function latestMarketStateKey(offer = {}) {
 
 export function buildVerifiedCapacityPlan(live = {}) {
   const baseline = { ...MEASURED_Q4_BASELINE, ...live };
+  const historicalRates = !Array.isArray(live.hourlyRows);
   const rates = rowsPerHourFromSeries(baseline.hourlyRows);
   const forecast = forecastCapacityExhaustion({
     usedBytes: baseline.usedBytes,
@@ -226,11 +227,14 @@ export function buildVerifiedCapacityPlan(live = {}) {
     contract: "fbis-market-history-capacity-plan-v1",
     generatedAt: new Date().toISOString(),
     canAuthorizeWager: false,
+    measurementBasis: live.measuredAt ? "LIVE_PARTITION_SIZE" : "HISTORICAL_BASELINE",
+    ingestRateBasis: historicalRates ? "HISTORICAL_Q4_SCENARIO_NOT_CURRENT_GROWTH" : "SUPPLIED_MEASUREMENTS",
+    ingestRateMeasuredAt: historicalRates ? MEASURED_Q4_BASELINE.measuredAt : baseline.measuredAt,
     verifiedLiveWriters: {
       legacyMarketHistoryLastWriteAt: baseline.legacyLastWriteAt,
       liveTarget: baseline.liveWriterTarget,
       legacyWritesActive: false,
-      q4ReceivingLiveObservations: true,
+      q4ReceivingLiveObservations: baseline.liveWriterTarget === "MARKET_HISTORY_2026Q4",
     },
     measured: {
       ...baseline,
@@ -274,7 +278,7 @@ export function buildVerifiedCapacityPlan(live = {}) {
       verdict: "REJECTED_UNSUSTAINABLE",
     },
     operatorActions: [
-      "Keep WS writes on MARKET_HISTORY_2026Q4 only (legacy last write frozen).",
+      `Use the schema-ready, measured write resolver; reported target: ${baseline.liveWriterTarget}.`,
       "Upsert latest_market_state on every tick; coalesce D1 ledger inserts to 60s/price-move.",
       "Archive ticks older than the recommended hot window to R2 before any retention delete.",
       "Fail closed history writes at HIGH (85%) — do not wait for CRITICAL.",

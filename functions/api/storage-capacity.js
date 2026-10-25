@@ -6,12 +6,11 @@ import {
 } from "../lib/databaseOwnership.js";
 import { withOperationsWrite } from "../lib/operationsDb.js";
 import {
-  buildVerifiedCapacityPlan,
   MEASURED_Q4_BASELINE,
   forecastCapacityExhaustion,
   rowsPerHourFromSeries,
 } from "../lib/marketHistoryCapacity.js";
-import { MARKET_HISTORY_HOT_WINDOW_MS } from "../lib/databaseTopology.js";
+import { buildLiveMarketHistoryCapacityPlan, MARKET_HISTORY_HOT_WINDOW_MS } from "../lib/databaseTopology.js";
 
 /** Accurate D1 storage telemetry from the binding query metadata.
  * SQLite dbstat/page_count is not authorized on production D1.
@@ -190,8 +189,8 @@ export async function onRequestGet({ env, request } = {}) {
       };
       result.knownBoundD1Bytes += sizes[3];
     }
-    if (sizes[4] != null && Number.isSafeInteger(sizes[4]) && sizes[4] > 0) {
-      result.capacityPlan = buildVerifiedCapacityPlan({ usedBytes: sizes[5] ?? sizes[4] });
+    if (sizes[4] != null || sizes[5] != null) {
+      result.capacityPlan = await buildLiveMarketHistoryCapacityPlan(env);
     }
     let persisted = { ok: false, reason: "not-requested" };
     const url = request?.url ? new URL(request.url) : null;
