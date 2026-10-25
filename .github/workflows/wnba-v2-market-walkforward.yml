@@ -1,12 +1,6 @@
 name: WNBA v2 market walk-forward proof
 
 on:
-  push:
-    branches: ["feat/wnba-v2-proof"]
-    paths:
-      - "scripts/wnba-v2-market-walkforward.mjs"
-      - "functions/lib/wnbaFbisV2.js"
-      - ".github/workflows/wnba-v2-market-walkforward.yml"
   workflow_dispatch:
 
 permissions:
