@@ -17,6 +17,14 @@ const json=(body,status=200)=>new Response(JSON.stringify(body),{
 });
 const utcDay=(value,offset)=>new Date(Date.parse(value+"T12:00:00Z")+offset*86400000).toISOString().slice(0,10);
 const num=(x)=>Number.isFinite(Number(x))?Number(x):null;
+export function groupActivePolymarketLeagues(leagues=[]) {
+ const groups=new Map(FBIS_POLY_SPORTS.map(s=>[s,[]]));
+ for(const league of leagues){
+  const sport=classifyPolymarketUsLeague(league);
+  if(groups.has(sport))groups.get(sport).push(league.slug);
+ }
+ return groups;
+}
 export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(),
   maxLeaguesPerSport=3,maxEventsPerSport=6,maxMarketsPerEvent=8,maxOffers=300,maxOffersPerSport=14
 }={}){
@@ -27,11 +35,7 @@ export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(
  const games=await db.prepare("SELECT id,sport,date,start,home_name,away_name,home_abbr,away_abbr FROM games WHERE date BETWEEN ?1 AND ?2").bind(date,next).all();
  const tennisGames=await loadVerifiedTennisCandidates(db,[date+"T00:00:00Z",next+"T23:59:59Z"],{asOf:capturedAt});
  const source=await fetchPolymarketUsLeagues(fetchImpl,{maxPages:8});
- const leagueBySport=new Map(FBIS_POLY_SPORTS.map(s=>[s,[]]));
- for(const league of source.leagues){
-  const sport=classifyPolymarketUsLeague(league);
-  if(sport)leagueBySport.get(sport).push(league.slug);
- }
+ const leagueBySport=groupActivePolymarketLeagues(source.leagues);
  const report={ok:true,source:"POLYMARKET_US_PUBLIC",referenceApi:"https://gateway.polymarket.us",
   date,capturedAt,sourceLeagueCatalogueComplete:source.complete,
   allFbisSports:FBIS_POLY_SPORTS,states:[],attemptedOffers:0,inserted:0,
