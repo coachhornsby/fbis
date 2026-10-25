@@ -1,0 +1,46 @@
+name: CFB Tier3 projection source readiness
+on:
+  schedule:
+    - cron: "40 14 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - functions/lib/cfbTier3ProjectionReadiness.js
+      - functions/api/cfb-tier3-readiness.js
+      - test/cfb-tier3-projection-readiness.test.js
+      - .github/workflows/cfb-tier3-projection-readiness.yml
+permissions:
+  contents: read
+concurrency:
+  group: cfb-tier3-projection-readiness
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test test/cfb-tier3-projection-readiness.test.js
+      - name: Audit persisted private CFBD feature evidence
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          curl --fail-with-body -sS --retry 2 --max-time 45 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -o tier3.json https://fbis-myz.pages.dev/api/cfb-tier3-readiness
+          jq -e '.ok == true and .providerCalls == 0 and .projectionInputsChanged == false and .canAuthorizeWager == false and (.weekly|type=="array")' tier3.json
+          jq '{source,summary,weekly:[.weekly[]|{season,week,rows,identityMatched,receiptsBeforeKickoff,providerPublicationVerified,featureColumns,gate}]}' tier3.json > tier3-audit.json
+          cat tier3-audit.json >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-tier3-readiness
+          path: tier3-audit.json
+          retention-days: 30
+          if-no-files-found: ignore
