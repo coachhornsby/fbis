@@ -9,7 +9,7 @@ import { resolveNbaResearchOwnerDb } from './nbaResearchOwnerDb.js';
 const canonicalTeam = value => ({ SA:'SAS', NY:'NYK', GS:'GSW', NO:'NOP' }[String(value||'').toUpperCase()]||String(value||'').toUpperCase());
 const numeric = value => value==null||value===''||!Number.isFinite(Number(value))?null:Number(value);
 const validStat = new Set(['points','rebounds','assists','three_pointers_made','pra','points_rebounds','points_assists','rebounds_assists']);
-const normalizedName = value => String(value||'').normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const normalizedName = value => String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 export function mapNbaFrozenPregameModels(rows=[],players=[]) {
  const roster=new Map();
  for(const p of players){
@@ -27,7 +27,7 @@ export function mapNbaFrozenPregameModels(rows=[],players=[]) {
   const p=roster.get(id),team=canonicalTeam(r.team);
   const home=canonicalTeam(r.home_abbr),away=canonicalTeam(r.away_abbr);
   const opponent=team===home?away:team===away?home:null;
-  if(!/^\\d+$/.test(id)||!game||!p||!opponent||!validStat.has(market)||
+  if(!/^\d+$/.test(id)||!game||!p||!opponent||!validStat.has(market)||
    normalizedName(p.player_name)!==normalizedName(r.player_name)||
    canonicalTeam(p.team_key)!==team||projection==null||
    !Number.isFinite(started)||!Number.isFinite(created)||!Number.isFinite(cutoff)||
@@ -55,7 +55,7 @@ export function mapNbaFrozenPregameModels(rows=[],players=[]) {
  return out;
 }
 export async function loadNbaFrozenPregameModels(env,{date,players=[]}={}){
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(date||'')))return {rows:[],diagnostics:['NBA_FREEZE_DATE_INVALID']};
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||'')))return {rows:[],diagnostics:['NBA_FREEZE_DATE_INVALID']};
  const owner=await resolveNbaResearchOwnerDb(env);
  if(!owner.ok||!owner.db?.prepare)return {rows:[],diagnostics:['NBA_FREEZE_OWNER_UNAVAILABLE']};
  try{
