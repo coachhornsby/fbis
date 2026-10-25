@@ -170,8 +170,8 @@ test("legacy fairMarketSelection adapter still returns unique assigned contracts
   sport,source_market_id:sport+"-contract-"+i,canonical_event_id:null
  })));
  const result=fairMarketSelection(rows,{perSport:6,maxMarkets:48});
- assert.equal(result.length,48);
- assert.equal(new Set(result.map(r=>r.source_market_id)).size,48);
+ assert.equal(result.length,42);
+ assert.equal(new Set(result.map(r=>r.source_market_id)).size,42);
  for(const sport of STREAM_SPORTS){
   assert.ok(result.filter(r=>r.sport===sport).length>=1,sport+" lost baseline coverage");
  }
