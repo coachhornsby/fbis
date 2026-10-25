@@ -159,6 +159,8 @@ export default function CompactGameCard({ game, onOpen }) {
   const finalHome = game?.home?.score ?? home?.score ?? null;
   const hasFinalScore = isFinal && finalAway != null && finalHome != null;
   const hasLiveScore = Boolean(vm.event?.live && finalAway != null && finalHome != null);
+  const hasActualScore = hasFinalScore || hasLiveScore;
+  const scoreboardLabel = hasFinalScore ? "FINAL SCORE" : "LIVE SCORE";
   const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
@@ -216,7 +218,7 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       ) : null}
 
-      {isNhl && vm.event?.live ? (
+      {vm.event?.live ? (
         <section className="cgc-live-nhl-score" aria-label="Live NHL score">
           <span>LIVE SCORE · PRE-GAME FORECAST IS SHOWN BELOW</span>
           <strong>{hasLiveScore ? `${away.abbr} ${finalAway} – ${finalHome} ${home.abbr}` : "LIVE SCORE NOT AVAILABLE FROM FEED"}</strong>
@@ -245,8 +247,9 @@ export default function CompactGameCard({ game, onOpen }) {
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
-            <strong className="cgc-proj">{proj.available ? (proj.away ?? "—") : "—"}</strong>
-            <span>{stored ? "STORED PREGAME" : isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
+            <strong className="cgc-proj">{hasActualScore ? finalAway : proj.available ? (proj.away ?? "—") : "—"}</strong>
+            <span>{hasActualScore ? scoreboardLabel : stored ? "STORED PREGAME" : isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
+            {hasActualScore && proj.available ? <small className="cgc-model-below">FBIS PROJ {proj.away}</small> : null}
           </div>
 
           <span className="cgc-vs">VS</span>
@@ -261,8 +264,9 @@ export default function CompactGameCard({ game, onOpen }) {
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
-            <strong className="cgc-proj">{proj.available ? (proj.home ?? "—") : "—"}</strong>
-            <span>{stored ? "STORED PREGAME" : isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
+            <strong className="cgc-proj">{hasActualScore ? finalHome : proj.available ? (proj.home ?? "—") : "—"}</strong>
+            <span>{hasActualScore ? scoreboardLabel : stored ? "STORED PREGAME" : isNhl ? "PREGAME PROJ." : "FBIS SCORE"}</span>
+            {hasActualScore && proj.available ? <small className="cgc-model-below">FBIS PROJ {proj.home}</small> : null}
           </div>
         </div>
 
