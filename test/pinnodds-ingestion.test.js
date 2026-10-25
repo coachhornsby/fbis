@@ -209,3 +209,25 @@ test('fresh full-board archive retains canonical lines independently of forecast
  assert.equal((await consumePinnoddsSnapshot(env,{snapshotId,batchIndex:0})).inserted,4);
  assert.equal((await reconcilePinnoddsSnapshot(env,{snapshotId})).reconciled,true);
 });
+
+test('new mixed-baseball captures persist MLB only while immutable raw keeps NPB', async () => {
+ const snapshotId='active-only-board-6-prematch',at='2026-10-25T21:00:00Z',start='2026-10-26T00:00:00Z';
+ const receipt={ok:true,snapshotId,sportId:6,feed:'prematch',kind:'board',collectedAt:at,rawKey:'raw-active',
+  activeSportsOnly:true,projectionScope:'FBIS_MODELED_EVENTS_ONLY'};
+ const event=(id,league,home,away)=>({event_id:id,league_name:league,starts:start,home,away,
+  periods:{num_0:{money_line:{home:1.9,away:2.0}}}});
+ const rawBody={events:[event(1,'MLB','MLB Home','MLB Away'),event(2,'Japan NPB','NPB Home','NPB Away')]};
+ const games=[{id:'mlb-game',sport:'mlb',start,home_name:'MLB Home',away_name:'MLB Away'},
+  {id:'npb-game',sport:'npb',start,home_name:'NPB Home',away_name:'NPB Away'}];
+ const env=archiveEnv({receipt,rawKey:receipt.rawKey,rawBody,games});
+ const prepared=await preparePinnoddsSnapshot(env,{snapshotId});
+ assert.equal(prepared.normalizedRows,2);
+ assert.equal(prepared.retiredRowsExcluded,2);
+ assert.equal((await env.ARCHIVE.get('raw-active')).json instanceof Function,true);
+ const archive=JSON.parse(env._values.get('raw-active'));
+ assert.equal(archive.events.length,2);
+ const batch=await consumePinnoddsSnapshot(env,{snapshotId,batchIndex:0});
+ assert.equal(batch.inserted,2);
+ const normalized=JSON.parse(env._values.get('market-sources/pinnodds/normalized/'+snapshotId+'.json'));
+ assert.ok(normalized.rows.every(row=>row.sport==='mlb'));
+});
