@@ -5,12 +5,13 @@ name: CFB V2 Phase 4 prospective lifecycle
 # and source-verified grade passes from Oct 22 through Nov 20, 2026.
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ["CI", "FBIS college research"]
     types: [completed]
     branches: [main]
   schedule:
     - cron: "0 16 * * *"
     - cron: "0 19 * * *"
+    - cron: "30 02 * * *"
   workflow_dispatch:
 permissions:
   contents: read
@@ -106,7 +107,9 @@ jobs:
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}" || { echo "No operator secret"; exit 2; }
           today="$(date -u +%Y-%m-%d)"
-          if [[ "$today" < 2026-10-23 || "$today" > 2026-11-20 ]]; then
+          # Grading never has an artificial sunset: immutable frozen receipts
+          # can be settled long after the bounded pregame research window.
+          if [[ "$today" < 2026-10-23 ]]; then
             echo "No authorized prospective results to grade";exit 0
           fi
           mkdir -p sanitized
