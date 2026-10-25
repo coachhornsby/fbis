@@ -1,5 +1,5 @@
 import {readPinnoddsAccountUsage} from './pinnodds-account-usage.mjs';
-export const PINNODDS_CAPTURE_REQUESTS=15;
+export const PINNODDS_CAPTURE_REQUESTS=13;
 // PinnOdds public Trial REST tier is $0; its requests consume quota, not dollars.
 // The paid-Actor $0.70 ceiling applies to Apify, NOT to PinnOdds.
 export const PINNODDS_TRIAL_REST_COST_USD=0;
@@ -59,7 +59,7 @@ export async function reservePinnoddsRun(env,{runId,scope='full',now=new Date(),
  throw Error('RESERVATION_CONTENTION');
 }
 export async function capturePinnoddsSnapshot(env,{runId,kind,sportId=null,feed=null,fetchImpl=fetch,now=new Date()}={}){
- if(!valid(runId)||!['board','drops','health'].includes(kind)||kind!=='health'&&!['live','prematch'].includes(feed)||kind==='board'&&![1,2,3,4,5,6].includes(sportId))throw Error('INVALID_CAPTURE_SCOPE');
+ if(!valid(runId)||!['board','drops','health'].includes(kind)||kind!=='health'&&!['live','prematch'].includes(feed)||kind==='board'&&![2,3,4,5,6].includes(sportId))throw Error('INVALID_CAPTURE_SCOPE');
  const runObject=await env.R2_ARCHIVE.get(`${root}/runs/${runId}.json`);if(!runObject)throw Error('QUOTA_RESERVATION_REQUIRED');
  const reservation=await runObject.json();if(reservation.scope==='drops'&&kind!=='drops')throw Error('RESERVATION_SCOPE_MISMATCH');if(reservation.scope==='football'&&!(kind==='board'&&sportId===5&&feed==='prematch'))throw Error('RESERVATION_SCOPE_MISMATCH');if(reservation.scope==='football-drops'&&!(kind==='drops'||kind==='board'&&sportId===5&&feed==='prematch'))throw Error('RESERVATION_SCOPE_MISMATCH');if(reservation.day!==now.toISOString().slice(0,10))throw Error('RESERVATION_EXPIRED');
  const snapshotId=`${runId}-${kind}-${sportId||'all'}-${feed||'all'}`,receiptKey=`${root}/receipts/${snapshotId}.json`;
