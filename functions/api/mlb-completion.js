@@ -59,12 +59,14 @@ export async function onRequestPost(context){
 }
 
 export async function onRequestGet({env,request}){
- const date=new URL(request.url).searchParams.get('date')||new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const selectedDate=new URL(request.url).searchParams.get('date');
+ const date=selectedDate||new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  if(!validDay(date))return reply({ok:false,error:'Invalid date'},400);
  if(!env.ARCHIVE?.get)return reply({ok:false,error:'ARCHIVE_UNBOUND'},503);
  const months=[];for(const year of [2024,2025,2026])for(let n=3;n<=11;n++){const month=`${year}-${String(n).padStart(2,'0')}`;if(month>new Date().toISOString().slice(0,7))continue;const o=await env.ARCHIVE.get(`models/mlb/league/v1/months/${month}.json`);if(o){const m=await o.json();months.push({month,complete:m.complete,acquiredDays:m.days,expectedDays:m.expectedDays,missingDays:m.missingDays});}}
- const frozen=[],grades=[];
- if(env.ARCHIVE.list){const objects=await env.ARCHIVE.list({prefix:`models/mlb/evaluation/v1/${date}/`,limit:100});for(const entry of objects.objects){const f=await (await env.ARCHIVE.get(entry.key)).json();frozen.push({gameId:f.gameId,checkpoint:f.checkpoint,capturedAt:f.capturedAt,sourceHash:f.sourceHash,variants:Object.keys(f.predictions),lineupsOfficial:f.lineupsOfficial});const current=await env.ARCHIVE.get(`models/mlb/evaluation-grades/v1/${date}/${f.gameId}/${f.checkpoint}/current.json`);if(current){const p=await current.json(),g=await env.ARCHIVE.get(p.key);if(g)grades.push(await g.json());}}}
+ const frozen=[],grades=[],seen=new Set();let forecastListTruncated=false;
+ const evaluationPrefix='models/mlb/evaluation/v1/'+(selectedDate?date+'/':date.slice(0,4)+'-');
+ if(env.ARCHIVE.list){const objects=await env.ARCHIVE.list({prefix:evaluationPrefix,limit:1000});forecastListTruncated=objects.truncated===true;for(const entry of objects.objects){const f=await (await env.ARCHIVE.get(entry.key)).json(),storageDate=entry.key.slice('models/mlb/evaluation/v1/'.length).split('/')[0],dedupe=f.gameId+':'+f.checkpoint;if(seen.has(dedupe))continue;seen.add(dedupe);frozen.push({date:storageDate,gameId:f.gameId,checkpoint:f.checkpoint,capturedAt:f.capturedAt,sourceHash:f.sourceHash,variants:Object.keys(f.predictions),lineupsOfficial:f.lineupsOfficial});const current=await env.ARCHIVE.get(`models/mlb/evaluation-grades/v1/${storageDate}/${f.gameId}/${f.checkpoint}/current.json`);if(current){const p=await current.json(),g=await env.ARCHIVE.get(p.key);if(g)grades.push(await g.json());}}}
  const pointer=await env.ARCHIVE.get('models/mlb/evaluation/research/current.json');let historicalFit=null;if(pointer){const p=await pointer.json(),o=await env.ARCHIVE.get(p.key);if(o)historicalFit=await o.json();}
- return reply({ok:true,date,months,frozen,prospectiveReport:summarizeMlbAblations(grades),historicalFit,ssw:{available:false,reason:'No validated observed-versus-inferred spin-axis residual model in the connected feed.'},xra:{available:false,reason:'Expected-run target and calibrated estimator not validated.'},canPromote:false});
+ return reply({ok:true,date,reportScope:selectedDate?'SELECTED_DATE':'SEASON_TO_DATE',forecastListTruncated,months,frozen,prospectiveReport:summarizeMlbAblations(grades),historicalFit,ssw:{available:false,reason:'No validated observed-versus-inferred spin-axis residual model in the connected feed.'},xra:{available:false,reason:'Expected-run target and calibrated estimator not validated.'},canPromote:false});
 }
