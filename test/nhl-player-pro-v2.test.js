@@ -232,3 +232,33 @@ test("persistent NHL state suppresses fresh OUT but not last-game scratch",()=>{
   const b=nhlPlayerProV2RowsForSide(game,"home",out);
   assert.equal(b.some(r=>r.player.id==="1"),false);
 });
+
+test('official plural teamAbbrevs summaries reach the unchanged player model',async()=>{
+ const {loadNhlV1Context}=await import('../functions/lib/nhlFbisV1.js');
+ const {independentPropRows}=await import('../functions/lib/propResearchData.js');
+ // Field names and values from retained NHL official summary for 8473986.
+ const summary={playerId:8473986,skaterFullName:'Alex Killorn',positionCode:'L',
+  teamAbbrevs:'ANA',gamesPlayed:11,goals:2,assists:3,points:5,shots:19,timeOnIcePerGame:959.3636,powerPlayTimeOnIcePerGame:'01:23'};
+ const fetcher=async url=>Response.json(String(url).includes('/skater/summary')?{data:[summary]}:
+  String(url).includes('/team?')?{data:[{id:24,rawTricode:'ANA'}]}:{data:[],gameWeek:[]});
+ const ctx=await loadNhlV1Context('2026-10-25',[],{fetcher});
+ assert.equal(ctx.skatersByTeam.ANA[0].id,'8473986');
+ assert.equal(ctx.skatersByTeam.ANA[0].shotsPerGame,19/11);
+ assert.equal(ctx.skatersByTeam.ANA[0].toiPerGame,959.3636);
+ assert.equal(ctx.skatersByTeam.ANA[0].powerPlayToiPerGame,83);
+ const game={id:'source-fixture',sport:'nhl',start:'2026-10-26T02:00:00Z',home:{abbr:'ANA'},away:{abbr:'BOS'}};
+ const attached=attachNhlPlayerProjectionResearch([game],ctx);
+ const rows=independentPropRows({games:attached},{now:Date.parse('2026-10-25T12:00:00Z')});
+ assert.equal(rows.length,4);
+ assert.equal(rows.every(r=>r.canonicalPlayerId==='nhl:nhl:8473986'),true);
+ assert.equal(rows.every(r=>r.modelAsOf&&r.canAuthorizeWager===false),true);
+ assert.deepEqual(new Set(rows.map(r=>r.canonical_market)),new Set(['shots_on_goal','goals','assists','points']));
+});
+test('plural teamAbbrevs never assigns a multi-team season total to one club',async()=>{
+ const {loadNhlV1Context}=await import('../functions/lib/nhlFbisV1.js');
+ const fetcher=async url=>Response.json(String(url).includes('/skater/summary')?{data:[
+  {playerId:1,skaterFullName:'Multi team',teamAbbrevs:'ANA, BOS',gamesPlayed:10,shots:20}
+ ]}:{data:[],gameWeek:[]});
+ const ctx=await loadNhlV1Context('2026-10-25',[],{fetcher});
+ assert.deepEqual(ctx.skatersByTeam,{});
+});
