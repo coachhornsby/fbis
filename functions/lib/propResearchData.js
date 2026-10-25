@@ -84,6 +84,7 @@ export function joinIndependentPropModels(markets,models) {
   const p=matches[0];used.add(p.id);
   return {...m,fbis_projection:p.fbis_projection,sigma:p.sigma,modelId:p.modelId,modelVersion:p.modelVersion,modelAsOf:p.modelAsOf,
    independent:true,dataAcceptance:p.dataAcceptance,modelStatus:p.modelStatus,availabilityStatus:p.availabilityStatus,features:p.features,researchInputs:p.researchInputs,validationStatus:p.validationStatus,
+   historicalPregame:p.historicalPregame===true,modelAsOf:p.modelAsOf,
    projectionDelta:p.fbis_projection-m.line,reasons:[...m.reasons.filter(r=>r!=='MODEL_UNAVAILABLE'),'THRESHOLD_CALIBRATION_REQUIRED']};
  });
  return [...rows,...models.filter(p=>!used.has(p.id))];

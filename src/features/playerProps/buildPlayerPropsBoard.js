@@ -960,7 +960,8 @@ export function selectProjectedPropCards(rows=[],{limit=100,distinctPlayers=fals
   return prices.length?Math.min(...prices.map(p=>Math.abs(Number(p)-.5))):1;
  };
  for(const r of rows){
-  if(!finite(r.fbis_projection)||r.independent!==true||r.dataAcceptance?.displayReady===false)continue;
+  if(!finite(r.fbis_projection)||r.independent!==true||
+   (r.dataAcceptance?.displayReady===false&&r.historicalPregame!==true))continue;
   const key=[r.sport,r.canonicalEventId,r.canonicalPlayerId,r.canonical_market==='pra'?'points_rebounds_assists':r.canonical_market,r.period].join('|');
   if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);
  }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { topThreeGamePlayerProps } from "./topGamePlayerProps.js";
 import { joinIndependentPropModels } from "../../../functions/lib/propResearchData.js";
+import { nbaActualForMarket } from "../../../functions/lib/nbaOfficialPropTotals.js";
 import FBISPlayerPropCard from "./FBISPlayerPropCard.jsx";
 import "./topGameProps.css";
 
@@ -79,16 +80,21 @@ export default function TopGameProps({ game }) {
     Promise.all([
       read(`/api/exchange-player-props?${query}`),
       read(`/api/prop-projections?${query}`),
-    ]).then(([contracts, models]) => {
+      sport==='nba'?read('/api/nba-prop-actuals?'+new URLSearchParams({date,eventId:gameId})).catch(()=>[]):Promise.resolve([]),
+    ]).then(([contracts, models, official]) => {
       if (controller.signal.aborted) return;
       const joined = joinIndependentPropModels(
         contracts.filter(p => p.canonicalEventId === gameId && p.identityVerified === true &&
           ["Kalshi", "Polymarket"].includes(p.provider) && p.line != null),
         models.filter(p => p.canonicalEventId === gameId && p.independent === true),
       );
+      const actuals=new Map(official.filter(r=>r.officialVerified===true)
+        .map(r=>[r.eventId+'|'+r.canonicalPlayerId,r]));
       setExchangeProps(joined.filter(p => p.provider && p.fbis_projection != null)
         .map(p => ({
           ...p,
+          officialActual:nbaActualForMarket(actuals.get(p.canonicalEventId+'|'+p.canonicalPlayerId),p.canonical_market),
+          officialActualVerified:actuals.has(p.canonicalEventId+'|'+p.canonicalPlayerId),
           canonicalEventId: p.canonicalEventId, canonicalPlayerId: p.canonicalPlayerId,
           playerName: p.player_name, team: p.team, marketCanonical: p.canonical_market,
           line: p.line, fbisProjection: p.fbis_projection, fbisSigma: p.sigma,

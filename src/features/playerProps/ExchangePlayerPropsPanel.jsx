@@ -7,6 +7,7 @@ import { selectProjectedPropCards, buildVenueComparisonRows, groupExchangePlayer
 import ExchangePlayerWorkspace from './ExchangePlayerWorkspace.jsx';
 import TennisExchangeResearch from './TennisExchangeResearch.jsx';
 import { basketballPropWatermarkCoverage } from '../../../functions/lib/basketballPropTeam.js';
+import { nbaActualForMarket } from '../../../functions/lib/nbaOfficialPropTotals.js';
 
 function today() { return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); }
 export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',onSportFilterChange,compact=false,limit=100,selectedDate=null}) {
@@ -15,6 +16,7 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
   const [modelRows,setModelRows]=useState([]),[modelError,setModelError]=useState(''),[coverageFilter,setCoverageFilter]=useState('all'),[freshness,setFreshness]=useState('all');
   const [search,setSearch]=useState(()=>typeof window==='undefined'?'':new URLSearchParams(window.location.search).get('propPlayer')||''),[stat,setStat]=useState('all'),[side,setSide]=useState('all'),[selected,setSelected]=useState(null);
   const [state,setState]=useState({loading:true,rows:[],coverage:[],error:''});
+  const [nbaFinalTotals,setNbaFinalTotals]=useState([]);
   const sport=onSportFilterChange?sportFilter:localSport;
   useEffect(()=>{if(selectedDate)setDate(selectedDate);},[selectedDate]);
   const modelSports=sport==='all'||sport==='top25'?[...new Set([...(state.rows||[]).map(r=>r.sport),...(board?.games||[]).map(g=>g.sport)])].filter(s=>PROP_SPORTS.includes(s)).sort().join(','):sport;
@@ -45,7 +47,29 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
     });
     return()=>controller.abort();
   },[modelSports,date]);
-  const allRows=useMemo(()=>joinIndependentPropModels(state.rows,modelRows),[state.rows,modelRows]);
+  useEffect(()=>{
+    setNbaFinalTotals([]);
+    if(!['nba','all','top25'].includes(sport))return undefined;
+    const controller=new AbortController();
+    const load=async()=>{
+      try{
+        const res=await fetch('/api/nba-prop-actuals?'+new URLSearchParams({date}),{signal:controller.signal});
+        const body=await res.json();
+        if(!controller.signal.aborted)setNbaFinalTotals(res.ok&&body.ok?body.rows||[]:[]);
+      }catch{if(!controller.signal.aborted)setNbaFinalTotals([]);}
+    };
+    load();const timer=setInterval(load,120000);
+    return()=>{controller.abort();clearInterval(timer);};
+  },[sport,date]);
+  const actualIndex=useMemo(()=>new Map(nbaFinalTotals.filter(r=>r.officialVerified===true)
+    .map(r=>[r.eventId+'|'+r.canonicalPlayerId,r])),[nbaFinalTotals]);
+  const allRows=useMemo(()=>joinIndependentPropModels(state.rows,modelRows).map(r=>{
+    if(r.sport!=='nba')return r;
+    const verified=actualIndex.get(r.canonicalEventId+'|'+r.canonicalPlayerId);
+    const actual=nbaActualForMarket(verified,r.canonical_market);
+    return {...r,officialActual:actual,officialActualVerified:verified?.officialVerified===true&&actual!=null,
+      officialActualSource:actual!=null?verified?.source:null};
+  }),[state.rows,modelRows,actualIndex]);
   const matchingRows=useMemo(()=>allRows.filter(r=>(provider==='all'||r.provider===provider)&&(stat==='all'||r.canonical_market===stat)&&(side==='all'||r.side===side||r.statSide===side)&&
     (coverageFilter==='all'||coverageFilter==='model'&&r.fbis_projection!=null||coverageFilter==='contract'&&r.contractId||coverageFilter==='qualified'&&r.canQualify===true)&&
     (freshness==='all'||freshness==='current'&&r.fresh===true||freshness==='unknown'&&!r.fresh)&&
