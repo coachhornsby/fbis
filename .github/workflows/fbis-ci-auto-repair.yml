@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: '22'
       - name: Regression-test source clocks and model/contract joins
-        run: node --test test/fbis-auto-repair-policy.test.mjs test/nba-prop-market-freeze.test.js test/nba-official-prop-totals.test.js
+        run: node --test test/fbis-auto-repair-policy.test.mjs test/fbis-exchange-read-fallback.test.mjs test/nba-prop-market-freeze.test.js test/nba-official-prop-totals.test.js
       - name: Audit all active game odds and player markets; verify safe recovery
         id: coverage
         continue-on-error: true
