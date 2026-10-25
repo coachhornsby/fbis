@@ -731,3 +731,28 @@
   width:100%;
   text-align:center;
 }
+
+/* Show earned stars only; numerical denominator preserves the rating scale. */
+.fbis-shell-main .fbis-universal-premium .cgc-star-row,
+.fbis-shell-main .fbis-universal-premium .pgc-sharp-stars{
+  display:inline-flex;
+  gap:3px;
+  align-items:center;
+  flex-wrap:nowrap;
+}
+.fbis-shell-main .fbis-universal-premium .cgc-star-count,
+.fbis-shell-main .fbis-universal-premium .pgc-star-count{
+  display:inline-block;
+  margin-left:5px;
+  color:#e6eaf4;
+  font-size:11px;
+  font-weight:900;
+  line-height:1.1;
+  letter-spacing:.015em;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+@media(max-width:640px){
+  .fbis-shell-main .fbis-universal-premium .cgc-star-count,
+  .fbis-shell-main .fbis-universal-premium .pgc-star-count{font-size:10px;margin-left:3px}
+}
