@@ -1,4 +1,4 @@
-import { KALSHI_PROP_SERIES, mapKalshiPlayerContract } from './propProviderAdapters.js';
+import { KALSHI_PROP_SERIES, discoverKalshiPlayerSeries, mapKalshiPlayerContract } from './propProviderAdapters.js';
 import { captureNbaPregameMarketLines } from './nbaPropMarketFreeze.js';
 import { loadPropFixturesAndPlayers } from './propResearchData.js';
 import { chicagoDayBounds } from './chicagoDayBounds.js';
@@ -23,9 +23,21 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
  if(Date.parse(status?.nextAllowedAt)>now.getTime())return {ok:true,status:'NOT_DUE',records:0};
  const catObj=await env.ARCHIVE.get('kalshi/public-shadow/v1/series-catalog.json');const catalog=catObj?await catObj.json():null;
  if(!catalog?.ok||!Array.isArray(catalog.records))return {ok:false,code:'SERIES_DISCOVERY_UNAVAILABLE'};
- const available=new Set(catalog.records.map(r=>r.ticker));const series=Object.keys(KALSHI_PROP_SERIES).filter(s=>available.has(s));
- const offset=Number.isInteger(status?.nextOffset)?status.nextOffset%Math.max(1,series.length):0;
- const selected=Array.from({length:Math.min(maxSeries,series.length)},(_,i)=>series[(offset+i)%series.length]);
+
+ const available=new Set(catalog.records.map(r=>r.ticker));
+ const discovered=discoverKalshiPlayerSeries(catalog.records);
+ const specs={...KALSHI_PROP_SERIES,...discovered};
+ const known=Object.keys(KALSHI_PROP_SERIES).filter(s=>available.has(s));
+ const novel=Object.keys(discovered).filter(s=>available.has(s));
+ const count=Math.min(Math.max(1,maxSeries),known.length+novel.length);
+ const knownCount=novel.length?Math.min(known.length,Math.ceil(count*2/3)):Math.min(known.length,count);
+ const novelCount=Math.min(novel.length,count-knownCount);
+ const offset=Number.isInteger(status?.nextOffset)?status.nextOffset%Math.max(1,known.length):0;
+ const novelOffset=Number.isInteger(status?.nextNovelOffset)?status.nextNovelOffset%Math.max(1,novel.length):0;
+ const knownSelected=Array.from({length:knownCount},(_,i)=>known[(offset+i)%known.length]);
+ const novelSelected=Array.from({length:novelCount},(_,i)=>novel[(novelOffset+i)%novel.length]);
+ const selected=[...knownSelected,...novelSelected];
+ const series=[...known,...novel];
  const proxy=signedProxy||kalshiSignedReadProxy(env,{fetchImpl,now:now.getTime(),webCrypto});const receipts=[],nbaCaptures=[];
  for(const ticker of selected){
   try {
@@ -69,7 +81,7 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
     if(rateLimited)break;
     continue;
    }
-   const receipt={version:1,provider:'Kalshi',seriesTicker:ticker,sport:KALSHI_PROP_SERIES[ticker][0],capturedAt:startedAt,completedAt:now.toISOString(),
+   const receipt={version:1,provider:'Kalshi',seriesTicker:ticker,sport:specs[ticker][0],capturedAt:startedAt,completedAt:now.toISOString(),
     sourceObservedAt:null,quoteTimeBasis:'REST_CAPTURE_ONLY',records,pages,paginationComplete:complete,canQualify:false,canAuthorizeWager:false};
    // Immutable-by-event historical inventory: keep the last pregame observation
    // for each exact contract. The rolling 2-hour snapshot is not historical storage.
@@ -95,13 +107,13 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
     }
     if(!additions)continue;
     await env.ARCHIVE.put(key,JSON.stringify({
-      version:1,seriesTicker:ticker,sport:KALSHI_PROP_SERIES[ticker][0],
+      version:1,seriesTicker:ticker,sport:specs[ticker][0],
       capturedAt:now.toISOString(),historical:true,records:[...byTicker.values()]
     }),{httpMetadata:{contentType:'application/json'}});
    }
    await env.ARCHIVE.put(ROOT+ticker+'.json',JSON.stringify(receipt),{httpMetadata:{contentType:'application/json'}});
    if(env.ARCHIVE.delete)await env.ARCHIVE.delete(progressKey);
-   if(KALSHI_PROP_SERIES[ticker][0]==='nba' && complete)
+   if(Object.hasOwn(KALSHI_PROP_SERIES,ticker)&&KALSHI_PROP_SERIES[ticker][0]==='nba' && complete)
      nbaCaptures.push({ticker,records,capturedAt:startedAt});
    receipts.push({series:ticker,status:'CAPTURED',records:records.length,
      pages:previousPages+pages,paginationComplete:true});
@@ -137,8 +149,11 @@ export async function captureKalshiPlayerProps(env,{now=new Date(),fetchImpl=fet
  }
  const rateLimited=receipts.some(r=>r.status==='RATE_LIMITED');
  const result={ok:receipts.some(r=>r.status==='CAPTURED'||r.status==='PARTIAL'),version:1,attemptedAt:now.toISOString(),nextAllowedAt:new Date(now.getTime()+(rateLimited?3600000:14*60000)).toISOString(),
-  nextOffset:(offset+receipts.filter(r=>r.status!=='RATE_LIMITED').length)%Math.max(1,series.length),discoveredSeries:series.length,
-  catalogUnmappedSeries:catalog.records.filter(r=>r?.ticker&&!Object.hasOwn(KALSHI_PROP_SERIES,r.ticker)).length,
+
+  nextOffset:(offset+knownSelected.filter(ticker=>receipts.some(r=>r.series===ticker&&r.status!=='RATE_LIMITED')).length)%Math.max(1,known.length),
+  nextNovelOffset:(novelOffset+novelSelected.filter(ticker=>receipts.some(r=>r.series===ticker&&r.status!=='RATE_LIMITED')).length)%Math.max(1,novel.length),
+  discoveredSeries:series.length,knownSeries:known.length,candidateSeries:novel.length,
+  catalogUnmappedSeries:catalog.records.filter(r=>r?.ticker&&!Object.hasOwn(specs,r.ticker)).length,
   completeSeries:receipts.filter(r=>r.status==='CAPTURED').length,
   incompleteSeries:receipts.filter(r=>r.status==='PARTIAL'||r.status==='RATE_LIMITED').length,
   receipts,nbaPregameLineFreeze:nbaFrozen,records:receipts.reduce((n,r)=>n+r.records,0),canQualify:false,canAuthorizeWager:false};
@@ -148,7 +163,12 @@ export async function loadCapturedKalshiProps(env,{games,players,sport='all',ser
  const {mapKalshiPlayerContract}=await import('./propProviderAdapters.js');
  const rows=[],rejected=[],coverage=[];
  if(!env.ARCHIVE?.get)return {rows,rejected,coverage,error:'ARCHIVE_UNBOUND'};
- for(const [series,[s]] of Object.entries(KALSHI_PROP_SERIES)){
+ let specs=KALSHI_PROP_SERIES;
+ try{const obj=await env.ARCHIVE.get('kalshi/public-shadow/v1/series-catalog.json');
+  const cat=obj?await obj.json():null;if(Array.isArray(cat?.records))
+   specs={...KALSHI_PROP_SERIES,...discoverKalshiPlayerSeries(cat.records)};
+ }catch{}
+ for(const [series,[s]] of Object.entries(specs)){
   if((sport!=='all'&&sport!==s)||(seriesFilter&&series!==seriesFilter))continue;
   try{const historicalObj=date?await env.ARCHIVE.get(historicalKey(series,date)):null;
    const historic=Boolean(historicalObj);
@@ -156,7 +176,9 @@ export async function loadCapturedKalshiProps(env,{games,players,sport='all',ser
    const snap=await obj.json(),age=now-Date.parse(snap.capturedAt);
    if(!Array.isArray(snap.records)||!Number.isFinite(age)||age<0||(!historic&&!date&&age>2*3600000)){coverage.push({series,sport:s,status:'STALE'});continue;}
    coverage.push({series,sport:s,status:snap.paginationComplete?'CAPTURED':'PARTIAL',capturedAt:snap.capturedAt,records:snap.records.length,historical:historic});
-   for(const raw of snap.records){const mapped=mapKalshiPlayerContract(raw,{games,players,capturedAt:snap.capturedAt,seriesTicker:series});
+   for(const raw of snap.records){const mapped=Object.hasOwn(KALSHI_PROP_SERIES,series)
+     ?mapKalshiPlayerContract(raw,{games,players,capturedAt:snap.capturedAt,seriesTicker:series})
+     :{rejected:true,reason:'NEW_KALSHI_PROP_SERIES_SETTLEMENT_UNVERIFIED'};
     if(!mapped || mapped.rejected){
       rejected.push({id:String(raw.ticker||''),series,sport:s,provider:'Kalshi',
         source:'Kalshi REST',rawTitle:String(raw.title||raw.yes_sub_title||'').slice(0,240),
