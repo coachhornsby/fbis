@@ -651,6 +651,45 @@ export async function archiveAndVerifyColdMarketHistory(env, {
     if (!moreRemaining) break;
   }
 
+  // An idle cursor is not a new readback receipt. Revalidate the durable
+  // checkpoint object instead of treating every([]) as successful verification.
+  let checkpointReadback = null;
+  if (archiveWrites && verifyReadback && batches.length === 0) {
+    checkpointReadback = { ok: false, reason: "CHECKPOINT_ARCHIVE_EVIDENCE_MISSING", readbackSha256: null };
+    if (lastObjectKey && lastContentSha256 && env.ARCHIVE?.get) {
+      try {
+        const object = await env.ARCHIVE.get(lastObjectKey);
+        const text = object?.text ? await object.text() : null;
+        const digest = text == null ? null : sha256Hex(text);
+        checkpointReadback.readbackSha256 = digest;
+        if (digest !== lastContentSha256) {
+          checkpointReadback.reason = "CHECKPOINT_ARCHIVE_HASH_MISMATCH";
+        } else {
+          const body = JSON.parse(text);
+          const sample = body?.observations?.[0];
+          const partitionKey = part.partition?.key || part.binding;
+          if (body.partition !== partitionKey || body.binding !== part.binding
+              || body.columnCount !== NORMALIZED_MARKET_OBSERVATION_COLUMNS.length
+              || !Array.isArray(body.observations) || body.observations.length === 0
+              || body.rowCount !== body.observations.length || !sample?.id) {
+            checkpointReadback.reason = "CHECKPOINT_ARCHIVE_SCOPE_INVALID";
+          } else {
+            const source = await part.db.prepare(
+              `SELECT ${columnSql} FROM ${table} WHERE id=? LIMIT 1`
+            ).bind(sample.id).first();
+            lastRestoreProof = source
+              ? verifyFullRecordRestore(source, sample)
+              : { ok: false, reason: "CHECKPOINT_SOURCE_SAMPLE_MISSING" };
+            checkpointReadback.ok = lastRestoreProof.ok === true;
+            checkpointReadback.reason = lastRestoreProof.reason;
+          }
+        }
+      } catch {
+        checkpointReadback.reason = "CHECKPOINT_ARCHIVE_READ_FAILED";
+      }
+    }
+  }
+
   const backlogAfter = await countBacklog(part.db, table, eligibilityCutoff, cursorAt, cursorId);
   const lateArrivals = await countLateArrivalsBehindCursor(part.db, table, {
     eligibilityCutoff,
@@ -664,7 +703,7 @@ export async function archiveAndVerifyColdMarketHistory(env, {
 
   return {
     contract: VERIFIED_ARCHIVE_CONTRACT,
-    ok: true,
+    ok: checkpointReadback ? checkpointReadback.ok : true,
     dryRun: !archiveWrites,
     cutoff: eligibilityCutoff,
     eligibilityCutoff,
@@ -687,8 +726,9 @@ export async function archiveAndVerifyColdMarketHistory(env, {
     objectKey: lastObjectKey,
     contentSha256: lastContentSha256,
     readbackVerified: archiveWrites && verifyReadback
-      ? batches.every((b) => b.readbackVerified === true)
+      ? (checkpointReadback ? checkpointReadback.ok : batches.every((b) => b.readbackVerified === true))
       : null,
+    checkpointReadback,
     fullColumnRestore: lastRestoreProof,
     sourceAuthorityPreserved: true,
     checkpoint: {
@@ -702,7 +742,9 @@ export async function archiveAndVerifyColdMarketHistory(env, {
     deletion: "NOT_PERFORMED_REQUIRES_RETENTION_GATE",
     canAuthorizeWager: false,
     lease: archiveWrites ? { acquired: true, owner: leaseOwner } : undefined,
-    reason: archived === 0 ? "NO_ELIGIBLE_ROWS_PAST_CHECKPOINT" : undefined,
+    reason: checkpointReadback && !checkpointReadback.ok
+      ? checkpointReadback.reason
+      : archived === 0 ? "NO_ELIGIBLE_ROWS_PAST_CHECKPOINT" : undefined,
   };
   } finally {
     if (archiveWrites && lease.acquired) {
