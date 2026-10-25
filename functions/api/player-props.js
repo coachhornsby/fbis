@@ -273,7 +273,8 @@ export async function onRequestGet(context) {
   )];
   if (eventIds.length > 80) return json({ok:false,error:"EVENT_BATCH_TOO_LARGE",maxEvents:80,rows:[]},400);
   const requestedSport = str(url.searchParams.get("sport"));
-  const sportParam = normalizeProPropSport(requestedSport);
+  const normalizedSport = normalizeProPropSport(requestedSport);
+  const sportParam = PRO_PLAYER_PROP_SPORTS.includes(normalizedSport) ? normalizedSport : null;
   if (requestedSport && !sportParam) return json({ok:true,rows:[],sports:PROP_RESEARCH_SPORTS,diagnostics:{checkedEvents:eventIds.length,absenceReason:"UNSUPPORTED_PROP_SPORT"}});
   const dateParam = str(url.searchParams.get("date"));
 
