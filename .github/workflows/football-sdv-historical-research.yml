@@ -16,6 +16,8 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "35 09 * * *"
+    # Early postgame weekend collection; existing morning retry remains.
+    - cron: "50 04 * * 0,1"
 permissions:
   contents: read
 concurrency:

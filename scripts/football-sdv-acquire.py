@@ -139,7 +139,7 @@ def main():
                         market_reference = None
                         if sport == "nfl":
                             spread, closing_total = s.get("spread_line"), s.get("total_line")
-                            if isinstance(spread,(float,int)) and isinstance(total,(float,int)) and math.isfinite(spread) and math.isfinite(closing_total) and 20 <= closing_total <= 90:
+                            if isinstance(spread,(float,int)) and isinstance(closing_total,(float,int)) and math.isfinite(spread) and math.isfinite(closing_total) and 20 <= closing_total <= 90:
                                 market_reference = {"homeMargin": float(spread), "total": float(closing_total),
                                   "source": "NFLVERSE_PFR_HISTORICAL_CLOSING", "asOf": None, "prospective": False}
                         obj={"sport":sport,"season":season,"gameId":gid,"kickoff":kickoff,
