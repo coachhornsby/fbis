@@ -11,6 +11,11 @@ on:
       - 'functions/lib/migrationTip.js'
       - 'test/tennis-free-*.test.mjs'
       - '.github/workflows/tennis-free-source-qualification.yml'
+      - '.github/workflows/tennis-free-shadow-forecasts.yml'
+      - 'functions/lib/tennisFreeShadowModel.js'
+      - 'functions/lib/tennisFreeShadowCapture.js'
+      - 'functions/api/tennis-free-shadow-forecast.js'
+      - 'migrations/0127_tennis_free_shadow_forecasts.sql'
       - 'functions/lib/tennisFreeIdentity.js'
       - 'functions/lib/tennisFreeCanonicalFeatures.js'
       - 'functions/api/tennis-free-canonical-intelligence.js'
@@ -37,11 +42,14 @@ jobs:
           node --check functions/lib/tennisFreeStatProfile.js
           node --check functions/api/tennis-free-current-refresh.js
           node --check functions/api/tennis-free-current-profile.js
+          node --check functions/lib/tennisFreeShadowModel.js
+          node --check functions/lib/tennisFreeShadowCapture.js
+          node --check functions/api/tennis-free-shadow-forecast.js
           node --check functions/lib/tennisFreeIdentity.js
           node --check functions/lib/tennisFreeCanonicalFeatures.js
           node --check functions/api/tennis-free-canonical-intelligence.js
       - name: Match-stat parsing, storage, and profile tests
-        run: node --test test/tennis-free-current-research.test.mjs test/tennis-free-profile.test.mjs test/tennis-free-canonical-intelligence.test.mjs
+        run: node --test test/tennis-free-current-research.test.mjs test/tennis-free-profile.test.mjs test/tennis-free-canonical-intelligence.test.mjs test/tennis-free-shadow-model.test.mjs test/tennis-free-canonical-intelligence.test.mjs
       - name: Live source availability and recent serve-stat coverage
         run: node scripts/tennis-free-current-source-probe.mjs
       - name: Verify canonical migration tip and schema
