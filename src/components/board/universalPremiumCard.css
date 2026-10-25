@@ -741,82 +741,53 @@
   flex-wrap:nowrap;
 }
 
-/* College identity: uniform school first / mascot second under team logo. */
+/* NCAA school / mascot: full words, precisely TWO lines, EQUAL type size.
+   School and mascot are each individually unbroken, unlike the previous
+   North Carolina-only patch. The same responsive sizing applies to both. */
 .fbis-shell-main .fbis-universal-premium .fbis-college-team-name{
-  display:flex!important;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:3px!important;
-  width:100%;
-  min-height:70px!important;
+  width:100%!important;
+  min-width:0!important;
   box-sizing:border-box;
+  container-type:inline-size;
   text-align:center!important;
   overflow:visible!important;
 }
-.fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-school{
-  display:block;
-  width:100%;
-  font-size:inherit;
-  font-weight:950;
-  line-height:1.1;
-  color:#fff;
-  overflow-wrap:normal;
-  word-break:normal;
+.fbis-shell-main .fbis-universal-premium.cgc .cgc-team-name.fbis-college-team-name{
+  display:block!important;
+  min-height:70px!important;
 }
-.fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-mascot{
-  display:block;
-  width:100%;
-  font-size:clamp(12px,1.02vw,16px)!important;
-  font-weight:850;
-  line-height:1.15;
-  letter-spacing:.08em;
-  color:#bcdfff!important;
-  text-transform:uppercase;
-  text-shadow:0 1px 7px rgba(0,0,0,.7);
-  overflow-wrap:normal;
-}
-.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-college-team-name{
+.fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-featured-name.fbis-college-team-name{
+  display:block!important;
   min-height:82px!important;
-  gap:4px!important;
 }
-.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-college-team-name .fbis-college-mascot{
-  font-size:clamp(13px,1.15vw,18px)!important;
-}
-@media(max-width:640px){
-  .fbis-shell-main .fbis-universal-premium .fbis-college-team-name{
-    min-height:66px!important;
-    gap:3px!important;
-  }
-  .fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-mascot{
-    font-size:11px!important;
-    letter-spacing:.04em;
-  }
-  .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-college-team-name{
-    min-height:72px!important;
-  }
-  .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-college-team-name .fbis-college-mascot{
-    font-size:12px!important;
-  }
-}
-
-/* Keep the complete school identity "North Carolina" on ONE line on all college boards. */
-.fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-school--north-carolina{
+.fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-school,
+.fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-mascot{
+  display:block!important;
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding:0;
+  font-family:inherit;
+  font-weight:950!important;
+  /* The longest verified label controls BOTH lines' font size. Each line
+     fits its own container regardless of team name length or screen width. */
+  font-size:clamp(7px,calc(145cqi / var(--fbis-college-label-length,12)),27px)!important;
+  line-height:1.16!important;
+  letter-spacing:-.035em!important;
   white-space:nowrap!important;
   overflow-wrap:normal!important;
   word-break:keep-all!important;
-  font-size:clamp(11px,1.18vw,17px)!important;
-  letter-spacing:-.04em!important;
+  text-overflow:clip!important;
+  text-align:center!important;
+  text-transform:none!important;
+  text-shadow:0 2px 5px #000,0 0 18px rgba(0,0,0,.3);
 }
-.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-college-team-name .fbis-college-school--north-carolina{
-  font-size:clamp(15px,1.5vw,21px)!important;
+.fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-school{color:#fff!important}
+.fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-mascot{
+  color:#d7eeff!important;
+  margin-top:3px;
 }
 @media(max-width:640px){
-  .fbis-shell-main .fbis-universal-premium .fbis-college-team-name .fbis-college-school--north-carolina{
-    font-size:clamp(10px,2.4vw,13px)!important;
-    letter-spacing:-.055em!important;
-  }
-  .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-college-team-name .fbis-college-school--north-carolina{
-    font-size:clamp(11px,2.4vw,15px)!important;
-  }
+  .fbis-shell-main .fbis-universal-premium.cgc .cgc-team-name.fbis-college-team-name{min-height:66px!important}
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .pgc-featured-name.fbis-college-team-name{min-height:72px!important}
 }

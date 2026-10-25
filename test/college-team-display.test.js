@@ -30,3 +30,18 @@ test("college basketball uses the same identity presentation", () => {
   assert.deepEqual(collegeTeamDisplay({school:"Texas Tech",fullName:"Texas Tech Red Raiders",nickname:"Red Raiders"},"cbb"),
     {school:"Texas Tech",mascot:"Red Raiders"});
 });
+
+test("official full school and mascot names are never abbreviated", () => {
+  assert.deepEqual(
+    collegeTeamDisplay({school:"San Diego St",fullName:"San Diego State Aztecs",nickname:"Aztecs"},"cfb"),
+    {school:"San Diego State",mascot:"Aztecs"}
+  );
+  assert.deepEqual(
+    collegeTeamDisplay({school:"Southern California",fullName:"University of Southern California Trojans",nickname:"Trojans"},"cfb"),
+    {school:"University of Southern California",mascot:"Trojans"}
+  );
+  assert.deepEqual(
+    collegeTeamDisplay({school:"North Carolina",fullName:"North Carolina Tar Heels",nickname:"Tar Heels"},"cfb"),
+    {school:"North Carolina",mascot:"Tar Heels"}
+  );
+});

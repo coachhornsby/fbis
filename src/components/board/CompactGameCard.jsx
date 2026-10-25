@@ -8,6 +8,7 @@ import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
 import GameScoreDisplay, { MatchupCenterClock } from "./GameScoreDisplay.jsx";
 import { collegeTeamDisplay } from "../../lib/collegeTeamDisplay.js";
+import CollegeTeamName from "./CollegeTeamName.jsx";
 import { formatLiveGameClock } from "../../lib/liveGameClock.js";
 import CfbCapturedMarket from "./CfbCapturedMarket.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
@@ -235,7 +236,7 @@ export default function CompactGameCard({ game, onOpen }) {
               <strong className="cgc-team-name cgc-team-name-mlb">{away.fullName || away.name || away.abbr || "—"}</strong>
             ) : (
               <>
-                <strong className={`cgc-team-name fbis-full-team-name${collegeAway.mascot ? " fbis-college-team-name" : ""}${!away.abbr||away.abbr==="—"?" cgc-unresolved-school":""}`}>{collegeAway.mascot ? <><span className={`fbis-college-school${collegeAway.school === "North Carolina" ? " fbis-college-school--north-carolina" : ""}`}>{collegeAway.school}</span><span className="fbis-college-mascot">{collegeAway.mascot}</span></> : collegeAway.school}</strong>
+                <CollegeTeamName identity={collegeAway} className={`cgc-team-name fbis-full-team-name${!away.abbr||away.abbr==="—"?" cgc-unresolved-school":""}`} />
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
@@ -253,7 +254,7 @@ export default function CompactGameCard({ game, onOpen }) {
               <strong className="cgc-team-name cgc-team-name-mlb">{home.fullName || home.name || home.abbr || "—"}</strong>
             ) : (
               <>
-                <strong className={`cgc-team-name fbis-full-team-name${collegeHome.mascot ? " fbis-college-team-name" : ""}${!home.abbr||home.abbr==="—"?" cgc-unresolved-school":""}`}>{collegeHome.mascot ? <><span className={`fbis-college-school${collegeHome.school === "North Carolina" ? " fbis-college-school--north-carolina" : ""}`}>{collegeHome.school}</span><span className="fbis-college-mascot">{collegeHome.mascot}</span></> : collegeHome.school}</strong>
+                <CollegeTeamName identity={collegeHome} className={`cgc-team-name fbis-full-team-name${!home.abbr||home.abbr==="—"?" cgc-unresolved-school":""}`} />
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
