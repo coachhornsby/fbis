@@ -1,7 +1,7 @@
 // Independent prospective recovery for delayed/dropped GitHub cron deliveries.
 // No historical dates, paid odds refresh, tracker cleanup, or authority changes.
 export const RECOVERY_CRON = "*/10 * * * *";
-export const RECOVERY_SPORTS = ["mlb", "nba", "wnba", "nhl", "nfl", "cfb", "cbb", "soccer"];
+export const RECOVERY_SPORTS = ["nfl", "mlb", "nba", "nhl", "cfb", "cbb"];
 
 export async function recoverCurrentPipeline(env, controller, request = fetch, now = new Date(), clock = Date.now) {
   if (!env.HARVEST_SECRET) throw new Error("HARVEST_SECRET missing");
