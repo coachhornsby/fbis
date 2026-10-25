@@ -51,7 +51,7 @@ async function call(path,body,{upstream=false}={}){
 const reservation=await call('/api/pinnodds-capture',{operation:'reserve',runId,scope},{upstream:true});
 await writeFile('artifacts/pinnodds-reservation.json',JSON.stringify(reservation,null,2));
 const slots=[];
-if(scope==='full'){for(const sportId of [1,2,3,4,5,6])for(const feed of ['prematch','live'])slots.push({kind:'board',sportId,feed});slots.push({kind:'health'});}
+if(scope==='full'){for(const sportId of [2,3,4,5,6])for(const feed of ['prematch','live'])slots.push({kind:'board',sportId,feed});slots.push({kind:'health'});}
 if(scope==='football'||scope==='football-drops')slots.push({kind:'board',sportId:5,feed:'prematch'});
 if(scope!=='football')for(const feed of ['prematch','live'])slots.push({kind:'drops',feed});
 const results=[],errors=[];
