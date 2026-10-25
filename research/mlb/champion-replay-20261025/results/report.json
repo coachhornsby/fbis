@@ -1,0 +1,3569 @@
+{
+  "version": "mlb-frozen-champion-replay-v1",
+  "classification": "RETROSPECTIVE_PAIRED_FITTED_VS_FROZEN_PRODUCTION",
+  "createdAt": "2026-10-25T20:36:18.732Z",
+  "inputHashes": {
+    "fittedReport": "03efb30b75a04e16e87b3723e79797b97b836de6018278c60b021fe2f9bc0a45",
+    "archivedProduction": "96d2cba66a957e8d02a1dc0a69f10ded0867e3d5826297a84dfc1d09992b6595",
+    "currentFreeze": "60cedeb722129d27ff2ded6bfd9c96afca47c1c83c869e063ccb1f7c39bffe72",
+    "trainingSourceManifest": "a85032a1f6e4c777f672f77cff95cb8d2de265ccedfcd17269541c5f3193b708"
+  },
+  "corpus": {
+    "productionForecasts": 607,
+    "productionGames": 11,
+    "matchedGames": 11,
+    "source": "R2 verified competitive training days and immutable production snapshots"
+  },
+  "cohorts": [
+    {
+      "cohort": "LEGACY:hits:research-v1-persistent-props:402ba7c39ba6f6750654d6cfa5c49e7a4b146d45e218edba17350ccaf5ffcc9a",
+      "market": "hits",
+      "championVersion": "research-v1-persistent-props",
+      "currentVersion": false,
+      "modelHash": "402ba7c39ba6f6750654d6cfa5c49e7a4b146d45e218edba17350ccaf5ffcc9a",
+      "distinctDates": 5,
+      "champion": {
+        "n": 148,
+        "distinctGames": 9,
+        "mae": 0.6081081081081081,
+        "rmse": 0.7433488868408746,
+        "bias": 0.10810810810810809,
+        "poissonDeviance": 0.930477452875231
+      },
+      "candidate": {
+        "n": 148,
+        "distinctGames": 9,
+        "mae": 0.5988826916097191,
+        "rmse": 0.7407430218300588,
+        "bias": 0.1578785236363774,
+        "poissonDeviance": 0.9295849610752864
+      },
+      "pairedGameError": {
+        "distinctGames": 9,
+        "meanCandidateMinusChampion": -0.009779749411349398,
+        "lo": null,
+        "hi": null,
+        "method": "GAME_CLUSTERED_NORMAL_APPROXIMATION",
+        "insufficientForInterval": true
+      },
+      "countProbabilityDiagnostics": {
+        "assumption": "COMMON_POISSON_LINK_FOR_BOTH_MEANS_NOT_EXECUTABLE_MARKET_PROBABILITIES",
+        "champion": [
+          {
+            "line": 0.5,
+            "n": 148,
+            "brier": 0.23958986673376392,
+            "logLoss": 0.6721255807099409,
+            "ece": 0.04042921228437386,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 1,
+                "predicted": 0.2591817793182821,
+                "observed": 0
+              },
+              {
+                "bin": 3,
+                "n": 2,
+                "predicted": 0.3934693402873666,
+                "observed": 0
+              },
+              {
+                "bin": 4,
+                "n": 13,
+                "predicted": 0.45118836390597367,
+                "observed": 0.38461538461538464
+              },
+              {
+                "bin": 5,
+                "n": 102,
+                "predicted": 0.5509811253267193,
+                "observed": 0.5784313725490197
+              },
+              {
+                "bin": 6,
+                "n": 30,
+                "predicted": 0.6424009670247339,
+                "observed": 0.6
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 1.5,
+            "n": 148,
+            "brier": 0.12940138448148714,
+            "logLoss": 0.42632303925496406,
+            "ece": 0.05226866446444029,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 3,
+                "predicted": 0.07244811132528883,
+                "observed": 0
+              },
+              {
+                "bin": 1,
+                "n": 80,
+                "predicted": 0.16622694480801264,
+                "observed": 0.15
+              },
+              {
+                "bin": 2,
+                "n": 58,
+                "predicted": 0.24208040229937602,
+                "observed": 0.15517241379310345
+              },
+              {
+                "bin": 3,
+                "n": 7,
+                "predicted": 0.3113712983937823,
+                "observed": 0.14285714285714285
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "line": 0.5,
+            "n": 148,
+            "brier": 0.23492037774897004,
+            "logLoss": 0.6625597803982628,
+            "ece": 0.03563400304147756,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 11,
+                "predicted": 0.46412176280427303,
+                "observed": 0.09090909090909091
+              },
+              {
+                "bin": 5,
+                "n": 86,
+                "predicted": 0.5630930001079277,
+                "observed": 0.5581395348837209
+              },
+              {
+                "bin": 6,
+                "n": 51,
+                "predicted": 0.6325000970586296,
+                "observed": 0.6470588235294118
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 1.5,
+            "n": 148,
+            "brier": 0.13040663449071946,
+            "logLoss": 0.430498047946136,
+            "ece": 0.06984707066470261,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 1,
+                "predicted": 0.09652623174187702,
+                "observed": 0
+              },
+              {
+                "bin": 1,
+                "n": 48,
+                "predicted": 0.17270987815613034,
+                "observed": 0.10416666666666667
+              },
+              {
+                "bin": 2,
+                "n": 93,
+                "predicted": 0.2377451212652463,
+                "observed": 0.17204301075268819
+              },
+              {
+                "bin": 3,
+                "n": 6,
+                "predicted": 0.3067449662453245,
+                "observed": 0.16666666666666666
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ]
+      },
+      "segments": {
+        "regular": {
+          "champion": null,
+          "candidate": null
+        },
+        "postseason": {
+          "champion": {
+            "n": 148,
+            "distinctGames": 9,
+            "mae": 0.6081081081081081,
+            "rmse": 0.7433488868408746,
+            "bias": 0.10810810810810809,
+            "poissonDeviance": 0.930477452875231
+          },
+          "candidate": {
+            "n": 148,
+            "distinctGames": 9,
+            "mae": 0.5988826916097191,
+            "rmse": 0.7407430218300588,
+            "bias": 0.1578785236363774,
+            "poissonDeviance": 0.9295849610752864
+          }
+        }
+      },
+      "forecastPromotionReady": false
+    },
+    {
+      "cohort": "LEGACY:home_runs:research-v1-persistent-props:5295669ec0068808984d7b48f0869ec4fa9e15505270a3ffad5331574b84764a",
+      "market": "home_runs",
+      "championVersion": "research-v1-persistent-props",
+      "currentVersion": false,
+      "modelHash": "5295669ec0068808984d7b48f0869ec4fa9e15505270a3ffad5331574b84764a",
+      "distinctDates": 5,
+      "champion": {
+        "n": 148,
+        "distinctGames": 9,
+        "mae": 0.1594594594594596,
+        "rmse": 0.2609753017205038,
+        "bias": 0.0378378378378378,
+        "poissonDeviance": 0.3868358236073039
+      },
+      "candidate": {
+        "n": 148,
+        "distinctGames": 9,
+        "mae": 0.18191259699275736,
+        "rmse": 0.26225305261148746,
+        "bias": 0.06621222928820449,
+        "poissonDeviance": 0.39982057563997625
+      },
+      "pairedGameError": {
+        "distinctGames": 9,
+        "meanCandidateMinusChampion": 0.022654176208434122,
+        "lo": null,
+        "hi": null,
+        "method": "GAME_CLUSTERED_NORMAL_APPROXIMATION",
+        "insufficientForInterval": true
+      },
+      "countProbabilityDiagnostics": {
+        "assumption": "COMMON_POISSON_LINK_FOR_BOTH_MEANS_NOT_EXECUTABLE_MARKET_PROBABILITIES",
+        "champion": [
+          {
+            "line": 0.5,
+            "n": 148,
+            "brier": 0.06681522359683136,
+            "logLoss": 0.25757895018541194,
+            "ece": 0.031153856389709682,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 124,
+                "predicted": 0.08211609908993815,
+                "observed": 0.08064516129032258
+              },
+              {
+                "bin": 1,
+                "n": 23,
+                "predicted": 0.18126924692201826,
+                "observed": 0
+              },
+              {
+                "bin": 2,
+                "n": 1,
+                "predicted": 0.2591817793182821,
+                "observed": 0
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "line": 0.5,
+            "n": 148,
+            "brier": 0.06701476678101666,
+            "logLoss": 0.26255660681619347,
+            "ece": 0.056453843488516384,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 44,
+                "predicted": 0.06950415675347736,
+                "observed": 0.045454545454545456
+              },
+              {
+                "bin": 1,
+                "n": 97,
+                "predicted": 0.14097970335580137,
+                "observed": 0.08247422680412371
+              },
+              {
+                "bin": 2,
+                "n": 7,
+                "predicted": 0.23170781623352665,
+                "observed": 0
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ]
+      },
+      "segments": {
+        "regular": {
+          "champion": null,
+          "candidate": null
+        },
+        "postseason": {
+          "champion": {
+            "n": 148,
+            "distinctGames": 9,
+            "mae": 0.1594594594594596,
+            "rmse": 0.2609753017205038,
+            "bias": 0.0378378378378378,
+            "poissonDeviance": 0.3868358236073039
+          },
+          "candidate": {
+            "n": 148,
+            "distinctGames": 9,
+            "mae": 0.18191259699275736,
+            "rmse": 0.26225305261148746,
+            "bias": 0.06621222928820449,
+            "poissonDeviance": 0.39982057563997625
+          }
+        }
+      },
+      "forecastPromotionReady": false
+    },
+    {
+      "cohort": "LEGACY:total_bases:research-v1-persistent-props:ee165403b3f1aa2369116124d998c9ff31fd6c80e4b5466ccd6bfada246d3be4",
+      "market": "total_bases",
+      "championVersion": "research-v1-persistent-props",
+      "currentVersion": false,
+      "modelHash": "ee165403b3f1aa2369116124d998c9ff31fd6c80e4b5466ccd6bfada246d3be4",
+      "distinctDates": 5,
+      "champion": {
+        "n": 149,
+        "distinctGames": 9,
+        "mae": 1.0449664429530203,
+        "rmse": 1.3487503537640029,
+        "bias": 0.16174496644295305,
+        "poissonDeviance": 1.6531000581243727
+      },
+      "candidate": {
+        "n": 149,
+        "distinctGames": 9,
+        "mae": 1.1525841060508537,
+        "rmse": 1.3752006644563493,
+        "bias": 0.42030300522328357,
+        "poissonDeviance": 1.7079143403699397
+      },
+      "pairedGameError": {
+        "distinctGames": 9,
+        "meanCandidateMinusChampion": 0.1062308237849176,
+        "lo": null,
+        "hi": null,
+        "method": "GAME_CLUSTERED_NORMAL_APPROXIMATION",
+        "insufficientForInterval": true
+      },
+      "countProbabilityDiagnostics": {
+        "assumption": "COMMON_POISSON_LINK_FOR_BOTH_MEANS_NOT_EXECUTABLE_MARKET_PROBABILITIES",
+        "champion": [
+          {
+            "line": 0.5,
+            "n": 149,
+            "brier": 0.26185416127758626,
+            "logLoss": 0.7229170304752164,
+            "ece": 0.13758722412839686,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 1,
+                "predicted": 0.2591817793182821,
+                "observed": 0
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 1,
+                "predicted": 0.4511883639059735,
+                "observed": 1
+              },
+              {
+                "bin": 5,
+                "n": 21,
+                "predicted": 0.5730687667467236,
+                "observed": 0.47619047619047616
+              },
+              {
+                "bin": 6,
+                "n": 65,
+                "predicted": 0.6643343125598858,
+                "observed": 0.5384615384615384
+              },
+              {
+                "bin": 7,
+                "n": 56,
+                "predicted": 0.756057975736562,
+                "observed": 0.6071428571428571
+              },
+              {
+                "bin": 8,
+                "n": 5,
+                "predicted": 0.8274163840795149,
+                "observed": 0.6
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 1.5,
+            "n": 149,
+            "brier": 0.20330693232911468,
+            "logLoss": 0.5953231441562574,
+            "ece": 0.10089731680871766,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 1,
+                "predicted": 0.03693631311376677,
+                "observed": 0
+              },
+              {
+                "bin": 1,
+                "n": 11,
+                "predicted": 0.1849072752854154,
+                "observed": 0.18181818181818182
+              },
+              {
+                "bin": 2,
+                "n": 37,
+                "predicted": 0.2533233289326074,
+                "observed": 0.2702702702702703
+              },
+              {
+                "bin": 3,
+                "n": 58,
+                "predicted": 0.33905974326553023,
+                "observed": 0.29310344827586204
+              },
+              {
+                "bin": 4,
+                "n": 37,
+                "predicted": 0.4336920095120148,
+                "observed": 0.16216216216216217
+              },
+              {
+                "bin": 5,
+                "n": 5,
+                "predicted": 0.524735514481353,
+                "observed": 0.2
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 2.5,
+            "n": 149,
+            "brier": 0.09890966419096063,
+            "logLoss": 0.3510119947594162,
+            "ece": 0.018548836695910023,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 65,
+                "predicted": 0.07497758215893996,
+                "observed": 0.07692307692307693
+              },
+              {
+                "bin": 1,
+                "n": 72,
+                "predicted": 0.1503727777463083,
+                "observed": 0.1388888888888889
+              },
+              {
+                "bin": 2,
+                "n": 12,
+                "predicted": 0.2342066258572911,
+                "observed": 0.08333333333333333
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "line": 0.5,
+            "n": 149,
+            "brier": 0.28148430316441014,
+            "logLoss": 0.7733135579677013,
+            "ece": 0.2030306903822635,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 3,
+                "predicted": 0.5883033224540671,
+                "observed": 0.3333333333333333
+              },
+              {
+                "bin": 6,
+                "n": 18,
+                "predicted": 0.6746508241288116,
+                "observed": 0.4444444444444444
+              },
+              {
+                "bin": 7,
+                "n": 91,
+                "predicted": 0.7563062733009736,
+                "observed": 0.5384615384615384
+              },
+              {
+                "bin": 8,
+                "n": 37,
+                "predicted": 0.8248399241861583,
+                "observed": 0.6756756756756757
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 1.5,
+            "n": 149,
+            "brier": 0.22127442031064906,
+            "logLoss": 0.6337675038196542,
+            "ece": 0.18227841660904087,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 8,
+                "predicted": 0.2612247194737328,
+                "observed": 0
+              },
+              {
+                "bin": 3,
+                "n": 43,
+                "predicted": 0.35524851337678764,
+                "observed": 0.2558139534883721
+              },
+              {
+                "bin": 4,
+                "n": 76,
+                "predicted": 0.44494235326218967,
+                "observed": 0.2631578947368421
+              },
+              {
+                "bin": 5,
+                "n": 21,
+                "predicted": 0.5402940351399353,
+                "observed": 0.23809523809523808
+              },
+              {
+                "bin": 6,
+                "n": 1,
+                "predicted": 0.6322066578903043,
+                "observed": 0
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 2.5,
+            "n": 149,
+            "brier": 0.09894871733569639,
+            "logLoss": 0.34993146692762994,
+            "ece": 0.07472790363856005,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 8,
+                "predicted": 0.07945329319540527,
+                "observed": 0
+              },
+              {
+                "bin": 1,
+                "n": 91,
+                "predicted": 0.15731934439060186,
+                "observed": 0.08791208791208792
+              },
+              {
+                "bin": 2,
+                "n": 44,
+                "predicted": 0.23327780894398867,
+                "observed": 0.1590909090909091
+              },
+              {
+                "bin": 3,
+                "n": 6,
+                "predicted": 0.319757893916989,
+                "observed": 0.16666666666666666
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ]
+      },
+      "segments": {
+        "regular": {
+          "champion": null,
+          "candidate": null
+        },
+        "postseason": {
+          "champion": {
+            "n": 149,
+            "distinctGames": 9,
+            "mae": 1.0449664429530203,
+            "rmse": 1.3487503537640029,
+            "bias": 0.16174496644295305,
+            "poissonDeviance": 1.6531000581243727
+          },
+          "candidate": {
+            "n": 149,
+            "distinctGames": 9,
+            "mae": 1.1525841060508537,
+            "rmse": 1.3752006644563493,
+            "bias": 0.42030300522328357,
+            "poissonDeviance": 1.7079143403699397
+          }
+        }
+      },
+      "forecastPromotionReady": false
+    },
+    {
+      "cohort": "LEGACY:pitcher_k:research-v2.5-postseason-context:9ca25a3e6ad2f8e294ca793791210438510784bbab85cd0487ce8550274470bb",
+      "market": "pitcher_k",
+      "championVersion": "research-v2.5-postseason-context",
+      "currentVersion": false,
+      "modelHash": "9ca25a3e6ad2f8e294ca793791210438510784bbab85cd0487ce8550274470bb",
+      "distinctDates": 5,
+      "champion": {
+        "n": 16,
+        "distinctGames": 8,
+        "mae": 1.7000000000000002,
+        "rmse": 2.117781858454737,
+        "bias": 0.125,
+        "poissonDeviance": 1.0433422568583088
+      },
+      "candidate": {
+        "n": 16,
+        "distinctGames": 8,
+        "mae": 1.5866644208766778,
+        "rmse": 1.9979570304993939,
+        "bias": 0.30854289697039167,
+        "poissonDeviance": 0.9437972276045188
+      },
+      "pairedGameError": {
+        "distinctGames": 8,
+        "meanCandidateMinusChampion": -0.1133355791233222,
+        "lo": null,
+        "hi": null,
+        "method": "GAME_CLUSTERED_NORMAL_APPROXIMATION",
+        "insufficientForInterval": true
+      },
+      "countProbabilityDiagnostics": {
+        "assumption": "COMMON_POISSON_LINK_FOR_BOTH_MEANS_NOT_EXECUTABLE_MARKET_PROBABILITIES",
+        "champion": [
+          {
+            "line": 2.5,
+            "n": 16,
+            "brier": 0.062319772933374956,
+            "logLoss": 0.2290280400512974,
+            "ece": 0.09072848390073171,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 4,
+                "predicted": 0.6689137541203394,
+                "observed": 0.75
+              },
+              {
+                "bin": 7,
+                "n": 1,
+                "predicted": 0.7897620129769025,
+                "observed": 1
+              },
+              {
+                "bin": 8,
+                "n": 5,
+                "predicted": 0.8536373838057196,
+                "observed": 1
+              },
+              {
+                "bin": 9,
+                "n": 6,
+                "predicted": 0.9691233848502391,
+                "observed": 1
+              }
+            ]
+          },
+          {
+            "line": 4.5,
+            "n": 16,
+            "brier": 0.17170094144015272,
+            "logLoss": 0.515462496082325,
+            "ece": 0.1949950281248079,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 4,
+                "predicted": 0.26551478316805144,
+                "observed": 0.25
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 3,
+                "predicted": 0.4486552753133304,
+                "observed": 0.3333333333333333
+              },
+              {
+                "bin": 5,
+                "n": 3,
+                "predicted": 0.5531337921913445,
+                "observed": 0
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 1,
+                "predicted": 0.7530962669945505,
+                "observed": 1
+              },
+              {
+                "bin": 8,
+                "n": 5,
+                "predicted": 0.8388819236389506,
+                "observed": 1
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 6.5,
+            "n": 16,
+            "brier": 0.14995819465909477,
+            "logLoss": 0.46336370583300757,
+            "ece": 0.16093215765880334,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 4,
+                "predicted": 0.06211717766054389,
+                "observed": 0
+              },
+              {
+                "bin": 1,
+                "n": 3,
+                "predicted": 0.15681161553308628,
+                "observed": 0.3333333333333333
+              },
+              {
+                "bin": 2,
+                "n": 3,
+                "predicted": 0.23338246748505567,
+                "observed": 0
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 1,
+                "predicted": 0.4417668730063541,
+                "observed": 1
+              },
+              {
+                "bin": 5,
+                "n": 4,
+                "predicted": 0.5500233136317931,
+                "observed": 0.5
+              },
+              {
+                "bin": 6,
+                "n": 1,
+                "predicted": 0.6615931254780486,
+                "observed": 1
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "line": 2.5,
+            "n": 16,
+            "brier": 0.060829684815742004,
+            "logLoss": 0.21916059207846317,
+            "ece": 0.08109144966047924,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 4,
+                "predicted": 0.6613037274539402,
+                "observed": 0.75
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 4,
+                "predicted": 0.8507417779570655,
+                "observed": 1
+              },
+              {
+                "bin": 9,
+                "n": 8,
+                "predicted": 0.9567943479735387,
+                "observed": 1
+              }
+            ]
+          },
+          {
+            "line": 4.5,
+            "n": 16,
+            "brier": 0.1598504388235277,
+            "logLoss": 0.48530686863009165,
+            "ece": 0.21399565557403455,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 4,
+                "predicted": 0.25798022143596344,
+                "observed": 0.25
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 2,
+                "predicted": 0.4650143295925989,
+                "observed": 0
+              },
+              {
+                "bin": 5,
+                "n": 2,
+                "predicted": 0.5631158708525299,
+                "observed": 0
+              },
+              {
+                "bin": 6,
+                "n": 2,
+                "predicted": 0.6609215021146897,
+                "observed": 0.5
+              },
+              {
+                "bin": 7,
+                "n": 2,
+                "predicted": 0.7473145466084706,
+                "observed": 1
+              },
+              {
+                "bin": 8,
+                "n": 2,
+                "predicted": 0.8435408962682642,
+                "observed": 1
+              },
+              {
+                "bin": 9,
+                "n": 2,
+                "predicted": 0.9021914579627345,
+                "observed": 1
+              }
+            ]
+          },
+          {
+            "line": 6.5,
+            "n": 16,
+            "brier": 0.11736789476160027,
+            "logLoss": 0.37825094361297934,
+            "ece": 0.13393927156188662,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 4,
+                "predicted": 0.059136982602009225,
+                "observed": 0
+              },
+              {
+                "bin": 1,
+                "n": 2,
+                "predicted": 0.16711137429959266,
+                "observed": 0
+              },
+              {
+                "bin": 2,
+                "n": 2,
+                "predicted": 0.24120409877386673,
+                "observed": 0
+              },
+              {
+                "bin": 3,
+                "n": 3,
+                "predicted": 0.355043892160903,
+                "observed": 0.3333333333333333
+              },
+              {
+                "bin": 4,
+                "n": 1,
+                "predicted": 0.47262986496972925,
+                "observed": 1
+              },
+              {
+                "bin": 5,
+                "n": 1,
+                "predicted": 0.5231434744217758,
+                "observed": 1
+              },
+              {
+                "bin": 6,
+                "n": 3,
+                "predicted": 0.673497043781342,
+                "observed": 0.6666666666666666
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ]
+      },
+      "segments": {
+        "regular": {
+          "champion": null,
+          "candidate": null
+        },
+        "postseason": {
+          "champion": {
+            "n": 16,
+            "distinctGames": 8,
+            "mae": 1.7000000000000002,
+            "rmse": 2.117781858454737,
+            "bias": 0.125,
+            "poissonDeviance": 1.0433422568583088
+          },
+          "candidate": {
+            "n": 16,
+            "distinctGames": 8,
+            "mae": 1.5866644208766778,
+            "rmse": 1.9979570304993939,
+            "bias": 0.30854289697039167,
+            "poissonDeviance": 0.9437972276045188
+          }
+        }
+      },
+      "forecastPromotionReady": false
+    },
+    {
+      "cohort": "CURRENT:pitcher_k:research-v2.6-archive-pal-environment:9ca25a3e6ad2f8e294ca793791210438510784bbab85cd0487ce8550274470bb",
+      "market": "pitcher_k",
+      "championVersion": "research-v2.6-archive-pal-environment",
+      "currentVersion": true,
+      "modelHash": "9ca25a3e6ad2f8e294ca793791210438510784bbab85cd0487ce8550274470bb",
+      "distinctDates": 1,
+      "champion": {
+        "n": 2,
+        "distinctGames": 1,
+        "mae": 0.75,
+        "rmse": 0.9300537618869136,
+        "bias": 0.5499999999999998,
+        "poissonDeviance": 0.17952333979745982
+      },
+      "candidate": {
+        "n": 2,
+        "distinctGames": 1,
+        "mae": 1.9411633076650436,
+        "rmse": 2.088456331173504,
+        "bias": 1.9411633076650436,
+        "poissonDeviance": 0.7852747598775407
+      },
+      "pairedGameError": {
+        "distinctGames": 1,
+        "meanCandidateMinusChampion": 1.1911633076650436,
+        "lo": null,
+        "hi": null,
+        "method": "GAME_CLUSTERED_NORMAL_APPROXIMATION",
+        "insufficientForInterval": true
+      },
+      "countProbabilityDiagnostics": {
+        "assumption": "COMMON_POISSON_LINK_FOR_BOTH_MEANS_NOT_EXECUTABLE_MARKET_PROBABILITIES",
+        "champion": [
+          {
+            "line": 2.5,
+            "n": 2,
+            "brier": 0.0413093168695136,
+            "logLoss": 0.21014456787249733,
+            "ece": 0.18522532787359947,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 1,
+                "predicted": 0.7311033222888894,
+                "observed": 1
+              },
+              {
+                "bin": 8,
+                "n": 1,
+                "predicted": 0.8984460219639117,
+                "observed": 1
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 4.5,
+            "n": 2,
+            "brier": 0.24150793908147608,
+            "logLoss": 0.6732729511034147,
+            "ece": 0.47131909003870853,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 1,
+                "predicted": 0.3321563994691459,
+                "observed": 0
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 1,
+                "predicted": 0.6104817806082712,
+                "observed": 0
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 6.5,
+            "n": 2,
+            "brier": 0.044137358736527375,
+            "logLoss": 0.21389233341391284,
+            "ece": 0.1868793002150208,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 1,
+                "predicted": 0.09089239544321615,
+                "observed": 0
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 1,
+                "predicted": 0.28286620498682546,
+                "observed": 0
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "line": 2.5,
+            "n": 2,
+            "brier": 0.006835807609973572,
+            "logLoss": 0.07756272554110344,
+            "ece": 0.07388760073098583,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 1,
+                "predicted": 0.8890121288091914,
+                "observed": 1
+              },
+              {
+                "bin": 9,
+                "n": 1,
+                "predicted": 0.9632126697288369,
+                "observed": 1
+              }
+            ]
+          },
+          {
+            "line": 4.5,
+            "n": 2,
+            "brier": 0.4926531519313687,
+            "logLoss": 1.2468189180400961,
+            "ece": 0.6939871820290812,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 1,
+                "predicted": 0.5889398445535234,
+                "observed": 0
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 1,
+                "predicted": 0.7990345195046389,
+                "observed": 0
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 6.5,
+            "n": 2,
+            "brier": 0.16290051296279945,
+            "logLoss": 0.5058180304837201,
+            "ece": 0.38483903598838304,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 1,
+                "predicted": 0.26318613079359743,
+                "observed": 0
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 1,
+                "predicted": 0.5064919411831686,
+                "observed": 0
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ]
+      },
+      "segments": {
+        "regular": {
+          "champion": null,
+          "candidate": null
+        },
+        "postseason": {
+          "champion": {
+            "n": 2,
+            "distinctGames": 1,
+            "mae": 0.75,
+            "rmse": 0.9300537618869136,
+            "bias": 0.5499999999999998,
+            "poissonDeviance": 0.17952333979745982
+          },
+          "candidate": {
+            "n": 2,
+            "distinctGames": 1,
+            "mae": 1.9411633076650436,
+            "rmse": 2.088456331173504,
+            "bias": 1.9411633076650436,
+            "poissonDeviance": 0.7852747598775407
+          }
+        }
+      },
+      "forecastPromotionReady": false
+    },
+    {
+      "cohort": "CURRENT:hits:research-v1.1-archive-pal-environment:402ba7c39ba6f6750654d6cfa5c49e7a4b146d45e218edba17350ccaf5ffcc9a",
+      "market": "hits",
+      "championVersion": "research-v1.1-archive-pal-environment",
+      "currentVersion": true,
+      "modelHash": "402ba7c39ba6f6750654d6cfa5c49e7a4b146d45e218edba17350ccaf5ffcc9a",
+      "distinctDates": 1,
+      "champion": {
+        "n": 18,
+        "distinctGames": 1,
+        "mae": 0.4999999999999999,
+        "rmse": 0.6666666666666666,
+        "bias": -0.19999999999999998,
+        "poissonDeviance": 0.6129915973384409
+      },
+      "candidate": {
+        "n": 18,
+        "distinctGames": 1,
+        "mae": 0.48287600210941367,
+        "rmse": 0.6497484772665929,
+        "bias": -0.12280392584864558,
+        "poissonDeviance": 0.5813221329839523
+      },
+      "pairedGameError": {
+        "distinctGames": 1,
+        "meanCandidateMinusChampion": -0.017123997890586287,
+        "lo": null,
+        "hi": null,
+        "method": "GAME_CLUSTERED_NORMAL_APPROXIMATION",
+        "insufficientForInterval": true
+      },
+      "countProbabilityDiagnostics": {
+        "assumption": "COMMON_POISSON_LINK_FOR_BOTH_MEANS_NOT_EXECUTABLE_MARKET_PROBABILITIES",
+        "champion": [
+          {
+            "line": 0.5,
+            "n": 18,
+            "brier": 0.20485988707245353,
+            "logLoss": 0.6016107048308886,
+            "ece": 0.316129143682367,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 1,
+                "predicted": 0.3934693402873666,
+                "observed": 0
+              },
+              {
+                "bin": 4,
+                "n": 3,
+                "predicted": 0.4511883639059735,
+                "observed": 0.3333333333333333
+              },
+              {
+                "bin": 5,
+                "n": 10,
+                "predicted": 0.5493219252935088,
+                "observed": 1
+              },
+              {
+                "bin": 6,
+                "n": 4,
+                "predicted": 0.6408726481968984,
+                "observed": 0.75
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 1.5,
+            "n": 18,
+            "brier": 0.17304115667043557,
+            "logLoss": 0.5346632209678239,
+            "ece": 0.09258661238213661,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 1,
+                "predicted": 0.09020401043104986,
+                "observed": 0
+              },
+              {
+                "bin": 1,
+                "n": 10,
+                "predicted": 0.1597950555768489,
+                "observed": 0.2
+              },
+              {
+                "bin": 2,
+                "n": 6,
+                "predicted": 0.2458793820749885,
+                "observed": 0.16666666666666666
+              },
+              {
+                "bin": 3,
+                "n": 1,
+                "predicted": 0.30097072423403304,
+                "observed": 1
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "line": 0.5,
+            "n": 18,
+            "brier": 0.19518360955406336,
+            "logLoss": 0.5824159605809227,
+            "ece": 0.2469999125057083,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 1,
+                "predicted": 0.4402244323203879,
+                "observed": 0
+              },
+              {
+                "bin": 5,
+                "n": 10,
+                "predicted": 0.5503001261141507,
+                "observed": 0.8
+              },
+              {
+                "bin": 6,
+                "n": 7,
+                "predicted": 0.6416035351537331,
+                "observed": 0.8571428571428571
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 1.5,
+            "n": 18,
+            "brier": 0.1697232453576951,
+            "logLoss": 0.5189670119291109,
+            "ece": 0.06604219547256131,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 8,
+                "predicted": 0.17292690134848926,
+                "observed": 0.25
+              },
+              {
+                "bin": 2,
+                "n": 9,
+                "predicted": 0.2508155696994457,
+                "observed": 0.2222222222222222
+              },
+              {
+                "bin": 3,
+                "n": 1,
+                "predicted": 0.31483460199900626,
+                "observed": 0
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ]
+      },
+      "segments": {
+        "regular": {
+          "champion": null,
+          "candidate": null
+        },
+        "postseason": {
+          "champion": {
+            "n": 18,
+            "distinctGames": 1,
+            "mae": 0.4999999999999999,
+            "rmse": 0.6666666666666666,
+            "bias": -0.19999999999999998,
+            "poissonDeviance": 0.6129915973384409
+          },
+          "candidate": {
+            "n": 18,
+            "distinctGames": 1,
+            "mae": 0.48287600210941367,
+            "rmse": 0.6497484772665929,
+            "bias": -0.12280392584864558,
+            "poissonDeviance": 0.5813221329839523
+          }
+        }
+      },
+      "forecastPromotionReady": false
+    },
+    {
+      "cohort": "CURRENT:total_bases:research-v1.1-archive-pal-environment:ee165403b3f1aa2369116124d998c9ff31fd6c80e4b5466ccd6bfada246d3be4",
+      "market": "total_bases",
+      "championVersion": "research-v1.1-archive-pal-environment",
+      "currentVersion": true,
+      "modelHash": "ee165403b3f1aa2369116124d998c9ff31fd6c80e4b5466ccd6bfada246d3be4",
+      "distinctDates": 1,
+      "champion": {
+        "n": 18,
+        "distinctGames": 1,
+        "mae": 0.9222222222222223,
+        "rmse": 1.4352700094407325,
+        "bias": -0.4,
+        "poissonDeviance": 1.510430880377739
+      },
+      "candidate": {
+        "n": 18,
+        "distinctGames": 1,
+        "mae": 0.9769053482765226,
+        "rmse": 1.3844156932935716,
+        "bias": -0.12464075760143582,
+        "poissonDeviance": 1.3444270444791246
+      },
+      "pairedGameError": {
+        "distinctGames": 1,
+        "meanCandidateMinusChampion": 0.054683126054300445,
+        "lo": null,
+        "hi": null,
+        "method": "GAME_CLUSTERED_NORMAL_APPROXIMATION",
+        "insufficientForInterval": true
+      },
+      "countProbabilityDiagnostics": {
+        "assumption": "COMMON_POISSON_LINK_FOR_BOTH_MEANS_NOT_EXECUTABLE_MARKET_PROBABILITIES",
+        "champion": [
+          {
+            "line": 0.5,
+            "n": 18,
+            "brier": 0.16094773463330256,
+            "logLoss": 0.5051199456779474,
+            "ece": 0.18844383940018228,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 1,
+                "predicted": 0.4511883639059735,
+                "observed": 0
+              },
+              {
+                "bin": 5,
+                "n": 4,
+                "predicted": 0.5270428660456845,
+                "observed": 0.5
+              },
+              {
+                "bin": 6,
+                "n": 6,
+                "predicted": 0.6437900113196786,
+                "observed": 1
+              },
+              {
+                "bin": 7,
+                "n": 6,
+                "predicted": 0.7478856958366823,
+                "observed": 0.8333333333333334
+              },
+              {
+                "bin": 8,
+                "n": 1,
+                "predicted": 0.8173164759472653,
+                "observed": 1
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 1.5,
+            "n": 18,
+            "brier": 0.23348397536673252,
+            "logLoss": 0.6602617572823175,
+            "ece": 0.14561040183693463,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 5,
+                "predicted": 0.1631854157073535,
+                "observed": 0.2
+              },
+              {
+                "bin": 2,
+                "n": 4,
+                "predicted": 0.26424111765711533,
+                "observed": 0.5
+              },
+              {
+                "bin": 3,
+                "n": 5,
+                "predicted": 0.3442944153066759,
+                "observed": 0.4
+              },
+              {
+                "bin": 4,
+                "n": 3,
+                "predicted": 0.4304678754313949,
+                "observed": 0.6666666666666666
+              },
+              {
+                "bin": 5,
+                "n": 1,
+                "predicted": 0.5067544850576164,
+                "observed": 0
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 2.5,
+            "n": 18,
+            "brier": 0.16033735533685395,
+            "logLoss": 0.572375102395999,
+            "ece": 0.1952482603241659,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 11,
+                "predicted": 0.06423787942054515,
+                "observed": 0.2727272727272727
+              },
+              {
+                "bin": 1,
+                "n": 5,
+                "predicted": 0.15233341129576633,
+                "observed": 0
+              },
+              {
+                "bin": 2,
+                "n": 2,
+                "predicted": 0.22970915149107596,
+                "observed": 0
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "line": 0.5,
+            "n": 18,
+            "brier": 0.15273334398331434,
+            "logLoss": 0.48370066559152747,
+            "ece": 0.21103396546112357,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 1,
+                "predicted": 0.5540712470831214,
+                "observed": 0
+              },
+              {
+                "bin": 6,
+                "n": 4,
+                "predicted": 0.6617485396913588,
+                "observed": 0.5
+              },
+              {
+                "bin": 7,
+                "n": 9,
+                "predicted": 0.7479129631348346,
+                "observed": 1
+              },
+              {
+                "bin": 8,
+                "n": 4,
+                "predicted": 0.8321906601662947,
+                "observed": 0.75
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 1.5,
+            "n": 18,
+            "brier": 0.22957282881157598,
+            "logLoss": 0.649157986467404,
+            "ece": 0.09290635432177072,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 1,
+                "n": 1,
+                "predicted": 0.19394093134906842,
+                "observed": 0
+              },
+              {
+                "bin": 2,
+                "n": 3,
+                "predicted": 0.2905467259965206,
+                "observed": 0.3333333333333333
+              },
+              {
+                "bin": 3,
+                "n": 4,
+                "predicted": 0.3390091131143092,
+                "observed": 0.5
+              },
+              {
+                "bin": 4,
+                "n": 6,
+                "predicted": 0.429058694958703,
+                "observed": 0.3333333333333333
+              },
+              {
+                "bin": 5,
+                "n": 4,
+                "predicted": 0.5329244767843462,
+                "observed": 0.5
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          },
+          {
+            "line": 2.5,
+            "n": 18,
+            "brier": 0.15913263548976353,
+            "logLoss": 0.5213964834648706,
+            "ece": 0.14230466121814034,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 4,
+                "predicted": 0.08259594238485332,
+                "observed": 0.25
+              },
+              {
+                "bin": 1,
+                "n": 9,
+                "predicted": 0.15270108616390907,
+                "observed": 0.2222222222222222
+              },
+              {
+                "bin": 2,
+                "n": 5,
+                "predicted": 0.25323548938822427,
+                "observed": 0
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ]
+      },
+      "segments": {
+        "regular": {
+          "champion": null,
+          "candidate": null
+        },
+        "postseason": {
+          "champion": {
+            "n": 18,
+            "distinctGames": 1,
+            "mae": 0.9222222222222223,
+            "rmse": 1.4352700094407325,
+            "bias": -0.4,
+            "poissonDeviance": 1.510430880377739
+          },
+          "candidate": {
+            "n": 18,
+            "distinctGames": 1,
+            "mae": 0.9769053482765226,
+            "rmse": 1.3844156932935716,
+            "bias": -0.12464075760143582,
+            "poissonDeviance": 1.3444270444791246
+          }
+        }
+      },
+      "forecastPromotionReady": false
+    },
+    {
+      "cohort": "CURRENT:home_runs:research-v1.1-archive-pal-environment:5295669ec0068808984d7b48f0869ec4fa9e15505270a3ffad5331574b84764a",
+      "market": "home_runs",
+      "championVersion": "research-v1.1-archive-pal-environment",
+      "currentVersion": true,
+      "modelHash": "5295669ec0068808984d7b48f0869ec4fa9e15505270a3ffad5331574b84764a",
+      "distinctDates": 1,
+      "champion": {
+        "n": 18,
+        "distinctGames": 1,
+        "mae": 0.18333333333333335,
+        "rmse": 0.3324989557210001,
+        "bias": -0.027777777777777776,
+        "poissonDeviance": 2.502872326104496
+      },
+      "candidate": {
+        "n": 18,
+        "distinctGames": 1,
+        "mae": 0.2040282283445926,
+        "rmse": 0.3328685567992075,
+        "bias": -0.002548948720008209,
+        "poissonDeviance": 0.601698810804884
+      },
+      "pairedGameError": {
+        "distinctGames": 1,
+        "meanCandidateMinusChampion": 0.020694895011259283,
+        "lo": null,
+        "hi": null,
+        "method": "GAME_CLUSTERED_NORMAL_APPROXIMATION",
+        "insufficientForInterval": true
+      },
+      "countProbabilityDiagnostics": {
+        "assumption": "COMMON_POISSON_LINK_FOR_BOTH_MEANS_NOT_EXECUTABLE_MARKET_PROBABILITIES",
+        "champion": [
+          {
+            "line": 0.5,
+            "n": 18,
+            "brier": 0.10972261116099778,
+            "logLoss": 1.3597463501105838,
+            "ece": 0.07309722706886616,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 16,
+                "predicted": 0.06542427541277784,
+                "observed": 0.125
+              },
+              {
+                "bin": 1,
+                "n": 2,
+                "predicted": 0.18126924692201818,
+                "observed": 0
+              },
+              {
+                "bin": 2,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ],
+        "candidate": [
+          {
+            "line": 0.5,
+            "n": 18,
+            "brier": 0.10916213782962106,
+            "logLoss": 0.40802303246242044,
+            "ece": 0.14425021232949328,
+            "bins": [
+              {
+                "bin": 0,
+                "n": 10,
+                "predicted": 0.061337281809921804,
+                "observed": 0.2
+              },
+              {
+                "bin": 1,
+                "n": 7,
+                "predicted": 0.14227268591498146,
+                "observed": 0
+              },
+              {
+                "bin": 2,
+                "n": 1,
+                "predicted": 0.21396783862522728,
+                "observed": 0
+              },
+              {
+                "bin": 3,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 4,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 5,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 6,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 7,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 8,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              },
+              {
+                "bin": 9,
+                "n": 0,
+                "predicted": null,
+                "observed": null
+              }
+            ]
+          }
+        ]
+      },
+      "segments": {
+        "regular": {
+          "champion": null,
+          "candidate": null
+        },
+        "postseason": {
+          "champion": {
+            "n": 18,
+            "distinctGames": 1,
+            "mae": 0.18333333333333335,
+            "rmse": 0.3324989557210001,
+            "bias": -0.027777777777777776,
+            "poissonDeviance": 2.502872326104496
+          },
+          "candidate": {
+            "n": 18,
+            "distinctGames": 1,
+            "mae": 0.2040282283445926,
+            "rmse": 0.3328685567992075,
+            "bias": -0.002548948720008209,
+            "poissonDeviance": 0.601698810804884
+          }
+        }
+      },
+      "forecastPromotionReady": false
+    }
+  ],
+  "excluded": [
+    {
+      "evidenceId": "5ca13820195f0ed5b7719b7c825a8148c00008f8c5a5ed45afcdbb4ec366dab9",
+      "gameId": "849819",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "34d38587ff135d893cdf94c65fe5324753bcb881d49c295186286aaff573c26b",
+      "gameId": "849819",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "d6e5795bc7c1580f8c56d1568b7765e54bc29a8d1ba69a95e00a7cd2cff641fd",
+      "gameId": "849819",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "5f3d386e094824d9c03b549a26ef82414f3ab51716505331e20c621f980de724",
+      "gameId": "849819",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "2a30b5c268b0f65d00bf4f0b86d2e4443cd0d973f58f7be2a26dc97307e3d52a",
+      "gameId": "849819",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "3e5b91fa0c00155386e1c6e17ca055c56654237a19d528781e31053ec8f71e5b",
+      "gameId": "849819",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "04b6223c1a0713d326f777adcdc5e9c03cb912ee33ff1c44ee97cdca59e9f58d",
+      "gameId": "849819",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "d3db0fc7e0f25a0dcda0fe4de0ae86ebb6a06cca7c45461dab1bfad897b3d69d",
+      "gameId": "849819",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "0db5b64d1d0e6ab085667c36cc3547e93362ad1fb3ccf384b477302f05bde602",
+      "gameId": "849819",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "13238c1d965612bb73b2d1d5dc8f761037b0e3da324765d937b4c6296ca97dfa",
+      "gameId": "849819",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "ba6475bd456ddcfee1365ed233118caf1e5f05b6eac3b92f63e3e5b621c0b534",
+      "gameId": "849819",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "2d24cc4eeabd02d6164227b9c4567f316fb257513c22c57dc24d5421dede093d",
+      "gameId": "849819",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "809795705722a60cfcfa6bbb41482aa76bc4c9598624548afa5256e76428b8ac",
+      "gameId": "849826",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "2ebd903ec13191698f1a9c3f39084448d973c84de04a57a6630eb74a961ebd54",
+      "gameId": "849826",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "26cb7171a9998528e19e3b2deec3882418a5935b4c8eb68428c42d689eeb7d8c",
+      "gameId": "849826",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "3fa626d2b7eba55bd23cea889c5f40f8a08f8f073351d1cb338eae3e7f11bc0b",
+      "gameId": "849826",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "0fce304a1d33e4a06001a1ea9a20a2f29702a4ad948b24e5961c7043a169c9fc",
+      "gameId": "849826",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "0ecbb4b976241afdfeffa1465908ca311db88a37ba2dcb878901d3a691ce3599",
+      "gameId": "849826",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "25c40e9e4f48de4453455adb0638b6f626fa3012e2882ee9a93d02ad8d75db78",
+      "gameId": "849826",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "173d0be83bdef4b2e019b6e52ecdd681848db023cce6e3322c5a722511e458df",
+      "gameId": "849826",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "f3734712b6c3efb7d1da535016766b3cedf93ffce32e2bebbb32c64679a9808a",
+      "gameId": "849826",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "55f5461b827724193bee8bc7c2d8862b6c1135879cc187de3bd07952ec9522b1",
+      "gameId": "849826",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "66ebf6c936a11aad4cb39c520a3f2a0e65e0dc67567bda069297f683ca7c7a74",
+      "gameId": "849822",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "02a073cfd1c8fc972628eb459543bc3727027d486b845bfe671b9cd27b24a45f",
+      "gameId": "849822",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "39d6a9add5d6ed96fbb90f3af5dc84e04243c6d57303364626d753fda376b698",
+      "gameId": "849822",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "1bf7acaeb538c1f896737931d7438475600fa54115860c3d340ccabad24e3371",
+      "gameId": "849827",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "95e4ffc5259fe457d997628e32bfb92305ae98d2edf6a66f095efc0f6c8c678d",
+      "gameId": "849827",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "3c4f5e0c4a653877cd4d27030b81cd535e683a5ca3840d71abd36da07201e11f",
+      "gameId": "849827",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "77a947a07fe747c513c3fd4f47168e7bcb5ac77b933b229607bc5a80b17c789f",
+      "gameId": "849827",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "8b2d2f7bc5546100ab44ca11bc23758252c39f3c301fc874d1217aeb9c29c63b",
+      "gameId": "849827",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "34717f5817482d71f82396802cf2d3271117744ebb7fa1bee05300003f856b90",
+      "gameId": "849827",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "84e99b9241a63b80d57b256819814f165982930496766135cf9be9e8695a4c89",
+      "gameId": "849827",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "2e9fde2189ba30dfa5e5ba8a1f03c50bb848d3575db4467806dd988cd7f4c1b3",
+      "gameId": "849827",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "6a4fb3849ae7e6a0e612bca37f7ec4e5cbe76576335a48e8167cbfe8ff72a3f2",
+      "gameId": "849827",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "b0c876fa57a4a645c0a94832f24029924d030578891bd51eb9f09e30d038599a",
+      "gameId": "849827",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "3b96b03eda299174be7502464d70baf00678ae4114f3ab9525ca9ab120bc2ea7",
+      "gameId": "849827",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "ceab7cd9dc1cc23d2354f6e5074f5c3c975891c41d6d82bf1299487dc21600ae",
+      "gameId": "849833",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "928347909e017b456b5b19e5f2e5cc4bea68b20f8180b614dffd5e3b7a4e8b10",
+      "gameId": "849833",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "99530d938bfd2466c310b2320787e14b9ab820c694cc9631e5e8768f2b7ba717",
+      "gameId": "849833",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "0868787ab1dcb70ee0fa05704d68cb57991f46ce106d9e43b739d847d9d6df12",
+      "gameId": "849833",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "d456701d9e1c88fb062c1f00d6871181a332a4d7da2826d1caebfde946d515bd",
+      "gameId": "849833",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "68384a30dbab2761df7f69199c5a553c745fd568d1b5082d878d5101cf0a5d94",
+      "gameId": "849833",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "94913dcacc5620f5815dfa963285d94b47e5edc53d0fc5473224f120fc6c5011",
+      "gameId": "849833",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "d1391337c5942eb56942cac701ad44b082bc2f89b24c468b1d124d381591dc22",
+      "gameId": "849833",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "ff3586511ef0135f8940a4092f3fbba792e38b2fe214020047a403235c111820",
+      "gameId": "849833",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "b328244493319172a1afe4fda0f733aa6eb24f6910928c7adc3b7504693206a5",
+      "gameId": "849833",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "98c14e31650caf28ad906ae7be2c12d1e28ee1f0b43cf5c8e98510ca4eea0d80",
+      "gameId": "849833",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "c70f3b917afe9ba919a1b1b710369a88eb783580cd3c6a85c11b73f2e676c6d4",
+      "gameId": "849838",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "12fec3adce95f5d68ca36b1e3b398fc38ce5b14fb71a5988bf22f7e9bd72603f",
+      "gameId": "849838",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "478ed41ecd0cb4dbfe7de754cacbc3395df2c363daa5ea1e1ec44612bffba3c1",
+      "gameId": "849838",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "93e420c4926681e93baafc852380a5ab2a52c3cdb921adee2baa7989780a40be",
+      "gameId": "849838",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "6593e07540c037d2d5a89f5cbb8ccea880299db7c96bc36e6bfb2ddd1f7f149c",
+      "gameId": "849838",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "fa00dbb0fbc1bfd76b71414fdc8fc5942b227a0ad3fd9c350ecf726758e494f2",
+      "gameId": "849838",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "9919edb0ed3d8b8d61de017c7640e2a3e3e732e5981b09bfc02ad4bf995813e7",
+      "gameId": "849838",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "8fe356c0fd3796cd35b107f3ca68354ac479555425b0b695f7acb637c95a234f",
+      "gameId": "849838",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "b945d8c78e7bb50d711dd9c586822482c3b86eab0023f0f4edab125c1c146f85",
+      "gameId": "849838",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "44e947c47ca914b8318748f14e40d0b404de3b8b984990b6963b533fb48aad2a",
+      "gameId": "849838",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "b4941c7dfffefa1a6e4b5a9a70b10b21d292acef3d32466bd308b863aa2c3ab1",
+      "gameId": "849838",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "16268ae4c654e85e754e734e69f91a4c3212cf7c7faeba456a1ec45b2c04d157",
+      "gameId": "849838",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "0ed8b6388c7ed663674832c3f92bbba6f6f89f96ee4aa673534a73973d0d09b4",
+      "gameId": "849838",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "8a5c37b8e553f0e86e82f5e4aa52ed6d5eb3777e41d665bb892052cb23e64592",
+      "gameId": "849838",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "ed813d82570e412265f4c201493da0885c7493bd3f8e9a90e74504d57acce6bc",
+      "gameId": "849838",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "cc59ba17f02db965b035b119692b3390cae843161aa50190d26572b5a3eab7bd",
+      "gameId": "849838",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "1fc144b1504432930c15cb45f8f15c4bc75244bd44981a13029260b5a98208af",
+      "gameId": "849838",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "a7a70b95d85f65d5ba556a553b11003d469b8aaa30503eb973d62e6ef578dc73",
+      "gameId": "849838",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "7a725c9c3518f911fe4e2f565b29c66b49bfd893fb888e139a4cc89b12df588e",
+      "gameId": "849831",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "0767e87dde1ac43e5dbe0351f979070c0a559d23238d7232be64ab4b7185b39d",
+      "gameId": "849831",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "f18bf16d4325f381a1d04980f5b38bc1eefba10c73af6a40f14a6d31850543f2",
+      "gameId": "849831",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "b09f83745307c76f2e69f934e7f67d7d53dcddf77b3d0032261b0fc0a1390780",
+      "gameId": "849831",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "c91cd1e637bdb79d09ffd59661e1d7ce8e79aeb859db293e3b18708ee7689ac2",
+      "gameId": "849831",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "271dfadac4d3f1c60f0b802174b81c850761cd7d25b1e3b02ff0998d7c771c0b",
+      "gameId": "849831",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "b4d91762ee8128f47f29f8d70a4f83b70a4203a940698e6ad4ea49fe69bc7c62",
+      "gameId": "849809",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "d498b04d5362a51e0f9ec5a043efe63099f7f97035ee04c9fa8d71b2160c15e5",
+      "gameId": "849809",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "02f5c3d417b2720f01eb57a12a46dbbde3f198bd52dfc4301e3ada07918562bc",
+      "gameId": "849809",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "11e3242e3248b31b6ab4d290fe87aeddd76c10202b485ad8d1f29d0ed5377d95",
+      "gameId": "849809",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "31e890ddbd461535f568e0c5d4e745681283e54a6ad521f7ee672077cad31a31",
+      "gameId": "849809",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "c092d079261c14f2b8e76f955f3d5a63ed42df780456f6bbec506c618bca3814",
+      "gameId": "849809",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "a3f15b8e58d5c2732b2ce390762176bc7054c5cf2f6ee6dd5297c4f66cb7f438",
+      "gameId": "849809",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "d4b8a805748902b55684f3253d12affc6b61189f1108c78fbc05fbfb0b79217a",
+      "gameId": "849812",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "8bc59ed12aea251c864a806bbbe94dd08086064c51cda1e01b424e06ca316413",
+      "gameId": "849812",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "49544eb5b133836d136318eeeaf5f8829eaac11af6e9ffa1cece6168e92a0211",
+      "gameId": "849812",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "7ae39428879fe60d96ddb4b2ee4a3d72b668aaf56e3f7691096e0bd0243f62fc",
+      "gameId": "849812",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "eb239791693a7de00defc7ac10a6252cc01a714894caeeb0ea2adaf6a1c0e5be",
+      "gameId": "849812",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "ab03e9c0ec23e2c8a75a2558124ddc1cc3a797fd60c98ce163e6572e0e32889f",
+      "gameId": "849812",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "00622891f3d6bc2808899c9dee01f99ab18461179971f48183cbef2cceb9adb7",
+      "gameId": "849812",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "69370cd4751b17bcc7f494702595a30895bf1b97352c95c6e54a9c6c250785d9",
+      "gameId": "849812",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "7a1d2dbe6a84068bced1398943a2c7264f011cae633ef39452d9d55c43ec83c9",
+      "gameId": "849812",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "89bae1b83baa7a78c8d9cc6adf7d88f4f09ec33bcdbe4e45d2a95d4cfeef2b61",
+      "gameId": "849812",
+      "market": "hits",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "2a6fd998f9c8ddef4aaf0a4e935e0a158275b47da75796011ef1873108336712",
+      "gameId": "849812",
+      "market": "home_runs",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    },
+    {
+      "evidenceId": "d155b6de99f2a2c4f23eb7a22667fd52f2da088e5970e3ab6c5b040b9085ecb3",
+      "gameId": "849812",
+      "market": "total_bases",
+      "reason": "NO_ELIGIBLE_LAGGED_DESIGN_ROW"
+    }
+  ],
+  "pairedRows": 517,
+  "distinctGames": 11,
+  "decision": "INSUFFICIENT_CURRENT_CHAMPION_HISTORY",
+  "canPromote": false,
+  "limitations": [
+    "Fitted predictions are retrospectively reconstructed from strictly prior-day outcomes, not falsely labeled as captured before the historical game.",
+    "Current and legacy production versions are separate cohorts; repeated players and checkpoints do not create independent games.",
+    "Only games with archived pregame production forecasts can support an exact frozen-production comparison. Missing historic Pal/weather/profile states are not invented.",
+    "Production pitcher-K replay is checked against the saved current-engine inputs; current hitter comparisons use the actually frozen production outputs.",
+    "Count calibration uses a common Poisson link as a model diagnostic; prices, wager EV, ROI and economic qualification are outside this comparison.",
+    "This archive comparison follows inspection of the prior holdout report; it is follow-up evidence, not a newly untouched test set."
+  ]
+}
