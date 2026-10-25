@@ -22,3 +22,15 @@ Immutable R2 objects under `models/mlb/features/v1/` preserve source hashes, acq
 ## Outstanding dependencies
 
 League benchmarks need a deduplicated league-wide corpus; current-roster samples are survivor-biased and must not be labeled league averages. SSW needs a validated physical model and compatible measured fields. xRA needs a defined expected-run target and validation. Scheduled feature capture must be verified after deployment before claiming prospective coverage. No historical records are retroactively relabeled pregame snapshots.
+
+## Point-in-time timestamp compatibility
+
+The game-specific MLB completion freeze validates source evidence against its **actual EARLY/T60/T15 capture instant**, not just first pitch. Nested observation, acquisition, collection and feature-capture receipts in lineup, Statcast, Savant, starter and other model inputs are inspected before the immutable forecast is generated. Ballpark Pal `palAsOf` and the persistent profile `asOf` are checked explicitly. Existing once-only Pal/weather handling is unchanged.
+
+- Exact RFC 3339 timestamps with `Z` or an explicit `±HH:MM` timezone offset are accepted and compared in UTC. Numeric provider timestamps are accepted only when unambiguously Unix seconds or Unix milliseconds in the supported range.
+- Timezone-free datetimes, invalid dates and unsupported timestamp types reject. No guessed local timezone or midnight is substituted.
+- A `YYYY-MM-DD` date-only **source coverage marker** is conservatively bounded at the *end* of that UTC day. Same-day markers cannot establish pregame availability; previous-day markers can pass the upper-bound check. Historical acquisition provenance still requires contemporaneous receipts; an older day label alone does not establish prospective availability.
+- Statcast feature-window membership and immutable R2 date paths use the **UTC capture day**, including offset timestamps that cross UTC midnight. Raw timestamp strings stay in evidence.
+- Missing timestamps are not fabricated, and clock validation alone cannot prove availability when a provider omits source receipts. Post-checkpoint source timestamps reject.
+
+This is a provenance/compatibility guard only. It does not refit the model, promote a new challenger, or authorize wagers.
