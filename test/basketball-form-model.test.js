@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { projectBasketballForm, BASKETBALL_FORM_MODELS } from "../functions/lib/basketballFormModel.js";
 import { SPORTS, BOARD_SPORTS } from "../functions/lib/slateEngineCore.js";
 
-test("WNBA is registered as a core board sport",()=>{
+test("retired WNBA is archival only, not an active board sport",()=>{
   assert.equal(SPORTS.wnba.espn,"basketball/wnba");
-  assert.ok(BOARD_SPORTS.includes("wnba"));
+  assert.ok(!BOARD_SPORTS.includes("wnba"));
 });
 
 test("WNBA form model is independent and research-only",()=>{
