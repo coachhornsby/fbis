@@ -13,10 +13,14 @@ export function buildMlbAblationFreeze(game,capturedAt=new Date().toISOString())
   context:ctx,statcast:game.mlbPitchMatchup||null,persistent:game.mlbPersistentState||null,
   savant:game.savant||null,teams:{home:game.home||null,away:game.away||null},
   starters:{home:game.homeSp||null,away:game.awaySp||null},
-  playerForecasts:game.playerProjectionRows||[]
+  playerForecasts:game.playerProjectionRows||[],
+  // Legacy Pal and persistent-state clocks have explicit source ownership.
+  // A date-only value is not silently treated as midnight UTC.
+  legacySourceClocks:{
+   pal:{sourceObservedAt:ctx.palAsOf??null},
+   persistent:{sourceObservedAt:game.mlbPersistentState?.asOf??null}
+  }
  },capturedAt);
- const availableTimes=[ctx.palAsOf,game.mlbPersistentState?.asOf,...['homeOffense','awayOffense'].flatMap(side=>(game.mlbPitchMatchup?.[side]?.featureEvidence||[]).flatMap(e=>[e.capturedAt,...(e.sources||[]).map(s=>s.observedAt)]))].filter(Boolean);
- if(availableTimes.some(t=>!Number.isFinite(Date.parse(t))||Date.parse(t)>Date.parse(capturedAt)))throw Error('SOURCE_NOT_AVAILABLE_AT_CAPTURE');
  for(const key of ['palParkRunFactor','palParkHrFactor','homePalRcVsTypical','homePalHrVsTypical','homePalKVsTypical','homePalMatchupN','awayPalRcVsTypical','awayPalHrVsTypical','awayPalKVsTypical','awayPalMatchupN'])neutral[key]=null;
  const inputs={savant:game.savant||{},mlbContext:ctx,mlbPitchMatchup:game.mlbPitchMatchup||null,homeSp:game.homeSp,awaySp:game.awaySp,home:game.home,away:game.away};
  const variants={baseline:{...game,mlbContext:neutral,mlbPitchMatchup:null},statcast:{...game,mlbContext:neutral},pal:{...game,mlbPitchMatchup:null},combined:game};
@@ -24,7 +28,6 @@ export function buildMlbAblationFreeze(game,capturedAt=new Date().toISOString())
  if(!predictions.combined.available)throw Error('PRODUCTION_PROJECTION_UNAVAILABLE');
  const minutes=(Date.parse(game.start)-Date.parse(capturedAt))/60000,checkpoint=minutes<=15?'T15':minutes<=60?'T60':'EARLY';
  const playerForecasts=(game.playerProjectionRows||[]).filter(p=>['hits','total_bases','home_runs','strikeouts'].includes(p.market)&&Number.isFinite(p.fbisProjection??p.projection)).map(p=>({playerId:String(p.playerId),position:p.position,market:p.market,projection:p.fbisProjection??p.projection,modelVersion:p.modelVersion||MLB_DEEP_VERSION,sourceObservedAt:p.sourceObservedAt||null,lineupState:p.lineupState||null}));
- if(playerForecasts.some(p=>p.sourceObservedAt&&(!Number.isFinite(Date.parse(p.sourceObservedAt))||Date.parse(p.sourceObservedAt)>Date.parse(capturedAt))))throw Error('PLAYER_SOURCE_NOT_AVAILABLE_AT_CAPTURE');
  const evidence={version:MLB_COMPLETION_VERSION,playerForecasts,modelVersion:MLB_DEEP_VERSION,gameId:String(game.id),gameStart:game.start,capturedAt,checkpoint,scope:game.mlbContext?.postseason?'postseason':'regular',inputs,predictions,externalPalKs:{home:ctx.homePalStarterProjectedKs??null,away:ctx.awayPalStarterProjectedKs??null},lineupsOfficial:ctx.palLineupsOfficial===true,classification:'PROSPECTIVE',canPromote:false};
  return {...evidence,sourceHash:sha256Hex(JSON.stringify(evidence))};
 }
