@@ -195,3 +195,50 @@
   }
   .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-matchup-clock__period{font-size:21px!important}
 }
+
+/* Basketball: the verified quarter and time form a compact two-line
+   scoreboard between score tiles. No countdown prose, pill, or border. */
+.fbis-shell-main .fbis-universal-premium .fbis-matchup-clock.is-basketball{
+  gap:2px;
+  white-space:nowrap;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-matchup-clock.is-basketball .fbis-matchup-clock__period{
+  font-size:clamp(17px,1.55vw,23px)!important;
+  line-height:1.04!important;
+  color:#e8f5ff!important;
+  overflow-wrap:normal!important;
+  white-space:nowrap;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-matchup-clock.is-basketball .fbis-matchup-clock__remaining{
+  font-size:clamp(19px,1.9vw,26px)!important;
+  line-height:1.06!important;
+  color:#85ffd7!important;
+  font-weight:950!important;
+  letter-spacing:-.04em;
+  overflow-wrap:normal!important;
+  white-space:nowrap;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-matchup-clock.is-basketball .fbis-matchup-clock__period{
+  font-size:clamp(19px,1.8vw,25px)!important;
+}
+.fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-matchup-clock.is-basketball .fbis-matchup-clock__remaining{
+  font-size:clamp(21px,2.1vw,28px)!important;
+}
+.fbis-shell-main .fbis-universal-premium .fbis-matchup-clock.is-basketball.is-intermission .fbis-matchup-clock__period{
+  font-size:clamp(11px,1vw,15px)!important;
+  letter-spacing:.035em!important;
+}
+@media(max-width:640px){
+  .fbis-shell-main .fbis-universal-premium .fbis-matchup-clock.is-basketball .fbis-matchup-clock__period,
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-matchup-clock.is-basketball .fbis-matchup-clock__period{
+    font-size:17px!important;
+  }
+  .fbis-shell-main .fbis-universal-premium .fbis-matchup-clock.is-basketball .fbis-matchup-clock__remaining,
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-matchup-clock.is-basketball .fbis-matchup-clock__remaining{
+    font-size:19px!important;
+  }
+  .fbis-shell-main .fbis-universal-premium .fbis-matchup-clock.is-basketball.is-intermission .fbis-matchup-clock__period,
+  .fbis-shell-main .fbis-universal-premium.pgc-featured .fbis-matchup-clock.is-basketball.is-intermission .fbis-matchup-clock__period{
+    font-size:11px!important;
+  }
+}

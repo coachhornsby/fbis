@@ -3,6 +3,7 @@
  * from kickoff or the browser wall clock.
  */
 const FOOTBALL_QUARTER = new Set(["cfb", "nfl", "nba", "wnba"]);
+const BASKETBALL = new Set(["nba", "wnba", "cbb"]);
 const normalize = v => String(v == null ? "" : v).trim();
 function periodFromDetail(detail) {
   const q = detail.match(/\bQ(?:UARTER\s*)?([1-4])\b/i);
@@ -12,9 +13,9 @@ function periodFromDetail(detail) {
 }
 function readClock(value, detail) {
   const raw = normalize(value);
-  if (/^\d{1,3}:[0-5]\d$/.test(raw)) return raw;
+  if (/^\d{1,3}:[0-5]\d(?:\.\d)?$/.test(raw)) return raw;
   // ESPN fallback shortDetail is frequently "7:42 - 3rd".
-  const matched = detail.match(/\b(\d{1,3}:[0-5]\d)\b/);
+  const matched = detail.match(/\b(\d{1,3}:[0-5]\d(?:\.\d)?)\b/);
   return matched?.[1] || null;
 }
 function inningOrdinal(n) {
@@ -63,6 +64,9 @@ export function formatLiveGameClock(game = {}) {
       : sport === "nhl" ? `P${period}`
       : `PERIOD ${period}`
     : "LIVE";
+  // Basketball uses period and time only. When the feed omits the time,
+  // show the verified period rather than a huge CLOCK N/A message.
+  if (BASKETBALL.has(sport)) return clock ? `${label} · ${clock}` : label;
   if (!clock) return period ? `${label} · CLOCK N/A` : "CLOCK N/A";
   if (period && FOOTBALL_QUARTER.has(sport) && period > 4)
     return `${label} · ${clock}`;

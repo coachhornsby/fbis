@@ -49,12 +49,15 @@ export default function GameScoreDisplay({
 
 /** One clock per matchup, centrally between the two team score cards. */
 export function MatchupCenterClock({ clock = null, sport = null }) {
-  const raw = String(clock || "CLOCK N/A").trim();
+  const sportKey = String(sport || "").toLowerCase();
+  const isBasketball = ["nba", "wnba", "cbb"].includes(sportKey);
+  const raw = String(clock || (isBasketball ? "LIVE" : "CLOCK N/A")).trim();
+  const intermission = isBasketball && /^(?:HALFTIME|END\s)/i.test(raw);
   const parts = raw.split(" · ");
   const phase = parts.length > 1 ? parts[0] : raw;
   const remaining = parts.length > 1 ? parts.slice(1).join(" · ") : null;
   return (
-    <div className="fbis-matchup-clock" role="status" aria-label={`${["mlb","npb","kbo"].includes(String(sport).toLowerCase()) ? "Live baseball inning" : "Live game period and time"}: ${raw}`}>
+    <div className={`fbis-matchup-clock${isBasketball ? " is-basketball" : ""}${intermission ? " is-intermission" : ""}`} role="status" aria-label={`${["mlb","npb","kbo"].includes(String(sport).toLowerCase()) ? "Live baseball inning" : "Live game period and time"}: ${raw}`}>
       <strong className="fbis-matchup-clock__period">{phase}</strong>
       {remaining ? <span className="fbis-matchup-clock__remaining">{remaining}</span> : null}
     </div>

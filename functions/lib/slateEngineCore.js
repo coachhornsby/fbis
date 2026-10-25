@@ -1,4 +1,5 @@
 import { readMlbInningState } from "./mlbInningState.js";
+import { normalizeEspnDisplayClock } from "./espnDisplayClock.js";
 import {fetchWithCfbBackoff} from "./cfbProviderBackoff.js";
 /** Shared slate builder — used by Pages Functions and local Vite middleware. */
 
@@ -286,8 +287,7 @@ function statusInfo(comp, event = {}) {
     detail: t.shortDetail || t.detail || t.description ||
       fallback.type?.shortDetail || fallback.type?.detail || "",
     period: Number.isInteger(periodNumber) && periodNumber >= 1 && periodNumber <= 20 ? periodNumber : null,
-    clock: typeof displayClock === "string" && /^\\d{1,3}:\\d{2}$/.test(displayClock.trim())
-      ? displayClock.trim() : null,
+    clock: normalizeEspnDisplayClock(displayClock),
     completed: state === "post" || t.completed === true,
     live: state === "in",
   };
