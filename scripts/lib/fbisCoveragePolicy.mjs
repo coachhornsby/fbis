@@ -46,9 +46,12 @@ export function assessFbisCoverage({board={},models={},contracts={},now=Date.now
   if(!lines?.ok){incidents.push({code:'PROP_EXCHANGE_API_FAILED',sport});continue;}
   const normalizedStat=s=>s==='pra'?'points_rebounds_assists':s;
   const keyOf=r=>[r.canonicalEventId,r.canonicalPlayerId,normalizedStat(r.canonical_market),r.period].join('|');
-  const independentModels=(result.rows||[]).filter(r=>r.independent===true&&
-   positive(r.fbis_projection)&&inWindow(r));
-  const modelKeys=new Set(independentModels.map(keyOf));
+  const allModels=(result.rows||[]).filter(r=>r.independent===true&&positive(r.fbis_projection));
+  // Projection rows may omit game start (the matched contract supplies it).
+  // They still satisfy the exact model identity; only model-only warnings
+  // require a trusted upcoming event clock.
+  const modelKeys=new Set(allModels.map(keyOf));
+  const independentModels=allModels.filter(inWindow);
   const offerings=(lines.rows||[]).filter(r=>r.identityVerified===true&&inWindow(r)&&r.contractId);
   const offeredKeys=new Set(offerings.map(keyOf));
   const without=independentModels.filter(r=>!offeredKeys.has(keyOf(r)));
