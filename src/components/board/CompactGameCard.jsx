@@ -7,6 +7,7 @@ import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
 import GameScoreDisplay from "./GameScoreDisplay.jsx";
+import { formatLiveGameClock } from "../../lib/liveGameClock.js";
 import CfbCapturedMarket from "./CfbCapturedMarket.jsx";
 import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference.js";
 import { lineLabel, bestEdge, evidenceNumber } from "../../lib/boardEvidence.js";
@@ -30,9 +31,10 @@ function Stars({ value = 1, max = 5 }) {
   const safe = Math.max(1, Math.min(ceiling, Number(value) || 1));
   return (
     <span className="cgc-star-row" aria-label={`${safe} of ${ceiling} confidence stars`}>
-      {Array.from({ length: ceiling }, (_, i) => (
-        <svg key={i} className={i < safe ? "filled" : "empty"} viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg>
+      {Array.from({ length: safe }, (_, i) => (
+        <svg key={i} className="filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg>
       ))}
+      <span className="cgc-star-count" aria-hidden="true">{safe}/{ceiling}</span>
     </span>
   );
 }
@@ -162,6 +164,7 @@ export default function CompactGameCard({ game, onOpen }) {
   const hasFinalScore = isFinal && finalAway != null && finalHome != null;
   const hasLiveScore = Boolean(vm.event?.live && finalAway != null && finalHome != null);
   const hasActualScore = hasFinalScore || hasLiveScore;
+  const liveClock = formatLiveGameClock(game);
   const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
@@ -234,7 +237,7 @@ export default function CompactGameCard({ game, onOpen }) {
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
-            <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} />
+            <GameScoreDisplay actualScore={hasActualScore ? finalAway : null} projectedScore={proj.away} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} liveClock={liveClock} />
           </div>
 
           <span className="cgc-vs">VS</span>
@@ -249,7 +252,7 @@ export default function CompactGameCard({ game, onOpen }) {
               </>
             )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
-            <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} />
+            <GameScoreDisplay actualScore={hasActualScore ? finalHome : null} projectedScore={proj.home} hasProjection={proj.available} live={Boolean(vm.event?.live)} final={isFinal} liveClock={liveClock} />
           </div>
         </div>
 
