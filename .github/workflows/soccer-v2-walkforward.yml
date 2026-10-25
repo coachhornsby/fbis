@@ -1,21 +1,6 @@
 name: Soccer-FBIS-v2 walk-forward
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "functions/lib/soccerFbisV1.js"
-      - "functions/lib/soccerFbisV2.js"
-      - "scripts/soccer-v2-walkforward.mjs"
-      - ".github/workflows/soccer-v2-walkforward.yml"
-  pull_request:
-    paths:
-      - "functions/lib/soccerFbisV1.js"
-      - "functions/lib/soccerFbisV2.js"
-      - "functions/lib/store.js"
-      - "scripts/soccer-v2-walkforward.mjs"
-      - "test/soccer-fbis-v2.test.js"
-      - ".github/workflows/soccer-v2-walkforward.yml"
   workflow_dispatch:
 
 permissions:
