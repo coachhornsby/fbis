@@ -1,4 +1,4 @@
-export const PRO_PLAYER_PROP_SPORTS = Object.freeze(["mlb", "npb", "kbo", "cfb", "cbb", "tennis", "nfl", "nba", "wnba", "nhl"]);
+export const PRO_PLAYER_PROP_SPORTS = Object.freeze(["nfl", "mlb", "nba", "nhl", "cfb", "cbb", "tennis"]);
 
 export const PRO_PLAYER_PROP_MARKETS = Object.freeze({
   npb: ["strikeouts"],
