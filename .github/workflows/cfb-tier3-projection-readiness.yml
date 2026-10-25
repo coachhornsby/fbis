@@ -35,7 +35,7 @@ jobs:
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
             -o tier3.json https://fbis-myz.pages.dev/api/cfb-tier3-readiness
           jq -e '.ok == true and .providerCalls == 0 and .projectionInputsChanged == false and .canAuthorizeWager == false and (.weekly|type=="array")' tier3.json
-          jq '{source,summary,weekly:[.weekly[]|{season,week,rows,identityMatched,receiptsBeforeKickoff,providerPublicationVerified,featureColumns,gate}]}' tier3.json > tier3-audit.json
+          jq '{source,summary,weekly:[.weekly[]|{season,week,rows,identityMatched,receiptsBeforeKickoff,receiptAndIdentityVerified,clockEvidence,providerPublicationVerified,featureColumns,gate}]}' tier3.json > tier3-audit.json
           cat tier3-audit.json >> "$GITHUB_STEP_SUMMARY"
       - if: always()
         uses: actions/upload-artifact@v4
