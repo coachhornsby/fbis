@@ -2,11 +2,10 @@ import {reconcileTennisCards} from './lib/reconcile-tennis-cards.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 
 const base=process.env.FBIS_BASE||'https://fbis-myz.pages.dev';
-const secret=process.env.HARVEST_SECRET;
 const now=new Date();
 const ctDate=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
-async function get(path,auth=false){
- const response=await fetch(base+path,{headers:auth&&secret?{'x-harvest-secret':secret}:{},signal:AbortSignal.timeout(45000)});
+async function get(path){
+ const response=await fetch(base+path,{signal:AbortSignal.timeout(45000)});
  let body;try{body=await response.json();}catch{throw Error(path+':INVALID_JSON:'+response.status);}
  if(!response.ok||body?.ok===false)throw Error(path+':HTTP_'+response.status+':'+String(body?.reason||body?.error||'UNAVAILABLE'));
  return body;
@@ -20,7 +19,7 @@ async function check(name,fn){
 await Promise.all([
  check('sourceCoverage',async()=>{
   const c=await get('/api/tennis-source-coverage');
-  return {officialFixtures:c.officialFixtures,externalResearchFixtures:c.externalResearchFixtures,profileCoverage:c.profileCoverage,portraits:c.portraits,latestPrizePicksAcquisition:c.latestPrizePicksAcquisition,recentPrizePicksTennisImages:c.recentPrizePicksTennisImages};
+  return {officialFixtures:c.officialFixtures,externalResearchFixtures:c.externalResearchFixtures,profileCoverage:c.profileCoverage,portraits:c.portraits,historicalPrizePicksAcquisition:c.latestPrizePicksAcquisition,historicalPrizePicksTennisImages:c.recentPrizePicksTennisImages,imageSourcePolicy:'LEGACY_HISTORY_ONLY_CURRENT_ACTION_HEADSHOT_ROUTE_NOT_VERIFIED'};
  }),
  check('officialProjectionCoverage',async()=>{
   const c=await get('/api/tennis-projection-coverage');
@@ -38,11 +37,6 @@ await Promise.all([
   const games=Array.isArray(c.games)?c.games:[];
   rawBoardGames=games;
   return {gameCount:games.length,gameIds:games.map(g=>String(g.id||'')).filter(Boolean),responseKeys:Object.keys(c)};
- }),
- check('prizePicksAcquisition',async()=>{
-  if(!secret)throw Error('HARVEST_SECRET_NOT_CONFIGURED');
-  const a=await get('/api/prizepicks-props?mode=acquisition',true);
-  return {date:a.ctDate,state:a.acquisition?.state||'NOT_STARTED',runId:a.acquisition?.run_id||null,coverage:a.coverage,sourceCapturedAt:a.capturedScope?.captured_at||null};
  })
 ]);
 if(report.checks.tennisBoard?.status==='OK' && report.checks.officialProjectionCoverage?.status==='OK'){
@@ -57,10 +51,6 @@ if(sc){
  const observed=(sc.externalResearchFixtures||[]).reduce((sum,r)=>sum+Number(r.upcoming||0),0);
  const official=(sc.officialFixtures||[]).reduce((sum,r)=>sum+Number(r.upcoming||0),0);
  if(observed>official)report.alerts.push('EXTERNAL_FIXTURE_VOLUME_EXCEEDS_OFFICIAL:'+observed+':'+official);
- const candidates=Number(sc.recentPrizePicksTennisImages?.candidate_players||0);
- if(!candidates)report.alerts.push('NO_RECENT_TENNIS_IMAGE_CANDIDATES');
- const date=sc.latestPrizePicksAcquisition?.ct_date;
- if(date!==ctDate)report.alerts.push('PRIZEPICKS_NO_CAPTURE_FOR_CT_DATE');
 }
 const pc=report.checks.officialProjectionCoverage?.data;
 if(pc){
@@ -69,11 +59,8 @@ if(pc){
 }
 const board=report.checks.tennisBoard?.data;
 if(board?.gameCount>0&&pc?.scheduledCandidates===0)report.alerts.push('EXCHANGE_BOARD_WITHOUT_OFFICIAL_FIXTURE_COVERAGE');
-const pp=report.checks.prizePicksAcquisition?.data;
-if(pp&&pp.state!=='COMPLETE')report.alerts.push('PRIZEPICKS_DAILY_CAPTURE_'+pp.state);
-if(pp&&pp.state==='COMPLETE'&&!pp.coverage?.some(x=>String(x.sport).toLowerCase()==='tennis'&&Number(x.rows)>0))report.alerts.push('PRIZEPICKS_COMPLETE_NO_TENNIS_ROWS');
 report.passed=report.alerts.length===0;
 await mkdir('artifacts',{recursive:true});
 await writeFile('artifacts/tennis-completeness-audit.json',JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify({at:report.at,boardCards:board?.gameCount,official:pc?.successfulProjections,officialCandidates:pc?.scheduledCandidates,portraits:report.checks.portraits?.data?.total,prizePicks:pp?.state,alerts:report.alerts}));
+console.log(JSON.stringify({at:report.at,boardCards:board?.gameCount,official:pc?.successfulProjections,officialCandidates:pc?.scheduledCandidates,portraits:report.checks.portraits?.data?.total,legacyPrizePicks:'HISTORY_ONLY_NOT_AN_ACTIVE_FEED',alerts:report.alerts}));
 if(!report.passed)process.exitCode=1;
