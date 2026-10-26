@@ -6,7 +6,7 @@ on:
       - "functions/api/nfl-personnel-research.js"
       - "functions/api/football-simulation-rankings.js"
       - "src/features/simulationRankings/**"
-      - "migrations/0129_nfl_personnel_research.sql"
+      - "sql/shards/nfl-personnel-v13-research.sql"
       - "test/nfl-personnel-challenger.test.js"
       - ".github/workflows/nfl-personnel-challenger-ci.yml"
   push:
@@ -16,7 +16,7 @@ on:
       - "functions/api/nfl-personnel-research.js"
       - "functions/api/football-simulation-rankings.js"
       - "src/features/simulationRankings/**"
-      - "migrations/0129_nfl_personnel_research.sql"
+      - "sql/shards/nfl-personnel-v13-research.sql"
       - "test/nfl-personnel-challenger.test.js"
       - ".github/workflows/nfl-personnel-challenger-ci.yml"
 permissions:
