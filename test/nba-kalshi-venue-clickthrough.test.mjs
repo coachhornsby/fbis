@@ -24,3 +24,10 @@ test("No Kalshi quote must not invent a Kalshi market or link",()=>{
 test("Source-supplied unknown Pinnacle URL is not guessed",()=>{
  assert.equal(exchangeMarketLink({source:"PinnOdds",sourceMarketId:"4019"}),null);
 });
+
+test("Pinnacle event links only use authenticated source event IDs",()=>{
+ const good=exchangeMarketLink({source:"PinnOdds",providerEventId:"100234",marketUrl:"https://www.pinnacle.com/en/basketball/nba/event/100234"});
+ assert.equal(good?.provider,"Pinnacle");assert.equal(good?.scope,"EVENT");
+ assert.equal(exchangeMarketLink({source:"PinnOdds",providerEventId:"100234",marketUrl:"https://www.pinnacle.com/en/basketball/nba/event/999999"}),null);
+ assert.equal(exchangeMarketLink({source:"PinnOdds",providerEventId:"100234",marketUrl:"https://example.com/event/100234"}),null);
+});
