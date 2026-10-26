@@ -1,0 +1,1584 @@
+[
+  {
+    "game_id": "401856705",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 16:45:00",
+    "home_team_source": "Georgia",
+    "away_team_source": "Vanderbilt"
+  },
+  {
+    "game_id": "401856707",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 16:00:00",
+    "home_team_source": "Mississippi State",
+    "away_team_source": "Alabama"
+  },
+  {
+    "game_id": "401856708",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "Missouri",
+    "away_team_source": "Florida"
+  },
+  {
+    "game_id": "401856709",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 20:15:00",
+    "home_team_source": "South Carolina",
+    "away_team_source": "Kentucky"
+  },
+  {
+    "game_id": "401856710",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "Tennessee",
+    "away_team_source": "Auburn"
+  },
+  {
+    "game_id": "401856711",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 23:00:00",
+    "home_team_source": "Texas A&M",
+    "away_team_source": "Arkansas"
+  },
+  {
+    "game_id": "401856807",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 16:00:00",
+    "home_team_source": "Kansas",
+    "away_team_source": "Middle Tennessee"
+  },
+  {
+    "game_id": "401856817",
+    "week": 5,
+    "kickoff_literal": "2026-10-04 02:30:00",
+    "home_team_source": "Arizona State",
+    "away_team_source": "Baylor"
+  },
+  {
+    "game_id": "401856818",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 23:00:00",
+    "home_team_source": "TCU",
+    "away_team_source": "BYU"
+  },
+  {
+    "game_id": "401856819",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 16:00:00",
+    "home_team_source": "Houston",
+    "away_team_source": "UCF"
+  },
+  {
+    "game_id": "401856820",
+    "week": 5,
+    "kickoff_literal": "2026-10-04 03:00:00",
+    "home_team_source": "Arizona",
+    "away_team_source": "Cincinnati"
+  },
+  {
+    "game_id": "401856821",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 23:30:00",
+    "home_team_source": "Colorado",
+    "away_team_source": "Texas Tech"
+  },
+  {
+    "game_id": "401856822",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 16:00:00",
+    "home_team_source": "Iowa State",
+    "away_team_source": "West Virginia"
+  },
+  {
+    "game_id": "401858245",
+    "week": 5,
+    "kickoff_literal": "2026-10-02 23:00:00",
+    "home_team_source": "Virginia Tech",
+    "away_team_source": "Pittsburgh"
+  },
+  {
+    "game_id": "401858246",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 16:00:00",
+    "home_team_source": "SMU",
+    "away_team_source": "Boston College"
+  },
+  {
+    "game_id": "401858247",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "UNLV",
+    "away_team_source": "California"
+  },
+  {
+    "game_id": "401858248",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "NC State",
+    "away_team_source": "Louisville"
+  },
+  {
+    "game_id": "401858249",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 23:30:00",
+    "home_team_source": "Clemson",
+    "away_team_source": "Miami"
+  },
+  {
+    "game_id": "401858250",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 16:00:00",
+    "home_team_source": "North Carolina",
+    "away_team_source": "Notre Dame"
+  },
+  {
+    "game_id": "401858251",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 16:00:00",
+    "home_team_source": "Wake Forest",
+    "away_team_source": "Stanford"
+  },
+  {
+    "game_id": "401858252",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 16:00:00",
+    "home_team_source": "UConn",
+    "away_team_source": "Syracuse"
+  },
+  {
+    "game_id": "401858253",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "Florida State",
+    "away_team_source": "Virginia"
+  },
+  {
+    "game_id": "401858472",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 20:15:00",
+    "home_team_source": "Illinois",
+    "away_team_source": "Purdue"
+  },
+  {
+    "game_id": "401858473",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "Iowa",
+    "away_team_source": "Ohio State"
+  },
+  {
+    "game_id": "401858474",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 16:00:00",
+    "home_team_source": "Minnesota",
+    "away_team_source": "Michigan"
+  },
+  {
+    "game_id": "401858475",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 20:00:00",
+    "home_team_source": "Nebraska",
+    "away_team_source": "Maryland"
+  },
+  {
+    "game_id": "401858476",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 00:00:00",
+    "home_team_source": "Northwestern",
+    "away_team_source": "Penn State"
+  },
+  {
+    "game_id": "401858477",
+    "week": 5,
+    "kickoff_literal": "2026-10-04 00:00:00",
+    "home_team_source": "Rutgers",
+    "away_team_source": "Indiana"
+  },
+  {
+    "game_id": "401858478",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 23:30:00",
+    "home_team_source": "USC",
+    "away_team_source": "Washington"
+  },
+  {
+    "game_id": "401858479",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 16:30:00",
+    "home_team_source": "Wisconsin",
+    "away_team_source": "Michigan State"
+  },
+  {
+    "game_id": "401860898",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 23:30:00",
+    "home_team_source": "Boise State",
+    "away_team_source": "Utah State"
+  },
+  {
+    "game_id": "401860899",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 22:00:00",
+    "home_team_source": "Colorado State",
+    "away_team_source": "Oregon State"
+  },
+  {
+    "game_id": "401860900",
+    "week": 5,
+    "kickoff_literal": "2026-10-04 02:30:00",
+    "home_team_source": "San Diego State",
+    "away_team_source": "Texas State"
+  },
+  {
+    "game_id": "401860921",
+    "week": 5,
+    "kickoff_literal": "2026-10-04 01:30:00",
+    "home_team_source": "Washington State",
+    "away_team_source": "Fresno State"
+  },
+  {
+    "game_id": "401862786",
+    "week": 5,
+    "kickoff_literal": "2026-10-02 01:00:00",
+    "home_team_source": "Tulsa",
+    "away_team_source": "North Texas"
+  },
+  {
+    "game_id": "401862787",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "Charlotte",
+    "away_team_source": "Memphis"
+  },
+  {
+    "game_id": "401862788",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 23:00:00",
+    "home_team_source": "Rice",
+    "away_team_source": "UTSA"
+  },
+  {
+    "game_id": "401862791",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 16:00:00",
+    "home_team_source": "Air Force",
+    "away_team_source": "Navy"
+  },
+  {
+    "game_id": "401862792",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 23:30:00",
+    "home_team_source": "South Florida",
+    "away_team_source": "Temple"
+  },
+  {
+    "game_id": "401864514",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 20:00:00",
+    "home_team_source": "New Mexico",
+    "away_team_source": "UTEP"
+  },
+  {
+    "game_id": "401864515",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "North Dakota State",
+    "away_team_source": "Wyoming"
+  },
+  {
+    "game_id": "401866430",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "Central Michigan",
+    "away_team_source": "Akron"
+  },
+  {
+    "game_id": "401866431",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 18:00:00",
+    "home_team_source": "Ball State",
+    "away_team_source": "Toledo"
+  },
+  {
+    "game_id": "401866432",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 17:00:00",
+    "home_team_source": "Buffalo",
+    "away_team_source": "Western Michigan"
+  },
+  {
+    "game_id": "401866433",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "Massachusetts",
+    "away_team_source": "Eastern Michigan"
+  },
+  {
+    "game_id": "401866434",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "Kent State",
+    "away_team_source": "Ohio"
+  },
+  {
+    "game_id": "401866477",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "Miami (OH)",
+    "away_team_source": "Bowling Green"
+  },
+  {
+    "game_id": "401869842",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 23:30:00",
+    "home_team_source": "Louisiana Tech",
+    "away_team_source": "Army"
+  },
+  {
+    "game_id": "401869942",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 23:00:00",
+    "home_team_source": "Coastal Carolina",
+    "away_team_source": "Georgia Southern"
+  },
+  {
+    "game_id": "401869956",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:30:00",
+    "home_team_source": "Georgia State",
+    "away_team_source": "Old Dominion"
+  },
+  {
+    "game_id": "401869962",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 19:45:00",
+    "home_team_source": "James Madison",
+    "away_team_source": "Marshall"
+  },
+  {
+    "game_id": "401871049",
+    "week": 5,
+    "kickoff_literal": "2026-10-02 00:00:00",
+    "home_team_source": "New Mexico State",
+    "away_team_source": "Western Kentucky"
+  },
+  {
+    "game_id": "401871050",
+    "week": 5,
+    "kickoff_literal": "2026-10-02 23:00:00",
+    "home_team_source": "Delaware",
+    "away_team_source": "Liberty"
+  },
+  {
+    "game_id": "401871089",
+    "week": 5,
+    "kickoff_literal": "2026-10-03 23:00:00",
+    "home_team_source": "South Alabama",
+    "away_team_source": "UL Monroe"
+  },
+  {
+    "game_id": "401856712",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 23:30:00",
+    "home_team_source": "Alabama",
+    "away_team_source": "Georgia"
+  },
+  {
+    "game_id": "401856713",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 20:15:00",
+    "home_team_source": "Arkansas",
+    "away_team_source": "Tennessee"
+  },
+  {
+    "game_id": "401856714",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 16:45:00",
+    "home_team_source": "Florida",
+    "away_team_source": "South Carolina"
+  },
+  {
+    "game_id": "401856715",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 23:00:00",
+    "home_team_source": "Kentucky",
+    "away_team_source": "LSU"
+  },
+  {
+    "game_id": "401856716",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 16:00:00",
+    "home_team_source": "Missouri",
+    "away_team_source": "Texas A&M"
+  },
+  {
+    "game_id": "401856717",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "Oklahoma",
+    "away_team_source": "Texas"
+  },
+  {
+    "game_id": "401856718",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "Vanderbilt",
+    "away_team_source": "Ole Miss"
+  },
+  {
+    "game_id": "401856808",
+    "week": 6,
+    "kickoff_literal": "2026-10-11 02:30:00",
+    "home_team_source": "Arizona State",
+    "away_team_source": "Hawai'i"
+  },
+  {
+    "game_id": "401856823",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 16:00:00",
+    "home_team_source": "West Virginia",
+    "away_team_source": "Arizona"
+  },
+  {
+    "game_id": "401856824",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 16:00:00",
+    "home_team_source": "Oklahoma State",
+    "away_team_source": "UCF"
+  },
+  {
+    "game_id": "401856825",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "Kansas State",
+    "away_team_source": "Houston"
+  },
+  {
+    "game_id": "401856826",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 02:15:00",
+    "home_team_source": "BYU",
+    "away_team_source": "Iowa State"
+  },
+  {
+    "game_id": "401856827",
+    "week": 6,
+    "kickoff_literal": "2026-10-11 02:15:00",
+    "home_team_source": "Utah",
+    "away_team_source": "Kansas"
+  },
+  {
+    "game_id": "401858254",
+    "week": 6,
+    "kickoff_literal": "2026-10-09 23:00:00",
+    "home_team_source": "Louisville",
+    "away_team_source": "Florida State"
+  },
+  {
+    "game_id": "401858255",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "Georgia Tech",
+    "away_team_source": "Duke"
+  },
+  {
+    "game_id": "401858256",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 16:00:00",
+    "home_team_source": "Pittsburgh",
+    "away_team_source": "North Carolina"
+  },
+  {
+    "game_id": "401858257",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "Notre Dame",
+    "away_team_source": "Stanford"
+  },
+  {
+    "game_id": "401858258",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 23:30:00",
+    "home_team_source": "Virginia",
+    "away_team_source": "Syracuse"
+  },
+  {
+    "game_id": "401858259",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "California",
+    "away_team_source": "Virginia Tech"
+  },
+  {
+    "game_id": "401858260",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 16:00:00",
+    "home_team_source": "NC State",
+    "away_team_source": "Wake Forest"
+  },
+  {
+    "game_id": "401858480",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "Michigan State",
+    "away_team_source": "Illinois"
+  },
+  {
+    "game_id": "401858481",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 16:00:00",
+    "home_team_source": "Nebraska",
+    "away_team_source": "Indiana"
+  },
+  {
+    "game_id": "401858482",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 16:30:00",
+    "home_team_source": "Northwestern",
+    "away_team_source": "Ball State"
+  },
+  {
+    "game_id": "401858483",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 20:15:00",
+    "home_team_source": "Ohio State",
+    "away_team_source": "Maryland"
+  },
+  {
+    "game_id": "401858484",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "Oregon",
+    "away_team_source": "UCLA"
+  },
+  {
+    "game_id": "401858485",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 23:30:00",
+    "home_team_source": "Penn State",
+    "away_team_source": "USC"
+  },
+  {
+    "game_id": "401858486",
+    "week": 6,
+    "kickoff_literal": "2026-10-11 00:00:00",
+    "home_team_source": "Purdue",
+    "away_team_source": "Minnesota"
+  },
+  {
+    "game_id": "401858487",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 01:00:00",
+    "home_team_source": "Washington",
+    "away_team_source": "Iowa"
+  },
+  {
+    "game_id": "401860901",
+    "week": 6,
+    "kickoff_literal": "2026-10-11 02:30:00",
+    "home_team_source": "Fresno State",
+    "away_team_source": "Boise State"
+  },
+  {
+    "game_id": "401860902",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 22:00:00",
+    "home_team_source": "Oregon State",
+    "away_team_source": "San Diego State"
+  },
+  {
+    "game_id": "401860922",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 01:00:00",
+    "home_team_source": "Utah State",
+    "away_team_source": "Washington State"
+  },
+  {
+    "game_id": "401861964",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:45:00",
+    "home_team_source": "Temple",
+    "away_team_source": "UConn"
+  },
+  {
+    "game_id": "401862794",
+    "week": 6,
+    "kickoff_literal": "2026-10-08 23:30:00",
+    "home_team_source": "UTSA",
+    "away_team_source": "South Florida"
+  },
+  {
+    "game_id": "401862795",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 16:00:00",
+    "home_team_source": "Army",
+    "away_team_source": "Tulane"
+  },
+  {
+    "game_id": "401862796",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "North Texas",
+    "away_team_source": "Charlotte"
+  },
+  {
+    "game_id": "401862797",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 20:00:00",
+    "home_team_source": "East Carolina",
+    "away_team_source": "Rice"
+  },
+  {
+    "game_id": "401862798",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 23:00:00",
+    "home_team_source": "Memphis",
+    "away_team_source": "UAB"
+  },
+  {
+    "game_id": "401862799",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "Navy",
+    "away_team_source": "Tulsa"
+  },
+  {
+    "game_id": "401864516",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 23:30:00",
+    "home_team_source": "Northern Illinois",
+    "away_team_source": "Air Force"
+  },
+  {
+    "game_id": "401864517",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 23:00:00",
+    "home_team_source": "UTEP",
+    "away_team_source": "Nevada"
+  },
+  {
+    "game_id": "401864518",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 23:00:00",
+    "home_team_source": "UNLV",
+    "away_team_source": "North Dakota State"
+  },
+  {
+    "game_id": "401864519",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 01:00:00",
+    "home_team_source": "San José State",
+    "away_team_source": "Wyoming"
+  },
+  {
+    "game_id": "401866435",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "Akron",
+    "away_team_source": "Eastern Michigan"
+  },
+  {
+    "game_id": "401866436",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 16:00:00",
+    "home_team_source": "Bowling Green",
+    "away_team_source": "Sacramento State"
+  },
+  {
+    "game_id": "401866437",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "Toledo",
+    "away_team_source": "Buffalo"
+  },
+  {
+    "game_id": "401866438",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "Ohio",
+    "away_team_source": "Central Michigan"
+  },
+  {
+    "game_id": "401866439",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 19:30:00",
+    "home_team_source": "Western Michigan",
+    "away_team_source": "Kent State"
+  },
+  {
+    "game_id": "401866440",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 18:00:00",
+    "home_team_source": "Massachusetts",
+    "away_team_source": "Miami (OH)"
+  },
+  {
+    "game_id": "401869843",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 17:00:00",
+    "home_team_source": "App State",
+    "away_team_source": "Old Dominion"
+  },
+  {
+    "game_id": "401869933",
+    "week": 6,
+    "kickoff_literal": "2026-10-08 23:30:00",
+    "home_team_source": "Arkansas State",
+    "away_team_source": "South Alabama"
+  },
+  {
+    "game_id": "401869949",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 23:30:00",
+    "home_team_source": "Georgia Southern",
+    "away_team_source": "James Madison"
+  },
+  {
+    "game_id": "401869965",
+    "week": 6,
+    "kickoff_literal": "2026-10-10 23:30:00",
+    "home_team_source": "Louisiana Tech",
+    "away_team_source": "Louisiana"
+  },
+  {
+    "game_id": "401870766",
+    "week": 6,
+    "kickoff_literal": "2026-10-08 23:00:00",
+    "home_team_source": "Liberty",
+    "away_team_source": "Sam Houston"
+  },
+  {
+    "game_id": "401871051",
+    "week": 6,
+    "kickoff_literal": "2026-10-07 23:00:00",
+    "home_team_source": "Kennesaw State",
+    "away_team_source": "Jacksonville State"
+  },
+  {
+    "game_id": "401871052",
+    "week": 6,
+    "kickoff_literal": "2026-10-08 23:00:00",
+    "home_team_source": "Western Kentucky",
+    "away_team_source": "Missouri State"
+  },
+  {
+    "game_id": "401871066",
+    "week": 6,
+    "kickoff_literal": "2026-10-07 23:30:00",
+    "home_team_source": "Florida International",
+    "away_team_source": "New Mexico State"
+  },
+  {
+    "game_id": "401871090",
+    "week": 6,
+    "kickoff_literal": "2026-10-07 00:00:00",
+    "home_team_source": "Troy",
+    "away_team_source": "Southern Miss"
+  },
+  {
+    "game_id": "401856719",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 19:30:00",
+    "home_team_source": "Georgia",
+    "away_team_source": "Auburn"
+  },
+  {
+    "game_id": "401856720",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 16:00:00",
+    "home_team_source": "LSU",
+    "away_team_source": "Mississippi State"
+  },
+  {
+    "game_id": "401856721",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 19:30:00",
+    "home_team_source": "Ole Miss",
+    "away_team_source": "Missouri"
+  },
+  {
+    "game_id": "401856722",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 23:30:00",
+    "home_team_source": "Oklahoma",
+    "away_team_source": "Kentucky"
+  },
+  {
+    "game_id": "401856723",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 19:30:00",
+    "home_team_source": "Tennessee",
+    "away_team_source": "Alabama"
+  },
+  {
+    "game_id": "401856724",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 16:00:00",
+    "home_team_source": "Texas",
+    "away_team_source": "Florida"
+  },
+  {
+    "game_id": "401856726",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 23:00:00",
+    "home_team_source": "Vanderbilt",
+    "away_team_source": "Arkansas"
+  },
+  {
+    "game_id": "401856809",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 23:30:00",
+    "home_team_source": "BYU",
+    "away_team_source": "Notre Dame"
+  },
+  {
+    "game_id": "401856828",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 19:30:00",
+    "home_team_source": "Texas Tech",
+    "away_team_source": "Arizona State"
+  },
+  {
+    "game_id": "401856829",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 16:00:00",
+    "home_team_source": "West Virginia",
+    "away_team_source": "Cincinnati"
+  },
+  {
+    "game_id": "401856830",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 16:00:00",
+    "home_team_source": "Kansas State",
+    "away_team_source": "Kansas"
+  },
+  {
+    "game_id": "401856831",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 23:30:00",
+    "home_team_source": "Houston",
+    "away_team_source": "Oklahoma State"
+  },
+  {
+    "game_id": "401856832",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 23:00:00",
+    "home_team_source": "Baylor",
+    "away_team_source": "TCU"
+  },
+  {
+    "game_id": "401856833",
+    "week": 7,
+    "kickoff_literal": "2026-10-18 02:15:00",
+    "home_team_source": "Colorado",
+    "away_team_source": "Utah"
+  },
+  {
+    "game_id": "401858263",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 23:00:00",
+    "home_team_source": "Miami",
+    "away_team_source": "Florida State"
+  },
+  {
+    "game_id": "401858264",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 19:30:00",
+    "home_team_source": "Virginia Tech",
+    "away_team_source": "Georgia Tech"
+  },
+  {
+    "game_id": "401858265",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 23:30:00",
+    "home_team_source": "Syracuse",
+    "away_team_source": "Louisville"
+  },
+  {
+    "game_id": "401858266",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 19:30:00",
+    "home_team_source": "Duke",
+    "away_team_source": "North Carolina"
+  },
+  {
+    "game_id": "401858267",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 16:00:00",
+    "home_team_source": "Boston College",
+    "away_team_source": "Pittsburgh"
+  },
+  {
+    "game_id": "401858268",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 16:00:00",
+    "home_team_source": "SMU",
+    "away_team_source": "Virginia"
+  },
+  {
+    "game_id": "401858269",
+    "week": 7,
+    "kickoff_literal": "2026-10-18 02:30:00",
+    "home_team_source": "California",
+    "away_team_source": "Wake Forest"
+  },
+  {
+    "game_id": "401858488",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 16:00:00",
+    "home_team_source": "Indiana",
+    "away_team_source": "Ohio State"
+  },
+  {
+    "game_id": "401858489",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 16:30:00",
+    "home_team_source": "Maryland",
+    "away_team_source": "Rutgers"
+  },
+  {
+    "game_id": "401858490",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 19:30:00",
+    "home_team_source": "Michigan",
+    "away_team_source": "Penn State"
+  },
+  {
+    "game_id": "401858491",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 16:00:00",
+    "home_team_source": "Michigan State",
+    "away_team_source": "Northwestern"
+  },
+  {
+    "game_id": "401858492",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 04:00:00",
+    "home_team_source": "Oregon",
+    "away_team_source": "Nebraska"
+  },
+  {
+    "game_id": "401858493",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 00:00:00",
+    "home_team_source": "Purdue",
+    "away_team_source": "Washington"
+  },
+  {
+    "game_id": "401858494",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 04:00:00",
+    "home_team_source": "UCLA",
+    "away_team_source": "Wisconsin"
+  },
+  {
+    "game_id": "401860903",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 22:00:00",
+    "home_team_source": "Oregon State",
+    "away_team_source": "Washington State"
+  },
+  {
+    "game_id": "401860904",
+    "week": 7,
+    "kickoff_literal": "2026-10-18 02:30:00",
+    "home_team_source": "San Diego State",
+    "away_team_source": "Fresno State"
+  },
+  {
+    "game_id": "401860923",
+    "week": 7,
+    "kickoff_literal": "2026-10-16 00:00:00",
+    "home_team_source": "Texas State",
+    "away_team_source": "Colorado State"
+  },
+  {
+    "game_id": "401862800",
+    "week": 7,
+    "kickoff_literal": "2026-10-15 23:30:00",
+    "home_team_source": "UAB",
+    "away_team_source": "East Carolina"
+  },
+  {
+    "game_id": "401862801",
+    "week": 7,
+    "kickoff_literal": "2026-10-16 23:30:00",
+    "home_team_source": "Tulane",
+    "away_team_source": "Memphis"
+  },
+  {
+    "game_id": "401862802",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 16:00:00",
+    "home_team_source": "Army",
+    "away_team_source": "Florida Atlantic"
+  },
+  {
+    "game_id": "401862803",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 17:00:00",
+    "home_team_source": "Temple",
+    "away_team_source": "Charlotte"
+  },
+  {
+    "game_id": "401862804",
+    "week": 7,
+    "kickoff_literal": "2026-10-18 00:00:00",
+    "home_team_source": "UTSA",
+    "away_team_source": "Navy"
+  },
+  {
+    "game_id": "401862805",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 20:30:00",
+    "home_team_source": "Rice",
+    "away_team_source": "Tulsa"
+  },
+  {
+    "game_id": "401862806",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 23:00:00",
+    "home_team_source": "South Florida",
+    "away_team_source": "Kent State"
+  },
+  {
+    "game_id": "401864520",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 23:00:00",
+    "home_team_source": "North Dakota State",
+    "away_team_source": "Nevada"
+  },
+  {
+    "game_id": "401864521",
+    "week": 7,
+    "kickoff_literal": "2026-10-18 02:30:00",
+    "home_team_source": "Hawai'i",
+    "away_team_source": "New Mexico"
+  },
+  {
+    "game_id": "401864522",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 19:30:00",
+    "home_team_source": "Wyoming",
+    "away_team_source": "Northern Illinois"
+  },
+  {
+    "game_id": "401864523",
+    "week": 7,
+    "kickoff_literal": "2026-10-18 01:00:00",
+    "home_team_source": "UTEP",
+    "away_team_source": "San José State"
+  },
+  {
+    "game_id": "401864524",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 19:30:00",
+    "home_team_source": "Air Force",
+    "away_team_source": "UNLV"
+  },
+  {
+    "game_id": "401866441",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 16:00:00",
+    "home_team_source": "Bowling Green",
+    "away_team_source": "Ball State"
+  },
+  {
+    "game_id": "401866442",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 17:00:00",
+    "home_team_source": "Buffalo",
+    "away_team_source": "Massachusetts"
+  },
+  {
+    "game_id": "401866443",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 17:30:00",
+    "home_team_source": "Central Michigan",
+    "away_team_source": "Western Michigan"
+  },
+  {
+    "game_id": "401866444",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 19:30:00",
+    "home_team_source": "Eastern Michigan",
+    "away_team_source": "Toledo"
+  },
+  {
+    "game_id": "401866445",
+    "week": 7,
+    "kickoff_literal": "2026-10-18 02:00:00",
+    "home_team_source": "Sacramento State",
+    "away_team_source": "Ohio"
+  },
+  {
+    "game_id": "401866478",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 19:30:00",
+    "home_team_source": "Miami (OH)",
+    "away_team_source": "Akron"
+  },
+  {
+    "game_id": "401869844",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 00:00:00",
+    "home_team_source": "Coastal Carolina",
+    "away_team_source": "App State"
+  },
+  {
+    "game_id": "401869934",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 23:00:00",
+    "home_team_source": "Southern Miss",
+    "away_team_source": "Arkansas State"
+  },
+  {
+    "game_id": "401869950",
+    "week": 7,
+    "kickoff_literal": "2026-10-15 23:30:00",
+    "home_team_source": "Old Dominion",
+    "away_team_source": "Georgia Southern"
+  },
+  {
+    "game_id": "401869957",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 16:00:00",
+    "home_team_source": "James Madison",
+    "away_team_source": "Georgia State"
+  },
+  {
+    "game_id": "401869966",
+    "week": 7,
+    "kickoff_literal": "2026-10-17 21:00:00",
+    "home_team_source": "Louisiana",
+    "away_team_source": "Troy"
+  },
+  {
+    "game_id": "401871053",
+    "week": 7,
+    "kickoff_literal": "2026-10-14 00:00:00",
+    "home_team_source": "Jacksonville State",
+    "away_team_source": "Florida International"
+  },
+  {
+    "game_id": "401871054",
+    "week": 7,
+    "kickoff_literal": "2026-10-14 23:30:00",
+    "home_team_source": "Missouri State",
+    "away_team_source": "Kennesaw State"
+  },
+  {
+    "game_id": "401871067",
+    "week": 7,
+    "kickoff_literal": "2026-10-13 23:00:00",
+    "home_team_source": "Middle Tennessee",
+    "away_team_source": "Delaware"
+  },
+  {
+    "game_id": "401871068",
+    "week": 7,
+    "kickoff_literal": "2026-10-15 00:00:00",
+    "home_team_source": "Sam Houston",
+    "away_team_source": "Western Kentucky"
+  },
+  {
+    "game_id": "401871091",
+    "week": 7,
+    "kickoff_literal": "2026-10-18 00:00:00",
+    "home_team_source": "UL Monroe",
+    "away_team_source": "Louisiana Tech"
+  },
+  {
+    "game_id": "401856727",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 19:30:00",
+    "home_team_source": "Alabama",
+    "away_team_source": "Texas A&M"
+  },
+  {
+    "game_id": "401856728",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 16:00:00",
+    "home_team_source": "Auburn",
+    "away_team_source": "LSU"
+  },
+  {
+    "game_id": "401856729",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 23:30:00",
+    "home_team_source": "Kentucky",
+    "away_team_source": "Vanderbilt"
+  },
+  {
+    "game_id": "401856730",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 19:30:00",
+    "home_team_source": "Mississippi State",
+    "away_team_source": "Oklahoma"
+  },
+  {
+    "game_id": "401856731",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 19:30:00",
+    "home_team_source": "South Carolina",
+    "away_team_source": "Tennessee"
+  },
+  {
+    "game_id": "401856732",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 23:30:00",
+    "home_team_source": "Texas",
+    "away_team_source": "Ole Miss"
+  },
+  {
+    "game_id": "401856834",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 04:00:00",
+    "home_team_source": "Kansas",
+    "away_team_source": "Baylor"
+  },
+  {
+    "game_id": "401856835",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 04:00:00",
+    "home_team_source": "UCF",
+    "away_team_source": "BYU"
+  },
+  {
+    "game_id": "401856836",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 04:00:00",
+    "home_team_source": "Oklahoma State",
+    "away_team_source": "Colorado"
+  },
+  {
+    "game_id": "401856837",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 04:00:00",
+    "home_team_source": "Utah",
+    "away_team_source": "Houston"
+  },
+  {
+    "game_id": "401856838",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 04:00:00",
+    "home_team_source": "Arizona",
+    "away_team_source": "Iowa State"
+  },
+  {
+    "game_id": "401856839",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 04:00:00",
+    "home_team_source": "Arizona State",
+    "away_team_source": "Kansas State"
+  },
+  {
+    "game_id": "401856840",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 04:00:00",
+    "home_team_source": "Cincinnati",
+    "away_team_source": "Texas Tech"
+  },
+  {
+    "game_id": "401856841",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 16:00:00",
+    "home_team_source": "TCU",
+    "away_team_source": "West Virginia"
+  },
+  {
+    "game_id": "401858270",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 16:00:00",
+    "home_team_source": "SMU",
+    "away_team_source": "California"
+  },
+  {
+    "game_id": "401858271",
+    "week": 8,
+    "kickoff_literal": "2026-10-23 23:00:00",
+    "home_team_source": "Virginia",
+    "away_team_source": "Duke"
+  },
+  {
+    "game_id": "401858272",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 02:30:00",
+    "home_team_source": "Stanford",
+    "away_team_source": "NC State"
+  },
+  {
+    "game_id": "401858273",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 19:30:00",
+    "home_team_source": "Georgia Tech",
+    "away_team_source": "Boston College"
+  },
+  {
+    "game_id": "401858274",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 16:00:00",
+    "home_team_source": "Miami",
+    "away_team_source": "Pittsburgh"
+  },
+  {
+    "game_id": "401858275",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 23:30:00",
+    "home_team_source": "North Carolina",
+    "away_team_source": "Syracuse"
+  },
+  {
+    "game_id": "401858276",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 04:00:00",
+    "home_team_source": "Clemson",
+    "away_team_source": "Virginia Tech"
+  },
+  {
+    "game_id": "401858495",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 04:00:00",
+    "home_team_source": "Illinois",
+    "away_team_source": "Oregon"
+  },
+  {
+    "game_id": "401858496",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 16:00:00",
+    "home_team_source": "Michigan",
+    "away_team_source": "Indiana"
+  },
+  {
+    "game_id": "401858497",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 04:00:00",
+    "home_team_source": "Minnesota",
+    "away_team_source": "Iowa"
+  },
+  {
+    "game_id": "401858498",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 16:00:00",
+    "home_team_source": "Northwestern",
+    "away_team_source": "Rutgers"
+  },
+  {
+    "game_id": "401858499",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 04:00:00",
+    "home_team_source": "UCLA",
+    "away_team_source": "Michigan State"
+  },
+  {
+    "game_id": "401858500",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 23:30:00",
+    "home_team_source": "Wisconsin",
+    "away_team_source": "USC"
+  },
+  {
+    "game_id": "401860905",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 22:30:00",
+    "home_team_source": "Colorado State",
+    "away_team_source": "San Diego State"
+  },
+  {
+    "game_id": "401860906",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 23:30:00",
+    "home_team_source": "Texas State",
+    "away_team_source": "Utah State"
+  },
+  {
+    "game_id": "401860907",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 22:00:00",
+    "home_team_source": "Washington State",
+    "away_team_source": "Boise State"
+  },
+  {
+    "game_id": "401861965",
+    "week": 8,
+    "kickoff_literal": "2026-10-23 23:00:00",
+    "home_team_source": "UConn",
+    "away_team_source": "Massachusetts"
+  },
+  {
+    "game_id": "401862807",
+    "week": 8,
+    "kickoff_literal": "2026-10-22 23:30:00",
+    "home_team_source": "Memphis",
+    "away_team_source": "East Carolina"
+  },
+  {
+    "game_id": "401862808",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 00:30:00",
+    "home_team_source": "Tulsa",
+    "away_team_source": "Army"
+  },
+  {
+    "game_id": "401862809",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 16:00:00",
+    "home_team_source": "Florida Atlantic",
+    "away_team_source": "Rice"
+  },
+  {
+    "game_id": "401862810",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 19:30:00",
+    "home_team_source": "Navy",
+    "away_team_source": "North Texas"
+  },
+  {
+    "game_id": "401862811",
+    "week": 8,
+    "kickoff_literal": "2026-10-25 00:00:00",
+    "home_team_source": "Tulane",
+    "away_team_source": "UTSA"
+  },
+  {
+    "game_id": "401864525",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 01:00:00",
+    "home_team_source": "Wyoming",
+    "away_team_source": "Air Force"
+  },
+  {
+    "game_id": "401864526",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 19:30:00",
+    "home_team_source": "Northern Illinois",
+    "away_team_source": "Hawai'i"
+  },
+  {
+    "game_id": "401864527",
+    "week": 8,
+    "kickoff_literal": "2026-10-25 02:00:00",
+    "home_team_source": "New Mexico",
+    "away_team_source": "North Dakota State"
+  },
+  {
+    "game_id": "401864528",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 21:00:00",
+    "home_team_source": "Nevada",
+    "away_team_source": "San José State"
+  },
+  {
+    "game_id": "401866446",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 17:00:00",
+    "home_team_source": "Kent State",
+    "away_team_source": "Akron"
+  },
+  {
+    "game_id": "401866447",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 19:30:00",
+    "home_team_source": "Ball State",
+    "away_team_source": "Sacramento State"
+  },
+  {
+    "game_id": "401866448",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 19:30:00",
+    "home_team_source": "Buffalo",
+    "away_team_source": "Bowling Green"
+  },
+  {
+    "game_id": "401866449",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 20:00:00",
+    "home_team_source": "Ohio",
+    "away_team_source": "Eastern Michigan"
+  },
+  {
+    "game_id": "401866450",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 16:00:00",
+    "home_team_source": "Toledo",
+    "away_team_source": "Western Michigan"
+  },
+  {
+    "game_id": "401866476",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 17:00:00",
+    "home_team_source": "Central Michigan",
+    "away_team_source": "Miami (OH)"
+  },
+  {
+    "game_id": "401869845",
+    "week": 8,
+    "kickoff_literal": "2026-10-22 23:00:00",
+    "home_team_source": "App State",
+    "away_team_source": "James Madison"
+  },
+  {
+    "game_id": "401869935",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 23:00:00",
+    "home_team_source": "Arkansas State",
+    "away_team_source": "Georgia State"
+  },
+  {
+    "game_id": "401869967",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 21:00:00",
+    "home_team_source": "Southern Miss",
+    "away_team_source": "Louisiana"
+  },
+  {
+    "game_id": "401871055",
+    "week": 8,
+    "kickoff_literal": "2026-10-20 23:00:00",
+    "home_team_source": "Florida International",
+    "away_team_source": "Middle Tennessee"
+  },
+  {
+    "game_id": "401871056",
+    "week": 8,
+    "kickoff_literal": "2026-10-22 23:00:00",
+    "home_team_source": "Kennesaw State",
+    "away_team_source": "Liberty"
+  },
+  {
+    "game_id": "401871069",
+    "week": 8,
+    "kickoff_literal": "2026-10-20 23:00:00",
+    "home_team_source": "Delaware",
+    "away_team_source": "Missouri State"
+  },
+  {
+    "game_id": "401871070",
+    "week": 8,
+    "kickoff_literal": "2026-10-22 00:00:00",
+    "home_team_source": "Sam Houston",
+    "away_team_source": "New Mexico State"
+  },
+  {
+    "game_id": "401871092",
+    "week": 8,
+    "kickoff_literal": "2026-10-20 23:30:00",
+    "home_team_source": "Marshall",
+    "away_team_source": "South Alabama"
+  },
+  {
+    "game_id": "401871093",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 21:00:00",
+    "home_team_source": "Louisiana Tech",
+    "away_team_source": "Old Dominion"
+  },
+  {
+    "game_id": "401871094",
+    "week": 8,
+    "kickoff_literal": "2026-10-24 20:00:00",
+    "home_team_source": "Troy",
+    "away_team_source": "UL Monroe"
+  }
+]
