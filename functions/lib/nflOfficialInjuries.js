@@ -202,12 +202,12 @@ export async function syncNflOfficialInjuries(env={}){
     // A successful PRIMARY observation insert without NFL_DB materialization
     // is partial success, not a healthy available-player projection feed.
     const complete=persisted.ok&&profileUpdate.ok===true;
-    if(persisted.ok){
+    if(complete){
       await setMeta(env,"last_nfl_official_injury_success_at",observedAt).catch(()=>{});
       await setMeta(env,"last_nfl_official_injury_records",String(rows.length)).catch(()=>{});
       await setMeta(env,"last_nfl_official_injury_error","").catch(()=>{});
     }else{
-      await setMeta(env,"last_nfl_official_injury_error",persisted.reason||"persist-failed").catch(()=>{});
+      await setMeta(env,"last_nfl_official_injury_error",persisted.reason||profileUpdate.reason||"profile-write-failed").catch(()=>{});
     }
     return {
       ok:complete,
