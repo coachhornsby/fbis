@@ -1,0 +1,21 @@
+name: CFB independent official settlement grading gate
+on:
+  pull_request:
+    paths:
+      - "scripts/cfb-official-grade-audit.mjs"
+      - "test/cfb-official-grade-audit.test.js"
+      - ".github/workflows/cfb-official-grade-audit.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  official-grade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test test/cfb-official-grade-audit.test.js
+      - run: node --check scripts/cfb-official-grade-audit.mjs
