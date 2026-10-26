@@ -109,3 +109,11 @@ test("only active sports are accepted by live prop normalization and learning", 
     assert.equal(selective.status, 400);
   }
 });
+
+
+test("production prop acceptance audit follows the active exchange sport scope", () => {
+  const source = readFileSync(new URL("../scripts/audit-prop-acceptance.mjs", import.meta.url), "utf8");
+  assert.match(source, /import\s+\{\s*PROP_SPORTS\s*\}\s+from\s+['"]\.\.\/functions\/lib\/exchangePlayerProps\.js['"]/);
+  assert.match(source, /process\.argv\[3\]\s*\|\|\s*PROP_SPORTS\.join/);
+  assert.doesNotMatch(source, /nfl,nba,nhl,mlb,cfb,wnba,cbb,tennis,soccer,npb,kbo/);
+});
