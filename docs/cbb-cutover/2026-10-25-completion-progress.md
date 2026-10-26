@@ -55,3 +55,27 @@ production writer exercise against isolated fixtures; comprehensive fault and
 paused reverse-replay rehearsal; independently approved CORE receipt; guarded
 live activation; representative post-cutover monitoring and archive readback.
 No independent certification or production activation is claimed.
+
+## Live reconciliation attempt and lock recovery
+
+PR #1751 passed all eight PR checks and merged as
+`a9bf55a0da5a6d9e366925f003945677282565c3`.
+The first main reconciliation run, 40263946601, reached the deployed endpoint,
+verified the seven empty shared tables, replayed the first three research tables,
+and stopped at cbb_players with `D1_ERROR: Currently processing a long-running import.`
+The failure receipt is artifact 12624849901; SHA-256 of its ZIP is
+`56b45bc0be04b940bece3601c7b06b88cd55dd7dd0e628c24268b58e0cbae5d7`.
+No certification was issued.
+
+Bounded retries now record import-lock attempts and resume durable checkpoints.
+Permanent schema, record or authority failures remain hard failures. Old historical
+population imports require explicit `CBB_HISTORICAL_IMPORT_ENABLED=true` so routine
+workflow changes do not unexpectedly launch large PRIMARY imports. These are
+historical imports; scheduled guarded collection remains enabled. Recurring CBB
+shadow pages receive a larger bounded budget without changing other sports.
+
+The new `live-keys-and-timestamps.json` captures every scoped source/target table:
+28 source and 28 target inventories, exact primary-key tuples, record counts,
+null/duplicate-key counts and latest timestamp fields. Source tables had zero
+null/duplicate primary keys. All seven sport=cbb shared working sets remained empty.
+This completes metadata coverage, not the outstanding call-graph or field-parity gates.

@@ -75,7 +75,7 @@ jobs:
           ' artifacts/cbb-directory/qa.json >/dev/null
       # Persistence transport is transaction-wrapper-free for remote D1 imports.
       - name: Apply Phase A schema and population to D1
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && vars.CBB_HISTORICAL_IMPORT_ENABLED == 'true'
         run: |
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
@@ -97,7 +97,7 @@ jobs:
             test "$ok" -eq 1 || { echo "D1 import failed after retries: $f"; exit 1; }
           done
       - name: Verify D1 checkpoint
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && vars.CBB_HISTORICAL_IMPORT_ENABLED == 'true'
         run: |
           set -euo pipefail
           node scripts/cbb-primary-import-guard.mjs

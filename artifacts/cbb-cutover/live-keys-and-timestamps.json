@@ -1,0 +1,555 @@
+{
+  "liveSharedStats": {
+    "at": "2026-10-26T03:22:22.204Z",
+    "primary": {
+      "games": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_updated_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 9
+      },
+      "predictions": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_as_of": null,
+        "latest_graded_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 38
+      },
+      "prediction_snapshots": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_frozen_at": null,
+        "latest_graded_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 43
+      },
+      "published_projections": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_published_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 10
+      },
+      "odds_snapshots": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_captured_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 18
+      },
+      "team_form": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_updated_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "sport,season,team_key",
+        "columnCount": 7
+      },
+      "team_form_games": {
+        "rows": 0,
+        "nullKeys": 0,
+        "duplicateKeys": 0,
+        "primaryKey": "sport,game_id",
+        "columnCount": 3
+      }
+    },
+    "cbb": {
+      "games": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_updated_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 9
+      },
+      "predictions": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_as_of": null,
+        "latest_graded_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 38
+      },
+      "prediction_snapshots": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_frozen_at": null,
+        "latest_graded_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 43
+      },
+      "published_projections": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_published_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 10
+      },
+      "odds_snapshots": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_captured_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 18
+      },
+      "team_form": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_updated_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "sport,season,team_key",
+        "columnCount": 7
+      },
+      "team_form_games": {
+        "rows": 0,
+        "nullKeys": 0,
+        "duplicateKeys": 0,
+        "primaryKey": "sport,game_id",
+        "columnCount": 3
+      }
+    }
+  },
+  "researchStats1": {
+    "at": "2026-10-26T03:23:17.718Z",
+    "primary": {
+      "cbb_canonical_teams": {
+        "rows": 362,
+        "nullKeys": 0,
+        "latest_first_observed_at": "2026-10-06T03:57:01.000Z",
+        "latest_last_observed_at": "2026-10-06T03:57:01.000Z",
+        "latest_created_at": "2026-10-06T03:57:01.000Z",
+        "latest_updated_at": "2026-10-06T03:57:01.000Z",
+        "duplicateKeys": 0,
+        "primaryKey": "team_id",
+        "columnCount": 20
+      },
+      "cbb_conference_membership": {
+        "rows": 361,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-07T15:38:26.626Z",
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 10
+      },
+      "cbb_team_aliases": {
+        "rows": 1049,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-06T03:57:01.000Z",
+        "latest_created_at": "2026-10-06T03:57:01.000Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 10
+      },
+      "cbb_players": {
+        "rows": 28019,
+        "nullKeys": 0,
+        "latest_first_observed_at": "2026-10-07T15:38:26.626Z",
+        "latest_last_observed_at": "2026-10-26T03:09:51.924Z",
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "latest_updated_at": "2026-10-26T03:09:51.924Z",
+        "duplicateKeys": 0,
+        "primaryKey": "player_id",
+        "columnCount": 15
+      },
+      "cbb_player_aliases": {
+        "rows": 28024,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-07T15:38:26.626Z",
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 8
+      },
+      "cbb_player_provider_ids": {
+        "rows": 4751,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-07T15:38:26.626Z",
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 9
+      }
+    },
+    "cbb": {
+      "cbb_canonical_teams": {
+        "rows": 362,
+        "nullKeys": 0,
+        "latest_first_observed_at": "2026-10-06T03:57:01.000Z",
+        "latest_last_observed_at": "2026-10-06T03:57:01.000Z",
+        "latest_created_at": "2026-10-06T03:57:01.000Z",
+        "latest_updated_at": "2026-10-06T03:57:01.000Z",
+        "duplicateKeys": 0,
+        "primaryKey": "team_id",
+        "columnCount": 20
+      },
+      "cbb_conference_membership": {
+        "rows": 361,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-07T15:38:26.626Z",
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 10
+      },
+      "cbb_team_aliases": {
+        "rows": 1049,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-06T03:57:01.000Z",
+        "latest_created_at": "2026-10-06T03:57:01.000Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 10
+      },
+      "cbb_players": {
+        "rows": 28019,
+        "nullKeys": 0,
+        "latest_first_observed_at": "2026-10-07T15:38:26.626Z",
+        "latest_last_observed_at": "2026-10-17T16:25:07.993Z",
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "latest_updated_at": "2026-10-17T16:25:07.993Z",
+        "duplicateKeys": 0,
+        "primaryKey": "player_id",
+        "columnCount": 15
+      },
+      "cbb_player_aliases": {
+        "rows": 28024,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-07T15:38:26.626Z",
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 8
+      },
+      "cbb_player_provider_ids": {
+        "rows": 4751,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-07T15:38:26.626Z",
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 9
+      }
+    }
+  },
+  "researchStats2": {
+    "at": "2026-10-26T03:24:20.257Z",
+    "primary": {
+      "cbb_roster_membership": {
+        "rows": 44098,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-07T15:38:26.626Z",
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 13
+      },
+      "cbb_roster_observations": {
+        "rows": 33257,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-26T03:09:51.924Z",
+        "latest_effective_at": "2026-10-26T03:09:51.924Z",
+        "latest_ingested_at": "2026-10-26T03:09:51.924Z",
+        "latest_created_at": "2026-10-26T03:09:51.924Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 20
+      },
+      "cbb_rotation_observations": {
+        "rows": 33054,
+        "nullKeys": 0,
+        "latest_as_of": "2026-10-26T03:09:51.924Z",
+        "latest_observed_at": "2026-10-26T03:09:51.924Z",
+        "latest_effective_at": "2026-10-26T03:09:51.924Z",
+        "latest_ingested_at": "2026-10-26T03:09:51.924Z",
+        "latest_created_at": "2026-10-26T03:09:51.924Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 25
+      },
+      "cbb_schedule_items": {
+        "rows": 87756,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-07T15:38:26.626Z",
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 15
+      },
+      "cbb_state_events": {
+        "rows": 155645,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-26T03:09:51.924Z",
+        "latest_effective_at": "2026-10-26T03:09:51.924Z",
+        "latest_ingested_at": "2026-10-26T03:09:51.924Z",
+        "latest_created_at": "2026-10-26T03:09:51.924Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 20
+      }
+    },
+    "cbb": {
+      "cbb_roster_membership": {
+        "rows": 44098,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-07T15:38:26.626Z",
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 13
+      },
+      "cbb_roster_observations": {
+        "rows": 28506,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-24T23:26:29.381Z",
+        "latest_effective_at": "2026-10-24T23:26:29.381Z",
+        "latest_ingested_at": "2026-10-24T23:26:29.381Z",
+        "latest_created_at": "2026-10-24T23:26:29.381Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 20
+      },
+      "cbb_rotation_observations": {
+        "rows": 12000,
+        "nullKeys": 0,
+        "latest_as_of": "2026-10-24T23:26:29.381Z",
+        "latest_observed_at": "2026-10-24T23:26:29.381Z",
+        "latest_effective_at": "2026-10-24T23:26:29.381Z",
+        "latest_ingested_at": "2026-10-24T23:26:29.381Z",
+        "latest_created_at": "2026-10-24T23:26:29.381Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 25
+      },
+      "cbb_schedule_items": {
+        "rows": 87756,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-07T15:38:26.626Z",
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 15
+      },
+      "cbb_state_events": {
+        "rows": 12000,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-24T23:26:29.381Z",
+        "latest_effective_at": "2026-10-24T23:26:29.381Z",
+        "latest_ingested_at": "2026-10-24T23:26:29.381Z",
+        "latest_created_at": "2026-10-24T23:26:29.381Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 20
+      }
+    }
+  },
+  "researchStats3": {
+    "at": "2026-10-26T03:24:42.084Z",
+    "primary": {
+      "cbb_team_state_snapshots": {
+        "rows": 5049,
+        "nullKeys": 0,
+        "latest_as_of": "2026-10-26T03:09:51.924Z",
+        "latest_created_at": "2026-10-26T03:09:51.924Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 17
+      },
+      "cbb_player_state_snapshots": {
+        "rows": 72401,
+        "nullKeys": 0,
+        "latest_as_of": "2026-10-26T03:09:51.924Z",
+        "latest_created_at": "2026-10-26T03:09:51.924Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 19
+      },
+      "cbb_game_state_snapshots": {
+        "rows": 1546,
+        "nullKeys": 0,
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 24
+      },
+      "cbb_availability_observations": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_observed_at": null,
+        "latest_effective_at": null,
+        "latest_ingested_at": null,
+        "latest_created_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 16
+      },
+      "cbb_team_context_observations": {
+        "rows": 2534,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-26T03:09:51.924Z",
+        "latest_effective_at": "2026-10-26T03:09:51.924Z",
+        "latest_ingested_at": "2026-10-26T03:09:51.924Z",
+        "latest_created_at": "2026-10-26T03:09:51.924Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 22
+      }
+    },
+    "cbb": {
+      "cbb_team_state_snapshots": {
+        "rows": 4733,
+        "nullKeys": 0,
+        "latest_as_of": "2026-10-24T23:26:29.381Z",
+        "latest_created_at": "2026-10-24T23:26:29.381Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 17
+      },
+      "cbb_player_state_snapshots": {
+        "rows": 67679,
+        "nullKeys": 0,
+        "latest_as_of": "2026-10-24T23:26:29.381Z",
+        "latest_created_at": "2026-10-24T23:26:29.381Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 19
+      },
+      "cbb_game_state_snapshots": {
+        "rows": 1546,
+        "nullKeys": 0,
+        "latest_created_at": "2026-10-07T15:38:26.626Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 24
+      },
+      "cbb_availability_observations": {
+        "rows": 0,
+        "nullKeys": 0,
+        "latest_observed_at": null,
+        "latest_effective_at": null,
+        "latest_ingested_at": null,
+        "latest_created_at": null,
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 16
+      },
+      "cbb_team_context_observations": {
+        "rows": 2172,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-24T23:26:29.381Z",
+        "latest_effective_at": "2026-10-24T23:26:29.381Z",
+        "latest_ingested_at": "2026-10-24T23:26:29.381Z",
+        "latest_created_at": "2026-10-24T23:26:29.381Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 22
+      }
+    }
+  },
+  "researchStats4": {
+    "at": "2026-10-26T03:25:33.635Z",
+    "primary": {
+      "cbb_directory_population_runs": {
+        "rows": 1,
+        "nullKeys": 0,
+        "latest_started_at": "2026-10-06T03:57:01.000Z",
+        "latest_completed_at": "2026-10-06T14:03:42.457Z",
+        "latest_created_at": "2026-10-06T03:57:01.000Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 16
+      },
+      "cbb_directory_phase_b_runs": {
+        "rows": 8,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-26T03:09:51.924Z",
+        "latest_created_at": "2026-10-26T03:09:51.924Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 22
+      },
+      "cbb_state_overlay_governance": {
+        "rows": 7,
+        "nullKeys": 0,
+        "latest_updated_at": "2026-10-06 14:03:45",
+        "duplicateKeys": 0,
+        "primaryKey": "state_family",
+        "columnCount": 9
+      },
+      "cbb_shadow_challenger_definitions": {
+        "rows": 11,
+        "nullKeys": 0,
+        "latest_created_at": "2026-10-26 03:09:55",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 10
+      },
+      "cbb_team_profile_snapshots": {
+        "rows": 359,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-18T07:59:26.263Z",
+        "latest_created_at": "2026-10-18T07:59:26.263Z",
+        "duplicateKeys": 0,
+        "primaryKey": "snapshot_id",
+        "columnCount": 16
+      }
+    },
+    "cbb": {
+      "cbb_directory_population_runs": {
+        "rows": 1,
+        "nullKeys": 0,
+        "latest_started_at": "2026-10-06T03:57:01.000Z",
+        "latest_completed_at": "2026-10-06T14:03:42.457Z",
+        "latest_created_at": "2026-10-06T03:57:01.000Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 16
+      },
+      "cbb_directory_phase_b_runs": {
+        "rows": 7,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-24T23:26:29.381Z",
+        "latest_created_at": "2026-10-24T23:26:29.381Z",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 22
+      },
+      "cbb_state_overlay_governance": {
+        "rows": 7,
+        "nullKeys": 0,
+        "latest_updated_at": "2026-10-06 14:03:45",
+        "duplicateKeys": 0,
+        "primaryKey": "state_family",
+        "columnCount": 9
+      },
+      "cbb_shadow_challenger_definitions": {
+        "rows": 11,
+        "nullKeys": 0,
+        "latest_created_at": "2026-10-24 23:26:32",
+        "duplicateKeys": 0,
+        "primaryKey": "id",
+        "columnCount": 10
+      },
+      "cbb_team_profile_snapshots": {
+        "rows": 359,
+        "nullKeys": 0,
+        "latest_observed_at": "2026-10-18T07:59:26.263Z",
+        "latest_created_at": "2026-10-18T07:59:26.263Z",
+        "duplicateKeys": 0,
+        "primaryKey": "snapshot_id",
+        "columnCount": 16
+      }
+    }
+  }
+}
