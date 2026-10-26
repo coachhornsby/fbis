@@ -22,6 +22,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Wait until deployed CBB rehearsal endpoint is available
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET unavailable"; exit 1; }
+          for i in $(seq 1 60); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 45 -o "$body" -w "%{http_code}" \
+              -X POST -H "content-type: application/json" -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              --data '{"operation":"sport-cutover-rehearsal","sport":"cbb"}' \
+              https://fbis-myz.pages.dev/api/database-topology || true)"
+            if [ "$code" = "200" ] && jq -e '.sport=="cbb" and .contract=="fbis-sport-cutover-rehearsal-v3" and .canAuthorizeWager==false' "$body" >/dev/null 2>&1; then
+              echo "CBB non-activating rehearsal endpoint verified"
+              rm -f "$body"
+              exit 0
+            fi
+            rm -f "$body"
+            sleep 10
+          done
+          echo "CBB rehearsal endpoint not deployed within bounded gate"
+          exit 1
       - name: Probe production non-activating CBB rehearsals
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
