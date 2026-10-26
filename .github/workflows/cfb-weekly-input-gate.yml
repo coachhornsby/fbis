@@ -1,0 +1,23 @@
+name: CFB weekly source point-in-time gate
+on:
+  pull_request:
+    paths:
+      - "scripts/cfb-weekly-input-guard.mjs"
+      - "test/cfb-weekly-input-guard.test.js"
+      - ".github/workflows/cfb-weekly-input-gate.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  weekly-source-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate pregame source provenance and refuse simulated authority
+        run: node --test test/cfb-weekly-input-guard.test.js
+      - name: Validate CLI script syntax
+        run: node --check scripts/cfb-weekly-input-guard.mjs
