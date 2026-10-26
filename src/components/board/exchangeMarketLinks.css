@@ -1,0 +1,11 @@
+.fbis-exchange-links{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 14px;background:rgba(8,24,42,.38);border-top:1px solid rgba(150,180,215,.23);border-bottom:1px solid rgba(150,180,215,.23)}
+.fbis-exchange-links-label{font-size:.66rem;font-weight:900;letter-spacing:.11em;color:#cbd5e1}
+.fbis-exchange-links-actions{display:flex;gap:7px;flex-wrap:wrap}
+.fbis-exchange-links-actions a{display:inline-flex;align-items:center;gap:7px;min-height:35px;padding:6px 10px;border:1px solid #507a9e;border-radius:8px;background:#152b46;color:#f4f8ff;font-weight:750;font-size:.77rem;text-decoration:none;line-height:1.2}
+.fbis-exchange-links-actions a:hover,.fbis-exchange-links-actions a:focus-visible{background:#24466a;outline:2px solid #a8d8ff;outline-offset:2px}
+.fbis-exchange-links-actions a small{font-size:.63rem;font-weight:650;max-width:165px;color:#a5c2da;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fbis-exchange-links-extra summary{font-size:.75rem;font-weight:700;color:#d7e8f9;cursor:pointer}
+.fbis-exchange-links-extra .fbis-exchange-links-actions{margin-top:9px}
+.fbis-exchange-links.is-compact{padding:7px 12px;gap:6px}
+.fbis-exchange-links.is-compact .fbis-exchange-links-actions a{font-size:.69rem;min-height:31px}
+@media(max-width:520px){.fbis-exchange-links-actions a small{max-width:95px}.fbis-exchange-links-label{width:100%}}
