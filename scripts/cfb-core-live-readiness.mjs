@@ -21,7 +21,7 @@ export function evaluate(rows,{minimum=200}={}){
    &&clock(r.generation_at)<clock(r.kickoff)&&clock(r.feature_cutoff_at)<=clock(r.generation_at)
    &&filled(r.champion_spread)&&filled(r.core_spread)&&filled(r.champion_p_home_win)&&filled(r.core_p_home_win)
    &&String(r.eligibility)==='eligible_projected'
-   &&r.core_artifact_id&&r.model_version!=='unknown'
+   &&r.core_artifact_id&&r.core_model_version&&r.champion_model_version
   ).sort((a,b)=>clock(a.generation_at)-clock(b.generation_at));
   const r=valid[0];
   decisions.push({game_id:key,week:Number(list[0].week),qualified:!!r,
