@@ -1,0 +1,48 @@
+name: Retired sports primary cleanup (R2 verified)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/retired-sports-primary-scrub.yml"
+      - "scripts/retired-sports-primary-scrub.mjs"
+      - "ops/triggers/retired-sports-primary-scrub"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-retired-sport-primary-cleanup
+  cancel-in-progress: false
+
+jobs:
+  verified-cleanup:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Verify sport boundary and cleanup script
+        run: |
+          node --check scripts/retired-sports-primary-scrub.mjs
+          node --test test/seven-sport-scope.test.js
+      - name: Scrub retired PRIMARY sport tables with R2 verified backup
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RETIRED_SPORT_APPLY: "true"
+          RETIRED_SPORT_RELEASE_ID: "retired-20261026-primary-release-a1"
+          RETIRED_SPORT_BATCH_ROWS: "500"
+          RETIRED_SPORT_MAX_BATCHES: "600"
+        run: node scripts/retired-sports-primary-scrub.mjs
+      - name: Save archive and deletion receipts
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: retired-sports-primary-cleanup
+          path: /tmp/fbis-retired-sport-scrub/
+          retention-days: 90
+          if-no-files-found: ignore
