@@ -1,0 +1,4 @@
+.fbis-exchange-quote-link{display:inline-flex;align-items:center;gap:4px;color:inherit;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer}
+.fbis-exchange-quote-link:hover{color:#90cfff;text-decoration-style:solid}
+.fbis-exchange-quote-link:focus-visible{outline:2px solid #9cd7ff;outline-offset:3px;border-radius:4px}
+.fbis-quote-external{font-size:.68em;opacity:.8}
