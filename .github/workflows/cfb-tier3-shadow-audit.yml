@@ -1,0 +1,36 @@
+name: CFB Tier3 EPA shadow evaluation
+on:
+  schedule:
+    - cron: "25 15 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cfb-tier3-shadow-audit
+  cancel-in-progress: false
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Read independent Tier3 source and frozen champion shadow
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "::error::Missing operator secret"; exit 2; }
+          http="$(curl -sS --retry 2 --max-time 90 -o shadow.json -w '%{http_code}' \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            https://fbis-myz.pages.dev/api/cfb-tier3-shadow)" || http=000
+          test "$http" = 200 || { echo "::error::Tier3 shadow HTTP $http"; exit 3; }
+          jq -e '.ok==true and .providerCalls==0 and .canQualify==false and .canAuthorizeWager==false and .changesProductionChampion==false and .version=="CFB-TIER3-EPA-SENSITIVITY-v0.1"' shadow.json >/dev/null
+          jq '{ok,version,candidateRows,eligible,rejected,paired,providerCalls,canQualify,canAuthorizeWager,changesProductionChampion}' shadow.json > research-audit.json
+          cat research-audit.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve daily no-wager evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-tier3-shadow-research
+          path: research-audit.json
+          retention-days: 30
+          if-no-files-found: ignore
