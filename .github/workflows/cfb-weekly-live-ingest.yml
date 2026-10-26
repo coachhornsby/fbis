@@ -1,0 +1,111 @@
+name: CFB incoming weekly source and frozen projection coverage
+on:
+  pull_request:
+    paths:
+      - "scripts/cfb-weekly-source-ingest.mjs"
+      - "test/cfb-weekly-source-ingest.test.js"
+      - ".github/workflows/cfb-weekly-live-ingest.yml"
+  workflow_dispatch:
+    inputs:
+      season:
+        description: CFB season
+        required: true
+        default: "2026"
+      week:
+        description: CFB week (optional auto-derived when blank)
+        required: false
+        default: ""
+  schedule:
+    - cron: "15 23 * * 0"
+    - cron: "30 14,18,22 * * 1"
+permissions:
+  contents: read
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test test/cfb-weekly-source-ingest.test.js
+      - run: node --check scripts/cfb-weekly-source-ingest.mjs
+  ingest:
+    if: github.event_name != 'pull_request'
+    needs: source-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_ACCOUNT_ID: 2fdc80b8d99070adcef12f7a785c3fc1
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CFB_VENDOR_SOURCE_URL_TEMPLATE: ${{ secrets.CFB_VENDOR_SOURCE_URL_TEMPLATE }}
+      CFB_VENDOR_SOURCE_BEARER: ${{ secrets.CFB_VENDOR_SOURCE_BEARER }}
+      SOURCE_SEASON: ${{ inputs.season || '2026' }}
+      SOURCE_WEEK: ${{ inputs.week }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Determine CFB week, fail closed outside active season
+        run: |
+          if [ -z "${SOURCE_WEEK:-}" ]; then
+            SOURCE_WEEK=$(node -e "import('./scripts/cfb-weekly-source-ingest.mjs').then(m=>console.log(m.sourceWeek(new Date().toISOString())))")
+          fi
+          if [ "${SOURCE_SEASON}" != "2026" ] || [ "${SOURCE_WEEK}" -lt 9 ] || [ "${SOURCE_WEEK}" -gt 15 ]; then
+            echo "UNSUPPORTED_SEASON_OR_WEEK season=${SOURCE_SEASON} week=${SOURCE_WEEK}"
+            exit 1
+          fi
+          echo "SOURCE_WEEK=${SOURCE_WEEK}" >> "${GITHUB_ENV}"
+          echo "SOURCE_FILENAME=training_data_2026_week$(printf '%02d' "${SOURCE_WEEK}").csv" >> "${GITHUB_ENV}"
+      - name: Retrieve source from secure R2 inbox or explicitly configured licensed vendor
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo "MISSING_CLOUDFLARE_API_TOKEN"; exit 1; }
+          INBOX_KEY="cfb/training/inbox/2026/${SOURCE_FILENAME}"
+          if ! npx wrangler r2 object get "fbis-archive/${INBOX_KEY}" --file weekly-source.csv --remote; then
+            rm -f weekly-source.csv
+            test -n "${CFB_VENDOR_SOURCE_URL_TEMPLATE:-}" || { echo "SOURCE_NOT_YET_PRESENT: upload licensed pregame CSV to private R2 ${INBOX_KEY}, or configure CFB_VENDOR_SOURCE_URL_TEMPLATE"; exit 1; }
+            SOURCE_URL="${CFB_VENDOR_SOURCE_URL_TEMPLATE//\{week\}/${SOURCE_WEEK}}"
+            SOURCE_URL="${SOURCE_URL//\{filename\}/${SOURCE_FILENAME}}"
+            [[ "${SOURCE_URL}" == https://* ]] || { echo "VENDOR_SOURCE_URL_MUST_BE_HTTPS"; exit 1; }
+            if [ -n "${CFB_VENDOR_SOURCE_BEARER:-}" ]; then
+              curl -fsSL --retry 2 -H "Authorization: Bearer ${CFB_VENDOR_SOURCE_BEARER}" -o weekly-source.csv "${SOURCE_URL}"
+            else
+              curl -fsSL --retry 2 -o weekly-source.csv "${SOURCE_URL}"
+            fi
+          fi
+          test -s weekly-source.csv || { echo "EMPTY_SOURCE"; exit 1; }
+      - name: Validate pre-kickoff source, write research-only SQL and SHA receipts
+        run: |
+          set -euo pipefail
+          OBSERVED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          node scripts/cfb-weekly-source-ingest.mjs --csv weekly-source.csv --season "${SOURCE_SEASON}" --week "${SOURCE_WEEK}" --observed-at "${OBSERVED_AT}" --out-dir artifacts/cfb-incoming
+      - name: Immutable private R2 raw source write and cryptographic readback
+        run: |
+          set -euo pipefail
+          SHA=$(node -p "JSON.parse(require('fs').readFileSync('artifacts/cfb-incoming/receipt.json','utf8')).sha256")
+          KEY="cfb/training/immutable/2026/week$(printf '%02d' "${SOURCE_WEEK}")/${SHA}.csv"
+          npx wrangler r2 object put "fbis-archive/${KEY}" --file artifacts/cfb-incoming/source.csv --remote --force
+          npx wrangler r2 object get "fbis-archive/${KEY}" --file /tmp/cfb-raw-readback.csv --remote
+          echo "${SHA}  /tmp/cfb-raw-readback.csv" | sha256sum -c -
+          echo "SOURCE_SHA=${SHA}" >> "${GITHUB_ENV}"
+      - name: Append source receipts only to CFB shadow research D1 and confirm readback
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis-cfb --remote --file artifacts/cfb-incoming/shadow-research.sql --yes
+          npx wrangler d1 execute fbis-cfb --remote --json --command "SELECT COUNT(*) n FROM cfb_weekly_research_sources WHERE season=2026 AND week=${SOURCE_WEEK} AND source_sha='${SOURCE_SHA}'" > /tmp/cfb-source-count.json
+          EXPECTED=$(node -p "JSON.parse(require('fs').readFileSync('artifacts/cfb-incoming/receipt.json','utf8')).rowCount")
+          ACTUAL=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/cfb-source-count.json','utf8'))[0].results[0].n")
+          test "${EXPECTED}" = "${ACTUAL}" || { echo "CFB_SHADOW_SOURCE_ROW_COUNT_MISMATCH"; exit 1; }
+          npx wrangler d1 execute fbis-cfb --remote --json --command "SELECT COUNT(DISTINCT a.game_id) n FROM cfb_weekly_research_sources a JOIN prediction_snapshots p ON p.game_id=a.game_id AND lower(p.sport)='cfb' AND p.frozen_at < a.kickoff_utc AND p.proj_margin IS NOT NULL AND p.model_version IS NOT NULL WHERE a.season=2026 AND a.week=${SOURCE_WEEK} AND a.source_sha='${SOURCE_SHA}'" > artifacts/cfb-incoming/frozen-coverage.json
+          echo "WEEKLY_SOURCE_IMPORT_AND_READBACK_PASSED ${EXPECTED} source_game_rows"
+      - name: Publish acceptance evidence for all outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-weekly-ingestion-evidence
+          path: artifacts/cfb-incoming/
+          if-no-files-found: warn
+          retention-days: 30
