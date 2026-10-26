@@ -8,6 +8,7 @@ import {join} from 'node:path';
 import {compare} from './cfb-phase4-ncaa-verify.mjs';
 const root=process.env.CFB_POSTGAME_OUT||'artifacts/cfb-live-postgame';
 const NCAA_HASH='7287cda610a9326931931080cb3a604828febe6fe3c9016a7e4a36db99efdb7c';
+export function unwrapD1(content){return Array.isArray(content)&&Array.isArray(content[0]?.results)?content[0].results:Array.isArray(content)?content:null;}
 export function originalSnapshot(rows,kickoff){
  return rows.filter(p=>p.frozen_at&&Date.parse(p.frozen_at)<Date.parse(kickoff)
   &&p.model_version==='CFB-FBIS-v2'&&p.proj_home!=null&&p.proj_away!=null&&Number.isFinite(Number(p.proj_home))&&Number.isFinite(Number(p.proj_away)))
@@ -35,7 +36,7 @@ async function fetchJson(url){
 const input=process.argv[2];
 if(input&&process.argv[1]?.endsWith('cfb-weekly-postgame-settle.mjs')){
  const data=JSON.parse(readFileSync(input,'utf8'));
- const rows=Array.isArray(data)&&Array.isArray(data[0]?.results)?data[0].results:Array.isArray(data)?data:null;
+ const rows=unwrapD1(data);
  if(!Array.isArray(rows)||!rows.length)throw Error('NO_WEEKLY_SOURCE_RECEIPTS');
  const chosen=rows.filter(x=>x.source_sha===rows[0].source_sha),games=new Map();
  for(const row of chosen){const id=String(row.game_id);if(!games.has(id))games.set(id,[]);games.get(id).push(row);}
