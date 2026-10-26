@@ -251,6 +251,8 @@ export function resolveSportDb(env, sport, { mode } = {}) {
 function strictSportCutoverActive(env, sport) {
   const key = String(sport || "").toLowerCase();
   if (!SPORT_DATABASES[key] || deployedSportDbMode(env, key) !== "sport") return false;
+  // CBB activation always fails closed, even if a strict flag is omitted.
+  if (key === "cbb") return true;
   // A strict mode is required independently for each authorized sport. Never
   // treat the NFL grant, binding, or mode as authorization for another sport.
   return ["1", "true", "yes"].includes(

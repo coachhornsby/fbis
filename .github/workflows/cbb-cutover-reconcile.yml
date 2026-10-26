@@ -1,0 +1,48 @@
+name: CBB exact shadow reconciliation
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'functions/lib/cbbExactMigration.js'
+      - 'scripts/cbb-cutover-reconcile-ops.mjs'
+      - '.github/workflows/cbb-cutover-reconcile.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cbb-exact-shadow-reconciliation
+  cancel-in-progress: false
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --no-package-lock undici@7.29.0
+      - name: Wait for deployed exact reconciliation endpoint
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          node --input-type=module <<'JS'
+          const base='https://fbis-myz.pages.dev';
+          for(let i=0;i<60;i++){
+            const r=await fetch(base+'/api/database-topology',{method:'POST',headers:{'content-type':'application/json','x-harvest-secret':process.env.HARVEST_SECRET},body:JSON.stringify({operation:'cbb-exact-parity-page',table:'team_form',pageSize:1})}).catch(()=>null);
+            if(r?.ok){const b=await r.json();if(b.table==='team_form'&&b.canAuthorizeWager===false)process.exit(0);}
+            await new Promise(r=>setTimeout(r,10000));
+          }
+          throw Error('CBB exact migration deployment unavailable');
+          JS
+      - name: Copy and independently compare full record sets
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+        run: node scripts/cbb-cutover-reconcile-ops.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cbb-exhaustive-shadow-reconciliation
+          path: artifacts/cbb-cutover-reconciliation/
+          retention-days: 90

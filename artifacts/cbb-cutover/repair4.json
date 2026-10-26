@@ -1,0 +1,10 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"at\": \"2026-10-26T03:14:21.987Z\",\n  \"authority\": \"PRIMARY\",\n  \"canAuthorizeWager\": false,\n  \"receipts\": [\n    {\n      \"table\": \"cbb_roster_observations\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 28506,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_roster_observations\",\n      \"indexesAdded\": 1,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"cbb_rotation_observations\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 12000,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_rotation_observations\",\n      \"indexesAdded\": 1,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"cbb_schedule_items\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 87756,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_schedule_items\",\n      \"indexesAdded\": 1,\n      \"primaryMutations\": 0\n    }\n  ]\n}"
+    }
+  ],
+  "structuredContent": null,
+  "isError": false
+}

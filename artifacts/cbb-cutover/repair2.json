@@ -1,0 +1,10 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"at\": \"2026-10-26T03:12:48.043Z\",\n  \"authority\": \"PRIMARY\",\n  \"canAuthorizeWager\": false,\n  \"receipts\": [\n    {\n      \"table\": \"cbb_directory_population_runs\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 1,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_directory_population_runs\",\n      \"indexesAdded\": 0,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"cbb_game_state_snapshots\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 1546,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_game_state_snapshots\",\n      \"indexesAdded\": 2,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"cbb_player_aliases\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 28024,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_player_aliases\",\n      \"indexesAdded\": 2,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"cbb_player_provider_ids\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 4751,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_player_provider_ids\",\n      \"indexesAdded\": 2,\n      \"primaryMutations\": 0\n    }\n  ]\n}"
+    }
+  ],
+  "structuredContent": null,
+  "isError": false
+}

@@ -1,3 +1,4 @@
+import { CBB_SHARED_TABLES, copyCbbExactPage } from "./cbbExactMigration.js";
 /**
  * Generic sport working-set copy + shadow validation.
  * Copies from PRIMARY into a sport D1 without changing product authority.
@@ -21,6 +22,7 @@ export const SPORT_WORKING_TABLES = Object.freeze([
 
 /** Legacy NBA prediction rows must migrate before NBA ledger authority switches. */
 export function workingTablesForSport(sport) {
+  if (String(sport).toLowerCase() === "cbb") return CBB_SHARED_TABLES.map(table=>({table}));
   return String(sport).toLowerCase() === "nba"
     ? [...SPORT_WORKING_TABLES, { table: "predictions" }, { table: "odds_snapshots" }, { table: "team_form" }, { table: "team_form_games" }]
     : SPORT_WORKING_TABLES;
@@ -565,6 +567,15 @@ export async function copySportWorkingTables(env, sport, {
       sport: key,
       canAuthorizeWager: false,
     };
+  }
+
+  if (key === "cbb") {
+    const results=[];
+    for (const table of CBB_SHARED_TABLES) {
+      try { results.push(await copyCbbExactPage(env,table,{pageSize,maxPages,resume})); }
+      catch(error) { results.push({table,ok:false,error:String(error?.message||error)}); }
+    }
+    return {ok:results.every(r=>r.ok),sport:key,results,moreRemaining:results.some(r=>r.ok&&!r.exhausted),productStillPrimary:true,canAuthorizeWager:false};
   }
 
   // Back-compat: limitPerTable ≈ pageSize * maxPages when callers pass the old knob.
@@ -1195,6 +1206,19 @@ export async function copySportPrefixTables(env, sport, {
       sport: key,
       canAuthorizeWager: false,
     };
+  }
+
+  if (key === "cbb") {
+    const allowed=SPORT_PREFIX_TABLES.cbb;
+    const wanted=tables==null?allowed:tables;
+    if (!Array.isArray(wanted)||wanted.some(t=>!allowed.includes(t)))
+      return {ok:false,reason:"CBB_TABLE_NOT_ALLOWLISTED",canAuthorizeWager:false};
+    const results=[];
+    for (const table of wanted) {
+      try { results.push(await copyCbbExactPage(env,table,{prefixTables:allowed,pageSize,maxPages,resume})); }
+      catch(error) { results.push({table,ok:false,error:String(error?.message||error)}); }
+    }
+    return {ok:results.every(r=>r.ok),sport:key,results,skippedCaughtUp:[],moreRemaining:results.some(r=>r.ok&&!r.exhausted),productStillPrimary:true,canAuthorizeWager:false};
   }
 
   const allowed = new Set(SPORT_PREFIX_TABLES[key] || []);

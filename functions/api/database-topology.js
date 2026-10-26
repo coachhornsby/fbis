@@ -1,3 +1,4 @@
+import { compareCbbExactPage } from "../lib/cbbExactMigration.js";
 import { harvestSecret } from "../lib/auth.js";
 import { resolveNbaResearchOwnerDb } from "../lib/nbaResearchOwnerDb.js";
 import { recoverMissingNbaResearchPage } from "../lib/nbaPostCutoverRecovery.js";
@@ -303,6 +304,9 @@ export async function onRequestPost({ env, request } = {}) {
   }
   if (operation === "nhl-shadow-compare") {
     return json(await shadowCompareNhlSportDb(env));
+  }
+  if (operation === "cbb-exact-parity-page") {
+    return json(await compareCbbExactPage(env,String(body.table||""),{prefixTables:sportMigrationScope("cbb").prefixTables,after:body.after||null,pageSize:body.pageSize}));
   }
   if (operation === "sport-copy") {
     const gate = requireSyncSport(body.sport);
