@@ -9,3 +9,9 @@
 .event-props-table td span{display:block;color:#9eb3c9;font-size:11px;margin-top:3px;overflow-wrap:anywhere}
 .event-props-table td strong{display:block}
 @media(max-width:560px){.event-player-props summary span{float:none;display:block;margin-top:5px}.event-props-table table{min-width:620px}}
+
+/* Game-card exchange player markets are visible without an extra click. */
+.event-player-props{border:2px solid #648ab0;background:#0b2037}
+.event-player-props summary{font-size:16px;color:#f8df99;background:#163451}
+.event-props-table td:nth-child(2) span{font-size:20px;font-weight:900;color:#f7df98;font-variant-numeric:tabular-nums}
+.event-props-table td:nth-child(2){font-weight:800}
