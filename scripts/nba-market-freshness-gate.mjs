@@ -55,7 +55,9 @@ async function main(){
  const lanes={researchIngestion:{...research},
   executableMarketEvidence:{...r,providerClockVerified:false,canAuthorizeWager:false}};
  const healthyResearch=research.ok===true;
- const executableVerified=r.ok===true && false; // No provider quote-clock certification in legacy odds rows.
+ // Legacy odds_snapshots has only a collection timestamp: no independent provider quote-clock attestation.
+ // Never treat its freshness as executable price certification until a separate verified source exists.
+ const executableVerified=false;
  const operationalPass=healthyResearch && executableVerified;
 
  await mkdir("artifacts",{recursive:true});
