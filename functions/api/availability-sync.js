@@ -1,3 +1,4 @@
+import { productSportDbHandle } from "../lib/databaseTopology.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { syncTwoDeepAvailability } from "../lib/twoDeep.js";
 import { syncNflOfficialInjuries } from "../lib/nflOfficialInjuries.js";
@@ -17,10 +18,17 @@ export async function onRequestGet(context){
   if(!auth.ok) return json(unauthorizedBody(),401);
   const shared={
     DB:context.env.DB,
-    caches:caches.default,
+    caches:typeof caches==="undefined"?null:caches.default,
   };
+  // The authoritative NFL player profiles moved to NFL_DB. Shared ingestion
+  // observations remain in PRIMARY, but the profile materialization must
+  // follow the verified deployed sport cutover. No silent PRIMARY fallback.
+  const nflOwner=productSportDbHandle(context.env,"nfl");
+  if(!nflOwner.db?.prepare)return json({
+    ok:false,status:"FAILED",error:"NFL_PROFILE_DB_UNAVAILABLE",reason:nflOwner.reason||"cutover-not-authorized"
+  },503);
   const [nflOfficial,twoDeep]=await Promise.all([
-    syncNflOfficialInjuries(shared),
+    syncNflOfficialInjuries({...shared,NFL_PROFILE_DB:nflOwner.db}),
     syncTwoDeepAvailability({
       ...shared,
       TWODEEP_API_URL:context.env.TWODEEP_API_URL,
@@ -34,7 +42,7 @@ export async function onRequestGet(context){
   // optional augmentation for depth/role context and for CFB.
   const officialOk=nflOfficial.ok===true;
   const twoDeepUsable=twoDeep.ok===true;
-  const ok=officialOk || twoDeepUsable;
+  const ok=officialOk; // Two Deep must never mask failure to apply official NFL status to the active NFL_DB.
   const configured=officialOk || twoDeep.configured===true;
   const payload={
     ok,

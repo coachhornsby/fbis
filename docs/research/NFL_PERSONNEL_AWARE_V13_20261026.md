@@ -34,3 +34,7 @@ Until prospective outcomes and economic grades exist, model status remains **SHA
 - No write to primary database, frozen prediction snapshots, published champion scores, or wagering qualification.
 - The research score never replaces the baseline in the ranking table.
 - Production is not considered verified until GitHub CI passes, the release SHA matches, the NFL_DB migration is applied, and endpoint + scheduled workflow receipts are inspected.
+
+## Production roster-source clarification (2026-10-26)
+
+The first live capture was blocked because the active team-profile sync identifies ordinary healthy roster members as `roster-presence`, not `nfl-official`. Requiring an NFL injury report for every healthy WR would permanently suppress most games: the official report lists injuries, not the entire confirmed starting lineup. In research v1.3, fresh roster-presence now supports *expected depth and usage only*, with `EXPECTED_ROSTER_NOT_GAME_DAY_CONFIRMED` in the result. A roster-presence `OUT` never becomes a verified loss; injury penalties still require a fresh trusted official/licensed injury report. These scores remain provisional, cannot authorize bets, and need confirmed inactive-list verification before higher-confidence uses.

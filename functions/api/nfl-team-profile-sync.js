@@ -27,6 +27,7 @@ export async function onRequestGet(context){
   // invalidate successful profiles in the same batch.
   const results=await Promise.all(teams.map(team=>syncNflTeamProfile({
     DB:db,
+    AVAILABILITY_DB:context.env.DB,
     ARCHIVE:context.env.ARCHIVE,
     caches:caches.default,
   },team)));

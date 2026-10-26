@@ -601,7 +601,7 @@ export async function syncNflTeamProfile(env={},abbr,{season=seasonYear(),nowMs=
   const [src,existing,availability,verse]=await Promise.all([
    sourceForTeam(team,season),
    existingPlayers(env.DB,teamKey(team.abbr)),
-   latestAvailability(env.DB,teamKey(team.abbr)),
+   latestAvailability(env.AVAILABILITY_DB||env.DB,teamKey(team.abbr)),
    nflverse||loadNflVerseFeatures(env).catch(()=>({playersByTeam:{},byTeam:{},meta:{}})),
   ]);
   if(!src.roster.ok||!src.schedule.ok){

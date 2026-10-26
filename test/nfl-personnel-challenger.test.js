@@ -131,3 +131,36 @@ test("prospective write requires operator credential; summary reports unvalidate
  assert.equal(report.all.baselineMarginMAE,null);
  assert.equal(report.canAuthorizeWager,false);
 });
+
+test("fresh roster presence permits an explicitly provisional lineup without claiming official active status",()=>{
+ const a=roster("dal",0),b=roster("phi",0);
+ for(const p of [...a,...b]){p.state_source="roster-presence";p.health_state="AVAILABLE";}
+ const input=base({homePlayers:a,awayPlayers:b});
+ const r=evaluateNflPersonnelResearch(input);
+ assert.equal(r.researchEligible,true);
+ assert.equal(r.adjusted.margin,r.baseline.margin);
+ assert.equal(r.home.verifiedRows,0);
+ assert.ok(r.home.expectedRosterRows>0);
+ assert.ok(r.warnings.includes("EXPECTED_ROSTER_NOT_GAME_DAY_CONFIRMED"));
+ assert.equal(r.canAuthorizeWager,false);
+ assert.equal(r.projectionsProvisional,true);
+});
+test("a roster-presence OUT never creates a fake confirmed absence; verified OUT does",()=>{
+ const a=roster("dal",0),b=roster("phi",0);
+ for(const p of [...a,...b])p.state_source="roster-presence";
+ a[0].health_state="OUT"; // a stale or synthetic roster OUT cannot trigger scoring
+ const none=evaluateNflPersonnelResearch(base({homePlayers:a,awayPlayers:b}));
+ assert.equal(none.researchEligible,false); // top-depth unverified absent forces no numerical output
+ assert.equal(none.adjusted,null);
+ assert.equal(none.home.unverifiedOut,1);
+ // A report-backed WR injury is counted and the remaining expected roster is provisional.
+ const confirm=roster("dal",0);
+ for(const p of confirm)p.state_source="roster-presence";
+ confirm[0].health_state="OUT";
+ confirm[0].state_source="nfl-official";
+ const positive=evaluateNflPersonnelResearch(base({homePlayers:confirm,awayPlayers:b}));
+ assert.equal(positive.researchEligible,true);
+ assert.equal(positive.home.absentTop5,1);
+ assert.ok(positive.adjusted.home<positive.baseline.home);
+ assert.ok(positive.warnings.includes("EXPECTED_ROSTER_NOT_GAME_DAY_CONFIRMED"));
+});

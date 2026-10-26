@@ -195,18 +195,23 @@ export async function syncNflOfficialInjuries(env={}){
     }
     const persisted=await persistAvailabilityObservations(env,rows);
     const profileUpdate=persisted.ok
-      ? await applyNflAvailabilityToProfiles(env,rows).catch((err)=>({ok:false,updated:0,reason:String(err?.message||err)}))
+      ? await applyNflAvailabilityToProfiles(
+          {...env,DB:env.NFL_PROFILE_DB||env.DB},rows
+        ).catch((err)=>({ok:false,updated:0,reason:String(err?.message||err)}))
       : {ok:false,updated:0,reason:"availability-persist-failed"};
-    if(persisted.ok){
+    // A successful PRIMARY observation insert without NFL_DB materialization
+    // is partial success, not a healthy available-player projection feed.
+    const complete=persisted.ok&&profileUpdate.ok===true;
+    if(complete){
       await setMeta(env,"last_nfl_official_injury_success_at",observedAt).catch(()=>{});
       await setMeta(env,"last_nfl_official_injury_records",String(rows.length)).catch(()=>{});
       await setMeta(env,"last_nfl_official_injury_error","").catch(()=>{});
     }else{
-      await setMeta(env,"last_nfl_official_injury_error",persisted.reason||"persist-failed").catch(()=>{});
+      await setMeta(env,"last_nfl_official_injury_error",persisted.reason||profileUpdate.reason||"profile-write-failed").catch(()=>{});
     }
     return {
-      ok:persisted.ok,
-      status:persisted.ok?"SUCCESS":"FAILED",
+      ok:complete,
+      status:complete?"SUCCESS":"FAILED",
       source:"nfl-official",
       httpStatus:res.status,
       fetched:rows.length,
@@ -217,7 +222,7 @@ export async function syncNflOfficialInjuries(env={}){
       profileUpdated:profileUpdate.updated||0,
       profileUpdateOk:profileUpdate.ok===true,
       profileUpdateReason:profileUpdate.reason||null,
-      reason:persisted.reason||null,
+      reason:persisted.reason||(!profileUpdate.ok?profileUpdate.reason||"nfl-profile-update-failed":null),
       observedAt,
       sourceUrl:NFL_OFFICIAL_INJURY_URL,
     };
