@@ -191,3 +191,16 @@ test('one unavailable approved sport fails closed without stopping healthy sport
  assert.equal((await onRequestPost({env,request:new Request('https://fbis.test/api/polymarket-stream-roster',{method:'POST'})})).status,403);
  assert.equal((await onRequestGet()).status,405);
 });
+
+test('stream roster reads authoritative event-scoped contracts from history shard and rejects stale or mismatched identity',async()=>{
+ const {capturedPolymarketStreamRoster}=await import('../functions/lib/polymarketStreamRoster.js');
+ const db=new DatabaseSync(':memory:');
+ db.exec(`CREATE TABLE normalized_market_observations(id TEXT,sport TEXT,source TEXT,league TEXT,canonical_event_id TEXT,provider_event_id TEXT,event_start_time TEXT,home_team TEXT,away_team TEXT,market_family TEXT,side TEXT,line REAL,period TEXT,source_market_id TEXT,source_outcome_id TEXT,collected_at TEXT,raw_payload_json TEXT)`);
+ const insert=db.prepare('INSERT INTO normalized_market_observations VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+ const add=(id,event,at,raw={contractLong:true})=>insert.run(id,'nfl','Polymarket US','nfl',event,'provider',start,'DEN','SEA','moneyline','home',null,'full_game','nfl-'+id,'long',at,JSON.stringify(raw));
+ add('good','g1',now.toISOString());add('wrong','other',now.toISOString());add('stale','g1','2026-10-10T00:00:00Z');add('short','g1',now.toISOString(),{contractLong:false});
+ const wrap={prepare(sql){const stmt=db.prepare(sql);return {all:async()=>({results:stmt.all()}),bind(...args){return {all:async()=>({results:stmt.all(...args)})}}};}};
+ const result=await capturedPolymarketStreamRoster({MARKET_HISTORY_2026Q4B_DB:wrap},[{id:'g1',sport:'nfl',start}],{now});
+ assert.deepEqual(result.roster.map(r=>r.source_market_id),['nfl-good']);assert.deepEqual(result.errors,[]);
+ assert.equal((await capturedPolymarketStreamRoster({MARKET_HISTORY_2026Q4B_DB:wrap},[{id:'g1',sport:'nfl',start:'2026-10-19T00:00:00Z'}],{now})).roster.length,0);
+});

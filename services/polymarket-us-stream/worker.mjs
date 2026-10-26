@@ -19,7 +19,7 @@ const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
 const MAX_BATCH=40, MAX_QUEUE=400;
 const RECONNECT_MS=60000, ROTATE_MS=9*60000, FLUSH_MS=5000;
 /** Module-level so post-deploy health reflects the new Worker pin without waiting for DO constructor. */
-export const STREAM_CODE_VERSION="board-ws-q4-archive-catchup-authority-20261026";
+export const STREAM_CODE_VERSION="board-ws-q4-archive-catchup-shard-roster-20261026";
 const COALESCE_STORAGE_KEY="wsTickCoalesceMemoryV1";
 const toJSON=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 export {PRIMARY_WS_SOFT_CAP_BYTES,resolveWsPersistTarget} from "./wsPersistTarget.mjs";
@@ -194,9 +194,16 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
     return plan.assigned;
   }
   async candidates(){
-    const now=Date.now(),{since:rosterSince}=streamContractRosterWindow(now);
-    const from=new Date(now).toISOString(),until=new Date(now+168*3600000).toISOString();
-    return this.archiveCandidates({rosterSince,from,until});
+    const response=await fetch('https://fbis-myz.pages.dev/api/polymarket-stream-roster',{
+      method:'POST',headers:{'x-fbis-stream-token':this.env.FBIS_STREAM_PROXY_TOKEN},signal:AbortSignal.timeout(25000)});
+    if(!response.ok)throw Error('AUTHORITATIVE_ROSTER_UNAVAILABLE');
+    const report=await response.json();
+    if(report.ok!==true||!Array.isArray(report.roster))throw Error('AUTHORITATIVE_ROSTER_INVALID');
+    const plan=manageSubscriptionCapacity(report.roster,this.capacityPlan());
+    this.lastCandidateDiagnostics={at:new Date().toISOString(),source:'approved-sport-market-shards',
+      eligibleCount:plan.eligibleCount,selected:plan.assignedCount,uncoveredCount:plan.uncoveredCount,
+      bySport:plan.bySport,capacity:plan.capacity,authorityErrors:report.errors||[],storageErrors:report.storageErrors||[]};
+    return plan.assigned;
   }
   async connect(){
     if(!this.isCanonicalOwner()){await this.retireLegacyOwner();return;}

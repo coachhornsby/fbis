@@ -62,7 +62,15 @@ test('stream loads recent R2 roster and validates sport authority without scanni
   return {ok:true,json:async()=>({ok:true,fixtures:[{sport:'nfl',id:'1',start}],errors:[{sport:'nhl',reason:'AUTHORITY_UNAVAILABLE'}]})};
  });
  const collector=new PolymarketMarketStream({storage:{}},{ARCHIVE:bucket,FBIS_STREAM_PROXY_TOKEN:'token',STREAM_COVER_ALL_ELIGIBLE:'enabled',DB:{prepare(){throw Error('PRIMARY scan forbidden')}}});
- const selected=await collector.candidates();
+ const selected=await collector.archiveCandidates({rosterSince:new Date(now-72*3600000).toISOString(),from:fresh,until:new Date(now+168*3600000).toISOString()});
  assert.deepEqual(read,['fresh']);assert.deepEqual(selected.map(r=>r.source_market_id),['nfl-market']);
  assert.equal(collector.lastCandidateDiagnostics.authorityErrors[0].sport,'nhl');
+});
+
+test('normal stream startup uses captured shard roster without walking archive history',async t=>{
+ const rows=Array.from({length:501},(_,i)=>({sport:'nfl',canonical_event_id:'1',source_market_id:'market-'+i,market_family:'moneyline'}));
+ t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({ok:true,roster:rows,errors:[],storageErrors:[]})}));
+ const collector=new PolymarketMarketStream({storage:{}},{STREAM_COVER_ALL_ELIGIBLE:'enabled',ARCHIVE:{list(){throw Error('archive walk forbidden')}}});
+ assert.equal((await collector.candidates()).length,501);
+ assert.equal(collector.lastCandidateDiagnostics.source,'approved-sport-market-shards');
 });
