@@ -19,7 +19,6 @@ import {pinnoddsReferenceDifference} from "../../lib/pinnoddsReferenceDifference
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
 import EventMarkets from "./EventMarkets.jsx";
-import ExchangeGameLinks from "./ExchangeGameLinks.jsx";
 import TeamLogo from "../TeamLogo.jsx";
 import NhlBettingIntelligence from "./NhlBettingIntelligence.jsx";
 import NhlMatchupSignals from "./NhlMatchupSignals.jsx";
@@ -348,7 +347,6 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <span className="pgc-gap-description">{[valueChoice.detail,valueChoice.secondary].filter(Boolean).join(' · ')}</span>
       </section>
 
-      {!stored ? <ExchangeGameLinks game={game} /> : null}
       {["cfb","nfl","cbb","nba","wnba","nhl","mlb","npb","kbo","soccer","tennis"].includes(sportId) ? (
         <>
           {["nhl","mlb","npb","kbo"].includes(sportId) ? <MoneylinePriceComparison game={game} /> : null}
