@@ -31,9 +31,13 @@ function evaluatePlayer(player,at){
     Number.isFinite(updatedMs)&&updatedMs<=at&&
     observedMs<=updatedMs;
   const prolonged=ABSENT.has(health);
+  const notCarried=Number(get(player,"carried_state","carriedState")||0)!==1;
+  // Current roster presence establishes expected depth, NOT a confirmed game-day active status.
+  // Only NFL-official or independent injury feeds can assert an absent player.
+  const expectedRoster=temporalValid&&source==="roster-presence"&&health==="AVAILABLE"&&
+    ageHours>=0&&ageHours<=48&&notCarried;
   const verified=temporalValid&&VALID_SOURCE.test(source)&&
-    ageHours>=0&&ageHours<=(prolonged?14*24:96)&&
-    Number(get(player,"carried_state","carriedState")||0)!==1;
+    ageHours>=0&&ageHours<=(prolonged?14*24:96)&&notCarried;
   const share=num(get(player,"last_known_snap_share","lastKnownSnapShare","last_game_snap_share","lastGameSnapShare"));
   const depth=num(get(player,"depth_rank","depthRank"));
   return {
@@ -42,7 +46,7 @@ function evaluatePlayer(player,at){
     position,health,source,observedAt:observed||null,
     ageHours:ageHours==null?null:round(ageHours,1),
     depthRank:depth,snapShare:share==null?null:bounded(share,0,1),
-    verified,absent:verified&&ABSENT.has(health),
+    verified,expectedRoster,absent:verified&&ABSENT.has(health),
     uncertain:verified&&UNCERTAIN.has(health),
   };
 }
@@ -56,12 +60,12 @@ function side(players=[],capturedAt){
   // Three high-snap WRs are usually on field, but these are usage proxies, not routes or targets.
   const identifiedWr=wr.filter(p=>p.snapShare!=null);
   const wrCovered=wr.length>=5&&identifiedWr.length>=3&&
-    identifiedWr.slice(0,3).every(p=>p.verified);
+    identifiedWr.slice(0,3).every(p=>p.verified||p.expectedRoster);
   const top5=identifiedWr.slice(0,5),top3=top5.slice(0,3);
   const absentTop3=wrCovered?top3.filter(p=>p.absent):[];
   const absentTop5=wrCovered?top5.filter(p=>p.absent):[];
   const wrLost=absentTop5.reduce((s,p)=>s+(p.snapShare??0),0);
-  const availableWr=identifiedWr.filter(p=>p.verified&&!p.absent&&!p.uncertain);
+  const availableWr=identifiedWr.filter(p=>(p.verified||p.expectedRoster)&&!p.absent&&!p.uncertain);
   const replacementCapacity=availableWr.filter(p=>!top3.includes(p))
     .sort((a,b)=>(b.snapShare??0)-(a.snapShare??0)).slice(0,3)
     .reduce((s,p)=>s+(p.snapShare??0),0);
@@ -89,6 +93,8 @@ function side(players=[],capturedAt){
   const insufficient=normalized.length<12||!wrCovered;
   return {
     rosterRows:normalized.length,verifiedRows:normalized.filter(p=>p.verified).length,
+    expectedRosterRows:normalized.filter(p=>p.expectedRoster).length,
+    expectedTopWrNotConfirmed:top3.filter(p=>p.expectedRoster).length,
     observedOut:out.length,uncertainCount:doubtful.length,
     topWrRosterCoverage:wr.length,topWrUsageCoverage:identifiedWr.length,wrCovered,
     absentTop3:absentTop3.length,absentTop5:absentTop5.length,
@@ -119,6 +125,7 @@ export function evaluateNflPersonnelResearch({
   if(home.status==="INCOMPLETE")warnings.push("HOME_PERSONNEL_COVERAGE_INCOMPLETE");
   if(away.status==="INCOMPLETE")warnings.push("AWAY_PERSONNEL_COVERAGE_INCOMPLETE");
   if(home.unverifiedOut||away.unverifiedOut)warnings.push("UNVERIFIED_OR_STALE_ABSENCE_NOT_COUNTED");
+  if(home.expectedTopWrNotConfirmed||away.expectedTopWrNotConfirmed)warnings.push("EXPECTED_ROSTER_NOT_GAME_DAY_CONFIRMED");
   if(home.criticalUnresolved||away.criticalUnresolved)warnings.push("CRITICAL_LINEUP_UNRESOLVED");
   if((started-observed)>72*3600000)warnings.push("BEYOND_FINAL_INJURY_REPORT_WINDOW");
   const qualifiedForResearch=home.status!=="INCOMPLETE"&&away.status!=="INCOMPLETE"&&
