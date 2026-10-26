@@ -10,7 +10,7 @@ const odds = value => { const n=number(value); return n == null ? '—' : `${n >
 /** Event-bound observed prices. A missing forecast never becomes a market-derived model. */
 export default function EventPlayerProps({game}) {
   const eventId=String(game?.id || ''),sport=String(game?.sport || '').toLowerCase();
-  const [expanded,setExpanded]=useState(false),[result,setResult]=useState(null),[error,setError]=useState(null);
+  const [expanded,setExpanded]=useState(true),[result,setResult]=useState(null),[error,setError]=useState(null);
   useEffect(()=>{
     if(!expanded || !eventId || sport==='tennis')return;
     const controller=new AbortController();
@@ -69,7 +69,7 @@ export default function EventPlayerProps({game}) {
     return()=>controller.abort();
   },[expanded,eventId,sport,game?.start]);
   if(!eventId||sport==='tennis')return null;
-  return <details className="event-player-props" onClick={event=>event.stopPropagation()} onKeyDown={event=>event.stopPropagation()} onToggle={event=>setExpanded(event.currentTarget.open)}>
+  return <details open className="event-player-props" onClick={event=>event.stopPropagation()} onKeyDown={event=>event.stopPropagation()} onToggle={event=>setExpanded(event.currentTarget.open)}>
     <summary>PLAYER PROPS <span>{result ? `${result.totalMatched??result.rows.length} captured markets` : 'View sources and markets'}</span></summary>
     {expanded ? <div className="event-props-body">
       <p>{result?.exchangeReference?'Kalshi / Polymarket player thresholds · captured prices, not verified live purchase quotes':'Observed market prices'}</p>
