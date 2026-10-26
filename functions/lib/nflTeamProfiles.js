@@ -388,10 +388,11 @@ async function queryRows(db,sql,...binds){
 async function existingPlayers(db,tkey){
  return queryRows(db,"SELECT * FROM nfl_player_profiles WHERE team_key = ?",tkey);
 }
-async function latestAvailability(db,tkey){
+// Require observations for this week, not old healthy designations from prior games.
+async function latestAvailability(db,tkey,nowMs=Date.now()){
  return queryRows(db,`SELECT * FROM player_availability_observations
-   WHERE sport='nfl' AND team_key=? AND observed_at>=?
-   ORDER BY observed_at DESC LIMIT 300`,tkey,new Date(Date.now()-75*86400000).toISOString());
+   WHERE sport='nfl' AND team_key=? AND observed_at>=? AND observed_at<=?
+   ORDER BY observed_at DESC LIMIT 300`,tkey,new Date(nowMs-96*3600000).toISOString(),new Date(nowMs).toISOString());
 }
 async function upsertPlayers(db,rows){
  if(!db?.prepare||!rows.length)return{ok:false,rows:0,reason:"db-or-rows-missing"};
@@ -601,7 +602,7 @@ export async function syncNflTeamProfile(env={},abbr,{season=seasonYear(),nowMs=
   const [src,existing,availability,verse]=await Promise.all([
    sourceForTeam(team,season),
    existingPlayers(env.DB,teamKey(team.abbr)),
-   latestAvailability(env.AVAILABILITY_DB||env.DB,teamKey(team.abbr)),
+   latestAvailability(env.AVAILABILITY_DB||env.DB,teamKey(team.abbr),nowMs),
    nflverse||loadNflVerseFeatures(env).catch(()=>({playersByTeam:{},byTeam:{},meta:{}})),
   ]);
   if(!src.roster.ok||!src.schedule.ok){
