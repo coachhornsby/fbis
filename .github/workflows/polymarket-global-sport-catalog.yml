@@ -1,0 +1,42 @@
+name: Polymarket Global sport catalog — research only
+on:
+  schedule:
+    - cron: '48 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/collect-polymarket-global-sport-catalog.mjs"
+      - "functions/lib/polymarketGlobalSportCatalog.js"
+      - "functions/api/polymarket-global-sport-catalog.js"
+      - ".github/workflows/polymarket-global-sport-catalog.yml"
+permissions:
+  contents: read
+concurrency:
+  group: polymarket-global-sport-catalog
+  cancel-in-progress: false
+jobs:
+  archive:
+    if: github.repository == 'coachhornsby/fbis'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Confirm Pages production is running exact commit
+        if: github.event_name == 'push'
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Archive provider-native, research-only Gamma sport pages
+        run: node scripts/collect-polymarket-global-sport-catalog.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: poly-global-sport-catalog-${{ github.run_id }}
+          path: artifacts/polymarket-global-sport-catalog.json
+          if-no-files-found: warn
+          retention-days: 30
