@@ -44,7 +44,7 @@ export async function captureTennisFreeGrades(env,{now=new Date(),limit=75}={}){
    WHERE m.match_id=?`).bind(f.canonical_event_id).first();
    const cr=(await env.DB.prepare(`SELECT id,canonical_event_id,tour,
     player1,player2,snapshot_type,pure_model_id,pure_p1,
-    can_authorize_wager,decision_timestamp,event_start_time
+    can_authorize_wager,decision_timestamp,event_start_time,context_json
     FROM tennis_v2_research_decisions
     WHERE canonical_event_id=? AND snapshot_type='PURE_FIXTURE'
     ORDER BY decision_timestamp ASC,id ASC LIMIT 120`)

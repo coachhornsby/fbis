@@ -63,7 +63,6 @@ function rankEvidence(f,baseline){
   baseline.model_id!=='TENNIS-INHOUSE-RANK-BASELINE-v1'||
   baseline.can_authorize_wager!==0||
   timestamp(baseline.forecast_at)>=timestamp(f.event_start_time)||
-  timestamp(baseline.forecast_at)<timestamp(f.event_observed_at)||
   timestamp(baseline.rank_observed1_at)>timestamp(baseline.forecast_at)||
   timestamp(baseline.rank_observed2_at)>timestamp(baseline.forecast_at)||
   timestamp(baseline.event_start_time)!==timestamp(f.event_start_time))
@@ -78,8 +77,18 @@ function v2Evidence(f,baseline,official){
   key(baseline.player1)!==key(official.p1_name)||
   key(baseline.player2)!==key(official.p2_name)||
   timestamp(baseline.decision_timestamp)>=timestamp(f.event_start_time)||
-  timestamp(baseline.decision_timestamp)<timestamp(f.event_observed_at)||
   timestamp(baseline.event_start_time)!==timestamp(f.event_start_time))return null;
+ // v2 can legitimately have an EARLIER official fixture receipt than the free
+ // challenger. Verify the original v2 fixture proof, not the challenger's
+ // later canonical schedule observation (which would bias paired cohorts).
+ let proof;
+ try{proof=JSON.parse(baseline.context_json||'').eventProof}catch{return null}
+ if(proof?.matchId!==f.canonical_event_id||proof.source!==f.event_source||
+    proof.player1Id!==f.player1_id||proof.player2Id!==f.player2_id||
+    timestamp(proof.startTime)!==timestamp(f.event_start_time)||
+    !Number.isFinite(timestamp(proof.observedAt))||
+    timestamp(proof.observedAt)>timestamp(baseline.decision_timestamp))
+    return null;
  return p(baseline.pure_p1)!==null?baseline:null;
 }
 export function gradeFrozenTennisSnapshot(f,official,{v2=[],ranking=[]}={}){
