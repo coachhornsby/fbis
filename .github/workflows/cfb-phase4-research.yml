@@ -10,6 +10,8 @@ on:
       - "scripts/cfb-phase5-pbp-alternate.mjs"
       - "scripts/cfb-phase5-ncaa-pbp.mjs"
       - "test/cfb-phase5-ncaa-pbp.test.js"
+      - "scripts/cfb-phase5-ncaa-timeline.mjs"
+      - "test/cfb-phase5-ncaa-timeline.test.js"
       - "test/cfb-phase5-pbp-integrity.test.js"
       - "scripts/cfb-phase4-ncaa-verify.mjs"
       - "scripts/cfb-phase4-export-d1-sql.mjs"
@@ -28,11 +30,10 @@ on:
       - 'scripts/cfb-phase5-cross-provider-pbp.mjs'
       - 'scripts/cfb-phase5-pbp-alternate.mjs'
       - 'scripts/cfb-phase5-ncaa-pbp.mjs'
+      - 'scripts/cfb-phase5-ncaa-timeline.mjs'
       - 'scripts/cfb-phase4-ncaa-verify.mjs'
       - 'scripts/cfb-phase4-export-d1-sql.mjs'
       - '.github/workflows/cfb-phase4-research.yml'
-  schedule:
-    - cron: '20 13 * * 1'
 permissions:
   contents: read
 jobs:
@@ -50,6 +51,8 @@ jobs:
         run: node --test test/cfb-phase5-pbp-integrity.test.js
       - name: Validate NCAA independent PBP collection contract
         run: node --test test/cfb-phase5-ncaa-pbp.test.js
+      - name: Test independent NCAA timeline structural consistency
+        run: node --test test/cfb-phase5-ncaa-timeline.test.js
       - name: Collect immutable secondary game evidence
         id: collect
         continue-on-error: true
@@ -91,6 +94,10 @@ jobs:
         id: ncaa_pbp
         continue-on-error: true
         run: node scripts/cfb-phase5-ncaa-pbp.mjs
+      - name: Certify NCAA quarterly timeline and terminal-score integrity
+        id: ncaa_timeline
+        continue-on-error: true
+        run: node scripts/cfb-phase5-ncaa-timeline.mjs
       - name: Evaluate forward-chained possession Monte Carlo challenger
         id: challenger
         continue-on-error: true
@@ -136,5 +143,5 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
       - name: Reject incomplete research cycle
-        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success' || steps.ncaa.outcome != 'success' || steps.challenger.outcome != 'success' || steps.pbp_integrity.outcome != 'success' || steps.pbp_cross_source.outcome != 'success' || steps.pbp_alternate.outcome != 'success' || steps.ncaa_pbp.outcome != 'success'
+        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success' || steps.ncaa.outcome != 'success' || steps.challenger.outcome != 'success' || steps.pbp_integrity.outcome != 'success' || steps.pbp_cross_source.outcome != 'success' || steps.pbp_alternate.outcome != 'success' || steps.ncaa_pbp.outcome != 'success' || steps.ncaa_timeline.outcome != 'success'
         run: exit 1
