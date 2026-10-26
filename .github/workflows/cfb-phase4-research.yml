@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "scripts/cfb-phase4-diagnostics.mjs"
+      - "scripts/cfb-phase4-possessions.mjs"
       - ".github/workflows/cfb-phase4-research.yml"
       - "scripts/cfb-226-live-evidence.mjs"
       - "scripts/cfb-226-complete-grade.mjs"
@@ -32,6 +33,10 @@ jobs:
         id: diagnose
         continue-on-error: true
         run: node scripts/cfb-phase4-diagnostics.mjs
+      - name: Summarize observed postgame drives and possessions
+        id: possessions
+        continue-on-error: true
+        run: node scripts/cfb-phase4-possessions.mjs
       - name: Upload full research report
         if: always()
         uses: actions/upload-artifact@v4
@@ -41,5 +46,5 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
       - name: Reject incomplete research cycle
-        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success'
+        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success'
         run: exit 1
