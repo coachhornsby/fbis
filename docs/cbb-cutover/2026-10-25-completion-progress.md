@@ -94,3 +94,15 @@ preserve independently approved sport bindings. Game-ID lookups fan out CBB and
 remove stale PRIMARY CBB rows; authority loss returns unavailable. Real SQLite
 regressions prove no PRIMARY changes during scoped CBB exclusion and preserve
 other sports in game-ID readback. 98 related tests passed locally.
+
+## Publication and market identity owners
+
+Further review found publishedProjectionStore still treated CBB as PRIMARY and
+basketball market fixture matching replaced only NBA fixture identities. Those
+paths now use the fresh CBB owner for CBB publications and fixture IDs. Combined
+publication reads remove stale PRIMARY CBB records while preserving existing
+NBA/NFL fanout behavior. Market coverage joins scoped CBB fixture IDs in memory
+with canonical shared observations; market history is not moved into CBB_DB.
+Real SQLite tests preserve frozen publication payloads and untouched PRIMARY rows,
+reject revoked CORE approval, and prove cross-store market event coverage.
+116 related tests passed locally. This remains routing work, not full certification.
