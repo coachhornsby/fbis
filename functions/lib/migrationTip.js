@@ -10,10 +10,10 @@
  */
 
 /** Latest migration filename (Wrangler d1_migrations.name form). */
-export const EXPECTED_MIGRATION_FILE = "0127_tennis_free_shadow_forecasts.sql";
+export const EXPECTED_MIGRATION_FILE = "0128_tennis_free_shadow_grades.sql";
 
 /** Latest migration id (schema_migrations.id form; no .sql suffix). */
-export const EXPECTED_MIGRATION_ID = "0127_tennis_free_shadow_forecasts";
+export const EXPECTED_MIGRATION_ID = "0128_tennis_free_shadow_grades";
 
 /** @deprecated Prefer EXPECTED_MIGRATION_ID — kept for response field naming. */
 export const EXPECTED_MIGRATION = EXPECTED_MIGRATION_ID;
