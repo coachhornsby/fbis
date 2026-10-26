@@ -6,6 +6,7 @@
  */
 import {simulateNflFullGameResearch} from "../lib/nflFullGameSimulationResearch.js";
 import {rankFootballDistribution,sortFootballRankings} from "../lib/footballSimulationRankings.js";
+import {loadNflPersonnelSlate,NFL_PERSONNEL_MODEL} from "../lib/nflPersonnelChallenger.js";
 const send=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{
  "content-type":"application/json; charset=utf-8",
  "cache-control":"public, max-age=0, s-maxage=180",
@@ -147,7 +148,45 @@ export async function onRequestGet({request,env}){
   const now=new Date().toISOString();
   const result=await loadFootballRankingGames(env,{sport,now,weekOffset:week});
   const built=buildFootballRankings(result.games,{sport,source:result.source,generatedAt:now});
-  const cards=sortFootballRankings(built.cards,sort,direction).map((r,i)=>({...r,rank:i+1}));
+  // Research-only second simulation. The frozen v1.2 card above stays untouched.
+  // Availability is observed NOW, independently of the older baseline freeze.
+  let personnel=new Map(),personnelFailure=null;
+  if(sport==="nfl"&&result.games.length){
+    try{personnel=await loadNflPersonnelSlate(env.NFL_DB,result.games,now)}
+    catch(err){personnelFailure=String(err?.message||"PERSONNEL_FEED_UNAVAILABLE").slice(0,90)}
+  }
+  const cards=sortFootballRankings(built.cards,sort,direction).map((r,i)=>{
+    if(sport!=="nfl")return {...r,rank:i+1};
+    const item=personnel.get(String(r.id));
+    const unavailable={status:"NOT_VERIFIED",reason:personnelFailure||item?.reason||"MISSING_ASOF_PERSONNEL",
+      modelId:NFL_PERSONNEL_MODEL,canAuthorizeWager:false,canQualify:false};
+    if(!item?.researchEligible||!item.adjusted)return {...r,rank:i+1,
+      personnelChallenger:{...unavailable,context:item||null}};
+    try{
+      const sim=simulateNflFullGameResearch({
+        gameId:r.id,kickoff:r.kickoff,sourceFrozenAt:now,
+        projectedHome:item.adjusted.home,projectedAway:item.adjusted.away,
+        iterations:1000,modelVersion:NFL_PERSONNEL_MODEL,
+      });
+      const ranked=rankFootballDistribution({
+        sport:"nfl",gameId:r.id,kickoff:r.kickoff,
+        home:r.home.name,away:r.away.name,homeAbbr:r.home.abbr,awayAbbr:r.away.abbr,
+        iterations:sim.iterations,modelVersion:NFL_PERSONNEL_MODEL,
+        sourceFrozenAt:now,simulationFrozenAt:now,
+        distributions:sim.distributions,method:sim.method,calibrationStatus:"NOT_VALIDATED",
+        source:"NFL_DB_ASOF_PERSONNEL",generatedAt:now,
+      });
+      return {...r,rank:i+1,personnelChallenger:{
+        status:item.severePersonnelLoss?"SEVERE_PERSONNEL_RISK":"RESEARCH_ESTIMATE",
+        ...item,simulation:{
+          home:ranked.home.score,away:ranked.away.score,homeMargin:ranked.homeMargin,
+          homeWinPct:ranked.homeWinPct,awayWinPct:ranked.awayWinPct,
+          tiePct:ranked.tiePct,iterations:ranked.iterations,
+        },
+      }};
+    }catch(err){return {...r,rank:i+1,personnelChallenger:{
+      ...unavailable,reason:String(err?.message||"PERSONNEL_SIM_FAILED").slice(0,90),context:item}}}
+  });
   const data={ok:true,mode:"RESEARCH_ONLY",sport,week,window:{
    after:result.after,before:result.before},generatedAt:now,
    modelFamilies:{nfl:"PARAMETRIC_REGULATION_DRIVE_PATHS",cfb:"VERIFIED_DRIVE_RESAMPLING"},
@@ -155,7 +194,8 @@ export async function onRequestGet({request,env}){
    results:cards,exclusions:built.exclusions,eligible:result.games.length,displayed:cards.length,
    calibrated:false,canAuthorizeWager:false,changesProductionChampion:false,
    limitations:["NO_OVERTIME","NO_VALIDATED_WAGER_PROBABILITIES",
-     sport==="nfl"?"NFL_DRIVE_PRIORS_NOT_EMPIRICALLY_CALIBRATED":"LEGACY_CFB_BLOWOUT_METRICS_MAY_BE_UNAVAILABLE"],
+     sport==="nfl"?"NFL_DRIVE_PRIORS_NOT_EMPIRICALLY_CALIBRATED":"LEGACY_CFB_BLOWOUT_METRICS_MAY_BE_UNAVAILABLE",
+     ...(sport==="nfl"?["PERSONNEL_V13_COEFFICIENTS_NOT_FITTED","PERSONNEL_ASOF_IS_SEPARATE_FROM_V12_FREEZE"]:[])],
   };
   const res=send(data);
   if(cache)await cache.put(cacheKey,res.clone());
