@@ -1,3 +1,5 @@
+import { cbbResearchOwner } from "../lib/cbbResearchOwner.js";
+import { deployedSportDbMode } from "../lib/databaseTopology.js";
 import { sportDbContext } from "../lib/nflSportDbContext.js";
 import { sportLedgerEnv } from "../lib/sportLedgerRouting.js";
 import { buildTrackReport } from "../lib/projLedger.js";
@@ -503,18 +505,24 @@ async function applyManualFinal(env, payload) {
 
 async function cleanupFutureGrades(env) {
   const nowIso = new Date().toISOString();
-  const snapOut = await env.DB.prepare(
-    `UPDATE prediction_snapshots
-     SET actual_home = NULL, actual_away = NULL, graded_at = NULL
-     WHERE actual_home IS NOT NULL
-       AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`
-  ).bind(nowIso).run();
-  const predOut = await env.DB.prepare(
-    `UPDATE predictions
-     SET actual_home = NULL, actual_away = NULL, graded_at = NULL
-     WHERE actual_home IS NOT NULL
-       AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`
-  ).bind(nowIso).run();
+  let targets=[{db:env.DB,scope:""}];
+  if(deployedSportDbMode(env,"cbb")==="sport"){
+    const owner=await cbbResearchOwner(env);
+    targets=[{db:env.DB,scope:" AND sport <> 'cbb'"},{db:owner.db,scope:" AND sport = 'cbb'"}];
+  }
+  const changes={prediction_snapshots:0,predictions:0};
+  for(const {db,scope} of targets){
+    for(const table of ["prediction_snapshots","predictions"]){
+      const result=await db.prepare(`UPDATE ${table}
+        SET actual_home = NULL, actual_away = NULL, graded_at = NULL
+        WHERE actual_home IS NOT NULL ${scope}
+          AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`)
+        .bind(nowIso).run();
+      changes[table]+=Number(result?.meta?.changes||0);
+    }
+  }
+  const snapOut={meta:{changes:changes.prediction_snapshots}};
+  const predOut={meta:{changes:changes.predictions}};
   // Reopen strategy grades for games that have not started yet.
   const stratOut = await env.DB.prepare(
     `UPDATE strategy_tickets
