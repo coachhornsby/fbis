@@ -71,7 +71,7 @@ export function exchangeLinksForGame(game={}){
   const family=String(row.marketFamily||row.canonical_market||'market').replaceAll('_',' ');
   const side=String(row.side||row.yesLabel||row.participantName||'').trim();
   const line=row.line==null?'':String(row.line);
-  const key=link.provider+'|'+link.id+'|'+(link.scope==='EVENT'?'':side);
+  const key=link.provider+'|'+link.id;
   if(!links.has(key))links.set(key,{...link,
     description:[family,side,line].filter(Boolean).join(' · ')});
  }
