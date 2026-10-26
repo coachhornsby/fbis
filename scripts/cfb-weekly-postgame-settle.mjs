@@ -35,7 +35,7 @@ async function fetchJson(url){
 const input=process.argv[2];
 if(input&&process.argv[1]?.endsWith('cfb-weekly-postgame-settle.mjs')){
  const data=JSON.parse(readFileSync(input,'utf8'));
- const rows=Array.isArray(data)?data:data?.[0]?.results;
+ const rows=Array.isArray(data)&&Array.isArray(data[0]?.results)?data[0].results:Array.isArray(data)?data:null;
  if(!Array.isArray(rows)||!rows.length)throw Error('NO_WEEKLY_SOURCE_RECEIPTS');
  const chosen=rows.filter(x=>x.source_sha===rows[0].source_sha),games=new Map();
  for(const row of chosen){const id=String(row.game_id);if(!games.has(id))games.set(id,[]);games.get(id).push(row);}
