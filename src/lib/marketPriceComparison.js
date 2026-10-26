@@ -68,6 +68,8 @@ export function buildMoneylinePriceComparison(game={},options={}) {
       polymarketAmerican:polyQuote?marketDisplayAmerican(polyQuote):null,
       polymarketObservedAt:polyQuote?.sourceObservedAt||polyQuote?.observedAt||null,
       polymarketSource:polyQuote?.source||null,
+      polymarketOffer:polyQuote?{source:polyQuote.source,sourceMarketId:polyQuote.sourceMarketId,contractId:polyQuote.contractId,
+        providerEventSlug:polyQuote.providerEventSlug||null,marketUrl:polyQuote.marketUrl||polyQuote.raw?.marketUrl||polyQuote.raw?.providerMarket?.url||null}:null,
       polymarketQuoteKind:polyQuote?.quoteKind||null,
       polymarketIntelligence:assessPolymarketOffer(polyQuote,p,{...options,eventStart:game.start}),
       fbisProbability:p,
