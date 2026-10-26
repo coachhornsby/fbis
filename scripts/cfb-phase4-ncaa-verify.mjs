@@ -8,7 +8,13 @@ import {join} from "node:path";
 const ROOT=process.env.CFB_EVIDENCE_OUT||"artifacts/cfb-2026-weeks05-08";
 const ROSTER=JSON.parse(readFileSync("data/cfb/2026/weeks05-08-game-roster.json","utf8"));
 if(ROSTER.length!==226)throw Error("EXPECTED_226_SOURCE_GAMES");
-const normalize=s=>String(s||"").toLowerCase().normalize("NFKD").replace(/&/g,"and").replace(/[^a-z0-9]+/g,"").replace(/university/g,"");
+const expansions={st:"state",fla:"florida",mich:"michigan",tenn:"tennessee",cal:"california",car:"carolina",ga:"georgia",w:"western",e:"eastern",n:"northern",s:"southern",ill:"illinois",ariz:"arizona",miss:"mississippi",dak:"dakota",okla:"oklahoma",ala:"alabama"};
+const canonicalAliases={usc:"southerncalifornia",miami:"miamifl",army:"armywestpoint",northernillinois:"niu",floridainternational:"fiu",ulmonroe:"louisianamonroe",louisianamonroe:"louisianamonroe"};
+const normalize=s=>{
+ const ascii=String(s||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase();
+ const expanded=ascii.replace(/&/g,"and").split(/[^a-z0-9]+/).filter(Boolean).filter(x=>x!=="university").map(x=>expansions[x]||x).join("");
+ return canonicalAliases[expanded]||expanded;
+};
 const queryHash="7287cda610a9326931931080cb3a604828febe6fe3c9016a7e4a36db99efdb7c";
 const sourceUrl=week=>{const u=new URL("https://sdataprod.ncaa.com/");u.searchParams.set("extensions",JSON.stringify({persistedQuery:{version:1,sha256Hash:queryHash}}));u.searchParams.set("variables",JSON.stringify({sportCode:"MFB",division:11,seasonYear:2026,week}));return u.toString();};
 export function compare(g,report,contests,claimedIds=new Set()){
