@@ -55,11 +55,13 @@ async function main(){
  const lanes={researchIngestion:{...research},
   executableMarketEvidence:{...r,providerClockVerified:false,canAuthorizeWager:false}};
  const healthyResearch=research.ok===true;
+ const executableVerified=r.ok===true && false; // No provider quote-clock certification in legacy odds rows.
+ const operationalPass=healthyResearch && executableVerified;
 
  await mkdir("artifacts",{recursive:true});
- await writeFile("artifacts/nba-market-freshness.json",JSON.stringify({ok:healthyResearch,lanes,researchMirror:research,executable:r,measuredAt:new Date().toISOString(),database:"NBA_DB",canAuthorizeWager:false},null,2)+"\n");
- console.log(JSON.stringify({ok:healthyResearch,lanes,canAuthorizeWager:false}));
- if(!healthyResearch)process.exitCode=2;
+ await writeFile("artifacts/nba-market-freshness.json",JSON.stringify({ok:operationalPass,researchHealthy:healthyResearch,executableVerified,lanes,researchMirror:research,executable:r,measuredAt:new Date().toISOString(),database:"NBA_DB",canAuthorizeWager:false},null,2)+"\n");
+ console.log(JSON.stringify({ok:operationalPass,researchHealthy:healthyResearch,executableVerified,lanes,canAuthorizeWager:false}));
+ if(!operationalPass)process.exitCode=2;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)
  main().catch(e=>{console.error(e.message);process.exitCode=1});
