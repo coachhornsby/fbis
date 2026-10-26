@@ -1,0 +1,66 @@
+{
+  "contract": "fbis-storage-reclamation-verified-index-release-v1",
+  "measuredAt": "2026-10-26",
+  "source": "Cloudflare production D1 GET file_size before and after operation plus sqlite_master and EXPLAIN QUERY PLAN after",
+  "sourceRowsDeleted": 0,
+  "existingArchivedCohort": {
+    "date": "2026-10-17",
+    "rows": 928595,
+    "physicalBytesReclaimed": 3560484864,
+    "receipt": "docs/storage-retire-apply-receipt-20261017.json"
+  },
+  "operations": [
+    {
+      "database": "fbis-market-history",
+      "removedNonuniqueIndex": "idx_shard_market_event",
+      "preservedIndex": "idx_norm_market_event_time",
+      "beforeBytes": 9999998976,
+      "afterBytes": 9765527552,
+      "physicalBytesReclaimed": 234471424
+    },
+    {
+      "database": "fbis-market-history-2026q4",
+      "removedNonuniqueIndex": "idx_shard_market_event",
+      "preservedIndex": "idx_norm_market_event_time",
+      "beforeBytes": 9109897216,
+      "afterBytes": 8902500352,
+      "physicalBytesReclaimed": 207396864
+    },
+    {
+      "database": "fbis-market-history-2026q4b",
+      "removedNonuniqueIndex": "idx_norm_market_event_time",
+      "preservedIndex": "idx_shard_market_event",
+      "beforeBytes": 1926184960,
+      "afterBytes": 1900634112,
+      "physicalBytesReclaimed": 25550848
+    }
+  ],
+  "totalPhysicalBytesReclaimed": 467419136,
+  "rowsDeleted": 0,
+  "observedAdditionalGates": {
+    "Q4ArchiveCheckpoint": {
+      "lastBatchAt": "2026-10-23T10:45:21.930Z",
+      "archivedTotal": 2307473,
+      "lastBacklog": 0,
+      "lateArrivalProofPending": true
+    },
+    "Q4BArchiveCheckpoint": "NOT_PRESENT",
+    "Q4BArchiveObjectPrefix": "EMPTY",
+    "legacyBulkRelease": "NOT_AUTHORIZED",
+    "Q4SampleReadback": {
+      "archiveBatchRows": 99,
+      "columns": 50,
+      "sha256Matched": true,
+      "fullColumnSourceParity": true,
+      "sourceRowsDeleted": 0
+    }
+  },
+  "safety": {
+    "modelAuthorityChanged": false,
+    "wagerAuthorityChanged": false,
+    "protectedDataDeleted": false,
+    "R2ObjectsDeleted": 0,
+    "consumerParityForBulkDeletion": "NOT_YET_VERIFIED"
+  },
+  "nextGate": "Complete Q4B full-row SHA archive and full consumer parity before any market row retirement. Do not treat index reclaim as historical-row retirement."
+}

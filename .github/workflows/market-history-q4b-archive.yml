@@ -1,0 +1,93 @@
+name: Q4B verified market-history archive (no deletion)
+on:
+  schedule:
+    # Separate from the Q4 archive job; Q4B holds the newer active observations.
+    - cron: "19,49 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/market-history-q4b-archive.yml"
+      - "ops/triggers/market-history-q4b-archive"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-q4b-verified-history-archive
+  cancel-in-progress: false
+
+jobs:
+  archive-q4b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Verify immutable full-row archive and closed retention gates
+        run: |
+          node --test test/market-history-verified-archive.test.js
+          node --test test/market-history-retention-rehearsal.test.js
+      - name: Check deployed production version
+        env:
+          VERIFY_MAX_ATTEMPTS: "90"
+        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+      - name: Archive and SHA-verify Q4B in bounded batches
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+          ARCHIVE_WRITES: "true"
+          VERIFY_READBACK: "true"
+          ARCHIVE_PARTITION: MARKET_HISTORY_2026Q4B_DB
+          ARCHIVE_LIMIT: "2000"
+          ARCHIVE_MAX_ROUNDS: "40"
+          ARCHIVE_ELIGIBILITY_MS: "3600000"
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET required"; exit 1; }
+          mkdir -p artifacts
+          for i in 1 2 3; do
+            node scripts/market-history-archive-ops.mjs | tee "artifacts/q4b-archive-loop-${i}.json"
+            jq -e '.ok==true and .archive.columnCount==50 and .retentionGate.authorized==false and (.archive.deletion|test("NOT_PERFORMED")) and .canAuthorizeWager==false' "artifacts/q4b-archive-loop-${i}.json" >/dev/null
+            more="$(jq -r '.archive.moreRemaining // false' "artifacts/q4b-archive-loop-${i}.json")"
+            if [ "${more}" != "true" ]; then
+              echo "Q4B archive caught up under current eligibility cutoff."
+              break
+            fi
+          done
+      - name: Q4B late-arrival proof and retention rehearsal (read/write archives only)
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';
+          const call=async(operation,more={})=>{
+            const r=await fetch(process.env.FBIS_BASE_URL+'/api/database-topology',{
+              method:'POST',
+              headers:{'content-type':'application/json','x-harvest-secret':process.env.HARVEST_SECRET},
+              body:JSON.stringify({operation,partitionBinding:'MARKET_HISTORY_2026Q4B_DB',...more}),
+              signal:AbortSignal.timeout(180000),
+            });
+            if(!r.ok)throw new Error(operation+' HTTP '+r.status);
+            return r.json();
+          };
+          const late=await call('market-history-archive-late-arrivals',{archiveWrites:true,verifyReadback:true,limit:500});
+          writeFileSync('artifacts/q4b-late-arrivals.json',JSON.stringify(late,null,2));
+          if(!late.ok||late.deletion&&!String(late.deletion).includes('NOT_PERFORMED'))throw new Error('Q4B late archive not verified');
+          const rehearsal=await call('market-history-retention-rehearsal',{limit:100});
+          writeFileSync('artifacts/q4b-retention-rehearsal.json',JSON.stringify(rehearsal,null,2));
+          if(!rehearsal.ok||rehearsal.gate?.authorized===true)throw new Error('Q4B retention gate unexpectedly open or rehearsal failed');
+          console.log(JSON.stringify({lateArchived:late.lateArchived||0,rehearsalEligible:rehearsal.eligibleForRetirementConsideration||0,retentionDelete:false}));
+          JS
+      - name: Publish verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: q4b-market-history-archive-evidence
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 30
