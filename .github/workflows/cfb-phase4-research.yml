@@ -4,6 +4,8 @@ on:
     paths:
       - "scripts/cfb-phase4-diagnostics.mjs"
       - "scripts/cfb-phase4-possessions.mjs"
+      - "scripts/cfb-phase4-ncaa-verify.mjs"
+      - "test/cfb-phase4-ncaa-verify.test.js"
       - ".github/workflows/cfb-phase4-research.yml"
       - "scripts/cfb-226-live-evidence.mjs"
       - "scripts/cfb-226-complete-grade.mjs"
@@ -13,6 +15,7 @@ on:
     paths:
       - 'scripts/cfb-phase4-diagnostics.mjs'
       - 'scripts/cfb-phase4-possessions.mjs'
+      - 'scripts/cfb-phase4-ncaa-verify.mjs'
       - '.github/workflows/cfb-phase4-research.yml'
   schedule:
     - cron: '20 13 * * 1'
@@ -27,6 +30,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Test independent NCAA matching requirements
+        run: node --test test/cfb-phase4-ncaa-verify.test.js
       - name: Collect immutable secondary game evidence
         id: collect
         continue-on-error: true
@@ -43,6 +48,10 @@ jobs:
         id: possessions
         continue-on-error: true
         run: node scripts/cfb-phase4-possessions.mjs
+      - name: Reconcile ESPN finals with independent NCAA.com scoreboard
+        id: ncaa
+        continue-on-error: true
+        run: node scripts/cfb-phase4-ncaa-verify.mjs
       - name: Package private evidence bundle
         if: github.ref == 'refs/heads/main'
         run: |
@@ -77,5 +86,5 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
       - name: Reject incomplete research cycle
-        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success'
+        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success' || steps.ncaa.outcome != 'success'
         run: exit 1
