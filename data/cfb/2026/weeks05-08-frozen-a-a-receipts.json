@@ -1,0 +1,2796 @@
+[
+  {
+    "game_id": "401856705",
+    "week": 5,
+    "frozen_at": "2026-10-01T22:00:31.587Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 46.6,
+    "proj_away": 15.1,
+    "existing_grade": {
+      "actual_home": 38,
+      "actual_away": 14,
+      "graded_at": "2026-10-01T22:00:36.799Z"
+    }
+  },
+  {
+    "game_id": "401856707",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 36.9,
+    "proj_away": 42.4,
+    "existing_grade": {
+      "actual_home": 23,
+      "actual_away": 56,
+      "graded_at": "2026-10-01T08:11:08.493Z"
+    }
+  },
+  {
+    "game_id": "401856708",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33.3,
+    "proj_away": 39.5,
+    "existing_grade": {
+      "actual_home": 45,
+      "actual_away": 17,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401856709",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 35.5,
+    "proj_away": 31.2,
+    "existing_grade": {
+      "actual_home": 34,
+      "actual_away": 35,
+      "graded_at": "2026-10-01T08:09:13.396Z"
+    }
+  },
+  {
+    "game_id": "401856710",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 35.1,
+    "proj_away": 22,
+    "existing_grade": {
+      "actual_home": 24,
+      "actual_away": 14,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401856711",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 35.2,
+    "proj_away": 20.6,
+    "existing_grade": {
+      "actual_home": 34,
+      "actual_away": 7,
+      "graded_at": "2026-10-01T08:09:13.396Z"
+    }
+  },
+  {
+    "game_id": "401856807",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33.6,
+    "proj_away": 19.9,
+    "existing_grade": {
+      "actual_home": 55,
+      "actual_away": 0,
+      "graded_at": "2026-10-01T08:11:08.493Z"
+    }
+  },
+  {
+    "game_id": "401856817",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 24.6,
+    "proj_away": 26.3,
+    "existing_grade": {
+      "actual_home": 19,
+      "actual_away": 55,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401856818",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 24.2,
+    "proj_away": 30.1,
+    "existing_grade": {
+      "actual_home": 10,
+      "actual_away": 17,
+      "graded_at": "2026-10-01T08:11:08.611Z"
+    }
+  },
+  {
+    "game_id": "401856819",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 34.7,
+    "proj_away": 29.1,
+    "existing_grade": {
+      "actual_home": 27,
+      "actual_away": 17,
+      "graded_at": "2026-10-01T08:09:12.898Z"
+    }
+  },
+  {
+    "game_id": "401856820",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.7,
+    "proj_away": 32.9,
+    "existing_grade": {
+      "actual_home": 34,
+      "actual_away": 7,
+      "graded_at": "2026-10-01T08:09:13.396Z"
+    }
+  },
+  {
+    "game_id": "401856821",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 16.5,
+    "proj_away": 36.8,
+    "existing_grade": {
+      "actual_home": 7,
+      "actual_away": 29,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401856822",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 31.5,
+    "proj_away": 26.2,
+    "existing_grade": {
+      "actual_home": 45,
+      "actual_away": 42,
+      "graded_at": "2026-10-01T08:11:08.513Z"
+    }
+  },
+  {
+    "game_id": "401858245",
+    "week": 5,
+    "frozen_at": "2026-10-01T01:01:23.824Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 29.2,
+    "proj_away": 29.9,
+    "existing_grade": {
+      "actual_home": 33,
+      "actual_away": 35,
+      "graded_at": "2026-10-01T01:01:24.550Z"
+    }
+  },
+  {
+    "game_id": "401858246",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 37.4,
+    "proj_away": 17.8,
+    "existing_grade": {
+      "actual_home": 25,
+      "actual_away": 16,
+      "graded_at": "2026-10-01T08:09:12.601Z"
+    }
+  },
+  {
+    "game_id": "401858247",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25,
+    "proj_away": 23.2,
+    "existing_grade": {
+      "actual_home": 39,
+      "actual_away": 31,
+      "graded_at": "2026-10-01T08:11:08.493Z"
+    }
+  },
+  {
+    "game_id": "401858248",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 37.9,
+    "proj_away": 39,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 28,
+      "graded_at": "2026-10-01T08:11:08.611Z"
+    }
+  },
+  {
+    "game_id": "401858249",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 10.3,
+    "proj_away": 37,
+    "existing_grade": {
+      "actual_home": 13,
+      "actual_away": 41,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401858250",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 12.2,
+    "proj_away": 36,
+    "existing_grade": {
+      "actual_home": 26,
+      "actual_away": 37,
+      "graded_at": "2026-10-01T08:11:08.605Z"
+    }
+  },
+  {
+    "game_id": "401858251",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 37.4,
+    "proj_away": 20.8,
+    "existing_grade": {
+      "actual_home": 57,
+      "actual_away": 3,
+      "graded_at": "2026-10-01T08:11:08.513Z"
+    }
+  },
+  {
+    "game_id": "401858252",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.6,
+    "proj_away": 27.8,
+    "existing_grade": {
+      "actual_home": 41,
+      "actual_away": 42,
+      "graded_at": "2026-10-01T08:11:08.493Z"
+    }
+  },
+  {
+    "game_id": "401858253",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25.8,
+    "proj_away": 36.8,
+    "existing_grade": {
+      "actual_home": 38,
+      "actual_away": 7,
+      "graded_at": "2026-10-01T08:09:13.122Z"
+    }
+  },
+  {
+    "game_id": "401858472",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 46.7,
+    "proj_away": 28.2,
+    "existing_grade": {
+      "actual_home": 17,
+      "actual_away": 24,
+      "graded_at": "2026-10-01T08:09:13.396Z"
+    }
+  },
+  {
+    "game_id": "401858473",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 20.2,
+    "proj_away": 31.9,
+    "existing_grade": {
+      "actual_home": 14,
+      "actual_away": 31,
+      "graded_at": "2026-10-01T08:11:08.513Z"
+    }
+  },
+  {
+    "game_id": "401858474",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 21.9,
+    "proj_away": 22.9,
+    "existing_grade": {
+      "actual_home": 20,
+      "actual_away": 14,
+      "graded_at": "2026-10-01T08:11:08.513Z"
+    }
+  },
+  {
+    "game_id": "401858475",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 41.2,
+    "proj_away": 21.2,
+    "existing_grade": {
+      "actual_home": 48,
+      "actual_away": 23,
+      "graded_at": "2026-10-01T08:09:13.396Z"
+    }
+  },
+  {
+    "game_id": "401858476",
+    "week": 5,
+    "frozen_at": "2026-10-01T01:01:23.824Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 22.4,
+    "proj_away": 30.3,
+    "existing_grade": {
+      "actual_home": 34,
+      "actual_away": 13,
+      "graded_at": "2026-10-01T01:01:24.610Z"
+    }
+  },
+  {
+    "game_id": "401858477",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 21.6,
+    "proj_away": 47.7,
+    "existing_grade": {
+      "actual_home": 15,
+      "actual_away": 47,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401858478",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 35.4,
+    "proj_away": 28.4,
+    "existing_grade": {
+      "actual_home": 25,
+      "actual_away": 21,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401858479",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.7,
+    "proj_away": 15.9,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 3,
+      "graded_at": "2026-10-01T08:11:08.513Z"
+    }
+  },
+  {
+    "game_id": "401860898",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 34,
+    "proj_away": 13.7,
+    "existing_grade": {
+      "actual_home": 37,
+      "actual_away": 18,
+      "graded_at": "2026-10-01T08:09:13.396Z"
+    }
+  },
+  {
+    "game_id": "401860899",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33,
+    "proj_away": 37.6,
+    "existing_grade": {
+      "actual_home": 26,
+      "actual_away": 56,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401860900",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 31,
+    "proj_away": 36.2,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 29,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401860921",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 17.7,
+    "proj_away": 25.3,
+    "existing_grade": {
+      "actual_home": 6,
+      "actual_away": 26,
+      "graded_at": "2026-10-01T08:11:08.611Z"
+    }
+  },
+  {
+    "game_id": "401862786",
+    "week": 5,
+    "frozen_at": "2026-10-01T01:01:17.585Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33.1,
+    "proj_away": 30.2,
+    "existing_grade": {
+      "actual_home": 44,
+      "actual_away": 45,
+      "graded_at": "2026-10-01T01:01:18.370Z"
+    }
+  },
+  {
+    "game_id": "401862787",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 18.3,
+    "proj_away": 43.6,
+    "existing_grade": {
+      "actual_home": 8,
+      "actual_away": 59,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401862788",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25,
+    "proj_away": 38.2,
+    "existing_grade": {
+      "actual_home": 14,
+      "actual_away": 16,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401862791",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.8,
+    "proj_away": 27.6,
+    "existing_grade": {
+      "actual_home": 14,
+      "actual_away": 9,
+      "graded_at": "2026-10-01T08:11:08.513Z"
+    }
+  },
+  {
+    "game_id": "401862792",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 37.8,
+    "proj_away": 22.8,
+    "existing_grade": {
+      "actual_home": 13,
+      "actual_away": 17,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401864514",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 45.3,
+    "proj_away": 5.9,
+    "existing_grade": {
+      "actual_home": 61,
+      "actual_away": 7,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401864515",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.7,
+    "proj_away": 7.7,
+    "existing_grade": {
+      "actual_home": 28,
+      "actual_away": 0,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401866430",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 20.1,
+    "proj_away": 17.3,
+    "existing_grade": {
+      "actual_home": 41,
+      "actual_away": 17,
+      "graded_at": "2026-10-01T08:09:13.396Z"
+    }
+  },
+  {
+    "game_id": "401866431",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 16.9,
+    "proj_away": 44.2,
+    "existing_grade": {
+      "actual_home": 24,
+      "actual_away": 39,
+      "graded_at": "2026-10-01T08:11:08.536Z"
+    }
+  },
+  {
+    "game_id": "401866432",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 15.8,
+    "proj_away": 26.2,
+    "existing_grade": {
+      "actual_home": 17,
+      "actual_away": 20,
+      "graded_at": "2026-10-01T08:11:08.513Z"
+    }
+  },
+  {
+    "game_id": "401866433",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 34.7,
+    "proj_away": 12.6,
+    "existing_grade": {
+      "actual_home": 14,
+      "actual_away": 38,
+      "graded_at": "2026-10-01T08:11:08.513Z"
+    }
+  },
+  {
+    "game_id": "401866434",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 20,
+    "proj_away": 32.6,
+    "existing_grade": {
+      "actual_home": 10,
+      "actual_away": 13,
+      "graded_at": "2026-10-01T08:11:08.611Z"
+    }
+  },
+  {
+    "game_id": "401866477",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 36.7,
+    "proj_away": 10.1,
+    "existing_grade": {
+      "actual_home": 20,
+      "actual_away": 24,
+      "graded_at": "2026-10-01T08:11:08.698Z"
+    }
+  },
+  {
+    "game_id": "401869842",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25.4,
+    "proj_away": 31.7,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 29,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401869942",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.7,
+    "proj_away": 26.5,
+    "existing_grade": {
+      "actual_home": 24,
+      "actual_away": 31,
+      "graded_at": "2026-10-01T08:11:08.698Z"
+    }
+  },
+  {
+    "game_id": "401869956",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 34,
+    "proj_away": 23.7,
+    "existing_grade": {
+      "actual_home": 42,
+      "actual_away": 10,
+      "graded_at": "2026-10-01T08:11:08.536Z"
+    }
+  },
+  {
+    "game_id": "401869962",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:09:08.617Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 48.7,
+    "proj_away": 15.1,
+    "existing_grade": {
+      "actual_home": 45,
+      "actual_away": 17,
+      "graded_at": "2026-10-01T08:09:13.054Z"
+    }
+  },
+  {
+    "game_id": "401871049",
+    "week": 5,
+    "frozen_at": "2026-10-01T01:01:17.585Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33.1,
+    "proj_away": 25.6,
+    "existing_grade": {
+      "actual_home": 34,
+      "actual_away": 13,
+      "graded_at": "2026-10-01T01:01:18.348Z"
+    }
+  },
+  {
+    "game_id": "401871050",
+    "week": 5,
+    "frozen_at": "2026-10-01T01:01:23.824Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 19.7,
+    "proj_away": 31.3,
+    "existing_grade": {
+      "actual_home": 14,
+      "actual_away": 30,
+      "graded_at": "2026-10-01T01:01:24.584Z"
+    }
+  },
+  {
+    "game_id": "401871089",
+    "week": 5,
+    "frozen_at": "2026-10-01T08:11:06.315Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 42.4,
+    "proj_away": 23.4,
+    "existing_grade": {
+      "actual_home": 52,
+      "actual_away": 35,
+      "graded_at": "2026-10-01T08:11:08.513Z"
+    }
+  },
+  {
+    "game_id": "401856712",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.4,
+    "proj_away": 27.4,
+    "existing_grade": {
+      "actual_home": 17,
+      "actual_away": 20,
+      "graded_at": "2026-10-08T19:09:09.267Z"
+    }
+  },
+  {
+    "game_id": "401856713",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26.8,
+    "proj_away": 33,
+    "existing_grade": {
+      "actual_home": 17,
+      "actual_away": 24,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401856714",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 23.7,
+    "proj_away": 20,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401856715",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 17.7,
+    "proj_away": 27.1,
+    "existing_grade": {
+      "actual_home": 35,
+      "actual_away": 34,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401856716",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 23.5,
+    "proj_away": 27.9,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401856717",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 24.5,
+    "proj_away": 26,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401856718",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.6,
+    "proj_away": 30.7,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401856808",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.3,
+    "proj_away": 19.2,
+    "existing_grade": {
+      "actual_home": 30,
+      "actual_away": 12,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401856823",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 21.7,
+    "proj_away": 31.7,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401856824",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 23.7,
+    "proj_away": 24.7,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401856825",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.6,
+    "proj_away": 27.2,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401856826",
+    "week": 6,
+    "frozen_at": "2026-10-07T19:11:56.112Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33.4,
+    "proj_away": 17.3,
+    "existing_grade": {
+      "actual_home": 24,
+      "actual_away": 10,
+      "graded_at": "2026-10-07T19:11:57.606Z"
+    }
+  },
+  {
+    "game_id": "401856827",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 36.2,
+    "proj_away": 21,
+    "existing_grade": {
+      "actual_home": 41,
+      "actual_away": 24,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401858254",
+    "week": 6,
+    "frozen_at": "2026-10-07T19:11:56.112Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26.5,
+    "proj_away": 28.3,
+    "existing_grade": {
+      "actual_home": 44,
+      "actual_away": 20,
+      "graded_at": "2026-10-07T19:11:57.657Z"
+    }
+  },
+  {
+    "game_id": "401858255",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 31.7,
+    "proj_away": 28.3,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401858256",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 31.6,
+    "proj_away": 21.4,
+    "existing_grade": {
+      "actual_home": 17,
+      "actual_away": 21,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401858257",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 44.6,
+    "proj_away": 12.9,
+    "existing_grade": {
+      "actual_home": 58,
+      "actual_away": 7,
+      "graded_at": "2026-10-08T19:09:08.666Z"
+    }
+  },
+  {
+    "game_id": "401858258",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.8,
+    "proj_away": 17.4,
+    "existing_grade": {
+      "actual_home": 28,
+      "actual_away": 25,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401858259",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 24.9,
+    "proj_away": 27.3,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401858260",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.5,
+    "proj_away": 26.4,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401858480",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25.1,
+    "proj_away": 31.2,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401858481",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 20.4,
+    "proj_away": 33.9,
+    "existing_grade": {
+      "actual_home": 17,
+      "actual_away": 20,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401858482",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 38.3,
+    "proj_away": 10.2,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401858483",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 39.3,
+    "proj_away": 10.7,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401858484",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 42.5,
+    "proj_away": 14.4,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401858485",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.5,
+    "proj_away": 29.3,
+    "existing_grade": {
+      "actual_home": 23,
+      "actual_away": 31,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401858486",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27,
+    "proj_away": 25.6,
+    "existing_grade": {
+      "actual_home": 41,
+      "actual_away": 13,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401858487",
+    "week": 6,
+    "frozen_at": "2026-10-07T19:11:56.112Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25.6,
+    "proj_away": 24.5,
+    "existing_grade": {
+      "actual_home": 24,
+      "actual_away": 41,
+      "graded_at": "2026-10-07T19:11:57.653Z"
+    }
+  },
+  {
+    "game_id": "401860901",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 23.2,
+    "proj_away": 28.1,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 38,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401860902",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 17.4,
+    "proj_away": 28.9,
+    "existing_grade": {
+      "actual_home": 66,
+      "actual_away": 14,
+      "graded_at": "2026-10-08T19:09:09.776Z"
+    }
+  },
+  {
+    "game_id": "401860922",
+    "week": 6,
+    "frozen_at": "2026-10-07T19:11:56.112Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26,
+    "proj_away": 26.4,
+    "existing_grade": {
+      "actual_home": 17,
+      "actual_away": 16,
+      "graded_at": "2026-10-07T19:11:57.557Z"
+    }
+  },
+  {
+    "game_id": "401861964",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30.5,
+    "proj_away": 27.7,
+    "existing_grade": {
+      "actual_home": 20,
+      "actual_away": 34,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401862794",
+    "week": 6,
+    "frozen_at": "2026-10-06T17:24:56.554Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.8,
+    "proj_away": 31.5,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 24,
+      "graded_at": "2026-10-06T17:24:57.328Z"
+    }
+  },
+  {
+    "game_id": "401862795",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 19.6,
+    "proj_away": 24.3,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401862796",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 40.5,
+    "proj_away": 16.9,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401862797",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 34.8,
+    "proj_away": 14.3,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401862798",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 35.5,
+    "proj_away": 15.5,
+    "existing_grade": {
+      "actual_home": 38,
+      "actual_away": 13,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401862799",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33.8,
+    "proj_away": 19.5,
+    "existing_grade": {
+      "actual_home": 34,
+      "actual_away": 26,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401864516",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 21.3,
+    "proj_away": 29.4,
+    "existing_grade": {
+      "actual_home": 7,
+      "actual_away": 28,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401864517",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 22.8,
+    "proj_away": 28.9,
+    "existing_grade": {
+      "actual_home": 13,
+      "actual_away": 30,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401864518",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 29.4,
+    "proj_away": 26.9,
+    "existing_grade": {
+      "actual_home": 13,
+      "actual_away": 7,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401864519",
+    "week": 6,
+    "frozen_at": "2026-10-07T19:11:56.112Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 24.8,
+    "proj_away": 26.9,
+    "existing_grade": {
+      "actual_home": 13,
+      "actual_away": 16,
+      "graded_at": "2026-10-07T19:11:57.632Z"
+    }
+  },
+  {
+    "game_id": "401866435",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 23.8,
+    "proj_away": 29.8,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401866436",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 24.8,
+    "proj_away": 25.7,
+    "existing_grade": {
+      "actual_home": 38,
+      "actual_away": 10,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401866437",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 31.7,
+    "proj_away": 16.6,
+    "existing_grade": {
+      "actual_home": 8,
+      "actual_away": 23,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401866438",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30.9,
+    "proj_away": 22,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401866439",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 35.5,
+    "proj_away": 15.3,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401866440",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 19.6,
+    "proj_away": 36,
+    "existing_grade": {
+      "actual_home": 19,
+      "actual_away": 20,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401869843",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 21.5,
+    "proj_away": 29,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401869933",
+    "week": 6,
+    "frozen_at": "2026-10-06T17:24:56.554Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.4,
+    "proj_away": 24.3,
+    "existing_grade": {
+      "actual_home": 49,
+      "actual_away": 56,
+      "graded_at": "2026-10-06T17:24:57.308Z"
+    }
+  },
+  {
+    "game_id": "401869949",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 21.9,
+    "proj_away": 34.1,
+    "existing_grade": {
+      "actual_home": 24,
+      "actual_away": 27,
+      "graded_at": "2026-10-08T19:09:09.269Z"
+    }
+  },
+  {
+    "game_id": "401869965",
+    "week": 6,
+    "frozen_at": "2026-10-08T19:09:03.979Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.4,
+    "proj_away": 22.6,
+    "existing_grade": {
+      "actual_home": 32,
+      "actual_away": 31,
+      "graded_at": "2026-10-08T19:09:08.893Z"
+    }
+  },
+  {
+    "game_id": "401870766",
+    "week": 6,
+    "frozen_at": "2026-10-06T17:24:56.554Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 35.6,
+    "proj_away": 18,
+    "existing_grade": {
+      "actual_home": 35,
+      "actual_away": 3,
+      "graded_at": "2026-10-06T17:24:57.392Z"
+    }
+  },
+  {
+    "game_id": "401871051",
+    "week": 6,
+    "frozen_at": "2026-10-05T08:05:31.527Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30,
+    "proj_away": 25.4,
+    "existing_grade": {
+      "actual_home": 26,
+      "actual_away": 27,
+      "graded_at": "2026-10-05T08:05:31.968Z"
+    }
+  },
+  {
+    "game_id": "401871052",
+    "week": 6,
+    "frozen_at": "2026-10-06T17:24:56.554Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.6,
+    "proj_away": 23.2,
+    "existing_grade": {
+      "actual_home": 34,
+      "actual_away": 13,
+      "graded_at": "2026-10-06T17:24:57.351Z"
+    }
+  },
+  {
+    "game_id": "401871066",
+    "week": 6,
+    "frozen_at": "2026-10-05T08:05:31.527Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30,
+    "proj_away": 22.4,
+    "existing_grade": {
+      "actual_home": 22,
+      "actual_away": 3,
+      "graded_at": "2026-10-05T08:05:32.030Z"
+    }
+  },
+  {
+    "game_id": "401871090",
+    "week": 6,
+    "frozen_at": "2026-10-04T07:40:20.025Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.6,
+    "proj_away": 25.8,
+    "existing_grade": {
+      "actual_home": 55,
+      "actual_away": 34,
+      "graded_at": "2026-10-04T07:40:20.573Z"
+    }
+  },
+  {
+    "game_id": "401856719",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.8,
+    "proj_away": 17.7,
+    "existing_grade": {
+      "actual_home": 24,
+      "actual_away": 27,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401856720",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33.3,
+    "proj_away": 17.5,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 0,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401856721",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30,
+    "proj_away": 22.1,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 3,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401856722",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 34.1,
+    "proj_away": 15.2,
+    "existing_grade": {
+      "actual_home": 13,
+      "actual_away": 21,
+      "graded_at": "2026-10-18T04:01:23.404Z"
+    }
+  },
+  {
+    "game_id": "401856723",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25.4,
+    "proj_away": 27.8,
+    "existing_grade": {
+      "actual_home": 26,
+      "actual_away": 10,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401856724",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 31.6,
+    "proj_away": 19.1,
+    "existing_grade": {
+      "actual_home": 24,
+      "actual_away": 27,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401856726",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33.5,
+    "proj_away": 21.5,
+    "existing_grade": {
+      "actual_home": 21,
+      "actual_away": 31,
+      "graded_at": "2026-10-18T04:11:13.890Z"
+    }
+  },
+  {
+    "game_id": "401856809",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 22.5,
+    "proj_away": 29.9,
+    "existing_grade": {
+      "actual_home": 28,
+      "actual_away": 24,
+      "graded_at": "2026-10-18T03:31:14.134Z"
+    }
+  },
+  {
+    "game_id": "401856828",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 36.3,
+    "proj_away": 14.1,
+    "existing_grade": {
+      "actual_home": 53,
+      "actual_away": 25,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401856829",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 23.8,
+    "proj_away": 28,
+    "existing_grade": {
+      "actual_home": 45,
+      "actual_away": 42,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401856830",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 29.7,
+    "proj_away": 23,
+    "existing_grade": {
+      "actual_home": 35,
+      "actual_away": 24,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401856831",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.6,
+    "proj_away": 18.3,
+    "existing_grade": {
+      "actual_home": 35,
+      "actual_away": 32,
+      "graded_at": "2026-10-18T03:51:12.849Z"
+    }
+  },
+  {
+    "game_id": "401856832",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.8,
+    "proj_away": 25.4,
+    "existing_grade": {
+      "actual_home": 6,
+      "actual_away": 17,
+      "graded_at": "2026-10-18T04:59:42.865Z"
+    }
+  },
+  {
+    "game_id": "401856833",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 20.6,
+    "proj_away": 31.7,
+    "existing_grade": {
+      "actual_home": 24,
+      "actual_away": 27,
+      "graded_at": "2026-10-18T11:14:07.535Z"
+    }
+  },
+  {
+    "game_id": "401858263",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33,
+    "proj_away": 17.8,
+    "existing_grade": {
+      "actual_home": 43,
+      "actual_away": 35,
+      "graded_at": "2026-10-18T04:59:42.865Z"
+    }
+  },
+  {
+    "game_id": "401858264",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26.7,
+    "proj_away": 25,
+    "existing_grade": {
+      "actual_home": 34,
+      "actual_away": 24,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401858265",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 20.2,
+    "proj_away": 31.1,
+    "existing_grade": {
+      "actual_home": 26,
+      "actual_away": 34,
+      "graded_at": "2026-10-18T04:59:42.865Z"
+    }
+  },
+  {
+    "game_id": "401858266",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 29.7,
+    "proj_away": 22,
+    "existing_grade": {
+      "actual_home": 20,
+      "actual_away": 24,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401858267",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 21.2,
+    "proj_away": 31.2,
+    "existing_grade": {
+      "actual_home": 27,
+      "actual_away": 21,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401858268",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.6,
+    "proj_away": 21.9,
+    "existing_grade": {
+      "actual_home": 23,
+      "actual_away": 13,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401858269",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 24.5,
+    "proj_away": 26.5,
+    "existing_grade": {
+      "actual_home": 7,
+      "actual_away": 41,
+      "graded_at": "2026-10-18T09:37:33.521Z"
+    }
+  },
+  {
+    "game_id": "401858488",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.5,
+    "proj_away": 24.1,
+    "existing_grade": {
+      "actual_home": 15,
+      "actual_away": 19,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401858489",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.9,
+    "proj_away": 23.9,
+    "existing_grade": {
+      "actual_home": 30,
+      "actual_away": 37,
+      "graded_at": "2026-10-17T22:02:48.541Z"
+    }
+  },
+  {
+    "game_id": "401858490",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.2,
+    "proj_away": 23.2,
+    "existing_grade": {
+      "actual_home": 21,
+      "actual_away": 18,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401858491",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25.8,
+    "proj_away": 24.9,
+    "existing_grade": {
+      "actual_home": 21,
+      "actual_away": 24,
+      "graded_at": "2026-10-17T19:22:20.477Z"
+    }
+  },
+  {
+    "game_id": "401858492",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 35.8,
+    "proj_away": 17.2,
+    "existing_grade": {
+      "actual_home": 17,
+      "actual_away": 14,
+      "graded_at": "2026-10-18T13:59:42.022Z"
+    }
+  },
+  {
+    "game_id": "401858493",
+    "week": 7,
+    "frozen_at": "2026-10-14T21:12:13.597Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 19.5,
+    "proj_away": 31.9,
+    "existing_grade": {
+      "actual_home": 26,
+      "actual_away": 38,
+      "graded_at": "2026-10-17T13:45:55.328Z"
+    }
+  },
+  {
+    "game_id": "401858494",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 24.3,
+    "proj_away": 24.9,
+    "existing_grade": {
+      "actual_home": 17,
+      "actual_away": 7,
+      "graded_at": "2026-10-18T04:59:42.865Z"
+    }
+  },
+  {
+    "game_id": "401860903",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 21.4,
+    "proj_away": 28.4,
+    "existing_grade": {
+      "actual_home": 48,
+      "actual_away": 30,
+      "graded_at": "2026-10-18T02:12:51.731Z"
+    }
+  },
+  {
+    "game_id": "401860904",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28,
+    "proj_away": 20.2,
+    "existing_grade": {
+      "actual_home": 26,
+      "actual_away": 23,
+      "graded_at": "2026-10-18T05:58:20.410Z"
+    }
+  },
+  {
+    "game_id": "401860923",
+    "week": 7,
+    "frozen_at": "2026-10-13T08:50:25.286Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33.4,
+    "proj_away": 18.5,
+    "existing_grade": {
+      "actual_home": 66,
+      "actual_away": 27,
+      "graded_at": "2026-10-17T10:39:53.629Z"
+    }
+  },
+  {
+    "game_id": "401862800",
+    "week": 7,
+    "frozen_at": "2026-10-13T08:50:25.286Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 18.2,
+    "proj_away": 34.1,
+    "existing_grade": {
+      "actual_home": 30,
+      "actual_away": 17,
+      "graded_at": "2026-10-17T14:15:27.887Z"
+    }
+  },
+  {
+    "game_id": "401862801",
+    "week": 7,
+    "frozen_at": "2026-10-14T21:12:13.597Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.1,
+    "proj_away": 22.5,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 17,
+      "graded_at": "2026-10-17T09:26:17.826Z"
+    }
+  },
+  {
+    "game_id": "401862802",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 31.9,
+    "proj_away": 19.6,
+    "existing_grade": {
+      "actual_home": 56,
+      "actual_away": 24,
+      "graded_at": "2026-10-17T19:30:37.272Z"
+    }
+  },
+  {
+    "game_id": "401862803",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.9,
+    "proj_away": 18,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 38,
+      "graded_at": "2026-10-17T20:32:27.708Z"
+    }
+  },
+  {
+    "game_id": "401862804",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26.8,
+    "proj_away": 25.6,
+    "existing_grade": {
+      "actual_home": 38,
+      "actual_away": 34,
+      "graded_at": "2026-10-18T03:41:13.523Z"
+    }
+  },
+  {
+    "game_id": "401862805",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 24.7,
+    "proj_away": 25.8,
+    "existing_grade": {
+      "actual_home": 17,
+      "actual_away": 38,
+      "graded_at": "2026-10-17T23:52:44.459Z"
+    }
+  },
+  {
+    "game_id": "401862806",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 41,
+    "proj_away": 12.4,
+    "existing_grade": {
+      "actual_home": 29,
+      "actual_away": 2,
+      "graded_at": "2026-10-18T04:32:56.304Z"
+    }
+  },
+  {
+    "game_id": "401864520",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.1,
+    "proj_away": 18.4,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 17,
+      "graded_at": "2026-10-18T04:51:13.750Z"
+    }
+  },
+  {
+    "game_id": "401864521",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.7,
+    "proj_away": 23.6,
+    "existing_grade": {
+      "actual_home": 10,
+      "actual_away": 21,
+      "graded_at": "2026-10-18T08:17:37.042Z"
+    }
+  },
+  {
+    "game_id": "401864522",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.5,
+    "proj_away": 19.5,
+    "existing_grade": {
+      "actual_home": 41,
+      "actual_away": 23,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401864523",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26.5,
+    "proj_away": 26.4,
+    "existing_grade": {
+      "actual_home": 11,
+      "actual_away": 24,
+      "graded_at": "2026-10-18T04:21:13.534Z"
+    }
+  },
+  {
+    "game_id": "401864524",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 23.6,
+    "proj_away": 30.4,
+    "existing_grade": {
+      "actual_home": 41,
+      "actual_away": 31,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401866441",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.8,
+    "proj_away": 21.2,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 32,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401866442",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33.2,
+    "proj_away": 17.2,
+    "existing_grade": {
+      "actual_home": 25,
+      "actual_away": 18,
+      "graded_at": "2026-10-17T22:24:14.054Z"
+    }
+  },
+  {
+    "game_id": "401866443",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 20.5,
+    "proj_away": 28.6,
+    "existing_grade": {
+      "actual_home": 14,
+      "actual_away": 21,
+      "graded_at": "2026-10-18T14:39:17.071Z"
+    }
+  },
+  {
+    "game_id": "401866444",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 18.5,
+    "proj_away": 32.6,
+    "existing_grade": {
+      "actual_home": 14,
+      "actual_away": 34,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401866445",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25.1,
+    "proj_away": 26.9,
+    "existing_grade": {
+      "actual_home": 7,
+      "actual_away": 48,
+      "graded_at": "2026-10-18T14:37:27.163Z"
+    }
+  },
+  {
+    "game_id": "401866478",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 35.4,
+    "proj_away": 16.6,
+    "existing_grade": {
+      "actual_home": 34,
+      "actual_away": 14,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401869844",
+    "week": 7,
+    "frozen_at": "2026-10-14T21:12:13.597Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26.7,
+    "proj_away": 26.1,
+    "existing_grade": {
+      "actual_home": 32,
+      "actual_away": 35,
+      "graded_at": "2026-10-17T10:39:45.867Z"
+    }
+  },
+  {
+    "game_id": "401869934",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 29.4,
+    "proj_away": 21.4,
+    "existing_grade": {
+      "actual_home": 13,
+      "actual_away": 23,
+      "graded_at": "2026-10-18T04:41:12.616Z"
+    }
+  },
+  {
+    "game_id": "401869950",
+    "week": 7,
+    "frozen_at": "2026-10-13T08:50:25.286Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.6,
+    "proj_away": 19.8,
+    "existing_grade": {
+      "actual_home": 15,
+      "actual_away": 23,
+      "graded_at": "2026-10-17T14:14:23.772Z"
+    }
+  },
+  {
+    "game_id": "401869957",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 38.9,
+    "proj_away": 12.5,
+    "existing_grade": {
+      "actual_home": 49,
+      "actual_away": 22,
+      "graded_at": "2026-10-18T04:59:19.851Z"
+    }
+  },
+  {
+    "game_id": "401869966",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26,
+    "proj_away": 25.7,
+    "existing_grade": {
+      "actual_home": 33,
+      "actual_away": 6,
+      "graded_at": "2026-10-18T01:08:21.512Z"
+    }
+  },
+  {
+    "game_id": "401871053",
+    "week": 7,
+    "frozen_at": "2026-10-11T08:08:12.512Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 29.4,
+    "proj_away": 22.7,
+    "existing_grade": {
+      "actual_home": 27,
+      "actual_away": 24,
+      "graded_at": "2026-10-14T04:12:52.861Z"
+    }
+  },
+  {
+    "game_id": "401871054",
+    "week": 7,
+    "frozen_at": "2026-10-12T08:25:36.169Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.1,
+    "proj_away": 25.4,
+    "existing_grade": {
+      "actual_home": 24,
+      "actual_away": 21,
+      "graded_at": "2026-10-15T05:53:29.097Z"
+    }
+  },
+  {
+    "game_id": "401871067",
+    "week": 7,
+    "frozen_at": "2026-10-11T08:08:12.512Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 23.6,
+    "proj_away": 29.7,
+    "existing_grade": {
+      "actual_home": 33,
+      "actual_away": 30,
+      "graded_at": "2026-10-14T03:03:05.872Z"
+    }
+  },
+  {
+    "game_id": "401871068",
+    "week": 7,
+    "frozen_at": "2026-10-12T08:25:36.169Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 17.7,
+    "proj_away": 34.2,
+    "existing_grade": {
+      "actual_home": 3,
+      "actual_away": 16,
+      "graded_at": "2026-10-15T16:57:59.891Z"
+    }
+  },
+  {
+    "game_id": "401871091",
+    "week": 7,
+    "frozen_at": "2026-10-15T06:51:54.196Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 19.9,
+    "proj_away": 30.5,
+    "existing_grade": {
+      "actual_home": 0,
+      "actual_away": 24,
+      "graded_at": "2026-10-18T03:22:49.927Z"
+    }
+  },
+  {
+    "game_id": "401856727",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 31.7,
+    "proj_away": 23.1,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 20,
+      "graded_at": "2026-10-24T23:10:39.884Z"
+    }
+  },
+  {
+    "game_id": "401856728",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 23.2,
+    "proj_away": 30.9,
+    "existing_grade": {
+      "actual_home": 17,
+      "actual_away": 38,
+      "graded_at": "2026-10-24T19:50:58.249Z"
+    }
+  },
+  {
+    "game_id": "401856729",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33.1,
+    "proj_away": 23.1,
+    "existing_grade": {
+      "actual_home": 34,
+      "actual_away": 17,
+      "graded_at": "2026-10-25T03:01:02.857Z"
+    }
+  },
+  {
+    "game_id": "401856730",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.3,
+    "proj_away": 25.8,
+    "existing_grade": {
+      "actual_home": 15,
+      "actual_away": 23,
+      "graded_at": "2026-10-24T23:19:43.113Z"
+    }
+  },
+  {
+    "game_id": "401856731",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25.9,
+    "proj_away": 30.2,
+    "existing_grade": {
+      "actual_home": 27,
+      "actual_away": 24,
+      "graded_at": "2026-10-25T00:22:06.982Z"
+    }
+  },
+  {
+    "game_id": "401856732",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.6,
+    "proj_away": 27.9,
+    "existing_grade": {
+      "actual_home": 34,
+      "actual_away": 27,
+      "graded_at": "2026-10-25T04:10:42.497Z"
+    }
+  },
+  {
+    "game_id": "401856834",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.9,
+    "proj_away": 25.5,
+    "existing_grade": {
+      "actual_home": 25,
+      "actual_away": 24,
+      "graded_at": "2026-10-24T20:45:41.804Z"
+    }
+  },
+  {
+    "game_id": "401856835",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25.1,
+    "proj_away": 30.2,
+    "existing_grade": {
+      "actual_home": 39,
+      "actual_away": 31,
+      "graded_at": "2026-10-25T01:07:47.038Z"
+    }
+  },
+  {
+    "game_id": "401856836",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30.1,
+    "proj_away": 24.1,
+    "existing_grade": {
+      "actual_home": 57,
+      "actual_away": 24,
+      "graded_at": "2026-10-25T04:49:33.835Z"
+    }
+  },
+  {
+    "game_id": "401856837",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 33.1,
+    "proj_away": 26.7,
+    "existing_grade": {
+      "actual_home": 21,
+      "actual_away": 13,
+      "graded_at": "2026-10-25T06:04:49.000Z"
+    }
+  },
+  {
+    "game_id": "401856838",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 34.2,
+    "proj_away": 21.7,
+    "existing_grade": {
+      "actual_home": 39,
+      "actual_away": 3,
+      "graded_at": "2026-10-25T09:51:29.176Z"
+    }
+  },
+  {
+    "game_id": "401856839",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25.8,
+    "proj_away": 31,
+    "existing_grade": {
+      "actual_home": 28,
+      "actual_away": 17,
+      "graded_at": "2026-10-25T01:51:01.217Z"
+    }
+  },
+  {
+    "game_id": "401856840",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.9,
+    "proj_away": 31.3,
+    "existing_grade": {
+      "actual_home": 37,
+      "actual_away": 24,
+      "graded_at": "2026-10-24T20:55:09.051Z"
+    }
+  },
+  {
+    "game_id": "401856841",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 35.5,
+    "proj_away": 21,
+    "existing_grade": {
+      "actual_home": 20,
+      "actual_away": 24,
+      "graded_at": "2026-10-24T22:02:10.062Z"
+    }
+  },
+  {
+    "game_id": "401858270",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 35.7,
+    "proj_away": 20,
+    "existing_grade": {
+      "actual_home": 59,
+      "actual_away": 20,
+      "graded_at": "2026-10-25T11:21:44.526Z"
+    }
+  },
+  {
+    "game_id": "401858271",
+    "week": 8,
+    "frozen_at": "2026-10-21T06:54:28.759Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 29.2,
+    "proj_away": 27.7,
+    "existing_grade": {
+      "actual_home": 16,
+      "actual_away": 19,
+      "graded_at": "2026-10-24T03:13:30.844Z"
+    }
+  },
+  {
+    "game_id": "401858272",
+    "week": 8,
+    "frozen_at": "2026-10-21T06:54:28.759Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26.7,
+    "proj_away": 33.2,
+    "existing_grade": {
+      "actual_home": 31,
+      "actual_away": 28,
+      "graded_at": "2026-10-24T10:55:04.471Z"
+    }
+  },
+  {
+    "game_id": "401858273",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30.9,
+    "proj_away": 25.4,
+    "existing_grade": {
+      "actual_home": 27,
+      "actual_away": 49,
+      "graded_at": "2026-10-25T14:24:48.024Z"
+    }
+  },
+  {
+    "game_id": "401858274",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 35.1,
+    "proj_away": 21.7,
+    "existing_grade": {
+      "actual_home": 52,
+      "actual_away": 23,
+      "graded_at": "2026-10-25T14:25:32.673Z"
+    }
+  },
+  {
+    "game_id": "401858275",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30,
+    "proj_away": 23.4,
+    "existing_grade": {
+      "actual_home": 30,
+      "actual_away": 31,
+      "graded_at": "2026-10-25T14:58:19.578Z"
+    }
+  },
+  {
+    "game_id": "401858276",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25.6,
+    "proj_away": 28.5,
+    "existing_grade": {
+      "actual_home": 16,
+      "actual_away": 20,
+      "graded_at": "2026-10-25T16:12:44.800Z"
+    }
+  },
+  {
+    "game_id": "401858495",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26.4,
+    "proj_away": 31.7,
+    "existing_grade": {
+      "actual_home": 21,
+      "actual_away": 10,
+      "graded_at": "2026-10-25T18:25:45.959Z"
+    }
+  },
+  {
+    "game_id": "401858496",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 24.7,
+    "proj_away": 29.9,
+    "existing_grade": {
+      "actual_home": 6,
+      "actual_away": 13,
+      "graded_at": "2026-10-25T19:04:47.464Z"
+    }
+  },
+  {
+    "game_id": "401858497",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 24.4,
+    "proj_away": 29.7,
+    "existing_grade": {
+      "actual_home": 13,
+      "actual_away": 10,
+      "graded_at": "2026-10-25T19:05:28.507Z"
+    }
+  },
+  {
+    "game_id": "401858498",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 37.1,
+    "proj_away": 22.3,
+    "existing_grade": {
+      "actual_home": 42,
+      "actual_away": 14,
+      "graded_at": "2026-10-25T21:45:13.376Z"
+    }
+  },
+  {
+    "game_id": "401858499",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 38.4,
+    "proj_away": 15.6,
+    "existing_grade": {
+      "actual_home": 28,
+      "actual_away": 10,
+      "graded_at": "2026-10-25T21:50:39.639Z"
+    }
+  },
+  {
+    "game_id": "401858500",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30.1,
+    "proj_away": 27.1,
+    "existing_grade": {
+      "actual_home": 24,
+      "actual_away": 7,
+      "graded_at": "2026-10-25T22:53:46.162Z"
+    }
+  },
+  {
+    "game_id": "401860905",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 31.8,
+    "proj_away": 25.5,
+    "existing_grade": {
+      "actual_home": 56,
+      "actual_away": 49,
+      "graded_at": "2026-10-26T00:23:04.270Z"
+    }
+  },
+  {
+    "game_id": "401860906",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 34.9,
+    "proj_away": 21.1,
+    "existing_grade": {
+      "actual_home": 20,
+      "actual_away": 17,
+      "graded_at": "2026-10-26T00:25:16.266Z"
+    }
+  },
+  {
+    "game_id": "401860907",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 22.8,
+    "proj_away": 33.3,
+    "existing_grade": {
+      "actual_home": 10,
+      "actual_away": 31,
+      "graded_at": "2026-10-26T06:09:50.888Z"
+    }
+  },
+  {
+    "game_id": "401861965",
+    "week": 8,
+    "frozen_at": "2026-10-21T06:54:28.759Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30.1,
+    "proj_away": 26,
+    "existing_grade": {
+      "actual_home": 35,
+      "actual_away": 16,
+      "graded_at": "2026-10-24T04:21:41.342Z"
+    }
+  },
+  {
+    "game_id": "401862807",
+    "week": 8,
+    "frozen_at": "2026-10-20T07:02:21.391Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30.3,
+    "proj_away": 23.5,
+    "existing_grade": {
+      "actual_home": 41,
+      "actual_away": 34,
+      "graded_at": "2026-10-23T07:28:18.731Z"
+    }
+  },
+  {
+    "game_id": "401862808",
+    "week": 8,
+    "frozen_at": "2026-10-21T06:54:28.759Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30,
+    "proj_away": 28.8,
+    "existing_grade": {
+      "actual_home": 35,
+      "actual_away": 38,
+      "graded_at": "2026-10-24T05:49:12.739Z"
+    }
+  },
+  {
+    "game_id": "401862809",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 31.8,
+    "proj_away": 25.7,
+    "existing_grade": {
+      "actual_home": 51,
+      "actual_away": 49,
+      "graded_at": "2026-10-26T12:56:07.102Z"
+    }
+  },
+  {
+    "game_id": "401862810",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 29.4,
+    "proj_away": 30.2,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401862811",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27.7,
+    "proj_away": 29.2,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401864525",
+    "week": 8,
+    "frozen_at": "2026-10-21T06:54:28.759Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26,
+    "proj_away": 30.9,
+    "existing_grade": {
+      "actual_home": 28,
+      "actual_away": 14,
+      "graded_at": "2026-10-24T05:57:27.121Z"
+    }
+  },
+  {
+    "game_id": "401864526",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26.1,
+    "proj_away": 29,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401864527",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.5,
+    "proj_away": 22.9,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401864528",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30.7,
+    "proj_away": 25,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401866446",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28,
+    "proj_away": 27.6,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401866447",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30.2,
+    "proj_away": 26.3,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401866448",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30.1,
+    "proj_away": 23.8,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401866449",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 34.7,
+    "proj_away": 22.6,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401866450",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.6,
+    "proj_away": 23.1,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401866476",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 27,
+    "proj_away": 30.2,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401869845",
+    "week": 8,
+    "frozen_at": "2026-10-20T07:02:21.391Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 23.8,
+    "proj_away": 32.7,
+    "existing_grade": {
+      "actual_home": 34,
+      "actual_away": 31,
+      "graded_at": "2026-10-23T03:51:01.854Z"
+    }
+  },
+  {
+    "game_id": "401869935",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 28.2,
+    "proj_away": 29.1,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401869967",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 23.3,
+    "proj_away": 31.5,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401871055",
+    "week": 8,
+    "frozen_at": "2026-10-18T16:08:36.615Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 32.7,
+    "proj_away": 22.6,
+    "existing_grade": {
+      "actual_home": 23,
+      "actual_away": 26,
+      "graded_at": "2026-10-21T07:35:09.274Z"
+    }
+  },
+  {
+    "game_id": "401871056",
+    "week": 8,
+    "frozen_at": "2026-10-20T07:02:21.391Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 25.2,
+    "proj_away": 30.3,
+    "existing_grade": {
+      "actual_home": 6,
+      "actual_away": 34,
+      "graded_at": "2026-10-23T02:41:05.728Z"
+    }
+  },
+  {
+    "game_id": "401871069",
+    "week": 8,
+    "frozen_at": "2026-10-18T16:08:36.615Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 31.8,
+    "proj_away": 24.6,
+    "existing_grade": {
+      "actual_home": 61,
+      "actual_away": 38,
+      "graded_at": "2026-10-21T02:41:05.901Z"
+    }
+  },
+  {
+    "game_id": "401871070",
+    "week": 8,
+    "frozen_at": "2026-10-19T18:58:19.725Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 26,
+    "proj_away": 27.2,
+    "existing_grade": {
+      "actual_home": 24,
+      "actual_away": 30,
+      "graded_at": "2026-10-22T03:51:05.352Z"
+    }
+  },
+  {
+    "game_id": "401871092",
+    "week": 8,
+    "frozen_at": "2026-10-18T16:08:36.615Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 30.2,
+    "proj_away": 31.7,
+    "existing_grade": {
+      "actual_home": 20,
+      "actual_away": 13,
+      "graded_at": "2026-10-21T03:51:07.177Z"
+    }
+  },
+  {
+    "game_id": "401871093",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 31,
+    "proj_away": 19.9,
+    "existing_grade": null
+  },
+  {
+    "game_id": "401871094",
+    "week": 8,
+    "frozen_at": "2026-10-22T06:58:16.271Z",
+    "model_version": "CFB-FBIS-v2",
+    "proj_home": 37.2,
+    "proj_away": 18.8,
+    "existing_grade": null
+  }
+]
