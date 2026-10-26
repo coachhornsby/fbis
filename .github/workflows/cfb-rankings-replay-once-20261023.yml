@@ -5,6 +5,11 @@ on:
     workflows: ["CI"]
     types: [completed]
     branches: [main]
+  workflow_dispatch:
+  # Bounded same-day recovery from cancelled/concurrent CI. The job exits if
+  # history already fully replays; no future-year operation is authorized.
+  schedule:
+    - cron: "*/5 * 23 10 *"
 permissions:
   contents: read
 concurrency:
@@ -13,22 +18,42 @@ concurrency:
 jobs:
   backfill-ranking-metrics:
     if: >-
-      ${{ github.event.workflow_run.conclusion == 'success' &&
+      ${{ (github.event_name == 'workflow_run' &&
+          github.event.workflow_run.conclusion == 'success' &&
           github.event.workflow_run.event == 'push' &&
-          contains(github.event.workflow_run.head_commit.message, '[FBIS-FOOTBALL-SIM-RANKINGS-20261023]') }}
+          contains(github.event.workflow_run.head_commit.message, '[FBIS-FOOTBALL-SIM-RANKINGS-20261023]')) ||
+          (github.event_name == 'schedule' && github.ref == 'refs/heads/main') ||
+          github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
+      - id: date_guard
+        name: Strict one-day replay authority
+        run: |
+          if [ "$(date -u +%Y-%m-%d)" = "2026-10-23" ]; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v4
+        if: steps.date_guard.outputs.active == 'true'
       - name: Apply additive CFB research-only ranking enrichment schema
+        if: steps.date_guard.outputs.active == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
+          # This is not an open-ended collector. It may only run on the
+          # explicit October 23, 2026 recovery date.
+          if [ "$(date -u +%Y-%m-%d)" != "2026-10-23" ]; then
+            echo "Bounded historical replay window has ended"
+            exit 0
+          fi
           test -n "${CLOUDFLARE_API_TOKEN:-}" && test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
           npx --yes wrangler@4 d1 execute fbis-cfb --remote --file=sql/cfb/0003_cfb_drive_rankings_enrichment.sql
       - name: Re-run exact original CFB draws with source and score checks
+        if: steps.date_guard.outputs.active == 'true'
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
@@ -64,6 +89,7 @@ jobs:
           echo "Replayed with exact original seed, point-in-time source fingerprint, and identical score distribution: $count runs." >> "$GITHUB_STEP_SUMMARY"
           echo "{\"ok\":true,\"source\":\"CFB_DB\",\"verifiedReplays\":$count,\"canAuthorizeWager\":false}" > sanitized/result.json
       - name: Verify remaining replays and safe ranking API
+        if: steps.date_guard.outputs.active == 'true'
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
