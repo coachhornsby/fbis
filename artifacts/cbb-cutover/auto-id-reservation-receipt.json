@@ -1,0 +1,10 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"at\": \"2026-10-26T04:09:30.561Z\",\n  \"receipts\": [\n    {\n      \"table\": \"odds_snapshots\",\n      \"primaryMaximum\": 94266,\n      \"preservedTargetRows\": 0,\n      \"reservedSequence\": 3000000000000000\n    },\n    {\n      \"table\": \"published_projections\",\n      \"primaryMaximum\": 36,\n      \"preservedTargetRows\": 0,\n      \"reservedSequence\": 3000000000000000\n    }\n  ],\n  \"primaryMutations\": 0,\n  \"existingKeysChanged\": 0,\n  \"authority\": \"PRIMARY\",\n  \"canAuthorizeWager\": false\n}"
+    }
+  ],
+  "structuredContent": null,
+  "isError": false
+}
