@@ -168,3 +168,11 @@ test('verified NBA exchange team aliases SA/GS/NO survive exact game-team lookup
   assert.equal(rows[0].book,'Kalshi');
  }
 });
+
+import {exchangePriceLabel} from '../src/lib/exchangePriceLabel.js';
+test('exchange prices preserve Over/Under and Yes/No sides with absent sides explicit',()=>{
+ assert.equal(exchangePriceLabel({over:0.42,under:0.59}),'OVER 42.0¢ / UNDER 59.0¢');
+ assert.equal(exchangePriceLabel({yes:0.61,no:0.4}),'YES 61.0¢ / NO 40.0¢');
+ assert.equal(exchangePriceLabel({under:0.57}),'OVER — / UNDER 57.0¢');
+ assert.equal(exchangePriceLabel(),'YES — / NO —');
+});

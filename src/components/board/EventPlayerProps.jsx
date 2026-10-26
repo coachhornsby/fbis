@@ -1,3 +1,4 @@
+import {exchangePriceLabel} from '../../lib/exchangePriceLabel.js';
 import { useEffect, useState } from 'react';
 import { joinIndependentPropModels } from '../../../functions/lib/propResearchData.js';
 import ExchangeQuoteLink from './ExchangeQuoteLink.jsx';
@@ -83,7 +84,7 @@ export default function EventPlayerProps({game}) {
               <td><strong>{row.playerName||row.providerPlayerId||'Unidentified player'}</strong><span>{String(row.marketCanonical||row.market||'Unknown market').replaceAll('_',' ')} · {row.period||'event'}</span></td>
               <td>{row.book||row.provider||'Unknown source'}<span>{line??'—'}</span></td>
               <td><ExchangeQuoteLink offer={row} value={row.exchangeReference?
-                `YES ${row.quotes?.yes!=null?(row.quotes.yes*100).toFixed(1)+'¢':'—'} / NO ${row.quotes?.no!=null?(row.quotes.no*100).toFixed(1)+'¢':'—'}`:
+                exchangePriceLabel(row.quotes):
                 row.decimalPrice!=null?`${row.side||'Observed'} ${decimal(row.decimalPrice)}`:`${row.overOdds!=null?odds(row.overOdds):decimal(row.overDecimalOdds)} / ${row.underOdds!=null?odds(row.underOdds):decimal(row.underDecimalOdds)}`}/></td>
               <td>{projection??'No comparable projection'}{gap!=null?<span>Difference {gap>0?'+':''}{gap}</span>:null}</td>
               <td>{row.exchangeReference?'SOURCE_TIME_UNKNOWN · CAPTURED REFERENCE':row.temporal?.status||'SOURCE_TIME_UNKNOWN'}<span>Collected {row.collectedAt||'unknown'}</span><span>{row.providerTimeConfidence==='MIRROR_REPORTED_CAPTURE'?'Mirror capture':'Provider time'} {row.sourceObservedAt||'unknown'}</span>{row.quoteKind==='DAILY_MIRROR_REFERENCE_NOT_LIVE_VERIFIED'?<span>Daily snapshot · Not live verified</span>:null}</td>
