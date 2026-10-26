@@ -112,8 +112,6 @@ test('separate PRIMARY settlement and TENNIS_DB immutable grade capture is idemp
   sport.exec('CREATE TABLE tennis_free_shadow_forecasts(snapshot_id TEXT PRIMARY KEY)');
   sport.exec(readFileSync(new URL('../migrations/0128_tennis_free_shadow_grades.sql',import.meta.url),'utf8'));
   const fc=Object.keys(f);
-  sport.prepare(`INSERT INTO tennis_free_shadow_forecasts(${fc.join(',')})
-   VALUES(${fc.map(()=>'?').join(',')})`);
   sport.exec('DROP TABLE tennis_free_shadow_forecasts');
   sport.exec(`CREATE TABLE tennis_free_shadow_forecasts(
    snapshot_id TEXT PRIMARY KEY,canonical_event_id TEXT,tour TEXT,model_id TEXT,
