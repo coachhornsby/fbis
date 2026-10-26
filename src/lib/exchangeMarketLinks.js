@@ -46,9 +46,10 @@ export function exchangeMarketLink(offer={}){
    // Exact-market evidence is required. Event-only URLs are not accepted.
    const parts=uri.pathname.split('/').filter(Boolean).map(decodeURIComponent);
    const queryIds=['market','marketId','market_id','slug'].map(k=>uri.searchParams.get(k));
-   if(!parts.some(x=>x===marketId)||!queryIds.some(x=>x===marketId)&&
-      !/(market|contract)/i.test(uri.pathname))return null;
-   if(!parts.some(x=>x===marketId)&&!queryIds.some(x=>x===marketId))return null;
+   const pathMatches=parts.some(x=>x===marketId) &&
+     parts.some(x=>/^(?:market|markets|contract|contracts)$/i.test(x));
+   const queryMatches=queryIds.some(x=>x===marketId);
+   if(!pathMatches&&!queryMatches)return null;
    return {url:uri.toString(),provider:'Polymarket US',scope:'MARKET',id:marketId,
     label:'Open on Polymarket US'};
   }catch{return null;}
