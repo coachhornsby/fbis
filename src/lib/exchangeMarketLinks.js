@@ -16,6 +16,8 @@ const nonEmpty=value=>typeof value==='string'&&value.trim()?value.trim():null;
 // category paths may be constructed; any sport may use a source-supplied URL.
 const KALSHI_VERIFIED_SERIES_CATEGORIES=Object.freeze({
  KXATPMATCH:'atp-tennis-match',
+ KXWTAMATCH:'wta-tennis-match',
+ KXNFLGAME:'nfl-game',
  KXNBAGAME:'nba-game',
  KXNHLGAME:'nhl-game',
 });
