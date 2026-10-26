@@ -11,6 +11,46 @@ const tickerPattern=/^KX[A-Z0-9_.]{2,90}-[A-Z0-9_.-]{2,120}$/i;
 const slugPattern=/^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const nonEmpty=value=>typeof value==='string'&&value.trim()?value.trim():null;
 
+// Kalshi uses /markets/SERIES/CATEGORY/EVENT?op_market_ticker=MARKET,
+// not /markets/MARKET. Only series with independently observed public
+// category paths may be constructed; any sport may use a source-supplied URL.
+const KALSHI_VERIFIED_SERIES_CATEGORIES=Object.freeze({
+ KXATPMATCH:'atp-tennis-match',
+ KXWTAMATCH:'wta-tennis-match',
+ KXNFLGAME:'nfl-game',
+ KXNCAAFGAME:'college-football-game',
+ KXMLBGAME:'professional-baseball-game',
+ KXNCAAMBGAME:'mens-college-basketball-mens-game',
+ KXNBAGAME:'nba-game',
+ KXNHLGAME:'nhl-game',
+});
+function kalshiMarketDestination(offer,ticker){
+ const event=nonEmpty(offer.eventTicker)||nonEmpty(offer.providerEventTicker)||
+  nonEmpty(offer.providerEventId)||
+  nonEmpty(offer.raw?.eventTicker)||nonEmpty(offer.raw?.event_ticker);
+ const provided=nonEmpty(offer.marketUrl)||nonEmpty(offer.sourceMarketUrl)||
+  nonEmpty(offer.raw?.marketUrl)||nonEmpty(offer.raw?.providerMarket?.url);
+ if(provided){
+  try {
+   const uri=new URL(provided);
+   if(uri.protocol!=='https:'||!['kalshi.com','www.kalshi.com'].includes(uri.hostname)||
+      uri.username||uri.password||uri.port)return null;
+   // Provider URL must identify this exact contract, not just the sport.
+   const selected=uri.searchParams.get('op_market_ticker');
+   if(selected?.toUpperCase()!==ticker.toUpperCase())return null;
+   return uri.toString();
+  }catch{return null;}
+ }
+ if(!event||!/^KX[A-Z0-9_.]{2,90}-[A-Z0-9_.-]{2,120}$/i.test(event+'-X')||
+   !ticker.toUpperCase().startsWith(event.toUpperCase()+'-'))return null;
+ const series=event.split('-')[0].toUpperCase();
+ const category=KALSHI_VERIFIED_SERIES_CATEGORIES[series];
+ if(!category)return null;
+ return 'https://kalshi.com/markets/'+series.toLowerCase()+'/'+category+'/'
+  +event.toLowerCase()+'?op_market_ticker='+encodeURIComponent(ticker);
+}
+
+
 export function exchangeMarketLink(offer={}){
  if(!offer||typeof offer!=='object')return null;
  const provider=String(offer.source||offer.provider||offer.book||'').toLowerCase();
@@ -19,8 +59,9 @@ export function exchangeMarketLink(offer={}){
     nonEmpty(offer.sourceMarketId)||nonEmpty(offer.contractId);
  if(provider.includes('kalshi')){
   if(!ticker||!tickerPattern.test(ticker))return null;
-  return {url:'https://kalshi.com/markets/'+encodeURIComponent(ticker.toLowerCase()),
-   provider:'Kalshi',scope:'MARKET',id:ticker,label:'Open on Kalshi'};
+  const url=kalshiMarketDestination(offer,ticker);
+  if(!url)return null;
+  return {url,provider:'Kalshi',scope:'MARKET',id:ticker,label:'Open on Kalshi'};
  }
  const isGlobal=venue.includes('global')||provider.includes('global')||
    provider.includes('gamma')||provider.includes('clob');

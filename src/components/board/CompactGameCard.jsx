@@ -3,7 +3,6 @@ import {bestValuePresentation} from "../../lib/bestValuePresentation.js";
 import SoccerPinnOdds from "./SoccerPinnOdds.jsx";
 import EventPlayerProps from "./EventPlayerProps.jsx";
 import EventMarkets from "./EventMarkets.jsx";
-import ExchangeGameLinks from "./ExchangeGameLinks.jsx";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
@@ -284,7 +283,6 @@ export default function CompactGameCard({ game, onOpen }) {
         )}
       </div>
 
-      {!stored ? <ExchangeGameLinks game={game} compact /> : null}
       {!stored && isCfb ? <CfbCapturedMarket game={game} /> : null}
       {!stored && isCfb ? <CfbThreeVenueLines game={game} compact /> : null}
       {!stored ? <VenueConditions context={vm.context} game={game} compact /> : null}

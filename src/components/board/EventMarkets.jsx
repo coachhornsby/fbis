@@ -1,7 +1,7 @@
 import {useEffect,useState} from 'react';
 import './eventPlayerProps.css';
 import {marketDisplayAmerican,marketDisplayImplied,signedAmerican} from '../../lib/marketQuoteDisplay.js';
-import {exchangeMarketLink} from '../../lib/exchangeMarketLinks.js';
+import ExchangeQuoteLink from './ExchangeQuoteLink.jsx';
 const price=value=>value==null?'—':Number.isFinite(Number(value))?`${(Number(value)*100).toFixed(1)}%`:'—';
 export default function EventMarkets({game}){
  const eventId=String(game?.id||''),sport=String(game?.sport||'').toLowerCase();
@@ -17,16 +17,11 @@ export default function EventMarkets({game}){
  return <details className="event-player-props event-markets" onClick={event=>event.stopPropagation()} onKeyDown={event=>event.stopPropagation()} onToggle={event=>setOpen(event.currentTarget.open)}>
   <summary>MARKET DETAILS <span>Books, periods and alternate lines</span></summary>
   {open?<div className="event-props-body"><p>Source prices converted to American equivalents; percentages are raw implied/buy-cost only.</p>
-   {rows.length?<div className="event-props-table"><table><thead><tr><th>Source / market</th><th>Selection / line</th><th>Observed price</th><th>Evidence</th><th>Exchange</th></tr></thead><tbody>{rows.map(row=><tr key={row.id}>
+   {rows.length?<div className="event-props-table"><table><thead><tr><th>Source / market</th><th>Selection / line</th><th>Observed price</th><th>Evidence</th></tr></thead><tbody>{rows.map(row=><tr key={row.id}>
     <td><strong>{row.source}</strong><span>{String(row.statFamily||row.marketFamily||'Uninterpreted market').replaceAll('_',' ')} · {row.period||'unspecified'}</span>{row.playerName?<span>{row.playerName}</span>:null}</td>
     <td>{row.side||'Unspecified'}<span>{row.line??'—'}</span></td>
-    <td>{marketDisplayAmerican(row)==null?'No quoted price':`${signedAmerican(marketDisplayAmerican(row))}${marketDisplayImplied(row)==null?'':` · ${price(marketDisplayImplied(row))}`}`}{row.decimalOdds!=null?<span>{Number(row.decimalOdds).toFixed(3)} decimal</span>:null}<span>{row.quoteKind}</span></td>
+    <td><ExchangeQuoteLink offer={row} value={marketDisplayAmerican(row)==null?'No quoted price':`${signedAmerican(marketDisplayAmerican(row))}${marketDisplayImplied(row)==null?'':` · ${price(marketDisplayImplied(row))}`}`}/>{row.decimalOdds!=null?<span>{Number(row.decimalOdds).toFixed(3)} decimal</span>:null}<span>{row.quoteKind}</span></td>
     <td>{row.temporal?.status||'SOURCE_TIME_UNKNOWN'}<span>Provider {row.providerObservedAt||'unknown'}</span><span>Collected {row.collectedAt||'unknown'}</span></td>
-    <td>{exchangeMarketLink(row)?<a href={exchangeMarketLink(row).url} target="_blank" rel="noopener noreferrer"
-      title={exchangeMarketLink(row).scope==='EVENT'?'Opens the matched provider event.':'Opens this exact source market.'}
-      onClick={e=>e.stopPropagation()}>
-      {exchangeMarketLink(row).scope==='EVENT'?'View event ↗':'Open market ↗'}</a>:
-       <span>Exact link unavailable</span>}</td>
    </tr>)}</tbody></table></div>:!loading&&!error?<p>No captured source contracts for this event.</p>:null}
    {loading?<p role="status">Loading markets…</p>:null}{error?<p role="alert">{error}</p>:null}
    {cursor&&!loading?<button type="button" onClick={()=>load(cursor)}>Load more markets</button>:null}

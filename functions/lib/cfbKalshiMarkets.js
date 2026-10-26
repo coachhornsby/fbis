@@ -61,7 +61,7 @@ export function matchKalshiCfbMoneylines(records=[],games=[],{now=new Date(),max
      sourceMarketId:item.ticker,sourceOutcomeId:"YES",
      capturedAt:item.fetchedAt,observedAt:null,
      feeVerified:false,settlementVerified:false,executionEligible:false,canQualify:false,canAuthorizeWager:false,
-     providerTicker:item.ticker,quoteKind:"PUBLIC_REST_BEST_LEVEL_INDICATIVE",
+     providerTicker:item.ticker,eventTicker:item.eventTicker,quoteKind:"PUBLIC_REST_BEST_LEVEL_INDICATIVE",
      availableSizeContracts:Number(item.yesAskSize)>0?Number(item.yesAskSize):null};
   });
   const seenSides=new Set(eventOffers.map(x=>x.side));

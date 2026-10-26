@@ -1,6 +1,5 @@
 import { useId } from "react";
 import TeamLogo from "../TeamLogo.jsx";
-import ExchangeGameLinks from "./ExchangeGameLinks.jsx";
 import { ChallengerSelect } from "../ChallengerSelect.jsx";
 import DecisionBadge from "./DecisionBadge.jsx";
 import DeltaRail from "./DeltaRail.jsx";
@@ -448,7 +447,6 @@ export default function GameCard({
         </section>
       ) : null}
 
-      <ExchangeGameLinks game={game} compact />
       <div className="gc-actions">
         <button
           type="button"
