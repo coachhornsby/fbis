@@ -1,0 +1,45 @@
+✔ CBB cutover cannot omit current PRIMARY-owned non-prop research tables (1.866342ms)
+✔ CBB shadow and unapproved strict sport modes never reach the private owner (1.144715ms)
+✔ Phase B SportsDataverse inputs are immutable digest-pinned releases (1.489365ms)
+✔ roster adapter preserves stable ESPN identity and UNKNOWN availability (0.333013ms)
+✔ DNP/active flags never become availability status (0.60732ms)
+✔ CBB Phase B schema is research/SHADOW only (1.249249ms)
+✔ CBB Phase B builder never infers availability from DNP or minutes (0.573589ms)
+✔ CBB Phase B excludes totals challengers (0.338671ms)
+✔ runtime Phase B uses digest-pinned SportsDataverse ESPN sources and daily idempotency (0.620028ms)
+✔ migration 0084 records Phase B checkpoints (0.214568ms)
+✔ bulk Phase B builder preserves availability and five-way PIT leakage gates (0.327054ms)
+✔ shadow preserves PRIMARY without consulting CORE or changing input context (1.227617ms)
+✔ approved CBB research resolves only CBB_DB using a fresh exact CORE query (1.06712ms)
+✔ absent CORE approval fails closed despite stale injected approval (0.533279ms)
+✔ revoked CORE approval fails closed despite stale injected approval (0.120188ms)
+✔ revokedTimestamp CORE approval fails closed despite stale injected approval (0.144534ms)
+✔ expired CORE approval fails closed despite stale injected approval (0.143212ms)
+✔ invalidExpiry CORE approval fails closed despite stale injected approval (0.139136ms)
+✔ wrongSport CORE approval fails closed despite stale injected approval (0.083343ms)
+✔ wrongReceipt CORE approval fails closed despite stale injected approval (0.152236ms)
+✔ missing CBB_DB cannot fall back to PRIMARY (0.302248ms)
+✔ missing CORE_DB cannot fall back to PRIMARY (0.128209ms)
+✔ missing SPORT_DB_STRICT_CBB cannot fall back to PRIMARY (0.174438ms)
+✔ missing SPORT_DB_LEDGER_READY_CBB cannot fall back to PRIMARY (0.117745ms)
+✔ missing SPORT_CUTOVER_RECEIPT_CBB cannot fall back to PRIMARY (0.105446ms)
+✔ CORE outage rejects approval without a legacy-schema or PRIMARY retry (0.158866ms)
+✔ all guarded research consumers refuse missing activated owner before data or network access (5.114281ms)
+✔ bulk CBBD payload makes a private research team snapshot without further API calls (1.873914ms)
+✔ unresolved teams and wrong seasons are quarantined, not assigned to real teams (0.982014ms)
+✔ unknown shooting fields stay null; samples with zero attempts are not treated as available (0.20262ms)
+✔ profile writer fails closed without migrated D1 (0.448213ms)
+✔ bulk profile save uses the D1 batch with no network transport (7.165047ms)
+✔ all 11 sports: deployed shadow prevents product reads and writes from reaching sport D1 (1.380623ms)
+✔ all 11 sports: setting sport mode without approved receipt never authorizes product I/O (0.521021ms)
+✔ all 11 sports: missing sport bindings fail back to PRIMARY (0.250511ms)
+✔ NBA ledger storage fails closed without independent readiness and CORE approval (0.294816ms)
+✔ health operations recognize exactly the four CORE-approved authoritative sports (1.190533ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 294.241326

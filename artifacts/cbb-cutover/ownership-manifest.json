@@ -1,0 +1,3323 @@
+{
+  "contract": "FBIS-CBB-OWNERSHIP-AUDIT-v1",
+  "at": "2026-10-26T01:21:11.089Z",
+  "commit": "5f834cbcbfa39b2455505b353e6ac0f9a547e1bd",
+  "tables": [
+    {
+      "table": "cbb_canonical_teams",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_conference_membership",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_team_aliases",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_players",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_player_aliases",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_player_provider_ids",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_roster_membership",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_roster_observations",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_schedule_items",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_team_profile_snapshots",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_team_state_snapshots",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_player_state_snapshots",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_game_state_snapshots",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_availability_observations",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_state_events",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_rotation_observations",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_team_context_observations",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_directory_population_runs",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_directory_phase_b_runs",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_state_overlay_governance",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_shadow_challenger_definitions",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-owned research",
+      "modelAuthority": false
+    },
+    {
+      "table": "games",
+      "scope": "sport='cbb' only",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-scoped shared working table",
+      "modelAuthority": false
+    },
+    {
+      "table": "predictions",
+      "scope": "sport='cbb' only",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-scoped shared working table",
+      "modelAuthority": false
+    },
+    {
+      "table": "prediction_snapshots",
+      "scope": "sport='cbb' only",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-scoped shared working table",
+      "modelAuthority": false
+    },
+    {
+      "table": "published_projections",
+      "scope": "sport='cbb' only",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-scoped shared working table",
+      "modelAuthority": false
+    },
+    {
+      "table": "odds_snapshots",
+      "scope": "sport='cbb' only",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-scoped shared working table",
+      "modelAuthority": false
+    },
+    {
+      "table": "team_form",
+      "scope": "sport='cbb' only",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-scoped shared working table",
+      "modelAuthority": false
+    },
+    {
+      "table": "team_form_games",
+      "scope": "sport='cbb' only",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "CBB_DB",
+      "classification": "sport-scoped shared working table",
+      "modelAuthority": false
+    },
+    {
+      "table": "cbb_player_prop_signals",
+      "scope": "all rows",
+      "currentOwner": "PRIMARY",
+      "proposedOwner": "separately governed props",
+      "classification": "deferred",
+      "excluded": true
+    }
+  ],
+  "candidates": [
+    {
+      "path": "functions/api/action-daily-async.js",
+      "primaryReferences": [
+        {
+          "line": 15,
+          "text": "function dbOf(env){if(!env?.DB)return null;return{"
+        },
+        {
+          "line": 16,
+          "text": "exec:async(s,p=[])=>env.DB.prepare(s).bind(...p).run(),"
+        },
+        {
+          "line": 17,
+          "text": "queryOne:async(s,p=[])=>(await env.DB.prepare(s).bind(...p).first())||null,"
+        },
+        {
+          "line": 18,
+          "text": "queryAll:async(s,p=[])=>(await env.DB.prepare(s).bind(...p).all()).results||[],"
+        },
+        {
+          "line": 19,
+          "text": "batch:async(stmts=[])=>stmts.length?env.DB.batch(stmts.map(({sql,params=[]})=>env.DB.prepare(sql).bind(...params))):[]"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/action-daily-status.js",
+      "primaryReferences": [
+        {
+          "line": 166,
+          "text": "const res = await env.DB.prepare("
+        },
+        {
+          "line": 289,
+          "text": "const db = context?.env?.DB;"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/cbb-player-prop-signals.js",
+      "primaryReferences": [
+        {
+          "line": 57,
+          "text": "const db=context.env.DB,now=new Date().toISOString();"
+        },
+        {
+          "line": 111,
+          "text": "if(!context.env?.DB)return json({ok:false,error:\"database unavailable\"},503);"
+        },
+        {
+          "line": 113,
+          "text": "const rows=(await context.env.DB.prepare("
+        },
+        {
+          "line": 116,
+          "text": "return json({ok:true,count:rows.length,rows,summary:await summary(context.env.DB),governance:{"
+        },
+        {
+          "line": 123,
+          "text": "if(!context.env?.DB)return json({ok:false,error:\"database unavailable\"},503);"
+        }
+      ],
+      "declaredTables": [
+        "games",
+        "cbb_player_prop_signals"
+      ],
+      "routing": false,
+      "classification": "separately governed player props",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/cbb-snapshot-archive.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/cbb-team-profiles.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "cbb_team_profile_snapshots"
+      ],
+      "routing": true,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/cbb-walkforward-source.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/collect-current.js",
+      "primaryReferences": [
+        {
+          "line": 31,
+          "text": "if (!context.env.DB) return json({ ok: false, error: \"D1 unavailable\" }, 503);"
+        },
+        {
+          "line": 41,
+          "text": "const collected = await context.env.DB.prepare("
+        },
+        {
+          "line": 49,
+          "text": "const recent = await context.env.DB.prepare("
+        },
+        {
+          "line": 77,
+          "text": "DB: context.env.DB,"
+        }
+      ],
+      "declaredTables": [],
+      "routing": true,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/collect.js",
+      "primaryReferences": [
+        {
+          "line": 83,
+          "text": "DB: context.env.DB,"
+        },
+        {
+          "line": 95,
+          "text": "DB: context.env.DB,"
+        }
+      ],
+      "declaredTables": [],
+      "routing": true,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/college.js",
+      "primaryReferences": [
+        {
+          "line": 60,
+          "text": "DB: context.env.DB,"
+        }
+      ],
+      "declaredTables": [
+        "prediction_snapshots"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/continuous-learning.js",
+      "primaryReferences": [
+        {
+          "line": 17,
+          "text": "if(!context.env?.DB?.prepare) return json({ok:false,error:\"d1-unbound\"},503);"
+        }
+      ],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/final-grade.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/kenpom-audit.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/model-lab.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/player-meta.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/prizepicks-props.js",
+      "primaryReferences": [
+        {
+          "line": 208,
+          "text": "if(!context.env?.DB) return json({ok:false,error:\"database unavailable\",rows:[]},503);"
+        },
+        {
+          "line": 215,
+          "text": "const row=await context.env.DB.prepare(\"SELECT * FROM prizepicks_daily_acquisitions WHERE ct_date=?\").bind(day).first();"
+        },
+        {
+          "line": 217,
+          "text": "if(row?.run_id){ coverage=(await context.env.DB.prepare(\"SELECT sport,COUNT(*) rows FROM prizepicks_prop_lines WHERE run_id=? GROUP BY sport ORDER BY sport\").bind(row.run_id).all())?.results||[]; }"
+        },
+        {
+          "line": 218,
+          "text": "const latestSource=await context.env.DB.prepare(\"SELECT scope_json,captured_at,created_at FROM external_acquisitions WHERE source='prizepicks' AND state='CAPTURED' ORDER BY created_at DESC LIMIT 1\").first();"
+        },
+        {
+          "line": 226,
+          "text": "const acquisition=await context.env.DB.prepare("
+        },
+        {
+          "line": 229,
+          "text": "const latest=await context.env.DB.prepare("
+        },
+        {
+          "line": 233,
+          "text": "? await context.env.DB.prepare(`SELECT COUNT(*) AS lines, COUNT(s.id) AS snapshots,"
+        },
+        {
+          "line": 251,
+          "text": "const spent=await mtd(context.env.DB);"
+        },
+        {
+          "line": 272,
+          "text": "const rows=(await context.env.DB.prepare("
+        },
+        {
+          "line": 275,
+          "text": "const acquisition=await context.env.DB.prepare(\"SELECT run_id,state,started_at,completed_at,rows_returned FROM prizepicks_daily_acquisitions WHERE ct_date=?\").bind(date).first();"
+        },
+        {
+          "line": 290,
+          "text": "if(!context.env?.DB) return json({ok:false,error:\"database unavailable\"},503);"
+        },
+        {
+          "line": 297,
+          "text": "const existing=await context.env.DB.prepare(\"SELECT * FROM prizepicks_daily_acquisitions WHERE ct_date=?\").bind(day).first();"
+        },
+        {
+          "line": 300,
+          "text": "await context.env.DB.prepare(`INSERT INTO prizepicks_daily_acquisitions(ct_date,run_id,state,estimated_cost_usd,started_at,note) VALUES(?,?,?,?,?,?)`)"
+        },
+        {
+          "line": 303,
+          "text": "const winner=await context.env.DB.prepare(\"SELECT * FROM prizepicks_daily_acquisitions WHERE ct_date=?\").bind(day).first();"
+        },
+        {
+          "line": 307,
+          "text": "await context.env.DB.prepare(`INSERT OR IGNORE INTO apify_sports_cost_ledger"
+        },
+        {
+          "line": 313,
+          "text": "const source=await context.env.DB.prepare(\"SELECT * FROM external_acquisitions WHERE id=? AND source='prizepicks' AND state='CAPTURED'\").bind(body.acquisitionId||'').first();"
+        },
+        {
+          "line": 315,
+          "text": "const reserved=await context.env.DB.prepare('SELECT * FROM prizepicks_daily_acquisitions WHERE run_id=?').bind(body.runId||'').first();"
+        },
+        {
+          "line": 318,
+          "text": "const batches=await context.env.DB.prepare(\"SELECT COUNT(*) n,SUM(rows_returned) rows,SUM(accepted) accepted,SUM(duplicates) duplicates,SUM(rejected) rejected FROM external_acquisition_batches WHERE acquisition_id=? AND component='prizepicks-daily'\").bind(source.id).first();"
+        },
+        {
+          "line": 322,
+          "text": "await context.env.DB.prepare(\"UPDATE prizepicks_daily_acquisitions SET state='COMPLETE',rows_returned=?,completed_at=? WHERE run_id=? AND state='RESERVED'\").bind(source.observations_returned,completeAt,body.runId).run();"
+        },
+        {
+          "line": 323,
+          "text": "await context.env.DB.prepare(\"UPDATE external_acquisition_consumers SET accepted=?,duplicates=?,rejected=?,consumed_at=? WHERE acquisition_id=? AND component='prizepicks-daily'\").bind(batches?.accepted||0,batches?.duplicates||0,batches?.rejected||0,completeAt,source.id).run();"
+        },
+        {
+          "line": 331,
+          "text": "capturedSource=await context.env.DB.prepare(\"SELECT * FROM external_acquisitions WHERE id=? AND source='prizepicks' AND state='CAPTURED'\").bind(body.acquisitionId).first();"
+        },
+        {
+          "line": 341,
+          "text": "const done=await context.env.DB.prepare(\"SELECT * FROM external_acquisition_batches WHERE acquisition_id=? AND component='prizepicks-daily' AND batch_index=?\").bind(capturedSource.id,index).first();"
+        },
+        {
+          "line": 371,
+          "text": "const spent=await mtd(context.env.DB);"
+        },
+        {
+          "line": 378,
+          "text": "const nflStateIndex=batchSports.has('nfl')?await loadNflPropStateIndex(context.env.DB):{byId:new Map(),byTeamName:new Map(),byUniqueName:new Map()};"
+        },
+        {
+          "line": 379,
+          "text": "const canonicalNflGames=batchSports.has('nfl')?await loadCanonicalNflGameIndex(context.env.DB):new Map();"
+        },
+        {
+          "line": 402,
+          "text": "statements.push(context.env.DB.prepare("
+        },
+        {
+          "line": 454,
+          "text": "nflStateStatements.push(context.env.DB.prepare("
+        },
+        {
+          "line": 476,
+          "text": "signalStatements.push(context.env.DB.prepare("
+        },
+        {
+          "line": 501,
+          "text": "signalStatements.push(context.env.DB.prepare("
+        },
+        {
+          "line": 517,
+          "text": "const result=await context.env.DB.batch(statements.slice(i,i+BATCH_SIZE));"
+        },
+        {
+          "line": 521,
+          "text": "const result=await context.env.DB.batch(signalStatements.slice(i,i+BATCH_SIZE));"
+        },
+        {
+          "line": 526,
+          "text": "const result=await context.env.DB.batch(nflStateStatements.slice(i,i+BATCH_SIZE));"
+        },
+        {
+          "line": 532,
+          "text": "try{tennisHeadshots=await persistTennisPrizePicksHeadshots(context.env.DB,{runId});}catch{tennisHeadshots={updated:0,error:true};}"
+        },
+        {
+          "line": 535,
+          "text": "await context.env.DB.prepare(\"INSERT OR IGNORE INTO external_acquisition_batches VALUES(?,'prizepicks-daily',?,?,?,?,?,?)\").bind(capturedSource.id,batchKey,rows.length,written,Math.max(0,rows.length-malformed-written),malformed,new Date().toISOString()).run();"
+        },
+        {
+          "line": 539,
+          "text": "const acquisition=await context.env.DB.prepare(\"SELECT * FROM prizepicks_daily_acquisitions WHERE run_id=?\").bind(runId).first();"
+        },
+        {
+          "line": 547,
+          "text": "await context.env.DB.prepare("
+        },
+        {
+          "line": 561,
+          "text": "await context.env.DB.prepare("
+        },
+        {
+          "line": 565,
+          "text": "await context.env.DB.prepare(`UPDATE apify_sports_cost_ledger SET cost_basis=?, estimated_total_usd=?, actual_total_usd=?, rows_returned=? WHERE id=?`)"
+        },
+        {
+          "line": 568,
+          "text": "await context.env.DB.prepare(`"
+        },
+        {
+          "line": 577,
+          "text": "await context.env.DB.prepare("
+        }
+      ],
+      "declaredTables": [
+        "games",
+        "cbb_player_prop_signals"
+      ],
+      "routing": false,
+      "classification": "separately governed player props",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/projection-sheet-feed.js",
+      "primaryReferences": [
+        {
+          "line": 165,
+          "text": "DB: context.env.DB,"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": true,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/projections.js",
+      "primaryReferences": [
+        {
+          "line": 41,
+          "text": "...nflSportDbContext(context.env), DB: context.env.DB,"
+        },
+        {
+          "line": 61,
+          "text": "if(context.env.DB?.prepare && board.games?.length){"
+        },
+        {
+          "line": 64,
+          "text": "overlay=await loadPolymarketUsBoardOffers(context.env.DB,board.games,sport,{"
+        },
+        {
+          "line": 73,
+          "text": "loadPinnoddsBoardResearch(context.env.DB,pinScope),"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/published-projections.js",
+      "primaryReferences": [
+        {
+          "line": 92,
+          "text": "...nflSportDbContext(context.env), DB: context.env.DB,"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/selective-props.js",
+      "primaryReferences": [
+        {
+          "line": 189,
+          "text": "if (!context.env?.DB) return json({ ok: false, error: \"database unavailable\", rows: [] }, 503);"
+        },
+        {
+          "line": 214,
+          "text": "const rows = (await context.env.DB.prepare(sql).bind(...bind).all())?.results || [];"
+        },
+        {
+          "line": 216,
+          "text": "const coverageRows = (await context.env.DB.prepare("
+        },
+        {
+          "line": 267,
+          "text": "const acquisition = await context.env.DB.prepare("
+        }
+      ],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "separately governed player props",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/slate.js",
+      "primaryReferences": [
+        {
+          "line": 26,
+          "text": "...nflSportDbContext(context.env), DB: context.env.DB,"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/strategy.js",
+      "primaryReferences": [
+        {
+          "line": 181,
+          "text": "const env = { DB: context.env.DB };"
+        },
+        {
+          "line": 511,
+          "text": "const result = await importStrategyTickets({ DB: context.env.DB }, bets);"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/team-logo.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/api/wager-feed.js",
+      "primaryReferences": [
+        {
+          "line": 166,
+          "text": "DB: context.env.DB,"
+        },
+        {
+          "line": 175,
+          "text": "const persisted = await loadWnbaDecisionFeed(context.env.DB, resolved.date);"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/actionApifyCandidateConfig.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/actionApifyCollector.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/actionApifyShadow.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/actionMarketIntelligence.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions",
+        "prediction_snapshots"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/availability.js",
+      "primaryReferences": [
+        {
+          "line": 445,
+          "text": "if(!env?.DB?.prepare || !teamKeys.length) return [];"
+        },
+        {
+          "line": 450,
+          "text": "const res=await env.DB.prepare("
+        },
+        {
+          "line": 477,
+          "text": "if(!AVAILABILITY_SPORTS.includes(id) || !env?.DB?.prepare){"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/basketballPropTeam.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/basketballSdvCbbFixtureJoin.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/basketballSdvHistoricalReadiness.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/basketballSdvPbpAdapter.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/basketballSdvPossessionSimulationResearch.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/basketballSdvReleaseHistory.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/boardActionIntel.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/canonical/dataLineage.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/canonical/featureRegistry.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/canonical/modelRegistry.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/canonical/sourceRegistry.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbConferenceMembership.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbDirectoryPhaseB.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "cbb_canonical_teams",
+        "cbb_conference_membership",
+        "cbb_players",
+        "cbb_player_aliases",
+        "cbb_player_provider_ids",
+        "cbb_roster_membership",
+        "cbb_roster_observations",
+        "cbb_schedule_items",
+        "cbb_team_state_snapshots",
+        "cbb_player_state_snapshots",
+        "cbb_game_state_snapshots",
+        "cbb_state_events",
+        "cbb_rotation_observations",
+        "cbb_team_context_observations",
+        "cbb_directory_phase_b_runs",
+        "games"
+      ],
+      "routing": true,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbDirectoryPhaseBRuntime.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "cbb_players",
+        "cbb_player_provider_ids",
+        "cbb_roster_membership",
+        "cbb_roster_observations",
+        "cbb_game_state_snapshots",
+        "cbb_rotation_observations",
+        "cbb_team_context_observations",
+        "cbb_directory_phase_b_runs",
+        "games"
+      ],
+      "routing": true,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbFbisHca.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbFbisRatings.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbFbisV2Margin.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbFbisV2Total.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbMoneySelector.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbNcaaPossessionModel.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbPersistentDirectory.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbPlayerFeed.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbPlayerGameModel.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbPlayerPropModel.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbPlayerPropMoney.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbPlayerValidated.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbPlayerValidatedModels.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbPossessionModel.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbProModel.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbProgramAudit.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbPureChallenger.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbRatings.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbRatingsSafe.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbResearchOwner.js",
+      "primaryReferences": [
+        {
+          "line": 6,
+          "text": "if (!env.DB?.prepare) throw new Error(\"CBB_PRIMARY_UNBOUND\");"
+        },
+        {
+          "line": 7,
+          "text": "return { db: env.DB, binding: \"DB\", canAuthorizeWager: false };"
+        },
+        {
+          "line": 10,
+          "text": "if (!env.CBB_DB?.prepare || env.CBB_DB === env.DB)"
+        }
+      ],
+      "declaredTables": [],
+      "routing": true,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cbbTeamProfiles.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "cbb_team_profile_snapshots",
+        "games"
+      ],
+      "routing": true,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/cfbd.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/collegeApply.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/collegeJobs.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/collegeJobsCore.js",
+      "primaryReferences": [
+        {
+          "line": 621,
+          "text": "const db = env?.DB || env?.TIER3_DB || null;"
+        },
+        {
+          "line": 706,
+          "text": "const db = env?.DB || env?.TIER3_DB || null;"
+        },
+        {
+          "line": 826,
+          "text": "const tier3Db = env?.TIER3_DB || env?.DB || null;"
+        },
+        {
+          "line": 1051,
+          "text": "const sportDb = env?.CFB_DB || env?.DB || null;"
+        },
+        {
+          "line": 1104,
+          "text": "const db = env?.DB || env?.TIER3_DB || null;"
+        },
+        {
+          "line": 1150,
+          "text": "const db = env?.DB || env?.TIER3_DB || null;"
+        }
+      ],
+      "declaredTables": [
+        "cbb_team_profile_snapshots",
+        "games",
+        "predictions",
+        "prediction_snapshots"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/collegeModels.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/databaseOwnership.js",
+      "primaryReferences": [
+        {
+          "line": 294,
+          "text": "if (env?.DB?.prepare) {"
+        },
+        {
+          "line": 295,
+          "text": "return { db: env.DB, owner: DATABASE_OWNERS.PRIMARY, preferred: false };"
+        },
+        {
+          "line": 323,
+          "text": "if (env?.DB?.prepare) {"
+        },
+        {
+          "line": 325,
+          "text": "db: env.DB,"
+        },
+        {
+          "line": 343,
+          "text": "warning: env?.DB?.prepare ? \"OPERATIONS_DB_UNBOUND\" : \"D1_UNBOUND\","
+        }
+      ],
+      "declaredTables": [
+        "published_projections"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/databaseTopology.js",
+      "primaryReferences": [
+        {
+          "line": 129,
+          "text": "if (env?.DB?.prepare) {"
+        },
+        {
+          "line": 131,
+          "text": "db: env.DB,"
+        },
+        {
+          "line": 167,
+          "text": "if (!key) return { db: env?.DB || null, sport: null, binding: \"DB\", preferred: false, reason: \"UNKNOWN_SPORT\" };"
+        },
+        {
+          "line": 190,
+          "text": "db: env?.DB || null,"
+        },
+        {
+          "line": 216,
+          "text": "db: env?.DB || null,"
+        },
+        {
+          "line": 228,
+          "text": "db: env?.DB || null,"
+        },
+        {
+          "line": 264,
+          "text": "const primary = env?.DB || null;"
+        },
+        {
+          "line": 655,
+          "text": "[\"PRIMARY\", env?.DB, DATABASE_OWNERS.PRIMARY.databaseId],"
+        }
+      ],
+      "declaredTables": [],
+      "routing": true,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/exchangePlayerProps.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/executedBets.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/fanduelSlip.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/kenpomCbb.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/marketCoverageAudit.js",
+      "primaryReferences": [
+        {
+          "line": 168,
+          "text": "if(!coldHistoryEnabled(env))return auditPlatformMarketCoverage(env.DB,options);"
+        },
+        {
+          "line": 189,
+          "text": "const eligible=sport==='tennis'?await env.DB.prepare(`SELECT id FROM ("
+        },
+        {
+          "line": 192,
+          "text": "await env.DB.prepare('SELECT id FROM games WHERE sport=? AND start BETWEEN ? AND ? LIMIT 50001').bind(sport,since,until).all();"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/marketLabels.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/marketLineage.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/matchupFactors.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/metrics.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/modelLab.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/opsTelemetry.js",
+      "primaryReferences": [
+        {
+          "line": 33,
+          "text": "if (!env?.DB) return [];"
+        },
+        {
+          "line": 35,
+          "text": "const res = await env.DB.prepare(sql).bind(...binds).all();"
+        },
+        {
+          "line": 43,
+          "text": "if (!env?.DB) return null;"
+        },
+        {
+          "line": 45,
+          "text": "return (await env.DB.prepare(sql).bind(...binds).first()) || null;"
+        }
+      ],
+      "declaredTables": [
+        "prediction_snapshots",
+        "published_projections",
+        "team_form"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/parlay.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/pinnoddsArchiveBoard.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/pinnoddsBoardResearch.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/pinnoddsIngestion.js",
+      "primaryReferences": [
+        {
+          "line": 22,
+          "text": "const games=starts.length?(await env.DB.prepare(`SELECT id,sport,start,home_name,away_name,home_abbr,away_abbr FROM games WHERE julianday(start) BETWEEN julianday(?) AND julianday(?)`)"
+        },
+        {
+          "line": 47,
+          "text": "games.push(...await loadVerifiedTennisCandidates(env.DB,body.events.map(e=>e.starts),{asOf,includeCompleted}));"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/pinnoddsMarkets.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/playerPropHistory.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/polymarketUs.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/prizePicksSlip.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/proPlayerProps.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/productProjection.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/projLedger.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "predictions",
+        "team_form"
+      ],
+      "routing": false,
+      "classification": "shared/canonical owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/projectionConfidence.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/propAcceptance.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "separately governed player props",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/propHistoryResearch.js",
+      "primaryReferences": [
+        {
+          "line": 50,
+          "text": "try{return (await env.DB.prepare('SELECT event_id,season,week,start_time,opponent_key,site FROM nfl_team_schedule_profile WHERE team_key=? AND season>=?').bind(String(team||'').toLowerCase(),new Date(asOf).getUTCFullYear()-1).all()).results||[];}catch{return [];}"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "separately governed player props",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/propMarketPolicy.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "separately governed player props",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/propProviderAdapters.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "separately governed player props",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/r2Archive.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/researchBoardPromote.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/selectivePropEdge.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/sharpApi.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/slateEngine.js",
+      "primaryReferences": [
+        {
+          "line": 107,
+          "text": "const usePersistentBullpen = persistentBullpen.meta.available > 0 || Boolean(env?.DB?.prepare);"
+        },
+        {
+          "line": 188,
+          "text": "boardLiveFanout: Boolean(!env?.DB?.prepare),"
+        },
+        {
+          "line": 207,
+          "text": "const pit = await loadCfbFrozenUnitEvidence(env.DB,players.games);"
+        },
+        {
+          "line": 489,
+          "text": "const impactCtx = await loadWnbaImpactContext(env.DB || null);"
+        },
+        {
+          "line": 492,
+          "text": "const possessionCtx = await loadWnbaPossessionChallengerContext(env.DB || null);"
+        },
+        {
+          "line": 586,
+          "text": "if (env.DB && Array.isArray(next.games) && next.games.length) {"
+        },
+        {
+          "line": 590,
+          "text": "const attached = await attachActionIntelToGames(next.games, env.DB);"
+        },
+        {
+          "line": 635,
+          "text": "packet = await buildWnbaGameDecisions(game, env.DB || null, { minEv: 0.03 });"
+        },
+        {
+          "line": 672,
+          "text": "if (env.DB) {"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": true,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/slateEngineCore.js",
+      "primaryReferences": [
+        {
+          "line": 30,
+          "text": "return !env?.DB?.prepare;"
+        }
+      ],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/snapshotLearning.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "prediction_snapshots"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/sportShadowGenerators.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/sportSimulationResearch.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/sportWorkingCopy.js",
+      "primaryReferences": [
+        {
+          "line": 552,
+          "text": "const primary = env?.DB;"
+        },
+        {
+          "line": 703,
+          "text": "const primary = env?.DB;"
+        },
+        {
+          "line": 823,
+          "text": "const primary = env?.DB;"
+        },
+        {
+          "line": 1093,
+          "text": "const primary = env?.DB;"
+        },
+        {
+          "line": 1184,
+          "text": "const primary = env?.DB;"
+        },
+        {
+          "line": 1390,
+          "text": "const primary = env?.DB;"
+        },
+        {
+          "line": 1466,
+          "text": "const source=env?.NBA_DB,target=env?.DB;"
+        }
+      ],
+      "declaredTables": [
+        "cbb_canonical_teams",
+        "cbb_conference_membership",
+        "cbb_team_aliases",
+        "cbb_players",
+        "cbb_player_aliases",
+        "cbb_player_provider_ids",
+        "cbb_roster_membership",
+        "cbb_roster_observations",
+        "cbb_schedule_items",
+        "cbb_team_profile_snapshots",
+        "cbb_team_state_snapshots",
+        "cbb_player_state_snapshots",
+        "cbb_game_state_snapshots",
+        "cbb_availability_observations",
+        "cbb_state_events",
+        "cbb_rotation_observations",
+        "cbb_team_context_observations",
+        "cbb_directory_population_runs",
+        "cbb_directory_phase_b_runs",
+        "cbb_state_overlay_governance",
+        "cbb_shadow_challenger_definitions",
+        "games",
+        "predictions",
+        "prediction_snapshots",
+        "published_projections",
+        "odds_snapshots",
+        "team_form",
+        "team_form_games"
+      ],
+      "routing": true,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/strategy.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/teams.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/theRundown.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/todayBoard.js",
+      "primaryReferences": [
+        {
+          "line": 762,
+          "text": "if (!env.DB?.prepare) {"
+        },
+        {
+          "line": 779,
+          "text": "env.DB.prepare(`"
+        },
+        {
+          "line": 841,
+          "text": "const integrity = await proveTennisEvent(env.DB,row,{projection:true});"
+        },
+        {
+          "line": 853,
+          "text": "tennisCardContext(env.DB,{tour:row.tour,player1:row.player1,player2:row.player2,surface:row.surface}).catch(()=>null),"
+        },
+        {
+          "line": 854,
+          "text": "tennisVenueOffers(env.DB,row,now).catch(()=>[]),"
+        },
+        {
+          "line": 855,
+          "text": "approvedTennisPortraits(env.DB,[integrity.p1.fbis_player_id,integrity.p2.fbis_player_id]),"
+        },
+        {
+          "line": 856,
+          "text": "loadStoredTennisPrizePicksHeadshots(env.DB,[integrity.p1.fbis_player_id,integrity.p2.fbis_player_id]),"
+        },
+        {
+          "line": 1104,
+          "text": "if(env.DB?.prepare){"
+        },
+        {
+          "line": 1125,
+          "text": "if(env.DB?.prepare){"
+        },
+        {
+          "line": 1126,
+          "text": "try{await enrichTennisExchangeHistoricalCards(env.DB,union.games,{now});}"
+        },
+        {
+          "line": 1166,
+          "text": "const durableAll = !buildSlateFn && focusSport === \"all\" && env?.DB?.prepare"
+        },
+        {
+          "line": 1212,
+          "text": "if (env.DB && !durableOnly && sport !== \"tennis\") {"
+        },
+        {
+          "line": 1236,
+          "text": "if (!durableOnly && env.DB && sport !== \"tennis\") {"
+        },
+        {
+          "line": 1253,
+          "text": "loadPinnoddsBoardResearch(env.DB,pinScope),"
+        },
+        {
+          "line": 1299,
+          "text": "if(sport === \"nfl\") slateGames = await attachPrizePicksMarkets(slateGames,sport,date,env.DB);"
+        },
+        {
+          "line": 1364,
+          "text": "const recovered=env?.DB?.prepare && sport !== \"tennis\""
+        },
+        {
+          "line": 1391,
+          "text": "if (env.DB?.prepare && all.length) {"
+        },
+        {
+          "line": 1418,
+          "text": "overlay = await loadPolymarketUsBoardOffers(env.DB, sportGames, sportKey, {"
+        }
+      ],
+      "declaredTables": [
+        "games",
+        "odds_snapshots"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/todayDurableFallback.js",
+      "primaryReferences": [
+        {
+          "line": 123,
+          "text": "if(!env.DB?.prepare || !/^\\d{4}-\\d{2}-\\d{2}$/.test(String(date||\"\")))"
+        },
+        {
+          "line": 139,
+          "text": "return await queryDurable(env.DB,date,sport,now);"
+        }
+      ],
+      "declaredTables": [
+        "games",
+        "prediction_snapshots"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "functions/lib/torvikCbb.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "services/polymarket-us-stream/core.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "services/sports-projection-orchestrator/orchestrator.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "prediction_snapshots"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/audit-prop-acceptance.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "separately governed player props",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/basketball-sdv-history-audit.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/build-team-data.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/capture-viewports.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-build-structural-snapshots.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-combined-tiers-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-cutover-audit.mjs",
+      "primaryReferences": [
+        {
+          "line": 19,
+          "text": "path,primaryReferences:source.split('\\n').flatMap((line,i)=>/\\benv(?:\\?\\.)?\\.DB\\b|\\benv\\?\\.DB\\b|context\\.env\\.DB|wrangler d1 execute fbis\\b/.test(line)?[{line:i+1,text:line.trim()}]:[]),"
+        },
+        {
+          "line": 27,
+          "text": "primaryCommands:x.source.split('\\n').filter(l=>/wrangler d1 execute fbis\\b/.test(l)),latestRun:'NOT_VERIFIED'}));"
+        }
+      ],
+      "declaredTables": [
+        "games",
+        "predictions",
+        "prediction_snapshots",
+        "published_projections",
+        "odds_snapshots",
+        "team_form",
+        "team_form_games",
+        "cbb_player_prop_signals"
+      ],
+      "routing": true,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-data-stack-walkforward.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-directory-phase-a.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "cbb_canonical_teams",
+        "cbb_team_aliases",
+        "cbb_players",
+        "cbb_player_aliases",
+        "cbb_roster_membership",
+        "cbb_schedule_items",
+        "cbb_team_state_snapshots",
+        "cbb_player_state_snapshots",
+        "cbb_state_events",
+        "cbb_directory_population_runs",
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-directory-phase-b-bulk.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "cbb_conference_membership",
+        "cbb_players",
+        "cbb_player_aliases",
+        "cbb_player_provider_ids",
+        "cbb_roster_membership",
+        "cbb_roster_observations",
+        "cbb_schedule_items",
+        "cbb_team_state_snapshots",
+        "cbb_player_state_snapshots",
+        "cbb_game_state_snapshots",
+        "cbb_state_events",
+        "cbb_rotation_observations",
+        "cbb_team_context_observations",
+        "cbb_directory_phase_b_runs",
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-directory-phase-b-sportsdataverse.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-directory-phase-b.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "cbb_players",
+        "cbb_player_provider_ids",
+        "cbb_roster_observations",
+        "cbb_game_state_snapshots",
+        "cbb_rotation_observations",
+        "cbb_team_context_observations",
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-fbis-native-v1-aggregate.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-fbis-native-v1-walkforward.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-fbis-v2-fit.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-fbis-vs-kenpom-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-freeze-dataset.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-ge4-confirmation-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-hca-rankings-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-market-edge-lab.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-market-information-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-money-selector-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-phase-b-sportsdataverse-source.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-pit-freeze-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-player-game-fit-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-player-history-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-player-prop-fit-v2.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "separately governed player props",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-possession-fit-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-possession-history-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-pro-total-v1-promotion.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-pro-weight-optimization.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-publish-structural-snapshot.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-qa-structural-snapshot.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-structural-confirmation-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-sub4-expansion.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-total-subsets-v1.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/cbb-v4-headtohead.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/college-refresh-policy.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/college-train.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/fbis-all-sport-reliability.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/fetch-final-scoreboard.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/lib/fbisAutoRepairPolicy.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/morning-slate-coverage.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/pr1225-guarded-migrations.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "cbb_team_profile_snapshots",
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/sport-delta-sync-ops.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "predictions",
+        "published_projections"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/sport-prefix-backfill-sprint.mjs",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "scripts/verify-migrations.mjs",
+      "primaryReferences": [],
+      "declaredTables": [
+        "cbb_player_prop_signals"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/App.jsx",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/TodayView.jsx",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/app/navigation.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/components/board/DecisionBoard.jsx",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/components/board/GameCard.jsx",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/components/board/GameScoreDisplay.jsx",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/components/board/MatchupFactors.jsx",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/components/board/PinnoddsCardMarkets.jsx",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/components/board/PremiumGameCard.jsx",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/features/modelLab/SportAccountabilityPanel.jsx",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/features/playerProps/ExchangePlayerPropsPanel.jsx",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/features/playerProps/PlayerPropsBoard.jsx",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/features/playerProps/PrizePicksMarketPanel.jsx",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/features/playerProps/TopGameProps.jsx",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/features/playerProps/topGamePlayerProps.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/features/today/TopGameOpportunities.jsx",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/lib/boardViewModel.js",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/lib/collegeTeamDisplay.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/lib/gameCardViewModel.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/lib/liveGameClock.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/lib/marketPriceComparison.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/lib/pinnoddsMarketSelection.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/lib/pinnoddsReferenceDifference.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": "src/lib/venueAtmosphere.js",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "CBB consumer owner review required",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/basketball-sdv-historical-source.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/basketball-sdv-possession-research.yml",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-data-stack-walkforward.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-directory-phase-a.yml",
+      "primaryReferences": [
+        {
+          "line": 82,
+          "text": "npx wrangler d1 execute fbis --remote --file=migrations/0079_cbb_persistent_directory_phase_a.sql"
+        },
+        {
+          "line": 87,
+          "text": "if npx wrangler d1 execute fbis --remote --file=\"$f\"; then"
+        },
+        {
+          "line": 100,
+          "text": "npx wrangler d1 execute fbis --remote --command=\"SELECT id,snapshot_id,status,canonical_teams,players,roster_memberships,state_events,team_snapshots,player_snapshots,schedule_items FROM cbb_directory_population_runs ORDER BY completed_at DESC LIMIT 1; SELECT state_family,mode,target_scope,can_influence_projection,can_qualify,can_authorize_wager FROM cbb_state_overlay_governance ORDER BY state_family;\""
+        }
+      ],
+      "declaredTables": [
+        "cbb_directory_population_runs",
+        "cbb_state_overlay_governance"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-directory-phase-b.yml",
+      "primaryReferences": [
+        {
+          "line": 86,
+          "text": "row=\"$(npx wrangler d1 execute fbis --remote --json --command=\"SELECT canonical_teams,players,roster_memberships,state_events,team_snapshots,player_snapshots,schedule_items,status FROM cbb_directory_population_runs ORDER BY completed_at DESC LIMIT 1;\")\""
+        },
+        {
+          "line": 110,
+          "text": "npx wrangler d1 execute fbis --remote --json --command=\"SELECT DISTINCT p.player_id,p.canonical_name,m.team_id,m.season FROM cbb_players p JOIN cbb_roster_membership m ON m.player_id=p.player_id;\" | jq '.[0].results' > artifacts/cbb-phase-b-source/phase-a-players.json"
+        },
+        {
+          "line": 111,
+          "text": "npx wrangler d1 execute fbis --remote --json --command=\"SELECT player_id,provider,provider_player_id FROM cbb_player_provider_ids WHERE provider='ESPN';\" | jq '.[0].results' > artifacts/cbb-phase-b-source/existing-provider-ids.json"
+        },
+        {
+          "line": 141,
+          "text": "npx wrangler d1 execute fbis --remote --file=migrations/0084_cbb_directory_phase_b.sql"
+        },
+        {
+          "line": 142,
+          "text": "col=\"$(npx wrangler d1 execute fbis --remote --json --command=\"PRAGMA table_info(cbb_game_state_snapshots);\")\""
+        },
+        {
+          "line": 144,
+          "text": "npx wrangler d1 execute fbis --remote --file=migrations/0096_cbb_phase_b_future_transfer_leakage.sql"
+        },
+        {
+          "line": 149,
+          "text": "if npx wrangler d1 execute fbis --remote --file=\"$f\"; then ok=1; break; fi"
+        },
+        {
+          "line": 157,
+          "text": "npx wrangler d1 execute fbis --remote --command=\""
+        }
+      ],
+      "declaredTables": [
+        "cbb_players",
+        "cbb_player_provider_ids",
+        "cbb_roster_membership",
+        "cbb_roster_observations",
+        "cbb_game_state_snapshots",
+        "cbb_availability_observations",
+        "cbb_rotation_observations",
+        "cbb_team_context_observations",
+        "cbb_directory_population_runs",
+        "cbb_directory_phase_b_runs",
+        "cbb_shadow_challenger_definitions"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-fbis-native-v1.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-fbis-vs-kenpom-v1.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-market-information-v1.yml",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-money-selector-v1.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-phase-b-finalize.yml",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-pit-freeze-v1.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-player-prop-settlement.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "cbb_player_prop_signals"
+      ],
+      "routing": false,
+      "classification": "separately governed player props",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-player-system-v2.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions",
+        "cbb_player_prop_signals"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-possession-v1.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-pro-weight-optimization.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-structural-snapshot.yml",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/cbb-v4-headtohead.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "predictions"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/college-shared-quota.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "cbb_team_profile_snapshots"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/college.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/continuous-learning-governance.yml",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/daily-results-grade.yml",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/harvest.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "team_form"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/hourly-bet-settlement.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/model-learning-cycle.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games",
+        "prediction_snapshots"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/projection-sheet-export.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "games"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/sport-delta-sync-recurring.yml",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/sport-migration-qualify.yml",
+      "primaryReferences": [],
+      "declaredTables": [],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    },
+    {
+      "path": ".github/workflows/sport-prefix-backfill-sprint.yml",
+      "primaryReferences": [],
+      "declaredTables": [
+        "cbb_players",
+        "cbb_player_aliases",
+        "cbb_roster_membership",
+        "cbb_roster_observations",
+        "cbb_schedule_items",
+        "cbb_player_state_snapshots"
+      ],
+      "routing": false,
+      "classification": "scheduled workflow",
+      "reviewStatus": "REQUIRES_MANUAL_CALL_GRAPH_REVIEW"
+    }
+  ],
+  "workflows": [
+    {
+      "path": ".github/workflows/asian-baseball-official-2026.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/asian-baseball-sport-shadow-sync.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/basketball-sdv-historical-source.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/basketball-sdv-possession-research.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-data-stack-walkforward.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-directory-phase-a.yml",
+      "scheduleLines": [],
+      "primaryCommands": [
+        "          npx wrangler d1 execute fbis --remote --file=migrations/0079_cbb_persistent_directory_phase_a.sql",
+        "              if npx wrangler d1 execute fbis --remote --file=\"$f\"; then",
+        "          npx wrangler d1 execute fbis --remote --command=\"SELECT id,snapshot_id,status,canonical_teams,players,roster_memberships,state_events,team_snapshots,player_snapshots,schedule_items FROM cbb_directory_population_runs ORDER BY completed_at DESC LIMIT 1; SELECT state_family,mode,target_scope,can_influence_projection,can_qualify,can_authorize_wager FROM cbb_state_overlay_governance ORDER BY state_family;\""
+      ],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-directory-phase-b.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [
+        "          row=\"$(npx wrangler d1 execute fbis --remote --json --command=\"SELECT canonical_teams,players,roster_memberships,state_events,team_snapshots,player_snapshots,schedule_items,status FROM cbb_directory_population_runs ORDER BY completed_at DESC LIMIT 1;\")\"",
+        "          npx wrangler d1 execute fbis --remote --json --command=\"SELECT DISTINCT p.player_id,p.canonical_name,m.team_id,m.season FROM cbb_players p JOIN cbb_roster_membership m ON m.player_id=p.player_id;\" | jq '.[0].results' > artifacts/cbb-phase-b-source/phase-a-players.json",
+        "          npx wrangler d1 execute fbis --remote --json --command=\"SELECT player_id,provider,provider_player_id FROM cbb_player_provider_ids WHERE provider='ESPN';\" | jq '.[0].results' > artifacts/cbb-phase-b-source/existing-provider-ids.json",
+        "          npx wrangler d1 execute fbis --remote --file=migrations/0084_cbb_directory_phase_b.sql",
+        "          col=\"$(npx wrangler d1 execute fbis --remote --json --command=\"PRAGMA table_info(cbb_game_state_snapshots);\")\"",
+        "            npx wrangler d1 execute fbis --remote --file=migrations/0096_cbb_phase_b_future_transfer_leakage.sql",
+        "              if npx wrangler d1 execute fbis --remote --file=\"$f\"; then ok=1; break; fi",
+        "          npx wrangler d1 execute fbis --remote --command=\""
+      ],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-fbis-native-v1.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-fbis-vs-kenpom-v1.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-market-information-v1.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-money-selector-v1.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-phase-b-finalize.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-pit-freeze-v1.yml",
+      "scheduleLines": [],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-player-prop-settlement.yml",
+      "scheduleLines": [
+        "  schedule:",
+        "    - cron: \"25 13 * * *\"",
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-player-system-v2.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-possession-v1.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-pro-weight-optimization.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-structural-snapshot.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:",
+        "  schedule:",
+        "    - cron: \"17 12 * * 1\""
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/cbb-v4-headtohead.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:",
+        "              jq -c '{state,failures,staleChecks,pipeline:{failedWrites:.pipeline.failedWrites,failedHarvests:.pipeline.failedHarvests,retryOpen:.pipeline.retryOpen,schedule:.pipeline.schedule},operatorNotes}' \"$tmp\" || true"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/college-shared-quota.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/college.yml",
+      "scheduleLines": [
+        "  schedule:",
+        "    - cron: \"30 12 * * *\"",
+        "    - cron: \"30 13 * * *\"",
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/continuous-learning-governance.yml",
+      "scheduleLines": [
+        "  schedule:",
+        "    - cron: \"10 11 * * *\"",
+        "    - cron: \"10 12 * * *\"",
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/daily-results-grade.yml",
+      "scheduleLines": [
+        "  schedule:",
+        "    - cron: \"20 12 * * *\"",
+        "    - cron: \"20 13 * * *\"",
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/harvest.yml",
+      "scheduleLines": [
+        "  schedule:",
+        "    - cron: \"0 13,16 * * *\"",
+        "    - cron: \"0 0,2,18,20,22 * * *\"",
+        "    - cron: \"20 11,16 * * *\"",
+        "    - cron: \"35 * * * *\"",
+        "  workflow_dispatch:",
+        "          jq '{state,failures,staleChecks,operatorNotes,schedule:.pipeline.schedule,settleTargets:.pipeline.settleTargets,retryOpen:.pipeline.retryOpen,commit:.deploymentCommit}' \"$tmp\""
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/hourly-bet-settlement.yml",
+      "scheduleLines": [
+        "  schedule:",
+        "    - cron: \"17 * * * *\"",
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/model-learning-cycle.yml",
+      "scheduleLines": [
+        "  schedule:",
+        "    - cron: \"30 10 * * 1\"",
+        "    - cron: \"30 11 * * 1\"",
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/projection-sheet-export.yml",
+      "scheduleLines": [
+        "  schedule:",
+        "    - cron: \"17 * * * *\"",
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/sport-delta-sync-recurring.yml",
+      "scheduleLines": [
+        "  schedule:",
+        "    - cron: \"5,25,45 * * * *\"",
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/sport-migration-qualify.yml",
+      "scheduleLines": [
+        "  schedule:",
+        "    - cron: \"15,45 * * * *\"",
+        "  workflow_dispatch:"
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    },
+    {
+      "path": ".github/workflows/sport-prefix-backfill-sprint.yml",
+      "scheduleLines": [
+        "  workflow_dispatch:",
+        "  schedule:",
+        "    - cron: \"12 */2 * * *\""
+      ],
+      "primaryCommands": [],
+      "latestRun": "NOT_VERIFIED"
+    }
+  ],
+  "phaseA": "INCOMPLETE",
+  "readyForCutover": false,
+  "authorityActivated": false,
+  "canAuthorizeWager": false,
+  "blockers": [
+    "Manual call-graph review of every candidate remains required",
+    "Latest scheduled run receipts remain required",
+    "Live exhaustive field and key parity remains required"
+  ]
+}

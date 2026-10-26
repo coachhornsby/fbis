@@ -1,0 +1,1790 @@
+{
+  "checkedAt": "2026-10-26T01:18:16.145Z",
+  "databases": {
+    "primary": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+    "cbb": "f00af21e-72b5-4e7c-bb10-b08f2c59dace"
+  },
+  "primary": [
+    {
+      "table": "cbb_availability_observations",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 15 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_availability_pit",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_canonical_teams",
+      "count": 362,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "team_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 19 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_team_active",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 2 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_conference_membership",
+      "count": 361,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 9 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_conf_pit",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_directory_phase_b_runs",
+      "count": 7,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 21 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_phase_b_runs_time",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_directory_population_runs",
+      "count": 1,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "snapshot_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 14 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_directory_population_runs_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_game_state_snapshots",
+      "count": 1546,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 23 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_game_state_cutoff",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 2 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_player_aliases",
+      "count": 28024,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 7 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_player_alias_lookup",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 2 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_player_prop_signals",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 27 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_prop_signals_player",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 3 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_player_provider_ids",
+      "count": 4751,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 8 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_provider_player",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 2 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_player_state_snapshots",
+      "count": 67679,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 18 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_player_snapshot_team",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 2 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_players",
+      "count": 28019,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "player_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 14 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_player_name",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        {
+          "seq": 1,
+          "name": "sqlite_autoindex_cbb_players_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_roster_membership",
+      "count": 44098,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 12 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_roster_player_pit",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 2 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_roster_observations",
+      "count": 28506,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 19 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_roster_obs_pit",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_rotation_observations",
+      "count": 28332,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 24 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_rotation_pit",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_schedule_items",
+      "count": 87756,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 14 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_schedule_team_date",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_shadow_challenger_definitions",
+      "count": 11,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 9 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_shadow_challenger_definitions_2",
+          "unique": 1,
+          "origin": "u",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_state_events",
+      "count": 146172,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 19 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_state_family_time",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 3 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_state_overlay_governance",
+      "count": 7,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "state_family",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 8 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_state_overlay_governance_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_team_aliases",
+      "count": 1049,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 9 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_team_alias_lookup",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 2 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_team_context_observations",
+      "count": 2172,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 21 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_team_context_pit",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_team_profile_snapshots",
+      "count": 359,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "snapshot_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 15 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_profile_season",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 2 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_team_state_snapshots",
+      "count": 4733,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 16 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_cbb_team_snapshot_time",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "games",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "sport",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 7 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_games_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "odds_snapshots",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 17 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_odds_close",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        {
+          "seq": 1,
+          "name": "idx_odds_game_time",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "prediction_snapshots",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 42 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_snap_game",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 2 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "predictions",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 37 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_predictions_sport_date",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "published_projections",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        "--- TRUNCATED --- 9 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_published_projections_game",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 2 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "team_form",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "sport",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "season",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 2
+        },
+        "--- TRUNCATED --- 5 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_team_form_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "team_form_games",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "sport",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "game_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 2
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_team_form_games_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    }
+  ],
+  "cbb": [
+    {
+      "table": "cbb_availability_observations",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "player_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "team_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 13 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_availability_observations_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_canonical_teams",
+      "count": 362,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "team_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "espn_team_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "school_name",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 17 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_canonical_teams_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_conference_membership",
+      "count": 361,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "team_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "conference_name",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 7 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_conference_membership_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_directory_phase_b_runs",
+      "count": 7,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "season",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "observed_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 19 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_directory_phase_b_runs_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_directory_population_runs",
+      "count": 1,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "snapshot_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "source_run_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 13 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_directory_population_runs_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_game_state_snapshots",
+      "count": 1546,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "game_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "season",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 21 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_game_state_snapshots_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_player_aliases",
+      "count": 28024,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "player_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "alias",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 5 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_player_aliases_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_player_provider_ids",
+      "count": 4751,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "player_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "provider",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 6 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_player_provider_ids_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_player_state_snapshots",
+      "count": 67679,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "player_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "team_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 16 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_player_state_snapshots_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_players",
+      "count": 28019,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "player_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "canonical_name",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "identity_status",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 12 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_players_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_roster_membership",
+      "count": 44098,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "player_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "team_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 10 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_roster_membership_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_roster_observations",
+      "count": 28506,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "player_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "team_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 17 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_roster_observations_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_rotation_observations",
+      "count": 8000,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "player_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "team_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 22 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_rotation_observations_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_schedule_items",
+      "count": 87756,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "game_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "team_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 12 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_schedule_items_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_shadow_challenger_definitions",
+      "count": 11,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "target",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 8 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_shadow_challenger_definitions_2",
+          "unique": 1,
+          "origin": "u",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_state_events",
+      "count": 8000,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "entity_type",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "entity_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 17 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_state_events_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_state_overlay_governance",
+      "count": 7,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "state_family",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "overlay_version",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": "'FBIS-STATE-OVERLAY-v1'",
+          "pk": 0
+        },
+        "--- TRUNCATED --- 7 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_state_overlay_governance_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_team_aliases",
+      "count": 1049,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "team_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "alias",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 7 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_team_aliases_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_team_context_observations",
+      "count": 2172,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "team_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "season",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 19 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_team_context_observations_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_team_profile_snapshots",
+      "count": 359,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "snapshot_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "canonical_team_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "provider_team_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 13 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_team_profile_snapshots_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "cbb_team_state_snapshots",
+      "count": 4733,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "team_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "season",
+          "type": "INTEGER",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 14 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "sqlite_autoindex_cbb_team_state_snapshots_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "games",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "sport",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 14 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_sport_games_sport_start",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        {
+          "seq": 1,
+          "name": "idx_sport_games_start",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        "--- TRUNCATED --- 1 more items"
+      ],
+      "success": true
+    },
+    {
+      "table": "prediction_snapshots",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "game_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "sport",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 41 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_sport_pred_game",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        {
+          "seq": 1,
+          "name": "sqlite_autoindex_prediction_snapshots_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    },
+    {
+      "table": "published_projections",
+      "count": 0,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "game_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "sport",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        "--- TRUNCATED --- 7 more items"
+      ],
+      "indexes": [
+        {
+          "seq": 0,
+          "name": "idx_sport_pub_game",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0
+        },
+        {
+          "seq": 1,
+          "name": "sqlite_autoindex_published_projections_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0
+        }
+      ],
+      "success": true
+    }
+  ],
+  "evidenceLimitations": [
+    "Connector truncated nested column/index arrays. Do not treat this file as a full schema export. See schema-gaps.json for full PRAGMA comparison results."
+  ]
+}

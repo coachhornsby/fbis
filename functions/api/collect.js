@@ -91,6 +91,7 @@ export async function onRequestGet(context) {
         CBBD_API_KEY: context.env.CBBD_API_KEY,
         caches: caches.default,
         ARCHIVE: context.env.ARCHIVE,
+        ...sportDbContext(context.env),
         DB: context.env.DB,
       });
     }

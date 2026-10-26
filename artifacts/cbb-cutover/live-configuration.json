@@ -1,0 +1,179 @@
+{
+  "checkedAt": "2026-10-26T01:19:19.773Z",
+  "production": {
+    "bindings": {
+      "CBB_DB": {
+        "id": "f00af21e-72b5-4e7c-bb10-b08f2c59dace"
+      },
+      "CFB_DB": {
+        "id": "b589c91c-c53d-4f4a-9d32-99c4468e3033"
+      },
+      "COLD_HISTORY_DB": {
+        "id": "6fad1baf-126f-4ab8-9b80-a7d71637d6d4"
+      },
+      "CORE_DB": {
+        "id": "a5b438fa-eb16-4f03-95d7-1fc58ac72f04"
+      },
+      "DB": {
+        "id": "b50c724c-903b-4241-8ce1-48d931e7a44c"
+      },
+      "KBO_DB": {
+        "id": "77a8e7bc-c022-490f-98df-3adb479d1e52"
+      },
+      "MARKET_HISTORY_2026Q4B_DB": {
+        "id": "bb240435-e227-43e9-b8a6-eb05f0c68d4c"
+      },
+      "MARKET_HISTORY_2026Q4_DB": {
+        "id": "e8b0b65d-90a6-4842-8ee7-0f85d75afb4c"
+      },
+      "MARKET_HISTORY_DB": {
+        "id": "c32ccf06-c896-4d24-bb89-3e87a7412899"
+      },
+      "MLB_DB": {
+        "id": "b188629e-cdf7-49e6-b693-dead80777377"
+      },
+      "NBA_DB": {
+        "id": "ed992525-d2ed-4b1d-8a12-feeb2efa152c"
+      },
+      "NFL_DB": {
+        "id": "0a49cad0-4bf9-4e01-88ce-be54123f712d"
+      },
+      "NHL_DB": {
+        "id": "a0aa010c-40d3-4d2f-8109-eca4e74e2a73"
+      },
+      "NPB_DB": {
+        "id": "010ef83f-a472-4ab2-b9af-589541895e8e"
+      },
+      "OPERATIONS_DB": {
+        "id": "2371df3a-17bf-44d6-abf0-d275cf2f331e"
+      },
+      "SOCCER_DB": {
+        "id": "c275978c-fce9-49c9-a1ce-4e2fcbea6d23"
+      },
+      "TENNIS_DB": {
+        "id": "c491e479-f9f6-49a9-ace9-962aef68cc64"
+      },
+      "TIER3_DB": {
+        "id": "3dcddd30-8790-48f0-a6a3-cc3ad9b95295"
+      },
+      "WNBA_DB": {
+        "id": "94e40293-d433-493e-af9e-0564ea1b6fcb"
+      }
+    },
+    "vars": {
+      "SPORT_DB_MODE_CBB": {
+        "type": "plain_text",
+        "value": "shadow"
+      }
+    }
+  },
+  "preview": {
+    "bindings": {
+      "CBB_DB": {
+        "id": "f00af21e-72b5-4e7c-bb10-b08f2c59dace"
+      },
+      "CFB_DB": {
+        "id": "b589c91c-c53d-4f4a-9d32-99c4468e3033"
+      },
+      "COLD_HISTORY_DB": {
+        "id": "6fad1baf-126f-4ab8-9b80-a7d71637d6d4"
+      },
+      "CORE_DB": {
+        "id": "a5b438fa-eb16-4f03-95d7-1fc58ac72f04"
+      },
+      "DB": {
+        "id": "b50c724c-903b-4241-8ce1-48d931e7a44c"
+      },
+      "KBO_DB": {
+        "id": "77a8e7bc-c022-490f-98df-3adb479d1e52"
+      },
+      "MARKET_HISTORY_2026Q4B_DB": {
+        "id": "bb240435-e227-43e9-b8a6-eb05f0c68d4c"
+      },
+      "MARKET_HISTORY_2026Q4_DB": {
+        "id": "e8b0b65d-90a6-4842-8ee7-0f85d75afb4c"
+      },
+      "MARKET_HISTORY_DB": {
+        "id": "c32ccf06-c896-4d24-bb89-3e87a7412899"
+      },
+      "MLB_DB": {
+        "id": "b188629e-cdf7-49e6-b693-dead80777377"
+      },
+      "NBA_DB": {
+        "id": "ed992525-d2ed-4b1d-8a12-feeb2efa152c"
+      },
+      "NFL_DB": {
+        "id": "0a49cad0-4bf9-4e01-88ce-be54123f712d"
+      },
+      "NHL_DB": {
+        "id": "a0aa010c-40d3-4d2f-8109-eca4e74e2a73"
+      },
+      "NPB_DB": {
+        "id": "010ef83f-a472-4ab2-b9af-589541895e8e"
+      },
+      "OPERATIONS_DB": {
+        "id": "2371df3a-17bf-44d6-abf0-d275cf2f331e"
+      },
+      "SOCCER_DB": {
+        "id": "c275978c-fce9-49c9-a1ce-4e2fcbea6d23"
+      },
+      "TENNIS_DB": {
+        "id": "c491e479-f9f6-49a9-ace9-962aef68cc64"
+      },
+      "TIER3_DB": {
+        "id": "3dcddd30-8790-48f0-a6a3-cc3ad9b95295"
+      },
+      "WNBA_DB": {
+        "id": "94e40293-d433-493e-af9e-0564ea1b6fcb"
+      }
+    },
+    "vars": {
+      "SPORT_DB_MODE_CBB": {
+        "type": "plain_text",
+        "value": "shadow"
+      }
+    }
+  },
+  "deployment": {
+    "id": "b5e20206-dcda-4537-94f5-a9d8d6d257be",
+    "url": "https://b5e20206.fbis-myz.pages.dev",
+    "trigger": {
+      "type": "ad_hoc",
+      "metadata": {
+        "branch": "main",
+        "commit_hash": "5f834cbcbfa39b2455505b353e6ac0f9a547e1bd",
+        "commit_message": "deploy 5f834cbcbfa39b2455505b353e6ac0f9a547e1bd",
+        "commit_dirty": false
+      }
+    },
+    "status": {
+      "name": "deploy",
+      "started_on": null,
+      "ended_on": "2026-10-26T00:39:23.568307Z",
+      "status": "success"
+    }
+  },
+  "coreApproval": [
+    {
+      "results": [],
+      "success": true,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "ENAM",
+        "served_by_colo": "MIA",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 0.4867
+        },
+        "duration": 0.4867,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 7000064,
+        "rows_read": 0,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    }
+  ]
+}
