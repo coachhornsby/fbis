@@ -30,17 +30,22 @@ const m={match_id:'match-1',tour:'wta',source:'WTA_OFFICIAL',
 const v2={id:'v2-1',canonical_event_id:'match-1',tour:'wta',
  player1:'Daria Kasatkina',player2:'Talia Gibson',
  snapshot_type:'PURE_FIXTURE',pure_model_id:'TENNIS-FBIS-v2-CONTEXT',
- pure_p1:.45,decision_timestamp:'2026-10-25T22:01:00Z',
+ pure_p1:.45,decision_timestamp:'2026-10-25T11:28:56Z',
+ context_json:JSON.stringify({eventProof:{matchId:'match-1',source:'WTA_OFFICIAL',
+  player1Id:'p1',player2Id:'p2',startTime:start,
+  observedAt:'2026-10-25T11:28:38Z'}}),
  event_start_time:start,can_authorize_wager:0};
 const rank={snapshot_id:'rank-1',canonical_event_id:'match-1',tour:'wta',
  player1_id:'p1',player2_id:'p2',model_id:'TENNIS-INHOUSE-RANK-BASELINE-v1',
- p1_win:.4,forecast_at:'2026-10-25T22:11:00Z',
- event_start_time:start,rank_observed1_at:'2026-10-25T20:00:00Z',
- rank_observed2_at:'2026-10-25T20:00:00Z',can_authorize_wager:0};
+ p1_win:.4,forecast_at:'2026-10-25T11:28:57Z',
+ event_start_time:start,rank_observed1_at:'2026-10-18T20:00:00Z',
+ rank_observed2_at:'2026-10-18T20:00:00Z',can_authorize_wager:0};
 test('official result evidence and immutable pre-start snapshot create a comparable receipt',()=>{
  const g=gradeFrozenTennisSnapshot(f,m,{v2:[v2],ranking:[rank]});
  assert.equal(g.ok,true);assert.equal(g.y,0);
  assert.equal(g.fullyPaired,true);
+ assert.ok(Date.parse(v2.decision_timestamp)<Date.parse(f.event_observed_at));
+ assert.ok(Date.parse(rank.forecast_at)<Date.parse(f.event_observed_at));
  assert.equal(g.challenger.brier,.495**2);
  assert.equal(g.champion.brier,.45**2);
  assert.equal(g.ranking.brier,.4**2);
@@ -92,7 +97,7 @@ test('separate PRIMARY settlement and TENNIS_DB immutable grade capture is idemp
    player2_sets INTEGER,raw_artifact_key TEXT,provenance_json TEXT,observed_at TEXT);
    CREATE TABLE tennis_v2_research_decisions(id TEXT PRIMARY KEY,canonical_event_id TEXT,
    tour TEXT,player1 TEXT,player2 TEXT,snapshot_type TEXT,pure_model_id TEXT,
-   pure_p1 REAL,can_authorize_wager INTEGER,decision_timestamp TEXT,event_start_time TEXT);
+   pure_p1 REAL,can_authorize_wager INTEGER,decision_timestamp TEXT,event_start_time TEXT,context_json TEXT);
    CREATE TABLE tennis_inhouse_rank_challenger(snapshot_id TEXT PRIMARY KEY,
    canonical_event_id TEXT,tour TEXT,player1_id TEXT,player2_id TEXT,model_id TEXT,
    p1_win REAL,can_authorize_wager INTEGER,rank_observed1_at TEXT,
