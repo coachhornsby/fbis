@@ -5,6 +5,14 @@ on:
       - "scripts/cfb-phase4-diagnostics.mjs"
       - "scripts/cfb-phase4-possessions.mjs"
       - "scripts/cfb-phase4-possession-challenger.mjs"
+      - "scripts/cfb-phase5-pbp-integrity.mjs"
+      - "scripts/cfb-phase5-cross-provider-pbp.mjs"
+      - "scripts/cfb-phase5-pbp-alternate.mjs"
+      - "scripts/cfb-phase5-ncaa-pbp.mjs"
+      - "test/cfb-phase5-ncaa-pbp.test.js"
+      - "scripts/cfb-phase5-ncaa-timeline.mjs"
+      - "test/cfb-phase5-ncaa-timeline.test.js"
+      - "test/cfb-phase5-pbp-integrity.test.js"
       - "scripts/cfb-phase4-ncaa-verify.mjs"
       - "scripts/cfb-phase4-export-d1-sql.mjs"
       - "test/cfb-phase4-ncaa-verify.test.js"
@@ -18,11 +26,14 @@ on:
       - 'scripts/cfb-phase4-diagnostics.mjs'
       - 'scripts/cfb-phase4-possessions.mjs'
       - 'scripts/cfb-phase4-possession-challenger.mjs'
+      - 'scripts/cfb-phase5-pbp-integrity.mjs'
+      - 'scripts/cfb-phase5-cross-provider-pbp.mjs'
+      - 'scripts/cfb-phase5-pbp-alternate.mjs'
+      - 'scripts/cfb-phase5-ncaa-pbp.mjs'
+      - 'scripts/cfb-phase5-ncaa-timeline.mjs'
       - 'scripts/cfb-phase4-ncaa-verify.mjs'
       - 'scripts/cfb-phase4-export-d1-sql.mjs'
       - '.github/workflows/cfb-phase4-research.yml'
-  schedule:
-    - cron: '20 13 * * 1'
 permissions:
   contents: read
 jobs:
@@ -36,6 +47,12 @@ jobs:
           node-version: "22"
       - name: Test independent NCAA matching requirements
         run: node --test test/cfb-phase4-ncaa-verify.test.js
+      - name: Test structural play-by-play and NCAA terminal-score requirements
+        run: node --test test/cfb-phase5-pbp-integrity.test.js
+      - name: Validate NCAA independent PBP collection contract
+        run: node --test test/cfb-phase5-ncaa-pbp.test.js
+      - name: Test independent NCAA timeline structural consistency
+        run: node --test test/cfb-phase5-ncaa-timeline.test.js
       - name: Collect immutable secondary game evidence
         id: collect
         continue-on-error: true
@@ -56,6 +73,31 @@ jobs:
         id: ncaa
         continue-on-error: true
         run: node scripts/cfb-phase4-ncaa-verify.mjs
+      - name: Verify raw play identity, drive coverage, and final-score consistency
+        id: pbp_integrity
+        continue-on-error: true
+        run: node scripts/cfb-phase5-pbp-integrity.mjs
+      - name: Fetch alternate CDN evidence for contradictory terminal play scores
+        id: pbp_alternate
+        continue-on-error: true
+        run: node scripts/cfb-phase5-pbp-alternate.mjs
+      - name: Crosscheck play source coverage with licensed CFBD API
+        id: pbp_cross_source
+        continue-on-error: true
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+          CFBD_API_TOKEN: ${{ secrets.CFBD_API_TOKEN }}
+        run: |
+          node --check scripts/cfb-phase5-cross-provider-pbp.mjs
+          node scripts/cfb-phase5-cross-provider-pbp.mjs
+      - name: Collect NCAA.com independent play-by-play timelines
+        id: ncaa_pbp
+        continue-on-error: true
+        run: node scripts/cfb-phase5-ncaa-pbp.mjs
+      - name: Certify NCAA quarterly timeline and terminal-score integrity
+        id: ncaa_timeline
+        continue-on-error: true
+        run: node scripts/cfb-phase5-ncaa-timeline.mjs
       - name: Evaluate forward-chained possession Monte Carlo challenger
         id: challenger
         continue-on-error: true
@@ -101,5 +143,5 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
       - name: Reject incomplete research cycle
-        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success' || steps.ncaa.outcome != 'success' || steps.challenger.outcome != 'success'
+        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success' || steps.ncaa.outcome != 'success' || steps.challenger.outcome != 'success' || steps.pbp_integrity.outcome != 'success' || steps.pbp_cross_source.outcome != 'success' || steps.pbp_alternate.outcome != 'success' || steps.ncaa_pbp.outcome != 'success' || steps.ncaa_timeline.outcome != 'success'
         run: exit 1
