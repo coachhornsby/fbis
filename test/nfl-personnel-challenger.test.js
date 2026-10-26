@@ -146,9 +146,8 @@ test("fresh roster presence permits an explicitly provisional lineup without cla
  assert.equal(r.projectionsProvisional,true);
 });
 test("a roster-presence OUT never creates a fake confirmed absence; verified OUT does",()=>{
- const a=roster("dal",5),b=roster("phi",0);
+ const a=roster("dal",0),b=roster("phi",0);
  for(const p of [...a,...b])p.state_source="roster-presence";
- const reported=roster("dal",5);
  a[0].health_state="OUT"; // a stale or synthetic roster OUT cannot trigger scoring
  const none=evaluateNflPersonnelResearch(base({homePlayers:a,awayPlayers:b}));
  assert.equal(none.researchEligible,false); // top-depth unverified absent forces no numerical output
