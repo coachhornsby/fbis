@@ -1,0 +1,11 @@
+{
+  "sha256": {
+    "live-baseline.json": "506372fefc3e7901b065c57988f0b8a4ae054f6d6a87a8d46b5dcefe381037e5",
+    "live-configuration.json": "275d5d5a48448977a2649360be0ccd6fb9c600259d7cd89c2f1e8eb700d4df0c",
+    "ownership-manifest.json": "0e6d4c64c289f1ae6039ebd4984221d8defa0a1c34b109c52bcea2253dac62e4",
+    "schema-gaps.json": "96445ba3afc606e1e3d3a3fc7ab5e8e6bbfd2d5e4c7afc21ae6b44cc0e7005fa",
+    "tests.txt": "991c187babed18dd7567ba1119a596ce76295bb544f006630e46909252670e68"
+  },
+  "authorityActivated": false,
+  "certified": false
+}

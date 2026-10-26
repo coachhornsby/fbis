@@ -1,0 +1,156 @@
+{
+  "checkedAt": "2026-10-26T01:25:11.666Z",
+  "certified": false,
+  "method": "Full PRAGMA comparisons performed within Cloudflare execution; source/target inventories in live-baseline.json have connector-truncated nested arrays.",
+  "tables": {
+    "cbb_availability_observations": {
+      "columnCountSource": 16,
+      "columnCountTarget": 16,
+      "gapCount": 4,
+      "gaps": "stale.dflt_value;pit_eligible.dflt_value;research_only.dflt_value;index:idx_cbb_availability_pit"
+    },
+    "cbb_canonical_teams": {
+      "columnCountSource": 20,
+      "columnCountTarget": 20,
+      "gapCount": 7,
+      "gaps": "classification.dflt_value;active.dflt_value;research_only.dflt_value;can_influence_projection.dflt_value;index:idx_cbb_team_active;index:idx_cbb_team_espn;UNIQUE_CONTRACT_MISSING"
+    },
+    "cbb_conference_membership": {
+      "columnCountSource": 10,
+      "columnCountTarget": 10,
+      "gapCount": 1,
+      "gaps": "index:idx_cbb_conf_pit"
+    },
+    "cbb_directory_phase_b_runs": {
+      "columnCountSource": 22,
+      "columnCountTarget": 22,
+      "gapCount": 1,
+      "gaps": "index:idx_cbb_phase_b_runs_time"
+    },
+    "cbb_directory_population_runs": {
+      "columnCountSource": 16,
+      "columnCountTarget": 16,
+      "gapCount": 0,
+      "gaps": ""
+    },
+    "cbb_game_state_snapshots": {
+      "columnCountSource": 24,
+      "columnCountTarget": 24,
+      "gapCount": 13,
+      "gaps": "post_tip_observations.dflt_value;future_membership_leaks.dflt_value;future_availability_leaks.dflt_value;future_lineup_leaks.dflt_value;future_transfer_leaks.dflt_value;mode.dflt_value;overlay_version.dflt_value;research_only.dflt_value;can_influence_projection.dflt_value;can_qualify.dflt_value;can_authorize_wager.dflt_value;index:idx_cbb_game_state_cutoff;UNIQUE_CONTRACT_MISSING"
+    },
+    "cbb_player_aliases": {
+      "columnCountSource": 8,
+      "columnCountTarget": 8,
+      "gapCount": 2,
+      "gaps": "index:idx_cbb_player_alias_lookup;UNIQUE_CONTRACT_MISSING"
+    },
+    "cbb_player_prop_signals": "DEFERRED_PROPS",
+    "cbb_player_provider_ids": {
+      "columnCountSource": 9,
+      "columnCountTarget": 9,
+      "gapCount": 2,
+      "gaps": "index:idx_cbb_provider_player;UNIQUE_CONTRACT_MISSING"
+    },
+    "cbb_player_state_snapshots": {
+      "columnCountSource": 19,
+      "columnCountTarget": 19,
+      "gapCount": 7,
+      "gaps": "starter_role.dflt_value;availability_status.dflt_value;injury_status.dflt_value;research_only.dflt_value;can_influence_projection.dflt_value;index:idx_cbb_player_snapshot_team;index:idx_cbb_player_snapshot_time"
+    },
+    "cbb_players": {
+      "columnCountSource": 15,
+      "columnCountTarget": 15,
+      "gapCount": 4,
+      "gaps": "identity_status.dflt_value;research_only.dflt_value;can_influence_projection.dflt_value;index:idx_cbb_player_name"
+    },
+    "cbb_roster_membership": {
+      "columnCountSource": 13,
+      "columnCountTarget": 13,
+      "gapCount": 3,
+      "gaps": "pit_resolvable.dflt_value;index:idx_cbb_roster_player_pit;index:idx_cbb_roster_team_pit"
+    },
+    "cbb_roster_observations": {
+      "columnCountSource": 20,
+      "columnCountTarget": 20,
+      "gapCount": 4,
+      "gaps": "stale.dflt_value;pit_eligible.dflt_value;research_only.dflt_value;index:idx_cbb_roster_obs_pit"
+    },
+    "cbb_rotation_observations": {
+      "columnCountSource": 25,
+      "columnCountTarget": 25,
+      "gapCount": 1,
+      "gaps": "index:idx_cbb_rotation_pit"
+    },
+    "cbb_schedule_items": {
+      "columnCountSource": 15,
+      "columnCountTarget": 15,
+      "gapCount": 2,
+      "gaps": "research_only.dflt_value;index:idx_cbb_schedule_team_date"
+    },
+    "cbb_shadow_challenger_definitions": {
+      "columnCountSource": 10,
+      "columnCountTarget": 10,
+      "gapCount": 0,
+      "gaps": ""
+    },
+    "cbb_state_events": {
+      "columnCountSource": 20,
+      "columnCountTarget": 20,
+      "gapCount": 3,
+      "gaps": "index:idx_cbb_state_family_time;index:idx_cbb_state_team_time;index:idx_cbb_state_entity_time"
+    },
+    "cbb_state_overlay_governance": {
+      "columnCountSource": 9,
+      "columnCountTarget": 9,
+      "gapCount": 0,
+      "gaps": ""
+    },
+    "cbb_team_aliases": {
+      "columnCountSource": 10,
+      "columnCountTarget": 10,
+      "gapCount": 2,
+      "gaps": "index:idx_cbb_team_alias_lookup;UNIQUE_CONTRACT_MISSING"
+    },
+    "cbb_team_context_observations": {
+      "columnCountSource": 22,
+      "columnCountTarget": 22,
+      "gapCount": 1,
+      "gaps": "index:idx_cbb_team_context_pit"
+    },
+    "cbb_team_profile_snapshots": {
+      "columnCountSource": 16,
+      "columnCountTarget": 16,
+      "gapCount": 9,
+      "gaps": "source.dflt_value;source_endpoint.dflt_value;profile_version.dflt_value;research_only.dflt_value;can_influence_projection.dflt_value;can_qualify.dflt_value;can_authorize_wager.dflt_value;index:idx_cbb_profile_season;index:idx_cbb_profile_team_season_pit"
+    },
+    "cbb_team_state_snapshots": {
+      "columnCountSource": 17,
+      "columnCountTarget": 17,
+      "gapCount": 4,
+      "gaps": "availability_state.dflt_value;research_only.dflt_value;can_influence_projection.dflt_value;index:idx_cbb_team_snapshot_time"
+    },
+    "games": {
+      "columnCountSource": 9,
+      "columnCountTarget": 16,
+      "gapCount": 2,
+      "gaps": "date.notnull;updated_at.notnull"
+    },
+    "odds_snapshots": "MISSING_TARGET_TABLE",
+    "prediction_snapshots": {
+      "columnCountSource": 43,
+      "columnCountTarget": 44,
+      "gapCount": 5,
+      "gaps": "date.notnull;checkpoint.notnull;frozen_at.notnull;index:idx_snap_game;index:idx_snap_sport_date"
+    },
+    "predictions": "MISSING_TARGET_TABLE",
+    "published_projections": {
+      "columnCountSource": 10,
+      "columnCountTarget": 10,
+      "gapCount": 9,
+      "gaps": "id.type;game_date.notnull;payload_hash.notnull;payload_json.notnull;published_at.notnull;published_by.notnull;published_by.dflt_value;index:idx_published_projections_game;index:idx_published_projections_date"
+    },
+    "team_form": "MISSING_TARGET_TABLE",
+    "team_form_games": "MISSING_TARGET_TABLE"
+  }
+}

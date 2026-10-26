@@ -1,3 +1,4 @@
+import { cbbResearchOwner } from "./cbbResearchOwner.js";
 /**
  * CBBD Shooting Profile Explorer -> FBIS CBB research-only team snapshots.
  * Never calls CBBD. The ONLY network entry is the scheduled college collector,
@@ -131,14 +132,18 @@ export function buildCbbTeamProfiles(rows, {season, observedAt} = {}) {
 }
 
 export async function persistCbbTeamProfiles(env,rows,{season,observedAt=new Date().toISOString(),jobRunId=null}={}) {
-  if (!env?.DB?.prepare || !env?.DB?.batch)
+  let db;
+  try { ({db}=await cbbResearchOwner(env)); }
+  catch(error) { return {ok:false,reason:error.message === "CBB_PRIMARY_UNBOUND"
+    ? "CBB_PROFILE_D1_REQUIRED" : error.message,networkCalls:0}; }
+  if (!db?.prepare || !db?.batch)
     return {ok:false,reason:"CBB_PROFILE_D1_REQUIRED",networkCalls:0};
   const built=buildCbbTeamProfiles(rows,{season,observedAt});
   if (!built.profiles.length)
     return {ok:false,reason:"CBB_PROFILE_NO_MATCHED_TEAMS",...built,networkCalls:0};
   try {
     // Abort rather than reporting success when migration has not landed.
-    const table=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='cbb_team_profile_snapshots'").first();
+    const table=await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='cbb_team_profile_snapshots'").first();
     if (!table?.name) return {ok:false,reason:"CBB_PROFILE_SCHEMA_NOT_APPLIED",...built,networkCalls:0};
     let inserted=0, already=0;
     for (let offset=0;offset<built.profiles.length;offset+=40) {
@@ -147,7 +152,7 @@ export async function persistCbbTeamProfiles(env,rows,{season,observedAt=new Dat
       for (const p of group) {
         const hash=await hashPayload(p);
         const id=`cbb-profile:${p.canonicalTeamId}:${p.season}:${p.observedAt.slice(0,10)}:${hash.slice(0,20)}`;
-        stmt.push(env.DB.prepare(`INSERT OR IGNORE INTO cbb_team_profile_snapshots
+        stmt.push(db.prepare(`INSERT OR IGNORE INTO cbb_team_profile_snapshots
           (snapshot_id,canonical_team_id,provider_team_id,season,observed_at,source,
            source_endpoint,profile_version,profile_json,content_hash,job_run_id,
            research_only,can_influence_projection,can_qualify,can_authorize_wager,created_at)
@@ -156,7 +161,7 @@ export async function persistCbbTeamProfiles(env,rows,{season,observedAt=new Dat
             CBB_TEAM_PROFILE_ENDPOINT,CBB_TEAM_PROFILE_VERSION,JSON.stringify(p),hash,
             jobRunId,p.observedAt));
       }
-      const result=await env.DB.batch(stmt);
+      const result=await db.batch(stmt);
       if (!Array.isArray(result) || result.length !== group.length)
         throw new Error("CBB_PROFILE_D1_BATCH_RESULT_INCOMPLETE");
       for (const entry of result) {

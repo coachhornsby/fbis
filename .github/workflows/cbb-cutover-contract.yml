@@ -1,0 +1,29 @@
+name: CBB cutover contract (no authority changes)
+on:
+  pull_request:
+    paths:
+      - 'functions/lib/cbb*.js'
+      - 'functions/lib/databaseTopology.js'
+      - 'functions/lib/sportWorkingCopy.js'
+      - 'functions/api/cbb-team-profiles.js'
+      - 'functions/api/collect.js'
+      - 'test/cbb-research-owner.test.js'
+      - 'scripts/cbb-cutover-audit.mjs'
+      - '.github/workflows/cbb-cutover-contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test test/cbb-research-owner.test.js test/cbb-cutover-shadow-ownership.test.js test/cbb-team-profiles.test.js test/cbb-directory-phase-b.test.js test/cbb-directory-phase-b-sportsdataverse.test.js test/sport-cutover-all11-routing-gate.test.js
+      - run: node scripts/cbb-cutover-audit.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cbb-cutover-owner-inventory
+          path: artifacts/cbb-cutover/ownership-manifest.json

@@ -1,3 +1,4 @@
+import { cbbResearchOwner } from "./cbbResearchOwner.js";
 import { cbbdGet, cbbSeasonYear } from "./collegeApi.js";
 import { mapSourceTeam } from "./collegeIdentity.js";
 import { normalizeCbbIdentity } from "./cbbPersistentDirectory.js";
@@ -51,7 +52,9 @@ function st(db,sql,...p){return db.prepare(sql).bind(...p)}
 async function batches(db,a,size=60){for(let i=0;i<a.length;i+=size)await db.batch(a.slice(i,i+size))}
 
 export async function refreshCbbDirectoryPhaseB(env={},opts={}){
-  const db=env.DB;if(!db)return{ok:false,status:"failed",reason:"d1-unbound"};
+  let db;
+  try { ({db}=await cbbResearchOwner(env)); }
+  catch(error) { return {ok:false,status:"failed",reason:error.message}; }
   const now=iso(opts.observedAt||new Date())||new Date().toISOString();
   const season=Number(opts.season??cbbSeasonYear(new Date(now))),priorSeason=season-1,day=now.slice(0,10);
   if(!await first(db,"SELECT name FROM sqlite_master WHERE type='table' AND name='cbb_directory_phase_b_runs'"))return{ok:true,status:"skipped",reason:"phase-b-schema-not-applied",season};
