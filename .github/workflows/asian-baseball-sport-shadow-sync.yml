@@ -52,7 +52,7 @@ jobs:
           ' "artifacts/asia-shadow-${SPORT}.json" >/dev/null
       - name: Save explicit parity receipt
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: asian-shadow-${{ matrix.sport }}
           path: artifacts/asia-shadow-${{ matrix.sport }}.json

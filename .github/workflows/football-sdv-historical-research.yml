@@ -90,7 +90,7 @@ jobs:
         run: node scripts/football-sdv-source-freshness.mjs
       - name: Publish audited historical findings
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: football-sdv-historical-research-${{ github.run_id }}
           path: |

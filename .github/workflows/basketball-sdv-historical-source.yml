@@ -152,7 +152,7 @@ jobs:
                   print(f"- {k}: {d.get(k)}")
               print("Historical SDV release is NOT pregame prospective evidence.")
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: basketball-sdv-${{ matrix.sport }}-${{ github.run_id }}

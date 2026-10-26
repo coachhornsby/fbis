@@ -31,7 +31,7 @@ jobs:
         run: node scripts/verify-deployment-sha.mjs
       - name: Establish matched forecast markets via REST, then activate WebSocket updates
         run: node scripts/polymarket-bootstrap.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: polymarket-projected-bootstrap-${{ github.run_id }}

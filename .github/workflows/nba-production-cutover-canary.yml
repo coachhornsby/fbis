@@ -42,7 +42,7 @@ jobs:
             --data '{"operation":"core-board-summary-publish"}' | tee nba-core-after-switch.json
           jq -e '.ok==true and .summary.complete==true and (.summary.sports|length)==11' nba-core-after-switch.json
           jq -e 'any(.summary.sports[]; .sport=="nba" and .authority=="SPORT_DB")' nba-core-after-switch.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nba-cutover-production-verification

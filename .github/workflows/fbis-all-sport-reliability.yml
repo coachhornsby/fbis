@@ -49,7 +49,7 @@ jobs:
         run: node scripts/fbis-all-sport-reliability.mjs
       - name: Preserve machine-readable incident evidence
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: fbis-all-sport-reliability-${{ github.run_id }}
           path: artifacts/fbis-all-sport-reliability.json

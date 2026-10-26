@@ -39,7 +39,7 @@ jobs:
         run: node scripts/compact-polymarket-storage-runner.mjs
       - name: Publish bounded migration evidence
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: polymarket-storage-result
           path: /tmp/fbis-polymarket-storage-result.json

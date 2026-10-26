@@ -31,7 +31,7 @@ jobs:
         run: |
           node scripts/verify-mlb-completion-api.mjs
           node scripts/mlb-completion-capture.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always() && github.event_name == 'push'
         with:
           name: mlb-first-capture-${{ github.run_id }}
@@ -79,7 +79,7 @@ jobs:
           else
             node scripts/mlb-completion-cycle.mjs "month=$MONTH"
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: mlb-completion-${{ matrix.month }}-${{ github.run_id }}
@@ -100,7 +100,7 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           MLB_HISTORY_THROUGH: ${{ needs.scope.outputs.through }}
         run: node scripts/mlb-retrospective-k-fit.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: mlb-retrospective-k-${{ github.run_id }}

@@ -67,7 +67,7 @@ jobs:
           if [ -s artifacts/nba-current-grades.sql ]; then
             node scripts/d1-batched-sql.mjs artifacts/nba-current-grades.sql
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always() && github.ref == 'refs/heads/main'
         with:
           name: nba-current-season-grade-${{ github.run_id }}

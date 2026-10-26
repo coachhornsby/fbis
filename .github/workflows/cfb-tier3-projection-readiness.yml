@@ -38,7 +38,7 @@ jobs:
           jq '{source,summary,weekly:[.weekly[]|{season,week,rows,identityMatched,receiptsBeforeKickoff,receiptAndIdentityVerified,clockEvidence,providerPublicationVerified,featureColumns,gate}]}' tier3.json > tier3-audit.json
           cat tier3-audit.json >> "$GITHUB_STEP_SUMMARY"
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfb-tier3-readiness
           path: tier3-audit.json

@@ -34,7 +34,7 @@ jobs:
         run: node scripts/retired-shared-source-scrub.mjs
       - name: Publish row-by-row verified restoration receipts
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: retired-shared-source-scrub
           path: /tmp/fbis-retired-shared-source/

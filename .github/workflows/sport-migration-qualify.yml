@@ -44,7 +44,7 @@ jobs:
           node --test test/nfl-cutover-consumer-inventory.test.js
           node scripts/nfl-cutover-consumer-inventory.mjs artifacts/nfl-cutover-consumers.json >/dev/null
           jq -e '.readyForLiveCutover == false and .authorityActivationPerformed == false and .canAuthorizeWager == false and .directPrimaryCandidateFiles > 0' artifacts/nfl-cutover-consumers.json >/dev/null
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nfl-cutover-consumer-inventory
@@ -87,7 +87,7 @@ jobs:
           node scripts/sport-sync-health-ops.mjs | tee artifacts/sport-sync-health-all.json
           jq -e '.ok==true and .authorityRoutingValid==true and .cutoverAuthorized==false' \
             artifacts/sport-sync-health-all.json >/dev/null
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         if: always() && github.event_name != 'pull_request'
         with:
           name: sport-sync-health-all
@@ -207,14 +207,14 @@ jobs:
           set -euo pipefail
           node scripts/sport-cutover-owner-inventory.mjs artifacts/sport-cutover-owners.json
           jq -e '.authorityActivated==false and .canAuthorizeWager==false and .sports.nba.readyForLiveCutover==false and .sports.nba.consumerReviewComplete==false' artifacts/sport-cutover-owners.json >/dev/null
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         if: always() && matrix.sport == 'nba' && github.event_name != 'pull_request'
         with:
           name: nba-cutover-consumer-inventory
           path: artifacts/sport-cutover-owners.json
           if-no-files-found: error
           retention-days: 30
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         if: always() && github.event_name != 'pull_request'
         with:
           name: sport-qualify-${{ matrix.sport }}
@@ -269,7 +269,7 @@ jobs:
             and .activationPerformed == false
             and .canAuthorizeWager == false
           ' "artifacts/sport-qualify-${SPORT}.json" >/dev/null
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: sport-qualify-${{ matrix.sport }}

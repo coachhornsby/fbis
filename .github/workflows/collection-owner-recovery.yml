@@ -29,7 +29,7 @@ jobs:
           await fs.writeFile('artifacts/nhl-owner-recovery.json',JSON.stringify(body,null,2));
           if(!r.ok||body.ok!==true||body.status!=='success')throw Error('NORMAL_COLLECTION_NOT_SUCCESSFUL');
           JS
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: collection-owner-recovery-${{ github.run_id }}

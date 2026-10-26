@@ -62,7 +62,7 @@ jobs:
           echo "Verified 8 canonical WebSocket records on D1 history shard. Second pass idempotent."
       - name: Retain sanitized SHA-scoped copy evidence
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: market-history-ws-one-shot
           path: artifacts/market-history-ws-pilot.jsonl

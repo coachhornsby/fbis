@@ -23,7 +23,7 @@ jobs:
       - name: Recover any missed existing collection slot within the governed allowance
         run: node scripts/collect-pinnodds-governed.mjs
       - run: node scripts/audit-full-board-markets.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: full-board-market-audit-${{ github.run_id }}

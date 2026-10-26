@@ -28,7 +28,7 @@ jobs:
           cat research-audit.json >> "$GITHUB_STEP_SUMMARY"
       - name: Preserve daily no-wager evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfb-tier3-shadow-research
           path: research-audit.json

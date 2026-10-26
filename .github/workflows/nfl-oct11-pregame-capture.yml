@@ -23,7 +23,7 @@ jobs:
         run: node scripts/nfl-oct11-prospective-capture.mjs
       - name: Retain immutable run-scoped evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nfl-oct11-prospective-${{ github.run_id }}
           path: artifacts/nfl-pregame-oct11/

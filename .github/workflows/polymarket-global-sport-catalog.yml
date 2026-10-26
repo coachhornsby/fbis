@@ -33,7 +33,7 @@ jobs:
         run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
       - name: Archive provider-native, research-only Gamma sport pages
         run: node scripts/collect-polymarket-global-sport-catalog.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: poly-global-sport-catalog-${{ github.run_id }}

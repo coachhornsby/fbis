@@ -40,7 +40,7 @@ jobs:
         run: node scripts/retired-market-history-purge.mjs
       - name: Preserve independently checkable receipts
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: retired-market-history-${{ matrix.db }}
           path: /tmp/retired-market-${{ matrix.db }}.json

@@ -282,7 +282,7 @@ jobs:
           fi
       - name: Upload holdout artifacts
         if: always() && hashFiles('artifacts/**') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfb-core-2025-2026-holdout
           path: artifacts/

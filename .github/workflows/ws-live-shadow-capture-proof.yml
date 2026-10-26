@@ -47,7 +47,7 @@ jobs:
           echo "Live new provider sample persisted on primary and reconciled to separate market-history D1."
       - name: Retain sanitized operator evidence
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: ws-live-shard-capture-proof
           path: artifacts/live-ws-shard-proof.json

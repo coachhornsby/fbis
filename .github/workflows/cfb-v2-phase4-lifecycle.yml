@@ -87,7 +87,7 @@ jobs:
           cat sanitized/cohort.json >> "$GITHUB_STEP_SUMMARY"
       - name: Archive safe prospective receipts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfb-drive-v2-phase4-freeze
           path: sanitized/*.json
@@ -135,7 +135,7 @@ jobs:
           cat sanitized/report.json >> "$GITHUB_STEP_SUMMARY"
       - name: Archive safe evaluation
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfb-drive-v2-phase4-evaluation
           path: sanitized/*.json

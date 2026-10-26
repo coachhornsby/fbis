@@ -76,7 +76,7 @@ jobs:
           jq -e '.noAutomaticPromotion and (.canAuthorizeWager|not)' sanitized/report.json >/dev/null
       - name: Save sanitized audit without secret or raw provider data
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfb-drive-v2-phase5-qualification
           path: sanitized/report.json
