@@ -1,7 +1,9 @@
 import { writeFile,mkdir } from 'node:fs/promises';
+import { PROP_SPORTS } from '../functions/lib/exchangePlayerProps.js';
 const base=process.env.FBIS_BASE_URL||'https://fbis-myz.pages.dev';
 const date=process.argv[2]||new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-const sports=(process.argv[3]||'nfl,nba,nhl,mlb,cfb,wnba,cbb,tennis,soccer,npb,kbo').split(',');
+// Default to the current live exchange-prop scope; preserve explicit audit overrides.
+const sports=(process.argv[3]||PROP_SPORTS.join(',')).split(',');
 const reports=[],captures=[];
 // Uses the same existing harvest credential as the approved source-ingest jobs.
 // No token or request headers enter the public report or logs.
