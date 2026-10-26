@@ -25,7 +25,7 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
   useEffect(()=>{
     const controller=new AbortController();
     let cursor=null,inFlight=false,seen=new Set(),seenMarket=new Set();
-    let accumulated=null,rounds=0;
+    let accumulated=null,rounds=0,hadFailure=false;
     const load=async()=>{
       if(inFlight||controller.signal.aborted)return;
       inFlight=true;
@@ -48,10 +48,10 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
          const key=r.id||[r.provider,r.contractId,r.line,r.rawTitle].join('|');
          if(!seenMarket.has(key)){seenMarket.add(key);accumulated.marketOnly.push(r);}
         }
-        cursor=body.nextCursor||null;
+        cursor=body.nextCursor||null;hadFailure=hadFailure||(body.diagnostics||[]).some(d=>d.status==='READ_FAILED');
         accumulated={...accumulated,
-         degraded:accumulated.degraded||body.degraded,
-         readComplete:body.readComplete===true&&!cursor&&!accumulated.degraded,
+         degraded:hadFailure||!!cursor||body.degraded,
+         readComplete:body.readComplete===true&&!cursor&&!hadFailure,
          nextCursor:cursor,moreAvailable:!!cursor,
          marketOnlyCount:accumulated.marketOnly.length,
          diagnostics:body.diagnostics,coverage:body.coverage
