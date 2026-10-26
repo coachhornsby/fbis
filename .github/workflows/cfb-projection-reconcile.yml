@@ -1,0 +1,21 @@
+name: CFB saved projection reconciliation contract
+on:
+  pull_request:
+    paths:
+      - "scripts/cfb-projection-reconcile.mjs"
+      - "test/cfb-projection-reconcile.test.js"
+      - ".github/workflows/cfb-projection-reconcile.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test test/cfb-projection-reconcile.test.js
+      - run: node --check scripts/cfb-projection-reconcile.mjs

@@ -1,0 +1,21 @@
+name: CFB game evidence archive contract
+on:
+  pull_request:
+    paths:
+      - "scripts/cfb-game-evidence-archive.mjs"
+      - "test/cfb-game-evidence-archive.test.js"
+      - ".github/workflows/cfb-game-evidence-archive.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  archive-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test test/cfb-game-evidence-archive.test.js
+      - run: node --check scripts/cfb-game-evidence-archive.mjs
