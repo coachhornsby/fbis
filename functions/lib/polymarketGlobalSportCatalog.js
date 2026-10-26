@@ -31,3 +31,41 @@ export async function captureGlobalSportCatalogPage(env,{sport,day,offset,events
  await env.ARCHIVE.put(catalogStatusKey(sport,day),JSON.stringify(status));
  return {...status,pageCount:status.pages.length};
 }
+
+/** Public research reader: bounded single R2 page, no inferred best asks. */
+export async function readGlobalSportCatalogPage(env,{sport,day,page=0}={}){
+ const status=await getGlobalSportCatalog(env,{sport,day});
+ if(!status.ok)return status;
+ if(!Number.isInteger(page)||page<0||page>5000)return {ok:false,code:'INVALID_PAGE'};
+ const key=status.pages?.[page];
+ if(!key)return {ok:true,sport,day,marketOnly:[],page,
+  nextPage:null,tagWalkComplete:status.complete===true,
+  status:status.status,canAuthorizeWager:false};
+ const obj=await env.ARCHIVE.get(key);
+ if(!obj)return {ok:false,code:'ARCHIVED_CATALOG_PAGE_MISSING'};
+ const data=await obj.json();
+ const stat=/^([^:]+):\\s*(points|rebounds|assists|points\\s*\\+\\s*rebounds|passing yards|rushing yards|receiving yards|receptions|strikeouts|saves|shots on goal|goals|hits|home runs|touchdowns).*?(?:O\\/U|over\\/under)\\s*(\\d+(?:\\.\\d+)?)/i;
+ const marketOnly=[];
+ for(const event of data.events||[])for(const market of event.markets||[]){
+  const title=String(market.question||'').slice(0,240);
+  const match=stat.exec(title);
+  if(!match||market.active!==true||market.closed===true)continue;
+  marketOnly.push({
+   id:'polymarket-global-catalog:'+String(market.id||market.slug||''),
+   contractId:String(market.slug||market.id||''),provider:'Polymarket',
+   venue:'Polymarket Global',source:'Gamma sport-tag reference',
+   providerEventId:String(event.id||''),rawTitle:title,sport,
+   player_name:match[1].trim(),line:Number(match[3]),
+   canonical_market:null,period:null,
+   collectedAt:data.capturedAt,observedAt:null,
+   priceKind:'GAMMA_REFERENCE_NOT_ASK',
+   identityVerified:false,marketAvailable:false,priceVerified:false,
+   purchaseAsk:null,canQualify:false,canAuthorizeWager:false,
+   reason:['PLAYER_EVENT_STAT_SETTLEMENT_NOT_INDEPENDENTLY_VERIFIED']
+  });
+ }
+ return {ok:true,sport,day,page,marketOnly,
+  nextPage:page+1<status.pages.length?page+1:null,
+  tagWalkComplete:status.complete===true,status:status.status,
+  canAuthorizeWager:false};
+}
