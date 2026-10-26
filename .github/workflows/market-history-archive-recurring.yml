@@ -36,6 +36,7 @@ jobs:
         run: |
           node --test test/market-history-verified-archive.test.js
           node --test test/market-history-archive-ops.test.js
+          node --test test/market-history-archive-ops-evaluate.test.js
           node --test test/market-history-capacity.test.js
           node --test test/market-history-retention-rehearsal.test.js
       - name: Wait for production Pages deployment
