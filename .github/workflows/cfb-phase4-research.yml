@@ -1,0 +1,81 @@
+name: CFB Phase 4 Research Evidence and Weekly Reports
+on:
+  pull_request:
+    paths:
+      - "scripts/cfb-phase4-diagnostics.mjs"
+      - "scripts/cfb-phase4-possessions.mjs"
+      - ".github/workflows/cfb-phase4-research.yml"
+      - "scripts/cfb-226-live-evidence.mjs"
+      - "scripts/cfb-226-complete-grade.mjs"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/cfb-phase4-diagnostics.mjs'
+      - 'scripts/cfb-phase4-possessions.mjs'
+      - '.github/workflows/cfb-phase4-research.yml'
+  schedule:
+    - cron: '20 13 * * 1'
+permissions:
+  contents: read
+jobs:
+  weekly-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Collect immutable secondary game evidence
+        id: collect
+        continue-on-error: true
+        run: node scripts/cfb-226-live-evidence.mjs
+      - name: Grade saved frozen projections
+        id: grade
+        continue-on-error: true
+        run: node scripts/cfb-226-complete-grade.mjs
+      - name: Produce frozen-model error diagnostics
+        id: diagnose
+        continue-on-error: true
+        run: node scripts/cfb-phase4-diagnostics.mjs
+      - name: Summarize observed postgame drives and possessions
+        id: possessions
+        continue-on-error: true
+        run: node scripts/cfb-phase4-possessions.mjs
+      - name: Package private evidence bundle
+        if: github.ref == 'refs/heads/main'
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          folder=Path('artifacts/cfb-2026-weeks05-08')
+          with zipfile.ZipFile('cfb-phase4-bundle.zip','w',compression=zipfile.ZIP_DEFLATED,compresslevel=6) as out:
+              for f in sorted(folder.rglob('*')):
+                  if f.is_file(): out.write(f,f.relative_to(folder))
+          PY
+      - name: Persist full evidence bundle to private R2 and verify readback
+        if: github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 2fdc80b8d99070adcef12f7a785c3fc1
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo "MISSING_CLOUDFLARE_TOKEN"; exit 1; }
+          SHA=$(sha256sum cfb-phase4-bundle.zip | cut -d' ' -f1)
+          KEY="cfb/2026/weeks05-08/phase4-evidence-${SHA}.zip"
+          npx wrangler r2 object put "fbis-archive/${KEY}" --file cfb-phase4-bundle.zip --content-type application/zip --remote --force
+          npx wrangler r2 object get "fbis-archive/${KEY}" --file cfb-phase4-readback.zip --remote
+          echo "${SHA}  cfb-phase4-readback.zip" | sha256sum -c -
+          echo "R2_VERIFIED sha256:${SHA} key=${KEY}"
+      - name: Upload full research report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-phase4-research-evidence
+          path: artifacts/cfb-2026-weeks05-08/
+          retention-days: 30
+          if-no-files-found: warn
+      - name: Reject incomplete research cycle
+        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success'
+        run: exit 1
