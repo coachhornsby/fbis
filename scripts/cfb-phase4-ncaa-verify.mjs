@@ -11,7 +11,7 @@ if(ROSTER.length!==226)throw Error("EXPECTED_226_SOURCE_GAMES");
 const expansions={st:"state",fla:"florida",mich:"michigan",tenn:"tennessee",cal:"california",car:"carolina",ga:"georgia",w:"western",e:"eastern",n:"northern",s:"southern",ill:"illinois",ariz:"arizona",miss:"mississippi",dak:"dakota",okla:"oklahoma",ala:"alabama"};
 const canonicalAliases={usc:"southerncalifornia",miami:"miamifl",army:"armywestpoint",northernillinois:"niu",floridainternational:"fiu",ulmonroe:"louisianamonroe",louisianamonroe:"louisianamonroe"};
 const normalize=s=>{
- const ascii=String(s||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase();
+ const ascii=String(s||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
  const expanded=ascii.replace(/&/g,"and").split(/[^a-z0-9]+/).filter(Boolean).filter(x=>x!=="university").map(x=>expansions[x]||x).join("");
  return canonicalAliases[expanded]||expanded;
 };
