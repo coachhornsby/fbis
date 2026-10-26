@@ -92,3 +92,12 @@ test("public projection and recovery endpoints accept the full seven-day horizon
  const {resolveSlateDate,todayCT,shiftDateCT}=await import("../functions/lib/slateEngine.js");
  for(let i=0;i<7;i++)assert.equal(resolveSlateDate(shiftDateCT(todayCT(),i),{maxPast:2,maxFuture:7}).ok,true);
 });
+
+test('verified league aliases do not create false team reversals',()=>{
+ for(const sport of ['nba','nfl']){
+  const r=checkCoverage(sport,[{id:'1',home:{abbr:'WAS'},away:{abbr:'PHI'},projection:{independent:true}}],[{id:'1',home:'WSH',away:'PHI'}]);
+  assert.equal(r.state,'COMPLETE');
+ }
+ assert.equal(normalizedScheduleTeam('JXST','cfb'),'JVST');
+ assert.equal(normalizedScheduleTeam('JXST','nba'),'JXST');
+});
