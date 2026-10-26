@@ -54,6 +54,10 @@ jobs:
         id: ncaa
         continue-on-error: true
         run: node scripts/cfb-phase4-ncaa-verify.mjs
+      - name: Validate all 226 independently verified CFB D1 receipts without DB writes
+        run: |
+          node scripts/cfb-phase4-export-d1-sql.mjs "cfb/2026/weeks05-08/ci-read-only.zip" "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" /tmp/cfb-phase4-readonly.sql
+          test "$(grep -c '^INSERT OR IGNORE' /tmp/cfb-phase4-readonly.sql)" -eq 226
       - name: Package private evidence bundle
         if: github.ref == 'refs/heads/main'
         run: |
