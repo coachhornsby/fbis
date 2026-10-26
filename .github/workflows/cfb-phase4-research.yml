@@ -8,6 +8,8 @@ on:
       - "scripts/cfb-phase5-pbp-integrity.mjs"
       - "scripts/cfb-phase5-cross-provider-pbp.mjs"
       - "scripts/cfb-phase5-pbp-alternate.mjs"
+      - "scripts/cfb-phase5-ncaa-pbp.mjs"
+      - "test/cfb-phase5-ncaa-pbp.test.js"
       - "test/cfb-phase5-pbp-integrity.test.js"
       - "scripts/cfb-phase4-ncaa-verify.mjs"
       - "scripts/cfb-phase4-export-d1-sql.mjs"
@@ -25,6 +27,7 @@ on:
       - 'scripts/cfb-phase5-pbp-integrity.mjs'
       - 'scripts/cfb-phase5-cross-provider-pbp.mjs'
       - 'scripts/cfb-phase5-pbp-alternate.mjs'
+      - 'scripts/cfb-phase5-ncaa-pbp.mjs'
       - 'scripts/cfb-phase4-ncaa-verify.mjs'
       - 'scripts/cfb-phase4-export-d1-sql.mjs'
       - '.github/workflows/cfb-phase4-research.yml'
@@ -45,6 +48,8 @@ jobs:
         run: node --test test/cfb-phase4-ncaa-verify.test.js
       - name: Test structural play-by-play and NCAA terminal-score requirements
         run: node --test test/cfb-phase5-pbp-integrity.test.js
+      - name: Validate NCAA independent PBP collection contract
+        run: node --test test/cfb-phase5-ncaa-pbp.test.js
       - name: Collect immutable secondary game evidence
         id: collect
         continue-on-error: true
@@ -82,6 +87,10 @@ jobs:
         run: |
           node --check scripts/cfb-phase5-cross-provider-pbp.mjs
           node scripts/cfb-phase5-cross-provider-pbp.mjs
+      - name: Collect NCAA.com independent play-by-play timelines
+        id: ncaa_pbp
+        continue-on-error: true
+        run: node scripts/cfb-phase5-ncaa-pbp.mjs
       - name: Evaluate forward-chained possession Monte Carlo challenger
         id: challenger
         continue-on-error: true
@@ -127,5 +136,5 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
       - name: Reject incomplete research cycle
-        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success' || steps.ncaa.outcome != 'success' || steps.challenger.outcome != 'success' || steps.pbp_integrity.outcome != 'success' || steps.pbp_cross_source.outcome != 'success' || steps.pbp_alternate.outcome != 'success'
+        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success' || steps.ncaa.outcome != 'success' || steps.challenger.outcome != 'success' || steps.pbp_integrity.outcome != 'success' || steps.pbp_cross_source.outcome != 'success' || steps.pbp_alternate.outcome != 'success' || steps.ncaa_pbp.outcome != 'success'
         run: exit 1
