@@ -61,6 +61,8 @@ export function exchangeLinksForGame(game={}){
  const venueOffers=Array.isArray(game?.market?.venueOffers)?game.market.venueOffers:[];
  const tennis=game?.tennisProjection||{};
  const sources=[...venueOffers,
+  ...(Array.isArray(tennis.venueOffers)?tennis.venueOffers:[]),
+  ...(Array.isArray(game?.market?.reference?.venueOffers)?game.market.reference.venueOffers:[]),
   ...(Array.isArray(tennis.kalshiResearchOffers)?tennis.kalshiResearchOffers.map(o=>({...o,source:'Kalshi',providerTicker:o.ticker,marketFamily:o.marketFamily||'moneyline'})):[]),
   ...(Array.isArray(tennis.polymarketGlobalOffers)?tennis.polymarketGlobalOffers.map(o=>({...o,source:'Polymarket Global Gamma',venue:'Polymarket Global',providerEventSlug:o.eventSlug,marketFamily:o.marketFamily||'moneyline'})):[])
  ];
