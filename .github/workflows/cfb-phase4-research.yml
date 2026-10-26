@@ -4,6 +4,9 @@ on:
     paths:
       - "scripts/cfb-phase4-diagnostics.mjs"
       - "scripts/cfb-phase4-possessions.mjs"
+      - "scripts/cfb-phase4-ncaa-verify.mjs"
+      - "scripts/cfb-phase4-export-d1-sql.mjs"
+      - "test/cfb-phase4-ncaa-verify.test.js"
       - ".github/workflows/cfb-phase4-research.yml"
       - "scripts/cfb-226-live-evidence.mjs"
       - "scripts/cfb-226-complete-grade.mjs"
@@ -13,6 +16,8 @@ on:
     paths:
       - 'scripts/cfb-phase4-diagnostics.mjs'
       - 'scripts/cfb-phase4-possessions.mjs'
+      - 'scripts/cfb-phase4-ncaa-verify.mjs'
+      - 'scripts/cfb-phase4-export-d1-sql.mjs'
       - '.github/workflows/cfb-phase4-research.yml'
   schedule:
     - cron: '20 13 * * 1'
@@ -27,6 +32,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Test independent NCAA matching requirements
+        run: node --test test/cfb-phase4-ncaa-verify.test.js
       - name: Collect immutable secondary game evidence
         id: collect
         continue-on-error: true
@@ -43,6 +50,14 @@ jobs:
         id: possessions
         continue-on-error: true
         run: node scripts/cfb-phase4-possessions.mjs
+      - name: Reconcile ESPN finals with independent NCAA.com scoreboard
+        id: ncaa
+        continue-on-error: true
+        run: node scripts/cfb-phase4-ncaa-verify.mjs
+      - name: Validate all 226 independently verified CFB D1 receipts without DB writes
+        run: |
+          node scripts/cfb-phase4-export-d1-sql.mjs "cfb/2026/weeks05-08/ci-read-only.zip" "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" /tmp/cfb-phase4-readonly.sql
+          test "$(grep -c '^INSERT OR IGNORE' /tmp/cfb-phase4-readonly.sql)" -eq 226
       - name: Package private evidence bundle
         if: github.ref == 'refs/heads/main'
         run: |
@@ -68,6 +83,9 @@ jobs:
           npx wrangler r2 object get "fbis-archive/${KEY}" --file cfb-phase4-readback.zip --remote
           echo "${SHA}  cfb-phase4-readback.zip" | sha256sum -c -
           echo "R2_VERIFIED sha256:${SHA} key=${KEY}"
+          node scripts/cfb-phase4-export-d1-sql.mjs "${KEY}" "${SHA}" cfb-phase4-shadow-research.sql
+          npx wrangler d1 execute fbis-cfb --remote --file cfb-phase4-shadow-research.sql
+          echo "CFB_SHADOW_RESEARCH_IMPORT_COMPLETE r2=${KEY}"
       - name: Upload full research report
         if: always()
         uses: actions/upload-artifact@v4
@@ -77,5 +95,5 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
       - name: Reject incomplete research cycle
-        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success'
+        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success' || steps.ncaa.outcome != 'success'
         run: exit 1
