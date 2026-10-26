@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ExchangeGameLinks from "./ExchangeGameLinks.jsx";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
 import "./tennisMatchCard.css";
 import { tennisProjectionDisplay, splitTennisName, neutralTennisAthlete, tennisMarketSnapshot } from "../../lib/tennisCardPresentation.js";
@@ -98,6 +99,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <div className="tmc-probability-center">{shownHome!=null&&shownAway!=null?<><div className="tmc-probability-track" role="img" aria-label={`${away.name} ${pct(shownAway)}; ${home.name} ${pct(shownHome)}`}><span style={{width:`${shownAway*100}%`}}/><span style={{width:`${shownHome*100}%`}}/></div><div className="tmc-bar-labels"><b>{pct(shownAway)}</b><b>{pct(shownHome)}</b></div>{researchOk&&!display.valid?<small>{research.source==="RANK_PRIOR_RESEARCH_ONLY"?"Ranking-derived prior; recent form and surface performance insufficient":research.source==="TENNIS_ABSTRACT_CURRENT_ELO_RESEARCH_ONLY"?<>TENNIS ABSTRACT CURRENT ELO · {research.surface?research.surface.toUpperCase()+" COURT":"OVERALL RATING · SURFACE UNAVAILABLE"} · Source report {research.reportDate||"unavailable"}</>:<>{research.surface?research.surface.toUpperCase()+" COURT":"SURFACE UNAVAILABLE"} · Historical sample through {research.observations?.map(o=>o.lastMatchDate).filter(Boolean).sort().at(-1)||"date unavailable"}</>} · Not a validated FBIS model or betting edge</small>:null}</>:<p className="tmc-blocked">FBIS PURE PROJECTION UNAVAILABLE · {t.historicalCoverage?.matchedProfiles>0?"HISTORICAL PLAYER DATA EXISTS; OFFICIAL MODEL NOT VERIFIED":t.historicalCoverage?"PREMATCH HISTORICAL COVERAGE NOT VERIFIED":"MODEL / SOURCE EVIDENCE UNAVAILABLE"} · {display.reason}</p>}</div>
       <div><span>{shownLabel}</span><strong>{pct(shownHome)}</strong></div>
     </section>
+    <ExchangeGameLinks game={game} compact />
     <section className="tmc-market-snapshot" aria-label="Exchange match-winner prices">
       <div className="tmc-snapshot-heading"><strong>EXCHANGE SNAPSHOT</strong><span>Match winner only · captured prices</span></div>
       <div className="tmc-snapshot-grid">

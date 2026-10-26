@@ -52,3 +52,6 @@
 .pp-card.sport-nba .pp-flow-numbers span{font-size:8px;letter-spacing:.035em}}
 
 .pp-card.sport-nba .pp-flow-threshold small{font-size:9px;color:#a5c8d7;line-height:1.25;white-space:nowrap}
+
+.pp-flow-exchange-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 12px;border-radius:8px;border:1px solid #82b7ed;background:#122e51;color:#edf6ff;font-weight:800;font-size:.78rem;text-decoration:none;min-height:38px}
+.pp-flow-exchange-link:hover,.pp-flow-exchange-link:focus-visible{background:#295781;outline:2px solid #b9ddff;outline-offset:2px}

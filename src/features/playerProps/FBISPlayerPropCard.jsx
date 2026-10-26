@@ -4,6 +4,7 @@ import "./propCardFlow.css";
 import { fetchPropResearch } from "./propResearchClient.js";
 import { verifiedLastFive } from "./verifiedHistory.js";
 import { resolveBasketballPropTeam } from "../../../functions/lib/basketballPropTeam.js";
+import { exchangeMarketLink } from "../../lib/exchangeMarketLinks.js";
 
 function finite(v) {
   if (v == null || v === "") return null;
@@ -301,6 +302,7 @@ export default function FBISPlayerPropCard({
   onResearch,
 }) {
   const row = normalizeRow(rawRow, sport);
+  const exchangeLink=exchangeMarketLink(row);
   const projection = row.fbis_projection;
   const line = row.line;
   const actual = row.officialActualVerified===true?finite(row.officialActual):null;
@@ -418,6 +420,11 @@ export default function FBISPlayerPropCard({
         <VenueComparison row={row} />
         <div className="pp-flow-bottom">
           {onResearch?<button type="button" className="pp-flow-research" aria-label="Open player details" onClick={()=>onResearch(rawRow)}><span>Player details</span><span>{row.alternateThresholds?.length>1?`${row.alternateThresholds.length} lines `:''}↗</span></button>:null}
+          {exchangeLink?<a className="pp-flow-exchange-link" href={exchangeLink.url}
+             target="_blank" rel="noopener noreferrer"
+             title={exchangeLink.scope==='EVENT'?'Opens the matched provider event; select the threshold on the exchange.':'Opens the exact source-market ticker; check prices and terms.'}>
+             {exchangeLink.label}{exchangeLink.scope==='EVENT'?' · Event page':''} ↗
+          </a>:null}
           <div className="pp-flow-meta"><details><summary>Sources & contracts</summary>
             <p>{row.identityVerified&&row.contractId?'Exact player contract mapped.':'Independent projection; no exchange contract mapped.'} {row.marketAvailable?'Verified purchase quote.':'Quote is not executable.'}</p>
             <p>{row.lineFrozen===true?'🔒 Frozen before tipoff; quote timing basis is capture time. ':''}{row.observedAt?`Quote: ${row.observedAt}`:'Quote source time unknown'}{row.collectedAt?` · Captured ${new Date(row.collectedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})} CT`:''}</p>
