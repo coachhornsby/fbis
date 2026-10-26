@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { joinIndependentPropModels } from '../../../functions/lib/propResearchData.js';
+import { exchangeMarketLink } from '../../lib/exchangeMarketLinks.js';
 import './eventPlayerProps.css';
 
 const number = value => value == null || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
@@ -34,10 +35,12 @@ export default function EventPlayerProps({game}) {
           // Kalshi and Polymarket settlement rules differ; do not merge prices.
           const grouped=new Map();
           for(const r of joined){
-            const key=[r.provider,r.canonicalPlayerId,r.canonical_market,r.period,r.line].join('|');
+            const key=[r.provider,r.contractId,r.canonicalPlayerId,r.canonical_market,r.period,r.line].join('|');
             const row=grouped.get(key)||{exchangeReference:true,sport,fbisEventId:eventId,
               playerName:r.player_name,marketCanonical:r.canonical_market,period:r.period,
-              line:r.line,book:r.provider,fbisProjection:r.fbis_projection,
+              line:r.line,book:r.provider,source:r.source||r.provider,
+              sourceMarketId:r.contractId,providerEventSlug:r.providerEventSlug||null,
+              marketUrl:r.marketUrl||null,fbisProjection:r.fbis_projection,
               collectedAt:r.collectedAt,sourceObservedAt:r.observedAt||null,
               quoteKind:'CAPTURED_REFERENCE_NOT_EXECUTABLE',quotes:{}};
             const price=Number(r.observedAsk??r.observedReferencePrice);
@@ -72,7 +75,7 @@ export default function EventPlayerProps({game}) {
       <p>{result?.exchangeReference?'Kalshi / Polymarket player thresholds · captured prices, not verified live purchase quotes':'Observed market prices'}</p>
       {error ? <p role="alert">Prop source unavailable: {error}</p> : !result ? <p role="status">Loading event markets…</p> : <>
         {result.rows.length ? <div className="event-props-table"><table>
-          <thead><tr><th>Player / market</th><th>Book / line</th><th>Over / Under</th><th>FBIS</th><th>Evidence</th></tr></thead>
+          <thead><tr><th>Player / market</th><th>Book / line</th><th>Over / Under</th><th>FBIS</th><th>Evidence</th><th>Exchange</th></tr></thead>
           <tbody>{result.rows.map((row,i)=>{
             const projection=row.exchangeReference?number(row.fbisProjection):row.eligibleForCard===true&&row.modelSource&&row.modelVersion&&row.temporal?.currentDisplayEligible ? number(row.fbisProjection) : null;
             const line=number(row.line),gap=projection!=null&&line!=null?Math.round((projection-line)*10)/10:null;
@@ -84,6 +87,9 @@ export default function EventPlayerProps({game}) {
                 row.decimalPrice!=null?`${row.side||'Observed'} ${decimal(row.decimalPrice)}`:`${row.overOdds!=null?odds(row.overOdds):decimal(row.overDecimalOdds)} / ${row.underOdds!=null?odds(row.underOdds):decimal(row.underDecimalOdds)}`}</td>
               <td>{projection??'No comparable projection'}{gap!=null?<span>Difference {gap>0?'+':''}{gap}</span>:null}</td>
               <td>{row.exchangeReference?'SOURCE_TIME_UNKNOWN · CAPTURED REFERENCE':row.temporal?.status||'SOURCE_TIME_UNKNOWN'}<span>Collected {row.collectedAt||'unknown'}</span><span>{row.providerTimeConfidence==='MIRROR_REPORTED_CAPTURE'?'Mirror capture':'Provider time'} {row.sourceObservedAt||'unknown'}</span>{row.quoteKind==='DAILY_MIRROR_REFERENCE_NOT_LIVE_VERIFIED'?<span>Daily snapshot · Not live verified</span>:null}</td>
+              <td>{exchangeMarketLink(row)?<a href={exchangeMarketLink(row).url}
+                target="_blank" rel="noopener noreferrer">
+                 {exchangeMarketLink(row).scope==='EVENT'?'View event ↗':'Open market ↗'}</a>:<span>Not linked</span>}</td>
             </tr>;
           })}</tbody>
         </table></div> : <p>{result.diagnostics?.absenceReason||'NO_OBSERVED_PROPS_FOR_EVENTS'}</p>}
