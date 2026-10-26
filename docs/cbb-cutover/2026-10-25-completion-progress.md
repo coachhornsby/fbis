@@ -79,3 +79,18 @@ The new `live-keys-and-timestamps.json` captures every scoped source/target tabl
 null/duplicate-key counts and latest timestamp fields. Source tables had zero
 null/duplicate primary keys. All seven sport=cbb shared working sets remained empty.
 This completes metadata coverage, not the outstanding call-graph or field-parity gates.
+
+## Additional shared-ledger consumer findings
+
+The broader ownership scan now includes generic SQL consumers that do not spell
+out CBB by name: 276 candidate files, 64 with direct PRIMARY references and 33
+related workflows. Earlier narrower counts did not cover these generic helpers.
+These are review candidates, not a definitive accepted call graph.
+
+Direct final-grade/exclusion API requests now carry their already-validated sport
+into the store resolver. Manual final lookup uses the scoped snapshot owner while
+canonical wager records keep their original environment. Track/strategy contexts
+preserve independently approved sport bindings. Game-ID lookups fan out CBB and
+remove stale PRIMARY CBB rows; authority loss returns unavailable. Real SQLite
+regressions prove no PRIMARY changes during scoped CBB exclusion and preserve
+other sports in game-ID readback. 98 related tests passed locally.

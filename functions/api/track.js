@@ -1,3 +1,7 @@
+import { cbbResearchOwner } from "../lib/cbbResearchOwner.js";
+import { deployedSportDbMode } from "../lib/databaseTopology.js";
+import { sportDbContext } from "../lib/nflSportDbContext.js";
+import { sportLedgerEnv } from "../lib/sportLedgerRouting.js";
 import { buildTrackReport } from "../lib/projLedger.js";
 import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, queryStrategyTicketsPaged, updateExecutedBet, gradeStrategyTicket, persistEvAuditRecords, queryEvAuditRecords, queryEvAuditTicketSummary, setMeta, readMeta, queryGamesByIds } from "../lib/store.js";
 import { settleExecutedBet, summarizeExecutedBets } from "../lib/executedBets.js";
@@ -397,12 +401,14 @@ async function applyManualFinal(env, payload) {
   if (isFutureStart(payload.start, nowMs)) {
     return { ok: false, status: 409, error: "game has not started yet" };
   }
-  const targetGameIds = await deriveTargetGameIds(env, payload);
+  const snapshotEnv=sportLedgerEnv(env,payload.sport);
+  if(!snapshotEnv.DB?.prepare)return {ok:false,status:503,error:"snapshot owner unavailable"};
+  const targetGameIds = await deriveTargetGameIds(snapshotEnv, payload);
   if (!targetGameIds.length) return { ok: false, status: 404, error: "no matching game ids found" };
   let eligibleIds = [...targetGameIds];
   try {
     const placeholders = targetGameIds.map(() => "?").join(", ");
-    const startsQ = await env.DB
+    const startsQ = await snapshotEnv.DB
       .prepare(`SELECT game_id, MIN(start) AS start FROM prediction_snapshots WHERE game_id IN (${placeholders}) GROUP BY game_id`)
       .bind(...targetGameIds)
       .all();
@@ -425,7 +431,7 @@ async function applyManualFinal(env, payload) {
   }
   let snapshotsUpdated = 0;
   for (const gameId of eligibleIds) {
-    const res = await gradeSnapshotsForGame(env, { gameId, actualHome: homeScore, actualAway: awayScore, gradedAt });
+    const res = await gradeSnapshotsForGame(env, { gameId, sport:payload.sport, actualHome: homeScore, actualAway: awayScore, gradedAt });
     if (res?.ok) snapshotsUpdated += 1;
   }
 
@@ -499,18 +505,24 @@ async function applyManualFinal(env, payload) {
 
 async function cleanupFutureGrades(env) {
   const nowIso = new Date().toISOString();
-  const snapOut = await env.DB.prepare(
-    `UPDATE prediction_snapshots
-     SET actual_home = NULL, actual_away = NULL, graded_at = NULL
-     WHERE actual_home IS NOT NULL
-       AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`
-  ).bind(nowIso).run();
-  const predOut = await env.DB.prepare(
-    `UPDATE predictions
-     SET actual_home = NULL, actual_away = NULL, graded_at = NULL
-     WHERE actual_home IS NOT NULL
-       AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`
-  ).bind(nowIso).run();
+  let targets=[{db:env.DB,scope:""}];
+  if(deployedSportDbMode(env,"cbb")==="sport"){
+    const owner=await cbbResearchOwner(env);
+    targets=[{db:env.DB,scope:" AND sport <> 'cbb'"},{db:owner.db,scope:" AND sport = 'cbb'"}];
+  }
+  const changes={prediction_snapshots:0,predictions:0};
+  for(const {db,scope} of targets){
+    for(const table of ["prediction_snapshots","predictions"]){
+      const result=await db.prepare(`UPDATE ${table}
+        SET actual_home = NULL, actual_away = NULL, graded_at = NULL
+        WHERE actual_home IS NOT NULL ${scope}
+          AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`)
+        .bind(nowIso).run();
+      changes[table]+=Number(result?.meta?.changes||0);
+    }
+  }
+  const snapOut={meta:{changes:changes.prediction_snapshots}};
+  const predOut={meta:{changes:changes.predictions}};
   // Reopen strategy grades for games that have not started yet.
   const stratOut = await env.DB.prepare(
     `UPDATE strategy_tickets
@@ -626,7 +638,7 @@ export async function onRequestGet(context) {
   const team = url.searchParams.get("team") || "";
   const includeAnomalies = url.searchParams.get("includeAnomalies") === "1";
   try {
-    const migration = await verifyEvAuditMigration({ DB: context.env.DB });
+    const migration = await verifyEvAuditMigration({ ...sportDbContext(context.env), DB: context.env.DB });
     const payload = await buildTrackReport(
       sport,
       days,
@@ -639,6 +651,7 @@ export async function onRequestGet(context) {
         CFBD_API_KEY: context.env.CFBD_API_KEY,
         CBBD_API_KEY: context.env.CBBD_API_KEY,
         caches: caches.default,
+        ...sportDbContext(context.env),
         DB: context.env.DB,
       },
       { checkpoint, version, model, type, year, team }
@@ -721,7 +734,7 @@ export async function onRequestGet(context) {
         freshness: { lastReadSuccessAt: db.lastCollectSuccess || db.lastCollect || null },
       }),
     };
-    const executedQ = await queryExecutedBets({ DB: context.env.DB }, { includeRaw: false });
+    const executedQ = await queryExecutedBets({ ...sportDbContext(context.env), DB: context.env.DB }, { includeRaw: false });
     payload.executedBets = executedQ.ok
       ? { available: true, summary: summarizeExecutedBets(executedQ.rows || []) }
       : { available: false, reason: executedQ.reason || "executed-bet-query-failed", summary: null };
@@ -731,13 +744,13 @@ export async function onRequestGet(context) {
       anomalies: migration.ok && semantic.state === "HEALTHY",
     };
     const auditQ = includeAnomalies
-      ? await queryEvAuditRecords({ DB: context.env.DB }, { limit: 5000 })
+      ? await queryEvAuditRecords({ ...sportDbContext(context.env), DB: context.env.DB }, { limit: 5000 })
       : { ok: false, reason: "not-requested", rows: [] };
     // Summary counts are small and authoritative; only the bounded row sample
     // is optional. SYS must not display zero anomalies merely because the
     // operator has not requested detail rows.
-    const anomalySummaryQ = migration.ok ? await queryEvAuditTicketSummary({ DB: context.env.DB }) : { ok: false };
-    const meta = migration.ok ? await readMeta({ DB: context.env.DB }) : {};
+    const anomalySummaryQ = migration.ok ? await queryEvAuditTicketSummary({ ...sportDbContext(context.env), DB: context.env.DB }) : { ok: false };
+    const meta = migration.ok ? await readMeta({ ...sportDbContext(context.env), DB: context.env.DB }) : {};
     const sourceRowsScanned = Number(meta.ev_audit_scanned_total || 0);
     const uniqueAffectedTickets = Number(anomalySummaryQ?.summary?.uniqueAffectedTickets || uniqueCount((auditQ.rows || []).map((r) => r.entity_id)));
     const uniqueSourceWithoutAnomaly = sourceRowsScanned > 0 ? Math.max(0, sourceRowsScanned - uniqueAffectedTickets) : null;
@@ -855,21 +868,21 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: "unknown action" }, 400);
     const result =
       action === "cleanup-future-grades"
-        ? await cleanupFutureGrades({ DB: context.env.DB })
+        ? await cleanupFutureGrades({ ...sportDbContext(context.env), DB: context.env.DB })
         : action === "cleanup-cross-date-strategy"
-          ? await cleanupCrossDateStrategy({ DB: context.env.DB })
+          ? await cleanupCrossDateStrategy({ ...sportDbContext(context.env), DB: context.env.DB })
         : action === "audit-ev"
-          ? await runEvAudit({ DB: context.env.DB }, body)
+          ? await runEvAudit({ ...sportDbContext(context.env), DB: context.env.DB }, body)
           : action === "d1-diagnostic"
-            ? await runD1Diagnostic({ DB: context.env.DB }, body)
+            ? await runD1Diagnostic({ ...sportDbContext(context.env), DB: context.env.DB }, body)
             : action === "recompute-ev"
-              ? await recomputeAffectedTickets({ DB: context.env.DB }, body)
+              ? await recomputeAffectedTickets({ ...sportDbContext(context.env), DB: context.env.DB }, body)
               : action === "reconstruct-probability"
                 ? await (async () => {
-                    const out = await reconstructAffectedTickets({ DB: context.env.DB });
+                    const out = await reconstructAffectedTickets({ ...sportDbContext(context.env), DB: context.env.DB });
                     return { ok: true, status: 200, body: out };
                   })()
-          : await applyManualFinal({ DB: context.env.DB }, body);
+          : await applyManualFinal({ ...sportDbContext(context.env), DB: context.env.DB }, body);
     if (!result.ok) return json({ ok: false, error: result.error || "failed" }, result.status || 400);
     return json(result.body, 200);
   } catch (err) {

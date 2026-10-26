@@ -1,3 +1,4 @@
+import { sportDbContext } from "../lib/nflSportDbContext.js";
 import {
   STRATEGY_HC_V1,
   CBB_MONEY_STRATEGY_V1,
@@ -178,7 +179,7 @@ function strategyIntegrity(tickets = []) {
 }
 
 export async function onRequestGet(context) {
-  const env = { DB: context.env.DB };
+  const env = { ...sportDbContext(context.env), DB: context.env.DB };
   const durable = await durableHealth(env);
   const readOk = durable.bound && durable.source === "d1";
   const semantic = deriveHealthState({
@@ -508,7 +509,7 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "invalid json" }, 400);
   }
   const bets = Array.isArray(body.bets) ? body.bets : Array.isArray(body) ? body : [];
-  const result = await importStrategyTickets({ DB: context.env.DB }, bets);
+  const result = await importStrategyTickets({ ...sportDbContext(context.env), DB: context.env.DB }, bets);
   return json(result.body, result.status);
 }
 

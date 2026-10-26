@@ -1,0 +1,247 @@
+{
+  "baseline": "5f834cbcbfa39b2455505b353e6ac0f9a547e1bd",
+  "allEqual": true,
+  "models": [
+    {
+      "path": "data/models/cbb-pro-v1.json",
+      "baselineSha256": "32b27fa5ac0144ae2d5ea695d694b56a6ec4d19ee1b194e057383276bd0b7edd",
+      "candidateSha256": "32b27fa5ac0144ae2d5ea695d694b56a6ec4d19ee1b194e057383276bd0b7edd",
+      "equal": true
+    },
+    {
+      "path": "data/models/cbb-reg-v1.js",
+      "baselineSha256": "492379e1fef53096cfaaff4b89874e770fe0a9929d19398ecacff75ed59588b6",
+      "candidateSha256": "492379e1fef53096cfaaff4b89874e770fe0a9929d19398ecacff75ed59588b6",
+      "equal": true
+    },
+    {
+      "path": "data/models/cfb-cfbd-reg-v1.js",
+      "baselineSha256": "52f5335766cd88e4c6883b718b08c13c840e2ef9e5f301a26d33c95bc50fb8f3",
+      "candidateSha256": "52f5335766cd88e4c6883b718b08c13c840e2ef9e5f301a26d33c95bc50fb8f3",
+      "equal": true
+    },
+    {
+      "path": "data/models/cfb-fbis-v2-fitted-aa.js",
+      "baselineSha256": "4b8069010aa1a4b4f7f3cc06c6c22434221e45f1ce1d4bb795f2000c7aec4dc5",
+      "candidateSha256": "4b8069010aa1a4b4f7f3cc06c6c22434221e45f1ce1d4bb795f2000c7aec4dc5",
+      "equal": true
+    },
+    {
+      "path": "data/models/cfb-fbis-v2-fitted-aa.json",
+      "baselineSha256": "ced86984e4db426776f786dfe1bd1c02e8339fd468732c2ce66dfc51cb2ac739",
+      "candidateSha256": "ced86984e4db426776f786dfe1bd1c02e8339fd468732c2ce66dfc51cb2ac739",
+      "equal": true
+    },
+    {
+      "path": "data/models/cfb-fbis-v2.js",
+      "baselineSha256": "0b33fdf83035dd0b89a956a7f6464ac55602ce5b39e10480f3871b31fc240fcd",
+      "candidateSha256": "0b33fdf83035dd0b89a956a7f6464ac55602ce5b39e10480f3871b31fc240fcd",
+      "equal": true
+    },
+    {
+      "path": "data/models/cfb-fbis-v3-research.json",
+      "baselineSha256": "ecdd94f99900426d1126b2812886735628dfe9bcffff14072de8f87999f34162",
+      "candidateSha256": "ecdd94f99900426d1126b2812886735628dfe9bcffff14072de8f87999f34162",
+      "equal": true
+    },
+    {
+      "path": "data/models/cfb-player-v1.js",
+      "baselineSha256": "f05c3712ae6f3843dfab9d244d84ac8937a68ffaeb5058d34455a663f143a28f",
+      "candidateSha256": "f05c3712ae6f3843dfab9d244d84ac8937a68ffaeb5058d34455a663f143a28f",
+      "equal": true
+    },
+    {
+      "path": "data/models/current-research-models.json",
+      "baselineSha256": "500a8ca4586d19dda54592542a854ea858275f07359d1ba5d64affe6108d3493",
+      "candidateSha256": "500a8ca4586d19dda54592542a854ea858275f07359d1ba5d64affe6108d3493",
+      "equal": true
+    },
+    {
+      "path": "data/models/nba-fbis-v1-fit.json",
+      "baselineSha256": "845e49525b17c8d75797493e447b242aa2c4e6b8b6fe4184ed8fe777a40a1399",
+      "candidateSha256": "845e49525b17c8d75797493e447b242aa2c4e6b8b6fe4184ed8fe777a40a1399",
+      "equal": true
+    },
+    {
+      "path": "data/models/nba-fbis-v1-validation.json",
+      "baselineSha256": "e8f6ec3899727822dc36d3b739ef87ff36b417d3b498e3fc8f1b302418ef70dd",
+      "candidateSha256": "e8f6ec3899727822dc36d3b739ef87ff36b417d3b498e3fc8f1b302418ef70dd",
+      "equal": true
+    },
+    {
+      "path": "data/models/nba-fbis-v1.json",
+      "baselineSha256": "e0f06dbf56cdd7d83a521db7e60d8997ad15b1fe4e2f7e4d72657ef6969e9609",
+      "candidateSha256": "e0f06dbf56cdd7d83a521db7e60d8997ad15b1fe4e2f7e4d72657ef6969e9609",
+      "equal": true
+    },
+    {
+      "path": "data/models/nba-fbis-v2-deep.json",
+      "baselineSha256": "9774503673ec49d80df79478188936cb24949732e782c2cda7014530a8a5d986",
+      "candidateSha256": "9774503673ec49d80df79478188936cb24949732e782c2cda7014530a8a5d986",
+      "equal": true
+    },
+    {
+      "path": "data/models/nba-player-impact-v1.json",
+      "baselineSha256": "646536bcc3e726a5e084125a57618ed526f50c203e3a7607bfa8a75785511fa6",
+      "candidateSha256": "646536bcc3e726a5e084125a57618ed526f50c203e3a7607bfa8a75785511fa6",
+      "equal": true
+    },
+    {
+      "path": "data/models/nba-player-prop-v1-validation.json",
+      "baselineSha256": "5ccb14e429a09d591d6136ee48c12924270af759621db6bf134de5d742ff1524",
+      "candidateSha256": "5ccb14e429a09d591d6136ee48c12924270af759621db6bf134de5d742ff1524",
+      "equal": true
+    },
+    {
+      "path": "data/models/nba-player-prop-v1.json",
+      "baselineSha256": "05fbadf9c297f57b41d5179a33a1723c3e50a591b9b3c93424d834dda82bfcc9",
+      "candidateSha256": "05fbadf9c297f57b41d5179a33a1723c3e50a591b9b3c93424d834dda82bfcc9",
+      "equal": true
+    },
+    {
+      "path": "data/models/nfl-player-props-v3-validation.json",
+      "baselineSha256": "7a66278ed3ef8e9107a9248797490f20ef782a477bd878d48f88fe997f562840",
+      "candidateSha256": "7a66278ed3ef8e9107a9248797490f20ef782a477bd878d48f88fe997f562840",
+      "equal": true
+    },
+    {
+      "path": "data/models/nfl-pro-v1-1-fit.json",
+      "baselineSha256": "ac3c40dd3034815e80f1f3c188a505798c9674491b50a69f6cdc0ab3ae8c8fe0",
+      "candidateSha256": "ac3c40dd3034815e80f1f3c188a505798c9674491b50a69f6cdc0ab3ae8c8fe0",
+      "equal": true
+    },
+    {
+      "path": "data/models/nfl-prop-market-calibration-v2.json",
+      "baselineSha256": "6b4efa5a4164a8999eebbc15ea86047dd7292bf43b3df520cdf9c2e1207ff680",
+      "candidateSha256": "6b4efa5a4164a8999eebbc15ea86047dd7292bf43b3df520cdf9c2e1207ff680",
+      "equal": true
+    },
+    {
+      "path": "data/models/nfl-qb-personnel-overlay-v1-fit.json",
+      "baselineSha256": "cfe66e73067029dd2bdb5584c901e6d85b6b90409768f1797f6f69dad71a9363",
+      "candidateSha256": "cfe66e73067029dd2bdb5584c901e6d85b6b90409768f1797f6f69dad71a9363",
+      "equal": true
+    },
+    {
+      "path": "data/models/nfl-qb-prospective-promotion-gate-v1.json",
+      "baselineSha256": "0e43a763c162e899c5136b5c185205ab6d10464d932c3ad04c22ea9155d61245",
+      "candidateSha256": "0e43a763c162e899c5136b5c185205ab6d10464d932c3ad04c22ea9155d61245",
+      "equal": true
+    },
+    {
+      "path": "data/models/nfl-wager-confidence-v1.js",
+      "baselineSha256": "fd751b77f95251fc3d74620c72726390eca8afcf95905bc79b68ac7d503da095",
+      "candidateSha256": "fd751b77f95251fc3d74620c72726390eca8afcf95905bc79b68ac7d503da095",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-fbis-v1-validation.json",
+      "baselineSha256": "9a0c08930fcff16d158497f013c501674840946d6ade028ef7bde61b541585c7",
+      "candidateSha256": "9a0c08930fcff16d158497f013c501674840946d6ade028ef7bde61b541585c7",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-fbis-v1.js",
+      "baselineSha256": "e83248e9d274a44f865e3ad57229cd8d8a86a3b932428184072bde2d96b6a569",
+      "candidateSha256": "e83248e9d274a44f865e3ad57229cd8d8a86a3b932428184072bde2d96b6a569",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-goalie-prob-historical-expansion-v1.json",
+      "baselineSha256": "0be345092c15d73bc14940ddc57fd2575ccfa8beca210f2558d1124b488a99c1",
+      "candidateSha256": "0be345092c15d73bc14940ddc57fd2575ccfa8beca210f2558d1124b488a99c1",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-goalie-prob-prospective-gate-v1.js",
+      "baselineSha256": "387b4c185cda555e3635f9cd2b8a3d478c06037dfe34af4017a0fc9d98f75a9a",
+      "candidateSha256": "387b4c185cda555e3635f9cd2b8a3d478c06037dfe34af4017a0fc9d98f75a9a",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-goalie-prob-shadow-v1.js",
+      "baselineSha256": "d402e9c672d2d8188553fbd6239a7caf4a37fca22cf23337aad838cb55585727",
+      "candidateSha256": "d402e9c672d2d8188553fbd6239a7caf4a37fca22cf23337aad838cb55585727",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-persistent-state-challenger-v1.json",
+      "baselineSha256": "b9b200cf8c962f92067e2fbd6113823ae5d6e8a59f333bec16001250c46cc20f",
+      "candidateSha256": "b9b200cf8c962f92067e2fbd6113823ae5d6e8a59f333bec16001250c46cc20f",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-player-pro-v2-validation.json",
+      "baselineSha256": "ea145c1dfbf44f29fd6c9de8ea059d67895ea0dcdf92d4547b05cef8ed04fdad",
+      "candidateSha256": "ea145c1dfbf44f29fd6c9de8ea059d67895ea0dcdf92d4547b05cef8ed04fdad",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-player-pro-v2.js",
+      "baselineSha256": "670a65d14e02a11d842dd0163fab50c2c5d433ae4b4bee0c73dd288393d5d72b",
+      "candidateSha256": "670a65d14e02a11d842dd0163fab50c2c5d433ae4b4bee0c73dd288393d5d72b",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-pro-v2-validation.json",
+      "baselineSha256": "0c049d308f2aa94bfa216e887539c56c9706cf9af597df9e574258b34d833d58",
+      "candidateSha256": "0c049d308f2aa94bfa216e887539c56c9706cf9af597df9e574258b34d833d58",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-pro-v2.js",
+      "baselineSha256": "e1538ba0effa42d8577406a8e68754c4a508a673a4bd8f5b1c01a247ea9fd2f6",
+      "candidateSha256": "e1538ba0effa42d8577406a8e68754c4a508a673a4bd8f5b1c01a247ea9fd2f6",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-state-research-v1.json",
+      "baselineSha256": "4d98de8dda3b05b19c4de9e22d3a2bbf876a0d9cb19aa3b7cd805f3f782937c5",
+      "candidateSha256": "4d98de8dda3b05b19c4de9e22d3a2bbf876a0d9cb19aa3b7cd805f3f782937c5",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-wager-confidence-v1.js",
+      "baselineSha256": "a9689148101d4f134667a2388a7a802c348b9567caa0bc0fb20e312dd942e511",
+      "candidateSha256": "a9689148101d4f134667a2388a7a802c348b9567caa0bc0fb20e312dd942e511",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-win-v1-validation.json",
+      "baselineSha256": "ffa6cc56b170b24d45688a6aef815ff56a4490dcc4113c107643e61bc07e36b7",
+      "candidateSha256": "ffa6cc56b170b24d45688a6aef815ff56a4490dcc4113c107643e61bc07e36b7",
+      "equal": true
+    },
+    {
+      "path": "data/models/nhl-win-v1.js",
+      "baselineSha256": "bec03c334be31ef383de9b7d5f8ced9825810b51cbb60c4cc1abe852705fd1ef",
+      "candidateSha256": "bec03c334be31ef383de9b7d5f8ced9825810b51cbb60c4cc1abe852705fd1ef",
+      "equal": true
+    },
+    {
+      "path": "data/models/prop-research-evidence.js",
+      "baselineSha256": "4dc4881da96aa1616a25469a27d11dee18d6d98dd37d6b412c67c7d3bc3dfaaf",
+      "candidateSha256": "4dc4881da96aa1616a25469a27d11dee18d6d98dd37d6b412c67c7d3bc3dfaaf",
+      "equal": true
+    },
+    {
+      "path": "data/models/soccer-market-benchmark-trigger.json",
+      "baselineSha256": "17ab22b3c9881b5fc242c3cbb6f878907a36c911123aec24a82f84d479de4e5c",
+      "candidateSha256": "17ab22b3c9881b5fc242c3cbb6f878907a36c911123aec24a82f84d479de4e5c",
+      "equal": true
+    },
+    {
+      "path": "data/models/soccer-pitchapi-v3-trigger.json",
+      "baselineSha256": "7dd45e4ce4ecdd4402857cc6d04ee626b23c6491c4ecd1dd74f1c259f855cc2e",
+      "candidateSha256": "7dd45e4ce4ecdd4402857cc6d04ee626b23c6491c4ecd1dd74f1c259f855cc2e",
+      "equal": true
+    },
+    {
+      "path": "data/models/soccer-v2-market-replay-trigger.json",
+      "baselineSha256": "d1fe4eda78de95c3ffa4a6fe48e553503df7824893883f992bad578fafc1dabd",
+      "candidateSha256": "d1fe4eda78de95c3ffa4a6fe48e553503df7824893883f992bad578fafc1dabd",
+      "equal": true
+    }
+  ],
+  "wagerAuthorization": false
+}
