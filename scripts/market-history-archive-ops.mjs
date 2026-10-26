@@ -5,6 +5,7 @@
  * Never deletes D1 rows — retention release stays fail-closed.
  */
 import { appendFile } from "node:fs/promises";
+import { archiveProgressFailures } from "./lib/market-history-archive-ops-evaluate.mjs";
 
 const BASE = process.env.FBIS_BASE_URL || "https://fbis-myz.pages.dev";
 const SECRET = process.env.HARVEST_SECRET || "";
@@ -63,11 +64,10 @@ const gate = await postTopology("retention-gate-evaluate", {
 });
 
 const deletionBlocked = gate?.authorized !== true;
-const failures = [];
-if (archive.ok !== true) failures.push(archive.reason || "ARCHIVE_NOT_OK");
-if (Number(archive.columnCount) !== EXPECTED_COLUMNS) {
-  failures.push(`COLUMN_COUNT_${archive.columnCount}_EXPECTED_${EXPECTED_COLUMNS}`);
-}
+const failures = archiveProgressFailures(archive, {
+  writes: ARCHIVE_WRITES,
+  expectedColumns: EXPECTED_COLUMNS,
+});
 if (ARCHIVE_WRITES && archive.archived > 0) {
   if (VERIFY_READBACK && archive.readbackVerified !== true) {
     failures.push("READBACK_SHA_MISMATCH");
@@ -89,6 +89,8 @@ const out = {
   failures,
   archive: {
     ok: archive.ok === true,
+    reason: archive.reason || null,
+    lease: archive.lease || null,
     dryRun: archive.dryRun === true,
     archived: archive.archived ?? 0,
     scanned: archive.scanned ?? null,
@@ -137,6 +139,9 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     `| archived | ${out.archive.archived} |`,
     `| backlog before→after | ${out.archive.backlogBefore ?? "n/a"} → ${out.archive.backlogAfter ?? "n/a"} |`,
     `| throughput rows/s | ${out.archive.throughputRowsPerSec ?? "n/a"} |`,
+    `| archive reason | ${out.archive.reason ?? "n/a"} |`,
+    `| lease holder | ${out.archive.lease?.holder ?? "n/a"} |`,
+    `| lease expires | ${out.archive.lease?.expiresAt ?? "n/a"} |`,
     `| columns | ${out.archive.columnCount ?? "n/a"} / ${EXPECTED_COLUMNS} |`,
     `| fullColumnRestore | ${out.archive.fullColumnRestore?.ok ?? "n/a"} |`,
     `| moreRemaining | ${out.archive.moreRemaining} |`,
