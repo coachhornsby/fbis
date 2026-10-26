@@ -10,7 +10,7 @@ const root=process.env.CFB_POSTGAME_OUT||'artifacts/cfb-live-postgame';
 const NCAA_HASH='7287cda610a9326931931080cb3a604828febe6fe3c9016a7e4a36db99efdb7c';
 export function originalSnapshot(rows,kickoff){
  return rows.filter(p=>p.frozen_at&&Date.parse(p.frozen_at)<Date.parse(kickoff)
-  &&p.model_version&&p.proj_home!=null&&p.proj_away!=null&&Number.isFinite(Number(p.proj_home))&&Number.isFinite(Number(p.proj_away)))
+  &&p.model_version==='CFB-FBIS-v2'&&p.proj_home!=null&&p.proj_away!=null&&Number.isFinite(Number(p.proj_home))&&Number.isFinite(Number(p.proj_away)))
  .sort((a,b)=>Date.parse(a.frozen_at)-Date.parse(b.frozen_at))[0]||null;
 }
 export function gradeOnce({source,original,espn,verifiedOfficial}){
