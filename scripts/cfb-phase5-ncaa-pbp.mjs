@@ -7,6 +7,16 @@ import {join} from "node:path";
 const ROOT=process.env.CFB_EVIDENCE_OUT||"artifacts/cfb-2026-weeks05-08";
 const FOOTBALL="47928f2cabc7a164f0de0ed535a623bdf5a852cce7c30d6a6972a38609ba46a2";
 const GENERIC="57f922d56d60d88326b62202b3d88e8cd3cfb6687931bc0b5b3dfab089b84faa";
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+export function examine(doc){
+ const periods=doc?.data?.playbyplay?.periods;
+ if(!Array.isArray(periods))return {valid:false,periods:0,plays:0};
+ const plays=periods.reduce((sum,p)=>sum+(Array.isArray(p.playbyplayStats)?p.playbyplayStats.length:0),0);
+ return {valid:plays>0,periods:periods.length,plays};
+}
+
+if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
 const official=JSON.parse(readFileSync(join(ROOT,'ncaa-official-reconciliation-summary.json'),'utf8'));
 if(official.ncaaVerified!==226||official.rows?.length!==226)throw Error('INDEPENDENT_226_NCAA_FINALS_REQUIRED');
 const roster=JSON.parse(readFileSync('data/cfb/2026/weeks05-08-game-roster.json','utf8'));
@@ -20,12 +30,6 @@ async function getNCAA(id,hash){
  const r=await fetch(url,{signal:AbortSignal.timeout(25000)});
  if(!r.ok)throw Error('NCAA_PBP_HTTP_'+r.status);
  return r.json();
-}
-export function examine(doc){
- const periods=doc?.data?.playbyplay?.periods;
- if(!Array.isArray(periods))return {valid:false,periods:0,plays:0};
- const plays=periods.reduce((sum,p)=>sum+(Array.isArray(p.playbyplayStats)?p.playbyplayStats.length:0),0);
- return {valid:plays>0,periods:periods.length,plays};
 }
 const rows=[];
 async function processOne(r){
@@ -66,3 +70,5 @@ const report={schema:'fbis.cfb.phase5.ncaa_pbp.v1',games:rows.length,
  independentPossessionCompletenessConfirmed:0,modelPromotion:false,wagerAuthority:false,rows};
 writeFileSync(join(ROOT,'phase5-ncaa-independent-pbp-coverage.json'),JSON.stringify(report,null,2));
 console.log(JSON.stringify({games:report.games,independentPbpSources:report.independentlyAvailablePbp,totalPlays:report.totalNcaaPlays,failures:report.sourceFailures.length}));
+
+}
