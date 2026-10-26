@@ -78,6 +78,7 @@ export default function SimulationRankingsView(){
     ?"Generates a possession-by-possession regulation game 5,000 times. Drive priors are preliminary, not prospectively calibrated; this is not the NFL production win-probability model."
     :"Reads stored pregame research simulations. Older CFB receipts predate the 14-point blowout metric and display — rather than a fabricated probability."}</span>
   </div>
+  {sport==="nfl"&&<div className="simrank-notice"><strong>Personnel-aware challenger · v1.3</strong><span>Independent, as-of pregame research estimate. Severe receiver-group losses can change the second 1,000-path simulation, but its coefficients and probabilities are not validated. No change to the frozen v1.2 score or wagering permissions. Missing/stale reports display unverified instead of inventing an injury correction.</span></div>}
   {loading?<div className="simrank-empty" role="status">Loading research rankings…</div>:
    error?<div className="simrank-empty" role="alert">Research data unavailable: {error}. No fallback odds or fabricated simulations shown.</div>:
    !rows.length?<div className="simrank-empty">No eligible, pregame {sport.toUpperCase()} research simulations for this window. The board does not invent missing games.</div>:
@@ -89,6 +90,7 @@ export default function SimulationRankingsView(){
      <th scope="col">Away score</th><th scope="col">Home score</th>
      <th scope="col"><button onClick={()=>toggleSort("total")}>Total</button></th>
      <th scope="col"><button onClick={()=>toggleSort("margin")}>Margin</button></th>
+     {sport==="nfl"&&<th scope="col">Personnel v1.3 · research</th>}
      <th scope="col">Evidence</th>
     </tr></thead>
     <tbody>{rows.map((g,i)=>{
@@ -117,6 +119,22 @@ export default function SimulationRankingsView(){
       <td className="simrank-score-lose">{score(g.home.score)}</td>
       <td className="simrank-number">{score(g.total)}</td>
       <td className="simrank-number">+{score(g.margin)}</td>
+      {sport==="nfl"&&<td className="simrank-personnel">
+       {g.personnelChallenger?.researchEligible&&g.personnelChallenger?.adjusted?
+        <div className={g.personnelChallenger.severePersonnelLoss?"simrank-personnel-card severe":"simrank-personnel-card"}>
+         <strong>{g.personnelChallenger.severePersonnelLoss?"RECEIVER DEPLETION":"PERSONNEL SHADOW"}</strong>
+         <span>As-of {date(g.personnelChallenger.capturedAt)}</span>
+         <b>{g.away.abbr} {score(g.personnelChallenger.simulation?.away)} · {g.home.abbr} {score(g.personnelChallenger.simulation?.home)}</b>
+         <small>Model margin (home) {score(g.personnelChallenger.adjusted.margin)}</small>
+         <small>{g.away.abbr} WR top-5 out: {g.personnelChallenger.away.absentTop5} · {g.home.abbr}: {g.personnelChallenger.home.absentTop5}</small>
+         <small>1,000 research draws · not calibrated</small>
+         {g.personnelChallenger.warnings.length>0&&<small title={g.personnelChallenger.warnings.join(", ")}>⚠ Lineup uncertainty</small>}
+        </div>:
+        <div className="simrank-personnel-card missing"><strong>NOT VERIFIED</strong>
+         <span>No injury-aware score</span>
+         <small>{g.personnelChallenger?.reason||g.personnelChallenger?.context?.warnings?.join(", ")||"Verified as-of depth/health not available"}</small>
+        </div>}
+      </td>}
       <td><div className="simrank-provenance"><b>{g.modelVersion}</b>
         <span>{g.iterations.toLocaleString()} draws · {g.calibrationStatus.replaceAll("_"," ").toLowerCase()}</span>
         <small>{age(g.sourceFrozenAt)}</small></div></td>
