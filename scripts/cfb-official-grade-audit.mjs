@@ -18,7 +18,7 @@ export function grade(games,snapshots,official){
   const snap=(byId.get(id)||[]).filter(p=>utc(p.frozen_at)<kickoff&&p.model_version&&numeric(p.proj_home)&&numeric(p.proj_away))
     .sort((a,b)=>utc(a.frozen_at)-utc(b.frozen_at))[0];
   const f=finals.get(id);
-  const officialValid=f?.verified===true&&typeof f.source_url==="string"&&/^https:\/\//.test(f.source_url)&&
+  const officialValid=f?.verified===true&&typeof f.source_url==="string"&&f.source_url.startsWith("https://")&&
     numeric(f.home_score)&&numeric(f.away_score)&&f.home_team===g.home_team_source&&f.away_team===g.away_team;
   let row={game_id:id,week:Number(g.week),savedPregame:!!snap,officialVerified:!!officialValid,
     status:!snap?"NO_ELIGIBLE_PREGAME_PROJECTION":!officialValid?"OFFICIAL_FINAL_UNVERIFIED":"GRADED",
