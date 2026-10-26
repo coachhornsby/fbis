@@ -80,6 +80,13 @@ jobs:
           mkdir -p artifacts
           export SLATE_DATE="$(TZ=America/Chicago date +%F)"
           node scripts/morning-slate-coverage.mjs | tee artifacts/slate-coverage.json
+      - name: Verify rolling seven-day schedule coverage
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true
+        env:
+          FBIS_BASE: https://fbis-myz.pages.dev
+          SLATE_HORIZON_DAYS: "7"
+        run: node scripts/morning-slate-coverage.mjs | tee artifacts/seven-day-slate-coverage.json
       - name: Get orchestrator OIDC token
         if: steps.gate.outputs.run == 'true' && (github.event_name != 'push' || steps.deploy.outcome == 'success')
         id: oidc
@@ -137,12 +144,14 @@ jobs:
           set -euo pipefail
           test -s artifacts/slate-coverage.json
           jq -e '.ok == true and (.errors|length)==0' artifacts/slate-coverage.json >/dev/null
+          jq -e '.ok == true' artifacts/seven-day-slate-coverage.json >/dev/null
       - uses: actions/upload-artifact@v4
         if: always() && steps.gate.outputs.run == 'true'
         with:
           name: slate-coverage-${{ github.run_id }}
           path: |
             artifacts/slate-coverage.json
+            artifacts/seven-day-slate-coverage.json
             artifacts/sheet-sync.json
           if-no-files-found: warn
           retention-days: 14

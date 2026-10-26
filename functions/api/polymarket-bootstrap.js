@@ -1,3 +1,4 @@
+import {hydrateCutoverApprovals} from '../lib/databaseTopology.js';
 import {authorizeHarvest,unauthorizedBody} from '../lib/auth.js';
 import {bootstrapPolymarket} from '../lib/polymarketBootstrap.js';
 import {collectPolymarketUsTennisInventory} from '../lib/tennisExchangeInventory.js';
@@ -48,6 +49,7 @@ export async function onRequestPost({request,env}){
    observationDb=target.db;observationStore=target.store;
   }
   // Keep env.DB on primary for fixture/catalogue reads; only observation writes may use history.
+  await hydrateCutoverApprovals(env);
   const result=await bootstrapPolymarket(env,{...body,observationDb,observationStore});return json(result,result.ok?200:409);
  }
  catch(e){const reason=/^[A-Z][A-Z0-9_]{1,100}$/.test(e.message||'')?e.message:'BOOTSTRAP_UNAVAILABLE';return json({ok:false,error:reason,canAuthorizeWager:false},reason.includes('HTTP_429')?429:503);}

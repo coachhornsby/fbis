@@ -67,7 +67,7 @@ test("auditPlatformMarketCoverage returns every configured sport", async () => {
     lookbackHours: 24,
   });
   assert.equal(report.ok, true);
-  assert.ok(report.sports.length >= 11);
+  assert.deepEqual(report.sports.map(s=>s.sport).sort(),["cfb","nfl","cbb","nba","nhl","mlb","tennis"].sort());
   assert.ok(report.sports.every((s) => s.ok === true));
   assert.ok(report.eligibility.includes("lookbackHours"));
 });

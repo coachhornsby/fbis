@@ -7,10 +7,10 @@
  * No paid provider requests, model promotion, bet selection, or wagering writes.
  */
 const BASE = process.env.FBIS_BASE || "https://fbis-myz.pages.dev";
-export const ENABLED_SPORTS = ["mlb","npb","kbo","nfl","cfb","cbb","nba","wnba","nhl","soccer"];
+export const ENABLED_SPORTS = ["mlb","nfl","cfb","cbb","nba","nhl","tennis"];
 const ESPN = {
   mlb:"baseball/mlb",nfl:"football/nfl",nba:"basketball/nba",
-  nhl:"hockey/nhl",wnba:"basketball/wnba",
+  nhl:"hockey/nhl",cfb:"football/college-football",cbb:"basketball/mens-college-basketball",
 };
 const DAY_MS=86400000;
 export function chicagoDate(iso){
@@ -159,16 +159,28 @@ export async function auditDailySlate({date,sports=ENABLED_SPORTS,recovery=true}
     unsupportedIndependentSourceSports:detail.filter(d=>d.sourceStatus==="SOURCE_UNVERIFIED"&&!d.hasIndependentSource).map(d=>d.sport),
     detail,errors};
 }
+/** Seven dates, bounded concurrency, and no recovery writes during the horizon audit. */
+export async function auditSevenDaySlate({date,sports=ENABLED_SPORTS,audit=auditDailySlate}={}){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date||''))throw Error('date YYYY-MM-DD required');
+ const days=Array.from({length:7},(_,i)=>new Date(Date.parse(date+"T12:00:00Z")+i*DAY_MS).toISOString().slice(0,10));
+ const reports=await boundedMap(days,day=>audit({date:day,sports,recovery:false}),2);
+ const unverified=reports.flatMap(r=>r.detail.filter(d=>d.sourceStatus!=='ESPN_VERIFIED')
+  .map(d=>({date:r.date,sport:d.sport,reason:d.sourceError||'AUTHORITATIVE_SCHEDULE_UNVERIFIED'})));
+ return {ok:reports.every(r=>r.ok)&&unverified.length===0,horizonDays:7,date,
+  checkedAt:new Date().toISOString(),reports,unverified,
+  errors:reports.flatMap(r=>r.errors.map(e=>r.date+':'+e)),canAuthorizeWager:false};
+}
 function localToday(){
   return chicagoDate(new Date().toISOString());
 }
 if(process.argv[1] && import.meta.url===new URL("file://"+process.argv[1]).href){
   const date=process.env.SLATE_DATE||localToday();
-  const report=await auditDailySlate({date});
+  const sevenDays=process.env.SLATE_HORIZON_DAYS==="7";
+  const report=sevenDays?await auditSevenDaySlate({date}):await auditDailySlate({date});
   console.log(JSON.stringify(report,null,2));
   if(process.env.GITHUB_STEP_SUMMARY){
     const {appendFileSync}=await import("node:fs");
-    const rows=report.detail.map(d=>`| ${d.sport.toUpperCase()} | ${d.boardGames} | ${d.expectedGames??"Not independently verified"} | ${d.independentModels} | ${d.state} |`);
+    const rows=(report.detail||report.reports.flatMap(r=>r.detail.map(d=>({...d,sport:r.date+" "+d.sport})))).map(d=>`| ${d.sport.toUpperCase()} | ${d.boardGames} | ${d.expectedGames??"Not independently verified"} | ${d.independentModels} | ${d.state} |`);
     appendFileSync(process.env.GITHUB_STEP_SUMMARY,[
       "## FBIS daily slate coverage — "+date,
       "| Sport | Board games | Independent-source games | Modeled | Status |",

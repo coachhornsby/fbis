@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {bootstrapPolymarket,projectedPolymarketFixtures} from '../functions/lib/polymarketBootstrap.js';
+import {bootstrapPolymarket,projectedPolymarketFixtures,routedPolymarketFixtures} from '../functions/lib/polymarketBootstrap.js';
 const now=new Date('2026-10-18T06:00:00Z'),start='2026-10-18T20:00:00Z';
 function environment(){
  const db=new DatabaseSync(':memory:');db.exec(`CREATE TABLE games(id TEXT,sport TEXT,start TEXT,home_name TEXT,away_name TEXT,home_abbr TEXT,away_abbr TEXT); CREATE TABLE prediction_snapshots(game_id TEXT,sport TEXT,model_version TEXT,projection_kind TEXT,proj_total REAL,proj_home REAL,proj_away REAL,p_home_final REAL,frozen_at TEXT);
@@ -147,4 +147,36 @@ test('bootstrap does not resume aged receipts into expired quote batches',async(
   const result=await bootstrapPolymarket(e,{operation:'resume'},{now});
   assert.equal(result.run,expectedRun);
  }
+});
+
+
+test('seven-day readiness includes day six but excludes games beyond day seven',async()=>{
+ const e=environment();forecast(e);
+ e.db.prepare('UPDATE games SET start=?').run('2026-10-24T20:00:00Z');
+ assert.equal((await routedPolymarketFixtures(e,now)).length,1);
+ e.db.prepare('UPDATE games SET start=?').run('2026-10-25T06:00:01Z');
+ assert.equal((await routedPolymarketFixtures(e,now)).length,0);
+});
+test('all six team sports use only deployed approved authority, preserving away abbreviations',async()=>{
+ for(const sport of ['cfb','nfl','cbb','nba','nhl','mlb']){
+  const primary=environment(),owner=environment();forecast(primary);forecast(owner);
+  primary.db.exec(`UPDATE games SET sport='${sport}'; UPDATE prediction_snapshots SET sport='${sport}';`);
+  owner.db.exec(`UPDATE games SET sport='${sport}',id='owner'; UPDATE prediction_snapshots SET sport='${sport}',game_id='owner';`);
+  const upper=sport.toUpperCase(),env={...primary,[upper+'_DB']:owner.DB,CORE_DB:primary.DB,
+   ['SPORT_DB_MODE_'+upper]:'shadow',['SPORT_CUTOVER_RECEIPT_'+upper]:'receipt',
+   __fbisCutoverApprovals:new Map([[sport+':receipt',{status:'APPROVED'}]])};
+  assert.deepEqual((await routedPolymarketFixtures(env,now)).map(g=>g.id),['g1']);
+  env['SPORT_DB_MODE_'+upper]='sport';
+  const rows=await routedPolymarketFixtures(env,now);
+  assert.deepEqual(rows.map(g=>g.id),['owner']);assert.equal(rows[0].away_abbr,'SEA');
+  env.__fbisCutoverApprovals.clear();
+  await assert.rejects(()=>routedPolymarketFixtures(env,now),new RegExp(upper+'_AUTHORITY_UNAVAILABLE'));
+  delete env[upper+'_DB'];
+  await assert.rejects(()=>routedPolymarketFixtures(env,now),new RegExp(upper+'_AUTHORITY_UNAVAILABLE'));
+ }
+});
+test('provider event discovery uses the same seven-day bound as forecast discovery',async()=>{
+ const e=environment();forecast(e);
+ await bootstrapPolymarket(e,{operation:'page',sport:'nfl',slug:'nfl',offset:0,receiptId:'seven-day-page'},
+  {now,fetchImpl:async url=>{assert.equal(url.searchParams.get('startTimeMax'),'2026-10-25T06:00:00.000Z');return Response.json({events:[]});}});
 });
