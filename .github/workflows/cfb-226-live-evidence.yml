@@ -4,6 +4,8 @@ on:
     paths:
       - "data/cfb/2026/weeks05-08-game-roster.json"
       - "scripts/cfb-226-live-evidence.mjs"
+      - "scripts/cfb-226-complete-grade.mjs"
+      - "data/cfb/2026/weeks05-08-frozen-a-a-receipts.json"
       - ".github/workflows/cfb-226-live-evidence.yml"
   workflow_dispatch:
 permissions:
@@ -21,6 +23,10 @@ jobs:
         id: collector
         continue-on-error: true
         run: node scripts/cfb-226-live-evidence.mjs
+      - name: Grade all 226 pre-kickoff forecasts against reported results
+        id: grader
+        continue-on-error: true
+        run: node scripts/cfb-226-complete-grade.mjs
       - name: Archive every game and collection receipt
         if: always()
         uses: actions/upload-artifact@v4
@@ -30,5 +36,5 @@ jobs:
           retention-days: 30
           if-no-files-found: error
       - name: Enforce collector completion
-        if: steps.collector.outcome != 'success'
+        if: steps.collector.outcome != 'success' || steps.grader.outcome != 'success'
         run: exit 1
