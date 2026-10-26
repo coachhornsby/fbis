@@ -22,11 +22,13 @@ export async function onRequestGet({request,env}) {
     AND s.can_influence_projection=0 AND s.can_authorize_wager=0
    ORDER BY s.received_at DESC LIMIT 300`);
   if(raw.length>300)throw Error("TIER3_COHORT_TRUNCATED");
+  const ids=[...new Set(raw.map(x=>String(x.gameId)).filter(x=>/^\\d{5,20}$/.test(x)))];
+  if(ids.length===0)return reply({ok:true,version:TIER3_SHADOW_VERSION,candidateRows:raw.length,eligible:0,rejected:{NO_MATCHABLE_GAMES:raw.length},paired:pairedTier3ShadowAudit([]),providerCalls:0,canQualify:false,canAuthorizeWager:false,changesProductionChampion:false});
   const snapshots=await query(env.CFB_DB,`SELECT game_id gameId,id baselineSnapshotId,proj_home baselineHome,
     proj_away baselineAway,frozen_at baselineFrozenAt
     FROM prediction_snapshots WHERE sport='cfb' AND model_version='CFB-FBIS-v2'
     AND projection_kind='FBIS' AND proj_home IS NOT NULL AND proj_away IS NOT NULL
-    AND frozen_at<'2026-12-31T23:59:59Z'
+    AND game_id IN (${ids.join(',')})
     ORDER BY frozen_at DESC LIMIT 5000`);
   if(snapshots.length===5000)throw Error("BASELINE_COHORT_TRUNCATED");
   const byId=new Map();
