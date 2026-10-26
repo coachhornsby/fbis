@@ -6,7 +6,7 @@
  * Kalshi anonymously. It passes only a separate encrypted service token.
  */
 const PREFIX="kalshi/public-shadow/v1/";
-const SPORTS=["nfl","cfb"];
+const SPORTS=["nfl","cfb","nba"];
 const TENNIS_RESEARCH=["atp","wta","atp_challenger","itf_men","itf_women",
  "atp_doubles","wta_doubles","itf_doubles","itf_women_doubles"];
 const SLOT_MS=15*60*1000;

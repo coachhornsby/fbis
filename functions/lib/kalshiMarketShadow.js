@@ -183,7 +183,7 @@ export async function getKalshiShadowMarketsPaged(sport,{
   fetchImpl=fetch,now=new Date(),pageLimit=1000,maxPages=4,
 }={}){
   const series=KALSHI_SHADOW_SERIES[sport];
-  if(!series||!["nfl","cfb","cfb_spread","cfb_total","atp","wta"].includes(sport))
+  if(!series||!["nfl","cfb","nba","cfb_spread","cfb_total","atp","wta"].includes(sport))
     return {ok:false,code:"KALSHI_SERIES_NOT_QUALIFIED"};
   const perPage=Math.min(1000,Math.max(1,Math.floor(Number(pageLimit)||1000)));
   const budget=Math.min(6,Math.max(1,Math.floor(Number(maxPages)||4)));
