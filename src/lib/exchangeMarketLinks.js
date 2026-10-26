@@ -23,6 +23,7 @@ const KALSHI_VERIFIED_SERIES_CATEGORIES=Object.freeze({
 });
 function kalshiMarketDestination(offer,ticker){
  const event=nonEmpty(offer.eventTicker)||nonEmpty(offer.providerEventTicker)||
+  nonEmpty(offer.providerEventId)||
   nonEmpty(offer.raw?.eventTicker)||nonEmpty(offer.raw?.event_ticker);
  const provided=nonEmpty(offer.marketUrl)||nonEmpty(offer.sourceMarketUrl)||
   nonEmpty(offer.raw?.marketUrl)||nonEmpty(offer.raw?.providerMarket?.url);
