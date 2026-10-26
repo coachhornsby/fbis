@@ -1,0 +1,107 @@
+name: CFB future-week NCAA verified settlement and A/A grading
+on:
+  pull_request:
+    paths:
+      - "scripts/cfb-weekly-postgame-settle.mjs"
+      - "scripts/cfb-weekly-postgame-sql.mjs"
+      - "test/cfb-weekly-postgame-settle.test.js"
+      - ".github/workflows/cfb-weekly-postgame-settle.yml"
+  workflow_dispatch:
+    inputs:
+      week:
+        description: target week
+        required: false
+        default: ""
+  schedule:
+    - cron: "30 14 * * 2"
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test test/cfb-weekly-postgame-settle.test.js
+      - run: node --check scripts/cfb-weekly-postgame-sql.mjs
+  settle-week:
+    needs: contract
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      CLOUDFLARE_ACCOUNT_ID: 2fdc80b8d99070adcef12f7a785c3fc1
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TARGET_WEEK: ${{ inputs.week }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Determine just-finished CFB week
+        run: |
+          set -euo pipefail
+          if [ -z "${TARGET_WEEK:-}" ]; then
+            TARGET_WEEK=$(node -e "import('./scripts/cfb-weekly-source-ingest.mjs').then(m=>console.log(m.sourceWeek(new Date().toISOString())-1))")
+          fi
+          echo "TARGET_WEEK=${TARGET_WEEK}" >> "${GITHUB_ENV}"
+          if [ "${TARGET_WEEK}" -lt 9 ] || [ "${TARGET_WEEK}" -gt 15 ]; then
+            echo "SKIP_SETTLEMENT=true" >> "${GITHUB_ENV}"
+            echo "No future-week data for target week ${TARGET_WEEK}"
+          fi
+      - name: Read most recent immutable weekly source hash
+        if: env.SKIP_SETTLEMENT != 'true'
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis-cfb --remote --json --command "SELECT source_sha FROM cfb_weekly_research_sources WHERE season=2026 AND week=${TARGET_WEEK} GROUP BY source_sha ORDER BY MAX(source_observed_at) DESC LIMIT 1" > /tmp/cfb-week-source-sha.json
+          SOURCE_SHA=$(node -e "const p=require('/tmp/cfb-week-source-sha.json');process.stdout.write(p?.[0]?.results?.[0]?.source_sha||'')")
+          [[ "${SOURCE_SHA}" =~ ^[a-f0-9]{64}$ ]] || { echo "NO_PREGAME_VENDOR_SOURCE_FOR_WEEK_${TARGET_WEEK}"; exit 1; }
+          echo "SOURCE_SHA=${SOURCE_SHA}" >> "${GITHUB_ENV}"
+      - name: Read original frozen A/A forecasts and weekly source identities
+        if: env.SKIP_SETTLEMENT != 'true'
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis-cfb --remote --json --command "SELECT a.game_id,a.season,a.week,a.kickoff_utc,a.source_sha,a.features_json,p.frozen_at,p.model_version,p.proj_home,p.proj_away FROM cfb_weekly_research_sources a LEFT JOIN prediction_snapshots p ON p.game_id=a.game_id AND lower(p.sport)='cfb' AND p.model_version='CFB-FBIS-v2' AND p.frozen_at<a.kickoff_utc WHERE a.season=2026 AND a.week=${TARGET_WEEK} AND a.source_sha='${SOURCE_SHA}' ORDER BY a.game_id,p.frozen_at" > /tmp/cfb-week-input.json
+          node scripts/cfb-weekly-postgame-settle.mjs /tmp/cfb-week-input.json
+      - name: Seal all research evidence in private R2 with sha256 readback
+        if: env.SKIP_SETTLEMENT != 'true'
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
+          root=Path('artifacts/cfb-live-postgame')
+          with zipfile.ZipFile('cfb-future-week.zip','w',compression=zipfile.ZIP_DEFLATED) as z:
+              for f in sorted(root.rglob('*')):
+                  if f.is_file(): z.write(f,f.relative_to(root))
+          PY
+          SHA=$(sha256sum cfb-future-week.zip | cut -d' ' -f1)
+          KEY="cfb/2026/weekly-postgame/week${TARGET_WEEK}/${SHA}.zip"
+          npx wrangler r2 object put "fbis-archive/${KEY}" --remote --file cfb-future-week.zip --content-type application/zip --force
+          npx wrangler r2 object get "fbis-archive/${KEY}" --remote --file /tmp/cfb-week-readback.zip
+          echo "${SHA}  /tmp/cfb-week-readback.zip" | sha256sum -c -
+          node scripts/cfb-weekly-postgame-sql.mjs artifacts/cfb-live-postgame "${KEY}" "${SHA}" /tmp/cfb-week-settled.sql
+          echo "ARCHIVE_SHA=${SHA}" >> "${GITHUB_ENV}"
+      - name: Append only genuinely frozen NCAA-confirmed final grades to CFB research table
+        if: env.SKIP_SETTLEMENT != 'true'
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis-cfb --remote --file /tmp/cfb-week-settled.sql --yes
+          npx wrangler d1 execute fbis-cfb --remote --json --command "SELECT COUNT(DISTINCT game_id) n FROM cfb_weekly_postgame_research WHERE season=2026 AND week=${TARGET_WEEK} AND archive_sha='${ARCHIVE_SHA}'" > /tmp/cfb-week-grade-readback.json
+          EXPECTED=$(node -p "require('./artifacts/cfb-live-postgame/manifest.json').officialSettled")
+          ACTUAL=$(node -p "require('/tmp/cfb-week-grade-readback.json')[0].results[0].n")
+          test "${EXPECTED}" = "${ACTUAL}" || { echo "CFB_RESEARCH_SETTLEMENT_READBACK_MISMATCH"; exit 1; }
+          echo "OFFICIAL_RESEARCH_SETTLEMENT_PASSED ${ACTUAL} independently confirmed"
+          UNSETTLED=$(node -p "require('./artifacts/cfb-live-postgame/manifest.json').unsettled")
+          test "${UNSETTLED}" = "0" || { echo "CFB_PREGAME_FORECAST_OR_OFFICIAL_SETTLEMENT_GAPS:${UNSETTLED}"; exit 1; }
+      - name: Publish every verification receipt including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-future-week-official-settlement
+          path: artifacts/cfb-live-postgame/
+          if-no-files-found: warn
+          retention-days: 30
