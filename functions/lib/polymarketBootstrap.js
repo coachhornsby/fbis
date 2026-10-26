@@ -1,3 +1,4 @@
+import {indexCapturedPolymarketUsProps} from './polymarketUsProps.js';
 import {productSportDbHandle, deployedSportDbMode} from './databaseTopology.js';
 import {POLY_US_API,FBIS_POLY_SPORTS,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers} from './polymarketUs.js';
 import {polymarketUsSideLabel,polymarketUsCanonicalSide} from './polymarketUs.js';
@@ -119,6 +120,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
   if(!Number.isSafeInteger(opts.offset)||opts.offset<0||opts.offset%20)throw Error('INVALID_SCOPE');
   if(opts.operation==='page'&&(!valid(opts.slug)||classifyPolymarketUsLeague({slug:opts.slug,name:opts.name,providerSport:opts.providerSport})!==opts.sport))throw Error('INVALID_SCOPE');
   const existing=await env.ARCHIVE.get(key);if(existing){const old=await existing.json();
+   if(opts.operation==='markets')await indexCapturedPolymarketUsProps(env,opts);
    const cachedQuotes=await Promise.all(Array.from({length:old.bookBatches||0},async(_,i)=>{const b=await env.ARCHIVE.get(prefix+opts.receiptId+'-quotes-'+i+'.json');return b?b.json():null;}));
    return {...old,offers:undefined,events:undefined,...(cachedQuotes.every(b=>b?.ok===true)?{cachedQuotes}: {})};}
   let scope=opts,eventPage,sourcePage,canonicalBinding=null;
@@ -143,6 +145,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
     detail.enumerationProof={method:gameLineProof?'GAME_LINE_COUNTER_AND_MAIN_IDS':'FULL_MARKET_COUNTER',advertisedLines,gameLines,advertisedAll:detail.marketCounts?.numMarkets,returnedAll:detail.markets.length};
     await env.ARCHIVE.put(detailKey,JSON.stringify(detail));
    }
+   await indexCapturedPolymarketUsProps(env,opts);
    scope={sport:parent.sport,slug:parent.slug};
    sourcePage={markets:detail.markets.slice(opts.offset,opts.offset+20),detailMarketCount:detail.markets.length};
    eventPage={events:[{...entry.event,markets:sourcePage.markets}]};

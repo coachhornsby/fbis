@@ -16,7 +16,7 @@ export default function EventPlayerProps({game}) {
     if(!expanded || !eventId || sport==='tennis')return;
     const controller=new AbortController();
     setResult(null);setError(null);
-    if(sport==='nba' && game?.start){
+    if(['nba','nfl','nhl','mlb','cfb','cbb'].includes(sport) && game?.start){
       const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(game.start));
       const q=new URLSearchParams({sport,date});
       const read=async url=>{
