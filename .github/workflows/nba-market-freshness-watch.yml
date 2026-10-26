@@ -2,7 +2,7 @@ name: NBA market-quote freshness watch
 on:
   workflow_dispatch:
   schedule:
-    - cron: "13 */6 * * *"
+    - cron: "55 * * * *"
   push:
     branches: [main]
     paths:
