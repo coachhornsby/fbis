@@ -24,12 +24,48 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
   useEffect(()=>{ if(!onSportFilterChange) setLocalSport(sportFilter); },[sportFilter,onSportFilterChange]);
   useEffect(()=>{
     const controller=new AbortController();
-    const load=()=>{
-      const q=new URLSearchParams({sport:sport==='top25'?'all':sport,date});
-      fetch(`/api/exchange-player-props?${q}`,{signal:controller.signal,credentials:'same-origin'})
-        .then(async r=>{const body=await r.json();if(!r.ok||!body.ok)throw Error(body.error||`HTTP ${r.status}`);return body;})
-        .then(body=>{if(!controller.signal.aborted)setState({...body,loading:false,error:''});})
-        .catch(e=>{if(!controller.signal.aborted)setState({loading:false,rows:[],coverage:[],error:String(e.message)});});
+    let cursor=null,inFlight=false,seen=new Set(),seenMarket=new Set();
+    let accumulated=null,rounds=0;
+    const load=async()=>{
+      if(inFlight||controller.signal.aborted)return;
+      inFlight=true;
+      try{
+       // Bound each refresh to a small number of source reads. Continue from
+       // the same scoped keyset cursor on the following refresh until complete.
+       for(let n=0;n<3&&!controller.signal.aborted;n++){
+        const q=new URLSearchParams({sport:sport==='top25'?'all':sport,date,pageBudget:'2'});
+        if(cursor)q.set('cursor',cursor);
+        const response=await fetch(`/api/exchange-player-props?${q}`,{signal:controller.signal,credentials:'same-origin'});
+        const body=await response.json();
+        if(!response.ok||!body.ok)throw Error(body.error||`HTTP ${response.status}`);
+        if(!accumulated)accumulated={...body,rows:[],marketOnly:[]};
+        for(const r of body.rows||[]){
+         const key=[r.provider,r.contractId,r.outcomeId||r.side,r.canonicalPlayerId,
+          r.canonical_market,r.period,r.line].join('|');
+         if(!seen.has(key)){seen.add(key);accumulated.rows.push(r);}
+        }
+        for(const r of body.marketOnly||[]){
+         const key=r.id||[r.provider,r.contractId,r.line,r.rawTitle].join('|');
+         if(!seenMarket.has(key)){seenMarket.add(key);accumulated.marketOnly.push(r);}
+        }
+        cursor=body.nextCursor||null;
+        accumulated={...accumulated,
+         degraded:accumulated.degraded||body.degraded,
+         readComplete:body.readComplete===true&&!cursor&&!accumulated.degraded,
+         nextCursor:cursor,moreAvailable:!!cursor,
+         marketOnlyCount:accumulated.marketOnly.length,
+         diagnostics:body.diagnostics,coverage:body.coverage
+        };
+        rounds++;
+        if(!controller.signal.aborted)setState({...accumulated,loading:false,error:'',inventoryBatches:rounds});
+        if(!cursor)break;
+       }
+       // On completion, the next timed refresh starts a new current snapshot.
+       if(!cursor){accumulated=null;seen=new Set();seenMarket=new Set();rounds=0;}
+      }catch(e){
+       if(!controller.signal.aborted)setState(prev=>({...prev,loading:false,
+        error:'Exchange inventory incomplete: '+String(e.message),readComplete:false}));
+      }finally{inFlight=false;}
     };
     setSelected(null);setState({loading:true,rows:[],coverage:[],error:''});load();
     const timer=setInterval(load,60_000);return()=>{controller.abort();clearInterval(timer);};
@@ -106,7 +142,8 @@ export default function ExchangePlayerPropsPanel({board=null,sportFilter='all',o
     </div>:null}
     {state.error?<p role="alert">Player prop delivery failed: {state.error}</p>:null}
     {modelError?<p role="status">Model delivery: {modelError}</p>:null}
-    {state.degraded?<p role="status">Coverage unknown: one or more observation stores could not be read completely.</p>:null}
+    {state.moreAvailable?<p role="status">Exchange observation inventory is still loading across database pages ({state.inventoryBatches||1} batches). Prices and cards are provisional until the source read completes.</p>:null}
+    {state.degraded&&!state.moreAvailable?<p role="status">Coverage unknown: one or more observation stores could not be read completely.</p>:null}
     {!state.loading&&!modelLoading&&!state.error&&!rows.length?<p className="pp-empty">{sport==="tennis" ? "No independent tennis player-stat projections available for these filters. Available tennis match/set/game exchange markets are shown separately below." : "No independent FBIS projections available for these filters. Unmatched exchange markets appear in the market-only inventory below."}</p>:null}
     {!compact&&basketballWatermarks.total>0?<details className="pp-basketball-watermark-audit">
       <summary>Basketball team watermarks: {basketballWatermarks.resolved}/{basketballWatermarks.total} resolved
