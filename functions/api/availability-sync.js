@@ -42,7 +42,7 @@ export async function onRequestGet(context){
   // optional augmentation for depth/role context and for CFB.
   const officialOk=nflOfficial.ok===true;
   const twoDeepUsable=twoDeep.ok===true;
-  const ok=officialOk || twoDeepUsable;
+  const ok=officialOk; // Two Deep must never mask failure to apply official NFL status to the active NFL_DB.
   const configured=officialOk || twoDeep.configured===true;
   const payload={
     ok,
