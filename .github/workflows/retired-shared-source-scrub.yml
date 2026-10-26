@@ -1,0 +1,42 @@
+name: Retired sport source data cleanup (R2 verified)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/retired-shared-source-scrub.yml"
+      - "scripts/retired-shared-source-scrub.mjs"
+      - "ops/triggers/retired-shared-source-scrub"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-retired-shared-source-scrub
+  cancel-in-progress: false
+
+jobs:
+  archived-source-purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Check data-retirement script
+        run: node --check scripts/retired-shared-source-scrub.mjs
+      - name: Retire only backed-up retired sport source and shadow rows
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RETIRED_MAX_BATCHES: "2500"
+        run: node scripts/retired-shared-source-scrub.mjs
+      - name: Publish row-by-row verified restoration receipts
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: retired-shared-source-scrub
+          path: /tmp/fbis-retired-shared-source/
+          retention-days: 90
+          if-no-files-found: ignore
