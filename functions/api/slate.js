@@ -110,7 +110,7 @@ function slateDateWindowForSport(sport) {
     // College schedules are sparse; allow operators to view upcoming boards.
     return { maxPast: 7, maxFuture: 14 };
   }
-  return { maxPast: 2, maxFuture: 1 };
+  return { maxPast: 2, maxFuture: 7 };
 }
 
 function json(data, status, maxAge) {

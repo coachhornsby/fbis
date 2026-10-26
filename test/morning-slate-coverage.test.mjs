@@ -20,7 +20,7 @@ test("missing ESPN scheduled games are fail-closed, not mistaken for model passe
 test("known games with unavailable projections remain tracked but unmodeled",()=>{
   const board=[{id:"1",projection:{independent:false}},{id:"2"}];
   const c=checkCoverage("nba",board,[{id:"1"},{id:"2"}]);
-  assert.equal(c.state,"COMPLETE");
+  assert.equal(c.state,"DEGRADED");
   assert.equal(c.unavailableModels,2);
   assert.equal(c.independentModels,0);
 });
@@ -63,4 +63,32 @@ test('seven-day guard does not label unsupported or empty schedules healthy',asy
  }});
  assert.equal(report.ok,false);assert.equal(report.unverified.length,7);
  assert.deepEqual(dates.sort(),['2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30','2026-10-31','2026-11-01']);
+});
+
+
+test("same event ID does not hide a changed kickoff or reversed sides",()=>{
+ const scheduled=[{id:"1",home:"HOU",away:"DAL",start:"2026-10-26T20:00:00Z"}];
+ const board=[{id:"1",home:{abbr:"DAL"},away:{abbr:"HOU"},start:"2026-10-26T21:00:00Z",projection:{independent:true}}];
+ const report=checkCoverage("nfl",board,scheduled);
+ assert.equal(report.state,"INCOMPLETE");
+ assert.deepEqual(report.scheduleMismatches,[{eventId:"1",reasons:["HOME_TEAM_MISMATCH","AWAY_TEAM_MISMATCH","START_TIME_MISMATCH"]}]);
+});
+test("projection rejection reasons survive coverage reporting for every active sport",()=>{
+ for(const sport of ENABLED_SPORTS){
+  const report=checkCoverage(sport,[{id:"1",projection:{independent:false,reason:"FROZEN_RECEIPT_MISSING"}}],[{id:"1"}]);
+  assert.equal(report.state,"DEGRADED");
+  assert.deepEqual(report.missingProjectionEvents,[{eventId:"1",reason:"FROZEN_RECEIPT_MISSING"}]);
+ }
+ assert.equal(scheduleEventMatches({}, {}, "nfl"),false);
+});
+
+
+test("public projection and recovery endpoints accept the full seven-day horizon",async()=>{
+ const {readFile}=await import("node:fs/promises");
+ for(const file of ["functions/api/projections.js","functions/api/slate.js"]){
+  const source=await readFile(new URL("../"+file,import.meta.url),"utf8");
+  assert.match(source,/maxPast: 2, maxFuture: 7/);
+ }
+ const {resolveSlateDate,todayCT,shiftDateCT}=await import("../functions/lib/slateEngine.js");
+ for(let i=0;i<7;i++)assert.equal(resolveSlateDate(shiftDateCT(todayCT(),i),{maxPast:2,maxFuture:7}).ok,true);
 });

@@ -1,7 +1,7 @@
 /**
  * Morning / late-afternoon FBIS slate completeness guard.
  * All supported FBIS sports are checked. ESPN independently verifies the
- * complete game schedule for MLB/NFL/NBA/NHL/WNBA; other league feeds report
+ * complete game schedule for MLB/NFL/CFB/NBA/CBB/NHL; other league feeds report
  * SOURCE_UNVERIFIED rather than equating an empty FBIS board with no games.
  *
  * No paid provider requests, model promotion, bet selection, or wagering writes.
@@ -33,7 +33,7 @@ export function normalizedScheduleTeam(value,sport){
   return sport==="mlb"?(MLB_TEAM_ALIASES[raw]||raw):raw;
 }
 export function scheduleEventMatches(scheduled,boardEvent,sport){
-  if(String(scheduled?.id||"")===String(boardEvent?.id||""))return true;
+  if(scheduled?.id && boardEvent?.id && String(scheduled.id)===String(boardEvent.id))return true;
   // MLB Stats IDs and ESPN IDs are different provider namespaces.
   if(sport!=="mlb")return false;
   const away=normalizedScheduleTeam(scheduled?.away,sport);
@@ -56,11 +56,26 @@ export function checkCoverage(sport,board,scheduled=null){
   const unmodeled=games.filter(g=>g.projection?.independent!==true);
   const duplicateIds=games.map(g=>String(g.id||"")).filter(Boolean).filter((id,i,a)=>a.indexOf(id)!==i);
   const missing=scheduled===null?[]:missingScheduledIds(scheduled,games,sport);
+  const missingProjectionEvents=unmodeled.map(g=>({eventId:String(g.id||""),
+    reason:g.projection?.reason||g.projection?.blockedReason||g.modelUnavailableReason||"INDEPENDENT_PROJECTION_UNAVAILABLE"}));
+  const scheduleMismatches=(scheduled||[]).flatMap(e=>{
+    const g=games.find(g=>scheduleEventMatches(e,g,sport));
+    if(!g)return [];
+    const reasons=[];
+    for(const side of ["home","away"]){
+      const expected=normalizedScheduleTeam(e[side],sport);
+      const actual=normalizedScheduleTeam(g[side]?.abbr||g[side]?.abbreviation,sport);
+      if(expected&&actual&&expected!==actual)reasons.push(side.toUpperCase()+"_TEAM_MISMATCH");
+    }
+    const expectedStart=Date.parse(e.start),actualStart=Date.parse(g.start);
+    if(Number.isFinite(expectedStart)&&Number.isFinite(actualStart)&&Math.abs(expectedStart-actualStart)>60000)reasons.push("START_TIME_MISMATCH");
+    return reasons.length?[{eventId:String(e.id),reasons}]:[];
+  });
   return {sport,boardGames:games.length,independentModels:games.length-unmodeled.length,
-    unavailableModels:unmodeled.length,duplicateIds:[...new Set(duplicateIds)],
+    unavailableModels:unmodeled.length,missingProjectionEvents,scheduleMismatches,duplicateIds:[...new Set(duplicateIds)],
     sourceStatus:scheduled===null?"SOURCE_UNVERIFIED":"ESPN_VERIFIED",
     expectedGames:scheduled?.length??null,missingEventIds:missing,
-    state:duplicateIds.length||missing.length?"INCOMPLETE":scheduled===null?"BOARD_ONLY":"COMPLETE"};
+    state:duplicateIds.length||missing.length||scheduleMismatches.length?"INCOMPLETE":scheduled===null?"BOARD_ONLY":unmodeled.length?"DEGRADED":"COMPLETE"};
 }
 async function jsonGet(url,ms=65000){
   const r=await fetch(url,{headers:{accept:"application/json"},signal:AbortSignal.timeout(ms)});
@@ -150,6 +165,9 @@ export async function auditDailySlate({date,sports=ENABLED_SPORTS,recovery=true}
     ...(d.boardError?[d.sport+":board:"+d.boardError]:[]),
     ...(d.sourceError&&d.hasIndependentSource?[d.sport+":source:"+d.sourceError]:[]),
     ...(d.missingEventIds.length?[d.sport+":missing:"+d.missingEventIds.join(",")]:[]),
+    ...(d.unavailableModels?[d.sport+":missing-projections:"+d.missingProjectionEvents.map(e=>e.eventId+"="+e.reason).join(",")]:[]),
+    ...(d.scheduleMismatches.length?[d.sport+":schedule-mismatch:"+JSON.stringify(d.scheduleMismatches)]:[]),
+    ...(d.sourceStatus==="SOURCE_UNVERIFIED"?[d.sport+":AUTHORITATIVE_SCHEDULE_UNVERIFIED"]:[]),
     ...(d.duplicateIds.length?[d.sport+":duplicates:"+d.duplicateIds.join(",")]:[]),
   ]);
   return {ok:errors.length===0,date,checkedAt:new Date().toISOString(),
