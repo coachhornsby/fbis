@@ -18,6 +18,7 @@ const KALSHI_VERIFIED_SERIES_CATEGORIES=Object.freeze({
  KXATPMATCH:'atp-tennis-match',
  KXWTAMATCH:'wta-tennis-match',
  KXNFLGAME:'nfl-game',
+ KXNCAAFGAME:'college-football-game',
  KXNBAGAME:'nba-game',
  KXNHLGAME:'nhl-game',
 });
