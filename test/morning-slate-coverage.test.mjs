@@ -36,8 +36,8 @@ test("duplicate provider event ids are flagged",()=>{
   assert.deepEqual(missingScheduledIds([{id:"7"},{id:"8"},{id:"8"}],board),["8"]);
 });
 test("enabled sports include every scheduled export league",()=>{
-  assert.equal(new Set(ENABLED_SPORTS).size,10);
-  for(const sport of ["mlb","nfl","nhl","nba","soccer","wnba","npb","kbo","cfb","cbb"]){
+  assert.equal(new Set(ENABLED_SPORTS).size,7);
+  for(const sport of ["mlb","nfl","nhl","nba","tennis","cfb","cbb"]){
     assert.ok(ENABLED_SPORTS.includes(sport));
   }
 });
@@ -51,4 +51,16 @@ test("ESPN MLB IDs match MLB Stats IDs by teams and kickoff, not provider identi
   assert.equal(scheduleEventMatches({...espn,away:"NYY"},game,"mlb"),false);
   assert.equal(scheduleEventMatches({...espn,start:"2026-10-12T20:00:00Z"},game,"mlb"),false);
   assert.equal(scheduleEventMatches(espn,game,"nfl"),false);
+});
+
+
+test('seven-day guard does not label unsupported or empty schedules healthy',async()=>{
+ const {auditSevenDaySlate}=await import('../scripts/morning-slate-coverage.mjs');
+ const dates=[];
+ const report=await auditSevenDaySlate({date:'2026-10-26',audit:async opts=>{
+  dates.push(opts.date);assert.equal(opts.recovery,false);
+  return {ok:true,date:opts.date,detail:[{sport:'tennis',sourceStatus:'SOURCE_UNVERIFIED'}],errors:[]};
+ }});
+ assert.equal(report.ok,false);assert.equal(report.unverified.length,7);
+ assert.deepEqual(dates.sort(),['2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30','2026-10-31','2026-11-01']);
 });

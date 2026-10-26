@@ -1,3 +1,4 @@
+import {productSportDbHandle, deployedSportDbMode} from './databaseTopology.js';
 import {POLY_US_API,FBIS_POLY_SPORTS,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers} from './polymarketUs.js';
 import {polymarketUsSideLabel,polymarketUsCanonicalSide} from './polymarketUs.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
@@ -8,9 +9,25 @@ const valid=s=>/^[a-z0-9-]{1,160}$/i.test(s||'');
 // Receipt IDs are internal evidence keys, not provider league or market slugs.
 const validReceipt=s=>typeof s==='string'&&/^[a-z0-9_-]{1,180}$/i.test(s);
 const prefix='market-sources/polymarket-us/bootstrap/';
+export const POLYMARKET_DISCOVERY_HOURS=7*24;
+
+/** Use deployed product authority; never let a shadow binding replace PRIMARY. */
+export async function routedPolymarketFixtures(env,now=new Date()){
+ const rows=[],byDatabase=new Map();
+ for(const sport of FBIS_POLY_SPORTS){
+  const target=productSportDbHandle(env,sport);
+  if(!target.db?.prepare || (deployedSportDbMode(env,sport)==='sport' && !target.productIoUsesSportDb)){
+   throw Error('POLYMARKET_'+sport.toUpperCase()+'_AUTHORITY_UNAVAILABLE');
+  }
+  if(!byDatabase.has(target.db))byDatabase.set(target.db,await projectedPolymarketFixtures(target.db,now));
+  const fixtures=byDatabase.get(target.db);
+  rows.push(...fixtures.filter(g=>g.sport===sport));
+ }
+ return rows.sort((a,b)=>String(a.start).localeCompare(String(b.start))||String(a.id).localeCompare(String(b.id)));
+}
 export async function projectedPolymarketFixtures(db,now=new Date(),cfbDb=null){
  if(!db?.prepare)throw Error('PRIMARY_DB_REQUIRED');
- const asOf=now.toISOString(),end=new Date(now.getTime()+48*3600000).toISOString();
+ const asOf=now.toISOString(),end=new Date(now.getTime()+POLYMARKET_DISCOVERY_HOURS*3600000).toISOString();
  // Team sports stay on games+prediction_snapshots. Tennis uses the official
  // ATP/WTA schedule plus an independent research decision that predates both
  // capture and match start — never market prices as projection proof.
@@ -69,7 +86,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
  if(!env.ARCHIVE?.get||!env.ARCHIVE?.put)throw Error('PRIVATE_ARCHIVE_REQUIRED');
  const writeDb=opts.observationDb||env.DB;
  if(!writeDb?.prepare)throw Error('OBSERVATION_DB_REQUIRED');
- const fixtures=await projectedPolymarketFixtures(env.DB,now,env.CFB_DB?.prepare?env.CFB_DB:null);
+ const fixtures=await routedPolymarketFixtures(env,now);
  if(opts.operation==='resume'){
   const object=await env.ARCHIVE.get('market-sources/polymarket-us/coverage/latest.json');if(!object)return {ok:true,run:null};const previous=await object.json();
   // A 30-minute quote receipt cannot be safely resumed near expiry: full-league
@@ -129,7 +146,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
    const candidates=fixtures.filter(g=>g.sport===opts.sport);
    if(!candidates.length)return {ok:true,itemCount:0,bookBatches:0,nextOffset:null,reason:'NO_UPCOMING_INDEPENDENT_FORECASTS'};
    const url=new URL('/v1/events',POLY_US_API);
-   for(const [k,v] of Object.entries({tagSlug:opts.slug,active:true,closed:false,startTimeMin:now.toISOString(),startTimeMax:new Date(now.getTime()+48*3600000).toISOString(),limit:20,offset:opts.offset,orderBy:'id',orderDirection:'asc'}))url.searchParams.set(k,String(v));
+   for(const [k,v] of Object.entries({tagSlug:opts.slug,active:true,closed:false,startTimeMin:now.toISOString(),startTimeMax:new Date(now.getTime()+POLYMARKET_DISCOVERY_HOURS*3600000).toISOString(),limit:20,offset:opts.offset,orderBy:'id',orderDirection:'asc'}))url.searchParams.set(k,String(v));
    sourcePage=eventPage=await boundedJson(fetchImpl,url);if(!Array.isArray(eventPage.events)||eventPage.events.length>20)throw Error('PROVIDER_PAGE_CHANGED');
   }
   const candidates=fixtures.filter(g=>g.sport===scope.sport).map(g=>({...g,league:({bun:'ger.1',lal:'esp.1'})[scope.slug]})),offers=[],events=[],unmatchedEvents=[];

@@ -7,7 +7,7 @@ import { deployedSportDbMode } from "./databaseTopology.js";
  */
 
 export const AUDIT_SPORTS = Object.freeze([
-  "nfl", "cfb", "cbb", "nba", "wnba", "mlb", "npb", "kbo", "nhl", "soccer", "tennis",
+  "nfl", "cfb", "cbb", "nba", "mlb", "nhl", "tennis",
 ]);
 
 export const AUDIT_SOURCES = Object.freeze([
