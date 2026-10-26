@@ -81,3 +81,16 @@
 .simrank-table td:nth-child(7){color:#f6cb82;font-weight:950}
 .simrank-table td:nth-child(8){color:#9dcafb;font-weight:950}
 @media(max-width:600px){.simrank-match{min-width:330px;gap:9px}.simrank-match .simrank-logo-versus{min-width:118px;gap:5px;padding:6px}.simrank-match .simrank-leader{flex-wrap:wrap}.simrank-table{min-width:1100px}}
+
+
+/* NFL personnel shadow is a secondary, unvalidated estimate, not the frozen score. */
+.simrank-table .simrank-personnel{min-width:244px;text-align:left!important;background:#182a41}
+.simrank-personnel-card{display:flex;flex-direction:column;gap:5px;min-width:218px;padding:11px 12px;border:1px solid #42788a;border-radius:9px;background:#123943}
+.simrank-personnel-card strong{font-size:10px;color:#88e9c8;letter-spacing:.08em}
+.simrank-personnel-card b{font-size:18px;color:#f7fcff}
+.simrank-personnel-card span{font-size:11px;color:#afc5de}
+.simrank-personnel-card small{font-size:10px;color:#b8d4df;line-height:1.3}
+.simrank-personnel-card.severe{border-color:#e9a557;background:linear-gradient(135deg,#51351c,#2b3b40)}
+.simrank-personnel-card.severe strong{color:#ffd391}
+.simrank-personnel-card.missing{border-color:#64616d;background:#2e2d38}
+.simrank-personnel-card.missing strong{color:#e6c3bd}
