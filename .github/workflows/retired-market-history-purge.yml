@@ -1,0 +1,48 @@
+name: Verified retired-sport market-history purge
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/retired-market-history-purge.yml"
+      - "scripts/retired-market-history-purge.mjs"
+      - "ops/triggers/retired-market-history-purge"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-retired-market-history-purge
+  cancel-in-progress: false
+
+jobs:
+  archive-and-remove:
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [PRIMARY, LEGACY, Q4, Q4B]
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Confirm script syntax
+        run: node --check scripts/retired-market-history-purge.mjs
+      - name: R2 recoverable archive followed by exact-row retired sport purge
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RETIRED_HISTORY_DB: ${{ matrix.db }}
+          RETIRED_BATCH: "250"
+          RETIRED_CAP: "1600"
+        run: node scripts/retired-market-history-purge.mjs
+      - name: Preserve independently checkable receipts
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: retired-market-history-${{ matrix.db }}
+          path: /tmp/retired-market-${{ matrix.db }}.json
+          retention-days: 90
+          if-no-files-found: ignore
