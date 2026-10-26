@@ -1,4 +1,5 @@
 // Display-only contract. Research and market probabilities never stand in for PURE.
+import {exchangeMarketLink} from './exchangeMarketLinks.js';
 const num = v => v == null || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null;
 export function tennisProjectionDisplay(game, now = Date.now()) {
   const t = game?.tennisProjection || {}, ref = game?.market?.reference || {};
@@ -74,7 +75,7 @@ export function tennisMarketSnapshot(projection = {}, venueOffers = [], cardPlay
     const name = String(offer?.yesLabel || "").trim();
     if (!name || seen.has(name.toLowerCase())) continue;
     seen.add(name.toLowerCase());
-    kalshi.push({ name, ask: finitePrice(offer.yesAskDollars), bid: finitePrice(offer.yesBidDollars),
+    kalshi.push({ name, link:exchangeMarketLink({...offer,source:'Kalshi',providerTicker:offer.ticker}), ask: finitePrice(offer.yesAskDollars), bid: finitePrice(offer.yesBidDollars),
       at: offer.fetchedAt || null, warning: offer.scheduleStatus && offer.scheduleStatus !== "START_WITHIN_TWO_HOURS" });
   }
   const derivative = /\b(?:set\s*\d+|set winner|set handicap|handicap|game spread|total games|game total|tiebreak|over\/under)\b/i;
@@ -99,6 +100,7 @@ export function tennisMarketSnapshot(projection = {}, venueOffers = [], cardPlay
     name: winner.question || "Match winner",sourceName:"POLYMARKET.COM",
     sides: winner.outcomes.map((name,i)=>({
       name,
+      link:exchangeMarketLink({source:'Polymarket Global Gamma',providerEventSlug:winner.eventSlug}),
       ask: finitePrice(winner.researchClob?.sides?.[i]?.bestAsk?.price),
       indicative: finitePrice(winner.indicativePrices?.[i]),
     })),
@@ -108,7 +110,7 @@ export function tennisMarketSnapshot(projection = {}, venueOffers = [], cardPlay
     eventSlug: winner.eventSlug || null,
   } : usPrices.length ? {
     name:"Observed match winner",sourceName:"POLYMARKET US",
-    sides:usPrices.map(o=>({name:o.participantName,observed:finitePrice(o.contractPrice),ask:null,indicative:null})),
+    sides:usPrices.map(o=>({name:o.participantName,observed:finitePrice(o.contractPrice),ask:null,indicative:null,link:exchangeMarketLink(o)})),
     observedAt:usPrices.map(o=>o.collectedAt).filter(Boolean).sort().at(-1)||null,
     kind:"OBSERVED · SOURCE QUOTE CLOCK UNVERIFIED",
     scheduleWarning:false,eventSlug:null,
