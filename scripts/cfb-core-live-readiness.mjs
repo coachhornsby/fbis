@@ -6,6 +6,7 @@ import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {dirname} from 'node:path';
 const clock=x=>typeof x==='string'&&Number.isFinite(Date.parse(x))?Date.parse(x):NaN;
 const filled=x=>x!==null&&x!==undefined&&x!==''&&Number.isFinite(Number(x));
+export function unwrapD1(content){return Array.isArray(content)&&Array.isArray(content[0]?.results)?content[0].results:Array.isArray(content)?content:null;}
 export function evaluate(rows,{minimum=200}={}){
  if(!Array.isArray(rows))throw Error('ARRAY_REQUIRED');
  const unique=new Map();
@@ -51,7 +52,7 @@ if(process.argv[1]?.endsWith('cfb-core-live-readiness.mjs')){
  const [input,output]=process.argv.slice(2);
  if(!input||!output)throw Error('Usage: exported-core-rows.json report.json');
  const content=JSON.parse(readFileSync(input,'utf8'));
- const rows=Array.isArray(content)&&Array.isArray(content[0]?.results)?content[0].results:Array.isArray(content)?content:null;
+ const rows=unwrapD1(content);
  if(!rows)throw Error('INVALID_CFB_CORE_DB_QUERY_FORMAT');
  const report=evaluate(rows);
  mkdirSync(dirname(output),{recursive:true});
