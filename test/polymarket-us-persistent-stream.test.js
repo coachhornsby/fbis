@@ -151,10 +151,11 @@ test("WebSocket discovery fallback never extends indefinitely",()=>{
  assert.equal(Date.parse(freshSince)-Date.parse(since),(72*60-35)*60*1000);
 });
 
-test("worker SQL returns large eligible inventory; capacity manager owns the cap",async()=>{
+test("worker uses authoritative archived inventory; capacity manager owns the cap",async()=>{
  const {readFileSync}=await import("node:fs");
  const worker=readFileSync(new URL("../services/polymarket-us-stream/worker.mjs",import.meta.url),"utf8");
- assert.match(worker,/PARTITION BY sport ORDER BY/);
+ assert.match(worker,/polymarket-stream-roster/);
+ assert.doesNotMatch(worker,/SELECT 1 FROM prediction_snapshots/);
  assert.doesNotMatch(worker,/WHERE sport_rank<=200|LIMIT 2200/);
  assert.match(worker,/coverAllEligible/);
  assert.match(worker,/manageSubscriptionCapacity/);

@@ -12,18 +12,23 @@ const prefix='market-sources/polymarket-us/bootstrap/';
 export const POLYMARKET_DISCOVERY_HOURS=7*24;
 
 /** Use deployed product authority; never let a shadow binding replace PRIMARY. */
-export async function routedPolymarketFixtures(env,now=new Date()){
- const rows=[],byDatabase=new Map();
+export async function routedPolymarketFixtureReport(env,now=new Date()){
+ const rows=[],errors=[],byDatabase=new Map();
  for(const sport of FBIS_POLY_SPORTS){
-  const target=productSportDbHandle(env,sport);
-  if(!target.db?.prepare || (deployedSportDbMode(env,sport)==='sport' && !target.productIoUsesSportDb)){
-   throw Error('POLYMARKET_'+sport.toUpperCase()+'_AUTHORITY_UNAVAILABLE');
-  }
-  if(!byDatabase.has(target.db))byDatabase.set(target.db,await projectedPolymarketFixtures(target.db,now));
-  const fixtures=byDatabase.get(target.db);
-  rows.push(...fixtures.filter(g=>g.sport===sport));
+  try{
+   const target=productSportDbHandle(env,sport);
+   if(!target.db?.prepare || (deployedSportDbMode(env,sport)==='sport' && !target.productIoUsesSportDb))
+    throw Error('POLYMARKET_'+sport.toUpperCase()+'_AUTHORITY_UNAVAILABLE');
+   if(!byDatabase.has(target.db))byDatabase.set(target.db,projectedPolymarketFixtures(target.db,now));
+   rows.push(...(await byDatabase.get(target.db)).filter(g=>g.sport===sport));
+  }catch(error){errors.push({sport,reason:/^[A-Z][A-Z0-9_]+$/.test(error.message||'')?error.message:'POLYMARKET_'+sport.toUpperCase()+'_FIXTURE_READ_FAILED'});}
  }
- return rows.sort((a,b)=>String(a.start).localeCompare(String(b.start))||String(a.id).localeCompare(String(b.id)));
+ return {fixtures:rows.sort((a,b)=>String(a.start).localeCompare(String(b.start))||String(a.id).localeCompare(String(b.id))),errors};
+}
+export async function routedPolymarketFixtures(env,now=new Date()){
+ const report=await routedPolymarketFixtureReport(env,now);
+ if(report.errors.length)throw Error(report.errors[0].reason);
+ return report.fixtures;
 }
 export async function projectedPolymarketFixtures(db,now=new Date(),cfbDb=null){
  if(!db?.prepare)throw Error('PRIMARY_DB_REQUIRED');
@@ -86,7 +91,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
  if(!env.ARCHIVE?.get||!env.ARCHIVE?.put)throw Error('PRIVATE_ARCHIVE_REQUIRED');
  const writeDb=opts.observationDb||env.DB;
  if(!writeDb?.prepare)throw Error('OBSERVATION_DB_REQUIRED');
- const fixtures=await routedPolymarketFixtures(env,now);
+ const fixtureReport=await routedPolymarketFixtureReport(env,now),fixtures=fixtureReport.fixtures;
  if(opts.operation==='resume'){
   const object=await env.ARCHIVE.get('market-sources/polymarket-us/coverage/latest.json');if(!object)return {ok:true,run:null};const previous=await object.json();
   // A 30-minute quote receipt cannot be safely resumed near expiry: full-league
@@ -97,7 +102,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
  }
  if(opts.operation==='catalogue'){
   const offset=opts.offset??0;if(!Number.isSafeInteger(offset)||offset<0||offset%50)throw Error('INVALID_CATALOGUE_OFFSET');
-  if(!fixtures.length)return {ok:true,leagues:[],fixtures:[],projectedFixtures:0,nextOffset:null,canAuthorizeWager:false};
+  if(!fixtures.length)return {ok:true,leagues:[],fixtures:[],projectedFixtures:0,nextOffset:null,authorityErrors:fixtureReport.errors,canAuthorizeWager:false};
   const url=new URL('/v2/leagues',POLY_US_API);url.searchParams.set('limit','50');url.searchParams.set('offset',String(offset));
   const catalogue=await boundedJson(fetchImpl,url);if(!Array.isArray(catalogue.leagues)||catalogue.leagues.length>50)throw Error('PROVIDER_CATALOGUE_CHANGED');
   const sports=new Set(fixtures.map(g=>g.sport));
@@ -105,7 +110,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
   const sportNames=new Map(taxonomy.sports.map(s=>[Number(s.id),s.slug]));
   return {ok:true,leagues:catalogue.leagues.map(l=>({slug:l.slug,name:l.name,providerSport:sportNames.get(Number(l.sportId)),sport:classifyPolymarketUsLeague({...l,providerSport:sportNames.get(Number(l.sportId))})})).filter(l=>sports.has(l.sport)),
    catalogueIds:catalogue.leagues.map(l=>String(l.slug)),nextOffset:catalogue.leagues.length===50?offset+50:null,
-   fixtures:fixtures.map(g=>({id:String(g.id),sport:g.sport,start:g.start,home:g.home_name,away:g.away_name})),projectedFixtures:fixtures.length,canAuthorizeWager:false};
+   fixtures:fixtures.map(g=>({id:String(g.id),sport:g.sport,start:g.start,home:g.home_name,away:g.away_name})),projectedFixtures:fixtures.length,authorityErrors:fixtureReport.errors,canAuthorizeWager:false};
  }
  if(!validReceipt(opts.receiptId))throw Error('INVALID_RECEIPT');
  const key=prefix+opts.receiptId+'.json';
