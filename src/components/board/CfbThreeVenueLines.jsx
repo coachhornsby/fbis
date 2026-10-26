@@ -1,5 +1,6 @@
 import {useState} from "react";
 import "./cfbThreeVenueLines.css";
+import ExchangeQuoteLink from './ExchangeQuoteLink.jsx';
 const pct=v=>v==null||!Number.isFinite(Number(v))?"—":(Number(v)*100).toFixed(1)+"%";
 const american=v=>v==null||!Number.isFinite(Number(v))?"—":Number(v)>0?"+"+Math.round(v):String(Math.round(v));
 const signed=v=>Number(v)>0?"+"+Number(v):String(Number(v));
@@ -21,7 +22,7 @@ export default function CfbThreeVenueLines({game,compact=false}){
     <td>{marketLabel(q.marketFamily)}</td>
     <td><strong>{q.selection}{q.marketFamily==="moneyline"?" ML":q.marketFamily==="spread"?" "+signed(q.line):" "+q.line}</strong></td>
     <td>{q.source}<small>{(q.alternativeProviders||[]).length?" · "+q.alternativeProviders.length+" other":" · only source"}</small></td>
-    <td className="cfb-quote-emphasis">{american(q.americanEquivalent)}</td>
+    <td className="cfb-quote-emphasis"><ExchangeQuoteLink offer={q} value={american(q.americanEquivalent)}/></td>
     <td>{pct(q.impliedProbability)}</td>
     <td>{pct(q.modelProbability)}</td>
     <td className={q.grossExpectedRoi>0?"cfb-positive-gross":""}>{q.grossExpectedRoi==null?"—":(q.grossExpectedRoi>0?"+":"")+(q.grossExpectedRoi*100).toFixed(1)+"%"}</td>
