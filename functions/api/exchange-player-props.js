@@ -9,6 +9,59 @@ import { PROP_SPORTS, latestExchangeProps } from '../lib/exchangePlayerProps.js'
 import { chicagoDayBounds } from '../lib/chicagoDayBounds.js';
 import { readExchangeObservationPage } from '../lib/exchangePropPagination.js';
 const respond = (body,status=200) => new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
+// Market inventory status is not the same as a verified absence of listed contracts.
+// Keep Polymarket US and Global distinct; a partial US REST capture cannot become NO MARKET.
+export function summarizeExchangeCoverage({sports=[],props=[],marketOnly=[],candidates=[],usCoverage=[],degraded=false}={}){
+  const venueFor=p=>{
+    const source=String(p.venue||p.source||'').toLowerCase();
+    if(source.includes('polymarket us'))return 'Polymarket US';
+    if(source.includes('polymarket global')||source.includes('gamma'))return 'Polymarket Global';
+    if(p.provider==='Kalshi')return 'Kalshi';
+    return 'Polymarket Unclassified';
+  };
+  const venueNames=['Kalshi','Polymarket US','Polymarket Global'];
+  const coverage=[],venueCoverage=[];
+  for(const sport of sports){
+    const usEvents=usCoverage.filter(c=>c.sport===sport);
+    const partial=usEvents.filter(c=>c.status==='US_PROP_INVENTORY_COUNT_MISMATCH');
+    const usFailure=usEvents.filter(c=>c.status==='US_PROP_INVENTORY_READ_FAILED');
+    const usStale=usEvents.filter(c=>c.status==='US_PROP_INVENTORY_STALE_OR_UNVERIFIED');
+    for(const venue of venueNames){
+      const venueProps=props.filter(p=>p.sport===sport&&venueFor(p)===venue);
+      const venueOnly=marketOnly.filter(p=>p.sport===sport&&venueFor(p)===venue);
+      const hasPartial=venue==='Polymarket US'&&partial.length>0;
+      const status=hasPartial?'PARTIAL_SOURCE_CAPTURE':
+        venue==='Polymarket US'&&usFailure.length?'SOURCE_READ_FAILED':
+        venue==='Polymarket US'&&usStale.length?'SOURCE_STALE_OR_UNVERIFIED':
+        venueProps.some(p=>p.marketAvailable)?'VERIFIED_MARKET':
+        venueProps.length||venueOnly.length?'CONTRACTS_RESEARCH_ONLY':'COVERAGE_UNKNOWN';
+      venueCoverage.push({sport,venue,status,
+        capturedContracts:venueProps.length+venueOnly.length,
+        marketOnlyContracts:venueOnly.length,
+        verifiedMarkets:venueProps.filter(p=>p.marketAvailable).length,
+        partialEvents:hasPartial?partial.length:0,
+        sourceInventoryComplete:false,canAuthorizeWager:false});
+    }
+    for(const provider of ['Kalshi','Polymarket']){
+      const providerProps=props.filter(p=>p.sport===sport&&p.provider===provider);
+      const providerOnly=marketOnly.filter(p=>p.sport===sport&&p.provider===provider);
+      const partialProvider=provider==='Polymarket'&&partial.length>0;
+      const status=partialProvider?'PARTIAL_SOURCE_CAPTURE':
+        providerProps.some(p=>p.marketAvailable)?'VERIFIED_MARKET':
+        providerProps.length||providerOnly.length?'CONTRACTS_RESEARCH_ONLY':'COVERAGE_UNKNOWN';
+      coverage.push({sport,provider,status,
+        verifiedMarkets:providerProps.filter(p=>p.marketAvailable).length,
+        verifiedContracts:providerProps.filter(p=>p.identityVerified).length,
+        marketOnlyContracts:providerOnly.length,
+        partialEvents:partialProvider?partial.length:0,
+        observations:candidates.filter(p=>p.sport===sport&&p.provider===provider).length,
+        modelStatus:'INDEPENDENT_MODEL_JOIN_REQUIRED',
+        sourceInventoryComplete:false,canAuthorizeWager:false});
+    }
+  }
+  return {coverage,venueCoverage};
+}
+
 export async function onRequestGet({env,request}) {
   const url = new URL(request.url), sport = url.searchParams.get('sport') || 'all';
   const date = url.searchParams.get('date') || new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -70,14 +123,12 @@ export async function onRequestGet({env,request}) {
   const officialScopeCandidates = buildNhlOfficialScopeCandidates(captured.rows,{capturedAt:new Date().toISOString()});
 
   const degraded = !stores.length || page.degraded || page.moreAvailable;
-  const coverage = PROP_SPORTS.filter(s=>sport==='all'||s===sport).flatMap(s=>['Kalshi','Polymarket'].map(provider=>({
-    sport:s,provider,status:props.some(p=>p.sport===s&&p.provider===provider&&p.marketAvailable)?'VERIFIED_MARKET':props.some(p=>p.sport===s&&p.provider===provider)?'CONTRACTS_RESEARCH_ONLY':degraded?'COVERAGE_UNKNOWN':'MARKET_UNAVAILABLE',
-    verifiedMarkets:props.filter(p=>p.sport===s&&p.provider===provider&&p.marketAvailable).length,
-    verifiedContracts:props.filter(p=>p.sport===s&&p.provider===provider&&p.identityVerified).length,
-    observations:candidates.filter(p=>p.sport===s&&p.provider===provider).length,modelStatus:'INDEPENDENT_MODEL_JOIN_REQUIRED',
-  })));
+  const {coverage,venueCoverage} = summarizeExchangeCoverage({
+    sports:PROP_SPORTS.filter(s=>sport==='all'||s===sport),
+    props,marketOnly,candidates,usCoverage:us.coverage,degraded
+  });
   return respond({ok:true,date,rows:props,marketOnly,marketOnlyCount:marketOnly.length,
-    coverage,diagnostics,degraded,readComplete:page.readComplete&&stores.length>0,
+    coverage,venueCoverage,diagnostics,degraded,readComplete:page.readComplete&&stores.length>0,
     nextCursor:page.nextCursor,moreAvailable:page.moreAvailable,
     polymarketUsResearch:{coverage:us.coverage,matchedOutcomeRows:us.rows.length,rejectedContracts:us.rejected.length,venue:'Polymarket US',canAuthorizeWager:false},collectorCoverage:captured.coverage,historicalReferenceDate:date,
     nbaPregameFreeze:nbaRequested?{Kalshi:frozen[0].status,Polymarket:frozen[1].status,
