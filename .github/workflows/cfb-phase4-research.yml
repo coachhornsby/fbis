@@ -7,6 +7,7 @@ on:
       - "scripts/cfb-phase4-possession-challenger.mjs"
       - "scripts/cfb-phase5-pbp-integrity.mjs"
       - "scripts/cfb-phase5-cross-provider-pbp.mjs"
+      - "scripts/cfb-phase5-pbp-alternate.mjs"
       - "test/cfb-phase5-pbp-integrity.test.js"
       - "scripts/cfb-phase4-ncaa-verify.mjs"
       - "scripts/cfb-phase4-export-d1-sql.mjs"
@@ -23,6 +24,7 @@ on:
       - 'scripts/cfb-phase4-possession-challenger.mjs'
       - 'scripts/cfb-phase5-pbp-integrity.mjs'
       - 'scripts/cfb-phase5-cross-provider-pbp.mjs'
+      - 'scripts/cfb-phase5-pbp-alternate.mjs'
       - 'scripts/cfb-phase4-ncaa-verify.mjs'
       - 'scripts/cfb-phase4-export-d1-sql.mjs'
       - '.github/workflows/cfb-phase4-research.yml'
@@ -67,6 +69,10 @@ jobs:
         id: pbp_integrity
         continue-on-error: true
         run: node scripts/cfb-phase5-pbp-integrity.mjs
+      - name: Fetch alternate CDN evidence for contradictory terminal play scores
+        id: pbp_alternate
+        continue-on-error: true
+        run: node scripts/cfb-phase5-pbp-alternate.mjs
       - name: Crosscheck play source coverage with licensed CFBD API
         id: pbp_cross_source
         continue-on-error: true
@@ -121,5 +127,5 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
       - name: Reject incomplete research cycle
-        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success' || steps.ncaa.outcome != 'success' || steps.challenger.outcome != 'success' || steps.pbp_integrity.outcome != 'success' || steps.pbp_cross_source.outcome != 'success'
+        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success' || steps.possessions.outcome != 'success' || steps.ncaa.outcome != 'success' || steps.challenger.outcome != 'success' || steps.pbp_integrity.outcome != 'success' || steps.pbp_cross_source.outcome != 'success' || steps.pbp_alternate.outcome != 'success'
         run: exit 1
