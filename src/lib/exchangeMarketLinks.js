@@ -57,6 +57,23 @@ export function exchangeMarketLink(offer={}){
  const venue=String(offer.venue||'').toLowerCase();
  const ticker=nonEmpty(offer.providerTicker)||nonEmpty(offer.ticker)||
     nonEmpty(offer.sourceMarketId)||nonEmpty(offer.contractId);
+ if(provider==='pinnodds'||provider==='pinnacle'){
+  // Accept only source-supplied event/market URLs with a bound event id.
+  // We cannot derive a bookmaker deep link from FBIS/ESPN game IDs.
+  const provided=nonEmpty(offer.marketUrl)||nonEmpty(offer.eventUrl)||
+    nonEmpty(offer.sourceMarketUrl);
+  const eventId=nonEmpty(offer.providerEventId)||nonEmpty(offer.sourceEventId);
+  if(!provided||!eventId)return null;
+  try{
+   const url=new URL(provided);
+   if(url.protocol!=='https:'||!['pinnacle.com','www.pinnacle.com'].includes(url.hostname)||
+     url.username||url.password||url.port)return null;
+   const segments=url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+   if(!segments.includes(eventId)&&
+     !['event','eventId','match','matchId'].some(k=>url.searchParams.get(k)===eventId))return null;
+   return {url:url.toString(),provider:'Pinnacle',scope:'EVENT',id:eventId,label:'Open on Pinnacle'};
+  }catch{return null;}
+ }
  if(provider.includes('kalshi')){
   if(!ticker||!tickerPattern.test(ticker))return null;
   const url=kalshiMarketDestination(offer,ticker);
