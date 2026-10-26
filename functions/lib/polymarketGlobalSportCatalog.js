@@ -44,7 +44,7 @@ export async function readGlobalSportCatalogPage(env,{sport,day,page=0}={}){
  const obj=await env.ARCHIVE.get(key);
  if(!obj)return {ok:false,code:'ARCHIVED_CATALOG_PAGE_MISSING'};
  const data=await obj.json();
- const stat=new RegExp('^([^:]+):\\\\s*(points|rebounds|assists|points\\\\s*\\\\+\\\\s*rebounds|passing yards|rushing yards|receiving yards|receptions|strikeouts|saves|shots on goal|goals|hits|home runs|touchdowns).*?(?:O/U|over/under)\\\\s*(\\\\d+(?:\\\\.\\\\d+)?)','i');
+ const stat=new RegExp('^([^:]+):\\s*(points|rebounds|assists|points\\s*\\+\\s*rebounds|passing yards|rushing yards|receiving yards|receptions|strikeouts|saves|shots on goal|goals|hits|home runs|touchdowns).*?(?:O/U|over/under)\\s*(\\d+(?:\\.\\d+)?)','i');
  const marketOnly=[];
  for(const event of data.events||[])for(const market of event.markets||[]){
   const title=String(market.question||'').slice(0,240);
