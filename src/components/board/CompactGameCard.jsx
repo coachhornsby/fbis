@@ -6,6 +6,7 @@ import EventMarkets from "./EventMarkets.jsx";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
+import NbaBookEventButtons from "./NbaBookEventButtons.jsx";
 import GameScoreDisplay, { MatchupCenterClock } from "./GameScoreDisplay.jsx";
 import { collegeTeamDisplay } from "../../lib/collegeTeamDisplay.js";
 import CollegeTeamName from "./CollegeTeamName.jsx";
@@ -283,6 +284,7 @@ export default function CompactGameCard({ game, onOpen }) {
         )}
       </div>
 
+      <NbaBookEventButtons game={game} compact />
       {!stored && isCfb ? <CfbCapturedMarket game={game} /> : null}
       {!stored && isCfb ? <CfbThreeVenueLines game={game} compact /> : null}
       {!stored ? <VenueConditions context={vm.context} game={game} compact /> : null}
