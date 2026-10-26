@@ -26,7 +26,7 @@ export async function marketObservationPage(env,{sport,eventId,offset=0,pageSize
    return{id:r.id,source:r.source,eventId:r.canonical_event_id,sport:r.sport,playerName:r.player_name,marketFamily:r.market_family,statFamily:r.stat_family,
     side:r.side,line:r.line,period:r.period,americanOdds:r.american_odds,decimalOdds:r.decimal_odds,contractPrice:r.contract_price,
     displayAmericanOdds:marketDisplayAmerican({americanOdds:r.american_odds,decimalOdds:r.decimal_odds,contractPrice:r.contract_price}),displayImpliedProbability:marketDisplayImplied({americanOdds:r.american_odds,decimalOdds:r.decimal_odds,contractPrice:r.contract_price}),displayPriceKind:r.contract_price!=null?'CONTRACT_COST_IMPLIED':r.decimal_odds!=null?'DECIMAL_RAW_IMPLIED':'AMERICAN_RAW_IMPLIED',
-    sourceMarketId:r.source_market_id,sourceOutcomeId:r.source_outcome_id,marketUrl:raw?.marketUrl||raw?.providerMarket?.marketUrl||raw?.providerMarket?.url||null,providerObservedAt,collectedAt:r.collected_at,temporal,
+    sourceMarketId:r.source_market_id,sourceOutcomeId:r.source_outcome_id,eventTicker:raw?.eventTicker||raw?.event_ticker||raw?.providerEventId||null,marketUrl:raw?.marketUrl||raw?.providerMarket?.marketUrl||raw?.providerMarket?.url||null,providerObservedAt,collectedAt:r.collected_at,temporal,
     quoteKind:raw.quoteKind||raw.priceKind||'OBSERVED_REFERENCE',canQualify:false,canAuthorizeWager:false};
   });
   return {ok:true,eventId,sport,rows,pageSize,cursor:String(offset),nextCursor:hasMore?String(offset+pageSize):null,readOnly:true,canAuthorizeWager:false};
