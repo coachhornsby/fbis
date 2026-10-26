@@ -74,3 +74,18 @@ test('normal stream startup uses captured shard roster without walking archive h
  assert.equal((await collector.candidates()).length,501);
  assert.equal(collector.lastCandidateDiagnostics.source,'approved-sport-market-shards');
 });
+
+test('scheduled ensure retains healthy sockets rather than churning every five minutes',async()=>{
+ const collector=new PolymarketMarketStream({storage:{}},{FBIS_STREAM_PROXY_TOKEN:'configured'});
+ collector.status=()=>({connected:true,operational:true});
+ collector.connect=async()=>{throw Error('healthy sockets must not reconnect')};
+ const response=await collector.fetch(new Request('https://internal/ensure',{method:'POST'}));
+ assert.equal((await response.json()).reactivation,'HEALTHY_CONNECTIONS_RETAINED');
+});
+test('connect failure reports a safe stage and reason without exposing signature data',async()=>{
+ const collector=new PolymarketMarketStream({storage:{async setAlarm(){}}},{});
+ collector.candidates=async()=>{throw Error('AUTHORITATIVE_ROSTER_UNAVAILABLE')};
+ await collector.connect();
+ assert.deepEqual(collector.lastConnectError,{phase:'CANDIDATE_ROSTER',reason:'AUTHORITATIVE_ROSTER_UNAVAILABLE',name:'Error'});
+ assert.equal(collector.running,false);
+});

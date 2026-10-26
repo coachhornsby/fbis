@@ -19,7 +19,7 @@ const UPSTREAM="https://api.polymarket.us/v1/ws/markets";
 const MAX_BATCH=40, MAX_QUEUE=400;
 const RECONNECT_MS=60000, ROTATE_MS=9*60000, FLUSH_MS=5000;
 /** Module-level so post-deploy health reflects the new Worker pin without waiting for DO constructor. */
-export const STREAM_CODE_VERSION="board-ws-q4-archive-catchup-shard-roster-20261026";
+export const STREAM_CODE_VERSION="board-ws-q4-archive-catchup-fair-discovery-20261026";
 const COALESCE_STORAGE_KEY="wsTickCoalesceMemoryV1";
 const toJSON=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 export {PRIMARY_WS_SOFT_CAP_BYTES,resolveWsPersistTarget} from "./wsPersistTarget.mjs";
@@ -31,7 +31,7 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
     this.tradeStats=new Map();this.tradeQueue=[];this.tradeArchiveFailures=0;this.tradeDropped=0;
     this.lastSaved=new Map();this.connectedAt=0;this.reconnectCount=0;
     this.received=0;this.parsed=0;this.inserted=0;this.spilled=0;this.historyInserted=0;
-    this.lastError=null;this.lastConnectAttempt=0;this.flushTimer=null;
+    this.lastError=null;this.lastConnectAttempt=0;this.flushTimer=null;this.connectStage=null;this.lastConnectError=null;
     this.running=false;this.lastCandidateDiagnostics=null;this.lastMessageAt=0;this.lastHeartbeatAt=0;this.heartbeats=0;this.lastClose=null;
     this.shadowPendingIds=[];this.shadowLoaded=false;this.shadowVerified=0;this.shadowWritten=0;
     this.shadowFailed=0;this.shadowGap=0;this.lastShadowError=null;this.shadowDrainPromise=null;
@@ -89,7 +89,7 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
     const streamHealthy=streamIsHealthy({connected,lastMessageAt:this.lastMessageAt});
     // Primary D1 inserts only count as HEALTHY persistence. R2 spill is recovery
     // evidence (DEGRADED), never silent success or a second write owner.
-    return {connected,retiredOwner:!this.isCanonicalOwner(),initializing:this.running,diagnosticsVersion:2,lastSubscriptionError:this.lastSubscriptionError||null,
+    return {connected,retiredOwner:!this.isCanonicalOwner(),initializing:this.running,diagnosticsVersion:2,connectStage:this.connectStage,lastConnectError:this.lastConnectError,lastSubscriptionError:this.lastSubscriptionError||null,
       connectedAt:this.connectedAt?new Date(this.connectedAt).toISOString():null,
       subscriptions:this.subscribed.size,subscribedMarketIds:[...this.subscribed.keys()],queued:this.queue.size,
       candidateDiagnostics:this.lastCandidateDiagnostics,
@@ -134,11 +134,12 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
   async fetch(req){
     const pathname=new URL(req.url).pathname;
     if(pathname==="/status")return toJSON(this.status());
-    if(pathname!=="/start"||req.method!=="POST")return toJSON({ok:false},405);
+    if(!["/start","/ensure"].includes(pathname)||req.method!=="POST")return toJSON({ok:false},405);
     if(!this.env.FBIS_STREAM_PROXY_TOKEN){
       this.lastError="stream-signer-not-configured";
       return toJSON({ok:false,reason:this.lastError,...this.status()},503);
     }
+    if(pathname==="/ensure"&&this.status().operational===true)return toJSON({ok:true,...this.status(),reactivation:"HEALTHY_CONNECTIONS_RETAINED"});
     // Allow a paced connection already in progress to finish before rotating it.
     const deadline=Date.now()+60000;while(this.running&&Date.now()<deadline)await new Promise(r=>setTimeout(r,250));
     if(this.running)return toJSON({ok:false,reason:'CONNECT_IN_PROGRESS',...this.status()},409);
@@ -210,6 +211,7 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
     if(this.running)return;
     this.running=true;this.lastConnectAttempt=Date.now();
     try{
+      this.connectStage="CANDIDATE_ROSTER";
       const candidates=await this.candidates();
       if(!candidates.length){
         this.lastError="no-active-markets";
@@ -227,6 +229,7 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
         if(this.lastError && this.lastError!=="d1-bbo-persist-error")break;
         const group=candidates.slice(offset,offset+200);
         // Obtain a fresh signature for every sequential handshake.
+        this.connectStage="SIGNATURE_BROKER_"+offset;
         const brokerResponse=await fetch("https://fbis-myz.pages.dev/api/polymarket-stream-sign",{
           method:"POST",headers:{"x-fbis-stream-token":this.env.FBIS_STREAM_PROXY_TOKEN},
           signal:AbortSignal.timeout(12000)});
@@ -236,6 +239,7 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
         if(signed.ok!==true||signed.path!=="/v1/ws/markets"||
           !signed.headers?.["X-PM-Access-Key"]||!signed.headers?.["X-PM-Signature"]||
           !Number.isFinite(signedAt)||Math.abs(Date.now()-signedAt)>15000)throw Error("invalid-broker-signature");
+        this.connectStage="PROVIDER_HANDSHAKE_"+offset;
         const r=await fetchStreamUpgrade(UPSTREAM,{headers:{...signed.headers,Upgrade:"websocket"}});
         if(r.status!==101||!r.webSocket)throw Error("upstream-handshake-"+r.status);
         const socket=r.webSocket;
@@ -252,6 +256,7 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
         };
         socket.addEventListener("close",e=>lost("upstream-socket-closed-"+e.code,e));
         socket.addEventListener("error",()=>lost("upstream-socket-error"));
+        this.connectStage="SUBSCRIBE_"+offset;
         const frames=polymarketUsSubscribeBatches(state.slugs,"fbis-book-"+offset,{fullBook:true});
         for(const frame of frames){
           if(!this.sockets.has(socket)||socket.readyState!==WebSocket.OPEN||(this.lastError && this.lastError!=="d1-bbo-persist-error"))break;
@@ -266,9 +271,12 @@ export class PolymarketMarketStreamRecovered extends DurableObject {
         actualConnections:this.sockets.size,subscribed:this.subscribed.size};
       await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
     }catch(error){
-      this.lastError=/^[A-Z][A-Z0-9_-]+$/.test(error?.message||"")?error.message:"connection-or-provider-error";
+      const message=String(error?.message||'');
+      const reason=/^(?:[A-Z][A-Z0-9_-]+|market-signature-broker-\d+|upstream-handshake-\d+|invalid-broker-signature)$/.test(message)?message:
+       /subrequest/i.test(message)?'PLATFORM_SUBREQUEST_LIMIT':/timeout|abort/i.test(message)?'STREAM_CONNECT_TIMEOUT':'connection-or-provider-error';
+      this.lastError=reason;this.lastConnectError={phase:this.connectStage,reason,name:error?.name||'Error'};
       await this.ctx.storage.setAlarm(Date.now()+RECONNECT_MS);
-    }finally{this.running=false}
+    }finally{this.running=false;this.connectStage=null}
   }
   onMessage(evt,socket=this.socket){
     if(!this.isCanonicalOwner()){this.ctx.waitUntil(this.retireLegacyOwner());return;}
@@ -508,7 +516,7 @@ export default {
     // name forces one coordinated owner onto the latest Worker code.
     const id=env.PM_STREAM.idFromName("active-sports-fbis-v3");
     const stub=env.PM_STREAM.get(id);
-    ctx.waitUntil(stub.fetch("https://internal/start",{method:"POST"}).then(async response=>{
+    ctx.waitUntil(stub.fetch("https://internal/ensure",{method:"POST"}).then(async response=>{
       if(!response.ok) console.warn("POLYMARKET_MARKET_STREAM_RESTART_FAILED",response.status);
     }).catch(()=>console.warn("POLYMARKET_MARKET_STREAM_RESTART_UNREACHABLE")));
 
