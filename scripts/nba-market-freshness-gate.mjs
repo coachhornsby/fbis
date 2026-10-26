@@ -34,13 +34,32 @@ async function main(){
   body:JSON.stringify({sql:"SELECT COUNT(*) AS snapshots,COUNT(DISTINCT canonical_event_id) AS distinct_games,MAX(collected_at) AS latest_capture,COUNT(source_observed_at) AS provider_clock_rows,SUM(can_authorize) AS authorized_rows FROM nba_market_quote_research_mirror"}),
   signal:AbortSignal.timeout(25000)});
  let research=null;
- if(researchResponse.ok){const body=await researchResponse.json();const row=body?.result?.[0]?.results?.[0];
-  if(body.success===true&&row){research={...evaluateNbaMarketFreshness(row),providerClockRows:Number(row.provider_clock_rows||0),authorizedRows:Number(row.authorized_rows||0),researchOnly:true,canAuthorizeWager:false}}}
- if(!research)research={ok:false,status:"UNAVAILABLE",reason:"RESEARCH_MIRROR_UNAVAILABLE",canAuthorizeWager:false};
+ if(researchResponse.ok){
+  const body=await researchResponse.json(),row=body?.result?.[0]?.results?.[0],meta=body?.result?.[0]?.meta;
+  if(body.success===true&&body.result?.[0]?.success===true&&row&&
+   meta?.changed_db!==true&&Number(meta?.rows_written||0)===0){
+   research={...evaluateNbaMarketFreshness(row,{maxAgeHours:3}),
+    providerClockRows:Number(row.provider_clock_rows||0),
+    authorizedRows:Number(row.authorized_rows||0),researchOnly:true,
+    providerClockVerified:false,canAuthorizeWager:false};
+   if(research.authorizedRows!==0){
+    research={...research,ok:false,status:"BLOCKED",
+     reasons:[...research.reasons,"RESEARCH_AUTHORITY_LEAK"]};
+   }
+  }
+ }
+ if(!research)research={ok:false,status:"UNAVAILABLE",
+  reasons:["RESEARCH_MIRROR_UNAVAILABLE"],canAuthorizeWager:false};
+ // Research mirror freshness is independent of executable quote freshness:
+ // fresh collection clocks cannot stand in for verified quote clocks/CLV.
+ const lanes={researchIngestion:{...research},
+  executableMarketEvidence:{...r,providerClockVerified:false,canAuthorizeWager:false}};
+ const healthyResearch=research.ok===true;
+
  await mkdir("artifacts",{recursive:true});
- await writeFile("artifacts/nba-market-freshness.json",JSON.stringify({...r,researchMirror:research,measuredAt:new Date().toISOString(),database:"NBA_DB"},null,2)+"\n");
- console.log(JSON.stringify({...r,researchMirror:research}));
- if(!r.ok)process.exitCode=2;
+ await writeFile("artifacts/nba-market-freshness.json",JSON.stringify({ok:healthyResearch,lanes,researchMirror:research,executable:r,measuredAt:new Date().toISOString(),database:"NBA_DB",canAuthorizeWager:false},null,2)+"\n");
+ console.log(JSON.stringify({ok:healthyResearch,lanes,canAuthorizeWager:false}));
+ if(!healthyResearch)process.exitCode=2;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)
  main().catch(e=>{console.error(e.message);process.exitCode=1});
