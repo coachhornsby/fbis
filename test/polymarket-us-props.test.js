@@ -37,5 +37,27 @@ test('a provider event omitting advertised markets cannot report complete prop i
  const store=new Map([[usPropIndexKey('nba','game'),JSON.stringify({version:1,sport:'nba',canonicalEventId:'game',providerEventId:'156073',detailKey:'market-sources/polymarket-us/bootstrap/detail.json',capturedAt})],['market-sources/polymarket-us/bootstrap/detail.json',JSON.stringify(eventData)]]);
  const env={ARCHIVE:{get:async k=>store.has(k)?{json:async()=>JSON.parse(store.get(k))}:null}};
  const result=await loadCapturedPolymarketUsProps(env,{games:[game],players,now:Date.parse(capturedAt)+1000});
- assert.equal(result.rows.length,0);assert.equal(result.coverage[0].status,'US_PROP_INVENTORY_READ_FAILED');
+ assert.equal(result.rows.length,0);
+ assert.equal(result.coverage[0].status,'US_PROP_INVENTORY_COUNT_MISMATCH');
+ assert.equal(result.coverage[0].advertisedMarkets,2);
+ assert.equal(result.coverage[0].observedMarkets,1);
+ assert.equal(result.rejected.length,1);
+ assert.equal(result.rejected[0].contractId,m.slug);
+ assert.equal(result.rejected[0].playerStatContract,true);
+ assert.equal(result.rejected[0].canAuthorizeWager,false);
+});
+
+test('provider extra unique markets remain visible as market-only, never verified or priced',async()=>{
+ const m=market(),extra={...market(),id:'m2',slug:'astatc-nba-atl-hou-2026-10-26-pts-jaljoh-gte15',line:15};
+ const detail={...event(m),markets:[{...m,id:'m1'},extra],marketCounts:{numMarkets:1}};
+ const key=usPropIndexKey('nba','game'),detailKey='market-sources/polymarket-us/bootstrap/extra.json';
+ const store=new Map([[key,JSON.stringify({version:1,sport:'nba',canonicalEventId:'game',providerEventId:'156073',detailKey,capturedAt})],[detailKey,JSON.stringify(detail)]]);
+ const env={ARCHIVE:{get:async k=>store.has(k)?{json:async()=>JSON.parse(store.get(k))}:null}};
+ const result=await loadCapturedPolymarketUsProps(env,{games:[game],players,now:Date.parse(capturedAt)+1000});
+ assert.equal(result.rows.length,0);
+ assert.equal(result.coverage[0].status,'US_PROP_INVENTORY_COUNT_MISMATCH');
+ assert.equal(result.coverage[0].observedMarkets,2);
+ assert.equal(result.coverage[0].uniqueMarketIds,2);
+ assert.deepEqual(result.rejected.map(x=>x.line),[10,15]);
+ assert.ok(result.rejected.every(x=>x.reason==='US_PROP_INVENTORY_COUNT_MISMATCH'&&!x.canAuthorizeWager));
 });
