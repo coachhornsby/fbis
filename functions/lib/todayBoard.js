@@ -34,6 +34,8 @@ import {mergeKalshiTennisCards} from "./tennisKalshiInventory.js";
 import {enrichTennisExchangeHistoricalCards} from "./tennisExchangeHistoricalResearch.js";
 import {loadPolymarketGlobalTennisSnapshot} from "./tennisPolymarketGlobal.js";
 import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "./polymarketBoard.js";
+import {loadKalshiR2Shadow} from "./kalshiR2Shadow.js";
+import {matchNbaKalshiResearch} from "./nbaKalshiResearchMatch.js";
 import { listMarketHistoryReadDbs } from "./databaseTopology.js";
 import {
   resolveCanonicalMarket,
@@ -1442,6 +1444,21 @@ export async function buildTodayBoard(
       overlaid.push(...attachPolymarketBoardOffers(sportGames, overlay));
     }
     all = sortByStart(overlaid);
+  }
+  // Kalshi NBA is an independent research-only shadow lane: exact two-club
+  // name AND kickoff match required. Never synthesize a provider price/clock.
+  if(all.some(g=>g.sport==="nba")&&env.ARCHIVE?.get){
+    try{
+      const snapshot=await loadKalshiR2Shadow(env,"nba",{now:new Date(now)});
+      const overlay=matchNbaKalshiResearch(all.filter(g=>g.sport==="nba"),snapshot,{now:new Date(now)});
+      all=all.map(g=>{
+        if(g.sport!=="nba")return g;
+        const offers=overlay.byGame.get(String(g.id))||[];
+        if(!offers.length)return g;
+        return {...g,market:{...(g.market||{}),
+          venueOffers:[...(g.market?.venueOffers||[]),...offers]}};
+      });
+    }catch{/* source failure cannot affect frozen NBA projection/other venues */}
   }
   // Explicitly display independently captured, paired pregame exchange totals.
   // These observations are historical research context and NEVER become
