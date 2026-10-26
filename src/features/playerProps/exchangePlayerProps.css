@@ -158,3 +158,8 @@
 .pp-tennis-photo-credit a{color:#eacb81;text-decoration:underline;text-underline-offset:2px}
 .pp-tennis-versus{position:absolute;left:calc(100% + 2px);top:35px;transform:translateX(-50%);color:#f0d486;font-size:12px;font-weight:900}
 @media(min-width:1700px){.pp-tennis-athlete-photo{width:min(100%,86px)}.pp-tennis-athlete>strong{font-size:12px}}
+
+/* Prominent exchange thresholds across compact and full player-prop cards. */
+.exchange-props-panel .exchange-prop-grid .pp-card .pp-premium-metrics>.pp-metric-cell:nth-child(2){background:rgba(19,42,65,.94)!important;border-left:2px solid #e8c76f!important}
+.exchange-props-panel .exchange-prop-grid .pp-card .pp-premium-metrics>.pp-metric-cell:nth-child(2)>span{font-size:clamp(12px,1vw,15px)!important;color:#f6dc95!important;font-weight:900!important;min-height:0!important}
+.exchange-props-panel .exchange-prop-grid .pp-card .pp-premium-metrics>.pp-metric-cell:nth-child(2)>strong{font-size:clamp(32px,2.6vw,42px)!important;line-height:1.12!important;color:#fff!important;font-variant-numeric:tabular-nums!important}
