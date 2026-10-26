@@ -5,6 +5,7 @@ on:
       - "scripts/cfb-phase4-diagnostics.mjs"
       - "scripts/cfb-phase4-possessions.mjs"
       - "scripts/cfb-phase4-ncaa-verify.mjs"
+      - "scripts/cfb-phase4-export-d1-sql.mjs"
       - "test/cfb-phase4-ncaa-verify.test.js"
       - ".github/workflows/cfb-phase4-research.yml"
       - "scripts/cfb-226-live-evidence.mjs"
@@ -16,6 +17,7 @@ on:
       - 'scripts/cfb-phase4-diagnostics.mjs'
       - 'scripts/cfb-phase4-possessions.mjs'
       - 'scripts/cfb-phase4-ncaa-verify.mjs'
+      - 'scripts/cfb-phase4-export-d1-sql.mjs'
       - '.github/workflows/cfb-phase4-research.yml'
   schedule:
     - cron: '20 13 * * 1'
@@ -77,6 +79,9 @@ jobs:
           npx wrangler r2 object get "fbis-archive/${KEY}" --file cfb-phase4-readback.zip --remote
           echo "${SHA}  cfb-phase4-readback.zip" | sha256sum -c -
           echo "R2_VERIFIED sha256:${SHA} key=${KEY}"
+          node scripts/cfb-phase4-export-d1-sql.mjs "${KEY}" "${SHA}" cfb-phase4-shadow-research.sql
+          npx wrangler d1 execute fbis-cfb --remote --file cfb-phase4-shadow-research.sql
+          echo "CFB_SHADOW_RESEARCH_IMPORT_COMPLETE r2=${KEY}"
       - name: Upload full research report
         if: always()
         uses: actions/upload-artifact@v4
