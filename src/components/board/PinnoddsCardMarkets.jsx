@@ -1,4 +1,5 @@
 import React from "react";
+import ExchangeQuoteLink from "./ExchangeQuoteLink.jsx";
 import TeamLogo from "../TeamLogo.jsx";
 import {marketDisplayAmerican,signedAmerican} from "../../lib/marketQuoteDisplay.js";
 import {selectPinnoddsGameMarkets,pinnoddsMarketOrder} from "../../lib/pinnoddsMarketSelection.js";
@@ -48,8 +49,8 @@ export default function PinnoddsCardMarkets({game,projection,marketFamilies,comp
     {pair?<div className="fbis-priced-selections">{pair.quotes.map(q=>
      <div key={`${q.side}:${q.line}`} className={`fbis-priced-selection fbis-priced-${q.side}`}>
       <span className="fbis-priced-team">{(f==="spread"||f==="moneyline")?<TeamMark game={game} side={q.side} sport={sport} size={40} className="fbis-priced-team-logo" />:null}<span>{side(game,f,q)}</span></span>
-      <strong className="fbis-priced-line">{offered(f,q)}</strong>
-      <span className="fbis-priced-odds">{signedAmerican(marketDisplayAmerican(q))}</span>
+      <strong className="fbis-priced-line"><ExchangeQuoteLink offer={q} value={offered(f,q)}/></strong>
+      <span className="fbis-priced-odds"><ExchangeQuoteLink offer={q} value={signedAmerican(marketDisplayAmerican(q))}/></span>
      </div>)}</div>:<p>Paired PinnOdds line not available</p>}
     {diff?<div className="fbis-priced-model-row">
      <div className={`fbis-priced-model-value${f==="total"?" is-total":" is-spread"}`}>
