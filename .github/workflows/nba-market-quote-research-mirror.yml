@@ -2,7 +2,7 @@ name: NBA partitioned quote research mirror
 on:
   workflow_dispatch:
   schedule:
-    - cron: "41 */6 * * *"
+    - cron: "41 * * * *"
   push:
     branches: [main]
     paths:
