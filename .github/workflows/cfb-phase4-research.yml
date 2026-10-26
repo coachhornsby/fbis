@@ -1,0 +1,45 @@
+name: CFB Phase 4 Research Evidence and Weekly Reports
+on:
+  pull_request:
+    paths:
+      - "scripts/cfb-phase4-diagnostics.mjs"
+      - ".github/workflows/cfb-phase4-research.yml"
+      - "scripts/cfb-226-live-evidence.mjs"
+      - "scripts/cfb-226-complete-grade.mjs"
+  workflow_dispatch:
+  schedule:
+    - cron: '20 13 * * 1'
+permissions:
+  contents: read
+jobs:
+  weekly-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Collect immutable secondary game evidence
+        id: collect
+        continue-on-error: true
+        run: node scripts/cfb-226-live-evidence.mjs
+      - name: Grade saved frozen projections
+        id: grade
+        continue-on-error: true
+        run: node scripts/cfb-226-complete-grade.mjs
+      - name: Produce frozen-model error diagnostics
+        id: diagnose
+        continue-on-error: true
+        run: node scripts/cfb-phase4-diagnostics.mjs
+      - name: Upload full research report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-phase4-research-evidence
+          path: artifacts/cfb-2026-weeks05-08/
+          retention-days: 30
+          if-no-files-found: warn
+      - name: Reject incomplete research cycle
+        if: steps.collect.outcome != 'success' || steps.grade.outcome != 'success' || steps.diagnose.outcome != 'success'
+        run: exit 1
