@@ -1,8 +1,8 @@
 import {exchangeMarketLink} from '../../lib/exchangeMarketLinks.js';
 import './exchangeQuoteLinks.css';
 /** The actual displayed quote/threshold is the navigation control. */
-export default function ExchangeQuoteLink({offer,value,children,className='',title='',onClick}){
- const link=exchangeMarketLink(offer);
+export default function ExchangeQuoteLink({offer,resolvedLink=null,value,children,className='',title='',onClick}){
+ const link=resolvedLink||exchangeMarketLink(offer);
  const content=children??value??'—';
  if(!link)return <span className={className}>{content}</span>;
  return <a className={'fbis-exchange-quote-link '+className}
