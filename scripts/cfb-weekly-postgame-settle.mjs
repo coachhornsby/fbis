@@ -25,7 +25,7 @@ export function gradeOnce({source,original,espn,verifiedOfficial}){
   marginError:(ph-pa)-(home-away),totalError:(ph+pa)-(home+away),
   correctWinner:Math.sign(ph-pa)===Math.sign(home-away),
   ncaaContestId:verifiedOfficial.ncaa_contest_id,ncaaScoreboardUrl:verifiedOfficial.ncaa_scoreboard_url,
-  officialVerified:true,prospectiveChallengerQualifier:false,wagerAuthority:false,modelPromotion:false};
+  officialVerified:true,prospectiveChallengerQualifier:false,wagerAuthority:false,modelPromotion:false,canAuthorizeWager:false,canPromoteModel:false};
 }
 async function fetchJson(url){
  const res=await fetch(url,{signal:AbortSignal.timeout(25000)});
