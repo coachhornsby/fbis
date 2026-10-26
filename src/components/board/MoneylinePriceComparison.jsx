@@ -21,12 +21,13 @@ export default function MoneylinePriceComparison({game}){
  const {rows,hasPrices}=buildMoneylinePriceComparison(live.game);
  if(!hasPrices)return null;
  const hasPolymarket=rows.some(r=>r.polymarketProbability!=null);
+ const hasKalshi=rows.some(r=>r.kalshiProbability!=null);
  const priced=rows.map(r=>({...r,modelBookGap:gap(r)}));
  const best=priced.filter(r=>r.modelBookGap!=null&&r.modelBookGap>0).sort((a,b)=>b.modelBookGap-a.modelBookGap)[0]||null;
- return <section className="gc-reference fbis-moneyline-comparison" aria-label="PinnOdds Polymarket and FBIS moneyline price comparison">
+ return <section className="gc-reference fbis-moneyline-comparison" aria-label="PinnOdds Kalshi Polymarket and FBIS moneyline price comparison">
   <header className="fbis-moneyline-header">
    <strong>◆ MONEYLINE PRICEBOARD</strong>
-   <span><i>PINNODDS</i> / <i>POLYMARKET</i> / <i>FBIS FAIR</i></span>
+   <span><i>PINNODDS</i> / <i>KALSHI</i> / <i>POLYMARKET</i> / <i>FBIS FAIR</i></span>
   </header>
   {live.updateError?<p className="fbis-moneyline-note" role="status">Market updates unavailable · check quote times before acting</p>:null}
   {best?<div className="fbis-moneyline-gap-banner">
@@ -40,10 +41,11 @@ export default function MoneylinePriceComparison({game}){
     <h4>{r.label}</h4>
     {r.modelBookGap!=null?<span className={`fbis-moneyline-gap-pill${r.modelBookGap>0?" is-positive":""}`}>FBIS − RAW IMPLIED {pp(r.modelBookGap)}</span>:null}
    </div>
-   <div className="fbis-moneyline-triplet" style={!hasPolymarket?{gridTemplateColumns:"repeat(2,minmax(0,1fr))"}:undefined}>
+   <div className="fbis-moneyline-triplet" style={{gridTemplateColumns:`repeat(${2+Number(hasPolymarket)+Number(hasKalshi)},minmax(0,1fr))`}}>
     <div className="fbis-moneyline-venue fbis-moneyline-pin">
-      <span>PINNODDS</span><strong>{american(r.pinnoddsAmerican)}</strong><small>Captured reference · {stamp(r.pinnacleCapturedAt)}</small>
+      <span>PINNODDS</span><strong><ExchangeQuoteLink offer={r.pinnoddsOffer} value={american(r.pinnoddsAmerican)}/></strong><small>Captured reference · {stamp(r.pinnacleCapturedAt)}</small>
     </div>
+    {hasKalshi ? <div className="fbis-moneyline-venue fbis-moneyline-kalshi"><span>KALSHI</span><strong><ExchangeQuoteLink offer={r.kalshiOffer} value={percent(r.kalshiProbability)}/></strong><b>{american(r.kalshiAmerican)}</b><small>Indicative YES ask · verify price and fees</small><small>{stamp(r.kalshiObservedAt)}</small></div> : null}
     {hasPolymarket ? <div className="fbis-moneyline-venue fbis-moneyline-poly">
       <span>POLYMARKET</span><strong><ExchangeQuoteLink offer={r.polymarketOffer} value={percent(r.polymarketProbability)}/></strong><b>{american(r.polymarketAmerican)}</b><small>Implied American · before fees</small><small>{stamp(r.polymarketObservedAt)}</small>
     </div> : null}
@@ -63,6 +65,7 @@ export default function MoneylinePriceComparison({game}){
     <small>Manual review · standard taker fee estimate · no assumed rebate{/MARKET_HISTORY_(?:RECOVERY|2026Q4)/.test(String(r.polymarketIntelligence.delivery||""))?" · recovery feed":""}</small>
    </div> : null}
   </div>)}</div>
+  {!hasKalshi ? <p className="fbis-moneyline-note">Kalshi: no independently matched NBA contract for this event.</p> : null}
   {!hasPolymarket ? <p className="fbis-moneyline-note">Polymarket: no matched observed price for this event.</p> : null}
 
  </section>;
