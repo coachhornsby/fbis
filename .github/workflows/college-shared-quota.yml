@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - run: node --test test/college-shared-quota.test.js test/cfb-cfbd-acquisition.test.js test/cfb-cfbd-429-idempotency.test.js test/cbb-team-profiles.test.js test/college.test.js test/cfbd-graphql-governor.test.js test/cfb-core-advanced-plumbing.test.js test/cfb-tier3-weekly-evaluation.test.js

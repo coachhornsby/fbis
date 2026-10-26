@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - run: node --test test/cbb-cutover-rehearsal.test.js test/cbb-shard-guards.test.js test/cbb-paused-recovery.test.js test/cbb-shared-owner-isolation.test.js test/cbb-migration-retry.test.mjs test/cbb-exact-migration.test.js test/cbb-research-owner.test.js test/cbb-cutover-shadow-ownership.test.js test/cbb-team-profiles.test.js test/cbb-directory-phase-b.test.js test/cbb-directory-phase-b-sportsdataverse.test.js test/sport-cutover-all11-routing-gate.test.js

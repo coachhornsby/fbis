@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Collect Week 5-8 reported finals, plays, boxscores and drives
