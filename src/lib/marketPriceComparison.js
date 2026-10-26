@@ -53,17 +53,27 @@ export function buildMoneylinePriceComparison(game={},options={}) {
   const poly=sources.filter(o=>(o.source==="Polymarket US"||o.source==="Polymarket US WebSocket") &&
     o.marketFamily==="moneyline" && (o.period==="full_game" || o.period==="fg") &&
     (marketDisplayImplied(o)!=null||o.raw?.marketState)).sort(currentFirst);
+  const kalshi=sources.filter(o=>/kalshi/i.test(String(o.source||o.provider||"")) &&
+    ["moneyline","ml"].includes(String(o.marketFamily||o.market||"").toLowerCase()) &&
+    (!o.period||["full_game","fg"].includes(o.period)))
+    .sort(currentFirst);
   const probabilities=modelProbabilities(game);
   const sides=sport==="soccer"?["away","draw","home"]:["away","home"];
   const rows=sides.map(side=>{
     const p=probabilities[side]??null;
     const pinQuote=pin.find(o=>resolveSide(o,game)===side);
     const polyQuote=poly.find(o=>resolveSide(o,game)===side);
+    const kalshiQuote=kalshi.find(o=>resolveSide(o,game)===side);
     const polyP=polyQuote?marketDisplayImplied(polyQuote):null;
     return {
       side,label:side==="draw"?"Draw":game[side]?.name||game[side]?.fullName||side.toUpperCase(),
       pinnoddsAmerican:pinQuote?marketDisplayAmerican(pinQuote):null,
       pinnacleCapturedAt:pinQuote?.capturedAt||pinQuote?.collectedAt||null,
+      kalshiProbability:kalshiQuote?marketDisplayImplied(kalshiQuote):null,
+      kalshiAmerican:kalshiQuote?marketDisplayAmerican(kalshiQuote):null,
+      kalshiObservedAt:kalshiQuote?.sourceObservedAt||kalshiQuote?.fetchedAt||kalshiQuote?.collectedAt||null,
+      kalshiOffer:kalshiQuote||null,
+      pinnoddsOffer:pinQuote||null,
       polymarketProbability:polyP,
       polymarketAmerican:polyQuote?marketDisplayAmerican(polyQuote):null,
       polymarketObservedAt:polyQuote?.sourceObservedAt||polyQuote?.observedAt||null,
@@ -76,7 +86,7 @@ export function buildMoneylinePriceComparison(game={},options={}) {
       fbisFairAmerican:p==null?null:contractPriceToAmerican(p),
     };
   });
-  return {rows,hasPrices:rows.some(r=>r.pinnoddsAmerican!=null||r.polymarketProbability!=null||r.fbisProbability!=null),
+  return {rows,hasPrices:rows.some(r=>r.pinnoddsAmerican!=null||r.polymarketProbability!=null||r.kalshiProbability!=null||r.fbisProbability!=null),
     researchOnly:game?.canAuthorizeWager!==true,
     sport,projectionState:game?.projectionState||game?.projectionMaturity||game?.model?.maturity||null};
 }
