@@ -6,6 +6,7 @@ import { attachMyBetsToBoard } from "../lib/executedBets.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
 import { toDomainTodayBoard } from "../lib/fbisDomain.js";
+import { nbaBoardVenueComparison } from "../lib/nbaBoardVenueComparison.js";
 
 export function todayEnv(context) {
   return {
@@ -46,7 +47,9 @@ export async function onRequestGet(context) {
       ping.ok ? countToday(env, resolved.date) : { predictions: null, graded: null, awaiting: null, failedWrites: null, failedHarvests: null },
       durableHealth(env),ping.ok ? readMeta(env) : {},
     ]);
-    const withBets = attachMyBetsToBoard(board, betsQ.rows || []);
+    const betBoard = attachMyBetsToBoard(board, betsQ.rows || []);
+    const withBets = {...betBoard,games:(betBoard.games||[]).map(game=>game.sport==="nba"?
+      {...game,nbaWagerComparison:nbaBoardVenueComparison(game,{now:attemptAt})}:game)};
     const sourceStatus = buildTodaySourceStatus(board);
     const schedule = scheduledHealth(durable, new Date());
     const writeVerification = writeVerificationState({
