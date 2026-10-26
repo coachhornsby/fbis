@@ -10,7 +10,7 @@ const ROSTER=JSON.parse(readFileSync("data/cfb/2026/weeks05-08-game-roster.json"
 if(ROSTER.length!==226)throw Error("EXPECTED_226_SOURCE_GAMES");
 const normalize=s=>String(s||"").toLowerCase().normalize("NFKD").replace(/&/g,"and").replace(/[^a-z0-9]+/g,"").replace(/university/g,"");
 const queryHash="7287cda610a9326931931080cb3a604828febe6fe3c9016a7e4a36db99efdb7c";
-const sourceUrl=week=>{const u=new URL("https://sdataprod.ncaa.com/");u.searchParams.set("extensions",JSON.stringify({persistedQuery:{version:1,sha256Hash:queryHash}}));u.searchParams.set("variables",JSON.stringify({sportCode:"MFB",division:1,seasonYear:2026,week}));return u.toString();};
+const sourceUrl=week=>{const u=new URL("https://sdataprod.ncaa.com/");u.searchParams.set("extensions",JSON.stringify({persistedQuery:{version:1,sha256Hash:queryHash}}));u.searchParams.set("variables",JSON.stringify({sportCode:"MFB",division:11,seasonYear:2026,week}));return u.toString();};
 export function compare(g,report,contests,claimedIds=new Set()){
  const url=`https://www.ncaa.com/scoreboard/football/fbs/2026/${g.week}/all-conf`;
  const home=normalize(g.home_team_source),away=normalize(g.away_team_source);
