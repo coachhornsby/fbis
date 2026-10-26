@@ -19,7 +19,7 @@ export function grade(games,snapshots,official){
     .sort((a,b)=>utc(a.frozen_at)-utc(b.frozen_at))[0];
   const f=finals.get(id);
   const officialValid=f?.verified===true&&typeof f.source_url==="string"&&f.source_url.startsWith("https://")&&
-    numeric(f.home_score)&&numeric(f.away_score)&&f.home_team===g.home_team_source&&f.away_team===g.away_team;
+    numeric(f.home_score)&&numeric(f.away_score)&&f.home_team===g.home_team_source&&f.away_team===g.away_team_source;
   let row={game_id:id,week:Number(g.week),savedPregame:!!snap,officialVerified:!!officialValid,
     status:!snap?"NO_ELIGIBLE_PREGAME_PROJECTION":!officialValid?"OFFICIAL_FINAL_UNVERIFIED":"GRADED",
     model:snap?.model_version??null,source:f?.source_url??null,marginError:null,totalError:null,homeError:null,awayError:null};
