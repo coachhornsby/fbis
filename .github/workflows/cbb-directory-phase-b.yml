@@ -71,6 +71,7 @@ jobs:
     timeout-minutes: 75
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       FBIS_CBB_SEASON: "2027"
     steps:
@@ -83,6 +84,7 @@ jobs:
       - name: Require durable Phase A checkpoint
         run: |
           set -euo pipefail
+          node scripts/cbb-primary-import-guard.mjs
           row="$(npx wrangler d1 execute fbis --remote --json --command="SELECT canonical_teams,players,roster_memberships,state_events,team_snapshots,player_snapshots,schedule_items,status FROM cbb_directory_population_runs ORDER BY completed_at DESC LIMIT 1;")"
           printf '%s' "$row" | jq -e '.[0].results[0] | .status=="COMPLETE" and .canonical_teams==362 and .players==23273 and .roster_memberships==39347 and .state_events==89334 and .team_snapshots==2837 and .player_snapshots==39347 and .schedule_items==84664' >/dev/null
       - name: Download and verify immutable SportsDataverse assets
@@ -107,7 +109,9 @@ jobs:
       - name: Export Phase A identity evidence
         run: |
           set -euo pipefail
+          node scripts/cbb-primary-import-guard.mjs
           npx wrangler d1 execute fbis --remote --json --command="SELECT DISTINCT p.player_id,p.canonical_name,m.team_id,m.season FROM cbb_players p JOIN cbb_roster_membership m ON m.player_id=p.player_id;" | jq '.[0].results' > artifacts/cbb-phase-b-source/phase-a-players.json
+          node scripts/cbb-primary-import-guard.mjs
           npx wrangler d1 execute fbis --remote --json --command="SELECT player_id,provider,provider_player_id FROM cbb_player_provider_ids WHERE provider='ESPN';" | jq '.[0].results' > artifacts/cbb-phase-b-source/existing-provider-ids.json
       - name: Build PIT-safe Phase B population
         run: |
@@ -138,14 +142,18 @@ jobs:
       - name: Apply Phase B schema and population to production D1
         run: |
           set -euo pipefail
+          node scripts/cbb-primary-import-guard.mjs
           npx wrangler d1 execute fbis --remote --file=migrations/0084_cbb_directory_phase_b.sql
+          node scripts/cbb-primary-import-guard.mjs
           col="$(npx wrangler d1 execute fbis --remote --json --command="PRAGMA table_info(cbb_game_state_snapshots);")"
           if ! printf '%s' "$col" | jq -e '.[0].results | any(.name=="future_transfer_leaks")' >/dev/null; then
+            node scripts/cbb-primary-import-guard.mjs
             npx wrangler d1 execute fbis --remote --file=migrations/0096_cbb_phase_b_future_transfer_leakage.sql
           fi
           for f in artifacts/cbb-phase-b/chunk-*.sql; do
             ok=0
             for attempt in 1 2 3; do
+              node scripts/cbb-primary-import-guard.mjs
               if npx wrangler d1 execute fbis --remote --file="$f"; then ok=1; break; fi
               sleep $((attempt * 5))
             done
@@ -154,6 +162,7 @@ jobs:
       - name: Independently verify persisted Phase B
         run: |
           set -euo pipefail
+          node scripts/cbb-primary-import-guard.mjs
           npx wrangler d1 execute fbis --remote --command="
             SELECT id,season,observed_at,status,canonical_teams,stable_id_players,unresolved_provisional_players,ambiguous_identities,transfer_links,roster_teams,roster_players,rotation_players,starter_evidence_players,lineup_continuity_teams,replacement_players,schedule_teams,game_state_snapshots,verified_availability,unknown_availability FROM cbb_directory_phase_b_runs ORDER BY observed_at DESC LIMIT 1;
             SELECT COUNT(*) AS provider_ids FROM cbb_player_provider_ids WHERE provider='ESPN';

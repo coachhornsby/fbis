@@ -1,0 +1,10 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"at\": \"2026-10-26T03:10:27.646Z\",\n  \"target\": \"f00af21e-72b5-4e7c-bb10-b08f2c59dace\",\n  \"authority\": \"PRIMARY\",\n  \"tables\": [\n    {\n      \"table\": \"predictions\",\n      \"status\": \"CREATED_SOURCE_SCHEMA\",\n      \"columns\": 38,\n      \"sourceMutations\": 0\n    },\n    {\n      \"table\": \"odds_snapshots\",\n      \"status\": \"CREATED_SOURCE_SCHEMA\",\n      \"columns\": 18,\n      \"sourceMutations\": 0\n    },\n    {\n      \"table\": \"team_form\",\n      \"status\": \"CREATED_SOURCE_SCHEMA\",\n      \"columns\": 7,\n      \"sourceMutations\": 0\n    },\n    {\n      \"table\": \"team_form_games\",\n      \"status\": \"CREATED_SOURCE_SCHEMA\",\n      \"columns\": 3,\n      \"sourceMutations\": 0\n    }\n  ],\n  \"canAuthorizeWager\": false\n}"
+    }
+  ],
+  "structuredContent": null,
+  "isError": false
+}

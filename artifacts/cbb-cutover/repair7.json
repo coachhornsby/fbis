@@ -1,0 +1,10 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"at\": \"2026-10-26T03:17:32.611Z\",\n  \"authority\": \"PRIMARY\",\n  \"canAuthorizeWager\": false,\n  \"receipts\": [\n    {\n      \"table\": \"games\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 0,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_games\",\n      \"indexesAdded\": 0,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"prediction_snapshots\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 0,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_prediction_snapshots\",\n      \"indexesAdded\": 2,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"published_projections\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 0,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_published_projections\",\n      \"indexesAdded\": 3,\n      \"primaryMutations\": 0\n    }\n  ]\n}"
+    }
+  ],
+  "structuredContent": null,
+  "isError": false
+}

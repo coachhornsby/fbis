@@ -1,0 +1,10 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"at\": \"2026-10-26T03:16:13.510Z\",\n  \"authority\": \"PRIMARY\",\n  \"canAuthorizeWager\": false,\n  \"receipts\": [\n    {\n      \"table\": \"cbb_shadow_challenger_definitions\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 11,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_shadow_challenger_definitions\",\n      \"indexesAdded\": 1,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"cbb_state_events\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 12000,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_state_events\",\n      \"indexesAdded\": 3,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"cbb_state_overlay_governance\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 7,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_state_overlay_governance\",\n      \"indexesAdded\": 0,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"cbb_team_aliases\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 1049,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_team_aliases\",\n      \"indexesAdded\": 2,\n      \"primaryMutations\": 0\n    }\n  ]\n}"
+    }
+  ],
+  "structuredContent": null,
+  "isError": false
+}

@@ -48,23 +48,23 @@ test("all 11 sports: setting sport mode without approved receipt never authorize
       ...(sport === "nhl" ? { NHL_SPORT_DB_MODE: "sport" } : {}),
     };
     const noReceipt = productSportDbHandle(env, sport);
-    assert.equal(noReceipt.db, primary, sport);
+    assert.equal(noReceipt.db, sport === "cbb" ? null : primary, sport);
     assert.equal(noReceipt.productIoUsesSportDb, false, sport);
     assert.match(noReceipt.reason, /RECEIPT/, sport);
     env[receipt] = `unapproved-${sport}`;
     const unapproved = productSportDbHandle(env, sport);
-    assert.equal(unapproved.db, primary, sport);
+    assert.equal(unapproved.db, sport === "cbb" ? null : primary, sport);
     assert.equal(unapproved.productIoUsesSportDb, false, sport);
     assert.match(unapproved.reason, /APPROVAL_RECORD/, sport);
   }
 });
 
-test("all 11 sports: missing sport bindings fail back to PRIMARY", () => {
+test("missing sport bindings preserve legacy routing; activated CBB fails closed", () => {
   const primary = handle("PRIMARY");
   for (const sport of FBIS_SPORTS) {
     const env = { DB: primary, [`SPORT_DB_MODE_${sport.toUpperCase()}`]: "sport" };
     const routed = productSportDbHandle(env, sport);
-    assert.equal(routed.db, primary, sport);
+    assert.equal(routed.db, sport === "cbb" ? null : primary, sport);
     assert.equal(routed.productIoUsesSportDb, false, sport);
   }
 });

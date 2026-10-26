@@ -1,0 +1,10 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"at\": \"2026-10-26T03:11:45.774Z\",\n  \"authority\": \"PRIMARY\",\n  \"canAuthorizeWager\": false,\n  \"receipts\": [\n    {\n      \"table\": \"cbb_availability_observations\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 0,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_availability_observations\",\n      \"indexesAdded\": 1,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"cbb_canonical_teams\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 362,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_canonical_teams\",\n      \"indexesAdded\": 2,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"cbb_conference_membership\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 361,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_conference_membership\",\n      \"indexesAdded\": 1,\n      \"primaryMutations\": 0\n    },\n    {\n      \"table\": \"cbb_directory_phase_b_runs\",\n      \"status\": \"SOURCE_SCHEMA_RESTORED_TARGET_ONLY\",\n      \"recordsPreserved\": 7,\n      \"fieldDifferencesFromRetained\": 0,\n      \"retainedTable\": \"retained_20261026_cbb_directory_phase_b_runs\",\n      \"indexesAdded\": 1,\n      \"primaryMutations\": 0\n    }\n  ]\n}"
+    }
+  ],
+  "structuredContent": null,
+  "isError": false
+}

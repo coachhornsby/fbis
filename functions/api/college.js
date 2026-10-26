@@ -1,3 +1,4 @@
+import { sportDbContext } from "../lib/nflSportDbContext.js";
 import {cfbCfbdAcquisitionHealth} from "../lib/cfbCfbdAcquisition.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { httpStatusForJob, parseJobTrigger } from "../lib/jobs.js";
@@ -59,6 +60,7 @@ function envFrom(context) {
     caches: caches.default,
     DB: context.env.DB,
     TIER3_DB: context.env.TIER3_DB,
+    ...sportDbContext(context.env),
     // Sport shard for prediction_snapshots A/A overlays (Model C holdout).
     CFB_DB: context.env.CFB_DB,
     CFB_DRIVE_RESEARCH_COLLECTION: context.env.CFB_DRIVE_RESEARCH_COLLECTION,

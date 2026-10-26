@@ -1,3 +1,5 @@
+import { cbbResearchOwner } from "./cbbResearchOwner.js";
+import { deployedSportDbMode } from "./databaseTopology.js";
 /**
  * Durable, read-only board delivery fallback.
  * Existing games + immutable pre-start projection snapshots supply matchups
@@ -123,6 +125,17 @@ export async function loadDurableTodayGames(env={},date,sport="all",{now=Date.no
   if(!env.DB?.prepare || !/^\d{4}-\d{2}-\d{2}$/.test(String(date||"")))
     return {ok:false,reason:"D1_OR_DATE_UNAVAILABLE",games:[]};
   if(!Number.isFinite(Number(now)))return {ok:false,reason:"INVALID_CUTOFF",games:[]};
+  if (deployedSportDbMode(env,"cbb") === "sport" && ["cbb","all"].includes(String(sport).toLowerCase())) {
+    try {
+      const {db}=await cbbResearchOwner(env);
+      const cbb=await queryDurable(db,date,"cbb",now);
+      if (!cbb.ok) return cbb;
+      if (sport === "cbb") return {...cbb,source:"CBB_DB_DURABLE_CUTOVER"};
+      const primary=await queryDurable(env.DB,date,"all",now);
+      if (!primary.ok) return primary;
+      return {...primary,games:[...primary.games.filter(g=>g.sport!=="cbb"),...cbb.games],source:"D1_CBB_OWNER_FANOUT"};
+    } catch(error) { return {ok:false,reason:String(error?.message||error),games:[]}; }
+  }
   // NHL-only requests may read the sport shard once projection parity is receipted.
   // The all-sports board stays on primary, and a shard failure falls back to it.
   if(String(sport).toLowerCase()==="nhl"){

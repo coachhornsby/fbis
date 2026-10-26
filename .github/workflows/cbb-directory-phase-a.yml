@@ -31,6 +31,7 @@ jobs:
     timeout-minutes: 60
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4.2.2
@@ -79,11 +80,13 @@ jobs:
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
+          node scripts/cbb-primary-import-guard.mjs
           npx wrangler d1 execute fbis --remote --file=migrations/0079_cbb_persistent_directory_phase_a.sql
           for f in artifacts/cbb-directory/chunk-*.sql; do
             echo "Applying $f"
             ok=0
             for attempt in 1 2 3; do
+              node scripts/cbb-primary-import-guard.mjs
               if npx wrangler d1 execute fbis --remote --file="$f"; then
                 ok=1
                 break
@@ -97,6 +100,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           set -euo pipefail
+          node scripts/cbb-primary-import-guard.mjs
           npx wrangler d1 execute fbis --remote --command="SELECT id,snapshot_id,status,canonical_teams,players,roster_memberships,state_events,team_snapshots,player_snapshots,schedule_items FROM cbb_directory_population_runs ORDER BY completed_at DESC LIMIT 1; SELECT state_family,mode,target_scope,can_influence_projection,can_qualify,can_authorize_wager FROM cbb_state_overlay_governance ORDER BY state_family;"
       - name: Summary
         if: always()
