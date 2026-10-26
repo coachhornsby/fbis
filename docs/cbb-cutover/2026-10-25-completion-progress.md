@@ -106,3 +106,40 @@ with canonical shared observations; market history is not moved into CBB_DB.
 Real SQLite tests preserve frozen publication payloads and untouched PRIMARY rows,
 reject revoked CORE approval, and prove cross-store market event coverage.
 116 related tests passed locally. This remains routing work, not full certification.
+
+## Exhaustive live record comparison passed
+
+Run 40264640137 completed successfully on October 25 (Chicago). It compared
+498,293 source records across all 28 approved tables in 521 ordered pages.
+Every page matched all source keys and fields, with equal source/target SHA-256
+fingerprints. Raw JSON, source IDs, restrictions and point-in-time timestamps are
+included in these comparisons. No copy retries occurred in this successful run.
+The source grew during historical population; current complete state/rotation
+counts are 155,645 and 33,054 rather than the older 146,172 and 28,332 baseline.
+
+Receipt: `artifacts/cbb-cutover/exhaustive-field-reconciliation.json`.
+GitHub artifact 12625619860, 90-day retention, ZIP SHA-256
+`309fac45888dcd49c772f291346de7136307999a130c64d5bf5462b9be7a4299`.
+This proves scoped data reconciliation; it is not board A/A, independent release
+approval, or evidence of a populated production game/projection writer.
+
+All 14 cross-sport INSERT/UPDATE triggers are installed in CBB_DB. They reject
+other sports in all seven shared working tables; PRIMARY was not modified by
+this operation. CI discovers CBB schema table definitions and fails if a new
+research owner is omitted from the copy catalog, accounting for temporary rebuild
+renames and the explicitly deferred player-prop table.
+
+Prepared paused reverse replay has no HTTP endpoint. It requires deployed strict
+sport mode, no receipt pointer and explicit paused recovery state; it preserves
+the source and refuses cross-sport numeric ID collisions, game identity conflicts
+and frozen-field changes. A transaction-local migration fence prevents an already
+running shadow request from overwriting private data after activation. The fence,
+page guard and progress tables are CBB-local migration control metadata, not
+PRIMARY-owned research and not model/wager authority. 142 related tests passed.
+No live rollback or fault injection against live approvals was run.
+
+Still open: accepted complete consumer/call-graph inventory; future schema-owner
+migration enforcement; agreed freshness SLA; full populated board A/A and official
+fixture writer evidence; complete release-specific fault/rollback and archive
+recovery acceptance; independently scoped CORE approval; guarded live activation;
+representative post-cutover monitoring. No A–H final certification is claimed.

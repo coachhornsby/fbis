@@ -1,0 +1,10 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"at\": \"2026-10-26T03:56:35.979Z\",\n  \"database\": \"fbis-cbb\",\n  \"triggers\": 14,\n  \"primaryMutations\": 0,\n  \"authority\": \"PRIMARY\",\n  \"canAuthorizeWager\": false\n}"
+    }
+  ],
+  "structuredContent": null,
+  "isError": false
+}

@@ -16,7 +16,12 @@ async function schema(source,target,table){
  if(!keys.length)throw Error('CBB_SOURCE_KEY_REQUIRED');
  return {columns:s.map(c=>c.name),keys};
 }
-async function meta(db){await db.prepare('CREATE TABLE IF NOT EXISTS cbb_migration_progress (id TEXT PRIMARY KEY, state_json TEXT NOT NULL, updated_at TEXT NOT NULL)').run();}
+async function meta(db){
+ await db.prepare('CREATE TABLE IF NOT EXISTS cbb_migration_progress (id TEXT PRIMARY KEY, state_json TEXT NOT NULL, updated_at TEXT NOT NULL)').run();
+ await db.prepare("CREATE TABLE IF NOT EXISTS cbb_migration_fence (id INTEGER PRIMARY KEY CHECK(id=1), state TEXT NOT NULL CHECK(state IN ('shadow','paused')))").run();
+ await db.prepare("INSERT OR IGNORE INTO cbb_migration_fence(id,state) VALUES(1,'shadow')").run();
+ await db.prepare('CREATE TABLE IF NOT EXISTS cbb_migration_page_guard (id TEXT PRIMARY KEY, allowed INTEGER NOT NULL CHECK(allowed=1))').run();
+}
 function selection(table,keys,after,limit){
  const terms=scoped(table)?["sport='cbb'"]:[],args=[];
  if(after?.length){if(after.length!==keys.length)throw Error('CBB_CURSOR_INVALID');terms.push(`(${keys.map(ident).join(',')}) > (${keys.map(()=>'?').join(',')})`);args.push(...after);}
@@ -25,7 +30,7 @@ function selection(table,keys,after,limit){
 const stable=(row,cols)=>JSON.stringify(cols.map(c=>row[c]));
 
 /** Exact source IDs/fields, full mutable replay, atomic page + durable checkpoint. */
-export async function copyCbbExactPage(env,table,{prefixTables=[],pageSize=100,maxPages=10,resume=true}={}){
+export async function copyCbbExactPage(env,table,{prefixTables=[],pageSize=100,maxPages=10,resume=true,validatePage=null}={}){
  allow(table,prefixTables);const [source,target]=handles(env);
  const {columns,keys}=await schema(source,target,table);await meta(target);
  const id='copy:'+table, prior=resume?await target.prepare('SELECT state_json FROM cbb_migration_progress WHERE id=?').bind(id).first():null;
@@ -36,11 +41,17 @@ export async function copyCbbExactPage(env,table,{prefixTables=[],pageSize=100,m
   const query=selection(table,keys,state.after,limit),rows=(await source.prepare(query.sql).bind(...query.args).all()).results||[];
   if(rows.some(r=>scoped(table)&&r.sport!=='cbb'))throw Error('CBB_CROSS_SPORT_ROW');
   if(rows.some(r=>keys.some(k=>r[k]==null)))throw Error('CBB_NULL_SOURCE_KEY');
+  if(validatePage)await validatePage({rows,columns,keys,source,target});
   const updates=columns.filter(c=>!keys.includes(c));
   const sql=`INSERT INTO ${ident(table)}(${columns.map(ident).join(',')}) VALUES(${columns.map(()=>'?').join(',')}) ON CONFLICT(${keys.map(ident).join(',')}) DO ${updates.length?'UPDATE SET '+updates.map(c=>`${ident(c)}=excluded.${ident(c)}`).join(','):'NOTHING'}`;
   exhausted=rows.length<limit;
   const next={after:exhausted?null:keys.map(k=>rows.at(-1)[k]),cycle:state.cycle+(exhausted?1:0)};
-  const stmts=rows.map(row=>target.prepare(sql).bind(...columns.map(c=>row[c]??null)));
+  // First statement shares the atomic write/checkpoint transaction. An old
+  // in-flight shadow request cannot commit another page after the cutover fence.
+  const stmts=[target.prepare(`INSERT INTO cbb_migration_page_guard(id,allowed)
+    VALUES(?,CASE WHEN (SELECT state FROM cbb_migration_fence WHERE id=1)='shadow' THEN 1 ELSE 0 END)
+    ON CONFLICT(id) DO UPDATE SET allowed=excluded.allowed`).bind(table),
+    ...rows.map(row=>target.prepare(sql).bind(...columns.map(c=>row[c]??null)))];
   stmts.push(target.prepare('INSERT INTO cbb_migration_progress(id,state_json,updated_at) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET state_json=excluded.state_json,updated_at=excluded.updated_at').bind(id,JSON.stringify(next),new Date().toISOString()));
   if(typeof target.batch!=='function')throw Error('CBB_ATOMIC_BATCH_REQUIRED');
   await target.batch(stmts);copied+=rows.length;state=next;

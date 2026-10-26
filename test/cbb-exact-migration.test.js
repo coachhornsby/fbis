@@ -40,3 +40,8 @@ test('props and unapproved tables cannot enter migration scope; schema drift ref
  target.raw.exec('DROP TABLE published_projections; CREATE TABLE published_projections(id TEXT PRIMARY KEY,sport TEXT NOT NULL,payload_json TEXT,observed_at TEXT)');
  await assert.rejects(copyCbbExactPage(env,'published_projections'),/SCHEMA/);
 });
+test('atomic activation fence stops an in-flight shadow page from overwriting new private data',async()=>{
+ const {primary,target,env}=setup();primary.raw.exec("INSERT INTO published_projections VALUES(1,'cbb','old-primary','2020')");target.raw.exec("INSERT INTO published_projections VALUES(1,'cbb','new-private','2020')");
+ await assert.rejects(copyCbbExactPage(env,'published_projections',{validatePage:async()=>{target.raw.exec("UPDATE cbb_migration_fence SET state='paused' WHERE id=1");}}),/CHECK/);
+ assert.equal(target.raw.prepare('SELECT payload_json FROM published_projections').get().payload_json,'new-private');assert.equal(target.raw.prepare('SELECT COUNT(*) n FROM cbb_migration_progress').get().n,0);
+});

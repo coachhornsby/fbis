@@ -58,3 +58,18 @@ request receipts, write boundaries and post-restoration scheduled-run results.
 The production reverse-replay implementation, numeric-ID collision policy,
 isolated end-to-end rollback execution, archive readback and independent acceptance
 are not certified. This runbook does not satisfy Phase F or H on its own.
+
+## Implemented isolated recovery primitive and activation fence
+
+`functions/lib/cbbPausedRecovery.js` now provides a paused-only, bounded reverse
+replay primitive. It has no HTTP endpoint. SQLite regressions preserve the source,
+restore missing CBB rows, keep unrelated PRIMARY rows, and stop on numeric ID or
+frozen-model conflicts. It is not a complete production rollback certification.
+
+Before a future approved activation, finish and verify the final shadow delta,
+then atomically set CBB_DB `cbb_migration_fence.state='paused'` for id=1 before
+changing authority. Every new exact shadow page tests that fence inside the same
+transaction as its writes and checkpoint. Verify a shadow copy is denied and
+quiesce legacy requests before activating. Never clear this fence simply because
+an approval or binding is lost. Reverse replay uses separate paused recovery
+controls; route back to PRIMARY only after independent recovery acceptance.

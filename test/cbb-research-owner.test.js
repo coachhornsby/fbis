@@ -55,3 +55,11 @@ test("all guarded research consumers refuse missing activated owner before data 
   const response=await onRequestGet({request,env:{...env,HARVEST_SECRET:"test"}});
   assert.equal(response.status,503);assert.equal(calls.length,0);
 });
+
+test('activated product resolver rejects missing CORE and malformed cached approval metadata',async()=>{
+  const {productSportDbHandle}=await import('../functions/lib/databaseTopology.js');
+  for(const row of [{...approved,expires_at:'invalid'},{...approved,revoked_at:'2020-01-01'},{...approved,sport:'nba'},{...approved,receipt_id:'different'}]){
+    const {env}=fixture();env.__fbisCutoverApprovals=new Map([['cbb:cbb-test',row]]);assert.equal(productSportDbHandle(env,'cbb').db,null);
+  }
+  const {env}=fixture();delete env.CORE_DB;env.__fbisCutoverApprovals=new Map([['cbb:cbb-test',approved]]);assert.equal(productSportDbHandle(env,'cbb').db,null);
+});
