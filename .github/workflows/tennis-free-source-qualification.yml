@@ -16,6 +16,11 @@ on:
       - 'functions/lib/tennisFreeShadowCapture.js'
       - 'functions/api/tennis-free-shadow-forecast.js'
       - 'migrations/0127_tennis_free_shadow_forecasts.sql'
+      - 'migrations/0128_tennis_free_shadow_grades.sql'
+      - 'functions/lib/tennisFreeShadowGrade.js'
+      - 'functions/lib/tennisFreeShadowGradingCapture.js'
+      - 'functions/api/tennis-free-shadow-grade.js'
+      - '.github/workflows/tennis-free-shadow-grading.yml'
       - 'functions/lib/tennisFreeIdentity.js'
       - 'functions/lib/tennisFreeCanonicalFeatures.js'
       - 'functions/api/tennis-free-canonical-intelligence.js'
@@ -45,11 +50,14 @@ jobs:
           node --check functions/lib/tennisFreeShadowModel.js
           node --check functions/lib/tennisFreeShadowCapture.js
           node --check functions/api/tennis-free-shadow-forecast.js
+          node --check functions/lib/tennisFreeShadowGrade.js
+          node --check functions/lib/tennisFreeShadowGradingCapture.js
+          node --check functions/api/tennis-free-shadow-grade.js
           node --check functions/lib/tennisFreeIdentity.js
           node --check functions/lib/tennisFreeCanonicalFeatures.js
           node --check functions/api/tennis-free-canonical-intelligence.js
       - name: Match-stat parsing, storage, and profile tests
-        run: node --test test/tennis-free-current-research.test.mjs test/tennis-free-profile.test.mjs test/tennis-free-canonical-intelligence.test.mjs test/tennis-free-shadow-model.test.mjs test/tennis-free-canonical-intelligence.test.mjs
+        run: node --test test/tennis-free-current-research.test.mjs test/tennis-free-profile.test.mjs test/tennis-free-canonical-intelligence.test.mjs test/tennis-free-shadow-model.test.mjs test/tennis-free-shadow-grade.test.mjs test/tennis-free-canonical-intelligence.test.mjs
       - name: Live source availability and recent serve-stat coverage
         run: node scripts/tennis-free-current-source-probe.mjs
       - name: Verify canonical migration tip and schema

@@ -1,0 +1,47 @@
+name: Tennis independent frozen-shadow official grading
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '08 3,9,15,21 * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tennis-free-shadow-grading.yml'
+permissions:
+  contents: read
+concurrency:
+  group: tennis-free-shadow-grading
+  cancel-in-progress: false
+jobs:
+  grade:
+    if: github.repository == 'coachhornsby/fbis'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require healthy deployed production
+        run: VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs
+      - name: Require authenticated immutable grade contract
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          curl --fail-with-body -sS --retry 3 --retry-delay 3 --max-time 45 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            "${BASE}/api/tennis-free-shadow-grade" > /tmp/tennis-grade-readback.json
+          jq -e '.ok==true and .independentProspectiveOnly==true and .promotionReady==false and .contractTradingAuthorized==false' /tmp/tennis-grade-readback.json
+      - name: Grade only official verified final outcomes
+        run: |
+          set -euo pipefail
+          curl --fail-with-body -sS --retry 2 --max-time 110 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" -d '{}' \
+            "${BASE}/api/tennis-free-shadow-grade" > /tmp/tennis-grade-result.json
+          jq -e '.ok==true and .promotionReady==false and .contractTradingAuthorized==false and .readback.independentProspectiveOnly==true' /tmp/tennis-grade-result.json
+          jq -r '"Tennis frozen challenger official grades: examined=\(.examined), graded=\(.graded), new paired=\(.fullyPairedNew), blocked=\(.blocked | tostring)"' /tmp/tennis-grade-result.json >> "${GITHUB_STEP_SUMMARY}"
+          jq -r '.readback.cohorts | to_entries[] | "\(.key): n=\(.value.graded), fullyPaired=\(.value.fullyPaired), Brier=\(.value.challengerBrier)"' /tmp/tennis-grade-result.json >> "${GITHUB_STEP_SUMMARY}"
