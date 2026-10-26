@@ -45,7 +45,7 @@ export default function MoneylinePriceComparison({game}){
       <span>PINNODDS</span><strong>{american(r.pinnoddsAmerican)}</strong><small>Captured reference · {stamp(r.pinnacleCapturedAt)}</small>
     </div>
     {hasPolymarket ? <div className="fbis-moneyline-venue fbis-moneyline-poly">
-      <span>POLYMARKET</span><strong>{percent(r.polymarketProbability)}</strong><b>{american(r.polymarketAmerican)}</b><small>Implied American · before fees</small><small>{stamp(r.polymarketObservedAt)}</small>
+      <span>POLYMARKET</span><strong><ExchangeQuoteLink offer={r.polymarketOffer} value={percent(r.polymarketProbability)}/></strong><b>{american(r.polymarketAmerican)}</b><small>Implied American · before fees</small><small>{stamp(r.polymarketObservedAt)}</small>
     </div> : null}
     <div className="fbis-moneyline-venue fbis-moneyline-fbis">
       <span>FBIS MODEL</span><strong>{percent(r.fbisProbability)}</strong><b>{american(r.fbisFairAmerican)}</b><small>Win % · Fair odds</small>
