@@ -1,0 +1,77 @@
+name: CBB guarded cutover rehearsal (no authority changes)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'functions/lib/sportCutoverRehearsal.js'
+      - 'functions/lib/sportMigrationQualify.js'
+      - 'functions/api/database-topology.js'
+      - '.github/workflows/cbb-cutover-rehearsal.yml'
+permissions:
+  contents: read
+concurrency:
+  group: cbb-nonactivating-live-rehearsal
+  cancel-in-progress: false
+jobs:
+  rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe production non-activating CBB rehearsals
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET unavailable"; exit 1; }
+          mkdir -p artifacts/cbb-live-rehearsal
+          node --input-type=module <<'JS'
+          import { writeFileSync } from 'node:fs';
+          const endpoint='https://fbis-myz.pages.dev/api/database-topology';
+          const post=async(operation,extra={})=>{
+            const r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json','x-harvest-secret':process.env.HARVEST_SECRET},body:JSON.stringify({operation,sport:'cbb',...extra}),signal:AbortSignal.timeout(180000)});
+            if(!r.ok)throw new Error('CBB_REHEARSAL_HTTP_'+r.status+':'+(await r.text()).slice(0,300));
+            return r.json();
+          };
+          const before=await post('sport-authority-state');
+          if(before.mode!=='shadow'||before.productIoUsesSportDb===true)throw Error('CBB_NOT_SHADOW_STOP');
+          const scenarios=[
+            { name:'normal',props:{} },
+            { name:'missingBinding',props:{injectMissingBinding:true} },
+            { name:'partialSport',props:{injectPartialSport:true} },
+            { name:'staleCore',props:{injectStaleCore:true} },
+          ];
+          const results=[];
+          for(const scenario of scenarios){
+            const output=await post('sport-cutover-rehearsal',scenario.props);
+            if(output.sport!=='cbb'||output.deployedMode!=='shadow'
+              ||output.canAuthorizeWager!==false||output.liveCutoverAuthorized!==false
+              ||output.productionCutoverBlocked!==true)throw Error('CBB_UNSAFE_REHEARSAL_RESULT_'+scenario.name);
+            const liveGate=output.steps?.find(x=>x.step==='cbb_populated_live_board_required');
+            if(!liveGate)throw Error('CBB_POPULATED_AA_GATE_MISSING');
+            if(scenario.name==='normal'&&liveGate.ok===false&&output.ok!==false)throw Error('CBB_EMPTY_BOARD_FALSE_CERTIFICATION');
+            results.push({name:scenario.name,ok:output.ok,liveGate,
+              failedSteps:output.steps.filter(x=>!x.ok).map(x=>x.step),
+              canAuthorizeWager:output.canAuthorizeWager,liveCutoverAuthorized:output.liveCutoverAuthorized});
+          }
+          const after=await post('sport-authority-state');
+          if(after.mode!=='shadow'||after.productIoUsesSportDb===true)throw Error('CBB_AUTHORITY_CHANGED');
+          const receipt={contract:'FBIS-CBB-LIVE-REHEARSAL-v1',checkedAt:new Date().toISOString(),
+            releaseSha:process.env.GITHUB_SHA||null,
+            before:{mode:before.mode,binding:before.binding},after:{mode:after.mode,binding:after.binding},
+            results,liveCutoverCertified:false,authorityChanged:false,COREApprovalCreated:false,canAuthorizeWager:false};
+          writeFileSync('artifacts/cbb-live-rehearsal/receipt.json',JSON.stringify(receipt,null,2)+'\n');
+          console.log(JSON.stringify({checks:results.map(x=>({scenario:x.name,simulationPassed:x.ok,
+            realBoardSampleReady:x.liveGate.ok,failedSteps:x.failedSteps})),authorityChanged:false}));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cbb-nonactivating-live-rehearsal
+          path: artifacts/cbb-live-rehearsal/
+          if-no-files-found: warn
+          retention-days: 90
