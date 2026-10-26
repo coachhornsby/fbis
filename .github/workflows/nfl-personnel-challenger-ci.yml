@@ -1,0 +1,38 @@
+name: NFL personnel challenger v1.3 tests
+on:
+  pull_request:
+    paths:
+      - "functions/lib/nflPersonnelChallenger.js"
+      - "functions/api/nfl-personnel-research.js"
+      - "functions/api/football-simulation-rankings.js"
+      - "src/features/simulationRankings/**"
+      - "sql/shards/nfl-personnel-v13-research.sql"
+      - "test/nfl-personnel-challenger.test.js"
+      - ".github/workflows/nfl-personnel-challenger-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nflPersonnelChallenger.js"
+      - "functions/api/nfl-personnel-research.js"
+      - "functions/api/football-simulation-rankings.js"
+      - "src/features/simulationRankings/**"
+      - "sql/shards/nfl-personnel-v13-research.sql"
+      - "test/nfl-personnel-challenger.test.js"
+      - ".github/workflows/nfl-personnel-challenger-ci.yml"
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Run frozen + personnel safety tests
+        run: node --test test/nfl-personnel-challenger.test.js test/football-simulation-rankings.test.js test/nfl-qb-personnel-shadow.test.js test/nfl-pro-v2.test.js
+      - name: Build public research view
+        run: npm run build
