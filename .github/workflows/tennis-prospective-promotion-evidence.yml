@@ -55,6 +55,16 @@ jobs:
             "${BASE}/api/tennis-official-outcome-reconcile" > artifacts/tennis-official-settlement.json
           jq -e '.ok == true and .researchOnly == true and .canAuthorizeWager == false' artifacts/tennis-official-settlement.json
           jq '{asOf,tournamentsExamined,resultsWritten,graded,errors}' artifacts/tennis-official-settlement.json
+      - name: Grade frozen challenger immediately after verified official reconciliation
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail-with-body --max-time 110 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" -d '{}' \
+            "${BASE}/api/tennis-free-shadow-grade" > artifacts/tennis-free-shadow-grading.json
+          jq -e '.ok == true and .promotionReady == false and .contractTradingAuthorized == false and .readback.independentProspectiveOnly == true' artifacts/tennis-free-shadow-grading.json
+          jq '{asOf,examined,graded,fullyPairedNew,blocked}' artifacts/tennis-free-shadow-grading.json
       - name: Read back prospective promotion certificate
         if: always()
         run: |
