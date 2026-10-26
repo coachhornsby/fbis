@@ -7,7 +7,7 @@ const obs="2026-10-26T13:47:00Z";
 test("validates week-nine point-in-time input without giving wagering authority",()=>{
  const r=produceReceipt(head+"\n"+row+"\n",{observedAt:obs});
  assert.equal(r.rowCount,1);assert.equal(r.officialFinals,0);assert.equal(r.modelPromotion,false);
- assert.equal(r.sourceObservedAt,obs);
+ assert.equal(r.sourceObservedAt,new Date(obs).toISOString());
 });
 test("rejects duplicates, stale rows and invalid feature values",()=>{
  assert.throws(()=>validateWeeklyCsv(head+"\n"+row+"\n"+row,{observedAt:obs}),/DUPLICATE/);
