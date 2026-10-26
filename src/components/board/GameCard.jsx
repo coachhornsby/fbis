@@ -22,6 +22,7 @@ import { fmtAmerican, fmtNum } from "../../lib/format.js";
 import PinnoddsCardMarkets from "./PinnoddsCardMarkets.jsx";
 import CfbThreeVenueLines from "./CfbThreeVenueLines.jsx";
 import MoneylinePriceComparison from "./MoneylinePriceComparison.jsx";
+import NbaBookEventButtons from "./NbaBookEventButtons.jsx";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import { venueAtmosphereClass } from "../../lib/venueAtmosphere.js";
 import { GameDetails } from "../../TodayView.jsx";
@@ -251,6 +252,7 @@ export default function GameCard({
         </div>
       </section>
 
+      <NbaBookEventButtons game={game} />
       <MoneylinePriceComparison game={game} />
       {game.pinnoddsResearch?.offers?.length ? <PinnoddsCardMarkets game={game} /> : null}
       {game.sport === "cfb" ? <CfbThreeVenueLines game={game} /> : null}
