@@ -1,3 +1,4 @@
+import {onRequestGet as availabilitySyncRoute} from "../functions/api/availability-sync.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -211,4 +212,23 @@ test("stale carried NFL profile OUT state remains active until superseded", () =
   }],{sport:"nfl",nowMs:Date.parse("2026-10-05T10:00:00Z")});
   assert.ok(impact.home.offensePenalty>0);
   assert.equal(impact.home.players[0].status,"OUT");
+});
+
+test("official NFL sync cannot silently write stale PRIMARY after strict NFL_DB cutover", async()=>{
+  const request=new Request("https://fbis.test/api/availability-sync",{
+    headers:{"x-harvest-secret":"check-token"}
+  });
+  const output=await availabilitySyncRoute({
+    request,env:{
+      HARVEST_SECRET:"check-token",
+      SPORT_DB_MODE_NFL:"sport",SPORT_DB_STRICT_NFL:"true",
+      SPORT_CUTOVER_RECEIPT_NFL:"nfl-approved-test",
+      DB:{prepare(){throw new Error("PRIMARY_MUST_NOT_RECEIVE_NFL_PROFILE_UPDATE")}},
+      // An active sport with no valid binding or CORE acceptance must fail closed.
+    }
+  });
+  assert.equal(output.status,503);
+  const body=await output.json();
+  assert.equal(body.ok,false);
+  assert.equal(body.error,"NFL_PROFILE_DB_UNAVAILABLE");
 });
