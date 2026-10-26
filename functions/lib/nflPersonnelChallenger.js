@@ -56,7 +56,7 @@ function side(players=[],capturedAt){
   // Three high-snap WRs are usually on field, but these are usage proxies, not routes or targets.
   const identifiedWr=wr.filter(p=>p.snapShare!=null);
   const wrCovered=wr.length>=5&&identifiedWr.length>=3&&
-    identifiedWr.slice(0,3).every(p=>p.verified||p.health==="AVAILABLE");
+    identifiedWr.slice(0,3).every(p=>p.verified);
   const top5=identifiedWr.slice(0,5),top3=top5.slice(0,3);
   const absentTop3=wrCovered?top3.filter(p=>p.absent):[];
   const absentTop5=wrCovered?top5.filter(p=>p.absent):[];
@@ -87,7 +87,6 @@ function side(players=[],capturedAt){
   const severeWr=wrCovered&&(absentTop3.length>=2||absentTop5.length>=4);
   const openCritical=doubtful.some(p=>p.position==="QB"||p.position==="WR"&&top3.includes(p));
   const insufficient=normalized.length<12||!wrCovered;
-  const state="MISSING";
   return {
     rosterRows:normalized.length,verifiedRows:normalized.filter(p=>p.verified).length,
     observedOut:out.length,uncertainCount:doubtful.length,
