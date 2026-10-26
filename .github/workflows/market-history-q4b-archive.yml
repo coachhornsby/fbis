@@ -30,10 +30,26 @@ jobs:
         run: |
           node --test test/market-history-verified-archive.test.js
           node --test test/market-history-retention-rehearsal.test.js
-      - name: Check deployed production version
+      - name: Prove live production Q4B binding and archive contract (dry-run)
         env:
-          VERIFY_MAX_ATTEMPTS: "90"
-        run: node scripts/verify-deployment-sha.mjs "$GITHUB_SHA"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE_URL: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET required"; exit 1; }
+          node --input-type=module <<'JS'
+          const response=await fetch(process.env.FBIS_BASE_URL+'/api/database-topology',{
+            method:'POST',
+            headers:{'content-type':'application/json','x-harvest-secret':process.env.HARVEST_SECRET},
+            body:JSON.stringify({operation:'market-history-archive-verify',partitionBinding:'MARKET_HISTORY_2026Q4B_DB',archiveWrites:false,verifyReadback:false,limit:1,maxRounds:1,resume:true}),
+            signal:AbortSignal.timeout(180000),
+          });
+          if(!response.ok)throw Error('Q4B_BINDING_HTTP_'+response.status);
+          const proof=await response.json();
+          if(proof.ok!==true||proof.columnCount!==50||proof.dryRun!==true||proof.canAuthorizeWager===true||!String(proof.deletion).includes('NOT_PERFORMED'))
+            throw Error('Q4B_ARCHIVE_DRY_RUN_GATES_FAILED:'+JSON.stringify({ok:proof.ok,reason:proof.reason,columnCount:proof.columnCount,dryRun:proof.dryRun,deletion:proof.deletion}));
+          console.log(JSON.stringify({ok:true,partition:proof.binding,archiveDryRun:true,columns:proof.columnCount,deletion:false}));
+          JS
       - name: Archive and SHA-verify Q4B in bounded batches
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
