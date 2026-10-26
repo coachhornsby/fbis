@@ -3,6 +3,7 @@ import React from "react";
 import {buildMoneylinePriceComparison} from "../../lib/marketPriceComparison.js";
 import {signedAmerican} from "../../lib/marketQuoteDisplay.js";
 import TeamLogo from "../TeamLogo.jsx";
+import ExchangeQuoteLink from './ExchangeQuoteLink.jsx';
 import "./moneylinePriceComparison.css";
 
 const percent=p=>p==null?"—":`${(p*100).toFixed(2)}%`;
