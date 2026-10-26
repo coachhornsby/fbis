@@ -16,9 +16,7 @@ jobs:
           node-version: '22'
       - name: Verify reconciliation guardrails
         run: node --test test/tennis-board-projection-reconciliation.test.mjs
-      - name: Audit live Tennis board, official projections, portraits and PrizePicks
-        env:
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      - name: Audit live Tennis board, official projections and portrait provenance
         run: node scripts/tennis-completeness-audit.mjs
       - name: Preserve exact gaps even when audit fails
         if: always()
