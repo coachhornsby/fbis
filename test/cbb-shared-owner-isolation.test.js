@@ -7,7 +7,7 @@ function db(){const raw=new DatabaseSync(':memory:');raw.exec(`CREATE TABLE game
 CREATE TABLE prediction_snapshots(id TEXT,game_id TEXT,sport TEXT,projection_state TEXT,projection_flags TEXT,graded_at TEXT,actual_home REAL,actual_away REAL);
 CREATE TABLE predictions(id TEXT,game_id TEXT,sport TEXT,projection_state TEXT,actual_home REAL,actual_away REAL);`);
 return {raw,prepare(sql){return {async all(){return {results:raw.prepare(sql).all()};},async first(){return raw.prepare(sql).get()||null;},async run(){return raw.prepare(sql).run();},bind(...args){return {async all(){return {results:raw.prepare(sql).all(...args)};},async first(){return raw.prepare(sql).get(...args)||null;},async run(){return raw.prepare(sql).run(...args);}};}};}};}
-function fixture(){const primary=db(),cbb=db();return {primary,cbb,env:{DB:primary,CBB_DB:cbb,SPORT_DB_MODE_CBB:'sport',SPORT_DB_STRICT_CBB:'true',SPORT_DB_LEDGER_READY_CBB:'true',SPORT_CUTOVER_RECEIPT_CBB:'fixture',__fbisCutoverApprovals:new Map([['cbb:fixture',{status:'APPROVED'}]])}};}
+function fixture(){const primary=db(),cbb=db();return {primary,cbb,env:{DB:primary,CBB_DB:cbb,CORE_DB:{prepare(){}},SPORT_DB_MODE_CBB:'sport',SPORT_DB_STRICT_CBB:'true',SPORT_DB_LEDGER_READY_CBB:'true',SPORT_CUTOVER_RECEIPT_CBB:'fixture',__fbisCutoverApprovals:new Map([['cbb:fixture',{status:'APPROVED'}]])}};}
 test('game-ID fanout replaces stale PRIMARY CBB identity while retaining other sports',async()=>{
  const {primary,cbb,env}=fixture();primary.raw.exec("INSERT INTO games VALUES('1','cbb','2026-10-01','old','Stale','Away','ST','AW'),('2','nfl','2026-10-01','start','NFL','Other','NF','OT')");
  cbb.raw.exec("INSERT INTO games VALUES('1','cbb','2026-10-01','new','Current','Away','CU','AW')");
