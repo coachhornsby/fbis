@@ -29,6 +29,7 @@ try{
  const seen=new Set();let offset=0;
  while(true){const catalogue=await call({operation:'catalogue',offset});const signature=JSON.stringify(catalogue.catalogueIds);
   if(catalogue.catalogueIds?.length&&seen.has(signature))throw Error('REPEATED_CATALOGUE_PAGE');seen.add(signature);
+  if(catalogue.authorityErrors?.length){discoveryComplete=false;for(const e of catalogue.authorityErrors)if(!errors.some(x=>x.sport===e.sport&&x.reason===e.reason))errors.push(e);}
   for(const g of catalogue.fixtures||[])fixtures.set(g.id,g);for(const l of catalogue.leagues||[])leagues.set(l.slug,l);
   if(catalogue.nextOffset==null)break;if(catalogue.nextOffset<=offset)throw Error('NON_ADVANCING_CATALOGUE_CURSOR');offset=catalogue.nextOffset;
  }

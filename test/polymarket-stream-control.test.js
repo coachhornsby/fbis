@@ -51,3 +51,18 @@ test('full inventory uses bounded socket subscriptions; one rejected shard canno
  assert.equal(collector.status().sportCoverage.nfl.status,'PARTIAL');
  collector.closeSockets('test-complete');assert.equal(collector.status().subscriptions,0);
 });
+
+test('stream loads recent R2 roster and validates sport authority without scanning PRIMARY',async t=>{
+ const now=Date.now(),start=new Date(now+3600000).toISOString(),fresh=new Date(now).toISOString(),old=new Date(now-96*3600000).toISOString();
+ const row=(sport,id)=>({sport,canonical_event_id:id,event_start_time:start,source_market_id:sport+'-market',market_family:'moneyline',collected_at:fresh});
+ const read=[];
+ const bucket={async list(){return {truncated:false,objects:[{key:'fresh',uploaded:new Date(fresh)},{key:'old',uploaded:new Date(old)}]};},async get(key){read.push(key);return {async json(){return {version:1,source:'Polymarket US',capturedAt:fresh,roster:[row('nfl','1'),row('nhl','2'),row('soccer','3')]};}};}};
+ t.mock.method(globalThis,'fetch',async(url,opts)=>{
+  assert.match(String(url),/polymarket-stream-roster$/);assert.equal(opts.headers['x-fbis-stream-token'],'token');
+  return {ok:true,json:async()=>({ok:true,fixtures:[{sport:'nfl',id:'1',start}],errors:[{sport:'nhl',reason:'AUTHORITY_UNAVAILABLE'}]})};
+ });
+ const collector=new PolymarketMarketStream({storage:{}},{ARCHIVE:bucket,FBIS_STREAM_PROXY_TOKEN:'token',STREAM_COVER_ALL_ELIGIBLE:'enabled',DB:{prepare(){throw Error('PRIMARY scan forbidden')}}});
+ const selected=await collector.candidates();
+ assert.deepEqual(read,['fresh']);assert.deepEqual(selected.map(r=>r.source_market_id),['nfl-market']);
+ assert.equal(collector.lastCandidateDiagnostics.authorityErrors[0].sport,'nhl');
+});

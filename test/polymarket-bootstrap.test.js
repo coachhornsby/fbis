@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {bootstrapPolymarket,projectedPolymarketFixtures,routedPolymarketFixtures} from '../functions/lib/polymarketBootstrap.js';
+import {bootstrapPolymarket,projectedPolymarketFixtures,routedPolymarketFixtures,routedPolymarketFixtureReport} from '../functions/lib/polymarketBootstrap.js';
 const now=new Date('2026-10-18T06:00:00Z'),start='2026-10-18T20:00:00Z';
 function environment(){
  const db=new DatabaseSync(':memory:');db.exec(`CREATE TABLE games(id TEXT,sport TEXT,start TEXT,home_name TEXT,away_name TEXT,home_abbr TEXT,away_abbr TEXT); CREATE TABLE prediction_snapshots(game_id TEXT,sport TEXT,model_version TEXT,projection_kind TEXT,proj_total REAL,proj_home REAL,proj_away REAL,p_home_final REAL,frozen_at TEXT);
@@ -179,4 +179,15 @@ test('provider event discovery uses the same seven-day bound as forecast discove
  const e=environment();forecast(e);
  await bootstrapPolymarket(e,{operation:'page',sport:'nfl',slug:'nfl',offset:0,receiptId:'seven-day-page'},
   {now,fetchImpl:async url=>{assert.equal(url.searchParams.get('startTimeMax'),'2026-10-25T06:00:00.000Z');return Response.json({events:[]});}});
+});
+
+test('one unavailable approved sport fails closed without stopping healthy sports',async()=>{
+ const e=environment();forecast(e);
+ const report=await routedPolymarketFixtureReport({...e,SPORT_DB_MODE_NHL:'sport'},now);
+ assert.deepEqual(report.fixtures.map(g=>g.id),['g1']);
+ assert.deepEqual(report.errors,[{sport:'nhl',reason:'POLYMARKET_NHL_AUTHORITY_UNAVAILABLE'}]);
+ const {onRequestPost,onRequestGet}=await import('../functions/api/polymarket-stream-roster.js');
+ const env={...e,POLYMARKET_STREAM_PROXY_TOKEN:'internal-test',SPORT_DB_MODE_NHL:'sport'};
+ assert.equal((await onRequestPost({env,request:new Request('https://fbis.test/api/polymarket-stream-roster',{method:'POST'})})).status,403);
+ assert.equal((await onRequestGet()).status,405);
 });
