@@ -468,6 +468,22 @@ export async function rehearseSportCutover(env, sport, {
     },
   ];
 
+  // An empty CBB live board can make two empty D1 owners look equivalent.
+  // This rehearsal exercises routing without inventing fixtures or authority.
+  // CBB requires a real pre-tipoff game and immutable prediction on both owners
+  // before any cutover A/A rehearsal can pass.
+  if (key === "cbb") {
+    steps.push({
+      step: "cbb_populated_live_board_required",
+      ok: baseline.gameCount > 0 && baseline.projectionCount > 0
+        && sportFp.gameCount > 0 && sportFp.projectionCount > 0,
+      primaryGameCount: baseline.gameCount,
+      primaryProjectionCount: baseline.projectionCount,
+      candidateGameCount: sportFp.gameCount,
+      candidateProjectionCount: sportFp.projectionCount,
+    });
+  }
+
   const ok = steps.every((s) => s.ok === true);
   return {
     ok,

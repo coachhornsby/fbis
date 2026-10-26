@@ -382,8 +382,8 @@ export async function onRequestPost({ env, request } = {}) {
   }
   if (operation === "sport-cutover-rehearsal") {
     const sport = String(body.sport || "nhl").toLowerCase();
-    if (!["nhl", "nfl", "cfb"].includes(sport)) {
-      return json({ ok: false, error: "REHEARSAL_LIMITED_TO_NHL_NFL_CFB", canAuthorizeWager: false }, 400);
+    if (!["nhl", "nfl", "cfb", "cbb"].includes(sport)) {
+      return json({ ok: false, error: "REHEARSAL_LIMITED_TO_NHL_NFL_CFB_CBB", canAuthorizeWager: false }, 400);
     }
     return json(await rehearseSportCutover(env, sport, {
       injectMissingBinding: body.injectMissingBinding === true,
