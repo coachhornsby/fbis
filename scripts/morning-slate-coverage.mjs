@@ -30,7 +30,11 @@ export function utcStamp(date,offsetDays=0){
 const MLB_TEAM_ALIASES={TB:"TBR",TBR:"TBR",CHW:"CWS",CWS:"CWS",WSH:"WSN",WAS:"WSN",WSN:"WSN",SF:"SFG",SFG:"SFG",SD:"SDP",SDP:"SDP",KC:"KCR",KCR:"KCR",AZ:"ARI",ARI:"ARI"};
 export function normalizedScheduleTeam(value,sport){
   const raw=String(value||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
-  return sport==="mlb"?(MLB_TEAM_ALIASES[raw]||raw):raw;
+  if(sport==="mlb")return MLB_TEAM_ALIASES[raw]||raw;
+  // Verified provider aliases, scoped by league so names never cross sports.
+  if((sport==="nba"||sport==="nfl")&&raw==="WSH")return "WAS";
+  if(sport==="cfb"&&raw==="JXST")return "JVST";
+  return raw;
 }
 export function scheduleEventMatches(scheduled,boardEvent,sport){
   if(scheduled?.id && boardEvent?.id && String(scheduled.id)===String(boardEvent.id))return true;
