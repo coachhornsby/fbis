@@ -1,3 +1,4 @@
+import { cbbResearchOwner } from "./cbbResearchOwner.js";
 import {matchPolymarketUsEvent} from "./polymarketUs.js";
 import {loadSoccerMarketFixtures} from "./soccerMarketFixtures.js";
 import {normalizePinnoddsMarkets} from './pinnoddsMarkets.js';
@@ -38,6 +39,13 @@ async function normalizeFromArchivedRaw(env,receipt,{snapshotId,fixtureAsOf=null
              new Date(Math.max(...starts)+7200000).toISOString()).all())?.results || [];
       games.push(...nbaGames);
     }
+  }
+  if (receipt.sportId === 3 && deployedSportDbMode(env,"cbb") === "sport") {
+    const owner=await cbbResearchOwner(env);
+    for(let i=games.length-1;i>=0;i--)if(games[i].sport==="cbb")games.splice(i,1);
+    if(starts.length)games.push(...((await owner.db.prepare(`SELECT id,sport,start,home_name,away_name,home_abbr,away_abbr
+      FROM games WHERE sport='cbb' AND julianday(start) BETWEEN julianday(?) AND julianday(?)`)
+      .bind(new Date(Math.min(...starts)-7200000).toISOString(),new Date(Math.max(...starts)+7200000).toISOString()).all())?.results||[]));
   }
   // Tennis is not in the generic games table. Verified independent fixtures are
   // display-only; snapshot source and raw acquisition times remain immutable.

@@ -1,3 +1,5 @@
+import { cbbResearchOwner } from "./cbbResearchOwner.js";
+import { deployedSportDbMode } from "./databaseTopology.js";
 /**
  * Reproducible sport × provider market linkage audit against D1.
  * Observation linkage and event coverage are reported separately.
@@ -31,6 +33,7 @@ function rate(num, den) {
 export async function auditSportMarketCoverage(db, sport, {
   now = new Date(),
   lookbackHours = 48,
+  gameDb = null,
 } = {}) {
   if (!db?.prepare || !sport) {
     return { sport, ok: false, error: "DATABASE_OR_SPORT_REQUIRED" };
@@ -106,6 +109,12 @@ export async function auditSportMarketCoverage(db, sport, {
         )
     `).bind(since, until, since, until, since, until).first().catch(() => ({ n: 0 }));
     eventsWithMarket = Number(linked?.n) || 0;
+  } else if (gameDb && gameDb !== db) {
+    const candidates=(await gameDb.prepare('SELECT id FROM games WHERE sport=? AND start BETWEEN ? AND ? LIMIT 50001').bind(sport,since,until).all()).results;
+    const observations=(await db.prepare('SELECT DISTINCT canonical_event_id id FROM normalized_market_observations WHERE sport=? AND collected_at BETWEEN ? AND ? LIMIT 50001').bind(sport,since,until).all()).results;
+    if(!Array.isArray(candidates)||!Array.isArray(observations)||candidates.length>50000||observations.length>50000)throw Error('CBB_COVERAGE_SCOPE_EXCEEDED');
+    const ids=new Set(candidates.map(r=>String(r.id)));
+    eligibleEvents=ids.size;eventsWithMarket=observations.filter(r=>ids.has(String(r.id))).length;
   } else {
     const slate = await db.prepare(`
       SELECT COUNT(*) AS n FROM games
@@ -148,7 +157,7 @@ export async function auditPlatformMarketCoverage(db, options = {}) {
   const sports = options.sports || AUDIT_SPORTS;
   const rows = [];
   for (const sport of sports) {
-    rows.push(await auditSportMarketCoverage(db, sport, options));
+    rows.push(await auditSportMarketCoverage(db, sport, {...options,gameDb:options.gameDbs?.[sport]}));
   }
   return {
     ok: true,
@@ -165,7 +174,9 @@ export async function auditPlatformMarketCoverage(db, options = {}) {
  */
 export async function auditPartitionedMarketCoverage(env,options={}){
  const {coldHistoryEnabled,coldMarketPartitions}=await import('./coldMarketHistory.js');
- if(!coldHistoryEnabled(env))return auditPlatformMarketCoverage(env.DB,options);
+ const cbbOwner=deployedSportDbMode(env,"cbb")==="sport"?await cbbResearchOwner(env):null;
+ const gamesDb=sport=>sport==="cbb"&&cbbOwner?cbbOwner.db:env.DB;
+ if(!coldHistoryEnabled(env))return auditPlatformMarketCoverage(env.DB,{...options,gameDbs:{...options.gameDbs,...(cbbOwner?{cbb:cbbOwner.db}:{})}});
  const parts=await coldMarketPartitions(env),now=options.now||new Date(),until=now instanceof Date?now.toISOString():String(now),lookbackHours=options.lookbackHours??48;
  const since=new Date(Date.parse(until)-lookbackHours*3600000).toISOString(),sports=[];
  const max=(a,b)=>a==null?b:b==null?a:a>b?a:b;
@@ -189,7 +200,7 @@ export async function auditPartitionedMarketCoverage(env,options={}){
   const eligible=sport==='tennis'?await env.DB.prepare(`SELECT id FROM (
     SELECT match_id id FROM tennis_official_matches WHERE match_time BETWEEN ? AND ?
     UNION SELECT fixture_id id FROM tennis_external_fixtures WHERE source='ESPN_PUBLIC' AND match_time BETWEEN ? AND ?) LIMIT 50001`).bind(since,until,since,until).all():
-   await env.DB.prepare('SELECT id FROM games WHERE sport=? AND start BETWEEN ? AND ? LIMIT 50001').bind(sport,since,until).all();
+   await gamesDb(sport).prepare('SELECT id FROM games WHERE sport=? AND start BETWEEN ? AND ? LIMIT 50001').bind(sport,since,until).all();
   if(!Array.isArray(eligible?.results)||eligible.results.length>50000)throw Error('HISTORICAL_COVERAGE_SCOPE_EXCEEDED');
   const marketIds=new Set();
   for(const part of parts){const result=await part.db.prepare(`SELECT DISTINCT canonical_event_id FROM normalized_market_observations WHERE sport=? AND canonical_event_id IS NOT NULL AND TRIM(canonical_event_id)!='' AND collected_at BETWEEN ? AND ? AND (${part.where}) LIMIT 50001`).bind(sport,since,until).all();if(!Array.isArray(result?.results)||result.results.length>50000)throw Error('HISTORICAL_COVERAGE_SCOPE_EXCEEDED');for(const row of result.results)marketIds.add(row.canonical_event_id);}

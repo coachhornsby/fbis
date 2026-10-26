@@ -1,3 +1,4 @@
+import { cbbResearchOwner } from "./cbbResearchOwner.js";
 import { productSportDbHandle } from "./databaseTopology.js";
 import { resolveNbaResearchOwnerDb } from "./nbaResearchOwnerDb.js";
 import { deployedSportDbMode } from "./databaseTopology.js";
@@ -16,7 +17,8 @@ export async function insertPublishedProjection(env, row) {
   const nbaOwner = String(row?.sport || "").toLowerCase() === "nba"
     ? await resolveNbaResearchOwnerDb(env) : null;
   if (nbaOwner && !nbaOwner.ok) throw new Error("NBA_PUBLISHED_OWNER_UNAVAILABLE:" + nbaOwner.reason);
-  const db = nbaOwner ? nbaOwner.db : row?.sport === "nfl" ? productSportDbHandle(env, "nfl").db : env?.DB;
+  const cbbOwner=String(row?.sport||"").toLowerCase()==="cbb" ? await cbbResearchOwner(env) : null;
+  const db = cbbOwner ? cbbOwner.db : nbaOwner ? nbaOwner.db : row?.sport === "nfl" ? productSportDbHandle(env, "nfl").db : env?.DB;
   if (!db?.prepare) throw new Error("d1-unavailable");
   const existing = await db.prepare(
     `SELECT id, payload_hash, payload_json, published_at
@@ -80,6 +82,15 @@ async function listRows(db, { sport = null, excludeSport = null, date = null, li
 /** Aggregate unscoped publication reads without hiding NFL when authority moves. */
 export async function listPublishedProjections(env, { sport = null, date = null, limit = 100 } = {}) {
   const safeLimit = Math.max(1, Math.min(250, Number(limit) || 100));
+  if ((!sport || String(sport).toLowerCase()==="cbb") && deployedSportDbMode(env,"cbb")==="sport") {
+    const owner=await cbbResearchOwner(env);
+    if(sport)return listRows(owner.db,{sport:"cbb",date,limit:safeLimit});
+    const [other,cbb]=await Promise.all([
+      listPublishedProjections({...env,SPORT_DB_MODE_CBB:"shadow"},{date,limit:safeLimit}),
+      listRows(owner.db,{sport:"cbb",date,limit:safeLimit})]);
+    return [...other.filter(r=>r.sport!=="cbb"),...cbb]
+      .sort((a,b)=>String(b.publishedAt||"").localeCompare(String(a.publishedAt||""))).slice(0,safeLimit);
+  }
   const nfl = productSportDbHandle(env, "nfl");
   const nbaOwner = (!sport || String(sport).toLowerCase() === "nba")
     ? await resolveNbaResearchOwnerDb(env) : null;
