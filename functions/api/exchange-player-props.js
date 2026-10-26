@@ -1,3 +1,4 @@
+import {loadCapturedPolymarketUsProps} from '../lib/polymarketUsProps.js';
 import {loadPolymarketGlobalNba} from '../lib/polymarketGlobalNbaProps.js';
 import { readNbaFrozenMarketLines } from '../lib/nbaPropMarketFreeze.js';
 import { buildNhlOfficialScopeCandidates } from '../lib/nhlPropScopeCandidates.js';
@@ -27,6 +28,7 @@ export async function onRequestGet({env,request}) {
   const {rows,diagnostics}=page;
   const context=await loadPropFixturesAndPlayers(env,{start:bounds.start,end:bounds.end,sport});
   const captured=await loadCapturedKalshiProps(env,{...context,sport,date});
+  const us=await loadCapturedPolymarketUsProps(env,{...context,sport});
   const candidates = latestExchangeProps(rows);
   const gamma = sport==='all'||sport==='nba'?await loadPolymarketGlobalNba(env,{day:date}):{rows:[],status:'NOT_REQUESTED'};
   const now=Date.now();
@@ -38,7 +40,7 @@ export async function onRequestGet({env,request}) {
   // Started NBA games read ONLY proven pretip source observations, never a
   // newly fetched in-play / postgame quote masquerading as the closing line.
   const props=[...active(candidates.filter(p=>p.identityVerified)),
-    ...active(captured.rows),...active(gamma.rows),...frozenRows];
+    ...active(captured.rows),...active(us.rows),...active(gamma.rows),...frozenRows];
   // Return nonqualified market observations for research. Failure to match a
   // canonical player or verify a provider quote is a data-quality state, not
   // permission to silently discard an exchange-listed contract.
@@ -64,6 +66,7 @@ export async function onRequestGet({env,request}) {
     date && (Date.parse(r.start_time)>now || r.collectedAt &&
       Date.parse(r.collectedAt)<Date.parse(r.start_time) && r.historicalReference===true)
   ));
+  marketOnly.push(...us.rejected.map(r=>({...r,identityVerified:false,priceVerified:false,marketAvailable:false,purchaseAsk:null,canQualify:false,canAuthorizeWager:false})));
   const officialScopeCandidates = buildNhlOfficialScopeCandidates(captured.rows,{capturedAt:new Date().toISOString()});
 
   const degraded = !stores.length || page.degraded || page.moreAvailable;
@@ -76,7 +79,7 @@ export async function onRequestGet({env,request}) {
   return respond({ok:true,date,rows:props,marketOnly,marketOnlyCount:marketOnly.length,
     coverage,diagnostics,degraded,readComplete:page.readComplete&&stores.length>0,
     nextCursor:page.nextCursor,moreAvailable:page.moreAvailable,
-    collectorCoverage:captured.coverage,historicalReferenceDate:date,
+    polymarketUsResearch:{coverage:us.coverage,matchedOutcomeRows:us.rows.length,rejectedContracts:us.rejected.length,venue:'Polymarket US',canAuthorizeWager:false},collectorCoverage:captured.coverage,historicalReferenceDate:date,
     nbaPregameFreeze:nbaRequested?{Kalshi:frozen[0].status,Polymarket:frozen[1].status,
       capturedContracts:frozenRows.length,policy:'LAST_CAPTURE_BEFORE_GAME_START',canAuthorizeWager:false}:null,polymarketGlobalResearch:{status:gamma.status,contracts:gamma.rows.length,capturedAt:gamma.capturedAt||null,venue:'POLYMARKET_GLOBAL_NOT_US',priceSemantics:'DISPLAY_REFERENCE_NOT_BEST_ASK',canAuthorizeWager:false},officialScopeResearch:{status:'UNCERTIFIED_CANDIDATES_ONLY',candidateCount:officialScopeCandidates.scopes.length,rejectedCount:officialScopeCandidates.rejected.length,canActivateCollector:false},identityDiagnostics:context.diagnostics,identityCoverage:{fixtures:context.games.length,rosterPlayers:context.players.length,contractRejections:captured.rejected.reduce((a,r)=>(a[r.reason]=(a[r.reason]||0)+1,a),{})},rejected:candidates.filter(p=>!p.marketAvailable).map(p=>({id:p.id,provider:p.provider,sport:p.sport,reasons:p.reasons})),
     canQualify:false,canAuthorizeWager:false});
