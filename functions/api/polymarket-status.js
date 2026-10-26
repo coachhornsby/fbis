@@ -1,3 +1,4 @@
+import {polymarketStatusStores} from '../lib/polymarketStatusStores.js';
 import { FBIS_POLY_SPORTS } from "../lib/polymarketUs.js";
 const json=(v,s=200)=>new Response(JSON.stringify(v),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
 /** Public research coverage status. No account data or trading credentials. */
@@ -5,40 +6,9 @@ export async function onRequestGet({env}){
  if(!env.DB?.prepare)return json({ok:false,error:"database-unavailable"},503);
  try{
   const now=new Date(),cutoff=new Date(now.getTime()-24*3600000).toISOString();
-  const r=await env.DB.prepare(`SELECT sport,COUNT(*) observations,MAX(collected_at) last_capture,
-    COUNT(DISTINCT provider_event_id) provider_events,
-    COUNT(DISTINCT canonical_event_id) matched_games,
-    SUM(CASE WHEN canonical_event_id IS NULL THEN 1 ELSE 0 END) unmatched_observations,
-    SUM(CASE WHEN contract_price IS NOT NULL THEN 1 ELSE 0 END) displayed_prices
-    FROM normalized_market_observations WHERE source='Polymarket US' AND collected_at>=?1
-    GROUP BY sport`).bind(cutoff).all();
-  const ws=await env.DB.prepare(`SELECT COUNT(*) n,MAX(collected_at) last_capture,
-      COUNT(DISTINCT canonical_event_id) matched_games,
-      COUNT(DISTINCT source_market_id) contracts
-      FROM normalized_market_observations
-      WHERE source='Polymarket US WebSocket' AND collected_at>=?1`).bind(cutoff).first();
-  // When primary D1 is OVER_LIMIT, recovery WS writes land on MARKET_HISTORY_DB.
-  // Report that inventory separately — never as primary inserts.
-  let historyWs=null;
-  if(env.MARKET_HISTORY_DB?.prepare){
-   try{
-    historyWs=await env.MARKET_HISTORY_DB.prepare(`SELECT COUNT(*) n,MAX(collected_at) last_capture,
-        COUNT(DISTINCT canonical_event_id) matched_games,
-        COUNT(DISTINCT source_market_id) contracts,
-        COUNT(DISTINCT sport) sports
-        FROM normalized_market_observations
-        WHERE source='Polymarket US WebSocket' AND collected_at>=?1`).bind(cutoff).first();
-   }catch{historyWs=null}
-  }
-  // Coverage must be evaluated by sport; a healthy multi-sport socket does
-  // not imply any live ATP/WTA subscriptions or a verified tennis schedule.
-  const tennisSources=await env.DB.prepare(`SELECT source,COUNT(*) observations,
-      COUNT(DISTINCT source_market_id) contracts,COUNT(DISTINCT provider_event_id) provider_events,
-      COUNT(DISTINCT canonical_event_id) matched_events,MAX(collected_at) last_capture,
-      SUM(CASE WHEN event_start_time>=?2 THEN 1 ELSE 0 END) upcoming_observations
-      FROM normalized_market_observations
-      WHERE sport='tennis' AND source IN ('Polymarket US','Polymarket US WebSocket')
-      AND collected_at>=?1 GROUP BY source`).bind(cutoff,now.toISOString()).all();
+  const stores=await polymarketStatusStores(env,{now});
+  const ws=stores.merge('Polymarket US WebSocket');ws.n=ws.observations;
+  const historyWs=stores.merge('Polymarket US WebSocket',null,true);historyWs.n=historyWs.observations;
   const officialTennis=await env.DB.prepare(`SELECT COUNT(*) n FROM tennis_official_matches
       WHERE source IN ('ATP_OFFICIAL','WTA_OFFICIAL') AND match_time>=?1
       AND player1_id IS NOT NULL AND player2_id IS NOT NULL`).bind(now.toISOString()).first();
@@ -50,10 +20,9 @@ export async function onRequestGet({env}){
   try{const response=await fetch("https://fbis-polymarket-us-stream.coachhornsby.workers.dev/health",{signal:AbortSignal.timeout(4000)});
    if(response.ok){const value=await response.json();if(value.ok===true)stream=value;}
   }catch{}
-  const by=new Map((r.results||[]).map(x=>[x.sport,x]));
-  const tennisMap=new Map((tennisSources.results||[]).map(x=>[x.source,x]));
-  const tennisRest=tennisMap.get('Polymarket US')||{};
-  const tennisWs=tennisMap.get('Polymarket US WebSocket')||{};
+  const by=new Map(FBIS_POLY_SPORTS.map(s=>[s,stores.merge('Polymarket US',s)]));
+  const tennisRest=stores.merge('Polymarket US','tennis');tennisRest.matched_events=tennisRest.matched_games;
+  const tennisWs=stores.merge('Polymarket US WebSocket','tennis');tennisWs.matched_events=tennisWs.matched_games;
   const upcoming=Number(tennisRest.upcoming_observations||0);
   const officialCount=Number(officialTennis?.n||0);
   const externalCount=Number(espnTennis?.n||0);
@@ -75,7 +44,7 @@ export async function onRequestGet({env}){
   });
   return json({ok:true,source:"Polymarket US public gateway",
     region:"US",windowHours:24,readOnly:true,canQualify:false,canAuthorizeWager:false,
-    fullMarketCoverageVerified:false,
+    fullMarketCoverageVerified:false,storageCoverage:{bindings:stores.bindings,errors:stores.errors,countKind:stores.countKind,complete:stores.errors.length===0},
     tennisCoverage:{status:tennisStatus,officialUpcomingMatches:officialCount,
       independentResearchUpcomingFixtures:externalCount,
       scheduleAuthority:officialCount>0?'ATP_WTA_OFFICIAL_EVIDENCE':externalCount>0?'ESPN_PUBLIC_RESEARCH_ONLY':'UNAVAILABLE',
@@ -124,7 +93,7 @@ export async function onRequestGet({env}){
         contractCountLast24h:Number(historyWs?.contracts||0),
         sportCountLast24h:Number(historyWs?.sports||0),
         lastBboCapture:historyWs?.last_capture||null,
-        note:"Recovery writes only while primary D1 cannot accept inserts; not primary authority.",
+        note:"History captures include active market shards; schema/store errors remain explicit. No wager authority.",
       },
     },sports:states});
  }catch(error){return json({ok:false,error:"market-status-unavailable",detail:String(error?.message||error)},502)}

@@ -33,16 +33,25 @@ try{
   for(const g of catalogue.fixtures||[])fixtures.set(g.id,g);for(const l of catalogue.leagues||[])leagues.set(l.slug,l);
   if(catalogue.nextOffset==null)break;if(catalogue.nextOffset<=offset)throw Error('NON_ADVANCING_CATALOGUE_CURSOR');offset=catalogue.nextOffset;
  }
- const expanded=new Set();
+ const expanded=new Set(),expansionQueue=[];
  // Tennis first: sparse official inventory should not wait behind dense team-sport catalogues.
  const orderedLeagues=[...leagues.values()].sort((a,b)=>(a.sport==='tennis'?0:1)-(b.sport==='tennis'?0:1)||String(a.slug).localeCompare(String(b.slug)));
  for(const league of orderedLeagues){
   try{await traverse('page',league,`${run}-${league.slug}`,async page=>{
    for(const ref of page.matchedEventRefs||[]){const key=league.sport+'|'+ref.eventId;if(expanded.has(key))continue;
-    try{await traverse('markets',{parentReceiptId:page.receiptId,eventIndex:ref.eventIndex},`${run}-markets-${ref.eventId}`,null);expanded.add(key);}
-    catch(error){discoveryComplete=false;errors.push({eventId:ref.eventId,reason:error.message});if(/429|PROVIDER_RATE_LIMITED/.test(error.message)||capacityBlocked(error))throw error;}
+    expanded.add(key);expansionQueue.push({sport:league.sport,page,ref});
    }
   });}catch(error){discoveryComplete=false;errors.push({league:league.slug,reason:error.message});if(capacityBlocked(error))throw error;if(/429|PROVIDER_RATE_LIMITED/.test(error.message)){rateLimited=true;break;}}
+ }
+ // Establish every league's core contracts before dense alternate-line expansion.
+ // Existing REST identities are enough to start the market-only stream; final
+ // acceptance below still requires every enumerated book and subscription.
+ try{const early=await fetch(base+'/api/polymarket-stream-start',{method:'POST',headers:{'x-harvest-secret':secret},signal:AbortSignal.timeout(125000)});const state=await early.json();console.log(JSON.stringify({phase:'CORE_DISCOVERY_STREAM_START',http:early.status,connected:state.connected,subscriptions:state.subscriptions,lastError:state.lastError}));}catch{console.log(JSON.stringify({phase:'CORE_DISCOVERY_STREAM_START',status:'UNAVAILABLE_RETRY_AT_FINAL'}));}
+ const priority={nfl:0,nhl:1,mlb:2,cfb:3,tennis:4,nba:5,cbb:6};
+ expansionQueue.sort((a,b)=>(priority[a.sport]??99)-(priority[b.sport]??99));
+ for(const {page,ref} of expansionQueue){
+  try{await traverse('markets',{parentReceiptId:page.receiptId,eventIndex:ref.eventIndex},`${run}-markets-${ref.eventId}`,null);}
+  catch(error){discoveryComplete=false;errors.push({eventId:ref.eventId,reason:error.message});if(/429|PROVIDER_RATE_LIMITED/.test(error.message)||capacityBlocked(error))throw error;}
  }
 }catch(error){discoveryComplete=false;errors.push({reason:error.message});rateLimited=/429|PROVIDER_RATE_LIMITED/.test(error.message);}
 for(const page of pages)for(const batch of page.quotes||[])errors.push(...(batch.errors||[]));
