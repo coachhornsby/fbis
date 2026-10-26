@@ -83,7 +83,7 @@ jobs:
           SYNC_MAX_PAGES: "8"
           # Incomplete-first prefix catch-up; each Pages request handles only one table,\n          # limiting D1 import contention and avoiding 300s backend timeouts.\n          # Forty-row atomic D1 batches enable higher 1,000-row per-table request budgets.
           PREFIX_PAGE_SIZE: "200"
-          PREFIX_MAX_PAGES: "5"
+          PREFIX_MAX_PAGES: ${{ matrix.sport == 'cbb' && '50' || '5' }}
           PREFIX_ROUNDS: "4"
           # Large prefix sports (CFB) need headroom beyond Pages soft limits; ops also retries 503.
           SYNC_TIMEOUT_MS: "360000"
