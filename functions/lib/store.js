@@ -15,7 +15,7 @@ import {
 } from "./probability.js";
 import { expectedRoi, validAmericanOdds } from "./pricing.js";
 import { sportLedgerEnv, sportLedgerFanoutDbs } from "./sportLedgerRouting.js";
-import { productSportDbHandle } from "./databaseTopology.js";
+import { deployedSportDbMode, productSportDbHandle } from "./databaseTopology.js";
 
 let soccerHistoryLastError = null;
 
@@ -777,7 +777,8 @@ export async function gradeSnapshotsForGame(env, { gameId, sport = null, actualH
 }
 
 
-export async function excludeSnapshotsForGame(env, { gameId, reason = "INVALID_HISTORICAL_SNAPSHOT", excludedAt = null, forceExclude = false } = {}) {
+export async function excludeSnapshotsForGame(env, { gameId, sport = null, reason = "INVALID_HISTORICAL_SNAPSHOT", excludedAt = null, forceExclude = false } = {}) {
+  env = sportLedgerEnv(env, sport);
   markBound(env);
   if (!hasDb(env) || !gameId) return { ok: false, reason: "unbound" };
   const at = excludedAt || new Date().toISOString();
@@ -889,6 +890,16 @@ export async function queryGames(env, { sport, date, since } = {}) {
 }
 
 export async function queryGamesByIds(env, ids = []) {
+  if (deployedSportDbMode(env,"cbb") === "sport") {
+    const owner=productSportDbHandle(env,"cbb");
+    if (!owner.productIoUsesSportDb || !owner.db?.prepare)
+      return {ok:false,reason:"CBB_GAME_ID_OWNER_UNAVAILABLE",rows:[]};
+    const base={...env,SPORT_DB_MODE_CBB:"shadow"};
+    const [primary,cbb]=await Promise.all([
+      queryGamesByIds(base,ids),queryGamesByIds({...base,DB:owner.db},ids)]);
+    if(!primary.ok||!cbb.ok)return {ok:false,reason:"CBB_GAME_ID_FANOUT_FAILED",rows:[]};
+    return {ok:true,rows:[...primary.rows.filter(r=>r.sport!=="cbb"),...cbb.rows.filter(r=>r.sport==="cbb")]};
+  }
   markBound(env);
   if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
   const clean = [...new Set((ids || []).map((id) => String(id || "").trim()).filter(Boolean))];

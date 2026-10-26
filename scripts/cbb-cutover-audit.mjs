@@ -15,7 +15,7 @@ const shared=['games','predictions','prediction_snapshots','published_projection
 const tables=[...prefixes.map(table=>({table,scope:'all rows',currentOwner:'PRIMARY',proposedOwner:'CBB_DB',classification:'sport-owned research',modelAuthority:false})),
  ...shared.map(table=>({table,scope:"sport='cbb' only",currentOwner:'PRIMARY',proposedOwner:'CBB_DB',classification:'sport-scoped shared working table',modelAuthority:false})),
  {table:'cbb_player_prop_signals',scope:'all rows',currentOwner:'PRIMARY',proposedOwner:'separately governed props',classification:'deferred',excluded:true}];
-const candidates=sources.filter(x=>/\bcbb\b|cbb_|CBB_DB/i.test(x.source)).map(({path,source})=>({
+const candidates=sources.filter(x=>/\bcbb\b|cbb_|CBB_DB/i.test(x.source)||/\b(?:FROM|JOIN|UPDATE|INTO)\s+(?:games|predictions|prediction_snapshots|published_projections|odds_snapshots|team_form|team_form_games)\b/i.test(x.source)).map(({path,source})=>({
  path,primaryReferences:source.split('\n').flatMap((line,i)=>/\benv(?:\?\.)?\.DB\b|\benv\?\.DB\b|context\.env\.DB|wrangler d1 execute fbis\b/.test(line)?[{line:i+1,text:line.trim()}]:[]),
  declaredTables:tables.filter(t=>source.includes(t.table)).map(t=>t.table),
  routing:/cbbResearchOwner|productSportDbHandle|sportDbContext/.test(source),

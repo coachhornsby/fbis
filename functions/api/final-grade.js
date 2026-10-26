@@ -76,7 +76,7 @@ export async function onRequestPost(context){
           failedGameIds.push(gameId);
           continue;
         }
-        const res=await excludeSnapshotsForGame(context.env,{gameId,reason,excludedAt:new Date().toISOString(),forceExclude});
+        const res=await excludeSnapshotsForGame(context.env,{gameId,sport,reason,excludedAt:new Date().toISOString(),forceExclude});
         if(res?.ok) excluded+=1;
         else {
           failed+=1;
@@ -115,6 +115,7 @@ export async function onRequestPost(context){
       for(const g of grades){
         const res=await gradeSnapshotsForGame(context.env,{
           ...g,
+          sport,
           gradedAt:new Date().toISOString(),
           forceCorrect,
         });
