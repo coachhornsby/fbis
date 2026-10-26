@@ -1,0 +1,34 @@
+name: CFB 226-game live evidence collection
+on:
+  pull_request:
+    paths:
+      - "data/cfb/2026/weeks05-08-game-roster.json"
+      - "scripts/cfb-226-live-evidence.mjs"
+      - ".github/workflows/cfb-226-live-evidence.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Collect Week 5-8 reported finals, plays, boxscores and drives
+        id: collector
+        continue-on-error: true
+        run: node scripts/cfb-226-live-evidence.mjs
+      - name: Archive every game and collection receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-2026-weeks05-08-226-game-evidence
+          path: artifacts/cfb-2026-weeks05-08/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Enforce collector completion
+        if: steps.collector.outcome != 'success'
+        run: exit 1
