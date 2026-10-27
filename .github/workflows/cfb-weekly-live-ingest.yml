@@ -5,6 +5,11 @@ on:
       - "scripts/cfb-weekly-source-ingest.mjs"
       - "test/cfb-weekly-source-ingest.test.js"
       - ".github/workflows/cfb-weekly-live-ingest.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cfb-weekly-live-ingest.yml"
+      - "scripts/cfb-weekly-source-ingest.mjs"
   workflow_dispatch:
     inputs:
       season:
@@ -31,6 +36,7 @@ jobs:
           node-version: "22"
       - run: node --test test/cfb-weekly-source-ingest.test.js
       - run: node --check scripts/cfb-weekly-source-ingest.mjs
+      - run: node --test test/cfb-weekly-live-ingest-contract.test.js
   ingest:
     if: github.event_name != 'pull_request'
     needs: source-contract
@@ -91,6 +97,49 @@ jobs:
           npx wrangler r2 object get "fbis-archive/${KEY}" --file /tmp/cfb-raw-readback.csv --remote
           echo "${SHA}  /tmp/cfb-raw-readback.csv" | sha256sum -c -
           echo "SOURCE_SHA=${SHA}" >> "${GITHUB_ENV}"
+      - name: Register original licensed CSV with FBIS private Tier 3 importer
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "MISSING_HARVEST_SECRET_FOR_TIER3_IMPORT"; exit 1; }
+          HTTP=$(curl --silent --show-error --max-time 100 --write-out '%{http_code}' \
+            -X POST 'https://fbis-myz.pages.dev/api/college-tier3' \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "Content-Type: text/csv" \
+            -H "x-source-filename: ${SOURCE_FILENAME}" \
+            --data-binary @artifacts/cfb-incoming/source.csv \
+            -o artifacts/cfb-incoming/tier3-registered.json) || HTTP="000"
+          if [ "${HTTP}" != "200" ]; then
+            echo "CANONICAL_PRIVATE_TIER3_INGEST_FAILED_HTTP_${HTTP}"
+            exit 1
+          fi
+          node --input-type=module -e '
+            import{readFileSync}from "node:fs";
+            const a=JSON.parse(readFileSync("artifacts/cfb-incoming/tier3-registered.json","utf8"));
+            const b=JSON.parse(readFileSync("artifacts/cfb-incoming/receipt.json","utf8"));
+            if(a.ok!==true||a.sourceSha256!==b.sha256||a.season!==b.season||
+              a.week!==b.week||a.rows!==b.rowCount||a.authority!=="research_only"||
+              a.canAuthorizeWager!==false||a.canInfluenceProjection!==false)
+              throw Error("CANONICAL_TIER3_RECEIPT_MISMATCH");
+            console.log(JSON.stringify({snapshotId:a.snapshotId,season:a.season,week:a.week,rows:a.rows,researchOnly:true}));
+          '
+      - name: Read back canonical Tier 3 snapshot and all imported original game IDs
+        run: |
+          set -euo pipefail
+          SHA=$(node -p "JSON.parse(require('fs').readFileSync('artifacts/cfb-incoming/receipt.json','utf8')).sha256")
+          npx wrangler d1 execute fbis-cfb-tier3-research --remote --json \
+            --command "SELECT s.source_sha256,s.season,s.week,s.row_count,COUNT(g.game_id) indexed_games FROM cfb_tier3_training_snapshots s LEFT JOIN cfb_tier3_training_games g ON g.snapshot_id=s.snapshot_id WHERE s.source_sha256='${SHA}' GROUP BY s.snapshot_id" \
+            > artifacts/cfb-incoming/tier3-readback.json
+          node --input-type=module -e '
+            import{readFileSync}from "node:fs";
+            const q=JSON.parse(readFileSync("artifacts/cfb-incoming/tier3-readback.json","utf8"));
+            const a=q?.[0]?.results?.[0],b=JSON.parse(readFileSync("artifacts/cfb-incoming/receipt.json","utf8"));
+            if(!a||a.source_sha256!==b.sha256||a.week!==b.week||
+               a.row_count!==b.rowCount||a.indexed_games!==b.rowCount)
+              throw Error("PRIVATE_TIER3_CANONICAL_READBACK_MISMATCH");
+            console.log(JSON.stringify({season:a.season,week:a.week,indexedGames:a.indexed_games,status:"verified"}));
+          '
       - name: Append source receipts only to CFB shadow research D1 and confirm readback
         run: |
           set -euo pipefail
@@ -106,6 +155,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cfb-weekly-ingestion-evidence
-          path: artifacts/cfb-incoming/
+          # Keep subscriber-only raw rows and SQL feature payload OUT of GitHub artifacts.
+          path: |
+            artifacts/cfb-incoming/receipt.json
+            artifacts/cfb-incoming/tier3-registered.json
+            artifacts/cfb-incoming/tier3-readback.json
+            artifacts/cfb-incoming/frozen-coverage.json
           if-no-files-found: warn
           retention-days: 30
