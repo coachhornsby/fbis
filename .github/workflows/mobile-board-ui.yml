@@ -1,0 +1,24 @@
+name: Mobile board and Tennis presentation
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'src/features/boardControls/**'
+      - 'src/lib/tennisTourView.js'
+      - 'src/TodayView.jsx'
+      - 'src/app/AppShell.jsx'
+      - 'functions/api/tennis-board-portraits.js'
+      - 'test/mobile-board-tours.test.js'
+      - '.github/workflows/mobile-board-ui.yml'
+permissions:
+  contents: read
+jobs:
+  presentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: node --test test/mobile-board-tours.test.js test/tennis-portrait-registry.test.js
