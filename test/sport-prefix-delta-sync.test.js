@@ -608,3 +608,52 @@ test("syncSportWorkingDelta refuses while sport mode is active", async () => {
   assert.equal(blocked.ok, false);
   assert.match(blocked.reason || "", /REFUSED_WHILE_SPORT_MODE|SPORT/);
 });
+
+
+// Regression: equal Tennis counts must not skip in-place identity updates.
+// This copy stays in shadow; replay is bounded and never authorizes production use.
+test("Tennis player freshness triggers shadow replay despite equal row counts", async () => {
+  const newer = "2026-10-26T23:08:54.272Z";
+  const older = "2026-10-25T16:41:25.070Z";
+  const player = { fbis_player_id: "tennis:wta:310034", tour: "wta",
+    canonical_name: "Test Player", updated_at: newer };
+  const source = memoryDb({ tennis_players: [player] });
+  const dest = memoryDb({ tennis_players: [{ ...player, updated_at: older }] });
+  const srcPrepare = source.prepare.bind(source);
+  const dstPrepare = dest.prepare.bind(dest);
+  source.prepare = sql => String(sql).includes("SELECT MAX(updated_at) AS latest FROM tennis_players")
+    ? { async first() { return { latest: newer }; } } : srcPrepare(sql);
+  dest.prepare = sql => String(sql).includes("SELECT MAX(updated_at) AS latest FROM tennis_players")
+    ? { async first() { return { latest: older }; } } : dstPrepare(sql);
+  const result = await copySportPrefixTables({ DB: source, TENNIS_DB: dest,
+    SPORT_DB_MODE_TENNIS: "shadow" }, "tennis",
+    { tables: ["tennis_players"], skipCaughtUp: true, pageSize: 10, maxPages: 1 });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.skippedCaughtUp, []);
+  assert.equal(result.results[0].copied, 1);
+  assert.equal(result.productStillPrimary, true);
+  assert.equal(result.canAuthorizeWager, false);
+});
+
+test("Tennis official settlement freshness triggers replay without new match rows", async () => {
+  const earlier = "2026-10-26T08:00:00.000Z";
+  const later = "2026-10-26T13:06:07.808Z";
+  const match = { match_id: "wta_test_001", completion_state: "FINAL",
+    observed_at: later, winner_id: "tennis:wta:123" };
+  const source = memoryDb({ tennis_official_matches: [match] });
+  const dest = memoryDb({ tennis_official_matches: [{ ...match,
+    observed_at: earlier, winner_id: null }] });
+  const srcPrepare = source.prepare.bind(source);
+  const dstPrepare = dest.prepare.bind(dest);
+  source.prepare = sql => String(sql).includes("SELECT MAX(observed_at) AS latest FROM tennis_official_matches")
+    ? { async first() { return { latest: later }; } } : srcPrepare(sql);
+  dest.prepare = sql => String(sql).includes("SELECT MAX(observed_at) AS latest FROM tennis_official_matches")
+    ? { async first() { return { latest: earlier }; } } : dstPrepare(sql);
+  const result = await copySportPrefixTables({ DB: source, TENNIS_DB: dest,
+    SPORT_DB_MODE_TENNIS: "shadow" }, "tennis",
+    { tables: ["tennis_official_matches"], skipCaughtUp: true, pageSize: 10, maxPages: 1 });
+  assert.equal(result.ok, true);
+  assert.equal(result.skippedCaughtUp.length, 0);
+  assert.equal(result.results[0].copied, 1);
+  assert.equal(result.canAuthorizeWager, false);
+});

@@ -68,7 +68,7 @@ test("CBB is explicitly allowed by guarded rehearsal and migration qualification
   const api = readFileSync(new URL("../functions/api/database-topology.js", import.meta.url), "utf8");
   const qualify = readFileSync(new URL("../functions/lib/sportMigrationQualify.js", import.meta.url), "utf8");
   assert.match(api, /\["nhl", "nfl", "cfb", "cbb"\]\.includes\(sport\)/);
-  assert.match(qualify, /\["nfl", "cfb", "nhl", "nba", "cbb"\]\.includes\(key\)/);
+  assert.match(qualify, /runCutoverRehearsal && \[[^\]]*"cbb"[^\]]*\]\.includes\(key\)/);
 });
 
 function populatedD1({ projectedHome = 72 } = {}) {

@@ -1255,6 +1255,12 @@ export async function copySportPrefixTables(env, sport, {
           nba_prospective_game_shadow: ["graded_at", "created_at"],
           nba_deep_game_shadow: ["created_at", "graded_at"],
         },
+        // Tennis official settlements and canonical player identities mutate in place.
+        // Count equality alone can hide stale winners, provenance, and player updates.
+        tennis: {
+          tennis_players: "updated_at",
+          tennis_official_matches: "observed_at",
+        },
         nhl: {
           nhl_team_profiles: "updated_at",
           nhl_goalie_profiles: "updated_at",
