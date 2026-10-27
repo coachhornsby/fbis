@@ -24,7 +24,7 @@ export default function useApprovedBoardPortraits(groups){
    if(game.sport!=='tennis')return game;
    const tour=String(game.tour||game.tennisProjection?.tour||'').toLowerCase();const next={...game};
    for(const side of ['home','away']){const team=game[side]||{},p=pack.players[`${tour}:${String(team.fullName||team.name||'').toLowerCase().trim()}`];
-    if(p&&(!team.canonicalId||team.canonicalId===p.canonicalId))next[side]={...team,headshotUrl:p.portrait.url,portrait:p.portrait};
+    if(p&&(!(team.canonicalId||team.fbisPlayerId)||(team.canonicalId||team.fbisPlayerId)===p.canonicalId))next[side]={...team,headshotUrl:p.portrait.url,portrait:p.portrait};
    }return next;
   })}));
  },[groups,pack,signature]);
