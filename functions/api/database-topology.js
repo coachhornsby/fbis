@@ -382,8 +382,8 @@ export async function onRequestPost({ env, request } = {}) {
   }
   if (operation === "sport-cutover-rehearsal") {
     const sport = String(body.sport || "nhl").toLowerCase();
-    if (!["nhl", "nfl", "cfb", "cbb"].includes(sport)) {
-      return json({ ok: false, error: "REHEARSAL_LIMITED_TO_NHL_NFL_CFB_CBB", canAuthorizeWager: false }, 400);
+    if (!["nhl", "nfl", "cfb", "cbb", "tennis"].includes(sport)) {
+      return json({ ok: false, error: "REHEARSAL_LIMITED_TO_NHL_NFL_CFB_CBB_TENNIS", canAuthorizeWager: false }, 400);
     }
     return json(await rehearseSportCutover(env, sport, {
       injectMissingBinding: body.injectMissingBinding === true,
@@ -415,7 +415,7 @@ export async function onRequestPost({ env, request } = {}) {
       sampleSize: Math.min(200, Number(body.sampleSize) || 40),
       runDeltaSync: body.runDeltaSync === true,
       includePrefix: body.includePrefix !== false,
-      // Cutover rehearsal allowed for NFL/CFB/NHL only; never activates authority.
+      // Cutover rehearsal is allowlisted per sport; never activates authority.
       runCutoverRehearsal: body.runCutoverRehearsal === true,
     }));
   }
