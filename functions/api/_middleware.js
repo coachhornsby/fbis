@@ -190,7 +190,7 @@ export function retiredSportApiGate(request) {
 // intentionally outside this path so a failed cutover can be diagnosed/rolled back.
 export function tennisLegacyCutoverApiGate(request, env) {
   const pathname = new URL(request.url).pathname;
-  if (!/^\\/api\\/tennis-/i.test(pathname) || deployedSportDbMode(env, "tennis") !== "sport")
+  if (!pathname.toLowerCase().startsWith("/api/tennis-") || deployedSportDbMode(env, "tennis") !== "sport")
     return null;
   return json({ ok: false, reason: "TENNIS_LEGACY_API_OWNER_NOT_MIGRATED",
     sport: "tennis", binding: "UNAVAILABLE", stalePrimaryFallback: false,
