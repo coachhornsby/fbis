@@ -1,3 +1,5 @@
+import TennisMatchIntelligence from "./TennisMatchIntelligence.jsx";
+import NhlInjuryIntelligence from "./NhlInjuryIntelligence.jsx";
 import { useMemo, useState } from "react";
 import TeamLogo from "../TeamLogo.jsx";
 import { buildAdvancedGameViewModel } from "../../lib/advancedGameViewModel.js";
@@ -50,6 +52,8 @@ export default function AdvancedGameDetail({ game, onClose }) {
           🌍 INTERNATIONAL / NEUTRAL — {game.nflInternationalContext.site?.city || "OVERSEAS"} — TRAVEL NOT VALIDATED — NO BET AUTHORITY
         </div>
       ) : null}
+      <NhlInjuryIntelligence game={game} />
+      <TennisMatchIntelligence game={game} />
       <nav className="agd-tabs" aria-label="Detail sections">
         {tabs.map((t) => (
           <button

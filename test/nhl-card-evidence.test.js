@@ -94,7 +94,7 @@ test("NHL compact and expanded cards share evidence contract and avoid unconditi
   assert.match(score,/FINAL — SCORE NOT IN FEED/);
 });
 
-test("point-in-time persisted goalie profiles enrich every NHL card without changing forecasts",()=>{
+test("unsourced goalie hierarchy is unknown on cards without changing forecasts",()=>{
   const g={sport:"nhl",id:"401892479",start:"2026-10-10T23:00:00Z",
     home:{abbr:"VGK"},away:{abbr:"LA"},odds:{total:6.5}};
   const profiles={teams:{vgk:{next_game_id:"401892479",next_game_start:g.start},la:{next_game_id:"401892479",next_game_start:g.start}},
@@ -103,15 +103,15 @@ test("point-in-time persisted goalie profiles enrich every NHL card without chan
       la:[{player_id:"200",player_name:"Expected LA Goalie",goalie_state:"EXPECTED_G1",team_key:"la",expected_start_probability:.6,source_updated_at:"2026-10-10T16:00:00Z"}]}};
   const result=attachNhlCardStarterEvidence([g],profiles,Date.parse("2026-10-10T19:00:00Z"));
   const enriched=result.games[0];
-  assert.equal(enriched.nhlStarterEvidence.home.name,"Expected Vegas Goalie");
-  assert.equal(enriched.nhlStarterEvidence.away.name,"Expected LA Goalie");
-  assert.equal(enriched.nhlStarterEvidence.home.state,"PROJECTED");
+  assert.equal(enriched.nhlStarterEvidence.home.name,null);
+  assert.equal(enriched.nhlStarterEvidence.away.name,null);
+  assert.equal(enriched.nhlStarterEvidence.home.state,"UNKNOWN");
   assert.equal(enriched.nhlStarterEvidence.canQualify,false);
   assert.equal(enriched.odds,g.odds);
   const vm={sport:"nhl",home:{abbr:"VGK"},away:{abbr:"LA"},market:{},action:{available:false}};
   const card=buildNhlCardEvidence(enriched,vm);
-  assert.equal(card.goalies.home.name,"Expected Vegas Goalie");
-  assert.equal(card.goalies.away.state,"PROJECTED");
+  assert.equal(card.goalies.home.name,"No sourced goalie");
+  assert.equal(card.goalies.away.state,"STARTER NOT CONFIRMED");
   assert.equal(card.coverage.projection,"UNAVAILABLE");
 });
 test("stale or unrelated goalie rows never become confirmed current-game starters",()=>{
@@ -124,7 +124,7 @@ test("stale or unrelated goalie rows never become confirmed current-game starter
   assert.equal(x.nhlStarterEvidence.home.name,null);
 });
 
-test("official NHL game ID crosswalk recovers expected starters on ESPN-identified matchup",()=>{
+test("official crosswalk preserves prior context without upgrading unsourced hierarchy",()=>{
  const start="2026-10-11T02:00:00Z",updated="2026-10-10T23:44:00Z",now=Date.parse("2026-10-11T01:20:00Z");
  const game={sport:"nhl",id:"401892481",start,home:{abbr:"VGK"},away:{abbr:"LA"},modelVersion:"FBIS-v1.4"};
  const teams={
@@ -138,8 +138,8 @@ test("official NHL game ID crosswalk recovers expected starters on ESPN-identifi
  const cross=nhlOfficialEventCrosswalk(game,profiles,now);
  assert.equal(cross.officialGameId,"2026020083");
  const attached=attachNhlCardStarterEvidence([game],profiles,now).games[0];
- assert.equal(attached.nhlStarterEvidence.home.name,"Projected Goalie");
- assert.equal(attached.nhlStarterEvidence.home.state,"PROJECTED");
+ assert.equal(attached.nhlStarterEvidence.home.name,null);
+ assert.equal(attached.nhlStarterEvidence.home.state,"UNKNOWN");
  assert.equal(attached.nhlStarterEvidence.away.name,"Previous Starter");
  assert.equal(attached.nhlStarterEvidence.away.state,"PRIOR_GAME_STARTER_UNVERIFIED");
  assert.equal(attached.nhlStarterEvidence.away.eventIdentity.officialGameId,"2026020083");
@@ -147,7 +147,7 @@ test("official NHL game ID crosswalk recovers expected starters on ESPN-identifi
  assert.equal(attached.nhlStarterEvidence.canQualify,false);
  const vm={sport:"nhl",home:{abbr:"VGK"},away:{abbr:"LA"},market:{total:6.5},action:{available:false}};
  const display=buildNhlCardEvidence(attached,vm);
- assert.equal(display.goalies.home.state,"PROJECTED");
+ assert.equal(display.goalies.home.state,"STARTER NOT CONFIRMED");
  assert.equal(display.goalies.away.state,"PREVIOUS GAME · NOT CONFIRMED TODAY");
  assert.equal(display.coverage.goalies,"CONTEXT_ONLY");
  assert.equal(display.coverage.projection,"UNAVAILABLE");

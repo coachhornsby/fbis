@@ -799,3 +799,9 @@
   background:rgba(2,14,28,.64);
 }
 
+
+.agd-intelligence { margin: 12px; padding: 14px; border: 1px solid #27415e; border-radius: 10px; background: #0a1828; color: #dce7f5; }
+.agd-intelligence summary { cursor: pointer; font-weight: 700; color: #f4cc6b; }
+.agd-intelligence .game-ws-metrics { display: flex; flex-wrap: wrap; gap: 12px; align-items: start; }
+.agd-intelligence p { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.agd-intelligence a { color: #7bcafa; }
