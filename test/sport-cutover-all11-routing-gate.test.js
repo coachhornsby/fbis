@@ -48,23 +48,23 @@ test("all 11 sports: setting sport mode without approved receipt never authorize
       ...(sport === "nhl" ? { NHL_SPORT_DB_MODE: "sport" } : {}),
     };
     const noReceipt = productSportDbHandle(env, sport);
-    assert.equal(noReceipt.db, sport === "cbb" ? null : primary, sport);
+    assert.equal(noReceipt.db, ["cbb", "tennis"].includes(sport) ? null : primary, sport);
     assert.equal(noReceipt.productIoUsesSportDb, false, sport);
     assert.match(noReceipt.reason, /RECEIPT/, sport);
     env[receipt] = `unapproved-${sport}`;
     const unapproved = productSportDbHandle(env, sport);
-    assert.equal(unapproved.db, sport === "cbb" ? null : primary, sport);
+    assert.equal(unapproved.db, ["cbb", "tennis"].includes(sport) ? null : primary, sport);
     assert.equal(unapproved.productIoUsesSportDb, false, sport);
     assert.match(unapproved.reason, /APPROVAL_RECORD/, sport);
   }
 });
 
-test("missing sport bindings preserve legacy routing; activated CBB fails closed", () => {
+test("missing bindings preserve legacy routing; activated CBB and Tennis fail closed", () => {
   const primary = handle("PRIMARY");
   for (const sport of FBIS_SPORTS) {
     const env = { DB: primary, [`SPORT_DB_MODE_${sport.toUpperCase()}`]: "sport" };
     const routed = productSportDbHandle(env, sport);
-    assert.equal(routed.db, sport === "cbb" ? null : primary, sport);
+    assert.equal(routed.db, ["cbb", "tennis"].includes(sport) ? null : primary, sport);
     assert.equal(routed.productIoUsesSportDb, false, sport);
   }
 });
@@ -103,4 +103,30 @@ test("health operations recognize exactly the four CORE-approved authoritative s
  assert.ok(match,"authoritative sports health allowlist missing");
  const names=[...match[1].matchAll(/"([a-z]+)"/g)].map(x=>x[1]);
  assert.deepEqual(names,["nfl","cfb","nhl","nba"]);
+});
+
+test("Tennis activated mode requires a matching CORE approval and never falls back to PRIMARY", () => {
+  const primary = handle("PRIMARY");
+  const tennis = handle("TENNIS_DB");
+  const core = handle("CORE_DB");
+  const receipt = "tennis-cutover-approved";
+  const base = { DB: primary, TENNIS_DB: tennis,
+    SPORT_DB_MODE_TENNIS: "sport", SPORT_CUTOVER_RECEIPT_TENNIS: receipt };
+  assert.equal(productSportDbHandle(base, "tennis").db, null);
+  const approval = { sport: "tennis", receipt_id: receipt, status: "APPROVED" };
+  const cached = { ...base, __fbisCutoverApprovals:
+    new Map([[`tennis:${receipt}`, approval]]) };
+  assert.equal(productSportDbHandle(cached, "tennis").db, null,
+    "Missing CORE binding must reject a cached approval");
+  const approved = { ...cached, CORE_DB: core };
+  assert.equal(productSportDbHandle(approved, "tennis").db, tennis);
+  assert.equal(productSportDbHandle(approved, "tennis").productIoUsesSportDb, true);
+  const revoked = { ...approved, __fbisCutoverApprovals:
+    new Map([[`tennis:${receipt}`, { ...approval, revoked_at: "2026-10-26T00:00:00Z" }]]) };
+  assert.equal(productSportDbHandle(revoked, "tennis").db, null);
+  const wrongReceipt = { ...approved, __fbisCutoverApprovals:
+    new Map([[`tennis:${receipt}`, { ...approval, receipt_id: "wrong" }]]) };
+  assert.equal(productSportDbHandle(wrongReceipt, "tennis").db, null);
+  assert.equal(productSportDbHandle({ ...approved, TENNIS_DB: null }, "tennis").db, null);
+  assert.equal(productSportDbHandle({ ...approved, SPORT_DB_MODE_TENNIS: "shadow" }, "tennis").db, primary);
 });

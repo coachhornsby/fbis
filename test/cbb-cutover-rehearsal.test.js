@@ -67,7 +67,7 @@ test("CBB missing-binding/partial/CORE-staleness drills cannot activate authorit
 test("CBB is explicitly allowed by guarded rehearsal and migration qualification routes", () => {
   const api = readFileSync(new URL("../functions/api/database-topology.js", import.meta.url), "utf8");
   const qualify = readFileSync(new URL("../functions/lib/sportMigrationQualify.js", import.meta.url), "utf8");
-  assert.match(api, /\["nhl", "nfl", "cfb", "cbb"\]\.includes\(sport\)/);
+  assert.match(api, /\["nhl", "nfl", "cfb", "cbb", "tennis"\]\.includes\(sport\)/);
   assert.match(qualify, /runCutoverRehearsal && \[[^\]]*"cbb"[^\]]*\]\.includes\(key\)/);
 });
 
