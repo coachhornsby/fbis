@@ -25,6 +25,8 @@ jobs:
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
     steps:
       - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: '22'
@@ -32,11 +34,21 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
-          for attempt in $(seq 1 12); do
-            if VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs; then exit 0; fi
+          git fetch --no-tags origin main --prune
+          # resolve-live may identify an older healthy production commit.
+          # Only accept this workflow's actual GitHub SHA or its deployed descendant.
+          for attempt in $(seq 1 30); do
+            receipt="$(VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs || true)"
+            live_sha="$(printf '%s' "$receipt" | jq -r 'select(.outcome=="match") | .productionSha // empty' 2>/dev/null || true)"
+            if [[ "$live_sha" =~ ^[0-9a-f]{40}$ ]] \
+              && git cat-file -e "$live_sha^{commit}" 2>/dev/null \
+              && git merge-base --is-ancestor "$GITHUB_SHA" "$live_sha"; then
+              echo "Verified deployed Tennis evidence revision $GITHUB_SHA in production $live_sha"
+              exit 0
+            fi
             sleep 10
           done
-          echo PRODUCTION_RELEASE_UNVERIFIED
+          echo PRODUCTION_RELEASE_MISSING_TENNIS_EVIDENCE_COMMIT
           exit 1
       - name: Require Tennis still uses PRIMARY
         run: |
