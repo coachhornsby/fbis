@@ -49,7 +49,7 @@ test("verified archive library selects full column set and checkpoint table", ()
 });
 
 
-test("Q4B archive requests stay below the observed 300-second HTTP timeout without relaxing evidence gates", () => {
+test("Q4B archive limits per-request work after observed timeout without relaxing evidence gates", () => {
   assert.match(q4bWorkflow, /ARCHIVE_MAX_ROUNDS:\s*"12"/);
   assert.match(q4bWorkflow, /ARCHIVE_LIMIT:\s*"2000"/);
   assert.match(q4bWorkflow, /for i in 1 2 3/);
