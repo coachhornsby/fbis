@@ -863,7 +863,8 @@
 .pp-team-pill {
   position: absolute;
   z-index: 6;
-  bottom: -1px;
+  /* Lower the sport/team bubble so it clears player faces in the hero crop. */
+  bottom: -7px;
   left: 50%;
   transform: translate(-50%, 50%);
   display: inline-flex;
