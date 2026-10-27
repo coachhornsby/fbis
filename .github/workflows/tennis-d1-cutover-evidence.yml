@@ -1,0 +1,66 @@
+name: Tennis D1 cutover evidence (shadow only)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '27 4,10,16,22 * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tennis-d1-cutover-evidence.yml'
+      - 'functions/api/_middleware.js'
+      - 'functions/lib/sportMigrationQualify.js'
+      - 'functions/lib/sportWorkingCopy.js'
+permissions:
+  contents: read
+concurrency:
+  group: tennis-d1-cutover-evidence
+  cancel-in-progress: false
+jobs:
+  audit:
+    if: github.repository == 'coachhornsby/fbis'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Require production release and auth credentials
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          for attempt in $(seq 1 12); do
+            if VERIFY_MODE=resolve-live node scripts/verify-deployment-sha.mjs; then exit 0; fi
+            sleep 10
+          done
+          echo PRODUCTION_RELEASE_UNVERIFIED
+          exit 1
+      - name: Require Tennis still uses PRIMARY
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail-with-body -sS --retry 2 --max-time 60 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" -H 'content-type: application/json' \
+            -d '{"operation":"sport-authority-state","sport":"tennis"}' \
+            "${BASE}/api/database-topology" > artifacts/tennis-authority.json
+          jq -e '.ok == true and .sport == "tennis" and .mode == "shadow" and .binding == "DB" and .productIoUsesSportDb == false and .cutoverAuthorized == false and .canAuthorizeWager == false' artifacts/tennis-authority.json
+      - name: Record read-only Tennis migration qualification and rehearsal
+        run: |
+          set -euo pipefail
+          curl --fail-with-body -sS --retry 2 --max-time 240 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" -H 'content-type: application/json' \
+            -d '{"operation":"sport-migration-qualify","sport":"tennis","runDeltaSync":false,"includePrefix":true,"sampleSize":40,"runCutoverRehearsal":true}' \
+            "${BASE}/api/database-topology" > artifacts/tennis-qualification.json
+          jq -e '.sport == "tennis" and .activationPerformed == false and .cutoverAuthorized == false and .deletionAuthorized == false and .canAuthorizeWager == false and .productStillPrimary == true and (.cutoverRehearsal != null)' artifacts/tennis-qualification.json
+          jq '{sport,readyForCutoverReview,gates,recordParity:.recordParity.status,prefixParity:.prefixParity.status,lagMs:.health.lagMs,rehearsalOk:.cutoverRehearsal.ok}' artifacts/tennis-qualification.json
+          jq -r '"Tennis D1: readyForCutoverReview=\(.readyForCutoverReview); prefixParity=\(.prefixParity.status); rehearsalOk=\(.cutoverRehearsal.ok); cutoverAuthorized=false"' artifacts/tennis-qualification.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: tennis-d1-cutover-evidence
+          path: artifacts/tennis-*.json
+          retention-days: 30
+          if-no-files-found: warn
