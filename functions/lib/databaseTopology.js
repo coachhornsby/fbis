@@ -251,8 +251,8 @@ export function resolveSportDb(env, sport, { mode } = {}) {
 function strictSportCutoverActive(env, sport) {
   const key = String(sport || "").toLowerCase();
   if (!SPORT_DATABASES[key] || deployedSportDbMode(env, key) !== "sport") return false;
-  // CBB activation always fails closed, even if a strict flag is omitted.
-  if (key === "cbb") return true;
+  // CBB and Tennis activation always fail closed, even if a strict flag is omitted.
+  if (key === "cbb" || key === "tennis") return true;
   // A strict mode is required independently for each authorized sport. Never
   // treat the NFL grant, binding, or mode as authorization for another sport.
   return ["1", "true", "yes"].includes(
@@ -366,17 +366,17 @@ export function readApprovedCutoverReceiptSync(env, sport, receiptId, { now = ne
   if (!sportKey || !receipt) {
     return { ok: false, reason: "SPORT_CUTOVER_APPROVAL_RECORD_REQUIRED_FALLBACK_PRIMARY" };
   }
-  if (sportKey === "cbb" && !env?.CORE_DB?.prepare)
+  if (["cbb", "tennis"].includes(sportKey) && !env?.CORE_DB?.prepare)
     return {ok:false,reason:"SPORT_CUTOVER_APPROVAL_RECORD_REQUIRED_CORE_UNBOUND"};
   const cache = env?.__fbisCutoverApprovals;
   const cached = cache instanceof Map ? cache.get(`${sportKey}:${receipt}`) : null;
   if (!cached) {
     return { ok: false, reason: "SPORT_CUTOVER_APPROVAL_RECORD_REQUIRED_FALLBACK_PRIMARY" };
   }
-  if (sportKey === "cbb" && (cached.revoked_at
+  if (["cbb", "tennis"].includes(sportKey) && (cached.revoked_at
       || (cached.sport != null && cached.sport !== sportKey)
       || (cached.receipt_id != null && cached.receipt_id !== receipt)))
-    return {ok:false,reason:"CBB_CUTOVER_APPROVAL_IDENTITY_OR_REVOCATION_INVALID"};
+    return {ok:false,reason:"SPORT_CUTOVER_APPROVAL_IDENTITY_OR_REVOCATION_INVALID"};
   const status = String(cached.status || "").toUpperCase();
   if (status === "REVOKED" || status === "EXPIRED") {
     // Drop stale cache entry so a later hydrate cannot keep a revoked grant alive.
@@ -389,8 +389,8 @@ export function readApprovedCutoverReceiptSync(env, sport, receiptId, { now = ne
   const expiresAt = cached.expires_at || cached.expiresAt || null;
   if (expiresAt) {
     const expMs = Date.parse(expiresAt);
-    if (sportKey === "cbb" && !Number.isFinite(expMs))
-      return {ok:false,reason:"CBB_CUTOVER_APPROVAL_EXPIRY_INVALID"};
+    if (["cbb", "tennis"].includes(sportKey) && !Number.isFinite(expMs))
+      return {ok:false,reason:"SPORT_CUTOVER_APPROVAL_EXPIRY_INVALID"};
     const nowMs = now instanceof Date ? now.getTime() : Date.parse(String(now));
     if (Number.isFinite(expMs) && Number.isFinite(nowMs) && expMs <= nowMs) {
       cache.delete(`${sportKey}:${receipt}`);
