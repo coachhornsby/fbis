@@ -6,7 +6,7 @@ workers_dev = true
 
 # Independent source collection: do not depend on GitHub Actions schedule.
 [triggers]
-crons = ["*/5 * * * *"]
+crons = []
 
 [[r2_buckets]]
 binding = "ARCHIVE"

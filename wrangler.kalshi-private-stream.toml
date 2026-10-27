@@ -10,7 +10,7 @@ workers_dev = true
 KALSHI_PRIVATE_STREAM_MODE = "disabled"
 
 [triggers]
-crons = ["*/5 * * * *"]
+crons = []
 
 [[durable_objects.bindings]]
 name = "ACCOUNT_SESSION"

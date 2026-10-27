@@ -8,7 +8,7 @@ workers_dev = true
 enabled = true
 
 [triggers]
-crons = ["7 * * * *", "17 * * * *", "37 * * * *", "27,57 * * * *", "*/10 * * * *"]
+crons = []
 
 [vars]
 SPREADSHEET_ID = "1B1IVONVvmP50JPCqb64fzEsSaTv6AuHQ04YqEzBhjAo"

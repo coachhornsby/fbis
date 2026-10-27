@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 # Dedicated read-only market collector; no order execution routes.
 [triggers]
-crons = ["*/5 * * * *"]
+crons = []
 
 [[durable_objects.bindings]]
 name = "PM_STREAM"

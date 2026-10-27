@@ -7,7 +7,7 @@ workers_dev = true
 # Single centrally scheduled poll: one NFL or CFB series per fifteen minutes.
 # No account credentials. No D1, no betting decisions or venue execution.
 [triggers]
-crons = ["*/15 * * * *"]
+crons = []
 
 [[r2_buckets]]
 binding = "ARCHIVE"
