@@ -48,3 +48,11 @@ No scripts restore schedules or runtime automatically. The maintenance middlewar
 Before reopening: Bryan approves a concrete monthly ceiling; implement a shared atomic admission budget across all jobs, concurrent runs and retries; establish measured per-query limits and cached board delivery; replace full-history diagnostics with incrementally maintained summaries; redesign late-arrival recovery with a bounded insertion cursor; verify direct-provider and direct-D1 credentials/alternate branches cannot bypass admission; prove the cutoff in a production-like environment. Do not claim that post-query row accounting or email alerts enforce a hard dollar cap. Fixed-price hosting or a provider-enforced limit is required for a strict financial ceiling.
 
 Cloudflare storage and the Workers paid subscription may continue to bill while data is retained. No zero-dollar billing claim is made. Refund settlement remains external and pending.
+
+## Retained-storage cost and rollback notes
+
+Metadata inventory: 20 databases, 40,868,659,200 bytes. At $0.75 per GB-month after 5 GB included, this implies roughly $26.90/month D1 storage at constant size, plus the $5 Workers plan and tax/other retained-service charges. This is an estimate, not an invoice; billing uses time-weighted storage. Reducing it requires a separately reviewed, lossless archival/retention operation. No database deletion was performed.
+
+Some bundled Worker source responses were truncated by the connector: the stream and orchestrator JSON files are explicitly source excerpts, NOT complete deployable backups. Full unbundled source is retained in Git; prior Cloudflare version IDs are recorded in artifacts/cost-stop/rollbackVersions.json. Never upload a truncated response as a rollback. No old Worker versions or Pages deployments were deleted.
+
+Final source commit removes the emergency cancellation workflow and pauses Dependabot configuration. All previous workflow YAMLs remain recoverable in the paused directory. GitHub showed zero queued runs; the one stale run-level badge had no running jobs. Do not interpret a stale run badge as proof of active compute.
