@@ -1,6 +1,6 @@
 import { authorizeOperatorWrite, authorizeExecutedBetWrite, unauthorizedBody } from "../lib/auth.js";
 import { evaluateActionSpendGuard } from "../lib/actionCostPolicy.js";
-import { hydrateCutoverApprovals } from "../lib/databaseTopology.js";
+import { hydrateCutoverApprovals, deployedSportDbMode } from "../lib/databaseTopology.js";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -183,6 +183,20 @@ export function retiredSportApiGate(request) {
     canAuthorizeWager: false, historicalEvidencePreserved: true }, 410);
 }
 
+// Legacy Tennis-specific Pages handlers still access PRIMARY directly (env.DB).
+// Until their owner-specific reads/writes are independently migrated and tested,
+// reject these handlers after an approved Tennis sport cutover instead of silently
+// serving an outdated PRIMARY snapshot. The guarded topology/rehearsal API is
+// intentionally outside this path so a failed cutover can be diagnosed/rolled back.
+export function tennisLegacyCutoverApiGate(request, env) {
+  const pathname = new URL(request.url).pathname;
+  if (!/^\\/api\\/tennis-/i.test(pathname) || deployedSportDbMode(env, "tennis") !== "sport")
+    return null;
+  return json({ ok: false, reason: "TENNIS_LEGACY_API_OWNER_NOT_MIGRATED",
+    sport: "tennis", binding: "UNAVAILABLE", stalePrimaryFallback: false,
+    cutoverAuthorized: false, canAuthorizeWager: false }, 503);
+}
+
 /**
  * API write-surface guard.
  *
@@ -198,6 +212,8 @@ export async function onRequest(context) {
   const method = String(request.method || "GET").toUpperCase();
   const retiredResponse = retiredSportApiGate(request);
   if (retiredResponse) return retiredResponse;
+  const tennisCutoverResponse = tennisLegacyCutoverApiGate(request, context.env);
+  if (tennisCutoverResponse) return tennisCutoverResponse;
 
   // Product database routing is synchronous, but CORE cutover approvals live
   // in D1. Load the grant into THIS request's env before any route executes.
