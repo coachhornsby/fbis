@@ -50,12 +50,12 @@ test("verified archive library selects full column set and checkpoint table", ()
 
 
 test("Q4B archive requests stay below the observed 300-second HTTP timeout without relaxing evidence gates", () => {
-  assert.match(q4bWorkflow, /ARCHIVE_MAX_ROUNDS:\\s*"12"/);
-  assert.match(q4bWorkflow, /ARCHIVE_LIMIT:\\s*"2000"/);
+  assert.match(q4bWorkflow, /ARCHIVE_MAX_ROUNDS:\s*"12"/);
+  assert.match(q4bWorkflow, /ARCHIVE_LIMIT:\s*"2000"/);
   assert.match(q4bWorkflow, /for i in 1 2 3/);
-  assert.match(q4bWorkflow, /VERIFY_READBACK:\\s*"true"/);
+  assert.match(q4bWorkflow, /VERIFY_READBACK:\s*"true"/);
   assert.match(q4bWorkflow, /columnCount==50/);
-  assert.match(q4bWorkflow, /retentionGate\\.authorized==false/);
+  assert.match(q4bWorkflow, /retentionGate\.authorized==false/);
   assert.match(q4bWorkflow, /NOT_PERFORMED/);
   assert.match(q4bWorkflow, /market-history-archive-late-arrivals/);
   assert.match(q4bWorkflow, /market-history-retention-rehearsal/);
