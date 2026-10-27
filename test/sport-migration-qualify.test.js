@@ -176,3 +176,20 @@ test("qualify workflow keeps deletion and cutover closed", () => {
   assert.match(wf, /gates\.prefixParity == true/);
   assert.match(wf, /gates\.syncLag == true/);
 });
+
+
+// Tennis must run a real (non-authorizing) rehearsal. An empty board is NOT
+// evidence that the database is qualified, even if shared-table counts agree.
+test("Tennis migration qualification executes rehearsal and stays closed on empty evidence", async () => {
+  const primary = memoryDb({ games: [], prediction_snapshots: [], published_projections: [] });
+  const tennis = memoryDb({ games: [], prediction_snapshots: [], published_projections: [] });
+  const q = await qualifySportMigration({
+    DB: primary, TENNIS_DB: tennis, SPORT_DB_MODE_TENNIS: "shadow",
+  }, "tennis", { runDeltaSync: false, runCutoverRehearsal: true, sampleSize: 5 });
+  assert.equal(q.activationPerformed, false);
+  assert.equal(q.cutoverAuthorized, false);
+  assert.equal(q.canAuthorizeWager, false);
+  assert.ok(q.cutoverRehearsal, "Tennis rehearsal cannot be silently omitted");
+  assert.equal(q.gates.cutoverRehearsal, false);
+  assert.equal(q.readyForCutoverReview, false);
+});
