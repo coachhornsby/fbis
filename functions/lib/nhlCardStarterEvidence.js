@@ -73,6 +73,13 @@ export function attachNhlCardStarterEvidence(games=[],profiles={},nowMs=Date.now
    return {
     ...evidence,
     name:player?.player_name||prior?.player_name||null,
+    // A historical name must carry the historical player's own identity,
+    // never the rejected projected player's ID or upcoming event binding.
+    playerId:prior?String(prior.player_id):evidence.playerId,
+    eventId:prior?null:evidence.eventId,
+    expectedStartProbability:prior?null:evidence.expectedStartProbability,
+    lineupMatched:prior?null:evidence.lineupMatched,
+    priorGameId:prior?.last_game_id||null,priorGameAt:prior?.last_game_at||null,
     state:known?evidence.state:prior?"PRIOR_GAME_STARTER_UNVERIFIED":evidence.state,
     priorGameStarter: Boolean(prior),team,cutoff,
     source:known?evidence.source:prior?"OFFICIAL_PERSISTED_LAST_STARTER":null,

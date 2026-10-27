@@ -35,3 +35,13 @@ test('hierarchy probability is not a sourced projected starter',()=>{
  const out=attachNhlCardStarterEvidence([game],p,nowMs).games[0].nhlStarterEvidence.home;
  assert.equal(out.state,'UNKNOWN');assert.equal(out.reason,'NO_SOURCED_STARTER_PROJECTION');
 });
+
+test('previous starter name retains its own ID and no upcoming event binding',()=>{
+ const p=profiles();p.goalies.la=[
+  {...p.goalies.la[0],goalie_state:'EXPECTED_G1',expected_start_probability:.68},
+  {player_id:'other',player_name:'Previous player',team_key:'la',goalie_state:'LAST_CONFIRMED_STARTER',source_updated_at:at,last_game_id:'previous-game',last_game_at:'2026-10-26T23:00Z'}];
+ const out=attachNhlCardStarterEvidence([game],p,nowMs).games[0].nhlStarterEvidence.home;
+ assert.equal(out.name,'Previous player');assert.equal(out.playerId,'other');
+ assert.equal(out.eventId,null);assert.equal(out.expectedStartProbability,null);
+ assert.equal(out.priorGameId,'previous-game');assert.equal(out.priorGameAt,'2026-10-26T23:00Z');
+});
