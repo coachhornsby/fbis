@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const script = readFileSync(join(root, "scripts/market-history-archive-ops.mjs"), "utf8");
-const workflow = readFileSync(join(root, ".github/workflows/market-history-archive-recurring.yml"), "utf8");
+const workflow = readFileSync(join(root, ".github/paused-workflows/market-history-archive-recurring.yml"), "utf8");
 const lib = readFileSync(join(root, "functions/lib/marketHistoryVerifiedArchive.js"), "utf8");
 
 test("archive ops script requires 50 columns and keeps deletion gated", () => {
@@ -20,17 +20,13 @@ test("archive ops script requires 50 columns and keeps deletion gated", () => {
   assert.doesNotMatch(script, /sourceRowsDeleted:\s*[1-9]/);
 });
 
-test("recurring archive workflow is high-throughput and checkpointed", () => {
-  assert.match(workflow, /ARCHIVE_LIMIT:\s*"2000"/);
-  assert.match(workflow, /ARCHIVE_MAX_ROUNDS:\s*"40"/);
-  assert.match(workflow, /ARCHIVE_CATCHUP_LOOPS:\s*"3"/);
-  assert.match(workflow, /ARCHIVE_ELIGIBILITY_MS:\s*"3600000"/);
-  assert.match(workflow, /columnCount==50/);
-  assert.match(workflow, /retentionGate\.authorized==false/);
-  assert.match(workflow, /NOT_PERFORMED/);
-  assert.match(workflow, /market-history-archive-late-arrivals/);
-  assert.match(workflow, /market-history-retention-rehearsal/);
-  assert.match(workflow, /2,7,12,17,22,27,32,37,42,47,52,57/);
+test("recurring archive is preserved but cannot run while frozen", () => {
+ assert.equal(existsSync(join(root,".github/workflows/market-history-archive-recurring.yml")),false);
+ assert.match(workflow,/market-history-archive-late-arrivals/);
+ assert.match(lib,/Math.min\(200,/);
+ assert.match(lib,/Math.min\(2,/);
+ assert.match(lib,/async function countBacklog\(\) \{ return null; \}/);
+ assert.match(lib,/LATE_ARRIVAL_REQUIRES_BOUNDED_REDESIGN/);
 });
 
 test("verified archive library selects full column set and checkpoint table", () => {

@@ -314,7 +314,7 @@ test("composite keyset copy does not skip two rows sharing the first primary-key
       if (sql.startsWith("PRAGMA")) return { all: async () => ({ results: columns }) };
       if (sql.includes("sqlite_master")) return { bind: () => ({ first: async () => exists ? { ok: 1 } : null }) };
       if (sql.startsWith("CREATE TABLE")) return { run: async () => { exists = true; return {}; } };
-      if (sql.startsWith("INSERT OR REPLACE")) return {
+      if (sql.startsWith("INSERT INTO")) return {
         bind(...args) {
           return {
             async run() {
@@ -499,7 +499,7 @@ test("NPB/KBO history copying filters PRIMARY by actual league, never cross-load
         run: async () => { sportExists = true; return {}; },
       };
       if (sql.startsWith("PRAGMA")) return { all: async () => ({ results: columns }) };
-      if (sql.startsWith("INSERT OR REPLACE")) return { bind(...args) {
+      if (sql.startsWith("INSERT INTO")) return { bind(...args) {
         return { async run() { copied.set(args[0], { id: args[0], league: args[1] }); return {}; } };
       } };
       throw new Error("Unexpected SQL " + sql);

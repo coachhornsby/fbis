@@ -1,3 +1,4 @@
+import {archivePageSql} from "./costSafeSql.js";
 /**
  * Verified market-history archival: full-row R2 put + SHA-256 manifest + readback.
  * Checkpointed and resumable — never re-archives the same cursor window.
@@ -312,22 +313,9 @@ async function writeCheckpoint(db, {
   ).run();
 }
 
-async function countBacklog(db, table, cutoff, cursorAt, cursorId) {
-  try {
-    const row = await db.prepare(
-      `SELECT COUNT(*) AS n FROM ${table}
-       WHERE collected_at < ?
-         AND (
-           collected_at > ?
-           OR (collected_at = ? AND id > ?)
-           OR (? = '' AND ? = '')
-         )`
-    ).bind(cutoff, cursorAt, cursorAt, cursorId, cursorAt, cursorId).first();
-    return Number(row?.n) || 0;
-  } catch {
-    return null;
-  }
-}
+// Exact backlog counts scanned millions of rows per scheduled invocation.
+// Unknown is deliberate: absence of an exact count must never authorize retention.
+async function countBacklog() { return null; }
 
 /**
  * Archive eligible cohorts with content-addressed batch body + manifest.
@@ -377,9 +365,9 @@ export async function archiveAndVerifyColdMarketHistory(env, {
 
   const part = partitions[0];
   const table = safeTableIdent("normalized_market_observations");
-  const pageSize = Math.min(2000, Math.max(1, Number(limit) || 1000));
-  // Catch-up capacity: up to 80 rounds × 2000 ≈ 160k rows per invocation.
-  const roundsN = Math.min(80, Math.max(1, Number(maxRounds) || 10));
+  const pageSize = Math.min(200, Math.max(1, Number(limit) || 200));
+  // Hard per-invocation ceiling: two pages of at most 200 rows.
+  const roundsN = Math.min(2, Math.max(1, Number(maxRounds) || 1));
   const columnSql = NORMALIZED_MARKET_OBSERVATION_COLUMNS.join(", ");
   const leaseOwner = `archive-${Date.now().toString(36)}`;
   let lease = { acquired: !archiveWrites, reason: archiveWrites ? null : "DRY_RUN_NO_LEASE" };
@@ -446,21 +434,9 @@ export async function archiveAndVerifyColdMarketHistory(env, {
     let rows = [];
     try {
       const page = await part.db.prepare(
-        `SELECT ${columnSql}
-         FROM ${table}
-         WHERE collected_at < ?
-           AND (
-             collected_at > ?
-             OR (collected_at = ? AND id > ?)
-             OR (? = '' AND ? = '')
-           )
-         ORDER BY collected_at ASC, id ASC
-         LIMIT ?`
+        archivePageSql(NORMALIZED_MARKET_OBSERVATION_COLUMNS)
       ).bind(
         eligibilityCutoff,
-        cursorAt,
-        cursorAt,
-        cursorId,
         cursorAt,
         cursorId,
         pageSize
@@ -757,59 +733,9 @@ export async function archiveAndVerifyColdMarketHistory(env, {
  * Rows created after the checkpoint advanced but whose collected_at is still
  * behind the monotonic cursor — must not be permanently skipped.
  */
-export async function countLateArrivalsBehindCursor(db, table, {
-  eligibilityCutoff,
-  cursorAt,
-  cursorId,
-  sinceCreatedAt,
-} = {}) {
-  if (!db?.prepare || !cursorAt) return { count: 0, sampleIds: [] };
-  try {
-    const countRow = await db.prepare(
-      `SELECT COUNT(*) AS n FROM ${table}
-       WHERE collected_at < ?
-         AND created_at > ?
-         AND NOT (
-           collected_at > ?
-           OR (collected_at = ? AND id > ?)
-           OR (? = '' AND ? = '')
-         )`
-    ).bind(
-      eligibilityCutoff,
-      sinceCreatedAt || "1970-01-01T00:00:00.000Z",
-      cursorAt,
-      cursorAt,
-      cursorId || "",
-      cursorAt,
-      cursorId || ""
-    ).first();
-    const sample = await db.prepare(
-      `SELECT id, collected_at, created_at FROM ${table}
-       WHERE collected_at < ?
-         AND created_at > ?
-         AND NOT (
-           collected_at > ?
-           OR (collected_at = ? AND id > ?)
-           OR (? = '' AND ? = '')
-         )
-       ORDER BY created_at ASC LIMIT 10`
-    ).bind(
-      eligibilityCutoff,
-      sinceCreatedAt || "1970-01-01T00:00:00.000Z",
-      cursorAt,
-      cursorAt,
-      cursorId || "",
-      cursorAt,
-      cursorId || ""
-    ).all();
-    return {
-      count: Number(countRow?.n) || 0,
-      sampleIds: (sample?.results || []).map((r) => r.id),
-      note: "Monotonic collected_at cursor cannot see these; use late-arrival catch-up pass",
-    };
-  } catch (error) {
-    return { count: null, error: String(error?.message || error).slice(0, 200), sampleIds: [] };
-  }
+export async function countLateArrivalsBehindCursor() {
+  return {count:null,sampleIds:[],status:"COST_DISABLED",complete:false,
+    note:"Late-arrival full scans are disabled. Unknown does not mean zero; retention stays closed."};
 }
 
 /**
@@ -823,146 +749,6 @@ export async function archiveLateArrivalsBehindCursor(env, {
   verifyReadback = false,
   eligibilityMs = ARCHIVE_ELIGIBILITY_MS_DEFAULT,
 } = {}) {
-  const result = await archiveAndVerifyColdMarketHistory(env, {
-    now,
-    limit,
-    maxRounds: 1,
-    partitionBinding,
-    archiveWrites: false,
-    verifyReadback: false,
-    eligibilityMs,
-    resume: true,
-  });
-  // Reuse diagnostics; dedicated late-arrival writes go through a side key.
-  const partitions = listMarketHistoryReadDbs(env).filter((p) =>
-    !partitionBinding || p.binding === partitionBinding
-  );
-  if (!partitions.length) {
-    return { ...result, ok: false, reason: "MARKET_HISTORY_UNBOUND", lateArchived: 0 };
-  }
-  const part = partitions[0];
-  const table = safeTableIdent("normalized_market_observations");
-  const eligibilityCutoff = archiveEligibilityCutoff(now, eligibilityMs);
-  const cp = await readCheckpoint(part.db);
-  const late = await countLateArrivalsBehindCursor(part.db, table, {
-    eligibilityCutoff,
-    cursorAt: cp.lastCollectedAt,
-    cursorId: cp.lastId,
-    sinceCreatedAt: cp.lastBatchAt || "1970-01-01T00:00:00.000Z",
-  });
-  if (!late.count) {
-    return {
-      ok: true,
-      lateArchived: 0,
-      lateArrivalsBehindCursor: late,
-      deletion: "NOT_PERFORMED_REQUIRES_RETENTION_GATE",
-      canAuthorizeWager: false,
-      dryRun: !archiveWrites,
-    };
-  }
-
-  const columnSql = NORMALIZED_MARKET_OBSERVATION_COLUMNS.join(", ");
-  const page = await part.db.prepare(
-    `SELECT ${columnSql} FROM ${table}
-     WHERE collected_at < ?
-       AND created_at > ?
-       AND NOT (
-         collected_at > ?
-         OR (collected_at = ? AND id > ?)
-         OR (? = '' AND ? = '')
-       )
-     ORDER BY created_at ASC, id ASC
-     LIMIT ?`
-  ).bind(
-    eligibilityCutoff,
-    cp.lastBatchAt || "1970-01-01T00:00:00.000Z",
-    cp.lastCollectedAt,
-    cp.lastCollectedAt,
-    cp.lastId,
-    cp.lastCollectedAt,
-    cp.lastId,
-    Math.min(2000, Math.max(1, Number(limit) || 500))
-  ).all();
-  const rows = page?.results || [];
-  if (!rows.length) {
-    return {
-      ok: true,
-      lateArchived: 0,
-      lateArrivalsBehindCursor: late,
-      deletion: "NOT_PERFORMED_REQUIRES_RETENTION_GATE",
-      canAuthorizeWager: false,
-    };
-  }
-
-  const observations = rows.map((row) => projectObservationForArchive(row));
-  const partitionKey = part.partition?.key || part.binding;
-  const archivedAt = now instanceof Date ? now.toISOString() : String(now);
-  const batchId = `late_${observations[0].id}_${observations.length}`;
-  const body = {
-    schemaVersion: 3,
-    contract: VERIFIED_ARCHIVE_CONTRACT,
-    archiveKind: "market_history_late_arrival_batch",
-    partition: partitionKey,
-    binding: part.binding,
-    archivedAt,
-    columnCount: NORMALIZED_MARKET_OBSERVATION_COLUMNS.length,
-    columns: NORMALIZED_MARKET_OBSERVATION_COLUMNS.slice(),
-    rowCount: observations.length,
-    observations,
-    primaryCursorUnchanged: {
-      lastCollectedAt: cp.lastCollectedAt,
-      lastId: cp.lastId,
-    },
-    sourceAuthorityPreserved: true,
-    canAuthorizeWager: false,
-  };
-  const bodyText = JSON.stringify(body);
-  const contentSha256 = sha256Hex(bodyText);
-  const objectKey = verifiedArchiveBatchKey({ partitionKey, batchId });
-  const manifestKey = verifiedArchiveManifestKey({ partitionKey, batchId });
-  let putOk = !archiveWrites;
-  let readbackVerified = !archiveWrites;
-  if (archiveWrites) {
-    if (!r2Bound(env)) {
-      return { ok: false, reason: "ARCHIVE_R2_UNBOUND", lateArchived: 0, canAuthorizeWager: false };
-    }
-    const put = await putArchive(env, objectKey, bodyText);
-    const putMan = await putArchive(env, manifestKey, {
-      contract: VERIFIED_ARCHIVE_CONTRACT,
-      objectKey,
-      contentSha256,
-      rowCount: observations.length,
-      columnCount: NORMALIZED_MARKET_OBSERVATION_COLUMNS.length,
-      lateArrival: true,
-      primaryCursorUnchanged: body.primaryCursorUnchanged,
-      retentionReleaseAuthorized: false,
-      sourceRowsDeleted: 0,
-      canAuthorizeWager: false,
-    });
-    putOk = Boolean(put.ok && putMan.ok);
-    if (putOk && verifyReadback && env.ARCHIVE?.get) {
-      try {
-        const obj = await env.ARCHIVE.get(objectKey);
-        const text = obj && typeof obj.text === "function" ? await obj.text() : null;
-        readbackVerified = text != null && sha256Hex(text) === contentSha256;
-      } catch {
-        readbackVerified = false;
-      }
-    }
-  }
-  const restore = verifyFullRecordRestore(rows[0], observations[0]);
-  return {
-    ok: putOk && (!archiveWrites || !verifyReadback || readbackVerified) && restore.ok,
-    dryRun: !archiveWrites,
-    lateArchived: observations.length,
-    lateArrivalsBehindCursor: late,
-    objectKey,
-    contentSha256,
-    readbackVerified: archiveWrites && verifyReadback ? readbackVerified : null,
-    fullColumnRestore: restore,
-    primaryCursorUnchanged: body.primaryCursorUnchanged,
-    sourceAuthorityPreserved: true,
-    deletion: "NOT_PERFORMED_REQUIRES_RETENTION_GATE",
-    canAuthorizeWager: false,
-  };
+  return {ok:false,status:"COST_DISABLED",reason:"LATE_ARRIVAL_REQUIRES_BOUNDED_REDESIGN",
+    lateArchived:0,canAuthorizeWager:false,deletion:"NOT_PERFORMED_REQUIRES_RETENTION_GATE"};
 }

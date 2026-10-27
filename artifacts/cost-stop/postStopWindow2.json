@@ -1,0 +1,1 @@
+{"content":[{"type":"text","text":"{\n  \"success\": true,\n  \"status\": 200,\n  \"result\": {\n    \"viewer\": {\n      \"accounts\": [\n        {\n          \"d1AnalyticsAdaptiveGroups\": []\n        }\n      ]\n    }\n  },\n  \"errors\": [],\n  \"messages\": []\n}"}],"structuredContent":null,"isError":false}

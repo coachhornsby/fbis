@@ -1,0 +1,35 @@
+node:fs:483
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '/workspace/scratch/f58a0a1dd20e/fbis-cost-stop/.github/workflows/market-history-archive-recurring.yml'
+    at readFileSync (node:fs:483:20)
+    at file:///workspace/scratch/f58a0a1dd20e/fbis-cost-stop/test/market-history-archive-ops.test.js:9:18
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/workspace/scratch/f58a0a1dd20e/fbis-cost-stop/.github/workflows/market-history-archive-recurring.yml'
+}
+
+Node.js v24.22.1
+✖ test/market-history-archive-ops.test.js (78.673133ms)
+✔ archive key namespaces by partition day and observation id (0.770941ms)
+✔ archive scan dry-runs cold rows and never deletes (1.02313ms)
+✔ archive scan reports unbound history without inventing writes (0.173551ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 95.674142
+
+✖ failing tests:
+
+test at test/market-history-archive-ops.test.js:1:1
+✖ test/market-history-archive-ops.test.js (78.673133ms)
+  'test failed'

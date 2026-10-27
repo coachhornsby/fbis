@@ -1,0 +1,11 @@
+{
+  "state": "PAUSED",
+  "automaticRestart": false,
+  "approvedLiveJobs": [],
+  "archiveMaxRowsPerInvocation": 400,
+  "lateArrivalScans": "DISABLED",
+  "exactScheduledBacklogCounts": "DISABLED",
+  "historicalMigrationSchedules": "DISABLED",
+  "indexBuildsApplied": false,
+  "restartRequires": ["Bryan approval", "defined monthly dollar ceiling", "shared atomic job admission budget", "measured query plans and row ceilings", "cached board snapshots", "no direct public D1 access", "tested cutoff under concurrency and retries"]
+}

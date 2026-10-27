@@ -1,0 +1,45 @@
+✔ working-set prediction replay uses bounded D1 atomic batches and idempotent keys (14.185118ms)
+✔ late prediction IDs below the saved high-water mark force a bounded replay (0.176155ms)
+✔ NFL migration scope lists prefix tables and defers player props (0.906985ms)
+✖ all 11 sports are sync-eligible with no prop tables in prefix sets (0.707494ms)
+✔ composite primary-key cursor resumes within repeated first-key groups (0.470378ms)
+✔ composite keyset copy does not skip two rows sharing the first primary-key column (1.732097ms)
+✔ ensureMirroredSportTable creates destination schema from PRIMARY pragma (0.656769ms)
+✔ ensureMirroredSportTable additively heals missing sport-side columns (0.196826ms)
+✔ copyPrefixedTablePaged mirrors rows idempotently (7.47527ms)
+✔ large prefix backfill makes forward progress instead of replaying the first page forever (3.065904ms)
+✔ Cloudflare D1 atomic batch path copies large prefix pages in groups of forty (2.415956ms)
+✔ NPB/KBO history copying filters PRIMARY by actual league, never cross-loads (1.8339ms)
+✔ verifySportPrefixParity distinguishes complete vs incomplete research copy (1.256621ms)
+✔ copySportPrefixTables skipCaughtUp focuses budget on incomplete tables (0.366411ms)
+✔ syncSportWorkingDelta refuses while sport mode is active (0.317428ms)
+✔ Tennis player freshness triggers shadow replay despite equal row counts (0.400904ms)
+✔ Tennis official settlement freshness triggers replay without new match rows (0.299431ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 16
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 131.987798
+
+✖ failing tests:
+
+test at test/sport-prefix-delta-sync.test.js:242:1
+✖ all 11 sports are sync-eligible with no prop tables in prefix sets (0.707494ms)
+  AssertionError [ERR_ASSERTION]: nba
+      at TestContext.<anonymous> (file:///workspace/scratch/f58a0a1dd20e/fbis-cost-stop/test/sport-prefix-delta-sync.test.js:249:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

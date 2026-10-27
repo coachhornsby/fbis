@@ -1,3 +1,4 @@
+import {changedOnlyUpsertSql} from "./costSafeSql.js";
 import { CBB_SHARED_TABLES, copyCbbExactPage } from "./cbbExactMigration.js";
 /**
  * Generic sport working-set copy + shadow validation.
@@ -1056,9 +1057,8 @@ export async function copyPrefixedTablePaged(primary, sportDb, tableName, {
     if (!rows.length) break;
     const colList = cols.join(",");
     const placeholders = cols.map(() => "?").join(",");
-    const insertSql = hasPrimaryKey
-      ? `INSERT OR REPLACE INTO ${table} (${colList}) VALUES (${placeholders})`
-      : `INSERT OR REPLACE INTO ${table} (rowid,${colList}) VALUES (?,${placeholders})`;
+    // A replay must not rewrite every unchanged row (and its indexes).
+    const insertSql = changedOnlyUpsertSql(table,cols,hasPrimaryKey ? keyNames : ["rowid"],{rowid:!hasPrimaryKey});
     const statement = sportDb.prepare(insertSql);
     const bound = rows.map(row => {
       const values = cols.map(c => row[c] ?? null);

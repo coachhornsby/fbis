@@ -1,0 +1,27 @@
+{"archivePlan": [[4, 0, 156, "SEARCH normalized_market_observations USING COVERING INDEX idx_market_archive_cursor ((collected_at,id)>(?,?) AND collected_at<?)"]], "archiveVmSteps": 164, "fixtureRows": 100000, "unchangedReplays": 1000, "unchangedWrites": 0, "changedUpdatesPreserved": true, "compositeAndRowid": true}
+✔ SQLite seeks archive cursor; missing index blocks execution; replay writes only changed records (253.743093ms)
+✔ SQL identifiers reject injection (0.360763ms)
+✔ maintenance blocks every method and never calls downstream or bindings (4.607898ms)
+✔ scheduled work and worker HTTP remain inert (0.741146ms)
+✔ durable session clears alarm without deleting stored evidence (0.452842ms)
+✔ archive ops script requires 50 columns and keeps deletion gated (1.130562ms)
+✔ recurring archive is preserved but cannot run while frozen (0.374173ms)
+✔ verified archive library selects full column set and checkpoint table (0.257227ms)
+✔ archive key namespaces by partition day and observation id (1.143011ms)
+✔ archive scan dry-runs cold rows and never deletes (1.520059ms)
+✔ archive scan reports unbound history without inventing writes (0.210066ms)
+✔ schema exports exactly 50 observation columns (1.035859ms)
+✔ full-record restore proves every column including audit fields (0.570499ms)
+✔ verified archive dry-run never deletes, checkpoints, and preserves all columns (12.494261ms)
+✔ checkpoint resume skips already-archived rows (0.693605ms)
+✔ archive lease blocks concurrent writers then releases (0.481855ms)
+✔ late-arrival scans fail closed without touching storage (0.170146ms)
+✔ idle archive run re-reads checkpoint R2 bytes and restores a D1 sample; missing or corrupt evidence fails (5.445458ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 356.467815

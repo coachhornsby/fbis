@@ -347,70 +347,13 @@ test("archive lease blocks concurrent writers then releases", async () => {
   assert.equal(third.acquired, true);
 });
 
-test("late-arrival pass reports behind-cursor rows without moving primary cursor", async () => {
-  const now = new Date("2026-10-20T12:00:00Z");
-  const coldAt = new Date(now.getTime() - ARCHIVE_ELIGIBILITY_MS_DEFAULT - 3600000).toISOString();
-  const env = {
-    MARKET_HISTORY_2026Q4_DB: {
-      prepare(sql) {
-        const s = String(sql);
-        if (s.includes("CREATE TABLE")) return { async run() { return { success: true }; } };
-        if (s.includes("FROM fbis_market_history_archive_checkpoint")) {
-          return {
-            bind(key) {
-              return {
-                async first() {
-                  if (String(key).includes("lease")) return null;
-                  return {
-                    last_collected_at: coldAt,
-                    last_id: "cursor-9",
-                    archived_total: 9,
-                    last_batch_at: coldAt,
-                    last_object_key: "k",
-                    last_content_sha256: "x",
-                  };
-                },
-              };
-            },
-          };
-        }
-        if (s.includes("COUNT(*)")) {
-          return { bind() { return { async first() { return { n: 1 }; } }; } };
-        }
-        if (s.includes("FROM normalized_market_observations")) {
-          return {
-            bind() {
-              return {
-                async all() {
-                  return {
-                    results: [
-                      fullRow({
-                        id: "late-1",
-                        collected_at: coldAt,
-                        created_at: new Date(now.getTime() - 60000).toISOString(),
-                      }),
-                    ],
-                  };
-                },
-                async first() { return { n: 1 }; },
-              };
-            },
-          };
-        }
-        return { bind() { return { async first() { return null; }, async all() { return { results: [] }; }, async run() { return { success: true }; } }; } };
-      },
-    },
-    ARCHIVE: { async put() {}, async get() { return null; } },
-  };
-  const result = await archiveLateArrivalsBehindCursor(env, {
-    now,
-    archiveWrites: false,
-    limit: 10,
-  });
-  assert.equal(result.ok, true);
-  assert.equal(result.lateArrival === true || result.contract?.includes("archive") || true, true);
-  assert.equal(result.deletion?.includes("NOT_PERFORMED") || result.deletion == null || true, true);
-  assert.equal(result.canAuthorizeWager, false);
+test("late-arrival scans fail closed without touching storage", async () => {
+ const env = new Proxy({}, {get(){throw Error("storage accessed");}});
+ const result = await archiveLateArrivalsBehindCursor(env,{archiveWrites:true});
+ assert.equal(result.ok,false);
+ assert.equal(result.status,"COST_DISABLED");
+ assert.equal(result.lateArchived,0);
+ assert.equal(result.canAuthorizeWager,false);
 });
 
 test('idle archive run re-reads checkpoint R2 bytes and restores a D1 sample; missing or corrupt evidence fails', async () => {
