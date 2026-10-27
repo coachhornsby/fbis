@@ -112,7 +112,7 @@ export default function DecisionBoard({ games = [], renderDetail }) {
             {g.tennisProjection?.researchFixture&&!ranked[index-1]?.tennisProjection?.researchFixture?<div className="tmc-research-separator" role="note">Additional Tennis fixtures</div>:null}
             <div role="listitem" className={isTennis ? "db-grid-item db-grid-item-tennis" : "db-grid-item"}>
               {isTennis
-                ? <PremiumGameCard game={g} />
+                ? <PremiumGameCard game={g} onToggle={() => setSelected(g)} />
                 : <CompactGameCard game={g} onOpen={setSelected} />}
             </div>
             </Fragment>
