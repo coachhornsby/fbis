@@ -29,6 +29,7 @@ jobs:
       - name: Verify immutable full-row archive and closed retention gates
         run: |
           node --test test/market-history-verified-archive.test.js
+          node --test test/market-history-archive-ops.test.js
           node --test test/market-history-retention-rehearsal.test.js
       - name: Prove live production Q4B binding and archive contract (dry-run)
         env:
@@ -58,7 +59,7 @@ jobs:
           VERIFY_READBACK: "true"
           ARCHIVE_PARTITION: MARKET_HISTORY_2026Q4B_DB
           ARCHIVE_LIMIT: "2000"
-          ARCHIVE_MAX_ROUNDS: "40"
+          ARCHIVE_MAX_ROUNDS: "12"
           ARCHIVE_ELIGIBILITY_MS: "3600000"
         run: |
           set -euo pipefail
