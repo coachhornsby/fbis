@@ -36,7 +36,7 @@ export function evaluateMarketHeartbeat({pinnodds, polymarket, stream, now = Dat
   if (stream?.ok === true && !operational && !socketIdle) addFail("POLYMARKET_WEBSOCKET_NOT_OPERATIONAL");
   if (polymarket?.ok === true && operational && polymarket.signedMarketWebsocket?.operational !== true) addWarn("POLYMARKET_STATUS_DISAGREES_WITH_STREAM");
   const persistedWsAgeMinutes = ageMinutes(polymarket?.signedMarketWebsocket?.lastBboCapture, now);
-  if (operational && !recent(persistedWsAgeMinutes, 60)) addWarn("POLYMARKET_WEBSOCKET_NO_BBO_PERSISTED_60M");
+  if (polymarket?.ok === true && operational && !recent(persistedWsAgeMinutes, 60)) addWarn("POLYMARKET_WEBSOCKET_NO_BBO_PERSISTED_60M");
   return {
     ok: failures.length === 0, failures, warnings,
     checkedAt: new Date(now).toISOString(), readOnly: true, paidProviderCalls: 0,
