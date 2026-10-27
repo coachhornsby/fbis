@@ -236,7 +236,7 @@ export async function qualifySportMigration(env, sport, {
   const health = await buildSportSyncHealth(env, key, { now });
 
   let cutover = null;
-  if (runCutoverRehearsal && ["nfl", "cfb", "nhl", "nba", "cbb"].includes(key)) {
+  if (runCutoverRehearsal && ["nfl", "cfb", "nhl", "nba", "cbb", "tennis"].includes(key)) {
     // Happy-path rehearsal first: proves consumers/writes/model preservation/rollback
     // with an in-process receipt (never mutates live SPORT_DB_MODE_*).
     cutover = await rehearseSportCutover(env, key, {
