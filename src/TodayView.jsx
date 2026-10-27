@@ -1,3 +1,7 @@
+import useApprovedBoardPortraits from "./features/boardControls/useApprovedBoardPortraits.js";
+import BoardControlBar from "./features/boardControls/BoardControlBar.jsx";
+import {filterTennisTour,boardSportCounts} from "./lib/tennisTourView.js";
+import "./features/boardControls/boardControls.css";
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { fmtAmerican, fmtNum, fmtPct } from "./lib/format.js";
 import { propWatchEmptyCopy, todayFeedNote } from "../functions/lib/propConviction.js";
@@ -43,14 +47,22 @@ export default function TodayView({
   onRetry,
   onImport,
 }) {
-  const groups = board?.groups || [];
+  const groups = useApprovedBoardPortraits(board?.groups || []);
   const health = board?.health || {};
   const counts = board?.counts || {};
   const empty = board?.empty;
   const coverage = board?.coverage || null;
+  const [tourFilter,setTourFilter]=useState(()=>typeof window!=='undefined'&&['atp','wta'].includes(new URL(window.location.href).searchParams.get('tour'))?new URL(window.location.href).searchParams.get('tour'):'all');
+  const activeTour=sportFilter==='tennis'?tourFilter:'all';
+  const navCounts=boardSportCounts(groups);
+  const selectSport=(id)=>{
+    const tour=['atp','wta'].includes(id)?id:'all';setTourFilter(tour);
+    if(typeof window!=='undefined'){const url=new URL(window.location.href);if(tour==='all')url.searchParams.delete('tour');else url.searchParams.set('tour',tour);window.history.replaceState({},'',url);}
+    onSportFilter(tour==='all'?id:'tennis');
+  };
   const shown = (groups || []).map((g) => ({
     ...g,
-    games: filterRows(g.games || [], sportFilter, bucket),
+    games: filterTennisTour(filterRows(g.games || [], sportFilter, bucket),activeTour),
   })).filter((g) => (sportFilter === "all" || g.sport === sportFilter) && (g.games.length || g.error));
   const unavailable = Boolean(error && !board);
   const d = (v, fallback = "—") => valueOrUnavailable(unavailable, v, fallback);
@@ -92,53 +104,11 @@ export default function TodayView({
     <div className="main-content today-board">
       {error && <div className="panel"><div className="error">{error}</div></div>}
 
-      <section className="panel panel-board panel-board-controls">
-        <div className="panel-header">
-          <h2>BOARD · {date} CT</h2>
-          <span className="last-updated">
-            {loading ? "Loading…" : `${badgeLabel(state || health?.state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${counts.games ?? 0} games`}`}
-          </span>
-        </div>
-        <div className="panel-body">
-          <div className="today-controls">
-            <button className="header-btn" onClick={() => onDate(shift(date, -1))} aria-label="Previous day">← Prev</button>
-            <input type="date" value={date} onChange={(e) => onDate(e.target.value)} />
-            <button className="header-btn" onClick={() => onDate(shift(date, 1))} aria-label="Next day">Next →</button>
-            <button className="header-btn" onClick={() => onDate(todayCT())}>Today</button>
-            {onImport && (
-              <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT BET SLIP</button>
-            )}
-            <button className="header-btn" onClick={copyChatGptReview} disabled={loading || !shown.some((g) => g.games.length)}>COPY CHATGPT REVIEW</button>
-            {onRetry && <button className="header-btn" onClick={() => onRetry?.()} disabled={loading}>{loading ? "Retrying…" : "Retry"}</button>}
-          </div>
-          {counts.durableFallbackGames>0 ? (
-            <p className="muted" role="status">
-              Showing {counts.durableFallbackGames} stored matchup cards from durable pregame snapshots.
-              Live scores, current prices and wager qualification are unavailable on those cards.
-              Select a sport for its richer verified feed when available.
-            </p>
-          ) : null}
-          <p className="muted" style={{ marginTop: 8 }}>
-            {chatCopyStatus ? `${chatCopyStatus} ` : ""}
-            {attemptAt ? `Current attempt ${fmtTs(attemptAt)}. ` : ""}
-            Showing matchups for this date and sport. {lastSuccessAt ? `Last successful load ${fmtTs(lastSuccessAt)}.` : "No successful load yet."}
-            {stale ? " Showing last-known-good snapshot (stale)." : ""}
-          </p>
-          <div className="filter-row" style={{ marginTop: 10 }}>
-            <button className={sportFilter === "all" ? "chip active" : "chip"} onClick={() => onSportFilter("all")}>All sports</button>
-            {BOARD_SPORTS.map((id) => (
-              <button key={id} className={sportFilter === id ? "chip active" : "chip"} onClick={() => onSportFilter(id)}>
-                {SPORTS[id].label} {counts.bySport?.[id] != null ? `(${counts.bySport[id]})` : ""}
-              </button>
-            ))}
-          </div>
-          <div className="filter-row">
-            {FILTERS.map(([id, label]) => (
-              <button key={id} className={bucket === id ? "chip active" : "chip"} onClick={() => onBucket(id)}>{label}</button>
-            ))}
-          </div>
-          <details className="today-ops-details">
-            <summary>Pipeline / data health (operator)</summary>
+      <BoardControlBar date={date} onDate={onDate} onToday={()=>onDate(todayCT())} onShift={delta=>onDate(shift(date,delta))}
+        selected={activeTour!=='all'?activeTour:sportFilter} onSelect={selectSport} counts={navCounts}
+        bucket={bucket} onBucket={onBucket} loading={loading} stale={stale} error={error}
+        lastSuccessAt={lastSuccessAt} onRefresh={onRetry} onImport={onImport} onCopy={copyChatGptReview}
+        canCopy={!loading&&shown.some(g=>g.games.length)} copyStatus={chatCopyStatus}>
           <div className="status-grid" style={{ marginTop: 10 }}>
             <Stat label="Last collect" value={d(fmtTs(health.lastCollect))} />
             <Stat label="Last harvest" value={d(fmtTs(health.lastHarvest))} />
@@ -179,12 +149,10 @@ export default function TodayView({
             {todayFeedNote(health, counts.mlbPropWatch)}
           </p>
           <PopulationDescriptor descriptor={board?.population?.board} title="Board population descriptor" />
-          </details>
-        </div>
-      </section>
+      </BoardControlBar>
 
       <TodayCommandCenter
-        board={board}
+        board={{...board,games:shown.flatMap(g=>g.games),groups:shown}}
         sportFilter={sportFilter}
         onSportFilter={onSportFilter}
         date={date}
@@ -225,7 +193,7 @@ export default function TodayView({
 
       <section className="panel panel-board">
         <div className="panel-header">
-          <h2>{sportFilter === "all" ? "ALL SPORTS" : String(SPORTS[sportFilter]?.label || sportFilter).toUpperCase()} · {shown.reduce((n, group) => n + group.games.length, 0)}</h2>
+          <h2>{activeTour!=="all"?activeTour.toUpperCase():sportFilter === "all" ? "ALL SPORTS" : String(SPORTS[sportFilter]?.label || sportFilter).toUpperCase()} · {shown.reduce((n, group) => n + group.games.length, 0)}</h2>
           <span className="last-updated">Ranked by FBIS confidence</span>
         </div>
         <div className="panel-body" style={{ padding: 0 }}>

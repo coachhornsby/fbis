@@ -1,0 +1,381 @@
+{
+  "checkedAt": "2026-10-27",
+  "investigatedPlayers": 204,
+  "byTour": {
+    "atp": 104,
+    "wta": 100
+  },
+  "headshotDesignated": 45,
+  "photographsVisuallyInspected": 4,
+  "inspectedDimensions": "400x400 PNG",
+  "newPolymarketImagesApproved": 0,
+  "newPolymarketImagesDisplayed": 0,
+  "source": "https://gateway.polymarket.us/v1/sports/teams",
+  "playersEndpointKeeganSample": {
+    "url": "https://gateway.polymarket.us/v1/sports/players?limit=20&filters.name=Keegan%20Smith",
+    "players": 0
+  },
+  "keyFinding": "logo can be a flag while longIconDark/shortIconDark points to a headshot",
+  "candidates": [
+    {
+      "providerId": "3261",
+      "tour": "atp",
+      "name": "Federico Bondioli",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/3261.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5600",
+      "tour": "atp",
+      "name": "Bernabe Zapata Miralles",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/5600.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "11278",
+      "tour": "atp",
+      "name": "Thomas Fancutt",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/11278.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5249",
+      "tour": "atp",
+      "name": "Jason Jung",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/5249.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "22816",
+      "tour": "atp",
+      "name": "Koray Kirci",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/22816.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "4632",
+      "tour": "atp",
+      "name": "Hugo Gaston",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/4632.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "3252",
+      "tour": "atp",
+      "name": "Justin Engel",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/3252.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "4853",
+      "tour": "atp",
+      "name": "Philip Sekulic",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/4853.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5586",
+      "tour": "atp",
+      "name": "Renzo Olivo",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/5586.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "4753",
+      "tour": "atp",
+      "name": "Corentin Denolly",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/4753.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "3250",
+      "tour": "atp",
+      "name": "Gilles Arnaud Bailly",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/3250.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "3084",
+      "tour": "atp",
+      "name": "Roberto Bautista Agut",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/3084.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "3262",
+      "tour": "atp",
+      "name": "Adrian Oetzbach",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/3262.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "4874",
+      "tour": "atp",
+      "name": "Bruno Kuzuhara",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/4874.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "3316",
+      "tour": "atp",
+      "name": "Beibit Zhukayev",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/3316.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "4788",
+      "tour": "atp",
+      "name": "Romain Arneodo",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/4788.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "4787",
+      "tour": "atp",
+      "name": "Hugo Nys",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/4787.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "4790",
+      "tour": "atp",
+      "name": "David Goffin",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/4790.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "3052",
+      "tour": "atp",
+      "name": "Christopher O'Connell",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/3052.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "3318",
+      "tour": "atp",
+      "name": "Andres Martin",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/3318.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "4635",
+      "tour": "atp",
+      "name": "Joel Schwaerzler",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/4635.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5869",
+      "tour": "wta",
+      "name": "Oliver Crawford",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5869.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5881",
+      "tour": "wta",
+      "name": "Alvaro Guillen Meza",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5881.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5883",
+      "tour": "wta",
+      "name": "Henrique Rocha",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5883.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5887",
+      "tour": "wta",
+      "name": "Borna Gojo",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5887.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5889",
+      "tour": "wta",
+      "name": "Sascha Gueymard-Wayenburg",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5889.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5893",
+      "tour": "wta",
+      "name": "Dan Added",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5893.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5897",
+      "tour": "wta",
+      "name": "Dusan Lajovic",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5897.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5901",
+      "tour": "wta",
+      "name": "Kaichi Uchida",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5901.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5905",
+      "tour": "wta",
+      "name": "Leandro Riedi",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5905.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5906",
+      "tour": "wta",
+      "name": "Nicolai Budkov Kjaer",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5906.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5907",
+      "tour": "wta",
+      "name": "Gilles Arnaud Bailly",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5907.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5908",
+      "tour": "wta",
+      "name": "Jerome Kym",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5908.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5911",
+      "tour": "wta",
+      "name": "Clement Chidekh",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5911.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5920",
+      "tour": "wta",
+      "name": "Harold Mayot",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5920.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5909",
+      "tour": "wta",
+      "name": "Tom Gentzsch",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5909.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5915",
+      "tour": "wta",
+      "name": "Kimmer Coppejans",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5915.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5877",
+      "tour": "wta",
+      "name": "Kyrian Jacquet",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5877.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "7092",
+      "tour": "wta",
+      "name": "Casper Ruud",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/7092.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5722",
+      "tour": "wta",
+      "name": "Liam Draxl",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5722.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "5740",
+      "tour": "wta",
+      "name": "Stefanos Sakellaridis",
+      "url": "https://static.polymarket.us/images/teams/tennis/wta/5740.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "4583",
+      "tour": "atp",
+      "name": "Daniel Galan",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/4583.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "3401",
+      "tour": "atp",
+      "name": "Juan Carlos Prado",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/3401.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "3229",
+      "tour": "atp",
+      "name": "Yu-Hsiou Hsu",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/3229.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    },
+    {
+      "providerId": "3206",
+      "tour": "atp",
+      "name": "Keegan Smith",
+      "url": "https://static.polymarket.us/images/teams/tennis/atp/3206.png",
+      "publicDisplayAllowed": false,
+      "reason": "PUBLIC_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED"
+    }
+  ]
+}
