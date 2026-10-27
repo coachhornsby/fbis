@@ -15,3 +15,4 @@
 @media(max-width:700px){.bc-date button,.bc-date button:first-child,.bc-date button:nth-child(3){min-width:44px;height:44px}.bc-date input{width:116px;max-width:116px}.bc-filters button{min-height:44px}.bc-refresh{min-height:44px}}
 .fbis-board-controls .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap}
 @media(max-width:700px){.db-summary .db-sum-tiles{display:flex;flex-flow:row nowrap;gap:6px;overflow-x:auto;max-width:100%;padding:4px}.db-summary .db-sum-tile{flex:0 0 68px;min-width:68px;padding:6px 4px}.db-summary .db-sum-tile strong{font-size:18px}.db-summary .db-sum-tile span{font-size:8px}}
+@media(min-width:701px){.fbis-shell-header.route-board{flex-wrap:wrap!important;max-width:100%;box-sizing:border-box}.fbis-shell-header.route-board .shell-nav-desktop{min-width:0;max-width:100%;overflow-x:auto;flex:1 1 600px}.fbis-shell-header.route-board .header-actions{margin-left:auto}}
