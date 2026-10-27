@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const script = readFileSync(join(root, "scripts/market-history-archive-ops.mjs"), "utf8");
 const workflow = readFileSync(join(root, ".github/workflows/market-history-archive-recurring.yml"), "utf8");
+const q4bWorkflow = readFileSync(join(root, ".github/workflows/market-history-q4b-archive.yml"), "utf8");
 const lib = readFileSync(join(root, "functions/lib/marketHistoryVerifiedArchive.js"), "utf8");
 
 test("archive ops script requires 50 columns and keeps deletion gated", () => {
@@ -45,4 +46,17 @@ test("verified archive library selects full column set and checkpoint table", ()
   assert.match(lib, /tryAcquireArchiveLease/);
   assert.match(lib, /ARCHIVE_LATE_ARRIVAL_KEY/);
   assert.match(lib, /sourceAuthorityPreserved:\s*true/);
+});
+
+
+test("Q4B archive requests stay below the observed 300-second HTTP timeout without relaxing evidence gates", () => {
+  assert.match(q4bWorkflow, /ARCHIVE_MAX_ROUNDS:\\s*"12"/);
+  assert.match(q4bWorkflow, /ARCHIVE_LIMIT:\\s*"2000"/);
+  assert.match(q4bWorkflow, /for i in 1 2 3/);
+  assert.match(q4bWorkflow, /VERIFY_READBACK:\\s*"true"/);
+  assert.match(q4bWorkflow, /columnCount==50/);
+  assert.match(q4bWorkflow, /retentionGate\\.authorized==false/);
+  assert.match(q4bWorkflow, /NOT_PERFORMED/);
+  assert.match(q4bWorkflow, /market-history-archive-late-arrivals/);
+  assert.match(q4bWorkflow, /market-history-retention-rehearsal/);
 });
