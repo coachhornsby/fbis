@@ -376,7 +376,9 @@ export function readApprovedCutoverReceiptSync(env, sport, receiptId, { now = ne
   if (["cbb", "tennis"].includes(sportKey) && (cached.revoked_at
       || (cached.sport != null && cached.sport !== sportKey)
       || (cached.receipt_id != null && cached.receipt_id !== receipt)))
-    return {ok:false,reason:"SPORT_CUTOVER_APPROVAL_IDENTITY_OR_REVOCATION_INVALID"};
+    return {ok:false,reason:sportKey === "cbb"
+      ? "CBB_CUTOVER_APPROVAL_IDENTITY_OR_REVOCATION_INVALID"
+      : "TENNIS_CUTOVER_APPROVAL_IDENTITY_OR_REVOCATION_INVALID"};
   const status = String(cached.status || "").toUpperCase();
   if (status === "REVOKED" || status === "EXPIRED") {
     // Drop stale cache entry so a later hydrate cannot keep a revoked grant alive.
@@ -390,7 +392,9 @@ export function readApprovedCutoverReceiptSync(env, sport, receiptId, { now = ne
   if (expiresAt) {
     const expMs = Date.parse(expiresAt);
     if (["cbb", "tennis"].includes(sportKey) && !Number.isFinite(expMs))
-      return {ok:false,reason:"SPORT_CUTOVER_APPROVAL_EXPIRY_INVALID"};
+      return {ok:false,reason:sportKey === "cbb"
+        ? "CBB_CUTOVER_APPROVAL_EXPIRY_INVALID"
+        : "TENNIS_CUTOVER_APPROVAL_EXPIRY_INVALID"};
     const nowMs = now instanceof Date ? now.getTime() : Date.parse(String(now));
     if (Number.isFinite(expMs) && Number.isFinite(nowMs) && expMs <= nowMs) {
       cache.delete(`${sportKey}:${receipt}`);
