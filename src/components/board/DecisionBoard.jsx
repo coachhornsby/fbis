@@ -1,3 +1,5 @@
+import NhlInjuryIntelligence from "./NhlInjuryIntelligence.jsx";
+import TennisMatchIntelligence from "./TennisMatchIntelligence.jsx";
 import { Fragment, useMemo, useState } from "react";
 import { buildBoardGameViewModel } from "../../lib/boardViewModel.js";
 import { sortByConfidence } from "../../lib/confidenceStars.js";
@@ -80,6 +82,8 @@ export default function DecisionBoard({ games = [], renderDetail }) {
       <div className="decision-board db-game-page">
         <button type="button" className="db-back-btn" onClick={() => setSelected(null)}>← Back to Board</button>
         <PremiumGameCard game={selected} />
+        <NhlInjuryIntelligence game={selected} />
+        <TennisMatchIntelligence game={selected} />
         {["nfl","mlb","nba","nhl","cfb","cbb","wnba","soccer","npb","kbo","tennis"].includes(String(selected?.sport || "").toLowerCase())
           ? <TopGameProps game={selected} />
           : null}

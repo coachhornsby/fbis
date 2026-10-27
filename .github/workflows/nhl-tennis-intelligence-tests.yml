@@ -1,0 +1,25 @@
+name: NHL and Tennis intelligence contracts
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'functions/api/nhl-intelligence.js'
+      - 'functions/api/tennis-match-intelligence.js'
+      - 'functions/lib/nhlInjuryIntelligence.js'
+      - 'functions/lib/nhlCardStarterEvidence.js'
+      - 'src/components/board/*Intelligence.jsx'
+      - 'test/nhl-injury-intelligence.test.js'
+      - 'test/match-intelligence-api.test.js'
+      - '.github/workflows/nhl-tennis-intelligence-tests.yml'
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: node --import ./test/offline-network.js --test test/nhl-injury-intelligence.test.js test/match-intelligence-api.test.js test/nhl-card-evidence.test.js

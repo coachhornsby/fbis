@@ -44,12 +44,27 @@ export function attachNhlCardStarterEvidence(games=[],profiles={},nowMs=Date.now
     eventId:bridge?.officialGameId||game?.id,gameStart:game?.start,cutoff,
     projectionGoalieId:modeled?.goalieId||null
    });
+   // Existing EXPECTED_G1 probabilities are fixed hierarchy heuristics (.68/.27/.05),
+   // not provider announcements. Keep them in research models, not sourced starter UI.
+   if(evidence.state==='PROJECTED'&&evidence.source==='EVENT_BOUND_EXPECTED_G1_PROFILE'){
+    evidence.state='UNKNOWN';evidence.reason='NO_SOURCED_STARTER_PROJECTION';
+    evidence.expectedStartProbability=null;evidence.evidenceClass='MISSING';
+   }
+   const availability=(profiles?.players?.[key]||[]).find(p=>String(p.player_id)===String(evidence.playerId));
+   const status=String(availability?.availability_state||'').toUpperCase();
+   const avAt=millis(availability?.source_updated_at);
+   const unavailable=availability&&['OUT','IR','SUSPENDED','CONFIRMED_SCRATCH'].includes(status)&&
+    avAt!=null&&cutoffMs!=null&&avAt<=cutoffMs&&avAt<startMs;
+   if(unavailable){
+    evidence.state='UNKNOWN';evidence.reason='STARTER_UNAVAILABLE';evidence.evidenceClass='NEGATIVE';
+    evidence.expectedStartProbability=null;
+   }
    const known=evidence.state==="CONFIRMED"||evidence.state==="PROJECTED";
    const player=known?list.find(x=>String(x.player_id)===evidence.playerId):null;
    if(known)matched++;else unverified++;
    // When no CURRENT-GAME starter is known, a recorded previous starter can
    // provide context, but must NEVER be described as expected or confirmed.
-   const prior=!known&&bridge&&cutoffMs!=null
+   const prior=!known&&!unavailable&&bridge&&cutoffMs!=null
     ?list.filter(x=>String(x.goalie_state||"").toUpperCase()==="LAST_CONFIRMED_STARTER"&&
        freshAt(x.source_updated_at,startMs,cutoffMs))
        .sort((x,y)=>Number(x.hierarchy_rank||999)-Number(y.hierarchy_rank||999))[0]

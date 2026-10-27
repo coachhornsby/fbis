@@ -1,0 +1,176 @@
+{
+  "checkedAt": "2026-10-27T05:07:22Z",
+  "httpStatus": 200,
+  "count": 50,
+  "competitions": {
+    "WTA 125K Queretaro, Mexico Women Singles": 1,
+    "ATP Challenger Sioux Falls, USA Men Singles": 3,
+    "WTA Tokyo, Japan Women Singles": 7,
+    "ATP Challenger Seoul, Korea Republic Men Singles": 12,
+    "ATP Challenger Ningbo, China Men Singles": 11,
+    "WTA Guangzhou, China Women Singles": 8,
+    "WTA Guangzhou, China Women Double": 1,
+    "WTA 125K Courmayeur, Italy Women Singles": 4,
+    "ATP Challenger Brest, France Men Singles": 3
+  },
+  "listFields": [
+    "home",
+    "away",
+    "home_logo",
+    "away_logo",
+    "home_score",
+    "away_score",
+    "status",
+    "status_text",
+    "time",
+    "competition",
+    "competition_logo",
+    "url"
+  ],
+  "samples": [
+    {
+      "competition": "ATP Challenger Sioux Falls, USA Men Singles",
+      "url": "https://sportscore.com/api/widget/match/?sport=tennis&slug=alexis-galarneau-vs-mees-rottgering",
+      "listScore": [
+        "0",
+        "2"
+      ],
+      "detailScore": [
+        "0",
+        "1"
+      ],
+      "status": "live",
+      "detailFields": [
+        "home",
+        "away",
+        "home_logo",
+        "away_logo",
+        "home_score",
+        "away_score",
+        "status",
+        "status_text",
+        "time",
+        "competition",
+        "competition_logo",
+        "url",
+        "live_minute",
+        "incidents",
+        "stats",
+        "lineups",
+        "tracker"
+      ],
+      "statsCount": 0,
+      "updated": "2026-10-27T01:32:06.905460+00:00"
+    },
+    {
+      "competition": "ATP Challenger Sioux Falls, USA Men Singles",
+      "url": "https://sportscore.com/api/widget/match/?sport=tennis&slug=andres-martin-vs-kaylan-bigun",
+      "listScore": [
+        "0",
+        "2"
+      ],
+      "detailScore": [
+        "0",
+        "0"
+      ],
+      "status": "finished",
+      "detailFields": [
+        "home",
+        "away",
+        "home_logo",
+        "away_logo",
+        "home_score",
+        "away_score",
+        "status",
+        "status_text",
+        "time",
+        "competition",
+        "competition_logo",
+        "url",
+        "live_minute",
+        "incidents",
+        "stats",
+        "lineups",
+        "tracker"
+      ],
+      "statsCount": 0,
+      "updated": "2026-10-27T02:25:22.644954+00:00"
+    },
+    {
+      "competition": "WTA 125K Queretaro, Mexico Women Singles",
+      "url": "https://sportscore.com/api/widget/match/?sport=tennis&slug=selena-janicijevic-vs-ana-grubor",
+      "listScore": [
+        "2",
+        "0"
+      ],
+      "detailScore": [
+        "0",
+        "0"
+      ],
+      "status": "live",
+      "detailFields": [
+        "home",
+        "away",
+        "home_logo",
+        "away_logo",
+        "home_score",
+        "away_score",
+        "status",
+        "status_text",
+        "time",
+        "competition",
+        "competition_logo",
+        "url",
+        "live_minute",
+        "incidents",
+        "stats",
+        "lineups",
+        "tracker"
+      ],
+      "statsCount": 0,
+      "updated": "2026-10-27T01:17:36.114667+00:00"
+    },
+    {
+      "competition": "WTA Tokyo, Japan Women Singles",
+      "url": "https://sportscore.com/api/widget/match/?sport=tennis&slug=sorana-cirstea-vs-maya-joint",
+      "listScore": [
+        "2",
+        "0"
+      ],
+      "detailScore": [
+        "2",
+        "0"
+      ],
+      "status": "finished",
+      "detailFields": [
+        "home",
+        "away",
+        "home_logo",
+        "away_logo",
+        "home_score",
+        "away_score",
+        "status",
+        "status_text",
+        "time",
+        "competition",
+        "competition_logo",
+        "url",
+        "live_minute",
+        "incidents",
+        "stats",
+        "lineups",
+        "tracker"
+      ],
+      "statsCount": 0,
+      "updated": "2026-10-27T05:03:58.652212+00:00"
+    }
+  ],
+  "rapidApi": {
+    "httpStatus": 401,
+    "reason": "Invalid API key",
+    "authenticatedSamples": 0,
+    "pricing": "UNVERIFIED",
+    "subscriptionActivated": false
+  },
+  "recommendation": "DO_NOT_INTEGRATE_PENDING_RELIABILITY_AND_ATTRIBUTION_ACCEPTANCE"
+}
