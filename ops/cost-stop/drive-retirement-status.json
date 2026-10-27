@@ -1,0 +1,23 @@
+{
+  "status": "PARTIAL_NOT_RELEASE_READY",
+  "date": "2026-10-27",
+  "storageBeforeBytes": 40868659200,
+  "storageAfterBytes": 10995617792,
+  "retiredDatabases": [
+    "fbis-market-history",
+    "fbis-market-history-2026q4",
+    "fbis-market-history-2026q4b",
+    "fbis-cold-history-20261017"
+  ],
+  "archiveRoot": "1-cEe24VMCvfO55HZry5qxRaf0riTs6NO",
+  "catalog": "1xGCwbiLUGkfeEaRr3UEo7UIS5weXWfW4",
+  "production": "PAUSED",
+  "primaryBackup": "OLD_DOWNLOAD_FAILED_RESTORE_FRESH_RANGE_DOWNLOAD_RUNNING",
+  "outstanding": [
+    "Verify full primary backup before cleanup",
+    "Complete live sport routing certification",
+    "Implement and test shared atomic spending admission",
+    "Verify current Drive quota and billing"
+  ],
+  "warning": "Budget flags are not a financial hard cap. Do not reopen."
+}

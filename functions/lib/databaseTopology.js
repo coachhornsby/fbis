@@ -525,84 +525,14 @@ async function schemaReady(db, tableName) {
  * Fail-closed: do not fall back to near-full legacy when the active partition is unready.
  * Legacy MARKET_HISTORY_DB remains readable via listMarketHistoryReadDbs.
  */
-export async function resolveMarketHistoryWriteDb(env, {
-  now = new Date(),
-  allowLegacyFallback = false,
-} = {}) {
-  const at = now instanceof Date ? now.toISOString() : String(now);
-  const rejected = [];
-  for (const part of MARKET_HISTORY_PARTITIONS) {
-    const db = env?.[part.binding];
-    if (!db?.prepare) {
-      rejected.push({ key: part.key, reason: "UNBOUND" });
-      continue;
-    }
-    if (!(await schemaReady(db, "normalized_market_observations"))) {
-      rejected.push({ key: part.key, reason: "SCHEMA_UNREADY" });
-      continue;
-    }
-    if (part.window?.start && at < part.window.start) {
-      rejected.push({ key: part.key, reason: "BEFORE_WINDOW_START" });
-      continue;
-    }
-    // Enforce partition end for all partitions, including Q4 — no post-window writes.
-    if (part.window?.end && at >= part.window.end) {
-      rejected.push({ key: part.key, reason: "AFTER_WINDOW_END" });
-      continue;
-    }
-    const bytes = await probeSize(db);
-    if (bytes == null) {
-      // An unmeasured partition is not proof of available headroom.
-      rejected.push({ key: part.key, reason: "SIZE_UNVERIFIED" });
-      continue;
-    }
-    const capacity = capacityAlertLevel(bytes);
-    // Fail closed from HIGH (85%) — leave headroom for archive/ops; do not wait for CRITICAL.
-    const gate = shouldBlockMarketHistoryWrite(capacity);
-    if (gate.blocked) {
-      rejected.push({ key: part.key, reason: gate.reason, capacity });
-      continue;
-    }
-    return {
-      db,
-      partition: part,
-      binding: part.binding,
-      store: part.key,
-      capacity,
-      hotWindowMs: MARKET_HISTORY_HOT_WINDOW_MS,
-      rejected,
-    };
-  }
-  if (allowLegacyFallback && env?.MARKET_HISTORY_DB?.prepare) {
-    return {
-      db: env.MARKET_HISTORY_DB,
-      partition: MARKET_HISTORY_PARTITIONS.find((p) => p.binding === "MARKET_HISTORY_DB"),
-      binding: "MARKET_HISTORY_DB",
-      store: "MARKET_HISTORY",
-      warning: "ALL_PARTITIONS_FULL_OR_UNREADY_FALLBACK_LEGACY",
-      rejected,
-    };
-  }
-  return {
-    db: null,
-    partition: null,
-    binding: null,
-    store: null,
-    warning: env?.MARKET_HISTORY_DB?.prepare || env?.MARKET_HISTORY_2026Q4_DB?.prepare || env?.MARKET_HISTORY_2026Q4B_DB?.prepare
-      ? "MARKET_HISTORY_WRITE_UNAVAILABLE_FAIL_CLOSED"
-      : "MARKET_HISTORY_UNBOUND",
-    rejected,
-  };
+export async function resolveMarketHistoryWriteDb() {
+  return { db: null, binding: null, partition: null, store: null,
+    warning: 'MARKET_HISTORY_ARCHIVED_TO_DRIVE', rejected: [] };
 }
 
 /** All bound market-history databases for merged reads (newest first). */
-export function listMarketHistoryReadDbs(env) {
-  const out = [];
-  for (const part of MARKET_HISTORY_PARTITIONS) {
-    const db = env?.[part.binding];
-    if (db?.prepare) out.push({ db, partition: part, binding: part.binding });
-  }
-  return out;
+export function listMarketHistoryReadDbs() {
+  return [];
 }
 
 export function marketHistoryHotCutoff(now = new Date()) {

@@ -16,7 +16,7 @@ function buildCfg(env = runtimeEnv){
     geminiModel: env.GEMINI_MODEL || 'gemini-3.8-flash',
     maxRuns: Number(env.MAX_RUNS_PER_INVOCATION || 5),
     fbisBaseUrl: env.FBIS_BASE_URL || 'https://fbis-myz.pages.dev',
-    llmSelectionEnabled: String(env.LLM_SELECTION_ENABLED || 'true').toLowerCase() !== 'false',
+    llmSelectionEnabled: false, // Bryan: zero automated model API spend.
     llmMaxGamesPerDay: Number(env.LLM_MAX_GAMES_PER_DAY || 8),
     llmMaxPerScan: Number(env.LLM_MAX_PER_SCAN || 5),
     llmMinQuality: Number(env.LLM_MIN_QUALITY || 76),
@@ -322,6 +322,7 @@ function usageRow(provider, runId, eventId, model, calledAt, status, usage, late
   return [uuid(),runId,eventId,provider,model,calledAt,status,input,cached,output,reasoning,total,usageCost(provider,input,billableOutput),latency,retry,success?'YES':'NO',errorClass||'',notes];
 }
 async function callOpenAI(runId,eventId,snapshotId,prompt,dataTimestamp){
+  throw new Error('AUTOMATED_MODEL_API_SPEND_DISABLED');
   const key=runtimeEnv.OPENAI_API_KEY;
   if(!key) throw new Error('OPENAI_API_KEY missing');
   const started=Date.now(), calledAt=now();
@@ -351,6 +352,7 @@ async function callOpenAI(runId,eventId,snapshotId,prompt,dataTimestamp){
   }catch(e){ return {ok:false,status:res.status,raw,obj,usage,error:'OpenAI parse/schema: '+e.message}; }
 }
 async function callGemini(runId,eventId,snapshotId,prompt,dataTimestamp){
+  throw new Error('AUTOMATED_MODEL_API_SPEND_DISABLED');
   const key=runtimeEnv.GEMINI_API_KEY;
   if(!key) throw new Error('GEMINI_API_KEY missing');
   const started=Date.now(), calledAt=now();
