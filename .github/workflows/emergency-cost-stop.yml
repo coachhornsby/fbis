@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Cancel active runs and disable workflow records
+      - name: Force-cancel runs that did not stop
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -27,7 +27,7 @@ jobs:
                       body=r.read()
                       return json.loads(body) if body else {}
               except urllib.error.HTTPError as e:
-                  if e.code==409 and path.endswith('/cancel'): return {}
+                  if e.code==409 and path.endswith('/force-cancel'): return {}
                   raise
           runs=[]
           for status in ['in_progress','queued','waiting','pending','requested']:
@@ -39,16 +39,7 @@ jobs:
                   page+=1
           for r in {r['id']:r for r in runs}.values():
               if str(r['id'])==os.environ['CURRENT_RUN']:continue
-              api('/actions/runs/'+str(r['id'])+'/cancel','POST')
+              api('/actions/runs/'+str(r['id'])+'/force-cancel','POST')
               print('Cancellation requested:',r['id'],r['name'])
-          page=1
-          while True:
-              batch=api('/actions/workflows?per_page=100&page='+str(page)).get('workflows',[])
-              for w in batch:
-                  if w.get('state')=='active':
-                      api('/actions/workflows/'+str(w['id'])+'/disable','PUT')
-                      print('Disabled workflow:',w['id'],w['name'])
-              if len(batch)<100:break
-              page+=1
-          print('Emergency cancellation and workflow disable pass complete')
+          print('Emergency force-cancellation pass complete')
           PY
