@@ -583,16 +583,17 @@ export default {
     }
   },
   async fetch(request,env){
- await requireJobAdmission(env, 'services/polymarket-us-stream/worker.mjs', globalThis.crypto.randomUUID());
 
     const u=new URL(request.url);
     if(u.pathname==="/start"){
       if(request.method!=="POST")return toJSON({ok:false,error:"method-not-allowed"},405);
       if(!env.FBIS_STREAM_PROXY_TOKEN||request.headers.get('x-fbis-stream-token')!==env.FBIS_STREAM_PROXY_TOKEN)return toJSON({ok:false,error:"unauthorized"},403);
+ await requireJobAdmission(env, 'services/polymarket-us-stream/worker.mjs', globalThis.crypto.randomUUID());
       const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis-v3"));
       return stub.fetch("https://internal/start",{method:"POST"});
     }
     if(u.pathname!=="/health")return toJSON({ok:false,error:"not-found"},404);
+ await requireJobAdmission(env, 'services/polymarket-us-stream/worker.mjs', globalThis.crypto.randomUUID());
     const stub=env.PM_STREAM.get(env.PM_STREAM.idFromName("active-sports-fbis-v3"));
     const r=await stub.fetch("https://internal/status");
     const status=await r.json();

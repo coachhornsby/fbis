@@ -18,3 +18,12 @@ enabled = true
 
 [observability.traces]
 enabled = true
+
+[vars]
+CLOUDFLARE_ACCOUNT_ID = "2fdc80b8d99070adcef12f7a785c3fc1"
+
+# Shared account admission; policy stays paused until measured costs and bounded jobs are configured.
+[[durable_objects.bindings]]
+name = "FBIS_ACCOUNT_BUDGET"
+class_name = "AccountBudget"
+script_name = "fbis-account-budget"

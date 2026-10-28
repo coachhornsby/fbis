@@ -11,6 +11,7 @@ enabled = true
 crons = []
 
 [vars]
+CLOUDFLARE_ACCOUNT_ID = "2fdc80b8d99070adcef12f7a785c3fc1"
 SPREADSHEET_ID = "1B1IVONVvmP50JPCqb64fzEsSaTv6AuHQ04YqEzBhjAo"
 ORCHESTRATOR_VERSION = "AI-ORCH-v0.4-cloudflare"
 PROJECTION_PROTOCOL = "MULTISPORT-PROJ-v0.2"
@@ -19,7 +20,7 @@ OPENAI_MODEL = "gpt-5.6-sol"
 GEMINI_MODEL = "gemini-3.8-flash"
 MAX_RUNS_PER_INVOCATION = "5"
 FBIS_BASE_URL = "https://fbis-myz.pages.dev"
-LLM_SELECTION_ENABLED = "true"
+LLM_SELECTION_ENABLED = "false"
 LLM_MAX_GAMES_PER_DAY = "8"
 LLM_MAX_PER_SCAN = "5"
 LLM_MIN_QUALITY = "76"
@@ -45,3 +46,9 @@ bucket_name = "fbis-archive"
 [observability.traces]
 enabled = true
 head_sampling_rate = 0.1
+
+# Shared account admission; policy stays paused until measured costs and bounded jobs are configured.
+[[durable_objects.bindings]]
+name = "FBIS_ACCOUNT_BUDGET"
+class_name = "AccountBudget"
+script_name = "fbis-account-budget"

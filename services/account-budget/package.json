@@ -1,0 +1,11 @@
+{
+  "name": "fbis-account-budget",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test ../../test/account-budget-admission.test.mjs ../../test/account-budget-entrypoints.test.mjs ../../test/account-budget-runtime.test.mjs"
+  },
+  "devDependencies": {
+    "miniflare": "4.20260730.0"
+  }
+}

@@ -76,12 +76,12 @@ async function cycle(env){
 
 export default{
   async fetch(request,env){
- await requireJobAdmission(env, 'workers/soccer-pitchapi-backfill-worker.mjs', globalThis.crypto.randomUUID());
     const url=new URL(request.url);
     if(request.method==="GET"&&url.pathname==="/health")return json({ok:true,service:"fbis-soccer-pitchapi-backfill",version:"v2-pages-proxy",cron:true});
     if(request.method==="POST"&&url.pathname==="/run"){
       const token=String(request.headers.get("x-control-token")||"");
       if(!env.SOCCER_CONTROL_TOKEN||token!==env.SOCCER_CONTROL_TOKEN)return json({ok:false,error:"unauthorized"},401);
+ await requireJobAdmission(env, 'workers/soccer-pitchapi-backfill-worker.mjs', globalThis.crypto.randomUUID());
       return json(await cycle(env));
     }
     return json({ok:false,error:"not found"},404);

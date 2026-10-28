@@ -292,6 +292,7 @@ async function handleFetch(request, env) {
 
   const auth = await authorization(request, env);
   if (!auth) return json(401, { error: "unauthorized" });
+    await requireJobAdmission(env, 'workers/sports-projection-orchestrator-worker.mjs', globalThis.crypto.randomUUID());
 
   try {
     if(url.pathname==="/api/pinnodds-capture"){
@@ -397,7 +398,6 @@ async function handleFetch(request, env) {
 
 export default {
   async fetch(request,env,ctx) {
-    await requireJobAdmission(env, 'workers/sports-projection-orchestrator-worker.mjs', globalThis.crypto.randomUUID());
     return handleFetch(request,env,ctx);
   },
   async scheduled(controller, env, ctx) {

@@ -13,28 +13,31 @@ export async function reserveJob(storage, policy, request, now = Date.now()) {
     return {allowed:false,reason:'MISSING_OR_STALE_COST_EVIDENCE'};
   if (!/^[a-zA-Z0-9_-]{1,80}$/.test(request?.id || '') || ['__proto__','constructor','prototype'].includes(request.id))
     return {allowed:false,reason:'INVALID_JOB_ID'};
-  const job = policy.jobs?.[request.job];
+  const job = policy.jobs && Object.hasOwn(policy.jobs,request?.job) ? policy.jobs[request.job] : null;
   if (!job || !integer(job.worstCaseMicroUsd) || job.worstCaseMicroUsd<1)
     return {allowed:false,reason:'UNAPPROVED_JOB'};
   return storage.transaction(async txn => {
     const key = `period:${startMs}:${endMs}`;
-    const state = await txn.get(key) || {reserved:0,ids:{}};
-    if (!integer(state.reserved) || !state.ids || Object.keys(state.ids).length>=10_000)
+    const state = await txn.get(key) || {reserved:0,count:0,units:{}};
+    if (!integer(state.reserved) || !integer(state.count) || !state.units ||
+        typeof state.units!=='object' || state.count>=10_000)
       return {allowed:false,reason:'LEDGER_UNAVAILABLE_OR_FULL'};
-    if (Object.hasOwn(state.ids,request.id)) return {allowed:false,reason:'DUPLICATE_JOB'};
+    const reservationKey=`${key}:job:${request.id}`;
+    if (await txn.get(reservationKey)) return {allowed:false,reason:'DUPLICATE_JOB'};
     const projected = committedMicroUsd+state.reserved+job.worstCaseMicroUsd;
     if (!Number.isSafeInteger(projected) || projected>STOP_MICRO_USD)
       return {allowed:false,reason:'ACCOUNT_BUDGET_STOP'};
     const ceilings=policy.unitCeilings || {};
     const used=state.units || {};
     for (const [unit,amount] of Object.entries(job.maxUnits || {})) {
-      if (!integer(amount) || !integer(ceilings[unit]) || !integer(used[unit] || 0) ||
+      if (!integer(amount) || !Object.hasOwn(ceilings,unit) || !integer(ceilings[unit]) || !integer(used[unit] || 0) ||
           !Number.isSafeInteger((used[unit] || 0)+amount) || (used[unit] || 0)+amount>ceilings[unit])
         return {allowed:false,reason:'ACCOUNT_UNIT_STOP'};
     }
     if (!Object.keys(job.maxUnits || {}).length) return {allowed:false,reason:'MISSING_UNIT_BOUNDS'};
     state.reserved += job.worstCaseMicroUsd;
-    state.ids[request.id]={job:request.job,at:now};
+    state.count += 1;
+    await txn.put(reservationKey,{job:request.job,at:now});
     state.units={...used};
     for(const [unit,amount] of Object.entries(job.maxUnits))state.units[unit]=(state.units[unit] || 0)+amount;
     await txn.put(key,state);

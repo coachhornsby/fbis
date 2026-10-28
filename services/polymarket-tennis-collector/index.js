@@ -41,11 +41,11 @@ export default {
   ctx.waitUntil(collectTennisOnSchedule(env));
  },
  async fetch(request,env){
- await requireJobAdmission(env, 'services/polymarket-tennis-collector/index.js', globalThis.crypto.randomUUID());
 
   const url=new URL(request.url);
   if(request.method!=="GET"||url.pathname!=="/health")
     return respond({ok:false,code:"READ_ONLY_HEALTH_ONLY"},404);
+ await requireJobAdmission(env, 'services/polymarket-tennis-collector/index.js', globalThis.crypto.randomUUID());
   let status=null;
   try{
     const stored=await env.ARCHIVE.get(STATUS);

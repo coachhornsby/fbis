@@ -248,12 +248,12 @@ export default {
     ]));
   },
   async fetch(request,env){
- await requireJobAdmission(env, 'services/kalshi-public-collector/index.js', globalThis.crypto.randomUUID());
 
     const url=new URL(request.url);
     if(request.method!=="GET"||url.pathname!=="/health")
       return Response.json({ok:false,code:"READ_ONLY_HEALTH_ONLY"},{
         status:404,headers:{"cache-control":"no-store"}});
+ await requireJobAdmission(env, 'services/kalshi-public-collector/index.js', globalThis.crypto.randomUUID());
     const [status,evidenceStatus]=await Promise.all([
       readJson(env.ARCHIVE,"collector-status.json"),
       readJson(env.ARCHIVE,"evidence-status.json"),

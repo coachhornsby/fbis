@@ -100,9 +100,9 @@ export class KalshiPrivateAccountSession {
 }
 export default {
   async scheduled(_event,env,ctx){
- await requireJobAdmission(env, 'services/kalshi-private-stream/index.js', globalThis.crypto.randomUUID());
 
     if(env?.KALSHI_PRIVATE_STREAM_MODE!=="enabled")return;
+ await requireJobAdmission(env, 'services/kalshi-private-stream/index.js', globalThis.crypto.randomUUID());
     const id=env.ACCOUNT_SESSION.idFromName("kalshi-single-account");
     const stub=env.ACCOUNT_SESSION.get(id);
     ctx.waitUntil(stub.fetch("https://kalshi.private.internal/wake",{method:"POST"}));
