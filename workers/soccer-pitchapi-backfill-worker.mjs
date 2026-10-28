@@ -1,3 +1,4 @@
+import {requireJobAdmission} from '../services/account-budget/admission.mjs';
 const BASE="https://fbis-myz.pages.dev";
 
 function json(body,status=200){
@@ -75,6 +76,7 @@ async function cycle(env){
 
 export default{
   async fetch(request,env){
+ await requireJobAdmission(env, 'workers/soccer-pitchapi-backfill-worker.mjs', globalThis.crypto.randomUUID());
     const url=new URL(request.url);
     if(request.method==="GET"&&url.pathname==="/health")return json({ok:true,service:"fbis-soccer-pitchapi-backfill",version:"v2-pages-proxy",cron:true});
     if(request.method==="POST"&&url.pathname==="/run"){
@@ -85,6 +87,7 @@ export default{
     return json({ok:false,error:"not found"},404);
   },
   async scheduled(_controller,env,ctx){
+ await requireJobAdmission(env, 'workers/soccer-pitchapi-backfill-worker.mjs', globalThis.crypto.randomUUID());
     ctx.waitUntil(cycle(env).then(r=>console.log(JSON.stringify({event:"soccer_pitchapi_cycle",...r}))).catch(e=>console.error(JSON.stringify({event:"soccer_pitchapi_cycle_failed",error:String(e?.message||e)}))));
   }
 };

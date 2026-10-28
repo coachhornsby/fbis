@@ -1,3 +1,4 @@
+import {requireJobAdmission} from '../services/account-budget/admission.mjs';
 import {reservePinnoddsRun,capturePinnoddsSnapshot} from "./pinnodds-governed-capture.mjs";
 import crypto from "node:crypto";
 import { readPinnoddsAccountUsage } from "./pinnodds-account-usage.mjs";
@@ -395,8 +396,12 @@ async function handleFetch(request, env) {
 }
 
 export default {
-  fetch: handleFetch,
+  async fetch(request,env,ctx) {
+    await requireJobAdmission(env, 'workers/sports-projection-orchestrator-worker.mjs', globalThis.crypto.randomUUID());
+    return handleFetch(request,env,ctx);
+  },
   async scheduled(controller, env, ctx) {
+    await requireJobAdmission(env, 'workers/sports-projection-orchestrator-worker.mjs', globalThis.crypto.randomUUID());
     const cron=String(controller?.cron||"");
     const task = cron === TENNIS_RECOVERY_CRON
       ? runTennisRecoveryCron(env,{scheduledTime:controller.scheduledTime})

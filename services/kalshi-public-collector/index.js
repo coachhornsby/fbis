@@ -1,3 +1,4 @@
+import {requireJobAdmission} from '../account-budget/admission.mjs';
 /**
  * Dedicated schedule-only Kalshi PUBLIC market relay.
  *
@@ -228,6 +229,8 @@ export async function collectPropReconciliationOnce(env,{now=new Date(),fetchImp
 }
 export default {
   async scheduled(event,env,ctx){
+ await requireJobAdmission(env, 'services/kalshi-public-collector/index.js', globalThis.crypto.randomUUID());
+
     // Spread auxiliary provider reads across scheduled windows. Concurrent
     // multivariate / player-prop / tape fanout produced shared provider 429s.
     // Market/tennis collectors keep their existing sport cadence.
@@ -245,6 +248,8 @@ export default {
     ]));
   },
   async fetch(request,env){
+ await requireJobAdmission(env, 'services/kalshi-public-collector/index.js', globalThis.crypto.randomUUID());
+
     const url=new URL(request.url);
     if(request.method!=="GET"||url.pathname!=="/health")
       return Response.json({ok:false,code:"READ_ONLY_HEALTH_ONLY"},{

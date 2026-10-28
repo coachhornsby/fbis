@@ -1,3 +1,4 @@
+import {requireJobAdmission} from '../account-budget/admission.mjs';
 import { connectKalshiPrivateStream } from "../../functions/lib/kalshiAccountStream.js";
 import { kalshiPrivateKeyPem,readKalshiAccount } from "../../functions/lib/kalshiAccount.js";
 
@@ -99,12 +100,16 @@ export class KalshiPrivateAccountSession {
 }
 export default {
   async scheduled(_event,env,ctx){
+ await requireJobAdmission(env, 'services/kalshi-private-stream/index.js', globalThis.crypto.randomUUID());
+
     if(env?.KALSHI_PRIVATE_STREAM_MODE!=="enabled")return;
     const id=env.ACCOUNT_SESSION.idFromName("kalshi-single-account");
     const stub=env.ACCOUNT_SESSION.get(id);
     ctx.waitUntil(stub.fetch("https://kalshi.private.internal/wake",{method:"POST"}));
   },
   async fetch(request,env){
+ await requireJobAdmission(env, 'services/kalshi-private-stream/index.js', globalThis.crypto.randomUUID());
+
     const url=new URL(request.url);
     if(url.pathname!=="/health"||request.method!=="GET")return new Response(null,{status:404});
     const id=env.ACCOUNT_SESSION.idFromName("kalshi-single-account");

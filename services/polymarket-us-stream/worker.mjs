@@ -1,3 +1,4 @@
+import {requireJobAdmission} from '../account-budget/admission.mjs';
 import {DurableObject} from "cloudflare:workers";
 import {polymarketUsSubscribeBatches,parsePolymarketUsLite,parsePolymarketUsTrade}
   from "../../functions/lib/polymarketUsSignedWs.js";
@@ -510,6 +511,8 @@ export {PolymarketMarketStreamRecovered as PolymarketMarketStreamCoverage,Polyma
 
 export default {
   async scheduled(_event,env,ctx){
+ await requireJobAdmission(env, 'services/polymarket-us-stream/worker.mjs', globalThis.crypto.randomUUID());
+
     // Safe periodic reactivation after worker restarts/deployment. One DO
     // owns dynamic all-sport capacity (no competing collectors).
     // v2 cutover: long-lived WS pins prior DO isolates after deploy; a new
@@ -580,6 +583,8 @@ export default {
     }
   },
   async fetch(request,env){
+ await requireJobAdmission(env, 'services/polymarket-us-stream/worker.mjs', globalThis.crypto.randomUUID());
+
     const u=new URL(request.url);
     if(u.pathname==="/start"){
       if(request.method!=="POST")return toJSON({ok:false,error:"method-not-allowed"},405);

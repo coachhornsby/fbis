@@ -1,0 +1,10 @@
+{
+  "name":"fbis-account-budget",
+  "main":"worker.mjs",
+  "compatibility_date":"2026-10-01",
+  "workers_dev":false,
+  "durable_objects":{"bindings":[{"name":"FBIS_ACCOUNT_BUDGET","class_name":"AccountBudget"}]},
+  "migrations":[{"tag":"v1","new_sqlite_classes":["AccountBudget"]}],
+  "vars":{"FBIS_ACCOUNT_BUDGET_POLICY":"{\"enabled\":false}"},
+  "limits":{"cpu_ms":10}
+}
