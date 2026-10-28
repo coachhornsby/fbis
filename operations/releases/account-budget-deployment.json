@@ -1,0 +1,38 @@
+{
+  "phase": "account-budget-service-deployment",
+  "state": "DEPLOYED_PAUSED",
+  "sourceCommit": "da55c9067ad8181e5b1d2538ad21973384a4020f",
+  "worker": "fbis-account-budget",
+  "deploymentId": "f6fcb5ee200745cf95c069ad5de77b23",
+  "namespaceId": "bd4ddbb41fdc4e38b210d8468963a014",
+  "policy": {
+    "enabled": false
+  },
+  "publicEndpoint": false,
+  "previewsEnabled": false,
+  "cpuLimitMs": 10,
+  "connectedPausedWorkers": [
+    "fbis-kalshi-public-collector",
+    "fbis-kalshi-private-stream",
+    "fbis-polymarket-tennis-collector",
+    "fbis-polymarket-us-stream",
+    "fbis-orchestrator",
+    "fbis-soccer-pitchapi-backfill"
+  ],
+  "verification": {
+    "testsPassed": 8,
+    "realWorkerRuntime": true,
+    "concurrentRequests": 100,
+    "admittedRequestsWithinTestBudget": 10,
+    "restartPersistence": true,
+    "allSchedulesEmpty": true
+  },
+  "productionJobCodeDeployment": "Emergency no-op handlers retained. Corrected source guards committed but not deployed to job Workers.",
+  "releaseBlockedBy": [
+    "Retained D1 footprint and complete all-product cost evidence",
+    "Measured and execution-enforced per-job unit bounds, including stream alarms and flushes",
+    "Remaining archive consumer routing and sport cutovers"
+  ],
+  "budgetMeaning": "Application admission stop only; not a provider-enforced billing cap.",
+  "dataDeleted": 0
+}
