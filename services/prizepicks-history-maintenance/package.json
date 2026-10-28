@@ -1,0 +1,7 @@
+{
+  "name":"fbis-prizepicks-history-maintenance",
+  "private":true,
+  "type":"module",
+  "scripts":{"test":"node --test ../../test/prizepicks-history-maintenance.test.mjs ../../test/prizepicks-payload-archive.test.mjs"},
+  "devDependencies":{"miniflare":"4.20260730.0","esbuild":"0.28.2"}
+}
