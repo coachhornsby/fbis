@@ -1,0 +1,37 @@
+{
+  "phase": "primary-cfb-roster-duplicate-retirement",
+  "state": "COMPLETED",
+  "primaryDatabaseId": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "retainedDatabaseId": "b589c91c-c53d-4f4a-9d32-99c4468e3033",
+  "tables": [
+    "cfb_canonical_players",
+    "cfb_roster_membership"
+  ],
+  "recordsPreserved": 550598,
+  "allFieldsCompared": true,
+  "archiveDriveFileId": "1NKxrgckeDl9ibpBJFIhKDverCYrK4-G4",
+  "archiveBytes": 85033307,
+  "archiveSha256": "f937c5c4cad88c63904097d81d82b2874dee2ea61460310c0457ff51cd4ab86c",
+  "sqlSha256": "7aa9d0e57b32a238161a9aabc648adf19f3682cfd8cdfb6f7c86edad718dd8fd",
+  "schemaObjectsPreserved": 8,
+  "independentDownloadRestoreVerified": true,
+  "verificationReportDriveId": "1_5jP-hZdvpCt9ps6JLFTWei5Kidtc-wt",
+  "primaryBytesBefore": 7425847296,
+  "primaryBytesAfter": 6153785344,
+  "bytesRemoved": 1272061952,
+  "totalD1Bytes": 9664389120,
+  "cfbBytesUnchanged": 1620402176,
+  "tests": {
+    "javascript": 27,
+    "python": 3
+  },
+  "sourceGuardCommit": "d47e5eb46891190083c68de1cd6d6e311bd8ec30",
+  "sourceGuardsDeployed": false,
+  "production": "PAUSED_HTTP_503",
+  "writeJobsResumed": false,
+  "modelOrWagerAuthorityChanged": false,
+  "notes": [
+    "DROP response acknowledgment unavailable; both table absences and reduced provider-reported size independently read back.",
+    "List endpoint cached pre-retirement sizes; final total uses individual metadata reads for all 15 databases."
+  ]
+}
