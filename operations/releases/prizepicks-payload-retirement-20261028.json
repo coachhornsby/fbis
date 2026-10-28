@@ -1,0 +1,53 @@
+{
+  "phase": "historical-prizepicks-payload-archival",
+  "state": "COMPLETED",
+  "databaseId": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "table": "prizepicks_prop_lines",
+  "archiveDriveFileId": "1H81oXfe2Q4tkMAmXWGaDZLDuaj5j89jZ",
+  "archiveZipSha256": "e3d94fa8fff27e8de273b8f836f64ae09f54d4463e09f86dc654a8ad7f74e178",
+  "sourceSqlSha256": "0576f4aec33e9d7104d2ca95d73aa2371402a296a1a5810c9a946a3a3bd64e0a",
+  "verificationReportDriveId": "1c8LtQ5CbIOv4dCD_IiW8NyNmrkLu5wKC",
+  "independentDownloadRestoreVerified": true,
+  "verification": {
+    "rows": 127812,
+    "archivedPayloads": 127812,
+    "allTypedFieldsPreserved": true,
+    "allInlineConsumerFieldsPreserved": true,
+    "allArchiveReferencesVerified": true,
+    "typedFieldsSha256": "36b7e167d06a908ccbff790da6a0aec5fab3db2ba4afca4cacb5356313f899e3",
+    "originalRawBytes": 300193964,
+    "compactRawBytes": 66340932,
+    "payloadBytesRemoved": 233853032,
+    "integrity": "ok",
+    "foreignKeyErrors": 0
+  },
+  "repackVerification": {
+    "checked": 127812,
+    "copyRows": 127812,
+    "pages": 26,
+    "mismatches": 0,
+    "originalRowidsPreserved": true,
+    "allFieldsEqual": true
+  },
+  "primaryBytesBefore": 6153785344,
+  "primaryBytesAfter": 5754675200,
+  "providerBytesRemoved": 399110144,
+  "totalD1Bytes": 9265278976,
+  "onlineRowsPreserved": 127812,
+  "deletedRows": 0,
+  "temporaryTablesRemaining": false,
+  "secondaryIndexesRestored": 3,
+  "maintenanceWorker": "DELETED",
+  "acquisition": "RETIRED",
+  "production": "PAUSED_HTTP_503",
+  "modelOrWagerAuthorityChanged": false,
+  "tests": {
+    "pureAndReader": 4,
+    "workerRuntime": 2
+  },
+  "notes": [
+    "Raw JSON now retains image, league and payout consumer fields plus a private Drive archive reference. Complete original payloads remain in the recovery backup.",
+    "Updating JSON alone did not reclaim pages; a verified rowid-preserving table repack reclaimed provider storage.",
+    "DDL acknowledgement returned a retry error; final table, indexes, absence of temporary tables, row count and storage were independently read back."
+  ]
+}

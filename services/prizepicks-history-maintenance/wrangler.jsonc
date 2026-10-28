@@ -1,0 +1,17 @@
+{
+  "name":"fbis-prizepicks-history-maintenance",
+  "main":"worker.mjs",
+  "compatibility_date":"2026-10-28",
+  "workers_dev":false,
+  "observability":{"enabled":false},
+  "limits":{"cpu_ms":1000},
+  "durable_objects":{"bindings":[{"name":"MIGRATION","class_name":"PrizePicksHistoryMigration"}]},
+  "migrations":[{"tag":"v1","new_sqlite_classes":["PrizePicksHistoryMigration"]}],
+  "d1_databases":[{"binding":"DB","database_name":"fbis","database_id":"b50c724c-903b-4241-8ce1-48d931e7a44c"}],
+  "vars":{
+    "MIGRATION_ENABLED":"false",
+    "MAX_ROWS":"127812",
+    "ARCHIVE_DRIVE_FILE_ID":"1H81oXfe2Q4tkMAmXWGaDZLDuaj5j89jZ",
+    "SOURCE_SQL_SHA256":"0576f4aec33e9d7104d2ca95d73aa2371402a296a1a5810c9a946a3a3bd64e0a"
+  }
+}
