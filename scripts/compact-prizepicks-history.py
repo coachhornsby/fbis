@@ -11,8 +11,8 @@ assert n==reference['rows'] and h.hexdigest()==reference['fullRecordSha256'],'Un
 key=pathlib.Path(args.key_file).read_text().strip();assert len(key)==64
 receipt=pathlib.Path(args.receipt);state=json.loads(receipt.read_text()) if receipt.exists() else {'cursor':0,'processed':0,'updated':0,'bytesRemoved':0}
 while state['processed']<n:
- rows=[{'rowid':r[0],'id':r[1],'oldRaw':r[2]} for r in c.execute('SELECT rowid,id,raw_json FROM prizepicks_prop_lines WHERE rowid>? ORDER BY rowid LIMIT 500',(state['cursor'],))];assert rows
- body=json.dumps({'afterRowid':state['cursor'],'rows':rows},ensure_ascii=False,separators=(',',':')).encode();assert len(body)<=4*1024*1024
+ rows=[{'rowid':r[0],'id':r[1],'oldRaw':r[2]} for r in c.execute('SELECT rowid,id,raw_json FROM prizepicks_prop_lines WHERE rowid>? ORDER BY rowid LIMIT 2000',(state['cursor'],))];assert rows
+ body=json.dumps({'afterRowid':state['cursor'],'rows':rows},ensure_ascii=False,separators=(',',':')).encode();assert len(body)<=8*1024*1024
  req=urllib.request.Request(ENDPOINT,data=body,headers={'x-maintenance-key':key,'User-Agent':'Mozilla/5.0','Content-Type':'application/json'},method='POST')
  result=None
  for attempt in range(3):

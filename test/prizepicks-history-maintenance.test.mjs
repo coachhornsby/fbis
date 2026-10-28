@@ -15,3 +15,16 @@ test('real Worker and D1 retain typed fields, replay completed batches without w
  const stored=await db.prepare('SELECT * FROM prizepicks_prop_lines WHERE id=?').bind(id).first();assert.equal(stored.fbis_projection,0);assert.equal(JSON.parse(stored.raw_json).league,'WTA');
  }finally{await mf.dispose();}
 });
+
+test('a 2000-row batch stays within D1 parameter limits and preserves every row',async()=>{
+ const mf=new Miniflare({modules,compatibilityDate:'2026-07-01',d1Databases:{DB:'batch-db'},durableObjects:{MIGRATION:{className:'PrizePicksHistoryMigration',useSQLite:true}},bindings:{MIGRATION_ENABLED:'true',MAX_ROWS:'2000',ARCHIVE_DRIVE_FILE_ID:'verified_Drive_file',SOURCE_SQL_SHA256:'b'.repeat(64),MAINTENANCE_KEY:'secret'}});
+ try{
+ const db=await mf.getD1Database('DB');await db.exec('CREATE TABLE prizepicks_prop_lines(id TEXT PRIMARY KEY,raw_json TEXT,fbis_projection REAL)');
+ const batchRaw=raw.replace('x'.repeat(4000),'x'.repeat(2000));
+ const rows=Array.from({length:2000},(_,i)=>({rowid:i+1,id:(i+1).toString(16).padStart(64,'0'),oldRaw:batchRaw}));
+ await db.batch(rows.map(r=>db.prepare('INSERT INTO prizepicks_prop_lines VALUES(?,?,?)').bind(r.id,r.oldRaw,0)));
+ const r=await mf.dispatchFetch('http://local/apply',{method:'POST',headers:{'x-maintenance-key':'secret'},body:JSON.stringify({afterRowid:0,rows})});
+ assert.equal(r.status,200);assert.equal((await r.json()).updated,2000);
+ assert.equal((await db.prepare('SELECT COUNT(*) n FROM prizepicks_prop_lines WHERE fbis_projection=0').first()).n,2000);
+ }finally{await mf.dispose();}
+});

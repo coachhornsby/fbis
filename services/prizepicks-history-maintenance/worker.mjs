@@ -5,7 +5,7 @@ export class PrizePicksHistoryMigration extends DurableObject {
   if(this.env.MIGRATION_ENABLED!=='true')throw Error('MIGRATION_DISABLED');
   const cap=Number(this.env.MAX_ROWS);
   if(!Number.isSafeInteger(cap)||cap<1||cap>127812)throw Error('INVALID_ROW_CAP');
-  if(!Array.isArray(batch?.rows)||!batch.rows.length||batch.rows.length>500)throw Error('BATCH_LIMIT');
+  if(!Array.isArray(batch?.rows)||!batch.rows.length||batch.rows.length>2000)throw Error('BATCH_LIMIT');
   const digest=await rawSha256(JSON.stringify(batch));
   const initial=await this.ctx.storage.transaction(async tx=>{
    const s=await tx.get('state')||{cursor:0,processed:0,updated:0,bytesRemoved:0,busy:false};
@@ -42,7 +42,7 @@ export default {async fetch(request,env){
  const a=new TextEncoder().encode(request.headers.get('x-maintenance-key')||''),b=new TextEncoder().encode(env.MAINTENANCE_KEY||'');
  if(!b.length||a.length!==b.length||!crypto.subtle.timingSafeEqual(a,b))return new Response(null,{status:403});
  const reader=request.body?.getReader();if(!reader)return new Response(null,{status:400});let n=0;const parts=[];
- try{for(;;){const {value,done}=await reader.read();if(done)break;n+=value.byteLength;if(n>4*1024*1024){await reader.cancel();return new Response(null,{status:413});}parts.push(value);}}finally{reader.releaseLock();}
+ try{for(;;){const {value,done}=await reader.read();if(done)break;n+=value.byteLength;if(n>8*1024*1024){await reader.cancel();return new Response(null,{status:413});}parts.push(value);}}finally{reader.releaseLock();}
  const bytes=new Uint8Array(n);let offset=0;for(const p of parts){bytes.set(p,offset);offset+=p.byteLength;}
  try{return Response.json(await env.MIGRATION.getByName('pp-archive-20261028').apply(JSON.parse(new TextDecoder().decode(bytes))));}
  catch(error){return Response.json({error:String(error?.message||error)},{status:409});}
