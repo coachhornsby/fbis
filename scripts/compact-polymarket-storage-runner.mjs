@@ -38,19 +38,19 @@ async function source(raw){
 }
 async function save(){result.batches=batches;result.nextCursor=cursor;await writeFile('/tmp/fbis-polymarket-storage-result.json',JSON.stringify(result,null,2));}
 try{
- const upper=(await query(`SELECT MAX(rowid) upper_rowid FROM normalized_market_observations INDEXED BY idx_norm_market_source WHERE source='Polymarket US' AND collected_at<=${quote(cutoff)}`))[0].results[0].upper_rowid||0;
+ const upper=(await query(`SELECT MAX(rowid) upper_rowid FROM normalized_market_observations`))[0].results[0].upper_rowid||0;
  result.upperRowid=upper;
  while(true){
   const pageLimit=compactionPageLimit(result.examined,budget.maxRows);
   if(!pageLimit){result.paused=true;break;}
-  const rows=(await query(`SELECT rowid storage_rowid,id,CASE WHEN json_extract(raw_payload_json,'$.archiveRef.version')='polymarket-receipt-v1' THEN NULL ELSE raw_payload_json END raw_payload_json,raw_payload_hash FROM normalized_market_observations NOT INDEXED WHERE rowid>${cursor} AND rowid<=${upper} AND source='Polymarket US' AND collected_at<=${quote(cutoff)} AND length(raw_payload_json)<=65536 ORDER BY rowid LIMIT ${pageLimit}`))[0].results;
+  const rows=(await query(`SELECT rowid storage_rowid,id,CASE WHEN source='Polymarket US' AND collected_at<=${quote(cutoff)} AND length(raw_payload_json)<=65536 AND json_extract(raw_payload_json,'$.archiveRef.version') IS NULL THEN raw_payload_json ELSE NULL END raw_payload_json,raw_payload_hash FROM normalized_market_observations NOT INDEXED WHERE rowid>${cursor} AND rowid<=${upper} ORDER BY rowid LIMIT ${pageLimit}`))[0].results;
   if(!rows.length)break;
   const updates=[];
   for(const row of rows){
-   if(row.raw_payload_json===null){result.reasons.ALREADY_COMPACT=(result.reasons.ALREADY_COMPACT||0)+1;continue;}
+   if(row.raw_payload_json===null){result.reasons.OUTSIDE_SCOPE_OR_COMPACT=(result.reasons.OUTSIDE_SCOPE_OR_COMPACT||0)+1;continue;}
    const raw=JSON.parse(row.raw_payload_json);let reason=null;
    if(raw.archiveRef)reason='ALREADY_COMPACT';
-   else if(!raw.receiptId||!raw.rawSnapshotKey)reason='NO_ARCHIVE_REFERENCE';
+   else if(!raw.receiptId)reason='NO_ARCHIVE_REFERENCE';
    else{
     const archive=await source(raw);
     if(!archive)reason='ARCHIVE_UNAVAILABLE';

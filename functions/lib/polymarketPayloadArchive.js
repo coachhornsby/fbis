@@ -13,7 +13,8 @@ export async function payloadHash(raw){
 }
 export function validRawKey(key){return /^market-sources\/polymarket-us\/raw\/[a-f0-9]{64}\.json$/.test(key||'');}
 function receiptMatches(receipt,raw){
- return receipt?.receiptId===raw?.receiptId&&receipt?.rawKey===raw?.rawSnapshotKey&&validRawKey(receipt.rawKey)&&Array.isArray(receipt.offers);
+ const expectedKey=raw?.rawSnapshotKey||raw?.archiveRef?.rawKey;
+ return receipt?.receiptId===raw?.receiptId&&(!expectedKey||receipt?.rawKey===expectedKey)&&validRawKey(receipt?.rawKey)&&Array.isArray(receipt.offers);
 }
 export async function compactArchivedRaw(raw,receipt,{originalHash=null}={}){
  if(raw?.archiveRef?.version===POLY_PAYLOAD_STORAGE_VERSION)return {raw,changed:false,reason:'ALREADY_COMPACT'};
@@ -31,7 +32,7 @@ export async function compactArchivedRaw(raw,receipt,{originalHash=null}={}){
  if(!matched)return {raw,changed:false,reason:'ARCHIVED_OFFER_HASH_MISMATCH'};
  const {marketSides,...market}=raw.providerMarket;
  const result={...raw,providerMarket:market,archiveRef:{version:POLY_PAYLOAD_STORAGE_VERSION,
-   receiptKey:receiptKey(raw.receiptId),originalPayloadHash:digest,
+   receiptKey:receiptKey(raw.receiptId),rawKey:receipt.rawKey,originalPayloadHash:digest,
    omittedFields:['providerMarket.marketSides']}};
  const before=JSON.stringify(raw).length,after=JSON.stringify(result).length;
  if(after>=before)return {raw,changed:false,reason:'NO_STORAGE_SAVING'};
@@ -74,7 +75,7 @@ export async function readReceiptMatches(archive,key,identities){
 }
 export async function restoreArchivedRaw(raw,archive,{storedHash=null}={}){
  if(!raw?.archiveRef)return raw;
- if(raw.archiveRef.version!==POLY_PAYLOAD_STORAGE_VERSION||raw.archiveRef.receiptKey!==receiptKey(raw.receiptId)||!validRawKey(raw.rawSnapshotKey))throw Error('INVALID_ARCHIVE_REFERENCE');
+ if(raw.archiveRef.version!==POLY_PAYLOAD_STORAGE_VERSION||raw.archiveRef.receiptKey!==receiptKey(raw.receiptId)||!validRawKey(raw.rawSnapshotKey||raw.archiveRef.rawKey))throw Error('INVALID_ARCHIVE_REFERENCE');
  if(storedHash&&await payloadHash(raw)!==storedHash)throw Error('STORED_PAYLOAD_HASH_MISMATCH');
  const receipt=await readReceiptMatches(archive,raw.archiveRef.receiptKey,new Set([offerIdentity(raw)]));
  if(!receipt)throw Error('ARCHIVED_RECEIPT_MISSING');
@@ -94,18 +95,21 @@ export async function compactPolymarketPayloadBatch(env,{afterRowid=0,limit=250,
  if(!Number.isSafeInteger(afterRowid)||afterRowid<0||!Number.isSafeInteger(limit)||limit<1||limit>500||!Number.isFinite(Date.parse(cutoff)))throw Error('INVALID_COMPACTION_SCOPE');
  if(!env.DB?.prepare||!env.DB?.batch||!env.ARCHIVE?.get)throw Error('ARCHIVE_AND_DATABASE_REQUIRED');
  // Force the rowid range: a source index otherwise scans/sorts the entire ledger per page.
- const rows=(await env.DB.prepare(`SELECT rowid storage_rowid,id,raw_payload_json,raw_payload_hash
-   FROM normalized_market_observations NOT INDEXED WHERE rowid>? AND source='Polymarket US'
-   AND collected_at<=? AND length(raw_payload_json)<=65536
-   ORDER BY rowid LIMIT ?`).bind(afterRowid,cutoff,limit).all()).results||[];
+ const page=await env.DB.prepare(`SELECT rowid storage_rowid,id,
+   CASE WHEN source='Polymarket US' AND collected_at<=?2 AND length(raw_payload_json)<=65536
+   THEN raw_payload_json ELSE NULL END raw_payload_json,raw_payload_hash
+   FROM normalized_market_observations NOT INDEXED WHERE rowid>?1
+   ORDER BY rowid LIMIT ?3`).bind(afterRowid,cutoff,limit).all();
+ const rows=page.results||[];
  const cache=new Map(),statements=[],proofs=[],reasons={};let before=0,after=0;
  const identities=new Set();
  for(const row of rows){try{const raw=JSON.parse(row.raw_payload_json);if(!raw.archiveRef)identities.add(offerIdentity(raw));}catch{}}
 
  for(const row of rows){
+  if(row.raw_payload_json===null){reasons.OUTSIDE_SCOPE=(reasons.OUTSIDE_SCOPE||0)+1;continue;}
   let raw;try{raw=JSON.parse(row.raw_payload_json)}catch{reasons.INVALID_JSON=(reasons.INVALID_JSON||0)+1;continue;}
   if(raw?.archiveRef){reasons.ALREADY_COMPACT=(reasons.ALREADY_COMPACT||0)+1;continue;}
-  if(!raw?.receiptId||!validRawKey(raw.rawSnapshotKey)){reasons.NO_ARCHIVE_REFERENCE=(reasons.NO_ARCHIVE_REFERENCE||0)+1;continue;}
+  if(!raw?.receiptId||(raw.rawSnapshotKey&&!validRawKey(raw.rawSnapshotKey))){reasons.NO_ARCHIVE_REFERENCE=(reasons.NO_ARCHIVE_REFERENCE||0)+1;continue;}
   const key=receiptKey(raw.receiptId);let receipt;
   if(cache.has(key))receipt=cache.get(key);
   else{
@@ -133,6 +137,7 @@ export async function compactPolymarketPayloadBatch(env,{afterRowid=0,limit=250,
  }
  return {ok:true,version:POLY_PAYLOAD_STORAGE_VERSION,dryRun,examined:rows.length,eligible:proofs.length,updated,
    beforePayloadBytes:before,afterPayloadBytes:after,potentialPayloadBytesSaved:before-after,bytesRemoved,
+   rowsRead:Number(page.meta?.rows_read||0),
    nextCursor:rows.length===limit?rows.at(-1).storage_rowid:null,cutoff,reasons,
    verificationSamples,newArchiveObjects:0,deletedRows:0,canAuthorizeWager:false};
 }

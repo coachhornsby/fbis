@@ -1,0 +1,59 @@
+{
+  "phase": "verified-redundant-storage-retirement",
+  "state": "COMPLETED_FOR_RECOVERY_REHEARSAL",
+  "database": "fbis-cfb-recovery-rehearsal-20261011",
+  "databaseId": "1142b60c-6e00-4286-87b8-4edff9de3129",
+  "archiveDriveFileId": "1r6tBlk9djUKSLNgsGr2ctNknNU3tpcNh",
+  "archiveSha256": "be4b96f15d9c8212d699fb9f8ce5595fe13fb110ffa533102099db5e8ac9c139",
+  "verification": {
+    "sqlSha256": "1352b6f237b55625d4bcc4683f7f0717680a0abe785b92012778634f7030a81e",
+    "tables": {
+      "fbis_cfb_cold_restore_probe_20261015": {
+        "rows": 100,
+        "originalRowidsPreserved": true,
+        "fullRecordSha256": "1efe1ab6f14762a1acf1d2f8c2d4b974a321ccb934f8330f5dcaef7dad736981"
+      },
+      "fbis_cfb_cold_restore_segments_20261015": {
+        "rows": 137,
+        "originalRowidsPreserved": true,
+        "fullRecordSha256": "be820f04e114cd6f635b24019740deab8e4a13db09f364480c95fd28687b0d0f"
+      },
+      "fbis_cfb_roster_2004_verified_restore": {
+        "rows": 13644,
+        "originalRowidsPreserved": true,
+        "fullRecordSha256": "ce7244fdb4aded3f242ed38e6a724205edfd1220c78704956c59a3673e919d5f"
+      },
+      "market_research_restore_20261017": {
+        "rows": 2000,
+        "originalRowidsPreserved": true,
+        "fullRecordSha256": "2d20891248b728404201d1efc8078345506779bac509c2e80d176580c75c90cd"
+      },
+      "recovery_probe": {
+        "rows": 1,
+        "originalRowidsPreserved": true,
+        "fullRecordSha256": "22842997b5c92a38e92b728d541ffc02cab6244f3787cb27fb076f6f15d807a2"
+      }
+    },
+    "rows": 15882,
+    "schemaObjects": 5,
+    "integrity": "ok",
+    "foreignKeyErrors": 0
+  },
+  "dependencies": {
+    "workersChecked": 9,
+    "pagesProjectsChecked": 2,
+    "bindingsFound": 0
+  },
+  "d1BytesBefore": 10995609600,
+  "d1BytesAfter": 10936451072,
+  "d1BytesRemoved": 59158528,
+  "primaryRowsModified": 0,
+  "primaryCompactionPilot": {
+    "state": "SKIPPED_NO_MATCHING_R2_RECEIPTS",
+    "examined": 1000,
+    "updated": 0
+  },
+  "temporaryMaintenanceWorker": "DELETED",
+  "production": "PAUSED",
+  "verificationReportDriveId": "1vmfxLOSMChQg3vrCN02ADEU9ND3iZC89"
+}

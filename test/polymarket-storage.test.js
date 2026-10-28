@@ -142,3 +142,20 @@ test('a real receipt above the old 16 MB ceiling retains only the requested sour
  const result=await readReceiptMatches({async get(){return {body,size:filler.length*total+10000}}},receiptKey(raw.receiptId),new Set([JSON.stringify([raw.providerMarketId,raw.providerOutcomeId])]));
  assert.equal(result.offers.length,1);assert.equal(await payloadHash(result.offers[0].raw),await payloadHash(raw));
 });
+
+test('excluded rows still advance the bounded cursor instead of scanning for matches',async()=>{
+ const DB=fixtureDb();const insert=DB.sqlite.prepare('INSERT INTO normalized_market_observations(id,source,collected_at,raw_payload_json,raw_payload_hash) VALUES(?,?,?,?,?)');
+ for(let i=0;i<100;i++)insert.run('excluded-'+i,'consensus','2026-10-14','{}','h');
+ const r=await compactPolymarketPayloadBatch({DB,ARCHIVE:archive()},{cutoff:'2026-10-15',limit:10});
+ assert.equal(r.examined,10);assert.equal(r.nextCursor,10);assert.equal(r.eligible,0);
+ assert.equal(r.reasons.OUTSIDE_SCOPE,10);DB.sqlite.close();
+});
+
+test('legacy receipt-only rows require exact archived source hash and restore byte-for-byte',async()=>{
+ const {rawSnapshotKey,...legacy}=raw;const r={...receipt,offers:[{raw:legacy}]};
+ const c=await compactArchivedRaw(legacy,r,{originalHash:await payloadHash(legacy)});
+ assert.equal(c.changed,true);assert.equal(c.raw.archiveRef.rawKey,rawKey);
+ assert.equal(JSON.stringify(await restoreArchivedRaw(c.raw,archive(r))),JSON.stringify(legacy));
+ assert.equal((await compactArchivedRaw(legacy,{...r,rawKey:'invalid'})).changed,false);
+ assert.equal((await compactArchivedRaw(legacy,{...r,offers:[{raw}]})).changed,false);
+});
