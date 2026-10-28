@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Read-only production evidence and bounded free public source capture. No imports."""
-import argparse,csv,datetime,hashlib,json,os,pathlib,subprocess,urllib.request
+import argparse,csv,datetime,hashlib,json,os,pathlib,re,subprocess,urllib.request
 ACCOUNT='2fdc80b8d99070adcef12f7a785c3fc1'
 DB='b50c724c-903b-4241-8ce1-48d931e7a44c'
+CFB_DB='b589c91c-c53d-4f4a-9d32-99c4468e3033'
+def database_for_query(sql):
+ return CFB_DB if re.search(r'\b(?:FROM|JOIN)\s+cfb_(?:roster_membership|canonical_teams|canonical_players)\b',sql,re.I) else DB
 def now():return datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00','Z')
 def write(path,value):path.write_text(json.dumps(value,sort_keys=True,separators=(',',':'))+'\n')
 def query(sql):
  if not sql.startswith('SELECT ') or ';' in sql:raise ValueError('Only one SELECT allowed')
- req=urllib.request.Request(f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{DB}/query',data=json.dumps({'sql':sql}).encode(),headers={'Authorization':'Bearer '+os.environ['CLOUDFLARE_API_TOKEN'],'Content-Type':'application/json'},method='POST')
+ req=urllib.request.Request(f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/d1/database/{database_for_query(sql)}/query',data=json.dumps({'sql':sql}).encode(),headers={'Authorization':'Bearer '+os.environ['CLOUDFLARE_API_TOKEN'],'Content-Type':'application/json'},method='POST')
  with urllib.request.urlopen(req,timeout=90) as response:body=json.load(response)
  if not body.get('success') or not body['result'][0].get('success'):raise RuntimeError('Read-only D1 query failed')
  result=body['result'][0]

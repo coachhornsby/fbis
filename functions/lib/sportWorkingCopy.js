@@ -33,6 +33,8 @@ export function workingTablesForSport(sport) {
  * Sport-prefixed research tables to copy in shadow (Wave 1–2).
  * Player-prop tables are intentionally omitted (separate Props workstream).
  */
+// These exact copies were archived and retired from PRIMARY after full-field parity.
+export const CFB_RETIRED_PRIMARY_ROSTER_TABLES=Object.freeze(["cfb_canonical_players","cfb_roster_membership"]);
 export const SPORT_PREFIX_TABLES = Object.freeze({
   nfl: Object.freeze([
     "nfl_team_profiles",
@@ -50,13 +52,11 @@ export const SPORT_PREFIX_TABLES = Object.freeze({
   ]),
   cfb: Object.freeze([
     "cfb_canonical_teams",
-    "cfb_canonical_players",
     "cfb_conference_membership",
     "cfb_team_aliases",
     "cfb_team_provider_ids",
     "cfb_player_aliases",
     "cfb_player_provider_ids",
-    "cfb_roster_membership",
     "cfb_roster_observations",
     "cfb_roster_source_coverage",
     "cfb_pregame_feature_vectors",
@@ -1187,6 +1187,8 @@ export async function copySportPrefixTables(env, sport, {
   skipCaughtUp = false,
 } = {}) {
   const key = String(sport || "").toLowerCase();
+  if(key==="cfb" && Array.isArray(tables) && tables.some(t=>CFB_RETIRED_PRIMARY_ROSTER_TABLES.includes(String(t))))
+    return {ok:false,sport:key,reason:"CFB_PRIMARY_ROSTER_RETIRED",canAuthorizeWager:false};
   if (deployedSportDbMode(env, key) === "sport") {
     return { ok: false, sport: key, reason: "SHADOW_SYNC_REFUSED_SPORT_MODE",
       canAuthorizeWager: false };

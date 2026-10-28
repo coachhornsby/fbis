@@ -116,7 +116,7 @@ test("Single team endpoint blocks FCS, unverified IDs and reports missing featur
 });
 test("GET handler responds as JSON, and database failures fail closed",async()=>{
  const {db}=dbMock();
- const r=await onRequestGet({env:{DB:db},publicFactsLoader:emptyPublic,request:new Request("https://fbis.test/api/cfb-teams?team=cfb%3Aespn%3A333")});
+ const r=await onRequestGet({env:{DB:db,CFB_DB:dbMock().db,SPORT_DB_MODE_CFB:"sport",SPORT_DB_STRICT_CFB:"true",SPORT_CUTOVER_RECEIPT_CFB:"cfb-20261021-production-v1",__fbisCutoverApprovals:new Map([["cfb:cfb-20261021-production-v1",{status:"APPROVED"}]])},publicFactsLoader:emptyPublic,request:new Request("https://fbis.test/api/cfb-teams?team=cfb%3Aespn%3A333")});
  assert.equal(r.status,200);
  assert.equal((await r.json()).team.school,"Alabama");
  assert.equal((await loadFbsTeamDirectory(dbMock({failed:true}).db)).status,503);

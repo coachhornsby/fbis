@@ -154,10 +154,12 @@ export async function loadFbsTeamDirectory(db, requestedTeamId = null, options =
   }
 }
 export async function onRequestGet(context) {
+  const owner=productSportDbHandle(context.env,"cfb");
+  if(!owner.productIoUsesSportDb)return json({ok:false,error:"cfb-sport-database-required"},503);
   const url = new URL(context.request.url);
   const teamId = url.searchParams.get("team");
   const result = await loadFbsTeamDirectory(context.env?.DB, teamId, {
-    sportDb: productSportDbHandle(context.env,"cfb").db,
+    sportDb: owner.db,
     season: url.searchParams.get("season") || 2026,
     playerId: url.searchParams.get("player") || null,
     publicFactsLoader: context.publicFactsLoader,
