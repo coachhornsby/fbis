@@ -1,0 +1,51 @@
+{
+  "phase": "job-execution-budget-enforcement",
+  "state": "DEPLOYED_PAUSED",
+  "date": "2026-10-29",
+  "sourceCommit": "b51e247fabe7634fda31094837042b2194b58a4e",
+  "accountBudgetDeploymentId": "64bbdf05708446e5ab2600bded452919",
+  "tennisCollectorDeploymentId": "439e5f589319466184c763ae032c19be",
+  "maximumLeaseMs": 120000,
+  "certifiedJobs": [
+    "services/polymarket-tennis-collector/index.js",
+    "services/polymarket-tennis-collector/index.js:health"
+  ],
+  "collectorCeilings": {
+    "requests": 36,
+    "responseConsumptionBytes": 8388608,
+    "r2Writes": 2,
+    "r2Bytes": 4194304,
+    "d1Queries": 0,
+    "cpuMs": 100
+  },
+  "uncertifiedJobs": "DENIED_EVEN_IF_LISTED_IN_POLICY",
+  "sqlScansAndMutations": "DENIED_BEFORE_EXECUTION",
+  "testsPassed": 24,
+  "readback": [
+    {
+      "name": "fbis-account-budget",
+      "cpuMs": 10,
+      "policy": "{\"enabled\":false}",
+      "namespace": "bd4ddbb41fdc4e38b210d8468963a014",
+      "schedules": [],
+      "publicEnabled": false,
+      "previewEnabled": false
+    },
+    {
+      "name": "fbis-polymarket-tennis-collector",
+      "cpuMs": 100,
+      "scheduleLabel": "PAUSED",
+      "namespace": "bd4ddbb41fdc4e38b210d8468963a014",
+      "schedules": [],
+      "publicEnabled": false,
+      "previewEnabled": false
+    }
+  ],
+  "production": "PAUSED",
+  "remaining": [
+    "Fresh all-product billing commitments, storage and tax evidence",
+    "Execution adapters and certification for the remaining jobs",
+    "Live routing and release verification before reopening"
+  ],
+  "providerHardSpendingCap": false
+}

@@ -56,3 +56,11 @@ test('archive size is reserved before exposing its body and delayed reads honor 
  const lease=createExecutionLease(grant({r2Reads:1,r2Bytes:5},2000),{now:()=>clock});const object=await executionR2(bucket,lease).get('key');clock=2000;
  await assert.rejects(()=>object.text(),/EXPIRED/);
 });
+
+test('policy cannot raise code ceilings, authorize SQL writes, or activate an unported job',async()=>{
+ const {executionPolicyError,TENNIS_COLLECT_JOB}=await import('../services/account-budget/executionJobs.mjs');
+ const policy=maxUnits=>({jobs:{[TENNIS_COLLECT_JOB]:{maxUnits}}});
+ assert.equal(executionPolicyError(policy({requests:36}),TENNIS_COLLECT_JOB),null);
+ for(const maxUnits of [{requests:37},{writes:1},{r2Writes:3},{responseBytes:8388609},{unknown:1}])assert.equal(executionPolicyError(policy(maxUnits),TENNIS_COLLECT_JOB),'JOB_POLICY_EXCEEDS_CODE_CEILINGS');
+ assert.equal(executionPolicyError({jobs:{legacy:{maxUnits:{requests:1}}}},'legacy'),'JOB_EXECUTION_NOT_CERTIFIED');
+});
