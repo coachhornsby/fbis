@@ -16,9 +16,10 @@ function fakeEnv(){
  const saved=new Map();
  return {saved,env:{ARCHIVE:{
    put:async(k,v)=>{saved.set(k,JSON.parse(v))},
-   get:async k=>saved.has(k)?{json:async()=>saved.get(k)}:null}}};
+   head:async()=>null,
+   get:async k=>saved.has(k)?{size:Buffer.byteLength(JSON.stringify(saved.get(k))),body:new Response(JSON.stringify(saved.get(k))).body,json:async()=>saved.get(k)}:null}}};
 }
-test("scheduled Worker refreshes R2 from Polymarket directly without ESPN, DB or secret",async()=>{
+test("collector preserves its inventory and requires a budget lease for health reads",async()=>{
  const {saved,env}=fakeEnv();
  const fetchImpl=async url=>{
   const u=new URL(url);
@@ -29,11 +30,14 @@ test("scheduled Worker refreshes R2 from Polymarket directly without ESPN, DB or
  assert.equal(result.atp,1);
  assert.equal(result.wta,0);
  assert.ok(saved.has(TENNIS_EXCHANGE_INVENTORY_KEY));
+ assert.equal((await worker.fetch(new Request("https://example.org/health"),env)).status,503);
+ env.CLOUDFLARE_ACCOUNT_ID="account-test";
+ env.FBIS_ACCOUNT_BUDGET={getByName(){return{async reserve(){return{allowed:true,expiresAtMs:Date.now()+60000,maxUnits:{r2Reads:1,r2Bytes:65536}}}}}};
  const diag=await worker.fetch(new Request("https://example.org/health"),env);
  assert.equal(diag.status,200);
  const status=await diag.json();
  assert.equal(status.readOnly,true);
- assert.equal(status.schedule,"EVERY_5_MINUTES");
+ assert.equal(status.schedule,"PAUSED");
  assert.equal(status.canAuthorizeWager,false);
  const snapshot=await loadPolymarketUsTennisInventory(env.ARCHIVE,{now});
  assert.equal(snapshot.ok,true);

@@ -2,7 +2,7 @@ name = "fbis-polymarket-tennis-collector"
 main = "services/polymarket-tennis-collector/index.js"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
-workers_dev = true
+workers_dev = false
 
 # Independent source collection: do not depend on GitHub Actions schedule.
 [triggers]
@@ -13,12 +13,13 @@ binding = "ARCHIVE"
 bucket_name = "fbis-archive"
 
 [observability]
-enabled = true
+enabled = false
 
 [observability.traces]
-enabled = true
+enabled = false
 
 [vars]
+FBIS_TENNIS_SCHEDULE = "PAUSED"
 CLOUDFLARE_ACCOUNT_ID = "2fdc80b8d99070adcef12f7a785c3fc1"
 
 # Shared account admission; policy stays paused until measured costs and bounded jobs are configured.
@@ -26,3 +27,6 @@ CLOUDFLARE_ACCOUNT_ID = "2fdc80b8d99070adcef12f7a785c3fc1"
 name = "FBIS_ACCOUNT_BUDGET"
 class_name = "AccountBudget"
 script_name = "fbis-account-budget"
+
+[limits]
+cpu_ms = 100

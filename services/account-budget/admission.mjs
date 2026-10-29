@@ -41,7 +41,7 @@ export async function reserveJob(storage, policy, request, now = Date.now()) {
     state.units={...used};
     for(const [unit,amount] of Object.entries(job.maxUnits))state.units[unit]=(state.units[unit] || 0)+amount;
     await txn.put(key,state);
-    return {allowed:true,id:request.id,job:request.job,maxUnits:job.maxUnits,
+    return {allowed:true,id:request.id,job:request.job,maxUnits:job.maxUnits,expiresAtMs:Math.min(expiresAtMs,now+120_000),
       reservedMicroUsd:job.worstCaseMicroUsd,projectedMicroUsd:projected};
   });
 }
