@@ -1,0 +1,69 @@
+{
+  "phase": "polymarket-roster-publication-and-r2-reader",
+  "date": "2026-10-30",
+  "state": "PUBLISHER_STREAM_DEPLOYED_PAUSED_PAGES_ROUTING_STAGED",
+  "production": "PAUSED",
+  "accountBudgetDeploymentId": "3341f88e41914728ae81e2c42bc55828",
+  "streamDeploymentId": "aff39333a4ba41b592a571feb0109e0d",
+  "publisherDeploymentId": "8b7ac4b0c64f4142829f705640414c5f",
+  "publisherWorker": "fbis-polymarket-roster-publisher",
+  "accountBudgetNamespace": "bd4ddbb41fdc4e38b210d8468963a014",
+  "streamNamespace": "0b5aee8d16fd4a3fa5f7db72f4305ade",
+  "policyEnabled": false,
+  "schedules": [],
+  "workersDev": false,
+  "previewUrls": false,
+  "d1BindingsOnPublisherAndStream": 0,
+  "validation": {
+    "budgetAndPipelineTestsPassed": 82,
+    "todayRegressionTestsPassed": 37,
+    "totalTestsPassed": 119,
+    "siteBuild": "PASS",
+    "todayBackendBundle": "PASS_WITH_EXISTING_DUPLICATE_KEY_WARNINGS",
+    "siteBuildWarnings": "Existing large frontend chunk warnings",
+    "localRuntime": "miniflare 4.20260730.0; compatibility 2026-07-01",
+    "productionCompatibilityDate": "2026-10-01"
+  },
+  "limits": {
+    "candidateContractsPerSport": 50,
+    "handoffBodyBytes": 131072,
+    "rosterContractsTotal": 50,
+    "publisherR2Reads": 12,
+    "publisherR2Writes": 1,
+    "publisherR2Bytes": 1048576,
+    "readerR2Reads": 1,
+    "readerR2Bytes": 1048576,
+    "publisherArchiveListings": 0,
+    "readerD1Queries": 0,
+    "maxQuoteAgeMs": 120000,
+    "maxCandidateAgeMs": 900000
+  },
+  "concurrency": "R2_CONDITIONAL_ETAG_WRITES_NO_UNBOUNDED_RETRY",
+  "candidateTimestamps": "PRESERVED_NOT_REFRESHED_ON_PUBLICATION",
+  "automaticProducerHook": "functions/lib/polymarketCapture.js",
+  "authenticatedHandoff": "functions/api/polymarket-stream-roster.js",
+  "quoteEndpoint": "functions/api/polymarket-quotes.js",
+  "boardReader": "functions/lib/todayBoard.js",
+  "todayEnvironment": "Account budget binding and account ID propagated; retired history bindings excluded",
+  "displayBinding": "Only exact positive full-game outcome bindings; automatic capture hook binds verified moneyline sides. Unbound contracts stay hidden.",
+  "researchAuthority": {
+    "canQualify": false,
+    "canAuthorizeWager": false,
+    "priceVerified": false,
+    "continuous": false
+  },
+  "pagesDeployment": "NOT_DEPLOYED_MAINTENANCE_REMAINS_CANONICAL",
+  "productionR2DataModified": false,
+  "providerHardSpendingCap": false,
+  "remaining": [
+    "Bound REST acquisition and remaining collectors before activation",
+    "Fresh all-product commitments, storage and tax evidence within the total $10 ceiling",
+    "Complete approved sport routing and controlled Pages release with runtime limits",
+    "Choose funded producer, publisher and stream schedule ordering; retain no duplicate scheduled owners"
+  ],
+  "bundleSha256": {
+    "budget": "458ec1152e7a2e90f10d6614990b9eb498e839f8cbfc6a1214a1c04a55ba67b5",
+    "stream": "90d14738c706510a8feb7378ed85ab56ccea514a1ad371c92a992e20c274d108",
+    "publisher": "6b6cc8d0b12c4f1b747033fa0d1f8e4099ff2ce9d984cea5d181560bd3eb1ab0"
+  }
+}

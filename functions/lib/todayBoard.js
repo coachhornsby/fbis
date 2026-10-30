@@ -1,3 +1,4 @@
+import {loadBoundedPolymarketSnapshot,selectBoundedPolymarketOffers} from './boundedPolymarketBoard.js';
 import {cfbUnitFeatureAudit} from "./cfbProspectiveAudit.js";
 import {chicagoMarketDay} from "./polymarketUs.js";
 import {canonicalizeProPlayerPropMarket} from "./proPlayerProps.js";
@@ -33,7 +34,7 @@ import {loadKalshiTennisResearch} from "./tennisKalshiResearch.js";
 import {mergeKalshiTennisCards} from "./tennisKalshiInventory.js";
 import {enrichTennisExchangeHistoricalCards} from "./tennisExchangeHistoricalResearch.js";
 import {loadPolymarketGlobalTennisSnapshot} from "./tennisPolymarketGlobal.js";
-import { loadPolymarketUsBoardOffers, attachPolymarketBoardOffers } from "./polymarketBoard.js";
+import { attachPolymarketBoardOffers } from "./polymarketBoard.js";
 import {loadKalshiR2Shadow} from "./kalshiR2Shadow.js";
 import {matchNbaKalshiResearch} from "./nbaKalshiResearchMatch.js";
 import { listMarketHistoryReadDbs } from "./databaseTopology.js";
@@ -1398,6 +1399,7 @@ export async function buildTodayBoard(
       bySport.get(key).push(g);
     }
     const overlaid = [];
+    const boundedPolymarketSnapshot=await loadBoundedPolymarketSnapshot(env,{now:new Date(now)});
     for (const [sportKey, sportGames] of bySport) {
       if(sportKey==="tennis"){
         // Tennis now carries provider-native Polymarket US and Kalshi quotes
@@ -1407,32 +1409,17 @@ export async function buildTodayBoard(
         const prices=sportGames.reduce((n,g)=>n+
           (g.tennisProjection?.venueOffers||g.market?.venueOffers||[])
             .filter(o=>/^Polymarket/i.test(String(o.source||""))&&o.contractPrice!=null).length,0);
-        polymarketResearch.bySport.tennis={available:prices>0,
+        const bounded=selectBoundedPolymarketOffers(boundedPolymarketSnapshot,sportGames,sportKey);
+        polymarketResearch.bySport.tennis={available:prices>0||bounded.available,
           diagnostics:{source:"R2_TENNIS_EXCHANGE_INVENTORY",observations:prices,
-            researchOnly:true,d1HistoricalLedgerSkipped:true}};
-        if(prices>0)polymarketResearch.available=true;
-        overlaid.push(...sportGames);
+            researchOnly:true,d1HistoricalLedgerSkipped:true,boundedStream:bounded.diagnostics}};
+        if(prices>0||bounded.available)polymarketResearch.available=true;
+        overlaid.push(...attachPolymarketBoardOffers(sportGames,bounded));
         continue;
       }
       let overlay = { byId: new Map(), available: false };
       try {
-        const historyParts = listMarketHistoryReadDbs(env);
-        overlay = await loadPolymarketUsBoardOffers(env.DB, sportGames, sportKey, {
-          now: new Date(now),
-          historyDbs: historyParts.map((p) => p.db),
-          historyLabels: historyParts.map((p) => p.binding),
-          // Restore independently source-timed FULL-GAME moneyline,
-          // spread and total BBOs. Never pull period/quarter/alt snapshots
-          // into a default game market or grant wager authority.
-          moneylineOnly: false,
-          fullGameOnly: true,
-        });
-        overlay.diagnostics = {
-          ...(overlay.diagnostics || {}),
-          historyBindings: historyParts.map((p) => p.binding),
-          q4Bound: Boolean(env.MARKET_HISTORY_2026Q4_DB && typeof env.MARKET_HISTORY_2026Q4_DB.prepare === "function"),
-          legacyHistoryBound: Boolean(env.MARKET_HISTORY_DB && typeof env.MARKET_HISTORY_DB.prepare === "function"),
-        };
+        overlay=selectBoundedPolymarketOffers(boundedPolymarketSnapshot,sportGames,sportKey);
       } catch {
         /* missing/stale provider never breaks the independent FBIS slate */
       }

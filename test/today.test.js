@@ -81,7 +81,7 @@ describe("TODAY date and grouping", () => {
 });
 
 describe("TODAY cache-only and MY BET markers", () => {
-  it("passes both CFBD and CBBD credentials into the live TODAY board environment", () => {
+  it("passes acquisition credentials and budgeted archive access without retired history databases", () => {
     const previousCaches = globalThis.caches;
     globalThis.caches = { default: { name: "test-cache" } };
     try {
@@ -93,6 +93,8 @@ describe("TODAY cache-only and MY BET markers", () => {
           CBBD_API_KEY: "cbbd-key",
           BALLPARK_PAL_API_KEY: "pal-key",
           DB: { name: "db" },
+          FBIS_ACCOUNT_BUDGET: { name: "budget" },
+          CLOUDFLARE_ACCOUNT_ID: "test-account",
           MARKET_HISTORY_DB: { prepare() {} },
           MARKET_HISTORY_2026Q4_DB: q4,
           MARKET_HISTORY_2026Q4B_DB: q4b,
@@ -102,13 +104,12 @@ describe("TODAY cache-only and MY BET markers", () => {
       assert.equal(env.CBBD_API_KEY, "cbbd-key");
       assert.equal(env.BALLPARK_PAL_API_KEY, "pal-key");
       assert.equal(env.caches.name, "test-cache");
-      assert.equal(env.MARKET_HISTORY_2026Q4_DB, q4);
-      assert.equal(env.MARKET_HISTORY_2026Q4B_DB, q4b);
-      // Previously missing this passthrough made TODAY invisible to the hot Q4B receipts.
-      assert.deepEqual(listMarketHistoryReadDbs(env).map(p => p.binding), [
-        "MARKET_HISTORY_2026Q4B_DB", "MARKET_HISTORY_2026Q4_DB", "MARKET_HISTORY_DB",
-      ]);
-      assert.ok(env.MARKET_HISTORY_DB?.prepare);
+      assert.equal(env.FBIS_ACCOUNT_BUDGET.name,"budget");
+      assert.equal(env.CLOUDFLARE_ACCOUNT_ID,"test-account");
+      assert.equal(env.MARKET_HISTORY_DB,undefined);
+      assert.equal(env.MARKET_HISTORY_2026Q4_DB,undefined);
+      assert.equal(env.MARKET_HISTORY_2026Q4B_DB,undefined);
+      assert.deepEqual(listMarketHistoryReadDbs(env),[]);
     } finally {
       if (previousCaches === undefined) delete globalThis.caches;
       else globalThis.caches = previousCaches;

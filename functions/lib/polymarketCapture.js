@@ -1,7 +1,8 @@
+import {stageBoundedStreamCandidates} from './boundedPolymarketRoster.js';
 import {compactArchivedRaw} from "./polymarketPayloadArchive.js";
 import {loadSoccerMarketFixtures} from "./soccerMarketFixtures.js";
 /** Immutable paginated public discovery. Each page is archived before bounded ingestion. */
-import {POLY_US_API,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers} from './polymarketUs.js';
+import {POLY_US_API,classifyPolymarketUsLeague,matchPolymarketUsEvent,polymarketUsMarketOffers,polymarketUsCanonicalSide} from './polymarketUs.js';
 import {persistNormalizedMarketBatch} from './marketObservationLedger.js';
 import {marketObservationDatabase} from './coldMarketHistory.js';
 import {loadVerifiedTennisCandidates} from './polymarketTennisIdentity.js';
@@ -24,7 +25,7 @@ export async function capturePolymarketPage(env,{receiptId,kind,slug=null,sport=
  await env.ARCHIVE.put(rawKey,raw,{httpMetadata:{contentType:'application/json'}});
  const body=JSON.parse(raw),items=body[kind==='catalogue'?'leagues':'events'];
  if(!Array.isArray(items)||items.length>PAGE)throw Error('PROVIDER_PAGE_CONTRACT_CHANGED');
- let offers=[];
+ let offers=[];let capturedGames=[];
  if(kind==='events'){
   const starts=items.map(e=>Date.parse(e.startTime||e.eventDate||e.startDate||e.gameStartTime||'')).filter(Number.isFinite);
   // Tennis has a separate canonical official schedule; it is NOT in games.
@@ -33,6 +34,7 @@ export async function capturePolymarketPage(env,{receiptId,kind,slug=null,sport=
     await loadVerifiedTennisCandidates(env.DB,items.map(e=>e.startTime||e.eventDate||e.startDate||e.gameStartTime),{asOf:capturedAt}):
     starts.length?(await env.DB.prepare(`SELECT id,sport,start,home_name,away_name,home_abbr,away_abbr FROM games WHERE sport=? AND julianday(start) BETWEEN julianday(?) AND julianday(?)`)
     .bind(sport,new Date(Math.min(...starts)-7200000).toISOString(),new Date(Math.max(...starts)+7200000).toISOString()).all())?.results||[]:[];
+  capturedGames=games;
   if(sport==='soccer')for(const g of (await loadSoccerMarketFixtures(env,{fetchImpl,now})).fixtures){const existing=games.find(x=>String(x.id)===g.id);if(existing)Object.assign(existing,g);else games.push(g);}
   for(const event of items){
    const match=matchPolymarketUsEvent(event,games,sport);
@@ -55,6 +57,14 @@ export async function capturePolymarketPage(env,{receiptId,kind,slug=null,sport=
      home_team:o.homeTeam,away_team:o.awayTeam,market_family:o.marketFamily,
      side:o.side,line:o.line,period:o.period,source_market_id:o.sourceMarketId,
      source_outcome_id:o.sourceOutcomeId,collected_at:capturedAt}));
+  const displayRoster=roster.map(row=>{
+   const offer=offers.find(o=>o.sourceMarketId===row.source_market_id&&o.sourceOutcomeId===row.source_outcome_id&&o.raw?.contractLong===true);
+   const game=capturedGames.find(g=>String(g.id)===String(row.canonical_event_id));
+   const side=offer&&polymarketUsCanonicalSide(offer,game,offer.league);
+   return {...row,...(offer?.marketFamily==='moneyline'&&offer.period==='full_game'&&side?{displayBinding:{version:1,contractLong:true,period:'full_game',side,sourceOutcomeId:offer.sourceOutcomeId,line:null}}:{})};
+  });
+  try{receipt.streamRosterPublication=await stageBoundedStreamCandidates(env,{sport,candidates:displayRoster.slice(0,50),now:now.getTime()});}
+  catch{receipt.streamRosterPublication={ok:false,code:'BOUNDED_ROSTER_STAGE_STOPPED'};}
   const rosterKey=`market-sources/polymarket-us/stream-roster/${slug}-${offset}.json`;
   await env.ARCHIVE.put(rosterKey,JSON.stringify({version:1,source:'Polymarket US',
    capturedAt,receiptId,roster}),{httpMetadata:{contentType:'application/json'}});

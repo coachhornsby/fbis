@@ -21,11 +21,10 @@ export function todayEnv(context) {
     caches: caches.default,
     DB: context.env.DB,
     TIER3_DB: context.env.TIER3_DB,
-    MARKET_HISTORY_DB: context.env.MARKET_HISTORY_DB,
-    // Required for Q4 Polymarket/PinnOdds board overlays (listMarketHistoryReadDbs).
-    MARKET_HISTORY_2026Q4_DB: context.env.MARKET_HISTORY_2026Q4_DB,
-    // Hot Q4 overflow shard holds the current PinnOdds NBA board receipts.
-    MARKET_HISTORY_2026Q4B_DB: context.env.MARKET_HISTORY_2026Q4B_DB,
+    // Snapshot delivery needs the account coordinator; retired history D1s
+    // must never return through this request environment.
+    FBIS_ACCOUNT_BUDGET: context.env.FBIS_ACCOUNT_BUDGET,
+    CLOUDFLARE_ACCOUNT_ID: context.env.CLOUDFLARE_ACCOUNT_ID,
     ARCHIVE: context.env.ARCHIVE,
   };
 }

@@ -8,8 +8,14 @@ export const KALSHI_STATUS_JOB='functions/api/kalshi-collector-internal.js:excha
 export const KALSHI_CATALOG_JOB='functions/api/kalshi-collector-internal.js:series-catalog';
 export const POLY_STREAM_JOB='services/polymarket-us-stream/boundedWorker.mjs';
 export const POLY_STREAM_SIGN_JOB='functions/api/polymarket-stream-sign.js';
+export const POLY_ROSTER_STAGE_JOB='functions/lib/boundedPolymarketRoster.js:stage';
+export const POLY_ROSTER_PUBLISH_JOB='services/polymarket-roster-publisher/worker.mjs';
+export const POLY_SNAPSHOT_READ_JOB='functions/lib/boundedPolymarketBoard.js:read';
 const noD1={d1Queries:0,reads:0,writes:0,r2Lists:0};
 export const CERTIFIED_EXECUTION_JOBS=Object.freeze({
+ [POLY_ROSTER_STAGE_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:1,r2Writes:1,r2Bytes:262144})}),
+ [POLY_ROSTER_PUBLISH_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:12,r2Writes:1,r2Bytes:1048576})}),
+ [POLY_SNAPSHOT_READ_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:1,r2Writes:0,r2Bytes:1048576})}),
  [POLY_STREAM_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:2,responseBytes:16384,r2Reads:1,r2Writes:2,r2Bytes:2097152,wsMessages:128,wsBytes:1048576,wsSends:8,wsSendBytes:16384,doDurationMs:30000})}),
  [POLY_STREAM_JOB+':health']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:1,r2Writes:0,r2Bytes:65536})}),
  [POLY_STREAM_SIGN_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:0,r2Writes:0,r2Bytes:0})}),
