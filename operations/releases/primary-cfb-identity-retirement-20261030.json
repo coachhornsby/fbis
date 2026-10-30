@@ -1,0 +1,80 @@
+{
+  "phase": "primary-cfb-identity-duplicate-retirement",
+  "state": "COMPLETED",
+  "completedAt": "2026-10-30T15:13:02.109845+00:00",
+  "primaryDatabaseId": "b50c724c-903b-4241-8ce1-48d931e7a44c",
+  "retainedDatabaseId": "b589c91c-c53d-4f4a-9d32-99c4468e3033",
+  "tables": [
+    "cfb_player_aliases",
+    "cfb_player_provider_ids",
+    "cfb_roster_observations"
+  ],
+  "tableVerification": {
+    "cfb_player_aliases": {
+      "rows": 309630,
+      "fieldsSha256": "c7d2fd5fbc2b0366025711d10795b959eef2113e99791ebfb38c58c8db60256d",
+      "columns": 11
+    },
+    "cfb_player_provider_ids": {
+      "rows": 152640,
+      "fieldsSha256": "400c788aa95fe43f15e014e5e19ec1aed4e8752e1a1b50a0589a33b38cdb01eb",
+      "columns": 12
+    },
+    "cfb_roster_observations": {
+      "rows": 39613,
+      "fieldsSha256": "8f1e5677fc74b30e050c2c37d783f3f578b8e20df838d86b4eb3585b335feab3",
+      "columns": 27
+    }
+  },
+  "recordsPreserved": 501883,
+  "allFieldsCompared": true,
+  "originalRowidsRestored": true,
+  "archiveDriveFileId": "1q0f5Y-Svaf2g-0VO2htCTjit9_Llf9ht",
+  "archiveBytes": 26665504,
+  "archiveSha256": "547eb5067f95319e7248bdfb06995c66bb26edfbedfb12417dcf26c89029972c",
+  "verificationReportDriveId": "193Vlh2wSSC47wnNr9pG3wZZU3k5L871N",
+  "independentDownloadRestoreVerified": true,
+  "primaryBytesBefore": 5754675200,
+  "primaryBytesAfter": 5492416512,
+  "bytesRemoved": 262258688,
+  "totalD1BytesBefore": 9265278976,
+  "totalD1BytesAfter": 9003020288,
+  "dedicatedCfbBytesUnchanged": 1620402176,
+  "dropStatementsSucceeded": 3,
+  "dropRowsWritten": 12,
+  "dependentViewsTriggersOrOtherTables": [],
+  "cutoverReceipt": "cfb-20261021-production-v1",
+  "cutoverApproval": "APPROVED_NOT_REVOKED_EXPIRES_2027_10_21",
+  "sourceGuardCommit": "2f5561f883fbeb70aa910cea2cf3ae57364f4938",
+  "sourceGuardsDeployed": false,
+  "temporaryExportWorker": "DELETED",
+  "production": "PAUSED_HTTP_503",
+  "productionDeployment": "31c5ff95-284b-4b7a-8701-4003f5d46e6d",
+  "writeJobsResumed": false,
+  "modelOrWagerAuthorityChanged": false,
+  "tests": {
+    "focusedCfbRoutingAndRetirementPassed": 5,
+    "restoreRejectionChecksPassed": 2,
+    "independentRestoreRowsVerified": 501883,
+    "preexistingBroaderFailures": 4,
+    "preexistingFailureFiles": [
+      "test/sport-working-copy.test.js",
+      "test/database-topology.test.js",
+      "test/sport-prefix-delta-sync.test.js"
+    ]
+  },
+  "remaining": [
+    "D1 footprint remains above the 5 GB included storage target",
+    "Remaining collection execution controls and live sport routing",
+    "Provider tag configuration and fixture refresh",
+    "Measured operating budget including subscriptions, storage and tax",
+    "Controlled Pages release and production verification before resuming schedules"
+  ],
+  "notes": [
+    "All 27 roster-observation columns, 11 alias columns and 12 provider-ID columns were preserved as exported; column counts are recorded in tableVerification.",
+    "Actual field comparisons excluded physical rowid differences between the dedicated and shared copies; the archive restore preserves original PRIMARY rowids.",
+    "Cloudflare individual metadata reported additional page reclamation after DDL acknowledgement; final size is the subsequent metadata readback.",
+    "The 15 remaining databases were measured individually; the old catalog databases field remains historical inventory."
+  ],
+  "completionReceiptDriveId": "1jp9OVfFr2OLD4Ygkb2mYnr9OLTmbNwgL"
+}
