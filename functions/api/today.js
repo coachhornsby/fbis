@@ -1,3 +1,4 @@
+import {sportRequestRouting,hydrateRequestSportRouting} from "../lib/sportRequestRouting.js";
 import { buildTodayBoard, resolveTodayDate } from "../lib/todayBoard.js";
 import { durableHealth, scheduledHealth } from "../lib/jobs.js";
 import { pingDb, countToday, readMeta, queryExecutedBets } from "../lib/store.js";
@@ -10,6 +11,7 @@ import { nbaBoardVenueComparison } from "../lib/nbaBoardVenueComparison.js";
 
 export function todayEnv(context) {
   return {
+    ...sportRequestRouting(context.env),
     PARLAY_API_KEY: context.env.PARLAY_API_KEY,
     THEODDS_API_KEY: context.env.THEODDS_API_KEY,
     SHARPAPI_API_KEY: context.env.SHARPAPI_API_KEY,
@@ -40,6 +42,7 @@ export async function onRequestGet(context) {
   }
   const env = todayEnv(context);
   try {
+    await hydrateRequestSportRouting(env);
     const [board,ping] = await Promise.all([buildTodayBoard(resolved.date, env, { focusSport }),pingDb(env)]);
     const [betsQ,counts,durable,meta]=await Promise.all([
       ping.ok ? queryExecutedBets(env, { date: resolved.date, includeRaw: false }) : { ok: false, rows: [] },

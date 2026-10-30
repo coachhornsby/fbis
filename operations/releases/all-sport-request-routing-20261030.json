@@ -1,0 +1,83 @@
+{
+  "phase": "all-sport-request-routing",
+  "state": "IMPLEMENTED_TESTED_PAGES_STAGED_PRODUCTION_PAUSED",
+  "completedAt": "2026-10-30T15:25:23.311407+00:00",
+  "sports": [
+    "nfl",
+    "cfb",
+    "cbb",
+    "nba",
+    "wnba",
+    "mlb",
+    "nhl",
+    "soccer",
+    "tennis",
+    "npb",
+    "kbo"
+  ],
+  "changes": [
+    "TODAY request allowlist preserves all 11 sport bindings, modes, strict flags, shared-ledger readiness and receipt IDs, plus CORE and operations bindings",
+    "Fresh request-local approval map; one indexed lookup per deployed active sport; no PRIMARY approval fallback or broad approval scans",
+    "Active sport requests fail closed after invalid or unavailable approval; stale injected grants cannot restore authority",
+    "All-sport durable board reads approved sport owners and explicitly excludes moved sports from PRIMARY SQL and response rows",
+    "All 11 active owners require no PRIMARY schedule read; mixed-mode fanout merges only uncut PRIMARY slices",
+    "Shared-ledger readiness remains separately required, except the independently qualified NFL ledger",
+    "Stored fallback cards retain unverified status and no qualification or wagering authority",
+    "Legacy NHL non-production pilot remains scoped to non-active mode"
+  ],
+  "validation": {
+    "testsPassed": 79,
+    "testCommand": "npm run test:request-routing",
+    "backendBundle": "functions/api/today.js bundled with esbuild 0.28.2",
+    "bundlePassed": true,
+    "bundleWarnings": "6 existing duplicate-key warnings in cbbPlayerFeed.js, collegeApply.js and cfbdCanonical.js",
+    "liveCoreApprovalLookups": 4,
+    "liveCoreRowsRead": 4,
+    "approvalQueryPlan": "SEARCH fbis_sport_cutover_approvals USING INDEX sqlite_autoindex_fbis_sport_cutover_approvals_1 (receipt_id=? AND sport=?)",
+    "legacyTestMaintenance": "Removed a stale minimum of seven database calls from a read-only-board regression; kept its upper bound and source/authority assertions. Baseline failed this assertion before the change."
+  },
+  "production": {
+    "state": "PAUSED_HTTP_503",
+    "deploymentId": "31c5ff95-284b-4b7a-8701-4003f5d46e6d",
+    "automaticDeployments": false,
+    "pagesSourceDeployed": false,
+    "activeSportModeConfigured": [
+      "nfl",
+      "cfb",
+      "nba",
+      "nhl"
+    ],
+    "shadowSports": [
+      "cbb",
+      "wnba",
+      "mlb",
+      "soccer",
+      "tennis",
+      "npb",
+      "kbo"
+    ],
+    "all11BindingsPresent": true,
+    "activeApprovalsAllValid": true,
+    "collectorsResumed": false,
+    "cloudflareSettingsChanged": false,
+    "modelOrWagerAuthorityChanged": false
+  },
+  "storage": {
+    "bytesLastVerified": 9003020288,
+    "bytesRemovedThisPhase": 0,
+    "reason": "Further large PRIMARY retirement must follow consumer routing. MLB market projections and normalized-market historical consumers still have direct PRIMARY reads; those records were preserved."
+  },
+  "budget": {
+    "monthlyCloudflareCeilingUsd": 10,
+    "operatingBudgetCertified": false,
+    "paidAiApiEnabled": false
+  },
+  "remaining": [
+    "Finish execution budgets for remaining collection and board paths before activation",
+    "Finish direct PRIMARY historical-consumer routing before retiring additional large tables",
+    "Reduce the remaining D1 footprint toward the included 5 GB storage allowance using verified Drive recovery gates",
+    "Verify provider tags and independent fixture refresh cadence",
+    "Measure operating cost including base subscriptions, storage and tax",
+    "Deploy the controlled Pages release and verify production flow before resuming schedules"
+  ]
+}

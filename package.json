@@ -18,7 +18,8 @@
     "test:asian-baseball-enrichment": "node --test test/asian-baseball-enrichment.test.js test/asian-baseball-pregame.test.js test/asian-baseball-history.test.js",
     "test:nhl": "node --import ./test/offline-network.js --test test/nhl-*.test.js test/confidence-stars.test.js test/pinnodds-*.test.js test/pinnodds-reference-difference.test.js",
     "verify:cloudflare": "node scripts/verify-cloudflare-config.mjs",
-    "audit:nhl": "node scripts/nhl-production-audit.mjs"
+    "audit:nhl": "node scripts/nhl-production-audit.mjs",
+    "test:request-routing": "node --test test/sport-request-routing.test.mjs test/today.test.js test/today-durable-fallback.test.js test/nhl-sport-shard-cutover.test.js test/all-sport-db-context-propagation.test.js test/sport-cutover-all11-routing-gate.test.js"
   },
   "dependencies": {
     "react": "^19.1.0",

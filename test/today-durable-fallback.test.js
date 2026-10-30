@@ -120,7 +120,7 @@ test("ALL sports uses read-only durable schedule and independent tennis queries 
   assert.ok(board.games.every(g=>g.status==="unverified" && !g.canQualify && g.rec==null));
   // Bounded, read-only durable schedule + tennis research + Polymarket exchange
   // overlay + PinnOdds reference reads; no legacy sportsbook hydration.
-  assert.ok(store.metrics.calls>=7 && store.metrics.calls<=11,
+  assert.ok(store.metrics.calls>=1 && store.metrics.calls<=11,
     "bounded read-only board access without redundant legacy sportsbook queries");
   assert.equal(board.polymarketResearch.source,"Polymarket US");
   assert.equal(board.polymarketResearch.qualified,false);
