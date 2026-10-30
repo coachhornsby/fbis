@@ -4,7 +4,7 @@ import {onRequestGet} from '../functions/api/cfb-teams.js';
 import {SPORT_PREFIX_TABLES,copySportPrefixTables} from '../functions/lib/sportWorkingCopy.js';
 const trap={prepare(){throw Error('PRIMARY_MUST_NOT_BE_READ');}};
 test('retired CFB roster tables cannot be copied from PRIMARY, including explicit requests',async()=>{
- for(const table of ['cfb_canonical_players','cfb_roster_membership']){
+ for(const table of ['cfb_canonical_players','cfb_roster_membership','cfb_player_aliases','cfb_player_provider_ids','cfb_roster_observations']){
  assert.equal(SPORT_PREFIX_TABLES.cfb.includes(table),false);
  const r=await copySportPrefixTables({DB:trap,CFB_DB:trap,SPORT_DB_MODE_CFB:'shadow'},'cfb',{tables:[table]});
  assert.equal(r.reason,'CFB_PRIMARY_ROSTER_RETIRED');assert.equal(r.ok,false);

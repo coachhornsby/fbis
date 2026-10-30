@@ -34,7 +34,7 @@ export function workingTablesForSport(sport) {
  * Player-prop tables are intentionally omitted (separate Props workstream).
  */
 // These exact copies were archived and retired from PRIMARY after full-field parity.
-export const CFB_RETIRED_PRIMARY_ROSTER_TABLES=Object.freeze(["cfb_canonical_players","cfb_roster_membership"]);
+export const CFB_RETIRED_PRIMARY_ROSTER_TABLES=Object.freeze(["cfb_canonical_players","cfb_roster_membership","cfb_player_aliases","cfb_player_provider_ids","cfb_roster_observations"]);
 export const SPORT_PREFIX_TABLES = Object.freeze({
   nfl: Object.freeze([
     "nfl_team_profiles",
@@ -55,9 +55,6 @@ export const SPORT_PREFIX_TABLES = Object.freeze({
     "cfb_conference_membership",
     "cfb_team_aliases",
     "cfb_team_provider_ids",
-    "cfb_player_aliases",
-    "cfb_player_provider_ids",
-    "cfb_roster_observations",
     "cfb_roster_source_coverage",
     "cfb_pregame_feature_vectors",
     "cfb_player_role_snapshots",
