@@ -1,0 +1,90 @@
+{
+  "phase": "polymarket-finite-stream-execution",
+  "date": "2026-10-30",
+  "state": "STREAM_WORKER_DEPLOYED_PAUSED_PAGES_SIGNER_STAGED",
+  "production": "PAUSED",
+  "accountBudgetDeploymentId": "379e37d9e125436a991e66df65dfcdec",
+  "streamDeploymentId": "7cf44cd02c3c41c6824ad051025f3b00",
+  "accountBudgetNamespace": "bd4ddbb41fdc4e38b210d8468963a014",
+  "streamNamespace": "0b5aee8d16fd4a3fa5f7db72f4305ade",
+  "policyEnabled": false,
+  "schedules": [],
+  "workersDev": false,
+  "previewUrls": false,
+  "streamD1Bindings": 0,
+  "removedD1Bindings": [
+    "DB",
+    "MARKET_HISTORY_DB",
+    "MARKET_HISTORY_2026Q4_DB",
+    "MARKET_HISTORY_2026Q4B_DB"
+  ],
+  "testsPassed": 75,
+  "testRuntime": {
+    "miniflare": "4.20260730.0",
+    "compatibilityDate": "2026-07-01",
+    "productionCompatibilityDate": "2026-10-01",
+    "note": "Pinned local runtime predates production date; production upload accepted."
+  },
+  "limits": {
+    "connections": 1,
+    "rosterContracts": 50,
+    "sessionDeadlineMs": 20000,
+    "receivedMessages": 128,
+    "receivedConsumptionBytes": 1048576,
+    "singleFrameApplicationLimitBytes": 65536,
+    "outboundMessages": 8,
+    "outboundMessageBytes": 16384,
+    "providerAndSignerRequests": 2,
+    "signerResponseConsumptionBytes": 16384,
+    "r2Reads": 1,
+    "r2Writes": 2,
+    "r2Bytes": 2097152,
+    "r2Listings": 0,
+    "d1Queries": 0,
+    "workerCpuMsPerEvent": 100,
+    "deduplicationSlotMs": 900000
+  },
+  "durationReservation": {
+    "planningMs": 30000,
+    "note": "Reservation is a planning allowance, not a provider-enforced duration or spending cap. Incoming transport and queued event billing require measured release cost evidence."
+  },
+  "rosterKey": "market-sources/polymarket-us/stream-roster/current-v2.json",
+  "snapshotKey": "market-sources/polymarket-us/bounded/latest-v1.json",
+  "statusKey": "market-sources/polymarket-us/bounded/status-v1.json",
+  "rosterBuilder": "scripts/build-bounded-stream-roster.mjs",
+  "rosterSports": [
+    "nfl",
+    "cfb",
+    "cbb",
+    "nba",
+    "wnba",
+    "mlb",
+    "nhl",
+    "soccer",
+    "tennis",
+    "npb",
+    "kbo"
+  ],
+  "rosterRouting": "OFFLINE_BUILDER_COMPLETE_AUTOMATIC_PUBLICATION_PENDING",
+  "signerAdmission": "SEPARATE_RESERVATION_REQUIRED_PAGES_SOURCE_STAGED",
+  "legacyAlarms": "DELETE_ALARM_ONLY_NEVER_RECONNECT",
+  "duplicateRuns": "PERSISTENT_ACCOUNT_LEDGER_REJECTS_REPEATS_IN_SAME_15_MINUTE_SLOT",
+  "researchAuthority": {
+    "canQualify": false,
+    "canAuthorizeWager": false,
+    "continuous": false,
+    "complete": false
+  },
+  "pagesDeployment": "NOT_DEPLOYED_MAINTENANCE_REMAINS_CANONICAL",
+  "providerHardSpendingCap": false,
+  "remaining": [
+    "Fresh all-product costs, storage and tax evidence within total $10 ceiling",
+    "Bounded automatic roster publication and live snapshot consumers",
+    "Execution adapters for the remaining collectors and orchestrator",
+    "Controlled Pages signer deployment with CPU limits and sport routing verification before any activation"
+  ],
+  "bundleSha256": {
+    "budget": "9dce0054c8e9a7e20446812cdf63bf5758239c4ea238ca4f73fae691f87039c7",
+    "stream": "bbbca395c8465bb4c6d3e2f896b9ab1b4d930fed3ed30166062ce43abac0e1ac"
+  }
+}

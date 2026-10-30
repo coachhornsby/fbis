@@ -1,8 +1,9 @@
+import {CERTIFIED_EXECUTION_JOBS,POLY_STREAM_SIGN_JOB} from '../services/account-budget/executionJobs.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import {onRequestPost,onRequestGet} from "../functions/api/polymarket-stream-sign.js";
 test("signed market-only broker rejects unauthenticated requests and never accepts GET",async()=>{
-  const env={POLYMARKET_STREAM_PROXY_TOKEN:"internal-only",POLYMARKET_US_KEY_ID:"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  const env={CLOUDFLARE_ACCOUNT_ID:'test',FBIS_ACCOUNT_BUDGET:{getByName:()=>({reserve:async()=>({allowed:true,expiresAtMs:Date.now()+60000,maxUnits:CERTIFIED_EXECUTION_JOBS[POLY_STREAM_SIGN_JOB].units})})},POLYMARKET_STREAM_PROXY_TOKEN:"internal-only",POLYMARKET_US_KEY_ID:"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
     POLYMARKET_US_SECRET_KEY:Buffer.concat([Buffer.alloc(32,6),Buffer.alloc(32,8)]).toString("base64")};
   const denied=await onRequestPost({request:new Request("https://x/api/polymarket-stream-sign",{method:"POST"}),env});
   assert.equal(denied.status,403);
