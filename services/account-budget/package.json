@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test ../../test/account-budget-admission.test.mjs ../../test/account-budget-entrypoints.test.mjs ../../test/account-budget-runtime.test.mjs ../../test/job-execution-budget.test.mjs ../../test/tennis-job-budget-runtime.test.mjs ../../test/polymarket-tennis-cron.test.mjs ../../test/kalshi-job-budget-runtime.test.mjs ../../test/kalshi-signed-collector.test.js ../../test/kalshi-series-catalog.test.js ../../test/kalshi-central-collector.test.js ../../test/kalshi-exchange-status.test.js ../../test/kalshi-tennis-shadow-capture.test.mjs ../../test/polymarket-bounded-session.test.mjs ../../test/polymarket-bounded-runtime.test.mjs ../../test/polymarket-stream-broker.test.js ../../test/polymarket-roster-routing-runtime.test.mjs"
+    "test": "node --test ../../test/account-budget-admission.test.mjs ../../test/account-budget-entrypoints.test.mjs ../../test/account-budget-runtime.test.mjs ../../test/job-execution-budget.test.mjs ../../test/tennis-job-budget-runtime.test.mjs ../../test/polymarket-tennis-cron.test.mjs ../../test/kalshi-job-budget-runtime.test.mjs ../../test/kalshi-signed-collector.test.js ../../test/kalshi-series-catalog.test.js ../../test/kalshi-central-collector.test.js ../../test/kalshi-exchange-status.test.js ../../test/kalshi-tennis-shadow-capture.test.mjs ../../test/polymarket-bounded-session.test.mjs ../../test/polymarket-bounded-runtime.test.mjs ../../test/polymarket-stream-broker.test.js ../../test/polymarket-roster-routing-runtime.test.mjs ../../test/polymarket-rest-runtime.test.mjs ../../test/polymarket-rest-boundary.test.mjs"
   },
   "devDependencies": {
     "@streamparser/json": "0.0.26",

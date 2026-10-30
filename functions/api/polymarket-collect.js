@@ -115,16 +115,6 @@ export async function collectPolymarketUs(db,{date,fetchImpl=fetch,now=new Date(
 export async function onRequestPost(context){
  const auth=authorizeHarvest(context.request,context.env);
  if(!auth.ok)return json(unauthorizedBody(auth.reason),403);
- if(!context.env?.DB)return json({ok:false,error:"durable-d1-unavailable"},503);
- const u=new URL(context.request.url);
- const date=u.searchParams.get("date");
- if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||"")))return json({ok:false,error:"ct-date-required"},400);
- try {
-  const result=await collectPolymarketUs(context.env.DB,{date});
-  return json(result,result.ok?200:503);
- } catch(error) {
-  return json({ok:false,source:"POLYMARKET_US_PUBLIC",error:String(error?.message||error),
-    date,canQualify:false,canAuthorizeWager:false},502);
- }
+ return json({ok:false,error:'LEGACY_US_COLLECTION_RETIRED',replacement:'fbis-polymarket-rest-collector',noProviderRequest:true,canAuthorizeWager:false},410);
 }
-export async function onRequestGet(){return json({ok:false,error:"method-not-allowed"},405)}
+export async function onRequestGet(){return json({ok:false,error:'method-not-allowed'},405);}

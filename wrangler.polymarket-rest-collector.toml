@@ -1,0 +1,20 @@
+name = "fbis-polymarket-rest-collector"
+main = "services/polymarket-rest-collector/worker.mjs"
+compatibility_date = "2026-10-01"
+workers_dev = false
+preview_urls = false
+[triggers]
+crons = []
+[vars]
+CLOUDFLARE_ACCOUNT_ID = "2fdc80b8d99070adcef12f7a785c3fc1"
+[[r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "fbis-archive"
+[[durable_objects.bindings]]
+name = "FBIS_ACCOUNT_BUDGET"
+class_name = "AccountBudget"
+script_name = "fbis-account-budget"
+[limits]
+cpu_ms = 100
+[observability]
+enabled = false

@@ -1,3 +1,4 @@
+import {archiveCollectedFixtures} from './polymarketFixtureArchive.js';
 import {collectionOwnerContext} from './collectionOwnerContext.js';
 import { canonicalProjectionConfidence } from "./projectionConfidence.js";
 import { resolveNbaResearchOwnerDb } from "./nbaResearchOwnerDb.js";
@@ -2857,6 +2858,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
       let sportWrites = emptyWriteCounts();
       const sportFailReasons = [];
       const cfbCollectedGames = [];
+      const marketFixtureGames=[];
       let cfbPit = null;
       for (const day of unique) {
         dates.push(day);
@@ -2899,6 +2901,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         sportWrites = mergeWriteCounts(sportWrites, frozen.counts || emptyWriteCounts());
         if (frozen.failReasons?.length) sportFailReasons.push(...frozen.failReasons);
         n += slate.games?.length || 0;
+        if(!healthMode&&trigger==='schedule')marketFixtureGames.push(...(slate.games||[]));
         if (sport === "cfb" && !healthMode && trigger === "schedule")
           cfbCollectedGames.push(...(slate.games || []));
         const palView = slate.pal?.match || slate.pal?.meta || slate.pal || null;
@@ -2988,10 +2991,16 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
           sportWrites.writesFailed += Math.max(1, Number(cfbPit.failed)||0);
         }
       }
+      let marketFixtureArchive=null;
+      if(!healthMode&&trigger==='schedule'){
+        try{marketFixtureArchive=await archiveCollectedFixtures(env,{sport,games:marketFixtureGames});}
+        catch{marketFixtureArchive={ok:false,code:'BOUNDED_FIXTURE_ARCHIVE_STOPPED'};}
+      }
       writes = mergeWriteCounts(writes, sportWrites);
       gamesDiscovered += n;
       sports.push({
         sport,
+        marketFixtureArchive,
         ok: sportWrites.writesFailed === 0,
         n,
         date,

@@ -1,0 +1,94 @@
+{
+  "phase": "bounded-polymarket-rest-acquisition",
+  "date": "2026-10-30",
+  "state": "REST_WORKER_DEPLOYED_PAUSED_PAGES_ACQUISITION_HOOKS_STAGED",
+  "production": "PAUSED",
+  "accountBudgetDeploymentId": "8275b45343b64035932875201bbf55bd",
+  "restCollectorDeploymentId": "51047e8e03f341f7a102cf06c0ab1b8a",
+  "collectorWorker": "fbis-polymarket-rest-collector",
+  "accountBudgetNamespace": "bd4ddbb41fdc4e38b210d8468963a014",
+  "policyEnabled": false,
+  "schedules": [],
+  "workersDev": false,
+  "previewUrls": false,
+  "d1BindingsOnCollector": 0,
+  "validation": {
+    "budgetAndPipelineTests": 92,
+    "todayRegressionTests": 37,
+    "totalTestsPassed": 129,
+    "siteBuild": "PASS_WITH_EXISTING_CHUNK_WARNINGS",
+    "backendBundle": "PASS_WITH_EXISTING_DUPLICATE_KEY_WARNINGS",
+    "localRuntime": "miniflare 4.20260730.0; compatibility 2026-07-01",
+    "productionCompatibilityDate": "2026-10-01"
+  },
+  "collectorLimits": {
+    "sportsPerInvocation": 1,
+    "sportRotation": "11 sports by UTC minute-slot; schedules remain empty",
+    "requests": 4,
+    "providerTags": 2,
+    "pagesPerTag": 2,
+    "eventsPerPage": 20,
+    "marketsPerMatchedEvent": 8,
+    "marketSides": 4,
+    "responseConsumptionBytes": 2097152,
+    "r2Reads": 1,
+    "r2Writes": 1,
+    "r2Bytes": 3145728,
+    "selectedContracts": 50,
+    "d1Queries": 0,
+    "archiveListings": 0,
+    "cpuMs": 100
+  },
+  "fixtureWriter": {
+    "source": "FBIS_COLLECTED_SLATE",
+    "maxFixtures": 100,
+    "maxInputGames": 500,
+    "ttlMs": 3600000,
+    "r2Reads": 2,
+    "r2Writes": 1,
+    "r2Bytes": 262144,
+    "requiresConfiguredProviderTags": true,
+    "configVariable": "FBIS_POLYMARKET_TAGS_JSON",
+    "automaticHook": "functions/lib/projLedger.js collectBoards schedule-only; reuses already fetched games",
+    "noAdditionalFixtureSqlOrProviderCalls": true
+  },
+  "legacyProductionEndpointsRetired": [
+    "polymarket-collect",
+    "polymarket-pages",
+    "polymarket-bootstrap"
+  ],
+  "marketStatusReader": "R2_ONLY_NO_HISTORICAL_COUNTS",
+  "rawRetention": "FIXED_PER_SPORT_LATEST_ENVELOPE_ONLY",
+  "separateCandidateStageReservation": true,
+  "researchAuthority": {
+    "canQualify": false,
+    "canAuthorizeWager": false,
+    "complete": false
+  },
+  "productionR2DataModified": false,
+  "pagesDeployment": "STAGED_NOT_DEPLOYED_MAINTENANCE_REMAINS_CANONICAL",
+  "billingVerification": {
+    "state": "BLOCKED_PERMISSION",
+    "attemptedEndpoint": "/accounts/{account_id}/billing/usage",
+    "httpStatus": 403,
+    "cloudflareCode": 10000,
+    "reason": "OAuth connection has no scope covering billing usage; Billing Read API-token permission required",
+    "ceilingVerified": false,
+    "monthlyCeilingUsd": 10
+  },
+  "providerDocs": [
+    "https://docs.polymarket.us/api-reference/introduction",
+    "https://docs.polymarket.us/api-reference/events/get-events"
+  ],
+  "providerHardSpendingCap": false,
+  "remaining": [
+    "Finish bounded execution adapters for other job owners and preserve approved sport routing",
+    "Validate actual all-product costs, storage and tax within total $10; current connection lacks Billing Read",
+    "Configure and verify provider tags and independent fixture-refresh cadence",
+    "Controlled Pages release and end-to-end production verification before enabling schedules"
+  ],
+  "bundleSha256": {
+    "budget": "28bd033fd58341be3a938198078565cb5890274335423fc13963e4e659087c4c",
+    "rest": "e7ef28fcbb33b98282f4f3a434a3c541090b64690a7490a7298c8a4f435a8626"
+  }
+}

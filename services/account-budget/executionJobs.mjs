@@ -11,8 +11,12 @@ export const POLY_STREAM_SIGN_JOB='functions/api/polymarket-stream-sign.js';
 export const POLY_ROSTER_STAGE_JOB='functions/lib/boundedPolymarketRoster.js:stage';
 export const POLY_ROSTER_PUBLISH_JOB='services/polymarket-roster-publisher/worker.mjs';
 export const POLY_SNAPSHOT_READ_JOB='functions/lib/boundedPolymarketBoard.js:read';
+export const POLY_REST_JOB='services/polymarket-rest-collector/worker.mjs';
+export const POLY_FIXTURE_JOB='functions/lib/polymarketFixtureArchive.js:write';
 const noD1={d1Queries:0,reads:0,writes:0,r2Lists:0};
 export const CERTIFIED_EXECUTION_JOBS=Object.freeze({
+ [POLY_REST_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:4,responseBytes:2097152,r2Reads:1,r2Writes:1,r2Bytes:3145728})}),
+ [POLY_FIXTURE_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:2,r2Writes:1,r2Bytes:262144})}),
  [POLY_ROSTER_STAGE_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:1,r2Writes:1,r2Bytes:262144})}),
  [POLY_ROSTER_PUBLISH_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:12,r2Writes:1,r2Bytes:1048576})}),
  [POLY_SNAPSHOT_READ_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:1,r2Writes:0,r2Bytes:1048576})}),
