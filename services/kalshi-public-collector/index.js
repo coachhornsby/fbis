@@ -1,4 +1,5 @@
-import {requireJobAdmission} from '../account-budget/admission.mjs';
+import {beginJobExecution} from '../account-budget/jobScope.mjs';
+import {KALSHI_RELAY_JOB as JOB} from '../account-budget/executionJobs.mjs';
 /**
  * Dedicated schedule-only Kalshi PUBLIC market relay.
  *
@@ -227,25 +228,22 @@ export async function collectPropReconciliationOnce(env,{now=new Date(),fetchImp
  if(Math.floor(now.getTime()/SLOT_MS)%16!==1)return {ok:true,status:"NOT_DUE"};
  return relaySignedPages(env,{scope:"prop-grade-reconcile",fetchImpl});
 }
+// One operation per invocation. Former research/model/grade fanout is dormant
+// until each independent operation has a certified execution boundary.
+export function selectedBoundedTask(now){
+ const slot=Math.floor(now.getTime()/SLOT_MS);
+ if(slot%16===0)return {scope:'series-catalog'};
+ if(slot%4===0)return {scope:'exchange-status'};
+ const sports=[...SPORTS,'cfb_spread','cfb_total',...TENNIS_RESEARCH];
+ const within=slot%16;
+ const marketSlot=Math.floor(slot/16)*12+within-Math.floor(within/4)-1;
+ return {scope:'markets',sport:sports[marketSlot%sports.length]};
+}
 export default {
   async scheduled(event,env,ctx){
- await requireJobAdmission(env, 'services/kalshi-public-collector/index.js', globalThis.crypto.randomUUID());
-
-    // Spread auxiliary provider reads across scheduled windows. Concurrent
-    // multivariate / player-prop / tape fanout produced shared provider 429s.
-    // Market/tennis collectors keep their existing sport cadence.
+    try{env=await beginJobExecution(env,JOB,{network:{origin:new URL(PAGES_ROUTE).origin,path:new URL(PAGES_ROUTE).pathname,method:'POST'}});}catch{return;}
     const now=new Date(event?.scheduledTime||Date.now());
-    const aux=selectedAuxScope(now);
-    ctx.waitUntil(Promise.all([
-      collectKalshiPublicOnce(env),collectKalshiCfbLineMarketsOnce(env),collectKalshiTennisShadowOnce(env),
-      collectKalshiExchangeStatusOnce(env),collectKalshiSeriesCatalogOnce(env),
-      collectNhlOfficialResultsOnce(env,{now}),
-      collectPropReconciliationOnce(env,{now}),
-      relaySignedPages(env,{scope:"prop-model-freeze"}),collectReviewedPropGradesOnce(env,{now}),
-      collectNhlSourceDiscoveryOnce(env,{now}),collectNhlProspectiveOnce(env,{now}),
-      aux==="qualification-evidence"?collectKalshiEvidenceOnce(env):
-        relaySignedPages(env,{scope:aux}),
-    ]));
+    ctx.waitUntil(relaySignedPages(env,{...selectedBoundedTask(now),fetchImpl:env.FBIS_JOB_FETCH}));
   },
   async fetch(request,env){
 
@@ -253,11 +251,12 @@ export default {
     if(request.method!=="GET"||url.pathname!=="/health")
       return Response.json({ok:false,code:"READ_ONLY_HEALTH_ONLY"},{
         status:404,headers:{"cache-control":"no-store"}});
- await requireJobAdmission(env, 'services/kalshi-public-collector/index.js', globalThis.crypto.randomUUID());
-    const [status,evidenceStatus]=await Promise.all([
-      readJson(env.ARCHIVE,"collector-status.json"),
-      readJson(env.ARCHIVE,"evidence-status.json"),
-    ]);
+ try{env=await beginJobExecution(env,JOB+':health');}catch{return Response.json({ok:false,code:'ACCOUNT_BUDGET_STOP',paused:true},{status:503,headers:{'cache-control':'no-store'}});}
+    let status,evidenceStatus;
+    try{[status,evidenceStatus]=await Promise.all([
+      'collector-status.json','evidence-status.json'
+    ].map(async key=>{const object=await env.ARCHIVE.get(PREFIX+key);return object?object.json():null;}));}
+    catch{return Response.json({ok:false,code:'R2_STATUS_UNAVAILABLE'},{status:503,headers:{'cache-control':'no-store'}});}
     return Response.json({
       ok:true,readOnly:true,snapshotSource:"R2",
       status:status?.status||"NOT_STARTED",

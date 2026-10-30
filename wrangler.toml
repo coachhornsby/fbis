@@ -21,23 +21,11 @@ database_id = "3dcddd30-8790-48f0-a6a3-cc3ad9b95295"
 # Market-history shard: shadow/recovery normalized market observations only.
 # Decision links, CLV, settlement, cards and models remain on primary DB.
 # See docs/database-ownership-v1.md / docs/database-topology-v2.md.
-[[d1_databases]]
-binding = "MARKET_HISTORY_DB"
-database_name = "fbis-market-history"
-database_id = "c32ccf06-c896-4d24-bb89-3e87a7412899"
 
 # Active market-history partition (hot window). Prefer for new recovery writes
 # when legacy MARKET_HISTORY_DB is near the 10GB ceiling.
-[[d1_databases]]
-binding = "MARKET_HISTORY_2026Q4_DB"
-database_name = "fbis-market-history-2026q4"
-database_id = "e8b0b65d-90a6-4842-8ee7-0f85d75afb4c"
 
 # Fresh Q4 overflow shard. Hot writes stop at 85%, history remains readable.
-[[d1_databases]]
-binding = "MARKET_HISTORY_2026Q4B_DB"
-database_name = "fbis-market-history-2026q4b"
-database_id = "bb240435-e227-43e9-b8a6-eb05f0c68d4c"
 
 # Shared core: settings, model registry, executed-bet index, dashboard summaries.
 [[d1_databases]]
@@ -122,18 +110,17 @@ bucket_name = "fbis-archive"
 
 # Frozen historical research copy. Cutover stays disabled until the full
 # source/R2/Drive/cold-SQL recovery and historical consumer parity gates pass.
-[[d1_databases]]
-binding = "COLD_HISTORY_DB"
-database_name = "fbis-cold-history-20261017"
-database_id = "6fad1baf-126f-4ab8-9b80-a7d71637d6d4"
 
 # Separate D1 write copies only; authoritative reads, CLV, and qualification
 # remain on primary. Roll back by setting this to "disabled".
 [vars]
-MARKET_HISTORY_SHADOW_WS = "enabled"
+CLOUDFLARE_ACCOUNT_ID = "2fdc80b8d99070adcef12f7a785c3fc1"
+FBIS_BUDGET_STOP = "true"
+FBIS_ARCHIVE_D1_RETIRED = "true"
+MARKET_HISTORY_SHADOW_WS = "disabled"
 # Enabled 2026-10-17 after release-20261017-storage-a1: cold acceptance seeded,
 # RESEARCH retired from primary, R2+cold spot checks passed (#1220/#1221).
-COLD_MARKET_ARCHIVE_READS = "enabled"
+COLD_MARKET_ARCHIVE_READS = "disabled"
 # Sport D1 modes: primary | shadow | sport. Keep primary until parity + cutover.
 NHL_SPORT_DB_MODE = "shadow"
 SPORT_DB_MODE_NHL = "shadow"
@@ -153,8 +140,11 @@ SPORT_DB_MODE_KBO = "shadow"
 # NFL-only production D1 authority. All previews continue using top-level shadow vars.
 # Revert SPORT_DB_MODE_NFL to shadow only after reverse-replaying post-cutover NFL writes.
 [env.production.vars]
-MARKET_HISTORY_SHADOW_WS = "enabled"
-COLD_MARKET_ARCHIVE_READS = "enabled"
+CLOUDFLARE_ACCOUNT_ID = "2fdc80b8d99070adcef12f7a785c3fc1"
+FBIS_BUDGET_STOP = "true"
+FBIS_ARCHIVE_D1_RETIRED = "true"
+MARKET_HISTORY_SHADOW_WS = "disabled"
+COLD_MARKET_ARCHIVE_READS = "disabled"
 NHL_SPORT_DB_MODE = "shadow"
 SPORT_DB_MODE_NHL = "sport"
 SPORT_DB_MODE_NFL = "sport"
@@ -200,20 +190,8 @@ binding = "TIER3_DB"
 database_name = "fbis-cfb-tier3-research"
 database_id = "3dcddd30-8790-48f0-a6a3-cc3ad9b95295"
 
-[[env.production.d1_databases]]
-binding = "MARKET_HISTORY_DB"
-database_name = "fbis-market-history"
-database_id = "c32ccf06-c896-4d24-bb89-3e87a7412899"
 
-[[env.production.d1_databases]]
-binding = "MARKET_HISTORY_2026Q4_DB"
-database_name = "fbis-market-history-2026q4"
-database_id = "e8b0b65d-90a6-4842-8ee7-0f85d75afb4c"
 
-[[env.production.d1_databases]]
-binding = "MARKET_HISTORY_2026Q4B_DB"
-database_name = "fbis-market-history-2026q4b"
-database_id = "bb240435-e227-43e9-b8a6-eb05f0c68d4c"
 
 [[env.production.d1_databases]]
 binding = "CORE_DB"
@@ -280,11 +258,18 @@ binding = "OPERATIONS_DB"
 database_name = "fbis-operations-20261017"
 database_id = "2371df3a-17bf-44d6-abf0-d275cf2f331e"
 
-[[env.production.d1_databases]]
-binding = "COLD_HISTORY_DB"
-database_name = "fbis-cold-history-20261017"
-database_id = "6fad1baf-126f-4ab8-9b80-a7d71637d6d4"
 
 [[env.production.r2_buckets]]
 binding = "ARCHIVE"
 bucket_name = "fbis-archive"
+
+# External budget coordinator is required by the bounded internal collector.
+[[durable_objects.bindings]]
+name = "FBIS_ACCOUNT_BUDGET"
+class_name = "AccountBudget"
+script_name = "fbis-account-budget"
+
+[[env.production.durable_objects.bindings]]
+name = "FBIS_ACCOUNT_BUDGET"
+class_name = "AccountBudget"
+script_name = "fbis-account-budget"

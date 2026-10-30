@@ -1,24 +1,8 @@
-import {capturePropForecastJob} from '../lib/propForecastCaptureJob.js';
-import {reconcileQueuedPropEvidence} from '../lib/propReconciliationQueue.js';
-import {captureProspectivePropResearch} from '../lib/propProspectiveCapture.js';
-import {independentPropRows} from '../lib/propResearchData.js';
-import {buildSlate} from '../lib/slateEngine.js';
-import {captureNhlProspectiveJob} from "../lib/nhlProspectiveCaptureJob.js";
-import {discoverNhlSourceVerifiedScopes} from "../lib/nhlOfficialScopeDiscovery.js";
-import {runApprovedPropReconciliation} from "../lib/propReconciliationSchedule.js";
-import {captureNhlOfficialPlayerResults} from "../lib/nhlOfficialPlayerResults.js";
-import {captureKalshiComboTape} from "../lib/kalshiComboTape.js";
-import {captureKalshiMultilegs} from "../lib/kalshiMultilegCollector.js";
-import {captureKalshiTargetedEvidence} from "../lib/kalshiTargetedEvidence.js";
-import { captureKalshiPlayerProps } from "../lib/kalshiPlayerPropCollector.js";
-import {
-  captureSignedKalshiMarkets,captureSignedKalshiExchangeStatus,
-  captureKalshiSportsSeriesCatalog,
-} from "../lib/kalshiSignedCollector.js";
-const respond=(obj,status=200)=>Response.json(obj,{
-  status,headers:{"cache-control":"private, no-store","pragma":"no-cache",
-    "x-content-type-options":"nosniff","x-robots-tag":"noindex, nofollow"},
-});
+import {captureSignedKalshiMarkets,captureSignedKalshiExchangeStatus,captureKalshiSportsSeriesCatalog} from '../lib/kalshiSignedCollector.js';
+import {KALSHI_BASE,KALSHI_DIAGNOSTIC_PATHS} from '../lib/kalshiAccount.js';
+import {beginJobExecution} from '../../services/account-budget/jobScope.mjs';
+import {KALSHI_CAPTURE_JOB,KALSHI_STATUS_JOB,KALSHI_CATALOG_JOB} from '../../services/account-budget/executionJobs.mjs';
+const respond=(data,status=200)=>Response.json(data,{status,headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff','x-robots-tag':'noindex, nofollow'}});
 async function authorized(expected,provided,subtle){
   if(typeof expected!=="string"||expected.length<40
     ||typeof provided!=="string"||provided.length!==expected.length
@@ -32,87 +16,25 @@ async function authorized(expected,provided,subtle){
   let diff=0;for(let i=0;i<x.length;i++)diff|=x[i]^y[i];
   return diff===0;
 }
-/**
- * Worker-to-Pages service endpoint, NOT an operator-facing diagnostic.
- * Caller uses independent service token (never Kalshi key) from encrypted
- * Cloudflare bindings. No browser access, GET-only Kalshi queries, R2 only.
- */
+
+const scopes=Object.freeze({
+ markets:{job:KALSHI_CAPTURE_JOB,path:KALSHI_DIAGNOSTIC_PATHS.markets,run:captureSignedKalshiMarkets},
+ 'exchange-status':{job:KALSHI_STATUS_JOB,path:KALSHI_DIAGNOSTIC_PATHS.status,run:captureSignedKalshiExchangeStatus},
+ 'series-catalog':{job:KALSHI_CATALOG_JOB,path:KALSHI_DIAGNOSTIC_PATHS.series,run:captureKalshiSportsSeriesCatalog},
+});
+const sports=new Set(['nfl','cfb','nba','cfb_spread','cfb_total','atp','wta','atp_challenger','itf_men','itf_women','atp_doubles','wta_doubles','itf_doubles','itf_women_doubles']);
 export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypto}){
-  const token=request.headers.get("x-fbis-kalshi-relay-token");
-  if(!await authorized(env?.FBIS_KALSHI_RELAY_TOKEN,token,webCrypto.subtle))
-    return respond({ok:false,code:"INTERNAL_COLLECTOR_ACCESS_DENIED"},403);
-  const u=new URL(request.url);
-  const scope=u.searchParams.get("scope");
-  if(scope==="prop-reconciliation"){
-    try {const r=await runApprovedPropReconciliation(env,{webCrypto});return respond(r,r.ok?200:503);}
-    catch {return respond({ok:false,code:"PROP_RECONCILIATION_UNAVAILABLE"},503);}
-  }
-  if(scope==="nhl-prospective-capture"){
-    try {const r=await captureNhlProspectiveJob(env,{webCrypto});return respond(r,r.ok?200:503);}
-    catch {return respond({ok:false,code:"NHL_PROSPECTIVE_CAPTURE_UNAVAILABLE"},503);}
-  }
-  if(scope==="nhl-official-scope-discovery"){
-    try {const r=await discoverNhlSourceVerifiedScopes(env,{fetchImpl});return respond(r,r.ok?200:503);}
-    catch {return respond({ok:false,code:"NHL_SCOPE_DISCOVERY_UNAVAILABLE"},503);}
-  }
-  if(scope==="nhl-official-prop-results"){
-    try {const r=await captureNhlOfficialPlayerResults(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503);}
-    catch {return respond({ok:false,code:"NHL_OFFICIAL_PROP_RESULTS_UNAVAILABLE"},503);}
-  }
-  if(scope==="prop-grade-reconcile"){
-    try{const r=await reconcileQueuedPropEvidence(env,{webCrypto});return respond(r,r.ok?200:503);}
-    catch{return respond({ok:false,code:"PROP_RECONCILIATION_UNAVAILABLE"},503);}
-  }
-  if(scope==="prop-model-freeze"){
-    try {
-      const r=await capturePropForecastJob(env,{webCrypto});
-      return respond(r,r.ok?200:503);
-    }catch{return respond({ok:false,code:"PROSPECTIVE_MODEL_CAPTURE_UNAVAILABLE"},503);}
-  }
-  if(scope==="player-props"){
-    try { const r=await captureKalshiPlayerProps(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503); }
-    catch { return respond({ok:false,code:"PLAYER_PROP_COLLECTION_UNAVAILABLE"},503); }
-  }
-  if(scope==="markets"){
-    const sport=u.searchParams.get("sport");
-    if(!["nfl","cfb","nba","cfb_spread","cfb_total","atp","wta","atp_challenger","itf_men","itf_women",
-      "atp_doubles","wta_doubles","itf_doubles","itf_women_doubles"].includes(sport))
-      return respond({ok:false,code:"KALSHI_SPORT_NOT_ENABLED"},400);
-    try{
-      const result=await captureSignedKalshiMarkets(env,{sport,fetchImpl,webCrypto});
-      return respond(result,result.ok?200:result.code==="KALSHI_PUBLIC_RATE_LIMITED"?429:503);
-    }catch{
-      return respond({ok:false,code:"SIGNED_COLLECTION_UNAVAILABLE"},503);
-    }
-  }
-  if(scope==="qualification-evidence"){
-    try{const r=await captureKalshiTargetedEvidence(env,{fetchImpl,webCrypto});return respond(r,r.ok?200:503)}
-    catch{return respond({ok:false,code:"EVIDENCE_COLLECTION_UNAVAILABLE"},503)}
-  }
-  if(scope==="combo-tape"){
-    try{const r=await captureKalshiComboTape(env,{fetchImpl});return respond(r,r.ok?200:503)}
-    catch{return respond({ok:false,code:"COMBO_TAPE_UNAVAILABLE"},503)}
-  }
-  if(scope==="multilegs"){
-    try{const r=await captureKalshiMultilegs(env,{fetchImpl});return respond(r,r.ok?200:503)}
-    catch{return respond({ok:false,code:"MULTILEG_COLLECTION_UNAVAILABLE"},503)}
-  }
-  if(scope==="exchange-status"){
-    try{
-      const result=await captureSignedKalshiExchangeStatus(env,{fetchImpl,webCrypto});
-      return respond(result,result.ok?200:503);
-    }catch{
-      return respond({ok:false,code:"SIGNED_STATUS_UNAVAILABLE"},503);
-    }
-  }
-  if(scope==="series-catalog"){
-    try{
-      const result=await captureKalshiSportsSeriesCatalog(env,{fetchImpl,webCrypto});
-      return respond(result,result.ok?200:result.code==="KALSHI_CATALOG_POLL_NOT_DUE"?200:503);
-    }catch{
-      return respond({ok:false,code:"KALSHI_CATALOG_UNAVAILABLE"},503);
-    }
-  }
-  return respond({ok:false,code:"COLLECTION_SCOPE_NOT_ALLOWED"},400);
+ if(!await authorized(env?.FBIS_KALSHI_RELAY_TOKEN,request.headers.get('x-fbis-kalshi-relay-token'),webCrypto.subtle))return respond({ok:false,code:'INTERNAL_COLLECTOR_ACCESS_DENIED'},403);
+ const url=new URL(request.url),scope=url.searchParams.get('scope');
+ if(!Object.hasOwn(scopes,scope||''))return respond({ok:false,code:'JOB_EXECUTION_NOT_CERTIFIED'},503);
+ const operation=scopes[scope],sport=url.searchParams.get('sport');
+ if(scope==='markets'&&!sports.has(sport))return respond({ok:false,code:'KALSHI_SPORT_NOT_ENABLED'},400);
+ try{
+  env=await beginJobExecution(env,operation.job,{fetchImpl,network:{origin:KALSHI_BASE,path:operation.path}});
+ }catch{return respond({ok:false,code:'ACCOUNT_BUDGET_STOP',paused:true},503);}
+ try{
+  const result=await operation.run(env,{sport,fetchImpl:env.FBIS_JOB_FETCH,webCrypto});
+  return respond(result,result.ok?200:result.rateLimited?429:503);
+ }catch{return respond({ok:false,code:'BOUNDED_COLLECTION_STOPPED'},503);}
 }
-export async function onRequestGet(){return respond({ok:false,code:"INTERNAL_POST_REQUIRED"},405);}
+export async function onRequestGet(){return respond({ok:false,code:'INTERNAL_POST_REQUIRED'},405);}

@@ -1,8 +1,9 @@
 name = "fbis-kalshi-public-collector"
-main = "services/kalshi-public-collector/index.js"
+main = "services/kalshi-public-collector/entrypoint.mjs"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
-workers_dev = true
+workers_dev = false
+preview_urls = false
 
 # Single centrally scheduled poll: one NFL or CFB series per fifteen minutes.
 # No account credentials. No D1, no betting decisions or venue execution.
@@ -14,10 +15,10 @@ binding = "ARCHIVE"
 bucket_name = "fbis-archive"
 
 [observability]
-enabled = true
+enabled = false
 
 [observability.traces]
-enabled = true
+enabled = false
 
 [vars]
 CLOUDFLARE_ACCOUNT_ID = "2fdc80b8d99070adcef12f7a785c3fc1"
@@ -27,3 +28,6 @@ CLOUDFLARE_ACCOUNT_ID = "2fdc80b8d99070adcef12f7a785c3fc1"
 name = "FBIS_ACCOUNT_BUDGET"
 class_name = "AccountBudget"
 script_name = "fbis-account-budget"
+
+[limits]
+cpu_ms = 100

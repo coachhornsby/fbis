@@ -236,7 +236,7 @@ export async function getKalshiShadowMarketsPage(sport,{
   cursor="",fetchImpl=fetch,now=new Date(),limit=250,
 }={}){
   const series=KALSHI_SHADOW_SERIES[sport];
-  if(!["nfl","cfb","cfb_spread","cfb_total","atp","wta"].includes(sport)||!series)
+  if(!Object.hasOwn(KALSHI_SHADOW_SERIES,sport)||!series)
     return {ok:false,code:"KALSHI_SERIES_NOT_QUALIFIED"};
   if(typeof cursor!=="string"||cursor.length>2048)
     return {ok:false,code:"KALSHI_PUBLIC_CURSOR_INVALID"};

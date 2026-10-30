@@ -1,0 +1,80 @@
+{
+  "phase": "kalshi-bounded-execution",
+  "date": "2026-10-29",
+  "state": "WORKER_DEPLOYED_PAUSED_PAGES_SOURCE_STAGED",
+  "production": "PAUSED",
+  "accountBudgetDeploymentId": "cbd821284266426b82192452fe8160d7",
+  "kalshiRelayDeploymentId": "b74da2e0b3614f84a6c2f3b2807bbe71",
+  "namespaceId": "bd4ddbb41fdc4e38b210d8468963a014",
+  "policy": {
+    "enabled": false
+  },
+  "schedules": [],
+  "workersDev": false,
+  "previewUrls": false,
+  "testsPassed": 62,
+  "testRuntime": {
+    "miniflare": "4.20260730.0",
+    "compatibilityDate": "2026-07-01",
+    "productionCompatibilityDate": "2026-10-01",
+    "note": "Pinned local runtime predates production compatibility date; production upload succeeded."
+  },
+  "relay": {
+    "maxRequests": 1,
+    "maxResponseConsumptionBytes": 65536,
+    "r2Operations": 0,
+    "d1Queries": 0,
+    "cpuMs": 100
+  },
+  "pagesScopes": {
+    "markets": {
+      "requests": 1,
+      "responseConsumptionBytes": 4194304,
+      "r2Reads": 3,
+      "r2Writes": 4,
+      "r2Bytes": 8388608,
+      "d1Queries": 0
+    },
+    "exchange-status": {
+      "requests": 1,
+      "responseConsumptionBytes": 65536,
+      "r2Reads": 1,
+      "r2Writes": 1,
+      "r2Bytes": 131072,
+      "d1Queries": 0
+    },
+    "series-catalog": {
+      "requests": 1,
+      "responseConsumptionBytes": 4194304,
+      "r2Reads": 1,
+      "r2Writes": 2,
+      "r2Bytes": 4194304,
+      "d1Queries": 0
+    }
+  },
+  "downstreamAdmission": "INDEPENDENT_RESERVATION_REQUIRED_BEFORE_PROVIDER_OR_R2_IO",
+  "researchAuthority": {
+    "canQualify": false,
+    "canAuthorizeWager": false
+  },
+  "pagesDeployment": "NOT_DEPLOYED_MAINTENANCE_REMAINS_CANONICAL",
+  "pagesCpuLimit": "REQUIRES_RELEASE_CONFIGURATION_BEFORE_ACTIVATION",
+  "legacyScopes": "DISABLED_UNTIL_EXECUTION_CERTIFIED",
+  "configuration": {
+    "retiredD1BindingsRemoved": 8,
+    "liveD1BindingsPerEnvironment": 15,
+    "budgetBindingAddedToBothEnvironments": true,
+    "budgetStop": true,
+    "archiveRetired": true
+  },
+  "providerHardSpendingCap": false,
+  "remaining": [
+    "Fresh all-product costs, storage and tax evidence within total $10 ceiling",
+    "Execution adapters for other collectors and stream callbacks",
+    "Deploy controlled Pages release with runtime limits and verify sport routing before enabling any policy"
+  ],
+  "bundleSha256": {
+    "budget": "a4f81c770e76d1ee83e97ee53c19677ef5964b0999e68545c80983864e46d4ed",
+    "kalshi": "d2aeba982cf39aac0ac6d611213557d3a7a98cd5766a8caf1280cbffd6bffb74"
+  }
+}

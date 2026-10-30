@@ -21,15 +21,15 @@ function boundedBody(body,lease,{unit="responseBytes",maxBytes=Infinity}={}){
  if(!body)return null;const reader=body.getReader();let received=0;
  return new ReadableStream({async pull(controller){try{lease.live();const part=await reader.read();lease.live();if(part.done){controller.close();reader.releaseLock();return;}received+=part.value.byteLength;if(received>maxBytes)lease.stop("RESPONSE_SIZE_MISMATCH");if(unit)lease.spend({[unit]:part.value.byteLength});controller.enqueue(part.value);}catch(error){await reader.cancel().catch(()=>{});controller.error(error);}},async cancel(reason){await reader.cancel(reason);}});
 }
-export function executionFetch(lease,fetchImpl,{origin,path}={}){
+export function executionFetch(lease,fetchImpl,{origin,path,method:approvedMethod="GET"}={}){
  return async(input,init={})=>{
   const url=new URL(typeof input==='string'||input instanceof URL?input:input.url);
   const method=String(init.method||input?.method||'GET').toUpperCase();
-  if(url.username||url.password||url.origin!==origin||url.pathname!==path||method!=='GET'||init.body!=null||input?.body||(init.redirect&&init.redirect!=='manual'))lease.stop('JOB_NETWORK_DESTINATION_NOT_APPROVED');
+  if(url.username||url.password||url.origin!==origin||url.pathname!==path||method!==approvedMethod||init.body!=null||input?.body||(init.redirect&&init.redirect!=='manual'))lease.stop('JOB_NETWORK_DESTINATION_NOT_APPROVED');
   lease.spend({requests:1});
   const timeout=AbortSignal.timeout(Math.max(1,Math.min(20000,lease.expiresAtMs-Date.now())));
   const signal=init.signal?AbortSignal.any([init.signal,timeout]):timeout;
-  const response=await fetchImpl(input,{...init,method:'GET',redirect:'manual',signal});
+  const response=await fetchImpl(input,{...init,method:approvedMethod,redirect:'manual',signal});
   lease.live();if(response.status===101||response.webSocket){response.webSocket?.close(1008,'Budgeted streams required');lease.stop('UNBOUNDED_STREAM_REJECTED');}
   return new Response(boundedBody(response.body,lease),{status:response.status,statusText:response.statusText,headers:response.headers});
  };

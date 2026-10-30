@@ -1,3 +1,4 @@
+import {CERTIFIED_EXECUTION_JOBS} from '../services/account-budget/executionJobs.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
@@ -15,7 +16,7 @@ function bucket(){
 async function pagesEnv(){
  const kp=await webcrypto.subtle.generateKey({name:"Ed25519"},true,["sign","verify"]);
  const der=Buffer.from(await webcrypto.subtle.exportKey("pkcs8",kp.privateKey));
- return {ARCHIVE:bucket(),KALSHI_API_KEY_ID:"test-id",
+ return {CLOUDFLARE_ACCOUNT_ID:'test',FBIS_ACCOUNT_BUDGET:{getByName:()=>({reserve:async({job})=>({allowed:true,expiresAtMs:Date.now()+60000,maxUnits:CERTIFIED_EXECUTION_JOBS[job].units})})},ARCHIVE:bucket(),KALSHI_API_KEY_ID:"test-id",
   KALSHI_PRIVATE_KEY_PEM1:"-----BEGIN PRIVATE KEY-----\n"+der.toString("base64")+"\n-----END PRIVATE KEY-----",
   FBIS_KALSHI_RELAY_TOKEN:"z".repeat(64)};
 }

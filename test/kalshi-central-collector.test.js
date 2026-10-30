@@ -1,3 +1,5 @@
+import {CERTIFIED_EXECUTION_JOBS,KALSHI_RELAY_JOB} from '../services/account-budget/executionJobs.mjs';
+const healthBudget={CLOUDFLARE_ACCOUNT_ID:'test',FBIS_ACCOUNT_BUDGET:{getByName:()=>({reserve:async()=>({allowed:true,expiresAtMs:Date.now()+60000,maxUnits:CERTIFIED_EXECUTION_JOBS[KALSHI_RELAY_JOB+':health'].units})})}};
 import test from "node:test";
 import assert from "node:assert/strict";
 import collector,{selectedSport,selectedAuxScope,collectKalshiPublicOnce,collectKalshiEvidenceOnce,relaySignedPages} from "../services/kalshi-public-collector/index.js";
@@ -98,7 +100,7 @@ test("signed relay reports 403 or 429 without echoing token/provider body",async
 test("worker has health-only route; no relay endpoint exposed",async()=>{
  const ARCHIVE=archive();
  const health=await collector.fetch(new Request("https://kalshi.test/health"),
-   {ARCHIVE,FBIS_KALSHI_RELAY_TOKEN:secret});
+   {...healthBudget,ARCHIVE,FBIS_KALSHI_RELAY_TOKEN:secret});
  assert.equal(health.status,200);
  const body=await health.json();
  assert.equal(body.relayConfigured,true);
@@ -152,7 +154,7 @@ test("evidence relay transport errors create an R2 receipt without synthetic mar
  assert.equal(last.status,"RELAY_ERROR");
  assert.equal(last.code,"PAGES_RELAY_UNAVAILABLE");
  assert.equal(last.canQualify,false);
- const health=await collector.fetch(new Request("https://kalshi.test/health"),{ARCHIVE});
+ const health=await collector.fetch(new Request("https://kalshi.test/health"),{...healthBudget,ARCHIVE});
  const body=await health.json();
  assert.equal(body.evidenceStatus,"RELAY_ERROR");
  assert.equal(body.evidenceErrorCode,"PAGES_RELAY_UNAVAILABLE");
@@ -167,7 +169,7 @@ test("evidence relay observes 30-minute cooldown from R2 instead of sending extr
  assert.equal(r.status,"NOT_DUE");assert.equal(calls,0);
 });
 
-test("scheduled collector assigns three of four 15-minute windows to prop inventory",()=>{
+test("legacy auxiliary selector is preserved but is not scheduled by the bounded entrypoint",()=>{
  const start=Date.parse("2026-10-20T00:00:00Z");
  const slots=Array.from({length:12},(_,i)=>selectedAuxScope(new Date(start+i*15*60000)));
  assert.equal(slots.filter(s=>s==="player-props").length,9);

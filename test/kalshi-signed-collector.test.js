@@ -1,3 +1,4 @@
+import {CERTIFIED_EXECUTION_JOBS} from '../services/account-budget/executionJobs.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import {webcrypto} from "node:crypto";
@@ -13,7 +14,7 @@ function bucket(){const values=new Map();return{
 async function config(){
  const keys=await webcrypto.subtle.generateKey({name:"Ed25519"},true,["sign","verify"]);
  const der=Buffer.from(await webcrypto.subtle.exportKey("pkcs8",keys.privateKey));
- return {ARCHIVE:bucket(),KALSHI_API_KEY_ID:"test-id",
+ return {CLOUDFLARE_ACCOUNT_ID:'test',FBIS_ACCOUNT_BUDGET:{getByName:()=>({reserve:async({job})=>({allowed:true,expiresAtMs:Date.now()+60000,maxUnits:CERTIFIED_EXECUTION_JOBS[job].units})})},ARCHIVE:bucket(),KALSHI_API_KEY_ID:"test-id",
    KALSHI_PRIVATE_KEY_PEM1:"-----BEGIN PRIVATE KEY-----\n"+der.toString("base64")+"\n-----END PRIVATE KEY-----",
    FBIS_KALSHI_RELAY_TOKEN:"Z".repeat(64)};
 }
@@ -114,7 +115,7 @@ test("authorized Pages endpoint only accepts limited GET-only sports scope",asyn
    }),env,webCrypto:webcrypto,
    fetchImpl:async()=>{throw Error("NO");},
  });
- assert.equal(bad.status,400);
+ assert.equal(bad.status,503);
  const proxy=kalshiSignedReadProxy(env,{webCrypto:webcrypto,fetchImpl:async()=>{
   throw Error("NO_EXTERNAL_FETCH");}});
  await assert.rejects(()=>proxy("https://attacker.example/trade-api/v2/markets",{method:"GET"}));

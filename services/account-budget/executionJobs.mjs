@@ -2,7 +2,17 @@
 // legacy job that has no execution boundary. These jobs make no D1 mutations.
 export const TENNIS_COLLECT_JOB='services/polymarket-tennis-collector/index.js';
 export const TENNIS_HEALTH_JOB=TENNIS_COLLECT_JOB+':health';
+export const KALSHI_RELAY_JOB='services/kalshi-public-collector/index.js';
+export const KALSHI_CAPTURE_JOB='functions/api/kalshi-collector-internal.js:markets';
+export const KALSHI_STATUS_JOB='functions/api/kalshi-collector-internal.js:exchange-status';
+export const KALSHI_CATALOG_JOB='functions/api/kalshi-collector-internal.js:series-catalog';
+const noD1={d1Queries:0,reads:0,writes:0,r2Lists:0};
 export const CERTIFIED_EXECUTION_JOBS=Object.freeze({
+ [KALSHI_RELAY_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:1,responseBytes:65536,r2Reads:0,r2Writes:0,r2Bytes:0})}),
+ [KALSHI_RELAY_JOB+':health']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:2,r2Writes:0,r2Bytes:131072})}),
+ [KALSHI_CAPTURE_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:1,responseBytes:4194304,r2Reads:3,r2Writes:4,r2Bytes:8388608})}),
+ [KALSHI_STATUS_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:1,responseBytes:65536,r2Reads:1,r2Writes:1,r2Bytes:131072})}),
+ [KALSHI_CATALOG_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:1,responseBytes:4194304,r2Reads:1,r2Writes:2,r2Bytes:4194304})}),
  [TENNIS_COLLECT_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({requests:36,responseBytes:8388608,r2Reads:0,r2Writes:2,r2Lists:0,r2Bytes:4194304,d1Queries:0,reads:0,writes:0})}),
  [TENNIS_HEALTH_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({requests:0,responseBytes:0,r2Reads:1,r2Writes:0,r2Lists:0,r2Bytes:65536,d1Queries:0,reads:0,writes:0})})
 });
