@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeExchangeProp,latestExchangeProps,PROP_SPORTS } from '../functions/lib/exchangePlayerProps.js';
-import { onRequestGet } from '../functions/api/exchange-player-props.js';
+import { onRequestGet,summarizeExchangeCoverage } from '../functions/api/exchange-player-props.js';
 import { verifiedLastFive } from '../src/features/playerProps/verifiedHistory.js';
 const now=Date.parse('2026-10-20T13:30:00Z');
 function fixture() {
@@ -37,7 +37,7 @@ test('last five omit null/DNP/canceled values, preserve real zero and pushes, de
 test('API reads Q4 and primary, rejects invalid dates, and distinguishes store errors',async()=>{
  const queries=[];const db={prepare(sql){queries.push(sql);return{async all(){return{results:[]};},bind(...params){if(sql.includes('normalized_market_observations')){assert.equal(params[0],'2026-10-20T05:00:00.000Z');assert.equal(params[1],'2026-10-21T05:00:00.000Z');}return{async all(){return{results:[]};}};}};}};
  const result=await onRequestGet({env:{DB:db,MARKET_HISTORY_2026Q4_DB:db},request:new Request('https://fbis.test/api/exchange-player-props?date=2026-10-20')});
- const body=await result.json();assert.equal(body.ok,true);assert.equal(queries.filter(q=>q.includes('normalized_market_observations')).length,1);assert.equal(body.coverage.length, PROP_SPORTS.length * 2);assert.ok(body.coverage.every(c=>c.status==='MARKET_UNAVAILABLE'));
+ const body=await result.json();assert.equal(body.ok,true);assert.equal(queries.filter(q=>q.includes('normalized_market_observations')).length,1);assert.equal(body.coverage.length, PROP_SPORTS.length * 2);assert.ok(body.coverage.every(c=>c.status==='COVERAGE_UNKNOWN'));assert.ok(body.coverage.every(c=>c.sourceInventoryComplete===false));
  const missing=await (await onRequestGet({env:{},request:new Request('https://fbis.test/api/exchange-player-props?date=2026-10-20')})).json();assert.equal(missing.degraded,true);assert.ok(missing.coverage.every(c=>c.status==='COVERAGE_UNKNOWN'));
  assert.equal((await onRequestGet({env:{},request:new Request('https://fbis.test/api/exchange-player-props?date=2026-02-30')})).status,400);
 });
@@ -61,4 +61,32 @@ test('historical observations cannot become current executable quotes after a fr
  const missing=normalizeExchangeProp({...fixture(),source_outcome_id:null},{now});
  assert.equal(missing.marketAvailable,false);assert.equal(missing.executableSize,null);
  assert.ok(missing.reasons.includes('SOURCE_OUTCOME_ID_MISSING'));
+});
+
+
+test('partial Polymarket US inventory stays visible and never becomes NO MARKET or executable',()=>{
+ const only={provider:'Polymarket',venue:'Polymarket US',source:'Polymarket US',sport:'nfl',contractId:'player-20-plus',canAuthorizeWager:false};
+ const result=summarizeExchangeCoverage({
+  sports:['nfl'],props:[],marketOnly:[only],candidates:[],
+  usCoverage:[{sport:'nfl',eventId:'event-1',status:'US_PROP_INVENTORY_COUNT_MISMATCH',observedMarkets:739,advertisedMarkets:712}],
+  degraded:false
+ });
+ const provider=result.coverage.find(x=>x.provider==='Polymarket');
+ const us=result.venueCoverage.find(x=>x.venue==='Polymarket US');
+ const global=result.venueCoverage.find(x=>x.venue==='Polymarket Global');
+ assert.equal(provider.status,'PARTIAL_SOURCE_CAPTURE');
+ assert.equal(provider.marketOnlyContracts,1);
+ assert.equal(provider.partialEvents,1);
+ assert.equal(provider.sourceInventoryComplete,false);
+ assert.equal(provider.canAuthorizeWager,false);
+ assert.equal(us.status,'PARTIAL_SOURCE_CAPTURE');
+ assert.equal(us.capturedContracts,1);
+ assert.equal(us.verifiedMarkets,0);
+ assert.equal(global.status,'COVERAGE_UNKNOWN');
+ assert.equal(global.capturedContracts,0);
+});
+test('empty provider snapshots do not claim verified NO MARKET without full source proof',()=>{
+ const result=summarizeExchangeCoverage({sports:['nba'],props:[],marketOnly:[],candidates:[],usCoverage:[],degraded:false});
+ assert.ok(result.coverage.every(x=>x.status==='COVERAGE_UNKNOWN'&&x.sourceInventoryComplete===false));
+ assert.ok(result.venueCoverage.every(x=>x.status==='COVERAGE_UNKNOWN'));
 });
