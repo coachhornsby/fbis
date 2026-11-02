@@ -1,15 +1,17 @@
 // Bounded offline generation from verified captures. Private outputs never enter deploy/board.
 import fs from'node:fs';import{createHash}from'node:crypto';import{scoreboardGames}from'../functions/lib/publicBoardSnapshot.js';
-import{buildCbbProjectionPacket,publicCbbReadiness}from'../functions/lib/cbbProjectionPacket.js';
+import{buildCbbProjectionPacket,publicCbbReadiness,resolveCbbOfficialEvidence}from'../functions/lib/cbbProjectionPacket.js';
 const root='artifacts/cbb-projection-phase',input='artifacts/cbb-provider-mission';
 const asOf=process.argv[2];if(!asOf)throw Error('Supply verified UTC generation time');
 const metadata=JSON.parse(fs.readFileSync(input+'/capture-summary.json','utf8'));
 const captures={kenpom:metadata.records.find(x=>x.provider==='kenpom'&&x.name==='ratings').observedAt,cbbd:metadata.records.find(x=>x.name==='adjusted-current').observedAt,torvik:'2026-11-02T04:26:53.354Z'};
 const providerRows=[...JSON.parse(fs.readFileSync(input+'/normalized-provider-inputs.json','utf8')),...JSON.parse(fs.readFileSync(input+'/torvik-current-provider-inputs.json','utf8'))];
 const games=[];for(const day of ['20261102','20261103']){const raw=JSON.parse(fs.readFileSync(`${root}/${day}-espn.json`,'utf8'));const venue=new Map(raw.events.flatMap(e=>e.competitions.map(c=>[String(c.id),c.neutralSite])));for(const g of scoreboardGames(raw,{sport:'cbb',date:'2026-11-02',capturedAt:asOf}))games.push({...g,neutralSite:venue.get(g.id)});}
-const unique=[...new Map(games.map(g=>[g.id,g])).values()];
+let unique=[...new Map(games.map(g=>[g.id,g])).values()];
 const fixtureEvidencePath=process.argv[3];if(!fixtureEvidencePath)throw Error('Supply verified fixture evidence JSON path');
 const fixtureEvidence=fixtureEvidencePath?JSON.parse(fs.readFileSync(fixtureEvidencePath,'utf8')):null;
+const resolutions=JSON.parse(fs.readFileSync('data/public/cbb-fixture-resolutions/2026-11-02.json','utf8'));
+unique=unique.map(g=>{const resolved=resolveCbbOfficialEvidence(g,fixtureEvidence[g.id],resolutions.records.find(x=>x.eventId===g.id),asOf);fixtureEvidence[g.id]=resolved.evidence;return resolved.game;});
 const packet=buildCbbProjectionPacket({games:unique,providerRows,captures,asOf,fixtureEvidence});
 fs.writeFileSync(root+'/private-projections.json',JSON.stringify(packet,null,2));
 fs.mkdirSync('data/public/cbb-readiness',{recursive:true});fs.writeFileSync('data/public/cbb-readiness/2026-11-02.json',JSON.stringify(publicCbbReadiness(packet)));

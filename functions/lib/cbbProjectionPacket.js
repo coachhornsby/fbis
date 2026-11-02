@@ -1,6 +1,7 @@
 /** Offline CBB producer. No network calls, credentials, persistence or wager authority. */
 import {cbbKenpomRatingsV1,cbbTorvikRatingsV1,cbbRatingsV1} from './cbbRatings.js';
 import {buildCbbPro} from './cbbProModel.js';
+import {applyCbbOfficialFixture} from './cbbOfficialFixtures.js';
 export const CBB_INPUT_TTL_MS=6*60*60*1000;
 export function cbbFixtureKey(g){return [g.id,g.date,g.start,g.home?.espnId,g.away?.espnId,String(g.neutralSite)].join('|');}
 /** Evidence is tied to the complete captured fixture, never just a matchup name. */
@@ -11,6 +12,15 @@ export function cbbFixtureEvidenceReasons(game,evidence,asOf){
  if(evidence.blocked!==false)return evidence.reasons?.length?[...evidence.reasons]:['FIXTURE_SOURCE_CONFLICT'];
  if(evidence.reasons?.length)return ['FIXTURE_EVIDENCE_INCONSISTENT'];
  return [];
+}
+/** Resolve reviewed source conflicts while keeping the old evidence immutable. */
+export function resolveCbbOfficialEvidence(game,evidence,record,asOf){
+ if(!evidence||evidence.eventId!==game.id||evidence.fixtureKey!==cbbFixtureKey(game)||evidence.date!==game.date)return {game,evidence};
+ const corrected=applyCbbOfficialFixture(game,record,Date.parse(asOf));
+ if(corrected===game)return {game,evidence};
+ const cleared=record.decision==='EARLY_START_CONFIRMED'?['EARLY_START_REQUIRES_OFFICIAL_CONFIRMATION']:record.decision==='OPPONENT_CHANGE_CONFIRMED'?['OPPONENT_CONFLICT']:record.decision==='START_CORRECTED'?['SOURCE_START_DISAGREEMENT']:[];
+ const reasons=[...new Set([...(evidence.reasons||[]).filter(x=>!cleared.includes(x)),...record.remainingHolds])];
+ return {game:corrected,evidence:{...evidence,fixtureKey:cbbFixtureKey(corrected),observedAt:record.reviewedAt,sourceResolutionUrl:record.sourceUrl,reasons,blocked:reasons.length>0,benchmarkPresent:record.decision==='OPPONENT_CHANGE_CONFIRMED'?false:evidence.benchmarkPresent}};
 }
 function index(rows,provider,season){
  const map=new Map();

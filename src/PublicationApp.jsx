@@ -2,6 +2,8 @@ import {useState,useEffect,useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 import DecisionBoard from './components/board/DecisionBoard.jsx';
 import {PUBLIC_SPORTS,captureScoreboards,boardDate,shiftBoardDate,SNAPSHOT_MAX_AGE_MS} from '../functions/lib/publicBoardSnapshot.js';
+import {applyCbbOfficialSlate} from '../functions/lib/cbbOfficialFixtures.js';
+import officialCbbSchedule from '../data/public/cbb-fixture-resolutions/2026-11-02.json';
 import './index.css';
 import './publication.css';
 function CbbReadiness({date,clock}){
@@ -46,7 +48,7 @@ function PublicationApp(){
   }
   useEffect(()=>{const u=new URL(location.href);u.searchParams.set('date',date);u.searchParams.set('sport',sport);history.replaceState({},'',u);refresh(date,true);return()=>{generation.current++;active.current?.abort();};},[date]);
   useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer);},[]);
-  const games=(board?.games||[]).filter(g=>(sport==='all'||g.sport===sport)&&(sport!=='tennis'||tour==='all'||g.tour===tour)).map(g=>clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g);
+  const games=applyCbbOfficialSlate(board?.games||[],officialCbbSchedule,clock).filter(g=>(sport==='all'||g.sport===sport)&&(sport!=='tennis'||tour==='all'||g.tour===tour)).map(g=>clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g);
   const feeds=Object.entries(board?.feeds||{}).filter(([s])=>sport==='all'||sport===s);
   const stale=!feeds.length||feeds.some(([,f])=>!f.capturedAt||clock-Date.parse(f.capturedAt)>SNAPSHOT_MAX_AGE_MS||!f.ok);
   const changeSport=s=>{setSport(s);setTour('all');const u=new URL(location.href);u.searchParams.set('sport',s);history.replaceState({},'',u);};
@@ -57,6 +59,7 @@ function PublicationApp(){
     <nav className="publication-sports" aria-label="Sports">{['all',...PUBLIC_SPORTS].map(s=><button key={s} aria-pressed={sport===s} onClick={()=>changeSport(s)}>{s.toUpperCase()}{board&&<small>{board.games.filter(g=>g.sport===s||s==='all').length}</small>}</button>)}</nav>
     <section className="publication-controls" aria-label="Board controls"><label>Central date <input type="date" value={date} min={shiftBoardDate(boardDate(),-7)} max={shiftBoardDate(boardDate(),7)} onChange={e=>{if(e.target.value)setDate(e.target.value);}}/></label><button onClick={()=>setDate(boardDate())}>Today</button><button onClick={()=>setDate(shiftBoardDate(boardDate(),1))}>Tomorrow</button><button disabled={busy||clock-lastAttempt.current<60000} onClick={()=>refresh()}>{busy?'Refreshing sources…':'Refresh scores'}</button>{sport==='tennis'&&<label>Tour <select value={tour} onChange={e=>setTour(e.target.value)}><option value="all">ATP + WTA</option><option value="atp">ATP</option><option value="wta">WTA</option></select></label>}</section>
     <div className="publication-freshness" role="status"><b>{stale?'SAVED / STALE OR PARTIAL':'CURRENT SOURCE CAPTURE'}</b> · {games.length} games · Times shown in Central. Refresh is manual; captures become stale after five minutes.<br/>{feeds.map(([s,f])=><span key={s}>{s.toUpperCase()}: {f.capturedAt?new Date(f.capturedAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'unavailable'} CT{!f.ok?' · source unavailable':''}　</span>)}</div>
+    {games.some(g=>g.officialSchedule)&&<details className="publication-freshness"><summary>Official schedule references · {games.filter(g=>g.officialSchedule).length} fixtures</summary>{games.filter(g=>g.officialSchedule).map(g=><p key={g.id}><a href={g.officialSchedule.sourceUrl} target="_blank" rel="noreferrer">{g.away.name} at {g.home.name}</a> · {g.officialSchedule.decision.replaceAll('_',' ').toLowerCase()}{g.officialSchedule.remainingHolds.length?' · competition classification unverified':''}</p>)}</details>}
     {error&&<p className="publication-warning" role="alert">{error}</p>}
     {board&&!games.length&&!busy&&<p className="publication-empty">{feeds.every(([,f])=>f.ok)?'No games returned by the source for this date and filter.':'Schedule unavailable for this filter. This is not a confirmed empty slate.'}</p>}
     <section aria-label="Game cards"><DecisionBoard key={date+sport+tour} games={games}/></section>
