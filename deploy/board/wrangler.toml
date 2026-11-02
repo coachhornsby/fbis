@@ -2,4 +2,17 @@ name = "fbis"
 compatibility_date = "2026-11-01"
 pages_build_output_dir = "./dist"
 
-# Static release only. No D1, R2, Durable Object, AI or service bindings.
+# Temporary operator route only. Public board paths remain static.
+
+[vars]
+FBIS_CBB_OPERATOR_LEASE = "{\"id\": \"cbb-inputs-20261102-runtime-v1\", \"tokenSha256\": \"8448351b6e032e8d9a72f6d8cb1c4398d946b4fd0a879c2c5030dcf957f67ce5\", \"expiresAt\": \"2026-11-02T05:00:00Z\"}"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fbis"
+database_id = "b50c724c-903b-4241-8ce1-48d931e7a44c"
+
+[[d1_databases]]
+binding = "CBB_DB"
+database_name = "fbis-cbb"
+database_id = "f00af21e-72b5-4e7c-bb10-b08f2c59dace"
