@@ -1,7 +1,8 @@
 # FBIS static board release
 
 Cloudflare Pages build root: `deploy/board`. Build command: `npm run build`.
-Output: `dist`. This root intentionally has no Functions or Wrangler configuration.
+Output: `dist`. This root has no Functions; its local Wrangler configuration has
+no runtime bindings and prevents inheritance of the parent application's config.
 The existing application and its API code remain in the repository for completion.
 
 The released board serves schedules and observed scores only. Browser refresh makes

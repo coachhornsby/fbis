@@ -45,7 +45,9 @@ test('oversized response stops while streaming; arbitrary hosts are rejected bef
 });
 test('isolated release root cannot compile the old Functions tree',()=>{
   assert.equal(existsSync(new URL('../deploy/board/functions',import.meta.url)),false);
-  assert.equal(existsSync(new URL('../deploy/board/wrangler.toml',import.meta.url)),false);
+  const wrangler=readFileSync(new URL('../deploy/board/wrangler.toml',import.meta.url),'utf8');
+  assert.match(wrangler,/pages_build_output_dir = "\.\/dist"/);
+  assert.doesNotMatch(wrangler,/\[\[?(d1_databases|r2_buckets|durable_objects|services|triggers)/);
   const config=readFileSync(new URL('../vite.publication.config.js',import.meta.url),'utf8');
   assert.match(config,/api-unavailable\.json/);assert.match(config,/deploy\/board\/dist/);
 });

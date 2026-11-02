@@ -1,0 +1,5 @@
+name = "fbis"
+compatibility_date = "2026-11-01"
+pages_build_output_dir = "./dist"
+
+# Static release only. No D1, R2, Durable Object, AI or service bindings.
