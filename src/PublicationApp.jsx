@@ -7,7 +7,8 @@ import './publication.css';
 function PublicationApp(){
   const url=new URL(window.location.href);
   const [sport,setSport]=useState(PUBLIC_SPORTS.includes(url.searchParams.get('sport'))?url.searchParams.get('sport'):'cbb');
-  const [date,setDate]=useState(boardDate());const [board,setBoard]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const requestedDate=url.searchParams.get('date');
+  const [date,setDate]=useState(/^\d{4}-\d{2}-\d{2}$/.test(requestedDate||'')&&Number.isFinite(Date.parse(requestedDate+'T12:00:00Z'))?requestedDate:boardDate());const [board,setBoard]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const [clock,setClock]=useState(Date.now()),[tour,setTour]=useState('all');const generation=useRef(0),active=useRef(null),lastAttempt=useRef(0);
   async function refresh(selected=date,force=false){
     if(busy&&!force)return;
@@ -33,7 +34,7 @@ function PublicationApp(){
     if(failed.length)setError(`Refresh unavailable for ${failed.map(s=>s.toUpperCase()).join(', ')}. Saved data, where present, retains its original timestamp.`);
     setBusy(false);setClock(Date.now());
   }
-  useEffect(()=>{refresh(date,true);return()=>{generation.current++;active.current?.abort();};},[date]);
+  useEffect(()=>{const u=new URL(location.href);u.searchParams.set('date',date);u.searchParams.set('sport',sport);history.replaceState({},'',u);refresh(date,true);return()=>{generation.current++;active.current?.abort();};},[date]);
   useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer);},[]);
   const games=(board?.games||[]).filter(g=>(sport==='all'||g.sport===sport)&&(sport!=='tennis'||tour==='all'||g.tour===tour)).map(g=>clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g);
   const feeds=Object.entries(board?.feeds||{}).filter(([s])=>sport==='all'||sport===s);
