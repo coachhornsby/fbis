@@ -20,8 +20,10 @@ async function permit(env,url){
  const {hash:h,endpoint}=await cfbdRequestHash(url);
  if(!oldHashes.has(h))return p;
  // Reuse an already budgeted, explicitly identified, never-attempted reservation.
+ // A reserved row with http_status=0 is an in-flight claim, not a completed HTTP response.
+ // This preserves the existing CHECK-constrained status vocabulary.
  // Atomic claim prevents a second isolate from consuming the same permit.
- const claim=await env.DB.prepare(`UPDATE cfb_cfbd_acquisition_receipts SET request_status='operator_claimed'
+ const claim=await env.DB.prepare(`UPDATE cfb_cfbd_acquisition_receipts SET http_status=0
  WHERE request_day='2026-11-01' AND request_hash=? AND endpoint=? AND request_status='reserved' AND http_status IS NULL AND finished_at IS NULL
  AND (SELECT blocked_until_ms FROM cfb_cfbd_acquisition_control WHERE id=1)<=?
  AND (SELECT COALESCE(last_remaining,0) FROM cfb_cfbd_acquisition_control WHERE id=1)>100`).bind(h,endpoint,Date.now()).run();

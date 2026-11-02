@@ -5,7 +5,7 @@ pages_build_output_dir = "./dist"
 # Temporary operator route only. Public board paths remain static.
 
 [vars]
-FBIS_CBB_OPERATOR_LEASE = "{\"id\": \"cbb-inputs-20261102-runtime-v2\", \"tokenSha256\": \"8448351b6e032e8d9a72f6d8cb1c4398d946b4fd0a879c2c5030dcf957f67ce5\", \"expiresAt\": \"2026-11-02T05:00:00Z\"}"
+FBIS_CBB_OPERATOR_LEASE = "{\"id\": \"cbb-inputs-20261102-runtime-v3\", \"tokenSha256\": \"8448351b6e032e8d9a72f6d8cb1c4398d946b4fd0a879c2c5030dcf957f67ce5\", \"expiresAt\": \"2026-11-02T05:00:00Z\"}"
 
 [[d1_databases]]
 binding = "DB"
