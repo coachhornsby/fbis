@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS cbb_current_provider_inputs (season INTEGER NOT NULL,provider TEXT NOT NULL,team_id TEXT NOT NULL,payload_json TEXT NOT NULL,source_sha256 TEXT NOT NULL,capture_run_id TEXT NOT NULL,PRIMARY KEY(season,provider,team_id));

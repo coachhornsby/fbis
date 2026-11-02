@@ -21,3 +21,19 @@ test('current CBB input lookup requires the dedicated binding and exact season/t
   assert.equal(result.ok,true);assert.equal(result.projectionReady,false);assert.equal(result.automaticWagerAuthorization,false);
   assert.equal((await loadCbbCurrentTeamInput(env,{season:2027,teamId:'cfb-150'})).reason,'INVALID_CBB_INPUT_KEY');
 });
+
+import {loadCbbCurrentProviderInput}from'../functions/lib/cbbCurrentProviderInputs.js';
+test('provider snapshots require a dedicated exact source/season/team key',async()=>{
+ assert.equal((await loadCbbCurrentProviderInput({DB:{}},{season:2027,provider:'torvik',teamId:'cbb-150'})).reason,'CBB_DB_UNBOUND');
+ let keys;const env={CBB_DB:{prepare:sql=>{assert.match(sql,/WHERE season=\? AND provider=\? AND team_id=\?/);return{bind:(...args)=>{keys=args;return{first:async()=>({payload_json:JSON.stringify({season:2027,canonicalId:'cbb-150'}),source_sha256:'proof',capture_run_id:'offline'})}}}}}};
+ const r=await loadCbbCurrentProviderInput(env,{season:2027,provider:'torvik',teamId:'cbb-150'});assert.equal(r.ok,true);assert.deepEqual(keys,[2027,'torvik','cbb-150']);assert.equal(r.projectionReady,false);assert.equal(r.canAuthorizeWager,false);
+ assert.equal((await loadCbbCurrentProviderInput(env,{season:2027,provider:'unknown',teamId:'cbb-150'})).reason,'INVALID_PROVIDER_INPUT_KEY');
+});
+test('native ratings refuse a provider-sized cap rather than fitting an unproven season',async()=>{resetCacheMem();const x=await loadFbisCbbCatalog({CBBD_API_KEY:'offline-test'},{season:2027,fetchFn:async()=>Response.json(Array.from({length:3000},()=>({season:2027})))});assert.equal(x.ok,false);assert.equal(x.error,'CBBD_GAME_TEAM_COMPLETENESS_UNPROVEN');});
+
+import{normalizeKenpomRatingRows,mergeKenpomTeamInputs}from'../functions/lib/kenpomCbb.js';
+test('KenPom zero-game placeholders cannot masquerade as observed matchup statistics',()=>{
+ const ratings=normalizeKenpomRatingRows([{TeamName:'Duke',Season:2027,Wins:0,Losses:0,AdjOE:125,AdjDE:95,AdjTempo:70}]);
+ const [row]=mergeKenpomTeamInputs(ratings,[{team:'Duke',efgPct:0,tovRate:1,orbRate:0,ftr:0}],[{team:'Duke',pointsFromFt:0}],[{team:'Duke',experience:2.5,continuity:.3}],[]);
+ assert.equal(row.adjOe,125);assert.equal(row.tempo,70);assert.equal(row.gamesPlayed,0);assert.equal(row.observedBoxScoreStats,false);assert.equal(row.tovRate,null);assert.equal(row.pointsFromFt,null);assert.equal(row.experience,2.5);
+});

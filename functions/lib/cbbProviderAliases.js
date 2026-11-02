@@ -1,5 +1,7 @@
 /** Exact KenPom/Torvik names linked to verified ESPN school IDs. */
 export const CBB_RATING_ALIASES=Object.freeze({
+  "CSUN": "2463",
+  "Southeast Missouri": "2546",
   "Iowa St.": "66",
   "Connecticut": "41",
   "Ohio St.": "194",

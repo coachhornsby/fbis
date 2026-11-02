@@ -42,6 +42,8 @@ export function normalizeKenpomRatingRows(rows = []) {
   return (rows || []).map((row) => ({
     team: row.TeamName ?? row.team ?? row.teamName ?? null,
     conference: row.ConfShort ?? row.confShort ?? row.conference ?? null,
+    season: num(row.Season ?? row.season),
+    gamesPlayed: num(row.Wins) != null && num(row.Losses) != null ? num(row.Wins) + num(row.Losses) : null,
     adjEm: num(row.AdjEM ?? row.adjEM ?? row.adjEm),
     adjOe: num(row.AdjOE ?? row.adjOE ?? row.adjOe),
     adjDe: num(row.AdjDE ?? row.adjDE ?? row.adjDe),
@@ -249,6 +251,18 @@ export function lookupKenpomRating(catalog, team) {
   );
 }
 
+
+// Preseason efficiency ratings remain useful. Zero-game box-score fields do not.
+export function mergeKenpomTeamInputs(ratings=[],four=[],pointDist=[],height=[],misc=[]){
+ const maps=[four,pointDist,height,misc].map(rows=>new Map(rows.map(row=>[teamKey(row.team),row])));
+ const statisticalFields=['efgPct','efgPctD','tovRate','tovRateD','orbRate','drbRate','ftr','ftrD','pointsFromFt','pointsFrom2','pointsFrom3','pointsAllowedFt','pointsAllowed2','pointsAllowed3','threePtPct','twoPtPct','ftPct','blockPct','stealRate','nonStealTurnoverRate','assistRate','threePtAttemptRate','avg2PtAttemptDistance','oppThreePtPct','oppTwoPtPct','oppFtPct','oppBlockPct','oppStealRate','oppNonStealTurnoverRate','oppAssistRate','oppThreePtAttemptRate','oppAvg2PtAttemptDistance'];
+ return ratings.map(row=>{
+  const merged={...row,...(maps[0].get(teamKey(row.team))||{}),...(maps[1].get(teamKey(row.team))||{}),...(maps[2].get(teamKey(row.team))||{}),...(maps[3].get(teamKey(row.team))||{})};
+  if(row.gamesPlayed===0)for(const field of statisticalFields)if(field in merged)merged[field]=null;
+  return {...merged,gamesPlayed:row.gamesPlayed,observedBoxScoreStats:Number(row.gamesPlayed)>0};
+ });
+}
+
 export async function loadKenpomCbbCatalog(env = {}, { cbbSeason, fetchFn = fetch } = {}) {
   const seasonStart = Number(cbbSeason);
   const endingSeason = kenpomEndingSeason(seasonStart);
@@ -273,7 +287,7 @@ export async function loadKenpomCbbCatalog(env = {}, { cbbSeason, fetchFn = fetc
     };
   }
 
-  const cacheKey = `kenpom-cbb-v2-${endingSeason}`;
+  const cacheKey = `kenpom-cbb-v3-${endingSeason}`;
   const cached = await readCache(cacheKey, env.caches, TTL_MS);
   if (cached?.byCanonicalId) return { ...cached, cacheHit: true };
 
@@ -310,17 +324,7 @@ export async function loadKenpomCbbCatalog(env = {}, { cbbSeason, fetchFn = fetc
   const pointDist = pointDistRes.ok ? normalizeKenpomPointDistRows(pointDistRes.data) : [];
   const height = heightRes.ok ? normalizeKenpomHeightRows(heightRes.data) : [];
   const misc = miscRes.ok ? normalizeKenpomMiscRows(miscRes.data) : [];
-  const fourByTeam = new Map(four.map((row) => [teamKey(row.team), row]));
-  const pointDistByTeam = new Map(pointDist.map((row) => [teamKey(row.team), row]));
-  const heightByTeam = new Map(height.map((row) => [teamKey(row.team), row]));
-  const miscByTeam = new Map(misc.map((row) => [teamKey(row.team), row]));
-  const rows = ratings.map((row) => ({
-    ...row,
-    ...(fourByTeam.get(teamKey(row.team)) || {}),
-    ...(pointDistByTeam.get(teamKey(row.team)) || {}),
-    ...(heightByTeam.get(teamKey(row.team)) || {}),
-    ...(miscByTeam.get(teamKey(row.team)) || {}),
-  }));
+  const rows = mergeKenpomTeamInputs(ratings, four, pointDist, height, misc);
   const index = indexKenpomRows(rows, seasonStart);
   const dataThrough = rows.map((r) => r.dataThrough).find(Boolean) || null;
   const out = {

@@ -304,7 +304,10 @@ export async function loadFbisCbbCatalog(env={}, {season=cbbSeasonYear(), asOf=n
   if(cached?.ok&&cached?.byTeamId)return{...cached,cacheHit:true};
   const res=await cbbdGet("/games/teams",env,{query:{season:Number(season)},fetchFn});
   if(!res.ok)return{ok:false,modelId:FBIS_CBB_MODEL_ID,error:res.reason||"cbbd-game-teams-unavailable",byTeamId:{},byTeam:{}};
-  const rows=normalizeFbisCbbGameTeamRows(res.data||[],season);
+  // A provider-capped full-season response cannot establish a complete fit.
+  // Collection must partition by date before it can safely reach this bound.
+  if(Array.isArray(res.data)&&res.data.length>=3000)return{ok:false,modelId:FBIS_CBB_MODEL_ID,error:"CBBD_GAME_TEAM_COMPLETENESS_UNPROVEN",sourceRows:res.data.length,byTeamId:{},byTeam:{}};
+  const rows=normalizeFbisCbbGameTeamRows((res.data||[]).filter(row=>Number(row.season)===Number(season)),season);
   const catalog=buildFbisCbbRatings(rows,{asOf,season});
   const out={...catalog,source:"cbbd-games-teams",sourceRows:rows.length,cacheHit:false};
   await writeCache(cacheKey,out,env.caches,CACHE_TTL);
