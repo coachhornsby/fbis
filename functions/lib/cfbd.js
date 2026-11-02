@@ -1,3 +1,4 @@
+import {cbbSeasonYear} from "./collegeApi.js";
 import {fetchWithCfbBackoff} from "./cfbProviderBackoff.js";
 /**
  * CollegeFootballData (and optional CollegeBasketballData) client.
@@ -904,17 +905,6 @@ export async function loadCfbBettingLines(env = {}, { year, weeks = [], fetchFn 
   return payload;
 }
 
-function cbbSeasonYear(date = new Date()) {
-  const iso = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-  const y = Number(iso.slice(0, 4));
-  const m = Number(iso.slice(5, 7));
-  return m >= 10 ? y : y - 1;
-}
 
 async function fetchRatingsYear(env, year, fetchFn) {
   const [sp, fpi] = await Promise.all([

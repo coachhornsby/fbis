@@ -43,12 +43,13 @@ export function identityFailClosed(sport, query = {}) {
   return { ok: true, reason: null, canonicalId: hit.id, team: hit };
 }
 
-export function miamiDisambiguation(query = {}) {
+export function miamiDisambiguation(query = {}, sport = "cfb") {
+  if (!["cfb","cbb"].includes(sport)) return null;
   const raw = String(query.name || query.school || query.displayName || "").toLowerCase();
   if (!raw.includes("miami")) return null;
-  if (/\boh\b|\bohio\b|\bredhawks?\b/.test(raw)) return resolveTeamExact("cfb", { espnId: "193" });
-  if (/\bfl\b|\bflorida\b|\bhurricanes?\b/.test(raw)) return resolveTeamExact("cfb", { espnId: "2390" });
-  if (query.espnId) return resolveTeamExact("cfb", { espnId: query.espnId });
+  if (/\boh\b|\bohio\b|\bredhawks?\b/.test(raw)) return resolveTeamExact(sport, { espnId: "193" });
+  if (/\bfl\b|\bflorida\b|\bhurricanes?\b/.test(raw)) return resolveTeamExact(sport, { espnId: "2390" });
+  if (query.espnId) return resolveTeamExact(sport, { espnId: query.espnId });
   return null;
 }
 
@@ -57,7 +58,7 @@ export function mapSourceTeam(sport, row, season) {
   const espnId = row?.id ?? row?.espnId;
   const hit =
     (espnId != null ? resolveTeamExact(sport, { espnId: String(espnId) }) : null) ||
-    miamiDisambiguation({ name }) ||
+    miamiDisambiguation({ name }, sport) ||
     resolveTeamExact(sport, { name, school: name });
   if (!hit) return { ok: false, reason: "unresolved", source: row };
   return {

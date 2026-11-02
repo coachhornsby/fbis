@@ -44,7 +44,7 @@ export async function loadCbbdCatalog(env = {}, { fetchFn = fetch } = {}) {
   const cacheKey = `cbbd-catalog-${season}`;
   const cached = await readCache(cacheKey, env.caches, CATALOG_TTL);
   if (cached?.byCanonicalId) return cached;
-  const res = await cbbdGet("/ratings/adjusted", env, { query: { year: season }, fetchFn });
+  const res = await cbbdGet("/ratings/adjusted", env, { query: { season }, fetchFn });
   if (!res.ok) {
     const empty = { byCanonicalId: {}, byEspnId: {}, bySchool: {}, matched: 0, unmatched: 0, n: 0, error: res.reason, configured: res.reason !== "no-api-key" };
     await writeCache(cacheKey, empty, env.caches, 15 * 60 * 1000);

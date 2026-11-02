@@ -5,7 +5,7 @@ export * from "./cbbRatings.js";
 const REQUIRED_MATCHUP = ["homeEfg", "awayEfgDef", "awayTov", "homeTov", "homeOrb", "awayOrb", "homeFtRate", "awayFtRate"];
 
 export function hasVerifiedMatchupInputs(four = {}) {
-  return REQUIRED_MATCHUP.every((key) => Number.isFinite(Number(four?.[key])));
+  return REQUIRED_MATCHUP.every((key) => four?.[key] != null && four?.[key] !== "" && Number.isFinite(Number(four[key])));
 }
 
 export function projectCbbChallengers(game, ctx = {}) {

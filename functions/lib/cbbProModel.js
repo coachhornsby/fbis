@@ -12,7 +12,7 @@ import { cbbFbisV2TotalCorrection, FBIS_CBB_V2_TOTAL_ID, FBIS_CBB_V2_TOTAL_VERSI
  * Total betting qualification remains disabled because the market-confidence layer failed.
  */
 export const CBB_PRO_ID="CBB-PRO-v1";
-export const CBB_PRO_VERSION="v1.0.0";
+export const CBB_PRO_VERSION="v1.1.0";
 export const CBB_PRO_DATASET={version:"cbb-enriched-v2026.10.02",sha256:"10d2e1af07ac31d6b6174b9cda37eb63aa8785a9050cfede0c8c1ccce52933f9",rows:43076};
 export const SIDE_EDGE_MIN=4;
 export const SIDE_MARKET_SPREAD_MAX=20;

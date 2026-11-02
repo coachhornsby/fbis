@@ -302,7 +302,7 @@ export async function loadFbisCbbCatalog(env={}, {season=cbbSeasonYear(), asOf=n
   const cacheKey="fbis-cbb-native-v2-"+season+"-"+String(asOf).slice(0,13);
   const cached=await readCache(cacheKey,env.caches,CACHE_TTL);
   if(cached?.ok&&cached?.byTeamId)return{...cached,cacheHit:true};
-  const res=await cbbdGet("/games/teams",env,{query:{season:Number(season)+1},fetchFn});
+  const res=await cbbdGet("/games/teams",env,{query:{season:Number(season)},fetchFn});
   if(!res.ok)return{ok:false,modelId:FBIS_CBB_MODEL_ID,error:res.reason||"cbbd-game-teams-unavailable",byTeamId:{},byTeam:{}};
   const rows=normalizeFbisCbbGameTeamRows(res.data||[],season);
   const catalog=buildFbisCbbRatings(rows,{asOf,season});

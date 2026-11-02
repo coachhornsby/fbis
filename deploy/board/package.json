@@ -2,6 +2,6 @@
   "name": "fbis-static-board-release",
   "private": true,
   "scripts": {
-    "build": "cd ../.. && npm ci --no-audit --no-fund && npm run build:publication && node scripts/cbb-capture-provider-inputs.mjs"
+    "build": "cd ../.. && npm ci --no-audit --no-fund && npm run build:publication"
   }
 }

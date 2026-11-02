@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import{mapSourceTeam}from'../functions/lib/collegeIdentity.js';
+import{loadFbisCbbCatalog}from'../functions/lib/cbbFbisRatings.js';
+import{resetCacheMem}from'../functions/lib/cache.js';
+import{hasVerifiedMatchupInputs}from'../functions/lib/cbbRatingsSafe.js';
+import{cbbFbisV2TotalCorrection}from'../functions/lib/cbbFbisV2Total.js';
+import{CBB_PRO_VERSION}from'../functions/lib/cbbProModel.js';
+import{readFileSync}from'node:fs';
+test('Miami basketball IDs cannot cross into football',()=>{assert.equal(mapSourceTeam('cbb',{team:'Miami FL'},2027).canonicalId,'cbb-2390');assert.equal(mapSourceTeam('cbb',{team:'Miami OH'},2027).canonicalId,'cbb-193');assert.equal(mapSourceTeam('cfb',{team:'Miami FL'},2026).canonicalId,'cfb-2390');});
+test('CBBD ending year is not incremented again',async()=>{resetCacheMem();let seen;await loadFbisCbbCatalog({CBBD_API_KEY:'offline-test'},{season:2027,fetchFn:async u=>{seen=new URL(u);return Response.json([])}});assert.equal(seen.searchParams.get('season'),'2027');});
+test('missing matchup inputs cannot pass as zeros',()=>{assert.equal(hasVerifiedMatchupInputs(Object.fromEntries(['homeEfg','awayEfgDef','awayTov','homeTov','homeOrb','awayOrb','homeFtRate','awayFtRate'].map(k=>[k,null]))),false);assert.equal(cbbFbisV2TotalCorrection({ok:true,total:null}).ok,false);});
+test('runtime version agrees with the retained production contract',()=>{assert.equal(CBB_PRO_VERSION,JSON.parse(readFileSync(new URL('../data/models/cbb-pro-v1.json',import.meta.url))).version);});

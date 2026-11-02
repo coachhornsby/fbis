@@ -1,3 +1,4 @@
+import {CBB_RATING_ALIASES} from "./cbbProviderAliases.js";
 /**
  * Bart Torvik CBB ratings + four-factor adapter.
  *
@@ -168,7 +169,7 @@ export function indexTorvikRows(rows = [], cbbSeasonStart) {
   let unmatched = 0;
 
   for (const row of rows) {
-    const mapped = mapSourceTeam("cbb", { team: row.team, school: row.team }, cbbSeasonStart);
+    const mapped = mapSourceTeam("cbb", { team: row.team, school: row.team, espnId:CBB_RATING_ALIASES[row.team] }, cbbSeasonStart);
     const rec = {
       ...row,
       canonicalId: mapped.ok ? mapped.canonicalId : null,

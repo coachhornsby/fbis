@@ -27,7 +27,7 @@ const SDS=[3.35890923,0.3876762,4.81345148,4.95911179,0.12015628,2.20583894,5.51
 const BETA=[-0.83504902,1.13301313,0.36542919,0.09638574,2.63791935,0.3377703,0.29007336,0.21835998,0.33453986,0.12725472,0.10933338,0.20107432,0.35029627,0.2973489,-0.68096673,-0.45027427,0.24798716,0.19609061,0.52050697,0.19539902,0.4265534,0.34318551,0.36606792,0.00128297];
 const INTERCEPT=-8.25209615;
 
-const n=v=>{const x=Number(v);return Number.isFinite(x)?x:null};
+const n=v=>{if(v==null||v==="")return null;const x=Number(v);return Number.isFinite(x)?x:null};
 const get=(o,p)=>p.split(".").reduce((a,k)=>a==null?null:a[k],o);
 const r1=v=>Math.round(Number(v)*10)/10;
 
