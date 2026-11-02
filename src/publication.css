@@ -2,3 +2,6 @@
 
 /* A schedule capture has no model confidence rating. */
 .publication-shell .pgc-sharp-stars,.publication-shell .cgc-star-row{display:none}
+
+.publication-shell.fbis-shell-main.route-board .pgc-sharp-stars,.publication-shell.fbis-shell-main.route-board .cgc-star-row{display:none!important}
+.publication-shell .db-sum-tiles{display:flex;gap:8px;flex-wrap:wrap}
