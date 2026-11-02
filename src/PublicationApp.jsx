@@ -40,7 +40,7 @@ function PublicationApp(){
   const feeds=Object.entries(board?.feeds||{}).filter(([s])=>sport==='all'||sport===s);
   const stale=!feeds.length||feeds.some(([,f])=>!f.capturedAt||clock-Date.parse(f.capturedAt)>SNAPSHOT_MAX_AGE_MS||!f.ok);
   const changeSport=s=>{setSport(s);setTour('all');const u=new URL(location.href);u.searchParams.set('sport',s);history.replaceState({},'',u);};
-  return <main className="publication-shell">
+  return <main className="publication-shell fbis-shell-main">
     <header className="publication-header"><a href="/" aria-label="FBIS home" className="publication-logo">FBIS<span>FASTWATER BETTING INTELLIGENCE</span></a><span className="publication-stage">BOARD RESTART · SCHEDULES & SCORES</span></header>
     <section className="publication-notice" aria-label="Restart status"><strong>The board is open. Predictions and betting markets remain paused.</strong><p>Seven sports. Scores and schedules come from ESPN. No model picks, prices or wagering approval are implied. Historical data and recovery copies remain preserved.</p></section>
     <nav className="publication-sports" aria-label="Sports">{['all',...PUBLIC_SPORTS].map(s=><button key={s} aria-pressed={sport===s} onClick={()=>changeSport(s)}>{s.toUpperCase()}{board&&<small>{board.games.filter(g=>g.sport===s||s==='all').length}</small>}</button>)}</nav>
