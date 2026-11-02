@@ -1,7 +1,7 @@
 import {beginJobExecution} from '../../services/account-budget/jobScope.mjs';
 import {POLY_ROSTER_STAGE_JOB,POLY_ROSTER_PUBLISH_JOB} from '../../services/account-budget/executionJobs.mjs';
 import {buildStreamRosterManifest,validateStreamRoster,STREAM_ROSTER_KEY} from '../../services/polymarket-us-stream/boundedSession.mjs';
-export const ROSTER_SPORTS=Object.freeze(['nfl','cfb','cbb','nba','wnba','mlb','nhl','soccer','tennis','npb','kbo']);
+export const ROSTER_SPORTS=Object.freeze(['nfl','cfb','cbb','nba','mlb','nhl','tennis']);
 export const candidateKey=sport=>'market-sources/polymarket-us/stream-roster/candidates-v2/'+sport+'.json';
 const fresh=(row,now)=>Number.isFinite(Date.parse(row?.collected_at))&&Date.parse(row.collected_at)<=now&&now-Date.parse(row.collected_at)<900000;
 const writeOptions=prior=>{if(prior&&(typeof prior.etag!=='string'||!prior.etag.length))throw Error('MISSING_ROSTER_VERSION');return {onlyIf:prior?{etagMatches:prior.etag}:{etagDoesNotMatch:'*'},httpMetadata:{contentType:'application/json',cacheControl:'private, no-store'}};};
@@ -21,7 +21,7 @@ export async function stageBoundedStreamCandidates(env,{sport,candidates,now=Dat
 export async function publishBoundedStreamRoster(env,{now=Date.now(),reservationId}={}){
  env=await beginJobExecution(env,POLY_ROSTER_PUBLISH_JOB,{reservationId});
  const previous=await env.ARCHIVE.head(STREAM_ROSTER_KEY),candidates=[],sources=[];
- // Fixed eleven reads. Never list an archive prefix or query D1.
+ // Fixed seven reads. Never list an archive prefix or query D1.
  for(const sport of ROSTER_SPORTS){
   const object=await env.ARCHIVE.get(candidateKey(sport));
   if(!object){sources.push({sport,status:'MISSING',selected:0});continue;}

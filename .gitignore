@@ -41,3 +41,7 @@ strategy.local.json
 *.key
 credentials*.json
 service-account*.json
+
+# Reproducible public scoreboard captures and isolated release output
+deploy/board/snapshots/
+deploy/board/dist/

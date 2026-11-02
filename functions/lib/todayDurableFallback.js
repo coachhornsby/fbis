@@ -1,3 +1,4 @@
+import {PUBLIC_SPORTS} from './publicBoardSnapshot.js';
 import {hydrateRequestSportRouting,durableSportOwner} from "./sportRequestRouting.js";
 import { SPORT_DATABASES, deployedSportDbMode } from "./databaseTopology.js";
 /**
@@ -118,17 +119,17 @@ async function queryDurable(db,date,sport,now,excludeSports=[]){
       SELECT * FROM chosen WHERE rn=1 ORDER BY start,id LIMIT 700
     `;
   const r=await db.prepare(sql).bind(new Date(now).toISOString(),date,sport,sport,...excludeSports).all();
-  const games=(r.results||[]).filter(row=>(sport==="all"||row.sport===sport)&&!excludeSports.includes(row.sport)).map(row=>toDurableBoardGame(row,{date,now})).filter(Boolean);
+  const games=(r.results||[]).filter(row=>PUBLIC_SPORTS.includes(row.sport)&&(sport==="all"||row.sport===sport)&&!excludeSports.includes(row.sport)).map(row=>toDurableBoardGame(row,{date,now})).filter(Boolean);
   return {ok:true,games,source:"D1_SCHEDULE_PRESTART_SNAPSHOT",rowsRead:r.results?.length||0,canQualify:false,canAuthorizeWager:false};
 }
 
 export async function loadDurableTodayGames(env={},date,sport="all",{now=Date.now()}={}) {
   sport=String(sport).toLowerCase();
-  if(sport!=="all"&&!SPORT_DATABASES[sport])return {ok:false,reason:"UNSUPPORTED_SPORT",games:[]};
+  if(sport!=="all"&&!PUBLIC_SPORTS.includes(sport))return {ok:false,reason:"UNSUPPORTED_SPORT",games:[]};
   if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||"")))
     return {ok:false,reason:"D1_OR_DATE_UNAVAILABLE",games:[]};
   if(!Number.isFinite(Number(now)))return {ok:false,reason:"INVALID_CUTOFF",games:[]};
-  const active=Object.keys(SPORT_DATABASES).filter(key=>deployedSportDbMode(env,key)==="sport"&&(sport==="all"||key===sport));
+  const active=PUBLIC_SPORTS.filter(key=>deployedSportDbMode(env,key)==="sport"&&(sport==="all"||key===sport));
   if(active.length) {
     try {
       if(!env.__fbisRequestSportRouting)await hydrateRequestSportRouting(env);
@@ -139,7 +140,7 @@ export async function loadDurableTodayGames(env={},date,sport="all",{now=Date.no
         const result=await queryDurable(owners[0].db,date,sport,now);
         return {...result,source:owners[0].binding+"_DURABLE_CUTOVER"};
       }
-      const unmoved=Object.keys(SPORT_DATABASES).filter(key=>!active.includes(key));
+      const unmoved=PUBLIC_SPORTS.filter(key=>!active.includes(key));
       if(unmoved.length&&!env.DB?.prepare)throw Error("PRIMARY_UNBOUND_FOR_UNMOVED_SPORTS");
       const parts=await Promise.all([
         ...(unmoved.length?[queryDurable(env.DB,date,"all",now,active)]:[]),

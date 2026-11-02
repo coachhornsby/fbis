@@ -33,7 +33,10 @@
 
 .fbis-shell-main.route-board .cgc-proj {
   font-size: 31px !important;
-  line-height: 1 !important;\n  font-weight: 950 !important;\n  letter-spacing: .015em !important;\n  color: #e8f7ff !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+  letter-spacing: .015em !important;
+  color: #e8f7ff !important;
 }
 
 .fbis-shell-main.route-board .cgc-best-edge {

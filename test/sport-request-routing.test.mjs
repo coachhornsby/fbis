@@ -5,7 +5,7 @@ import {sportRequestRouting,hydrateRequestSportRouting} from '../functions/lib/s
 import {loadDurableTodayGames} from '../functions/lib/todayDurableFallback.js';
 import {todayEnv} from '../functions/api/today.js';
 const date='2026-10-30',now=Date.parse('2026-10-30T18:00:00Z');
-const sports=Object.keys(SPORT_DATABASES);
+const sports=['nfl','cfb','nba','cbb','nhl','mlb','tennis'];
 function fixture(sport,index=0,score=28){return {id:String(401000000+index),sport,date,start:'2026-10-30T23:00:00Z',home_name:'Texas',away_name:'Oklahoma',frozen_at:'2026-10-30T15:00:00Z',proj_home:score,proj_away:21,model_version:'unchanged'};}
 function database(rows=[],failure=false){
  return {calls:[],prepare(sql){
@@ -30,12 +30,12 @@ function setup(active=sports){
  }
  return {env,reads};
 }
-test('reduced TODAY environment keeps all 11 routing capabilities and excludes collector/retired capabilities',()=>{
+test('reduced TODAY environment keeps all seven routing capabilities and excludes collector/retired capabilities',()=>{
  const {env}=setup();env.MARKET_HISTORY_DB=database();env.COLD_HISTORY_DB=database();env.HARVEST_SECRET='secret';env.FBIS_POLYMARKET_TAGS_JSON='collector-config';env.__fbisCutoverApprovals=new Map([['injected',{}]]);
  const original=globalThis.caches;globalThis.caches={default:{}};
  try {
   const scoped=todayEnv({env});
-  for(const [sport,plan] of Object.entries(SPORT_DATABASES)) {
+  for(const [sport,plan] of Object.entries(SPORT_DATABASES).filter(([sport])=>sports.includes(sport))) {
    assert.equal(scoped[plan.binding],env[plan.binding]);
    for(const p of ['SPORT_DB_MODE_','SPORT_CUTOVER_RECEIPT_','SPORT_DB_LEDGER_READY_'])assert.equal(scoped[p+sport.toUpperCase()],env[p+sport.toUpperCase()]);
   }
@@ -46,7 +46,7 @@ test('reduced TODAY environment keeps all 11 routing capabilities and excludes c
 test('approval hydration uses exactly one receipt lookup per active sport and drops stale maps',async()=>{
  const {env,reads}=setup();const prior=new Map([['old',{}]]);env.__fbisCutoverApprovals=prior;
  const out=await hydrateRequestSportRouting(env);
- assert.equal(out.ok,true);assert.equal(reads.length,11);assert.notEqual(env.__fbisCutoverApprovals,prior);assert.equal(env.__fbisCutoverApprovals.has('old'),false);
+ assert.equal(out.ok,true);assert.equal(reads.length,7);assert.notEqual(env.__fbisCutoverApprovals,prior);assert.equal(env.__fbisCutoverApprovals.has('old'),false);
  for(const r of reads){assert.match(r.sql,/WHERE sport=\? AND receipt_id=\? LIMIT 1/);assert.equal(r.receipt,'receipt-'+r.sport);}
  for(const sport of sports)assert.equal(productSportDbHandle(env,sport).binding,SPORT_DATABASES[sport].binding);
 });
@@ -55,10 +55,10 @@ for(const sport of sports)test(sport+' active authority failure never reads PRIM
  const r=await loadDurableTodayGames(env,date,sport,{now});
  assert.equal(r.ok,false);assert.deepEqual(r.games,[]);assert.equal(env.DB.calls.length,0);assert.equal(env[SPORT_DATABASES[sport].binding].calls.length,0);
 });
-test('all-sport delivery reads all 11 approved owners without touching PRIMARY',async()=>{
+test('all-sport delivery reads all seven approved owners without touching PRIMARY',async()=>{
  const {env,reads}=setup();env.DB.prepare=()=>{throw Error('PRIMARY_MUST_NOT_BE_READ');};
  const r=await loadDurableTodayGames(env,date,'all',{now});
- assert.equal(r.ok,true,r.reason);assert.equal(r.games.length,11);assert.equal(reads.length,11);assert.equal(r.bindings.length,11);
+ assert.equal(r.ok,true,r.reason);assert.equal(r.games.length,7);assert.equal(reads.length,7);assert.equal(r.bindings.length,7);
  assert.equal(r.canAuthorizeWager,false);for(const g of r.games){assert.equal(g.canAuthorizeWager,false);assert.equal(g.canQualify,false);assert.equal(g.status.live,false);assert.equal(g.model.pHomeFinal,null);}
 });
 test('mixed fanout excludes active sports from PRIMARY SQL and rejects stale duplicate slices',async()=>{

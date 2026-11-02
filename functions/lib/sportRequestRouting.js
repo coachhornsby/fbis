@@ -1,3 +1,4 @@
+import {PUBLIC_SPORTS} from './publicBoardSnapshot.js';
 import {SPORT_DATABASES,deployedSportDbMode,productSportDbHandle} from './databaseTopology.js';
 
 /** Copy only database routing capabilities into a reduced request environment.
@@ -8,7 +9,7 @@ export function sportRequestRouting(source={}) {
  const result={};
  for(const name of ['CORE_DB','OPERATIONS_DB','NHL_SPORT_DB_MODE','FBIS_ARCHIVE_D1_RETIRED','FBIS_BUDGET_STOP'])
   if(source[name]!==undefined)result[name]=source[name];
- for(const [sport,plan] of Object.entries(SPORT_DATABASES)) {
+ for(const [sport,plan] of Object.entries(SPORT_DATABASES).filter(([sport])=>PUBLIC_SPORTS.includes(sport))) {
   if(source[plan.binding]!==undefined)result[plan.binding]=source[plan.binding];
   for(const prefix of ['SPORT_DB_MODE_','SPORT_DB_STRICT_','SPORT_DB_LEDGER_READY_','SPORT_CUTOVER_RECEIPT_']) {
    const key=prefix+sport.toUpperCase();if(source[key]!==undefined)result[key]=source[key];
@@ -24,7 +25,7 @@ export function sportRequestRouting(source={}) {
 export async function hydrateRequestSportRouting(env={}) {
  const map=new Map();env.__fbisCutoverApprovals=map;
  const states=[];
- for(const [sport,plan] of Object.entries(SPORT_DATABASES)) {
+ for(const [sport,plan] of Object.entries(SPORT_DATABASES).filter(([sport])=>PUBLIC_SPORTS.includes(sport))) {
   if(deployedSportDbMode(env,sport)!=='sport')continue;
   // Once deployed sport mode is active this request must never use stale PRIMARY.
   env['SPORT_DB_STRICT_'+sport.toUpperCase()]='true';
@@ -44,7 +45,7 @@ export async function hydrateRequestSportRouting(env={}) {
   if(!reason)map.set(sport+':'+receipt,row);
   states.push({sport,binding:plan.binding,ok:!reason,reason});
  }
- const result={ok:states.every(s=>s.ok),states,readsMaximum:Object.keys(SPORT_DATABASES).length,canAuthorizeWager:false};
+ const result={ok:states.every(s=>s.ok),states,readsMaximum:PUBLIC_SPORTS.length,canAuthorizeWager:false};
  env.__fbisRequestSportRouting=result;
  return result;
 }
