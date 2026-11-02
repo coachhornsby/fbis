@@ -33,10 +33,10 @@ async function boundedRead(response,secrets){
  try{for(;;){const {done,value}=await reader.read();if(done)break;bytes+=value.length;if(bytes>8*1024*1024){await reader.cancel();throw Error('BYTE_LIMIT');}parts.push(value);}}finally{reader.releaseLock();}
  const all=new Uint8Array(bytes);let offset=0;for(const part of parts){all.set(part,offset);offset+=part.length;}
  const text=new TextDecoder().decode(all);if(secrets.some(s=>s&&text.includes(s)))throw Error('SECRET_IN_RESPONSE');
- const payload=JSON.parse(text);if(!Array.isArray(payload))throw Error('EXPECTED_ARRAY');
+ const payload=JSON.parse(text);if(!Array.isArray(payload)&&!(payload&&Array.isArray(payload.teams)))throw Error('EXPECTED_ARRAY_OR_DIRECTORY');
  const zipped=new Uint8Array(await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
  let binary='';for(let i=0;i<zipped.length;i+=8192)binary+=String.fromCharCode(...zipped.subarray(i,i+8192));
- return {bytes,rows:payload.length,sha256:await hash(text),gzipB64:btoa(binary)};
+ return {bytes,rows:Array.isArray(payload)?payload.length:payload.teams.length,sha256:await hash(text),gzipB64:btoa(binary)};
 }
 export async function captureCbbProviders(request,env){
  const raw=env.FBIS_CBB_OPERATOR_LEASE;if(!raw)return new Response('Capture disabled',{status:410});

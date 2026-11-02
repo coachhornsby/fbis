@@ -188,15 +188,15 @@ const CFB_QB_STATS_ENDPOINTS = [
 ];
 
 const CBB_REFRESH_ENDPOINTS = [
-  ["/ratings/adjusted", (y) => ({ year: y })],
-  ["/ratings/srs", (y) => ({ year: y })],
-  ["/teams", (y) => ({ year: y })],
+  ["/ratings/adjusted", (y) => ({ season: y })],
+  ["/ratings/srs", (y) => ({ season: y })],
+  ["/teams", (y) => ({ season: y })],
   // One bulk leaderboard covers all D-I profiles; NEVER one request per team.
   ["/stats/team/leaderboard", (y) => ({ season: y })],
 ];
 
 const CBB_BACKFILL_EXTRA = [
-  ["/ratings/elo", (y) => ({ year: y })],
+  ["/ratings/elo", (y) => ({ season: y })],
   ["/games", (y) => ({ season: y })],
 ];
 
