@@ -7,7 +7,10 @@ const metadata=JSON.parse(fs.readFileSync(input+'/capture-summary.json','utf8'))
 const captures={kenpom:metadata.records.find(x=>x.provider==='kenpom'&&x.name==='ratings').observedAt,cbbd:metadata.records.find(x=>x.name==='adjusted-current').observedAt,torvik:'2026-11-02T04:26:53.354Z'};
 const providerRows=[...JSON.parse(fs.readFileSync(input+'/normalized-provider-inputs.json','utf8')),...JSON.parse(fs.readFileSync(input+'/torvik-current-provider-inputs.json','utf8'))];
 const games=[];for(const day of ['20261102','20261103']){const raw=JSON.parse(fs.readFileSync(`${root}/${day}-espn.json`,'utf8'));const venue=new Map(raw.events.flatMap(e=>e.competitions.map(c=>[String(c.id),c.neutralSite])));for(const g of scoreboardGames(raw,{sport:'cbb',date:'2026-11-02',capturedAt:asOf}))games.push({...g,neutralSite:venue.get(g.id)});}
-const unique=[...new Map(games.map(g=>[g.id,g])).values()];const packet=buildCbbProjectionPacket({games:unique,providerRows,captures,asOf});
+const unique=[...new Map(games.map(g=>[g.id,g])).values()];
+const fixtureEvidencePath=process.argv[3];if(!fixtureEvidencePath)throw Error('Supply verified fixture evidence JSON path');
+const fixtureEvidence=fixtureEvidencePath?JSON.parse(fs.readFileSync(fixtureEvidencePath,'utf8')):null;
+const packet=buildCbbProjectionPacket({games:unique,providerRows,captures,asOf,fixtureEvidence});
 fs.writeFileSync(root+'/private-projections.json',JSON.stringify(packet,null,2));
 fs.mkdirSync('data/public/cbb-readiness',{recursive:true});fs.writeFileSync('data/public/cbb-readiness/2026-11-02.json',JSON.stringify(publicCbbReadiness(packet)));
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

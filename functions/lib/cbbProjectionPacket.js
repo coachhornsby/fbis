@@ -3,6 +3,15 @@ import {cbbKenpomRatingsV1,cbbTorvikRatingsV1,cbbRatingsV1} from './cbbRatings.j
 import {buildCbbPro} from './cbbProModel.js';
 export const CBB_INPUT_TTL_MS=6*60*60*1000;
 export function cbbFixtureKey(g){return [g.id,g.date,g.start,g.home?.espnId,g.away?.espnId,String(g.neutralSite)].join('|');}
+/** Evidence is tied to the complete captured fixture, never just a matchup name. */
+export function cbbFixtureEvidenceReasons(game,evidence,asOf){
+ if(!evidence)return ['FIXTURE_EVIDENCE_MISSING'];
+ if(evidence.eventId!==game.id||evidence.fixtureKey!==cbbFixtureKey(game)||evidence.date!==game.date)return ['FIXTURE_EVIDENCE_BINDING_MISMATCH'];
+ if(!fresh(evidence.observedAt,Date.parse(asOf)))return ['FIXTURE_EVIDENCE_STALE_OR_FUTURE'];
+ if(evidence.blocked!==false)return evidence.reasons?.length?[...evidence.reasons]:['FIXTURE_SOURCE_CONFLICT'];
+ if(evidence.reasons?.length)return ['FIXTURE_EVIDENCE_INCONSISTENT'];
+ return [];
+}
 function index(rows,provider,season){
  const map=new Map();
  for(const r of rows||[]){if(r.provider!==provider||r.season!==season)continue;const p=typeof r.payload==='string'?JSON.parse(r.payload):r.payload;
@@ -12,12 +21,12 @@ function index(rows,provider,season){
 }
 function ratings(h,a){return {homeAdjOe:h?.adjOe,homeAdjDe:h?.adjDe,homeTempo:h?.tempo,awayAdjOe:a?.adjOe,awayAdjDe:a?.adjDe,awayTempo:a?.tempo};}
 function fresh(at,now){return Number.isFinite(Date.parse(at))&&Date.parse(at)<=now&&now-Date.parse(at)<=CBB_INPUT_TTL_MS;}
-export function buildCbbProjectionPacket({games,providerRows,captures,asOf,season=2027}){
+export function buildCbbProjectionPacket({games,providerRows,captures,asOf,season=2027,fixtureEvidence=null}){
  const now=Date.parse(asOf);if(!Number.isFinite(Date.parse(captures?.kenpom)))throw Error('INVALID_CAPTURE_TIME');if(!Number.isFinite(now))throw Error('INVALID_PROJECTION_TIME');
  const kp=index(providerRows,'kenpom',season),tv=index(providerRows,'torvik',season),cb=index(providerRows,'cbbd',season);
  const out=[];const ids=new Set();
  for(const g of games||[]){if(g.sport!=='cbb')continue;const key=cbbFixtureKey(g);if(ids.has(g.id))throw Error('DUPLICATE_EVENT');ids.add(g.id);
-  const reasons=[];let primary=null,comparison=null,confirmation=null;
+  const reasons=fixtureEvidence?cbbFixtureEvidenceReasons(g,fixtureEvidence[g.id],asOf):[];let primary=null,comparison=null,confirmation=null;
   if(!/^\d+$/.test(String(g.id))||!/^\d+$/.test(g.home?.espnId||'')||!/^\d+$/.test(g.away?.espnId||'')||g.home.espnId===g.away.espnId)reasons.push('IDENTITY_UNRESOLVED');
   if(g.status!=='scheduled'||!Number.isFinite(Date.parse(g.start))||Date.parse(g.start)<=now)reasons.push('NOT_PREGAME');
   if(typeof g.neutralSite!=='boolean')reasons.push('VENUE_UNVERIFIED');
