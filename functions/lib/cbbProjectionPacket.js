@@ -48,5 +48,5 @@ export function buildCbbProjectionPacket({games,providerRows,captures,asOf,seaso
 export function publicCbbReadiness(packet){
  return {version:1,date:packet.events[0]?.date||null,generatedAt:packet.generatedAt,expiresAt:packet.expiresAt,publicationMode:'READINESS_ONLY',
   states:{pipeline:'PRIVATE_ANALYSIS_BUILT',publicProjection:'BLOCKED',confirmation:'CURRENT_CBBD_INCOMPLETE',nativeTotal:'INSUFFICIENT_CURRENT_HISTORY',kenpomPublicDisplay:'WRITTEN_PERMISSION_UNVERIFIED'},
-  events:packet.events.map(x=>({eventId:x.eventId,fixtureKey:x.fixtureKey,state:'PROJECTION_UNAVAILABLE',reasons:x.reasons,canQualify:false,canAuthorizeWager:false})),canQualify:false,canAuthorizeWager:false};
+  canQualify:false,canAuthorizeWager:false};
 }
