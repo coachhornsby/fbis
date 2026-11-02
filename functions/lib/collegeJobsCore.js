@@ -1940,11 +1940,14 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
 
   const failed = report.filter((r) => r && r.ok === false).length;
   const profileWriteFailed = errors.some((e) => String(e).includes("CBB_PROFILE_PERSISTENCE_FAILED"));
-  const status = (profileWriteFailed || (job==="cfb-postgame-harvest" && (errors.length>0 || failed>0)))
+  const isCbbJob = job.startsWith("cbb");
+  const zeroWrites = (Number(writes.writesSucceeded) || 0) === 0;
+  const zeroWriteFailure = isCbbJob && zeroWrites && (failed > 0 || errors.length > 0);
+  const status = (profileWriteFailed || zeroWriteFailure || (job==="cfb-postgame-harvest" && (errors.length>0 || failed>0)))
     ? JOB_FAILED : classifyJobStatus({
     okSports: failed === report.length && report.length ? 0 : 1,
-    failedSports: failed && failed === report.length ? 1 : 0,
-    writesFailed: 0,
+    failedSports: isCbbJob ? (failed > 0 ? 1 : 0) : (failed && failed === report.length ? 1 : 0),
+    writesFailed: isCbbJob ? Number(writes.writesFailed) || 0 : 0,
     unbound: !hasDb(env),
     requiredFailed: errors.length > 0 && !report.length,
   });

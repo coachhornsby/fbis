@@ -686,3 +686,15 @@ describe('college failure evidence survives job persistence', () => {
     });
   }
 });
+
+describe('cbb zero-write status guard (INC-20261006-001 / INC-20261009-007)', () => {
+  it('cbb-current-refresh with failed endpoints and zero writes is not SUCCESS', async () => {
+    const env={DB:{prepare(sql){return{bind(...args){return{
+      async run(){return{meta:{changes:1}};},
+      async first(){return{used:0,cache_hits:0,n:0};},async all(){return{results:[]};}
+    };}};}}};
+    const fetchFn=async()=>new Response('unavailable',{status:503});
+    const payload=await runCollegeJob('cbb-current-refresh',env,{year:2026,date:'2026-11-01',fetchFn});
+    assert.notEqual(payload.status,'success');
+  });
+});
