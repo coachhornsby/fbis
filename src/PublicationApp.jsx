@@ -4,6 +4,16 @@ import DecisionBoard from './components/board/DecisionBoard.jsx';
 import {PUBLIC_SPORTS,captureScoreboards,boardDate,shiftBoardDate,SNAPSHOT_MAX_AGE_MS} from '../functions/lib/publicBoardSnapshot.js';
 import './index.css';
 import './publication.css';
+function CbbReadiness({date,clock}){
+  const [packet,setPacket]=useState(null);
+  useEffect(()=>{const controller=new AbortController();setPacket(null);
+    fetch(`/board-data/cbb-readiness/${date}.json`,{signal:controller.signal}).then(r=>r.ok?r.json():null).then(p=>{if(!controller.signal.aborted&&p?.date===date&&p.publicationMode==='READINESS_ONLY')setPacket(p);}).catch(()=>{});
+    return()=>controller.abort();
+  },[date]);
+  if(!packet)return null;
+  const expired=!Number.isFinite(Date.parse(packet.expiresAt))||clock>=Date.parse(packet.expiresAt);
+  return <section className="publication-notice" aria-label="CBB projection readiness"><strong>CBB projection pipeline · {expired?'input snapshot expired':'private analysis prepared'}</strong><p>Public projections remain unavailable. Current CBBD confirmation and validated native totals are incomplete. KenPom public display requires verified written permission. No picks or wager approvals.</p><small>Snapshot for {date} · {expired?'Refresh verified inputs before further analysis.':'Private preseason estimates require confirmation before use.'}</small></section>;
+}
 function PublicationApp(){
   const url=new URL(window.location.href);
   const [sport,setSport]=useState(PUBLIC_SPORTS.includes(url.searchParams.get('sport'))?url.searchParams.get('sport'):'cbb');
@@ -43,6 +53,7 @@ function PublicationApp(){
   return <main className="publication-shell fbis-shell-main route-board">
     <header className="publication-header"><a href="/" aria-label="FBIS home" className="publication-logo">FBIS<span>FASTWATER BETTING INTELLIGENCE</span></a><span className="publication-stage">BOARD RESTART · SCHEDULES & SCORES</span></header>
     <section className="publication-notice" aria-label="Restart status"><strong>The board is open. Predictions and betting markets remain paused.</strong><p>Seven sports. Scores and schedules come from ESPN. No model picks, prices or wagering approval are implied. Historical data and recovery copies remain preserved.</p></section>
+    {(sport==='cbb'||sport==='all')&&<CbbReadiness date={date} clock={clock}/>}
     <nav className="publication-sports" aria-label="Sports">{['all',...PUBLIC_SPORTS].map(s=><button key={s} aria-pressed={sport===s} onClick={()=>changeSport(s)}>{s.toUpperCase()}{board&&<small>{board.games.filter(g=>g.sport===s||s==='all').length}</small>}</button>)}</nav>
     <section className="publication-controls" aria-label="Board controls"><label>Central date <input type="date" value={date} min={shiftBoardDate(boardDate(),-7)} max={shiftBoardDate(boardDate(),7)} onChange={e=>{if(e.target.value)setDate(e.target.value);}}/></label><button onClick={()=>setDate(boardDate())}>Today</button><button onClick={()=>setDate(shiftBoardDate(boardDate(),1))}>Tomorrow</button><button disabled={busy||clock-lastAttempt.current<60000} onClick={()=>refresh()}>{busy?'Refreshing sources…':'Refresh scores'}</button>{sport==='tennis'&&<label>Tour <select value={tour} onChange={e=>setTour(e.target.value)}><option value="all">ATP + WTA</option><option value="atp">ATP</option><option value="wta">WTA</option></select></label>}</section>
     <div className="publication-freshness" role="status"><b>{stale?'SAVED / STALE OR PARTIAL':'CURRENT SOURCE CAPTURE'}</b> · {games.length} games · Times shown in Central. Refresh is manual; captures become stale after five minutes.<br/>{feeds.map(([s,f])=><span key={s}>{s.toUpperCase()}: {f.capturedAt?new Date(f.capturedAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'unavailable'} CT{!f.ok?' · source unavailable':''}　</span>)}</div>
