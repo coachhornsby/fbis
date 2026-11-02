@@ -47,7 +47,7 @@ export function scoreboardGames(payload, {sport,tour=null,date,capturedAt}) {
       /postpon/i.test(type.name||'')?'postponed':/cancel/i.test(type.name||'')?'cancelled':'scheduled';
     // Pregame score zeros are placeholders, not observed results.
     if(type.state==='pre'){home.score=null;away.score=null;}
-    out.push({id:String(c.id||event.id),sport,tour,date,start,home,away,status,
+    out.push({id:String(c.id||event.id),sport,tour,date,start,home,away,status,neutralSite:typeof c.neutralSite==='boolean'?c.neutralSite:null,
       statusDetail:type.detail||type.description||status,statusPeriod:s.period??null,statusClock:s.displayClock||null,
       capturedAt,source:'ESPN_SCOREBOARD',sourceEventUrl:event.links?.find(l=>l.rel?.includes('summary'))?.href||null,
       projectionUnavailable:true,marketUnavailable:true,projectionKind:'UNAVAILABLE',projectionState:'SCHEDULE_ONLY',

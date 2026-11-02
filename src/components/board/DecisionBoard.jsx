@@ -72,7 +72,7 @@ export function BoardSummaryStrip({ games = [] }) {
   );
 }
 
-export default function DecisionBoard({ games = [], renderDetail }) {
+export default function DecisionBoard({ games = [], renderDetail, renderCardExtra }) {
   const [selected, setSelected] = useState(null);
   const ranked = useMemo(() => sortByConfidence(games).sort((a,b)=>Number(Boolean(a.tennisProjection?.researchFixture))-Number(Boolean(b.tennisProjection?.researchFixture))), [games]);
 
@@ -83,6 +83,7 @@ export default function DecisionBoard({ games = [], renderDetail }) {
       <div className="decision-board db-game-page">
         <button type="button" className="db-back-btn" onClick={() => setSelected(null)}>← Back to Board</button>
         <PremiumGameCard game={selected} />
+        {renderCardExtra?.(selected)}
         <NhlInjuryIntelligence game={selected} />
         <TennisMatchIntelligence game={selected} />
         {["nfl","mlb","nba","nhl","cfb","cbb","wnba","soccer","npb","kbo","tennis"].includes(String(selected?.sport || "").toLowerCase())
@@ -115,6 +116,7 @@ export default function DecisionBoard({ games = [], renderDetail }) {
               {isTennis
                 ? <TourCardFrame game={g}><PremiumGameCard game={g} onToggle={() => setSelected(g)} /></TourCardFrame>
                 : <CompactGameCard game={g} onOpen={setSelected} />}
+              {renderCardExtra?.(g)}
             </div>
             </Fragment>
           );
