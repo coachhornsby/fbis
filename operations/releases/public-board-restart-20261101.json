@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "project": "FBIS",
+  "state": "PUBLIC_SCOREBOARD_REOPENED_PREDICTIONS_AND_COLLECTORS_PAUSED",
+  "verifiedAt": "2026-11-02T02:19:54.364Z",
+  "site": "https://fbis-myz.pages.dev/",
+  "deploymentId": "9472599a-a268-4315-9b70-39377c3b3d8c",
+  "deploymentCommit": "0eca5a0af82ba5d3abb470c81386a2f2840b5e7d",
+  "usesFunctions": false,
+  "activeSports": [
+    "nfl",
+    "cfb",
+    "nba",
+    "cbb",
+    "nhl",
+    "mlb",
+    "tennis"
+  ],
+  "excludedSports": [
+    "wnba",
+    "soccer",
+    "npb",
+    "kbo"
+  ],
+  "tennisTours": [
+    "atp",
+    "wta"
+  ],
+  "publication": {
+    "root": "deploy/board",
+    "source": "ESPN scoreboards",
+    "browserCallsPerRefreshMaximum": 16,
+    "concurrencyMaximum": 4,
+    "bytesPerResponseMaximum": 4194304,
+    "requestTimeoutMs": 12000,
+    "retries": 0,
+    "freshnessMs": 300000,
+    "automaticCollection": false,
+    "manualRefreshMinimumMs": 60000,
+    "failedSourceHandling": "Retain saved records and original timestamps; mark unavailable/stale. No fabricated empty-success slate.",
+    "qualification": false,
+    "wagerAuthorization": false
+  },
+  "checks": {
+    "publicBoardTests": 6,
+    "focusedTests": 52,
+    "requestRoutingTests": 76,
+    "overlapBetweenTestGroups": true,
+    "cardServerRendering": [
+      "cbb",
+      "nba",
+      "nfl",
+      "nhl"
+    ],
+    "publicHTTP": {
+      "/": 200,
+      "/board-data/2026-11-01.json": 200,
+      "/board-data/2026-11-02.json": 200,
+      "/api/today": "static paused-service JSON; no Functions",
+      "/api/collect": "static paused-service JSON; no Functions"
+    },
+    "browserVerified": [
+      "CBB current-date cards",
+      "CBB next-date cards",
+      "ESPN direct browser refresh",
+      "seven-sport navigation",
+      "source timestamps",
+      "Default confidence stars hidden for schedule captures",
+      "Shareable Central-date URL",
+      "Established card layout wrapper applied"
+    ],
+    "pausedRuntimeTestLimitation": "Seven roster integration tests stop in Miniflare constructor because installed API requires a different configuration shape. Those paused Workers were not redeployed."
+  },
+  "controls": {
+    "workerCronsAllEmpty": true,
+    "workersDevAndPreviewsAllDisabled": true,
+    "workersDevCorrected": [
+      "fbis-kalshi-private-stream",
+      "fbis-orchestrator",
+      "fbis-soccer-pitchapi-backfill"
+    ],
+    "automaticPagesDeployment": false,
+    "geminiTasksResumed": false,
+    "chatgptTasksResumed": false
+  },
+  "storage": {
+    "d1BytesLastVerified": 9003020288,
+    "d1Databases": 15,
+    "newD1DataWrites": 0,
+    "newD1Deletes": 0,
+    "driveArchivesPreserved": true,
+    "driveCatalogId": "1xGCwbiLUGkfeEaRr3UEo7UIS5weXWfW4"
+  },
+  "cost": {
+    "monthlyAccountCeilingUSD": 10,
+    "publicCloudflareFunctionInvocations": 0,
+    "publicD1Queries": 0,
+    "publicR2Operations": 0,
+    "paidAIModelCalls": 0,
+    "accountTotalIncludingStorageSubscriptionsAndTaxVerified": false,
+    "providerHardSpendingCapClaimed": false
+  },
+  "stillRequiredForFullIntelligenceService": [
+    "CBB current projection inputs and validation; no current Nov 1-2 saved projection rows were present in CBB_DB",
+    "CBB, MLB and tennis durable-owner parity and approved ledger cutover",
+    "Finish budgeted model/market collection and snapshot publication; verify current total billing including tax",
+    "Finish needed cold data retirement only after archive/restore and dependency gates",
+    "Controlled full-intelligence deployment and end-to-end verification before enabling scheduled collection"
+  ],
+  "notes": [
+    "This reopens the public scoreboard, not the full prediction, market, account or wager-journal service.",
+    "The existing application source and all verified archives remain preserved.",
+    "The first deployment failed due to parent Wrangler config inheritance; the isolated local config corrected it."
+  ],
+  "deploymentCompletedAt": "2026-11-02T02:19:09.934839Z"
+}

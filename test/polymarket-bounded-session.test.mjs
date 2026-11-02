@@ -18,6 +18,7 @@ function setup({units={},roster=manifest(),brokerStatus=200}={}){
 }
 const quote=(slug='contract-1')=>JSON.stringify({market_data_lite:{market_slug:slug,best_bid:'0.45',best_ask:'0.5'}});
 test('roster accepts every sport but rejects stale, duplicate, oversized or invalid entries',()=>{
+ for(const retired of ['wnba','soccer','npb','kbo'])assert.throws(()=>validateStreamRoster(manifest([row('retired',retired)]),at));
  const sports=['nfl','cfb','cbb','nba','mlb','nhl','tennis'];assert.equal(validateStreamRoster(manifest(sports.map((s,i)=>row('slug-'+i,s))),at).length,7);
  for(const m of [manifest([row(),row()]),manifest(Array.from({length:51},(_,i)=>row('slug-'+i))),{...manifest(),expiresAt:new Date(at-1).toISOString()},manifest([row('bad/slugs')]),manifest([row('slug','other')]),{...manifest(),capturedAt:new Date(at+1).toISOString()}])assert.throws(()=>validateStreamRoster(m,at));
 });

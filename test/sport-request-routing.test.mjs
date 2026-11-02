@@ -87,3 +87,9 @@ test('CORE read failure cannot use an injected or previously hydrated approval',
 test('shadow sports keep their current authority without activating bound shards',async()=>{
  const {env,reads}=setup([]);env.DB=database([fixture('mlb')]);const r=await loadDurableTodayGames(env,date,'mlb',{now});assert.equal(r.ok,true);assert.equal(reads.length,0);assert.equal(env.MLB_DB.calls.length,0);
 });
+
+test('retired live schedule scopes reject before any database access',async()=>{
+ const {env}=setup();for(const sport of ['wnba','soccer','npb','kbo']){
+  const out=await loadDurableTodayGames(env,date,sport,{now});assert.equal(out.ok,false);assert.equal(out.reason,'UNSUPPORTED_SPORT');
+ }assert.equal(env.DB.calls.length,0);
+});
