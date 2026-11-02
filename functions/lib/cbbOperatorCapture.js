@@ -56,7 +56,7 @@ export async function captureCbbProviders(request,env){
   if(!keys[provider]||(provider==='cbbd'?stopCbbd:stopKenpom)){records.push({provider,name,status:0,reason:keys[provider]?'PROVIDER_STOPPED':'KEY_MISSING',networkAttempted:false});continue;}
   let auth=null;if(provider==='cbbd'){auth=await permit(env,url);if(!auth.allowed){records.push({provider,name,status:0,reason:auth.reason,networkAttempted:false});continue;}}
   let status=0,response=null,captured=null,error=null;const observedAt=new Date().toISOString();
-  try{attempts++;response=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(20000),headers:{Authorization:`Bearer ${keys[provider]}`,Accept:'application/json','User-Agent':'FBIS-CBB/3.0'}});status=response.status;
+  try{attempts++;response=await fetch(url,{redirect:'manual',signal:AbortSignal.timeout(20000),headers:{Authorization:`Bearer ${keys[provider]}`,Accept:'application/json','User-Agent':'FBIS-CBB/3.0'}});status=response.status;
    if(response.ok)captured=await boundedRead(response,secrets);else await response.body?.cancel();
   }catch(e){error=String(e?.message||e).slice(0,100);if(secrets.some(s=>error.includes(s)))error='REDACTED_PROVIDER_ERROR';}
   if(provider==='cbbd'){
