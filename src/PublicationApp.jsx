@@ -1,3 +1,5 @@
+import PrivateProjection from './components/board/PrivateProjection.jsx';
+import {PRIVATE_PROJECTION_KEY,validatePrivatePacket} from './lib/privateBoardProjection.js';
 import {useState,useEffect,useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 import DecisionBoard from './components/board/DecisionBoard.jsx';
@@ -17,6 +19,9 @@ function CbbReadiness({date,clock}){
   return <section className="publication-notice" aria-label="CBB projection readiness"><strong>CBB projection pipeline · {expired?'input snapshot expired':'private analysis prepared'}</strong><p>Public projections remain unavailable. Current CBBD confirmation and validated native totals are incomplete. KenPom public display requires verified written permission. No picks or wager approvals.</p><small>Snapshot for {date} · {expired?'Refresh verified inputs before further analysis.':'Private preseason estimates require confirmation before use.'}</small></section>;
 }
 function PublicationApp(){
+  const [privatePacket,setPrivatePacket]=useState(()=>{try{return validatePrivatePacket(JSON.parse(localStorage.getItem(PRIVATE_PROJECTION_KEY)));}catch{return null;}});
+  const [importStatus,setImportStatus]=useState('');
+  async function importProjections(event){const file=event.target.files?.[0];if(!file)return;try{if(file.size>2000000)throw Error('Projection file is too large.');const p=validatePrivatePacket(JSON.parse(await file.text()));setPrivatePacket(p);try{localStorage.setItem(PRIVATE_PROJECTION_KEY,JSON.stringify(p));setImportStatus('Private projections loaded and saved in this browser.');}catch{setImportStatus('Loaded for this tab; browser storage is unavailable.');}}catch(e){setImportStatus(e.message);}event.target.value='';}
   const url=new URL(window.location.href);
   const [sport,setSport]=useState(PUBLIC_SPORTS.includes(url.searchParams.get('sport'))?url.searchParams.get('sport'):'cbb');
   const requestedDate=url.searchParams.get('date');
@@ -52,15 +57,16 @@ function PublicationApp(){
   return <main className="publication-shell fbis-shell-main route-board">
     <header className="publication-header"><a href="/" aria-label="FBIS home" className="publication-logo">FBIS<span>FASTWATER BETTING INTELLIGENCE</span></a><span className="publication-stage">BOARD RESTART · SCHEDULES & SCORES</span></header>
     <PublicScoreTicker games={board?.games||[]} clock={clock} busy={busy}/>
-    <section className="publication-notice" aria-label="Restart status"><strong>The board is open. Predictions and betting markets remain paused.</strong><p>Seven sports. Scores and schedules come from ESPN. No model picks, prices or wagering approval are implied. Historical data and recovery copies remain preserved.</p></section>
-    {(sport==='cbb'||sport==='all')&&<CbbReadiness date={date} clock={clock}/>}
+    <section className="publication-notice" aria-label="Restart status"><strong>The board is open. Load your private projections below.</strong><p>Seven sports. Scores and schedules come from ESPN. Private forecasts display on matching cards after import. Betting markets remain paused. Historical data and recovery copies remain preserved.</p></section>
+    {!privatePacket&&(sport==='cbb'||sport==='all')&&<CbbReadiness date={date} clock={clock}/>}
     <nav className="publication-sports" aria-label="Sports">{['all',...PUBLIC_SPORTS].map(s=><button key={s} aria-pressed={sport===s} onClick={()=>changeSport(s)}>{s.toUpperCase()}{board&&<small>{board.games.filter(g=>g.sport===s||s==='all').length}</small>}</button>)}</nav>
     <section className="publication-controls" aria-label="Board controls"><label>Central date <input type="date" value={date} min={shiftBoardDate(boardDate(),-7)} max={shiftBoardDate(boardDate(),7)} onChange={e=>{if(e.target.value)setDate(e.target.value);}}/></label><button onClick={()=>setDate(boardDate())}>Today</button><button onClick={()=>setDate(shiftBoardDate(boardDate(),1))}>Tomorrow</button><button disabled={busy||clock-lastAttempt.current<60000} onClick={()=>refresh()}>{busy?'Refreshing sources…':'Refresh scores'}</button>{sport==='tennis'&&<label>Tour <select value={tour} onChange={e=>setTour(e.target.value)}><option value="all">ATP + WTA</option><option value="atp">ATP</option><option value="wta">WTA</option></select></label>}</section>
     <div className="publication-freshness" role="status"><b>{stale?'SAVED / STALE OR PARTIAL':'CURRENT SOURCE CAPTURE'}</b> · {games.length} games · Times shown in Central. Scores update automatically every minute while this page is visible. Captures become stale after five minutes.<br/>{feeds.map(([s,f])=><span key={s}>{s.toUpperCase()}: {f.capturedAt?new Date(f.capturedAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'unavailable'} CT{!f.ok?' · source unavailable':''}　</span>)}</div>
     {error&&<p className="publication-warning" role="alert">{error}</p>}
     {board&&!games.length&&!busy&&<p className="publication-empty">{feeds.every(([,f])=>f.ok)?'No games returned by the source for this date and filter.':'Schedule unavailable for this filter. This is not a confirmed empty slate.'}</p>}
-    <section aria-label="Game cards"><DecisionBoard key={date+sport+tour} games={games}/></section>
-    <footer className="publication-footer">Schedule and score capture only. Predictions, player props, account connections, wager journal writes and collection jobs remain paused. Browser refresh contacts ESPN directly; page views do not query the FBIS databases or paid AI APIs.</footer>
+    <section className="publication-controls" aria-label="Private projections"><label>Import projections <input type="file" accept="application/json,.json" onChange={importProjections}/></label>{privatePacket&&<button onClick={()=>{setPrivatePacket(null);try{localStorage.removeItem(PRIVATE_PROJECTION_KEY);}catch{}setImportStatus('Private projections removed from this browser.');}}>Clear private projections</button>}<span role="status">{importStatus||'Load your FBIS private JSON file to show score, margin and total on matching CBB cards. Files stay in this browser.'}</span></section>
+    <section aria-label="Game cards"><DecisionBoard key={date+sport+tour} games={games} renderCardExtra={g=><PrivateProjection game={g} packet={privatePacket} clock={clock}/>}/></section>
+    <footer className="publication-footer">Schedules, live scores and browser-local private projection display. Player props, wager writes and collection jobs remain paused. Browser refresh contacts ESPN directly; page views do not query the FBIS databases or paid AI APIs.</footer>
   </main>;
 }
 createRoot(document.getElementById('root')).render(<PublicationApp/>);
