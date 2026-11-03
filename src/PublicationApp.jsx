@@ -1,5 +1,5 @@
 import PrivateProjection from './components/board/PrivateProjection.jsx';
-import {PRIVATE_PROJECTION_KEY,validatePrivatePacket} from './lib/privateBoardProjection.js';
+import {PRIVATE_PROJECTION_KEY,validatePrivatePacket,readPrivatePacketText,privateProjectionFor} from './lib/privateBoardProjection.js';
 import {useState,useEffect,useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 import DecisionBoard from './components/board/DecisionBoard.jsx';
@@ -21,7 +21,7 @@ function CbbReadiness({date,clock}){
 function PublicationApp(){
   const [privatePacket,setPrivatePacket]=useState(()=>{try{return validatePrivatePacket(JSON.parse(localStorage.getItem(PRIVATE_PROJECTION_KEY)));}catch{return null;}});
   const [importStatus,setImportStatus]=useState('');
-  async function importProjections(event){const file=event.target.files?.[0];if(!file)return;try{if(file.size>2000000)throw Error('Projection file is too large.');const p=validatePrivatePacket(JSON.parse(await file.text()));setPrivatePacket(p);try{localStorage.setItem(PRIVATE_PROJECTION_KEY,JSON.stringify(p));setImportStatus('Private projections loaded and saved in this browser.');}catch{setImportStatus('Loaded for this tab; browser storage is unavailable.');}}catch(e){setImportStatus(e.message);}event.target.value='';}
+  async function importProjections(event){const file=event.target.files?.[0];if(!file)return;try{if(file.size>2000000)throw Error('Projection file is too large.');const p=readPrivatePacketText(await file.text());setPrivatePacket(p);try{localStorage.setItem(PRIVATE_PROJECTION_KEY,JSON.stringify(p));setImportStatus('Private projections loaded and saved in this browser.');}catch{setImportStatus('Loaded for this tab; browser storage is unavailable.');}}catch(e){setImportStatus(e.message);}event.target.value='';}
   const url=new URL(window.location.href);
   const [sport,setSport]=useState(PUBLIC_SPORTS.includes(url.searchParams.get('sport'))?url.searchParams.get('sport'):'cbb');
   const requestedDate=url.searchParams.get('date');
@@ -51,6 +51,8 @@ function PublicationApp(){
   useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer);},[]);
   useEffect(()=>startScoreboardPolling({refresh:()=>refreshRef.current?.(),isVisible:()=>!document.hidden,isBusy:()=>busyRef.current,lastAttempt:()=>lastAttempt.current,listen:fn=>{document.addEventListener('visibilitychange',fn);window.addEventListener('focus',fn);return()=>{document.removeEventListener('visibilitychange',fn);window.removeEventListener('focus',fn);};}}),[]);
   const games=(board?.games||[]).filter(g=>(sport==='all'||g.sport===sport)&&(sport!=='tennis'||tour==='all'||g.tour===tour)).map(g=>clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g);
+  const privateMatched=privatePacket?games.filter(g=>Boolean(privateProjectionFor(g,privatePacket,clock))).length:0;
+  const privatePrimary=privatePacket?.events.filter(e=>Boolean(e.primary)).length||0;
   const feeds=Object.entries(board?.feeds||{}).filter(([s])=>sport==='all'||sport===s);
   const stale=!feeds.length||feeds.some(([,f])=>!f.capturedAt||clock-Date.parse(f.capturedAt)>SNAPSHOT_MAX_AGE_MS||!f.ok);
   const changeSport=s=>{setSport(s);setTour('all');const u=new URL(location.href);u.searchParams.set('sport',s);history.replaceState({},'',u);};
@@ -64,7 +66,7 @@ function PublicationApp(){
     <div className="publication-freshness" role="status"><b>{stale?'SAVED / STALE OR PARTIAL':'CURRENT SOURCE CAPTURE'}</b> · {games.length} games · Times shown in Central. Scores update automatically every minute while this page is visible. Captures become stale after five minutes.<br/>{feeds.map(([s,f])=><span key={s}>{s.toUpperCase()}: {f.capturedAt?new Date(f.capturedAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'unavailable'} CT{!f.ok?' · source unavailable':''}　</span>)}</div>
     {error&&<p className="publication-warning" role="alert">{error}</p>}
     {board&&!games.length&&!busy&&<p className="publication-empty">{feeds.every(([,f])=>f.ok)?'No games returned by the source for this date and filter.':'Schedule unavailable for this filter. This is not a confirmed empty slate.'}</p>}
-    <section className="publication-controls" aria-label="Private projections"><label>Import projections <input type="file" accept="application/json,.json" onChange={importProjections}/></label>{privatePacket&&<button onClick={()=>{setPrivatePacket(null);try{localStorage.removeItem(PRIVATE_PROJECTION_KEY);}catch{}setImportStatus('Private projections removed from this browser.');}}>Clear private projections</button>}<span role="status">{importStatus||'Load your FBIS private JSON file to show score, margin and total on matching CBB cards. Files stay in this browser.'}</span></section>
+    <section className="publication-controls" aria-label="Private projections"><label>Import private JSON or HTML <input type="file" accept=".json,.html,application/json,text/html" onChange={importProjections}/></label>{privatePacket&&<button onClick={()=>{setPrivatePacket(null);try{localStorage.removeItem(PRIVATE_PROJECTION_KEY);}catch{}setImportStatus('Private projections removed from this browser.');}}>Clear private projections</button>}<span role="status">{privatePacket?`${privatePrimary} forecasts imported · ${privateMatched} matched cards for ${date} · ${clock>=Date.parse(privatePacket.expiresAt)?'EXPIRED pregame snapshot':'unconfirmed research only'} · Nothing uploaded`:(importStatus||'Import your private FBIS JSON packet or offline HTML report. Nothing is uploaded to the site.')}</span></section>
     <section aria-label="Game cards"><DecisionBoard key={date+sport+tour} games={games} renderCardExtra={g=><PrivateProjection game={g} packet={privatePacket} clock={clock}/>}/></section>
     <footer className="publication-footer">Schedules, live scores and browser-local private projection display. Player props, wager writes and collection jobs remain paused. Browser refresh contacts ESPN directly; page views do not query the FBIS databases or paid AI APIs.</footer>
   </main>;
