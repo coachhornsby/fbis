@@ -75,7 +75,7 @@ function PublicationApp(){
     {board&&!games.length&&!busy&&<p className="publication-empty">{feeds.every(([,f])=>f.ok)?'No games returned by the source for this date and filter.':'Schedule unavailable for this filter. This is not a confirmed empty slate.'}</p>}
     {(sport==='cbb'||sport==='all')&&<section className="publication-controls" aria-label="Private CBB projections" role="status">
       <span>{privatePacket?`${privatePrimary} saved CBB forecasts · ${privateMatched} matched game cards on ${date} · ${clock>=Date.parse(privatePacket.expiresAt)?'HISTORICAL / INPUTS EXPIRED':'RESEARCH ONLY'}`:privateStatus==='LOADING'?'Loading owner-only CBB projections…':privateStatus==='NO_CBB_SNAPSHOT'?'No stored CBB projections for '+date:privateStatus==='PRIVATE_SIGN_IN_REQUIRED'?'Private account sign-in required to view projections.':'No verified CBB projection snapshot available for this date.'}</span>
-      {privateStatus==='PRIVATE_SIGN_IN_REQUIRED'&&<a href={'/api/private/cbb/'+date+'?login=1'}>Sign in to view CBB projections</a>}
+      {privateStatus!=='LOADED'&&privateStatus!=='LOADING'&&privateStatus!=='NO_CBB_SNAPSHOT'&&<a href={'/api/private/cbb/'+date+'?login=1'}>Sign in to view CBB projections</a>}
     </section>}
     <section aria-label="Game cards"><DecisionBoard key={date+sport+tour} games={games} renderCardExtra={g=><PrivateProjection game={g} packet={privatePacket} clock={clock}/>}/></section>
     <footer className="publication-footer">Schedules, live scores and browser-local private projection display. Player props, wager writes and collection jobs remain paused. CBB research cards read owner-only R2 snapshots. Score refresh contacts ESPN; database and paid AI pipelines remain paused.</footer>
