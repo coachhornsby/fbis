@@ -1,5 +1,6 @@
 import PrivateProjection from './components/board/PrivateProjection.jsx';
-import {PRIVATE_PROJECTION_KEY,validatePrivatePacket,readPrivatePacketText,privateProjectionFor} from './lib/privateBoardProjection.js';
+import {privateProjectionFor} from './lib/privateBoardProjection.js';
+import {loadCbbSnapshot} from './lib/privateCbbAuto.js';
 import {useState,useEffect,useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 import DecisionBoard from './components/board/DecisionBoard.jsx';
@@ -19,9 +20,9 @@ function CbbReadiness({date,clock}){
   return <section className="publication-notice" aria-label="CBB projection readiness"><strong>CBB projection pipeline · {expired?'input snapshot expired':'private analysis prepared'}</strong><p>Public projections remain unavailable. Current CBBD confirmation and validated native totals are incomplete. KenPom public display requires verified written permission. No picks or wager approvals.</p><small>Snapshot for {date} · {expired?'Refresh verified inputs before further analysis.':'Private preseason estimates require confirmation before use.'}</small></section>;
 }
 function PublicationApp(){
-  const [privatePacket,setPrivatePacket]=useState(()=>{try{return validatePrivatePacket(JSON.parse(localStorage.getItem(PRIVATE_PROJECTION_KEY)));}catch{return null;}});
-  const [importStatus,setImportStatus]=useState('');
-  async function importProjections(event){const file=event.target.files?.[0];if(!file)return;try{if(file.size>2000000)throw Error('Projection file is too large.');const p=readPrivatePacketText(await file.text());setPrivatePacket(p);try{localStorage.setItem(PRIVATE_PROJECTION_KEY,JSON.stringify(p));setImportStatus('Private projections loaded and saved in this browser.');}catch{setImportStatus('Loaded for this tab; browser storage is unavailable.');}}catch(e){setImportStatus(e.message);}event.target.value='';}
+  const [privatePacket,setPrivatePacket]=useState(null);
+  const [privateOffers,setPrivateOffers]=useState([]);
+  const [privateStatus,setPrivateStatus]=useState('LOADING');
   const url=new URL(window.location.href);
   const [sport,setSport]=useState(PUBLIC_SPORTS.includes(url.searchParams.get('sport'))?url.searchParams.get('sport'):'cbb');
   const requestedDate=url.searchParams.get('date');
@@ -48,9 +49,15 @@ function PublicationApp(){
   }
   refreshRef.current=()=>refresh(date);
   useEffect(()=>{const u=new URL(location.href);u.searchParams.set('date',date);u.searchParams.set('sport',sport);history.replaceState({},'',u);refresh(date,true);return()=>{generation.current++;active.current?.abort();};},[date]);
+  useEffect(()=>{let active=true;
+    if(sport!=='cbb'&&sport!=='all'){setPrivatePacket(null);setPrivateOffers([]);setPrivateStatus('IDLE');return;}
+    setPrivatePacket(null);setPrivateOffers([]);setPrivateStatus('LOADING');
+    loadCbbSnapshot(date).then(x=>{if(active){setPrivatePacket(x.packet);setPrivateOffers(x.offers);setPrivateStatus('LOADED');}}).catch(e=>{if(active)setPrivateStatus(e.message||'UNAVAILABLE');});
+    return()=>{active=false;};
+  },[date,sport]);
   useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer);},[]);
   useEffect(()=>startScoreboardPolling({refresh:()=>refreshRef.current?.(),isVisible:()=>!document.hidden,isBusy:()=>busyRef.current,lastAttempt:()=>lastAttempt.current,listen:fn=>{document.addEventListener('visibilitychange',fn);window.addEventListener('focus',fn);return()=>{document.removeEventListener('visibilitychange',fn);window.removeEventListener('focus',fn);};}}),[]);
-  const games=(board?.games||[]).filter(g=>(sport==='all'||g.sport===sport)&&(sport!=='tennis'||tour==='all'||g.tour===tour)).map(g=>clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g);
+  const games=(board?.games||[]).filter(g=>(sport==='all'||g.sport===sport)&&(sport!=='tennis'||tour==='all'||g.tour===tour)).map(g=>{const g0=clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g;return g0.sport==='cbb'?{...g0,cbbVerifiedOffers:privateOffers.filter(q=>String(q.eventId||q.canonicalEventId||q.canonical_event_id)===String(g0.id))}:g0;});
   const privateMatched=privatePacket?games.filter(g=>Boolean(privateProjectionFor(g,privatePacket,clock))).length:0;
   const privatePrimary=privatePacket?.events.filter(e=>Boolean(e.primary)).length||0;
   const feeds=Object.entries(board?.feeds||{}).filter(([s])=>sport==='all'||sport===s);
@@ -59,16 +66,19 @@ function PublicationApp(){
   return <main className="publication-shell fbis-shell-main route-board">
     <header className="publication-header"><a href="/" aria-label="FBIS home" className="publication-logo">FBIS<span>FASTWATER BETTING INTELLIGENCE</span></a><span className="publication-stage">BOARD RESTART · SCHEDULES & SCORES</span></header>
     <PublicScoreTicker games={board?.games||[]} clock={clock} busy={busy}/>
-    <section className="publication-notice" aria-label="Restart status"><strong>The board is open. Load your private projections below.</strong><p>Seven sports. Scores and schedules come from ESPN. Private forecasts display on matching cards after import. Betting markets remain paused. Historical data and recovery copies remain preserved.</p></section>
-    {!privatePacket&&(sport==='cbb'||sport==='all')&&<CbbReadiness date={date} clock={clock}/>}
+    <section className="publication-notice" aria-label="Restart status"><strong>The board is open. CBB projections load from private storage automatically.</strong><p>Seven sports. Scores and schedules come from ESPN. The private CBB archive loads automatically on the matching game cards. Historical research is labeled as expired. Live wagering remains paused. Historical data and recovery copies remain preserved.</p></section>
+    {!privatePacket&&privateStatus==='NO_CBB_SNAPSHOT'&&(sport==='cbb'||sport==='all')&&<CbbReadiness date={date} clock={clock}/>}
     <nav className="publication-sports" aria-label="Sports">{['all',...PUBLIC_SPORTS].map(s=><button key={s} aria-pressed={sport===s} onClick={()=>changeSport(s)}>{s.toUpperCase()}{board&&<small>{board.games.filter(g=>g.sport===s||s==='all').length}</small>}</button>)}</nav>
     <section className="publication-controls" aria-label="Board controls"><label>Central date <input type="date" value={date} min={shiftBoardDate(boardDate(),-7)} max={shiftBoardDate(boardDate(),7)} onChange={e=>{if(e.target.value)setDate(e.target.value);}}/></label><button onClick={()=>setDate(boardDate())}>Today</button><button onClick={()=>setDate(shiftBoardDate(boardDate(),1))}>Tomorrow</button><button disabled={busy||clock-lastAttempt.current<60000} onClick={()=>refresh()}>{busy?'Refreshing sources…':'Refresh scores'}</button>{sport==='tennis'&&<label>Tour <select value={tour} onChange={e=>setTour(e.target.value)}><option value="all">ATP + WTA</option><option value="atp">ATP</option><option value="wta">WTA</option></select></label>}</section>
     <div className="publication-freshness" role="status"><b>{stale?'SAVED / STALE OR PARTIAL':'CURRENT SOURCE CAPTURE'}</b> · {games.length} games · Times shown in Central. Scores update automatically every minute while this page is visible. Captures become stale after five minutes.<br/>{feeds.map(([s,f])=><span key={s}>{s.toUpperCase()}: {f.capturedAt?new Date(f.capturedAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'unavailable'} CT{!f.ok?' · source unavailable':''}　</span>)}</div>
     {error&&<p className="publication-warning" role="alert">{error}</p>}
     {board&&!games.length&&!busy&&<p className="publication-empty">{feeds.every(([,f])=>f.ok)?'No games returned by the source for this date and filter.':'Schedule unavailable for this filter. This is not a confirmed empty slate.'}</p>}
-    <section className="publication-controls" aria-label="Private projections"><label>Import private JSON or HTML <input type="file" accept=".json,.html,application/json,text/html" onChange={importProjections}/></label>{privatePacket&&<button onClick={()=>{setPrivatePacket(null);try{localStorage.removeItem(PRIVATE_PROJECTION_KEY);}catch{}setImportStatus('Private projections removed from this browser.');}}>Clear private projections</button>}<span role="status">{privatePacket?`${privatePrimary} forecasts imported · ${privateMatched} matched cards for ${date} · ${clock>=Date.parse(privatePacket.expiresAt)?'EXPIRED pregame snapshot':'unconfirmed research only'} · Nothing uploaded`:(importStatus||'Import your private FBIS JSON packet or offline HTML report. Nothing is uploaded to the site.')}</span></section>
+    {(sport==='cbb'||sport==='all')&&<section className="publication-controls" aria-label="Private CBB projections" role="status">
+      <span>{privatePacket?`${privatePrimary} saved CBB forecasts · ${privateMatched} matched game cards on ${date} · ${clock>=Date.parse(privatePacket.expiresAt)?'HISTORICAL / INPUTS EXPIRED':'RESEARCH ONLY'}`:privateStatus==='LOADING'?'Loading owner-only CBB projections…':privateStatus==='NO_CBB_SNAPSHOT'?'No stored CBB projections for '+date:privateStatus==='PRIVATE_SIGN_IN_REQUIRED'?'Private account sign-in required to view projections.':'No verified CBB projection snapshot available for this date.'}</span>
+      {privateStatus!=='LOADED'&&privateStatus!=='LOADING'&&privateStatus!=='NO_CBB_SNAPSHOT'&&<a href={'/api/private/cbb/'+date+'?login=1'}>Sign in to view CBB projections</a>}
+    </section>}
     <section aria-label="Game cards"><DecisionBoard key={date+sport+tour} games={games} renderCardExtra={g=><PrivateProjection game={g} packet={privatePacket} clock={clock}/>}/></section>
-    <footer className="publication-footer">Schedules, live scores and browser-local private projection display. Player props, wager writes and collection jobs remain paused. Browser refresh contacts ESPN directly; page views do not query the FBIS databases or paid AI APIs.</footer>
+    <footer className="publication-footer">Schedules, live scores and browser-local private projection display. Player props, wager writes and collection jobs remain paused. CBB research cards read owner-only R2 snapshots. Score refresh contacts ESPN; database and paid AI pipelines remain paused.</footer>
   </main>;
 }
 createRoot(document.getElementById('root')).render(<PublicationApp/>);
