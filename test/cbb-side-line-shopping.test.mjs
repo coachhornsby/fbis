@@ -50,7 +50,7 @@ test('stale, incorrect event, incorrect period, exchange and suspended quotes fa
  offer('Book A','draw',-3,-110),
  offer('Book A','home',500,-110)
  ];
- assert.equal(cbbLineShopping({...game(),market:{venueOffers:bad}},projection(),now).state,'NO_VERIFIED_CURRENT_PRICES');
+ assert.equal(cbbLineShopping({...game(),market:{venueOffers:bad}},projection(),now).state,'NO_VERIFIED_SPREAD_QUOTES');
 });
 
 test('historical models never claim a current best quote',()=>{
@@ -75,4 +75,29 @@ test('decimal odds are converted only for valid event-matched full-game sportsbo
  const r=cbbLineShopping({...game(),cbbVerifiedOffers:[q]},projection(),now);
  assert.equal(r.bestPriceAtReference.american,-105);
  assert.equal(r.referenceBooks,1);
+});
+
+test('winner moneyline shop ranks the same outcome and does not infer an ML edge',()=>{
+ const g={...game(),cbbVerifiedOffers:[
+  offer('Book A','home',null,-115,{marketFamily:'moneyline'}),
+  offer('Book B','home',null,-108,{marketFamily:'moneyline'}),
+  offer('Book C','home',null,+120,{marketFamily:'moneyline'}),
+  offer('Book C','away',null,+180,{marketFamily:'moneyline'})
+ ]};
+ const r=cbbLineShopping(g,projection(),now);
+ assert.equal(r.state,'NO_VERIFIED_SPREAD_QUOTES');
+ assert.equal(r.projectedWinner,'home');
+ assert.equal(r.moneylineBest.source,'Book C');
+ assert.equal(r.moneylineBest.american,120);
+ assert.equal(r.moneylineBookCount,3);
+ assert.equal(r.side,null);
+});
+test('winner ML excludes stale, cross-event, exchange and live quotes',()=>{
+ const g={...game(),cbbVerifiedOffers:[
+  offer('Book A','home',null,-105,{marketFamily:'moneyline',eventId:'OTHER'}),
+  offer('Book B','home',null,-105,{marketFamily:'moneyline',capturedAt:'2026-11-03T16:45:00Z'}),
+  offer('Polymarket US','home',null,+130,{marketFamily:'moneyline'}),
+  offer('Kalshi','home',null,+130,{marketFamily:'moneyline'})
+ ]};
+ assert.equal(cbbLineShopping(g,projection(),now).moneylineBest,null);
 });
