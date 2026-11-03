@@ -2,4 +2,12 @@ name = "fbis"
 compatibility_date = "2026-11-01"
 pages_build_output_dir = "./dist"
 
-# Static release only. No D1, R2, Durable Object, AI or service bindings.
+# Read-only private CBB snapshots, with no D1 or paid provider binding.
+[[r2_buckets]]
+binding = "FBIS_PRIVATE_CBB"
+bucket_name = "fbis-archive"
+preview_bucket_name = "fbis-archive"
+
+[vars]
+FBIS_ACCESS_TEAM_DOMAIN = "summer-mode-a254.cloudflareaccess.com"
+FBIS_ACCESS_AUDIENCES = "20bce90cd93e1b4496efd04135ce27519969854c8f7c68fa99c0648fc3a4d963,078fcf14447a5a5fcdd763a901bfba4890151a59a81fe81f050bab838d49dea3"
