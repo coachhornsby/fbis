@@ -1,0 +1,45 @@
+name: FBIS CBB private ratings-to-R2 — single approved run
+
+on:
+  # This workflow runs once when this file is introduced to main. No schedule.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fbis-cbb-private-r2-once.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-cbb-private-refresh-once
+  cancel-in-progress: false
+
+jobs:
+  cbb-source-to-private-projection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      KENPOM_API_KEY: ${{ secrets.KENPOM_API_KEY }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      NODE_OPTIONS: "--max-old-space-size=1536"
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Check one-shot runner syntax and private CBB authorization tests
+        run: |
+          node --check scripts/recover-cbb-once.mjs
+          node --test test/cbb-private-access-route.test.mjs test/cbb-private-operator-refresh.test.mjs
+      - name: Run one controlled source capture and private R2 write
+        run: node scripts/recover-cbb-once.mjs
+      - name: Upload non-sensitive outcome receipt only
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: fbis-cbb-private-once-${{ github.run_id }}
+          path: artifacts/cbb-single-run/receipt.json
+          if-no-files-found: warn
+          retention-days: 7
