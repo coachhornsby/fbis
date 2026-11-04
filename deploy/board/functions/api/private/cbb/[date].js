@@ -18,7 +18,9 @@ export async function inspectOwnerAccess(token,env,{fetchFn=fetch,now=Date.now()
   const domain=String(env?.FBIS_ACCESS_TEAM_DOMAIN||'').trim().toLowerCase();
   const audiences=String(env?.FBIS_ACCESS_AUDIENCES||'').split(',').map(x=>x.trim()).filter(Boolean);
   const owner=String(env?.FBIS_PRIVATE_OWNER_EMAIL||'').trim().toLowerCase();
-  if(!/^[a-z0-9-]+\\.cloudflareaccess\\.com$/.test(domain)||!audiences.length||!owner)return {ok:false,reason:'AUTH_CONFIG_MISSING'};
+  const suffix='.cloudflareaccess.com';
+  const prefix=domain.endsWith(suffix)?domain.slice(0,-suffix.length):'';
+  if(!prefix||!(/^[a-z0-9-]+$/.test(prefix))||!audiences.length||!owner)return {ok:false,reason:'AUTH_CONFIG_MISSING'};
   if(!token||typeof token!=='string'||token.length>12000)return {ok:false,reason:'ACCESS_TOKEN_MISSING'};
   const parts=token.split('.');if(parts.length!==3)return {ok:false,reason:'ACCESS_TOKEN_MALFORMED'};
   const header=parsePart(parts[0]),claims=parsePart(parts[1]);
