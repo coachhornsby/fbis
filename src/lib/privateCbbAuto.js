@@ -1,6 +1,8 @@
 import {validatePrivatePacket} from './privateBoardProjection.js';
 
 const loaded=new Map();
+export function clearCbbSnapshot(date){if(date)loaded.delete(date);else loaded.clear();}
+
 export async function loadCbbSnapshot(date){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw Error('INVALID_DATE');
  if(loaded.has(date))return loaded.get(date);
