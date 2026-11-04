@@ -2,6 +2,6 @@
   "name": "fbis-static-board-release",
   "private": true,
   "scripts": {
-    "build": "cd ../.. && npm ci --no-audit --no-fund && npm run build:publication"
+    "build": "cd ../.. && npm ci --no-audit --no-fund && node --test test/cbb-private-access-route.test.mjs && npm run build:publication"
   }
 }

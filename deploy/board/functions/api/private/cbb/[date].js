@@ -5,38 +5,62 @@ const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:
 const dateIsValid=(s)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s+'T12:00:00Z'))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;
 const decodePart=(segment)=>{if(!/^[A-Za-z0-9_-]+$/.test(segment)||segment.length>12000)throw Error('BAD_JWT_SEGMENT');return Uint8Array.from(atob(segment.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-segment.length%4)%4)),c=>c.charCodeAt(0));};
 const parsePart=(s)=>JSON.parse(new TextDecoder().decode(decodePart(s)));
-export async function verifyOwnerAccess(token,env,{fetchFn=fetch,now=Date.now(),cryptoImpl=crypto}={}){
+export function accessCookieToken(cookieHeader){
+ const pieces=String(cookieHeader||'').split(';');
+ for(const p of pieces){const i=p.indexOf('=');if(i<0)continue;
+  if(p.slice(0,i).trim().toLowerCase()==='cf_authorization'){const value=p.slice(i+1).trim();return value.length<=12000?value:null;}
+ }
+ return null;
+}
+// All sources must be cryptographically verified; a cookie is never trusted alone.
+export async function inspectOwnerAccess(token,env,{fetchFn=fetch,now=Date.now(),cryptoImpl=crypto}={}){
  try{
   const domain=String(env?.FBIS_ACCESS_TEAM_DOMAIN||'').trim().toLowerCase();
   const audiences=String(env?.FBIS_ACCESS_AUDIENCES||'').split(',').map(x=>x.trim()).filter(Boolean);
   const owner=String(env?.FBIS_PRIVATE_OWNER_EMAIL||'').trim().toLowerCase();
-  if(!/^[a-z0-9-]+\.cloudflareaccess\.com$/.test(domain)||!audiences.length||!owner||!token||token.length>12000)return false;
-  const pieces=token.split('.');if(pieces.length!==3)return false;
-  const header=parsePart(pieces[0]),claims=parsePart(pieces[1]);
-  if(header?.alg!=='RS256'||typeof header.kid!=='string'||header.kid.length>200)return false;
-  if(claims?.iss!==`https://${domain}`||String(claims.email||'').toLowerCase()!==owner)return false;
+  const suffix='.cloudflareaccess.com';
+  const prefix=domain.endsWith(suffix)?domain.slice(0,-suffix.length):'';
+  if(!prefix||!(/^[a-z0-9-]+$/.test(prefix))||!audiences.length||!owner)return {ok:false,reason:'AUTH_CONFIG_MISSING'};
+  if(!token||typeof token!=='string'||token.length>12000)return {ok:false,reason:'ACCESS_TOKEN_MISSING'};
+  const parts=token.split('.');if(parts.length!==3)return {ok:false,reason:'ACCESS_TOKEN_MALFORMED'};
+  const header=parsePart(parts[0]),claims=parsePart(parts[1]);
+  if(header?.alg!=='RS256'||typeof header.kid!=='string'||header.kid.length>200)return {ok:false,reason:'ACCESS_TOKEN_HEADER_INVALID'};
+  if(claims?.iss!==`https://${domain}`||String(claims?.email||'').trim().toLowerCase()!==owner)return {ok:false,reason:'ACCESS_IDENTITY_INVALID'};
   const aud=Array.isArray(claims.aud)?claims.aud:[claims.aud];
-  if(!aud.some(x=>audiences.includes(x)))return false;
-  const second=Math.floor(now/1000);
-  if(!Number.isInteger(claims.exp)||claims.exp<=second||!Number.isInteger(claims.iat)||claims.iat>second+60)return false;
-  if(claims.nbf!=null&&(!Number.isInteger(claims.nbf)||claims.nbf>second+60))return false;
-  const cert=await fetchFn(`https://${domain}/cdn-cgi/access/certs`,{redirect:'error',cache:'no-store',signal:AbortSignal.timeout(2500)});
-  if(!cert.ok)return false;
-  const keys=(await cert.json())?.keys;
-  if(!Array.isArray(keys)||keys.length>30)return false;
-  const jwk=keys.find(k=>k.kid===header.kid&&k.kty==='RSA');
-  if(!jwk)return false;
+  if(!aud.some(x=>audiences.includes(x)))return {ok:false,reason:'ACCESS_AUDIENCE_INVALID'};
+  const seconds=Math.floor(now/1000);
+  if(!Number.isInteger(claims.exp)||claims.exp<=seconds||!Number.isInteger(claims.iat)||claims.iat>seconds+60)return {ok:false,reason:'ACCESS_TOKEN_EXPIRED'};
+  if(claims.nbf!=null&&(!Number.isInteger(claims.nbf)||claims.nbf>seconds+60))return {ok:false,reason:'ACCESS_TOKEN_NOT_YET_VALID'};
+  let response;
+  try{response=await fetchFn(`https://${domain}/cdn-cgi/access/certs`,{redirect:'follow',signal:AbortSignal.timeout(6500)});}
+  catch{return {ok:false,reason:'ACCESS_KEYS_UNAVAILABLE'};}
+  if(!response?.ok)return {ok:false,reason:'ACCESS_KEYS_UNAVAILABLE'};
+  const keyset=(await response.json())?.keys;
+  if(!Array.isArray(keyset)||keyset.length>30)return {ok:false,reason:'ACCESS_KEYS_INVALID'};
+  const jwk=keyset.find(k=>k.kid===header.kid&&k.kty==='RSA');
+  if(!jwk)return {ok:false,reason:'ACCESS_SIGNING_KEY_UNKNOWN'};
   const key=await cryptoImpl.subtle.importKey('jwk',jwk,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify']);
-  return await cryptoImpl.subtle.verify('RSASSA-PKCS1-v1_5',key,decodePart(pieces[2]),new TextEncoder().encode(pieces[0]+'.'+pieces[1]));
- }catch{return false;}
+  const good=await cryptoImpl.subtle.verify('RSASSA-PKCS1-v1_5',key,decodePart(parts[2]),new TextEncoder().encode(parts[0]+'.'+parts[1]));
+  return {ok:Boolean(good),reason:good?'VALID_ACCESS':'ACCESS_SIGNATURE_INVALID'};
+ }catch{return {ok:false,reason:'ACCESS_TOKEN_VERIFICATION_ERROR'};}
+}
+export async function verifyOwnerAccess(token,env,options){return (await inspectOwnerAccess(token,env,options)).ok;}
+export async function inspectRequestOwnerAccess(request,env,options){
+ const assertion=request.headers.get('Cf-Access-Jwt-Assertion');
+ let result=await inspectOwnerAccess(assertion,env,options);
+ if(result.ok)return result;
+ const cookie=accessCookieToken(request.headers.get('Cookie'));
+ // Access can forward a signed CF_Authorization cookie without the assertion header.
+ if(cookie&&cookie!==assertion)return inspectOwnerAccess(cookie,env,options);
+ return result;
 }
 const readBounded=async(bucket,key,maxBytes)=>{const obj=await bucket.get(key);if(!obj)return null;if((obj.size||0)>maxBytes)throw Error('OVERSIZED_PRIVATE_OBJECT');const text=await obj.text();if(text.length>maxBytes)throw Error('OVERSIZED_PRIVATE_OBJECT');return JSON.parse(text);};
 export async function onRequestGet({request,env,params}){
  const date=String(params?.date||'');
  if(!dateIsValid(date))return json({state:'INVALID_DATE'},400);
  if(!env?.FBIS_PRIVATE_CBB)return json({state:'PRIVATE_STORAGE_UNAVAILABLE'},503);
- const permitted=await verifyOwnerAccess(request.headers.get('Cf-Access-Jwt-Assertion'),env);
- if(!permitted)return json({state:'PRIVATE_AUTH_REQUIRED'},401);
+ const result=await inspectRequestOwnerAccess(request,env);
+ if(!result.ok)return json({state:'PRIVATE_AUTH_REQUIRED',authStage:result.reason,message:'Cloudflare sign-in was not verified by the private CBB endpoint. No forecast data was sent.'},401);
  if(new URL(request.url).searchParams.get('login')==='1')return Response.redirect(new URL('/?sport=cbb&date='+date,request.url),303);
  try{
   const packet=await readBounded(env.FBIS_PRIVATE_CBB,'private/cbb/projections/'+date+'.json',1024*1024);
