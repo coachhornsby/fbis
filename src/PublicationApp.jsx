@@ -4,7 +4,7 @@ import {loadSportSnapshot} from './lib/privateSportAuto.js';
 import {privateFourSportProjectionFor} from '../functions/lib/privateFourSportProjection.js';
 import {overlayVerifiedResearchScores} from './lib/productionRecoveryOverlay.js';
 import {privateProjectionFor} from './lib/privateBoardProjection.js';
-import {loadCbbSnapshot} from './lib/privateCbbAuto.js';
+import {loadCbbSnapshot,clearCbbSnapshot} from './lib/privateCbbAuto.js';
 import {useState,useEffect,useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 import DecisionBoard from './components/board/DecisionBoard.jsx';
@@ -28,6 +28,8 @@ function PublicationApp(){
   const [privatePacket,setPrivatePacket]=useState(null);
   const [privateOffers,setPrivateOffers]=useState([]);
   const [privateStatus,setPrivateStatus]=useState('LOADING');
+  const [cbbRefreshBusy,setCbbRefreshBusy]=useState(false);
+  const [cbbRefreshResult,setCbbRefreshResult]=useState('');
   const [modelPacket,setModelPacket]=useState(null);
   const [sportOffers,setSportOffers]=useState([]);
   const [modelStatus,setModelStatus]=useState('IDLE');
@@ -78,6 +80,26 @@ function PublicationApp(){
   const modelMatches=modelPacket?games.filter(g=>Boolean(privateFourSportProjectionFor(g,modelPacket,clock))).length:0;
   const feeds=Object.entries(board?.feeds||{}).filter(([s])=>sport===s);
   const stale=!feeds.length||feeds.some(([,f])=>!f.capturedAt||clock-Date.parse(f.capturedAt)>SNAPSHOT_MAX_AGE_MS||!f.ok);
+  // The owner explicitly starts a bounded, no-D1 refresh. No polling or automatic paid calls.
+  async function refreshCbbOnDemand(){
+    if(sport!=='cbb'||date!==boardDate()||cbbRefreshBusy)return;
+    setCbbRefreshBusy(true);setCbbRefreshResult('');
+    try{
+      const res=await fetch('/api/private/cbb/refresh/manual',{method:'POST',credentials:'same-origin',cache:'no-store',
+        headers:{'Content-Type':'application/json','X-FBIS-Manual-Refresh':'1'},body:JSON.stringify({date})});
+      const body=await res.json();
+      if(!res.ok){
+        if(body.state==='PRIVATE_AUTH_REQUIRED')setCbbRefreshResult('Private account sign-in required before refreshing.');
+        else setCbbRefreshResult((body.state||'REFRESH_UNAVAILABLE')+(body.reason?' · '+body.reason:''));
+        return;
+      }
+      clearCbbSnapshot(date);
+      const updated=await loadCbbSnapshot(date);
+      setPrivatePacket(updated.packet);setPrivateOffers(updated.offers);setPrivateStatus('LOADED');
+      setCbbRefreshResult((body.state==='ALREADY_FRESH'?'Existing private snapshot':'Current private research snapshot')+' · '+(body.primaryProjections||0)+' provisional score forecasts · no verified bookmaker prices or approved wagers.');
+    }catch{setCbbRefreshResult('Private refresh or readback unavailable. No numbers were invented.');}
+    finally{setCbbRefreshBusy(false);}
+  }
   const changeSport=s=>{if(!ACTIVE_SPORTS.includes(s))return;setSport(s);setTour('all');const u=new URL(location.href);u.searchParams.set('sport',s);history.replaceState({},'',u);};
   return <main className="publication-shell fbis-shell-main route-board">
     <header className="publication-header"><a href="/" aria-label="FBIS home" className="publication-logo">FBIS<span>FASTWATER BETTING INTELLIGENCE</span></a><span className="publication-stage">FOUR-SPORT RECOVERY · SCORES & PRIVATE MODELS</span></header>
@@ -92,6 +114,8 @@ function PublicationApp(){
     {sport==='cbb'&&<section className="publication-controls" aria-label="Private CBB projections" role="status">
       <span>{privatePacket?`${privatePrimary} saved CBB forecasts · ${privateMatched} matched game cards on ${date} · ${clock>=Date.parse(privatePacket.expiresAt)?'HISTORICAL / INPUTS EXPIRED':'RESEARCH ONLY'}`:privateStatus==='LOADING'?'Loading owner-only CBB projections…':privateStatus==='NO_CBB_SNAPSHOT'?'No stored CBB projections for '+date:privateStatus==='PRIVATE_SIGN_IN_REQUIRED'?'Private account sign-in required to view projections.':'No verified CBB projection snapshot available for this date.'}</span>
       {privateStatus!=='LOADED'&&privateStatus!=='LOADING'&&privateStatus!=='NO_CBB_SNAPSHOT'&&<a href={'/api/private/cbb/'+date+'?login=1'}>Sign in to view CBB projections</a>}
+      {date===boardDate()&&<button type="button" disabled={cbbRefreshBusy} onClick={refreshCbbOnDemand}>{cbbRefreshBusy?'Refreshing verified inputs…':'Refresh CBB inputs · manual (max 2/day)'}</button>}
+      {cbbRefreshResult&&<small role="status">{cbbRefreshResult}</small>}
     </section>}
     {sport!=='cbb'&&<section className="publication-controls" aria-label="Private sport projections" role="status">
       <span>{modelPacket?`${modelMatches} verified ${sport.toUpperCase()} research projections matched to game cards on ${date} · ${clock>=Date.parse(modelPacket.expiresAt)?'HISTORICAL / EXPIRED':'RESEARCH ONLY'}`:modelStatus==='LOADING'?'Checking private ${sport.toUpperCase()} model snapshot…':modelStatus==='NO_PRIVATE_SNAPSHOT'?'No generated ${sport.toUpperCase()} model snapshot for '+date:modelStatus==='PRIVATE_SIGN_IN_REQUIRED'?'Private account sign-in required.':'Current ${sport.toUpperCase()} model output unavailable.'}</span>
