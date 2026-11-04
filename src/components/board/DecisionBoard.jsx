@@ -5,6 +5,7 @@ import { Fragment, useMemo, useState } from "react";
 import { buildBoardGameViewModel } from "../../lib/boardViewModel.js";
 import { sortByConfidence } from "../../lib/confidenceStars.js";
 import CompactGameCard from "./CompactGameCard.jsx";
+import RecoveryMiniGameCard from "./RecoveryMiniGameCard.jsx";
 import PremiumGameCard from "./PremiumGameCard.jsx";
 import MatchupFactors from "./MatchupFactors.jsx";
 import TopGameProps from "../../features/playerProps/TopGameProps.jsx";
@@ -72,7 +73,7 @@ export function BoardSummaryStrip({ games = [] }) {
   );
 }
 
-export default function DecisionBoard({ games = [], renderDetail, renderCardExtra }) {
+export default function DecisionBoard({ games = [], renderDetail, renderCardExtra, compactRecovery = false, clock = Date.now() }) {
   const [selected, setSelected] = useState(null);
   const ranked = useMemo(() => sortByConfidence(games).sort((a,b)=>Number(Boolean(a.tennisProjection?.researchFixture))-Number(Boolean(b.tennisProjection?.researchFixture))), [games]);
 
@@ -104,8 +105,8 @@ export default function DecisionBoard({ games = [], renderDetail, renderCardExtr
 
   return (
     <div className="decision-board">
-      <BoardSummaryStrip games={ranked} />
-      <div className="db-grid" role="list" aria-label="Decision board cards">
+      {!compactRecovery ? <BoardSummaryStrip games={ranked} /> : null}
+      <div className={'db-grid'+(compactRecovery?' fbis-mini-grid':'')} role="list" aria-label="Decision board cards">
         {ranked.map((g,index) => {
           const isTennis = String(g?.sport || "").toLowerCase() === "tennis";
           return (
@@ -113,10 +114,12 @@ export default function DecisionBoard({ games = [], renderDetail, renderCardExtr
             {isTennis&&index===0&&!g.tennisProjection?.researchFixture?<div className="tmc-official-separator" role="note">Tennis schedule</div>:null}
             {g.tennisProjection?.researchFixture&&!ranked[index-1]?.tennisProjection?.researchFixture?<div className="tmc-research-separator" role="note">Additional Tennis fixtures</div>:null}
             <div role="listitem" className={isTennis ? "db-grid-item db-grid-item-tennis" : "db-grid-item"}>
-              {isTennis
-                ? <TourCardFrame game={g}><PremiumGameCard game={g} onToggle={() => setSelected(g)} /></TourCardFrame>
-                : <CompactGameCard game={g} onOpen={setSelected} />}
-              {renderCardExtra?.(g)}
+              {compactRecovery
+                ? <RecoveryMiniGameCard game={g} clock={clock} onOpen={setSelected}/>
+                : isTennis
+                  ? <TourCardFrame game={g}><PremiumGameCard game={g} onToggle={() => setSelected(g)} /></TourCardFrame>
+                  : <CompactGameCard game={g} onOpen={setSelected} />}
+              {!compactRecovery ? renderCardExtra?.(g) : null}
             </div>
             </Fragment>
           );

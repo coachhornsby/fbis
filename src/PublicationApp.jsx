@@ -29,6 +29,7 @@ function PublicationApp(){
   const [privateOffers,setPrivateOffers]=useState([]);
   const [privateStatus,setPrivateStatus]=useState('LOADING');
   const [modelPacket,setModelPacket]=useState(null);
+  const [sportOffers,setSportOffers]=useState([]);
   const [modelStatus,setModelStatus]=useState('IDLE');
   const url=new URL(window.location.href);
   const [sport,setSport]=useState(ACTIVE_SPORTS.includes(url.searchParams.get('sport'))?url.searchParams.get('sport'):'cbb');
@@ -64,14 +65,14 @@ function PublicationApp(){
   },[date,sport]);
   useEffect(()=>{
     let active=true;
-    if(!['nfl','nba','cfb'].includes(sport)){setModelPacket(null);setModelStatus('IDLE');return;}
-    setModelPacket(null);setModelStatus('LOADING');
-    loadSportSnapshot(sport,date).then(r=>{if(active){setModelPacket(r.packet);setModelStatus('LOADED');}}).catch(e=>{if(active)setModelStatus(e.message||'PRIVATE_DATA_UNAVAILABLE');});
+    if(!['nfl','nba','cfb'].includes(sport)){setModelPacket(null);setSportOffers([]);setModelStatus('IDLE');return;}
+    setModelPacket(null);setSportOffers([]);setModelStatus('LOADING');
+    loadSportSnapshot(sport,date).then(r=>{if(active){setModelPacket(r.packet);setSportOffers(r.offers);setModelStatus('LOADED');}}).catch(e=>{if(active)setModelStatus(e.message||'PRIVATE_DATA_UNAVAILABLE');});
     return()=>{active=false;};
   },[date,sport]);
   useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer);},[]);
   useEffect(()=>startScoreboardPolling({refresh:()=>refreshRef.current?.(),isVisible:()=>!document.hidden,isBusy:()=>busyRef.current,lastAttempt:()=>lastAttempt.current,listen:fn=>{document.addEventListener('visibilitychange',fn);window.addEventListener('focus',fn);return()=>{document.removeEventListener('visibilitychange',fn);window.removeEventListener('focus',fn);};}}),[]);
-  const games=(board?.games||[]).filter(g=>g.sport===sport).map(g=>{const g0=clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g;const projected=overlayVerifiedResearchScores(g0,{cbbPacket:privatePacket,sportPacket:modelPacket,clock});return projected.sport==='cbb'?{...projected,cbbVerifiedOffers:privateOffers.filter(q=>String(q.eventId||q.canonicalEventId||q.canonical_event_id)===String(projected.id))}:projected;});
+  const games=(board?.games||[]).filter(g=>g.sport===sport).map(g=>{const g0=clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g;const projected=overlayVerifiedResearchScores(g0,{cbbPacket:privatePacket,sportPacket:modelPacket,clock});const offers=(projected.sport==='cbb'?privateOffers:sportOffers).filter(q=>String(q.eventId||q.canonicalEventId||q.canonical_event_id||q.gameId||'')===String(projected.id));return {...projected,recoveryVerifiedOffers:offers,...(projected.sport==='cbb'?{cbbVerifiedOffers:offers}:{})};});
   const privateMatched=privatePacket?games.filter(g=>Boolean(privateProjectionFor(g,privatePacket,clock))).length:0;
   const privatePrimary=privatePacket?.events.filter(e=>Boolean(e.primary)).length||0;
   const modelMatches=modelPacket?games.filter(g=>Boolean(privateFourSportProjectionFor(g,modelPacket,clock))).length:0;
@@ -96,7 +97,7 @@ function PublicationApp(){
       <span>{modelPacket?`${modelMatches} verified ${sport.toUpperCase()} research projections matched to game cards on ${date} · ${clock>=Date.parse(modelPacket.expiresAt)?'HISTORICAL / EXPIRED':'RESEARCH ONLY'}`:modelStatus==='LOADING'?'Checking private ${sport.toUpperCase()} model snapshot…':modelStatus==='NO_PRIVATE_SNAPSHOT'?'No generated ${sport.toUpperCase()} model snapshot for '+date:modelStatus==='PRIVATE_SIGN_IN_REQUIRED'?'Private account sign-in required.':'Current ${sport.toUpperCase()} model output unavailable.'}</span>
       {modelStatus==='PRIVATE_SIGN_IN_REQUIRED'&&<a href={'/api/private/sports/'+sport+'/'+date+'?login=1'}>Sign in to view {sport.toUpperCase()} projections</a>}
     </section>}
-    <section aria-label="Game cards"><DecisionBoard key={date+sport} games={games} renderCardExtra={g=>g.sport==='cbb'?<PrivateProjection game={g} packet={privatePacket} clock={clock}/>:<PrivateSportProjection game={g} packet={modelPacket} clock={clock}/>}/></section>
+    <section aria-label="Game cards"><DecisionBoard compactRecovery clock={clock} key={date+sport} games={games} renderCardExtra={g=>g.sport==='cbb'?<PrivateProjection game={g} packet={privatePacket} clock={clock}/>:<PrivateSportProjection game={g} packet={modelPacket} clock={clock}/>}/></section>
     <footer className="publication-footer">Four priority sports: CBB, NFL, NBA and CFB. Live scores use bounded ESPN requests; precomputed personal model outputs use owner-only R2, never D1. Player props, wagers, paid provider collectors and model-generation jobs remain paused until their inputs are restored.</footer>
   </main>;
 }

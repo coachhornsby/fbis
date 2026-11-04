@@ -17,6 +17,12 @@ export function overlayVerifiedResearchScores(game,{cbbPacket=null,sportPacket=n
   projectionState:'RESEARCH_ONLY',projectionMaturity:'RESEARCH',publicationStatus:'RESEARCH_PUBLISHABLE',
   canQualify:false,canAuthorizeWager:false,bettingAllowed:false,qualificationBlocked:true,
   noPlayReason:'Private model research only; markets and qualification are unavailable.',
+  recoveryVerifiedProjection:{
+    awayScore:away,homeScore:home,margin:p.margin,total:p.total,
+    modelId,modelVersion:String(modelVersion),expiresAt:game.sport==='cbb'?cbbPacket.expiresAt:sportPacket.expiresAt,
+    sourceCapturedAt:game.sport==='cbb'?cbbPacket?.captures?.kenpom:source.sourceCapturedAt,
+    attribution:game.sport==='cbb'?(p.attribution||'KenPom-based provisional research'):source.modelAuthority||sportPacket?.modelAuthority||'Frozen research'
+  },
   model:{...game.model,projAway:away,projHome:home,projMargin:p.margin,projTotal:p.total,projectionKind:'FBIS',maturity:'RESEARCH',id:modelId,version:modelVersion},
   researchProjection:{away,home,modelId,modelVersion,independent:true,marketInformed:false,maturity:'RESEARCH',sourceCapturedAt:game.sport==='cbb'?cbbPacket?.captures?.kenpom:source.sourceCapturedAt},
  };
