@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {validateFourSportPacket,privateFourSportProjectionFor} from '../functions/lib/privateFourSportProjection.js';
 import {captureScoreboards} from '../functions/lib/publicBoardSnapshot.js';
 import {onRequestGet} from '../deploy/board/functions/api/private/sports/[sport]/[date].js';
+import {overlayVerifiedResearchScores} from '../src/lib/productionRecoveryOverlay.js';
+import {resolveBoardProjection} from '../src/lib/boardDecision.js';
 
 const date='2026-11-04',now=Date.parse('2026-11-04T14:00:00Z');
 const source='2026-11-04T13:55:00Z',start='2026-11-04T23:00:00Z';
@@ -62,4 +64,34 @@ test('four-sport polling makes eight bounded ESPN calls, never tennis NHL MLB',a
 });
 test('scoreboard refuses unexpected sport scope',async()=>{
  await assert.rejects(captureScoreboards({date,now,sports:['cbb','soccer']}),/INVALID_SPORT_SCOPE/);
+});
+
+test('verified fresh model appears inside the original score-card view-model without wager authority',()=>{
+ const decorated=overlayVerifiedResearchScores({...game,projectionUnavailable:true,pureProjectionAvailable:false,projectionKind:'UNAVAILABLE',odds:{}},{sportPacket:packet,clock:now});
+ const view=resolveBoardProjection(decorated);
+ assert.equal(view.available,true);assert.equal(view.away,108.5);assert.equal(view.home,110.5);
+ assert.equal(view.research,true);assert.equal(decorated.canAuthorizeWager,false);
+ assert.equal(decorated.qualificationBlocked,true);assert.equal(decorated.bettingAllowed,false);
+});
+test('expired, started, or mismatched model never occupies current score-card slots',()=>{
+ const base={...game,projectionUnavailable:true,pureProjectionAvailable:false,projectionKind:'UNAVAILABLE'};
+ assert.strictEqual(overlayVerifiedResearchScores(base,{sportPacket:packet,clock:Date.parse('2026-11-04T22:00:00Z')}),base);
+ assert.strictEqual(overlayVerifiedResearchScores({...base,status:'final'},{sportPacket:packet,clock:now}).projectionUnavailable,true);
+ assert.strictEqual(overlayVerifiedResearchScores({...base,id:'3'},{sportPacket:packet,clock:now}).projectionUnavailable,true);
+});
+test('current CBB model renders only from exact source-verified private pregame packet',()=>{
+ const cbb={...game,sport:'cbb',home:{espnId:'1',name:'Home'},away:{espnId:'2',name:'Away'},neutralSite:false};
+ const e={eventId:game.id,date,start,homeId:'cbb-1',awayId:'cbb-2',neutralSite:false,primary:{away:65.1,home:70.1,margin:5,total:135.2,modelId:'CBB-KENPOM-RATINGS-v1'}};
+ const cbbPacket={version:1,expiresAt:'2026-11-04T20:00:00Z',captures:{kenpom:source},events:[e]};
+ const a=overlayVerifiedResearchScores({...cbb,projectionUnavailable:true},{cbbPacket,clock:now});
+ assert.equal(resolveBoardProjection(a).home,70.1);
+ assert.equal(a.bettingAllowed,false);
+ const invalid=overlayVerifiedResearchScores({...cbb,neutralSite:true,projectionUnavailable:true},{cbbPacket,clock:now});
+ assert.equal(invalid.projectionUnavailable,true);
+});
+test('packet rejects ancient source capture and post-tip generation even if expiry claims fresh',()=>{
+ const old={...fixture,sourceCapturedAt:'2026-10-27T09:01:45Z'};
+ assert.throws(()=>validateFourSportPacket({...packet,events:[old]}));
+ const post={...packet,generatedAt:'2026-11-05T01:00:00Z',expiresAt:'2026-11-05T05:00:00Z'};
+ assert.throws(()=>validateFourSportPacket(post));
 });
