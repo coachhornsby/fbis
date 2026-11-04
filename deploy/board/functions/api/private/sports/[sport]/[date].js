@@ -22,8 +22,21 @@ export async function onRequestGet({request,env,params}){
    let packet;
    try{packet=validateFourSportPacket(JSON.parse(text),{sport,date});}
    catch{return json({state:'INVALID_PRIVATE_PACKET'},503);}
-   return json({state:'PRIVATE_RESEARCH_ONLY',sport,date,packet,
-     meta:{projectionExpired:Date.now()>=Date.parse(packet.expiresAt),qualifiedWagers:0,marketQuotesAvailable:false}});
+   // Separate verified quote receipts. No market price is fabricated when this object is missing.
+   let markets=null;
+   const quoteObject=await env.FBIS_PRIVATE_CBB.get('private/'+sport+'/markets/'+date+'.json');
+   if(quoteObject&&(quoteObject.size||0)<=1024*1024){
+     const raw=await quoteObject.text();
+     if(raw.length<=1024*1024){
+       try{
+         const q=JSON.parse(raw);
+         if(q?.version===1&&q.sport===sport&&q.date===date&&Array.isArray(q.offers)&&q.offers.length<=1000)
+           markets={capturedAt:q.capturedAt||null,offers:q.offers};
+       }catch{} // A bad quote snapshot cannot invalidate an otherwise valid projection.
+     }
+   }
+   return json({state:'PRIVATE_RESEARCH_ONLY',sport,date,packet,markets,
+     meta:{projectionExpired:Date.now()>=Date.parse(packet.expiresAt),qualifiedWagers:0,marketQuotesAvailable:Boolean(markets)}});
  }catch{return json({state:'PRIVATE_READ_FAILED'},503);}
 }
 export async function onRequest(){return json({state:'METHOD_NOT_ALLOWED'},405);}
