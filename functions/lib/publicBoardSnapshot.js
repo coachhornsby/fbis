@@ -71,11 +71,12 @@ export async function boundedScoreboardFetch(url, {fetchFn=fetch,signal}={}) {
   const raw=new Uint8Array(bytes);let pos=0;for(const chunk of chunks){raw.set(chunk,pos);pos+=chunk.byteLength;}
   return JSON.parse(new TextDecoder().decode(raw));
 }
-export async function captureScoreboards({date=boardDate(),fetchFn=fetch,signal,now=Date.now()}={}) {
-  // Sixteen fixed calls maximum, no retries, no provider discovery or pagination.
+export async function captureScoreboards({date=boardDate(),fetchFn=fetch,signal,now=Date.now(),sports=PUBLIC_SPORTS}={}) {
+  // Four-sport recovery requests exactly 8 ESPN scoreboards per refresh; legacy full board unchanged.
+  if(!Array.isArray(sports)||!sports.length||new Set(sports).size!==sports.length||sports.some(s=>!PUBLIC_SPORTS.includes(s)))throw Error('INVALID_SPORT_SCOPE');
   // Two adjacent UTC days cover the entire selected Central day, including DST.
   const end=shiftBoardDate(date,1),stamp=d=>d.replaceAll('-',''),capturedAt=new Date(now).toISOString();
-  const results=[], requests=SCOREBOARD_SOURCES.flatMap(([sport,path,tour])=>[date,end].map(day=>[sport,path,tour,day]));
+  const results=[], requests=SCOREBOARD_SOURCES.filter(([sport])=>sports.includes(sport)).flatMap(([sport,path,tour])=>[date,end].map(day=>[sport,path,tour,day]));
   for(let i=0;i<requests.length;i+=4){
     const batch=await Promise.all(requests.slice(i,i+4).map(async([sport,path,tour,day])=>{
       const url=`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard?dates=${stamp(day)}&limit=500${['cbb','cfb'].includes(sport)?'&groups=50':''}`;
@@ -84,16 +85,16 @@ export async function captureScoreboards({date=boardDate(),fetchFn=fetch,signal,
       catch(error){return {sport,tour,capturedAt,games:[],url,ok:false,error:String(error.message||error)};}
     }));results.push(...batch);
   }
-  return assemblePublicBoard(results,{date,capturedAt});
+  return assemblePublicBoard(results,{date,capturedAt,sports});
 }
-export function assemblePublicBoard(results,{date,capturedAt}) {
+export function assemblePublicBoard(results,{date,capturedAt,sports=PUBLIC_SPORTS}) {
   const games=[...new Map(results.flatMap(r=>r.games).map(g=>[g.sport+':'+g.tour+':'+g.id,g])).values()].sort((a,b)=>a.start.localeCompare(b.start)||a.id.localeCompare(b.id));
-  const feeds=Object.fromEntries(PUBLIC_SPORTS.map(sport=>{const r=results.filter(x=>x.sport===sport);return [sport,{ok:r.length>0&&r.every(x=>x.ok),source:'ESPN_SCOREBOARD',capturedAt,
+  const feeds=Object.fromEntries(sports.map(sport=>{const r=results.filter(x=>x.sport===sport);return [sport,{ok:r.length>0&&r.every(x=>x.ok),source:'ESPN_SCOREBOARD',capturedAt,
     error:r.filter(x=>!x.ok).map(x=>x.error).join('; ')||null,n:games.filter(g=>g.sport===sport).length}];}));
   return {version:1,date,timezone:'America/Chicago',generatedAt:capturedAt,expiresAt:new Date(Date.parse(capturedAt)+SNAPSHOT_MAX_AGE_MS).toISOString(),
     publicationMode:'SCHEDULE_AND_SCORES_ONLY',games,feeds,
-    groups:PUBLIC_SPORTS.map(sport=>({sport,label:sport.toUpperCase(),games:games.filter(g=>g.sport===sport),error:feeds[sport].error})),
-    counts:{games:games.length,qualified:0,leans:0,bySport:Object.fromEntries(PUBLIC_SPORTS.map(s=>[s,feeds[s].n]))},
+    groups:sports.map(sport=>({sport,label:sport.toUpperCase(),games:games.filter(g=>g.sport===sport),error:feeds[sport].error})),
+    counts:{games:games.length,qualified:0,leans:0,bySport:Object.fromEntries(sports.map(s=>[s,feeds[s].n]))},
     canQualify:false,canAuthorizeWager:false,
     costContract:{publicD1Queries:0,publicCloudflareFunctions:0,paidModelCalls:0},
     sources:results.map(({games,...r})=>({...r,count:games.length}))};
