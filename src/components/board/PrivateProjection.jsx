@@ -1,5 +1,3 @@
-import {useEffect,useState} from 'react';
-import {loadCbbSnapshot} from '../../lib/privateCbbAuto.js';
 import {privateProjectionFor} from '../../lib/privateBoardProjection.js';
 import {cbbLineShopping} from '../../lib/cbbSideLineShopping.js';
 
@@ -9,11 +7,9 @@ function quoteLabel(q,team){
  return <span><strong>{q.source}</strong> · {team} {q.line>0?'+':''}{fmt(q.line)} <b>{odds(q.american)}</b>{q.marketUrl&&<a href={q.marketUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}> Source</a>}</span>;
 }
 export default function PrivateProjection({game,packet,clock}){
- const [auto,setAuto]=useState(null);
- useEffect(()=>{if(game?.sport!=='cbb')return;let active=true;setAuto(null);loadCbbSnapshot(game.date).then(v=>{if(active)setAuto(v);}).catch(()=>{});return()=>{active=false;};},[game?.sport,game?.date]);
- const p=privateProjectionFor(game,auto?.packet||packet,clock);if(!p)return null;
+ const p=privateProjectionFor(game,packet,clock);if(!p)return null;
  const s=v=>`${v>0?'+':''}${fmt(v)}`;
- const market=cbbLineShopping({...game,cbbVerifiedOffers:auto?.offers?.filter(q=>String(q.eventId||q.canonicalEventId||q.canonical_event_id)===String(game.id))||[]},p,clock);
+ const market=cbbLineShopping(game,p,clock);
  const winner=p.primary.margin>0?game.home:p.primary.margin<0?game.away:null;
  const favor=market.side?game[market.side]:null;
  const reference=market.bestPriceAtReference,better=market.bestLine;
