@@ -9,6 +9,7 @@ export function validateFourSportPacket(packet,{sport,date}={}){
    (sport&&packet.sport!==sport)||(date&&packet.date!==date)||
    !validTime(packet.generatedAt)||!validTime(packet.expiresAt)||
    Date.parse(packet.generatedAt)>Date.parse(packet.expiresAt)||
+   Date.parse(packet.expiresAt)-Date.parse(packet.generatedAt)>24*60*60*1000||
    !Array.isArray(packet.events)||packet.events.length>250||
    typeof packet.modelAuthority!=='string'||!['FROZEN_RESEARCH','RESEARCH_ONLY'].includes(packet.modelAuthority))
    throw Error('INVALID_PRIVATE_SPORT_PACKET');
@@ -24,7 +25,9 @@ export function validateFourSportPacket(packet,{sport,date}={}){
      Math.abs(e.projection.homeScore+e.projection.awayScore-e.projection.total)>0.2||
      !e.projection.modelId||!e.projection.modelVersion||
      e.canAuthorizeWager!==false||!validTime(e.sourceCapturedAt)||
-     Date.parse(e.sourceCapturedAt)>Date.parse(packet.generatedAt)||Date.parse(e.sourceCapturedAt)>Date.parse(e.start))
+     Date.parse(e.sourceCapturedAt)>Date.parse(packet.generatedAt)||Date.parse(e.sourceCapturedAt)>Date.parse(e.start)||
+     Date.parse(packet.generatedAt)>=Date.parse(e.start)||
+     Date.parse(packet.generatedAt)-Date.parse(e.sourceCapturedAt)>(packet.sport==='nba'?24:72)*60*60*1000)
      throw Error('INVALID_PRIVATE_SPORT_FIXTURE');
    seen.add(e.eventId);
  }
