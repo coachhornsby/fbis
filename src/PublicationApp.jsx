@@ -2,6 +2,7 @@ import PrivateProjection from './components/board/PrivateProjection.jsx';
 import PrivateSportProjection from './components/board/PrivateSportProjection.jsx';
 import {loadSportSnapshot} from './lib/privateSportAuto.js';
 import {privateFourSportProjectionFor} from '../functions/lib/privateFourSportProjection.js';
+import {overlayVerifiedResearchScores} from './lib/productionRecoveryOverlay.js';
 import {privateProjectionFor} from './lib/privateBoardProjection.js';
 import {loadCbbSnapshot} from './lib/privateCbbAuto.js';
 import {useState,useEffect,useRef} from 'react';
@@ -70,7 +71,7 @@ function PublicationApp(){
   },[date,sport]);
   useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer);},[]);
   useEffect(()=>startScoreboardPolling({refresh:()=>refreshRef.current?.(),isVisible:()=>!document.hidden,isBusy:()=>busyRef.current,lastAttempt:()=>lastAttempt.current,listen:fn=>{document.addEventListener('visibilitychange',fn);window.addEventListener('focus',fn);return()=>{document.removeEventListener('visibilitychange',fn);window.removeEventListener('focus',fn);};}}),[]);
-  const games=(board?.games||[]).filter(g=>g.sport===sport).map(g=>{const g0=clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g;return g0.sport==='cbb'?{...g0,cbbVerifiedOffers:privateOffers.filter(q=>String(q.eventId||q.canonicalEventId||q.canonical_event_id)===String(g0.id))}:g0;});
+  const games=(board?.games||[]).filter(g=>g.sport===sport).map(g=>{const g0=clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g;const projected=overlayVerifiedResearchScores(g0,{cbbPacket:privatePacket,sportPacket:modelPacket,clock});return projected.sport==='cbb'?{...projected,cbbVerifiedOffers:privateOffers.filter(q=>String(q.eventId||q.canonicalEventId||q.canonical_event_id)===String(projected.id))}:projected;});
   const privateMatched=privatePacket?games.filter(g=>Boolean(privateProjectionFor(g,privatePacket,clock))).length:0;
   const privatePrimary=privatePacket?.events.filter(e=>Boolean(e.primary)).length||0;
   const modelMatches=modelPacket?games.filter(g=>Boolean(privateFourSportProjectionFor(g,modelPacket,clock))).length:0;
