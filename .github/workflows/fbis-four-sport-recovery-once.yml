@@ -1,0 +1,45 @@
+name: FBIS four-sport bounded recovery — owner manual
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fbis-four-sport-recovery-once.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-four-sport-bounded-recovery
+  cancel-in-progress: false
+
+jobs:
+  build-current-private-research:
+    name: ESPN / existing FBIS model / private R2 recovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      KENPOM_API_KEY: ${{ secrets.KENPOM_API_KEY }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      NODE_OPTIONS: "--max-old-space-size=2048"
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Verify bounded runner and original projection contract
+        run: |
+          node --check scripts/recover-four-sport-once.mjs
+          node --test test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs
+      - name: Run once — ESPN current fixtures/finals and existing research models
+        run: node scripts/recover-four-sport-once.mjs
+      - name: Retain bounded, non-public job evidence
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: fbis-four-sport-once-${{ github.run_id }}
+          path: artifacts/four-sport-recovery/receipt.json
+          if-no-files-found: warn
+          retention-days: 7
