@@ -43,8 +43,15 @@ function normalizeQuote(raw,game,now,maxAgeMs){
  return {family,side,line,american,book,observedAt,homeSpread:family==='spread'?(side==='home'?line:-line):null,
    marketUrl:typeof raw.marketUrl==='string'&&/^https:\/\//.test(raw.marketUrl)?raw.marketUrl:null};
 }
-function lowerMedian(values){
- const sorted=[...new Set(values)].sort((a,b)=>a-b);
+function bookMedianLine(quotes,family){
+ const byBook=new Map();
+ for(const q of quotes){
+  if(q.family!==family)continue;
+  const key=q.book.toLowerCase(),prior=byBook.get(key);
+  if(!prior||Date.parse(q.observedAt)>Date.parse(prior.observedAt)||
+     (q.observedAt===prior.observedAt&&q.side==='home'))byBook.set(key,q);
+ }
+ const sorted=[...byBook.values()].map(q=>family==='spread'?q.homeSpread:q.line).sort((a,b)=>a-b);
  return sorted.length?sorted[Math.floor((sorted.length-1)/2)]:null;
 }
 const bestAtLine=(quotes,family,side,line)=>{
@@ -78,7 +85,7 @@ export function recoveryLeanShopping(game,{now=Date.now(),maxAgeMs=RECOVERY_QUOT
  quotes.push(...dedupe.values());
  if(!quotes.length)return unavailable('NO_VERIFIED_PRICES');
  const candidates=[],threshold=SPORT_GAPS[game.sport];
- const spreadLine=lowerMedian(quotes.filter(q=>q.family==='spread').map(q=>q.homeSpread));
+ const spreadLine=bookMedianLine(quotes,'spread');
  if(spreadLine!==null){
   const gap=margin+spreadLine;
   if(Math.abs(gap)>=threshold.side){
@@ -89,7 +96,7 @@ export function recoveryLeanShopping(game,{now=Date.now(),maxAgeMs=RECOVERY_QUOT
      label:(game[side]?.abbr||game[side]?.name||side.toUpperCase())+' '+formatLine(line),...picked});
   }
  }
- const totalLine=lowerMedian(quotes.filter(q=>q.family==='total').map(q=>q.line));
+ const totalLine=bookMedianLine(quotes,'total');
  if(totalLine!==null){
   const gap=total-totalLine;
   if(Math.abs(gap)>=threshold.total){
