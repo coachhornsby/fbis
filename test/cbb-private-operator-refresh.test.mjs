@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {refreshCbbOnce,buildFreshCbbResearch} from '../functions/lib/cbbPrivateOperatorRefresh.js';
 import {onRequestPost,onRequest} from '../deploy/board/functions/api/private/cbb/refresh/manual.js';
+import {shouldAutoRefreshCbb,requestAutoCbbRefresh} from '../src/lib/privateCbbAuto.js';
 const date='2026-11-04',now=Date.parse('2026-11-04T16:15:00Z');
 function storage(){
  const db=new Map();const touches={writes:[],reads:[]};
@@ -58,4 +59,32 @@ test('one-shot source builder refuses missing key without network requests',asyn
  let called=0;
  await assert.rejects(buildFreshCbbResearch(date,{key:'',now,fetchFn:async()=>{called++;throw Error('network');}}),/KENPOM_KEY_NOT_CONFIGURED/);
  assert.equal(called,0);
+});
+
+test('owner board automatically attempts CBB only when current slate is missing or expiring',()=>{
+ assert.equal(shouldAutoRefreshCbb({date,today:date,status:'NO_CBB_SNAPSHOT',now}),true);
+ assert.equal(shouldAutoRefreshCbb({date,today:date,status:'PRIVATE_SIGN_IN_REQUIRED',now}),false);
+ assert.equal(shouldAutoRefreshCbb({date,today:date,status:'PRIVATE_DATA_UNAVAILABLE',now}),false);
+ assert.equal(shouldAutoRefreshCbb({date:'2026-11-03',today:date,status:'NO_CBB_SNAPSHOT',now}),false);
+ assert.equal(shouldAutoRefreshCbb({date,today:date,status:'NO_CBB_SNAPSHOT',attempted:true,now}),false);
+ const fresh={expiresAt:new Date(now+4*3600000).toISOString()};
+ const aging={expiresAt:new Date(now+5*60000).toISOString()};
+ assert.equal(shouldAutoRefreshCbb({date,today:date,packet:fresh,now}),false);
+ assert.equal(shouldAutoRefreshCbb({date,today:date,packet:aging,now}),true);
+});
+test('automatic owner refresh is one same-origin authenticated POST, not a public GET',async()=>{
+ let n=0;
+ const response=await requestAutoCbbRefresh(date,{fetchFn:async(url,options)=>{
+   n++;assert.equal(url,'/api/private/cbb/refresh/manual');
+   assert.equal(options.method,'POST');assert.equal(options.credentials,'same-origin');
+   assert.equal(options.headers['X-FBIS-Manual-Refresh'],'1');
+   assert.deepEqual(JSON.parse(options.body),{date});
+   return new Response(JSON.stringify({state:'REFRESHED',primaryProjections:12}),{status:200});
+ }});
+ assert.equal(n,1);assert.equal(response.ok,true);assert.equal(response.primaryProjections,12);
+});
+test('CBB auto refresh exposes a safe state for rejected owner and does not retry',async()=>{
+ let called=0;
+ const result=await requestAutoCbbRefresh(date,{fetchFn:async()=>{called++;return new Response(JSON.stringify({state:'PRIVATE_AUTH_REQUIRED'}),{status:401});}});
+ assert.equal(called,1);assert.equal(result.ok,false);assert.equal(result.state,'PRIVATE_AUTH_REQUIRED');
 });

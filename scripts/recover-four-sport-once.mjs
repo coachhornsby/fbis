@@ -53,7 +53,10 @@ async function getJson(url,{kind='ESPN',maxBytes=3800000}={}){
  return JSON.parse(bytes.toString('utf8'));
 }
 const sources={nba:'basketball/nba',nfl:'football/nfl',cfb:'football/college-football',cbb:'basketball/mens-college-basketball'};
-const nflWeeks=10,cfbWeeks=11;
+// Expand completed-week evidence as the season advances, without future-week assumptions.
+const seasonYear=Number(date.slice(5,7))<=6?Number(date.slice(0,4))-1:Number(date.slice(0,4));
+const weeksSince=(start,max)=>Math.min(max,Math.max(1,Math.floor((dayNumber(date)-dayNumber(start))/604800000)+2));
+const nflWeeks=weeksSince(seasonYear+'-09-10',18),cfbWeeks=weeksSince(seasonYear+'-08-22',18);
 function rawFinals(payload,sport,cutoff=nowMs){
  if(!Array.isArray(payload?.events))return [];
  const out=[];
@@ -88,7 +91,7 @@ async function fetchWeeklyFinals(sport,weeks){
  const all=[],warnings=[];
  for(let week=1;week<=weeks;week++){
   const u=new URL('https://site.api.espn.com/apis/site/v2/sports/'+sources[sport]+'/scoreboard');
-  for(const [k,v] of Object.entries({week:String(week),year:'2026',seasontype:'2',limit:'499',...(sport==='cfb'?{groups:'80'}:{})}))u.searchParams.set(k,v);
+  for(const [k,v] of Object.entries({week:String(week),year:String(seasonYear),seasontype:'2',limit:'499',...(sport==='cfb'?{groups:'80'}:{})}))u.searchParams.set(k,v);
   try{
    const j=await getJson(u.toString());
    if(!Array.isArray(j.events)||j.events.length>=499){warnings.push('WEEK_'+week+'_TRUNCATED');continue;}
@@ -166,7 +169,7 @@ function packetEvent(g,p,{sport,sourceAt=generatedAt,sourceLabel='Verified input
      modelId:modelId||p.modelId,modelVersion:version||p.modelVersion||p.version||'RESEARCH'},
    sourceLabel,sourceDataCutoffAt:p.dataCutoffAt||null};
 }
-function packetFor(sport,day,events,expiryHours=12){
+function packetFor(sport,day,events,expiryHours=18){
  return {version:1,visibility:'PRIVATE_PERSONAL_ANALYSIS',sport,date:day,generatedAt,
    expiresAt:new Date(nowMs+Math.min(22,expiryHours)*3600000).toISOString(),
    modelAuthority:'RESEARCH_ONLY',canAuthorizeWager:false,events};

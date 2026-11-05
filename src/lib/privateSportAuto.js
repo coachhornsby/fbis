@@ -1,5 +1,7 @@
 import {PRIVATE_RECOVERY_SPORTS,validateFourSportPacket} from '../../functions/lib/privateFourSportProjection.js';
 const loaded=new Map();
+export function clearSportSnapshot(sport,date){loaded.delete(sport+':'+date);}
+
 export async function loadSportSnapshot(sport,date){
  if(!PRIVATE_RECOVERY_SPORTS.includes(sport)||!/^\d{4}-\d{2}-\d{2}$/.test(date))throw Error('INVALID_SPORT_OR_DATE');
  const key=sport+':'+date;
