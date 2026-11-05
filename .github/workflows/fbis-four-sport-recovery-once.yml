@@ -1,4 +1,4 @@
-name: FBIS four-sport bounded recovery — owner manual
+name: FBIS four-sport bounded daily private projections
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
     paths:
       - ".github/workflows/fbis-four-sport-recovery-once.yml"
   workflow_dispatch:
+  # One bounded morning run; does not activate legacy D1 or paid-provider jobs.
+  schedule:
+    - cron: "20 12 * * *"
 
 permissions:
   contents: read
@@ -16,7 +19,7 @@ concurrency:
 
 jobs:
   build-current-private-research:
-    name: ESPN / existing FBIS model / private R2 recovery
+    name: Bounded ESPN models / owner-only R2 publication
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -33,7 +36,7 @@ jobs:
         run: |
           node --check scripts/recover-four-sport-once.mjs
           node --test test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs
-      - name: Run once — ESPN current fixtures/finals and existing research models
+      - name: Refresh today's free-input research projections once
         run: node scripts/recover-four-sport-once.mjs
       - name: Retain bounded, non-public job evidence
         if: always()
