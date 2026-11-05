@@ -50,7 +50,7 @@ export async function readRecentCbbScheduleAsset(date,{assets,now=Date.now(),ori
  let b;try{b=JSON.parse(raw);}catch{return null;}
  const t=Date.parse(b?.generatedAt);
  if(b?.version!==1||b?.date!==date||b?.publicationMode!=='SCHEDULE_AND_SCORES_ONLY'||
-   !Number.isFinite(t)||t>now+60_000||now-t>3*60*60*1000||
+   !Number.isFinite(t)||t>now+60_000||now-t>18*60*60*1000||
    b?.feeds?.cbb?.ok!==true||b?.feeds?.cbb?.source!=='ESPN_SCOREBOARD'||
    !Array.isArray(b?.sources)||b.sources.filter(x=>x.sport==='cbb'&&x.ok===true).length<2||
    !Array.isArray(b?.games)||b.games.length>500)return null;
@@ -70,7 +70,7 @@ export async function buildFreshCbbResearch(date,{key,fetchFn=fetch,now=Date.now
  if(!key)throw Error('KENPOM_KEY_NOT_CONFIGURED');
  if(date!==boardDate(now))throw Error('ONLY_CURRENT_CENTRAL_DAY');
  // The site already published a complete source-verified ESPN schedule.
- // Reuse it for up to three hours, before attempting direct ESPN from Pages.
+ // Reuse same-day verified pregame fixtures; current game-card validation still checks kickoff.
  const saved=await readRecentCbbScheduleAsset(date,{assets,now});
  let board=null;
  if(!saved){
