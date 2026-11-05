@@ -22,11 +22,12 @@ async function textLimited(res,cap){
  const raw=await res.text();if(new TextEncoder().encode(raw).byteLength>cap)throw Error('SOURCE_RESPONSE_TOO_LARGE');
  return raw;
 }
-async function fetchSource(url,kind,{fetchFn,key,cap}){
+export async function fetchSource(url,kind,{fetchFn,key,cap}){
  const u=new URL(url);
  if(u.protocol!=='https:'||(kind==='kenpom'?u.hostname!=='kenpom.com':u.hostname!=='barttorvik.com'))throw Error('SOURCE_NOT_ALLOWED');
- const res=await fetchFn(url,{redirect:'error',headers:{Accept:kind==='kenpom'?'application/json':'text/csv',
+ const res=await fetchFn(url,{redirect:'manual',headers:{Accept:kind==='kenpom'?'application/json':'text/csv',
   ...(kind==='kenpom'?{Authorization:'Bearer '+key}:{})},signal:AbortSignal.timeout(18000)});
+ if(res.status>=300&&res.status<400)throw Error(kind.toUpperCase()+'_REDIRECT_BLOCKED');
  if(!res.ok)throw Error(kind.toUpperCase()+'_HTTP_'+res.status);
  return {raw:await textLimited(res,cap),capturedAt:new Date().toISOString()};
 }
@@ -40,9 +41,9 @@ export async function readRecentCbbScheduleAsset(date,{assets,now=Date.now(),ori
  if(!assets?.fetch||date!==boardDate(now))return null;
  let res;
  try{
-  res=await assets.fetch(new Request(new URL('/board-data/'+date+'.json',origin),{redirect:'error',headers:{Accept:'application/json'}}));
+  res=await assets.fetch(new Request(new URL('/board-data/'+date+'.json',origin),{redirect:'manual',headers:{Accept:'application/json'}}));
  }catch{return null;}
- if(!res?.ok||!String(res.headers?.get('content-type')||'').toLowerCase().includes('json'))return null;
+ if(!res||res.status>=300&&res.status<400||!res.ok||!String(res.headers?.get('content-type')||'').toLowerCase().includes('json'))return null;
  const maxBytes=4*1024*1024,header=Number(res.headers?.get('content-length')||0);
  if(header>maxBytes)return null;
  let raw;try{raw=await res.text();}catch{return null;}
@@ -124,14 +125,35 @@ export async function refreshCbbOnce({bucket,date,key,fetchFn=fetch,now=Date.now
  const saved=await readJson(bucket,objectKey(date));
  if(saved?.version===1&&saved?.visibility==='PRIVATE_PERSONAL_ANALYSIS'&&Date.parse(saved.expiresAt)>now+15*60*1000)
   return response('ALREADY_FRESH',{date,expiresAt:saved.expiresAt,primaryProjections:saved.summary?.primaryProjections||0,providerCalls:0});
+
+ async function runReservedAttempt(slot,{oneTimeRuntimeRepair=false}={}){
+  try{
+   const {packet,evidence}=await builder(date,{key,fetchFn,now,assets});
+   const body=JSON.stringify(packet);
+   const written=await bucket.put(objectKey(date),body,{httpMetadata:{contentType:'application/json'}});
+   if(!written)throw Error('R2_WRITE_FAILED');
+   const confirmed=await readJson(bucket,objectKey(date));
+   if(!confirmed||JSON.stringify(confirmed)!==body)throw Error('R2_READBACK_MISMATCH');
+   await bucket.put('private/cbb/refresh-receipts/'+date+'.json',JSON.stringify({
+    ...evidence,attempt:slot,status:'SUCCESS',oneTimeRuntimeRepair
+   }),{httpMetadata:{contentType:'application/json'}});
+   return response('REFRESHED',{date,attempt:slot,oneTimeRuntimeRepair,
+    expiresAt:packet.expiresAt,primaryProjections:packet.summary.primaryProjections,
+    torvikComparisons:packet.summary.torvikComparisons,cbddConfirmations:packet.summary.currentCbbdConfirmations,
+    providerCalls:'1 KenPom, <=1 Torvik, <=2 ESPN',canAuthorizeWager:false});
+  }catch(e){
+   const reason=String(e?.message||e).slice(0,150);
+   await bucket.put('private/cbb/refresh-receipts/'+date+'.json',JSON.stringify({
+    date,attempt:slot,status:'FAILED',reason,oneTimeRuntimeRepair,canAuthorizeWager:false
+   }),{httpMetadata:{contentType:'application/json'}});
+   return response('REFRESH_FAILED',{date,attempt:slot,reason,oneTimeRuntimeRepair},503);
+  }
+ }
  const attempts=[];
  for(let slot=1;slot<=MAX_ATTEMPTS;slot++){
   const previous=await readJson(bucket,attemptKey(date,slot));
   if(previous){attempts.push(previous);continue;}
   if(attempts.some(a=>Number.isFinite(Date.parse(a.startedAt))&&now-Date.parse(a.startedAt)<SHORT_PAUSE_MS)){
-   // First attempt may fail before contacting KenPom because direct ESPN capture was blocked.
-   // Permit the SECOND and FINAL slot immediately only for a trusted private failure
-   // receipt proving the paid source had not yet been reached. No broad retry bypass.
    const receipt=slot===2&&attempts.length===1
      ?await readJson(bucket,'private/cbb/refresh-receipts/'+date+'.json'):null;
    const preSourceFailure=receipt?.date===date&&receipt?.status==='FAILED'&&receipt?.attempt===1&&
@@ -139,21 +161,28 @@ export async function refreshCbbOnce({bucket,date,key,fetchFn=fetch,now=Date.now
    if(!preSourceFailure)
     return response('REFRESH_PAUSED',{date,reason:'Daily source cooldown active',providerCalls:0},429);
   }
-  const claim=await bucket.put(attemptKey(date,slot),JSON.stringify({date,slot,startedAt:new Date(now).toISOString(),status:'ATTEMPT_RESERVED'}),{
-   httpMetadata:{contentType:'application/json'},onlyIf:{etagDoesNotMatch:'*'}});
+  const claim=await bucket.put(attemptKey(date,slot),JSON.stringify({
+   date,slot,startedAt:new Date(now).toISOString(),status:'ATTEMPT_RESERVED'
+  }),{httpMetadata:{contentType:'application/json'},onlyIf:{etagDoesNotMatch:'*'}});
   if(!claim){attempts.push({date,slot,startedAt:new Date(now).toISOString()});continue;}
-  try{
-   const {packet,evidence}=await builder(date,{key,fetchFn,now,assets});
-   const body=JSON.stringify(packet),written=await bucket.put(objectKey(date),body,{httpMetadata:{contentType:'application/json'}});
-   if(!written)throw Error('R2_WRITE_FAILED');
-   const confirmed=await readJson(bucket,objectKey(date));
-   if(!confirmed||JSON.stringify(confirmed)!==body)throw Error('R2_READBACK_MISMATCH');
-   await bucket.put('private/cbb/refresh-receipts/'+date+'.json',JSON.stringify({...evidence,attempt:slot,status:'SUCCESS'}),{httpMetadata:{contentType:'application/json'}});
-   return response('REFRESHED',{date,attempt:slot,expiresAt:packet.expiresAt,primaryProjections:packet.summary.primaryProjections,torvikComparisons:packet.summary.torvikComparisons,cbddConfirmations:packet.summary.currentCbbdConfirmations,providerCalls:'1 KenPom, <=1 Torvik, 2 ESPN',canAuthorizeWager:false});
-  }catch(e){
-   const reason=String(e?.message||e).slice(0,150);
-   await bucket.put('private/cbb/refresh-receipts/'+date+'.json',JSON.stringify({date,attempt:slot,status:'FAILED',reason,canAuthorizeWager:false}),{httpMetadata:{contentType:'application/json'}});
-   return response('REFRESH_FAILED',{date,attempt:slot,reason},503);
+  return runReservedAttempt(slot);
+ }
+ // One historical, bug-specific recovery. Both ordinary slots failed because
+ // workerd rejected redirect:"error" BEFORE sending an ESPN or licensed KenPom
+ // request. This exception is restricted to the already-audited November 5
+ // incident and reserves a separate atomic R2 key. It cannot recur tomorrow
+ // or retry a provider error; it never deletes or resets either daily claim.
+ if(date==='2026-11-05'&&attempts.length===MAX_ATTEMPTS){
+  const receipt=await readJson(bucket,'private/cbb/refresh-receipts/'+date+'.json');
+  const noProviderCall=receipt?.date===date&&receipt?.status==='FAILED'&&receipt?.attempt===2&&
+   /^ESPN_CBB_SCHEDULE_UNAVAILABLE_Invalid_redirect_value__must_be_one_of__follow__/.test(String(receipt?.reason||''));
+  if(noProviderCall){
+   const repairKey='private/cbb/refresh-budget/'+date+'/runtime-redirect-repair.json';
+   const claim=await bucket.put(repairKey,JSON.stringify({
+    date,slot:3,status:'ONE_TIME_RUNTIME_REPAIR_RESERVED',
+    startedAt:new Date(now).toISOString(),previousReason:receipt.reason,canAuthorizeWager:false
+   }),{httpMetadata:{contentType:'application/json'},onlyIf:{etagDoesNotMatch:'*'}});
+   if(claim)return runReservedAttempt(3,{oneTimeRuntimeRepair:true});
   }
  }
  return response('DAILY_REFRESH_CAP',{date,maxAttempts:MAX_ATTEMPTS,providerCalls:0},429);

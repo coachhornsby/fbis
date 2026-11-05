@@ -146,3 +146,50 @@ test('no early retry for a provider failure or missing signed failure receipt',a
   assert.equal(result.state,'REFRESH_PAUSED');assert.equal(called,false);
  }
 });
+
+
+test('one documented Nov 5 workerd redirect failure can make exactly one provider-repair attempt',async()=>{
+ const day='2026-11-05',time=Date.parse('2026-11-05T14:30:00Z'),bucket=storage();
+ for(const slot of [1,2])bucket.db.set('private/cbb/refresh-budget/'+day+'/attempt-'+slot+'.json',
+  JSON.stringify({date:day,slot,status:'ATTEMPT_RESERVED',startedAt:new Date(time-2000).toISOString()}));
+ const reason='ESPN_CBB_SCHEDULE_UNAVAILABLE_Invalid_redirect_value__must_be_one_of__follow__';
+ bucket.db.set('private/cbb/refresh-receipts/'+day+'.json',
+  JSON.stringify({date:day,attempt:2,status:'FAILED',reason,canAuthorizeWager:false}));
+ let calls=0;
+ const builder=async()=>{calls++;const v=sample();v.packet.events[0].date=day;
+  v.packet.expiresAt='2026-11-05T23:15:00Z';return v;};
+ const first=await refreshCbbOnce({bucket,date:day,key:'already-configured',now:time,builder});
+ assert.equal(first.state,'REFRESHED');assert.equal(first.attempt,3);
+ assert.equal(first.oneTimeRuntimeRepair,true);assert.equal(calls,1);
+ assert.equal(bucket.touches.writes.includes('private/cbb/refresh-budget/'+day+'/runtime-redirect-repair.json'),true);
+ const stored=JSON.parse(bucket.db.get('private/cbb/refresh-receipts/'+day+'.json'));
+ assert.equal(stored.oneTimeRuntimeRepair,true);
+ const next=await refreshCbbOnce({bucket,date:day,key:'already-configured',now:time+1000,builder});
+ assert.equal(next.state,'ALREADY_FRESH');assert.equal(calls,1);
+});
+test('no Nov 5 repair if any earlier attempt reached provider or error cannot prove runtime pre-fetch failure',async()=>{
+ const day='2026-11-05',time=Date.parse('2026-11-05T14:30:00Z');
+ for(const reason of ['KENPOM_HTTP_403','ESPN_CBB_SCHEDULE_UNAVAILABLE','R2_WRITE_FAILED']){
+  const bucket=storage();
+  for(const slot of [1,2])bucket.db.set('private/cbb/refresh-budget/'+day+'/attempt-'+slot+'.json',
+   JSON.stringify({date:day,slot,status:'ATTEMPT_RESERVED',startedAt:new Date(time-2000).toISOString()}));
+  bucket.db.set('private/cbb/refresh-receipts/'+day+'.json',
+   JSON.stringify({date:day,attempt:2,status:'FAILED',reason,canAuthorizeWager:false}));
+  let calls=0;
+  const r=await refreshCbbOnce({bucket,date:day,key:'existing',now:time,builder:async()=>{calls++;return sample();}});
+  assert.equal(r.state,'DAILY_REFRESH_CAP');assert.equal(calls,0);
+  assert.equal(bucket.touches.writes.length,0);
+ }
+});
+test('one-time runtime repair claim blocks any repeat if the provider ultimately fails',async()=>{
+ const day='2026-11-05',time=Date.parse('2026-11-05T14:30:00Z'),bucket=storage();
+ for(const slot of [1,2])bucket.db.set('private/cbb/refresh-budget/'+day+'/attempt-'+slot+'.json',
+  JSON.stringify({date:day,slot,status:'ATTEMPT_RESERVED',startedAt:new Date(time-2000).toISOString()}));
+ bucket.db.set('private/cbb/refresh-receipts/'+day+'.json',
+  JSON.stringify({date:day,attempt:2,status:'FAILED',reason:'ESPN_CBB_SCHEDULE_UNAVAILABLE_Invalid_redirect_value__must_be_one_of__follow__',canAuthorizeWager:false}));
+ let calls=0;const builder=async()=>{calls++;throw Error('KENPOM_HTTP_403');};
+ const r=await refreshCbbOnce({bucket,date:day,key:'existing',now:time,builder});
+ assert.equal(r.state,'REFRESH_FAILED');assert.equal(r.attempt,3);assert.equal(calls,1);
+ const again=await refreshCbbOnce({bucket,date:day,key:'existing',now:time+1000,builder});
+ assert.equal(again.state,'DAILY_REFRESH_CAP');assert.equal(calls,1);
+});

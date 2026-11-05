@@ -60,7 +60,8 @@ export function scoreboardGames(payload, {sport,tour=null,date,capturedAt}) {
 }
 export async function boundedScoreboardFetch(url, {fetchFn=fetch,signal}={}) {
   if (!url.startsWith('https://site.api.espn.com/apis/site/v2/sports/')) throw Error('SOURCE_NOT_ALLOWED');
-  const response=await fetchFn(url,{signal,redirect:'error',credentials:'omit',headers:{Accept:'application/json'}});
+  const response=await fetchFn(url,{signal,redirect:'manual',credentials:'omit',headers:{Accept:'application/json'}});
+  if(response.status>=300&&response.status<400)throw Error('ESPN_REDIRECT_BLOCKED');
   if(!response.ok)throw Error('ESPN_HTTP_'+response.status);
   const limit=4*1024*1024;
   if(Number(response.headers.get('content-length'))>limit)throw Error('SCOREBOARD_TOO_LARGE');
