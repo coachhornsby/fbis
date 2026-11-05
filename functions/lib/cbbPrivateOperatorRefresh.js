@@ -54,11 +54,13 @@ export async function readRecentCbbScheduleAsset(date,{assets,now=Date.now(),ori
    b?.feeds?.cbb?.ok!==true||b?.feeds?.cbb?.source!=='ESPN_SCOREBOARD'||
    !Array.isArray(b?.sources)||b.sources.filter(x=>x.sport==='cbb'&&x.ok===true).length<2||
    !Array.isArray(b?.games)||b.games.length>500)return null;
- const cbb=b.games.filter(g=>g?.sport==='cbb');
- if(cbb.length===0||cbb.length>300||cbb.some(g=>g.date!==date||g.source!=='ESPN_SCOREBOARD'||
-  !/^\d+$/.test(String(g.id||''))||!/^\d+$/.test(String(g.home?.espnId||''))||
-  !/^\d+$/.test(String(g.away?.espnId||''))||!Number.isFinite(Date.parse(g.start))||
-  typeof g.neutralSite!=='boolean'))return null;
+ const candidates=b.games.filter(g=>g?.sport==='cbb');
+ if(candidates.length===0||candidates.length>300)return null;
+ const cbb=candidates.filter(g=>g.date===date&&g.source==='ESPN_SCOREBOARD'&&
+  /^\d+$/.test(String(g.id||''))&&/^\d+$/.test(String(g.home?.espnId||''))&&
+  /^\d+$/.test(String(g.away?.espnId||''))&&g.home.espnId!==g.away.espnId&&
+  Number.isFinite(Date.parse(g.start))&&typeof g.neutralSite==='boolean');
+ if(!cbb.length)return null;
  return {games:cbb,generatedAt:b.generatedAt,source:'VERIFIED_SAVED_ESPN_SCOREBOARD'};
 }
 function typedRows(index,provider){
