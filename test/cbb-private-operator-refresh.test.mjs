@@ -107,7 +107,7 @@ test('Pages schedule fallback rejects stale, incomplete, tampered or cross-date 
  const sample={version:1,date,publicationMode:'SCHEDULE_AND_SCORES_ONLY',generatedAt:new Date(now-1000).toISOString(),
   feeds:{cbb:{ok:true,source:'ESPN_SCOREBOARD'}},sources:[{sport:'cbb',ok:true},{sport:'cbb',ok:true}],games:[fixture]};
  const verify=async b=>readRecentCbbScheduleAsset(date,{now,assets:{fetch:async()=>new Response(JSON.stringify(b),{status:200,headers:{'content-type':'application/json'}})}});
- assert.equal(await verify({...sample,generatedAt:new Date(now-4*3600*1000).toISOString()}),null);
+ assert.equal(await verify({...sample,generatedAt:new Date(now-19*3600*1000).toISOString()}),null);
  assert.equal(await verify({...sample,feeds:{cbb:{ok:false,source:'ESPN_SCOREBOARD'}}}),null);
  assert.equal(await verify({...sample,sources:[{sport:'cbb',ok:true}]}),null);
  assert.equal(await verify({...sample,games:[{...fixture,date:'2026-11-03'}]}),null);
