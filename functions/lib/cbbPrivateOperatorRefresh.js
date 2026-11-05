@@ -30,15 +30,58 @@ async function fetchSource(url,kind,{fetchFn,key,cap}){
  if(!res.ok)throw Error(kind.toUpperCase()+'_HTTP_'+res.status);
  return {raw:await textLimited(res,cap),capturedAt:new Date().toISOString()};
 }
+/**
+ * Use a recent, source-verified schedule asset from THIS production build.
+ * Cloudflare Pages Functions cannot always reach ESPN directly even when the
+ * Pages build already obtained a complete ESPN CBB slate. Schedule assets
+ * contain no paid ratings and were verified during static publication.
+ */
+export async function readRecentCbbScheduleAsset(date,{assets,now=Date.now(),origin='https://fbis-myz.pages.dev'}={}){
+ if(!assets?.fetch||date!==boardDate(now))return null;
+ let res;
+ try{
+  res=await assets.fetch(new Request(new URL('/board-data/'+date+'.json',origin),{redirect:'error',headers:{Accept:'application/json'}}));
+ }catch{return null;}
+ if(!res?.ok||!String(res.headers?.get('content-type')||'').toLowerCase().includes('json'))return null;
+ const maxBytes=4*1024*1024,header=Number(res.headers?.get('content-length')||0);
+ if(header>maxBytes)return null;
+ let raw;try{raw=await res.text();}catch{return null;}
+ if(new TextEncoder().encode(raw).byteLength>maxBytes)return null;
+ let b;try{b=JSON.parse(raw);}catch{return null;}
+ const t=Date.parse(b?.generatedAt);
+ if(b?.version!==1||b?.date!==date||b?.publicationMode!=='SCHEDULE_AND_SCORES_ONLY'||
+   !Number.isFinite(t)||t>now+60_000||now-t>18*60*60*1000||
+   b?.feeds?.cbb?.ok!==true||b?.feeds?.cbb?.source!=='ESPN_SCOREBOARD'||
+   !Array.isArray(b?.sources)||b.sources.filter(x=>x.sport==='cbb'&&x.ok===true).length<2||
+   !Array.isArray(b?.games)||b.games.length>500)return null;
+ const candidates=b.games.filter(g=>g?.sport==='cbb');
+ if(candidates.length===0||candidates.length>300)return null;
+ const cbb=candidates.filter(g=>g.date===date&&g.source==='ESPN_SCOREBOARD'&&
+  /^\d+$/.test(String(g.id||''))&&/^\d+$/.test(String(g.home?.espnId||''))&&
+  /^\d+$/.test(String(g.away?.espnId||''))&&g.home.espnId!==g.away.espnId&&
+  Number.isFinite(Date.parse(g.start))&&typeof g.neutralSite==='boolean');
+ if(!cbb.length)return null;
+ return {games:cbb,generatedAt:b.generatedAt,source:'VERIFIED_SAVED_ESPN_SCOREBOARD'};
+}
 function typedRows(index,provider){
  return Object.entries(index.byCanonicalId||{}).map(([teamId,p])=>({provider,season:2027,teamId,payload:{...p,canonicalId:teamId,season:2027}}));
 }
-export async function buildFreshCbbResearch(date,{key,fetchFn=fetch,now=Date.now()}={}){
+export async function buildFreshCbbResearch(date,{key,fetchFn=fetch,now=Date.now(),assets=null}={}){
  if(!key)throw Error('KENPOM_KEY_NOT_CONFIGURED');
  if(date!==boardDate(now))throw Error('ONLY_CURRENT_CENTRAL_DAY');
- const board=await captureScoreboards({date,sports:['cbb'],fetchFn,now});
- if(!board.feeds.cbb?.ok)throw Error('ESPN_CBB_SCHEDULE_UNAVAILABLE');
- const games=board.games.filter(g=>g.sport==='cbb'&&g.status==='scheduled'&&Date.parse(g.start)>now);
+ // The site already published a complete source-verified ESPN schedule.
+ // Reuse same-day verified pregame fixtures; current game-card validation still checks kickoff.
+ const saved=await readRecentCbbScheduleAsset(date,{assets,now});
+ let board=null;
+ if(!saved){
+  board=await captureScoreboards({date,sports:['cbb'],fetchFn,now});
+  if(!board.feeds.cbb?.ok){
+   const failures=(board.sources||[]).filter(x=>x.sport==='cbb'&&!x.ok)
+    .map(x=>String(x.error||'UNKNOWN').replace(/[^A-Z0-9_]/gi,'_').slice(0,48));
+   throw Error('ESPN_CBB_SCHEDULE_UNAVAILABLE'+(failures.length?'_'+[...new Set(failures)].join('_').slice(0,75):''));
+  }
+ }
+ const games=(saved?.games||board.games).filter(g=>g.sport==='cbb'&&g.status==='scheduled'&&Date.parse(g.start)>now);
  if(!games.length)throw Error('NO_VERIFIED_FUTURE_CBB_GAMES');
  const kp=await fetchSource('https://kenpom.com/api.php?endpoint=ratings&y=2027','kenpom',{fetchFn,key,cap:MAX_KENPOM_BYTES});
  let raw;try{raw=JSON.parse(kp.raw);}catch{throw Error('KENPOM_JSON_INVALID');}
@@ -62,6 +105,7 @@ export async function buildFreshCbbResearch(date,{key,fetchFn=fetch,now=Date.now
  if(packet.summary.primaryProjections<1)throw Error('NO_VALID_SOURCE_MATCHED_CBB_PREDICTIONS');
  // One private report per day; no raw provider licensed rows are persisted.
  const evidence={date,generatedAt:asOf,expiresAt:packet.expiresAt,events:games.length,
+  scheduleSource:saved?.source||'LIVE_ESPN_SCOREBOARD',scheduleCapturedAt:saved?.generatedAt||board?.generatedAt||null,
   primaryProjections:packet.summary.primaryProjections,torvikComparisons:packet.summary.torvikComparisons,
   cbbdConfirmations:packet.summary.currentCbbdConfirmations,qualified:0,
   sources:sourceReceipts,canAuthorizeWager:false,automaticCollection:false,d1RowsRead:0,d1RowsWritten:0,marketQuotesCollected:0};
@@ -73,7 +117,7 @@ async function readJson(bucket,key){
  const raw=await obj.text();if(raw.length>1024*1024)throw Error('PRIVATE_OBJECT_TOO_LARGE');
  return JSON.parse(raw);
 }
-export async function refreshCbbOnce({bucket,date,key,fetchFn=fetch,now=Date.now(),builder=buildFreshCbbResearch}){
+export async function refreshCbbOnce({bucket,date,key,fetchFn=fetch,now=Date.now(),builder=buildFreshCbbResearch,assets=null}){
  if(!bucket||!iso(new Date(now).toISOString()))return response('STORAGE_UNAVAILABLE',{},503);
  if(date!==boardDate(now))return response('INVALID_REFRESH_DATE',{},400);
  if(!key)return response('KENPOM_KEY_NOT_CONFIGURED',{},503);
@@ -90,7 +134,7 @@ export async function refreshCbbOnce({bucket,date,key,fetchFn=fetch,now=Date.now
    httpMetadata:{contentType:'application/json'},onlyIf:{etagDoesNotMatch:'*'}});
   if(!claim){attempts.push({date,slot,startedAt:new Date(now).toISOString()});continue;}
   try{
-   const {packet,evidence}=await builder(date,{key,fetchFn,now});
+   const {packet,evidence}=await builder(date,{key,fetchFn,now,assets});
    const body=JSON.stringify(packet),written=await bucket.put(objectKey(date),body,{httpMetadata:{contentType:'application/json'}});
    if(!written)throw Error('R2_WRITE_FAILED');
    const confirmed=await readJson(bucket,objectKey(date));

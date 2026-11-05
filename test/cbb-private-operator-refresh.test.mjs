@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {refreshCbbOnce,buildFreshCbbResearch} from '../functions/lib/cbbPrivateOperatorRefresh.js';
+import {refreshCbbOnce,buildFreshCbbResearch,readRecentCbbScheduleAsset} from '../functions/lib/cbbPrivateOperatorRefresh.js';
 import {onRequestPost,onRequest} from '../deploy/board/functions/api/private/cbb/refresh/manual.js';
 import {shouldAutoRefreshCbb,requestAutoCbbRefresh} from '../src/lib/privateCbbAuto.js';
 const date='2026-11-04',now=Date.parse('2026-11-04T16:15:00Z');
@@ -87,4 +87,38 @@ test('CBB auto refresh exposes a safe state for rejected owner and does not retr
  let called=0;
  const result=await requestAutoCbbRefresh(date,{fetchFn:async()=>{called++;return new Response(JSON.stringify({state:'PRIVATE_AUTH_REQUIRED'}),{status:401});}});
  assert.equal(called,1);assert.equal(result.ok,false);assert.equal(result.state,'PRIVATE_AUTH_REQUIRED');
+});
+
+test('recent public CBB scoreboard from Pages serves verified schedule without new ESPN calls',async()=>{
+ const capturedAt=new Date(now-12*60*1000).toISOString();
+ const fixture={id:'401234567',date,sport:'cbb',start:new Date(now+4*3600*1000).toISOString(),
+  status:'scheduled',source:'ESPN_SCOREBOARD',neutralSite:false,home:{espnId:'1',name:'Home'},away:{espnId:'2',name:'Away'}};
+ const board={version:1,date,publicationMode:'SCHEDULE_AND_SCORES_ONLY',generatedAt:capturedAt,
+  feeds:{cbb:{ok:true,source:'ESPN_SCOREBOARD'}},sources:[{sport:'cbb',ok:true},{sport:'cbb',ok:true}],games:[fixture]};
+ const seen=[];
+ const assets={fetch:async req=>{seen.push(req.url);return new Response(JSON.stringify(board),{status:200,headers:{'Content-Type':'application/json'}});}};
+ const value=await readRecentCbbScheduleAsset(date,{assets,now});
+ assert.equal(seen.length,1);assert.equal(value?.games?.length,1);assert.equal(value?.source,'VERIFIED_SAVED_ESPN_SCOREBOARD');
+ assert.match(seen[0],/board-data\/2026-11-04\.json$/);
+});
+test('Pages schedule fallback rejects stale, incomplete, tampered or cross-date sources',async()=>{
+ const fixture={id:'401234567',date,sport:'cbb',start:new Date(now+4*3600*1000).toISOString(),
+  status:'scheduled',source:'ESPN_SCOREBOARD',neutralSite:false,home:{espnId:'1'},away:{espnId:'2'}};
+ const sample={version:1,date,publicationMode:'SCHEDULE_AND_SCORES_ONLY',generatedAt:new Date(now-1000).toISOString(),
+  feeds:{cbb:{ok:true,source:'ESPN_SCOREBOARD'}},sources:[{sport:'cbb',ok:true},{sport:'cbb',ok:true}],games:[fixture]};
+ const verify=async b=>readRecentCbbScheduleAsset(date,{now,assets:{fetch:async()=>new Response(JSON.stringify(b),{status:200,headers:{'content-type':'application/json'}})}});
+ assert.equal(await verify({...sample,generatedAt:new Date(now-19*3600*1000).toISOString()}),null);
+ assert.equal(await verify({...sample,feeds:{cbb:{ok:false,source:'ESPN_SCOREBOARD'}}}),null);
+ assert.equal(await verify({...sample,sources:[{sport:'cbb',ok:true}]}),null);
+ assert.equal(await verify({...sample,games:[{...fixture,date:'2026-11-03'}]}),null);
+ assert.equal(await verify({...sample,games:[{...fixture,home:{espnId:'bad'}}]}),null);
+});
+test('private CBB error response gives a safe stage on HTML or redirect block',async()=>{
+ const {requestAutoCbbRefresh}=await import('../src/lib/privateCbbAuto.js');
+ const blocked=await requestAutoCbbRefresh(date,{fetchFn:async()=>new Response('<html>not found</html>',{status:404,headers:{'Content-Type':'text/html'}})});
+ assert.equal(blocked.state,'PRIVATE_REFRESH_ENDPOINT_NOT_FOUND');
+ const denied=await requestAutoCbbRefresh(date,{fetchFn:async()=>new Response('<html>Access</html>',{status:403,headers:{'Content-Type':'text/html'}})});
+ assert.equal(denied.state,'PRIVATE_SIGN_IN_REQUIRED');
+ const errored=await requestAutoCbbRefresh(date,{fetchFn:async()=>{throw Error('redirect blocked');}});
+ assert.equal(errored.state,'PRIVATE_ACCESS_REDIRECT_OR_CONNECTION_FAILED');
 });
