@@ -25,8 +25,9 @@ async function textLimited(res,cap){
 async function fetchSource(url,kind,{fetchFn,key,cap}){
  const u=new URL(url);
  if(u.protocol!=='https:'||(kind==='kenpom'?u.hostname!=='kenpom.com':u.hostname!=='barttorvik.com'))throw Error('SOURCE_NOT_ALLOWED');
- const res=await fetchFn(url,{redirect:'error',headers:{Accept:kind==='kenpom'?'application/json':'text/csv',
+ const res=await fetchFn(url,{redirect:'manual',headers:{Accept:kind==='kenpom'?'application/json':'text/csv',
   ...(kind==='kenpom'?{Authorization:'Bearer '+key}:{})},signal:AbortSignal.timeout(18000)});
+ if(res.status>=300&&res.status<400)throw Error(kind.toUpperCase()+'_REDIRECT_BLOCKED');
  if(!res.ok)throw Error(kind.toUpperCase()+'_HTTP_'+res.status);
  return {raw:await textLimited(res,cap),capturedAt:new Date().toISOString()};
 }
@@ -40,9 +41,9 @@ export async function readRecentCbbScheduleAsset(date,{assets,now=Date.now(),ori
  if(!assets?.fetch||date!==boardDate(now))return null;
  let res;
  try{
-  res=await assets.fetch(new Request(new URL('/board-data/'+date+'.json',origin),{redirect:'error',headers:{Accept:'application/json'}}));
+  res=await assets.fetch(new Request(new URL('/board-data/'+date+'.json',origin),{redirect:'manual',headers:{Accept:'application/json'}}));
  }catch{return null;}
- if(!res?.ok||!String(res.headers?.get('content-type')||'').toLowerCase().includes('json'))return null;
+ if(!res||res.status>=300&&res.status<400||!res.ok||!String(res.headers?.get('content-type')||'').toLowerCase().includes('json'))return null;
  const maxBytes=4*1024*1024,header=Number(res.headers?.get('content-length')||0);
  if(header>maxBytes)return null;
  let raw;try{raw=await res.text();}catch{return null;}
