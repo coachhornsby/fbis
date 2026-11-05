@@ -22,7 +22,7 @@ async function textLimited(res,cap){
  const raw=await res.text();if(new TextEncoder().encode(raw).byteLength>cap)throw Error('SOURCE_RESPONSE_TOO_LARGE');
  return raw;
 }
-async function fetchSource(url,kind,{fetchFn,key,cap}){
+export async function fetchSource(url,kind,{fetchFn,key,cap}){
  const u=new URL(url);
  if(u.protocol!=='https:'||(kind==='kenpom'?u.hostname!=='kenpom.com':u.hostname!=='barttorvik.com'))throw Error('SOURCE_NOT_ALLOWED');
  const res=await fetchFn(url,{redirect:'manual',headers:{Accept:kind==='kenpom'?'application/json':'text/csv',
