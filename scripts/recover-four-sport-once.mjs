@@ -11,6 +11,7 @@ import {createHash} from 'node:crypto';
 import {boardDate,captureScoreboards} from '../functions/lib/publicBoardSnapshot.js';
 import {projectNbaGame,estimatePossessions,NBA_MODEL_ID,NBA_MODEL_VERSION} from '../functions/lib/nbaModel.js';
 import {projectNflFormV0,NFL_SHADOW_ID} from '../functions/lib/nflModel.js';
+import {verifiedSeasonScoringForm} from '../functions/lib/verifiedSeasonScoringForm.js';
 import {projectCfbMatchup,CFB_CONSTANTS} from '../functions/lib/cfbModel.js';
 import {normalizeKenpomRatingRows,indexKenpomRows,lookupKenpomRating} from '../functions/lib/kenpomCbb.js';
 import {cbbKenpomRatingsV1} from '../functions/lib/cbbRatings.js';
@@ -74,18 +75,6 @@ function rawFinals(payload,sport,cutoff=nowMs){
   }
  }
  return out;
-}
-function teamForm(finals,id){
- const relevant=finals.filter(f=>f.homeId===id||f.awayId===id);
- if(!relevant.length)return null;
- const p=relevant.map(f=>({
-  pointsFor:f.homeId===id?f.homePoints:f.awayPoints,
-  pointsAgainst:f.homeId===id?f.awayPoints:f.homePoints,
-  start:f.start
- }));
- const n=p.length;
- return {games:n,pf:p.reduce((s,x)=>s+x.pointsFor,0),pa:p.reduce((s,x)=>s+x.pointsAgainst,0),
-   lastGameAt:p.map(x=>x.start).sort().at(-1)};
 }
 async function fetchWeeklyFinals(sport,weeks){
  const all=[],warnings=[];
@@ -202,7 +191,7 @@ async function run(){
  results.sourceCoverage={nflFinals:nflFinals.length,cfbFinals:cfbFinals.length,nbaFinals:nbaFinals.length,nbaWithBoxes:[...nbaHistory.values()].filter(x=>x.length>=3).length};
  const eventGroups={nfl:[],nba:[],cfb:[],cbb:[]};
  for(const g of target.nfl){
-  const home=teamForm(nflFinals,String(g.home.espnId)),away=teamForm(nflFinals,String(g.away.espnId));
+  const home=verifiedSeasonScoringForm(nflFinals,String(g.home.espnId)),away=verifiedSeasonScoringForm(nflFinals,String(g.away.espnId));
   if(!home||!away||home.games<4||away.games<4){results.skipped.push({sport:'nfl',event:g.id,reason:'INSUFFICIENT_VERIFIED_2026_FORM'});continue;}
   const p=projectNflFormV0(g,{homeCurrent:home,awayCurrent:away});
   if(!p.ok){results.skipped.push({sport:'nfl',event:g.id,reason:p.reason||'MODEL_INVALID'});continue;}
@@ -210,7 +199,7 @@ async function run(){
   if(e)eventGroups.nfl.push(e);
  }
  for(const g of target.cfb){
-  const home=teamForm(cfbFinals,String(g.home.espnId)),away=teamForm(cfbFinals,String(g.away.espnId));
+  const home=verifiedSeasonScoringForm(cfbFinals,String(g.home.espnId)),away=verifiedSeasonScoringForm(cfbFinals,String(g.away.espnId));
   if(!home||!away||home.games<5||away.games<5){results.skipped.push({sport:'cfb',event:g.id,reason:'INSUFFICIENT_VERIFIED_2026_FORM'});continue;}
   const n=CFB_CONSTANTS.leaguePpg;
   const p=projectCfbMatchup({homeOff:home.pf/home.games,homeDef:home.pa/home.games,
