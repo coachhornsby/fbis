@@ -1,6 +1,6 @@
 import PrivateProjection from './components/board/PrivateProjection.jsx';
 import PrivateSportProjection from './components/board/PrivateSportProjection.jsx';
-import {loadSportSnapshot} from './lib/privateSportAuto.js';
+import {loadSportSnapshot,clearSportSnapshot} from './lib/privateSportAuto.js';
 import {privateFourSportProjectionFor} from '../functions/lib/privateFourSportProjection.js';
 import {overlayVerifiedResearchScores} from './lib/productionRecoveryOverlay.js';
 import {privateProjectionFor} from './lib/privateBoardProjection.js';
@@ -96,11 +96,28 @@ function PublicationApp(){
     return()=>{active=false;};
   },[date,sport]);
   useEffect(()=>{
-    let active=true;
+    let active=true,loaded=null,lastStatus=null;
     if(!['nfl','nba','cfb'].includes(sport)){setModelPacket(null);setSportOffers([]);setModelStatus('IDLE');return;}
     setModelPacket(null);setSportOffers([]);setModelStatus('LOADING');
-    loadSportSnapshot(sport,date).then(r=>{if(active){setModelPacket(r.packet);setSportOffers(r.offers);setModelStatus('LOADED');}}).catch(e=>{if(active)setModelStatus(e.message||'PRIVATE_DATA_UNAVAILABLE');});
-    return()=>{active=false;};
+    async function readPrivateProjection(force=false){
+      if(force)clearSportSnapshot(sport,date);
+      try{
+        const r=await loadSportSnapshot(sport,date);
+        if(!active)return;
+        loaded=r.packet;lastStatus='LOADED';setModelPacket(r.packet);setSportOffers(r.offers);setModelStatus('LOADED');
+      }catch(e){if(!active)return;
+        lastStatus=e?.message||'PRIVATE_DATA_UNAVAILABLE';setModelStatus(lastStatus);
+      }
+    }
+    readPrivateProjection();
+    // A scheduled GitHub run may finish while the board is already open.
+    // R2-only read checks, no model generation, every 20 minutes while visible.
+    const timer=setInterval(()=>{
+      if(!active||document.hidden||date!==boardDate()||lastStatus==='PRIVATE_SIGN_IN_REQUIRED')return;
+      if(loaded&&Date.parse(loaded.expiresAt)>Date.now())return;
+      readPrivateProjection(true);
+    },20*60*1000);
+    return()=>{active=false;clearInterval(timer);};
   },[date,sport]);
   useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer);},[]);
   useEffect(()=>startScoreboardPolling({refresh:()=>refreshRef.current?.(),isVisible:()=>!document.hidden,isBusy:()=>busyRef.current,lastAttempt:()=>lastAttempt.current,listen:fn=>{document.addEventListener('visibilitychange',fn);window.addEventListener('focus',fn);return()=>{document.removeEventListener('visibilitychange',fn);window.removeEventListener('focus',fn);};}}),[]);
