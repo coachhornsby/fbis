@@ -128,8 +128,17 @@ export async function refreshCbbOnce({bucket,date,key,fetchFn=fetch,now=Date.now
  for(let slot=1;slot<=MAX_ATTEMPTS;slot++){
   const previous=await readJson(bucket,attemptKey(date,slot));
   if(previous){attempts.push(previous);continue;}
-  if(attempts.some(a=>Number.isFinite(Date.parse(a.startedAt))&&now-Date.parse(a.startedAt)<SHORT_PAUSE_MS))
-   return response('REFRESH_PAUSED',{date,reason:'Minimum three hours between manual attempts',providerCalls:0},429);
+  if(attempts.some(a=>Number.isFinite(Date.parse(a.startedAt))&&now-Date.parse(a.startedAt)<SHORT_PAUSE_MS)){
+   // First attempt may fail before contacting KenPom because direct ESPN capture was blocked.
+   // Permit the SECOND and FINAL slot immediately only for a trusted private failure
+   // receipt proving the paid source had not yet been reached. No broad retry bypass.
+   const receipt=slot===2&&attempts.length===1
+     ?await readJson(bucket,'private/cbb/refresh-receipts/'+date+'.json'):null;
+   const preSourceFailure=receipt?.date===date&&receipt?.status==='FAILED'&&receipt?.attempt===1&&
+     /^ESPN_CBB_SCHEDULE_UNAVAILABLE(?:_[A-Z0-9_]+)?$/.test(String(receipt?.reason||''));
+   if(!preSourceFailure)
+    return response('REFRESH_PAUSED',{date,reason:'Daily source cooldown active',providerCalls:0},429);
+  }
   const claim=await bucket.put(attemptKey(date,slot),JSON.stringify({date,slot,startedAt:new Date(now).toISOString(),status:'ATTEMPT_RESERVED'}),{
    httpMetadata:{contentType:'application/json'},onlyIf:{etagDoesNotMatch:'*'}});
   if(!claim){attempts.push({date,slot,startedAt:new Date(now).toISOString()});continue;}
