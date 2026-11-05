@@ -16,7 +16,7 @@ export async function onRequestPost({request,env}){
  try{payload=await request.json();}catch{return json({state:'INVALID_REQUEST'},400);}
  if(!payload||Object.keys(payload).some(k=>k!=='date')||typeof payload.date!=='string')return json({state:'INVALID_REQUEST'},400);
  try{
-  const result=await refreshCbbOnce({bucket:env.FBIS_PRIVATE_CBB,date:payload.date,key:String(env.KENPOM_API_KEY||'').trim()});
+  const result=await refreshCbbOnce({bucket:env.FBIS_PRIVATE_CBB,date:payload.date,key:String(env.KENPOM_API_KEY||'').trim(),assets:env.ASSETS||null});
   const {status,...body}=result;return json(body,status);
  }catch{return json({state:'CBB_REFRESH_UNAVAILABLE'},503);}
 }
