@@ -31,13 +31,23 @@ export function shouldAutoRefreshCbb({date,today,packet=null,status=null,attempt
 /** Fetch only via the existing owner-only POST route. Browser supplies same-origin cookies. */
 export async function requestAutoCbbRefresh(date,{fetchFn=fetch}={}){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw Error('INVALID_DATE');
- const res=await fetchFn('/api/private/cbb/refresh/manual',{
-  method:'POST',credentials:'same-origin',cache:'no-store',redirect:'error',
-  headers:{'Content-Type':'application/json','X-FBIS-Manual-Refresh':'1'},
-  body:JSON.stringify({date})
- });
+ let res;
+ try{
+  res=await fetchFn('/api/private/cbb/refresh/manual',{
+   method:'POST',credentials:'same-origin',cache:'no-store',redirect:'error',
+   headers:{'Content-Type':'application/json','X-FBIS-Manual-Refresh':'1'},
+   body:JSON.stringify({date})
+  });
+ }catch{return {ok:false,state:'PRIVATE_ACCESS_REDIRECT_OR_CONNECTION_FAILED',reason:null,primaryProjections:0};}
  let body=null;try{body=await res.json();}catch{}
- if(!body||typeof body.state!=='string')return {ok:false,state:'REFRESH_RESPONSE_UNAVAILABLE'};
+ if(!body||typeof body.state!=='string'){
+  const code=Number(res.status)||0;
+  const state=code===401||code===403?'PRIVATE_SIGN_IN_REQUIRED':
+   code===404?'PRIVATE_REFRESH_ENDPOINT_NOT_FOUND':
+   code===429?'PRIVATE_REFRESH_RATE_LIMITED':
+   code>=500?'PRIVATE_REFRESH_SERVER_ERROR':'PRIVATE_REFRESH_NON_JSON_RESPONSE';
+  return {ok:false,state,reason:code?'HTTP_'+code:null,primaryProjections:0};
+ }
  return {ok:res.ok,state:body.state,reason:typeof body.reason==='string'?body.reason:null,
   primaryProjections:Number.isInteger(body.primaryProjections)?body.primaryProjections:0};
 }
