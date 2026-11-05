@@ -122,3 +122,27 @@ test('private CBB error response gives a safe stage on HTML or redirect block',a
  const errored=await requestAutoCbbRefresh(date,{fetchFn:async()=>{throw Error('redirect blocked');}});
  assert.equal(errored.state,'PRIVATE_ACCESS_REDIRECT_OR_CONNECTION_FAILED');
 });
+
+test('one remaining daily attempt can repair an ESPN failure proven before KenPom was contacted',async()=>{
+ const bucket=storage();
+ const key='private/cbb/refresh-budget/'+date+'/attempt-1.json';
+ bucket.db.set(key,JSON.stringify({date,slot:1,startedAt:new Date(now-5000).toISOString(),status:'ATTEMPT_RESERVED'}));
+ bucket.db.set('private/cbb/refresh-receipts/'+date+'.json',
+  JSON.stringify({date,status:'FAILED',attempt:1,reason:'ESPN_CBB_SCHEDULE_UNAVAILABLE',canAuthorizeWager:false}));
+ let calls=0;
+ const result=await refreshCbbOnce({bucket,date,key:'already-configured',now,builder:async()=>{calls++;return sample();}});
+ assert.equal(result.state,'REFRESHED');assert.equal(result.attempt,2);assert.equal(calls,1);
+ assert.equal(bucket.touches.writes.includes('private/cbb/refresh-budget/'+date+'/attempt-2.json'),true);
+});
+test('no early retry for a provider failure or missing signed failure receipt',async()=>{
+ const bucket=storage();
+ bucket.db.set('private/cbb/refresh-budget/'+date+'/attempt-1.json',
+  JSON.stringify({date,slot:1,startedAt:new Date(now-5000).toISOString()}));
+ const receiptKey='private/cbb/refresh-receipts/'+date+'.json';
+ for(const reason of ['KENPOM_HTTP_403','R2_WRITE_FAILED']){
+  bucket.db.set(receiptKey,JSON.stringify({date,attempt:1,status:'FAILED',reason}));
+  let called=false;
+  const result=await refreshCbbOnce({bucket,date,key:'key',now,builder:async()=>{called=true;return sample();}});
+  assert.equal(result.state,'REFRESH_PAUSED');assert.equal(called,false);
+ }
+});
