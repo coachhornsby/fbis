@@ -1,4 +1,4 @@
-name: FBIS Polymarket bounded 20-slot pilot — one-time release
+name: FBIS Polymarket bounded roster expiry repair — one-time release
 on:
   push:
     branches: [main]
@@ -22,7 +22,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Regression tests and script check
         run: |
-          node --test test/polymarket-us-20-slot-lease-pilot.test.mjs test/polymarket-cbb-1h-roster-priority.test.mjs test/polymarket-bounded-session.test.mjs
+          node --test test/polymarket-us-roster-expiry-headroom.test.mjs test/polymarket-us-20-slot-lease-pilot.test.mjs test/polymarket-cbb-1h-roster-priority.test.mjs test/polymarket-bounded-session.test.mjs
           node --check services/polymarket-roster-publisher/worker.mjs
       - name: Check existing Cloudflare credentials
         run: |
