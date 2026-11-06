@@ -34,3 +34,12 @@ jobs:
           test -n "${CLOUDFLARE_API_TOKEN:-}" || exit 1
       - name: Deploy existing signed Kalshi bounded collector only
         run: npx wrangler deploy --config wrangler.kalshi-public-collector.toml --keep-vars
+      - name: Build existing Cloudflare Pages board from published source
+        run: npm run build --prefix deploy/board
+      - name: Require static board assets
+        run: |
+          test -f deploy/board/dist/index.html || exit 1
+          test -f deploy/board/functions/api/public/exchange-quotes.js || exit 1
+      - name: One-shot deploy existing FBIS Pages production
+        working-directory: deploy/board
+        run: npx wrangler pages deploy dist --project-name fbis --branch main --commit-hash "${GITHUB_SHA}"
