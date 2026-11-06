@@ -1,0 +1,186 @@
+{
+  "schemaVersion": "fbis-college-evidence-catalog-v1",
+  "auditedAt": "2026-11-06",
+  "operatingMode": "inventory_only_no_provider_collection",
+  "authority": "historical_evidence_only_not_live_model_authority",
+  "criticalCaveat": "An archive's presence, source row count, or historic migration parity does not prove current production completeness or current provider freshness.",
+  "drive": {
+    "root": {
+      "name": "FBIS_Data",
+      "id": "1-cEe24VMCvfO55HZry5qxRaf0riTs6NO",
+      "url": "https://drive.google.com/drive/folders/1-cEe24VMCvfO55HZry5qxRaf0riTs6NO"
+    },
+    "catalogFolder": {
+      "id": "15Epk7qIb_k3gxzm5cT9I_PVg2K2wfu4w"
+    },
+    "canonicalFolder": {
+      "id": "1CXyqj4WA-OF9nY_5Nmp5S0RrM_sRO8sJ"
+    },
+    "rawFolder": {
+      "id": "1l6ybe2rWLth43YotUE8iYP4GOhMdT49Z"
+    },
+    "assets": [
+      {
+        "dataset": "CBB 2026-27 source coverage spreadsheet",
+        "id": "1jv9Va1Z27qeDuc_mWIZs4Q5hr_s9rxBhTZC4JXW7o48",
+        "modifiedAt": "2026-11-05T22:28:09.243Z",
+        "status": "located_not_row_revalidated"
+      },
+      {
+        "dataset": "CBB 2026-27 data report XLSX",
+        "id": "1OLt1t7OrqJJww9HEacpSSkms82R5p6fu",
+        "modifiedAt": "2026-11-05T22:20:34.001Z",
+        "status": "located_not_row_revalidated"
+      },
+      {
+        "dataset": "CBB current 2027 normalized archive",
+        "id": "1m3bPodgfT-ESQBstwKG4T8X6D0C5V8Jk",
+        "modifiedAt": "2026-11-02T03:54:50.928Z",
+        "bytes": 1624221,
+        "status": "located; repository inventory reports prior restored/verified hash"
+      },
+      {
+        "dataset": "CBB KenPom and CBBD authenticated inputs",
+        "id": "1zMC-68JGjYO3-Xly02SXZrO7SbxfnVVB",
+        "modifiedAt": "2026-11-02T04:49:21.795Z",
+        "bytes": 548716,
+        "status": "located; repository inventory reports 19 member hash checks"
+      },
+      {
+        "dataset": "CBB Torvik ratings and four factors",
+        "id": "1tJASpVptiIUlnTLFb3aTi8UrME1CCMWp",
+        "modifiedAt": "2026-11-02T04:31:59.552Z",
+        "bytes": 73924,
+        "status": "located; repository inventory reports 365 matched rows"
+      },
+      {
+        "dataset": "CBB raw Torvik and offseason capture",
+        "id": "1ySNHSiOvKkKdS4fSfCoCKoq_xD8o9JGt",
+        "modifiedAt": "2026-11-02T06:01:15.776Z",
+        "bytes": 20446857,
+        "status": "located_not_currently_rehashed"
+      },
+      {
+        "dataset": "CBB per-file SHA256 delivery manifest",
+        "id": "1PKZ_OHLpmacIkUNDzRSmqUmZ6qJvECeS",
+        "modifiedAt": "2026-11-02T06:01:23.839Z",
+        "bytes": 11565,
+        "status": "located_and_read"
+      },
+      {
+        "dataset": "CBB delivery README",
+        "id": "14cmQI-tgnM6Z9ebLGSvQlEs2iyLLq9Cn",
+        "modifiedAt": "2026-11-02T06:01:21.978Z",
+        "status": "located_and_read"
+      },
+      {
+        "dataset": "CFB historical research folder",
+        "id": "1ENt91M_F5fbSbFQR4iEcSDBvatmJId2V",
+        "status": "located"
+      },
+      {
+        "dataset": "CFB games core 2004-2026 sheet",
+        "id": "12u_Pic8aVaZktVVuCdAGr3w4gqrG0RKetfrURqJ-Zd4",
+        "modifiedAt": "2026-10-02T15:02:48.464Z",
+        "status": "located_not_row_revalidated"
+      },
+      {
+        "dataset": "CFB provider lines sheet",
+        "id": "1JSPfIuGQ6AvcUxJMXEyFVSSAUwO7foTaF9goleqFI_o",
+        "modifiedAt": "2026-10-02T15:08:38.737Z",
+        "status": "located_not_row_revalidated"
+      }
+    ]
+  },
+  "repository": {
+    "name": "coachhornsby/fbis",
+    "primaryReports": [
+      {
+        "path": "docs/CBB-PROVIDER-INVENTORY-20261102.md",
+        "observation": "365-team ESPN/CBBD/KenPom/Torvik identities and 2027 current + prior ratings distinction; verified 365 Torvik factors; 2027 CBBD adjusted ratings 0 rows",
+        "status": "documented_historical_receipt"
+      },
+      {
+        "path": "research/cfb/sdv-20261011/coverage-manifest.json",
+        "observation": "2026 446 schedule games, 892 team-box rows, 38665 player-box rows as of October 11; not current November 6"
+      },
+      {
+        "path": "research/cfb/sdv-20261011/model-stat-coverage.json",
+        "observation": "138 FBS teams and 783 numeric metric columns; 93 teams had summary lag in October 11 report"
+      },
+      {
+        "path": "artifacts/cbb-cutover/exhaustive-field-reconciliation.json",
+        "observation": "2026-10-26 source-target CBB migration parity: 362 canonical teams, 28019 players, 44098 roster membership, 87756 schedule items, but shared games/predictions tables 0; parity is not 365-team current source coverage"
+      },
+      {
+        "path": "research/cfb/recovery-20261011/independent-reconciliation.json",
+        "observation": "Historic D1 backup full restore evidence; cfbd/cfb identity and roster source tuple counts, not live current parity"
+      },
+      {
+        "path": "docs/cfb-full-history-v3.md",
+        "observation": "2004-current research design and ~95.5% combined market-line coverage; 2012 gap persists"
+      },
+      {
+        "path": "docs/cfb-complete-history.md",
+        "observation": "2000-2026 CFBD coverage targets, fail-closed QA and point-in-time provenance policy"
+      }
+    ],
+    "reusableCode": [
+      "scripts/cbb-directory-phase-a.mjs",
+      "scripts/cbb-directory-phase-b.mjs",
+      "scripts/cbb-provider-inventory.py",
+      "scripts/cbb-provider-report.py",
+      "scripts/cfb-team-directory-build.py",
+      "scripts/cfb-player-directory-build.py",
+      "scripts/cfb-sdv-coverage-audit.py",
+      "scripts/cfb-history-coverage.mjs",
+      "scripts/cfb-full-history-build.mjs",
+      "scripts/cfb-forward-reconcile.mjs",
+      "functions/lib/cfbCollectionReconciliation.js",
+      "functions/lib/cbbPersistentDirectory.js",
+      "scripts/github_college_shadow.py",
+      "scripts/github_college_coverage.py"
+    ]
+  },
+  "statusByFamily": {
+    "teams": {
+      "cfb": "historical_138_of_138_FBS_documented",
+      "cbb": "new_source_365_documented_old_migration_362",
+      "nextGate": "identify 3 canonical team delta and verify current 2027 match against persisted team IDs"
+    },
+    "schedules": {
+      "cfb": "October_11_2026_SDv_446_games_snapshot",
+      "cbb": "87756_historical_migrated_schedule_rows_not_current_season",
+      "nextGate": "read existing schedule manifests and compare latest ESPN/official final status by event ID"
+    },
+    "boxes": {
+      "cfb": "October_11_2026_SDv_892_team_38665_player_rows",
+      "cbb": "current_provider_data_partially_observed",
+      "nextGate": "date-bounded joins of completed event IDs to team and player game box records"
+    },
+    "ratings": {
+      "cfb": "2026_Core_138_sample_verified_and_historical_documents",
+      "cbb": "KenPom_Torvik_365_preserved_CBBD_2027_adjusted_empty",
+      "nextGate": "retain provider-specific capture timestamps; no prior-year relabeling"
+    },
+    "history": {
+      "cfb": "research_history_prepared_not_live_cutover",
+      "cbb": "archives_and_hash_manifests_located",
+      "nextGate": "reuse verified Drive snapshots; no all-history recollection"
+    }
+  },
+  "migrationNextActions": [
+    "Establish immutable source manifest keyed by existing Drive file IDs, provider season, checksum, source observation time.",
+    "Perform read-only row-level and checksum readback for existing archives before any duplicate import.",
+    "Compare canonical team IDs 362 vs 365 without assuming three records are absent from all tables.",
+    "Connect the already-validated GitHub capture code to existing model/normalization entry points in shadow only.",
+    "Publish to EdgeFinder only after full row/field parity and current-source freshness checks."
+  ],
+  "explicitExclusions": [
+    "No new recurring collectors",
+    "No paid provider polling",
+    "No D1/R2 writes",
+    "No model promotion",
+    "No restored Apify or The Odds API dependencies"
+  ]
+}
