@@ -105,12 +105,22 @@ def capture(outdir: Path, year: int, week: int, team: str, network: bool) -> dic
                         "settlementAuthority": False,
                     }
                 )
+            except urllib.error.HTTPError as exc:
+                # Response code alone is safe to log; provider error bodies can contain account details.
+                row["errorType"] = "HTTPError"
+                row["httpStatus"] = exc.code
+                errors.append(source)
             except (urllib.error.URLError, TimeoutError, ValueError, RuntimeError) as exc:
                 # Avoid storing exception strings: some libraries may include full signed URLs.
                 row["errorType"] = type(exc).__name__
                 errors.append(source)
             receipt["sources"].append(row)
         receipt["status"] = "CAPTURED" if not errors else "INCOMPLETE"
+        for row in receipt["sources"]:
+            print(json.dumps({"source": row["source"], "status": row["status"],
+                              "httpStatus": row.get("httpStatus"),
+                              "errorType": row.get("errorType"),
+                              "count": row.get("count")}), flush=True)
     (outdir / "receipt.json").write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
     if network and receipt["status"] != "CAPTURED":
         raise RuntimeError("Shadow capture incomplete; no production publication")
