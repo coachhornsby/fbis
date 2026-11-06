@@ -4,7 +4,7 @@ import {validatePublicProjectionSummary} from '../../functions/lib/publicFourSpo
 const loaded=new Map();
 export function clearPublicSportSnapshot(sport,date){loaded.delete(sport+':'+date);}
 export async function loadPublicSportSnapshot(sport,date){
-  if(!PRIVATE_RECOVERY_SPORTS.includes(sport)||!/^\\d{4}-\\d{2}-\\d{2}$/.test(date))
+  if(!PRIVATE_RECOVERY_SPORTS.includes(sport)||!/^\d{4}-\d{2}-\d{2}$/.test(date))
     throw Error('INVALID_SPORT_OR_DATE');
   const key=sport+':'+date;
   if(loaded.has(key))return loaded.get(key);
