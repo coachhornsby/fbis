@@ -1,0 +1,41 @@
+name: FBIS exchange market explorer — one-time live smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fbis-market-explorer-smoke-20261106.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fbis-market-explorer-live-smoke
+  cancel-in-progress: false
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Test one bounded public exchange-market snapshot read
+        run: |
+          node --input-type=module <<'NODE'
+          const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+          const url='https://fbis-myz.pages.dev/api/public/exchange-quotes?sport=cbb&date=2026-11-06';
+          let response,body;
+          try{
+            response=await fetch(url,{signal:controller.signal,headers:{accept:'application/json'}});
+            const text=await response.text();
+            try{body=JSON.parse(text);}catch{throw Error('NON_JSON_HTTP_'+response.status);}
+            const report={http:response.status,ok:body?.ok,code:body?.code||null,
+              gameCount:Object.keys(body?.byEvent||{}).length,matchedQuoteCounts:body?.matchedQuoteCounts||{},
+              firstHalfState:body?.marketSources?.Kalshi?.first_half_total?.state??'MISSING_STATUS',
+              polymarketState:body?.marketSources?.Polymarket?.state??'MISSING_STATUS',
+              readOnly:body?.referenceOnly,canAuthorizeWager:body?.canAuthorizeWager};
+            console.log(JSON.stringify(report));
+            if(!response.ok||body?.ok!==true||body?.referenceOnly!==true||body?.canAuthorizeWager!==false||
+               !body?.marketSources?.Kalshi?.first_half_total)process.exitCode=1;
+          }finally{clearTimeout(timer);}
+          NODE
