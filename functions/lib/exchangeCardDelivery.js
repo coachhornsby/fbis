@@ -51,7 +51,7 @@ export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()
   for(const [id,quotes] of Object.entries(matched))(byEvent[id]??=[]).push(...quotes);
  });
  const selected=selectBoundedPolymarketOffers(poly,fixtures.map(g=>({id:g.id,sport,start:g.start})),sport);
- for(const [id,offers] of selected.byId)for(const o of offers){if(!['moneyline','spread','total'].includes(o.marketFamily))continue;if(o.marketFamily!=='moneyline'&&(typeof o.line!=='number'||!Number.isFinite(o.line)))continue;(byEvent[id]??=[]).push({venue:'Polymarket',marketFamily:o.marketFamily,line:o.marketFamily==='moneyline'?null:o.line,side:o.side,ask:o.contractPrice,receivedAt:o.collectedAt,eventStart:fixtures.find(g=>g.id===id).start,transport:'WebSocket',marketId:o.sourceMarketId,canAuthorizeWager:false});}
+ for(const [id,offers] of selected.byId)for(const o of offers){if(!['moneyline','spread','total'].includes(o.marketFamily))continue;if(o.marketFamily!=='moneyline'&&(typeof o.line!=='number'||!Number.isFinite(o.line)))continue;(byEvent[id]??=[]).push({venue:'Polymarket',marketFamily:o.marketFamily,period:o.period,line:o.marketFamily==='moneyline'?null:o.line,side:o.side,ask:o.contractPrice,receivedAt:o.collectedAt,eventStart:fixtures.find(g=>g.id===id).start,transport:'WebSocket',marketId:o.sourceMarketId,canAuthorizeWager:false});}
  const inspect=source=>{
   if(!source?.ok)return {state:'NOT_CAPTURED',capturedAt:null};
   const at=Date.parse(source.capturedAt);
