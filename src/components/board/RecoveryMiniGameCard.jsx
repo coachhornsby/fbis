@@ -80,8 +80,10 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
   </button>
   <div className="fbis-mini-exchanges" aria-label="Exchange prices">
    <table><thead><tr><th scope="col"><span className="fbis-mini-sr-only">Exchange</span></th><th scope="col">Market</th><th scope="col" className="fbis-mini-market-team" title={displayName(away)} aria-label={displayName(away)}><TeamLogo team={away} size={30} tone="light" className="fbis-mini-market-team-logo"/></th><th scope="col" className="fbis-mini-market-team" title={displayName(home)} aria-label={displayName(home)}><TeamLogo team={home} size={30} tone="light" className="fbis-mini-market-team-logo"/></th></tr></thead><tbody>{exchangeRows.map(row=><tr key={row.venue+row.family}>
-    {row.family==='moneyline'&&<th scope="rowgroup" rowSpan={3} title={row.venue}><img className="fbis-mini-exchange-logo" src={row.venue==='Kalshi'?'https://kalshi.com/favicon.ico':'/brands/polymarket.png'} alt={row.venue} width="32" height="32" loading="lazy"/></th>}
-    <th scope="row">{row.label}</th>{row.cells.map((cell,i)=><td key={i} title={cell.title}>{cell.line&&<span className="fbis-mini-exchange-line">{cell.line}</span>}{cell.price}</td>)}
+    {row.family==='moneyline'&&<th scope="rowgroup" rowSpan={4} title={row.venue}><img className="fbis-mini-exchange-logo" src={row.venue==='Kalshi'?'https://kalshi.com/favicon.ico':'/brands/polymarket.png'} alt={row.venue} width="32" height="32" loading="lazy"/></th>}
+    <th scope="row">{row.label}</th>{row.cells.map((cell,i)=><td key={i} title={cell.title}>{cell.lines?.length
+     ?<div className="fbis-mini-team-total-prices">{cell.lines.map(x=><div key={x.line} title={x.title}><span>{x.line}</span><strong>{x.price}</strong></div>)}</div>
+     :<>{cell.line&&<span className="fbis-mini-exchange-line">{cell.line}</span>}{cell.price}</>}</td>)}
    </tr>)}</tbody></table>
   </div>
 
