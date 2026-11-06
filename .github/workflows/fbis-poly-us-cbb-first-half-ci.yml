@@ -29,5 +29,25 @@ jobs:
           node --check functions/lib/boundedPolymarketBoard.js
           node --check functions/lib/exchangeCardDelivery.js
           node --test test/polymarket-us-cbb-first-half-route.test.mjs test/polymarket-bounded-session.test.mjs test/polymarket-rest-boundary.test.mjs test/exchange-family-binding.test.mjs test/exchange-card-delivery.test.mjs
+      - name: Probe one bounded public US CBB market page (no credentials)
+        run: |
+          node --input-type=module <<'NODE'
+          const u=new URL('https://gateway.polymarket.us/v1/events');
+          for(const [k,v] of Object.entries({tagSlug:'cbb',active:'true',closed:'false',limit:'20',offset:'0'}))u.searchParams.set(k,v);
+          const ac=new AbortController();const timer=setTimeout(()=>ac.abort(),12000);
+          try{
+            const response=await fetch(u,{signal:ac.signal,headers:{accept:'application/json'}});
+            if(!response.ok){console.log(JSON.stringify({probe:'HTTP_ERROR',http:response.status}));process.exit(0);}
+            const payload=await response.json(),events=Array.isArray(payload.events)?payload.events:[];
+            const types=new Map(),samples=[];let markets=0;
+            for(const e of events.slice(0,20))for(const m of (e.markets||[]).slice(0,200)){
+              markets++;const t=String(m.sportsMarketType||''),t2=String(m.sportsMarketTypeV2||'');
+              const key=t+' | '+t2;types.set(key,(types.get(key)||0)+1);
+              if(/first|half|period/i.test(key)&&samples.length<12)samples.push({type:t,v2:t2,line:m.line,sideDescriptions:(m.marketSides||[]).slice(0,2).map(z=>({description:z.description,long:z.long}))});
+            }
+            console.log('FBIS_PERIOD_PROBE '+JSON.stringify({http:response.status,events:events.length,markets,types:[...types].slice(0,40),samples,completeness:'SAMPLE_ONLY'}));
+          }catch(e){console.log('FBIS_PERIOD_PROBE '+JSON.stringify({status:'FETCH_UNAVAILABLE',reason:e.name||'ERROR'}));}
+          finally{clearTimeout(timer)}
+          NODE
       - name: Build existing Pages board without deployment
         run: npm run build --prefix deploy/board
