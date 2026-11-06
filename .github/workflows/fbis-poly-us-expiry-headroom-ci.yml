@@ -1,0 +1,20 @@
+name: FBIS Polymarket roster expiry headroom checks
+on:
+  push:
+    branches: [fix/poly-us-roster-expiry-headroom-20261106]
+  pull_request:
+    paths:
+      - 'functions/lib/boundedPolymarketRoster.js'
+      - 'test/polymarket-us-roster-expiry-headroom.test.mjs'
+permissions: {contents: read}
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: '22',cache: npm}
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/polymarket-us-roster-expiry-headroom.test.mjs test/polymarket-us-20-slot-lease-pilot.test.mjs test/polymarket-cbb-1h-roster-priority.test.mjs test/polymarket-bounded-session.test.mjs
+      - run: npm run build --prefix deploy/board

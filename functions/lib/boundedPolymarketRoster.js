@@ -4,6 +4,9 @@ import {buildStreamRosterManifest,validateStreamRoster,STREAM_ROSTER_KEY} from '
 export const ROSTER_SPORTS=Object.freeze(['nfl','cfb','cbb','nba','mlb','nhl','tennis']);
 export const candidateKey=sport=>'market-sources/polymarket-us/stream-roster/candidates-v2/'+sport+'.json';
 const fresh=(row,now)=>Number.isFinite(Date.parse(row?.collected_at))&&Date.parse(row.collected_at)<=now&&now-Date.parse(row.collected_at)<900000;
+// Each selected market must remain valid across the next scheduled session.
+// An envelope can have an old min-expiry even when newer individual rows remain.
+export const eligiblePublishedCandidates=(rows,now,headroomMs=120000)=>rows.filter(r=>fresh(r,now)&&Date.parse(r.collected_at)+900000>now+headroomMs);
 const writeOptions=prior=>{if(prior&&(typeof prior.etag!=='string'||!prior.etag.length))throw Error('MISSING_ROSTER_VERSION');return {onlyIf:prior?{etagMatches:prior.etag}:{etagDoesNotMatch:'*'},httpMetadata:{contentType:'application/json',cacheControl:'private, no-store'}};};
 export async function stageBoundedStreamCandidates(env,{sport,candidates,now=Date.now()}={}){
  if(!ROSTER_SPORTS.includes(sport)||!Array.isArray(candidates)||!candidates.length||candidates.length>50||candidates.some(r=>r.sport!==sport))throw Error('INVALID_CANDIDATE_SCOPE');
@@ -28,8 +31,10 @@ export async function publishBoundedStreamRoster(env,{now=Date.now(),reservation
   const value=await object.json();
   if(value.version!==2||value.source!=='Polymarket US'||value.sport!==sport||!Array.isArray(value.roster)||value.roster.length>50)throw Error('INVALID_CANDIDATE_STORE');
   if(!Number.isFinite(Date.parse(value.capturedAt))||Date.parse(value.capturedAt)>now||!Number.isFinite(Date.parse(value.expiresAt)))throw Error('INVALID_CANDIDATE_CLOCK');
-  if(Date.parse(value.expiresAt)<=now){sources.push({sport,status:'EXPIRED',selected:0});continue;}
-  const rows=value.roster.filter(r=>fresh(r,now));
+  if(Date.parse(value.expiresAt)>Date.parse(value.capturedAt)+900000)throw Error('INVALID_CANDIDATE_EXPIRATION');
+  // Discard expired near-expiry rows individually; don't reject newer records
+  // merely because an older row set the candidate envelope's min expiry.
+  const rows=eligiblePublishedCandidates(value.roster,now);
   if(rows.some(r=>r.sport!==sport))throw Error('CANDIDATE_SPORT_MISMATCH');
   if(rows.length)validateStreamRoster({...value,capturedAt:new Date(now).toISOString(),expiresAt:new Date(now+900000).toISOString(),roster:rows},now);
   candidates.push(...rows);sources.push({sport,status:rows.length?'CURRENT':'STALE',selected:rows.length});
