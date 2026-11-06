@@ -38,6 +38,6 @@ jobs:
               readOnly:body?.referenceOnly,canAuthorizeWager:body?.canAuthorizeWager};
             console.log(JSON.stringify(report));
             if(!response.ok||body?.ok!==true||body?.referenceOnly!==true||body?.canAuthorizeWager!==false||
-               !body?.marketSources?.Kalshi?.first_half_total)process.exitCode=1;
+               !body?.marketSources?.Kalshi?.first_half_total||report.polymarketFirstHalf<1)process.exitCode=1;
           }finally{clearTimeout(timer);}
           NODE
