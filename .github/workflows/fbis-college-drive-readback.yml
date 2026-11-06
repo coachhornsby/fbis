@@ -1,6 +1,10 @@
 name: FBIS private Drive archive readback — manual only
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fbis-college-drive-readback.yml"
   pull_request:
     paths:
       - "scripts/github_drive_archive_verify.py"
@@ -35,7 +39,7 @@ jobs:
       - name: Offline Drive manifest contract tests
         run: python -m unittest discover -s test -p github_drive_archive_verify_test.py -v
       - name: Install authenticated Google read-only client
-        if: github.event_name == 'workflow_dispatch' && inputs.verify_drive
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.verify_drive)
         run: python -m pip install 'google-auth>=2.35,<3' 'requests>=2.31,<3'
       - name: Verify three private Drive archives
         if: github.event_name == 'workflow_dispatch' && inputs.verify_drive
