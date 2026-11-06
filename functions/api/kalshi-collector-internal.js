@@ -22,7 +22,7 @@ const scopes=Object.freeze({
  'exchange-status':{job:KALSHI_STATUS_JOB,path:KALSHI_DIAGNOSTIC_PATHS.status,run:captureSignedKalshiExchangeStatus},
  'series-catalog':{job:KALSHI_CATALOG_JOB,path:KALSHI_DIAGNOSTIC_PATHS.series,run:captureKalshiSportsSeriesCatalog},
 });
-const sports=new Set(['nfl','cfb','nba','cbb','nhl','cfb_spread','cfb_total','nba_spread','nba_total','nba_team_total','cbb_spread','cbb_total','cbb_team_total','atp','wta','atp_challenger','itf_men','itf_women','atp_doubles','wta_doubles','itf_doubles','itf_women_doubles']);
+const sports=new Set(['nfl','cfb','nba','cbb','nhl','cfb_spread','cfb_total','nba_spread','nba_total','nba_team_total','cbb_spread','cbb_total','cbb_team_total','cbb_1h_total','atp','wta','atp_challenger','itf_men','itf_women','atp_doubles','wta_doubles','itf_doubles','itf_women_doubles']);
 export async function onRequestPost({request,env,fetchImpl=fetch,webCrypto=crypto}){
  if(!await authorized(env?.FBIS_KALSHI_RELAY_TOKEN,request.headers.get('x-fbis-kalshi-relay-token'),webCrypto.subtle))return respond({ok:false,code:'INTERNAL_COLLECTOR_ACCESS_DENIED'},403);
  const url=new URL(request.url),scope=url.searchParams.get('scope');
