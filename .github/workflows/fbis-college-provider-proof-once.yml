@@ -1,0 +1,47 @@
+name: FBIS CFB-CBBD one-time GitHub provider proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fbis-college-provider-proof-once.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-college-provider-proof-once
+  cancel-in-progress: false
+
+jobs:
+  provider-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      CFBD_CBBD_KEY: ${{ secrets.CFBD_CBBD_KEY || secrets.CFBD_API_KEY || secrets.CBBD_API_KEY || '' }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Verify offline source contract
+        run: python -m unittest discover -s test -p github_college_shadow_test.py -v
+      - name: Require an existing GitHub Actions provider secret
+        shell: bash
+        run: |
+          if [[ -z "$CFBD_CBBD_KEY" ]]; then
+            echo "::error::BLOCKED_NO_SECRET: set CFBD_CBBD_KEY (or an existing CFBD_API_KEY/CBBD_API_KEY) as a GitHub Actions secret"
+            exit 2
+          fi
+      - name: Two bounded authenticated requests (no Cloudflare)
+        run: python scripts/github_college_shadow.py --year 2026 --week 10 --cbb-team Duke --network
+      - name: Upload non-sensitive verification receipt only
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: fbis-college-provider-proof-${{ github.run_id }}
+          path: artifacts/github-college-shadow/receipt.json
+          retention-days: 7
+          if-no-files-found: warn
