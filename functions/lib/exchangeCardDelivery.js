@@ -48,5 +48,23 @@ export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()
  });
  const selected=selectBoundedPolymarketOffers(poly,fixtures.map(g=>({id:g.id,sport,start:g.start})),sport);
  for(const [id,offers] of selected.byId)for(const o of offers){if(!['moneyline','spread','total'].includes(o.marketFamily))continue;if(o.marketFamily!=='moneyline'&&(typeof o.line!=='number'||!Number.isFinite(o.line)))continue;(byEvent[id]??=[]).push({venue:'Polymarket',marketFamily:o.marketFamily,line:o.marketFamily==='moneyline'?null:o.line,side:o.side,ask:o.contractPrice,receivedAt:o.collectedAt,eventStart:fixtures.find(g=>g.id===id).start,transport:'WebSocket',marketId:o.sourceMarketId,canAuthorizeWager:false});}
- return {ok:true,sport,date,byEvent,capturedAt:new Date(now).toISOString(),referenceOnly:true,canAuthorizeWager:false};
+ const inspect=source=>{
+  if(!source?.ok)return {state:'NOT_CAPTURED',capturedAt:null};
+  const at=Date.parse(source.capturedAt);
+  return {state:Number.isFinite(at)&&at<=now&&now-at<=1800000?'CAPTURED':'STALE',
+    capturedAt:Number.isFinite(at)?source.capturedAt:null};
+ };
+ const marketSources={
+  Kalshi:{moneyline:inspect(snapshot),spread:inspect(derivativeSnapshots[0]),
+   total:inspect(derivativeSnapshots[1]),team_total:inspect(derivativeSnapshots[2])},
+  Polymarket:{state:poly.ok?'CAPTURED':poly.code||'NOT_CAPTURED',
+   capturedAt:poly.ok?poly.capturedAt:null}
+ };
+ const matched=Object.values(byEvent).flat().reduce((acc,q)=>{
+  const venue=q.venue||'UNKNOWN',family=q.marketFamily||'moneyline';
+  (acc[venue]??={})[family]=(acc[venue][family]||0)+1;
+  return acc;
+ },{});
+ return {ok:true,sport,date,byEvent,capturedAt:new Date(now).toISOString(),
+  marketSources,matchedQuoteCounts:matched,referenceOnly:true,canAuthorizeWager:false};
 }
