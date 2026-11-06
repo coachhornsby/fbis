@@ -155,7 +155,7 @@ export async function kalshiCoverageReport(env,{now=new Date(),sport=null}={}){
  }));
  return{
   ok:true,provider:"Kalshi",asOf:now.toISOString(),
-  scope:"NFL_CFB_SIGNED_PUBLIC_SHADOW_ONLY",
+  scope:sport==="cbb"?"CBB_SIGNED_PUBLIC_SHADOW_ONLY":"NFL_CFB_SIGNED_PUBLIC_SHADOW_ONLY",
   sports:result,
   governance:{
    fullSportCoverageVerified:false,canQualify:false,
