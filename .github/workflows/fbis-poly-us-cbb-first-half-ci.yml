@@ -1,0 +1,33 @@
+name: FBIS Polymarket US CBB first-half contract validation
+on:
+  push:
+    branches: [fix/polymarket-us-cbb-first-half-period-20261106]
+  pull_request:
+    paths:
+      - 'services/polymarket-rest-collector/collector.mjs'
+      - 'services/polymarket-us-stream/boundedSession.mjs'
+      - 'functions/lib/boundedPolymarketBoard.js'
+      - 'functions/lib/exchangeCardDelivery.js'
+      - 'test/polymarket-us-cbb-first-half-route.test.mjs'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify no provider-side network or D1 calls required
+        run: |
+          node --check services/polymarket-rest-collector/collector.mjs
+          node --check services/polymarket-us-stream/boundedSession.mjs
+          node --check functions/lib/boundedPolymarketBoard.js
+          node --check functions/lib/exchangeCardDelivery.js
+          node --test test/polymarket-us-cbb-first-half-route.test.mjs test/polymarket-bounded-session.test.mjs test/polymarket-rest-boundary.test.mjs test/exchange-family-binding.test.mjs test/exchange-card-delivery.test.mjs
+      - name: Build existing Pages board without deployment
+        run: npm run build --prefix deploy/board
