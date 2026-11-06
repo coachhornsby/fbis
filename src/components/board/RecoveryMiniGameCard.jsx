@@ -28,6 +28,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
  const shopping=recoveryLeanShopping(game,{now:clock});
  const lean=shopping.lean,book=shopping.book;
  const away=game.away||{},home=game.home||{};
+ const exchange=(game.exchangeReferenceQuotes||[]).filter(q=>['Kalshi','Polymarket'].includes(q.venue)&&['home','away'].includes(q.side)&&q.ask>0&&q.ask<1&&Number.isFinite(Date.parse(q.receivedAt))&&clock>=Date.parse(q.receivedAt)&&clock-Date.parse(q.receivedAt)<=(q.transport==='WebSocket'?120000:900000)&&Math.abs(Date.parse(q.eventStart)-Date.parse(game.start))<=60000);
  const observed=book?new Date(book.observedAt).toLocaleTimeString('en-US',{
   timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'
  }):null;
@@ -82,6 +83,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
     </div>
    </div>
   </button>
+  <div className="fbis-mini-exchanges" aria-label="Exchange reference prices">{['Kalshi','Polymarket'].map(venue=>{const rows=exchange.filter(q=>q.venue===venue);return <div key={venue}><strong>{venue}</strong><span>{rows.length?rows.map(q=>(q.side==='home'?smallName(home):smallName(away))+' '+(q.ask*100).toFixed(1)+'¢').join(' · '):'Awaiting matched quotes'}</span><span>{rows.length?rows.map(q=>q.transport).filter((v,i,a)=>a.indexOf(v)===i).join(' / ')+' · reference ask':'No current exchange price'}</span></div>;})}</div>
   <footer className="fbis-mini-footer">
    <span>{fresh?(model.modelId||'FBIS')+' · '+(model.attribution||'research'):'No verified current forecast'}</span>
    <span>RESEARCH · NO WAGER APPROVAL</span>

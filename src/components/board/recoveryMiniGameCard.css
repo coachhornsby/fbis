@@ -163,3 +163,7 @@
 .fbis-shell-main.route-board .fbis-mini-model-facts span{display:block;font-size:16px;line-height:1.4;color:#e5e7eb}
 .fbis-shell-main.route-board .fbis-mini-model-facts strong{display:block;margin-top:5px;font-size:22px;line-height:1.3;color:#fbd279;overflow-wrap:anywhere}
 @media(max-width:400px){.fbis-shell-main.route-board .fbis-mini-body{grid-template-columns:minmax(0,1fr) 112px minmax(0,1fr);gap:3px}.fbis-shell-main.route-board .fbis-mini-footer{display:block}.fbis-shell-main.route-board .fbis-mini-footer span{display:block;margin:5px 0}}
+
+.fbis-shell-main.route-board .fbis-mini-exchanges{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px;border-top:1px solid #385068;color:#f3f8ff;font-size:16px;line-height:1.4}
+.fbis-shell-main.route-board .fbis-mini-exchanges>div{display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere}
+.fbis-shell-main.route-board .fbis-mini-exchanges span,.fbis-shell-main.route-board .fbis-mini-exchanges strong{font-size:16px;color:#f3f8ff}
