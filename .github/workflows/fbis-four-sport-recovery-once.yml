@@ -35,7 +35,7 @@ jobs:
       - name: Verify bounded runner and original projection contract
         run: |
           node --check scripts/recover-four-sport-once.mjs
-          node --test test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs test/nfl-automatic-projection-form.test.mjs
+          node --test test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs test/nfl-automatic-projection-form.test.mjs test/public-four-sport-projections.test.mjs
       - name: Refresh today's free-input research projections once
         run: node scripts/recover-four-sport-once.mjs
       - name: Retain bounded, non-public job evidence
