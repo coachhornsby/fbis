@@ -1,3 +1,4 @@
+import {resolveTeamExact} from './teams.js';
 /**
  * Polymarket US read-only research adapter.
  * US gateway is a different exchange from Polymarket International Gamma/CLOB.
@@ -43,7 +44,8 @@ export function marketEventStart(e={}){
 }
 function normName(x){return CLEAN(String(x??"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"")).replace(/\b(the|club|fc|football|basketball|baseball|hockey|team)\b/g,"").replace(/\s+/g," ").trim();}
 const GENERIC_TEAM_TOKENS=new Set(["city","united","town","club","athletic","sporting","real","international","national","state","university","college","rovers","home","away"]);
-function teamMatches(a,b,abbr){
+function teamMatches(a,b,abbr,sport){
+  if(sport==="cbb"){const left=resolveTeamExact("cbb",{name:a}),right=resolveTeamExact("cbb",{name:b});if(left&&normName(a)===normName(left.nickname)||right&&normName(b)===normName(right.nickname))return false;if(left&&right)return left.id===right.id;}
   const x=normName(a), y=normName(b);
   if(!x||!y)return false;
   if(x===y)return true;
@@ -120,7 +122,7 @@ export function matchPolymarketUsEvent(e,games=[],sport){
     if(!Number.isFinite(gt)||Math.abs(gt-start)>2*60*60*1000)return false;
     const away=g.away_name||g.awayName||g.away?.name,home=g.home_name||g.homeName||g.home?.name;
     if(!away||!home)return false;
-    const matchTeam=(a,b,abbr)=>sport==="soccer"?soccerMarketTeamMatches(a,b,abbr,g.league||g.soccerLeague):teamMatches(a,b,abbr);
+    const matchTeam=(a,b,abbr)=>sport==="soccer"?soccerMarketTeamMatches(a,b,abbr,g.league||g.soccerLeague):teamMatches(a,b,abbr,sport);
     if(sport==="soccer"&&e.homeTeam?.name&&e.awayTeam?.name&&
       (!matchTeam(e.homeTeam.name,home,g.home_abbr)||!matchTeam(e.awayTeam.name,away,g.away_abbr)))return false;
     const names=(participants.length?participants:[]).concat(title,...(sport==="soccer"?title.split(/\s+(?:vs?\.?|versus)\s+/i):[]));
@@ -233,7 +235,7 @@ export function polymarketUsCanonicalSide(offer,game,league){
  const original=String(offer.raw?.providerSide?.team?.name||offer.side||'');
  const negated=/^not /i.test(original);
  const name=original.replace(/^not /i,'').replace(/\s+[+-]\d+(?:\.\d+)?\s*$/,'').trim();
- const match=(a,b,abbr)=>offer.sport==='soccer'?soccerMarketTeamMatches(a,b,abbr,league):teamMatches(a,b,abbr);
+ const match=(a,b,abbr)=>offer.sport==='soccer'?soccerMarketTeamMatches(a,b,abbr,league):teamMatches(a,b,abbr,offer.sport);
  const home=match(name,game.home_name||game.home?.name,game.home_abbr||game.home?.abbr),away=match(name,game.away_name||game.away?.name,game.away_abbr||game.away?.abbr);
  return home!==away?(home!==negated?'home':'away'):null;
 }

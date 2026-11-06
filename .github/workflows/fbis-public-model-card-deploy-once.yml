@@ -37,8 +37,9 @@ jobs:
           node --check services/exchangeDiagnostics.mjs
           node --check functions/lib/exchangeCardDelivery.js
           node --check functions/lib/kalshiNbaRuleIdentity.js
+          node --check functions/lib/kalshiCollegeRuleIdentity.js
           node --test test/retired-provider-policy.test.js test/retired-provider-pages.test.mjs test/odds-provider-router.test.js
-          node --test test/recovery-card-facts.test.mjs test/exchange-card-delivery.test.mjs
+          node --test test/recovery-card-facts.test.mjs test/exchange-card-delivery.test.mjs test/cbb-exchange-identity.test.mjs
           node --test test/exchange-relay-pages.test.mjs test/kalshi-market-stream.test.mjs test/exchange-cycle-allocation.test.mjs test/polymarket-stream-broker.test.js test/kalshi-signed-collector.test.js test/job-execution-budget.test.mjs test/account-budget-admission.test.mjs
           node --check functions/lib/publicFourSportProjection.js
           node --check src/lib/publicSportAuto.js

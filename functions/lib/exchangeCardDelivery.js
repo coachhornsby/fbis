@@ -1,3 +1,4 @@
+import {collegeRuleIdentity} from './kalshiCollegeRuleIdentity.js';
 import {nbaRuleIdentity} from './kalshiNbaRuleIdentity.js';
 import {beginJobExecution} from '../../services/account-budget/jobScope.mjs';
 import {loadBoundedPolymarketSnapshot,selectBoundedPolymarketOffers} from './boundedPolymarketBoard.js';
@@ -15,7 +16,7 @@ export function matchedKalshiCardQuotes(fixtures,snapshot,stream,{sport,now=Date
   if(m.sport!==sport||m.seriesTicker!==KALSHI_SHADOW_SERIES[sport]||!m.ticker?.startsWith(KALSHI_SHADOW_SERIES[sport]+'-')||m.status!=='active')continue;
   // Require provider kickoff and both full team names. Never treat expiration as kickoff.
   const at=Date.parse(m.occurrenceAt),title=' '+norm(m.title)+' ',label=norm(m.yesLabel);
-  const ruleMatch=sport==='nba'?nbaRuleIdentity(m,fixtures,snapshot.records):null;
+  const ruleMatch=sport==='nba'?nbaRuleIdentity(m,fixtures,snapshot.records):sport==='cbb'?collegeRuleIdentity(m,fixtures,snapshot.records):null;
   if(!Number.isFinite(at)&&!ruleMatch)continue;
   const candidates=fixtures.filter(g=>Math.abs(Date.parse(g.start)-at)<=900000&&[g.home_name,g.away_name].every(n=>norm(n).split(' ').length>=2&&title.includes(' '+norm(n)+' ')));
   if(candidates.length!==1&&!ruleMatch)continue;const g=ruleMatch?.fixture||candidates[0],home=ruleMatch?ruleMatch.side==='home':label===norm(g.home_name),away=ruleMatch?ruleMatch.side==='away':label===norm(g.away_name);if(home===away)continue;

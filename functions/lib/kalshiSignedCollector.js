@@ -167,6 +167,14 @@ export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date()
       });
     }else{
       await writeJson(env.ARCHIVE,progressKey(sport),progress);
+      // Preserve traversal completeness separately from useful current rows.
+      // Each row keeps its original fetchedAt; no partial page claims full coverage.
+      if(sport==='cbb')await writeJson(env.ARCHIVE,"sports/cbb.json",{
+        ok:true,provider:'Kalshi',sport,seriesTicker:KALSHI_SHADOW_SERIES[sport],
+        capturedAt:iso(now),startedAt:progress.startedAt,records:progress.records,
+        paginationComplete:false,coverage:'BOUNDED_PARTIAL_SERIES',pagesFetched:progress.pagesFetched,
+        canQualify:false,canAuthorizeWager:false,canWriteMarketHistory:false,
+      });
     }
   }else if(active){
     // Preserve valid existing progress after provider timeout or 429.
