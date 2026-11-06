@@ -32,6 +32,7 @@ jobs:
           node --check deploy/board/functions/_middleware.js
           node --test test/retired-provider-policy.test.js test/retired-provider-pages.test.mjs test/odds-provider-router.test.js
           node --test test/recovery-card-facts.test.mjs
+          node --test test/exchange-relay-pages.test.mjs test/polymarket-stream-broker.test.js test/kalshi-signed-collector.test.js test/job-execution-budget.test.mjs test/account-budget-admission.test.mjs
           node --check functions/lib/publicFourSportProjection.js
           node --check src/lib/publicSportAuto.js
           node --check 'deploy/board/functions/api/public/sports/[sport]/[date].js'
