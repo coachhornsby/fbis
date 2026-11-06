@@ -4,7 +4,7 @@ compatibility_date = "2026-10-01"
 workers_dev = false
 preview_urls = false
 [triggers]
-crons = []
+crons = ["* * * * *"]
 [vars]
 CLOUDFLARE_ACCOUNT_ID = "2fdc80b8d99070adcef12f7a785c3fc1"
 [[r2_buckets]]

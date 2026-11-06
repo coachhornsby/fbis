@@ -7,7 +7,7 @@ import {createRequire} from 'node:module';
 const require=createRequire(new URL('../services/account-budget/package.json',import.meta.url));
 const {Miniflare}=require(process.env.FBIS_MINIFLARE_MODULE || 'miniflare');
 const root=new URL('../services/account-budget/',import.meta.url);
-const modules=await Promise.all(['worker.mjs','admission.mjs','executionJobs.mjs'].map(async name=>({
+const modules=await Promise.all(['worker.mjs','admission.mjs','cycleAllocation.mjs','executionJobs.mjs'].map(async name=>({
  type:'ESModule',path:new URL(name,root).pathname,contents:await readFile(new URL(name,root),'utf8')
 })));
 function runtime(path,policy){return new Miniflare({

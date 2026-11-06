@@ -27,12 +27,16 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
+      - name: Install pinned exchange release dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm ci --ignore-scripts --prefix services/account-budget
       - name: Validate no-sign-in model publication and unchanged private gates
         run: |
           node --check deploy/board/functions/_middleware.js
           node --test test/retired-provider-policy.test.js test/retired-provider-pages.test.mjs test/odds-provider-router.test.js
           node --test test/recovery-card-facts.test.mjs
-          node --test test/exchange-relay-pages.test.mjs test/polymarket-stream-broker.test.js test/kalshi-signed-collector.test.js test/job-execution-budget.test.mjs test/account-budget-admission.test.mjs
+          node --test test/exchange-relay-pages.test.mjs test/kalshi-market-stream.test.mjs test/exchange-cycle-allocation.test.mjs test/polymarket-stream-broker.test.js test/kalshi-signed-collector.test.js test/job-execution-budget.test.mjs test/account-budget-admission.test.mjs
           node --check functions/lib/publicFourSportProjection.js
           node --check src/lib/publicSportAuto.js
           node --check 'deploy/board/functions/api/public/sports/[sport]/[date].js'
@@ -48,3 +52,12 @@ jobs:
       - name: One-shot bounded Pages release (does not turn on GitHub auto-deploy)
         working-directory: deploy/board
         run: npx wrangler pages deploy dist --project-name fbis --branch main --commit-hash "${GITHUB_SHA}"
+      - name: Validate bounded exchange runtimes
+        run: node --test test/account-budget-runtime.test.mjs test/kalshi-job-budget-runtime.test.mjs test/kalshi-market-runtime.test.mjs test/polymarket-rest-runtime.test.mjs test/polymarket-bounded-runtime.test.mjs test/polymarket-roster-routing-runtime.test.mjs
+      - name: Release bounded exchange workers and activate last
+        run: |
+          npx wrangler deploy --config wrangler.kalshi-public-collector.toml --keep-vars
+          npx wrangler deploy --config wrangler.polymarket-rest-collector.toml --keep-vars
+          npx wrangler deploy --config wrangler.polymarket-roster-publisher.toml --keep-vars
+          npx wrangler deploy --config wrangler.polymarket-us-stream.toml --keep-vars
+          node scripts/activate-exchange-cycle.mjs

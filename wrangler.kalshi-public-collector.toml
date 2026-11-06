@@ -5,10 +5,10 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = false
 preview_urls = false
 
-# Single centrally scheduled poll: one NFL or CFB series per fifteen minutes.
+# One rotating sport REST poll per two minutes; bounded market WS per minute.
 # No account credentials. No D1, no betting decisions or venue execution.
 [triggers]
-crons = []
+crons = ["* * * * *"]
 
 [[r2_buckets]]
 binding = "ARCHIVE"
@@ -31,3 +31,11 @@ script_name = "fbis-account-budget"
 
 [limits]
 cpu_ms = 100
+
+[[durable_objects.bindings]]
+name = "MARKET_SESSION"
+class_name = "KalshiMarketPriceSession"
+
+[[migrations]]
+tag = "v1-bounded-market-price-session"
+new_sqlite_classes = ["KalshiMarketPriceSession"]

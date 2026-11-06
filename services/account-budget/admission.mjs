@@ -1,15 +1,17 @@
 // One coordinator per Cloudflare account, used only for bounded job admission.
 // Reservations are never refunded: delayed billing and failed jobs cannot free
 // capacity for another run. This is an application stop, not a provider hard cap.
+import {validCycleAllocation} from './cycleAllocation.mjs';
 export const STOP_MICRO_USD = 8_000_000;
 const integer = n => Number.isSafeInteger(n) && n >= 0;
 
 export async function reserveJob(storage, policy, request, now = Date.now()) {
   if (!policy || policy.enabled !== true) return {allowed:false, reason:'PAUSED'};
   const {startMs,endMs,measuredAtMs,expiresAtMs,committedMicroUsd} = policy;
+  const allocated=validCycleAllocation(policy,now);
   if (![startMs,endMs,measuredAtMs,expiresAtMs,committedMicroUsd].every(integer) ||
       !(startMs<=now && now<endMs && measuredAtMs<=now && now<expiresAtMs) ||
-      now-measuredAtMs>900_000 || expiresAtMs-measuredAtMs>900_000)
+      (!allocated&&(now-measuredAtMs>900_000 || expiresAtMs-measuredAtMs>900_000)))
     return {allowed:false,reason:'MISSING_OR_STALE_COST_EVIDENCE'};
   if (!/^[a-zA-Z0-9_-]{1,80}$/.test(request?.id || '') || ['__proto__','constructor','prototype'].includes(request.id))
     return {allowed:false,reason:'INVALID_JOB_ID'};
@@ -20,11 +22,13 @@ export async function reserveJob(storage, policy, request, now = Date.now()) {
     const key = `period:${startMs}:${endMs}`;
     const state = await txn.get(key) || {reserved:0,count:0,units:{}};
     if (!integer(state.reserved) || !integer(state.count) || !state.units ||
-        typeof state.units!=='object' || state.count>=10_000)
+        typeof state.units!=='object' || state.count>=(allocated?150_000:10_000))
       return {allowed:false,reason:'LEDGER_UNAVAILABLE_OR_FULL'};
     const reservationKey=`${key}:job:${request.id}`;
     if (await txn.get(reservationKey)) return {allowed:false,reason:'DUPLICATE_JOB'};
     const projected = committedMicroUsd+state.reserved+job.worstCaseMicroUsd;
+    if(allocated&&state.reserved+job.worstCaseMicroUsd>policy.cycleAllocation.maxReservedMicroUsd)
+      return {allowed:false,reason:'CYCLE_ALLOCATION_EXHAUSTED'};
     if (!Number.isSafeInteger(projected) || projected>STOP_MICRO_USD)
       return {allowed:false,reason:'ACCOUNT_BUDGET_STOP'};
     const ceilings=policy.unitCeilings || {};
