@@ -4,6 +4,7 @@ import {verifiedCbbFirstHalfTotalBinding,verifiedFullGameDisplayBinding} from '.
 import {validateStreamRoster} from '../services/polymarket-us-stream/boundedSession.mjs';
 import {polymarketUsMarketOffers} from '../functions/lib/polymarketUs.js';
 import {exchangeGameMarkets} from '../src/lib/exchangeMarketExplorer.js';
+import {selectBoundedPolymarketOffers} from '../functions/lib/boundedPolymarketBoard.js';
 const now=Date.parse('2026-11-06T21:30:00Z');
 const game={id:'401x',sport:'cbb',start:'2026-11-07T01:00:00Z',home_name:'Ohio State Buckeyes',away_name:'Youngstown State Penguins'};
 const event={id:'p-event',seriesSlug:'cbb',startTime:game.start,homeTeam:{name:game.home_name},awayTeam:{name:game.away_name},title:'Youngstown State vs Ohio State'};
@@ -43,4 +44,33 @@ test('explorer displays Polymarket US 1st half quote independently from full-gam
  const rows=exchangeGameMarkets(payload,game,{now});
  assert.equal(rows.length,1);assert.equal(rows[0].period,'1h');assert.equal(rows[0].venue,'Polymarket US');
  assert.equal(rows[0].canAuthorizeWager,false);
+});
+
+test('verified opposite-side metadata admits a single US instrument for both sides',()=>{
+ const source={...offer().raw.providerMarket,marketSides:[
+  {id:'yes-id',description:'Over',long:true,quote:{value:0.55}},
+  {id:'no-id',description:'Under',long:false,quote:{value:0.45}}
+ ]};
+ const offers=polymarketUsMarketOffers({...event,markets:[source]},'cbb',{canonicalId:game.id});
+ const yes=offers.find(o=>o.raw.contractLong===true),no=offers.find(o=>o.raw.contractLong===false);
+ assert.equal(yes.side,'Over');assert.equal(no.side,'Under');
+ const binding={...verifiedCbbFirstHalfTotalBinding(yes,game),oppositeSide:'under',oppositeSourceOutcomeId:no.sourceOutcomeId};
+ const entry={sport:'cbb',canonical_event_id:game.id,source_market_id:yes.sourceMarketId,
+   market_family:'total',event_start_time:game.start,collected_at:new Date(now).toISOString(),displayBinding:binding};
+ const raw={version:2,source:'Polymarket US',capturedAt:new Date(now).toISOString(),
+   expiresAt:new Date(now+600000).toISOString(),roster:[entry]};
+ assert.equal(validateStreamRoster(raw,now)[0].displayBinding.oppositeSide,'under');
+ const snapshot={ok:true,code:'BOUNDED_REFERENCE_SNAPSHOT',capturedAt:new Date(now).toISOString(),
+   roster:validateStreamRoster(raw,now),quotes:[{marketSlug:entry.source_market_id,bestBid:0.45,bestAsk:0.55,
+   receivedAt:new Date(now).toISOString(),sourceObservedAt:null}]};
+ const result=selectBoundedPolymarketOffers(snapshot,[{id:game.id,sport:'cbb',start:game.start}],'cbb');
+ const actual=result.byId.get(game.id);
+ assert.equal(actual.length,2);
+ assert.equal(actual.find(o=>o.side==='over').contractPrice,0.55);
+ assert.equal(actual.find(o=>o.side==='under').contractPrice,0.55);
+ assert.equal(actual.find(o=>o.side==='under').quoteKind,'SYNTHETIC_NO_FROM_YES_BID_REFERENCE');
+ assert.ok(actual.every(o=>o.canAuthorizeWager===false));
+ const missing=selectBoundedPolymarketOffers({...snapshot,quotes:[{...snapshot.quotes[0],bestBid:null}]},
+   [{id:game.id,sport:'cbb',start:game.start}],'cbb');
+ assert.equal(missing.byId.get(game.id)?.length,1);
 });
