@@ -25,7 +25,7 @@ export function buildFirstHalfEvidence(rows=[],game={},opts={}) {
       row.homeFirstHalfPoints<=120&&row.awayFirstHalfPoints<=120&&
       row.period==="1H"&&row.final===true&&row.sourceVerified===true &&
       (!opts.season||row.season===opts.season) && !seen.has(row.gameId) &&
-      (!date(row.capturedAt)||Date.parse(row.capturedAt)<tip);
+      date(row.capturedAt)&&Date.parse(row.capturedAt)<tip;
     if(valid){accepted.push(row);seen.add(row.gameId)}else rejected++;
   }
   const stats=id=>{
