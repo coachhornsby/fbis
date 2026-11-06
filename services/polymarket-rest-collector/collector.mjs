@@ -59,14 +59,14 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
  const manifest=validateFixtureManifest(await stored.json(),now);if(manifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');
  if(!manifest.fixtures.length)return {ok:true,sport,status:'NO_FIXTURES',canAuthorizeWager:false};
  const pages=[],candidates=[],errors=[];let matched=0;
- for(const tag of manifest.providerTags){for(let page=0;page<2;page++){
-  const url=new URL('/v1/events',POLY_US_API);
-  for(const [key,value]of Object.entries({tagSlug:tag,active:true,closed:false,limit:20,offset:page*20,orderBy:'id',orderDirection:'asc',startTimeMin:new Date(now-48*3600000).toISOString(),startTimeMax:new Date(now+72*3600000).toISOString()}))url.searchParams.set(key,String(value));
-  const response=await env.FBIS_JOB_FETCH(url.toString(),{headers:{accept:'application/json'}});
-  if(!response.ok){await response.body?.cancel();errors.push({tag,status:response.status});break;}
-  const value=await response.json();if(!Array.isArray(value.events)||value.events.length>20)throw Error('PROVIDER_EVENT_PAGE_INVALID');
-  pages.push({tag,offset:page*20,events:value.events});
-  for(const event of value.events){
+ // One list page + at most three exact-slug pages for CBB. The total stays
+ // within the existing four-request account-budget certificate. Other sports
+ // retain the original two-page-per-tag scan.
+ const plan=sport==='cbb'?[{tag:manifest.providerTags[0],page:0}]:
+  manifest.providerTags.flatMap(tag=>[0,1].map(page=>({tag,page})));
+ const acceptedEvents=[],exhaustedTags=new Set();
+ const processEvents=events=>{
+  for(const event of events){
    if(!Array.isArray(event.markets)||event.markets.length>200)throw Error('PROVIDER_MARKET_CAPACITY');
    if(event.markets.some(m=>!Array.isArray(m.marketSides)||m.marketSides.length>4))throw Error('PROVIDER_SIDE_CAPACITY');
    const match=matchPolymarketUsEvent(event,manifest.fixtures,sport);if(!match.id)continue;matched++;
@@ -107,8 +107,41 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
     }
    }
   }
-  if(value.events.length<20)break;
- }}
+ };
+ for(const {tag,page} of plan){
+  if(exhaustedTags.has(tag))continue;
+  const url=new URL('/v1/events',POLY_US_API);
+  for(const [key,value] of Object.entries({tagSlug:tag,active:true,closed:false,limit:20,offset:page*20,
+   orderBy:'id',orderDirection:'asc',startTimeMin:new Date(now-48*3600000).toISOString(),
+   startTimeMax:new Date(now+72*3600000).toISOString()}))url.searchParams.set(key,String(value));
+  const response=await env.FBIS_JOB_FETCH(url.toString(),{headers:{accept:'application/json'}});
+  if(!response.ok){await response.body?.cancel();errors.push({tag,status:response.status});exhaustedTags.add(tag);continue;}
+  const value=await response.json();
+  if(!Array.isArray(value.events)||value.events.length>20)throw Error('PROVIDER_EVENT_PAGE_INVALID');
+  pages.push({tag,offset:page*20,events:value.events});
+  processEvents(value.events);
+  if(sport==='cbb')for(const e of value.events){
+   if(typeof e.slug==='string'&&/^cbb-[a-z0-9-]{1,140}$/.test(e.slug)
+     &&matchPolymarketUsEvent(e,manifest.fixtures,sport).id)acceptedEvents.push(e);
+  }
+  if(value.events.length<20)exhaustedTags.add(tag);
+ }
+ if(sport==='cbb'&&acceptedEvents.length){
+  const uniqueEvents=[...new Map(acceptedEvents.map(e=>[e.slug,e])).values()];
+  const offset=Math.floor(slot/10)%uniqueEvents.length;
+  for(let i=0;i<Math.min(3,uniqueEvents.length);i++){
+   const selected=uniqueEvents[(offset+i)%uniqueEvents.length];
+   const url=new URL('/v1/events',POLY_US_API);
+   url.searchParams.set('slug',selected.slug);
+   url.searchParams.set('limit','1');
+   const response=await env.FBIS_JOB_FETCH(url.toString(),{headers:{accept:'application/json'}});
+   if(!response.ok){await response.body?.cancel();errors.push({slugScope:'DETAIL_UNAVAILABLE',status:response.status});continue;}
+   const detail=await response.json();
+   if(!Array.isArray(detail.events)||detail.events.length>1)throw Error('PROVIDER_EVENT_DETAIL_INVALID');
+   if(detail.events.length!==1||detail.events[0].slug!==selected.slug)throw Error('PROVIDER_EVENT_SLUG_MISMATCH');
+   processEvents(detail.events);
+  }
+ }
  const unique=new Map();for(const row of candidates){const previous=unique.get(row.source_market_id);if(previous&&previous.canonical_event_id!==row.canonical_event_id)throw Error('AMBIGUOUS_PROVIDER_CONTRACT');unique.set(row.source_market_id,row);}
  const selected=[...unique.values()].slice(0,50),receipt={version:1,sport,capturedAt:new Date(now).toISOString(),pages:pages.length,matchedEvents:matched,candidates:unique.size,selected:selected.length,complete:false,canQualify:false,canAuthorizeWager:false};
  await env.ARCHIVE.put(restKey(sport)+'/latest.json',JSON.stringify({version:1,sport,capturedAt:receipt.capturedAt,pages,complete:false,canAuthorizeWager:false}));
