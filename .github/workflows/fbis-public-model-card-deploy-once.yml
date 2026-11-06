@@ -1,0 +1,45 @@
+name: FBIS public model cards — one bounded release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fbis-public-model-card-deploy-once.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-public-model-cards-once
+  cancel-in-progress: false
+
+jobs:
+  static-board-public-model-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      NODE_OPTIONS: "--max-old-space-size=2048"
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Validate no-sign-in model publication and unchanged private gates
+        run: |
+          node --check functions/lib/publicFourSportProjection.js
+          node --check src/lib/publicSportAuto.js
+          node --check 'deploy/board/functions/api/public/sports/[sport]/[date].js'
+          node --test test/public-four-sport-projections.test.mjs test/four-sport-private-recovery.test.mjs
+      - name: Build existing static Pages board (free public scoreboards only)
+        run: npm run build --prefix deploy/board
+      - name: Fail closed on missing Pages credentials or assets
+        run: |
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "MISSING_ACCOUNT_ID"; exit 1; }
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo "MISSING_PAGES_TOKEN"; exit 1; }
+          test -f deploy/board/dist/index.html || { echo "MISSING_STATIC_BOARD"; exit 1; }
+          test -f 'deploy/board/functions/api/public/sports/[sport]/[date].js' || { echo "MISSING_PUBLIC_MODEL_ROUTE"; exit 1; }
+      - name: One-shot bounded Pages release (does not turn on GitHub auto-deploy)
+        run: npx wrangler pages deploy deploy/board/dist --project-name fbis --branch main --commit-hash "${GITHUB_SHA}"
