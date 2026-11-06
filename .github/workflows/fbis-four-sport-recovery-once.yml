@@ -37,12 +37,24 @@ jobs:
           node --check scripts/recover-four-sport-once.mjs
           node --test test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs test/nfl-automatic-projection-form.test.mjs test/public-four-sport-projections.test.mjs
       - name: Refresh today's free-input research projections once
-        run: node scripts/recover-four-sport-once.mjs
+        run: |
+          node scripts/recover-four-sport-once.mjs
+          cp artifacts/four-sport-recovery/receipt.json artifacts/four-sport-recovery/receipt-today.json
+      - name: Prepare next-day game cards from the same free inputs
+        env:
+          # Never double-consume the licensed KenPom feed for next-day research.
+          KENPOM_API_KEY: ""
+        run: |
+          NEXT_DATE=$(node --input-type=module -e "import {boardDate,shiftBoardDate} from './functions/lib/publicBoardSnapshot.js'; console.log(shiftBoardDate(boardDate(),1));")
+          FBIS_RECOVERY_DATE="$NEXT_DATE" node scripts/recover-four-sport-once.mjs
+          cp artifacts/four-sport-recovery/receipt.json artifacts/four-sport-recovery/receipt-next-day.json
       - name: Retain bounded, non-public job evidence
         if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
           name: fbis-four-sport-once-${{ github.run_id }}
-          path: artifacts/four-sport-recovery/receipt.json
+          path: |
+            artifacts/four-sport-recovery/receipt-today.json
+            artifacts/four-sport-recovery/receipt-next-day.json
           if-no-files-found: warn
           retention-days: 7
