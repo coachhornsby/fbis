@@ -35,6 +35,22 @@ export function verifiedFullGameDisplayBinding(offer,fixture){
  }
  return null;
 }
+/** Strict source-authored CBB 1H total binding. Never infer a period from the UI or a full-game line. */
+export function verifiedCbbFirstHalfTotalBinding(offer,fixture){
+ if(!fixture||offer?.sport!=='cbb'||offer?.marketFamily!=='total'||
+  offer?.period!=='first_half'||offer?.raw?.contractLong!==true)return null;
+ const market=offer.raw.providerMarket;
+ // Require a provider-specific first-half market type, not generic TOTAL alone.
+ if(!/first_half/.test(String(market?.sportsMarketType||'').toLowerCase()))return null;
+ const id=offer.sourceOutcomeId;
+ if(typeof id!=='string'||!id.length||id.length>160)return null;
+ const description=String(offer.raw?.providerSide?.description||offer.side||'').trim().toLowerCase();
+ const side=/^over(?:\s|$)/.test(description)?'over':/^under(?:\s|$)/.test(description)?'under':null;
+ const line=offer.line==null?NaN:Number(offer.line);
+ if(!side||!Number.isFinite(line)||line<=0||line>150||
+  Math.abs(line*2-Math.round(line*2))>1e-8||Math.round(line*2)%2!==1)return null;
+ return {version:1,contractLong:true,period:'first_half',sourceOutcomeId:id,side,line};
+}
 // Official public endpoint: https://docs.polymarket.us/api-reference/events/get-events
 export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Date.now()/60000),now=Date.now(),fetchImpl=fetch}={}){
  if(!ROSTER_SPORTS.includes(sport)||!Number.isSafeInteger(slot)||Math.abs(slot-Math.floor(now/60000))>1)throw Error('INVALID_REST_SCOPE');
@@ -59,12 +75,17 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
    // partial coverage rather than silently enlarging a job or scanning history.
    // Inspect up to 24 markets from the already bounded response; no new calls.
    // Never stage contracts with unverifiable side, threshold, or period.
-   for(const market of event.markets.slice(0,24)){
+   // Prefer source-labeled CBB first-half totals within the existing 24-market cap.
+   // No additional provider calls or increase to the bounded roster.
+   const markets=sport==='cbb'?[...event.markets].sort((a,b)=>
+    Number(/first_half/.test(String(b?.sportsMarketType||'').toLowerCase())&&String(b?.sportsMarketType||'').toLowerCase().includes('total'))-
+    Number(/first_half/.test(String(a?.sportsMarketType||'').toLowerCase())&&String(a?.sportsMarketType||'').toLowerCase().includes('total'))):event.markets;
+   for(const market of markets.slice(0,24)){
     if(!Array.isArray(market.marketSides)||market.marketSides.length>4)throw Error('PROVIDER_SIDE_CAPACITY');
     const offers=polymarketUsMarketOffers({...event,markets:[market]},sport,{canonicalId:match.id,capturedAt:new Date(now).toISOString(),maxMarkets:1});
     for(const offer of offers){
      if(!['moneyline','spread','total'].includes(offer.marketFamily))continue;
-     const displayBinding=verifiedFullGameDisplayBinding(offer,fixture);
+     const displayBinding=verifiedFullGameDisplayBinding(offer,fixture)||verifiedCbbFirstHalfTotalBinding(offer,fixture);
      if(!displayBinding)continue;
      candidates.push({sport,source_market_id:offer.sourceMarketId,canonical_event_id:match.id,market_family:offer.marketFamily,event_start_time:fixture.start,collected_at:new Date(now).toISOString(),displayBinding});
     }
