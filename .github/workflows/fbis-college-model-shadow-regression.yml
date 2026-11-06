@@ -1,0 +1,36 @@
+name: FBIS college frozen-model shadow regression — no network
+
+on:
+  pull_request:
+    paths:
+      - "scripts/github-college-model-parity.mjs"
+      - ".github/workflows/fbis-college-model-shadow-regression.yml"
+      - "docs/migration/college-archive-verification-20261106.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: "22"
+      - name: Execute existing unchanged CBB and CFB model contract tests
+        run: node --test test/cbb-projection-packet.test.mjs test/cbb-fbis-native-v1.test.js test/cfb-v2-production-cutover.test.js test/cbb-cutover-rehearsal.test.js
+      - name: Verify frozen model bytes and existing historical receipts
+        run: node scripts/github-college-model-parity.mjs
+      - name: Upload non-sensitive regression receipt only
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: fbis-college-shadow-contract-${{ github.run_id }}
+          path: artifacts/college-github-shadow/contract-report.json
+          retention-days: 7
+          if-no-files-found: warn
