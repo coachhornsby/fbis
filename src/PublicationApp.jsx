@@ -32,6 +32,7 @@ function PublicationApp(){
   const [modelPacket,setModelPacket]=useState(null);
   const [sportOffers,setSportOffers]=useState([]);
   const [exchangeQuotes,setExchangeQuotes]=useState({});
+  const [exchangeHealth,setExchangeHealth]=useState({state:'LOADING'});
   const [modelStatus,setModelStatus]=useState('IDLE');
   const url=new URL(window.location.href);
   const [sport,setSport]=useState(ACTIVE_SPORTS.includes(url.searchParams.get('sport'))?url.searchParams.get('sport'):'cbb');
@@ -91,7 +92,21 @@ function PublicationApp(){
     },20*60*1000);
     return()=>{active=false;clearInterval(timer);};
   },[date,sport]);
-  useEffect(()=>{let active=true;setExchangeQuotes({});async function read(){if(document.hidden)return;try{const r=await fetch('/api/public/exchange-quotes?'+new URLSearchParams({sport,date}),{cache:'no-store'});const v=await r.json();if(active)setExchangeQuotes(r.ok&&v.ok&&v.sport===sport&&v.date===date?v.byEvent:{});}catch{if(active)setExchangeQuotes({});}}read();const timer=setInterval(read,60000);return()=>{active=false;clearInterval(timer);};},[sport,date]);
+  useEffect(()=>{let active=true;setExchangeQuotes({});setExchangeHealth({state:'LOADING'});
+   async function read(){if(document.hidden)return;
+    try{
+     const response=await fetch('/api/public/exchange-quotes?'+new URLSearchParams({sport,date}),{cache:'no-store'});
+     const packet=await response.json();if(!active)return;
+     if(response.ok&&packet.ok&&packet.sport===sport&&packet.date===date){
+      setExchangeQuotes(packet.byEvent||{});
+      setExchangeHealth({state:'READY',sources:packet.marketSources||null,
+       counts:packet.matchedQuoteCounts||{}});
+     }else{setExchangeQuotes({});setExchangeHealth({state:packet.code==='EXCHANGE_FEED_READ_PAUSED'?'PAUSED':'UNAVAILABLE'});}
+    }catch{if(active){setExchangeQuotes({});setExchangeHealth({state:'UNAVAILABLE'});}}
+   }
+   read();const timer=setInterval(read,60000);
+   return()=>{active=false;clearInterval(timer);};
+  },[sport,date]);
   useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer);},[]);
   useEffect(()=>startScoreboardPolling({refresh:()=>refreshRef.current?.(),isVisible:()=>!document.hidden,isBusy:()=>busyRef.current,lastAttempt:()=>lastAttempt.current,listen:fn=>{document.addEventListener('visibilitychange',fn);window.addEventListener('focus',fn);return()=>{document.removeEventListener('visibilitychange',fn);window.removeEventListener('focus',fn);};}}),[]);
   const games=(board?.games||[]).filter(g=>g.sport===sport).map(g=>{const g0=clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g;const projected=overlayVerifiedResearchScores(g0,{cbbPacket:privatePacket,sportPacket:modelPacket,clock});const offers=(projected.sport==='cbb'?privateOffers:sportOffers).filter(q=>String(q.eventId||q.canonicalEventId||q.canonical_event_id||q.gameId||'')===String(projected.id));return {...projected,exchangeReferenceQuotes:exchangeQuotes[String(projected.id)]||[],recoveryVerifiedOffers:offers,...(projected.sport==='cbb'?{cbbVerifiedOffers:offers}:{})};});
@@ -109,6 +124,16 @@ function PublicationApp(){
     <nav className="publication-sports" aria-label="Sports">{ACTIVE_SPORTS.map(s=><button key={s} aria-pressed={sport===s} onClick={()=>changeSport(s)}>{s.toUpperCase()}{board&&<small>{board.games.filter(g=>g.sport===s||s==='all').length}</small>}</button>)}</nav>
     <section className="publication-controls" aria-label="Board controls"><label>Central date <input type="date" value={date} min={shiftBoardDate(boardDate(),-7)} max={shiftBoardDate(boardDate(),7)} onChange={e=>{if(e.target.value)setDate(e.target.value);}}/></label><button onClick={()=>setDate(boardDate())}>Today</button><button onClick={()=>setDate(shiftBoardDate(boardDate(),1))}>Tomorrow</button><button disabled={busy||clock-lastAttempt.current<60000} onClick={()=>refresh()}>{busy?'Refreshing sources…':'Refresh scores'}</button>{sport==='tennis'&&<label>Tour <select value={tour} onChange={e=>setTour(e.target.value)}><option value="all">ATP + WTA</option><option value="atp">ATP</option><option value="wta">WTA</option></select></label>}</section>
     <div className="publication-freshness" role="status"><b>{stale?'SAVED / STALE OR PARTIAL':'CURRENT SOURCE CAPTURE'}</b> · {games.length} games · Times shown in Central. Scores update automatically every minute while this page is visible. Captures become stale after five minutes.<br/>{feeds.map(([s,f])=><span key={s}>{s.toUpperCase()}: {f.capturedAt?new Date(f.capturedAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'unavailable'} CT{!f.ok?' · source unavailable':''}　</span>)}</div>
+    <div className="publication-freshness" role="status" aria-label="Exchange market coverage">
+     <b>EXCHANGE MARKET CAPTURE</b> · {exchangeHealth.state==='LOADING'?'Checking verified snapshot coverage…':
+      exchangeHealth.state==='PAUSED'?'Read budget or feed policy paused — missing quotes do not mean no market exists.':
+      exchangeHealth.state==='UNAVAILABLE'?'Exchange feed unavailable — missing quotes do not mean no market exists.':
+      <>
+       Kalshi: {['moneyline','spread','total','team_total'].map((family,i)=><span key={family}>{['ML','Spread','Total','Team total'][i]} {exchangeHealth.sources?.Kalshi?.[family]?.state||'UNKNOWN'}　</span>)}
+       Polymarket: {exchangeHealth.sources?.Polymarket?.state||'UNKNOWN'} ·
+       {' '}Matched references: {Object.values(exchangeHealth.counts||{}).reduce((sum,families)=>sum+Object.values(families).reduce((n,x)=>n+x,0),0)}
+      </>}
+    </div>
     {error&&<p className="publication-warning" role="alert">{error}</p>}
     {board&&!games.length&&!busy&&<p className="publication-empty">{feeds.every(([,f])=>f.ok)?'No games returned by the source for this date and filter.':'Schedule unavailable for this filter. This is not a confirmed empty slate.'}</p>}
     {sport==='cbb'&&<section className="publication-controls" aria-label="CBB projection availability" role="status">

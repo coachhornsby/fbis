@@ -37,3 +37,21 @@ test('CBB school names join exact canonical schools with paired published rules,
  assert.equal(matchedKalshiCardQuotes([g],s,null,{sport:'cbb',now}).college.length,2);
  for(const game of [{...g,start:'2026-11-08T03:30:00Z'},{...g,home_name:'Baylor Bears'},{...g,away_name:'Ospreys'}])assert.deepEqual(matchedKalshiCardQuotes([game],s,null,{sport:'cbb',now}),{});
 });
+
+test('card delivery policy permits the exact bounded R2 snapshot fanout without D1',async()=>{
+ const {CERTIFIED_EXECUTION_JOBS}=await import('../services/account-budget/executionJobs.mjs');
+ const units=CERTIFIED_EXECUTION_JOBS['functions/lib/exchangeCardDelivery.js'].units;
+ assert.equal(units.r2Reads,7); // fixture + Kalshi game + Kalshi WS + 3 line-family snapshots + Polymarket
+ assert.equal(units.d1Queries,0);
+ assert.equal(units.r2Writes,0);
+ assert.equal(units.requests,0);
+});
+
+test('a missing account-budget binding is labeled feed paused, not no market exists',async()=>{
+ const response=await onRequestGet({request:new Request('https://local/api/public/exchange-quotes?sport=cbb&date=2026-11-06'),env:{FBIS_PRIVATE_CBB:{get(){throw Error('unexpected read')}}}});
+ assert.equal(response.status,503);
+ const body=await response.json();
+ assert.equal(body.code,'EXCHANGE_FEED_READ_PAUSED');
+ assert.deepEqual(body.byEvent,{});
+ assert.equal(body.canAuthorizeWager,false);
+});
