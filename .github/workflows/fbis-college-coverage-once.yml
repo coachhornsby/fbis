@@ -1,0 +1,52 @@
+name: FBIS college 16-endpoint coverage audit — one-time
+
+on:
+  pull_request:
+    paths:
+      - "scripts/github_college_coverage.py"
+      - "test/github_college_coverage_test.py"
+      - ".github/workflows/fbis-college-coverage-once.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fbis-college-coverage-once.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-college-coverage-one-shot
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      CFBD_CBBD_KEY: ${{ github.event_name != 'pull_request' && (secrets.CFBD_CBBD_KEY || secrets.CFBD_API_KEY || secrets.CBBD_API_KEY) || '' }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Test bounded requests and completeness decision
+        run: python -m unittest discover -s test -p github_college_coverage_test.py -v
+      - name: Require existing secret
+        if: github.event_name != 'pull_request'
+        run: |
+          test -n "$CFBD_CBBD_KEY" || { echo "::error::CFBD_CBBD_KEY missing"; exit 2; }
+      - name: Inspect 16 bounded college provider endpoints; report gaps
+        if: github.event_name != 'pull_request'
+        run: python scripts/github_college_coverage.py
+      - name: Upload only source-neutral coverage metrics, never raw provider records
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: fbis-college-coverage-${{ github.run_id }}
+          path: |
+            artifacts/college-coverage-audit/coverage-report.json
+            artifacts/college-coverage-audit/coverage-summary.md
+          retention-days: 7
+          if-no-files-found: warn
