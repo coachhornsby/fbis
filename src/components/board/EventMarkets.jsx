@@ -28,7 +28,7 @@ export default function EventMarkets({game}){
   catch(e){if(!cancelled()){setSnapshot(null);setError(e.message||'Exchange snapshots unavailable');}}
   finally{if(!cancelled())setLoading(false);}
  };
- useEffect(()=>{if(!open||!validScope)return;let stopped=false;request(false,()=>stopped);return()=>{stopped=true;};},[open,id,sport,date,validScope]);
+ useEffect(()=>{if(!open||!validScope)return;let stopped=false;setSnapshot(null);request(false,()=>stopped);return()=>{stopped=true;};},[open,id,sport,date,validScope]);
  const rows=useMemo(()=>exchangeGameMarkets(snapshot,game),[snapshot,game]);
  const selected=rows.filter(r=>(venue==='all'||r.venue===(venue==='poly'?'Polymarket US':'Kalshi'))&&r.period===period&&(family==='all'||r.family===family));
  const venues=venue==='all'?['Kalshi','Polymarket US']:[venue==='poly'?'Polymarket US':'Kalshi'];
