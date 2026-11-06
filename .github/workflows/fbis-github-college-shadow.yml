@@ -40,7 +40,7 @@ jobs:
     timeout-minutes: 6
     env:
       PYTHONDONTWRITEBYTECODE: "1"
-      CFBD_CBBD_KEY: ${{ github.event_name == 'workflow_dispatch' && secrets.CFBD_CBBD_KEY || '' }}
+      CFBD_CBBD_KEY: ${{ github.event_name == 'workflow_dispatch' && secrets.CFBD_CBBD_KEY || secrets.CFBD_API_KEY || secrets.CBBD_API_KEY || '' }}
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-python@v5.6.0
