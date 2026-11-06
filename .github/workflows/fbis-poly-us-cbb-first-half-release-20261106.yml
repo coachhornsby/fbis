@@ -25,7 +25,7 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify source and budget-limited runtime
         run: |
-          node --test test/polymarket-us-cbb-first-half-route.test.mjs test/polymarket-bounded-session.test.mjs test/polymarket-rest-boundary.test.mjs test/exchange-family-binding.test.mjs test/exchange-card-delivery.test.mjs
+          node --test test/polymarket-cbb-1h-roster-priority.test.mjs test/polymarket-us-cbb-first-half-route.test.mjs test/polymarket-bounded-session.test.mjs test/polymarket-rest-boundary.test.mjs test/exchange-family-binding.test.mjs test/exchange-card-delivery.test.mjs
           node --check services/polymarket-rest-collector/worker.mjs
           node --check services/polymarket-us-stream/boundedWorker.mjs
       - name: Check Cloudflare credentials and static assets
@@ -37,6 +37,8 @@ jobs:
         run: npm run build --prefix deploy/board
       - name: Release existing Polymarket REST collector
         run: npx wrangler deploy --config wrangler.polymarket-rest-collector.toml --keep-vars
+      - name: Release existing Polymarket roster publisher (same limits and cadence)
+        run: npx wrangler deploy --config wrangler.polymarket-roster-publisher.toml --keep-vars
       - name: Release existing Polymarket bounded market stream
         run: npx wrangler deploy --config wrangler.polymarket-us-stream.toml --keep-vars
       - name: Publish existing Pages board once
