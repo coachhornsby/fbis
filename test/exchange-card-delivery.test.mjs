@@ -20,3 +20,12 @@ test('public read fails closed before storage when scope or admission is invalid
  assert.equal((await onRequestGet({request:request('sport=bad&date=2026-11-06'),env})).status,400);
  assert.equal((await onRequestGet({request:request('sport=nba&date=2026-11-06'),env})).status,503);assert.equal(reads,0);
 });
+
+test('NBA city labels require exact paired settlement rules, same local game date and explicit team aliases',()=>{
+ const g={id:'today',home_name:'Sacramento Kings',away_name:'San Antonio Spurs',home_abbr:'SAC',away_abbr:'SA',start:'2026-11-07T03:00:00Z'};
+ const make=(city,suffix)=>({...market,ticker:'KXNBAGAME-26NOV06SASSAC-'+suffix,eventTicker:'KXNBAGAME-26NOV06SASSAC',title:city+' wins',yesLabel:city,occurrenceAt:'2026-11-07T06:00:00Z',rulesPrimary:'If '+city+' wins the San Antonio vs Sacramento Pro Basketball game originally scheduled for Nov 6, 2026, then the market resolves to Yes.'});
+ const records=[make('San Antonio','SAS'),make('Sacramento','SAC')],s={...snapshot,records};
+ assert.equal(matchedKalshiCardQuotes([g],s,null,{sport:'nba',now}).today.length,2);
+ for(const fixtures of [[{...g,start:'2026-11-08T03:00:00Z'}],[{...g,away_abbr:'LAL'}],[g,{...g,id:'duplicate'}]])assert.deepEqual(matchedKalshiCardQuotes(fixtures,s,null,{sport:'nba',now}),{});
+ assert.deepEqual(matchedKalshiCardQuotes([g],{...s,records:records.slice(0,1)},null,{sport:'nba',now}),{});
+});
