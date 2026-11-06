@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {verifiedCbbFirstHalfTotalBinding,verifiedFullGameDisplayBinding} from '../services/polymarket-rest-collector/collector.mjs';
+import {verifiedCbbFirstHalfTotalBinding,verifiedFullGameDisplayBinding,collectBoundedPolymarketRest} from '../services/polymarket-rest-collector/collector.mjs';
 import {validateStreamRoster} from '../services/polymarket-us-stream/boundedSession.mjs';
 import {polymarketUsMarketOffers} from '../functions/lib/polymarketUs.js';
 import {exchangeGameMarkets} from '../src/lib/exchangeMarketExplorer.js';
@@ -73,4 +73,40 @@ test('verified opposite-side metadata admits a single US instrument for both sid
  const missing=selectBoundedPolymarketOffers({...snapshot,quotes:[{...snapshot.quotes[0],bestBid:null}]},
    [{id:game.id,sport:'cbb',start:game.start}],'cbb');
  assert.equal(missing.byId.get(game.id)?.length,1);
+});
+
+test('bounded CBB collector gets full event-by-slug markets with existing four-call limit',async()=>{
+ const {CERTIFIED_EXECUTION_JOBS,POLY_REST_JOB}=await import('../services/account-budget/executionJobs.mjs');
+ const manifest={version:1,source:'FBIS_COLLECTED_SLATE',sport:'cbb',
+  capturedAt:new Date(now).toISOString(),expiresAt:new Date(now+3600000).toISOString(),
+  providerTags:['cbb'],fixtures:[game]};
+ const eventSlug='cbb-yngst-ohiost-2026-11-06';
+ const one={...event,slug:eventSlug,markets:[{
+   slug:'cbb-yngst-ohiost-moneyline',sportsMarketType:'basketball_team_full_game_winner',
+   sportsMarketTypeV2:'SPORTS_MARKET_TYPE_MONEYLINE',marketSides:[{id:'ml-side',description:game.home_name,long:true,team:{name:game.home_name}}]
+ }]};
+ const detailed={...one,markets:[{
+   slug:'cbb-yngst-ohiost-1h-tot-72-5',sportsMarketType:'basketball_team_first_half_total',
+   sportsMarketTypeV2:'SPORTS_MARKET_TYPE_TOTAL',line:72.5,
+   marketSides:[{id:'yes-1',description:'Over',long:true},{id:'no-1',description:'Under',long:false}]
+ }]};
+ let calls=0,writes=0;
+ const env={CLOUDFLARE_ACCOUNT_ID:'test',FBIS_ACCOUNT_BUDGET:{getByName:()=>({
+  reserve:async({job})=>({allowed:true,maxUnits:CERTIFIED_EXECUTION_JOBS[job].units,expiresAtMs:Date.now()+120000})
+ })},ARCHIVE:{head(){},async get(){const data=JSON.stringify(manifest);return {size:Buffer.byteLength(data),body:new Response(data).body};},
+  async put(){writes++;return {etag:'saved'};}}};
+ const result=await collectBoundedPolymarketRest(env,{sport:'cbb',slot:Math.floor(now/60000),now,
+  fetchImpl:async request=>{
+   calls++;const u=new URL(request);
+   assert.equal(u.pathname,'/v1/events');
+   if(u.searchParams.has('slug')){
+    assert.equal(u.searchParams.get('slug'),eventSlug);
+    return Response.json({events:[detailed]});
+   }
+   return Response.json({events:[one]});
+  }});
+ assert.ok(calls<=4);assert.equal(calls,2);
+ assert.equal(writes,1);
+ assert.ok(result.selected.some(r=>r.market_family==='total'&&r.displayBinding.period==='first_half'&&r.displayBinding.oppositeSide==='under'));
+ assert.equal(result.receipt.complete,false);
 });
