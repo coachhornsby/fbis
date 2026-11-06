@@ -194,3 +194,28 @@ test('soccer binary home/draw/away exchange contracts use exact fixture team map
   home:{name:'Another Home'},away:{name:'Away FC'}}],'soccer',{now:new Date('2026-10-25T18:00:00Z'),fullGameOnly:true});
  assert.notEqual(unverified.byId.get('match')[0].side,'home');
 });
+
+test('neutral-site CBB legacy home label cannot assert provider-verified side or price',async()=>{
+ const at='2026-11-06T18:30:43Z';
+ const db={prepare(){return{bind(){return{all:async()=>({results:[{
+   canonical_event_id:'cbb-mich-uconn',sport:'cbb',source:'Polymarket US WebSocket',
+   market_family:'moneyline',period:'full_game',side:'home',contract_price:.26,
+   source_market_id:'1913884',source_outcome_id:'3827230',
+   event_start_time:'2026-11-07T01:00:00Z',
+   source_observed_at:at,collected_at:'2026-11-06T18:31:00Z',
+   raw_payload_json:JSON.stringify({canonicalSide:'home',providerSide:{team:{name:'Michigan'}},
+      providerMarketId:'1913884',providerOutcomeId:'3827230',
+      bestAsk:.26,quoteKind:'WS_LIVE_BBO_UNVERIFIED_FILL',
+      contractBindingVerified:true,sourceObservedAt:at})
+ }]})}}}}};
+ const fixture={id:'cbb-mich-uconn',home_name:'Michigan Wolverines',
+   away_name:'UConn Huskies',neutralSite:true};
+ const res=await loadPolymarketUsBoardOffers(db,[fixture],'cbb',{
+   now:new Date('2026-11-06T18:32:00Z')});
+ const offer=res.byId.get(fixture.id)[0];
+ assert.equal(offer.side,'Michigan');
+ assert.equal(offer.identityVerified,false);
+ assert.equal(offer.providerTimestampVerified,false);
+ assert.equal(offer.canQualify,false);
+ assert.equal(offer.canAuthorizeWager,false);
+});
