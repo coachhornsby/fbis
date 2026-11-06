@@ -29,6 +29,8 @@ jobs:
           node-version: "22"
       - name: Validate no-sign-in model publication and unchanged private gates
         run: |
+          node --check deploy/board/functions/_middleware.js
+          node --test test/retired-provider-policy.test.js test/retired-provider-pages.test.mjs test/odds-provider-router.test.js
           node --check functions/lib/publicFourSportProjection.js
           node --check src/lib/publicSportAuto.js
           node --check 'deploy/board/functions/api/public/sports/[sport]/[date].js'
