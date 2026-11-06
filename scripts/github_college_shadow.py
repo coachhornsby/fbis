@@ -30,7 +30,7 @@ def validate(year: int, week: int, team: str) -> None:
 def jobs(year: int, week: int, team: str):
     # CFBD uses a calendar season year; CBBD uses the ENDING year of the season.
     return [
-        ("cfbd", "/games", {"year": str(year), "week": str(week)}),
+        ("cfbd", "/games", {"year": str(year), "week": str(week), "team": "Texas"}),
         ("cbbd", "/games", {"season": str(year + 1), "team": team}),
     ]
 
