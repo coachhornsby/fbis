@@ -1,4 +1,4 @@
-import {loadCbbSnapshot,clearCbbSnapshot} from './lib/privateCbbAuto.js';
+import {loadCbbCardSummary} from './lib/cbbCardAuto.js';
 import PrivateSportProjection from './components/board/PrivateSportProjection.jsx';
 import {loadPublicSportSnapshot,clearPublicSportSnapshot} from './lib/publicSportAuto.js';
 import {privateFourSportProjectionFor} from '../functions/lib/privateFourSportProjection.js';
@@ -60,12 +60,11 @@ function PublicationApp(){
   }
   refreshRef.current=()=>refresh(date);
   useEffect(()=>{const u=new URL(location.href);u.searchParams.set('date',date);u.searchParams.set('sport',sport);history.replaceState({},'',u);refresh(date,true);return()=>{generation.current++;active.current?.abort();};},[date]);
-  // The current CBB packet is derived from licensed KenPom ratings. Never place
-  // that private packet on the anonymous board without verified display rights.
+  // Read only the owner-authorized minimal CBB score summary; no raw input packet.
   useEffect(()=>{
     let active=true;setPrivatePacket(null);setPrivateOffers([]);setPrivateStatus('LOADING');
     if(sport!=='cbb')return;
-    loadCbbSnapshot(date).then(r=>{if(active){setPrivatePacket(r.packet);setPrivateOffers(r.offers);setPrivateStatus('LOADED');}}).catch(e=>{if(active)setPrivateStatus(e.message||'PRIVATE_DATA_UNAVAILABLE');});
+    loadCbbCardSummary(date).then(r=>{if(active){setPrivatePacket(r.packet);setPrivateOffers(r.offers);setPrivateStatus('LOADED');}}).catch(e=>{if(active)setPrivateStatus(e.message||'PRIVATE_DATA_UNAVAILABLE');});
     return()=>{active=false;};
   },[date,sport]);
   useEffect(()=>{
@@ -105,7 +104,7 @@ function PublicationApp(){
   return <main className="publication-shell fbis-shell-main route-board">
     <header className="publication-header"><a href="/" aria-label="FBIS home" className="publication-logo">FBIS<span>FASTWATER BETTING INTELLIGENCE</span></a><span className="publication-stage">FBIS PUBLIC BOARD · AUTOMATIC MODEL SCORES</span></header>
     <PublicScoreTicker games={(board?.games||[]).filter(g=>ACTIVE_SPORTS.includes(g.sport))} clock={clock} busy={busy}/>
-    <section className="publication-notice" aria-label="Four sport recovery status"><strong>CBB, NFL, NBA and CFB are the active recovery sports.</strong><p>Schedules and observed scores come from ESPN. Available, verified FBIS-owned research projections for NFL, NBA and CFB appear automatically on matching game cards without sign-in. The KenPom-based CBB packet remains private pending publication rights; CBB forecasts are not shown publicly. Missing or expired projections stay unavailable. Bounded Kalshi and Polymarket market reads are enabled. Exchange quotes are reference prices; wagering remains disabled.</p></section>
+    <section className="publication-notice" aria-label="Four sport recovery status"><strong>CBB, NFL, NBA and CFB are the active recovery sports.</strong><p>Schedules and observed scores come from ESPN. Available, verified FBIS-owned research projections for NFL, NBA and CFB appear automatically on matching game cards without sign-in. CBB scores use current KenPom ratings and the FBIS formula, labeled provisional research. Raw ratings and API keys stay server-side. Missing or expired projections stay unavailable. Bounded Kalshi and Polymarket market reads are enabled. Exchange quotes are reference prices; wagering remains disabled.</p></section>
     {!privatePacket&&privateStatus==='NO_CBB_SNAPSHOT'&&sport==='cbb'&&<CbbReadiness date={date} clock={clock}/>}
     <nav className="publication-sports" aria-label="Sports">{ACTIVE_SPORTS.map(s=><button key={s} aria-pressed={sport===s} onClick={()=>changeSport(s)}>{s.toUpperCase()}{board&&<small>{board.games.filter(g=>g.sport===s||s==='all').length}</small>}</button>)}</nav>
     <section className="publication-controls" aria-label="Board controls"><label>Central date <input type="date" value={date} min={shiftBoardDate(boardDate(),-7)} max={shiftBoardDate(boardDate(),7)} onChange={e=>{if(e.target.value)setDate(e.target.value);}}/></label><button onClick={()=>setDate(boardDate())}>Today</button><button onClick={()=>setDate(shiftBoardDate(boardDate(),1))}>Tomorrow</button><button disabled={busy||clock-lastAttempt.current<60000} onClick={()=>refresh()}>{busy?'Refreshing sources…':'Refresh scores'}</button>{sport==='tennis'&&<label>Tour <select value={tour} onChange={e=>setTour(e.target.value)}><option value="all">ATP + WTA</option><option value="atp">ATP</option><option value="wta">WTA</option></select></label>}</section>
@@ -113,14 +112,13 @@ function PublicationApp(){
     {error&&<p className="publication-warning" role="alert">{error}</p>}
     {board&&!games.length&&!busy&&<p className="publication-empty">{feeds.every(([,f])=>f.ok)?'No games returned by the source for this date and filter.':'Schedule unavailable for this filter. This is not a confirmed empty slate.'}</p>}
     {sport==='cbb'&&<section className="publication-controls" aria-label="CBB projection availability" role="status">
-      <span>CBB: public independent FBIS forecasts unavailable. The current KenPom-derived recovery packet cannot be published without verified permission.</span>
+      <span>{privatePacket?`${privateMatched} CBB research projections matched · KenPom ratings / FBIS formula · provisional`:'CBB projection output is loading or unavailable. Missing inputs stay blank.'}</span>
     </section>}
     {sport!=='cbb'&&<section className="publication-controls" aria-label="Private sport projections" role="status">
       <span>{modelPacket?`${modelMatches} verified ${sport.toUpperCase()} research projections matched to game cards on ${date} · ${clock>=Date.parse(modelPacket.expiresAt)?'HISTORICAL / EXPIRED':'RESEARCH ONLY'}`:modelStatus==='LOADING'?`Checking public ${sport.toUpperCase()} model snapshot…`:modelStatus==='NO_PUBLIC_MODEL_SNAPSHOT'?`No generated ${sport.toUpperCase()} model snapshot for ${date}`:`Current ${sport.toUpperCase()} model output unavailable.`}</span>
     </section>}
-    {sport==='cbb'&&!privatePacket&&<section className="publication-controls" role="status"><strong>{privateStatus==='PRIVATE_SIGN_IN_REQUIRED'?'Sign in to view your private CBB projections':privateStatus==='NO_CBB_SNAPSHOT'?'Today’s CBB projection packet is unavailable':'Checking private CBB projection access'}</strong>{privateStatus==='PRIVATE_SIGN_IN_REQUIRED'&&<a href={'/api/private/cbb/'+date} target="_blank" rel="noreferrer">Open owner sign-in</a>}</section>}
     <section aria-label="Game cards"><DecisionBoard compactRecovery clock={clock} key={date+sport} games={games} renderCardExtra={g=>g.sport==='cbb'?null:<PrivateSportProjection game={g} packet={modelPacket} clock={clock}/>}/></section>
-    <footer className="publication-footer">Four priority sports: CBB, NFL, NBA and CFB. Live scores use bounded ESPN requests; public FBIS-owned model summaries come from private R2 through a sanitized anonymous read route, never D1. KenPom-derived CBB forecasts remain private; player props, wagers and broad provider collectors remain paused. Bounded exchange market reads and private research refresh are active; no model is an approved wager.</footer>
+    <footer className="publication-footer">Four priority sports: CBB, NFL, NBA and CFB. Live scores use bounded ESPN requests; public FBIS-owned model summaries come from private R2 through a sanitized anonymous read route, never D1. CBB cards show derived research scores; raw provider inputs stay server-side; player props, wagers and broad provider collectors remain paused. Bounded exchange market reads and private research refresh are active; no model is an approved wager.</footer>
   </main>;
 }
 createRoot(document.getElementById('root')).render(<PublicationApp/>);

@@ -1,3 +1,4 @@
+import {createExecutionLease} from '../services/account-budget/execution.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {reserveJob,requireJobAdmission} from '../services/account-budget/admission.mjs';
@@ -38,4 +39,13 @@ test('unit limit stops work even with remaining dollars',async()=>{
 test('storage failure propagates and never permits execution',async()=>{
  await assert.rejects(()=>reserveJob({transaction:async()=>{throw Error('offline')}},
  policy(),{job:'collect',id:'x'},now),/offline/);
+});
+
+test('issued lease survives a coordinator clock ahead of the collector without extending the execution ceiling',async()=>{
+ const p={...policy(),expiresAtMs:now+900000};
+ const grant=await reserveJob(store(),p,{job:'collect',id:'clock-headroom'},now+2000);
+ assert.equal(grant.allowed,true);
+ const lease=createExecutionLease(grant,{now:()=>now});
+ assert.ok(lease.expiresAtMs-now<=120000);
+ assert.throws(()=>createExecutionLease({...grant,expiresAtMs:now+122000},{now:()=>now}),/INVALID_EXECUTION_LEASE/);
 });
